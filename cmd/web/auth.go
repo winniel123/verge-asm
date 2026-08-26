@@ -123,7 +123,10 @@ func (s *server) requireAdmin(h authedHandler) http.HandlerFunc {
 // requireAdmin gate, so this is the one surface that swaps the copy.
 func (s *server) requireSettingsAdmin(h authedHandler) http.HandlerFunc {
 	return s.requireLogin(func(w http.ResponseWriter, r *http.Request, acct db.Account) {
-		if acct.Role != roleAdmin {
+		// The API access tab is the one Settings surface a viewer may READ (WORK-ORDER
+		// 390-391 §390: a viewer sees the read-only state + note, no toggle). Every other
+		// tab stays admin-only, refused with the richer settings-forbidden page.
+		if acct.Role != roleAdmin && validTab(r.URL.Query().Get("tab")) != "api" {
 			s.settingsForbidden(w, r, acct)
 			return
 		}
@@ -2261,8 +2264,12 @@ func isoDate(ts pgtype.Timestamptz) string {
 // fabricated recency. profileRelTime reads the injectable clock, so a VERGE_DEV build (clock
 // pinned to the fixture instant) renders the fixture's tokens exactly.
 func lastUsed(ts pgtype.Timestamptz, now time.Time) string {
+	// A never-used token has a NULL last_used_at (#390, v3.18.0): return empty so the
+	// frozen profile.tmpl renders its "never" branch ({{if .Last}}…{{else}}never{{end}}),
+	// not a spurious relative token. last_used_at is written coarsened by the /api/v1
+	// bearer path (A2); until a token is used it stays NULL.
 	if !ts.Valid {
-		return "—"
+		return ""
 	}
 	return profileRelTime(ts.Time, now)
 }

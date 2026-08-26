@@ -272,6 +272,10 @@ type Querier interface {
 	// the current HTTP identity and split the key into its Name and Service legs.
 	// Reads through the live-tier gate (#237).
 	GetEndpointSubject(ctx context.Context, arg GetEndpointSubjectParams) (GetEndpointSubjectRow, error)
+	// The single operator-global row seeded by the migration; it always exists. Both
+	// feature clusters (#390 API surfaces, #391 backup & updates) read their flags and
+	// cached facts through this one row.
+	GetInstanceConfig(ctx context.Context) (GetInstanceConfigRow, error)
 	// The instance-health tab's live database facts (#633, WORK-ORDER-DOGFOOD-R1 item 3):
 	// the size of this deployment's database and its Postgres server version, read straight
 	// off the running server — pg_database_size over the current database, and the
@@ -1062,6 +1066,10 @@ type Querier interface {
 	// Admin revocation of any single session by id, not owner-scoped — gated by
 	// requireAdmin at the handler, never reachable by a viewer. Idempotent.
 	RevokeSessionByIDForAdmin(ctx context.Context, arg RevokeSessionByIDForAdminParams) error
+	// Flip the read-only /api/v1 surface on or off, stamping who acted and when so the
+	// settings card can render the dated act of the current state (#390). Off by default;
+	// a minted token stays inert until this is true.
+	SetAPIEnabled(ctx context.Context, arg SetAPIEnabledParams) error
 	// Set, replace or clear the secret. A NULL clears it; the value is written and
 	// never read back.
 	SetChannelSecret(ctx context.Context, arg SetChannelSecretParams) error
@@ -1075,6 +1083,13 @@ type Querier interface {
 	// Scoped to a still-'fanned-out' dispatch so a second submit or a natural conclusion
 	// cannot overwrite a recorded terminal status.
 	SetDispatchStatus(ctx context.Context, arg SetDispatchStatusParams) error
+	// Record the last backup taken from the UI (#391): its instant (now()) and byte size,
+	// surfaced on the Backup card.
+	SetLastBackup(ctx context.Context, lastBackupSize pgtype.Int8) error
+	// Record the last result of the worker's best-effort release check (#391): the state
+	// (current | newer | disabled) and, for a "newer", the latest version and notes. The
+	// check instant is stamped now(), so a "checked N ago" reads honestly.
+	SetReleaseCache(ctx context.Context, arg SetReleaseCacheParams) error
 	// Set, replace or clear the secret. A NULL clears it (a public PKCE-only client); the
 	// value is written and never read back through any interface query.
 	SetSSOProviderSecret(ctx context.Context, arg SetSSOProviderSecretParams) error
@@ -1086,6 +1101,9 @@ type Querier interface {
 	// the handler could let both pass; this conditional UPDATE cannot (RFC 6238 §5.2).
 	SetTOTPLastStep(ctx context.Context, arg SetTOTPLastStepParams) (int64, error)
 	SetTOTPSecret(ctx context.Context, arg SetTOTPSecretParams) error
+	// Opt the worker's daily release-feed check in or out, stamping who acted and when
+	// (#391). While false the worker never dispatches the check — air-gap-safe.
+	SetUpdateCheckEnabled(ctx context.Context, arg SetUpdateCheckEnabledParams) error
 	// The worker records the round-trip time of the prober connect that pinned the
 	// host key (P0.5, SPEC-CHANGE.md collision #7). Stored in whole milliseconds — the
 	// unit the Dashboard renders — and set only from a real measurement, never a

@@ -79,11 +79,15 @@ func seedProfileFixtureIntoFake(t *testing.T, f *fakeStore, accountID int64, clo
 		if derr != nil {
 			t.Fatalf("parse token created: %v", derr)
 		}
+		lastUsedAt := pgtype.Timestamptz{Time: clock.Add(-pt.lastOffset), Valid: true}
+		if pt.lastNull {
+			lastUsedAt = pgtype.Timestamptz{}
+		}
 		f.personalTokens = append(f.personalTokens, db.PersonalToken{
 			ID: int64(i + 1), AccountID: accountID, Name: pt.name, Prefix: pt.prefix,
 			TokenHash:  "seed-token-" + strconv.Itoa(i),
 			CreatedAt:  pgtype.Timestamptz{Time: created, Valid: true},
-			LastUsedAt: pgtype.Timestamptz{Time: clock.Add(-pt.lastOffset), Valid: true},
+			LastUsedAt: lastUsedAt,
 		})
 	}
 	f.tokenNextID = int64(len(devProfileTokens) + 1)
@@ -115,6 +119,8 @@ func TestProfileFixtureRendersAgainstPinnedClock(t *testing.T) {
 		// Tokens: names, non-secret prefixes, date-only created, bare relative last-used.
 		"laptop-cli", "grafana-readonly", "vg_pat_9f3k…", "vg_pat_x81m…",
 		"2026-05-02", "2026-07-19", "14d</td>",
+		// ci-export (#390): a never-used token — NULL last_used_at renders "never".
+		"ci-export", "vg_pat_r55q…", ">never</span>",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("profile fixture render missing %q; body: %s", want, got)

@@ -194,7 +194,13 @@ func TestProfileFixtureMatchesPackage(t *testing.T) {
 			t.Errorf("token[%d] drift: fixtures.json = {%q,%q,%q,%q}, seeder = {%q,%q,%q,%q}",
 				i, want.Name, want.Prefix, want.Created, want.Last, got.name, got.prefix, got.created, got.last)
 		}
-		if rel := profileRelTime(clock.Add(-got.lastOffset), clock); rel != want.Last {
+		// A never-used token (fixtures.json last:null → "", #390) seeds a NULL last_used_at
+		// and renders "never" — there is no relative token to reproduce.
+		if want.Last == "" {
+			if !got.lastNull {
+				t.Errorf("token[%d] %q has null fixture last but seeder lastNull=false", i, want.Name)
+			}
+		} else if rel := profileRelTime(clock.Add(-got.lastOffset), clock); rel != want.Last {
 			t.Errorf("token[%d] last-used drift: profileRelTime(clock-%s) = %q, want %q", i, got.lastOffset, rel, want.Last)
 		}
 		if _, err := time.Parse("2006-01-02", got.created); err != nil {

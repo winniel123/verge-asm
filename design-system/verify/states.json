@@ -713,6 +713,25 @@
         "session": "admin",
         "js": "",
         "crop": "body"
+      },
+      {
+        "id": "api",
+        "route": "/settings?tab=api",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "api-viewer",
+        "route": "/settings?tab=api",
+        "session": "viewer",
+        "js": ""
+      },
+      {
+        "id": "api-enabled",
+        "route": "/settings?tab=api",
+        "session": "admin",
+        "js": "var f=document.querySelector('form[action=\"/settings/api\"]'); if(f) f.querySelector(\"button\").click();",
+        "delay": 900
       }
     ]
   },
