@@ -1,0 +1,119 @@
+{{/*
+  DESIGN-OWNED ARTIFACT — search.tmpl · package v3.12.0 · WORKFLOW.md v4
+  Source of truth: examples/console/SearchResults.jsx · shot 20. Replaces templates_search.go
+  (define "search" kept; new "hisegs"). "sevbadge" (signals.tmpl) reused — one parse set.
+  Holes: .Query .Total .Assets[{Href,NameSegs,Type,Severity,SevLabel}] .Signals[{Href,Severity,
+  SevLabel,RuleSegs,SubjectSegs}] .Batches[{Href,Status,LabelSegs}] .Docs[{TitleSegs,SnipSegs}].
+  Reconciliations (SPEC-CHANGE #25, ruled): matched terms render highlighted per the spec — every
+  matched text is a segment list [{Text,Hit}] via the "hisegs" define; the handler splits each
+  field on the first case-insensitive match (#25a). Asset rows gain nullable .Severity/.SevLabel
+  rendering the landed sevbadge (#25b — the repo rows dropped it). The leading input icon drops —
+  the spec's mono Input carries none (#25c). GET /search?q= skeleton kept; doc rows stay
+  non-navigating; batch rows keep the BatchStatus chip (running pulses).
+*/}}
+{{define "hisegs"}}{{range .}}{{if .Hit}}<span style="color:var(--link);font-weight:600">{{.Text}}</span>{{else}}{{.Text}}{{end}}{{end}}{{end}}
+
+{{define "search"}}{{template "head" .}}
+{{template "chrome" .}}
+<style>
+@keyframes se-pulse { 0% { box-shadow: 0 0 0 0 rgba(3, 122, 192, 0.35); } 70% { box-shadow: 0 0 0 6px rgba(3, 122, 192, 0); } 100% { box-shadow: 0 0 0 0 rgba(3, 122, 192, 0); } }
+.se-main { max-width: 900px; margin: 0 auto; padding: 32px; display: flex; flex-direction: column; gap: 20px; }
+.se-main h1 { margin: 0; font: 600 21px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.se-q { display: flex; align-items: center; height: 36px; padding: 0 12px; background: var(--surface); border: 1px solid var(--border-default); border-radius: 12px; transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); }
+.se-q:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 18%, transparent); }
+.se-q input { flex: 1; min-width: 0; border: none; outline: none; background: transparent; color: var(--text-ink); font: 400 12.5px var(--font-mono); }
+.se-count { font: 400 12px var(--font-mono); color: var(--text-muted); }
+.se-card { background: var(--surface); border: 1px solid var(--border-default); border-radius: 16px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; }
+.se-cardhead { display: flex; flex-direction: column; gap: 3px; padding: 10px 18px 0; }
+.se-micro { font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.se-cardhead h3 { margin: 0; font: 600 15px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.se-body { padding: 10px; display: flex; flex-direction: column; }
+.se-row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 8px; border-radius: 8px; text-decoration: none; color: inherit; font-family: var(--font-ui); transition: background var(--dur-fast) var(--ease-out); }
+a.se-row:hover { background: var(--surface-sunken); }
+.se-row .ic { color: var(--text-muted); flex: none; display: inline-flex; }
+.se-row .name { font: 500 12.5px var(--font-mono); color: var(--text-ink); }
+.se-row .text { font: 500 12.5px var(--font-ui); color: var(--text-ink); min-width: 0; }
+.se-row .asset { margin-left: auto; font: 400 11.5px var(--font-mono); color: var(--text-muted); }
+.se-row .chev { margin-left: auto; color: var(--text-muted); flex: none; display: inline-flex; }
+.se-row .doc { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.se-row .doctitle { font: 500 12.5px var(--font-ui); color: var(--text-ink); }
+.se-row .docsnip { font: 400 11.5px var(--font-ui); color: var(--text-muted); }
+.se-tag { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 8px; background: var(--surface-sunken); border: 1px solid var(--border-default); color: var(--text-secondary); font-family: var(--font-mono); font-size: 11.5px; white-space: nowrap; }
+.se-batch { display: inline-flex; align-items: center; gap: 6px; height: 20px; padding: 0 8px; border-radius: 8px; border: 1px solid transparent; font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; white-space: nowrap; line-height: 1; }
+.se-batch .dot { width: 5px; height: 5px; border-radius: 999px; flex: none; background: currentColor; }
+.se-batch.scheduled { background: var(--surface-sunken); border-color: var(--border-default); color: var(--text-secondary); }
+.se-batch.complete { background: var(--ok-soft); border-color: var(--ok-border); color: var(--ok); }
+.se-batch.running { background: var(--accent-soft); color: var(--link); }
+.se-batch.running .dot { background: var(--accent); animation: se-pulse 1.8s var(--ease-out) infinite; }
+.se-batch.failed { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
+.se-batch .scope { font-weight: 400; opacity: 0.8; }
+.se-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 48px 0; font-family: var(--font-ui); }
+.se-empty .ico { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 999px; background: var(--accent-softer); border: 1px solid var(--accent-soft); color: var(--accent); margin-bottom: 8px; }
+.se-empty .msg { font: 600 14px var(--font-ui); color: var(--text-ink); }
+.se-empty .det { font: 400 13px/1.5 var(--font-ui); color: var(--text-secondary); max-width: 380px; }
+</style>
+<main class="se-main" data-screen-label="Search results">
+<header style="display:flex;flex-direction:column;gap:12px">
+<h1>Search</h1>
+<form method="get" action="/search" style="margin:0">
+<span class="se-q"><input type="text" name="q" value="{{.Query}}" placeholder="Assets, signals, batches, docs" autofocus spellcheck="false" autocomplete="off" aria-label="Search"></span>
+</form>
+<span class="se-count">{{.Total}} results{{if .Query}} for “{{.Query}}”{{end}}</span>
+</header>
+{{if eq .Total 0}}
+<div class="se-empty">
+<span class="ico"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg></span>
+<span class="msg">Nothing matches.</span>
+<span class="det">Try a hostname fragment, a signal phrase, or a batch timestamp.</span>
+</div>
+{{end}}
+{{if .Assets}}
+<section class="se-card">
+<div class="se-cardhead"><span class="se-micro">{{len .Assets}} match{{if ne (len .Assets) 1}}es{{end}}</span><h3>Assets</h3></div>
+<div class="se-body">
+{{range .Assets}}<a class="se-row" href="{{.Href}}">
+<span class="ic"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"></rect><rect width="20" height="8" x="2" y="14" rx="2" ry="2"></rect><line x1="6" x2="6.01" y1="6" y2="6"></line><line x1="6" x2="6.01" y1="18" y2="18"></line></svg></span>
+<span class="name">{{template "hisegs" .NameSegs}}</span>
+<span class="se-tag">{{.Type}}</span>
+{{if .Severity}}{{template "sevbadge" .}}{{end}}
+<span class="chev"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg></span>
+</a>{{end}}
+</div>
+</section>
+{{end}}
+{{if .Signals}}
+<section class="se-card">
+<div class="se-cardhead"><span class="se-micro">{{len .Signals}} open</span><h3>Signals</h3></div>
+<div class="se-body">
+{{range .Signals}}<a class="se-row" href="{{.Href}}">
+{{template "sevbadge" .}}
+<span class="text">{{template "hisegs" .RuleSegs}}</span>
+<span class="asset">{{template "hisegs" .SubjectSegs}}</span>
+</a>{{end}}
+</div>
+</section>
+{{end}}
+{{if .Batches}}
+<section class="se-card">
+<div class="se-cardhead"><span class="se-micro">{{len .Batches}} recent</span><h3>Batches</h3></div>
+<div class="se-body">
+{{range .Batches}}<a class="se-row" href="{{.Href}}">
+<span class="se-batch {{.Status}}"><span class="dot"></span>{{.Status}}<span class="scope">· {{template "hisegs" .LabelSegs}}</span></span>
+<span class="chev"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg></span>
+</a>{{end}}
+</div>
+</section>
+{{end}}
+{{if .Docs}}
+<section class="se-card">
+<div class="se-cardhead"><span class="se-micro">Docs</span><h3>Documentation</h3></div>
+<div class="se-body">
+{{range .Docs}}<div class="se-row">
+<span class="ic"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg></span>
+<span class="doc"><span class="doctitle">{{template "hisegs" .TitleSegs}}</span><span class="docsnip">{{template "hisegs" .SnipSegs}}</span></span>
+</div>{{end}}
+</div>
+</section>
+{{end}}
+</main>
+{{template "foot" .}}{{end}}

@@ -3399,5 +3399,278 @@
       "coverage": "Open scope",
       "batches": "Open batch detail"
     }
+  },
+  "search": {
+    "query": "acme",
+    "total": 10,
+    "assets": [
+      {
+        "href": "/asset/acmecorp.io",
+        "name_segs": [
+          {
+            "text": "acme",
+            "hit": true
+          },
+          {
+            "text": "corp.io",
+            "hit": false
+          }
+        ],
+        "type": "domain",
+        "severity": "medium",
+        "sev_label": "Medium"
+      },
+      {
+        "href": "/asset/api.acmecorp.io",
+        "name_segs": [
+          {
+            "text": "api.",
+            "hit": false
+          },
+          {
+            "text": "acme",
+            "hit": true
+          },
+          {
+            "text": "corp.io",
+            "hit": false
+          }
+        ],
+        "type": "subdomain",
+        "severity": "high",
+        "sev_label": "High"
+      },
+      {
+        "href": "/asset/edge-gw-03.acmecorp.io",
+        "name_segs": [
+          {
+            "text": "edge-gw-03.",
+            "hit": false
+          },
+          {
+            "text": "acme",
+            "hit": true
+          },
+          {
+            "text": "corp.io",
+            "hit": false
+          }
+        ],
+        "type": "subdomain",
+        "severity": "critical",
+        "sev_label": "Critical"
+      },
+      {
+        "href": "/asset/mail.acmecorp.io",
+        "name_segs": [
+          {
+            "text": "mail.",
+            "hit": false
+          },
+          {
+            "text": "acme",
+            "hit": true
+          },
+          {
+            "text": "corp.io",
+            "hit": false
+          }
+        ],
+        "type": "subdomain",
+        "severity": "",
+        "sev_label": ""
+      }
+    ],
+    "signals": [
+      {
+        "href": "/signals?view=SIG-1042",
+        "severity": "critical",
+        "sev_label": "Critical",
+        "rule_segs": [
+          {
+            "text": ":5900 vnc — no transport encryption",
+            "hit": false
+          }
+        ],
+        "subject_segs": [
+          {
+            "text": "edge-gw-03.",
+            "hit": false
+          },
+          {
+            "text": "acme",
+            "hit": true
+          },
+          {
+            "text": "corp.io",
+            "hit": false
+          }
+        ]
+      },
+      {
+        "href": "/signals?view=SIG-1036",
+        "severity": "high",
+        "sev_label": "High",
+        "rule_segs": [
+          {
+            "text": "nginx 1.25.0 · CVE-2026-1187",
+            "hit": false
+          }
+        ],
+        "subject_segs": [
+          {
+            "text": "api.",
+            "hit": false
+          },
+          {
+            "text": "acme",
+            "hit": true
+          },
+          {
+            "text": "corp.io",
+            "hit": false
+          }
+        ]
+      }
+    ],
+    "batches": [
+      {
+        "href": "/runs/1407",
+        "status": "complete",
+        "label_segs": [
+          {
+            "text": "2026-08-22T14:00Z",
+            "hit": false
+          }
+        ]
+      },
+      {
+        "href": "/runs/1398",
+        "status": "failed",
+        "label_segs": [
+          {
+            "text": "2026-08-21T20:00Z",
+            "hit": false
+          }
+        ]
+      }
+    ],
+    "docs": [
+      {
+        "title_segs": [
+          {
+            "text": "Seeds and scope",
+            "hit": false
+          }
+        ],
+        "snip_segs": [
+          {
+            "text": "A seed declares intent; discovery expands it into subjects.",
+            "hit": false
+          }
+        ]
+      },
+      {
+        "title_segs": [
+          {
+            "text": "Reading exposure states",
+            "hit": false
+          }
+        ],
+        "snip_segs": [
+          {
+            "text": "exposed · firewalled · not-reached — states, never a score.",
+            "hit": false
+          }
+        ]
+      }
+    ],
+    "empty_variant": {
+      "query": "zzz-none",
+      "total": 0
+    }
+  },
+  "onboarding": {
+    "steps": [
+      "Seeds",
+      "Cadence",
+      "Channel",
+      "Review"
+    ],
+    "seeds": [
+      "acmecorp.io"
+    ],
+    "seeds_field": "acmecorp.io",
+    "profile": "standard",
+    "cads": [
+      "Every 6h",
+      "Daily · 08:00",
+      "Weekly · mon 09:00",
+      "Monthly · 1st",
+      "Custom…"
+    ],
+    "default_cad": "Daily · 08:00",
+    "channel": "https://ops.example/hook",
+    "review": [
+      {
+        "k": "Seeds",
+        "v": "acmecorp.io"
+      },
+      {
+        "k": "Profile",
+        "v": "standard"
+      },
+      {
+        "k": "Cadence",
+        "v": "daily · 08:00"
+      },
+      {
+        "k": "Channel",
+        "v": "https://ops.example/hook"
+      }
+    ],
+    "review_empty_channel": "none — inbox only",
+    "prg_note": "each step POST 303-redirects to GET /onboarding?step=N&seeds=…&profile=…&cad=…&cron=…&channel=… (#25d)"
+  },
+  "firstrun": {
+    "first_run_done": 1,
+    "first_run_steps": [
+      {
+        "num": 1,
+        "done": true,
+        "title": "Declare your domain",
+        "detail": "acmecorp.io declared · a seed is a boundary, not a starting gun",
+        "has_action": false
+      },
+      {
+        "num": 2,
+        "done": false,
+        "title": "Upload a zone file",
+        "detail": "Enables removal detection — you stopped telling us becomes detectable",
+        "has_action": true,
+        "action_label": "Upload zone",
+        "action_href": "/scope"
+      },
+      {
+        "num": 3,
+        "done": false,
+        "title": "Add an internet vantage",
+        "detail": "Exposure needs an outside observer, unconditionally",
+        "has_action": true,
+        "action_label": "Provision prober",
+        "action_href": "/settings/vantages"
+      },
+      {
+        "num": 4,
+        "done": false,
+        "title": "Run the first batch",
+        "detail": "Scans dispatch on cadence; kick the first one now",
+        "has_action": true,
+        "action_label": "Run first batch",
+        "action_post": "/onboarding/finish",
+        "gated": true,
+        "gate_title": "Needs an internet vantage first"
+      }
+    ]
   }
 }

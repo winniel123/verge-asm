@@ -2,66 +2,87 @@ package main
 
 import (
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
-// searchHighlight finds its match in the lowered text, so the wrapped span's byte
-// length must come from the lowered query, never len(q): strings.ToLower can change
-// a value's byte length (U+212A KELVIN SIGN → "k"; U+023A → the longer U+2C65), and
-// mixing the two offset spaces once sliced the original out of range and panicked
-// the whole /search page (#340). These cases must not panic and must stay escaped,
-// well-formed HTML; a plain ASCII match must still wrap exactly the matched run.
-func TestSearchHighlight(t *testing.T) {
+// searchSegs splits a matched field on the FIRST case-insensitive occurrence of the
+// query into the [{Text,Hit}] list "hisegs" renders (#25a): the un-hit text before,
+// the hit run (original case preserved), the un-hit text after — empty edges omitted,
+// a non-match a single un-hit seg. The match is located in the lowered text, so the
+// run length must come from the lowered query, never len(q): strings.ToLower can
+// change a value's byte length (U+212A KELVIN SIGN then "k"; U+023A then the longer
+// U+2C65), and mixing the two offset spaces once sliced the original out of range and
+// panicked the whole /search page (#340). These cases must not panic.
+func TestSearchSegs(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 		text string
 		q    string
-		want string // full expected output
+		want []hiSeg
 	}{
 		{
-			name: "ascii wraps the matched run",
+			name: "ascii splits before, hit, after",
 			text: "foobar",
-			q:    "bar",
-			want: `foo<span style="color:var(--link);font-weight:600">bar</span>`,
+			q:    "oob",
+			want: []hiSeg{{Text: "f"}, {Text: "oob", Hit: true}, {Text: "ar"}},
 		},
 		{
-			name: "ascii highlight preserves original case",
+			name: "leading hit omits the empty before seg",
+			text: "acmecorp.io",
+			q:    "acme",
+			want: []hiSeg{{Text: "acme", Hit: true}, {Text: "corp.io"}},
+		},
+		{
+			name: "hit preserves original case",
 			text: "FooBar",
 			q:    "bar",
-			want: `Foo<span style="color:var(--link);font-weight:600">Bar</span>`,
+			want: []hiSeg{{Text: "Foo"}, {Text: "Bar", Hit: true}},
 		},
 		{
-			// U+212A ToLower→"k": the lowered query is 1 byte where q is 3, so the
+			name: "non-match is a single un-hit seg",
+			text: "no match here",
+			q:    "acme",
+			want: []hiSeg{{Text: "no match here"}},
+		},
+		{
+			name: "empty query is a single un-hit seg",
+			text: "anything",
+			q:    "",
+			want: []hiSeg{{Text: "anything"}},
+		},
+		{
+			// U+212A ToLower is "k": the lowered query is 1 byte where q is 3, so the
 			// span length must track the lowered form to slice "k" in range.
 			name: "kelvin-sign query does not panic",
 			text: "k",
 			q:    "K",
-			want: `<span style="color:var(--link);font-weight:600">k</span>`,
+			want: []hiSeg{{Text: "k", Hit: true}},
 		},
 		{
-			// U+023A ToLower→U+2C65 grows the lowered text past the original; the
-			// clamp falls back to the plain escaped original rather than panicking.
+			// U+023A ToLower is U+2C65, which grows the lowered text past the original;
+			// the clamp falls back to a single un-hit seg rather than panicking.
 			name: "growing-lowercase text does not panic",
 			text: "Ⱥk",
 			q:    "k",
-			want: "Ⱥk",
+			want: []hiSeg{{Text: "Ⱥk"}},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			var got string
+			var got []hiSeg
 			func() {
 				defer func() {
 					if p := recover(); p != nil {
-						t.Fatalf("searchHighlight(%q, %q) panicked: %v", tc.text, tc.q, p)
+						t.Fatalf("searchSegs(%q, %q) panicked: %v", tc.text, tc.q, p)
 					}
 				}()
-				got = string(searchHighlight(tc.text, tc.q))
+				got = searchSegs(tc.text, tc.q)
 			}()
-			if got != tc.want {
-				t.Errorf("searchHighlight(%q, %q) = %q, want %q", tc.text, tc.q, got, tc.want)
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("searchSegs(%q, %q) = %#v, want %#v", tc.text, tc.q, got, tc.want)
 			}
 		})
 	}
@@ -87,38 +108,38 @@ func TestSearchGroupsAndHighlights(t *testing.T) {
 	// The Assets group renders (grouped by kind) with its micro-label count and the
 	// asset row links to the asset's existing route.
 	for _, want := range []string{
-		"Search",                          // the screen heading
-		`<h3>Assets</h3>`,                 // the group card title
-		`1 match`,                         // the group's micro-label count
-		`href="/asset/api.example.com"`,   // the row links to the existing route
-		`1 results for`,                   // the count line, verbatim from the example
+		"Search",                        // the screen heading
+		`<h3>Assets</h3>`,               // the group card title
+		`1 match`,                       // the group's micro-label count
+		`href="/asset/api.example.com"`, // the row links to the existing route
+		`1 results for`,                 // the count line, verbatim from the spec
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("search page missing %q; body: %s", want, page)
 		}
 	}
 
-	// The matched term is highlighted on the accent — an escaped span wrapping just
+	// The matched term is highlighted on the accent — the "hisegs" span wrapping just
 	// the matched run.
 	if !strings.Contains(page, `<span style="color:var(--link);font-weight:600">api.example</span>`) {
 		t.Errorf("search page did not highlight the matched term; body: %s", page)
 	}
 
-	// Assets carry no severity: a Name subject has no rule, so its row leads with the
-	// subject glyph, never a severity pill — exactly as the spec's mail row (sev:null)
-	// renders none. (Signals, which DO carry the rule's severity, are covered by
-	// TestSearchSignalsCarrySeverity.) This seed fires no signal, so no pill appears.
-	for _, pill := range []string{`class="sev sev-critical"`, `class="sev sev-high"`, `class="sev sev-medium"`} {
-		if strings.Contains(page, pill) {
-			t.Errorf("search page rendered a severity pill %q on an assets-only result — a Name is not a ramp", pill)
-		}
+	// Assets carry a nullable severity (#25b): it is the rollup across the signals
+	// firing on the subject, so a seed that fires none renders no sevbadge at all —
+	// the landed sevbadge's inline-style signature is absent. (Signals, which DO carry
+	// the rule's severity, are covered by TestSearchSignalsCarrySeverity.) The
+	// substring is the sevbadge define's unique pill geometry, not the pageCSS .sev-*
+	// classes (which name --sev-* tokens on every page).
+	if strings.Contains(page, "height:18px;padding:0 8px;border-radius:999px") {
+		t.Errorf("search page rendered a severity badge on an assets-only result that fires no signal; body: %s", page)
 	}
 }
 
 // A fired signal carries its rule's severity (P0.1): the Signals group's row leads
 // with the SeverityBadge for the rule, the same five-level ramp the Signals screen
 // shows — read from internal/signal, never fabricated. A lame delegation fires
-// lame-delegation, a medium rule, so its row renders the medium pill.
+// lame-delegation, a medium rule, so its row renders the landed medium sevbadge.
 func TestSearchSignalsCarrySeverity(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -133,9 +154,12 @@ func TestSearchSignalsCarrySeverity(t *testing.T) {
 	page := getBody(t, ac, base+"/search?q=lame", http.StatusOK)
 
 	for _, want := range []string{
-		`<h3>Signals</h3>`,          // the Signals group renders
-		`class="sev sev-medium"`,    // the row leads with the rule's SeverityBadge
-		`>lame</span>-delegation`,   // the firing rule, its query match highlighted
+		`<h3>Signals</h3>`, // the Signals group renders
+		// the row leads with the landed medium sevbadge (its unique inline signature,
+		// not the pageCSS .sev-medium class):
+		`background:var(--sev-medium-bg);border:1px solid var(--sev-medium-border);color:var(--sev-medium-fg)`,
+		`>Medium</span>`,          // the sevbadge label
+		`>lame</span>-delegation`, // the firing rule, its query match highlighted
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("search signal row missing %q; body: %s", want, page)
@@ -159,10 +183,10 @@ func TestSearchBrowsesAcrossKinds(t *testing.T) {
 	page := getBody(t, ac, base+"/search", http.StatusOK)
 
 	for _, want := range []string{
-		`<h3>Assets</h3>`,      // the Assets group
-		`<h3>Batches</h3>`,     // the Batches group
-		`href="/run/7"`,        // the batch links to its run detail
-		`sbatch complete`,      // the BatchStatus chip state
+		`<h3>Assets</h3>`,   // the Assets group
+		`<h3>Batches</h3>`,  // the Batches group
+		`href="/run/7"`,     // the batch links to its run detail
+		`se-batch complete`, // the BatchStatus chip state
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("search browse missing %q; body: %s", want, page)
@@ -170,7 +194,7 @@ func TestSearchBrowsesAcrossKinds(t *testing.T) {
 	}
 }
 
-// The example's fourth group, Documentation, is restored (P2.5, #451): the operator
+// The spec's fourth group, Documentation, is restored (P2.5, #451): the operator
 // guides under docs/guides/ ARE the content store its original drop (#316) said was
 // missing. The group indexes each guide's front-matter title + description, so a
 // query matching a guide's title lights it up, and the input placeholder advertises
@@ -185,9 +209,9 @@ func TestSearchHasDocumentationGroup(t *testing.T) {
 	page := getBody(t, ac, base+"/search?q=signals", http.StatusOK)
 
 	for _, want := range []string{
-		`<h3>Documentation</h3>`,          // the restored group card title
-		`Assets, signals, batches, docs`,  // the input placeholder advertises docs again
-		`>Signals</span> reference`,       // a guide's front-matter title, indexed + highlighted
+		`<h3>Documentation</h3>`,         // the restored group card title
+		`Assets, signals, batches, docs`, // the input placeholder advertises docs again
+		`>Signals</span> reference`,      // a guide's front-matter title, indexed + highlighted
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("search page missing restored docs surface %q; body: %s", want, page)
@@ -225,9 +249,9 @@ func TestSearchNoResults(t *testing.T) {
 	page := getBody(t, ac, base+"/search?q=zzznomatchzzz", http.StatusOK)
 
 	for _, want := range []string{
-		"Nothing matches.",                                      // the empty-state fact
+		"Nothing matches.", // the empty-state fact
 		"Try a hostname fragment, a signal phrase, or a batch timestamp.", // the next action
-		"0 results for",                                         // the count line
+		"0 results for", // the count line
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("search no-results missing %q; body: %s", want, page)
@@ -238,7 +262,7 @@ func TestSearchNoResults(t *testing.T) {
 	}
 }
 
-// The ⌘K command palette (templates_shell.go's "chrome" block) hands off to this
+// The command-K palette (templates_shell.go's "chrome" block) hands off to this
 // screen (#315): every chrome page carries a persistent "Search everything" item
 // marked data-cmdk-search, matching design-system/examples/console/ConsoleApp.jsx's
 // CommandPalette entry of the same label. Its static href (used when JS hasn't run,

@@ -513,5 +513,63 @@
         "js": ""
       }
     ]
+  },
+  "search": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "default",
+        "route": "/search?q=acme",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "empty",
+        "route": "/search?q=zzz-none",
+        "session": "admin",
+        "js": ""
+      }
+    ]
+  },
+  "onboarding": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "wizard-1",
+        "route": "/onboarding",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "wizard-2",
+        "route": "/onboarding?step=1&seeds=acmecorp.io",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "wizard-3",
+        "route": "/onboarding?step=2&seeds=acmecorp.io&profile=standard&cad=Daily+%C2%B7+08%3A00",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "wizard-4",
+        "route": "/onboarding?step=3&seeds=acmecorp.io&profile=standard&cad=Daily+%C2%B7+08%3A00&channel=https%3A%2F%2Fops.example%2Fhook",
+        "session": "admin",
+        "js": ""
+      }
+    ]
+  },
+  "firstrun": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "default",
+        "route": "/",
+        "session": "admin",
+        "variant": "empty-estate",
+        "js": ""
+      }
+    ]
   }
 }

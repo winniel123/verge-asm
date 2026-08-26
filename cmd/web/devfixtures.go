@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/netip"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -2804,4 +2805,135 @@ func (s *server) inboxFixtureData(acct db.Account, r *http.Request) map[string]a
 		"AllHref":    allHref,
 		"UnreadHref": unreadHref,
 	}
+}
+
+// searchSeg is one fixtures.json search segment: the literal run of a matched field
+// and whether it is the highlighted (query-matched) run. Both the render-goldens
+// golden and this candidate read the SAME segments, and reproduce them by folding the
+// reconstructed field text through searchSegs (the live handler's builder), so the two
+// agree byte-for-byte and TestBuildSearchMatchesDesignFixture proves the first-match
+// rule reproduces the authored segmentation.
+type searchSeg struct {
+	Text string `json:"text"`
+	Hit  bool   `json:"hit"`
+}
+
+// searchFixture is the design-system/fixtures/fixtures.json → search slice: the query,
+// the total, the four groups (assets carry a nullable severity; #25b), and the empty
+// variant (q "zzz-none", total 0). Fields are pre-segmented in the package.
+type searchFixture struct {
+	Query  string `json:"query"`
+	Total  int    `json:"total"`
+	Assets []struct {
+		Href     string      `json:"href"`
+		NameSegs []searchSeg `json:"name_segs"`
+		Type     string      `json:"type"`
+		Severity string      `json:"severity"`
+		SevLabel string      `json:"sev_label"`
+	} `json:"assets"`
+	Signals []struct {
+		Href        string      `json:"href"`
+		Severity    string      `json:"severity"`
+		SevLabel    string      `json:"sev_label"`
+		RuleSegs    []searchSeg `json:"rule_segs"`
+		SubjectSegs []searchSeg `json:"subject_segs"`
+	} `json:"signals"`
+	Batches []struct {
+		Href      string      `json:"href"`
+		Status    string      `json:"status"`
+		LabelSegs []searchSeg `json:"label_segs"`
+	} `json:"batches"`
+	Docs []struct {
+		TitleSegs []searchSeg `json:"title_segs"`
+		SnipSegs  []searchSeg `json:"snip_segs"`
+	} `json:"docs"`
+	EmptyVariant struct {
+		Query string `json:"query"`
+		Total int    `json:"total"`
+	} `json:"empty_variant"`
+}
+
+// loadSearchFixture reads the pinned fixtures.json search slice from the embedded
+// design package (designfs). Both searchPage (candidate, under devMode) and
+// render-goldens (golden) read the SAME bytes and shape them identically, so the two
+// agree. A read/parse failure degrades to the zero fixture (the empty state) rather
+// than 500ing.
+func loadSearchFixture() searchFixture {
+	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
+	if err != nil {
+		return searchFixture{}
+	}
+	var ff struct {
+		Search searchFixture `json:"search"`
+	}
+	if err := json.Unmarshal(raw, &ff); err != nil {
+		return searchFixture{}
+	}
+	return ff.Search
+}
+
+// joinFixtureSegs reconstructs a matched field's raw text from its authored segments
+// (the concatenation of every segment's Text) so the field can be re-segmented through
+// searchSegs — the live handler's #25a builder — rather than read straight off the
+// fixture. This exercises the builder in the golden path and lets the drift test assert
+// the first-match rule reproduces the authored segmentation exactly.
+func joinFixtureSegs(segs []searchSeg) string {
+	var b strings.Builder
+	for _, s := range segs {
+		b.WriteString(s.Text)
+	}
+	return b.String()
+}
+
+// searchFixtureData is the render map searchPage passes to the frozen search.tmpl in a
+// VERGE_DEV build. It reads ?q= straight off the query (the fixture is READ-ONLY): the
+// canonical query ("acme") renders the authored slice, folding every field through
+// searchSegs; any other query — including the empty variant "zzz-none" — renders the
+// zero-result empty state. render-goldens composes the identical map from the same
+// fixtures.json, so golden and candidate agree.
+func (s *server) searchFixtureData(acct db.Account, r *http.Request) map[string]any {
+	fx := loadSearchFixture()
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	if q != fx.Query {
+		return searchRenderMap(acct, q, 0, nil, nil, nil, nil)
+	}
+
+	assets := make([]searchAsset, 0, len(fx.Assets))
+	for _, a := range fx.Assets {
+		assets = append(assets, searchAsset{
+			NameSegs: searchSegs(joinFixtureSegs(a.NameSegs), q),
+			Type:     a.Type,
+			Severity: a.Severity,
+			SevLabel: a.SevLabel,
+			Href:     a.Href,
+		})
+	}
+	signals := make([]searchSignal, 0, len(fx.Signals))
+	for _, sg := range fx.Signals {
+		signals = append(signals, searchSignal{
+			RuleSegs:    searchSegs(joinFixtureSegs(sg.RuleSegs), q),
+			SubjectSegs: searchSegs(joinFixtureSegs(sg.SubjectSegs), q),
+			Severity:    sg.Severity,
+			SevLabel:    sg.SevLabel,
+			Href:        sg.Href,
+		})
+	}
+	batches := make([]searchBatch, 0, len(fx.Batches))
+	for _, b := range fx.Batches {
+		batches = append(batches, searchBatch{
+			Status:    b.Status,
+			LabelSegs: searchSegs(joinFixtureSegs(b.LabelSegs), q),
+			Href:      b.Href,
+		})
+	}
+	docs := make([]searchDoc, 0, len(fx.Docs))
+	for _, d := range fx.Docs {
+		docs = append(docs, searchDoc{
+			TitleSegs: searchSegs(joinFixtureSegs(d.TitleSegs), q),
+			SnipSegs:  searchSegs(joinFixtureSegs(d.SnipSegs), q),
+		})
+	}
+
+	total := len(assets) + len(signals) + len(batches) + len(docs)
+	return searchRenderMap(acct, q, total, assets, signals, batches, docs)
 }
