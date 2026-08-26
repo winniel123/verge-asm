@@ -571,5 +571,129 @@
         "js": ""
       }
     ]
+  },
+  "settings": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "scans",
+        "route": "/settings?tab=scans",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "vantages",
+        "route": "/settings?tab=vantages",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "sso",
+        "route": "/settings?tab=sso",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "team",
+        "route": "/settings?tab=team",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "team-invite",
+        "route": "/settings?tab=team&invite=1",
+        "session": "admin",
+        "js": "",
+        "crop": "body"
+      },
+      {
+        "id": "team-remove",
+        "route": "/settings?tab=team&remove=u3",
+        "session": "admin",
+        "js": "",
+        "crop": "body"
+      },
+      {
+        "id": "sessions",
+        "route": "/settings?tab=sessions",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "sessions-revoke-all",
+        "route": "/settings?tab=sessions&revoke-account=u2",
+        "session": "admin",
+        "js": "",
+        "crop": "body"
+      },
+      {
+        "id": "audit",
+        "route": "/settings?tab=audit",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "sources",
+        "route": "/settings?tab=sources",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "sources-consent",
+        "route": "/settings?tab=sources&consent=ripestat",
+        "session": "admin",
+        "js": "",
+        "crop": "body"
+      },
+      {
+        "id": "aperture",
+        "route": "/settings?tab=aperture",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "instance",
+        "route": "/settings?tab=instance",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "channels",
+        "route": "/settings?tab=channels",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "integrations",
+        "route": "/settings?tab=integrations",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "integrations-drawer",
+        "route": "/settings?tab=integrations&view=pagerduty",
+        "session": "admin",
+        "js": "",
+        "crop": "body"
+      },
+      {
+        "id": "messages",
+        "route": "/settings?tab=messages",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "delivery",
+        "route": "/settings?tab=delivery",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "forbidden",
+        "route": "/settings?tab=team",
+        "session": "viewer",
+        "js": ""
+      }
+    ]
   }
 }

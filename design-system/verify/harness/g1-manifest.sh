@@ -48,6 +48,7 @@ PATHS=(
   design-system/goldens/search
   design-system/goldens/onboarding
   design-system/goldens/firstrun
+  design-system/goldens/settings
 )
 
 # "<blob-sha>  <path>", sorted by path, C locale for a stable order across machines.
