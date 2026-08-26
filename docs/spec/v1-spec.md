@@ -486,8 +486,10 @@ subsequent `returned` reading, because a narrowing is not a decommission
 ### 5.2 Signals
 
 A `Signal` is a named, versioned rule evaluated over observations (and possibly other Derived
-values), carrying no severity — urgency belongs to the transition that surfaced it, not to the
-rule. Four parts: its `Predicate domain` (the extension of its own name — the population of which
+values). The firing itself carries no per-finding score — urgency belongs to the transition that
+surfaced it, not to a number stapled to a backlog — but every rule ships at one of **five**
+release-authored **severity** levels (the P0.1 ramp: **Critical / High / Medium / Low / Info**),
+resolved by the web layer to rank and badge the current-state census. Four parts: its `Predicate domain` (the extension of its own name — the population of which
 the fact it names *could* be true), its predicate, its `not-evaluable` case, and its version
 vector. Its census is always three members over one population — fired / did not fire /
 `not-evaluable` — never a delta, trend or series, and every member is enumerable in full: none is

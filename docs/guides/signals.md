@@ -23,11 +23,15 @@ verified against the code, never to drift from it.
 
 ## What a signal is — and is not
 
-- **A named fact, not a score.** A signal **carries no severity**. Severity ranks a
-  static backlog; verge-asm's subject is *change*, so urgency comes from the
-  transition that surfaced a signal, not from a number stapled to the rule. There is
-  no high/medium/low, and there is no dial to add one — a port you can hide is a
-  signal you can silence.
+- **A named fact, not a per-finding score.** The fact a signal names carries **no score you
+  tune per finding**: verge-asm's subject is *change*, so urgency comes from the transition
+  that surfaced a signal (see **Messages**), never from a number stapled to a static backlog.
+  What a signal *does* carry is its **rule's severity** — every rule ships at one of **five**
+  release-authored levels, the P0.1 ramp **Critical / High / Medium / Low / Info**
+  ([#1](https://github.com/winniel123/verge-asm/issues/1)), resolved by the web layer to rank
+  and badge the current-state census (the on-screen `sevbadge` / `SeverityBadge`). Severity
+  ranks *rules*, not findings, and is never the source of urgency — there is no per-finding
+  dial to add, and a port you can hide is a signal you can silence.
 - **A rule that ships at release cadence.** A condition qualifies as a signal only if
   its reference data changes at release cadence. Anything you would want to push
   updates to *out of band* — a growing corpus of indicators — is a signature database,
