@@ -137,7 +137,7 @@ func (s *server) markMessageRead(w http.ResponseWriter, r *http.Request, acct db
 	dest := messageReturn(r)
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
-		http.Redirect(w, r, dest, http.StatusSeeOther)
+		http.Redirect(w, r, dest, http.StatusSeeOther) // #nosec G710 (target is messageReturn()'s /inbox-allowlisted or /messages-constant same-origin path; no host control)
 		return
 	}
 	if err := s.store.MarkMessageRead(r.Context(), db.MarkMessageReadParams{
@@ -146,7 +146,7 @@ func (s *server) markMessageRead(w http.ResponseWriter, r *http.Request, acct db
 		s.serverError(w, "mark message read", err)
 		return
 	}
-	http.Redirect(w, r, dest, http.StatusSeeOther)
+	http.Redirect(w, r, dest, http.StatusSeeOther) // #nosec G710 (target is messageReturn()'s /inbox-allowlisted or /messages-constant same-origin path; no host control)
 }
 
 // markAllMessagesRead clears the caller's own unread count in one act. Read-state
@@ -159,7 +159,7 @@ func (s *server) markAllMessagesRead(w http.ResponseWriter, r *http.Request, acc
 		s.serverError(w, "mark all messages read", err)
 		return
 	}
-	http.Redirect(w, r, messageReturn(r), http.StatusSeeOther)
+	http.Redirect(w, r, messageReturn(r), http.StatusSeeOther) // #nosec G710 (target is messageReturn()'s /inbox-allowlisted or /messages-constant same-origin path; no host control)
 }
 
 // markMessageUnread returns one message to unread for the caller and redirects

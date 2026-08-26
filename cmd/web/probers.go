@@ -70,8 +70,8 @@ func (s *server) provisionProber(w http.ResponseWriter, r *http.Request, acct db
 	// provisioned endpoint — matching the (host, port, username) endpoint index —
 	// while resolver ships blank (set in SQL) for the operator to fill in.
 	if _, err := s.store.CreateVantage(r.Context(), db.CreateVantageParams{
-		Name:     fmt.Sprintf("%s@%s:%d", ep.Username, ep.Host, ep.Port),
-		Host:     ep.Host, Port: int32(ep.Port), Username: ep.Username, CreatedBy: acct.ID,
+		Name: fmt.Sprintf("%s@%s:%d", ep.Username, ep.Host, ep.Port),
+		Host: ep.Host, Port: int32(ep.Port), Username: ep.Username, CreatedBy: acct.ID, // #nosec G115 (ep.Port validated 1..65535 by vantage.ParseEndpoint)
 	}); err != nil {
 		if isUniqueViolation(err) {
 			fail("That prober endpoint is already provisioned.")

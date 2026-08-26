@@ -234,6 +234,7 @@ func (a Artifact) Empty() bool {
 // in scope. The custom-property names and values mirror cmd/web's pageCSS and
 // design-system/tokens; dark ships two ways (prefers-color-scheme default and the
 // explicit data-theme override) so the delivered document is legible in either.
+// #nosec G101 ("artifactTokens" is a CSS <style> constant (design-system tokens), not a credential — name-heuristic FP)
 const artifactTokens = `<style>
 .vg-artifact{
   --surface:#ffffff; --sunken:#f2f0ec; --hairline:#e2dfdb; --border-strong:#c7c3be;

@@ -487,7 +487,7 @@ func (s *server) redirectTo(target string, code int) authedHandler {
 			}
 			dst += sep + r.URL.RawQuery
 		}
-		http.Redirect(w, r, dst, code)
+		http.Redirect(w, r, dst, code) // #nosec G710 (target is a constant internal route; RawQuery appended only as its query string, no host control)
 	}
 }
 

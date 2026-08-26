@@ -171,7 +171,7 @@ func (s *server) runLookup(w http.ResponseWriter, r *http.Request, acct db.Accou
 		// logging it with the query names both the failing paths and the search
 		// a maintainer needs to correlate against — the reason must not be
 		// silently thrown away (#251).
-		log.Printf("web: proposer lookup %q: %v", query, perr)
+		log.Printf("web: proposer lookup %q: %v", logSafe(query), perr) // #nosec G706 (sanitized via logSafe)
 	}
 	if len(cands) == 0 {
 		// Distinguish a backend failure from a genuine no-match: a non-nil perr

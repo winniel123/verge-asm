@@ -174,7 +174,7 @@ func (n NetEnumerator) Handshake(ctx context.Context, target netip.AddrPort, ver
 	defer cancel()
 
 	cfg := &tls.Config{
-		InsecureSkipVerify: true, // acceptance is the measurement, not chain validity
+		InsecureSkipVerify: true, // #nosec G402 (accepted: TLS measurement probe — enumerates untrusted listeners; verifying the chain would drop the acceptance measurement. Not a trusted-service client call.)
 		MinVersion:         v,
 		MaxVersion:         v,
 	}

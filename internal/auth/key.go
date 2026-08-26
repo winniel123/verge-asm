@@ -24,7 +24,7 @@ const keyLen = 32
 func LoadOrCreateKey(dir string) ([]byte, error) {
 	path := filepath.Join(dir, keyFile)
 
-	key, err := os.ReadFile(path)
+	key, err := os.ReadFile(path) // #nosec G304 (session-key file: constant basename under operator-configured state dir, not request input)
 	switch {
 	case err == nil:
 		if len(key) != keyLen {
