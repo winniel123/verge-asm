@@ -1,0 +1,62 @@
+{{/*
+  DESIGN-OWNED ARTIFACT — firstrun.tmpl · package v3.12.0 · WORKFLOW.md v4
+  Source of truth: examples/console/FirstRun.jsx · shot 19. Replaces templates_firstrun.go.
+  Bare define "firstrun" — no head/chrome/foot: the landed dashboard.tmpl "home" define wraps it
+  when .EmptyEstate is true. One parse set with dashboard.tmpl.
+  Holes: .FirstRunDone .FirstRunSteps[{Num,Done,Title,Detail,HasAction,ActionLabel,ActionHref,
+  ActionPost,Gated,GateTitle}].
+  Reconciliation (SPEC-CHANGE #25f, ruled): an action is a link (.ActionHref — steps 2/3) or a
+  form post (.ActionPost — step 4's Run first batch enqueues, it cannot be a GET); exactly one is
+  set when .HasAction. Step 4 renders disabled while .Gated with .GateTitle as its title. Copy for
+  each step's done/undone .Detail follows the spec strings already ported into firstRunChecklist.
+*/}}
+{{define "firstrun"}}
+<style>
+.fr-main { max-width: 760px; margin: 0 auto; padding: 56px 32px; display: flex; flex-direction: column; gap: 20px; font-family: var(--font-ui); }
+.fr-main h1 { margin: 0; font: 600 24px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.fr-sub { font: 400 13px/1.6 var(--font-ui); color: var(--text-muted); }
+.fr-count { font: 500 11px var(--font-mono); letter-spacing: 0.06em; color: var(--text-secondary); margin-top: 6px; }
+.fr-card { background: var(--surface); border: 1px solid var(--border-default); border-radius: 16px; box-shadow: var(--shadow-sm); padding: 10px; }
+.fr-row { display: flex; align-items: center; gap: 14px; padding: 16px 12px; }
+.fr-row + .fr-row { border-top: 1px solid var(--row-sep); }
+.fr-num { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; flex: none; border-radius: 999px; background: var(--surface-sunken); border: 1px solid var(--border-default); color: var(--text-muted); font: 600 12px var(--font-mono); }
+.fr-num.done { background: var(--ok-soft); border-color: var(--ok-border); color: var(--ok); }
+.fr-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.fr-title { font: 500 13.5px var(--font-ui); color: var(--text-ink); }
+.fr-detail { font: 400 12px/1.55 var(--font-ui); color: var(--text-muted); }
+.fr-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 10px; font: 600 12px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; border: 1px solid transparent; flex: none; transition: background var(--dur-fast) var(--ease-out); }
+.fr-btn.pri { background: var(--accent); color: var(--on-accent); }
+.fr-btn.pri:hover { background: var(--accent-hover); }
+.fr-btn.sec { background: var(--surface); color: var(--text-body); border-color: var(--border-strong); }
+.fr-btn.sec:hover { background: var(--surface-sunken); }
+.fr-btn[disabled] { opacity: 0.45; cursor: default; }
+.fr-btn.sec[disabled]:hover { background: var(--surface); }
+.fr-note { font: 400 11.5px/1.6 var(--font-ui); color: var(--text-muted); }
+</style>
+<main class="fr-main" data-screen-label="First-run checklist">
+<header style="display:flex;flex-direction:column;gap:6px">
+<h1>Welcome to Verge</h1>
+<span class="fr-sub">Each step unlocks a capability. Until they complete, the console stays honest about what it cannot conclude — exposure claims are withheld, never guessed.</span>
+<span class="fr-count">{{.FirstRunDone}} of 4 complete</span>
+</header>
+<div class="fr-card">
+<div style="display:flex;flex-direction:column">
+{{range .FirstRunSteps}}
+<div class="fr-row">
+<span class="fr-num{{if .Done}} done{{end}}">{{if .Done}}<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>{{else}}{{.Num}}{{end}}</span>
+<span class="fr-body">
+<span class="fr-title">{{.Title}}</span>
+<span class="fr-detail">{{.Detail}}</span>
+</span>
+{{if .HasAction}}
+{{if .Gated}}<button type="button" class="fr-btn sec" disabled title="{{.GateTitle}}">{{.ActionLabel}}</button>
+{{else if .ActionPost}}<form method="post" action="{{.ActionPost}}" style="margin:0"><button type="submit" class="fr-btn pri">{{.ActionLabel}}</button></form>
+{{else}}<a class="fr-btn pri" href="{{.ActionHref}}">{{.ActionLabel}}</a>{{end}}
+{{end}}
+</div>
+{{end}}
+</div>
+</div>
+<span class="fr-note">Step 4 stays gated until an internet vantage exists — probing your own address from inside is a hairpinning trap that never traverses the inbound policy.</span>
+</main>
+{{end}}

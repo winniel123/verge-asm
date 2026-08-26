@@ -1,4 +1,4 @@
-deaaed480e79919b949467acd2f9b6e9086e1896  design-system/fixtures/fixtures.json
+05f7f165a56039ffe804cc5e83472fea1919d07a  design-system/fixtures/fixtures.json
 73d0610ac8af04992e415c732adceecead1005cc  design-system/goldens/asset/default-1440-dark.png
 2e74f682618f35d200e87326e7e8af16c8ee2504  design-system/goldens/asset/default-1440-light.png
 dac24643c2828776478b734aed381bbba3712d66  design-system/goldens/coverage/default-1440-dark.png
@@ -143,14 +143,17 @@ dd3bd00483ceb27c61da7fbb05d4e15aff326157  design-system/templates/coverage.tmpl
 e52923163b95cf0641464955802c94b25a6cc7e4  design-system/templates/drift.tmpl
 19e5664a1a940564ced9e6f189aacd603a8b4f0f  design-system/templates/error.tmpl
 70585b7ccece550348fc17b87ef4ad4577787db0  design-system/templates/exposure.tmpl
+0dbef940e41894c92e7de46b9957edd8e1a17bc6  design-system/templates/firstrun.tmpl
 64813fd8c26af80271de1405a098854b52d936aa  design-system/templates/graph.tmpl
 43ea11bfd714c57c2add88b20673b44809c87e0d  design-system/templates/inbox.tmpl
 25f0e038a99f6f27fe6dba989bb738e4e1b28a4b  design-system/templates/inventory.tmpl
+96718e3f9a99acfd931056bda917be26112c7ffd  design-system/templates/onboarding.tmpl
 8e3eac18a001dfc555ec7a1848f8aefd7d58262e  design-system/templates/profile.tmpl
 500d92cac46ea611800a8ce611003d09223d8be8  design-system/templates/reportartifact.tmpl
 f389368e3501945878a3373c9d8195cd616632f5  design-system/templates/reports.tmpl
 c8e6da1c6482e47a42738b33f878c44559e16cea  design-system/templates/rundetail.tmpl
 5172a7cb99e01708e19ff493674a52dc818baf55  design-system/templates/scope.tmpl
+84f27b97f2004c20d78bd1b47b01d96b420a3ba3  design-system/templates/search.tmpl
 ade3b85dd5f098be03a282e1f366db43198480f6  design-system/templates/setup.tmpl
 ae842d9b5081aad05206faef26b3b2a964190a1f  design-system/templates/signals.tmpl
 4316f11a7d7482fdcee1261316e3b62ecedd53ae  design-system/templates/signin.tmpl
@@ -164,4 +167,4 @@ ce55c028dafb1edeef11ddafbe8690e5ce280bb6  design-system/tokens/radius.css
 15b202d10a3c6c26c4dd6bf49144c6fc404359bc  design-system/tokens/typography.css
 3c93d85c70fab4ca0c098c6775ed0a29b994ca8b  design-system/verify/PILOT-P4.0.md
 d570a8261ce4c20f69c7e553f0848985660024e6  design-system/verify/config.json
-9ed7bb1e3060f23352ad29ef71e0195f24c6a155  design-system/verify/states.json
+63418f6801dff29b8c1c593e0a965ad087c9f015  design-system/verify/states.json

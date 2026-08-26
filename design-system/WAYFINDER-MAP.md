@@ -36,11 +36,11 @@ A confirmed screen is frozen: later changes to it start at step 1 with a version
 | 13 | AssetDetail | /asset/{key} | asset.tmpl | — | **LANDED — operator confirmed 2026-08-25** |
 | 14 | SubjectDetail | /subjects/… | subjectdetail.tmpl | withdrawn state | **LANDED — operator confirmed 2026-08-25** |
 | 15 | Graph | /graph | graph.tmpl | node drawer open | **LANDED — operator confirmed 2026-08-25** |
-| 16 | Reports | /reports | reports.tmpl | wizard steps 1–4 · row menu open | **BATCH 5 — artifacts in v3.11.0** |
-| 17 | ReportArtifact | /reports/… | reportartifact.tmpl | — | **BATCH 5 — artifacts in v3.11.0** |
-| 18 | Inbox | /inbox | inbox.tmpl | message open · mark-unread menu | **BATCH 5 — artifacts in v3.11.1 (#24: no prose body)** |
-| 19 | SearchResults | /search | search.tmpl | — | queued |
-| 20 | Onboarding + FirstRun | /onboarding, / | onboarding.tmpl, firstrun.tmpl | wizard steps | queued |
+| 16 | Reports | /reports | reports.tmpl | wizard steps 1–4 · row menu open | **LANDED — operator confirmed 2026-08-26** |
+| 17 | ReportArtifact | /reports/… | reportartifact.tmpl | — | **LANDED — operator confirmed 2026-08-26** |
+| 18 | Inbox | /inbox | inbox.tmpl | message open · mark-unread menu | **LANDED — operator confirmed 2026-08-26 (#24: no prose body)** |
+| 19 | SearchResults | /search | search.tmpl | — | **BATCH 6 — artifacts in v3.12.0** |
+| 20 | Onboarding + FirstRun | /onboarding, / | onboarding.tmpl, firstrun.tmpl | wizard steps | **BATCH 6 — artifacts in v3.12.0** |
 | 21 | Settings (all sections) | /settings/* | settings.tmpl | one golden per section incl. sessions, SSO, vantages+prober flow, channels, sources, aperture | queued |
 | 22 | Shell/chrome (LAST) | all | shell.tmpl | palette open · inbox bell menu · org switcher · toasts | queued |
 
