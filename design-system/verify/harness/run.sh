@@ -71,7 +71,8 @@ docker run --rm -v "$REPO":/src -w /src "${GO_CACHE[@]}" "$GO_IMAGE" \
          go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen onboarding -outdir design-system/goldens/onboarding && \
          go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen firstrun -outdir design-system/goldens/firstrun && \
          go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen search -outdir design-system/goldens/search && \
-         go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen graph -out design-system/goldens/graph.html"
+         go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen graph -out design-system/goldens/graph.html && \
+         go run -buildvcs=false ./design-system/verify/harness/render-goldens -screen settings -outdir design-system/goldens/settings"
 
 echo "== 1b. npm deps (pixelmatch/pngjs/playwright) in pinned image =="
 docker run --rm "${HARNESS_MNT[@]}" -e PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 "$PW_IMAGE" \
@@ -143,6 +144,12 @@ if [ "${GOLDENS:-}" = "write" ]; then
   # the #25a builder), so no state JS runs.
   docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
     node capture.mjs --mode golden --write-goldens --advisory --screen search --pagedir /src/design-system/goldens/search
+  # settings: per-state HTML dir (--pagedir). The 18 chrome-hosted sub-tab/dialog states are static
+  # server renders of "settings" (the ?tab=/dialog selection baked into each render); the 19th
+  # (forbidden) is the error-page settings-forbidden. The dialog/drawer states crop `body`, the rest
+  # crop `main` (states.json) — no state JS runs.
+  docker run --rm "${HARNESS_MNT[@]}" "$PW_IMAGE" \
+    node capture.mjs --mode golden --write-goldens --advisory --screen settings --pagedir /src/design-system/goldens/settings
 fi
 
 echo "== 3a. Postgres (pinned) =="
@@ -330,6 +337,17 @@ docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
 # TRUNCATEs the account table (which would strand search's authed-admin session).
 docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
   node capture.mjs --mode candidate $ADV_FLAG --screen search --base "http://${WEB}:8080" --hide-chrome
+# settings: chrome-hosted /settings cropped to `main`, session admin (per-state /dev/session mint),
+# served from the pinned fixtures.json settings slice under VERGE_DEV. --hide-chrome drops the sticky
+# console header from flow so <main> sits at the viewport top and aligns with the chrome-less golden
+# (as reports). The 18 sub-tab/dialog states are pure ?tab=/dialog routes settingsFixtureData reads in
+# devMode (the dialog/drawer states — team-invite/team-remove/sessions-revoke-all/sources-consent/
+# integrations-drawer — crop `body`; the rest crop `main`); the 19th (forbidden) is the viewer session
+# at /settings?tab=team, which requireSettingsAdmin refuses with the error-page settings-forbidden. No
+# state JS runs. No seed — it touches no table — so it MUST precede setup, whose /dev/seed/empty
+# TRUNCATEs the account table (which would strand settings' authed-admin session).
+docker run --rm --network "$NET" "${HARNESS_MNT[@]}" "$PW_IMAGE" \
+  node capture.mjs --mode candidate $ADV_FLAG --screen settings --base "http://${WEB}:8080" --hide-chrome
 # setup: chrome-less first-run surface (crop=body). states.json setup declares seed:"empty" —
 # capture.mjs hits /dev/seed/empty (VERGE_DEV) to empty the account table and reopen the setup
 # window before each state. MUST be the LAST candidate capture: emptying the shared fixture DB
