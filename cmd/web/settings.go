@@ -1319,6 +1319,31 @@ func (s *server) updateCheckToggle(w http.ResponseWriter, r *http.Request, acct 
 	http.Redirect(w, r, "/settings?tab=instance", http.StatusSeeOther)
 }
 
+// apiToggle flips the read-only /api/v1 surface on or off (#390, ADR-0123). The hidden
+// `enabled` field carries the flip target the API access toggle computed from the current
+// state; SetAPIEnabled stamps who acted and when, so the card renders the dated act of the
+// current state (Enabled by … · …). Enabling makes every minted personal token answer
+// GET /api/v1/… with its account's read access — read-only, always, no write surface to
+// enable; disabling returns /api/v1 to answering nothing on every path (surface off beats
+// auth) and leaves every token inert. Admin-gated (requireAdmin); a PRG back to the API tab
+// so a reload does not re-post, riding the shell toast pipeline the way other acts do.
+func (s *server) apiToggle(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	enabled := r.FormValue("enabled") == "true"
+	if err := s.store.SetAPIEnabled(r.Context(), db.SetAPIEnabledParams{
+		ApiEnabled:   enabled,
+		ApiUpdatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
+	}); err != nil {
+		s.serverError(w, "set api enabled", err)
+		return
+	}
+	if enabled {
+		s.toastRedirect(w, r, "/settings?tab=api", "ok", "API access enabled",
+			"Personal tokens now answer GET /api/v1/… — read-only, always.")
+		return
+	}
+	s.toastRedirect(w, r, "/settings?tab=api", "neutral", "API access disabled", "")
+}
+
 // diskLabel renders the used / total volume figure the instance-health disk row shows
 // (e.g. "24.8 / 40 GB", the fixture format): both in gibibytes, used carrying one
 // decimal and total rounded, the unit named once. The percentage rides the bar

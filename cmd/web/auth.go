@@ -1810,6 +1810,18 @@ func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.A
 		log.Printf("web: profile: list sessions: %v", err)
 	}
 
+	// API-access flag (#390, v3.18.0): the read-only /api/v1 surface is an instance-global
+	// admin switch, off by default. The Profile's inert-tokens note ({{if not .APIEnabled}})
+	// keys on the live flag so it shows only while the API is off — the honest "your tokens
+	// are inert until an admin enables it" read. A failed config read degrades to the safe
+	// default (off ⇒ note shown), never a spurious "enabled" that would hide the caveat.
+	apiEnabled := false
+	if cfg, err := s.store.GetInstanceConfig(r.Context()); err == nil {
+		apiEnabled = cfg.ApiEnabled
+	} else {
+		log.Printf("web: profile: instance config: %v", err)
+	}
+
 	// The revoke ConfirmDialog names its target; resolve it from the read so a stale
 	// or foreign id simply renders no dialog rather than a gate with no subject.
 	revokeName := ""
@@ -1842,7 +1854,8 @@ func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.A
 
 		"Sessions": sessions,
 
-		"Tokens": tokens,
+		"Tokens":     tokens,
+		"APIEnabled": apiEnabled,
 
 		"SSOIdentities": linked,
 		"SSOProviders":  available,
