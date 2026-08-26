@@ -1075,11 +1075,15 @@ func renderScopeStates(bodyFlex bool) ([]errorGolden, error) {
 	refusalData := base()
 	refusalData["FormScope"] = fx.RefusalFixture.PostValue
 	refusalData["FormError"] = fx.RefusalFixture.FormError
-	refusalData["Refusal"] = map[string]any{
+	// DF-F1: the declare input paste-splits into one .Refusals[] callout per refused
+	// token; this fixture pins a single over-cap token, so it renders as a one-element
+	// list (mirrors cmd/web/devfixtures.go scopeFixtureDataRefusal, which sets
+	// data["Refusals"] = []refusalView{ref}). Replaces the retired singular .Refusal.
+	refusalData["Refusals"] = []map[string]any{{
 		"Input":     fx.RefusalFixture.Input,
 		"Reason":    fx.RefusalFixture.Reason,
 		"Reachable": fx.RefusalFixture.Reachable,
-	}
+	}}
 
 	previewData := base()
 	previewData["ExclKind"] = fx.ExclusionPreviewFixture.PostKind
@@ -4268,6 +4272,7 @@ func renderSearchStates(bodyFlex bool) ([]errorGolden, error) {
 
 type gsJob struct {
 	ID          int64  `json:"id"`
+	Href        string `json:"href"` // nullable — /runs/{run}?job={id} (DF-F3b); empty renders bare #id
 	Kind        string `json:"kind"`
 	Vantage     string `json:"vantage"`
 	State       string `json:"state"`
@@ -4278,6 +4283,8 @@ type gsJob struct {
 	Batch       string `json:"batch"`
 }
 type gsActive struct {
+	ID           int64   `json:"id"`   // DF-F3: the active dispatch's run id (stop/terminate targets)
+	Href         string  `json:"href"` // DF-F3: /runs/{id}
 	ScanKind     string  `json:"scan_kind"`
 	DispatchedAt string  `json:"dispatched_at"`
 	Completed    int     `json:"completed"`
@@ -4286,6 +4293,7 @@ type gsActive struct {
 	Jobs         []gsJob `json:"jobs"`
 }
 type gsHistory struct {
+	Href         string `json:"href"` // nullable — /runs/{run} (DF-F3b); empty renders bare scan kind
 	ScanKind     string `json:"scan_kind"`
 	DispatchedAt string `json:"dispatched_at"`
 	Live         int    `json:"live"`
@@ -4550,6 +4558,36 @@ func loadSettingsFixtureG() (gsSettings, error) {
 	return ff.Settings, nil
 }
 
+// findActiveDispatchG returns the fixture active dispatch whose id matches the raw ?stop=/
+// ?terminate= query value (id 1408), or nil. Mirrors cmd/web/settings_fixtures.go findActiveDispatch.
+func findActiveDispatchG(active []gsActive, raw string) *gsActive {
+	id, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		return nil
+	}
+	for i := range active {
+		if active[i].ID == id {
+			return &active[i]
+		}
+	}
+	return nil
+}
+
+// jobStateCountsG folds a dispatch's jobs into the confirm dialog's live counts: pending is the
+// ready (not-yet-claimed) jobs a stop cancels, running is the running jobs a stop lets finish and a
+// terminate kills. Mirrors cmd/web/settings_fixtures.go jobStateCounts.
+func jobStateCountsG(jobs []gsJob) (pending, running int) {
+	for _, j := range jobs {
+		switch j.State {
+		case "ready":
+			pending++
+		case "running":
+			running++
+		}
+	}
+	return pending, running
+}
+
 // settingsGoldenMap mirrors cmd/web/settings_fixtures.go settingsFixtureData one-for-one for the
 // given tab and query, stamping the "settings" holes from the fixture with verbatim values.
 func settingsGoldenMap(fx gsSettings, tab string, q map[string]string) map[string]any {
@@ -4564,6 +4602,26 @@ func settingsGoldenMap(fx gsSettings, tab string, q map[string]string) map[strin
 		data["ColdEnabled"] = fx.Scans.ColdEnabled
 		data["ColdScopes"] = fx.Scans.ColdScopes
 		data["ColdError"] = ""
+		// DF-F4 stop / terminate confirm dialogs (states scans-stop-confirm /
+		// scans-terminate-confirm at id 1408). Mirrors cmd/web/settings_fixtures.go:
+		// the target is the matching active dispatch, its Pending/Running folded live
+		// from that dispatch's job states (jobStateCounts: ready→pending, running→running).
+		if id := q["stop"]; id != "" {
+			if a := findActiveDispatchG(fx.Scans.Active, id); a != nil {
+				pending, running := jobStateCountsG(a.Jobs)
+				data["StopTarget"] = map[string]any{
+					"ID": a.ID, "ScanKind": a.ScanKind, "Pending": pending, "Running": running,
+				}
+			}
+		}
+		if id := q["terminate"]; id != "" {
+			if a := findActiveDispatchG(fx.Scans.Active, id); a != nil {
+				_, running := jobStateCountsG(a.Jobs)
+				data["TerminateTarget"] = map[string]any{
+					"ID": a.ID, "ScanKind": a.ScanKind, "Running": running,
+				}
+			}
+		}
 	case "vantages":
 		data["Vantages"] = fx.Vantages.Vantages
 		data["Probers"] = fx.Vantages.Probers
@@ -4690,6 +4748,8 @@ func renderSettingsStates(bodyFlex bool) ([]errorGolden, error) {
 	}
 	states := []sstate{
 		{"scans", "scans", nil},
+		{"scans-stop-confirm", "scans", map[string]string{"stop": "1408"}},
+		{"scans-terminate-confirm", "scans", map[string]string{"terminate": "1408"}},
 		{"vantages", "vantages", nil},
 		{"sso", "sso", nil},
 		{"team", "team", nil},
