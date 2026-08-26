@@ -190,7 +190,7 @@ func encodeData(data []byte, version int, ec ecBlocks) []byte {
 	if version >= 10 {
 		countBits = 16
 	}
-	bb.append(uint32(len(data)), countBits)
+	bb.append(uint32(len(data)), countBits) // #nosec G115 (len(data) bounded by QR capacity, well under uint32)
 	for _, d := range data {
 		bb.append(uint32(d), 8)
 	}
@@ -459,7 +459,7 @@ func (m *Matrix) applyMask(mask int) {
 // the given mask: 5 data bits (level 00 + mask) with 10 BCH check bits, XORed
 // with the 0x5412 constant mask (ISO/IEC 18004 §8.9).
 func formatBits(mask int) uint32 {
-	data := uint32(mask) // level M contributes 00 in the high two bits
+	data := uint32(mask) // #nosec G115 (QR mask pattern 0..7) — level M contributes 00 in the high two bits
 	rem := data
 	for i := 0; i < 10; i++ {
 		rem = (rem << 1) ^ ((rem >> 9) * 0x537)
@@ -470,11 +470,11 @@ func formatBits(mask int) uint32 {
 // versionBits returns the 18-bit BCH-encoded version information (6 data bits +
 // 12 check bits) for version >= 7 (ISO/IEC 18004 §8.10).
 func versionBits(version int) uint32 {
-	rem := uint32(version)
+	rem := uint32(version) // #nosec G115 (QR version 1..40)
 	for i := 0; i < 12; i++ {
 		rem = (rem << 1) ^ ((rem >> 11) * 0x1f25)
 	}
-	return uint32(version)<<12 | rem
+	return uint32(version)<<12 | rem // #nosec G115 (QR version 1..40)
 }
 
 // drawFormat writes both copies of the 15-bit format information for the chosen

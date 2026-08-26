@@ -317,7 +317,7 @@ func (s *server) inviteAccount(w http.ResponseWriter, r *http.Request, acct db.A
 	}
 	link := s.inviteLink(r, plaintext)
 	// The one delivery this self-hosted build honestly has: the operator's own logs.
-	log.Printf("web: invite minted at role %q; accept it at %s (expires in %s)", role, link, inviteTTL)
+	log.Printf("web: invite minted at role %q; accept it at %s (expires in %s)", role, link, inviteTTL) // #nosec G706 (role is enum-validated admin|viewer; link is server-constructed)
 	s.renderSettings(w, r, acct, settingsForms{tab: "team", inviteLink: link})
 }
 
@@ -840,8 +840,8 @@ func (s *server) fillApertureSection(r *http.Request, f settingsForms, data map[
 	editByPort := make(map[uint16]string, len(editRows))
 	edits := make([]vergecore.FrequencyEdit, 0, len(editRows))
 	for _, e := range editRows {
-		editByPort[uint16(e.Port)] = e.Action
-		edits = append(edits, vergecore.FrequencyEdit{Port: uint16(e.Port), Action: e.Action})
+		editByPort[uint16(e.Port)] = e.Action                                                  // #nosec G115 (DB port written only via 1..65535-validated edit path)
+		edits = append(edits, vergecore.FrequencyEdit{Port: uint16(e.Port), Action: e.Action}) // #nosec G115 (DB port written only via 1..65535-validated edit path)
 	}
 	shipped := vergecore.Default()
 	effective := shipped.WithFrequencyEdits(edits)

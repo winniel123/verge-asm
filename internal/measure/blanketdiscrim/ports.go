@@ -61,7 +61,7 @@ func (CryptoPorts) Ports() []uint16 {
 			// Gap on a real origin.
 			break
 		}
-		seen[uint16(int64(portBandLow)+n.Int64())] = struct{}{}
+		seen[uint16(int64(portBandLow)+n.Int64())] = struct{}{} // #nosec G115 (result in [portBandLow,portBandHigh], both <= 65535)
 	}
 	return sortedPorts(seen)
 }

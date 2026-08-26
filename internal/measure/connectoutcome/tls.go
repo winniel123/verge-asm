@@ -177,7 +177,7 @@ func (n NetHandshaker) Handshake(ctx context.Context, target netip.AddrPort, ser
 	defer cancel()
 
 	cfg := &tls.Config{
-		InsecureSkipVerify: true, // record what was presented, not whether it verified
+		InsecureSkipVerify: true, // #nosec G402 (accepted: certificate-measurement probe — records the presented chain incl. self-signed/expired; verification is a declared-param OFF by design, digest-locked to CertVersion. See HandshakeParams.RecordNotVerify.)
 		ServerName:         serverName,
 		NextProtos:         nil, // no ALPN — CONTEXT.md `Certificate`
 	}

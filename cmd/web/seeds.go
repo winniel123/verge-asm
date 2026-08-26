@@ -571,7 +571,7 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		"ZoneScopes": toZoneViews(nameSeeds, zoneStatus, cadence, s.now().UTC()),
 		// The per-file zone-upload refusals (DF-F2): one row per rejected file. Replaces
 		// the single .ZoneError hole.
-		"ZoneErrors":       f.zoneErrors,
+		"ZoneErrors":        f.zoneErrors,
 		"ZoneIntervalError": f.zoneIntervalError,
 		"ZoneIntervalDays":  intervalDays,
 		// Pending Proposals flattened to the spec rows + the org-name search echo (#21).
@@ -765,6 +765,12 @@ func seedCreateError(err error, noun string) string {
 // upload, not a product limit.
 const maxZoneUpload = 8 << 20 // 8 MiB
 
+// maxTotalZoneUpload bounds the WHOLE multipart request body (DF-F2 allows N
+// zonefile parts in one POST). It caps total bytes read off the wire before any
+// parse, so a hostile or accidental oversize body cannot exhaust memory; the
+// per-file 8 MiB cap still applies to each accepted part.
+const maxTotalZoneUpload = 64 << 20 // 64 MiB
+
 // zoneView is a name scope shaped for the zone-file section: the scope, and
 // whether it currently holds a supplied file with its supply instant, uploader
 // and size.
@@ -873,7 +879,8 @@ func (s *server) uploadZoneFile(w http.ResponseWriter, r *http.Request, acct db.
 		http.Redirect(w, r, "/scope", http.StatusSeeOther)
 		return
 	}
-	if err := r.ParseMultipartForm(maxZoneUpload); err != nil {
+	r.Body = http.MaxBytesReader(w, r.Body, maxTotalZoneUpload)
+	if err := r.ParseMultipartForm(maxZoneUpload); err != nil { // #nosec G120 (request body bounded by the MaxBytesReader immediately above; per-part 8 MiB cap enforced on read)
 		s.renderSeeds(w, r, acct, seedsForms{zoneErrors: []zoneErrorView{{
 			Reason: "The upload was too large or malformed. A zone file is text, up to 8 MB.",
 		}}})

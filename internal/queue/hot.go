@@ -119,7 +119,7 @@ func hotCore(ctx context.Context, q *db.Queries) (vergecore.List, error) {
 	}
 	fe := make([]vergecore.FrequencyEdit, 0, len(edits))
 	for _, e := range edits {
-		fe = append(fe, vergecore.FrequencyEdit{Port: uint16(e.Port), Action: e.Action})
+		fe = append(fe, vergecore.FrequencyEdit{Port: uint16(e.Port), Action: e.Action}) // #nosec G115 (DB port written only via 1..65535-validated edit path)
 	}
 	return vergecore.Default().WithFrequencyEdits(fe), nil
 }

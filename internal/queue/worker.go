@@ -37,7 +37,7 @@ func (p ExecProber) Probe(ctx context.Context, spec wire.JobSpec) ([]wire.Observ
 	if err := wire.EncodeJobSpec(&stdin, spec); err != nil {
 		return nil, err
 	}
-	cmd := exec.CommandContext(ctx, p.Path)
+	cmd := exec.CommandContext(ctx, p.Path) // #nosec G204 (Path is operator-configured; no argv args, spec via stdin per ADR-0001 — no tainted input)
 	cmd.Stdin = &stdin
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

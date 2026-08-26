@@ -100,21 +100,21 @@ type driftDiffLine struct {
 // family), the subject it moved, a terse detail, a relative time, an optional
 // closure/aperture reason, and an optional before/after diff.
 type driftEvent struct {
-	Change string
-	Family string
+	Change  string
+	Family  string
 	Subject string
-	Detail string
-	Time   string
-	Reason string
-	Diff   []driftDiffLine
+	Detail  string
+	Time    string
+	Reason  string
+	Diff    []driftDiffLine
 }
 
 // driftBatch is one batch's group of transitions — the unit the timeline groups by
 // (#288, ADR-0111). Its Label is the batch kind and how long ago it folded; Meta
 // summarises the batch's recorded scope.
 type driftBatch struct {
-	Label  string
-	Meta   string
+	Label string
+	Meta  string
 	// Collapsed marks a group whose events start folded away in the timeline —
 	// true for groups older than the two most recent batches (SPEC-CHANGE #20). The
 	// frozen tmpl draws it closed and its own JS toggles it open client-side; the
@@ -285,7 +285,7 @@ func (s *server) driftPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 		}
 		// The cap keeps the newest events (query orders newest-first); a full page is
 		// stated as truncated rather than silently dropping the older tail.
-		truncated = int32(len(rows)) >= driftFeedLimit
+		truncated = int32(len(rows)) >= driftFeedLimit // #nosec G115 (len(rows) capped at driftFeedLimit=500 via query MaxEvents)
 		groups, movement = buildDriftFeed(rows, s.now())
 	}
 
@@ -364,7 +364,7 @@ func (s *server) driftExport(w http.ResponseWriter, r *http.Request, acct db.Acc
 	if until.Valid {
 		rows = filterDriftRowsUntil(rows, until.Time)
 	}
-	if int32(len(rows)) >= driftFeedLimit {
+	if int32(len(rows)) >= driftFeedLimit { // #nosec G115 G706 (len(rows) capped at driftFeedLimit=500 via query MaxEvents; token below is a constant preset or time.Parse-validated YYYY-MM-DD range — no CR/LF)
 		log.Printf("web: drift export: feed capped at %d events for period=%s; older tail omitted", driftFeedLimit, token)
 	}
 	s.writeDriftExportCSV(w, token, rows)

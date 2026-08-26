@@ -3,7 +3,7 @@ package auth
 import (
 	"crypto/hmac"
 	"crypto/rand"
-	"crypto/sha1"
+	"crypto/sha1" // #nosec G505 (HMAC-SHA1 per RFC 6238 TOTP; collision resistance irrelevant to HMAC; switching breaks enrolled authenticators.)
 	"crypto/subtle"
 	"encoding/base32"
 	"encoding/binary"
@@ -96,7 +96,7 @@ func VerifyTOTPStep(secret, code string, t time.Time) (step int64, ok bool) {
 // its HOTP value from. It is exposed to the login path as the per-account replay
 // watermark, so it must stay the exact expression codeFromKey uses.
 func stepFor(t time.Time) int64 {
-	return int64(uint64(t.Unix()) / uint64(totpPeriod.Seconds()))
+	return int64(uint64(t.Unix()) / uint64(totpPeriod.Seconds())) // #nosec G115 (Unix seconds / 30; ~5.6e7, never overflows)
 }
 
 func decodeSecret(secret string) ([]byte, error) {
@@ -110,7 +110,7 @@ func decodeSecret(secret string) ([]byte, error) {
 // codeFromKey computes the HOTP value for the decoded key at the step covering
 // t (RFC 4226 dynamic truncation, §5.3).
 func codeFromKey(key []byte, t time.Time) string {
-	counter := uint64(stepFor(t))
+	counter := uint64(stepFor(t)) // #nosec G115 (stepFor >= 0 and ~5.6e7, fits uint64)
 
 	var msg [8]byte
 	binary.BigEndian.PutUint64(msg[:], counter)
