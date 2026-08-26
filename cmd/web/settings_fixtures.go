@@ -24,8 +24,7 @@ import (
 
 // The fixture shapes below mirror fixtures.json → settings.* exactly: snake_case json
 // tags, PascalCase field names equal to the settings.tmpl declared holes, so a section
-// slice is passed straight into the tmpl with no reshape. TestSettingsFixtureMatchesPackage
-// (settings_fixtures_test.go) folds representative values back through fixtures.json.
+// slice is passed straight into the tmpl with no reshape.
 
 type sfJob struct {
 	ID          int64  `json:"id"`
