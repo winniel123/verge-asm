@@ -98,6 +98,9 @@ var backupTables = []string{
 // `goose_db_version` (goose's migration ledger) is not listed here because it is not a
 // business table: restore re-applies migrations and the manifest carries the schema
 // version, so the ledger is reconstructed, never carried.
+// #nosec G101 -- keys are database table names (e.g. "password_reset") paired with prose
+// explaining why each is excluded from the backup; none is a credential value. gosec's
+// hardcoded-credential heuristic matches the "password"/"token" substrings in the names.
 var backupExcluded = map[string]string{
 	"session":        "live login sessions — the ADR-0053 §4.2 'DB leak → live admin sessions' surface; they lapse on restore and are invalid under the regenerated session key",
 	"password_reset": "single-use, short-TTL reset-token hashes — expired and meaningless off-host, a needless credential surface with no restore value",
