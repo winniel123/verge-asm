@@ -23,6 +23,14 @@ You never author UI. The design package is the view layer; you embed it, feed it
 5. Add the screen to the harness run; `--write-goldens` in the canonical container if the package introduced new golden inputs; commit.
 6. Run G1 + G2. Open the PR with the per-state diff report. The operator visually confirms before the next screen starts — do not begin another stop on your own.
 
+## Implementing a new feature (WORK-ORDER with a `## Behavior` section)
+
+1. Read the order's `## Behavior` section first — it is the functional spec: entry points, state transitions, data contract per hole, actions & side effects, edge cases. Implement from it; never infer behavior from markup alone.
+2. Every transition trigger and side effect listed must work as written; every fixture state in `verify/states.json` must be reachable through the listed transitions.
+3. Endpoints named in Actions & side effects are contracts — build them to the stated method/payload/result. Naming an unstated endpoint or inventing a transition is authorship: stop, escalate as SPEC-CHANGE.
+4. A behavior gap (unlisted state, hole with no data-contract row, action with no stated effect) = collision → AWAITING DESIGN. Never approximate.
+5. An order stating `Behavior: no change` means wiring/visual only — touch no handlers' semantics.
+
 ## Wiring rules
 
 - A hole with no obvious source datum = collision → SPEC-CHANGE stop-and-escalate (banner + hand-off prompt). Never approximate, empty-state, or drop.

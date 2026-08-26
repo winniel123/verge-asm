@@ -125,6 +125,11 @@ func sourceFor(facet string) string {
 }
 
 func pgInt8(v int64) pgtype.Int8 { return pgtype.Int8{Int64: v, Valid: true} }
+
+// pgText wraps a string as a set pgtype.Text; an empty string is a set-but-empty
+// value, never SQL NULL. The withdrawal closure only ever passes one of drift's
+// three non-empty grounds, so the distinction does not arise here.
+func pgText(s string) pgtype.Text { return pgtype.Text{String: s, Valid: true} }
 func tstz(t time.Time) pgtype.Timestamptz {
 	return pgtype.Timestamptz{Time: t, Valid: true}
 }

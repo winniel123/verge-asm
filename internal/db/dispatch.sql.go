@@ -11,6 +11,46 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const cancelActiveJobsForDispatch = `-- name: CancelActiveJobsForDispatch :execrows
+UPDATE queue_job SET state = 'cancelled'
+WHERE dispatch_id = $1 AND state IN ('ready', 'running')
+`
+
+// Terminate a Dispatch (DF-F4): cancel every in-flight job — ready AND running. A
+// ready job never runs; a running job is cancelled out from under the worker, whose
+// guarded terminal write (MarkJobDone/Dead/Retried, WHERE state = 'running') then
+// affects no row and rolls its transaction back, so the job's uncommitted batch and
+// observations are discarded (job atomicity — internal/queue/worker.go). A job that
+// already committed is 'done'/'dead', not 'running', so its batch stands untouched
+// (append-only). Returns the count cancelled (the "N jobs stopped" figure).
+func (q *Queries) CancelActiveJobsForDispatch(ctx context.Context, dispatchID pgtype.Int8) (int64, error) {
+	result, err := q.db.Exec(ctx, cancelActiveJobsForDispatch, dispatchID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const cancelReadyJobsForDispatch = `-- name: CancelReadyJobsForDispatch :execrows
+UPDATE queue_job SET state = 'cancelled'
+WHERE dispatch_id = $1 AND state = 'ready'
+`
+
+// Stop a Dispatch (DF-F4): cancel its pending work. Every ready (not-yet-claimed)
+// job of the dispatch moves to the terminal 'cancelled' state, leaving the claimable
+// set at once — ClaimJob selects state = 'ready' alone, so a cancelled job is never
+// run. A job the worker is mid-claim on is locked FOR UPDATE and already 'running' by
+// the time this UPDATE reaches it, so the WHERE state = 'ready' no longer matches: a
+// running job is left to finish and commit, which is the stop contract. Returns the
+// count actually cancelled (the "N pending jobs cancelled" figure).
+func (q *Queries) CancelReadyJobsForDispatch(ctx context.Context, dispatchID pgtype.Int8) (int64, error) {
+	result, err := q.db.Exec(ctx, cancelReadyJobsForDispatch, dispatchID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const listDispatchProgress = `-- name: ListDispatchProgress :many
 SELECT
     d.id       AS dispatch_id,
@@ -151,4 +191,21 @@ func (q *Queries) ListJobsForDispatch(ctx context.Context, dispatchID pgtype.Int
 		return nil, err
 	}
 	return items, nil
+}
+
+const setDispatchStatus = `-- name: SetDispatchStatus :exec
+UPDATE dispatch SET status = $2 WHERE id = $1 AND status = 'fanned-out'
+`
+
+type SetDispatchStatusParams struct {
+	ID     int64  `json:"id"`
+	Status string `json:"status"`
+}
+
+// Record a Dispatch's operator-ended disposition (DF-F4): 'stopped' or 'terminated'.
+// Scoped to a still-'fanned-out' dispatch so a second submit or a natural conclusion
+// cannot overwrite a recorded terminal status.
+func (q *Queries) SetDispatchStatus(ctx context.Context, arg SetDispatchStatusParams) error {
+	_, err := q.db.Exec(ctx, setDispatchStatus, arg.ID, arg.Status)
+	return err
 }

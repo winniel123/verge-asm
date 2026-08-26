@@ -1090,12 +1090,14 @@ func sessionDeviceFromUA(ua string) string {
 // self-hosted), the process uptime since start, that Postgres answered this render,
 // and the provisioned vantage fleet with each vantage's availability.
 func (s *server) fillInstanceSection(r *http.Request, data map[string]any) error {
+	ctx := r.Context()
 	// Real host facts only (#26h): the licence stance and the process uptime since
-	// start. Version, queue depth, disk and postgres are host facts with no read
-	// wired on the live surface yet, so they render empty and their figures collapse
-	// rather than fabricate a number; the design fixture pins them for the pixel
-	// golden. The update callout is nullable — no update-check mechanism exists, so
-	// it is absent.
+	// start. Version stays absent — no build-version datum reaches this surface yet, so
+	// it collapses rather than fabricate one; the design fixture pins it for the pixel
+	// golden. The update callout is nullable — no update-check mechanism exists, so it is
+	// absent. Queue depth, disk and Postgres are wired from live reads below (#633,
+	// WORK-ORDER-DOGFOOD-R1 item 3), each best-effort: a failed read leaves its hole empty
+	// and the figure collapses, never a guessed number.
 	inst := map[string]any{
 		"License":    "AGPL-3.0 · self-hosted",
 		"Uptime":     humanizeDuration(s.now().Sub(s.startedAt)),
@@ -1105,6 +1107,34 @@ func (s *server) fillInstanceSection(r *http.Request, data map[string]any) error
 		"DiskDetail": "",
 		"PgLabel":    "postgres",
 		"PgDetail":   "",
+	}
+
+	// Queue depth — the real count of in-flight queue jobs (ready + running) across the
+	// recent dispatches: the work waiting on the queue, the "subjects waiting" figure.
+	if rows, err := s.store.ListDispatchProgress(ctx, scansHistoryLimit); err == nil {
+		var waiting int64
+		for _, row := range rows {
+			waiting += row.Ready + row.Running
+		}
+		inst["QueueDepth"] = waiting
+	} else {
+		log.Printf("web: instance: queue depth: %v", err)
+	}
+
+	// Disk — a real Statfs of the working-directory volume on the deployment host
+	// (diskstat_unix.go). Off unix (dev on Windows) diskUsage reports ok=false and the
+	// figure collapses rather than fabricate one.
+	if used, total, ok := diskUsage("."); ok {
+		inst["DiskDetail"] = diskLabel(used, total)
+		inst["DiskPct"] = int(used * 100 / total) // #nosec G115 -- used<=total (guarded in diskUsage), so the percentage is 0..100
+	}
+
+	// Database — real pg_database_size and server version off the running Postgres.
+	if h, err := s.store.GetInstanceHealth(ctx); err == nil {
+		inst["PgLabel"] = pgLabel(h.ServerVersion)
+		inst["PgDetail"] = humanBytes(h.DbSizeBytes)
+	} else {
+		log.Printf("web: instance: db health: %v", err)
 	}
 
 	var fleet []map[string]any
@@ -1124,6 +1154,45 @@ func (s *server) fillInstanceSection(r *http.Request, data map[string]any) error
 	inst["Vantages"] = fleet
 	data["Instance"] = inst
 	return nil
+}
+
+// diskLabel renders the used / total volume figure the instance-health disk row shows
+// (e.g. "24.8 / 40 GB", the fixture format): both in gibibytes, used carrying one
+// decimal and total rounded, the unit named once. The percentage rides the bar
+// (.DiskPct) separately, so it is not repeated here.
+func diskLabel(used, total uint64) string {
+	const gb = 1 << 30
+	return fmt.Sprintf("%.1f / %.0f GB", float64(used)/gb, float64(total)/gb)
+}
+
+// humanBytes renders a byte count as the terse GB/MB/KB figure the database-size row
+// shows (e.g. "4.2 GB"). It picks the largest unit that keeps the number readable, so a
+// fresh database reads in MB rather than a long fraction of a GB.
+func humanBytes(n int64) string {
+	switch {
+	case n >= 1<<30:
+		return fmt.Sprintf("%.1f GB", float64(n)/(1<<30))
+	case n >= 1<<20:
+		return fmt.Sprintf("%.0f MB", float64(n)/(1<<20))
+	case n >= 1<<10:
+		return fmt.Sprintf("%.0f KB", float64(n)/(1<<10))
+	default:
+		return strconv.FormatInt(n, 10) + " B"
+	}
+}
+
+// pgLabel renders the "postgres <major>" label from a raw server_version string (e.g.
+// "16.4" or "16.4 (Debian 16.4-1)" → "postgres 16"). A version with no leading integer
+// falls back to a bare "postgres" rather than a malformed label.
+func pgLabel(version string) string {
+	major := strings.TrimSpace(version)
+	if i := strings.IndexFunc(major, func(r rune) bool { return r < '0' || r > '9' }); i >= 0 {
+		major = major[:i]
+	}
+	if major == "" {
+		return "postgres"
+	}
+	return "postgres " + major
 }
 
 // humanizeDuration renders a process uptime as a terse figure (e.g. 41d, 6h, 12m,

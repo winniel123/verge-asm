@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"strconv"
 
 	designfs "github.com/winniel123/verge-asm/design-system"
 	"github.com/winniel123/verge-asm/internal/db"
@@ -28,6 +29,7 @@ import (
 
 type sfJob struct {
 	ID          int64  `json:"id"`
+	Href        string `json:"href"` // /runs/{run}?job={id} (DF-F3b), nullable
 	Kind        string `json:"kind"`
 	Vantage     string `json:"vantage"`
 	State       string `json:"state"`
@@ -39,6 +41,8 @@ type sfJob struct {
 }
 
 type sfActive struct {
+	ID           int64   `json:"id"`   // dispatch id (DF-F3)
+	Href         string  `json:"href"` // /runs/{dispatch} (DF-F3)
 	ScanKind     string  `json:"scan_kind"`
 	DispatchedAt string  `json:"dispatched_at"`
 	Completed    int     `json:"completed"`
@@ -48,6 +52,7 @@ type sfActive struct {
 }
 
 type sfHistory struct {
+	Href         string `json:"href"` // /runs/{dispatch} (DF-F3), nullable
 	ScanKind     string `json:"scan_kind"`
 	DispatchedAt string `json:"dispatched_at"`
 	Live         int    `json:"live"`
@@ -375,6 +380,27 @@ func (s *server) settingsFixtureData(acct db.Account, r *http.Request) map[strin
 		data["ColdEnabled"] = fx.Scans.ColdEnabled
 		data["ColdScopes"] = fx.Scans.ColdScopes
 		data["ColdError"] = ""
+		// The stop / terminate confirm dialogs (DF-F4, states scans-stop-confirm /
+		// scans-terminate-confirm at id 1408). The harness navigates ?stop=/?terminate=;
+		// the target is built from the matching active dispatch, its Pending / Running
+		// counts folded live from that dispatch's job states — the same shape the live
+		// fillScansSection builds from the progress row.
+		if id := q.Get("stop"); id != "" {
+			if a := findActiveDispatch(fx.Scans.Active, id); a != nil {
+				pending, running := jobStateCounts(a.Jobs)
+				data["StopTarget"] = map[string]any{
+					"ID": a.ID, "ScanKind": a.ScanKind, "Pending": pending, "Running": running,
+				}
+			}
+		}
+		if id := q.Get("terminate"); id != "" {
+			if a := findActiveDispatch(fx.Scans.Active, id); a != nil {
+				_, running := jobStateCounts(a.Jobs)
+				data["TerminateTarget"] = map[string]any{
+					"ID": a.ID, "ScanKind": a.ScanKind, "Running": running,
+				}
+			}
+		}
 	case "vantages":
 		data["Vantages"] = fx.Vantages.Vantages
 		data["Probers"] = fx.Vantages.Probers
@@ -484,6 +510,36 @@ func (s *server) settingsFixtureData(acct db.Account, r *http.Request) map[strin
 		data["RetDispatch"] = ""
 	}
 	return data
+}
+
+// findActiveDispatch returns the fixture active dispatch whose id matches the raw query
+// value (the ?stop=/?terminate= target, id 1408), or nil.
+func findActiveDispatch(active []sfActive, raw string) *sfActive {
+	id, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		return nil
+	}
+	for i := range active {
+		if active[i].ID == id {
+			return &active[i]
+		}
+	}
+	return nil
+}
+
+// jobStateCounts folds a dispatch's jobs into the dialog's live counts: pending is the
+// ready (not-yet-claimed) jobs a stop cancels, running is the running jobs a stop lets
+// finish and a terminate kills. A superseded (retried) attempt is neither.
+func jobStateCounts(jobs []sfJob) (pending, running int) {
+	for _, j := range jobs {
+		switch j.State {
+		case "ready":
+			pending++
+		case "running":
+			running++
+		}
+	}
+	return pending, running
 }
 
 // findMember returns the fixture member with the given id, or nil.

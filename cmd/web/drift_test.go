@@ -121,6 +121,56 @@ func TestClassifyDriftEventReasonedClose(t *testing.T) {
 	}
 }
 
+// A first span the estate wiring marked aperture-widened (span.opened_aperture)
+// classifies `revealed` — the operator's declared scope is why we started looking
+// at a Seed-declared subject — while an unmarked first span stays `appeared`, the
+// world bringing a subject the aperture had not declared (#637, ADR-0014). Both are
+// gain-family openings; the marker is the whole distinction.
+func TestClassifyDriftEventRevealed(t *testing.T) {
+	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
+
+	revealed := driftOpenedRow(7, now.Add(-time.Hour), "api.example.com", `{"outcome":"not-reached"}`, "")
+	revealed.OpenedAperture = true
+	ev, ok := classifyDriftEvent(revealed, now)
+	if !ok || ev.Change != "revealed" {
+		t.Fatalf("aperture-marked first span => change %q (ok=%v), want revealed", ev.Change, ok)
+	}
+	if ev.Family != "gain" {
+		t.Errorf("revealed family = %q, want gain", ev.Family)
+	}
+
+	appeared := driftOpenedRow(7, now.Add(-time.Hour), "discovered.other.net", `{"outcome":"Resolved"}`, "")
+	// OpenedAperture defaults false — the world brought it.
+	ev, ok = classifyDriftEvent(appeared, now)
+	if !ok || ev.Change != "appeared" {
+		t.Fatalf("unmarked first span => change %q (ok=%v), want appeared", ev.Change, ok)
+	}
+}
+
+// A re-open across a prior withdrawal closure classifies `returned` — the same
+// timeline, a `measured-absent` closure behind it under an equal Derivation vector,
+// which the estate wiring now writes so this kind can fire. A `descoped` prior
+// closure instead reads `appeared`: a narrowing is not a decommission, so a
+// re-citation must not be narrated as the world bringing the subject back
+// (drift.MembershipReturn, ADR-0087).
+func TestClassifyDriftEventReturned(t *testing.T) {
+	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
+
+	returned := driftOpenedRow(9, now.Add(-time.Hour), "api.example.com", `{"outcome":"Resolved"}`, `{"outcome":"NameError"}`)
+	returned.PrevClosureReason = pgtype.Text{String: "measured-absent", Valid: true}
+	ev, ok := classifyDriftEvent(returned, now)
+	if !ok || ev.Change != "returned" {
+		t.Fatalf("re-open across a measured-absent closure => change %q (ok=%v), want returned", ev.Change, ok)
+	}
+
+	afterDescope := driftOpenedRow(9, now.Add(-time.Hour), "api.example.com", `{"outcome":"Resolved"}`, `{"outcome":"NameError"}`)
+	afterDescope.PrevClosureReason = pgtype.Text{String: "descoped", Valid: true}
+	ev, ok = classifyDriftEvent(afterDescope, now)
+	if !ok || ev.Change != "appeared" {
+		t.Fatalf("re-open across a descoped closure => change %q (ok=%v), want appeared", ev.Change, ok)
+	}
+}
+
 // The Drift screen renders the change vocabulary (the legend) on the drift palette
 // and, with no transition feed yet, the empty-state timeline — never a fabricated
 // change event. It is a first-class screen (nav item 4 of 7): the full composition

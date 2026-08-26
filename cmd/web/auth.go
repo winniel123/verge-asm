@@ -2457,11 +2457,32 @@ func (s *server) injectChrome(data any, r *http.Request) {
 	if hasAcct {
 		messages = s.bellMessages(ctx, acct.ID, 4)
 	}
+
+	// A page may carry a flash INLINE (a bulk act that mixed successes with refusals
+	// renders the callouts and the success toast in one response, rather than a PRG that
+	// would drop the callouts). An inline FlashToasts wins over the PRG `toast` query.
+	toasts := decodeToasts(r)
+	if pt, ok := m["FlashToasts"].([]toastVM); ok {
+		toasts = pt
+	}
 	initials := "?"
 	userName := ""
 	if hasAcct {
 		initials = accountInitials(acct.Username)
 		userName = acct.Username
+	}
+
+	// Toasts come from the PRG `toast` query (decodeToasts). A single-consume flash
+	// (flash.go) additionally carries the scan trigger / stop / terminate receipts (#633,
+	// WORK-ORDER-DOGFOOD-R1 item 1): stashed server-side and read-and-deleted here on the
+	// first chrome render, so the in-flight auto-refresh reloading the same clean URL does
+	// not re-show them. A flash, when present, is the authoritative single toast (it wins
+	// over the inline FlashToasts above — in practice the two never co-occur, since the
+	// bulk-act pages that set FlashToasts do not stash a scan receipt).
+	if hasAcct {
+		if t, ok := s.flash.take(acct.ID); ok {
+			toasts = []toastVM{t}
+		}
 	}
 
 	m["Chrome"] = &chromeVM{
@@ -2475,7 +2496,7 @@ func (s *server) injectChrome(data any, r *http.Request) {
 		Unread:        unread > 0,
 		Messages:      messages,
 		PaletteGroups: paletteGroupsProd(signalCount, unread),
-		Toasts:        decodeToasts(r),
+		Toasts:        toasts,
 	}
 }
 

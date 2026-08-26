@@ -923,6 +923,75 @@ func (s *server) runDetailFixtureData(acct db.Account) map[string]any {
 	}
 }
 
+// --- running run 1408: live scan output (DF-F3 / DF-F3b, package v3.16.2) --------------------
+//
+// Foundation seeded run 1408 as the Settings scans active dispatch (fixtures.json →
+// settings.scans.active[0], id 1408, href /runs/1408), each of whose jobs links here as
+// /runs/1408?job={id}. This ticket adds the run-page side: a running dispatch whose drill-in
+// renders the LIVE pulse + the head meta-refresh tail while in flight (DF-F3), and — with
+// ?job= — the server-side per-job log filter + loghead chip (DF-F3b). The view is built from
+// the same pure folds the live path uses (runStages / runLog / runVantages / applyJobFilter /
+// runRefresh), so a real running dispatch and this fixture render byte-for-byte alike. It is
+// VERGE_DEV-only. The rundetail G2 default golden stays /runs/1407; no golden gates 1408 as a
+// running run — states.json maps /runs/1408 to the error screen's missing-run capture, while
+// fixtures.json makes 1408 the Settings active dispatch: a design-owned id collision reconciled
+// at G2 as SPEC-CHANGE #35 (AWAITING DESIGN). PARKED: runPage no longer routes /runs/1408 here
+// (it stays the missing-run route the frozen error golden pins); this built demo re-enables in
+// one line — restore the `if raw == devRunningRunID` case in scans.go — once design gives the
+// live run a distinct id.
+const devRunningRunID = "1408"
+
+// devRunningRunJobs mirrors fixtures.json → settings.scans.active[0].jobs (id 1408): six
+// queue jobs of the in-flight standard dispatch — three resolved (done, committed under batch
+// 1407), a reachability retry in flight from ap-south-1 (attempt 2, ready → a warn line), a
+// port census running from eu-west-1, and a tls-acceptance done. The ids are the ?job= keys.
+var devRunningRunJobs = []jobView{
+	{ID: 912, Kind: "dns-sweep", State: "done", Attempt: 1, MaxAttempts: 3, Vantage: "eu-west-1", Batch: "1407"},
+	{ID: 913, Kind: "reachability", State: "done", Attempt: 1, MaxAttempts: 3, Vantage: "eu-west-1", Batch: "1407"},
+	{ID: 914, Kind: "reachability", State: "done", Attempt: 1, MaxAttempts: 3, Vantage: "us-east-2", Batch: "1407"},
+	{ID: 915, Kind: "reachability", State: "ready", Attempt: 2, MaxAttempts: 3, Retrying: true, Vantage: "ap-south-1"},
+	{ID: 916, Kind: "port-census", State: "running", Attempt: 1, MaxAttempts: 3, Vantage: "eu-west-1"},
+	{ID: 917, Kind: "tls-acceptance", State: "done", Attempt: 1, MaxAttempts: 3, Vantage: "eu-west-1", Batch: "1407"},
+}
+
+// runningRunFixtureData assembles the render data map runPage passes to the frozen
+// rundetail.tmpl for /runs/1408 in a VERGE_DEV build. Status is running (LIVE pulse + the
+// .Refresh=5 tail), the Outcome holes hold "—" (a running run's diff has not concluded), and
+// the degraded callout is nil. With ?job={id} applyJobFilter narrows .Log to that job's rows
+// server-side and sets the loghead chip (an unknown id → empty .Log + chip, the honest
+// "No log to show"); bareHref is the request path the × clears to. All VERGE_DEV-only.
+func (s *server) runningRunFixtureData(acct db.Account, jobParam, bareHref string) map[string]any {
+	jobs := devRunningRunJobs
+	view := runView{
+		ID:          1408,
+		Title:       "2026-08-22T14:00Z",
+		Status:      runStatusLabel(true, 0, ""), // in flight → running
+		Scope:       "all scopes",
+		Meta:        "standard profile · 3 vantages",
+		Transitions: "—",
+		NewSignals:  "—",
+		Active:      true,
+		Stages:      runStages(jobs),
+		Log:         runLog(jobs),
+		Vantages:    runVantages(jobs),
+		Params: []runKV{
+			{K: "Profile", V: "standard"},
+			{K: "Cadence", V: "daily · 08:00 + 14:00"},
+			{K: "Dispatched", V: "2026-08-22 14:00 UTC"},
+			{K: "Jobs", V: "6"},
+			{K: "Vantages", V: "3"},
+		},
+	}
+	applyJobFilter(&view, jobParam, bareHref, jobs)
+	return map[string]any{
+		"Title": "batch " + view.Title, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		"NavActive":    "drift",
+		"DesignTokens": true,
+		"Refresh":      runRefresh(view.Status),
+		"Run":          view,
+	}
+}
+
 // devCoverageSeedEmpty is the GET /dev/seed/empty-authed handler (VERGE_DEV only): it realizes
 // states.json coverage seed:"empty-authed" by arming the consume-once empty flag coveragePage
 // reads, so the NEXT /coverage render serves the empty estate. Unlike /dev/seed/empty (Setup) it
@@ -1239,7 +1308,7 @@ var devScopeExclusions = []devScopeExclusionRow{
 type scopeOverlay struct {
 	formScope   string
 	formError   string
-	refusal     *refusalView
+	refusals    []refusalView
 	exclKind    string
 	exclValue   string
 	exclPreview map[string]any
@@ -1303,8 +1372,8 @@ func (s *server) scopeFixtureData(acct db.Account, ov scopeOverlay) map[string]a
 		"ExclKind":         ov.exclKind,
 		"ExclValue":        ov.exclValue,
 	}
-	if ov.refusal != nil {
-		data["Refusal"] = ov.refusal
+	if len(ov.refusals) > 0 {
+		data["Refusals"] = ov.refusals
 	}
 	if ov.exclPreview != nil {
 		data["ExclPreview"] = ov.exclPreview
@@ -1323,7 +1392,7 @@ func (s *server) scopeFixtureDataRefusal(acct db.Account, value string) map[stri
 	if isAddressValue(value) {
 		if raw, err := netip.ParsePrefix(cidrForm(value)); err == nil && !seed.WithinCap(raw, devScopeAddressCap) {
 			ref := refusalOverCap(value, raw, devScopeAddressCap)
-			ov.refusal = &ref
+			ov.refusals = []refusalView{ref}
 			ov.formError = overCapFormError(devScopeAddressCap)
 		}
 	}

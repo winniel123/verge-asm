@@ -15,11 +15,13 @@ import (
 	"github.com/winniel123/verge-asm/internal/message"
 )
 
-// Dispatcher cuts every declared report_schedule's artifact once per cadence
-// window and stamps an in-instance receipt for the run. It mirrors package queue's
-// Dispatcher exactly: a minute poll, a per-item advisory lock, and idempotency on a
-// floored tick — the partial-unique (schedule_id, scheduled_tick) admits only the
-// first poll in a window, so a second poll is a recorded skip, never a second run.
+// Dispatcher cuts every declared report_schedule's artifact once per firing and
+// stamps an in-instance receipt for the run. It mirrors package queue's Dispatcher
+// closely: a minute poll, a per-item advisory lock, and idempotency on a fire tick —
+// the partial-unique (schedule_id, scheduled_tick) admits only the first poll after a
+// firing, so a second poll before the next firing is a recorded skip, never a second
+// run. Unlike queue's epoch-floored tick, the report fire tick is the operator's
+// declared clock time (preset time-of-day, or Custom cron — DispatchTick, ADR-0122).
 //
 // A run generates but does not leave: state is 'generated', delivered_at NULL. The
 // off-instance send is a later ticket (#508/T7, ADR-0039 stands), so this loop
@@ -64,8 +66,19 @@ func (d *Dispatcher) dispatchDue(ctx context.Context) {
 		return
 	}
 	for _, sc := range schedules {
+		// The window is the artifact PERIOD (how much of the estate the run covers);
+		// the tick is the fire INSTANT (when it runs, at the operator's declared clock
+		// time — ADR-0122). They are computed separately and are orthogonal.
 		window := CadenceWindow(sc.Cadence)
-		tick := scheduledTick(d.now(), window)
+		tick, ok := DispatchTick(d.now(), sc.Cadence)
+		if !ok {
+			// An uninterpretable cadence (neither a known preset nor a parseable cron)
+			// has no firing to dispatch. Create/edit refuses an invalid Custom cron, so
+			// this only guards legacy or hand-edited rows; skip it rather than firing on
+			// a wrong default.
+			d.log.Printf("report dispatcher: schedule %d cadence %q is uninterpretable, skipped", sc.ID, sc.Cadence)
+			continue
+		}
 		if err := d.dispatchOne(ctx, sc, tick, window); err != nil {
 			d.log.Printf("report dispatcher: dispatch schedule %d: %v", sc.ID, err)
 		}

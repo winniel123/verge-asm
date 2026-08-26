@@ -391,6 +391,7 @@ SELECT
     sp.subject_kind, sp.subject_key, sp.facet, sp.discriminator,
     sp.value, sp.is_gap, sp.derivation,
     sp.opened_at, sp.closed_at, sp.closure_reason,
+    sp.opened_aperture  AS opened_aperture,
     pred.value          AS prev_value,
     pred.derivation     AS prev_derivation,
     pred.closed_at      AS prev_closed_at,
@@ -423,6 +424,7 @@ SELECT
     sp.subject_kind, sp.subject_key, sp.facet, sp.discriminator,
     sp.value, sp.is_gap, sp.derivation,
     sp.opened_at, sp.closed_at, sp.closure_reason,
+    FALSE              AS opened_aperture,
     NULL::jsonb        AS prev_value,
     NULL::jsonb        AS prev_derivation,
     NULL::timestamptz  AS prev_closed_at,
@@ -457,6 +459,7 @@ type ListRecentDriftEventsRow struct {
 	OpenedAt          pgtype.Timestamptz `json:"opened_at"`
 	ClosedAt          pgtype.Timestamptz `json:"closed_at"`
 	ClosureReason     pgtype.Text        `json:"closure_reason"`
+	OpenedAperture    bool               `json:"opened_aperture"`
 	PrevValue         []byte             `json:"prev_value"`
 	PrevDerivation    []byte             `json:"prev_derivation"`
 	PrevClosedAt      pgtype.Timestamptz `json:"prev_closed_at"`
@@ -506,6 +509,7 @@ func (q *Queries) ListRecentDriftEvents(ctx context.Context, arg ListRecentDrift
 			&i.OpenedAt,
 			&i.ClosedAt,
 			&i.ClosureReason,
+			&i.OpenedAperture,
 			&i.PrevValue,
 			&i.PrevDerivation,
 			&i.PrevClosedAt,
@@ -829,32 +833,38 @@ func (q *Queries) ListWithdrawalLifespans(ctx context.Context, since pgtype.Time
 const openSpan = `-- name: OpenSpan :one
 INSERT INTO span (
     subject_kind, subject_key, facet, discriminator, vantage_id, source,
-    value, is_gap, derivation, opened_at, opened_batch_id
+    value, is_gap, derivation, opened_at, opened_batch_id, opened_aperture
 ) VALUES (
     $1, $2, $3, $4, $5::bigint,
-    $6, $7, $8, $9, $10, $11::bigint
+    $6, $7, $8, $9, $10, $11::bigint,
+    $12
 )
 RETURNING id
 `
 
 type OpenSpanParams struct {
-	SubjectKind   string             `json:"subject_kind"`
-	SubjectKey    string             `json:"subject_key"`
-	Facet         string             `json:"facet"`
-	Discriminator string             `json:"discriminator"`
-	VantageID     pgtype.Int8        `json:"vantage_id"`
-	Source        string             `json:"source"`
-	Value         []byte             `json:"value"`
-	IsGap         bool               `json:"is_gap"`
-	Derivation    []byte             `json:"derivation"`
-	OpenedAt      pgtype.Timestamptz `json:"opened_at"`
-	OpenedBatchID pgtype.Int8        `json:"opened_batch_id"`
+	SubjectKind    string             `json:"subject_kind"`
+	SubjectKey     string             `json:"subject_key"`
+	Facet          string             `json:"facet"`
+	Discriminator  string             `json:"discriminator"`
+	VantageID      pgtype.Int8        `json:"vantage_id"`
+	Source         string             `json:"source"`
+	Value          []byte             `json:"value"`
+	IsGap          bool               `json:"is_gap"`
+	Derivation     []byte             `json:"derivation"`
+	OpenedAt       pgtype.Timestamptz `json:"opened_at"`
+	OpenedBatchID  pgtype.Int8        `json:"opened_batch_id"`
+	OpenedAperture bool               `json:"opened_aperture"`
 }
 
 // Open a new span for a timeline. The caller passes the canonical value, the
 // gap flag, the Derivation vector as a JSON array of {leaf,version}, and the id of
 // the Batch whose fold opened it (ADR-0111) — nullable, since a span opened outside
-// a batch fold cites none.
+// a batch fold cites none. opened_aperture is TRUE where a widened aperture opened
+// the timeline (a Seed-declared subject the fold first looked at) rather than the
+// world bringing the subject — the signal the drift feed reads `revealed` from
+// (#637, ADR-0014). It defaults FALSE, so the ordinary world-measured opening the
+// feed narrates `appeared` needs nothing passed.
 func (q *Queries) OpenSpan(ctx context.Context, arg OpenSpanParams) (int64, error) {
 	row := q.db.QueryRow(ctx, openSpan,
 		arg.SubjectKind,
@@ -868,6 +878,7 @@ func (q *Queries) OpenSpan(ctx context.Context, arg OpenSpanParams) (int64, erro
 		arg.Derivation,
 		arg.OpenedAt,
 		arg.OpenedBatchID,
+		arg.OpenedAperture,
 	)
 	var id int64
 	err := row.Scan(&id)
