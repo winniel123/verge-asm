@@ -75,7 +75,7 @@ func vantageKeyPath(stateDir string, id int64) string {
 func ensureVantageKey(stateDir string, id int64) (string, error) {
 	keyPath := vantageKeyPath(stateDir, id)
 
-	data, err := os.ReadFile(keyPath)
+	data, err := os.ReadFile(keyPath) // #nosec G304 (worker-only key path: constant segments + numeric int64 id via FormatInt, cannot traverse)
 	switch {
 	case err == nil:
 		return vantage.PublicKeyFromPrivatePEM(data)
