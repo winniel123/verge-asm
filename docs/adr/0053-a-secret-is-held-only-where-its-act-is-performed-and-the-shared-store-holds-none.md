@@ -5,6 +5,7 @@
 - **Ticket:** [#124 Packaging, default configuration, and which container receives which secret](https://github.com/winniel123/verge-asm/issues/124)
 - **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
 - **Discharges:** [ADR-0001](./0001-stack-and-runtime.md)'s consequence — *"first-run configuration must now cover which container receives which secret — the split that gives the topology decision its teeth"* — and its sketch of that split
+- **Extended by (this rule is *kept*, not withdrawn):** [ADR-0124](./0124-a-backup-carries-data-and-no-secret-and-updating-is-guided-not-self-applied.md) (2026-08-26) builds the shipped, UI-taken backup on the #121 consequence below — *a backup carries the estate and no credential* — making it the export's own invariant; the session and prober keys stay out of every backup and regenerate on restore
 
 ## Context
 
@@ -201,6 +202,12 @@ can read, and the rule is exactly that `web` cannot.
 - **[#121](https://github.com/winniel123/verge-asm/issues/121) inherits a fact.** A database backup
   carries the whole estate and **no credential**, which is a better property to have decided than to
   discover, and it is the reason a backup does not need to be treated as a keyring.
+  > **Relied on and extended, 2026-08-26 by [#664](https://github.com/winniel123/verge-asm/issues/664) /
+  > [ADR-0124](./0124-a-backup-carries-data-and-no-secret-and-updating-is-guided-not-self-applied.md).**
+  > The v3.18.0 UI backup is built on exactly this fact: it is a Go-native logical dump of estate +
+  > config only, and *data-only, no secret* is made the export's own invariant (the session key and
+  > prober key are never read by the backup path and regenerate on restore). This rule is **kept in
+  > full** — ADR-0124 withdraws nothing here.
 - **Cost: zero.** Nothing has shipped, no compose file exists, no key has been generated.
 
 ## Alternatives rejected
