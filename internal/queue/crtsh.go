@@ -196,7 +196,7 @@ func (w *Worker) retryOrDeadLetterCT(ctx context.Context, job db.ClaimJobRow, ca
 // covering Seed (ADR-0027). There is no observation and no span-fold — CT admits
 // without observing, so a completed CT Batch moves no timeline.
 func (w *Worker) admitCT(ctx context.Context, job db.ClaimJobRow, cs scan.CTSeed, names []string) error {
-	return w.inTx(ctx, func(qtx *db.Queries) error {
+	return w.runJobTx(ctx, job.ID, func(qtx *db.Queries) error {
 		batchID, err := qtx.InsertBatch(ctx, db.InsertBatchParams{
 			ScanID:        job.ScanID,
 			DispatchID:    job.DispatchID,
@@ -219,7 +219,7 @@ func (w *Worker) admitCT(ctx context.Context, job db.ClaimJobRow, cs scan.CTSeed
 				return err
 			}
 		}
-		return qtx.MarkJobDone(ctx, db.MarkJobDoneParams{ID: job.ID, BatchID: pgInt8(batchID)})
+		return markDone(ctx, qtx, job.ID, batchID)
 	})
 }
 
@@ -233,7 +233,7 @@ func (w *Worker) deadLetterCT(ctx context.Context, job db.ClaimJobRow, cause err
 	if err != nil {
 		return err
 	}
-	return w.inTx(ctx, func(qtx *db.Queries) error {
+	return w.runJobTx(ctx, job.ID, func(qtx *db.Queries) error {
 		batchID, err := qtx.InsertBatch(ctx, db.InsertBatchParams{
 			ScanID:        job.ScanID,
 			DispatchID:    job.DispatchID,
@@ -246,7 +246,7 @@ func (w *Worker) deadLetterCT(ctx context.Context, job db.ClaimJobRow, cause err
 		if err != nil {
 			return err
 		}
-		return qtx.MarkJobDead(ctx, db.MarkJobDeadParams{ID: job.ID, BatchID: pgInt8(batchID)})
+		return markDead(ctx, qtx, job.ID, batchID)
 	})
 }
 

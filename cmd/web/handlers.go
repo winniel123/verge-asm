@@ -122,6 +122,9 @@ type store interface {
 	UpdateChannel(ctx context.Context, arg db.UpdateChannelParams) error
 	SetChannelSecret(ctx context.Context, arg db.SetChannelSecretParams) error
 	DeleteChannel(ctx context.Context, id int64) error
+	// GetInstanceHealth reads the instance-health tab's live database facts (#633): the
+	// database size and Postgres server version, off the running server. Operational only.
+	GetInstanceHealth(ctx context.Context) (db.GetInstanceHealthRow, error)
 	GetRetentionSettings(ctx context.Context) (db.GetRetentionSettingsRow, error)
 	UpdateRetentionSettings(ctx context.Context, arg db.UpdateRetentionSettingsParams) error
 	// TightestEnabledScanCadenceSeconds is the tightest bound in force, which the
@@ -272,6 +275,16 @@ type store interface {
 	// (ADR-0041); the drift engine never reads Dispatch, queue_job or batch.
 	ListDispatchProgress(ctx context.Context, limit int32) ([]db.ListDispatchProgressRow, error)
 	ListJobsForDispatch(ctx context.Context, dispatchID pgtype.Int8) ([]db.ListJobsForDispatchRow, error)
+	// Stop-dispatch / terminate (DF-F4, #633): the admin acts that end a Dispatch in
+	// flight. CancelReadyJobsForDispatch cancels the pending (ready) jobs of a stop and
+	// returns the count; CancelActiveJobsForDispatch cancels ready AND running jobs for a
+	// terminate; SetDispatchStatus records the operator-ended disposition ('stopped' /
+	// 'terminated'), scoped to a still-'fanned-out' dispatch so it never overwrites a
+	// recorded terminal status. All three read/write only the Operational queue corpus
+	// (ADR-0041); the drift engine never sees them.
+	CancelReadyJobsForDispatch(ctx context.Context, dispatchID pgtype.Int8) (int64, error)
+	CancelActiveJobsForDispatch(ctx context.Context, dispatchID pgtype.Int8) (int64, error)
+	SetDispatchStatus(ctx context.Context, arg db.SetDispatchStatusParams) error
 	// The on-demand scan trigger (#252): the trigger panel lists every scan with
 	// its enabled state so the disabled cold tier reads as not-triggerable rather
 	// than vanishing, and GetScanByKind re-reads the live enabled flag at the
@@ -388,6 +401,12 @@ type server struct {
 	// create an admin, which would break the token's single-use guarantee.
 	setupMu sync.Mutex
 
+	// flash is the in-process single-consume toast store (flash.go). The scan trigger
+	// and stop/terminate acts stash one toast here and redirect to a clean URL, so the
+	// in-flight auto-refresh does not re-show it (WORK-ORDER-DOGFOOD-R1 item 1); injectChrome
+	// consumes it on the first chrome render. Best-effort, per-process.
+	flash *flashStore
+
 	// loginLimiter throttles failed credential attempts on /login and /login/totp
 	// (#322): per-account and per-IP failed-attempt tracking with a temporary,
 	// exponential lockout, so a 6-digit TOTP is no longer brute-forceable and an
@@ -437,6 +456,7 @@ func newServer(s store, key []byte, setupToken string, now func() time.Time) *se
 		proposer:       proposer.DefaultRegistry(&http.Client{Timeout: 30 * time.Second}),
 		sso:            newOIDCFlow(&http.Client{Timeout: 30 * time.Second}),
 		loginLimiter:   newLoginLimiter(now),
+		flash:          newFlashStore(),
 	}
 }
 
@@ -682,6 +702,14 @@ func (s *server) handler() http.Handler {
 	// {{if .IsAdmin}} panel here and mirrored at /settings?tab=scans.
 	mux.HandleFunc("GET /scans", s.requireLogin(s.scansPage))
 	mux.HandleFunc("POST /scans/trigger", s.requireAdmin(s.triggerScan))
+	// Stop-dispatch / terminate (DF-F4, #633): ending a Dispatch in flight is the same
+	// class of admin act as triggering one — it changes what the worker runs — so both
+	// carry the same requireAdmin gate the trigger does (a non-admin POST is 403 before
+	// the handler). A stop cancels pending jobs and lets running ones finish; a terminate
+	// kills running jobs too. Kept adjacent to /scans/trigger so a parallel route add
+	// union-merges cleanly.
+	mux.HandleFunc("POST /scans/stop", s.requireAdmin(s.stopScan))
+	mux.HandleFunc("POST /scans/terminate", s.requireAdmin(s.terminateScan))
 
 	// The global message panel (#205, v1 spec §6.7): a viewer reads the unbounded
 	// list and its unread count on every screen; marking read is a per-account

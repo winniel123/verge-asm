@@ -12,6 +12,22 @@ import (
 )
 
 type Querier interface {
+	// Terminate a Dispatch (DF-F4): cancel every in-flight job — ready AND running. A
+	// ready job never runs; a running job is cancelled out from under the worker, whose
+	// guarded terminal write (MarkJobDone/Dead/Retried, WHERE state = 'running') then
+	// affects no row and rolls its transaction back, so the job's uncommitted batch and
+	// observations are discarded (job atomicity — internal/queue/worker.go). A job that
+	// already committed is 'done'/'dead', not 'running', so its batch stands untouched
+	// (append-only). Returns the count cancelled (the "N jobs stopped" figure).
+	CancelActiveJobsForDispatch(ctx context.Context, dispatchID pgtype.Int8) (int64, error)
+	// Stop a Dispatch (DF-F4): cancel its pending work. Every ready (not-yet-claimed)
+	// job of the dispatch moves to the terminal 'cancelled' state, leaving the claimable
+	// set at once — ClaimJob selects state = 'ready' alone, so a cancelled job is never
+	// run. A job the worker is mid-claim on is locked FOR UPDATE and already 'running' by
+	// the time this UPDATE reaches it, so the WHERE state = 'ready' no longer matches: a
+	// running job is left to finish and commit, which is the stop contract. Returns the
+	// count actually cancelled (the "N pending jobs cancelled" figure).
+	CancelReadyJobsForDispatch(ctx context.Context, dispatchID pgtype.Int8) (int64, error)
 	// The Postgres-backed claim: FOR UPDATE SKIP LOCKED over pending deliveries whose
 	// run_after has passed, oldest first, marking the winner 'sending' in one
 	// statement so two workers never claim the same delivery.
@@ -256,6 +272,11 @@ type Querier interface {
 	// the current HTTP identity and split the key into its Name and Service legs.
 	// Reads through the live-tier gate (#237).
 	GetEndpointSubject(ctx context.Context, arg GetEndpointSubjectParams) (GetEndpointSubjectRow, error)
+	// The instance-health tab's live database facts (#633, WORK-ORDER-DOGFOOD-R1 item 3):
+	// the size of this deployment's database and its Postgres server version, read straight
+	// off the running server — pg_database_size over the current database, and the
+	// server_version setting. Both are Operational host facts; this touches no estate corpus.
+	GetInstanceHealth(ctx context.Context) (GetInstanceHealthRow, error)
 	// Resolve a presented invite token to its row by hash. Validity (unconsumed,
 	// unexpired) is checked in the handler against the server clock rather than SQL
 	// now(), matching every other auth read's use of the injectable clock.
@@ -875,9 +896,18 @@ type Querier interface {
 	// The attempt budget is spent: dead-letter. The row is marked 'undelivered' — the
 	// undelivered mark — and the Message it points at is deliberately left untouched.
 	MarkDeliveryUndelivered(ctx context.Context, arg MarkDeliveryUndeliveredParams) error
-	MarkJobDead(ctx context.Context, arg MarkJobDeadParams) error
-	MarkJobDone(ctx context.Context, arg MarkJobDoneParams) error
-	MarkJobRetried(ctx context.Context, id int64) error
+	// Guarded on 'running' exactly as MarkJobDone — a job a terminate cancelled mid-flight
+	// does not dead-letter; its transaction rolls back and its work is discarded.
+	MarkJobDead(ctx context.Context, arg MarkJobDeadParams) (int64, error)
+	// Guarded on the job still being 'running': a terminate (DF-F4) that cancelled the
+	// job mid-flight left it 'cancelled', so this affects no row and the caller rolls the
+	// transaction back — the staged batch and observations are discarded (job atomicity,
+	// worker.go). A job the worker owns uncontested is 'running', so the update lands and
+	// returns 1.
+	MarkJobDone(ctx context.Context, arg MarkJobDoneParams) (int64, error)
+	// Guarded on 'running': a job a terminate cancelled mid-flight is not retried, so the
+	// fresh attempt is never enqueued (the caller rolls back on a zero count).
+	MarkJobRetried(ctx context.Context, id int64) (int64, error)
 	// Mark one message read by the caller at the given instant (#327). Writes a
 	// per-account read-mark, never the global message.read_at. Idempotent: a second
 	// mark leaves the account's first read instant in place (ON CONFLICT DO NOTHING),
@@ -1037,6 +1067,10 @@ type Querier interface {
 	// custody extension. The flag has no timeline, so a withdrawal is the same UPDATE
 	// with false rather than a dated state change.
 	SetCustodyExtension(ctx context.Context, arg SetCustodyExtensionParams) error
+	// Record a Dispatch's operator-ended disposition (DF-F4): 'stopped' or 'terminated'.
+	// Scoped to a still-'fanned-out' dispatch so a second submit or a natural conclusion
+	// cannot overwrite a recorded terminal status.
+	SetDispatchStatus(ctx context.Context, arg SetDispatchStatusParams) error
 	// Set, replace or clear the secret. A NULL clears it (a public PKCE-only client); the
 	// value is written and never read back through any interface query.
 	SetSSOProviderSecret(ctx context.Context, arg SetSSOProviderSecretParams) error
