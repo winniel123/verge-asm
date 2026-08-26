@@ -316,8 +316,10 @@ const (
 func RenderArtifact(a Artifact) template.HTML {
 	doc, err := renderArtifactDoc(BuildArtifactDoc(a))
 	if err != nil {
+		// #nosec G203 -- err text is HTML-escaped via html.EscapeString and wrapped in an HTML comment; no unescaped data reaches output.
 		return template.HTML("<!-- artifact render error: " + html.EscapeString(err.Error()) + " -->")
 	}
+	// #nosec G203 -- artifactDocTokens is a trusted internal <style> constant; doc is html/template output (auto-escaped) built from internal report data, not attacker input.
 	return template.HTML(artifactDocTokens) + doc
 }
 
