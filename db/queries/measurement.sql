@@ -109,14 +109,23 @@ INSERT INTO observation (
     source, value, observed_at
 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
 
--- name: MarkJobDone :exec
-UPDATE queue_job SET state = 'done', batch_id = $2 WHERE id = $1;
+-- name: MarkJobDone :execrows
+-- Guarded on the job still being 'running': a terminate (DF-F4) that cancelled the
+-- job mid-flight left it 'cancelled', so this affects no row and the caller rolls the
+-- transaction back — the staged batch and observations are discarded (job atomicity,
+-- worker.go). A job the worker owns uncontested is 'running', so the update lands and
+-- returns 1.
+UPDATE queue_job SET state = 'done', batch_id = $2 WHERE id = $1 AND state = 'running';
 
--- name: MarkJobDead :exec
-UPDATE queue_job SET state = 'dead', batch_id = $2 WHERE id = $1;
+-- name: MarkJobDead :execrows
+-- Guarded on 'running' exactly as MarkJobDone — a job a terminate cancelled mid-flight
+-- does not dead-letter; its transaction rolls back and its work is discarded.
+UPDATE queue_job SET state = 'dead', batch_id = $2 WHERE id = $1 AND state = 'running';
 
--- name: MarkJobRetried :exec
-UPDATE queue_job SET state = 'retried' WHERE id = $1;
+-- name: MarkJobRetried :execrows
+-- Guarded on 'running': a job a terminate cancelled mid-flight is not retried, so the
+-- fresh attempt is never enqueued (the caller rolls back on a zero count).
+UPDATE queue_job SET state = 'retried' WHERE id = $1 AND state = 'running';
 
 -- name: CountObservationsForScan :one
 SELECT count(*)

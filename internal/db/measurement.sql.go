@@ -475,8 +475,8 @@ func (q *Queries) ListVergeCoreFrequencyEdits(ctx context.Context) ([]ListVergeC
 	return items, nil
 }
 
-const markJobDead = `-- name: MarkJobDead :exec
-UPDATE queue_job SET state = 'dead', batch_id = $2 WHERE id = $1
+const markJobDead = `-- name: MarkJobDead :execrows
+UPDATE queue_job SET state = 'dead', batch_id = $2 WHERE id = $1 AND state = 'running'
 `
 
 type MarkJobDeadParams struct {
@@ -484,13 +484,18 @@ type MarkJobDeadParams struct {
 	BatchID pgtype.Int8 `json:"batch_id"`
 }
 
-func (q *Queries) MarkJobDead(ctx context.Context, arg MarkJobDeadParams) error {
-	_, err := q.db.Exec(ctx, markJobDead, arg.ID, arg.BatchID)
-	return err
+// Guarded on 'running' exactly as MarkJobDone — a job a terminate cancelled mid-flight
+// does not dead-letter; its transaction rolls back and its work is discarded.
+func (q *Queries) MarkJobDead(ctx context.Context, arg MarkJobDeadParams) (int64, error) {
+	result, err := q.db.Exec(ctx, markJobDead, arg.ID, arg.BatchID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
-const markJobDone = `-- name: MarkJobDone :exec
-UPDATE queue_job SET state = 'done', batch_id = $2 WHERE id = $1
+const markJobDone = `-- name: MarkJobDone :execrows
+UPDATE queue_job SET state = 'done', batch_id = $2 WHERE id = $1 AND state = 'running'
 `
 
 type MarkJobDoneParams struct {
@@ -498,18 +503,31 @@ type MarkJobDoneParams struct {
 	BatchID pgtype.Int8 `json:"batch_id"`
 }
 
-func (q *Queries) MarkJobDone(ctx context.Context, arg MarkJobDoneParams) error {
-	_, err := q.db.Exec(ctx, markJobDone, arg.ID, arg.BatchID)
-	return err
+// Guarded on the job still being 'running': a terminate (DF-F4) that cancelled the
+// job mid-flight left it 'cancelled', so this affects no row and the caller rolls the
+// transaction back — the staged batch and observations are discarded (job atomicity,
+// worker.go). A job the worker owns uncontested is 'running', so the update lands and
+// returns 1.
+func (q *Queries) MarkJobDone(ctx context.Context, arg MarkJobDoneParams) (int64, error) {
+	result, err := q.db.Exec(ctx, markJobDone, arg.ID, arg.BatchID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
-const markJobRetried = `-- name: MarkJobRetried :exec
-UPDATE queue_job SET state = 'retried' WHERE id = $1
+const markJobRetried = `-- name: MarkJobRetried :execrows
+UPDATE queue_job SET state = 'retried' WHERE id = $1 AND state = 'running'
 `
 
-func (q *Queries) MarkJobRetried(ctx context.Context, id int64) error {
-	_, err := q.db.Exec(ctx, markJobRetried, id)
-	return err
+// Guarded on 'running': a job a terminate cancelled mid-flight is not retried, so the
+// fresh attempt is never enqueued (the caller rolls back on a zero count).
+func (q *Queries) MarkJobRetried(ctx context.Context, id int64) (int64, error) {
+	result, err := q.db.Exec(ctx, markJobRetried, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const nameCitedAddresses = `-- name: NameCitedAddresses :many

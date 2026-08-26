@@ -140,3 +140,14 @@ func (s *server) toastRedirect(w http.ResponseWriter, r *http.Request, dest, ton
 	}
 	http.Redirect(w, r, dest+sep+"toast="+base64.RawURLEncoding.EncodeToString(payload), http.StatusSeeOther)
 }
+
+// flashRedirect is toastRedirect's single-consume twin for a surface that auto-refreshes
+// while a scan is in flight (the Scans monitor / Settings scans tab). It stashes the
+// toast in the per-account flash store (flash.go) instead of the redirect URL and sends a
+// clean 303, so injectChrome fires the toast on the first render and the meta-refresh that
+// reloads the same URL does not re-show it (WORK-ORDER-DOGFOOD-R1 item 1 — the "Scan
+// started" toast spam). dest keeps any non-toast query (a panel `notice` receipt) intact.
+func (s *server) flashRedirect(w http.ResponseWriter, r *http.Request, accountID int64, dest, tone, title, description string) {
+	s.flash.set(accountID, toastVM{Tone: tone, Title: title, Description: description})
+	http.Redirect(w, r, dest, http.StatusSeeOther)
+}

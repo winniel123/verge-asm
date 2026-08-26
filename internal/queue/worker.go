@@ -173,10 +173,71 @@ func (w *Worker) process(ctx context.Context, job db.ClaimJobRow) error {
 	return w.complete(ctx, job, obs)
 }
 
+// errJobCanceled signals that a job's guarded terminal write matched no row because a
+// stop or terminate (DF-F4) cancelled the job out from under the worker. Returned from
+// inside a job's transaction, it rolls the whole transaction back — discarding the
+// staged batch and observations, so a terminate's "uncommitted work is discarded"
+// holds — and is then swallowed as a benign outcome by runJobTx: the cancellation
+// already recorded the job's terminal ('cancelled') state, so nothing more is owed.
+var errJobCanceled = errors.New("queue: job canceled mid-flight")
+
+// markDone applies the guarded done transition, turning a zero-row result (the job was
+// cancelled mid-flight) into errJobCanceled so the caller's transaction rolls back.
+func markDone(ctx context.Context, qtx *db.Queries, jobID, batchID int64) error {
+	n, err := qtx.MarkJobDone(ctx, db.MarkJobDoneParams{ID: jobID, BatchID: pgInt8(batchID)})
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return errJobCanceled
+	}
+	return nil
+}
+
+// markDead is markDone's dead-letter twin: a job cancelled mid-flight does not
+// dead-letter, so a zero-row result rolls the transaction back.
+func markDead(ctx context.Context, qtx *db.Queries, jobID, batchID int64) error {
+	n, err := qtx.MarkJobDead(ctx, db.MarkJobDeadParams{ID: jobID, BatchID: pgInt8(batchID)})
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return errJobCanceled
+	}
+	return nil
+}
+
+// markRetried marks the current attempt retired. A zero-row result means the job was
+// cancelled mid-flight, so the fresh attempt the caller enqueued in the same tx is
+// rolled back with it — a terminated run does not retry.
+func markRetried(ctx context.Context, qtx *db.Queries, jobID int64) error {
+	n, err := qtx.MarkJobRetried(ctx, jobID)
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return errJobCanceled
+	}
+	return nil
+}
+
+// runJobTx runs a job's terminal transaction and treats a mid-flight cancellation as a
+// benign no-op: errJobCanceled means the tx already rolled back (its work discarded)
+// and the job's terminal state is recorded by the cancellation, so there is nothing
+// left to do or to log as a failure.
+func (w *Worker) runJobTx(ctx context.Context, jobID int64, fn func(*db.Queries) error) error {
+	err := w.inTx(ctx, fn)
+	if errors.Is(err, errJobCanceled) {
+		w.log.Printf("worker: job %d canceled mid-flight; uncommitted work discarded", jobID)
+		return nil
+	}
+	return err
+}
+
 // complete writes the Batch, its Observations and the job's done state in one
 // transaction — the outcome and the observation data commit together.
 func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, obs []wire.Observation) error {
-	return w.inTx(ctx, func(qtx *db.Queries) error {
+	return w.runJobTx(ctx, job.ID, func(qtx *db.Queries) error {
 		batchID, err := qtx.InsertBatch(ctx, db.InsertBatchParams{
 			ScanID:        job.ScanID,
 			DispatchID:    job.DispatchID,
@@ -208,7 +269,7 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, obs []wire.Ob
 		if err := foldObservationsIntoSpans(ctx, qtx, batchID, job.VantageID, observedAt, obs); err != nil {
 			return err
 		}
-		return qtx.MarkJobDone(ctx, db.MarkJobDoneParams{ID: job.ID, BatchID: pgInt8(batchID)})
+		return markDone(ctx, qtx, job.ID, batchID)
 	})
 }
 
@@ -216,7 +277,7 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, obs []wire.Ob
 // and marks the job dead, together.
 func (w *Worker) deadLetter(ctx context.Context, job db.ClaimJobRow, cause error) error {
 	w.log.Printf("worker: job %d dead-lettered after %d attempts: %v", job.ID, job.Attempt, cause)
-	return w.inTx(ctx, func(qtx *db.Queries) error {
+	return w.runJobTx(ctx, job.ID, func(qtx *db.Queries) error {
 		batchID, err := qtx.InsertBatch(ctx, db.InsertBatchParams{
 			ScanID:        job.ScanID,
 			DispatchID:    job.DispatchID,
@@ -237,7 +298,7 @@ func (w *Worker) deadLetter(ctx context.Context, job db.ClaimJobRow, cause error
 		if err := applyAvailability(ctx, qtx, job.VantageID, job.Kind, outcomeDeadLettered); err != nil {
 			return err
 		}
-		return qtx.MarkJobDead(ctx, db.MarkJobDeadParams{ID: job.ID, BatchID: pgInt8(batchID)})
+		return markDead(ctx, qtx, job.ID, batchID)
 	})
 }
 
@@ -245,7 +306,7 @@ func (w *Worker) deadLetter(ctx context.Context, job db.ClaimJobRow, cause error
 // eventual Batch is a fresh one and no partial batch is ever resumed.
 func (w *Worker) retry(ctx context.Context, job db.ClaimJobRow, cause error) error {
 	w.log.Printf("worker: job %d attempt %d failed, retrying: %v", job.ID, job.Attempt, cause)
-	return w.inTx(ctx, func(qtx *db.Queries) error {
+	return w.runJobTx(ctx, job.ID, func(qtx *db.Queries) error {
 		_, err := qtx.EnqueueJob(ctx, db.EnqueueJobParams{
 			ScanID:         job.ScanID,
 			VantageID:      job.VantageID,
@@ -261,7 +322,7 @@ func (w *Worker) retry(ctx context.Context, job db.ClaimJobRow, cause error) err
 		if err != nil {
 			return err
 		}
-		return qtx.MarkJobRetried(ctx, job.ID)
+		return markRetried(ctx, qtx, job.ID)
 	})
 }
 

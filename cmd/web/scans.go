@@ -55,7 +55,10 @@ const scansHistoryLimit = 50
 // per-state job counts folded into a completed / in-flight / total progress, and —
 // for an in-flight Dispatch — the per-job detail.
 type dispatchView struct {
-	ID           int64
+	ID int64
+	// Href is the run-detail link (/runs/{dispatch}) the Running-now scan kind and the
+	// history rows carry (DF-F3): every dispatch in the recent window has a run page.
+	Href         string
 	ScanKind     string
 	DispatchedAt string
 	// Live is the count of jobs a retry has not superseded (total − retried).
@@ -75,7 +78,11 @@ type dispatchView struct {
 // attempt it is on (attempt > 1 is a retry in progress), the Vantage it runs at
 // where it has one, and its Batch outcome once terminal.
 type jobView struct {
-	ID          int64
+	ID int64
+	// Href is the per-job live-log link (/runs/{run}?job={id}, DF-F3b) each Running-now
+	// job id carries. Set by fillScansSection, which knows the run (dispatch) id; empty
+	// on a jobView built outside that context (the run drill-in's own job list).
+	Href        string
 	Kind        string
 	State       string
 	Attempt     int32
@@ -128,7 +135,12 @@ func (s *server) fillScansSection(r *http.Request, acct db.Account, f settingsFo
 				return err
 			}
 			for _, j := range jobs {
-				dv.Jobs = append(dv.Jobs, toJobView(j))
+				jv := toJobView(j)
+				// The per-job live-log link (DF-F3b): each Running-now job id links to the
+				// run page filtered to its own rows. The run is the dispatch this job belongs
+				// to, so the href is /runs/{dispatch}?job={id}.
+				jv.Href = fmt.Sprintf("/runs/%d?job=%d", row.DispatchID, jv.ID)
+				dv.Jobs = append(dv.Jobs, jv)
 			}
 			active = append(active, dv)
 		} else {
@@ -137,6 +149,32 @@ func (s *server) fillScansSection(r *http.Request, acct db.Account, f settingsFo
 	}
 	data["Active"] = active
 	data["History"] = history
+
+	// The stop / terminate PRG dialogs (DF-F4): an admin opens one by navigating
+	// ?stop={id} or ?terminate={id}. The dialog reads its counts live from the already-
+	// gathered progress rows — Pending is the ready jobs, Running the running jobs — so
+	// no extra read is needed. Only an in-flight dispatch owns a dialog; a ?stop for a
+	// concluded or unknown id renders none (the POST guards it too). Admin-only, matching
+	// the row controls that link here.
+	if acct.Role == roleAdmin {
+		q := r.URL.Query()
+		if id, ok := parseDispatchID(q.Get("stop")); ok {
+			if row, found := findDispatchRow(rows, id); found && toDispatchView(row).InFlight > 0 {
+				data["StopTarget"] = map[string]any{
+					"ID": row.DispatchID, "ScanKind": row.ScanKind,
+					"Pending": row.Ready, "Running": row.Running,
+				}
+			}
+		}
+		if id, ok := parseDispatchID(q.Get("terminate")); ok {
+			if row, found := findDispatchRow(rows, id); found && toDispatchView(row).InFlight > 0 {
+				data["TerminateTarget"] = map[string]any{
+					"ID": row.DispatchID, "ScanKind": row.ScanKind,
+					"Running": row.Running,
+				}
+			}
+		}
+	}
 	// A meta refresh keeps the in-flight view current as jobs complete, since the
 	// page is server-rendered with no client runtime; it runs only while a scan is
 	// in flight, so the idle page does not spin.
@@ -150,6 +188,113 @@ func (s *server) fillScansSection(r *http.Request, acct db.Account, f settingsFo
 		}
 	}
 	return nil
+}
+
+// parseDispatchID reads a dispatch id from a query or form value, refusing the empty,
+// unparseable, or non-positive so a hand-crafted ?stop=/?terminate= is a clean no-op.
+func parseDispatchID(raw string) (int64, bool) {
+	if raw == "" {
+		return 0, false
+	}
+	id, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || id <= 0 {
+		return 0, false
+	}
+	return id, true
+}
+
+// findDispatchRow locates one dispatch's progress row in the recent-history read, the
+// same read the monitor and the run drill-in use (no new store method). A dispatch that
+// has aged past the window is not found — treated as already concluded, never fabricated.
+func findDispatchRow(rows []db.ListDispatchProgressRow, id int64) (db.ListDispatchProgressRow, bool) {
+	for i := range rows {
+		if rows[i].DispatchID == id {
+			return rows[i], true
+		}
+	}
+	return db.ListDispatchProgressRow{}, false
+}
+
+// concludedFlash stashes the shared "already concluded" danger toast for a stop/terminate
+// aimed at an unknown or already-terminal dispatch, and redirects back to the tab. It is
+// the honest refusal: nothing was ended because there was nothing in flight to end.
+func (s *server) concludedFlash(w http.ResponseWriter, r *http.Request, acct db.Account, detail string) {
+	s.flashRedirect(w, r, acct.ID, "/settings?tab=scans", "danger", "Dispatch already concluded", detail)
+}
+
+// stopScan gracefully ends a Dispatch in flight (DF-F4). Its pending (ready) jobs are
+// cancelled — they leave the claimable set at once, since ClaimJob selects state='ready'
+// alone — while its running jobs are left to finish and commit their batches (nothing
+// already observed is discarded). The dispatch is recorded 'stopped'. Admin-gated
+// (requireAdmin) exactly as the trigger is; a non-admin POST is 403 before this runs.
+func (s *server) stopScan(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	id, ok := parseDispatchID(r.FormValue("id"))
+	if !ok {
+		s.concludedFlash(w, r, acct, "There was nothing in flight to stop.")
+		return
+	}
+	rows, err := s.store.ListDispatchProgress(r.Context(), scansHistoryLimit)
+	if err != nil {
+		s.serverError(w, "stop scan: list dispatches", err)
+		return
+	}
+	row, found := findDispatchRow(rows, id)
+	if !found || toDispatchView(row).InFlight == 0 {
+		// Unknown id, or a dispatch that already finished or was already ended: the disabled
+		// cold tier is never in flight, so this also refuses a stop aimed at it.
+		s.concludedFlash(w, r, acct, "It has already finished or been ended — nothing was stopped.")
+		return
+	}
+	pid := pgtype.Int8{Int64: id, Valid: true}
+	n, err := s.store.CancelReadyJobsForDispatch(r.Context(), pid)
+	if err != nil {
+		s.serverError(w, "stop scan: cancel pending jobs", err)
+		return
+	}
+	if err := s.store.SetDispatchStatus(r.Context(), db.SetDispatchStatusParams{ID: id, Status: "stopped"}); err != nil {
+		s.serverError(w, "stop scan: record status", err)
+		return
+	}
+	// Running jobs are left to finish (the stop contract); the row's running count at
+	// action time is how many are finishing.
+	desc := fmt.Sprintf("%d pending %s cancelled · %d running finishing",
+		n, plural(int(n), "job", "jobs"), row.Running)
+	s.flashRedirect(w, r, acct.ID, "/settings?tab=scans", "neutral", "Dispatch stopped", desc)
+}
+
+// terminateScan hard-kills a Dispatch in flight (DF-F4). Both its pending AND running
+// jobs are cancelled; a running job's guarded terminal write then affects no row and the
+// worker rolls its transaction back, so its uncommitted batch and observations are
+// discarded (internal/queue/worker.go). Batches already committed stand — observations are
+// append-only. The dispatch is recorded 'terminated'. Admin-gated like the trigger.
+func (s *server) terminateScan(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	id, ok := parseDispatchID(r.FormValue("id"))
+	if !ok {
+		s.concludedFlash(w, r, acct, "There was nothing in flight to terminate.")
+		return
+	}
+	rows, err := s.store.ListDispatchProgress(r.Context(), scansHistoryLimit)
+	if err != nil {
+		s.serverError(w, "terminate scan: list dispatches", err)
+		return
+	}
+	row, found := findDispatchRow(rows, id)
+	if !found || toDispatchView(row).InFlight == 0 {
+		s.concludedFlash(w, r, acct, "It has already finished or been ended — nothing was terminated.")
+		return
+	}
+	pid := pgtype.Int8{Int64: id, Valid: true}
+	n, err := s.store.CancelActiveJobsForDispatch(r.Context(), pid)
+	if err != nil {
+		s.serverError(w, "terminate scan: cancel jobs", err)
+		return
+	}
+	if err := s.store.SetDispatchStatus(r.Context(), db.SetDispatchStatusParams{ID: id, Status: "terminated"}); err != nil {
+		s.serverError(w, "terminate scan: record status", err)
+		return
+	}
+	desc := fmt.Sprintf("%d %s stopped", n, plural(int(n), "job", "jobs"))
+	s.flashRedirect(w, r, acct.ID, "/settings?tab=scans", "neutral", "Scan terminated", desc)
 }
 
 // Run detail (#297, T2) — the per-run drill-in ported from
@@ -662,7 +807,12 @@ func toDispatchView(row db.ListDispatchProgressRow) dispatchView {
 	}
 
 	dv := dispatchView{
-		ID:        row.DispatchID,
+		ID: row.DispatchID,
+		// Every dispatch in the recent window has a run page (runPage serves /runs/{id}
+		// off this same read), so the Running-now kind and each history row link to it
+		// (DF-F3). A history row whose dispatch aged past the window would 404, but the
+		// same read bounds both, so a listed row always resolves.
+		Href:      "/runs/" + strconv.FormatInt(row.DispatchID, 10),
 		ScanKind:  row.ScanKind,
 		Live:      live,
 		Completed: completed,

@@ -83,7 +83,7 @@ type triggerPanel struct {
 // an unknown kind is refused at the door, a disabled scan is refused before the
 // Dispatcher (the reason named to the operator), an in-flight kind is not
 // dispatched again, and only then does the fan-out run.
-func (s *server) triggerScan(w http.ResponseWriter, r *http.Request, _ db.Account) {
+func (s *server) triggerScan(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	ctx := r.Context()
 	kind := r.FormValue("kind")
 
@@ -137,15 +137,17 @@ func (s *server) triggerScan(w http.ResponseWriter, r *http.Request, _ db.Accoun
 		s.redirectTrigger(w, r, noticeNoJobs, kind, 0)
 		return
 	}
-	// The act fires a toast across the post-redirect-get (PARITY-CHART P1.7, the
-	// "Scan started" toast ConsoleApp fires on runScan); the /scans monitor still
-	// renders the fuller receipt sentence the same notice query carries.
+	// The act fires ONE toast across the post-redirect-get (PARITY-CHART P1.7). It rides
+	// the single-consume flash store, not the URL, so the in-flight auto-refresh does not
+	// re-show it — the "Scan started" toast spam the dogfood reported (WORK-ORDER-DOGFOOD-R1
+	// item 1). The /scans monitor still renders the fuller receipt sentence the notice query
+	// carries. Copy per the dogfood note: "<kind> scan dispatched" / "N jobs fanned out".
 	jobs := "1 job"
 	if n != 1 {
 		jobs = strconv.Itoa(n) + " jobs"
 	}
 	q := url.Values{"notice": {noticeTriggered}, "kind": {kind}, "jobs": {strconv.Itoa(n)}}
-	s.toastRedirect(w, r, "/scans?"+q.Encode(), "neutral", "Scan started", "A "+kind+" scan dispatched; "+jobs+" enqueued.")
+	s.flashRedirect(w, r, acct.ID, "/scans?"+q.Encode(), "neutral", kind+" scan dispatched", jobs+" fanned out")
 }
 
 // redirectTrigger sends the post-redirect-get back to the monitor, naming the

@@ -55,7 +55,7 @@ func (w *Worker) completeZone(ctx context.Context, job db.ClaimJobRow, spec wire
 		return fmt.Errorf("decode zone scope: %w", err)
 	}
 	recs := scan.RestateZone(zf)
-	return w.inTx(ctx, func(qtx *db.Queries) error {
+	return w.runJobTx(ctx, job.ID, func(qtx *db.Queries) error {
 		batchID, err := qtx.InsertBatch(ctx, db.InsertBatchParams{
 			ScanID:        job.ScanID,
 			DispatchID:    job.DispatchID,
@@ -73,7 +73,7 @@ func (w *Worker) completeZone(ctx context.Context, job db.ClaimJobRow, spec wire
 				return err
 			}
 		}
-		return qtx.MarkJobDone(ctx, db.MarkJobDoneParams{ID: job.ID, BatchID: pgInt8(batchID)})
+		return markDone(ctx, qtx, job.ID, batchID)
 	})
 }
 
