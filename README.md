@@ -1,5 +1,11 @@
 # verge-asm
 
+> ⚠️ **Alpha software.** verge-asm is in active early development. Expect breaking
+> changes, incomplete features, and rough edges. Interfaces, the database schema, and
+> behaviour may change without migration paths between releases. Do not depend on it
+> for production security monitoring yet, and review it yourself before pointing it at
+> anything you care about.
+
 **Self-hosted attack surface management for your own estate.** Its subject is not
 inventory but **change**: what of yours is exposed to the internet, and what moved
 since last time.
@@ -39,6 +45,11 @@ alone. It is a single-tenant, self-hosted web application you run with
 
 For the full feature surface — the six facets, the seventeen signal rules, exposure,
 vantages and notification channels — see [`docs/spec/`](docs/spec/).
+
+> **Implementation status (alpha).** The seventeen rules describe the v1 spec target;
+> the engine currently ships 5 of them (the Name-only rules), with the rest in
+> progress. Expect the same partial-coverage caveat elsewhere while the tool is in
+> alpha.
 
 ---
 
