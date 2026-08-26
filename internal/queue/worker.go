@@ -202,10 +202,24 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, obs []wire.Ob
 				return err
 			}
 		}
+		// The declared-input context (Seeds, Exclusions) the fold composes membership
+		// against — read once for both the aperture-widened opening marker and the
+		// withdrawal closure below (internal/estate).
+		membership, err := readMembershipInputs(ctx, qtx)
+		if err != nil {
+			return err
+		}
 		// Fold the completed batch's observations into the Span corpus in the same
 		// transaction — the outcome, its observations and the drift they move all
 		// commit together (ADR-0007).
-		if err := foldObservationsIntoSpans(ctx, qtx, batchID, job.VantageID, observedAt, obs); err != nil {
+		if err := foldObservationsIntoSpans(ctx, qtx, batchID, job.VantageID, observedAt, obs, membership); err != nil {
+			return err
+		}
+		// Compose the subject-level departures the batch's evidence shows and close
+		// their timelines with the estate-decided ground (internal/estate wired into
+		// the spanfold closure, #637) — the withdrawn / descoped closures, and the
+		// re-open that lets a later `returned` derive, all citing this batch.
+		if err := foldEstateTransitions(ctx, qtx, batchID, observedAt, obs, membership); err != nil {
 			return err
 		}
 		return qtx.MarkJobDone(ctx, db.MarkJobDoneParams{ID: job.ID, BatchID: pgInt8(batchID)})

@@ -34,13 +34,18 @@ WHERE closed_at IS NULL
 -- Open a new span for a timeline. The caller passes the canonical value, the
 -- gap flag, the Derivation vector as a JSON array of {leaf,version}, and the id of
 -- the Batch whose fold opened it (ADR-0111) — nullable, since a span opened outside
--- a batch fold cites none.
+-- a batch fold cites none. opened_aperture is TRUE where a widened aperture opened
+-- the timeline (a Seed-declared subject the fold first looked at) rather than the
+-- world bringing the subject — the signal the drift feed reads `revealed` from
+-- (#637, ADR-0014). It defaults FALSE, so the ordinary world-measured opening the
+-- feed narrates `appeared` needs nothing passed.
 INSERT INTO span (
     subject_kind, subject_key, facet, discriminator, vantage_id, source,
-    value, is_gap, derivation, opened_at, opened_batch_id
+    value, is_gap, derivation, opened_at, opened_batch_id, opened_aperture
 ) VALUES (
     @subject_kind, @subject_key, @facet, @discriminator, sqlc.narg('vantage_id')::bigint,
-    @source, @value, @is_gap, @derivation, @opened_at, sqlc.narg('opened_batch_id')::bigint
+    @source, @value, @is_gap, @derivation, @opened_at, sqlc.narg('opened_batch_id')::bigint,
+    @opened_aperture
 )
 RETURNING id;
 
@@ -162,6 +167,7 @@ SELECT
     sp.subject_kind, sp.subject_key, sp.facet, sp.discriminator,
     sp.value, sp.is_gap, sp.derivation,
     sp.opened_at, sp.closed_at, sp.closure_reason,
+    sp.opened_aperture  AS opened_aperture,
     pred.value          AS prev_value,
     pred.derivation     AS prev_derivation,
     pred.closed_at      AS prev_closed_at,
@@ -194,6 +200,7 @@ SELECT
     sp.subject_kind, sp.subject_key, sp.facet, sp.discriminator,
     sp.value, sp.is_gap, sp.derivation,
     sp.opened_at, sp.closed_at, sp.closure_reason,
+    FALSE              AS opened_aperture,
     NULL::jsonb        AS prev_value,
     NULL::jsonb        AS prev_derivation,
     NULL::timestamptz  AS prev_closed_at,

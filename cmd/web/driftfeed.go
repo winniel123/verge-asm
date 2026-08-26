@@ -35,9 +35,11 @@ import (
 //     reason today), but classified end-to-end for when it lands.
 //   - withdrawn — a close by withdrawal (closure reason measured-absent / uncited).
 //   - descoped  — a close by operator exclusion (closure reason descoped).
-//   - revealed  — a widened aperture. It needs an aperture-widened signal the span
-//     corpus does not carry (drift.OpeningKind), so it is never emitted here; the
-//     legend still names it as vocabulary. Honest rather than guessed.
+//   - revealed  — a widened aperture: a first span whose opening the fold marked
+//     aperture-driven (span.opened_aperture), where the operator's declared scope is
+//     why we started looking at a Seed-declared subject rather than the world
+//     bringing it (drift.OpeningKind, ADR-0014). The estate wiring stamps the marker
+//     at fold time (#637), so `revealed` is derived on read exactly like the rest.
 //
 // A transition across a Break (the predecessor sits under a different Derivation
 // vector) is not a value move — nothing compares across a Break (ADR-0008) — so it
@@ -103,10 +105,18 @@ func classifyDriftEvent(row db.ListRecentDriftEventsRow, now time.Time) (driftEv
 	// is NOT NULL, so a real predecessor always carries bytes; nil means the LATERAL
 	// found none — a first span).
 	if row.PrevValue == nil {
-		// appeared — the first span on this timeline.
+		// A first span opens `revealed` where the operator's aperture is why the fold
+		// looked at the subject (opened_aperture — a Seed-declared subject, stamped at
+		// fold time by the estate wiring, #637), and `appeared` where the world brought
+		// a subject the aperture had not declared. Both are gain-family openings; the
+		// marker tells "we started looking" from "a subject entered" (ADR-0014).
+		change := "appeared"
+		if row.OpenedAperture {
+			change = "revealed"
+		}
 		return driftEvent{
-			Change:  "appeared",
-			Family:  driftFamily("appeared"),
+			Change:  change,
+			Family:  driftFamily(change),
 			Subject: row.SubjectKey,
 			Detail:  facetLabel + " · " + valueLabel(row.Facet, row.Value, row.IsGap),
 			Time:    relTime(row.OpenedAt.Time, now),
