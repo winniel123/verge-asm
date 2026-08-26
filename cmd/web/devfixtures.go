@@ -835,9 +835,10 @@ func (s *server) coverageFixtureData(acct db.Account) map[string]any {
 // live reads + batch join in scans.go runPage/joinRunOutcome instead.
 
 const (
-	// devRunDetailID is fixtures.json → rundetail.id: the dispatch id the run drill-in
-	// serves from the fixture (the golden route /runs/1407). 1408 stays the MISSING id the
-	// error goldens use — anything but 1407 routes to the missing-run ErrorPage.
+	// devRunDetailID is fixtures.json → rundetail.id: the dispatch id the completed run
+	// drill-in serves from the fixture (the golden route /runs/1407). 1409 is the running
+	// run demo (devRunningRunID); 1408 stays the MISSING id the error goldens use — anything
+	// but 1407 and 1409 routes to the missing-run ErrorPage.
 	devRunDetailID = "1407"
 
 	// The run header + Outcome figures fixtures.json → rundetail pins.
@@ -923,25 +924,21 @@ func (s *server) runDetailFixtureData(acct db.Account) map[string]any {
 	}
 }
 
-// --- running run 1408: live scan output (DF-F3 / DF-F3b, package v3.16.2) --------------------
+// --- running run 1409: live scan output (DF-F3 / DF-F3b, id split ruled v3.17.0) --------------
 //
-// Foundation seeded run 1408 as the Settings scans active dispatch (fixtures.json →
-// settings.scans.active[0], id 1408, href /runs/1408), each of whose jobs links here as
-// /runs/1408?job={id}. This ticket adds the run-page side: a running dispatch whose drill-in
-// renders the LIVE pulse + the head meta-refresh tail while in flight (DF-F3), and — with
-// ?job= — the server-side per-job log filter + loghead chip (DF-F3b). The view is built from
-// the same pure folds the live path uses (runStages / runLog / runVantages / applyJobFilter /
-// runRefresh), so a real running dispatch and this fixture render byte-for-byte alike. It is
-// VERGE_DEV-only. The rundetail G2 default golden stays /runs/1407; no golden gates 1408 as a
-// running run — states.json maps /runs/1408 to the error screen's missing-run capture, while
-// fixtures.json makes 1408 the Settings active dispatch: a design-owned id collision reconciled
-// at G2 as SPEC-CHANGE #35 (AWAITING DESIGN). PARKED: runPage no longer routes /runs/1408 here
-// (it stays the missing-run route the frozen error golden pins); this built demo re-enables in
-// one line — restore the `if raw == devRunningRunID` case in scans.go — once design gives the
-// live run a distinct id.
-const devRunningRunID = "1408"
+// The Settings scans active dispatch is id 1409 (fixtures.json → settings.scans.active[0],
+// href /runs/1409), each of whose jobs links here as /runs/1409?job={id}. This is the run-page
+// side: a running dispatch whose drill-in renders the LIVE pulse + the head meta-refresh tail
+// while in flight (DF-F3), and — with ?job= — the server-side per-job log filter + loghead chip
+// (DF-F3b). The view is built from the same pure folds the live path uses (runStages / runLog /
+// runVantages / applyJobFilter / runRefresh), so a real running dispatch and this fixture render
+// byte-for-byte alike. It is VERGE_DEV-only. SPEC-CHANGE #35 (ruled v3.17.0) split the id
+// collision the interim parked this behind: the Settings active dispatch moved to 1409, distinct
+// from the error screen's missing-run demo (which keeps 1408), so runPage now routes /runs/1409
+// here and the rundetail·running state gets its own G2 golden this round.
+const devRunningRunID = "1409"
 
-// devRunningRunJobs mirrors fixtures.json → settings.scans.active[0].jobs (id 1408): six
+// devRunningRunJobs mirrors fixtures.json → settings.scans.active[0].jobs (id 1409): six
 // queue jobs of the in-flight standard dispatch — three resolved (done, committed under batch
 // 1407), a reachability retry in flight from ap-south-1 (attempt 2, ready → a warn line), a
 // port census running from eu-west-1, and a tls-acceptance done. The ids are the ?job= keys.
@@ -955,7 +952,7 @@ var devRunningRunJobs = []jobView{
 }
 
 // runningRunFixtureData assembles the render data map runPage passes to the frozen
-// rundetail.tmpl for /runs/1408 in a VERGE_DEV build. Status is running (LIVE pulse + the
+// rundetail.tmpl for /runs/1409 in a VERGE_DEV build. Status is running (LIVE pulse + the
 // .Refresh=5 tail), the Outcome holes hold "—" (a running run's diff has not concluded), and
 // the degraded callout is nil. With ?job={id} applyJobFilter narrows .Log to that job's rows
 // server-side and sets the loghead chip (an unknown id → empty .Log + chip, the honest
@@ -963,7 +960,7 @@ var devRunningRunJobs = []jobView{
 func (s *server) runningRunFixtureData(acct db.Account, jobParam, bareHref string) map[string]any {
 	jobs := devRunningRunJobs
 	view := runView{
-		ID:          1408,
+		ID:          1409,
 		Title:       "2026-08-22T14:00Z",
 		Status:      runStatusLabel(true, 0, ""), // in flight → running
 		Scope:       "all scopes",

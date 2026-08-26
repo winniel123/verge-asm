@@ -381,7 +381,7 @@ func (s *server) settingsFixtureData(acct db.Account, r *http.Request) map[strin
 		data["ColdScopes"] = fx.Scans.ColdScopes
 		data["ColdError"] = ""
 		// The stop / terminate confirm dialogs (DF-F4, states scans-stop-confirm /
-		// scans-terminate-confirm at id 1408). The harness navigates ?stop=/?terminate=;
+		// scans-terminate-confirm at id 1409, #35). The harness navigates ?stop=/?terminate=;
 		// the target is built from the matching active dispatch, its Pending / Running
 		// counts folded live from that dispatch's job states — the same shape the live
 		// fillScansSection builds from the progress row.
@@ -513,7 +513,7 @@ func (s *server) settingsFixtureData(acct db.Account, r *http.Request) map[strin
 }
 
 // findActiveDispatch returns the fixture active dispatch whose id matches the raw query
-// value (the ?stop=/?terminate= target, id 1408), or nil.
+// value (the ?stop=/?terminate= target, id 1409 — #35), or nil.
 func findActiveDispatch(active []sfActive, raw string) *sfActive {
 	id, err := strconv.ParseInt(raw, 10, 64)
 	if err != nil {

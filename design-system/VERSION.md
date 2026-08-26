@@ -1,11 +1,13 @@
 # Package version
 
-current: 3.16.2
+current: 3.17.1
 exported: 2026-08-26
 
 Convention: MAJOR.ROUND.PATCH — MAJOR is the package generation, ROUND increments per sync/Wayfinder round, PATCH per mid-round ruling or spec fix. The design workspace bumps this on every export; the repo copy always states what landed.
 
 ## Log
+- 3.17.1 — 2026-08-26 · fix: .rd-loghead .jf gains white-space:nowrap (job-filter chip wrapped outside its pill at narrow widths)
+- 3.17.0 — 2026-08-26 · rulings #33–#35 + DF-F4b: OrgSwitcher retired permanently (ADR-0073 stands — static chip only, .Chrome.Orgs/org-open/orgs-fixture drop, TopNav updated); rundetail loghead moves outside {{if .Log}} (DF-F3b chip renders over honest empty); /runs id split — active dispatch → 1409, missing-run keeps 1408, rundetail·running state added; .Run.Status gains stopped|terminated badge treatments (warn / danger-outline; BatchStatus too); WORK-ORDER-33-35.md
 - 3.16.2 — 2026-08-26 · drift-audit rulings #28–#32 (SPEC-CHANGE.md, no template change): severity docs stale side (#1 stands); Run-now stays download-only + #17 delivery IS built (docs drop the stale AWAITING note) + format=pdf normative (#23c); 4 runnerless RIR proposers → the #241 catalogued-not-executing bucket; cadence preset times + cron = BUILD (spec normative); drift legend stands contingent on estate wiring (else trims next round)
 - 3.16.1 — 2026-08-26 · DF-F3b per-job live output: job ids in Running now link to /runs/{run}?job={id}; rundetail loghead gains the .JobFilter chip (× clears); .Log arrives server-filtered; fixtures job hrefs; work-order addendum
 - 3.16.0 — 2026-08-26 · dogfood features (WORK-ORDER-FEATURES-1, full Behavior sections — first under the 3.14.1 rule): DF-F1 paste-split scope declaration (.Refusals[] replaces .Refusal, onboarding tokenizer, per-token callouts), DF-F2 multi zone upload (one dated act per file, .ZoneErrors[] replaces .ZoneError), DF-F3 Running-now/history rows link to RunDetail (.Active ID+Href, .History Href; .Refresh=5 live tail — rundetail.tmpl unchanged), DF-F4 stop-dispatch + terminate (PRG dialogs, POST /scans/stop|terminate, stopped·partial/terminated semantics, admin-only); fixtures active dispatch → 1408 + running run; 2-3 new states

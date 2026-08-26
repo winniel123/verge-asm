@@ -71,6 +71,11 @@ type dispatchView struct {
 	Percent   int
 	// Active is true while any job is ready or running — the Dispatch is in flight.
 	Active bool
+	// Status is the Dispatch's recorded disposition (DF-F4b): 'fanned-out' for a natural
+	// run, or the operator-ended 'stopped' / 'terminated' the stop/terminate acts write.
+	// buildRunView passes it to runStatusLabel so a stopped/terminated drill-in renders
+	// its real terminal badge instead of the live-derived one.
+	Status string
 	Jobs   []jobView
 }
 
@@ -404,21 +409,27 @@ func (s *server) runPage(w http.ResponseWriter, r *http.Request, acct db.Account
 	// mean fabricating domain data, which SPEC-CHANGE forbids — so, exactly as the
 	// Exposure/Coverage screens pin their dev fixture and serve it under devMode with a
 	// drift test (TestRunDetailFixtureMatchesPackage), runPage serves the pinned
-	// fixtures.json → rundetail slice for the fixture id here. Any other id (1408, the
-	// pinned MISSING id the error goldens use) routes to the missing-run ErrorPage — the
-	// #20d wiring — so the "run-missing" state is proven end-to-end. A real deployment
-	// (devMode == false) falls through to the honest live reads + batch join below.
+	// fixtures.json → rundetail slice for the completed fixture id (1407) here, and the
+	// running-run demo for 1409 (#35). The pinned MISSING id (1408) and any other id route
+	// to the missing-run ErrorPage — the #20d wiring — so the "run-missing" state is proven
+	// end-to-end. A real deployment (devMode == false) falls through to the honest live
+	// reads + batch join below.
 	if s.devMode {
 		if raw == devRunDetailID {
 			s.render(w, r, "run", s.runDetailFixtureData(acct))
 			return
 		}
-		// The running run 1408 (DF-F3/F3b) is PARKED, not routed: fixtures.json makes 1408
-		// the Settings active dispatch while frozen states.json still maps /runs/1408 to the
-		// error screen's missing-run capture (the pinned G2 golden) — a design-owned id
-		// collision (SPEC-CHANGE #35, AWAITING DESIGN). Until design gives the live run a
-		// distinct id, bare /runs/1408 stays the missing-run route the error golden pins; the
-		// built runningRunFixtureData demo (devfixtures.go) re-enables in one line once it does.
+		// The running run (DF-F3/F3b) drill-in: SPEC-CHANGE #35 gave the Settings active
+		// dispatch its own id, 1409 (fixtures.json), distinct from the error screen's
+		// missing-run demo, which keeps 1408. So /runs/1409 now routes to the live-tail
+		// running fixture (re-enabled with package v3.17.0) and gets its own G2 golden
+		// (rundetail·running), while bare /runs/1408 stays the missing-run route the frozen
+		// error golden pins. The ?job= per-job filter rides through to runningRunFixtureData.
+		if raw == devRunningRunID {
+			s.render(w, r, "run", s.runningRunFixtureData(acct, r.URL.Query().Get("job"), r.URL.Path))
+			return
+		}
+		// Any other id (1408, the pinned MISSING id) routes to the missing-run ErrorPage.
 		s.renderMissingRun(w, r, acct, raw)
 		return
 	}
@@ -482,13 +493,14 @@ func (s *server) buildRunView(r *http.Request, dv dispatchView, jobRows []db.Lis
 	}
 	// A dispatch stopped/terminated via DF-F4 carries a recorded outcome the run page
 	// renders as its terminal status (runStatusLabel — the literal word "stopped" /
-	// "terminated" in the .Status hole; the danger badge treatment arrives with the
-	// design patch that adds the .stopped/.terminated classes). That recording is the
-	// Scans ticket's (#633) write side and reaches this read through the shared corpus
-	// seam, which does not model a dispatch-level outcome yet — so the outcome is ""
-	// here and this reduces to the live running/failed/complete derivation with no
-	// behaviour change until the seam lands.
-	v.Status = runStatusLabel(dv.Active, dv.Dead, "")
+	// "terminated" in the .Status hole; the .rd-batch stopped/terminated badge treatment
+	// landed in rundetail.tmpl with package v3.17.0, #34/DF-F4b). That recording is the
+	// Scans ticket's (#633) write side; it now reaches this read through the dispatch
+	// status the progress query surfaces (ListDispatchProgress → dv.Status), so a stopped
+	// or terminated drill-in renders its real disposition. A natural run's 'fanned-out'
+	// is not a terminal outcome, so runStatusLabel falls through to the live
+	// running/failed/complete derivation — unchanged for every non-ended dispatch.
+	v.Status = runStatusLabel(dv.Active, dv.Dead, dispatchOutcome(dv.Status))
 
 	jobs := make([]jobView, 0, len(jobRows))
 	for _, j := range jobRows {
@@ -547,11 +559,10 @@ func (s *server) buildRunView(r *http.Request, dv dispatchView, jobRows []db.Lis
 
 // runStatusLabel is the run page's batch-status word (the frozen .Status hole, which is
 // both the rd-batch CSS class and the visible label). A dispatch stopped or terminated via
-// DF-F4 renders its recorded outcome verbatim — the literal "stopped" / "terminated" per
-// the ruled interim edge; the danger badge treatment ships in a later design patch that
-// adds the matching .rd-batch classes, at which point "rd-batch stopped" styles with no
-// handler change. Absent an outcome it is the live derivation: in-flight → running, any
-// dead-lettered job → failed, else complete.
+// DF-F4 renders its recorded outcome verbatim — the literal "stopped" / "terminated", which
+// rundetail.tmpl styles with the .rd-batch stopped (warn) / terminated (danger-outline)
+// treatments landed in package v3.17.0 (#34/DF-F4b). Absent an outcome it is the live
+// derivation: in-flight → running, any dead-lettered job → failed, else complete.
 func runStatusLabel(active bool, dead int64, outcome string) string {
 	switch outcome {
 	case "stopped", "terminated":
@@ -564,6 +575,19 @@ func runStatusLabel(active bool, dead int64, outcome string) string {
 		return "failed"
 	default:
 		return "complete"
+	}
+}
+
+// dispatchOutcome maps a Dispatch's recorded status to the terminal outcome runStatusLabel
+// honors. Only the operator-ended dispositions ('stopped' / 'terminated', migration 22901)
+// are terminal outcomes; a natural run's 'fanned-out' (and any absent status) yields "", so
+// runStatusLabel falls through to the live running/failed/complete derivation.
+func dispatchOutcome(status string) string {
+	switch status {
+	case "stopped", "terminated":
+		return status
+	default:
+		return ""
 	}
 }
 
@@ -921,6 +945,7 @@ func toDispatchView(row db.ListDispatchProgressRow) dispatchView {
 		Dead:      row.Dead,
 		Percent:   percent,
 		Active:    inFlight > 0,
+		Status:    row.Status,
 	}
 	if row.CreatedAt.Valid {
 		dv.DispatchedAt = row.CreatedAt.Time.UTC().Format("2006-01-02 15:04 UTC")

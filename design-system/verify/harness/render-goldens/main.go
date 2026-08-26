@@ -586,7 +586,8 @@ func loadRunDetailFixture() (runDetailFixture, error) {
 }
 
 // renderRunDetailStates composes the RunDetail golden HTML from the frozen rundetail.tmpl, for the
-// one states.json rundetail state (default, /runs/1407). The data map mirrors runPage's
+// two states.json rundetail states: default (the completed run at /runs/1407) and running (the
+// live-tailing dispatch at /runs/1409, #35). The default data map mirrors runPage's
 // runDetailFixtureData EXACTLY (the .Run holes the frozen tmpl reads): the header, the four done
 // stages, the seven-line log (levels feeding the colored-text treatment #20e), the Outcome batch
 // join (7 transitions · 3 new signals as strings), the nullable degraded callout, the five params
@@ -640,18 +641,176 @@ func renderRunDetailStates(bodyFlex bool) ([]errorGolden, error) {
 		"Run": run,
 	}
 
-	t, err := newStubbedTemplate(head)
+	// render composes one rundetail state through the frozen tmpl into golden HTML.
+	render := func(d map[string]any) ([]byte, error) {
+		t, err := newStubbedTemplate(head)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := t.ParseFS(designfs.FS, "templates/rundetail.tmpl"); err != nil {
+			return nil, err
+		}
+		var buf bytes.Buffer
+		if err := execGolden(t, &buf, "run", d); err != nil {
+			return nil, err
+		}
+		return buf.Bytes(), nil
+	}
+
+	defaultHTML, err := render(data)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := t.ParseFS(designfs.FS, "templates/rundetail.tmpl"); err != nil {
+
+	// The rundetail·running state (/runs/1409, #35): a live-tailing running dispatch, mirroring
+	// cmd/web/devfixtures.go runningRunFixtureData EXACTLY — Status "running" (the accent LIVE
+	// badge + streaming pulse), the six queue jobs folded through the same runStages/runLog/
+	// runVantages the live path uses, the Outcome holes "—" (a running run's diff has not
+	// concluded), no degraded callout, no job filter (the state carries no ?job=). So the cropped
+	// `main` is byte-identical to what the seeded server renders for /runs/1409.
+	jobs := rgRunningRunJobs
+	running := map[string]any{
+		"Title": "2026-08-22T14:00Z", "Status": "running", "Scope": "all scopes",
+		"Meta": "standard profile · 3 vantages", "Transitions": "—", "NewSignals": "—",
+		"Active": true, "Stages": rgRunStages(jobs), "Log": rgRunLog(jobs),
+		"Vantages": rgRunVantages(jobs), "Degraded": nil,
+		"Params": []map[string]any{
+			{"K": "Profile", "V": "standard"},
+			{"K": "Cadence", "V": "daily · 08:00 + 14:00"},
+			{"K": "Dispatched", "V": "2026-08-22 14:00 UTC"},
+			{"K": "Jobs", "V": "6"},
+			{"K": "Vantages", "V": "3"},
+		},
+	}
+	runningData := map[string]any{
+		"Title": "batch 2026-08-22T14:00Z", "NavActive": "drift", "DesignTokens": true,
+		"Refresh": 5, "Run": running,
+	}
+	runningHTML, err := render(runningData)
+	if err != nil {
 		return nil, err
 	}
-	var buf bytes.Buffer
-	if err := execGolden(t, &buf, "run", data); err != nil {
-		return nil, err
+
+	return []errorGolden{
+		{id: "default", html: defaultHTML},
+		{id: "running", html: runningHTML},
+	}, nil
+}
+
+// rgJob is the render-goldens mirror of cmd/web's jobView — only the fields the run folds
+// read (kind, state, vantage, batch, and the retrying/superseded flags). The six pinned jobs
+// below mirror cmd/web/devfixtures.go devRunningRunJobs one-for-one (the id split's #35
+// running dispatch, fixtures.json → settings.scans.active[0].jobs at id 1409).
+type rgJob struct {
+	ID                   int64
+	Kind, State          string
+	Vantage, Batch       string
+	Retrying, Superseded bool
+}
+
+var rgRunningRunJobs = []rgJob{
+	{ID: 912, Kind: "dns-sweep", State: "done", Vantage: "eu-west-1", Batch: "1407"},
+	{ID: 913, Kind: "reachability", State: "done", Vantage: "eu-west-1", Batch: "1407"},
+	{ID: 914, Kind: "reachability", State: "done", Vantage: "us-east-2", Batch: "1407"},
+	{ID: 915, Kind: "reachability", State: "ready", Vantage: "ap-south-1", Retrying: true},
+	{ID: 916, Kind: "port-census", State: "running", Vantage: "eu-west-1"},
+	{ID: 917, Kind: "tls-acceptance", State: "done", Vantage: "eu-west-1", Batch: "1407"},
+}
+
+// rgRunStages mirrors cmd/web/scans.go runStages: jobs grouped by kind in first-seen order,
+// each stage done when nothing is in flight, current while a ready/running job remains.
+func rgRunStages(jobs []rgJob) []map[string]any {
+	var order []string
+	idx := map[string]int{}
+	type agg struct{ total, done, dead, inflight int }
+	var aggs []agg
+	for _, j := range jobs {
+		if j.Superseded {
+			continue
+		}
+		i, ok := idx[j.Kind]
+		if !ok {
+			i = len(order)
+			idx[j.Kind] = i
+			order = append(order, j.Kind)
+			aggs = append(aggs, agg{})
+		}
+		aggs[i].total++
+		switch j.State {
+		case "done":
+			aggs[i].done++
+		case "dead":
+			aggs[i].dead++
+		case "ready", "running":
+			aggs[i].inflight++
+		}
 	}
-	return []errorGolden{{id: "default", html: buf.Bytes()}}, nil
+	out := make([]map[string]any, 0, len(order))
+	for i, k := range order {
+		a := aggs[i]
+		detail := fmt.Sprintf("%d of %d done", a.done, a.total)
+		if a.dead > 0 {
+			detail += fmt.Sprintf(" · %d dead-lettered", a.dead)
+		}
+		out = append(out, map[string]any{
+			"Num": i + 1, "Title": k, "Detail": detail,
+			"Done": a.inflight == 0, "Current": a.inflight > 0, "Last": i == len(order)-1,
+		})
+	}
+	return out
+}
+
+// rgRunLog mirrors cmd/web/scans.go runLog: one line per job, id as tag, a level from state
+// (dead → error, superseded/retrying → warn), the terse kind · state · vantage · batch text.
+func rgRunLog(jobs []rgJob) []map[string]any {
+	out := make([]map[string]any, 0, len(jobs))
+	for _, j := range jobs {
+		level := ""
+		switch {
+		case j.State == "dead":
+			level = "error"
+		case j.Superseded || j.Retrying:
+			level = "warn"
+		}
+		text := j.Kind + " · " + j.State
+		if j.Vantage != "" {
+			text += " · " + j.Vantage
+		}
+		if j.Batch != "" {
+			text += " · " + j.Batch
+		}
+		out = append(out, map[string]any{"Tag": "#" + strconv.FormatInt(j.ID, 10), "Level": level, "Text": text})
+	}
+	return out
+}
+
+// rgRunVantages mirrors cmd/web/scans.go runVantages: per-vantage health in first-seen order,
+// degraded if any of its non-superseded jobs dead-lettered, latency unstored ("—").
+func rgRunVantages(jobs []rgJob) []map[string]any {
+	var order []string
+	seen := map[string]bool{}
+	dead := map[string]bool{}
+	for _, j := range jobs {
+		if j.Vantage == "" || j.Superseded {
+			continue
+		}
+		if !seen[j.Vantage] {
+			seen[j.Vantage] = true
+			order = append(order, j.Vantage)
+		}
+		if j.State == "dead" {
+			dead[j.Vantage] = true
+		}
+	}
+	out := make([]map[string]any, 0, len(order))
+	for _, n := range order {
+		status := "ok"
+		if dead[n] {
+			status = "degraded"
+		}
+		out = append(out, map[string]any{"Name": n, "Latency": "—", "Status": status})
+	}
+	return out
 }
 
 // coverageFixture is the design-system/fixtures/fixtures.json coverage slice: the aperture meters
@@ -1334,8 +1493,9 @@ func newStubbedTemplate(_ template.HTML) (*template.Template, error) {
 // For the full-page goldens the harness composes that .Chrome from the pinned
 // fixtures.json shell slice — the SAME bytes cmd/web/chrome.go's chromeFromFixture
 // reads in a VERGE_DEV candidate — so golden and candidate agree byte-for-byte. The
-// struct mirrors cmd/web's chromeVM. .Orgs is nil (orgs are not modeled — the static
-// chip renders; the org-open golden defers, SPEC-CHANGE #28).
+// struct mirrors cmd/web's chromeVM. The org chip is static — SPEC-CHANGE #33 retired
+// the switcher permanently (ADR-0073 single-org); .Orgs is gone from the contract and
+// the org-open golden is dropped (package v3.17.0).
 
 // integrationsGolden mirrors the app's compile-time integrationsEnabled const
 // (integrations.go = true): the gated Integrations palette item is emitted.
@@ -1344,7 +1504,6 @@ const integrationsGolden = true
 type rgChrome struct {
 	Nav           []rgNav
 	Org           string
-	Orgs          []rgOrg
 	Version       string
 	UserName      string
 	UserInitials  string
@@ -1358,10 +1517,6 @@ type rgNav struct {
 	ID, Label, Href string
 	Active          bool
 	Count           string
-}
-type rgOrg struct {
-	ID, Name, Assets string
-	Active           bool
 }
 type rgMsg struct {
 	Class, Rel, Headline, Href string
@@ -1438,7 +1593,8 @@ func loadShellFixture() (rgShellFixture, error) {
 // goldenChrome composes the .Chrome view-model from the pinned shell slice, with the
 // active pill set per navActive, scanning lighting .ScanRunning, and showToast folding
 // in the toasts variant. The gated Integrations palette item is included (the app's
-// integrationsEnabled const is true). .Orgs is nil (#28). It matches chromeFromFixture.
+// integrationsEnabled const is true). The org chip is static (switcher retired, #33). It
+// matches chromeFromFixture.
 func goldenChrome(navActive string, scanning, showToast bool) *rgChrome {
 	fx, err := loadShellFixture()
 	if err != nil {
@@ -2561,11 +2717,11 @@ func dashboardData(fx dashboardFixture, sfx signalsFixture, scanning, probeDismi
 // #27), all on `/` (the dashboard) FULL-PAGE: default, palette-open, bell-open,
 // acct-open (the popover states share the base HTML — capture.mjs opens each popover),
 // scan-running (chrome .ScanRunning + the dashboard scanning content), and toasts (the
-// fixture toast stack folded into .Chrome.Toasts). The 7th states.json state, org-open,
-// is DEFERRED: orgs are not modeled (ADR-0073), so the switcher ships the static chip
-// and its golden defers with it (SPEC-CHANGE #28, AWAITING DESIGN) — the run.sh skips
-// it. Chrome is set explicitly (so the toasts state can carry showToast) rather than via
-// chromeInto, and matches cmd/web/chrome.go's chromeFromFixture.
+// fixture toast stack folded into .Chrome.Toasts). The org switcher is retired (SPEC-CHANGE
+// #33, package v3.17.0): shell.tmpl renders only the static org chip, so there is no
+// org-open state — it was dropped from states.json this round. Chrome is set explicitly (so
+// the toasts state can carry showToast) rather than via chromeInto, and matches
+// cmd/web/chrome.go's chromeFromFixture.
 func renderShellStates(bodyFlex bool) ([]errorGolden, error) {
 	head, err := goldenHead(bodyFlex)
 	if err != nil {
@@ -4559,7 +4715,7 @@ func loadSettingsFixtureG() (gsSettings, error) {
 }
 
 // findActiveDispatchG returns the fixture active dispatch whose id matches the raw ?stop=/
-// ?terminate= query value (id 1408), or nil. Mirrors cmd/web/settings_fixtures.go findActiveDispatch.
+// ?terminate= query value (id 1409, #35), or nil. Mirrors cmd/web/settings_fixtures.go findActiveDispatch.
 func findActiveDispatchG(active []gsActive, raw string) *gsActive {
 	id, err := strconv.ParseInt(raw, 10, 64)
 	if err != nil {
@@ -4603,7 +4759,7 @@ func settingsGoldenMap(fx gsSettings, tab string, q map[string]string) map[strin
 		data["ColdScopes"] = fx.Scans.ColdScopes
 		data["ColdError"] = ""
 		// DF-F4 stop / terminate confirm dialogs (states scans-stop-confirm /
-		// scans-terminate-confirm at id 1408). Mirrors cmd/web/settings_fixtures.go:
+		// scans-terminate-confirm at id 1409, #35). Mirrors cmd/web/settings_fixtures.go:
 		// the target is the matching active dispatch, its Pending/Running folded live
 		// from that dispatch's job states (jobStateCounts: ready→pending, running→running).
 		if id := q["stop"]; id != "" {
@@ -4748,8 +4904,8 @@ func renderSettingsStates(bodyFlex bool) ([]errorGolden, error) {
 	}
 	states := []sstate{
 		{"scans", "scans", nil},
-		{"scans-stop-confirm", "scans", map[string]string{"stop": "1408"}},
-		{"scans-terminate-confirm", "scans", map[string]string{"terminate": "1408"}},
+		{"scans-stop-confirm", "scans", map[string]string{"stop": "1409"}},
+		{"scans-terminate-confirm", "scans", map[string]string{"terminate": "1409"}},
 		{"vantages", "vantages", nil},
 		{"sso", "sso", nil},
 		{"team", "team", nil},
