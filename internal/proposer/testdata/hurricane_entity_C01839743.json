@@ -1,0 +1,89 @@
+{
+  "events" : [ {
+    "eventAction" : "last changed",
+    "eventDate" : "2011-03-19T09:10:17-04:00"
+  }, {
+    "eventAction" : "registration",
+    "eventDate" : "2007-12-26T20:27:13-05:00"
+  } ],
+  "handle" : "C01839743",
+  "links" : [ {
+    "href" : "https://rdap.arin.net/registry/entity/C01839743",
+    "rel" : "self",
+    "type" : "application/rdap+json",
+    "value" : "https://rdap.arin.net/registry/entity/C01839743"
+  }, {
+    "href" : "https://whois.arin.net/rest/customer/C01839743",
+    "rel" : "alternate",
+    "type" : "application/xml",
+    "value" : "https://rdap.arin.net/registry/entity/C01839743"
+  } ],
+  "networks" : [ {
+    "arin_originas0_originautnums" : [ ],
+    "cidr0_cidrs" : [ {
+      "v4prefix" : "216.218.130.224",
+      "length" : 27
+    } ],
+    "endAddress" : "216.218.130.255",
+    "events" : [ {
+      "eventAction" : "last changed",
+      "eventDate" : "2007-12-26T20:27:13-05:00"
+    }, {
+      "eventAction" : "registration",
+      "eventDate" : "2007-12-26T20:27:13-05:00"
+    } ],
+    "handle" : "NET-216-218-130-224-1",
+    "ipVersion" : "v4",
+    "links" : [ {
+      "href" : "https://rdap.arin.net/registry/ip/216.218.130.224",
+      "rel" : "self",
+      "type" : "application/rdap+json",
+      "value" : "https://rdap.arin.net/registry/entity/C01839743"
+    }, {
+      "href" : "https://whois.arin.net/rest/net/NET-216-218-130-224-1",
+      "rel" : "alternate",
+      "type" : "application/xml",
+      "value" : "https://rdap.arin.net/registry/entity/C01839743"
+    }, {
+      "href" : "https://rdap.arin.net/registry/ip/216.218.128.0/17",
+      "rel" : "up",
+      "type" : "application/rdap+json",
+      "value" : "https://rdap.arin.net/registry/entity/C01839743"
+    } ],
+    "name" : "HURRICANE-DC0012-7B1",
+    "objectClassName" : "ip network",
+    "parentHandle" : "NET-216-218-128-0-1",
+    "port43" : "whois.arin.net",
+    "startAddress" : "216.218.130.224",
+    "status" : [ "active" ],
+    "type" : "ASSIGNMENT"
+  } ],
+  "notices" : [ {
+    "description" : [ "By using the ARIN RDAP/Whois service, you are agreeing to the RDAP/Whois Terms of Use" ],
+    "links" : [ {
+      "href" : "https://www.arin.net/resources/registry/whois/tou/",
+      "rel" : "terms-of-service",
+      "type" : "text/html",
+      "value" : "https://rdap.arin.net/registry/entity/C01839743"
+    } ],
+    "title" : "Terms of Service"
+  }, {
+    "description" : [ "If you see inaccuracies in the results, please visit: " ],
+    "links" : [ {
+      "href" : "https://www.arin.net/resources/registry/whois/inaccuracy_reporting/",
+      "rel" : "inaccuracy-report",
+      "type" : "text/html",
+      "value" : "https://rdap.arin.net/registry/entity/C01839743"
+    } ],
+    "title" : "Whois Inaccuracy Reporting"
+  }, {
+    "description" : [ "Copyright 1997-2026, American Registry for Internet Numbers, Ltd." ],
+    "title" : "Copyright Notice"
+  } ],
+  "objectClassName" : "entity",
+  "port43" : "whois.arin.net",
+  "rdapConformance" : [ "nro_rdap_profile_0", "rdap_level_0" ],
+  "vcardArray" : [ "vcard", [ [ "version", { }, "text", "4.0" ], [ "fn", { }, "text", "Hurricane Electric" ], [ "adr", {
+    "label" : "55 South Market St Suite 205\nSan Jose\nCA\n95113\nUnited States"
+  }, "text", [ "", "", "", "", "", "", "" ] ], [ "kind", { }, "text", "org" ] ] ]
+}

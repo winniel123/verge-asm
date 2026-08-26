@@ -1,0 +1,104 @@
+{
+  "entitySearchResults" : [ {
+    "events" : [ {
+      "eventAction" : "last changed",
+      "eventDate" : "2011-03-19T09:10:17-04:00"
+    }, {
+      "eventAction" : "registration",
+      "eventDate" : "2007-12-26T20:27:13-05:00"
+    } ],
+    "handle" : "C01839743",
+    "links" : [ {
+      "href" : "https://rdap.arin.net/registry/entity/C01839743",
+      "rel" : "self",
+      "type" : "application/rdap+json",
+      "value" : "https://rdap.arin.net/registry/entities?fn=Hurricane+Electric"
+    }, {
+      "href" : "https://whois.arin.net/rest/customer/C01839743",
+      "rel" : "alternate",
+      "type" : "application/xml",
+      "value" : "https://rdap.arin.net/registry/entities?fn=Hurricane+Electric"
+    } ],
+    "objectClassName" : "entity",
+    "port43" : "whois.arin.net",
+    "vcardArray" : [ "vcard", [ [ "version", { }, "text", "4.0" ], [ "fn", { }, "text", "Hurricane Electric" ], [ "adr", {
+      "label" : "55 South Market St Suite 205\nSan Jose\nCA\n95113\nUnited States"
+    }, "text", [ "", "", "", "", "", "", "" ] ], [ "kind", { }, "text", "org" ] ] ]
+  }, {
+    "events" : [ {
+      "eventAction" : "last changed",
+      "eventDate" : "2011-09-24T08:30:57-04:00"
+    }, {
+      "eventAction" : "registration",
+      "eventDate" : "2000-02-22T00:00:00-05:00"
+    } ],
+    "handle" : "HURRIC-1",
+    "links" : [ {
+      "href" : "https://rdap.arin.net/registry/entity/HURRIC-1",
+      "rel" : "self",
+      "type" : "application/rdap+json",
+      "value" : "https://rdap.arin.net/registry/entities?fn=Hurricane+Electric"
+    }, {
+      "href" : "https://whois.arin.net/rest/org/HURRIC-1",
+      "rel" : "alternate",
+      "type" : "application/xml",
+      "value" : "https://rdap.arin.net/registry/entities?fn=Hurricane+Electric"
+    } ],
+    "objectClassName" : "entity",
+    "port43" : "whois.arin.net",
+    "vcardArray" : [ "vcard", [ [ "version", { }, "text", "4.0" ], [ "fn", { }, "text", "Hurricane Electric" ], [ "adr", {
+      "label" : "55 South Market St Suite 205\nSan Jose\nCA\n95113\nUnited States"
+    }, "text", [ "", "", "", "", "", "", "" ] ], [ "kind", { }, "text", "org" ] ] ]
+  }, {
+    "events" : [ {
+      "eventAction" : "last changed",
+      "eventDate" : "2026-03-04T15:05:52-05:00"
+    }, {
+      "eventAction" : "registration",
+      "eventDate" : "2000-02-23T10:29:04-05:00"
+    } ],
+    "handle" : "ZH17-ARIN",
+    "links" : [ {
+      "href" : "https://rdap.arin.net/registry/entity/ZH17-ARIN",
+      "rel" : "self",
+      "type" : "application/rdap+json",
+      "value" : "https://rdap.arin.net/registry/entities?fn=Hurricane+Electric"
+    }, {
+      "href" : "https://whois.arin.net/rest/poc/ZH17-ARIN",
+      "rel" : "alternate",
+      "type" : "application/xml",
+      "value" : "https://rdap.arin.net/registry/entities?fn=Hurricane+Electric"
+    } ],
+    "objectClassName" : "entity",
+    "port43" : "whois.arin.net",
+    "status" : [ "validated" ],
+    "vcardArray" : [ "vcard", [ [ "version", { }, "text", "4.0" ], [ "adr", {
+      "label" : "760 Mission Court\nFremont\nCA\n94539\nUnited States"
+    }, "text", [ "", "", "", "", "", "", "" ] ], [ "fn", { }, "text", "Hurricane Electric" ], [ "org", { }, "text", "Hurricane Electric Internet Services" ], [ "kind", { }, "text", "group" ], [ "email", { }, "text", "hostmaster@he.net" ], [ "tel", {
+      "type" : [ "work", "voice" ]
+    }, "text", "+1-510-580-4100" ] ] ]
+  } ],
+  "notices" : [ {
+    "description" : [ "By using the ARIN RDAP/Whois service, you are agreeing to the RDAP/Whois Terms of Use" ],
+    "links" : [ {
+      "href" : "https://www.arin.net/resources/registry/whois/tou/",
+      "rel" : "terms-of-service",
+      "type" : "text/html",
+      "value" : "https://rdap.arin.net/registry/entities?fn=Hurricane+Electric"
+    } ],
+    "title" : "Terms of Service"
+  }, {
+    "description" : [ "If you see inaccuracies in the results, please visit: " ],
+    "links" : [ {
+      "href" : "https://www.arin.net/resources/registry/whois/inaccuracy_reporting/",
+      "rel" : "inaccuracy-report",
+      "type" : "text/html",
+      "value" : "https://rdap.arin.net/registry/entities?fn=Hurricane+Electric"
+    } ],
+    "title" : "Whois Inaccuracy Reporting"
+  }, {
+    "description" : [ "Copyright 1997-2026, American Registry for Internet Numbers, Ltd." ],
+    "title" : "Copyright Notice"
+  } ],
+  "rdapConformance" : [ "nro_rdap_profile_0", "rdap_level_0" ]
+}

@@ -88,6 +88,15 @@ entities of which **227 carried `C…` handles**. Splitting them would put two t
 request and would make [#47](https://github.com/winniel123/verge-asm/issues/47)'s enablement prompt
 render a distinction the operator cannot act on.
 
+*Endpoint pinned by [#611](https://github.com/winniel123/verge-asm/issues/611): `entities?fn=` is
+RDAP grammar, served keyless at ARIN's RDAP base `https://rdap.arin.net/registry`, not at the
+Whois-RWS base `https://whois.arin.net/rest` — the latter answers this path with an HTML 404 and
+was the base the code had wired. The one search response lists all 257 matched entities as stubs
+(handle and formatted name); each matched handle is then fetched once to read its `networks`, which
+is exactly the one-fetch-per-handle volume this ADR prices under Consequences. The org-vs-customer
+split is the handle shape: a `C…`-digit handle is the compelled reassignment, any other is the
+delegation.*
+
 The two record kinds have genuinely different caveats — the /29 floor, and a name string typed by
 the upstream ISP rather than by the RIR — and those are carried on the individual `Proposal`, which
 records **which kind of record produced it**. That is what the operator needs in order to judge it,
