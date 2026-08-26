@@ -65,13 +65,13 @@ func (s *server) editVergeCoreFrequency(w http.ResponseWriter, r *http.Request, 
 	switch action {
 	case "add", "remove":
 		if err := s.store.UpsertVergeCoreFrequencyEdit(r.Context(), db.UpsertVergeCoreFrequencyEditParams{
-			Port: int32(port), Action: action, CreatedBy: acct.ID,
+			Port: int32(port), Action: action, CreatedBy: acct.ID, // #nosec G109 (port validated 1..65535 above)
 		}); err != nil {
 			s.serverError(w, "upsert verge-core frequency edit", err)
 			return
 		}
 	case "reset":
-		if err := s.store.DeleteVergeCoreFrequencyEdit(r.Context(), int32(port)); err != nil {
+		if err := s.store.DeleteVergeCoreFrequencyEdit(r.Context(), int32(port)); err != nil { // #nosec G109 (port validated 1..65535 above)
 			s.serverError(w, "delete verge-core frequency edit", err)
 			return
 		}

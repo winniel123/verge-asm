@@ -63,7 +63,9 @@ const reportsDispatchPerWeek = 250
 
 // reportsDispatchLimit is the bounded Dispatch read size for a given range in weeks,
 // scaled off reportsDispatchPerWeek. int32 to match ListDispatchProgress.
-func reportsDispatchLimit(weeks int) int32 { return int32(weeks * reportsDispatchPerWeek) }
+func reportsDispatchLimit(weeks int) int32 {
+	return int32(weeks * reportsDispatchPerWeek) // #nosec G115 (weeks bounded by 4-digit-year date parse; weeks*250 well under int32)
+}
 
 // reportsHeatWeeks / reportsHeatDays are the heatmap's DEFAULT span: twelve weeks of
 // one column per week, seven rows per column, oldest-first. The span is now
@@ -989,7 +991,7 @@ func (s *server) foldScanActivity(rows []db.ListDispatchProgressRow, days int) (
 			cell.Bg = template.CSS("var(--sunken)")
 			cell.Border = template.CSS("var(--hairline)")
 		} else {
-			cell.Bg = template.CSS("color-mix(in srgb, var(--chart-1) " + strconv.Itoa(pct[level]) + "%, var(--surface))")
+			cell.Bg = template.CSS("color-mix(in srgb, var(--chart-1) " + strconv.Itoa(pct[level]) + "%, var(--surface))") // #nosec G203 (constant color-mix CSS; only interpolant is strconv.Itoa of a fixed 0-4 index)
 			cell.Border = template.CSS("transparent")
 		}
 		cells[i] = cell

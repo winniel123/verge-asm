@@ -24,7 +24,7 @@ import { createServer } from "node:http";
 import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { dirname, join, resolve, extname } from "node:path";
+import { dirname, join, resolve, extname, sep } from "node:path";
 import { chromium } from "playwright";
 import { PNG } from "pngjs";
 import pixelmatch from "pixelmatch";
@@ -71,7 +71,16 @@ function serveDist() {
         if (urlPath.endsWith("/")) urlPath += "index.html";
         let filePath = join(DIST_DIR, urlPath);
         if (!extname(filePath)) filePath = join(filePath, "index.html");
-        const body = await readFile(filePath);
+        // Path-injection guard: a decoded request path can contain ".." segments
+        // that escape dist/. Resolve and require the result to stay within DIST_DIR
+        // before touching the filesystem.
+        const resolved = resolve(filePath);
+        if (resolved !== DIST_DIR && !resolved.startsWith(DIST_DIR + sep)) {
+          res.writeHead(403, { "content-type": "text/plain" });
+          res.end("forbidden");
+          return;
+        }
+        const body = await readFile(resolved);
         res.writeHead(200, { "content-type": MIME[extname(filePath)] || "application/octet-stream" });
         res.end(body);
       } catch {
