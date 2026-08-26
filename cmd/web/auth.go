@@ -1248,7 +1248,7 @@ func totpEnrollData(username, secret, errMsg string) map[string]any {
 		data["Error"] = errMsg
 	}
 	if svg, err := qr.SVG([]byte(uri), "Two-factor enrollment QR code for "+username); err == nil {
-		data["OtpauthQR"] = template.HTML(svg) //nolint:gosec // SVG is built by our own encoder, not user input
+		data["OtpauthQR"] = template.HTML(svg) // #nosec G203 (SVG built by internal qr encoder; username html.EscapeString-escaped into aria-label)
 	}
 	return data
 }
@@ -1341,13 +1341,13 @@ func (s *server) forgotSubmit(w http.ResponseWriter, r *http.Request) {
 			// this account's password. It must NOT land in the logs by default (CWE-532,
 			// #328) — only the account and the reset-record id are logged, which name the
 			// request without leaking the secret. An operator resets on the host directly.
-			log.Printf("web: password reset requested for %q (reset id %d, expires in %s)",
-				username, pr.ID, s.resetTTL)
+			log.Printf("web: password reset requested for %q (reset id %d, expires in %s)", // #nosec G706 (sanitized via logSafe)
+				logSafe(username), pr.ID, s.resetTTL)
 			// A mail-less host may still need the link out of band; it is gated behind an
 			// explicit opt-in (default off) so the plaintext is emitted only when the
 			// operator has knowingly turned it on for their own logs.
 			if env.OrDefault("VERGE_LOG_RESET_LINKS", "") != "" {
-				log.Printf("web: password reset link for %q: /reset?token=%s", username, plaintext)
+				log.Printf("web: password reset link for %q: /reset?token=%s", logSafe(username), plaintext) // #nosec G706 (sanitized via logSafe)
 			}
 		}
 	}
@@ -2520,7 +2520,7 @@ func (s *server) setSignedCookie(w http.ResponseWriter, r *http.Request, name st
 		s.serverError(w, "sign session", err)
 		return false
 	}
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ // #nosec G124 -- Secure set conditionally (r.TLS != nil || s.secureCookies) for plain-HTTP dev/proxy; HttpOnly + SameSite=Lax always set.
 		Name: name, Value: token, Path: "/", HttpOnly: true,
 		SameSite: http.SameSiteLaxMode, Secure: s.secureCookies || r.TLS != nil, MaxAge: int(ttl.Seconds()),
 	})
@@ -2528,8 +2528,8 @@ func (s *server) setSignedCookie(w http.ResponseWriter, r *http.Request, name st
 }
 
 func (s *server) clearCookie(w http.ResponseWriter, name string) {
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ // #nosec G124 -- deletion cookie (empty value, MaxAge<0); Secure via s.secureCookies expression; HttpOnly + SameSite=Lax set.
 		Name: name, Value: "", Path: "/", HttpOnly: true,
-		SameSite: http.SameSiteLaxMode, MaxAge: -1,
+		SameSite: http.SameSiteLaxMode, Secure: s.secureCookies, MaxAge: -1,
 	})
 }
