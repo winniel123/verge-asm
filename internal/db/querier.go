@@ -358,6 +358,13 @@ type Querier interface {
 	// can copy its scope into a Seed. A Proposal already confirmed or declined does
 	// not come back, so a double submit cannot open the gate twice.
 	GetPendingProposal(ctx context.Context, id int64) (Proposal, error)
+	// Resolve a presented bearer credential to its stored row by the SHA-256 hash of the
+	// plaintext vg_pat_… (the caller hashes before this lookup; the plaintext is never
+	// persisted, only its digest is). The indexed hash equality carries the constant-time
+	// property inherently — a non-matching hash simply yields no row, disclosing nothing by
+	// timing. Returns account_id so the bearer path reads the account's role LIVE per request
+	// (ADR-0123 §4), never freezing a role into the token itself.
+	GetPersonalTokenByHash(ctx context.Context, tokenHash string) (PersonalToken, error)
 	// One declared schedule by id — the read behind the Edit wizard (prefill, including
 	// the bound channel) and the Run-now dispatch (the run reads the schedule's
 	// name/cadence/format to cut the artifact for the current period). No row
@@ -1161,6 +1168,12 @@ type Querier interface {
 	// bare write; it never touches the TOTP secret, so a password change leaves the
 	// second factor in force.
 	UpdatePassword(ctx context.Context, arg UpdatePasswordParams) error
+	// Coarsened last-used touch (ADR-0123 §4): stamp last_used_at = now() at most once per
+	// hour per token, so an authenticated /api/v1 request records "still live" without a
+	// row-per-request write amplifier and without turning last_used_at into a fine-grained
+	// access log of the operator's own integration traffic. The predicate makes the write a
+	// no-op inside the hour, and last_used_at never regresses — it is data and rides the backup.
+	UpdatePersonalTokenLastUsed(ctx context.Context, id int64) error
 	// Edit one schedule's declared contents in place (the row-menu's Edit). A schedule
 	// carries no timeline and no derived state, so updating what was declared is not a
 	// recompute (migration 21700) — the id, created_by and created_at are preserved.
