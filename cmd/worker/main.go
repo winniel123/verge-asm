@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -73,9 +74,18 @@ func main() {
 	// instance-wide 5 req/min reservation throttle, wired onto the worker beside
 	// the prober. The User-Agent identifies this build, which the source operator
 	// asked for (passive-discovery §2.2).
+	// The message producer (P0.7): each batch tx folds a flagship/membership
+	// transition into a Message and routes it to its bound Channels via
+	// delivery.EnqueueForMessage (injected so internal/queue never imports
+	// internal/delivery). VERGE_DEV suppresses it entirely — a fixture-only install
+	// serves fixtures, never live estate, so it writes no message (AL-25). A default
+	// real install binds no Channel, so a Message is written but nothing is POSTed
+	// until an admin declares one.
+	devMode := isTruthy(env.OrDefault("VERGE_DEV", ""))
 	worker := queue.NewWorker(pool, queue.ExecProber{Path: proberPath}, time.Now, logger).
 		WithCT(queue.NewHTTPCTFetcher(env.OrDefault("VERGE_VERSION", "dev")), queue.NewCTThrottle(db.New(pool))).
-		WithRouter(router)
+		WithRouter(router).
+		WithMessages(delivery.EnqueueForMessage, devMode)
 
 	// A manual run dispatches an existing Scan, drains it synchronously, and
 	// exits — the operator/CI path that produces Observation rows on demand.
@@ -207,6 +217,17 @@ func main() {
 		log.Fatalf("worker: %v", err)
 	}
 	log.Print("worker: shutting down")
+}
+
+// isTruthy reads the common affirmative spellings of a boolean env value — the
+// VERGE_DEV gate the message producer reads (mirrors cmd/web's own).
+func isTruthy(v string) bool {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }
 
 // runSelfTest execs the prober once at startup to prove the job-spec-in,

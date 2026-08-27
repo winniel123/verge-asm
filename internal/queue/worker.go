@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/message"
 	"github.com/winniel123/verge-asm/internal/scan"
 	"github.com/winniel123/verge-asm/internal/wire"
 )
@@ -80,6 +81,58 @@ type Worker struct {
 	// as before this seam — so the measurement-only construction and its tests are
 	// unchanged.
 	router VantageRouter
+
+	// The message producer's seam (P0.7), wired via WithMessages. When enabled the
+	// batch tx folds each signal/drift transition into a message and routes it to its
+	// bound channels via enqueue (delivery.EnqueueForMessage, injected to avoid the
+	// delivery→queue import cycle). Off on a worker built without it — the
+	// measurement-only construction and its tests write no message. devMode suppresses
+	// production entirely even when enabled: a fixture-only install never writes a
+	// message (AL-25), so the golden fixtures stay message-free and G2 does not move.
+	produceMsgs bool
+	devMode     bool
+	enqueue     func(ctx context.Context, q *db.Queries, messageID int64, class message.Class) (int, error)
+}
+
+// WithMessages enables the message producer (P0.7): after a batch's folds commit,
+// the same transaction folds each flagship / membership transition into a Message and
+// routes it to its bound Channels through enqueue — delivery.EnqueueForMessage bound
+// to the batch tx by the producer. devMode is the VERGE_DEV guard: when true the
+// producer is a no-op, so a fixture install writes no message. Returns the worker for
+// chaining beside WithCT.
+func (w *Worker) WithMessages(enqueue func(ctx context.Context, q *db.Queries, messageID int64, class message.Class) (int, error), devMode bool) *Worker {
+	w.produceMsgs = true
+	w.devMode = devMode
+	w.enqueue = enqueue
+	return w
+}
+
+// changeCollector is the transition collector the fold appends to — the real slice
+// pointer where the producer is enabled and needs the feed, nil where it is off so
+// the fold does no bookkeeping the measurement-only path would discard.
+func (w *Worker) changeCollector(changes *[]spanChange) *[]spanChange {
+	if !w.produceMsgs {
+		return nil
+	}
+	return changes
+}
+
+// produce folds the batch's transitions into messages inside the batch tx. It binds
+// the injected enqueuer to this transaction's queries so the producer never imports
+// internal/delivery, and is a no-op unless the worker was built WithMessages. The
+// devMode guard lives inside produceMessages (AL-25), so an enabled dev worker still
+// writes nothing.
+func (w *Worker) produce(ctx context.Context, qtx *db.Queries, batchID int64, observedAt time.Time, changes []spanChange, in membershipInputs) error {
+	if !w.produceMsgs {
+		return nil
+	}
+	var enqueue enqueueFunc
+	if w.enqueue != nil {
+		enqueue = func(c context.Context, messageID int64, class message.Class) (int, error) {
+			return w.enqueue(c, qtx, messageID, class)
+		}
+	}
+	return produceMessages(ctx, qtx, batchID, observedAt, changes, in, enqueue, w.devMode)
 }
 
 // VantageRouter decides whether a job runs off-host and, if so, runs it there. It is
@@ -316,8 +369,10 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, obs []wire.Ob
 		}
 		// Fold the completed batch's observations into the Span corpus in the same
 		// transaction — the outcome, its observations and the drift they move all
-		// commit together (ADR-0007).
-		if err := foldObservationsIntoSpans(ctx, qtx, batchID, job.VantageID, observedAt, obs, membership); err != nil {
+		// commit together (ADR-0007). The fold also collects each transition it made
+		// into `changes` — the estate/drift feed the message producer consumes below.
+		var changes []spanChange
+		if err := foldObservationsIntoSpans(ctx, qtx, batchID, job.VantageID, observedAt, obs, membership, w.changeCollector(&changes)); err != nil {
 			return err
 		}
 		// Compose the subject-level departures the batch's evidence shows and close
@@ -325,6 +380,13 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, obs []wire.Ob
 		// the spanfold closure, #637) — the withdrawn / descoped closures, and the
 		// re-open that lets a later `returned` derive, all citing this batch.
 		if err := foldEstateTransitions(ctx, qtx, batchID, observedAt, obs, membership); err != nil {
+			return err
+		}
+		// Fold each signal/drift transition into a Message and route it to its bound
+		// channels, in this same transaction (P0.7): a flagship internet-leg move or a
+		// membership entry becomes a Message row and its Deliveries. A no-op unless the
+		// worker was built WithMessages, and always a no-op in devMode (AL-25).
+		if err := w.produce(ctx, qtx, batchID, observedAt, changes, membership); err != nil {
 			return err
 		}
 		return markDone(ctx, qtx, job.ID, batchID)

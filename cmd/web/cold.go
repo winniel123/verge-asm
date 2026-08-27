@@ -5,11 +5,15 @@ import (
 	"html/template"
 	"math"
 	"net/http"
+	"net/netip"
 	"sort"
 	"strconv"
+	"time"
 
 	designfs "github.com/winniel123/verge-asm/design-system"
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/retention"
+	"github.com/winniel123/verge-asm/internal/seed"
 	"github.com/winniel123/verge-asm/internal/signal"
 )
 
@@ -179,12 +183,13 @@ type coverageStaleZoneView struct {
 	Age  string
 }
 
-// coveragePage renders the Coverage screen (#301, §6.3, ADR-0110). It shapes four
-// regions from real reads: the aperture meters (one census per declared scope),
-// the coverage messages and the gaps register (both from the Gap'd-Service
-// register #254 and the unavailable-vantage register ADR-0108), and the
-// unevaluable rules (the rules whose census carries not-evaluable members this
-// batch). It is viewer-readable (requireLogin) — no mutation lives here.
+// coveragePage renders the Coverage screen (#301, §6.3, ADR-0110). It shapes the
+// regions from real reads: the aperture meters (an address scope's #19c counted/total
+// over its range, a name scope's census), the coverage messages and the gaps register
+// (both from the Gap'd-Service register #254 and the unavailable-vantage register
+// ADR-0108), the unevaluable rules (the rules whose census carries not-evaluable
+// members this batch) and the per-zone stale callout (#19e — a name-scope zone aged
+// past two re-supply intervals). It is viewer-readable (requireLogin) — no mutation.
 func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	ctx := r.Context()
 
@@ -217,7 +222,18 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	if z, zerr := s.store.ListZoneDeclarations(ctx); zerr == nil {
 		zones = z
 	}
-	meters := apertureMeters(seeds, zones)
+	// Covered subjects for the #19c address-scope meters: the distinct addresses the
+	// batch walked, drawn from the current Service subjects (each a triple sitting on
+	// an address). Best-effort and live-tier gated — an unavailable read leaves the
+	// address meters at a zero numerator rather than 500ing the page, never a
+	// fabricated count.
+	var walked []netip.Addr
+	if svcs, serr := s.store.ListCurrentServiceSubjects(ctx, db.ListCurrentServiceSubjectsParams{
+		Search: "", AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
+	}); serr == nil {
+		walked = walkedAddresses(svcs)
+	}
+	meters := apertureMeters(seeds, zones, walked)
 
 	// Gaps + coverage messages. A blanket responder answers on every port, so its
 	// reach is a Gap, never reached (ADR-0104 §4): it surfaces both as a gap row and
@@ -243,6 +259,17 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		unevaluable = unevaluableRules(corpus)
 	}
 
+	// Per-zone stale callout (#19e): a name-scope zone whose latest supplied file has
+	// aged past two re-supply intervals is stale — removal detection is suspended for
+	// that scope until a fresh upload. Both reads are best-effort; either failing (or
+	// no declared re-supply interval) leaves no callout rather than a fabricated one.
+	var staleZonesView []coverageStaleZoneView
+	if cadence, cerr := s.store.GetZoneCadenceSeconds(ctx); cerr == nil && cadence > 0 {
+		if rows, zerr := s.store.ListZoneFileStatus(ctx); zerr == nil {
+			staleZonesView = staleZones(rows, cadence, time.Now())
+		}
+	}
+
 	s.render(w, r, "coverage", map[string]any{
 		"Title": "Coverage", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"NavActive": "coverage",
@@ -253,20 +280,17 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		"Messages":     messages,
 		"Gaps":         gaps,
 		"Unevaluable":  unevaluable,
-		// The per-zone stale callout is gated on a real stale-zone read; that currency
-		// read lands later, so the block ports the structure without ever rendering
-		// fabricated staleness.
-		"StaleZones": []coverageStaleZoneView(nil),
+		"StaleZones":   staleZonesView,
 	})
 }
 
-// apertureMeters shapes one census CoverageMeter per declared scope. An address
-// scope is its own complete enumeration, so its census counts the addresses it
-// covers (seed.AddressCount via humanCount). A name scope enumerates nothing on
-// its own — its addresses arrive by resolution — so its census counts the owner
-// names its supplied zone declares, and states that its addresses come by
-// resolution. Neither claims a denominator or a proportion of the estate.
-func apertureMeters(seeds []db.ListSeedsRow, zones []db.ListZoneDeclarationsRow) []coverageMeterView {
+// apertureMeters shapes one CoverageMeter per declared scope. An address scope
+// renders the #19c counted/total form — the covered subjects the batch walked over
+// the enumerable addresses of its declared range (addressMeter). A name scope
+// enumerates nothing on its own — its addresses arrive by resolution — so it stays
+// a census counting the owner names its supplied zone declares, and states that its
+// addresses come by resolution. Neither claims a proportion of the estate.
+func apertureMeters(seeds []db.ListSeedsRow, zones []db.ListZoneDeclarationsRow, walked []netip.Addr) []coverageMeterView {
 	declared := make(map[string]int, len(zones))
 	for _, z := range zones {
 		if z.NameDomain.Valid {
@@ -276,18 +300,7 @@ func apertureMeters(seeds []db.ListSeedsRow, zones []db.ListZoneDeclarationsRow)
 	out := make([]coverageMeterView, 0, len(seeds))
 	for _, sd := range seeds {
 		if sd.Kind == "address" && sd.AddressCidr != nil {
-			// A live estate has no first-class "subjects the batch walked within this
-			// declared range" numerator yet (see the ADR note refining ADR-0095), so the
-			// live address meter renders the honest census of the addresses it enumerates
-			// — Total nil. The #19c counted/total form is realized in the fixture-seeded
-			// instance the design golden depicts (coverageFixtureData); wiring it to a live
-			// range awaits that numerator rather than fabricating one.
-			out = append(out, coverageMeterView{
-				Label:   sd.AddressCidr.String(),
-				Counted: humanCount(*sd.AddressCidr),
-				Unit:    "addresses",
-				Detail:  "address scope — a census of the addresses it enumerates, never a proportion of your estate",
-			})
+			out = append(out, addressMeter(*sd.AddressCidr, walked))
 			continue
 		}
 		domain := sd.NameDomain.String
@@ -298,6 +311,102 @@ func apertureMeters(seeds []db.ListSeedsRow, zones []db.ListZoneDeclarationsRow)
 			Detail:  "name scope — no denominator; its addresses arrive by resolution, and custody extension reaches what resolution reveals",
 		})
 	}
+	return out
+}
+
+// maxMeterTotal is the largest denominator the address meter renders through the
+// coveragePct int contract. Every address Seed is bounded to seedAddressCap addresses
+// at declaration (seed.WithinCap), so a real range's enumerable count always fits int;
+// this guard degrades an out-of-range denominator to the honest census rather than
+// overflowing the fill arithmetic.
+const maxMeterTotal = int64(^uint(0) >> 1)
+
+// addressMeter shapes the #19c address-scope meter: the covered subjects the batch
+// walked within the declared range (the numerator) over the enumerable addresses of
+// that range (the denominator = seed.AddressCount, NOT the estate). The fill is the
+// ruled coveragePct(counted, total). A range whose enumerable count exceeds the meter
+// arithmetic degrades to the honest census (Total nil) rather than fabricating a fill.
+func addressMeter(p netip.Prefix, walked []netip.Addr) coverageMeterView {
+	total := seed.AddressCount(p)
+	if total.IsInt64() {
+		if t := total.Int64(); t > 0 && t <= maxMeterTotal {
+			counted := coveredInRange(walked, p)
+			totalStr := humanCount(p)
+			return coverageMeterView{
+				Label:   p.String(),
+				Counted: strconv.Itoa(counted),
+				Total:   &totalStr,
+				Unit:    "subjects",
+				Pct:     coveragePct(counted, int(t)),
+				Detail:  "address scope — the subjects walked over the enumerable addresses of the declared range",
+			}
+		}
+	}
+	return coverageMeterView{
+		Label:   p.String(),
+		Counted: humanCount(p),
+		Unit:    "addresses",
+		Detail:  "address scope — a census of the addresses it enumerates, never a proportion of your estate",
+	}
+}
+
+// coveredInRange counts the distinct walked addresses that fall within p — the
+// covered subjects an address-scope meter's numerator reports (#19c). Distinctness
+// guards against a range being credited twice for two Services on one address.
+func coveredInRange(walked []netip.Addr, p netip.Prefix) int {
+	seen := make(map[netip.Addr]struct{}, len(walked))
+	for _, a := range walked {
+		if p.Contains(a) {
+			seen[a] = struct{}{}
+		}
+	}
+	return len(seen)
+}
+
+// walkedAddresses draws the batch-walked addresses from the current Service subjects
+// — a Service is an (Address, port, transport) triple, so its key carries the address
+// the batch reached. Keys on a name host (name@service form) carry no address and are
+// skipped; a range's numerator counts only the addresses actually resolved to an IP.
+func walkedAddresses(svcs []db.ListCurrentServiceSubjectsRow) []netip.Addr {
+	out := make([]netip.Addr, 0, len(svcs))
+	for _, sv := range svcs {
+		addr, _, _ := splitServiceKey(sv.SubjectKey)
+		if a, err := netip.ParseAddr(addr); err == nil {
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
+// staleZoneIntervals is the design's staleness bound (#19e, fixtures.json): a zone
+// aged past two re-supply intervals has gone stale — "the source went stale".
+const staleZoneIntervals = 2
+
+// staleZones derives the per-zone stale callout (#19e): each name-scope zone whose
+// latest supplied file has aged past staleZoneIntervals re-supply intervals, with its
+// age rendered in the fixtures' own "N re-supply intervals" form. A zone with no
+// supplied file (or no domain) contributes nothing — the design's empty pattern
+// (Acceptance §7), never a fabricated zero. Ordered by zone for a stable callout.
+func staleZones(rows []db.ListZoneFileStatusRow, cadenceSeconds int64, now time.Time) []coverageStaleZoneView {
+	interval := time.Duration(cadenceSeconds) * time.Second
+	if interval <= 0 {
+		return nil
+	}
+	var out []coverageStaleZoneView
+	for _, z := range rows {
+		if !z.SuppliedAt.Valid || !z.NameDomain.Valid || z.NameDomain.String == "" {
+			continue
+		}
+		intervals := int(now.Sub(z.SuppliedAt.Time) / interval)
+		if intervals < staleZoneIntervals {
+			continue
+		}
+		out = append(out, coverageStaleZoneView{
+			Zone: z.NameDomain.String,
+			Age:  fmt.Sprintf("%d re-supply intervals", intervals),
+		})
+	}
+	sort.SliceStable(out, func(i, j int) bool { return out[i].Zone < out[j].Zone })
 	return out
 }
 
