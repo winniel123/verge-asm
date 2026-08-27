@@ -43,6 +43,8 @@ Every row traces to the audit. Build items follow the standing exact-parity ruli
 - **P0.12 (re-scoped by collision #36) TransitionDelta chip** — estate wiring is LANDED (see Landed ledger); the sole residual is drift.go:331's hardcoded `""`. Build the compare per #36's ruling: delta = current period window's transition count minus the immediately preceding equal-length window's, same scope/filters as `.TransitionCount`, presets and custom ranges alike; signed nonzero, "0" for zero, empty string (chip suppressed) when no complete previous window exists. Spec, fixture ("+2"), and drift.tmpl caption unchanged. Wayfinder: map #681.
 - **P0.13 Coverage live numerator + stale callout** — address-scope counted/total meter has no live numerator (cold.go:283-291; fixture 198/214) and the per-zone stale callout is hardcoded `nil` (cold.go:259). Spec meters are ruled (#19c); build both reads.
 
+- **P0.14 Integrations "Send test" wire** (charted by collision #38) — `testIntegration` (integrations.go:298-305) validates the slug then redirects silently; the spec (Integrations.jsx:64/:74, settings.tmpl:1310) promises a real delivery + the toast "Test message sent — Check &lt;name&gt; for the delivery." Wire the handler to POST a test payload through the existing integration-agnostic delivery worker (raw JSON → channel URL) and render the spec's toast on enqueue success; existing error/degrade path on failure. No new backend, no design/screenshot/template change — handler-only.
+
 ### Watch (repo, latent — fix rides its trigger)
 
 - **W1** `enabledProposers` gates on `unencumbered` consent only (proposals.go:333) — would silently suppress any future operator-accepted RIR runner after its `NoRunner` flag clears. Fix alongside the first real RIR `proposer.Source` (#30's bucket).
@@ -72,7 +74,7 @@ Every row traces to the audit. Build items follow the standing exact-parity ruli
 
 - Round-2 items above (U1–U4, D1/D2/D6) — round-2 gate never ran; confirm or file collisions.
 - #31 cadence: confirm `prevFire` against every preset + a real cron expression, then mark #31 closed.
-- Integrations "Send test": audit reads it as a no-op (integrations.go:298-305). If the spec drawer carries the affordance, that's a collision — file it; do not silently keep a dead button.
+- Integrations "Send test": **RULED — collision #38, build (a) → P0.14.** Confirm the wired handler delivers through the worker and renders the spec toast (not the old silent redirect); then close verify item V.
 - P1.9 `integrationsEnabled` compile-time flag (carried from round 2).
 - P1.1 nav pill set/order · P1.5 palette groups · P2.3 Graph severity tints (carried, still unconfirmed).
 
