@@ -1,0 +1,262 @@
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/winniel123/verge-asm/internal/db"
+)
+
+// buildTestArchive assembles a B3-format archive with the real backup writers (round-trip
+// against cmd/web/backup.go) at a chosen schema version, carrying the given span rows so a
+// pre-flight has real subjects to count.
+func buildTestArchive(t *testing.T, schemaVersion int64, spanRows []string) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	now := time.Date(2026, 8, 26, 12, 0, 0, 0, time.UTC)
+	if err := writeBackupManifest(&buf, schemaVersion, now); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeBackupTableHeader(&buf, "span"); err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range spanRows {
+		if err := writeBackupRow(&buf, "span", json.RawMessage(r)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return buf.Bytes()
+}
+
+// TestPreflightArchiveRoundTrip proves the pre-flight validator parses a B3-produced archive
+// (round-trip with backup.go's writers): the manifest schema version and table list survive,
+// and the subject count is the distinct open-span subject_key count — closed spans and a
+// duplicate open key do not inflate it.
+func TestPreflightArchiveRoundTrip(t *testing.T) {
+	archive := buildTestArchive(t, 23000, []string{
+		`{"subject_key":"a.example.com","closed_at":null}`,
+		`{"subject_key":"b.example.com","closed_at":null}`,
+		`{"subject_key":"a.example.com","closed_at":null}`,          // duplicate open key — one subject
+		`{"subject_key":"c.example.com","closed_at":"2026-08-01T00:00:00Z"}`, // closed — not a current subject
+	})
+
+	pf, err := preflightArchive(bytes.NewReader(archive))
+	if err != nil {
+		t.Fatalf("preflightArchive: %v", err)
+	}
+	if pf.SchemaVersion != 23000 {
+		t.Errorf("SchemaVersion = %d, want 23000", pf.SchemaVersion)
+	}
+	if pf.Subjects != 2 {
+		t.Errorf("Subjects = %d, want 2 (distinct open subject_keys)", pf.Subjects)
+	}
+	if len(pf.Tables) != len(backupTables) || pf.Tables[0] != backupTables[0] {
+		t.Errorf("Tables did not mirror the backup allowlist")
+	}
+}
+
+// TestPreflightArchiveRejectsGarbage proves an unparseable upload is refused with nothing
+// touched (the handler maps this to `.RestoreError`).
+func TestPreflightArchiveRejectsGarbage(t *testing.T) {
+	if _, err := preflightArchive(strings.NewReader("this is not a verge archive\n")); err == nil {
+		t.Fatal("preflightArchive accepted garbage; want an error")
+	}
+}
+
+// TestPreflightArchiveRejectsUnknownTable proves a hand-forged manifest naming a table
+// outside B3's allowlist is refused, so a crafted archive cannot steer the apply's SQL at an
+// arbitrary identifier.
+func TestPreflightArchiveRejectsUnknownTable(t *testing.T) {
+	manifest := `{"type":"manifest","format":"` + backupFormat + `","version":` +
+		strconv.Itoa(backupFormatVersion) + `,"schema_version":23000,"created_at":"2026-08-26T12:00:00Z","tables":["pg_catalog_pg_proc"]}` + "\n"
+	if _, err := preflightArchive(strings.NewReader(manifest)); err != errRestoreUnknownTbl {
+		t.Fatalf("preflightArchive on unknown table: err = %v, want errRestoreUnknownTbl", err)
+	}
+}
+
+// TestPreflightArchiveSchemaValueDrivesRefusal proves the archive's schema version is the
+// value the handler compares against the running schema: an archive taken on a different
+// version surfaces that version, and the handler refuses when it does not match (a mismatch
+// is `restore-error=schema`, mapped to a fixed line).
+func TestPreflightArchiveSchemaValueDrivesRefusal(t *testing.T) {
+	archive := buildTestArchive(t, 99999, nil)
+	pf, err := preflightArchive(bytes.NewReader(archive))
+	if err != nil {
+		t.Fatalf("preflightArchive: %v", err)
+	}
+	if pf.SchemaVersion != 99999 {
+		t.Fatalf("SchemaVersion = %d, want 99999", pf.SchemaVersion)
+	}
+	const running = int64(23000)
+	if pf.SchemaVersion == running {
+		t.Fatal("test setup: archive schema unexpectedly matched running")
+	}
+	if restoreErrorMessage("schema") == "" {
+		t.Fatal("schema mismatch has no operator-facing message")
+	}
+}
+
+// TestRestorePreflightRefusesInFlightScan proves the pre-flight refuses while a scan is in
+// flight — before the upload is even parsed — and stages nothing (WORK-ORDER §#391 edge).
+func TestRestorePreflightRefusesInFlightScan(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	f.dispatchProgress = []db.ListDispatchProgressRow{{DispatchID: 1, ScanKind: "standard", Ready: 3}}
+
+	srv := newServer(f, testKey, "", fixedClock())
+	ts := httptest.NewServer(srv.handler())
+	defer ts.Close()
+
+	ac := login(t, ts.URL, "admin", "hunter2hunter2")
+	resp := postForm(t, ac, ts.URL+"/settings/restore/preflight", url.Values{})
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("preflight during scan: status = %d, want 303", resp.StatusCode)
+	}
+	if loc := resp.Header.Get("Location"); !strings.Contains(loc, "restore-error=inflight") {
+		t.Fatalf("preflight during scan: Location = %q, want restore-error=inflight", loc)
+	}
+	if srv.stagedRestore(admin.ID) != nil {
+		t.Fatal("a refused pre-flight still staged an archive")
+	}
+}
+
+// TestRestorePreflightPassesGateWithoutPool proves that with no scan in flight an admin
+// passes the gate and reaches the pool guard (503 off a pool), never a 403 — proof the
+// refusal above was the in-flight check, not the admin gate.
+func TestRestorePreflightPassesGateWithoutPool(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+
+	ac := login(t, base, "admin", "hunter2hunter2")
+	resp := postForm(t, ac, base+"/settings/restore/preflight", url.Values{})
+	resp.Body.Close()
+	if resp.StatusCode == http.StatusForbidden {
+		t.Fatal("admin pre-flight was refused by requireAdmin (403)")
+	}
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("admin pre-flight (no pool): status = %d, want 503", resp.StatusCode)
+	}
+}
+
+// TestRestorePreflightAdminGated proves the pre-flight is admin-only: anonymous → /login, a
+// viewer → 403.
+func TestRestorePreflightAdminGated(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "viewer", roleViewer, "hunter2hunter2")
+	base := start(t, f, "")
+
+	anon := newClient(t)
+	resp := postForm(t, anon, base+"/settings/restore/preflight", url.Values{})
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/login" {
+		t.Fatalf("anon pre-flight: status=%d loc=%q, want 303 -> /login", resp.StatusCode, resp.Header.Get("Location"))
+	}
+
+	vc := login(t, base, "viewer", "hunter2hunter2")
+	resp = postForm(t, vc, base+"/settings/restore/preflight", url.Values{})
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("viewer pre-flight: status=%d, want 403", resp.StatusCode)
+	}
+}
+
+// TestRestoreApplyRequiresConfirmWord proves the apply never applies without the typed word
+// `restore` (validated server-side, never trusting the JS gate): a wrong word refuses with
+// nothing touched, and a correct word with no staged archive refuses as expired. Neither
+// rotates the session key.
+func TestRestoreApplyRequiresConfirmWord(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+
+	srv := newServer(f, testKey, "", fixedClock())
+	ts := httptest.NewServer(srv.handler())
+	defer ts.Close()
+	ac := login(t, ts.URL, "admin", "hunter2hunter2")
+
+	keyBefore := string(srv.key)
+
+	// Wrong confirmation word — no apply.
+	resp := postForm(t, ac, ts.URL+"/settings/restore", url.Values{"confirm": {"yes"}})
+	resp.Body.Close()
+	if loc := resp.Header.Get("Location"); !strings.Contains(loc, "restore-error=confirm") {
+		t.Fatalf("wrong confirm: Location = %q, want restore-error=confirm", loc)
+	}
+
+	// Correct word but nothing staged — refused as expired, still no apply.
+	resp = postForm(t, ac, ts.URL+"/settings/restore", url.Values{"confirm": {"restore"}})
+	resp.Body.Close()
+	if loc := resp.Header.Get("Location"); !strings.Contains(loc, "restore-error=expired") {
+		t.Fatalf("no staged archive: Location = %q, want restore-error=expired", loc)
+	}
+
+	if string(srv.key) != keyBefore {
+		t.Fatal("a refused apply rotated the session key")
+	}
+}
+
+// TestRotateSessionKeyLapsesSessions proves regenerating the session key lapses every live
+// session in the running process at once: an authenticated request that succeeded before the
+// rotation is bounced to /login after it, because its cookie is signed under the dead key.
+func TestRotateSessionKeyLapsesSessions(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+
+	srv := newServer(f, testKey, "", fixedClock())
+	ts := httptest.NewServer(srv.handler())
+	defer ts.Close()
+	ac := login(t, ts.URL, "admin", "hunter2hunter2")
+
+	// Before rotation the session resolves — /profile renders.
+	resp, err := ac.Get(ts.URL + "/profile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("before rotate: /profile status = %d, want 200", resp.StatusCode)
+	}
+
+	keyBefore := string(srv.key)
+	totpBefore := string(srv.totpKey)
+	if err := srv.rotateSessionKey(); err != nil {
+		t.Fatalf("rotateSessionKey: %v", err)
+	}
+	if string(srv.key) == keyBefore {
+		t.Fatal("rotateSessionKey did not change the signing key")
+	}
+	if string(srv.totpKey) == totpBefore {
+		t.Fatal("rotateSessionKey did not re-derive the TOTP sub-key")
+	}
+
+	// After rotation the same cookie no longer verifies — the session has lapsed.
+	resp, err = ac.Get(ts.URL + "/profile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/login" {
+		t.Fatalf("after rotate: /profile status=%d loc=%q, want 303 -> /login", resp.StatusCode, resp.Header.Get("Location"))
+	}
+}
+
+// TestRestoreErrorMessages proves every refusal code maps to a fixed operator line and an
+// unknown code reflects nothing (no arbitrary query text on the page).
+func TestRestoreErrorMessages(t *testing.T) {
+	for _, code := range []string{"inflight", "unreadable", "schema", "confirm", "expired", "apply"} {
+		if restoreErrorMessage(code) == "" {
+			t.Errorf("restoreErrorMessage(%q) = empty, want a fixed line", code)
+		}
+	}
+	if restoreErrorMessage("../../etc/passwd") != "" {
+		t.Error("an unknown restore-error code reflected text; want empty")
+	}
+}

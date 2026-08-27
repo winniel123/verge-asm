@@ -184,6 +184,15 @@ type settingsForms struct {
 	// remove-account dialog re-opens through removeID/removeError.
 	revokeAccountID    int64
 	revokeAccountError string
+
+	// restore (#391/B4, ADR-0124): the Instance tab's Restore card state. restoreError
+	// is the inline failure line (a fixed message keyed to a redirect code, never
+	// reflected text). preflight surfaces a staged, validated archive ready to apply;
+	// restoreConfirm re-shows that same staged archive as the typed-confirm dialog when
+	// ?restore-confirm=1. All nil/empty on a normal Instance render.
+	restoreError   string
+	preflight      *restorePreflightView
+	restoreConfirm *restoreConfirmView
 }
 
 // settingsTabs is the sub-tab order of the Settings screen, ported from
@@ -258,10 +267,30 @@ func (s *server) settingsPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		return
 	}
 	q := r.URL.Query()
-	s.renderSettings(w, r, acct, settingsForms{
+	forms := settingsForms{
 		tab:    validTab(q.Get("tab")),
 		notice: sessionsNotice(q.Get("notice")),
-	})
+	}
+	// Restore card state (#391/B4, ADR-0124) rides the Instance tab only. A failed
+	// pre-flight or apply redirects here with ?restore-error=<code>, mapped to a fixed
+	// line (never reflected text). A completed pre-flight left the validated archive
+	// staged for this admin; surface it as the warn callout, or — with ?restore-confirm=1
+	// — as the typed-confirm dialog.
+	if forms.tab == "instance" {
+		forms.restoreError = restoreErrorMessage(q.Get("restore-error"))
+		if stg := s.stagedRestore(acct.ID); stg != nil {
+			if q.Get("restore-confirm") == "1" {
+				forms.restoreConfirm = &restoreConfirmView{
+					File: stg.file, TakenAt: stg.takenAt, Subjects: stg.subjects,
+				}
+			} else {
+				forms.preflight = &restorePreflightView{
+					File: stg.file, TakenAt: stg.takenAt, Subjects: stg.subjects, Schema: stg.schema,
+				}
+			}
+		}
+	}
+	s.renderSettings(w, r, acct, forms)
 }
 
 // sessionsNotice maps a redirect's notice code to a fixed success line so a
@@ -651,7 +680,7 @@ func (s *server) renderSettings(w http.ResponseWriter, r *http.Request, acct db.
 	case "aperture":
 		err = s.fillApertureSection(r, f, data)
 	case "instance":
-		err = s.fillInstanceSection(r, data)
+		err = s.fillInstanceSection(r, f, data)
 	case "channels":
 		err = s.fillChannelsSection(r, f, data)
 	case "integrations":
@@ -1132,7 +1161,7 @@ func sessionDeviceFromUA(ua string) string {
 // migrations count, that Postgres answered this render, the provisioned vantage fleet with
 // each vantage's availability, and the release check's opt-in flag + cached last result
 // (#391, ADR-0124). The Backup/Restore card bodies are the B3/B4 clusters'.
-func (s *server) fillInstanceSection(r *http.Request, data map[string]any) error {
+func (s *server) fillInstanceSection(r *http.Request, f settingsForms, data map[string]any) error {
 	ctx := r.Context()
 	// Real host facts only (#26h): the licence stance, the process uptime since start, and
 	// the build version off VERGE_VERSION (buildVersion, the same the auth footer reads).
@@ -1248,6 +1277,28 @@ func (s *server) fillInstanceSection(r *http.Request, data map[string]any) error
 		inst["Backup"] = backup
 	} else {
 		log.Printf("web: instance: release config: %v", err)
+	}
+
+	// Restore card state (#391/B4, ADR-0124). All three holes collapse when unset: a
+	// plain Instance render carries no staged pre-flight and no error, so the card shows
+	// its "Choose archive…" upload form. A completed pre-flight surfaces .Preflight (the
+	// warn callout), ?restore-confirm=1 surfaces .RestoreConfirm (the typed-confirm
+	// dialog), and any refusal surfaces .RestoreError. The three are mutually exclusive by
+	// construction of the handlers that set them.
+	if f.restoreError != "" {
+		inst["RestoreError"] = f.restoreError
+	}
+	if f.preflight != nil {
+		inst["Preflight"] = map[string]any{
+			"File": f.preflight.File, "TakenAt": f.preflight.TakenAt,
+			"Subjects": f.preflight.Subjects, "Schema": f.preflight.Schema,
+		}
+	}
+	if f.restoreConfirm != nil {
+		inst["RestoreConfirm"] = map[string]any{
+			"File": f.restoreConfirm.File, "TakenAt": f.restoreConfirm.TakenAt,
+			"Subjects": f.restoreConfirm.Subjects,
+		}
 	}
 
 	data["Instance"] = inst
