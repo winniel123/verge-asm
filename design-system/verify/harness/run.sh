@@ -25,7 +25,7 @@ export MSYS_NO_PATHCONV=1
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 cd "$REPO"
 
-PW_IMAGE="mcr.microsoft.com/playwright:v1.55.1-jammy@sha256:7318a42cfa7ad3f00342f5224a5d6ff3e13094462823ec8488ac3468f5a0fbf3"
+PW_IMAGE="mcr.microsoft.com/playwright:v1.55.1-jammy@sha256:a012a91c32e36b3300514684c5bdb60c07f01464abd03380320179e5273427ab"
 PG_IMAGE="postgres:16-bookworm@sha256:60f4761b9035e0b8d5218f701a8c3382f641bf12b1604822574cf5be3baeb537"
 GO_IMAGE="golang:1.25-bookworm"
 
