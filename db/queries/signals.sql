@@ -117,6 +117,54 @@ WHERE sp.subject_kind = 'service'
   AND sp.closed_at IS NULL
 ORDER BY sp.subject_key, v.class, sp.opened_at DESC, sp.id DESC;
 
+-- name: ListServiceTLSAcceptance :many
+-- The latest `tls-acceptance` observation per Service (#684) — the value the
+-- `tls-1.0-accepted` rule reads. The `tls-acceptance` leaf (#199, ADR-0028)
+-- enumerates what a listener ACCEPTS (protocol versions, and for TLS 1.0-1.2 the
+-- suites) and persists it weekly on a `Service` subject; until now it was measured
+-- and stored but never read back, so the rule sat dormant with no population.
+-- buildServiceFacts folds the current value into `ServiceFacts` so the rule's
+-- domain (a completed enumeration) and predicate (TLS 1.0 in the accepted set) join
+-- the facts the engine evaluates. The value is the closed union
+-- `enumerated(versions) | tls-refused | no-tls`; the engine reads the outcome tag
+-- and, on an enumeration, whether TLS 1.0 is among the accepted versions. Like its
+-- `certificate` sibling one facet over (ListEndpointCertificates), this reads the
+-- observation tier THROUGH the live-tier gate (#237, ADR-0041): the Signal engine
+-- must fold only live evidence, never an aged row. DISTINCT ON keeps the most recent
+-- value per Service.
+WITH cover AS (
+    SELECT o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source,
+           MIN(s.cadence_seconds) AS tightest_cadence
+    FROM observation o
+    JOIN batch b ON b.id = o.batch_id
+    JOIN scan  s ON s.id = b.scan_id AND s.enabled = TRUE
+    GROUP BY o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source
+),
+live AS (
+    SELECT o.id, o.facet, o.subject_kind, o.subject_key, o.discriminator,
+           o.vantage_id, o.source, o.value, o.observed_at, o.batch_id
+    FROM observation o
+    JOIN cover c
+        ON  c.subject_key   = o.subject_key
+        AND c.facet         = o.facet
+        AND c.discriminator = o.discriminator
+        AND c.vantage_id IS NOT DISTINCT FROM o.vantage_id
+        AND c.source        = o.source
+    WHERE EXTRACT(EPOCH FROM (sqlc.arg(as_of)::timestamptz - o.observed_at))
+          <= sqlc.arg(floor_cadences)::bigint * c.tightest_cadence
+),
+latest AS (
+    SELECT DISTINCT ON (o.subject_key)
+        o.subject_key AS subject_key,
+        o.value       AS value
+    FROM live o
+    WHERE o.subject_kind = 'service' AND o.facet = 'tls-acceptance'
+    ORDER BY o.subject_key, o.observed_at DESC, o.id DESC
+)
+SELECT subject_key, value
+FROM latest
+ORDER BY subject_key;
+
 -- name: ListBlanketedReachServices :many
 -- Every Service whose CURRENT `reachability` span is a Gap — a blanket responder,
 -- or an address whose control probe could not complete (ADR-0104). The Coverage
