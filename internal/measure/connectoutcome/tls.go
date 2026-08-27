@@ -2,6 +2,10 @@ package connectoutcome
 
 import (
 	"context"
+	"crypto/dsa" //nolint:staticcheck // SA1019: DSA keys are legacy but a measured cert may still present one; we read its params to fire certificate-weak-key-or-signature.
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
@@ -26,7 +30,17 @@ import (
 // value-shape change that Breaks the old `certificate` timelines by design
 // (ADR-0082): the datum the Dashboard "Certs expiring ≤30d" stat reads was never
 // captured under v1 (SPEC-CHANGE.md collision #8, #464).
-const CertVersion = "tls-handshake/v2"
+//
+// v3 adds the leaf's `not_before` + leaf SANs (`san_dns`/`san_ip`) and per-link
+// parsed chain facts (`chain_certs`: key params, sig digest, self-sig-verifies,
+// subject/issuer DNs) so the four dark certificate rules — certificate-not-yet-valid,
+// certificate-hostname-san-mismatch, certificate-weak-key-or-signature and
+// certificate-self-signed — derive AT READ instead of rendering not-evaluable (store-
+// raw / derive-at-read, P0.10b, #704). It is a value-shape change that Breaks the old
+// `certificate` timelines by design. HandshakeParams is UNCHANGED — nothing new is
+// sent, negotiated or verified (RecordNotVerify stays true) — so the params digest is
+// unmoved; only the read of the already-presented chain widened.
+const CertVersion = "tls-handshake/v3"
 
 // TLSOutcome is the closed union the `certificate` facet's value space is built
 // on (CONTEXT.md `Certificate`). Every value space is a closed union, never a
@@ -117,6 +131,36 @@ type HandshakeResult struct {
 	// collision #22c, #581). They feed the Asset detail's TLS-certificate card.
 	Issuer    string
 	Algorithm string
+	// NotBefore is the leaf's (chain[0]) validity floor, carried iff TLSPresented; the
+	// fold renders it `not_before` (RFC3339), a zero value rendering no key. It lights
+	// certificate-not-yet-valid at read (P0.10b, #704).
+	NotBefore time.Time
+	// SANDNS / SANIP are the leaf's Subject Alternative Names — the dNSName entries
+	// verbatim (wildcards NOT expanded) and the iPAddress entries in canonical string
+	// form — carried iff TLSPresented. certificate-hostname-san-mismatch reads san_dns
+	// at read (P0.10b, #704).
+	SANDNS []string
+	SANIP  []string
+	// ChainCerts is the per-link parsed facts, leaf-first and index-aligned with Chain,
+	// carried iff TLSPresented. Each link's key params, signature digest, self-signature
+	// verification and subject/issuer DNs feed certificate-weak-key-or-signature and
+	// certificate-self-signed at read (P0.10b, #704).
+	ChainCerts []ChainCert
+}
+
+// ChainCert is one presented link's parsed facts, read off the DER at handshake time
+// (the exported mirror of the fold's chainCert). self_sig_verifies is the ONE datum
+// computed in-leaf — a raw crypto fact needing the parsed key bytes, unavailable at
+// read (T-leaf #712 §0). The rest are raw reads the four dark rules derive verdicts
+// from at read.
+type ChainCert struct {
+	Subject               string // this cert's subject DN
+	Issuer                string // this cert's issuer DN
+	SelfSignatureVerifies *bool  // signature validates against THIS cert's own key
+	KeyAlg                string // "RSA"|"ECDSA"|"DSA"|"Ed25519"|"Ed448"|raw OID
+	KeyBits               int    // RSA nlen | ECDSA len(n) | DSA L
+	KeyParamN             int    // DSA subgroup N (bits); 0 for non-DSA
+	SigDigest             string // digest name: "MD5"|"SHA-1"|"SHA-256"|…
 }
 
 // Handshaker performs one TLS handshake against a Service that the connect
@@ -206,13 +250,93 @@ func (n NetHandshaker) Handshake(ctx context.Context, target netip.AddrPort, ser
 	// algorithm — which the presented value carries for the Asset detail's cert card
 	// (#22c, #581); a leaf that carries neither renders the empty string, which the
 	// fold drops via omitempty.
+	//
+	// v3 also reads the leaf's validity floor and SANs, and the per-link parsed facts
+	// off the whole presented chain, so the four dark certificate rules derive at read
+	// (P0.10b, #704). InsecureSkipVerify withholds none of this — the chain is fully
+	// parsed regardless.
 	leaf := state.PeerCertificates[0]
+	sanIP := make([]string, 0, len(leaf.IPAddresses))
+	for _, ip := range leaf.IPAddresses {
+		sanIP = append(sanIP, ip.String())
+	}
+	chainCerts := make([]ChainCert, 0, len(state.PeerCertificates))
+	for _, c := range state.PeerCertificates {
+		chainCerts = append(chainCerts, parseChainCert(c))
+	}
 	return HandshakeResult{
-		Outcome:   TLSPresented,
-		Chain:     chain,
-		NotAfter:  leaf.NotAfter,
-		Issuer:    leaf.Issuer.String(),
-		Algorithm: leaf.SignatureAlgorithm.String(),
+		Outcome:    TLSPresented,
+		Chain:      chain,
+		NotAfter:   leaf.NotAfter,
+		Issuer:     leaf.Issuer.String(),
+		Algorithm:  leaf.SignatureAlgorithm.String(),
+		NotBefore:  leaf.NotBefore,
+		SANDNS:     leaf.DNSNames,
+		SANIP:      sanIP,
+		ChainCerts: chainCerts,
+	}
+}
+
+// parseChainCert reads one presented certificate's raw facts into a ChainCert: its
+// subject/issuer DNs, whether its own signature verifies under its bound key (the ONE
+// in-leaf crypto datum — CheckSignatureFrom against itself), its public-key algorithm
+// and size parameters, and its signature DIGEST name. It never fails: an unrecognised
+// key algorithm carries the algorithm name and no size (not weak at read), and an
+// unrecognised signature algorithm carries an empty digest (never MD5/SHA-1, so never
+// fires the signature limb). Store-raw, derive-at-read (T-leaf #712).
+func parseChainCert(c *x509.Certificate) ChainCert {
+	selfSig := c.CheckSignatureFrom(c) == nil
+	cc := ChainCert{
+		Subject:               c.Subject.String(),
+		Issuer:                c.Issuer.String(),
+		SelfSignatureVerifies: &selfSig,
+		SigDigest:             sigDigestName(c.SignatureAlgorithm),
+	}
+	switch pk := c.PublicKey.(type) {
+	case *rsa.PublicKey:
+		cc.KeyAlg = "RSA"
+		cc.KeyBits = pk.N.BitLen()
+	case *ecdsa.PublicKey:
+		cc.KeyAlg = "ECDSA"
+		cc.KeyBits = pk.Curve.Params().BitSize
+	case *dsa.PublicKey:
+		cc.KeyAlg = "DSA"
+		cc.KeyBits = pk.P.BitLen()   // L
+		cc.KeyParamN = pk.Q.BitLen() // N
+	case ed25519.PublicKey:
+		cc.KeyAlg = "Ed25519"
+	default:
+		// Unrecognised key algorithm — carry the algorithm name and no size. A key
+		// with no size row is not weak at read (deny-list §4.2).
+		cc.KeyAlg = c.PublicKeyAlgorithm.String()
+	}
+	return cc
+}
+
+// sigDigestName maps a certificate's signature algorithm to its DIGEST name — the
+// datum certificate-weak-key-or-signature's deny-list {MD5, SHA-1} reads (T-leaf #712
+// §3.1). It is the digest, NOT the signature OID: SHA1WithRSA, DSAWithSHA1 and
+// ECDSAWithSHA1 all map to "SHA-1". An unknown/unset algorithm maps to "" — never
+// MD5/SHA-1, so it never fires the signature limb.
+func sigDigestName(a x509.SignatureAlgorithm) string {
+	switch a {
+	case x509.MD5WithRSA:
+		return "MD5"
+	case x509.SHA1WithRSA, x509.DSAWithSHA1, x509.ECDSAWithSHA1:
+		return "SHA-1"
+	case x509.SHA256WithRSA, x509.DSAWithSHA256, x509.ECDSAWithSHA256, x509.SHA256WithRSAPSS:
+		return "SHA-256"
+	case x509.SHA384WithRSA, x509.ECDSAWithSHA384, x509.SHA384WithRSAPSS:
+		return "SHA-384"
+	case x509.SHA512WithRSA, x509.ECDSAWithSHA512, x509.SHA512WithRSAPSS:
+		return "SHA-512"
+	case x509.PureEd25519:
+		// Ed25519 uses SHA-512 internally; it has no key row and never fires the sig
+		// limb when self-signed. Only the {MD5,SHA-1} deny-list consults this, so any
+		// non-MD5/SHA-1 name is equivalent — name it honestly.
+		return "Ed25519"
+	default:
+		return ""
 	}
 }
 

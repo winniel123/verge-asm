@@ -1176,11 +1176,13 @@ func (s *server) buildServiceFacts(r *http.Request) ([]signal.ServiceFacts, map[
 // into the snapshot the ten Endpoint rules read. The estate membership a redirect
 // target is tested against is the union of the current Name subjects and the
 // Service addresses — both Derived, so the redirect-to-host rule's version
-// composes their leaves. A presented certificate value now carries the v2 leaf's
-// `not_after`, which P0.10a folds into the per-attribute CertDetails to light
-// certificate-expired + certificate-expiring; the other four cert rules' attributes
-// stay nil (not-evaluable) until P0.10b (#704). A negative outcome or a pre-v2 span
-// still leaves CertDetails nil (a presented chain then renders `not-evaluable`).
+// composes their leaves. A presented certificate value carries the v2 leaf's
+// `not_after` (lighting certificate-expired + certificate-expiring, P0.10a) and the
+// v3 leaf's `not_before` / leaf SANs / per-link chain facts, which certDetailsFromValue
+// folds into the per-attribute CertDetails to light the four remaining cert rules —
+// not-yet-valid, hostname-san-mismatch, weak-key-or-signature and self-signed (P0.10b,
+// #704). A negative outcome still yields nil CertDetails (outside every cert rule); a
+// pre-v3 presented span leaves each unread attribute nil (that rule not-evaluable).
 func (s *server) buildEndpointFacts(r *http.Request, names []signal.NameFacts, estateAddrs map[string]bool) ([]signal.EndpointFacts, error) {
 	ctx := r.Context()
 	certRows, err := s.store.ListEndpointCertificates(ctx, db.ListEndpointCertificatesParams{
@@ -1230,10 +1232,13 @@ func (s *server) buildEndpointFacts(r *http.Request, names []signal.NameFacts, e
 		if cv, ok := certVal[sub]; ok {
 			f.CertMeasured = true
 			f.CertOutcome = cv.Outcome
-			// P0.10a: fold the presented leaf's `not_after` into the per-attribute
-			// CertDetails, lighting certificate-expired + certificate-expiring; the
-			// other four attributes stay nil (not-evaluable) until P0.10b (#704).
-			f.CertDetails = certDetailsFromValue(cv, s.now())
+			// Fold the presented leaf into the per-attribute CertDetails: `not_after`
+			// lights certificate-expired + certificate-expiring (P0.10a), and the v3
+			// leaf's `not_before` / leaf SANs / per-link chain facts light the four
+			// remaining cert rules — not-yet-valid, hostname-san-mismatch,
+			// weak-key-or-signature and self-signed (P0.10b, #704). The Endpoint's Name
+			// is the hostname the SAN predicate matches against.
+			f.CertDetails = certDetailsFromValue(cv, s.now(), name)
 		}
 		if id, ok := httpID[sub]; ok {
 			// Only a `responded` Endpoint is inside the HTTP rules' domain; a reached
@@ -1253,16 +1258,39 @@ func (s *server) buildEndpointFacts(r *http.Request, names []signal.NameFacts, e
 }
 
 // certificateValue is the JSON payload of a certificate observation — the closed
-// union outcome tag, (only on a presentation) the fingerprint chain (#197), and the
-// v2 leaf's parsed `not_after` expiry (RFC3339, presented chains only). The engine
-// reads the outcome; `not_after` is the ONE parsed-leaf datum P0.10a folds into
-// CertDetails, lighting certificate-expired + certificate-expiring (collision #37).
-// The remaining parsed-leaf attributes (not_before, SANs, key/signature policy,
-// self-signed) are not carried, so those four rules stay `not-evaluable` (P0.10b, #704).
+// union outcome tag, (only on a presentation) the fingerprint chain (#197), the v2
+// leaf's parsed `not_after` expiry, and the v3 leaf's `not_before`, leaf SANs
+// (`san_dns`/`san_ip`) and per-link parsed chain facts (`chain_certs`). The engine
+// reads the outcome; the parsed-leaf attributes are folded into CertDetails, lighting
+// all six certificate rules — certificate-expired/expiring off `not_after` (P0.10a,
+// collision #37), and certificate-not-yet-valid / -hostname-san-mismatch /
+// -weak-key-or-signature / -self-signed off the v3 fields (P0.10b, #704). Every field
+// is absent on a pre-v3 span, so those rules render not-evaluable, byte-identical to
+// before this wire.
 type certificateValue struct {
-	Outcome  string   `json:"outcome"`
-	Chain    []string `json:"chain"`
-	NotAfter string   `json:"not_after"`
+	Outcome    string      `json:"outcome"`
+	Chain      []string    `json:"chain"`
+	NotAfter   string      `json:"not_after"`
+	NotBefore  string      `json:"not_before"`
+	SANDNS     []string    `json:"san_dns"`
+	SANIP      []string    `json:"san_ip"`
+	ChainCerts []chainCert `json:"chain_certs"`
+}
+
+// chainCert mirrors the producer's per-link parsed facts (internal/measure/
+// connectoutcome chainCert) on the read side: the subject/issuer DNs, whether the
+// link's own signature verifies under its bound key, its key algorithm + size
+// parameters, and its signature digest name. certDetailsFromValue reads these to
+// derive certificate-weak-key-or-signature (the per-link deny-list walk) and
+// certificate-self-signed (chain_certs[0]) at read (P0.10b, #704).
+type chainCert struct {
+	Subject               string `json:"subject"`
+	Issuer                string `json:"issuer"`
+	SelfSignatureVerifies *bool  `json:"self_sig_verifies"`
+	KeyAlg                string `json:"key_alg"`
+	KeyBits               int    `json:"key_bits"`
+	KeyParamN             int    `json:"key_n_bits"`
+	SigDigest             string `json:"sig_digest"`
 }
 
 func decodeCertificate(raw []byte) certificateValue {
@@ -1272,30 +1300,191 @@ func decodeCertificate(raw []byte) certificateValue {
 }
 
 // certDetailsFromValue folds a decoded certificate value into the per-attribute
-// CertDetails the six Endpoint certificate rules read (collision #37, P0.10a). Only
-// a presented chain carries readable attributes; a negative outcome (`tls-refused` /
-// `no-tls`) is outside every certificate rule's domain, so it yields nil. On a
-// presentation whose leaf carried a `not_after`, it sets Expired and Expiring from
-// that SAME `not_after` key + 30-day window (certExpiryWindow) the P0.4 "Certs
-// expiring ≤30d" datum reads (cmd/web/deltas.go countCertsExpiring, collision #8) —
-// no new threshold is invented. NotYetValid, SANMatchesName, WeakKeyOrSignature and
-// SelfSigned stay nil: their per-attribute datum is not carried, so those rules stay
-// not-evaluable — a rule never emits a verdict from evidence it does not hold (the
-// hard constraint; SANMatchesName in particular NEVER defaults false). A presented
-// chain with no readable `not_after` (a pre-v2 span) yields nil — exactly the
-// not-evaluable the engine rendered before this wire.
-func certDetailsFromValue(v certificateValue, now time.Time) *signal.CertDetails {
-	if v.Outcome != signal.CertPresented || v.NotAfter == "" {
-		return nil
-	}
-	na, err := time.Parse(time.RFC3339, v.NotAfter)
-	if err != nil {
+// CertDetails the six Endpoint certificate rules read (collision #37, P0.10a/P0.10b).
+// Only a presented chain carries readable attributes; a negative outcome
+// (`tls-refused` / `no-tls`) is outside every certificate rule's domain, so it yields
+// nil. On a presentation it builds a CertDetails and sets each *bool INDEPENDENTLY,
+// only when THAT attribute's own input is present — leaving nil (not-evaluable)
+// otherwise, because a rule never emits a verdict from evidence it does not hold (the
+// hard constraint; SANMatchesName in particular NEVER defaults false):
+//   - Expired/Expiring ← `not_after` + the SAME 30-day window (certExpiryWindow) the
+//     P0.4 "Certs expiring ≤30d" datum reads (deltas.go countCertsExpiring, #8).
+//   - NotYetValid ← `not_before`: fires when the leaf's validity floor is after now.
+//   - SANMatchesName ← the RFC 6125 §6.4.3 SAN predicate over `san_dns` vs the
+//     Endpoint's server name; witnessed by len(chain_certs)>0 (the read/unread signal —
+//     NOT len(san_dns), useless under omitempty), gated on a non-empty server name.
+//   - WeakKeyOrSignature ← the per-link deny-list walk over `chain_certs`.
+//   - SelfSigned ← chain_certs[0]: self-issued (subject==issuer) AND its own signature
+//     verifies (self_sig_verifies), the RFC 5280 §3.2 sense.
+//
+// A presented chain from before the v3 wire carries none of `not_before`/SANs/
+// chain_certs, so those four stay nil and their rules render not-evaluable — the same
+// verdict the engine gave before this wire. Returning a non-nil all-nil-field
+// CertDetails is equivalent to the old nil under certDetailRule.Eval (a nil attr is
+// not-evaluable either way; the only caller reads it back per-attribute).
+func certDetailsFromValue(v certificateValue, now time.Time, serverName string) *signal.CertDetails {
+	if v.Outcome != signal.CertPresented {
 		return nil
 	}
 	ref := now.UTC()
-	expired := !na.After(ref)                                         // not_after at or before now
-	expiring := na.After(ref) && !na.After(ref.Add(certExpiryWindow)) // within 30d, not yet expired
-	return &signal.CertDetails{Expired: &expired, Expiring: &expiring}
+	d := &signal.CertDetails{}
+
+	if v.NotAfter != "" {
+		if na, err := time.Parse(time.RFC3339, v.NotAfter); err == nil {
+			expired := !na.After(ref)                                         // not_after at or before now
+			expiring := na.After(ref) && !na.After(ref.Add(certExpiryWindow)) // within 30d, not yet expired
+			d.Expired = &expired
+			d.Expiring = &expiring
+		}
+	}
+
+	if v.NotBefore != "" {
+		if nb, err := time.Parse(time.RFC3339, v.NotBefore); err == nil {
+			nyv := nb.After(ref)
+			d.NotYetValid = &nyv
+		}
+	}
+
+	// chain_certs is the read/unread witness for the v3 SAN and chain-derived rules:
+	// present means the leaf was parsed under v3, absent means a pre-v3 span whose
+	// per-link facts were never captured (those rules stay not-evaluable).
+	if len(v.ChainCerts) > 0 {
+		if serverName != "" {
+			m := sanMatchesName(v.SANDNS, serverName)
+			d.SANMatchesName = &m
+		}
+		weak := weakKeyOrSignature(v.ChainCerts)
+		d.WeakKeyOrSignature = &weak
+		if c0 := v.ChainCerts[0]; c0.SelfSignatureVerifies != nil {
+			ss := selfSignedOf(c0.Subject, c0.Issuer, *c0.SelfSignatureVerifies)
+			d.SelfSigned = &ss
+		}
+	}
+	return d
+}
+
+// selfSignedOf reports self-signed in RFC 5280 §3.2's sense: self-issued (issuer DN ==
+// subject DN, exact byte-for-byte string equality — normalisation refused, ADR-0051/
+// 0060) AND the cert's own signature verifies under its bound key (selfSigVerifies,
+// captured in-leaf via CheckSignatureFrom). Both certificate-self-signed (on
+// chain_certs[0]) and the weak-key signature-limb skip (per link) call THIS, so
+// T-self #713 §4.1's "the two cannot disagree" holds (shared predicate).
+func selfSignedOf(subject, issuer string, selfSigVerifies bool) bool {
+	return subject == issuer && selfSigVerifies
+}
+
+// sanMatchesName reports whether any dNSName SAN covers the Endpoint's server name,
+// RFC 6125 §6.4.3 rule 2 (T-san #714). It ORs over san_dns only — san_ip is ignored
+// entirely (#714 §3). Per entry vs name: dot-labels are compared case-insensitively
+// (ASCII A–Z fold only; A-labels `xn--` compared verbatim), a single trailing empty
+// label (a trailing dot) is ignored on either side. A literal entry (no `*`) matches
+// iff its label sequence equals name's. A leftmost single-`*` wildcard (leftmost label
+// is exactly `*`, no `*` elsewhere) matches iff the label counts are equal, name's
+// leftmost label is any one non-empty label, and every remaining label matches — so
+// `*.example.com` covers `foo.example.com`, NOT `example.com` and NOT
+// `bar.foo.example.com`. Any other `*`-bearing entry (partial-label, non-leftmost,
+// `**`) is a NON-MATCH, never a match. An empty disjunction is false.
+func sanMatchesName(sanDNS []string, name string) bool {
+	nameLabels := dnsLabels(name)
+	if len(nameLabels) == 0 {
+		return false
+	}
+	for _, entry := range sanDNS {
+		if sanEntryMatches(entry, nameLabels) {
+			return true
+		}
+	}
+	return false
+}
+
+// dnsLabels splits a DNS name into its dot-labels, dropping a single trailing empty
+// label (a trailing dot / root). An empty or root-only name yields no labels.
+func dnsLabels(name string) []string {
+	labels := strings.Split(name, ".")
+	if n := len(labels); n > 0 && labels[n-1] == "" {
+		labels = labels[:n-1]
+	}
+	if len(labels) == 1 && labels[0] == "" {
+		return nil
+	}
+	return labels
+}
+
+// sanEntryMatches applies one SAN entry to the pre-split name labels per §6.4.3.
+func sanEntryMatches(entry string, nameLabels []string) bool {
+	entryLabels := dnsLabels(entry)
+	if len(entryLabels) == 0 {
+		return false
+	}
+	stars := 0
+	for _, l := range entryLabels {
+		stars += strings.Count(l, "*")
+	}
+	if stars == 0 {
+		// Literal entry: label-for-label case-insensitive equality.
+		return labelsEqualFold(entryLabels, nameLabels)
+	}
+	// A wildcard is valid ONLY as a single leftmost label that is exactly "*" with no
+	// other "*" anywhere. Anything else (partial-label, non-leftmost, multiple) is a
+	// non-match.
+	if stars != 1 || entryLabels[0] != "*" {
+		return false
+	}
+	if len(entryLabels) != len(nameLabels) {
+		return false
+	}
+	// The wildcard covers exactly one non-empty leftmost label; the rest match literally.
+	if nameLabels[0] == "" {
+		return false
+	}
+	return labelsEqualFold(entryLabels[1:], nameLabels[1:])
+}
+
+// labelsEqualFold compares two label sequences for ASCII case-insensitive equality.
+func labelsEqualFold(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if !strings.EqualFold(a[i], b[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+// weakKeyOrSignature is the per-link deny-list walk over the presented chain (T-weak
+// #715 §5): a chain is weak if ANY link carries a weak key OR a weak signature. The
+// KEY limb walks every link with NO self-signed skip; the SIGNATURE limb ({MD5, SHA-1}
+// digests) is skipped on self-signed links (a root signing itself with SHA-1 is not a
+// forgery risk — its trust is by pinning, not signature). Strict `<` floors, literal
+// only; an unnamed key algorithm contributes no row (not weak), never not-evaluable.
+func weakKeyOrSignature(chain []chainCert) bool {
+	weak := false
+	for _, c := range chain {
+		switch c.KeyAlg { // KEY limb — every link, no self-signed skip
+		case "RSA":
+			if c.KeyBits < 2048 {
+				weak = true
+			}
+		case "ECDSA":
+			if c.KeyBits < 224 {
+				weak = true
+			}
+		case "DSA":
+			if c.KeyBits < 2048 || c.KeyParamN < 224 {
+				weak = true
+			}
+			// Ed25519/Ed448/unrecognised → no row → not weak (deny-list §4.2).
+		}
+		selfSig := c.SelfSignatureVerifies != nil && *c.SelfSignatureVerifies // SIGNATURE limb — skip self-signed
+		if !selfSignedOf(c.Subject, c.Issuer, selfSig) {
+			if c.SigDigest == "MD5" || c.SigDigest == "SHA-1" {
+				weak = true
+			}
+		}
+	}
+	return weak
 }
 
 // parseServicePair splits a Service key `address:port/transport` into its
