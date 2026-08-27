@@ -1971,6 +1971,42 @@ func (f *fakeStore) ListEndpointCertificates(_ context.Context, arg db.ListEndpo
 	return rows, nil
 }
 
+// addTLSAcceptance records a `tls-acceptance` enumeration observation for a Service
+// in a fresh weekly tls-acceptance batch, mirroring what the enumeration leaf writes
+// (#199/#684). The value is the closed union `enumerated(versions) | tls-refused |
+// no-tls`; buildServiceFacts folds it into the ServiceFacts the tls-1.0-accepted rule
+// reads.
+func (f *fakeStore) addTLSAcceptance(t *testing.T, serviceKey string, at time.Time, value string) {
+	t.Helper()
+	b := f.freshBatch("tls-acceptance", "tls-acceptance")
+	f.observations = append(f.observations, db.Observation{
+		ID: f.obsNextID, BatchID: b, Facet: "tls-acceptance", SubjectKind: "service",
+		SubjectKey: serviceKey, Source: "prober", Value: []byte(value),
+		ObservedAt: pgtype.Timestamptz{Time: at, Valid: true},
+	})
+	f.obsNextID++
+}
+
+func (f *fakeStore) ListServiceTLSAcceptance(_ context.Context, arg db.ListServiceTLSAcceptanceParams) ([]db.ListServiceTLSAcceptanceRow, error) {
+	latest := map[string]db.Observation{}
+	for _, o := range f.liveObservations(arg.AsOf.Time) {
+		if o.SubjectKind != "service" || o.Facet != "tls-acceptance" {
+			continue
+		}
+		cur, ok := latest[o.SubjectKey]
+		if !ok || o.ObservedAt.Time.After(cur.ObservedAt.Time) ||
+			(o.ObservedAt.Time.Equal(cur.ObservedAt.Time) && o.ID > cur.ID) {
+			latest[o.SubjectKey] = o
+		}
+	}
+	rows := []db.ListServiceTLSAcceptanceRow{}
+	for k, o := range latest {
+		rows = append(rows, db.ListServiceTLSAcceptanceRow{SubjectKey: k, Value: o.Value})
+	}
+	sort.Slice(rows, func(i, j int) bool { return rows[i].SubjectKey < rows[j].SubjectKey })
+	return rows, nil
+}
+
 func (f *fakeStore) FindNameCitingAddress(_ context.Context, arg db.FindNameCitingAddressParams) (db.FindNameCitingAddressRow, error) {
 	address := arg.Address
 	// The earliest current resolution whose Resolved answer names the address.

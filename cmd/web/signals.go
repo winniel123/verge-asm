@@ -19,6 +19,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/measure/httpexchange"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
+	"github.com/winniel123/verge-asm/internal/measure/tlsacceptance"
 	"github.com/winniel123/verge-asm/internal/retention"
 	"github.com/winniel123/verge-asm/internal/signal"
 	"github.com/winniel123/verge-asm/internal/vergecore"
@@ -1083,13 +1084,28 @@ func (s *server) buildSignalCorpus(r *http.Request) (signal.Corpus, error) {
 // per-Service snapshot the two Service rules read. It also returns the set of
 // estate addresses — the Address leg of every Service subject — which the Endpoint
 // redirect rule reads to decide whether a redirect target host is in the estate.
-// The `tls-acceptance` facet (tls-1.0-accepted's domain) is not read: its leaf
-// (#199) lands concurrently, so every Service is left outside that rule's domain
-// (a no-population panel) rather than importing a leaf that may not exist yet.
+// The `tls-acceptance` facet (tls-1.0-accepted's domain) is now read too: its leaf
+// (#199) enumerates what each reached Service ACCEPTS and persists it weekly, so the
+// current value joins the facts here (#684) — an `enumerated` value puts the Service
+// in the rule's domain and its accepted versions decide whether TLS 1.0 fired, while
+// a `tls-refused`/`no-tls` value (or no value at all, for a Service the weekly Scan
+// has not yet enumerated) leaves it outside the domain.
 func (s *server) buildServiceFacts(r *http.Request) ([]signal.ServiceFacts, map[string]bool, error) {
 	rows, err := s.store.ListServiceReachabilitySpansByClass(r.Context())
 	if err != nil {
 		return nil, nil, err
+	}
+	// The current `tls-acceptance` value per Service (#684), read through the
+	// live-tier gate like the sibling facets so the engine folds only live evidence.
+	tlsRows, err := s.store.ListServiceTLSAcceptance(r.Context(), db.ListServiceTLSAcceptanceParams{
+		AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	tlsBySubject := make(map[string]tlsAcceptanceValue, len(tlsRows))
+	for _, row := range tlsRows {
+		tlsBySubject[row.SubjectKey] = decodeTLSAcceptance(row.Value)
 	}
 	vc := vergecore.Default()
 
@@ -1133,6 +1149,22 @@ func (s *server) buildServiceFacts(r *http.Request) ([]signal.ServiceFacts, map[
 		if l, ok := byClass[sub]["internet"]; ok && !l.isGap && l.outcome != "" {
 			f.HasInternetReach = true
 			f.InternetReach = l.outcome
+		}
+		// The `tls-acceptance` facet, for `tls-1.0-accepted` (#684). A completed
+		// enumeration puts the Service in the rule's domain; its accepted-version set
+		// (readable by construction on an `enumerated` value) decides whether TLS 1.0
+		// fired. A `tls-refused`/`no-tls` value, or no value at all (a Service the
+		// weekly Scan has not yet enumerated), leaves TLSHandshakeCompleted false and
+		// the Service outside the domain — a no-population panel, never a not-fired.
+		if tls, ok := tlsBySubject[sub]; ok && tls.Outcome == string(tlsacceptance.Enumerated) {
+			f.TLSHandshakeCompleted = true
+			f.TLSVersionsReadable = len(tls.Versions) > 0
+			for _, ver := range tls.Versions {
+				if ver.Version == tlsacceptance.TLS10 {
+					f.TLS10Accepted = true
+					break
+				}
+			}
 		}
 		facts = append(facts, f)
 	}
