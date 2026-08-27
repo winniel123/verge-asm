@@ -82,7 +82,7 @@ when they accept.
    in-product delivery.
 3. **Accept** — the invitee opens `GET /invite?token=…` (pre-auth; they hold only the
    token, no session), sees the role they are being granted, and sets a **username and
-   password** (`POST /invite`). Usernames are up to 64 characters; passwords 8–72.
+   password** (`POST /invite`). Usernames are up to 64 characters; passwords 12–72.
 4. **Create & spend** — a new account is created at the invite's role and the token is
    consumed, so the link is inert forever after. Acceptance grants **no session**: the
    new operator lands on `/login` with an *"Account created — sign in with your new

@@ -48,11 +48,11 @@ import (
 //     real Dispatch history (activity volume, not a signal), so the page, the export
 //     and any later surface intensify identically.
 //
-// Report scheduling (the recurring table + wizard) has no dispatch or delivery
-// backend, so the UI must not accept a schedule it cannot honour (#344): the table
-// empty-states and the "New schedule" wizard is rendered disabled alongside its
-// already-disabled sibling controls. This handler reads its data sources read-only
-// and owns no mutation.
+// Report scheduling (the recurring table + wizard) is live end-to-end (P0.6, #499):
+// the worker's on-cadence dispatcher runs due schedules and stamps delivery receipts,
+// the table renders the real report_schedule rows, and the "New schedule" wizard files
+// them (handlers in reports_schedule.go). This analytics handler stays read-only and
+// owns no mutation — it only renders the schedule rows reportScheduleRows reads.
 
 // reportsDispatchPerWeek budgets the Dispatch read behind the scans-per-day series
 // PER WEEK of the selected range, so a wider window reads proportionally more rows
@@ -929,9 +929,8 @@ func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		"Period":      window.Token,
 		"PeriodLabel": window.Label,
 
-		// Recurring reports. Scheduling has no backend yet (#290/#291), so this is
-		// empty and the table renders the empty-state; the row-menu "View last
-		// delivery" shape is ported now and lights up per report when it lands.
+		// Recurring reports (P0.6, #499): the real report_schedule rows, each row's
+		// "View last delivery" link lit where the dispatcher has stamped a delivery.
 		"Schedules": s.reportScheduleRows(ctx),
 	})
 }
