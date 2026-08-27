@@ -113,6 +113,8 @@ e6a0c6ef897adeaf63565a68352a64e4ce42a716  design-system/goldens/search/empty-144
 8b9344ddd1c8e6e845654826d077105e50e48d07  design-system/goldens/settings/aperture-1440-light.png
 d174b892f284750864cb437a7a0496195dd90ad1  design-system/goldens/settings/api-1440-dark.png
 11939ec0f60171e128a7677807c96dbfa41ada9f  design-system/goldens/settings/api-1440-light.png
+22654f7b51f1a574ad02a8873ec9f53ce09c4a6c  design-system/goldens/settings/api-enabled-1440-dark.png
+b2ac7b12765aaafd56cdc1a318183ad7515e425e  design-system/goldens/settings/api-enabled-1440-light.png
 8f6878aa4553784056da6b07ac8e6a9085975b65  design-system/goldens/settings/api-viewer-1440-dark.png
 1f39012a9d5b95548e7752280b86b8bf37a38e8f  design-system/goldens/settings/api-viewer-1440-light.png
 8d4f9be69874e9e4c35952c927c55cf5b86eeda8  design-system/goldens/settings/audit-1440-dark.png
@@ -127,8 +129,8 @@ e5c59ef62967fe849c070780dc6de05f74cbbb2d  design-system/goldens/settings/forbidd
 973831516b1f7a52ae1ab17d7938abd93cdabc61  design-system/goldens/settings/instance-1440-light.png
 43056dcd8c653c0a8f5432c370134a11c24cadf1  design-system/goldens/settings/integrations-1440-dark.png
 3ce1cfb844af33427125c63d5fc8661aba859310  design-system/goldens/settings/integrations-1440-light.png
-3b36fbd67a0f8fae7ccceebfcce4503cdbf29c42  design-system/goldens/settings/integrations-drawer-1440-dark.png
-e1b02ee56875bc30ad24b8c454ee9591e376b77f  design-system/goldens/settings/integrations-drawer-1440-light.png
+8355a174730ad04dfd47e637086aa20f79013cff  design-system/goldens/settings/integrations-drawer-1440-dark.png
+2583982760c96be1a9ab63e78e43e8261d183961  design-system/goldens/settings/integrations-drawer-1440-light.png
 afac8e118b447d6137033f3afdc1b659a8da2189  design-system/goldens/settings/messages-1440-dark.png
 dbbb61babdf4d82f61d1a110854dfde5c919b045  design-system/goldens/settings/messages-1440-light.png
 8b59ed2d45c93870973ec13944236c28b1811e2a  design-system/goldens/settings/scans-1440-dark.png
