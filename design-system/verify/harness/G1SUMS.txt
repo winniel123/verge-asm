@@ -244,5 +244,5 @@ ce55c028dafb1edeef11ddafbe8690e5ce280bb6  design-system/tokens/radius.css
 3fde845baaec7cda31f64b55a2f04fe95e168211  design-system/tokens/spacing.css
 15b202d10a3c6c26c4dd6bf49144c6fc404359bc  design-system/tokens/typography.css
 3c93d85c70fab4ca0c098c6775ed0a29b994ca8b  design-system/verify/PILOT-P4.0.md
-d570a8261ce4c20f69c7e553f0848985660024e6  design-system/verify/config.json
+6022b1ed47bf1156e6441b0e0e92e75d491358f7  design-system/verify/config.json
 0ca5ab72ff2bd4c602b9eb999de4c11b73273faa  design-system/verify/states.json
