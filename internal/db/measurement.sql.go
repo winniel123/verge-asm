@@ -73,6 +73,25 @@ func (q *Queries) CountObservationsForScan(ctx context.Context, scanID int64) (i
 	return count, err
 }
 
+const earliestBatchTime = `-- name: EarliestBatchTime :one
+SELECT min(created_at)::timestamptz AS earliest_batch_at
+FROM batch
+`
+
+// The commit instant of the FIRST batch the estate ever folded — the age boundary the
+// Drift page's vs-previous-period delta tests before comparing (P0.12, #690). The chip
+// compares the selected window against the immediately preceding equal-length window;
+// that comparison is only honest once the estate has been observing since at or before
+// the preceding window's start, so the delta is suppressed while the earliest batch is
+// younger than that (install younger than 2× the window), never a fabricated baseline.
+// NULL where no batch has committed. Reads batch only (corpus 1), never dispatch (ADR-0041).
+func (q *Queries) EarliestBatchTime(ctx context.Context) (pgtype.Timestamptz, error) {
+	row := q.db.QueryRow(ctx, earliestBatchTime)
+	var earliest_batch_at pgtype.Timestamptz
+	err := row.Scan(&earliest_batch_at)
+	return earliest_batch_at, err
+}
+
 const enqueueJob = `-- name: EnqueueJob :one
 INSERT INTO queue_job (
     scan_id, vantage_id, dispatch_id, kind, spec, attempted_scope, offers,

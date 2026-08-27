@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"html/template"
 	"log"
 	"net/http"
@@ -325,11 +326,88 @@ func (s *server) driftPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 		"BatchID":         batchID,
 		"BatchLabel":      batchLabel,
 		"TransitionCount": transitionCount,
-		// The vs-previous-period delta chip is suppressed with an empty string when no
-		// comparison is wired — the honest no-delta state, never a fabricated "+0"
-		// (mirroring Exposure's HasDeltas-false tile). The design fixture carries "+2".
-		"TransitionDelta": "",
+		// The vs-previous-period delta chip: this window's transition count minus the
+		// immediately preceding equal-length window's, signed ("+2"/"−1") or "0" — an
+		// empty string suppresses the chip when no complete previous window exists (an
+		// install younger than 2× the window), never a fabricated "+0" (the P0.2 degrade,
+		// collision #36 ruling (a), #690). The design fixture carries "+2".
+		"TransitionDelta": s.transitionDelta(r.Context(), since, until, transitionCount),
 	})
+}
+
+// transitionDelta computes the Drift page's vs-previous-period chip (collision #36
+// ruling (a), #690): the selected window's transition count minus the immediately
+// preceding equal-length window's, rendered signed ("+2"/"−1") or "0". It returns the
+// empty string — which suppresses the chip — when no complete previous window exists to
+// compare against: the estate's earliest batch is younger than the preceding window's
+// start (install younger than 2× the window), so there is nothing to compare against
+// and no baseline is fabricated (the P0.2 vs-last-batch HasDeltas-false degrade). A read
+// error degrades the same way rather than 500ing the thesis screen.
+//
+// The preceding window is [since−length, since); its transition count is read and
+// classified through the SAME estate-wide feed path (ListRecentDriftEvents →
+// buildDriftFeed) the current .TransitionCount is derived from, so both windows count
+// identically across all six kinds. Presets and custom ISO ranges alike resolve here to
+// a [since, hi] window: hi is the custom range's exclusive upper bound, else now.
+func (s *server) transitionDelta(ctx context.Context, since, until pgtype.Timestamptz, currentCount int) string {
+	if !since.Valid {
+		return "" // no lower bound (no offered preset resolves this) — nothing to compare
+	}
+	hi := s.now().UTC()
+	if until.Valid {
+		hi = until.Time
+	}
+	length := hi.Sub(since.Time)
+	if length <= 0 {
+		return ""
+	}
+	prevStart := since.Time.Add(-length)
+
+	// No complete previous window: the estate must have been observing since at or before
+	// the preceding window's start. Otherwise the preceding equal window predates the
+	// first batch — suppress rather than compare against a window never witnessed.
+	earliest, err := s.store.EarliestBatchTime(ctx)
+	if err != nil {
+		log.Printf("web: drift: earliest batch time: %v", err)
+		return ""
+	}
+	if !earliest.Valid || earliest.Time.After(prevStart) {
+		return ""
+	}
+
+	// The preceding window's rows: the query's Since bounds the lower edge (prevStart);
+	// filterDriftRowsUntil trims batches at or after the current window's start (since),
+	// leaving exactly [prevStart, since) — the same read + until-trim the custom-range
+	// current window uses.
+	rows, err := s.store.ListRecentDriftEvents(ctx, db.ListRecentDriftEventsParams{
+		Since: pgtype.Timestamptz{Time: prevStart, Valid: true}, MaxEvents: driftFeedLimit,
+	})
+	if err != nil {
+		log.Printf("web: drift: previous-window drift events: %v", err)
+		return ""
+	}
+	rows = filterDriftRowsUntil(rows, since.Time)
+	return driftTransitionDelta(currentCount, rows, earliest, prevStart, s.now())
+}
+
+// driftTransitionDelta renders the vs-previous-period chip string from the current
+// window's transition count and the preceding window's raw feed rows. It classifies the
+// preceding rows through the same buildDriftFeed the current count uses, so both windows
+// count identically, then renders the signed difference ("+2"/"−1"/"0"). It returns the
+// empty string (chip suppressed) when the estate's earliest batch is missing or younger
+// than the preceding window's start — no complete previous window, no fabricated
+// baseline. Split from the store-touching method above so the compare is unit-testable.
+func driftTransitionDelta(currentCount int, prevRows []db.ListRecentDriftEventsRow, earliest pgtype.Timestamptz, prevStart, now time.Time) string {
+	if !earliest.Valid || earliest.Time.After(prevStart) {
+		return ""
+	}
+	prevGroups, _ := buildDriftFeed(prevRows, now)
+	prevCount := 0
+	for i := range prevGroups {
+		prevCount += len(prevGroups[i].Events)
+	}
+	text, _ := signedCount(currentCount - prevCount)
+	return text
 }
 
 // driftExport serves the transition feed for the active period as a downloadable CSV

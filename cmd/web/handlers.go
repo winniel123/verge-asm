@@ -205,6 +205,11 @@ type store interface {
 	// as-of-@at twin of the current by-class read, for the exposure projection's
 	// previous snapshot. All read the derived span/batch corpora, never dispatch (ADR-0041).
 	PreviousBatchTime(ctx context.Context) (pgtype.Timestamptz, error)
+	// EarliestBatchTime is the estate's first batch instant — the age boundary the
+	// Drift page's vs-previous-period delta tests before it compares a window against
+	// the immediately preceding equal-length window (P0.12, #690). NULL where no batch
+	// has committed. Reads batch only, never dispatch (ADR-0041).
+	EarliestBatchTime(ctx context.Context) (pgtype.Timestamptz, error)
 	ListSpansOpenSince(ctx context.Context, since pgtype.Timestamptz) ([]db.ListSpansOpenSinceRow, error)
 	ListServiceReachabilitySpansByClassAt(ctx context.Context, at pgtype.Timestamptz) ([]db.ListServiceReachabilitySpansByClassAtRow, error)
 	CreateZoneFile(ctx context.Context, arg db.CreateZoneFileParams) (db.CreateZoneFileRow, error)

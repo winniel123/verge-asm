@@ -427,3 +427,49 @@ func TestDriftFamilyMapsToDriftPalette(t *testing.T) {
 		}
 	}
 }
+
+// TestDriftTransitionDelta covers the vs-previous-period compare (collision #36 ruling
+// (a), #690): a nonzero difference renders signed, an equal current/previous count
+// renders "0", and no complete previous window (earliest batch missing, or younger than
+// the preceding window's start) suppresses the chip with an empty string. The preceding
+// window's rows are classified through the same buildDriftFeed the live count uses —
+// each first-appearance row is one `appeared` transition.
+func TestDriftTransitionDelta(t *testing.T) {
+	now := time.Date(2026, 8, 27, 12, 0, 0, 0, time.UTC)
+	// A 7d window: [now-7d, now); the preceding equal window starts at now-14d.
+	prevStart := now.Add(-14 * 24 * time.Hour)
+	prevAt := now.Add(-10 * 24 * time.Hour) // a batch inside the preceding window
+	// The estate has observed since before the preceding window's start — a full
+	// previous window exists.
+	oldEnough := pgtype.Timestamptz{Time: now.Add(-30 * 24 * time.Hour), Valid: true}
+
+	// Three first appearances in the preceding window → three `appeared` transitions.
+	prevRows := []db.ListRecentDriftEventsRow{
+		driftOpenedRow(1, prevAt, "a.example.com", `{"outcome":"Resolved"}`, ""),
+		driftOpenedRow(1, prevAt, "b.example.com", `{"outcome":"Resolved"}`, ""),
+		driftOpenedRow(1, prevAt, "c.example.com", `{"outcome":"Resolved"}`, ""),
+	}
+
+	// Signed: current 5 − previous 3 = +2 (the fixture's encoded value).
+	if got := driftTransitionDelta(5, prevRows, oldEnough, prevStart, now); got != "+2" {
+		t.Errorf("signed delta = %q, want %q", got, "+2")
+	}
+	// Signed negative uses the true minus (U+2212), as signedCount renders it.
+	if got := driftTransitionDelta(1, prevRows, oldEnough, prevStart, now); got != "−2" {
+		t.Errorf("negative delta = %q, want %q", got, "−2")
+	}
+	// Zero: equal current/previous count renders "0", not empty (the window exists).
+	if got := driftTransitionDelta(3, prevRows, oldEnough, prevStart, now); got != "0" {
+		t.Errorf("zero delta = %q, want %q", got, "0")
+	}
+	// Suppressed — no batch at all: earliest invalid ⇒ empty string ⇒ chip suppressed.
+	if got := driftTransitionDelta(5, prevRows, pgtype.Timestamptz{}, prevStart, now); got != "" {
+		t.Errorf("no-batch delta = %q, want empty", got)
+	}
+	// Suppressed — install too young: earliest batch is AFTER the preceding window's
+	// start (estate younger than 2× the window) ⇒ empty string, never a fabricated "+5".
+	tooYoung := pgtype.Timestamptz{Time: now.Add(-9 * 24 * time.Hour), Valid: true}
+	if got := driftTransitionDelta(5, prevRows, tooYoung, prevStart, now); got != "" {
+		t.Errorf("young-install delta = %q, want empty", got)
+	}
+}
