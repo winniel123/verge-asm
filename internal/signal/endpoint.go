@@ -146,6 +146,24 @@ func EvaluateEndpoint(r EndpointRule, endpoints []EndpointFacts) Census {
 // moves every rule that reads the value it decides.
 func certVersion() Version { return Version{Rule: "v1", Composes: []string{co.CertVersion}} }
 
+// weakKeyFloorVersion is certificate-weak-key-or-signature's OWN read-side floor
+// token: the NIST-style key/signature floors it applies (RSA/DSA ≥2048, ECDSA ≥224,
+// deny SHA-1/MD5) live on the read side, not in the leaf, so a future floor edit is
+// ONE Break on this rule alone — not a CertVersion re-hash that would move every
+// certificate timeline (T-weak #715 §6). The rule composes it alongside co.CertVersion.
+const weakKeyFloorVersion = "weak-key-floor/v1"
+
+// weakKeyRule wraps the shared certDetailRule for certificate-weak-key-or-signature so
+// it carries its own independently-bumpable version — co.CertVersion (the leaf it
+// reads) composed with weakKeyFloorVersion (its read-side floors) — while keeping the
+// embedded Eval/Name/Severity unchanged (it still reads d.WeakKeyOrSignature exactly as
+// the other detail rules read theirs).
+type weakKeyRule struct{ certDetailRule }
+
+func (r weakKeyRule) Version() Version {
+	return Version{Rule: "v1", Composes: sortedStrings(co.CertVersion, weakKeyFloorVersion)}
+}
+
 // presentedCert reports whether a certificate rule's domain is satisfied: a
 // certificate was measured and it is `presented`. `no-tls` / `tls-refused` /
 // unmeasured are all outside the certificate rules' domain (ADR-0024: NoTLS
@@ -204,7 +222,7 @@ var (
 	certificateNotYetValid        = certDetailRule{"certificate-not-yet-valid", SevHigh, func(d CertDetails) *bool { return d.NotYetValid }}
 	certificateExpiring           = certDetailRule{"certificate-expiring", SevMedium, func(d CertDetails) *bool { return d.Expiring }}
 	certificateSelfSigned         = certDetailRule{"certificate-self-signed", SevMedium, func(d CertDetails) *bool { return d.SelfSigned }}
-	certificateWeakKeyOrSignature = certDetailRule{"certificate-weak-key-or-signature", SevHigh, func(d CertDetails) *bool { return d.WeakKeyOrSignature }}
+	certificateWeakKeyOrSignature = weakKeyRule{certDetailRule{"certificate-weak-key-or-signature", SevHigh, func(d CertDetails) *bool { return d.WeakKeyOrSignature }}}
 )
 
 // --- certificate-hostname-san-mismatch ------------------------------------
