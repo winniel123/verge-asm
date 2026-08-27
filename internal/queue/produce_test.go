@@ -2,6 +2,7 @@ package queue
 
 import (
 	"context"
+	"net/netip"
 	"testing"
 	"time"
 
@@ -46,6 +47,50 @@ func (f *fakeMessageStore) InsertMessage(_ context.Context, arg db.InsertMessage
 	return db.Message{ID: f.nextID, Cause: arg.Cause, Class: arg.Class, SubjectKind: arg.SubjectKind, FiredAt: arg.FiredAt}, nil
 }
 
+// ListAddressScopeCidrs returns the fixed 10.0.0.0/8 convention scope the flagship's
+// class derivation binds against (#711): the reachability-row constructors below present
+// an uncovered public dialled address for an internet vantage and a covered 10.x address
+// for an internal one, so each row's class derives (#709) to the intended value.
+func (f *fakeMessageStore) ListAddressScopeCidrs(context.Context) ([]*netip.Prefix, error) {
+	p := netip.MustParsePrefix("10.0.0.0/8")
+	return []*netip.Prefix{&p}, nil
+}
+
+// dialledInternet is an uncovered public address (derives `internet`); dialledInternal
+// is a 10.x address covered by the convention scope (derives `internal`).
+const (
+	dialledInternet = "198.51.100.200"
+	dialledInternal = "10.200.0.1"
+)
+
+func internetReachRow(svc, outcome string) db.ListServiceReachabilitySpansByClassRow {
+	return db.ListServiceReachabilitySpansByClassRow{
+		SubjectKey: svc, VantageID: pgtype.Int8{Int64: 1, Valid: true}, Value: reachValue(outcome),
+		DialledAddr: pgtype.Text{String: dialledInternet, Valid: true},
+	}
+}
+
+func internetReachAtRow(svc, outcome string) db.ListServiceReachabilitySpansByClassAtRow {
+	return db.ListServiceReachabilitySpansByClassAtRow{
+		SubjectKey: svc, VantageID: pgtype.Int8{Int64: 1, Valid: true}, Value: reachValue(outcome),
+		DialledAddr: pgtype.Text{String: dialledInternet, Valid: true},
+	}
+}
+
+func internalReachRow(svc, outcome string) db.ListServiceReachabilitySpansByClassRow {
+	return db.ListServiceReachabilitySpansByClassRow{
+		SubjectKey: svc, VantageID: pgtype.Int8{Int64: 2, Valid: true}, Value: reachValue(outcome),
+		DialledAddr: pgtype.Text{String: dialledInternal, Valid: true},
+	}
+}
+
+func internalReachAtRow(svc, outcome string) db.ListServiceReachabilitySpansByClassAtRow {
+	return db.ListServiceReachabilitySpansByClassAtRow{
+		SubjectKey: svc, VantageID: pgtype.Int8{Int64: 2, Valid: true}, Value: reachValue(outcome),
+		DialledAddr: pgtype.Text{String: dialledInternal, Valid: true},
+	}
+}
+
 // routed is one message the fake enqueuer routed, and how many deliveries it made —
 // the count delivery.EnqueueForMessage returns (zero on an unbound/default install).
 type routed struct {
@@ -87,8 +132,8 @@ func batchMovingBothSignals() (changes []spanChange, store *fakeMessageStore) {
 	}
 	store = &fakeMessageStore{
 		prev:    prevAt(produceT0.Add(-time.Hour)),
-		current: []db.ListServiceReachabilitySpansByClassRow{{SubjectKey: svc, Class: "internet", Value: reachValue("reached")}},
-		at:      []db.ListServiceReachabilitySpansByClassAtRow{{SubjectKey: svc, Class: "internet", Value: reachValue("not-reached")}},
+		current: []db.ListServiceReachabilitySpansByClassRow{internetReachRow(svc, "reached")},
+		at:      []db.ListServiceReachabilitySpansByClassAtRow{internetReachAtRow(svc, "not-reached")},
 	}
 	return changes, store
 }
@@ -211,7 +256,7 @@ func TestProduceOpeningAtReachedIsNotFlagship(t *testing.T) {
 	store := &fakeMessageStore{
 		// No previous batch: the leg has no decided predecessor.
 		prev:    pgtype.Timestamptz{},
-		current: []db.ListServiceReachabilitySpansByClassRow{{SubjectKey: svc, Class: "internet", Value: reachValue("reached")}},
+		current: []db.ListServiceReachabilitySpansByClassRow{internetReachRow(svc, "reached")},
 	}
 	var log []routed
 	if err := produceMessages(context.Background(), store, 1, produceT0, changes, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
@@ -231,8 +276,8 @@ func TestProduceInternalLegNeverFlagship(t *testing.T) {
 	}
 	store := &fakeMessageStore{
 		prev:    prevAt(produceT0.Add(-time.Hour)),
-		current: []db.ListServiceReachabilitySpansByClassRow{{SubjectKey: svc, Class: "internal", Value: reachValue("reached")}},
-		at:      []db.ListServiceReachabilitySpansByClassAtRow{{SubjectKey: svc, Class: "internal", Value: reachValue("not-reached")}},
+		current: []db.ListServiceReachabilitySpansByClassRow{internalReachRow(svc, "reached")},
+		at:      []db.ListServiceReachabilitySpansByClassAtRow{internalReachAtRow(svc, "not-reached")},
 	}
 	var log []routed
 	if err := produceMessages(context.Background(), store, 2, produceT0, changes, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {

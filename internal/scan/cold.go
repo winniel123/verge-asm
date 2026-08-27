@@ -24,6 +24,7 @@ import (
 
 	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
+	"github.com/winniel123/verge-asm/internal/vantageclass"
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
@@ -106,9 +107,14 @@ func BuildColdJobs(scanID int64, estate custody.Estate, addrs []netip.Addr, vant
 	}
 	tcp := coldTCPPorts()
 
+	// Class is DERIVED per batch from each vantage's presented-address facts against the
+	// declared address scopes (#709), never the vestigial column: covered is the
+	// address-scope-only predicate (#711) the same Estate carries. This is the "every
+	// batch" gating cadence the keystone reconciles — gating uses last-observed facts.
+	covered := estate.CoversAddressScope
 	var jobs []ColdJob
 	for _, v := range vantages {
-		vc := custody.VantageClass(v.Class)
+		vc := vantageclass.Derive(v.Dialled, v.Egress, covered)
 		admitted := make([]string, 0, len(addrs))
 		for _, a := range addrs {
 			if !scope.contains(a) {
@@ -125,7 +131,7 @@ func BuildColdJobs(scanID int64, estate custody.Estate, addrs []netip.Addr, vant
 			ScanID:       scanID,
 			VantageID:    v.ID,
 			Vantage:      v.Name,
-			VantageClass: v.Class,
+			VantageClass: string(vc),
 			Kind:         connectoutcome.Kind,
 			Addresses:    admitted,
 			TCPPorts:     tcp,

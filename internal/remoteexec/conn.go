@@ -36,6 +36,13 @@ type Conn interface {
 	// with the job spec on stdin and reading NDJSON back — never the spec on argv
 	// (ADR-0001). cmd is again a constant plus this package's own generated temp path.
 	Run(ctx context.Context, cmd string, stdin io.Reader, stdout io.Writer) error
+	// RemoteAddr is the transport peer address of the established connection — the
+	// address the instance actually dialled to reach the prober, observed locally at
+	// connect (no remote command). It is the presented DIALLED address the Vantage-class
+	// derivation reads (#710), captured "by construction" exactly as SSH_CLIENT is the
+	// egress the prober reports. It may be nil where the underlying transport exposes no
+	// peer address, in which case the fact is left unobserved rather than fabricated.
+	RemoteAddr() net.Addr
 	// Close releases the underlying connection.
 	Close() error
 }
@@ -105,6 +112,10 @@ func (c *clientConn) Run(ctx context.Context, cmd string, stdin io.Reader, stdou
 	sess.Stdout = stdout
 	return runSession(ctx, sess, cmd)
 }
+
+// RemoteAddr returns the SSH transport peer address (*ssh.Client embeds ssh.Conn,
+// whose RemoteAddr is the dialled TCP peer) — the observed dialled address.
+func (c *clientConn) RemoteAddr() net.Addr { return c.client.RemoteAddr() }
 
 func (c *clientConn) Close() error { return c.client.Close() }
 

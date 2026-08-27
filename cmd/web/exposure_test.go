@@ -50,6 +50,7 @@ func TestExposureBothLegsTable(t *testing.T) {
 		Host:      pgtype.Text{String: "prober.example.com", Valid: true},
 		Port:      pgtype.Int4{Int32: 22, Valid: true},
 		Username:  pgtype.Text{String: "verge", Valid: true},
+		DialledAddr: classPresentedDialled("internet"),
 		CreatedBy: pgtype.Int8{Int64: admin.ID, Valid: true},
 	})
 	f.vantageNextID++
@@ -108,6 +109,7 @@ func TestExposureStatBandRendersDelta(t *testing.T) {
 		Host:      pgtype.Text{String: "prober.example.com", Valid: true},
 		Port:      pgtype.Int4{Int32: 22, Valid: true},
 		Username:  pgtype.Text{String: "verge", Valid: true},
+		DialledAddr: classPresentedDialled("internet"),
 		CreatedBy: pgtype.Int8{Int64: admin.ID, Valid: true},
 	})
 	f.vantageNextID++

@@ -2,6 +2,7 @@ package remoteexec
 
 import (
 	"fmt"
+	"net"
 	"net/netip"
 	"strings"
 
@@ -76,6 +77,27 @@ func parseEgress(sshClient string) (string, bool) {
 		return "", false
 	}
 	return addr.Unmap().String(), true
+}
+
+// normalizeDialled extracts the canonical IP string from an SSH transport peer
+// address — the observed dialled address the Vantage-class derivation reads (#710).
+// The peer address is a "host:port" TCP address (IPv6 as "[::1]:22"), so the port is
+// stripped via netip's AddrPort parse; a bare address is accepted as a fallback. It
+// returns the family-normalised, `Unmap`ed string (matching how egress is stored), or
+// ("", false) for a nil or unparseable address so a bad read leaves the fact zero
+// rather than fabricating one.
+func normalizeDialled(a net.Addr) (string, bool) {
+	if a == nil {
+		return "", false
+	}
+	s := a.String()
+	if ap, err := netip.ParseAddrPort(s); err == nil {
+		return ap.Addr().Unmap().String(), true
+	}
+	if addr, err := netip.ParseAddr(s); err == nil {
+		return addr.Unmap().String(), true
+	}
+	return "", false
 }
 
 // Fingerprint renders the SHA256 fingerprint of a pinned host key for the VantageCard

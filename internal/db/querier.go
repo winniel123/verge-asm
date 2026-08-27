@@ -126,11 +126,17 @@ type Querier interface {
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
 	// Provisioning a prober creates a Vantage with connection detail. Its
 	// measurement identity is still mandatory: the caller derives `name` from the
-	// endpoint (username@host:port) so it is unique per provisioned endpoint, class
-	// defaults to 'unverified' until a prober re-verifies it, and resolver ships
-	// blank ('') for the operator to set. availability starts 'pending' — no host
-	// key has been pinned yet. The explicit casts keep the params plain scalars even
-	// though the prober columns are nullable on the table.
+	// endpoint (username@host:port) so it is unique per provisioned endpoint, and
+	// resolver ships blank ('') for the operator to set. availability starts
+	// 'pending' — no host key has been pinned yet. The explicit casts keep the params
+	// plain scalars even though the prober columns are nullable on the table.
+	//
+	// `class` defaults to 'unverified' and is a VESTIGE (#709 keystone (b)): it keeps its
+	// CHECK and its shipped `local` row, but NOTHING writes it and NO reader treats it as
+	// authoritative. Vantage class is DERIVED per read from the vantage's presented-address
+	// facts (egress + dialled_addr) against the declared address scopes
+	// (exposure.VerifyClass), never from this column — so it stays at its 'unverified'
+	// default for the life of the row.
 	CreateVantage(ctx context.Context, arg CreateVantageParams) (Vantage, error)
 	// Records one supply act: a name-scope Seed's zone file at the operator's supply
 	// instant. Append-only — a re-export is a new row, never an update.
@@ -701,11 +707,18 @@ type Querier interface {
 	// the caller's read instant @as_of with k = @floor_cadences, so the Signal engine
 	// never folds an evidential row into a Derived snapshot. ListZoneDeclarations
 	// reads the operator's supplied zone file (input, not measured) and is not gated.
-	// The latest `resolution` observation per (Name, Vantage class). The engine folds
-	// these into a cross-class composed outcome (for the four cross-class rules) and
-	// keeps the internet-class view apart (for the one vantage-scoped rule, ADR-0071).
-	// DISTINCT ON keeps the most recent value per (name, class). Reads through the
-	// live-tier gate (#237).
+	// The latest `resolution` observation per (Name, Vantage). The engine folds these into
+	// a cross-class composed outcome (for the four cross-class rules) and keeps the
+	// internet-class view apart (for the one vantage-scoped rule, ADR-0071). DISTINCT ON
+	// keeps the most recent value per (name, VANTAGE). Reads through the live-tier gate
+	// (#237).
+	//
+	// Vantage class is DELIBERATELY NOT selected: it is DERIVED per read, never from the
+	// vestigial static column (#709, CONTEXT.md `Vantage class`). Each row carries the
+	// vantage's PRESENTED-address facts (egress + dialled_addr, host for context) so the
+	// caller re-verifies each vantage's class over the declared address scopes and
+	// re-collapses to the most-recent value per (name, derived class), preserving the
+	// observed_at DESC, id DESC tiebreak the old DISTINCT ON (subject_key, v.class) had.
 	ListNameResolutionsByClass(ctx context.Context, arg ListNameResolutionsByClassParams) ([]ListNameResolutionsByClassRow, error)
 	ListNameSeedDomains(ctx context.Context) ([]pgtype.Text, error)
 	// The name-scope Seeds the CT Scan queries — id and registrable domain, one
@@ -724,15 +737,6 @@ type Querier interface {
 	// tokens never needs it, so the secret material stays out of the render path — only
 	// the label, the non-secret prefix, and the timestamps are surfaced.
 	ListPersonalTokens(ctx context.Context, accountID int64) ([]ListPersonalTokensRow, error)
-	// The two most recent `reachability` spans per (Service, vantage), joined to the
-	// vantage's prober endpoint — the Exposure landing view's read (#196). rn = 1 is
-	// the current span (the leg's value) and rn = 2 is its immediate predecessor
-	// (the flagship internet not-reached -> reached transition is read from the pair).
-	// Vantage class is deliberately NOT selected: the caller re-verifies it every
-	// render from the prober's presented (dialled) address against the operator's
-	// declared address scopes (CONTEXT.md `Vantage class`), never from a static
-	// column, so this read carries the host and availability instead.
-	ListReachabilitySpansForExposure(ctx context.Context) ([]ListReachabilitySpansForExposureRow, error)
 	// The open `Service` population the weekly `tls-acceptance` Scan enumerates over
 	// (#199, ADR-0028): every Service whose CURRENT `reachability` span reads `reached`,
 	// with the vantage it was reached from. This is an enumeration over open Services,
@@ -789,27 +793,41 @@ type Querier interface {
 	ListSSOProviders(ctx context.Context) ([]ListSSOProvidersRow, error)
 	ListScans(ctx context.Context) ([]Scan, error)
 	ListSeeds(ctx context.Context) ([]ListSeedsRow, error)
-	// The CURRENT `reachability` span per (Service, Vantage class) (#254, ADR-0104).
-	// buildServiceFacts reads the SPAN, not the latest observation, because the span
-	// carries `is_gap`: a blanket responder's reach is a Gap, and a Gap leg reads as
-	// absent (HasInternetReach=false) so `sensitive-port-reached-from-internet`
-	// returns not-evaluable with no rule edit, and a Gap is not a `reachability` value
-	// so a blanket responder's ports drop out of any open-port count without a special
-	// case. Span reads are NOT routed through the live-tier observation gate (#237):
-	// the span corpus is the already-derived timeline the fold produced, kept forever
-	// (ADR-0041), so an as_of bound would wrongly hide settled state rather than
-	// protect a re-derivation. DISTINCT ON keeps the most recent OPEN span per
-	// (service, class), mirroring the observation read one facet over.
+	// The CURRENT `reachability` span per (Service, Vantage) (#254, ADR-0104). The caller
+	// reads the SPAN, not the latest observation, because the span carries `is_gap`: a
+	// blanket responder's reach is a Gap, and a Gap leg reads as absent (HasInternetReach
+	// =false) so `sensitive-port-reached-from-internet` returns not-evaluable with no rule
+	// edit, and a Gap is not a `reachability` value so a blanket responder's ports drop out
+	// of any open-port count without a special case. Span reads are NOT routed through the
+	// live-tier observation gate (#237): the span corpus is the already-derived timeline the
+	// fold produced, kept forever (ADR-0041), so an as_of bound would wrongly hide settled
+	// state rather than protect a re-derivation. DISTINCT ON keeps the most recent OPEN span
+	// per (service, VANTAGE).
+	//
+	// Vantage class is DELIBERATELY NOT selected: it is DERIVED per read, never from the
+	// vestigial static column (#709, CONTEXT.md `Vantage class`). The row carries the
+	// vantage's PRESENTED-address facts (egress + dialled_addr, host for context) so the
+	// caller re-verifies each vantage's class over the operator's declared address scopes
+	// and re-collapses to the most-recent leg per (service, derived class) — the collapse
+	// the old DISTINCT ON (subject_key, v.class) did in SQL is now the Go fold's, preserving
+	// the opened_at DESC, id DESC tiebreak; the internet leg then composes existentially
+	// over every internet-class vantage rather than a single SQL-pre-collapsed row.
 	ListServiceReachabilitySpansByClass(ctx context.Context) ([]ListServiceReachabilitySpansByClassRow, error)
-	// The `reachability` span per (Service, Vantage class) that was OPEN at instant @at
-	// — the as-of-a-past-batch twin of ListServiceReachabilitySpansByClass, for the
-	// Exposure stat band's vs-last-batch deltas (P0.2). It reconstructs each leg's
-	// value as it stood at @at from the never-compacted span corpus (ADR-0041): a span
-	// open at @at has opened_at <= @at and had not yet closed (still open, or closed
-	// after @at). DISTINCT ON keeps the most recent such span per (service, class),
-	// exactly as the current read keeps the most recent open one. Class is the static
-	// vantage column (the same join the current read uses); the exposure projection is
-	// computed in the handler over both readings. NOT live-tier gated (span corpus).
+	// The `reachability` span per (Service, Vantage) that was OPEN at instant @at — the
+	// as-of-a-past-batch twin of ListServiceReachabilitySpansByClass, for the Exposure
+	// stat band's vs-last-batch deltas (P0.2). It reconstructs each per-vantage leg's value
+	// as it stood at @at from the never-compacted span corpus (ADR-0041): a span open at @at
+	// has opened_at <= @at and had not yet closed (still open, or closed after @at).
+	// DISTINCT ON keeps the most recent such span per (service, VANTAGE).
+	//
+	// Vantage class is DELIBERATELY NOT selected: it is DERIVED per read, never from the
+	// vestigial static column (#709, CONTEXT.md `Vantage class`). The row carries the
+	// vantage's PRESENTED-address facts (host for context, egress + dialled_addr for the
+	// derivation) so the caller re-verifies each vantage's class over the operator's
+	// declared address scopes and re-collapses to the most-recent leg per (service, derived
+	// class) — the collapse the old DISTINCT ON (subject_key, v.class) did in SQL is now the
+	// Go fold's, preserving the opened_at DESC, id DESC tiebreak. NOT live-tier gated (span
+	// corpus).
 	ListServiceReachabilitySpansByClassAt(ctx context.Context, at pgtype.Timestamptz) ([]ListServiceReachabilitySpansByClassAtRow, error)
 	// The latest `tls-acceptance` observation per Service (#684) — the value the
 	// `tls-1.0-accepted` rule reads. The `tls-acceptance` leaf (#199, ADR-0028)
@@ -886,9 +904,11 @@ type Querier interface {
 	// latency_ms is the per-vantage connect round-trip the Dashboard renders (P0.5),
 	// NULL until the prober connect that pins the host key lands a first measurement.
 	ListVantages(ctx context.Context) ([]ListVantagesRow, error)
-	// The dns Scan dispatches over every configured Vantage, reading only its
-	// measurement identity (name, class, resolver). Distinct from the web prober
-	// list (vantages.sql `ListVantages`), which is scoped to provisioned probers.
+	// The dns Scan dispatches over every configured Vantage, reading its measurement
+	// identity (name, resolver) and its presented-address facts (egress + dialled_addr),
+	// from which the hot/cold Scans DERIVE its class per batch for the Custody gate — never
+	// the vestigial `class` column (#709, ADR-0079). Distinct from the web prober list
+	// (vantages.sql `ListVantages`), which is scoped to provisioned probers.
 	ListVantagesForDispatch(ctx context.Context) ([]ListVantagesForDispatchRow, error)
 	// Rows the worker still has to generate a keypair for: a provisioned prober
 	// (host set) whose public half has not been published, so no key material has
@@ -1150,10 +1170,13 @@ type Querier interface {
 	// fabricated value.
 	SetVantageLatency(ctx context.Context, arg SetVantageLatencyParams) error
 	// The worker records the lifecycle facts it observed off-host on the connect that
-	// pins the host key (P0.8, #683): the remote platform read from `uname` and the
-	// egress address read from SSH_CLIENT. Set together and only from a real successful
-	// connection — a prober that could not be reached keeps them NULL and the VantageCard
-	// keeps collapsing the platform/egress regions rather than showing a fabricated fact.
+	// pins the host key (P0.8, #683, #710): the remote platform read from `uname`, the
+	// egress address read from SSH_CLIENT, and the dialled address observed as the SSH
+	// transport peer (*ssh.Client.RemoteAddr()). Set together and only from a real
+	// successful connection — a prober that could not be reached, or a fact that could not
+	// be read, keeps that column NULL rather than showing a fabricated value: the
+	// VantageCard collapses the platform/egress regions, and the Vantage-class derivation
+	// reads a smaller presented set (egress and dialled feed exposure.VerifyClass, #709).
 	SetVantageProbeFacts(ctx context.Context, arg SetVantageProbeFactsParams) error
 	// The worker publishes only the public half of the pair it generated on its own
 	// volume; the private half never reaches Postgres.

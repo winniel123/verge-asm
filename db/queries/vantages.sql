@@ -1,11 +1,17 @@
 -- name: CreateVantage :one
 -- Provisioning a prober creates a Vantage with connection detail. Its
 -- measurement identity is still mandatory: the caller derives `name` from the
--- endpoint (username@host:port) so it is unique per provisioned endpoint, class
--- defaults to 'unverified' until a prober re-verifies it, and resolver ships
--- blank ('') for the operator to set. availability starts 'pending' — no host
--- key has been pinned yet. The explicit casts keep the params plain scalars even
--- though the prober columns are nullable on the table.
+-- endpoint (username@host:port) so it is unique per provisioned endpoint, and
+-- resolver ships blank ('') for the operator to set. availability starts
+-- 'pending' — no host key has been pinned yet. The explicit casts keep the params
+-- plain scalars even though the prober columns are nullable on the table.
+--
+-- `class` defaults to 'unverified' and is a VESTIGE (#709 keystone (b)): it keeps its
+-- CHECK and its shipped `local` row, but NOTHING writes it and NO reader treats it as
+-- authoritative. Vantage class is DERIVED per read from the vantage's presented-address
+-- facts (egress + dialled_addr) against the declared address scopes
+-- (exposure.VerifyClass), never from this column — so it stays at its 'unverified'
+-- default for the life of the row.
 INSERT INTO vantage (name, host, port, username, availability, created_by)
 VALUES (
     sqlc.arg(name)::text,
@@ -16,7 +22,8 @@ VALUES (
     sqlc.arg(created_by)::bigint
 )
 RETURNING id, name, class, resolver, host, port, username, availability,
-          public_key, host_key, created_by, created_at, latency_ms, platform, egress;
+          public_key, host_key, created_by, created_at, latency_ms, platform, egress,
+          dialled_addr;
 
 -- name: ListVantages :many
 -- The web prober list: only provisioned vantages (those carrying a prober
@@ -25,7 +32,8 @@ RETURNING id, name, class, resolver, host, port, username, availability,
 -- NULL until the prober connect that pins the host key lands a first measurement.
 SELECT v.id, v.name, v.class, v.resolver, v.host, v.port, v.username,
        v.availability, v.public_key, v.host_key, v.created_by, v.created_at,
-       v.latency_ms, v.platform, v.egress, a.username AS created_by_username
+       v.latency_ms, v.platform, v.egress, v.dialled_addr,
+       a.username AS created_by_username
 FROM vantage v
 JOIN account a ON a.id = v.created_by
 WHERE v.host IS NOT NULL
@@ -33,7 +41,8 @@ ORDER BY v.created_at DESC, v.id DESC;
 
 -- name: GetVantage :one
 SELECT id, name, class, resolver, host, port, username, availability,
-       public_key, host_key, created_by, created_at, latency_ms, platform, egress
+       public_key, host_key, created_by, created_at, latency_ms, platform, egress,
+       dialled_addr
 FROM vantage
 WHERE id = $1;
 
@@ -53,7 +62,8 @@ ORDER BY name;
 -- (host set) whose public half has not been published, so no key material has
 -- ever left the worker volume for them.
 SELECT id, name, class, resolver, host, port, username, availability,
-       public_key, host_key, created_by, created_at, latency_ms, platform, egress
+       public_key, host_key, created_by, created_at, latency_ms, platform, egress,
+       dialled_addr
 FROM vantage
 WHERE host IS NOT NULL AND public_key IS NULL
 ORDER BY id;
@@ -65,7 +75,8 @@ ORDER BY id;
 -- has never been measured. The connect the worker makes here is the same one that
 -- pins the host key trust-on-first-use, so measuring on it needs no extra dial.
 SELECT id, name, class, resolver, host, port, username, availability,
-       public_key, host_key, created_by, created_at, latency_ms, platform, egress
+       public_key, host_key, created_by, created_at, latency_ms, platform, egress,
+       dialled_addr
 FROM vantage
 WHERE host IS NOT NULL AND public_key IS NOT NULL AND latency_ms IS NULL
 ORDER BY id;
@@ -81,12 +92,15 @@ WHERE id = $1;
 
 -- name: SetVantageProbeFacts :exec
 -- The worker records the lifecycle facts it observed off-host on the connect that
--- pins the host key (P0.8, #683): the remote platform read from `uname` and the
--- egress address read from SSH_CLIENT. Set together and only from a real successful
--- connection — a prober that could not be reached keeps them NULL and the VantageCard
--- keeps collapsing the platform/egress regions rather than showing a fabricated fact.
+-- pins the host key (P0.8, #683, #710): the remote platform read from `uname`, the
+-- egress address read from SSH_CLIENT, and the dialled address observed as the SSH
+-- transport peer (*ssh.Client.RemoteAddr()). Set together and only from a real
+-- successful connection — a prober that could not be reached, or a fact that could not
+-- be read, keeps that column NULL rather than showing a fabricated value: the
+-- VantageCard collapses the platform/egress regions, and the Vantage-class derivation
+-- reads a smaller presented set (egress and dialled feed exposure.VerifyClass, #709).
 UPDATE vantage
-SET platform = $2, egress = $3
+SET platform = $2, egress = $3, dialled_addr = $4
 WHERE id = $1;
 
 -- name: SetVantagePublicKey :exec

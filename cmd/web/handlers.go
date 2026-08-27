@@ -122,6 +122,12 @@ type store interface {
 	GetChannelForDelivery(ctx context.Context, id int64) (db.GetChannelForDeliveryRow, error)
 	CreateVantage(ctx context.Context, arg db.CreateVantageParams) (db.Vantage, error)
 	ListVantages(ctx context.Context) ([]db.ListVantagesRow, error)
+	// ListAddressScopeCidrs reads the declared address-scope Seed CIDRs — the corpus the
+	// Vantage-class coverage predicate binds over (#711), the same read the hot Scan's
+	// Custody derivation uses (internal/queue/hot.go). The render/compose path assembles
+	// the same custody.Estate{AddressScopes} from it to offer `covered` to the class
+	// derivation (#709), so batch and render classify against one identical corpus.
+	ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error)
 	ListUnavailableVantages(ctx context.Context) ([]db.ListUnavailableVantagesRow, error)
 	GetScanByKind(ctx context.Context, kind string) (db.Scan, error)
 	ListAccounts(ctx context.Context) ([]db.ListAccountsRow, error)
@@ -201,11 +207,6 @@ type store interface {
 	// count, its vs-previous-period delta, and the daily-discovery bar series. Reads
 	// FROM span only — the never-compacted derived corpus (ADR-0041).
 	ListSubjectFirstAppearances(ctx context.Context, since pgtype.Timestamptz) ([]db.ListSubjectFirstAppearancesRow, error)
-	// Exposure landing view (#196): the two most recent reachability spans per
-	// (Service, vantage), joined to the prober endpoint. The class is re-verified
-	// per render from the presented address, so this read carries the host rather
-	// than the static vantage class.
-	ListReachabilitySpansForExposure(ctx context.Context) ([]db.ListReachabilitySpansForExposureRow, error)
 	// Vs-last-batch stat deltas (#443, P0.2, ADR-0116): the reads the Dashboard and
 	// Exposure stat tiles derive their signed deltas from. PreviousBatchTime is the
 	// boundary the "value a batch ago" is reconstructed at (NULL where no previous

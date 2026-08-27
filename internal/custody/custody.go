@@ -79,6 +79,20 @@ func (e Estate) Derive(addr netip.Addr) Custody {
 	return ThirdParty
 }
 
+// CoversAddressScope reports whether a declared ADDRESS SCOPE contains addr — the
+// public `covered` predicate the Vantage-class derivation binds (#711, ADR-0049).
+// It is a thin exported wrapper over the private containment so batch gating, Custody,
+// and Vantage-class coverage share ONE matcher and cannot diverge. It routes through
+// coveredByAddressScope ALONE — deliberately NOT Derive (which also folds in the
+// custody extension) and NOT MayProbe (which folds in non-global-reachability + class):
+// a vantage's side of the boundary is decided by declared address scopes only, never
+// by an extension (CONTEXT.md `Vantage class`), so admitting extension-covered
+// addresses here would corrupt the class. addr is Unmap'ed to match the family-agnostic
+// containment, mirroring exposure.VerifyClass's own covered(a.Unmap()).
+func (e Estate) CoversAddressScope(addr netip.Addr) bool {
+	return e.coveredByAddressScope(addr.Unmap())
+}
+
 // coveredByAddressScope reports whether a declared address scope contains addr.
 // Containment is family-matched prefix comparison over the address, never over a
 // spelling (CONTEXT.md `Seed`), so the lookup cannot turn on a rendering.

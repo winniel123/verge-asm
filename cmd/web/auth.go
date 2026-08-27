@@ -748,12 +748,22 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 	}
 
 	// Vantage health — the provisioned probers and their availability — plus the
-	// currently-unreachable set, which carries the "scans continue" banner.
+	// currently-unreachable set, which carries the "scans continue" banner. The class
+	// chip is DERIVED per read from each vantage's presented-address facts (#709), never
+	// the vestigial `class` column; covered is the one binding this render assembles.
+	// On a coverage-read failure covered is the closed direction (nothing covered), so a
+	// presented vantage over-reports internet rather than mislabelling it internal.
+	covered, cerr := s.addressScopeCovered(ctx)
+	if cerr != nil {
+		log.Printf("web: dashboard: address scope coverage: %v", cerr)
+		covered = func(netip.Addr) bool { return false }
+	}
 	var vantages []dashVantageView
 	if rows, verr := s.store.ListVantages(ctx); verr == nil {
 		for _, v := range rows {
 			vantages = append(vantages, dashVantageView{
-				Name: v.Name, Class: v.Class, Avail: v.Availability.String,
+				Name: v.Name, Class: string(vantageFactsClass(v.DialledAddr, v.Egress, covered)),
+				Avail:   v.Availability.String,
 				Latency: vantageLatencyLabel(v.LatencyMs),
 			})
 		}
@@ -893,6 +903,8 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 	// Each step is a real read: a scope is declared, a zone file supplied, an
 	// internet vantage provisioned, a batch dispatched. Step 4 is gated on the
 	// internet vantage (the same signal exposure.go withholds on).
+	// The derived class chip already carries the per-read verification; the first-run
+	// step reads the same derived value (the signal exposure.go withholds on).
 	internetVantage := false
 	for _, v := range vantages {
 		if v.Class == "internet" {

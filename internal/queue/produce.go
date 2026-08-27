@@ -9,11 +9,13 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/exposure"
 	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/message"
+	"github.com/winniel123/verge-asm/internal/vantageclass"
 )
 
 // This file is P0.7 — the message PRODUCER wire (AUDIT-LEDGER AL-2). Every other
@@ -74,6 +76,9 @@ type messageStore interface {
 	PreviousBatchTime(ctx context.Context) (pgtype.Timestamptz, error)
 	ListServiceReachabilitySpansByClass(ctx context.Context) ([]db.ListServiceReachabilitySpansByClassRow, error)
 	ListServiceReachabilitySpansByClassAt(ctx context.Context, at pgtype.Timestamptz) ([]db.ListServiceReachabilitySpansByClassAtRow, error)
+	// ListAddressScopeCidrs is the declared address-scope corpus the flagship's Vantage
+	// class is DERIVED against per read (#709/#711) — the same read hotEstate uses.
+	ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error)
 	InsertMessage(ctx context.Context, arg db.InsertMessageParams) (db.Message, error)
 }
 
@@ -174,11 +179,21 @@ func flagshipMessages(ctx context.Context, store messageStore, observedAt time.T
 		return nil, nil
 	}
 
+	// Vantage class is DERIVED per read from each vantage's presented-address facts
+	// against the declared address scopes (#709), so the flagship's internet leg is
+	// composed over the vantages that verify `internet` this read — never a stored
+	// column. covered is the address-scope-only predicate (#711), assembled once from
+	// the same corpus hotEstate uses, and shared across the current and previous reads.
+	covered, err := coveredAddressScope(ctx, store)
+	if err != nil {
+		return nil, err
+	}
+
 	current, err := store.ListServiceReachabilitySpansByClass(ctx)
 	if err != nil {
 		return nil, err
 	}
-	curLegs := legsFromCurrent(current)
+	curLegs := legsFromCurrent(current, covered)
 
 	var prevLegs []classLeg
 	prev, err := store.PreviousBatchTime(ctx)
@@ -190,7 +205,7 @@ func flagshipMessages(ctx context.Context, store messageStore, observedAt time.T
 		if err != nil {
 			return nil, err
 		}
-		prevLegs = legsFromAt(past)
+		prevLegs = legsFromAt(past, covered)
 	}
 
 	var msgs []*message.Message
@@ -253,20 +268,46 @@ type classLeg struct {
 	outcome string
 }
 
-func legsFromCurrent(rows []db.ListServiceReachabilitySpansByClassRow) []classLeg {
+// legsFromCurrent normalizes the current per-vantage reachability rows into classLegs,
+// DERIVING each vantage's class from its presented-address facts (#709) rather than a
+// stored column. Every internet-class vantage's leg survives — composeInternetLeg then
+// applies the existential quantifier over them (ADR-0080), instead of the SQL
+// pre-collapsing to a single row per class.
+func legsFromCurrent(rows []db.ListServiceReachabilitySpansByClassRow, covered func(netip.Addr) bool) []classLeg {
 	out := make([]classLeg, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, classLeg{subject: r.SubjectKey, class: r.Class, outcome: reachOutcome(r.Value)})
+		class := string(vantageclass.Derive(r.DialledAddr.String, r.Egress.String, covered))
+		out = append(out, classLeg{subject: r.SubjectKey, class: class, outcome: reachOutcome(r.Value)})
 	}
 	return out
 }
 
-func legsFromAt(rows []db.ListServiceReachabilitySpansByClassAtRow) []classLeg {
+func legsFromAt(rows []db.ListServiceReachabilitySpansByClassAtRow, covered func(netip.Addr) bool) []classLeg {
 	out := make([]classLeg, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, classLeg{subject: r.SubjectKey, class: r.Class, outcome: reachOutcome(r.Value)})
+		class := string(vantageclass.Derive(r.DialledAddr.String, r.Egress.String, covered))
+		out = append(out, classLeg{subject: r.SubjectKey, class: class, outcome: reachOutcome(r.Value)})
 	}
 	return out
+}
+
+// coveredAddressScope assembles the address-scope coverage predicate the flagship's
+// Vantage-class derivation binds (#711) from the declared address-scope Seeds — the same
+// corpus and the same family-matched containment hotEstate uses at the fan-out side, so
+// batch gating and the flagship classify against one identical corpus. It routes through
+// custody.Estate.CoversAddressScope (address scopes ALONE — never the extension).
+func coveredAddressScope(ctx context.Context, store messageStore) (func(netip.Addr) bool, error) {
+	scopes, err := store.ListAddressScopeCidrs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var prefixes []netip.Prefix
+	for _, p := range scopes {
+		if p != nil {
+			prefixes = append(prefixes, *p)
+		}
+	}
+	return custody.Estate{AddressScopes: prefixes}.CoversAddressScope, nil
 }
 
 // composeInternetLeg applies the existential internet-class Reach composition over

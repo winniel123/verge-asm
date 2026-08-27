@@ -384,6 +384,7 @@ type Vantage struct {
 	LatencyMs    pgtype.Int4        `json:"latency_ms"`
 	Platform     pgtype.Text        `json:"platform"`
 	Egress       pgtype.Text        `json:"egress"`
+	DialledAddr  pgtype.Text        `json:"dialled_addr"`
 }
 
 type VergeCoreFrequencyEdit struct {
