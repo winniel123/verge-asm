@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/winniel123/verge-asm/internal/measure"
 )
 
 // Target is one `(Name, Service)` pair the leaf exchanges with: the Address and
@@ -221,6 +223,11 @@ func (n NetExchanger) Exchange(ctx context.Context, target Target) ExchangeResul
 	if err != nil {
 		return ExchangeResult{Failed: true, Err: err.Error()}
 	}
+	// Send the shared, identifiable probe User-Agent so a target's operator can
+	// recognise the single GET / as verge-asm's active-discovery probe (README
+	// §"Probes safely", spec §3.3). The value is the one repo-owned contract in
+	// internal/measure, reused by every probe rather than minted per leaf.
+	req.Header.Set("User-Agent", measure.ProbeUserAgent)
 	client := &http.Client{
 		// Redirects are not followed: return the 3xx response unfollowed so its
 		// Location is recorded as identity and no next hop is ever requested.
