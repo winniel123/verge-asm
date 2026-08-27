@@ -4237,6 +4237,23 @@
       ],
       "cat": "All",
       "q": "",
+      "channels": [
+        {
+          "value": "",
+          "label": "Not connected",
+          "hint": "no delivery target"
+        },
+        {
+          "value": "ops",
+          "label": "ops.acmecorp.io/hook",
+          "hint": "signed HTTPS channel"
+        },
+        {
+          "value": "pager",
+          "label": "pager.example/verge",
+          "hint": "signed HTTPS channel"
+        }
+      ],
       "tiles": [
         {
           "id": "slack",
@@ -4324,7 +4341,30 @@
         ],
         "installed": "2026-07-14",
         "last_delivery": "failed · 6h ago",
-        "classes": "signals, drift"
+        "classes": "signals, drift",
+        "bound_channel": "pager"
+      },
+      "drawer_unbound_fixture": {
+        "id": "slack",
+        "name": "Slack",
+        "mark": "SL",
+        "category": "Notify",
+        "state": "installed",
+        "description": "Signals and drift summaries as formatted messages, one channel per class.",
+        "grants": [
+          {
+            "scope": "Read signals",
+            "detail": "Message content mirrors the signal drawer: fact, evidence, rule."
+          },
+          {
+            "scope": "Read drift summaries",
+            "detail": "Batch-level appeared / withdrawn counts."
+          }
+        ],
+        "installed": "2026-08-27",
+        "last_delivery": "none yet",
+        "classes": "signals, drift",
+        "bound_channel": ""
       }
     },
     "messages": [
