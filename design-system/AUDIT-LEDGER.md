@@ -17,7 +17,7 @@ Status vocabulary:
 | AL-3 | Internet vantage hollow — SSH pins key + times latency, never pushes/execs; jobs hairpin on instance host | CHARTED | P0.8 (ADR-0103 stands; VantageCard chips are declared fixture stubs until then) |
 | AL-4 | Only 4 of 17 signals fire on a default install (README says 5) | CHARTED | E1/E2 docs now; rules go live via P0.8–P0.11 |
 | AL-5 | `tls-1.0-accepted` — facet measured + persisted, never read back | CHARTED | P0.9 |
-| AL-6 | 6 certificate rules always `not-evaluable` (CertDetails nil by design) | CHARTED | P0.10 |
+| AL-6 | 6 certificate rules always `not-evaluable` (CertDetails nil by design) | CHARTED (split) | #37: CertDetails goes per-attribute readable. P0.10a lights expired+expiring (not_after) now; P0.10b (CertVersion v3 leaf + policies) lights the other 4. SANMatchesName never defaults false — absent SANs = not-evaluable, never a mismatch |
 | AL-7 | 4 HTTP rules dormant — `http-identity` measurer built but never dispatched; no User-Agent | CHARTED | P0.11 + E7 |
 | AL-8 | Drift `returned`/`withdrawn`/`descoped` + TransitionDelta chip fixture-only; `internal/estate` unwired | LANDED (wiring) + CHARTED (chip) | Wiring landed in #637/51141e8 (collision #36 confirmed; audit's "unwired" was stale). Chip residual = P0.12 re-scoped by #36: vs previous equal-length window, suppress without one |
 | AL-9 | Coverage counted/total meter has no live numerator; per-zone stale callout hardcoded nil | CHARTED | P0.13 (meters ruled in #19c) |
