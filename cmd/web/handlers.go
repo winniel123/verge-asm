@@ -251,6 +251,9 @@ type store interface {
 	// blanket responder's Gap leg reads as absent (ADR-0104); ListBlanketedReachServices
 	// is the Coverage register's read of those Gap'd Services (#254).
 	ListServiceReachabilitySpansByClass(ctx context.Context) ([]db.ListServiceReachabilitySpansByClassRow, error)
+	// The current `tls-acceptance` value per Service (#684) — buildServiceFacts folds
+	// it into the ServiceFacts the tls-1.0-accepted rule reads (live-tier gated).
+	ListServiceTLSAcceptance(ctx context.Context, arg db.ListServiceTLSAcceptanceParams) ([]db.ListServiceTLSAcceptanceRow, error)
 	ListBlanketedReachServices(ctx context.Context) ([]string, error)
 	ListEndpointCertificates(ctx context.Context, arg db.ListEndpointCertificatesParams) ([]db.ListEndpointCertificatesRow, error)
 	// Annotation management (#204): an operator dial keyed on one
