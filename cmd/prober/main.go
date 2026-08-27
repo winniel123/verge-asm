@@ -10,6 +10,7 @@ import (
 	"os"
 
 	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
+	"github.com/winniel123/verge-asm/internal/measure/httpexchange"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/measure/tlsacceptance"
 	"github.com/winniel123/verge-asm/internal/measure/wildcarddiscrim"
@@ -51,6 +52,14 @@ func run(stdin io.Reader, stdout io.Writer) error {
 		// (ADR-0028). The candidate set travels in the job spec and is recorded on the
 		// Batch by content (ADR-0025).
 		return tlsacceptance.Run(spec, stdout)
+	case httpexchange.Kind:
+		// The http-exchange leaf: the STEP that rides the daily hot Scan's
+		// reachability exchange — after connect-outcome reports `reached`, the
+		// single `GET /` decides the `http-identity` facet for each `Endpoint`.
+		// It sends the shared identifiable probe User-Agent and never follows a
+		// 3xx (spec §3.3, ADR-0011/ADR-0025). Wiring this case is what lights the
+		// four dormant HTTP identity rules.
+		return httpexchange.Run(spec, stdout)
 	default:
 		// The skeleton's job-spec-in / NDJSON-out proof for kinds whose leaf
 		// a later ticket adds (TCP/TLS/HTTP).
