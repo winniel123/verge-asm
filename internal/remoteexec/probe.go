@@ -26,9 +26,11 @@ const (
 // from (SSH_CLIENT). A read that could not identify a fact leaves it zero rather than
 // fabricating one; the caller persists only what was actually observed.
 type Facts struct {
-	Platform  Platform
-	Egress    string
-	HasEgress bool
+	Platform   Platform
+	Egress     string
+	HasEgress  bool
+	Dialled    string
+	HasDialled bool
 }
 
 // Inspect reads the prober's lifecycle facts over an established connection: `uname`
@@ -45,6 +47,13 @@ func Inspect(ctx context.Context, conn Conn) (Facts, error) {
 		if egress, ok := parseEgress(string(out)); ok {
 			f.Egress, f.HasEgress = egress, true
 		}
+	}
+	// The dialled address is observed off-host at connect — the SSH transport's peer
+	// address (#710) — with no remote command, exactly what "known by construction"
+	// means. Best-effort like egress: a peer address that will not parse leaves the
+	// fact zero rather than fabricating one.
+	if dialled, ok := normalizeDialled(conn.RemoteAddr()); ok {
+		f.Dialled, f.HasDialled = dialled, true
 	}
 	return f, nil
 }

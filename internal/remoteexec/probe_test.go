@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net"
 	"strings"
 	"testing"
 
@@ -23,6 +24,8 @@ type fakeConn struct {
 	execStdout string
 	// pushErr, if set, fails the `cat > …` push.
 	pushErr error
+	// remoteAddr is the transport peer address the dialled-address read observes.
+	remoteAddr net.Addr
 
 	ran      []string    // every cmd passed to Run
 	outCmds  []string    // every cmd passed to Output
@@ -59,6 +62,8 @@ func (c *fakeConn) Run(_ context.Context, cmd string, stdin io.Reader, stdout io
 		return nil
 	}
 }
+
+func (c *fakeConn) RemoteAddr() net.Addr { return c.remoteAddr }
 
 func (c *fakeConn) Close() error { return nil }
 
@@ -149,11 +154,14 @@ func TestProbeRefusesUnknownPlatform(t *testing.T) {
 
 // Inspect reads the platform and the SSH_CLIENT egress off the connection.
 func TestInspectReadsPlatformAndEgress(t *testing.T) {
-	conn := &fakeConn{outputs: map[string]string{
-		cmdUnameS:     "Linux\n",
-		cmdUnameM:     "x86_64\n",
-		cmdReadEgress: "203.0.113.5 54321 22\n",
-	}}
+	conn := &fakeConn{
+		outputs: map[string]string{
+			cmdUnameS:     "Linux\n",
+			cmdUnameM:     "x86_64\n",
+			cmdReadEgress: "203.0.113.5 54321 22\n",
+		},
+		remoteAddr: &net.TCPAddr{IP: net.ParseIP("198.51.100.7"), Port: 22},
+	}
 	f, err := Inspect(context.Background(), conn)
 	if err != nil {
 		t.Fatalf("Inspect: %v", err)
@@ -166,6 +174,27 @@ func TestInspectReadsPlatformAndEgress(t *testing.T) {
 	}
 	if !f.HasEgress || f.Egress != "203.0.113.5" {
 		t.Errorf("egress = %q (has=%v), want 203.0.113.5", f.Egress, f.HasEgress)
+	}
+	// The dialled address is the transport peer, IP-normalised with the port stripped.
+	if !f.HasDialled || f.Dialled != "198.51.100.7" {
+		t.Errorf("dialled = %q (has=%v), want 198.51.100.7", f.Dialled, f.HasDialled)
+	}
+}
+
+// A connection exposing no peer address collapses the dialled fact rather than
+// fabricating one — exactly like the egress read.
+func TestInspectMissingDialledIsBlank(t *testing.T) {
+	conn := &fakeConn{outputs: map[string]string{
+		cmdUnameS:     "Linux\n",
+		cmdUnameM:     "x86_64\n",
+		cmdReadEgress: "203.0.113.5 54321 22\n",
+	}} // remoteAddr nil
+	f, err := Inspect(context.Background(), conn)
+	if err != nil {
+		t.Fatalf("Inspect: %v", err)
+	}
+	if f.HasDialled || f.Dialled != "" {
+		t.Errorf("dialled = %q (has=%v), want blank", f.Dialled, f.HasDialled)
 	}
 }
 

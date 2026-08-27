@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -61,6 +62,10 @@ func (c *routerConn) Run(_ context.Context, cmd string, stdin io.Reader, stdout 
 	_, _ = io.Copy(io.Discard, stdin)
 	_, _ = io.WriteString(stdout, c.obsLine)
 	return nil
+}
+
+func (c *routerConn) RemoteAddr() net.Addr {
+	return &net.TCPAddr{IP: net.ParseIP("198.51.100.9"), Port: 22}
 }
 
 func (c *routerConn) Close() error { return nil }

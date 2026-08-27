@@ -172,15 +172,16 @@ func measureVantageLatencies(ctx context.Context, store vantageLatencyStore, pro
 		// connect, the egress only where the host exported SSH_CLIENT — so a fact that
 		// was not observed stays NULL and its chip stays collapsed, never fabricated.
 		if err := store.SetVantageProbeFacts(ctx, db.SetVantageProbeFactsParams{
-			ID:       v.ID,
-			Platform: pgtype.Text{String: probe.facts.Platform.Label, Valid: probe.facts.Platform.Label != ""},
-			Egress:   pgtype.Text{String: probe.facts.Egress, Valid: probe.facts.HasEgress},
+			ID:          v.ID,
+			Platform:    pgtype.Text{String: probe.facts.Platform.Label, Valid: probe.facts.Platform.Label != ""},
+			Egress:      pgtype.Text{String: probe.facts.Egress, Valid: probe.facts.HasEgress},
+			DialledAddr: pgtype.Text{String: probe.facts.Dialled, Valid: probe.facts.HasDialled},
 		}); err != nil {
 			log.Printf("worker: vantage %d: persist probe facts: %v", v.ID, err)
 			continue
 		}
-		log.Printf("worker: vantage %d: connect latency %dms recorded, platform=%q egress=%q",
-			v.ID, ms, probe.facts.Platform.Label, probe.facts.Egress)
+		log.Printf("worker: vantage %d: connect latency %dms recorded, platform=%q egress=%q dialled=%q",
+			v.ID, ms, probe.facts.Platform.Label, probe.facts.Egress, probe.facts.Dialled)
 	}
 }
 

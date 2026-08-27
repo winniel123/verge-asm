@@ -1150,10 +1150,13 @@ type Querier interface {
 	// fabricated value.
 	SetVantageLatency(ctx context.Context, arg SetVantageLatencyParams) error
 	// The worker records the lifecycle facts it observed off-host on the connect that
-	// pins the host key (P0.8, #683): the remote platform read from `uname` and the
-	// egress address read from SSH_CLIENT. Set together and only from a real successful
-	// connection — a prober that could not be reached keeps them NULL and the VantageCard
-	// keeps collapsing the platform/egress regions rather than showing a fabricated fact.
+	// pins the host key (P0.8, #683, #710): the remote platform read from `uname`, the
+	// egress address read from SSH_CLIENT, and the dialled address observed as the SSH
+	// transport peer (*ssh.Client.RemoteAddr()). Set together and only from a real
+	// successful connection — a prober that could not be reached, or a fact that could not
+	// be read, keeps that column NULL rather than showing a fabricated value: the
+	// VantageCard collapses the platform/egress regions, and the Vantage-class derivation
+	// reads a smaller presented set (egress and dialled feed exposure.VerifyClass, #709).
 	SetVantageProbeFacts(ctx context.Context, arg SetVantageProbeFactsParams) error
 	// The worker publishes only the public half of the pair it generated on its own
 	// volume; the private half never reaches Postgres.

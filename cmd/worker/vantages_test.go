@@ -123,6 +123,7 @@ type fakeLatencyStore struct {
 	latency  map[int64]int32
 	platform map[int64]pgtype.Text
 	egress   map[int64]pgtype.Text
+	dialled  map[int64]pgtype.Text
 }
 
 func (f *fakeLatencyStore) ListVantagesNeedingLatency(context.Context) ([]db.Vantage, error) {
@@ -149,9 +150,11 @@ func (f *fakeLatencyStore) SetVantageProbeFacts(_ context.Context, arg db.SetVan
 	if f.platform == nil {
 		f.platform = map[int64]pgtype.Text{}
 		f.egress = map[int64]pgtype.Text{}
+		f.dialled = map[int64]pgtype.Text{}
 	}
 	f.platform[arg.ID] = arg.Platform
 	f.egress[arg.ID] = arg.Egress
+	f.dialled[arg.ID] = arg.DialledAddr
 	return nil
 }
 
@@ -194,14 +197,19 @@ func TestMeasureVantageLatenciesPinsAndRecords(t *testing.T) {
 	prober := fakeProber{
 		rtt: 34 * time.Millisecond, encoded: "ssh-ed25519 AAAAhostkey",
 		facts: remoteexec.Facts{
-			Platform:  remoteexec.Platform{GOOS: "linux", GOARCH: "amd64", Label: "linux · x86_64"},
-			Egress:    "203.0.113.5",
-			HasEgress: true,
+			Platform:   remoteexec.Platform{GOOS: "linux", GOARCH: "amd64", Label: "linux · x86_64"},
+			Egress:     "203.0.113.5",
+			HasEgress:  true,
+			Dialled:    "198.51.100.7",
+			HasDialled: true,
 		},
 	}
 
 	measureVantageLatencies(context.Background(), store, prober, t.TempDir())
 
+	if got := store.dialled[5]; !got.Valid || got.String != "198.51.100.7" {
+		t.Errorf("vantage 5: dialled recorded = %+v, want 198.51.100.7", got)
+	}
 	if got := store.pinned[5]; got != "ssh-ed25519 AAAAhostkey" {
 		t.Errorf("vantage 5: host key pinned = %q, want the presented key", got)
 	}
