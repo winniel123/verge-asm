@@ -441,6 +441,24 @@ type server struct {
 	// dev route is reachable and the incident id keeps its crypto/rand draw (errors.go).
 	devMode bool
 
+	// stateDir is web's own state volume (VERGE_STATE_DIR), where the session
+	// signing key file lives. Restore (#391/B4, ADR-0124) rotates that key in
+	// place so a restored instance never carries the source instance's session
+	// key and every session lapses. Empty off a deployment that never set it
+	// (tests) — restore then skips the file rotation and lapses sessions by the
+	// in-memory key swap alone.
+	stateDir string
+
+	// restoreMu / restoreStage hold the per-admin staged restore archive between
+	// its multipart preflight (POST /settings/restore/preflight) and the typed-
+	// confirm apply (POST /settings/restore) (#391/B4). The confirm dialog re-posts
+	// only the typed word, not the file, so the pre-flighted archive is held here,
+	// keyed by the admin's account id, until they confirm or navigate away. In-
+	// process, best-effort — a process restart drops a pending pre-flight, which is
+	// the safe direction (nothing was applied).
+	restoreMu    sync.Mutex
+	restoreStage map[int64]*restoreStaging
+
 	// coverageMu / coverageEmptyOnce back the Coverage screen's empty-state capture
 	// (#552). states.json coverage declares an "empty" state seeded "empty-authed":
 	// GET /dev/seed/empty-authed (devMode only) sets coverageEmptyOnce so the NEXT
@@ -472,6 +490,7 @@ func newServer(s store, key []byte, setupToken string, now func() time.Time) *se
 		sso:            newOIDCFlow(&http.Client{Timeout: 30 * time.Second}),
 		loginLimiter:   newLoginLimiter(now),
 		flash:          newFlashStore(),
+		restoreStage:   make(map[int64]*restoreStaging),
 	}
 }
 
@@ -840,6 +859,12 @@ func (s *server) handler() http.Handler {
 	// Backup (#391, ADR-0124, B3): an admin streams a data-only logical archive of the
 	// estate + config tables. See cmd/web/backup.go — secret-free by construction.
 	mux.HandleFunc("POST /settings/backup", s.requireAdmin(s.backupDownload))
+	// Restore (#391, ADR-0124, B4): the destructive counterpart to backup. Preflight
+	// validates an uploaded archive WITHOUT applying (multipart), the apply is a typed-
+	// confirm overwrite that regenerates the session + prober keys so every session lapses
+	// and probers re-pin. See cmd/web/restore.go — refused while a scan is in flight.
+	mux.HandleFunc("POST /settings/restore/preflight", s.requireAdmin(s.restorePreflight))
+	mux.HandleFunc("POST /settings/restore", s.requireAdmin(s.restoreApply))
 	// API access (#390, ADR-0123): flipping the read-only /api/v1 surface on or off is an
 	// admin config act, gated like the update-check toggle. Off by default; while off every
 	// minted personal token is inert and /api/v1 answers nothing (surface off beats auth).
