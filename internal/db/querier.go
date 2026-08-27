@@ -806,6 +806,21 @@ type Querier interface {
 	// vantage column (the same join the current read uses); the exposure projection is
 	// computed in the handler over both readings. NOT live-tier gated (span corpus).
 	ListServiceReachabilitySpansByClassAt(ctx context.Context, at pgtype.Timestamptz) ([]ListServiceReachabilitySpansByClassAtRow, error)
+	// The latest `tls-acceptance` observation per Service (#684) — the value the
+	// `tls-1.0-accepted` rule reads. The `tls-acceptance` leaf (#199, ADR-0028)
+	// enumerates what a listener ACCEPTS (protocol versions, and for TLS 1.0-1.2 the
+	// suites) and persists it weekly on a `Service` subject; until now it was measured
+	// and stored but never read back, so the rule sat dormant with no population.
+	// buildServiceFacts folds the current value into `ServiceFacts` so the rule's
+	// domain (a completed enumeration) and predicate (TLS 1.0 in the accepted set) join
+	// the facts the engine evaluates. The value is the closed union
+	// `enumerated(versions) | tls-refused | no-tls`; the engine reads the outcome tag
+	// and, on an enumeration, whether TLS 1.0 is among the accepted versions. Like its
+	// `certificate` sibling one facet over (ListEndpointCertificates), this reads the
+	// observation tier THROUGH the live-tier gate (#237, ADR-0041): the Signal engine
+	// must fold only live evidence, never an aged row. DISTINCT ON keeps the most recent
+	// value per Service.
+	ListServiceTLSAcceptance(ctx context.Context, arg ListServiceTLSAcceptanceParams) ([]ListServiceTLSAcceptanceRow, error)
 	// One account's live sessions, newest activity first — the Profile's personal
 	// sessions list. token_hash is omitted from the read: listing never needs it, so
 	// the secret material stays out of the render path.

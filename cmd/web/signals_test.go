@@ -71,6 +71,76 @@ func TestBlanketResponderDampsSensitivePortSignal(t *testing.T) {
 	}
 }
 
+// The `tls-acceptance` facet is now folded into the Service facts (#684): a Service
+// whose current enumeration accepted TLS 1.0 fires tls-1.0-accepted, one that
+// enumerated only modern versions does not, and one that refused TLS altogether is
+// outside the rule's domain (no census member). The datum was already measured and
+// persisted weekly; this proves buildServiceFacts reads it back and the previously
+// dormant rule lights.
+func TestTLS10AcceptedFiresFromPersistedAcceptance(t *testing.T) {
+	f := newFakeStore()
+	// Each Service is reached from the internet (so it is a Service subject), then
+	// carries a persisted tls-acceptance enumeration.
+	const (
+		accepts10 = "198.51.100.7:443/tcp" // enumerated, includes 1.0 -> FIRES
+		modern    = "198.51.100.8:443/tcp" // enumerated, no 1.0 -> NOT-FIRED
+		refused   = "198.51.100.9:443/tcp" // tls-refused -> OUTSIDE DOMAIN
+	)
+	for _, svc := range []string{accepts10, modern, refused} {
+		f.addClassReachability(t, svc, "internet", obsClock, `{"outcome":"reached"}`)
+	}
+	f.addTLSAcceptance(t, accepts10, obsClock,
+		`{"outcome":"enumerated","versions":[{"version":"1.0","ciphers":["TLS_RSA_WITH_AES_128_CBC_SHA"]},{"version":"1.2","ciphers":["TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"]}]}`)
+	f.addTLSAcceptance(t, modern, obsClock,
+		`{"outcome":"enumerated","versions":[{"version":"1.2"},{"version":"1.3"}]}`)
+	f.addTLSAcceptance(t, refused, obsClock, `{"outcome":"tls-refused"}`)
+
+	srv := newServer(f, testKey, "", fixedClock())
+	req := httptest.NewRequest(http.MethodGet, "/signals", nil)
+	facts, _, err := srv.buildServiceFacts(req)
+	if err != nil {
+		t.Fatalf("buildServiceFacts: %v", err)
+	}
+	byKey := map[string]signal.ServiceFacts{}
+	for _, sf := range facts {
+		byKey[sf.Subject] = sf
+	}
+
+	// The accepting Service is in the rule's domain, its versions read, and TLS 1.0
+	// is flagged accepted.
+	got := byKey[accepts10]
+	if !got.TLSHandshakeCompleted || !got.TLSVersionsReadable || !got.TLS10Accepted {
+		t.Errorf("accepting service facts = %+v; want handshake completed, versions readable, 1.0 accepted", got)
+	}
+	// The modern Service completed a handshake but did not accept 1.0.
+	if m := byKey[modern]; !m.TLSHandshakeCompleted || !m.TLSVersionsReadable || m.TLS10Accepted {
+		t.Errorf("modern service facts = %+v; want handshake completed, no 1.0", m)
+	}
+	// A refusal completed no handshake — outside the domain.
+	if rf := byKey[refused]; rf.TLSHandshakeCompleted {
+		t.Errorf("refused service must not read as handshake-completed, got %+v", rf)
+	}
+
+	var rule signal.ServiceRule
+	for _, r := range signal.AllServiceRules() {
+		if r.Name() == "tls-1.0-accepted" {
+			rule = r
+		}
+	}
+	if rule == nil {
+		t.Fatal("tls-1.0-accepted rule not found")
+	}
+	if v := rule.Eval(byKey[accepts10]); v != signal.Fired {
+		t.Errorf("tls-1.0-accepted on the 1.0-accepting service = %v, want fired", v)
+	}
+	if v := rule.Eval(byKey[modern]); v != signal.NotFired {
+		t.Errorf("tls-1.0-accepted on the modern service = %v, want not-fired", v)
+	}
+	if v := rule.Eval(byKey[refused]); v != signal.OutsideDomain {
+		t.Errorf("tls-1.0-accepted on the refusing service = %v, want outside-domain", v)
+	}
+}
+
 // seedZone declares a name-scope Seed and attaches a zone file to it, returning
 // nothing — the Signals reads pick it up through ListZoneDeclarations.
 func seedZone(t *testing.T, f *fakeStore, admin db.Account, domain, content string) {
