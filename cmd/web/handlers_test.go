@@ -548,6 +548,19 @@ func (f *fakeStore) ListSeeds(context.Context) ([]db.ListSeedsRow, error) {
 	return rows, nil
 }
 
+// ListAddressScopeCidrs returns the declared address-scope Seed CIDRs — the corpus the
+// Vantage-class coverage predicate binds over (#711), mirroring the SQL (kind='address'
+// AND address_cidr IS NOT NULL, ordered by id).
+func (f *fakeStore) ListAddressScopeCidrs(context.Context) ([]*netip.Prefix, error) {
+	out := []*netip.Prefix{}
+	for _, s := range f.seeds {
+		if s.Kind == "address" && s.AddressCidr != nil {
+			out = append(out, s.AddressCidr)
+		}
+	}
+	return out, nil
+}
+
 // DeleteSeed removes a Seed by id (#21a), returning the rows affected so a missing id
 // is an idempotent no-op, mirroring the SQL.
 func (f *fakeStore) DeleteSeed(_ context.Context, id int64) (int64, error) {

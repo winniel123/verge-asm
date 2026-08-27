@@ -122,6 +122,12 @@ type store interface {
 	GetChannelForDelivery(ctx context.Context, id int64) (db.GetChannelForDeliveryRow, error)
 	CreateVantage(ctx context.Context, arg db.CreateVantageParams) (db.Vantage, error)
 	ListVantages(ctx context.Context) ([]db.ListVantagesRow, error)
+	// ListAddressScopeCidrs reads the declared address-scope Seed CIDRs — the corpus the
+	// Vantage-class coverage predicate binds over (#711), the same read the hot Scan's
+	// Custody derivation uses (internal/queue/hot.go). The render/compose path assembles
+	// the same custody.Estate{AddressScopes} from it to offer `covered` to the class
+	// derivation (#709), so batch and render classify against one identical corpus.
+	ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error)
 	ListUnavailableVantages(ctx context.Context) ([]db.ListUnavailableVantagesRow, error)
 	GetScanByKind(ctx context.Context, kind string) (db.Scan, error)
 	ListAccounts(ctx context.Context) ([]db.ListAccountsRow, error)
