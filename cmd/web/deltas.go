@@ -255,61 +255,32 @@ func (s *server) exposureCountDeltas(ctx context.Context, prevAt time.Time) (exp
 		log.Printf("web: exposure delta: list reachability by class at: %v", err)
 		return drift.Delta{}, drift.Delta{}, drift.Delta{}, false
 	}
+	// Class is DERIVED per read for both snapshots (#709), against one shared covered
+	// binding, so current and previous counts classify identically.
+	covered, err := s.addressScopeCovered(ctx)
+	if err != nil {
+		log.Printf("web: exposure delta: address scope coverage: %v", err)
+		return drift.Delta{}, drift.Delta{}, drift.Delta{}, false
+	}
 
-	cur := projectExposureStats(reachLegsFromCurrent(current))
-	prev := projectExposureStats(reachLegsFromAt(past))
+	cur := projectStatsFromLegs(collapseReachLegs(reachRowsFromCurrent(current), covered))
+	prev := projectStatsFromLegs(collapseReachLegs(reachRowsFromAt(past), covered))
 	return drift.Delta{Current: cur.exposed, Previous: prev.exposed},
 		drift.Delta{Current: cur.firewalled, Previous: prev.firewalled},
 		drift.Delta{Current: cur.notReached, Previous: prev.notReached},
 		true
 }
 
-// reachLeg is one (service, class) reachability leg normalized across the current
-// and as-of reads, which return distinct row types with identical fields.
-type reachLeg struct {
-	subject string
-	class   string
-	value   []byte
-	isGap   bool
-}
-
-func reachLegsFromCurrent(rows []db.ListServiceReachabilitySpansByClassRow) []reachLeg {
-	out := make([]reachLeg, 0, len(rows))
-	for _, r := range rows {
-		out = append(out, reachLeg{subject: r.SubjectKey, class: r.Class, value: r.Value, isGap: r.IsGap})
-	}
-	return out
-}
-
-func reachLegsFromAt(rows []db.ListServiceReachabilitySpansByClassAtRow) []reachLeg {
-	out := make([]reachLeg, 0, len(rows))
-	for _, r := range rows {
-		out = append(out, reachLeg{subject: r.SubjectKey, class: r.Class, value: r.Value, isGap: r.IsGap})
-	}
-	return out
-}
-
-// projectExposureStats folds the per-(service, class) reachability legs into the
+// projectStatsFromLegs folds the per-(service, DERIVED class) reachability legs into the
 // exposure summary band — the same projection foldExposure runs, reused here for the
-// historical snapshot so current and previous counts are computed one way. An
-// Exposure exists only where BOTH legs hold a value (ADR-0017): a service whose legs
-// did not both conclude is "not reached", matching the tile's honest count.
-func projectExposureStats(legs []reachLeg) exposureStats {
-	byService := map[string]map[string]legInfo{}
-	order := []string{}
-	for _, l := range legs {
-		m := byService[l.subject]
-		if m == nil {
-			m = map[string]legInfo{}
-			byService[l.subject] = m
-			order = append(order, l.subject)
-		}
-		m[l.class] = legInfo{outcome: decodeReachability(l.value).Outcome, isGap: l.isGap, present: true}
-	}
-
+// historical snapshot so current and previous counts are computed one way. An Exposure
+// exists only where BOTH legs hold a value (ADR-0017): a service whose legs did not both
+// conclude is "not reached", matching the tile's honest count. The legs are already
+// collapsed to one per (service, derived class) by collapseReachLegs.
+func projectStatsFromLegs(byService map[string]map[string]legInfo) exposureStats {
 	var stats exposureStats
-	for _, svc := range order {
-		ev, ok := exposure.Project(legFrom(byService[svc]["internet"]), legFrom(byService[svc]["internal"]))
+	for _, m := range byService {
+		ev, ok := exposure.Project(legFrom(m["internet"]), legFrom(m["internal"]))
 		switch {
 		case !ok:
 			stats.notReached++
@@ -341,7 +312,12 @@ func (s *server) currentExposedCount(ctx context.Context) (int, bool) {
 		log.Printf("web: dashboard: exposed services count: %v", err)
 		return 0, false
 	}
-	return projectExposureStats(reachLegsFromCurrent(rows)).exposed, true
+	covered, err := s.addressScopeCovered(ctx)
+	if err != nil {
+		log.Printf("web: dashboard: address scope coverage: %v", err)
+		return 0, false
+	}
+	return projectStatsFromLegs(collapseReachLegs(reachRowsFromCurrent(rows), covered)).exposed, true
 }
 
 // currentCertsExpiring is the count of endpoint certificates whose leaf expires

@@ -1,11 +1,17 @@
 -- name: CreateVantage :one
 -- Provisioning a prober creates a Vantage with connection detail. Its
 -- measurement identity is still mandatory: the caller derives `name` from the
--- endpoint (username@host:port) so it is unique per provisioned endpoint, class
--- defaults to 'unverified' until a prober re-verifies it, and resolver ships
--- blank ('') for the operator to set. availability starts 'pending' — no host
--- key has been pinned yet. The explicit casts keep the params plain scalars even
--- though the prober columns are nullable on the table.
+-- endpoint (username@host:port) so it is unique per provisioned endpoint, and
+-- resolver ships blank ('') for the operator to set. availability starts
+-- 'pending' — no host key has been pinned yet. The explicit casts keep the params
+-- plain scalars even though the prober columns are nullable on the table.
+--
+-- `class` defaults to 'unverified' and is a VESTIGE (#709 keystone (b)): it keeps its
+-- CHECK and its shipped `local` row, but NOTHING writes it and NO reader treats it as
+-- authoritative. Vantage class is DERIVED per read from the vantage's presented-address
+-- facts (egress + dialled_addr) against the declared address scopes
+-- (exposure.VerifyClass), never from this column — so it stays at its 'unverified'
+-- default for the life of the row.
 INSERT INTO vantage (name, host, port, username, availability, created_by)
 VALUES (
     sqlc.arg(name)::text,

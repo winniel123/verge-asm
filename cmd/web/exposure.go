@@ -103,9 +103,18 @@ func (s *server) exposurePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		s.serverError(w, "list vantages", err)
 		return
 	}
+	// The internet-vantage presence is DERIVED per read from each vantage's presented
+	// address facts against the declared address scopes (#709), never the vestigial
+	// `class` column. covered is the one binding this render assembles, shared with the
+	// fold below.
+	covered, err := s.addressScopeCovered(ctx)
+	if err != nil {
+		s.serverError(w, "address scope coverage", err)
+		return
+	}
 	internetVantage := false
 	for _, v := range vantages {
-		if v.Class == "internet" {
+		if vantageFactsClass(v.DialledAddr, v.Egress, covered).IsInternet() {
 			internetVantage = true
 			break
 		}
@@ -170,17 +179,17 @@ func (s *server) foldExposure(r *http.Request) ([]exposureRow, exposureStats) {
 	if err != nil {
 		return nil, exposureStats{}
 	}
-
-	legs := map[string]map[string]legInfo{}
-	order := []string{}
-	for _, row := range byClass {
-		m := legs[row.SubjectKey]
-		if m == nil {
-			m = map[string]legInfo{}
-			legs[row.SubjectKey] = m
-			order = append(order, row.SubjectKey)
-		}
-		m[row.Class] = legInfo{outcome: decodeReachability(row.Value).Outcome, isGap: row.IsGap, present: true}
+	// Class is DERIVED per read (#709): each per-vantage leg's class is re-verified over
+	// the declared address scopes, then collapsed to the most-recent leg per (service,
+	// derived class) — the collapse the retired SQL DISTINCT ON did.
+	covered, err := s.addressScopeCovered(ctx)
+	if err != nil {
+		return nil, exposureStats{}
+	}
+	legs := collapseReachLegs(reachRowsFromCurrent(byClass), covered)
+	order := make([]string, 0, len(legs))
+	for k := range legs {
+		order = append(order, k)
 	}
 	sort.Strings(order)
 

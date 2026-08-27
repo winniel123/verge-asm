@@ -15,10 +15,12 @@ FROM scan
 WHERE kind = $1;
 
 -- name: ListVantagesForDispatch :many
--- The dns Scan dispatches over every configured Vantage, reading only its
--- measurement identity (name, class, resolver). Distinct from the web prober
--- list (vantages.sql `ListVantages`), which is scoped to provisioned probers.
-SELECT id, name, class, resolver, created_at
+-- The dns Scan dispatches over every configured Vantage, reading its measurement
+-- identity (name, resolver) and its presented-address facts (egress + dialled_addr),
+-- from which the hot/cold Scans DERIVE its class per batch for the Custody gate — never
+-- the vestigial `class` column (#709, ADR-0079). Distinct from the web prober list
+-- (vantages.sql `ListVantages`), which is scoped to provisioned probers.
+SELECT id, name, class, resolver, egress, dialled_addr, created_at
 FROM vantage
 ORDER BY id;
 

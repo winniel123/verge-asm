@@ -418,22 +418,26 @@ func (q *Queries) ListScans(ctx context.Context) ([]Scan, error) {
 }
 
 const listVantagesForDispatch = `-- name: ListVantagesForDispatch :many
-SELECT id, name, class, resolver, created_at
+SELECT id, name, class, resolver, egress, dialled_addr, created_at
 FROM vantage
 ORDER BY id
 `
 
 type ListVantagesForDispatchRow struct {
-	ID        int64              `json:"id"`
-	Name      string             `json:"name"`
-	Class     string             `json:"class"`
-	Resolver  string             `json:"resolver"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	ID          int64              `json:"id"`
+	Name        string             `json:"name"`
+	Class       string             `json:"class"`
+	Resolver    string             `json:"resolver"`
+	Egress      pgtype.Text        `json:"egress"`
+	DialledAddr pgtype.Text        `json:"dialled_addr"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
-// The dns Scan dispatches over every configured Vantage, reading only its
-// measurement identity (name, class, resolver). Distinct from the web prober
-// list (vantages.sql `ListVantages`), which is scoped to provisioned probers.
+// The dns Scan dispatches over every configured Vantage, reading its measurement
+// identity (name, resolver) and its presented-address facts (egress + dialled_addr),
+// from which the hot/cold Scans DERIVE its class per batch for the Custody gate — never
+// the vestigial `class` column (#709, ADR-0079). Distinct from the web prober list
+// (vantages.sql `ListVantages`), which is scoped to provisioned probers.
 func (q *Queries) ListVantagesForDispatch(ctx context.Context) ([]ListVantagesForDispatchRow, error) {
 	rows, err := q.db.Query(ctx, listVantagesForDispatch)
 	if err != nil {
@@ -448,6 +452,8 @@ func (q *Queries) ListVantagesForDispatch(ctx context.Context) ([]ListVantagesFo
 			&i.Name,
 			&i.Class,
 			&i.Resolver,
+			&i.Egress,
+			&i.DialledAddr,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err

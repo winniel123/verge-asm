@@ -97,7 +97,12 @@ func vantageList(ctx context.Context, q *db.Queries) (vantages, error) {
 func (v vantages) scanVantages() []scan.Vantage {
 	out := make([]scan.Vantage, 0, len(v.rows))
 	for _, r := range v.rows {
-		out = append(out, scan.Vantage{ID: r.ID, Name: r.Name, Resolver: r.Resolver})
+		// Carry the presented-address facts so the hot/cold Scans derive each vantage's
+		// class per batch for the Custody gate (#709), never the vestigial column.
+		out = append(out, scan.Vantage{
+			ID: r.ID, Name: r.Name, Resolver: r.Resolver,
+			Dialled: r.DialledAddr.String, Egress: r.Egress.String,
+		})
 	}
 	return out
 }

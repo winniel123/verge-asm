@@ -14,6 +14,7 @@ import (
 
 	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
+	"github.com/winniel123/verge-asm/internal/vantageclass"
 	"github.com/winniel123/verge-asm/internal/vergecore"
 	"github.com/winniel123/verge-asm/internal/wire"
 )
@@ -53,9 +54,13 @@ func BuildHotJobs(scanID int64, estate custody.Estate, addrs []netip.Addr, vanta
 		return nil
 	}
 
+	// Class is DERIVED per batch from each vantage's presented-address facts against the
+	// declared address scopes (#709), never the vestigial column: covered is the
+	// address-scope-only predicate (#711) the same Estate carries.
+	covered := estate.CoversAddressScope
 	var jobs []HotJob
 	for _, v := range vantages {
-		vc := custody.VantageClass(v.Class)
+		vc := vantageclass.Derive(v.Dialled, v.Egress, covered)
 		admitted := make([]string, 0, len(addrs))
 		for _, a := range addrs {
 			if estate.MayProbe(a, vc) {
@@ -69,7 +74,7 @@ func BuildHotJobs(scanID int64, estate custody.Estate, addrs []netip.Addr, vanta
 			ScanID:       scanID,
 			VantageID:    v.ID,
 			Vantage:      v.Name,
-			VantageClass: v.Class,
+			VantageClass: string(vc),
 			Kind:         connectoutcome.Kind,
 			Addresses:    admitted,
 			TCPPorts:     tcp,

@@ -898,16 +898,14 @@ func (s *server) buildNameFacts(r *http.Request) ([]signal.NameFacts, error) {
 		return nil, err
 	}
 
-	// Per Name: the resolution value per Vantage class.
-	byClass := map[string]map[string]resolutionValue{}
-	for _, row := range resRows {
-		m := byClass[row.SubjectKey]
-		if m == nil {
-			m = map[string]resolutionValue{}
-			byClass[row.SubjectKey] = m
-		}
-		m[row.Class] = decodeResolution(row.Value)
+	// Per Name: the resolution value per Vantage class. Class is DERIVED per read from
+	// each vantage's presented-address facts (#709), collapsed to the most-recent value
+	// per (name, derived class) — the collapse the retired SQL DISTINCT ON did.
+	covered, err := s.addressScopeCovered(ctx)
+	if err != nil {
+		return nil, err
 	}
+	byClass := collapseNameResolutions(resRows, covered)
 
 	// Per Name: the CNAME target and the delegation's Lame verdict.
 	cnameTarget := map[string]string{}
@@ -1109,24 +1107,21 @@ func (s *server) buildServiceFacts(r *http.Request) ([]signal.ServiceFacts, map[
 	}
 	vc := vergecore.Default()
 
-	// subject -> class -> reach leg. Reading the SPAN (not the latest observation)
-	// gives us `is_gap`: a blanket responder's reach is a Gap, and a Gap leg reads
-	// as absent (ADR-0104), so it never becomes a value the rule can fire on.
-	type leg struct {
-		outcome string
-		isGap   bool
+	// subject -> class -> reach leg. Class is DERIVED per read from each vantage's
+	// presented-address facts (#709), collapsed to the most-recent leg per (service,
+	// derived class). Reading the SPAN (not the latest observation) gives us `is_gap`:
+	// a blanket responder's reach is a Gap, and a Gap leg reads as absent (ADR-0104), so
+	// it never becomes a value the rule can fire on.
+	covered, err := s.addressScopeCovered(r.Context())
+	if err != nil {
+		return nil, nil, err
 	}
-	byClass := map[string]map[string]leg{}
-	order := []string{}
-	for _, row := range rows {
-		m := byClass[row.SubjectKey]
-		if m == nil {
-			m = map[string]leg{}
-			byClass[row.SubjectKey] = m
-			order = append(order, row.SubjectKey)
-		}
-		m[row.Class] = leg{outcome: decodeReachability(row.Value).Outcome, isGap: row.IsGap}
+	byClass := collapseReachLegs(reachRowsFromCurrent(rows), covered)
+	order := make([]string, 0, len(byClass))
+	for k := range byClass {
+		order = append(order, k)
 	}
+	sort.Strings(order)
 
 	estateAddrs := map[string]bool{}
 	facts := make([]signal.ServiceFacts, 0, len(order))

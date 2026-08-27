@@ -13,11 +13,18 @@
 -- reads the operator's supplied zone file (input, not measured) and is not gated.
 
 -- name: ListNameResolutionsByClass :many
--- The latest `resolution` observation per (Name, Vantage class). The engine folds
--- these into a cross-class composed outcome (for the four cross-class rules) and
--- keeps the internet-class view apart (for the one vantage-scoped rule, ADR-0071).
--- DISTINCT ON keeps the most recent value per (name, class). Reads through the
--- live-tier gate (#237).
+-- The latest `resolution` observation per (Name, Vantage). The engine folds these into
+-- a cross-class composed outcome (for the four cross-class rules) and keeps the
+-- internet-class view apart (for the one vantage-scoped rule, ADR-0071). DISTINCT ON
+-- keeps the most recent value per (name, VANTAGE). Reads through the live-tier gate
+-- (#237).
+--
+-- Vantage class is DELIBERATELY NOT selected: it is DERIVED per read, never from the
+-- vestigial static column (#709, CONTEXT.md `Vantage class`). Each row carries the
+-- vantage's PRESENTED-address facts (egress + dialled_addr, host for context) so the
+-- caller re-verifies each vantage's class over the declared address scopes and
+-- re-collapses to the most-recent value per (name, derived class), preserving the
+-- observed_at DESC, id DESC tiebreak the old DISTINCT ON (subject_key, v.class) had.
 WITH cover AS (
     SELECT o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source,
            MIN(s.cadence_seconds) AS tightest_cadence
@@ -40,18 +47,23 @@ live AS (
           <= sqlc.arg(floor_cadences)::bigint * c.tightest_cadence
 ),
 latest AS (
-    SELECT DISTINCT ON (o.subject_key, v.class)
-        o.subject_key AS subject_key,
-        v.class       AS class,
-        o.value       AS value
+    SELECT DISTINCT ON (o.subject_key, o.vantage_id)
+        o.subject_key  AS subject_key,
+        o.vantage_id   AS vantage_id,
+        o.value        AS value,
+        o.observed_at  AS observed_at,
+        o.id           AS id,
+        v.host         AS host,
+        v.egress       AS egress,
+        v.dialled_addr AS dialled_addr
     FROM live o
     JOIN vantage v ON v.id = o.vantage_id
     WHERE o.facet = 'resolution' AND o.subject_kind = 'name'
-    ORDER BY o.subject_key, v.class, o.observed_at DESC, o.id DESC
+    ORDER BY o.subject_key, o.vantage_id, o.observed_at DESC, o.id DESC
 )
-SELECT subject_key, class, value
+SELECT subject_key, vantage_id, value, observed_at, id, host, egress, dialled_addr
 FROM latest
-ORDER BY subject_key, class;
+ORDER BY subject_key, vantage_id;
 
 -- name: ListNameDNSRecords :many
 -- The latest `dns-record` observation per (Name, qtype discriminator). The engine
@@ -94,28 +106,41 @@ FROM latest
 ORDER BY subject_key, discriminator;
 
 -- name: ListServiceReachabilitySpansByClass :many
--- The CURRENT `reachability` span per (Service, Vantage class) (#254, ADR-0104).
--- buildServiceFacts reads the SPAN, not the latest observation, because the span
--- carries `is_gap`: a blanket responder's reach is a Gap, and a Gap leg reads as
--- absent (HasInternetReach=false) so `sensitive-port-reached-from-internet`
--- returns not-evaluable with no rule edit, and a Gap is not a `reachability` value
--- so a blanket responder's ports drop out of any open-port count without a special
--- case. Span reads are NOT routed through the live-tier observation gate (#237):
--- the span corpus is the already-derived timeline the fold produced, kept forever
--- (ADR-0041), so an as_of bound would wrongly hide settled state rather than
--- protect a re-derivation. DISTINCT ON keeps the most recent OPEN span per
--- (service, class), mirroring the observation read one facet over.
-SELECT DISTINCT ON (sp.subject_key, v.class)
+-- The CURRENT `reachability` span per (Service, Vantage) (#254, ADR-0104). The caller
+-- reads the SPAN, not the latest observation, because the span carries `is_gap`: a
+-- blanket responder's reach is a Gap, and a Gap leg reads as absent (HasInternetReach
+-- =false) so `sensitive-port-reached-from-internet` returns not-evaluable with no rule
+-- edit, and a Gap is not a `reachability` value so a blanket responder's ports drop out
+-- of any open-port count without a special case. Span reads are NOT routed through the
+-- live-tier observation gate (#237): the span corpus is the already-derived timeline the
+-- fold produced, kept forever (ADR-0041), so an as_of bound would wrongly hide settled
+-- state rather than protect a re-derivation. DISTINCT ON keeps the most recent OPEN span
+-- per (service, VANTAGE).
+--
+-- Vantage class is DELIBERATELY NOT selected: it is DERIVED per read, never from the
+-- vestigial static column (#709, CONTEXT.md `Vantage class`). The row carries the
+-- vantage's PRESENTED-address facts (egress + dialled_addr, host for context) so the
+-- caller re-verifies each vantage's class over the operator's declared address scopes
+-- and re-collapses to the most-recent leg per (service, derived class) — the collapse
+-- the old DISTINCT ON (subject_key, v.class) did in SQL is now the Go fold's, preserving
+-- the opened_at DESC, id DESC tiebreak; the internet leg then composes existentially
+-- over every internet-class vantage rather than a single SQL-pre-collapsed row.
+SELECT DISTINCT ON (sp.subject_key, sp.vantage_id)
     sp.subject_key AS subject_key,
-    v.class        AS class,
+    sp.vantage_id  AS vantage_id,
     sp.value       AS value,
-    sp.is_gap      AS is_gap
+    sp.is_gap      AS is_gap,
+    sp.opened_at   AS opened_at,
+    sp.id          AS id,
+    v.host         AS host,
+    v.egress       AS egress,
+    v.dialled_addr AS dialled_addr
 FROM span sp
 JOIN vantage v ON v.id = sp.vantage_id
 WHERE sp.subject_kind = 'service'
   AND sp.facet = 'reachability'
   AND sp.closed_at IS NULL
-ORDER BY sp.subject_key, v.class, sp.opened_at DESC, sp.id DESC;
+ORDER BY sp.subject_key, sp.vantage_id, sp.opened_at DESC, sp.id DESC;
 
 -- name: ListServiceTLSAcceptance :many
 -- The latest `tls-acceptance` observation per Service (#684) — the value the
