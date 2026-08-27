@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/winniel123/verge-asm/internal/db"
@@ -71,6 +72,24 @@ type Worker struct {
 	// unchanged.
 	ctFetcher  CTFetcher
 	ctThrottle CTThrottle
+
+	// The off-host measurement router (ADR-0103, #683), wired via WithRouter. A
+	// provisioned internet Vantage measures from its OWN position: its jobs are pushed
+	// to and exec'd on the prober host over SSH, not run locally on the instance. Nil
+	// on a worker built without it — every job then runs on the local prober, exactly
+	// as before this seam — so the measurement-only construction and its tests are
+	// unchanged.
+	router VantageRouter
+}
+
+// VantageRouter decides whether a job runs off-host and, if so, runs it there. It is
+// consulted per job before the local prober: ProbeVantage reports handled=false for a
+// vantage with no prober (the resolver-only `local` position), so that job falls
+// through to the local ExecProber; handled=true means the observations came from the
+// prober host over SSH. An error is a transient measurement failure (unreachable host,
+// push failure) and drives the same retry/dead-letter path a local probe error does.
+type VantageRouter interface {
+	ProbeVantage(ctx context.Context, vantageID pgtype.Int8, spec wire.JobSpec) (obs []wire.Observation, handled bool, err error)
 }
 
 // NewWorker builds a Worker over pool driving prober.
@@ -79,6 +98,14 @@ func NewWorker(pool *pgxpool.Pool, prober Prober, now func() time.Time, logger *
 		now = time.Now
 	}
 	return &Worker{pool: pool, q: db.New(pool), prober: prober, now: now, log: logger}
+}
+
+// WithRouter wires the off-host measurement router onto the Worker (ADR-0103, #683).
+// It is separate from NewWorker so the local-only worker construction and its tests
+// stay unchanged; a worker with no router runs every job on the local prober.
+func (w *Worker) WithRouter(router VantageRouter) *Worker {
+	w.router = router
+	return w
 }
 
 // Run drains the queue, then waits on LISTEN/NOTIFY (with a ticker fallback so a
@@ -161,7 +188,7 @@ func (w *Worker) process(ctx context.Context, job db.ClaimJobRow) error {
 		return w.completeCT(ctx, job, spec)
 	}
 
-	obs, probeErr := w.prober.Probe(ctx, spec)
+	obs, probeErr := w.probe(ctx, job.VantageID, spec)
 	if probeErr != nil {
 		// A transient failure. Retry is a new Batch, never a resumption: while
 		// attempts remain we enqueue a fresh job; past them we dead-letter.
@@ -171,6 +198,23 @@ func (w *Worker) process(ctx context.Context, job db.ClaimJobRow) error {
 		return w.deadLetter(ctx, job, probeErr)
 	}
 	return w.complete(ctx, job, obs)
+}
+
+// probe runs a job's measurement, routing it off-host when a provisioned prober owns
+// the vantage and running it on the local prober otherwise. The router (when wired) is
+// consulted first: it reports handled=false for a vantage with no prober, so that job
+// falls through to the local ExecProber exactly as before this seam existed.
+func (w *Worker) probe(ctx context.Context, vantageID pgtype.Int8, spec wire.JobSpec) ([]wire.Observation, error) {
+	if w.router != nil {
+		obs, handled, err := w.router.ProbeVantage(ctx, vantageID, spec)
+		if err != nil {
+			return nil, err
+		}
+		if handled {
+			return obs, nil
+		}
+	}
+	return w.prober.Probe(ctx, spec)
 }
 
 // errJobCanceled signals that a job's guarded terminal write matched no row because a

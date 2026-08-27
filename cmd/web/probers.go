@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/remoteexec"
 	"github.com/winniel123/verge-asm/internal/vantage"
 )
 
@@ -29,10 +30,13 @@ type proberView struct {
 	HostKeyPinned bool
 	// HostKeyFingerprint, Platform and Egress carry the pinned prober's lifecycle
 	// facts to the spec VantageCard (#26c): the host-key fingerprint chip, the
-	// accepted platform, and the observed egress address (which links /scope). The
-	// live projection carries only the pin/publish status, so these render empty and
-	// their regions collapse until a read is wired; the design fixture pins them for
-	// the pixel golden.
+	// accepted platform, and the observed egress address (which links /scope). They
+	// are the real off-host facts as of P0.8 (#683): the fingerprint is derived from
+	// the pinned host key, and platform/egress are what the worker observed over SSH
+	// (`uname` and SSH_CLIENT) on the connect that pinned the key. Each renders empty
+	// and its region collapses until that read lands — an un-pinned or not-yet-probed
+	// vantage shows no fabricated fact — while the VERGE_DEV golden path keeps rendering
+	// the design fixture's pinned stubs, never these live reads.
 	HostKeyFingerprint string
 	Platform           string
 	Egress             string
@@ -94,7 +98,14 @@ func toProberViews(rows []db.ListVantagesRow) []proberView {
 			KeySet:        row.PublicKey.Valid && row.PublicKey.String != "",
 			PublicKey:     row.PublicKey.String,
 			HostKeyPinned: row.HostKey.Valid && row.HostKey.String != "",
-			By:            row.CreatedByUsername,
+			// The host-key fingerprint chip is DERIVED from the pinned known_hosts key
+			// (the value itself never reaches web); it renders the canonical SHA256 form,
+			// or empty when nothing is pinned yet. Platform and egress are what the worker
+			// observed off-host and persisted, empty until that first probe.
+			HostKeyFingerprint: remoteexec.Fingerprint(row.HostKey.String),
+			Platform:           row.Platform.String,
+			Egress:             row.Egress.String,
+			By:                 row.CreatedByUsername,
 		}
 		if row.CreatedAt.Valid {
 			v.At = row.CreatedAt.Time.UTC().Format("2006-01-02 15:04 UTC")

@@ -23,6 +23,18 @@ RUN go build -o /out/web ./cmd/web \
     && go build -o /out/worker ./cmd/worker \
     && go build -o /out/prober ./cmd/prober
 
+# The instance carries a prober for EVERY matrix architecture so it can push the
+# matching binary to a prober host of a different arch — an arm64 instance to an amd64
+# host and vice versa (ADR-0103, packaging-and-configuration.md §1.5, #683). The worker
+# selects prober-linux-<goarch> by the remote's `uname -m` and refuses a mismatch. Each
+# is CGO_ENABLED=0 static (already set) with the same pinned float flags, so a pushed
+# binary measures identically wherever it lands.
+RUN mkdir -p /out/probers \
+    && for a in amd64 arm64; do \
+         GOOS=linux GOARCH="$a" GOAMD64=v1 GOARM64=v8.0 \
+           go build -o "/out/probers/prober-linux-$a" ./cmd/prober; \
+       done
+
 # distroless has no shell to chown a bind/named-mount target at runtime, so
 # the state directory is created and owned by the nonroot uid here; Docker
 # copies its ownership into the named volume the first time it is mounted.
@@ -41,6 +53,8 @@ ENTRYPOINT ["/app/web"]
 FROM gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab AS worker
 COPY --from=builder /out/worker /app/worker
 COPY --from=builder /out/prober /app/prober
+# The per-architecture probers the off-host router pushes (VERGE_PROBER_DIR=/app/probers).
+COPY --from=builder /out/probers /app/probers
 COPY --from=builder --chown=65532:65532 /state /app/state
 HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 \
     CMD ["/app/worker", "-healthcheck"]

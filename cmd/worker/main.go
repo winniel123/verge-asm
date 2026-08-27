@@ -20,6 +20,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/pgdb"
 	"github.com/winniel123/verge-asm/internal/queue"
 	"github.com/winniel123/verge-asm/internal/release"
+	"github.com/winniel123/verge-asm/internal/remoteexec"
 	"github.com/winniel123/verge-asm/internal/report"
 	"github.com/winniel123/verge-asm/internal/retention"
 	"github.com/winniel123/verge-asm/internal/wire"
@@ -52,14 +53,29 @@ func main() {
 	defer pool.Close()
 
 	proberPath := env.OrDefault("VERGE_PROBER_PATH", "/app/prober")
+	proberDir := env.OrDefault("VERGE_PROBER_DIR", "/app/probers")
+	stateDir := env.OrDefault("VERGE_STATE_DIR", "/app/state")
 	logger := log.New(os.Stderr, "", log.LstdFlags)
 	dispatcher := queue.NewDispatcher(pool, time.Now, logger)
+	// The off-host measurement router (ADR-0103, #683, P0.8): a provisioned internet
+	// Vantage measures from its OWN position — its jobs are pushed to and exec'd on the
+	// prober host over SSH, arch-matched by `uname`. The instance ships a prober for each
+	// matrix architecture under VERGE_PROBER_DIR (an arm64 instance pushes to an amd64
+	// host and vice versa); the own-arch VERGE_PROBER_PATH is the single-binary fallback.
+	// A resolver-only vantage's jobs still run on the local prober.
+	router := newRemoteProberRouter(
+		db.New(pool),
+		remoteexec.DirBinaryProvider{Dir: proberDir, Fallback: proberPath},
+		stateDir,
+		logger,
+	)
 	// The ct Scan's runner (ADR-0106): a throttled crt.sh fetcher and the
 	// instance-wide 5 req/min reservation throttle, wired onto the worker beside
 	// the prober. The User-Agent identifies this build, which the source operator
 	// asked for (passive-discovery §2.2).
 	worker := queue.NewWorker(pool, queue.ExecProber{Path: proberPath}, time.Now, logger).
-		WithCT(queue.NewHTTPCTFetcher(env.OrDefault("VERGE_VERSION", "dev")), queue.NewCTThrottle(db.New(pool)))
+		WithCT(queue.NewHTTPCTFetcher(env.OrDefault("VERGE_VERSION", "dev")), queue.NewCTThrottle(db.New(pool))).
+		WithRouter(router)
 
 	// A manual run dispatches an existing Scan, drains it synchronously, and
 	// exits — the operator/CI path that produces Observation rows on demand.
@@ -78,8 +94,8 @@ func main() {
 
 	// Generate SSH keypairs for any newly provisioned vantages, keeping the
 	// private half on this worker-only volume and publishing only the public
-	// half. No measurement is dispatched over the connection yet (#8, #14).
-	stateDir := env.OrDefault("VERGE_STATE_DIR", "/app/state")
+	// half. Measurement is dispatched over the connection by the off-host router
+	// (#683); this loop only provisions the key material it uses.
 	provisionVantageKeys(ctx, db.New(pool), stateDir)
 
 	// Measure the per-vantage connect latency the Dashboard renders (P0.5): for

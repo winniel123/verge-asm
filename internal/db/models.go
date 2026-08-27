@@ -381,6 +381,8 @@ type Vantage struct {
 	CreatedBy    pgtype.Int8        `json:"created_by"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 	LatencyMs    pgtype.Int4        `json:"latency_ms"`
+	Platform     pgtype.Text        `json:"platform"`
+	Egress       pgtype.Text        `json:"egress"`
 }
 
 type VergeCoreFrequencyEdit struct {

@@ -22,7 +22,7 @@ VALUES (
     $5::bigint
 )
 RETURNING id, name, class, resolver, host, port, username, availability,
-          public_key, host_key, created_by, created_at, latency_ms
+          public_key, host_key, created_by, created_at, latency_ms, platform, egress
 `
 
 type CreateVantageParams struct {
@@ -63,13 +63,15 @@ func (q *Queries) CreateVantage(ctx context.Context, arg CreateVantageParams) (V
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.LatencyMs,
+		&i.Platform,
+		&i.Egress,
 	)
 	return i, err
 }
 
 const getVantage = `-- name: GetVantage :one
 SELECT id, name, class, resolver, host, port, username, availability,
-       public_key, host_key, created_by, created_at, latency_ms
+       public_key, host_key, created_by, created_at, latency_ms, platform, egress
 FROM vantage
 WHERE id = $1
 `
@@ -91,6 +93,8 @@ func (q *Queries) GetVantage(ctx context.Context, id int64) (Vantage, error) {
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.LatencyMs,
+		&i.Platform,
+		&i.Egress,
 	)
 	return i, err
 }
@@ -144,7 +148,7 @@ func (q *Queries) ListUnavailableVantages(ctx context.Context) ([]ListUnavailabl
 const listVantages = `-- name: ListVantages :many
 SELECT v.id, v.name, v.class, v.resolver, v.host, v.port, v.username,
        v.availability, v.public_key, v.host_key, v.created_by, v.created_at,
-       v.latency_ms, a.username AS created_by_username
+       v.latency_ms, v.platform, v.egress, a.username AS created_by_username
 FROM vantage v
 JOIN account a ON a.id = v.created_by
 WHERE v.host IS NOT NULL
@@ -165,6 +169,8 @@ type ListVantagesRow struct {
 	CreatedBy         pgtype.Int8        `json:"created_by"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 	LatencyMs         pgtype.Int4        `json:"latency_ms"`
+	Platform          pgtype.Text        `json:"platform"`
+	Egress            pgtype.Text        `json:"egress"`
 	CreatedByUsername string             `json:"created_by_username"`
 }
 
@@ -195,6 +201,8 @@ func (q *Queries) ListVantages(ctx context.Context) ([]ListVantagesRow, error) {
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.LatencyMs,
+			&i.Platform,
+			&i.Egress,
 			&i.CreatedByUsername,
 		); err != nil {
 			return nil, err
@@ -209,7 +217,7 @@ func (q *Queries) ListVantages(ctx context.Context) ([]ListVantagesRow, error) {
 
 const listVantagesNeedingKey = `-- name: ListVantagesNeedingKey :many
 SELECT id, name, class, resolver, host, port, username, availability,
-       public_key, host_key, created_by, created_at, latency_ms
+       public_key, host_key, created_by, created_at, latency_ms, platform, egress
 FROM vantage
 WHERE host IS NOT NULL AND public_key IS NULL
 ORDER BY id
@@ -241,6 +249,8 @@ func (q *Queries) ListVantagesNeedingKey(ctx context.Context) ([]Vantage, error)
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.LatencyMs,
+			&i.Platform,
+			&i.Egress,
 		); err != nil {
 			return nil, err
 		}
@@ -254,7 +264,7 @@ func (q *Queries) ListVantagesNeedingKey(ctx context.Context) ([]Vantage, error)
 
 const listVantagesNeedingLatency = `-- name: ListVantagesNeedingLatency :many
 SELECT id, name, class, resolver, host, port, username, availability,
-       public_key, host_key, created_by, created_at, latency_ms
+       public_key, host_key, created_by, created_at, latency_ms, platform, egress
 FROM vantage
 WHERE host IS NOT NULL AND public_key IS NOT NULL AND latency_ms IS NULL
 ORDER BY id
@@ -288,6 +298,8 @@ func (q *Queries) ListVantagesNeedingLatency(ctx context.Context) ([]Vantage, er
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.LatencyMs,
+			&i.Platform,
+			&i.Egress,
 		); err != nil {
 			return nil, err
 		}
@@ -364,6 +376,28 @@ type SetVantageLatencyParams struct {
 // fabricated value.
 func (q *Queries) SetVantageLatency(ctx context.Context, arg SetVantageLatencyParams) error {
 	_, err := q.db.Exec(ctx, setVantageLatency, arg.ID, arg.LatencyMs)
+	return err
+}
+
+const setVantageProbeFacts = `-- name: SetVantageProbeFacts :exec
+UPDATE vantage
+SET platform = $2, egress = $3
+WHERE id = $1
+`
+
+type SetVantageProbeFactsParams struct {
+	ID       int64       `json:"id"`
+	Platform pgtype.Text `json:"platform"`
+	Egress   pgtype.Text `json:"egress"`
+}
+
+// The worker records the lifecycle facts it observed off-host on the connect that
+// pins the host key (P0.8, #683): the remote platform read from `uname` and the
+// egress address read from SSH_CLIENT. Set together and only from a real successful
+// connection — a prober that could not be reached keeps them NULL and the VantageCard
+// keeps collapsing the platform/egress regions rather than showing a fabricated fact.
+func (q *Queries) SetVantageProbeFacts(ctx context.Context, arg SetVantageProbeFactsParams) error {
+	_, err := q.db.Exec(ctx, setVantageProbeFacts, arg.ID, arg.Platform, arg.Egress)
 	return err
 }
 
