@@ -13,6 +13,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/netip"
 	"sort"
 	"strconv"
 	"strings"
@@ -782,10 +783,15 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 	}
 
 	services, hasServices := 0, false
+	var walked []netip.Addr
 	if rows, serr := s.store.ListCurrentServiceSubjects(ctx, db.ListCurrentServiceSubjectsParams{
 		Search: "", AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	}); serr == nil {
 		services, hasServices = len(rows), true
+		// The distinct addresses these Services sit on are the batch-walked subjects the
+		// #19c address-scope meters count (cold.go apertureMeters), so the card's Coverage
+		// meters read the same numerator the Coverage screen does.
+		walked = walkedAddresses(rows)
 	} else {
 		log.Printf("web: dashboard: list service subjects: %v", serr)
 	}
@@ -956,19 +962,20 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 			HasDelta: deltas.Known, Change: deltas.CertsExpiring.Change(), Tone: statTone(deltas.CertsExpiring.Change(), true)},
 	}
 
-	// Coverage card (P2.1, PARITY-CHART collision #2): census CoverageMeters over the
-	// declared scopes — the same real read the Coverage screen renders (cold.go
-	// apertureMeters; a census claims no denominator, ADR-0095) — and, where a vantage
-	// has gone silent, a real StalenessBadge naming it (cold.go's "silent" currency,
-	// ADR-0108). Nothing fabricated: the card renders only what is read, and the
-	// re-skinned "detail is on its own screen" pointer is gone.
+	// Coverage card (P2.1, PARITY-CHART collision #2): CoverageMeters over the declared
+	// scopes — the same real read the Coverage screen renders (cold.go apertureMeters):
+	// an address scope's #19c counted/total (covered subjects walked over the enumerable
+	// addresses of its range), a name scope's census (no denominator, ADR-0072/0095) —
+	// and, where a vantage has gone silent, a real StalenessBadge naming it (cold.go's
+	// "silent" currency, ADR-0108). Nothing fabricated: the card renders only what is
+	// read, and the re-skinned "detail is on its own screen" pointer is gone.
 	var coverageMeters []coverageMeterView
 	if hasScopes {
 		var zones []db.ListZoneDeclarationsRow
 		if z, zerr := s.store.ListZoneDeclarations(ctx); zerr == nil {
 			zones = z
 		}
-		coverageMeters = apertureMeters(seedRows, zones)
+		coverageMeters = apertureMeters(seedRows, zones, walked)
 	}
 	// A silent source drives the Coverage card's staleness callout (#21e3): where a
 	// provisioned vantage has stopped reporting, the card names the silent position. Bound
