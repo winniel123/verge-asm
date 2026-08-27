@@ -117,12 +117,23 @@ func (w *Worker) changeCollector(changes *[]spanChange) *[]spanChange {
 	return changes
 }
 
+// departureCollector is the estate-fold's withdrawal collector, twin to
+// changeCollector: the real slice pointer where the producer is enabled and needs the
+// declared-input feed (AL-2, #722), nil where it is off so foldEstateTransitions does
+// no bookkeeping the measurement-only path would discard.
+func (w *Worker) departureCollector(deps *[]departure) *[]departure {
+	if !w.produceMsgs {
+		return nil
+	}
+	return deps
+}
+
 // produce folds the batch's transitions into messages inside the batch tx. It binds
 // the injected enqueuer to this transaction's queries so the producer never imports
 // internal/delivery, and is a no-op unless the worker was built WithMessages. The
 // devMode guard lives inside produceMessages (AL-25), so an enabled dev worker still
 // writes nothing.
-func (w *Worker) produce(ctx context.Context, qtx *db.Queries, batchID int64, observedAt time.Time, changes []spanChange, in membershipInputs) error {
+func (w *Worker) produce(ctx context.Context, qtx *db.Queries, batchID int64, observedAt time.Time, changes []spanChange, departures []departure, in membershipInputs) error {
 	if !w.produceMsgs {
 		return nil
 	}
@@ -132,7 +143,7 @@ func (w *Worker) produce(ctx context.Context, qtx *db.Queries, batchID int64, ob
 			return w.enqueue(c, qtx, messageID, class)
 		}
 	}
-	return produceMessages(ctx, qtx, batchID, observedAt, changes, in, enqueue, w.devMode)
+	return produceMessages(ctx, qtx, batchID, observedAt, changes, departures, in, enqueue, w.devMode)
 }
 
 // VantageRouter decides whether a job runs off-host and, if so, runs it there. It is
@@ -372,6 +383,7 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, obs []wire.Ob
 		// commit together (ADR-0007). The fold also collects each transition it made
 		// into `changes` — the estate/drift feed the message producer consumes below.
 		var changes []spanChange
+		var departures []departure
 		if err := foldObservationsIntoSpans(ctx, qtx, batchID, job.VantageID, observedAt, obs, membership, w.changeCollector(&changes)); err != nil {
 			return err
 		}
@@ -379,14 +391,14 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, obs []wire.Ob
 		// their timelines with the estate-decided ground (internal/estate wired into
 		// the spanfold closure, #637) — the withdrawn / descoped closures, and the
 		// re-open that lets a later `returned` derive, all citing this batch.
-		if err := foldEstateTransitions(ctx, qtx, batchID, observedAt, obs, membership); err != nil {
+		if err := foldEstateTransitions(ctx, qtx, batchID, observedAt, obs, membership, w.departureCollector(&departures)); err != nil {
 			return err
 		}
 		// Fold each signal/drift transition into a Message and route it to its bound
 		// channels, in this same transaction (P0.7): a flagship internet-leg move or a
 		// membership entry becomes a Message row and its Deliveries. A no-op unless the
 		// worker was built WithMessages, and always a no-op in devMode (AL-25).
-		if err := w.produce(ctx, qtx, batchID, observedAt, changes, membership); err != nil {
+		if err := w.produce(ctx, qtx, batchID, observedAt, changes, departures, membership); err != nil {
 			return err
 		}
 		return markDone(ctx, qtx, job.ID, batchID)

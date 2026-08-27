@@ -76,7 +76,7 @@ func readMembershipInputs(ctx context.Context, qtx *db.Queries) (membershipInput
 // timeline the Name holds is closed at the batch instant with that ground, citing
 // the batch — exactly the shape drift.CloseWithdrawal describes, applied through
 // the store.
-func foldEstateTransitions(ctx context.Context, qtx *db.Queries, batchID int64, observedAt time.Time, obs []wire.Observation, in membershipInputs) error {
+func foldEstateTransitions(ctx context.Context, qtx *db.Queries, batchID int64, observedAt time.Time, obs []wire.Observation, in membershipInputs, deps *[]departure) error {
 	for _, name := range observedResolutionNames(obs) {
 		open, err := qtx.ListOpenSpansForSubject(ctx, db.ListOpenSpansForSubjectParams{
 			SubjectKind: subjectKindName,
@@ -92,8 +92,53 @@ func foldEstateTransitions(ctx context.Context, qtx *db.Queries, batchID int64, 
 		if err := closeSubjectTimelines(ctx, qtx, open, observedAt, reason, batchID); err != nil {
 			return err
 		}
+		// Record the departure for the message producer (P0.7 / AL-2, #722): an
+		// operator-caused `descoped` closure is a `declared-input` firing, linking to
+		// the covering Exclusion as its Source; a world `measured-absent` closure
+		// carries no source and fires no declared-input message. A nil collector is the
+		// measurement-only path that produces no message.
+		if deps != nil {
+			*deps = append(*deps, departure{
+				SubjectKind: subjectKindName,
+				SubjectKey:  name,
+				Reason:      string(reason),
+				SourceKey:   coveringExclusionKey(name, reason, in.exclusions),
+				Timelines:   len(open),
+			})
+		}
 	}
 	return nil
+}
+
+// coveringExclusionKey is the declared value of the Exclusion that descoped a Name —
+// the Source identity a `declared-input` message links to (message.DeclaredInput →
+// LinkSource). It is consulted only for a `descoped` departure: a world withdrawal
+// (measured-absent) has no declared-input mover, so it returns "". It mirrors
+// nameExcluded's coverage test (an exact `name` exclusion or a `subtree` exclusion of
+// the Name or an ancestor) and returns the matching Exclusion's normalized declared
+// name, so the same declared boundary that removed the Name is the key the message
+// cites.
+func coveringExclusionKey(name string, reason drift.ClosureReason, exclusions []db.ListExclusionsRow) string {
+	if reason != drift.ReasonDescoped {
+		return ""
+	}
+	name = normalizeDomain(name)
+	for _, e := range exclusions {
+		if !e.Name.Valid {
+			continue
+		}
+		switch e.Kind {
+		case "name":
+			if name == normalizeDomain(e.Name.String) {
+				return normalizeDomain(e.Name.String)
+			}
+		case "subtree":
+			if nameWithinDomain(name, e.Name.String) {
+				return normalizeDomain(e.Name.String)
+			}
+		}
+	}
+	return ""
 }
 
 const subjectKindName = "name"
