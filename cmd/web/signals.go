@@ -1176,9 +1176,11 @@ func (s *server) buildServiceFacts(r *http.Request) ([]signal.ServiceFacts, map[
 // into the snapshot the ten Endpoint rules read. The estate membership a redirect
 // target is tested against is the union of the current Name subjects and the
 // Service addresses — both Derived, so the redirect-to-host rule's version
-// composes their leaves. The certificate value carries only its outcome tag and a
-// fingerprint chain, so the five certificate-detail rules leave CertDetails nil
-// (a presented chain renders `not-evaluable`).
+// composes their leaves. A presented certificate value now carries the v2 leaf's
+// `not_after`, which P0.10a folds into the per-attribute CertDetails to light
+// certificate-expired + certificate-expiring; the other four cert rules' attributes
+// stay nil (not-evaluable) until P0.10b (#704). A negative outcome or a pre-v2 span
+// still leaves CertDetails nil (a presented chain then renders `not-evaluable`).
 func (s *server) buildEndpointFacts(r *http.Request, names []signal.NameFacts, estateAddrs map[string]bool) ([]signal.EndpointFacts, error) {
 	ctx := r.Context()
 	certRows, err := s.store.ListEndpointCertificates(ctx, db.ListEndpointCertificatesParams{
@@ -1194,9 +1196,9 @@ func (s *server) buildEndpointFacts(r *http.Request, names []signal.NameFacts, e
 		return nil, err
 	}
 
-	certOutcome := map[string]string{}
+	certVal := map[string]certificateValue{}
 	for _, row := range certRows {
-		certOutcome[row.SubjectKey] = decodeCertificate(row.Value).Outcome
+		certVal[row.SubjectKey] = decodeCertificate(row.Value)
 	}
 	httpID := map[string]httpIdentityValue{}
 	for _, row := range httpRows {
@@ -1214,7 +1216,7 @@ func (s *server) buildEndpointFacts(r *http.Request, names []signal.NameFacts, e
 	}
 
 	subjects := map[string]struct{}{}
-	for k := range certOutcome {
+	for k := range certVal {
 		subjects[k] = struct{}{}
 	}
 	for k := range httpID {
@@ -1225,9 +1227,13 @@ func (s *server) buildEndpointFacts(r *http.Request, names []signal.NameFacts, e
 	for sub := range subjects {
 		name, _ := splitEndpointName(sub)
 		f := signal.EndpointFacts{Subject: sub, HasName: name != ""}
-		if o, ok := certOutcome[sub]; ok {
+		if cv, ok := certVal[sub]; ok {
 			f.CertMeasured = true
-			f.CertOutcome = o
+			f.CertOutcome = cv.Outcome
+			// P0.10a: fold the presented leaf's `not_after` into the per-attribute
+			// CertDetails, lighting certificate-expired + certificate-expiring; the
+			// other four attributes stay nil (not-evaluable) until P0.10b (#704).
+			f.CertDetails = certDetailsFromValue(cv, s.now())
 		}
 		if id, ok := httpID[sub]; ok {
 			// Only a `responded` Endpoint is inside the HTTP rules' domain; a reached
@@ -1247,18 +1253,49 @@ func (s *server) buildEndpointFacts(r *http.Request, names []signal.NameFacts, e
 }
 
 // certificateValue is the JSON payload of a certificate observation — the closed
-// union outcome tag and (only on a presentation) the fingerprint chain (#197).
-// The engine reads the outcome; the parsed leaf attributes the five detail rules
-// need are not stored, so a presented chain renders `not-evaluable`.
+// union outcome tag, (only on a presentation) the fingerprint chain (#197), and the
+// v2 leaf's parsed `not_after` expiry (RFC3339, presented chains only). The engine
+// reads the outcome; `not_after` is the ONE parsed-leaf datum P0.10a folds into
+// CertDetails, lighting certificate-expired + certificate-expiring (collision #37).
+// The remaining parsed-leaf attributes (not_before, SANs, key/signature policy,
+// self-signed) are not carried, so those four rules stay `not-evaluable` (P0.10b, #704).
 type certificateValue struct {
-	Outcome string   `json:"outcome"`
-	Chain   []string `json:"chain"`
+	Outcome  string   `json:"outcome"`
+	Chain    []string `json:"chain"`
+	NotAfter string   `json:"not_after"`
 }
 
 func decodeCertificate(raw []byte) certificateValue {
 	var v certificateValue
 	_ = json.Unmarshal(raw, &v)
 	return v
+}
+
+// certDetailsFromValue folds a decoded certificate value into the per-attribute
+// CertDetails the six Endpoint certificate rules read (collision #37, P0.10a). Only
+// a presented chain carries readable attributes; a negative outcome (`tls-refused` /
+// `no-tls`) is outside every certificate rule's domain, so it yields nil. On a
+// presentation whose leaf carried a `not_after`, it sets Expired and Expiring from
+// that SAME `not_after` key + 30-day window (certExpiryWindow) the P0.4 "Certs
+// expiring ≤30d" datum reads (cmd/web/deltas.go countCertsExpiring, collision #8) —
+// no new threshold is invented. NotYetValid, SANMatchesName, WeakKeyOrSignature and
+// SelfSigned stay nil: their per-attribute datum is not carried, so those rules stay
+// not-evaluable — a rule never emits a verdict from evidence it does not hold (the
+// hard constraint; SANMatchesName in particular NEVER defaults false). A presented
+// chain with no readable `not_after` (a pre-v2 span) yields nil — exactly the
+// not-evaluable the engine rendered before this wire.
+func certDetailsFromValue(v certificateValue, now time.Time) *signal.CertDetails {
+	if v.Outcome != signal.CertPresented || v.NotAfter == "" {
+		return nil
+	}
+	na, err := time.Parse(time.RFC3339, v.NotAfter)
+	if err != nil {
+		return nil
+	}
+	ref := now.UTC()
+	expired := !na.After(ref)                                         // not_after at or before now
+	expiring := na.After(ref) && !na.After(ref.Add(certExpiryWindow)) // within 30d, not yet expired
+	return &signal.CertDetails{Expired: &expired, Expiring: &expiring}
 }
 
 // parseServicePair splits a Service key `address:port/transport` into its
