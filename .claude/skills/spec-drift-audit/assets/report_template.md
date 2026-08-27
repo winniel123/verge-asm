@@ -10,12 +10,20 @@
 | Missing | |
 | Undocumented | |
 | Unverifiable | |
+| Known (ledger — excluded from counts above) | |
 
 **Headline:** <One or two sentences. E.g. "Of 41 claimed features, 22 work end-to-end. The 9 stubs are concentrated in third-party integrations, where client scaffolding exists but fetch logic does not. The UI advertises 4 finding types no scanner emits.">
 
 **Highest-impact gaps** (things a user would hit fastest):
 1. <feature> — <status> — <one line>
 2. …
+
+## Known findings (ledger) — not re-reported
+
+One line each: ledger rows re-confirmed unchanged. Only status *changes* appear as findings above.
+
+- AL-<nn> <finding> — unchanged (<ruling/chart ref>)
+- …
 
 ## Findings by subsystem
 
@@ -50,10 +58,15 @@ Where the fix is small enough to note — e.g. "unwired: add `portscan` to `sche
 
 - …
 
+## Proposed ledger amendments
+
+- New rows for this report's new findings (pending maintainer ruling); status flips for landed items.
+
 ## Coverage
 
 - **Claim sources audited:** <list>
 - **Claim sources skipped:** <list + why>
 - **Subsystems not audited:** <list + why>
 - **Unverifiable items:** <count> — see individual entries for reasons
+- **Ledger consulted:** <path, row count, how many would-be findings it absorbed; or "none exists">
 - **Method:** static reading / grep / ran locally (state which, per subsystem if mixed)

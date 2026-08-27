@@ -21,6 +21,7 @@ Before reading code, inventory every place the project makes promises. Use `scri
 - **API contracts**: OpenAPI/Swagger, GraphQL schemas, protobuf, route registrations
 - **User-facing surfaces**: CLI `--help` strings and subcommand registrations, UI navigation/menus/settings pages, config file schemas and example configs
 - **Tests**: test names are claims too (`test_asset_deduplication` implies deduplication exists)
+- **Prior-audit ledger**: if the repo carries a settled-findings register (`AUDIT-LEDGER.md` — often inside a design package, e.g. `design-system/AUDIT-LEDGER.md`), read it FIRST. It records findings already ruled on, charted as work items, or intentional-by-design, each with a row id (`AL-nn`). These are not drift to rediscover — see the ledger rule in Step 3.
 
 Don't skip the UI and CLI surfaces. Those are where phantom features hurt users most — a menu item that does nothing is worse than a doc paragraph that's aspirational.
 
@@ -66,6 +67,8 @@ Record evidence for every classification: file paths, line ranges, and a one-lin
 
 Never mark something Implemented because the function name matches. Read the body.
 
+**The ledger rule.** When a prior-audit ledger exists, diff every would-be finding against it before writing it up. A finding matching a ledger row is reported ONLY if its status changed on the ground: a charted item landed (move it to the report's delta), a ruling's premise no longer holds, or the gap widened. Otherwise it goes in the report's "Known findings" section as one line citing the row (`known (AL-nn)`) and stays out of the summary counts. Doc↔code contradictions may already be adjudicated — a ruling names which side is stale — so report the unexecuted side ("docs still stale per ruling #28"), never the contradiction as new.
+
 ### Step 4: Write the report
 
 Use the template in `assets/report_template.md`. Put the summary table first — the maintainer wants the shape of the problem in ten seconds. Then details grouped by subsystem, worst-first within each group (Missing and Stub before Partial before Implemented).
@@ -73,6 +76,8 @@ Use the template in `assets/report_template.md`. Put the summary table first —
 Include a "Recommended doc changes" section: for each Missing/Stub feature, suggest the specific edit — remove the claim, move it to a roadmap, or add a "planned" badge. This turns the audit into a PR rather than a complaint.
 
 End with a "Coverage" note: which claim sources were audited, which were skipped and why, and how many features were Unverifiable. An audit that's silent about its own gaps is just another unreliable doc.
+
+When a ledger exists, also end with **proposed ledger amendments**: a new row for each new finding (so the next audit inherits it once the maintainer rules), and status flips for rows whose charted items landed. The ledger is the memory between audits — a report that doesn't feed it will be re-litigated next run.
 
 ## Calibration notes
 
