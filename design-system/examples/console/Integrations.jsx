@@ -7,6 +7,7 @@ import { KeyValueList } from "../../components/display/KeyValueList.jsx";
 import { Callout } from "../../components/feedback/Callout.jsx";
 import { Drawer } from "../../components/feedback/Drawer.jsx";
 import { Button } from "../../components/forms/Button.jsx";
+import { Select } from "../../components/forms/Select.jsx";
 import { Badge } from "../../components/display/Badge.jsx";
 import { Icon } from "../../components/media/Icon.jsx";
 
@@ -29,17 +30,23 @@ const CATALOG = [
     grants: [{ scope: "Read inventory" }, { scope: "Read signals" }, { scope: "Read coverage facts" }] },
 ];
 const CATS = ["All", "Notify", "Ticketing", "SIEM", "Storage"];
+const CHANNELS = [
+  { value: "", label: "Not connected", hint: "no delivery target" },
+  { value: "ops", label: "ops.acmecorp.io/hook", hint: "signed HTTPS channel" },
+  { value: "pager", label: "pager.example/verge", hint: "signed HTTPS channel" },
+];
 
 export function Integrations({ onToast }) {
   const [q, setQ] = React.useState("");
   const [cat, setCat] = React.useState("All");
   const [states, setStates] = React.useState(() => { const m = {}; CATALOG.forEach((c) => { m[c.id] = c.state; }); return m; });
   const [open, setOpen] = React.useState(null);
+  const [bound, setBound] = React.useState({ slack: "ops", pagerduty: "pager", jira: "ops", s3: "ops" });
   const list = CATALOG.filter((c) => (cat === "All" || c.category === cat) && (!q || c.name.toLowerCase().includes(q.toLowerCase()) || c.description.toLowerCase().includes(q.toLowerCase())));
   const cur = open && CATALOG.find((c) => c.id === open);
   const curState = cur && states[cur.id];
   const install = () => { setStates((s) => ({ ...s, [cur.id]: "installed" })); onToast && onToast({ tone: "ok", title: cur.name + " installed", description: "Deliveries start with the next message." }); setOpen(null); };
-  const remove = () => { setStates((s) => ({ ...s, [cur.id]: "available" })); onToast && onToast({ tone: "neutral", title: cur.name + " removed", description: "Nothing was deleted on the " + cur.category.toLowerCase() + " side." }); setOpen(null); };
+  const remove = () => { setStates((s) => ({ ...s, [cur.id]: "available" })); setBound((b) => { const n = { ...b }; delete n[cur.id]; return n; }); onToast && onToast({ tone: "neutral", title: cur.name + " removed", description: "Nothing was deleted on the " + cur.category.toLowerCase() + " side." }); setOpen(null); };
   return (
     <section data-screen-label="Settings · Integrations" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       <header style={{ display: "flex", alignItems: "flex-end", gap: 16, flexWrap: "wrap" }}>
@@ -59,9 +66,10 @@ export function Integrations({ onToast }) {
       <Drawer open={!!cur} onClose={() => setOpen(null)} title={cur ? cur.name : ""} width={430}
         footer={cur && (curState === "available"
           ? <Button onClick={install} style={{ width: "100%", justifyContent: "center" }}>Install {cur.name}</Button>
-          : <div style={{ display: "flex", gap: 8, width: "100%" }}>
+          : <div style={{ display: "flex", gap: 10, width: "100%", alignItems: "center" }}>
               <Button variant="ghost" onClick={remove}>Remove</Button>
-              <Button variant="secondary" style={{ marginLeft: "auto" }} onClick={() => { onToast && onToast({ tone: "ok", title: "Test message sent", description: "Check " + cur.name + " for the delivery." }); }}>Send test</Button>
+              {!bound[cur.id] && <span style={{ marginLeft: "auto", font: "400 11.5px var(--font-ui)", color: "var(--text-muted)" }}>Connect a channel to test</span>}
+              <Button variant="secondary" disabled={!bound[cur.id]} style={bound[cur.id] ? { marginLeft: "auto" } : undefined} onClick={() => { if (!bound[cur.id]) return; onToast && onToast({ tone: "ok", title: "Test message sent", description: "Check " + cur.name + " for the delivery." }); }}>Send test</Button>
             </div>)}>
         {cur && (
           <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
@@ -72,6 +80,12 @@ export function Integrations({ onToast }) {
             </div>
             <p style={{ margin: 0, font: "400 13px/1.6 var(--font-ui)", color: "var(--text-body)" }}>{cur.description}</p>
             {curState === "attention" && <Callout tone="warn" title="Delivery failing">The last 3 deliveries were refused (401). Rotate the token on the {cur.name} side, then send a test.</Callout>}
+            {curState !== "available" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <Select label="Delivery channel" value={bound[cur.id] || ""} onChange={(e) => setBound((b) => ({ ...b, [cur.id]: e.target.value }))} options={CHANNELS} />
+                <span style={{ font: "400 12px/1.5 var(--font-ui)", color: "var(--text-muted)" }}>{cur.name} formats each message and delivers it through this channel — an integration adds formatting on top of a channel’s transport, it isn’t a channel itself. Manage channels in Settings → Channels.</span>
+              </div>
+            )}
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <span style={{ font: "500 11px var(--font-mono)", letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-muted)" }}>This integration can</span>
               <ConsentList grants={cur.grants} />

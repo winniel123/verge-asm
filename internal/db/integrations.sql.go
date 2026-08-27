@@ -7,6 +7,8 @@ package db
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const deleteIntegrationState = `-- name: DeleteIntegrationState :exec
@@ -22,14 +24,31 @@ func (q *Queries) DeleteIntegrationState(ctx context.Context, slug string) error
 	return err
 }
 
+const getIntegrationChannel = `-- name: GetIntegrationChannel :one
+SELECT channel_id
+FROM integration_state
+WHERE slug = $1
+`
+
+// The delivery Channel one integration is bound to (nullable — NULL is unbound). The
+// Send-test handler reads this to resolve where the test payload goes; an unbound
+// integration has nothing to send through.
+func (q *Queries) GetIntegrationChannel(ctx context.Context, slug string) (pgtype.Int8, error) {
+	row := q.db.QueryRow(ctx, getIntegrationChannel, slug)
+	var channel_id pgtype.Int8
+	err := row.Scan(&channel_id)
+	return channel_id, err
+}
+
 const listIntegrationStates = `-- name: ListIntegrationStates :many
-SELECT slug, state
+SELECT slug, state, channel_id
 FROM integration_state
 `
 
-// The operator's install states, merged by the handler onto the in-binary
-// integration catalogue: an integration's effective state is its stored state
-// where a row exists and available (not installed) otherwise.
+// The operator's install states and their bound delivery Channel, merged by the
+// handler onto the in-binary integration catalogue: an integration's effective state
+// is its stored state where a row exists and available (not installed) otherwise, and
+// its bound Channel (nullable — NULL is unbound) fills the drawer's BoundChannel hole.
 func (q *Queries) ListIntegrationStates(ctx context.Context) ([]IntegrationState, error) {
 	rows, err := q.db.Query(ctx, listIntegrationStates)
 	if err != nil {
@@ -39,7 +58,7 @@ func (q *Queries) ListIntegrationStates(ctx context.Context) ([]IntegrationState
 	items := []IntegrationState{}
 	for rows.Next() {
 		var i IntegrationState
-		if err := rows.Scan(&i.Slug, &i.State); err != nil {
+		if err := rows.Scan(&i.Slug, &i.State, &i.ChannelID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -50,12 +69,32 @@ func (q *Queries) ListIntegrationStates(ctx context.Context) ([]IntegrationState
 	return items, nil
 }
 
+const setIntegrationChannel = `-- name: SetIntegrationChannel :exec
+UPDATE integration_state
+SET channel_id = $2
+WHERE slug = $1
+`
+
+type SetIntegrationChannelParams struct {
+	Slug      string      `json:"slug"`
+	ChannelID pgtype.Int8 `json:"channel_id"`
+}
+
+// Bind an installed integration to a delivery Channel, or clear the binding (a NULL
+// channel_id unbinds). Only an installed integration has a row to update; binding an
+// integration with no row is a no-op (an available integration cannot bind, and the
+// drawer offers it no channel select).
+func (q *Queries) SetIntegrationChannel(ctx context.Context, arg SetIntegrationChannelParams) error {
+	_, err := q.db.Exec(ctx, setIntegrationChannel, arg.Slug, arg.ChannelID)
+	return err
+}
+
 const upsertIntegrationState = `-- name: UpsertIntegrationState :one
 INSERT INTO integration_state (slug, state)
 VALUES ($1, $2)
 ON CONFLICT (slug) DO UPDATE
     SET state = EXCLUDED.state
-RETURNING slug, state
+RETURNING slug, state, channel_id
 `
 
 type UpsertIntegrationStateParams struct {
@@ -66,10 +105,13 @@ type UpsertIntegrationStateParams struct {
 // Record the operator's install choice for one integration. An install is a
 // Declared act with no timeline, no actor, and no instant of its own (ADR-0073,
 // ADR-0093), so re-installing overwrites the single current state and the row
-// holds only the current install state.
+// holds only the current install state. The channel binding is NOT touched here:
+// a re-install keeps whatever delivery Channel the integration was bound to (the
+// ON CONFLICT omits channel_id, leaving the existing value in place), and a first
+// install lands unbound (channel_id defaults NULL).
 func (q *Queries) UpsertIntegrationState(ctx context.Context, arg UpsertIntegrationStateParams) (IntegrationState, error) {
 	row := q.db.QueryRow(ctx, upsertIntegrationState, arg.Slug, arg.State)
 	var i IntegrationState
-	err := row.Scan(&i.Slug, &i.State)
+	err := row.Scan(&i.Slug, &i.State, &i.ChannelID)
 	return i, err
 }

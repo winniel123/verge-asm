@@ -1,5 +1,5 @@
 {{/*
-  DESIGN-OWNED ARTIFACT — settings.tmpl · package v3.13.0 · WORKFLOW.md v4
+  DESIGN-OWNED ARTIFACT — settings.tmpl · package v3.23.1 · WORKFLOW.md v4
   Source of truth: examples/console/Settings.jsx + Sources.jsx + Integrations.jsx · shots 17–18.
   Replaces templates_settings.go wholesale (defines "settings" + "forbidden" + one
   "settings-<tab>" per section). The repo's "scantrigger" define is still called as-is (it stays
@@ -35,6 +35,10 @@
     spec panel; remove keeps typed-confirm (JS-gated, server validates).
   #26j integrations — the spec catalogue maps PRG: cat/q = GET params, tile click = ?view={id}
     drawer, install/remove/test = POSTs (/settings/integrations, alias or BUILD).
+  #39 integrations — the installed drawer binds a delivery Channel (nullable): a "Delivery channel"
+    <select> POSTs /settings/integrations/channel {id,channel}; Send test is gated on the binding —
+    disabled with "Connect a channel to test" when unbound (no POST), POSTs /settings/integrations/test
+    when bound. An integration references a Channel, it is not one (migration 20600).
   Holes per section are documented inline at each define.
 */}}
 {{define "forbidden"}}{{template "head" .}}
@@ -1223,7 +1227,7 @@
 {{end}}
 {{end}}
 
-{{/* integrations — holes: .IntCats[] .IntCat .IntQ .Integrations[{ID,Name,Mark,Category,Description,State(installed|attention|available)}] .IntDrawer{ID,Name,Mark,Category,Description,State,Attention,Grants[{Scope,Detail,Write}],Installed,LastDelivery,Classes} (#26j — PRG: ?cat=&q=&view=) */}}
+{{/* integrations — holes: .IntCats[] .IntCat .IntQ .IntChannels[{Value,Label,Hint}] .Integrations[{ID,Name,Mark,Category,Description,State(installed|attention|available)}] .IntDrawer{ID,Name,Mark,Category,Description,State,Attention,Grants[{Scope,Detail,Write}],Installed,LastDelivery,Classes,BoundChannel} (#26j — PRG: ?cat=&q=&view=; #39 — channel bind POST /settings/integrations/channel {id,channel}, Send test gated on BoundChannel) */}}
 {{define "settings-integrations"}}
 <header style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
 <div style="display:flex;flex-direction:column;gap:6px">
@@ -1285,6 +1289,17 @@
 <span class="ct"><b>Delivery failing</b><span>{{.Attention}}</span></span>
 </div>
 {{end}}
+{{if ne .State "available"}}
+{{$bound := .BoundChannel}}
+<form method="post" action="/settings/integrations/channel" style="margin:0;display:flex;flex-direction:column;gap:8px">
+<input type="hidden" name="id" value="{{.ID}}">
+<span class="st-input"><span class="lb">Delivery channel</span>
+<select name="channel" onchange="this.form.submit()" style="height:36px;padding:0 12px;background:var(--surface);color:var(--text-ink);font:400 13px var(--font-ui);border:1px solid var(--border-default);border-radius:12px;outline:none;cursor:pointer">
+{{range $.IntChannels}}<option value="{{.Value}}"{{if eq .Value $bound}} selected{{end}}>{{.Label}}</option>{{end}}
+</select></span>
+<span class="st-note">{{.Name}} formats each message and delivers it through this channel — an integration adds formatting on top of a channel's transport, it isn't a channel itself. Manage channels in <a href="/settings?tab=channels">Settings → Channels</a>.</span>
+</form>
+{{end}}
 <div style="display:flex;flex-direction:column;gap:8px">
 <span class="st-micro">This integration can</span>
 {{range .Grants}}
@@ -1307,7 +1322,11 @@
 <form method="post" action="/settings/integrations/install" style="margin:0;width:100%"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" class="st-btn pri" style="width:100%">Install {{.Name}}</button></form>
 {{else}}
 <form method="post" action="/settings/integrations/remove" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" class="st-btn ghost">Remove</button></form>
+{{if .BoundChannel}}
 <form method="post" action="/settings/integrations/test" style="margin:0;margin-left:auto"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" class="st-btn sec">Send test</button></form>
+{{else}}
+<span style="margin-left:auto;display:inline-flex;align-items:center;gap:10px"><span class="st-note">Connect a channel to test</span><button type="button" class="st-btn sec" disabled style="opacity:0.45;cursor:default">Send test</button></span>
+{{end}}
 {{end}}
 </div>
 </aside>
