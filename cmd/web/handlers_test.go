@@ -1710,6 +1710,29 @@ func (f *fakeStore) PreviousBatchTime(_ context.Context) (pgtype.Timestamptz, er
 	return pgtype.Timestamptz{Time: prev, Valid: true}, nil
 }
 
+// EarliestBatchTime returns the estate's first batch instant — the age boundary the
+// Drift vs-previous-period delta tests (#690). As with PreviousBatchTime the fake has
+// no created_at, so a batch's instant is the max observed_at over its observations (its
+// commit-time proxy). NULL where no observation (and so no batch) exists.
+func (f *fakeStore) EarliestBatchTime(_ context.Context) (pgtype.Timestamptz, error) {
+	inst := map[int64]time.Time{}
+	for _, o := range f.observations {
+		if t := o.ObservedAt.Time; t.After(inst[o.BatchID]) {
+			inst[o.BatchID] = t
+		}
+	}
+	var earliest time.Time
+	for _, t := range inst {
+		if earliest.IsZero() || t.Before(earliest) {
+			earliest = t
+		}
+	}
+	if earliest.IsZero() {
+		return pgtype.Timestamptz{}, nil
+	}
+	return pgtype.Timestamptz{Time: earliest, Valid: true}, nil
+}
+
 // ListSpansOpenSince folds every observation into Span timelines with the real
 // drift.Fold and returns the spans still open now OR closed after `since` — the
 // corpus a vs-last-batch delta reconstructs the previous population from (#443). It

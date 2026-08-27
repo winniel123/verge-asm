@@ -221,6 +221,14 @@ type Querier interface {
 	// Reset a port to its shipped default by dropping its edit row. Idempotent: a
 	// port with no edit is already at its default.
 	DeleteVergeCoreFrequencyEdit(ctx context.Context, port int32) error
+	// The commit instant of the FIRST batch the estate ever folded — the age boundary the
+	// Drift page's vs-previous-period delta tests before comparing (P0.12, #690). The chip
+	// compares the selected window against the immediately preceding equal-length window;
+	// that comparison is only honest once the estate has been observing since at or before
+	// the preceding window's start, so the delta is suppressed while the earliest batch is
+	// younger than that (install younger than 2× the window), never a fabricated baseline.
+	// NULL where no batch has committed. Reads batch only (corpus 1), never dispatch (ADR-0041).
+	EarliestBatchTime(ctx context.Context) (pgtype.Timestamptz, error)
 	EnqueueJob(ctx context.Context, arg EnqueueJobParams) (int64, error)
 	// The address-scope Seed a Service's Address falls inside (#195) — the other
 	// limb of Address membership, and where the Citation chain terminates when no

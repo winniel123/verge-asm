@@ -103,6 +103,17 @@ SELECT max(created_at)::timestamptz AS prev_batch_at
 FROM batch
 WHERE created_at < (SELECT max(created_at) FROM batch);
 
+-- name: EarliestBatchTime :one
+-- The commit instant of the FIRST batch the estate ever folded — the age boundary the
+-- Drift page's vs-previous-period delta tests before comparing (P0.12, #690). The chip
+-- compares the selected window against the immediately preceding equal-length window;
+-- that comparison is only honest once the estate has been observing since at or before
+-- the preceding window's start, so the delta is suppressed while the earliest batch is
+-- younger than that (install younger than 2× the window), never a fabricated baseline.
+-- NULL where no batch has committed. Reads batch only (corpus 1), never dispatch (ADR-0041).
+SELECT min(created_at)::timestamptz AS earliest_batch_at
+FROM batch;
+
 -- name: InsertObservation :exec
 INSERT INTO observation (
     batch_id, facet, subject_kind, subject_key, discriminator, vantage_id,
