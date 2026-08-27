@@ -216,18 +216,23 @@ live AS (
           <= $2::bigint * c.tightest_cadence
 ),
 latest AS (
-    SELECT DISTINCT ON (o.subject_key, v.class)
-        o.subject_key AS subject_key,
-        v.class       AS class,
-        o.value       AS value
+    SELECT DISTINCT ON (o.subject_key, o.vantage_id)
+        o.subject_key  AS subject_key,
+        o.vantage_id   AS vantage_id,
+        o.value        AS value,
+        o.observed_at  AS observed_at,
+        o.id           AS id,
+        v.host         AS host,
+        v.egress       AS egress,
+        v.dialled_addr AS dialled_addr
     FROM live o
     JOIN vantage v ON v.id = o.vantage_id
     WHERE o.facet = 'resolution' AND o.subject_kind = 'name'
-    ORDER BY o.subject_key, v.class, o.observed_at DESC, o.id DESC
+    ORDER BY o.subject_key, o.vantage_id, o.observed_at DESC, o.id DESC
 )
-SELECT subject_key, class, value
+SELECT subject_key, vantage_id, value, observed_at, id, host, egress, dialled_addr
 FROM latest
-ORDER BY subject_key, class
+ORDER BY subject_key, vantage_id
 `
 
 type ListNameResolutionsByClassParams struct {
@@ -236,9 +241,14 @@ type ListNameResolutionsByClassParams struct {
 }
 
 type ListNameResolutionsByClassRow struct {
-	SubjectKey string `json:"subject_key"`
-	Class      string `json:"class"`
-	Value      []byte `json:"value"`
+	SubjectKey  string             `json:"subject_key"`
+	VantageID   pgtype.Int8        `json:"vantage_id"`
+	Value       []byte             `json:"value"`
+	ObservedAt  pgtype.Timestamptz `json:"observed_at"`
+	ID          int64              `json:"id"`
+	Host        pgtype.Text        `json:"host"`
+	Egress      pgtype.Text        `json:"egress"`
+	DialledAddr pgtype.Text        `json:"dialled_addr"`
 }
 
 // Reads behind the Signals screen (#202). All three observation reads are additive
@@ -254,11 +264,18 @@ type ListNameResolutionsByClassRow struct {
 // the caller's read instant @as_of with k = @floor_cadences, so the Signal engine
 // never folds an evidential row into a Derived snapshot. ListZoneDeclarations
 // reads the operator's supplied zone file (input, not measured) and is not gated.
-// The latest `resolution` observation per (Name, Vantage class). The engine folds
-// these into a cross-class composed outcome (for the four cross-class rules) and
-// keeps the internet-class view apart (for the one vantage-scoped rule, ADR-0071).
-// DISTINCT ON keeps the most recent value per (name, class). Reads through the
-// live-tier gate (#237).
+// The latest `resolution` observation per (Name, Vantage). The engine folds these into
+// a cross-class composed outcome (for the four cross-class rules) and keeps the
+// internet-class view apart (for the one vantage-scoped rule, ADR-0071). DISTINCT ON
+// keeps the most recent value per (name, VANTAGE). Reads through the live-tier gate
+// (#237).
+//
+// Vantage class is DELIBERATELY NOT selected: it is DERIVED per read, never from the
+// vestigial static column (#709, CONTEXT.md `Vantage class`). Each row carries the
+// vantage's PRESENTED-address facts (egress + dialled_addr, host for context) so the
+// caller re-verifies each vantage's class over the declared address scopes and
+// re-collapses to the most-recent value per (name, derived class), preserving the
+// observed_at DESC, id DESC tiebreak the old DISTINCT ON (subject_key, v.class) had.
 func (q *Queries) ListNameResolutionsByClass(ctx context.Context, arg ListNameResolutionsByClassParams) ([]ListNameResolutionsByClassRow, error) {
 	rows, err := q.db.Query(ctx, listNameResolutionsByClass, arg.AsOf, arg.FloorCadences)
 	if err != nil {
@@ -268,7 +285,16 @@ func (q *Queries) ListNameResolutionsByClass(ctx context.Context, arg ListNameRe
 	items := []ListNameResolutionsByClassRow{}
 	for rows.Next() {
 		var i ListNameResolutionsByClassRow
-		if err := rows.Scan(&i.SubjectKey, &i.Class, &i.Value); err != nil {
+		if err := rows.Scan(
+			&i.SubjectKey,
+			&i.VantageID,
+			&i.Value,
+			&i.ObservedAt,
+			&i.ID,
+			&i.Host,
+			&i.Egress,
+			&i.DialledAddr,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -280,37 +306,55 @@ func (q *Queries) ListNameResolutionsByClass(ctx context.Context, arg ListNameRe
 }
 
 const listServiceReachabilitySpansByClass = `-- name: ListServiceReachabilitySpansByClass :many
-SELECT DISTINCT ON (sp.subject_key, v.class)
+SELECT DISTINCT ON (sp.subject_key, sp.vantage_id)
     sp.subject_key AS subject_key,
-    v.class        AS class,
+    sp.vantage_id  AS vantage_id,
     sp.value       AS value,
-    sp.is_gap      AS is_gap
+    sp.is_gap      AS is_gap,
+    sp.opened_at   AS opened_at,
+    sp.id          AS id,
+    v.host         AS host,
+    v.egress       AS egress,
+    v.dialled_addr AS dialled_addr
 FROM span sp
 JOIN vantage v ON v.id = sp.vantage_id
 WHERE sp.subject_kind = 'service'
   AND sp.facet = 'reachability'
   AND sp.closed_at IS NULL
-ORDER BY sp.subject_key, v.class, sp.opened_at DESC, sp.id DESC
+ORDER BY sp.subject_key, sp.vantage_id, sp.opened_at DESC, sp.id DESC
 `
 
 type ListServiceReachabilitySpansByClassRow struct {
-	SubjectKey string `json:"subject_key"`
-	Class      string `json:"class"`
-	Value      []byte `json:"value"`
-	IsGap      bool   `json:"is_gap"`
+	SubjectKey  string             `json:"subject_key"`
+	VantageID   pgtype.Int8        `json:"vantage_id"`
+	Value       []byte             `json:"value"`
+	IsGap       bool               `json:"is_gap"`
+	OpenedAt    pgtype.Timestamptz `json:"opened_at"`
+	ID          int64              `json:"id"`
+	Host        pgtype.Text        `json:"host"`
+	Egress      pgtype.Text        `json:"egress"`
+	DialledAddr pgtype.Text        `json:"dialled_addr"`
 }
 
-// The CURRENT `reachability` span per (Service, Vantage class) (#254, ADR-0104).
-// buildServiceFacts reads the SPAN, not the latest observation, because the span
-// carries `is_gap`: a blanket responder's reach is a Gap, and a Gap leg reads as
-// absent (HasInternetReach=false) so `sensitive-port-reached-from-internet`
-// returns not-evaluable with no rule edit, and a Gap is not a `reachability` value
-// so a blanket responder's ports drop out of any open-port count without a special
-// case. Span reads are NOT routed through the live-tier observation gate (#237):
-// the span corpus is the already-derived timeline the fold produced, kept forever
-// (ADR-0041), so an as_of bound would wrongly hide settled state rather than
-// protect a re-derivation. DISTINCT ON keeps the most recent OPEN span per
-// (service, class), mirroring the observation read one facet over.
+// The CURRENT `reachability` span per (Service, Vantage) (#254, ADR-0104). The caller
+// reads the SPAN, not the latest observation, because the span carries `is_gap`: a
+// blanket responder's reach is a Gap, and a Gap leg reads as absent (HasInternetReach
+// =false) so `sensitive-port-reached-from-internet` returns not-evaluable with no rule
+// edit, and a Gap is not a `reachability` value so a blanket responder's ports drop out
+// of any open-port count without a special case. Span reads are NOT routed through the
+// live-tier observation gate (#237): the span corpus is the already-derived timeline the
+// fold produced, kept forever (ADR-0041), so an as_of bound would wrongly hide settled
+// state rather than protect a re-derivation. DISTINCT ON keeps the most recent OPEN span
+// per (service, VANTAGE).
+//
+// Vantage class is DELIBERATELY NOT selected: it is DERIVED per read, never from the
+// vestigial static column (#709, CONTEXT.md `Vantage class`). The row carries the
+// vantage's PRESENTED-address facts (egress + dialled_addr, host for context) so the
+// caller re-verifies each vantage's class over the operator's declared address scopes
+// and re-collapses to the most-recent leg per (service, derived class) — the collapse
+// the old DISTINCT ON (subject_key, v.class) did in SQL is now the Go fold's, preserving
+// the opened_at DESC, id DESC tiebreak; the internet leg then composes existentially
+// over every internet-class vantage rather than a single SQL-pre-collapsed row.
 func (q *Queries) ListServiceReachabilitySpansByClass(ctx context.Context) ([]ListServiceReachabilitySpansByClassRow, error) {
 	rows, err := q.db.Query(ctx, listServiceReachabilitySpansByClass)
 	if err != nil {
@@ -322,9 +366,130 @@ func (q *Queries) ListServiceReachabilitySpansByClass(ctx context.Context) ([]Li
 		var i ListServiceReachabilitySpansByClassRow
 		if err := rows.Scan(
 			&i.SubjectKey,
-			&i.Class,
+			&i.VantageID,
 			&i.Value,
 			&i.IsGap,
+			&i.OpenedAt,
+			&i.ID,
+			&i.Host,
+			&i.Egress,
+			&i.DialledAddr,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listServiceTLSAcceptance = `-- name: ListServiceTLSAcceptance :many
+WITH cover AS (
+    SELECT o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source,
+           MIN(s.cadence_seconds) AS tightest_cadence
+    FROM observation o
+    JOIN batch b ON b.id = o.batch_id
+    JOIN scan  s ON s.id = b.scan_id AND s.enabled = TRUE
+    GROUP BY o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source
+),
+live AS (
+    SELECT o.id, o.facet, o.subject_kind, o.subject_key, o.discriminator,
+           o.vantage_id, o.source, o.value, o.observed_at, o.batch_id
+    FROM observation o
+    JOIN cover c
+        ON  c.subject_key   = o.subject_key
+        AND c.facet         = o.facet
+        AND c.discriminator = o.discriminator
+        AND c.vantage_id IS NOT DISTINCT FROM o.vantage_id
+        AND c.source        = o.source
+    WHERE EXTRACT(EPOCH FROM ($1::timestamptz - o.observed_at))
+          <= $2::bigint * c.tightest_cadence
+),
+latest AS (
+    SELECT DISTINCT ON (o.subject_key)
+        o.subject_key AS subject_key,
+        o.value       AS value
+    FROM live o
+    WHERE o.subject_kind = 'service' AND o.facet = 'tls-acceptance'
+    ORDER BY o.subject_key, o.observed_at DESC, o.id DESC
+)
+SELECT subject_key, value
+FROM latest
+ORDER BY subject_key
+`
+
+type ListServiceTLSAcceptanceParams struct {
+	AsOf          pgtype.Timestamptz `json:"as_of"`
+	FloorCadences int64              `json:"floor_cadences"`
+}
+
+type ListServiceTLSAcceptanceRow struct {
+	SubjectKey string `json:"subject_key"`
+	Value      []byte `json:"value"`
+}
+
+// The latest `tls-acceptance` observation per Service (#684) — the value the
+// `tls-1.0-accepted` rule reads. The `tls-acceptance` leaf (#199, ADR-0028)
+// enumerates what a listener ACCEPTS (protocol versions, and for TLS 1.0-1.2 the
+// suites) and persists it weekly on a `Service` subject; until now it was measured
+// and stored but never read back, so the rule sat dormant with no population.
+// buildServiceFacts folds the current value into `ServiceFacts` so the rule's
+// domain (a completed enumeration) and predicate (TLS 1.0 in the accepted set) join
+// the facts the engine evaluates. The value is the closed union
+// `enumerated(versions) | tls-refused | no-tls`; the engine reads the outcome tag
+// and, on an enumeration, whether TLS 1.0 is among the accepted versions. Like its
+// `certificate` sibling one facet over (ListEndpointCertificates), this reads the
+// observation tier THROUGH the live-tier gate (#237, ADR-0041): the Signal engine
+// must fold only live evidence, never an aged row. DISTINCT ON keeps the most recent
+// value per Service.
+func (q *Queries) ListServiceTLSAcceptance(ctx context.Context, arg ListServiceTLSAcceptanceParams) ([]ListServiceTLSAcceptanceRow, error) {
+	rows, err := q.db.Query(ctx, listServiceTLSAcceptance, arg.AsOf, arg.FloorCadences)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListServiceTLSAcceptanceRow{}
+	for rows.Next() {
+		var i ListServiceTLSAcceptanceRow
+		if err := rows.Scan(&i.SubjectKey, &i.Value); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSignalInstances = `-- name: ListSignalInstances :many
+SELECT id, signal_name, subject_key, first_seen
+FROM signal_instance
+ORDER BY signal_name, subject_key
+`
+
+// Every minted instance identity, ordered by signal then subject — the same
+// deterministic order the annotation ledger uses. The web layer folds these
+// against the live census by `(signal_name, subject_key)` to attach each currently
+// -fired member its stable id and first-seen instant; a stored row whose pair is no
+// longer firing simply matches nothing this render and contributes no per-instance
+// row (the pair is not currently open).
+func (q *Queries) ListSignalInstances(ctx context.Context) ([]SignalInstance, error) {
+	rows, err := q.db.Query(ctx, listSignalInstances)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SignalInstance{}
+	for rows.Next() {
+		var i SignalInstance
+		if err := rows.Scan(
+			&i.ID,
+			&i.SignalName,
+			&i.SubjectKey,
+			&i.FirstSeen,
 		); err != nil {
 			return nil, err
 		}
@@ -374,4 +539,35 @@ func (q *Queries) ListZoneDeclarations(ctx context.Context) ([]ListZoneDeclarati
 		return nil, err
 	}
 	return items, nil
+}
+
+const mintSignalInstances = `-- name: MintSignalInstances :exec
+
+INSERT INTO signal_instance (signal_name, subject_key)
+SELECT unnest($1::text[]), unnest($2::text[])
+ON CONFLICT (signal_name, subject_key) DO NOTHING
+`
+
+type MintSignalInstancesParams struct {
+	SignalNames []string `json:"signal_names"`
+	SubjectKeys []string `json:"subject_keys"`
+}
+
+// Per-instance signal identity (#442, P0.1). A signal_instance is the persistent
+// id + first-seen instant of one `(signal-name, subject)` pair the engine placed
+// under `fired`. The census is re-derived live and never stored; these two queries
+// add only the mintable `SIG-####` id (formatted from the identity) and the
+// first-seen instant that a pure re-derivation cannot reconstruct. Everything else
+// the SignalData.jsx row shows is derived on read (severity from the rule,
+// last-seen = the current derivation instant, asset/ip/port from the subject key).
+// Mint an identity for every currently-fired pair, idempotently. Called on the
+// Signals read path with the whole current fired set unnested into two parallel
+// arrays; ON CONFLICT DO NOTHING means a pair already firing keeps its original id
+// and first_seen (so "first seen" is when it was first raised, not last rendered),
+// while a newly-fired pair is minted with first_seen defaulting to now(). It writes
+// identity only — never a severity, never a last-seen — so the row carries exactly
+// what must persist.
+func (q *Queries) MintSignalInstances(ctx context.Context, arg MintSignalInstancesParams) error {
+	_, err := q.db.Exec(ctx, mintSignalInstances, arg.SignalNames, arg.SubjectKeys)
+	return err
 }

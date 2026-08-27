@@ -2,14 +2,19 @@ package main
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/remoteexec"
 	"github.com/winniel123/verge-asm/internal/vantage"
 )
 
@@ -108,5 +113,151 @@ func TestProvisionVantageKeysIsIdempotent(t *testing.T) {
 	}
 	if store2.published[3] != first {
 		t.Errorf("re-published key %q differs from first %q", store2.published[3], first)
+	}
+}
+
+// fakeLatencyStore is an in-memory vantageLatencyStore for the worker latency loop.
+type fakeLatencyStore struct {
+	needing  []db.Vantage
+	pinned   map[int64]string
+	latency  map[int64]int32
+	platform map[int64]pgtype.Text
+	egress   map[int64]pgtype.Text
+	dialled  map[int64]pgtype.Text
+}
+
+func (f *fakeLatencyStore) ListVantagesNeedingLatency(context.Context) ([]db.Vantage, error) {
+	return f.needing, nil
+}
+
+func (f *fakeLatencyStore) PinVantageHostKey(_ context.Context, arg db.PinVantageHostKeyParams) error {
+	if f.pinned == nil {
+		f.pinned = map[int64]string{}
+	}
+	f.pinned[arg.ID] = arg.HostKey.String
+	return nil
+}
+
+func (f *fakeLatencyStore) SetVantageLatency(_ context.Context, arg db.SetVantageLatencyParams) error {
+	if f.latency == nil {
+		f.latency = map[int64]int32{}
+	}
+	f.latency[arg.ID] = arg.LatencyMs.Int32
+	return nil
+}
+
+func (f *fakeLatencyStore) SetVantageProbeFacts(_ context.Context, arg db.SetVantageProbeFactsParams) error {
+	if f.platform == nil {
+		f.platform = map[int64]pgtype.Text{}
+		f.egress = map[int64]pgtype.Text{}
+		f.dialled = map[int64]pgtype.Text{}
+	}
+	f.platform[arg.ID] = arg.Platform
+	f.egress[arg.ID] = arg.Egress
+	f.dialled[arg.ID] = arg.DialledAddr
+	return nil
+}
+
+// fakeProber stands in for the SSH dial so the orchestration is exercised without
+// a live server: it pins the given host key via onFirstUse and returns a fixed
+// round-trip and lifecycle facts, or an error to model an unreachable prober.
+type fakeProber struct {
+	rtt     time.Duration
+	encoded string
+	facts   remoteexec.Facts
+	err     error
+}
+
+func (p fakeProber) Connect(_ context.Context, _ db.Vantage, _ string, onFirstUse func(string) error) (vantageProbe, error) {
+	if p.err != nil {
+		return vantageProbe{}, p.err
+	}
+	if onFirstUse != nil {
+		if err := onFirstUse(p.encoded); err != nil {
+			return vantageProbe{}, err
+		}
+	}
+	return vantageProbe{rtt: p.rtt, facts: p.facts}, nil
+}
+
+func provisionedVantage(id int64) db.Vantage {
+	return db.Vantage{
+		ID:       id,
+		Host:     pgtype.Text{String: "prober.example.com", Valid: true},
+		Port:     pgtype.Int4{Int32: 22, Valid: true},
+		Username: pgtype.Text{String: "verge", Valid: true},
+	}
+}
+
+// A successful connect pins the presented host key trust-on-first-use, records the
+// round-trip in whole milliseconds — the unit the Dashboard renders — and persists the
+// off-host lifecycle facts (platform, egress) the same connect observed.
+func TestMeasureVantageLatenciesPinsAndRecords(t *testing.T) {
+	store := &fakeLatencyStore{needing: []db.Vantage{provisionedVantage(5)}}
+	prober := fakeProber{
+		rtt: 34 * time.Millisecond, encoded: "ssh-ed25519 AAAAhostkey",
+		facts: remoteexec.Facts{
+			Platform:   remoteexec.Platform{GOOS: "linux", GOARCH: "amd64", Label: "linux · x86_64"},
+			Egress:     "203.0.113.5",
+			HasEgress:  true,
+			Dialled:    "198.51.100.7",
+			HasDialled: true,
+		},
+	}
+
+	measureVantageLatencies(context.Background(), store, prober, t.TempDir())
+
+	if got := store.dialled[5]; !got.Valid || got.String != "198.51.100.7" {
+		t.Errorf("vantage 5: dialled recorded = %+v, want 198.51.100.7", got)
+	}
+	if got := store.pinned[5]; got != "ssh-ed25519 AAAAhostkey" {
+		t.Errorf("vantage 5: host key pinned = %q, want the presented key", got)
+	}
+	if got := store.latency[5]; got != 34 {
+		t.Errorf("vantage 5: latency recorded = %dms, want 34ms", got)
+	}
+	if got := store.platform[5]; !got.Valid || got.String != "linux · x86_64" {
+		t.Errorf("vantage 5: platform recorded = %+v, want linux · x86_64", got)
+	}
+	if got := store.egress[5]; !got.Valid || got.String != "203.0.113.5" {
+		t.Errorf("vantage 5: egress recorded = %+v, want 203.0.113.5", got)
+	}
+}
+
+// A connect that could not read the egress (host does not export SSH_CLIENT) persists
+// a NULL egress rather than a fabricated one — the chip stays collapsed.
+func TestMeasureVantageLatenciesBlankEgressStaysNull(t *testing.T) {
+	store := &fakeLatencyStore{needing: []db.Vantage{provisionedVantage(6)}}
+	prober := fakeProber{
+		rtt: 10 * time.Millisecond, encoded: "ssh-ed25519 AAAAhostkey",
+		facts: remoteexec.Facts{
+			Platform: remoteexec.Platform{Label: "linux · aarch64"},
+			// no egress observed
+		},
+	}
+
+	measureVantageLatencies(context.Background(), store, prober, t.TempDir())
+
+	if got := store.egress[6]; got.Valid {
+		t.Errorf("vantage 6: egress recorded = %q despite no read, want NULL", got.String)
+	}
+	if got := store.platform[6]; !got.Valid || got.String != "linux · aarch64" {
+		t.Errorf("vantage 6: platform recorded = %+v, want linux · aarch64", got)
+	}
+}
+
+// An unreachable prober records nothing: its latency stays NULL and the Dashboard
+// keeps rendering the pending em dash — never a fabricated value.
+func TestMeasureVantageLatenciesSkipsUnreachable(t *testing.T) {
+	store := &fakeLatencyStore{needing: []db.Vantage{provisionedVantage(8)}}
+	prober := fakeProber{err: errors.New("dial: connection refused")}
+
+	measureVantageLatencies(context.Background(), store, prober, t.TempDir())
+
+	if _, ok := store.latency[8]; ok {
+		t.Error("vantage 8: latency recorded for an unreachable prober")
+	}
+	if _, ok := store.pinned[8]; ok {
+		t.Error("vantage 8: host key pinned despite the connect failing")
 	}
 }

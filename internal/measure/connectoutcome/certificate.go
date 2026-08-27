@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net/netip"
+	"time"
 
 	"github.com/winniel123/verge-asm/internal/measure/blanketdiscrim"
 	"github.com/winniel123/verge-asm/internal/wire"
@@ -34,9 +35,46 @@ func EndpointKey(serverName string, target netip.AddrPort, transport string) str
 // The value space is a closed union: a presentation carries its chain, and the two
 // negatives (`tls-refused`, `no-tls`) carry none, because each is a value in its
 // own right and not an absence (CONTEXT.md `Certificate`).
+//
+// NotAfter is the leaf certificate's expiry as an RFC3339 string, carried only on a
+// presented chain (the negatives omit it). It is the exact `not_after` key + format
+// cmd/web/deltas.go reads for the Dashboard "Certs expiring ≤30d" stat (SPEC-CHANGE.md
+// collision #8, #464).
+//
+// Issuer and Algorithm are the leaf's parsed identity (its issuer distinguished
+// name and signature algorithm), carried only on a presented chain and dropped
+// when empty. They are the leaf's own attributes — a read of the certificate the
+// handshake already holds, not a new fingerprint — and the Asset detail's
+// TLS-certificate card renders them beside the fingerprint and validity
+// (SPEC-CHANGE.md collision #22c, #581). A presented value from before this leaf
+// parsed them carries neither key, and the card omits each honestly.
 type certificateValue struct {
-	Outcome TLSOutcome `json:"outcome"`
-	Chain   []string   `json:"chain,omitempty"`
+	Outcome   TLSOutcome `json:"outcome"`
+	Chain     []string   `json:"chain,omitempty"`
+	NotAfter  string     `json:"not_after,omitempty"`
+	Issuer    string     `json:"issuer,omitempty"`
+	Algorithm string     `json:"algorithm,omitempty"`
+	// --- v3 additions: leaf-only scalars ---
+	NotBefore string   `json:"not_before,omitempty"` // leaf validity floor, RFC3339
+	SANDNS    []string `json:"san_dns,omitempty"`    // leaf dNSName SANs, verbatim (wildcards NOT expanded)
+	SANIP     []string `json:"san_ip,omitempty"`     // leaf iPAddress SANs, canonical string form
+	// --- v3 addition: per-chain-cert parsed facts, leaf-first, index-aligned with Chain ---
+	ChainCerts []chainCert `json:"chain_certs,omitempty"`
+}
+
+// chainCert is one presented link's parsed facts, read off the DER at handshake
+// time and carried raw so every one of the four dark certificate rules derives its
+// verdict AT READ (T-leaf #712 §0: store-raw, derive-at-read). self_sig_verifies is
+// the ONE in-leaf-computed datum — a raw crypto fact needing the parsed key bytes,
+// unavailable at read. Every field is omitempty so pre-v3 spans stay byte-identical.
+type chainCert struct {
+	Subject               string `json:"subject,omitempty"`           // this cert's subject DN
+	Issuer                string `json:"issuer,omitempty"`            // this cert's issuer DN
+	SelfSignatureVerifies *bool  `json:"self_sig_verifies,omitempty"` // signature validates against THIS cert's own key
+	KeyAlg                string `json:"key_alg,omitempty"`           // "RSA"|"ECDSA"|"DSA"|"Ed25519"|"Ed448"|raw OID
+	KeyBits               int    `json:"key_bits,omitempty"`          // RSA nlen | ECDSA len(n) | DSA L
+	KeyParamN             int    `json:"key_n_bits,omitempty"`        // DSA subgroup N (bits); 0 for non-DSA
+	SigDigest             string `json:"sig_digest,omitempty"`        // digest name: "MD5"|"SHA-1"|"SHA-256"|…
 }
 
 // EmitCertificate renders one Endpoint's presented-certificate value at one
@@ -54,8 +92,83 @@ func EmitCertificate(batch, vantage string, target netip.AddrPort, serverName st
 		Subject: EndpointKey(serverName, target, "tcp"),
 		Vantage: vantage,
 		Address: target.Addr().String(),
-		Data:    mustJSON(certificateValue{Outcome: res.Outcome, Chain: res.Chain}),
+		Data: mustJSON(certificateValue{
+			Outcome:    res.Outcome,
+			Chain:      res.Chain,
+			NotAfter:   notAfterString(res),
+			Issuer:     presentedIdentity(res, res.Issuer),
+			Algorithm:  presentedIdentity(res, res.Algorithm),
+			NotBefore:  presentedNotBefore(res),
+			SANDNS:     presentedStrings(res, res.SANDNS),
+			SANIP:      presentedStrings(res, res.SANIP),
+			ChainCerts: presentedChainCerts(res),
+		}),
 	}
+}
+
+// presentedNotBefore renders the leaf's validity floor for the presented value,
+// mirroring notAfterString: a zero NotBefore — every negative, and any presentation
+// whose leaf carried none — renders the empty string, which omitempty drops, so only
+// a presented chain carries the key (T-leaf #712).
+func presentedNotBefore(res HandshakeResult) string {
+	if res.Outcome != TLSPresented || res.NotBefore.IsZero() {
+		return ""
+	}
+	return res.NotBefore.UTC().Format(time.RFC3339)
+}
+
+// presentedStrings guards a leaf-derived string slice (the dNSName / iPAddress SANs)
+// so it is carried only on a presented chain — every negative outcome renders nil,
+// which omitempty drops, exactly as notAfterString guards the expiry (T-leaf #712).
+func presentedStrings(res HandshakeResult, v []string) []string {
+	if res.Outcome != TLSPresented {
+		return nil
+	}
+	return v
+}
+
+// presentedChainCerts projects the parsed per-link chain facts to the leaf's wire
+// type, carried only on a presented chain — the two negatives leave it nil, which
+// omitempty drops, so a pre-v3 span and every negative stay byte-identical (T-leaf
+// #712). The ChainCert values are already parsed at handshake time; this only re-tags
+// them to the fold's JSON shape, index-aligned with Chain, leaf-first.
+func presentedChainCerts(res HandshakeResult) []chainCert {
+	if res.Outcome != TLSPresented || len(res.ChainCerts) == 0 {
+		return nil
+	}
+	out := make([]chainCert, 0, len(res.ChainCerts))
+	for _, c := range res.ChainCerts {
+		out = append(out, chainCert{
+			Subject:               c.Subject,
+			Issuer:                c.Issuer,
+			SelfSignatureVerifies: c.SelfSignatureVerifies,
+			KeyAlg:                c.KeyAlg,
+			KeyBits:               c.KeyBits,
+			KeyParamN:             c.KeyParamN,
+			SigDigest:             c.SigDigest,
+		})
+	}
+	return out
+}
+
+// presentedIdentity guards a leaf-identity field (issuer, algorithm) so it is
+// carried only on a presented chain — every negative outcome renders the empty
+// string, which omitempty drops, exactly as notAfterString guards the expiry.
+func presentedIdentity(res HandshakeResult, v string) string {
+	if res.Outcome != TLSPresented {
+		return ""
+	}
+	return v
+}
+
+// notAfterString renders the leaf's expiry for the presented value: a zero NotAfter
+// — every negative, and any presentation whose leaf carried no expiry — renders the
+// empty string, which `omitempty` drops, so only a presented chain carries the key.
+func notAfterString(res HandshakeResult) string {
+	if res.Outcome != TLSPresented || res.NotAfter.IsZero() {
+		return ""
+	}
+	return res.NotAfter.UTC().Format(time.RFC3339)
 }
 
 // endpointNames folds a scope's declared server names to the set of Endpoints to

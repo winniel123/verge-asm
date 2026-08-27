@@ -44,9 +44,10 @@ import (
 // inside the caller's session and records `(provider, sub) → their account`.
 //
 // The state/nonce/PKCE-verifier ride an HMAC-signed, short-lived cookie between the
-// two hops (the app keeps no server-side session store), so the callback can trust the
-// state it echoes back was minted here — CSRF and replay are both closed. The cookie's
-// Link flag keeps a self-link transaction from ever being replayed as a sign-in.
+// two hops (the transaction is carried in the signed cookie itself, not looked up
+// server-side), so the callback can trust the state it echoes back was minted here —
+// CSRF and replay are both closed. The cookie's Link flag keeps a self-link
+// transaction from ever being replayed as a sign-in.
 
 const (
 	ssoTxCookie = "verge_sso_tx"
@@ -244,7 +245,7 @@ func (s *server) ssoStart(w http.ResponseWriter, r *http.Request) {
 	slug := r.PathValue("slug")
 	prov, err := s.store.GetSSOProviderForAuth(r.Context(), slug)
 	if err != nil {
-		s.render(w, "login", s.loginData(r.Context(), "Single sign-on is not available. Sign in with your password."))
+		s.render(w, r, "login", s.loginData(r.Context(), "Single sign-on is not available. Sign in with your password."))
 		return
 	}
 
@@ -257,8 +258,8 @@ func (s *server) ssoStart(w http.ResponseWriter, r *http.Request) {
 	}
 	authURL, err := s.sso.AuthCodeURL(r.Context(), cfg, state, nonce, verifier)
 	if err != nil {
-		log.Printf("web: sso: auth url for %q: %v", slug, err)
-		s.render(w, "login", s.loginData(r.Context(), "That identity provider could not be reached. Sign in with your password."))
+		log.Printf("web: sso: auth url for %q: %v", logSafe(slug), err) // #nosec G706 (sanitized via logSafe)
+		s.render(w, r, "login", s.loginData(r.Context(), "That identity provider could not be reached. Sign in with your password."))
 		return
 	}
 
@@ -279,30 +280,30 @@ func (s *server) ssoCallback(w http.ResponseWriter, r *http.Request) {
 	tx, ok := s.readSSOTxCookie(r)
 	s.clearCookie(w, ssoTxCookie) // single-use: spend it whether or not it verifies
 	if !ok || tx.Slug != slug || tx.Link {
-		s.render(w, "login", s.loginData(r.Context(), "That sign-on attempt expired. Try again."))
+		s.render(w, r, "login", s.loginData(r.Context(), "That sign-on attempt expired. Try again."))
 		return
 	}
 	// The IdP reports a user-declined or error response in the query rather than a code.
 	if e := r.URL.Query().Get("error"); e != "" {
-		s.render(w, "login", s.loginData(r.Context(), "Single sign-on was cancelled or refused."))
+		s.render(w, r, "login", s.loginData(r.Context(), "Single sign-on was cancelled or refused."))
 		return
 	}
 	// state is the CSRF guard: the value the IdP echoes back must equal the one minted
 	// into the signed cookie at the start of this transaction. Compared in constant
 	// time, like the rest of the auth surface.
 	if st := r.URL.Query().Get("state"); st == "" || !subtleConstantEqual(st, tx.State) {
-		s.render(w, "login", s.loginData(r.Context(), "That sign-on attempt could not be verified. Try again."))
+		s.render(w, r, "login", s.loginData(r.Context(), "That sign-on attempt could not be verified. Try again."))
 		return
 	}
 	code := r.URL.Query().Get("code")
 	if code == "" {
-		s.render(w, "login", s.loginData(r.Context(), "That sign-on attempt could not be verified. Try again."))
+		s.render(w, r, "login", s.loginData(r.Context(), "That sign-on attempt could not be verified. Try again."))
 		return
 	}
 
 	prov, err := s.store.GetSSOProviderForAuth(r.Context(), slug)
 	if err != nil {
-		s.render(w, "login", s.loginData(r.Context(), "Single sign-on is not available. Sign in with your password."))
+		s.render(w, r, "login", s.loginData(r.Context(), "Single sign-on is not available. Sign in with your password."))
 		return
 	}
 	cfg := ssoConfig{
@@ -312,8 +313,8 @@ func (s *server) ssoCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	ident, err := s.sso.Exchange(r.Context(), cfg, code, tx.Verifier, tx.Nonce)
 	if err != nil {
-		log.Printf("web: sso: exchange for %q: %v", slug, err)
-		s.render(w, "login", s.loginData(r.Context(), "Single sign-on could not be completed. Sign in with your password."))
+		log.Printf("web: sso: exchange for %q: %v", logSafe(slug), err) // #nosec G706 (sanitized via logSafe)
+		s.render(w, r, "login", s.loginData(r.Context(), "Single sign-on could not be completed. Sign in with your password."))
 		return
 	}
 
@@ -325,14 +326,14 @@ func (s *server) ssoCallback(w http.ResponseWriter, r *http.Request) {
 		// A verified identity with no binding: refuse honestly. The subject is not linked
 		// to any local account, and SSO never provisions or falls back to a username
 		// (ADR-0113). The user signs in with a password and links this identity on Profile.
-		log.Printf("web: sso: no binding for verified identity via %q", slug)
-		s.render(w, "login", s.loginData(r.Context(), "That identity is not linked to an account here. Sign in with your password, then link it on your Profile."))
+		log.Printf("web: sso: no binding for verified identity via %q", logSafe(slug)) // #nosec G706 (sanitized via logSafe)
+		s.render(w, r, "login", s.loginData(r.Context(), "That identity is not linked to an account here. Sign in with your password, then link it on your Profile."))
 		return
 	case err != nil:
 		// A transient read failure is NOT an unlinked identity: don't misdirect a
 		// legitimately-linked user to re-link during a DB blip. Fail generically.
-		log.Printf("web: sso: look up binding via %q: %v", slug, err)
-		s.render(w, "login", s.loginData(r.Context(), "Single sign-on could not be completed. Sign in with your password."))
+		log.Printf("web: sso: look up binding via %q: %v", logSafe(slug), err) // #nosec G706 (sanitized via logSafe)
+		s.render(w, r, "login", s.loginData(r.Context(), "Single sign-on could not be completed. Sign in with your password."))
 		return
 	}
 	// SSO proves the IdP identity, but it must never DOWNGRADE a local second factor:
@@ -340,10 +341,10 @@ func (s *server) ssoCallback(w http.ResponseWriter, r *http.Request) {
 	// requires. So a TOTP-enrolled account lands on the same TOTP step (a KindPending
 	// cookie), and only an account without TOTP completes the login outright.
 	if acct.TotpEnabled {
-		if !s.setSignedCookie(w, r, pendingCookie, auth.KindPending, acct.ID, s.pendingTTL) {
+		if !s.setSignedCookie(w, r, pendingCookie, auth.KindPending, acct.ID, "", s.pendingTTL) {
 			return
 		}
-		s.render(w, "totp", map[string]any{"Title": "Two-factor"})
+		s.render(w, r, "totp", map[string]any{"Title": "Two-factor"})
 		return
 	}
 	s.completeLogin(w, r, acct.ID)
@@ -370,7 +371,7 @@ func (s *server) ssoLinkStart(w http.ResponseWriter, r *http.Request, _ db.Accou
 	}
 	authURL, err := s.sso.AuthCodeURL(r.Context(), cfg, state, nonce, verifier)
 	if err != nil {
-		log.Printf("web: sso: link auth url for %q: %v", slug, err)
+		log.Printf("web: sso: link auth url for %q: %v", logSafe(slug), err) // #nosec G706 (sanitized via logSafe)
 		http.Redirect(w, r, "/profile?linkerr=unavailable", http.StatusSeeOther)
 		return
 	}
@@ -419,7 +420,7 @@ func (s *server) ssoLinkCallback(w http.ResponseWriter, r *http.Request, acct db
 	}
 	ident, err := s.sso.Exchange(r.Context(), cfg, code, tx.Verifier, tx.Nonce)
 	if err != nil {
-		log.Printf("web: sso: link exchange for %q: %v", slug, err)
+		log.Printf("web: sso: link exchange for %q: %v", logSafe(slug), err) // #nosec G706 (sanitized via logSafe)
 		http.Redirect(w, r, "/profile?linkerr=failed", http.StatusSeeOther)
 		return
 	}
@@ -434,7 +435,7 @@ func (s *server) ssoLinkCallback(w http.ResponseWriter, r *http.Request, acct db
 		http.Redirect(w, r, "/profile?linked=exists", http.StatusSeeOther)
 		return
 	case err == nil:
-		log.Printf("web: sso: link refused: identity via %q already bound to another account", slug)
+		log.Printf("web: sso: link refused: identity via %q already bound to another account", logSafe(slug)) // #nosec G706 (sanitized via logSafe)
 		http.Redirect(w, r, "/profile?linkerr=elsewhere", http.StatusSeeOther)
 		return
 	case !errors.Is(err, pgx.ErrNoRows):
@@ -455,7 +456,7 @@ func (s *server) ssoLinkCallback(w http.ResponseWriter, r *http.Request, acct db
 		s.serverError(w, "insert sso identity", err)
 		return
 	}
-	log.Printf("web: sso: account %d linked an identity via %q", acct.ID, slug)
+	log.Printf("web: sso: account %d linked an identity via %q", acct.ID, logSafe(slug)) // #nosec G706 (sanitized via logSafe)
 	http.Redirect(w, r, "/profile?linked=1", http.StatusSeeOther)
 }
 
@@ -486,11 +487,13 @@ func (s *server) ssoUnlink(w http.ResponseWriter, r *http.Request, acct db.Accou
 // password handlers can fall back to the sign-in form carrying a message. It re-lists
 // the enabled providers so the buttons still render on the error re-paint.
 func (s *server) loginData(ctx context.Context, errMsg string) map[string]any {
-	data := map[string]any{"Title": "Sign in", "SSOProviders": s.enabledSSOProviders(ctx)}
+	data := map[string]any{"Title": "Sign in", "SSOProviders": s.loginProviders(ctx, false)}
 	if errMsg != "" {
 		data["Error"] = errMsg
 	}
-	return data
+	// The frozen login.tmpl styles against the design token vocabulary and its authfoot reads
+	// the build version; stamp both so an SSO/password error re-paint carries them too.
+	return s.signinData(data)
 }
 
 // enabledSSOProviders lists the providers SignIn renders a button for. A read failure
@@ -512,7 +515,7 @@ func (s *server) setSSOTxCookie(w http.ResponseWriter, r *http.Request, tx ssoTx
 		s.serverError(w, "marshal sso transaction", err)
 		return false
 	}
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ // #nosec G124 -- Secure conditional (r.TLS != nil || s.secureCookies); HttpOnly + SameSite=Lax always set.
 		Name: ssoTxCookie, Value: auth.Sign(s.key, ssoTxDomain, payload), Path: "/", HttpOnly: true,
 		SameSite: http.SameSiteLaxMode, Secure: s.secureCookies || r.TLS != nil, MaxAge: int(ssoTxTTL.Seconds()),
 	})

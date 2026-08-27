@@ -1,7 +1,7 @@
 ---
 title: Discovery sources
-section: Operating
-order: 2
+section: Scanning
+order: 1
 description: Discovery sources widen what verge-asm knows about your estate before it measures — the catalogue, consent tiers, and the crt.sh and RIR caveats.
 ---
 
@@ -77,15 +77,20 @@ Ten entries ship. What each is, what it discovers, and its consent tier:
 | **ARIN** (`entities?fn=`) | North America, keyless org→prefix | `unencumbered` | **on** |
 | **AFRINIC** (CAIDA ⋈ delegated-stats) | Africa, keyless org→prefix | `unencumbered` | **on** |
 | **APNIC** (CAIDA ⋈ delegated-stats) | Asia-Pacific, keyless org→prefix | `unencumbered` | **on** |
-| **RIPEstat** | RIPE region | `operator-accepted` | **off** |
-| **RIPE Database** | RIPE region | `operator-accepted` | **off** |
-| **APNIC registry** | APNIC region | `operator-accepted` | **off** |
-| **LACNIC registry** | Latin America | `operator-accepted` | **off** |
+| **RIPEstat** | RIPE region | `operator-accepted` | **catalogued — no runner** ([#241](https://github.com/winniel123/verge-asm/issues/241)) |
+| **RIPE Database** | RIPE region | `operator-accepted` | **catalogued — no runner** (#241) |
+| **APNIC registry** | APNIC region | `operator-accepted` | **catalogued — no runner** (#241) |
+| **LACNIC registry** | Latin America | `operator-accepted` | **catalogued — no runner** (#241) |
 
-The three keyless proposer paths ship on because they are `unencumbered`; the four
-registry paths ship off and render their terms as **consent groups** you accept at enable
-time. The `/sources` modal buckets every entry by ship state: *shipped on*, *ship off —
-accept the terms*, and *barred*.
+The three keyless proposer paths ship on because they are `unencumbered`. The four registry
+paths are `operator-accepted` **by tier**, but **no `proposer.Source` runner ships for them
+yet** — they render consent+toggle but would emit nothing — so they are **catalogued — not
+yet executing** (the #241 mechanism): non-toggleable, offering **no consent dialog**, and off
+for everyone until a runner lands, at which point they return to *ship off — accept the terms*.
+The `/sources` modal buckets every entry by state: *shipped on*, *ship off — accept the terms*
+(empty in v1, since every `operator-accepted` entry is currently runnerless), and the third
+*not run for anyone* bucket — which holds both barred entries and these catalogued-but-runnerless
+proposers.
 
 ---
 
@@ -120,9 +125,13 @@ polls crt.sh on a daily cadence (throttled), and admits the `Name`s it finds. Se
 [first-run.md → Confirm a scan ran](first-run.md#confirm-a-scan-actually-ran) and
 [running.md → On-demand scan triggers](running.md#on-demand-scan-triggers) (`-trigger ct`).
 
-The *catalogued-but-runnerless* mechanism #241 built still exists for any future source
-added ahead of its runner — such an entry shows in a **"Catalogued — not yet executing"**
-bucket and cannot be toggled — but **no v1 entry is in that state today**.
+The *catalogued-but-runnerless* mechanism #241 built now holds the four RIR **registry
+proposers** — RIPEstat, RIPE Database, APNIC registry, LACNIC registry. Each is
+`operator-accepted` by tier but ships with **no `proposer.Source` runner**, so it is
+catalogued-yet-inert: rendered in the third *not run for anyone* bucket, **non-toggleable**,
+with **no consent dialog offered**, until a real runner lands and returns it to *ship off —
+accept the terms* (the same reversal crt.sh made). The three keyless proposer paths (ARIN,
+AFRINIC, APNIC via CAIDA) execute today; the four registry paths do not.
 
 ### RIR proposers propose address scopes, not subdomains
 

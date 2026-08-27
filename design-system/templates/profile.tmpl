@@ -1,0 +1,295 @@
+{{/*
+  DESIGN-OWNED ARTIFACT — profile.tmpl · package v3.6.0 · WORKFLOW.md v4
+  Source of truth: examples/console/Profile.jsx · shot 14.
+  Replaces templates_profile.go. Hole names unchanged (PRG model kept): .Initials
+  .Username .Role .CreatedISO .TotpEnabled .PwError .Notice .Sessions[] .SSOIdentities[]
+  .SSOError .SSONotice .SSOProviders[] .Tokens[] .CreateOpen .Minted .TokName .TokError
+  .RevokeID .RevokeName .RevokeErr .EndSession .SignOutOthers.
+  #390 (2026-08-26): .Tokens[].Last is nullable — real last-used timestamp, "never" when null;
+  .APIEnabled joins — when false the inert-tokens note renders (read-only opt-in /api/v1).
+  Reconciliations ruled into spec (SPEC-CHANGE #18): token revoke = plain ConfirmDialog
+  (typed gate relaxes), TOTP-off state specced, PRG notices render as Callouts and act
+  results ride the shell toast pipeline.
+*/}}
+{{define "profile"}}{{template "head" .}}
+{{template "chrome" .}}
+<style>
+@keyframes pr-fade { from { opacity: 0; } }
+@keyframes pr-pop { from { opacity: 0; transform: scale(0.96); } }
+.pr-main { max-width: 1100px; margin: 0 auto; padding: 32px; display: flex; flex-direction: column; gap: 24px; }
+.pr-head { display: flex; align-items: center; gap: 14px; }
+.pr-head h1 { margin: 0; font: 600 21px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.pr-sub { font: 400 12.5px var(--font-ui); color: var(--text-muted); }
+.pr-sub a { color: var(--link); text-decoration: none; }
+.pr-avatar { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex: none; border-radius: 999px; background: var(--surface-sunken); border: 1px solid var(--border-default); font: 600 17px var(--font-mono); color: var(--text-secondary); }
+.pr-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 24px; align-items: start; }
+.pr-card { background: var(--surface); border: 1px solid var(--border-default); border-radius: 16px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; }
+.pr-card.flush { overflow: hidden; }
+.pr-cardhead { display: flex; align-items: center; gap: 12px; padding: 20px 20px 0; }
+.pr-card.flush .pr-cardhead { padding: 20px 20px 14px; }
+.pr-cardhead .titles { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.pr-micro { font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.pr-cardhead h3 { margin: 0; font: 600 15px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.pr-cardhead .acts { margin-left: auto; display: flex; gap: 8px; flex: none; }
+.pr-body { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.pr-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; border-radius: 12px; font: 600 13px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; transition: background var(--dur-fast) var(--ease-out); }
+.pr-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--focus-ring); }
+.pr-btn.sm { height: 30px; padding: 0 12px; border-radius: 10px; font-size: 12px; gap: 6px; }
+.pr-btn.primary { background: var(--accent); color: var(--on-accent); border: 1px solid transparent; }
+.pr-btn.primary:hover { background: var(--accent-hover); }
+.pr-btn.primary:active { background: var(--accent-active); }
+.pr-btn.primary[disabled] { opacity: 0.45; cursor: default; }
+.pr-btn.secondary { background: var(--surface); color: var(--text-body); border: 1px solid var(--border-strong); }
+.pr-btn.secondary:hover { background: var(--surface-sunken); }
+.pr-btn.ghost { background: transparent; color: var(--text-secondary); border: 1px solid transparent; }
+.pr-btn.ghost:hover { background: var(--surface-sunken); color: var(--text-body); }
+.pr-btn.danger { background: var(--danger); color: var(--on-danger); border: 1px solid transparent; }
+.pr-btn.danger:hover { background: var(--danger-hover); }
+.pr-btn.danger:active { background: var(--danger-active); }
+.pr-iconbtn { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 10px; background: transparent; color: var(--text-secondary); border: 1px solid transparent; cursor: pointer; padding: 0; transition: background var(--dur-fast) var(--ease-out); }
+.pr-iconbtn:hover { background: var(--surface-sunken); color: var(--text-body); }
+.pr-iconbtn:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--focus-ring); }
+.pr-field { display: flex; flex-direction: column; gap: 6px; font-family: var(--font-ui); }
+.pr-field > span { font-size: 12.5px; font-weight: 500; color: var(--text-body); }
+.pr-field .box { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; background: var(--surface); border: 1px solid var(--border-default); border-radius: 12px; transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); }
+.pr-field .box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 18%, transparent); }
+.pr-field input { flex: 1; min-width: 0; border: none; outline: none; background: transparent; color: var(--text-ink); font: 400 13px var(--font-ui); }
+.pr-field input.mono { font: 400 12.5px var(--font-mono); }
+.pr-field .hint { font-size: 11.5px; color: var(--text-muted); font-weight: 400; }
+.pr-kv { display: flex; gap: 24px; align-items: baseline; }
+.pr-kv .k { font: 400 12.5px var(--font-ui); color: var(--text-muted); width: 90px; flex: none; }
+.pr-kv .mono { font: 400 12.5px var(--font-mono); color: var(--text-body); }
+.pr-badge { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 10px; border-radius: 999px; background: var(--surface-sunken); border: 1px solid var(--border-default); color: var(--text-secondary); font: 500 12px var(--font-ui); white-space: nowrap; }
+.pr-badge.ok { background: var(--ok-soft); border-color: var(--ok-border); color: var(--ok); }
+.pr-badge.accent { background: var(--accent-soft); border-color: transparent; color: var(--link); }
+.pr-badge .dot { width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
+.pr-2fa { display: flex; align-items: center; gap: 10px; padding-top: 12px; border-top: 1px solid var(--row-sep); flex-wrap: wrap; }
+.pr-2fa .mono { font: 400 11.5px var(--font-mono); color: var(--text-muted); }
+.pr-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.pr-table th { padding: 8px 16px; font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border-default); white-space: nowrap; background: var(--surface); text-align: left; }
+.pr-table td { padding: 7px 16px; font: 400 13px var(--font-ui); color: var(--text-body); vertical-align: middle; white-space: nowrap; border-top: 1px solid var(--row-sep); }
+.pr-table tbody tr:first-child td { border-top: none; }
+.pr-table td.mono { font: 400 12.5px var(--font-mono); }
+.pr-table td .name { font: 500 12.5px var(--font-ui); color: var(--text-ink); }
+.pr-table td.right { text-align: right; }
+.pr-note { margin: 0; padding: 10px 16px 14px; font: 400 12px/1.5 var(--font-ui); color: var(--text-muted); }
+.pr-intro { margin: 0; padding: 0 16px 12px; font: 400 12.5px/1.55 var(--font-ui); color: var(--text-muted); }
+.pr-intro a { color: var(--link); text-decoration: none; }
+.pr-linkrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 16px 14px; border-top: 1px solid var(--row-sep); }
+.pr-linkrow > span { font: 400 12px var(--font-ui); color: var(--text-muted); }
+.pr-callout { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 12px; font-family: var(--font-ui); margin: 0 16px 12px; }
+.pr-callout.inpad { margin: 0; }
+.pr-callout.warn { background: var(--warn-soft); border: 1px solid var(--warn-border); }
+.pr-callout.neutral { background: var(--surface-sunken); border: 1px solid var(--border-default); }
+.pr-callout .ic { display: inline-flex; margin-top: 1px; flex: none; }
+.pr-callout.warn .ic { color: var(--warn); }
+.pr-callout.neutral .ic { color: var(--text-secondary); }
+.pr-callout .ct { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pr-callout .ct b { font: 600 13px var(--font-ui); color: var(--text-ink); }
+.pr-callout .ct span { font: 400 13px/1.55 var(--font-ui); color: var(--text-body); }
+.pr-overlay { position: fixed; inset: 0; z-index: 100; background: rgba(21, 18, 15, 0.4); display: flex; align-items: center; justify-content: center; padding: 24px; animation: pr-fade var(--dur-base) var(--ease-out); }
+.pr-overlay .scrim { position: absolute; inset: 0; }
+.pr-panel { position: relative; width: min(480px, 92%); max-height: 85%; overflow-y: auto; overflow-x: hidden; background: var(--surface); border-radius: 24px; box-shadow: var(--shadow-lg); border: 1px solid var(--border-default); padding: 24px; animation: pr-pop var(--dur-slow) var(--ease-out); font-family: var(--font-ui); }
+.pr-panel.narrow { width: min(440px, 92%); }
+.pr-panel header { display: flex; align-items: flex-start; gap: 12px; }
+.pr-panel header .titles { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.pr-panel h2 { margin: 0; font: 600 16px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.pr-panel header p { margin: 0; font: 400 13px/1.5 var(--font-ui); color: var(--text-secondary); }
+.pr-panel .close { margin-left: auto; flex: none; width: 32px; height: 32px; }
+.pr-panel .body { margin-top: 16px; display: flex; flex-direction: column; gap: 12px; }
+.pr-panel .body .detail { margin: 0; font: 400 13px/1.55 var(--font-ui); color: var(--text-body); }
+.pr-panel footer { margin-top: 24px; display: flex; justify-content: flex-end; gap: 8px; }
+.pr-copy { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.pr-copy .val { font: 400 12.5px var(--font-mono); color: var(--text-body); overflow-wrap: anywhere; white-space: normal; }
+.pr-copy button { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border: none; border-radius: 6px; background: transparent; color: var(--text-muted); cursor: pointer; padding: 0; flex: none; opacity: 0; transition: opacity var(--dur-fast) var(--ease-out); }
+.pr-copy:hover button, .pr-copy button.copied { opacity: 1; }
+.pr-copy button.copied { color: var(--ok); }
+.pr-copy button svg[data-i-ok] { display: none; }
+.pr-copy button.copied svg[data-i-copy] { display: none; }
+.pr-copy button.copied svg[data-i-ok] { display: block; }
+form.inline { margin: 0; display: inline-flex; }
+</style>
+<main class="pr-main" data-screen-label="Profile">
+<div class="pr-head">
+<span aria-hidden="true" class="pr-avatar">{{.Initials}}</span>
+<div style="display:flex;flex-direction:column;gap:2px">
+<h1>Profile</h1>
+<span class="pr-sub">Your account on this deployment. Org-wide access lives in <a href="/settings?tab=team">Settings → Team</a>.</span>
+</div>
+</div>
+{{if .Notice}}<div class="pr-callout neutral inpad"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg></span><span class="ct"><span>{{.Notice}}</span></span></div>{{end}}
+<div class="pr-grid">
+<section class="pr-card">
+<header class="pr-cardhead"><div class="titles"><span class="pr-micro">Identity</span><h3>Who you are</h3></div></header>
+<div class="pr-body">
+<label class="pr-field"><span>Username</span><span class="box"><input class="mono" value="{{.Username}}" readonly aria-readonly="true"></span><span class="hint">Sign-in identity · changed by an admin</span></label>
+<div class="pr-kv"><span class="k">Role</span><span class="pr-badge">{{.Role}}</span></div>
+<div class="pr-kv"><span class="k">Member since</span><span class="mono">{{.CreatedISO}}</span></div>
+</div>
+</section>
+<section class="pr-card">
+<header class="pr-cardhead"><div class="titles"><span class="pr-micro">Credentials</span><h3>Password &amp; two-factor</h3></div></header>
+<div class="pr-body">
+{{if .PwError}}<div class="pr-callout warn inpad"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg></span><span class="ct"><span>{{.PwError}}</span></span></div>{{end}}
+<form method="post" action="/profile/password" style="margin:0;display:flex;flex-direction:column;gap:14px">
+<label class="pr-field"><span>Current password</span><span class="box"><input type="password" name="current_password" autocomplete="current-password" required></span></label>
+<label class="pr-field"><span>New password</span><span class="box"><input type="password" name="new_password" autocomplete="new-password" required></span><span class="hint">12+ characters; a passphrase beats complexity</span></label>
+<div><button class="pr-btn sm secondary" type="submit">Change password</button></div>
+</form>
+<div class="pr-2fa">
+{{if .TotpEnabled}}
+<span class="pr-badge ok"><span class="dot"></span>two-factor enabled</span>
+<span class="mono">TOTP</span>
+{{else}}
+<span class="pr-badge">two-factor off</span>
+<span style="font:400 11.5px var(--font-ui);color:var(--text-muted)">Add a second factor to your sign-in.</span>
+<form method="post" action="/account/totp/enable" class="inline" style="margin-left:auto"><button class="pr-btn sm secondary" type="submit">Enable two-factor</button></form>
+{{end}}
+</div>
+</div>
+</section>
+</div>
+<section class="pr-card flush">
+<header class="pr-cardhead"><div class="titles"><span class="pr-micro">Sessions</span><h3>Signed in right now</h3></div>
+<div class="acts">
+{{if gt (len .Sessions) 1}}<a class="pr-btn sm secondary" href="/profile?signoutothers=1">Sign out others</a>{{end}}
+<a class="pr-btn sm secondary" href="/profile?endsession=1">End this session</a>
+</div></header>
+<table class="pr-table">
+<thead><tr><th>Device</th><th style="width:130px">IP</th><th style="width:110px">Last active</th><th style="width:52px"></th></tr></thead>
+<tbody>
+{{range .Sessions}}<tr>
+<td><span style="display:inline-flex;align-items:center;gap:8px"><span class="name">{{.Device}}</span>{{if .Current}}<span class="pr-badge accent">this device</span>{{end}}</span></td>
+<td class="mono">{{.IP}}</td>
+<td class="mono">{{.LastActive}}</td>
+<td class="right">{{if not .Current}}<form method="post" action="/profile/sessions/revoke" class="inline"><input type="hidden" name="id" value="{{.ID}}"><button class="pr-iconbtn" type="submit" aria-label="Revoke this session" title="Revoke this session"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" x2="9" y1="12" y2="12"></line></svg></button></form>{{end}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+<p class="pr-note">Each row is a live session for your account. Revoking one signs that device out on its next request; a session also lapses on its own when it expires.</p>
+</section>
+<section class="pr-card flush">
+<header class="pr-cardhead"><div class="titles"><span class="pr-micro">Access · single sign-on</span><h3>Linked identities</h3></div></header>
+<p class="pr-intro">Link an identity provider to sign in with it. A link binds your verified provider account to this one; sign-in matches on that binding, never on a username. An admin configures providers in <a href="/settings?tab=sso">Settings → Single sign-on</a>.</p>
+{{if .SSOError}}<div class="pr-callout warn"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg></span><span class="ct"><span>{{.SSOError}}</span></span></div>{{end}}
+{{if .SSONotice}}<div class="pr-callout neutral"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg></span><span class="ct"><span>{{.SSONotice}}</span></span></div>{{end}}
+{{if .SSOIdentities}}
+<table class="pr-table">
+<thead><tr><th>Provider</th><th>Identity</th><th style="width:110px">Linked</th><th style="width:80px"></th></tr></thead>
+<tbody>
+{{range .SSOIdentities}}<tr>
+<td><span class="name">{{.Provider}}</span></td>
+<td class="mono">{{if .DisplayName}}{{.DisplayName}}{{else}}<span style="color:var(--text-muted)">—</span>{{end}}</td>
+<td class="mono">{{.LinkedAt}}</td>
+<td class="right"><form method="post" action="/profile/sso/unlink" class="inline"><input type="hidden" name="id" value="{{.ID}}"><button class="pr-btn sm secondary" type="submit">Unlink</button></form></td>
+</tr>{{end}}
+</tbody>
+</table>
+{{else}}
+<p class="pr-intro" style="padding-bottom:14px">No identities linked yet.</p>
+{{end}}
+{{if .SSOProviders}}
+<div class="pr-linkrow">
+<span>Link an identity:</span>
+{{range .SSOProviders}}<a class="pr-btn sm secondary" href="/profile/sso/{{.Slug}}/link">{{.Name}}</a>{{end}}
+</div>
+{{end}}
+</section>
+<section class="pr-card flush">
+<header class="pr-cardhead"><div class="titles"><span class="pr-micro">Automation</span><h3>Personal API tokens</h3></div>
+<div class="acts"><a class="pr-btn sm primary" href="/profile?new=1"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>New token</a></div></header>
+{{if .Tokens}}
+<table class="pr-table">
+<thead><tr><th>Name</th><th style="width:150px">Token</th><th style="width:110px">Created</th><th style="width:90px">Last used</th><th style="width:52px"></th></tr></thead>
+<tbody>
+{{range .Tokens}}<tr>
+<td><span class="name">{{.Name}}</span></td>
+<td class="mono">{{.Prefix}}</td>
+<td class="mono">{{.Created}}</td>
+<td class="mono">{{if .Last}}{{.Last}}{{else}}<span style="color:var(--text-muted)">never</span>{{end}}</td>
+<td class="right"><a class="pr-iconbtn" href="/profile?revoke={{.ID}}" aria-label="Revoke {{.Name}}" title="Revoke"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path></svg></a></td>
+</tr>{{end}}
+</tbody>
+</table>
+{{else}}
+<p class="pr-intro" style="padding-bottom:14px">You have no personal API tokens. Mint one to let your own automation read this deployment with your access.</p>
+{{end}}
+<p class="pr-note">A token is scoped to your account, inherits your role, and grants <strong>read-only</strong> access — a token can never change the estate. It is shown once at creation — Verge keeps only a hash.</p>
+{{if not .APIEnabled}}<p class="pr-note" style="color:var(--warn)">API access is off (the default) — every token is inert until an admin enables it under <a href="/settings?tab=api">Settings · API access</a>.</p>{{end}}
+</section>
+{{if or .CreateOpen .Minted}}
+<div class="pr-overlay">
+<a class="scrim" href="/profile" aria-label="Close"></a>
+<div class="pr-panel" role="dialog" aria-modal="true" aria-label="New personal token">
+<header><div class="titles"><h2>New personal token</h2><p>Scoped to your account; inherits your role.</p></div>
+<a class="pr-iconbtn close" href="/profile" aria-label="Close" style="width:32px;height:32px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></a></header>
+<div class="body">
+{{if .Minted}}
+<div class="pr-callout warn inpad"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg></span><span class="ct"><b>Shown once</b><span>Store it now — Verge keeps only a hash.</span></span></div>
+<span class="pr-copy"><span class="val">{{.Minted}}</span>
+<button type="button" data-copy="{{.Minted}}" aria-label="Copy value">
+<svg data-i-copy width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
+<svg data-i-ok width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>
+</button></span>
+{{else}}
+{{if .TokError}}<div class="pr-callout warn inpad"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg></span><span class="ct"><span>{{.TokError}}</span></span></div>{{end}}
+<form method="post" action="/profile/tokens" id="pr-tokform" style="margin:0">
+<label class="pr-field"><span>Token name</span><span class="box"><input name="name" value="{{.TokName}}" placeholder="laptop-cli" autocomplete="off" spellcheck="false" autofocus required></span></label>
+</form>
+{{end}}
+</div>
+<footer>
+{{if .Minted}}<a class="pr-btn primary" href="/profile">Done</a>
+{{else}}<a class="pr-btn ghost" href="/profile">Cancel</a><button class="pr-btn primary" type="submit" form="pr-tokform">Create token</button>{{end}}
+</footer>
+</div>
+</div>
+{{end}}
+{{if .RevokeID}}
+<div class="pr-overlay">
+<a class="scrim" href="/profile" aria-label="Cancel"></a>
+<div class="pr-panel narrow" role="dialog" aria-modal="true" aria-label="Revoke {{.RevokeName}}">
+<header><div class="titles"><h2>Revoke {{.RevokeName}}</h2><p>Any automation using this token stops working at once.</p></div></header>
+<div class="body">
+{{if .RevokeErr}}<div class="pr-callout warn inpad"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg></span><span class="ct"><span>{{.RevokeErr}}</span></span></div>{{end}}
+<p class="detail">This cannot be undone — a revoked token is never recoverable, only re-minted.</p>
+<form method="post" action="/profile/tokens/revoke" id="pr-revform" style="margin:0"><input type="hidden" name="id" value="{{.RevokeID}}"></form>
+</div>
+<footer><a class="pr-btn ghost" href="/profile">Cancel</a><button class="pr-btn danger" type="submit" form="pr-revform">Revoke token</button></footer>
+</div>
+</div>
+{{end}}
+{{if .EndSession}}
+<div class="pr-overlay">
+<a class="scrim" href="/profile" aria-label="Cancel"></a>
+<div class="pr-panel narrow" role="dialog" aria-modal="true" aria-label="End this session">
+<header><div class="titles"><h2>End this session</h2><p>You are signed out on this device and returned to sign-in.</p></div></header>
+<div class="body"><p class="detail">This ends only this device. To sign a different device out, use “Sign out others” or revoke it from the Sessions list.</p></div>
+<footer><a class="pr-btn ghost" href="/profile">Cancel</a><form method="post" action="/profile/session/revoke" class="inline"><button class="pr-btn danger" type="submit">End session</button></form></footer>
+</div>
+</div>
+{{end}}
+{{if .SignOutOthers}}
+<div class="pr-overlay">
+<a class="scrim" href="/profile" aria-label="Cancel"></a>
+<div class="pr-panel narrow" role="dialog" aria-modal="true" aria-label="Sign out your other sessions">
+<header><div class="titles"><h2>Sign out your other sessions</h2><p>Every other signed-in device is signed out on its next request. This session — the one you are using now — keeps working.</p></div></header>
+<div class="body"><p class="detail">Use this if you signed in somewhere you no longer trust.</p></div>
+<footer><a class="pr-btn ghost" href="/profile">Cancel</a><form method="post" action="/profile/sessions/revoke-others" class="inline"><button class="pr-btn danger" type="submit">Sign out others</button></form></footer>
+</div>
+</div>
+{{end}}
+<script>
+(function(){
+  var b=document.querySelector("[data-copy]");
+  if(!b)return;
+  function done(ok){ if(!ok)return; b.classList.add("copied"); setTimeout(function(){ b.classList.remove("copied"); },1400); }
+  b.addEventListener("click",function(){
+    var v=b.getAttribute("data-copy");
+    function legacy(){ try{ var ta=document.createElement("textarea"); ta.value=v; ta.setAttribute("readonly",""); ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta); ta.select(); var ok=document.execCommand("copy"); document.body.removeChild(ta); done(ok); }catch(e){} }
+    if(navigator.clipboard&&window.isSecureContext) navigator.clipboard.writeText(v).then(function(){done(true);},legacy); else legacy();
+  });
+})();
+</script>
+</main>
+{{template "foot" .}}{{end}}

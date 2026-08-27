@@ -1,0 +1,385 @@
+{{/*
+  DESIGN-OWNED ARTIFACT — signin.tmpl · package v3.7.0 · WORKFLOW.md v4
+  Source of truth: examples/console/SignIn.jsx · shots 17–19.
+  Replaces templates_signin.go (defines kept: authbrand, authfoot, authcss, login, totp,
+  totp-enroll, totp-recovery, forgot, forgot-sent, reset, reset-invalid, reset-done,
+  invite, invite-invalid). Holes unchanged plus: login/totp gain .Username (mid-login
+  account for the TOTP sub-line); authfoot gains .Version (real build version).
+  Reconciliations ruled into spec (SPEC-CHANGE #19): username identity everywhere,
+  trust-device checkbox removed, recovery-code hint on TOTP step, honest reset copy,
+  invite = username at invited role, password policy hint unified at 12+.
+*/}}
+{{define "authcss"}}<style>
+.vg-center { min-height: 100vh; background: var(--bg-page); font-family: var(--font-ui); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; padding: 24px; }
+.vg-authcol { display: flex; flex-direction: column; align-items: center; gap: 24px; width: 400px; max-width: 100%; }
+.vg-authcol.wide { width: 420px; }
+.vg-lockup { display: inline-flex; align-items: center; gap: 9px; }
+.vg-lockup .wm { display: inline-flex; align-items: baseline; gap: 6px; }
+.vg-lockup .wm b { font: 650 20px var(--font-ui); letter-spacing: -0.025em; color: var(--text-ink); line-height: 1; }
+.vg-lockup .wm span { font: 600 11px var(--font-mono); letter-spacing: 0.08em; color: var(--accent); }
+.vg-authcard { width: 100%; background: var(--surface); border: 1px solid var(--border-default); border-radius: 20px; box-shadow: var(--shadow-md); padding: 28px; display: flex; flex-direction: column; gap: 20px; }
+.vg-authhead { display: flex; flex-direction: column; gap: 4px; }
+.vg-authhead h1 { margin: 0; font: 600 19px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.vg-authhead .sub { font: 400 12.5px/1.55 var(--font-ui); color: var(--text-muted); }
+.vg-authhead .sub .mono, .vg-mono { font-family: var(--font-mono); font-size: 12px; }
+.vg-micro { font: 500 10.5px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.vg-form { display: flex; flex-direction: column; gap: 16px; margin: 0; }
+.vg-field { display: flex; flex-direction: column; gap: 6px; font-family: var(--font-ui); }
+.vg-field > span.lbl { font-size: 12.5px; font-weight: 500; color: var(--text-body); }
+.vg-field .box { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; background: var(--surface); border: 1px solid var(--border-default); border-radius: 12px; transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); }
+.vg-field .box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 18%, transparent); }
+.vg-field.err .box { border-color: var(--danger-solid); }
+.vg-field.err .box:focus-within { border-color: var(--danger-solid); box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger-solid) 18%, transparent); }
+.vg-field input { flex: 1; min-width: 0; border: none; outline: none; background: transparent; color: var(--text-ink); font: 400 13px var(--font-ui); }
+.vg-field input.mono { font: 400 12.5px var(--font-mono); }
+.vg-field .hint { font-size: 11.5px; color: var(--text-muted); }
+.vg-field .errmsg { font-size: 11.5px; color: var(--danger); }
+.vg-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; border-radius: 12px; font: 600 13px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; transition: background var(--dur-fast) var(--ease-out); }
+.vg-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--focus-ring); }
+.vg-btn.primary { background: var(--accent); color: var(--on-accent); border: 1px solid transparent; }
+.vg-btn.primary:hover { background: var(--accent-hover); }
+.vg-btn.primary:active { background: var(--accent-active); }
+.vg-btn.primary[disabled] { opacity: 0.45; cursor: default; }
+.vg-btn.secondary { background: var(--surface); color: var(--text-body); border: 1px solid var(--border-strong); }
+.vg-btn.secondary:hover { background: var(--surface-sunken); }
+.vg-btn.ghost { background: transparent; color: var(--text-secondary); border: 1px solid transparent; }
+.vg-btn.ghost:hover { background: var(--surface-sunken); color: var(--text-body); }
+.vg-btn.full { width: 100%; }
+.vg-linkbtn { background: transparent; border: none; padding: 0; cursor: pointer; font: 500 12px var(--font-ui); color: var(--link); text-align: left; text-decoration: none; display: inline-block; }
+.vg-divider { display: flex; align-items: center; gap: 10px; }
+.vg-divider span.line { flex: 1; height: 1px; background: var(--row-sep); }
+.vg-idp { display: inline-flex; align-items: center; justify-content: center; gap: 10px; width: 100%; height: 38px; padding: 0 16px; background: var(--surface); border: 1px solid var(--border-strong); border-radius: 10px; font: 500 13px var(--font-ui); color: var(--text-ink); cursor: pointer; transition: background 120ms ease; text-decoration: none; }
+.vg-idp:hover { background: var(--surface-sunken); }
+.vg-idp[disabled] { opacity: 0.6; cursor: not-allowed; }
+.vg-idp .mark { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 6px; background: var(--surface-sunken); border: 1px solid var(--border-default); font: 600 9.5px var(--font-mono); color: var(--text-secondary); flex: none; }
+.vg-note { font: 400 11.5px/1.6 var(--font-ui); color: var(--text-muted); }
+.vg-note code, .vg-code { font: 400 0.92em var(--font-mono); background: var(--surface-sunken); border: 1px solid var(--border-default); border-radius: 6px; padding: 1px 5px; color: var(--text-body); }
+.vg-done { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 18px 0; text-align: center; }
+.vg-done .ok { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 999px; background: var(--ok-soft); border: 1px solid var(--ok-border); color: var(--ok); }
+.vg-done .t { font: 600 15px var(--font-ui); color: var(--text-ink); }
+.vg-done .s { font: 400 12.5px/1.6 var(--font-ui); color: var(--text-muted); max-width: 300px; }
+.vg-codes { display: flex; align-items: center; gap: 8px; }
+.vg-codes input { width: 40px; height: 48px; text-align: center; font: 600 19px var(--font-mono); color: var(--text-ink); background: var(--surface); border: 1.5px solid var(--border-default); border-radius: 12px; outline: none; caret-color: var(--accent); transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); }
+.vg-codes input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 18%, transparent); }
+.vg-codes.err input { border-color: var(--danger-solid); }
+.vg-codes.err input:focus { border-color: var(--danger-solid); box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger-solid) 18%, transparent); }
+.vg-codes .sep { width: 8px; height: 1.5px; background: var(--border-strong); border-radius: 999px; flex: none; }
+.vg-row { display: flex; gap: 8px; }
+.vg-row .grow { flex: 1; justify-content: center; }
+.vg-callout { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 12px; font-family: var(--font-ui); }
+.vg-callout.neutral { background: var(--surface-sunken); border: 1px solid var(--border-default); }
+.vg-callout.neutral .ic { color: var(--text-secondary); }
+.vg-callout.warn { background: var(--warn-soft); border: 1px solid var(--warn-border); }
+.vg-callout.warn .ic { color: var(--warn); }
+.vg-callout .ic { display: inline-flex; margin-top: 1px; flex: none; }
+.vg-callout .ct { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.vg-callout .ct b { font: 600 13px var(--font-ui); color: var(--text-ink); }
+.vg-callout .ct span { font: 400 13px/1.55 var(--font-ui); color: var(--text-body); }
+.vg-check { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; font-family: var(--font-ui); }
+.vg-check input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.vg-check .bx { width: 18px; height: 18px; flex: none; margin-top: 1px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; background: var(--surface); border: 1px solid var(--border-strong); transition: background var(--dur-fast) var(--ease-out); }
+.vg-check input:checked + .bx { background: var(--accent); border-color: var(--accent); }
+.vg-check input:focus-visible + .bx { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--focus-ring); }
+.vg-check .bx svg { display: none; }
+.vg-check input:checked + .bx svg { display: block; }
+.vg-check .cl { font-size: 13px; color: var(--text-body); line-height: 1.4; }
+.vg-authfoot { font: 400 11px var(--font-mono); color: var(--text-muted); display: inline-flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center; }
+.vg-authfoot a { color: var(--text-muted); }
+.vg-err { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 12px; background: var(--danger-soft); border: 1px solid var(--danger-border); font: 400 13px/1.5 var(--font-ui); color: var(--danger); }
+.vg-notice { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 12px; background: var(--surface-sunken); border: 1px solid var(--border-default); font: 400 13px/1.5 var(--font-ui); color: var(--text-body); }
+.vg-recgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.vg-recgrid span { font: 500 12px var(--font-mono); color: var(--text-body); background: var(--surface-sunken); border: 1px solid var(--border-default); border-radius: 8px; padding: 7px 10px; text-align: center; }
+.vg-qrbox { display: inline-flex; align-items: center; justify-content: center; width: 120px; height: 120px; flex: none; border-radius: 12px; background: #ffffff; border: 1px solid var(--border-default); padding: 8px; overflow: hidden; }
+.vg-qrbox svg { width: 100%; height: 100%; }
+.vg-copy { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.vg-copy .val { font: 400 12.5px var(--font-mono); color: var(--text-body); overflow-wrap: anywhere; }
+.vg-copy button { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border: none; border-radius: 6px; background: transparent; color: var(--text-muted); cursor: pointer; padding: 0; flex: none; opacity: 0; transition: opacity var(--dur-fast) var(--ease-out); }
+.vg-copy:hover button, .vg-copy button.copied { opacity: 1; }
+.vg-copy button.copied { color: var(--ok); }
+.vg-copy button svg[data-i-ok] { display: none; }
+.vg-copy button.copied svg[data-i-copy] { display: none; }
+.vg-copy button.copied svg[data-i-ok] { display: block; }
+</style>{{end}}
+
+{{define "authbrand"}}<span class="vg-lockup"><svg width="26" height="26" viewBox="0 0 44 44" style="flex:none;display:block;color:var(--accent)"><circle cx="22" cy="22" r="19" fill="none" stroke="currentColor" stroke-width="3" opacity="0.4"></circle><circle cx="22" cy="22" r="12" fill="none" stroke="currentColor" stroke-width="3.5" opacity="0.75"></circle><circle cx="22" cy="22" r="5.5" fill="currentColor"></circle></svg><span class="wm"><b>verge</b><span>ASM</span></span></span>{{end}}
+
+{{define "authfoot"}}<span class="vg-authfoot"><span>Verge ASM {{.Version}}</span><span aria-hidden="true">·</span><span>AGPL-3.0</span><span aria-hidden="true">·</span><a href="https://github.com/winniel123/verge-asm" rel="noreferrer">GitHub</a></span>{{end}}
+
+{{define "authcheckicon"}}<svg viewBox="0 0 18 18" width="12" height="12"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="var(--on-accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>{{end}}
+
+{{define "authcodejs"}}<script>
+(function(){
+  var wrap=document.querySelector(".vg-codes"); if(!wrap) return;
+  var boxes=[].slice.call(wrap.querySelectorAll("input[data-d]"));
+  var hidden=document.getElementById(wrap.getAttribute("data-target"));
+  var form=hidden?hidden.form:null;
+  var submitBtn=document.querySelector("[data-code-submit]");
+  function val(){ return boxes.map(function(b){return b.value;}).join(""); }
+  function sync(){ if(hidden)hidden.value=val(); if(submitBtn)submitBtn.disabled=val().length<boxes.length; }
+  function focusAt(i){ var b=boxes[Math.max(0,Math.min(boxes.length-1,i))]; if(b){b.focus();b.select();} }
+  boxes.forEach(function(b,i){
+    b.addEventListener("input",function(){
+      var d=b.value.replace(/\D/g,"");
+      if(!d){ b.value=""; sync(); return; }
+      var rest=d.split("");
+      b.value=rest.shift();
+      for(var j=i+1;j<boxes.length&&rest.length;j++){ boxes[j].value=rest.shift(); }
+      sync(); focusAt(i+d.length);
+      if(val().length===boxes.length&&form){ form.requestSubmit?form.requestSubmit():form.submit(); }
+    });
+    b.addEventListener("keydown",function(e){
+      if(e.key==="Backspace"&&!b.value&&i>0){ e.preventDefault(); boxes[i-1].value=""; sync(); focusAt(i-1); }
+      else if(e.key==="ArrowLeft"){ e.preventDefault(); focusAt(i-1); }
+      else if(e.key==="ArrowRight"){ e.preventDefault(); focusAt(i+1); }
+    });
+    b.addEventListener("focus",function(){ b.select(); });
+  });
+  wrap.addEventListener("paste",function(e){
+    e.preventDefault();
+    var d=(e.clipboardData.getData("text")||"").replace(/\D/g,"").slice(0,boxes.length);
+    if(!d)return;
+    boxes.forEach(function(b,i){ b.value=d[i]||""; });
+    sync(); focusAt(d.length-1);
+    if(d.length===boxes.length&&form){ form.requestSubmit?form.requestSubmit():form.submit(); }
+  });
+  sync();
+})();
+</script>{{end}}
+
+{{define "authcopyjs"}}<script>
+(function(){
+  [].forEach.call(document.querySelectorAll("[data-copy]"),function(b){
+    b.addEventListener("click",function(){
+      var v=b.getAttribute("data-copy");
+      function done(ok){ if(!ok)return; b.classList.add("copied"); setTimeout(function(){ b.classList.remove("copied"); },1400); }
+      function legacy(){ try{ var ta=document.createElement("textarea"); ta.value=v; ta.setAttribute("readonly",""); ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta); ta.select(); var ok=document.execCommand("copy"); document.body.removeChild(ta); done(ok); }catch(e){} }
+      if(navigator.clipboard&&window.isSecureContext) navigator.clipboard.writeText(v).then(function(){done(true);},legacy); else legacy();
+    });
+  });
+})();
+</script>{{end}}
+
+{{define "login"}}{{template "head" .}}{{template "authcss"}}
+<div class="vg-center" data-screen-label="Sign in"><div class="vg-authcol">
+{{template "authbrand" .}}
+<div class="vg-authcard">
+<div class="vg-authhead"><h1>Sign in</h1><span class="sub">Your deployment, your data.</span></div>
+{{if .Notice}}<div class="vg-notice">{{.Notice}}</div>{{end}}
+{{if .Error}}<div class="vg-err">{{.Error}}</div>{{end}}
+<form class="vg-form" method="post" action="/login">
+<label class="vg-field"><span class="lbl">Username</span><span class="box"><input class="mono" name="username" placeholder="ola.perez" autocomplete="username" spellcheck="false" autofocus required></span></label>
+<div style="display:flex;flex-direction:column;gap:6px">
+<label class="vg-field"><span class="lbl">Password</span><span class="box"><input name="password" type="password" autocomplete="current-password" required></span></label>
+<a class="vg-linkbtn" href="/forgot">Forgot password?</a>
+</div>
+<button class="vg-btn primary full" type="submit">Sign in</button>
+<div class="vg-divider"><span class="line"></span><span class="vg-micro">or</span><span class="line"></span></div>
+{{if .SSOProviders}}
+<div style="display:flex;flex-direction:column;gap:8px">
+{{range .SSOProviders}}<a class="vg-idp" href="/login/sso/{{.Slug}}"><span class="mark" aria-hidden="true">{{.Mark}}</span>Continue with {{.Name}}</a>{{end}}
+</div>
+{{else}}
+<div style="display:flex;flex-direction:column;gap:6px">
+<button type="button" class="vg-idp" disabled><span class="mark" aria-hidden="true">SA</span>Single sign-on not configured</button>
+<span class="vg-note">An admin can add an OpenID Connect identity provider in Settings to enable SSO.</span>
+</div>
+{{end}}
+</form>
+</div>
+{{template "authfoot" .}}
+</div></div>
+{{template "foot" .}}{{end}}
+
+{{define "totp"}}{{template "head" .}}{{template "authcss"}}
+<div class="vg-center" data-screen-label="Two-factor check"><div class="vg-authcol">
+{{template "authbrand" .}}
+<div class="vg-authcard">
+<div class="vg-authhead"><h1>Two-factor check</h1><span class="sub">Enter the code from your authenticator app for <span class="mono">{{if .Username}}{{.Username}}{{else}}your account{{end}}</span>.</span></div>
+{{if .Error}}<div class="vg-err">{{.Error}}</div>{{end}}
+<form class="vg-form" method="post" action="/login/totp">
+<div class="vg-field"><span class="lbl">Verification code</span>
+<div class="vg-codes{{if .Error}} err{{end}}" data-target="vg-code-h">
+<input data-d inputmode="numeric" autocomplete="one-time-code" maxlength="6" aria-label="Digit 1 of 6" autofocus><input data-d inputmode="numeric" maxlength="6" aria-label="Digit 2 of 6"><input data-d inputmode="numeric" maxlength="6" aria-label="Digit 3 of 6"><span class="sep" aria-hidden="true"></span><input data-d inputmode="numeric" maxlength="6" aria-label="Digit 4 of 6"><input data-d inputmode="numeric" maxlength="6" aria-label="Digit 5 of 6"><input data-d inputmode="numeric" maxlength="6" aria-label="Digit 6 of 6">
+</div>
+<input type="hidden" name="code" id="vg-code-h">
+<span class="hint">6 digits · rotates every 30s</span>
+</div>
+<span class="vg-note">Lost your authenticator? Enter one of your recovery codes instead.</span>
+<div class="vg-row">
+<a class="vg-btn ghost" href="/login">Back</a>
+<button class="vg-btn primary grow" type="submit" data-code-submit disabled>Verify</button>
+</div>
+</form>
+</div>
+{{template "authfoot" .}}
+</div></div>
+{{template "authcodejs"}}
+{{template "foot" .}}{{end}}
+
+{{define "totp-enroll"}}{{template "head" .}}{{template "authcss"}}
+<div class="vg-center" data-screen-label="Enroll two-factor"><div class="vg-authcol">
+{{template "authbrand" .}}
+<div class="vg-authcard">
+<div class="vg-authhead"><h1>Set up two-factor</h1><span class="sub">Scan with your authenticator app, or paste the secret. Two-factor is not active until you confirm.</span></div>
+{{if .Error}}<div class="vg-err">{{.Error}}</div>{{end}}
+<div style="display:flex;gap:16px;align-items:center">
+<span class="vg-qrbox">{{.OtpauthQR}}</span>
+<div style="display:flex;flex-direction:column;gap:8px;min-width:0;flex:1">
+<span class="vg-micro">Secret</span>
+<span class="vg-copy"><span class="val">{{.Secret}}</span>
+<button type="button" data-copy="{{.Secret}}" aria-label="Copy value">
+<svg data-i-copy width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
+<svg data-i-ok width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>
+</button></span>
+<span class="vg-note">TOTP · SHA-1 · 30s period · 6 digits</span>
+</div>
+</div>
+<form class="vg-form" method="post" action="/account/totp/confirm">
+<div class="vg-field"><span class="lbl">Current code</span>
+<div class="vg-codes" data-target="vg-ecode-h">
+<input data-d inputmode="numeric" autocomplete="one-time-code" maxlength="6" aria-label="Digit 1 of 6"><input data-d inputmode="numeric" maxlength="6" aria-label="Digit 2 of 6"><input data-d inputmode="numeric" maxlength="6" aria-label="Digit 3 of 6"><span class="sep" aria-hidden="true"></span><input data-d inputmode="numeric" maxlength="6" aria-label="Digit 4 of 6"><input data-d inputmode="numeric" maxlength="6" aria-label="Digit 5 of 6"><input data-d inputmode="numeric" maxlength="6" aria-label="Digit 6 of 6">
+</div>
+<input type="hidden" name="code" id="vg-ecode-h">
+<span class="hint">6 digits · rotates every 30s</span>
+</div>
+<div class="vg-row">
+<a class="vg-btn ghost" href="/profile">Cancel</a>
+<button class="vg-btn primary grow" type="submit" data-code-submit disabled>Confirm and enable</button>
+</div>
+</form>
+</div>
+{{template "authfoot" .}}
+</div></div>
+{{template "authcodejs"}}
+{{template "authcopyjs"}}
+{{template "foot" .}}{{end}}
+
+{{define "totp-recovery"}}{{template "head" .}}{{template "authcss"}}
+<div class="vg-center" data-screen-label="Recovery codes"><div class="vg-authcol wide">
+{{template "authbrand" .}}
+<div class="vg-authcard">
+<div class="vg-authhead"><h1>Recovery codes</h1><span class="sub">Each works once at sign-in if the authenticator is lost.</span></div>
+<div class="vg-callout warn"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg></span><span class="ct"><b>Shown once</b><span>Store them now — Verge keeps only hashes.</span></span></div>
+<div class="vg-recgrid">
+{{range .Codes}}<span class="vg-reccode">{{.}}</span>{{end}}
+</div>
+<button type="button" class="vg-btn secondary full" id="vg-copyall"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>Copy all</button>
+<label class="vg-check"><input type="checkbox" id="vg-stored"><span class="bx">{{template "authcheckicon"}}</span><span class="cl">I stored these somewhere safe</span></label>
+<a class="vg-btn primary full" id="vg-finish" href="/profile" aria-disabled="true" style="opacity:0.45;pointer-events:none">Finish enrollment</a>
+</div>
+{{template "authfoot" .}}
+</div></div>
+<script>
+(function(){
+  var cb=document.getElementById("vg-stored"),fin=document.getElementById("vg-finish");
+  if(cb&&fin)cb.addEventListener("change",function(){ var on=cb.checked; fin.style.opacity=on?"":"0.45"; fin.style.pointerEvents=on?"":"none"; fin.setAttribute("aria-disabled",on?"false":"true"); });
+  var ca=document.getElementById("vg-copyall");
+  if(ca)ca.addEventListener("click",function(){ var v=[].map.call(document.querySelectorAll(".vg-recgrid span"),function(e){return e.textContent;}).join("\n"); if(navigator.clipboard){ navigator.clipboard.writeText(v); ca.textContent="Copied"; } });
+})();
+</script>
+{{template "foot" .}}{{end}}
+
+{{define "forgot"}}{{template "head" .}}{{template "authcss"}}
+<div class="vg-center" data-screen-label="Reset password"><div class="vg-authcol">
+{{template "authbrand" .}}
+<div class="vg-authcard">
+<div class="vg-authhead"><h1>Reset password</h1><span class="sub">Enter your account name. If it exists, a reset link goes out.</span></div>
+<form class="vg-form" method="post" action="/forgot">
+<label class="vg-field"><span class="lbl">Username</span><span class="box"><input class="mono" name="username" placeholder="ola.perez" autocomplete="username" spellcheck="false" autofocus required></span></label>
+<button class="vg-btn primary full" type="submit">Send reset link</button>
+</form>
+<span class="vg-note">No mail configured on this host? The link is written to the web logs, or reset directly: <code>verge users reset-password</code></span>
+<a class="vg-linkbtn" href="/login">Back to sign in</a>
+</div>
+{{template "authfoot" .}}
+</div></div>
+{{template "foot" .}}{{end}}
+
+{{define "forgot-sent"}}{{template "head" .}}{{template "authcss"}}
+<div class="vg-center" data-screen-label="Reset link sent"><div class="vg-authcol">
+{{template "authbrand" .}}
+<div class="vg-authcard">
+<div class="vg-done">
+<span class="ok" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span>
+<span class="t">Check for your link</span>
+<span class="s">If that account exists, a reset link is on its way. It expires in 30 minutes. On a host with no mail configured, look in the web logs.</span>
+<a class="vg-btn ghost" href="/login">Back to sign in</a>
+</div>
+</div>
+{{template "authfoot" .}}
+</div></div>
+{{template "foot" .}}{{end}}
+
+{{define "reset"}}{{template "head" .}}{{template "authcss"}}
+<div class="vg-center" data-screen-label="Set a new password"><div class="vg-authcol">
+{{template "authbrand" .}}
+<div class="vg-authcard">
+<div class="vg-authhead"><h1>Set a new password</h1><span class="sub">Choose a new password for your account. The link is single-use.</span></div>
+{{if .Error}}<div class="vg-err">{{.Error}}</div>{{end}}
+<form class="vg-form" method="post" action="/reset">
+<input type="hidden" name="token" value="{{.Token}}">
+<label class="vg-field"><span class="lbl">New password</span><span class="box"><input name="password" type="password" autocomplete="new-password" autofocus required></span><span class="hint">12+ characters; a passphrase beats complexity</span></label>
+<label class="vg-field"><span class="lbl">Confirm password</span><span class="box"><input name="confirm" type="password" autocomplete="new-password" required></span></label>
+<button class="vg-btn primary full" type="submit">Set password</button>
+</form>
+</div>
+{{template "authfoot" .}}
+</div></div>
+{{template "foot" .}}{{end}}
+
+{{define "reset-invalid"}}{{template "head" .}}{{template "authcss"}}
+<div class="vg-center" data-screen-label="Reset link invalid"><div class="vg-authcol">
+{{template "authbrand" .}}
+<div class="vg-authcard">
+<div class="vg-authhead"><h1>Link expired or already used</h1><span class="sub">Reset links are single-use and expire after 30 minutes. Request a fresh one.</span></div>
+<a class="vg-btn primary full" href="/forgot">Request a new link</a>
+<a class="vg-linkbtn" href="/login">Back to sign in</a>
+</div>
+{{template "authfoot" .}}
+</div></div>
+{{template "foot" .}}{{end}}
+
+{{define "reset-done"}}{{template "head" .}}{{template "authcss"}}
+<div class="vg-center" data-screen-label="Password updated"><div class="vg-authcol">
+{{template "authbrand" .}}
+<div class="vg-authcard">
+<div class="vg-done">
+<span class="ok" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span>
+<span class="t">Password updated</span>
+<span class="s">For your security, every session was signed out. Sign in again with your new password.</span>
+<a class="vg-btn primary" href="/login">Back to sign in</a>
+</div>
+</div>
+{{template "authfoot" .}}
+</div></div>
+{{template "foot" .}}{{end}}
+
+{{define "invite"}}{{template "head" .}}{{template "authcss"}}
+<div class="vg-center" data-screen-label="Invitation"><div class="vg-authcol">
+{{template "authbrand" .}}
+<div class="vg-authcard">
+<span class="vg-micro">Invitation</span>
+<div class="vg-authhead"><h1>Accept your invitation</h1><span class="sub">You were invited to this deployment as <span class="mono">{{.Role}}</span>. Choose a username and password to join.</span></div>
+{{if .Error}}<div class="vg-err">{{.Error}}</div>{{end}}
+<form class="vg-form" method="post" action="/invite">
+<input type="hidden" name="token" value="{{.Token}}">
+<label class="vg-field"><span class="lbl">Username</span><span class="box"><input class="mono" name="username" value="{{.Username}}" placeholder="ola.perez" autocomplete="username" spellcheck="false" autofocus required></span></label>
+<label class="vg-field"><span class="lbl">Password</span><span class="box"><input name="password" type="password" autocomplete="new-password" required></span><span class="hint">12+ characters; a passphrase beats complexity</span></label>
+<button class="vg-btn primary full" type="submit">Create account and join</button>
+</form>
+<span class="vg-note">Two-factor enrollment follows on first sign-in.</span>
+</div>
+{{template "authfoot" .}}
+</div></div>
+{{template "foot" .}}{{end}}
+
+{{define "invite-invalid"}}{{template "head" .}}{{template "authcss"}}
+<div class="vg-center" data-screen-label="Invitation invalid"><div class="vg-authcol">
+{{template "authbrand" .}}
+<div class="vg-authcard">
+<div class="vg-authhead"><h1>Invitation expired or already used</h1><span class="sub">Invitations are single-use and time-boxed. Ask an admin to send a fresh one.</span></div>
+<a class="vg-linkbtn" href="/login">Back to sign in</a>
+</div>
+{{template "authfoot" .}}
+</div></div>
+{{template "foot" .}}{{end}}

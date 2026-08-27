@@ -7,34 +7,87 @@ package db
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+const deleteReportSchedule = `-- name: DeleteReportSchedule :exec
+DELETE FROM report_schedule WHERE id = $1
+`
+
+// Remove one schedule (the row-menu's Delete). A hard delete: the schedule is a
+// Declared intent, so withdrawing the declaration removes the row. Idempotent from
+// the caller's view — deleting an id already gone is not an error.
+func (q *Queries) DeleteReportSchedule(ctx context.Context, id int64) error {
+	_, err := q.db.Exec(ctx, deleteReportSchedule, id)
+	return err
+}
+
+const getReportSchedule = `-- name: GetReportSchedule :one
+SELECT id, name, sections, cadence, format, delivery_target, created_by, created_at, channel_id
+FROM report_schedule
+WHERE id = $1
+`
+
+// One declared schedule by id — the read behind the Edit wizard (prefill, including
+// the bound channel) and the Run-now dispatch (the run reads the schedule's
+// name/cadence/format to cut the artifact for the current period). No row
+// (pgx.ErrNoRows) is a schedule that never existed or was already deleted; the caller
+// answers a stale id rather than 500ing.
+func (q *Queries) GetReportSchedule(ctx context.Context, id int64) (ReportSchedule, error) {
+	row := q.db.QueryRow(ctx, getReportSchedule, id)
+	var i ReportSchedule
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Sections,
+		&i.Cadence,
+		&i.Format,
+		&i.DeliveryTarget,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.ChannelID,
+	)
+	return i, err
+}
 
 const insertReportSchedule = `-- name: InsertReportSchedule :one
 
-INSERT INTO report_schedule (name, sections, cadence, format, delivery_target, created_by)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, name, sections, cadence, format, delivery_target, created_by, created_at
+INSERT INTO report_schedule (name, sections, cadence, format, delivery_target, channel_id, created_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, name, sections, cadence, format, delivery_target, created_by, created_at, channel_id
 `
 
 type InsertReportScheduleParams struct {
-	Name           string `json:"name"`
-	Sections       []byte `json:"sections"`
-	Cadence        string `json:"cadence"`
-	Format         string `json:"format"`
-	DeliveryTarget string `json:"delivery_target"`
-	CreatedBy      int64  `json:"created_by"`
+	Name           string      `json:"name"`
+	Sections       []byte      `json:"sections"`
+	Cadence        string      `json:"cadence"`
+	Format         string      `json:"format"`
+	DeliveryTarget string      `json:"delivery_target"`
+	ChannelID      pgtype.Int8 `json:"channel_id"`
+	CreatedBy      int64       `json:"created_by"`
 }
 
 // Reads and writes behind the Reports screen's recurring-reports table and its
-// "New schedule" wizard (#290). A report_schedule is Declared and carries no
-// timeline: there is a plain insert and an unbounded newest-first list, no
-// content update and no delete (the row-menu's edit/delete stay out of scope until
-// the scheduling dispatcher lands). The estate is single-tenant, so the list is
-// unscoped; created_by attributes the admin who declared each schedule.
+// "New schedule" wizard (#290, live CRUD in P0.6/T4). A report_schedule is Declared
+// and carries no timeline: a re-declaration through the wizard is a fresh insert,
+// never a recompute of an existing row (migration 21700). The row-menu's Edit is a
+// genuine in-place update of a schedule's declared contents (name / sections /
+// cadence / format / channel) — a schedule carries no derived state to recompute, so
+// editing what was declared is not a recompute — and Delete is a hard delete. The
+// estate is single-tenant, so the list is unscoped; created_by attributes the admin
+// who declared each schedule and is immutable across an edit.
+//
+// The schedule's delivery destination is a Channel: channel_id binds the signed-HTTPS
+// Channel that receives the run's link-only ready-message, and NULL is download-only
+// (P0.6c/T7, #508, migration 22700). The free-text delivery_target is superseded by
+// the binding — it is written empty and no longer read as the destination.
 // Declare one recurring report. The caller has parsed the wizard form — name, the
-// chosen sections (a JSON array), cadence, format, and the delivery target — and
-// attributes it to the admin who submitted it. sections defaults to an empty array
-// at the column, so a schedule with no sections chosen still inserts.
+// chosen sections (a JSON array), cadence, format, and the delivery destination
+// (a channel_id, or NULL for download-only) — and attributes it to the admin who
+// submitted it. sections defaults to an empty array at the column, so a schedule with
+// no sections chosen still inserts. delivery_target is written empty (superseded by
+// the channel binding).
 func (q *Queries) InsertReportSchedule(ctx context.Context, arg InsertReportScheduleParams) (ReportSchedule, error) {
 	row := q.db.QueryRow(ctx, insertReportSchedule,
 		arg.Name,
@@ -42,6 +95,7 @@ func (q *Queries) InsertReportSchedule(ctx context.Context, arg InsertReportSche
 		arg.Cadence,
 		arg.Format,
 		arg.DeliveryTarget,
+		arg.ChannelID,
 		arg.CreatedBy,
 	)
 	var i ReportSchedule
@@ -54,19 +108,21 @@ func (q *Queries) InsertReportSchedule(ctx context.Context, arg InsertReportSche
 		&i.DeliveryTarget,
 		&i.CreatedBy,
 		&i.CreatedAt,
+		&i.ChannelID,
 	)
 	return i, err
 }
 
 const listReportSchedules = `-- name: ListReportSchedules :many
-SELECT id, name, sections, cadence, format, delivery_target, created_by, created_at
+SELECT id, name, sections, cadence, format, delivery_target, created_by, created_at, channel_id
 FROM report_schedule
 ORDER BY id DESC
 `
 
 // Every declared schedule, newest-first, unbounded — the "Recurring reports" table
-// renders each row and resolves its "last delivery" from the Message corpus, since
-// deliveries are messages (ADR-0039, ADR-0081) and this table holds only intent.
+// renders each row (resolving the bound channel's URL for the Delivery cell) and its
+// "last delivery" from the report_delivery receipts store (#291/T2), since this table
+// holds only the declared intent.
 func (q *Queries) ListReportSchedules(ctx context.Context) ([]ReportSchedule, error) {
 	rows, err := q.db.Query(ctx, listReportSchedules)
 	if err != nil {
@@ -85,6 +141,7 @@ func (q *Queries) ListReportSchedules(ctx context.Context) ([]ReportSchedule, er
 			&i.DeliveryTarget,
 			&i.CreatedBy,
 			&i.CreatedAt,
+			&i.ChannelID,
 		); err != nil {
 			return nil, err
 		}
@@ -94,4 +151,52 @@ func (q *Queries) ListReportSchedules(ctx context.Context) ([]ReportSchedule, er
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateReportSchedule = `-- name: UpdateReportSchedule :one
+UPDATE report_schedule
+SET name = $2, sections = $3, cadence = $4, format = $5, delivery_target = $6, channel_id = $7
+WHERE id = $1
+RETURNING id, name, sections, cadence, format, delivery_target, created_by, created_at, channel_id
+`
+
+type UpdateReportScheduleParams struct {
+	ID             int64       `json:"id"`
+	Name           string      `json:"name"`
+	Sections       []byte      `json:"sections"`
+	Cadence        string      `json:"cadence"`
+	Format         string      `json:"format"`
+	DeliveryTarget string      `json:"delivery_target"`
+	ChannelID      pgtype.Int8 `json:"channel_id"`
+}
+
+// Edit one schedule's declared contents in place (the row-menu's Edit). A schedule
+// carries no timeline and no derived state, so updating what was declared is not a
+// recompute (migration 21700) — the id, created_by and created_at are preserved.
+// channel_id is part of the declared contents, so an edit can rebind the destination
+// or set it to download-only (NULL). Returns the updated row so the caller can confirm
+// the target existed; no row means a stale id.
+func (q *Queries) UpdateReportSchedule(ctx context.Context, arg UpdateReportScheduleParams) (ReportSchedule, error) {
+	row := q.db.QueryRow(ctx, updateReportSchedule,
+		arg.ID,
+		arg.Name,
+		arg.Sections,
+		arg.Cadence,
+		arg.Format,
+		arg.DeliveryTarget,
+		arg.ChannelID,
+	)
+	var i ReportSchedule
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Sections,
+		&i.Cadence,
+		&i.Format,
+		&i.DeliveryTarget,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.ChannelID,
+	)
+	return i, err
 }

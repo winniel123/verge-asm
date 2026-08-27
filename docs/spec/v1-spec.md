@@ -285,9 +285,22 @@ compile-checked raw SQL — the drift engine is window-function heavy, and an OR
 the layer that carries the differentiation). **Server-rendered** `html/template` + **htmx**, with
 **SSE** for the live drift feed — an SPA would ship third-party npm into the exact page rendering
 the operator's complete attack-surface inventory, which is close to worst-case for this product's
-threat model. **No JSON API in v1**: an API token is a bearer credential that bypasses the TOTP
-auth flow (§4.3), and the integration need is push (notifications, §5.3) rather than pull; a
+threat model. ~~**No JSON API in v1**: an API token is a bearer credential that bypasses the TOTP
+auth flow (§4.3), and the integration need is push (notifications, §5.3) rather than pull~~; a
 session-authed CSV/JSON export from the UI covers "get the data out."
+
+> **WITHDRAWN in part, 2026-08-26 by [#660](https://github.com/winniel123/verge-asm/issues/660) /
+> [ADR-0123](../adr/0123-a-token-api-is-read-only-opt-in-and-a-bearer-path-separate-from-sessions.md)
+> ([ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).**
+> #6 is reversed **narrowly**: v1 ships a **read-only, opt-in, off-by-default** JSON API
+> (`/api/v1`). The bearer-bypass argument is answered rather than waved away — a token-authed
+> request can perform **no mutation and no Declared act**, so it walks past nothing TOTP guards
+> (TOTP guards *writes*, and a session can already read/export the inventory without a second
+> challenge, §4.3). The surface is **off until an admin enables it** and **404s on every path when
+> off** (surface-off is indistinguishable from surface-absent); the bearer path is **fully separate
+> from sessions** (mints no cookie, rides no session; the cookie is never accepted on `/api`). The
+> push story (notifications, §5.3) and the session-authed export both **stand unchanged** — the API
+> is added alongside, not in place of, them.
 
 **Queue: Postgres-backed**, `SELECT … FOR UPDATE SKIP LOCKED` + `LISTEN/NOTIFY`, not a broker.
 Job outcome and observation data must commit **together** — a job recorded "completed, N ports
@@ -369,6 +382,19 @@ in the database and not in a mounted file: *if a change to it should appear in t
 may not live in the environment* ([`packaging-and-configuration.md`](./packaging-and-configuration.md) §5.1).
 The environment holds only what must exist before the database does: the database URL/credential,
 the listen address, and the setup-token escape hatch.
+
+> **Extended 2026-08-26 by [#660](https://github.com/winniel123/verge-asm/issues/660) /
+> [ADR-0123](../adr/0123-a-token-api-is-read-only-opt-in-and-a-bearer-path-separate-from-sessions.md)
+> ([ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)):**
+> the session/cookie flow above is **no longer the only authenticated surface.** A **read-only**,
+> opt-in `/api/v1` (§4.1, §7) is authenticated by a personal **bearer token** on a path **fully
+> separate** from this one — it mints no cookie, establishes no session, is never accepted on the
+> HTML surface, and the session cookie is never accepted on `/api`; `currentAccount` is untouched.
+> It bypasses no factor this section guards, because it can perform **no mutating endpoint and no
+> Declared act** — TOTP and the per-endpoint permission check continue to guard every write,
+> unbypassed. Its account **role is read live from the account row on every request** (the same rule
+> stated for sessions above), so a demotion or disable takes effect on the token's next request with
+> no reissue; tokens are revocable and record a coarsened `last_used_at`.
 
 ### 4.4 Correctness machinery: the golden corpus
 
@@ -486,8 +512,10 @@ subsequent `returned` reading, because a narrowing is not a decommission
 ### 5.2 Signals
 
 A `Signal` is a named, versioned rule evaluated over observations (and possibly other Derived
-values), carrying no severity — urgency belongs to the transition that surfaced it, not to the
-rule. Four parts: its `Predicate domain` (the extension of its own name — the population of which
+values). The firing itself carries no per-finding score — urgency belongs to the transition that
+surfaced it, not to a number stapled to a backlog — but every rule ships at one of **five**
+release-authored **severity** levels (the P0.1 ramp: **Critical / High / Medium / Low / Info**),
+resolved by the web layer to rank and badge the current-state census. Four parts: its `Predicate domain` (the extension of its own name — the population of which
 the fact it names *could* be true), its predicate, its `not-evaluable` case, and its version
 vector. Its census is always three members over one population — fired / did not fire /
 `not-evaluable` — never a delta, trend or series, and every member is enumerable in full: none is
@@ -619,8 +647,12 @@ no denominator (estate completeness is unmeasurable) and no state to approve.
 
 ### 6.5 Signals
 
-Every rule's census renders as fired / not-fired / `not-evaluable`, current state only — never a
-delta or trend. A member row is never the `Subjects` row component: it carries no `Citation`, no
+Every rule's census is evaluated as fired / not-fired / `not-evaluable`, current state only — never
+a delta or trend. The shipped **Signals** screen paints that evaluation as a **flat per-instance
+table of the fired instances** — one severity-badged row per currently-fired `(subject, rule)` pair
+(P2.2; the design package is normative for functionality) — rather than a per-rule three-column
+grouping; the census is still evaluated data-side to mint those rows. A member row is never the
+`Subjects` row component: it carries no `Citation`, no
 search, and its header count is exactly `list.length`, locked — the base/special-case split runs
 the other way from what intuition suggests, because a `Subjects` row silently leaking a false
 denominator onto an estate listing is a materially worse failure than a stray search box on a
@@ -684,14 +716,23 @@ putting it on a screen is severity arriving labelled as honesty
 GCP CAASM) — deferred past v1. Hosted multi-tenant SaaS, and offensive/bug-bounty workflows against
 assets the operator does not own — both outside the map's destination outright.
 
-**Access & integration.** A JSON API and API tokens — a bearer token bypasses the TOTP auth flow
+**Access & integration.** ~~A JSON API and API tokens — a bearer token bypasses the TOTP auth flow
 over the operator's complete attack surface; the integration need is push, not pull
-([#6](https://github.com/winniel123/verge-asm/issues/6)). Reverse-proxy forward-auth (header-trust) —
+([#6](https://github.com/winniel123/verge-asm/issues/6)).~~ **A read-only, opt-in, off-by-default
+JSON API is in scope** ([#660](https://github.com/winniel123/verge-asm/issues/660),
+[ADR-0123](../adr/0123-a-token-api-is-read-only-opt-in-and-a-bearer-path-separate-from-sessions.md)):
+a personal bearer token that can **read** the inventory but perform **no mutation and no Declared
+act**, on a path fully separate from sessions, `404`-ing everywhere until an admin enables it. #6 is
+reversed only for reads — a **mutating** API stays out of scope (a write-capable bearer would be the
+TOTP-free second surface #6 correctly names). Reverse-proxy forward-auth (header-trust) —
 still refused: trusting an upstream identity header is a bypass class of bug the moment the proxy is
 misconfigured ([#11](https://github.com/winniel123/verge-asm/issues/11)). *SSO/OIDC itself is no
 longer a non-goal — it is supported as cryptographically-verified OIDC (#293, ADR-0112), which is
 not the header-trust mechanism this bypass class names; see §4.3.* A pull notification surface (RSS/Atom/
-polling) — the one channel option the no-JSON-API constraint genuinely kills. Vendor notification
+polling) — the one channel option the no-*unauthenticated*-pull constraint genuinely kills (a feed
+reader holds no session and does no TOTP, so it needs a credential the reader can carry; the
+read-only API admitted by [ADR-0123](../adr/0123-a-token-api-is-read-only-opt-in-and-a-bearer-path-separate-from-sessions.md)
+is bearer-authed and opt-in, which is not that feed). Vendor notification
 integrations (Slack/Discord/Telegram/Teams/Matrix/PagerDuty) and per-vendor body shapes — a body
 format with no owner and no watch; *reopens if the curated-table watch (§3.5) acquires an owner for
 it*. An operator-editable notification payload template — hands away the no-rows rule in a text

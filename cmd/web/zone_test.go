@@ -55,7 +55,9 @@ func TestZoneUploadStoresAtSupplyInstantAndListsIt(t *testing.T) {
 	seedID := f.seeds[0].ID
 
 	resp := uploadZone(t, ac, base, seedID, testZone)
-	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/scope" {
+	// DF-F2: an accepted upload now fires a "zone files supplied" flash across the PRG, so
+	// the redirect carries a toast query — match the path prefix, not the whole URL.
+	if resp.StatusCode != http.StatusSeeOther || !strings.HasPrefix(resp.Header.Get("Location"), "/scope") {
 		t.Fatalf("upload: status=%d location=%q", resp.StatusCode, resp.Header.Get("Location"))
 	}
 	resp.Body.Close()
@@ -72,10 +74,11 @@ func TestZoneUploadStoresAtSupplyInstantAndListsIt(t *testing.T) {
 		t.Errorf("stored content does not match the uploaded file")
 	}
 
-	// The Seeds screen shows the supplied file against its scope.
+	// The Scope screen shows the supplied file against its scope (frozen scope.tmpl,
+	// #574: the zone row names <domain>.zone; the evidence table relocates with Settings).
 	page := seedsBody(t, ac, base)
-	if !strings.Contains(page, "Supplied zone files") || !strings.Contains(page, "example.com") {
-		t.Errorf("supplied zone file not shown on the seeds screen; body: %s", page)
+	if !strings.Contains(page, "example.com.zone") {
+		t.Errorf("supplied zone file not shown on the scope screen; body: %s", page)
 	}
 }
 
@@ -144,10 +147,13 @@ func TestZoneUploadRequiresName_ScopeAndAdmin(t *testing.T) {
 		t.Fatalf("viewer upload stored a file; want none")
 	}
 
-	// An upload against a non-existent scope is rejected clearly.
-	resp = uploadZone(t, ac, base, 9999, testZone)
-	if got := body(t, resp); resp.StatusCode != http.StatusBadRequest || !strings.Contains(got, "no longer exists") {
-		t.Fatalf("upload to a missing scope not rejected: status=%d body=%s", resp.StatusCode, got)
+	// #21c: the handler infers the scope from the file's apex; a zone whose apex is
+	// outside every declared name scope is refused with the reason (never attached to a
+	// scope the operator did not name).
+	foreignZone := "$ORIGIN notmine.example.\n@   IN A 203.0.113.10\n"
+	resp = uploadZone(t, ac, base, seedID, foreignZone)
+	if got := body(t, resp); resp.StatusCode != http.StatusBadRequest || !strings.Contains(got, "outside every declared name scope") {
+		t.Fatalf("upload of a foreign-apex zone not refused: status=%d body=%s", resp.StatusCode, got)
 	}
 }
 

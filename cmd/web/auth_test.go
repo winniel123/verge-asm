@@ -171,7 +171,7 @@ func TestSetupRejectsShortPassword(t *testing.T) {
 	base := start(t, f, "tok")
 	c := newClient(t)
 	resp := postForm(t, c, base+"/setup", url.Values{"token": {"tok"}, "username": {"admin"}, "password": {"short"}})
-	if got := body(t, resp); !strings.Contains(got, "at least 8") {
+	if got := body(t, resp); !strings.Contains(got, "at least 12") {
 		t.Fatalf("short password not rejected; body: %s", got)
 	}
 	if n, _ := f.CountAccounts(t.Context()); n != 0 {
@@ -204,7 +204,7 @@ func TestLoginAndSession(t *testing.T) {
 	dash := body(t, resp)
 	if resp.StatusCode != http.StatusOK ||
 		!strings.Contains(dash, "Open signals") ||
-		!strings.Contains(dash, `class="navpill active" href="/"`) {
+		!strings.Contains(dash, `class="sh-pill on" href="/"`) {
 		t.Fatalf("dashboard not shown at /; status=%d body=%s", resp.StatusCode, dash)
 	}
 
@@ -237,7 +237,7 @@ func TestSignInPageComposition(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := body(t, resp)
-	for _, want := range []string{"Sign in", "Single sign-on not configured", "verge users reset-password"} {
+	for _, want := range []string{"Sign in", "Single sign-on not configured"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("login page missing %q; body: %s", want, got)
 		}
@@ -247,6 +247,14 @@ func TestSignInPageComposition(t *testing.T) {
 		if strings.Contains(got, forbidden) {
 			t.Fatalf("login page fabricated an IdP (%q); body: %s", forbidden, got)
 		}
+	}
+	// The "locked out? reset on the host" CLI line moved off login onto the forgot card
+	// (SPEC-CHANGE #19): it is no longer on /login, and /forgot carries it.
+	if strings.Contains(got, "verge users reset-password") {
+		t.Fatalf("login page still carries the host-reset CLI line (it moved to /forgot per #19); body: %s", got)
+	}
+	if forgot := getAnon(t, base+"/forgot", http.StatusOK); !strings.Contains(forgot, "verge users reset-password") {
+		t.Fatalf("forgot card missing the host-reset CLI line; body: %s", forgot)
 	}
 }
 
@@ -347,7 +355,10 @@ func TestCreateAccountDuplicateUsername(t *testing.T) {
 
 // --- TOTP ------------------------------------------------------------------
 
-var secretRE = regexp.MustCompile(`<div class="secret">([A-Z2-7]+)</div>`)
+// secretRE extracts the base32 secret from the frozen enroll screen's copy affordance
+// (signin.tmpl: <span class="val">SECRET</span>). Screen 4's design-owned markup replaced the
+// old <div class="secret"> the repo-authored template used.
+var secretRE = regexp.MustCompile(`<span class="val">([A-Z2-7]+)</span>`)
 
 // TestTOTPEnrollShowsQR covers #317: the enrollment page renders a scannable QR
 // of the otpauth:// URI (generated in-process, so the secret never leaves the
@@ -405,8 +416,8 @@ func TestTOTPEnableThenRequiredAtLogin(t *testing.T) {
 		t.Fatal(err)
 	}
 	resp = postForm(t, ac, base+"/account/totp/confirm", url.Values{"code": {code}})
-	if got := body(t, resp); !strings.Contains(got, "enabled") {
-		t.Fatalf("confirm did not report enabled; body: %s", got)
+	if got := body(t, resp); !strings.Contains(got, "Recovery codes") {
+		t.Fatalf("confirm did not reach the recovery-codes screen; body: %s", got)
 	}
 	if acct, _ := f.GetAccountByUsername(t.Context(), "admin"); !acct.TotpEnabled {
 		t.Fatal("TOTP not enabled after confirmation")

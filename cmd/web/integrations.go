@@ -1,22 +1,45 @@
 package main
 
 import (
-	"html/template"
+	"context"
+	"errors"
+	"log"
+	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/delivery"
+	"github.com/winniel123/verge-asm/internal/message"
 )
 
-// integrationsTemplates adds the Integrations sub-tab markup to the shared
-// template set (templates.go). It is the Settings → Integrations screen ported
-// from design-system/examples/console/Integrations.jsx (ADR-0110): a tile grid of
-// third-party install tiles, each opening a Drawer with a ConsentList, with
-// install and confirm-gated disconnect. The reference to tmpl orders its
-// initialisation before this one. Parsing the markup here keeps this ticket's
-// template in this ticket's file (the convention templates_settings.go names).
-var _ = template.Must(tmpl.Parse(integrationsTemplates))
+// The Integrations sub-tab's view layer is the design-owned settings.tmpl (its
+// "settings-integrations" define, package v3.13.0): the spec catalogue, the PRG
+// category/search filter, the spec drawer, and the install/remove/test acts. The
+// repo authors no markup here; the handler below wires the authored catalogue and
+// the operator's real install state into the tmpl's declared holes (#26j).
+
+// integrationsEnabled gates the whole Settings → Integrations surface (#388). The
+// design package is normative for look AND functionality (ADR-0116, PARITY-CHART
+// P1.9): the shell's command palette and the Settings tab bar both reach the
+// Integrations surface in the design, so it ships enabled rather than hidden. The
+// tab, the render dispatch, and the install/disconnect routes are all guarded on
+// this one flag, so flipping it true revives the whole surface at once.
+//
+// "Installing" an integration writes a (slug, "installed") row to integration_state
+// and records the operator's declared consent; the real delivery worker
+// (internal/delivery/runner.go) POSTs raw JSON to channel URLs and is
+// integration-agnostic, so per-integration clients, credential storage, and
+// message formatting remain future work layered on top of this surface, not a
+// precondition for reaching it. The catalogue, templates, handlers, table
+// (db/migrations/21200_integration_state.sql), and queries are all in the tree.
+const integrationsEnabled = true
 
 // The three install states a tile can be in (design-system Integrations.jsx /
 // IntegrationTile.jsx). "available" is the absence of a row — nothing installed;
@@ -141,66 +164,94 @@ func integrationBySlug(slug string) (catalogIntegration, bool) {
 	return catalogIntegration{}, false
 }
 
-// integrationView is a catalogue row merged with its per-install state, shaped for
-// the tile grid. Connected is the union of installed and needs-config — the two
-// states that carry a disconnect. OpenURL opens the tile's Drawer; ConfirmURL
-// opens the disconnect ConfirmDialog (a link, so no destruction fires on click).
-type integrationView struct {
-	Slug        string
+// integrationTile is one catalogue row merged with its per-install state, shaped
+// for the spec tile grid (#26j). ID is the tile slug; State is the tmpl's display
+// vocabulary — installed / attention / available — mapped from the store's
+// installed / needs-config / (absent) states (needs-config reads as "needs
+// attention" on the spec surface).
+type integrationTile struct {
+	ID          string
 	Name        string
 	Mark        string
 	Category    string
 	Description string
 	State       string
-	Installed   bool
-	NeedsConfig bool
-	Available   bool
-	Connected   bool
-	Grants      []integrationGrant
-	OpenURL     template.URL
-	ConfirmURL  template.URL
 }
 
-// integrationCatOption is one segment of the category filter.
-type integrationCatOption struct {
-	Value  string
-	Active bool
-	URL    template.URL
+// integrationDrawerView is the spec drawer's shape (#26j): the tile facts plus the
+// grants list, the attention callout, and the installed/last-delivery/classes KV.
+// Attention/Installed/LastDelivery/Classes have no read on the live surface, so
+// they render empty (their regions collapse) and the design fixture pins them.
+// BoundChannel (#39b) is the id of the delivery Channel this integration is bound to,
+// stringified to match an IntChannels option Value — empty when unbound, which the
+// drawer renders as "Not connected" and gates "Send test" off.
+type integrationDrawerView struct {
+	ID           string
+	Name         string
+	Mark         string
+	Category     string
+	Description  string
+	State        string
+	Attention    string
+	Grants       []integrationGrant
+	Installed    string
+	LastDelivery string
+	Classes      string
+	BoundChannel string
 }
 
-// intURL builds a Settings → Integrations URL carrying the current filter plus any
-// extra key/value pairs. Values are encoded by url.Values, and the result is
-// marked template.URL so html/template does not re-escape the query separators
-// (interpolating a raw fragment mid-URL would otherwise mangle them).
-func intURL(cat, q string, kv ...string) template.URL {
-	v := url.Values{}
-	v.Set("tab", "integrations")
-	if cat != "" && cat != integrationCatAll {
-		v.Set("cat", cat)
-	}
-	if q != "" {
-		v.Set("q", q)
-	}
-	for i := 0; i+1 < len(kv); i += 2 {
-		v.Set(kv[i], kv[i+1])
-	}
-	return template.URL("/settings?" + v.Encode())
+// integrationChannelOption is one entry of the drawer's "Delivery channel" select
+// (#39b): the tmpl's .IntChannels[{Value,Label,Hint}] hole. Value is the Channel's id
+// (stringified) — or "" for the leading "Not connected" entry; Label is the Channel's
+// host+path (the fixtures' scheme-stripped form); Hint is a one-line descriptor. The
+// binding is a reference to a Channel, never a fold — an integration formats on top of
+// a Channel's transport, it is not a Channel itself.
+type integrationChannelOption struct {
+	Value string
+	Label string
+	Hint  string
 }
 
-// fillIntegrationsSection renders the Integrations tile grid (#308): the authored
-// catalogue merged with the operator's real install state, filtered by the
-// category segment and the search box. It also resolves the open Drawer and the
-// disconnect ConfirmDialog from the query string. No install state is fabricated —
-// an integration with no stored row is available (not installed).
+// tileState maps the store's install state to the tmpl's display vocabulary: an
+// installed row is "installed"; a needs-config row reads as "attention"; anything
+// else (no row) is "available".
+func tileState(storeState string) string {
+	switch storeState {
+	case integrationInstalled:
+		return "installed"
+	case integrationNeedsConfig:
+		return "attention"
+	default:
+		return "available"
+	}
+}
+
+// fillIntegrationsSection renders the spec integrations catalogue (#26j): the
+// authored catalogue merged with the operator's real install state, filtered by the
+// category segment (?cat=) and the search box (?q=), and the spec drawer resolved
+// from ?view=. No install state is fabricated — an integration with no stored row is
+// available.
 func (s *server) fillIntegrationsSection(r *http.Request, data map[string]any) error {
 	rows, err := s.store.ListIntegrationStates(r.Context())
 	if err != nil {
 		return err
 	}
 	state := make(map[string]string, len(rows))
+	// bound holds each installed integration's bound delivery Channel id, where one is
+	// set (a reference to a Channel — #39b). It fills the drawer's BoundChannel hole.
+	bound := make(map[string]int64, len(rows))
 	for _, row := range rows {
 		state[row.Slug] = row.State
+		if row.ChannelID.Valid {
+			bound[row.Slug] = row.ChannelID.Int64
+		}
 	}
+
+	// The drawer's "Delivery channel" select options (#39b): the declared Channels, each
+	// by its id/host, behind a leading "Not connected" entry (the unbound choice). A
+	// Channel list read failure degrades to just "Not connected" — the select still works
+	// and an integration can be unbound — rather than 500ing the whole Settings page.
+	data["IntChannels"] = s.integrationChannelOptions(r.Context())
 
 	cat := r.URL.Query().Get("cat")
 	if cat == "" {
@@ -209,73 +260,91 @@ func (s *server) fillIntegrationsSection(r *http.Request, data map[string]any) e
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
 	ql := strings.ToLower(q)
 
-	views := make([]integrationView, 0, len(integrationCatalog))
-	bySlug := make(map[string]integrationView, len(integrationCatalog))
+	tiles := make([]integrationTile, 0, len(integrationCatalog))
 	for _, c := range integrationCatalog {
-		st := state[c.Slug]
-		if st != integrationInstalled && st != integrationNeedsConfig {
-			st = integrationAvailable
-		}
-		v := integrationView{
-			Slug: c.Slug, Name: c.Name, Mark: c.Mark, Category: c.Category,
-			Description: c.Description, State: st,
-			Installed: st == integrationInstalled, NeedsConfig: st == integrationNeedsConfig,
-			Available: st == integrationAvailable, Connected: st != integrationAvailable,
-			Grants:     c.Grants,
-			OpenURL:    intURL(cat, q, "open", c.Slug),
-			ConfirmURL: intURL(cat, q, "confirm", c.Slug),
-		}
-		bySlug[c.Slug] = v
+		st := tileState(state[c.Slug])
 		if cat != integrationCatAll && c.Category != cat {
 			continue
 		}
 		if ql != "" && !strings.Contains(strings.ToLower(c.Name), ql) && !strings.Contains(strings.ToLower(c.Description), ql) {
 			continue
 		}
-		views = append(views, v)
+		tiles = append(tiles, integrationTile{
+			ID: c.Slug, Name: c.Name, Mark: c.Mark, Category: c.Category,
+			Description: c.Description, State: st,
+		})
 	}
 
-	cats := make([]integrationCatOption, 0, len(integrationCats))
-	for _, name := range integrationCats {
-		cats = append(cats, integrationCatOption{Value: name, Active: name == cat, URL: intURL(name, q)})
-	}
-
-	data["Integrations"] = views
-	data["IntCats"] = cats
+	data["Integrations"] = tiles
+	data["IntCats"] = integrationCats
 	data["IntCat"] = cat
-	data["IntQuery"] = q
-	data["IntCloseURL"] = intURL(cat, q)
+	data["IntQ"] = q
 
-	// The open Drawer: any catalogue tile may be opened to read its consent, even
-	// one that is available (not installed).
-	if open := r.URL.Query().Get("open"); open != "" {
-		if v, ok := bySlug[open]; ok {
-			data["IntOpen"] = v
-		}
-	}
-	// The disconnect ConfirmDialog renders only for a connected integration: there
-	// is nothing to disconnect on an available one, so a stray confirm param on it
-	// is ignored rather than offering a destructive act with no target.
-	if confirm := r.URL.Query().Get("confirm"); confirm != "" {
-		if v, ok := bySlug[confirm]; ok && v.Connected {
-			data["IntConfirm"] = v
+	// The spec drawer (?view=<id>): any catalogue tile may be opened to read its
+	// grants and facts, installed or not.
+	if view := r.URL.Query().Get("view"); view != "" {
+		if c, ok := integrationBySlug(view); ok {
+			dv := integrationDrawerView{
+				ID: c.Slug, Name: c.Name, Mark: c.Mark, Category: c.Category,
+				Description: c.Description, State: tileState(state[c.Slug]),
+				Grants: c.Grants,
+			}
+			// The bound Channel (#39b): its id stringified to match an IntChannels option
+			// Value, so the select renders it selected. Unbound stays "" (Not connected).
+			if id, ok := bound[c.Slug]; ok {
+				dv.BoundChannel = strconv.FormatInt(id, 10)
+			}
+			data["IntDrawer"] = dv
 		}
 	}
 	return nil
 }
 
+// integrationChannelOptions builds the drawer's "Delivery channel" select (#39b): a
+// leading "Not connected" entry (Value "", the unbound choice) followed by one entry
+// per declared Channel — Value is the Channel id (stringified), Label its host+path,
+// Hint a fixed descriptor. A Channel-list read failure degrades to the "Not connected"
+// entry alone, matching the other best-effort reads on this admin page.
+func (s *server) integrationChannelOptions(ctx context.Context) []integrationChannelOption {
+	opts := []integrationChannelOption{{Value: "", Label: "Not connected", Hint: "no delivery target"}}
+	channels, err := s.store.ListChannels(ctx)
+	if err != nil {
+		log.Printf("web: integrations: list channels for delivery select: %v", err)
+		return opts
+	}
+	for _, c := range channels {
+		opts = append(opts, integrationChannelOption{
+			Value: strconv.FormatInt(c.ID, 10),
+			Label: channelDeliveryLabel(c.Url),
+			Hint:  "signed HTTPS channel",
+		})
+	}
+	return opts
+}
+
+// channelDeliveryLabel renders a Channel's URL as the select label the fixtures pin:
+// the host and path with the scheme stripped (https://ops.acmecorp.io/hook →
+// ops.acmecorp.io/hook). A URL that does not parse falls back to its raw form.
+func channelDeliveryLabel(raw string) string {
+	if u, err := url.Parse(raw); err == nil && u.Host != "" {
+		return strings.TrimSuffix(u.Host+u.Path, "/")
+	}
+	return raw
+}
+
 // installIntegration records the operator's consent to install a third-party
-// integration (#308). Reaching the install button means the ConsentList's grants
-// have been shown, so the click is the consent — grants are all-or-nothing. It is
-// an admin act (requireAdmin); an unknown slug is refused rather than written.
+// integration (#26j). Reaching the install button means the grants have been shown,
+// so the click is the consent — grants are all-or-nothing. It is an admin act
+// (requireAdmin); an unknown id is refused rather than written. The spec form posts
+// an `id`; the pre-spec forms posted `slug`, so both are accepted.
 func (s *server) installIntegration(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	slug := r.FormValue("slug")
-	if _, ok := integrationBySlug(slug); !ok {
+	id := integrationFormID(r)
+	if _, ok := integrationBySlug(id); !ok {
 		http.Error(w, "unknown integration", http.StatusBadRequest)
 		return
 	}
 	if _, err := s.store.UpsertIntegrationState(r.Context(), db.UpsertIntegrationStateParams{
-		Slug: slug, State: integrationInstalled,
+		Slug: id, State: integrationInstalled,
 	}); err != nil {
 		s.serverError(w, "install integration", err)
 		return
@@ -283,125 +352,182 @@ func (s *server) installIntegration(w http.ResponseWriter, r *http.Request, acct
 	http.Redirect(w, r, "/settings?tab=integrations", http.StatusSeeOther)
 }
 
-// disconnectIntegration returns an integration to available (not installed). It is
-// reached only through the ConfirmDialog's confirm button (a POST), never fired on
-// the tile click — the tile's Disconnect is a link to the confirm step. It is an
-// admin act; an unknown slug is refused. Nothing is deleted on the integration's
+// removeIntegration returns an integration to available (not installed) — the spec
+// drawer's Remove act (#26j), and the alias for the pre-spec /disconnect route. It
+// is an admin act; an unknown id is refused. Nothing is deleted on the integration's
 // own side: this only forgets the local install.
-func (s *server) disconnectIntegration(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	slug := r.FormValue("slug")
-	if _, ok := integrationBySlug(slug); !ok {
+func (s *server) removeIntegration(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	id := integrationFormID(r)
+	if _, ok := integrationBySlug(id); !ok {
 		http.Error(w, "unknown integration", http.StatusBadRequest)
 		return
 	}
-	if err := s.store.DeleteIntegrationState(r.Context(), slug); err != nil {
-		s.serverError(w, "disconnect integration", err)
+	if err := s.store.DeleteIntegrationState(r.Context(), id); err != nil {
+		s.serverError(w, "remove integration", err)
 		return
 	}
 	http.Redirect(w, r, "/settings?tab=integrations", http.StatusSeeOther)
 }
 
-const integrationsTemplates = `
-{{define "int-state-badge"}}{{if .Installed}}<span class="badge" style="color:var(--ok);border-color:var(--ok-border)">installed</span>{{else if .NeedsConfig}}<span class="badge" style="color:var(--warn);border-color:var(--warn-border)">needs config</span>{{else}}<span class="badge off">available</span>{{end}}{{end}}
+// bindIntegrationChannel binds an installed integration to a delivery Channel, or
+// clears the binding (#39b). The drawer's "Delivery channel" select posts {id,channel};
+// an empty channel unbinds. The slug is validated against the catalogue and the channel
+// against the declared Channels — an unknown either is refused rather than written. The
+// binding is a REFERENCE to a Channel, never a fold: the integration formats on top of a
+// Channel's transport, it is not a Channel itself. It is an admin act; on success it
+// redirects back to the drawer so the operator sees the new binding.
+func (s *server) bindIntegrationChannel(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	id := integrationFormID(r)
+	if _, ok := integrationBySlug(id); !ok {
+		http.Error(w, "unknown integration", http.StatusBadRequest)
+		return
+	}
+	dest := "/settings?tab=integrations&view=" + url.QueryEscape(id)
 
-{{define "int-consent"}}<ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px">
-{{range .Grants}}<li style="display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border-radius:10px;{{if .Write}}background:var(--warn-soft){{end}}">
-<span aria-hidden="true" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;flex:none;margin-top:1px;{{if .Write}}background:var(--warn-soft);border:1px solid var(--warn-border);color:var(--warn){{else}}background:var(--sunken);border:1px solid var(--hairline);color:var(--body){{end}}">{{if .Write}}<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>{{else}}<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>{{end}}</span>
-<span style="display:flex;flex-direction:column;gap:2px;min-width:0">
-<span style="display:flex;align-items:center;gap:8px;font:500 13px var(--sans);color:var(--ink)">{{.Scope}}{{if .Write}} <span class="badge">writes</span>{{end}}</span>
-{{if .Detail}}<span style="font:400 12px/1.55 var(--sans);color:var(--muted)">{{.Detail}}</span>{{end}}
-</span>
-</li>{{end}}
-</ul>{{end}}
+	channel := strings.TrimSpace(r.FormValue("channel"))
+	var binding pgtype.Int8
+	if channel != "" {
+		chID, err := strconv.ParseInt(channel, 10, 64)
+		if err != nil {
+			http.Error(w, "invalid channel", http.StatusBadRequest)
+			return
+		}
+		// Validate the channel against the declared Channels — a binding to a Channel that
+		// does not exist is refused rather than stored (a dangling reference the drawer
+		// could not render).
+		ok, err := s.channelExists(r.Context(), chID)
+		if err != nil {
+			s.serverError(w, "bind integration channel: list channels", err)
+			return
+		}
+		if !ok {
+			http.Error(w, "unknown channel", http.StatusBadRequest)
+			return
+		}
+		binding = pgtype.Int8{Int64: chID, Valid: true}
+	}
 
-{{define "settings-integrations"}}
-<div class="microlabel">Delivery · integrations</div>
-<div class="rulehead">
-<div>
-<h2 style="margin:0">Integrations</h2>
-<span class="muted" style="font-size:12.5px">One-way where possible — Verge pushes, integrations receive. Write-backs are proposals, never acts.</span>
-</div>
-<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-<div role="group" aria-label="Filter by category" style="display:inline-flex;gap:2px;padding:2px;background:var(--sunken);border:1px solid var(--hairline);border-radius:var(--r-md)">
-{{range .IntCats}}<a href="{{.URL}}" style="display:inline-flex;align-items:center;height:28px;padding:0 12px;border-radius:var(--r-sm);font-family:var(--sans);font-size:12.5px;font-weight:500;text-decoration:none;{{if .Active}}background:var(--surface);color:var(--ink);box-shadow:var(--shadow-xs){{else}}color:var(--muted){{end}}">{{.Value}}</a>{{end}}
-</div>
-<form method="get" action="/settings" style="margin:0">
-<input type="hidden" name="tab" value="integrations">
-{{if ne .IntCat "All"}}<input type="hidden" name="cat" value="{{.IntCat}}">{{end}}
-<input name="q" value="{{.IntQuery}}" placeholder="Search integrations" autocomplete="off" spellcheck="false" style="width:200px;padding:6px 10px;font-size:12.5px">
-</form>
-</div>
-</div>
+	if err := s.store.SetIntegrationChannel(r.Context(), db.SetIntegrationChannelParams{
+		Slug: id, ChannelID: binding,
+	}); err != nil {
+		s.serverError(w, "bind integration channel", err)
+		return
+	}
+	http.Redirect(w, r, dest, http.StatusSeeOther)
+}
 
-<div class="banner info">Channels need no integration — Settings → Channels delivers raw JSON to any URL. Integrations add formatting, acks, and state mapping on top.</div>
+// channelExists reports whether a Channel with the given id is declared.
+func (s *server) channelExists(ctx context.Context, id int64) (bool, error) {
+	channels, err := s.store.ListChannels(ctx)
+	if err != nil {
+		return false, err
+	}
+	for _, c := range channels {
+		if c.ID == id {
+			return true, nil
+		}
+	}
+	return false, nil
+}
 
-{{if .Integrations}}
-<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">
-{{range .Integrations}}
-<a href="{{.OpenURL}}" style="text-align:left;background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:16px;display:flex;flex-direction:column;gap:10px;min-width:0;text-decoration:none;color:inherit">
-<span style="display:flex;align-items:center;gap:10px;min-width:0">
-<span aria-hidden="true" style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;background:var(--sunken);border:1px solid var(--hairline);font:600 12px var(--mono);color:var(--body);flex:none">{{.Mark}}</span>
-<span style="font:600 13.5px var(--sans);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1 1 auto;min-width:0">{{.Name}}</span>
-<span style="flex:none">{{template "int-state-badge" .}}</span>
-</span>
-<span style="font:400 12.5px/1.55 var(--sans);color:var(--body)">{{.Description}}</span>
-<span style="font:500 10.5px var(--mono);letter-spacing:0.07em;text-transform:uppercase;color:var(--muted)">{{.Category}}</span>
-</a>
-{{end}}
-</div>
-{{else}}
-<div class="emptystate">
-<h2>No integrations match</h2>
-<p>No integration matches your filter. Clear the search or category to see the full library.</p>
-</div>
-{{end}}
+// testIntegration sends a real test payload through the integration's bound delivery
+// Channel and toasts the outcome (#39b, P0.14 — replacing the dead no-op #26j had). A
+// bound integration's test is a plainly-marked test Message built through the delivery
+// package's own BuildBody path and POSTed via the shared, SSRF-guarded SendSigned
+// transport — the exact path the delivery/report-notify runners use, so the test rides
+// the same guard and no second HTTP client exists. A 2xx toasts the spec's "Test message
+// sent"; any other outcome toasts an honest non-ok degrade. When unbound the template
+// already disables the button; the handler defends that too (nothing to send through →
+// a "connect a channel" warn, never a fabricated delivery). It is an admin act.
+func (s *server) testIntegration(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	id := integrationFormID(r)
+	integ, ok := integrationBySlug(id)
+	if !ok {
+		http.Error(w, "unknown integration", http.StatusBadRequest)
+		return
+	}
+	dest := "/settings?tab=integrations&view=" + url.QueryEscape(id)
 
-{{if .IntConfirm}}{{with .IntConfirm}}
-<a class="scrim" href="{{$.IntCloseURL}}" aria-label="Cancel"></a>
-<div class="dialog-panel" role="dialog" aria-modal="true" aria-label="Disconnect {{.Name}}"
-	style="position:fixed;top:12vh;left:50%;transform:translateX(-50%);z-index:42">
-<div class="microlabel" style="margin-bottom:8px">Disconnect</div>
-<h2 style="margin:0 0 8px">Disconnect {{.Name}}</h2>
-<p style="margin:0 0 4px">{{.Name}} stops receiving deliveries.</p>
-<p class="muted" style="margin:0">Nothing was deleted on the {{.Category}} side — this only forgets the local install.</p>
-<div class="dialog-actions">
-<a class="btn ghost" href="{{$.IntCloseURL}}">Cancel</a>
-<form method="post" action="/settings/integrations/disconnect" style="margin:0">
-<input type="hidden" name="slug" value="{{.Slug}}">
-<button class="danger" type="submit">Disconnect</button>
-</form>
-</div>
-</div>
-{{end}}{{else if .IntOpen}}{{with .IntOpen}}
-<a class="scrim" href="{{$.IntCloseURL}}" aria-label="Close"></a>
-<div class="drawer-panel" role="dialog" aria-modal="true" aria-label="{{.Name}}">
-<div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
-<span aria-hidden="true" style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;background:var(--sunken);border:1px solid var(--hairline);font:600 12px var(--mono);color:var(--body)">{{.Mark}}</span>
-<h2 style="margin:0;font-size:16px">{{.Name}}</h2>
-<span style="margin-left:auto">{{template "int-state-badge" .}}</span>
-</div>
-<span style="font:500 10.5px var(--mono);letter-spacing:0.07em;text-transform:uppercase;color:var(--muted)">{{.Category}}</span>
-<p style="margin:8px 0 0;font:400 13px/1.6 var(--sans);color:var(--body)">{{.Description}}</p>
-{{if .NeedsConfig}}<div class="banner warn" style="margin:16px 0 0">Configuration needed — this integration is installed but not yet configured to deliver. Finish setup, then deliveries resume.</div>{{end}}
-<div style="margin-top:18px;display:flex;flex-direction:column;gap:8px">
-<span class="microlabel">This integration can</span>
-{{template "int-consent" .}}
-</div>
-{{if .Available}}
-<div style="margin-top:18px;border-top:1px solid var(--hairline);padding-top:16px">
-<p class="muted" style="margin:0 0 12px;font-size:12.5px">Installing grants the access above. Grants are all-or-nothing — there is no partial consent.</p>
-<form method="post" action="/settings/integrations/install" style="margin:0">
-<input type="hidden" name="slug" value="{{.Slug}}">
-<button type="submit" style="width:100%">Install {{.Name}}</button>
-</form>
-</div>
-{{else}}
-<div class="drawer-actions">
-<a class="btn ghost" href="{{.ConfirmURL}}">Disconnect</a>
-<a class="btn secondary" href="{{$.IntCloseURL}}">Close</a>
-</div>
-{{end}}
-</div>
-{{end}}{{end}}
-{{end}}
-`
+	// Resolve the bound Channel. Unbound (NULL, or no installed row) → nothing to send.
+	binding, err := s.store.GetIntegrationChannel(r.Context(), id)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		s.serverError(w, "test integration: read binding", err)
+		return
+	}
+	if err != nil || !binding.Valid {
+		s.toastRedirect(w, r, dest, "warn", "No delivery channel",
+			"Connect a channel before sending a test.")
+		return
+	}
+
+	ch, err := s.store.GetChannelForDelivery(r.Context(), binding.Int64)
+	if err != nil {
+		// The bound Channel is gone (a race with a delete the ON DELETE SET NULL would
+		// normally settle) or the read failed — degrade honestly rather than send nothing
+		// into the void.
+		s.toastRedirect(w, r, dest, "danger", "Test message not sent",
+			"The bound delivery channel is unavailable — reconnect a channel and try again.")
+		return
+	}
+
+	body, err := delivery.MarshalBody(delivery.BuildBody(delivery.Firing{
+		Class:       message.ClassDrift,
+		Cause:       message.CauseDrift,
+		SubjectKind: "integration-test",
+		FiredAt:     integ.Slug,
+		Instant:     s.now().UTC(),
+		Headline:    "Test message from Verge ASM — delivery check for the " + integ.Name + " integration.",
+	}, s.externalURL))
+	if err != nil {
+		s.serverError(w, "test integration: marshal body", err)
+		return
+	}
+	var secret []byte
+	if ch.Secret.Valid {
+		secret = []byte(ch.Secret.String)
+	}
+
+	statusCode, sendErr := s.channelSender.Send(r.Context(), ch.Url, body, secret)
+	if sendErr != nil || !delivery.Delivered(statusCode) {
+		s.toastRedirect(w, r, dest, "danger", "Test message not sent",
+			"Delivery through "+integ.Name+"'s channel failed — check the channel and try again.")
+		return
+	}
+	s.toastRedirect(w, r, dest, "ok", "Test message sent",
+		"Check "+integ.Name+" for the delivery.")
+}
+
+// integrationFormID reads the integration slug from an `id` field (the spec forms),
+// falling back to `slug` (the pre-spec forms).
+func integrationFormID(r *http.Request) string {
+	if id := r.FormValue("id"); id != "" {
+		return id
+	}
+	return r.FormValue("slug")
+}
+
+// channelTestSender POSTs one signed body through a Channel's transport and returns the
+// status code (0 on a transport error or a refused target). It is the "Send test" egress
+// seam (#39b): production drives delivery.SendSigned over the hardened redirect-refusing
+// client; a test injects a fake Doer so a Send-test assertion never touches the network.
+type channelTestSender interface {
+	Send(ctx context.Context, targetURL string, body, secret []byte) (int, error)
+}
+
+// httpChannelSender is the production sender: it drives delivery.SendSigned over the
+// hardened, redirect-refusing HTTP client and the real DNS resolver, so an integration
+// test send is SSRF-guarded exactly as the delivery and report-notify runners are — one
+// transport, one guard, no second client.
+type httpChannelSender struct {
+	doer     delivery.Doer
+	resolver delivery.Resolver
+	now      func() time.Time
+}
+
+func newHTTPChannelSender(now func() time.Time) *httpChannelSender {
+	return &httpChannelSender{doer: delivery.NewHTTPDoer(), resolver: net.DefaultResolver, now: now}
+}
+
+func (h *httpChannelSender) Send(ctx context.Context, targetURL string, body, secret []byte) (int, error) {
+	return delivery.SendSigned(ctx, h.doer, h.resolver, targetURL, body, secret, h.now().UTC())
+}

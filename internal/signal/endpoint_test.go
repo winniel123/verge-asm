@@ -2,6 +2,10 @@ package signal
 
 import "testing"
 
+// cb is a *bool literal — a read certificate attribute. A nil attribute means the
+// datum was not read (not-evaluable); cb(false)/cb(true) are the two read verdicts.
+func cb(b bool) *bool { return &b }
+
 // presented builds an EndpointFacts with a presented certificate and the given
 // parsed detail flags, for the certificate-rule tests.
 func presented(d *CertDetails) EndpointFacts {
@@ -49,12 +53,12 @@ func TestCertificatePredicates(t *testing.T) {
 		fired *CertDetails // predicate true
 		clean *CertDetails // predicate false
 	}{
-		{certificateExpired, &CertDetails{Expired: true}, &CertDetails{}},
-		{certificateNotYetValid, &CertDetails{NotYetValid: true}, &CertDetails{}},
-		{certificateExpiring, &CertDetails{Expiring: true}, &CertDetails{}},
-		{certificateSelfSigned, &CertDetails{SelfSigned: true}, &CertDetails{}},
-		{certificateWeakKeyOrSignature, &CertDetails{WeakKeyOrSignature: true}, &CertDetails{}},
-		{certificateHostnameSANMismatch{}, &CertDetails{SANMatchesName: false}, &CertDetails{SANMatchesName: true}},
+		{certificateExpired, &CertDetails{Expired: cb(true)}, &CertDetails{Expired: cb(false)}},
+		{certificateNotYetValid, &CertDetails{NotYetValid: cb(true)}, &CertDetails{NotYetValid: cb(false)}},
+		{certificateExpiring, &CertDetails{Expiring: cb(true)}, &CertDetails{Expiring: cb(false)}},
+		{certificateSelfSigned, &CertDetails{SelfSigned: cb(true)}, &CertDetails{SelfSigned: cb(false)}},
+		{certificateWeakKeyOrSignature, &CertDetails{WeakKeyOrSignature: cb(true)}, &CertDetails{WeakKeyOrSignature: cb(false)}},
+		{certificateHostnameSANMismatch{}, &CertDetails{SANMatchesName: cb(false)}, &CertDetails{SANMatchesName: cb(true)}},
 	}
 	for _, c := range cases {
 		if got := c.rule.Eval(presented(c.fired)); got != Fired {
@@ -69,21 +73,69 @@ func TestCertificatePredicates(t *testing.T) {
 func TestHostnameSANMismatchNamelessIsOutside(t *testing.T) {
 	// A nameless endpoint has no hostname to mismatch — outside the domain even
 	// with a presented chain.
-	f := EndpointFacts{CertMeasured: true, CertOutcome: CertPresented, HasName: false, CertDetails: &CertDetails{SANMatchesName: false}}
+	f := EndpointFacts{CertMeasured: true, CertOutcome: CertPresented, HasName: false, CertDetails: &CertDetails{SANMatchesName: cb(false)}}
 	if got := (certificateHostnameSANMismatch{}).Eval(f); got != OutsideDomain {
 		t.Fatalf("nameless endpoint Eval = %q, want OutsideDomain", got)
 	}
 }
 
+// TestCertDetailPerAttributeNullability proves each cert attribute is independently
+// nullable: a non-nil CertDetails whose OWN attribute is nil renders THAT rule
+// not-evaluable — no single pointer gates all six rules (collision #37, P0.10a).
+// The sharp case is the hard constraint: absent SANs are not-evaluable, NEVER a
+// manufactured mismatch verdict.
+func TestCertDetailPerAttributeNullability(t *testing.T) {
+	// The other four rules whose P0.10a datum is absent: their attribute is nil while
+	// the leaf itself was read, so they alone stay not-evaluable.
+	notEvaluableWhenAttrNil := []struct {
+		rule EndpointRule
+		d    *CertDetails
+	}{
+		{certificateNotYetValid, &CertDetails{Expired: cb(false)}},           // NotYetValid nil
+		{certificateSelfSigned, &CertDetails{Expired: cb(false)}},            // SelfSigned nil
+		{certificateWeakKeyOrSignature, &CertDetails{Expired: cb(false)}},    // WeakKeyOrSignature nil
+		{certificateHostnameSANMismatch{}, &CertDetails{Expired: cb(false)}}, // SANMatchesName nil — the hard constraint
+		{certificateHostnameSANMismatch{}, &CertDetails{Expiring: cb(true)}}, // SANs absent even as other attrs are read
+	}
+	for _, c := range notEvaluableWhenAttrNil {
+		if got := c.rule.Eval(presented(c.d)); got != NotEvaluable {
+			t.Errorf("%s with its attribute nil: Eval = %q, want NotEvaluable", c.rule.Name(), got)
+		}
+	}
+
+	// Meanwhile a rule whose OWN attribute IS read still evaluates on the very same
+	// per-attribute value — Expired reads its own datum regardless of the others.
+	if got := certificateExpired.Eval(presented(&CertDetails{Expired: cb(true)})); got != Fired {
+		t.Errorf("certificate-expired with Expired=true: Eval = %q, want Fired", got)
+	}
+	if got := certificateExpiring.Eval(presented(&CertDetails{Expiring: cb(true)})); got != Fired {
+		t.Errorf("certificate-expiring with Expiring=true: Eval = %q, want Fired", got)
+	}
+
+	// The hard constraint, stated directly: SANMatchesName nil must be not-evaluable,
+	// never Fired — a mismatch is never emitted from SANs we did not read.
+	if got := (certificateHostnameSANMismatch{}).Eval(presented(&CertDetails{SANMatchesName: nil})); got == Fired {
+		t.Fatalf("absent SANs must NEVER fire a mismatch; Eval = %q", got)
+	}
+}
+
 func TestCertificateVersionsComposeTLSHandshake(t *testing.T) {
-	const want = "rule@v1|tls-handshake/v1"
+	// Every certificate rule composes the tls-handshake leaf, now at v3 (P0.10b, #704).
+	const want = "rule@v1|tls-handshake/v3"
 	for _, r := range []EndpointRule{
 		certificateExpired, certificateNotYetValid, certificateExpiring,
-		certificateSelfSigned, certificateWeakKeyOrSignature, certificateHostnameSANMismatch{},
+		certificateSelfSigned, certificateHostnameSANMismatch{},
 	} {
 		if got := r.Version().String(); got != want {
 			t.Errorf("%s version = %q, want %q", r.Name(), got, want)
 		}
+	}
+	// certificate-weak-key-or-signature carries its OWN read-side floor token so a NIST
+	// floor edit is one Break on this rule alone, not a CertVersion re-hash (T-weak #715
+	// §6). Its vector composes the leaf AND weak-key-floor/v1 (sorted).
+	const wantWeak = "rule@v1|tls-handshake/v3|weak-key-floor/v1"
+	if got := certificateWeakKeyOrSignature.Version().String(); got != wantWeak {
+		t.Errorf("certificate-weak-key-or-signature version = %q, want %q", got, wantWeak)
 	}
 }
 
@@ -108,7 +160,7 @@ func TestPlaintextHTTPNoHTTPS(t *testing.T) {
 			t.Errorf("%s: Eval = %q, want %q", c.name, got, c.want)
 		}
 	}
-	const wantVer = "rule@v1|http-exchange/v2|tls-handshake/v1"
+	const wantVer = "rule@v1|http-exchange/v2|tls-handshake/v3"
 	if got := r.Version().String(); got != wantVer {
 		t.Fatalf("version = %q, want %q", got, wantVer)
 	}

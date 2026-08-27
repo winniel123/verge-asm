@@ -1,7 +1,7 @@
 ---
 title: Integrations
-section: Operating
-order: 10
+section: Signals & delivery
+order: 4
 description: Integrations are third-party install tiles whose install is a Declared act — the tile states, install and disconnect, and why an integration is never a delivery channel.
 ---
 
@@ -60,14 +60,24 @@ A tile is always in exactly one of three states. Two of them are **stored** in
 | State | Stored value | What it means | Badge |
 | --- | --- | --- | --- |
 | **`available`** | *(no row)* | Nothing installed. The absence of a row **is** the available state — it is never a stored sentinel. | `available` |
-| **`installed`** | `installed` | Installed and delivering. | `installed` |
-| **`needs-config`** | `needs-config` | Installed but not yet configured to deliver — a pending/attention state. The drawer shows a "Configuration needed" callout; finish setup and deliveries resume. | `needs config` |
+| **`installed`** | `installed` | **Declared intent only.** The operator's consent is recorded; verge-asm delivers **nothing** on the strength of it — see the note below. | `installed` |
+| **`needs-config`** | `needs-config` | **Defined but unreachable in v1.** The store and design define this pending state, but **no operator action sets it** — Install writes `installed` directly, and there is no configuration step to enter — so no tile currently renders in it. | `needs config` |
 
 The effective state is computed in `fillIntegrationsSection`: the stored value where a row
 exists, and `available` **otherwise**. No install state is ever fabricated — a fresh
 deployment shows every tile `available`, and only an operator's act moves a tile off it.
-`installed` and `needs-config` together are the **connected** states — the two that carry
-a Disconnect.
+The only state an act reaches today is `installed` (Install writes it; Remove deletes the
+row back to `available`); `needs-config` is defined in the store and the design but is
+written by no code path yet.
+
+> **What "installed" does — and does not — do yet.** Installing records the operator's
+> declared consent and nothing more. **Per-integration delivery and formatting are not
+> built:** the delivery worker
+> ([`internal/delivery/runner.go`](../../internal/delivery/runner.go)) is
+> integration-agnostic — it POSTs raw JSON to notification **Channels** — so no Slack
+> card, PagerDuty incident, Jira issue or S3 snapshot is produced on the strength of an
+> install. The catalogue, tiles, drawer and install/remove acts are the surface; the
+> clients, credential storage and message formatting are future work layered on top.
 
 > **Divergence to note.** The design-system tile
 > [`IntegrationTile.jsx`](../../design-system/components/display/IntegrationTile.jsx)

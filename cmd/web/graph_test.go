@@ -76,8 +76,9 @@ func TestBuildGraphTopologyFromOpenSpans(t *testing.T) {
 // joinSignals folds the Signal engine's fired census onto the graph's nodes by the
 // honest subject→node mapping: a Name firing lights its Name node, a Service firing
 // lights its Service node, and an Endpoint firing lights the Name node it names
-// (falling back to its Service node when nameless). Addresses carry none. No
-// severity, level or gradient is invented — a node carries a presence list only.
+// (falling back to its Service node when nameless). Addresses carry none. Each node
+// also folds to its worst (most urgent) severity — the real severity its fired rules
+// carry (P0.1), never a fabricated level.
 func TestJoinSignalsToGraph(t *testing.T) {
 	rows := []db.ListAllOpenSpansRow{
 		openSpanRow("name", "api.example.com", "resolution", "", `{"outcome":"Resolved","addresses":["203.0.113.5"]}`, false),
@@ -87,11 +88,11 @@ func TestJoinSignalsToGraph(t *testing.T) {
 
 	// A fired census on each subject kind, plus one firing that matches no node.
 	censuses := []signal.Census{
-		{Rule: "lame-delegation", Fired: []signal.Member{{Subject: "api.example.com"}}},                                        // name -> name node
-		{Rule: "sensitive-port-reached-from-internet", Fired: []signal.Member{{Subject: "203.0.113.5:443/tcp"}}},               // service -> service node
-		{Rule: "plaintext-http-no-https", Fired: []signal.Member{{Subject: "api.example.com@203.0.113.5:443/tcp"}}},            // endpoint -> its Name node
-		{Rule: "redirect-does-not-upgrade-to-tls", Fired: []signal.Member{{Subject: "@203.0.113.5:443/tcp"}}},                  // nameless endpoint -> its Service node
-		{Rule: "cname-target-name-error", Fired: []signal.Member{{Subject: "ghost.example.com"}}},                              // matches no node -> dropped
+		{Rule: "lame-delegation", Fired: []signal.Member{{Subject: "api.example.com"}}},                             // name -> name node
+		{Rule: "sensitive-port-reached-from-internet", Fired: []signal.Member{{Subject: "203.0.113.5:443/tcp"}}},    // service -> service node
+		{Rule: "plaintext-http-no-https", Fired: []signal.Member{{Subject: "api.example.com@203.0.113.5:443/tcp"}}}, // endpoint -> its Name node
+		{Rule: "redirect-does-not-upgrade-to-tls", Fired: []signal.Member{{Subject: "@203.0.113.5:443/tcp"}}},       // nameless endpoint -> its Service node
+		{Rule: "cname-target-name-error", Fired: []signal.Member{{Subject: "ghost.example.com"}}},                   // matches no node -> dropped
 	}
 
 	g = joinSignals(g, censuses)
@@ -117,11 +118,30 @@ func TestJoinSignalsToGraph(t *testing.T) {
 	if !sawEndpoint {
 		t.Errorf("name node missing the endpoint firing attached to its Name leg; %#v", name.OpenSignals)
 	}
+	// Its worst severity is medium — both lame-delegation and plaintext-http-no-https
+	// are medium — the token the Name node's halo tints to.
+	if name.Sev != "medium" {
+		t.Errorf("name node severity = %q, want medium (worst of its fired rules)", name.Sev)
+	}
 
 	// The Service node carries its own service firing AND the nameless endpoint's.
 	svc := byID["203.0.113.5:443/tcp"]
 	if len(svc.OpenSignals) != 2 {
 		t.Fatalf("service node open signals = %d, want 2 (service rule + the nameless endpoint); %#v", len(svc.OpenSignals), svc.OpenSignals)
+	}
+	// Worst severity is critical — sensitive-port-reached-from-internet outranks the
+	// nameless endpoint's low redirect rule — so the service fills to the critical dot.
+	if svc.Sev != "critical" {
+		t.Errorf("service node severity = %q, want critical (worst of its fired rules)", svc.Sev)
+	}
+	var sawSev bool
+	for _, s := range svc.OpenSignals {
+		if s.Rule == "sensitive-port-reached-from-internet" && s.Severity == "critical" {
+			sawSev = true
+		}
+	}
+	if !sawSev {
+		t.Errorf("service firing missing its real per-rule severity; %#v", svc.OpenSignals)
 	}
 
 	// The Address node carries none — no rule censuses an Address, and a Service's
@@ -163,9 +183,9 @@ func TestJoinSignalsEndpointFallsBackToServiceWhenNameAbsent(t *testing.T) {
 	}
 }
 
-// The Graph page joins real open signals onto its nodes: a fired rule reaches the
-// selected node's drawer, its node draws a presence halo, and the filter re-skins
-// to the honest presence axis — never a severity scale.
+// The Graph page joins real open signals onto its nodes with their severity (P2.3):
+// a fired rule reaches the selected node's drawer with its SeverityBadge, its node
+// draws a severity-tinted halo, and the header carries the five-level severity filter.
 func TestGraphPageJoinsOpenSignals(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -180,17 +200,20 @@ func TestGraphPageJoinsOpenSignals(t *testing.T) {
 	for _, want := range []string{
 		"non-globally-reachable-address-resolved-from-internet", // the fired rule reaches the drawer
 		`data-for="leak.example.com"`,                           // the per-node drawer signal block
-		`class="gnode-halo"`,                                    // a presence halo is drawn
-		`value="with"`,                                          // the honest presence filter option
-		"No open signals",                                       // the honest empty state for unlit nodes
+		`class="gnode-halo"`,                                    // a halo is drawn
+		"var(--sev-medium-dot)",                                 // tinted to the rule's real severity (medium)
+		"var(--sev-medium-bg)",                                  // the landed sevbadge for the firing (medium)
+		`data-sev="critical"`,                                   // a five-level severity filter option
+		"All severities",                                        // the severity filter's default
+		"No open signals on this node.",                         // the honest empty state for unlit nodes
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("graph page missing %q; body: %s", want, page)
 		}
 	}
-	// The severity scale must not reappear — signals carry no severity.
-	if strings.Contains(page, "All severities") {
-		t.Errorf("graph page still renders a severity filter; signals have no severity")
+	// The retired presence filter must not linger — P2.3 replaces it with severity.
+	if strings.Contains(page, `value="with"`) {
+		t.Errorf("graph page still renders the presence filter; want the five-level severity filter")
 	}
 }
 
@@ -208,14 +231,14 @@ func TestGraphPageRendersTopology(t *testing.T) {
 	page := getBody(t, ac, base+"/graph", http.StatusOK)
 
 	for _, want := range []string{
-		`id="graph-svg"`,      // the canvas
-		`id="graph-minimap"`,  // the minimap
-		`id="graph-controls"`, // the pan/zoom controls
-		`id="graph-drawer"`,   // the node drawer
-		"api.example.com",     // the real Name node
-		"203.0.113.5",         // the real Address node
-		":443 tcp",            // the real Service node label
-		`class="navpill active" href="/graph"`, // NavActive wired to graph
+		`id="gr-svg"`,                          // the canvas
+		`id="gr-minimap"`,                      // the minimap
+		`data-gr-zoom="in"`,                    // the pan/zoom controls
+		`id="gr-drawer"`,                       // the node drawer
+		"api.example.com",                      // the real Name node
+		"203.0.113.5",                          // the real Address node
+		":443 tcp",                             // the real Service node label
+		`class="sh-pill on" href="/graph"`, // NavActive wired to graph
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("graph page missing %q; body: %s", want, page)
@@ -235,7 +258,7 @@ func TestGraphPageEmptyState(t *testing.T) {
 	if !strings.Contains(page, "Nothing to plot yet") {
 		t.Errorf("empty graph missing the empty-state; body: %s", page)
 	}
-	if strings.Contains(page, `id="graph-svg"`) {
+	if strings.Contains(page, `id="gr-svg"`) {
 		t.Errorf("empty graph rendered a canvas; want only the empty-state")
 	}
 }

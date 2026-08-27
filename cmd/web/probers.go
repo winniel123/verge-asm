@@ -5,7 +5,10 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/remoteexec"
 	"github.com/winniel123/verge-asm/internal/vantage"
 )
 
@@ -25,8 +28,20 @@ type proberView struct {
 	// change is a hard failure, never a prompt — so this is only the pinned/awaiting
 	// status, exactly as PublicKey exposes the public half but never the private one.
 	HostKeyPinned bool
-	By            string
-	At            string
+	// HostKeyFingerprint, Platform and Egress carry the pinned prober's lifecycle
+	// facts to the spec VantageCard (#26c): the host-key fingerprint chip, the
+	// accepted platform, and the observed egress address (which links /scope). They
+	// are the real off-host facts as of P0.8 (#683): the fingerprint is derived from
+	// the pinned host key, and platform/egress are what the worker observed over SSH
+	// (`uname` and SSH_CLIENT) on the connect that pinned the key. Each renders empty
+	// and its region collapses until that read lands — an un-pinned or not-yet-probed
+	// vantage shows no fabricated fact — while the VERGE_DEV golden path keeps rendering
+	// the design fixture's pinned stubs, never these live reads.
+	HostKeyFingerprint string
+	Platform           string
+	Egress             string
+	By                 string
+	At                 string
 }
 
 // provisionProber declares a prober: the operator supplies host, port and a
@@ -42,8 +57,10 @@ func (s *server) provisionProber(w http.ResponseWriter, r *http.Request, acct db
 	port := r.FormValue("port")
 	username := r.FormValue("username")
 	fail := func(msg string) {
-		s.renderSeeds(w, r, acct, seedsForms{
-			proberError: msg, proberHost: host, proberPort: port, proberUser: username,
+		// #21d: prober provisioning relocated to Settings → Vantages; a rejected
+		// provision re-renders that tab with its own error and typed values.
+		s.renderSettings(w, r, acct, settingsForms{
+			section: "vantages", proberError: msg, proberHost: host, proberPort: port, proberUser: username,
 		})
 	}
 
@@ -57,8 +74,8 @@ func (s *server) provisionProber(w http.ResponseWriter, r *http.Request, acct db
 	// provisioned endpoint — matching the (host, port, username) endpoint index —
 	// while resolver ships blank (set in SQL) for the operator to fill in.
 	if _, err := s.store.CreateVantage(r.Context(), db.CreateVantageParams{
-		Name:     fmt.Sprintf("%s@%s:%d", ep.Username, ep.Host, ep.Port),
-		Host:     ep.Host, Port: int32(ep.Port), Username: ep.Username, CreatedBy: acct.ID,
+		Name: fmt.Sprintf("%s@%s:%d", ep.Username, ep.Host, ep.Port),
+		Host: ep.Host, Port: int32(ep.Port), Username: ep.Username, CreatedBy: acct.ID, // #nosec G115 (ep.Port validated 1..65535 by vantage.ParseEndpoint)
 	}); err != nil {
 		if isUniqueViolation(err) {
 			fail("That prober endpoint is already provisioned.")
@@ -67,7 +84,8 @@ func (s *server) provisionProber(w http.ResponseWriter, r *http.Request, acct db
 		fail("Could not provision the prober.")
 		return
 	}
-	http.Redirect(w, r, "/scope", http.StatusSeeOther)
+	// #21d: prober provisioning relocated to Settings → Vantages.
+	http.Redirect(w, r, "/settings?tab=vantages", http.StatusSeeOther)
 }
 
 func toProberViews(rows []db.ListVantagesRow) []proberView {
@@ -80,7 +98,14 @@ func toProberViews(rows []db.ListVantagesRow) []proberView {
 			KeySet:        row.PublicKey.Valid && row.PublicKey.String != "",
 			PublicKey:     row.PublicKey.String,
 			HostKeyPinned: row.HostKey.Valid && row.HostKey.String != "",
-			By:            row.CreatedByUsername,
+			// The host-key fingerprint chip is DERIVED from the pinned known_hosts key
+			// (the value itself never reaches web); it renders the canonical SHA256 form,
+			// or empty when nothing is pinned yet. Platform and egress are what the worker
+			// observed off-host and persisted, empty until that first probe.
+			HostKeyFingerprint: remoteexec.Fingerprint(row.HostKey.String),
+			Platform:           row.Platform.String,
+			Egress:             row.Egress.String,
+			By:                 row.CreatedByUsername,
 		}
 		if row.CreatedAt.Valid {
 			v.At = row.CreatedAt.Time.UTC().Format("2006-01-02 15:04 UTC")
@@ -92,4 +117,18 @@ func toProberViews(rows []db.ListVantagesRow) []proberView {
 
 func endpointString(host string, port int32) string {
 	return host + ":" + strconv.Itoa(int(port))
+}
+
+// vantageLatencyLabel formats a vantage's measured connect round-trip for the
+// Dashboard Vantages card (P0.5, SPEC-CHANGE.md collision #7): the spec's mono
+// "34ms" reading once a first measurement exists, and the empty string when the
+// datum is still NULL — the template renders the pending em dash for that case.
+// The latency is measured on the prober connect that pins the host key and stored
+// nullable on the vantage, so an unmeasured prober reads NULL, never a fabricated
+// number.
+func vantageLatencyLabel(ms pgtype.Int4) string {
+	if !ms.Valid {
+		return ""
+	}
+	return strconv.Itoa(int(ms.Int32)) + "ms"
 }

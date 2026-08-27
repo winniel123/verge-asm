@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"net/url"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
@@ -23,9 +25,16 @@ import (
 // undelivered; LastError is the drill-down reason, never a top-level log (#22).
 type deliveryView struct {
 	ChannelHost string
-	State       string
-	Failed      bool
-	LastError   string
+	// Class and When are the message's routing class and the outcome's relative time
+	// (#26h). The delivery-outcomes projection carries neither the class nor an
+	// attempt timestamp, so on the live surface they render empty (the honest omit —
+	// the columns collapse) rather than a fabricated value; the design fixture pins
+	// both for the pixel golden.
+	Class     string
+	When      string
+	State     string
+	Failed    bool
+	LastError string
 }
 
 // messageRow is one message shaped for the panel: the rendered headline, the
@@ -116,13 +125,19 @@ func (s *server) fillMessagesSection(r *http.Request, acct db.Account, data map[
 }
 
 // markMessageRead marks one message read at now and returns to the panel. Read
-// state is a per-account fact; there is no un-read, since a message is read once
-// the operator has seen it.
+// state is a per-account fact.
+//
+// WITHDRAWN by ADR-0116 / #473: the former clause "there is no un-read, since a
+// message is read once the operator has seen it" no longer holds. The design
+// package is normative for functionality, and its Inbox renders a "Mark unread"
+// affordance (Inbox.jsx:59), so read is reversible — see markMessageUnread and
+// the MarkMessageUnread mutation. Marked at this site per ADR-0058 (a superseded
+// mechanism is withdrawn where it is specified), rather than only at ADR-0116.
 func (s *server) markMessageRead(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	dest := messageReturn(r)
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
-		http.Redirect(w, r, dest, http.StatusSeeOther)
+		http.Redirect(w, r, dest, http.StatusSeeOther) // #nosec G710 (target is messageReturn()'s /inbox-allowlisted or /messages-constant same-origin path; no host control)
 		return
 	}
 	if err := s.store.MarkMessageRead(r.Context(), db.MarkMessageReadParams{
@@ -131,7 +146,7 @@ func (s *server) markMessageRead(w http.ResponseWriter, r *http.Request, acct db
 		s.serverError(w, "mark message read", err)
 		return
 	}
-	http.Redirect(w, r, dest, http.StatusSeeOther)
+	http.Redirect(w, r, dest, http.StatusSeeOther) // #nosec G710 (target is messageReturn()'s /inbox-allowlisted or /messages-constant same-origin path; no host control)
 }
 
 // markAllMessagesRead clears the caller's own unread count in one act. Read-state
@@ -144,7 +159,46 @@ func (s *server) markAllMessagesRead(w http.ResponseWriter, r *http.Request, acc
 		s.serverError(w, "mark all messages read", err)
 		return
 	}
-	http.Redirect(w, r, messageReturn(r), http.StatusSeeOther)
+	http.Redirect(w, r, messageReturn(r), http.StatusSeeOther) // #nosec G710 (target is messageReturn()'s /inbox-allowlisted or /messages-constant same-origin path; no host control)
+}
+
+// markMessageUnread returns one message to unread for the caller and redirects
+// back to the panel (#473, ADR-0116). It is the inverse of markMessageRead: the
+// design's Inbox renders a "Mark unread" affordance (Inbox.jsx:59), so read is a
+// reversible per-account fact rather than a monotonic one. Clearing the caller's
+// own read-mark can never touch another operator's unread badge (#327), and the
+// delete is idempotent, so re-marking an already-unread message is harmless. The
+// unread count and the shell bell reflect the flip on the next read.
+func (s *server) markMessageUnread(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	// The unread control posts return="/inbox" (a constant); resolve the target to
+	// a bool here and redirect to a string LITERAL at each call site below, so no
+	// request-derived value ever reaches http.Redirect. This satisfies gosec's
+	// G107 open-redirect taint analyzer by construction (a #nosec its taint pass
+	// ignores would not), and preserves markMessageRead's /inbox-or-/messages home.
+	toInbox := false
+	if ret := r.FormValue("return"); ret == "/inbox" || strings.HasPrefix(ret, "/inbox") {
+		toInbox = true
+	}
+	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
+	if err != nil {
+		if toInbox {
+			http.Redirect(w, r, "/inbox", http.StatusSeeOther)
+		} else {
+			http.Redirect(w, r, "/messages", http.StatusSeeOther)
+		}
+		return
+	}
+	if err := s.store.MarkMessageUnread(r.Context(), db.MarkMessageUnreadParams{
+		AccountID: acct.ID, MessageID: id,
+	}); err != nil {
+		s.serverError(w, "mark message unread", err)
+		return
+	}
+	if toInbox {
+		http.Redirect(w, r, "/inbox", http.StatusSeeOther)
+	} else {
+		http.Redirect(w, r, "/messages", http.StatusSeeOther)
+	}
 }
 
 // messageReturn is where a message-read POST returns to. The two read handlers are
@@ -181,6 +235,18 @@ type inboxView struct {
 // are no messages, the design-system inbox-zero empty-state renders; nothing is
 // fabricated.
 func (s *server) inboxPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	// VERGE_DEV pixel-parity path (#590): serve the pinned fixtures.json inbox slice so
+	// the seeded instance renders byte-for-byte what the golden composes (as the sibling
+	// screens do). The curated five-message corpus (string ids m1–m5, the selected m1
+	// census + the failed-delivery receipt) cannot be reconstructed from live Message
+	// reads without fabricating domain data, and the ?id=m1 selection is a fixture key
+	// the live int64 path does not parse. A real deployment (devMode == false) falls
+	// through to the honest live reads below.
+	if s.devMode {
+		s.render(w, r, "inbox", s.inboxFixtureData(acct, r))
+		return
+	}
+
 	// Opening a message marks it read (the port's open() and initialId both do), so
 	// resolve the selection first and mark before the counts are read back.
 	var selID int64
@@ -258,9 +324,9 @@ func (s *server) inboxPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 		allHref, unreadHref = "/inbox?"+idq, "/inbox?filter=unread&"+idq
 	}
 
-	s.render(w, "inbox", map[string]any{
+	s.render(w, r, "inbox", map[string]any{
 		"Title": "Inbox", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive":  "inbox",
+		"NavActive": "inbox", "DesignTokens": true,
 		"Messages":   shown,
 		"Selected":   selected,
 		"Unread":     unread,
@@ -439,10 +505,21 @@ const reportDeliveryHref = "/reports/delivery"
 // carries "View last delivery", which opens the delivered artifact when this report
 // has a delivery and is disabled where it has none (no fabrication).
 type reportScheduleRow struct {
+	// ID keys the row's mutations — the Run now / Edit / Delete row-menu actions post
+	// it back so the handler resolves which schedule to act on (P0.6/T4).
+	ID       int64
 	Name     string
 	Cadence  string
 	Format   string
 	LastSent string
+	// LastMins is the numeric "last sent" sort value the client-side schedule sort reads
+	// (data-last, #23e): whole minutes since the last delivery. A never-run schedule sorts
+	// last (a large sentinel) rather than as "just now".
+	LastMins int
+	// Delivery is the bound channel's URL, or "download only" where the schedule binds
+	// no channel (NULL channel_id) — the Delivery column (P0.6c/T7). A channel receives
+	// only a link-only ready-message; the report body never leaves the instance.
+	Delivery string
 	// HasDelivery is true where a last delivery exists for this report; DeliveryHref
 	// is the artifact route the menu item opens (reportDeliveryHref when a delivery
 	// exists, empty otherwise so the item renders disabled).
@@ -467,34 +544,88 @@ func lastReportDelivery(deliveries []deliveryView) (href string, has bool) {
 
 // reportScheduleRows assembles the "Recurring reports" table for the Reports screen
 // (T17, wired in #290). It lists the declared schedules newest-first and maps each
-// to a render row. A schedule's "View last delivery" resolves via lastReportDelivery
-// from the Message corpus, since deliveries are messages (ADR-0039, ADR-0081) and the
-// report_schedule table holds only the declared intent — there is no per-schedule
-// delivery backing store yet (#291/T3), so no schedule has a delivery to open and the
-// menu item renders disabled rather than fabricating one (ADR-0110). Where there are
-// no schedules the table renders the design-system empty-state. A read failure
-// degrades to the empty-state rather than 500ing the analytics page a viewer depends
-// on, matching the other best-effort reads on this screen.
+// to a render row. A schedule's "last sent" and "View last delivery" now resolve
+// from the report_delivery receipts store (#291/T2): GetLatestReportDelivery returns
+// the newest non-failed run, whose instant fills the last-sent cell and lights the
+// menu item at the stable /reports/delivery route. A schedule that has never run (or
+// only failed) has no row to read, so the cell stays an em dash and the item renders
+// disabled rather than fabricating a delivery (ADR-0110). Where there are no
+// schedules the table renders the design-system empty-state. A read failure — of the
+// schedule list or a per-schedule delivery — degrades rather than 500ing the
+// analytics page a viewer depends on, matching the other best-effort reads here.
 func (s *server) reportScheduleRows(ctx context.Context) []reportScheduleRow {
 	schedules, err := s.store.ListReportSchedules(ctx)
 	if err != nil {
 		log.Printf("web: reports: list report schedules: %v", err)
 		return nil
 	}
+	// The Delivery cell renders each schedule's bound channel by URL. One ListChannels
+	// read builds the id→URL lookup for every row; a read failure leaves the map empty,
+	// so a bound row degrades to "download only" rather than 500ing the analytics page.
+	channelURL := map[int64]string{}
+	if channels, err := s.store.ListChannels(ctx); err != nil {
+		log.Printf("web: reports: list channels for delivery column: %v", err)
+	} else {
+		for _, c := range channels {
+			channelURL[c.ID] = c.Url
+		}
+	}
+
+	now := s.now()
 	rows := make([]reportScheduleRow, 0, len(schedules))
 	for _, sc := range schedules {
-		// No per-schedule delivery corpus exists yet, so a schedule carries no
-		// deliveries: lastReportDelivery(nil) leaves the menu item disabled and the
-		// last-sent cell an em dash rather than inventing a delivery (#291/T3 wires it).
-		href, has := lastReportDelivery(nil)
+		// The latest non-failed run backs both the last-sent cell and the menu item.
+		// No such run (pgx.ErrNoRows) is the genuine empty-state — an em dash and a
+		// disabled item, never an invented delivery. Any other read error degrades the
+		// row to that same empty-state rather than failing the whole page.
+		// reportScheduleNeverRunMins sorts a never-run schedule last under the client-side
+		// "Last sent" sort (a value larger than any real age).
+		const reportScheduleNeverRunMins = 1 << 30
+		lastSent, href, has := "—", "", false
+		lastMins := reportScheduleNeverRunMins
+		del, err := s.store.GetLatestReportDelivery(ctx, sc.ID)
+		switch {
+		case err == nil:
+			inst := reportDeliveryInstant(del)
+			lastSent = relTime(inst, now)
+			if m := int(now.Sub(inst).Minutes()); m >= 0 {
+				lastMins = m
+			}
+			href, has = reportDeliveryHref, true
+		case !errors.Is(err, pgx.ErrNoRows):
+			log.Printf("web: reports: latest delivery for schedule %d: %v", sc.ID, err)
+		}
+		// The delivery destination: the bound channel's URL, or "download only" where
+		// the schedule binds none (NULL channel_id). A bound channel that no longer
+		// resolves in the map also reads "download only" rather than a dangling id.
+		delivery := "download only"
+		if sc.ChannelID.Valid {
+			if url, ok := channelURL[sc.ChannelID.Int64]; ok {
+				delivery = url
+			}
+		}
 		rows = append(rows, reportScheduleRow{
+			ID:           sc.ID,
 			Name:         sc.Name,
 			Cadence:      sc.Cadence,
 			Format:       sc.Format,
-			LastSent:     "—",
+			LastSent:     lastSent,
+			LastMins:     lastMins,
+			Delivery:     delivery,
 			HasDelivery:  has,
 			DeliveryHref: href,
 		})
 	}
 	return rows
+}
+
+// reportDeliveryInstant is the instant a receipt reads as "last sent": the delivery
+// stamp where the run left (delivered_at), else the instant the artifact was cut
+// (generated_at) for a run that generated without delivering. Both are present on a
+// non-failed run, so the caller always has an instant to render.
+func reportDeliveryInstant(d db.ReportDelivery) time.Time {
+	if d.DeliveredAt.Valid {
+		return d.DeliveredAt.Time
+	}
+	return d.GeneratedAt.Time
 }

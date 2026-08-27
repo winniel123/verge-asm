@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/winniel123/verge-asm/internal/auth"
 	"github.com/winniel123/verge-asm/internal/db"
@@ -60,6 +61,29 @@ type store interface {
 	ConsumeRecoveryCode(ctx context.Context, arg db.ConsumeRecoveryCodeParams) error
 	GetInviteByTokenHash(ctx context.Context, tokenHash string) (db.Invite, error)
 	ConsumeInvite(ctx context.Context, arg db.ConsumeInviteParams) error
+	// Server-side session registry (#405, ADR-0117): every login opens a session row
+	// keyed by the hash of an opaque token the signed cookie carries, and every request
+	// re-validates that row so a revocation takes effect on the next request rather than
+	// at cookie expiry. CreateSession opens it; GetSessionByTokenHash is the per-request
+	// validation lookup (live = unrevoked and unexpired); TouchSession refreshes
+	// last_seen_at (throttled by the handler); RevokeSession ends one session scoped to
+	// its owner (sign-out and the end-session action). The listing and bulk-revoke
+	// queries back the personal Profile surface (#406), the admin Settings surface
+	// (#407), and the credential-flow invalidation (#408): ListSessionsForAccount is an
+	// account's own live sessions; RevokeOtherSessionsForAccount is "sign out other
+	// devices" and the password-change invalidation (keeps the current session);
+	// RevokeAllSessionsForAccount is the reset path and admin offboarding (no exception);
+	// ListAllActiveSessions is every account's live sessions joined to username/role for
+	// the admin view; RevokeSessionByIDForAdmin revokes any one session, admin-gated.
+	CreateSession(ctx context.Context, arg db.CreateSessionParams) (db.Session, error)
+	GetSessionByTokenHash(ctx context.Context, arg db.GetSessionByTokenHashParams) (db.Session, error)
+	TouchSession(ctx context.Context, arg db.TouchSessionParams) error
+	RevokeSession(ctx context.Context, arg db.RevokeSessionParams) error
+	ListSessionsForAccount(ctx context.Context, arg db.ListSessionsForAccountParams) ([]db.ListSessionsForAccountRow, error)
+	RevokeOtherSessionsForAccount(ctx context.Context, arg db.RevokeOtherSessionsForAccountParams) error
+	RevokeAllSessionsForAccount(ctx context.Context, arg db.RevokeAllSessionsForAccountParams) error
+	ListAllActiveSessions(ctx context.Context, expiresAt pgtype.Timestamptz) ([]db.ListAllActiveSessionsRow, error)
+	RevokeSessionByIDForAdmin(ctx context.Context, arg db.RevokeSessionByIDForAdminParams) error
 	// CreateInvite is the invite CREATION side (Settings -> Team, T18): it mints a
 	// single-use, time-boxed invite at a role against the same invite table T19's
 	// acceptance screen spends. ResetAccountTOTP is Team's "require re-enrollment" —
@@ -74,6 +98,8 @@ type store interface {
 	CreateNameSeed(ctx context.Context, arg db.CreateNameSeedParams) (db.Seed, error)
 	CreateAddressSeed(ctx context.Context, arg db.CreateAddressSeedParams) (db.Seed, error)
 	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
+	// DeleteSeed withdraws a declared Seed by id — the Scope chip-remove act (#21a).
+	DeleteSeed(ctx context.Context, id int64) (int64, error)
 	SetCustodyExtension(ctx context.Context, arg db.SetCustodyExtensionParams) error
 	CreateNameExclusion(ctx context.Context, arg db.CreateNameExclusionParams) (db.Exclusion, error)
 	CreateAddressExclusion(ctx context.Context, arg db.CreateAddressExclusionParams) (db.Exclusion, error)
@@ -84,8 +110,24 @@ type store interface {
 	ListIntegrationStates(ctx context.Context) ([]db.IntegrationState, error)
 	UpsertIntegrationState(ctx context.Context, arg db.UpsertIntegrationStateParams) (db.IntegrationState, error)
 	DeleteIntegrationState(ctx context.Context, slug string) error
+	// GetIntegrationChannel / SetIntegrationChannel read and write an installed
+	// integration's bound delivery Channel (nullable — NULL is unbound). The binding
+	// is a reference to a Channel, not a fold of one (#39b): the drawer's channel
+	// select writes it, the Send-test act reads it to resolve where a test goes.
+	GetIntegrationChannel(ctx context.Context, slug string) (pgtype.Int8, error)
+	SetIntegrationChannel(ctx context.Context, arg db.SetIntegrationChannelParams) error
+	// GetChannelForDelivery reads a Channel's target URL and signing secret — the ONE
+	// read path that returns the secret. The Send-test act needs it to sign the test
+	// payload it POSTs through the bound Channel's transport (delivery.SendSigned).
+	GetChannelForDelivery(ctx context.Context, id int64) (db.GetChannelForDeliveryRow, error)
 	CreateVantage(ctx context.Context, arg db.CreateVantageParams) (db.Vantage, error)
 	ListVantages(ctx context.Context) ([]db.ListVantagesRow, error)
+	// ListAddressScopeCidrs reads the declared address-scope Seed CIDRs — the corpus the
+	// Vantage-class coverage predicate binds over (#711), the same read the hot Scan's
+	// Custody derivation uses (internal/queue/hot.go). The render/compose path assembles
+	// the same custody.Estate{AddressScopes} from it to offer `covered` to the class
+	// derivation (#709), so batch and render classify against one identical corpus.
+	ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error)
 	ListUnavailableVantages(ctx context.Context) ([]db.ListUnavailableVantagesRow, error)
 	GetScanByKind(ctx context.Context, kind string) (db.Scan, error)
 	ListAccounts(ctx context.Context) ([]db.ListAccountsRow, error)
@@ -96,8 +138,24 @@ type store interface {
 	UpdateChannel(ctx context.Context, arg db.UpdateChannelParams) error
 	SetChannelSecret(ctx context.Context, arg db.SetChannelSecretParams) error
 	DeleteChannel(ctx context.Context, id int64) error
+	// GetInstanceHealth reads the instance-health tab's live database facts (#633): the
+	// database size and Postgres server version, off the running server. Operational only.
+	GetInstanceHealth(ctx context.Context) (db.GetInstanceHealthRow, error)
 	GetRetentionSettings(ctx context.Context) (db.GetRetentionSettingsRow, error)
 	UpdateRetentionSettings(ctx context.Context, arg db.UpdateRetentionSettingsParams) error
+	// GetInstanceConfig reads the instance-global singleton (v3.18.0): the API opt-in
+	// flag + who/when, the update-check flag, the release cache and the last-UI-backup
+	// record. Both the #390 and #391 feature clusters read their state through it.
+	GetInstanceConfig(ctx context.Context) (db.GetInstanceConfigRow, error)
+	// SetUpdateCheckEnabled opts the worker's daily release-feed check in or out and
+	// stamps who/when (#391); the Version & updates toggle on the Instance tab drives it.
+	SetUpdateCheckEnabled(ctx context.Context, arg db.SetUpdateCheckEnabledParams) error
+	// SetLastBackup records the instant (now()) and byte size of the last UI-taken backup
+	// (#391, B3); the Backup card surfaces it as .Backup.LastAt/LastSize.
+	SetLastBackup(ctx context.Context, lastBackupSize pgtype.Int8) error
+	// SetAPIEnabled flips the read-only /api/v1 surface on or off and stamps who/when
+	// (#390); the API access toggle on the Settings · Access · API tab drives it.
+	SetAPIEnabled(ctx context.Context, arg db.SetAPIEnabledParams) error
 	// TightestEnabledScanCadenceSeconds is the tightest bound in force, which the
 	// observation dial floors at (#208, ADR-0094) — symmetric to the Dispatch
 	// floor's SlowestEnabledScanCadenceSeconds.
@@ -135,11 +193,36 @@ type store interface {
 	// read (ADR-0007) and groups the transitions by batch. Reads span and batch only —
 	// never dispatch — honoring the comparison-path separation (ADR-0041).
 	ListRecentDriftEvents(ctx context.Context, arg db.ListRecentDriftEventsParams) ([]db.ListRecentDriftEventsRow, error)
-	// Exposure landing view (#196): the two most recent reachability spans per
-	// (Service, vantage), joined to the prober endpoint. The class is re-verified
-	// per render from the presented address, so this read carries the host rather
-	// than the static vantage class.
-	ListReachabilitySpansForExposure(ctx context.Context) ([]db.ListReachabilitySpansForExposureRow, error)
+	// Mean-time-to-withdrawal trend (#444, P0.3): every subject withdrawal since a
+	// read instant, paired with the subject's first appearance, so the Reports trend
+	// derives time-to-withdrawal (withdrawn_at − first_opened) per departure. A
+	// withdrawal closes every open timeline a subject held at one instant (ADR-0082),
+	// so the per-facet closures collapse to one departure per (subject, closed_at).
+	// Reads FROM span only — the never-compacted derived corpus (ADR-0041) — not the
+	// live-tier observation gate.
+	ListWithdrawalLifespans(ctx context.Context, since pgtype.Timestamptz) ([]db.ListWithdrawalLifespansRow, error)
+	// New assets discovered (#468, P2.4b): every Name/Service subject whose FIRST
+	// appearance (MIN(opened_at), the `appeared` classification) is at or after a
+	// read instant, so the Reports "New assets discovered" card folds a per-period
+	// count, its vs-previous-period delta, and the daily-discovery bar series. Reads
+	// FROM span only — the never-compacted derived corpus (ADR-0041).
+	ListSubjectFirstAppearances(ctx context.Context, since pgtype.Timestamptz) ([]db.ListSubjectFirstAppearancesRow, error)
+	// Vs-last-batch stat deltas (#443, P0.2, ADR-0116): the reads the Dashboard and
+	// Exposure stat tiles derive their signed deltas from. PreviousBatchTime is the
+	// boundary the "value a batch ago" is reconstructed at (NULL where no previous
+	// batch exists); ListSpansOpenSince returns the span corpus still open now or
+	// closed after that boundary, so the population open at it is reconstructable on
+	// read (internal/drift.OpenAt); ListServiceReachabilitySpansByClassAt is the
+	// as-of-@at twin of the current by-class read, for the exposure projection's
+	// previous snapshot. All read the derived span/batch corpora, never dispatch (ADR-0041).
+	PreviousBatchTime(ctx context.Context) (pgtype.Timestamptz, error)
+	// EarliestBatchTime is the estate's first batch instant — the age boundary the
+	// Drift page's vs-previous-period delta tests before it compares a window against
+	// the immediately preceding equal-length window (P0.12, #690). NULL where no batch
+	// has committed. Reads batch only, never dispatch (ADR-0041).
+	EarliestBatchTime(ctx context.Context) (pgtype.Timestamptz, error)
+	ListSpansOpenSince(ctx context.Context, since pgtype.Timestamptz) ([]db.ListSpansOpenSinceRow, error)
+	ListServiceReachabilitySpansByClassAt(ctx context.Context, at pgtype.Timestamptz) ([]db.ListServiceReachabilitySpansByClassAtRow, error)
 	CreateZoneFile(ctx context.Context, arg db.CreateZoneFileParams) (db.CreateZoneFileRow, error)
 	ListZoneFileStatus(ctx context.Context) ([]db.ListZoneFileStatusRow, error)
 	GetZoneCadenceSeconds(ctx context.Context) (int64, error)
@@ -157,6 +240,9 @@ type store interface {
 	GetPendingProposal(ctx context.Context, id int64) (db.Proposal, error)
 	ConfirmProposal(ctx context.Context, arg db.ConfirmProposalParams) (int64, error)
 	DeclineLookup(ctx context.Context, lookupID int64) (int64, error)
+	// DeclineProposal declines one still-pending Proposal by id — the Scope
+	// decline-many act declines each checked proposal (#574).
+	DeclineProposal(ctx context.Context, id int64) (int64, error)
 	ListVergeCoreFrequencyEditsWithAuthor(ctx context.Context) ([]db.ListVergeCoreFrequencyEditsWithAuthorRow, error)
 	UpsertVergeCoreFrequencyEdit(ctx context.Context, arg db.UpsertVergeCoreFrequencyEditParams) error
 	DeleteVergeCoreFrequencyEdit(ctx context.Context, port int32) error
@@ -176,6 +262,9 @@ type store interface {
 	// blanket responder's Gap leg reads as absent (ADR-0104); ListBlanketedReachServices
 	// is the Coverage register's read of those Gap'd Services (#254).
 	ListServiceReachabilitySpansByClass(ctx context.Context) ([]db.ListServiceReachabilitySpansByClassRow, error)
+	// The current `tls-acceptance` value per Service (#684) — buildServiceFacts folds
+	// it into the ServiceFacts the tls-1.0-accepted rule reads (live-tier gated).
+	ListServiceTLSAcceptance(ctx context.Context, arg db.ListServiceTLSAcceptanceParams) ([]db.ListServiceTLSAcceptanceRow, error)
 	ListBlanketedReachServices(ctx context.Context) ([]string, error)
 	ListEndpointCertificates(ctx context.Context, arg db.ListEndpointCertificatesParams) ([]db.ListEndpointCertificatesRow, error)
 	// Annotation management (#204): an operator dial keyed on one
@@ -184,6 +273,14 @@ type store interface {
 	CreateAnnotation(ctx context.Context, arg db.CreateAnnotationParams) (db.Annotation, error)
 	ListAnnotations(ctx context.Context) ([]db.Annotation, error)
 	DeleteAnnotation(ctx context.Context, id int64) error
+	// Per-instance signal identity (#442, P0.1): the mintable `SIG-####` id and
+	// first-seen instant of each currently-fired (rule, subject) pair. MintSignalInstances
+	// is the idempotent upsert on the Signals read path (a firing pair keeps its id and
+	// first-seen); ListSignalInstances reads the identities back so the web layer attaches
+	// each fired census member its stable id + first-seen. Severity and last-seen are
+	// derived, not stored.
+	MintSignalInstances(ctx context.Context, arg db.MintSignalInstancesParams) error
+	ListSignalInstances(ctx context.Context) ([]db.SignalInstance, error)
 	// The global message panel (#205): the Message store is unconditional — every
 	// message is written and rendered, and the nav element carries the unread
 	// count on every screen. There is no delete and no content update; a message
@@ -195,6 +292,10 @@ type store interface {
 	ListDeliveryOutcomes(ctx context.Context) ([]db.ListDeliveryOutcomesRow, error)
 	MarkMessageRead(ctx context.Context, arg db.MarkMessageReadParams) error
 	MarkAllMessagesRead(ctx context.Context, arg db.MarkAllMessagesReadParams) error
+	// MarkMessageUnread returns one message to unread for the caller (#473,
+	// ADR-0116) by clearing this account's read-mark — the inverse of
+	// MarkMessageRead, backing the Inbox "Mark unread" affordance (Inbox.jsx:59).
+	MarkMessageUnread(ctx context.Context, arg db.MarkMessageUnreadParams) error
 	// PreviewExclusionWithdrawal counts the subjects a candidate exclusion would
 	// withdraw and the timelines they hold — the honestly-computable narrowing
 	// receipt (#205 AC8, ADR-0074). It reads only ground nothing else cites, so a
@@ -206,20 +307,45 @@ type store interface {
 	// (ADR-0041); the drift engine never reads Dispatch, queue_job or batch.
 	ListDispatchProgress(ctx context.Context, limit int32) ([]db.ListDispatchProgressRow, error)
 	ListJobsForDispatch(ctx context.Context, dispatchID pgtype.Int8) ([]db.ListJobsForDispatchRow, error)
+	// Stop-dispatch / terminate (DF-F4, #633): the admin acts that end a Dispatch in
+	// flight. CancelReadyJobsForDispatch cancels the pending (ready) jobs of a stop and
+	// returns the count; CancelActiveJobsForDispatch cancels ready AND running jobs for a
+	// terminate; SetDispatchStatus records the operator-ended disposition ('stopped' /
+	// 'terminated'), scoped to a still-'fanned-out' dispatch so it never overwrites a
+	// recorded terminal status. All three read/write only the Operational queue corpus
+	// (ADR-0041); the drift engine never sees them.
+	CancelReadyJobsForDispatch(ctx context.Context, dispatchID pgtype.Int8) (int64, error)
+	CancelActiveJobsForDispatch(ctx context.Context, dispatchID pgtype.Int8) (int64, error)
+	SetDispatchStatus(ctx context.Context, arg db.SetDispatchStatusParams) error
 	// The on-demand scan trigger (#252): the trigger panel lists every scan with
 	// its enabled state so the disabled cold tier reads as not-triggerable rather
 	// than vanishing, and GetScanByKind re-reads the live enabled flag at the
 	// instant of a trigger (cold turns enabled once a scope opts in, ADR-0044).
 	ListScans(ctx context.Context) ([]db.Scan, error)
 
-	// Report scheduling (#290): the Reports screen's "New schedule" wizard declares a
-	// recurring report and the "Recurring reports" table lists them. A schedule is
-	// Declared — a plain insert and an unbounded newest-first list, no content update
-	// and no delete (the row-menu's edit/delete stay out of scope). There is no
-	// per-schedule delivery backing store yet (#291/T3), so a row resolves its "last
-	// delivery" from the Message corpus rather than a stamp on the schedule itself.
+	// Report scheduling (#290, live CRUD in P0.6/T4): the Reports screen's "New
+	// schedule" wizard declares a recurring report, the "Recurring reports" table lists
+	// them, and the row menu edits, deletes, and runs one now. A schedule is Declared —
+	// Insert files one, List reads them newest-first, Get reads one (Edit prefill and
+	// the Run-now dispatch), Update edits a declared schedule's contents in place (a
+	// schedule carries no derived state, so this is not a recompute — migration 21700),
+	// and Delete removes one. "Last delivery" resolves from the report_delivery receipts
+	// store (#291/T2), not a stamp on the schedule itself.
 	InsertReportSchedule(ctx context.Context, arg db.InsertReportScheduleParams) (db.ReportSchedule, error)
 	ListReportSchedules(ctx context.Context) ([]db.ReportSchedule, error)
+	GetReportSchedule(ctx context.Context, id int64) (db.ReportSchedule, error)
+	UpdateReportSchedule(ctx context.Context, arg db.UpdateReportScheduleParams) (db.ReportSchedule, error)
+	DeleteReportSchedule(ctx context.Context, id int64) error
+
+	// Report-delivery receipts (#291/T2): the operational record of each run of a
+	// schedule. GetLatestReportDelivery returns the newest non-failed run, backing the
+	// "Recurring reports" table's "last sent" cell and the delivered-artifact view;
+	// pgx.ErrNoRows is the genuine empty-state (never run, or only failed). The insert
+	// and list paths round out the store the run path (T5) writes and reads.
+	InsertReportDelivery(ctx context.Context, arg db.InsertReportDeliveryParams) (db.ReportDelivery, error)
+	NextReportDeliveryNo(ctx context.Context, scheduleID int64) (int32, error)
+	GetLatestReportDelivery(ctx context.Context, scheduleID int64) (db.ReportDelivery, error)
+	ListReportDeliveries(ctx context.Context, scheduleID int64) ([]db.ReportDelivery, error)
 
 	// SSO / OIDC providers (#293, ADR-0112): the config behind the SignIn buttons and
 	// the Settings single-sign-on tab. The client secret is write-only — only
@@ -286,6 +412,15 @@ type server struct {
 	// identity provider. newServer defaults it to the real flow.
 	sso ssoFlow
 
+	// channelSender is the Integrations "Send test" egress seam (#39b, P0.14). It POSTs
+	// one signed test payload through a bound Channel's transport using the delivery
+	// package's shared SSRF-guarded path (delivery.SendSigned) — the exact transport the
+	// delivery and report-notify runners use, so a test ride is guarded identically and
+	// no second HTTP client exists. newServer defaults it to the hardened, redirect-
+	// refusing production sender; tests inject a fake Doer so a Send-test assertion never
+	// touches the live network.
+	channelSender channelTestSender
+
 	// dispatcher is the on-demand scan-trigger seam (#252). main.go wires the real
 	// queue Dispatcher over the pool; it enqueues the same fan-out the CLI -trigger
 	// path uses and pg_notifies the running worker. Tests inject a fake so a trigger
@@ -307,12 +442,60 @@ type server struct {
 	// create an admin, which would break the token's single-use guarantee.
 	setupMu sync.Mutex
 
+	// flash is the in-process single-consume toast store (flash.go). The scan trigger
+	// and stop/terminate acts stash one toast here and redirect to a clean URL, so the
+	// in-flight auto-refresh does not re-show it (WORK-ORDER-DOGFOOD-R1 item 1); injectChrome
+	// consumes it on the first chrome render. Best-effort, per-process.
+	flash *flashStore
+
 	// loginLimiter throttles failed credential attempts on /login and /login/totp
 	// (#322): per-account and per-IP failed-attempt tracking with a temporary,
 	// exponential lockout, so a 6-digit TOTP is no longer brute-forceable and an
 	// online password guess has a bounded budget. It is in-process and clock-driven
 	// (no DB, no new dependency), reset on a successful auth.
 	loginLimiter *loginLimiter
+
+	// pool is the raw pgx pool, wired for the few reads that need SQL sqlc does not
+	// generate: the Instance tab's applied-vs-embedded migrations count (#391, a raw
+	// goose_db_version query — internal/db stays untouched) and the VERGE_DEV pixel-parity
+	// harness affordance that re-seeds the Profile fixture between capture states (#542,
+	// the devMode-gated /dev/profile/session route). Every consumer nil-guards it, so a
+	// deployment that leaves it unset degrades best-effort rather than panicking.
+	pool *pgxpool.Pool
+
+	// devMode is a VERGE_DEV build: it unlocks the dev-only pixel-parity affordances
+	// (main.go sets it from VERGE_DEV). It gates the /dev/* harness routes (devfixtures.go)
+	// and makes the 500 incident id deterministic — never set in a real deployment, so no
+	// dev route is reachable and the incident id keeps its crypto/rand draw (errors.go).
+	devMode bool
+
+	// stateDir is web's own state volume (VERGE_STATE_DIR), where the session
+	// signing key file lives. Restore (#391/B4, ADR-0124) rotates that key in
+	// place so a restored instance never carries the source instance's session
+	// key and every session lapses. Empty off a deployment that never set it
+	// (tests) — restore then skips the file rotation and lapses sessions by the
+	// in-memory key swap alone.
+	stateDir string
+
+	// restoreMu / restoreStage hold the per-admin staged restore archive between
+	// its multipart preflight (POST /settings/restore/preflight) and the typed-
+	// confirm apply (POST /settings/restore) (#391/B4). The confirm dialog re-posts
+	// only the typed word, not the file, so the pre-flighted archive is held here,
+	// keyed by the admin's account id, until they confirm or navigate away. In-
+	// process, best-effort — a process restart drops a pending pre-flight, which is
+	// the safe direction (nothing was applied).
+	restoreMu    sync.Mutex
+	restoreStage map[int64]*restoreStaging
+
+	// coverageMu / coverageEmptyOnce back the Coverage screen's empty-state capture
+	// (#552). states.json coverage declares an "empty" state seeded "empty-authed":
+	// GET /dev/seed/empty-authed (devMode only) sets coverageEmptyOnce so the NEXT
+	// /coverage render serves the empty estate while the authed admin session is kept
+	// (unlike /dev/seed/empty, which truncates accounts). coveragePage consumes the flag
+	// (reads-and-clears) as it renders, so a later context's "default" state — which
+	// applies no seed — renders the full fixture again. In-process, devMode-only.
+	coverageMu        sync.Mutex
+	coverageEmptyOnce bool
 }
 
 func newServer(s store, key []byte, setupToken string, now func() time.Time) *server {
@@ -333,7 +516,10 @@ func newServer(s store, key []byte, setupToken string, now func() time.Time) *se
 		seedAddressCap: seed.DefaultAddressCap,
 		proposer:       proposer.DefaultRegistry(&http.Client{Timeout: 30 * time.Second}),
 		sso:            newOIDCFlow(&http.Client{Timeout: 30 * time.Second}),
+		channelSender:  newHTTPChannelSender(now),
 		loginLimiter:   newLoginLimiter(now),
+		flash:          newFlashStore(),
+		restoreStage:   make(map[int64]*restoreStaging),
 	}
 }
 
@@ -364,7 +550,7 @@ func (s *server) redirectTo(target string, code int) authedHandler {
 			}
 			dst += sep + r.URL.RawQuery
 		}
-		http.Redirect(w, r, dst, code)
+		http.Redirect(w, r, dst, code) // #nosec G710 (target is a constant internal route; RawQuery appended only as its query string, no host control)
 	}
 }
 
@@ -383,6 +569,10 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /login", s.loginSubmit)
 	mux.HandleFunc("POST /login/totp", s.loginTOTP)
 	mux.HandleFunc("POST /logout", s.logout)
+	// /signout is the design-owned shell's account-menu form action (shell.tmpl #27b):
+	// a mechanical alias onto the existing /logout handler (a route rename, not a
+	// redesign), so the frozen tmpl's sign-out posts to the same session-revoking path.
+	mux.HandleFunc("POST /signout", s.logout)
 
 	// Single sign-on (#293, ADR-0112): the OIDC authorization-code flow. Both hops are
 	// unauthenticated by construction — a caller signing in has no session — so they
@@ -422,14 +612,20 @@ func (s *server) handler() http.Handler {
 	// answers 303 to /scope.
 	mux.HandleFunc("GET /seeds", s.requireLogin(s.redirectTo("/scope", http.StatusMovedPermanently)))
 	mux.HandleFunc("POST /seeds", s.requireAdmin(s.declareSeed))
+	// The chip-remove act (#21a): scope.tmpl posts a seed's id to withdraw it.
+	mux.HandleFunc("POST /seeds/delete", s.requireAdmin(s.deleteSeed))
 	mux.HandleFunc("POST /seeds/custody", s.requireAdmin(s.setCustody))
 	mux.HandleFunc("POST /seeds/zone", s.requireAdmin(s.uploadZoneFile))
 	mux.HandleFunc("POST /seeds/zone/interval", s.requireAdmin(s.setZoneInterval))
-	mux.HandleFunc("POST /seeds/cold", s.requireAdmin(s.setColdScope))
 	mux.HandleFunc("POST /exclusions", s.requireAdmin(s.declareExclusion))
 	mux.HandleFunc("POST /exclusions/preview", s.requireAdmin(s.previewExclusion))
 	mux.HandleFunc("POST /exclusions/delete", s.requireAdmin(s.unexclude))
-	mux.HandleFunc("POST /probers", s.requireAdmin(s.provisionProber))
+	// #21d: the cold-tier opt-in and prober provisioning REGIONS + ROUTES relocate to
+	// /settings (their design homes, shots 17/18). scope.tmpl no longer renders them; the
+	// acts now redirect to /settings, where the read surfaces live. Settings' own design
+	// parity lands at map #21 — batch 3 owns only the move-out.
+	mux.HandleFunc("POST /settings/cold", s.requireAdmin(s.setColdScope))
+	mux.HandleFunc("POST /settings/probers", s.requireAdmin(s.provisionProber))
 
 	// The Exposure page (#300, T5, ADR-0110): `/exposure` is repurposed from the
 	// #286 redirect-to-/reports into the first-class Exposure screen — the both-legs
@@ -437,6 +633,11 @@ func (s *server) handler() http.Handler {
 	// exists. Reports still folds the period analytics; this is the dedicated
 	// exposure board. Viewer-readable: a viewer reads the board, mutates nothing.
 	mux.HandleFunc("GET /exposure", s.requireLogin(s.exposurePage))
+	// The Exposure WITHHELD state's action links /settings/vantages (SPEC-CHANGE #20f,
+	// ruled: provisioning a prober is a vantage act, not /scope). Prober provisioning now
+	// lives under Settings → Vantages (#21d, batch 3), so this alias lands on that tab
+	// rather than /scope. Viewer-readable, matching the exposure board it is reached from.
+	mux.HandleFunc("GET /settings/vantages", s.requireLogin(s.redirectTo("/settings?tab=vantages", http.StatusSeeOther)))
 	mux.HandleFunc("GET /reports", s.requireLogin(s.reportsPage))
 	// The Reports export (#291): the KPI band + scans-per-day series for the active
 	// ?weeks= range as a downloadable csv/json file. A viewer reads it — an export is
@@ -453,12 +654,25 @@ func (s *server) handler() http.Handler {
 	// pure-Go render, no external engine — it runs inside the distroless-static web
 	// image). A viewer reads it — a delivered report is a record, not a mutation.
 	mux.HandleFunc("GET /reports/delivery/pdf", s.requireLogin(s.reportDeliveryPDF))
-	// The Reports schedule create path (#344): report scheduling has no dispatch or
-	// delivery backend, so a persisted schedule would silently never run. The wizard is
-	// disabled in the UI and this handler refuses (501) so no report_schedule row is
-	// filed from normal use or a crafted POST. Still behind requireAdmin — declaring a
-	// schedule was an admin config act — so a viewer is refused before the handler.
-	mux.HandleFunc("POST /reports/schedule", s.requireAdmin(s.createReportSchedule))
+	// The Reports schedule CRUD (#290, P0.6/T4): report scheduling is live. The
+	// "New schedule" wizard and the row menu declare, edit, delete, and run one report
+	// now. Every route is an admin config act (declaring/changing a schedule), gated
+	// behind requireAdmin, so a viewer is refused before the handler. GET /new and
+	// GET /{id}/edit render the stepped wizard (server post-back, no client runtime,
+	// the onboarding pattern); POST /reports/schedule and /reports/schedule/edit carry
+	// both the step-advance and the finishing insert/update; run and delete are the
+	// row-menu mutations. All redirect back to /reports on success.
+	// The wizard is a PRG post-back (#23f): each step POSTs to its route and 303-redirects
+	// to a GET at the same route carrying the accumulated values, so the flow is
+	// bookmarkable and harness-addressable. Create posts to /reports/schedule/new, edit to
+	// /reports/schedule/{id}/edit; run and delete are the row-menu mutations. All redirect
+	// back to /reports on success.
+	mux.HandleFunc("GET /reports/schedule/new", s.requireAdmin(s.newReportScheduleWizard))
+	mux.HandleFunc("POST /reports/schedule/new", s.requireAdmin(s.createReportSchedule))
+	mux.HandleFunc("GET /reports/schedule/{id}/edit", s.requireAdmin(s.editReportScheduleWizard))
+	mux.HandleFunc("POST /reports/schedule/{id}/edit", s.requireAdmin(s.editReportSchedule))
+	mux.HandleFunc("POST /reports/schedule/run", s.requireAdmin(s.runReportScheduleNow))
+	mux.HandleFunc("POST /reports/schedule/delete", s.requireAdmin(s.deleteReportSchedule))
 
 	// The Subjects LIST folded into /inventory (#286): Inventory is the canonical
 	// "what do I have right now" screen and lists every Name/Service/Endpoint, so
@@ -492,6 +706,13 @@ func (s *server) handler() http.Handler {
 	// — it is a read-only window onto the Operational queue corpus. A Dispatch id is
 	// an integer carrying neither `/` nor `@`, so it rides a plain path segment.
 	mux.HandleFunc("GET /run/{id}", s.requireLogin(s.runPage))
+	// /runs/{id} is the design-canonical run-detail route (WAYFINDER-MAP.md screen 9;
+	// verify/states.json's missing-run capture navigates /runs/1408). The repo has served
+	// run detail at /run/{id} since T2; screen 9 (RunDetail) owns the eventual /run→/runs
+	// migration. Until then this alias reuses the same handler so the design-declared route
+	// resolves — a nonexistent id (1408) renders the missing-run ErrorPage, matching the
+	// state states.json declares. Routes are repo-owned (WORKFLOW.md).
+	mux.HandleFunc("GET /runs/{id}", s.requireLogin(s.runPage))
 
 	mux.HandleFunc("GET /signals", s.requireLogin(s.signalsPage))
 	// The Signals CSV export (#346): the current census set the page evaluates, as a
@@ -515,6 +736,9 @@ func (s *server) handler() http.Handler {
 	// address space, declining is a boundary claim. A viewer reads the pending
 	// list on /scope but mutates nothing.
 	mux.HandleFunc("POST /proposals", s.requireAdmin(s.runLookup))
+	// The frozen scope.tmpl posts the org-name search to /proposals/search (field `org`);
+	// runLookup accepts either route (#574).
+	mux.HandleFunc("POST /proposals/search", s.requireAdmin(s.runLookup))
 	mux.HandleFunc("POST /proposals/confirm", s.requireAdmin(s.confirmProposal))
 	mux.HandleFunc("POST /proposals/decline", s.requireAdmin(s.declineLookup))
 
@@ -541,6 +765,14 @@ func (s *server) handler() http.Handler {
 	// {{if .IsAdmin}} panel here and mirrored at /settings?tab=scans.
 	mux.HandleFunc("GET /scans", s.requireLogin(s.scansPage))
 	mux.HandleFunc("POST /scans/trigger", s.requireAdmin(s.triggerScan))
+	// Stop-dispatch / terminate (DF-F4, #633): ending a Dispatch in flight is the same
+	// class of admin act as triggering one — it changes what the worker runs — so both
+	// carry the same requireAdmin gate the trigger does (a non-admin POST is 403 before
+	// the handler). A stop cancels pending jobs and lets running ones finish; a terminate
+	// kills running jobs too. Kept adjacent to /scans/trigger so a parallel route add
+	// union-merges cleanly.
+	mux.HandleFunc("POST /scans/stop", s.requireAdmin(s.stopScan))
+	mux.HandleFunc("POST /scans/terminate", s.requireAdmin(s.terminateScan))
 
 	// The global message panel (#205, v1 spec §6.7): a viewer reads the unbounded
 	// list and its unread count on every screen; marking read is a per-account
@@ -555,6 +787,10 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("GET /messages", s.requireLogin(s.messagesPage))
 	mux.HandleFunc("POST /messages/read", s.requireLogin(s.markMessageRead))
 	mux.HandleFunc("POST /messages/read-all", s.requireLogin(s.markAllMessagesRead))
+	// Mark-unread returns a message to unread (#473, ADR-0116): the Inbox detail
+	// renders a "Mark unread" ghost button (Inbox.jsx:59), so read is reversible.
+	// It carries the same `return=/inbox` field as the read acts above.
+	mux.HandleFunc("POST /messages/unread", s.requireLogin(s.markMessageUnread))
 
 	// The Inbox (#299, T4, ADR-0110): the V3 primary message surface the shell bell
 	// deep-links to (the /messages fold stays as the viewer-readable mirror). It reads
@@ -582,6 +818,9 @@ func (s *server) handler() http.Handler {
 	// Settings would 403 viewers, so it stays a viewer route.
 	mux.HandleFunc("GET /sources", s.requireLogin(s.sourcesModal))
 	mux.HandleFunc("POST /sources/toggle", s.requireAdmin(s.toggleSource))
+	// The spec sources tab (#26) posts the enable/disable act here; enabling an
+	// operator-accepted source carries accept_terms=true from the consent dialog.
+	mux.HandleFunc("POST /settings/sources", s.requireAdmin(s.settingsSources))
 
 	// The account surface folded into Settings → access (#281): GET /account now
 	// redirects there (accountPage), so the merged SignIn's totp-enroll Cancel link
@@ -600,6 +839,11 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /profile/tokens", s.requireLogin(s.createPersonalToken))
 	mux.HandleFunc("POST /profile/tokens/revoke", s.requireLogin(s.revokePersonalToken))
 	mux.HandleFunc("POST /profile/session/revoke", s.requireLogin(s.revokeSession))
+	// Personal sessions surface (#406, ADR-0117): an account revokes one of its own live
+	// sessions or signs out all but the current one. Both are owner-scoped in SQL, so a
+	// posted id can never reach another account's session.
+	mux.HandleFunc("POST /profile/sessions/revoke", s.requireLogin(s.revokeOneSession))
+	mux.HandleFunc("POST /profile/sessions/revoke-others", s.requireLogin(s.signOutOtherSessions))
 	// SSO self-link (#319, ADR-0113): an authenticated user links their own verified
 	// identity so it can sign them in, and unlinks it. The link runs the OIDC round-trip
 	// inside the caller's session (requireLogin) and binds (provider, sub) → their
@@ -610,23 +854,50 @@ func (s *server) handler() http.Handler {
 
 	mux.HandleFunc("GET /account", s.requireLogin(s.accountPage))
 	mux.HandleFunc("POST /accounts", s.requireAdmin(s.createAccount))
+	// GET /account/totp/enroll renders the two-factor enrollment screen (v3.7.0, SignIn family):
+	// the profile "Enable" button POSTs to /account/totp/enable, but the frozen SignIn "enroll"
+	// capture state navigates here by GET (what page.goto can drive). Both open the same screen.
+	mux.HandleFunc("GET /account/totp/enroll", s.requireLogin(s.totpEnrollForm))
 	mux.HandleFunc("POST /account/totp/enable", s.requireLogin(s.totpEnable))
 	mux.HandleFunc("POST /account/totp/confirm", s.requireLogin(s.totpConfirm))
 
 	// The Settings destination and every mutation it hosts are admin acts
 	// (v1 spec §4.3, §6.1): viewing the operator's dials and moving them are
 	// both gated behind requireAdmin.
-	mux.HandleFunc("GET /settings", s.requireAdmin(s.settingsPage))
+	mux.HandleFunc("GET /settings", s.requireSettingsAdmin(s.settingsPage))
 	mux.HandleFunc("POST /settings/accounts", s.requireAdmin(s.inviteAccount))
 	mux.HandleFunc("POST /settings/accounts/role", s.requireAdmin(s.setAccountRole))
 	// Team (#313, T18): re-enrollment resets a member's second factor; remove passes
 	// through a typed-name ConfirmDialog. Both are admin acts and mutate one account.
 	mux.HandleFunc("POST /settings/accounts/reenroll", s.requireAdmin(s.reenrollAccount))
 	mux.HandleFunc("POST /settings/accounts/remove", s.requireAdmin(s.removeAccount))
+	// Admin-wide sessions (#407, ADR-0117): the Access-group Sessions tab lists every
+	// account's live sessions. Revoking any one session (not owner-scoped) and revoking
+	// every session for one account (offboarding, through a typed-name confirm) are both
+	// admin acts, gated like the rest of the /settings block.
+	mux.HandleFunc("POST /settings/sessions/revoke", s.requireAdmin(s.revokeSessionAdmin))
+	mux.HandleFunc("POST /settings/sessions/revoke-account", s.requireAdmin(s.revokeAccountSessions))
 	mux.HandleFunc("POST /settings/channels", s.requireAdmin(s.createChannel))
 	mux.HandleFunc("POST /settings/channels/update", s.requireAdmin(s.updateChannel))
 	mux.HandleFunc("POST /settings/channels/delete", s.requireAdmin(s.deleteChannel))
 	mux.HandleFunc("POST /settings/retention", s.requireAdmin(s.updateRetention))
+	// Update checks (#391, ADR-0124): opting the worker's best-effort daily release-feed
+	// check in or out is an admin config act, gated like retention. While disabled the
+	// worker never phones home — air-gap-safe; the swap itself always stays a host action.
+	mux.HandleFunc("POST /settings/updates/check", s.requireAdmin(s.updateCheckToggle))
+	// Backup (#391, ADR-0124, B3): an admin streams a data-only logical archive of the
+	// estate + config tables. See cmd/web/backup.go — secret-free by construction.
+	mux.HandleFunc("POST /settings/backup", s.requireAdmin(s.backupDownload))
+	// Restore (#391, ADR-0124, B4): the destructive counterpart to backup. Preflight
+	// validates an uploaded archive WITHOUT applying (multipart), the apply is a typed-
+	// confirm overwrite that regenerates the session + prober keys so every session lapses
+	// and probers re-pin. See cmd/web/restore.go — refused while a scan is in flight.
+	mux.HandleFunc("POST /settings/restore/preflight", s.requireAdmin(s.restorePreflight))
+	mux.HandleFunc("POST /settings/restore", s.requireAdmin(s.restoreApply))
+	// API access (#390, ADR-0123): flipping the read-only /api/v1 surface on or off is an
+	// admin config act, gated like the update-check toggle. Off by default; while off every
+	// minted personal token is inert and /api/v1 answers nothing (surface off beats auth).
+	mux.HandleFunc("POST /settings/api", s.requireAdmin(s.apiToggle))
 
 	// Single sign-on config (#293, ADR-0112): declaring, editing, re-keying and
 	// removing an OIDC provider are admin config acts, gated like channel and seed
@@ -644,9 +915,56 @@ func (s *server) handler() http.Handler {
 	// through a confirm step (never fired on the tile click). Both mutations are
 	// admin acts, and the Integrations tab itself is reached only through the
 	// admin-gated /settings — an integration is distinct from a delivery channel
-	// and from a discovery source, and keeps its own routes.
-	mux.HandleFunc("POST /settings/integrations/install", s.requireAdmin(s.installIntegration))
-	mux.HandleFunc("POST /settings/integrations/disconnect", s.requireAdmin(s.disconnectIntegration))
+	// and from a discovery source, and keeps its own routes. These routes are only
+	// registered when the Integrations surface is live (#388, integrationsEnabled):
+	// with the surface hidden they stay unregistered, so no user-facing route can
+	// write to integration_state.
+	if integrationsEnabled {
+		mux.HandleFunc("POST /settings/integrations/install", s.requireAdmin(s.installIntegration))
+		// remove is the spec drawer's Remove act (#26j); disconnect is its pre-spec
+		// alias, kept resolving. test acknowledges the spec drawer's "Send test".
+		mux.HandleFunc("POST /settings/integrations/remove", s.requireAdmin(s.removeIntegration))
+		mux.HandleFunc("POST /settings/integrations/disconnect", s.requireAdmin(s.removeIntegration))
+		mux.HandleFunc("POST /settings/integrations/test", s.requireAdmin(s.testIntegration))
+		// channel binds/clears the integration's delivery Channel (#39b): the drawer's
+		// "Delivery channel" select posts {id,channel} here, and test rides the binding.
+		mux.HandleFunc("POST /settings/integrations/channel", s.requireAdmin(s.bindIntegrationChannel))
+	}
+
+	// Dev-only pixel-parity harness routes (devfixtures.go), registered only in a
+	// VERGE_DEV build so no /dev surface exists in a real deployment. They let the
+	// capture harness reach the error states states.json declares: /dev/403 renders the
+	// plain 403, /dev/panic exercises the 500 recovery, and /dev/session/{role} mints a
+	// session as the fixture admin/viewer so a state's per-state `session` is established
+	// before capture. (404, missing-subject, missing-run, settings-forbidden reach their
+	// kinds through real routes on fixture data.)
+	if s.devMode {
+		mux.HandleFunc("GET /dev/403", s.forbidden)
+		mux.HandleFunc("GET /dev/panic", s.devPanic)
+		mux.HandleFunc("GET /dev/session/{role}", s.devSessionMint)
+		// Screen 3 (Profile, #542): prepare the capture context — re-seed the Profile fixture
+		// (so a prior state's minted token never leaks) and hand back the seeded current-session
+		// cookie (so the Firefox·macOS row wears the "this device" badge without minting a
+		// fourth session). The literal path outranks the {role} wildcard above.
+		mux.HandleFunc("GET /dev/profile/session", s.devProfileSessionPrepare)
+		// Screen 5 (Setup, #550): realize states.json setup's seed:"empty" — empty the account
+		// table and reopen the first-run window under the pinned fixture token, so GET /setup
+		// renders the open bootstrap form. Captured last, so emptying the shared DB is safe.
+		mux.HandleFunc("GET /dev/seed/empty", s.devSetupSeedEmpty)
+		// Screen 6 (Coverage, #552): realize states.json coverage's "empty" state
+		// (seed:"empty-authed"). Unlike /dev/seed/empty it keeps the account table (the
+		// authed admin session Coverage needs), clearing only the coverage view for the
+		// next render. A distinct literal path — it outranks nothing and collides with
+		// nothing ("/dev/seed/empty" is a different literal).
+		mux.HandleFunc("GET /dev/seed/empty-authed", s.devCoverageSeedEmpty)
+	}
+
+	// Read-only /api/v1 JSON surface (#390, ADR-0123; A3 of #658). One self-contained
+	// call mounts the whole tree (router + handlers live in api_v1.go), each route
+	// wrapped in A2's apiBearer spine: 404 when api_enabled is off, 405 on any non-GET,
+	// bearer-resolved and read-only otherwise. Kept a single localized line so sibling
+	// route additions to this file union-merge cleanly.
+	s.mountAPIv1(mux)
 
 	// Recovered panics render the 500 error page with a real, logged incident id
 	// (T11, #306). Wrapped once here at the mux-construction boundary; the render

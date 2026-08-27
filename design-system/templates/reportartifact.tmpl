@@ -1,0 +1,131 @@
+{{/*
+  DESIGN-OWNED ARTIFACT — reportartifact.tmpl · package v3.11.0 · WORKFLOW.md v4
+  Source of truth: examples/console/ReportArtifact.jsx · shot 10. Replaces
+  templates_reportartifact.go. Defines: "reportartifact" (page shell) + "artifactdoc" (the
+  delivered document itself). Calls "deltachip" (reports.tmpl), "sevbadge" (signals.tmpl),
+  "changeglyph" (drift.tmpl) — one parse set.
+  Reconciliation (SPEC-CHANGE #23g, ruled): the document body moves from repo-owned
+  internal/message.RenderArtifact markup into the design-owned "artifactdoc" define —
+  RenderArtifact re-points at this define (parse the tmpl once, execute "artifactdoc" with the
+  same recomputed data; the on-screen, PDF and email forms all render THIS markup). To keep those
+  forms portable the document is fully inline-styled — nothing in it depends on the page <style>.
+  Page holes: .Heading .Period .ScheduleID (nullable — Edit schedule links
+  /reports/schedule/{id}/edit now that the route exists (#23h); disabled when the schedule is
+  gone) .Doc. Document holes (.Doc): .Empty .Org .Generated .Version .Format
+  .Stats[{Label,Value,Delta{Has,Text,Dir,Tone},Caption}] .SevBars[{Sev,Label,Pct,Count}]
+  .NewRows[{Severity,SevLabel,Signal,Asset,Seen}] .Withdrawn[{Text,Reason}] .DeliveredAt
+  .DeliveredTo .DeliveryState{Label,Tone}. A schedule that has never delivered renders .Empty
+  inside the document (ADR-0110) — the PDF is the empty-state document until a delivery lands.
+*/}}
+{{define "artifactdoc"}}<section style="background:var(--surface);border:1px solid var(--border-default);border-radius:16px;box-shadow:var(--shadow-sm);padding:28px;max-width:800px;width:100%;margin:0 auto;box-sizing:border-box;font-family:var(--font-ui)">
+{{if .Empty}}
+<div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:48px 24px">
+<span style="font:600 14px var(--font-ui);color:var(--text-ink)">No delivery yet</span>
+<span style="font:400 13px/1.5 var(--font-ui);color:var(--text-secondary);max-width:400px">This schedule has not delivered a report. The first delivery lands on its cadence — or run it now from Reports — and renders here, exactly as the channel receives it.</span>
+</div>
+{{else}}
+<div style="display:flex;flex-direction:column;gap:24px">
+<div style="display:flex;align-items:baseline;gap:12px;padding-bottom:16px;border-bottom:1px solid var(--row-sep)">
+<span style="font:600 15px var(--font-ui);color:var(--text-ink)">{{.Org}}</span>
+<span style="font:400 11.5px var(--font-mono);color:var(--text-muted)">generated {{.Generated}} · verge {{.Version}}</span>
+<span style="margin-left:auto"><span style="display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:8px;background:var(--surface-sunken);border:1px solid var(--border-default);color:var(--text-secondary);font-family:var(--font-mono);font-size:11.5px;white-space:nowrap">{{.Format}}</span></span>
+</div>
+<div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:20px">
+{{range .Stats}}
+<div style="display:flex;flex-direction:column;gap:4px;min-width:0">
+<span style="font:500 11px var(--font-mono);letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted)">{{.Label}}</span>
+<span style="display:flex;align-items:baseline;gap:8px"><span style="font:600 28px var(--font-mono);color:var(--text-ink);line-height:1.1">{{.Value}}</span>{{if .Delta.Has}}{{template "deltachip" .Delta}}{{end}}</span>
+<span style="font:400 11.5px var(--font-ui);color:var(--text-muted)">{{.Caption}}</span>
+</div>
+{{end}}
+</div>
+<div style="display:flex;flex-direction:column;gap:12px">
+<h2 style="margin:0;font:500 11px var(--font-mono);letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted)">Open signals by severity</h2>
+{{range .SevBars}}
+<div style="display:flex;align-items:center;gap:12px">
+<span style="width:72px;font:500 11px var(--font-mono);letter-spacing:0.06em;text-transform:uppercase;color:var(--text-secondary)">{{.Label}}</span>
+<span style="flex:1;height:8px;border-radius:999px;background:var(--surface-sunken);overflow:hidden"><span style="display:block;height:100%;width:{{.Pct}}%;border-radius:999px;background:var(--sev-{{.Sev}}-dot)"></span></span>
+<span style="width:26px;text-align:right;font:500 12.5px var(--font-mono);color:var(--text-body)">{{.Count}}</span>
+</div>
+{{end}}
+</div>
+<div style="display:flex;flex-direction:column;gap:10px">
+<h2 style="margin:0;font:500 11px var(--font-mono);letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted)">New this week</h2>
+{{if .NewRows}}
+<table style="width:100%;border-collapse:separate;border-spacing:0">
+<thead><tr>
+<th style="padding:6px 12px 6px 0;font:500 11px var(--font-mono);letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--border-default);white-space:nowrap;text-align:left;width:110px">Severity</th>
+<th style="padding:6px 12px;font:500 11px var(--font-mono);letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--border-default);white-space:nowrap;text-align:left">Signal</th>
+<th style="padding:6px 12px;font:500 11px var(--font-mono);letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--border-default);white-space:nowrap;text-align:left;width:220px">Asset</th>
+<th style="padding:6px 0 6px 12px;font:500 11px var(--font-mono);letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--border-default);white-space:nowrap;text-align:right;width:70px">Raised</th>
+</tr></thead>
+<tbody>
+{{range $i, $r := .NewRows}}<tr>
+<td style="padding:6px 12px 6px 0;vertical-align:middle;white-space:nowrap;{{if $i}}border-top:1px solid var(--row-sep){{end}}">{{template "sevbadge" $r}}</td>
+<td style="padding:6px 12px;font:400 13px var(--font-ui);color:var(--text-body);vertical-align:middle;{{if $i}}border-top:1px solid var(--row-sep){{end}}">{{$r.Signal}}</td>
+<td style="padding:6px 12px;font:400 12.5px var(--font-mono);color:var(--text-body);vertical-align:middle;white-space:nowrap;{{if $i}}border-top:1px solid var(--row-sep){{end}}">{{$r.Asset}}</td>
+<td style="padding:6px 0 6px 12px;font:400 12.5px var(--font-mono);color:var(--text-body);vertical-align:middle;white-space:nowrap;text-align:right;{{if $i}}border-top:1px solid var(--row-sep){{end}}">{{$r.Seen}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+{{else}}
+<span style="font:400 12.5px/1.6 var(--font-ui);color:var(--text-secondary)">No signal was first raised in this period.</span>
+{{end}}
+</div>
+<div style="display:flex;flex-direction:column;gap:10px">
+<h2 style="margin:0;font:500 11px var(--font-mono);letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted)">Withdrawn by the world</h2>
+{{if .Withdrawn}}
+{{range .Withdrawn}}
+<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+<span style="display:inline-flex;align-items:center;gap:4px;height:18px;padding:0 6px;border-radius:8px;background:var(--drift-loss-bg);border:1px solid var(--drift-loss-border);color:var(--drift-loss-fg);font-family:var(--font-mono);font-size:10px;font-weight:600;letter-spacing:0.04em;white-space:nowrap">{{template "changeglyph" "withdrawn"}}withdrawn</span>
+<span style="font:500 12.5px var(--font-mono);color:var(--text-ink)">{{.Text}}</span>
+<span style="font:400 11.5px var(--font-ui);color:var(--text-muted)">{{.Reason}}</span>
+</div>
+{{end}}
+{{else}}
+<span style="font:400 12.5px/1.6 var(--font-ui);color:var(--text-secondary)">Nothing withdrew in this period.</span>
+{{end}}
+</div>
+<div style="display:flex;align-items:center;gap:10px;padding-top:16px;border-top:1px solid var(--row-sep);flex-wrap:wrap">
+<span style="font:400 11.5px var(--font-mono);color:var(--text-muted)">delivered {{.DeliveredAt}}{{if .DeliveredTo}} · {{.DeliveredTo}}{{end}}</span>
+<span style="margin-left:auto">{{with .DeliveryState}}<span style="display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 10px;border-radius:999px;font-family:var(--font-ui);font-size:12px;font-weight:500;white-space:nowrap;{{if eq .Tone "ok"}}background:var(--ok-soft);border:1px solid var(--ok-border);color:var(--ok){{else if eq .Tone "danger"}}background:var(--danger-soft);border:1px solid var(--danger-border);color:var(--danger){{else}}background:var(--surface-sunken);border:1px solid var(--border-default);color:var(--text-secondary){{end}}"><span style="width:6px;height:6px;border-radius:999px;background:currentColor"></span>{{.Label}}</span>{{end}}</span>
+</div>
+</div>
+{{end}}
+</section>{{end}}
+
+{{define "reportartifact"}}{{template "head" .}}
+{{template "chrome" .}}
+<style>
+.ra-main { max-width: 1440px; margin: 0 auto; padding: 32px; display: flex; flex-direction: column; gap: 20px; }
+.ra-crumb { display: flex; align-items: center; gap: 8px; font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; }
+.ra-crumb a { color: var(--text-muted); text-decoration: none; transition: color var(--dur-fast) var(--ease-out); }
+.ra-crumb a:hover { color: var(--link); }
+.ra-crumb .here { color: var(--text-body); }
+.ra-main h1 { margin: 0; font: 600 21px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.ra-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; border-radius: 12px; font: 600 13px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; background: var(--surface); color: var(--text-body); border: 1px solid var(--border-strong); transition: background var(--dur-fast) var(--ease-out); }
+.ra-btn:hover { background: var(--surface-sunken); }
+.ra-btn.ghost { background: transparent; border-color: transparent; color: var(--text-secondary); }
+.ra-btn.ghost:hover { background: var(--surface-sunken); color: var(--text-body); }
+.ra-btn.ghost[aria-disabled="true"] { opacity: 0.5; cursor: default; }
+.ra-btn.ghost[aria-disabled="true"]:hover { background: transparent; color: var(--text-secondary); }
+</style>
+<main class="ra-main" data-screen-label="Report artifact">
+<nav aria-label="Breadcrumb" class="ra-crumb">
+<a href="/reports">Reports</a>
+<span aria-hidden="true" style="color:var(--text-muted)">/</span>
+<span aria-current="page" class="here">{{.Heading}}</span>
+</nav>
+<header style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+<div style="display:flex;flex-direction:column;gap:6px">
+<h1>{{.Heading}}</h1>
+{{if .Period}}<span style="font:400 12px var(--font-mono);color:var(--text-muted)">{{.Period}}</span>{{end}}
+</div>
+<div style="margin-left:auto;display:flex;gap:8px">
+<a class="ra-btn" href="/reports/delivery/pdf"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg>Download PDF</a>
+{{if .ScheduleID}}<a class="ra-btn ghost" href="/reports/schedule/{{.ScheduleID}}/edit">Edit schedule</a>{{else}}<span class="ra-btn ghost" aria-disabled="true" title="The schedule behind this delivery no longer exists">Edit schedule</span>{{end}}
+</div>
+</header>
+{{template "artifactdoc" .Doc}}
+</main>
+{{template "foot" .}}{{end}}

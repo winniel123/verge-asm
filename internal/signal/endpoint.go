@@ -26,21 +26,33 @@ const (
 
 // CertDetails is the parsed attributes of a presented certificate chain that the
 // five certificate predicates and the hostname-SAN rule read. It is a POINTER on
-// EndpointFacts: nil means the chain was presented but its attributes could not be
-// read (the fingerprint chain is stored, the parsed leaf is not), so a certificate
-// rule renders the subject `not-evaluable` rather than manufacturing a verdict
-// from evidence it does not have. TDD supplies a non-nil value to exercise each
-// predicate; the web layer leaves it nil until a certificate-parsing leaf lands.
+// EndpointFacts: nil means the chain was presented but NONE of its attributes could
+// be read (no parsed leaf at all), so every certificate rule renders the subject
+// `not-evaluable` rather than manufacturing a verdict from evidence it does not
+// have.
+//
+// Each attribute is INDEPENDENTLY nullable (a `*bool`): a nil attribute means THAT
+// rule's own input is absent, so THAT rule alone is `not-evaluable` — no single
+// pointer gates all six cert rules, and a rule never emits a verdict from evidence
+// it does not hold (collision #37, P0.10a). A non-nil attribute is the read
+// verdict: `*attr == true` fires, `*attr == false` is a clean not-fired.
+//
+// SANMatchesName is held to the same discipline and it is the sharp case: absent
+// SANs are nil → `not-evaluable`, NEVER a false that would manufacture a mismatch
+// verdict (the hard constraint of the ruling). TDD supplies non-nil attributes to
+// exercise each predicate; P0.10a's web wire sets only Expired/Expiring from the
+// leaf's `not_after`, leaving the other four attributes nil (they land in P0.10b,
+// #704) — see cmd/web/signals.go buildEndpointFacts.
 type CertDetails struct {
-	Expired            bool
-	NotYetValid        bool
-	Expiring           bool
-	SelfSigned         bool
-	WeakKeyOrSignature bool
+	Expired            *bool
+	NotYetValid        *bool
+	Expiring           *bool
+	SelfSigned         *bool
+	WeakKeyOrSignature *bool
 	// SANMatchesName reports whether the presented chain's SANs cover the
 	// Endpoint's Name — its negation is `certificate-hostname-san-mismatch`'s
-	// predicate.
-	SANMatchesName bool
+	// predicate. nil = SANs unread → not-evaluable (never a defaulted mismatch).
+	SANMatchesName *bool
 }
 
 // EndpointFacts is the current Derived state about one `Endpoint` the ten
@@ -58,7 +70,9 @@ type EndpointFacts struct {
 	// exists (the Service was never reached, or never handshaked); CertOutcome is
 	// the closed union `presented | tls-refused | no-tls`. The five certificate
 	// rules' domain is `certificate` is `presented`; `no-tls` and `tls-refused` are
-	// outside. CertDetails carries the parsed leaf attributes (nil = unreadable).
+	// outside. CertDetails carries the parsed leaf attributes: nil = NO attribute was
+	// read at all (every cert rule not-evaluable); non-nil with per-attribute nil = that
+	// one attribute is absent, so THAT rule alone is not-evaluable (collision #37).
 	CertMeasured bool
 	CertOutcome  string
 	CertDetails  *CertDetails
@@ -84,6 +98,7 @@ type EndpointFacts struct {
 type EndpointRule interface {
 	Name() string
 	Version() Version
+	Severity() Severity
 	Eval(f EndpointFacts) Outcome
 }
 
@@ -131,6 +146,24 @@ func EvaluateEndpoint(r EndpointRule, endpoints []EndpointFacts) Census {
 // moves every rule that reads the value it decides.
 func certVersion() Version { return Version{Rule: "v1", Composes: []string{co.CertVersion}} }
 
+// weakKeyFloorVersion is certificate-weak-key-or-signature's OWN read-side floor
+// token: the NIST-style key/signature floors it applies (RSA/DSA ≥2048, ECDSA ≥224,
+// deny SHA-1/MD5) live on the read side, not in the leaf, so a future floor edit is
+// ONE Break on this rule alone — not a CertVersion re-hash that would move every
+// certificate timeline (T-weak #715 §6). The rule composes it alongside co.CertVersion.
+const weakKeyFloorVersion = "weak-key-floor/v1"
+
+// weakKeyRule wraps the shared certDetailRule for certificate-weak-key-or-signature so
+// it carries its own independently-bumpable version — co.CertVersion (the leaf it
+// reads) composed with weakKeyFloorVersion (its read-side floors) — while keeping the
+// embedded Eval/Name/Severity unchanged (it still reads d.WeakKeyOrSignature exactly as
+// the other detail rules read theirs).
+type weakKeyRule struct{ certDetailRule }
+
+func (r weakKeyRule) Version() Version {
+	return Version{Rule: "v1", Composes: sortedStrings(co.CertVersion, weakKeyFloorVersion)}
+}
+
 // presentedCert reports whether a certificate rule's domain is satisfied: a
 // certificate was measured and it is `presented`. `no-tls` / `tls-refused` /
 // unmeasured are all outside the certificate rules' domain (ADR-0024: NoTLS
@@ -142,21 +175,24 @@ func presentedCert(f EndpointFacts) bool {
 // --- the five certificate-detail rules ------------------------------------
 //
 // All five share one shape: domain `certificate` is `Presented`; `not-evaluable`
-// where the chain is presented but its parsed attributes are unreadable
-// (CertDetails nil); Fired where the presented leaf's own boolean is set;
-// otherwise NotFired. They differ ONLY in which parsed-leaf attribute they read,
-// so one parameterised rule carries all five — a sixth of this kind is added by
-// naming it and its picker, never by copying the control flow. (certificate-
-// hostname-san-mismatch below keeps its own body: it adds a HasName domain guard
-// and reads the *negation* of its attribute, so it is not this shape.)
+// where the chain is presented but this rule's own parsed attribute is unread —
+// either the whole leaf is absent (CertDetails nil) or just this attribute is
+// (its `*bool` is nil); Fired where the read attribute is true; otherwise NotFired.
+// They differ ONLY in which parsed-leaf attribute they read, so one parameterised
+// rule carries all five — a sixth of this kind is added by naming it and its
+// picker, never by copying the control flow. (certificate-hostname-san-mismatch
+// below keeps its own body: it adds a HasName domain guard and reads the *negation*
+// of its attribute, so it is not this shape.)
 
 type certDetailRule struct {
 	name string
-	pick func(CertDetails) bool
+	sev  Severity
+	pick func(CertDetails) *bool
 }
 
-func (r certDetailRule) Name() string     { return r.name }
-func (r certDetailRule) Version() Version { return certVersion() }
+func (r certDetailRule) Name() string       { return r.name }
+func (r certDetailRule) Version() Version   { return certVersion() }
+func (r certDetailRule) Severity() Severity { return r.sev }
 func (r certDetailRule) Eval(f EndpointFacts) Outcome {
 	if !presentedCert(f) {
 		return OutsideDomain
@@ -164,7 +200,12 @@ func (r certDetailRule) Eval(f EndpointFacts) Outcome {
 	if f.CertDetails == nil {
 		return NotEvaluable
 	}
-	if r.pick(*f.CertDetails) {
+	attr := r.pick(*f.CertDetails)
+	if attr == nil {
+		// This rule's own input is absent — not-evaluable, never a defaulted verdict.
+		return NotEvaluable
+	}
+	if *attr {
 		return Fired
 	}
 	return NotFired
@@ -173,12 +214,15 @@ func (r certDetailRule) Eval(f EndpointFacts) Outcome {
 // The five shipped certificate-detail rules, in ADR-0024 table order. Each names
 // the one parsed-leaf boolean it reads; the domain, not-evaluable, and
 // fired/not-fired control flow live once, in certDetailRule.Eval above.
+// Severities, per rule: an expired or not-yet-valid leaf breaks TLS for clients
+// today (critical / high); a weak key or signature is a high-value forgery risk;
+// a self-signed leaf and an approaching expiry are medium warnings.
 var (
-	certificateExpired            = certDetailRule{"certificate-expired", func(d CertDetails) bool { return d.Expired }}
-	certificateNotYetValid        = certDetailRule{"certificate-not-yet-valid", func(d CertDetails) bool { return d.NotYetValid }}
-	certificateExpiring           = certDetailRule{"certificate-expiring", func(d CertDetails) bool { return d.Expiring }}
-	certificateSelfSigned         = certDetailRule{"certificate-self-signed", func(d CertDetails) bool { return d.SelfSigned }}
-	certificateWeakKeyOrSignature = certDetailRule{"certificate-weak-key-or-signature", func(d CertDetails) bool { return d.WeakKeyOrSignature }}
+	certificateExpired            = certDetailRule{"certificate-expired", SevCritical, func(d CertDetails) *bool { return d.Expired }}
+	certificateNotYetValid        = certDetailRule{"certificate-not-yet-valid", SevHigh, func(d CertDetails) *bool { return d.NotYetValid }}
+	certificateExpiring           = certDetailRule{"certificate-expiring", SevMedium, func(d CertDetails) *bool { return d.Expiring }}
+	certificateSelfSigned         = certDetailRule{"certificate-self-signed", SevMedium, func(d CertDetails) *bool { return d.SelfSigned }}
+	certificateWeakKeyOrSignature = weakKeyRule{certDetailRule{"certificate-weak-key-or-signature", SevHigh, func(d CertDetails) *bool { return d.WeakKeyOrSignature }}}
 )
 
 // --- certificate-hostname-san-mismatch ------------------------------------
@@ -186,20 +230,28 @@ var (
 // Domain: `certificate` is `Presented` AND the `Endpoint` has a `Name` (ADR-0024)
 // — a nameless endpoint has no hostname to mismatch (ADR-0011). Predicate: the
 // presented chain's SANs do not cover the Endpoint's Name. `not-evaluable`: the
-// chain is presented but its SANs are unreadable.
+// chain is presented but its SANs are unreadable — the whole leaf is absent
+// (CertDetails nil) OR the SANMatchesName attribute alone is (its `*bool` is nil).
+// Absent SANs are NEVER read as a mismatch: the rule emits no verdict from evidence
+// it does not hold (the hard constraint of collision #37 / P0.10a).
 
 type certificateHostnameSANMismatch struct{}
 
 func (certificateHostnameSANMismatch) Name() string     { return "certificate-hostname-san-mismatch" }
 func (certificateHostnameSANMismatch) Version() Version { return certVersion() }
+
+// Severity: high — a chain whose SANs do not cover the endpoint's name fails
+// verification and is indistinguishable from a misissued or wrong certificate.
+func (certificateHostnameSANMismatch) Severity() Severity { return SevHigh }
 func (certificateHostnameSANMismatch) Eval(f EndpointFacts) Outcome {
 	if !presentedCert(f) || !f.HasName {
 		return OutsideDomain
 	}
-	if f.CertDetails == nil {
+	if f.CertDetails == nil || f.CertDetails.SANMatchesName == nil {
+		// No SANs read — not-evaluable, never a defaulted mismatch verdict.
 		return NotEvaluable
 	}
-	if !f.CertDetails.SANMatchesName {
+	if !*f.CertDetails.SANMatchesName {
 		return Fired
 	}
 	return NotFired
@@ -221,6 +273,10 @@ func (plaintextHTTPNoHTTPS) Name() string { return "plaintext-http-no-https" }
 func (plaintextHTTPNoHTTPS) Version() Version {
 	return Version{Rule: "v1", Composes: sortedStrings(hx.Version, co.CertVersion)}
 }
+
+// Severity: medium — an HTTP app answering with no TLS exposes traffic to
+// interception, but is a hardening gap rather than an immediate compromise.
+func (plaintextHTTPNoHTTPS) Severity() Severity { return SevMedium }
 func (plaintextHTTPNoHTTPS) Eval(f EndpointFacts) Outcome {
 	if !f.HTTPResponded {
 		return OutsideDomain
@@ -267,6 +323,10 @@ func (redirectDoesNotUpgradeToTLS) Name() string { return "redirect-does-not-upg
 func (redirectDoesNotUpgradeToTLS) Version() Version {
 	return Version{Rule: "v1", Composes: []string{hx.Version}}
 }
+
+// Severity: low — a redirect that does not upgrade to TLS is a best-practice miss;
+// the plaintext-http-no-https rule carries the underlying exposure.
+func (redirectDoesNotUpgradeToTLS) Severity() Severity { return SevLow }
 func (redirectDoesNotUpgradeToTLS) Eval(f EndpointFacts) Outcome {
 	if !is3xxWithLocation(f) {
 		return OutsideDomain
@@ -292,6 +352,10 @@ func (redirectToHostOutsideEstate) Name() string { return "redirect-to-host-outs
 func (redirectToHostOutsideEstate) Version() Version {
 	return Version{Rule: "v1", Composes: sortedStrings(append([]string{hx.Version}, leafVersions...)...)}
 }
+
+// Severity: medium — a redirect leaving the estate can hand a session or a click
+// to an unowned host, a phishing / open-redirect risk.
+func (redirectToHostOutsideEstate) Severity() Severity { return SevMedium }
 func (redirectToHostOutsideEstate) Eval(f EndpointFacts) Outcome {
 	if !is3xxWithLocation(f) {
 		return OutsideDomain
@@ -322,6 +386,10 @@ func (unauthenticatedRequestAnswered) Name() string { return "unauthenticated-re
 func (unauthenticatedRequestAnswered) Version() Version {
 	return Version{Rule: "v1", Composes: []string{hx.Version}}
 }
+
+// Severity: high — an endpoint answering an unauthenticated request 2xx is an
+// exposed surface (an admin panel or API reachable without a challenge).
+func (unauthenticatedRequestAnswered) Severity() Severity { return SevHigh }
 func (unauthenticatedRequestAnswered) Eval(f EndpointFacts) Outcome {
 	if !f.HTTPResponded {
 		return OutsideDomain

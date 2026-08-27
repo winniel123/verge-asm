@@ -1,3 +1,3 @@
 {"batch":"b1","kind":"connect-outcome","facet":"reachability","subject":"198.51.100.14:443/tcp","vantage":"v1","address":"198.51.100.14","data":{"outcome":"reached","result":"open"}}
-{"batch":"b1","kind":"connect-outcome","facet":"certificate","subject":"a.example.com@198.51.100.14:443/tcp","vantage":"v1","address":"198.51.100.14","data":{"outcome":"presented","chain":["sha256:leafA"]}}
-{"batch":"b1","kind":"connect-outcome","facet":"certificate","subject":"b.example.com@198.51.100.14:443/tcp","vantage":"v1","address":"198.51.100.14","data":{"outcome":"presented","chain":["sha256:leafB"]}}
+{"batch":"b1","kind":"connect-outcome","facet":"certificate","subject":"a.example.com@198.51.100.14:443/tcp","vantage":"v1","address":"198.51.100.14","data":{"outcome":"presented","chain":["sha256:leafA"],"not_after":"2027-06-15T00:00:00Z"}}
+{"batch":"b1","kind":"connect-outcome","facet":"certificate","subject":"b.example.com@198.51.100.14:443/tcp","vantage":"v1","address":"198.51.100.14","data":{"outcome":"presented","chain":["sha256:leafB"],"not_after":"2026-09-30T23:59:59Z"}}

@@ -1,7 +1,7 @@
 ---
 title: Authentication
-section: Operating
-order: 8
+section: Access
+order: 2
 description: Manage your own account security — two-factor enrollment and the login challenge, recovery and re-enrollment, API tokens, active sessions, and the password change and reset flows.
 ---
 
@@ -89,11 +89,13 @@ through TOTP setup again. It touches neither your password nor your session. See
 
 ## API tokens
 
-Mint personal API tokens on **Profile → Personal API tokens**. A token is intended
-to let **your own automation** act with **your access** — it is scoped to your
-account and inherits your role, so a viewer's token reads and an admin's token
-carries admin. There is no per-token scope narrowing; a token is as broad as the
-account that owns it.
+Mint personal API tokens on **Profile → Personal API tokens**. A token lets **your
+own automation** read this deployment with **your access** — it is scoped to your
+account and carries its role, read live on every request. A token authenticates the
+**read-only** [JSON API](api.md) at `/api/v1`, and nothing else: it can never change
+the estate or its configuration, so an admin's token and a viewer's token can both
+only read. There is no per-token scope narrowing; the surface a token reaches is the
+read surface itself.
 
 - **Create** (`POST /profile/tokens`) — give the token a name (unique within your
   account, ≤ 64 characters). The plaintext — a `vg_pat_…` string — is shown
@@ -111,37 +113,57 @@ account that owns it.
 | | Session cookie | API token |
 | --- | --- | --- |
 | Form | Signed cookie, set at login | `vg_pat_…` bearer string, minted on demand |
+| Reaches | The full HTML console (read and admin acts) | The read-only `/api/v1` JSON surface only |
+| Capability | Everything your role allows, including mutation | **Read-only, always** — no write, no admin act |
 | Lifetime | Expires after 12 hours | No expiry — lives until revoked |
 | Second factor | Enforced at login | Not applicable — the token *is* the credential |
-| Storage | Nothing server-side (stateless, signed) | SHA-256 hash + prefix in the database |
+| Storage | Opaque token, stored as its SHA-256 hash in a session record | SHA-256 hash + prefix in the database |
 | Revocation | End the session (see below) | Revoke by name |
 
-> **Divergence worth knowing.** As of this build the personal-token store exists —
-> you can mint, list and revoke tokens — but **no request-authentication path
-> consumes one yet**. The web listener authenticates callers by session cookie
-> only; there is no `Authorization`-header lookup that resolves a `vg_pat_…` token
-> to an account, and a token's *Last used* therefore always reads as an em dash.
-> Treat token management as forward-provisioning for a machine API that is not yet
-> wired to accept them, not as a live second way to call the deployment today.
+The two credential paths share **no** authentication machinery: a token never mints
+a cookie and is never accepted on the HTML surface, and the session cookie is never
+accepted on `/api/v1` (see [ADR-0123](../adr/0123-a-token-api-is-read-only-opt-in-and-a-bearer-path-separate-from-sessions.md)).
+So a stolen cookie cannot drive the API and a stolen token cannot drive the console.
+
+> **The API is off by default.** The `/api/v1` surface a token reaches is **disabled
+> until an admin enables it** under **Settings → API access** — so a freshly minted
+> token is **inert** until then, and the Profile card says so. Once the surface is
+> on, a token's **Last used** shows the coarsened time of its most recent API request
+> (at most once per hour per token); a token that has never authenticated a request
+> reads as **never**. The full endpoint reference — enabling the surface, the bearer
+> header, the five read endpoints and their JSON shapes, and the 404-when-disabled /
+> 405 / 401 semantics — is in **[api.md](api.md)**.
 
 ---
 
 ## Sessions
 
-This build's sessions are **stateless signed cookies** — an HMAC over the account
-id and an expiry, verified against the signing key on the `web-state` volume, with
-**no server-side registry**. That shapes what "manage sessions" can honestly mean.
+This build's sessions are **server-side records** (ADR-0117). The cookie carries an
+opaque, random session token inside an HMAC-signed payload (account id, kind and
+expiry); the server keeps only the token's **SHA-256 hash** as a row in the session
+registry and checks it on every request. Storing only the hash preserves ADR-0053's
+leak model — a dump of the registry hands out no usable token. Because a session is
+a real record, it can be both **seen** and **revoked**.
 
-- **Viewing.** Profile shows only the session making the request — its browser and
-  OS derived from your User-Agent, and its source IP from the connection (never a
-  forwarding header). There is no roster of your other logins, because none is
-  recorded.
-- **Revoking** (`POST /profile/session/revoke`) — the one session honestly
-  revocable is the current one. Revoking it clears the cookie and returns you to
-  `/login`, exactly as signing out does. Because there is no registry, a session on
-  another device cannot be revoked from here; it lapses when its 12-hour lifetime
-  expires. Rotating the session signing key (losing the `web-state` volume)
-  invalidates **every** session at once — see [running.md → Volumes](running.md#volumes).
+### Active sessions
+
+- **Personal** (`Profile`). The Sessions card lists every live session for your
+  account — device and OS from the User-Agent, source IP from the connection (never
+  a forwarding header), last-active time, and a **this device** badge on the current
+  one. From it you can **revoke one** (`POST /profile/sessions/revoke` — that browser
+  lands on `/login` on its next request), **end this session** (sign out here), or
+  **sign out others** (revoke every session but this one).
+- **Admin** (`Settings → Sessions`). An admin sees every account's live sessions
+  across the deployment, grouped by account and newest activity first, and can
+  **revoke any one** or **revoke all** for an account — the offboarding kill that
+  signs a departing member out everywhere at once.
+- **Credential change.** Changing your password (or completing a reset) **revokes
+  your other sessions** — every other browser is signed out, leaving only the one
+  that made the change.
+
+A session also lapses on its own when its **12-hour** lifetime expires, and rotating
+the session signing key (losing the `web-state` volume) invalidates **every** session
+at once — see [running.md → Volumes](running.md#volumes).
 
 ---
 
@@ -151,10 +173,11 @@ id and an expiry, verified against the signing key on the `web-state` volume, wi
 
 On **Profile → Credentials** (`POST /profile/password`) enter your current
 password and a new one. The current password is re-verified against a fresh read,
-the new one is bounded to **8–72 characters** (bcrypt hashes no more than 72
-bytes), and your **second factor is left untouched** — a password change does not
-strip TOTP. Other sessions are **not** invalidated; the success notice says so
-plainly rather than implying a global sign-out.
+the new one is bounded to **12–72 characters** (at least 12; bcrypt hashes no more
+than 72 bytes), and your **second factor is left untouched** — a password change does not
+strip TOTP. Your **other sessions are revoked** — every other browser is signed out
+through the session registry, leaving only the one that made the change, and the
+success notice says so (#408, ADR-0117).
 
 ### Forgot / reset
 
@@ -174,12 +197,12 @@ gate on — and **enumeration-safe**.
 3. **Reset** (`GET`/`POST /reset?token=…`) — a valid, unspent, unexpired token
    (links live **30 minutes**) renders a set-a-new-password form; a missing, spent
    or stale token renders an honest invalid state rather than a form that would fail
-   on submit. Set the new password (same 8–72 bound, typed twice), and the token is
+   on submit. Set the new password (same 12–72 bound, typed twice), and the token is
    spent so the link is single-use.
 
-Like a password change, a reset does not sign your other sessions out — a stateless
-signed cookie has no registry to revoke against, and the done copy says so rather
-than implying a global sign-out.
+Like a password change, a reset **signs your other sessions out** — completing it
+revokes every session for the account through the registry, and the done screen says
+every session has been signed out (#408, ADR-0117).
 
 ---
 
@@ -187,6 +210,8 @@ than implying a global sign-out.
 
 - Admin acts on other accounts — invite, change role, **require re-enrollment**,
   remove: [accounts.md](accounts.md).
+- The read-only JSON API a token authenticates — enabling it and the endpoint
+  reference: [api.md](api.md).
 - Single sign-on and linking an external identity to your account:
   [sso.md](sso.md).
 - Where the session signing key and other secrets live, and the security posture of

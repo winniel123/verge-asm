@@ -24,7 +24,7 @@ const keyLen = 32
 func LoadOrCreateKey(dir string) ([]byte, error) {
 	path := filepath.Join(dir, keyFile)
 
-	key, err := os.ReadFile(path)
+	key, err := os.ReadFile(path) // #nosec G304 (session-key file: constant basename under operator-configured state dir, not request input)
 	switch {
 	case err == nil:
 		if len(key) != keyLen {
@@ -43,6 +43,32 @@ func LoadOrCreateKey(dir string) ([]byte, error) {
 		return nil, fmt.Errorf("auth: generate session key: %w", err)
 	}
 	if err := os.WriteFile(path, key, 0o600); err != nil {
+		return nil, fmt.Errorf("auth: write session key: %w", err)
+	}
+	return key, nil
+}
+
+// RotateKey generates a fresh session signing key, overwrites the key file in
+// dir with it, and returns the new key. It is the deliberate counterpart to
+// LoadOrCreateKey's never-rotate posture: a restore (ADR-0124) regenerates the
+// session key so the restored instance never carries a prior instance's signing
+// key, and every session signed under the old key lapses — a named guarantee of
+// the restore, not an incidental side effect.
+//
+// The write mirrors LoadOrCreateKey: dir is created if absent, the file is
+// 0600, and only a full-length key is ever written. The caller must swap the
+// process's in-memory key (and any derived sub-keys) to the returned value, so
+// the running process stops honouring cookies signed under the old key at once
+// rather than only after a restart.
+func RotateKey(dir string) ([]byte, error) {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return nil, fmt.Errorf("auth: create state dir: %w", err)
+	}
+	key := make([]byte, keyLen)
+	if _, err := rand.Read(key); err != nil {
+		return nil, fmt.Errorf("auth: generate session key: %w", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, keyFile), key, 0o600); err != nil {
 		return nil, fmt.Errorf("auth: write session key: %w", err)
 	}
 	return key, nil

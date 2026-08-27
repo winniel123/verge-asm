@@ -15,6 +15,7 @@ import "../styles/global.css";
 import TopNav from "../components/TopNav.jsx";
 import SectionNav from "../components/SectionNav.astro";
 import OnPageToc from "../components/OnPageToc.astro";
+import { REPO_URL } from "../repo.ts";
 
 const {
   title = "Verge ASM docs",
@@ -57,7 +58,7 @@ const {
   </head>
   <body>
     <div style="background:var(--bg-page); min-height:100vh; font-family:var(--font-ui);">
-      <TopNav client:load versions={versions} version={version} />
+      <TopNav client:load versions={versions} version={version} githubHref={REPO_URL} />
       <div style="max-width:1240px; margin:0 auto; display:grid; grid-template-columns:220px minmax(0, 1fr) 180px; gap:48px; padding:40px 32px 80px;">
         <SectionNav sections={sections} />
         <article style="max-width:760px; min-width:0;">

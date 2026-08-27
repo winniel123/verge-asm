@@ -1,0 +1,161 @@
+{{/*
+  DESIGN-OWNED ARTIFACT — coverage.tmpl · package v3.7.0 · WORKFLOW.md v4
+  Source of truth: examples/console/Coverage.jsx · shot 07. Replaces templates_coverage.go.
+  Holes: .Meters[{Label,Counted,Total(nullable),Unit,Detail}], .Messages[{Kind,Badge,Bound,
+  Subject,Text,When,ISO}], .Gaps[{Subject,Gap,Expected,Since}], .Unevaluable[{ID,Version,Why}],
+  .StaleZones[{Zone,Age}]. Reconciliation (SPEC-CHANGE #19): an ADDRESS scope's meter renders
+  counted/total (denominator = enumerable addresses of the declared range); name scopes stay
+  census (ADR-0095's estate-proportion rule is about the estate, not a declared range).
+  Messages gain the spec's relative-time column (title = ISO instant).
+*/}}
+{{define "coverage"}}{{template "head" .}}
+{{template "chrome" .}}
+<style>
+.cv-main { max-width: 1440px; margin: 0 auto; padding: 32px; display: flex; flex-direction: column; gap: 20px; }
+.cv-main h1 { margin: 0; font: 600 21px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.cv-sub { font: 400 12.5px var(--font-ui); color: var(--text-muted); white-space: nowrap; }
+.cv-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.cv-col { display: flex; flex-direction: column; gap: 24px; }
+.cv-card { background: var(--surface); border: 1px solid var(--border-default); border-radius: 16px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; }
+.cv-card.flush { overflow: hidden; }
+.cv-cardhead { display: flex; flex-direction: column; gap: 3px; padding: 20px 20px 0; }
+.cv-card.flush .cv-cardhead { padding: 20px 20px 14px; }
+.cv-micro { font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.cv-cardhead h3 { margin: 0; font: 600 15px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.cv-body { padding: 20px; }
+.cv-meter { display: flex; flex-direction: column; gap: 6px; font-family: var(--font-ui); }
+.cv-meter .top { display: flex; align-items: baseline; gap: 8px; }
+.cv-meter .top .lbl { font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.cv-meter .top .val { margin-left: auto; font: 400 11.5px var(--font-mono); color: var(--text-secondary); white-space: nowrap; }
+.cv-meter .track { height: 6px; border-radius: 999px; background: var(--surface-sunken); overflow: hidden; }
+.cv-meter .track .fill { display: block; height: 100%; border-radius: 999px; background: var(--accent); transition: width var(--dur-slow) var(--ease-out); }
+.cv-meter .census { height: 6px; border-radius: 999px; overflow: hidden; background: repeating-linear-gradient(45deg, var(--accent-soft) 0 5px, var(--surface-sunken) 5px 10px); }
+.cv-meter .det { font: 400 11px var(--font-ui); color: var(--text-muted); }
+.cv-msgs { display: flex; flex-direction: column; font-family: var(--font-ui); }
+.cv-msg { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: start; padding: 11px 0; }
+.cv-msg + .cv-msg { border-top: 1px solid var(--row-sep); }
+.cv-msg .sbj { font: 600 12px var(--font-mono); color: var(--text-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cv-msg .txt { font: 400 12.5px/1.5 var(--font-ui); color: var(--text-secondary); }
+.cv-when { font: 500 12.5px var(--font-mono); color: var(--text-body); border-bottom: 1px dashed var(--border-strong); cursor: default; white-space: nowrap; }
+.cv-gapbadge { display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 6px; border-radius: 8px; background: transparent; border: 1px dotted var(--border-strong); color: var(--text-secondary); font: 600 10px var(--font-mono); letter-spacing: 0.04em; white-space: nowrap; }
+.cv-stale { display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 6px; border-radius: 8px; background: var(--stale-bg); border: 1px solid var(--stale-border); color: var(--stale-fg); font: 600 10px var(--font-mono); letter-spacing: 0.04em; white-space: nowrap; line-height: 1; }
+.cv-stale .b { font-weight: 400; opacity: 0.8; }
+.cv-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.cv-table th { padding: 8px 16px; font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border-default); white-space: nowrap; background: var(--surface); text-align: left; }
+.cv-table td { padding: 7px 16px; font: 400 13px var(--font-ui); color: var(--text-body); vertical-align: middle; white-space: nowrap; border-top: 1px solid var(--row-sep); }
+.cv-table tbody tr:first-child td { border-top: none; }
+.cv-table td.mono { font: 400 12.5px var(--font-mono); }
+.cv-rules { display: flex; flex-direction: column; gap: 12px; }
+.cv-rule { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.cv-rulechip { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 8px; line-height: 1; background: var(--surface-sunken); border: 1px solid var(--border-default); color: var(--text-body); font: 500 11.5px var(--font-mono); cursor: default; }
+.cv-rule .why { font: 400 12px/1.6 var(--font-ui); color: var(--text-muted); }
+.cv-callout { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; background: var(--warn-soft); border: 1px solid var(--warn-border); border-radius: 12px; font-family: var(--font-ui); }
+.cv-callout .ic { color: var(--warn); display: inline-flex; margin-top: 1px; flex: none; }
+.cv-callout .ct { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cv-callout .ct b { font: 600 13px var(--font-ui); color: var(--text-ink); }
+.cv-callout .ct span { font: 400 13px/1.55 var(--font-ui); color: var(--text-body); }
+.cv-btn-sm { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 10px; font: 600 12px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; background: var(--surface); color: var(--text-body); border: 1px solid var(--border-strong); transition: background var(--dur-fast) var(--ease-out); }
+.cv-btn-sm:hover { background: var(--surface-sunken); }
+.cv-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 36px 24px; font-family: var(--font-ui); }
+.cv-empty .ico { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 999px; background: var(--accent-softer); border: 1px solid var(--accent-soft); color: var(--accent); margin-bottom: 8px; }
+.cv-empty .msg { font: 600 14px var(--font-ui); color: var(--text-ink); }
+.cv-empty .det { font: 400 13px/1.5 var(--font-ui); color: var(--text-secondary); max-width: 380px; }
+.cv-empty .act { margin-top: 14px; }
+</style>
+<main class="cv-main" data-screen-label="Coverage">
+<header style="display:flex;flex-direction:column;gap:2px">
+<h1>Coverage</h1>
+<span class="cv-sub">Where "we cannot construct this claim" lives — a feature, not an error.</span>
+</header>
+<div class="cv-grid">
+<div class="cv-col">
+<section class="cv-card">
+<div class="cv-cardhead"><span class="cv-micro">Aperture</span><h3>What the last batch walked</h3></div>
+<div class="cv-body">
+{{if .Meters}}
+<div style="display:flex;flex-direction:column;gap:18px">
+{{range .Meters}}
+<div class="cv-meter">
+<div class="top"><span class="lbl">{{.Label}}</span><span class="val">{{if .Total}}{{.Counted}} / {{.Total}}{{if .Unit}} {{.Unit}}{{end}}{{else}}census · {{.Counted}}{{if .Unit}} {{.Unit}}{{end}}{{end}}</span></div>
+{{if .Total}}<div class="track" role="progressbar" aria-valuemin="0" aria-valuemax="{{.Total}}" aria-valuenow="{{.Counted}}"><span class="fill" style="width:{{.Pct}}%"></span></div>{{else}}<div class="census" aria-label="Census — no denominator"></div>{{end}}
+{{if .Detail}}<span class="det">{{.Detail}}</span>{{end}}
+</div>
+{{end}}
+</div>
+{{else}}
+<div class="cv-empty"><span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"></path><path d="M4 6h.01"></path><path d="M2.29 9.62a10 10 0 1 0 19.02-1.27"></path><path d="M16.24 7.76a6 6 0 1 0-8.01 8.91"></path><path d="M12 18h.01"></path><path d="M17.99 11.66a6 6 0 0 1-2.22 5.01"></path><circle cx="12" cy="12" r="2"></circle><path d="m13.41 10.59 5.66-5.66"></path></svg></span>
+<span class="msg">No scope to walk yet</span>
+<span class="det">No scope is declared, so the last batch walked nothing. Declare a name or address scope and the aperture fills as the batch reports at its cadence.</span>
+<span class="act"><a class="cv-btn-sm" href="/scope">Go to Scope</a></span></div>
+{{end}}
+</div>
+</section>
+<section class="cv-card">
+<div class="cv-cardhead"><span class="cv-micro">Currency</span><h3>Coverage messages</h3></div>
+<div class="cv-body">
+{{if .Messages}}
+<div class="cv-msgs">
+{{range .Messages}}
+<div class="cv-msg">
+<span style="padding-top:1px">{{if eq .Kind "gap"}}<span class="cv-gapbadge"><svg viewBox="0 0 10 10" width="9" height="9" style="flex:none"><rect x="1.6" y="1.6" width="6.8" height="6.8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="1.6 1.6"></rect></svg>{{.Badge}}</span>{{else}}<span class="cv-stale"><svg viewBox="0 0 10 10" width="9" height="9" style="flex:none"><circle cx="5" cy="5" r="3.6" fill="none" stroke="currentColor" stroke-width="1.4"></circle><path d="M5 3.2V5l1.4 1" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"></path></svg>{{.Badge}}{{if .Bound}}<span class="b">· {{.Bound}}</span>{{end}}</span>{{end}}</span>
+<span style="display:flex;flex-direction:column;gap:2px;min-width:0"><span class="sbj">{{.Subject}}</span><span class="txt">{{.Text}}</span></span>
+{{if .When}}<span class="cv-when" title="{{.ISO}}">{{.When}}</span>{{end}}
+</div>
+{{end}}
+</div>
+{{else}}
+<div class="cv-empty"><span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></span>
+<span class="msg">No coverage messages</span>
+<span class="det">Nothing has aged past its currency and no position has gone silent. A gap, a stale source, or a vantage we could not look from would surface here.</span></div>
+{{end}}
+</div>
+</section>
+</div>
+<div class="cv-col">
+<section class="cv-card flush">
+<div class="cv-cardhead"><span class="cv-micro">Gaps</span><h3>Expected, not observed</h3></div>
+{{if .Gaps}}
+<table class="cv-table">
+<thead><tr><th>Subject</th><th style="width:130px">Gap</th><th style="width:190px">Expected</th><th style="width:60px;text-align:right">Since</th></tr></thead>
+<tbody>
+{{range .Gaps}}<tr>
+<td class="mono">{{.Subject}}</td>
+<td><span class="cv-gapbadge"><svg viewBox="0 0 10 10" width="9" height="9" style="flex:none"><rect x="1.6" y="1.6" width="6.8" height="6.8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="1.6 1.6"></rect></svg>{{.Gap}}</span></td>
+<td>{{.Expected}}</td>
+<td class="mono" style="text-align:right;color:var(--text-muted)">{{.Since}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+{{else}}
+<div class="cv-empty"><span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></span>
+<span class="msg">No gaps this batch</span>
+<span class="det">Every expected observation arrived. A subject we expected to observe but did not — a name with no address, a service with no origin behind its edge — would appear here.</span></div>
+{{end}}
+</section>
+<section class="cv-card">
+<div class="cv-cardhead"><span class="cv-micro">Rules</span><h3>Unevaluable this batch</h3></div>
+<div class="cv-body">
+{{if .Unevaluable}}
+<div class="cv-rules">
+{{range .Unevaluable}}
+<div class="cv-rule">
+<span class="cv-rulechip" title="Rule {{.ID}} v{{.Version}} — definition in source"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12.5 8 15l2 2.5"></path><path d="m14 12.5 2 2.5-2 2.5"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"></path></svg>{{.ID}}@{{.Version}}</span>
+<span class="why">{{.Why}}</span>
+</div>
+{{end}}
+</div>
+{{else}}
+<div class="cv-empty"><span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></span>
+<span class="msg">Every rule could evaluate</span>
+<span class="det">No rule was blocked from evaluating this batch. A rule that needs a reading the batch did not commit — a handshake never completed, a zone that aged into a gap — would be listed here with what it was waiting on.</span></div>
+{{end}}
+</div>
+</section>
+{{range .StaleZones}}
+<div class="cv-callout"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg></span>
+<span class="ct"><b>Zone gone stale</b><span>{{.Zone}}'s zone file is {{.Age}} old — removal detection is suspended for that scope until a fresh upload.<span style="display:block;margin-top:10px"><a class="cv-btn-sm" href="/scope">Upload zone</a></span></span></span></div>
+{{end}}
+</div>
+</div>
+</main>
+{{template "foot" .}}{{end}}

@@ -121,6 +121,56 @@ func TestClassifyDriftEventReasonedClose(t *testing.T) {
 	}
 }
 
+// A first span the estate wiring marked aperture-widened (span.opened_aperture)
+// classifies `revealed` — the operator's declared scope is why we started looking
+// at a Seed-declared subject — while an unmarked first span stays `appeared`, the
+// world bringing a subject the aperture had not declared (#637, ADR-0014). Both are
+// gain-family openings; the marker is the whole distinction.
+func TestClassifyDriftEventRevealed(t *testing.T) {
+	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
+
+	revealed := driftOpenedRow(7, now.Add(-time.Hour), "api.example.com", `{"outcome":"not-reached"}`, "")
+	revealed.OpenedAperture = true
+	ev, ok := classifyDriftEvent(revealed, now)
+	if !ok || ev.Change != "revealed" {
+		t.Fatalf("aperture-marked first span => change %q (ok=%v), want revealed", ev.Change, ok)
+	}
+	if ev.Family != "gain" {
+		t.Errorf("revealed family = %q, want gain", ev.Family)
+	}
+
+	appeared := driftOpenedRow(7, now.Add(-time.Hour), "discovered.other.net", `{"outcome":"Resolved"}`, "")
+	// OpenedAperture defaults false — the world brought it.
+	ev, ok = classifyDriftEvent(appeared, now)
+	if !ok || ev.Change != "appeared" {
+		t.Fatalf("unmarked first span => change %q (ok=%v), want appeared", ev.Change, ok)
+	}
+}
+
+// A re-open across a prior withdrawal closure classifies `returned` — the same
+// timeline, a `measured-absent` closure behind it under an equal Derivation vector,
+// which the estate wiring now writes so this kind can fire. A `descoped` prior
+// closure instead reads `appeared`: a narrowing is not a decommission, so a
+// re-citation must not be narrated as the world bringing the subject back
+// (drift.MembershipReturn, ADR-0087).
+func TestClassifyDriftEventReturned(t *testing.T) {
+	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
+
+	returned := driftOpenedRow(9, now.Add(-time.Hour), "api.example.com", `{"outcome":"Resolved"}`, `{"outcome":"NameError"}`)
+	returned.PrevClosureReason = pgtype.Text{String: "measured-absent", Valid: true}
+	ev, ok := classifyDriftEvent(returned, now)
+	if !ok || ev.Change != "returned" {
+		t.Fatalf("re-open across a measured-absent closure => change %q (ok=%v), want returned", ev.Change, ok)
+	}
+
+	afterDescope := driftOpenedRow(9, now.Add(-time.Hour), "api.example.com", `{"outcome":"Resolved"}`, `{"outcome":"NameError"}`)
+	afterDescope.PrevClosureReason = pgtype.Text{String: "descoped", Valid: true}
+	ev, ok = classifyDriftEvent(afterDescope, now)
+	if !ok || ev.Change != "appeared" {
+		t.Fatalf("re-open across a descoped closure => change %q (ok=%v), want appeared", ev.Change, ok)
+	}
+}
+
 // The Drift screen renders the change vocabulary (the legend) on the drift palette
 // and, with no transition feed yet, the empty-state timeline — never a fabricated
 // change event. It is a first-class screen (nav item 4 of 7): the full composition
@@ -162,7 +212,7 @@ func TestDriftPageRendersVocabularyAndEmptyState(t *testing.T) {
 
 	// No transition feed exists yet, so the timeline is the design-system empty-state
 	// (fact + next action), not a fabricated batch.
-	if !strings.Contains(page, "emptystate") {
+	if !strings.Contains(page, "dr-empty") {
 		t.Errorf("drift page missing empty-state block; body: %s", page)
 	}
 	if !strings.Contains(page, "No change to show yet") {
@@ -173,7 +223,7 @@ func TestDriftPageRendersVocabularyAndEmptyState(t *testing.T) {
 	}
 
 	// The Drift nav pill is the active one (keyed on NavActive, not Active).
-	if !strings.Contains(page, `href="/drift"`) || !strings.Contains(page, `navpill active`) {
+	if !strings.Contains(page, `href="/drift"`) || !strings.Contains(page, `sh-pill on`) {
 		t.Errorf("drift page did not mark the Drift nav pill active; body: %s", page)
 	}
 }
@@ -197,10 +247,11 @@ func TestDriftRequiresLogin(t *testing.T) {
 }
 
 // T16 delta (#311): with a real batch dispatched, the Drift header offers a "Batch
-// detail" entry into the Run detail screen at GET /run/{id} — id being the most
-// recent Dispatch id. The entry is real data (a dispatch exists), never a fabricated
-// change event, and it stands even while the transition timeline is still the
-// empty-state (change and batches are distinct feeds).
+// detail" entry into the Run detail screen at GET /runs/{id} — id being the most
+// recent Dispatch id (the frozen drift.tmpl routes batch detail to /runs/{id}). The
+// entry is real data (a dispatch exists), never a fabricated change event, and it
+// stands even while the transition timeline is still the empty-state (change and
+// batches are distinct feeds).
 func TestDriftBatchDetailLinksToRun(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -220,11 +271,11 @@ func TestDriftBatchDetailLinksToRun(t *testing.T) {
 	if !strings.Contains(page, "Batch detail") {
 		t.Errorf("drift page missing the Batch detail entry; body: %s", page)
 	}
-	if !strings.Contains(page, `href="/run/88"`) {
-		t.Errorf("Batch detail should link to the most recent batch /run/88; body: %s", page)
+	if !strings.Contains(page, `href="/runs/88"`) {
+		t.Errorf("Batch detail should link to the most recent batch /runs/88; body: %s", page)
 	}
-	if strings.Contains(page, `href="/run/87"`) {
-		t.Errorf("Batch detail linked an older batch /run/87, not the latest; body: %s", page)
+	if strings.Contains(page, `href="/runs/87"`) {
+		t.Errorf("Batch detail linked an older batch /runs/87, not the latest; body: %s", page)
 	}
 	// The timeline is still the empty-state — the entry does not fabricate change.
 	if !strings.Contains(page, "No change to show yet") {
@@ -233,7 +284,7 @@ func TestDriftBatchDetailLinksToRun(t *testing.T) {
 }
 
 // With no scan yet dispatched there is no batch to open, so the header offers no
-// Batch detail entry rather than fabricate a run id — no /run/ link is rendered.
+// Batch detail entry rather than fabricate a run id — no /runs/ link is rendered.
 func TestDriftBatchDetailOmittedWithoutBatch(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -241,7 +292,7 @@ func TestDriftBatchDetailOmittedWithoutBatch(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 	page := getBody(t, ac, base+"/drift", http.StatusOK)
 
-	if strings.Contains(page, "Batch detail") || strings.Contains(page, `href="/run/`) {
+	if strings.Contains(page, "Batch detail") || strings.Contains(page, `href="/runs/`) {
 		t.Errorf("drift page offered a Batch detail entry with no batch dispatched; body: %s", page)
 	}
 }
@@ -289,12 +340,13 @@ func TestDriftFeedRendersTransitions(t *testing.T) {
 
 // The period selector bounds the feed: a change older than the default 7d window is
 // excluded from the default view (the timeline falls back to the empty-state) and
-// included under ?period=all.
+// included under the widest preset, ?period=90d (the design's range vocabulary tops
+// out at 90d — there is no "all time" preset).
 func TestDriftFeedPeriodFilter(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	addNameSeed(t, f, admin.ID, "example.com")
-	// An appearance well over 7d before the fixed clock (2026-08-15).
+	// An appearance well over 7d — but under 90d — before the fixed clock (2026-08-15).
 	old := time.Date(2026, 6, 1, 9, 0, 0, 0, time.UTC)
 	f.addResolution(t, admin.ID, "api.example.com", "hot", old, `{"outcome":"Resolved"}`)
 
@@ -306,13 +358,13 @@ func TestDriftFeedPeriodFilter(t *testing.T) {
 	if !strings.Contains(def, "No change to show yet") {
 		t.Errorf("default 7d window should exclude a >7d-old transition; body: %s", def)
 	}
-	// All time: the appearance is in window and renders.
-	all := getBody(t, ac, base+"/drift?period=all", http.StatusOK)
-	if strings.Contains(all, "No change to show yet") {
-		t.Errorf("all-time window should include the transition; body: %s", all)
+	// 90d: the appearance is in window and renders.
+	wide := getBody(t, ac, base+"/drift?period=90d", http.StatusOK)
+	if strings.Contains(wide, "No change to show yet") {
+		t.Errorf("90d window should include the <90d-old transition; body: %s", wide)
 	}
-	if !strings.Contains(all, "api.example.com") {
-		t.Errorf("all-time feed missing the transition's subject; body: %s", all)
+	if !strings.Contains(wide, "api.example.com") {
+		t.Errorf("90d feed missing the transition's subject; body: %s", wide)
 	}
 }
 
@@ -330,7 +382,7 @@ func TestDriftExportCSV(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	resp, err := ac.Get(base + "/drift/export?period=all")
+	resp, err := ac.Get(base + "/drift/export?period=90d")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -373,5 +425,51 @@ func TestDriftFamilyMapsToDriftPalette(t *testing.T) {
 		if got := driftFamily(kind); got != want {
 			t.Errorf("driftFamily(%q) = %q, want %q", kind, got, want)
 		}
+	}
+}
+
+// TestDriftTransitionDelta covers the vs-previous-period compare (collision #36 ruling
+// (a), #690): a nonzero difference renders signed, an equal current/previous count
+// renders "0", and no complete previous window (earliest batch missing, or younger than
+// the preceding window's start) suppresses the chip with an empty string. The preceding
+// window's rows are classified through the same buildDriftFeed the live count uses —
+// each first-appearance row is one `appeared` transition.
+func TestDriftTransitionDelta(t *testing.T) {
+	now := time.Date(2026, 8, 27, 12, 0, 0, 0, time.UTC)
+	// A 7d window: [now-7d, now); the preceding equal window starts at now-14d.
+	prevStart := now.Add(-14 * 24 * time.Hour)
+	prevAt := now.Add(-10 * 24 * time.Hour) // a batch inside the preceding window
+	// The estate has observed since before the preceding window's start — a full
+	// previous window exists.
+	oldEnough := pgtype.Timestamptz{Time: now.Add(-30 * 24 * time.Hour), Valid: true}
+
+	// Three first appearances in the preceding window → three `appeared` transitions.
+	prevRows := []db.ListRecentDriftEventsRow{
+		driftOpenedRow(1, prevAt, "a.example.com", `{"outcome":"Resolved"}`, ""),
+		driftOpenedRow(1, prevAt, "b.example.com", `{"outcome":"Resolved"}`, ""),
+		driftOpenedRow(1, prevAt, "c.example.com", `{"outcome":"Resolved"}`, ""),
+	}
+
+	// Signed: current 5 − previous 3 = +2 (the fixture's encoded value).
+	if got := driftTransitionDelta(5, prevRows, oldEnough, prevStart, now); got != "+2" {
+		t.Errorf("signed delta = %q, want %q", got, "+2")
+	}
+	// Signed negative uses the true minus (U+2212), as signedCount renders it.
+	if got := driftTransitionDelta(1, prevRows, oldEnough, prevStart, now); got != "−2" {
+		t.Errorf("negative delta = %q, want %q", got, "−2")
+	}
+	// Zero: equal current/previous count renders "0", not empty (the window exists).
+	if got := driftTransitionDelta(3, prevRows, oldEnough, prevStart, now); got != "0" {
+		t.Errorf("zero delta = %q, want %q", got, "0")
+	}
+	// Suppressed — no batch at all: earliest invalid ⇒ empty string ⇒ chip suppressed.
+	if got := driftTransitionDelta(5, prevRows, pgtype.Timestamptz{}, prevStart, now); got != "" {
+		t.Errorf("no-batch delta = %q, want empty", got)
+	}
+	// Suppressed — install too young: earliest batch is AFTER the preceding window's
+	// start (estate younger than 2× the window) ⇒ empty string, never a fabricated "+5".
+	tooYoung := pgtype.Timestamptz{Time: now.Add(-9 * 24 * time.Hour), Valid: true}
+	if got := driftTransitionDelta(5, prevRows, tooYoung, prevStart, now); got != "" {
+		t.Errorf("young-install delta = %q, want empty", got)
 	}
 }

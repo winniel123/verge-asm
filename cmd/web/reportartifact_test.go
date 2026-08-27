@@ -37,14 +37,14 @@ func TestReportDeliveryRendersEmptyState(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 	page := getBody(t, ac, base+"/reports/delivery", http.StatusOK)
 
-	if !strings.Contains(page, `class="navpill active" href="/reports"`) {
+	if !strings.Contains(page, `class="sh-pill on" href="/reports"`) {
 		t.Errorf("reports nav pill not marked active; body: %s", page)
 	}
 	for _, want := range []string{
-		`href="/reports"`,                  // breadcrumb back to Reports
-		"Report delivery",                  // generic heading (no delivery to name)
-		"No report has been delivered yet", // design-system empty-state
-		"vg-artifact",                      // the self-contained delivered document frame
+		`href="/reports"`,                          // breadcrumb back to Reports
+		"Report delivery",                          // generic heading (no delivery to name)
+		"No delivery yet",                          // design-owned artifactdoc empty-state (ADR-0110)
+		"This schedule has not delivered a report", // the empty-state's honest body
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("report-artifact page missing %q; body: %s", want, page)

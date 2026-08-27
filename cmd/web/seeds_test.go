@@ -32,9 +32,10 @@ func TestDeclareNameAndAddressSeeds(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// A name scope.
+	// A name scope. The save lands back on Scope, now carrying a post-redirect-get
+	// toast in the query (PARITY-CHART P1.7), so match the path, not the whole URL.
 	resp := declare(t, ac, base, "name", "Example.com")
-	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/scope" {
+	if resp.StatusCode != http.StatusSeeOther || !strings.HasPrefix(resp.Header.Get("Location"), "/scope") {
 		t.Fatalf("declare name: status=%d location=%q", resp.StatusCode, resp.Header.Get("Location"))
 	}
 	resp.Body.Close()
@@ -53,10 +54,9 @@ func TestDeclareNameAndAddressSeeds(t *testing.T) {
 	if !strings.Contains(page, "203.0.113.0/24") {
 		t.Errorf("address scope not listed; body: %s", page)
 	}
-	// The two kinds are distinguished in the listing.
-	if !strings.Contains(page, ">name<") || !strings.Contains(page, ">address<") {
-		t.Errorf("name/address not distinguished in listing; body: %s", page)
-	}
+	// The frozen scope.tmpl renders each declared scope as a chip carrying the scope
+	// itself (#574); the kind is inferred from the value's shape and no longer shown as a
+	// per-chip badge.
 }
 
 func TestAddressScopeOverCapRejected(t *testing.T) {
@@ -68,7 +68,9 @@ func TestAddressScopeOverCapRejected(t *testing.T) {
 	// /21 is 2048 addresses, over the 1024 cap.
 	resp := declare(t, ac, base, "address", "10.0.0.0/21")
 	got := body(t, resp)
-	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(got, "over the cap of 1024") {
+	// #21a: over-cap declarations are REFUSED, not auto-corrected — the RefusalCallout
+	// names the span against the cap.
+	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(got, "over the 1,024-address cap") {
 		t.Fatalf("over-cap scope not rejected clearly: status=%d body=%s", resp.StatusCode, got)
 	}
 	// The rejected value is preserved so the admin need not retype it.
@@ -148,6 +150,63 @@ func TestViewerCannotDeclareButCanView(t *testing.T) {
 	}
 	if strings.Contains(page, `action="/seeds"`) {
 		t.Errorf("declare form shown to a viewer; body: %s", page)
+	}
+}
+
+// scopeMain returns the Scope screen's <main> region, excluding shell chrome (the
+// command palette lists current Names per P1.5, so a page-wide match could find a
+// name outside the tree).
+func scopeMain(body string) string {
+	i := strings.Index(body, "<main")
+	j := strings.LastIndex(body, "</main>")
+	if i < 0 || j < 0 || j < i {
+		return body
+	}
+	return body[i:j]
+}
+
+// The Scope screen renders the declared name tree (SPEC-CHANGE collision #12,
+// ADR-0116): each declared name scope is a registrable-domain root, every in-estate
+// name under it is a leaf, and each leaf carries its own max-of-firing-signals
+// severity — degrading to no dot where a name raises no signal.
+func TestScopeDeclaredNameTree(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	addNameSeed(t, f, admin.ID, "example.com")
+	// A name resolving an internal address from the internet class fires
+	// non-globally-reachable-address-resolved-from-internet (severity medium) on the
+	// Name, so its leaf carries a medium severity dot.
+	f.addClassResolution(t, "leak.example.com", "internet", obsClock, `{"outcome":"Resolved","addresses":["10.0.0.5"]}`)
+	// A name resolving a public address raises no such signal, so its leaf carries no
+	// severity dot — the spec's per-leaf empty pattern.
+	f.addClassResolution(t, "www.example.com", "internet", obsClock, `{"outcome":"Resolved","addresses":["93.184.216.34"]}`)
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	main := scopeMain(seedsBody(t, ac, base))
+
+	// The card renders with its heading and the tree container (frozen scope.tmpl, #574).
+	for _, want := range []string{"Declared name tree", `class="sc-tree"`} {
+		if !strings.Contains(main, want) {
+			t.Errorf("scope missing name-tree marker %q", want)
+		}
+	}
+	// The registrable domain is the root, with its two leaf names under it, labelled
+	// relative to the domain.
+	for _, want := range []string{
+		`class="tl">example.com<`, // registrable-domain root
+		`class="tc">2<`,           // two leaves
+		`class="tl">leak<`,        // leaf name, relative to the domain
+		`class="tl">www<`,
+	} {
+		if !strings.Contains(main, want) {
+			t.Errorf("name tree missing %q; body: %s", want, main)
+		}
+	}
+	// The signalling leaf carries its rule's real severity dot (medium) — a built
+	// datum, never fabricated.
+	if !strings.Contains(main, "var(--sev-medium-dot)") {
+		t.Errorf("name tree leaf lost its severity dot; body: %s", main)
 	}
 }
 

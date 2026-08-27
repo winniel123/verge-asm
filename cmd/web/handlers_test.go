@@ -50,6 +50,19 @@ type fakeStore struct {
 	annotations []db.Annotation
 	annoNextID  int64
 
+	// signalInstances mirrors the signal_instance table (#442): the persisted id +
+	// first-seen of each fired (signal_name, subject_key) pair. The mint is idempotent
+	// on the pair, and the id starts at 1000 so a minted instance reads SIG-1000+.
+	signalInstances  []db.SignalInstance
+	signalInstNextID int64
+
+	// withdrawalLifespans backs ListWithdrawalLifespans (#444, P0.3): one row per
+	// subject departure, carrying its withdrawal instant and first appearance so the
+	// Reports mean-time-to-withdrawal trend derives its intervals. Populated directly
+	// by a test — the fake folds observations into spans but never applies a
+	// withdrawal closure, so there is nothing to re-derive these from.
+	withdrawalLifespans []db.ListWithdrawalLifespansRow
+
 	sourceStates map[string]db.SourceState
 
 	// integrationStates mirrors the integration_state table (#308): the operator's
@@ -62,6 +75,13 @@ type fakeStore struct {
 	// revoke is a hard delete scoped to the owner.
 	personalTokens []db.PersonalToken
 	tokenNextID    int64
+
+	// sessions mirrors the session table (#405, ADR-0117): the server-side session
+	// registry. Only the token hash is stored; a live session is one that is unrevoked
+	// and unexpired, and a revoke stamps revoked_at scoped to the owner (the same
+	// owner-scoping the personal-token methods hold).
+	sessions      []db.Session
+	sessionNextID int64
 
 	// SignIn delta (#314): the pre-auth token stores behind forgot/reset, TOTP
 	// recovery codes, and invite acceptance. Each keeps only a hash; expiry and
@@ -81,13 +101,10 @@ type fakeStore struct {
 	vantages      []db.Vantage
 	vantageNextID int64
 
-	// reachSpans stands in for the reachability-span read behind the Exposure
-	// landing view (#196); the exposure test seeds it directly.
-	reachSpans []db.ListReachabilitySpansForExposureRow
-
-	channels   []fakeChannel
-	chanNextID int64
-	retention  db.GetRetentionSettingsRow
+	channels       []fakeChannel
+	chanNextID     int64
+	retention      db.GetRetentionSettingsRow
+	instanceConfig db.GetInstanceConfigRow
 
 	// scans mirrors the scan table. newFakeStore seeds the dns Scan the migration
 	// ships (enabled, daily) so the aperture statement has a cadence to read.
@@ -134,12 +151,24 @@ type fakeStore struct {
 	// Scans monitor (#245); the scans test seeds them directly.
 	dispatchProgress []db.ListDispatchProgressRow
 	jobsByDispatch   map[int64][]db.ListJobsForDispatchRow
+	// dispatchStatus records the operator-ended disposition SetDispatchStatus writes
+	// ('stopped' / 'terminated'), so a stop/terminate test asserts the status was set.
+	dispatchStatus map[int64]string
+	// instanceHealth is the canned pg_database_size / server_version the instance-health
+	// tab reads (#633); zero-value renders empty figures.
+	instanceHealth db.GetInstanceHealthRow
 
 	// reportSchedules mirrors the report_schedule table (#290): the recurring reports
 	// the Reports wizard declares, filed once and listed newest-first. No content
 	// update and no delete exists, matching the store.
 	reportSchedules []db.ReportSchedule
 	rsNextID        int64
+
+	// reportDeliveries mirrors the report_delivery receipts table (#291/T2): the
+	// operational record of each run of a schedule. Filed by insert, read latest
+	// (non-failed) per schedule and listed newest-first, matching the store.
+	reportDeliveries []db.ReportDelivery
+	rdNextID         int64
 
 	// ssoProviders mirrors the sso_provider table (#293): OIDC providers, secret
 	// included, so tests can assert the secret is stored but never surfaced through the
@@ -200,7 +229,7 @@ func newFakeStore() *fakeStore {
 	return &fakeStore{
 		accounts: map[int64]db.Account{}, byName: map[string]int64{}, nextID: 1,
 		seedNextID: 1, exclNextID: 1, annoNextID: 1, vantageNextID: 1, chanNextID: 1,
-		lookupNextID: 1, proposalNext: 1,
+		lookupNextID: 1, proposalNext: 1, signalInstNextID: 1000,
 		sourceStates:      map[string]db.SourceState{},
 		integrationStates: map[string]db.IntegrationState{},
 		scans: []db.Scan{
@@ -210,7 +239,7 @@ func newFakeStore() *fakeStore {
 			{ID: 3, Kind: "cold", Enabled: false, CadenceSeconds: 2592000},
 		},
 		obsNextID: 1, batchNextID: 1, scanNextID: 1, tokenNextID: 1,
-		resetNextID: 1, recoveryNextID: 1, inviteNextID: 1,
+		resetNextID: 1, recoveryNextID: 1, inviteNextID: 1, sessionNextID: 1,
 		freqEdits:  map[int32]fakeFreqEdit{},
 		coldScopes: map[int64]bool{},
 	}
@@ -226,6 +255,55 @@ func (f *fakeStore) ListDispatchProgress(_ context.Context, limit int32) ([]db.L
 
 func (f *fakeStore) ListJobsForDispatch(_ context.Context, dispatchID pgtype.Int8) ([]db.ListJobsForDispatchRow, error) {
 	return f.jobsByDispatch[dispatchID.Int64], nil
+}
+
+// dispatchIdx finds the progress row for a dispatch id, or -1.
+func (f *fakeStore) dispatchIdx(id int64) int {
+	for i := range f.dispatchProgress {
+		if f.dispatchProgress[i].DispatchID == id {
+			return i
+		}
+	}
+	return -1
+}
+
+// CancelReadyJobsForDispatch cancels the pending (ready) jobs of a dispatch — the stop
+// act — moving that count into the cancelled bucket (ready → 0) and returning it.
+func (f *fakeStore) CancelReadyJobsForDispatch(_ context.Context, dispatchID pgtype.Int8) (int64, error) {
+	i := f.dispatchIdx(dispatchID.Int64)
+	if i < 0 {
+		return 0, nil
+	}
+	n := f.dispatchProgress[i].Ready
+	f.dispatchProgress[i].Ready = 0
+	return n, nil
+}
+
+// CancelActiveJobsForDispatch cancels the ready AND running jobs of a dispatch — the
+// terminate act — returning the total cancelled.
+func (f *fakeStore) CancelActiveJobsForDispatch(_ context.Context, dispatchID pgtype.Int8) (int64, error) {
+	i := f.dispatchIdx(dispatchID.Int64)
+	if i < 0 {
+		return 0, nil
+	}
+	n := f.dispatchProgress[i].Ready + f.dispatchProgress[i].Running
+	f.dispatchProgress[i].Ready = 0
+	f.dispatchProgress[i].Running = 0
+	return n, nil
+}
+
+// SetDispatchStatus records a dispatch's operator-ended disposition.
+func (f *fakeStore) SetDispatchStatus(_ context.Context, arg db.SetDispatchStatusParams) error {
+	if f.dispatchStatus == nil {
+		f.dispatchStatus = map[int64]string{}
+	}
+	f.dispatchStatus[arg.ID] = arg.Status
+	return nil
+}
+
+// GetInstanceHealth returns the canned instance-health db facts.
+func (f *fakeStore) GetInstanceHealth(context.Context) (db.GetInstanceHealthRow, error) {
+	return f.instanceHealth, nil
 }
 
 func (f *fakeStore) ListColdScopeSeedIds(context.Context) ([]int64, error) {
@@ -466,6 +544,38 @@ func (f *fakeStore) ListSeeds(context.Context) ([]db.ListSeedsRow, error) {
 	return rows, nil
 }
 
+// ListAddressScopeCidrs returns the declared address-scope Seed CIDRs — the corpus the
+// Vantage-class coverage predicate binds over (#711), mirroring the SQL (kind='address'
+// AND address_cidr IS NOT NULL). It also appends a fixed 10.0.0.0/8 convention scope so
+// the class-derivation fixtures (classPresentedDialled) reproduce `internal` for a
+// covered dialled address without every test having to declare a scope of its own; the
+// real declared seeds are still returned, so a test that declares its own scope is
+// honoured too. Coverage-semantics tests bypass this fake and exercise
+// custody.CoversAddressScope / vantageclass directly.
+func (f *fakeStore) ListAddressScopeCidrs(context.Context) ([]*netip.Prefix, error) {
+	out := []*netip.Prefix{}
+	for _, s := range f.seeds {
+		if s.Kind == "address" && s.AddressCidr != nil {
+			out = append(out, s.AddressCidr)
+		}
+	}
+	conv := netip.MustParsePrefix("10.0.0.0/8")
+	out = append(out, &conv)
+	return out, nil
+}
+
+// DeleteSeed removes a Seed by id (#21a), returning the rows affected so a missing id
+// is an idempotent no-op, mirroring the SQL.
+func (f *fakeStore) DeleteSeed(_ context.Context, id int64) (int64, error) {
+	for i, s := range f.seeds {
+		if s.ID == id {
+			f.seeds = append(f.seeds[:i], f.seeds[i+1:]...)
+			return 1, nil
+		}
+	}
+	return 0, nil
+}
+
 func (f *fakeStore) SetCustodyExtension(_ context.Context, arg db.SetCustodyExtensionParams) error {
 	for i, s := range f.seeds {
 		if s.ID == arg.ID && s.Kind == "name" {
@@ -559,7 +669,8 @@ func (f *fakeStore) ListVantages(context.Context) ([]db.ListVantagesRow, error) 
 			ID: v.ID, Name: v.Name, Class: v.Class, Resolver: v.Resolver,
 			Host: v.Host, Port: v.Port, Username: v.Username,
 			Availability: v.Availability, PublicKey: v.PublicKey, HostKey: v.HostKey,
-			CreatedBy: v.CreatedBy, CreatedAt: v.CreatedAt,
+			CreatedBy: v.CreatedBy, CreatedAt: v.CreatedAt, LatencyMs: v.LatencyMs,
+			Platform: v.Platform, Egress: v.Egress, DialledAddr: v.DialledAddr,
 			CreatedByUsername: f.accounts[v.CreatedBy.Int64].Username,
 		})
 	}
@@ -580,10 +691,6 @@ func (f *fakeStore) ListUnavailableVantages(context.Context) ([]db.ListUnavailab
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i].Name < rows[j].Name })
 	return rows, nil
-}
-
-func (f *fakeStore) ListReachabilitySpansForExposure(context.Context) ([]db.ListReachabilitySpansForExposureRow, error) {
-	return f.reachSpans, nil
 }
 
 func (f *fakeStore) DeleteExclusion(_ context.Context, id int64) error {
@@ -632,6 +739,45 @@ func (f *fakeStore) DeleteAnnotation(_ context.Context, id int64) error {
 		}
 	}
 	return nil // idempotent: a missing row is not an error
+}
+
+// MintSignalInstances mirrors the ON CONFLICT DO NOTHING upsert (#442): a pair
+// already present keeps its id and first_seen; a new pair is minted with first_seen
+// = now. The two array args arrive parallel (unnest), as the SQL zips them.
+func (f *fakeStore) MintSignalInstances(_ context.Context, arg db.MintSignalInstancesParams) error {
+	if f.signalInstNextID == 0 {
+		f.signalInstNextID = 1000
+	}
+	have := map[[2]string]bool{}
+	for _, si := range f.signalInstances {
+		have[[2]string{si.SignalName, si.SubjectKey}] = true
+	}
+	for i := range arg.SignalNames {
+		key := [2]string{arg.SignalNames[i], arg.SubjectKeys[i]}
+		if have[key] {
+			continue
+		}
+		have[key] = true
+		f.signalInstances = append(f.signalInstances, db.SignalInstance{
+			ID: f.signalInstNextID, SignalName: key[0], SubjectKey: key[1],
+			FirstSeen: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		})
+		f.signalInstNextID++
+	}
+	return nil
+}
+
+// ListSignalInstances returns the minted identities ordered by signal then subject,
+// as the query's ORDER BY does.
+func (f *fakeStore) ListSignalInstances(context.Context) ([]db.SignalInstance, error) {
+	rows := append([]db.SignalInstance(nil), f.signalInstances...)
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].SignalName != rows[j].SignalName {
+			return rows[i].SignalName < rows[j].SignalName
+		}
+		return rows[i].SubjectKey < rows[j].SubjectKey
+	})
+	return rows, nil
 }
 
 func (f *fakeStore) InsertMessage(_ context.Context, arg db.InsertMessageParams) (db.Message, error) {
@@ -709,6 +855,13 @@ func (f *fakeStore) MarkAllMessagesRead(_ context.Context, arg db.MarkAllMessage
 			set[m.ID] = true
 		}
 	}
+	return nil
+}
+
+func (f *fakeStore) MarkMessageUnread(_ context.Context, arg db.MarkMessageUnreadParams) error {
+	// The inverse of MarkMessageRead (#473): drop this account's read-mark so the
+	// message counts as unread again. Idempotent — deleting an absent mark is a no-op.
+	delete(f.readMarks(arg.AccountID), arg.MessageID)
 	return nil
 }
 
@@ -821,6 +974,30 @@ func (f *fakeStore) DeleteChannel(_ context.Context, id int64) error {
 
 func (f *fakeStore) GetRetentionSettings(context.Context) (db.GetRetentionSettingsRow, error) {
 	return f.retention, nil
+}
+
+func (f *fakeStore) GetInstanceConfig(context.Context) (db.GetInstanceConfigRow, error) {
+	return f.instanceConfig, nil
+}
+
+func (f *fakeStore) SetUpdateCheckEnabled(_ context.Context, arg db.SetUpdateCheckEnabledParams) error {
+	f.instanceConfig.UpdateCheckEnabled = arg.UpdateCheckEnabled
+	f.instanceConfig.UpdateCheckUpdatedBy = arg.UpdateCheckUpdatedBy
+	f.instanceConfig.UpdateCheckUpdatedAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
+	return nil
+}
+
+func (f *fakeStore) SetLastBackup(_ context.Context, lastBackupSize pgtype.Int8) error {
+	f.instanceConfig.LastBackupAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
+	f.instanceConfig.LastBackupSize = lastBackupSize
+	return nil
+}
+
+func (f *fakeStore) SetAPIEnabled(_ context.Context, arg db.SetAPIEnabledParams) error {
+	f.instanceConfig.ApiEnabled = arg.ApiEnabled
+	f.instanceConfig.ApiUpdatedBy = arg.ApiUpdatedBy
+	f.instanceConfig.ApiUpdatedAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
+	return nil
 }
 
 func (f *fakeStore) UpdateRetentionSettings(_ context.Context, arg db.UpdateRetentionSettingsParams) error {
@@ -1305,6 +1482,23 @@ func (f *fakeStore) ListRecentDriftEvents(_ context.Context, arg db.ListRecentDr
 	return rows, nil
 }
 
+// ListWithdrawalLifespans returns the seeded subject-withdrawal rows whose
+// withdrawal instant is at or after `since` (#444, P0.3), ordered oldest-first —
+// the same window and order the production query honours.
+func (f *fakeStore) ListWithdrawalLifespans(_ context.Context, since pgtype.Timestamptz) ([]db.ListWithdrawalLifespansRow, error) {
+	out := []db.ListWithdrawalLifespansRow{}
+	for _, row := range f.withdrawalLifespans {
+		if since.Valid && row.WithdrawnAt.Valid && row.WithdrawnAt.Time.Before(since.Time) {
+			continue
+		}
+		out = append(out, row)
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		return out[i].WithdrawnAt.Time.Before(out[j].WithdrawnAt.Time)
+	})
+	return out, nil
+}
+
 // addReachability records a reachability observation for a Service in a fresh
 // batch — the connect-outcome leaf's output the hot Scan writes. It is the seam
 // the Service drill-down tests populate.
@@ -1445,29 +1639,33 @@ func (f *fakeStore) addClassReachability(t *testing.T, serviceKey, class string,
 	f.obsNextID++
 }
 
-// reachClassKey is one (Service, Vantage class) reachability leg.
-type reachClassKey struct{ svc, class string }
+// reachVantageKey is one (Service, Vantage) reachability leg — the per-vantage grain the
+// by-class read now returns (class is DERIVED in the Go fold from the vantage's presented
+// facts, #709), not the pre-collapsed (Service, class).
+type reachVantageKey struct {
+	svc     string
+	vantage int64
+}
 
-// currentReachByClass folds the fake's reachability observations into the current
-// value per (Service, class) — the span corpus's current-state read, which is NOT
+// currentReachByVantage folds the fake's reachability observations into the current
+// value per (Service, VANTAGE) — the span corpus's current-state read, which is NOT
 // live-tier-gated (spans are the already-derived timeline, ADR-0041), so it folds
 // every observation rather than only the live ones. is_gap is derived from the
 // value's outcome, exactly as the real fold's isGapValue reads it (ADR-0104).
-func (f *fakeStore) currentReachByClass() map[reachClassKey]db.Observation {
-	classOf := map[int64]string{}
+func (f *fakeStore) currentReachByVantage() map[reachVantageKey]db.Observation {
+	known := map[int64]bool{}
 	for _, v := range f.vantages {
-		classOf[v.ID] = v.Class
+		known[v.ID] = true
 	}
-	latest := map[reachClassKey]db.Observation{}
+	latest := map[reachVantageKey]db.Observation{}
 	for _, o := range f.observations {
 		if o.SubjectKind != "service" || o.Facet != "reachability" || !o.VantageID.Valid {
 			continue
 		}
-		class, ok := classOf[o.VantageID.Int64]
-		if !ok {
+		if !known[o.VantageID.Int64] {
 			continue
 		}
-		k := reachClassKey{o.SubjectKey, class}
+		k := reachVantageKey{o.SubjectKey, o.VantageID.Int64}
 		cur, ok := latest[k]
 		if !ok || o.ObservedAt.Time.After(cur.ObservedAt.Time) ||
 			(o.ObservedAt.Time.Equal(cur.ObservedAt.Time) && o.ID > cur.ID) {
@@ -1487,23 +1685,273 @@ func reachOutcomeIsGap(value []byte) bool {
 
 func (f *fakeStore) ListServiceReachabilitySpansByClass(_ context.Context) ([]db.ListServiceReachabilitySpansByClassRow, error) {
 	rows := []db.ListServiceReachabilitySpansByClassRow{}
-	for k, o := range f.currentReachByClass() {
+	for k, o := range f.currentReachByVantage() {
+		v := f.vantageByID(k.vantage)
 		rows = append(rows, db.ListServiceReachabilitySpansByClassRow{
-			SubjectKey: k.svc, Class: k.class, Value: o.Value, IsGap: reachOutcomeIsGap(o.Value),
+			SubjectKey: k.svc, VantageID: pgtype.Int8{Int64: k.vantage, Valid: true},
+			Value: o.Value, IsGap: reachOutcomeIsGap(o.Value),
+			OpenedAt: o.ObservedAt, ID: o.ID,
+			Host: v.Host, Egress: v.Egress, DialledAddr: v.DialledAddr,
 		})
 	}
 	sort.Slice(rows, func(i, j int) bool {
 		if rows[i].SubjectKey != rows[j].SubjectKey {
 			return rows[i].SubjectKey < rows[j].SubjectKey
 		}
-		return rows[i].Class < rows[j].Class
+		return rows[i].VantageID.Int64 < rows[j].VantageID.Int64
+	})
+	return rows, nil
+}
+
+// PreviousBatchTime returns the second-most-recent distinct batch instant — the
+// vs-last-batch delta boundary (#443). The fake's batches carry no created_at, so a
+// batch's instant is the max observed_at over its observations (its commit-time
+// proxy, exactly the ordering the production created_at gives). NULL where fewer than
+// two distinct instants exist, matching the SQL's `< max` guard.
+func (f *fakeStore) PreviousBatchTime(_ context.Context) (pgtype.Timestamptz, error) {
+	inst := map[int64]time.Time{}
+	for _, o := range f.observations {
+		if t := o.ObservedAt.Time; t.After(inst[o.BatchID]) {
+			inst[o.BatchID] = t
+		}
+	}
+	var latest, prev time.Time
+	for _, t := range inst {
+		switch {
+		case t.After(latest):
+			prev = latest
+			latest = t
+		case t.Before(latest) && t.After(prev):
+			prev = t
+		}
+	}
+	if prev.IsZero() {
+		return pgtype.Timestamptz{}, nil
+	}
+	return pgtype.Timestamptz{Time: prev, Valid: true}, nil
+}
+
+// EarliestBatchTime returns the estate's first batch instant — the age boundary the
+// Drift vs-previous-period delta tests (#690). As with PreviousBatchTime the fake has
+// no created_at, so a batch's instant is the max observed_at over its observations (its
+// commit-time proxy). NULL where no observation (and so no batch) exists.
+func (f *fakeStore) EarliestBatchTime(_ context.Context) (pgtype.Timestamptz, error) {
+	inst := map[int64]time.Time{}
+	for _, o := range f.observations {
+		if t := o.ObservedAt.Time; t.After(inst[o.BatchID]) {
+			inst[o.BatchID] = t
+		}
+	}
+	var earliest time.Time
+	for _, t := range inst {
+		if earliest.IsZero() || t.Before(earliest) {
+			earliest = t
+		}
+	}
+	if earliest.IsZero() {
+		return pgtype.Timestamptz{}, nil
+	}
+	return pgtype.Timestamptz{Time: earliest, Valid: true}, nil
+}
+
+// ListSpansOpenSince folds every observation into Span timelines with the real
+// drift.Fold and returns the spans still open now OR closed after `since` — the
+// corpus a vs-last-batch delta reconstructs the previous population from (#443). It
+// keeps closed spans (unlike ListAllOpenSpans), setting ClosedAt, so drift.OpenAt can
+// read the population open at the previous batch boundary.
+func (f *fakeStore) ListSpansOpenSince(_ context.Context, since pgtype.Timestamptz) ([]db.ListSpansOpenSinceRow, error) {
+	type tlkey struct{ kind, key, facet, discriminator, source string }
+	order := []tlkey{}
+	byKey := map[tlkey][]drift.Reading{}
+	for _, o := range f.observations {
+		k := tlkey{o.SubjectKind, o.SubjectKey, o.Facet, o.Discriminator, o.Source}
+		if _, seen := byKey[k]; !seen {
+			order = append(order, k)
+		}
+		gap := o.Facet == "resolution" && fakeResolutionOutcome(o.Value) == "Gap"
+		if o.Facet == "reachability" {
+			gap = reachOutcomeIsGap(o.Value)
+		}
+		byKey[k] = append(byKey[k], drift.Reading{
+			Value: string(o.Value), IsGap: gap, Vector: fakeFacetVector(o.Facet), ObservedAt: o.ObservedAt.Time,
+		})
+	}
+	sort.Slice(order, func(i, j int) bool {
+		a, b := order[i], order[j]
+		if a.kind != b.kind {
+			return a.kind < b.kind
+		}
+		if a.key != b.key {
+			return a.key < b.key
+		}
+		if a.facet != b.facet {
+			return a.facet < b.facet
+		}
+		if a.discriminator != b.discriminator {
+			return a.discriminator < b.discriminator
+		}
+		return a.source < b.source
+	})
+
+	rows := []db.ListSpansOpenSinceRow{}
+	var id int64
+	for _, k := range order {
+		derivation, _ := json.Marshal(fakeFacetVector(k.facet))
+		key := drift.TimelineKey{
+			SubjectKind: k.kind, SubjectKey: k.key,
+			Facet: k.facet, Discriminator: k.discriminator, Source: k.source,
+		}
+		for _, s := range drift.Fold(key, byKey[k]) {
+			// Drop spans closed at or before `since`: they were not open in the window
+			// the delta reconstructs, exactly as the SQL predicate does.
+			if !s.ClosedAt.IsZero() && !s.ClosedAt.After(since.Time) {
+				continue
+			}
+			id++
+			row := db.ListSpansOpenSinceRow{
+				ID: id, SubjectKind: k.kind, SubjectKey: k.key,
+				Facet: k.facet, Discriminator: k.discriminator, Source: k.source,
+				Value: []byte(s.Value), IsGap: s.IsGap, Derivation: derivation,
+				OpenedAt: pgtype.Timestamptz{Time: s.OpenedAt, Valid: true},
+			}
+			if !s.ClosedAt.IsZero() {
+				row.ClosedAt = pgtype.Timestamptz{Time: s.ClosedAt, Valid: true}
+			}
+			rows = append(rows, row)
+		}
+	}
+	return rows, nil
+}
+
+// ListSubjectFirstAppearances folds every observation into Span timelines with the
+// real drift.Fold and returns, per Name/Service subject whose earliest opened_at is
+// at or after `since`, that first-appearance instant (#468, P2.4b) — the same
+// per-subject MIN(opened_at) and window the production GROUP BY … HAVING computes.
+func (f *fakeStore) ListSubjectFirstAppearances(_ context.Context, since pgtype.Timestamptz) ([]db.ListSubjectFirstAppearancesRow, error) {
+	type tlkey struct{ kind, key, facet, discriminator, source string }
+	byKey := map[tlkey][]drift.Reading{}
+	for _, o := range f.observations {
+		if o.SubjectKind != "name" && o.SubjectKind != "service" {
+			continue
+		}
+		k := tlkey{o.SubjectKind, o.SubjectKey, o.Facet, o.Discriminator, o.Source}
+		gap := o.Facet == "resolution" && fakeResolutionOutcome(o.Value) == "Gap"
+		if o.Facet == "reachability" {
+			gap = reachOutcomeIsGap(o.Value)
+		}
+		byKey[k] = append(byKey[k], drift.Reading{
+			Value: string(o.Value), IsGap: gap, Vector: fakeFacetVector(o.Facet), ObservedAt: o.ObservedAt.Time,
+		})
+	}
+	// The earliest span opened_at across ALL of a subject's timelines is its
+	// appearance — the SQL's MIN(opened_at) over the subject's GROUP.
+	type subj struct{ kind, key string }
+	first := map[subj]time.Time{}
+	for k, readings := range byKey {
+		key := drift.TimelineKey{
+			SubjectKind: k.kind, SubjectKey: k.key,
+			Facet: k.facet, Discriminator: k.discriminator, Source: k.source,
+		}
+		for _, s := range drift.Fold(key, readings) {
+			sk := subj{k.kind, k.key}
+			if cur, ok := first[sk]; !ok || s.OpenedAt.Before(cur) {
+				first[sk] = s.OpenedAt
+			}
+		}
+	}
+	rows := []db.ListSubjectFirstAppearancesRow{}
+	for sk, at := range first {
+		if since.Valid && at.Before(since.Time) { // the HAVING MIN(opened_at) >= @since filter
+			continue
+		}
+		rows = append(rows, db.ListSubjectFirstAppearancesRow{
+			SubjectKind: sk.kind, SubjectKey: sk.key,
+			FirstOpened: pgtype.Timestamptz{Time: at, Valid: true},
+		})
+	}
+	sort.SliceStable(rows, func(i, j int) bool {
+		if !rows[i].FirstOpened.Time.Equal(rows[j].FirstOpened.Time) {
+			return rows[i].FirstOpened.Time.Before(rows[j].FirstOpened.Time)
+		}
+		if rows[i].SubjectKind != rows[j].SubjectKind {
+			return rows[i].SubjectKind < rows[j].SubjectKind
+		}
+		return rows[i].SubjectKey < rows[j].SubjectKey
+	})
+	return rows, nil
+}
+
+// ListServiceReachabilitySpansByClassAt is the as-of-@at twin of
+// ListServiceReachabilitySpansByClass (#443): the reachability span per (Service,
+// class) that was OPEN at @at, folded with the real drift.Fold from the same
+// observations. It picks, per (service, class), the most-recently-opened span whose
+// interval covers @at, so the exposure delta projects the legs as they stood a batch ago.
+func (f *fakeStore) ListServiceReachabilitySpansByClassAt(_ context.Context, at pgtype.Timestamptz) ([]db.ListServiceReachabilitySpansByClassAtRow, error) {
+	known := map[int64]bool{}
+	for _, v := range f.vantages {
+		known[v.ID] = true
+	}
+	type tlkey struct {
+		svc     string
+		vantage int64
+	}
+	byKey := map[tlkey][]drift.Reading{}
+	for _, o := range f.observations {
+		if o.SubjectKind != "service" || o.Facet != "reachability" || !o.VantageID.Valid {
+			continue
+		}
+		if !known[o.VantageID.Int64] {
+			continue
+		}
+		k := tlkey{o.SubjectKey, o.VantageID.Int64}
+		byKey[k] = append(byKey[k], drift.Reading{
+			Value: string(o.Value), IsGap: reachOutcomeIsGap(o.Value),
+			Vector: fakeFacetVector("reachability"), ObservedAt: o.ObservedAt.Time,
+		})
+	}
+
+	// One per-vantage row carrying the most-recently-opened span whose interval covers
+	// @at, plus the vantage's presented facts — the class is DERIVED and re-collapsed
+	// per (service, class) in the Go fold now (#709), not here.
+	rows := []db.ListServiceReachabilitySpansByClassAtRow{}
+	for k, readings := range byKey {
+		key := drift.TimelineKey{SubjectKind: "service", SubjectKey: k.svc, Facet: "reachability"}
+		var chosen *drift.Span
+		for _, s := range drift.Fold(key, readings) {
+			if s.OpenedAt.After(at.Time) {
+				continue
+			}
+			if !s.ClosedAt.IsZero() && !s.ClosedAt.After(at.Time) {
+				continue
+			}
+			if chosen == nil || s.OpenedAt.After(chosen.OpenedAt) {
+				sp := s
+				chosen = &sp
+			}
+		}
+		if chosen == nil {
+			continue
+		}
+		v := f.vantageByID(k.vantage)
+		rows = append(rows, db.ListServiceReachabilitySpansByClassAtRow{
+			SubjectKey: k.svc, VantageID: pgtype.Int8{Int64: k.vantage, Valid: true},
+			Value: []byte(chosen.Value), IsGap: chosen.IsGap,
+			OpenedAt: pgtype.Timestamptz{Time: chosen.OpenedAt, Valid: true}, ID: k.vantage,
+			Host: v.Host, Egress: v.Egress, DialledAddr: v.DialledAddr,
+		})
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].SubjectKey != rows[j].SubjectKey {
+			return rows[i].SubjectKey < rows[j].SubjectKey
+		}
+		return rows[i].VantageID.Int64 < rows[j].VantageID.Int64
 	})
 	return rows, nil
 }
 
 func (f *fakeStore) ListBlanketedReachServices(_ context.Context) ([]string, error) {
 	seen := map[string]struct{}{}
-	for k, o := range f.currentReachByClass() {
+	for k, o := range f.currentReachByVantage() {
 		if reachOutcomeIsGap(o.Value) {
 			seen[k.svc] = struct{}{}
 		}
@@ -1544,6 +1992,42 @@ func (f *fakeStore) ListEndpointCertificates(_ context.Context, arg db.ListEndpo
 	rows := []db.ListEndpointCertificatesRow{}
 	for k, o := range latest {
 		rows = append(rows, db.ListEndpointCertificatesRow{SubjectKey: k, Value: o.Value})
+	}
+	sort.Slice(rows, func(i, j int) bool { return rows[i].SubjectKey < rows[j].SubjectKey })
+	return rows, nil
+}
+
+// addTLSAcceptance records a `tls-acceptance` enumeration observation for a Service
+// in a fresh weekly tls-acceptance batch, mirroring what the enumeration leaf writes
+// (#199/#684). The value is the closed union `enumerated(versions) | tls-refused |
+// no-tls`; buildServiceFacts folds it into the ServiceFacts the tls-1.0-accepted rule
+// reads.
+func (f *fakeStore) addTLSAcceptance(t *testing.T, serviceKey string, at time.Time, value string) {
+	t.Helper()
+	b := f.freshBatch("tls-acceptance", "tls-acceptance")
+	f.observations = append(f.observations, db.Observation{
+		ID: f.obsNextID, BatchID: b, Facet: "tls-acceptance", SubjectKind: "service",
+		SubjectKey: serviceKey, Source: "prober", Value: []byte(value),
+		ObservedAt: pgtype.Timestamptz{Time: at, Valid: true},
+	})
+	f.obsNextID++
+}
+
+func (f *fakeStore) ListServiceTLSAcceptance(_ context.Context, arg db.ListServiceTLSAcceptanceParams) ([]db.ListServiceTLSAcceptanceRow, error) {
+	latest := map[string]db.Observation{}
+	for _, o := range f.liveObservations(arg.AsOf.Time) {
+		if o.SubjectKind != "service" || o.Facet != "tls-acceptance" {
+			continue
+		}
+		cur, ok := latest[o.SubjectKey]
+		if !ok || o.ObservedAt.Time.After(cur.ObservedAt.Time) ||
+			(o.ObservedAt.Time.Equal(cur.ObservedAt.Time) && o.ID > cur.ID) {
+			latest[o.SubjectKey] = o
+		}
+	}
+	rows := []db.ListServiceTLSAcceptanceRow{}
+	for k, o := range latest {
+		rows = append(rows, db.ListServiceTLSAcceptanceRow{SubjectKey: k, Value: o.Value})
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i].SubjectKey < rows[j].SubjectKey })
 	return rows, nil
@@ -1604,10 +2088,43 @@ func (f *fakeStore) FindCoveringAddressSeed(_ context.Context, address netip.Add
 // returns its id, so a resolution observation can be tied to a Vantage class the
 // Signals reads join against.
 func (f *fakeStore) addVantageClass(class string) int64 {
-	v := db.Vantage{ID: f.vantageNextID, Name: class + "-resolver", Class: class}
+	v := db.Vantage{
+		ID: f.vantageNextID, Name: class + "-resolver", Class: class,
+		// Class is DERIVED per read from the presented facts now (#709), so the fake
+		// stamps a dialled-address fact the derivation reproduces `class` from, under the
+		// fixed convention coverage ListAddressScopeCidrs returns.
+		DialledAddr: classPresentedDialled(class),
+	}
 	f.vantages = append(f.vantages, v)
 	f.vantageNextID++
 	return v.ID
+}
+
+// classPresentedDialled maps a Vantage class to a dialled-address fact from which the
+// class derivation (#709/#710) reproduces that class, given the fake's fixed convention
+// coverage (ListAddressScopeCidrs returns 10.0.0.0/8): an `internal` vantage presents a
+// covered address, an `internet` vantage an uncovered one, and any other class
+// (`unverified`) presents no fact so it derives `unverified`.
+func classPresentedDialled(class string) pgtype.Text {
+	switch class {
+	case "internet":
+		return pgtype.Text{String: "198.51.100.200", Valid: true}
+	case "internal":
+		return pgtype.Text{String: "10.200.0.1", Valid: true}
+	default:
+		return pgtype.Text{}
+	}
+}
+
+// vantageByID returns the fake's stored vantage row for id (its presented-address facts
+// feed the class derivation the by-class reads now carry), or a zero row if unknown.
+func (f *fakeStore) vantageByID(id int64) db.Vantage {
+	for _, v := range f.vantages {
+		if v.ID == id {
+			return v
+		}
+	}
+	return db.Vantage{}
 }
 
 // addClassResolution records a resolution observation at a Vantage of the given
@@ -1649,36 +2166,45 @@ func (f *fakeStore) vantageForClass(class string) int64 {
 }
 
 func (f *fakeStore) ListNameResolutionsByClass(_ context.Context, arg db.ListNameResolutionsByClassParams) ([]db.ListNameResolutionsByClassRow, error) {
-	classOf := map[int64]string{}
+	known := map[int64]bool{}
 	for _, v := range f.vantages {
-		classOf[v.ID] = v.Class
+		known[v.ID] = true
 	}
-	type key struct{ name, class string }
+	type key struct {
+		name    string
+		vantage int64
+	}
 	latest := map[key]db.Observation{}
 	for _, o := range f.liveObservations(arg.AsOf.Time) {
 		if o.SubjectKind != "name" || o.Facet != "resolution" || !o.VantageID.Valid {
 			continue
 		}
-		class, ok := classOf[o.VantageID.Int64]
-		if !ok {
+		if !known[o.VantageID.Int64] {
 			continue
 		}
-		k := key{o.SubjectKey, class}
+		k := key{o.SubjectKey, o.VantageID.Int64}
 		cur, ok := latest[k]
 		if !ok || o.ObservedAt.Time.After(cur.ObservedAt.Time) ||
 			(o.ObservedAt.Time.Equal(cur.ObservedAt.Time) && o.ID > cur.ID) {
 			latest[k] = o
 		}
 	}
+	// One per-vantage row carrying the resolution value plus the vantage's presented
+	// facts — class is DERIVED and re-collapsed per (name, class) in the Go fold now (#709).
 	rows := []db.ListNameResolutionsByClassRow{}
 	for k, o := range latest {
-		rows = append(rows, db.ListNameResolutionsByClassRow{SubjectKey: k.name, Class: k.class, Value: o.Value})
+		v := f.vantageByID(k.vantage)
+		rows = append(rows, db.ListNameResolutionsByClassRow{
+			SubjectKey: k.name, VantageID: pgtype.Int8{Int64: k.vantage, Valid: true},
+			Value: o.Value, ObservedAt: o.ObservedAt, ID: o.ID,
+			Host: v.Host, Egress: v.Egress, DialledAddr: v.DialledAddr,
+		})
 	}
 	sort.Slice(rows, func(i, j int) bool {
 		if rows[i].SubjectKey != rows[j].SubjectKey {
 			return rows[i].SubjectKey < rows[j].SubjectKey
 		}
-		return rows[i].Class < rows[j].Class
+		return rows[i].VantageID.Int64 < rows[j].VantageID.Int64
 	})
 	return rows, nil
 }
@@ -1944,6 +2470,18 @@ func (f *fakeStore) DeclineLookup(_ context.Context, lookupID int64) (int64, err
 	return n, nil
 }
 
+// DeclineProposal declines one still-pending Proposal by id (#574), mirroring the SQL
+// guard on status = 'pending' so a repeat submit affects zero rows.
+func (f *fakeStore) DeclineProposal(_ context.Context, id int64) (int64, error) {
+	for i, p := range f.proposals {
+		if p.ID == id && p.Status == "pending" {
+			f.proposals[i].Status = "declined"
+			return 1, nil
+		}
+	}
+	return 0, nil
+}
+
 func (f *fakeStore) InsertReportSchedule(_ context.Context, arg db.InsertReportScheduleParams) (db.ReportSchedule, error) {
 	if f.rsNextID == 0 {
 		f.rsNextID = 1
@@ -1951,7 +2489,8 @@ func (f *fakeStore) InsertReportSchedule(_ context.Context, arg db.InsertReportS
 	rs := db.ReportSchedule{
 		ID: f.rsNextID, Name: arg.Name, Sections: arg.Sections,
 		Cadence: arg.Cadence, Format: arg.Format,
-		DeliveryTarget: arg.DeliveryTarget, CreatedBy: arg.CreatedBy,
+		DeliveryTarget: arg.DeliveryTarget, ChannelID: arg.ChannelID,
+		CreatedBy: arg.CreatedBy,
 	}
 	f.rsNextID++
 	f.reportSchedules = append(f.reportSchedules, rs)
@@ -1963,6 +2502,102 @@ func (f *fakeStore) ListReportSchedules(context.Context) ([]db.ReportSchedule, e
 	// Newest-first, mirroring ORDER BY id DESC.
 	for i, rs := range f.reportSchedules {
 		out[len(f.reportSchedules)-1-i] = rs
+	}
+	return out, nil
+}
+
+func (f *fakeStore) GetReportSchedule(_ context.Context, id int64) (db.ReportSchedule, error) {
+	for _, rs := range f.reportSchedules {
+		if rs.ID == id {
+			return rs, nil
+		}
+	}
+	return db.ReportSchedule{}, pgx.ErrNoRows
+}
+
+func (f *fakeStore) UpdateReportSchedule(_ context.Context, arg db.UpdateReportScheduleParams) (db.ReportSchedule, error) {
+	for i, rs := range f.reportSchedules {
+		if rs.ID != arg.ID {
+			continue
+		}
+		// Genuine in-place update: id, created_by and created_at are preserved.
+		rs.Name = arg.Name
+		rs.Sections = arg.Sections
+		rs.Cadence = arg.Cadence
+		rs.Format = arg.Format
+		rs.DeliveryTarget = arg.DeliveryTarget
+		rs.ChannelID = arg.ChannelID
+		f.reportSchedules[i] = rs
+		return rs, nil
+	}
+	return db.ReportSchedule{}, pgx.ErrNoRows
+}
+
+func (f *fakeStore) DeleteReportSchedule(_ context.Context, id int64) error {
+	// Idempotent, mirroring DELETE ... WHERE id = $1 (no row is not an error).
+	out := f.reportSchedules[:0]
+	for _, rs := range f.reportSchedules {
+		if rs.ID != id {
+			out = append(out, rs)
+		}
+	}
+	f.reportSchedules = out
+	return nil
+}
+
+func (f *fakeStore) NextReportDeliveryNo(_ context.Context, scheduleID int64) (int32, error) {
+	var max int32
+	for _, d := range f.reportDeliveries {
+		if d.ScheduleID == scheduleID && d.DeliveryNo > max {
+			max = d.DeliveryNo
+		}
+	}
+	return max + 1, nil
+}
+
+func (f *fakeStore) InsertReportDelivery(_ context.Context, arg db.InsertReportDeliveryParams) (db.ReportDelivery, error) {
+	f.rdNextID++
+	d := db.ReportDelivery{
+		ID:          f.rdNextID,
+		ScheduleID:  arg.ScheduleID,
+		PeriodStart: arg.PeriodStart,
+		PeriodEnd:   arg.PeriodEnd,
+		DeliveryNo:  arg.DeliveryNo,
+		// generated_at defaults to now() at the column; the fake stamps it so the
+		// last-sent read has an instant when delivered_at is absent.
+		GeneratedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		DeliveredAt: arg.DeliveredAt,
+		State:       arg.State,
+	}
+	f.reportDeliveries = append(f.reportDeliveries, d)
+	return d, nil
+}
+
+func (f *fakeStore) GetLatestReportDelivery(_ context.Context, scheduleID int64) (db.ReportDelivery, error) {
+	// Newest non-failed run, mirroring WHERE state <> 'failed' ORDER BY id DESC LIMIT 1.
+	var latest db.ReportDelivery
+	found := false
+	for _, d := range f.reportDeliveries {
+		if d.ScheduleID != scheduleID || d.State == "failed" {
+			continue
+		}
+		if !found || d.ID > latest.ID {
+			latest, found = d, true
+		}
+	}
+	if !found {
+		return db.ReportDelivery{}, pgx.ErrNoRows
+	}
+	return latest, nil
+}
+
+func (f *fakeStore) ListReportDeliveries(_ context.Context, scheduleID int64) ([]db.ReportDelivery, error) {
+	out := []db.ReportDelivery{}
+	// Newest-first, mirroring ORDER BY id DESC.
+	for i := len(f.reportDeliveries) - 1; i >= 0; i-- {
+		if f.reportDeliveries[i].ScheduleID == scheduleID {
+			out = append(out, f.reportDeliveries[i])
+		}
 	}
 	return out, nil
 }

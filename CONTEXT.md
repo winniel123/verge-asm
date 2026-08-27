@@ -465,10 +465,16 @@ secret, and the subset of the three classes it receives. Declared on `Proposal`'
 test: it is input, it does not drift, and nothing in the comparison path reads it. **Zero or
 more, and none ships configured**; creating one is an admin act and its secret is write-only,
 never rendered back. A channel is **one-way** — it carries a message out and grants no read of
-anything, so it opens no second authenticated surface and leaves
+anything, so it opens no second authenticated surface ~~and leaves
 [#6](https://github.com/winniel123/verge-asm/issues/6)'s bearer-token bypass shut; a **pull**
-feed is the shape that would re-open it, and there is none. It carries the **message and never
-the estate**: the body holds the message's own content and no rows, so what accumulates
+feed is the shape that would re-open it, and there is none~~ **of its own** (the channel's
+one-way, bearer-free property is unchanged; but [#6](https://github.com/winniel123/verge-asm/issues/6)
+is since **narrowly reversed** by
+[ADR-0123](./docs/adr/0123-a-token-api-is-read-only-opt-in-and-a-bearer-path-separate-from-sessions.md)
+— a **read-only, opt-in, off-by-default** `/api/v1` bearer surface is admitted deliberately, separate
+from both the session flow and this channel; a read-only bearer bypasses no factor TOTP guards, per
+[ADR-0058](./docs/adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)). It
+carries the **message and never the estate**: the body holds the message's own content and no rows, so what accumulates
 wherever it lands is a list of what happened rather than a reconstructable copy of what the
 operator has. Routing is by **class** and nothing finer, a per-rule or per-subject filter being
 an operator-authored predicate over a versioned rule set. **The `cause` is refused too, and needs
@@ -1221,11 +1227,14 @@ evidence. It has no lifecycle of its own; its lifecycle is its evidence's — **
 subject's membership**, so a rule whose evidence is still current fires on a `Name` that has
 withdrawn. Versions are
 per rule, never one set-wide version, so an edit to one rule leaves the rest comparable.
-A signal carries no severity: it is a named fact, and urgency belongs to the transition
-that surfaced it — **in the sense that the transition is what makes the fact worth saying, and in
-no sense that grades it**, since a `Message` carries no severity either
-([ADR-0064](./docs/adr/0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md);
-read alone the older clause hands the grade to the message). Evaluated where its evidence is absent — **or held and unreadable by this
+A signal carries a **severity** — a five-level grade (critical / high / medium / low / info)
+assigned per rule — withdrawing the older clause that a signal carried none
+([ADR-0116](./docs/adr/0116-the-design-package-is-normative-for-look-and-functionality.md): the
+design package renders severity on every signal, so where the domain lacked the datum the ruling is
+to build it, not to empty-state the region). What the transition still owns is *timing*, not grade —
+**the transition is what makes the fact worth saying**, in no sense that it grades it. A `Message`
+still carries no severity
+([ADR-0064](./docs/adr/0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md)). Evaluated where its evidence is absent — **or held and unreadable by this
 rule**, as when a clock-reading rule's observation has aged past the subject's own horizon
 ([ADR-0043](./docs/adr/0043-a-clock-reading-rule-bounds-its-evidence-in-the-subjects-own-units.md))
 — it returns `not-evaluable`,

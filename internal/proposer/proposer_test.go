@@ -6,6 +6,8 @@ import (
 	"math/big"
 	"net/http"
 	"net/netip"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -32,38 +34,93 @@ func (d *fakeDoer) Do(req *http.Request) (*http.Response, error) {
 	return &http.Response{StatusCode: http.StatusNotFound, Body: io.NopCloser(strings.NewReader(""))}, nil
 }
 
-func TestARINProposesDelegationAndReassignment(t *testing.T) {
-	doer := &fakeDoer{routes: map[string]string{
-		"entities?fn=": `{"entities":[
-			{"handle":"ORG-EX","name":"Example Org","networks":[{"cidr":"203.0.113.0/24"}],
-			 "customers":[{"name":"Renter LLC","cidr":"198.51.100.8/29"}]}
-		]}`,
-	}}
-	a := NewARIN(doer, "https://whois.arin.net/rest")
+func loadFixture(t *testing.T, name string) string {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join("testdata", name))
+	if err != nil {
+		t.Fatalf("read fixture %s: %v", name, err)
+	}
+	return string(b)
+}
 
-	cands, err := a.Propose(context.Background(), "Example")
+// TestARINProposesFromLiveRDAPCapture drives Propose through the injected Doer
+// against a real ARIN RDAP capture: the "Hurricane Electric" org-name search and
+// its matched entities, captured live 2026-08-26 (issue #611). The one search
+// exercises all three cases at once — an org handle (HURRIC-1) whose network is
+// an rir-delegation, a SWIP customer C-handle (C01839743) whose network is a
+// compelled-reassignment under the customer's own name, and a POC (ZH17-ARIN)
+// that carries no networks and so contributes no candidate.
+func TestARINProposesFromLiveRDAPCapture(t *testing.T) {
+	doer := &fakeDoer{routes: map[string]string{
+		"entities?fn=":     loadFixture(t, "hurricane_search.json"),
+		"entity/HURRIC-1":  loadFixture(t, "hurricane_entity_HURRIC-1.json"),
+		"entity/C01839743": loadFixture(t, "hurricane_entity_C01839743.json"),
+		"entity/ZH17-ARIN": loadFixture(t, "hurricane_entity_ZH17-ARIN.json"),
+	}}
+	a := NewARIN(doer, "https://rdap.arin.net/registry")
+
+	cands, err := a.Propose(context.Background(), "Hurricane Electric")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(cands) != 2 {
-		t.Fatalf("candidates = %d, want 2: %+v", len(cands), cands)
+		t.Fatalf("candidates = %d, want 2 (POC contributes none): %+v", len(cands), cands)
 	}
-	// The org network is an RIR delegation; the SWIP customer block is a
-	// compelled reassignment carrying the customer's own name.
 	byKind := map[string]Candidate{}
 	for _, c := range cands {
 		byKind[c.RecordKind] = c
-	}
-	if d := byKind[RecordRIRDelegation]; d.Scope.String() != "203.0.113.0/24" || d.OrgName != "Example Org" {
-		t.Errorf("delegation candidate wrong: %+v", d)
-	}
-	if r := byKind[RecordCompelledReassignment]; r.Scope.String() != "198.51.100.8/29" || r.OrgName != "Renter LLC" {
-		t.Errorf("reassignment candidate wrong: %+v", r)
-	}
-	for _, c := range cands {
 		if c.SourceSlug != SlugARIN {
 			t.Errorf("candidate slug = %q, want %q", c.SourceSlug, SlugARIN)
 		}
+		if c.OrgName != "Hurricane Electric" {
+			t.Errorf("candidate OrgName = %q, want %q", c.OrgName, "Hurricane Electric")
+		}
+	}
+	if d := byKind[RecordRIRDelegation]; d.Scope.String() != "216.218.130.128/29" {
+		t.Errorf("org delegation candidate wrong: %+v", d)
+	}
+	if r := byKind[RecordCompelledReassignment]; r.Scope.String() != "216.218.130.224/27" {
+		t.Errorf("customer reassignment candidate wrong: %+v", r)
+	}
+	// The POC is classified from its links and skipped without a fetch — a point
+	// of contact holds no address scope.
+	for _, c := range doer.calls {
+		if strings.Contains(c, "entity/ZH17-ARIN") {
+			t.Errorf("POC entity was fetched but should be skipped: %s", c)
+		}
+	}
+}
+
+// TestARINReportsInterruptionRatherThanPartial proves that when our own context
+// is cancelled before the per-entity walk completes, Propose reports the
+// interruption instead of passing off a half-finished walk as the whole answer.
+func TestARINReportsInterruptionRatherThanPartial(t *testing.T) {
+	doer := &fakeDoer{routes: map[string]string{
+		"entities?fn=":    loadFixture(t, "hurricane_search.json"),
+		"entity/HURRIC-1": loadFixture(t, "hurricane_entity_HURRIC-1.json"),
+	}}
+	a := NewARIN(doer, "https://rdap.arin.net/registry")
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancelled before any per-entity fetch runs
+
+	if _, err := a.Propose(ctx, "Hurricane Electric"); err == nil {
+		t.Fatal("a cancelled walk must report an error, not a silent partial result")
+	}
+}
+
+// TestARINNoMatchIsNotAnError proves a name ARIN does not know — answered with a
+// 404 — reads as a clean no-match (no candidates, no error), never the errored
+// path that surfaces to the operator as "a registry path errored" (issue #611).
+func TestARINNoMatchIsNotAnError(t *testing.T) {
+	doer := &fakeDoer{routes: map[string]string{}} // no route matches -> 404
+	a := NewARIN(doer, "https://rdap.arin.net/registry")
+
+	cands, err := a.Propose(context.Background(), "No Such Org 12345")
+	if err != nil {
+		t.Fatalf("a no-match must not error: %v", err)
+	}
+	if len(cands) != 0 {
+		t.Fatalf("a no-match must yield no candidates, got %+v", cands)
 	}
 }
 
@@ -134,14 +191,15 @@ func TestRangeToPrefixesDecomposesNonPowerOfTwo(t *testing.T) {
 
 func TestRegistryRunsOnlyEnabledSources(t *testing.T) {
 	arinDoer := &fakeDoer{routes: map[string]string{
-		"entities?fn=": `{"entities":[{"handle":"O","name":"Org","networks":[{"cidr":"203.0.113.0/24"}]}]}`,
+		"entities?fn=":    `{"entitySearchResults":[{"handle":"NETORG-1","vcardArray":["vcard",[["version",{},"text","4.0"],["fn",{},"text","Org"]]]}]}`,
+		"entity/NETORG-1": `{"handle":"NETORG-1","vcardArray":["vcard",[["fn",{},"text","Org"]]],"networks":[{"cidr0_cidrs":[{"v4prefix":"203.0.113.0","length":24}]}]}`,
 	}}
 	caidaDoer := &fakeDoer{routes: map[string]string{
 		"org2ids":                           `{"opaque_ids":["X"]}`,
 		"delegated-afrinic-extended-latest": "afrinic|ZA|ipv4|196.1.0.0|256|20010101|allocated|X",
 	}}
 	reg := NewRegistry(
-		NewARIN(arinDoer, "https://whois.arin.net/rest"),
+		NewARIN(arinDoer, "https://rdap.arin.net/registry"),
 		NewCAIDA(caidaDoer, SlugAFRINIC, "afrinic", "https://api.caida.org/as2org/v1", "https://ftp.afrinic.net/stats/afrinic"),
 	)
 

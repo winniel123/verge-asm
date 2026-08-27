@@ -111,9 +111,26 @@ type Heartbeat struct {
 	CheckedAt pgtype.Timestamptz `json:"checked_at"`
 }
 
+type InstanceConfig struct {
+	ID                   bool               `json:"id"`
+	ApiEnabled           bool               `json:"api_enabled"`
+	ApiUpdatedBy         pgtype.Int8        `json:"api_updated_by"`
+	ApiUpdatedAt         pgtype.Timestamptz `json:"api_updated_at"`
+	UpdateCheckEnabled   bool               `json:"update_check_enabled"`
+	UpdateCheckUpdatedBy pgtype.Int8        `json:"update_check_updated_by"`
+	UpdateCheckUpdatedAt pgtype.Timestamptz `json:"update_check_updated_at"`
+	ReleaseState         pgtype.Text        `json:"release_state"`
+	ReleaseLatestVersion pgtype.Text        `json:"release_latest_version"`
+	ReleaseLatestNotes   pgtype.Text        `json:"release_latest_notes"`
+	ReleaseCheckedAt     pgtype.Timestamptz `json:"release_checked_at"`
+	LastBackupAt         pgtype.Timestamptz `json:"last_backup_at"`
+	LastBackupSize       pgtype.Int8        `json:"last_backup_size"`
+}
+
 type IntegrationState struct {
-	Slug  string `json:"slug"`
-	State string `json:"state"`
+	Slug      string      `json:"slug"`
+	State     string      `json:"state"`
+	ChannelID pgtype.Int8 `json:"channel_id"`
 }
 
 type Invite struct {
@@ -223,6 +240,30 @@ type RecoveryCode struct {
 	UsedAt    pgtype.Timestamptz `json:"used_at"`
 }
 
+type ReportDelivery struct {
+	ID            int64              `json:"id"`
+	ScheduleID    int64              `json:"schedule_id"`
+	PeriodStart   pgtype.Timestamptz `json:"period_start"`
+	PeriodEnd     pgtype.Timestamptz `json:"period_end"`
+	DeliveryNo    int32              `json:"delivery_no"`
+	GeneratedAt   pgtype.Timestamptz `json:"generated_at"`
+	DeliveredAt   pgtype.Timestamptz `json:"delivered_at"`
+	State         string             `json:"state"`
+	ScheduledTick pgtype.Timestamptz `json:"scheduled_tick"`
+}
+
+type ReportNotification struct {
+	ID               int64              `json:"id"`
+	ReportDeliveryID int64              `json:"report_delivery_id"`
+	ChannelID        int64              `json:"channel_id"`
+	State            string             `json:"state"`
+	Attempt          int32              `json:"attempt"`
+	MaxAttempts      int32              `json:"max_attempts"`
+	RunAfter         pgtype.Timestamptz `json:"run_after"`
+	LastError        pgtype.Text        `json:"last_error"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+}
+
 type ReportSchedule struct {
 	ID             int64              `json:"id"`
 	Name           string             `json:"name"`
@@ -232,6 +273,7 @@ type ReportSchedule struct {
 	DeliveryTarget string             `json:"delivery_target"`
 	CreatedBy      int64              `json:"created_by"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	ChannelID      pgtype.Int8        `json:"channel_id"`
 }
 
 type RetentionSetting struct {
@@ -260,28 +302,48 @@ type Seed struct {
 	CustodyExtension bool               `json:"custody_extension"`
 }
 
+type Session struct {
+	ID         int64              `json:"id"`
+	AccountID  int64              `json:"account_id"`
+	TokenHash  string             `json:"token_hash"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	LastSeenAt pgtype.Timestamptz `json:"last_seen_at"`
+	UserAgent  string             `json:"user_agent"`
+	Ip         string             `json:"ip"`
+	ExpiresAt  pgtype.Timestamptz `json:"expires_at"`
+	RevokedAt  pgtype.Timestamptz `json:"revoked_at"`
+}
+
+type SignalInstance struct {
+	ID         int64              `json:"id"`
+	SignalName string             `json:"signal_name"`
+	SubjectKey string             `json:"subject_key"`
+	FirstSeen  pgtype.Timestamptz `json:"first_seen"`
+}
+
 type SourceState struct {
 	Slug    string `json:"slug"`
 	Enabled bool   `json:"enabled"`
 }
 
 type Span struct {
-	ID            int64              `json:"id"`
-	SubjectKind   string             `json:"subject_kind"`
-	SubjectKey    string             `json:"subject_key"`
-	Facet         string             `json:"facet"`
-	Discriminator string             `json:"discriminator"`
-	VantageID     pgtype.Int8        `json:"vantage_id"`
-	Source        string             `json:"source"`
-	Value         []byte             `json:"value"`
-	IsGap         bool               `json:"is_gap"`
-	Derivation    []byte             `json:"derivation"`
-	OpenedAt      pgtype.Timestamptz `json:"opened_at"`
-	ClosedAt      pgtype.Timestamptz `json:"closed_at"`
-	ClosureReason pgtype.Text        `json:"closure_reason"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
-	OpenedBatchID pgtype.Int8        `json:"opened_batch_id"`
-	ClosedBatchID pgtype.Int8        `json:"closed_batch_id"`
+	ID             int64              `json:"id"`
+	SubjectKind    string             `json:"subject_kind"`
+	SubjectKey     string             `json:"subject_key"`
+	Facet          string             `json:"facet"`
+	Discriminator  string             `json:"discriminator"`
+	VantageID      pgtype.Int8        `json:"vantage_id"`
+	Source         string             `json:"source"`
+	Value          []byte             `json:"value"`
+	IsGap          bool               `json:"is_gap"`
+	Derivation     []byte             `json:"derivation"`
+	OpenedAt       pgtype.Timestamptz `json:"opened_at"`
+	ClosedAt       pgtype.Timestamptz `json:"closed_at"`
+	ClosureReason  pgtype.Text        `json:"closure_reason"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	OpenedBatchID  pgtype.Int8        `json:"opened_batch_id"`
+	ClosedBatchID  pgtype.Int8        `json:"closed_batch_id"`
+	OpenedAperture bool               `json:"opened_aperture"`
 }
 
 type SsoIdentity struct {
@@ -319,6 +381,10 @@ type Vantage struct {
 	HostKey      pgtype.Text        `json:"host_key"`
 	CreatedBy    pgtype.Int8        `json:"created_by"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	LatencyMs    pgtype.Int4        `json:"latency_ms"`
+	Platform     pgtype.Text        `json:"platform"`
+	Egress       pgtype.Text        `json:"egress"`
+	DialledAddr  pgtype.Text        `json:"dialled_addr"`
 }
 
 type VergeCoreFrequencyEdit struct {

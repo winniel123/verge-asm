@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"html/template"
 	"log"
 	"net/http"
 	"net/netip"
@@ -16,12 +15,35 @@ import (
 	"github.com/winniel123/verge-asm/internal/seed"
 )
 
-// proposalTemplates adds the pending-Proposals section to the shared template
-// set (parsed in templates.go). Keeping this ticket's markup in this ticket's
-// file leaves templates.go with a single additive {{template "proposals" .}}
-// call inside the Seeds page. The reference to tmpl orders its initialisation
-// before this one.
-var _ = template.Must(tmpl.Parse(proposalTemplates))
+// The Scope screen's Proposals section is now byte-served from the frozen scope.tmpl
+// (batch 3, #574), which FOLDS the old repo-authored "proposals" define in. That
+// define (proposalTemplates) and its markup are deleted; the handlers below keep their
+// POST routes, and renderSeeds shapes the flat .Proposals[{ID,Value,Kind,Source}] rows
+// the tmpl reads via flattenProposals.
+
+// proposalRow is one pending Proposal shaped for the frozen scope.tmpl's Proposals
+// section (#574): the row id (for confirm/decline forms), the proposed scope Value, its
+// Kind label, and the Source that offered it. It is the flat replacement for the old
+// per-lookup grouping the folded-away "proposals" define rendered.
+type proposalRow struct {
+	ID     int64
+	Value  string
+	Kind   string
+	Source string
+}
+
+// flattenProposals collapses the per-lookup pending-proposal grouping into the flat
+// rows scope.tmpl renders, preserving the query's order (lookup-newest, proposal-oldest).
+// A proposer answers with address scopes, so every row's Kind is "range" (#574).
+func flattenProposals(lookups []proposalLookupView) []proposalRow {
+	var out []proposalRow
+	for _, l := range lookups {
+		for _, p := range l.Proposals {
+			out = append(out, proposalRow{ID: p.ID, Value: p.Scope, Kind: "range", Source: p.Source})
+		}
+	}
+	return out
+}
 
 // proposerRunner runs the enabled keyless proposer paths for one operator
 // lookup. It is the seam ADR-0012's paths sit behind: production wires the real
@@ -125,7 +147,13 @@ func (s *server) proposalLookups(ctx context.Context) ([]proposalLookupView, err
 // produces Proposal rows and never Observation rows — a proposer admits nothing.
 // Proposals are produced only in answer to this act, never on a cadence.
 func (s *server) runLookup(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	query := strings.TrimSpace(r.FormValue("query"))
+	// The frozen scope.tmpl's org-name search posts `org` (POST /proposals/search); the
+	// legacy route posts `query`. Accept either so both the tmpl form and existing
+	// callers reach the one lookup path (#574).
+	query := strings.TrimSpace(r.FormValue("org"))
+	if query == "" {
+		query = strings.TrimSpace(r.FormValue("query"))
+	}
 	if query == "" {
 		s.renderSeeds(w, r, acct, seedsForms{proposalError: "Enter an organisation name to search."})
 		return
@@ -143,7 +171,7 @@ func (s *server) runLookup(w http.ResponseWriter, r *http.Request, acct db.Accou
 		// logging it with the query names both the failing paths and the search
 		// a maintainer needs to correlate against — the reason must not be
 		// silently thrown away (#251).
-		log.Printf("web: proposer lookup %q: %v", query, perr)
+		log.Printf("web: proposer lookup %q: %v", logSafe(query), perr) // #nosec G706 (sanitized via logSafe)
 	}
 	if len(cands) == 0 {
 		// Distinguish a backend failure from a genuine no-match: a non-nil perr
@@ -249,23 +277,38 @@ func (s *server) confirmProposal(w http.ResponseWriter, r *http.Request, acct db
 // estate. The pending rows are read first, while they are still pending, so their
 // scopes survive the decline; an already-excluded scope is left as-is.
 func (s *server) declineLookup(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	lookupID, err := strconv.ParseInt(r.FormValue("lookup_id"), 10, 64)
-	if err != nil {
-		http.Error(w, "bad lookup id", http.StatusBadRequest)
+	if s.devMode {
+		http.Redirect(w, r, "/scope", http.StatusSeeOther)
 		return
 	}
-	pending, err := s.store.ListPendingProposals(r.Context())
-	if err != nil {
-		s.serverError(w, "list proposals to decline", err)
+	// The frozen scope.tmpl declines the CHECKED proposals: the checkboxes post their
+	// ids under `ids` (form-attribute association), so decline-many operates over the
+	// selected proposals rather than a whole lookup (#574). Each still-pending scope is
+	// read (while pending) so it can be recorded as an address exclusion, making the
+	// decline durable — the same range does not silently re-enter the estate.
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad form", http.StatusBadRequest)
 		return
 	}
-	if _, err := s.store.DeclineLookup(r.Context(), lookupID); err != nil {
-		s.serverError(w, "decline lookup", err)
+	raw := r.Form["ids"]
+	if len(raw) == 0 {
+		// Nothing selected — a stale or empty submit is a no-op, not an error.
+		http.Redirect(w, r, "/scope", http.StatusSeeOther)
 		return
 	}
-	for _, p := range pending {
-		if p.LookupID != lookupID {
+	for _, idStr := range raw {
+		id, err := strconv.ParseInt(strings.TrimSpace(idStr), 10, 64)
+		if err != nil {
 			continue
+		}
+		// Read the proposal while it is still pending so its scope survives the decline.
+		p, gerr := s.store.GetPendingProposal(r.Context(), id)
+		if gerr != nil {
+			continue // already spent, or never existed — a repeat submit opens no gate.
+		}
+		if _, err := s.store.DeclineProposal(r.Context(), id); err != nil {
+			s.serverError(w, "decline proposal", err)
+			return
 		}
 		cidr := p.AddressCidr
 		if _, err := s.store.CreateAddressExclusion(r.Context(), db.CreateAddressExclusionParams{
@@ -302,69 +345,3 @@ func (s *server) proposals() proposerRunner {
 	}
 	return s.proposer
 }
-
-const proposalTemplates = `
-{{define "proposals"}}
-<div class="microlabel">Declared · proposals</div>
-<p>Proposers answer an org-name search with address scopes — never subdomains. A proposer is a
-registry lookup, not a source: it admits nothing and observes nothing. A proposal is read by nothing —
-it never gates probing and never enters your estate. A proposal asserts nothing until confirmed into a
-seed; declines are recorded as exclusions. Proposals appear only when you search, never on a schedule.</p>
-
-{{if .IsAdmin}}
-<div class="section">
-<h2>Look up an organisation</h2>
-{{if .ProposalError}}<div class="error">{{.ProposalError}}</div>{{end}}
-{{if .ProposalNotice}}<div class="notice">{{.ProposalNotice}}</div>{{end}}
-<form method="post" action="/proposals" class="seedform">
-<label class="scope"><span>Organisation name</span><input class="scope" name="query" value="{{.ProposalQuery}}" placeholder="Example Org" autocomplete="off" required></label>
-<button type="submit">Search registries</button>
-</form>
-<p class="muted" style="margin-top:8px">Runs the enabled keyless paths — ARIN, AFRINIC, and APNIC — with no credential.</p>
-</div>
-{{end}}
-
-{{if .ProposalLookups}}
-{{range .ProposalLookups}}
-<div class="section">
-<div class="custody-head">
-<div>
-<div class="microlabel">Lookup</div>
-<div class="mono scopename">{{.Query}}</div>
-<div class="muted" style="font-size:11px">{{.Count}} pending · searched by <span class="mono">{{.By}}</span> · {{.At}}</div>
-</div>
-{{if $.IsAdmin}}
-<form method="post" action="/proposals/decline">
-<input type="hidden" name="lookup_id" value="{{.LookupID}}">
-<button class="secondary" type="submit">Decline all {{.Count}}</button>
-</form>
-{{end}}
-</div>
-<table>
-<thead><tr><th>Proposed scope</th><th>Record</th><th>Holder</th><th>Path</th>{{if $.IsAdmin}}<th></th>{{end}}</tr></thead>
-<tbody>
-{{range .Proposals}}<tr>
-<td class="mono">{{.Scope}}</td>
-<td><span class="badge">{{.RecordLabel}}</span></td>
-<td class="mono">{{.OrgName}}</td>
-<td class="mono">{{.Source}}</td>
-{{if $.IsAdmin}}<td>
-<form method="post" action="/proposals/confirm">
-<input type="hidden" name="id" value="{{.ID}}">
-<button type="submit">Confirm {{.AddrCount}} addresses</button>
-</form>
-</td>{{end}}
-</tr>{{end}}
-</tbody>
-</table>
-</div>
-{{end}}
-{{else}}
-<div class="section">
-<div class="microlabel">No pending proposals</div>
-<p>Nothing is proposed. Search for an organisation to have the keyless registry paths offer
-candidate scopes you can confirm into seeds.</p>
-</div>
-{{end}}
-{{end}}
-`

@@ -27,7 +27,7 @@ func coldEstate() custody.Estate {
 func TestBuildColdJobsEmptyScopeNeverFires(t *testing.T) {
 	estate := coldEstate()
 	addrs := []netip.Addr{addr("93.184.216.10"), addr("10.0.0.5")}
-	vantages := []Vantage{{ID: 1, Name: "internet-a", Class: string(custody.ClassInternet)}}
+	vantages := []Vantage{internetVantage(1, "internet-a")}
 
 	if jobs := BuildColdJobs(1, estate, addrs, vantages, ColdScope{}); jobs != nil {
 		t.Fatalf("an empty opt-in scope must produce no cold jobs, got %d", len(jobs))
@@ -42,7 +42,7 @@ func TestBuildColdJobsOptInIsPerSeedScope(t *testing.T) {
 	optedIn := "93.184.216.10"
 	notOptedIn := "93.184.216.11" // same block, operator-owned, but no Seed opted it in
 	addrs := []netip.Addr{addr(optedIn), addr(notOptedIn)}
-	vantages := []Vantage{{ID: 1, Name: "internet-a", Class: string(custody.ClassInternet)}}
+	vantages := []Vantage{internetVantage(1, "internet-a")}
 
 	// Only one address is opted in, by explicit address membership.
 	scope := ColdScope{Addresses: map[netip.Addr]bool{addr(optedIn): true}}
@@ -60,7 +60,7 @@ func TestBuildColdJobsOptInIsPerSeedScope(t *testing.T) {
 func TestBuildColdJobsAddressScopeMembership(t *testing.T) {
 	estate := coldEstate()
 	addrs := []netip.Addr{addr("93.184.216.10"), addr("93.184.216.42")}
-	vantages := []Vantage{{ID: 1, Name: "internet-a", Class: string(custody.ClassInternet)}}
+	vantages := []Vantage{internetVantage(1, "internet-a")}
 
 	scope := ColdScope{AddressPrefixes: []netip.Prefix{netip.MustParsePrefix("93.184.216.0/24")}}
 	jobs := BuildColdJobs(1, estate, addrs, vantages, scope)
@@ -78,11 +78,11 @@ func TestBuildColdJobsStillCustodyGated(t *testing.T) {
 	addrs := []netip.Addr{addr(priv)}
 	scope := ColdScope{Addresses: map[netip.Addr]bool{addr(priv): true}}
 
-	internet := []Vantage{{ID: 1, Name: "net", Class: string(custody.ClassInternet)}}
+	internet := []Vantage{internetVantage(1, "net")}
 	if jobs := BuildColdJobs(1, estate, addrs, internet, scope); len(jobs) != 0 {
 		t.Errorf("a private address must not be probed from an internet-class vantage, got %d jobs", len(jobs))
 	}
-	internal := []Vantage{{ID: 2, Name: "lan", Class: string(custody.ClassInternal)}}
+	internal := []Vantage{internalVantage(2, "lan")}
 	if jobs := BuildColdJobs(1, estate, addrs, internal, scope); len(jobs) != 1 {
 		t.Errorf("a private address must be probed from an internal-class vantage, got %d jobs", len(jobs))
 	}
@@ -94,7 +94,7 @@ func TestBuildColdJobsNeverProbesThirdParty(t *testing.T) {
 	estate := coldEstate()
 	third := "8.8.4.4" // covered by no Seed
 	addrs := []netip.Addr{addr("93.184.216.10"), addr(third)}
-	vantages := []Vantage{{ID: 1, Name: "net", Class: string(custody.ClassInternet)}}
+	vantages := []Vantage{internetVantage(1, "net")}
 	scope := ColdScope{
 		Addresses: map[netip.Addr]bool{addr("93.184.216.10"): true, addr(third): true},
 	}
@@ -115,7 +115,7 @@ func TestBuildColdJobsFullPortRangeAndConnectOutcome(t *testing.T) {
 	estate := coldEstate()
 	a := "93.184.216.10"
 	addrs := []netip.Addr{addr(a)}
-	vantages := []Vantage{{ID: 1, Name: "net", Class: string(custody.ClassInternet)}}
+	vantages := []Vantage{internetVantage(1, "net")}
 	scope := ColdScope{Addresses: map[netip.Addr]bool{addr(a): true}}
 
 	jobs := BuildColdJobs(1, estate, addrs, vantages, scope)
@@ -158,7 +158,7 @@ func TestBuildColdJobsFullPortRangeAndConnectOutcome(t *testing.T) {
 func TestBuildColdJobsEmptyInputsAreLegible(t *testing.T) {
 	estate := coldEstate()
 	scope := ColdScope{Addresses: map[netip.Addr]bool{addr("93.184.216.10"): true}}
-	v := []Vantage{{ID: 1, Name: "net", Class: string(custody.ClassInternet)}}
+	v := []Vantage{internetVantage(1, "net")}
 	if jobs := BuildColdJobs(1, estate, nil, v, scope); jobs != nil {
 		t.Errorf("no addresses should yield no jobs, got %d", len(jobs))
 	}
@@ -174,7 +174,7 @@ func TestColdScopeRecordAndDeadLetter(t *testing.T) {
 	estate := coldEstate()
 	a := "93.184.216.10"
 	scope := ColdScope{Addresses: map[netip.Addr]bool{addr(a): true}}
-	j := BuildColdJobs(1, estate, []netip.Addr{addr(a)}, []Vantage{{ID: 1, Name: "net", Class: string(custody.ClassInternet)}}, scope)[0]
+	j := BuildColdJobs(1, estate, []netip.Addr{addr(a)}, []Vantage{internetVantage(1, "net")}, scope)[0]
 
 	raw, err := j.AttemptedScope()
 	if err != nil {

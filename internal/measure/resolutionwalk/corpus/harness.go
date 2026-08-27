@@ -91,7 +91,7 @@ type Lock struct {
 
 // LoadLock reads corpus.lock.json from dir.
 func LoadLock(dir string) (Lock, error) {
-	b, err := os.ReadFile(filepath.Join(dir, "corpus.lock.json"))
+	b, err := os.ReadFile(filepath.Join(dir, "corpus.lock.json")) // #nosec G304 (test corpus loader; filename constant, dir is the fixed test corpus directory ".")
 	if err != nil {
 		return Lock{}, err
 	}
@@ -111,5 +111,5 @@ func WriteLock(dir string, l Lock) error {
 		return err
 	}
 	b = append(b, '\n')
-	return os.WriteFile(filepath.Join(dir, "corpus.lock.json"), b, 0o644)
+	return os.WriteFile(filepath.Join(dir, "corpus.lock.json"), b, 0o600)
 }

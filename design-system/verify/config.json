@@ -1,0 +1,14 @@
+{
+  "$comment": "G2 pixel-gate config. The container image is pinned by digest on first CI run (resolve the tag, freeze the digest here, commit); after that the digest is design-owned via G1.",
+  "container": { "image": "mcr.microsoft.com/playwright:v1.46.0-jammy", "digest": "PIN-ON-FIRST-CI-RUN" },
+  "viewports": [ { "id": "1440", "width": 1440, "height": 900 } ],
+  "phase_b_viewports": [ { "id": "1024", "width": 1024, "height": 768 } ],
+  "phase_c_viewports": [ { "id": "390", "width": 390, "height": 844 } ],
+  "themes": [ "light", "dark" ],
+  "deviceScaleFactor": 1,
+  "reducedMotion": true,
+  "thresholdPercent": 3.0,
+  "pixelmatch": { "threshold": 0.1, "includeAA": false },
+  "goldens": "goldens/{screen}/{state}-{viewport}-{theme}.png",
+  "skipMissingGoldens": true
+}

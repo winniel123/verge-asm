@@ -242,9 +242,9 @@ func TestResetFlowSetsPasswordOnceAndExpires(t *testing.T) {
 	}
 }
 
-// reset-done does not claim a global sign-out — this build's sessions are stateless
-// cookies with no registry, so it says a session elsewhere lapses when it expires.
-func TestResetDoneDoesNotClaimGlobalSignOut(t *testing.T) {
+// reset-done now states a real global sign-out — the registry backs it (#408), so the
+// copy tells the user every session was signed out and to sign in again.
+func TestResetDoneStatesGlobalSignOut(t *testing.T) {
 	f := newFakeStore()
 	acct := seedAccount(t, f, "ola", roleViewer, "hunter2hunter2")
 	base := start(t, f, "")
@@ -252,8 +252,9 @@ func TestResetDoneDoesNotClaimGlobalSignOut(t *testing.T) {
 	got := body(t, postForm(t, newClient(t), base+"/reset", url.Values{
 		"token": {"tok"}, "password": {"brand-new-pass"}, "confirm": {"brand-new-pass"},
 	}))
-	if strings.Contains(strings.ToLower(got), "every other session") || strings.Contains(strings.ToLower(got), "signed out") {
-		t.Fatalf("reset-done fabricates a global sign-out this build cannot do; body: %s", got)
+	low := strings.ToLower(got)
+	if !strings.Contains(low, "every session was signed out") || !strings.Contains(low, "sign in again") {
+		t.Fatalf("reset-done does not state the global sign-out; body: %s", got)
 	}
 }
 
@@ -262,7 +263,7 @@ func TestResetDoneDoesNotClaimGlobalSignOut(t *testing.T) {
 // recoveryCodeRE matches a recovery code only inside its reveal span, so it counts
 // the shown codes rather than any incidental text elsewhere on the page. Post-#338 a
 // code is seven dash-separated groups of four alphabet characters (~138.7 bits).
-var recoveryCodeRE = regexp.MustCompile(`class="mono cvcode"[^>]*>([a-z2-9]{4}(?:-[a-z2-9]{4}){6})<`)
+var recoveryCodeRE = regexp.MustCompile(`class="vg-reccode"[^>]*>([a-z2-9]{4}(?:-[a-z2-9]{4}){6})<`)
 
 // Confirming TOTP enrollment reveals the recovery codes once, stores only their
 // hashes, and one of them redeems the login two-factor step exactly once.
@@ -278,7 +279,7 @@ func TestTOTPEnrollmentRevealsRecoveryCodesOnce(t *testing.T) {
 	code, _ := auth.TOTPCode(secret, now)
 
 	confirmPage := body(t, postForm(t, ac, base+"/account/totp/confirm", url.Values{"code": {code}}))
-	if !strings.Contains(confirmPage, "Two-factor enabled") || !strings.Contains(confirmPage, "Shown once") {
+	if !strings.Contains(confirmPage, "Recovery codes") || !strings.Contains(confirmPage, "Shown once") {
 		t.Fatalf("recovery-codes screen missing; body: %s", confirmPage)
 	}
 	var codes []string

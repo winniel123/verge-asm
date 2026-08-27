@@ -2,6 +2,7 @@ package message
 
 import (
 	"bytes"
+	"strconv"
 	"strings"
 
 	"github.com/go-pdf/fpdf"
@@ -19,10 +20,12 @@ import (
 // keep the two render forms from drifting in what they say, both the drawn PDF and
 // the text the valence guard reads are built from one ordered content sequence
 // (artifactPDFItems): a role never draws a string the sequence does not carry, and
-// the test reads the same sequence. The document grades nothing — no valence word,
-// no severity ramp — exactly as the HTML render promises; tone selects a colour
-// only, never text (deltaColor / the drift palette), so the print form keeps the
-// same domain guarantees.
+// the test reads the same sequence. The document grades nothing — no valence word
+// in its prose — exactly as the HTML render promises; a delta's tone and a change
+// word's drift family select a colour only. The severity ramp (P2.10) is the one
+// loud voice: its label is drawn in the severity colour, like the on-screen
+// SeverityBadge, and is exempt from the graded-prose view the valence guard reads,
+// so the print form keeps the same domain guarantees.
 //
 // An Artifact with no delivered content (Empty) renders the design-system
 // empty-state, never a fabricated document — the same rule the HTML render obeys.
@@ -32,16 +35,18 @@ import (
 type artifactPDFRole int
 
 const (
-	roleTitle      artifactPDFRole = iota // the org, the document's name line
-	roleMeta                              // provenance / receipt — muted mono
-	roleTag                               // the delivered-format pill
-	roleEyebrow                           // micro-label: a stat label or a section title
-	roleStatValue                         // a KPI numeral, with an optional toned delta
-	roleCaption                           // a stat caption — muted
-	roleChange                            // one change row (drift chip + subject + note)
-	roleNote                              // an empty-section statement — muted
-	roleEmptyHead                         // the empty-state headline
-	roleEmptyBody                         // the empty-state paragraph
+	roleTitle       artifactPDFRole = iota // the org, the document's name line
+	roleMeta                               // provenance / receipt — muted mono
+	roleTag                                // the delivered-format pill
+	roleEyebrow                            // micro-label: a stat label or a section title
+	roleStatValue                          // a KPI numeral, with an optional toned delta
+	roleCaption                            // a stat caption — muted
+	roleSeverityBar                        // one "open signals by severity" breakdown row
+	roleSignal                             // one "new this week" signal row (severity + text)
+	roleChange                             // one change row (drift chip + subject + note)
+	roleNote                               // an empty-section statement — muted
+	roleEmptyHead                          // the empty-state headline
+	roleEmptyBody                          // the empty-state paragraph
 )
 
 // artifactPDFItem is one unit of the report's content, tagged with the role that
@@ -54,6 +59,9 @@ type artifactPDFItem struct {
 	delta     string
 	deltaTone string
 	change    ArtifactChange
+	signal    ArtifactSignal
+	level     string // severity token for a severity-bar row
+	count     int    // count for a severity-bar row
 }
 
 // artifactPDFItems is the ordered content of the delivered report, render-agnostic
@@ -87,7 +95,20 @@ func artifactPDFItems(a Artifact) []artifactPDFItem {
 				items = append(items, artifactPDFItem{role: roleCaption, text: s.Caption})
 			}
 		}
-		items = append(items, artifactChangeItems(artifactAppearedTitle, a.Appeared, artifactAppearedEmpty)...)
+		// Open signals by severity: the eyebrow, then a breakdown row per level.
+		if len(a.SeverityCounts) > 0 {
+			items = append(items, artifactPDFItem{role: roleEyebrow, text: artifactSeverityTitle})
+			for _, c := range a.SeverityCounts {
+				items = append(items, artifactPDFItem{role: roleSeverityBar, level: normSev(c.Level), count: c.Count})
+			}
+		}
+		// New this week: the eyebrow, then a row per signal (its severity + text).
+		if len(a.Signals) > 0 {
+			items = append(items, artifactPDFItem{role: roleEyebrow, text: artifactSignalsTitle})
+			for _, s := range a.Signals {
+				items = append(items, artifactPDFItem{role: roleSignal, signal: s})
+			}
+		}
 		items = append(items, artifactChangeItems(artifactWithdrawnTitle, a.Withdrawn, artifactWithdrawnEmpty)...)
 	}
 
@@ -132,6 +153,22 @@ func artifactPDFStrings(a Artifact) []string {
 				line += " " + it.delta
 			}
 			out = append(out, line)
+		case roleSeverityBar:
+			// The count only. The level word is the severity ramp — the one loud
+			// voice — drawn as colour + label like the badge, and exempt from the
+			// valence prose view exactly as a delta's tone is (colour, never text).
+			out = append(out, strconv.Itoa(it.count))
+		case roleSignal:
+			// The signal, its asset and the raised date. The severity is the ramp,
+			// drawn as colour + label; it is not part of the graded prose view.
+			line := it.signal.Signal
+			if it.signal.Asset != "" {
+				line += " " + it.signal.Asset
+			}
+			if it.signal.Raised != "" {
+				line += " " + it.signal.Raised
+			}
+			out = append(out, line)
 		default:
 			out = append(out, it.text)
 		}
@@ -154,6 +191,25 @@ var (
 	pdfChange = pdfRGB{149, 64, 116}  // --drift-change-fg #954074
 	pdfLoss   = pdfRGB{86, 100, 122}  // --drift-loss-fg #56647a
 )
+
+// pdfSevColor maps a severity token to its light-mode ramp colour — critical the
+// only pill-red (its solid fill), high → info their fg tokens (colors.css :root).
+// The print document draws the severity word in this colour, the severity ramp's
+// one loud voice; it never grades prose. An unknown token folds to info.
+func pdfSevColor(level string) pdfRGB {
+	switch normSev(level) {
+	case "critical":
+		return pdfRGB{191, 54, 49} // --sev-critical-fill #bf3631
+	case "high":
+		return pdfRGB{160, 68, 0} // --sev-high-fg #a04400
+	case "medium":
+		return pdfRGB{141, 86, 0} // --sev-medium-fg #8d5600
+	case "low":
+		return pdfRGB{0, 114, 139} // --sev-low-fg #00728b
+	default:
+		return pdfRGB{83, 101, 121} // --sev-info-fg #536579
+	}
+}
 
 // pdfDeltaColor maps a delta tone to its token colour — the same mapping deltaColor
 // makes for HTML. The tone selects a colour only; it is never rendered as text.
@@ -274,6 +330,36 @@ func drawArtifactPDFItem(pdf *fpdf.Fpdf, tr func(string) string, it artifactPDFI
 		pdf.SetFont("Helvetica", "", 9)
 		setColor(pdfMuted)
 		pdf.MultiCell(pdfContentWidth, 5, tr(it.text), "", "L", false)
+
+	case roleSeverityBar:
+		// The ramp label in its severity colour, then the count in ink — the
+		// severity scale, the one loud voice; a colour ramp, never a valence grade.
+		pdf.SetFont("Courier", "B", 9)
+		setColor(pdfSevColor(it.level))
+		label := tr(strings.ToUpper(sevTitle(it.level)))
+		pdf.Cell(24, 6, label)
+		pdf.SetFont("Courier", "B", 10)
+		setColor(pdfInk)
+		pdf.Cell(0, 6, tr(strconv.Itoa(it.count)))
+		pdf.Ln(6)
+
+	case roleSignal:
+		// The severity label in its ramp colour, then the signal in ink, the asset
+		// in muted mono, and the raised date — the badge column, ported to print.
+		pdf.SetFont("Courier", "B", 9)
+		setColor(pdfSevColor(it.signal.Severity))
+		sev := tr(strings.ToUpper(sevTitle(it.signal.Severity)))
+		pdf.Cell(pdf.GetStringWidth(sev)+3, 6, sev)
+		pdf.SetFont("Helvetica", "", 10)
+		setColor(pdfInk)
+		sig := tr(it.signal.Signal)
+		pdf.Cell(pdf.GetStringWidth(sig)+3, 6, sig)
+		if it.signal.Asset != "" {
+			pdf.SetFont("Courier", "", 9)
+			setColor(pdfMuted)
+			pdf.Cell(0, 6, tr(it.signal.Asset))
+		}
+		pdf.Ln(6)
 
 	case roleChange:
 		// The change word in its drift-palette colour, then the subject in ink and

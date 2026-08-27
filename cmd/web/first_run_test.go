@@ -49,7 +49,7 @@ func TestFirstRunEmptyEstateRendersChecklist(t *testing.T) {
 	}
 
 	// It is the first-run state, not the Dashboard: the Dashboard's regions are absent.
-	for _, forbidden := range []string{"Firing now, by rule", "By severity"} {
+	for _, forbidden := range []string{"By severity", "Scan infrastructure"} {
 		if strings.Contains(page, forbidden) {
 			t.Fatalf("empty estate should not render the Dashboard region %q; body: %s", forbidden, page)
 		}
@@ -67,10 +67,11 @@ func TestFirstRunStepsReflectStateAndUngate(t *testing.T) {
 	// exposure.go reads for "an internet vantage exists".
 	f.vantages = append(f.vantages, db.Vantage{
 		ID: f.vantageNextID, Name: "internet-prober", Class: "internet",
-		Host:      pgtype.Text{String: "prober.example.com", Valid: true},
-		Port:      pgtype.Int4{Int32: 22, Valid: true},
-		Username:  pgtype.Text{String: "verge", Valid: true},
-		CreatedBy: pgtype.Int8{Int64: admin.ID, Valid: true},
+		Host:        pgtype.Text{String: "prober.example.com", Valid: true},
+		Port:        pgtype.Int4{Int32: 22, Valid: true},
+		Username:    pgtype.Text{String: "verge", Valid: true},
+		DialledAddr: classPresentedDialled("internet"),
+		CreatedBy:   pgtype.Int8{Int64: admin.ID, Valid: true},
 	})
 	f.vantageNextID++
 
@@ -79,20 +80,21 @@ func TestFirstRunStepsReflectStateAndUngate(t *testing.T) {
 	page := getBody(t, c, base+"/", http.StatusOK)
 
 	// Estate still empty (no observations) so the checklist renders, now with two
-	// steps done and the real scope count wired in.
+	// steps done and the declared seed named in the step-1 detail (the fixture copy shape).
 	for _, want := range []string{
 		"2 of 4 complete",
-		"1 scope declared",
+		"example.com declared",
 	} {
 		if !strings.Contains(page, want) {
 			t.Fatalf("first-run checklist missing real-state %q; body: %s", want, page)
 		}
 	}
 
-	// With an internet vantage present, step 4 ungates into a live run action and no
-	// longer names the gate.
-	if !strings.Contains(page, `<a class="btn" href="/scans">Run first batch</a>`) {
-		t.Fatalf("step 4 should ungate into a live run action once an internet vantage exists; body: %s", page)
+	// With an internet vantage present, step 4 ungates into its live run action — a POST to
+	// /onboarding/finish (it enqueues the first scan; it cannot be a GET, #25f) — and no longer
+	// names the gate.
+	if !strings.Contains(page, `action="/onboarding/finish"`) || !strings.Contains(page, "Run first batch") {
+		t.Fatalf("step 4 should ungate into a live run POST once an internet vantage exists; body: %s", page)
 	}
 	if strings.Contains(page, "Needs an internet vantage first") {
 		t.Fatalf("step 4 should not name the gate once an internet vantage exists; body: %s", page)

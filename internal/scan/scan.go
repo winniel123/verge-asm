@@ -25,11 +25,18 @@ type Vantage struct {
 	ID       int64
 	Name     string
 	Resolver string
-	// Class is the Vantage class (`internet` / `internal` / `unverified`). The
-	// dns Scan does not read it, but the hot Scan's Custody gate does — a
-	// non-globally-reachable address is probed only from a non-`internet` class
-	// (ADR-0079) — so it is carried here additively for hot.go.
+	// Class is the vestigial stored `class` column (#709 keystone (b)) — kept on the
+	// struct for the dns/tls job specs that still carry it, but the hot/cold Scans NO
+	// LONGER read it for the Custody gate: they DERIVE the class per batch from the
+	// presented-address facts below (Dialled + Egress) against the declared address
+	// scopes (exposure.VerifyClass), so an `internet`-class vantage bars a
+	// non-globally-reachable address (ADR-0079) off observed facts, never a static field.
 	Class string
+	// Dialled and Egress are the vantage's persisted presented-address facts (#710/#683)
+	// — the dialled peer address and the SSH_CLIENT egress — from which hot.go/cold.go
+	// derive the class the Custody gate reads each batch.
+	Dialled string
+	Egress  string
 }
 
 // Job is one queue job the dns Scan produces: one Vantage, the full name-scope

@@ -83,7 +83,7 @@ func NewRegistry(sources ...Source) *Registry {
 // endpoints. The Doer carries whatever timeout the caller set.
 func DefaultRegistry(doer Doer) *Registry {
 	return NewRegistry(
-		NewARIN(doer, "https://whois.arin.net/rest"),
+		NewARIN(doer, "https://rdap.arin.net/registry"),
 		NewCAIDA(doer, SlugAFRINIC, "afrinic", "https://api.caida.org/as2org/v1", "https://ftp.afrinic.net/stats/afrinic"),
 		NewCAIDA(doer, SlugAPNIC, "apnic", "https://api.caida.org/as2org/v1", "https://ftp.apnic.net/stats/apnic"),
 	)

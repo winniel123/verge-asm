@@ -32,19 +32,24 @@ import (
 // subject-level cross-class composition (internal/estate), and closing its
 // timelines with a `measured-absent`/`uncited`/`descoped` ground is that path's
 // job. This fold only tracks per-timeline value movement.
-func foldObservationsIntoSpans(ctx context.Context, qtx *db.Queries, batchID int64, vantageID pgtype.Int8, observedAt time.Time, obs []wire.Observation) error {
+//
+// It also appends every timeline it opened or moved to `changes` (P0.7): the estate
+// / drift feed the message producer consumes downstream, in the same transaction, to
+// fold a transition into a message. A nil collector folds spans without recording the
+// feed — the measurement-only path that produces no messages.
+func foldObservationsIntoSpans(ctx context.Context, qtx *db.Queries, batchID int64, vantageID pgtype.Int8, observedAt time.Time, obs []wire.Observation, in membershipInputs, changes *[]spanChange) error {
 	for _, o := range obs {
 		if o.Facet == "" {
 			continue
 		}
-		if err := foldOne(ctx, qtx, batchID, vantageID, observedAt, o); err != nil {
+		if err := foldOne(ctx, qtx, batchID, vantageID, observedAt, o, in, changes); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func foldOne(ctx context.Context, qtx *db.Queries, batchID int64, vantageID pgtype.Int8, observedAt time.Time, o wire.Observation) error {
+func foldOne(ctx context.Context, qtx *db.Queries, batchID int64, vantageID pgtype.Int8, observedAt time.Time, o wire.Observation, in membershipInputs, changes *[]spanChange) error {
 	source := sourceFor(o.Facet)
 	key := drift.TimelineKey{
 		SubjectKind:   subjectKindFor(o.Facet),
@@ -88,6 +93,13 @@ func foldOne(ctx context.Context, qtx *db.Queries, batchID int64, vantageID pgty
 	if !changed {
 		return nil
 	}
+	// A FIRST span on this timeline (no open predecessor) opens `revealed` where the
+	// operator's aperture is why the fold looked at the subject — a Seed-declared
+	// Name/Address/Service (openedByAperture) — versus `appeared` where the world
+	// brought a subject the aperture had not declared. The marker is the estate
+	// signal the drift feed reads to tell the two apart (#637, ADR-0014); a value
+	// MOVE on an existing timeline (open != nil) is `changed` and never carries it.
+	openedAperture := open == nil && openedByAperture(key.SubjectKind, key.SubjectKey, in)
 	if open != nil && !closeAt.IsZero() {
 		// An ordinary value move or a version change: close with no reason, citing the
 		// batch whose fold closed it (ADR-0111) so the estate-wide feed can pair this
@@ -97,20 +109,36 @@ func foldOne(ctx context.Context, qtx *db.Queries, batchID int64, vantageID pgty
 			return err
 		}
 	}
-	_, err = qtx.OpenSpan(ctx, db.OpenSpanParams{
-		SubjectKind:   key.SubjectKind,
-		SubjectKey:    key.SubjectKey,
-		Facet:         key.Facet,
-		Discriminator: key.Discriminator,
-		VantageID:     vantageID,
-		Source:        source,
-		Value:         value,
-		IsGap:         opened.IsGap,
-		Derivation:    mustVectorJSON(opened.Vector),
-		OpenedAt:      tstz(observedAt),
-		OpenedBatchID: pgInt8(batchID),
-	})
-	return err
+	if _, err = qtx.OpenSpan(ctx, db.OpenSpanParams{
+		SubjectKind:    key.SubjectKind,
+		SubjectKey:     key.SubjectKey,
+		Facet:          key.Facet,
+		Discriminator:  key.Discriminator,
+		VantageID:      vantageID,
+		Source:         source,
+		Value:          value,
+		IsGap:          opened.IsGap,
+		Derivation:     mustVectorJSON(opened.Vector),
+		OpenedAt:       tstz(observedAt),
+		OpenedBatchID:  pgInt8(batchID),
+		OpenedAperture: openedAperture,
+	}); err != nil {
+		return err
+	}
+	// Record the transition for the message producer (P0.7): an opening (open == nil)
+	// is a membership / census candidate, and a reachability change is a flagship
+	// candidate. A nil collector is the measurement-only path that produces no message.
+	if changes != nil {
+		*changes = append(*changes, spanChange{
+			SubjectKind:    key.SubjectKind,
+			SubjectKey:     key.SubjectKey,
+			Facet:          key.Facet,
+			Opened:         open == nil,
+			OpenedAperture: openedAperture,
+			Value:          append([]byte(nil), value...),
+		})
+	}
+	return nil
 }
 
 // facetVector is the Derivation vector for a facet's Span — the leaves that

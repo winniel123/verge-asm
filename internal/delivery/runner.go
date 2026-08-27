@@ -70,9 +70,12 @@ func NewHTTPDoer() *http.Client {
 	}
 }
 
-// resolver resolves a host to its IP addresses. *net.Resolver satisfies it; a
-// test supplies a fake to place a host in a private range without real DNS.
-type resolver interface {
+// Resolver resolves a host to its IP addresses. *net.Resolver satisfies it (so
+// net.DefaultResolver is the production value); a test supplies a fake to place a host
+// in a private range without real DNS. It is exported so SendSigned — the shared
+// signed-POST transport the report notify runner also drives — can be handed the same
+// resolver the delivery Runner uses.
+type Resolver interface {
 	LookupNetIP(ctx context.Context, network, host string) ([]netip.Addr, error)
 }
 
@@ -87,7 +90,7 @@ type Runner struct {
 	now      func() time.Time
 	baseURL  string
 	log      *log.Logger
-	resolver resolver
+	resolver Resolver
 }
 
 // NewRunner builds a Runner over pool driving doer. baseURL is the absolute URL
@@ -230,18 +233,28 @@ func (r *Runner) post(ctx context.Context, claim db.ClaimDeliveryRow) error {
 	}
 }
 
-// send performs the POST and returns the status code (0 on a transport error).
-// The response body is drained and closed so the connection is reusable; its
-// contents are never read into a Message.
+// send performs the POST and returns the status code (0 on a transport error). It
+// delegates to the shared SendSigned transport — the SSRF guard, request build and
+// POST live in one place, so the report notify runner rides the exact same path.
 func (r *Runner) send(ctx context.Context, targetURL string, body, secret []byte) (int, error) {
-	if err := r.guardTarget(ctx, targetURL); err != nil {
+	return SendSigned(ctx, r.doer, r.resolver, targetURL, body, secret, r.now().UTC())
+}
+
+// SendSigned is the shared signed-POST transport: it guards the target against
+// non-globally-reachable hosts (the SSRF check), builds the signed request, POSTs it,
+// and returns the status code (0 on a transport error or a refused target). It is the
+// ONE place the guard and request-build live, so both the delivery Runner and the
+// report notify runner send by identical rules. The response body is drained and
+// closed so the connection is reusable; its contents are never read.
+func SendSigned(ctx context.Context, doer Doer, res Resolver, targetURL string, body, secret []byte, now time.Time) (int, error) {
+	if err := guardTarget(ctx, res, targetURL); err != nil {
 		return 0, err
 	}
-	req, err := NewRequest(ctx, targetURL, body, secret, r.now().UTC())
+	req, err := NewRequest(ctx, targetURL, body, secret, now)
 	if err != nil {
 		return 0, err
 	}
-	resp, err := r.doer.Do(req)
+	resp, err := doer.Do(req)
 	if err != nil {
 		return 0, err
 	}
@@ -250,18 +263,17 @@ func (r *Runner) send(ctx context.Context, targetURL string, body, secret []byte
 	return resp.StatusCode, nil
 }
 
-// guardTarget refuses a delivery whose target host resolves into a
-// non-globally-reachable range (#325). The settings validator bars internal IP
-// LITERALS at configuration time; this is the delivery-time complement that
-// resolves the host, closing the two gaps a literal-only config check leaves
-// open: a hostname that points at an internal service, and DNS rebinding of a
-// host that was public when the channel was saved. An IP-literal host resolves
-// to itself, so a literal that slipped past an older config is re-barred here.
-// A refusal returns a transport-style error, so the delivery fails and rides the
-// same retry/dead-letter curve as any other send failure — the body is never
-// POSTed. The dialer's Control hook (NewHTTPDoer) is the socket-level backstop
-// for the residual TOCTOU between this resolution and the actual connect.
-func (r *Runner) guardTarget(ctx context.Context, targetURL string) error {
+// guardTarget refuses a send whose target host resolves into a non-globally-reachable
+// range (#325). The settings validator bars internal IP LITERALS at configuration
+// time; this is the send-time complement that resolves the host, closing the two gaps
+// a literal-only config check leaves open: a hostname that points at an internal
+// service, and DNS rebinding of a host that was public when the channel was saved. An
+// IP-literal host resolves to itself, so a literal that slipped past an older config is
+// re-barred here. A refusal returns a transport-style error, so the send fails and
+// rides the same retry/dead-letter curve as any other failure — the body is never
+// POSTed. The dialer's Control hook (NewHTTPDoer) is the socket-level backstop for the
+// residual TOCTOU between this resolution and the actual connect.
+func guardTarget(ctx context.Context, res Resolver, targetURL string) error {
 	u, err := url.Parse(targetURL)
 	if err != nil {
 		return fmt.Errorf("parse target url: %w", err)
@@ -273,7 +285,7 @@ func (r *Runner) guardTarget(ctx context.Context, targetURL string) error {
 		}
 		return nil
 	}
-	addrs, err := r.resolver.LookupNetIP(ctx, "ip", host)
+	addrs, err := res.LookupNetIP(ctx, "ip", host)
 	if err != nil {
 		return fmt.Errorf("resolve %q: %w", host, err)
 	}

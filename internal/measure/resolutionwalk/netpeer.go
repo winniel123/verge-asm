@@ -52,9 +52,28 @@ func (p NetPeer) exchangeTimeout() time.Duration {
 // server is reported as Unreachable — we could not look at all (ADR-0108) — which
 // aborts the batch on the declared path; it is never folded into a resolution
 // value. A build error, by contrast, is our own bug and stays a silent Msg{}.
+// dialsDeclaredResolver reports whether an exchange targets the Vantage's own
+// operator-declared recursive resolver rather than a discovered authority. It is
+// THE trust boundary for the SSRF/rebinding egress guard (ADR-0121): a true
+// result exempts the dial from the custody guard, a false result gates it, so it
+// is the one place to audit when the guard's scope is in question. Every
+// declared-path query, and the delegation walk's initial NS query (which names no
+// Server), is asked of the resolver.
+//
+// CONTRACT: a discovered walk authority is named verbatim in NS RDATA and MUST
+// carry that authority in a non-empty Server — leaf.walk sets Server = rr.Data,
+// and dnsmessage never renders an empty name (a root NS is ".", not ""). Any
+// future PathWalk query that dials a discovered target must uphold this; a
+// discovered target reaching here with an empty Server would be silently
+// exempted from the guard.
+func (q Query) dialsDeclaredResolver() bool {
+	return q.Path == PathDeclared || q.Server == ""
+}
+
 func (p NetPeer) Exchange(q Query) Msg {
+	dialingResolver := q.dialsDeclaredResolver()
 	server := q.Server
-	if q.Path == PathDeclared || server == "" {
+	if dialingResolver {
 		server = p.Resolver
 	}
 	server = withDefaultPort(server)
@@ -67,24 +86,38 @@ func (p NetPeer) Exchange(q Query) Msg {
 	ctx, cancel := context.WithTimeout(context.Background(), p.exchangeTimeout())
 	defer cancel()
 
-	// SSRF gate (#324). The delegation walk dials authorities named verbatim in
-	// attacker-controlled NS RDATA (leaf.go walk() sets Query.Server = rr.Data).
+	// SSRF gate (#324/#335). The delegation walk dials authorities named verbatim
+	// in attacker-controlled NS RDATA (leaf.go walk() sets Query.Server = rr.Data).
 	// A DNS query is exempt from the custody probing gate — "a query is not a
 	// connect" (custody/gate.go) — so nothing else stops an in-scope delegation
 	// from pointing its NS RDATA at 169.254.169.254, 127.0.0.1, an RFC1918/ULA
-	// host or an internal name and having us send packets there. Refuse to dial
-	// a walk-path target that is, or resolves to, a non-globally-reachable
-	// address, and report it unreached exactly as a dial failure would — the
-	// walk then records the authority as a silent (unreached) one, never a value.
-	if q.Path == PathWalk && !walkServerReachable(ctx, server) {
+	// host or an internal name and having us send packets there. Refuse to dial a
+	// discovered-authority target that is, or resolves to, a non-globally-reachable
+	// address, and report it unreached exactly as a dial failure would — the walk
+	// then records the authority as a silent (unreached) one, never a value.
+	//
+	// The Vantage's own recursive resolver is exempt (#612): it is operator-
+	// declared configuration (ADR-0070) supplied out of band, not attacker-
+	// influenced, and a legitimate deployment points it at a non-globally-reachable
+	// address — Docker's embedded DNS 127.0.0.11 on the docs' compose deployment
+	// (ADR-0036), or a private-LAN resolver on bare metal. Gating it refused every
+	// default install's dns scan (a regression of #239). Only discovered
+	// authorities are gated, so dialingResolver skips both the pre-flight vet and
+	// the Control-hooked dialer.
+	if !dialingResolver && !walkServerReachable(ctx, server) {
 		return Msg{Unreachable: true}
+	}
+
+	dialer := trustedDialer()
+	if !dialingResolver {
+		dialer = custodyDialer()
 	}
 
 	var resp []byte
 	if q.Transport == TCP {
-		resp, err = exchangeTCP(ctx, server, msgBytes)
+		resp, err = exchangeTCP(ctx, dialer, server, msgBytes)
 	} else {
-		resp, err = exchangeUDP(ctx, server, msgBytes)
+		resp, err = exchangeUDP(ctx, dialer, server, msgBytes)
 	}
 	if err != nil {
 		return Msg{Unreachable: true}
@@ -139,7 +172,7 @@ func buildQuery(q Query) ([]byte, error) {
 		return nil, errors.New("resolutionwalk: unsupported qtype " + string(q.Qtype))
 	}
 	b := dnsmessage.NewBuilder(nil, dnsmessage.Header{
-		ID:               uint16(time.Now().UnixNano()),
+		ID:               uint16(time.Now().UnixNano()), // #nosec G115 (intended 16-bit truncation for the DNS transaction ID field)
 		RecursionDesired: q.Path == PathDeclared,
 	})
 	b.EnableCompression()
@@ -169,17 +202,39 @@ func buildQuery(q Query) ([]byte, error) {
 	return b.Finish()
 }
 
+// trustedDialer dials the Vantage's operator-declared recursive resolver with no
+// custody Control hook. That resolver is trusted configuration (ADR-0070),
+// supplied by the operator out of band rather than derived from attacker-
+// controlled RDATA, and a legitimate deployment may point it at a non-globally-
+// reachable address — Docker's embedded DNS 127.0.0.11 on the docs' compose
+// deployment (ADR-0036), or a private-LAN resolver on bare metal. The #335
+// backstop exists to stop DISCOVERED walk authorities reaching internal
+// addresses; applying it to the declared resolver refused every default install
+// (#612, a regression of #239). It keeps custodyDialer's Resolver so a
+// name-based resolver still resolves through netResolver.
+//
+// PRECONDITION: dropping the socket-level backstop here is sound ONLY because the
+// resolver is trusted config — vantage.resolver is populated solely from operator
+// input (run.go and wildcarddiscrim/run.go source it from the JobSpec Scope,
+// itself the vantage row), never from scan, proposer, or any request-surface
+// data. If a future feature ever lets untrusted data flow into a Vantage's
+// resolver, this dial regains an SSRF vector and must be re-gated (ADR-0121).
+func trustedDialer() net.Dialer {
+	return net.Dialer{Resolver: netResolver}
+}
+
 // custodyDialer returns a net.Dialer whose Control hook inspects the ACTUAL
 // resolved socket address of every connection and refuses to open the socket
-// when it lands in a non-globally-reachable range (#335). walkServerReachable
-// vets the NS hostname's addresses before the dial, but the dialer re-resolves
-// the name independently, so a name that flips from a public to a private answer
-// between the pre-flight check and the dial (DNS rebinding, a TOCTOU) would
-// otherwise slip a packet to an internal address. Control runs after DNS
-// resolution, on the very address the kernel is about to connect to, so the
-// vetted address is the one dialed — the rebinding-proof backstop, mirroring the
-// delivery runner's hook (NewHTTPDoer, #325). An IP-literal target resolves to
-// itself, so the safe literal branch is re-affirmed here rather than regressed.
+// when it lands in a non-globally-reachable range (#335). It dials only
+// discovered walk authorities — the declared resolver goes through trustedDialer.
+// walkServerReachable vets the NS hostname's addresses before the dial, but the
+// dialer re-resolves the name independently, so a name that flips from a public
+// to a private answer between the pre-flight check and the dial (DNS rebinding, a
+// TOCTOU) would otherwise slip a packet to an internal address. Control runs
+// after DNS resolution, on the very address the kernel is about to connect to, so
+// the vetted address is the one dialed — the rebinding-proof backstop, mirroring
+// the delivery runner's hook (NewHTTPDoer, #325). An IP-literal target resolves
+// to itself, so the safe literal branch is re-affirmed here rather than regressed.
 func custodyDialer() net.Dialer {
 	return net.Dialer{
 		Resolver: netResolver,
@@ -200,8 +255,7 @@ func custodyDialer() net.Dialer {
 	}
 }
 
-func exchangeUDP(ctx context.Context, server string, msg []byte) ([]byte, error) {
-	d := custodyDialer()
+func exchangeUDP(ctx context.Context, d net.Dialer, server string, msg []byte) ([]byte, error) {
 	conn, err := d.DialContext(ctx, "udp", server)
 	if err != nil {
 		return nil, err
@@ -221,8 +275,7 @@ func exchangeUDP(ctx context.Context, server string, msg []byte) ([]byte, error)
 	return buf[:n], nil
 }
 
-func exchangeTCP(ctx context.Context, server string, msg []byte) ([]byte, error) {
-	d := custodyDialer()
+func exchangeTCP(ctx context.Context, d net.Dialer, server string, msg []byte) ([]byte, error) {
 	conn, err := d.DialContext(ctx, "tcp", server)
 	if err != nil {
 		return nil, err
@@ -232,7 +285,7 @@ func exchangeTCP(ctx context.Context, server string, msg []byte) ([]byte, error)
 		_ = conn.SetDeadline(dl)
 	}
 	framed := make([]byte, 2+len(msg))
-	binary.BigEndian.PutUint16(framed, uint16(len(msg)))
+	binary.BigEndian.PutUint16(framed, uint16(len(msg))) // #nosec G115 (own small DNS query; DoT length prefix is a 16-bit field per RFC 1035)
 	copy(framed[2:], msg)
 	if _, err := conn.Write(framed); err != nil {
 		return nil, err

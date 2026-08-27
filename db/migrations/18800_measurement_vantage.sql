@@ -12,6 +12,12 @@
 -- ships. Off compose (bare-metal / host-network, where that address is not routed)
 -- the operator points it at their own recursive resolver; docs/guides/using.md
 -- "Run the first batch" and docs/guides/running.md Configuration cover that.
+--
+-- This loopback value is DELIBERATE and works at runtime: the measurement dial
+-- path exempts the operator-declared recursive resolver from the SSRF/rebinding
+-- egress custody guard, which gates only discovered walk authorities (ADR-0121,
+-- #612). Do not "fix" this back to a public resolver — the guard once refused it
+-- and dead-lettered every default install (a regression of #239).
 INSERT INTO vantage (name, class, resolver) VALUES ('local', 'unverified', '127.0.0.11:53');
 
 -- +goose Down

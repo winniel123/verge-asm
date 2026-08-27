@@ -1,7 +1,7 @@
 ---
 title: Signals reference
-section: Operating
-order: 4
+section: Signals & delivery
+order: 1
 description: The per-signal reference for the v1 rule set — what each signal means, its subject, and when it fires.
 ---
 
@@ -21,13 +21,59 @@ verified against the code, never to drift from it.
 
 ---
 
+## Rule status — what fires on a default install
+
+Not every rule is wired yet. **On a default single-host install, 9 of the 17 rules can
+fire** — the four Name-only rules, the four HTTP-identity endpoint rules
+(**P0.11**, landed), and `tls-1.0-accepted` (**P0.9**, landed). The other **8 are
+dormant**:
+
+- the **six certificate rules** render `not-evaluable` for every presented chain,
+  because the parsed-leaf attributes they read are not stored yet; they wake when the
+  certificate-parsing leaf lands (**P0.10**, blocked on design collision #37);
+- the **two internet-gated flagship rules** need an internet-class `Vantage` (a
+  provisioned prober), so a single-host install never enters their domain — the
+  flagship wiring is deferred to **#700** (the off-host SSH transport that carries a
+  prober landed with P0.8).
+
+| Rule | Subject | Status on a default install |
+| --- | --- | --- |
+| `lame-delegation` | Name | **Live** |
+| `cname-target-name-error` | Name | **Live** |
+| `zone-declared-name-returns-name-error` | Name | **Live** (needs an uploaded zone file) |
+| `resolved-name-absent-from-zone` | Name | **Live** (needs an uploaded zone file) |
+| `non-globally-reachable-address-resolved-from-internet` | Name | **Dormant** — needs an internet vantage (#700) |
+| `certificate-expired` | Endpoint | **Dormant** — certificate-parsing leaf (P0.10, collision #37) |
+| `certificate-not-yet-valid` | Endpoint | **Dormant** — certificate-parsing leaf (P0.10) |
+| `certificate-expiring` | Endpoint | **Dormant** — certificate-parsing leaf (P0.10) |
+| `certificate-self-signed` | Endpoint | **Dormant** — certificate-parsing leaf (P0.10) |
+| `certificate-weak-key-or-signature` | Endpoint | **Dormant** — certificate-parsing leaf (P0.10) |
+| `certificate-hostname-san-mismatch` | Endpoint | **Dormant** — certificate-parsing leaf (P0.10) |
+| `plaintext-http-no-https` | Endpoint | **Live** (P0.11) |
+| `redirect-does-not-upgrade-to-tls` | Endpoint | **Live** (P0.11) |
+| `redirect-to-host-outside-estate` | Endpoint | **Live** (P0.11) |
+| `unauthenticated-request-answered` | Endpoint | **Live** (P0.11) |
+| `tls-1.0-accepted` | Service | **Live** (P0.9) |
+| `sensitive-port-reached-from-internet` | Service | **Dormant** — needs an internet vantage (#700) |
+
+A **dormant** rule is never faked: it renders `not-evaluable` (certificate rules) or
+sits `outside-domain` (the internet-gated rules) on a default install, never a
+manufactured verdict. Provisioning a [prober](prober.md) wakes the two internet-gated
+rules; the certificate rules wait on the leaf.
+
+---
+
 ## What a signal is — and is not
 
-- **A named fact, not a score.** A signal **carries no severity**. Severity ranks a
-  static backlog; verge-asm's subject is *change*, so urgency comes from the
-  transition that surfaced a signal, not from a number stapled to the rule. There is
-  no high/medium/low, and there is no dial to add one — a port you can hide is a
-  signal you can silence.
+- **A named fact, not a per-finding score.** The fact a signal names carries **no score you
+  tune per finding**: verge-asm's subject is *change*, so urgency comes from the transition
+  that surfaced a signal (see **Messages**), never from a number stapled to a static backlog.
+  What a signal *does* carry is its **rule's severity** — every rule ships at one of **five**
+  release-authored levels, the P0.1 ramp **Critical / High / Medium / Low / Info**
+  ([#1](https://github.com/winniel123/verge-asm/issues/1)), resolved by the web layer to rank
+  and badge the current-state census (the on-screen `sevbadge` / `SeverityBadge`). Severity
+  ranks *rules*, not findings, and is never the source of urgency — there is no per-finding
+  dial to add, and a port you can hide is a signal you can silence.
 - **A rule that ships at release cadence.** A condition qualifies as a signal only if
   its reference data changes at release cadence. Anything you would want to push
   updates to *out of band* — a growing corpus of indicators — is a signature database,
@@ -41,8 +87,13 @@ verified against the code, never to drift from it.
 
 ### The four verdicts
 
-Every rule returns one of four outcomes for each subject. Only three are rendered; the
-fourth removes the subject from the rule's view entirely.
+Every rule returns one of four outcomes for each subject. These are the **engine's**
+per-subject verdicts, evaluated data-side. The **Signals** screen itself does not paint a
+per-rule census: it renders a **flat per-instance table** — one severity-badged row per
+currently-**fired** `(rule, subject)` pair, with a stable `SIG-####` id, filters, sort and
+a row drawer (P2.2; the design package is normative for functionality). So `not-fired`,
+`not-evaluable` and `outside-domain` shape the evaluation but are **not rows you see** on
+the screen; they are how a rule decides which instances fire.
 
 | Verdict | Meaning |
 | --- | --- |
@@ -51,8 +102,10 @@ fourth removes the subject from the rule's view entirely.
 | **not-evaluable** | The rule could not decide — the evidence is about *our own sight* (a `Shadowed` value) or there is no value at all (a `Gap`). Never counted as "did not fire." |
 | **outside-domain** | The rule was never about this subject (e.g. a CNAME rule over a name that has no CNAME). Not rendered at all, so the "did not fire" column never swells with subjects the rule does not concern. |
 
-The census a signal presents is a **current-state** picture over its predicate domain —
-who is firing *now* — never a delta. The change surface lives in **Messages**.
+The flat table is a **current-state** picture — the `(rule, subject)` pairs firing
+*now*, one row each — never a delta. (The rule censuses are still evaluated data-side to
+mint those rows, but they no longer paint a three-column grouping.) The change surface
+lives in **Messages**.
 
 ---
 

@@ -18,6 +18,7 @@ import { Scope } from "./Scope.jsx";
 import { Settings } from "./Settings.jsx";
 import { CommandPalette } from "../../components/feedback/CommandPalette.jsx";
 import { AssetDetail } from "./AssetDetail.jsx";
+import { SubjectDetail } from "./SubjectDetail.jsx";
 import { RunDetail } from "./RunDetail.jsx";
 import { ReportArtifact } from "./ReportArtifact.jsx";
 import { Inbox } from "./Inbox.jsx";
@@ -45,6 +46,7 @@ export function ConsoleApp() {
   const [onboardOpen, setOnboardOpen] = React.useState(false);
   const [inboxMsgId, setInboxMsgId] = React.useState(null);
   const [firstRun, setFirstRun] = React.useState(false);
+  const [subjWithdrawn, setSubjWithdrawn] = React.useState(false);
   const MSGS = [
     { id: "m1", cls: "signals", text: "VNC exposed to internet · edge-gw-03.acmecorp.io", time: "4m", unread: true },
     { id: "m2", cls: "drift", text: "appeared · staging-5.acmecorp.io", time: "8m", unread: true },
@@ -66,6 +68,10 @@ export function ConsoleApp() {
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
+  }, []);
+  React.useEffect(() => {
+    window.__vergeGo = (s, o) => { setSubjWithdrawn(!!(o && o.withdrawn)); if (o && o.err) setErrKind(o.err); setScreen(s); };
+    return () => { delete window.__vergeGo; };
   }, []);
   const runScan = () => {
     setScanning(true);
@@ -93,7 +99,7 @@ export function ConsoleApp() {
         {screen === "dashboard" && (firstRun
           ? <FirstRunChecklist onOpenScope={() => setScreen("scope")} onOpenVantages={() => { setSettingsSection("vantages"); setScreen("settings"); }} onRunScan={() => { setFirstRun(false); runScan(); }} />
           : <Dashboard scanning={scanning} onRunScan={runScan} onAddTarget={() => setAddOpen(true)} onOpenSignals={() => setScreen("signals")} />)}
-        {screen === "inventory" && <Inventory onToast={setToast} onOpenAsset={(a) => { setAssetId(a); setScreen("asset"); }} />}
+        {screen === "inventory" && <Inventory onToast={setToast} onOpenAsset={(a) => { setAssetId(a); setScreen("asset"); }} onOpenSubject={(k) => setScreen(k)} onOpenScope={() => setScreen("scope")} />}
         {screen === "scope" && <Scope onToast={setToast} />}
         {screen === "drift" && <Drift onOpenRun={() => setScreen("run")} />}
         {screen === "graph" && <GraphView />}
@@ -101,6 +107,8 @@ export function ConsoleApp() {
         {screen === "settings" && <Settings onToast={setToast} section={settingsSection} />}
         {screen === "signals" && <Signals onToast={setToast} onAnnotate={(s) => setToast({ tone: "neutral", title: "Annotation recorded", description: s.id + " \u00b7 accepted risk" })} />}
         {screen === "asset" && <AssetDetail asset={assetId} onBack={() => setScreen("inventory")} onOpenSignals={() => setScreen("signals")} onToast={setToast} />}
+        {screen === "service" && <SubjectDetail kind="service" withdrawn={subjWithdrawn} onBack={() => setScreen("inventory")} onOpenSignals={() => setScreen("signals")} onToast={setToast} />}
+        {screen === "endpoint" && <SubjectDetail kind="endpoint" withdrawn={subjWithdrawn} onBack={() => setScreen("inventory")} onOpenSignals={() => setScreen("signals")} onToast={setToast} />}
         {screen === "run" && <RunDetail onBack={() => setScreen("drift")} onOpenDrift={() => setScreen("drift")} />}
         {screen === "artifact" && <ReportArtifact onBack={() => setScreen("reports")} />}
         {screen === "inbox" && <Inbox key={inboxMsgId || "all"} initialId={inboxMsgId} onNavigate={setScreen} />}
@@ -127,6 +135,7 @@ export function ConsoleApp() {
           { label: "Exposure", icon: "eye", onSelect: () => setScreen("exposure") },
           { label: "Coverage", icon: "gauge", onSelect: () => setScreen("coverage") },
           { label: "Sources", icon: "database", onSelect: () => { setSettingsSection("sources"); setScreen("settings"); } },
+          { label: "Sessions", icon: "monitor-smartphone", onSelect: () => { setSettingsSection("sessions"); setScreen("settings"); } },
           { label: "Port aperture", icon: "layout-grid", onSelect: () => { setSettingsSection("aperture"); setScreen("settings"); } },
           { label: "Integrations", icon: "puzzle", onSelect: () => { setSettingsSection("integrations"); setScreen("settings"); } },
           { label: "Settings", icon: "settings", onSelect: () => setScreen("settings") },
@@ -144,10 +153,16 @@ export function ConsoleApp() {
         ] },
         { label: "Spec states", items: [
           { label: "Preview: first-run home", icon: "flag", onSelect: () => { setFirstRun(true); setScreen("dashboard"); } },
+          { label: "Preview: service detail", icon: "server", onSelect: () => { setSubjWithdrawn(false); setScreen("service"); } },
+          { label: "Preview: endpoint detail", icon: "globe", onSelect: () => { setSubjWithdrawn(false); setScreen("endpoint"); } },
+          { label: "Preview: withdrawn service", icon: "circle-off", onSelect: () => { setSubjWithdrawn(true); setScreen("service"); } },
           { label: "Preview: standard home", icon: "layout-dashboard", onSelect: () => { setFirstRun(false); setScreen("dashboard"); } },
           { label: "Preview: 404 not found", icon: "compass", onSelect: () => { setErrKind("404"); setScreen("error"); } },
           { label: "Preview: 403 access denied", icon: "lock", onSelect: () => { setErrKind("403"); setScreen("error"); } },
           { label: "Preview: 500 server error", icon: "server-crash", onSelect: () => { setErrKind("500"); setScreen("error"); } },
+          { label: "Preview: no such subject", icon: "scan-search", onSelect: () => { setErrKind("missing-subject"); setScreen("error"); } },
+          { label: "Preview: no such run", icon: "history", onSelect: () => { setErrKind("missing-run"); setScreen("error"); } },
+          { label: "Preview: settings forbidden", icon: "lock", onSelect: () => { setErrKind("forbidden"); setScreen("error"); } },
         ] },
       ]} />
       <Onboarding open={onboardOpen} onClose={() => setOnboardOpen(false)}
@@ -161,7 +176,7 @@ export function ConsoleApp() {
           <Input label="Seed" mono placeholder="acmecorp.io or 203.0.113.0/24" hint="Domain or CIDR range" />
           <Select label="Scan profile" options={["Standard", "Deep", "Passive only"]} />
           <Checkbox label="Watch for drift" description="Re-scan every 6h and raise signals on change" checked={watch} onChange={setWatch} />
-          <FileDrop compact accept=".csv" label="Or drop a CSV to import many" hint="One seed per line" onFiles={() => setToast({ tone: "neutral", title: "CSV parsed", description: "Targets will queue when you add." })} />
+          <FileDrop compact accept=".csv" label="Or drop a CSV to import many" hint="One seed per line" onFiles={() => setToast({ tone: "neutral", title: "CSV parsed", description: "Seeds will queue when you add." })} />
         </div>
       </Dialog>
     </div>

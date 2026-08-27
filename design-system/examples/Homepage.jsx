@@ -18,16 +18,24 @@ const ROWS = [
   { sev: "info", title: "New subdomain discovered", asset: "staging-4.acmecorp.io", seen: "3d" },
 ];
 
+const REPO = "https://github.com/winniel123/verge-asm";
+const scrollToId = (id) => {
+  const el = document.getElementById(id);
+  if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 24, behavior: "smooth" });
+};
+
 function MarketingNav() {
   return (
     <nav style={{ display: "flex", alignItems: "center", gap: 24, height: 64, padding: "0 32px", maxWidth: 1184, margin: "0 auto" }}>
       <Logo size={22} wordmarkSize={19} />
       <span style={{ display: "flex", gap: 20, marginLeft: 16 }}>
-        {["Docs", "Install", "Changelog"].map((l) => <a key={l} href="#" style={{ font: "500 13.5px var(--font-ui)", color: "var(--text-secondary)", textDecoration: "none" }}>{l}</a>)}
+        <a href="../docs/index.html" style={{ font: "500 13.5px var(--font-ui)", color: "var(--text-secondary)", textDecoration: "none" }}>Docs</a>
+        <a href="#install" onClick={(e) => { e.preventDefault(); scrollToId("install"); }} style={{ font: "500 13.5px var(--font-ui)", color: "var(--text-secondary)", textDecoration: "none" }}>Install</a>
+        <a href={REPO + "/releases"} target="_blank" rel="noreferrer noopener" style={{ font: "500 13.5px var(--font-ui)", color: "var(--text-secondary)", textDecoration: "none" }}>Changelog</a>
       </span>
       <span style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}>
-        <Button variant="secondary">GitHub</Button>
-        <Button>Get started</Button>
+        <Button variant="secondary" onClick={() => window.open(REPO, "_blank", "noopener")}>GitHub</Button>
+        <Button onClick={() => scrollToId("install")}>Get started</Button>
       </span>
     </nav>
   );
@@ -55,13 +63,13 @@ export function Homepage() {
           <h1 style={{ margin: 0, font: "600 52px/1.08 var(--font-ui)", letterSpacing: "-0.02em", color: "var(--text-ink)", textWrap: "balance" }}>Your attack surface, continuously mapped</h1>
           <p style={{ margin: 0, font: "400 17px/1.6 var(--font-ui)", color: "var(--text-secondary)", maxWidth: 460 }}>Verge discovers your internet-facing assets, watches them for drift, and raises signals when something changes. Free, AGPL-3.0, runs on your infrastructure.</p>
           <div style={{ display: "flex", gap: 12, marginTop: 6 }}>
-            <Button size="lg" icon={<Icon name="arrow-right" size={16} />}>Get started</Button>
-            <Button size="lg" variant="secondary" icon={<Icon name="code" size={16} />}>View source</Button>
+            <Button size="lg" icon={<Icon name="arrow-right" size={16} />} onClick={() => scrollToId("install")}>Get started</Button>
+            <Button size="lg" variant="secondary" icon={<Icon name="code" size={16} />} onClick={() => window.open(REPO, "_blank", "noopener")}>View source</Button>
           </div>
-          <CodeBlock style={{ width: "fit-content", marginTop: 8, paddingRight: 56 }}>docker run -p 8443:8443 verge/verge</CodeBlock>
+          <CodeBlock style={{ width: "fit-content", marginTop: 8, paddingRight: 56 }} copyText="docker run -p 8443:8443 verge/verge">docker run -p 8443:8443 verge/verge</CodeBlock>
           <span style={{ font: "400 11.5px var(--font-mono)", color: "var(--text-muted)" }}>v0.9.2 · AGPL-3.0 · multi-org for MSPs</span>
         </div>
-        <div style={{ position: "relative" }}>
+        <div style={{ position: "relative", minWidth: 0 }}>
           <Card pad={0} style={{ boxShadow: "var(--shadow-md)" }}>
             <div style={{ display: "flex", gap: 28, padding: "18px 20px", borderBottom: "1px solid var(--row-sep)" }}>
               <Stat label="Open signals" value="47" delta="+3" deltaTone="bad" live />
@@ -76,6 +84,7 @@ export function Homepage() {
             ]} rows={ROWS} />
           </Card>
           <Toast tone="ok" title="Scan complete" description="3 new signals raised." style={{ position: "absolute", right: -16, bottom: -24, boxShadow: "var(--shadow-lg)" }} />
+          <a href="../console/index.html" style={{ position: "absolute", left: 4, bottom: -34, font: "500 12px var(--font-ui)", color: "var(--link)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 5 }}>Explore the console <Icon name="arrow-right" size={13} /></a>
         </div>
       </section>
       <section style={{ maxWidth: 1120, margin: "0 auto", padding: "0 32px 72px", display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
@@ -92,7 +101,7 @@ export function Homepage() {
         <Stepper active={1} steps={[
           { title: "Run the container", detail: "One image, listens on :8443" },
           { title: "Add your first seed", detail: "A name or an address scope" },
-          { title: "Confirm ownership", detail: "DNS TXT record or meta tag — active probing waits for it" },
+          { title: "Confirm ownership", detail: "Custody via DNS TXT record — active probing waits for it" },
           { title: "Watch for drift", detail: "Signals when the surface moves" },
         ]} />
       </section>
@@ -104,6 +113,15 @@ export function Homepage() {
           </span>
         </div>
       </section>
+      <section id="install" style={{ maxWidth: 1120, margin: "0 auto", padding: "0 32px 72px", display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: 64, alignItems: "center" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <span style={{ font: "500 11px var(--font-mono)", letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--accent)" }}>Install</span>
+          <h2 style={{ margin: 0, font: "600 30px/1.2 var(--font-ui)", letterSpacing: "var(--heading-tracking)", color: "var(--text-ink)" }}>Up in one compose file</h2>
+          <p style={{ margin: 0, font: "400 15px/1.6 var(--font-ui)", color: "var(--text-secondary)" }}>Docker with the Compose plugin is the whole prerequisite list. Migrations run on startup; the setup token prints in the logs.</p>
+          <a href="../docs/index.html" style={{ font: "500 13px var(--font-ui)", color: "var(--link)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 5 }}>Running verge-asm — the full guide <Icon name="arrow-right" size={13} /></a>
+        </div>
+        <CodeBlock title="shell" copyText={"cp .env.example .env\ndocker compose up -d --build\ndocker compose logs web | grep /setup"}>{"cp .env.example .env        # set POSTGRES_PASSWORD\ndocker compose up -d --build\ndocker compose logs web | grep /setup"}</CodeBlock>
+      </section>
       <section style={{ maxWidth: 1120, margin: "0 auto", padding: "0 32px 88px" }}>
         <div style={{ background: "var(--surface-inverted)", borderRadius: 24, padding: "56px 48px", display: "flex", alignItems: "center", gap: 32, flexWrap: "wrap" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 520 }}>
@@ -111,8 +129,8 @@ export function Homepage() {
             <p style={{ margin: 0, font: "400 15px/1.6 var(--font-ui)", color: "var(--neutral-400)" }}>Verge is self-hosted and AGPL-3.0. Clone it, audit it, run it where your assets live.</p>
           </div>
           <div style={{ marginLeft: "auto", display: "flex", gap: 12 }}>
-            <Button size="lg">Get started</Button>
-            <Button size="lg" variant="ghost" style={{ color: "var(--neutral-300)" }}>Read the docs</Button>
+            <Button size="lg" onClick={() => scrollToId("install")}>Get started</Button>
+            <Button size="lg" variant="ghost" style={{ color: "var(--neutral-300)" }} onClick={() => { window.location.href = "../docs/index.html"; }}>Read the docs</Button>
           </div>
         </div>
       </section>

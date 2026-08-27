@@ -9,6 +9,7 @@ import { HeatmapCalendar } from "../../components/display/HeatmapCalendar.jsx";
 import { KeyValueList } from "../../components/display/KeyValueList.jsx";
 import { Wizard } from "../../components/feedback/Wizard.jsx";
 import { Input } from "../../components/forms/Input.jsx";
+import { Select } from "../../components/forms/Select.jsx";
 import { Checkbox } from "../../components/forms/Checkbox.jsx";
 import { CadenceSelect } from "../../components/forms/CadenceSelect.jsx";
 import { Tag } from "../../components/display/Tag.jsx";
@@ -31,9 +32,9 @@ const SECTIONS = ["Summary KPIs", "New assets", "Signal changes", "Coverage gaps
 const SCAN_DAYS = (() => { let s = 11, out = []; for (let i = 0; i < 84; i++) { s = (s * 16807) % 2147483647; out.push(i % 7 >= 5 ? (s % 3 === 0 ? 1 : 0) : (s % 5)); } return out; })();
 
 const SCHEDULED = [
-  { name: "Weekly exposure summary", cadence: "weekly \u00b7 mon 09:00", format: "pdf", last: "3d" },
-  { name: "Monthly asset inventory", cadence: "monthly \u00b7 1st", format: "csv", last: "22d" },
-  { name: "Critical signals digest", cadence: "daily \u00b7 08:00", format: "email", last: "14h" },
+  { name: "Weekly exposure summary", cadence: "weekly \u00b7 mon 09:00", format: "pdf", delivery: "ops.acmecorp.io/hook", last: "3d" },
+  { name: "Monthly asset inventory", cadence: "monthly \u00b7 1st", format: "csv", delivery: "download only", last: "22d" },
+  { name: "Critical signals digest", cadence: "daily \u00b7 08:00", format: "pdf", delivery: "ops.acmecorp.io/hook", last: "14h" },
 ];
 
 function SevBars() {
@@ -63,10 +64,12 @@ export function Reports({ onOpenArtifact }) {
   const [secs, setSecs] = React.useState(SECTIONS.slice(0, 3));
   const [cad, setCad] = React.useState("Weekly \u00b7 mon 09:00");
   const [cron, setCron] = React.useState("");
-  const openWiz = () => { setName(""); setSecs(SECTIONS.slice(0, 3)); setCad("Weekly \u00b7 mon 09:00"); setCron(""); setWizOpen(true); };
+  const [dest, setDest] = React.useState("download");
+  const DESTS = { download: "download only", ops: "ops.acmecorp.io/hook", pager: "pager.example/verge" };
+  const openWiz = () => { setName(""); setSecs(SECTIONS.slice(0, 3)); setCad("Weekly \u00b7 mon 09:00"); setCron(""); setDest("download"); setWizOpen(true); };
   const cadLabel = cad === "Custom\u2026" ? cron || "custom" : cad.toLowerCase();
   const create = () => {
-    setRows(rows.concat({ name: name.trim(), cadence: cadLabel, format: "pdf", last: "\u2014" }));
+    setRows(rows.concat({ name: name.trim(), cadence: cadLabel, format: "pdf", delivery: DESTS[dest], last: "\u2014" }));
     setWizOpen(false);
   };
   return (
@@ -110,8 +113,9 @@ export function Reports({ onOpenArtifact }) {
           action={<Button variant="ghost" size="sm" icon={<Icon name="plus" size={13} />} onClick={openWiz}>New schedule</Button>}>
           <Table framed={false} columns={[
             { key: "name", label: "Report", sortable: true, render: (r) => <span style={{ font: "500 13px var(--font-ui)", color: "var(--text-ink)" }}>{r.name}</span> },
-            { key: "cadence", label: "Cadence", mono: true, width: 170 },
-            { key: "format", label: "Format", width: 90, render: (r) => <Tag>{r.format}</Tag> },
+            { key: "cadence", label: "Cadence", mono: true, width: 150 },
+            { key: "delivery", label: "Delivery", mono: true, width: 175 },
+            { key: "format", label: "Format", width: 76, render: (r) => <Tag>{r.format}</Tag> },
             { key: "last", label: "Last sent", mono: true, align: "right", width: 90, sortable: true, sortValue: (r) => t2m(r.last) },
             { key: "actions", label: "", width: 58, align: "right", clip: false, render: () => (
               <DropdownMenu trigger={<IconButton icon="ellipsis" label="Actions" size="sm" />} items={[
@@ -141,12 +145,23 @@ export function Reports({ onOpenArtifact }) {
           { id: "cadence", title: "Cadence", valid: cad !== "Custom\u2026" || cron.trim().length > 0, content: (
             <CadenceSelect value={cad} customValue={cron} onChange={(v, c) => { setCad(v); setCron(c || ""); }} />
           ) },
+          { id: "delivery", title: "Delivery", content: (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <Select label="Destination" value={dest} onChange={(e) => setDest(e.target.value)} options={[
+                { value: "download", label: "Download only", hint: "artifact stays in Reports" },
+                { value: "ops", label: "ops.acmecorp.io/hook", hint: "signed HTTPS channel" },
+                { value: "pager", label: "pager.example/verge", hint: "signed HTTPS channel \u00b7 paused" },
+              ]} />
+              <span style={{ font: "400 12px/1.5 var(--font-ui)", color: "var(--text-muted)" }}>A channel receives a link-only ready-message — the report body never leaves the instance. Channels are declared in Settings → Channels.</span>
+            </div>
+          ) },
           { id: "review", title: "Review", content: (
             <KeyValueList items={[
               { k: "Report", v: name.trim() || "\u2014" },
               { k: "Sections", v: secs.join(", ") },
               { k: "Cadence", v: cadLabel },
               { k: "Format", v: "pdf" },
+              { k: "Delivery", v: DESTS[dest] },
             ]} />
           ) },
         ]} />

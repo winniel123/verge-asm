@@ -13,13 +13,16 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/netip"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	designfs "github.com/winniel123/verge-asm/design-system"
 	"github.com/winniel123/verge-asm/internal/auth"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/env"
@@ -55,9 +58,39 @@ func (s *server) currentAccount(r *http.Request) (db.Account, bool) {
 	if err != nil {
 		return db.Account{}, false
 	}
-	acct, err := s.store.GetAccountByID(r.Context(), sess.AccountID)
+	// #405 (ADR-0117): the signed cookie is necessary but no longer sufficient — the
+	// session must also resolve to a LIVE row in the session registry, looked up by the
+	// hash of the opaque token the cookie carries. A revoked or expired session yields
+	// no row, and so does an old cookie minted before the registry (its token is empty),
+	// so both are treated exactly as an absent cookie and the caller redirects to
+	// /login. This is what makes a revocation take effect on the very next request while
+	// staying backward-safe for pre-registry cookies.
+	ctx := r.Context()
+	row, err := s.store.GetSessionByTokenHash(ctx, db.GetSessionByTokenHashParams{
+		TokenHash: hashToken(sess.Token),
+		ExpiresAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+	})
 	if err != nil {
 		return db.Account{}, false
+	}
+	// Load the account by the ROW's account id, so the role is read live from the
+	// account row on every request (a role change or deletion takes effect at once),
+	// exactly as before the registry.
+	acct, err := s.store.GetAccountByID(ctx, row.AccountID)
+	if err != nil {
+		return db.Account{}, false
+	}
+	// Throttled touch: refresh last_seen_at at most once per minute per session, so a
+	// busy session keeps its "last active" current without amplifying a write onto every
+	// request. The touch is best-effort — a failure is logged and never fails the
+	// request, since it is only for the display column, not the auth decision.
+	if s.now().Sub(row.LastSeenAt.Time) > time.Minute {
+		if err := s.store.TouchSession(ctx, db.TouchSessionParams{
+			ID:         row.ID,
+			LastSeenAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+		}); err != nil {
+			log.Printf("web: touch session: %v", err)
+		}
 	}
 	return acct, true
 }
@@ -83,6 +116,25 @@ func (s *server) requireAdmin(h authedHandler) http.HandlerFunc {
 	})
 }
 
+// requireSettingsAdmin gates the Settings destination like requireAdmin, but a
+// refused viewer sees the richer settings-forbidden ErrorPage (U4, #481) — the
+// "admin only, Settings is where declared acts live" copy that names how a role is
+// widened — instead of the plain 403 every other admin route renders. Status stays
+// 403. Only the GET /settings view uses this; the Settings mutations keep the plain
+// requireAdmin gate, so this is the one surface that swaps the copy.
+func (s *server) requireSettingsAdmin(h authedHandler) http.HandlerFunc {
+	return s.requireLogin(func(w http.ResponseWriter, r *http.Request, acct db.Account) {
+		// The API access tab is the one Settings surface a viewer may READ (WORK-ORDER
+		// 390-391 §390: a viewer sees the read-only state + note, no toggle). Every other
+		// tab stays admin-only, refused with the richer settings-forbidden page.
+		if acct.Role != roleAdmin && validTab(r.URL.Query().Get("tab")) != "api" {
+			s.settingsForbidden(w, r, acct)
+			return
+		}
+		h(w, r, acct)
+	})
+}
+
 const (
 	roleAdmin  = "admin"
 	roleViewer = "viewer"
@@ -95,7 +147,7 @@ func (s *server) setupForm(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
-	s.render(w, "setup", map[string]any{"Title": "Setup", "Token": r.URL.Query().Get("token")})
+	s.render(w, r, "setup", s.signinData(map[string]any{"Title": "Setup", "Token": r.URL.Query().Get("token")}))
 }
 
 func (s *server) setupSubmit(w http.ResponseWriter, r *http.Request) {
@@ -113,15 +165,15 @@ func (s *server) setupSubmit(w http.ResponseWriter, r *http.Request) {
 	password := r.FormValue("password")
 
 	if !auth.TokensEqual(token, s.setupToken) {
-		s.render(w, "setup", map[string]any{"Title": "Setup", "Token": token, "Error": "Invalid setup token."})
+		s.render(w, r, "setup", s.signinData(map[string]any{"Title": "Setup", "Token": token, "Error": "Invalid setup token."}))
 		return
 	}
 	if msg := validateCredentials(username, password); msg != "" {
-		s.render(w, "setup", map[string]any{"Title": "Setup", "Token": token, "Error": msg})
+		s.render(w, r, "setup", s.signinData(map[string]any{"Title": "Setup", "Token": token, "Error": msg}))
 		return
 	}
 	if _, err := s.createAccountRow(r, username, roleAdmin, password); err != nil {
-		s.render(w, "setup", map[string]any{"Title": "Setup", "Token": token, "Error": createError(err)})
+		s.render(w, r, "setup", s.signinData(map[string]any{"Title": "Setup", "Token": token, "Error": createError(err)}))
 		return
 	}
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
@@ -144,19 +196,125 @@ func (s *server) setupClosed(r *http.Request) bool {
 
 // --- login -----------------------------------------------------------------
 
+// The SignIn-family markup is the DESIGN-OWNED, frozen design-system/templates/signin.tmpl
+// (package v3.7.0, WORKFLOW v4), embedded read-only via the designfs package and parsed into
+// the shared template set here — mirroring the screen-2 error.tmpl and screen-3 profile.tmpl
+// landings. The repo-authored templates_signin.go const is deleted (#547): the login / totp /
+// totp-enroll / totp-recovery / forgot / forgot-sent / reset / reset-invalid / reset-done /
+// invite / invite-invalid pages, and the shared authbrand / authfoot / authcss partials, all
+// live in the frozen tmpl now (Setup's setup.tmpl reuses those partials — both parse into this
+// one set). The handlers below only wire data into the holes the tmpl declares; CI gate G1
+// byte-compares the tmpl to the package, so a needed change goes through SPEC-CHANGE and
+// returns in the next package version. signin.tmpl auto-embeds through designfs's existing
+// `templates/*.tmpl` glob, so no designfs.go change is needed.
+var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/signin.tmpl"))
+
+// The Setup screen (screen 5, #550) is the same story: the frozen design-owned
+// design-system/templates/setup.tmpl (package v3.7.0, WORKFLOW v4) replaces the repo-authored
+// templates_setup.go const (deleted). Its single "setup" define reuses the SignIn family's shared
+// authcss / authbrand / authfoot partials, so it MUST parse into the same set signin.tmpl parsed
+// into (above) for those refs to resolve at execution. Its holes are .Error / .Token / .Version
+// (the last via authfoot); the setupForm/setupSubmit handlers pass them through signinData so the
+// design-token opt-in and build version are never forgotten. setup.tmpl auto-embeds through
+// designfs's existing `templates/*.tmpl` glob, so no designfs.go change is needed.
+var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/setup.tmpl"))
+
+// buildVersion is the build version the frozen authfoot renders ({{.Version}}). A real
+// deployment reads VERGE_VERSION (the same env the worker's CT client reads), defaulting to
+// "dev". A VERGE_DEV build returns the pinned fixture version (devFixtureVersion) so the
+// SignIn/Setup goldens — whose chrome-less footer shows the version — never drift; the drift
+// test folds it back through fixtures.json → signin.version.
+func (s *server) buildVersion() string {
+	if s.devMode {
+		return devFixtureVersion
+	}
+	return env.OrDefault("VERGE_VERSION", "dev")
+}
+
+// signinData stamps the two holes EVERY signin.tmpl page needs onto a page's data map: the
+// design-token vocabulary opt-in (the "head" block inlines tokens/*.css only when .DesignTokens
+// is truthy, exactly as the error/profile renders do) and the build version the authfoot reads.
+// Each auth render passes its page-specific holes through here so neither is ever forgotten.
+func (s *server) signinData(data map[string]any) map[string]any {
+	if data == nil {
+		data = map[string]any{}
+	}
+	data["DesignTokens"] = true
+	data["Version"] = s.buildVersion()
+	return data
+}
+
+// ssoLoginProvider is one SSO button on the login page: the provider slug (its
+// /login/sso/<slug> href), display name, and the 1–2 letter mono Mark the frozen login.tmpl
+// renders in the button's chip. Mark is a NEW hole (SPEC-CHANGE #19 / v3.7.0): the repo derives
+// it from the name because the sso_provider row carries no mark of its own.
+type ssoLoginProvider struct {
+	Slug string
+	Name string
+	Mark string
+}
+
+// ssoMark derives the login button's mono mark from a provider name: the first letter of up to
+// the first two words, uppercased (e.g. "Okta" → "O", "Acme Corp" → "AC"). An empty name yields
+// an empty mark, which the tmpl simply renders as a blank chip.
+func ssoMark(name string) string {
+	mark := ""
+	for _, field := range strings.Fields(name) {
+		r := []rune(field)
+		if len(r) == 0 {
+			continue
+		}
+		mark += strings.ToUpper(string(r[0]))
+		if len(mark) == 2 {
+			break
+		}
+	}
+	return mark
+}
+
+// loginProviders is the SSO button list the login page renders. A real build lists the enabled
+// providers from the store and derives each Mark. A VERGE_DEV build returns the pinned signin
+// fixture provider set (devSigninProviders) instead, so the login golden is deterministic even
+// though the shared fixture DB also enables the Profile screen's linkable Google provider — a
+// dev-capture affordance in the same family as the pinned clock / incident id / minted token,
+// strictly gated to devMode and never reached in a real deployment. The no-sso variant (the
+// login-sso-none capture state) forces the empty list so the "not configured" branch renders.
+func (s *server) loginProviders(ctx context.Context, noSSO bool) []ssoLoginProvider {
+	if noSSO {
+		return nil
+	}
+	if s.devMode {
+		out := make([]ssoLoginProvider, 0, len(devSigninProviders))
+		for _, p := range devSigninProviders {
+			out = append(out, ssoLoginProvider{Slug: p.slug, Name: p.name, Mark: p.mark})
+		}
+		return out
+	}
+	rows := s.enabledSSOProviders(ctx)
+	out := make([]ssoLoginProvider, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, ssoLoginProvider{Slug: row.Slug, Name: row.Name, Mark: ssoMark(row.Name)})
+	}
+	return out
+}
+
 func (s *server) loginForm(w http.ResponseWriter, r *http.Request) {
 	if _, ok := s.currentAccount(r); ok {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
-	data := map[string]any{"Title": "Sign in", "SSOProviders": s.enabledSSOProviders(r.Context())}
+	// noSSO drives the login-sso-none capture state: a VERGE_DEV-only ?variant=no-sso forces
+	// the empty provider list so the frozen "SSO not configured" branch renders against the
+	// shared fixture DB (which has a provider enabled). Ignored in a real build.
+	noSSO := s.devMode && r.URL.Query().Get("variant") == "no-sso"
+	data := map[string]any{"Title": "Sign in", "SSOProviders": s.loginProviders(r.Context(), noSSO)}
 	// A freshly accepted invite lands here (invite acceptance creates the account
 	// but grants no session — the new operator signs in with the credentials they
 	// just set), so surface a notice rather than a bare form.
 	if r.URL.Query().Get("invited") != "" {
 		data["Notice"] = "Account created. Sign in with your new credentials."
 	}
-	s.render(w, "login", data)
+	s.render(w, r, "login", s.signinData(data))
 }
 
 func (s *server) loginSubmit(w http.ResponseWriter, r *http.Request) {
@@ -169,7 +327,7 @@ func (s *server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 	// proxy header).
 	acctKey, ipKey := loginAccountKey(username), loginIPKey(r)
 	if s.loginLimiter.locked(acctKey, ipKey) {
-		s.render(w, "login", s.loginData(r.Context(), lockoutMessage))
+		s.render(w, r, "login", s.loginData(r.Context(), lockoutMessage))
 		return
 	}
 
@@ -177,12 +335,12 @@ func (s *server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		auth.CheckPassword(dummyHash, password) // equalise timing with the found path
 		s.loginLimiter.fail(acctKey, ipKey)
-		s.render(w, "login", s.loginData(r.Context(), "Invalid username or password."))
+		s.render(w, r, "login", s.loginData(r.Context(), "Invalid username or password."))
 		return
 	}
 	if !auth.CheckPassword(acct.PasswordHash, password) {
 		s.loginLimiter.fail(acctKey, ipKey)
-		s.render(w, "login", s.loginData(r.Context(), "Invalid username or password."))
+		s.render(w, r, "login", s.loginData(r.Context(), "Invalid username or password."))
 		return
 	}
 	// The password is correct: clear the failed-attempt count so a few mistypes
@@ -190,10 +348,13 @@ func (s *server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 	// still faces the second factor, which the loginTOTP path throttles on its own.
 	s.loginLimiter.reset(acctKey, ipKey)
 	if acct.TotpEnabled {
-		if !s.setSignedCookie(w, r, pendingCookie, auth.KindPending, acct.ID, s.pendingTTL) {
+		if !s.setSignedCookie(w, r, pendingCookie, auth.KindPending, acct.ID, "", s.pendingTTL) {
 			return
 		}
-		s.render(w, "totp", map[string]any{"Title": "Two-factor"})
+		// .Username is the mid-login account the frozen totp step names in its sub-line (a NEW
+		// hole, v3.7.0) — threaded from the account resolved above, not the pending cookie
+		// (which carries no username), so the sub-line reads the real account.
+		s.render(w, r, "totp", s.signinData(map[string]any{"Title": "Two-factor", "Username": acct.Username}))
 		return
 	}
 	s.completeLogin(w, r, acct.ID)
@@ -223,11 +384,21 @@ func (s *server) loginTOTP(w http.ResponseWriter, r *http.Request) {
 	acctKey, ipKey := loginAccountKey(acct.Username), loginIPKey(r)
 	if s.loginLimiter.locked(acctKey, ipKey) {
 		s.clearCookie(w, pendingCookie)
-		s.render(w, "totp", map[string]any{"Title": "Two-factor", "Error": lockoutMessage})
+		s.render(w, r, "totp", s.signinData(map[string]any{"Title": "Two-factor", "Username": acct.Username, "Error": lockoutMessage}))
 		return
 	}
 
 	code := r.FormValue("code")
+	// A VERGE_DEV build accepts the pinned fixture TOTP code so the capture harness can drive
+	// the second factor deterministically (the enrol→recovery flow and any TOTP login), exactly
+	// as the dev clock/incident-id/token affordances pin their values. Gated to devMode; a real
+	// build always runs the full RFC 6238 verification below.
+	if s.devMode && code == devFixtureTOTPCode {
+		s.loginLimiter.reset(acctKey, ipKey)
+		s.clearCookie(w, pendingCookie)
+		s.completeLogin(w, r, acct.ID)
+		return
+	}
 	// The authenticator code is the primary path; a recovery code is the fallback
 	// when the authenticator is lost (SignIn delta #314). Both land in the one
 	// field, so a failed TOTP falls through to a single-use recovery-code redeem
@@ -273,10 +444,10 @@ func (s *server) loginTOTP(w http.ResponseWriter, r *http.Request) {
 		// pending cookie is invalidated so the attacker must start from the password.
 		if nowLocked := s.loginLimiter.fail(acctKey, ipKey); nowLocked {
 			s.clearCookie(w, pendingCookie)
-			s.render(w, "totp", map[string]any{"Title": "Two-factor", "Error": lockoutMessage})
+			s.render(w, r, "totp", s.signinData(map[string]any{"Title": "Two-factor", "Username": acct.Username, "Error": lockoutMessage}))
 			return
 		}
-		s.render(w, "totp", map[string]any{"Title": "Two-factor", "Error": "Incorrect code."})
+		s.render(w, r, "totp", s.signinData(map[string]any{"Title": "Two-factor", "Username": acct.Username, "Error": "Incorrect code."}))
 		return
 	}
 	s.loginLimiter.reset(acctKey, ipKey)
@@ -338,12 +509,98 @@ func (s *server) redeemRecoveryCode(r *http.Request, accountID int64, presented 
 }
 
 func (s *server) logout(w http.ResponseWriter, r *http.Request) {
+	// Sign-out revokes the server-side session row too (#405, ADR-0117), not just the
+	// cookie — the cookie is cleared here anyway, but revoking the row invalidates the
+	// session even if a copy of the cookie is presented again. logout has no resolved
+	// account, so the owner is read from the row itself inside the helper.
+	s.revokeCurrentSession(r)
 	s.clearCookie(w, sessionCookie)
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
+// revokeCurrentSession marks the caller's own session row revoked (#405, ADR-0117), so
+// a sign-out or an explicit end-session actually invalidates the server-side session
+// rather than only clearing the cookie. It reads the session cookie, verifies it,
+// resolves the live row by the hash of the opaque token the cookie carries, and revokes
+// that one row scoped to its owner (the account_id predicate means no account can revoke
+// another's by guessing an id). Every step is best-effort: a missing cookie, an old
+// pre-registry cookie, or an already-dead session is simply nothing to revoke, and the
+// caller clears the cookie and redirects regardless.
+func (s *server) revokeCurrentSession(r *http.Request) {
+	c, err := r.Cookie(sessionCookie)
+	if err != nil {
+		return
+	}
+	sess, err := auth.VerifySession(s.key, c.Value, auth.KindSession, s.now())
+	if err != nil {
+		return
+	}
+	ctx := r.Context()
+	row, err := s.store.GetSessionByTokenHash(ctx, db.GetSessionByTokenHashParams{
+		TokenHash: hashToken(sess.Token),
+		ExpiresAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+	})
+	if err != nil {
+		return
+	}
+	if err := s.store.RevokeSession(ctx, db.RevokeSessionParams{
+		ID:        row.ID,
+		AccountID: row.AccountID,
+		RevokedAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+	}); err != nil {
+		log.Printf("web: revoke session: %v", err)
+	}
+}
+
+// currentSessionID resolves the request cookie to the id of the live session row making
+// this request (#406) — the same three steps currentAccount takes (verify the signed
+// cookie, then look the session up by the hash of the opaque token it carries), returning
+// only the row id. It backs the Profile sessions surface: the "this device" badge marks
+// the row whose id this returns, and the revoke-one / sign-out-others handlers use it to
+// tell the current session apart from the rest. ok=false for a missing, unverifiable, or
+// pre-registry cookie, in which case no row is treated as current.
+func (s *server) currentSessionID(r *http.Request) (int64, bool) {
+	c, err := r.Cookie(sessionCookie)
+	if err != nil {
+		return 0, false
+	}
+	sess, err := auth.VerifySession(s.key, c.Value, auth.KindSession, s.now())
+	if err != nil {
+		return 0, false
+	}
+	row, err := s.store.GetSessionByTokenHash(r.Context(), db.GetSessionByTokenHashParams{
+		TokenHash: hashToken(sess.Token),
+		ExpiresAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+	})
+	if err != nil {
+		return 0, false
+	}
+	return row.ID, true
+}
+
 func (s *server) completeLogin(w http.ResponseWriter, r *http.Request, id int64) {
-	if !s.setSignedCookie(w, r, sessionCookie, auth.KindSession, id, s.sessionTTL) {
+	// #405 (ADR-0117): open a server-side session row at login. Mint an opaque token —
+	// the plaintext rides in the signed cookie, only its SHA-256 hash is stored, so a
+	// leaked table yields nothing presentable. Store the raw User-Agent (the Profile UI
+	// formats it) and the request's source IP (RemoteAddr only, never a proxy header).
+	plaintext, hash, err := newOpaqueToken()
+	if err != nil {
+		s.serverError(w, "mint session token", err)
+		return
+	}
+	if _, err := s.store.CreateSession(r.Context(), db.CreateSessionParams{
+		AccountID: id,
+		TokenHash: hash,
+		UserAgent: r.UserAgent(),
+		Ip:        sessionIP(r),
+		ExpiresAt: pgtype.Timestamptz{Time: s.now().Add(s.sessionTTL), Valid: true},
+	}); err != nil {
+		// Treat a registry-insert failure like a signing failure: fail closed with a 500
+		// rather than handing out a cookie whose session has no row to validate against.
+		s.serverError(w, "create session", err)
+		return
+	}
+	if !s.setSignedCookie(w, r, sessionCookie, auth.KindSession, id, plaintext, s.sessionTTL) {
 		return
 	}
 	http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -351,46 +608,127 @@ func (s *server) completeLogin(w http.ResponseWriter, r *http.Request, id int64)
 
 // --- home / Dashboard -------------------------------------------------------
 
+// The Dashboard screen is now byte-served from the design-owned, frozen dashboard.tmpl
+// (package v3.9.0, WORKFLOW v4), embedded read-only via the designfs package and parsed
+// into the shared set here. The repo authors no dashboard markup/CSS/JS: templates_dashboard.go
+// is deleted (its "home" + "dashboard" defines move to the frozen tmpl); only the empty-estate
+// "firstrun" define stays repo-authored (templates_firstrun.go) until map #20. dashboard.tmpl's
+// most-recent-signals rows call the "sevbadge" define signals.tmpl declares — both parse into the
+// one shared `tmpl` set, so it resolves at execute time. dashboard.tmpl auto-embeds through
+// designfs's existing `templates/*.tmpl` glob, so no designfs.go change is needed.
+var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/dashboard.tmpl"))
+
+// The empty-estate first-run checklist is now byte-served from the design-owned, frozen
+// firstrun.tmpl (package v3.12.0, WORKFLOW v4, map #20): a BARE define "firstrun" — no
+// head/chrome/foot — that dashboard.tmpl's "home" define wraps when .EmptyEstate is true.
+// The repo authors no first-run markup/CSS: templates_firstrun.go is deleted; its "firstrun"
+// define moves to the frozen tmpl, which parses into the SAME shared `tmpl` set as
+// dashboard.tmpl so "home" resolves it at execute time. It auto-embeds through designfs's
+// existing templates/*.tmpl glob.
+var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/firstrun.tmpl"))
+
 func (s *server) home(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	if r.URL.Path != "/" {
 		s.notFound(w, r)
 		return
 	}
-	s.render(w, "home", s.dashboardData(r, acct))
+	// VERGE_DEV pixel-parity path: serve the pinned fixtures.json dashboard slice so the seeded
+	// instance renders byte-for-byte what the golden composes (as coverage/exposure/signals do).
+	// The empty-estate first-run wrap rides a dev ?variant=empty-estate query (states.json), which
+	// selects the pinned firstrun slice so its golden composes byte-for-byte. A real deployment
+	// (devMode == false) falls through to the honest live reads below.
+	if s.devMode {
+		if r.URL.Query().Get("variant") == devFirstRunVariant {
+			s.render(w, r, "home", s.firstRunFixtureData(acct))
+			return
+		}
+		s.render(w, r, "home", s.dashboardFixtureData(acct, r))
+		return
+	}
+	s.render(w, r, "home", s.dashboardData(r, acct))
 }
 
 // dashVantageView is one provisioned prober shaped for the vantage-health card:
-// its name, verified class and current availability.
+// its name, verified class, current availability, and the measured connect
+// latency the card renders beside it (P0.5). Latency is the spec's mono "34ms"
+// reading when a first measurement exists and empty when it does not, in which
+// case the template renders the pending em dash — never a fabricated number.
 type dashVantageView struct {
-	Name  string
-	Class string
-	Avail string
+	Name    string
+	Class   string
+	Avail   string
+	Latency string
 }
 
-// dashSignalRow is one rule's current firing census for the open-signal register:
-// the rule name, its subject kind and how many subjects it fires on right now. A
-// signal carries no severity (CONTEXT.md; signals.go), so this row carries none —
-// it is a current-state count, never a scored or timestamped finding.
-type dashSignalRow struct {
-	Rule  string
-	Kind  string
-	Fired int
+// dashSevBar is one bar of the "By severity" card (Dashboard.jsx): a severity level,
+// the count of currently-firing signal instances at that level, and the bar width as a
+// percent of the busiest level. Severity is the five-level ramp (#442, internal/signal)
+// — the datum ADR-0116 has built rather than empty-stating this card.
+type dashSevBar struct {
+	Sev   string
+	Count int
+	Pct   int
 }
 
-// firstRunStep is one step of the empty-estate first-run checklist (#302), shaped
-// after FirstRun.jsx's steps array: a number, whether the real read shows it done,
-// its title and detail, an optional action (label + href) shown only while the step
-// is open, and a Gated flag. Gated step 4 renders a disabled action naming the gate
-// rather than a live one — its precondition is a real internet vantage, never a
-// fabricated "done".
+// dashRecentSignal is one row of the most-recent Signals register (Dashboard.jsx): a
+// firing instance's severity, its human signal title, the asset and port it fires on,
+// and how long ago it was seen. Shaped from the per-instance datum (#442, signals.go
+// deriveSignalInstances) — every field a real read, none fabricated. The whole row
+// deep-links into the Signals drawer at /signals?view={ViewKey} (#21f, Dashboard.jsx
+// onRowClick={onOpenSignals}); ViewKey is the fired instance's SIG id — the same token the
+// Signals screen's ?view= resolves — and SevLabel its capitalised severity for the sevbadge.
+type dashRecentSignal struct {
+	Severity string
+	SevLabel string
+	Title    string
+	Asset    string
+	Port     string
+	Seen     string
+	ViewKey  string
+}
+
+// dashSilentZone is the Coverage card's staleness callout (Dashboard.jsx StalenessBadge,
+// SPEC-CHANGE #21e3): a source that has gone silent — its staleness age (Bound, e.g. "9d",
+// empty where no age is read) and the subject line naming what went quiet. Nil where nothing
+// is silent, so the card renders no callout rather than a fabricated one. It replaces the
+// prior bare .SilentVantage string with the spec's badge + subject shape.
+type dashSilentZone struct {
+	Bound string
+	Text  string
+}
+
+// dashStat is one cell of the framed stat band (Dashboard.jsx): its label, formatted
+// value (an em dash where the read failed), caption, an optional live pulse, and its
+// vs-last-batch delta (P0.2, #443) with the tone the movement's meaning gives it —
+// bad / good / neutral, never the severity ramp. HasDelta is false where no previous
+// batch exists, so the cell shows its value with no chip rather than a fabricated +0.
+type dashStat struct {
+	Label    string
+	Value    string
+	Caption  string
+	Live     bool
+	HasDelta bool
+	Change   int
+	Tone     string
+}
+
+// firstRunStep is one step of the empty-estate first-run checklist (#302, #20), shaped to the
+// holes the frozen firstrun.tmpl reads: .Num, .Done, .Title, .Detail, and — when .HasAction —
+// exactly ONE of .ActionHref (a link, steps 2/3) or .ActionPost (a form post, step 4's
+// "Run first batch" enqueues and cannot be a GET), plus .ActionLabel. Step 4 is .Gated until a
+// real internet vantage exists: while gated the tmpl renders a disabled secondary button whose
+// title is .GateTitle, never a fabricated "done" (#25f). Each .Done is the honest read.
 type firstRunStep struct {
-	N           int
+	Num         int
 	Done        bool
 	Title       string
 	Detail      string
+	HasAction   bool
 	ActionLabel string
 	ActionHref  string
+	ActionPost  string
 	Gated       bool
+	GateTitle   string
 }
 
 // dashboardData assembles the Dashboard's real figures of the shape the example
@@ -410,12 +748,23 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 	}
 
 	// Vantage health — the provisioned probers and their availability — plus the
-	// currently-unreachable set, which carries the "scans continue" banner.
+	// currently-unreachable set, which carries the "scans continue" banner. The class
+	// chip is DERIVED per read from each vantage's presented-address facts (#709), never
+	// the vestigial `class` column; covered is the one binding this render assembles.
+	// On a coverage-read failure covered is the closed direction (nothing covered), so a
+	// presented vantage over-reports internet rather than mislabelling it internal.
+	covered, cerr := s.addressScopeCovered(ctx)
+	if cerr != nil {
+		log.Printf("web: dashboard: address scope coverage: %v", cerr)
+		covered = func(netip.Addr) bool { return false }
+	}
 	var vantages []dashVantageView
 	if rows, verr := s.store.ListVantages(ctx); verr == nil {
 		for _, v := range rows {
 			vantages = append(vantages, dashVantageView{
-				Name: v.Name, Class: v.Class, Avail: v.Availability.String,
+				Name: v.Name, Class: string(vantageFactsClass(v.DialledAddr, v.Egress, covered)),
+				Avail:   v.Availability.String,
+				Latency: vantageLatencyLabel(v.LatencyMs),
 			})
 		}
 	} else {
@@ -444,16 +793,23 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 	}
 
 	services, hasServices := 0, false
+	var walked []netip.Addr
 	if rows, serr := s.store.ListCurrentServiceSubjects(ctx, db.ListCurrentServiceSubjectsParams{
 		Search: "", AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	}); serr == nil {
 		services, hasServices = len(rows), true
+		// The distinct addresses these Services sit on are the batch-walked subjects the
+		// #19c address-scope meters count (cold.go apertureMeters), so the card's Coverage
+		// meters read the same numerator the Coverage screen does.
+		walked = walkedAddresses(rows)
 	} else {
 		log.Printf("web: dashboard: list service subjects: %v", serr)
 	}
 
 	nameScopes, addrScopes, hasScopes := 0, 0, false
+	var seedRows []db.ListSeedsRow
 	if rows, serr := s.store.ListSeeds(ctx); serr == nil {
+		seedRows = rows
 		for _, sd := range rows {
 			if sd.Kind == "address" {
 				addrScopes++
@@ -466,30 +822,75 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 		log.Printf("web: dashboard: list seeds: %v", serr)
 	}
 
-	// Open signals — the current count of firing signals and the per-rule firing
-	// census. A signal is a current-state census member, so this is the one honest
-	// signal figure: no severity to rank, no per-signal recency feed to list. On a
-	// corpus failure the signal regions degrade to unavailable rather than 500ing.
+	// Open signals — the current firing count, the per-severity histogram (the "By
+	// severity" bars), and the most-recent per-instance rows. Severity (#442) and the
+	// per-instance identity (#442) are real datums the design renders, so this reads
+	// them rather than empty-stating the cards (ADR-0116). The corpus is folded once:
+	// the count, the histogram, the critical tally and the vs-last-batch signal deltas
+	// (P0.2) all read the same evaluation. On a corpus failure the signal regions
+	// degrade to unavailable rather than 500ing the landing page.
 	openSignals, hasOpenSignals := 0, false
-	var firing []dashSignalRow
+	criticalSignals := 0
+	sevCounts := map[string]int{}
+	var recentSignals []dashRecentSignal
+	// firedPairs is the flat (rule, subject) fired set the vs-last-batch signal deltas
+	// read (P0.2), collected from the same census fold.
+	var firedPairs []firedSignal
 	if corpus, cerr := s.buildSignalCorpus(r); cerr == nil {
-		for _, c := range signal.EvaluateCorpus(corpus) {
-			openSignals += len(c.Fired)
-			if len(c.Fired) > 0 {
-				firing = append(firing, dashSignalRow{
-					Rule: c.Rule, Kind: signal.SubjectKindFor(c.Rule), Fired: len(c.Fired),
-				})
+		censuses := signal.EvaluateCorpus(corpus)
+		for _, c := range censuses {
+			sev, _ := signal.SeverityFor(c.Rule)
+			for _, m := range c.Fired {
+				openSignals++
+				firedPairs = append(firedPairs, firedSignal{Rule: c.Rule, Subject: m.Subject})
+				sevCounts[sev.String()]++
+				if sev == signal.SevCritical {
+					criticalSignals++
+				}
 			}
 		}
 		hasOpenSignals = true
-		sort.Slice(firing, func(i, j int) bool {
-			if firing[i].Fired != firing[j].Fired {
-				return firing[i].Fired > firing[j].Fired
+		// The most-recent register: the flat per-instance rows (#442), minted once on
+		// this read and ordered critical→info by deriveSignalInstances, of which the card
+		// shows the first six. Asset/Port are split off the subject key for the two columns.
+		if insts, ierr := s.deriveSignalInstances(ctx, censuses); ierr == nil {
+			for _, in := range insts {
+				if len(recentSignals) == 6 {
+					break
+				}
+				recentSignals = append(recentSignals, dashRecentSignal{
+					Severity: in.Severity,
+					SevLabel: sevLabel(in.Severity),
+					Title:    in.Title,
+					Asset:    strings.TrimSuffix(in.Asset, in.Port),
+					Port:     in.Port,
+					Seen:     in.Seen,
+					ViewKey:  in.SigID,
+				})
 			}
-			return firing[i].Rule < firing[j].Rule
-		})
+		} else {
+			log.Printf("web: dashboard: derive signal instances: %v", ierr)
+		}
 	} else {
 		log.Printf("web: dashboard: build signal corpus: %v", cerr)
+	}
+
+	// By-severity bars: the histogram in ramp order (critical→info), each bar scaled to
+	// the busiest level. Every level renders even at zero, so the ramp reads in full.
+	var sevBars []dashSevBar
+	maxSev := 0
+	for _, sv := range signal.SevOrder {
+		if n := sevCounts[sv.String()]; n > maxSev {
+			maxSev = n
+		}
+	}
+	for _, sv := range signal.SevOrder {
+		n := sevCounts[sv.String()]
+		pct := 0
+		if maxSev > 0 {
+			pct = n * 100 / maxSev
+		}
+		sevBars = append(sevBars, dashSevBar{Sev: sv.String(), Count: n, Pct: pct})
 	}
 
 	// First-run state — the home renders the four-step checklist instead of the
@@ -502,6 +903,8 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 	// Each step is a real read: a scope is declared, a zone file supplied, an
 	// internet vantage provisioned, a batch dispatched. Step 4 is gated on the
 	// internet vantage (the same signal exposure.go withholds on).
+	// The derived class chip already carries the per-read verification; the first-run
+	// step reads the same derived value (the signal exposure.go withholds on).
 	internetVantage := false
 	for _, v := range vantages {
 		if v.Class == "internet" {
@@ -524,14 +927,100 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 
 	var steps []firstRunStep
 	if emptyEstate {
-		steps = firstRunChecklist(nameScopes+addrScopes, zoneUploaded, internetVantage, scanDispatched)
+		steps = firstRunChecklist(nameScopes+addrScopes, firstSeedName(seedRows), zoneUploaded, internetVantage, scanDispatched)
 	}
+
+	// The header sub-line's "last full scan Xm ago · next in Yh Zm" instants (P0.4,
+	// #445): real reads over the scheduler's Dispatch and Scan corpora, assembled in
+	// scans.go.
+	schedule := s.scanSchedule(ctx)
 	firstRunDone := 0
 	for _, st := range steps {
 		if st.Done {
 			firstRunDone++
 		}
 	}
+
+	// Vs-last-batch stat deltas (P0.2, #443): the signed change each stat cell shows
+	// against the previous batch. Best-effort — a Known=false result (no previous
+	// batch, or a corpus read failed) leaves the cells in their no-delta state, never a
+	// fabricated +0. Computed before the stat band so each cell carries its own chip.
+	deltas := s.dashboardDeltas(ctx, firedPairs)
+
+	// Exposed-services and certs-expiring current values (P2.1). Read standalone (the
+	// delta's Current is withheld with no previous batch) the same way the delta derives
+	// them, so value and chip agree when both are present.
+	exposed, hasExposed := s.currentExposedCount(ctx)
+	certsExpiring, hasCerts := s.currentCertsExpiring(ctx)
+
+	// The framed stat band's five cells (Dashboard.jsx): each a current-state value —
+	// an em dash where its read failed — its caption, and, where a previous batch
+	// exists, its vs-last-batch delta toned by the movement's meaning (more open
+	// signals / criticals / exposure / expiring certs is bad; fewer is good; estate
+	// growth is neutral).
+	assetsWatched := names + services
+	hasAssets := hasNames && hasServices
+	statBand := []dashStat{
+		{Label: "Open signals", Value: statValue(openSignals, hasOpenSignals), Caption: "firing across your estate",
+			Live: len(active) > 0, HasDelta: deltas.Known, Change: deltas.OpenSignals.Change(), Tone: statTone(deltas.OpenSignals.Change(), true)},
+		{Label: "Critical", Value: statValue(criticalSignals, hasOpenSignals), Caption: "highest severity",
+			HasDelta: deltas.Known, Change: deltas.Critical.Change(), Tone: statTone(deltas.Critical.Change(), true)},
+		{Label: "Assets watched", Value: statValue(assetsWatched, hasAssets),
+			Caption:  fmt.Sprintf("%d %s · %d %s", nameScopes, plural(nameScopes, "domain", "domains"), addrScopes, plural(addrScopes, "range", "ranges")),
+			HasDelta: deltas.Known, Change: deltas.AssetsWatched.Change(), Tone: "neutral"},
+		{Label: "Exposed services", Value: statValue(exposed, hasExposed), Caption: "reachable from the internet",
+			HasDelta: deltas.Known, Change: deltas.Exposed.Change(), Tone: statTone(deltas.Exposed.Change(), true)},
+		{Label: "Certs expiring ≤30d", Value: statValue(certsExpiring, hasCerts), Caption: "expiring within 30 days",
+			HasDelta: deltas.Known, Change: deltas.CertsExpiring.Change(), Tone: statTone(deltas.CertsExpiring.Change(), true)},
+	}
+
+	// Coverage card (P2.1, PARITY-CHART collision #2): CoverageMeters over the declared
+	// scopes — the same real read the Coverage screen renders (cold.go apertureMeters):
+	// an address scope's #19c counted/total (covered subjects walked over the enumerable
+	// addresses of its range), a name scope's census (no denominator, ADR-0072/0095) —
+	// and, where a vantage has gone silent, a real StalenessBadge naming it (cold.go's
+	// "silent" currency, ADR-0108). Nothing fabricated: the card renders only what is
+	// read, and the re-skinned "detail is on its own screen" pointer is gone.
+	var coverageMeters []coverageMeterView
+	if hasScopes {
+		var zones []db.ListZoneDeclarationsRow
+		if z, zerr := s.store.ListZoneDeclarations(ctx); zerr == nil {
+			zones = z
+		}
+		coverageMeters = apertureMeters(seedRows, zones, walked)
+	}
+	// A silent source drives the Coverage card's staleness callout (#21e3): where a
+	// provisioned vantage has stopped reporting, the card names the silent position. Bound
+	// (a staleness age) is left empty — the live read carries no honest age yet, so the badge
+	// renders "no reports" with no fabricated figure; nil where nothing is silent.
+	var silentZone *dashSilentZone
+	if len(unavailable) > 0 {
+		silentZone = &dashSilentZone{Text: "position " + unavailable[0] + " went silent"}
+	}
+
+	// ScanDetail — the running-scan Progress detail line ("N subjects queued", #21e): the
+	// subjects still in flight across the active dispatches, read off the same dispatch-progress
+	// corpus the active-kinds fold reads. Best-effort: a failed read leaves the detail blank
+	// rather than fabricating a figure.
+	scanDetail := ""
+	if len(active) > 0 {
+		if rows, derr := s.store.ListDispatchProgress(ctx, scansHistoryLimit); derr == nil {
+			queued := 0
+			for _, row := range rows {
+				if dv := toDispatchView(row); dv.Active {
+					queued += int(dv.InFlight)
+				}
+			}
+			scanDetail = fmt.Sprintf("%d %s queued", queued, plural(queued, "subject", "subjects"))
+		} else {
+			log.Printf("web: dashboard: scan detail: list dispatches: %v", derr)
+		}
+	}
+
+	// A server-rendered dismiss for the unreachable-vantage banner: the X links to the
+	// same page with ?probe=dismissed, and the banner withholds while that is set —
+	// the stateless twin of the spec's useState dismiss (Dashboard.jsx probeBanner).
+	probeDismissed := r.URL.Query().Get("probe") == "dismissed"
 
 	data := map[string]any{
 		"Title": "Dashboard", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
@@ -545,19 +1034,22 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 		"Vantages":    vantages,
 		"Unavailable": unavailable,
 
-		"OpenSignals":    openSignals,
-		"HasOpenSignals": hasOpenSignals,
-		"Firing":         firing,
+		"StatBand":      statBand,
+		"SevBars":       sevBars,
+		"HasSignals":    hasOpenSignals,
+		"RecentSignals": recentSignals,
 
-		"Names":       names,
-		"HasNames":    hasNames,
-		"Services":    services,
-		"HasServices": hasServices,
-		"NameScopes":  nameScopes,
-		"AddrScopes":  addrScopes,
-		"Scopes":      nameScopes + addrScopes,
-		"HasScopes":   hasScopes,
-		"ActiveScans": len(active),
+		"CoverageMeters": coverageMeters,
+		"SilentZone":     silentZone,
+
+		"ScanDetail":     scanDetail,
+		"ScanSchedule":   schedule,
+		"ProbeDismissed": probeDismissed,
+
+		// Retained for the delta derivation half; the P2.1 stat band above reads
+		// StatBand, but Deltas/HasDeltas stay exposed for parity with the other reads.
+		"Deltas":    deltas,
+		"HasDeltas": deltas.Known,
 	}
 	// Light the nav's Signals pill with the live firing count when there is one.
 	if hasOpenSignals && openSignals > 0 {
@@ -566,47 +1058,113 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 	return data
 }
 
-// firstRunChecklist builds the four setup steps for the empty-estate home (#302),
-// ported from FirstRun.jsx's steps array with the sample data swapped for the real
-// reads passed in. Each step's Done is the honest read — never a fabricated done —
-// and its action is offered only while the step is open. Step 4 is gated on the
-// internet vantage: without one its action is disabled and names the gate, matching
-// the withheld/gating pattern exposure.go uses for the same signal.
-func firstRunChecklist(scopes int, zoneUploaded, internetVantage, scanDispatched bool) []firstRunStep {
+// statValue formats a stat cell's current value: a thousands-separated integer, or an
+// em dash where the read did not resolve (never a fabricated zero).
+func statValue(n int, ok bool) string {
+	if !ok {
+		return "—"
+	}
+	return commaInt(n)
+}
+
+// commaInt renders an integer with thousands separators ("1,284"), matching the stat
+// band's numerals (Dashboard.jsx).
+func commaInt(n int) string {
+	s := strconv.Itoa(n)
+	neg := strings.HasPrefix(s, "-")
+	if neg {
+		s = s[1:]
+	}
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		if i > 0 && (len(s)-i)%3 == 0 {
+			b.WriteByte(',')
+		}
+		b.WriteByte(s[i])
+	}
+	if neg {
+		return "-" + b.String()
+	}
+	return b.String()
+}
+
+// statTone maps a stat cell's signed movement to the delta chip's semantic tone — the
+// tone says whether the direction is good, never the severity ramp. riseIsBad is true
+// for a metric where growth is the bad direction (open signals, criticals, exposure,
+// expiring certs); no movement is neutral.
+func statTone(change int, riseIsBad bool) string {
+	switch {
+	case change == 0:
+		return "neutral"
+	case (change > 0) == riseIsBad:
+		return "bad"
+	default:
+		return "good"
+	}
+}
+
+// firstRunChecklist builds the four setup steps for the empty-estate home (#302, #20), from the
+// real reads passed in. Each step's Done is the honest read — never a fabricated done — and its
+// action is offered only while it is undone (.HasAction = !Done). Steps 2/3 offer a link
+// (.ActionHref → /scope, /settings/vantages); step 4 offers a form POST (.ActionPost →
+// /onboarding/finish, which enqueues the first scan — it cannot be a GET, #25f). Step 4 is gated
+// on the internet vantage: without one its action renders disabled and names the gate, matching
+// the withheld/gating pattern exposure.go uses for the same signal. The step copy is the fixture
+// copy verbatim (firstrun slice); the step-1 detail names the declared seed the read surfaces.
+func firstRunChecklist(scopes int, seedName string, zoneUploaded, internetVantage, scanDispatched bool) []firstRunStep {
 	scopeDetail := "A seed is a boundary, not a starting gun"
 	if scopes > 0 {
-		unit := "scopes"
-		if scopes == 1 {
-			unit = "scope"
+		lead := seedName
+		if lead == "" {
+			unit := "scopes"
+			if scopes == 1 {
+				unit = "scope"
+			}
+			lead = fmt.Sprintf("%d %s", scopes, unit)
 		}
-		scopeDetail = fmt.Sprintf("%d %s declared · a seed is a boundary, not a starting gun", scopes, unit)
+		scopeDetail = lead + " declared · a seed is a boundary, not a starting gun"
 	}
 	return []firstRunStep{
 		{
-			N: 1, Done: scopes > 0,
+			Num: 1, Done: scopes > 0,
 			Title: "Declare your domain", Detail: scopeDetail,
-			ActionLabel: "Declare scope", ActionHref: "/scope",
+			HasAction: scopes == 0, ActionLabel: "Declare scope", ActionHref: "/scope",
 		},
 		{
-			N: 2, Done: zoneUploaded,
-			Title:       "Upload a zone file",
-			Detail:      "Enables removal detection — you stopped telling us becomes detectable",
-			ActionLabel: "Upload zone", ActionHref: "/scope",
+			Num: 2, Done: zoneUploaded,
+			Title:     "Upload a zone file",
+			Detail:    "Enables removal detection — you stopped telling us becomes detectable",
+			HasAction: !zoneUploaded, ActionLabel: "Upload zone", ActionHref: "/scope",
 		},
 		{
-			N: 3, Done: internetVantage,
-			Title:       "Add an internet vantage",
-			Detail:      "Exposure needs an outside observer, unconditionally",
-			ActionLabel: "Provision prober", ActionHref: "/scope",
+			Num: 3, Done: internetVantage,
+			Title:     "Add an internet vantage",
+			Detail:    "Exposure needs an outside observer, unconditionally",
+			HasAction: !internetVantage, ActionLabel: "Provision prober", ActionHref: "/settings/vantages",
 		},
 		{
-			N: 4, Done: scanDispatched,
-			Title:       "Run the first batch",
-			Detail:      "Scans dispatch on cadence; kick the first one now",
-			ActionLabel: "Run first batch", ActionHref: "/scans",
-			Gated: !internetVantage,
+			Num: 4, Done: scanDispatched,
+			Title:     "Run the first batch",
+			Detail:    "Scans dispatch on cadence; kick the first one now",
+			HasAction: !scanDispatched, ActionLabel: "Run first batch", ActionPost: "/onboarding/finish",
+			Gated: !internetVantage, GateTitle: "Needs an internet vantage first",
 		},
 	}
+}
+
+// firstSeedName returns a display name for the first declared seed — its domain (a name scope)
+// or its CIDR (an address scope) — for the step-1 detail. Empty when no seed is read, in which
+// case the checklist falls back to a count-based lead rather than fabricating a name.
+func firstSeedName(rows []db.ListSeedsRow) string {
+	for _, sd := range rows {
+		if sd.NameDomain.Valid && sd.NameDomain.String != "" {
+			return sd.NameDomain.String
+		}
+		if sd.AddressCidr != nil {
+			return sd.AddressCidr.String()
+		}
+	}
+	return ""
 }
 
 // --- account management -----------------------------------------------------
@@ -640,23 +1198,49 @@ func (s *server) createAccount(w http.ResponseWriter, r *http.Request, acct db.A
 	s.renderSettings(w, r, acct, settingsForms{tab: "team", notice: "Account " + username + " created."})
 }
 
+// totpEnable is the profile "Enable two-factor" POST (screen 3, profile.tmpl). It opens the
+// enrollment screen through the shared beginTOTPEnroll path.
 func (s *server) totpEnable(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	// Do not let an already-enrolled account re-roll its secret through this
-	// path: it would set totp_enabled=false and strip the second factor until
-	// a fresh confirm — a downgrade a stolen session must not be able to do.
-	if acct.TotpEnabled {
-		http.Redirect(w, r, "/", http.StatusSeeOther)
-		return
-	}
+	s.beginTOTPEnroll(w, r, acct)
+}
+
+// totpEnrollForm is the GET entry point onto the same enrollment screen (v3.7.0): the frozen
+// SignIn "enroll" capture state navigates GET /account/totp/enroll (handlers.go), which
+// page.goto can drive where the profile POST cannot. Same rendered page, same holes.
+func (s *server) totpEnrollForm(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	s.beginTOTPEnroll(w, r, acct)
+}
+
+// beginTOTPEnroll rolls a fresh TOTP secret, stores it (encrypted at rest, ADR-0053), and
+// renders the enrollment screen (QR + secret + confirm). A real build refuses when two-factor
+// is already on — re-rolling would set totp_enabled=false and strip the second factor until a
+// fresh confirm, a downgrade a stolen session must not be able to do. A VERGE_DEV build instead
+// resets to a known enrollment baseline (the pinned devFixtureEnrollSecret, any prior enrolment
+// on the account cleared) so the enroll and recovery goldens render deterministically no matter
+// which capture state ran against the shared fixture DB before.
+func (s *server) beginTOTPEnroll(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	secret, err := auth.NewTOTPSecret()
 	if err != nil {
 		s.serverError(w, "generate totp secret", err)
 		return
 	}
-	// #337: the secret is a bearer authenticator seed, so it is encrypted at rest with
-	// the file-backed AEAD sub-key before it touches Postgres (ADR-0053). The cleartext
-	// base32 stays in this handler only, to drive the enrollment QR and manual-entry
-	// fallback below; the column holds ciphertext.
+	if s.devMode {
+		// Pixel-parity capture only: reset any prior enrolment on this account (a previous
+		// recovery state may have enabled it) and pin the secret, so GET /account/totp/enroll
+		// always renders the enroll page with the fixture secret + QR.
+		if err := s.devResetTOTPEnroll(r.Context(), acct.ID); err != nil {
+			s.serverError(w, "dev: reset totp enrolment", err)
+			return
+		}
+		secret = devFixtureEnrollSecret
+	} else if acct.TotpEnabled {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+	// #337: the secret is a bearer authenticator seed, so it is encrypted at rest with the
+	// file-backed AEAD sub-key before it touches Postgres (ADR-0053). The cleartext stays in
+	// this handler only, to drive the enrollment QR and manual-entry fallback; the column holds
+	// ciphertext.
 	enc, err := auth.EncryptTOTPSecret(s.totpKey, secret)
 	if err != nil {
 		s.serverError(w, "encrypt totp secret", err)
@@ -668,7 +1252,7 @@ func (s *server) totpEnable(w http.ResponseWriter, r *http.Request, acct db.Acco
 		s.serverError(w, "store totp secret", err)
 		return
 	}
-	s.render(w, "totp-enroll", totpEnrollData(acct.Username, secret, ""))
+	s.render(w, r, "totp-enroll", s.signinData(totpEnrollData(acct.Username, secret, "")))
 }
 
 // totpEnrollData assembles the template data for the enrollment screen: the
@@ -686,7 +1270,7 @@ func totpEnrollData(username, secret, errMsg string) map[string]any {
 		data["Error"] = errMsg
 	}
 	if svg, err := qr.SVG([]byte(uri), "Two-factor enrollment QR code for "+username); err == nil {
-		data["OtpauthQR"] = template.HTML(svg) //nolint:gosec // SVG is built by our own encoder, not user input
+		data["OtpauthQR"] = template.HTML(svg) // #nosec G203 (SVG built by internal qr encoder; username html.EscapeString-escaped into aria-label)
 	}
 	return data
 }
@@ -697,20 +1281,25 @@ func (s *server) totpConfirm(w http.ResponseWriter, r *http.Request, acct db.Acc
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
-	// #337: the stored secret is ciphertext; decrypt to the cleartext base32 the
-	// verifier and the re-render's QR/manual-entry fallback need. Enrollment just wrote
-	// valid ciphertext, so a decryption failure here is a hard fault — a legacy cleartext
-	// row, corruption, or a mis-derived key — surfaced loudly rather than tolerated as a
-	// wrong code.
-	secret, derr := auth.DecryptTOTPSecret(s.totpKey, fresh.TotpSecret.String)
-	if derr != nil {
-		s.serverError(w, "decrypt totp secret", derr)
-		return
-	}
-	if !auth.VerifyTOTP(secret, r.FormValue("code"), s.now()) {
-		s.render(w, "totp-enroll", totpEnrollData(acct.Username, secret,
-			"Incorrect code. Two-factor is not enabled."))
-		return
+	// A VERGE_DEV build accepts the pinned fixture code so the recovery capture state can
+	// confirm enrolment deterministically (the fixture enroll secret is a display string, not a
+	// verifiable base32 seed). Gated to devMode; a real build runs the full verification below.
+	if !(s.devMode && r.FormValue("code") == devFixtureTOTPCode) {
+		// #337: the stored secret is ciphertext; decrypt to the cleartext base32 the
+		// verifier and the re-render's QR/manual-entry fallback need. Enrollment just wrote
+		// valid ciphertext, so a decryption failure here is a hard fault — a legacy cleartext
+		// row, corruption, or a mis-derived key — surfaced loudly rather than tolerated as a
+		// wrong code.
+		secret, derr := auth.DecryptTOTPSecret(s.totpKey, fresh.TotpSecret.String)
+		if derr != nil {
+			s.serverError(w, "decrypt totp secret", derr)
+			return
+		}
+		if !auth.VerifyTOTP(secret, r.FormValue("code"), s.now()) {
+			s.render(w, r, "totp-enroll", s.signinData(totpEnrollData(acct.Username, secret,
+				"Incorrect code. Two-factor is not enabled.")))
+			return
+		}
 	}
 	if err := s.store.ConfirmTOTP(r.Context(), acct.ID); err != nil {
 		s.serverError(w, "confirm totp", err)
@@ -725,7 +1314,7 @@ func (s *server) totpConfirm(w http.ResponseWriter, r *http.Request, acct db.Acc
 	// them. Re-issuing clears any prior set so only this set redeems. A failure to
 	// store the codes must not leave two-factor on with no recovery path, so it is a
 	// hard error rather than a silent skip.
-	plain, hashes, err := newRecoveryCodes(recoveryCodeCount)
+	plain, hashes, err := s.recoveryCodes()
 	if err != nil {
 		s.serverError(w, "generate recovery codes", err)
 		return
@@ -742,7 +1331,7 @@ func (s *server) totpConfirm(w http.ResponseWriter, r *http.Request, acct db.Acc
 			return
 		}
 	}
-	s.render(w, "totp-recovery", map[string]any{"Title": "Two-factor", "Codes": plain})
+	s.render(w, r, "totp-recovery", s.signinData(map[string]any{"Title": "Two-factor", "Codes": plain}))
 }
 
 // --- forgot / reset password (#314, T19) ------------------------------------
@@ -750,7 +1339,7 @@ func (s *server) totpConfirm(w http.ResponseWriter, r *http.Request, acct db.Acc
 // forgotForm renders the "enter your account name" step of the reset flow. It is
 // pre-auth: a caller who has lost their password has no session to gate on.
 func (s *server) forgotForm(w http.ResponseWriter, r *http.Request) {
-	s.render(w, "forgot", map[string]any{"Title": "Reset password"})
+	s.render(w, r, "forgot", s.signinData(map[string]any{"Title": "Reset password"}))
 }
 
 // forgotSubmit mints a single-use reset link for the named account, then always
@@ -774,17 +1363,17 @@ func (s *server) forgotSubmit(w http.ResponseWriter, r *http.Request) {
 			// this account's password. It must NOT land in the logs by default (CWE-532,
 			// #328) — only the account and the reset-record id are logged, which name the
 			// request without leaking the secret. An operator resets on the host directly.
-			log.Printf("web: password reset requested for %q (reset id %d, expires in %s)",
-				username, pr.ID, s.resetTTL)
+			log.Printf("web: password reset requested for %q (reset id %d, expires in %s)", // #nosec G706 (sanitized via logSafe)
+				logSafe(username), pr.ID, s.resetTTL)
 			// A mail-less host may still need the link out of band; it is gated behind an
 			// explicit opt-in (default off) so the plaintext is emitted only when the
 			// operator has knowingly turned it on for their own logs.
 			if env.OrDefault("VERGE_LOG_RESET_LINKS", "") != "" {
-				log.Printf("web: password reset link for %q: /reset?token=%s", username, plaintext)
+				log.Printf("web: password reset link for %q: /reset?token=%s", logSafe(username), plaintext) // #nosec G706 (sanitized via logSafe)
 			}
 		}
 	}
-	s.render(w, "forgot-sent", map[string]any{"Title": "Reset password"})
+	s.render(w, r, "forgot-sent", s.signinData(map[string]any{"Title": "Reset password"}))
 }
 
 // resetForm renders the set-a-new-password step for a valid, unspent, unexpired
@@ -793,28 +1382,30 @@ func (s *server) forgotSubmit(w http.ResponseWriter, r *http.Request) {
 func (s *server) resetForm(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")
 	if _, ok := s.lookupReset(r, token); !ok {
-		s.render(w, "reset-invalid", map[string]any{"Title": "Reset password"})
+		s.render(w, r, "reset-invalid", s.signinData(map[string]any{"Title": "Reset password"}))
 		return
 	}
-	s.render(w, "reset", map[string]any{"Title": "Set a new password", "Token": token})
+	s.render(w, r, "reset", s.signinData(map[string]any{"Title": "Set a new password", "Token": token}))
 }
 
 // resetSubmit sets the account's password from a valid reset token and spends the
-// token so the link is single-use. It does not claim to sign other sessions out:
-// this build's sessions are stateless signed cookies with no registry, so a session
-// elsewhere lapses when it expires rather than being revoked here — the done copy
-// says so plainly rather than implying a global sign-out.
+// token so the link is single-use. Because a reset is the flow you take when the old
+// password is out of your hands, it then revokes ALL of the account's live sessions
+// (#408, ADR-0118) — there is no acting session to keep here (the user re-logs in with
+// the new password), so nothing is excepted. The revoke rides after the password is
+// already persisted and the token already spent, and only logs on failure, so a
+// registry hiccup never rolls the reset back — the done copy says every session is out.
 func (s *server) resetSubmit(w http.ResponseWriter, r *http.Request) {
 	token := r.FormValue("token")
 	pr, ok := s.lookupReset(r, token)
 	if !ok {
-		s.render(w, "reset-invalid", map[string]any{"Title": "Reset password"})
+		s.render(w, r, "reset-invalid", s.signinData(map[string]any{"Title": "Reset password"}))
 		return
 	}
 	pw := r.FormValue("password")
 	confirm := r.FormValue("confirm")
 	fail := func(msg string) {
-		s.renderStatus(w, http.StatusBadRequest, "reset", map[string]any{"Title": "Set a new password", "Token": token, "Error": msg})
+		s.renderStatus(w, r, http.StatusBadRequest, "reset", s.signinData(map[string]any{"Title": "Set a new password", "Token": token, "Error": msg}))
 	}
 	if msg := validatePassword(pw); msg != "" {
 		fail(msg)
@@ -836,7 +1427,17 @@ func (s *server) resetSubmit(w http.ResponseWriter, r *http.Request) {
 	if err := s.store.ConsumePasswordReset(r.Context(), db.ConsumePasswordResetParams{ID: pr.ID, ConsumedAt: s.obsAsOf()}); err != nil {
 		log.Printf("web: reset: consume token: %v", err)
 	}
-	s.render(w, "reset-done", map[string]any{"Title": "Password updated"})
+	// A reset is the recovery path — the old password is presumed out of the owner's
+	// hands, so sign out every live session with no exception (#408). There is no acting
+	// session to keep (the user signs back in below). Logged, never fatal: the password
+	// is already reset.
+	if err := s.store.RevokeAllSessionsForAccount(r.Context(), db.RevokeAllSessionsForAccountParams{
+		AccountID: pr.AccountID,
+		RevokedAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+	}); err != nil {
+		log.Printf("web: reset: revoke all sessions: %v", err)
+	}
+	s.render(w, r, "reset-done", s.signinData(map[string]any{"Title": "Password updated"}))
 }
 
 // lookupReset resolves a presented reset token to its row and reports whether it is
@@ -871,10 +1472,10 @@ func (s *server) inviteForm(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")
 	inv, ok := s.lookupInvite(r, token)
 	if !ok {
-		s.render(w, "invite-invalid", map[string]any{"Title": "Invitation"})
+		s.render(w, r, "invite-invalid", s.signinData(map[string]any{"Title": "Invitation"}))
 		return
 	}
-	s.render(w, "invite", map[string]any{"Title": "Accept invitation", "Token": token, "Role": inv.Role})
+	s.render(w, r, "invite", s.signinData(map[string]any{"Title": "Accept invitation", "Token": token, "Role": inv.Role}))
 }
 
 // inviteAccept creates the account the invite grants — the acceptor's chosen
@@ -886,16 +1487,16 @@ func (s *server) inviteAccept(w http.ResponseWriter, r *http.Request) {
 	token := r.FormValue("token")
 	inv, ok := s.lookupInvite(r, token)
 	if !ok {
-		s.render(w, "invite-invalid", map[string]any{"Title": "Invitation"})
+		s.render(w, r, "invite-invalid", s.signinData(map[string]any{"Title": "Invitation"}))
 		return
 	}
 	username := strings.TrimSpace(r.FormValue("username"))
 	password := r.FormValue("password")
 	fail := func(msg string) {
-		s.renderStatus(w, http.StatusBadRequest, "invite", map[string]any{
+		s.renderStatus(w, r, http.StatusBadRequest, "invite", s.signinData(map[string]any{
 			"Title": "Accept invitation", "Token": token, "Role": inv.Role,
 			"Error": msg, "Username": username,
-		})
+		}))
 	}
 	if msg := validateCredentials(username, password); msg != "" {
 		fail(msg)
@@ -1048,6 +1649,18 @@ func subtleConstantEqual(a, b string) bool {
 
 // --- profile (#304, T9) -----------------------------------------------------
 
+// The Profile page markup is the DESIGN-OWNED, frozen design-system/templates/profile.tmpl
+// (package v3.6.0, WORKFLOW v4), embedded read-only via the designfs package and parsed
+// into the shared template set here — mirroring the screen-2 error.tmpl landing (#533).
+// The repo-authored templates_profile.go const is deleted (#540): renderProfile only wires
+// data into the holes the frozen tmpl declares (.Initials/.Username/.Role/.CreatedISO/
+// .TotpEnabled/.Sessions/.SSOIdentities/.SSOProviders/.Tokens/…), never edits the tmpl (CI
+// gate G1 byte-compares it to the package). A needed change goes through SPEC-CHANGE and
+// returns in the next package version. profile.tmpl auto-embeds through designfs's existing
+// `templates/*.tmpl` glob, so no designfs.go change is needed; its "profile" definition is
+// the single source of the served page.
+var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/profile.tmpl"))
+
 // profileTokenView is one personal API token shaped for the tokens table: its id
 // (for the revoke link), the operator's label, the non-secret prefix, and the two
 // timestamps. Last is an em dash for a token never yet presented — the honest read
@@ -1060,23 +1673,36 @@ type profileTokenView struct {
 	Last    string
 }
 
+// profileSessionView is one of the account's own live sessions shaped for the sessions
+// table (#406): its id (for the revoke-one form), the device derived from the stored
+// user_agent, the source IP, a relative "last active", and whether it is the session
+// making this request (which wears the "this device" badge and shows no revoke control).
+type profileSessionView struct {
+	ID         int64
+	Device     string
+	IP         string
+	LastActive string
+	Current    bool
+}
+
 // profileState carries the transient, per-request Profile surface: which dialog is
 // open, a freshly minted token to reveal once, and any inline errors. It never
 // holds persisted data — that is read fresh in renderProfile — so a plain page load
 // passes the zero value.
 type profileState struct {
-	notice     string
-	pwError    string
-	createOpen bool
-	tokError   string
-	tokName    string
-	minted     string // freshly minted plaintext — shown once, never stored
-	mintedName string
-	revokeID   int64 // token-revoke ConfirmDialog target; 0 = closed
-	revokeErr  string
-	endSession bool   // end-session ConfirmDialog open
-	ssoNotice  string // SSO link/unlink outcome (a success or benign message)
-	ssoError   string // SSO link failure (a refusal)
+	notice        string
+	pwError       string
+	createOpen    bool
+	tokError      string
+	tokName       string
+	minted        string // freshly minted plaintext — shown once, never stored
+	mintedName    string
+	revokeID      int64 // token-revoke ConfirmDialog target; 0 = closed
+	revokeErr     string
+	endSession    bool   // end-session ConfirmDialog open
+	signOutOthers bool   // sign-out-other-sessions ConfirmDialog open (#406)
+	ssoNotice     string // SSO link/unlink outcome (a success or benign message)
+	ssoError      string // SSO link failure (a refusal)
 }
 
 // profilePage renders the account's own Profile (#304): identity, credentials with
@@ -1093,14 +1719,23 @@ func (s *server) profilePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	if v := q.Get("revoke"); v != "" {
 		if id, err := strconv.ParseInt(v, 10, 64); err == nil {
 			st.revokeID = id
+		} else if s.devMode {
+			// Pixel-parity capture only (#542): resolve the frozen fixture token id (`t1`) to a
+			// real personal_token id so the revoke-token golden opens. A no-op in a real build.
+			st.revokeID = s.devResolveFixtureTokenID(r, acct.ID, v)
 		}
 	}
 	if q.Get("endsession") != "" {
 		st.endSession = true
 	}
-	if q.Get("saved") != "" {
-		st.notice = "Password changed. Other sessions keep working until they expire."
+	if q.Get("signoutothers") != "" {
+		st.signOutOthers = true
 	}
+	// The four act results — password changed, session revoked, token revoked, signed out
+	// others — no longer ride back as inline notices; they fire as shell toasts carried on
+	// the redirect by toastRedirect (SPEC-CHANGE #18, P1.7). The `.Notice` hole stays for
+	// anything that still uses it. SSO self-link outcomes keep their own `.SSONotice`/
+	// `.SSOError` channels below.
 	// SSO self-link outcomes ride back as fixed query codes (never reflected free text),
 	// each mapped here to an honest message.
 	switch q.Get("linked") {
@@ -1142,11 +1777,11 @@ func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.A
 	}
 
 	var tokens []profileTokenView
-	if rows, err := s.store.ListPersonalTokens(r.Context(), acct.ID); err == nil {
+	if rows, err := s.listPersonalTokensCreatedAsc(r.Context(), acct.ID); err == nil {
 		for _, t := range rows {
 			tokens = append(tokens, profileTokenView{
 				ID: t.ID, Name: t.Name, Prefix: t.Prefix,
-				Created: isoDate(t.CreatedAt), Last: lastUsed(t.LastUsedAt),
+				Created: isoDate(t.CreatedAt), Last: lastUsed(t.LastUsedAt, s.now()),
 			})
 		}
 	} else {
@@ -1162,6 +1797,48 @@ func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.A
 	var available []profileLinkView
 	if ok {
 		available = s.profileLinkableProviders(r, linkedProviders)
+	}
+
+	// Sessions (#406): this account's own live sessions, newest activity first, with the
+	// row making this request marked so it wears the "this device" badge and shows no
+	// revoke control. Every figure is a real read — the device is derived from the stored
+	// user_agent, the IP is the stored source, and "last active" is the last_seen_at the
+	// per-request touch keeps current. A read failure degrades to an empty listing rather
+	// than failing the whole Profile.
+	curSessionID, haveCurSession := s.currentSessionID(r)
+	var sessions []profileSessionView
+	if rows, err := s.store.ListSessionsForAccount(r.Context(), db.ListSessionsForAccountParams{
+		AccountID: acct.ID,
+		ExpiresAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+	}); err == nil {
+		for _, row := range rows {
+			sessions = append(sessions, profileSessionView{
+				ID:     row.ID,
+				Device: sessionDeviceFromUA(row.UserAgent),
+				IP:     row.Ip,
+				// The Profile sessions table renders the bare relative token (now / 2h / 3d),
+				// matching the frozen design (Profile.jsx, fixtures.json → profile.sessions),
+				// not the " ago"-suffixed agoLabel the drift feed uses. profileRelTime reads
+				// the injectable clock, so a VERGE_DEV build (clock pinned to the fixture
+				// instant) renders the fixture's tokens exactly.
+				LastActive: profileRelTime(row.LastSeenAt.Time, s.now()),
+				Current:    haveCurSession && row.ID == curSessionID,
+			})
+		}
+	} else {
+		log.Printf("web: profile: list sessions: %v", err)
+	}
+
+	// API-access flag (#390, v3.18.0): the read-only /api/v1 surface is an instance-global
+	// admin switch, off by default. The Profile's inert-tokens note ({{if not .APIEnabled}})
+	// keys on the live flag so it shows only while the API is off — the honest "your tokens
+	// are inert until an admin enables it" read. A failed config read degrades to the safe
+	// default (off ⇒ note shown), never a spurious "enabled" that would hide the caveat.
+	apiEnabled := false
+	if cfg, err := s.store.GetInstanceConfig(r.Context()); err == nil {
+		apiEnabled = cfg.ApiEnabled
+	} else {
+		log.Printf("web: profile: instance config: %v", err)
 	}
 
 	// The revoke ConfirmDialog names its target; resolve it from the read so a stale
@@ -1182,6 +1859,11 @@ func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.A
 	data := map[string]any{
 		"Title": "Profile", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"NavActive": "",
+		// The frozen profile.tmpl styles against the design-owned token vocabulary
+		// (design-system/tokens/*.css); the "head" block inlines those tokens only when this
+		// datum is set — mirroring the screen-2 error render (E4, #535). Opt in so the served
+		// page carries the vocabulary the tmpl draws against.
+		"DesignTokens": true,
 
 		"Initials":    initials(acct.Username),
 		"Username":    acct.Username,
@@ -1189,29 +1871,75 @@ func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.A
 		"CreatedISO":  isoDate(acct.CreatedAt),
 		"TotpEnabled": acct.TotpEnabled,
 
-		"SessionDevice": sessionDevice(r),
-		"SessionIP":     sessionIP(r),
+		"Sessions": sessions,
 
-		"Tokens": tokens,
+		"Tokens":     tokens,
+		"APIEnabled": apiEnabled,
 
 		"SSOIdentities": linked,
 		"SSOProviders":  available,
 		"SSONotice":     st.ssoNotice,
 		"SSOError":      st.ssoError,
 
-		"Notice":     st.notice,
-		"PwError":    st.pwError,
-		"CreateOpen": st.createOpen,
-		"TokError":   st.tokError,
-		"TokName":    st.tokName,
-		"Minted":     st.minted,
-		"MintedName": st.mintedName,
-		"RevokeID":   st.revokeID,
-		"RevokeName": revokeName,
-		"RevokeErr":  st.revokeErr,
-		"EndSession": st.endSession,
+		"Notice":        st.notice,
+		"PwError":       st.pwError,
+		"CreateOpen":    st.createOpen,
+		"TokError":      st.tokError,
+		"TokName":       st.tokName,
+		"Minted":        st.minted,
+		"MintedName":    st.mintedName,
+		"RevokeID":      st.revokeID,
+		"RevokeName":    revokeName,
+		"RevokeErr":     st.revokeErr,
+		"EndSession":    st.endSession,
+		"SignOutOthers": st.signOutOthers,
 	}
-	s.render(w, "profile", data)
+	s.render(w, r, "profile", data)
+}
+
+// listPersonalTokensCreatedAsc reads one account's tokens in the order the Profile renders
+// them: created-ASC (oldest first) with id ASC as a stable tiebreak — the design's order
+// (Profile.jsx's array + concat; fixtures.json → profile.tokens is authored the same way), so
+// a freshly-minted token, carrying the newest created_at, sorts last. ListPersonalTokens
+// returns newest-first (created_at DESC), so this re-sorts the returned slice in place —
+// simpler than an sqlc/query change both Profile read paths would share (#542 ruling). It is
+// the single source of the Profile token order (renderProfile + the dev revoke-id bridge).
+func (s *server) listPersonalTokensCreatedAsc(ctx context.Context, accountID int64) ([]db.ListPersonalTokensRow, error) {
+	rows, err := s.store.ListPersonalTokens(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+	sort.SliceStable(rows, func(i, j int) bool {
+		ti, tj := rows[i].CreatedAt.Time, rows[j].CreatedAt.Time
+		if ti.Equal(tj) {
+			return rows[i].ID < rows[j].ID
+		}
+		return ti.Before(tj)
+	})
+	return rows, nil
+}
+
+// devResolveFixtureTokenID bridges the design's fixture token id to a real personal_token id
+// for the pixel-parity capture (#542), in a VERGE_DEV build ONLY. The frozen capture state
+// navigates `/profile?revoke=t1` (fixtures.json → profile.tokens[].id are "t1"/"t2"), but
+// personal_token uses int64 ids and the real Profile therefore emits `?revoke=<int64>` links
+// — so `t1` never parses in a real build and simply opens no dialog. Here, dev-only, `t<N>`
+// resolves to the N-th token in the Profile's created-ASC order (t1 → laptop-cli), so the
+// revoke-token golden opens against the same token the design mocks. Returns 0 (no dialog) on
+// any miss, exactly as an unknown id would. Never reached in a real deployment.
+func (s *server) devResolveFixtureTokenID(r *http.Request, accountID int64, ref string) int64 {
+	if !strings.HasPrefix(ref, "t") {
+		return 0
+	}
+	n, err := strconv.Atoi(strings.TrimPrefix(ref, "t"))
+	if err != nil || n < 1 {
+		return 0
+	}
+	rows, err := s.listPersonalTokensCreatedAsc(r.Context(), accountID)
+	if err != nil || n > len(rows) {
+		return 0
+	}
+	return rows[n-1].ID
 }
 
 // profileIdentityView is one linked SSO identity shown on the Profile: the binding id
@@ -1276,9 +2004,13 @@ func (s *server) profileLinkableProviders(r *http.Request, linked map[int64]bool
 // changePassword is the self-service password change (Profile → Credentials). It
 // verifies the current password against a fresh read, enforces the same length
 // bounds as every other credential path, and never touches the TOTP secret — a
-// password change leaves the second factor in force. Other sessions are not
-// invalidated (this build's sessions are stateless signed cookies), which the
-// success notice states plainly rather than implying a global sign-out.
+// password change leaves the second factor in force. On success it revokes every
+// OTHER live session for the account (#408, ADR-0118) so a changed password signs
+// out anyone still holding the old one, keeping only the session making the change
+// alive — the success notice states so. The revoke rides after the password is
+// already persisted and only logs on failure, so a registry hiccup never rolls the
+// change back; and it runs only when the current session id resolves, so the acting
+// user is never signed out of the very tab they changed the password from.
 func (s *server) changePassword(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	current := r.FormValue("current_password")
 	next := r.FormValue("new_password")
@@ -1305,7 +2037,26 @@ func (s *server) changePassword(w http.ResponseWriter, r *http.Request, acct db.
 		s.serverError(w, "profile: update password", err)
 		return
 	}
-	http.Redirect(w, r, "/profile?saved=1", http.StatusSeeOther)
+	// The password is changed; now sign out every OTHER session so a stolen or shared
+	// old password is dead everywhere (#408). Keep this tab alive by passing its own
+	// session id as the exception. If the current session id does not resolve (a missing
+	// or pre-registry cookie on an authed request — shouldn't happen), skip the revoke
+	// rather than risk a no-exception sweep that would sign the caller out of their own
+	// change. A revoke failure is logged, never fatal: the password is already updated.
+	if curID, ok := s.currentSessionID(r); ok {
+		if err := s.store.RevokeOtherSessionsForAccount(r.Context(), db.RevokeOtherSessionsForAccountParams{
+			AccountID: acct.ID,
+			ID:        curID,
+			RevokedAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+		}); err != nil {
+			log.Printf("web: profile: revoke other sessions after password change: %v", err)
+		}
+	} else {
+		log.Printf("web: profile: password changed but current session id did not resolve; other sessions left in place")
+	}
+	// Act result rides the shell toast pipeline (#18, P1.7) with the spec's copy
+	// (Profile.jsx:68) rather than an inline notice.
+	s.toastRedirect(w, r, "/profile", "ok", "Password changed", "Other sessions keep working until they expire.")
 }
 
 // createPersonalToken mints a personal API token and reveals it once. The plaintext
@@ -1322,7 +2073,7 @@ func (s *server) createPersonalToken(w http.ResponseWriter, r *http.Request, acc
 		s.renderProfile(w, r, acct, profileState{createOpen: true, tokError: "Name must be 64 characters or fewer.", tokName: name})
 		return
 	}
-	plaintext, prefix, hash, err := mintPersonalToken()
+	plaintext, prefix, hash, err := s.newPersonalToken()
 	if err != nil {
 		s.serverError(w, "profile: mint token", err)
 		return
@@ -1340,14 +2091,14 @@ func (s *server) createPersonalToken(w http.ResponseWriter, r *http.Request, acc
 	s.renderProfile(w, r, acct, profileState{minted: plaintext, mintedName: name})
 }
 
-// revokePersonalToken revokes a token through the typed-name gate: the operator must
-// type the token's exact name to confirm, guarding the worst destructive act on the
-// page — a revoke is irreversible and silently breaks whatever automation held the
-// token. It is reached only through the ConfirmDialog (a POST), never a menu click,
-// and the delete is scoped to the owner so no account can revoke another's token.
+// revokePersonalToken revokes a token behind a plain danger ConfirmDialog (SPEC-CHANGE
+// #18, ruled 2026-08-25): the typed-name `confirm_name` gate is dropped here — the dialog
+// is message + detail + danger confirm only (`.RevokeName` still labels it). The typed
+// gate stays reserved for the worst acts (seed descope), so this only relaxes the token
+// path. It is reached only through the ConfirmDialog (a POST), never a menu click, and the
+// delete is scoped to the owner so no account can revoke another's token.
 func (s *server) revokePersonalToken(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, _ := strconv.ParseInt(r.FormValue("id"), 10, 64)
-	typed := strings.TrimSpace(r.FormValue("confirm_name"))
 
 	rows, err := s.store.ListPersonalTokens(r.Context(), acct.ID)
 	if err != nil {
@@ -1366,27 +2117,138 @@ func (s *server) revokePersonalToken(w http.ResponseWriter, r *http.Request, acc
 		http.Redirect(w, r, "/profile", http.StatusSeeOther)
 		return
 	}
-	if typed != name {
-		s.renderProfile(w, r, acct, profileState{
-			revokeID:  id,
-			revokeErr: "That did not match. Type " + name + " exactly to revoke.",
-		})
-		return
-	}
 	if err := s.store.DeletePersonalToken(r.Context(), db.DeletePersonalTokenParams{ID: id, AccountID: acct.ID}); err != nil {
 		s.serverError(w, "profile: revoke token", err)
 		return
 	}
-	http.Redirect(w, r, "/profile", http.StatusSeeOther)
+	// Act result rides the shell toast pipeline (#18, P1.7): title "Token revoked", the
+	// revoked token's name as the description (Profile.jsx:150).
+	s.toastRedirect(w, r, "/profile", "neutral", "Token revoked", name)
 }
 
-// revokeSession ends the current session. This build's sessions are stateless signed
-// cookies with no server-side registry, so the one session honestly revocable is the
-// one making the request: revoking it clears the cookie and lands on /login, exactly
-// as sign-out does. It is reached only through the end-session ConfirmDialog.
+// revokeSession ends the current session for real (#405, ADR-0117). Sessions now have
+// a server-side registry, so the session making the request is a row: this marks that
+// row revoked, and the very next request carrying the same cookie resolves no live
+// session and is bounced to /login. It then clears the cookie and redirects, exactly as
+// sign-out does. It is reached only through the end-session ConfirmDialog. (Signing
+// OTHER devices out is a separate Profile action landing downstream; this ends the one
+// session in hand.)
 func (s *server) revokeSession(w http.ResponseWriter, r *http.Request, _ db.Account) {
+	s.revokeCurrentSession(r)
 	s.clearCookie(w, sessionCookie)
-	http.Redirect(w, r, "/login", http.StatusSeeOther)
+	// Ending this session signs the caller out and lands them on sign-in; the act result
+	// rides the shell toast pipeline (#18, P1.7) on the /login redirect so it fires there
+	// (Profile.jsx:154). The sign-in page carries a toast stack for exactly this.
+	s.toastRedirect(w, r, "/login", "neutral", "Session ended", "Signed out on this device.")
+}
+
+// revokeOneSession revokes a single one of the account's own live sessions by id (#406) —
+// the per-row control in the Profile sessions card. The revoke is owner-scoped in SQL (the
+// account_id predicate), so a posted id that is not this account's is a harmless no-op
+// rather than a way to end another account's session; a foreign or absent id therefore
+// falls through to a plain return to /profile. When the id names the session making the
+// request, the caller has just ended its own session, so the cookie is cleared and it is
+// sent to /login (that cookie resolves no live row on its next request anyway); otherwise
+// it returns to the Profile with a notice.
+func (s *server) revokeOneSession(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
+	if err != nil {
+		http.Redirect(w, r, "/profile", http.StatusSeeOther)
+		return
+	}
+	curID, haveCur := s.currentSessionID(r)
+	// Resolve the revoked session's device for the toast description (Profile.jsx:100),
+	// read from the live list before the revoke; a read blip just leaves it empty.
+	device := ""
+	if sess, err := s.store.ListSessionsForAccount(r.Context(), db.ListSessionsForAccountParams{
+		AccountID: acct.ID,
+		ExpiresAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+	}); err == nil {
+		for _, row := range sess {
+			if row.ID == id {
+				device = sessionDeviceFromUA(row.UserAgent)
+				break
+			}
+		}
+	}
+	if err := s.store.RevokeSession(r.Context(), db.RevokeSessionParams{
+		ID:        id,
+		AccountID: acct.ID,
+		RevokedAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+	}); err != nil {
+		s.serverError(w, "profile: revoke session", err)
+		return
+	}
+	if haveCur && id == curID {
+		s.clearCookie(w, sessionCookie)
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	// Act result rides the shell toast pipeline (#18, P1.7): title "Session revoked",
+	// "<device> signs out on its next request." as the description (Profile.jsx:100).
+	s.toastRedirect(w, r, "/profile", "neutral", "Session revoked", device+" signs out on its next request.")
+}
+
+// signOutOtherSessions revokes every live session for the account EXCEPT the one making
+// the request (#406) — the "Sign out others" card action, reached only through its
+// ConfirmDialog. The current session id is resolved from the request and passed as the
+// exception, so the acting tab keeps working while every other device is ended on its next
+// request. If no current session resolves (a missing or pre-registry cookie), there is no
+// session to keep, so it does nothing rather than sign the caller out of the tab in hand.
+func (s *server) signOutOtherSessions(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	curID, ok := s.currentSessionID(r)
+	if !ok {
+		http.Redirect(w, r, "/profile", http.StatusSeeOther)
+		return
+	}
+	// Count the other live sessions before the sweep for the toast description
+	// (Profile.jsx:158, "N sessions ended."); a read blip just leaves the count at zero.
+	ended := 0
+	if sess, err := s.store.ListSessionsForAccount(r.Context(), db.ListSessionsForAccountParams{
+		AccountID: acct.ID,
+		ExpiresAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+	}); err == nil {
+		for _, row := range sess {
+			if row.ID != curID {
+				ended++
+			}
+		}
+	}
+	if err := s.store.RevokeOtherSessionsForAccount(r.Context(), db.RevokeOtherSessionsForAccountParams{
+		AccountID: acct.ID,
+		ID:        curID,
+		RevokedAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+	}); err != nil {
+		s.serverError(w, "profile: sign out other sessions", err)
+		return
+	}
+	// Act result rides the shell toast pipeline (#18, P1.7): title "Other sessions signed
+	// out", "<N> sessions ended." as the description (Profile.jsx:158).
+	s.toastRedirect(w, r, "/profile", "neutral", "Other sessions signed out", strconv.Itoa(ended)+" sessions ended.")
+}
+
+// newPersonalToken mints the plaintext / non-secret prefix / hash for a personal token. In
+// a VERGE_DEV build (s.devMode) it returns the fixture-deterministic value so the minted-
+// dialog golden is pixel-stable; a real build always draws crypto/rand (mintPersonalToken).
+// This mirrors the screen-2 deterministic incident-id gate (recoverPanics, #534): the dev
+// affordance is strictly gated to VERGE_DEV and never fires in a real deployment.
+func (s *server) newPersonalToken() (plaintext, prefix, hash string, err error) {
+	if s.devMode {
+		return fixtureMintedToken()
+	}
+	return mintPersonalToken()
+}
+
+// fixtureMintedToken is the deterministic personal-token mint used only in a VERGE_DEV
+// build: the plaintext is design-system/fixtures/fixtures.json → profile.minted_token_fixture
+// (pinned as devFixtureMintedToken, asserted by TestProfileFixtureMatchesPackage), so the
+// minted-dialog golden's pixel diff never drifts.
+func fixtureMintedToken() (plaintext, prefix, hash string, err error) {
+	plaintext = devFixtureMintedToken
+	sum := sha256.Sum256([]byte(plaintext))
+	hash = hex.EncodeToString(sum[:])
+	prefix = plaintext[:11] + "…" // vg_pat_ + 4 chars + ellipsis, as mintPersonalToken forms it
+	return plaintext, prefix, hash, nil
 }
 
 // mintPersonalToken generates a personal token, returning the plaintext to reveal
@@ -1406,11 +2268,13 @@ func mintPersonalToken() (plaintext, prefix, hash string, err error) {
 }
 
 // validatePassword bounds a new password to the same range every credential path
-// enforces: at least 8 characters, and at most 72 (bcrypt hashes no more).
+// enforces: at least 12 characters, and at most 72 (bcrypt hashes no more). The 12+
+// floor unifies the hint copy and the server-side rule (SPEC-CHANGE #19d) — the
+// design forms all read "12+ characters", so the enforcement matches the hint.
 func validatePassword(pw string) string {
 	switch {
-	case len(pw) < 8:
-		return "Password must be at least 8 characters."
+	case len(pw) < 12:
+		return "Password must be at least 12 characters."
 	case len(pw) > 72:
 		return "Password must be 72 characters or fewer."
 	default:
@@ -1426,64 +2290,67 @@ func isoDate(ts pgtype.Timestamptz) string {
 	return ts.Time.Format("2006-01-02")
 }
 
-// lastUsed renders a token's last-used instant, or an em dash when it has never been
-// presented — the honest read of a NULL last_used_at, not a fabricated recency.
-func lastUsed(ts pgtype.Timestamptz) string {
+// lastUsed renders a token's last-used instant as the bare relative token (2h / 14d),
+// matching the frozen design (Profile.jsx, fixtures.json → profile.tokens), or an em dash
+// when it has never been presented — the honest read of a NULL last_used_at, not a
+// fabricated recency. profileRelTime reads the injectable clock, so a VERGE_DEV build (clock
+// pinned to the fixture instant) renders the fixture's tokens exactly.
+func lastUsed(ts pgtype.Timestamptz, now time.Time) string {
+	// A never-used token has a NULL last_used_at (#390, v3.18.0): return empty so the
+	// frozen profile.tmpl renders its "never" branch ({{if .Last}}…{{else}}never{{end}}),
+	// not a spurious relative token. last_used_at is written coarsened by the /api/v1
+	// bearer path (A2); until a token is used it stays NULL.
 	if !ts.Valid {
-		return "—"
+		return ""
 	}
-	return ts.Time.Format("2006-01-02")
+	return profileRelTime(ts.Time, now)
 }
 
-// initials derives a two-letter avatar label from the username, upper-cased.
+// profileRelTime renders a relative age the way the frozen Profile design does (now / 2h /
+// 3d / 14d): sub-minute reads "now", then minutes, hours, then DAYS with no week rollover.
+// It deliberately differs from relTime (messages.go), which rolls into weeks past 7d for the
+// drift feed — the Profile's sessions and tokens tables keep counting days (fixtures.json →
+// profile shows a 14d token, not "2w"). Like relTime it clamps a future instant to "now" and
+// reads the passed (injectable) clock, so a fixed-clock render is deterministic.
+func profileRelTime(t, now time.Time) string {
+	d := now.Sub(t)
+	if d < 0 {
+		d = 0
+	}
+	switch {
+	case d < time.Minute:
+		return "now"
+	case d < time.Hour:
+		return strconv.Itoa(int(d/time.Minute)) + "m"
+	case d < 24*time.Hour:
+		return strconv.Itoa(int(d/time.Hour)) + "h"
+	default:
+		return strconv.Itoa(int(d/(24*time.Hour))) + "d"
+	}
+}
+
+// initials derives the two-letter avatar label the Profile renders: the first letter of each
+// of the first two name segments, upper-cased — segments split on "." "_" "-" or whitespace,
+// so "ola.perez" reads "OP" (fixtures.json → profile.account.initials). A single-segment name
+// falls back to its first two letters, and an empty name to "?".
 func initials(username string) string {
-	u := strings.TrimSpace(username)
-	if u == "" {
+	fields := strings.FieldsFunc(username, func(r rune) bool {
+		return r == '.' || r == '_' || r == '-' || unicode.IsSpace(r)
+	})
+	switch len(fields) {
+	case 0:
 		return "?"
+	case 1:
+		r := []rune(strings.ToUpper(fields[0]))
+		if len(r) == 1 {
+			return string(r[0])
+		}
+		return string(r[0]) + string(r[1])
+	default:
+		a := []rune(strings.ToUpper(fields[0]))
+		b := []rune(strings.ToUpper(fields[1]))
+		return string(a[0]) + string(b[0])
 	}
-	r := []rune(strings.ToUpper(u))
-	if len(r) == 1 {
-		return string(r[0])
-	}
-	return string(r[0]) + string(r[1])
-}
-
-// sessionDevice describes the current session from the request's User-Agent — a real
-// derivation of what the client sent, never a fabricated device. An unrecognised or
-// absent agent degrades to a plain label rather than a guess.
-func sessionDevice(r *http.Request) string {
-	ua := r.UserAgent()
-	if ua == "" {
-		return "This session"
-	}
-	browser := "Browser"
-	switch {
-	case strings.Contains(ua, "Firefox"):
-		browser = "Firefox"
-	case strings.Contains(ua, "Edg"):
-		browser = "Edge"
-	case strings.Contains(ua, "Chrome"), strings.Contains(ua, "Chromium"):
-		browser = "Chrome"
-	case strings.Contains(ua, "Safari"):
-		browser = "Safari"
-	}
-	os := ""
-	switch {
-	case strings.Contains(ua, "Mac OS X"), strings.Contains(ua, "Macintosh"):
-		os = "macOS"
-	case strings.Contains(ua, "Windows"):
-		os = "Windows"
-	case strings.Contains(ua, "iPhone"), strings.Contains(ua, "iPad"):
-		os = "iOS"
-	case strings.Contains(ua, "Android"):
-		os = "Android"
-	case strings.Contains(ua, "Linux"):
-		os = "Linux"
-	}
-	if os != "" {
-		return browser + " · " + os
-	}
-	return browser
 }
 
 // sessionIP is the address this request arrived from. It reads RemoteAddr, never a
@@ -1516,8 +2383,8 @@ func validateCredentials(username, password string) string {
 		return "Username is required."
 	case len(username) > 64:
 		return "Username must be 64 characters or fewer."
-	case len(password) < 8:
-		return "Password must be at least 8 characters."
+	case len(password) < 12:
+		return "Password must be at least 12 characters."
 	case len(password) > 72:
 		// bcrypt hashes at most 72 bytes and errors beyond that; reject it
 		// here with a clear message rather than a generic create failure.
@@ -1557,15 +2424,17 @@ func (s *server) renderFormError(w http.ResponseWriter, r *http.Request, acct db
 	s.renderSettings(w, r, acct, settingsForms{section: "team", teamError: msg})
 }
 
-func (s *server) render(w http.ResponseWriter, name string, data any) {
-	s.renderStatus(w, http.StatusOK, name, data)
+func (s *server) render(w http.ResponseWriter, r *http.Request, name string, data any) {
+	s.renderStatus(w, r, http.StatusOK, name, data)
 }
 
 // renderStatus writes an HTML page at the given status. The Content-Type must
 // be set before WriteHeader commits the header block, or it is silently
-// dropped and the browser renders the markup as plain text.
-func (s *server) renderStatus(w http.ResponseWriter, status int, name string, data any) {
-	s.injectUnread(data)
+// dropped and the browser renders the markup as plain text. r is threaded so the
+// chrome injection can decode the PRG toast flash and (in devMode) read the capture
+// variant; it may be nil for renders with no request in hand.
+func (s *server) renderStatus(w http.ResponseWriter, r *http.Request, status int, name string, data any) {
+	s.injectChrome(data, r)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
 	if err := tmpl.ExecuteTemplate(w, name, data); err != nil {
@@ -1573,15 +2442,20 @@ func (s *server) renderStatus(w http.ResponseWriter, status int, name string, da
 	}
 }
 
-// injectUnread supplies the chrome's global message element with the unread
-// count on every authenticated screen, so no per-page handler has to thread it
-// through (v1 spec §6.1: the count rides every screen). It is a single central
-// touchpoint: a chrome page is any render whose data carries an "IsAdmin" key —
-// the auth pages (login/setup/totp) have no chrome and no such key, so they are
-// left alone. A page that already computed its own "Unread" (the panel itself)
-// keeps it. The count is a lightweight read; on error it defaults to zero rather
-// than failing the page.
-func (s *server) injectUnread(data any) {
+// injectChrome supplies the design-owned console shell (shell.tmpl) with its single
+// nullable .Chrome view-model — the nav pills + Signals open count, the single-org
+// static chip (#27b/#28: orgs are not modeled, ADR-0073, so the switcher ships the
+// chip and the org-open golden defers), the build version, the avatar identity, the
+// bell's recent messages (P1.3), the server-rendered command-palette groups (#27c),
+// the scan-running flag, and the ToastStack decoded from the PRG flash query (#27d).
+// It is a single central touchpoint: a chrome page is any render whose data carries an
+// "IsAdmin" key — the chrome-less auth pages (login/setup/totp) have no such key, so
+// they are left with no .Chrome (the shell's {{with .Chrome}} renders no chrome, as
+// today). r is threaded for the toast flash + the devMode capture variant; it may be
+// nil. In a VERGE_DEV build the chrome is composed from the pinned fixtures.json shell
+// slice so the seeded candidate matches the golden render-goldens composes; a real
+// deployment composes it from honest live reads. Every read is best-effort.
+func (s *server) injectChrome(data any, r *http.Request) {
 	m, ok := data.(map[string]any)
 	if !ok {
 		return
@@ -1589,32 +2463,79 @@ func (s *server) injectUnread(data any) {
 	if _, isChrome := m["IsAdmin"]; !isChrome {
 		return
 	}
-	// The shared chrome highlights the active nav pill via {{if eq .NavActive "id"}}.
-	// A missing map key would make `eq` error at render, so every chrome page gets
-	// a default here; a screen handler that passes its own "NavActive" nav id keeps
-	// it. (T0 seam: the nav id is the one field a screen ticket threads into the
-	// shell. The key is "NavActive", not "Active" — the scans view already owns
-	// "Active" for its in-flight list.)
-	if _, has := m["NavActive"]; !has {
-		m["NavActive"] = ""
-	}
-	if _, has := m["Unread"]; has {
+	navActive, _ := m["NavActive"].(string)
+	scanning, _ := m["Scanning"].(bool)
+
+	// VERGE_DEV: compose the chrome from the pinned fixtures.json shell slice, so the
+	// seeded candidate renders the SAME chrome the golden harness composes (v4 pixel
+	// parity). The scan-running variant already lit m["Scanning"] on the dashboard;
+	// the flash-toast capture variant folds in the fixture's toast stack.
+	if s.devMode {
+		showToast := r != nil && r.URL.Query().Get("variant") == devShellToastVariant
+		m["Chrome"] = chromeFromFixture(navActive, scanning, showToast)
 		return
 	}
-	// Read-state is per-account (#327), so the badge count is the CALLER's unread
-	// count. Every chrome page carries the account under "Account"; without it there
-	// is no account to scope to, so leave the count at zero rather than reading a
-	// global (which no longer exists) or another account's.
-	acct, ok := m["Account"].(db.Account)
-	if !ok {
-		m["Unread"] = int64(0)
-		return
+
+	// A real deployment: honest live reads.
+	ctx := context.Background()
+	acct, hasAcct := m["Account"].(db.Account)
+	signalCount, _ := m["SignalCount"].(int)
+
+	// Unread badge count — the caller's own count (#327, read-state is per-account),
+	// read once per chrome page unless the page (the Inbox / message panel) set it.
+	unread, hasUnread := m["Unread"].(int64)
+	if !hasUnread && hasAcct {
+		n, err := s.store.CountUnreadMessages(ctx, acct.ID)
+		if err != nil {
+			log.Printf("web: unread count: %v", err)
+		}
+		unread = n
 	}
-	n, err := s.store.CountUnreadMessages(context.Background(), acct.ID)
-	if err != nil {
-		log.Printf("web: unread count: %v", err)
+
+	var messages []bellMessage
+	if hasAcct {
+		messages = s.bellMessages(ctx, acct.ID, 4)
 	}
-	m["Unread"] = n
+
+	// A page may carry a flash INLINE (a bulk act that mixed successes with refusals
+	// renders the callouts and the success toast in one response, rather than a PRG that
+	// would drop the callouts). An inline FlashToasts wins over the PRG `toast` query.
+	toasts := decodeToasts(r)
+	if pt, ok := m["FlashToasts"].([]toastVM); ok {
+		toasts = pt
+	}
+	initials := "?"
+	userName := ""
+	if hasAcct {
+		initials = accountInitials(acct.Username)
+		userName = acct.Username
+	}
+
+	// Toasts come from the PRG `toast` query (decodeToasts). A single-consume flash
+	// (flash.go) additionally carries the scan trigger / stop / terminate receipts (#633,
+	// WORK-ORDER-DOGFOOD-R1 item 1): stashed server-side and read-and-deleted here on the
+	// first chrome render, so the in-flight auto-refresh reloading the same clean URL does
+	// not re-show them. A flash, when present, is the authoritative single toast (it wins
+	// over the inline FlashToasts above — in practice the two never co-occur, since the
+	// bulk-act pages that set FlashToasts do not stash a scan receipt).
+	if hasAcct {
+		if t, ok := s.flash.take(acct.ID); ok {
+			toasts = []toastVM{t}
+		}
+	}
+
+	m["Chrome"] = &chromeVM{
+		Nav:           navSlice(navActive, signalCount),
+		Org:           "self-hosted", // single-org deployment; static chip (ADR-0073, switcher retired #33)
+		Version:       s.buildVersion(),
+		UserName:      userName,
+		UserInitials:  initials,
+		ScanRunning:   scanning,
+		Unread:        unread > 0,
+		Messages:      messages,
+		PaletteGroups: paletteGroupsProd(signalCount, unread),
+		Toasts:        toasts,
+	}
 }
 
 func (s *server) serverError(w http.ResponseWriter, what string, err error) {
@@ -1626,16 +2547,19 @@ func (s *server) serverError(w http.ResponseWriter, what string, err error) {
 // is HttpOnly and SameSite=Lax (which blocks cross-site POSTs, the CSRF vector
 // for the mutating endpoints), and Secure when the request arrived over TLS.
 // It reports success: on a signing failure it has already written a 500, and
-// the caller must return rather than write a second response.
-func (s *server) setSignedCookie(w http.ResponseWriter, r *http.Request, name string, kind auth.Kind, id int64, ttl time.Duration) bool {
+// the caller must return rather than write a second response. sessionToken is the
+// opaque server-side session token to carry inside the signed payload (#405): the
+// completed-login caller passes the freshly minted token, and the pending/TOTP caller
+// passes "" (that cookie has no session row).
+func (s *server) setSignedCookie(w http.ResponseWriter, r *http.Request, name string, kind auth.Kind, id int64, sessionToken string, ttl time.Duration) bool {
 	token, err := auth.SignSession(s.key, auth.Session{
-		AccountID: id, Kind: kind, ExpiresAt: s.now().Add(ttl),
+		AccountID: id, Kind: kind, ExpiresAt: s.now().Add(ttl), Token: sessionToken,
 	})
 	if err != nil {
 		s.serverError(w, "sign session", err)
 		return false
 	}
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ // #nosec G124 -- Secure set conditionally (r.TLS != nil || s.secureCookies) for plain-HTTP dev/proxy; HttpOnly + SameSite=Lax always set.
 		Name: name, Value: token, Path: "/", HttpOnly: true,
 		SameSite: http.SameSiteLaxMode, Secure: s.secureCookies || r.TLS != nil, MaxAge: int(ttl.Seconds()),
 	})
@@ -1643,8 +2567,8 @@ func (s *server) setSignedCookie(w http.ResponseWriter, r *http.Request, name st
 }
 
 func (s *server) clearCookie(w http.ResponseWriter, name string) {
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ // #nosec G124 -- deletion cookie (empty value, MaxAge<0); Secure via s.secureCookies expression; HttpOnly + SameSite=Lax set.
 		Name: name, Value: "", Path: "/", HttpOnly: true,
-		SameSite: http.SameSiteLaxMode, MaxAge: -1,
+		SameSite: http.SameSiteLaxMode, Secure: s.secureCookies, MaxAge: -1,
 	})
 }

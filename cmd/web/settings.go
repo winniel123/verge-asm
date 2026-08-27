@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/winniel123/verge-asm/db/migrations"
 	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/retention"
@@ -31,26 +33,64 @@ import (
 // secret, only whether one is set: the secret is write-only and the render path
 // is structurally unable to hold it (CONTEXT.md "Channel").
 type channelView struct {
-	ID        int64
-	URL       string
-	Drift     bool
-	Coverage  bool
-	Clock     bool
-	Enabled   bool
-	HasSecret bool
-	By        string
-	At        string
+	ID       int64
+	URL      string
+	Drift    bool
+	Coverage bool
+	Clock    bool
+	// Classes is the store vocabulary this channel carries, in vocabulary order —
+	// the display tags (#26f, never a hardcoded set in the tmpl). ClassStates is the
+	// full vocabulary with each class's checked flag for the edit-disclosure form.
+	Classes     []string
+	ClassStates []classState
+	Enabled     bool
+	HasSecret   bool
+	By          string
+	At          string
 }
+
+// classState is one routing class in the channel vocabulary with its checked flag —
+// the shape both the create form's .ClassOptions and a channel's per-row .ClassStates
+// render from, so the class checkboxes/badges come from the store's vocabulary rather
+// than a hardcoded set (#26f).
+type classState struct {
+	Name    string
+	Checked bool
+}
+
+// channelClasses is the store's routing-class vocabulary (the route_drift /
+// route_coverage / route_clock columns, ADR-0091). The tmpl renders class
+// checkboxes and badges from this, never from a literal set baked into the markup.
+var channelClasses = []string{"drift", "coverage", "clock"}
 
 // accountRow is one account in the management list. It carries no password hash
 // and no TOTP secret — managing an account needs neither.
 type accountRow struct {
 	ID          int64
 	Username    string
+	Initials    string
 	Role        string
 	TotpEnabled bool
 	At          string
 	IsSelf      bool
+}
+
+// sessionRow is one active session in the admin-wide sessions view (#407). It
+// carries no token hash — the listing query never projects the secret — only whose
+// session it is (Account) and at what Role, the device derived from the stored
+// User-Agent, the source IP, and the relative last-active reading. Current marks the
+// one row whose cookie is making this request (Settings.jsx's `current`): it wears the
+// "(you)" marker and shows no revoke control, so the operator can never sign their own
+// browser out from the admin-wide surface.
+type sessionRow struct {
+	ID        int64
+	AccountID int64
+	Account   string
+	Role      string
+	Device    string
+	IP        string
+	LastSeen  string
+	Current   bool
 }
 
 // retentionView renders the two dials and who last moved them.
@@ -71,6 +111,13 @@ type vantageRow struct {
 	Availability string
 	Resolver     string
 	Endpoint     string
+	// Latency is the measured connect round-trip label ("34ms") or empty when
+	// unmeasured; Unverified marks a vantage that makes no exposure claims until
+	// re-verified (its availability reads "unverified"). The spec VantageCard renders
+	// the dashed border and no-claims note off Unverified (#26c).
+	Latency    string
+	Unverified bool
+	Avail      string
 }
 
 // settingsForms carries the echo state of the Settings screen's forms so a
@@ -118,6 +165,34 @@ type settingsForms struct {
 
 	vcError string
 	vcPort  string
+
+	// sources (#26). sourceError is an inline error on the sources tab (a bad id or a
+	// rejected enable), echoed above the tier cards.
+	sourceError string
+
+	// cold + probers (#21d): the full-range opt-in and prober provisioning acts
+	// relocated from /scope. coldError is an inline error on the Scans tab's cold-tier
+	// region; the prober fields echo a rejected provision form back on the Vantages tab.
+	coldError   string
+	proberError string
+	proberHost  string
+	proberPort  string
+	proberUser  string
+
+	// sessions (#407). revokeAccountID/revokeAccountError re-open the typed-name
+	// revoke-all-for-account ConfirmDialog on a mismatch, exactly as the Team
+	// remove-account dialog re-opens through removeID/removeError.
+	revokeAccountID    int64
+	revokeAccountError string
+
+	// restore (#391/B4, ADR-0124): the Instance tab's Restore card state. restoreError
+	// is the inline failure line (a fixed message keyed to a redirect code, never
+	// reflected text). preflight surfaces a staged, validated archive ready to apply;
+	// restoreConfirm re-shows that same staged archive as the typed-confirm dialog when
+	// ?restore-confirm=1. All nil/empty on a normal Instance render.
+	restoreError   string
+	preflight      *restorePreflightView
+	restoreConfirm *restoreConfirmView
 }
 
 // settingsTabs is the sub-tab order of the Settings screen, ported from
@@ -127,7 +202,7 @@ type settingsForms struct {
 // record). Each is reached at /settings?tab=<id>.
 var settingsTabs = []string{
 	"scans", "vantages",
-	"sso", "team", "audit",
+	"sso", "team", "audit", "api", "sessions",
 	"sources", "aperture",
 	"instance",
 	"channels", "integrations", "messages", "delivery",
@@ -153,6 +228,8 @@ func validTab(t string) string {
 // rejected submission re-renders with its own section active.
 func tabForSection(section string) string {
 	switch section {
+	case "api":
+		return "api"
 	case "sso":
 		return "sso"
 	case "team":
@@ -163,13 +240,71 @@ func tabForSection(section string) string {
 		return "delivery"
 	case "vergecore":
 		return "aperture"
+	case "sources":
+		return "sources"
+	case "integrations":
+		return "integrations"
+	case "sessions":
+		return "sessions"
+	case "vantages":
+		return "vantages"
+	case "scans", "cold":
+		return "scans"
 	default:
 		return "scans"
 	}
 }
 
 func (s *server) settingsPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	s.renderSettings(w, r, acct, settingsForms{tab: validTab(r.URL.Query().Get("tab"))})
+	// A VERGE_DEV build serves the design's curated fixtures.json settings slice so each
+	// section renders byte-for-byte for the pixel-parity harness (the 19 golden states).
+	// It touches no table — the twin of the render-goldens settings case, both stamping
+	// the same "settings" holes from the same fixture. A real deployment renders the live
+	// projection below (renderSettings). The viewer's forbidden state never reaches here:
+	// requireSettingsAdmin refuses it first (settingsForbidden, the error-page).
+	if s.devMode {
+		s.render(w, r, "settings", s.settingsFixtureData(acct, r))
+		return
+	}
+	q := r.URL.Query()
+	forms := settingsForms{
+		tab:    validTab(q.Get("tab")),
+		notice: sessionsNotice(q.Get("notice")),
+	}
+	// Restore card state (#391/B4, ADR-0124) rides the Instance tab only. A failed
+	// pre-flight or apply redirects here with ?restore-error=<code>, mapped to a fixed
+	// line (never reflected text). A completed pre-flight left the validated archive
+	// staged for this admin; surface it as the warn callout, or — with ?restore-confirm=1
+	// — as the typed-confirm dialog.
+	if forms.tab == "instance" {
+		forms.restoreError = restoreErrorMessage(q.Get("restore-error"))
+		if stg := s.stagedRestore(acct.ID); stg != nil {
+			if q.Get("restore-confirm") == "1" {
+				forms.restoreConfirm = &restoreConfirmView{
+					File: stg.file, TakenAt: stg.takenAt, Subjects: stg.subjects,
+				}
+			} else {
+				forms.preflight = &restorePreflightView{
+					File: stg.file, TakenAt: stg.takenAt, Subjects: stg.subjects, Schema: stg.schema,
+				}
+			}
+		}
+	}
+	s.renderSettings(w, r, acct, forms)
+}
+
+// sessionsNotice maps a redirect's notice code to a fixed success line so a
+// completed admin session act (#407) confirms on the reloaded surface without
+// reflecting arbitrary query text into the page. An unknown code renders no notice.
+func sessionsNotice(code string) string {
+	switch code {
+	case "revoked":
+		return "Session revoked — its next request lands on the sign-in screen."
+	case "revoked-account":
+		return "Every session for that account was revoked."
+	default:
+		return ""
+	}
 }
 
 // --- team ------------------------------------------------------------------
@@ -213,7 +348,7 @@ func (s *server) inviteAccount(w http.ResponseWriter, r *http.Request, acct db.A
 	}
 	link := s.inviteLink(r, plaintext)
 	// The one delivery this self-hosted build honestly has: the operator's own logs.
-	log.Printf("web: invite minted at role %q; accept it at %s (expires in %s)", role, link, inviteTTL)
+	log.Printf("web: invite minted at role %q; accept it at %s (expires in %s)", role, link, inviteTTL) // #nosec G706 (role is enum-validated admin|viewer; link is server-constructed)
 	s.renderSettings(w, r, acct, settingsForms{tab: "team", inviteLink: link})
 }
 
@@ -507,9 +642,18 @@ func (s *server) renderSettings(w http.ResponseWriter, r *http.Request, acct db.
 		active = tabForSection(f.section)
 	}
 
+	// The Integrations surface is hidden (#388, integrationsEnabled). A direct
+	// ?tab=integrations navigation renders no tab and no section, so bounce it to
+	// the default Scans tab rather than an empty page — nothing integration-related
+	// is reachable while the flag is off.
+	if active == "integrations" && !integrationsEnabled {
+		http.Redirect(w, r, "/settings?tab=scans", http.StatusSeeOther)
+		return
+	}
+
 	data := map[string]any{
 		"Title": "Settings", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "settings", "Tab": active,
+		"NavActive": "settings", "Tab": active, "DesignTokens": true,
 	}
 	if f.notice != "" {
 		data["Notice"] = f.notice
@@ -518,21 +662,25 @@ func (s *server) renderSettings(w http.ResponseWriter, r *http.Request, acct db.
 	var err error
 	switch active {
 	case "scans":
-		err = s.fillScansSection(r, acct, data)
+		err = s.fillScansSection(r, acct, f, data)
 	case "vantages":
-		err = s.fillVantagesSection(r, data)
+		err = s.fillVantagesSection(r, f, data)
 	case "sso":
 		err = s.fillSSOSection(r, f, data)
 	case "team":
 		err = s.fillTeamSection(r, acct, f, data)
 	case "audit":
 		err = s.fillAuditSection(r, data)
+	case "api":
+		err = s.fillAPISection(r, data)
+	case "sessions":
+		err = s.fillSessionsSection(r, f, data)
 	case "sources":
-		err = s.fillSourcesSection(r, data)
+		err = s.fillSourcesSection(r, f, data)
 	case "aperture":
 		err = s.fillApertureSection(r, f, data)
 	case "instance":
-		err = s.fillInstanceSection(r, data)
+		err = s.fillInstanceSection(r, f, data)
 	case "channels":
 		err = s.fillChannelsSection(r, f, data)
 	case "integrations":
@@ -551,29 +699,34 @@ func (s *server) renderSettings(w http.ResponseWriter, r *http.Request, acct db.
 	if f.section != "" {
 		status = http.StatusBadRequest
 	}
-	s.renderStatus(w, status, "settings", data)
+	s.renderStatus(w, r, status, "settings", data)
 }
 
 // fillVantagesSection lists the provisioned measurement positions (CONTEXT.md
 // "Vantage"). A read-only display: provisioning lives on Scope, and a vantage is
 // never a probe/scanner/agent here.
-func (s *server) fillVantagesSection(r *http.Request, data map[string]any) error {
+func (s *server) fillVantagesSection(r *http.Request, f settingsForms, data map[string]any) error {
 	rows, err := s.store.ListVantages(r.Context())
 	if err != nil {
 		return err
 	}
+	// The prober provisioning form's echo (#21d, relocated from /scope): a rejected
+	// provision re-renders the Vantages tab with its own error and typed values.
+	data["ProberError"] = f.proberError
+	data["ProberHost"] = f.proberHost
+	data["ProberPort"] = f.proberPort
+	data["ProberUser"] = f.proberUser
 	out := make([]vantageRow, 0, len(rows))
 	for _, v := range rows {
 		vr := vantageRow{
 			Name: v.Name, Class: v.Class, Availability: v.Availability.String,
 			Resolver: v.Resolver, Endpoint: endpointString(v.Host.String, v.Port.Int32),
+			Latency: vantageLatencyLabel(v.LatencyMs),
 		}
 		if vr.Availability == "" {
 			vr.Availability = "pending"
 		}
-		if vr.Resolver == "" {
-			vr.Resolver = "—"
-		}
+		vr.Unverified = vr.Availability == "unverified"
 		out = append(out, vr)
 	}
 	data["Vantages"] = out
@@ -603,7 +756,35 @@ func (s *server) fillChannelsSection(r *http.Request, f settingsForms, data map[
 	data["ChanDrift"] = chDrift
 	data["ChanCoverage"] = chCoverage
 	data["ChanClock"] = chClock
+	// The create form's class checkboxes render from the store vocabulary (#26f),
+	// pre-checked to the create-form defaults (all three, or the operator's echoed
+	// selection after a rejected create).
+	defaults := map[string]bool{"drift": chDrift, "coverage": chCoverage, "clock": chClock}
+	opts := make([]classState, 0, len(channelClasses))
+	for _, name := range channelClasses {
+		opts = append(opts, classState{Name: name, Checked: defaults[name]})
+	}
+	data["ClassOptions"] = opts
 	return nil
+}
+
+// initialsFromUsername derives a member's initial-avatar label from their username
+// — the first two letters of the local part, uppercased (Settings.jsx derives the
+// avatar from the username, no new datum). A single-character local part yields one
+// letter; an empty username yields the empty string.
+func initialsFromUsername(username string) string {
+	local := username
+	if i := strings.IndexByte(username, '@'); i >= 0 {
+		local = username[:i]
+	}
+	letters := make([]rune, 0, 2)
+	for _, r := range local {
+		letters = append(letters, r)
+		if len(letters) == 2 {
+			break
+		}
+	}
+	return strings.ToUpper(string(letters))
 }
 
 // fillDeliverySection carries the operational-record group: the delivery outcomes
@@ -640,6 +821,41 @@ func (s *server) fillDeliverySection(r *http.Request, f settingsForms, data map[
 	return nil
 }
 
+// fillAPISection carries the read-only /api/v1 opt-in surface (#390, ADR-0123 pending
+// A1). It reads the single instance_config row: .API{Enabled,By,At}, where By/At are the
+// dated act of the CURRENT state (who last flipped the surface on, when) and both stay
+// nil while it has never been enabled. Enabling is admin-only (the toggle is behind
+// .IsAdmin in the tmpl, its POST /settings/api handler is A4); a viewer reaches this one
+// Settings tab read-only (requireSettingsAdmin lets ?tab=api through) and sees the state
+// and note without a button. The bearer verification, the enable POST and the live
+// enabled render are the A-cluster's; this lands the disabled/read baseline.
+func (s *server) fillAPISection(r *http.Request, data map[string]any) error {
+	cfg, err := s.store.GetInstanceConfig(r.Context())
+	if err != nil {
+		return err
+	}
+	api := map[string]any{"Enabled": cfg.ApiEnabled}
+	if cfg.ApiEnabled {
+		// By/At describe the current enabled state — resolve the author username by the
+		// same join toRetentionView uses (settings.go), and format the instant in UTC.
+		if cfg.ApiUpdatedBy.Valid {
+			if accounts, aerr := s.store.ListAccounts(r.Context()); aerr == nil {
+				for _, a := range accounts {
+					if a.ID == cfg.ApiUpdatedBy.Int64 {
+						api["By"] = a.Username
+						break
+					}
+				}
+			}
+		}
+		if cfg.ApiUpdatedAt.Valid {
+			api["At"] = cfg.ApiUpdatedAt.Time.UTC().Format("2006-01-02 15:04 UTC")
+		}
+	}
+	data["API"] = api
+	return nil
+}
+
 // fillApertureSection carries the verge-core hot port set (§3.5, Settings.jsx's
 // ApertureSection): the release-authored sensitive tier rendered read-only, and the
 // operator-editable frequency tier. A frequency edit is stored as a delta over the
@@ -655,8 +871,8 @@ func (s *server) fillApertureSection(r *http.Request, f settingsForms, data map[
 	editByPort := make(map[uint16]string, len(editRows))
 	edits := make([]vergecore.FrequencyEdit, 0, len(editRows))
 	for _, e := range editRows {
-		editByPort[uint16(e.Port)] = e.Action
-		edits = append(edits, vergecore.FrequencyEdit{Port: uint16(e.Port), Action: e.Action})
+		editByPort[uint16(e.Port)] = e.Action                                                  // #nosec G115 (DB port written only via 1..65535-validated edit path)
+		edits = append(edits, vergecore.FrequencyEdit{Port: uint16(e.Port), Action: e.Action}) // #nosec G115 (DB port written only via 1..65535-validated edit path)
 	}
 	shipped := vergecore.Default()
 	effective := shipped.WithFrequencyEdits(edits)
@@ -670,7 +886,10 @@ func (s *server) fillApertureSection(r *http.Request, f settingsForms, data map[
 	}
 	sens := make([]sensRow, 0, len(shipped.SensitivePairs()))
 	for _, p := range shipped.SensitivePairs() {
-		sens = append(sens, sensRow{Port: int(p.Port), Transport: string(p.Transport)})
+		sens = append(sens, sensRow{
+			Port: int(p.Port), Transport: string(p.Transport),
+			Service: sensitiveServiceLabels[int(p.Port)],
+		})
 	}
 	c := effective.Count()
 	data["Counts"] = c
@@ -756,29 +975,476 @@ func (s *server) fillAuditSection(_ *http.Request, data map[string]any) error {
 	return nil
 }
 
+// fillSessionsSection carries the admin-wide sessions surface (#407, ADR-0117): every
+// account's live browser sessions across the deployment, joined to the owning account's
+// username and role, grouped by account then recency (the query's own order). The
+// listing never projects the token hash. It also opens the two ConfirmDialogs by query
+// param — single-session revoke (?revoke=<sessionID>) and revoke-all-for-account
+// (?revoke-account=<accountID>, typed-name), the latter re-opened by a rejected POST
+// through settingsForms — matching the Team surface's dialog idiom.
+func (s *server) fillSessionsSection(r *http.Request, f settingsForms, data map[string]any) error {
+	now := s.now()
+	rows, err := s.store.ListAllActiveSessions(r.Context(), pgtype.Timestamptz{Time: now, Valid: true})
+	if err != nil {
+		return err
+	}
+	// The row whose cookie is making this request is marked current (Settings.jsx's
+	// `current`) — the same resolution the Profile sessions surface uses (auth.go's
+	// currentSessionID). ok=false when no cookie resolves, in which case no row is
+	// treated as current.
+	curSessionID, haveCurSession := s.currentSessionID(r)
+	sessions := make([]sessionRow, 0, len(rows))
+	for _, row := range rows {
+		sr := sessionRow{
+			ID: row.ID, AccountID: row.AccountID, Account: row.Username, Role: row.Role,
+			Device: sessionDeviceFromUA(row.UserAgent), IP: row.Ip,
+			LastSeen: agoLabel(row.LastSeenAt.Time, now),
+			Current:  haveCurSession && row.ID == curSessionID,
+		}
+		if sr.IP == "" {
+			sr.IP = "—"
+		}
+		sessions = append(sessions, sr)
+	}
+	data["Sessions"] = sessions
+
+	q := r.URL.Query()
+	// Single-revoke ConfirmDialog: opened by ?revoke=<sessionID>. The dialog reads the
+	// session's own details from the already-gathered list.
+	if v := q.Get("revoke"); v != "" {
+		if id, perr := strconv.ParseInt(v, 10, 64); perr == nil {
+			for i := range sessions {
+				if sessions[i].ID == id {
+					data["RevokeSessionTarget"] = &sessions[i]
+					break
+				}
+			}
+		}
+	}
+	// Revoke-all-for-account typed-name dialog: opened by ?revoke-account=<accountID> (GET)
+	// or re-opened by a rejected typed-name POST through f.revokeAccountID. The username the
+	// operator must type is taken from any of that account's sessions in the list.
+	revokeAcct := f.revokeAccountID
+	if revokeAcct == 0 {
+		if v := q.Get("revoke-account"); v != "" {
+			if id, perr := strconv.ParseInt(v, 10, 64); perr == nil {
+				revokeAcct = id
+			}
+		}
+	}
+	if revokeAcct != 0 {
+		for i := range sessions {
+			if sessions[i].AccountID == revokeAcct {
+				data["RevokeAccountTarget"] = map[string]any{
+					"AccountID": revokeAcct, "Username": sessions[i].Account,
+				}
+				data["RevokeAccountError"] = f.revokeAccountError
+				break
+			}
+		}
+	}
+	return nil
+}
+
+// revokeSessionAdmin revokes any single session by id — the admin-wide kill of one
+// active session (#407). It is admin-gated (requireAdmin) and NOT owner-scoped
+// (RevokeSessionByIDForAdmin), reached only through the per-row ConfirmDialog. It is
+// idempotent: an unparseable or already-revoked id redirects back cleanly. The very
+// next request carrying that session's cookie resolves no live session and is bounced to
+// /login (#405).
+func (s *server) revokeSessionAdmin(w http.ResponseWriter, r *http.Request, _ db.Account) {
+	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
+	if err != nil {
+		http.Redirect(w, r, "/settings?tab=sessions", http.StatusSeeOther)
+		return
+	}
+	if err := s.store.RevokeSessionByIDForAdmin(r.Context(), db.RevokeSessionByIDForAdminParams{
+		ID: id, RevokedAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+	}); err != nil {
+		s.serverError(w, "admin revoke session", err)
+		return
+	}
+	http.Redirect(w, r, "/settings?tab=sessions&notice=revoked", http.StatusSeeOther)
+}
+
+// revokeAccountSessions revokes every live session for one account — the offboarding
+// kill (#407). It passes through a typed-name gate exactly as the Team remove-account
+// act does: the operator must type the account's username to confirm, and it is reached
+// only through the revoke-all ConfirmDialog. It never touches the account's membership,
+// role or personal tokens — only its live sessions — and is idempotent.
+func (s *server) revokeAccountSessions(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	id, err := strconv.ParseInt(r.FormValue("account_id"), 10, 64)
+	if err != nil {
+		http.Redirect(w, r, "/settings?tab=sessions", http.StatusSeeOther)
+		return
+	}
+	target, err := s.store.GetAccountByID(r.Context(), id)
+	if err != nil {
+		// The account is gone; there is nothing to revoke and no dialog to re-open.
+		http.Redirect(w, r, "/settings?tab=sessions", http.StatusSeeOther)
+		return
+	}
+	if strings.TrimSpace(r.FormValue("confirm_name")) != target.Username {
+		s.renderSettings(w, r, acct, settingsForms{
+			section: "sessions", revokeAccountID: id,
+			revokeAccountError: "That did not match. Type " + target.Username + " exactly to revoke every session.",
+		})
+		return
+	}
+	if err := s.store.RevokeAllSessionsForAccount(r.Context(), db.RevokeAllSessionsForAccountParams{
+		AccountID: id, RevokedAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
+	}); err != nil {
+		s.serverError(w, "admin revoke account sessions", err)
+		return
+	}
+	http.Redirect(w, r, "/settings?tab=sessions&notice=revoked-account", http.StatusSeeOther)
+}
+
+// sessionDeviceFromUA describes a session from a stored User-Agent string — a real
+// derivation of what the client sent, never a fabricated device. It is the string-typed
+// twin of auth.go's sessionDevice (which reads the live request); the admin surface only
+// holds the persisted UA, so it derives the same label from that. An absent or
+// unrecognised agent degrades to a plain label rather than a guess.
+func sessionDeviceFromUA(ua string) string {
+	if ua == "" {
+		return "Unknown device"
+	}
+	// A non-browser client (the verge CLI / API automation) announces itself as verge-cli
+	// and carries its user@host in the parenthetical, e.g. "verge-cli/1.0 (verge@build-07)".
+	// Label such a session "CLI · <host>" so it reads distinctly from a browser device
+	// (Profile sessions, "CLI · verge@build-07"). A verge-cli client with no parenthetical
+	// falls back to a bare "CLI".
+	if strings.HasPrefix(ua, "verge-cli") {
+		if i := strings.IndexByte(ua, '('); i >= 0 {
+			if j := strings.IndexByte(ua[i:], ')'); j > 1 {
+				if host := strings.TrimSpace(ua[i+1 : i+j]); host != "" {
+					return "CLI · " + host
+				}
+			}
+		}
+		return "CLI"
+	}
+	browser := "Browser"
+	switch {
+	case strings.Contains(ua, "Firefox"):
+		browser = "Firefox"
+	case strings.Contains(ua, "Edg"):
+		browser = "Edge"
+	case strings.Contains(ua, "Chrome"), strings.Contains(ua, "Chromium"):
+		browser = "Chrome"
+	case strings.Contains(ua, "Safari"):
+		browser = "Safari"
+	}
+	os := ""
+	switch {
+	case strings.Contains(ua, "Mac OS X"), strings.Contains(ua, "Macintosh"):
+		os = "macOS"
+	case strings.Contains(ua, "Windows"):
+		os = "Windows"
+	case strings.Contains(ua, "iPhone"), strings.Contains(ua, "iPad"):
+		os = "iOS"
+	case strings.Contains(ua, "Android"):
+		os = "Android"
+	case strings.Contains(ua, "Linux"):
+		os = "Linux"
+	}
+	if os != "" {
+		return browser + " · " + os
+	}
+	return browser
+}
+
 // fillInstanceSection carries the instance-health tab (Settings.jsx InstanceSection)
 // as real reads only — no fabricated version string, uptime figure, or queue depth
 // where the datum does not exist. What is real: the licence/build stance (AGPL-3.0,
-// self-hosted), the process uptime since start, that Postgres answered this render,
-// and the provisioned vantage fleet with each vantage's availability.
-func (s *server) fillInstanceSection(r *http.Request, data map[string]any) error {
-	data["Licence"] = "AGPL-3.0 · self-hosted"
-	data["Uptime"] = humanizeDuration(s.now().Sub(s.startedAt))
+// self-hosted), the process uptime since start, the build version, the applied-vs-embedded
+// migrations count, that Postgres answered this render, the provisioned vantage fleet with
+// each vantage's availability, and the release check's opt-in flag + cached last result
+// (#391, ADR-0124). The Backup/Restore card bodies are the B3/B4 clusters'.
+func (s *server) fillInstanceSection(r *http.Request, f settingsForms, data map[string]any) error {
+	ctx := r.Context()
+	// Real host facts only (#26h): the licence stance, the process uptime since start, and
+	// the build version off VERGE_VERSION (buildVersion, the same the auth footer reads).
+	// Queue depth, disk and Postgres are wired from live reads below (#633,
+	// WORK-ORDER-DOGFOOD-R1 item 3), each best-effort: a failed read leaves its hole empty
+	// and the figure collapses, never a guessed number.
+	inst := map[string]any{
+		"License":    "AGPL-3.0 · self-hosted",
+		"Uptime":     humanizeDuration(s.now().Sub(s.startedAt)),
+		"Version":    s.buildVersion(),
+		"QueueDepth": "",
+		"DiskPct":    0,
+		"DiskDetail": "",
+		"PgLabel":    "postgres",
+		"PgDetail":   "",
+	}
 
-	var fleet []vantageRow
+	// Queue depth — the real count of in-flight queue jobs (ready + running) across the
+	// recent dispatches: the work waiting on the queue, the "subjects waiting" figure.
+	if rows, err := s.store.ListDispatchProgress(ctx, scansHistoryLimit); err == nil {
+		var waiting int64
+		for _, row := range rows {
+			waiting += row.Ready + row.Running
+		}
+		inst["QueueDepth"] = waiting
+	} else {
+		log.Printf("web: instance: queue depth: %v", err)
+	}
+
+	// Disk — a real Statfs of the working-directory volume on the deployment host
+	// (diskstat_unix.go). Off unix (dev on Windows) diskUsage reports ok=false and the
+	// figure collapses rather than fabricate one.
+	if used, total, ok := diskUsage("."); ok {
+		inst["DiskDetail"] = diskLabel(used, total)
+		inst["DiskPct"] = int(used * 100 / total) // #nosec G115 -- used<=total (guarded in diskUsage), so the percentage is 0..100
+	}
+
+	// Database — real pg_database_size and server version off the running Postgres.
+	if h, err := s.store.GetInstanceHealth(ctx); err == nil {
+		inst["PgLabel"] = pgLabel(h.ServerVersion)
+		inst["PgDetail"] = humanBytes(h.DbSizeBytes)
+	} else {
+		log.Printf("web: instance: db health: %v", err)
+	}
+
+	var fleet []map[string]any
 	if rows, err := s.store.ListVantages(r.Context()); err == nil {
 		for _, v := range rows {
 			avail := v.Availability.String
 			if avail == "" {
 				avail = "pending"
 			}
-			fleet = append(fleet, vantageRow{Name: v.Name, Class: v.Class, Availability: avail})
+			fleet = append(fleet, map[string]any{
+				"Name": v.Name, "Latency": vantageLatencyLabel(v.LatencyMs), "Avail": avail,
+			})
 		}
 	} else {
 		log.Printf("web: instance: list vantages: %v", err)
 	}
-	data["Fleet"] = fleet
+	inst["Vantages"] = fleet
+
+	// Migrations — best-effort applied-vs-embedded count (#391). max(version_id) in
+	// goose's ledger against the versions embedded in the binary (db/migrations); a
+	// version embedded but not yet applied is pending. A read that fails (nil pool off
+	// the pixel harness, or a query error) leaves the badge absent rather than guessing —
+	// the tmpl's {{with .Migrations}} collapses, never a fabricated "schema current".
+	if pending, ok := s.migrationsPending(ctx); ok {
+		inst["Migrations"] = map[string]any{"Pending": pending}
+	}
+
+	// Release — the Version & updates card (#391, ADR-0124: check + surface + guide,
+	// never self-replace). The single instance_config row carries the opt-in flag and the
+	// worker's cached last check (B5 writes it). State is disabled when the check is opted
+	// out, else newer/current from the cache. The host steps are release-authored and
+	// literal — the UI never composes a shell — so they ride a fixed constant, not a
+	// derivation. A failed config read leaves the release block absent.
+	if cfg, err := s.store.GetInstanceConfig(ctx); err == nil {
+		release := map[string]any{
+			"CheckEnabled": cfg.UpdateCheckEnabled,
+			"Steps":        updateHostSteps,
+		}
+		state := "disabled"
+		if cfg.UpdateCheckEnabled {
+			// Enabled ⇒ newer or current (disabled means the check is off). A "newer"
+			// carries the cached latest version + notes; anything else reads as current
+			// — nothing newer known — never a guess at an unseen release.
+			state = "current"
+			if cfg.ReleaseState.String == "newer" {
+				state = "newer"
+				release["Latest"] = map[string]any{
+					"Version": cfg.ReleaseLatestVersion.String,
+					"Notes":   cfg.ReleaseLatestNotes.String,
+				}
+			}
+			if cfg.ReleaseCheckedAt.Valid {
+				release["CheckedAt"] = cfg.ReleaseCheckedAt.Time.UTC().Format("2006-01-02 15:04 UTC")
+			}
+		}
+		release["State"] = state
+		inst["Release"] = release
+
+		// Backup card (#391, ADR-0124, B3). A synchronous streamed backup never sets
+		// InProgress/Streamed/SizeHint/Percent, so those stay unset and the tmpl's
+		// {{if .InProgress}} branch collapses to the download button + last-backup note.
+		// .Backup itself must be non-nil for {{with .Backup}} to render the button at all;
+		// the record is null (empty LastAt) until the first UI backup, when SetLastBackup
+		// (cmd/web/backup.go) stamps it. LastAt mirrors the Release CheckedAt format.
+		backup := map[string]any{"LastAt": "", "LastSize": ""}
+		if cfg.LastBackupAt.Valid {
+			backup["LastAt"] = cfg.LastBackupAt.Time.UTC().Format("2006-01-02 15:04 UTC")
+			backup["LastSize"] = humanBytes(cfg.LastBackupSize.Int64)
+		}
+		inst["Backup"] = backup
+	} else {
+		log.Printf("web: instance: release config: %v", err)
+	}
+
+	// Restore card state (#391/B4, ADR-0124). All three holes collapse when unset: a
+	// plain Instance render carries no staged pre-flight and no error, so the card shows
+	// its "Choose archive…" upload form. A completed pre-flight surfaces .Preflight (the
+	// warn callout), ?restore-confirm=1 surfaces .RestoreConfirm (the typed-confirm
+	// dialog), and any refusal surfaces .RestoreError. The three are mutually exclusive by
+	// construction of the handlers that set them.
+	if f.restoreError != "" {
+		inst["RestoreError"] = f.restoreError
+	}
+	if f.preflight != nil {
+		inst["Preflight"] = map[string]any{
+			"File": f.preflight.File, "TakenAt": f.preflight.TakenAt,
+			"Subjects": f.preflight.Subjects, "Schema": f.preflight.Schema,
+		}
+	}
+	if f.restoreConfirm != nil {
+		inst["RestoreConfirm"] = map[string]any{
+			"File": f.restoreConfirm.File, "TakenAt": f.restoreConfirm.TakenAt,
+			"Subjects": f.restoreConfirm.Subjects,
+		}
+	}
+
+	data["Instance"] = inst
 	return nil
+}
+
+// updateHostSteps are the literal, release-authored host commands the Version & updates
+// card prints when a newer release is available (#391, ADR-0124). Verge never rewrites
+// its own image — the swap is a host action — so the UI composes no shell: it renders
+// these exact lines. Until B5 threads a feed-delivered list through the release cache
+// they live here as the shipped constant, matching the design fixture line-for-line.
+var updateHostSteps = []string{
+	"# on the host — verge cannot rewrite its own image",
+	"docker compose pull",
+	"docker compose up -d web worker",
+	"docker compose exec web verge migrate status",
+}
+
+// migrationsPending is the best-effort applied-vs-embedded migrations count the
+// Version & updates badge shows (#391): how many embedded goose migrations carry a
+// version newer than the highest goose has applied. It reads goose's ledger with a raw
+// pool query (not sqlc — internal/db stays untouched this round) and the embedded set
+// from the same migrations.FS the binary applies at boot. Best-effort: a nil pool (off
+// the pixel harness) or any read error returns ok=false, so the badge collapses rather
+// than fabricate a "schema current".
+func (s *server) migrationsPending(ctx context.Context) (int, bool) {
+	if s.pool == nil {
+		return 0, false
+	}
+	var applied int64
+	if err := s.pool.QueryRow(ctx, "SELECT COALESCE(max(version_id), 0) FROM goose_db_version").Scan(&applied); err != nil {
+		log.Printf("web: instance: migrations applied: %v", err)
+		return 0, false
+	}
+	entries, err := migrations.FS.ReadDir(".")
+	if err != nil {
+		log.Printf("web: instance: migrations embed: %v", err)
+		return 0, false
+	}
+	pending := 0
+	for _, e := range entries {
+		name := e.Name()
+		if !strings.HasSuffix(name, ".sql") {
+			continue
+		}
+		if v, ok := migrationVersion(name); ok && v > applied {
+			pending++
+		}
+	}
+	return pending, true
+}
+
+// migrationVersion parses the leading integer of a goose migration filename
+// (e.g. "23000_instance_config.sql" → 23000), the version goose records in its ledger.
+// A name with no leading integer is not a numbered migration and reports ok=false.
+func migrationVersion(name string) (int64, bool) {
+	i := strings.IndexByte(name, '_')
+	if i <= 0 {
+		return 0, false
+	}
+	v, err := strconv.ParseInt(name[:i], 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	return v, true
+}
+
+// updateCheckToggle opts the worker's daily release-feed check in or out (#391, ADR-0124).
+// The hidden `enabled` field carries the flip target the Version & updates toggle computed
+// from the current state; SetUpdateCheckEnabled stamps who acted and when. While off the
+// worker never dispatches a check — air-gap-safe (B5 honours the flag). Admin-gated
+// (requireAdmin) with a PRG back to the Instance tab so a reload does not re-post.
+func (s *server) updateCheckToggle(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	enabled := r.FormValue("enabled") == "true"
+	if err := s.store.SetUpdateCheckEnabled(r.Context(), db.SetUpdateCheckEnabledParams{
+		UpdateCheckEnabled:   enabled,
+		UpdateCheckUpdatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
+	}); err != nil {
+		s.serverError(w, "set update check enabled", err)
+		return
+	}
+	http.Redirect(w, r, "/settings?tab=instance", http.StatusSeeOther)
+}
+
+// apiToggle flips the read-only /api/v1 surface on or off (#390, ADR-0123). The hidden
+// `enabled` field carries the flip target the API access toggle computed from the current
+// state; SetAPIEnabled stamps who acted and when, so the card renders the dated act of the
+// current state (Enabled by … · …). Enabling makes every minted personal token answer
+// GET /api/v1/… with its account's read access — read-only, always, no write surface to
+// enable; disabling returns /api/v1 to answering nothing on every path (surface off beats
+// auth) and leaves every token inert. Admin-gated (requireAdmin); a PRG back to the API tab
+// so a reload does not re-post, riding the shell toast pipeline the way other acts do.
+func (s *server) apiToggle(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	enabled := r.FormValue("enabled") == "true"
+	if err := s.store.SetAPIEnabled(r.Context(), db.SetAPIEnabledParams{
+		ApiEnabled:   enabled,
+		ApiUpdatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
+	}); err != nil {
+		s.serverError(w, "set api enabled", err)
+		return
+	}
+	if enabled {
+		s.toastRedirect(w, r, "/settings?tab=api", "ok", "API access enabled",
+			"Personal tokens now answer GET /api/v1/… — read-only, always.")
+		return
+	}
+	s.toastRedirect(w, r, "/settings?tab=api", "neutral", "API access disabled", "")
+}
+
+// diskLabel renders the used / total volume figure the instance-health disk row shows
+// (e.g. "24.8 / 40 GB", the fixture format): both in gibibytes, used carrying one
+// decimal and total rounded, the unit named once. The percentage rides the bar
+// (.DiskPct) separately, so it is not repeated here.
+func diskLabel(used, total uint64) string {
+	const gb = 1 << 30
+	return fmt.Sprintf("%.1f / %.0f GB", float64(used)/gb, float64(total)/gb)
+}
+
+// humanBytes renders a byte count as the terse GB/MB/KB figure the database-size row
+// shows (e.g. "4.2 GB"). It picks the largest unit that keeps the number readable, so a
+// fresh database reads in MB rather than a long fraction of a GB.
+func humanBytes(n int64) string {
+	switch {
+	case n >= 1<<30:
+		return fmt.Sprintf("%.1f GB", float64(n)/(1<<30))
+	case n >= 1<<20:
+		return fmt.Sprintf("%.0f MB", float64(n)/(1<<20))
+	case n >= 1<<10:
+		return fmt.Sprintf("%.0f KB", float64(n)/(1<<10))
+	default:
+		return strconv.FormatInt(n, 10) + " B"
+	}
+}
+
+// pgLabel renders the "postgres <major>" label from a raw server_version string (e.g.
+// "16.4" or "16.4 (Debian 16.4-1)" → "postgres 16"). A version with no leading integer
+// falls back to a bare "postgres" rather than a malformed label.
+func pgLabel(version string) string {
+	major := strings.TrimSpace(version)
+	if i := strings.IndexFunc(major, func(r rune) bool { return r < '0' || r > '9' }); i >= 0 {
+		major = major[:i]
+	}
+	if major == "" {
+		return "postgres"
+	}
+	return "postgres " + major
 }
 
 // humanizeDuration renders a process uptime as a terse figure (e.g. 41d, 6h, 12m,
@@ -801,8 +1467,8 @@ func toAccountRows(rows []db.ListAccountsRow, selfID int64) []accountRow {
 	out := make([]accountRow, 0, len(rows))
 	for _, a := range rows {
 		r := accountRow{
-			ID: a.ID, Username: a.Username, Role: a.Role,
-			TotpEnabled: a.TotpEnabled, IsSelf: a.ID == selfID,
+			ID: a.ID, Username: a.Username, Initials: initialsFromUsername(a.Username),
+			Role: a.Role, TotpEnabled: a.TotpEnabled, IsSelf: a.ID == selfID,
 		}
 		if a.CreatedAt.Valid {
 			r.At = a.CreatedAt.Time.UTC().Format("2006-01-02 15:04 UTC")
@@ -819,6 +1485,13 @@ func toChannelViews(rows []db.ListChannelsRow) []channelView {
 			ID: c.ID, URL: c.Url, Drift: c.RouteDrift, Coverage: c.RouteCoverage,
 			Clock: c.RouteClock, Enabled: c.Enabled, HasSecret: c.HasSecret,
 			By: c.CreatedByUsername,
+		}
+		checked := map[string]bool{"drift": c.RouteDrift, "coverage": c.RouteCoverage, "clock": c.RouteClock}
+		for _, name := range channelClasses {
+			v.ClassStates = append(v.ClassStates, classState{Name: name, Checked: checked[name]})
+			if checked[name] {
+				v.Classes = append(v.Classes, name)
+			}
 		}
 		if c.CreatedAt.Valid {
 			v.At = c.CreatedAt.Time.UTC().Format("2006-01-02 15:04 UTC")

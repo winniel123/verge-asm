@@ -1,0 +1,112 @@
+{{/*
+  DESIGN-OWNED ARTIFACT — exposure.tmpl · package v3.8.0 · WORKFLOW.md v4
+  Source of truth: examples/console/Exposure.jsx · shot 06. Replaces templates_exposure.go.
+  Defines and hole names kept: "exposure" + "expleg". Holes: .Withheld, .Exposed, .Firewalled,
+  .NotReached, .HasDeltas, .ExposedDelta.Change (int, signDelta func stays), .Rows[{Asset,Svc,
+  Internal,Internet,Since}]. The spec's "Spec state" segmented control is a design-workspace
+  affordance only — withheld renders from .Withheld, never from a client toggle.
+  Reconciliation (SPEC-CHANGE #20f): the withheld action targets Settings → Vantages
+  (/settings/vantages), not /scope — provisioning a prober is a vantage act.
+*/}}
+{{define "expleg"}}<span class="ex-leg {{if eq . "exposed"}}exposed{{else if eq . "firewalled"}}firewalled{{else if eq . "not-reached"}}notreached{{else}}unverified{{end}}">{{if eq . "not-reached"}}not reached{{else}}{{.}}{{end}}</span>{{end}}
+
+{{define "exposure"}}{{template "head" .}}
+{{template "chrome" .}}
+<style>
+.ex-main { max-width: 1440px; margin: 0 auto; padding: 32px; display: flex; flex-direction: column; gap: 20px; }
+.ex-main h1 { margin: 0; font: 600 21px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.ex-sub { font: 400 12.5px var(--font-ui); color: var(--text-muted); white-space: nowrap; }
+.ex-card { background: var(--surface); border: 1px solid var(--border-default); border-radius: 16px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; }
+.ex-card.flush { overflow: hidden; }
+.ex-cardhead { display: flex; flex-direction: column; gap: 3px; padding: 20px 20px 14px; }
+.ex-micro { font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.ex-cardhead h3 { margin: 0; font: 600 15px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.ex-stat { padding: 20px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ex-stat .val { display: flex; align-items: baseline; gap: 8px; }
+.ex-stat .num { font: 600 28px var(--font-mono); color: var(--text-ink); line-height: 1.1; }
+.ex-stat .cap { font: 400 11.5px var(--font-ui); color: var(--text-muted); }
+.ex-delta { display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 7px; border-radius: 999px; border: 1px solid transparent; font: 600 11px var(--font-mono); line-height: 1; white-space: nowrap; transform: translateY(-2px); }
+.ex-delta.bad { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
+.ex-delta.good { background: var(--ok-soft); border-color: var(--ok-border); color: var(--ok); }
+.ex-delta.neutral { background: var(--surface-sunken); border-color: var(--border-default); color: var(--text-secondary); }
+.ex-delta svg.down { transform: rotate(180deg); }
+.ex-leg { display: inline-flex; align-items: center; height: 20px; padding: 0 9px; border-radius: 8px; border: 1px solid transparent; font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; white-space: nowrap; line-height: 1; }
+.ex-leg.exposed { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
+.ex-leg.firewalled { background: var(--ok-soft); border-color: var(--ok-border); color: var(--ok); }
+.ex-leg.notreached { background: var(--surface-sunken); border-color: var(--border-default); color: var(--text-secondary); }
+.ex-leg.unverified { background: transparent; border: 1px dashed var(--border-strong); color: var(--text-secondary); }
+.ex-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.ex-table th { padding: 8px 16px; font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border-default); white-space: nowrap; background: var(--surface); text-align: left; }
+.ex-table td { padding: 10px 16px; font: 400 13px var(--font-ui); color: var(--text-body); vertical-align: middle; white-space: nowrap; border-top: 1px solid var(--row-sep); }
+.ex-table tbody tr:first-child td { border-top: none; }
+.ex-table td.mono { font: 400 12.5px var(--font-mono); }
+.ex-callout { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; background: var(--surface-sunken); border: 1px solid var(--border-default); border-radius: 12px; font-family: var(--font-ui); }
+.ex-callout .ic { color: var(--text-secondary); display: inline-flex; margin-top: 1px; flex: none; }
+.ex-callout .ct { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ex-callout .ct b { font: 600 13px var(--font-ui); color: var(--text-ink); }
+.ex-callout .ct span { font: 400 13px/1.55 var(--font-ui); color: var(--text-body); }
+.ex-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 48px 24px; font-family: var(--font-ui); }
+.ex-empty.withheld { padding: 56px 24px; }
+.ex-empty .ico { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 999px; background: var(--accent-softer); border: 1px solid var(--accent-soft); color: var(--accent); margin-bottom: 8px; }
+.ex-empty .msg { font: 600 14px var(--font-ui); color: var(--text-ink); }
+.ex-empty .det { font: 400 13px/1.5 var(--font-ui); color: var(--text-secondary); max-width: 380px; }
+.ex-empty .act { margin-top: 14px; }
+.ex-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; border-radius: 12px; font: 600 13px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; background: var(--accent); color: var(--on-accent); border: 1px solid transparent; transition: background var(--dur-fast) var(--ease-out); }
+.ex-btn:hover { background: var(--accent-hover); }
+.ex-btn:active { background: var(--accent-active); }
+.ex-btn-sm { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 10px; font: 600 12px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; background: var(--surface); color: var(--text-body); border: 1px solid var(--border-strong); transition: background var(--dur-fast) var(--ease-out); }
+.ex-btn-sm:hover { background: var(--surface-sunken); }
+</style>
+<main class="ex-main" data-screen-label="Exposure">
+<header style="display:flex;align-items:center;gap:16px">
+<div style="display:flex;flex-direction:column;gap:2px">
+<h1>Exposure</h1>
+<span class="ex-sub">Composed from two reach legs — internal and internet. States, never a score.</span>
+</div>
+</header>
+{{if .Withheld}}
+<section class="ex-card">
+<div style="padding:20px">
+<div class="ex-empty withheld">
+<span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"></path><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"></path><line x1="2" x2="22" y1="2" y2="22"></line></svg></span>
+<span class="msg">Exposure withheld.</span>
+<span class="det">No internet vantage exists. Internal reachability is complete, but exposure claims need the outside leg — Verge degrades to internal-only rather than report firewalled or exposed for something it did not look at.</span>
+<span class="act"><a class="ex-btn" href="/settings/vantages">Provision a prober</a></span>
+</div>
+</div>
+</section>
+{{else}}
+<div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:24px">
+<section class="ex-card"><div class="ex-stat"><span class="ex-micro">Exposed to internet</span><span class="val"><span class="num">{{.Exposed}}</span>{{if .HasDeltas}}{{$c := .ExposedDelta.Change}}<span class="ex-delta {{if gt $c 0}}bad{{else if lt $c 0}}good{{else}}neutral{{end}}">{{if ne $c 0}}<svg class="{{if lt $c 0}}down{{end}}" viewBox="0 0 10 10" width="8" height="8" aria-hidden="true"><path d="M5 8.5V1.5M1.8 4.7L5 1.5l3.2 3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>{{end}}{{signDelta $c}}</span>{{end}}</span><span class="cap">services · both legs concluded</span></div></section>
+<section class="ex-card"><div class="ex-stat"><span class="ex-micro">Firewalled</span><span class="val"><span class="num">{{.Firewalled}}</span></span><span class="cap">reachable inside, filtered outside</span></div></section>
+<section class="ex-card"><div class="ex-stat"><span class="ex-micro">Not reached</span><span class="val"><span class="num">{{.NotReached}}</span></span><span class="cap">no leg concluded this batch</span></div></section>
+</div>
+<section class="ex-card flush">
+<div class="ex-cardhead"><span class="ex-micro">Both legs</span><h3>Service exposure</h3></div>
+{{if .Rows}}
+<table class="ex-table">
+<thead><tr><th>Asset</th><th style="width:150px">Service</th><th style="width:140px">Internal leg</th><th style="width:140px">Internet leg</th><th style="width:70px;text-align:right">Since</th></tr></thead>
+<tbody>
+{{range .Rows}}<tr>
+<td class="mono">{{.Asset}}</td>
+<td class="mono">{{.Svc}}</td>
+<td>{{template "expleg" .Internal}}</td>
+<td>{{template "expleg" .Internet}}</td>
+<td class="mono" style="text-align:right;color:var(--text-muted)">{{.Since}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+{{else}}
+<div class="ex-empty">
+<span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg></span>
+<span class="msg">No service exposure measured yet</span>
+<span class="det">No Service holds a current reachability span from either vantage class. Trigger a scan on Scope; each Service a vantage reaches appears here with both its legs.</span>
+<span class="act"><a class="ex-btn-sm" href="/scope">Go to Scope</a></span>
+</div>
+{{end}}
+</section>
+<div class="ex-callout"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg></span>
+<span class="ct"><b>One leg never concludes</b><span>A single vantage can say reached or not reached from where it stands. Exposed and firewalled exist only where the internal and internet legs are both constructible in the same derivation.</span></span></div>
+{{end}}
+</main>
+{{template "foot" .}}{{end}}

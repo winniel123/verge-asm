@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"html/template"
 	"net/http"
 	"net/netip"
 	"strconv"
@@ -12,12 +13,32 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	designfs "github.com/winniel123/verge-asm/design-system"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/drift"
 	"github.com/winniel123/verge-asm/internal/measure/httpexchange"
 	"github.com/winniel123/verge-asm/internal/retention"
 	"github.com/winniel123/verge-asm/internal/signal"
 )
+
+// The frozen design-owned asset.tmpl (design-system/templates/asset.tmpl, package
+// v3.10.0) is the view layer for /asset/{key}: it defines "asset" + "assetexposure"
+// and reuses the "sevbadge" define signals.tmpl declares and the "changeglyph" define
+// drift.tmpl declares — all parse into the one shared `tmpl` set, so they resolve at
+// execute time. It is embedded read-only via the designfs package (auto-globbed
+// through `templates/*.tmpl`); the repo authors no markup/CSS/JS for this route.
+var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/asset.tmpl"))
+
+// The frozen design-owned subjectdetail.tmpl (design-system/templates/subjectdetail.tmpl,
+// package v3.10.0) is the view layer for /subjects/{service,endpoint}: it defines
+// "service" + "endpoint" and the shared "subjectstyle"/"subjectbreadcrumb"/
+// "subjecttimelines"/"subjectrules"/"subjectprovenance"/"subjectmenu"/"subjectjs"/
+// "subjectcitation" partials, and reuses the "assetexposure" define asset.tmpl declares,
+// the "sevbadge" define signals.tmpl declares and the "recordrows" define inventory.tmpl
+// declares — all parse into the one shared `tmpl` set, so they resolve at execute time. It
+// is embedded read-only via the designfs package (auto-globbed through `templates/*.tmpl`);
+// the repo authors no markup/CSS/JS for these routes (screen 14 conversion, #582).
+var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/subjectdetail.tmpl"))
 
 // The Subjects screen (v1 spec §6.6, ADR-0072). At wave-0 only `Name` subjects
 // exist — they come from the `resolution-walk` leaf's `resolution` facet (#188).
@@ -80,7 +101,10 @@ type citationHop struct {
 
 // servicePageData is the drill-down view for one Service subject.
 type servicePageData struct {
-	Key       string
+	Key string
+	// CopyKey is the copyable key string the "Copy" card renders (#22): the address,
+	// port and transport as a space-joined token ("203.0.113.7:5900 tcp").
+	CopyKey   string
 	Address   string
 	Port      string
 	Transport string
@@ -105,12 +129,31 @@ type servicePageData struct {
 	// — with Breaks and closures derived on read (#195). A Service opening or
 	// closing across a re-run of the hot Scan is one Span transition here.
 	Timelines []timelineView
+	// Header identity + rail data ported from SubjectDetail.jsx (U1, #478): the last
+	// observation instant, the covering Seed's declaration date, the reachability
+	// rolled up to an exposure state, and the current reachability span's open time.
+	Seen         string
+	InScopeSince string
+	Exposure     string // reachability → exposure state (assetExposure); empty when withdrawn/unmeasured
+	Since        string // the current reachability span's OpenedAt
+	Provenance   []assetKV
+	// Rules are every rule whose predicate domain includes this Service, each with
+	// its own versioned verdict (fired / did not fire) and the rule's SeverityBadge.
+	Rules []subjectRule
+	// Signals are the rules firing on this Service right now (the rail's "Signals
+	// here"), each carrying its rule's severity — the same fired census the asset
+	// drill-in reads, filtered to this subject's key.
+	Signals []assetSignal
 }
 
 // endpointPageData is the drill-down view for one Endpoint subject (#198): the
 // (Name, Service) pair the http-exchange leaf's http-identity facet is held on.
 type endpointPageData struct {
-	Key      string
+	Key string
+	// CopyKey is the copyable key string the "Copy" card renders (#22): the Name, the
+	// Service address:port and the transport space-joined ("edge-gw-03.acmecorp.io
+	// 203.0.113.7:443 tcp"); the Name is dropped for the nameless endpoint.
+	CopyKey  string
 	Name     string // empty for the nameless endpoint
 	Nameless bool
 	Service  string
@@ -139,6 +182,28 @@ type endpointPageData struct {
 	// Timelines are the Endpoint's http-identity Span timelines — current and
 	// closed — with Breaks and closures derived on read (#198).
 	Timelines []timelineView
+	// Header identity + rail data ported from SubjectDetail.jsx (U1, #478).
+	Seen         string
+	InScopeSince string
+	Provenance   []assetKV
+	// Rules are every rule whose predicate domain includes this Endpoint, each with
+	// its own versioned verdict and the rule's SeverityBadge.
+	Rules []subjectRule
+}
+
+// subjectRule is one rule whose predicate domain includes a Service or Endpoint
+// subject, as the "Rules over this subject" table renders it (SubjectDetail.jsx):
+// the rule slug, its own version, its five-level SeverityBadge (internal/signal
+// SeverityFor, a real per-rule datum), and its current verdict — Fired, else "did
+// not fire" (a NotEvaluable member is in the domain but the rule could not read
+// its evidence, which the operator-facing table folds into "did not fire"). Every
+// field is read from the current census, never fabricated.
+type subjectRule struct {
+	Rule     string
+	Version  string // the rule's own version, bare (Census.Version.Rule with the "v" trimmed — the tmpl re-adds it as "v{{.Version}}")
+	Severity string // the rule's severity token: critical | high | medium | low | info
+	SevLabel string // the severity capitalised for the SeverityBadge label ("Critical") (#22a)
+	Fired    bool
 }
 
 // subjectPageData is the drill-down view for one Name.
@@ -187,7 +252,12 @@ type spanView struct {
 	Details  []spanDetail
 	OpenedAt string
 	ClosedAt string
-	Reason   string
+	// OpenedFull and ClosedFull are the span's open/close instants in full ISO form,
+	// rendered as the closed-row title tooltips (#22, the spec RelativeTime pattern):
+	// the visible OpenedAt/ClosedAt carry the terse label, the *Full the exact instant.
+	OpenedFull string
+	ClosedFull string
+	Reason     string
 }
 
 // spanDetail is one row of a span value's expanded contents: an RR (its type and
@@ -287,20 +357,22 @@ func splitEndpointKey(key string) (name, service string) {
 func (s *server) endpointPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	key := strings.TrimSpace(r.FormValue("key"))
 	if key == "" {
-		s.renderStatus(w, http.StatusNotFound, "subject-missing", map[string]any{
-			"Title": "No such subject", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-			"Name": key,
-		})
+		s.renderMissingSubject(w, r, acct, key)
 		return
+	}
+	// A VERGE_DEV build serves the pinned fixtures.json subjectdetail endpoint slice —
+	// the byte-exact corpus the pixel goldens capture (as the sibling screens do).
+	if s.devMode {
+		if data, ok := s.endpointFixtureData(acct, key); ok {
+			s.render(w, r, "endpoint", data)
+			return
+		}
 	}
 	subject, err := s.store.GetEndpointSubject(r.Context(), db.GetEndpointSubjectParams{
 		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		s.renderStatus(w, http.StatusNotFound, "subject-missing", map[string]any{
-			"Title": "No such subject", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-			"Name": key,
-		})
+		s.renderMissingSubject(w, r, acct, key)
 		return
 	}
 	if err != nil {
@@ -309,30 +381,52 @@ func (s *server) endpointPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	}
 
 	name, service := splitEndpointKey(subject.SubjectKey)
-	addr, port, _ := splitServiceKey(service)
+	addr, port, transport := splitServiceKey(service)
 	id := decodeHTTPIdentity(subject.Value)
 	data := endpointPageData{
 		Key:              subject.SubjectKey,
+		CopyKey:          endpointCopyKey(name, addr, port, transport),
 		Name:             name,
 		Nameless:         name == "",
 		Service:          service,
 		Address:          addr,
 		Port:             port,
 		Outcome:          id.Outcome,
-		Status:           httpIdentityLabel(id),
+		Status:           endpointStatusLabel(id),
 		Server:           id.Server,
 		Title:            id.Title,
 		WWWAuthenticate:  id.WWWAuthenticate,
 		RedirectLocation: id.RedirectLocation,
 		HasIdentity:      id.Outcome != "",
 	}
-	data.Citation, data.CitationTerminated, data.Withdrawn = s.buildEndpointCitation(r, name, service, addr)
+	var seedScope string
+	data.Citation, data.CitationTerminated, data.Withdrawn, seedScope, data.InScopeSince = s.buildEndpointCitation(r, name, service, addr)
 	data.Timelines = s.buildTimelines(r, "endpoint", subject.SubjectKey)
+	if subject.ObservedAt.Valid {
+		data.Seen = subject.ObservedAt.Time.UTC().Format(spanTimeFmt)
+	}
+	data.Provenance = subjectProvenance("endpoint", seedScope, firstSeenFromTimelines(data.Timelines))
+	data.Rules = s.subjectRules(r, subject.SubjectKey)
 
-	s.render(w, "endpoint", map[string]any{
+	s.render(w, r, "endpoint", map[string]any{
 		"Title": subject.SubjectKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		"NavActive": "inventory", "DesignTokens": true,
 		"Endpoint": data,
 	})
+}
+
+// endpointStatusLabel is the HTTP-identity card's Status cell (#22): the bare status
+// code ("200"), the Server rendering in its own cell alongside. A no-http-response
+// identity — reached but speaking no HTTP — renders that negative as the status value.
+// An unmeasured (empty) value renders nothing (the card gates on HasIdentity).
+func endpointStatusLabel(v httpIdentityValue) string {
+	if v.Outcome == httpexchange.OutcomeNoHTTPResponse {
+		return "no HTTP response"
+	}
+	if v.Status == 0 {
+		return ""
+	}
+	return strconv.Itoa(v.Status)
 }
 
 // buildEndpointCitation assembles the "why is this here" chain for an Endpoint:
@@ -342,7 +436,7 @@ func (s *server) endpointPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 // terminating at a Seed. Where neither limb holds, the Address (and with it the
 // Service and Endpoint) has left the estate. It reuses the same address-membership
 // store reads the Service citation does, so the two chains agree on the ground.
-func (s *server) buildEndpointCitation(r *http.Request, name, service, addr string) (hops []citationHop, terminated, withdrawn bool) {
+func (s *server) buildEndpointCitation(r *http.Request, name, service, addr string) (hops []citationHop, terminated, withdrawn bool, seedScope, inScopeSince string) {
 	hops = []citationHop{{Label: "Subject · Endpoint", Value: r.FormValue("key")}}
 	if name != "" {
 		hops = append(hops, citationHop{Label: "Named · Name", Value: name})
@@ -373,13 +467,17 @@ func (s *server) buildEndpointCitation(r *http.Request, name, service, addr stri
 			if seed.CreatedByUsername != "" {
 				detail = "declared by " + seed.CreatedByUsername
 			}
-			hops = append(hops, citationHop{Label: "Declared · Seed", Value: "address scope " + scope, Detail: detail})
+			seedScope = "address scope " + scope
+			if seed.CreatedAt.Valid {
+				inScopeSince = seed.CreatedAt.Time.UTC().Format("2006-01-02")
+			}
+			hops = append(hops, citationHop{Label: "Declared · Seed", Value: seedScope, Detail: detail})
 			terminated = true
 		}
 	}
 
 	withdrawn = !cited && !terminated
-	return hops, terminated, withdrawn
+	return hops, terminated, withdrawn, seedScope, inScopeSince
 }
 
 // servicePage is the drill-down for one Service subject (#195). The Service key
@@ -389,20 +487,23 @@ func (s *server) buildEndpointCitation(r *http.Request, name, service, addr stri
 func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	key := strings.TrimSpace(r.FormValue("key"))
 	if key == "" {
-		s.renderStatus(w, http.StatusNotFound, "subject-missing", map[string]any{
-			"Title": "No such subject", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-			"Name": key,
-		})
+		s.renderMissingSubject(w, r, acct, key)
 		return
+	}
+	// A VERGE_DEV build serves the pinned fixtures.json subjectdetail service slices —
+	// the byte-exact corpus the pixel goldens capture (as the sibling screens do). The
+	// seeded keys are the fixtures' own; any other key still resolves the live read below.
+	if s.devMode {
+		if data, ok := s.serviceFixtureData(acct, key); ok {
+			s.render(w, r, "service", data)
+			return
+		}
 	}
 	subject, err := s.store.GetServiceSubject(r.Context(), db.GetServiceSubjectParams{
 		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		s.renderStatus(w, http.StatusNotFound, "subject-missing", map[string]any{
-			"Title": "No such subject", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-			"Name": key,
-		})
+		s.renderMissingSubject(w, r, acct, key)
 		return
 	}
 	if err != nil {
@@ -414,6 +515,7 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	rv := decodeReachability(subject.Value)
 	data := servicePageData{
 		Key:       subject.SubjectKey,
+		CopyKey:   serviceCopyKey(addr, port, transport),
 		Address:   addr,
 		Port:      port,
 		Transport: transport,
@@ -425,13 +527,54 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		data.ReachGap = true
 		data.ReachGapReason = rv.Reason
 	}
-	data.Citation, data.CitationTerminated, data.Withdrawn = s.buildServiceCitation(r, addr)
+	var seedScope string
+	data.Citation, data.CitationTerminated, data.Withdrawn, seedScope, data.InScopeSince = s.buildServiceCitation(r, addr)
 	data.Timelines = s.buildTimelines(r, "service", subject.SubjectKey)
+	if subject.ObservedAt.Valid {
+		data.Seen = subject.ObservedAt.Time.UTC().Format(spanTimeFmt)
+	}
+	// The header ExposureBadge rolls the current reachability up to an exposure
+	// state (assetExposure), the same read the asset census carries; a withdrawn
+	// Service names no current member, so it shows no exposure (the header marks it
+	// withdrawn instead).
+	if !data.Withdrawn {
+		data.Exposure = assetExposure(rv.Outcome, data.ReachGap)
+	}
+	data.Since = currentReachSince(data.Timelines)
+	data.Provenance = subjectProvenance("service", seedScope, firstSeenFromTimelines(data.Timelines))
+	data.Rules = s.subjectRules(r, subject.SubjectKey)
+	data.Signals = s.assetSignals(r, subject.SubjectKey)
 
-	s.render(w, "service", map[string]any{
+	s.render(w, r, "service", map[string]any{
 		"Title": subject.SubjectKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		"NavActive": "inventory", "DesignTokens": true,
 		"Service": data,
 	})
+}
+
+// serviceCopyKey is the Service "Copy" card's copyable token (#22): the address, port
+// and transport space-joined ("203.0.113.7:5900 tcp") — the key with the "/" before the
+// transport rendered as a space, so it pastes as a shell-friendly triple.
+func serviceCopyKey(addr, port, transport string) string {
+	key := addr
+	if port != "" {
+		key += ":" + port
+	}
+	if transport != "" {
+		key += " " + transport
+	}
+	return key
+}
+
+// endpointCopyKey is the Endpoint "Copy" card's copyable token (#22): the Name, the
+// Service address:port and the transport space-joined ("edge-gw-03.acmecorp.io
+// 203.0.113.7:443 tcp"); the nameless endpoint drops the leading Name.
+func endpointCopyKey(name, addr, port, transport string) string {
+	key := serviceCopyKey(addr, port, transport)
+	if name != "" {
+		return name + " " + key
+	}
+	return key
 }
 
 // splitServiceKey parses an `address:port/transport` Service key into its parts,
@@ -459,7 +602,7 @@ func splitServiceKey(key string) (addr, port, transport string) {
 // the address-scope Seed that covers it, terminating at a Seed. Where neither
 // limb holds, the Address has left the estate (the `uncited` / `descoped`
 // departure), which the caller renders as a withdrawn Service.
-func (s *server) buildServiceCitation(r *http.Request, addr string) (hops []citationHop, terminated, withdrawn bool) {
+func (s *server) buildServiceCitation(r *http.Request, addr string) (hops []citationHop, terminated, withdrawn bool, seedScope, inScopeSince string) {
 	hops = []citationHop{
 		{Label: "Subject · Service", Value: r.FormValue("key")},
 		{Label: "On address · Address", Value: addr},
@@ -494,9 +637,13 @@ func (s *server) buildServiceCitation(r *http.Request, addr string) (hops []cita
 			if seed.CreatedByUsername != "" {
 				detail = "declared by " + seed.CreatedByUsername
 			}
+			seedScope = "address scope " + scope
+			if seed.CreatedAt.Valid {
+				inScopeSince = seed.CreatedAt.Time.UTC().Format("2006-01-02")
+			}
 			hops = append(hops, citationHop{
 				Label:  "Declared · Seed",
-				Value:  "address scope " + scope,
+				Value:  seedScope,
 				Detail: detail,
 			})
 			terminated = true
@@ -507,44 +654,133 @@ func (s *server) buildServiceCitation(r *http.Request, addr string) (hops []cita
 	// a Seed covers it (CONTEXT.md `Address`). Neither limb holding means it has
 	// withdrawn — its Services with it.
 	withdrawn = !cited && !terminated
-	return hops, terminated, withdrawn
+	return hops, terminated, withdrawn, seedScope, inScopeSince
 }
 
+// subjectPage serves the by-key drill-down at `/subjects/{key}`. The key here
+// carries no `/` or `@`, so it is a Name — and a Name opens the Asset detail
+// (SubjectDetail.jsx: "A Name subject opens AssetDetail instead; this screen
+// covers the other two kinds"). The Service and Endpoint drill-ins have their own
+// `?key=` routes (servicePage / endpointPage), so this path is Name-only. It
+// delegates to assetPage, which reads the same live-tier-gated Name subject: a
+// missing/evidential Name still 404s the subject-missing page, and a withdrawn
+// Name still renders reachable by its own key — the semantics this route has
+// always carried, now on the AssetDetail surface (#478, U1).
 func (s *server) subjectPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	key := r.PathValue("key")
-	subject, err := s.store.GetNameSubject(r.Context(), db.GetNameSubjectParams{
-		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
-	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		// A Name nothing has ever measured is genuinely not a subject — not a
-		// withdrawn one. Refusing it here is not the false absence ADR-0072
-		// guards against: that guard is about a Name we measured *gone*, which
-		// GetNameSubject still returns.
-		s.renderStatus(w, http.StatusNotFound, "subject-missing", map[string]any{
-			"Title": "No such subject", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-			"Name": key,
-		})
-		return
+	s.assetPage(w, r, acct)
+}
+
+// subjectProvenance assembles the rail's "how it got here" facts for a Service or
+// Endpoint (SubjectDetail.jsx): the covering Seed the citation terminates at, the
+// fixed derivation path the subject class is formed by, and when it was first
+// measured. Only real facts render — a Seed or first-seen with no honest source is
+// omitted rather than invented (the asset drill-in's "render only what exists"
+// pattern, T1), and no per-subject Vantage is fabricated where the domain carries
+// only an opaque vantage id.
+func subjectProvenance(kind, seedScope, firstSeen string) []assetKV {
+	var items []assetKV
+	if seedScope != "" {
+		items = append(items, assetKV{K: "Seed", V: seedScope})
 	}
+	// The derivation path is a fixed structural fact about the subject class, not a
+	// measured per-subject value: a Service is an address swept from DNS then reached
+	// by the hot Scan; an Endpoint is the join of a resolution and a Service.
+	via := "dns sweep → hot scan"
+	if kind == "endpoint" {
+		via = "resolution × service join"
+	}
+	items = append(items, assetKV{K: "Via", V: via})
+	if firstSeen != "" {
+		items = append(items, assetKV{K: "First seen", V: firstSeen})
+	}
+	return items
+}
+
+// firstSeenFromTimelines returns the earliest span open instant across a subject's
+// timelines — its "first seen". Every OpenedAt is the same fixed-width UTC format,
+// so the lexicographically smallest is the chronologically earliest; empty where no
+// span has been folded.
+func firstSeenFromTimelines(tls []timelineView) string {
+	best := ""
+	consider := func(t string) {
+		if t != "" && (best == "" || t < best) {
+			best = t
+		}
+	}
+	for _, tl := range tls {
+		if tl.Current != nil {
+			consider(tl.Current.OpenedAt)
+		}
+		for _, sp := range tl.Closed {
+			consider(sp.OpenedAt)
+		}
+	}
+	return best
+}
+
+// currentReachSince returns the open instant of the current reachability span — the
+// "Since" the Service's current-facet card carries. Empty where the reachability
+// timeline holds no current value (a withdrawn or gapped Service).
+func currentReachSince(tls []timelineView) string {
+	for _, tl := range tls {
+		if tl.Facet == "reachability" && tl.Current != nil {
+			return tl.Current.OpenedAt
+		}
+	}
+	return ""
+}
+
+// subjectRules lists every rule whose predicate domain includes the given subject
+// key — the "Rules over this subject" table (SubjectDetail.jsx). It folds the same
+// signal corpus the Signals page reads and keeps the censuses this subject is a
+// member of, in EvaluateCorpus order, each carrying its rule version, its verdict
+// (Fired, else "did not fire"), and its per-rule Severity (internal/signal
+// SeverityFor). The engine is split by subject kind, so a Service key only appears
+// in Service-rule censuses and an Endpoint key only in Endpoint-rule censuses — no
+// kind filter is needed. Best-effort: a corpus-build failure yields no rules.
+func (s *server) subjectRules(r *http.Request, key string) []subjectRule {
+	corpus, err := s.buildSignalCorpus(r)
 	if err != nil {
-		s.serverError(w, "get name subject", err)
-		return
+		return nil
 	}
-
-	res := decodeResolution(subject.Value)
-	data := subjectPageData{
-		Name:       subject.SubjectKey,
-		Withdrawn:  suppressesNameMembership(res.Outcome),
-		Resolution: res.Outcome,
-		Addresses:  res.Addresses,
+	var out []subjectRule
+	for _, c := range signal.EvaluateCorpus(corpus) {
+		member, fired := false, false
+		for _, m := range c.Fired {
+			if m.Subject == key {
+				member, fired = true, true
+				break
+			}
+		}
+		if !member {
+			for _, m := range c.NotFired {
+				if m.Subject == key {
+					member = true
+					break
+				}
+			}
+		}
+		if !member {
+			for _, m := range c.NotEvaluable {
+				if m.Subject == key {
+					member = true
+					break
+				}
+			}
+		}
+		if !member {
+			continue
+		}
+		sev, _ := signal.SeverityFor(c.Rule)
+		out = append(out, subjectRule{
+			Rule:     c.Rule,
+			Version:  strings.TrimPrefix(c.Version.Rule, "v"),
+			Severity: sev.String(),
+			SevLabel: sevLabel(sev.String()),
+			Fired:    fired,
+		})
 	}
-	data.Citation, data.CitationTerminated = s.buildCitation(r, subject.SubjectKey)
-	data.Timelines = s.buildTimelines(r, "name", subject.SubjectKey)
-
-	s.render(w, "subject", map[string]any{
-		"Title": subject.SubjectKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"Subject": data,
-	})
+	return out
 }
 
 // hopKindAdmission and hopKindObservation are the two ways a Name enters, as
@@ -659,6 +895,11 @@ func (s *server) buildCitation(r *http.Request, key string) ([]citationHop, bool
 
 const spanTimeFmt = "2006-01-02 15:04 UTC"
 
+// spanFullFmt is the full-ISO instant a closed span carries as its title tooltip
+// (spanView.OpenedFull/.ClosedFull, #22): a UTC time renders the trailing "Z"
+// ("2026-07-14T06:00Z"), the spec RelativeTime pattern's exact-instant hover.
+const spanFullFmt = "2006-01-02T15:04Z07:00"
+
 // buildTimelines reads the subject's Span corpus and assembles one view per
 // (facet, discriminator) timeline: its current span if it holds one, its closed
 // history, and the Breaks between spans of differing Derivation vectors — the
@@ -712,15 +953,17 @@ func buildTimeline(facet, discriminator string, rows []db.ListSpansForSubjectRow
 			Reason:   drift.ClosureReason(row.ClosureReason.String),
 		})
 		sv := spanView{
-			Value:    valueLabel(facet, row.Value, row.IsGap),
-			IsGap:    row.IsGap,
-			Open:     !row.ClosedAt.Valid,
-			Details:  spanDetails(facet, row.Value, row.IsGap),
-			OpenedAt: row.OpenedAt.Time.UTC().Format(spanTimeFmt),
-			Reason:   row.ClosureReason.String,
+			Value:      valueLabel(facet, row.Value, row.IsGap),
+			IsGap:      row.IsGap,
+			Open:       !row.ClosedAt.Valid,
+			Details:    spanDetails(facet, row.Value, row.IsGap),
+			OpenedAt:   row.OpenedAt.Time.UTC().Format(spanTimeFmt),
+			OpenedFull: row.OpenedAt.Time.UTC().Format(spanFullFmt),
+			Reason:     row.ClosureReason.String,
 		}
 		if row.ClosedAt.Valid {
 			sv.ClosedAt = row.ClosedAt.Time.UTC().Format(spanTimeFmt)
+			sv.ClosedFull = row.ClosedAt.Time.UTC().Format(spanFullFmt)
 			tv.Closed = append(tv.Closed, sv)
 		} else {
 			cur := sv
@@ -931,21 +1174,44 @@ type assetPageData struct {
 	Withdrawn    bool
 	Seen         string // the latest observation instant for this Name
 	InScopeSince string // the covering Seed's declaration date
+	Severity     string // header aggregate: the most urgent severity across firing Signals (AssetDetail.jsx:35); empty when none fire
+	SevLabel     string // the aggregate severity capitalised for the header badge label ("Critical"); empty when none fire (#22a)
+	Exposure     string // header aggregate: the worst reachability across open Ports (AssetDetail.jsx:36); empty when none measured
 	Ports        []assetPort
 	DNS          []assetDNSRow
+	Cert         *assetCert // the TLS certificate's parsed identity off the chain leaf; nil → the honest empty state (#22c)
 	Provenance   []assetKV
 	Signals      []assetSignal
 	Drift        []assetDriftEvent
 }
 
-// assetPort is one open Service on this asset's addresses: its port and transport,
-// the reachability verdict rendered as an exposure state, and when it first
-// opened. It never carries a product/version — no technology fingerprinting.
+// assetPort is one open Service on this asset's addresses: its port, the reachability
+// verdict rendered as an exposure state, and when it first opened. Service is a
+// precomputed display string joining the transport with the http-identity Server an
+// Endpoint on that port holds, where one exists — a read of stored evidence, not a
+// new fingerprint (#22d); transport-only where no Endpoint holds an http-identity.
 type assetPort struct {
-	Port      string
-	Transport string
-	Exposure  string
-	Since     string
+	Port     string
+	Service  string
+	Exposure string
+	Since    string
+}
+
+// assetCert is the TLS certificate's parsed identity for the asset, folded off the
+// certificate-chain leaf (#22c). Name is the endpoint's presented name; Fingerprint
+// is the leaf's stored fingerprint (chain[0]); NotAfter is the leaf's expiry as a
+// date; Issuer and Algorithm are the leaf's parsed identity where the stored value
+// carries them (honestly omitted where a pre-parse span does not). Label and Tone
+// are precomputed from the days-to-expiry: "valid · Nd" ok, "expires in Nd" warn
+// (≤30d), "expired Nd ago" danger.
+type assetCert struct {
+	Name        string
+	Issuer      string
+	Algorithm   string
+	NotAfter    string
+	Label       string
+	Tone        string // ok | warn | danger
+	Fingerprint string
 }
 
 // assetDNSRow is one resolved record: the RR type, its value, and when last seen.
@@ -962,12 +1228,18 @@ type assetKV struct {
 	V string
 }
 
-// assetSignal is one signal firing on this asset — its rule and the subject it
-// fired on. It carries NO severity: the census is deliberately not a severity ramp
-// (signals.go / ADR-0024), so a level here would be fabricated.
+// assetSignal is one signal firing on this asset — its rule, the subject it fired
+// on, and the rule's severity. Severity is a real per-rule datum (internal/signal
+// SeverityFor, P0.1 #442), so the "Signals here" row carries its SeverityBadge
+// exactly as the spec renders it (AssetDetail.jsx) — the same ramp Signals, Graph
+// and Search read, never fabricated.
 type assetSignal struct {
-	Rule    string
-	Subject string
+	Rule     string
+	Subject  string
+	Severity string // the rule's severity token: critical | high | medium | low | info
+	SevLabel string // the severity capitalised for the badge label ("Critical") (#22a)
+	SigID    string // the stable minted "SIG-####" id the row deep-links to (#22b)
+	Time     string // first-raised, rendered relative to now ("4m") (#22b)
 }
 
 // assetDriftEvent is one transition on this asset, in change's own language: the
@@ -986,15 +1258,19 @@ type assetDriftEvent struct {
 // so a thin section falls to its empty-state rather than 500ing the page. The route
 // keys on the Name (no `/` or `@`), so a plain `/asset/{key}` path segment resolves.
 func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	// A VERGE_DEV build serves the pinned fixtures.json asset slice — the byte-exact
+	// corpus the pixel goldens capture (as the sibling screens do). The seeded key is
+	// the fixture's own; any other key still resolves the live read below.
+	if s.devMode && r.PathValue("key") == devAssetKey {
+		s.render(w, r, "asset", s.assetFixtureData(acct))
+		return
+	}
 	key := r.PathValue("key")
 	subject, err := s.store.GetNameSubject(r.Context(), db.GetNameSubjectParams{
 		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		s.renderStatus(w, http.StatusNotFound, "subject-missing", map[string]any{
-			"Title": "No such subject", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-			"Name": key,
-		})
+		s.renderMissingSubject(w, r, acct, key)
 		return
 	}
 	if err != nil {
@@ -1014,13 +1290,17 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	data.Provenance, data.InScopeSince = s.assetProvenance(r, key)
 	data.DNS = s.assetDNS(r, key, res)
 	data.Ports = s.assetPorts(r, res.Addresses)
+	data.Cert = s.assetCertificate(r, key, res.Addresses)
 	data.Signals = s.assetSignals(r, key)
+	data.Severity = assetHeaderSeverity(data.Signals)
+	data.SevLabel = sevLabel(data.Severity)
+	data.Exposure = assetHeaderExposure(data.Ports)
 	data.Drift = assetDrift(s.buildTimelines(r, "name", key))
 
-	s.render(w, "asset", map[string]any{
+	s.render(w, r, "asset", map[string]any{
 		"Title": subject.SubjectKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "inventory",
-		"Asset":     data,
+		"NavActive": "inventory", "DesignTokens": true,
+		"Asset": data,
 	})
 }
 
@@ -1111,6 +1391,24 @@ func (s *server) assetPorts(r *http.Request, addresses []string) []assetPort {
 	if err != nil {
 		return nil
 	}
+	// First pass: the http-identity Server an Endpoint on each of the asset's
+	// address:port pairs holds, keyed by address:port. An Endpoint key is
+	// `name@address:port/transport`, so its Service leg carries the same address:port
+	// a reachability Service key does — the join key the census Service column reads.
+	servers := map[string]string{}
+	for _, row := range rows {
+		if row.SubjectKind != "endpoint" || row.Facet != "http-identity" {
+			continue
+		}
+		_, service := splitEndpointKey(row.SubjectKey)
+		addr, port, _ := splitServiceKey(service)
+		if !addrSet[addr] {
+			continue
+		}
+		if srv := decodeHTTPIdentity(row.Value).Server; srv != "" {
+			servers[addr+":"+port] = srv
+		}
+	}
 	var ports []assetPort
 	for _, row := range rows {
 		if row.SubjectKind != "service" || row.Facet != "reachability" {
@@ -1121,13 +1419,24 @@ func (s *server) assetPorts(r *http.Request, addresses []string) []assetPort {
 			continue
 		}
 		ports = append(ports, assetPort{
-			Port:      ":" + port,
-			Transport: transport,
-			Exposure:  assetExposure(decodeReachability(row.Value).Outcome, row.IsGap),
-			Since:     row.OpenedAt.Time.UTC().Format(spanTimeFmt),
+			Port:     ":" + port,
+			Service:  assetPortService(transport, servers[addr+":"+port]),
+			Exposure: assetExposure(decodeReachability(row.Value).Outcome, row.IsGap),
+			Since:    row.OpenedAt.Time.UTC().Format(spanTimeFmt),
 		})
 	}
 	return ports
+}
+
+// assetPortService is the census Service column's precomputed display string (#22d):
+// the transport joined with the http-identity Server an Endpoint on the port holds,
+// where one exists (`tcp · nginx/1.25.0`); the bare transport where no Endpoint holds
+// a Server. It is a read of stored http-identity evidence, never a new fingerprint.
+func assetPortService(transport, server string) string {
+	if server == "" {
+		return transport
+	}
+	return transport + " · " + server
 }
 
 // assetExposure maps a reachability verdict to the exposure state the census chip
@@ -1149,23 +1458,172 @@ func assetExposure(outcome string, isGap bool) string {
 	}
 }
 
+// certificateLeafValue is the parsed shape of a stored `certificate` facet value
+// (internal/measure/connectoutcome): the leaf-first fingerprint chain, the leaf's
+// expiry, and — where a leaf that parsed them folded the value (#22c) — the leaf's
+// issuer distinguished name and signature algorithm. A pre-parse span carries only
+// chain + not_after, so issuer/algorithm read empty and the card omits them.
+type certificateLeafValue struct {
+	Outcome   string   `json:"outcome"`
+	Chain     []string `json:"chain"`
+	NotAfter  string   `json:"not_after"`
+	Issuer    string   `json:"issuer"`
+	Algorithm string   `json:"algorithm"`
+}
+
+// assetCertificate folds the asset's TLS certificate card off the certificate-chain
+// leaf (#22c). It reads the latest per-Endpoint `certificate` value (the same read
+// the certificate rules use) and keeps the presented chain on an Endpoint whose Name
+// leg IS this asset — the leaf under which the presented chain is single-valued
+// (connectoutcome.EndpointKey). From the leaf it renders the real parsed identity:
+// the fingerprint (chain[0]), the expiry as a date, and — where the stored value
+// carries them — the issuer and signature algorithm, with the validity Label/Tone
+// precomputed from the days-to-expiry. A subject that holds no presented leaf returns
+// nil, so the card falls to its honest empty state rather than fabricate one.
+func (s *server) assetCertificate(r *http.Request, key string, addresses []string) *assetCert {
+	rows, err := s.store.ListEndpointCertificates(r.Context(), db.ListEndpointCertificatesParams{
+		AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
+	})
+	if err != nil {
+		return nil
+	}
+	addrSet := make(map[string]bool, len(addresses))
+	for _, a := range addresses {
+		addrSet[a] = true
+	}
+	var chosen *certificateLeafValue
+	for _, row := range rows {
+		name, service := splitEndpointKey(row.SubjectKey)
+		addr, _, _ := splitServiceKey(service)
+		// The named Endpoint keyed under this asset is preferred; a nameless Endpoint
+		// on one of the asset's addresses is the fallback when no named leaf presented.
+		named := name == key
+		if !named && !(name == "" && addrSet[addr]) {
+			continue
+		}
+		var v certificateLeafValue
+		if err := json.Unmarshal(row.Value, &v); err != nil {
+			continue
+		}
+		if v.Outcome != "presented" || len(v.Chain) == 0 {
+			continue
+		}
+		vv := v
+		if named {
+			chosen = &vv
+			break
+		}
+		if chosen == nil {
+			chosen = &vv
+		}
+	}
+	if chosen == nil {
+		return nil
+	}
+	cert := &assetCert{
+		Name:        key,
+		Issuer:      chosen.Issuer,
+		Algorithm:   chosen.Algorithm,
+		Fingerprint: chosen.Chain[0],
+	}
+	if chosen.NotAfter != "" {
+		if na, perr := time.Parse(time.RFC3339, chosen.NotAfter); perr == nil {
+			cert.NotAfter = na.UTC().Format("2006-01-02")
+			cert.Label, cert.Tone = certValidity(na, s.now().UTC())
+		}
+	}
+	return cert
+}
+
+// certValidity precomputes the certificate card's validity Label + Tone from the
+// leaf's expiry relative to now (#22c): "valid · Nd" ok while more than 30 days
+// remain, "expires in Nd" warn within the 30-day window, and "expired Nd ago" danger
+// once past. Days are whole days, floored, so "0d" reads on the day of expiry.
+func certValidity(notAfter, now time.Time) (label, tone string) {
+	days := int(notAfter.Sub(now).Hours() / 24)
+	switch {
+	case days < 0:
+		return "expired " + strconv.Itoa(-days) + "d ago", "danger"
+	case days <= 30:
+		return "expires in " + strconv.Itoa(days) + "d", "warn"
+	default:
+		return "valid · " + strconv.Itoa(days) + "d", "ok"
+	}
+}
+
+// assetHeaderSeverity is the header's aggregate SeverityBadge (AssetDetail.jsx:35):
+// the most urgent (lowest-rank) severity across the asset's firing signals — the
+// same ramp the "Signals here" rows draw, rolled up to one badge. It reads the
+// severity already resolved onto each signal, so it invents nothing. Empty when no
+// signal fires, in which case the header simply omits the badge (the spec's own
+// conditional-omit pattern, as with the seen/scope line).
+func assetHeaderSeverity(signals []assetSignal) string {
+	best := ""
+	bestRank := len(signal.SevOrder)
+	for _, sg := range signals {
+		if rank := signal.Severity(sg.Severity).Rank(); rank < bestRank {
+			bestRank, best = rank, sg.Severity
+		}
+	}
+	return best
+}
+
+// assetHeaderExposure is the header's aggregate ExposureBadge (AssetDetail.jsx:36):
+// the worst reachability across the asset's open ports (exposed ≻ firewalled ≻
+// not-reached ≻ unverified) — one port answering from the internet makes the asset
+// exposed. It rolls up the states the census already carries, inventing nothing.
+// Empty when no port is measured, in which case the header omits the badge.
+func assetHeaderExposure(ports []assetPort) string {
+	rank := map[string]int{"exposed": 0, "firewalled": 1, "not-reached": 2, "unverified": 3}
+	best := ""
+	bestRank := len(rank)
+	for _, p := range ports {
+		r, ok := rank[p.Exposure]
+		if ok && r < bestRank {
+			bestRank, best = r, p.Exposure
+		}
+	}
+	return best
+}
+
 // assetSignals folds the full signal corpus and keeps the fired members whose
-// subject IS this asset (the Name-rule population is keyed by the Name). It carries
-// no severity — the census is deliberately not a severity ramp — so the section
-// lists the firing rules honestly rather than inventing a level. Best-effort: a
-// corpus-build failure yields no signals (the section empty-states).
+// subject IS this asset (the Name-rule population is keyed by the Name), each row
+// carrying its rule's severity (internal/signal SeverityFor, P0.1) for the
+// SeverityBadge the spec renders. Best-effort: a corpus-build failure yields no
+// signals (the section empty-states).
 func (s *server) assetSignals(r *http.Request, key string) []assetSignal {
 	corpus, err := s.buildSignalCorpus(r)
 	if err != nil {
 		return nil
 	}
+	// deriveSignalInstances mints (idempotently) and reads back the stable SIG-####
+	// identity + first-seen for every currently-fired (rule, subject) pair — the same
+	// id the Signals screen's drawer resolves under /signals?view= (#22b). Keep the
+	// members whose subject IS this asset; each carries its rule's severity + label
+	// (SeverityFor, never fabricated) and its raised time rendered relative to now.
+	instances, err := s.deriveSignalInstances(r.Context(), signal.EvaluateCorpus(corpus))
+	if err != nil {
+		return nil
+	}
+	now := s.now().UTC()
 	var out []assetSignal
-	for _, c := range signal.EvaluateCorpus(corpus) {
-		for _, m := range c.Fired {
-			if m.Subject == key {
-				out = append(out, assetSignal{Rule: c.Rule, Subject: m.Subject})
+	for _, inst := range instances {
+		if inst.Asset != key {
+			continue
+		}
+		sig := assetSignal{
+			Rule:     inst.Signal,
+			Subject:  inst.Asset,
+			Severity: inst.Severity,
+			SevLabel: sevLabel(inst.Severity),
+			SigID:    inst.SigID,
+		}
+		if inst.First != "" {
+			if t, perr := time.Parse(time.RFC3339, inst.First); perr == nil {
+				sig.Time = relTime(t, now)
 			}
 		}
+		out = append(out, sig)
 	}
 	return out
 }

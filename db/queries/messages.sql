@@ -65,6 +65,17 @@ WHERE NOT EXISTS (
 )
 ON CONFLICT (account_id, message_id) DO NOTHING;
 
+-- name: MarkMessageUnread :exec
+-- Return one message to unread for the caller (#473, ADR-0116): clear this
+-- account's read-mark so the message counts as unread again. Read-state is a
+-- per-account fact held in message_read, so deleting only this account's row can
+-- never touch another operator's badge. Idempotent: deleting an absent row is a
+-- no-op, so re-marking an already-unread message is harmless. This is the inverse
+-- of MarkMessageRead — the design's Inbox renders a "Mark unread" affordance
+-- (Inbox.jsx:59), so read is reversible.
+DELETE FROM message_read
+WHERE account_id = sqlc.arg(account_id) AND message_id = sqlc.arg(message_id);
+
 -- name: PreviewExclusionWithdrawal :one
 -- The honestly-computable narrowing receipt (#205 AC8, ADR-0074): count the
 -- subjects a candidate ADDRESS exclusion would withdraw and the timelines they

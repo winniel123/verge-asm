@@ -1,5 +1,7 @@
 # Handoff: Verge ASM design system
 
+**Version 3.23.1** · exported 2026-08-27 · see VERSION.md for the log. The version bumps on every export; when replacing design-system/ wholesale, this number is what landed.
+
 ## Overview
 Complete design system for Verge ASM — a free, open-source (AGPL-3.0), self-hostable attack surface management app. It covers three surfaces (product console, marketing site, docs site): design tokens with light + dark modes, ~112 React components, composition examples for eleven screens, and the content/vocabulary rules the product depends on.
 
@@ -10,7 +12,7 @@ Two kinds of material, and the distinction matters:
 2. **`examples/` are the screens themselves — the spec, not inspiration.** The console screens (`examples/console/*.jsx`), marketing homepage, and docs page ARE how the product must look. Port each screen's JSX composition verbatim — same components, same layout, spacing, hierarchy, and copy patterns — swapping only the inline sample data for real data behind the same shapes, and the local `screen` state for your router. Do not recompose or restyle them. `screenshots/` holds captures of every screen as visual ground truth. (Two HTML preview shells were workspace scaffolding and are not included.)
 
 ## Fidelity
-**High-fidelity.** Colors, type, spacing, radii, shadows, motion, and copy are final. Both themes are AA-checked (severity ramp ratios are documented in `docs/DESIGN-NOTES.md`). Recreate pixel-perfectly — verify against `screenshots/`; where your stack forces a substitution, match the token values.
+**High-fidelity.** Colors, type, spacing, radii, shadows, motion, and copy are final. Both themes are AA-checked (severity ramp ratios are documented in `docs/DESIGN-NOTES.md`). Recreate pixel-perfectly — verify against `screenshots/`; where your stack forces a substitution, match the token values. **The spec is normative for functionality too: when the domain seems to lack a datum a spec region renders, file it in `SPEC-CHANGE.md` and wait for a ruling — never re-skin, empty-state, drop, or add a region port-side.**
 
 ## Dependencies
 - **React 18+** (components use hooks; no class components, no portals required)
@@ -27,7 +29,7 @@ Two kinds of material, and the distinction matters:
 6. Replace the placeholder `Logo` (pulse glyph) when a real brand mark exists — it is explicitly placeholder-quality.
 
 ## Screens (examples/)
-Console (`examples/console/`): **Dashboard** (+ first-run checklist state, `FirstRun.jsx`) · **Scope** (seeds + refusals, zone file, proposals + org-name registry search, exclusions, custody) · **Inventory** (→ `AssetDetail`) · **AssetDetail** · **Drift** (→ `RunDetail`) · **RunDetail** · **Signals** · **Exposure** (incl. the withheld state) · **Coverage** · **Graph** · **Reports** (→ `ReportArtifact`) · **ReportArtifact** · **Inbox** · **SearchResults** · **Profile** · **Settings** (scans, vantages + prober provisioning, channels, messages, delivery, SSO, integrations, team — two roles, audit log, sources catalogue, port aperture, instance health) · **SignIn** (credentials, TOTP, forgot/reset, MFA enrollment, invite) · **Setup** · **ErrorPage** (404/403/500) · **Onboarding** wizard. Plus `Homepage.jsx` (marketing) and `DocsPage.jsx` (docs).
+Console (`examples/console/`): **Dashboard** (+ first-run checklist state, `FirstRun.jsx`) · **Scope** (seeds + refusals, zone file, proposals + org-name registry search, exclusions, custody) · **Inventory** (→ `AssetDetail`) · **AssetDetail** · **SubjectDetail** (Service + Endpoint drill-ins, withdrawn state; a Name subject opens AssetDetail) · **Drift** (→ `RunDetail`) · **RunDetail** · **Signals** · **Exposure** (incl. the withheld state) · **Coverage** · **Graph** · **Reports** (→ `ReportArtifact`) · **ReportArtifact** · **Inbox** · **SearchResults** · **Profile** · **Settings** (scans, vantages + prober provisioning, channels, messages, delivery, SSO, integrations, team — two roles, sessions — admin revoke, audit log, sources catalogue, port aperture, instance health) · **SignIn** (credentials, TOTP, forgot/reset, MFA enrollment, invite) · **Setup** · **ErrorPage** (404/403/500 + no-such-subject/run + settings forbidden) · **Onboarding** wizard. Plus `Homepage.jsx` (marketing) and `DocsPage.jsx` (docs).
 
 ## Interactions & behavior conventions
 - All inputs are **controlled** (`value` + `onChange`); overlays are controlled (`open` + `onClose`).
@@ -46,7 +48,7 @@ Sentence case everywhere; imperative verbs on actions (`Add seed`, `Run scan`); 
 None bundled — by design. Icons come from Lucide (CDN or `lucide-react`); fonts from Google Fonts; the logo is a code-drawn placeholder (`components/media/Logo.jsx`); marketing "imagery" is composed product UI, not photos. Nothing else to license or migrate.
 
 ## What changed in v3 (this sync)
-Since the v2 package the repo imported: 12 operational views (asset/run/report drill-ins, inbox, search, profile, error pages, onboarding, auth flows), 10 repo-parity pages (sources catalogue, setup, first-run checklist, prober provisioning, port aperture, zone upload, exposure, coverage, org-name search, mark-all-read), the two-role model (admin + viewer — "operator" is gone), Carousel + VideoPlayer components, and TopNav deep-link props. `WORK-CHART.md` is the executable list.
+Since the v2 package the repo imported: 12 operational views (asset/run/report drill-ins, inbox, search, profile, error pages, onboarding, auth flows), 10 repo-parity pages (sources catalogue, setup, first-run checklist, prober provisioning, port aperture, zone upload, exposure, coverage, org-name search, mark-all-read), the two-role model (admin + viewer — "operator" is gone), Carousel + VideoPlayer components, and TopNav deep-link props. `WORK-CHART.md` is the executable list; your repo's screenshots folder is corrupted (13 identical files) and should be replaced by this one.
 
 ## Files
 - `README.md` — this document
@@ -54,8 +56,16 @@ Since the v2 package the repo imported: 12 operational views (asset/run/report d
 - `tokens/` — colors, typography, spacing, radius, elevation, motion, base (7 files)
 - `components/forms|display|feedback|navigation|media/` — ~112 components × (`.jsx` + `.d.ts` + `.prompt.md`)
 - `examples/console/` — 26 screen/flow compositions + shell (`ConsoleApp.jsx`) + screen README
-- `WORK-CHART.md` — the v3 implementation chart: work items, repo targets, parallelism notes, acceptance
+- `WORK-CHART.md` — the v3 implementation chart: work items, repo targets, parallelism notes, acceptance (executed)
+- `PARITY-CHART.md` — v3.3 round-3 chart: Landed ledger (incl. audit-verified #390/#391, P0.6/P0.6b), carried round-2 items, round-3 audit intake (P0.7–P0.13, errata E1–E14, W1)
+- `AUDIT-LEDGER.md` — settled-findings register: every ruled/charted/by-design audit finding with a row id; spec audits diff against it before reporting
+- `claude/skills/consume-design-package/` — copy into the repo’s `.claude/skills/`; the v4 consuming procedure as a skill
+- `templates/` · `fixtures/` · `verify/` — v4 design-owned view layer + fixture contract + pixel-gate harness config (pilot: Inventory)
+- `WAYFINDER-MAP.md` — the per-screen conversion map + the 4-step loop with operator sign-off gates
+- `WORKFLOW.md` — the v4 exact-parity pact: design-owned view layer, fixtures, CI gates G1/G2, migration chart P4
+- `SPEC-CHANGE.md` — the collision protocol: how domain–spec conflicts get ruled on by design instead of resolved port-side, plus the running collision log
 - `examples/Homepage.jsx`, `examples/DocsPage.jsx` — marketing and docs surfaces
 - `screenshots/` — captures of every screen (ground truth; see its README for the index)
+- `docs/DOCS-IA.md` — the ruled docs-site left-rail IA (D1): section model + exact frontmatter deltas
 - `docs/DESIGN-NOTES.md` — full design rationale: palette math, severity contrast tables, per-batch component history, production notes
 - `docs/AGENT-GUIDE.md` — compact usage guide written for AI agents working in this system (also a good human quick-start)

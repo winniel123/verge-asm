@@ -39,14 +39,13 @@ const RECOVERY = ["k4mq-9d2x", "7hfa-t3wn", "p8rc-01zk", "vx5j-mm4d", "q2sl-88bh
 export function SignIn() {
   const [view, setView] = React.useState("signin"); // signin | forgot | reset | enroll | invite
   const [step, setStep] = React.useState("creds");
-  const [email, setEmail] = React.useState("");
+  const [user, setUser] = React.useState("");
   const [pw, setPw] = React.useState("");
-  const [emailErr, setEmailErr] = React.useState(null);
+  const [userErr, setUserErr] = React.useState(null);
   const [pwErr, setPwErr] = React.useState(null);
   const [code, setCode] = React.useState("");
   const [codeErr, setCodeErr] = React.useState(null);
-  const [trust, setTrust] = React.useState(true);
-  const [fEmail, setFEmail] = React.useState("");
+  const [fUser, setFUser] = React.useState("");
   const [fSent, setFSent] = React.useState(false);
   const [r1, setR1] = React.useState("");
   const [r2, setR2] = React.useState("");
@@ -62,10 +61,10 @@ export function SignIn() {
   const go = (v) => { setView(v); setStep("creds"); setFSent(false); setRDone(false); setEStep("scan"); setECode(""); setEErr(null); setStored(false); setIDone(false); };
   const submitCreds = (e) => {
     e.preventDefault();
-    const ee = /.+@.+\..+/.test(email.trim()) ? null : "enter the account email";
+    const ue = user.trim() ? null : "enter your username";
     const pe = pw ? null : "required";
-    setEmailErr(ee); setPwErr(pe);
-    if (!ee && !pe) { setCode(""); setCodeErr(null); setStep("totp"); }
+    setUserErr(ue); setPwErr(pe);
+    if (!ue && !pe) { setCode(""); setCodeErr(null); setStep("totp"); }
   };
   const wipeTimer = React.useRef(null);
   const verify = (v) => {
@@ -89,8 +88,8 @@ export function SignIn() {
         {view === "signin" && step === "creds" && (
           <form onSubmit={submitCreds} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <H title="Sign in" sub="Your deployment, your data." />
-            <Input label="Email" mono placeholder="operator@acmecorp.io" value={email} error={emailErr}
-              onChange={(e) => { setEmail(e.target.value); if (emailErr) setEmailErr(null); }} autoFocus spellCheck={false} autoComplete="username" />
+            <Input label="Username" mono placeholder="ola.perez" value={user} error={userErr}
+              onChange={(e) => { setUser(e.target.value); if (userErr) setUserErr(null); }} autoFocus spellCheck={false} autoComplete="username" />
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <Input label="Password" type="password" value={pw} error={pwErr}
                 onChange={(e) => { setPw(e.target.value); if (pwErr) setPwErr(null); }} autoComplete="current-password" />
@@ -107,10 +106,10 @@ export function SignIn() {
         )}
         {view === "signin" && step === "totp" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <H title="Two-factor check" sub={<span>Enter the code from your authenticator app for <span style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>{email.trim() || "your account"}</span>.</span>} />
+            <H title="Two-factor check" sub={<span>Enter the code from your authenticator app for <span style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>{user.trim() || "your account"}</span>.</span>} />
             <CodeInput label="Verification code" value={code} error={codeErr} autoFocus
               onChange={editCode} onComplete={verify} hint={codeErr ? undefined : "6 digits · rotates every 30s"} />
-            <Checkbox label="Trust this device for 30 days" checked={trust} onChange={setTrust} />
+            <span style={{ font: "400 11.5px/1.6 var(--font-ui)", color: "var(--text-muted)" }}>Lost your authenticator? Enter one of your recovery codes instead.</span>
             <div style={{ display: "flex", gap: 8 }}>
               <Button variant="ghost" onClick={() => setStep("creds")}>Back</Button>
               <Button style={{ flex: 1, justifyContent: "center" }} disabled={code.length < 6} onClick={() => verify(code)}>Verify</Button>
@@ -122,20 +121,20 @@ export function SignIn() {
         )}
         {view === "forgot" && !fSent && (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <H title="Reset password" sub="Enter the account email. If it exists, a reset link goes out." />
-            <Input label="Email" mono placeholder="operator@acmecorp.io" value={fEmail} onChange={(e) => setFEmail(e.target.value)} autoFocus spellCheck={false} />
-            <Button style={{ width: "100%", justifyContent: "center" }} disabled={!/.+@.+\..+/.test(fEmail.trim())} onClick={() => setFSent(true)}>Send reset link</Button>
-            <span style={{ font: "400 11.5px/1.6 var(--font-ui)", color: "var(--text-muted)" }}>No mail configured on this host? Reset directly: <InlineCode>verge users reset-password</InlineCode></span>
+            <H title="Reset password" sub="Enter your account name. If it exists, a reset link goes out." />
+            <Input label="Username" mono placeholder="ola.perez" value={fUser} onChange={(e) => setFUser(e.target.value)} autoFocus spellCheck={false} autoComplete="username" />
+            <Button style={{ width: "100%", justifyContent: "center" }} disabled={!fUser.trim()} onClick={() => setFSent(true)}>Send reset link</Button>
+            <span style={{ font: "400 11.5px/1.6 var(--font-ui)", color: "var(--text-muted)" }}>No mail configured on this host? The link is written to the web logs, or reset directly: <InlineCode>verge users reset-password</InlineCode></span>
             <LinkBtn onClick={() => go("signin")}>Back to sign in</LinkBtn>
           </div>
         )}
         {view === "forgot" && fSent && (
-          <Done title="Check the inbox" sub="If that account exists, a link is on its way. Links expire in 30 minutes."
+          <Done title="Check for your link" sub="If that account exists, a reset link is on its way. It expires in 30 minutes. On a host with no mail configured, look in the web logs."
             action={<Button variant="ghost" onClick={() => go("signin")}>Back to sign in</Button>} />
         )}
         {view === "reset" && !rDone && (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <H title="Set a new password" sub={<span>For <span style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>ola@acmecorp.io</span> · link expires in 24 minutes.</span>} />
+            <H title="Set a new password" sub="Choose a new password for your account. The link is single-use." />
             <Input label="New password" type="password" value={r1} error={rErr} hint={rErr ? undefined : "12+ characters; a passphrase beats complexity"}
               onChange={(e) => { setR1(e.target.value); if (rErr) setRErr(null); }} autoFocus autoComplete="new-password" />
             <Input label="Confirm password" type="password" value={r2} onChange={(e) => { setR2(e.target.value); if (rErr) setRErr(null); }} autoComplete="new-password" />
@@ -143,7 +142,7 @@ export function SignIn() {
           </div>
         )}
         {view === "reset" && rDone && (
-          <Done title="Password updated" sub="Every other session was signed out."
+          <Done title="Password updated" sub="For your security, every session was signed out. Sign in again with your new password."
             action={<Button onClick={() => go("signin")}>Back to sign in</Button>} />
         )}
         {view === "enroll" && eStep === "scan" && (
@@ -195,15 +194,15 @@ export function SignIn() {
         {view === "invite" && !iDone && (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <span style={{ font: "500 10.5px var(--font-mono)", letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-muted)" }}>Invitation</span>
-            <H title="Join acmecorp" sub={<span>Invited by <span style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>dana@acmecorp.io</span> · viewer role.</span>} />
-            <Input label="Display name" placeholder="Ola Pérez" value={iName} onChange={(e) => setIName(e.target.value)} autoFocus />
+            <H title="Accept your invitation" sub={<span>You were invited to this deployment as <span style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>viewer</span>. Choose a username and password to join.</span>} />
+            <Input label="Username" mono placeholder="ola.perez" value={iName} onChange={(e) => setIName(e.target.value)} autoFocus spellCheck={false} autoComplete="username" />
             <Input label="Password" type="password" value={iPw} hint="12+ characters; a passphrase beats complexity" onChange={(e) => setIPw(e.target.value)} autoComplete="new-password" />
             <Button style={{ width: "100%", justifyContent: "center" }} disabled={!iName.trim() || iPw.length < 12} onClick={() => setIDone(true)}>Create account and join</Button>
             <span style={{ font: "400 11.5px/1.6 var(--font-ui)", color: "var(--text-muted)" }}>Two-factor enrollment follows on first sign-in.</span>
           </div>
         )}
         {view === "invite" && iDone && (
-          <Done title="Welcome to acmecorp" sub="Account created. Next: enroll two-factor."
+          <Done title="Account created" sub="You joined this deployment. Next: enroll two-factor."
             action={<Button onClick={() => go("enroll")}>Set up two-factor</Button>} />
         )}
       </div>

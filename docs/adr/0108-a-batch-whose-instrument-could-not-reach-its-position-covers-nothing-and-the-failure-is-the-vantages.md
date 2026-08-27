@@ -115,7 +115,7 @@ Six limbs.
      machinery.
    - **Delivery**: a failed POST was **already** recorded durably — a `Delivery` in state
      `undelivered` carrying its `last_error` — but was rendered nowhere. It is now surfaced on the
-     **Message it failed to carry** (ADR-0039/ADR-0081's designated surface), never on `Coverage`,
+     **Message it failed to carry** (ADR-0039's designated surface), never on `Coverage`,
      which a delivery has no cause to touch: an undelivered message reads as *could not deliver*, not
      as *nothing fired*, with the reason as a drill-down (#22).
    - **Scan dispatch**: a fan-out failure is **not** the indistinguishable-from-empty hazard this ADR

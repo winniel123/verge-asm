@@ -1,0 +1,566 @@
+{{/*
+  DESIGN-OWNED ARTIFACT — reports.tmpl · package v3.11.0 · WORKFLOW.md v4
+  Source of truth: examples/console/Reports.jsx · shot 09 (+ wizard overlay, shot 09b). Replaces
+  templates_reports.go (defines "reports" + "schedulewizard" + "deltachip" + "spark" + "barchart"
+  kept). "sevbadge" (signals.tmpl) is NOT used here — severity rows are the bar treatment.
+  Holes kept: .RangeLabel .HasOpenSignals .OpenSignals .OpenDelta{Has,Text,Dir,Tone} .HasOpenSpark
+  .OpenSpark{W,H,Area,Line,Color,DotX,DotY} .HasDiscovery .DiscoveryCount .DiscoveryDelta
+  .DiscoveryNames .DiscoveryServices .DiscoveryBars{Bars[{HeightPct,Title,Last}],LeftLabel,
+  RightLabel} (≤31 bars — aggregate to weekly beyond a month) .HasMTTW .MTTW .MTTWDelta .HasMTTWSpark .MTTWSpark .HasSignalSeries
+  .SignalSeries{W,H,N,Grid[{Y,X1,X2,Stroke,LabelX,Label}],AllOpen,CritHigh,XLabels[{X,Y,Text}],
+  LabelsAttr,SeriesJSON} .HasSeverity .BySeverity[{Sev,Label,Pct,Count}] .HasHeat
+  .Heat[{Title,Bg,Border}] .RangeWeeks .Schedules[{ID,Name,Cadence,Delivery,Format,LastSent,
+  LastMins,HasDelivery,DeliveryHref}].
+  Reconciliations (SPEC-CHANGE #23, ruled): the third KPI is "Mean time to withdrawal" — the
+  mock's "resolve" predates the withdrawal ontology (#23a); the period control is the spec range
+  picker (preset token links + custom ISO pair, GET /reports?period= | ?start=&end= — drift #20b
+  mechanism; .Periods/.Period/.PeriodLabel join, .RangeOptions/weeks retire) (#23b); Export is the
+  spec SplitButton — primary CSV + menu JSON/PDF; format=pdf renders the period document via
+  internal/message.RenderArtifactPDF (BUILD the route wiring) (#23c); the discovery caption keeps
+  the estate vocabulary (names · services — the mock's "domains · IPs" predates the subject
+  ontology) (#23d); the schedules table gains client-side sort on Report + Last sent (view JS,
+  ADR-0105 precedent; .LastMins is the sort value) (#23e); the row menu is the spec kebab dropdown
+  (view JS; routes kept). Sparkline draw-in and bar rise are the component's own motion, CSS-only.
+*/}}
+{{define "deltachip"}}<span class="rp-delta {{.Tone}}">{{if .Dir}}<svg viewBox="0 0 10 10" width="8" height="8" aria-hidden="true"{{if eq .Dir "down"}} style="transform:rotate(180deg)"{{end}}><path d="M5 8.5V1.5M1.8 4.7L5 1.5l3.2 3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>{{end}}{{.Text}}</span>{{end}}
+
+{{define "spark"}}<svg width="100%" height="{{.H}}" viewBox="0 0 {{.W}} {{.H}}" preserveAspectRatio="none" style="display:block;width:100%;overflow:visible" aria-hidden="true"><path d="{{.Area}}" fill="{{.Color}}" class="rp-sparkarea"></path><polyline points="{{.Line}}" fill="none" stroke="{{.Color}}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" pathLength="100" stroke-dasharray="100" class="rp-sparkline"></polyline><circle cx="{{.DotX}}" cy="{{.DotY}}" r="2.5" fill="{{.Color}}" class="rp-sparkdot"></circle></svg>{{end}}
+
+{{define "barchart"}}<div style="display:flex;flex-direction:column;gap:6px" aria-hidden="true"><div style="display:flex;align-items:flex-end;gap:4px;height:44px;border-bottom:1px solid var(--chart-grid);padding-bottom:1px;min-width:0;overflow:hidden">{{range .Bars}}<span title="{{.Title}}" class="rp-bar" style="height:{{.HeightPct}}%;{{if not .Last}}opacity:0.45{{end}}"></span>{{end}}</div><div style="display:flex;justify-content:space-between;gap:8px"><span style="font:400 9.5px var(--font-mono);color:var(--text-muted);white-space:nowrap">{{.LeftLabel}}</span><span style="font:400 9.5px var(--font-mono);color:var(--text-muted);white-space:nowrap">{{.RightLabel}}</span></div></div>{{end}}
+
+{{define "reports"}}{{template "head" .}}
+{{template "chrome" .}}
+<style>
+@keyframes rp-pop { from { opacity: 0; transform: translateY(6px) scale(0.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes rp-draw { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
+@keyframes rp-fadein { from { opacity: 0; } }
+@keyframes rp-rise { from { transform: scaleY(0.04); } }
+.rp-main { max-width: 1440px; margin: 0 auto; padding: 32px; display: flex; flex-direction: column; gap: 24px; }
+.rp-main h1 { margin: 0; font: 600 21px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.rp-sub { font: 400 12.5px var(--font-ui); color: var(--text-muted); white-space: nowrap; }
+.rp-card { background: var(--surface); border: 1px solid var(--border-default); border-radius: 16px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; }
+.rp-cardhead { display: flex; align-items: center; gap: 12px; padding: 20px 20px 0; }
+.rp-cardhead .hd { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.rp-micro { font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.rp-cardhead h3 { margin: 0; font: 600 15px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.rp-body { padding: 20px; }
+.rp-kpi { background: var(--surface); border: 1px solid var(--border-default); border-radius: 16px; box-shadow: var(--shadow-sm); padding: 20px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.rp-kpi .top { display: flex; align-items: baseline; gap: 10px; }
+.rp-kpi .per { margin-left: auto; font: 400 11px var(--font-mono); color: var(--text-muted); white-space: nowrap; }
+.rp-kpi .vr { display: flex; align-items: baseline; gap: 8px; }
+.rp-kpi .num { font: 600 28px var(--font-mono); color: var(--text-ink); line-height: 1.1; }
+.rp-kpi .cap { font: 400 11.5px var(--font-ui); color: var(--text-muted); }
+.rp-kpi .chart { margin-top: auto; }
+.rp-delta { display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 7px; border-radius: 999px; border: 1px solid transparent; font: 600 11px var(--font-mono); line-height: 1; white-space: nowrap; transform: translateY(-2px); }
+.rp-delta.bad { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
+.rp-delta.good { background: var(--ok-soft); border-color: var(--ok-border); color: var(--ok); }
+.rp-delta.neutral { background: var(--surface-sunken); border-color: var(--border-default); color: var(--text-secondary); }
+.rp-sparkarea { opacity: 0.1; animation: rp-fadein 400ms var(--ease-out) 250ms backwards; }
+.rp-sparkline { animation: rp-draw 550ms var(--ease-out); }
+.rp-sparkdot { animation: rp-fadein 250ms var(--ease-out) 480ms backwards; }
+.rp-bar { flex: 1; min-width: 3px; min-height: 2px; border-radius: 3px 3px 0 0; background: var(--chart-1); transform-origin: bottom; animation: rp-rise 450ms var(--ease-out); }
+.rp-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; border-radius: 12px; font: 600 13px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; background: var(--surface); color: var(--text-body); border: 1px solid var(--border-strong); transition: background var(--dur-fast) var(--ease-out); }
+.rp-btn:hover { background: var(--surface-sunken); }
+.rp-btn .mono { font: 500 12px var(--font-mono); }
+.rp-split { display: inline-flex; }
+.rp-split .main { border-top-right-radius: 0; border-bottom-right-radius: 0; border-right: none; }
+.rp-split .caret { border-top-left-radius: 0; border-bottom-left-radius: 0; padding: 0 8px; border-left: 1px solid var(--border-strong); }
+.rp-pop { position: relative; display: inline-flex; }
+.rp-panel { position: absolute; top: 100%; right: 0; margin-top: 6px; z-index: 95; background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 12px; box-shadow: var(--shadow-md); padding: 5px; animation: rp-pop var(--dur-base) var(--ease-out); display: flex; flex-direction: column; gap: 2px; font-family: var(--font-ui); min-width: 170px; }
+.rp-panel[hidden] { display: none; }
+.rp-panel.range { width: 232px; padding: 14px; gap: 3px; }
+.rp-mi { display: flex; align-items: center; gap: 9px; width: 100%; height: 30px; padding: 0 10px; border: none; border-radius: 8px; text-align: left; cursor: pointer; background: transparent; color: var(--text-body); font: 500 12.5px var(--font-ui); text-decoration: none; box-sizing: border-box; transition: background var(--dur-fast) var(--ease-out); }
+.rp-mi:hover { background: var(--surface-sunken); }
+.rp-mi.danger { color: var(--danger); }
+.rp-mi.danger:hover { background: var(--danger-soft); }
+.rp-mi .mic { display: inline-flex; color: var(--text-secondary); flex: none; }
+.rp-mi.danger .mic { color: var(--danger); }
+.rp-mi[aria-disabled="true"] { opacity: 0.5; cursor: default; }
+.rp-mi[aria-disabled="true"]:hover { background: transparent; }
+.rp-sep { height: 1px; background: var(--row-sep); margin: 5px 4px; }
+.rp-preset { display: flex; align-items: center; gap: 8px; width: 100%; height: 30px; padding: 0 10px; border: none; border-radius: 8px; text-align: left; cursor: pointer; text-decoration: none; background: transparent; color: var(--text-body); font: 500 12.5px var(--font-ui); transition: background var(--dur-fast) var(--ease-out); }
+.rp-preset:hover { background: var(--surface-sunken); }
+.rp-preset.on { background: var(--accent-soft); color: var(--link); font-weight: 600; }
+.rp-preset .ck { margin-left: auto; display: inline-flex; color: var(--link); }
+.rp-panel .lbl { font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); padding: 2px 2px 4px; }
+.rp-panel input.iso { width: 100%; height: 28px; padding: 0 8px; border: 1px solid var(--border-default); border-radius: 8px; background: var(--surface); color: var(--text-ink); font: 400 11.5px var(--font-mono); outline: none; box-sizing: border-box; }
+.rp-apply { display: inline-flex; align-items: center; justify-content: center; height: 30px; padding: 0 12px; border-radius: 10px; font: 600 12px var(--font-ui); cursor: pointer; white-space: nowrap; background: var(--accent); color: var(--on-accent); border: 1px solid transparent; margin-top: 8px; width: 100%; transition: background var(--dur-fast) var(--ease-out); }
+.rp-apply:hover { background: var(--accent-hover); }
+.rp-apply[disabled] { opacity: 0.45; cursor: default; }
+.rp-apply[disabled]:hover { background: var(--accent); }
+.rp-btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 10px; font: 600 12px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; background: transparent; color: var(--text-secondary); border: 1px solid transparent; transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
+.rp-btn-ghost:hover { background: var(--surface-sunken); color: var(--text-body); }
+.rp-sevrow { display: flex; align-items: center; gap: 12px; }
+.rp-sevrow .sl { width: 72px; font: 500 11px var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-secondary); }
+.rp-sevrow .st { flex: 1; height: 8px; border-radius: 999px; background: var(--surface-sunken); overflow: hidden; }
+.rp-sevrow .sf { display: block; height: 100%; border-radius: 999px; }
+.rp-sevrow .sn { width: 26px; text-align: right; font: 500 12.5px var(--font-mono); color: var(--text-body); }
+.rp-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.rp-table th { padding: 8px 16px; font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border-default); white-space: nowrap; background: var(--surface); text-align: left; }
+.rp-table th button { border: none; background: transparent; padding: 0; cursor: pointer; font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit; display: inline-flex; align-items: center; }
+.rp-table td { padding: 7px 16px; font: 400 13px var(--font-ui); color: var(--text-body); vertical-align: middle; white-space: nowrap; border-top: 1px solid var(--row-sep); }
+.rp-table tbody tr:first-child td { border-top: none; }
+.rp-table td.mono { font: 400 12.5px var(--font-mono); }
+.rp-caret { margin-left: 5px; vertical-align: -1px; }
+.rp-tag { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 8px; background: var(--surface-sunken); border: 1px solid var(--border-default); color: var(--text-secondary); font-family: var(--font-mono); font-size: 11.5px; white-space: nowrap; }
+.rp-kebab { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--text-secondary); cursor: pointer; transition: background var(--dur-fast) var(--ease-out); padding: 0; }
+.rp-kebab:hover { background: var(--surface-sunken); color: var(--text-body); }
+.rp-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 36px 24px; font-family: var(--font-ui); }
+.rp-empty .msg { font: 600 14px var(--font-ui); color: var(--text-ink); }
+.rp-empty .det { font: 400 13px/1.5 var(--font-ui); color: var(--text-secondary); max-width: 400px; }
+.rp-empty .act { margin-top: 12px; }
+.rp-tip { position: absolute; background: var(--surface); border: 1px solid var(--border-default); border-radius: 10px; box-shadow: var(--shadow-md); padding: 8px 10px; pointer-events: none; display: flex; flex-direction: column; gap: 5px; min-width: 110px; z-index: 5; }
+.rp-tip[hidden] { display: none; }
+.rp-tip .tl { font: 500 10.5px var(--font-mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); }
+.rp-tip .row { display: flex; align-items: center; gap: 6px; }
+.rp-tip .sw { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+.rp-tip .nm { font: 400 12px var(--font-ui); color: var(--text-secondary); }
+.rp-tip .vl { margin-left: auto; font: 500 12px var(--font-mono); color: var(--text-ink); padding-left: 10px; }
+.rp-legend { display: flex; gap: 16px; flex-wrap: wrap; padding-left: 40px; margin-top: 10px; }
+.rp-legend .it { display: inline-flex; align-items: center; gap: 6px; }
+.rp-legend .sw { width: 8px; height: 8px; border-radius: 2px; }
+.rp-legend .nm { font: 400 12px var(--font-ui); color: var(--text-secondary); }
+</style>
+<main class="rp-main" data-screen-label="Reports">
+<header style="display:flex;align-items:center;gap:16px">
+<div style="display:flex;flex-direction:column;gap:2px">
+<h1>Reports</h1>
+<span class="rp-sub">Trends and scheduled exports for the selected period.</span>
+</div>
+<div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+<span class="rp-pop">
+<button type="button" class="rp-btn" id="rp-range-btn" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg><span class="mono">{{.PeriodLabel}}</span></button>
+<div class="rp-panel range" id="rp-range-panel" hidden>
+{{range .Periods}}<a class="rp-preset{{if eq .Token $.Period}} on{{end}}" href="/reports?period={{.Token}}">{{.Label}}{{if eq .Token $.Period}}<span class="ck"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></span>{{end}}</a>{{end}}
+<div class="rp-sep"></div>
+<span class="lbl">Custom (ISO 8601)</span>
+<form method="get" action="/reports" style="display:flex;flex-direction:column;gap:3px;margin:0">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+<input class="iso" name="start" placeholder="2026-08-01" autocomplete="off">
+<input class="iso" name="end" placeholder="2026-08-22" autocomplete="off">
+</div>
+<button type="submit" class="rp-apply" disabled>Apply range</button>
+</form>
+</div>
+</span>
+<span class="rp-split rp-pop">
+<a class="rp-btn main" href="/reports/export?format=csv&period={{.Period}}"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg>Export CSV</a>
+<button type="button" class="rp-btn caret" id="rp-export-btn" aria-haspopup="menu" aria-expanded="false" aria-label="More formats"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></button>
+<div class="rp-panel" id="rp-export-panel" hidden role="menu">
+<a class="rp-mi" role="menuitem" href="/reports/export?format=json&period={{.Period}}"><span class="mic"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1"></path><path d="M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"></path></svg></span>Export JSON</a>
+<a class="rp-mi" role="menuitem" href="/reports/export?format=pdf&period={{.Period}}"><span class="mic"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"></path><path d="M14 2v6h6"></path></svg></span>Export PDF</a>
+</div>
+</span>
+</div>
+</header>
+<div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:24px">
+<section class="rp-kpi">
+<div class="top"><span class="rp-micro">Open signals</span><span class="per">{{.RangeLabel}}</span></div>
+<div style="display:flex;flex-direction:column;gap:2px">
+<span class="vr"><span class="num">{{if .HasOpenSignals}}{{.OpenSignals}}{{else}}—{{end}}</span>{{if .OpenDelta.Has}}{{template "deltachip" .OpenDelta}}{{end}}</span>
+<span class="cap">vs previous period</span>
+</div>
+{{if .HasOpenSpark}}<div class="chart">{{template "spark" .OpenSpark}}</div>{{end}}
+</section>
+<section class="rp-kpi">
+<div class="top"><span class="rp-micro">New assets discovered</span><span class="per">{{.RangeLabel}}</span></div>
+<div style="display:flex;flex-direction:column;gap:2px">
+<span class="vr"><span class="num">{{if .HasDiscovery}}{{.DiscoveryCount}}{{else}}—{{end}}</span>{{if .DiscoveryDelta.Has}}{{template "deltachip" .DiscoveryDelta}}{{end}}</span>
+<span class="cap">{{if .HasDiscovery}}{{.DiscoveryNames}} names · {{.DiscoveryServices}} services{{else}}first appearances over the period{{end}}</span>
+</div>
+{{if .HasDiscovery}}<div class="chart">{{template "barchart" .DiscoveryBars}}</div>{{end}}
+</section>
+<section class="rp-kpi">
+<div class="top"><span class="rp-micro">Mean time to withdrawal</span><span class="per">{{.RangeLabel}}</span></div>
+<div style="display:flex;flex-direction:column;gap:2px">
+<span class="vr"><span class="num">{{if .HasMTTW}}{{.MTTW}}{{else}}—{{end}}</span>{{if .MTTWDelta.Has}}{{template "deltachip" .MTTWDelta}}{{end}}</span>
+<span class="cap">critical + high only</span>
+</div>
+{{if .HasMTTWSpark}}<div class="chart">{{template "spark" .MTTWSpark}}</div>{{end}}
+</section>
+</div>
+<section class="rp-card">
+<div class="rp-cardhead"><div class="hd"><span class="rp-micro">Trend</span><h3>Open signals over time</h3></div></div>
+<div class="rp-body">
+{{if .HasSignalSeries}}
+{{with .SignalSeries}}
+<div id="rp-chart" style="position:relative" data-n="{{.N}}" data-w="{{.W}}" data-h="{{.H}}" data-labels="{{.LabelsAttr}}" data-series="{{.SeriesJSON}}">
+<svg id="rp-ts" width="100%" height="{{.H}}" viewBox="0 0 {{.W}} {{.H}}" role="img" aria-label="Open signals over time" style="display:block;overflow:visible;max-width:100%">
+{{range .Grid}}<line x1="{{.X1}}" x2="{{.X2}}" y1="{{.Y}}" y2="{{.Y}}" stroke="{{.Stroke}}" stroke-width="1"></line><text x="{{.LabelX}}" y="{{.Y}}" dy="3" text-anchor="end" style="font:400 10.5px var(--font-mono);fill:var(--text-muted)">{{.Label}}</text>
+{{end}}<g id="rp-cross"></g>
+<polyline points="{{.AllOpen}}" fill="none" stroke="var(--chart-1)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></polyline>
+<polyline points="{{.CritHigh}}" fill="none" stroke="var(--chart-2)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></polyline>
+{{range .XLabels}}<text x="{{.X}}" y="{{.Y}}" text-anchor="middle" style="font:400 10.5px var(--font-mono);fill:var(--text-muted)">{{.Text}}</text>
+{{end}}</svg>
+<div class="rp-tip" id="rp-tip" hidden></div>
+</div>
+<div class="rp-legend">
+<span class="it"><span class="sw" style="background:var(--chart-1)"></span><span class="nm">All open</span></span>
+<span class="it"><span class="sw" style="background:var(--chart-2)"></span><span class="nm">Critical + high</span></span>
+</div>
+{{end}}
+{{else}}
+<div class="rp-empty">
+<span class="msg">No signal history</span>
+<span class="det">Open-signal history builds here as signals are first raised over the period. Declare a scope on Scope and run a scan to start the series.</span>
+<span class="act"><a class="rp-btn-ghost" href="/signals">Go to Signals</a></span>
+</div>
+{{end}}
+</div>
+</section>
+<div style="display:grid;grid-template-columns:380px 1fr;gap:24px;align-items:start">
+<div style="display:flex;flex-direction:column;gap:24px">
+<section class="rp-card">
+<div class="rp-cardhead"><div class="hd"><span class="rp-micro">Open signals</span><h3>By severity</h3></div></div>
+<div class="rp-body">
+{{if .HasSeverity}}
+<div style="display:flex;flex-direction:column;gap:12px">
+{{range .BySeverity}}
+<div class="rp-sevrow">
+<span class="sl">{{.Label}}</span>
+<span class="st"><span class="sf" style="width:{{.Pct}}%;background:var(--sev-{{.Sev}}-dot)"></span></span>
+<span class="sn">{{.Count}}</span>
+</div>
+{{end}}
+</div>
+{{else}}
+<div class="rp-empty" style="padding:24px 12px">
+<span class="msg">No signals firing</span>
+<span class="det">Nothing is firing across the rule set right now. When a rule raises a signal it appears here, ranked by severity.</span>
+<span class="act"><a class="rp-btn-ghost" href="/signals">Go to Signals</a></span>
+</div>
+{{end}}
+</div>
+</section>
+<section class="rp-card">
+<div class="rp-cardhead"><div class="hd"><span class="rp-micro">Activity</span><h3>Scans per day</h3></div></div>
+<div class="rp-body">
+{{if .HasHeat}}
+<div style="display:inline-flex;flex-direction:column;gap:8px">
+<div role="img" aria-label="Scans per day, {{.RangeLabel}}" style="display:grid;grid-template-rows:repeat(7, 12px);grid-auto-flow:column;grid-auto-columns:12px;gap:3px">
+{{range .Heat}}<span title="{{.Title}}" style="width:12px;height:12px;border-radius:3px;box-sizing:border-box;background:{{.Bg}};border:1px solid {{.Border}}"></span>{{end}}
+</div>
+<div style="display:flex;align-items:center;gap:6px">
+<span style="font:400 10.5px var(--font-mono);color:var(--text-muted)">{{.RangeWeeks}} weeks ago</span>
+<span style="margin-left:auto;font:400 10.5px var(--font-mono);color:var(--text-muted)">less</span>
+<span style="width:10px;height:10px;border-radius:3px;box-sizing:border-box;background:var(--surface-sunken);border:1px solid var(--row-sep)"></span>
+<span style="width:10px;height:10px;border-radius:3px;box-sizing:border-box;background:color-mix(in srgb, var(--chart-1) 28%, var(--surface))"></span>
+<span style="width:10px;height:10px;border-radius:3px;box-sizing:border-box;background:color-mix(in srgb, var(--chart-1) 48%, var(--surface))"></span>
+<span style="width:10px;height:10px;border-radius:3px;box-sizing:border-box;background:color-mix(in srgb, var(--chart-1) 72%, var(--surface))"></span>
+<span style="width:10px;height:10px;border-radius:3px;box-sizing:border-box;background:var(--chart-1)"></span>
+<span style="font:400 10.5px var(--font-mono);color:var(--text-muted)">more</span>
+<span style="font:400 10.5px var(--font-mono);color:var(--text-muted);margin-left:8px">today</span>
+</div>
+</div>
+{{else}}
+<div class="rp-empty" style="padding:24px 12px">
+<span class="msg">No scans in the {{.RangeLabel}}</span>
+<span class="det">Scan activity shows here once dispatches land. Declare a scope on Scope and trigger a scan, or wait for the next cadence.</span>
+<span class="act"><a class="rp-btn-ghost" href="/scans">Go to Scans</a></span>
+</div>
+{{end}}
+</div>
+</section>
+</div>
+<section class="rp-card" style="overflow:visible">
+<div class="rp-cardhead" style="padding-bottom:14px"><div class="hd"><span class="rp-micro">Scheduled</span><h3>Recurring reports</h3></div><a class="rp-btn-ghost" href="/reports/schedule/new" style="margin-left:auto"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg>New schedule</a></div>
+{{if .Schedules}}
+<table class="rp-table" id="rp-sched">
+<thead><tr>
+<th><button type="button" data-sort="name">Report<svg class="rp-caret" viewBox="0 0 10 14" width="8" height="11"><path d="M5 1.5L8 5H2Z" fill="var(--border-strong)"></path><path d="M5 12.5L2 9h6Z" fill="var(--border-strong)"></path></svg></button></th>
+<th style="width:150px">Cadence</th>
+<th style="width:175px">Delivery</th>
+<th style="width:76px">Format</th>
+<th style="width:90px;text-align:right"><button type="button" data-sort="last" style="justify-content:flex-end;width:100%">Last sent<svg class="rp-caret" viewBox="0 0 10 14" width="8" height="11"><path d="M5 1.5L8 5H2Z" fill="var(--border-strong)"></path><path d="M5 12.5L2 9h6Z" fill="var(--border-strong)"></path></svg></button></th>
+<th style="width:58px" aria-label="Actions"></th>
+</tr></thead>
+<tbody>
+{{range .Schedules}}
+<tr data-name="{{.Name}}" data-last="{{.LastMins}}">
+<td><span style="font:500 13px var(--font-ui);color:var(--text-ink)">{{.Name}}</span></td>
+<td class="mono">{{.Cadence}}</td>
+<td class="mono">{{.Delivery}}</td>
+<td><span class="rp-tag">{{.Format}}</span></td>
+<td class="mono" style="text-align:right">{{.LastSent}}</td>
+<td style="text-align:right;overflow:visible">
+<span class="rp-pop">
+<button type="button" class="rp-kebab" data-row-menu aria-haspopup="menu" aria-expanded="false" aria-label="Actions"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"></circle><circle cx="12" cy="12" r="1.6"></circle><circle cx="19" cy="12" r="1.6"></circle></svg></button>
+<div class="rp-panel" hidden role="menu" style="min-width:190px">
+{{if .HasDelivery}}<a class="rp-mi" role="menuitem" href="{{.DeliveryHref}}"><span class="mic"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg></span>View last delivery</a>
+{{else}}<span class="rp-mi" role="menuitem" aria-disabled="true" title="No delivery yet"><span class="mic"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path><circle cx="12" cy="12" r="3"></circle></svg></span>View last delivery</span>{{end}}
+<form method="post" action="/reports/schedule/run" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" class="rp-mi" role="menuitem" style="width:100%"><span class="mic"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" stroke="none"><path d="M8 5v14l11-7z"></path></svg></span>Run now</button></form>
+<a class="rp-mi" role="menuitem" href="/reports/schedule/{{.ID}}/edit"><span class="mic"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"></path></svg></span>Edit schedule</a>
+<div class="rp-sep"></div>
+<form method="post" action="/reports/schedule/delete" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" class="rp-mi danger" role="menuitem" style="width:100%"><span class="mic"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" x2="10" y1="11" y2="17"></line><line x1="14" x2="14" y1="11" y2="17"></line></svg></span>Delete schedule</button></form>
+</div>
+</span>
+</td>
+</tr>
+{{end}}
+</tbody>
+</table>
+{{else}}
+<div class="rp-empty">
+<span class="msg">No recurring reports</span>
+<span class="det">No recurring reports yet. Create one with New schedule — it runs on its cadence and its last delivery shows in this table.</span>
+</div>
+{{end}}
+</section>
+</div>
+</main>
+<script>
+(function(){
+  function wirePop(btn,panel){
+    btn.addEventListener("click",function(e){e.stopPropagation();var open=panel.hasAttribute("hidden");closeAll();if(open){panel.removeAttribute("hidden");btn.setAttribute("aria-expanded","true");}});
+    document.addEventListener("mousedown",function(e){if(!panel.hasAttribute("hidden")&&!panel.contains(e.target)&&!btn.contains(e.target)){panel.setAttribute("hidden","");btn.setAttribute("aria-expanded","false");}});
+  }
+  var pops=[];
+  function closeAll(){pops.forEach(function(p){p[1].setAttribute("hidden","");p[0].setAttribute("aria-expanded","false");});}
+  var rb=document.getElementById("rp-range-btn"),rp=document.getElementById("rp-range-panel");
+  if(rb&&rp){pops.push([rb,rp]);wirePop(rb,rp);
+    var form=rp.querySelector("form"),inputs=form.querySelectorAll("input"),apply=form.querySelector(".rp-apply");
+    function chk(){var ok=true;[].forEach.call(inputs,function(i){if(!i.value)ok=false;});if(ok)apply.removeAttribute("disabled");else apply.setAttribute("disabled","");}
+    [].forEach.call(inputs,function(i){i.addEventListener("input",chk);});
+  }
+  var eb=document.getElementById("rp-export-btn"),ep=document.getElementById("rp-export-panel");
+  if(eb&&ep){pops.push([eb,ep]);wirePop(eb,ep);}
+  [].forEach.call(document.querySelectorAll("[data-row-menu]"),function(b){var p=b.parentNode.querySelector(".rp-panel");pops.push([b,p]);wirePop(b,p);});
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")closeAll();});
+  var chart=document.getElementById("rp-chart");
+  if(chart){
+    var svg=document.getElementById("rp-ts"),tip=document.getElementById("rp-tip"),cross=document.getElementById("rp-cross");
+    var N=+chart.getAttribute("data-n"),W=+chart.getAttribute("data-w"),H=+chart.getAttribute("data-h");
+    var labels=chart.getAttribute("data-labels").split("|");
+    var series=JSON.parse(chart.getAttribute("data-series"));
+    var PL=40,PR=8,PT=10,PB=22,iw=W-PL-PR;
+    var top=0;series.forEach(function(s){s.data.forEach(function(v){if(v>top)top=v;});});
+    var raw=(top||1)/4,mag=Math.pow(10,Math.floor(Math.log10(raw))),norm=raw/mag;
+    var step=(norm<=1?1:norm<=2?2:norm<=5?5:10)*mag;
+    var yTop=Math.max(step,Math.ceil(top/step)*step);
+    function x(i){return PL+(i/(N-1))*iw;}
+    function y(v){return PT+(1-v/yTop)*(H-PT-PB);}
+    svg.addEventListener("mousemove",function(e){
+      var r=svg.getBoundingClientRect(),sx=W/r.width;
+      var i=Math.round(((e.clientX-r.left)*sx-PL)/iw*(N-1));
+      i=Math.max(0,Math.min(N-1,i));
+      var ns="http://www.w3.org/2000/svg",h="";
+      h='<line x1="'+x(i)+'" x2="'+x(i)+'" y1="'+PT+'" y2="'+(H-PB)+'" stroke="var(--border-strong)" stroke-width="1" stroke-dasharray="2 3"></line>';
+      series.forEach(function(s){h+='<circle cx="'+x(i)+'" cy="'+y(s.data[i])+'" r="3" fill="'+s.color+'" stroke="var(--surface)" stroke-width="1.5"></circle>';});
+      cross.innerHTML=h;
+      var t='<span class="tl">'+(labels[i]||"")+'</span>';
+      series.forEach(function(s){t+='<span class="row"><span class="sw" style="background:'+s.color+'"></span><span class="nm">'+s.label+'</span><span class="vl">'+s.data[i]+'</span></span>';});
+      tip.innerHTML=t;tip.removeAttribute("hidden");
+      var px=x(i)/sx,flip=px>r.width-150;
+      tip.style.top=PT/sx+"px";
+      tip.style.left=(flip?px-10:px+10)+"px";
+      tip.style.transform=flip?"translateX(-100%)":"none";
+    });
+    svg.addEventListener("mouseleave",function(){tip.setAttribute("hidden","");cross.innerHTML="";});
+  }
+  var tbl=document.getElementById("rp-sched");
+  if(tbl){
+    var state={key:null,dir:1};
+    [].forEach.call(tbl.querySelectorAll("[data-sort]"),function(btn){
+      btn.addEventListener("click",function(){
+        var k=btn.getAttribute("data-sort");
+        state.dir=state.key===k?-state.dir:1;state.key=k;
+        var tb=tbl.querySelector("tbody"),rows=[].slice.call(tb.querySelectorAll("tr"));
+        rows.sort(function(a,b){
+          if(k==="last")return((+a.getAttribute("data-last"))-(+b.getAttribute("data-last")))*state.dir;
+          return a.getAttribute("data-name").localeCompare(b.getAttribute("data-name"))*state.dir;
+        });
+        rows.forEach(function(r){tb.appendChild(r);});
+        [].forEach.call(tbl.querySelectorAll("[data-sort]"),function(o){
+          var up=o.querySelector(".rp-caret path:first-child"),dn=o.querySelector(".rp-caret path:last-child");
+          var on=o===btn;
+          up.setAttribute("fill",on&&state.dir===1?"var(--accent)":"var(--border-strong)");
+          dn.setAttribute("fill",on&&state.dir===-1?"var(--accent)":"var(--border-strong)");
+        });
+      });
+    });
+  }
+})();
+</script>
+{{template "foot" .}}{{end}}
+
+{{define "schedulewizard"}}{{template "head" .}}
+{{template "chrome" .}}
+<style>
+@keyframes sw-pop { from { opacity: 0; transform: translateY(6px) scale(0.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.sw-wrap { display: flex; justify-content: center; padding: 48px 32px; }
+.sw-panel { background: var(--surface); border: 1px solid var(--border-default); border-radius: 24px; box-shadow: var(--shadow-lg); padding: 24px; width: 560px; max-width: 100%; box-sizing: border-box; font-family: var(--font-ui); }
+.sw-panel h1 { margin: 0 0 4px; font: 600 16px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.sw-desc { margin: 0 0 20px; color: var(--text-secondary); font: 400 13px/1.5 var(--font-ui); }
+.sw-steps { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
+.sw-conn { flex: 1; min-width: 12px; height: 1px; background: var(--row-sep); }
+.sw-conn.lit { background: var(--accent); opacity: 0.4; }
+.sw-step { display: inline-flex; align-items: center; gap: 8px; }
+.sw-num { width: 22px; height: 22px; border-radius: 999px; flex: none; display: inline-flex; align-items: center; justify-content: center; font: 600 11px var(--font-mono); border: 1px solid var(--border-strong); color: var(--text-muted); background: transparent; box-sizing: border-box; }
+.sw-num.cur { border: 1.5px solid var(--accent); color: var(--link); }
+.sw-num.done { background: var(--accent-soft); border: 1px solid transparent; color: var(--link); }
+.sw-step .lbl { font: 400 12.5px var(--font-ui); color: var(--text-secondary); white-space: nowrap; }
+.sw-step.cur .lbl { font-weight: 600; color: var(--text-ink); }
+.sw-body { display: flex; flex-direction: column; gap: 16px; }
+.sw-flabel { font: 500 12.5px var(--font-ui); color: var(--text-body); display: block; margin-bottom: 6px; }
+.sw-input { display: flex; align-items: center; height: 36px; padding: 0 12px; background: var(--surface); border: 1px solid var(--border-default); border-radius: 12px; box-sizing: border-box; width: 100%; transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); }
+.sw-input:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 18%, transparent); }
+.sw-input input { flex: 1; min-width: 0; border: none; outline: none; background: transparent; color: var(--text-ink); font: 400 13px var(--font-ui); }
+.sw-input input.mono { font: 400 12px var(--font-mono); }
+.sw-secs { display: flex; flex-direction: column; gap: 10px; }
+.sw-check { display: flex; align-items: center; gap: 8px; font: 400 13px var(--font-ui); color: var(--text-body); cursor: pointer; }
+.sw-check .box { width: 18px; height: 18px; flex: none; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; background: var(--surface); border: 1px solid var(--border-strong); transition: background var(--dur-fast) var(--ease-out); }
+.sw-check input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.sw-check input:checked + .box { background: var(--accent); border-color: var(--accent); }
+.sw-check .box svg { display: none; }
+.sw-check input:checked + .box svg { display: block; }
+.sw-check input:focus-visible + .box { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--focus-ring); }
+.sw-listbox { position: relative; display: flex; width: 100%; }
+.sw-listbox .trig { display: flex; align-items: center; gap: 8px; width: 100%; height: 36px; padding: 0 12px; background: var(--surface); color: var(--text-ink); font: 400 13px var(--font-ui); text-align: left; border: 1px solid var(--border-default); border-radius: 12px; cursor: pointer; box-sizing: border-box; }
+.sw-listbox .trig .cv { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sw-listbox .trig .chev { color: var(--text-muted); flex: none; transition: transform var(--dur-base) var(--ease-out); }
+.sw-listbox .trig[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 18%, transparent); }
+.sw-listbox .trig[aria-expanded="true"] .chev { transform: rotate(180deg); }
+.sw-listbox .panel { position: absolute; top: 100%; left: 0; margin-top: 6px; width: 100%; z-index: 95; background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 12px; box-shadow: var(--shadow-md); padding: 5px; animation: sw-pop var(--dur-base) var(--ease-out); display: flex; flex-direction: column; gap: 2px; box-sizing: border-box; }
+.sw-listbox .panel[hidden] { display: none; }
+.sw-listbox .opt { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; padding: 6px 10px; border: none; border-radius: 8px; text-align: left; cursor: pointer; background: transparent; color: var(--text-body); font: 500 12.5px var(--font-ui); box-sizing: border-box; transition: background var(--dur-fast) var(--ease-out); }
+.sw-listbox .opt:hover { background: var(--surface-sunken); }
+.sw-listbox .opt.on { color: var(--link); font-weight: 600; }
+.sw-listbox .opt .hint { font: 400 11px var(--font-ui); color: var(--text-muted); }
+.sw-help { margin: 0; font: 400 12px/1.5 var(--font-ui); color: var(--text-muted); }
+.sw-kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 20px; padding: 16px; background: var(--surface-sunken); border-radius: 12px; }
+.sw-kv .cell { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.sw-kv .k { font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.sw-kv .v { font: 400 12.5px var(--font-mono); color: var(--text-body); overflow-wrap: anywhere; }
+.sw-foot { display: flex; align-items: center; gap: 8px; margin-top: 24px; }
+.sw-count { margin-right: auto; font: 500 11px var(--font-mono); letter-spacing: 0.06em; color: var(--text-muted); }
+.sw-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; border-radius: 12px; font: 600 13px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; border: 1px solid transparent; transition: background var(--dur-fast) var(--ease-out); }
+.sw-btn.pri { background: var(--accent); color: var(--on-accent); }
+.sw-btn.pri:hover { background: var(--accent-hover); }
+.sw-btn.pri[disabled] { opacity: 0.45; cursor: default; }
+.sw-btn.pri[disabled]:hover { background: var(--accent); }
+.sw-btn.sec { background: var(--surface); color: var(--text-body); border-color: var(--border-strong); }
+.sw-btn.sec:hover { background: var(--surface-sunken); }
+.sw-btn.ghost { background: transparent; color: var(--text-secondary); }
+.sw-btn.ghost:hover { background: var(--surface-sunken); color: var(--text-body); }
+.sw-micro { font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+</style>
+<main class="sw-wrap" data-screen-label="Report schedule wizard">
+<section class="sw-panel">
+<h1>{{.WizardTitle}}</h1>
+<p class="sw-desc">A recurring export, delivered on cadence.</p>
+<div class="sw-steps">
+{{range $i, $s := .Steps}}
+{{if $i}}<span class="sw-conn{{if or $s.Done $s.Current}} lit{{end}}"></span>{{end}}
+<span class="sw-step{{if $s.Current}} cur{{end}}">
+<span class="sw-num{{if $s.Done}} done{{else if $s.Current}} cur{{end}}">{{if $s.Done}}<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>{{else}}{{$s.Num}}{{end}}</span>
+<span class="lbl">{{$s.Title}}</span>
+</span>
+{{end}}
+</div>
+<form method="post" action="{{.FormAction}}" id="sw-form">
+<input type="hidden" name="step" value="{{.Step}}">
+{{if .EditMode}}<input type="hidden" name="id" value="{{.ID}}">{{end}}
+{{if ne .Step 0}}<input type="hidden" name="name" value="{{.Name}}">
+{{range .SectionsKeys}}<input type="hidden" name="sections" value="{{.}}">{{end}}{{end}}
+{{if ne .Step 1}}<input type="hidden" name="cad" value="{{.Cad}}">
+<input type="hidden" name="cron" value="{{.Cron}}">{{end}}
+{{if ne .Step 2}}<input type="hidden" name="channel" value="{{.ChannelID}}">{{end}}
+<div class="sw-body">
+{{if eq .Step 0}}
+<label><span class="sw-flabel">Report name</span>
+<span class="sw-input"><input type="text" name="name" value="{{.Name}}" placeholder="Weekly exposure summary" spellcheck="false" autocomplete="off" data-sw-req></span>
+</label>
+<div class="sw-secs">
+<span class="sw-micro">Sections</span>
+{{range .Sections}}<label class="sw-check"><input type="checkbox" name="sections" value="{{.Key}}"{{if .Checked}} checked{{end}} data-sw-sec><span class="box"><svg viewBox="0 0 18 18" width="12" height="12"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="var(--on-accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>{{.Label}}</label>{{end}}
+</div>
+{{end}}
+{{if eq .Step 1}}
+<div>
+<span class="sw-flabel">Cadence</span>
+<input type="hidden" name="cad" value="{{.Cad}}" id="sw-cad">
+<span class="sw-listbox">
+<button type="button" class="trig" id="sw-cad-btn" aria-haspopup="listbox" aria-expanded="false"><span class="cv">{{.Cad}}</span><svg class="chev" viewBox="0 0 16 16" width="14" height="14"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
+<div class="panel" id="sw-cad-panel" hidden>
+{{range .Cads}}<button type="button" class="opt{{if .Selected}} on{{end}}" data-cad="{{.Value}}">{{.Value}}</button>{{end}}
+</div>
+</span>
+</div>
+<span class="sw-input" id="sw-cron-wrap"{{if not .Custom}} hidden{{end}}><input class="mono" type="text" name="cron" value="{{.Cron}}" placeholder="0 8 * * 1" spellcheck="false" aria-label="Cron expression" id="sw-cron"></span>
+{{end}}
+{{if eq .Step 2}}
+<div>
+<span class="sw-flabel">Destination</span>
+<input type="hidden" name="channel" value="{{.ChannelID}}" id="sw-channel">
+<span class="sw-listbox">
+<button type="button" class="trig" id="sw-ch-btn" aria-haspopup="listbox" aria-expanded="false"><span class="cv">{{.ChannelLabel}}</span><svg class="chev" viewBox="0 0 16 16" width="14" height="14"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
+<div class="panel" id="sw-ch-panel" hidden>
+{{range .Channels}}<button type="button" class="opt{{if .Selected}} on{{end}}" data-ch="{{.Value}}" data-label="{{.Label}}">{{.Label}}{{if .Hint}}<span class="hint">{{.Hint}}</span>{{end}}</button>{{end}}
+</div>
+</span>
+</div>
+<p class="sw-help">A channel receives a link-only ready-message — the report body never leaves the instance. Channels are declared in Settings → Channels.</p>
+{{end}}
+{{if eq .Step 3}}
+<div class="sw-kv">
+{{range .Review}}<div class="cell"><span class="k">{{.K}}</span><span class="v">{{.V}}</span></div>{{end}}
+</div>
+{{end}}
+</div>
+<div class="sw-foot">
+<span class="sw-count">{{.StepNum}} / {{.StepTotal}}</span>
+<a class="sw-btn ghost" href="/reports">Cancel</a>
+{{if gt .Step 0}}<button type="submit" class="sw-btn sec" name="action" value="back" formnovalidate>Back</button>{{end}}
+{{if .Last}}<button type="submit" class="sw-btn pri" name="action" value="finish" id="sw-next">{{.FinishLabel}}</button>{{else}}<button type="submit" class="sw-btn pri" name="action" value="next" id="sw-next">Next</button>{{end}}
+</div>
+</form>
+</section>
+</main>
+<script>
+(function(){
+  var next=document.getElementById("sw-next");
+  function gate(){
+    if(!next)return;
+    var ok=true;
+    var req=document.querySelector("[data-sw-req]");
+    if(req&&!req.value.trim())ok=false;
+    var secs=document.querySelectorAll("[data-sw-sec]");
+    if(secs.length){var any=false;[].forEach.call(secs,function(c){if(c.checked)any=true;});if(!any)ok=false;}
+    var cad=document.getElementById("sw-cad"),cron=document.getElementById("sw-cron");
+    if(cad&&cad.value==="Custom…"&&cron&&!cron.value.trim())ok=false;
+    if(ok)next.removeAttribute("disabled");else next.setAttribute("disabled","");
+  }
+  gate();
+  document.addEventListener("input",gate);
+  document.addEventListener("change",gate);
+  function listbox(btnId,panelId,hidId,onPick){
+    var b=document.getElementById(btnId),p=document.getElementById(panelId),h=document.getElementById(hidId);
+    if(!b||!p||!h)return;
+    b.addEventListener("click",function(e){e.stopPropagation();var open=p.hasAttribute("hidden");if(open)p.removeAttribute("hidden");else p.setAttribute("hidden","");b.setAttribute("aria-expanded",open?"true":"false");});
+    document.addEventListener("mousedown",function(e){if(!p.hasAttribute("hidden")&&!p.contains(e.target)&&!b.contains(e.target)){p.setAttribute("hidden","");b.setAttribute("aria-expanded","false");}});
+    [].forEach.call(p.querySelectorAll(".opt"),function(o){
+      o.addEventListener("click",function(){
+        onPick(o,h,b);
+        [].forEach.call(p.querySelectorAll(".opt"),function(x){x.classList.toggle("on",x===o);});
+        p.setAttribute("hidden","");b.setAttribute("aria-expanded","false");gate();
+      });
+    });
+  }
+  listbox("sw-cad-btn","sw-cad-panel","sw-cad",function(o,h,b){
+    h.value=o.getAttribute("data-cad");
+    b.querySelector(".cv").textContent=h.value;
+    var w=document.getElementById("sw-cron-wrap");
+    if(w){if(h.value==="Custom…")w.removeAttribute("hidden");else w.setAttribute("hidden","");}
+  });
+  listbox("sw-ch-btn","sw-ch-panel","sw-channel",function(o,h,b){
+    h.value=o.getAttribute("data-ch");
+    b.querySelector(".cv").textContent=o.getAttribute("data-label");
+  });
+  document.addEventListener("keydown",function(e){
+    if(e.key!=="Escape")return;
+    [].forEach.call(document.querySelectorAll(".sw-listbox .panel"),function(p){p.setAttribute("hidden","");});
+    [].forEach.call(document.querySelectorAll(".sw-listbox .trig"),function(t){t.setAttribute("aria-expanded","false");});
+  });
+})();
+</script>
+{{template "foot" .}}{{end}}

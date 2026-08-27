@@ -12,10 +12,10 @@ function InlineCode({ children }) {
 /* /setup — the one-time window while no accounts exist. Token is single-use; the window closes when spent. */
 export function Setup() {
   const [token, setToken] = React.useState("");
-  const [email, setEmail] = React.useState("");
+  const [user, setUser] = React.useState("");
   const [pw, setPw] = React.useState("");
   const [done, setDone] = React.useState(false);
-  const valid = token.trim().length >= 8 && email.includes("@") && pw.length >= 12;
+  const valid = token.trim().length >= 8 && user.trim().length >= 2 && pw.length >= 12;
   return (
     <div data-screen-label="Setup" style={{ minHeight: "100vh", background: "var(--bg-page)", fontFamily: "var(--font-ui)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 24, padding: 24 }}>
       <Logo size={26} wordmarkSize={20} />
@@ -41,7 +41,7 @@ export function Setup() {
             <Callout tone="neutral" title="Where the token lives">
               <InlineCode>docker compose logs web | grep /setup</InlineCode> — or pin it ahead of time with <InlineCode>VERGE_SETUP_TOKEN</InlineCode>.
             </Callout>
-            <Input label="Email" mono placeholder="operator@acmecorp.io" value={email} onChange={(e) => setEmail(e.target.value)} spellCheck={false} autoComplete="username" />
+            <Input label="Username" mono placeholder="ola.perez" value={user} onChange={(e) => setUser(e.target.value)} spellCheck={false} autoComplete="username" />
             <Input label="Password" type="password" value={pw} hint="12+ characters; a passphrase beats complexity" onChange={(e) => setPw(e.target.value)} autoComplete="new-password" />
             <Button style={{ width: "100%", justifyContent: "center" }} disabled={!valid} onClick={() => setDone(true)}>Create admin account</Button>
             <span style={{ font: "400 11.5px/1.6 var(--font-ui)", color: "var(--text-muted)" }}>This account is the admin. Invite the rest under Settings → Team once inside.</span>

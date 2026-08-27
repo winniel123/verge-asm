@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"testing"
@@ -194,8 +195,83 @@ func TestScansPageViewerReads(t *testing.T) {
 
 	// Post-#281 the scans monitor is the Settings scans sub-tab; the surface still
 	// resolves and renders its idle state for a viewer.
-	if !strings.Contains(page, "<h2>Scans</h2>") || !strings.Contains(page, "No scan running") {
+	if !strings.Contains(page, ">Scans</h2>") || !strings.Contains(page, "No scan running") {
 		t.Errorf("scans monitor did not render for a viewer; body: %s", page)
+	}
+}
+
+// scanSchedule (P0.4, #445): the header sub-line's "last full scan Xm ago · next in
+// Yh Zm" instants. Last is the most recent Dispatch's fan-out; next is the soonest
+// enabled-Scan cadence boundary, floored the way the dispatcher floors a tick.
+func TestScanScheduleInstants(t *testing.T) {
+	// fixedClock() is 2026-08-15 12:00:00 UTC; the seeded dns/hot Scans are daily
+	// (enabled) and cold is monthly (disabled). The next daily boundary is midnight,
+	// 12h out; the cold Scan is off the cadence, so it never contributes a tick.
+	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
+	f := newFakeStore()
+	f.dispatchProgress = []db.ListDispatchProgressRow{
+		progressRow(9, "dns", now.Add(-40*time.Minute), 4, 0, 0, 4, 0, 0),
+		progressRow(8, "hot", now.Add(-6*time.Hour), 4, 0, 0, 4, 0, 0),
+	}
+	srv := newServer(f, testKey, "", fixedClock())
+
+	v := srv.scanSchedule(context.Background())
+
+	if !v.HasLast {
+		t.Fatal("HasLast = false, want a most-recent dispatch instant")
+	}
+	if want := now.Add(-40 * time.Minute); !v.LastScanAt.Equal(want) {
+		t.Errorf("LastScanAt = %s, want %s (newest dispatch)", v.LastScanAt, want)
+	}
+	if v.LastAgo != "40m" {
+		t.Errorf("LastAgo = %q, want %q", v.LastAgo, "40m")
+	}
+	if !v.HasNext {
+		t.Fatal("HasNext = false, want a next cadence boundary")
+	}
+	if want := time.Date(2026, 8, 16, 0, 0, 0, 0, time.UTC); !v.NextScanAt.Equal(want) {
+		t.Errorf("NextScanAt = %s, want %s (next daily midnight)", v.NextScanAt, want)
+	}
+	if v.NextIn != "12h 0m" {
+		t.Errorf("NextIn = %q, want %q", v.NextIn, "12h 0m")
+	}
+}
+
+// With no Dispatch ever fanned out and every Scan disabled, both halves report the
+// honest absence rather than a fabricated instant — the "never scanned" state.
+func TestScanScheduleAbsent(t *testing.T) {
+	f := newFakeStore()
+	f.dispatchProgress = nil
+	for i := range f.scans {
+		f.scans[i].Enabled = false
+	}
+	srv := newServer(f, testKey, "", fixedClock())
+
+	v := srv.scanSchedule(context.Background())
+	if v.HasLast {
+		t.Errorf("HasLast = true, want false with no dispatches")
+	}
+	if v.HasNext {
+		t.Errorf("HasNext = true, want false with every Scan disabled")
+	}
+}
+
+// humanizeCountdown renders the spec's two-unit "next in" figure across the ranges.
+func TestHumanizeCountdown(t *testing.T) {
+	tests := []struct {
+		d    time.Duration
+		want string
+	}{
+		{5*time.Hour + 22*time.Minute, "5h 22m"},
+		{47 * time.Minute, "47m"},
+		{2*24*time.Hour + 3*time.Hour, "2d 3h"},
+		{30 * time.Second, "<1m"},
+		{time.Hour, "1h 0m"},
+	}
+	for _, tt := range tests {
+		if got := humanizeCountdown(tt.d); got != tt.want {
+			t.Errorf("humanizeCountdown(%s) = %q, want %q", tt.d, got, tt.want)
+		}
 	}
 }
 
@@ -212,5 +288,107 @@ func progressRow(id int64, kind string, tick time.Time, total, ready, running, d
 		Done:       done,
 		Dead:       dead,
 		Retried:    retried,
+	}
+}
+
+// openedEvent builds a minimal narratable "appeared" drift event (Role opened, no
+// predecessor) keyed to a batch, for the Outcome-join count tests.
+func openedEvent(batchID int64, batchAt, openedAt time.Time) db.ListRecentDriftEventsRow {
+	return db.ListRecentDriftEventsRow{
+		Role:       "opened",
+		BatchID:    batchID,
+		BatchAt:    pgtype.Timestamptz{Time: batchAt, Valid: true},
+		SubjectKey: "acmecorp.io",
+		Facet:      "resolution",
+		OpenedAt:   pgtype.Timestamptz{Time: openedAt, Valid: true},
+		PrevValue:  nil, // first span on the timeline -> "appeared", a narratable transition
+	}
+}
+
+func sigAt(name string, first time.Time) db.SignalInstance {
+	return db.SignalInstance{SignalName: name, SubjectKey: "acmecorp.io", FirstSeen: pgtype.Timestamptz{Time: first, Valid: true}}
+}
+
+// TestCountRunOutcome is the #20a read-side join: transitions folded from THIS run's
+// batch(es) and signals first raised in the batch's fold window. A run that committed a
+// batch is concluded even where it moved nothing; a run with no batch is not.
+func TestCountRunOutcome(t *testing.T) {
+	now := time.Date(2026, 8, 22, 15, 0, 0, 0, time.UTC)
+	batchAt := time.Date(2026, 8, 22, 14, 0, 0, 0, time.UTC) // the run's batch fold
+	nextAt := time.Date(2026, 8, 22, 14, 30, 0, 0, time.UTC) // a later batch (window end)
+	prevAt := time.Date(2026, 8, 22, 8, 0, 0, 0, time.UTC)   // an earlier batch
+
+	// batch 1407 is the run's; 1500 is a later batch, 1300 an earlier one.
+	driftRows := []db.ListRecentDriftEventsRow{
+		openedEvent(1500, nextAt, nextAt),   // other batch, not counted
+		openedEvent(1407, batchAt, batchAt), // run batch: transition 1
+		openedEvent(1407, batchAt, batchAt), // run batch: transition 2
+		openedEvent(1407, batchAt, batchAt), // run batch: transition 3
+		openedEvent(1300, prevAt, prevAt),   // earlier batch, not counted
+	}
+	signals := []db.SignalInstance{
+		sigAt("tls-1.0-accepted", batchAt),                   // raised in this batch's window
+		sigAt("sensitive-port", batchAt.Add(10*time.Minute)), // in [batchAt, nextAt): counted
+		sigAt("later-signal", nextAt),                        // at the next fold: NOT this batch
+		sigAt("earlier-signal", prevAt),                      // before this batch: not counted
+	}
+
+	got := countRunOutcome(map[int64]bool{1407: true}, driftRows, signals, now)
+	if !got.Concluded {
+		t.Fatalf("expected concluded (run committed a batch)")
+	}
+	if got.Transitions != 3 {
+		t.Errorf("transitions: got %d, want 3", got.Transitions)
+	}
+	if got.NewSignals != 2 {
+		t.Errorf("new signals: got %d, want 2", got.NewSignals)
+	}
+
+	// A run with no committed batch has not concluded its diff -> "—" (not concluded).
+	empty := countRunOutcome(map[int64]bool{}, driftRows, signals, now)
+	if empty.Concluded {
+		t.Errorf("expected not-concluded for a run with no batch")
+	}
+}
+
+// TestDispatchBatchIDs collects the distinct valid batch ids a dispatch's jobs committed.
+func TestDispatchBatchIDs(t *testing.T) {
+	rows := []db.ListJobsForDispatchRow{
+		{ID: 1, BatchID: pgtype.Int8{Int64: 1407, Valid: true}},
+		{ID: 2, BatchID: pgtype.Int8{Int64: 1407, Valid: true}},
+		{ID: 3, BatchID: pgtype.Int8{}}, // no batch yet (in-flight): excluded
+	}
+	set := dispatchBatchIDs(rows)
+	if len(set) != 1 || !set[1407] {
+		t.Errorf("dispatchBatchIDs: got %v, want {1407}", set)
+	}
+}
+
+// TestRunDegradedFrom is the nullable Outcome callout (#20): nil for a healthy run, and a
+// {Vantage, "missed N of M checks"} for the first vantage whose jobs dead-lettered.
+func TestRunDegradedFrom(t *testing.T) {
+	healthy := []jobView{
+		{Vantage: "eu-west-1", State: "done"},
+		{Vantage: "us-east-2", State: "done"},
+	}
+	if d := runDegradedFrom(healthy); d != nil {
+		t.Errorf("healthy run: got %+v, want nil", d)
+	}
+
+	degraded := []jobView{
+		{Vantage: "eu-west-1", State: "done"},
+		{Vantage: "ap-south-1", State: "done"},
+		{Vantage: "ap-south-1", State: "dead"},
+		{Vantage: "ap-south-1", State: "done"},
+	}
+	d := runDegradedFrom(degraded)
+	if d == nil {
+		t.Fatalf("degraded run: got nil, want a callout")
+	}
+	if d.Vantage != "ap-south-1" {
+		t.Errorf("degraded vantage: got %q, want ap-south-1", d.Vantage)
+	}
+	if d.Detail != "missed 1 of 3 checks" {
+		t.Errorf("degraded detail: got %q, want %q", d.Detail, "missed 1 of 3 checks")
 	}
 }

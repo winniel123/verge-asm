@@ -44,19 +44,19 @@ func TestSettingsIsAdminOnly(t *testing.T) {
 	seedAccount(t, f, "viewer", roleViewer, "hunter2hunter2")
 	base := start(t, f, "")
 
-	// A viewer is refused the whole destination.
+	// A viewer is refused the whole destination — and Settings renders the richer
+	// settings-forbidden ErrorPage (U4, #481), not the plain 403: it names why
+	// (Settings is where declared acts live) and how a role is widened, at status 403.
 	vc := login(t, base, "viewer", "hunter2hunter2")
-	resp, err := vc.Get(base + "/settings")
-	if err != nil {
-		t.Fatal(err)
-	}
-	resp.Body.Close()
-	if resp.StatusCode != http.StatusForbidden {
-		t.Fatalf("viewer GET /settings: status=%d, want 403", resp.StatusCode)
+	refused := getBody(t, vc, base+"/settings", http.StatusForbidden)
+	for _, want := range []string{"Admin only", "declared acts live", "Back to dashboard"} {
+		if !strings.Contains(refused, want) {
+			t.Errorf("settings-forbidden page missing %q; body: %s", want, refused)
+		}
 	}
 
 	// An anonymous request is bounced to login.
-	resp, err = newClient(t).Get(base + "/settings")
+	resp, err := newClient(t).Get(base + "/settings")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,11 +65,12 @@ func TestSettingsIsAdminOnly(t *testing.T) {
 		t.Fatalf("anon GET /settings: status=%d loc=%q", resp.StatusCode, resp.Header.Get("Location"))
 	}
 
-	// An admin reaches all seven sub-tabs, and each folded section renders on its
-	// own tab.
+	// An admin reaches every sub-tab, and each folded section renders on its own
+	// tab. The Integrations tab is intentionally absent — that surface is hidden
+	// (#388, integrationsEnabled); see TestIntegrationsTabHidden.
 	ac := login(t, base, "admin", "hunter2hunter2")
 	page := settingsBody(t, ac, base)
-	for _, tab := range []string{"tab=scans", "tab=vantages", "tab=sso", "tab=team", "tab=audit", "tab=sources", "tab=aperture", "tab=instance", "tab=channels", "tab=integrations", "tab=messages", "tab=delivery"} {
+	for _, tab := range []string{"tab=scans", "tab=vantages", "tab=sso", "tab=team", "tab=audit", "tab=sources", "tab=aperture", "tab=instance", "tab=channels", "tab=messages", "tab=delivery"} {
 		if !strings.Contains(page, tab) {
 			t.Errorf("settings tab bar missing %q", tab)
 		}
@@ -318,7 +319,7 @@ func TestChangeRoleSaveDisabledUntilDiffers(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 
 	page := getBody(t, ac, base+"/settings?tab=team&role="+itoa(viewer.ID), http.StatusOK)
-	if !strings.Contains(page, `id="rolesave"`) || !strings.Contains(page, "disabled>Save role") {
+	if !strings.Contains(page, `id="st-role-save"`) || !strings.Contains(page, "disabled>Save role") {
 		t.Errorf("change-role Save not disabled by default; body: %s", page)
 	}
 	if !strings.Contains(page, `data-current="viewer"`) {

@@ -1,5 +1,11 @@
 # verge-asm
 
+> ⚠️ **Alpha software.** verge-asm is in active early development. Expect breaking
+> changes, incomplete features, and rough edges. Interfaces, the database schema, and
+> behaviour may change without migration paths between releases. Do not depend on it
+> for production security monitoring yet, and review it yourself before pointing it at
+> anything you care about.
+
 **Self-hosted attack surface management for your own estate.** Its subject is not
 inventory but **change**: what of yours is exposed to the internet, and what moved
 since last time.
@@ -39,6 +45,14 @@ alone. It is a single-tenant, self-hosted web application you run with
 
 For the full feature surface — the six facets, the seventeen signal rules, exposure,
 vantages and notification channels — see [`docs/spec/`](docs/spec/).
+
+> **Implementation status (alpha).** The seventeen rules describe the v1 spec target;
+> **9 of them fire on a default install today** — the four Name-only rules, the four
+> HTTP-identity endpoint rules (P0.11), and `tls-1.0-accepted` (P0.9). The **six
+> certificate rules** stay dormant until the certificate-parsing leaf lands (P0.10), and
+> the **two internet-gated flagship rules** need a provisioned internet vantage (#700).
+> See [docs/guides/signals.md](docs/guides/signals.md#rule-status--what-fires-on-a-default-install).
+> Expect the same partial-coverage caveat elsewhere while the tool is in alpha.
 
 ---
 
@@ -120,7 +134,7 @@ Grouped as they appear in the docs-site nav.
 | **[Running](docs/guides/running.md)** | Configuration, secrets, volumes, healthchecks, scaling workers, on-demand scan triggers, upgrades. |
 | **[Sources](docs/guides/sources.md)** | Discovery sources and proposers: consent tiers, admin-only toggling, and the crt.sh and RIR-proposer caveats. |
 | **[Prober](docs/guides/prober.md)** | A worked `docker compose` example for a dedicated internet vantage on a second host — the [`deploy/prober/`](deploy/prober/) recipe, host-key pin, and key hardening. |
-| **[Signals](docs/guides/signals.md)** | The v1 signal reference — every rule, its subject, and when it fires; the no-severity, release-coupled philosophy. |
+| **[Signals](docs/guides/signals.md)** | The v1 signal reference — every rule, its subject, and when it fires; the release-coupled philosophy and the five-level severity ramp (Critical / High / Medium / Low / Info). |
 | **[Notification channels](docs/guides/notification-channels.md)** | The outbound HTTPS endpoints the worker POSTs each message to — declaring them, what fires, and why a `Delivery` is a record and never a message. |
 | **[Reports](docs/guides/reports.md)** | Scheduled digests of the estate — how a report differs from a notification, the schedule shape, and the delivered-report artifact and its PDF. |
 | **[Accounts, invites & roles](docs/guides/accounts.md)** | The admin/viewer model, inviting operators and the invite lifecycle, changing a role, re-enrolling a lost second factor, and removing an account. |

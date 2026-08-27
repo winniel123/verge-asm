@@ -76,6 +76,10 @@ Set these in `.env` (compose reads it automatically) or your orchestrator.
 | `VERGE_PROBER_PATH` | worker | no | `/app/prober` | Path to the prober binary inside the image. Rarely changed. |
 | `VERGE_STATE_DIR` | web, worker | no | `/app/state` | On-disk home for generated secrets (session key, prober SSH private key). |
 | `VERGE_PUBLIC_URL` | worker | no | empty | Absolute base URL used to build the link in each notification body. Empty leaves the link off rather than fabricating one. Add it to the `worker` service env if you configure notification channels. |
+| `VERGE_EXTERNAL_URL` | web | no | empty | The trusted origin the deployment is reached at (e.g. `https://verge.example.com`). It is the base for the SSO OIDC callback/redirect URL, taken from this value instead of the request `Host` header — **set it before configuring SSO**, or the callback URL registered with your IdP will not match and login fails. Empty falls back to the request host. Distinct from `VERGE_PUBLIC_URL`: `EXTERNAL_URL` is the **web** callback origin; `PUBLIC_URL` is the **worker** base for notification-body links. See [sso.md](sso.md). |
+| `VERGE_LOG_RESET_LINKS` | web | no | off | When set to any non-empty value, logs the plaintext password-reset link. Off by default — the link is a bearer credential and must not land in logs (CWE-532). Enable only knowingly on a mail-less host that needs the link out of band from its own logs. |
+| `VERGE_VERSION` | web, worker | no | `dev` | The build version stamped in the UI footer and shown on **Settings → Instance**, and the version the update check compares against. A release build stamps it; an unstamped build reads `dev`. |
+| `VERGE_RELEASE_FEED_URL` | worker | no | GitHub latest-release | The release feed the worker's daily update check reads **when checks are enabled**. Defaults to this repository's GitHub latest-release endpoint; point it at your own repo for a fork. Ignored while the update check is off — an air-gapped instance makes no call at all. See [Version & updates](#version--updates). |
 
 `DATABASE_URL` is assembled from the `POSTGRES_*` values by `docker-compose.yml`; you
 only set it directly if you run the binaries outside compose.
@@ -242,16 +246,60 @@ UI (v1 ships the corpus growing without bound):
 
 ---
 
+## Version & updates
+
+**Settings → Instance** shows what this instance is running and whether a newer
+release exists — and it does so as **check, surface and guide, never self-replace**.
+A non-root, distroless container cannot and must not rewrite its own image, so the UI
+*reports and guides* and the image swap stays a **host** action. This boundary is
+[ADR-0124](../adr/0124-a-backup-carries-data-and-no-secret-and-updating-is-guided-not-self-applied.md);
+the surface is admin-only.
+
+- **Running version.** The card shows `VERGE_VERSION` — the same value in the footer
+  — so you can see what is actually running. An unstamped build reads `dev`.
+- **Migrations-pending badge.** A best-effort count of embedded migrations newer than
+  the highest one applied: **schema current**, or **N migrations pending** (a warning).
+  It tells you whether a restart will migrate *before* you take one.
+- **Daily release check — opt-out and air-gap-safe.** When enabled, the **worker**
+  checks the release feed once a day, best-effort: a short timeout, no retry storm,
+  and a failure reports nothing rather than alarming. It is **off by default** and
+  fully declinable — with it disabled the instance makes **no network call ever**,
+  not even on boot, and the card shows the air-gap copy. Toggle it on
+  **Settings → Instance** (`POST /settings/updates/check`, admin); the feed URL is
+  `VERGE_RELEASE_FEED_URL` (defaults to this repo's GitHub latest-release).
+- **Guided host steps.** When a newer release is seen, the card shows the latest
+  version and the **literal, release-authored** host commands to run. There is no
+  "update now" button, and the UI composes no shell of its own — it prints exactly
+  these lines for you to run **on the host**:
+
+  ```sh
+  docker compose pull
+  docker compose up -d web worker
+  docker compose exec web verge migrate status
+  ```
+
+Verge never re-images itself: a service that could replace the very binary that parses
+your attack surface would be the maximal form of the thing this product hardens
+against. Pulling the new image and recreating the containers is always your action on
+the host.
+
+---
+
 ## Upgrades
+
+The [Version & updates](#version--updates) card surfaces *when* to upgrade; this is
+*how*. If you deploy the published images, follow the guided host steps above. If you
+build from source, pull and rebuild:
 
 ```sh
 git pull
 docker compose up -d --build
 ```
 
-`web` applies any new migrations on the way up. Because the schema change lands
-before the new `web`/`worker` code serves traffic, take a `pgdata` backup first for
-anything you cannot afford to roll forward through.
+Either way, `web` applies any new migrations on the way up. Because the schema change
+lands before the new `web`/`worker` code serves traffic, **take a backup first** for
+anything you cannot afford to roll forward through — see
+[backup-and-restore.md → the pre-upgrade backup drill](backup-and-restore.md#the-pre-upgrade-backup-drill).
 
 ---
 

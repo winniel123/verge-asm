@@ -1,0 +1,26 @@
+{{/*
+  DESIGN-OWNED ARTIFACT — setup.tmpl · package v3.7.0 · WORKFLOW.md v4
+  Source of truth: examples/console/Setup.jsx · shot 20. Replaces templates_setup.go.
+  Holes unchanged (.Error .Token .Version); reuses signin.tmpl's authcss/authbrand/authfoot.
+  Username identity per SPEC-CHANGE #19; success stays the 303 redirect (the honest
+  completion — the spec's done card is a preview affordance).
+*/}}
+{{define "setup"}}{{template "head" .}}{{template "authcss"}}
+<div class="vg-center" data-screen-label="Setup"><div class="vg-authcol wide">
+{{template "authbrand" .}}
+<div class="vg-authcard" style="gap:18px">
+<span class="vg-micro">First run</span>
+<div class="vg-authhead"><h1>Create the admin account</h1><span class="sub">No accounts exist yet, so this window is open — once, for one account.</span></div>
+{{if .Error}}<div class="vg-err">{{.Error}}</div>{{end}}
+<form class="vg-form" method="post" action="/setup" style="gap:18px">
+<label class="vg-field"><span class="lbl">Setup token</span><span class="box"><input class="mono" name="token" value="{{.Token}}" autocomplete="off" spellcheck="false" placeholder="paste the single-use token" autofocus required></span><span class="hint">Printed to the web logs on boot</span></label>
+<div class="vg-callout neutral"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg></span><span class="ct"><b>Where the token lives</b><span><code class="vg-code">docker compose logs web | grep /setup</code> — or pin it ahead of time with <code class="vg-code">VERGE_SETUP_TOKEN</code>.</span></span></div>
+<label class="vg-field"><span class="lbl">Username</span><span class="box"><input class="mono" name="username" placeholder="ola.perez" autocomplete="username" spellcheck="false" required></span></label>
+<label class="vg-field"><span class="lbl">Password</span><span class="box"><input name="password" type="password" autocomplete="new-password" required></span><span class="hint">12+ characters; a passphrase beats complexity</span></label>
+<button class="vg-btn primary full" type="submit">Create admin account</button>
+<span class="vg-note">This account is the admin. Invite the rest under Settings → Team once inside.</span>
+</form>
+</div>
+{{template "authfoot" .}}
+</div></div>
+{{template "foot" .}}{{end}}

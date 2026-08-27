@@ -26,29 +26,8 @@ func TestFootCarriesScrollPreservation(t *testing.T) {
 	}
 }
 
-// A badge must never wrap mid-box: multi-token states like "1 name · 0 address"
-// split the bordered pill across two lines without this (#246, SS1).
-func TestBadgeDoesNotWrap(t *testing.T) {
-	if !strings.Contains(pageCSS, ".badge {") {
-		t.Fatal("pageCSS has no .badge rule")
-	}
-	rule := pageCSS[strings.Index(pageCSS, ".badge {"):]
-	rule = rule[:strings.Index(rule, "}")]
-	if !strings.Contains(rule, "white-space: nowrap") {
-		t.Fatalf(".badge rule lacks white-space: nowrap; got: %s", rule)
-	}
-}
-
-// A dial submit button aligns to its input, not the input-plus-helper stack: the
-// helper unit renders inline beside a content-width input rather than as a block
-// below it (#246, SS4/SS5).
-func TestDialUnitIsInline(t *testing.T) {
-	if !strings.Contains(pageCSS, ".dial .unit {") {
-		t.Fatal("pageCSS has no .dial .unit rule")
-	}
-	rule := pageCSS[strings.Index(pageCSS, ".dial .unit {"):]
-	rule = rule[:strings.Index(rule, "}")]
-	if !strings.Contains(rule, "display: inline") {
-		t.Fatalf(".dial .unit rule lacks display: inline; got: %s", rule)
-	}
-}
+// The #246 .badge / .dial pageCSS-rule guards retired with pageCSS itself under P4.4
+// (the shell conversion, map #22): the badge and dial styling now lives in the
+// design-owned frozen templates + tokens, not a repo stylesheet const, so a repo-side
+// CSS-substring guard no longer has anything to assert. The design-system G1/G2 gates
+// hold that styling now.

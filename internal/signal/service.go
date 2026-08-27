@@ -63,6 +63,7 @@ type ServiceFacts struct {
 type ServiceRule interface {
 	Name() string
 	Version() Version
+	Severity() Severity
 	Eval(f ServiceFacts) Outcome
 }
 
@@ -111,6 +112,10 @@ func EvaluateService(r ServiceRule, services []ServiceFacts) Census {
 type tls10Accepted struct{}
 
 func (tls10Accepted) Name() string { return "tls-1.0-accepted" }
+
+// Severity: medium — accepting TLS 1.0 is a deprecated-protocol weakness that
+// downgrades confidentiality without being an open door on its own.
+func (tls10Accepted) Severity() Severity { return SevMedium }
 func (tls10Accepted) Version() Version {
 	// Reads the `tls-acceptance` facet by NAME, not by importing #199's leaf
 	// (the wave seam). The version composes that leaf's version string; the
@@ -147,6 +152,10 @@ type sensitivePortReachedFromInternet struct{}
 func (sensitivePortReachedFromInternet) Name() string {
 	return "sensitive-port-reached-from-internet"
 }
+
+// Severity: critical — a sensitive service (VNC, database, admin transport)
+// reachable from the internet is a live, directly-exploitable exposure.
+func (sensitivePortReachedFromInternet) Severity() Severity { return SevCritical }
 func (sensitivePortReachedFromInternet) Version() Version {
 	// Reads `Reach` (the connect-outcome leaf) and joins the release-coupled
 	// sensitive list (§3.5); the reference table is what the attestation standard

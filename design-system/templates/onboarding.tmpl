@@ -1,0 +1,189 @@
+{{/*
+  DESIGN-OWNED ARTIFACT — onboarding.tmpl · package v3.12.0 · WORKFLOW.md v4
+  Source of truth: examples/console/Onboarding.jsx · shot 21. Replaces templates_onboarding.go
+  (define "onboarding" kept). Holes kept: .Steps[{Num,Title,Done,Current}] .Step .SeedsField
+  .Seeds[] .Profile .Cads[{Value,Selected}] .Custom .Cron .Channel .Review[{K,V}] .StepNum
+  .StepTotal .Last .Kind. New: .StepValid (server-computed validity of the rendered step).
+  Reconciliations (SPEC-CHANGE #25, ruled): the PRG post-back flow at /onboarding stays (batch-5
+  #23f precedent) rendered as the spec panel + step rail; each step POST 303-redirects to GET
+  /onboarding?step=N&seeds=…&profile=…&cad=…&cron=…&channel=… so wizard states are
+  harness-addressable (#25d); cadence renders as the spec listbox (view JS syncs the hidden cad
+  input; native select drops); Next/Start is JS-gated per the spec validity (≥1 seed — typed
+  seedsadd text counts, the handler absorbs it; cron required when Custom…) with .StepValid as
+  the no-JS floor; there is NO cancel affordance — the mock dialog's X is a workspace affordance,
+  first-run has nowhere to cancel to (#25e). Seed chips remove via the existing rm submit.
+*/}}
+{{define "onboarding"}}{{template "head" .}}
+{{template "chrome" .}}
+<style>
+@keyframes ob-pop { from { opacity: 0; transform: translateY(6px) scale(0.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.ob-wrap { display: flex; justify-content: center; padding: 48px 32px; }
+.ob-panel { background: var(--surface); border: 1px solid var(--border-default); border-radius: 24px; box-shadow: var(--shadow-lg); padding: 24px; width: 560px; max-width: 100%; box-sizing: border-box; font-family: var(--font-ui); }
+.ob-panel h1 { margin: 0 0 4px; font: 600 16px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.ob-desc { margin: 0 0 20px; color: var(--text-secondary); font: 400 13px/1.5 var(--font-ui); }
+.ob-steps { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
+.ob-conn { flex: 1; min-width: 12px; height: 1px; background: var(--row-sep); }
+.ob-conn.lit { background: var(--accent); opacity: 0.4; }
+.ob-step { display: inline-flex; align-items: center; gap: 8px; }
+.ob-num { width: 22px; height: 22px; border-radius: 999px; flex: none; display: inline-flex; align-items: center; justify-content: center; font: 600 11px var(--font-mono); border: 1px solid var(--border-strong); color: var(--text-muted); background: transparent; box-sizing: border-box; }
+.ob-num.cur { border: 1.5px solid var(--accent); color: var(--link); }
+.ob-num.done { background: var(--accent-soft); border: 1px solid transparent; color: var(--link); }
+.ob-step .lbl { font: 400 12.5px var(--font-ui); color: var(--text-secondary); white-space: nowrap; }
+.ob-step.cur .lbl { font-weight: 600; color: var(--text-ink); }
+.ob-body { display: flex; flex-direction: column; gap: 10px; }
+.ob-micro { font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.ob-hint { font: 400 12px/1.6 var(--font-ui); color: var(--text-muted); }
+.ob-flabel { font: 500 12.5px var(--font-ui); color: var(--text-body); display: block; margin-bottom: 6px; }
+.ob-tags { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-height: 36px; padding: 5px 10px; background: var(--surface); border: 1px solid var(--border-default); border-radius: 12px; cursor: text; transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); }
+.ob-tags:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 18%, transparent); }
+.ob-tag { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 4px 0 8px; border-radius: 8px; background: var(--surface-sunken); border: 1px solid var(--border-default); color: var(--text-secondary); font-family: var(--font-mono); font-size: 11.5px; white-space: nowrap; }
+.ob-tag button { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border: none; border-radius: 999px; background: transparent; color: var(--text-muted); cursor: pointer; padding: 0; }
+.ob-tag button:hover { background: var(--border-strong); }
+.ob-tags input { flex: 1; min-width: 80px; border: none; outline: none; background: transparent; color: var(--text-ink); font: 400 12.5px var(--font-mono); padding: 0; }
+.ob-cards { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.ob-card { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; background: var(--surface); border: 1.5px solid var(--border-default); border-radius: 14px; cursor: pointer; transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out); }
+.ob-card.on { background: var(--accent-soft); border-color: var(--accent); }
+.ob-card input { position: absolute; opacity: 0; width: 0; height: 0; }
+.ob-card .top { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.ob-card .radio { width: 14px; height: 14px; border-radius: 999px; flex: none; border: 1.5px solid var(--border-strong); background: var(--surface); box-sizing: border-box; transition: border var(--dur-fast) var(--ease-out); }
+.ob-card.on .radio { border: 4.5px solid var(--accent); }
+.ob-card .ct { font: 600 13px var(--font-ui); color: var(--text-ink); white-space: nowrap; }
+.ob-card .meta { margin-left: auto; font: 400 10.5px var(--font-mono); color: var(--text-muted); flex: none; }
+.ob-card .cd { font: 400 12px/1.5 var(--font-ui); color: var(--text-secondary); }
+.ob-input { display: flex; align-items: center; height: 36px; padding: 0 12px; background: var(--surface); border: 1px solid var(--border-default); border-radius: 12px; box-sizing: border-box; width: 100%; transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); }
+.ob-input:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 18%, transparent); }
+.ob-input input { flex: 1; min-width: 0; border: none; outline: none; background: transparent; color: var(--text-ink); font: 400 12px var(--font-mono); }
+.ob-listbox { position: relative; display: flex; width: 100%; }
+.ob-listbox .trig { display: flex; align-items: center; gap: 8px; width: 100%; height: 36px; padding: 0 12px; background: var(--surface); color: var(--text-ink); font: 400 13px var(--font-ui); text-align: left; border: 1px solid var(--border-default); border-radius: 12px; cursor: pointer; box-sizing: border-box; }
+.ob-listbox .trig .cv { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ob-listbox .trig .chev { color: var(--text-muted); flex: none; transition: transform var(--dur-base) var(--ease-out); }
+.ob-listbox .trig[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 18%, transparent); }
+.ob-listbox .trig[aria-expanded="true"] .chev { transform: rotate(180deg); }
+.ob-listbox .panel { position: absolute; top: 100%; left: 0; margin-top: 6px; width: 100%; z-index: 95; background: var(--surface-raised); border: 1px solid var(--border-default); border-radius: 12px; box-shadow: var(--shadow-md); padding: 5px; animation: ob-pop var(--dur-base) var(--ease-out); display: flex; flex-direction: column; gap: 2px; box-sizing: border-box; }
+.ob-listbox .panel[hidden] { display: none; }
+.ob-listbox .opt { display: flex; align-items: center; width: 100%; height: 30px; padding: 0 10px; border: none; border-radius: 8px; text-align: left; cursor: pointer; background: transparent; color: var(--text-body); font: 500 12.5px var(--font-ui); box-sizing: border-box; transition: background var(--dur-fast) var(--ease-out); }
+.ob-listbox .opt:hover { background: var(--surface-sunken); }
+.ob-listbox .opt.on { color: var(--link); font-weight: 600; }
+.ob-kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 20px; padding: 16px; background: var(--surface-sunken); border-radius: 12px; }
+.ob-kv .cell { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ob-kv .v { font: 400 12.5px var(--font-mono); color: var(--text-body); overflow-wrap: anywhere; }
+.ob-foot { display: flex; align-items: center; gap: 8px; margin-top: 24px; }
+.ob-count { margin-right: auto; font: 500 11px var(--font-mono); letter-spacing: 0.06em; color: var(--text-muted); }
+.ob-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; border-radius: 12px; font: 600 13px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; border: 1px solid transparent; transition: background var(--dur-fast) var(--ease-out); }
+.ob-btn.pri { background: var(--accent); color: var(--on-accent); }
+.ob-btn.pri:hover { background: var(--accent-hover); }
+.ob-btn.pri[disabled] { opacity: 0.45; cursor: default; }
+.ob-btn.pri[disabled]:hover { background: var(--accent); }
+.ob-btn.sec { background: var(--surface); color: var(--text-body); border-color: var(--border-strong); }
+.ob-btn.sec:hover { background: var(--surface-sunken); }
+</style>
+<main class="ob-wrap" data-screen-label="Onboarding">
+<section class="ob-panel">
+<h1>Set up this workspace</h1>
+<p class="ob-desc">Three calls and the first scan runs.</p>
+<div class="ob-steps">
+{{range $i, $s := .Steps}}
+{{if $i}}<span class="ob-conn{{if or $s.Done $s.Current}} lit{{end}}"></span>{{end}}
+<span class="ob-step{{if $s.Current}} cur{{end}}">
+<span class="ob-num{{if $s.Done}} done{{else if $s.Current}} cur{{end}}">{{if $s.Done}}<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>{{else}}{{$s.Num}}{{end}}</span>
+<span class="lbl">{{$s.Title}}</span>
+</span>
+{{end}}
+</div>
+<form method="post" action="/onboarding" id="ob-form">
+<input type="hidden" name="step" value="{{.Step}}">
+<input type="hidden" name="seeds" value="{{.SeedsField}}">
+{{if ne .Step 1}}<input type="hidden" name="profile" value="{{.Profile}}">
+<input type="hidden" name="cad" value="{{.Cad}}">
+<input type="hidden" name="cron" value="{{.Cron}}">{{end}}
+{{if ne .Step 2}}<input type="hidden" name="channel" value="{{.Channel}}">{{end}}
+<div class="ob-body">
+{{if eq .Step 0}}
+<span class="ob-micro">What you own</span>
+<span class="ob-tags" data-focus-seeds>
+{{range .Seeds}}<span class="ob-tag">{{.}}<button type="submit" name="rm" value="{{.}}" aria-label="Remove {{.}}"><svg viewBox="0 0 10 10" width="8" height="8"><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></button></span>{{end}}
+<input type="text" name="seedsadd" id="ob-seedsadd" placeholder="{{if not .Seeds}}acmecorp.io, 203.0.113.0/24{{end}}" spellcheck="false" autocomplete="off" aria-label="Add a seed">
+</span>
+<span class="ob-hint">Domains or CIDR ranges. Discovery expands each seed into subjects — you never enumerate hosts by hand.</span>
+{{end}}
+{{if eq .Step 1}}
+<div class="ob-cards" role="radiogroup" aria-label="Scan profile">
+<label class="ob-card{{if eq .Profile "standard"}} on{{end}}">
+<input type="radio" name="profile" value="standard"{{if eq .Profile "standard"}} checked{{end}}>
+<span class="top"><span class="radio" aria-hidden="true"></span><span class="ct">Standard</span><span class="meta">default</span></span>
+<span class="cd">Top 1,000 TCP ports, plus any port previously seen.</span>
+</label>
+<label class="ob-card{{if eq .Profile "passive"}} on{{end}}">
+<input type="radio" name="profile" value="passive"{{if eq .Profile "passive"}} checked{{end}}>
+<span class="top"><span class="radio" aria-hidden="true"></span><span class="ct">Passive only</span></span>
+<span class="cd">Public datasets only — no active probing.</span>
+</label>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+<span class="ob-flabel" style="margin-bottom:0">Cadence</span>
+<input type="hidden" name="cad" value="{{.Cad}}" id="ob-cad">
+<span class="ob-listbox">
+<button type="button" class="trig" id="ob-cad-btn" aria-haspopup="listbox" aria-expanded="false"><span class="cv">{{.Cad}}</span><svg class="chev" viewBox="0 0 16 16" width="14" height="14"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
+<div class="panel" id="ob-cad-panel" hidden>
+{{range .Cads}}<button type="button" class="opt{{if .Selected}} on{{end}}" data-cad="{{.Value}}">{{.Value}}</button>{{end}}
+</div>
+</span>
+<span class="ob-input" id="ob-cron-wrap"{{if not .Custom}} hidden{{end}}><input type="text" name="cron" value="{{.Cron}}" placeholder="0 8 * * 1" spellcheck="false" aria-label="Cron expression" id="ob-cron"></span>
+</div>
+{{end}}
+{{if eq .Step 2}}
+<label><span class="ob-flabel">Delivery URL (optional)</span>
+<span class="ob-input"><input type="text" name="channel" value="{{.Channel}}" placeholder="https://ops.example/hook" spellcheck="false" autocomplete="off"></span>
+</label>
+<span class="ob-hint">Signal and drift summaries post here. Add more channels later in Settings.</span>
+{{end}}
+{{if eq .Step 3}}
+<div class="ob-kv">
+{{range .Review}}<div class="cell"><span class="ob-micro">{{.K}}</span><span class="v">{{.V}}</span></div>{{end}}
+</div>
+{{end}}
+</div>
+<div class="ob-foot">
+<span class="ob-count">{{.StepNum}} / {{.StepTotal}}</span>
+{{if gt .Step 0}}<button type="submit" class="ob-btn sec" name="action" value="back" formnovalidate>Back</button>{{end}}
+{{if .Last}}<input type="hidden" name="kind" value="{{.Kind}}"><button type="submit" class="ob-btn pri" formaction="/onboarding/finish" id="ob-next"{{if not .StepValid}} disabled{{end}}>Start first scan</button>{{else}}<button type="submit" class="ob-btn pri" name="action" value="next" id="ob-next"{{if not .StepValid}} disabled{{end}}>Next</button>{{end}}
+</div>
+</form>
+</section>
+</main>
+<script>
+(function(){
+  var next=document.getElementById("ob-next");
+  function gate(){
+    if(!next)return;
+    var ok=true;
+    var sa=document.getElementById("ob-seedsadd");
+    if(sa){var chips=document.querySelectorAll(".ob-tag").length;if(!chips&&!sa.value.trim())ok=false;}
+    var cad=document.getElementById("ob-cad"),cron=document.getElementById("ob-cron");
+    if(cad&&cad.value==="Custom…"&&cron&&!cron.value.trim())ok=false;
+    if(ok)next.removeAttribute("disabled");else next.setAttribute("disabled","");
+  }
+  gate();
+  document.addEventListener("input",gate);
+  document.addEventListener("change",gate);
+  var ft=document.querySelector("[data-focus-seeds]");
+  if(ft)ft.addEventListener("click",function(e){var i=document.getElementById("ob-seedsadd");if(i&&e.target!==i&&!e.target.closest("button"))i.focus();});
+  var b=document.getElementById("ob-cad-btn"),p=document.getElementById("ob-cad-panel"),h=document.getElementById("ob-cad");
+  if(b&&p&&h){
+    b.addEventListener("click",function(e){e.stopPropagation();var open=p.hasAttribute("hidden");if(open)p.removeAttribute("hidden");else p.setAttribute("hidden","");b.setAttribute("aria-expanded",open?"true":"false");});
+    document.addEventListener("mousedown",function(e){if(!p.hasAttribute("hidden")&&!p.contains(e.target)&&!b.contains(e.target)){p.setAttribute("hidden","");b.setAttribute("aria-expanded","false");}});
+    document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!p.hasAttribute("hidden")){p.setAttribute("hidden","");b.setAttribute("aria-expanded","false");}});
+    [].forEach.call(p.querySelectorAll(".opt"),function(o){
+      o.addEventListener("click",function(){
+        h.value=o.getAttribute("data-cad");
+        b.querySelector(".cv").textContent=h.value;
+        [].forEach.call(p.querySelectorAll(".opt"),function(x){x.classList.toggle("on",x===o);});
+        var w=document.getElementById("ob-cron-wrap");
+        if(w){if(h.value==="Custom…")w.removeAttribute("hidden");else w.setAttribute("hidden","");}
+        p.setAttribute("hidden","");b.setAttribute("aria-expanded","false");gate();
+      });
+    });
+  }
+})();
+</script>
+{{template "foot" .}}{{end}}

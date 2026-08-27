@@ -73,6 +73,25 @@ func (q *Queries) CountObservationsForScan(ctx context.Context, scanID int64) (i
 	return count, err
 }
 
+const earliestBatchTime = `-- name: EarliestBatchTime :one
+SELECT min(created_at)::timestamptz AS earliest_batch_at
+FROM batch
+`
+
+// The commit instant of the FIRST batch the estate ever folded — the age boundary the
+// Drift page's vs-previous-period delta tests before comparing (P0.12, #690). The chip
+// compares the selected window against the immediately preceding equal-length window;
+// that comparison is only honest once the estate has been observing since at or before
+// the preceding window's start, so the delta is suppressed while the earliest batch is
+// younger than that (install younger than 2× the window), never a fabricated baseline.
+// NULL where no batch has committed. Reads batch only (corpus 1), never dispatch (ADR-0041).
+func (q *Queries) EarliestBatchTime(ctx context.Context) (pgtype.Timestamptz, error) {
+	row := q.db.QueryRow(ctx, earliestBatchTime)
+	var earliest_batch_at pgtype.Timestamptz
+	err := row.Scan(&earliest_batch_at)
+	return earliest_batch_at, err
+}
+
 const enqueueJob = `-- name: EnqueueJob :one
 INSERT INTO queue_job (
     scan_id, vantage_id, dispatch_id, kind, spec, attempted_scope, offers,
@@ -399,22 +418,26 @@ func (q *Queries) ListScans(ctx context.Context) ([]Scan, error) {
 }
 
 const listVantagesForDispatch = `-- name: ListVantagesForDispatch :many
-SELECT id, name, class, resolver, created_at
+SELECT id, name, class, resolver, egress, dialled_addr, created_at
 FROM vantage
 ORDER BY id
 `
 
 type ListVantagesForDispatchRow struct {
-	ID        int64              `json:"id"`
-	Name      string             `json:"name"`
-	Class     string             `json:"class"`
-	Resolver  string             `json:"resolver"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	ID          int64              `json:"id"`
+	Name        string             `json:"name"`
+	Class       string             `json:"class"`
+	Resolver    string             `json:"resolver"`
+	Egress      pgtype.Text        `json:"egress"`
+	DialledAddr pgtype.Text        `json:"dialled_addr"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
-// The dns Scan dispatches over every configured Vantage, reading only its
-// measurement identity (name, class, resolver). Distinct from the web prober
-// list (vantages.sql `ListVantages`), which is scoped to provisioned probers.
+// The dns Scan dispatches over every configured Vantage, reading its measurement
+// identity (name, resolver) and its presented-address facts (egress + dialled_addr),
+// from which the hot/cold Scans DERIVE its class per batch for the Custody gate — never
+// the vestigial `class` column (#709, ADR-0079). Distinct from the web prober list
+// (vantages.sql `ListVantages`), which is scoped to provisioned probers.
 func (q *Queries) ListVantagesForDispatch(ctx context.Context) ([]ListVantagesForDispatchRow, error) {
 	rows, err := q.db.Query(ctx, listVantagesForDispatch)
 	if err != nil {
@@ -429,6 +452,8 @@ func (q *Queries) ListVantagesForDispatch(ctx context.Context) ([]ListVantagesFo
 			&i.Name,
 			&i.Class,
 			&i.Resolver,
+			&i.Egress,
+			&i.DialledAddr,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -475,8 +500,8 @@ func (q *Queries) ListVergeCoreFrequencyEdits(ctx context.Context) ([]ListVergeC
 	return items, nil
 }
 
-const markJobDead = `-- name: MarkJobDead :exec
-UPDATE queue_job SET state = 'dead', batch_id = $2 WHERE id = $1
+const markJobDead = `-- name: MarkJobDead :execrows
+UPDATE queue_job SET state = 'dead', batch_id = $2 WHERE id = $1 AND state = 'running'
 `
 
 type MarkJobDeadParams struct {
@@ -484,13 +509,18 @@ type MarkJobDeadParams struct {
 	BatchID pgtype.Int8 `json:"batch_id"`
 }
 
-func (q *Queries) MarkJobDead(ctx context.Context, arg MarkJobDeadParams) error {
-	_, err := q.db.Exec(ctx, markJobDead, arg.ID, arg.BatchID)
-	return err
+// Guarded on 'running' exactly as MarkJobDone — a job a terminate cancelled mid-flight
+// does not dead-letter; its transaction rolls back and its work is discarded.
+func (q *Queries) MarkJobDead(ctx context.Context, arg MarkJobDeadParams) (int64, error) {
+	result, err := q.db.Exec(ctx, markJobDead, arg.ID, arg.BatchID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
-const markJobDone = `-- name: MarkJobDone :exec
-UPDATE queue_job SET state = 'done', batch_id = $2 WHERE id = $1
+const markJobDone = `-- name: MarkJobDone :execrows
+UPDATE queue_job SET state = 'done', batch_id = $2 WHERE id = $1 AND state = 'running'
 `
 
 type MarkJobDoneParams struct {
@@ -498,18 +528,31 @@ type MarkJobDoneParams struct {
 	BatchID pgtype.Int8 `json:"batch_id"`
 }
 
-func (q *Queries) MarkJobDone(ctx context.Context, arg MarkJobDoneParams) error {
-	_, err := q.db.Exec(ctx, markJobDone, arg.ID, arg.BatchID)
-	return err
+// Guarded on the job still being 'running': a terminate (DF-F4) that cancelled the
+// job mid-flight left it 'cancelled', so this affects no row and the caller rolls the
+// transaction back — the staged batch and observations are discarded (job atomicity,
+// worker.go). A job the worker owns uncontested is 'running', so the update lands and
+// returns 1.
+func (q *Queries) MarkJobDone(ctx context.Context, arg MarkJobDoneParams) (int64, error) {
+	result, err := q.db.Exec(ctx, markJobDone, arg.ID, arg.BatchID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
-const markJobRetried = `-- name: MarkJobRetried :exec
-UPDATE queue_job SET state = 'retried' WHERE id = $1
+const markJobRetried = `-- name: MarkJobRetried :execrows
+UPDATE queue_job SET state = 'retried' WHERE id = $1 AND state = 'running'
 `
 
-func (q *Queries) MarkJobRetried(ctx context.Context, id int64) error {
-	_, err := q.db.Exec(ctx, markJobRetried, id)
-	return err
+// Guarded on 'running': a job a terminate cancelled mid-flight is not retried, so the
+// fresh attempt is never enqueued (the caller rolls back on a zero count).
+func (q *Queries) MarkJobRetried(ctx context.Context, id int64) (int64, error) {
+	result, err := q.db.Exec(ctx, markJobRetried, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const nameCitedAddresses = `-- name: NameCitedAddresses :many
@@ -588,6 +631,27 @@ func (q *Queries) NameCitedAddresses(ctx context.Context, arg NameCitedAddresses
 		return nil, err
 	}
 	return items, nil
+}
+
+const previousBatchTime = `-- name: PreviousBatchTime :one
+SELECT max(created_at)::timestamptz AS prev_batch_at
+FROM batch
+WHERE created_at < (SELECT max(created_at) FROM batch)
+`
+
+// The commit instant of the second-most-recent distinct batch — the boundary a
+// vs-last-batch stat delta reads the "value a batch ago" at (P0.2). It is the most
+// recent batch instant strictly before the latest, so the span population open at
+// it is the estate exactly as the previous batch left it, with only the most recent
+// batch's opens and closes lying between it and now. NULL where fewer than two
+// distinct batch instants exist — the first batch has no predecessor to compare
+// against, so a delta is withheld rather than compared against nothing. Reads batch
+// only (corpus 1), never dispatch, honoring the comparison-path separation (ADR-0041).
+func (q *Queries) PreviousBatchTime(ctx context.Context) (pgtype.Timestamptz, error) {
+	row := q.db.QueryRow(ctx, previousBatchTime)
+	var prev_batch_at pgtype.Timestamptz
+	err := row.Scan(&prev_batch_at)
+	return prev_batch_at, err
 }
 
 const tryFanOut = `-- name: TryFanOut :one

@@ -1,15 +1,28 @@
 package main
 
 import (
+	"html/template"
 	"log"
+	"math"
 	"net/http"
 	"sort"
 	"strconv"
 	"time"
 
+	designfs "github.com/winniel123/verge-asm/design-system"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/signal"
 )
+
+// The frozen design-owned graph.tmpl (design-system/templates/graph.tmpl, package
+// v3.10.0, WORKFLOW v4) is the view layer for /graph: it defines "graph" and reuses
+// the landed "sevbadge" define signals.tmpl declares (the drawer's sev-badged signal
+// rows) — one parse set. It is embedded read-only via the designfs package
+// (auto-globbed through `templates/*.tmpl`); the repo authors no markup/CSS/JS for
+// this route (the pan/zoom/minimap/PNG-export engine and the severity-filter listbox
+// are the design's own view JS, kept byte-for-byte). Replaces the repo-authored
+// templates_graph.go, which is deleted with this conversion (#583).
+var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/graph.tmpl"))
 
 // The Graph screen (#284, canonical `/graph`, ported from
 // design-system/examples/console/GraphView.jsx). It draws the estate as a graph:
@@ -18,14 +31,13 @@ import (
 // Inventory screen already reads (ListAllOpenSpans, ADR-0105) — no fabricated
 // topology. Where the corpus holds nothing, the design-system empty-state shows.
 //
-// Open signals ARE now joined onto the nodes (#289), off the same Signal engine
-// the Reports and Signals screens read (buildSignalCorpus → signal.EvaluateCorpus).
-// The example draws severity halos over a scored model — but signals in this product
-// have NO severity (internal/signal: a rule "has no lifecycle of its own and no
-// severity"; the census "is deliberately not a severity ramp"). So the example's
-// severity affordances are re-skinned to honest signal-PRESENCE, exactly as
-// reports.go re-skins its mock severity regions under ADR-0024/ADR-0110 — never a
-// fabricated level, badge or gradient:
+// Open signals ARE joined onto the nodes (#289), off the same Signal engine the
+// Reports and Signals screens read (buildSignalCorpus → signal.EvaluateCorpus). The
+// example draws SEVERITY halos, and every rule now carries a five-level severity
+// (P0.1, internal/signal/severity.go), so the graph draws them for real — the old
+// presence-only single-accent re-skin is retired (P2.3; the design is normative for
+// look AND functionality, ADR-0116). No fabricated level: each node's severity is
+// exactly the worst (most urgent) among the rules that actually fired on it.
 //   - each node carries the list of rules that FIRED for it (OpenSignals), joined
 //     by exact subject-key match: a Name firing lights its Name node, a Service
 //     firing lights its Service node, and an Endpoint firing (subject
@@ -34,15 +46,17 @@ import (
 //     exactly one node, never double-counted (see joinSignals). Addresses carry no
 //     signals: no rule censuses an Address, and a Service's firing is the Service's,
 //     not silently rolled up onto the Address it rides.
-//   - the halo and minimap dot mark PRESENCE (≥1 open signal), a single --warn
-//     token, not a five-level ramp; the drawer lists the fired rules (or an honest
-//     "No open signals"); the filter is the presence axis (all / with / without),
-//     not the inert severity Select.
+//   - the halo and minimap dot are tinted to the node's worst severity (Sev, the
+//     --sev-<level>-dot token), a service node fills to it, and the drawer lists
+//     each fired rule with its own SeverityBadge (or an honest "No open signals");
+//     the header Select is the five-level severity filter the spec renders — it
+//     lights only the halos of nodes at the chosen level, matching GraphView.jsx.
 //
-// One example read is still NOT wired, and is not faked: a "domain" apex node — the
-// example hand-classifies a registrable apex; the corpus does not, and deriving one
-// by suffix would be a heuristic guess, so every Name renders as a subdomain-style
-// node rather than inventing a root.
+// The "domain" apex node is derived, not faked: classifyNameTypes (below) reads the
+// domain|subdomain tiers purely off the observed name set — a name is the apex when it
+// parents another observed name and is itself parented by none (#22e) — with no
+// public-suffix guess, so an estate whose apex was never measured simply has no domain
+// node rather than one being invented.
 //
 // Every field that IS shown is real: the node keys, the resolution and service
 // edges, an Address's open ports, each node's earliest open-span instant, and each
@@ -60,34 +74,39 @@ const (
 	graphMiniH   = 59
 )
 
-// graphSignal is one open (fired) signal joined to a node: the rule that fired and
-// the exact subject it fired on. Subject may be more specific than the node it
-// lights — an Endpoint firing attached to its Name node names the endpoint — so the
-// drawer can show the finer subject where it differs. It carries NO severity or
-// level: a signal in this product has none (see file header).
+// graphSignal is one open (fired) signal joined to a node: the rule that fired, the
+// exact subject it fired on, and the rule's severity (P0.1). Subject may be more
+// specific than the node it lights — an Endpoint firing attached to its Name node
+// names the endpoint — so the drawer can show the finer subject where it differs.
+// Sev is one of the five ramp tokens (critical | high | medium | low | info); the
+// drawer keys a SeverityBadge off it.
 type graphSignal struct {
-	Rule    string
-	Subject string
+	Severity string
+	SevLabel string
+	Rule     string
+	Subject  string
 }
 
 // graphNode is one placed node: its key (the drawer's identity), display label,
 // tier type (subdomain | ip | service), canvas and minimap coordinates, the
-// label's x-offset (past the node's own radius), the presence-halo radius, the
-// Address's open ports where it has them, the earliest instant an open span placed
-// it, and the open signals joined to it. OpenSignals is a signal-PRESENCE list, not
-// a severity — a node with ≥1 entry is marked, one with none is unmarked; there is
-// no level, gradient or count-driven ramp (see file header).
+// label's x-offset (past the node's own radius), the halo radius, the Address's open
+// ports where it has them, the earliest instant an open span placed it, the open
+// signals joined to it, and Sev — the node's worst (most urgent) severity among
+// those signals, one of the five ramp tokens or "" when none fired. Sev tints the
+// halo, the minimap dot and (for a service) the node fill, per GraphView.jsx.
 type graphNode struct {
 	ID          string
 	Label       string
 	Type        string
 	X, Y        int
 	LabelDX     int
-	HaloR       int
-	Mx, My      int
+	HaloA       float64
+	HaloB       float64
+	Mx, My      float64
 	Ports       string
 	First       string
 	OpenSignals []graphSignal
+	Sev         string
 }
 
 // graphEdge is one edge with its endpoints pre-resolved to canvas coordinates, so
@@ -108,9 +127,13 @@ type graphView struct {
 	ViewW, ViewH, MiniW, MiniH int
 }
 
-// graphRadius is a node type's drawn radius, mirroring the example's NODE_R.
+// graphRadius is a node type's drawn radius, mirroring the design's NODE_R. The
+// domain apex draws largest (#22e: r16, ink stroke), a subdomain name r10, an
+// address r9 and a service r6.
 func graphRadius(typ string) int {
 	switch typ {
+	case "domain":
+		return 16
 	case "ip":
 		return 9
 	case "service":
@@ -118,6 +141,45 @@ func graphRadius(typ string) int {
 	default: // subdomain
 		return 10
 	}
+}
+
+// round1 rounds a float to one decimal place — the minimap coordinate precision the
+// design fixture carries (e.g. 90·110/1200 = 8.25 → 8.3).
+func round1(v float64) float64 { return math.Round(v*10) / 10 }
+
+// classifyNameTypes splits the Name set into the domain|subdomain tiers (#22e): a
+// name is the DOMAIN apex when it is a registrable root of the observed topology —
+// it parents at least one other name in the set (some other name is `<label>.<it>`)
+// and is itself parented by none. Every other name is a subdomain. The split is read
+// purely off the observed name set (no public-suffix guess): an estate whose apex was
+// never itself measured simply has no domain node, and each measured leaf stays a
+// subdomain. Deterministic for a fixed set.
+func classifyNameTypes(names map[string]struct{}) map[string]string {
+	isChildOf := func(child, parent string) bool {
+		return len(child) > len(parent)+1 && child[len(child)-len(parent)-1] == '.' &&
+			child[len(child)-len(parent):] == parent
+	}
+	out := make(map[string]string, len(names))
+	for n := range names {
+		hasChild, hasParent := false, false
+		for m := range names {
+			if m == n {
+				continue
+			}
+			if isChildOf(m, n) {
+				hasChild = true
+			}
+			if isChildOf(n, m) {
+				hasParent = true
+			}
+		}
+		if hasChild && !hasParent {
+			out[n] = "domain"
+		} else {
+			out[n] = "subdomain"
+		}
+	}
+	return out
 }
 
 // buildGraph folds the estate's open spans into the graph's nodes and edges. It
@@ -193,12 +255,14 @@ func buildGraph(rows []db.ListAllOpenSpansRow) graphView {
 		x := col
 		y := graphRowTop + idx*graphRowStep
 		pos[internalID] = struct{ x, y int }{x, y}
+		r := graphRadius(typ)
 		n := graphNode{
 			ID: id, Label: label, Type: typ, X: x, Y: y,
-			LabelDX: graphRadius(typ) + 9,
-			HaloR:   graphRadius(typ) + 6,
-			Mx:      x * graphMiniW / graphViewW,
-			My:      y * graphMiniH / graphViewH,
+			LabelDX: r + 9,
+			HaloA:   float64(r) + 7,   // #22f: outer fill halo (r+7, opacity 0.12)
+			HaloB:   float64(r) + 4.5, // #22f: inner ring halo (r+4.5, sw2, opacity 0.65)
+			Mx:      round1(float64(x) * graphMiniW / graphViewW),
+			My:      round1(float64(y) * graphMiniH / graphViewH),
 			Ports:   ports,
 		}
 		if t, ok := first[internalID]; ok {
@@ -207,8 +271,9 @@ func buildGraph(rows []db.ListAllOpenSpansRow) graphView {
 		nodes = append(nodes, n)
 	}
 
+	nameType := classifyNameTypes(names)
 	for i, k := range sortedSet(names) {
-		place("name:"+k, k, k, "subdomain", graphColName, i, "—")
+		place("name:"+k, k, k, nameType[k], graphColName, i, "—")
 	}
 	for i, a := range sortedSet(addrs) {
 		place("addr:"+a, a, a, "ip", graphColAddr, i, joinPorts(addrPorts[a]))
@@ -235,7 +300,9 @@ func buildGraph(rows []db.ListAllOpenSpansRow) graphView {
 
 // joinSignals lights each graph node with the open (fired) signals whose subject
 // resolves to it, folding a Census set from the Signal engine onto the built
-// topology WITHOUT inventing severity — a node gains a presence list, never a level.
+// topology and carrying each rule's real severity (P0.1) through to the node. A
+// node's Sev is the worst (most urgent) severity among the rules that fired on it,
+// which tints its halo — no fabricated level, only what actually fired.
 // The subject→node mapping is exact and honest:
 //   - a Name-rule firing (subject = the Name) lights the Name node of that key;
 //   - a Service-rule firing (subject = `address:port/transport`) lights the Service
@@ -265,8 +332,9 @@ func joinSignals(g graphView, censuses []signal.Census) graphView {
 	}
 	for _, c := range censuses {
 		kind := signal.SubjectKindFor(c.Rule)
+		sev, _ := signal.SeverityFor(c.Rule)
 		for _, m := range c.Fired {
-			sig := graphSignal{Rule: c.Rule, Subject: m.Subject}
+			sig := graphSignal{Severity: sev.String(), SevLabel: sevLabel(sev.String()), Rule: c.Rule, Subject: m.Subject}
 			switch kind {
 			case "name", "service":
 				attach(m.Subject, sig)
@@ -281,7 +349,28 @@ func joinSignals(g graphView, censuses []signal.Census) graphView {
 			}
 		}
 	}
+	// Fold each node's fired signals down to its worst severity — the one the halo,
+	// minimap dot and service fill tint to (GraphView.jsx paints a single level per
+	// node). A node with no firing keeps Sev == "" and draws no halo.
+	for i := range g.Nodes {
+		g.Nodes[i].Sev = worstSeverity(g.Nodes[i].OpenSignals)
+	}
 	return g
+}
+
+// worstSeverity returns the most-urgent severity token among a node's fired signals
+// — the lowest rank in signal.SevOrder (critical outranks info) — or "" when none
+// fired. It never manufactures a level: the token is one a rule actually carried.
+func worstSeverity(sigs []graphSignal) string {
+	best := ""
+	bestRank := len(signal.SevOrder)
+	for _, s := range sigs {
+		if r := signal.Severity(s.Severity).Rank(); r < bestRank {
+			bestRank = r
+			best = s.Severity
+		}
+	}
+	return best
 }
 
 // sortedSet returns a string set's members in ascending order, for a deterministic
@@ -324,6 +413,13 @@ func joinPorts(set map[string]struct{}) string {
 // rather than 500ing the topology a viewer depends on, exactly as reports.go
 // degrades its KPI on a failed read.
 func (s *server) graphPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	// A VERGE_DEV build serves the pinned fixtures.json graph slice — the byte-exact
+	// 26-node topology the pixel goldens capture (as the sibling screens do). A real
+	// deployment falls through to the honest live reads below.
+	if s.devMode {
+		s.render(w, r, "graph", s.graphFixtureData(acct))
+		return
+	}
 	rows, err := s.store.ListAllOpenSpans(r.Context())
 	if err != nil {
 		s.serverError(w, "list all open spans", err)
@@ -338,9 +434,9 @@ func (s *server) graphPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 			g = joinSignals(g, signal.EvaluateCorpus(corpus))
 		}
 	}
-	s.render(w, "graph", map[string]any{
+	s.render(w, r, "graph", map[string]any{
 		"Title": "Graph", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "graph",
-		"Graph":     g,
+		"NavActive": "graph", "DesignTokens": true,
+		"Graph": g,
 	})
 }

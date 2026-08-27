@@ -1,0 +1,783 @@
+{
+  "$comment": "Per-screen capture states. Each state: route + JS run before capture. The SAME scripts drive golden rendering and repo capture. Crop to `main` until shell (#22) lands.",
+  "inventory": {
+    "route": "/inventory",
+    "crop": "main",
+    "states": [
+      {
+        "id": "default",
+        "js": ""
+      },
+      {
+        "id": "expanded",
+        "js": "document.querySelectorAll('.inv-exp').forEach(function(b){ b.click(); })"
+      },
+      {
+        "id": "gaps-only",
+        "js": "var g=document.getElementById('inv-gaps'); g.checked=true; g.dispatchEvent(new Event('change',{bubbles:true}))"
+      },
+      {
+        "id": "filtered-empty",
+        "js": "var q=document.getElementById('inv-q'); q.value='zzz'; q.dispatchEvent(new Event('input',{bubbles:true}))"
+      },
+      {
+        "id": "columns-open",
+        "js": "document.getElementById('inv-cols-btn').click()"
+      }
+    ]
+  },
+  "error": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "404",
+        "route": "/this-route-does-not-exist",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "403",
+        "route": "/dev/403",
+        "session": "viewer",
+        "js": ""
+      },
+      {
+        "id": "500",
+        "route": "/dev/panic",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "missing-subject",
+        "route": "/asset/stagng-5.acmecorp.io",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "missing-run",
+        "route": "/runs/1408",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "settings-forbidden",
+        "route": "/settings",
+        "session": "viewer",
+        "js": ""
+      }
+    ]
+  },
+  "profile": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "default",
+        "route": "/profile",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "new-token",
+        "route": "/profile?new=1",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "minted",
+        "route": "/profile?new=1",
+        "session": "admin",
+        "js": "var i=document.querySelector('#pr-tokform input[name=name]'); i.value='ci-golden'; document.getElementById('pr-tokform').submit();",
+        "delay": 900
+      },
+      {
+        "id": "revoke-token",
+        "route": "/profile?revoke=t1",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "end-session",
+        "route": "/profile?endsession=1",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "signout-others",
+        "route": "/profile?signoutothers=1",
+        "session": "admin",
+        "js": ""
+      }
+    ]
+  },
+  "signin": {
+    "crop": "body",
+    "states": [
+      {
+        "id": "login",
+        "route": "/login",
+        "session": "none",
+        "js": ""
+      },
+      {
+        "id": "login-sso-none",
+        "route": "/login",
+        "session": "none",
+        "variant": "no-sso",
+        "js": ""
+      },
+      {
+        "id": "totp",
+        "route": "/login",
+        "session": "none",
+        "js": "document.querySelector('input[name=username]').value='ola.perez'; document.querySelector('input[name=password]').value='verge-dev-1'; document.querySelector('form.vg-form').submit();",
+        "delay": 900
+      },
+      {
+        "id": "forgot",
+        "route": "/forgot",
+        "session": "none",
+        "js": ""
+      },
+      {
+        "id": "forgot-sent",
+        "route": "/forgot",
+        "session": "none",
+        "js": "document.querySelector('input[name=username]').value='ola.perez'; document.querySelector('form.vg-form').submit();",
+        "delay": 900
+      },
+      {
+        "id": "reset",
+        "route": "/reset?token=fixture-reset-token",
+        "session": "none",
+        "js": ""
+      },
+      {
+        "id": "reset-invalid",
+        "route": "/reset?token=bad",
+        "session": "none",
+        "js": ""
+      },
+      {
+        "id": "invite",
+        "route": "/invite?token=fixture-invite-token",
+        "session": "none",
+        "js": ""
+      },
+      {
+        "id": "invite-invalid",
+        "route": "/invite?token=bad",
+        "session": "none",
+        "js": ""
+      },
+      {
+        "id": "enroll",
+        "route": "/account/totp/enroll",
+        "session": "viewer",
+        "js": ""
+      },
+      {
+        "id": "recovery",
+        "route": "/account/totp/enroll",
+        "session": "viewer",
+        "js": "var h=document.getElementById('vg-ecode-h'); h.value='482913'; h.form.submit();",
+        "delay": 900
+      }
+    ]
+  },
+  "setup": {
+    "crop": "body",
+    "seed": "empty",
+    "states": [
+      {
+        "id": "default",
+        "route": "/setup",
+        "session": "none",
+        "js": ""
+      },
+      {
+        "id": "error",
+        "route": "/setup",
+        "session": "none",
+        "js": "document.querySelector('input[name=token]').value='wrong'; document.querySelector('input[name=username]').value='ola.perez'; document.querySelector('input[name=password]').value='fixture-password-12'; document.querySelector('form.vg-form').submit();",
+        "delay": 900
+      }
+    ]
+  },
+  "coverage": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "default",
+        "route": "/coverage",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "empty",
+        "route": "/coverage",
+        "session": "admin",
+        "seed": "empty-authed",
+        "js": ""
+      }
+    ]
+  },
+  "exposure": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "default",
+        "route": "/exposure",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "withheld",
+        "route": "/exposure",
+        "session": "admin",
+        "variant": "no-internet-vantage",
+        "js": ""
+      }
+    ]
+  },
+  "drift": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "default",
+        "route": "/drift",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "feed-expanded",
+        "route": "/drift",
+        "session": "admin",
+        "js": "[].forEach.call(document.querySelectorAll('.dr-ghead[aria-expanded=\"false\"]'),function(b){b.click();})",
+        "delay": 600
+      },
+      {
+        "id": "range-open",
+        "route": "/drift",
+        "session": "admin",
+        "js": "document.getElementById('dr-range-btn').click()"
+      }
+    ]
+  },
+  "rundetail": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "default",
+        "route": "/runs/1407",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "running",
+        "route": "/runs/1409",
+        "session": "admin",
+        "js": ""
+      }
+    ]
+  },
+  "scope": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "default",
+        "route": "/scope",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "refusal",
+        "route": "/scope",
+        "session": "admin",
+        "js": "var i=document.querySelector('.sc-field input[name=scope]'); i.value='203.0.113.0/20'; i.form.submit();",
+        "delay": 900
+      },
+      {
+        "id": "exclusion-preview",
+        "route": "/scope",
+        "session": "admin",
+        "js": "var f=document.querySelector('.sc-xadd'); f.querySelector('input.val').value='staging-4.acmecorp.io'; f.querySelector('[formaction=\"/exclusions/preview\"]').click();",
+        "delay": 900
+      }
+    ]
+  },
+  "dashboard": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "default",
+        "route": "/",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "scanning",
+        "route": "/",
+        "session": "admin",
+        "variant": "scanning",
+        "js": ""
+      },
+      {
+        "id": "banner-dismissed",
+        "route": "/?probe=dismissed",
+        "session": "admin",
+        "js": ""
+      }
+    ]
+  },
+  "signals": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "default",
+        "route": "/signals?tab=open",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "drawer-open",
+        "route": "/signals?view=SIG-1042",
+        "session": "admin",
+        "js": "",
+        "crop": "body"
+      },
+      {
+        "id": "drawer-annotated",
+        "route": "/signals?view=SIG-1027",
+        "session": "admin",
+        "js": "",
+        "crop": "body"
+      },
+      {
+        "id": "descope-confirm",
+        "route": "/signals?descope=SIG-1042",
+        "session": "admin",
+        "js": "",
+        "crop": "body"
+      },
+      {
+        "id": "withdrawn-tab",
+        "route": "/signals?tab=withdrawn",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "menu-open",
+        "route": "/signals?tab=open",
+        "session": "admin",
+        "js": "document.querySelector('[data-menu-btn]').click()"
+      }
+    ]
+  },
+  "asset": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "default",
+        "route": "/asset/edge-gw-03.acmecorp.io",
+        "session": "admin",
+        "js": ""
+      }
+    ]
+  },
+  "subjectdetail": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "service",
+        "route": "/subjects/service?key=203.0.113.7%3A5900%2Ftcp",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "endpoint",
+        "route": "/subjects/endpoint?key=edge-gw-03.acmecorp.io+%C2%B7+%3A443+https",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "service-withdrawn",
+        "route": "/subjects/service?key=203.0.113.29%3A8080%2Ftcp",
+        "session": "admin",
+        "js": ""
+      }
+    ]
+  },
+  "graph": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "default",
+        "route": "/graph",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "node-drawer",
+        "route": "/graph",
+        "session": "admin",
+        "js": "document.querySelector('.gnode[data-id=\"edge-gw-03.acmecorp.io\"]').dispatchEvent(new MouseEvent('click',{bubbles:true}))",
+        "crop": "body",
+        "delay": 600
+      },
+      {
+        "id": "filtered-critical",
+        "route": "/graph",
+        "session": "admin",
+        "js": "document.getElementById('gr-sev-btn').click(); document.querySelector('#gr-sev-panel .opt[data-sev=\"critical\"]').click();"
+      }
+    ]
+  },
+  "reports": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "default",
+        "route": "/reports",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "range-open",
+        "route": "/reports",
+        "session": "admin",
+        "js": "document.getElementById('rp-range-btn').click()"
+      },
+      {
+        "id": "row-menu-open",
+        "route": "/reports",
+        "session": "admin",
+        "js": "document.querySelector('[data-row-menu]').click()"
+      },
+      {
+        "id": "wizard-1",
+        "route": "/reports/schedule/new",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "wizard-2",
+        "route": "/reports/schedule/new?step=1&name=Weekly+exposure+summary&sections=kpis&sections=new-assets&sections=signal-changes",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "wizard-3",
+        "route": "/reports/schedule/new?step=2&name=Weekly+exposure+summary&sections=kpis&sections=new-assets&sections=signal-changes&cad=Weekly+%C2%B7+mon+09%3A00",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "wizard-4",
+        "route": "/reports/schedule/new?step=3&name=Weekly+exposure+summary&sections=kpis&sections=new-assets&sections=signal-changes&cad=Weekly+%C2%B7+mon+09%3A00&channel=ops",
+        "session": "admin",
+        "js": ""
+      }
+    ]
+  },
+  "reportartifact": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "default",
+        "route": "/reports/delivery",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "never-delivered",
+        "route": "/reports/delivery",
+        "session": "admin",
+        "variant": "never-delivered",
+        "js": ""
+      }
+    ]
+  },
+  "inbox": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "default",
+        "route": "/inbox",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "message-open",
+        "route": "/inbox?id=m1",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "unread-filter",
+        "route": "/inbox?filter=unread",
+        "session": "admin",
+        "js": ""
+      }
+    ]
+  },
+  "search": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "default",
+        "route": "/search?q=acme",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "empty",
+        "route": "/search?q=zzz-none",
+        "session": "admin",
+        "js": ""
+      }
+    ]
+  },
+  "onboarding": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "wizard-1",
+        "route": "/onboarding",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "wizard-2",
+        "route": "/onboarding?step=1&seeds=acmecorp.io",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "wizard-3",
+        "route": "/onboarding?step=2&seeds=acmecorp.io&profile=standard&cad=Daily+%C2%B7+08%3A00",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "wizard-4",
+        "route": "/onboarding?step=3&seeds=acmecorp.io&profile=standard&cad=Daily+%C2%B7+08%3A00&channel=https%3A%2F%2Fops.example%2Fhook",
+        "session": "admin",
+        "js": ""
+      }
+    ]
+  },
+  "firstrun": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "default",
+        "route": "/",
+        "session": "admin",
+        "variant": "empty-estate",
+        "js": ""
+      }
+    ]
+  },
+  "settings": {
+    "crop": "main",
+    "states": [
+      {
+        "id": "scans",
+        "route": "/settings?tab=scans",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "vantages",
+        "route": "/settings?tab=vantages",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "sso",
+        "route": "/settings?tab=sso",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "team",
+        "route": "/settings?tab=team",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "team-invite",
+        "route": "/settings?tab=team&invite=1",
+        "session": "admin",
+        "js": "",
+        "crop": "body"
+      },
+      {
+        "id": "team-remove",
+        "route": "/settings?tab=team&remove=u3",
+        "session": "admin",
+        "js": "",
+        "crop": "body"
+      },
+      {
+        "id": "sessions",
+        "route": "/settings?tab=sessions",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "sessions-revoke-all",
+        "route": "/settings?tab=sessions&revoke-account=u2",
+        "session": "admin",
+        "js": "",
+        "crop": "body"
+      },
+      {
+        "id": "audit",
+        "route": "/settings?tab=audit",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "sources",
+        "route": "/settings?tab=sources",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "sources-consent",
+        "route": "/settings?tab=sources&consent=ripestat",
+        "session": "admin",
+        "js": "",
+        "crop": "body"
+      },
+      {
+        "id": "aperture",
+        "route": "/settings?tab=aperture",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "instance",
+        "route": "/settings?tab=instance",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "channels",
+        "route": "/settings?tab=channels",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "integrations",
+        "route": "/settings?tab=integrations",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "integrations-drawer",
+        "route": "/settings?tab=integrations&view=pagerduty",
+        "session": "admin",
+        "js": "",
+        "crop": "body"
+      },
+      {
+        "id": "messages",
+        "route": "/settings?tab=messages",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "delivery",
+        "route": "/settings?tab=delivery",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "forbidden",
+        "route": "/settings?tab=team",
+        "session": "viewer",
+        "js": ""
+      },
+      {
+        "id": "scans-stop-confirm",
+        "route": "/settings?tab=scans&stop=1409",
+        "session": "admin",
+        "js": "",
+        "crop": "body"
+      },
+      {
+        "id": "scans-terminate-confirm",
+        "route": "/settings?tab=scans&terminate=1409",
+        "session": "admin",
+        "js": "",
+        "crop": "body"
+      },
+      {
+        "id": "api",
+        "route": "/settings?tab=api",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "api-viewer",
+        "route": "/settings?tab=api",
+        "session": "viewer",
+        "js": ""
+      },
+      {
+        "id": "api-enabled",
+        "route": "/settings?tab=api",
+        "session": "admin",
+        "js": "var f=document.querySelector('form[action=\"/settings/api\"]'); if(f) f.querySelector(\"button\").click();",
+        "delay": 900
+      }
+    ]
+  },
+  "shell": {
+    "crop": "full-page",
+    "states": [
+      {
+        "id": "default",
+        "route": "/",
+        "session": "admin",
+        "js": ""
+      },
+      {
+        "id": "palette-open",
+        "route": "/",
+        "session": "admin",
+        "js": "document.getElementById('sh-cmdk-btn').click()"
+      },
+      {
+        "id": "bell-open",
+        "route": "/",
+        "session": "admin",
+        "js": "document.getElementById('sh-bell').setAttribute('open','')"
+      },
+      {
+        "id": "acct-open",
+        "route": "/",
+        "session": "admin",
+        "js": "document.getElementById('sh-acct').setAttribute('open','')"
+      },
+      {
+        "id": "scan-running",
+        "route": "/",
+        "session": "admin",
+        "variant": "scanning",
+        "js": ""
+      },
+      {
+        "id": "toasts",
+        "route": "/",
+        "session": "admin",
+        "variant": "flash-toast",
+        "js": "",
+        "delay": 400
+      }
+    ]
+  },
+  "$golden_regen": "#27f — with shell landed the harness stops cropping to <main>: ALL landed screens re-render FULL-PAGE goldens in the canonical container (one-time regen, this version)."
+}

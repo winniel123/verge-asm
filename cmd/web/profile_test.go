@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -76,6 +77,181 @@ func (f *fakeStore) DeletePersonalToken(_ context.Context, arg db.DeletePersonal
 	return nil
 }
 
+// GetPersonalTokenByHash mirrors the by-hash lookup the /api/v1 bearer path uses (#390,
+// A2): the row whose token_hash equals the presented digest, or no row. No row is the
+// same pgx.ErrNoRows the generated query returns, which the middleware renders as 401.
+func (f *fakeStore) GetPersonalTokenByHash(_ context.Context, tokenHash string) (db.PersonalToken, error) {
+	for _, t := range f.personalTokens {
+		if t.TokenHash == tokenHash {
+			return t, nil
+		}
+	}
+	return db.PersonalToken{}, pgx.ErrNoRows
+}
+
+// UpdatePersonalTokenLastUsed mirrors the coarsened touch SQL exactly (#390, A2): stamp
+// last_used_at only when it is null or older than an hour, so a busy token is not one
+// write per request and the timestamp never regresses. A missing id is a no-op, matching
+// the WHERE clause. It uses wall-clock time.Now() as the SQL's now() does, so a test's
+// two back-to-back requests fall inside the one-hour window and the second is a no-op.
+func (f *fakeStore) UpdatePersonalTokenLastUsed(_ context.Context, id int64) error {
+	now := time.Now()
+	for i := range f.personalTokens {
+		if f.personalTokens[i].ID != id {
+			continue
+		}
+		lu := f.personalTokens[i].LastUsedAt
+		if !lu.Valid || lu.Time.Before(now.Add(-time.Hour)) {
+			f.personalTokens[i].LastUsedAt = pgtype.Timestamptz{Time: now, Valid: true}
+		}
+		return nil
+	}
+	return nil
+}
+
+// --- session registry fakes (#405, ADR-0117) -------------------------------
+
+// CreateSession opens a session row: a monotonic id, now-stamped created_at and
+// last_seen_at, and the caller's token hash / user-agent / ip / expiry.
+func (f *fakeStore) CreateSession(_ context.Context, arg db.CreateSessionParams) (db.Session, error) {
+	if f.sessionNextID == 0 {
+		f.sessionNextID = 1
+	}
+	now := time.Now()
+	sess := db.Session{
+		ID: f.sessionNextID, AccountID: arg.AccountID, TokenHash: arg.TokenHash,
+		CreatedAt:  pgtype.Timestamptz{Time: now, Valid: true},
+		LastSeenAt: pgtype.Timestamptz{Time: now, Valid: true},
+		UserAgent:  arg.UserAgent, Ip: arg.Ip, ExpiresAt: arg.ExpiresAt,
+	}
+	f.sessions = append(f.sessions, sess)
+	f.sessionNextID++
+	return sess, nil
+}
+
+// GetSessionByTokenHash mirrors the validation query: the row whose token_hash matches
+// AND is unrevoked AND is unexpired against the passed clock bound (expires_at > arg).
+// A dead session simply returns no row, exactly as the SQL does.
+func (f *fakeStore) GetSessionByTokenHash(_ context.Context, arg db.GetSessionByTokenHashParams) (db.Session, error) {
+	for _, sess := range f.sessions {
+		if sess.TokenHash == arg.TokenHash && !sess.RevokedAt.Valid && sess.ExpiresAt.Time.After(arg.ExpiresAt.Time) {
+			return sess, nil
+		}
+	}
+	return db.Session{}, pgx.ErrNoRows
+}
+
+// TouchSession refreshes last_seen_at; a missing row is a no-op, matching the SQL.
+func (f *fakeStore) TouchSession(_ context.Context, arg db.TouchSessionParams) error {
+	for i := range f.sessions {
+		if f.sessions[i].ID == arg.ID {
+			f.sessions[i].LastSeenAt = arg.LastSeenAt
+			return nil
+		}
+	}
+	return nil
+}
+
+// RevokeSession stamps revoked_at on the row scoped to its owner (id AND account_id),
+// only while it is still live. Idempotent: an already-revoked or foreign row is
+// untouched, mirroring the owner-scoped SQL.
+func (f *fakeStore) RevokeSession(_ context.Context, arg db.RevokeSessionParams) error {
+	for i := range f.sessions {
+		if f.sessions[i].ID == arg.ID && f.sessions[i].AccountID == arg.AccountID && !f.sessions[i].RevokedAt.Valid {
+			f.sessions[i].RevokedAt = arg.RevokedAt
+			return nil
+		}
+	}
+	return nil
+}
+
+// ListSessionsForAccount mirrors the personal-listing query: one account's live sessions
+// (unrevoked, unexpired against the passed clock), newest activity first, with token_hash
+// omitted from the projection so the secret never reaches the render path.
+func (f *fakeStore) ListSessionsForAccount(_ context.Context, arg db.ListSessionsForAccountParams) ([]db.ListSessionsForAccountRow, error) {
+	rows := []db.ListSessionsForAccountRow{}
+	for _, sess := range f.sessions {
+		if sess.AccountID != arg.AccountID || sess.RevokedAt.Valid || !sess.ExpiresAt.Time.After(arg.ExpiresAt.Time) {
+			continue
+		}
+		rows = append(rows, db.ListSessionsForAccountRow{
+			ID: sess.ID, AccountID: sess.AccountID, CreatedAt: sess.CreatedAt,
+			LastSeenAt: sess.LastSeenAt, UserAgent: sess.UserAgent, Ip: sess.Ip,
+			ExpiresAt: sess.ExpiresAt,
+		})
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		if !rows[i].LastSeenAt.Time.Equal(rows[j].LastSeenAt.Time) {
+			return rows[i].LastSeenAt.Time.After(rows[j].LastSeenAt.Time)
+		}
+		return rows[i].ID > rows[j].ID
+	})
+	return rows, nil
+}
+
+// RevokeOtherSessionsForAccount revokes every live session for the account EXCEPT the
+// current one (arg.ID) — "sign out other devices" and the password-change invalidation.
+// The acting session survives, mirroring the id <> $2 predicate.
+func (f *fakeStore) RevokeOtherSessionsForAccount(_ context.Context, arg db.RevokeOtherSessionsForAccountParams) error {
+	for i := range f.sessions {
+		if f.sessions[i].AccountID == arg.AccountID && f.sessions[i].ID != arg.ID && !f.sessions[i].RevokedAt.Valid {
+			f.sessions[i].RevokedAt = arg.RevokedAt
+		}
+	}
+	return nil
+}
+
+// RevokeAllSessionsForAccount revokes every live session for the account with no
+// exception — the reset path (no current session to keep) and admin offboarding.
+func (f *fakeStore) RevokeAllSessionsForAccount(_ context.Context, arg db.RevokeAllSessionsForAccountParams) error {
+	for i := range f.sessions {
+		if f.sessions[i].AccountID == arg.AccountID && !f.sessions[i].RevokedAt.Valid {
+			f.sessions[i].RevokedAt = arg.RevokedAt
+		}
+	}
+	return nil
+}
+
+// ListAllActiveSessions mirrors the admin query: every account's live sessions joined to
+// the owning account's username and role, ordered by username then recency. token_hash is
+// never projected here either.
+func (f *fakeStore) ListAllActiveSessions(_ context.Context, expiresAt pgtype.Timestamptz) ([]db.ListAllActiveSessionsRow, error) {
+	rows := []db.ListAllActiveSessionsRow{}
+	for _, sess := range f.sessions {
+		if sess.RevokedAt.Valid || !sess.ExpiresAt.Time.After(expiresAt.Time) {
+			continue
+		}
+		acct := f.accounts[sess.AccountID]
+		rows = append(rows, db.ListAllActiveSessionsRow{
+			ID: sess.ID, AccountID: sess.AccountID, Username: acct.Username, Role: acct.Role,
+			CreatedAt: sess.CreatedAt, LastSeenAt: sess.LastSeenAt,
+			UserAgent: sess.UserAgent, Ip: sess.Ip, ExpiresAt: sess.ExpiresAt,
+		})
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].Username != rows[j].Username {
+			return rows[i].Username < rows[j].Username
+		}
+		if !rows[i].LastSeenAt.Time.Equal(rows[j].LastSeenAt.Time) {
+			return rows[i].LastSeenAt.Time.After(rows[j].LastSeenAt.Time)
+		}
+		return rows[i].ID > rows[j].ID
+	})
+	return rows, nil
+}
+
+// RevokeSessionByIDForAdmin revokes any one live session by id, NOT owner-scoped — the
+// admin single-revoke, gated by requireAdmin at the handler. Idempotent.
+func (f *fakeStore) RevokeSessionByIDForAdmin(_ context.Context, arg db.RevokeSessionByIDForAdminParams) error {
+	for i := range f.sessions {
+		if f.sessions[i].ID == arg.ID && !f.sessions[i].RevokedAt.Valid {
+			f.sessions[i].RevokedAt = arg.RevokedAt
+			return nil
+		}
+	}
+	return nil
+}
+
 // --- tests -----------------------------------------------------------------
 
 func profileBase(t *testing.T) (*fakeStore, string, db.Account) {
@@ -123,7 +299,7 @@ func TestProfileRendersRealAccount(t *testing.T) {
 		"Profile", "Who you are", `value="ola"`, // identity
 		"Password &amp; two-factor", "two-factor off", "Enable two-factor", // credentials + 2FA status
 		"Signed in right now", // sessions
-		"Personal API tokens", "No personal tokens", // tokens empty state
+		"Personal API tokens", "You have no personal API tokens", // tokens empty state
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("profile missing %q; body: %s", want, got)
@@ -207,38 +383,39 @@ func TestProfileTokenDuplicateName(t *testing.T) {
 	}
 }
 
-// Revoke passes through the ConfirmDialog's typed-name gate: a wrong name leaves
-// the token in place with an error; the exact name deletes it.
-func TestProfileTokenRevokeTypedNameGate(t *testing.T) {
+// Revoke is a plain danger ConfirmDialog (SPEC-CHANGE #18): the dialog names the token
+// and confirms with a single danger action — no typed-name gate — and a confirm POST
+// deletes it, carrying the "Token revoked" toast (Profile.jsx:150) on the redirect.
+func TestProfileTokenRevokePlainConfirm(t *testing.T) {
 	f, base, acct := profileBase(t)
 	c := login(t, base, "ola", "hunter2hunter2")
 	tok, _ := f.CreatePersonalToken(t.Context(), db.CreatePersonalTokenParams{
 		AccountID: acct.ID, Name: "grafana", Prefix: "vg_pat_x81m…", TokenHash: "h",
 	})
 
-	// The revoke control is a link to the confirm dialog, never a direct POST.
+	// The revoke control is a link to the confirm dialog, never a direct POST. The dialog
+	// names its target but no longer collects a typed confirmation.
 	dialog := getBody(t, c, base+"/profile?revoke="+strconv.FormatInt(tok.ID, 10), http.StatusOK)
-	if !strings.Contains(dialog, "Revoke grafana") || !strings.Contains(dialog, "confirm_name") {
-		t.Fatalf("revoke ConfirmDialog with typed-name gate not shown; body: %s", dialog)
+	if !strings.Contains(dialog, "Revoke grafana") {
+		t.Fatalf("revoke ConfirmDialog not shown; body: %s", dialog)
+	}
+	if strings.Contains(dialog, "confirm_name") {
+		t.Fatalf("typed-name gate should be dropped from the token-revoke dialog (#18); body: %s", dialog)
 	}
 
-	// A mismatched name does not revoke.
-	resp := postForm(t, c, base+"/profile/tokens/revoke", url.Values{"id": {strconv.FormatInt(tok.ID, 10)}, "confirm_name": {"wrong"}})
-	if got := body(t, resp); !strings.Contains(got, "did not match") {
-		t.Fatalf("typed-name mismatch not reported; body: %s", got)
-	}
-	if len(f.personalTokens) != 1 {
-		t.Fatalf("token revoked on mismatch; count=%d", len(f.personalTokens))
-	}
-
-	// The exact name revokes it.
-	resp = postForm(t, c, base+"/profile/tokens/revoke", url.Values{"id": {strconv.FormatInt(tok.ID, 10)}, "confirm_name": {"grafana"}})
+	// Confirming the plain dialog (id only) revokes the token and redirects with the toast.
+	resp := postForm(t, c, base+"/profile/tokens/revoke", url.Values{"id": {strconv.FormatInt(tok.ID, 10)}})
+	loc := resp.Header.Get("Location")
 	resp.Body.Close()
-	if resp.StatusCode != http.StatusSeeOther {
-		t.Fatalf("revoke on match: status=%d, want 303", resp.StatusCode)
+	if resp.StatusCode != http.StatusSeeOther || !strings.HasPrefix(loc, "/profile?toast=") {
+		t.Fatalf("revoke: status=%d loc=%q, want 303 to /profile?toast=…", resp.StatusCode, loc)
+	}
+	toast := decodeToast(t, loc)
+	if toast["tone"] != "neutral" || toast["title"] != "Token revoked" || toast["description"] != "grafana" {
+		t.Fatalf("token-revoke toast = %+v, want neutral/Token revoked/grafana", toast)
 	}
 	if len(f.personalTokens) != 0 {
-		t.Fatalf("token not revoked on match; count=%d", len(f.personalTokens))
+		t.Fatalf("token not revoked; count=%d", len(f.personalTokens))
 	}
 }
 

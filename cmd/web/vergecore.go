@@ -25,10 +25,20 @@ type freqRow struct {
 	EditAction    string
 }
 
-// sensRow is one read-only sensitive pair.
+// sensRow is one read-only sensitive pair. Service is the release-authored display
+// label for the port (#26c) — the sensitive tier is a fixed set, so the label is a
+// known-service lookup, empty for a pair with no authored label (the chip collapses).
 type sensRow struct {
 	Port      int
 	Transport string
+	Service   string
+}
+
+// sensitiveServiceLabels names the release-authored sensitive tier's ports for the
+// aperture chips. The sensitive tier is fixed and moves only with the release, so
+// these labels are static; a port with no entry renders no label.
+var sensitiveServiceLabels = map[int]string{
+	21: "ftp", 23: "telnet", 445: "smb", 1433: "mssql", 3389: "rdp", 5900: "vnc",
 }
 
 func (s *server) vergeCorePage(w http.ResponseWriter, r *http.Request, acct db.Account) {
@@ -55,13 +65,13 @@ func (s *server) editVergeCoreFrequency(w http.ResponseWriter, r *http.Request, 
 	switch action {
 	case "add", "remove":
 		if err := s.store.UpsertVergeCoreFrequencyEdit(r.Context(), db.UpsertVergeCoreFrequencyEditParams{
-			Port: int32(port), Action: action, CreatedBy: acct.ID,
+			Port: int32(port), Action: action, CreatedBy: acct.ID, // #nosec G109 (port validated 1..65535 above)
 		}); err != nil {
 			s.serverError(w, "upsert verge-core frequency edit", err)
 			return
 		}
 	case "reset":
-		if err := s.store.DeleteVergeCoreFrequencyEdit(r.Context(), int32(port)); err != nil {
+		if err := s.store.DeleteVergeCoreFrequencyEdit(r.Context(), int32(port)); err != nil { // #nosec G109 (port validated 1..65535 above)
 			s.serverError(w, "delete verge-core frequency edit", err)
 			return
 		}

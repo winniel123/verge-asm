@@ -8,11 +8,19 @@ import (
 	"testing"
 )
 
+// The cold-tier opt-in relocated from /scope to Settings → Scans (#21d): the act posts
+// /settings/cold and the region renders under /settings?tab=scans.
 func setColdScope(t *testing.T, c *http.Client, base string, id int64, optIn bool) *http.Response {
 	t.Helper()
-	return postForm(t, c, base+"/seeds/cold", url.Values{
+	return postForm(t, c, base+"/settings/cold", url.Values{
 		"id": {strconv.FormatInt(id, 10)}, "opt_in": {strconv.FormatBool(optIn)},
 	})
+}
+
+// coldBody reads the Settings → Scans tab, where the cold-tier region now lives.
+func coldBody(t *testing.T, c *http.Client, base string) string {
+	t.Helper()
+	return getBody(t, c, base+"/settings?tab=scans", http.StatusOK)
 }
 
 func coldScanEnabled(f *fakeStore) bool {
@@ -41,14 +49,14 @@ func TestColdScanOptInEnablesPerScope(t *testing.T) {
 	if coldScanEnabled(f) {
 		t.Fatalf("cold Scan enabled on a fresh install, want disabled")
 	}
-	page := seedsBody(t, ac, base)
+	page := coldBody(t, ac, base)
 	if !strings.Contains(page, "tier off") || !strings.Contains(page, "Opt in") {
 		t.Errorf("cold tier not shown off with an opt-in control; body: %s", page)
 	}
 
 	// Opt the scope in: the tier enables, and no scan is fired by the save.
 	resp := setColdScope(t, ac, base, id, true)
-	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/scope" {
+	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/settings?tab=scans" {
 		t.Fatalf("opt in cold scope: status=%d location=%q", resp.StatusCode, resp.Header.Get("Location"))
 	}
 	resp.Body.Close()
@@ -65,7 +73,7 @@ func TestColdScanOptInEnablesPerScope(t *testing.T) {
 			len(f.batches), len(f.observations))
 	}
 
-	page = seedsBody(t, ac, base)
+	page = coldBody(t, ac, base)
 	if !strings.Contains(page, "tier on") || !strings.Contains(page, "opted in") || !strings.Contains(page, "Opt out") {
 		t.Errorf("opted-in tier not reflected with an opt-out control; body: %s", page)
 	}
@@ -97,7 +105,9 @@ func TestColdScanOptInAddressScope(t *testing.T) {
 	}
 }
 
-// A viewer can read the cold-tier state but never move it.
+// A viewer can never move the cold tier. Since the region relocated to the admin-only
+// Settings surface (#21d), a viewer is denied both the opt-in POST and the settings read;
+// the viewer-facing read is Settings' concern at map #21.
 func TestViewerCannotOptIntoColdTier(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -118,12 +128,11 @@ func TestViewerCannotOptIntoColdTier(t *testing.T) {
 		t.Fatalf("viewer's denied act still enabled the cold tier")
 	}
 
-	page := seedsBody(t, vc, base)
-	if !strings.Contains(page, "full-range scan") && !strings.Contains(page, "Full-range") {
-		t.Errorf("viewer cannot see the cold-tier section; body: %s", page)
-	}
-	if strings.Contains(page, `action="/seeds/cold"`) {
-		t.Errorf("cold opt-in control shown to a viewer; body: %s", page)
+	// The Settings surface hosting the region is admin-only, so a viewer is bounced.
+	resp = get(t, vc, base+"/settings?tab=scans")
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusForbidden {
+		t.Errorf("viewer reached the admin-only cold-tier surface: status=%d, want 403", resp.StatusCode)
 	}
 }
 
