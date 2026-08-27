@@ -128,8 +128,9 @@ type InstanceConfig struct {
 }
 
 type IntegrationState struct {
-	Slug  string `json:"slug"`
-	State string `json:"state"`
+	Slug      string      `json:"slug"`
+	State     string      `json:"state"`
+	ChannelID pgtype.Int8 `json:"channel_id"`
 }
 
 type Invite struct {

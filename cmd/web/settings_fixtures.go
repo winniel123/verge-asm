@@ -320,14 +320,29 @@ type sfDrawer struct {
 	Installed    string    `json:"installed"`
 	LastDelivery string    `json:"last_delivery"`
 	Classes      string    `json:"classes"`
+	// BoundChannel (#39b) is the id of the delivery Channel this integration is bound
+	// to — matched against an IntChannels option Value so the drawer's select renders it
+	// selected; "" is unbound (Not connected), which gates "Send test" off.
+	BoundChannel string `json:"bound_channel"`
+}
+
+// sfIntChannel is one option of the drawer's "Delivery channel" select (#39b): the
+// fixtures' integrations.channels slice, stamped verbatim into .IntChannels[{Value,
+// Label,Hint}]. The fixture is the exact demo corpus this render reproduces.
+type sfIntChannel struct {
+	Value string `json:"value"`
+	Label string `json:"label"`
+	Hint  string `json:"hint"`
 }
 
 type sfIntegrations struct {
-	Cats   []string `json:"cats"`
-	Cat    string   `json:"cat"`
-	Q      string   `json:"q"`
-	Tiles  []sfTile `json:"tiles"`
-	Drawer sfDrawer `json:"drawer_fixture"`
+	Cats          []string       `json:"cats"`
+	Cat           string         `json:"cat"`
+	Q             string         `json:"q"`
+	Tiles         []sfTile       `json:"tiles"`
+	Channels      []sfIntChannel `json:"channels"`
+	Drawer        sfDrawer       `json:"drawer_fixture"`
+	DrawerUnbound sfDrawer       `json:"drawer_unbound_fixture"`
 }
 
 type sfCensus struct {
@@ -554,8 +569,20 @@ func (s *server) settingsFixtureData(acct db.Account, r *http.Request) map[strin
 		data["IntCat"] = fx.Integrations.Cat
 		data["IntQ"] = fx.Integrations.Q
 		data["Integrations"] = fx.Integrations.Tiles
-		if id := q.Get("view"); id != "" && id == fx.Integrations.Drawer.ID {
-			data["IntDrawer"] = fx.Integrations.Drawer
+		// The drawer's "Delivery channel" select options (#39b) — the same slice for
+		// every drawer; only used inside {{with .IntDrawer}}, so the base tab render is
+		// unchanged.
+		data["IntChannels"] = fx.Integrations.Channels
+		// The spec drawer (?view=<id>): pagerduty is the bound fixture, slack the freshly-
+		// installed unbound fixture. Each carries its own bound_channel, so the select
+		// renders the right option selected (or "Not connected") and gates "Send test".
+		if id := q.Get("view"); id != "" {
+			switch id {
+			case fx.Integrations.Drawer.ID:
+				data["IntDrawer"] = fx.Integrations.Drawer
+			case fx.Integrations.DrawerUnbound.ID:
+				data["IntDrawer"] = fx.Integrations.DrawerUnbound
+			}
 		}
 	case "messages":
 		data["Messages"] = fx.Messages

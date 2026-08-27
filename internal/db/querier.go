@@ -289,6 +289,10 @@ type Querier interface {
 	// off the running server — pg_database_size over the current database, and the
 	// server_version setting. Both are Operational host facts; this touches no estate corpus.
 	GetInstanceHealth(ctx context.Context) (GetInstanceHealthRow, error)
+	// The delivery Channel one integration is bound to (nullable — NULL is unbound). The
+	// Send-test handler reads this to resolve where the test payload goes; an unbound
+	// integration has nothing to send through.
+	GetIntegrationChannel(ctx context.Context, slug string) (pgtype.Int8, error)
 	// Resolve a presented invite token to its row by hash. Validity (unconsumed,
 	// unexpired) is checked in the handler against the server clock rather than SQL
 	// now(), matching every other auth read's use of the injectable clock.
@@ -643,9 +647,10 @@ type Querier interface {
 	// Scan's Custody derivation: an address a name in one of these zones resolves to
 	// derives operator by extension (ADR-0013 §3).
 	ListExtendedZoneDomains(ctx context.Context) ([]pgtype.Text, error)
-	// The operator's install states, merged by the handler onto the in-binary
-	// integration catalogue: an integration's effective state is its stored state
-	// where a row exists and available (not installed) otherwise.
+	// The operator's install states and their bound delivery Channel, merged by the
+	// handler onto the in-binary integration catalogue: an integration's effective state
+	// is its stored state where a row exists and available (not installed) otherwise, and
+	// its bound Channel (nullable — NULL is unbound) fills the drawer's BoundChannel hole.
 	ListIntegrationStates(ctx context.Context) ([]IntegrationState, error)
 	// The per-job detail for one Dispatch — the progress drill-down (#245). Ordered by
 	// id so a retried attempt reads immediately before the fresh job that replaced it.
@@ -1113,6 +1118,11 @@ type Querier interface {
 	// Scoped to a still-'fanned-out' dispatch so a second submit or a natural conclusion
 	// cannot overwrite a recorded terminal status.
 	SetDispatchStatus(ctx context.Context, arg SetDispatchStatusParams) error
+	// Bind an installed integration to a delivery Channel, or clear the binding (a NULL
+	// channel_id unbinds). Only an installed integration has a row to update; binding an
+	// integration with no row is a no-op (an available integration cannot bind, and the
+	// drawer offers it no channel select).
+	SetIntegrationChannel(ctx context.Context, arg SetIntegrationChannelParams) error
 	// Record the last backup taken from the UI (#391): its instant (now()) and byte size,
 	// surfaced on the Backup card.
 	SetLastBackup(ctx context.Context, lastBackupSize pgtype.Int8) error
@@ -1219,7 +1229,10 @@ type Querier interface {
 	// Record the operator's install choice for one integration. An install is a
 	// Declared act with no timeline, no actor, and no instant of its own (ADR-0073,
 	// ADR-0093), so re-installing overwrites the single current state and the row
-	// holds only the current install state.
+	// holds only the current install state. The channel binding is NOT touched here:
+	// a re-install keeps whatever delivery Channel the integration was bound to (the
+	// ON CONFLICT omits channel_id, leaving the existing value in place), and a first
+	// install lands unbound (channel_id defaults NULL).
 	UpsertIntegrationState(ctx context.Context, arg UpsertIntegrationStateParams) (IntegrationState, error)
 	// Record the operator's on/off choice for one source. A toggle is a Declared act
 	// with no timeline, no actor, and no instant of its own (ADR-0073, ADR-0093), so

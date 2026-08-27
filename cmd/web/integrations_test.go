@@ -7,6 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
@@ -21,7 +24,12 @@ func (f *fakeStore) ListIntegrationStates(context.Context) ([]db.IntegrationStat
 }
 
 func (f *fakeStore) UpsertIntegrationState(_ context.Context, arg db.UpsertIntegrationStateParams) (db.IntegrationState, error) {
+	// Re-install keeps the existing channel binding (the real ON CONFLICT omits
+	// channel_id), so mirror that: preserve any bound Channel on the prior row.
 	st := db.IntegrationState{Slug: arg.Slug, State: arg.State}
+	if prev, ok := f.integrationStates[arg.Slug]; ok {
+		st.ChannelID = prev.ChannelID
+	}
 	f.integrationStates[arg.Slug] = st
 	return st, nil
 }
@@ -29,6 +37,35 @@ func (f *fakeStore) UpsertIntegrationState(_ context.Context, arg db.UpsertInteg
 func (f *fakeStore) DeleteIntegrationState(_ context.Context, slug string) error {
 	delete(f.integrationStates, slug)
 	return nil
+}
+
+func (f *fakeStore) GetIntegrationChannel(_ context.Context, slug string) (pgtype.Int8, error) {
+	st, ok := f.integrationStates[slug]
+	if !ok {
+		return pgtype.Int8{}, pgx.ErrNoRows
+	}
+	return st.ChannelID, nil
+}
+
+func (f *fakeStore) SetIntegrationChannel(_ context.Context, arg db.SetIntegrationChannelParams) error {
+	// Only an installed integration has a row to bind; binding one with no row is a
+	// no-op, exactly as the WHERE slug = $1 UPDATE touches nothing.
+	st, ok := f.integrationStates[arg.Slug]
+	if !ok {
+		return nil
+	}
+	st.ChannelID = arg.ChannelID
+	f.integrationStates[arg.Slug] = st
+	return nil
+}
+
+func (f *fakeStore) GetChannelForDelivery(_ context.Context, id int64) (db.GetChannelForDeliveryRow, error) {
+	for _, c := range f.channels {
+		if c.id == id {
+			return db.GetChannelForDeliveryRow{Url: c.url, Secret: c.secret}, nil
+		}
+	}
+	return db.GetChannelForDeliveryRow{}, pgx.ErrNoRows
 }
 
 // --- helpers ----------------------------------------------------------------
@@ -248,15 +285,23 @@ func TestIntegrationsDrawerRemoveAndTest(t *testing.T) {
 	// Install so there is something to remove.
 	postForm(t, ac, base+"/settings/integrations/install", url.Values{"slug": {"slack"}}).Body.Close()
 
-	// The installed tile's drawer (?view=) carries the Remove and Send-test forms.
+	// The installed tile's drawer (?view=) carries the Remove act and the Send-test
+	// affordance. Freshly installed it is unbound (no delivery Channel), so Send test is
+	// gated OFF — the disabled button with the "connect a channel" hint, not an active
+	// POST form (#39b: Send test is gated on a delivery-Channel binding). The active
+	// test form and its bound behaviour are covered in integrations_channel_test.go.
 	drawer := integrationsBody(t, ac, base, "&view=slack")
 	for _, want := range []string{
-		`action="/settings/integrations/remove"`, `action="/settings/integrations/test"`,
-		`name="id" value="slack"`, "Remove", "Send test",
+		`action="/settings/integrations/remove"`,
+		`name="id" value="slack"`, "Remove", "Send test", "Connect a channel to test",
 	} {
 		if !strings.Contains(drawer, want) {
 			t.Errorf("installed drawer missing %q; body: %s", want, drawer)
 		}
+	}
+	// Unbound, there is no active Send-test POST form.
+	if strings.Contains(drawer, `action="/settings/integrations/test"`) {
+		t.Errorf("an unbound integration offered an active Send-test form; body: %s", drawer)
 	}
 
 	// An available integration's drawer offers Install, not Remove.

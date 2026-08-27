@@ -110,6 +110,16 @@ type store interface {
 	ListIntegrationStates(ctx context.Context) ([]db.IntegrationState, error)
 	UpsertIntegrationState(ctx context.Context, arg db.UpsertIntegrationStateParams) (db.IntegrationState, error)
 	DeleteIntegrationState(ctx context.Context, slug string) error
+	// GetIntegrationChannel / SetIntegrationChannel read and write an installed
+	// integration's bound delivery Channel (nullable — NULL is unbound). The binding
+	// is a reference to a Channel, not a fold of one (#39b): the drawer's channel
+	// select writes it, the Send-test act reads it to resolve where a test goes.
+	GetIntegrationChannel(ctx context.Context, slug string) (pgtype.Int8, error)
+	SetIntegrationChannel(ctx context.Context, arg db.SetIntegrationChannelParams) error
+	// GetChannelForDelivery reads a Channel's target URL and signing secret — the ONE
+	// read path that returns the secret. The Send-test act needs it to sign the test
+	// payload it POSTs through the bound Channel's transport (delivery.SendSigned).
+	GetChannelForDelivery(ctx context.Context, id int64) (db.GetChannelForDeliveryRow, error)
 	CreateVantage(ctx context.Context, arg db.CreateVantageParams) (db.Vantage, error)
 	ListVantages(ctx context.Context) ([]db.ListVantagesRow, error)
 	ListUnavailableVantages(ctx context.Context) ([]db.ListUnavailableVantagesRow, error)
@@ -401,6 +411,15 @@ type server struct {
 	// identity provider. newServer defaults it to the real flow.
 	sso ssoFlow
 
+	// channelSender is the Integrations "Send test" egress seam (#39b, P0.14). It POSTs
+	// one signed test payload through a bound Channel's transport using the delivery
+	// package's shared SSRF-guarded path (delivery.SendSigned) — the exact transport the
+	// delivery and report-notify runners use, so a test ride is guarded identically and
+	// no second HTTP client exists. newServer defaults it to the hardened, redirect-
+	// refusing production sender; tests inject a fake Doer so a Send-test assertion never
+	// touches the live network.
+	channelSender channelTestSender
+
 	// dispatcher is the on-demand scan-trigger seam (#252). main.go wires the real
 	// queue Dispatcher over the pool; it enqueues the same fan-out the CLI -trigger
 	// path uses and pg_notifies the running worker. Tests inject a fake so a trigger
@@ -496,6 +515,7 @@ func newServer(s store, key []byte, setupToken string, now func() time.Time) *se
 		seedAddressCap: seed.DefaultAddressCap,
 		proposer:       proposer.DefaultRegistry(&http.Client{Timeout: 30 * time.Second}),
 		sso:            newOIDCFlow(&http.Client{Timeout: 30 * time.Second}),
+		channelSender:  newHTTPChannelSender(now),
 		loginLimiter:   newLoginLimiter(now),
 		flash:          newFlashStore(),
 		restoreStage:   make(map[int64]*restoreStaging),
@@ -905,6 +925,9 @@ func (s *server) handler() http.Handler {
 		mux.HandleFunc("POST /settings/integrations/remove", s.requireAdmin(s.removeIntegration))
 		mux.HandleFunc("POST /settings/integrations/disconnect", s.requireAdmin(s.removeIntegration))
 		mux.HandleFunc("POST /settings/integrations/test", s.requireAdmin(s.testIntegration))
+		// channel binds/clears the integration's delivery Channel (#39b): the drawer's
+		// "Delivery channel" select posts {id,channel} here, and test rides the binding.
+		mux.HandleFunc("POST /settings/integrations/channel", s.requireAdmin(s.bindIntegrationChannel))
 	}
 
 	// Dev-only pixel-parity harness routes (devfixtures.go), registered only in a
