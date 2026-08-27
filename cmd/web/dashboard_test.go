@@ -31,6 +31,7 @@ func TestDashboardParityRegions(t *testing.T) {
 		Username:     pgtype.Text{String: "verge", Valid: true},
 		Availability: pgtype.Text{String: "available", Valid: true},
 		LatencyMs:    pgtype.Int4{Int32: 34, Valid: true},
+		DialledAddr:  classPresentedDialled("internet"),
 		CreatedBy:    pgtype.Int8{Int64: admin.ID, Valid: true},
 	})
 	f.vantageNextID++
@@ -42,6 +43,7 @@ func TestDashboardParityRegions(t *testing.T) {
 		Port:         pgtype.Int4{Int32: 22, Valid: true},
 		Username:     pgtype.Text{String: "verge", Valid: true},
 		Availability: pgtype.Text{String: "pending", Valid: true},
+		DialledAddr:  classPresentedDialled("internet"),
 		CreatedBy:    pgtype.Int8{Int64: admin.ID, Valid: true},
 	})
 	f.vantageNextID++

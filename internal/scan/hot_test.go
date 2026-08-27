@@ -21,13 +21,25 @@ func operatorEstate() custody.Estate {
 	}
 }
 
+// internetVantage / internalVantage build a Vantage whose class the hot/cold Scans now
+// DERIVE per batch from its presented dialled address against operatorEstate's scopes
+// (#709), rather than a stored column: 203.0.113.1 is covered by no scope → `internet`,
+// 10.0.0.9 is inside 10.0.0.0/8 → `internal`.
+func internetVantage(id int64, name string) Vantage {
+	return Vantage{ID: id, Name: name, Dialled: "203.0.113.1"}
+}
+
+func internalVantage(id int64, name string) Vantage {
+	return Vantage{ID: id, Name: name, Dialled: "10.0.0.9"}
+}
+
 // The whole of the gate: a third-party address is never handed to a prober, on
 // no port, from no Vantage. This is the load-bearing safety assertion (ADR-0019).
 func TestBuildHotJobsNeverProbesThirdParty(t *testing.T) {
 	estate := operatorEstate()
 	third := "8.8.4.4" // covered by no Seed — third-party
 	addrs := []netip.Addr{addr("93.184.216.10"), addr(third)}
-	vantages := []Vantage{{ID: 1, Name: "internet-a", Class: string(custody.ClassInternet)}}
+	vantages := []Vantage{internetVantage(1, "internet-a")}
 
 	jobs := BuildHotJobs(7, estate, addrs, vantages, vergecore.Default())
 	if len(jobs) != 1 {
@@ -52,12 +64,12 @@ func TestBuildHotJobsDenotationGate(t *testing.T) {
 	priv := "10.0.0.5" // operator by address scope, non-globally-reachable
 	addrs := []netip.Addr{addr(priv)}
 
-	internet := []Vantage{{ID: 1, Name: "net", Class: string(custody.ClassInternet)}}
+	internet := []Vantage{internetVantage(1, "net")}
 	if jobs := BuildHotJobs(1, estate, addrs, internet, vergecore.Default()); len(jobs) != 0 {
 		t.Errorf("a private address must not be probed from an internet-class vantage, got %d jobs", len(jobs))
 	}
 
-	internal := []Vantage{{ID: 2, Name: "lan", Class: string(custody.ClassInternal)}}
+	internal := []Vantage{internalVantage(2, "lan")}
 	jobs := BuildHotJobs(1, estate, addrs, internal, vergecore.Default())
 	if len(jobs) != 1 || len(jobs[0].Addresses) != 1 {
 		t.Fatalf("a private address must be probed from an internal-class vantage, got %d jobs", len(jobs))
@@ -69,7 +81,7 @@ func TestBuildHotJobsDenotationGate(t *testing.T) {
 func TestBuildHotJobsCarriesVergeCore(t *testing.T) {
 	estate := operatorEstate()
 	addrs := []netip.Addr{addr("93.184.216.10")}
-	vantages := []Vantage{{ID: 1, Name: "net", Class: string(custody.ClassInternet)}}
+	vantages := []Vantage{internetVantage(1, "net")}
 	core := vergecore.Default()
 
 	jobs := BuildHotJobs(1, estate, addrs, vantages, core)
@@ -107,7 +119,7 @@ func TestBuildHotJobsCarriesVergeCore(t *testing.T) {
 // Empty inputs are legible: no addresses, or no vantages, yields no jobs.
 func TestBuildHotJobsEmptyIsLegible(t *testing.T) {
 	estate := operatorEstate()
-	v := []Vantage{{ID: 1, Name: "net", Class: string(custody.ClassInternet)}}
+	v := []Vantage{internetVantage(1, "net")}
 	if jobs := BuildHotJobs(1, estate, nil, v, vergecore.Default()); jobs != nil {
 		t.Errorf("no addresses should yield no jobs, got %d", len(jobs))
 	}

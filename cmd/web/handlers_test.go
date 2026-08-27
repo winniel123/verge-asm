@@ -546,7 +546,12 @@ func (f *fakeStore) ListSeeds(context.Context) ([]db.ListSeedsRow, error) {
 
 // ListAddressScopeCidrs returns the declared address-scope Seed CIDRs — the corpus the
 // Vantage-class coverage predicate binds over (#711), mirroring the SQL (kind='address'
-// AND address_cidr IS NOT NULL, ordered by id).
+// AND address_cidr IS NOT NULL). It also appends a fixed 10.0.0.0/8 convention scope so
+// the class-derivation fixtures (classPresentedDialled) reproduce `internal` for a
+// covered dialled address without every test having to declare a scope of its own; the
+// real declared seeds are still returned, so a test that declares its own scope is
+// honoured too. Coverage-semantics tests bypass this fake and exercise
+// custody.CoversAddressScope / vantageclass directly.
 func (f *fakeStore) ListAddressScopeCidrs(context.Context) ([]*netip.Prefix, error) {
 	out := []*netip.Prefix{}
 	for _, s := range f.seeds {
@@ -554,6 +559,8 @@ func (f *fakeStore) ListAddressScopeCidrs(context.Context) ([]*netip.Prefix, err
 			out = append(out, s.AddressCidr)
 		}
 	}
+	conv := netip.MustParsePrefix("10.0.0.0/8")
+	out = append(out, &conv)
 	return out, nil
 }
 
@@ -663,6 +670,7 @@ func (f *fakeStore) ListVantages(context.Context) ([]db.ListVantagesRow, error) 
 			Host: v.Host, Port: v.Port, Username: v.Username,
 			Availability: v.Availability, PublicKey: v.PublicKey, HostKey: v.HostKey,
 			CreatedBy: v.CreatedBy, CreatedAt: v.CreatedAt, LatencyMs: v.LatencyMs,
+			Platform: v.Platform, Egress: v.Egress, DialledAddr: v.DialledAddr,
 			CreatedByUsername: f.accounts[v.CreatedBy.Int64].Username,
 		})
 	}
@@ -1631,29 +1639,33 @@ func (f *fakeStore) addClassReachability(t *testing.T, serviceKey, class string,
 	f.obsNextID++
 }
 
-// reachClassKey is one (Service, Vantage class) reachability leg.
-type reachClassKey struct{ svc, class string }
+// reachVantageKey is one (Service, Vantage) reachability leg — the per-vantage grain the
+// by-class read now returns (class is DERIVED in the Go fold from the vantage's presented
+// facts, #709), not the pre-collapsed (Service, class).
+type reachVantageKey struct {
+	svc     string
+	vantage int64
+}
 
-// currentReachByClass folds the fake's reachability observations into the current
-// value per (Service, class) — the span corpus's current-state read, which is NOT
+// currentReachByVantage folds the fake's reachability observations into the current
+// value per (Service, VANTAGE) — the span corpus's current-state read, which is NOT
 // live-tier-gated (spans are the already-derived timeline, ADR-0041), so it folds
 // every observation rather than only the live ones. is_gap is derived from the
 // value's outcome, exactly as the real fold's isGapValue reads it (ADR-0104).
-func (f *fakeStore) currentReachByClass() map[reachClassKey]db.Observation {
-	classOf := map[int64]string{}
+func (f *fakeStore) currentReachByVantage() map[reachVantageKey]db.Observation {
+	known := map[int64]bool{}
 	for _, v := range f.vantages {
-		classOf[v.ID] = v.Class
+		known[v.ID] = true
 	}
-	latest := map[reachClassKey]db.Observation{}
+	latest := map[reachVantageKey]db.Observation{}
 	for _, o := range f.observations {
 		if o.SubjectKind != "service" || o.Facet != "reachability" || !o.VantageID.Valid {
 			continue
 		}
-		class, ok := classOf[o.VantageID.Int64]
-		if !ok {
+		if !known[o.VantageID.Int64] {
 			continue
 		}
-		k := reachClassKey{o.SubjectKey, class}
+		k := reachVantageKey{o.SubjectKey, o.VantageID.Int64}
 		cur, ok := latest[k]
 		if !ok || o.ObservedAt.Time.After(cur.ObservedAt.Time) ||
 			(o.ObservedAt.Time.Equal(cur.ObservedAt.Time) && o.ID > cur.ID) {
@@ -1673,16 +1685,20 @@ func reachOutcomeIsGap(value []byte) bool {
 
 func (f *fakeStore) ListServiceReachabilitySpansByClass(_ context.Context) ([]db.ListServiceReachabilitySpansByClassRow, error) {
 	rows := []db.ListServiceReachabilitySpansByClassRow{}
-	for k, o := range f.currentReachByClass() {
+	for k, o := range f.currentReachByVantage() {
+		v := f.vantageByID(k.vantage)
 		rows = append(rows, db.ListServiceReachabilitySpansByClassRow{
-			SubjectKey: k.svc, Class: k.class, Value: o.Value, IsGap: reachOutcomeIsGap(o.Value),
+			SubjectKey: k.svc, VantageID: pgtype.Int8{Int64: k.vantage, Valid: true},
+			Value: o.Value, IsGap: reachOutcomeIsGap(o.Value),
+			OpenedAt: o.ObservedAt, ID: o.ID,
+			Host: v.Host, Egress: v.Egress, DialledAddr: v.DialledAddr,
 		})
 	}
 	sort.Slice(rows, func(i, j int) bool {
 		if rows[i].SubjectKey != rows[j].SubjectKey {
 			return rows[i].SubjectKey < rows[j].SubjectKey
 		}
-		return rows[i].Class < rows[j].Class
+		return rows[i].VantageID.Int64 < rows[j].VantageID.Int64
 	})
 	return rows, nil
 }
@@ -1871,9 +1887,9 @@ func (f *fakeStore) ListSubjectFirstAppearances(_ context.Context, since pgtype.
 // observations. It picks, per (service, class), the most-recently-opened span whose
 // interval covers @at, so the exposure delta projects the legs as they stood a batch ago.
 func (f *fakeStore) ListServiceReachabilitySpansByClassAt(_ context.Context, at pgtype.Timestamptz) ([]db.ListServiceReachabilitySpansByClassAtRow, error) {
-	classOf := map[int64]string{}
+	known := map[int64]bool{}
 	for _, v := range f.vantages {
-		classOf[v.ID] = v.Class
+		known[v.ID] = true
 	}
 	type tlkey struct {
 		svc     string
@@ -1884,7 +1900,7 @@ func (f *fakeStore) ListServiceReachabilitySpansByClassAt(_ context.Context, at 
 		if o.SubjectKind != "service" || o.Facet != "reachability" || !o.VantageID.Valid {
 			continue
 		}
-		if _, ok := classOf[o.VantageID.Int64]; !ok {
+		if !known[o.VantageID.Int64] {
 			continue
 		}
 		k := tlkey{o.SubjectKey, o.VantageID.Int64}
@@ -1894,11 +1910,13 @@ func (f *fakeStore) ListServiceReachabilitySpansByClassAt(_ context.Context, at 
 		})
 	}
 
-	type ck struct{ svc, class string }
-	best := map[ck]drift.Span{}
+	// One per-vantage row carrying the most-recently-opened span whose interval covers
+	// @at, plus the vantage's presented facts — the class is DERIVED and re-collapsed
+	// per (service, class) in the Go fold now (#709), not here.
+	rows := []db.ListServiceReachabilitySpansByClassAtRow{}
 	for k, readings := range byKey {
-		class := classOf[k.vantage]
 		key := drift.TimelineKey{SubjectKind: "service", SubjectKey: k.svc, Facet: "reachability"}
+		var chosen *drift.Span
 		for _, s := range drift.Fold(key, readings) {
 			if s.OpenedAt.After(at.Time) {
 				continue
@@ -1906,31 +1924,34 @@ func (f *fakeStore) ListServiceReachabilitySpansByClassAt(_ context.Context, at 
 			if !s.ClosedAt.IsZero() && !s.ClosedAt.After(at.Time) {
 				continue
 			}
-			c := ck{k.svc, class}
-			if cur, ok := best[c]; !ok || s.OpenedAt.After(cur.OpenedAt) {
-				best[c] = s
+			if chosen == nil || s.OpenedAt.After(chosen.OpenedAt) {
+				sp := s
+				chosen = &sp
 			}
 		}
-	}
-
-	rows := []db.ListServiceReachabilitySpansByClassAtRow{}
-	for c, s := range best {
+		if chosen == nil {
+			continue
+		}
+		v := f.vantageByID(k.vantage)
 		rows = append(rows, db.ListServiceReachabilitySpansByClassAtRow{
-			SubjectKey: c.svc, Class: c.class, Value: []byte(s.Value), IsGap: s.IsGap,
+			SubjectKey: k.svc, VantageID: pgtype.Int8{Int64: k.vantage, Valid: true},
+			Value: []byte(chosen.Value), IsGap: chosen.IsGap,
+			OpenedAt: pgtype.Timestamptz{Time: chosen.OpenedAt, Valid: true}, ID: k.vantage,
+			Host: v.Host, Egress: v.Egress, DialledAddr: v.DialledAddr,
 		})
 	}
 	sort.Slice(rows, func(i, j int) bool {
 		if rows[i].SubjectKey != rows[j].SubjectKey {
 			return rows[i].SubjectKey < rows[j].SubjectKey
 		}
-		return rows[i].Class < rows[j].Class
+		return rows[i].VantageID.Int64 < rows[j].VantageID.Int64
 	})
 	return rows, nil
 }
 
 func (f *fakeStore) ListBlanketedReachServices(_ context.Context) ([]string, error) {
 	seen := map[string]struct{}{}
-	for k, o := range f.currentReachByClass() {
+	for k, o := range f.currentReachByVantage() {
 		if reachOutcomeIsGap(o.Value) {
 			seen[k.svc] = struct{}{}
 		}
@@ -2067,10 +2088,43 @@ func (f *fakeStore) FindCoveringAddressSeed(_ context.Context, address netip.Add
 // returns its id, so a resolution observation can be tied to a Vantage class the
 // Signals reads join against.
 func (f *fakeStore) addVantageClass(class string) int64 {
-	v := db.Vantage{ID: f.vantageNextID, Name: class + "-resolver", Class: class}
+	v := db.Vantage{
+		ID: f.vantageNextID, Name: class + "-resolver", Class: class,
+		// Class is DERIVED per read from the presented facts now (#709), so the fake
+		// stamps a dialled-address fact the derivation reproduces `class` from, under the
+		// fixed convention coverage ListAddressScopeCidrs returns.
+		DialledAddr: classPresentedDialled(class),
+	}
 	f.vantages = append(f.vantages, v)
 	f.vantageNextID++
 	return v.ID
+}
+
+// classPresentedDialled maps a Vantage class to a dialled-address fact from which the
+// class derivation (#709/#710) reproduces that class, given the fake's fixed convention
+// coverage (ListAddressScopeCidrs returns 10.0.0.0/8): an `internal` vantage presents a
+// covered address, an `internet` vantage an uncovered one, and any other class
+// (`unverified`) presents no fact so it derives `unverified`.
+func classPresentedDialled(class string) pgtype.Text {
+	switch class {
+	case "internet":
+		return pgtype.Text{String: "198.51.100.200", Valid: true}
+	case "internal":
+		return pgtype.Text{String: "10.200.0.1", Valid: true}
+	default:
+		return pgtype.Text{}
+	}
+}
+
+// vantageByID returns the fake's stored vantage row for id (its presented-address facts
+// feed the class derivation the by-class reads now carry), or a zero row if unknown.
+func (f *fakeStore) vantageByID(id int64) db.Vantage {
+	for _, v := range f.vantages {
+		if v.ID == id {
+			return v
+		}
+	}
+	return db.Vantage{}
 }
 
 // addClassResolution records a resolution observation at a Vantage of the given
@@ -2112,36 +2166,45 @@ func (f *fakeStore) vantageForClass(class string) int64 {
 }
 
 func (f *fakeStore) ListNameResolutionsByClass(_ context.Context, arg db.ListNameResolutionsByClassParams) ([]db.ListNameResolutionsByClassRow, error) {
-	classOf := map[int64]string{}
+	known := map[int64]bool{}
 	for _, v := range f.vantages {
-		classOf[v.ID] = v.Class
+		known[v.ID] = true
 	}
-	type key struct{ name, class string }
+	type key struct {
+		name    string
+		vantage int64
+	}
 	latest := map[key]db.Observation{}
 	for _, o := range f.liveObservations(arg.AsOf.Time) {
 		if o.SubjectKind != "name" || o.Facet != "resolution" || !o.VantageID.Valid {
 			continue
 		}
-		class, ok := classOf[o.VantageID.Int64]
-		if !ok {
+		if !known[o.VantageID.Int64] {
 			continue
 		}
-		k := key{o.SubjectKey, class}
+		k := key{o.SubjectKey, o.VantageID.Int64}
 		cur, ok := latest[k]
 		if !ok || o.ObservedAt.Time.After(cur.ObservedAt.Time) ||
 			(o.ObservedAt.Time.Equal(cur.ObservedAt.Time) && o.ID > cur.ID) {
 			latest[k] = o
 		}
 	}
+	// One per-vantage row carrying the resolution value plus the vantage's presented
+	// facts — class is DERIVED and re-collapsed per (name, class) in the Go fold now (#709).
 	rows := []db.ListNameResolutionsByClassRow{}
 	for k, o := range latest {
-		rows = append(rows, db.ListNameResolutionsByClassRow{SubjectKey: k.name, Class: k.class, Value: o.Value})
+		v := f.vantageByID(k.vantage)
+		rows = append(rows, db.ListNameResolutionsByClassRow{
+			SubjectKey: k.name, VantageID: pgtype.Int8{Int64: k.vantage, Valid: true},
+			Value: o.Value, ObservedAt: o.ObservedAt, ID: o.ID,
+			Host: v.Host, Egress: v.Egress, DialledAddr: v.DialledAddr,
+		})
 	}
 	sort.Slice(rows, func(i, j int) bool {
 		if rows[i].SubjectKey != rows[j].SubjectKey {
 			return rows[i].SubjectKey < rows[j].SubjectKey
 		}
-		return rows[i].Class < rows[j].Class
+		return rows[i].VantageID.Int64 < rows[j].VantageID.Int64
 	})
 	return rows, nil
 }
