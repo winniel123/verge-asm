@@ -1,6 +1,6 @@
 {
-  "leaf_version": "tls-handshake/v2",
-  "corpus_digest": "sha256:f2b37963ce821086a7c26034567790c379f96246112e3437dfda812a5b63dd5b",
+  "leaf_version": "tls-handshake/v3",
+  "corpus_digest": "sha256:c700dca513dea3623f8c06d0656a1af80d390a953115444fe60921b41efe19c9",
   "params_digest": "sha256:4cf011cbb2080c8b3756480375109d35c2c06a1378a32b56560947cf50ebd936",
   "uncovered_moves": null
 }
