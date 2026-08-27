@@ -3,12 +3,14 @@ package queue
 import (
 	"context"
 	"net/netip"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/drift"
 	"github.com/winniel123/verge-asm/internal/message"
 )
 
@@ -144,7 +146,7 @@ func TestProduceWritesFlagshipAndMembershipAndEnqueues(t *testing.T) {
 	changes, store := batchMovingBothSignals()
 	var log []routed
 
-	if err := produceMessages(context.Background(), store, 7, produceT0, changes, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 7, produceT0, changes, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 
@@ -206,7 +208,7 @@ func TestProduceIsNoOpUnderDevMode(t *testing.T) {
 	changes, store := batchMovingBothSignals()
 	var log []routed
 
-	if err := produceMessages(context.Background(), store, 7, produceT0, changes, membershipInputs{}, fakeEnqueuer(1, &log), true); err != nil {
+	if err := produceMessages(context.Background(), store, 7, produceT0, changes, nil, membershipInputs{}, fakeEnqueuer(1, &log), true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 
@@ -228,7 +230,7 @@ func TestProduceUnboundConfigMakesNoDelivery(t *testing.T) {
 	changes, store := batchMovingBothSignals()
 	var log []routed
 
-	if err := produceMessages(context.Background(), store, 7, produceT0, changes, membershipInputs{}, fakeEnqueuer(0, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 7, produceT0, changes, nil, membershipInputs{}, fakeEnqueuer(0, &log), false); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 
@@ -259,7 +261,7 @@ func TestProduceOpeningAtReachedIsNotFlagship(t *testing.T) {
 		current: []db.ListServiceReachabilitySpansByClassRow{internetReachRow(svc, "reached")},
 	}
 	var log []routed
-	if err := produceMessages(context.Background(), store, 1, produceT0, changes, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 1, produceT0, changes, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if len(store.inserted) != 0 {
@@ -280,10 +282,86 @@ func TestProduceInternalLegNeverFlagship(t *testing.T) {
 		at:      []db.ListServiceReachabilitySpansByClassAtRow{internalReachAtRow(svc, "not-reached")},
 	}
 	var log []routed
-	if err := produceMessages(context.Background(), store, 2, produceT0, changes, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 2, produceT0, changes, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if len(store.inserted) != 0 {
 		t.Errorf("an internal-leg move fires no flagship, got %d messages", len(store.inserted))
+	}
+}
+
+// A `descoped` departure — a Name the operator's own declared Exclusion narrowed out
+// of the estate — fires one coverage-class declared-input message that links to the
+// Exclusion as its Source and states the withdrawn subject and the count of timelines
+// it took out (AL-2, #722). This is the producer wire the "what fires" table promised
+// and that produce.go's openings/moves change-feed left dark.
+func TestProduceDescopedDepartureFiresDeclaredInput(t *testing.T) {
+	departures := []departure{
+		{SubjectKind: "name", SubjectKey: "old.example.com", Reason: string(drift.ReasonDescoped), SourceKey: "example.com", Timelines: 3},
+	}
+	store := &fakeMessageStore{}
+	var log []routed
+
+	if err := produceMessages(context.Background(), store, 9, produceT0, nil, departures, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+		t.Fatalf("produce: %v", err)
+	}
+
+	if len(store.inserted) != 1 {
+		t.Fatalf("want 1 declared-input message, got %d", len(store.inserted))
+	}
+	m := store.inserted[0]
+	if m.Cause != string(message.CauseDeclaredInput) || m.Class != string(message.ClassCoverage) {
+		t.Errorf("a descope is a declared-input / coverage firing, got cause=%q class=%q", m.Cause, m.Class)
+	}
+	if m.SubjectKind != "source" || m.FiredAt != "example.com" {
+		t.Errorf("the row links to the Exclusion as its Source, got kind=%q fired=%q", m.SubjectKind, m.FiredAt)
+	}
+	if !strings.Contains(m.Headline, "old.example.com") || !strings.Contains(m.Headline, "3 timelines") {
+		t.Errorf("the headline states the withdrawn subject and its timeline count, got %q", m.Headline)
+	}
+	if message.ContainsValence(m.Headline) {
+		t.Errorf("the headline carries a valence word: %q", m.Headline)
+	}
+	if len(log) != 1 || log[0].class != message.ClassCoverage {
+		t.Errorf("the message is routed on the coverage class, got %+v", log)
+	}
+}
+
+// A `measured-absent` departure — a Name the WORLD stopped resolving — is a drift
+// withdrawal, not the operator's declared input moving, so it fires NO declared-input
+// message (there is no drift-exit constructor, and the drift cause is already carried
+// by the flagship leg). It carries no SourceKey, so declaredInputMessages skips it.
+func TestProduceMeasuredAbsentDepartureFiresNoDeclaredInput(t *testing.T) {
+	departures := []departure{
+		{SubjectKind: "name", SubjectKey: "gone.example.com", Reason: string(drift.ReasonMeasuredAbsent), SourceKey: "", Timelines: 2},
+	}
+	store := &fakeMessageStore{}
+	var log []routed
+
+	if err := produceMessages(context.Background(), store, 10, produceT0, nil, departures, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+		t.Fatalf("produce: %v", err)
+	}
+	if len(store.inserted) != 0 {
+		t.Errorf("a world withdrawal fires no declared-input message, got %d", len(store.inserted))
+	}
+	if len(log) != 0 {
+		t.Errorf("a world withdrawal routes nothing, got %d", len(log))
+	}
+}
+
+// A VERGE_DEV / fixture install writes NO declared-input message either — the dev
+// guard short-circuits the whole producer before any departure is folded (AL-25).
+func TestProduceDescopedDepartureIsNoOpUnderDevMode(t *testing.T) {
+	departures := []departure{
+		{SubjectKind: "name", SubjectKey: "old.example.com", Reason: string(drift.ReasonDescoped), SourceKey: "example.com", Timelines: 1},
+	}
+	store := &fakeMessageStore{}
+	var log []routed
+
+	if err := produceMessages(context.Background(), store, 11, produceT0, nil, departures, membershipInputs{}, fakeEnqueuer(1, &log), true); err != nil {
+		t.Fatalf("produce: %v", err)
+	}
+	if len(store.inserted) != 0 || len(log) != 0 {
+		t.Errorf("a dev install writes and routes nothing, got %d messages / %d routings", len(store.inserted), len(log))
 	}
 }

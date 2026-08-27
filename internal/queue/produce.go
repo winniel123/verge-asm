@@ -3,6 +3,7 @@ package queue
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/netip"
 	"strings"
 	"time"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/drift"
 	"github.com/winniel123/verge-asm/internal/exposure"
 	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
@@ -96,6 +98,36 @@ type spanChange struct {
 	Value          []byte
 }
 
+// departure is one subject the batch's estate fold closed out of the estate — the
+// withdrawal/exclusion feed the declared-input producer consumes (AL-2, #722,
+// lighting the `declared-input` cause the "what fires" table promised). It is
+// collected by foldEstateTransitions (internal/queue/membership.go) alongside the
+// closure it applies, so the producer folds the operator-caused departure into a
+// message in the same batch transaction the closure committed in.
+//
+// Only an operator-caused departure is a `declared-input` firing: a `descoped`
+// closure is the operator's own declared Exclusion narrowing the estate over the
+// subject (CauseDeclaredInput — "the operator's own declared input moved",
+// message.DeclaredInput, links to the Exclusion as the Source). A `measured-absent`
+// closure is the WORLD withdrawing the subject — drift, not declared input — so it
+// carries SourceKey "" and folds into no message here (there is no drift-exit
+// constructor, and the `drift` cause is already lit by the flagship leg).
+type departure struct {
+	// SubjectKind / SubjectKey name the subject that left (a Name root).
+	SubjectKind string
+	SubjectKey  string
+	// Reason is the drift.ClosureReason the estate fold decided (descoped /
+	// measured-absent), stringified as it is stored on the closed span.
+	Reason string
+	// SourceKey is the declared-input identity the row links to — the covering
+	// Exclusion's declared value for a `descoped` departure, empty for a world
+	// (`measured-absent`) withdrawal that fires no declared-input message.
+	SourceKey string
+	// Timelines is the count of open timelines the withdrawal closed at once
+	// (ADR-0082) — one cause recorded on n objects, the count the headline states.
+	Timelines int
+}
+
 // produceMessages folds a batch's estate/drift transitions into messages, writes
 // each once, and routes it to its bound channels — all in the batch's transaction.
 //
@@ -103,12 +135,12 @@ type spanChange struct {
 // before any read or write, so a fixture-only install writes no message and enqueues
 // no delivery, and the golden fixtures stay message-free. A batch with no transition
 // is likewise a no-op.
-func produceMessages(ctx context.Context, store messageStore, batchID int64, observedAt time.Time, changes []spanChange, in membershipInputs, enqueue enqueueFunc, devMode bool) error {
+func produceMessages(ctx context.Context, store messageStore, batchID int64, observedAt time.Time, changes []spanChange, departures []departure, in membershipInputs, enqueue enqueueFunc, devMode bool) error {
 	_ = batchID // the message links by fired-at subject key, not the batch id
-	if devMode || len(changes) == 0 {
+	if devMode || (len(changes) == 0 && len(departures) == 0) {
 		return nil
 	}
-	msgs, err := buildMessages(ctx, store, observedAt, changes, in)
+	msgs, err := buildMessages(ctx, store, observedAt, changes, departures, in)
 	if err != nil {
 		return err
 	}
@@ -151,7 +183,7 @@ func insertParams(m *message.Message) db.InsertMessageParams {
 // answers it is deterministic, so the whole producer is driven by a fake store in
 // the unit tests. The flagship leg reads the class-composed internet leg; the
 // membership leg reads only the changes and the declared-input context.
-func buildMessages(ctx context.Context, store messageStore, observedAt time.Time, changes []spanChange, in membershipInputs) ([]*message.Message, error) {
+func buildMessages(ctx context.Context, store messageStore, observedAt time.Time, changes []spanChange, departures []departure, in membershipInputs) ([]*message.Message, error) {
 	var msgs []*message.Message
 
 	flagship, err := flagshipMessages(ctx, store, observedAt, changes)
@@ -161,7 +193,50 @@ func buildMessages(ctx context.Context, store messageStore, observedAt time.Time
 	msgs = append(msgs, flagship...)
 
 	msgs = append(msgs, membershipMessages(observedAt, changes, in)...)
+	msgs = append(msgs, declaredInputMessages(observedAt, departures)...)
 	return msgs, nil
+}
+
+// declaredInputMessages fires one coverage-class message.DeclaredInput per subject
+// the operator's own declared input withdrew this batch — a `descoped` departure,
+// where an Exclusion the operator declared narrowed the estate over the subject
+// (AL-2, #722). This is the `declared-input` cause the "what fires" table names
+// ("the operator's own declared input moved") and lights the producer wire that was
+// dark: produce.go read only the openings/moves change-feed, so a withdrawal by
+// declared exclusion never became a message.
+//
+// Only a `descoped` closure fires here. A `measured-absent` closure is the world
+// withdrawing the subject — a drift departure, not a declared-input one — and it
+// carries no SourceKey and no message (there is no drift-exit constructor; the
+// `drift` cause is already carried by the flagship leg). The message links to the
+// Exclusion as its Source (message.DeclaredInput → LinkSource, ADR §5.3), and the
+// departed subject and the count of timelines it took out ride the headline.
+func declaredInputMessages(observedAt time.Time, departures []departure) []*message.Message {
+	var msgs []*message.Message
+	for _, d := range departures {
+		if d.Reason != string(drift.ReasonDescoped) || d.SourceKey == "" {
+			continue
+		}
+		m := message.DeclaredInput(d.SourceKey, declaredInputHeadline(d.SubjectKey, d.SourceKey, d.Timelines), observedAt)
+		if m != nil {
+			msgs = append(msgs, m)
+		}
+	}
+	return msgs
+}
+
+// declaredInputHeadline states the operator's declared exclusion taking a subject
+// out of the estate, with the count of timelines it closed as its factor. The words
+// are the drift/coverage vocabulary's own (`withdrawn`, `narrowed`, `taken out`) and
+// carry no valence — a narrowing is neither good news nor bad (ADR-0064) — mirroring
+// message.narrowingHeadline's shape.
+func declaredInputHeadline(subjectKey, sourceKey string, timelines int) string {
+	tl := "timelines"
+	if timelines == 1 {
+		tl = "timeline"
+	}
+	return fmt.Sprintf("%s withdrawn by declared exclusion %s · %d %s taken out of the estate",
+		subjectKey, sourceKey, timelines, tl)
 }
 
 // flagshipMessages fires one message.Flagship per Service whose class-composed

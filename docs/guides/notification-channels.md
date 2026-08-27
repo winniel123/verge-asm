@@ -112,8 +112,23 @@ merge into the three routing **classes**:
 | --- | --- | --- |
 | `drift` | The estate's own object moved. | `drift` |
 | `aperture` | Us — our own aperture widened. | `coverage` |
-| `declared-input` | The operator's own declared input moved. | `coverage` |
-| `threshold` | Only a clock or threshold was crossed; no measurement moved. | `clock` |
+| `declared-input` | The operator's own declared input moved — e.g. an operator exclusion narrowing a subject out of the estate. | `coverage` |
+| `threshold` | Only a clock or threshold was crossed; no measurement moved. | `clock` — *planned; see below* |
+
+> **`threshold` is not yet emitted.** The producer folds a message at the *cause*,
+> and it runs inside a completed batch's transaction over that batch's observations
+> (`internal/queue/produce.go`). A `threshold` firing is by definition the one cause
+> with **no** observation behind it — "only time passed" — so a pure horizon crossing
+> (a certificate crossing its *expiring* window, the motivating case) produces no
+> observation, no batch, and no change for the producer to fold: the certificate's
+> `not_after` does not move when the clock passes it, so re-measuring the unchanged
+> certificate yields no transition either. Emitting it faithfully needs a dedicated
+> **clock-driven sweep** — a periodic evaluator that reads open certificate spans,
+> fires `message.Threshold` on a horizon crossing, and persists what it fired so it
+> fires once — which is a separate mechanism from the observation-driven batch
+> producer and is not yet built. Until it lands, `certificate-expiring` surfaces only
+> as a read-time `Signal` on the Signals screen, never as a routed `threshold`
+> message. The other three causes fire today.
 
 A channel subscribes on a subset of the three classes and **nothing finer**. The cause
 travels in the body as a field the operator reads, but the router never keys on it —
