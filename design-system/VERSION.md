@@ -1,11 +1,13 @@
 # Package version
 
-current: 3.18.0
-exported: 2026-08-26
+current: 3.20.0
+exported: 2026-08-27
 
 Convention: MAJOR.ROUND.PATCH — MAJOR is the package generation, ROUND increments per sync/Wayfinder round, PATCH per mid-round ruling or spec fix. The design workspace bumps this on every export; the repo copy always states what landed.
 
 ## Log
+- 3.20.0 — 2026-08-27 · collision #36 ruled (option a, docs-only): #32's estate wiring confirmed LANDED (#637/51141e8) — moved to PARITY-CHART Landed ledger, never re-filed; P0.12 re-scoped to TransitionDelta chip only with normative compare semantics (current period window vs immediately preceding equal-length window, same scope as .TransitionCount; signed nonzero / "0" / empty-string suppression without a complete previous window); AL-8 amended. No design, fixture, or template change — "+2" and "vs previous period" caption already encode the ruling. Wayfinder resumes at map #681
+- 3.19.0 — 2026-08-27 · spec-drift-audit (2026-08-27 re-run) charted as round 3, docs-only: PARITY-CHART v3.3 — Landed gains audit-verified #390/#391 + P0.6/P0.6b (dispatcher, cadence/cron, notify-with-link all shipped); new build items P0.7 message-producer wire, P0.8 vantage push/remote-exec (+UA), P0.9 tls-acceptance fold, P0.10 CertDetails fold, P0.11 http-identity dispatch, P0.12 estate wiring (#32), P0.13 coverage numerator + stale callout; errata E1–E14 (repo docs + stale comments); watch W1 (enabledProposers gate); R3-D1 backup-card copy review charted design-side (not executed). NEW AUDIT-LEDGER.md: 29-row settled-findings register (RULED / CHARTED / BY DESIGN / LANDED) — future audits diff against it and cite matches as known (AL-nn) instead of re-reporting; spec-drift-audit skill updated to consume it. No template/screen/component change
 - 3.18.0 — 2026-08-26 · Wayfinder tickets #390/#391 retired into design: API token surfaces (Settings·Access gains the api tab — read-only opt-in /api/v1 toggle with dated act + both-state callouts; profile tokens get real nullable Last with "never" + inert-tokens note via .APIEnabled) and Backup & updates (Instance gains Backup / Restore / Version&updates cards — data-only no-secrets framing, preflight + typed-confirm restore via new generic [data-typed-confirm] wiring, release states current|newer|disabled with literal host steps, migrations badge; the old .Update callout retires); fixtures + 3 states; WORK-ORDER-390-391.md (full Behavior)
 - 3.17.1 — 2026-08-26 · fix: .rd-loghead .jf gains white-space:nowrap (job-filter chip wrapped outside its pill at narrow widths)
 - 3.17.0 — 2026-08-26 · rulings #33–#35 + DF-F4b: OrgSwitcher retired permanently (ADR-0073 stands — static chip only, .Chrome.Orgs/org-open/orgs-fixture drop, TopNav updated); rundetail loghead moves outside {{if .Log}} (DF-F3b chip renders over honest empty); /runs id split — active dispatch → 1409, missing-run keeps 1408, rundetail·running state added; .Run.Status gains stopped|terminated badge treatments (warn / danger-outline; BatchStatus too); WORK-ORDER-33-35.md
