@@ -647,8 +647,12 @@ no denominator (estate completeness is unmeasurable) and no state to approve.
 
 ### 6.5 Signals
 
-Every rule's census renders as fired / not-fired / `not-evaluable`, current state only — never a
-delta or trend. A member row is never the `Subjects` row component: it carries no `Citation`, no
+Every rule's census is evaluated as fired / not-fired / `not-evaluable`, current state only — never
+a delta or trend. The shipped **Signals** screen paints that evaluation as a **flat per-instance
+table of the fired instances** — one severity-badged row per currently-fired `(subject, rule)` pair
+(P2.2; the design package is normative for functionality) — rather than a per-rule three-column
+grouping; the census is still evaluated data-side to mint those rows. A member row is never the
+`Subjects` row component: it carries no `Citation`, no
 search, and its header count is exactly `list.length`, locked — the base/special-case split runs
 the other way from what intuition suggests, because a `Subjects` row silently leaking a false
 denominator onto an estate listing is a materially worse failure than a stray search box on a

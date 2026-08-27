@@ -13,10 +13,13 @@ and [running.md → Retention](running.md#retention) name but do not walk throug
 
 There are **two** ways to take a backup, and they answer different needs:
 
-- **In-app backup** (**Settings → Instance**) — a one-click, data-only download of
-  the estate and its configuration, and a guided restore, with **no shell**. This is
-  the first-class way to carry the estate to another host. It is documented first,
-  below.
+- **In-app backup** (**Settings → Instance**) — a one-click download of the estate and
+  its configuration, and a guided restore, with **no shell**. It excludes the
+  session-minting keys (they regenerate on restore) but it is **not** "no secrets": the
+  durable per-row credentials the database already holds — password, TOTP and API-token
+  hashes, and SSO/channel secrets — ride with their rows, so a backup file carries the
+  **same leak posture as `pgdata`** and deserves the same care. This is the first-class
+  way to carry the estate to another host. It is documented first, below.
 - **Host-level `pg_dump`** — a full logical dump of the whole database on the host,
   for disaster recovery into a clean volume and the pre-upgrade drill. Documented
   under [Host-level dumps with `pg_dump`](#host-level-dumps-with-pg_dump).
@@ -47,7 +50,7 @@ shell. Both are admin-only. The design decision behind them is
 [ADR-0124](../adr/0124-a-backup-carries-data-and-no-secret-and-updating-is-guided-not-self-applied.md);
 the export lives in [`cmd/web/backup.go`](../../cmd/web/backup.go).
 
-### What the backup is — data-only, no session-minting key
+### What the backup is — the estate and config, at `pgdata`'s leak posture
 
 The download is a **logical dump of the business tables** — the estate and its
 configuration — written in Go straight over the pool `web` already holds (the

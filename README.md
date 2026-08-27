@@ -47,9 +47,12 @@ For the full feature surface — the six facets, the seventeen signal rules, exp
 vantages and notification channels — see [`docs/spec/`](docs/spec/).
 
 > **Implementation status (alpha).** The seventeen rules describe the v1 spec target;
-> the engine currently ships 5 of them (the Name-only rules), with the rest in
-> progress. Expect the same partial-coverage caveat elsewhere while the tool is in
-> alpha.
+> **9 of them fire on a default install today** — the four Name-only rules, the four
+> HTTP-identity endpoint rules (P0.11), and `tls-1.0-accepted` (P0.9). The **six
+> certificate rules** stay dormant until the certificate-parsing leaf lands (P0.10), and
+> the **two internet-gated flagship rules** need a provisioned internet vantage (#700).
+> See [docs/guides/signals.md](docs/guides/signals.md#rule-status--what-fires-on-a-default-install).
+> Expect the same partial-coverage caveat elsewhere while the tool is in alpha.
 
 ---
 

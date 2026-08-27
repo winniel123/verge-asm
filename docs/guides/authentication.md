@@ -173,8 +173,8 @@ at once — see [running.md → Volumes](running.md#volumes).
 
 On **Profile → Credentials** (`POST /profile/password`) enter your current
 password and a new one. The current password is re-verified against a fresh read,
-the new one is bounded to **8–72 characters** (bcrypt hashes no more than 72
-bytes), and your **second factor is left untouched** — a password change does not
+the new one is bounded to **12–72 characters** (at least 12; bcrypt hashes no more
+than 72 bytes), and your **second factor is left untouched** — a password change does not
 strip TOTP. Your **other sessions are revoked** — every other browser is signed out
 through the session registry, leaving only the one that made the change, and the
 success notice says so (#408, ADR-0117).
@@ -197,7 +197,7 @@ gate on — and **enumeration-safe**.
 3. **Reset** (`GET`/`POST /reset?token=…`) — a valid, unspent, unexpired token
    (links live **30 minutes**) renders a set-a-new-password form; a missing, spent
    or stale token renders an honest invalid state rather than a form that would fail
-   on submit. Set the new password (same 8–72 bound, typed twice), and the token is
+   on submit. Set the new password (same 12–72 bound, typed twice), and the token is
    spent so the link is single-use.
 
 Like a password change, a reset **signs your other sessions out** — completing it

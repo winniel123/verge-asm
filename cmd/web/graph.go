@@ -52,10 +52,11 @@ var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/graph.tmpl"))
 //     the header Select is the five-level severity filter the spec renders — it
 //     lights only the halos of nodes at the chosen level, matching GraphView.jsx.
 //
-// One example read is still NOT wired, and is not faked: a "domain" apex node — the
-// example hand-classifies a registrable apex; the corpus does not, and deriving one
-// by suffix would be a heuristic guess, so every Name renders as a subdomain-style
-// node rather than inventing a root.
+// The "domain" apex node is derived, not faked: classifyNameTypes (below) reads the
+// domain|subdomain tiers purely off the observed name set — a name is the apex when it
+// parents another observed name and is itself parented by none (#22e) — with no
+// public-suffix guess, so an estate whose apex was never measured simply has no domain
+// node rather than one being invented.
 //
 // Every field that IS shown is real: the node keys, the resolution and service
 // edges, an Address's open ports, each node's earliest open-span instant, and each
