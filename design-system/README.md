@@ -1,6 +1,6 @@
 # Handoff: Verge ASM design system
 
-**Version 3.7.0** · exported 2026-08-24 · see VERSION.md for the log. The version bumps on every export; when replacing design-system/ wholesale, this number is what landed.
+**Version 3.20.0** · exported 2026-08-27 · see VERSION.md for the log. The version bumps on every export; when replacing design-system/ wholesale, this number is what landed.
 
 ## Overview
 Complete design system for Verge ASM — a free, open-source (AGPL-3.0), self-hostable attack surface management app. It covers three surfaces (product console, marketing site, docs site): design tokens with light + dark modes, ~112 React components, composition examples for eleven screens, and the content/vocabulary rules the product depends on.
@@ -57,7 +57,8 @@ Since the v2 package the repo imported: 12 operational views (asset/run/report d
 - `components/forms|display|feedback|navigation|media/` — ~112 components × (`.jsx` + `.d.ts` + `.prompt.md`)
 - `examples/console/` — 26 screen/flow compositions + shell (`ConsoleApp.jsx`) + screen README
 - `WORK-CHART.md` — the v3 implementation chart: work items, repo targets, parallelism notes, acceptance (executed)
-- `PARITY-CHART.md` — v3.2 round-2 chart: verified Landed ledger, round-2 executables (U1–U4, D1–D6, P0.5, P2.10), rulings on collisions #7–14
+- `PARITY-CHART.md` — v3.3 round-3 chart: Landed ledger (incl. audit-verified #390/#391, P0.6/P0.6b), carried round-2 items, round-3 audit intake (P0.7–P0.13, errata E1–E14, W1)
+- `AUDIT-LEDGER.md` — settled-findings register: every ruled/charted/by-design audit finding with a row id; spec audits diff against it before reporting
 - `claude/skills/consume-design-package/` — copy into the repo’s `.claude/skills/`; the v4 consuming procedure as a skill
 - `templates/` · `fixtures/` · `verify/` — v4 design-owned view layer + fixture contract + pixel-gate harness config (pilot: Inventory)
 - `WAYFINDER-MAP.md` — the per-screen conversion map + the 4-step loop with operator sign-off gates
