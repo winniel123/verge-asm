@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/remoteexec"
 	"github.com/winniel123/verge-asm/internal/vantage"
 )
 
@@ -117,9 +118,11 @@ func TestProvisionVantageKeysIsIdempotent(t *testing.T) {
 
 // fakeLatencyStore is an in-memory vantageLatencyStore for the worker latency loop.
 type fakeLatencyStore struct {
-	needing []db.Vantage
-	pinned  map[int64]string
-	latency map[int64]int32
+	needing  []db.Vantage
+	pinned   map[int64]string
+	latency  map[int64]int32
+	platform map[int64]pgtype.Text
+	egress   map[int64]pgtype.Text
 }
 
 func (f *fakeLatencyStore) ListVantagesNeedingLatency(context.Context) ([]db.Vantage, error) {
@@ -142,25 +145,36 @@ func (f *fakeLatencyStore) SetVantageLatency(_ context.Context, arg db.SetVantag
 	return nil
 }
 
+func (f *fakeLatencyStore) SetVantageProbeFacts(_ context.Context, arg db.SetVantageProbeFactsParams) error {
+	if f.platform == nil {
+		f.platform = map[int64]pgtype.Text{}
+		f.egress = map[int64]pgtype.Text{}
+	}
+	f.platform[arg.ID] = arg.Platform
+	f.egress[arg.ID] = arg.Egress
+	return nil
+}
+
 // fakeProber stands in for the SSH dial so the orchestration is exercised without
 // a live server: it pins the given host key via onFirstUse and returns a fixed
-// round-trip, or an error to model an unreachable prober.
+// round-trip and lifecycle facts, or an error to model an unreachable prober.
 type fakeProber struct {
 	rtt     time.Duration
 	encoded string
+	facts   remoteexec.Facts
 	err     error
 }
 
-func (p fakeProber) Connect(_ context.Context, _ db.Vantage, _ string, onFirstUse func(string) error) (time.Duration, error) {
+func (p fakeProber) Connect(_ context.Context, _ db.Vantage, _ string, onFirstUse func(string) error) (vantageProbe, error) {
 	if p.err != nil {
-		return 0, p.err
+		return vantageProbe{}, p.err
 	}
 	if onFirstUse != nil {
 		if err := onFirstUse(p.encoded); err != nil {
-			return 0, err
+			return vantageProbe{}, err
 		}
 	}
-	return p.rtt, nil
+	return vantageProbe{rtt: p.rtt, facts: p.facts}, nil
 }
 
 func provisionedVantage(id int64) db.Vantage {
@@ -172,11 +186,19 @@ func provisionedVantage(id int64) db.Vantage {
 	}
 }
 
-// A successful connect pins the presented host key trust-on-first-use and records
-// the round-trip in whole milliseconds — the unit the Dashboard renders.
+// A successful connect pins the presented host key trust-on-first-use, records the
+// round-trip in whole milliseconds — the unit the Dashboard renders — and persists the
+// off-host lifecycle facts (platform, egress) the same connect observed.
 func TestMeasureVantageLatenciesPinsAndRecords(t *testing.T) {
 	store := &fakeLatencyStore{needing: []db.Vantage{provisionedVantage(5)}}
-	prober := fakeProber{rtt: 34 * time.Millisecond, encoded: "ssh-ed25519 AAAAhostkey"}
+	prober := fakeProber{
+		rtt: 34 * time.Millisecond, encoded: "ssh-ed25519 AAAAhostkey",
+		facts: remoteexec.Facts{
+			Platform:  remoteexec.Platform{GOOS: "linux", GOARCH: "amd64", Label: "linux · x86_64"},
+			Egress:    "203.0.113.5",
+			HasEgress: true,
+		},
+	}
 
 	measureVantageLatencies(context.Background(), store, prober, t.TempDir())
 
@@ -185,6 +207,34 @@ func TestMeasureVantageLatenciesPinsAndRecords(t *testing.T) {
 	}
 	if got := store.latency[5]; got != 34 {
 		t.Errorf("vantage 5: latency recorded = %dms, want 34ms", got)
+	}
+	if got := store.platform[5]; !got.Valid || got.String != "linux · x86_64" {
+		t.Errorf("vantage 5: platform recorded = %+v, want linux · x86_64", got)
+	}
+	if got := store.egress[5]; !got.Valid || got.String != "203.0.113.5" {
+		t.Errorf("vantage 5: egress recorded = %+v, want 203.0.113.5", got)
+	}
+}
+
+// A connect that could not read the egress (host does not export SSH_CLIENT) persists
+// a NULL egress rather than a fabricated one — the chip stays collapsed.
+func TestMeasureVantageLatenciesBlankEgressStaysNull(t *testing.T) {
+	store := &fakeLatencyStore{needing: []db.Vantage{provisionedVantage(6)}}
+	prober := fakeProber{
+		rtt: 10 * time.Millisecond, encoded: "ssh-ed25519 AAAAhostkey",
+		facts: remoteexec.Facts{
+			Platform: remoteexec.Platform{Label: "linux · aarch64"},
+			// no egress observed
+		},
+	}
+
+	measureVantageLatencies(context.Background(), store, prober, t.TempDir())
+
+	if got := store.egress[6]; got.Valid {
+		t.Errorf("vantage 6: egress recorded = %q despite no read, want NULL", got.String)
+	}
+	if got := store.platform[6]; !got.Valid || got.String != "linux · aarch64" {
+		t.Errorf("vantage 6: platform recorded = %+v, want linux · aarch64", got)
 	}
 }
 

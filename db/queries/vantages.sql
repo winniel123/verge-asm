@@ -16,7 +16,7 @@ VALUES (
     sqlc.arg(created_by)::bigint
 )
 RETURNING id, name, class, resolver, host, port, username, availability,
-          public_key, host_key, created_by, created_at, latency_ms;
+          public_key, host_key, created_by, created_at, latency_ms, platform, egress;
 
 -- name: ListVantages :many
 -- The web prober list: only provisioned vantages (those carrying a prober
@@ -25,7 +25,7 @@ RETURNING id, name, class, resolver, host, port, username, availability,
 -- NULL until the prober connect that pins the host key lands a first measurement.
 SELECT v.id, v.name, v.class, v.resolver, v.host, v.port, v.username,
        v.availability, v.public_key, v.host_key, v.created_by, v.created_at,
-       v.latency_ms, a.username AS created_by_username
+       v.latency_ms, v.platform, v.egress, a.username AS created_by_username
 FROM vantage v
 JOIN account a ON a.id = v.created_by
 WHERE v.host IS NOT NULL
@@ -33,7 +33,7 @@ ORDER BY v.created_at DESC, v.id DESC;
 
 -- name: GetVantage :one
 SELECT id, name, class, resolver, host, port, username, availability,
-       public_key, host_key, created_by, created_at, latency_ms
+       public_key, host_key, created_by, created_at, latency_ms, platform, egress
 FROM vantage
 WHERE id = $1;
 
@@ -53,7 +53,7 @@ ORDER BY name;
 -- (host set) whose public half has not been published, so no key material has
 -- ever left the worker volume for them.
 SELECT id, name, class, resolver, host, port, username, availability,
-       public_key, host_key, created_by, created_at, latency_ms
+       public_key, host_key, created_by, created_at, latency_ms, platform, egress
 FROM vantage
 WHERE host IS NOT NULL AND public_key IS NULL
 ORDER BY id;
@@ -65,7 +65,7 @@ ORDER BY id;
 -- has never been measured. The connect the worker makes here is the same one that
 -- pins the host key trust-on-first-use, so measuring on it needs no extra dial.
 SELECT id, name, class, resolver, host, port, username, availability,
-       public_key, host_key, created_by, created_at, latency_ms
+       public_key, host_key, created_by, created_at, latency_ms, platform, egress
 FROM vantage
 WHERE host IS NOT NULL AND public_key IS NOT NULL AND latency_ms IS NULL
 ORDER BY id;
@@ -77,6 +77,16 @@ ORDER BY id;
 -- fabricated value.
 UPDATE vantage
 SET latency_ms = $2
+WHERE id = $1;
+
+-- name: SetVantageProbeFacts :exec
+-- The worker records the lifecycle facts it observed off-host on the connect that
+-- pins the host key (P0.8, #683): the remote platform read from `uname` and the
+-- egress address read from SSH_CLIENT. Set together and only from a real successful
+-- connection — a prober that could not be reached keeps them NULL and the VantageCard
+-- keeps collapsing the platform/egress regions rather than showing a fabricated fact.
+UPDATE vantage
+SET platform = $2, egress = $3
 WHERE id = $1;
 
 -- name: SetVantagePublicKey :exec

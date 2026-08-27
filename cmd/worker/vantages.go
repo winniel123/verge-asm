@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
-	"golang.org/x/crypto/ssh"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/remoteexec"
 	"github.com/winniel123/verge-asm/internal/vantage"
 )
 
@@ -107,16 +107,28 @@ type vantageLatencyStore interface {
 	ListVantagesNeedingLatency(ctx context.Context) ([]db.Vantage, error)
 	PinVantageHostKey(ctx context.Context, arg db.PinVantageHostKeyParams) error
 	SetVantageLatency(ctx context.Context, arg db.SetVantageLatencyParams) error
+	SetVantageProbeFacts(ctx context.Context, arg db.SetVantageProbeFactsParams) error
+}
+
+// vantageProbe is the outcome of one prober connect: the round-trip time the
+// Dashboard renders and the off-host lifecycle facts the VantageCard renders — the
+// remote platform (`uname`) and egress (SSH_CLIENT), observed on the same connection
+// that pins the host key (P0.8, #683). A prober that could not identify a fact leaves
+// it zero; the caller persists only what was actually observed.
+type vantageProbe struct {
+	rtt   time.Duration
+	facts remoteexec.Facts
 }
 
 // vantageProber measures the round-trip time of the prober connect that pins a
-// vantage's host key. The real implementation dials SSH; a test supplies a fake,
-// so the orchestration around it runs without a live SSH server — the same seam
-// the key-provisioning loop uses. onFirstUse pins the presented host key
+// vantage's host key, and reads the prober's off-host lifecycle facts on the same
+// connection. The real implementation dials SSH; a test supplies a fake, so the
+// orchestration around it runs without a live SSH server — the same seam the
+// key-provisioning loop uses. onFirstUse pins the presented host key
 // trust-on-first-use; it fires only on the first connect and is a no-op once a
 // key is already pinned.
 type vantageProber interface {
-	Connect(ctx context.Context, v db.Vantage, stateDir string, onFirstUse func(encoded string) error) (time.Duration, error)
+	Connect(ctx context.Context, v db.Vantage, stateDir string, onFirstUse func(encoded string) error) (vantageProbe, error)
 }
 
 // measureVantageLatencies records the connect round-trip time for every
@@ -135,7 +147,7 @@ func measureVantageLatencies(ctx context.Context, store vantageLatencyStore, pro
 		return
 	}
 	for _, v := range rows {
-		rtt, err := prober.Connect(ctx, v, stateDir, func(encoded string) error {
+		probe, err := prober.Connect(ctx, v, stateDir, func(encoded string) error {
 			return store.PinVantageHostKey(ctx, db.PinVantageHostKeyParams{
 				ID: v.ID, HostKey: pgtype.Text{String: encoded, Valid: true},
 			})
@@ -144,7 +156,7 @@ func measureVantageLatencies(ctx context.Context, store vantageLatencyStore, pro
 			log.Printf("worker: vantage %d: measure connect latency: %v", v.ID, err)
 			continue
 		}
-		ms := rtt.Milliseconds()
+		ms := probe.rtt.Milliseconds()
 		if ms < 0 {
 			ms = 0
 		}
@@ -154,40 +166,61 @@ func measureVantageLatencies(ctx context.Context, store vantageLatencyStore, pro
 			log.Printf("worker: vantage %d: persist latency: %v", v.ID, err)
 			continue
 		}
-		log.Printf("worker: vantage %d: connect latency %dms recorded", v.ID, ms)
+		// Persist the off-host lifecycle facts the same connect observed (P0.8, #683):
+		// the remote platform and the egress the VantageCard renders. Best-effort and
+		// only from a real read — the platform is always identified on a successful
+		// connect, the egress only where the host exported SSH_CLIENT — so a fact that
+		// was not observed stays NULL and its chip stays collapsed, never fabricated.
+		if err := store.SetVantageProbeFacts(ctx, db.SetVantageProbeFactsParams{
+			ID:       v.ID,
+			Platform: pgtype.Text{String: probe.facts.Platform.Label, Valid: probe.facts.Platform.Label != ""},
+			Egress:   pgtype.Text{String: probe.facts.Egress, Valid: probe.facts.HasEgress},
+		}); err != nil {
+			log.Printf("worker: vantage %d: persist probe facts: %v", v.ID, err)
+			continue
+		}
+		log.Printf("worker: vantage %d: connect latency %dms recorded, platform=%q egress=%q",
+			v.ID, ms, probe.facts.Platform.Label, probe.facts.Egress)
 	}
 }
 
-// sshProber is the production vantageProber. It dials the prober endpoint over
-// SSH with the vantage's private key on the worker volume — the same connect that
-// pins the host key trust-on-first-use — and times how long establishing that
-// connection takes. It opens the connection only to measure it: no measurement is
-// dispatched over it here.
+// sshProber is the production vantageProber. It dials the prober endpoint over SSH
+// with the vantage's private key on the worker volume — the same connect that pins the
+// host key trust-on-first-use — times how long establishing that connection takes, and
+// reads the prober's off-host lifecycle facts (`uname` platform, SSH_CLIENT egress)
+// over the open connection before closing it (P0.8, #683). No MEASUREMENT is dispatched
+// here — that is the routed measurement path (remoteProberRouter); this connect only
+// pins, times, and observes the position.
 type sshProber struct{}
 
-func (sshProber) Connect(_ context.Context, v db.Vantage, stateDir string, onFirstUse func(encoded string) error) (time.Duration, error) {
+func (sshProber) Connect(ctx context.Context, v db.Vantage, stateDir string, onFirstUse func(encoded string) error) (vantageProbe, error) {
 	keyData, err := os.ReadFile(vantageKeyPath(stateDir, v.ID))
 	if err != nil {
-		return 0, fmt.Errorf("read private key: %w", err)
-	}
-	signer, err := ssh.ParsePrivateKey(keyData)
-	if err != nil {
-		return 0, fmt.Errorf("parse private key: %w", err)
-	}
-	cfg := &ssh.ClientConfig{
-		User:            v.Username.String,
-		Auth:            []ssh.AuthMethod{ssh.PublicKeys(signer)},
-		HostKeyCallback: vantage.PinningHostKeyCallback(v.HostKey.String, onFirstUse),
-		Timeout:         dialTimeout,
+		return vantageProbe{}, fmt.Errorf("read private key: %w", err)
 	}
 	addr := net.JoinHostPort(v.Host.String, strconv.FormatInt(int64(v.Port.Int32), 10))
 
 	start := time.Now()
-	client, err := ssh.Dial("tcp", addr, cfg)
+	conn, err := remoteexec.Dial(ctx, remoteexec.Target{
+		Addr:            addr,
+		Username:        v.Username.String,
+		PrivateKey:      keyData,
+		HostKeyCallback: vantage.PinningHostKeyCallback(v.HostKey.String, onFirstUse),
+		Timeout:         dialTimeout,
+	})
 	rtt := time.Since(start)
 	if err != nil {
-		return 0, fmt.Errorf("dial %s: %w", addr, err)
+		return vantageProbe{}, fmt.Errorf("dial %s: %w", addr, err)
 	}
-	_ = client.Close()
-	return rtt, nil
+	defer conn.Close()
+
+	// The connection is open and the host key pinned: read the lifecycle facts. A
+	// facts read that fails does not fail the connect — the latency is a real, useful
+	// measurement on its own — so the facts stay zero and the caller persists none.
+	facts, err := remoteexec.Inspect(ctx, conn)
+	if err != nil {
+		log.Printf("worker: vantage %d: inspect facts: %v", v.ID, err)
+		return vantageProbe{rtt: rtt}, nil
+	}
+	return vantageProbe{rtt: rtt, facts: facts}, nil
 }

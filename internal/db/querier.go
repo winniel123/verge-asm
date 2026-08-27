@@ -1139,6 +1139,12 @@ type Querier interface {
 	// unit the Dashboard renders — and set only from a real measurement, never a
 	// fabricated value.
 	SetVantageLatency(ctx context.Context, arg SetVantageLatencyParams) error
+	// The worker records the lifecycle facts it observed off-host on the connect that
+	// pins the host key (P0.8, #683): the remote platform read from `uname` and the
+	// egress address read from SSH_CLIENT. Set together and only from a real successful
+	// connection — a prober that could not be reached keeps them NULL and the VantageCard
+	// keeps collapsing the platform/egress regions rather than showing a fabricated fact.
+	SetVantageProbeFacts(ctx context.Context, arg SetVantageProbeFactsParams) error
 	// The worker publishes only the public half of the pair it generated on its own
 	// volume; the private half never reaches Postgres.
 	SetVantagePublicKey(ctx context.Context, arg SetVantagePublicKeyParams) error
