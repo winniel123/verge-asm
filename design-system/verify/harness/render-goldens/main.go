@@ -4678,13 +4678,25 @@ type gsDrawer struct {
 	Installed    string    `json:"installed"`
 	LastDelivery string    `json:"last_delivery"`
 	Classes      string    `json:"classes"`
+	// BoundChannel is the delivery channel this integration is bound to (empty when
+	// unbound), the datum settings.tmpl's channel-bind <select> selects on and the
+	// "Send test" button is gated on (#39/#708). fixtures.json already carries it; the
+	// field is added here so the harness drawer renders the same channel-binding UI the
+	// live app does, keeping golden and candidate in parity.
+	BoundChannel string `json:"bound_channel"`
+}
+type gsIntChannel struct {
+	Value string `json:"value"`
+	Label string `json:"label"`
+	Hint  string `json:"hint"`
 }
 type gsIntegrations struct {
-	Cats   []string `json:"cats"`
-	Cat    string   `json:"cat"`
-	Q      string   `json:"q"`
-	Tiles  []gsTile `json:"tiles"`
-	Drawer gsDrawer `json:"drawer_fixture"`
+	Cats     []string       `json:"cats"`
+	Cat      string         `json:"cat"`
+	Q        string         `json:"q"`
+	Channels []gsIntChannel `json:"channels"`
+	Tiles    []gsTile       `json:"tiles"`
+	Drawer   gsDrawer       `json:"drawer_fixture"`
 }
 type gsCensus struct {
 	Kind string `json:"kind"`
@@ -4854,7 +4866,16 @@ func settingsGoldenMap(fx gsSettings, tab string, q map[string]string) map[strin
 	case "audit":
 		data["AuditRows"] = nil
 	case "api":
-		data["API"] = fx.API
+		// The default/viewer captures render the disabled fixture; the "api-enabled" state
+		// (q enabled=1) renders the ON state — the datum an admin's click of the Enable
+		// toggle produces (#663/#677). By is the dev admin (ola.perez, devFixtureAccounts);
+		// At is a fixed instant — the live candidate stamps the real enable time, but that
+		// one timestamp glyph-run is a negligible fraction of the full-page 3% gate.
+		if q["enabled"] == "1" {
+			data["API"] = gsAPI{Enabled: true, By: "ola.perez", At: "2026-08-27 14:00 UTC"}
+		} else {
+			data["API"] = fx.API
+		}
 	case "sources":
 		data["Unencumbered"] = fx.Sources.Unencumbered
 		data["OperatorAccepted"] = fx.Sources.OperatorAccepted
@@ -4885,6 +4906,7 @@ func settingsGoldenMap(fx gsSettings, tab string, q map[string]string) map[strin
 		data["IntCats"] = fx.Integrations.Cats
 		data["IntCat"] = fx.Integrations.Cat
 		data["IntQ"] = fx.Integrations.Q
+		data["IntChannels"] = fx.Integrations.Channels
 		data["Integrations"] = fx.Integrations.Tiles
 		if id := q["view"]; id != "" && id == fx.Integrations.Drawer.ID {
 			data["IntDrawer"] = fx.Integrations.Drawer
@@ -4966,6 +4988,7 @@ func renderSettingsStates(bodyFlex bool) ([]errorGolden, error) {
 		{"audit", "audit", nil, true},
 		{"api", "api", nil, true},
 		{"api-viewer", "api", nil, false},
+		{"api-enabled", "api", map[string]string{"enabled": "1"}, true},
 		{"sources", "sources", nil, true},
 		{"sources-consent", "sources", map[string]string{"consent": "ripestat"}, true},
 		{"aperture", "aperture", nil, true},
