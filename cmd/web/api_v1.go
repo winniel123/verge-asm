@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"net/netip"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -342,14 +343,14 @@ type apiCoverageMeter struct {
 	Detail  string  `json:"detail"`
 }
 
-// apiCoverage projects the aperture census the Coverage screen's meter card renders
+// apiCoverage projects the aperture meters the Coverage screen's meter card renders
 // (#301, ADR-0110; SPEC-CHANGE #19c): one CoverageMeter per declared scope, built
-// through the exact same apertureMeters the page's live path calls over the seed and
-// zone reads. Total is null for a name scope (a census bar — it enumerates nothing on
-// its own) and a pre-formatted string for an address scope, exactly as the screen shows;
-// neither claims a proportion of the estate (ADR-0072). The zone read feeds only a name
-// scope's declared-name count, so it is best-effort — a zone failure leaves that meter's
-// census at zero rather than failing the whole projection, mirroring the page.
+// through the exact same apertureMeters the page's live path calls over the seed, zone
+// and current-Service reads. Total is null for a name scope (a census bar — it
+// enumerates nothing on its own) and a pre-formatted string for an address scope's #19c
+// counted/total, exactly as the screen shows; neither claims a proportion of the estate
+// (ADR-0072). The zone and service reads are best-effort — a failure leaves that meter's
+// count at zero rather than failing the whole projection, mirroring the page.
 func (s *server) apiCoverage(w http.ResponseWriter, r *http.Request, _ db.Account) {
 	ctx := r.Context()
 	seeds, err := s.store.ListSeeds(ctx)
@@ -363,7 +364,18 @@ func (s *server) apiCoverage(w http.ResponseWriter, r *http.Request, _ db.Accoun
 	} else {
 		log.Printf("web: api: coverage: list zone declarations: %v", zerr)
 	}
-	meters := apertureMeters(seeds, zones)
+	// The #19c address-scope numerator: the distinct addresses the batch walked, from
+	// the current Service subjects (live-tier gated). Best-effort — an unavailable read
+	// leaves the address meters at a zero numerator, mirroring the page's live path.
+	var walked []netip.Addr
+	if svcs, serr := s.store.ListCurrentServiceSubjects(ctx, db.ListCurrentServiceSubjectsParams{
+		Search: "", AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
+	}); serr == nil {
+		walked = walkedAddresses(svcs)
+	} else {
+		log.Printf("web: api: coverage: list service subjects: %v", serr)
+	}
+	meters := apertureMeters(seeds, zones, walked)
 
 	out := apiCoverageResponse{Meters: make([]apiCoverageMeter, 0, len(meters))}
 	for _, m := range meters {
