@@ -53,24 +53,29 @@ type detail struct {
 }
 
 type facet struct {
-	Label   string
-	Summary string
-	IsGap   bool
-	Since   string
-	Details []detail
+	Label     string
+	Summary   string
+	IsGap     bool
+	ProxyEdge bool
+	Since     string
+	Details   []detail
 }
 
 type subject struct {
-	Key    string
-	Type   string
-	Link   string
-	Facets []facet
+	Key       string
+	Type      string
+	Link      string
+	ProxyEdge bool
+	Facets    []facet
 }
 
 type group struct {
-	Kind     string
-	Label    string
-	Subjects []subject
+	Kind        string
+	Label       string
+	Total       int
+	More        int
+	ShowAllHref string
+	Subjects    []subject
 }
 
 type pageData struct {
@@ -83,18 +88,23 @@ type pageData struct {
 type fixtureFile struct {
 	Inventory struct {
 		Groups []struct {
-			Kind     string `json:"kind"`
-			Label    string `json:"label"`
-			Subjects []struct {
-				Key    string `json:"key"`
-				Type   string `json:"type"`
-				Link   string `json:"link"`
-				Facets []struct {
-					Label   string `json:"label"`
-					Summary string `json:"summary"`
-					IsGap   bool   `json:"is_gap"`
-					Since   string `json:"since"`
-					Details []struct {
+			Kind        string `json:"kind"`
+			Label       string `json:"label"`
+			Total       int    `json:"total"`
+			More        int    `json:"more"`
+			ShowAllHref string `json:"show_all_href"`
+			Subjects    []struct {
+				Key       string `json:"key"`
+				Type      string `json:"type"`
+				Link      string `json:"link"`
+				ProxyEdge bool   `json:"proxy_edge"`
+				Facets    []struct {
+					Label     string `json:"label"`
+					Summary   string `json:"summary"`
+					IsGap     bool   `json:"is_gap"`
+					ProxyEdge bool   `json:"proxy_edge"`
+					Since     string `json:"since"`
+					Details   []struct {
 						Type string `json:"type"`
 						Data string `json:"data"`
 					} `json:"details"`
@@ -2223,16 +2233,17 @@ func loadFixture() (pageData, error) {
 					details = append(details, detail{Type: d.Type, Data: d.Data})
 				}
 				facets = append(facets, facet{
-					Label:   f.Label,
-					Summary: f.Summary,
-					IsGap:   f.IsGap,
-					Since:   f.Since,
-					Details: details,
+					Label:     f.Label,
+					Summary:   f.Summary,
+					IsGap:     f.IsGap,
+					ProxyEdge: f.ProxyEdge,
+					Since:     f.Since,
+					Details:   details,
 				})
 			}
-			subs = append(subs, subject{Key: s.Key, Type: s.Type, Link: s.Link, Facets: facets})
+			subs = append(subs, subject{Key: s.Key, Type: s.Type, Link: s.Link, ProxyEdge: s.ProxyEdge, Facets: facets})
 		}
-		groups = append(groups, group{Kind: g.Kind, Label: g.Label, Subjects: subs})
+		groups = append(groups, group{Kind: g.Kind, Label: g.Label, Total: g.Total, More: g.More, ShowAllHref: g.ShowAllHref, Subjects: subs})
 	}
 	return pageData{HasData: len(groups) > 0, Groups: groups}, nil
 }
