@@ -1157,7 +1157,7 @@
 </section>
 {{end}}
 
-{{/* channels — holes: .ChanError .Channels[{ID,URL,Classes[],ClassStates[{Name,Checked}],HasSecret,Enabled,By,At}] .ClassOptions[{Name,Checked}] .ChanURL .IsAdmin (#26f — class vocabulary from the store) */}}
+{{/* channels — holes: .ChanError .Channels[{ID,URL,Classes[],ClassStates[{Name,Checked}],HasSecret,Enabled,By,At}] .ClassOptions[{Name,Checked}] .ChanURL .IsAdmin (#26f — class vocabulary from the store; #757 — per-channel Send test POSTs /settings/channels/test {id}, no binding gate: a channel holds its own URL and posts through SendSigned directly, distinct from the integrations Send-test #38/#39 which needs a channel binding) */}}e store) */}}
 {{define "settings-channels"}}
 <header style="display:flex;flex-direction:column;gap:6px">
 <span class="st-micro">Delivery · channels</span>
@@ -1169,7 +1169,7 @@
 <div class="st-cardhead"{{if .Channels}} style="padding-bottom:14px"{{end}}><div class="hd"><span class="st-micro">Declared</span><h3>One-way delivery</h3></div></div>
 {{if .Channels}}
 <table class="st-table">
-<thead><tr><th>URL</th><th>Classes</th><th style="width:80px">Secret</th><th style="width:96px">State</th><th style="width:150px">Declared by</th>{{if .IsAdmin}}<th style="width:70px"></th>{{end}}</tr></thead>
+<thead><tr><th>URL</th><th>Classes</th><th style="width:80px">Secret</th><th style="width:96px">State</th><th style="width:150px">Declared by</th>{{if .IsAdmin}}<th style="width:150px"></th>{{end}}</tr></thead>
 <tbody>
 {{range .Channels}}<tr>
 <td class="mono">{{.URL}}</td>
@@ -1178,6 +1178,8 @@
 <td>{{if .Enabled}}<span class="st-badge ok"><span class="d"></span>enabled</span>{{else}}<span class="st-badge neutral">disabled</span>{{end}}</td>
 <td class="mono">{{.By}}<br><span style="color:var(--text-muted)">{{.At}}</span></td>
 {{if $.IsAdmin}}<td style="overflow:visible">
+<span style="display:inline-flex;gap:8px;align-items:center;justify-content:flex-end">
+<form method="post" action="/settings/channels/test" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" class="st-btn-sm">Send test</button></form>
 <details class="st-disc" style="position:relative">
 <summary><span class="st-btn-sm">Edit</span></summary>
 <div class="sheet" style="position:absolute;right:0;z-index:95;width:340px;box-shadow:var(--shadow-md);border:1px solid var(--border-default);background:var(--surface-raised)">
@@ -1195,6 +1197,7 @@
 <form method="post" action="/settings/channels/delete" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" class="st-btn-sm" style="color:var(--danger);border-color:var(--danger-border)">Delete channel</button></form>
 </div>
 </details>
+</span>
 </td>{{end}}
 </tr>{{end}}
 </tbody>

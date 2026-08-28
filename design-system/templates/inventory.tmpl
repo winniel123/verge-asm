@@ -2,8 +2,12 @@
   DESIGN-OWNED ARTIFACT — inventory.tmpl · package v3.4.0 · WORKFLOW.md v4
   Source of truth: examples/console/Inventory.jsx · golden ref shot 03.
   Never edit in-repo (CI gate G1 byte-compares). Data holes match cmd/web/inventory.go
-  structs: .Groups[{Kind,Label,Subjects[{Key,Type,Link,Facets[{Label,Summary,IsGap,
-  Details[{Type,Data}],Since}]}]}] and .HasData. Also carries the shared "recordrows"
+  structs: .Groups[{Kind,Label,Total,More,ShowAllHref,Subjects[{Key,Type,Link,ProxyEdge,Facets[{Label,Summary,IsGap,ProxyEdge,
+  Details[{Type,Data}],Since}]}]}] and .HasData. #756 — .Subjects arrives server-windowed (25/group);
+  .More = count beyond the window, .ShowAllHref lifts the cap. #762 (R4-Q1 RULED 2026-08-28) — provider-
+  fronted spans carry ProxyEdge: a "proxy edge" badge rides the reach-Gap, the row is demoted in place by
+  the existing value-before-Gap sort, and the "Hide proxy edge" toggle (default SHOW) is the only
+  ADR-0072/0104/0105-legal treatment. Also carries the shared "recordrows"
   partial and the "subject-missing" page formerly in templates_inventory.go.
 */}}
 {{define "inventory"}}{{template "head" .}}
@@ -25,7 +29,7 @@
 .inv-btn.sm { height: 30px; padding: 0 12px; border-radius: 10px; font-size: 12px; gap: 6px; }
 .inv-btn[disabled] { opacity: 0.45; cursor: default; }
 .inv-intro { margin: 0; max-width: 82ch; font: 400 13px/1.6 var(--font-ui); color: var(--text-secondary); }
-.inv-toolbar { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.inv-toolbar { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; position: sticky; top: 0; z-index: 6; padding: 12px 0; background: color-mix(in srgb, var(--bg-page) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--row-sep); }
 .inv-seg { display: inline-flex; gap: 2px; padding: 2px; background: var(--surface-sunken); border: 1px solid var(--border-default); border-radius: 10px; }
 .inv-seg button { height: 22px; padding: 0 10px; display: inline-flex; align-items: center; gap: 6px; background: transparent; color: var(--text-secondary); border: none; border-radius: 8px; cursor: pointer; font: 500 12px var(--font-ui); white-space: nowrap; transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
 .inv-seg button[aria-checked="true"] { background: var(--surface); color: var(--text-ink); font-weight: 600; box-shadow: var(--shadow-xs); }
@@ -56,6 +60,12 @@
 .inv-check[data-locked] { cursor: default; opacity: 0.45; }
 .inv-section { display: flex; flex-direction: column; gap: 10px; }
 .inv-grouplabel { font: 500 10.5px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.inv-grouphead { display: flex; align-items: baseline; gap: 8px; position: sticky; top: 60px; z-index: 4; padding: 4px 0; background: color-mix(in srgb, var(--bg-page) 92%, transparent); }
+.inv-groupcount { font: 400 10.5px var(--font-mono); color: var(--text-muted); }
+.inv-showall { align-self: flex-start; padding: 2px 0; background: none; border: none; cursor: pointer; font: 500 12px var(--font-ui); color: var(--link); text-decoration: none; }
+.inv-showall:hover { text-decoration: underline; }
+.inv-proxybadge { display: inline-flex; align-items: center; height: 18px; padding: 0 7px; border-radius: 999px; background: var(--surface-sunken); border: 1px solid var(--border-default); font: 500 10px var(--font-mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
+.inv-main[data-hideproxy="1"] tr[data-proxy="1"] { display: none; }
 .inv-card { background: var(--surface); border: 1px solid var(--border-default); border-radius: 16px; box-shadow: var(--shadow-xs); overflow: hidden; }
 .inv-table { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; }
 .inv-table th { padding: 8px 16px; font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border-default); white-space: nowrap; background: var(--surface); text-align: left; }
@@ -117,6 +127,7 @@ a.inv-subject { color: var(--link); }
 <button type="button" role="radio" aria-checked="false" data-kind="address">Addresses</button>
 </div>
 <label class="inv-switch"><input type="checkbox" role="switch" id="inv-gaps"><span class="track" aria-hidden="true"><span class="knob"></span></span><span class="lbl">Gaps only</span></label>
+<label class="inv-switch" title="Provider-fronted (blanket-responder) spans are shown by default, demoted below real values"><input type="checkbox" role="switch" id="inv-proxy"><span class="track" aria-hidden="true"><span class="knob"></span></span><span class="lbl">Hide proxy edge</span></label>
 <span class="inv-filter"><input type="text" id="inv-q" placeholder="Filter subjects…" autocomplete="off"></span>
 <span class="inv-right">
 <div class="inv-seg" role="radiogroup" aria-label="Row density" id="inv-dens">
@@ -136,18 +147,18 @@ a.inv-subject { color: var(--link); }
 </div>
 {{range .Groups}}
 <section class="inv-section" data-kind="{{.Kind}}" id="{{.Kind}}">
-<span class="inv-grouplabel">{{.Label}}</span>
+<div class="inv-grouphead"><span class="inv-grouplabel">{{.Label}}</span><span class="inv-groupcount">{{.Total}}</span></div>
 <div class="inv-card">
 <table class="inv-table">
 <thead><tr><th style="width:300px">Subject</th><th data-col="type" style="width:110px">Type</th><th data-col="holds">Holds</th><th data-col="since" style="width:112px;text-align:right">Since</th></tr></thead>
 <tbody>
-{{range .Subjects}}<tr data-key="{{.Key}}"{{if .Link}} data-href="{{.Link}}" tabindex="0" role="link" aria-label="Open {{.Key}}"{{end}}>
+{{range .Subjects}}<tr data-key="{{.Key}}"{{if .ProxyEdge}} data-proxy="1"{{end}}{{if .Link}} data-href="{{.Link}}" tabindex="0" role="link" aria-label="Open {{.Key}}"{{end}}>
 <td>{{if .Link}}<a class="inv-subject" href="{{.Link}}">{{.Key}}</a>{{else}}<span class="inv-subject">{{.Key}}</span>{{end}}</td>
 <td data-col="type" class="inv-type"><span class="inv-tag">{{.Type}}</span></td>
 <td data-col="holds"><div class="inv-holds">
 {{range .Facets}}<div class="inv-facet">
 <span class="inv-facetlabel">{{.Label}}</span>
-{{if .IsGap}}<span style="display:inline-flex;gap:8px;align-items:baseline"><span class="inv-gapbadge"><svg viewBox="0 0 10 10" width="9" height="9" style="flex:none"><rect x="1.6" y="1.6" width="6.8" height="6.8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="1.6 1.6"></rect></svg>gap</span><span class="inv-gapsince">since {{.Since}}</span></span>
+{{if .IsGap}}<span style="display:inline-flex;gap:8px;align-items:baseline"><span class="inv-gapbadge"><svg viewBox="0 0 10 10" width="9" height="9" style="flex:none"><rect x="1.6" y="1.6" width="6.8" height="6.8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="1.6 1.6"></rect></svg>gap</span>{{if .ProxyEdge}}<span class="inv-proxybadge">proxy edge</span>{{end}}<span class="inv-gapsince">since {{.Since}}</span></span>
 {{else if .Details}}<span style="display:flex;flex-direction:column"><button type="button" class="inv-exp" aria-expanded="false"><span class="inv-tag">{{.Summary}}</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></button>
 <span class="inv-records"><span class="rin">{{range .Details}}<span class="inv-record"><span class="inv-rectype">{{.Type}}</span><span class="inv-recdata">{{.Data}}</span></span>{{end}}</span></span></span>
 {{else if .Summary}}<span class="inv-tag">{{.Summary}}</span>{{else}}<span class="inv-none">none</span>{{end}}
@@ -158,6 +169,7 @@ a.inv-subject { color: var(--link); }
 </tbody>
 </table>
 </div>
+{{if .More}}<a class="inv-showall" href="{{.ShowAllHref}}">Show all {{.Total}} — {{.More}} more</a>{{end}}
 </section>
 {{end}}
 <div class="inv-empty">
@@ -178,6 +190,7 @@ a.inv-subject { color: var(--link); }
   var main = document.getElementById("inv");
   if (!main) return;
   var state = { kind: "all", gaps: false, q: "" };
+  main.setAttribute("data-hideproxy", "0");
   var rows = Array.prototype.slice.call(main.querySelectorAll("tbody tr"));
   rows.forEach(function (tr) { if (tr.querySelector(".inv-gapbadge")) tr.setAttribute("data-gap", "1"); });
   function apply() {
@@ -187,6 +200,7 @@ a.inv-subject { color: var(--link); }
       var vis = 0;
       Array.prototype.forEach.call(sec.querySelectorAll("tbody tr"), function (tr) {
         var ok = kindOk && (!state.gaps || tr.hasAttribute("data-gap")) &&
+          !(main.getAttribute("data-hideproxy") === "1" && tr.getAttribute("data-proxy") === "1") &&
           (!state.q || (tr.getAttribute("data-key") || "").toLowerCase().indexOf(state.q) !== -1);
         tr.style.display = ok ? "" : "none";
         if (ok) vis++;
@@ -203,12 +217,15 @@ a.inv-subject { color: var(--link); }
     apply();
   });
   document.getElementById("inv-gaps").addEventListener("change", function () { state.gaps = this.checked; apply(); });
+  document.getElementById("inv-proxy").addEventListener("change", function () { main.setAttribute("data-hideproxy", this.checked ? "1" : "0"); apply(); });
   document.getElementById("inv-q").addEventListener("input", function () { state.q = this.value.trim().toLowerCase(); apply(); });
   var clear = document.getElementById("inv-clear");
   if (clear) clear.addEventListener("click", function () {
     state = { kind: "all", gaps: false, q: "" };
     document.getElementById("inv-q").value = "";
     document.getElementById("inv-gaps").checked = false;
+    var pf = document.getElementById("inv-proxy"); if (pf) pf.checked = false;
+    main.setAttribute("data-hideproxy", "0");
     var kb = document.getElementById("inv-kind");
     Array.prototype.forEach.call(kb.querySelectorAll("button"), function (x) { x.setAttribute("aria-checked", x.getAttribute("data-kind") === "all" ? "true" : "false"); });
     apply();

@@ -22,6 +22,7 @@ import { VantageCard } from "../../components/display/VantageCard.jsx";
 import { ExposureBadge } from "../../components/display/ExposureBadge.jsx";
 import { MessageList } from "../../components/feedback/MessageList.jsx";
 import { ErrorState } from "../../components/feedback/ErrorState.jsx";
+import { EmptyState } from "../../components/feedback/EmptyState.jsx";
 import { Icon } from "../../components/media/Icon.jsx";
 import { Switch } from "../../components/forms/Switch.jsx";
 import { FileDrop } from "../../components/forms/FileDrop.jsx";
@@ -44,6 +45,8 @@ import { Stepper } from "../../components/display/Stepper.jsx";
 import { CodeBlock } from "../../components/display/CodeBlock.jsx";
 import { SourcesSection, ApertureSection } from "./Sources.jsx";
 
+const VANTAGE_FLEET = [["eu-west-1", "available", "34ms"], ["us-east-2", "available", "51ms"], ["ap-south-1", "unverified", "—"]];
+
 const BASE_LOG = [
   { time: "14:00:02", text: "batch started · 214 subjects · 3 vantages" },
   { time: "14:00:09", text: "dns sweep · acmecorp.io · 1,284 names" },
@@ -52,72 +55,106 @@ const BASE_LOG = [
   { time: "14:02:03", level: "error", text: "connect refused · 203.0.113.44:22" },
 ];
 
-function ScansSection() {
-  const [profile, setProfile] = React.useState("standard");
-  const [cadence, setCadence] = React.useState("Daily · 08:00");
-  const [cron, setCron] = React.useState("");
-  const [running, setRunning] = React.useState(false);
-  const [timeout_, setTimeout_] = React.useState(800);
-  const [cap, setCap] = React.useState(1024);
-  const [selDay, setSelDay] = React.useState("2026-08-24");
-  const RUNS = React.useMemo(() => { const e = {}; for (let d = 1; d <= 31; d++) { const s = "2026-08-" + String(d).padStart(2, "0"); e[s] = new Date(2026, 7, d).getDay() === 1 ? 2 : 1; } return e; }, []);
-  const [log, setLog] = React.useState(BASE_LOG);
-  const run = () => {
-    if (running) return;
-    setRunning(true);
-    let n = 0;
-    const t = setInterval(() => {
-      n++;
-      setLog((l) => l.concat({ time: "14:0" + (3 + Math.floor(n / 4)) + ":" + String(10 + n * 7).slice(-2), text: "scan · subject " + (200 + n) + " of 214" }));
-      if (n >= 6) { clearInterval(t); setRunning(false); }
-    }, 700);
+function ScansSection({ onToast, onOpenRun }) {
+  const CATALOG = [
+    { kind: "dns", cadence: "daily", enabled: true },
+    { kind: "hot", cadence: "daily", enabled: true },
+    { kind: "tls-acceptance", cadence: "every 7 days", enabled: true },
+    { kind: "cold", cadence: "every 30 days", enabled: false },
+    { kind: "zone", cadence: "every 30 days", enabled: true },
+    { kind: "ct", cadence: "daily", enabled: true },
+  ];
+  const JOBS = [
+    { id: 912, kind: "dns-sweep", vantage: "eu-west-1", state: "done", attempt: "1/3", batch: "1407" },
+    { id: 913, kind: "reachability", vantage: "eu-west-1", state: "done", attempt: "1/3", batch: "1407" },
+    { id: 914, kind: "reachability", vantage: "us-east-2", state: "done", attempt: "1/3", batch: "1407" },
+    { id: 915, kind: "reachability", vantage: "ap-south-1", state: "retrying", attempt: "2/3", batch: null },
+    { id: 916, kind: "port-census", vantage: "eu-west-1", state: "running", attempt: "1/3", batch: null },
+    { id: 917, kind: "tls-acceptance", vantage: "eu-west-1", state: "done", attempt: "1/3", batch: "1407" },
+  ];
+  const [dispatch, setDispatch] = React.useState({ kind: "standard", at: "2026-08-22T14:00:02Z", completed: 4, live: 6, percent: 67, jobs: JOBS });
+  const [history, setHistory] = React.useState([
+    { kind: "standard", at: "2026-08-22T08:00:14Z", live: 6, completed: 6, dead: 0 },
+    { kind: "ct", at: "2026-08-22T06:00:03Z", live: 1, completed: 1, dead: 0 },
+    { kind: "standard", at: "2026-08-21T20:00:09Z", live: 6, completed: 5, dead: 1 },
+  ]);
+  const [confirm, setConfirm] = React.useState(null);
+  const pend = dispatch ? dispatch.jobs.filter((j) => j.state === "retrying" || j.state === "ready").length : 0;
+  const runn = dispatch ? dispatch.jobs.filter((j) => j.state === "running").length : 0;
+  const conclude = (mode) => {
+    setConfirm(null);
+    if (!dispatch) return;
+    const doneNow = dispatch.completed + (mode === "stop" ? runn : 0);
+    setHistory((h) => [{ kind: dispatch.kind, note: mode === "stop" ? "stopped · partial" : "terminated", at: dispatch.at, live: dispatch.live, completed: doneNow, dead: dispatch.live - doneNow }].concat(h));
+    setDispatch(null);
+    onToast && onToast(mode === "stop"
+      ? { tone: "neutral", title: "Dispatch stopped", description: pend + " pending job" + (pend === 1 ? "" : "s") + " cancelled · " + runn + " running finishing." }
+      : { tone: "danger", title: "Scan terminated", description: runn + " job" + (runn === 1 ? "" : "s") + " stopped · committed batches stand." });
   };
+  const stateBadge = (s) => s === "done" ? <Badge tone="ok" dot>done</Badge> : s === "running" ? <Badge dot>running</Badge> : s === "dead" ? <Badge tone="danger" dot>dead</Badge> : <Badge tone="neutral" dot>{s}</Badge>;
+  const runLink = (label) => <button onClick={onOpenRun} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", font: "600 12.5px var(--font-mono)", color: "var(--link)" }}>{label}</button>;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-      <Card microLabel="dns · zone · ct · tls-acceptance · ports" title="Recurring intent"
-        action={<StatusDot status="ok" label="scheduler healthy" />}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, alignItems: "start" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <span style={{ fontSize: 12.5, fontWeight: 500, color: "var(--text-body)" }}>Profile</span>
-            <RadioCards label="Scan profile" value={profile} onChange={setProfile} columns={1} options={[
-              { value: "standard", title: "Standard", description: "Top 1,000 TCP ports, plus any port previously seen.", meta: "default" },
-              { value: "deep", title: "Deep", description: "Full TCP and common UDP. Slower batches." },
-              { value: "passive", title: "Passive only", description: "Public datasets only \u2014 no active probing." },
-            ]} />
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-            <CadenceSelect value={cadence} customValue={cron} onChange={(v, c) => { setCadence(v); setCron(c || ""); }} />
-            <Slider label="Connect timeout" value={timeout_} onChange={setTimeout_} min={100} max={2000} step={100} unit="ms" />
-            <NumberInput label="Addresses per scope" value={cap} onChange={setCap} min={64} max={1024} step={64} unit="addresses" hint="The declaration cap — refusals name the reachable set" />
-          </div>
+      <p style={{ margin: 0, font: "400 13px/1.6 var(--font-ui)", color: "var(--text-secondary)", maxWidth: "72ch" }}>What the queue is doing right now. A scan runs as a fan-out of jobs — one per vantage, or per supplied zone file — and each job commits its own batch of observations. This is a read of the queue alone: it records what the system did, never what is true of your estate. Scans run on their own cadence; an admin may also dispatch an enabled one on demand.</p>
+      <Card microLabel="Admin · on-demand" title="Trigger a scan">
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <p style={{ margin: 0, font: "400 12.5px/1.6 var(--font-ui)", color: "var(--text-secondary)", maxWidth: "72ch" }}>Dispatch an enabled scan now, without waiting for its cadence. A scan already in flight is not dispatched again, and the disabled cold tier cannot be triggered at all.</p>
+          <Table columns={[
+            { key: "kind", label: "Scan", mono: true },
+            { key: "cadence", label: "Cadence", mono: true, width: 160 },
+            { key: "enabled", label: "State", width: 130, render: (r) => r.enabled ? <Badge tone="ok">enabled</Badge> : <Badge tone="neutral">disabled</Badge> },
+            { key: "act", label: "", align: "right", width: 260, render: (r) => r.enabled ? <Button size="sm" onClick={() => onToast && onToast({ tone: "ok", title: r.kind + " scan dispatched", description: "3 jobs fanned out · it appears under Running now." })}>Run now</Button> : <span style={{ font: "400 12px var(--font-ui)", color: "var(--text-muted)" }}>disabled — opt a scope in on Scope</span> },
+          ]} rows={CATALOG} />
         </div>
       </Card>
-      <Card microLabel="Schedule" title="Upcoming runs">
-        <div style={{ display: "flex", gap: 28, flexWrap: "wrap", alignItems: "flex-start" }}>
-          <Calendar month="2026-08" selected={selDay} onSelect={setSelDay} events={RUNS} label="Scheduled scan runs" />
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 200, paddingTop: 4, flex: 1 }}>
-            <span style={{ font: "500 10.5px var(--font-mono)", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-muted)" }}>{selDay}</span>
-            <span style={{ font: "400 12.5px/1.6 var(--font-ui)", color: "var(--text-body)" }}>standard · 08:00 · all 214 subjects</span>
-            {RUNS[selDay] === 2 && <span style={{ font: "400 12.5px/1.6 var(--font-ui)", color: "var(--text-body)" }}>deep · 02:00 · TLS acceptance + full port census</span>}
-            <span style={{ font: "400 11.5px/1.6 var(--font-ui)", color: "var(--text-muted)" }}>Dots are volume — how many runs touch the day.</span>
+      <Card microLabel="In flight" title="Running now">
+        {dispatch ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <span style={{ width: 8, height: 8, borderRadius: 999, background: "var(--accent)", flex: "none" }} />
+              {runLink(dispatch.kind)}
+              <span style={{ font: "400 11.5px var(--font-mono)", color: "var(--text-muted)" }}>dispatched {dispatch.at}</span>
+              <span style={{ marginLeft: "auto", font: "400 11.5px var(--font-mono)", color: "var(--text-secondary)" }}>{dispatch.completed} / {dispatch.live} jobs · {dispatch.percent}%</span>
+              <Button size="sm" variant="ghost" onClick={() => setConfirm("stop")}>Stop dispatch</Button>
+              <Button size="sm" variant="ghost" style={{ color: "var(--danger)" }} onClick={() => setConfirm("terminate")}>Terminate</Button>
+            </div>
+            <Progress label="Fan-out" detail={dispatch.completed + "/" + dispatch.live + " jobs"} value={dispatch.percent} />
+            <Table columns={[
+              { key: "id", label: "Job", mono: true, width: 70, render: (r) => <button onClick={() => onOpenRun && onOpenRun(r)} title="Open this job's live output" style={{ background: "none", border: "none", padding: 0, cursor: "pointer", font: "400 12px var(--font-mono)", color: "var(--link)" }}>#{r.id}</button> },
+              { key: "kind", label: "Kind", mono: true },
+              { key: "vantage", label: "Vantage", mono: true, width: 120, render: (r) => r.vantage || <span style={{ color: "var(--text-muted)" }}>—</span> },
+              { key: "state", label: "State", width: 130, render: (r) => stateBadge(r.state) },
+              { key: "attempt", label: "Attempt", mono: true, width: 90 },
+              { key: "batch", label: "Outcome", align: "right", width: 170, render: (r) => r.batch ? <Tag>{r.batch}</Tag> : <span style={{ color: "var(--text-muted)" }}>—</span> },
+            ]} rows={dispatch.jobs} />
           </div>
-        </div>
+        ) : (
+          <EmptyState message="No scan running" detail="Nothing is dispatched right now. When a scan's cadence comes due the worker fans it out, and it appears here with its jobs while it runs. This view refreshes on its own while a scan is in flight." />
+        )}
       </Card>
-      <Card microLabel="Batches" title="Recent runs" action={<Button size="sm" icon={running ? undefined : <Icon name="play" size={13} />} disabled={running} onClick={run}>{running ? <Spinner size={14} label="Running" /> : "Run now"}</Button>}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {running && <BatchStatus status="running" scope="all scopes" />}
-            <BatchStatus status="complete" scope="2026-08-22T14:00Z" />
-            <BatchStatus status="complete" scope="2026-08-22T08:00Z" />
-            <BatchStatus status="failed" scope="2026-08-21T20:00Z" />
-          </div>
-          <LogViewer title="batch 2026-08-22T14:00Z" live={running} lines={log} height={180} />
-        </div>
+      <Card microLabel="Batches" title="Recent dispatches">
+        <Table columns={[
+          { key: "dot", label: "", width: 40, render: (r) => <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 999, background: r.dead > 0 ? "var(--danger-solid)" : "var(--ok-solid)" }} /> },
+          { key: "kind", label: "Scan", render: (r) => <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>{runLink(r.kind)}{r.note && <Badge tone={r.note === "terminated" ? "danger" : "warn"}>{r.note}</Badge>}</span> },
+          { key: "at", label: "Dispatched", mono: true, width: 180 },
+          { key: "live", label: "Jobs", mono: true, width: 70 },
+          { key: "completed", label: "Completed", mono: true, width: 100 },
+          { key: "dead", label: "Dead", mono: true, align: "right", width: 70, render: (r) => r.dead > 0 ? <span style={{ color: "var(--danger)" }}>{r.dead}</span> : <span style={{ color: "var(--text-muted)" }}>0</span> },
+        ]} rows={history} />
       </Card>
+      <Dialog open={confirm === "stop"} title={"Stop dispatching " + (dispatch ? dispatch.kind : "")} onClose={() => setConfirm(null)}
+        footer={<><Button variant="ghost" onClick={() => setConfirm(null)}>Cancel</Button><Button onClick={() => conclude("stop")}>Stop dispatch</Button></>}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <p style={{ margin: 0, font: "400 13px/1.55 var(--font-ui)", color: "var(--text-body)" }}>{pend} pending job{pend === 1 ? " is" : "s are"} cancelled. {runn} running job{runn === 1 ? " finishes" : "s finish"} and commit{runn === 1 ? "s its batch" : " their batches"}; nothing already observed is discarded.</p>
+          <p style={{ margin: 0, font: "400 13px/1.55 var(--font-ui)", color: "var(--text-secondary)" }}>The dispatch is recorded as stopped · partial. The scan runs again on its normal cadence.</p>
+        </div>
+      </Dialog>
+      <ConfirmDialog open={confirm === "terminate"} title={"Terminate " + (dispatch ? dispatch.kind : "") + " now"}
+        message={runn + " running job" + (runn === 1 ? " is" : "s are") + " stopped where " + (runn === 1 ? "it stands" : "they stand") + " and uncommitted work discards. Batches already committed stand — observations are append-only. Anything half-measured is simply absent until the next run."}
+        confirmLabel="Terminate" onConfirm={() => conclude("terminate")} onClose={() => setConfirm(null)} />
     </div>
   );
 }
-
 function ProberProvision({ onToast }) {
   const [step, setStep] = React.useState(0);
   const [host, setHost] = React.useState("");
@@ -209,6 +246,7 @@ function ChannelsSection({ onToast }) {
     { url: "https://ops.acmecorp.io/hook", classes: ["signals", "drift"], status: "active" },
     { url: "https://pager.example/verge", classes: ["signals"], status: "paused" },
   ];
+  const sendTest = (c) => onToast && onToast({ tone: "ok", title: "Test message sent", description: c.url.replace(/^https?:\/\//, "") + " \u00b7 check the channel for the delivery." });
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       <Card microLabel="Channels" title="One-way delivery">
@@ -217,7 +255,10 @@ function ChannelsSection({ onToast }) {
             <div key={c.url} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: "var(--surface-sunken)", borderRadius: 10, flexWrap: "wrap" }}>
               <span style={{ font: "500 12px var(--font-mono)", color: "var(--text-body)" }}>{c.url}</span>
               {c.classes.map((k) => <Tag key={k}>{k}</Tag>)}
-              <span style={{ marginLeft: "auto" }}><Badge tone={c.status === "active" ? "ok" : "neutral"} dot>{c.status}</Badge></span>
+              <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 10 }}>
+                <Badge tone={c.status === "active" ? "ok" : "neutral"} dot>{c.status}</Badge>
+                <Button size="sm" variant="secondary" onClick={() => sendTest(c)}>Send test</Button>
+              </span>
             </div>
           ))}
         </div>
@@ -496,10 +537,22 @@ function AuditSection() {
   );
 }
 
-function InstanceSection() {
+function InstanceSection({ onToast }) {
+  const [backupBusy, setBackupBusy] = React.useState(false);
+  const [backupPct, setBackupPct] = React.useState(0);
+  const [lastBackup, setLastBackup] = React.useState(null);
+  const [preflight, setPreflight] = React.useState(null);
+  const [restoreOpen, setRestoreOpen] = React.useState(false);
+  const [checksOn, setChecksOn] = React.useState(true);
+  const startBackup = () => {
+    setBackupBusy(true); setBackupPct(8);
+    const t = setInterval(() => setBackupPct((p) => {
+      if (p >= 100) { clearInterval(t); setBackupBusy(false); setLastBackup("2026-08-22 14:12 UTC"); onToast && onToast({ tone: "ok", title: "Backup sealed", description: "24.8 GB archive · data only — no secrets inside." }); return p; }
+      return p + 23;
+    }), 450);
+  };
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-      <Callout tone="accent" title="Update available — v0.9.3">Drift-batch memory fixes and a faster census. Update from the host: <code style={{ font: "400 0.92em var(--font-mono)", background: "var(--surface-sunken)", border: "1px solid var(--border-default)", borderRadius: 6, padding: "1px 5px" }}>verge self-update</code></Callout>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }}>
         <Card><Stat label="Version" value="v0.9.2" caption="AGPL-3.0 · self-hosted" /></Card>
         <Card><Stat label="Uptime" value="41d" caption="since last restart" /></Card>
@@ -516,7 +569,8 @@ function InstanceSection() {
       </Card>
       <Card microLabel="Fleet" title="Vantages">
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {[["eu-west-1", "available", "34ms"], ["us-east-2", "available", "51ms"], ["ap-south-1", "unverified", "—"]].map(([n, a, l]) => (
+          {VANTAGE_FLEET.length === 0 && <EmptyState message="No vantage provisioned" detail="Only the shipped resolver position exists. Provision a prober under Scanning · Vantages to measure from the internet." />}
+          {VANTAGE_FLEET.map(([n, a, l]) => (
             <div key={n} style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{ font: "500 12.5px var(--font-mono)", color: "var(--text-ink)" }}>{n}</span>
               <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 8 }}>
@@ -527,11 +581,120 @@ function InstanceSection() {
           ))}
         </div>
       </Card>
+      <Card microLabel="Instance · data" title="Backup">
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <p style={{ margin: 0, font: "400 13px/1.6 var(--font-ui)", color: "var(--text-secondary)", maxWidth: "72ch" }}>A backup carries the estate and its configuration — data only, never a secret. The session key and the prober key are not in it: on restore both regenerate, and old sessions lapse. That is the design, not a caveat — a stolen backup cannot impersonate this instance.</p>
+          {backupBusy ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <Progress label="Preparing the archive" detail="streaming · ~24.8 GB" value={backupPct} />
+              <span style={{ font: "400 11.5px var(--font-ui)", color: "var(--text-muted)" }}>Big estates stream; the download starts when the archive is sealed.</span>
+            </div>
+          ) : (
+            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <Button onClick={startBackup}>Download backup</Button>
+              <span style={{ font: "400 11.5px var(--font-ui)", color: "var(--text-muted)" }}>{lastBackup ? "Last backup " + lastBackup + " · 24.8 GB" : "No backup has been taken from this UI yet."}</span>
+            </div>
+          )}
+        </div>
+      </Card>
+      <Card microLabel="Instance · data" title="Restore">
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <p style={{ margin: 0, font: "400 13px/1.6 var(--font-ui)", color: "var(--text-secondary)", maxWidth: "72ch" }}>Restoring replaces the current estate and configuration with the archive’s — it overwrites what is here now. The archive is pre-flighted before anything is touched, and applying it takes a typed confirmation. Fresh session and prober keys are generated: every session signs in again, and probers re-pin.</p>
+          {preflight ? (
+            <div style={{ display: "flex", gap: 10, padding: "12px 14px", borderRadius: 12, background: "var(--warn-soft)", border: "1px solid var(--warn-border)" }}>
+              <span style={{ display: "inline-flex", color: "var(--warn)", flex: "none", marginTop: 2 }}><Icon name="alert-triangle" size={15} /></span>
+              <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <span style={{ font: "600 12.5px var(--font-ui)", color: "var(--text-ink)" }}>Pre-flight — {preflight.file}</span>
+                <span style={{ font: "400 12.5px/1.5 var(--font-ui)", color: "var(--text-body)" }}>Taken {preflight.taken} · {preflight.subjects} subjects · schema {preflight.schema}. Applying it overwrites the current data.</span>
+                <span style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                  <Button size="sm" onClick={() => setRestoreOpen(true)}>Continue to restore…</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setPreflight(null)}>Discard</Button>
+                </span>
+              </span>
+            </div>
+          ) : (
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <Button variant="ghost" onClick={() => setPreflight({ file: "verge-backup-2026-08-15.vgbak", taken: "2026-08-15 03:00 UTC", subjects: 214, schema: "21100" })}>Choose archive…</Button>
+              <span style={{ font: "400 11.5px var(--font-ui)", color: "var(--text-muted)" }}>Pre-flight only — nothing is applied yet.</span>
+            </div>
+          )}
+        </div>
+      </Card>
+      <Card microLabel="Instance · release" title="Version & updates">
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <span style={{ font: "600 15px var(--font-mono)", color: "var(--text-ink)" }}>v0.9.2</span>
+            <Badge tone="ok" dot>schema current</Badge>
+          </div>
+          {checksOn ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ display: "flex", gap: 10, padding: "12px 14px", borderRadius: 12, background: "var(--accent-soft)" }}>
+                <span style={{ display: "inline-flex", color: "var(--accent)", flex: "none", marginTop: 2 }}><Icon name="download" size={15} /></span>
+                <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  <span style={{ font: "600 12.5px var(--font-ui)", color: "var(--text-ink)" }}>v0.9.3 is available</span>
+                  <span style={{ font: "400 12.5px/1.5 var(--font-ui)", color: "var(--text-body)" }}>Drift-batch memory fixes and a faster census. Verge never rewrites its own image — the swap is a host action. The exact steps:</span>
+                </span>
+              </div>
+              <pre style={{ margin: 0, padding: "12px 14px", background: "var(--surface-inverted)", borderRadius: 12, font: "400 12px/1.7 var(--font-mono)", color: "var(--text-on-inverted)", overflowX: "auto" }}>{"# on the host — verge cannot rewrite its own image\ndocker compose pull\ndocker compose up -d web worker\ndocker compose exec web verge migrate status"}</pre>
+            </div>
+          ) : (
+            <span style={{ font: "400 12.5px var(--font-ui)", color: "var(--text-muted)" }}>Update checks are off — air-gap friendly; Verge never phones home while disabled. Compare v0.9.2 against the releases page when you choose.</span>
+          )}
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <Button size="sm" variant="ghost" onClick={() => setChecksOn(!checksOn)}>{checksOn ? "Disable update checks" : "Enable update checks"}</Button>
+            <span style={{ font: "400 11.5px var(--font-ui)", color: "var(--text-muted)" }}>Best-effort check against the release feed — a failed check reports nothing and never blocks.</span>
+          </div>
+        </div>
+      </Card>
+      <ConfirmDialog open={restoreOpen} title={"Restore " + (preflight ? preflight.file : "")}
+        message={preflight ? "This overwrites the current estate and configuration with the archive’s (" + preflight.subjects + " subjects, taken " + preflight.taken + "). Fresh session and prober keys are generated — every session signs in again, and probers re-pin." : ""}
+        typedConfirm="restore" confirmLabel="Restore — overwrite current data"
+        onConfirm={() => { setRestoreOpen(false); setPreflight(null); onToast && onToast({ tone: "danger", title: "Restore applied", description: "Keys regenerated — every session signs in again; probers re-pin." }); }}
+        onClose={() => setRestoreOpen(false)} />
     </div>
   );
 }
 
-export function Settings({ onToast, section }) {
+function ApiSection({ onToast }) {
+  const [enabled, setEnabled] = React.useState(false);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      <header style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <span style={{ font: "500 11px var(--font-mono)", letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-muted)" }}>Access · api access</span>
+        <h2 style={{ margin: 0, font: "600 17px var(--font-ui)", letterSpacing: "var(--heading-tracking)", color: "var(--text-ink)" }}>API access</h2>
+        <p style={{ margin: 0, font: "400 13px/1.6 var(--font-ui)", color: "var(--text-secondary)", maxWidth: "72ch" }}>A read-only JSON surface at <code style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>/api/v1</code>, authenticated by personal tokens — the bearer path is fully separate from browser sessions. It is <strong>off by default</strong>; minted tokens stay inert until an admin turns it on. A token can never mutate anything: leaked, it can read the inventory, but it cannot change the estate or its configuration.</p>
+      </header>
+      <Card microLabel="Read-only · opt-in" title="/api/v1">
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <Badge tone={enabled ? "ok" : "neutral"}>{enabled ? "enabled" : "disabled"}</Badge>
+            <Button size="sm" onClick={() => { const n = !enabled; setEnabled(n); onToast && onToast(n ? { tone: "ok", title: "API access enabled", description: "Personal tokens now answer GET /api/v1/… — read-only, always." } : { tone: "neutral", title: "API access disabled", description: "/api/v1 answers nothing; every minted token is inert again." }); }}>{enabled ? "Disable API access" : "Enable API access"}</Button>
+            {enabled && <span style={{ font: "400 11.5px var(--font-ui)", color: "var(--text-muted)" }}>Enabled by ola.perez · just now</span>}
+          </div>
+          {enabled ? (
+            <div style={{ display: "flex", gap: 10, padding: "12px 14px", borderRadius: 12, background: "var(--accent-soft)" }}>
+              <span style={{ display: "inline-flex", color: "var(--accent)", flex: "none", marginTop: 2 }}><Icon name="check" size={15} /></span>
+              <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <span style={{ font: "600 12.5px var(--font-ui)", color: "var(--text-ink)" }}>Live — read-only, always</span>
+                <span style={{ font: "400 12.5px/1.5 var(--font-ui)", color: "var(--text-body)" }}>Personal tokens now answer <span style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>GET /api/v1/…</span> with their account’s read access. No token can change the estate or its configuration — there is no write surface to enable.</span>
+              </span>
+            </div>
+          ) : (
+            <div style={{ display: "flex", gap: 10, padding: "12px 14px", borderRadius: 12, background: "var(--surface-sunken)", border: "1px solid var(--border-default)" }}>
+              <span style={{ display: "inline-flex", color: "var(--text-muted)", flex: "none", marginTop: 2 }}><Icon name="lock" size={15} /></span>
+              <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <span style={{ font: "600 12.5px var(--font-ui)", color: "var(--text-ink)" }}>Disabled — the default</span>
+                <span style={{ font: "400 12.5px/1.5 var(--font-ui)", color: "var(--text-body)" }}><span style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>/api/v1</span> answers nothing and every minted token is inert. Tokens are managed per-account in the Profile; enabling here is the single switch that makes them live.</span>
+              </span>
+            </div>
+          )}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+export function Settings({ onToast, section, onOpenRun }) {
   const [active, setActive] = React.useState(section || "scans");
   React.useEffect(() => { if (section) setActive(section); }, [section]);
   const [loading, setLoading] = React.useState(false);
@@ -542,7 +705,7 @@ export function Settings({ onToast, section }) {
         <h1 style={{ margin: 0, font: "600 21px var(--font-ui)", letterSpacing: "var(--heading-tracking)", color: "var(--text-ink)" }}>Settings</h1>
         <SettingsNav active={active} onNavigate={go} sections={[
           { label: "Scanning", items: [{ id: "scans", label: "Scans", icon: "radar" }, { id: "vantages", label: "Vantages", icon: "server" }] },
-          { label: "Access", items: [{ id: "sso", label: "Single sign-on", icon: "key-round" }, { id: "team", label: "Team", icon: "users" }, { id: "sessions", label: "Sessions", icon: "monitor-smartphone" }, { id: "audit", label: "Audit log", icon: "scroll-text" }] },
+          { label: "Access", items: [{ id: "sso", label: "Single sign-on", icon: "key-round" }, { id: "team", label: "Team", icon: "users" }, { id: "sessions", label: "Sessions", icon: "monitor-smartphone" }, { id: "audit", label: "Audit log", icon: "scroll-text" }, { id: "api", label: "API access", icon: "lock" }] },
           { label: "Discovery", items: [{ id: "sources", label: "Sources", icon: "database" }, { id: "aperture", label: "Port aperture", icon: "layout-grid" }] },
           { label: "Instance", items: [{ id: "instance", label: "Health", icon: "activity" }] },
           { label: "Delivery", items: [{ id: "channels", label: "Channels", icon: "send" }, { id: "integrations", label: "Integrations", icon: "puzzle" }, { id: "messages", label: "Messages", icon: "inbox" }, { id: "delivery", label: "Delivery record", icon: "list" }] },
@@ -557,7 +720,7 @@ export function Settings({ onToast, section }) {
           </div>
         ) : (
           <React.Fragment>
-            {active === "scans" && <ScansSection />}
+            {active === "scans" && <ScansSection onToast={onToast} onOpenRun={onOpenRun} />}
             {active === "vantages" && <VantagesSection onToast={onToast} />}
             {active === "sso" && <SsoSection onToast={onToast} />}
             {active === "channels" && <ChannelsSection onToast={onToast} />}
@@ -567,7 +730,8 @@ export function Settings({ onToast, section }) {
             {active === "team" && <TeamSection onToast={onToast} />}
             {active === "sessions" && <SessionsSection onToast={onToast} />}
             {active === "audit" && <AuditSection />}
-            {active === "instance" && <InstanceSection />}
+            {active === "instance" && <InstanceSection onToast={onToast} />}
+            {active === "api" && <ApiSection onToast={onToast} />}
             {active === "sources" && <SourcesSection onToast={onToast} />}
             {active === "aperture" && <ApertureSection onToast={onToast} />}
           </React.Fragment>

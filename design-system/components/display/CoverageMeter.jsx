@@ -10,8 +10,8 @@ export function CoverageMeter({ label, counted, total, unit = "", detail, size =
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6, fontFamily: "var(--font-ui)", ...style }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-        {label && <span style={{ font: "500 11px var(--font-mono)", letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-muted)" }}>{label}</span>}
-        <span style={{ marginLeft: "auto", font: "400 11.5px var(--font-mono)", color: "var(--text-secondary)", whiteSpace: "nowrap" }}>
+        {label && <span style={{ minWidth: 0, flex: "1 1 auto", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", font: "500 11px var(--font-mono)", letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-muted)" }} title={typeof label === "string" ? label : undefined}>{label}</span>}
+        <span style={{ flex: "none", font: "400 11.5px var(--font-mono)", color: "var(--text-secondary)", whiteSpace: "nowrap" }}>
           {census ? "census \u00b7 " + fmt(counted) + (unit ? " " + unit : "") : fmt(counted) + " / " + fmt(total) + (unit ? " " + unit : "")}
         </span>
       </div>

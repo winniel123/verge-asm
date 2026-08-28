@@ -23,9 +23,12 @@ type fixtureInventory struct {
 }
 
 type fixtureGroup struct {
-	Kind     string           `json:"kind"`
-	Label    string           `json:"label"`
-	Subjects []fixtureSubject `json:"subjects"`
+	Kind        string           `json:"kind"`
+	Label       string           `json:"label"`
+	Total       int              `json:"total"`
+	More        int              `json:"more"`
+	ShowAllHref string           `json:"show_all_href"`
+	Subjects    []fixtureSubject `json:"subjects"`
 }
 
 type fixtureSubject struct {
@@ -72,8 +75,61 @@ func fixtureSpanRows(t *testing.T) []db.ListAllOpenSpansRow {
 	return rows
 }
 
+// TestInventoryFixtureCountsMatchPackage keeps the VERGE_DEV windowing override
+// (devInventoryGroupTotals, applyInventoryFixtureCounts) honest against the frozen
+// package: every group whose total the dev capture pins must equal fixtures.json's
+// declared total, and — folded over the fixture's own subjects through the same
+// windowing the handler runs — reproduce the fixture's declared `more`. This is the
+// byte-exactness gate for the #756 count badge + "Show all N — M more" expander,
+// before the pixel harness.
+func TestInventoryFixtureCountsMatchPackage(t *testing.T) {
+	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
+	if err != nil {
+		t.Fatalf("read fixtures.json: %v", err)
+	}
+	var want fixtureInventory
+	if err := json.Unmarshal(raw, &want); err != nil {
+		t.Fatalf("parse fixtures.json: %v", err)
+	}
+
+	byKind := map[string]fixtureGroup{}
+	for _, g := range want.Inventory.Groups {
+		byKind[g.Kind] = g
+	}
+
+	for kind, total := range devInventoryGroupTotals {
+		wg, ok := byKind[kind]
+		if !ok {
+			t.Fatalf("devInventoryGroupTotals pins kind %q not present in fixtures.json", kind)
+		}
+		if total != wg.Total {
+			t.Errorf("group %q total drift: devInventoryGroupTotals = %d, fixtures.json = %d", kind, total, wg.Total)
+		}
+	}
+
+	// Fold the fixture's declared groups through the real windowing + dev override and
+	// assert the resulting Total/More match fixtures.json for the pinned group(s).
+	got := buildInventory(fixtureSpanRows(t))
+	windowInventoryGroups(got, "")
+	applyInventoryFixtureCounts(got, "")
+	for i := range got {
+		g := got[i]
+		if _, pinned := devInventoryGroupTotals[g.Kind]; !pinned {
+			continue
+		}
+		wg := byKind[g.Kind]
+		if g.Total != wg.Total || g.More != wg.More {
+			t.Errorf("group %q windowed counts = Total %d / More %d, want fixtures.json Total %d / More %d",
+				g.Kind, g.Total, g.More, wg.Total, wg.More)
+		}
+		if g.ShowAllHref != wg.ShowAllHref {
+			t.Errorf("group %q show_all_href = %q, want %q", g.Kind, g.ShowAllHref, wg.ShowAllHref)
+		}
+	}
+}
+
 // TestBuildInventoryMatchesDesignFixture is the byte-exactness gate: buildInventory
-// over the loader's 16 synthesized spans must reproduce
+// over the loader's 17 synthesized spans must reproduce
 // design-system/fixtures/fixtures.json → inventory.groups exactly — every group,
 // subject, and facet string AND their order.
 func TestBuildInventoryMatchesDesignFixture(t *testing.T) {

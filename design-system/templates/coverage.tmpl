@@ -25,8 +25,8 @@
 .cv-body { padding: 20px; }
 .cv-meter { display: flex; flex-direction: column; gap: 6px; font-family: var(--font-ui); }
 .cv-meter .top { display: flex; align-items: baseline; gap: 8px; }
-.cv-meter .top .lbl { font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
-.cv-meter .top .val { margin-left: auto; font: 400 11.5px var(--font-mono); color: var(--text-secondary); white-space: nowrap; }
+.cv-meter .top .lbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.cv-meter .top .val { margin-left: auto; flex: none; font: 400 11.5px var(--font-mono); color: var(--text-secondary); white-space: nowrap; }
 .cv-meter .track { height: 6px; border-radius: 999px; background: var(--surface-sunken); overflow: hidden; }
 .cv-meter .track .fill { display: block; height: 100%; border-radius: 999px; background: var(--accent); transition: width var(--dur-slow) var(--ease-out); }
 .cv-meter .census { height: 6px; border-radius: 999px; overflow: hidden; background: repeating-linear-gradient(45deg, var(--accent-soft) 0 5px, var(--surface-sunken) 5px 10px); }

@@ -80,9 +80,9 @@ export function Dashboard({ onRunScan, onAddTarget, onOpenSignals, scanning }) {
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <CoverageMeter label="203.0.113.0/24" counted={212} total={256} unit="addresses" size="sm" />
               <CoverageMeter label="acmecorp.io names" counted={1284} unit="names" size="sm" />
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <StalenessBadge kind="silent" bound="9d" size="sm" />
-                <span style={{ font: "400 11.5px var(--font-ui)", color: "var(--text-muted)" }}>zone transfer for internal.acmecorp.io</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                <span style={{ flex: "none" }}><StalenessBadge kind="silent" bound="9d" size="sm" /></span>
+                <span style={{ minWidth: 0, font: "400 11.5px var(--font-ui)", color: "var(--text-muted)", overflowWrap: "anywhere" }}>zone transfer for internal.acmecorp.io</span>
               </div>
             </div>
           </Card>
