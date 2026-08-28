@@ -11,7 +11,7 @@ The system lives at **`design-system/`** in the repo root:
 - `styles.css` — the global entry. Link it once, then use its custom properties. It pulls the seven token files under `tokens/`.
 - `tokens/` — `colors.css`, `typography.css`, `spacing.css`, `radius.css`, `elevation.css`, `motion.css`, `base.css`. Treat these as the source of truth.
 - `components/` — five folders: `forms/` · `display/` · `feedback/` · `navigation/` · `media/`. Every component ships three files: `Name.jsx` (implementation), `Name.d.ts` (props contract), and `Name.prompt.md` (usage note + example). **Read the `.prompt.md` before using a component.** Imports between components are relative (`../media/Icon.jsx`) — keep the folder structure.
-- `examples/` — **the IA spec, ported verbatim** ([ADR-0110](../adr/0110-the-design-system-examples-are-the-consoles-ia-spec-ported-verbatim.md)): `examples/console/` (the console screens + `ConsoleApp.jsx` shell + a screen README), plus `examples/Homepage.jsx` (marketing) and `examples/DocsPage.jsx` (docs). Port each console screen's composition verbatim — same components, layout, spacing, hierarchy, and copy — translating the reference JSX into the app's server-rendered Go templates and swapping only inline sample data for real data of the same shape. `ConsoleApp.jsx` is the shell spec; `screenshots/` are ground truth. Earlier guidance to "rebuild their structure rather than ship them verbatim" is **superseded** — this was the only clause ADR-0110 reversed.
+- `examples/` — **the IA spec, ported verbatim** ([ADR-0110](../adr/0110-the-design-system-examples-are-the-consoles-ia-spec-ported-verbatim.md)): `examples/console/` (the console screens + `ConsoleApp.jsx` shell + a screen README), plus `examples/Homepage.jsx` (marketing) and `examples/DocsPage.jsx` (docs). Port each console screen's composition verbatim — same components, layout, spacing, hierarchy, and copy — translating the reference JSX into the app's server-rendered Go templates and swapping only inline sample data for real data of the same shape. `ConsoleApp.jsx` is the shell spec. Earlier guidance to "rebuild their structure rather than ship them verbatim" is **superseded** — this was the only clause ADR-0110 reversed.
 - `docs/AGENT-GUIDE.md` — the compact, agent-facing usage guide (also a good human quick-start). Start here.
 - `docs/DESIGN-NOTES.md` — the full rationale: palette math, severity contrast tables, per-batch component history, production notes. Read it for anything non-trivial.
 
@@ -36,19 +36,15 @@ The new system was built from the redesign brief and is **already domain-correct
 
 When a visual convention and a domain term collide, the domain term wins and the visual convention gets re-skinned around it.
 
-## Requesting a component (never build one here)
+## Adding or editing a component (in-repo)
 
-> **Verge ASM does not author design-system components. All components are created in Claude Design and imported into `design-system/`. When a screen needs a component the system does not have, do not build it here: write a component-request markdown file from `design-system/COMPONENT-REQUEST.md`, and hand it to the user to give to Claude Design. Restyling within existing tokens/components is fine; creating a new component file in this repo is not.**
+`design-system/` is the shared UI asset home and may be edited in-repo — templates, tokens, and components alike. The former handoff — where components were authored only in Claude Design and imported wholesale via a `COMPONENT-REQUEST.md` round-trip — was **retired 2026-08-28**; [ADR-0109](../adr/0109-design-system-components-are-authored-in-claude-design-and-imported.md) and [ADR-0116](../adr/0116-the-design-package-is-normative-for-look-and-functionality.md) are superseded.
 
-This is [ADR-0109](../adr/0109-design-system-components-are-authored-in-claude-design-and-imported.md). Restyling an existing component or template class **within the existing token vocabulary** is ordinary in-repo work; importing a component back from Claude Design (dropping its `.jsx` + `.d.ts` + `.prompt.md` into `components/`) is the intended flow; **creating a new component file in this repo is not.** No repo-authored component is grandfathered — the migration added none, and this keeps it that way.
+Editing here is ordinary work now, but the system earns its keep only while it stays coherent, so:
 
-**The handoff, end to end:**
-
-1. **Confirm the component truly does not exist.** Look across all five `design-system/components/` folders (`forms/`, `display/`, `feedback/`, `navigation/`, `media/`) — the system already ships ~110 components, so most needs are already met, possibly under a domain-correct name (`AnnotationControl`, `ChangeBadge`, `CoverageMeter`, `VantageCard`, …). Read the candidate's `.prompt.md` before concluding it is missing.
-2. **Write the request.** Copy `design-system/COMPONENT-REQUEST.md`, fill it in, and save it under `design-system/requests/<component-name>.md`.
-3. **Hand it to the user** to give to Claude Design. The component is authored there, comes back as `.jsx` + `.d.ts` + `.prompt.md`, and is imported into `design-system/components/`.
-
-Where the round-trip's wait is unacceptable, the correct move is still the request plus an explicit note of the blockage — never a repo-authored component.
+1. **Reuse before you add.** Look across all five `design-system/components/` folders (`forms/`, `display/`, `feedback/`, `navigation/`, `media/`) — the system already ships ~110 components, so most needs are already met, possibly under a domain-correct name (`AnnotationControl`, `ChangeBadge`, `CoverageMeter`, `VantageCard`, …). Read the candidate's `.prompt.md` before concluding it is missing.
+2. **Stay in the token vocabulary.** A new component keeps the one type scale, one severity ramp, one elevation model, and light/dark in step; use `var(--…)`, never a hardcoded value a token already names.
+3. **Ship the contract.** A new component carries the same trio the rest do — `Name.jsx` (implementation), `Name.d.ts` (props), `Name.prompt.md` (usage note) — so the next session can use it.
 
 ## A prototype is a dated record of a reading, never of a rule
 
@@ -135,4 +131,4 @@ If a design need genuinely cannot be met inside the system — a colour role wit
 
 > _The drift timeline needs a "changed" treatment distinct from the severity ramp; the system has no token for it. Proposing `--drift-changed`._
 
-Additions to the token system are a decision, and get recorded like one. A **missing component** is not this case — that is a Claude Design request (see "Requesting a component" above), never an in-repo build.
+Additions to the token system are a decision, and get recorded like one. A **missing component** is different — reuse first, and if you must add one, follow "Adding or editing a component" above and keep the system coherent.

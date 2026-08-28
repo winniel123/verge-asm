@@ -16,18 +16,4 @@ Single-context — one `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/
 
 ### Design system
 
-All visual work — production UI, prototypes, mocks, slides — uses the Verge ASM design system at `design-system/`. Invoke the `verge-asm-design` skill before writing markup. Verge ASM does not author design-system components. All components are created in Claude Design and imported into `design-system/`. Missing components are requested from Claude Design via `design-system/COMPONENT-REQUEST.md`, never built in-repo (ADR-0109). See `docs/agents/design-system.md`.
-
-## Design decisions on the web UI
-The design package (design-system/) is normative for look AND functionality.
-If a work item needs ANY design decision — a domain–spec collision, an
-unspecced state, a missing datum, an ambiguity between spec file and
-screenshot — do NOT decide, work around, or approximate. Instead:
-1. Stop that work item immediately (other items may continue).
-2. Append the collision to design-system/SPEC-CHANGE.md §Collision log
-   with Ruling = "AWAITING DESIGN".
-3. Print, as the final output of the item, the DESIGN DECISION NEEDED
-   banner and the filled hand-off prompt from SPEC-CHANGE.md, so the
-   operator can paste it into the design workspace.
-4. Treat the item as blocked until the operator lands the updated design
-   package containing the ruling.
+All visual work — production UI, prototypes, mocks, slides — uses the Verge ASM design system at `design-system/`. Invoke the `verge-asm-design` skill before writing markup. `design-system/` is the shared UI asset home and the source of truth: `templates/` and `tokens/` are embedded and served by the web app (via `design-system/designfs.go`), `tokens/` and `components/` are consumed by the docs-site, and all of it may be edited in-repo. (The design-system handoff workflow — where markup was authored in a separate package and byte-compared into this repo — was retired 2026-08-28; see superseded ADR-0109 and ADR-0116.) See `docs/agents/design-system.md`.

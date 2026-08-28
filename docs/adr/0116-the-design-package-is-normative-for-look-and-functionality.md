@@ -1,6 +1,6 @@
 # ADR-0116: the design package is normative for look AND functionality, so a missing datum is built, not re-skinned
 
-- **Status:** Accepted
+- **Status:** Superseded (2026-08-28) — Design-system handoff workflow retired; the repo's served templates are the source of truth and may be edited in-repo. The parity gates (G1/G2) and the SPEC-CHANGE collision protocol this ADR established are withdrawn.
 - **Date:** 2026-08-24
 - **Ticket:** [#441 P0.0 — Parity doctrine: ADR + SPEC-CHANGE protocol + CLAUDE.md stop-and-escalate](https://github.com/winniel123/verge-asm/issues/441)
 - **Map:** [#440 Wayfinder: design-parity — make the console match the design package exactly](https://github.com/winniel123/verge-asm/issues/440)

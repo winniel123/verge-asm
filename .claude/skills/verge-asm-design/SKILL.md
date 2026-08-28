@@ -45,15 +45,15 @@ The old "engineered paper" datasheet look has been retired to `prototypes/design
 
 Never hardcode a hex value that a token already names. Reach for `var(--…)`.
 
-## Never author a component here
+## Authoring and editing in `design-system/`
 
-> Verge ASM does not author design-system components. All components are created in Claude Design and imported into `design-system/`. When a screen needs a component the system does not have, do not build it here: write a component-request markdown file from `design-system/COMPONENT-REQUEST.md`, and hand it to the user to give to Claude Design. Restyling within existing tokens/components is fine; creating a new component file in this repo is not.
+`design-system/` is the shared UI asset home and may be edited in-repo — templates, tokens, and components alike. (The former handoff workflow, where components were authored only in Claude Design and imported wholesale, was retired 2026-08-28; ADR-0109 and ADR-0116 are superseded.)
 
-This is the canonical rule of **ADR-0109** (`docs/adr/0109-design-system-components-are-authored-in-claude-design-and-imported.md`). The `design-system/` component set is governed by a single authoring authority precisely so the system keeps its coherence — one type scale, one severity ramp, one elevation model, light and dark in step. Three clarifications on the boundary:
+Editing here is now ordinary work, but the whole point of a design system is coherence, so hold the line while you do it:
 
-- **Restyling is not authoring.** Changing how an existing component or an existing template class renders — within the existing token vocabulary — stays in this repo.
-- **Importing is not authoring.** Dropping a component's `.jsx` + `.d.ts` + `.prompt.md` back from Claude Design into `design-system/components/` is the intended flow.
-- **A missing component is a request, not a build.** Fill in `design-system/COMPONENT-REQUEST.md`, hand it to the user for Claude Design, and note the blockage — never hand-roll a new component file here, even "just this once".
+- **Reuse before adding.** The system already ships ~110 components across `forms/ display/ feedback/ navigation/ media/`, often under a domain-correct name (`AnnotationControl`, `ChangeBadge`, `CoverageMeter`, …). Read the candidate's `.prompt.md` before concluding one is missing.
+- **Stay in the token vocabulary.** Use `var(--…)`; never hardcode a value a token already names. A new component keeps the one type scale, one severity ramp, one elevation model, and light/dark in step.
+- **A new component ships its contract.** When you do add one, give it the same trio the rest carry: `Name.jsx`, `Name.d.ts` (props), `Name.prompt.md` (usage note), so the next session can use it.
 
 ## Domain guardrails (the domain term always wins over a visual convention)
 
