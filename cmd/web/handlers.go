@@ -880,6 +880,11 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /settings/channels", s.requireAdmin(s.createChannel))
 	mux.HandleFunc("POST /settings/channels/update", s.requireAdmin(s.updateChannel))
 	mux.HandleFunc("POST /settings/channels/delete", s.requireAdmin(s.deleteChannel))
+	// Send test (#757, R4-D2): POST a real signed test payload through the channel's
+	// own URL via the shared SSRF-guarded SendSigned transport. A channel always holds
+	// its own URL, so it is always testable — no binding gate (that gate is only for
+	// integrations, #38/#39). See cmd/web/channels_sendtest.go.
+	mux.HandleFunc("POST /settings/channels/test", s.requireAdmin(s.testChannel))
 	mux.HandleFunc("POST /settings/retention", s.requireAdmin(s.updateRetention))
 	// Update checks (#391, ADR-0124): opting the worker's best-effort daily release-feed
 	// check in or out is an admin config act, gated like retention. While disabled the
