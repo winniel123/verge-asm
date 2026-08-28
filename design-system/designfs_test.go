@@ -5,18 +5,15 @@ import (
 	"testing"
 )
 
-// TestFSExposesDesignArtifacts pins the read-only surface every screen
-// conversion and the verify harness depend on: the inventory template, the
-// full token set, the fixture corpus, and the verify configs must all be
-// reachable through FS by their package-relative paths.
+// TestFSExposesDesignArtifacts pins the read-only surface the web app depends
+// on: the inventory template, the full token set, and the fixture corpus must
+// all be reachable through FS by their package-relative paths.
 func TestFSExposesDesignArtifacts(t *testing.T) {
 	want := []string{
 		"templates/inventory.tmpl",
 		"tokens/base.css",
 		"tokens/colors.css",
 		"fixtures/fixtures.json",
-		"verify/config.json",
-		"verify/states.json",
 	}
 	for _, name := range want {
 		b, err := fs.ReadFile(FS, name)

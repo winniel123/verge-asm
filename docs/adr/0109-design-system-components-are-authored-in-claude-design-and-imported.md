@@ -1,6 +1,6 @@
 # ADR-0109: design-system components are authored in Claude Design and imported, never built in this repo
 
-- **Status:** Accepted
+- **Status:** Superseded (2026-08-28) — Design-system handoff workflow retired; the repo's served templates and design-system/ assets are the source of truth. Templates and components may be edited in-repo.
 - **Date:** 2026-08-22
 - **Ticket:** [#265 ADR-0109: design-system components are authored in Claude Design and imported](https://github.com/winniel123/verge-asm/issues/265)
 - **Map:** [#263 Migrate to the redesigned design system (AFK)](https://github.com/winniel123/verge-asm/issues/263)
