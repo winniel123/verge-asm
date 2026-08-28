@@ -391,6 +391,12 @@ type runView struct {
 	// JobFilter is nullable (DF-F3b): set when the request carries ?job={id}; .Log has
 	// already been narrowed to that job's rows server-side by the time it renders.
 	JobFilter *runJobFilter
+	// StreamHref is the per-job stdout long-poll endpoint the frozen rundetail.tmpl
+	// tails while a job is running (R4-D7 #761). It is nullable — empty when no job is
+	// streaming — and left "" here: with it empty the tmpl's {{if .StreamHref}} blocks
+	// skip and the static log renders. The actual long-poll endpoint is a separate
+	// follow-up for #761; this field only satisfies the frozen template's hole.
+	StreamHref string
 }
 
 // runPage renders the per-run drill-in. The run id is a Dispatch id; the dispatch
