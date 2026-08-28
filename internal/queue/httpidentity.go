@@ -25,6 +25,15 @@ import (
 // emits the `http-exchange` job that the prober case, the measurer, the drift fold and
 // the four HTTP-identity rules were all already wired to consume.
 func (d *Dispatcher) fanOutHTTPIdentity(ctx context.Context, qtx *db.Queries, scanID, dispatchID int64) (int, error) {
+	// The reached-Service population is re-gated against the CURRENT Custody Estate —
+	// the same one the connect-time hot dispatch reads — so an address whose
+	// authorising scope/class was withdrawn since it was reached is not re-enumerated
+	// (ADR-0079, #742). Only the Estate is needed here; the candidate address set the
+	// hot Scan would probe is discarded.
+	estate, _, err := hotEstate(ctx, qtx, d.now())
+	if err != nil {
+		return 0, err
+	}
 	services, err := reachedServices(ctx, qtx)
 	if err != nil {
 		return 0, err
@@ -35,7 +44,7 @@ func (d *Dispatcher) fanOutHTTPIdentity(ctx context.Context, qtx *db.Queries, sc
 	}
 
 	enqueued := 0
-	for _, j := range scan.BuildHTTPIdentityJobs(scanID, services, vantages.scanVantages()) {
+	for _, j := range scan.BuildHTTPIdentityJobs(scanID, estate, services, vantages.scanVantages()) {
 		if err := enqueueHTTPIdentityJob(ctx, qtx, scanID, dispatchID, j); err != nil {
 			return 0, err
 		}
