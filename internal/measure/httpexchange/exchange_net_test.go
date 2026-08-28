@@ -35,7 +35,9 @@ func TestNetExchangerSendsOneGetRootWithProbeUA(t *testing.T) {
 		t.Fatalf("parse listener addr: %v", err)
 	}
 
-	ex := NetExchanger{Params: DefaultParams()}
+	// httptest binds loopback, which the production egress guard refuses; this
+	// wiring test proves the request shape, so it installs an allow-all control.
+	ex := NetExchanger{Params: DefaultParams(), control: allowAllControl}
 	res := ex.Exchange(context.Background(), Target{
 		Address: ap.Addr().String(),
 		Port:    ap.Port(),

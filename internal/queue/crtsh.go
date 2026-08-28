@@ -176,6 +176,13 @@ func (w *Worker) completeCT(ctx context.Context, job db.ClaimJobRow, spec wire.J
 		return w.retryOrDeadLetterCT(ctx, job, perr)
 	}
 	names := scan.AdmittedNames(rows, cs.Domain)
+	if len(names) >= scan.MaxAdmittedNames {
+		// AdmittedNames stopped at the ceiling: this response carried at least
+		// MaxAdmittedNames in-scope names and any beyond it were dropped rather than
+		// admitted (#741). Legitimate estates sit far below the cap, so reaching it
+		// signals an oversized or hostile crt.sh answer worth an operator's notice.
+		w.log.Printf("worker: ct job %d for %q reached the admitted-name cap of %d; names beyond the cap were dropped", job.ID, cs.Domain, scan.MaxAdmittedNames)
+	}
 	return w.admitCT(ctx, job, cs, names)
 }
 

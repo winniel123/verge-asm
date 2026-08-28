@@ -28,7 +28,13 @@ func NormalizeDomain(input string) (string, error) {
 	if d == "" {
 		return "", fmt.Errorf("a domain is required")
 	}
-	if strings.ContainsAny(d, " /:*?_@") {
+	// Strict LDH allowlist (RFC 1035): a registrable domain is only letters,
+	// digits, hyphen and label-separating dots. Reject anything else BEFORE
+	// trusting publicsuffix, whose wildcard rule would otherwise pass query-
+	// injection characters (&, #, ;, ', %, whitespace) straight through into the
+	// unencoded crt.sh query URL. IDN is carried as punycode (xn--…), which is
+	// itself LDH, so this preserves every legitimate domain (#774).
+	if !isLDH(d) {
 		return "", fmt.Errorf("%q is not a bare domain — enter a registrable domain like example.com", input)
 	}
 	reg, err := publicsuffix.EffectiveTLDPlusOne(d)
@@ -39,6 +45,23 @@ func NormalizeDomain(input string) (string, error) {
 		return "", fmt.Errorf("declare the registrable domain %s, not %s", reg, d)
 	}
 	return reg, nil
+}
+
+// isLDH reports whether d contains only the characters legal in a DNS domain
+// name: ASCII letters, digits, hyphen, and the dot label separator (the LDH
+// rule, RFC 1035). d is expected already lowercased. It is an allowlist, not a
+// blocklist: any character outside [a-z0-9.-] is rejected.
+func isLDH(d string) bool {
+	for _, r := range d {
+		switch {
+		case r >= 'a' && r <= 'z':
+		case r >= '0' && r <= '9':
+		case r == '-' || r == '.':
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // ParseCIDR parses input as a CIDR block and returns it in canonical masked

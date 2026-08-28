@@ -135,6 +135,16 @@ func main() {
 	// nil-guarded). Every consumer nil-guards it.
 	web.pool = pool
 	web.secureCookies = isTruthy(env.OrDefault("VERGE_SECURE_COOKIES", ""))
+	// The front proxies whose X-Forwarded-For web trusts when deriving the login
+	// rate-limit client IP (#738). Behind a TLS-terminating proxy this keeps the
+	// per-IP limiter per-client instead of keying the whole console to the proxy
+	// address; unset (a direct-facing deployment) it is unused. A malformed spec is a
+	// hard config error rather than a silent no-op. It never affects identity or auth.
+	trustedProxies, err := parseTrustedProxies(env.OrDefault("VERGE_TRUSTED_PROXIES", ""))
+	if err != nil {
+		log.Fatalf("web: VERGE_TRUSTED_PROXIES: %v", err)
+	}
+	web.trustedProxies = trustedProxies
 	// The trusted origin for the OIDC callback redirect_uri (#293); empty falls back to
 	// the request host.
 	web.externalURL = env.OrDefault("VERGE_EXTERNAL_URL", "")

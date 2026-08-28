@@ -8,6 +8,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/winniel123/verge-asm/internal/custody"
 )
 
 // ConnResult is the raw outcome of one TCP connect attempt, before retries and
@@ -117,10 +119,22 @@ func (n NetConnector) Connect(ctx context.Context, target netip.AddrPort) ConnRe
 	if timeout <= 0 {
 		timeout = 3 * time.Second
 	}
+	// A target must be a valid literal IP: the leaf dials only pre-validated
+	// addresses, never a hostname that would re-resolve at connect time with no
+	// rebinding backstop. Reject an invalid target at entry, and back it with the
+	// socket-level egress guard below so a non-globally-reachable literal fails
+	// closed even if this invariant is ever broken upstream (#743).
+	if !target.Addr().IsValid() {
+		return ConnError
+	}
+
 	dialCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	var d net.Dialer
+	// custody.EgressGuard is the same Control-hook backstop delivery (NewHTTPDoer)
+	// and resolutionwalk (custodyDialer) install: it refuses the socket when the
+	// address the kernel is about to connect to is non-globally-reachable (#743).
+	d := net.Dialer{Control: custody.EgressGuard("connectoutcome")}
 	conn, err := d.DialContext(dialCtx, "tcp", target.String())
 	if err == nil {
 		_ = conn.Close()

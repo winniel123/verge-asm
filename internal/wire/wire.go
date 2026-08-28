@@ -7,10 +7,71 @@ package wire
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 )
+
+// A prober's stdout is untrusted input: the threat model is a compromised prober
+// host, or a MITM on the vantage channel before the host key is pinned on first
+// connect (#772). Left unbounded, such a prober can stream arbitrary volume into
+// the worker's in-memory sink and OOM the process that drains the queue for every
+// tenant. These ceilings fail closed — the job errors (and so retries / dead-letters)
+// rather than truncating into a partial-but-accepted result — mirroring the repo's
+// other capped untrusted reads (crtsh's maxCTBody = 64<<20, caida's 32<<20 LimitReader
+// + sc.Buffer). The values are generous for any legitimate job while staying finite.
+const (
+	// MaxProberStdout caps the TOTAL bytes a prober may write to stdout for one
+	// job before decoding — the gap the per-line scanner default never closed.
+	// 64 MiB matches maxCTBody: comfortably larger than any real NDJSON
+	// observation stream, small enough that one hostile job cannot exhaust RAM.
+	MaxProberStdout = 64 << 20 // 64 MiB total
+
+	// MaxObservationLine caps a single NDJSON line, making bufio.Scanner's
+	// implicit 64 KiB MaxScanTokenSize explicit and tunable. An over-long line
+	// surfaces bufio.ErrTooLong via Err() rather than over-allocating.
+	MaxObservationLine = 1 << 20 // 1 MiB per line
+
+	// MaxObservations caps how many observation lines one job may yield. Even
+	// under MaxProberStdout a flood of tiny lines would grow the decoded slice
+	// without bound; this bounds the entry COUNT too.
+	MaxObservations = 1 << 20
+)
+
+// ErrProberOutputTooLarge is the failure a capped prober-stdout sink or scanner
+// returns once a prober exceeds a ceiling above. It is a decode failure, not a
+// truncation: the caller errors the job rather than accepting partial output.
+var ErrProberOutputTooLarge = errors.New("wire: prober output exceeds cap")
+
+// LimitedBuffer is the fail-closed sink for a prober's stdout. It accumulates up
+// to limit bytes; the write that would exceed the ceiling returns
+// ErrProberOutputTooLarge and retains nothing further, so the buffer never holds
+// more than limit bytes. Passed as the io.Writer stdout sink to conn.Run /
+// cmd.Stdout, it bounds memory during the streaming copy — before decoding — so a
+// compromised prober cannot OOM the worker by streaming unbounded output (#772).
+type LimitedBuffer struct {
+	buf   bytes.Buffer
+	limit int
+	over  bool
+}
+
+// NewLimitedBuffer returns a LimitedBuffer that fails closed past limit bytes.
+func NewLimitedBuffer(limit int) *LimitedBuffer { return &LimitedBuffer{limit: limit} }
+
+// Write implements io.Writer, failing closed once the ceiling would be exceeded.
+func (b *LimitedBuffer) Write(p []byte) (int, error) {
+	if b.over || b.buf.Len()+len(p) > b.limit {
+		b.over = true
+		return 0, ErrProberOutputTooLarge
+	}
+	return b.buf.Write(p)
+}
+
+// Bytes returns the accumulated output, safe to scan once the write completed
+// without ErrProberOutputTooLarge.
+func (b *LimitedBuffer) Bytes() []byte { return b.buf.Bytes() }
 
 // JobSpec is written as a single JSON object to the prober's stdin.
 type JobSpec struct {
@@ -74,21 +135,33 @@ func EncodeObservation(w io.Writer, obs Observation) error {
 type ObservationScanner struct {
 	scanner *bufio.Scanner
 	obs     Observation
+	count   int
 	err     error
 }
 
-// NewObservationScanner wraps r for line-by-line observation decoding.
+// NewObservationScanner wraps r for line-by-line observation decoding. The
+// per-line buffer cap is made explicit (MaxObservationLine) rather than left to
+// bufio.Scanner's implicit 64 KiB default, and the line COUNT is bounded in Next
+// (MaxObservations) — the total-byte bound belongs on the sink upstream
+// (LimitedBuffer), which is where the untrusted stream is actually accumulated.
 func NewObservationScanner(r io.Reader) *ObservationScanner {
-	return &ObservationScanner{scanner: bufio.NewScanner(r)}
+	sc := bufio.NewScanner(r)
+	sc.Buffer(make([]byte, 0, 64*1024), MaxObservationLine)
+	return &ObservationScanner{scanner: sc}
 }
 
 // Next advances to the next observation, returning false at EOF or on the
 // first decode error (retrievable via Err).
 func (s *ObservationScanner) Next() bool {
+	if s.count >= MaxObservations {
+		s.err = ErrProberOutputTooLarge
+		return false
+	}
 	if !s.scanner.Scan() {
 		s.err = s.scanner.Err()
 		return false
 	}
+	s.count++
 	// Reset before decoding: json.Unmarshal only overwrites fields present
 	// in the line, so a field omitted here (omitempty) would otherwise
 	// keep the previous line's value.

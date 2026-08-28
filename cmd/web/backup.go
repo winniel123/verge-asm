@@ -42,14 +42,23 @@ import (
 // roots ahead of their children) so a naive in-order restore is close to load-safe; B4
 // owns the authoritative restore ordering.
 //
-// Every write-only secret that legitimately lives in the database (ADR-0053's accepted
-// posture: account.password_hash / totp_secret, personal_token.token_hash,
-// sso_provider.client_secret, channel.secret) rides with its row — none is a
-// session-minting key, and each is durable operator configuration a restore must
-// reconstitute (login, API tokens, SSO, webhook delivery). Redacting them is an
-// unspecced behaviour change that would silently break those on restore, so the archive
-// keeps them exactly as the live database holds them and carries the same leak posture
-// the database already has under ADR-0053 — no more, no less.
+// The archive is SECRET-FREE by construction (#739, ADR-0124 / ADR-0053: "a backup
+// carries data and no secret"). Two write-only credential columns that happen to live in
+// Postgres are REDACTED out of the dump — emitted as JSON null, never in cleartext:
+//
+//   - channel.secret             — the webhook HMAC signing key
+//   - sso_provider.client_secret — the OAuth confidential-client secret
+//
+// (see backupRedactedColumns / redactBackupRow). Both are cleartext, reversible from the
+// file, and non-session-minting; each is re-enterable operator configuration. Keeping them
+// out of the archive costs an operator a one-time re-entry after a restore and removes the
+// read-only-leak surface ADR-0053 §4.2 names — a leaked backup, replica or export exposes
+// neither the webhook signing key nor the OAuth client secret. The other write-only values
+// that ride with their row are NOT recoverable secrets and stay: account.password_hash and
+// personal_token.token_hash are one-way hashes, account.totp_secret is XChaCha20-Poly1305
+// ciphertext whose key is not in Postgres. Restore RE-APPLIES the same redaction, so no
+// archive — new or pre-#739 — can reconstitute these two columns or silently overwrite a
+// live secret: they land NULL and the operator knowingly re-enters them (see restore.go).
 var backupTables = []string{
 	// Config / identity roots.
 	"account",
@@ -117,6 +126,39 @@ const (
 	backupFormat        = "verge-backup"
 	backupFormatVersion = 1
 )
+
+// backupRedactedColumns maps a dumped table to the cleartext-secret columns that must NOT
+// leave the database in the archive (#739, ADR-0124 / ADR-0053). Each named column is
+// emitted as JSON null instead of its value, so a leaked backup exposes no webhook HMAC key
+// and no OAuth client secret. Restore re-applies this same redaction (redactBackupRow), so
+// the two columns are never carried across an archive in either direction — a restore lands
+// them NULL and the operator re-enters them. Every other column rides verbatim.
+var backupRedactedColumns = map[string][]string{
+	"channel":      {"secret"},        // webhook HMAC signing key
+	"sso_provider": {"client_secret"}, // OAuth confidential-client secret
+}
+
+// redactBackupRow takes a table's to_jsonb row object and returns it with every
+// backupRedactedColumns column for that table replaced by JSON null. Tables with no
+// redacted column are returned unchanged. Non-redacted columns are preserved byte-for-byte
+// (kept as json.RawMessage) so numeric precision and all types round-trip; only the object's
+// key order may change, which jsonb_populate_record (restore) is indifferent to.
+func redactBackupRow(table string, data []byte) ([]byte, error) {
+	cols := backupRedactedColumns[table]
+	if len(cols) == 0 {
+		return data, nil
+	}
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(data, &obj); err != nil {
+		return nil, err
+	}
+	for _, c := range cols {
+		if _, ok := obj[c]; ok {
+			obj[c] = json.RawMessage("null")
+		}
+	}
+	return json.Marshal(obj)
+}
 
 // backupManifest is the first NDJSON line of the archive. It names the format and, for
 // forward-restorability across a migration bump, records the schema version the archive
@@ -211,9 +253,10 @@ func (s *server) streamBackup(ctx context.Context, w io.Writer, schemaVersion in
 }
 
 // dumpBackupTable streams one table's rows as NDJSON. Each row is materialised by Postgres
-// as a single jsonb object (to_jsonb(row)), embedded verbatim into the row line so every
-// column type — timestamps, numerics, bytea, arrays, jsonb — round-trips without a
-// hand-written per-type encoder. The table name comes from the hardcoded backupTables
+// as a single jsonb object (to_jsonb(row)) and embedded into the row line so every column
+// type — timestamps, numerics, bytea, arrays, jsonb — round-trips without a hand-written
+// per-type encoder, EXCEPT the cleartext-secret columns redactBackupRow nulls out (#739),
+// which the archive never carries. The table name comes from the hardcoded backupTables
 // allowlist (never request input), so the interpolated identifier is not an injection
 // surface; it is still double-quoted defensively.
 func (s *server) dumpBackupTable(ctx context.Context, w io.Writer, table string) error {
@@ -227,7 +270,13 @@ func (s *server) dumpBackupTable(ctx context.Context, w io.Writer, table string)
 		if err := rows.Scan(&data); err != nil {
 			return err
 		}
-		if err := writeBackupRow(w, table, data); err != nil {
+		// Strip any cleartext secret column before it reaches the archive (#739): the dump
+		// is secret-free, so channel.secret / sso_provider.client_secret are emitted null.
+		redacted, err := redactBackupRow(table, data)
+		if err != nil {
+			return err
+		}
+		if err := writeBackupRow(w, table, redacted); err != nil {
 			return err
 		}
 	}

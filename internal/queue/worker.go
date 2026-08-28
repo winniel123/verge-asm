@@ -41,13 +41,19 @@ func (p ExecProber) Probe(ctx context.Context, spec wire.JobSpec) ([]wire.Observ
 	}
 	cmd := exec.CommandContext(ctx, p.Path) // #nosec G204 (Path is operator-configured; no argv args, spec via stdin per ADR-0001 — no tainted input)
 	cmd.Stdin = &stdin
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
+	// Fail-closed stdout sink: even the local prober is treated as untrusted
+	// output for this bound (#772) — its stdout is capped at MaxProberStdout
+	// during the copy rather than buffered without limit, so a runaway or
+	// compromised prober binary cannot OOM the worker. Exceeding the cap makes
+	// cmd.Run return a write error, driving the normal retry/dead-letter path.
+	stdout := wire.NewLimitedBuffer(wire.MaxProberStdout)
+	var stderr bytes.Buffer
+	cmd.Stdout = stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
 		return nil, fmt.Errorf("queue: exec prober: %w (stderr: %s)", err, stderr.String())
 	}
-	sc := wire.NewObservationScanner(&stdout)
+	sc := wire.NewObservationScanner(bytes.NewReader(stdout.Bytes()))
 	var obs []wire.Observation
 	for sc.Next() {
 		obs = append(obs, sc.Observation())
@@ -346,6 +352,13 @@ func (w *Worker) runJobTx(ctx context.Context, jobID int64, fn func(*db.Queries)
 // complete writes the Batch, its Observations and the job's done state in one
 // transaction — the outcome and the observation data commit together.
 func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, obs []wire.Observation) error {
+	// Re-gate the prober's self-reported subjects against what this job authorised
+	// (#773): a compromised prober can put any string in an Observation's Subject —
+	// the field written as SubjectKey and keyed on by the span/estate/message folds —
+	// so any observation naming a subject outside job.AttemptedScope is dropped before
+	// the write, rather than minting false spans/drift/messages for a subject the job
+	// never dispatched. Dropped lines are logged; legitimate lines are untouched.
+	obs = parseAuthorizedScope(job.AttemptedScope).gate(obs, w.log, job.ID)
 	return w.runJobTx(ctx, job.ID, func(qtx *db.Queries) error {
 		batchID, err := qtx.InsertBatch(ctx, db.InsertBatchParams{
 			ScanID:        job.ScanID,

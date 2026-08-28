@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/measure/httpexchange"
 )
 
@@ -12,16 +13,17 @@ import (
 // with NO port list consulted. This is the dispatch child #686 omitted; without it the
 // `http-identity` facet is never persisted and the four HTTP rules sit outside-domain.
 func TestBuildHTTPIdentityJobsOnePerVantageOverReachedServices(t *testing.T) {
+	estate := operatorEstate()
 	vantages := []Vantage{
-		{ID: 1, Name: "internet", Class: "internet"},
-		{ID: 2, Name: "internal", Class: "internal"},
+		internetVantage(1, "internet"),
+		internalVantage(2, "internal"),
 	}
 	services := []ReachedService{
-		{VantageID: 1, Address: "198.51.100.10", Port: 443},
-		{VantageID: 1, Address: "198.51.100.10", Port: 80},
-		{VantageID: 2, Address: "10.0.0.5", Port: 8080},
+		{VantageID: 1, Address: "93.184.216.10", Port: 443}, // operator, globally reachable
+		{VantageID: 1, Address: "93.184.216.10", Port: 80},
+		{VantageID: 2, Address: "10.0.0.5", Port: 8080}, // operator, private — internal vantage
 	}
-	jobs := BuildHTTPIdentityJobs(9, services, vantages)
+	jobs := BuildHTTPIdentityJobs(9, estate, services, vantages)
 	if len(jobs) != 2 {
 		t.Fatalf("got %d jobs, want one per vantage with reached Services (2)", len(jobs))
 	}
@@ -48,12 +50,12 @@ func TestBuildHTTPIdentityJobsOnePerVantageOverReachedServices(t *testing.T) {
 // population.
 func TestBuildHTTPIdentityJobsSchemeFramedByPort(t *testing.T) {
 	services := []ReachedService{
-		{VantageID: 1, Address: "198.51.100.10", Port: 443},
-		{VantageID: 1, Address: "198.51.100.10", Port: 8443},
-		{VantageID: 1, Address: "198.51.100.10", Port: 80},
-		{VantageID: 1, Address: "198.51.100.10", Port: 8080},
+		{VantageID: 1, Address: "93.184.216.10", Port: 443},
+		{VantageID: 1, Address: "93.184.216.10", Port: 8443},
+		{VantageID: 1, Address: "93.184.216.10", Port: 80},
+		{VantageID: 1, Address: "93.184.216.10", Port: 8080},
 	}
-	j := BuildHTTPIdentityJobs(1, services, []Vantage{{ID: 1, Name: "internet"}})[0]
+	j := BuildHTTPIdentityJobs(1, operatorEstate(), services, []Vantage{internetVantage(1, "internet")})[0]
 	want := map[uint16]string{443: "https", 8443: "https", 80: "http", 8080: "http"}
 	for _, tgt := range j.Targets {
 		if got := tgt.Scheme; got != want[tgt.Port] {
@@ -65,16 +67,41 @@ func TestBuildHTTPIdentityJobsSchemeFramedByPort(t *testing.T) {
 // A Vantage with no reached Service, and empty inputs, each yield no jobs — a legible
 // empty scope, not an error.
 func TestBuildHTTPIdentityJobsEmptyIsLegible(t *testing.T) {
-	vantages := []Vantage{{ID: 1, Name: "internet", Class: "internet"}}
-	if jobs := BuildHTTPIdentityJobs(1, nil, vantages); jobs != nil {
+	estate := operatorEstate()
+	vantages := []Vantage{internetVantage(1, "internet")}
+	if jobs := BuildHTTPIdentityJobs(1, estate, nil, vantages); jobs != nil {
 		t.Errorf("no reached Services should yield no jobs, got %d", len(jobs))
 	}
-	if jobs := BuildHTTPIdentityJobs(1, []ReachedService{{VantageID: 1, Address: "198.51.100.1", Port: 80}}, nil); jobs != nil {
+	if jobs := BuildHTTPIdentityJobs(1, estate, []ReachedService{{VantageID: 1, Address: "93.184.216.10", Port: 80}}, nil); jobs != nil {
 		t.Errorf("no vantages should yield no jobs, got %d", len(jobs))
 	}
 	// A reached Service at an unconfigured Vantage is dropped, not enqueued.
-	if jobs := BuildHTTPIdentityJobs(1, []ReachedService{{VantageID: 99, Address: "198.51.100.1", Port: 80}}, vantages); jobs != nil {
+	if jobs := BuildHTTPIdentityJobs(1, estate, []ReachedService{{VantageID: 99, Address: "93.184.216.10", Port: 80}}, vantages); jobs != nil {
 		t.Errorf("a Service at an unconfigured vantage must be dropped, got %d jobs", len(jobs))
+	}
+}
+
+// A reached Endpoint whose authorising Custody condition has since been withdrawn is
+// re-gated OUT and produces NO job (ADR-0079, #742) — the daily `GET /` must not touch
+// an address the current gate refuses. Two withdrawals mirror the tls-acceptance test:
+// the covering address scope removed, and the vantage class flipped to `internet`.
+func TestBuildHTTPIdentityJobsReGatesWithdrawnService(t *testing.T) {
+	// (1) Covering address scope withdrawn — address now third-party.
+	empty := custody.Estate{}
+	services := []ReachedService{{VantageID: 1, Address: "93.184.216.10", Port: 80}}
+	if jobs := BuildHTTPIdentityJobs(1, empty, services, []Vantage{internetVantage(1, "internet")}); jobs != nil {
+		t.Errorf("a reached Endpoint whose address scope was withdrawn must yield no job, got %d", len(jobs))
+	}
+
+	// (2) Vantage class flipped to `internet` over a still-in-scope private address.
+	estate := operatorEstate()
+	priv := []ReachedService{{VantageID: 1, Address: "10.0.0.5", Port: 8080}}
+	if jobs := BuildHTTPIdentityJobs(1, estate, priv, []Vantage{internetVantage(1, "internet")}); jobs != nil {
+		t.Errorf("a private address must not be exchanged with from an internet-class vantage, got %d jobs", len(jobs))
+	}
+	// Sanity: from an internal-class vantage the same in-scope address still passes.
+	if jobs := BuildHTTPIdentityJobs(1, estate, priv, []Vantage{internalVantage(1, "internal")}); len(jobs) != 1 {
+		t.Errorf("an in-scope private address must still exchange from an internal-class vantage, got %d jobs", len(jobs))
 	}
 }
 
@@ -83,9 +110,9 @@ func TestBuildHTTPIdentityJobsEmptyIsLegible(t *testing.T) {
 // NOT a port list: the scope carries Endpoints with their own ports. The spec's Kind is
 // the http-exchange leaf, so the prober's existing httpexchange case handles it.
 func TestHTTPIdentityJobRecordsParamsByContent(t *testing.T) {
-	j := BuildHTTPIdentityJobs(1,
-		[]ReachedService{{VantageID: 1, Address: "198.51.100.10", Port: 443}},
-		[]Vantage{{ID: 1, Name: "internet", Class: "internet"}},
+	j := BuildHTTPIdentityJobs(1, operatorEstate(),
+		[]ReachedService{{VantageID: 1, Address: "93.184.216.10", Port: 443}},
+		[]Vantage{internetVantage(1, "internet")},
 	)[0]
 
 	spec, err := j.JobSpec("job-1")

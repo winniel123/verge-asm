@@ -325,7 +325,7 @@ func (s *server) loginSubmit(w http.ResponseWriter, r *http.Request) {
 	// tripped the failed-attempt lockout, so an online password guess has a bounded
 	// budget. The keys are the named account and the request's source host (never a
 	// proxy header).
-	acctKey, ipKey := loginAccountKey(username), loginIPKey(r)
+	acctKey, ipKey := loginAccountKey(username), s.loginIPKey(r)
 	if s.loginLimiter.locked(acctKey, ipKey) {
 		s.render(w, r, "login", s.loginData(r.Context(), lockoutMessage))
 		return
@@ -381,7 +381,7 @@ func (s *server) loginTOTP(w http.ResponseWriter, r *http.Request) {
 	// factor per-account and per-IP exactly as the password step is. A locked key is
 	// refused before any verification runs, and its pending cookie is cleared so it
 	// cannot keep re-presenting against the same grant.
-	acctKey, ipKey := loginAccountKey(acct.Username), loginIPKey(r)
+	acctKey, ipKey := loginAccountKey(acct.Username), s.loginIPKey(r)
 	if s.loginLimiter.locked(acctKey, ipKey) {
 		s.clearCookie(w, pendingCookie)
 		s.render(w, r, "totp", s.signinData(map[string]any{"Title": "Two-factor", "Username": acct.Username, "Error": lockoutMessage}))
@@ -460,19 +460,9 @@ func (s *server) loginTOTP(w http.ResponseWriter, r *http.Request) {
 // leaks nothing an attacker can tune against.
 const lockoutMessage = "Too many attempts. Try again in a few minutes."
 
-// loginAccountKey and loginIPKey are the two throttle keys a credential attempt is
-// counted against (#322): the named account and the request's source host. The IP
-// is read from RemoteAddr only — never a proxy-supplied forwarding header — the
-// same rule the rest of the auth path holds (v1 spec §4.3, §7).
+// loginAccountKey is the per-account throttle key a credential attempt is counted
+// against (#322): the named account. The per-source key is loginIPKey (clientip.go).
 func loginAccountKey(username string) string { return "acct:" + strings.ToLower(username) }
-
-func loginIPKey(r *http.Request) string {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		host = r.RemoteAddr
-	}
-	return "ip:" + host
-}
 
 // redeemRecoveryCode spends a single-use recovery code for the account, reporting
 // whether the presented value matched an unused one. It reads the account's still-

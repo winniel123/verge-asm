@@ -13,6 +13,7 @@ package scan
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"sort"
 	"strings"
 
@@ -116,7 +117,7 @@ func CTScopeFromSpec(scope []byte) (CTSeed, error) {
 // `%25` is a URL-encoded `%`, crt.sh's SQL-LIKE wildcard, so `%.example.com`
 // matches every subdomain identity.
 func CrtshURL(domain string) string {
-	return "https://crt.sh/?q=%25." + domain + "&output=json"
+	return "https://crt.sh/?q=%25." + url.QueryEscape(domain) + "&output=json"
 }
 
 // CrtshRow is one row of a crt.sh `output=json` answer. Only the two identity
@@ -146,6 +147,16 @@ func ParseCrtshRows(body []byte) ([]CrtshRow, error) {
 	return rows, nil
 }
 
+// MaxAdmittedNames caps how many distinct Names one crt.sh response may admit
+// (#741). crt.sh is an explicitly low-trust source (ADR-0027 §7); a compromised or
+// MITM'd operator could pack millions of in-scope names into a single 64 MiB body,
+// and with no count ceiling admitCT would mint an admitted_name row for each — a
+// durable DB-bloat / mass-resolution amplification DoS against the operator's own
+// instance, since every `dns` dispatch reloads the whole admitted set. The ceiling
+// sits well above any legitimate estate's certificate footprint while bounding the
+// hostile case; a response that reaches it is truncated (the caller logs it).
+const MaxAdmittedNames = 100_000
+
 // AdmittedNames is the pure admission decision: the set of `Name`s a crt.sh
 // answer admits under one name-scope domain. It applies the two rulings already
 // made — ADR-0060 (no value with an asterisk label admits a Name; a wildcard
@@ -153,12 +164,18 @@ func ParseCrtshRows(body []byte) ([]CrtshRow, error) {
 // ADR-0047 (the Seed decides which names are inside, so a certificate's foreign
 // SANs admit nothing under this scope) — and dedupes, returning a deterministic
 // sorted set. A row's `name_value` is split on newlines; `common_name` is one
-// more candidate.
+// more candidate. Admission stops once MaxAdmittedNames distinct Names are in hand
+// (#741): the count is capped before any row is inserted, and the split is walked
+// lazily (strings.SplitSeq) so a single giant `name_value` never materialises as
+// one multi-million-element slice.
 func AdmittedNames(rows []CrtshRow, domain string) []string {
 	domain = normaliseName(domain)
 	seen := map[string]struct{}{}
 	var out []string
 	consider := func(raw string) {
+		if len(out) >= MaxAdmittedNames {
+			return
+		}
 		n := normaliseName(raw)
 		if n == "" {
 			return
@@ -181,7 +198,13 @@ func AdmittedNames(rows []CrtshRow, domain string) []string {
 		out = append(out, n)
 	}
 	for _, r := range rows {
-		for _, line := range strings.Split(r.NameValue, "\n") {
+		if len(out) >= MaxAdmittedNames {
+			break
+		}
+		for line := range strings.SplitSeq(r.NameValue, "\n") {
+			if len(out) >= MaxAdmittedNames {
+				break
+			}
 			consider(line)
 		}
 		consider(r.CommonName)

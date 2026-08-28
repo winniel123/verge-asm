@@ -17,6 +17,8 @@ import (
 	"net/netip"
 	"strings"
 	"time"
+
+	"github.com/winniel123/verge-asm/internal/custody"
 )
 
 // CertVersion is the tls-handshake leaf's Derivation version. The handshake that
@@ -217,6 +219,13 @@ func (n NetHandshaker) Handshake(ctx context.Context, target netip.AddrPort, ser
 	if timeout <= 0 {
 		timeout = 3 * time.Second
 	}
+	// A target must be a valid literal IP: the leaf handshakes only pre-validated
+	// addresses. Reject an invalid target at entry, backed by the socket-level
+	// egress guard on the dialer below so a non-globally-reachable literal fails
+	// closed even if that invariant is ever broken upstream (#743).
+	if !target.Addr().IsValid() {
+		return HandshakeResult{Outcome: NoTLS}
+	}
 	dialCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -225,7 +234,12 @@ func (n NetHandshaker) Handshake(ctx context.Context, target netip.AddrPort, ser
 		ServerName:         serverName,
 		NextProtos:         nil, // no ALPN — CONTEXT.md `Certificate`
 	}
-	d := tls.Dialer{Config: cfg}
+	// custody.EgressGuard is the shared Control-hook backstop (delivery, resolutionwalk):
+	// it refuses the socket when the resolved address is non-globally-reachable (#743).
+	d := tls.Dialer{
+		NetDialer: &net.Dialer{Control: custody.EgressGuard("connectoutcome")},
+		Config:    cfg,
+	}
 	conn, err := d.DialContext(dialCtx, "tcp", target.String())
 	if err != nil {
 		return HandshakeResult{Outcome: classifyTLSError(err)}

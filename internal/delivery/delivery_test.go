@@ -7,9 +7,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/netip"
+	"net/url"
 	"strconv"
 	"strings"
 	"testing"
@@ -273,6 +275,54 @@ func TestPostedBodyIsTheSignedBody(t *testing.T) {
 	wantSig := sigScheme + Sign(secret, fake.body, ts)
 	if fake.sig != wantSig {
 		t.Errorf("signature over the received body = %q, want %q", fake.sig, wantSig)
+	}
+}
+
+// AC (#740): for a no-secret Channel the credential IS the URL path, and
+// http.Client.Do returns a *url.Error embedding that URL verbatim. deliveryError
+// is the ONE source of the failure string written to the log line, the persisted
+// delivery.last_error column, and the channel-surface drill-down, so redacting
+// here keeps all three sinks URL-free. The rendered string keeps the operation
+// and the underlying cause but never the URL or its secret path.
+func TestDeliveryErrorRedactsCredentialBearingURL(t *testing.T) {
+	const secretURL = "https://hooks.example.com/services/T0000/B0000/XXXXsecretpathXXXX"
+	sendErr := &url.Error{
+		Op:  "Post",
+		URL: secretURL,
+		Err: errors.New("dial tcp 93.184.216.34:443: connect: connection refused"),
+	}
+
+	got := deliveryError(0, sendErr)
+
+	// The failure string is the exact value stored in delivery.last_error and
+	// emitted on the log line, so asserting it is URL-free covers both sinks.
+	if strings.Contains(got, secretURL) {
+		t.Fatalf("deliveryError leaked the full target URL: %q", got)
+	}
+	for _, secret := range []string{"XXXXsecretpathXXXX", "/services/T0000/B0000/", "hooks.example.com"} {
+		if strings.Contains(got, secret) {
+			t.Fatalf("deliveryError leaked URL fragment %q in %q", secret, got)
+		}
+	}
+	// The non-secret diagnostic is preserved: the operation and the cause survive.
+	if !strings.Contains(got, "Post") || !strings.Contains(got, "connection refused") {
+		t.Fatalf("deliveryError dropped the useful diagnostic: %q", got)
+	}
+
+	// A url.Error that also surfaces via url.Parse (guardTarget's parse path) is
+	// redacted the same way, wherever it sits in the wrapped chain.
+	wrapped := fmt.Errorf("parse target url: %w", &url.Error{Op: "parse", URL: secretURL, Err: errors.New("invalid control character in URL")})
+	if got := deliveryError(0, wrapped); strings.Contains(got, secretURL) {
+		t.Fatalf("deliveryError leaked the URL from a wrapped *url.Error: %q", got)
+	}
+
+	// A non-URL error still passes through verbatim.
+	if got := deliveryError(0, errors.New("boom")); got != "boom" {
+		t.Fatalf("deliveryError mangled a non-URL error: %q", got)
+	}
+	// No send error falls back to the HTTP status.
+	if got := deliveryError(503, nil); got != "HTTP 503" {
+		t.Fatalf("deliveryError status fallback = %q, want %q", got, "HTTP 503")
 	}
 }
 
