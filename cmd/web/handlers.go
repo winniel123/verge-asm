@@ -713,6 +713,14 @@ func (s *server) handler() http.Handler {
 	// resolves — a nonexistent id (1408) renders the missing-run ErrorPage, matching the
 	// state states.json declares. Routes are repo-owned (WORKFLOW.md).
 	mux.HandleFunc("GET /runs/{id}", s.requireLogin(s.runPage))
+	// The per-job live progress stream (#761, R4-D7; SPEC-CHANGE collision #40 a-scoped): an
+	// EPHEMERAL long-poll the frozen rundetail.tmpl tails while a job runs. It re-derives the
+	// same state-derived log .Log shows (ListJobsForDispatch → toJobView → runLog) and returns
+	// the lines after ?after={cursor} as JSON — persisting nothing new (no raw-stdout store;
+	// ADR-0041 + privacy stand). Login-gated like the run page it belongs to, and registered
+	// under both run-route aliases so the stream base matches whichever the viewer is on.
+	mux.HandleFunc("GET /run/{id}/stream", s.requireLogin(s.runStream))
+	mux.HandleFunc("GET /runs/{id}/stream", s.requireLogin(s.runStream))
 
 	mux.HandleFunc("GET /signals", s.requireLogin(s.signalsPage))
 	// The Signals CSV export (#346): the current census set the page evaluates, as a

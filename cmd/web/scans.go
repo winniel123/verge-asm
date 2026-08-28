@@ -481,7 +481,13 @@ func (s *server) runPage(w http.ResponseWriter, r *http.Request, acct db.Account
 		// cadence (DF-F3); on conclusion it returns 0 and the terminal state stands. The
 		// filter lives in the URL, so a refresh preserves it.
 		"Refresh": runRefresh(view.Status),
-		"Run":     view,
+		// StreamHref is set at BOTH scopes the frozen rundetail.tmpl reads: .Run.StreamHref
+		// drives the data-stream attribute inside {{with .Run}} (line ~151), while the
+		// root-scope {{if .StreamHref}} that emits the long-poll <script> (line ~216, outside
+		// the with) reads this top-level datum. Same value, so the attribute and the script
+		// that consumes it are always emitted together (or both skipped when "").
+		"StreamHref": view.StreamHref,
+		"Run":        view,
 	})
 }
 
@@ -560,7 +566,185 @@ func (s *server) buildRunView(r *http.Request, dv dispatchView, jobRows []db.Lis
 	// handed, never filtering client-side. The filter lives in the URL so it survives the
 	// live meta-refresh; the × clears back to the bare run route.
 	applyJobFilter(&v, r.URL.Query().Get("job"), r.URL.Path, jobs)
+
+	// StreamHref (R4-D7 #761, collision #40 a-scoped): the per-job live-progress long-poll
+	// the frozen tmpl tails while work is in flight. It is set only while the in-scope job
+	// is non-terminal — a ?job filter scopes it to that job, the bare run to any running
+	// job — and left "" once terminal, so the static state-derived .Log stands (nothing new
+	// is persisted). The base is the run's own path + /stream; the client appends ?after=.
+	v.StreamHref = runStreamHref(r.URL.Path, v.JobFilter, dv.Active, jobs)
 	return v
+}
+
+// --- per-job live progress stream (R4-D7 #761, SPEC-CHANGE collision #40 a-scoped) -------
+//
+// The frozen rundetail.tmpl tails a running job by long-polling a per-job endpoint and
+// APPENDING the JSON lines it returns after a cursor. The ruling (#40) scopes this to the
+// LIVE TRANSPORT only: the endpoint RE-DERIVES the run's state log on each poll from
+// queue_job — the exact ListJobsForDispatch → toJobView → runLog path the static .Log uses
+// — and returns the lines after the client's cursor. It PERSISTS NOTHING NEW: there is no
+// raw-stdout store (ADR-0041 corpus retention + instance-privacy posture are untouched), so
+// on a job's conclusion the persisted state-derived .Log stands exactly as today. The
+// "events" are the incremental state-derived lines as jobs advance ready→running→terminal —
+// including a retry's fresh queue_job row and its superseded (retried) attempt, which runLog
+// renders as real events. The redaction/format is runLog's verbatim; no new format is
+// invented. Liveness is a bounded poll+timeout long-poll (the queue also carries
+// LISTEN/NOTIFY on notifyChannel "queue_job", pg_notify in internal/queue/queue.go; polling
+// is the ruling's accepted alternative and keeps the endpoint on the same read seam the page
+// uses, testable without a live Postgres): it holds briefly for new lines, then returns an
+// empty {done:false} nudge so the client re-polls — it never blocks a connection forever.
+
+// runStreamHold caps one long-poll hold; runStreamPoll is how often it re-derives the state
+// log while holding. Past the hold the endpoint returns an empty nudge so the client re-polls.
+const (
+	runStreamHold = 25 * time.Second
+	runStreamPoll = time.Second
+)
+
+// jobActive reports whether a queue job is still in flight — ready or running. Every other
+// state (done, dead, retried, cancelled) is terminal: the stream is done for that job.
+func jobActive(state string) bool {
+	return state == "ready" || state == "running"
+}
+
+// runStreamHref is the per-job live-progress endpoint the frozen rundetail.tmpl tails, or
+// "" when nothing is streaming (the static .Log stands). A ?job filter scopes it to that
+// job and streams only while the job is non-terminal (an unknown/aged id → "", static log);
+// the bare run streams while any job is still in flight. The base is the run's own request
+// path + /stream so it rides whichever alias (/run or /runs) the viewer is on; the client
+// appends ?after={cursor} (and the frozen JS handles the ?/& join for a job-scoped base).
+func runStreamHref(runPath string, filter *runJobFilter, runActive bool, jobs []jobView) string {
+	base := runPath + "/stream"
+	if filter != nil {
+		for _, j := range jobs {
+			if j.ID == filter.ID {
+				if jobActive(j.State) {
+					return base + "?job=" + strconv.FormatInt(filter.ID, 10)
+				}
+				return "" // the viewed job is terminal — the static filtered .Log stands
+			}
+		}
+		return "" // unknown/aged job id — nothing to stream
+	}
+	if runActive {
+		return base
+	}
+	return ""
+}
+
+// runStreamLine is one live-progress line on the wire — the SAME tag/level/text the static
+// .Log renders (runLogLine), with the internal JobID dropped: the stream redacts EXACTLY as
+// .Log does (collision #40) and invents no new format.
+type runStreamLine struct {
+	Tag   string `json:"tag"`
+	Level string `json:"level"`
+	Text  string `json:"text"`
+}
+
+// runStreamResp is the long-poll body the frozen client expects: the state-derived lines
+// after the client's cursor, the new cursor (next), and whether the in-scope work concluded.
+type runStreamResp struct {
+	Lines []runStreamLine `json:"lines"`
+	Next  int             `json:"next"`
+	Done  bool            `json:"done"`
+}
+
+// deriveRunStream re-derives the run's state log (ListJobsForDispatch → toJobView → runLog)
+// and, with a numeric ?job, narrows it to that job exactly as applyJobFilter narrows the
+// page's .Log. done is true once the in-scope work is terminal: for a ?job filter, that one
+// job (an unknown id counts as done — nothing will stream); for the bare run, no job still
+// ready or running. It reuses the same read seam and pure folds the page uses, so a live run
+// and the stream never disagree, and it persists nothing.
+func (s *server) deriveRunStream(ctx context.Context, dispatchID int64, jobParam string) ([]runLogLine, bool, error) {
+	jobRows, err := s.store.ListJobsForDispatch(ctx, pgtype.Int8{Int64: dispatchID, Valid: true})
+	if err != nil {
+		return nil, false, err
+	}
+	jobs := make([]jobView, 0, len(jobRows))
+	for _, j := range jobRows {
+		jobs = append(jobs, toJobView(j))
+	}
+	log := runLog(jobs)
+
+	if jobParam != "" {
+		if jobID, perr := strconv.ParseInt(jobParam, 10, 64); perr == nil {
+			filtered := make([]runLogLine, 0, len(log))
+			for _, ln := range log {
+				if ln.JobID == jobID {
+					filtered = append(filtered, ln)
+				}
+			}
+			done := true
+			for _, j := range jobs {
+				if j.ID == jobID {
+					done = !jobActive(j.State)
+					break
+				}
+			}
+			return filtered, done, nil
+		}
+	}
+
+	done := true
+	for _, j := range jobs {
+		if jobActive(j.State) {
+			done = false
+			break
+		}
+	}
+	return log, done, nil
+}
+
+// runStream serves the per-job live progress long-poll (#761, collision #40). It re-derives
+// the run's state log (deriveRunStream) and returns the lines after ?after={cursor} as JSON
+// {lines:[{tag,level,text}], next, done}, where next is the new cursor (the line count) and
+// done marks the in-scope work terminal. A ?job={id} narrows the log to that job. It holds up
+// to runStreamHold for new lines (re-deriving every runStreamPoll), then returns an empty
+// {done:false} nudge so the client re-polls — never blocking forever. Login-gated like
+// runPage; it mutates nothing and persists nothing. A malformed id or after is a clean read
+// (id → an immediate done; after → treated as 0).
+func (s *server) runStream(w http.ResponseWriter, r *http.Request, _ db.Account) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		writeAPIJSON(w, runStreamResp{Lines: []runStreamLine{}, Next: 0, Done: true})
+		return
+	}
+	after := 0
+	if n, perr := strconv.Atoi(r.URL.Query().Get("after")); perr == nil && n > 0 {
+		after = n
+	}
+	jobParam := r.URL.Query().Get("job")
+	ctx := r.Context()
+
+	timeout := time.NewTimer(runStreamHold)
+	defer timeout.Stop()
+	ticker := time.NewTicker(runStreamPoll)
+	defer ticker.Stop()
+
+	for {
+		lines, done, derr := s.deriveRunStream(ctx, id, jobParam)
+		if derr != nil {
+			apiReadError(w, "run detail: stream", derr)
+			return
+		}
+		if len(lines) > after || done {
+			from := min(after, len(lines))
+			out := make([]runStreamLine, 0, len(lines)-from)
+			for _, ln := range lines[from:] {
+				out = append(out, runStreamLine{Tag: ln.Tag, Level: ln.Level, Text: ln.Text})
+			}
+			writeAPIJSON(w, runStreamResp{Lines: out, Next: len(lines), Done: done})
+			return
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-timeout.C:
+			writeAPIJSON(w, runStreamResp{Lines: []runStreamLine{}, Next: len(lines), Done: false})
+			return
+		case <-ticker.C:
+		}
+	}
 }
 
 // runStatusLabel is the run page's batch-status word (the frozen .Status hole, which is
