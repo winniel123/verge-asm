@@ -3,10 +3,11 @@
 # web, worker and prober share one build stage and one Go module
 # (ADR-0001): a schema mismatch across the wire contract cannot arise from
 # building the three binaries differently.
-# tag golang:1.25.7-bookworm pinned by manifest-list digest (#333, #745)
-# Patch pinned to 1.25.7 to agree with the go.mod `go 1.25.7` line (which enforces
-# a minimum toolchain of go1.25.7) and CI GO_VERSION "1.25.7" (#745).
-FROM --platform=$BUILDPLATFORM golang:1.25.7-bookworm@sha256:564e366a28ad1d70f460a2b97d1d299a562f08707eb0ecb24b659e5bd6c108e1 AS builder
+# tag golang:1.25.13-bookworm pinned by manifest-list digest (#333, #745)
+# Patch pinned to 1.25.13 to agree with the go.mod `go 1.25.13` line (which enforces
+# a minimum toolchain of go1.25.13) and CI GO_VERSION "1.25.13" (#745). 1.25.13 is
+# the patch that clears the reachable stdlib advisories govulncheck now blocks on (#744).
+FROM --platform=$BUILDPLATFORM golang:1.25.13-bookworm@sha256:e401dae1bf814e29204a8cb7915682e1780951e609ca0dd8865ee1937f510c48 AS builder
 ARG TARGETOS
 ARG TARGETARCH
 
