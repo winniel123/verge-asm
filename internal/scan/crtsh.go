@@ -13,6 +13,7 @@ package scan
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"sort"
 	"strings"
 
@@ -116,7 +117,7 @@ func CTScopeFromSpec(scope []byte) (CTSeed, error) {
 // `%25` is a URL-encoded `%`, crt.sh's SQL-LIKE wildcard, so `%.example.com`
 // matches every subdomain identity.
 func CrtshURL(domain string) string {
-	return "https://crt.sh/?q=%25." + domain + "&output=json"
+	return "https://crt.sh/?q=%25." + url.QueryEscape(domain) + "&output=json"
 }
 
 // CrtshRow is one row of a crt.sh `output=json` answer. Only the two identity

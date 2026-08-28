@@ -182,6 +182,17 @@ func TestCrtshURL(t *testing.T) {
 	if got != want {
 		t.Errorf("CrtshURL = %q, want %q", got, want)
 	}
+
+	// Belt-and-braces: the domain is percent-encoded, so a stray query-injection
+	// character cannot inject or override crt.sh params even if one reached here
+	// (#774). The validator is the primary guard; this is defense in depth.
+	inj := CrtshURL("example.com&output=text")
+	if strings.Contains(inj, "example.com&output=text") {
+		t.Errorf("CrtshURL did not encode injection chars: %q", inj)
+	}
+	if !strings.HasSuffix(inj, "&output=json") {
+		t.Errorf("CrtshURL lost its output=json param: %q", inj)
+	}
 }
 
 // The job's scope round-trips through the wire and back, carrying the domain and
