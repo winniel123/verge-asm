@@ -82,7 +82,7 @@ is kept as-is; this is the single `/` hop on top of it.
 
 The screenshot gate (`npm run check:screenshot`) diffs a built docs page against
 `docs-site/tests/baseline/docs.png`. CI runs this gate **inside a pinned Playwright
-container** (`mcr.microsoft.com/playwright:v1.49.1-noble`, see the `build` job in
+container** (`mcr.microsoft.com/playwright:v1.62.1-noble`, see the `build` job in
 `.github/workflows/docs-site.yml`) so the render is reproducible. Font metrics differ
 across operating systems, so a baseline captured on a host OS (e.g. Windows) drifts by
 tens of pixels against CI's Linux render and fails the gate on every run.
@@ -92,7 +92,7 @@ When a design change intentionally alters layout, run (from the repo root):
 
 ```
 docker run --rm -v "$PWD":/w -v /w/docs-site/node_modules -w /w/docs-site \
-  mcr.microsoft.com/playwright:v1.49.1-noble \
+  mcr.microsoft.com/playwright:v1.62.1-noble \
   sh -c "git config --global --add safe.directory /w && npm ci && npm run build && npm run screenshot:update"
 ```
 

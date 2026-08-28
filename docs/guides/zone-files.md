@@ -119,7 +119,7 @@ alongside your server's export command).
 
 ## Uploading it
 
-Under **Seeds → zone**, choose the name scope and upload the file. verge-asm checks the
+Under **Scope → zone**, choose the name scope and upload the file. verge-asm checks the
 apex against the scope, records the supply instant, and schedules the `zone` scan on
 your re-supply interval. Set the interval to match how often you actually re-export —
 if you re-export monthly, leave it monthly; the two-interval `Gap` gives you a full

@@ -92,8 +92,9 @@ git diff --exit-code -- internal/db   # non-zero exit = generated code is stale
 ## The golden corpus
 
 CI's `golden-corpus` job runs the measurement leaves' pinned rows hermetically (no
-network, no containers) across architectures, and a **version gate** refuses a leaf
-version bump that has no matching moved corpus digest. Run the corpus tests locally:
+network, no containers) across architectures. A separate PR-only **`corpus-version-gate`**
+job refuses a leaf version bump that has no matching moved corpus digest. Run the corpus
+tests locally:
 
 ```sh
 docker run --rm -v "$PWD":/src -w /src golang:1.25-bookworm \
