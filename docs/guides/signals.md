@@ -23,18 +23,14 @@ verified against the code, never to drift from it.
 
 ## Rule status — what fires on a default install
 
-Not every rule is wired yet. **On a default single-host install, 9 of the 17 rules can
-fire** — the four Name-only rules, the four HTTP-identity endpoint rules
-(**P0.11**, landed), and `tls-1.0-accepted` (**P0.9**, landed). The other **8 are
-dormant**:
+**On a default single-host install, 15 of the 17 rules can fire** — the four Name-only
+rules, `tls-1.0-accepted` (**P0.9**, landed), the six certificate rules (**P0.10**,
+landed), and the four HTTP-identity endpoint rules (**P0.11**, landed). The other **2
+are dormant**:
 
-- the **six certificate rules** render `not-evaluable` for every presented chain,
-  because the parsed-leaf attributes they read are not stored yet; they wake when the
-  certificate-parsing leaf lands (**P0.10**, blocked on design collision #37);
 - the **two internet-gated flagship rules** need an internet-class `Vantage` (a
-  provisioned prober), so a single-host install never enters their domain — the
-  flagship wiring is deferred to **#700** (the off-host SSH transport that carries a
-  prober landed with P0.8).
+  provisioned prober), so a single-host install never enters their domain. Provisioning
+  a prober wakes them, taking a fully-provisioned install to **17 of 17**.
 
 | Rule | Subject | Status on a default install |
 | --- | --- | --- |
@@ -42,24 +38,23 @@ dormant**:
 | `cname-target-name-error` | Name | **Live** |
 | `zone-declared-name-returns-name-error` | Name | **Live** (needs an uploaded zone file) |
 | `resolved-name-absent-from-zone` | Name | **Live** (needs an uploaded zone file) |
-| `non-globally-reachable-address-resolved-from-internet` | Name | **Dormant** — needs an internet vantage (#700) |
-| `certificate-expired` | Endpoint | **Dormant** — certificate-parsing leaf (P0.10, collision #37) |
-| `certificate-not-yet-valid` | Endpoint | **Dormant** — certificate-parsing leaf (P0.10) |
-| `certificate-expiring` | Endpoint | **Dormant** — certificate-parsing leaf (P0.10) |
-| `certificate-self-signed` | Endpoint | **Dormant** — certificate-parsing leaf (P0.10) |
-| `certificate-weak-key-or-signature` | Endpoint | **Dormant** — certificate-parsing leaf (P0.10) |
-| `certificate-hostname-san-mismatch` | Endpoint | **Dormant** — certificate-parsing leaf (P0.10) |
+| `non-globally-reachable-address-resolved-from-internet` | Name | **Dormant** — needs a provisioned prober |
+| `certificate-expired` | Endpoint | **Live** (P0.10) |
+| `certificate-not-yet-valid` | Endpoint | **Live** (P0.10) |
+| `certificate-expiring` | Endpoint | **Live** (P0.10) |
+| `certificate-self-signed` | Endpoint | **Live** (P0.10) |
+| `certificate-weak-key-or-signature` | Endpoint | **Live** (P0.10) |
+| `certificate-hostname-san-mismatch` | Endpoint | **Live** (P0.10) |
 | `plaintext-http-no-https` | Endpoint | **Live** (P0.11) |
 | `redirect-does-not-upgrade-to-tls` | Endpoint | **Live** (P0.11) |
 | `redirect-to-host-outside-estate` | Endpoint | **Live** (P0.11) |
 | `unauthenticated-request-answered` | Endpoint | **Live** (P0.11) |
 | `tls-1.0-accepted` | Service | **Live** (P0.9) |
-| `sensitive-port-reached-from-internet` | Service | **Dormant** — needs an internet vantage (#700) |
+| `sensitive-port-reached-from-internet` | Service | **Dormant** — needs a provisioned prober |
 
-A **dormant** rule is never faked: it renders `not-evaluable` (certificate rules) or
-sits `outside-domain` (the internet-gated rules) on a default install, never a
-manufactured verdict. Provisioning a [prober](prober.md) wakes the two internet-gated
-rules; the certificate rules wait on the leaf.
+A **dormant** rule is never faked: it sits `outside-domain` on a default install, never
+a manufactured verdict. Provisioning a [prober](prober.md) wakes the two internet-gated
+rules, the only rules dormant on a default install.
 
 ---
 
