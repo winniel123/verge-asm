@@ -245,7 +245,18 @@ func (s *server) confirmProposal(w http.ResponseWriter, r *http.Request, acct db
 		return
 	}
 
-	cidr := p.AddressCidr
+	// Canonicalize to the masked network before it becomes a Seed, exactly as the
+	// manual scope-declaration path does (seeds.go: `p := rawP.Masked()`). The Seed
+	// table's `address_cidr` is the source ListAddressScopeCidrs feeds to the hot/cold
+	// fan-out, and the Custody derivation's contract reads AddressScopes as canonical/
+	// masked (custody.Estate). The manual declare path masks; the confirm path did not,
+	// so an org-sourced (registry-authored) range was the one address-scope seed persisted
+	// non-canonically — diverging from a manually-added CIDR of the same shape. A `cidr`
+	// column rejects a prefix with host bits, so a non-aligned org scope failing to persist
+	// is exactly "an Org-Discovery CIDR never scans" (R4-R5, #755). Masking here restores
+	// dispatch parity: an org-sourced range enters scope as the same canonical Seed a manual
+	// declaration of the same shape would.
+	cidr := p.AddressCidr.Masked()
 	sd, err := s.store.CreateAddressSeed(r.Context(), db.CreateAddressSeedParams{
 		AddressCidr: &cidr, CreatedBy: acct.ID,
 	})
