@@ -315,12 +315,34 @@ func firingFromRow(m db.GetMessageForDeliveryRow) Firing {
 
 // deliveryError renders the failure string stored on the delivery for the
 // channel-surface drill-down. A transport error carries its own message; a
-// non-2xx carries its status.
+// non-2xx carries its status. A transport error's message is redacted first so
+// no credential-bearing target URL reaches the log line, the persisted
+// delivery.last_error, or the UI that renders it.
 func deliveryError(statusCode int, sendErr error) string {
 	if sendErr != nil {
-		return sendErr.Error()
+		return redactTransportError(sendErr)
 	}
 	return fmt.Sprintf("HTTP %d", statusCode)
+}
+
+// redactTransportError strips the target URL from a send failure. For a
+// no-secret Channel the credential IS the URL path (delivery.go), and Go's
+// http.Client.Do — like url.Parse — returns a *url.Error that embeds the URL
+// verbatim, so stringifying it would spill the secret into worker logs, the
+// delivery.last_error column, and the channel-surface drill-down, violating
+// ADR-0053's "web renders no secret value, ever" (#740). When the chain carries
+// a *url.Error we emit only its operation and underlying cause — never its URL —
+// preserving the useful, non-secret diagnostic; any other error carries no URL
+// and passes through unchanged.
+func redactTransportError(sendErr error) string {
+	var urlErr *url.Error
+	if errors.As(sendErr, &urlErr) {
+		if urlErr.Err != nil {
+			return fmt.Sprintf("%s: %s", urlErr.Op, urlErr.Err)
+		}
+		return urlErr.Op
+	}
+	return sendErr.Error()
 }
 
 func tstz(t time.Time) pgtype.Timestamptz { return pgtype.Timestamptz{Time: t, Valid: true} }
