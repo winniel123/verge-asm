@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 env:
-  GO_VERSION: "1.25"
+  GO_VERSION: "1.25.13"
 
 jobs:
   test:
@@ -157,8 +157,12 @@ jobs:
   # --- Supply-chain / SAST / secret scanning (#331) ---
 
   # Dependency vulnerability scan against the Go vulnerability database.
-  # Informational: reports known-vulnerable symbols reachable from our code
-  # without blocking the build on pre-existing advisories (`continue-on-error`).
+  # Blocking (#744): a known-vulnerable symbol reachable from our code fails
+  # the build. The current tree is clean, so this blocks only newly-introduced
+  # or newly-disclosed reachable advisories. If a pre-existing advisory must be
+  # tolerated in future, prefer bumping/patching the dep; only as a last resort
+  # add an explicit allowlist here (e.g. `govulncheck ... | grep -v <GO-ID>` or
+  # a documented per-ID exclusion) so the accepted IDs stay visible and tracked.
   govulncheck:
     runs-on: ubuntu-latest
     steps:
@@ -167,19 +171,23 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
       - name: govulncheck ./...
-        continue-on-error: true
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
           govulncheck ./...
 
-  # Static application security testing. Runs gosec with `-no-fail` so a
-  # pre-existing finding does not break the build; results are surfaced as
-  # SARIF in the repository's code-scanning (Security) tab where code scanning
-  # is available. The upload is best-effort (`continue-on-error`): on a repo
-  # without GitHub code scanning / Advanced Security the code-scanning API is
-  # not accessible and the upload would otherwise fail an informational job.
-  # Only this job is granted `security-events: write`; the top-level default
-  # stays read-only.
+  # Static application security testing. Blocking on a severity/confidence
+  # threshold (#744): `-no-fail` is dropped and `-severity high -confidence high`
+  # is added, so the job fails only on high-severity, high-confidence findings.
+  # This is the tightest threshold that leaves the CURRENT tree at zero findings
+  # (measured: high/high = 0; loosening confidence to medium = 11 CWE-190;
+  # dropping to medium severity = 67, incl. ~56 CWE-400) — so pre-existing
+  # lower-severity findings do not break the build while new high/high findings
+  # do. All findings are still surfaced as SARIF in the repository's
+  # code-scanning (Security) tab where code scanning is available. The upload is
+  # best-effort (`continue-on-error`): on a repo without GitHub code scanning /
+  # Advanced Security the code-scanning API is not accessible and the upload
+  # would otherwise fail the job. Only this job is granted
+  # `security-events: write`; the top-level default stays read-only.
   gosec:
     runs-on: ubuntu-latest
     permissions:
@@ -195,7 +203,11 @@ jobs:
           # false positives on query consts whose names contain "token"/"secret"
           # (e.g. GetSessionByTokenHash). Generated code is not hand-written attack
           # surface, so exclude it and keep the gate meaningful for real code.
-          args: "-no-fail -exclude-generated -fmt sarif -out results.sarif ./..."
+          # -severity high -confidence high: block only high/high findings (see
+          # job comment) so new high-severity issues fail while the current tree
+          # (zero at this threshold) stays green. No -no-fail: the job now fails
+          # on any finding at or above the threshold.
+          args: "-exclude-generated -severity high -confidence high -fmt sarif -out results.sarif ./..."
       - name: Upload gosec SARIF
         continue-on-error: true
         uses: github/codeql-action/upload-sarif@c16c0f3f2812ec4bb3750a5ed64873fe2ce0fbef # codeql-bundle-v2.26.3
