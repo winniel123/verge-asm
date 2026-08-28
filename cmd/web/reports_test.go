@@ -868,6 +868,62 @@ func TestFoldScanActivityRangeWindow(t *testing.T) {
 	}
 }
 
+// A SPARSE corpus must still yield a CONTIGUOUS per-day heatmap series — one cell for
+// every day in range, zero-activity days included (R4-D4, #759). The design's
+// HeatmapCalendar maps every day and styles the zero cell; the served datum must supply
+// one cell per day so a sparse estate reads as a full grid of bordered boxes rather than
+// gaps where nothing happened. This locks the "no missing cells on a sparse corpus"
+// acceptance against any future regression to sparse (activity-only) emission.
+func TestFoldScanActivitySparseCorpusIsContiguous(t *testing.T) {
+	s := &server{now: func() time.Time { return reportsClock }}
+	// Activity on only three scattered days of the twelve-week span: today, ten days
+	// ago, and forty days ago. Every other day is silent.
+	activeOffsets := []int{0, 10, 40}
+	rows := make([]db.ListDispatchProgressRow, 0, len(activeOffsets))
+	for i, off := range activeOffsets {
+		rows = append(rows, progressRow(int64(i+1), "dns", reportsClock.AddDate(0, 0, -off), 1, 0, 0, 1, 0, 0))
+	}
+
+	cells, total, _, _ := s.foldScanActivity(rows, reportsHeatDays)
+
+	// One cell per day in range — no gaps. A sparse corpus never shortens the series.
+	if len(cells) != reportsHeatDays {
+		t.Fatalf("cells = %d, want %d (one per day incl. zeros)", len(cells), reportsHeatDays)
+	}
+	if total != len(activeOffsets) {
+		t.Errorf("total in-window scans = %d, want %d", total, len(activeOffsets))
+	}
+
+	// Every cell is emitted — including the silent days, which carry the zero (sunken)
+	// styling rather than being dropped. Exactly the active days are wired.
+	wired, zeros := 0, 0
+	for i, c := range cells {
+		if c.Title == "" {
+			t.Fatalf("cell %d has no title — a day was omitted from the series", i)
+		}
+		switch string(c.Bg) {
+		case "var(--sunken)":
+			zeros++
+		default:
+			wired++
+		}
+	}
+	if wired != len(activeOffsets) {
+		t.Errorf("wired (non-zero) cells = %d, want %d (the active days)", wired, len(activeOffsets))
+	}
+	if zeros != reportsHeatDays-len(activeOffsets) {
+		t.Errorf("zero cells = %d, want %d (every silent day present, not dropped)", zeros, reportsHeatDays-len(activeOffsets))
+	}
+
+	// The three wired days sit at the exact offsets from today (index 0 = oldest).
+	for _, off := range activeOffsets {
+		idx := reportsHeatDays - 1 - off
+		if string(cells[idx].Bg) == "var(--sunken)" {
+			t.Errorf("cell at offset %d (index %d) should be wired, got sunken", off, idx)
+		}
+	}
+}
+
 // The header period picker (#23b) renders the preset links, marks the active one, re-skins
 // the period-aware captions, and carries the active period token into the export links. The
 // default (no param) is the design's 7d preset.
