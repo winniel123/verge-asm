@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"html/template"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -177,6 +178,23 @@ func (s *server) activeDispatchKinds(ctx context.Context) (map[string]bool, erro
 		}
 	}
 	return active, nil
+}
+
+// chromeScanRunning reports whether ANY scan kind has a Dispatch in flight right now —
+// the single in-flight flag the design-owned TopNav "Scan running" pill reads on
+// every view (R4-D3, #758). It rests on the same activeDispatchKinds seam the
+// dashboard's own scanning indicator uses (a scan is in flight when any kind is
+// active), so the shell pill and the dashboard's Run/Running control never disagree.
+// Best-effort: a failed read reports not-running rather than fabricating a pulse or
+// failing the page — the pill simply stays dark until the next render. (Distinct from
+// restore.go's scanInFlight, which fails toward in-flight to guard a destructive act.)
+func (s *server) chromeScanRunning(ctx context.Context) bool {
+	active, err := s.activeDispatchKinds(ctx)
+	if err != nil {
+		log.Printf("web: chrome: scan in-flight read: %v", err)
+		return false
+	}
+	return len(active) > 0
 }
 
 // buildTriggerPanel assembles the admin control block: one row per scan with its
