@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 	"testing"
@@ -431,6 +432,244 @@ func TestApplyJobFilter(t *testing.T) {
 	}
 	if len(v.Log) != 0 {
 		t.Errorf("unknown id should empty the log, got %d lines", len(v.Log))
+	}
+}
+
+// --- per-job live progress stream (R4-D7 #761, collision #40) ----------------------------
+
+// streamLine mirrors the JSON the frozen rundetail.tmpl client reads.
+type streamLine struct {
+	Tag   string `json:"tag"`
+	Level string `json:"level"`
+	Text  string `json:"text"`
+}
+type streamResp struct {
+	Lines []streamLine `json:"lines"`
+	Next  int          `json:"next"`
+	Done  bool         `json:"done"`
+}
+
+func getStream(t *testing.T, c *http.Client, url string) streamResp {
+	t.Helper()
+	raw := getBody(t, c, url, http.StatusOK)
+	var got streamResp
+	if err := json.Unmarshal([]byte(raw), &got); err != nil {
+		t.Fatalf("stream %s: decode %q: %v", url, raw, err)
+	}
+	return got
+}
+
+// The stream re-derives the SAME state log .Log shows and returns the lines after the
+// client's cursor; as a fresh queue_job row appears (a retry) the cursor/next advances, and
+// once every job is terminal it reports done=true. It persists nothing — each poll is a pure
+// re-derivation off ListJobsForDispatch (#761, collision #40 a-scoped).
+func TestRunStreamAdvancesAndConcludes(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+
+	tick := time.Date(2026, 8, 28, 12, 0, 0, 0, time.UTC)
+	f.dispatchProgress = []db.ListDispatchProgressRow{
+		progressRow(70, "standard", tick, 2, 0, 1, 1, 0, 0),
+	}
+	f.jobsByDispatch = map[int64][]db.ListJobsForDispatchRow{
+		70: {
+			{ID: 700, Kind: "dns-sweep", State: "done", Attempt: 1, MaxAttempts: 3,
+				VantageName: pgtype.Text{String: "eu-west-1", Valid: true}},
+			{ID: 701, Kind: "reachability", State: "running", Attempt: 1, MaxAttempts: 3,
+				VantageName: pgtype.Text{String: "us-east-2", Valid: true}},
+		},
+	}
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	// From cursor 0: both state-derived lines, next=2, still running so not done. The
+	// tag/level/text are runLog's verbatim — the stream invents no new format.
+	got := getStream(t, ac, base+"/run/70/stream?after=0")
+	if len(got.Lines) != 2 || got.Next != 2 || got.Done {
+		t.Fatalf("after=0: got %+v, want 2 lines, next 2, done false", got)
+	}
+	if got.Lines[1].Tag != "#701" || got.Lines[1].Text != "reachability · running · us-east-2" {
+		t.Errorf("stream line does not match runLog derivation: %+v", got.Lines[1])
+	}
+
+	// A retry enqueues a fresh queue_job row: the log grows, and a poll from cursor 2 returns
+	// only the new line, advancing the cursor. The superseded attempt is marked (warn).
+	f.jobsByDispatch[70] = append(f.jobsByDispatch[70],
+		db.ListJobsForDispatchRow{ID: 702, Kind: "reachability", State: "ready", Attempt: 2, MaxAttempts: 3,
+			VantageName: pgtype.Text{String: "ap-south-1", Valid: true}})
+	got = getStream(t, ac, base+"/run/70/stream?after=2")
+	if len(got.Lines) != 1 || got.Next != 3 || got.Done {
+		t.Fatalf("after=2: got %+v, want 1 new line, next 3, done false", got)
+	}
+	if got.Lines[0].Tag != "#702" || got.Lines[0].Level != "warn" {
+		t.Errorf("retry-in-flight line should carry the warn level: %+v", got.Lines[0])
+	}
+
+	// Every job terminal: no lines past the cursor, and done=true — the persisted .Log stands.
+	rows := f.jobsByDispatch[70]
+	for i := range rows {
+		rows[i].State = "done"
+	}
+	rows[len(rows)-1].State = "retried" // the superseded attempt
+	got = getStream(t, ac, base+"/run/70/stream?after=3")
+	if len(got.Lines) != 0 || got.Next != 3 || !got.Done {
+		t.Fatalf("terminal: got %+v, want 0 lines, next 3, done true", got)
+	}
+}
+
+// With ?job={id} the stream narrows to that job's rows exactly as the page's filter does, and
+// done flips once that one job is terminal. An unknown id streams nothing and is immediately
+// done (nothing will ever stream for it).
+func TestRunStreamJobScoped(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+
+	tick := time.Date(2026, 8, 28, 12, 0, 0, 0, time.UTC)
+	f.dispatchProgress = []db.ListDispatchProgressRow{
+		progressRow(71, "standard", tick, 3, 1, 1, 1, 0, 0),
+	}
+	f.jobsByDispatch = map[int64][]db.ListJobsForDispatchRow{
+		71: {
+			{ID: 710, Kind: "dns-sweep", State: "done", Attempt: 1, MaxAttempts: 3,
+				VantageName: pgtype.Text{String: "eu-west-1", Valid: true}},
+			{ID: 711, Kind: "reachability", State: "running", Attempt: 1, MaxAttempts: 3,
+				VantageName: pgtype.Text{String: "us-east-2", Valid: true}},
+			{ID: 712, Kind: "port-census", State: "ready", Attempt: 1, MaxAttempts: 3,
+				VantageName: pgtype.Text{String: "ap-south-1", Valid: true}},
+		},
+	}
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	// Scoped to job 711: only its line, and running so not done.
+	got := getStream(t, ac, base+"/run/71/stream?job=711&after=0")
+	if len(got.Lines) != 1 || got.Next != 1 || got.Done {
+		t.Fatalf("job 711 after=0: got %+v, want 1 line, next 1, done false", got)
+	}
+	if got.Lines[0].Tag != "#711" {
+		t.Errorf("job filter leaked a non-target line: %+v", got.Lines)
+	}
+
+	// The viewed job reaches terminal: done=true, and the .Log stands.
+	f.jobsByDispatch[71][1].State = "done"
+	got = getStream(t, ac, base+"/run/71/stream?job=711&after=1")
+	if len(got.Lines) != 0 || !got.Done {
+		t.Fatalf("job 711 terminal: got %+v, want 0 lines, done true", got)
+	}
+
+	// An unknown job id: nothing streams, immediately done.
+	got = getStream(t, ac, base+"/run/71/stream?job=99999&after=0")
+	if len(got.Lines) != 0 || !got.Done {
+		t.Fatalf("unknown job: got %+v, want 0 lines, done true", got)
+	}
+}
+
+// StreamHref population (buildRunView): the frozen tmpl's data-stream attribute AND the
+// long-poll <script> appear together only while the in-scope work is live — the bare run
+// while any job is in flight, a ?job filter while that job is non-terminal — and vanish once
+// terminal, so the static .Log stands. Both scopes the tmpl reads (.Run.StreamHref for the
+// attribute, root .StreamHref for the script) are fed the same value.
+func TestRunDetailStreamHref(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+
+	tick := time.Date(2026, 8, 28, 12, 0, 0, 0, time.UTC)
+	f.dispatchProgress = []db.ListDispatchProgressRow{
+		progressRow(80, "standard", tick, 3, 1, 1, 1, 0, 0), // in flight
+		progressRow(81, "standard", tick, 2, 0, 0, 2, 0, 0), // concluded
+	}
+	f.jobsByDispatch = map[int64][]db.ListJobsForDispatchRow{
+		80: {
+			{ID: 800, Kind: "dns-sweep", State: "done", Attempt: 1, MaxAttempts: 3,
+				VantageName: pgtype.Text{String: "eu-west-1", Valid: true}},
+			{ID: 801, Kind: "reachability", State: "running", Attempt: 1, MaxAttempts: 3,
+				VantageName: pgtype.Text{String: "us-east-2", Valid: true}},
+		},
+		81: {
+			{ID: 810, Kind: "dns-sweep", State: "done", Attempt: 1, MaxAttempts: 3,
+				VantageName: pgtype.Text{String: "eu-west-1", Valid: true}},
+		},
+	}
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	// A live run, unfiltered: data-stream points at the bare stream endpoint, and the
+	// long-poll script (root-scope {{if .StreamHref}}) is emitted alongside it.
+	live := getBody(t, ac, base+"/run/80", http.StatusOK)
+	if !strings.Contains(live, `data-stream="/run/80/stream"`) {
+		t.Errorf("a live run should carry the bare stream endpoint; body: %s", live)
+	}
+	if !strings.Contains(live, "data-stream") || !strings.Contains(live, ".rd-logbody[data-stream]") {
+		t.Errorf("the long-poll script should be emitted for a live run; body: %s", live)
+	}
+
+	// Filtered to the running job: the stream base carries the job scope.
+	filtered := getBody(t, ac, base+"/run/80?job=801", http.StatusOK)
+	if !strings.Contains(filtered, `data-stream="/run/80/stream?job=801"`) {
+		t.Errorf("a filtered live job should carry the job-scoped stream endpoint; body: %s", filtered)
+	}
+
+	// Filtered to a terminal job: no stream (the static filtered .Log stands).
+	term := getBody(t, ac, base+"/run/80?job=800", http.StatusOK)
+	if strings.Contains(term, "data-stream") {
+		t.Errorf("a terminal job must not stream; body: %s", term)
+	}
+
+	// A concluded run: no stream at all.
+	done := getBody(t, ac, base+"/run/81", http.StatusOK)
+	if strings.Contains(done, "data-stream") {
+		t.Errorf("a concluded run must not stream; body: %s", done)
+	}
+}
+
+// runStreamHref is the pure StreamHref scoping core.
+func TestRunStreamHref(t *testing.T) {
+	jobs := []jobView{
+		{ID: 900, Kind: "dns-sweep", State: "done"},
+		{ID: 901, Kind: "reachability", State: "running"},
+	}
+	// Bare run, active: the plain endpoint.
+	if got := runStreamHref("/run/52", nil, true, jobs); got != "/run/52/stream" {
+		t.Errorf("bare active run: got %q, want /run/52/stream", got)
+	}
+	// Bare run, not active: empty.
+	if got := runStreamHref("/run/52", nil, false, jobs); got != "" {
+		t.Errorf("bare inactive run: got %q, want empty", got)
+	}
+	// Filtered to a running job: job-scoped endpoint.
+	f := &runJobFilter{ID: 901}
+	if got := runStreamHref("/run/52", f, true, jobs); got != "/run/52/stream?job=901" {
+		t.Errorf("filtered running job: got %q, want /run/52/stream?job=901", got)
+	}
+	// Filtered to a terminal job: empty (static log stands).
+	f = &runJobFilter{ID: 900}
+	if got := runStreamHref("/run/52", f, true, jobs); got != "" {
+		t.Errorf("filtered terminal job: got %q, want empty", got)
+	}
+	// Filtered to an unknown job: empty.
+	f = &runJobFilter{ID: 99999}
+	if got := runStreamHref("/run/52", f, true, jobs); got != "" {
+		t.Errorf("filtered unknown job: got %q, want empty", got)
+	}
+}
+
+// The stream is login-gated exactly like the run page it belongs to.
+func TestRunStreamRequiresLogin(t *testing.T) {
+	f := newFakeStore()
+	base := start(t, f, "")
+	c := newClient(t)
+
+	resp, err := c.Get(base + "/run/42/stream?after=0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/login" {
+		t.Fatalf("unauthenticated /run/{id}/stream: status=%d location=%q, want redirect to /login",
+			resp.StatusCode, resp.Header.Get("Location"))
 	}
 }
 

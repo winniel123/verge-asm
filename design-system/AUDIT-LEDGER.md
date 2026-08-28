@@ -58,6 +58,6 @@ Amendment log:
 | AL-38 | Activity heatmap missing boxes for zero-activity days | LANDED (design) + CHARTED (repo) | R4-D4: bordered empty cell (contrast fix; component already mapped all days); repo emits one cell/day incl zeros |
 | AL-39 | Dashboard Coverage card text overflows | LANDED (design) | R4-D5: label ellipsis + min-width:0, staleness line wraps |
 | AL-40 | Settings nav shifts width between tabs | LANDED (design, confirmed fixed rail) + CHARTED (repo, cosmetic) | R4-D6: rail already fixed 210px; residual = page scrollbar toggling → repo `scrollbar-gutter: stable` |
-| AL-41 | Each job should stream its exact output | LANDED (design) + CHARTED (repo) | R4-D7: RunDetail streams per-job stdout live (LogViewer live); repo streams real per-job output |
+| AL-41 | Each job should stream its exact output | LANDED (design) + CHARTED (repo) | R4-D7/#761 re-scoped by #40 (ruled a-scoped 2026-08-28): stream is EPHEMERAL per-job progress events (redacted like .Log), live transport only \u2014 NO raw-stdout persistence (ADR-0041/privacy); on done the state-derived log stands. Design unchanged (LogViewer live); repo wires worker emit + ?job= endpoint |
 
 - 2026-08-28 — v3.24.1 template export: R4-Q1 RULED (#762) → AL-30 amended; graph PNG fix landed → AL-33 amended; AL-35/36/37/40/41 design half now in the served templates too (were UI-kit-only in v3.24.0).

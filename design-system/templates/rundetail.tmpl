@@ -4,7 +4,7 @@
   Define "run" kept. Holes: .Run{Title, Status(scheduled|running|complete|failed|stopped|terminated — #34/DF-F4b: stopped = warn treatment, terminated = danger-outline on sunken, distinct from failed), Scope, Meta,
   Stages[{Num,Title,Detail,Done,Current,Last}], Log[{Tag,Level,Text}], Active,
   Transitions(string, "—" until a diff concluded), NewSignals(string, same),
-  Degraded(nullable {Vantage,Detail}), JobFilter(nullable {ID,Kind,Vantage,ClearHref} — ?job={id}; .Log arrives already filtered to that job), StreamHref(nullable — #761: when a job is running, the per-job stdout endpoint; long-polls ?after={cursor} → {lines:[{tag,level,text}],next,done} and appends live, auto-following), Params[{K,V}], Vantages[{Name,Latency,Status(ok|degraded)}]}.
+  Degraded(nullable {Vantage,Detail}), JobFilter(nullable {ID,Kind,Vantage,ClearHref} — ?job={id}; .Log arrives already filtered to that job), StreamHref(nullable — #761 re-scoped by collision #40: while a job runs, an EPHEMERAL per-job progress stream — long-polls ?after={cursor} → {lines:[{tag,level,text}],next,done}, appends live, auto-follows. Events are redacted exactly as .Log is; NOTHING new is persisted at rest (no raw-stdout store — ADR-0041/privacy), so on done the state-derived .Log stands), Params[{K,V}], Vantages[{Name,Latency,Status(ok|degraded)}]}.
   Reconciliations (SPEC-CHANGE #20, ruled): the Outcome card is the spec's — .Transitions and
   .NewSignals (the drift feed and signals ARE keyed by batch; the join gets built per the
   2026-08-24 binding ruling), replacing .Completed/.Dead (#20a). Log levels render as colored
