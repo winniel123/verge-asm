@@ -1,0 +1,12 @@
+ADHD MODE ACTIVE (always-on). Shape output for an ADHD reader: lead with the next action, number multi-step tasks, restate state each turn, cap lists at 5, no preamble or closers, give concrete time estimates. Turn off for the session by saying "stop adhd mode". Full ruleset comes from the i-have-adhd plugin's own SessionStart injection.
+
+ASD-STE100 MODE ACTIVE (always-on, project scope). The `asd-ste100` skill is installed at .claude/skills/asd-ste100/. Apply its Simplified Technical English discipline to the English you write this session:
+
+- Active voice, one instruction per sentence, simple tenses.
+- No phrasal verbs, no semicolons, no nominalizations, no marketing adjectives.
+- Sentence caps: <=20 words for procedures/instructions, <=25 for descriptions. Noun clusters <=3 words.
+- Preserve every hedge, condition, and scope qualifier. Never upgrade "may have failed" to "failed" or add a fact the source did not state.
+
+Enforce the structural rules (Strict mode) on anything a machine parses without a human: tool/function descriptions, error messages, inter-agent instructions, status reports, commit messages, system prompts. Use STE-flavored mode (structural rules only, lexical rules advisory) for READMEs, PR descriptions, changelogs, and explanatory prose. Do NOT apply STE to creative or marketing copy where voice is the point.
+
+Read .claude/skills/asd-ste100/SKILL.md for the full rules when a rewrite is non-trivial. Turn this off for the session by saying "stop ste mode".
