@@ -29,7 +29,7 @@ const (
 // instance to screenshot; it is barred outside a VERGE_DEV build (main.go) and
 // touches nothing but the span table.
 //
-// The 16 spans below ARE the fixture: buildInventory over them reproduces the
+// The 17 spans below ARE the fixture: buildInventory over them reproduces the
 // fixture's groups/subjects/facets exactly (the inventory-specific derivations in
 // inventory.go do the composing). The slice is the single source of truth — the
 // byte-exactness test (inventory_fixture_test.go) folds the same rows through
@@ -80,6 +80,18 @@ var inventoryFixtureSpans = []fixtureSpan{
 	{kind: "address", key: "198.51.100.7", facet: "reachability", discriminator: "vantage 1", value: `{"outcome":"answers","ports":["443/tcp"]}`, since: "2026-07-14"},
 	{kind: "address", key: "198.51.100.7", facet: "reachability", discriminator: "vantage 3", value: `{"outcome":"answers","ports":["443/tcp","8443/tcp"]}`, since: "2026-08-02"},
 	{kind: "address", key: "203.0.113.44", facet: "reachability", discriminator: "prober", value: `{"outcome":"answers","ports":["22/tcp"]}`, since: "2026-04-30"},
+
+	// A provider-fronted (edge-shared) address (R4-R1 #751, R4-Q1 #762): the blanket-
+	// responder classifier gapped its reach because the address answers on every port —
+	// a Cloudflare/WAF edge, not the origin. The stored reach-Gap value carries the
+	// leaf's sixth-cause tag (blanketdiscrim.GapCause) and its blanket reason, which is
+	// what inventoryProxyEdge reads to set ProxyEdge on the facet and the subject; the
+	// frozen tmpl then rides a "proxy edge" badge on the gap and demotes the row in
+	// place via the existing value-before-Gap sort. It is a Gap, so its inventory
+	// summary is empty and it holds no detail rows — the fixture byte-exactness test
+	// (which checks label/summary/is_gap/since/details, not the value) is unaffected by
+	// the cause/reason the value carries. fixtures.json marks it proxy_edge:true.
+	{kind: "address", key: "104.18.22.90", facet: "reachability", discriminator: "vantage 1", value: `{"outcome":"gap","cause":"blanket-responder","reason":"this address answers on all ports — it is a proxy edge, not your origin"}`, isGap: true, since: "2026-08-19"},
 }
 
 // fixtureSpanOpenedAt is the opened_at a fixture span carries: its Since date at
@@ -96,7 +108,7 @@ func (fs fixtureSpan) openedAt() (time.Time, error) {
 // seedInventoryFixtures reseeds the dev database's open-span corpus with the exact
 // spans the Inventory pilot fixture pins, idempotently: it DELETEs the whole span
 // table (dev-only — the corpus is never deleted in production, ADR-0041) and
-// re-inserts the 16 open spans, so re-running yields the same state. It is called
+// re-inserts the 17 open spans, so re-running yields the same state. It is called
 // only from the -seed-fixtures one-shot, which main.go gates on VERGE_DEV. The path
 // is the fixture it reproduces; it is logged for provenance but the rows are pinned
 // in code (the fixture is the contract the test asserts against, not a parse input).
