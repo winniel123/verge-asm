@@ -352,6 +352,13 @@ func (w *Worker) runJobTx(ctx context.Context, jobID int64, fn func(*db.Queries)
 // complete writes the Batch, its Observations and the job's done state in one
 // transaction — the outcome and the observation data commit together.
 func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, obs []wire.Observation) error {
+	// Re-gate the prober's self-reported subjects against what this job authorised
+	// (#773): a compromised prober can put any string in an Observation's Subject —
+	// the field written as SubjectKey and keyed on by the span/estate/message folds —
+	// so any observation naming a subject outside job.AttemptedScope is dropped before
+	// the write, rather than minting false spans/drift/messages for a subject the job
+	// never dispatched. Dropped lines are logged; legitimate lines are untouched.
+	obs = parseAuthorizedScope(job.AttemptedScope).gate(obs, w.log, job.ID)
 	return w.runJobTx(ctx, job.ID, func(qtx *db.Queries) error {
 		batchID, err := qtx.InsertBatch(ctx, db.InsertBatchParams{
 			ScanID:        job.ScanID,
