@@ -114,12 +114,17 @@ func Probe(ctx context.Context, conn Conn, binaries BinaryProvider, spec wire.Jo
 	if err := wire.EncodeJobSpec(&stdin, spec); err != nil {
 		return nil, err
 	}
-	var stdout bytes.Buffer
-	if err := conn.Run(ctx, path, &stdin, &stdout); err != nil {
+	// Fail-closed sink: the prober is untrusted (a compromised host, or a MITM
+	// before the host key is pinned), so its stdout is capped at MaxProberStdout
+	// during the streaming copy rather than buffered without bound — a hostile
+	// prober cannot OOM the worker (#772). Exceeding the cap surfaces as a Run
+	// error, driving the same retry/dead-letter path any exec failure does.
+	stdout := wire.NewLimitedBuffer(wire.MaxProberStdout)
+	if err := conn.Run(ctx, path, &stdin, stdout); err != nil {
 		return nil, fmt.Errorf("remoteexec: exec prober: %w", err)
 	}
 
-	sc := wire.NewObservationScanner(&stdout)
+	sc := wire.NewObservationScanner(bytes.NewReader(stdout.Bytes()))
 	var obs []wire.Observation
 	for sc.Next() {
 		obs = append(obs, sc.Observation())

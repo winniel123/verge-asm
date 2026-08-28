@@ -41,13 +41,19 @@ func (p ExecProber) Probe(ctx context.Context, spec wire.JobSpec) ([]wire.Observ
 	}
 	cmd := exec.CommandContext(ctx, p.Path) // #nosec G204 (Path is operator-configured; no argv args, spec via stdin per ADR-0001 — no tainted input)
 	cmd.Stdin = &stdin
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
+	// Fail-closed stdout sink: even the local prober is treated as untrusted
+	// output for this bound (#772) — its stdout is capped at MaxProberStdout
+	// during the copy rather than buffered without limit, so a runaway or
+	// compromised prober binary cannot OOM the worker. Exceeding the cap makes
+	// cmd.Run return a write error, driving the normal retry/dead-letter path.
+	stdout := wire.NewLimitedBuffer(wire.MaxProberStdout)
+	var stderr bytes.Buffer
+	cmd.Stdout = stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
 		return nil, fmt.Errorf("queue: exec prober: %w (stderr: %s)", err, stderr.String())
 	}
-	sc := wire.NewObservationScanner(&stdout)
+	sc := wire.NewObservationScanner(bytes.NewReader(stdout.Bytes()))
 	var obs []wire.Observation
 	for sc.Next() {
 		obs = append(obs, sc.Observation())
