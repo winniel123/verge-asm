@@ -161,6 +161,102 @@ func TestBackupArchiveWellFormed(t *testing.T) {
 	}
 }
 
+// TestBackupRedactsChannelAndSSOSecrets proves the data-only archive carries NO cleartext
+// webhook/OAuth secret (#739, ADR-0124 / ADR-0053). A channel row and an sso_provider row
+// with plaintext secrets are run through the export path (redactBackupRow, the same call
+// dumpBackupTable makes) and the emitted row line must (a) contain the redacted column as
+// JSON null, (b) not contain the plaintext secret anywhere, while (c) leaving every other
+// column intact. A control table (channel-less) round-trips verbatim.
+func TestBackupRedactsChannelAndSSOSecrets(t *testing.T) {
+	const (
+		webhookSecret = "whsec_super_secret_hmac_key_1234567890"
+		clientSecret  = "oauth_client_secret_abcdef_confidential"
+	)
+	cases := []struct {
+		table       string
+		row         string
+		redactedCol string
+		plaintext   string
+		keepCol     string // a column that must survive verbatim
+		keepVal     string
+	}{
+		{
+			table:       "channel",
+			row:         `{"id":7,"name":"ops","secret":"` + webhookSecret + `","kind":"webhook","created_by":3}`,
+			redactedCol: "secret",
+			plaintext:   webhookSecret,
+			keepCol:     "name",
+			keepVal:     "ops",
+		},
+		{
+			table:       "sso_provider",
+			row:         `{"id":2,"client_id":"public-client-id","client_secret":"` + clientSecret + `","issuer":"https://idp.example"}`,
+			redactedCol: "client_secret",
+			plaintext:   clientSecret,
+			keepCol:     "client_id",
+			keepVal:     "public-client-id",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.table, func(t *testing.T) {
+			redacted, err := redactBackupRow(tc.table, []byte(tc.row))
+			if err != nil {
+				t.Fatalf("redactBackupRow(%s): %v", tc.table, err)
+			}
+			// The whole emitted NDJSON row line must not contain the plaintext secret.
+			var buf bytes.Buffer
+			if err := writeBackupRow(&buf, tc.table, redacted); err != nil {
+				t.Fatal(err)
+			}
+			if bytes.Contains(buf.Bytes(), []byte(tc.plaintext)) {
+				t.Fatalf("archive row for %s carries the cleartext secret: %s", tc.table, buf.String())
+			}
+			// The redacted column must be present and JSON null (not a bogus sentinel that a
+			// restore would write as if it were the real secret).
+			var obj map[string]json.RawMessage
+			if err := json.Unmarshal(redacted, &obj); err != nil {
+				t.Fatalf("redacted row not valid JSON: %v", err)
+			}
+			raw, ok := obj[tc.redactedCol]
+			if !ok {
+				t.Fatalf("redacted column %q missing from row", tc.redactedCol)
+			}
+			if string(raw) != "null" {
+				t.Errorf("column %q = %s, want JSON null", tc.redactedCol, raw)
+			}
+			// Every other column survives verbatim.
+			var kept string
+			if err := json.Unmarshal(obj[tc.keepCol], &kept); err != nil {
+				t.Fatalf("kept column %q not readable: %v", tc.keepCol, err)
+			}
+			if kept != tc.keepVal {
+				t.Errorf("column %q = %q, want %q (non-secret columns must be intact)", tc.keepCol, kept, tc.keepVal)
+			}
+		})
+	}
+
+	// A table with no redacted columns round-trips byte-for-byte.
+	orig := []byte(`{"id":1,"kind":"name","value":"example.com"}`)
+	got, err := redactBackupRow("seed", orig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, orig) {
+		t.Errorf("non-secret table was rewritten: got %s, want %s", got, orig)
+	}
+
+	// The redaction map covers exactly the two credential-bearing config tables, and every
+	// table it names is in the dump allowlist (a redaction that never runs is a silent gap).
+	if len(backupRedactedColumns) != 2 {
+		t.Errorf("backupRedactedColumns should cover channel + sso_provider only, got %v", backupRedactedColumns)
+	}
+	for tbl := range backupRedactedColumns {
+		if !backupAllowed(tbl) {
+			t.Errorf("redacted table %q is not in the backup allowlist — its redaction never runs", tbl)
+		}
+	}
+}
+
 // TestBackupAdminGated proves POST /settings/backup is admin-only: anonymous is bounced to
 // login, a viewer is 403, and an admin passes the gate (reaching the pool-less dev guard,
 // 503 — never 403). The full stream is a Postgres round-trip covered separately.
