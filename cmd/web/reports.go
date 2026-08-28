@@ -941,6 +941,12 @@ func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 // and in-flight totals. The window counts Dispatches dated inside the span; active
 // counts those with jobs still ready or running, regardless of date. days is the
 // span in whole days (weeks * 7).
+//
+// The count series is a CONTIGUOUS per-day grid — `make([]int, days)` seeds one slot
+// per day and a silent day simply stays zero, so the fold emits one cell for EVERY day
+// in range including the zero-activity ones (R4-D4, #759). A sparse corpus therefore
+// renders a full grid of bordered boxes (the HeatmapCalendar styles the zero cell),
+// never gaps where nothing happened; emission is never restricted to days with activity.
 func (s *server) bucketScanActivity(rows []db.ListDispatchProgressRow, days int) (counts []int, window, active int) {
 	const day = 24 * time.Hour
 	today := s.now().UTC().Truncate(day)
