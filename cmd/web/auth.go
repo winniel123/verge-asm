@@ -2464,7 +2464,7 @@ func (s *server) injectChrome(data any, r *http.Request) {
 		return
 	}
 	navActive, _ := m["NavActive"].(string)
-	scanning, _ := m["Scanning"].(bool)
+	scanning, hasScanning := m["Scanning"].(bool)
 
 	// VERGE_DEV: compose the chrome from the pinned fixtures.json shell slice, so the
 	// seeded candidate renders the SAME chrome the golden harness composes (v4 pixel
@@ -2480,6 +2480,17 @@ func (s *server) injectChrome(data any, r *http.Request) {
 	ctx := context.Background()
 	acct, hasAcct := m["Account"].(db.Account)
 	signalCount, _ := m["SignalCount"].(int)
+
+	// The "Scan running" pill is global — the design-owned TopNav renders on EVERY
+	// view (R4-D3, #758), so the in-flight flag must too. The dashboard already reads
+	// its active dispatches and passes m["Scanning"]; every other page passes none, so
+	// the shell reads the same flag centrally here from the one in-flight seam. This is
+	// APPEND-ONLY: it fills the ScanRunning datum for pages that do not set it and
+	// leaves every other shell field untouched (batch-8 shell contract). The pill links
+	// to Settings · Scans (/settings?tab=scans), which this server serves.
+	if !hasScanning {
+		scanning = s.chromeScanRunning(ctx)
+	}
 
 	// Unread badge count — the caller's own count (#327, read-state is per-account),
 	// read once per chrome page unless the page (the Inbox / message panel) set it.
