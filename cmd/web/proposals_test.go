@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/proposer"
 )
@@ -155,6 +156,57 @@ func TestConfirmIsSingularWithNoBatchAffordance(t *testing.T) {
 	}
 	if pending != 1 || confirmed != 1 {
 		t.Errorf("after one singular confirm: pending=%d confirmed=%d, want 1 and 1", pending, confirmed)
+	}
+}
+
+// TestConfirmOrgSourcedCIDRIsCanonicalAndScanEligible proves that confirming an
+// Org-Discovery (registry-authored) proposal yields a Seed that is dispatch-eligible
+// at parity with a manually-added CIDR of the same shape (R4-R5, #755). The Seed the
+// hot/cold fan-out reads (ListAddressScopeCidrs) must be the canonical masked network,
+// exactly as the manual scope-declaration path stores it (seeds.go: `rawP.Masked()`):
+// the `address_cidr` column is a `cidr` that rejects host bits, and the Custody
+// derivation's AddressScopes contract is canonical/masked. The confirm path is the one
+// address-scope writer that previously did not canonicalize, so an org-sourced range
+// that was not already network-aligned was the one seed persisted non-canonically —
+// "an Org-Discovery CIDR never scans."
+func TestConfirmOrgSourcedCIDRIsCanonicalAndScanEligible(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	// A registry-authored range whose base address (…130) carries host bits under /25 —
+	// the confirm path must canonicalize it, not persist it verbatim.
+	fp := &fakeProposer{candidates: []proposer.Candidate{
+		{SourceSlug: proposer.SlugARIN, RecordKind: proposer.RecordRIRDelegation,
+			Scope: netip.MustParsePrefix("198.51.100.130/25"), OrgName: "Org Discovery Co"},
+	}}
+	base := startWithProposer(t, f, fp)
+	ac := login(t, base, "admin", "hunter2hunter2")
+	lookup(t, ac, base, "Org Discovery Co").Body.Close()
+
+	resp := postForm(t, ac, base+"/proposals/confirm", url.Values{"id": {itoa(f.proposals[0].ID)}})
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("confirm status=%d, want 303 (body: %s)", resp.StatusCode, body(t, resp))
+	}
+	resp.Body.Close()
+
+	if len(f.seeds) != 1 {
+		t.Fatalf("seeds after confirm = %d, want exactly 1", len(f.seeds))
+	}
+	seedCIDR := f.seeds[0].AddressCidr
+	if seedCIDR == nil {
+		t.Fatal("confirmed org-sourced seed has no address_cidr")
+	}
+	// Parity: the persisted scope is the canonical masked network a manual declaration of
+	// the same shape would store — not the registry's non-aligned base address.
+	if got, want := seedCIDR.String(), "198.51.100.128/25"; got != want {
+		t.Fatalf("confirmed org-sourced seed = %s, want canonical %s (parity with a manually-added CIDR)", got, want)
+	}
+
+	// Dispatch eligibility: fed through the same Custody gate the hot/cold fan-out consults
+	// (queue/hot.go, queue/cold.go → custody.Estate), an in-range address derives Operator,
+	// so the org-sourced range is scanned like any other in-scope range.
+	target := netip.MustParseAddr("198.51.100.200")
+	if got := (custody.Estate{AddressScopes: []netip.Prefix{*seedCIDR}}).Derive(target); got != custody.Operator {
+		t.Errorf("in-range address custody = %q, want %q (org-sourced range must be scan-eligible)", got, custody.Operator)
 	}
 }
 
