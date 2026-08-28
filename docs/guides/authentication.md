@@ -218,5 +218,3 @@ every session has been signed out (#408, ADR-0117).
   the deployment: [running.md](running.md).
 - The first-run setup token and the initial admin: [using.md](using.md),
   [first-run.md](first-run.md).
-</content>
-</invoke>

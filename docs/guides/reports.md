@@ -120,9 +120,9 @@ Scheduling is live and every route below is admin-gated (`requireAdmin`) in
 runs. The handlers live in
 [`cmd/web/reports_schedule.go`](../../cmd/web/reports_schedule.go):
 
-- **Create** — `GET /reports/schedule/new` opens a three-step wizard (Scope / Cadence /
+- **Create** — `GET /reports/schedule/new` opens a four-step wizard (Scope / Cadence / Delivery /
   Review), ported from `Reports.jsx`. With no client runtime the controlled state rides a
-  post-back form: `POST /reports/schedule` re-renders each step and, on finish, files the
+  post-back form: `POST /reports/schedule/new` re-renders each step and, on finish, files the
   schedule with `InsertReportSchedule`, then redirects to `/reports`. The wizard's
   **Delivery** step binds the schedule to a notification **Channel** (#17, landed): a
   Destination select offers *Download only* (the default — a NULL `channel_id`) plus every
@@ -130,7 +130,7 @@ runs. The handlers live in
   channel receives the on-cadence link-only "report ready" message (see the status note
   above).
 - **Edit** — `GET /reports/schedule/{id}/edit` opens the same wizard prefilled from the
-  row; `POST /reports/schedule/edit` updates it in place with `UpdateReportSchedule`.
+  row; `POST /reports/schedule/{id}/edit` updates it in place with `UpdateReportSchedule`.
 - **Run now** — `POST /reports/schedule/run` cuts the artifact for the current period with
   the canonical renderer and stamps a `report_delivery` receipt (state `generated`, no
   `delivered_at`). Run-now is **deliberately download-only and never notifies** — even for a
