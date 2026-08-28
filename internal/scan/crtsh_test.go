@@ -1,7 +1,10 @@
 package scan
 
 import (
+	"fmt"
 	"reflect"
+	"sort"
+	"strings"
 	"testing"
 
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
@@ -106,6 +109,37 @@ func TestAdmittedNamesAdmitsApex(t *testing.T) {
 	want := []string{"example.com"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("AdmittedNames = %v, want %v", got, want)
+	}
+}
+
+// AdmittedNames caps how many distinct Names one response may admit (#741). Only
+// the 64 MiB body byte-cap otherwise bounds a crt.sh answer, so a compromised or
+// MITM'd operator could pack millions of unique in-scope names into a single body
+// and mint an admitted_name row for each — DB bloat and mass-resolution
+// amplification against the operator's own instance. Fed more than MaxAdmittedNames
+// in-scope, deduped names, the admitted set must be capped at the ceiling and stay
+// a sorted, deduped set — the count is bounded before any row reaches admitCT.
+func TestAdmittedNamesCapsCardinality(t *testing.T) {
+	const over = MaxAdmittedNames + 500
+	var b strings.Builder
+	for i := 0; i < over; i++ {
+		fmt.Fprintf(&b, "h%d.example.com\n", i) // all unique, all in scope
+	}
+	rows := []CrtshRow{{NameValue: b.String()}}
+
+	got := AdmittedNames(rows, "example.com")
+	if len(got) != MaxAdmittedNames {
+		t.Fatalf("AdmittedNames admitted %d names from %d in-scope candidates, want capped at %d", len(got), over, MaxAdmittedNames)
+	}
+	if !sort.StringsAreSorted(got) {
+		t.Errorf("capped result is not sorted — AdmittedNames must still return a deterministic sorted set")
+	}
+	seen := make(map[string]struct{}, len(got))
+	for _, n := range got {
+		if _, dup := seen[n]; dup {
+			t.Fatalf("capped result contains duplicate %q", n)
+		}
+		seen[n] = struct{}{}
 	}
 }
 
