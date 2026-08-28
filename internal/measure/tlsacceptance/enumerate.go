@@ -3,8 +3,11 @@ package tlsacceptance
 import (
 	"context"
 	"crypto/tls"
+	"net"
 	"net/netip"
 	"time"
+
+	"github.com/winniel123/verge-asm/internal/custody"
 )
 
 // AcceptanceOutcome is the closed union the `tls-acceptance` value space is built
@@ -170,6 +173,13 @@ func (n NetEnumerator) Handshake(ctx context.Context, target netip.AddrPort, ver
 	if !ok {
 		return Attempt{} // an undeclared version is never put on the wire
 	}
+	// A target must be a valid literal IP: the leaf handshakes only pre-validated
+	// addresses. Reject an invalid target at entry, backed by the socket-level
+	// egress guard on the dialer below so a non-globally-reachable literal fails
+	// closed even if that invariant is ever broken upstream (#743).
+	if !target.Addr().IsValid() {
+		return Attempt{}
+	}
 	dialCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -181,7 +191,12 @@ func (n NetEnumerator) Handshake(ctx context.Context, target netip.AddrPort, ver
 	if version != TLS13 {
 		cfg.CipherSuites = cipherIDs(offeredCiphers)
 	}
-	d := tls.Dialer{Config: cfg}
+	// custody.EgressGuard is the shared Control-hook backstop (delivery, resolutionwalk):
+	// it refuses the socket when the resolved address is non-globally-reachable (#743).
+	d := tls.Dialer{
+		NetDialer: &net.Dialer{Control: custody.EgressGuard("tlsacceptance")},
+		Config:    cfg,
+	}
 	conn, err := d.DialContext(dialCtx, "tcp", target.String())
 	if err != nil {
 		return Attempt{Spoke: spokeTLS(err)}
