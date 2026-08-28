@@ -70,6 +70,30 @@ Every row traces to the audit. Build items follow the standing exact-parity ruli
 - E13 `docs/guides/integrations.md` — states table: "Installed and delivering" → declared intent only; drop unreachable `needs-config`; tiles marked "delivery/formatting not yet built."
 - E14 `docs/guides/prober.md` — SSH push/exec, `uname` arch check, `SSH_CLIENT` egress read marked "planned" until P0.8; today SSH pins the key + times latency.
 
+## Round 4 — dogfood intake (2026-08-27)
+
+Dogfood session on main. UX findings, not spec drift. Design-side items landed in the UI kit + spec (v3.24.0) and the **served templates were regenerated in v3.24.1** (the actual export — v3.24.0 was planning-only). Repo-owned items charted as build work; each finding carries an AUDIT-LEDGER row (AL-30–AL-41).
+
+### Design — landed this pass (ui_kits/console + examples/console + components)
+
+- **R4-D1 Inventory endless scroll** (Inventory.jsx + component none) — controls bar now **sticky** (stays while scrolling a large corpus); groups are **collapsible** with a subject count and a **Collapse/Expand all**; each group caps at 25 rows with a **"Show all N"** expander. Repo: template must page/window server-rendered rows the same way (the tmpl still emits the full corpus). tmpl regen on handoff refresh.
+- **R4-D2 Test channel action** (Settings.jsx · Channels) — per-channel **Send test** button; a channel always holds its own URL, so unlike an integration (#38/#39) it is always testable, no binding gate. Repo: wire to the channel's `SendSigned` (the delivery worker already exists). settings.tmpl channels block regen on refresh.
+- **R4-D3 Scan-running visible everywhere** (TopNav) — replaced the faint micro-dot with a **persistent pulsing "Scan running" pill** in the top nav (present on every view since the nav is global), clickable → Settings · Scans. Repo: the shell partial reads the same in-flight flag.
+- **R4-D4 Heatmap zero-day cells** (HeatmapCalendar) — empty days now render a bordered `--border-default` cell (was near-invisible `--row-sep`), so "nothing happened" reads as a present box. Component already mapped every day; this is a contrast fix. Repo: the served heatmap must emit one cell per day incl. zeros (dogfood shows gaps).
+- **R4-D5 Coverage card overflow** (CoverageMeter + Dashboard) — meter label truncates with ellipsis + `min-width:0`; the staleness line wraps instead of overflowing the 380px card.
+- **R4-D6 Settings nav shift** (Settings grid) — rail was already fixed at 210px + `minmax(0,1fr)` content; confirmed no width change per tab. Residual shift is the page scrollbar toggling between short/tall tabs → repo adds `scrollbar-gutter: stable` on the app scroll container (charted, cosmetic).
+- **R4-D7 Job streams exact output** (RunDetail) — opening a **running** job now streams that job's own stdout live (`LogViewer live`, per-job output, auto-follow), not a filtered slice of the batch log. Also brought the package's stale examples/RunDetail up to the UI kit (it predated the job-filter feature). Repo: stream real per-job output to this view (P0.14-style wire; the run/job model exists).
+
+### Repo — charted build work (no design decision unless noted)
+
+- **R4-R1 Cloudflare/WAF-fronted false positives** — a domain behind Cloudflare et al. fills inventory with edge-shared, non-actionable spans. Classify provider-fronted addresses and suppress/segregate them from actionable inventory. **Carries a design question** (below) — do not build the surfacing UI until ruled.
+- **R4-R2 Seed delete → 500** — deleting a seed errors. Handler/tx bug; fix + regression test.
+- **R4-R3 CT scans keep retrying** — the `ct` job never settles, re-dispatches endlessly. Scanner retry/terminal-state logic.
+- **R4-R4 Graph → PNG export wrong** — the export engine lives in the design-owned graph.tmpl (frozen port). **Design-side fix landed v3.24.1**: the old exporter serialized the live SVG, whose `var(--…)` fills/strokes collapse to black inside the isolated raster image — rewrote it to inline each element's resolved presentation styles, reset the pan/zoom transform (export the whole graph), bake the page background, and render at 2×. Repo re-verifies against the on-screen graph.
+- **R4-R5 Org-Discovery CIDRs don't scan** — CIDRs added by Org Discovery can't be hot-scanned and appear to never scan at all. Scan dispatch/scope-eligibility bug for org-sourced ranges.
+
+- **R4-Q1 provider-fronted spans in Inventory — RULED 2026-08-28 (#762).** Blanket-responder (Cloudflare/WAF) spans surface **shown by default**, with a "proxy edge" badge on the reach-Gap and **demoted in place** by the existing value-before-Gap sort (no new sort key), plus an ADR-0072-legal **"Hide proxy edge" toggle** (default SHOW). Hide-by-default and separate-bucket were rejected (ADR-0104/0105 — the estate shows what it holds; the operator chooses to hide, the system never hides for them). Landed in inventory.tmpl + Inventory.jsx (v3.24.1); repo classifier already exists (feeds ProxyEdge). Closes the round-4 open ruling.
+
 ## Verify at the round-3 gate
 
 - Round-2 items above (U1–U4, D1/D2/D6) — round-2 gate never ran; confirm or file collisions.

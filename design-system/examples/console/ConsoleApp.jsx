@@ -41,6 +41,7 @@ export function ConsoleApp() {
   const [paletteOpen, setPaletteOpen] = React.useState(false);
   const [org, setOrg] = React.useState("acme");
   const [settingsSection, setSettingsSection] = React.useState("scans");
+  const [runJob, setRunJob] = React.useState(null);
   const [assetId, setAssetId] = React.useState("edge-gw-03.acmecorp.io");
   const [errKind, setErrKind] = React.useState("404");
   const [onboardOpen, setOnboardOpen] = React.useState(false);
@@ -91,25 +92,24 @@ export function ConsoleApp() {
   ];
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--bg-page)" }}>
-      <TopNav items={items} active={screen} onNavigate={setScreen} scanRunning={scanning} dark={dark} onToggleTheme={() => setDark(!dark)} onOpenPalette={() => setPaletteOpen(true)}
+      <TopNav items={items} active={screen} onNavigate={setScreen} scanRunning={scanning} onOpenScans={() => { setSettingsSection("scans"); setScreen("settings"); }} dark={dark} onToggleTheme={() => setDark(!dark)} onOpenPalette={() => setPaletteOpen(true)}
         messages={MSGS} onOpenAllMessages={() => { setInboxMsgId(null); setScreen("inbox"); }} onOpenMessage={(m) => { setInboxMsgId(m.id); setScreen("inbox"); }} onOpenProfile={() => setScreen("profile")}
-        orgs={ORGS} activeOrg={org}
-        onOrgChange={(id) => { setOrg(id); const o = ORGS.find((x) => x.id === id); setToast({ tone: "neutral", title: "Org switched", description: o.name + " \u00b7 " + o.assets.toLocaleString("en-US") + " assets" }); }} />
+        orgLabel="acmecorp" />
       <div style={{ flex: 1 }}>
         {screen === "dashboard" && (firstRun
           ? <FirstRunChecklist onOpenScope={() => setScreen("scope")} onOpenVantages={() => { setSettingsSection("vantages"); setScreen("settings"); }} onRunScan={() => { setFirstRun(false); runScan(); }} />
           : <Dashboard scanning={scanning} onRunScan={runScan} onAddTarget={() => setAddOpen(true)} onOpenSignals={() => setScreen("signals")} />)}
         {screen === "inventory" && <Inventory onToast={setToast} onOpenAsset={(a) => { setAssetId(a); setScreen("asset"); }} onOpenSubject={(k) => setScreen(k)} onOpenScope={() => setScreen("scope")} />}
         {screen === "scope" && <Scope onToast={setToast} />}
-        {screen === "drift" && <Drift onOpenRun={() => setScreen("run")} />}
+        {screen === "drift" && <Drift onOpenRun={() => { setRunJob(null); setScreen("run"); }} />}
         {screen === "graph" && <GraphView />}
         {screen === "reports" && <Reports onOpenArtifact={() => setScreen("artifact")} />}
-        {screen === "settings" && <Settings onToast={setToast} section={settingsSection} />}
+        {screen === "settings" && <Settings onToast={setToast} section={settingsSection} onOpenRun={(job) => { setRunJob(job && job.id ? job : null); setScreen("run"); }} />}
         {screen === "signals" && <Signals onToast={setToast} onAnnotate={(s) => setToast({ tone: "neutral", title: "Annotation recorded", description: s.id + " \u00b7 accepted risk" })} />}
         {screen === "asset" && <AssetDetail asset={assetId} onBack={() => setScreen("inventory")} onOpenSignals={() => setScreen("signals")} onToast={setToast} />}
         {screen === "service" && <SubjectDetail kind="service" withdrawn={subjWithdrawn} onBack={() => setScreen("inventory")} onOpenSignals={() => setScreen("signals")} onToast={setToast} />}
         {screen === "endpoint" && <SubjectDetail kind="endpoint" withdrawn={subjWithdrawn} onBack={() => setScreen("inventory")} onOpenSignals={() => setScreen("signals")} onToast={setToast} />}
-        {screen === "run" && <RunDetail onBack={() => setScreen("drift")} onOpenDrift={() => setScreen("drift")} />}
+        {screen === "run" && <RunDetail jobFilter={runJob} onClearJob={() => setRunJob(null)} onBack={() => setScreen("drift")} onOpenDrift={() => setScreen("drift")} />}
         {screen === "artifact" && <ReportArtifact onBack={() => setScreen("reports")} />}
         {screen === "inbox" && <Inbox key={inboxMsgId || "all"} initialId={inboxMsgId} onNavigate={setScreen} />}
         {screen === "search" && <SearchResults onOpenAsset={(a) => { setAssetId(a); setScreen("asset"); }} onNavigate={setScreen} />}

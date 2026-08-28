@@ -77,7 +77,8 @@
 .db-sevbar .sn { width: 26px; text-align: right; font: 500 12.5px var(--font-mono); color: var(--text-body); }
 .db-meter { display: flex; flex-direction: column; gap: 6px; font-family: var(--font-ui); }
 .db-meter .top { display: flex; align-items: baseline; gap: 8px; }
-.db-meter .top .val { margin-left: auto; font: 400 11.5px var(--font-mono); color: var(--text-secondary); white-space: nowrap; }
+.db-meter .top .db-micro { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.db-meter .top .val { margin-left: auto; flex: none; font: 400 11.5px var(--font-mono); color: var(--text-secondary); white-space: nowrap; }
 .db-meter .track { height: 4px; border-radius: 999px; background: var(--surface-sunken); overflow: hidden; }
 .db-meter .track .fill { display: block; height: 100%; border-radius: 999px; background: var(--accent); transition: width var(--dur-slow) var(--ease-out); }
 .db-meter .census { height: 4px; border-radius: 999px; overflow: hidden; background: repeating-linear-gradient(45deg, var(--accent-soft) 0 5px, var(--surface-sunken) 5px 10px); }

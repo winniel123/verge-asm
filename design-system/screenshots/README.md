@@ -1,4 +1,4 @@
-# Screenshots — visual ground truth (v3 sync, 2026-08-22)
+# Screenshots — visual ground truth (v3 sync, 2026-08-22; 01/03/08 refreshed 2026-08-28 for v3.24.1)
 
 Captured at 1440px, light theme. Match these, not a reinterpretation. NOTE: the copies currently in the repo's design-system/screenshots/ are corrupted placeholders (13 identical 4 KB files) — replace them wholesale with this set.
 
@@ -10,3 +10,5 @@ Captured at 1440px, light theme. Match these, not a reinterpretation. NOTE: the 
 - signin.jpg · setup.jpg · marketing.jpg · docs.jpg
 
 JPEGs are compressed — layout/spacing/hierarchy truth; exact colors come from tokens/*.css.
+
+Refreshed for v3.24.1 (round-4): 01 Dashboard, 03 Inventory (sticky toolbar + counted groups + "Hide proxy edge" toggle, R4-D1/R4-Q1), 08 Graph. Other shots unchanged. Note: R4-Q1 added a proxy-edge demo subject to Inventory.jsx, so Inventory now shows 11 subjects.

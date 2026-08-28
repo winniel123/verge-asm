@@ -42,7 +42,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=Geist+Mono:wght@400..700&display=swap");
 </style><style data-design-tokens>{{designTokens}}</style><style>
 * { box-sizing: border-box; }
-body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; background: var(--bg-page); color: var(--text-body); font-family: var(--font-ui); font-size: 13px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+body { margin: 0; min-height: 100vh; scrollbar-gutter: stable; display: flex; flex-direction: column; background: var(--bg-page); color: var(--text-body); font-family: var(--font-ui); font-size: 13px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
 body > main, body > .vg-center { flex: 1 0 auto; }
 a { color: var(--link); text-decoration: none; }
 a:hover { text-decoration: underline; }
@@ -73,7 +73,9 @@ a:hover { text-decoration: underline; }
 .sh-pill .ct { font: 600 10.5px var(--font-mono); padding: 1px 6px; border-radius: 999px; background: var(--surface-sunken); color: var(--text-secondary); }
 .sh-pill.on .ct { background: var(--surface); }
 .sh-actions { margin-left: auto; display: flex; align-items: center; gap: 14px; flex: none; }
-.sh-scan { display: inline-flex; align-items: center; gap: 8px; font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--accent); }
+.sh-scan { display: inline-flex; align-items: center; gap: 8px; height: 26px; padding: 0 11px; border-radius: 999px; border: 1px solid var(--accent-border, var(--accent)); background: var(--accent-soft); font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--accent); text-decoration: none; white-space: nowrap; }
+.sh-scan:hover { background: var(--accent); color: var(--on-accent); text-decoration: none; }
+.sh-scan:hover .d { background: var(--on-accent); }
 .sh-scan .d { width: 8px; height: 8px; border-radius: 999px; background: var(--accent); animation: sh-pulse 1.8s var(--ease-out) infinite; }
 .sh-iconbtn { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 10px; border: 1px solid transparent; background: transparent; color: var(--text-secondary); cursor: pointer; padding: 0; transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
 .sh-iconbtn:hover { background: var(--surface-sunken); color: var(--text-body); }
@@ -156,7 +158,7 @@ a:hover { text-decoration: underline; }
 {{range .Nav}}<a class="sh-pill{{if .Active}} on{{end}}" href="{{.Href}}"{{if .Active}} aria-current="page"{{end}}>{{.Label}}{{if .Count}}<span class="ct">{{.Count}}</span>{{end}}</a>{{end}}
 </nav>
 <span class="sh-actions">
-{{if .ScanRunning}}<span class="sh-scan"><span class="d"></span>Scan running</span>{{end}}
+{{if .ScanRunning}}<a class="sh-scan" href="/settings?tab=scans" title="A scan is in flight — open Running now"><span class="d"></span>Scan running</a>{{end}}
 <button type="button" class="sh-iconbtn" id="sh-cmdk-btn" title="Search (Ctrl+K)" aria-label="Command palette"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg></button>
 <details class="sh-pop" id="sh-bell">
 <summary><span class="sh-bell"><span class="sh-iconbtn" role="button" aria-label="Messages"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"></path><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg></span>{{if .Unread}}<span class="ud"></span>{{end}}</span></summary>

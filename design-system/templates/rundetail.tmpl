@@ -4,7 +4,7 @@
   Define "run" kept. Holes: .Run{Title, Status(scheduled|running|complete|failed|stopped|terminated — #34/DF-F4b: stopped = warn treatment, terminated = danger-outline on sunken, distinct from failed), Scope, Meta,
   Stages[{Num,Title,Detail,Done,Current,Last}], Log[{Tag,Level,Text}], Active,
   Transitions(string, "—" until a diff concluded), NewSignals(string, same),
-  Degraded(nullable {Vantage,Detail}), JobFilter(nullable {ID,Kind,Vantage,ClearHref} — ?job={id}; .Log arrives already filtered to that job), Params[{K,V}], Vantages[{Name,Latency,Status(ok|degraded)}]}.
+  Degraded(nullable {Vantage,Detail}), JobFilter(nullable {ID,Kind,Vantage,ClearHref} — ?job={id}; .Log arrives already filtered to that job), StreamHref(nullable — #761: when a job is running, the per-job stdout endpoint; long-polls ?after={cursor} → {lines:[{tag,level,text}],next,done} and appends live, auto-following), Params[{K,V}], Vantages[{Name,Latency,Status(ok|degraded)}]}.
   Reconciliations (SPEC-CHANGE #20, ruled): the Outcome card is the spec's — .Transitions and
   .NewSignals (the drift feed and signals ARE keyed by batch; the join gets built per the
   2026-08-24 binding ruling), replacing .Completed/.Dead (#20a). Log levels render as colored
@@ -148,7 +148,7 @@
 {{if .Active}}<span class="live"><span class="ldot"></span>streaming</span>{{end}}
 </div>
 {{if .Log}}
-<div class="rd-logbody">
+<div class="rd-logbody"{{if .StreamHref}} data-stream="{{.StreamHref}}"{{end}}>
 {{range .Log}}
 <div class="rd-line{{if .Level}} {{.Level}}{{end}}"><span class="t">{{.Tag}}</span><span class="x">{{.Text}}</span></div>
 {{end}}
@@ -213,4 +213,38 @@
 </div>
 {{end}}
 </main>
+{{if .StreamHref}}<script>
+(function () {
+  var body = document.querySelector(".rd-logbody[data-stream]");
+  if (!body || !window.fetch) return;
+  var url = body.getAttribute("data-stream"), cursor = body.querySelectorAll(".rd-line").length, stopped = false;
+  function atBottom() { return body.scrollHeight - body.scrollTop - body.clientHeight < 24; }
+  function append(lines) {
+    var follow = atBottom();
+    lines.forEach(function (l) {
+      var row = document.createElement("div");
+      row.className = "rd-line" + (l.level ? " " + l.level : "");
+      var t = document.createElement("span"); t.className = "t"; t.textContent = l.tag || "";
+      var x = document.createElement("span"); x.className = "x"; x.textContent = l.text || "";
+      row.appendChild(t); row.appendChild(x); body.appendChild(row);
+    });
+    if (follow) body.scrollTop = body.scrollHeight;
+  }
+  function poll() {
+    if (stopped) return;
+    fetch(url + (url.indexOf("?") < 0 ? "?" : "&") + "after=" + cursor, { headers: { "Accept": "application/json" } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d) { stopped = true; return; }
+        if (d.lines && d.lines.length) { append(d.lines); }
+        if (typeof d.next === "number") cursor = d.next; else cursor += (d.lines ? d.lines.length : 0);
+        if (d.done) { stopped = true; var live = document.querySelector(".rd-loghead .live"); if (live) live.remove(); return; }
+        setTimeout(poll, 1000);
+      })
+      .catch(function () { setTimeout(poll, 3000); });
+  }
+  body.scrollTop = body.scrollHeight;
+  poll();
+})();
+</script>{{end}}
 {{template "foot" .}}{{end}}

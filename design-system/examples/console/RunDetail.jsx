@@ -21,8 +21,34 @@ const LOG = [
   { time: "14:03:14", text: "diff against 08:00Z · 7 transitions · 3 signals raised" },
 ];
 
-/* One batch, end to end: stages, log, outcome. */
-export function RunDetail({ id = "2026-08-22T14:00Z", onBack, onOpenDrift }) {
+/* One batch, end to end: stages, log, outcome. A running job streams its own exact output. */
+function jobOutput(job) {
+  const v = job.vantage ? " · " + job.vantage : "";
+  const k = String(job.kind || "job");
+  return [
+    { time: "14:00:02", text: "job #" + job.id + " started · " + k + v + " · attempt " + (job.attempt || "1/3") },
+    { time: "14:00:03", text: "$ verge run " + k + " --vantage " + (job.vantage || "local") },
+    { time: "14:00:06", text: k + " · resolving work set" },
+    { time: "14:00:12", text: k + " · 62 subjects in scope" },
+    { time: "14:00:31", level: job.state === "retrying" ? "warn" : undefined, text: job.state === "retrying" ? "transient error · backing off, retrying (" + (job.attempt || "2/3") + ")" : k + " · 34% · 21/62" },
+    { time: "14:01:05", text: k + " · 68% · 42/62" },
+    { time: "14:01:44", text: k + " · 100% · 62/62" },
+    { time: "14:01:46", text: "committing batch · observations append-only" },
+    { time: "14:01:47", text: "job #" + job.id + " complete" },
+  ];
+}
+export function RunDetail({ jobFilter, onClearJob,  id = "2026-08-22T14:00Z", onBack, onOpenDrift }) {
+  const running = !!(jobFilter && (jobFilter.state === "running" || jobFilter.state === "retrying"));
+  const full = jobFilter ? jobOutput(jobFilter) : LOG;
+  const [count, setCount] = React.useState(running ? 5 : full.length);
+  React.useEffect(() => {
+    setCount(running ? 5 : full.length);
+    if (!running) return;
+    const t = setInterval(() => setCount((c) => (c >= full.length ? c : c + 1)), 950);
+    return () => clearInterval(t);
+  }, [jobFilter, running]);
+  const jfLines = jobFilter ? full.slice(0, count) : LOG;
+  const live = running && count < full.length;
   return (
     <main data-screen-label="Scan run detail" style={{ maxWidth: 1440, margin: "0 auto", padding: 32, display: "flex", flexDirection: "column", gap: 20 }}>
       <Breadcrumb items={[{ label: "Drift", onClick: onBack }, { label: "batch " + id }]} />
@@ -47,7 +73,17 @@ export function RunDetail({ id = "2026-08-22T14:00Z", onBack, onOpenDrift }) {
         ]} />
       </Card>
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 340px", gap: 24, alignItems: "start" }}>
-        <LogViewer title={"batch " + id} lines={LOG} height={300} />
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {jobFilter && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 20, padding: "0 8px", borderRadius: 999, border: "1px solid var(--border-strong)", font: "500 10px var(--font-mono)", letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--text-secondary)", whiteSpace: "nowrap" }}>job #{jobFilter.id} · {jobFilter.kind}{jobFilter.vantage ? " · " + jobFilter.vantage : ""}
+                  <button onClick={onClearJob} aria-label="Clear job filter" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 14, height: 14, border: "none", borderRadius: 999, background: "transparent", color: "var(--text-muted)", cursor: "pointer", padding: 0 }}><svg viewBox="0 0 10 10" width="9" height="9"><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"></path></svg></button>
+                </span>
+                <span style={{ font: "400 11px var(--font-ui)", color: "var(--text-muted)" }}>{running ? "streaming this job’s exact output" : "this job’s exact output"}</span>
+              </div>
+            )}
+            <LogViewer title={jobFilter ? "job #" + jobFilter.id + " · " + jobFilter.kind : "batch " + id} live={live} lines={jfLines} height={300} />
+          </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
           <Card microLabel="Outcome" title="What it produced">
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>

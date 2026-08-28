@@ -3,7 +3,6 @@ import { Logo } from "../media/Logo.jsx";
 import { IconButton } from "../forms/IconButton.jsx";
 import { StatusDot } from "../display/StatusDot.jsx";
 import { Avatar } from "../display/Avatar.jsx";
-import { OrgSwitcher } from "./OrgSwitcher.jsx";
 import { DropdownMenu } from "../feedback/DropdownMenu.jsx";
 import { Popover } from "../feedback/Popover.jsx";
 import { MessageList } from "../feedback/MessageList.jsx";
@@ -27,7 +26,7 @@ function NavItem({ item, active, onClick }) {
   );
 }
 
-export function TopNav({ items = DEFAULT_ITEMS, active = "dashboard", onNavigate, orgName = "acmecorp", orgs, activeOrg, onOrgChange, version = "v0.9.2", user = "Ola Pérez", scanRunning, onToggleTheme, onOpenPalette, messages, onOpenAllMessages, onOpenMessage, onOpenProfile, dark, style }) {
+export function TopNav({ orgLabel, items = DEFAULT_ITEMS, active = "dashboard", onNavigate, orgName = "acmecorp", orgs, activeOrg, onOrgChange, version = "v0.9.2", user = "Ola Pérez", scanRunning, onOpenScans, onToggleTheme, onOpenPalette, messages, onOpenAllMessages, onOpenMessage, onOpenProfile, dark, style }) {
   const [inboxOpen, setInboxOpen] = React.useState(false);
   const isMac = /Mac|iP(hone|ad|od)/.test(navigator.platform || navigator.userAgent);
   const userMenu = []
@@ -38,13 +37,19 @@ export function TopNav({ items = DEFAULT_ITEMS, active = "dashboard", onNavigate
   return (
     <nav style={{ display: "flex", alignItems: "center", gap: 20, height: 56, padding: "0 24px", background: "var(--surface)", borderBottom: "1px solid var(--border-default)", fontFamily: "var(--font-ui)", ...style }}>
       <Logo size={20} wordmarkSize={17} style={{ flex: "none" }} />
-      {orgs ? <OrgSwitcher orgs={orgs} active={activeOrg} onChange={onOrgChange} style={{ flex: "none" }} />
+      {orgs ? <span style={{ display: "inline-flex", alignItems: "center", height: 24, padding: "0 10px", borderRadius: 999, background: "var(--surface-sunken)", border: "1px solid var(--border-default)", font: "500 11.5px var(--font-mono)", color: "var(--text-secondary)", flex: "none", whiteSpace: "nowrap" }}>{orgLabel || (orgs && orgs.find((o) => o.id === activeOrg) || {}).name || "self-hosted"}</span>
         : <span style={{ display: "inline-flex", alignItems: "center", height: 24, padding: "0 10px", borderRadius: 999, background: "var(--surface-sunken)", border: "1px solid var(--border-default)", font: "500 11.5px var(--font-mono)", color: "var(--text-secondary)", flex: "none" }}>{orgName}</span>}
       <span style={{ display: "flex", gap: 4, marginLeft: 8 }}>
         {items.map((it) => <NavItem key={it.id} item={it} active={it.id === active} onClick={() => onNavigate && onNavigate(it.id)} />)}
       </span>
       <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 14, flex: "none" }}>
-        {scanRunning && <StatusDot status="running" label="Scan running" micro />}
+        {scanRunning && (
+          <button type="button" onClick={onOpenScans} title="A scan is in flight — open Running now"
+            style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 26, padding: "0 10px 0 9px", border: "1px solid var(--accent-border, var(--accent))", borderRadius: 999, background: "var(--accent-soft)", cursor: onOpenScans ? "pointer" : "default", font: "600 11px var(--font-mono)", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--accent)", whiteSpace: "nowrap", flex: "none" }}>
+            <span style={{ width: 7, height: 7, borderRadius: 999, background: "var(--accent)", animation: "vg-pulse 1.8s var(--ease-out) infinite", flex: "none" }} />
+            Scan running
+          </button>
+        )}
         {onOpenPalette && <IconButton icon="search" label={"Search (" + (/Mac|iP(hone|ad|od)/.test(navigator.platform || navigator.userAgent) ? "\u2318K" : "Ctrl+K") + ")"} onClick={onOpenPalette} />}
         {messages && (
           <Popover align="end" width={340} open={inboxOpen} onOpenChange={setInboxOpen} trigger={

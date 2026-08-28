@@ -84,7 +84,8 @@
               }
             ]
           }
-        ]
+        ],
+        "total": 3
       },
       {
         "kind": "service",
@@ -146,7 +147,8 @@
               }
             ]
           }
-        ]
+        ],
+        "total": 3
       },
       {
         "kind": "endpoint",
@@ -176,7 +178,8 @@
               }
             ]
           }
-        ]
+        ],
+        "total": 2
       },
       {
         "kind": "address",
@@ -210,8 +213,25 @@
                 "since": "2026-04-30"
               }
             ]
+          },
+          {
+            "key": "104.18.22.90",
+            "type": "Address",
+            "link": "",
+            "proxy_edge": true,
+            "facets": [
+              {
+                "label": "reachability · vantage 1",
+                "is_gap": true,
+                "proxy_edge": true,
+                "since": "2026-08-19"
+              }
+            ]
           }
-        ]
+        ],
+        "total": 41,
+        "more": 38,
+        "show_all_href": "/inventory?all=address"
       }
     ]
   },
