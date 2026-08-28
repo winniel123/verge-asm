@@ -227,7 +227,7 @@ fdb1d57504ea11af4ad6fde7d5047c838d730736  design-system/templates/inventory.tmpl
 f68724fc100b0ab5bf7c9bfda33026f65ec98e3b  design-system/templates/profile.tmpl
 500d92cac46ea611800a8ce611003d09223d8be8  design-system/templates/reportartifact.tmpl
 5fcf80331a5887f5ad821b58062ea5ac7bb797bd  design-system/templates/reports.tmpl
-f12c3e289abeabbd5af55df64a6eae165aa4c668  design-system/templates/rundetail.tmpl
+c0781babfa1d4d910efd041b772410a921dd66fd  design-system/templates/rundetail.tmpl
 413cbd02e81939f99e024354c56ce33dc484dc6e  design-system/templates/scope.tmpl
 84f27b97f2004c20d78bd1b47b01d96b420a3ba3  design-system/templates/search.tmpl
 74f9525a27bd7b8cefebba2d30b80cc99d99ec01  design-system/templates/settings.tmpl
