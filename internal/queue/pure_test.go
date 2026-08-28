@@ -37,6 +37,59 @@ func TestBackoffGrowsAndCaps(t *testing.T) {
 	}
 }
 
+// exhaustedRetries is the bound that makes a run settle: a failing job retries
+// while below its attempt budget and dead-letters once it reaches it, so a ct run
+// reaches a terminal state instead of re-dispatching forever (#753). It maps
+// (attempt, max_attempts) to retry-vs-dead-letter and is shared by the prober
+// path (process) and the worker-read ct path (retryOrDeadLetterCT), so this pure
+// test pins the boundary both fork on.
+func TestExhaustedRetries(t *testing.T) {
+	// The standard measurement / ct budget: a ct job is enqueued at attempt 1 with
+	// max_attempts 5 (enqueueCTJob), and a retry re-enqueues attempt+1 keeping the
+	// same budget (worker.retry).
+	const max = 5
+
+	// The exhaustion path: the fifth attempt is the last. It is exhausted, so the
+	// worker dead-letters — a terminal outcome — rather than enqueuing a sixth
+	// attempt. This is the transition that stops the endless re-dispatch: without
+	// it the job would retry without end.
+	if !exhaustedRetries(max, max) {
+		t.Fatalf("attempt %d of %d not exhausted: the ct run would re-dispatch past its budget forever", max, max)
+	}
+	// And every attempt beyond the budget stays terminal — the bound never leaks
+	// back into a retry once it has settled.
+	if !exhaustedRetries(max+1, max) {
+		t.Errorf("attempt %d of %d not exhausted: the terminal bound leaks past the budget", max+1, max)
+	}
+
+	// The terminal transition, walked attempt by attempt. Attempts 1..4 are below
+	// the budget and must NOT be read as exhausted — a legitimate retry is never
+	// silently dropped (crt.sh is ~50%% reliable, ADR-0027 §7, so every remaining
+	// try must be spent, crt.sh being ~50% reliable) — and the fifth flips to
+	// exhausted exactly once.
+	flips := 0
+	prev := false
+	for a := int32(1); a <= max; a++ {
+		got := exhaustedRetries(a, max)
+		if a < max && got {
+			t.Errorf("attempt %d of %d read as exhausted: a legitimate retry was dropped", a, max)
+		}
+		if got && !prev {
+			flips++
+		}
+		prev = got
+	}
+	if flips != 1 {
+		t.Errorf("the retry budget flipped to exhausted %d times, want exactly 1 (a single clean terminal transition)", flips)
+	}
+
+	// A single-attempt job — the zone Scan ships max_attempts 1 and does not retry
+	// — is exhausted on its first failure and dead-letters straight away.
+	if !exhaustedRetries(1, 1) {
+		t.Error("a max_attempts==1 job (zone) did not settle on its first failure")
+	}
+}
+
 // Wave-1 (ADR-0107): the dns Scan resolves the union of the name-scope Seed
 // domains and the CT-admitted names, deduplicated. The Seed domains lead and keep
 // their exact string (what the resolver already resolves them as); an admitted
