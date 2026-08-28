@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"sync"
 	"time"
 )
@@ -34,6 +35,16 @@ type loginLimiter struct {
 	baseLockout time.Duration
 	maxLockout  time.Duration
 
+	// acctPrefix marks the victim-scoped keys (the named account) as opposed to the
+	// attacker-scoped per-IP keys, and acctLockCeiling bounds how long such a key may
+	// stay locked, measured from its FIRST lock (#738). Past that ceiling locked()
+	// stops honouring the account lock, so an unauthenticated attacker who keeps a
+	// known username failing can deny the real operator for at most acctLockCeiling
+	// rather than indefinitely — while the per-IP key, scoped to the guessing host,
+	// keeps throttling. A zero ceiling disables the cap (every key locks fully).
+	acctPrefix      string
+	acctLockCeiling time.Duration
+
 	mu      sync.Mutex
 	entries map[string]*limiterEntry
 }
@@ -44,6 +55,10 @@ type limiterEntry struct {
 	failures    int
 	lastFailure time.Time
 	lockedUntil time.Time
+	// firstLockedAt is when this key first entered a locked state (zero until then),
+	// anchoring the per-account lock ceiling (#738). It is cleared on a reset or an
+	// idle-window reset so a later lockout starts a fresh ceiling.
+	firstLockedAt time.Time
 }
 
 // newLoginLimiter builds the limiter over an injectable clock with sane defaults:
@@ -57,7 +72,13 @@ func newLoginLimiter(now func() time.Time) *loginLimiter {
 		window:      5 * time.Minute,
 		baseLockout: 5 * time.Minute,
 		maxLockout:  time.Hour,
-		entries:     map[string]*limiterEntry{},
+		// A named account (the victim-scoped key) can be held locked for at most
+		// fifteen minutes from its first lock before locked() releases it (#738), so a
+		// pre-auth attacker cannot deny a known username indefinitely; the per-IP key
+		// keeps its full escalating lock against the guessing host.
+		acctPrefix:      "acct:",
+		acctLockCeiling: 15 * time.Minute,
+		entries:         map[string]*limiterEntry{},
 	}
 }
 
@@ -70,9 +91,18 @@ func (l *loginLimiter) locked(keys ...string) bool {
 	now := l.now()
 	for _, k := range keys {
 		e := l.entries[k]
-		if e != nil && now.Before(e.lockedUntil) {
-			return true
+		if e == nil || !now.Before(e.lockedUntil) {
+			continue
 		}
+		// #738: an account key's lock is honoured only within acctLockCeiling of its
+		// first lock, so an unauthenticated attacker cannot hold a known username
+		// locked out indefinitely — the per-IP key, scoped to the guessing host, keeps
+		// throttling. Every other key (the per-IP key) locks for its full span.
+		if l.acctLockCeiling > 0 && l.acctPrefix != "" && strings.HasPrefix(k, l.acctPrefix) &&
+			!e.firstLockedAt.IsZero() && !now.Before(e.firstLockedAt.Add(l.acctLockCeiling)) {
+			continue
+		}
+		return true
 	}
 	return false
 }
@@ -95,10 +125,16 @@ func (l *loginLimiter) fail(keys ...string) (nowLocked bool) {
 		// never accretes into a lockout — unless it is still inside an active lock.
 		if !now.Before(e.lockedUntil) && !e.lastFailure.IsZero() && now.Sub(e.lastFailure) > l.window {
 			e.failures = 0
+			e.firstLockedAt = time.Time{}
 		}
 		e.failures++
 		e.lastFailure = now
 		if e.failures >= l.maxFailures {
+			// Anchor the per-account lock ceiling to the FIRST lock so repeated
+			// re-locks cannot slide the window forward and deny the account forever (#738).
+			if e.firstLockedAt.IsZero() {
+				e.firstLockedAt = now
+			}
 			e.lockedUntil = now.Add(l.lockoutFor(e.failures))
 			nowLocked = true
 		}
