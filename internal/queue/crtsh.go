@@ -185,10 +185,10 @@ func (w *Worker) completeCT(ctx context.Context, job db.ClaimJobRow, spec wire.J
 // unparseable 200). Either way the failed fetch admits nothing and asserts no
 // absence (ADR-0005, ADR-0027 §7).
 func (w *Worker) retryOrDeadLetterCT(ctx context.Context, job db.ClaimJobRow, cause error) error {
-	if job.Attempt < job.MaxAttempts {
-		return w.retry(ctx, job, cause)
+	if exhaustedRetries(job.Attempt, job.MaxAttempts) {
+		return w.deadLetterCT(ctx, job, cause)
 	}
-	return w.deadLetterCT(ctx, job, cause)
+	return w.retry(ctx, job, cause)
 }
 
 // admitCT writes the completed Batch, its admissions and the job's done state in

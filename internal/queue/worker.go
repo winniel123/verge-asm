@@ -255,11 +255,12 @@ func (w *Worker) process(ctx context.Context, job db.ClaimJobRow) error {
 	obs, probeErr := w.probe(ctx, job.VantageID, spec)
 	if probeErr != nil {
 		// A transient failure. Retry is a new Batch, never a resumption: while
-		// attempts remain we enqueue a fresh job; past them we dead-letter.
-		if job.Attempt < job.MaxAttempts {
-			return w.retry(ctx, job, probeErr)
+		// attempts remain we enqueue a fresh job; past them we dead-letter. The
+		// bound is single-sourced in exhaustedRetries, shared with the ct path.
+		if exhaustedRetries(job.Attempt, job.MaxAttempts) {
+			return w.deadLetter(ctx, job, probeErr)
 		}
-		return w.deadLetter(ctx, job, probeErr)
+		return w.retry(ctx, job, probeErr)
 	}
 	return w.complete(ctx, job, obs)
 }
