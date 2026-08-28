@@ -36,6 +36,25 @@ func scheduledTick(now time.Time, cadence time.Duration) time.Time {
 // backoff and nothing more.
 func Backoff(attempt int32) time.Duration { return backoff(attempt) }
 
+// exhaustedRetries is the terminal fork after one failed attempt of a queue job:
+// false while the attempt is below the budget (enqueue a fresh attempt) and true
+// once it reaches it (dead-letter). It is a pure function of (attempt,
+// max_attempts) so the bound that stops a run re-dispatching forever — the ct
+// Scan's endless-retry, #753 — is single-sourced and exercisable without a
+// database. Both the prober path (worker.go process) and the worker-read ct path
+// (crtsh.go retryOrDeadLetterCT) fork on it, so the two can never drift into
+// disagreeing on when a run has settled.
+//
+// The comparison is strict (attempt < max_attempts retries), so a job enqueued at
+// attempt 1 with the standard budget of 5 retries on attempts 1..4 and
+// dead-letters on the fifth: five bounded tries over the backoff curve, then a
+// terminal outcome. A single-attempt job (the zone Scan, max_attempts 1) is
+// exhausted on its first failure — 1 >= 1 — and dead-letters without retrying, so
+// the fork never silently drops a legitimate retry nor grants an unbounded one.
+func exhaustedRetries(attempt, maxAttempts int32) bool {
+	return attempt >= maxAttempts
+}
+
 // backoff is the delay before a retried job's new Batch runs: exponential from a
 // base, capped, so five attempts span roughly an hour (v1 spec §4.5's retry
 // budget, shared machinery — one schedule for measurement jobs and Channel
