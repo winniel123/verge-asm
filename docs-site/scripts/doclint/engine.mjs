@@ -220,6 +220,36 @@ export function escapeRegex(token) {
  * @property {string} message
  */
 
+/*
+ * The inline disable directive (SPEC §6, #821). An `<!-- doclint-disable-line -->` HTML
+ * comment silences every rule on the next line. It exists for an unavoidable false
+ * positive, such as a phrasal verb that is a proper noun, or a long sentence that cannot
+ * split. The match is a whole-comment match, tolerant of the inner whitespace, so a
+ * passing mention of the token inside prose text never counts. The directive lives in an
+ * `html` node, so a copy shown inside a code fence parses as a `code` node and never
+ * suppresses.
+ */
+const DISABLE_LINE = /^<!--\s*doclint-disable-line\s*-->$/;
+
+/**
+ * The set of source lines a disable directive silences. Each `<!-- doclint-disable-line -->`
+ * comment suppresses the line after it (SPEC §6), so this collects `directive end line + 1`
+ * for every directive comment in the tree.
+ * @param {import("mdast").Root} tree
+ * @returns {Set<number>}
+ */
+export function suppressedLines(tree) {
+  const lines = new Set();
+  visit(tree, "html", (node) => {
+    if (!DISABLE_LINE.test(node.value.trim())) return;
+    // Tolerant position access, the same guard startLineOf uses. A remark-parsed html node
+    // always carries a position, so the fallback only ever matters for a hand-built tree.
+    const line = node.position?.end?.line;
+    if (line != null) lines.add(line + 1);
+  });
+  return lines;
+}
+
 /**
  * Run a rule set over one markdown document.
  * @param {string} markdown
@@ -230,6 +260,10 @@ export function lintMarkdown(markdown, rules) {
   const tree = parse(markdown);
   const proseNodes = extractProse(tree);
   const ctx = { blocks: extractProseBlocks(tree) };
+  // The lines a disable directive silences. A violation on a silenced line drops before it
+  // reaches the caller, so it never prints and never changes the exit code (SPEC §6). The
+  // filter is cross-cutting: it runs on every rule's output, whatever the severity.
+  const suppressed = suppressedLines(tree);
   const violations = [];
   // De-dup identical findings. The output is line-granular (no column), so two matches
   // of one rule on one line — even in separate text nodes split by an inline code span —
@@ -237,6 +271,7 @@ export function lintMarkdown(markdown, rules) {
   const seen = new Set();
   for (const rule of rules) {
     for (const hit of rule.check(proseNodes, ctx)) {
+      if (suppressed.has(hit.line)) continue; // drop a violation on a disable-directive line
       const key = `${rule.name} ${hit.line} ${hit.message}`;
       if (seen.has(key)) continue;
       seen.add(key);
