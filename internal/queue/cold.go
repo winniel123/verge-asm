@@ -27,7 +27,7 @@ import (
 // are both Custody-admitted and inside an opted-in `Seed` scope, across the full
 // TCP port range.
 func (d *Dispatcher) fanOutCold(ctx context.Context, qtx *db.Queries, scanID, dispatchID int64) (int, error) {
-	estate, addrs, err := hotEstate(ctx, qtx, d.now())
+	estate, resolved, err := hotEstate(ctx, qtx, d.now())
 	if err != nil {
 		return 0, err
 	}
@@ -35,6 +35,12 @@ func (d *Dispatcher) fanOutCold(ctx context.Context, qtx *db.Queries, scanID, di
 	if err != nil {
 		return 0, err
 	}
+	// The cold tier probes only its opted-in scopes, so it enumerates ONLY those
+	// address scopes (ADR-0047), never the whole declared estate. BuildColdJobs
+	// then filters this set to the opted-in scope (address prefixes and the
+	// name-resolved addresses), so a resolved address outside every opted-in scope
+	// still drops out.
+	addrs := candidateAddrs(resolved, scope.AddressPrefixes)
 	vantages, err := vantageList(ctx, qtx)
 	if err != nil {
 		return 0, err
