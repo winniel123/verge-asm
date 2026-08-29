@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -8,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/measure/blanketdiscrim"
 )
 
 func openSpanRow(kind, key, facet, disc, value string, isGap bool) db.ListAllOpenSpansRow {
@@ -135,11 +137,11 @@ func TestInventoryPageRendersEstateValues(t *testing.T) {
 	// The actual observed values — not just counts/verdicts — are on the screen, in
 	// the Inventory pilot's shaped vocabulary.
 	for _, want := range []string{
-		"203.0.113.5",       // resolved address (in the resolution summary)
-		"v=spf1 -all",       // the TXT record contents (a dns-record detail)
-		"nginx",             // the HTTP Server header
-		"leaf api.example.com", // the certificate-chain summary's leaf CN
-		"not_after 2026-11-02", // a certificate-chain detail row
+		"203.0.113.5",                    // resolved address (in the resolution summary)
+		"v=spf1 -all",                    // the TXT record contents (a dns-record detail)
+		"nginx",                          // the HTTP Server header
+		"leaf api.example.com",           // the certificate-chain summary's leaf CN
+		"not_after 2026-11-02",           // a certificate-chain detail row
 		"Names", "Services", "Endpoints", // grouped by kind
 	} {
 		if !strings.Contains(page, want) {
@@ -152,12 +154,12 @@ func TestInventoryPageRendersEstateValues(t *testing.T) {
 	// design tmpl marks the navigable row with role="link" + aria-label rather than a
 	// class, and the j/k keyboard nav lives in the tmpl's script.
 	for _, want := range []string{
-		`href="/asset/api.example.com"`,     // the Subject-cell anchor
+		`href="/asset/api.example.com"`,      // the Subject-cell anchor
 		`data-href="/asset/api.example.com"`, // whole-row click / Enter destination
-		`role="link"`,                       // navigable row (design tmpl markup)
-		`aria-label="Open api.example.com"`, // the row's accessible open affordance
-		`tabindex="0"`,                      // roving keyboard focus
-		`e.key === "j"`,                     // j/k keyboard nav, present in the tmpl's script
+		`role="link"`,                        // navigable row (design tmpl markup)
+		`aria-label="Open api.example.com"`,  // the row's accessible open affordance
+		`tabindex="0"`,                       // roving keyboard focus
+		`e.key === "j"`,                      // j/k keyboard nav, present in the tmpl's script
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("inventory missing row→asset / keyboard affordance %q; body: %s", want, page)
@@ -315,9 +317,9 @@ func TestInventoryScopeControls(t *testing.T) {
 	page := getBody(t, ac, base+"/inventory", http.StatusOK)
 
 	for _, want := range []string{
-		`id="inv-kind"`,                // Kind segmented control (design tmpl markup)
-		`data-kind="name"`,             // one Kind option (and section) per rendered group
-		`id="inv-gaps"`,                // Gaps-only switch
+		`id="inv-kind"`,    // Kind segmented control (design tmpl markup)
+		`data-kind="name"`, // one Kind option (and section) per rendered group
+		`id="inv-gaps"`,    // Gaps-only switch
 		"Gaps only",
 		`id="inv-q"`,                   // subject filter
 		"No subjects match this scope", // no-match empty state
@@ -347,6 +349,82 @@ func TestInventorySubjectHasGap(t *testing.T) {
 	noGap := inventorySubject{Facets: []inventoryFacet{{Label: "resolution"}}}
 	if noGap.HasGap() {
 		t.Errorf("HasGap() = true for a subject holding no Gap facet")
+	}
+}
+
+// #778: the "Hide proxy edge" toggle must hide provider-fronted addresses, but the
+// live prober's control probe against a Cloudflare-fronted address times out, so the
+// reach Gap carries blanketdiscrim.ReasonIncomplete, never ReasonBlanket. Both the
+// blanket and the incomplete reach Gap share the sixth cause (GapCause); treat both
+// as a proxy edge, so an undiscriminated edge address is badged and filterable — not
+// only a positively measured blanket responder. A non-Gap reach, a non-reachability
+// Gap, and a Gap carrying some other cause are never proxy edges.
+func TestInventoryProxyEdgeBadgesBlanketAndIncomplete(t *testing.T) {
+	reachGap := func(cause, reason string) []byte {
+		return []byte(fmt.Sprintf(`{"outcome":"gap","cause":%q,"reason":%q}`, cause, reason))
+	}
+	cases := []struct {
+		name  string
+		facet string
+		value []byte
+		isGap bool
+		want  bool
+	}{
+		{"blanket reason", "reachability", reachGap(blanketdiscrim.GapCause, blanketdiscrim.ReasonBlanket), true, true},
+		{"incomplete reason", "reachability", reachGap(blanketdiscrim.GapCause, blanketdiscrim.ReasonIncomplete), true, true},
+		{"other cause", "reachability", reachGap("some-other-cause", "unrelated"), true, false},
+		{"not a gap", "reachability", []byte(`{"outcome":"answers","ports":["443/tcp"]}`), false, false},
+		{"non-reachability gap", "certificate", reachGap(blanketdiscrim.GapCause, blanketdiscrim.ReasonBlanket), true, false},
+		{"unparseable value", "reachability", []byte(`{`), true, false},
+	}
+	for _, c := range cases {
+		if got := inventoryProxyEdge(c.facet, c.value, c.isGap); got != c.want {
+			t.Errorf("%s: inventoryProxyEdge = %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
+// #778: a reach Gap folds under the Service (subjectKindFor("reachability") ==
+// "service"), so a blanket-responder / undiscriminated reach marks the Service row,
+// never the bare Address the "Hide proxy edge" toggle filters. buildInventory must
+// lift a proxy-edge Service's ProxyEdge to its Address subject so the toggle hides
+// the Address group row too — for IPv4 and IPv6 alike. An Address with no proxy-edge
+// Service stays unmarked.
+func TestBuildInventoryPropagatesServiceProxyEdgeToAddress(t *testing.T) {
+	gap := fmt.Sprintf(`{"outcome":"gap","cause":%q,"reason":%q}`, blanketdiscrim.GapCause, blanketdiscrim.ReasonIncomplete)
+	rows := []db.ListAllOpenSpansRow{
+		openSpanRow("service", "104.21.61.6:443/tcp", "reachability", "", gap, true),
+		openSpanRow("address", "104.21.61.6", "reachability", "vantage 1", `{"outcome":"answers","ports":["443/tcp"]}`, false),
+		openSpanRow("service", "[2606:4700::1]:443/tcp", "reachability", "", gap, true),
+		openSpanRow("address", "2606:4700::1", "reachability", "vantage 1", `{"outcome":"answers","ports":["443/tcp"]}`, false),
+		// A control Address with no proxy-edge Service must NOT be marked.
+		openSpanRow("address", "198.51.100.7", "reachability", "vantage 1", `{"outcome":"answers","ports":["443/tcp"]}`, false),
+	}
+
+	groups := buildInventory(rows)
+	byKind := map[string][]inventorySubject{}
+	for _, g := range groups {
+		byKind[g.Kind] = g.Subjects
+	}
+
+	// The proxy-edge Service itself carries ProxyEdge off its own reach-Gap facet.
+	for _, sub := range byKind["service"] {
+		if !sub.ProxyEdge {
+			t.Errorf("service %q ProxyEdge = false, want true", sub.Key)
+		}
+	}
+	// Its bare Address inherits it — the row the toggle actually hides.
+	proxyAddr := map[string]bool{}
+	for _, sub := range byKind["address"] {
+		proxyAddr[sub.Key] = sub.ProxyEdge
+	}
+	for _, want := range []string{"104.21.61.6", "2606:4700::1"} {
+		if !proxyAddr[want] {
+			t.Errorf("address %q ProxyEdge = false, want true (propagated from its Service)", want)
+		}
+	}
+	if proxyAddr["198.51.100.7"] {
+		t.Errorf("address 198.51.100.7 ProxyEdge = true, want false (no proxy-edge Service)")
 	}
 }
 

@@ -260,6 +260,19 @@ func discriminateBlanket(ctx context.Context, c Connector, gen blanketdiscrim.Po
 // union: an open handshake answers, a refusal is a decided closed port, and a
 // timeout or local error (after Probe has spent its retries) is an incomplete
 // reading we could not discriminate on.
+//
+// #778 determination: a provider edge that silently DROPS connects to non-proxied
+// ports maps every control connect to ControlIncomplete here. The control ports are
+// drawn from the dynamic range 49152-65535 (blanketdiscrim/ports.go), which such an
+// edge never proxies, so every control connect times out, no port refuses, and
+// blanketdiscrim.Decide returns VerdictGap — never VerdictBlanket. VerdictBlanket
+// needs the WHOLE set to complete the handshake (Decide unanimity), which a dropped
+// edge cannot reach; a refusing (RST) edge clears instead to NotBlanket. A live
+// Cloudflare-fronted address therefore always reaches Inventory as an incomplete
+// reach Gap — the shape the "Hide proxy edge" toggle now badges (cmd/web/inventory.go,
+// inventoryProxyEdge). The incomplete Gap is the correct verdict for a silent-drop
+// edge, so this leaf needs no change; positive provider-edge detection (answers on
+// service ports, drops the control ports) is a distinct signal for a later ADR.
 func controlResultOf(raw ConnResult) blanketdiscrim.ControlResult {
 	switch raw {
 	case ConnOpen:
