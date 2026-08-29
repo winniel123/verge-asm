@@ -1015,7 +1015,14 @@ the closed pair, `Exposure`'s 2×2 is untouched, and `sensitive-port-reached-fro
 `not-evaluable` because its evidence is a `Gap`. That is damping at the measurement, never the model-layer
 damping a rule edit would be. The finding is **surfaced on `Coverage`** and never silently absorbed:
 *these addresses answer on all ports — a proxy edge, not your origin. Declare your origin IPs to
-measure the real surface.* The modelled term is **blanket responder**. The surfacing prose may say
+measure the real surface.* A **port-selective** edge — one that proxies a short service list and
+**silently drops** every other port, e.g. Cloudflare — is a different shape: all of its control
+connects **time out** rather than answer, so `blanket-discrimination` returns the incomplete `Gap`, never the
+blanket verdict. That incomplete `Gap` carries the same sixth cause and the same proxy-edge badge, so
+the resolution is complete through it, and no **positive** port-selective signal is added — the
+all-timeout shape does not discriminate a provider edge from a plain default-drop origin
+([ADR-0125](./docs/adr/0125-a-port-selective-silent-drop-edge-is-undiscriminated-and-stays-a-gap.md)).
+The modelled term is **blanket responder**. The surfacing prose may say
 *proxy edge*, but *edge* alone is reserved — `Exposure`'s `edge-only` is a different fact
 ([#32](https://github.com/winniel123/verge-asm/issues/32)). See
 [ADR-0104](./docs/adr/0104-an-undiscriminated-reach-is-a-gap-and-a-blanket-responder-is-measured-not-listed.md).
