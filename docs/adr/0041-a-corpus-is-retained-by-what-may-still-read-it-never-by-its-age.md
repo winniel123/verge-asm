@@ -82,16 +82,16 @@ leave no third reader.
 within `k` cadences of the Declared `Scan` whose scope covers that `(subject, facet, port,
 vantage)`"* — the tightest such cadence, `k` fixed at 2. Past the bound the observation stops being
 current, the derived value becomes non-constructible and a `Gap` opens. A derivation reading a
-stale observation is already forbidden; discarding it takes away nothing a derivation was allowed
+stale observation is already forbidden. Discarding it removes nothing a derivation was allowed
 to have.
 
 **ADR-0007's never-re-derive rule bounds the backward direction.** *"Materialised history — never
 re-derived."* So no future release may go back over the observation corpus and rebuild a span from
-it. The corpus is not a backup of the timeline; it is the input the fold has already consumed, once,
+it. The corpus is not a backup of the timeline. It is the input the fold has already consumed, once,
 forward-only.
 
 The two together are the whole ruling. **What is inside the currency bound is load-bearing and may
-never be discarded; what is outside it is evidence for a human and nothing else.** The `Citation`
+never be discarded. What is outside it is evidence for a human and nothing else.** The `Citation`
 exemption a first pass wants to write here is **already subsumed**: a subject whose last citation
 goes stale is withdrawn, so a subject in the estate has a citation inside the bound by construction.
 The exemption that survives is the `Batch` one above, because a `Batch` cited by a source that admits
@@ -118,7 +118,7 @@ without observing is not an observation and does not age the same way.
 > it is true of observation-hop citations and it is what makes the `Batch` limb the only exemption.
 
 `k` deserves one sentence because it looks like a hazard and is not. It is a declared parameter
-inside the vector, so moving it `Break`s the estate; the fold restarts under the new vector, reading
+inside the vector, so moving it `Break`s the estate. The fold restarts under the new vector, reading
 new batches. **Widening `k` changes what future folds read, never what past folds did**, so an
 observation discarded under the old `k` was never going to be read again under the new one.
 
@@ -199,18 +199,18 @@ At the shipped ceiling — one declared `/22`, `verge-core` at 131 pairs probed 
 | **`Span`s** — `reachability` ×2 vantages, `Reach` ×2 classes, `Exposure`, `Custody` | ~672,000 | **flat** | ~135 MB, once |
 | `Dispatch` | ~420 / year | linear in time | negligible |
 
-**The span corpus is ~146× smaller than one year of observations and does not grow; by year ten it
+**The span corpus is ~146× smaller than one year of observations and does not grow. By year ten it
 is three orders of magnitude smaller.** On the modal install — ADR-0013's name scope with no address
 scope, which [#26](https://github.com/winniel123/verge-asm/issues/26) measured as over 99% of them —
 the whole observation corpus is **under a gigabyte a year** and the question does not arise at all.
 
 Two notes on the figures rather than a defence of them. #81 published **143,360 `Service` subjects
-and ~52M rows/year** against `verge-core` ≈ 140; [#97](https://github.com/winniel123/verge-asm/issues/97)
+and ~52M rows/year** against `verge-core` ≈ 140. [#97](https://github.com/winniel123/verge-asm/issues/97)
 measured the union at **136 pairs, 131 probed**, so the figure is **134,144** and ~49M per vantage.
 Nothing here turns on which is used — the ruling turns on the ratio between two corpora, and the
 same denominator sits under both. And the per-year figure is stated **per vantage class** and doubled,
 because [#14](https://github.com/winniel123/verge-asm/issues/14) ships an optional external prober
-and `Exposure` needs both legs; a one-legged install halves every row in the table.
+and `Exposure` needs both legs. A one-legged install halves every row in the table.
 
 ### The worst case for the span corpus is real, is named, and is not the sizing case
 
@@ -237,11 +237,11 @@ The floor reads *within one derivation*, so a `Break` between a subject's withdr
 destroys `returned` outright. The mechanism has never been written down, and writing it down needs one
 question answered that the model left open.
 
-**A withdrawn subject's timelines close; they do not hold an open `withdrawn` span.** `Span`'s own
+**A withdrawn subject's timelines close. They do not hold an open `withdrawn` span.** `Span`'s own
 entry says *"it opens, it is current, it closes; the open span is the current state"*, and a subject
 that is not in the estate has no current state to hold. ADR-0006's cascade *"writes a span,
 recording a reason"* — that is a closure, not a new open span. *(The reason was named `cascaded`
-when this was written; [#147](https://github.com/winniel123/verge-asm/issues/147) ·
+when this was written. [#147](https://github.com/winniel123/verge-asm/issues/147) ·
 [ADR-0087](./0087-a-closure-records-the-ground-it-rests-on-and-there-are-three-grounds.md) closed
 the vocabulary at three — `measured-absent` · `uncited` · `descoped` — and the cascade's member is
 now `uncited`. The point made here is unaffected.)* ~~This is ruled here because the rest of the
@@ -254,8 +254,8 @@ because read alone and in the present tense it sends a session to re-run a test 
 The sentence was tested on its own and **confirmed**, on three grounds independent of the glossary's
 wording: an **open span must be fed**, so one held over a withdrawal either rots to a `Gap` within
 `k` cadences or requires querying every withdrawn subject forever, while a closed span costs nothing
-to keep; withdrawal needs **every available vantage** to agree, so it is a property of the subject
-and a `Span` is keyed per `(vantage, source)`; and ADR-0007 had in fact already ruled it for the
+to keep. Withdrawal needs **every available vantage** to agree, so it is a property of the subject
+and a `Span` is keyed per `(vantage, source)`. ADR-0007 had in fact already ruled it for the
 cascade population. ADR-0082 also supplies the corollary this paragraph needed and never stated —
 **the withdrawn period is on no timeline at all**, neither a value nor a `Gap`, which is what leaves
 the spans either side of it adjacent and `returned` derivable by ordinary machinery.
@@ -274,7 +274,7 @@ fires at the root of the entering sub-tree carrying the word **`appeared`**. The
 and the word is a lie, and the cause is a release.
 
 Which leaf? [ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md) answers it, and the
-answer is uncomfortable. A `Name`'s membership is decided by `resolution-walk`; a cited `Address`'s
+answer is uncomfortable. A `Name`'s membership is decided by `resolution-walk`. A cited `Address`'s
 membership is decided by the resolution that cites it, which is `resolution-walk` again. And #49 put
 the DNS library inside `resolution-walk`'s declared parameters, on a **dependency** cadence. ~~**So the
 one leaf that reaches membership across the whole estate is a leaf `go.mod` can move.**~~
@@ -315,7 +315,7 @@ move *only* where a corpus row's output moved. So a DNS-library upgrade that cha
 cannot change whether a name resolves must **provably** not bump the leaf — and *provably* means the
 corpus carries rows that pin the membership-deciding outcomes specifically: `Resolved`, `NoData`,
 `NameError`, `Lame`, `Shadowed`. A corpus that under-covers those turns every dependency upgrade into
-an estate-wide loss of `returned`. The corpus was built to stop versions moving for nothing; it now
+an estate-wide loss of `returned`. The corpus was built to stop versions moving for nothing. It now
 also protects the one transition a break destroys rather than clamps.
 
 > **The scope of this obligation is corrected here, at the site that states it**
@@ -339,7 +339,7 @@ also protects the one transition a break destroys rather than clamps.
 **3. A release may not widen the membership vector.** Membership composes the narrowest vector that
 decides presence, and adding a leaf to it is not priced as a versioning cost — it is priced in
 `returned` detection across every `Name` and every cited `Address`. #49's rule that *a version leaf is
-named for what it decides, never for the artefact that ships it* produced this for free; what it did
+named for what it decides, never for the artefact that ships it* produced this for free. What it did
 not do is say that membership is the timeline where the rule is load-bearing rather than merely tidy.
 It is said here.
 
@@ -412,10 +412,10 @@ default for a quantity nothing bounds is not to bound it.**
 ## Consequences
 
 - **[`CONTEXT.md`](../../CONTEXT.md) is amended in five entries and gains no term.** `Observation`
-  gains the two tiers and the currency floor; `Batch` gains that it travels with its observations and
-  is not part of the operational record; `Span` gains that the corpus is never compacted and is
-  proportional to drift rather than to time; `Dispatch` gains that it is the only corpus a clock may
-  retire and why; `Transition` gains that a withdrawn subject's timelines close, and that `returned`
+  gains the two tiers and the currency floor. `Batch` gains that it travels with its observations and
+  is not part of the operational record. `Span` gains that the corpus is never compacted and is
+  proportional to drift rather than to time. `Dispatch` gains that it is the only corpus a clock may
+  retire and why. `Transition` gains that a withdrawn subject's timelines close, and that `returned`
   is the one transition a `Break` destroys rather than clamps.
 - **[ADR-0007](./0007-drift-is-a-timeline-of-spans.md)'s hard-floor consequence is amended at its own
   site**, per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
@@ -429,18 +429,18 @@ default for a quantity nothing bounds is not to bound it.**
   *"Whoever sizes retention is sizing against `go.mod`"* is answered: nobody sizes retention against
   the break cadence, because retention may never be the tighter clamp — and the corpus that would have
   had to be sized is the one that is never compacted.
-- **The golden corpus acquires a second consumer.** It was built to stop a version moving for nothing;
-  it is now also what keeps `returned` alive across a dependency upgrade, which raises the price of an
+- **The golden corpus acquires a second consumer.** It was built to stop a version moving for nothing.
+  It is now also what keeps `returned` alive across a dependency upgrade, which raises the price of an
   under-covering corpus from *spurious `Break`s* to *estate-wide loss of the one transition that
   distinguishes a returning host from a new one*.
 - **`Coverage` gains a rendering obligation** — the projection from declared scope size, and the two
-  retention dials with their floors. It is not prototyped; #28's screen predates this.
+  retention dials with their floors. It is not prototyped. #28's screen predates this.
 - **No declared parameter is added.** Both dials sit outside every derivation. The dial reads `k` and a
   cadence to compute its floor, which is not the same as being one — the precedent is
   [ADR-0043](./0043-a-clock-reading-rule-bounds-its-evidence-in-the-subjects-own-units.md), where the
   clock class bounds itself in the subject's units and *"no new number is declared"*.
 - **The span corpus's growth rate is now a thing to measure rather than a thing assumed.** The
-  arithmetic here is over a dark `/22`; nobody has measured how many spans an unstable network writes
+  arithmetic here is over a dark `/22`. Nobody has measured how many spans an unstable network writes
   on the `reachability` facet, which is the one silent, unbounded generator in the model.
 
 ## Alternatives rejected
@@ -478,8 +478,8 @@ default for a quantity nothing bounds is not to bound it.**
   after every decommission with no release to state the loss on. **The three obligations below stand
   unchanged and are now founded rather than provisional.**
 - **The disk figures are engineering estimates, not measurements.** ~130 bytes per observation row
-  all-in and ~200 per span are stated with their assumptions; the ruling turns on the **ratio** between
+  all-in and ~200 per span are stated with their assumptions. The ruling turns on the **ratio** between
   the corpora, which is a row count and is exact.
 - **The `Dispatch` floor is argued from `Coverage`'s job rather than from a citation.** #22 requires
-  *"last complete 4 hours ago"* and a trajectory; nobody has written down how far back that trajectory
+  *"last complete 4 hours ago"* and a trajectory. Nobody has recorded how far back that trajectory
   reaches.

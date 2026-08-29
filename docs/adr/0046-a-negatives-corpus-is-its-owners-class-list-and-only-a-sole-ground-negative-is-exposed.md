@@ -11,7 +11,7 @@
 silence is not the owner's silence**, and required that a negative about an owner enumerate the
 owner's **document classes** rather than its documents. It was measured on a failure:
 [#68](https://github.com/winniel123/verge-asm/issues/68) read five documents, every one a
-specification or a method, and recorded that the IETF sets no certificate key-size floor;
+specification or a method, and recorded that the IETF sets no certificate key-size floor.
 [#73](https://github.com/winniel123/verge-asm/issues/73) found three, one of them in an appendix of a
 document #68 had cited by name.
 
@@ -63,7 +63,7 @@ note it in passing.** Read without the filter, ADR-0040 obliges a session to enu
 classes for every negative in every curated table, forever. Read with it, six of sixteen fall away
 before any retrieval is planned, one more turns out to have had its class list exhausted already, and
 seven retrievals remain — of which **one** returned a sentence. The filter is not the difference
-between a big job and a small one; it is the difference between an obligation with an end and a
+between a big job and a small one. It is the difference between an obligation with an end and a
 standing one.
 
 **And the filter is a *rule* rather than a heuristic**, because it is falsifiable in the direction that
@@ -100,7 +100,7 @@ somewhere*, and it is why ADR-0040's *bounded* rather than *permanent* is availa
 **The measurement that makes the point cheapest.** PostgreSQL is the note's weakest row and its
 negative is the strongest-sounding in the corpus — *upstream states no position at all on network
 placement*. It has **two** classes and #70 read both. There is nothing left to open, so §4.5's
-disclosure was already complete before ADR-0040 existed; it just could not say so.
+disclosure was already complete before ADR-0040 existed. It just could not say so.
 
 ### 3. What the sweep actually returned, and most of it is not what a sweep is supposed to return
 
@@ -121,7 +121,7 @@ Recorded because the yield pattern is more useful than any single result.
   title in the corpus and it is a **survey**: *"In all large ISPs that were interviewed"*, and
   *"SNMPv2 is primarily deployed since it is easier to set up than v3."* It reports what operators do.
   #73 met this in RFC 8422 §5.1.1 and [#75](https://github.com/winniel123/verge-asm/issues/75) refused
-  it again on `7000`; it is met here in the one document class most likely to contain it, which is
+  it again on `7000`. It is met here in the one document class most likely to contain it, which is
   now the recorded reason to expect it there.
 - **`5672`/`15672` — survives, and it strengthens.** RabbitMQ's production checklist, the deployment
   class, was never opened. It divides the ports into client-library ports and everything else, and
@@ -214,7 +214,7 @@ was searched — not an unopened class.
 ## Consequences
 
 - **No `(port, transport)` pair moves and no row of the weak-key table moves.** `sensitive-ports.md`
-  stays at **37 pairs**; §3's class totals (12 / 7 / 18) are unchanged; §2.2's footing table as
+  stays at **37 pairs**. §3's class totals (12 / 7 / 18) are unchanged. §2.2's footing table as
   [#76](https://github.com/winniel123/verge-asm/issues/76)'s §16.7 restated it is untouched in every
   cell by this ADR, and its denominator stays **37**. `weak-key-and-signature.md` stays at **five
   rows**. No `Break` ([ADR-0008](./0008-derivation-versions-move-on-content.md)), no aperture change,
@@ -222,7 +222,7 @@ was searched — not an unopened class.
 - **One footing cell has a candidate and it is not moved here.** `10255/tcp`'s promotion out of the
   weak tier rests on whether an owner's **category** statement reaches a port the owner has not
   numbered, which is a question about §2.2 and §2.3 rather than about kubelet, and the cell belongs to
-  #76's pass. Reported to the curator; `sensitive-ports.md` §17.6 carries the measurement and the
+  #76's pass. Reported to the curator. `sensitive-ports.md` §17.6 carries the measurement and the
   counter-argument.
 - **#66's backlog question is answered: for these two tables, the class sweep is finished — as of a
   stated table state.** The map's curation patch has carried *a row's footing was never checked against
@@ -252,7 +252,7 @@ was searched — not an unopened class.
   RFC 8551 were all held by #73 and all read for **key sizes**. Read for the rest of the table's
   domain, the strings `MD2` and `MD4` occur in them **zero times** — which converts #68's MD2/MD4
   exclusion from an inference into a measurement without any new retrieval. This is the second
-  instance of limb 1 finding something in an artefact already held; ADR-0037's own criterion for
+  instance of limb 1 finding something in an artefact already held. ADR-0037's own criterion for
   forcing a general re-read named *a second unlisted subject found beside a listed one* as the trigger,
   and this is a **confirmation** rather than that trigger, because nothing was found.
 - **[ADR-0040](./0040-a-specifications-silence-is-not-the-owners-silence.md) is confirmed and
@@ -308,7 +308,7 @@ months before it was read. Before that release the owner's *Deployment / securit
 This adds no machinery. [ADR-0045](./0045-an-owners-documentation-is-what-it-has-issued.md) already
 rules that an owner's documentation is what it has **issued** and that **issuance is per version**, so
 a negative *"names the release and the date and never says never issued"*. A class sweep is a search
-over issued documents and inherits that rule unamended; what this amendment does is say so, because
+over issued documents and inherits that rule unamended. What this amendment does is say so, because
 limb 2's *fixed before the search starts* could be read as making a finished sweep finished for all
 time — a claim `sensitive-ports.md` §17.8 never made.
 

@@ -100,7 +100,7 @@ So the table ADR-0051 built for addresses can be built again, and it comes out t
 
 What a printer adds is exactly the three axes the ticket names. It picks a **case** — the wire
 preserved whatever the authority stored, and preservation is not a claim. It inserts **separator
-dots**, which are not on the wire at all; the wire has length prefixes. And for an internationalised
+dots**, which are not on the wire at all. The wire has length prefixes. And for an internationalised
 name it may print a **Unicode rendering**, which is a conversion no DNS message has ever carried.
 
 So the construction is not *the address argument reused*, it is the address argument with a
@@ -148,8 +148,8 @@ expressed anywhere:
 `WWW.Example.Com` and `www.example.com` are **one subject**.
 
 The warrant is not convenience. RFC 1035 §2.3.3 makes every comparison in the official protocol
-case-insensitive; RFC 4343 clarifies that the insensitivity covers **the 26 ASCII letters and
-nothing else**; and RFC 4034 §6.1 states the fold as an algorithm, because DNSSEC needs a canonical
+case-insensitive. RFC 4343 clarifies that the insensitivity covers **the 26 ASCII letters and
+nothing else**. RFC 4034 §6.1 states the fold as an algorithm, because DNSSEC needs a canonical
 form and this is it. We are not choosing a normalisation. We are reading one off three documents
 that agree.
 
@@ -181,8 +181,8 @@ extends no further.
 `example.com` and `example.com.` are **one subject** — everywhere except the one place they are not,
 and getting that exception right is most of the value here.
 
-The dot is not part of a name. On the wire every name is absolute and terminates at the root label;
-there is no representation of a relative name in a DNS message at all. The dot exists in the
+The dot is not part of a name. On the wire every name is absolute and terminates at the root label.
+There is no representation of a relative name in a DNS message at all. The dot exists in the
 **presentation format**, where RFC 1035 §5.1 gives it one job: *a domain name ending in a dot is
 absolute; otherwise it is relative to the current origin.*
 
@@ -209,7 +209,7 @@ and it makes a relative owner name look complete when it is not.
 `xn--bcher-kva.example` is **stored, compared and rendered**. `bücher.example` is **refused**.
 
 The first half needs almost no argument. IDNA2008 puts A-labels in the DNS protocol and U-labels in
-the user interface `[spec]` RFC 5890 §2.3.2.1; RFC 5280 §7.2 requires the same of a `dNSName` SAN.
+the user interface `[spec]` RFC 5890 §2.3.2.1. RFC 5280 §7.2 requires the same of a `dNSName` SAN.
 No DNS message has ever carried a U-label, so on every measured path the A-label **is** what arrives,
 and it arrives as ordinary ASCII octets. The key function does not decode it, does not validate it,
 and does not know it is an A-label — `xn--bcher-kva` is 13 octets in the LDH range, and treating it
@@ -242,7 +242,7 @@ octet in this text have its high bit set** — and it is the only shape availabl
 The asymmetry that falls out is correct and is worth stating, because it looks like an
 inconsistency: a high-bit octet arriving **from the wire** is keyed as those octets and makes a
 perfectly good subject, while the identical octets arriving **as text** are refused. Nothing is
-inconsistent. From the wire the octets *are* the label and there is no second reading; in text there
+inconsistent. From the wire the octets *are* the label and there is no second reading. In text there
 are two, and the model refuses to pick.
 
 **The cost lands in one place and it is stated.** An operator with an internationalised estate
@@ -300,7 +300,7 @@ helpfully lowercases, helpfully appends a dot, or helpfully runs UTS-46.
 
 The practical consequence: **there is one key function and one implementation, and three parsers
 feeding it** — the wire reader, the master-file reader, and the `Seed` box. The parsers differ
-because the formats differ; the function does not differ at all.
+because the formats differ. The function does not differ at all.
 
 ### The zone file and the resolver key by one function, which is the point of having it
 
@@ -346,7 +346,7 @@ ADR-0051's *families equal, first n bits equal*, and it is one rule with no bran
 
 Doing it over text is the classic defect and it fails in both directions at once. A suffix test over
 the string `example.com` matches `evilexample.com`, which puts a stranger's name inside the
-operator's boundary and opens the gate on it; a prefix test matches `example.com.evil.com`, which
+operator's boundary and opens the gate on it. A prefix test matches `example.com.evil.com`, which
 does the same thing from the other end. Neither is possible label-wise, because `evilexample` and
 `example` are different labels and no amount of shared text makes them one. This is the safety
 property that pays for the whole ruling, exactly as the mapped fold paid for ADR-0051's.
@@ -424,7 +424,7 @@ swallowed — a source that starts emitting unkeyable names is a source that has
 
 - **The A-label-only rendering is a product decision taken on model grounds.** Nobody has drawn what
   an internationalised estate looks like rendered entirely in `xn--` form, and nobody has measured
-  how many operators have one. The argument that a U-label rendering is impure is sound; the
+  how many operators have one. The argument that a U-label rendering is impure is sound. The
   judgement that the cost is acceptable is a judgement.
 - **The SNI residue is real and unmeasured.** Keying folded means we can only ever *send* the folded
   form, so a server doing a case-**sensitive** SNI match against a mixed-case virtual host would not
@@ -446,9 +446,9 @@ swallowed — a source that starts emitting unkeyable names is a source that has
 ## Consequences
 
 - **[`CONTEXT.md`](../../CONTEXT.md) changes in four places.** `Name` states the key's form, the
-  fold, the dot, the A-label, the rendering and the refusals; `Seed` states that a name scope and its
-  name exclusions run on the key by label-wise suffix; `Custody extension` states that *leaves the
-  declared zone* is that same test; and `Endpoint` states that the absent `Name` is a variant of the
+  fold, the dot, the A-label, the rendering and the refusals. `Seed` states that a name scope and its
+  name exclusions run on the key by label-wise suffix. `Custody extension` states that *leaves the
+  declared zone* is that same test. `Endpoint` states that the absent `Name` is a variant of the
   key rather than a null. **No term is added and no term changes meaning.**
 - **ADR-0051's named residue is discharged.** Its rule bound `Name` and its function is now decided.
   ADR-0051 is **confirmed rather than amended** — nothing in it moves, and the one clause this ruling
@@ -467,8 +467,8 @@ swallowed — a source that starts emitting unkeyable names is a source that has
 - **The probing gate runs on the key, in three places** — a name-scope `Seed`, a `Seed`'s name and
   subtree exclusions, and the `custody extension`'s zone boundary. None of them may ever compare
   text.
-- **ADR-0051's corpus gains twelve rows and a second input shape.** One artefact, one inverted gate;
-  a master-file row's input is `(owner field, current origin)`.
+- **ADR-0051's corpus gains twelve rows and a second input shape.** One artefact, one inverted gate.
+  A master-file row's input is `(owner field, current origin)`.
 - ~~**The `Seeds` screen owes refusal copy for a U-label**, naming the A-label as the route, in the
   shape #85 established for an over-cap IPv6 declaration.~~ **Discharged by
   [ADR-0052](./0052-a-declaration-refusal-names-a-route-and-never-takes-it.md) and

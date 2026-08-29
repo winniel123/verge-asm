@@ -13,7 +13,7 @@ one of the parts that does **not** travel — it applies only where a port stand
 service, which is the one surrogate v1 has. So determinacy is local to
 `sensitive-port-reached-from-internet`, and it has never been given the treatment the table's other
 gates have had. §2.1's claim set was closed by construction in
-[#37](https://github.com/winniel123/verge-asm/issues/37); §2.2's attestation acquired three forms,
+[#37](https://github.com/winniel123/verge-asm/issues/37). §2.2's attestation acquired three forms,
 an owner definition ([ADR-0035](./0035-a-cryptographic-primitives-owner-is-its-specifier.md)), a
 one-way rule and an artefact test ([ADR-0036](./0036-a-shipped-default-is-the-configuration-that-takes-effect.md),
 [ADR-0037](./0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md)). Determinacy
@@ -117,7 +117,7 @@ Three limbs.
 
 ## Rationale
 
-**It is not a new rule; it is the rule the table has been applying.** Every ruling in the note falls
+**It is not a new rule. It is the rule the table has been applying.** Every ruling in the note falls
 out of it without strain, which is the test a reconstruction has to pass:
 
 | Row | Squat | Live competitor? | Verdict, and it is the existing one |
@@ -133,11 +133,11 @@ Six existing rulings, one criterion, no exceptions. That is what makes this a **
 standard rather than a change to it, and it is why no `(port, transport)` pair moves.
 
 **Limb 1 is the load-bearing half, and it is the one a reader will resist.** `7000/tcp` is better
-attested than `5432/tcp`, which is on the list; better attested than `9042/tcp` was before
-[#69](https://github.com/winniel123/verge-asm/issues/69) moved it; and it is refused. That feels
+attested than `5432/tcp`, which is on the list. It is better attested than `9042/tcp` was before
+[#69](https://github.com/winniel123/verge-asm/issues/69) moved it. And it is refused. That feels
 wrong, and the feeling is the same one §4.4 recorded for `6443` — *"the single hardest exclusion and
 the one most likely to be challenged"*. The answer is structural: the gates measure different
-things. Attestation asks *is exposing this ever correct?*; determinacy asks *if the signal fires,
+things. Attestation asks *is exposing this ever correct?* Determinacy asks *if the signal fires,
 does the operator know what they are looking at?* A row can be unarguably right on the first and
 useless on the second, and trading one against the other converts the table's gates into a score.
 `sensitive-ports.md` §13.5 wrote the sentence before the case arrived: **the strongest sentence in
@@ -160,7 +160,7 @@ the one gate nobody had fenced. It is also not safely true: `Exposure` fires on 
 as `exposed` (§4.1), and IPv6 estates give every device a globally routable address.
 
 **What the rule costs, stated plainly.** It loses coverage on exactly the ports where a well-behaved
-project has been unlucky in its choice of number. Cassandra did nothing wrong; it published a clear
+project has been unlucky in its choice of number. Cassandra did nothing wrong. It published a clear
 prohibition against a port that Apple later populated at consumer scale, and the operator of a
 genuinely exposed Cassandra cluster gets nothing from this signal on `7000`. That is the same loss
 `sensitive-ports.md` §11.6 accepted for SNMP and §2.7 accepted for `111/tcp`, and it is accepted for
@@ -169,7 +169,7 @@ is a larger loss than a missing row.
 
 ## Consequences
 
-- **No `(port, transport)` pair moves.** `sensitive-ports.md` stays at **37 pairs**; §1's count,
+- **No `(port, transport)` pair moves.** `sensitive-ports.md` stays at **37 pairs**. §1's count,
   §3's class totals (12 / 7 / 18), §2.2's footing table, §6.1's containment arithmetic and
   [ADR-0009](./0009-verge-core-is-a-union.md)'s union are unchanged, each checked rather than
   asserted (`sensitive-ports.md` §14.7). No rule version bump and no `Break`
@@ -188,7 +188,7 @@ is a larger loss than a missing row.
   `sensitive-port-reached-from-internet` is the only surrogate v1 has. A future table keyed on
   something that is not a surrogate is *outside the domain*, not passed. The weak-key table
   ([#68](https://github.com/winniel123/verge-asm/issues/68)) has no determinacy gate and gains none.
-- **The rest of §2.4 still has no evidence standard.** This ADR settles *liveness*; it does not say
+- **The rest of §2.4 still has no evidence standard.** This ADR settles *liveness*. It does not say
   which classes of source may establish a convention at all, the way §2.2 says which sources may
   attest a claim. `sensitive-ports.md` §8 question 10 carries it, routed to
   [#82](https://github.com/winniel123/verge-asm/issues/82). **No row turns on the answer** — §14's

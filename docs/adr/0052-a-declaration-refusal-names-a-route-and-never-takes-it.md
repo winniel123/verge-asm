@@ -89,8 +89,8 @@ ADR-0049 says *must not offer the knob*, and the cautious reading of that is sil
 a setting you do not want used.
 
 **Silence loses, and it loses on a fact about the product rather than on tone.** The cap is
-operator-configurable and lives in Settings; the IPv4 refusal on the same control points straight at
-it; and an operator who has just been told, correctly, that raising the cap is what one does about an
+operator-configurable and lives in Settings. The IPv4 refusal on the same control points straight at
+it. An operator who has just been told, correctly, that raising the cap is what one does about an
 over-cap range will go and do it. Saying nothing does not remove the knob — it removes the only
 sentence that would have stopped it being used, and leaves an operator who follows the obvious path
 with a permanently uncompletable scope and a `Coverage` figure pinned near zero.
@@ -163,7 +163,7 @@ as a partial scope.
 
 - **[`CONTEXT.md`](../../CONTEXT.md)'s `Seed` entry** gains two clauses: that a subtree exclusion
   covers the subtree's own name as well as everything beneath it and that v1 has no object for the
-  names beneath a name without the name itself; and that a refused declaration names a route and
+  names beneath a name without the name itself, and that a refused declaration names a route and
   never takes it.
 - **[ADR-0049](./0049-an-address-scope-is-family-agnostic-and-the-cap-counts-addresses.md),
   [ADR-0055](./0055-a-names-key-is-the-label-sequence-and-we-fold-only-what-the-protocol-folds.md)
@@ -172,13 +172,13 @@ as a partial scope.
   per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) — a
   session reading any of them alone would otherwise write the copy a second time.
 - **No new term, no term changed meaning, and no figure moves.** The cap stays at 1,024 addresses per
-  scope; nothing here is a threshold.
+  scope. Nothing here is a threshold.
 - **No `Derivation` leaf is touched.** A refusal is a surface, it writes nothing, and its content is
   the arithmetic of a prefix plus two rules already in the model — so no version moves and nothing
   `Break`s.
 - **One drawn artefact is stale.** [`prototypes/proposal-confirm/`](../../prototypes/proposal-confirm/index.html)
   offers `Confirm 8,388,608 addresses`, which the shipped default now refuses at the declaration. The
-  control's shape and its *nothing branches on the number* rule both survive; the example wants
+  control's shape and its *nothing branches on the number* rule both survive. The example wants
   restating at an admissible size. Left in place as that session's dated record.
 - **The cost, stated:** an operator with an internationalised estate, and an operator who means
   *everything beneath a name but not the name*, both do more work than a helpful tool would ask of

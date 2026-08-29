@@ -126,7 +126,7 @@ neither noticing it was contested, is evidence about which reading the model act
 
 ### Six load-bearing structures already presuppose enumeration, and one of them is a safety argument
 
-None of these is a stray sentence; each is doing work something else depends on.
+None of these is a stray sentence. Each is doing work something else depends on.
 
 1. **`Address`'s membership rule.** *"In the estate exactly while a current resolution cites it **or
    a `Seed` covers it**."* [#48](https://github.com/winniel123/verge-asm/issues/48) reads the two
@@ -172,7 +172,7 @@ None of these is a stray sentence; each is doing work something else depends on.
 Item 6 is worth dwelling on, because #48's neighbouring sentence — *"asserts nothing about what is
 inside"* — is the single best line the bounding case has. It survives this ruling untouched and
 means what it said: a `Seed` is **not a source**, holds no timeline, and makes no claim about
-whether anything is listening. It supplies **scope**; the prober supplies **values**. Those are
+whether anything is listening. It supplies **scope**. The prober supplies **values**. Those are
 different jobs, and #48 was separating a `Seed` from a source, not a scope from a target list.
 
 ### The gloss survives because it was never about addresses
@@ -182,7 +182,7 @@ right.
 
 - **Against a name scope it is the whole rule and does real work.** Declaring `example.com` does not
   license generating names from it. §10 refuses *"brute-force enumeration of … subdomains by
-  wordlist"* by name; names arrive from CT, the zone file and resolution, and the `Seed` decides
+  wordlist"* by name. Names arrive from CT, the zone file and resolution, and the `Seed` decides
   which of them are inside. There, *starting point* means exactly *seed of a search*, and it is
   refused.
 - **Against time it is [ADR-0044](./0044-a-one-off-measurement-has-no-currency.md)'s reading** — a
@@ -245,7 +245,7 @@ sitting inside the safety path"* over **registry expansion** — a cap deciding,
 file, whose addresses are `operator`. This cap sits nowhere near the derivation: `Custody` remains
 the total lookup ADR-0013 §2 made it, over whatever `Seed`s exist. What this bounds is a **Declared
 act's admissibility**, in front of the operator, with an error they can read and a knob they can
-raise. #27's cap failed silently in both directions; this one cannot fail silently at all, because
+raise. #27's cap failed silently in both directions. This one cannot fail silently at all, because
 its only failure mode is a declaration that does not take.
 
 **Nobody is stranded, and the ones who would have been are better served.** The operator who
@@ -268,7 +268,7 @@ It is not, and the distinction is the whole of why this cap is admissible where 
 model still never adjudicates truth.** The cap does not believe the `/8` is false — it makes no
 claim about that at all, and a `/8` declared with the knob raised is accepted, false or not. What it
 refuses is a declaration the **shipped configuration cannot measure**, which is a statement about
-us. ADR-0013's sentence is about falsity and survives verbatim; falsity is still uncheckable and
+us. ADR-0013's sentence is about falsity and survives verbatim. Falsity is still uncheckable and
 still unchecked, and the escape hatch is still a boundary the operator redraws.
 
 Two facts keep the cost of all this small and both are measured. The address-scope population is
@@ -321,10 +321,10 @@ Three riders keep this from generalising into the thing that was refused.
 - **It does not extend to a name scope.** `CONTEXT.md` already calls the `custody extension`'s
   rendering *"a **census with no denominator**, since how many addresses it *ought* to cover is
   completeness of the estate"*. That stands, and the contrast is now the cleanest statement of this
-  whole ADR: **an address scope has a denominator because it enumerates; a name scope has none
+  whole ADR: **an address scope has a denominator because it enumerates. A name scope has none
   because it does not.** One sentence covers both the membership rule and the coverage rule.
 - **It does not extend to ports.** ADR-0044 refused *65,395 of 65,535 unread* and that refusal is
-  untouched; the port-tier line still states the tier, its cadence and its off state.
+  untouched. The port-tier line still states the tier, its cadence and its off state.
 - **It does not extend to undeclared space.** An operator who holds a range and never declares it
   has no denominator, gets no number, and surfaces in #28's propose half as prose. Enabling nothing
   can raise the figure — which is #28's own test, passed.
@@ -338,9 +338,9 @@ off on default settings**)
 survives **this ticket's** enumeration unchanged and is strengthened by it.** It is a count over *our* list, evaluated per `Service`, and
 [ADR-0009](./0009-verge-core-is-a-union.md) puts every sensitive pair inside the daily tier by
 construction. Enumeration multiplies the `Service`s the claim ranges over and changes nothing about
-the claim; what it adds is that the population is now a **declared, counted** one rather than
+the claim. What it adds is that the population is now a **declared, counted** one rather than
 whatever happened to resolve. Likewise ~~`0 of 16 rules unevaluable`~~ **`0 of 17 rules
-unevaluable`** — the denominator only, the numerator being `0` here as it was; the rule set became
+unevaluable`** — the denominator only, the numerator being `0` here as it was. The rule set became
 seventeen at [#128](https://github.com/winniel123/verge-asm/issues/128) ·
 [ADR-0071](./0071-a-vantage-scoped-claim-is-read-only-at-the-vantage-that-scopes-it.md) and this
 clause was not walked with it. Corrected by the merging session of the 2026-08-15 batch, after
@@ -384,12 +384,12 @@ makes this ruling affordable rather than merely correct.
 rejected partly because *"at §9's shipped `/22` cap it is a 3.9-to-11.6-day pass, monthly."* That
 limb was conditional on this ticket. It is now unconditional: the cap's own maximum is a scope that
 cannot complete inside a monthly cadence, so ADR-0005's overlap rule turns it into a permanent skip.
-Nothing in ADR-0044 is amended; its conditional becomes a fact.
+Nothing in ADR-0044 is amended. Its conditional becomes a fact.
 
 **The estate sizing in [ADR-0001](./0001-stack-and-runtime.md) is a prior, not a bound, and one
 legal declaration doubles it.** ADR-0001 sizes *"~500 live assets against the ~140-port hot set …
 ~70k reachability observations per day — ~25M rows/year"* — **at the measured 131 probed ports, ~66k
-per day and ~24M rows/year; the ratio this paragraph turns on is unchanged.** A single `/22` is
+per day and ~24M rows/year. The ratio this paragraph turns on is unchanged.** A single `/22` is
 **1,024 addresses and 143,360 reachability observations per day, ~52M rows/year** (**134,144 and ~49M
 at 131**) — 2× ADR-0001's whole sized estate, from
 one line of typing, before any name scope. The retention question on the map is sized against
@@ -411,7 +411,7 @@ the operator sets directly. This is a real consequence and it is stated rather t
 
 The ticket was right that an address that enumerates but never answers is a different object from an
 address that was never a subject. There are **four** objects and the model already names all of
-them; enumeration is what populates the first, which under bounding is unreachable.
+them. Enumeration is what populates the first, which under bounding is unreachable.
 
 | The address | What it holds | Ruled by |
 | --- | --- | --- |
@@ -427,13 +427,13 @@ already anticipated the distinction: the absence is *"a `Gap` where the timeline
 and **nothing at all** where it never began."*
 
 Two adjacencies fall out and neither needs new machinery. Declaring or widening an address scope
-moves the **custody gate**, one of the ~~five~~ aperture inputs — *the count is withdrawn; it is
+moves the **custody gate**, one of the ~~five~~ aperture inputs — *the count is withdrawn. It is
 **seven** since [ADR-0017](./0017-exposure-needs-both-legs.md) and
 [ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md),
 and the gate's membership is untouched* — so it is `revealed` on every timeline it
 opens and **one** coverage-class message at the scope carrying *"a count of timelines opened and no
 comparison at all"* — #63's *"adding a `Seed` later behaves identically"*, applied. It is emphatically
-**not** 1,024 membership messages; ADR-0022's unit rule (*the unit is the scope, never the address*)
+**not** 1,024 membership messages. ADR-0022's unit rule (*the unit is the scope, never the address*)
 and ADR-0013's once-per-scope extension message are the same shape and settle it. And an `Address`
 inside a declared scope therefore never `appear`s at all — `appeared` on an `Address` stays the
 resolution route — which is a tidier partition than the model had before.
@@ -470,9 +470,9 @@ is what keeps it to one message: a `Service` entering is never a message.
   §4's self-correction argument presupposes enumeration and is the stronger for it, and that the
   range cap does **not** apply to a `custody extension`, whose extent is measured and self-limiting.
 - **[ADR-0044](./0044-a-one-off-measurement-has-no-currency.md) is confirmed, not amended.** Its
-  per-address figures stand; its two estate limbs collapse to one; its unresolved-seam bullet is
-  discharged by this ADR; and its rejection of the enabled cold `Scan` stops being conditional on
-  this ticket. Its ~~`0 of 37 sensitive pairs unread`~~ ~~`0 of 41`~~ ~~`0 of 40`~~ ~~`0 of 38`~~ **`5 of 38`** is untouched by this ticket; the
+  per-address figures stand. Its two estate limbs collapse to one. Its unresolved-seam bullet is
+  discharged by this ADR. Its rejection of the enabled cold `Scan` stops being conditional on
+  this ticket. Its ~~`0 of 37 sensitive pairs unread`~~ ~~`0 of 41`~~ ~~`0 of 40`~~ ~~`0 of 38`~~ **`5 of 38`** is untouched by this ticket. The
   denominator moved with the sensitive list — down by one when [#109](https://github.com/winniel123/verge-asm/issues/109) removed `1433/tcp` and down by two more when [#114](https://github.com/winniel123/verge-asm/issues/114) removed `9200/tcp` and `9300/tcp` — and the numerator ~~is `0` for every value of it~~ **is `5` for every value of it, corrected by [#124](https://github.com/winniel123/verge-asm/issues/124): five sensitive pairs are UDP, and UDP is off on default settings, so `verge-core`'s union carries them without any of them being probed**.
 - **[`safe-active-probing.md`](../research/safe-active-probing.md) §3.4 is confirmed and cited
   rather than corrected**, and §9's `Target range size cap` row gains *where* the cap is applied —
@@ -497,7 +497,7 @@ is what keeps it to one message: a `Service` entering is never a message.
   nothing else. Both limbs are now decidable without measurement.
 - **IPv6 is now a sharp question rather than a latent one.** AAAA is in the shipped resolution offer
   ([`measurement-offers.md`](../spec/measurement-offers.md)), so IPv6 `Address` subjects already
-  arrive by resolution; but an *address scope* over IPv6 enumerates, and `/22` is IPv4 notation that
+  arrive by resolution. But an *address scope* over IPv6 enumerates, and `/22` is IPv4 notation that
   means 2¹⁰⁶ addresses in v6. Ticketed separately — under the bounding reading it did not arise.
 
 ## Amendment — [#85](https://github.com/winniel123/verge-asm/issues/85): the cap counts addresses, and the exponent was the only accidentally-IPv4 thing here
@@ -510,12 +510,12 @@ ADR's own cap in the unit it always had. **Nothing here is amended in substance 
   one knob at one setting, not two rules. Everything this ADR argues about the cap — that it
   adjudicates *cost, not truth*, that it is not [#27](https://github.com/winniel123/verge-asm/issues/27)'s
   refused cap, that it does not reach a `custody extension` — is unchanged and now family-blind.
-- **An address scope is family-agnostic.** A CIDR is a CIDR; there is no family check anywhere in
+- **An address scope is family-agnostic.** A CIDR is a CIDR. There is no family check anywhere in
   the model, the `Seed` kind does not split, and no third kind appears. The enumeration reads
   **2^(width−n)** — the `32` above is the only accidentally-IPv4 thing in this document, and it sits
   in the sentence a reader takes the enumeration rule from.
 - **The consequence for IPv6 is arithmetic, not a policy.** `/118` and longer are declarable, of
-  which the usable member is the `/128`; `/117` and shorter are refused by the cap, which is every
+  which the usable member is the `/128`. `/117` and shorter are refused by the cap, which is every
   prefix an operator is assigned. One `/64` on the daily tier is ≈ 4.1 × 10¹¹ years at §6.3's
   ceiling, so **IPv6 space is not swept and no configuration makes it sweepable**. The IPv6 estate's
   route is a **name scope with a `custody extension`**, which is family-agnostic and already works,

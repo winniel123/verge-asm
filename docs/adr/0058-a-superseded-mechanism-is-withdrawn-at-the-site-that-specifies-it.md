@@ -43,7 +43,7 @@ is a chain rather than an instance:
    [#12](https://github.com/winniel123/verge-asm/issues/12) on *"handing implementation a build-time
    invariant with an unverified term is handing it a build that may not go green."*
 
-The third hop reaches code. #12 is the spec; carried forward, it instructs implementation to write the
+The third hop reaches code. #12 is the spec. Carried forward, it instructs implementation to write the
 build-time containment test ADR-0009 refused — a skippable guard over an unfalsifiable property, which
 would also invite a later reader to conclude the union is maintained by the test rather than by the
 definition.
@@ -53,7 +53,7 @@ The pointer did its job for readers who arrived holding the ADR. Both of these a
 **A second instance surfaced in the same pass, on a different pair of documents.**
 [`safe-active-probing.md`](../research/safe-active-probing.md) §2.3's Management/OOB limb still reads
 `161 (TCP), 623` — the exact two members ADR-0009's Decision table removed. A session enumerating the
-frequency half from §2.3's own text gets **125** and never learns otherwise;
+frequency half from §2.3's own text gets **125** and never learns otherwise.
 [#78](https://github.com/winniel123/verge-asm/issues/78) caught it only because it happened to be
 counting for a licence question, and recorded the corrected **123** in a note nothing points to from
 here. Same shape, different documents, no ticket in between.
@@ -87,8 +87,8 @@ competent session to build or specify the thing — it is not withdrawn.
 ### A pointer is addressed to the reader who does not need it
 
 ADR-0009's *"a reader finding §6 and no test in the codebase should read this ADR"* is conditioned on
-noticing an absence. But the failure mode is not a reader who looks for the test and cannot find it;
-it is a reader who **believes the test exists and never looks**, because §6 says so in the present
+noticing an absence. But the failure mode is not a reader who looks for the test and cannot find it.
+It is a reader who **believes the test exists and never looks**, because §6 says so in the present
 tense and there is no reason to doubt it. #91 did not go looking for a test — it wrote *"the invariant
 fires"* and moved on, correctly by §6's lights.
 
@@ -111,14 +111,14 @@ withdrawal whose violating state is not expressible.
 ### The cost is small and lands on the party who can pay it
 
 The pass that supersedes holds both states in hand — it has just read the old mechanism in order to
-replace it. Every later reader holds only one. Deferring the edit does not avoid it; it relocates it
+replace it. Every later reader holds only one. Deferring the edit does not avoid it. It relocates it
 to a session that must first discover the discrepancy, which is what
 [#97](https://github.com/winniel123/verge-asm/issues/97) spent most of its budget on and what
 [#78](https://github.com/winniel123/verge-asm/issues/78) did by accident.
 
 ### It does not license rewriting history
 
-The withdrawal **names** what no longer holds; it does not delete the record. That is the convention
+The withdrawal **names** what no longer holds. It does not delete the record. That is the convention
 [`sensitive-ports.md`](../research/sensitive-ports.md) already uses everywhere — §3's `161/udp` row is
 *"left standing … marked here rather than deleted, per the name-and-withdraw convention"* — and the
 reason is unchanged: a deleted sentence takes its reasoning with it, and a reader who arrives via an
@@ -160,13 +160,13 @@ old citation finds nothing rather than a redirection. What this ADR adds is that
 
 **Leave the pointer and rely on the reader** — ADR-0009's own choice, made explicitly and in good
 faith. Rejected on its measured failure rate: two of the passes that met it wrote the mechanism
-forward, one of them into the superseding ADR's own body. The pointer is not wrong; it is addressed
+forward, one of them into the superseding ADR's own body. The pointer is not wrong. It is addressed
 to a reader who has already noticed the problem, and the failing readers had not.
 
 **Delete the superseded sentence.** Rejected on the same ground the note's name-and-withdraw
 convention was adopted: a deletion takes the reasoning with it, breaks inbound citations, and leaves a
 later reader unable to tell a withdrawal from an omission. §6's argument for *why the coupling points
-this way* is still live and still correct; only its final clause about enforcement is not.
+this way* is still live and still correct. Only its final clause about enforcement is not.
 
 **Make it a curation trigger on the map.** Rejected because a trigger implies a watch, and the watch
 here would be *re-read every superseded document forever* — the standing obligation ADR-0046 exists to
@@ -209,7 +209,7 @@ is the earliest instance measured and predates this ADR by a day.
 
 **The earliest instance cost a whole ticket.** [#27](https://github.com/winniel123/verge-asm/issues/27)
 withdrew the registry half of `Ownership`'s derivation at
-[ADR-0002](./0002-ownership-gates-probing.md); `CONTEXT.md`'s `Vantage class` and `Ownership` entries
+[ADR-0002](./0002-ownership-gates-probing.md). `CONTEXT.md`'s `Vantage class` and `Ownership` entries
 went on specifying a registry read in the present tense, and
 [#39](https://github.com/winniel123/verge-asm/issues/39) *"was filed and worked against a premise
 ADR-0002 had already withdrawn"* — [`docs/agents/domain.md`](../agents/domain.md), which has carried a
@@ -220,17 +220,17 @@ That rider is now cross-linked to this ADR in both directions.
 
 - [`safe-active-probing.md`](../research/safe-active-probing.md) **§2.5** still specified the
   hand-picked UDP opt-in list `53, 123, 161, 500, 623, 1900, 5353` that ADR-0009 superseded — a list
-  ADR-0009 measured as **missing four sensitive pairs**. §2.3 one section up was struck by #97; §2.5
+  ADR-0009 measured as **missing four sensitive pairs**. §2.3 one section up was struck by #97. §2.5
   was not. Withdrawn in place by #102.
 - [`insecure-listener-rules.md`](../research/insecure-listener-rules.md) **§9.2** excluded
   `smb-signing-not-required` from v1 on §9.1's *never per protocol* principle, which ADR-0015 ruled
-  *"wrong as stated"*. The note's own §12 q2 asked the question; ADR-0015 answered it; nothing carried
+  *"wrong as stated"*. The note's own §12 q2 asked the question. ADR-0015 answered it. Nothing carried
   the answer back. The principle is withdrawn in place and **the verdict is ticketed rather than
   moved**, because a v1 signal is a row and not a document.
 
 **The classification does not change: this stays a *detectable* defect and does not become a curation
 trigger** — and the sweep strengthens rather than weakens that. The map's eight triggers are all
-watches on the **world** moving; this defect fires when **we** move, so the trigger list is the wrong
+watches on the **world** moving. This defect fires when **we** move, so the trigger list is the wrong
 list on shape before it is the wrong list on cost. The cost argument survives too: the watch a trigger
 implies is *re-read every superseded document forever*, and #102's own run — 197 moves over 39,382
 lines — is the price sample for one pass of it, against an expected yield that is zero except when a
@@ -266,26 +266,26 @@ Consequences bullet it withdraws).
 
 **The narrow reading loses on this ADR's own founding measurement.** #102's annotation above held the
 intra-document cases back as a weaker sub-shape, on the ground that the Rationale below argues from
-*"a pointer **from the superseding document**"*. That framing explains why a pointer fails; it does
+*"a pointer **from the superseding document**"*. That framing explains why a pointer fails. It does
 not bound where the rule reaches — and the Decision above already says *"at the superseded **site**"*
 while the test is expressly about *"the superseded **sentence**, read alone"*. Taking the Rationale
 over the Decision would be the narrow reading's price. But the decisive fact is in the Context above:
 the forcing chain that founds this ADR is **itself intra-document**.
 [#91](https://github.com/winniel123/verge-asm/issues/91) re-asserted the dissolved invariant
 **inside [ADR-0009](./0009-verge-core-is-a-union.md)'s own body**, 217 lines below the Decision row
-reading *"The invariant: **Dissolved**"* and *"Enforcement: **None, anywhere**"*;
-[#95](https://github.com/winniel123/verge-asm/issues/95) then did it again 33 lines further down; and
+reading *"The invariant: **Dissolved**"* and *"Enforcement: **None, anywhere**"*.
+[#95](https://github.com/winniel123/verge-asm/issues/95) then did it again 33 lines further down. And
 [#97](https://github.com/winniel123/verge-asm/issues/97)'s withdrawal was written only in its own
 amendment section, 87 lines past #91's clause, leaving that clause live until
 [#102](https://github.com/winniel123/verge-asm/issues/102) struck it. **One file, three failures, and
 a rule stopping at the file boundary catches none of them.** This is the objection the *Restrict it to
 ADRs* alternative below already lost on, one turn sharper: there the load-bearing instance ran the
-wrong *direction*; here it does not leave the document at all.
+wrong *direction*. Here it does not leave the document at all.
 
 **The failure mode is indifferent to file boundaries.** The Rationale's diagnosis is a reader who
 *"**believes** the mechanism exists and never looks"*, believing it because the sentence says so in
 the present tense. Nothing in that mechanism consults where the contradicting sentence happens to
-live. A 421-line ADR is not read whole; it is read at its Decision table.
+live. A 421-line ADR is not read whole. It is read at its Decision table.
 
 **The extension is what #102 declined to make silently, and it is made here explicitly**, with its
 cost stated below.
@@ -314,7 +314,7 @@ form was available at every site this amendment repairs, and at several of them 
 away.
 
 A **full box** is not owed at the superseded site. The box belongs at the superseding site, which is
-where the reasoning lives; the superseded site owes only enough that the sentence can no longer be
+where the reasoning lives. The superseded site owes only enough that the sentence can no longer be
 read forward.
 
 ### Where the rule stops — voice, not section
@@ -341,7 +341,7 @@ fires when **we** move. Nothing here creates an obligation to re-read anything o
 
 **The widening makes the defect *cheaper* to detect, not dearer** — which is the one place it improves
 on the cross-document case rather than merely extending it. A cross-document instance needs the
-superseding document read against every document it names; an intra-document instance is **one file
+superseding document read against every document it names. An intra-document instance is **one file
 read**, both sides inside the same `grep`. The obligation on the superseding pass is likewise smaller:
 the pass is already editing that file, and in the sharpest instances it has **already located the
 sentence** — ADR-0047's #85 amendment says *"the `32` … sits in the sentence a reader takes the
@@ -360,7 +360,7 @@ ADR-0009. What this amendment removes is the discretion, not the technique.
 16,064 lines), `docs/research/` (11 notes, 24,365), `CONTEXT.md` (899), `docs/agents/` (4, 207) and
 `docs/spec/` (1, 406). The corpus has grown ~2,559 lines and two ADRs since #102's 39,382 at
 `c0881ae`. `docs/wayfinder/` is excluded by construction, since re-writing a snapshot is what an
-archive exists to prevent; `docs/spec/` and `docs/correspondence/` carry **no superseding move at
+archive exists to prevent. `docs/spec/` and `docs/correspondence/` carry **no superseding move at
 all** and contribute nothing. This negative is **dated**, not permanent, and it is re-armed by the next
 supersession rather than by a clock.
 
@@ -375,7 +375,7 @@ amendment section were read end to end.
 #65, #67, #68, #71 (through [ADR-0038](./0038-a-constant-is-a-product-only-where-the-quantity-is-readable.md)),
 #78, #85, #93, #95, #101 and #102, in ADR-0004, ADR-0006, ADR-0014, ADR-0025, ADR-0026, ADR-0028,
 ADR-0032, ADR-0037, ADR-0046, ADR-0047, ADR-0059 and **this ADR**. #106's ticket enumerated six of
-them; **nineteen had never been named.** All 25 are repaired in place on this ticket's branch —
+them. **Nineteen had never been named.** All 25 are repaired in place on this ticket's branch —
 **36 passages marked in all**, because eleven of them are second and third restatements of a clause
 already withdrawn elsewhere in the same file. That is the first practical finding: **discharging a
 site is a `grep` of the file for the clause, not a single edit.**
@@ -395,7 +395,7 @@ scattering.
 **The shape does not respect document order, and an order-based rule would miss 9 of the 22 the sweep
 confirmed.** In ADR-0004, ADR-0006, ADR-0028 and ADR-0032, the superseding section sits **above** the
 unmarked sentence — the amendment lands mid-file and the stale clause is in the Consequences below
-it. *Site* catches these; *"a trailing amendment supersedes an earlier row"* does not. This is why
+it. *Site* catches these. *"a trailing amendment supersedes an earlier row"* does not. This is why
 the ruling is stated on the **clause**, and not on section order.
 
 **The densest file is ADR-0032, with eight sites — and it is the file that invented the disclosure
@@ -411,7 +411,7 @@ exists to stop.
 ADR-0009 generalised: in ADR-0032, ADR-0028, ADR-0026 and ADR-0009 alike, *some* sites carry the mark
 and their siblings do not. #102 committed the same failure in the same pass — it struck ADR-0032 §8's
 watch-list equation and left the Consequences restatement of it standing 159 lines below. The defect
-is not carelessness about the rule; it is stopping at the first instance of the clause.
+is not carelessness about the rule. It is stopping at the first instance of the clause.
 
 **Where the boundary genuinely bites, it bites narrowly.** The nearest misses are supersessions
 written **1 to 3 lines** from the sentence ([ADR-0003](./0003-third-party-source-consent-bar.md)'s
@@ -436,7 +436,7 @@ Consequences bullet *"The existing corpus is not swept … a sweep is not opened
 
 ### Thin ground
 
-**The population's size is measured; its *rate* is not.** #102 could price the cross-document rule
+**The population's size is measured. Its *rate* is not.** #102 could price the cross-document rule
 against a measured failure rate — two passes wrote the mechanism forward, one of them into the
 superseding ADR's own body. This amendment cannot say how often an unmarked *intra*-document clause
 has been read forward, because the corpus records catches rather than misses:
@@ -450,7 +450,7 @@ which re-blocks [#12](https://github.com/winniel123/verge-asm/issues/12) on a di
 ### Consequences of this amendment
 
 - **The Decision above reads on the sentence.** Its *"the document that specifies the mechanism is
-  amended"* is to be read as *"the sentence that specifies the mechanism is marked"*; the marker under
+  amended"* is to be read as *"the sentence that specifies the mechanism is marked"*. The marker under
   the Decision table says so.
 - **Nothing in the map's trigger list moves.** This stays in the *detectable defects* group, as #102's
   annotation ruled and for #102's reason.

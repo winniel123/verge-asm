@@ -37,9 +37,9 @@ published expiry date.
 Three facts retrieved *after* it move the price. [#67](https://github.com/winniel123/verge-asm/issues/67)
 ([`acme-renewal-timing.md`](../research/acme-renewal-timing.md) §7.1–§7.3) established that
 certificate lifetimes are plural and shrinking on published schedules: Let's Encrypt's 160-hour
-profile went **generally available on 2026-01-15**; its `tlsserver` profile has issued 45-day
-certificates since **2026-05-13**; its default `classic` profile drops to **64 days on 2027-02-10**
-and 45 days on 2028-02-16; and the CA/Browser Forum ceiling, already **200 days since 2026-03-15**,
+profile went **generally available on 2026-01-15**. Its `tlsserver` profile has issued 45-day
+certificates since **2026-05-13**. Its default `classic` profile drops to **64 days on 2027-02-10**
+and 45 days on 2028-02-16. And the CA/Browser Forum ceiling, already **200 days since 2026-03-15**,
 drops to **100 days on 2027-03-15** and 47 days on 2029-03-15. In the same retrieval,
 `certificate-expiring`'s horizon stopped being a day count and became
 `N = ⅓ × (not_after − not_before)`, and `½ ×` that where the validity period is 10 days or less.
@@ -118,7 +118,7 @@ CA's number**, extended beyond its attestation when applied to a commercial, int
 certificate. A fresh ½ for the evidence bound would be a **second** project-authored number in the
 same comparison path with **no** owner behind it at all — widening the disclosed weakness one day
 after #67 went to the trouble of removing the last unattested number from this rule. ADR-0038 §11's
-rule is *ship the fraction*; it is not a licence to ship a new one.
+rule is *ship the fraction*. It is not a licence to ship a new one.
 
 **It nests the two rules correctly.** Under the guard, `certificate-expired` can fire only where
 `remaining-at-observation < age < N` — that is, **only on an observation that already showed the
@@ -126,7 +126,7 @@ certificate inside `certificate-expiring`'s horizon.** We assert *expired* only 
 we last saw already in their replacement window, with at most one replacement window's worth of
 staleness behind the claim. The two rules stop being independent readings of one value and become
 nested, which is what one would want of a pair whose whole subject matter is one certificate's
-approach to one date. A flat ½ does not produce this; it is looser than the horizon above a 10-day
+approach to one date. A flat ½ does not produce this. It is looser than the horizon above a 10-day
 validity and identical to it below, so it buys nothing at the short end and gives away the nesting
 at the long end.
 
@@ -156,7 +156,7 @@ and is a reason for the shape taken here: this is not a duration, it is not fixe
 currency rule. It is a second gate above it.
 
 The decisive check is that **neither gate is redundant** — each is the binding one on a real
-population. Effective bound is `min(k × cadence, N)`; the tiers after
+population. Effective bound is `min(k × cadence, N)`. The tiers after
 [#78](https://github.com/winniel123/verge-asm/issues/78) are two, hot (`verge-core`, daily, `k ×
 cadence` = **2 days**) and cold (full-range, opt-in, monthly ceiling, `k × cadence` = **60 days**):
 
@@ -180,7 +180,7 @@ and the `Break` this ADR costs is paid on a population that is currently zero.
 **On the cold tier the horizon binds below a 180-day validity period** — and the CA/Browser Forum
 ceiling drops to **100 days on 2027-03-15**. From that date, *every publicly-trusted certificate in
 existence* is inside this guard on the cold tier, by a schedule its own owner has published. The
-defect does not need six-day certificates to arrive; six-day certificates are only where it arrives
+defect does not need six-day certificates to arrive. Six-day certificates are only where it arrives
 first and worst.
 
 ### Only the clock class, checked rather than assumed
@@ -245,9 +245,9 @@ size of the member. Nothing here asks #74 to be reopened.
 [#60](https://github.com/winniel123/verge-asm/issues/60) killed an operator-configurable `N` on three
 grounds, all about **per-install** variation. The horizon reopens none of them, and the answers are
 [`acme-renewal-timing.md`](../research/acme-renewal-timing.md) §12's unchanged, because it is the
-same parameter: it is project-authored and fixed at the release; nothing is handed outward, since the
+same parameter: it is project-authored and fixed at the release. Nothing is handed outward, since the
 guard narrows and widens with the certificate's own validity period, which is a measurement and not a
-preference; and CI gates exactly the function every install runs, over a declared parameter set that
+preference. And CI gates exactly the function every install runs, over a declared parameter set that
 has not grown. #22's configurable/fixed line is inside-versus-outside the comparison path, and this
 stays inside and stays ours.
 
@@ -269,7 +269,7 @@ ours.** It costs no probes at all. It was not available on 2026-08-13 in any usa
 fraction that expresses it was retrieved on 2026-08-14.
 
 And *honest* does not survive contact with the arithmetic. A 60-day-old observation of a 160-hour
-certificate is **nine generations** stale; the observation is not merely possibly superseded, it is
+certificate is **nine generations** stale. The observation is not merely possibly superseded, it is
 certainly superseded, since one certificate cannot be served for nine times its own validity. A rule
 asserting a fact from evidence that is certainly superseded is not being honest-but-stale. It is
 wrong, and it does not know it.
@@ -291,8 +291,8 @@ Two figures in the ticket's table are also slightly out, and the corrected ones 
 hours is **6.67** days, not six, so a 14-day bound was **2.1** lifetimes rather than 2.3, a 2-day
 bound is **0.30** of a life rather than 0.32, and a 60-day bound is **9** generations rather than 10.
 
-None of it changes the answer, and the reason is the point. The urgency argument was population size;
-the ruling's argument is that a rule returns an assertion that is false. A narrow population is not a
+None of it changes the answer, and the reason is the point. The urgency argument was population size.
+The ruling's argument is that a rule returns an assertion that is false. A narrow population is not a
 defence for a wrong answer, and it is a poor one here in any case, because the CA/Browser Forum's
 100-day ceiling on **2027-03-15** puts the entire publicly-trusted WebPKI inside the guard on the cold
 tier, and Let's Encrypt's 64-day `classic` profile on **2027-02-10** puts the modal ACME certificate
@@ -311,8 +311,8 @@ is still right will need re-checking rather than inheriting. The dependency is s
 buried, per ADR-0034's own practice.
 
 **Every weakness `acme-renewal-timing.md` §14 discloses about `N` is inherited whole.** ⅓ is one CA's
-number; applying it to a commercial, internal or self-signed certificate is an extension beyond the
-attestation; and the 10-day halving threshold has diverged from the CA/Browser Forum's short-lived
+number. Applying it to a commercial, internal or self-signed certificate is an extension beyond the
+attestation. And the 10-day halving threshold has diverged from the CA/Browser Forum's short-lived
 definition, which moved to ≤7 days on 2026-03-15. This ADR adds no weakness of its own, and cures
 none.
 
@@ -342,7 +342,7 @@ occurs, and on the published lifetime schedule, rather than on how often it occu
   declared having moved and ADR-0021's bidirectional gate passes by accident.
 - **`k` does not move, and `Gap` does not move.** ADR-0007 is unamended. ADR-0038 §4's record of `k`
   as the staleness rule already satisfied stands. A `certificate` observation that fails the horizon
-  is **still current** and still holds an open `Span`; only three rules decline to read it.
+  is **still current** and still holds an open `Span`. Only three rules decline to read it.
 - **[ADR-0028](./0028-a-facets-cadence-is-the-cadence-of-its-exchange.md) is amended in two
   sentences and stands in everything else.** Its cadence ruling, its fourth `Scan`, its one-candidate-set
   rule and its per-`Service` currency are all untouched. What is withdrawn is *the guard is structural
@@ -353,7 +353,7 @@ occurs, and on the published lifetime schedule, rather than on how often it occu
 - **An input moves for the census questions and is decided by none of them here.**
   [#72](https://github.com/winniel123/verge-asm/issues/72) owns what `certificate-expiring`'s census
   says and [#44](https://github.com/winniel123/verge-asm/issues/44) owns where a `not-evaluable`
-  renders; both are closed and neither is reopened. On the cold tier this ruling can make
+  renders. Both are closed and neither is reopened. On the cold tier this ruling can make
   `not-evaluable` the **largest** of the clock class's three census members —
   [#74](https://github.com/winniel123/verge-asm/issues/74), closed the same day, had already ruled
   that a member which is most of the estate renders in full and that nothing about a member view is a
@@ -364,11 +364,11 @@ occurs, and on the published lifetime schedule, rather than on how often it occu
   `k × cadence` after that, so on a default install the clock class over those ports is effectively
   never evaluable. Whether that is acceptable is #80's question, not this one's.
 - **[`CONTEXT.md`](../../CONTEXT.md) changes in two places.** `Certificate` gains the guard beside its
-  currency clause and the note that failing it is not a `Gap`; `Signal`'s `not-evaluable` sentence
+  currency clause and the note that failing it is not a `Gap`. `Signal`'s `not-evaluable` sentence
   widens from *evidence absent* to evidence absent **or held and unreadable by this rule**.
 - **Nothing here is a dial, a tier change, or a fold of the clock class into the drift class.** #60's
-  three grounds are re-checked and unmoved; the tiering question belongs to #78 (settled) and #80
-  (open); and the clock class remains `certificate-expiring`'s only carrier.
+  three grounds are re-checked and unmoved. The tiering question belongs to #78 (settled) and #80
+  (open). And the clock class remains `certificate-expiring`'s only carrier.
 
 ## Alternatives rejected
 

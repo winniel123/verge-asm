@@ -75,7 +75,7 @@ Three limbs.
    cloud-controller-manager — each such build has a shipped default its own vendor owns, admissible
    under §2.2's third form **about that build**, and subject to §10.5 like any other owner's. This is
    [#76](https://github.com/winniel123/verge-asm/issues/76)'s *ownership is tested per port, not per
-   sentence* read one level over: a **library** is not a unit of evidence either; a claim about a
+   sentence* read one level over: a **library** is not a unit of evidence either. A claim about a
    thing that runs is.
 
 ## Rationale
@@ -85,7 +85,7 @@ claim may not be asserted by us*. A row founded on `CloudControllerManagerPort =
 founded on a claim analysis inherited from a **sibling port** — §24.3's delegating-auth stack,
 transferred whole because the same options constructor is called — attached to a number nobody's
 shipped software binds. That is the reader closing the gap, which is exactly what §2.3 refuses when a
-corroborator does it. It is not better because the party is the owner; it is the right party
+corroborator does it. It is not better because the party is the owner. It is the right party
 speaking about the wrong object, which is the shape [ADR-0045](./0045-an-owners-documentation-is-what-it-has-issued.md)
 named for the wrong *time*.
 
@@ -93,7 +93,7 @@ named for the wrong *time*.
 vendor**, and *live* means **current, never numerous**. If a library constant places a pair, then the
 service `10258` implies is *some vendor's cloud-controller-manager* — a population whose members are
 built by different parties, released on different schedules, and free to choose otherwise. A fired
-signal must name a service (§2.4); *whichever CCM this operator happens to run* is not one. The rule
+signal must name a service (§2.4) — *whichever CCM this operator happens to run* is not one. The rule
 therefore keeps §2.4's gate honest without needing to invent a contest, which ADR-0048 would demand a
 defeating artefact for and which does not exist.
 
@@ -116,13 +116,13 @@ and never what about* already draws for direction, drawn here for subject.
   and bounded on arrival under [ADR-0046](./0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md)
   limb 1.
 - **No listed row is disturbed.** Every pair on the list is bound by software its attesting owner
-  ships; `10249/tcp` and `10248/tcp` are admitted in the same pass on binaries that are in
+  ships. `10249/tcp` and `10248/tcp` are admitted in the same pass on binaries that are in
   Kubernetes' build sets.
 - **`CloudControllerManagerWebhookPort` is disposed in advance.** §24.11 recorded its value as
   unretrieved. Whatever it is, it is a library constant for a binary Kubernetes does not ship.
   `sensitive-ports.md` §27.14 records that as **disposed by rule rather than by retrieval** and names
   it as the weaker disposal it is.
-- **ADR-0036 is extended, not amended.** Its subject stays configuration; this ADR carries the
+- **ADR-0036 is extended, not amended.** Its subject stays configuration. This ADR carries the
   example rule into executables and cites it.
 - **It travels to every curated table under [ADR-0032](./0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md).**
   The weak-key table's analogue is a body that specifies an algorithm identifier nobody implements —
@@ -138,7 +138,7 @@ and never what about* already draws for direction, drawn here for subject.
 **Decline the ADR — §12(a) and ADR-0048 already require it.** §16.6's test, applied seriously, and
 the test that produced *no ADR* at §20.9, §23 and §24.9. **It loses on both halves.** §12(a) and
 ADR-0036 are about **configuration files** — all ten of §12.2's artefacts are — and say nothing about
-a program entry point; carrying them to an executable is an extension. And ADR-0048's *its own
+a program entry point. Carrying them to an executable is an extension. And ADR-0048's *its own
 software listens* clause governs **determinacy**, which §27.7 expressly declines to rest the refusal
 on, while §2.2's attestation gate and §10.5's owner definition key on authorship and never ask
 whether the author ships a listener. The gap is demonstrable rather than theoretical: on the existing
@@ -146,8 +146,8 @@ rules, `10249` and `10258` are the same case.
 
 **Refuse `10258` on determinacy instead, and skip the ADR.** Cleaner-sounding. **It loses on
 ADR-0048's own refusal-artefact rule** — *every determinacy refusal must name the artefact that
-defeated the convention* — and there is no such artefact. Nobody contests `10258`; the range is
-Unassigned; the defect is that the convention was never **established**, not that it was defeated.
+defeated the convention* — and there is no such artefact. Nobody contests `10258`. The range is
+Unassigned. The defect is that the convention was never **established**, not that it was defeated.
 Routing the refusal through determinacy would put a finding with no defeating artefact into the one
 table ADR-0048 built to require one.
 

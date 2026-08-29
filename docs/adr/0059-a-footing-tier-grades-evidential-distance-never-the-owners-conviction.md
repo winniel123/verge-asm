@@ -11,7 +11,7 @@
 tiers — **explicit prohibition**, **explicit trusted-network scoping** *"slightly weaker than a
 prohibition"*, and **shipped default only**. The table has carried that grading since the note was
 written and has never said **in what respect** one tier is weaker than another. §2.2 says *slightly
-weaker*; it does not say weaker at what.
+weaker*. It does not say weaker at what.
 
 Two sections have since had to answer the question in passing, and each answered it in a different
 vocabulary.
@@ -29,7 +29,7 @@ gap has now produced a measured falsehood in the note's own text.
 **[measured]** [#93](https://github.com/winniel123/verge-asm/issues/93) §26.3 walked the whole
 prohibition tier against §20.8's sentence and found it **refuted as a universal**. `873/tcp` rsync's
 footing is *"Do not expose a cleartext daemon to an untrusted network"* (`rsyncd.conf.5.md`) and *"do
-not send sensitive data across an untrusted network"* (`rsync.1.md`), both at `v3.5.0`; rsync scopes by
+not send sensitive data across an untrusted network"* (`rsync.1.md`), both at `v3.5.0`. rsync scopes by
 **trust boundary** in every artefact it ships and the string `internet` occurs **zero** times in
 `rsync.1.md`, `rsyncd.conf.5.md` and `SECURITY.md`. The class list is exhausted, so no retrieval can
 cure it. #93 reported the defect rather than applying it, because applying it moves tier counts and
@@ -110,7 +110,7 @@ assignments as they stand:
 | `5432` PostgreSQL, `5984` CouchDB | no sentence; `listen_addresses = localhost` | n/a — no sentence to stand at a distance | **Weak** |
 
 **Twenty-four prose footings, one criterion, one cell moved — and the moved cell is the one the
-criterion was already measured to refute.** `873/tcp` is not an exception the rule accommodates; it is
+criterion was already measured to refute.** `873/tcp` is not an exception the rule accommodates. It is
 the row the rule was found wrong on, moving to where the rule puts it.
 
 **Limb 2 is the load-bearing half and it is the one a reader will resist.** rsync's *"Do not expose"* is
@@ -118,7 +118,7 @@ flatter and more imperative than Redis's *"usually it is not a good idea"*, and 
 **below** Redis. That feels wrong, and the feeling is ADR-0042's `7000/tcp` feeling exactly — *"better
 attested than `5432/tcp`, which is on the list … and it is refused"*. The answer is the same and it is
 structural: **the column does not measure how much the owner minds.** It measures how much of the
-row's proposition the owner said. rsync said *not on an untrusted network*; the step from there to *not
+row's proposition the owner said. rsync said *not on an untrusted network*. The step from there to *not
 from an internet vantage* is the reader's, correct and obvious and still the reader's. That step is
 exactly the thing §2.2 was built to disclose — *"the two forms are not equally strong, and the list must
 not hide the difference"* — and hiding it because the sentence is forceful is the arbitrariness §2.2's
@@ -146,7 +146,7 @@ between a **sentence** and a proposition, so it governs the **prose** footings o
 scoping tier on a footing that is **not a sentence** — the owner's ports table plus a restricting
 loopback default — reasoning relatively rather than lexically (*"strictly more than the shipped-default-only
 footing carrying `5432` and `5984`"*). That placement stands and this ADR neither confirms nor
-disturbs it; the scoping tier now holds two populations sorted on two different dimensions, and that is
+disturbs it. The scoping tier now holds two populations sorted on two different dimensions, and that is
 disclosed rather than smoothed.
 
 > **This paragraph is WITHDRAWN by the #101 amendment below.** Limb 1's unit is the owner's
@@ -176,13 +176,13 @@ disclosed rather than smoothed.
   premise away, and its advisory mood — which §20.8 gave as a second reason — is withdrawn as a ground
   under limb 2.
 - **[#12](https://github.com/winniel123/verge-asm/issues/12) is not touched.** The spec carries the
-  list, the claims and the containment arithmetic; none of them reads a tier.
+  list, the claims and the containment arithmetic. None of them reads a tier.
 - **The weak tier, ~~and therefore [ADR-0032](./0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md)
   §8's watch list,~~ is unchanged at `5432/tcp` and `5984/tcp`.** *(The **therefore** is **SUPERSEDED**
   by [#125](https://github.com/winniel123/verge-asm/issues/125): the watch keys on the **revision act**,
   and a tier grading **evidential distance** — this ADR's own ruling — is orthogonal to how easily the
   artefact can be edited. **[measured]** the two disagree on at least four pairs.
-  [ADR-0057](./0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md).)* **Unchanged by this ADR; composed it is
+  [ADR-0057](./0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md).)* **Unchanged by this ADR. Composed it is
   three rows** — `10248/tcp` joined the weak tier at #95 in the same merge, and ADR-0032 §8 carries the
   amendment.
 - **It does not generalise beyond a graded footing column**, and that is ADR-0032's ruling rather than a
@@ -241,7 +241,7 @@ as of 2026-08-15 is `0076` alone. [#154](https://github.com/winniel123/verge-asm
 **What forced it, and it is a measurement rather than a tidying.** **[measured]** this ADR recorded
 `2181/tcp` ZooKeeper and `25672/tcp` RabbitMQ as *"carry[ing] owner sentences that name the Internet and
 are **not** promoted by this ADR"*. §32 re-retrieved both sentences in their own context and both
-satisfy all four conditions; the conjunction promotes exactly those two and, run across the whole
+satisfy all four conditions. The conjunction promotes exactly those two and, run across the whole
 scoping tier, promotes **nothing else** — `4369/tcp` epmd is refused on condition 1, RabbitMQ being a
 non-owner for that port, and `2049/tcp` NFS on condition 4, RFC 7530 §1.2's Internet sentence being a
 goal RFC 8881 records as unmet. ~~Run in the demoting direction the conjunction refuses **none** of the
@@ -320,7 +320,7 @@ one counterexample takes its neighbours with it*, met in the artefact dimension.
 [ADR-0032](./0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8's watch list, where a
 default changeable in one commit with no release note is a different exposure from one on a released
 documentation page. #95's amendment to ADR-0032 §8 already said so for `10248/tcp`. That observation is
-correct where it sits and is not a reason to move a tier; it gives the map's open *should the watch list
+correct where it sits and is not a reason to move a tier. It gives the map's open *should the watch list
 key on tier or on volatility* patch a third candidate axis and is reported rather than acted on
 (`sensitive-ports.md` §31.7, §31.12).
 
@@ -332,7 +332,7 @@ key on tier or on volatility* patch a third candidate axis and is reported rathe
 
 **Limb 3's *necessary and not sufficient* structure is inherited by a second instrument.**
 [ADR-0061](./0061-a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates.md)'s survival
-test separates a **label** from a **candidate position** and expressly does not promote the survivor;
+test separates a **label** from a **candidate position** and expressly does not promote the survivor.
 §2.3's and §4.4's position-versus-preference discrimination runs second, exactly as this ADR's lexical
 test leaves the sufficient condition unstated. **[measured]** the kubelet's `readOnlyPort` comment
 survives its value and is still refused — the one instance on that side.
@@ -367,8 +367,8 @@ row becomes the table's only uncovered in-subject member.
 **[measured] The demotion takes no neighbour, which is the test this ADR set for itself at §30.5 and
 #101 re-set at §32.3.** Redis, Elastic, memcached and Oracle all document managed or public offerings
 and all four are **spared on an artefact rather than on judgement** — Redis Cloud endpoints are on
-`10000-19999` and `6379` occurs zero times in the owner's port table; Elastic's managed `9200` is a
-**proxy** port with nodes on `18000-19999`; memcached operates no service; MySQL's class is conditioned
+`10000-19999` and `6379` occurs zero times in the owner's port table. Elastic's managed `9200` is a
+**proxy** port with nodes on `18000-19999`. memcached operates no service. MySQL's class is conditioned
 on *"untrusted hosts"*. **The discriminator is that the architecture the owner supports must be an
 instance of the class the owner's own statement forbids**, and it is `sensitive-ports.md` §33.2's act
 rather than this ADR's.
@@ -413,7 +413,7 @@ hypothetical. The document carrying `445/tcp`'s footing — *Secure SMB Traffic 
 `ms.date` **2024-10-25**, commit `00769866`, `word_count` 1602, retrieved 2026-08-14 — has a section
 headed **`## Block outbound SMB access`**: *"Block TCP port 445 outbound to the internet at your
 corporate firewall."* Microsoft's, numbering the pair, naming the internet, an unhedged imperative.
-**Four conditions as written, satisfied; nothing entailed about the row.** The conjunction as written
+**Four conditions as written, satisfied. Nothing entailed about the row.** The conjunction as written
 was defective and the defect is measured rather than argued.
 
 **Why it is repaired here and not only in the note.** ADR-0058's test is whether the superseded
@@ -466,11 +466,11 @@ enumeration as the other two — *"in the weakest tier where the owner has publi
 all and the footing is a restricting default"* — and a reader can take that as an output the criterion
 returns. **This ADR's own Rationale table is the check**: the premise column for `5432` and `5984`
 reads ***"n/a — no sentence to stand at a distance"***, which is the notation for an operation that
-does not apply and not for one returning a third value. **The clause defines the residue; it cannot be
+does not apply and not for one returning a third value. **The clause defines the residue. It cannot be
 run.** **[measured]** no pass has ever run the criterion *over* a weak cell and returned *weak* as its
 output: `sensitive-ports.md` §32.7 walked all six non-prose footings and recorded `10248`, `5432` and
-`5984` as having **no** owner statement of a permitted network, with premises **n/a**; §36.6 walked
-*"all **26** members of both graded tiers"*; and §37.1 records the weak tier as *"outside §36.6's sweep
+`5984` as having **no** owner statement of a permitted network, with premises **n/a**. §36.6 walked
+*"all **26** members of both graded tiers"*. And §37.1 records the weak tier as *"outside §36.6's sweep
 **by construction**"* on exactly this ground.
 
 **What forced it, and it is a defect in a reader's path rather than in this ADR.** `sensitive-ports.md`
@@ -538,7 +538,7 @@ shape as ADR-0042 limb 3's frequency leak. It loses a second time on **extension
 also promotes `4369` epmd, whose `DEP-001` is titled *Do Not Expose Default Erlang Distribution on
 Untrusted Networks*, carried at `Critical`, and advises disabling the daemon **unconditionally** — a
 sentence at least as imperative as rsync's and scoped to a boundary Erlang/OTP names. §20.8 argued that
-promotion at length and refused it; the restatement reverses it as a side effect. **A criterion that
+promotion at length and refused it. The restatement reverses it as a side effect. **A criterion that
 stretches to fit its one counterexample takes its neighbours with it**, and this one is measured doing
 so.
 
@@ -551,7 +551,7 @@ was not that pass's question. It is this one's.
 **Move `873` and mint no ADR** — record the move as a §-level ruling, as §16.6, §20.9, §23, §24, #90 and
 #91 all did. It is the house default and it nearly wins. **It loses on the reason the ticket exists.**
 Every one of those sections declined an ADR because *"both general rules this section applies were
-available"*; here the load-bearing rule — **what the tier grades** — was available nowhere, which is why
+available"*. Here the load-bearing rule — **what the tier grades** — was available nowhere, which is why
 two sections reconstructed it in two vocabularies and a third had to report the note contradicting
 itself. ADR-0042 refused *"leave it unwritten"* on exactly this ground, and a reader who finds rsync's
 flat imperative filed below Redis's hedge should be able to read a decision rather than conclude one of

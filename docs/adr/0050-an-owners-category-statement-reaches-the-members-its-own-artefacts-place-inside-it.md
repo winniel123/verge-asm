@@ -118,7 +118,7 @@ step"* — which is limb 2, unnamed. Refusing reach would remove `9300` from the
 The objection deserved better than dismissal, and it is the ticket's stated counter-argument: the
 retrieved sentence is a **checklist item**, grammatically an instruction to a deployer, which is
 §9.1's Red Hat shape and §4.4's NSA/CISA shape. Both were refused. A checklist states a floor for a
-hardened deployment; it does not say that every other deployment is illegitimate, and this list's
+hardened deployment. It does not say that every other deployment is illegitimate, and this list's
 claim is the stronger one — *never legitimately internet-facing*.
 
 Three answers, in increasing order of force.
@@ -131,7 +131,7 @@ Three answers, in increasing order of force.
    shipped default — asserts nothing at all about legitimacy: PostgreSQL's `listen_addresses =
    localhost` says only what the software does. It is nonetheless the **sole** footing for two rows.
    A prose sentence in the owner's voice saying the interface *"is not exposed publicly on
-   Internet"* is not weaker than a config default; it is the same position stated explicitly.
+   Internet"* is not weaker than a config default. It is the same position stated explicitly.
 3. **[measured] Applied consistently, the objection removes rows nobody proposes removing.** MySQL's
    `security-guidelines.html`, MongoDB's `security-hardening/`, Microsoft's *Security considerations
    for a SQL Server installation* and ZooKeeper's *Administrator's Guide* are all hardening
@@ -171,7 +171,7 @@ document rather than to judgement, and it is tested **per member**:
 limb was never one of them: Claim 3 fails on the facts, determinacy fails against `sun-sr-https` and
 against Kubernetes' own *"the API serves on port 443"*, and §4.4's third ground is a product
 judgement about false firings. What changes is the disclosure — §4.4 may no longer describe the
-upstream quote as merely *a hardening preference*; it is an owner prohibition that this row defeats
+upstream quote as merely *a hardening preference*. It is an owner prohibition that this row defeats
 on other grounds.
 
 ### 5. What limb 2 costs, stated as the row it does not save and the row it newly exposes
@@ -187,7 +187,7 @@ argument"* survives this ADR completely intact.
 
 **`623/udp` IPMI is newly exposed, and it is ticketed rather than moved.** Dell's sentence — *"DRAC's
 are intended to be on a separate management network"* — is a **product** category, not a protocol
-one, so it fails the ADR-0048 unit check on its face; and the number that connects it to the row
+one, so it fails the ADR-0048 unit check on its face. The number that connects it to the row
 comes from CISA's *"usually UDP port 623"*, a corroborator, which limb 2 forbids. That is §10.6's
 `161/udp` shape — a corroborator standing where an owner should — in a second instance, and it sits
 in the **prohibition** tier. It is not decided here: this ticket's work is the rule, a row moves on a
@@ -211,10 +211,10 @@ which is a different axis. The check is recorded so the next session does not re
 
 ## Consequences
 
-- **No `(port, transport)` pair moves.** 37 pairs; §3.1/§3.2/§3.3's 12/7/18 unchanged; §6.1's
-  containment arithmetic unchanged; [ADR-0009](./0009-verge-core-is-a-union.md)'s union unchanged;
-  no rule-version move and no `Break` under
-  [ADR-0008](./0008-derivation-versions-move-on-content.md); no aperture change; **#12 is not
+- **No `(port, transport)` pair moves.** 37 pairs. §3.1/§3.2/§3.3's 12/7/18 unchanged. §6.1's
+  containment arithmetic unchanged. [ADR-0009](./0009-verge-core-is-a-union.md)'s union unchanged.
+  No rule-version move and no `Break` under
+  [ADR-0008](./0008-derivation-versions-move-on-content.md). No aperture change. **#12 is not
   blocked**.
 - **Two footing cells move, both in the same direction, and both are conditional on
   [#83](https://github.com/winniel123/verge-asm/issues/83).** §2.2's tiers become **prohibition 15
@@ -222,7 +222,7 @@ which is a different axis. The check is recorded so the next session does not re
   kubelet row, its cell leaves with the row and the tier counts fall accordingly — the cell is
   evidence for a claim, so it cannot survive the claim.
 - ~~**The curator's watch list returns to `5432/tcp` and `5984/tcp`.**~~ **The *weak tier* returns to
-  `5432/tcp` and `5984/tcp`; the identity with the watch list is SUPERSEDED by
+  `5432/tcp` and `5984/tcp`. The identity with the watch list is SUPERSEDED by
   [#125](https://github.com/winniel123/verge-asm/issues/125)** — the watch keys on the **revision act**
   ([ADR-0057](./0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md),
   [`sensitive-ports.md`](../research/sensitive-ports.md) §39). This bullet's own next sentence is why:
@@ -242,7 +242,7 @@ which is a different axis. The check is recorded so the next session does not re
   opposite direction** — a footing move re-arms the sweep for the row that moved, and here it
   *disarms* it.
 - **§16.9's thinnest-cell flag is discharged for `10250` and a new one opens for `10255`.** `10250`
-  no longer rests on a table cell for its *position*; the table cell now does **membership** work
+  no longer rests on a table cell for its *position*. The table cell now does **membership** work
   instead, which is the job it is actually fit for. `10255` becomes the thinnest member of the
   prohibition tier — the only one resting on a checklist item, in a documentation release branch
   that can be edited as easily as a default can be flipped.
@@ -253,23 +253,23 @@ which is a different axis. The check is recorded so the next session does not re
   Google Cloud and CIS still carries nothing, for the reason §2.3 gave. What is withdrawn is the
   implication that the *grammar* was the defect.
 - **`CONTEXT.md` is not edited**, on ADR-0032's, ADR-0035's, ADR-0040's and ADR-0046's precedent and
-  for their reason. **[checked]** the glossary holds no term for attestation, footing or category;
-  the only occurrence of *attestation* is [#62](https://github.com/winniel123/verge-asm/issues/62)'s
+  for their reason. **[checked]** the glossary holds no term for attestation, footing or category.
+  The only occurrence of *attestation* is [#62](https://github.com/winniel123/verge-asm/issues/62)'s
   unrelated clause about offers. Nothing here changes a domain term.
 - **No new owner is admitted.** Kubernetes was already the kubelet's owner under §10.5 and §16.5
-  says so; this ADR changes what its sentences reach, never who may speak.
+  says so. This ADR changes what its sentences reach, never who may speak.
 
 ## Amendment — [#90](https://github.com/winniel123/verge-asm/issues/90): `623/udp`'s membership limb is satisfied, and this ADR was not needed for it
 
 The one item this ADR left open is discharged. **The Decision, all three limbs and the unit rule are
-unchanged**; what moves is a factual premise about one row, and it moves because the retrieval this
+unchanged**. What moves is a factual premise about one row, and it moves because the retrieval this
 ADR declined to perform was performed.
 
 [#90](https://github.com/winniel123/verge-asm/issues/90) retrieved the **IPMI Specification, Second
 Generation, v2.0, Document Revision 1.1, 1 October 2013** (Intel, Hewlett-Packard, NEC, **Dell**) and
 the **DMTF Alert Standard Format Specification DSP0136 v2.0, 23 April 2003** as shipped bytes.
 **[measured]** IPMI §13.1.2 and Table 13-1 place the *Primary RMCP Port* at **623 (26Fh)** under *"two
-well-known ports under **UDP**"*; DSP0136 §3.2.1 reserves it independently and **owns** the assignment,
+well-known ports under **UDP**"*. DSP0136 §3.2.1 reserves it independently and **owns** the assignment,
 which IPMI cites normatively and inherits. [`sensitive-ports.md`](../research/sensitive-ports.md) §23.
 
 - **The Rationale §5 finding *"the number that connects it to the row comes from CISA's 'usually UDP
@@ -287,8 +287,8 @@ which IPMI cites normatively and inherits. [`sensitive-ports.md`](../research/se
 - **`4369/tcp` is still not rescued**, for the reason Rationale §5 gives, unchanged.
 - **No `(port, transport)` pair moves and no footing cell moves between tiers.** `623/udp` stays in the
   explicit prohibition tier, re-founded where it sits — §20's shape rather than §18's. The list stays
-  at **37**; classes **11 / 7 / 19**; tiers **prohibition 15 · scoping 9 · weak 2**; coverage **26 of
-  37**; [ADR-0009](./0009-verge-core-is-a-union.md)'s union unchanged; no rule version moves and no
+  at **37**. Classes **11 / 7 / 19**. Tiers **prohibition 15 · scoping 9 · weak 2**. Coverage **26 of
+  37**. [ADR-0009](./0009-verge-core-is-a-union.md)'s union unchanged. No rule version moves and no
   `Break`. **[#12](https://github.com/winniel123/verge-asm/issues/12) is unblocked** — the row removal
   it was priced against does not happen.
 - **No new ADR was minted**, on #76's and #84's precedent. The rule the case might have wanted — *a
@@ -339,7 +339,7 @@ distinction is what spares `445/tcp` on the same test (§33.5).
 prohibition-tier members the defeat test is met **once**, disposed-of-on-direction once, and refused
 fourteen times — Redis, Elastic, memcached and Oracle each spared on a retrieved artefact rather than
 on judgement. **A defeat test that fired on every owner with a cloud product would be the wide
-aperture this ADR's second rejected alternative names; it does not fire that way.**
+aperture this ADR's second rejected alternative names. It does not fire that way.**
 
 **No limb is amended and no other cell moves.**
 

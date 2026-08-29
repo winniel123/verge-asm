@@ -75,14 +75,14 @@ This is the whole ruling and the rest is consequence.
 [ADR-0051](./0051-a-subject-key-is-the-thing-denoted-and-its-normalisation-may-never-move.md)'s rule
 is that **a subject key is the thing denoted, never the text that named it**, and its refusal test is
 *an identifier with two denotations does not denote, so it has no key*. `010.1.1.1` fails that test
-by having two; `bücher.example` typed fails it the same way.
+by having two. `bücher.example` typed fails it the same way.
 
 `*.example.com` in a SAN fails it in the purest available form. It does not have two denotations. It
 has **no single denotation at all** — it denotes an unbounded set of names, and RFC 6125 §6.4.3 is
 explicit about what that set is: *"`*.example.com` would match `foo.example.com` but not
 `bar.foo.example.com` or `example.com`"*. One label, exactly, and never the parent.
 
-So there is no *thing* for a key to be the key of. That is not a fact about our machinery; it is
+So there is no *thing* for a key to be the key of. That is not a fact about our machinery. It is
 what the string is. A pattern over names is not a name in the way a CIDR is not an address, and the
 model already refuses the analogous move: an address scope is a `Seed`, never an `Address`, and it
 enumerates precisely because arithmetic closes it. A wildcard's extension has no arithmetic and no
@@ -94,13 +94,13 @@ The issuance specification agrees, and it draws the line in its own definitions.
 Forum Baseline Requirements define a **Wildcard Domain Name** as *"a string starting with `*.`
 (U+002A ASTERISK, U+002E FULL STOP) immediately followed by a Fully-Qualified Domain Name"* —
 a string followed by an FQDN, and therefore expressly **not** one. `CONTEXT.md`'s `Name` is *a
-fully-qualified domain name*; the BRs put a wildcard in a different category from that, and the
+fully-qualified domain name*. The BRs put a wildcard in a different category from that, and the
 category they put it in is a matching pattern.
 
 PKIX goes further and does not admit the form at all. **RFC 5280 §4.2.1.6 requires a `dNSName` to
 be in *preferred name syntax*** `[spec]` RFC 1034 §3.5, RFC 1123 §2.1 — letters, digits and hyphens.
 `*` is not in that alphabet. A wildcard SAN is therefore not a malformed name we should repair, and
-not a name in an unusual spelling we should fold; it is a construct **RFC 6125 §6.4.3 tolerates for
+not a name in an unusual spelling we should fold. It is a construct **RFC 6125 §6.4.3 tolerates for
 backward compatibility** in a *presented* identifier, and RFC 6125 §1.8 gives it no place in a
 *reference* identifier at all. That asymmetry is the whole of the model's relationship with it, and
 it is why the one place we already read a wildcard SAN is a matcher and not an admitter.
@@ -119,7 +119,7 @@ bought for convenience rather than to match a DNS construct.
 
 So a wildcard SAN is evidence about a **control relationship over a zone the operator has already
 declared as a `Seed`**, and evidence about **no name**. `authority` governs *whose word is enough to
-put a subject in the estate*; here there is no subject the word is about. That is
+put a subject in the estate*. Here there is no subject the word is about. That is
 [ADR-0027](./0027-a-source-may-admit-without-observing.md)'s own discipline read in the direction it
 did not have to be read: it sharpened ADR-0012's test to *does it admit subjects*, and a wildcard
 SAN is the first row on which the sharpened test returns **no** for a source that otherwise passes
@@ -161,7 +161,7 @@ is worse in a quieter way, because three things beneath it are then wrong at onc
   ([ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md)).
   The match predicate would
   therefore record **`Shadowed`** on the one name in the zone that is not shadowed. Repairing that
-  means teaching a **versioned leaf** to read the `*`; refusing the subject means the query is never
+  means teaching a **versioned leaf** to read the `*`. Refusing the subject means the query is never
   made and there is nothing to repair. The ruling pays for itself here rather than costing.
 - The resolution admits an `Address`, the `Address` yields `Service`s, and a `Service` plus this
   `Name` yields an `Endpoint` whose `certificate` handshake sends **SNI equal to the `Endpoint`'s
@@ -236,7 +236,7 @@ label being `0x01 0x2a` — and §2.1.2 shuts the door on everything else in ter
 other than that in section 2.1.1 are asterisk labels, hence names beginning with other labels are
 never wildcard domain names. Labels such as `the*` and `**` are not asterisk labels."* So on the DNS
 paths the question *is this a wildcard* has one answer and the specification supplies it. A zone-file
-owner name or a wire label of `the*` or `**` is an ordinary name and is admitted; and the presentation
+owner name or a wire label of `the*` or `**` is an ordinary name and is admitted. And the presentation
 format even separates the two readings itself, since a literal asterisk label is written `\042` and
 ADR-0055's parse already honours the format's escapes.
 
@@ -327,7 +327,7 @@ asterisk label, and ADR-0055's parse already honours it.
   `Break`, and ticketed rather than absorbed.
 - **The count backing the `Coverage` sentence has no drawn surface.** #28's fill half is prose today
   and nobody has drawn where a *CT saw only wildcards here* statement sits or how loud it is. The
-  claim that it may not be a proportion is firm; the judgement that a bare count of declined values is
+  claim that it may not be a proportion is firm. The judgement that a bare count of declined values is
   the right backing is a judgement.
 - **The majority-branch argument is argued from the validation procedure rather than measured.** That
   wildcard certificates are commonly held by zones with no wildcard record follows from the Baseline
@@ -338,8 +338,8 @@ asterisk label, and ADR-0055's parse already honours it.
 ## Consequences
 
 - **[`CONTEXT.md`](../../CONTEXT.md) changes in three places.** `Source` records that a wildcard SAN
-  carries no `Name` and that a source's admitting property has a boundary; `Name` records that a
-  wildcard is a pattern rather than a name and is a subject nowhere; `Shadowed` records that its rule
+  carries no `Name` and that a source's admitting property has a boundary. `Name` records that a
+  wildcard is a pattern rather than a name and is a subject nowhere. `Shadowed` records that its rule
   decides names **beneath** a wildcard and that the wildcard itself is not a subject, which is what
   makes the sentence complete rather than partial. **No term is added and no term changes meaning.**
 - **ADR-0055's named residue is discharged**, and ADR-0055 is **confirmed rather than amended**: its
@@ -351,7 +351,7 @@ asterisk label, and ADR-0055's parse already honours it.
   of a batch's rows and nothing on others, which its `corroborative` `Completeness` already absorbs.
 - **[ADR-0006](./0006-subjects-leave-by-measurement.md) is confirmed and now has a stated boundary.**
   *Admission under a wildcard turns on provenance* governs names **beneath** a wildcard and always
-  did; it never spoke to the wildcard name, and it does not now.
+  did. It never spoke to the wildcard name, and it does not now.
 - **[ADR-0032](./0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md)'s
   `certificate-hostname-san-mismatch` row is untouched and vindicated.** It reads a presented
   wildcard SAN and matches it under RFC 6125, which is the one legal thing to do with a pattern.

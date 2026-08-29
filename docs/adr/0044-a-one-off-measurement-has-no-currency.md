@@ -16,7 +16,7 @@ It was harmless while a **warm tier** sat between the hot set and the full range
 [#78](https://github.com/winniel123/verge-asm/issues/78) retired that tier on a licence ground,
 and the disagreement became the whole of the answer to *what does a default install look at?* —
 `verge-core` plus the ~65,000-port tail **once**, or `verge-core` **forever**. (`verge-core` is a
-union and [ADR-0009](./0009-verge-core-is-a-union.md) owns its membership; it stands at roughly 140
+union and [ADR-0009](./0009-verge-core-is-a-union.md) owns its membership. It stands at roughly 140
 pairs today, and every ratio below is stated against that figure rather than depending on it.)
 
 [#44](https://github.com/winniel123/verge-asm/issues/44) put a standing **aperture statement** on
@@ -63,13 +63,13 @@ at."* An onboarding sweep is precisely that batch.
 
 **It has no currency bound, and this is the decisive half.** [ADR-0028](./0028-a-facets-cadence-is-the-cadence-of-its-exchange.md)
 sets currency at `k` cadences of the covering Declared `Scan` and publishes the full-range row as
-**two months** (`k`=2 × monthly); [ADR-0038](./0038-a-constant-is-a-product-only-where-the-quantity-is-readable.md)
+**two months** (`k`=2 × monthly). [ADR-0038](./0038-a-constant-is-a-product-only-where-the-quantity-is-readable.md)
 carries the same figure into its generations table as `monthly (full-range only) | 60 days |
 ≈ 10 generations`. A measurement that runs **once** has no cadence, so `k × cadence` has no value,
 and every timeline it opens either renders a day-one observation as current forever or opens a `Gap`
 at a time no rule can compute. ADR-0028 says in terms that narrowing that window *"would mean probing
 the full range more often, which is the cost #4 declined"* — the arithmetic it publishes
-**presupposes a recurring tier**. A one-off sweep is not a cheaper full-range tier; it is the same
+**presupposes a recurring tier**. A one-off sweep is not a cheaper full-range tier. It is the same
 tier with the denominator removed from a formula two ADRs already publish.
 
 **It breaks the constancy [#44](https://github.com/winniel123/verge-asm/issues/44) rested on.**
@@ -97,7 +97,7 @@ Adding a target should queue a scan, not fire one."* A queued sweep runs at the 
 What was actually on offer, then, was not *spend the load while the operator watches*. It was **an
 8-hour full-range sweep against production the operator has just declared, alone, overnight, on
 their first night, which they did not ask for and will not see happen.** #4 §2.4 and #4 §6.4 have
-been arguing with each other; §6.4 is right, and it takes the unconditional case's premise with it.
+been arguing with each other. §6.4 is right, and it takes the unconditional case's premise with it.
 
 `Seed`'s own definition says the same thing one layer up: *"It declares a boundary, not a starting
 point."* Reading a declaration as a starting gun is what the sentence was written to refuse.
@@ -133,14 +133,14 @@ range costs 22 min to 8 h. At the 200 pkt/s global ceiling the estate figure is 
 address answering and **16.4 minutes per address dropping-with-retries** — so at §9's own shipped
 `/22` per-target range cap (1,024 addresses) a single full-range pass is **3.9 days answering and
 11.6 days dropping**. That cap exists to *"prevent a typo'd `/8` from becoming a multi-day scan"*.
-It does not prevent this one; it permits an eleven-day one, monthly. A default that cannot complete
+It does not prevent this one. It permits an eleven-day one, monthly. A default that cannot complete
 inside its own cadence on an estate size the project explicitly allows is not a default.
 
 **The cost nobody had priced is subjects, not packets.** `Service` *"exists for every
 `(port, transport)` in the recorded scope, **open or closed**"* — that is what gives `unreachable` a
 subject to be a verdict about. So a full-range batch creates **65,535 `Service` subjects per
 address** where the hot tier creates one per `verge-core` pair, each carrying a two-legged `Reach`
-and an `Exposure`; and [ADR-0006](./0006-subjects-leave-by-measurement.md) means nothing leaves
+and an `Exposure`. And [ADR-0006](./0006-subjects-leave-by-measurement.md) means nothing leaves
 because time passed, so they persist. The multiplier is `65,535 ÷ |verge-core|` — a shade under
 **470×** at today's membership, and insensitive to the two rows
 [#75](https://github.com/winniel123/verge-asm/issues/75) may move. Against the estate
@@ -150,7 +150,7 @@ sized against the hot tier. *(Closed by [#121](https://github.com/winniel123/ver
 [ADR-0041](./0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md), which is also
 sized against the hot tier and says why that is the right sizing: `Service` subjects and `Reach`
 timelines are **spans**, one each and flat, so the cold tier's 470× multiplier lands on the corpus
-that is never compacted; the observations it generates monthly age out at the currency bound like
+that is never compacted. The observations it generates monthly age out at the currency bound like
 any other.)*
 
 ### Narrow is not the failure; narrow and silent is
@@ -161,8 +161,8 @@ as the embarrassing answer, and #44 already ruled how the embarrassment is disch
 **No rule loses anything.** [ADR-0009](./0009-verge-core-is-a-union.md) makes `verge-core` the union
 `frequency-set ∪ sensitive-list`, so every pair `sensitive-port-reached-from-internet` reads is
 inside the daily tier **by construction**. Walking [ADR-0024](./0024-a-rules-domain-is-the-extension-of-its-name.md)'s
-domain table: one of the ~~sixteen~~ **seventeen** rules names a port and its domain is fully covered; four read
-`Name`s and are untouched by any port tier; the remaining ~~eleven~~ **twelve** read a facet on a `Service` or an
+domain table: one of the ~~sixteen~~ **seventeen** rules names a port and its domain is fully covered. Four read
+`Name`s and are untouched by any port tier. The remaining ~~eleven~~ **twelve** read a facet on a `Service` or an
 `Endpoint`, so the tier bounds **which subjects exist** and never **which rules can speak**. There is
 no `not-evaluable` hiding here and no unearned clean bill of health — ADR-0004's rule has nothing to
 catch, because the population is honestly reported over every subject that exists.
@@ -190,12 +190,12 @@ never a count or proportion of the operator's estate.** *How many listeners are 
 denominator, and inventing one is [#28](https://github.com/winniel123/verge-asm/issues/28)'s refused
 estate-completeness score arriving through the port axis.
 
-So the aperture statement's port-tier line states the tier, its cadence and its off state; it carries
+So the aperture statement's port-tier line states the tier, its cadence and its off state. It carries
 ~~`0 of 37 sensitive pairs unread`~~ ~~`0 of 41 sensitive pairs unread`~~ ~~`0 of 40 sensitive pairs unread`~~ ~~`0 of 38 sensitive pairs unread`~~ **`5 of 38 sensitive pairs unread`** (#109 removed `1433/tcp`; [#114](https://github.com/winniel123/verge-asm/issues/114) removed `9200/tcp` and `9300/tcp`; **the numerator is corrected from `0` by [#124](https://github.com/winniel123/verge-asm/issues/124) — five sensitive pairs are UDP and UDP is off on default settings, so ADR-0009's union puts them in `verge-core` without any of them being read. See the correction under the Consequences below**) and `0 of` ~~`16`~~ **`17`** `rules
 unevaluable` **(denominator struck in place by [#173](https://github.com/winniel123/verge-asm/issues/173); the rule set is seventeen since [#128](https://github.com/winniel123/verge-asm/issues/128) · ADR-0071 and the numerator is unchanged — struck HERE and not only below, per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)'s intra-document unit)** and, since #173, **`0 of 38 sensitive pairs the instrument cannot report as reached`**, ~~both of which are ours, closed and
 true~~ **~~both~~ ALL THREE of which are ours and closed** (#173 made it three), **the second of
 which is true and the first of which is
-now stated over the intersection of `verge-core` with the transports we probe**; and it says in prose that ports outside `verge-core` produce no `Service`, so nothing on them
+now stated over the intersection of `verge-core` with the transports we probe**. And it says in prose that ports outside `verge-core` produce no `Service`, so nothing on them
 is measured, evaluated **or counted**. Unlike #44's custody row it may carry a pointer to the `Scan`
 configuration, because here an action genuinely exists and recommending it tells the operator nothing
 false about themselves.
@@ -262,7 +262,7 @@ reasons, and the first is measured. Enabling over the whole estate is a single c
 estate, ~1.3 million — carried by one coverage-class message whose payload under ADR-0014 is *"a
 count of timelines opened and no comparison at all"*. The model absorbs it correctly and only
 because [ADR-0031](./0031-membership-alerts-at-the-root-of-the-entering-subtree.md) ruled a `Service`
-entering is never a message; but a switch whose consequence is a seven-figure count is not a switch
+entering is never a message. But a switch whose consequence is a seven-figure count is not a switch
 to offer estate-wide. Second, [ADR-0022](./0022-confirmation-is-singular.md)'s asymmetry is the right
 shape by **analogy** rather than by direct application — it governs `Proposal` confirmation, and this
 is not a `Proposal` — and the analogy is stated rather than leaned on: an act that opens the widest
@@ -296,7 +296,7 @@ authored on the project's own rule is therefore **either a subset of `verge-core
 measured daily, buying nothing — **or a set of ports no shipped rule names**, which is the cold
 tier's job at the cold tier's cadence. There is no middle to occupy. Building one anyway costs a
 third `Scan`, a third aperture-statement line, a third cadence to explain, and a fifth curated input
-for the governance patch that #78 had just shrunk to hand-authored-only. Priced and refused; and
+for the governance patch that #78 had just shrunk to hand-authored-only. Priced and refused. And
 because it is refused on the union rather than on the licence, it stays refused even if the licence
 position ever changes.
 
@@ -308,13 +308,13 @@ position ever changes.
   concurrency cap binds. §9's `Port set (per tier)` default loses the retired `top-1000`.
 - **[`CONTEXT.md`](../../CONTEXT.md)'s `Scan` entry is corrected** — with the warm tier retired,
   **two** `Scan`s are port tiers and there are **three** `Scan`s, not four. No term is added and none
-  is amended in substance; the count was stranded by #78.
+  is amended in substance. The count was stranded by #78.
 - **[ADR-0005](./0005-scan-execution-model.md) is amended** for the same count, and its ad-hoc
   prohibition gains the currency limb it did not have.
 - **[ADR-0028](./0028-a-facets-cadence-is-the-cadence-of-its-exchange.md) and
   [ADR-0038](./0038-a-constant-is-a-product-only-where-the-quantity-is-readable.md) are confirmed,
   not amended.** Their 60-day full-range currency figure survives exactly because the tier stayed
-  recurring; ADR-0028's *"across all three reachability `Scan`s"* is stranded by #78 in the same way
+  recurring. ADR-0028's *"across all three reachability `Scan`s"* is stranded by #78 in the same way
   and reads **two**.
 - **The honest statement of v1's default aperture is now available**, which is what
   [#12](https://github.com/winniel123/verge-asm/issues/12) was waiting on: *v1 measures `verge-core`

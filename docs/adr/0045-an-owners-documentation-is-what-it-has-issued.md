@@ -48,7 +48,7 @@ bytes, is [`sensitive-ports.md`](../research/sensitive-ports.md) **§18**.
 **An owner's documentation is what the owner has issued. A document the owner has drafted but not
 issued attests nothing, in either direction.**
 
-Five limbs. They are stated in full, with their walk, as `sensitive-ports.md` §18; this ADR carries the
+Five limbs. They are stated in full, with their walk, as `sensitive-ports.md` §18. This ADR carries the
 part that travels.
 
 1. **The second form reads an *issued* document.** A document reaches the second form where the owner
@@ -138,7 +138,7 @@ resist.
 The tempting middle is to give an unissued owner document the status ADR-0036 limb 3 gives a
 distributor's packaging: corroborates under §2.3, never sole grounds. It loses twice. It is **inert
 wherever it would matter** — corroboration cannot carry a row, and every row this could touch is a row
-with *no other owner statement*, which is exactly why the question arose; so its output is identical to
+with *no other owner statement*, which is exactly why the question arose. So its output is identical to
 limb 4's on every case in the corpus while costing a tier a later session must reason about. And it
 **mislabels the object**: §2.3's corroborators are parties without ownership speaking correctly.
 Recording an unissued owner document as corroboration says the problem is *who* spoke, when the problem
@@ -161,13 +161,13 @@ all five limbs. The live instance is already on the record — **[measured]**
 [ADR-0040](./0040-a-specifications-silence-is-not-the-owners-silence.md) §2 records #73's corpus as
 including *"17 active drafts"*, and an Internet-Draft is the IETF's unissued document class. No row in
 `weak-key-and-signature.md` rests on one — that table's three resolving statements are RFC 9325 §4.5,
-RFC 9846 §C.2 and RFC 8550/8551 §6, all published RFCs — so nothing moves there; but the table had no
+RFC 9846 §C.2 and RFC 8550/8551 §6, all published RFCs — so nothing moves there. But the table had no
 rule saying a draft cannot carry, and now it does.
 
 ## Consequences
 
 - **No `(port, transport)` pair moves and no rule version moves.** `sensitive-ports.md` stays at **37
-  pairs**; §1's count, §3's class totals (12 / 7 / 18), §6.1's containment arithmetic (28 + 4 + 5),
+  pairs**. §1's count, §3's class totals (12 / 7 / 18), §6.1's containment arithmetic (28 + 4 + 5),
   §2.2's footing table (13 + 10 + 3 + 11 = 37) and [ADR-0009](./0009-verge-core-is-a-union.md)'s union
   are unchanged, each checked rather than asserted (`sensitive-ports.md` §18.6). No `Break`
   ([ADR-0008](./0008-derivation-versions-move-on-content.md)) — `sensitive-port-reached-from-internet`
@@ -181,7 +181,7 @@ rule saying a draft cannot carry, and now it does.
   bytes of real prose for the page that carries the neutral sentence.
 - **The reopening criterion is live and near, which is new.** **[measured]** the file is on the `4.4`
   **release branch**, byte-identical to `trunk` at 15,499 bytes, and **no `4.4.x` tag exists** — the
-  latest tag is `4.3.1`. §17.5 wrote the criterion as a hypothetical; it is one release away.
+  latest tag is `4.3.1`. §17.5 wrote the criterion as a hypothetical. It is one release away.
 - **Two findings about the same document are recorded and deliberately not relied on**, per ADR-0037
   limb 2. **[measured]** the document **names no port number at all** — `9092`, `port` and `internet`
   each occur zero times — so an issued version of it would meet

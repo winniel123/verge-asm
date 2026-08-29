@@ -64,7 +64,7 @@ Five limbs, plus one procedural rule.
 4. **Current means the party still presents the statement as applicable** — bytes at a supported
    release, documentation for a supported product, or a specification **in force**: not obsoleted,
    withdrawn, or reclassified Historic. **Currency, not size, is what *live* means.** A competitor
-   with one deployment and a current page contests; a competitor with a large installed base and no
+   with one deployment and a current page contests. A competitor with a large installed base and no
    current document does not.
 5. **Everything else corroborates and never carries.** §2.3's rule with a **descriptive** population
    in place of a normative one: IANA registry rows and the `Unauthorized Use Reported` field,
@@ -102,7 +102,7 @@ ask — an offer), **at** it (what a byte means — a conclusion), **after** it 
 normatively — an assertion). The ticket asks whether determinacy's inputs need a fourth. **They do
 not, and the third instrument is the wrong one.**
 
-The sensitive list is an **assertion** table and stays under exactly one instrument; nothing here
+The sensitive list is an **assertion** table and stays under exactly one instrument. Nothing here
 moves it. But the three gates inside it do not all ask assertion-shaped questions. §2.1 and §2.2 ask
 *may this normative statement be made, and by whom* — after the wire. §2.4 asks *does an observed
 listener on this pair tell the operator what they are looking at* — **at** the wire. ADR-0032 already
@@ -189,7 +189,7 @@ two **completely different** services, opposite populations"* — and limb 3 is 
 down.
 
 The discriminator is mechanical and is read off the competitor rather than judged: **does the second
-party declare that it speaks the first's protocol?** ScyllaDB declares CQL; OpenSearch declares the
+party declare that it speaks the first's protocol?** ScyllaDB declares CQL. OpenSearch declares the
 Elasticsearch REST API. Apple does not declare that AirPlay speaks Cassandra's internode protocol, HP
 does not declare that JetDirect speaks Prometheus exposition, and Oracle does not declare that the
 WebLogic AdminServer speaks Cassandra's. Where the declaration is absent, the services are different
@@ -222,7 +222,7 @@ in-force RFC.
 in passing. **Stated as a rule** under limb 5, on three grounds, of which only the first was given.
 
 - **§6's invariant is one-directional.** Deriving the sensitive list from the hot set would make
-  frequency a precondition of normativity; letting the hot set's **labels** refuse a sensitive row is
+  frequency a precondition of normativity. Letting the hot set's **labels** refuse a sensitive row is
   the same laundering in the negative direction.
 - **The labels are frequency artefacts.** *HTTP-ish alternate* is a probe-scheduling grouping produced
   by [#4](https://github.com/winniel123/verge-asm/issues/4)'s frequency question. It is not a claim
@@ -236,7 +236,7 @@ disagree about `7001` is worth seeing, and is not evidence.
 
 ## Consequences
 
-- **No `(port, transport)` pair moves.** The list stays at **37**; §1's count, §3's class totals
+- **No `(port, transport)` pair moves.** The list stays at **37**. §1's count, §3's class totals
   (12 / 7 / 18), §2.2's footing table and its 19-of-37 denominator, §6.1's containment arithmetic and
   [ADR-0009](./0009-verge-core-is-a-union.md)'s union are unchanged, each checked in
   `sensitive-ports.md` §15.6 rather than asserted. No rule version bump and no `Break` under
@@ -262,10 +262,10 @@ disagree about `7001` is worth seeing, and is not evidence.
   and definite, as #75 predicted when it wired no blocking edge for this ticket.
 - **First application, [#87](https://github.com/winniel123/verge-asm/issues/87) — the standard's first
   use on an *excluded* row's squat, and it reproduces both verdicts.** §15.4 walked the nine **listed**
-  rows resting on convention; the two exclusions resting on an untested squat — `5601/tcp` Kibana on
+  rows resting on convention. The two exclusions resting on an untested squat — `5601/tcp` Kibana on
   `esmagent` and `8500/tcp` Consul on `fmtp` — were left to
   [#87](https://github.com/winniel123/verge-asm/issues/87), which ran them.
-  **[measured] Both registrations are live and neither row moves; the list stays at 37**
+  **[measured] Both registrations are live and neither row moves. The list stays at 37**
   (`sensitive-ports.md` §18). Three things this ADR predicted are confirmed by use rather than by
   argument. **The registrant rider did the work**: `esmagent`'s IANA contact record resolves to AXENT
   Technologies, whose successor Broadcom places the *CCS Windows Agent* on `5601` in current supported
