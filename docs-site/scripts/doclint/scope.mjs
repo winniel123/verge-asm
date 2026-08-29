@@ -10,7 +10,7 @@
  * `docs/wayfinder/` directories are not family directories, so they never appear.
  */
 import { readdirSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 
 /** The five doc families, as repo-relative directory paths (SPEC §1.3). */
 const FAMILY_DIRS = [
@@ -61,4 +61,30 @@ export function inScopeFiles(repoRoot) {
     if (existsSync(abs)) files.push(abs);
   }
   return files;
+}
+
+/**
+ * Whether a file is in scope (SPEC §1.3), by path only. The CI job (#822) hands the tool the
+ * changed files on a pull request. It filters that diff through this predicate, so an
+ * out-of-scope doc never reaches a rule. The predicate uses the same FAMILY_DIRS and ROOT_FILES
+ * constants as inScopeFiles(), so the whole-tree walk and the diff filter agree on one scope.
+ *
+ * A file is in scope when it is a `.md` file under one of the five family directories (at any
+ * depth), or when it is one of the four in-scope root files (at the repo root exactly). A root
+ * file name in a subdirectory (`docs/CONTEXT.md`) is not the root file, so it is out of scope.
+ * @param {string} repoRoot absolute path to the repo root.
+ * @param {string} absPath absolute path to the file.
+ * @returns {boolean}
+ */
+export function isInScope(repoRoot, absPath) {
+  const rel = relative(repoRoot, absPath).replace(/\\/g, "/");
+  // A path outside the repo root resolves to a `../` prefix. It is never in scope.
+  if (rel === "" || rel.startsWith("../")) return false;
+  // A root file matches by exact repo-relative name, so a same-named file in a subdirectory
+  // (docs/CONTEXT.md) does not match.
+  if (ROOT_FILES.includes(rel)) return true;
+  // Every family file is markdown. The `.md` filter drops embed.go, a token file, and any
+  // generated non-markdown file in a family directory, the same drop inScopeFiles() makes.
+  if (!rel.endsWith(".md")) return false;
+  return FAMILY_DIRS.some((dir) => rel === dir || rel.startsWith(`${dir}/`));
 }

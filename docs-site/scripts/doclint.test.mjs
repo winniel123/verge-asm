@@ -7,7 +7,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { writeFileSync, rmSync } from "node:fs";
+import { writeFileSync, rmSync, mkdirSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -15,8 +15,11 @@ import { RULES } from "./doclint/rules/index.mjs";
 import { checkRuleCorpus } from "./doclint/fixtures.mjs";
 import { parse, extractProse, lintMarkdown } from "./doclint/engine.mjs";
 import { tagSentence } from "./doclint/rules/simple-tenses.mjs";
+import { isInScope } from "./doclint/scope.mjs";
+import { annotationLine, summaryMarkdown } from "./doclint/github.mjs";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = join(SCRIPT_DIR, "..", "..");
 
 // The acceptance gate: every rule flags its must-flag set and no must-not-flag set.
 for (const rule of RULES) {
@@ -315,5 +318,221 @@ test("a warning-only run does not change the exit code (SPEC §5.1)", () => {
     assert.match(out, /0 error\(s\), 1 warning\(s\)/);
   } finally {
     rmSync(file, { force: true });
+  }
+});
+
+/*
+ * The in-scope predicate (SPEC §1.3). The CI job (#822) lints the changed files on a pull
+ * request. It filters that diff to the in-scope set before it lints, so an out-of-scope doc
+ * (docs/correspondence/, a token file, a non-markdown file) never reaches a rule. The
+ * predicate shares the family and root-file constants with inScopeFiles(), so the whole-tree
+ * walk and the diff filter agree on one definition of scope.
+ */
+test("isInScope accepts a file in each of the five doc families (SPEC §1.3)", () => {
+  for (const rel of [
+    "docs/adr/0001-example.md",
+    "docs/spec/doc-lint-tool.md",
+    "docs/agents/domain.md",
+    "docs/guides/using.md",
+    "docs/research/r1.md",
+  ]) {
+    assert.equal(isInScope(REPO_ROOT, join(REPO_ROOT, rel)), true, rel);
+  }
+});
+
+test("isInScope accepts each of the four in-scope root files (SPEC §1.3)", () => {
+  for (const rel of ["CONTEXT.md", "CLAUDE.md", "README.md", "SECURITY.md"]) {
+    assert.equal(isInScope(REPO_ROOT, join(REPO_ROOT, rel)), true, rel);
+  }
+});
+
+test("isInScope accepts a doc nested in a family subdirectory", () => {
+  // A doc nested under a family (SPEC §1.3) is still in the family, so it is in scope.
+  assert.equal(isInScope(REPO_ROOT, join(REPO_ROOT, "docs/research/2026/report.md")), true);
+});
+
+test("isInScope rejects the SPEC §1.3 out-of-scope paths", () => {
+  for (const rel of [
+    "docs/correspondence/note.md", // out-of-scope directory
+    "docs/wayfinder/map.md", // out-of-scope directory
+    "docs/guides/embed.go", // non-markdown in a family dir
+    "docs/adr/diagram.png", // non-markdown in a family dir
+    "docs/CONTEXT.md", // a root file name, but not at the repo root
+    "package.json", // an unrelated root file
+    "CHANGELOG.md", // not an in-scope root file
+  ]) {
+    assert.equal(isInScope(REPO_ROOT, join(REPO_ROOT, rel)), false, rel);
+  }
+});
+
+test("isInScope rejects a path outside the repo root", () => {
+  assert.equal(isInScope(REPO_ROOT, join(REPO_ROOT, "..", "elsewhere", "README.md")), false);
+});
+
+/*
+ * The GitHub Actions output (SPEC §5.2). The CI job emits one inline annotation per violation
+ * and a job-log summary of counts by rule and by severity. annotationLine() builds one
+ * workflow-command line; summaryMarkdown() builds the summary block.
+ */
+test("annotationLine emits an ::error command for an error violation", () => {
+  const line = annotationLine({
+    file: "docs/adr/0001-x.md",
+    line: 12,
+    rule: "no-semicolons",
+    severity: "error",
+    message: "a semicolon in prose is not allowed — write two sentences",
+  });
+  assert.equal(
+    line,
+    "::error file=docs/adr/0001-x.md,line=12,title=doclint (no-semicolons)::a semicolon in prose is not allowed — write two sentences",
+  );
+});
+
+test("annotationLine emits a ::warning command for a warning violation", () => {
+  const line = annotationLine({
+    file: "README.md",
+    line: 3,
+    rule: "simple-tenses",
+    severity: "warning",
+    message: "a compound verb form",
+  });
+  assert.match(line, /^::warning file=README\.md,line=3,title=doclint \(simple-tenses\)::/);
+});
+
+test("annotationLine escapes the workflow-command reserved characters", () => {
+  // GitHub reads %, CR and LF in the data segment as command syntax, and additionally , and :
+  // in a property value. A message or a path that carries one must be escaped, or the
+  // annotation renders wrong or splits. The rule messages are single-line today, so this
+  // guards the escaper against a future message or an odd path.
+  const line = annotationLine({
+    file: "docs/spec/a,b:c.md",
+    line: 1,
+    rule: "no-semicolons",
+    severity: "error",
+    message: "100% done\nnext",
+  });
+  assert.match(line, /file=docs\/spec\/a%2Cb%3Ac\.md/);
+  assert.match(line, /::100%25 done%0Anext$/);
+});
+
+test("summaryMarkdown lists counts by rule and by severity", () => {
+  const violations = [
+    { file: "a.md", line: 1, rule: "no-semicolons", severity: "error", message: "m" },
+    { file: "a.md", line: 2, rule: "no-semicolons", severity: "error", message: "m" },
+    { file: "b.md", line: 5, rule: "simple-tenses", severity: "warning", message: "m" },
+  ];
+  const md = summaryMarkdown(4, violations);
+  // The headline counts: files linted, total, by severity.
+  assert.match(md, /4 file\(s\) linted/);
+  assert.match(md, /2 error\(s\)/);
+  assert.match(md, /1 warning\(s\)/);
+  // The by-rule table carries a row per rule with its count.
+  assert.match(md, /no-semicolons/);
+  assert.match(md, /simple-tenses/);
+  // A count-by-rule row for the two no-semicolons hits.
+  assert.match(md, /no-semicolons \| error \| 2/);
+});
+
+test("summaryMarkdown reports a clean run with no violations", () => {
+  const md = summaryMarkdown(3, []);
+  assert.match(md, /no violations/i);
+  assert.match(md, /3 file\(s\) linted/);
+});
+
+/*
+ * The CLI CI mode (SPEC §5.2). `--github` switches the reporter to workflow-command
+ * annotations plus a summary. `--in-scope-only` filters the passed file list to the SPEC
+ * §1.3 set, so the job can hand the tool the raw pull-request diff. The mode is advisory:
+ * it never exits non-zero on a violation, because the CI check never blocks a merge.
+ */
+test("--github prints an annotation per violation and a summary", () => {
+  const cli = join(SCRIPT_DIR, "doclint.mjs");
+  const file = join(tmpdir(), `doclint-gh-${process.pid}.md`);
+  writeFileSync(file, "This bad line; has a semicolon.\n");
+  try {
+    const out = execFileSync("node", [cli, "--github", file], { encoding: "utf8" });
+    assert.match(out, /^::error file=/m);
+    assert.match(out, /no-semicolons/);
+    assert.match(out, /1 error\(s\)/);
+  } finally {
+    rmSync(file, { force: true });
+  }
+});
+
+test("--github does not exit non-zero on an error (advisory, SPEC §5.2)", () => {
+  // The default mode exits 1 on an error (the writer's shell gate). The CI mode is advisory,
+  // so it exits 0 even with an error. execFileSync throws on a non-zero exit, so a clean
+  // return is the proof the job never fails on a violation.
+  const cli = join(SCRIPT_DIR, "doclint.mjs");
+  const file = join(tmpdir(), `doclint-gh-exit-${process.pid}.md`);
+  writeFileSync(file, "This bad line; has a semicolon.\n");
+  try {
+    const out = execFileSync("node", [cli, "--github", file], { encoding: "utf8" });
+    assert.match(out, /::error file=/);
+  } finally {
+    rmSync(file, { force: true });
+  }
+});
+
+test("--github writes the summary to GITHUB_STEP_SUMMARY when the env var is set", () => {
+  const cli = join(SCRIPT_DIR, "doclint.mjs");
+  const file = join(tmpdir(), `doclint-gh-sum-${process.pid}.md`);
+  const summaryFile = join(tmpdir(), `doclint-gh-step-${process.pid}.md`);
+  writeFileSync(file, "This bad line; has a semicolon.\n");
+  writeFileSync(summaryFile, "");
+  try {
+    execFileSync("node", [cli, "--github", file], {
+      encoding: "utf8",
+      env: { ...process.env, GITHUB_STEP_SUMMARY: summaryFile },
+    });
+    const summary = readFileSync(summaryFile, "utf8");
+    assert.match(summary, /no-semicolons/);
+    assert.match(summary, /1 error\(s\)/);
+  } finally {
+    rmSync(file, { force: true });
+    rmSync(summaryFile, { force: true });
+  }
+});
+
+test("--in-scope-only drops an out-of-scope file and lints only the in-scope one", () => {
+  const cli = join(SCRIPT_DIR, "doclint.mjs");
+  const inScope = join(REPO_ROOT, "docs", "adr", `doclint-scope-${process.pid}.md`);
+  const outOfScope = join(REPO_ROOT, "docs", "correspondence", `doclint-scope-${process.pid}.md`);
+  const bad = "This bad line; has a semicolon.\n";
+  writeFileSync(inScope, bad);
+  mkdirSync(join(REPO_ROOT, "docs", "correspondence"), { recursive: true });
+  writeFileSync(outOfScope, bad);
+  try {
+    // Pass both files. The out-of-scope one must be dropped, so exactly one error is reported.
+    const out = execFileSync(
+      "node",
+      [cli, "--github", "--in-scope-only", inScope, outOfScope],
+      { encoding: "utf8" },
+    );
+    assert.match(out, /1 error\(s\)/);
+    // The dropped file must not appear in any annotation.
+    assert.doesNotMatch(out, /correspondence/);
+  } finally {
+    rmSync(inScope, { force: true });
+    rmSync(outOfScope, { force: true });
+  }
+});
+
+test("--in-scope-only with no in-scope file lints nothing and stays advisory", () => {
+  // A pull request that changes only out-of-scope docs hands the tool a list that filters to
+  // empty. The tool must not fall back to the whole tree (that fallback is the no-argument
+  // writer path only), and it must exit zero. execFileSync throws on a non-zero exit.
+  const cli = join(SCRIPT_DIR, "doclint.mjs");
+  mkdirSync(join(REPO_ROOT, "docs", "correspondence"), { recursive: true });
+  const outOfScope = join(REPO_ROOT, "docs", "correspondence", `doclint-empty-${process.pid}.md`);
+  writeFileSync(outOfScope, "This bad line; has a semicolon.\n");
+  try {
+    const out = execFileSync("node", [cli, "--github", "--in-scope-only", outOfScope], {
+      encoding: "utf8",
+    });
+    assert.doesNotMatch(out, /::error/);
+    assert.match(out, /no in-scope/i);
+  } finally {
+    rmSync(outOfScope, { force: true });
   }
 });
