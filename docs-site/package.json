@@ -11,6 +11,8 @@
     "preview": "astro preview",
     "check": "astro check",
     "check:links": "node scripts/check-links.mjs",
+    "check:doclint": "node scripts/doclint.mjs",
+    "test:doclint": "node --test scripts/doclint.test.mjs",
     "check:screenshot": "node scripts/screenshot-check.mjs",
     "screenshot:update": "node scripts/screenshot-check.mjs --update"
   },
@@ -27,6 +29,10 @@
   "devDependencies": {
     "pixelmatch": "7.2.0",
     "playwright": "1.62.1",
-    "pngjs": "7.0.0"
+    "pngjs": "7.0.0",
+    "remark-frontmatter": "^5.0.0",
+    "remark-parse": "^11.0.0",
+    "unified": "^11.0.5",
+    "unist-util-visit": "^5.1.0"
   }
 }
