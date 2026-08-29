@@ -462,6 +462,14 @@ type server struct {
 	// (no DB, no new dependency), reset on a successful auth.
 	loginLimiter *loginLimiter
 
+	// progress is the per-job live-progress consumer (#780, collision #40): the ephemeral,
+	// redacted events the worker emits over the queue_job_progress LISTEN/NOTIFY channel,
+	// held in a bounded in-memory hub the RunDetail stream enriches its state-derived log
+	// with. main.go wires a progressHub fed by a LISTEN goroutine over the pool; it is nil on
+	// a server built without it (tests, and any deployment with no pool), where the stream
+	// renders bare state exactly as before. deriveRunStream nil-guards it.
+	progress progressEvents
+
 	// pool is the raw pgx pool, wired for the few reads that need SQL sqlc does not
 	// generate: the Instance tab's applied-vs-embedded migrations count (#391, a raw
 	// goose_db_version query — internal/db stays untouched) and the VERGE_DEV pixel-parity

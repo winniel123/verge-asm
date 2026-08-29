@@ -134,6 +134,14 @@ func main() {
 	// and the VERGE_DEV-only Profile capture reseed route (#542, devMode-gated and
 	// nil-guarded). Every consumer nil-guards it.
 	web.pool = pool
+	// The per-job live-progress consumer (#780, collision #40): a bounded in-memory hub fed by
+	// a background LISTEN on the worker's queue_job_progress channel, which the RunDetail stream
+	// enriches its state-derived log with. Ephemeral by construction — the hub holds nothing at
+	// rest and is lost on restart (ADR-0041 untouched). The goroutine reconnects on its own and
+	// exits with ctx; a missed notification only drops a live line, never a persisted one.
+	progressHub := newProgressHub()
+	web.progress = progressHub
+	go runProgressListener(ctx, pool, progressHub, log.New(os.Stderr, "", log.LstdFlags))
 	web.secureCookies = isTruthy(env.OrDefault("VERGE_SECURE_COOKIES", ""))
 	// The front proxies whose X-Forwarded-For web trusts when deriving the login
 	// rate-limit client IP (#738). Behind a TLS-terminating proxy this keeps the
@@ -251,4 +259,3 @@ func checkHealth(listenAddr string) error {
 	}
 	return nil
 }
-

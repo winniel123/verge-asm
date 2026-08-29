@@ -164,7 +164,10 @@ func (w *Worker) completeCT(ctx context.Context, job db.ClaimJobRow, spec wire.J
 		// (ADR-0027 §7).
 		cause := ferr
 		if cause == nil {
-			cause = fmt.Errorf("crt.sh returned HTTP %d", status)
+			// A non-200 status carries no source detail — only the code — so it is marked safe
+			// to surface verbatim in the live stream (#780, collision #40). A transport error
+			// (ferr) is NOT marked and stays redacted to a generic phrase.
+			cause = safeProgress(fmt.Sprintf("crt.sh returned HTTP %d", status))
 		}
 		return w.retryOrDeadLetterCT(ctx, job, cause)
 	}
@@ -226,6 +229,9 @@ func (w *Worker) admitCT(ctx context.Context, job db.ClaimJobRow, cs scan.CTSeed
 				return err
 			}
 		}
+		// Ephemeral per-job progress (#780, collision #40): a completed CT fetch rides the count
+		// of names it admitted onto the live stream — the count alone, never the names.
+		w.emitJobEvent(ctx, qtx, job, "", countLabel(len(names), "name admitted", "names admitted"))
 		return markDone(ctx, qtx, job.ID, batchID)
 	})
 }
@@ -253,6 +259,9 @@ func (w *Worker) deadLetterCT(ctx context.Context, job db.ClaimJobRow, cause err
 		if err != nil {
 			return err
 		}
+		// Ephemeral per-job progress (#780, collision #40): the redacted dead-letter reason —
+		// the crt.sh non-200 marked safe above — rides the live stream so the operator sees why.
+		w.emitJobEvent(ctx, qtx, job, "error", deadLetterLabel(job.Attempt, cause))
 		return markDead(ctx, qtx, job.ID, batchID)
 	})
 }

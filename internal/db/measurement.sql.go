@@ -633,6 +633,23 @@ func (q *Queries) NameCitedAddresses(ctx context.Context, arg NameCitedAddresses
 	return items, nil
 }
 
+const notifyJobProgress = `-- name: NotifyJobProgress :exec
+SELECT pg_notify('queue_job_progress', $1::text)
+`
+
+// Publish one ephemeral, redacted per-job progress event over the
+// queue_job_progress LISTEN/NOTIFY channel (#780, collision #40 producer half).
+// The payload is a small JSON line the RunDetail live stream enriches its
+// state-derived log with while a job is in flight. NOTHING is persisted at rest:
+// pg_notify delivers the payload to connected listeners and is gone (ADR-0041's
+// corpus separation and the instance-privacy posture are untouched — there is no
+// raw-stdout column or table). Fired inside the job's terminal transaction, so a
+// job cancelled mid-flight rolls its event back with the rest of its work.
+func (q *Queries) NotifyJobProgress(ctx context.Context, payload string) error {
+	_, err := q.db.Exec(ctx, notifyJobProgress, payload)
+	return err
+}
+
 const previousBatchTime = `-- name: PreviousBatchTime :one
 SELECT max(created_at)::timestamptz AS prev_batch_at
 FROM batch

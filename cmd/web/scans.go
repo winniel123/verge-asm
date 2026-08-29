@@ -633,76 +633,101 @@ func runStreamHref(runPath string, filter *runJobFilter, runActive bool, jobs []
 }
 
 // runStreamLine is one live-progress line on the wire — the SAME tag/level/text the static
-// .Log renders (runLogLine), with the internal JobID dropped: the stream redacts EXACTLY as
-// .Log does (collision #40) and invents no new format.
+// .Log renders (runLogLine), with the internal JobID dropped. Both a state line and an
+// ephemeral event line take this one shape, so the frozen client renders them identically: the
+// stream redacts EXACTLY as .Log does (collision #40) and invents no new format.
 type runStreamLine struct {
 	Tag   string `json:"tag"`
 	Level string `json:"level"`
 	Text  string `json:"text"`
 }
 
-// runStreamResp is the long-poll body the frozen client expects: the state-derived lines
-// after the client's cursor, the new cursor (next), and whether the in-scope work concluded.
+// runStreamResp is the long-poll body the frozen client expects: the new state and event lines
+// after the client's (composite) cursor, the new cursor (next), and whether the in-scope work
+// concluded.
 type runStreamResp struct {
 	Lines []runStreamLine `json:"lines"`
 	Next  int             `json:"next"`
 	Done  bool            `json:"done"`
 }
 
-// deriveRunStream re-derives the run's state log (ListJobsForDispatch → toJobView → runLog)
-// and, with a numeric ?job, narrows it to that job exactly as applyJobFilter narrows the
-// page's .Log. done is true once the in-scope work is terminal: for a ?job filter, that one
-// job (an unknown id counts as done — nothing will stream); for the bare run, no job still
-// ready or running. It reuses the same read seam and pure folds the page uses, so a live run
-// and the stream never disagree, and it persists nothing.
-func (s *server) deriveRunStream(ctx context.Context, dispatchID int64, jobParam string) ([]runLogLine, bool, error) {
+// deriveRunStream re-derives the run's live log as two sequences the stream tracks on
+// independent cursors (#780, collision #40): the STATE lines (ListJobsForDispatch → toJobView →
+// runLog, exactly the page's .Log derivation) and the ephemeral EVENT lines the worker emitted
+// (the hub, nil-guarded). Both are narrowed by a numeric ?job exactly as applyJobFilter narrows
+// the page. done is true once the in-scope work is terminal: for a ?job filter, that one job (an
+// unknown id counts as done — nothing will stream); for the bare run, no job still ready or
+// running. It reuses the same read seam and pure folds the page uses, reads the hub without
+// mutating it, and persists nothing.
+func (s *server) deriveRunStream(ctx context.Context, dispatchID int64, jobParam string) (state, events []runStreamLine, done bool, err error) {
 	jobRows, err := s.store.ListJobsForDispatch(ctx, pgtype.Int8{Int64: dispatchID, Valid: true})
 	if err != nil {
-		return nil, false, err
+		return nil, nil, false, err
 	}
 	jobs := make([]jobView, 0, len(jobRows))
 	for _, j := range jobRows {
 		jobs = append(jobs, toJobView(j))
 	}
-	log := runLog(jobs)
 
+	// A numeric ?job narrows both sequences to that job and scopes done to it; a blank or
+	// non-numeric param is the whole run (filtered stays false).
+	var jobFilter int64
+	filtered := false
 	if jobParam != "" {
 		if jobID, perr := strconv.ParseInt(jobParam, 10, 64); perr == nil {
-			filtered := make([]runLogLine, 0, len(log))
-			for _, ln := range log {
-				if ln.JobID == jobID {
-					filtered = append(filtered, ln)
-				}
-			}
-			done := true
-			for _, j := range jobs {
-				if j.ID == jobID {
-					done = !jobActive(j.State)
-					break
-				}
-			}
-			return filtered, done, nil
+			jobFilter, filtered = jobID, true
 		}
 	}
 
-	done := true
+	// State lines: the same runLog derivation the page renders, shaped to the wire (JobID
+	// dropped) and filtered. This is the bare-state baseline that stands on conclusion.
+	stateLog := runLog(jobs)
+	state = make([]runStreamLine, 0, len(stateLog))
+	for _, ln := range stateLog {
+		if filtered && ln.JobID != jobFilter {
+			continue
+		}
+		state = append(state, runStreamLine{Tag: ln.Tag, Level: ln.Level, Text: ln.Text})
+	}
+
+	// Event lines: the run's ephemeral, redacted per-job events, appended live beside the state
+	// lines so a retry reason / dead-letter cause reaches the append-only viewer (a merged line
+	// would not). Nil hub (tests, no-pool deployments) yields none.
+	if s.progress != nil {
+		events = eventStreamLines(s.progress.ForDispatch(dispatchID), jobFilter, filtered)
+	}
+
+	if filtered {
+		done = true
+		for _, j := range jobs {
+			if j.ID == jobFilter {
+				done = !jobActive(j.State)
+				break
+			}
+		}
+		return state, events, done, nil
+	}
+	done = true
 	for _, j := range jobs {
 		if jobActive(j.State) {
 			done = false
 			break
 		}
 	}
-	return log, done, nil
+	return state, events, done, nil
 }
 
-// runStream serves the per-job live progress long-poll (#761, collision #40). It re-derives
-// the run's state log (deriveRunStream) and returns the lines after ?after={cursor} as JSON
-// {lines:[{tag,level,text}], next, done}, where next is the new cursor (the line count) and
-// done marks the in-scope work terminal. A ?job={id} narrows the log to that job. It holds up
-// to runStreamHold for new lines (re-deriving every runStreamPoll), then returns an empty
-// {done:false} nudge so the client re-polls — never blocking forever. Login-gated like
-// runPage; it mutates nothing and persists nothing. A malformed id or after is a clean read
-// (id → an immediate done; after → treated as 0).
+// runStream serves the per-job live progress long-poll (#761 transport, #780 producer;
+// collision #40). It re-derives the run's state lines and ephemeral event lines (deriveRunStream)
+// and returns those after ?after={cursor} as JSON {lines:[{tag,level,text}], next, done}. The
+// cursor is composite (encodeStreamCursor): its low part indexes the state lines, its high part
+// the event lines, so a retry growing the state log never shifts an event's position, and a run
+// with no events keeps next == the state-line count — the pre-producer contract the frozen
+// client's initial cursor (its rendered state-line count) relies on. A ?job={id} narrows both
+// sequences. It holds up to runStreamHold for new lines (re-deriving every runStreamPoll), then
+// returns an empty {done:false} nudge so the client re-polls — never blocking forever. Login-
+// gated like runPage; it mutates nothing and persists nothing. A malformed id or after is a
+// clean read (id → an immediate done; after → treated as 0).
 func (s *server) runStream(w http.ResponseWriter, r *http.Request, _ db.Account) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
@@ -713,6 +738,7 @@ func (s *server) runStream(w http.ResponseWriter, r *http.Request, _ db.Account)
 	if n, perr := strconv.Atoi(r.URL.Query().Get("after")); perr == nil && n > 0 {
 		after = n
 	}
+	eventCur, stateCur := decodeStreamCursor(after)
 	jobParam := r.URL.Query().Get("job")
 	ctx := r.Context()
 
@@ -722,25 +748,28 @@ func (s *server) runStream(w http.ResponseWriter, r *http.Request, _ db.Account)
 	defer ticker.Stop()
 
 	for {
-		lines, done, derr := s.deriveRunStream(ctx, id, jobParam)
+		state, events, done, derr := s.deriveRunStream(ctx, id, jobParam)
 		if derr != nil {
 			apiReadError(w, "run detail: stream", derr)
 			return
 		}
-		if len(lines) > after || done {
-			from := min(after, len(lines))
-			out := make([]runStreamLine, 0, len(lines)-from)
-			for _, ln := range lines[from:] {
-				out = append(out, runStreamLine{Tag: ln.Tag, Level: ln.Level, Text: ln.Text})
+		next := encodeStreamCursor(len(events), len(state))
+		if len(state) > stateCur || len(events) > eventCur || done {
+			out := make([]runStreamLine, 0, len(state)+len(events))
+			if from := min(stateCur, len(state)); from < len(state) {
+				out = append(out, state[from:]...)
 			}
-			writeAPIJSON(w, runStreamResp{Lines: out, Next: len(lines), Done: done})
+			if from := min(eventCur, len(events)); from < len(events) {
+				out = append(out, events[from:]...)
+			}
+			writeAPIJSON(w, runStreamResp{Lines: out, Next: next, Done: done})
 			return
 		}
 		select {
 		case <-ctx.Done():
 			return
 		case <-timeout.C:
-			writeAPIJSON(w, runStreamResp{Lines: []runStreamLine{}, Next: len(lines), Done: false})
+			writeAPIJSON(w, runStreamResp{Lines: []runStreamLine{}, Next: next, Done: false})
 			return
 		case <-ticker.C:
 		}
