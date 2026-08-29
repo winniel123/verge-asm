@@ -214,7 +214,7 @@ implies. Three claims are permitted, and nothing else is:
   `(port, transport)` pairs rather than services.
 - **Claim 3 — The protocol's intended clients are other components of the same system, not internet
   users.** Database wire protocols, cache protocols, cluster coordination and inter-node transports.
-  Exposing these enables no intended use whatsoever; it only enlarges the attack surface.
+  Exposing these enables no intended use whatsoever. It only enlarges the attack surface.
 
 Claim 3 is the one that carries the databases, and it is also the one that does the most work
 excluding things. Applied honestly it removes SSH, RDP, WinRM, Kibana, Grafana, Jenkins and the
@@ -279,8 +279,8 @@ only a documented default. Disclosed here rather than smoothed over:
 | 27017/27018/27019 MongoDB, 2049 NFS, 2181 ZooKeeper, 25672 RabbitMQ, 2376 Docker | **Explicit trusted-network scoping**, slightly weaker than a prohibition |
 | **5432 PostgreSQL, 5984 CouchDB, 9042 Cassandra** | **Shipped default only** — no prohibition exists upstream |
 
-The last row is the weak footing. PostgreSQL is treated at length in §4.5; Cassandra's strongest
-upstream sentence is an attack-surface observation rather than a prohibition; and CouchDB's actual
+The last row is the weak footing. PostgreSQL is treated at length in §4.5. Cassandra's strongest
+upstream sentence is an attack-surface observation rather than a prohibition. And CouchDB's actual
 "do not expose" warning covers the **Erlang distribution port, not 5984**, so it must not be
 transposed onto the HTTP API. All three are on the list, and all three are labelled.
 
@@ -796,7 +796,7 @@ transposed onto the HTTP API. All three are on the list, and all three are label
 > consequence 3 always had: a footing demotion and a row removal are two rulings, and here the row's
 > retrieval disposed of the footing without the footing's own question having to be answered.
 
-### 2.3 Cloud-provider and government lists corroborate; they never carry a port alone
+### 2.3 Cloud-provider and government lists corroborate. They never carry a port alone
 
 This is the load-bearing methodological finding, and it took the most work to establish.
 
@@ -970,7 +970,7 @@ And the registry itself disclaims the inference in the strongest terms available
 **Consequence for the product, not just for the list.** The signal's name and evidence must be
 written to survive this. `sensitive-port-exposed` claims *a port associated with a sensitive service
 is reachable from an internet vantage* — it does not claim the service is running. Squatting means
-registration cannot be the determinacy test; uncontested convention has to be, and the note records
+registration cannot be the determinacy test. Uncontested convention has to be, and the note records
 which rows rest on convention rather than registration (§3, "reg." column).
 
 > **Amended by §14** ([#75](https://github.com/winniel123/verge-asm/issues/75)). *"Uncontested
@@ -1016,7 +1016,7 @@ which rows rest on convention rather than registration (§3, "reg." column).
   on the internet with public IPs"
   ([redis.io](https://redis.io/docs/latest/operate/oss_and_stack/management/security/)). This is a
   frequency assertion embedded in a primary source. It accompanies a position and it is *not* the
-  position; Redis is on the list for the "trusted clients inside trusted environments" sentence, and
+  position. Redis is on the list for the "trusted clients inside trusted environments" sentence, and
   this sentence is cited nowhere.
 - **CISA BOD 22-01 (KEV).** Checked and discarded on two grounds: it is keyed to CVE IDs rather than
   ports, and it was **revoked on 10 June 2026**, superseded by BOD 26-04
@@ -1054,7 +1054,7 @@ recording rather than leaving as a silent exclusion.
 There is an obvious CISA citation available — Alert TA14-017A, *UDP-Based Amplification Attacks* —
 which names "Portmap (RPCbind)" with a bandwidth amplification factor of "7 to 28". It is
 authoritative, it is CISA, and it is about internet-reachable rpcbind. **It is also a frequency and
-magnitude source, not a position.** It says how hard an exposed rpcbind can hit someone; it does not
+magnitude source, not a position.** It says how hard an exposed rpcbind can hit someone. It does not
 say that exposing it is never correct. Citing it for the latter is precisely the substitution this
 ticket was written to prevent, and it is tempting exactly because the source is so reputable.
 
@@ -1065,7 +1065,7 @@ Checking the protocol's actual owners closes the door rather than opening it:
   discussed in this memo."* That is an explicit non-statement, citable as such and as nothing else.
 
 So 111 is excluded — not because it is defensible on the internet, but because **we could not find
-anyone entitled to say it isn't.** That is an uncomfortable result and it is the correct one; the
+anyone entitled to say it isn't.** That is an uncomfortable result and it is the correct one. The
 alternative is a list whose rows are backed by whichever authoritative-looking document was nearest.
 
 > **Amended by §17** ([#79](https://github.com/winniel123/verge-asm/issues/79)). *"We could not find
@@ -1294,7 +1294,7 @@ trade against the determinacy gate.
 
 **Two kubelet quotes survive, and both are below the withdrawn CLI-reference block.** `10250`'s is
 now a Claim 3 quote and is left here beside its former class-mates rather than moved, per the
-name-and-withdraw convention; §3.3 carries the row.
+name-and-withdraw convention. §3.3 carries the row.
 
 > ~~"`--anonymous-auth`  Default: true" … "`--authorization-mode string`  Default: "AlwaysAllow"" …
 > "`--read-only-port int32`  Default: 10255" — kubernetes.io, kubelet CLI reference (the 10255
@@ -1808,7 +1808,7 @@ states are:
 
 A kubelet reachable only from inside the operator's VPC derives `firewalled` or `internal-only`. It
 never derives `exposed`, so the signal never fires on it, and the list did not have to know anything
-about VPCs to get that right. **The vantage does the relativising; the list is free to be absolute.**
+about VPCs to get that right. **The vantage does the relativising. The list is free to be absolute.**
 That division is what lets §3 state "never correct" without hedging.
 
 Two consequences fall out, and both are load-bearing:
@@ -1835,10 +1835,10 @@ bears on Claim 2 and on nothing else. It has no bearing on whether the protocol 
 
 - **A Claim 2 row is on the list precisely because an encrypted successor exists on a different
   port.** That is why the list is keyed on `(port, transport)` and not on services: 23 is listed and
-  22 is not; 21 is listed and 990 is not. The encrypted sibling is not an exception to the rule, it
+  22 is not. 21 is listed and 990 is not. The encrypted sibling is not an exception to the rule, it
   *is* the rule — its existence is what makes the plaintext port wrong.
 - **A Claim 3 row is unaffected by TLS.** 5432 wrapped in TLS is still a database wire protocol
-  whose clients are application tiers. The confidentiality of the channel is not the objection; the
+  whose clients are application tiers. The confidentiality of the channel is not the objection. The
   audience is. A TLS-terminating proxy in front of 5432 that still speaks the PostgreSQL frontend
   protocol to the internet has changed nothing that the claim depends on.
 - **2375 and 2376 are both listed, and the pair is the clean demonstration.** They differ only in
@@ -1883,7 +1883,7 @@ document governing the registry itself, says that pattern should not exist:
 > insecure services."
 > — [RFC 6335](https://www.rfc-editor.org/rfc/rfc6335.txt), §9
 
-This does not undermine the list; it explains it. The IETF's objection is to *creating* new split
+This does not undermine the list. It explains it. The IETF's objection is to *creating* new split
 pairs, and the pairs this list relies on (23/22, 21/990, 2375/2376, 5985/5986, 110/995, 143/993) all
 predate that guidance. But it does mean the pattern will not extend to newer protocols, so Claim 2
 is a closing category rather than a growing one — which is a useful thing to know about a list whose
@@ -1956,7 +1956,7 @@ And Kubernetes upstream, more sweepingly:
 
 1. **Claim 3 fails on the facts.** The API server's intended clients include human operators and CI
    systems running `kubectl` from arbitrary networks, authenticated with client certificates or
-   OIDC. That is not a misconfiguration; it is the default topology of every major managed
+   OIDC. That is not a misconfiguration. It is the default topology of every major managed
    Kubernetes offering. Upstream itself concedes the point in the sentence immediately following the
    checklist item above: "Be careful, as **many managed Kubernetes distributions are publicly
    exposing the API server by default**." A protocol whose dominant vendor-supported deployment is
@@ -1981,8 +1981,8 @@ theoretical — and the case that shows why answering it with a band would not h
 
 **5432/tcp.** PostgreSQL is the one service surveyed whose upstream documentation states **no
 position at all** on network placement. `ssl-tcp.html` is purely mechanical and contains no sentence
-about untrusted networks; `client-authentication.html` treats accepting remote connections as an
-ordinary configuration; and `server-start.html` frames failure to listen on the network as a
+about untrusted networks. `client-authentication.html` treats accepting remote connections as an
+ordinary configuration. And `server-start.html` frames failure to listen on the network as a
 *mistake*: "A common mistake is to forget to configure listen_addresses so that the server accepts
 remote TCP connections."
 
@@ -2162,7 +2162,7 @@ The defensible narrower statement is that 5985 carries no *transport-layer* TLS,
 rests on the negotiated authentication protocol — AES-256 under modern Kerberos, RC4-128 under NTLM,
 and none at all under Basic, which the same page notes "provides no encryption". That is a real
 weakness and it is **not** the same claim, so 5985 does not qualify under Claim 2. Nor is there any
-first-party Microsoft sentence prohibiting internet exposure of WinRM; the strongest that exists is
+first-party Microsoft sentence prohibiting internet exposure of WinRM. The strongest that exists is
 a firewall warning and the fact that no listener is configured by default. Recording this because it
 is exactly the reading-laundered-into-a-position failure §2 exists to catch, and it nearly landed a
 row on the list.
@@ -2192,11 +2192,11 @@ force.
 
 **1. A band is severity with different spelling.** ADR-0004 settled that a signal is a *named fact
 with evidence*, and that urgency belongs to the transition that surfaced it. "Rarely correct" is not
-a fact about the observed world; it is a prior about a population. Shipping
+a fact about the observed world. It is a prior about a population. Shipping
 `sensitive-port-exposed` alongside `rarely-correct-port-exposed` gives the operator two names whose
 only difference is our confidence — which is a two-level severity scale wearing a hat. The cost
-ADR-0004 accepted (an operator facing many signals has no intrinsic ranking) was accepted knowingly;
-this would quietly refund it.
+ADR-0004 accepted (an operator facing many signals has no intrinsic ranking) was accepted knowingly.
+This would quietly refund it.
 
 **2. Every candidate for the middle turned out to fail a gate, not to sit between gates.** This is
 the empirical finding, and it is the one that actually settles the question. Going through them:
@@ -2269,7 +2269,7 @@ ADR-0004's `not-evaluable` rule exists to prevent.
 **Why the invariant points this way.** Adding a port to the sensitive list *forces* an addition to
 the hot set, never the reverse. That is the correct coupling direction because the two lists have
 asymmetric constraints: the hot set is constrained by probe cost, the sensitive list by correctness.
-Probing one more port per host per day is cheap; being unable to evaluate the product's best signal
+Probing one more port per host per day is cheap. Being unable to evaluate the product's best signal
 is not. Cost yields to correctness, and the invariant encodes which is which.
 
 ### 6.1 The containment gaps that exist right now
@@ -2417,7 +2417,7 @@ governance question the map still carries as fog.
 > untouched** — the two source lists still need different owners' judgement on revision, and who
 > revises them on what trigger is still fog. ADR-0009 was explicit that it *"changes who maintains the
 > **derived** set (nobody) and nothing about who maintains the inputs"*. This note settles what the sensitive list is and
-what admits a row to it; it does not settle who revises it or on what trigger. §8 records that.
+what admits a row to it. It does not settle who revises it or on what trigger. §8 records that.
 
 ---
 
@@ -2439,7 +2439,7 @@ signal there are four distinct routes, and an implementation that collapses them
    [#40](https://github.com/winniel123/verge-asm/issues/40). And **`not-evaluable` is the wrong
    term** for this route — [#44](https://github.com/winniel123/verge-asm/issues/44) established that
    no `Service` is ever observed on those addresses, so there is **no subject** to return an outcome
-   about; the rule's population is empty and the honest carrier is the aperture statement on
+   about. The rule's population is empty and the honest carrier is the aperture statement on
    `Coverage`, not a row.)*
 2. **No internet vantage.** `Exposure` cannot be constructed at all without one — its definition
    contains that precondition — so the signal composes `Exposure`'s outcome and inherits it. A
@@ -2466,10 +2466,10 @@ strictly better, because its errors are the kind an operator can discover (a mis
 than the kind that teaches them to ignore the product (a wrong one).
 
 Worth recording that **the normative sources themselves move**. Over the period this note covers:
-CISA BOD 22-01 was revoked and superseded; CPG 1.0's goal "2.W – No Exploitable Services on the
-Internet" was reorganised into CPG 2.0's 3.S; CIS AWS Foundations moved from naming ports 22 and
+CISA BOD 22-01 was revoked and superseded. CPG 1.0's goal "2.W – No Exploitable Services on the
+Internet" was reorganised into CPG 2.0's 3.S. CIS AWS Foundations moved from naming ports 22 and
 3389 explicitly (v1.2.0 §4.1/§4.2) to the abstraction "remote server administration ports" (v3.0.0
-§5.2 onward); Docker deprecated unauthenticated TCP entirely; and Prometheus *softened* its position
+§5.2 onward). Docker deprecated unauthenticated TCP entirely. And Prometheus *softened* its position
 once it gained native TLS and basic auth. A revision policy that assumes the sources are static will
 be wrong within a year.
 
@@ -2479,20 +2479,20 @@ be wrong within a year.
 
 1. ~~**Who revises the sensitive list, on what trigger, and how often?**~~ **Closed by §39**
    ([#125](https://github.com/winniel123/verge-asm/issues/125)). **The release revises it** — an act,
-   not a person; the party is the project, never the operator — and the instrument is a **gate on the
+   not a person. The party is the project, never the operator — and the instrument is a **gate on the
    edit**, an edit being complete only when the gate is green over the post-edit state. **The watch is
    two instruments**: a **gate** of eleven **closed** checks, run to completion, and a **queue** over
    what is **open**, which cannot terminate and is therefore sampled. *How often* is answered by
    refusing to answer it: **no quantum is set**, because a quantum manufactures a figure nobody can
-   attest and restores meaning to the queue's length; what a release owes is ADR-0040's **bounded
+   attest and restores meaning to the queue's length. What a release owes is ADR-0040's **bounded
    residue**. Of the eight triggers a release can check **four completely**, **two in half**, and
-   **two not at all**. **A machine may raise an item; only a human release act may move a row**, moving
+   **two not at all**. **A machine may raise an item. Only a human release act may move a row**, moving
    a row being the authoring of a claim that §2.2 bars us from asserting.
    [ADR-0057](../adr/0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md). The original text
    follows.
 
    **Who revises the sensitive list, on what trigger, and how often?** This note settles membership
-   and the admission standard; it does not settle governance. It is the surviving half of the map's
+   and the admission standard. It does not settle governance. It is the surviving half of the map's
    port-set fog, and it is now sharper: the trigger is not "a new service became popular" (frequency)
    but "a primary source changed its position, or a protocol changed its shipped defaults" — both of
    which are watchable events rather than a continuous obligation.
@@ -2515,7 +2515,7 @@ be wrong within a year.
 4. ~~**Do the three ports still excluded for want of attestation deserve another pass?**~~
    **Closed by §9** ([#30](https://github.com/winniel123/verge-asm/issues/30)). 111/tcp rpcbind,
    389/tcp LDAP and 79/tcp finger were all re-searched against their specifications, reference
-   implementations and shipped defaults. **None is admitted; the list stays at 38.** The pass was
+   implementations and shipped defaults. **None is admitted. The list stays at 38.** The pass was
    right to run — the precedent of 2049 and 873 was sound — and it was not a null result, because
    111 and 389 moved from *no evidence found* to *evidence found pointing the other way*.
 5. **Should the `reg.` disclosure surface in the product?** Several rows rest on convention rather
@@ -2537,7 +2537,7 @@ be wrong within a year.
    own opening amendment already says: **it attaches to a *table*, not to a rule**, thirteen of the
    ~~sixteen~~ **seventeen** v1 rules carry no table at all *(denominator struck by §40,
    [#133](https://github.com/winniel123/verge-asm/issues/133), gate check **G4** — the v1 set is
-   seventeen since [#128](https://github.com/winniel123/verge-asm/issues/128); the **thirteen** is
+   seventeen since [#128](https://github.com/winniel123/verge-asm/issues/128). The **thirteen** is
    unchanged, #128's rule carrying the transcribed address registry as its table)*, only §2.2's attestation gate travels, and §2.1 and §2.4 are
    *outside the domain* elsewhere rather than passed. **Marked by §39**
    ([#125](https://github.com/winniel123/verge-asm/issues/125)): the question stood open in the present
@@ -2567,16 +2567,16 @@ be wrong within a year.
     ([#82](https://github.com/winniel123/verge-asm/issues/82)). A **placement statement** does, and
     nothing else: a party's statement, in its own current documentation or its own shipped bytes, that
     its own software listens on a `(port, transport)` pair by default. The unit is the **protocol, not
-    the vendor**; *live* means **current**, never numerous; every other class — IANA rows, the
+    the vendor**. *Live* means **current**, never numerous. Every other class — IANA rows, the
     `Unauthorized Use Reported` field, `nmap-services`, cloud and government port tables, and this
-    project's own frequency half — corroborates and never carries; and **every determinacy refusal must
+    project's own frequency half — corroborates and never carries. And **every determinacy refusal must
     name the artefact that defeated the convention**.
     [ADR-0048](../adr/0048-a-convention-is-evidenced-by-placement-never-by-catalogue.md). All nine
-    convention-resting rows were walked (§15.4) and **no `(port, transport)` pair moves**; two
+    convention-resting rows were walked (§15.4) and **no `(port, transport)` pair moves**. Two
     exclusion grounds are restated and both strengthen. The original text follows.
 
     **What evidence establishes that a convention is contested?** Opened by §14.6. §2.2 has three
-    attestation forms and an owner definition (§10.5); §2.1 has a claim set closed by construction
+    attestation forms and an owner definition (§10.5). §2.1 has a claim set closed by construction
     (§10.2). **§2.4 has *"uncontested convention"* and no account of what establishes it** — and §14
     is the first ruling to rest entirely on that gate, weighing a vendor's product-port table, a
     vendor's container-image README and an IANA annotation against each other with nothing in the
@@ -2594,14 +2594,14 @@ be wrong within a year.
     **[measured] Both registrations are live, both squats are contested, and neither row moves — the
     list stays at 37.** `esmagent`'s registrant is at **AXENT Technologies** and its successor
     **Broadcom** places the *CCS Windows Agent* on `5601` in current, supported Control Compliance Suite
-    documentation; `fmtp`'s owner **EUROCONTROL** places FMTP on `8500` in a `shall` in
+    documentation. `fmtp`'s owner **EUROCONTROL** places FMTP on `8500` in a `shall` in
     `EUROCONTROL-SPEC-0100` §6.6 and still carries that specification in its **2026-01-20** standards
     catalogue, with **Adobe**'s ColdFusion built-in web server defeating `8500` a second time and
     independently. **The ticket's own prediction is refuted twice**: limb 3 disposes of OpenSearch
     Dashboards rather than deciding `esmagent`, and **§17.1's two residue rows were never the same
     shape** — `5601` was already overdetermined by §2.1's closed claim set, which names Kibana, so §17.1
-    row 11's *Partly* was a mis-score. **§17.8's residue goes to zero and §2.4's backlog is finished**;
-    no [ADR-0040](../adr/0040-a-specifications-silence-is-not-the-owners-silence.md) class sweep is owed
+    row 11's *Partly* was a mis-score. **§17.8's residue goes to zero and §2.4's backlog is finished**.
+    No [ADR-0040](../adr/0040-a-specifications-silence-is-not-the-owners-silence.md) class sweep is owed
     on Elastic or HashiCorp. No ADR is minted — the rule applied is
     [ADR-0048](../adr/0048-a-convention-is-evidenced-by-placement-never-by-catalogue.md)'s, already
     written. The original text follows.
@@ -2621,7 +2621,7 @@ be wrong within a year.
 12. ~~**Is an owner's unreleased document the owner's documentation?**~~ **Closed by §21**
     ([#86](https://github.com/winniel123/verge-asm/issues/86)). **No — the second form reads a document
     the owner has *issued***: carried by a release artefact it publishes, or served on its own published
-    documentation site. A branch is a working record, not documentation; an unissued document attests
+    documentation site. A branch is a working record, not documentation. An unissued document attests
     **nothing in either direction** and is not a corroborator under §2.3.
     [ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md). **`9092/tcp` stays
     excluded and the list stays at 37 pairs** — **[measured]** the document is absent from
@@ -2632,7 +2632,7 @@ be wrong within a year.
 
     **Is an owner's unreleased document the owner's documentation?** Opened by §17.5. §2.2's second
     form reads *"the project's or vendor's own documentation"* and does not say whether that means
-    what the project **publishes** or what sits in its **tree**; §12 answered the equivalent question
+    what the project **publishes** or what sits in its **tree**. §12 answered the equivalent question
     for **configuration** and nothing answers it for **prose**. The first case to turn on it is
     `9092/tcp`, where a first-party sentence exists on `trunk`, is absent from release tag `4.3.1` and
     404s on the published site. **The list is definitively 37 under the standard as written**, so it
@@ -2666,7 +2666,7 @@ disclosed in §9.5.
 ### 9.1 111/tcp rpcbind — not admitted, and now on positive grounds
 
 §2.7 excluded 111 because *"we could not find anyone entitled to say it isn't"* defensible. That
-survives re-checking, and it understates the result. The protocol's owners do speak; what they say
+survives re-checking, and it understates the result. The protocol's owners do speak. What they say
 is that the exposure problem was answered **inside the software**, and that the port answers from
 every interface by design.
 
@@ -2732,7 +2732,7 @@ statement of intended default as a config file can make:
 
 **This closes the last available route.** §2.2 admits three forms of attestation, and the third —
 the documented shipped default — is the weak one that carries 5432, 5984 and 9042. For 111 it does
-not merely fail to help; it points the other way. PostgreSQL's `listen_addresses = localhost` is on
+not merely fail to help. It points the other way. PostgreSQL's `listen_addresses = localhost` is on
 the list because it is a maintainer position expressed in code. `ListenStream=0.0.0.0:111` is the
 same kind of statement with the opposite content, and a standard that reads one as evidence must
 read the other as evidence too.
@@ -2762,7 +2762,7 @@ Three reasons it cannot carry the row, in increasing order of force:
 
 1. **Red Hat does not own the protocol.** §2.3's rule is that the claim must be attested "by a
    source that owns the protocol". Microsoft qualifies for SMB and Dell for DRAC because they
-   designed the thing; Red Hat packages rpcbind, and its Security Guide is a Red Hat documentation
+   designed the thing. Red Hat packages rpcbind, and its Security Guide is a Red Hat documentation
    product rather than an rpcbind project document.
 2. **It is a hardening instruction, not a legitimacy statement.** "Limit which networks or hosts
    have access" is the exact shape of the NSA/CISA sentence §4.4 refused for 6443 — a preference
@@ -2789,7 +2789,7 @@ Reported field (registry CSV retrieved 2026-08-13).
 replaced — not "nobody will say it", but "the people entitled to say it shipped the opposite
 default and fixed the actual hazard in the code". **The criterion that would change the verdict:**
 an upstream, Sun/Oracle or nfs-utils statement on network placement, or a change to
-`systemd/rpcbind.socket` binding loopback. Neither is a watchable-event stretch; both are exactly
+`systemd/rpcbind.socket` binding loopback. Neither is a watchable-event stretch. Both are exactly
 the trigger §8 question 1 describes.
 
 ### 9.2 389/tcp LDAP — not admitted, and the case tests Class B rather than LDAP
@@ -2825,7 +2825,7 @@ reachable on a different port**". §4.2 already explained that the successor cla
 scoping detail — "the encrypted sibling is not an exception to the rule, it *is* the rule — its
 existence is what makes the plaintext port wrong". LDAP is the case that proves the clause is
 doing real work: the standardised encrypted form of LDAP is reachable on **the same port**, so
-there is no plaintext port to condemn. 23 is wrong because 22 exists; 389 is not wrong, because
+there is no plaintext port to condemn. 23 is wrong because 22 exists. 389 is not wrong, because
 389 is also where the fix lives.
 
 **RFC 4513 §6.3.3 says this in its own construction, and it is worth quoting at the length that
@@ -2908,7 +2908,7 @@ standards-track encrypted form off 389, which is the opposite of the direction R
 **What this does to the standard.** §4.2 noted that RFC 6335 §9 makes Class B a *closing* category
 because the IETF discourages new split-port pairs. LDAP is the concrete instance of the pattern the
 IETF prefers instead — in-band negotiation on one port — and it is **unlistable by construction**.
-So Class B is not merely closing; the alternative that replaced it is structurally invisible to a
+So Class B is not merely closing. The alternative that replaced it is structurally invisible to a
 port-keyed list. That is a real and permanent coverage boundary of `sensitive-port-exposed`, it is
 not a defect in the claim's wording, and it belongs in §8.
 
@@ -2965,7 +2965,7 @@ demanding it be implemented to that standard. The rest of the document assumes t
 specifies how network-reachable vending machines should answer queries, and the `{Q2}` cross-host
 forwarding feature is *recommended off by default* (§3.2.1) rather than forbidden, which is a
 statement that forwarding is a supported mode. RFC 1288 is still a **Draft Standard** on the IETF
-datatracker; it was never reclassified Historic.
+datatracker. It was never reclassified Historic.
 
 #### 9.3.2 Disclosure-by-design cannot be a fourth claim class
 
@@ -3100,7 +3100,7 @@ a determinacy answer for RFC 4146. Neither is close.
 
 ### 9.4 What this pass changed
 
-**Nothing on the list.** Still 38 `(port, transport)` pairs; §1's summary table, §3's tables and
+**Nothing on the list.** Still 38 `(port, transport)` pairs. §1's summary table, §3's tables and
 §6.1's containment arithmetic are all untouched. §8 question 4 is closed.
 
 **Two things about the evidence standard**, both carried into §8 rather than acted on here:
@@ -3121,7 +3121,7 @@ a determinacy answer for RFC 4146. Neither is close.
 were "a search problem rather than a settled verdict", on the precedent of 2049 and 873. The search
 was run properly and the belief was wrong for these three — but the pass was still worth its cost,
 because it converted two exclusions from *no evidence found* to *evidence found pointing the other
-way*, which is the difference between a gap and a finding. Done before v1, it cost nothing; after
+way*, which is the difference between a gap and a finding. Done before v1, it cost nothing. After
 v1 it would have cost a comparability cycle on the product's best signal whichever way it came out
 (§7.2).
 
@@ -3353,7 +3353,7 @@ cannot fail** rather than a list that can be added to.
 
 **Thin ground, flagged.** The derivation rests on the claim that an internet vantage supplies exactly
 three things, which is read off `Exposure`'s own definition rather than measured. It is the tightest
-available footing and it is not a proof; if a fourth property is named, the set reopens and this
+available footing and it is not a proof. If a fourth property is named, the set reopens and this
 paragraph is the record of what would do it.
 
 ### 10.3 Claim 3's boundary is wider than "same system" — a wording correction closure forced
@@ -3568,7 +3568,7 @@ two phrasings, and the gap is where the Red Hat question lives.
 > floor over a relying party's acceptance attests about that acceptance and not about the algorithm.
 > See [ADR-0035](../adr/0035-a-cryptographic-primitives-owner-is-its-specifier.md). No row moves.
 
-**This is not a new line; it is the line §9.1 already walked and could not explain.** §9.1 read
+**This is not a new line. It is the line §9.1 already walked and could not explain.** §9.1 read
 Debian's `rpcbind.default` as evidence in the same breath as declining Red Hat's Security Guide, and
 "a distributor is never the vendor" cannot account for both. The **artefact**, not the party, is what
 the rule keys on.
@@ -3589,8 +3589,8 @@ two manuals with opposite instructions — which is the failure §2.3 exists to 
 the very first instance the standard met.
 
 **No row moves.** 2049/tcp is carried by `nfs(5)` from nfs-utils (the reference implementation, not a
-distributor product); 873/tcp by upstream `rsyncd.conf(5)` cited to the Samba copy precisely to avoid
-a distribution rendering; 512/513/514 by OpenBSD's own deletions, which are OpenBSD speaking as the
+distributor product). 873/tcp by upstream `rsyncd.conf(5)` cited to the Samba copy precisely to avoid
+a distribution rendering. 512/513/514 by OpenBSD's own deletions, which are OpenBSD speaking as the
 author of the code it removed.
 
 > **Amended by §12** ([#69](https://github.com/winniel123/verge-asm/issues/69)). *"On exactly the same
@@ -3627,14 +3627,14 @@ a `Break` on every `sensitive-port-reached-from-internet` evaluation
 ([ADR-0008](../adr/0008-derivation-versions-move-on-content.md)) and a `verge-core` narrowing
 ([ADR-0009](../adr/0009-verge-core-is-a-union.md)). §4.5 has already set the house style for a row
 whose footing is thin — name it, do not bury it. And decisively, **a row may not move on a re-reading
-of text already in this note**; §9's own precedent is that a verdict changes on **retrieval**, and no
+of text already in this note**. §9's own precedent is that a verdict changes on **retrieval**, and no
 retrieval was performed here. The IETF's SNMP management-architecture documents (RFC 3411 and its
 family) were **not** read, and the honest position is that a first-party placement sentence may well
 exist and nobody has looked.
 
 **Routed to [#66](https://github.com/winniel123/verge-asm/issues/66)** as a research ticket, on §8's
 new question 9. **The criterion that would change the verdict:** a first-party IETF or SNMP-owner
-sentence placing SNMPv1/v2c inside a management domain admits the row cleanly on Claim 3; its absence
+sentence placing SNMPv1/v2c inside a management domain admits the row cleanly on Claim 3. Its absence
 means the row rests on a corroborator and must be removed before v1 ships, which is free now and
 costs a comparability cycle later (§7.2).
 
@@ -3692,7 +3692,7 @@ version bump, no aperture change.
    with three candidate fourths tested and refused (§10.2).
 3. Claim 3's boundary is **a boundary the owner names**, not literally "the same system" — a wording
    correction that admits nothing (§10.3).
-4. A shipped default attests **one way**; the exclusion #30 found belongs to a different object, a
+4. A shipped default attests **one way**. The exclusion #30 found belongs to a different object, a
    **remedy that stops short of the port** (§10.4).
 5. **Owner** is defined, and a distributor owns its **configuration** and not the **protocol** —
    which is what §9.1 was already doing (§10.5).
@@ -3702,8 +3702,8 @@ corroborator, disclosed rather than smoothed and routed to retrieval (§10.6).
 
 **The test every repair was weighed against.** The standard exists to keep *commonly attacked* out of
 a list of *never correct*. All five changes are restrictive: Claim 1's qualifier refuses the most
-attacked services on the internet by construction; closure shuts the door a fourth class would open;
-Claim 3's rewording admits nothing; the one-way default rule tightens what may admit a row; and the
+attacked services on the internet by construction. Closure shuts the door a fourth class would open.
+Claim 3's rewording admits nothing. The one-way default rule tightens what may admit a row. And the
 owner definition is unchanged in effect. **No repair here lets frequency back in**, and the one place
 frequency tried to re-enter — amplification, in an unguarded "why" cell — is caught and corrected in
 §10.7.
@@ -3789,7 +3789,7 @@ declines to say anything about where those entities sit. RFC 1157's Security Con
 full: *"Security issues are not discussed in this memo."*
 
 **RFC 3410 §8.2's deployment sentence is a delegation, not a placement claim.** §10.6 quoted the
-insecurity sentence; the section's *operative* deployment sentence is the next one, and it hands the
+insecurity sentence. The section's *operative* deployment sentence is the next one, and it hands the
 boundary to the operator rather than naming one:
 
 > "Of course, it is important that users deploying multi-lingual systems with insecure protocols
@@ -3814,7 +3814,7 @@ likely home for a placement sentence:
 **The threat model is retrieved and confirms the shape.** RFC 3411 §1.4 and RFC 3414 §1.1 enumerate
 modification of information and masquerade as principal threats, disclosure and message-stream
 modification as secondary, and expressly exclude denial of service and traffic analysis. Every one is
-a property of the *message*; not one is a property of the *network the agent sits on*. RFC 3414 §1.2's
+a property of the *message*. Not one is a property of the *network the agent sits on*. RFC 3414 §1.2's
 four goals are integrity, identity, timeliness and confidentiality — again, no placement.
 
 **The one sentence that reads like locality, and does not survive its context.** RFC 3411 §1.4 says of
@@ -3840,7 +3840,7 @@ it to only listen on 127.0.0.1 by default"*.
 
 **Its access-control default restricts by credential, and confirms Claim 1's unavailability by
 measurement rather than by assertion.** §10.6 refused Claim 1 on the reasoning that a community string
-is a credential; the reference implementation says it outright:
+is a credential. The reference implementation says it outright:
 
 > "By default, the Net-SNMP agent starts up with a completely empty access control configuration. This
 > means that *no* SNMP request would be successful."
@@ -3862,7 +3862,7 @@ you concerned with read access or write access?"* — the FAQ offers three exter
 This is the closest thing to a placement sentence in the entire corpus and it is not one. It is a
 hardening option offered conditionally, on the same footing as `iptables` and `hosts.deny`, and §9.1
 already refused Red Hat's *"use TCP Wrappers to limit which networks or hosts have access"* as exactly
-this shape. It names no boundary SNMP *assumes*; it names a boundary an operator *may impose*.
+this shape. It names no boundary SNMP *assumes*. It names a boundary an operator *may impose*.
 
 **And the decisive sentence points the other way.** In the same answer, the owner states that the
 protocol's secure form is location-independent **by design**:
@@ -3974,7 +3974,7 @@ verdict transfers without modification.
 SNMPv2c Historic *"to send a clear message that the third version of the Internet Standard Management
 Framework is the framework of choice"* — nine years before RFC 6353 existed. **[measured] the string
 `161` does not occur in RFC 6353 at all** (only `10161` and `10162`). RFC 6353 does not deprecate 161,
-does not reference it, and does not describe itself as its successor; it adds a transport model
+does not reference it, and does not describe itself as its successor. It adds a transport model
 alongside the existing one.
 
 **The scepticism the ticket asked for is not needed, and the note refuses to lean on it.** *A registered
@@ -4015,12 +4015,12 @@ does not exist. §10.6's *"stays on the list, disclosed"* is **withdrawn**.
 `verge-core = frequency-set ∪ sensitive-list`, so the union **narrows by one member**. Its §*UDP is a
 transport capability, not a list* says *"the sensitive half contributes six"* UDP pairs — **now five** —
 and its §*"Correcting a mis-aimed port"* worked example says *"161/udp and 623/udp enter. Plain
-`revealed`"*; **`161/udp` no longer enters**, because the frequency half is TCP-only
+`revealed`"*. **`161/udp` no longer enters**, because the frequency half is TCP-only
 ([#4](https://github.com/winniel123/verge-asm/issues/4) §2.5) and ADR-0009 attributes 161 to the
 sensitive half. `161/udp` leaves `verge-core` entirely. Amendment recorded on the ADR.
 [ADR-0004](../adr/0004-signals-are-release-coupled-rules.md)'s
 [#44](https://github.com/winniel123/verge-asm/issues/44) amendment uses *"no `Service` is observed on
-161/udp"* as its worked example of a rule with no subject; the example is now stale in its subject and
+161/udp"* as its worked example of a rule with no subject. The example is now stale in its subject and
 unchanged in its point — any of the five surviving UDP pairs substitutes for it.
 
 **What it costs, per [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) and
@@ -4050,7 +4050,7 @@ It is now true of every row, because the row that falsified it is gone. Two ride
 it next. It was **not** restored by finding an attestation, so it is evidence about the standard's
 tightness and **not** evidence that the standard's coverage is complete — §2.7's `111/tcp` and this
 row are the two measured cases of a port that is indefensible in practice and unlistable on the
-evidence. And §2.6's abandoned escape hatch was drafted to carry **two** rows; one of them is now off
+evidence. And §2.6's abandoned escape hatch was drafted to carry **two** rows. One of them is now off
 the list and the other, `623/udp`, is carried by Dell speaking about the DRAC it designed. **The hatch
 would have carried exactly the row that turned out not to belong** — which is the strongest available
 statement that abandoning it was right, and it is a stronger statement than the one §2.6 makes.
@@ -4232,13 +4232,13 @@ it is, in its own bytes, and the two categories never blur:
 > a sample rather than a law, exactly as §12.8 anticipated. The `.sample` **suffix** is not a
 > self-declaration either — that is surface syntax arriving through the filename.
 
-**Nine for nine.** The distinction limb (a) turns on is not a judgement about deployment reality; it
+**Nine for nine.** The distinction limb (a) turns on is not a judgement about deployment reality. It
 is a sentence in the artefact, retrievable by the same method §9.5 and §11.9 already require. That is
 what makes §12 a test read off the document rather than the counterfactual §10.1 deleted.
 
 **And the surface syntax is worthless as a signal, which is why the rule cannot key on it.** A
-commented-out `listen_addresses` line in PostgreSQL's sample **is** the default; a commented-out
-`agentAddress` line in net-snmp's example is the branch not taken; a commented-out `-h 127.0.0.1` in
+commented-out `listen_addresses` line in PostgreSQL's sample **is** the default. A commented-out
+`agentAddress` line in net-snmp's example is the branch not taken. A commented-out `-h 127.0.0.1` in
 Debian's `rpcbind.default` is an offer to the operator. Same syntax, three meanings, and only the
 file's own prose separates them.
 
@@ -4246,7 +4246,7 @@ file's own prose separates them.
 
 **Reading 2: the artefact governs, so the distributor's install decides.** §10.5 says in terms that
 the rule keys on the **artefact**, not the party. The artefact a Debian operator's daemon actually
-reads is `/etc/snmp/snmpd.conf`; what upstream calls those bytes is irrelevant to what runs. The list
+reads is `/etc/snmp/snmpd.conf`. What upstream calls those bytes is irrelevant to what runs. The list
 is about the world, and in the world the modal Debian SNMP agent binds loopback only. On that reading
 the file is a restricting shipped default, §10.4 admits restricting defaults, and the row is admitted.
 
@@ -4309,7 +4309,7 @@ documentation page the note originally cited.**
 
 - **6000/tcp X11.** §3.4 already refused `-nolisten tcp`, on the ground that it is *"distribution and
   build-time behaviour that X.Org does not document as a default"*. That refusal is limbs (a) and (c)
-  arrived at case by case, before either existed; §12 supplies the rule behind it. The row is
+  arrived at case by case, before either existed. §12 supplies the rule behind it. The row is
   unaffected either way — it rests on `Xsecurity(7)`, which is prose from the party that wrote the
   code.
 - **11211/tcp memcached.** **[measured]** Debian's `debian/memcached.conf` ships `-l 127.0.0.1` and
@@ -4327,7 +4327,7 @@ documentation page the note originally cited.**
 
 A rule admitting examples could only **add**, since §10.4 makes the third form an admission route
 only, so the whole check is §4.6's sixteen exclusions. Six could conceivably be touched by a
-configuration file; the other ten are excluded on express purpose, on determinacy, or on an owner
+configuration file. The other ten are excluded on express purpose, on determinacy, or on an owner
 sentence naming the internet as a supported environment, and no configuration file bears on any of
 those grounds.
 
@@ -4345,8 +4345,8 @@ those grounds.
 **`161/udp` does not re-open, and the reason is independent of everything §12 decides.** Under §12:
 upstream's `EXAMPLE.conf.def` is an example and attests nothing (limbs (a) and (b) — its
 `# Listen for connections from the local system only` is a label, and its `agentAddress` line is a
-directive); net-snmp's actual documented default in `snmpd(8)` is all IPv4 interfaces, which is
-permissive and therefore silent under §10.4; and Debian's installed copy is a **distributor's**
+directive). Net-snmp's actual documented default in `snmpd(8)` is all IPv4 interfaces, which is
+permissive and therefore silent under §10.4. And Debian's installed copy is a **distributor's**
 operative default, which attests about Debian's package (limb (c)). But **§11.6 did not rest on any of
 that.** It removed the row because §10.2 closed the claim set and §10.3's boundary limb had no owner
 attestation of any kind after retrieval — and **§10.3's owner requirement is untouched by §12**. Had
@@ -4380,8 +4380,8 @@ It is limb (b)'s prose limb, not limb (a)'s directive limb, and it is exactly th
 **§2.2 is wrong in two places and both are withdrawn rather than rewritten:** its footing table puts
 `9042 Cassandra` in the *shipped default only — no prohibition exists upstream* row, and its prose
 says *"Cassandra's strongest upstream sentence is an attack-surface observation rather than a
-prohibition"*. Both were derived from the project's web documentation, which is where the note looked;
-neither survives the shipped bytes.
+prohibition"*. Both were derived from the project's web documentation, which is where the note looked.
+Neither survives the shipped bytes.
 
 | Where | Was | Is |
 |---|---|---|
@@ -4444,7 +4444,7 @@ remaining upstream files were fetched as raw bytes at release tags: `postgres/po
 `rabbitmq/rabbitmq-server` `v3.13.7`, `net-snmp/net-snmp` `master`.
 
 - **A 404 on a guessed path looks exactly like a project shipping no default.** CouchDB's configuration
-  lives at `rel/overlay/etc/default.ini`; the plausible guess `default.ini.tpl` (the name the file
+  lives at `rel/overlay/etc/default.ini`. The plausible guess `default.ini.tpl` (the name the file
   carried in earlier releases) returns 404 at every tag. A session that read that 404 as absence would
   have concluded CouchDB has no shipped default and moved the weakest row on the list. The path was
   resolved from the repository tree listing rather than guessed a second time.
@@ -4465,7 +4465,7 @@ remaining upstream files were fetched as raw bytes at release tags: `postgres/po
 Wayfinder ticket [#70](https://github.com/winniel123/verge-asm/issues/70), on the defect §12.9 recorded
 and routed rather than fixed: §2.2's footing table was built from the projects' **web documentation**,
 one file's bytes falsified one of its cells, and the other rows were assessed the same way. This
-section **amends §2.2, §12.2 and §12.8 by reference**; earlier text stands and is marked, per the
+section **amends §2.2, §12.2 and §12.8 by reference**. Earlier text stands and is marked, per the
 name-and-withdraw convention, and where §13 and an earlier section disagree, **§13 governs**.
 
 **Headline result, stated first.**
@@ -4514,8 +4514,8 @@ from the project's own repository tree or release tarball listing, never guessed
 | etcd | `etcd.conf.yml.sample`, `contrib/systemd/etcd.service` — `etcd-io/etcd` `v3.7.1` | Neither, and §13.6 is about that |
 
 **Three rows have no artefact to read, and that is a finding rather than a gap.** ~~`1433/tcp` MS SQL
-Server~~ (**no longer a listed row — REMOVED by §35**, [#109](https://github.com/winniel123/verge-asm/issues/109);
-the finding about the artefact stands as a retrieval verdict and is now beside the point, the row
+Server~~ (**no longer a listed row — REMOVED by §35**, [#109](https://github.com/winniel123/verge-asm/issues/109).
+The finding about the artefact stands as a retrieval verdict and is now beside the point, the row
 having left on the **claim** gate), `445/tcp` SMB with `139/tcp` and `137`, `138/udp`, and `623/udp`
 IPMI. Microsoft configures
 SMB and SQL Server through setup and the registry rather than through a file it ships, and a BMC's
@@ -4641,7 +4641,7 @@ rate was one cell in a table of nineteen pairs, and that the surviving eighteen 
 §2.2's disclosure can be quoted as measured rather than as derived, which is what §4.5 and the map's
 curation patch both lean on ~~when they call the weak tier a watch list~~ *(the **identity** is
 **SUPERSEDED** by [#125](https://github.com/winniel123/verge-asm/issues/125) — §2.2's disclosure is a
-**footing tier**, and the watch keys on the **revision act**; §39)*.
+**footing tier**, and the watch keys on the **revision act**. §39)*.
 
 ### 13.5 By-catch: the prohibition names two more ports, and neither is on the list
 
@@ -4684,7 +4684,7 @@ rather than a footing.
 > the one the ruling turned on.
 
 **The instrument is the finding.** #69 opened the right file, at the right tag, and read the two lines
-it had gone looking for. It recorded the sentence as appearing twice; it appears four times, and the
+it had gone looking for. It recorded the sentence as appearing twice. It appears four times, and the
 two it did not record are the interesting ones. A retrieval scoped to the rows a table already holds
 can confirm those rows and can discover nothing. That is
 [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md).
@@ -4702,7 +4702,7 @@ judgement. A tenth was retrieved here and it is the first near-miss.
 
 That is an **operative** self-description, on a file whose name ends `.sample` and which nothing
 installs — `contrib/systemd/etcd.service` runs `/usr/bin/etcd` with no `--config-file`. Under a
-syntax-reading it would be an example; under its own first sentence it would be the configuration.
+syntax-reading it would be an example. Under its own first sentence it would be the configuration.
 
 **§12 handles it without strain, through the limb it was built with.** Limb (a)'s second sentence —
 *"where the party documents a default elsewhere and the two disagree, the documented default
@@ -4746,7 +4746,7 @@ footing is not a claim — but ~~the map's curation patch reads the weak tier as
 list** for ADR-0032 §8's silent de-attestation~~ *(**SUPERSEDED** by
 [#125](https://github.com/winniel123/verge-asm/issues/125): the watch keys on the **revision act**, not
 the tier — and `2379`/`2380` are on the queue at **rung 2** on `THREAT_MODEL.md` regardless of which
-tier they sit in; §39.4)*, and a watch list missing half its members is worse than
+tier they sit in. §39.4)*, and a watch list missing half its members is worse than
 one that is honestly short. Routed to [#76](https://github.com/winniel123/verge-asm/issues/76), which
 does **not** block [#12](https://github.com/winniel123/verge-asm/issues/12).
 
@@ -4782,7 +4782,7 @@ does **not** block [#12](https://github.com/winniel123/verge-asm/issues/12).
 | §12.2's nine-for-nine | nine artefacts, nine self-declarations | **ten artefacts, nine self-declarations** — §13.6 |
 | §12.9's *"a published claim … built the wrong way"* | open, routed to #70 | **discharged.** The table was rebuilt from the artefacts and came out the same |
 
-**Outside this note.** Nothing. ADR-0009, ADR-0008 and ADR-0032 are untouched;
+**Outside this note.** Nothing. ADR-0009, ADR-0008 and ADR-0032 are untouched.
 [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) is added and
 is a method rather than a table edit.
 
@@ -4809,14 +4809,14 @@ that a project whose README calls daemon mode *"generally used for public file d
 a public deployment and that §10.3 does not ask which port. **The criterion that would reopen it:** an
 rsync sentence endorsing a **cleartext** daemon on an untrusted network, or the removal of the
 `rsyncd.conf.5` guidance that puts `873` behind a proxy on loopback. Either would put the row in
-genuine jeopardy; neither is in the current bytes.
+genuine jeopardy. Neither is in the current bytes.
 
 ### 13.10 Retrieval method and hazards, recorded per §9.5
 
 **Every artefact quoted in §13 was read as shipped bytes, never as a rendered page**, at a named tag or
 release, with paths resolved from the repository tree or tarball listing. `sources.debian.org` and
 `salsa.debian.org` were not used and still serve a proof-of-work JavaScript challenge to a plain
-client (§11.9); no distributor packaging was needed, because every project in this pass ships its own.
+client (§11.9). No distributor packaging was needed, because every project in this pass ships its own.
 
 - **`nfs-utils` has no upstream forge mirror that serves bytes, and the release tarball does.**
   `nfs-utils-2.9.2.tar.xz` was taken from `kernel.org/pub/linux/utils/nfs-utils/`, verified by
@@ -4844,7 +4844,7 @@ client (§11.9); no distributor packaging was needed, because every project in t
 
 Wayfinder ticket [#75](https://github.com/winniel123/verge-asm/issues/75), on the two candidate rows
 §13.5 found and routed. This section **amends §1, §2.4, §4.2, §4.3, §4.6, §8 and §13.5 by
-reference**; earlier text stands and is marked, per the name-and-withdraw convention, and where §14
+reference**. Earlier text stands and is marked, per the name-and-withdraw convention, and where §14
 and an earlier section disagree, **§14 governs**.
 
 **Headline result, stated first.**
@@ -5011,7 +5011,7 @@ current documentation, never off a frequency source.
 **The argument for admitting it anyway, stated and refused.** It is a good one: a 7000/tcp listener
 *reachable from an internet vantage* is far more likely to be Cassandra than AirPlay, because AirPlay
 receivers sit behind NAT. **That is a frequency argument, and this note rules frequency out at the
-top of §1**; §11.5 refused a deployment-share argument by name, and §12.3 ground 1 refused another.
+top of §1**. §11.5 refused a deployment-share argument by name, and §12.3 ground 1 refused another.
 Determinacy asks whether the **pair determines a service**, not whether one of two services is more
 often exposed. It also is not safely true: `Exposure` fires on `edge-only` as well as `exposed`
 (§4.1), IPv6 estates give every device a globally routable address, and UPnP forwards ports without
@@ -5069,8 +5069,8 @@ data.** Three facts, in increasing order of force.
 2. **Oracle documents WebLogic Server's AdminServer on 7001.** **[measured]** Oracle's own current
    container image README ships `ADMIN_LISTEN_PORT` `(default: 7001)` and its worked commands are
    `docker run -d -p 7001:7001 …`
-   ([`oracle/docker-images`, `OracleWebLogic/dockerfiles/14.1.2.0/README.md`](https://github.com/oracle/docker-images/blob/main/OracleWebLogic/dockerfiles/14.1.2.0/README.md));
-   the WebLogic administration guide states it in prose — *"It provides a single Listen Address, one
+   ([`oracle/docker-images`, `OracleWebLogic/dockerfiles/14.1.2.0/README.md`](https://github.com/oracle/docker-images/blob/main/OracleWebLogic/dockerfiles/14.1.2.0/README.md)).
+   The WebLogic administration guide states it in prose — *"It provides a single Listen Address, one
    port for HTTP communication (7001 by default), and one port for HTTPS communication (7002 by
    default)"*. That is the competing vendor about its own product, as Apple is for `7000`. It is also
    the worse shape: WebLogic's 7001 is an **HTTP admin console**, so `7001` is conventionally an HTTP
@@ -5084,7 +5084,7 @@ data.** Three facts, in increasing order of force.
    a port its own probe schedule selected as a generic web port.
 
 **Fact 3 corroborates and does not carry.** §6 forbids deriving the sensitive list from the hot set,
-because that would make frequency a precondition of normativity; letting #4's service *labels* decide
+because that would make frequency a precondition of normativity. Letting #4's service *labels* decide
 a §2.4 question would be the same laundering arriving through the determinacy gate instead of through
 membership. The ground for limb two is IANA plus Oracle. #4's label is recorded because a
 **product-coherence** defect is worth seeing, and because it is the sharpest available illustration
@@ -5103,11 +5103,11 @@ not its successor but its **withdrawn** sibling: the owner collapsed the split, 
 now lives on `7000` itself.
 
 **So this pair is the §9.2 and §11.5 shape, and it is the third instance.** StartTLS hardens 389 on
-389; SNMPv3 hardens 161 on 161; and **Cassandra hardens 7000 on 7000**, in the owner's own words —
+389. SNMPv3 hardens 161 on 161. And **Cassandra hardens 7000 on 7000**, in the owner's own words —
 *"a single port can be used for either/both secure and insecure connections"*, and, in
 `server_encryption_options`, *"When set to true, encrypted and unencrypted connections are allowed on
 the storage_port."* §9.2 recorded that RFC 6335 §9 steers implementers away from split ports and that
-Class B's replacement is structurally invisible to a `(port, transport)`-keyed list; this is a project
+Class B's replacement is structurally invisible to a `(port, transport)`-keyed list. This is a project
 executing that migration inside a single major version, with the before and after both in the file.
 
 **And had §4.2 been reached, its answer would be unchanged.** TLS bears on Claim 2 and on nothing
@@ -5123,7 +5123,7 @@ else, so it could not have moved a row resting on Claim 3. `2375`/`2376` remains
   same deprecation block above `ssl_storage_port: 7001`, `listen_address: localhost`,
   `internode_encryption: none`, `legacy_ssl_storage_port_enabled: false` and a commented
   `#internode_authenticator:`. Elastic ships `localhost` in one operative default and `0.0.0.0` in
-  another; Cassandra does not, and it took opening the second file to know that. A session that reads
+  another. Cassandra does not, and it took opening the second file to know that. A session that reads
   §12.2's *"Cassandra `conf/cassandra.yaml` … Operative"* as naming the only operative file has
   under-read the artefact by one.
 - **`docs.oracle.com` serves a JavaScript shell to a plain client on its current documentation
@@ -5137,8 +5137,8 @@ else, so it could not have moved a row resting on Claim 3. `2375`/`2376` remains
   half, and nowhere as grounds for a verdict, exactly as §4.3 uses it to note that 9090 is still
   `zeus-admin`.
 - **The determinacy gate has no stated evidence standard, and this ticket is the first to lean its
-  whole ruling on it.** §2.2 has three attestation forms and an owner definition (§10.5); §2.1 has a
-  closed claim set (§10.2); §2.4 has *"uncontested convention"* and no account of what establishes
+  whole ruling on it.** §2.2 has three attestation forms and an owner definition (§10.5). §2.1 has a
+  closed claim set (§10.2). §2.4 has *"uncontested convention"* and no account of what establishes
   it. This section had to weigh a vendor's product-port table, a vendor's container image README, an
   IANA annotation and a rendered manual against each other with nothing in the standard to rank them.
   The ruling does not turn on the gap — every source used is first-party about its own product, which
@@ -5195,7 +5195,7 @@ otherwise require authority"* for asking a reviewer to imagine a counterfactual.
 that by keying liveness to **the competing owner's own current documentation** rather than to
 deployment share, which is the tightest available footing and is not a proof. A reader who says that
 Apple's ports table is a specification of *Apple's* products and cannot bear on what `7000` means
-generally has a real argument; the reply is that the same reader must then explain `9100`, which is
+generally has a real argument. The reply is that the same reader must then explain `9100`, which is
 excluded on nothing stronger.
 
 **The claim that no other live service occupies `7000` or `7001` is not made.** What is established
@@ -5204,7 +5204,7 @@ that requires convention to be **un**contested, and it is not a survey.
 
 **`7001`'s version-dependence limb rests on a comment, not on a code path.** The deprecation sentence
 and `legacy_ssl_storage_port_enabled: false` were read from the shipped configuration and from the
-`Config.java` field; the listener-binding code that consumes the flag was not read. The comment is the
+`Config.java` field. The listener-binding code that consumes the flag was not read. The comment is the
 owner's own prose under §12(b) and the flag is an active directive under §12(a), so the finding stands
 on the standard's own terms — but a session that needs the binding behaviour itself has not got it
 here.
@@ -5212,7 +5212,7 @@ here.
 **Neither port's absence from `verge-core`'s frequency half is treated as a defect, and that is a
 ruling rather than an omission.** #4's supplement admits a port because it *"maps to a named v1 risk
 signal"*. `7000` maps to none once this section refuses it, so its absence is the frequency half
-working correctly rather than a gap; and `7001`'s presence is #4's own HTTP-alternate judgement, which
+working correctly rather than a gap. And `7001`'s presence is #4's own HTTP-alternate judgement, which
 this note has no standing to revise. **The criterion that would reopen it:** a v1 signal other than
 `sensitive-port-reached-from-internet` that `7000` maps to.
 
@@ -5223,7 +5223,7 @@ this note has no standing to revise. **The criterion that would reopen it:** a v
 Wayfinder ticket [#82](https://github.com/winniel123/verge-asm/issues/82), the gap
 [ADR-0042](../adr/0042-a-squat-is-contested-where-the-other-convention-is-live.md) named in its own
 Consequences and §14.6 recorded as a hazard met. This section **amends §2.4, §4.3, §8 and §9.3.4 by
-reference**; earlier text stands and is marked, per the name-and-withdraw convention, and where §15
+reference**. Earlier text stands and is marked, per the name-and-withdraw convention, and where §15
 and an earlier section disagree, **§15 governs**.
 
 **Headline result, stated first.**
@@ -5286,7 +5286,7 @@ documents and stands or falls with them.
 
 **Where it comes from, in one paragraph.** [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md)
 §6 cut three instruments on where a table sits relative to the wire — what we **ask**, what a byte
-**means**, what a value means **normatively**. §2.1 and §2.2 are *after* the wire; **§2.4 is at it**,
+**means**, what a value means **normatively**. §2.1 and §2.2 are *after* the wire. **§2.4 is at it**,
 which is what ADR-0032 meant by calling determinacy the **surrogate** gate. So determinacy's evidence
 standard is [#31](https://github.com/winniel123/verge-asm/issues/31)'s and not
 [#21](https://github.com/winniel123/verge-asm/issues/21)'s: *a table deciding what an answer means is
@@ -5343,12 +5343,12 @@ contestedness, and §1's exclusion of frequency is gone.
 **Re-founded on two grounds, in order of force, with the weaker one marked.**
 
 1. **No current placement statement for WSP on `9200/tcp` was found.** The registrant is the WAP
-   Forum, absorbed into the Open Mobile Alliance in 2002; the surviving specification —
+   Forum, absorbed into the Open Mobile Alliance in 2002. The surviving specification —
    [*Wireless Session Protocol* `OMA-WAP-TS-WSP-V1_0-20110315-A`](https://www.openmobilealliance.org/release/Browser_Protocol_Stack/V2_1-20110315-A/OMA-WAP-TS-WSP-V1_0-20110315-A.pdf) —
    sits in an archived release of a suite no party currently ships or supports. Under limb 4 that is
    **not current**, and it places nothing.
 2. **The WAP bearer ports are UDP, so they are not this key.** WSP runs over WDP, and the four
-   standard WDP ports are `9200`-`9203` **UDP**. This table is keyed on `(port, transport)` pairs;
+   standard WDP ports are `9200`-`9203` **UDP**. This table is keyed on `(port, transport)` pairs.
    `9200/tcp` and `9200/udp` are different keys, and a competing convention on the wrong transport
    cannot contest a pair it is not on. **Marked as corroborated rather than measured** — the transport
    fact is taken from a third-party protocol reference and from the IANA row, both limb-5 sources, and
@@ -5363,7 +5363,7 @@ remediation.
 
 **What the re-founding costs, stated plainly.** The rule is deliberately non-monotone in deployment
 size, in both directions. Had WAP a hundred million handsets in the field and no current placement
-document, `9200/tcp` would still be listed; had AirPlay a thousand installs and a current Apple page,
+document, `9200/tcp` would still be listed. Had AirPlay a thousand installs and a current Apple page,
 `7000/tcp` would still be refused. That is uncomfortable and it is the price of a gate a reviewer can
 run as a retrieval instead of a judgement — the same trade §10.1 made when it deleted *"would
 otherwise require authority"* and §12.4 made when it refused a coherence gate.
@@ -5387,7 +5387,7 @@ was looked for.**
 | `623/udp` IPMI | `yes` per §3.3, `sq.` per ADR-0042 | **No contest.** `asf-rmcp` is the **transport IPMI rides**, not a rival service, so limb 3 disposes of it whichever way the cell reads | **Listed, unchanged** |
 
 **Two `reg.` cells are inconsistent with §2.4 and neither changes a verdict.** §3.2 marks `6000/tcp`
-`--` while §2.4 states that *"6000/tcp is registered, as `x11`, across the 6000-6063 range"*; and
+`--` while §2.4 states that *"6000/tcp is registered, as `x11`, across the 6000-6063 range"*. And
 §3.3 marks `623/udp` `yes` while §2.4's own table and ADR-0042 treat it as a squat on `asf-rmcp`.
 Both rows survive on either reading, so the cells are **recorded here rather than corrected** — the
 tables are in another session's lane this week, and a `reg.` cell is disclosure rather than
@@ -5476,7 +5476,7 @@ the source rule that makes such an argument checkable.
 **Limb 2's *one statement suffices* is the thinnest structural choice here.** Somewhere on the
 internet a party can probably be found documenting some product on almost any number, and one such
 find would defeat a row. Two things hold it: the placement must be a **documented default of a
-generally available product**, which excludes *our software can be configured on 3306*; and the
+generally available product**, which excludes *our software can be configured on 3306*. And the
 error direction is the one this table has always chosen — §4.4's *"the list's entire value is that a
 firing is never arguable"*. **The criterion that would falsify it** is the walk itself: if a later
 pass finds defeaters for most convention-resting rows, the gate is too easy to trip and this standard
@@ -5490,13 +5490,13 @@ simply silent about compatibility. **The criterion that would sharpen it:** a ca
 second party places a partially compatible protocol on the number and declares neither.
 
 **Nothing here is measured in the `[measured]` sense the note reserves for bytes.** §14's Cassandra
-findings were bytes at named tags; this section's retrievals are documents read for a sentence. The
+findings were bytes at named tags. This section's retrievals are documents read for a sentence. The
 distinction matters because the standard this section writes is about **documents**, so the artefacts
 are the right kind — but no claim in §15 should be quoted as measured.
 ## 16. The footing table's seven uncovered rows are placed, and it now states its own coverage
 
 Wayfinder ticket [#76](https://github.com/winniel123/verge-asm/issues/76), on the coverage gap §13.7
-counted and routed rather than filled. This section **amends §2.2 and §3.4 by reference**; earlier
+counted and routed rather than filled. This section **amends §2.2 and §3.4 by reference**. Earlier
 text stands and is marked, per the name-and-withdraw convention, and where §16 and an earlier section
 disagree, **§16 governs**.
 
@@ -5557,7 +5557,7 @@ reason `THREAT_MODEL.md` was found at all.
 **`2375/tcp` Docker → trusted-network scoping, with `2376`.** §3.4 already carries *"It is also
 recommended to ensure that it is reachable only from a trusted network or VPN"* from Docker Engine
 security, and the sentence is about the daemon's remote API rather than about either port
-individually. `2376` sits in the scoping tier on it; `2375` is the same sentence's other port. The
+individually. `2376` sits in the scoping tier on it. `2375` is the same sentence's other port. The
 placement is clerical in the strict sense — no new evidence, and refusing it would put two ports of
 one API in two tiers on one sentence.
 
@@ -5635,7 +5635,7 @@ instruction.
 2. **A threat model is a stronger commitment than a hardening tip, not a weaker one.** Declaring
    internet exposure outside the trust boundary is the project stating it **will not defend** that
    deployment. Every other prohibition in the corpus is a recommendation the owner could quietly walk
-   back; this one has a cost attached, in the §10.4 sense — etcd pays for it by declining reports.
+   back. This one has a cost attached, in the §10.4 sense — etcd pays for it by declining reports.
 3. **The purpose reading proves too much, and §13.3 already refused its mirror image.** rsync's
    systemd unit quotes a README sentence naming *public* file distribution, and §13.3 refused to read
    it as an endorsement partly because *"the comment's stated purpose is the opposite"* — it cites the
@@ -5648,7 +5648,7 @@ instruction.
 still cites `etcd.io/docs/**v3.5**/op-guide/security/`. The Network Boundary paragraph is
 **byte-identical at `v3.7.0`, `v3.7.1` and `main`**, across the one revision the file has had
 (2026-07-31, which added triage disposition rules and left this paragraph untouched). §13.1 read etcd
-at `v3.7.1`; this section reads the same tag, which is the consistent choice. §16.9 flags what that
+at `v3.7.1`. This section reads the same tag, which is the consistent choice. §16.9 flags what that
 costs.
 
 > **Amended by §25** ([#92](https://github.com/winniel123/verge-asm/issues/92)). **This section's
@@ -5709,7 +5709,7 @@ and is not what carries the row: on its own it is an instruction to protect rath
 placement, which is precisely why the row needed this retrieval.
 
 **[measured]** The shipped `elasticsearch.yml` at `v9.5.1` contains **no** prose about the transport
-interface or about `9300` at all; its Network section is about `network.host` and `http.port` only. A
+interface or about `9300` at all. Its Network section is about `network.host` and `http.port` only. A
 session that had gone to the config file — the §13 instrument — would have found nothing. The
 attestation is in the documentation source, retrieved from the same tree at the same tag.
 
@@ -5747,7 +5747,7 @@ ReadOnlyPort int32 `json:"readOnlyPort,omitempty"`
 ```
 — `staging/src/k8s.io/kubelet/config/v1beta1/types.go`, `kubernetes/kubernetes` `v1.34.1`
 
-*"Default: 0 (disabled)"* is a **restricting** default and admissible under §10.4; the sentence above
+*"Default: 0 (disabled)"* is a **restricting** default and admissible under §10.4. The sentence above
 it is the §3.4 quote and is a **description of what the port serves**, not a position on where it may
 be reached from. So `10255` rests on a shipped default and nothing else. **It joins `5432` and `5984`
 in the weak tier, which is now three rows.**
@@ -5777,7 +5777,7 @@ against the rendered page"* — still carries `--read-only-port int32  Default: 
 owner's own artefacts disagree, which is **exactly** §13.3's Elastic case (`localhost` in the tarball,
 `0.0.0.0` in the Docker image) in a second instance: the **restricting** one attests and the
 **permissive** one is silent, and no judgement about which page is authoritative is required. §13.3
-called that case *"the cleanest demonstration that §10.4's one-way rule does real work"*; it now has
+called that case *"the cleanest demonstration that §10.4's one-way rule does real work"*. It now has
 company, and the company arrived from a different project and a different artefact class.
 
 > **By-catch, routed rather than decided — §3.4's kubelet defaults are quoted from a page the shipped
@@ -5849,7 +5849,7 @@ the same paragraph did not. Under §10.5 and §12(c) it corroborates under §2.3
 grounds**.
 
 **The distinction is per-port, not per-sentence, and that is the general point.** One RabbitMQ
-sentence names two ports; RabbitMQ **owns** `25672`, its own inter-node port, and **does not own**
+sentence names two ports. RabbitMQ **owns** `25672`, its own inter-node port, and **does not own**
 `4369`. So the same sentence carries one of its two ports and cannot carry the other. This is
 [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md)'s finding
 seen from the ownership side, and it is worth stating as a rule:
@@ -5972,7 +5972,7 @@ the port's clients rather than its permitted network, and sits under a page fram
 aware of"* for firewall planning. It is admitted because §10.3's boundary limb asks the owner to name
 the boundary and this does name one. **The criterion that would change the verdict:** a kubernetes.io
 sentence placing the kubelet API on an untrusted network as a supported deployment would remove it
-from the tier outright; the absence of any stronger sentence than the table cell would justify moving
+from the tier outright. The absence of any stronger sentence than the table cell would justify moving
 it to the weak tier, on the argument that `Used By` is a §12(b) **label**. That argument was
 considered and lost only narrowly.
 
@@ -5984,7 +5984,7 @@ considered and lost only narrowly.
 
 **`4369`'s cell rests on a sentence that does not name the port, and that is a real gap.**
 Erlang/OTP's *"make sure that the network is configured to keep potential attackers out"* is about
-distributed nodes and the distribution transport; epmd is the mechanism's registry rather than the
+distributed nodes and the distribution transport. Epmd is the mechanism's registry rather than the
 transport, and the page that **is** about epmd declines to prohibit anything, saying only that a
 firewall is what further restriction takes. A reader who says Erlang/OTP has stated a position about
 the distribution port and no position about `4369` has a live argument, and on that reading `4369`
@@ -6046,19 +6046,19 @@ than `4369`'s and is not zero.
 ### 16.10 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9 and §13.10
 
 **Every artefact was read as shipped bytes at a named tag or release branch, with paths resolved from
-the repository tree.** No rendered documentation site was used as a source of record; where a rendered
+the repository tree.** No rendered documentation site was used as a source of record. Where a rendered
 page is quoted (`kubelet.md`, `ports-and-protocols.md`) it is quoted **from its source file in the
 project's own docs repository at a release branch**, which is the shipped byte of the page.
 
 - **The document that decided this ticket is not where the row's citation points, and only a tree
-  listing found it.** §3.4 cites `etcd.io/docs/v3.5/op-guide/security/` for etcd; the position is in
+  listing found it.** §3.4 cites `etcd.io/docs/v3.5/op-guide/security/` for etcd. The position is in
   `THREAT_MODEL.md` at the repository root. It was found by listing the tree at `v3.7.1` and reading
   what was there, which is [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md)
   working exactly as §13.5 described it — *"a retrieval scoped to the rows a table already holds can
   confirm those rows and can discover nothing."* A session that fetched the cited URL would have
   confirmed §13.7's hypothesis and been wrong.
 - ~~**A generated reference page can be stale against the source that generates it, and the corpus now
-  has an instance.**~~ `kubelet.md` at `release-1.34` says `--read-only-port … Default: 10255`; the
+  has an instance.**~~ `kubelet.md` at `release-1.34` says `--read-only-port … Default: 10255`. The
   shipped `types.go` at `v1.34.1` says `Default: 0 (disabled)`. §3.4's parenthetical *"the 10255
   default verified directly against the rendered page"* names the hazard it walked into: **verifying
   against a rendering is not verifying**, and §11.9 had already recorded the same class for net-snmp's
@@ -6080,7 +6080,7 @@ project's own docs repository at a release branch**, which is the shipped byte o
   paths come from the tree rather than from expectation.
 - **`10255`'s absence was verified positively rather than assumed.** A search of `kubernetes/website`
   for `10255` returns eight files, of which the English-language substantive ones are the CLI
-  reference, `kubelet-config-file.md` and a standalone-kubelet tutorial; none states a network
+  reference, `kubelet-config-file.md` and a standalone-kubelet tutorial. None states a network
   position, and `ports-and-protocols.md` — the page that would carry one — does not list the port.
   Per §11.8, a negative retrieval is a verdict, and per ADR-0037 limb 3 it is a verdict about what was
   read.
@@ -6177,7 +6177,7 @@ and it costs a table. Only the five were **searched**.
 
 #66 read ten RFCs and five net-snmp artefacts. **[measured]** Every one of the ten is a
 **specification**, a **coexistence transition document** (RFC 3584) or an **applicability statement**
-(RFC 3410); the net-snmp five are **implementation guidance** and a **shipped example**. The IETF's
+(RFC 3410). The net-snmp five are **implementation guidance** and a **shipped example**. The IETF's
 **operational** class — the OPS-area documents that tell an operator how to run a managed network —
 was never opened. #66's own re-admission criterion is *"a first-party sentence from the IETF or from
 net-snmp placing SNMPv1/v2c inside a network boundary"*, and if one exists this is where it is.
@@ -6279,7 +6279,7 @@ Two findings, and the second is the one that matters.
    ports (inter node communication, CLI tools and so on)"* is exactly 4369 and 25672, and it is exactly
    those that *"should be restricted to hosts running RabbitMQ nodes"*. §4.6's reading of the
    prohibition's scope was correct and now rests on two documents rather than one.
-2. **The negative becomes a positive.** `5672` is AMQP 0-9-1 and 1.0; `15672` is the HTTP API. Both are
+2. **The negative becomes a positive.** `5672` is AMQP 0-9-1 and 1.0. `15672` is the HTTP API. Both are
    in the **first** category, and the owner says that category *"in some cases can mean public
    networks"*. That is **§10.3's failure condition met from the other side** — *"Where the owner names
    the public internet as a supported deployment environment, Claim 3 fails however strongly a third
@@ -6320,8 +6320,8 @@ about a **different document's content**, not about the **import** of one alread
    different gate. `9092/tcp` squats on `XmlIpcRegSvc` and §2.4's liveness test under ADR-0042 has not
    been run on that registration either.
 2. **[measured] The sentence is not shipped.** `docs/security/security-model.md` is present on
-   `apache/kafka` `trunk`; it is **absent from release tag `4.3.1`** (HTTP 404 on the raw path, against
-   HTTP 200 for `security-overview.md` at the same tag); and
+   `apache/kafka` `trunk`. It is **absent from release tag `4.3.1`** (HTTP 404 on the raw path, against
+   HTTP 200 for `security-overview.md` at the same tag). And
    `kafka.apache.org/documentation/security/security-model/` returns **HTTP 404**, while
    `kafka.apache.org/43/security/security-overview/` returns 200.
 
@@ -6367,9 +6367,9 @@ then.
 **[#76](https://github.com/winniel123/verge-asm/issues/76)'s §16.5 made the weak tier three rows —
 `5432/tcp`, `5984/tcp` and `10255/tcp` — and ~~the map's curation patch names the tier as the watch
 list~~ *(**SUPERSEDED** by [#125](https://github.com/winniel123/verge-asm/issues/125) — the watch keys
-on the **revision act**; §39)*.** Every row in it rests on a **negative**, the absence of an owner prohibition, so every one is
+on the **revision act**. §39)*.** Every row in it rests on a **negative**, the absence of an owner prohibition, so every one is
 sole-ground and every one is exposed. *(That sentence is the **sole-ground → exposed** link #125 reads
-on the positive side to make **support count** the queue's filter — §39.3. It survives intact; what is
+on the positive side to make **support count** the queue's filter — §39.3. It survives intact. What is
 superseded is only the identity above it.)* Do not quote a weak-tier membership from an earlier section: it
 was `5432`/`5984`/`9042` before §12, `5432`/`5984` after it, and it is three again for a different
 reason.
@@ -6379,7 +6379,7 @@ strongest-sounding in this note: *"PostgreSQL is the one service surveyed whose 
 states no position at all on network placement."* Its owner has **two** document classes — one manual
 and its shipped bytes — and #70 read both, at two release branches. There is no deployment BCP because
 there is no standards body, and no separate implementation guidance because the implementation and the
-specification are the same project. **§4.5's disclosure was already complete before ADR-0040 existed; it
+specification are the same project. **§4.5's disclosure was already complete before ADR-0040 existed. It
 simply could not say so.** It can now: the corpus is the manual and the shipped configuration, the
 result is empty, and the smallest extension that could change it is a PostgreSQL manual page that does
 not exist today.
@@ -6429,8 +6429,8 @@ the kubelet API read-only and without authentication, which §3.4's own quote fo
    [#76](https://github.com/winniel123/verge-asm/issues/76)'s.** Promoting `10255` out of the weak tier
    changes §2.2's tier counts and §16.7's restated table, both written this week by another pass. A
    negative swept in one lane may not silently re-tier a row placed in another.
-2. **The honest counter-argument is real and it is §2.3's.** Neither sentence names `10255` by number;
-   both name *"the kubelet API"* as a **category**, and §2.3's rule is that a source attesting a
+2. **The honest counter-argument is real and it is §2.3's.** Neither sentence names `10255` by number.
+   Both name *"the kubelet API"* as a **category**, and §2.3's rule is that a source attesting a
    category and not a port *"is therefore excellent corroboration and useless as the sole grounds for
    any individual row"*. What is different here — and it is the whole of the argument for promotion —
    is that §2.3's refusal was aimed at **CISA and the cloud providers**, parties that do not own the
@@ -6537,7 +6537,7 @@ test needs — rather than swept in here. Same routing §14.6 used, and for the 
 
 **One thing this section does not establish**, stated because a reader will otherwise assume it. The
 audit covers negatives **this note is standing on**. It does not certify that every *positive* footing
-was gathered under ADR-0040's rule; §13 did that work for the shipped-configuration half, and the prose
+was gathered under ADR-0040's rule. §13 did that work for the shipped-configuration half, and the prose
 half of §3.4 has never been re-derived class by class. That is a different question, it moves no row on
 any answer, and it is out of scope here.
 
@@ -6555,11 +6555,11 @@ the sweep is larger than four. The dependency is stated rather than buried.
 operator to tick, which is grammatically a **hardening instruction** — the shape §9.1 refused for Red
 Hat's *"use TCP Wrappers to limit which networks or hosts have access"* and §4.4 refused for the
 NSA/CISA Kubernetes guidance. The reply is that both of those were refused on **ownership**, and
-Kubernetes owns the kubelet; but a reader who holds that a checklist is a preference however
+Kubernetes owns the kubelet. But a reader who holds that a checklist is a preference however
 well-owned has a real argument, and it is a second reason the cell is reported rather than moved.
 
 **The Kafka finding rests on the absence of a file at one tag and one URL.** `4.3.1` is the current
-release and `trunk` is upstream's own branch; intermediate release branches were not enumerated, and a
+release and `trunk` is upstream's own branch. Intermediate release branches were not enumerated, and a
 `4.4.x` that ships the file would change the verdict tomorrow. The claim made is narrow — *not at
 `4.3.1`, not on the published site on 2026-08-14* — and it is not *never shipped*.
 
@@ -6595,14 +6595,14 @@ every subject in this table's domain that it names, per ADR-0037 limb 1.
   where a JavaScript shell would have returned 200 — so it is a real absence and not a retrieval failure.
 - **`www.rabbitmq.com` returns HTTP 403 to a plain client** and 200 with a browser user-agent. The
   production checklist was read from the second response, with markup stripped locally. That is one step
-  weaker than a raw artefact and it is flagged; the quoted passage was cross-checked against the page's
+  weaker than a raw artefact and it is flagged. The quoted passage was cross-checked against the page's
   own section anchor (`Firewall Configuration`).
 - **The `LDAPString` trap has a Kafka analogue and it was avoided.** A search for `expose` in Kafka's
   documentation matches *"the broker does not expose the controller listener"* and *"brokers expose one
   or more listeners"* — the verb in its ordinary technical sense — far more often than it matches an
   exposure position. The §17.5 quote was located by reading the file, not by grepping for the word.
 - **Not exhausted, and recorded as such.** Kafka's `docs/security/` holds ten files and
-  `docs/operations/` thirteen; four were read (`security-model.md`, `security-overview.md`,
+  `docs/operations/` thirteen. Four were read (`security-model.md`, `security-overview.md`,
   `listener-configuration.md`, `multi-tenancy.md`). **[measured]** the string `internet` occurs **zero**
   times in all four. The remaining files are about SASL mechanisms, SSL configuration, ACL syntax and
   Connect/Streams, and none is a network-posture document — but that is a judgement from their titles,
@@ -6636,7 +6636,7 @@ every cell in §16.7's table and every exclusion it could reach, moves two footi
 and names the one row the rule newly exposes.
 
 **This ticket performed no retrieval.** A row moves on a retrieval and never on a re-reading
-([#37](https://github.com/winniel123/verge-asm/issues/37)); §79's retrieval is the evidence and this
+([#37](https://github.com/winniel123/verge-asm/issues/37)). §79's retrieval is the evidence and this
 is the rule over it. Every quote below is already in this note or in §17.
 
 ### 18.1 The rule, in three limbs
@@ -6704,7 +6704,7 @@ that carries them, and leave `623` with no footing at all.
 The retrieved sentence is a **checklist item** — grammatically an instruction to a deployer, which
 is §9.1's Red Hat shape (*"a hardening instruction, not a legitimacy statement"*) and §4.4's
 NSA/CISA shape (*"a hardening preference expressed against a real, supported architecture"*). Both
-were refused. A checklist states a floor for a hardened deployment; it does not say every other
+were refused. A checklist states a floor for a hardened deployment. It does not say every other
 deployment is illegitimate, and this list's claim is the stronger one.
 
 **Three answers, in increasing order of force.**
@@ -6716,12 +6716,12 @@ deployment is illegitimate, and this list's claim is the stronger one.
 2. **The standard already admits weaker modality.** §2.2's third form asserts nothing about
    legitimacy at all: PostgreSQL's `listen_addresses = localhost` says only what the software does,
    and it is the **sole** footing for two rows. A sentence in the owner's voice saying the interface
-   *"is not exposed publicly on Internet"* is not weaker than a config default; it is the same
+   *"is not exposed publicly on Internet"* is not weaker than a config default. It is the same
    position stated out loud.
 3. **[measured] Applied consistently, the objection removes rows nobody proposes removing.** MySQL's
    *Security Guidelines*, MongoDB's *security hardening*, Microsoft's *Security considerations for a
    SQL Server installation* and ZooKeeper's *Administrator's Guide* are hardening documents in the
-   owner's voice, and all four carry rows in §3.4 today. **The genre is not the defect; the party
+   owner's voice, and all four carry rows in §3.4 today. **The genre is not the defect. The party
    is.**
 
 > **Against a non-owner, *this is a hardening instruction* is fatal because limb 1 has already
@@ -6762,7 +6762,7 @@ here.
 `11211/tcp`+`11211/udp`, ~~`1433`~~, `9200`+`9300`, `873`, `445`+`139`+`137`+`138`, `27017`/`27018`/`27019`,
 `2049`, `2181`, `2375`+`2376`. In each the owner states the category and the owner's own
 documentation or shipped configuration numbers the port — for several (`6379`, `2181`, `27017`) the
-two are the same file. **Nothing about these cells moves**; what changes is that their warrant is
+two are the same file. **Nothing about these cells moves**. What changes is that their warrant is
 now named rather than assumed.
 
 > **`1433`'s ratification is WITHDRAWN by §33** ([#107](https://github.com/winniel123/verge-asm/issues/107)),
@@ -6783,7 +6783,7 @@ now named rather than assumed.
 `10250/tcp` and `10255/tcp`, §18.6.
 
 **Not rescued — `4369/tcp` epmd.** Erlang/OTP's sentence is about *distributed nodes* and the
-distribution transport; epmd is the mechanism's **registry** rather than the transport, and the
+distribution transport. Epmd is the mechanism's **registry** rather than the transport, and the
 owner's own epmd page distinguishes them and declines to prohibit anything (§3.4, §16.6). The owner
 does not place `4369` inside the category it spoke about, so **limb 2 fails** and §16.9's *"a reader
 who says Erlang/OTP has stated a position about the distribution port and no position about `4369`
@@ -6792,7 +6792,7 @@ result: the rule is not a device for laundering an inference into a citation.
 
 **Newly exposed — `623/udp` IPMI, ticketed and not moved.** Dell's *"DRAC's are intended to be on a
 separate management network"* is the sentence §3.4 says *"actually carries the row"*. It names
-**DRACs**, a product line, which fails the ADR-0048 unit check on its face; and the number that
+**DRACs**, a product line, which fails the ADR-0048 unit check on its face. And the number that
 connects it to the row is **CISA's** *"usually UDP port 623"*, a corroborator, which limb 2 forbids.
 That is §10.6's shape — *a corroborator standing where an owner should* — in a second instance, in
 the **prohibition** tier, and §10.6 is what took `161/udp` off the list. **It is not decided here:**
@@ -6916,7 +6916,7 @@ That flag is discharged.
 
 **`10255`'s cell is the thinnest member of the prohibition tier, and it is thinner than `10250`'s.**
 Its membership evidence is a **doc comment on a config-API field** rather than an entry in the
-owner's ports table; the port appears nowhere in `ports-and-protocols.md` at all (§16.5, verified
+owner's ports table. The port appears nowhere in `ports-and-protocols.md` at all (§16.5, verified
 positively). And both cells rest on a **checklist item** — the only cells in the tier that do. The
 tier's other members are prose sentences in reference documentation or shipped configuration
 comments, genres that change slowly. A checklist line in a documentation release branch can be
@@ -6995,7 +6995,7 @@ back badly, `1433` is the next cell to check.
 **Outside this note.**
 [ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md)
 is added. **ADR-0032 §8's watch-list enumeration is amended for the third time** and reads `5432/tcp`
-and `5984/tcp`; the sequence is now 3 → 2 → 3 → 2 with the membership changing at every step, which
+and `5984/tcp`. The sequence is now 3 → 2 → 3 → 2 with the membership changing at every step, which
 is §8's own *compare members, not counts* lesson in a second instance. ~~The map's *how the tiered port
 sets are curated* patch must record the watch list as **two rows** again.~~ *(**SUPERSEDED** by
 [#125](https://github.com/winniel123/verge-asm/issues/125): the *compare members, not counts* lesson is
@@ -7019,7 +7019,7 @@ on a retrieval and never on a re-reading, and every quote this section relies on
 re-fetched. **Two consequences are worth recording.** No cell here can be stronger than the retrieval
 that produced its quote — `10250`/`10255` inherit §16.10's discipline and its caveats whole. And the
 `623` finding is stated as a **gap in the artefacts this note holds**, which is not the same claim as
-*no owner artefact numbers the port*; that stronger claim needs the search
+*no owner artefact numbers the port*. That stronger claim needs the search
 [#90](https://github.com/winniel123/verge-asm/issues/90) will run, and ADR-0040 binds its negative.
 
 ---
@@ -7046,7 +7046,7 @@ limb 1 already answers it in a case it was not written for.
 
 Read as shipped bytes at a named tag, paths resolved from the repository tree — §11.9's, §13.10's and
 §16.10's discipline. **Every finding was taken at `v1.34.1`, the tag §16.5 used, and then re-taken at
-`v1.36.3`, the current stable release.** Two minor versions separate them and nothing moved; #73's
+`v1.36.3`, the current stable release.** Two minor versions separate them and nothing moved. #73's
 citation-staleness trigger is discharged for this row rather than assumed.
 
 | Repository | Artefact, at the tag or branch named | What it settles |
@@ -7218,10 +7218,10 @@ its third, and §10.4's one-way rule is written about the third.
 > would have been settling nothing.
 
 This is limb 2 of ADR-0036 in its other direction. Limb 2 says a **directive** is not a position and
-a **label** describing what a directive does is not a position; this says a **description of a
+a **label** describing what a directive does is not a position. This says a **description of a
 permissive default** is not one either. #76 §16.5 already applied exactly this reasoning to the
 `readOnlyPort` sentence, calling it *"a description of what the port serves, not a position on where
-it may be reached from"*. The reasoning generalises; it was not about that sentence.
+it may be reached from"*. The reasoning generalises. It was not about that sentence.
 
 ### 19.5 `10250/tcp` — Claim 1 fails, Claim 3 holds, and the row changes class
 
@@ -7328,7 +7328,7 @@ is two defaults, and the two files are describing different ones.
 **The parenthetical is withdrawn for the reason that survives that correction.** Verifying against a
 rendering established that the rendering says what it says. What it could not establish — and what
 only the source could — is **which of the owner's positions the rendering renders**. §11.9 recorded
-the `man2html` hazard as one of currency; this is the sharper form: a rendering carries no provenance
+the `man2html` hazard as one of currency. This is the sharper form: a rendering carries no provenance
 about the artefact behind it, and a correct rendering of a deprecated interface reads identically to
 a current one. The cure is the same in both cases and it is ADR-0037's: retrieve over the artefact.
 
@@ -7403,7 +7403,7 @@ is spent: **free in the strong sense**, in §12.7's and §14.7's phrase.
 **A class is not a member.** The rule reads the list of `(port, transport)` pairs (§5: *no middle,
 one signal, binary*), and the classes are this note's presentation of which claim each row makes.
 Moving a row between them changes no content the rule reads. This is #69's rule read the other way
-round: there, a footing moved and the claim did not, so the row kept its class; here the claim moves
+round: there, a footing moved and the claim did not, so the row kept its class. Here the claim moves
 and the pair does not, so the list keeps its member.
 
 ### 19.10 Every dependent figure, walked rather than asserted
@@ -7457,16 +7457,16 @@ untouched.
 ### 19.11 The options that lost
 
 **Remove `10250` from the list.** The strongest losing option, and the one the ticket was priced for.
-Its case: Claim 1 fails outright; Claim 3's only support is a **table cell** in a page framed as
+Its case: Claim 1 fails outright. Claim 3's only support is a **table cell** in a page framed as
 *"useful to be aware of"*, which is arguably a §12(b) **label** describing what the port is used by
-rather than a position on where it may be reached from; and [#66](https://github.com/winniel123/verge-asm/issues/66)
+rather than a position on where it may be reached from. And [#66](https://github.com/winniel123/verge-asm/issues/66)
 removed `161/udp` on precisely *"we could not find anyone entitled to say that exposing it is never
 correct"*. **It loses on the owner gate, which is the difference between the two rows.** `161/udp`'s
 boundary came from CISA — a corroborator, §10.6's finding. `10250`'s comes from Kubernetes, which
 authors the kubelet, so §10.5's owner test is passed rather than failed. It loses on repetition too:
 the same cell appears in the control-plane table and the worker-node table, and a page about network
 boundaries naming a port's clients twice is naming a boundary. And removal is the expensive option
-under this note's own pricing, so it must earn its way; a cell that is the owner's, that appears
+under this note's own pricing, so it must earn its way. A cell that is the owner's, that appears
 twice, and that sits in a document whose subject *is* network placement is enough for Claim 3 on the
 same standard that carries `2376/tcp` Docker and `2049/tcp` NFS.
 
@@ -7474,7 +7474,7 @@ same standard that carries `2376/tcp` Docker and `2049/tcp` NFS.
 operative — an operator running `kubelet` without `--config` really does get `AlwaysAllow` and
 anonymous access, and that is a fact about released software, which is what Claim 1 says it wants.
 **It loses twice over.** §10.4's one-way rule makes a permissive default silent regardless of how
-operative it is, so it could not carry the claim even if it were the only default; and ADR-0036 limb
+operative it is, so it could not carry the claim even if it were the only default. And ADR-0036 limb
 1 rules it out as *the* shipped default because the owner labels it legacy. Taking it would also have
 required deciding which invocation path is modal, which is a deployment-share judgement with no owner
 — the shape §10.1 deleted and §2.3 refuses corroborators for.
@@ -7504,20 +7504,20 @@ than beside it.
 **`10250`'s Claim 3 now rests on the artefact §16.9 already called the thinnest placement in the
 footing table, and the weakness has been promoted from the footing to the claim.** §16.9's flag reads
 that every other scoping row has a *sentence* naming a network while `10250`'s is a table cell naming
-the port's clients. That was a disclosure about how strongly the row is footed; it is now also a
+the port's clients. That was a disclosure about how strongly the row is footed. It is now also a
 disclosure about **whether the row's claim holds at all**, because Claim 3 has no second support on
 this row. §16.9 recorded that the argument for treating `Used By` as a §12(b) label *"was considered
 and lost only narrowly"* — on the footing question. It is put again here, on the claim question, and
 it loses again, but a reader should know it has now lost twice on the same cell rather than once.
 **The criterion that would change the verdict is unchanged and is §16.9's:** a kubernetes.io sentence
-placing the kubelet API on an untrusted network as a supported deployment removes the row outright;
-sustained failure to find any statement stronger than the table cell is the argument for reopening.
+placing the kubelet API on an untrusted network as a supported deployment removes the row outright.
+Sustained failure to find any statement stronger than the table cell is the argument for reopening.
 
 **§19.3's rule is stated from three instances in one project.** The deprecation label appears in
 `applyLegacyDefaults`'s comment, in `AddKubeletConfigFlags`'s stamp and on the generated page — but
 all three are Kubernetes, and the rule is written to travel to any future curated table. ADR-0036
 limb 1 was measured across **nine** configuration artefacts from as many projects before it was
-stated; this amendment has one project behind it. It is a reading of limb 1 rather than a new limb,
+stated. This amendment has one project behind it. It is a reading of limb 1 rather than a new limb,
 which is why it is stated anyway, but the measurement behind it is one project deep and that is worth
 knowing before it is relied on elsewhere.
 
@@ -7574,13 +7574,13 @@ check that the two passes agree about which of `10255`'s two supports each of th
   deprecation stamp beside each entry is read — is that the interface it documents is one the owner
   routes operators away from. **Reading the `Default:` cell and stopping is the whole defect**, and
   the cure was three words to the right on the same line.
-- **The finding was re-taken at the current tag rather than inherited.** §16.5 measured at `v1.34.1`;
-  stable is now `v1.36.3`. All three settings, `applyLegacyDefaults`, its call site and the
+- **The finding was re-taken at the current tag rather than inherited.** §16.5 measured at `v1.34.1`.
+  Stable is now `v1.36.3`. All three settings, `applyLegacyDefaults`, its call site and the
   deprecation block are byte-equivalent across both. **[measured]** by fetching both tags rather than
   by assuming a two-version-old measurement holds — which is #73's citation-staleness trigger applied
   before it fires rather than after.
 - **`kubernetes/website` has no branch matching the current `kubernetes/kubernetes` release.** Its
-  newest release branch is `release-1.35`; `release-1.36` returns 404 and current docs are on `main`.
+  newest release branch is `release-1.35`. `release-1.36` returns 404 and current docs are on `main`.
   A session that guessed the branch from the code tag would read a 404 as a withdrawn document. The
   branch list was read before any path was resolved, per §13.10's rule.
 - **The config loader's defaulting behaviour was taken from the source's own comment rather than
@@ -7658,7 +7658,7 @@ deployment guide. **Four classes exist and all four were opened.**
 | **Shipped default** (§2.2's third form) | `erts/epmd/src/*.c`, and the documented `ERL_EPMD_ADDRESS` default | Yes — **permissive, therefore silent** under §10.4 |
 
 **The corpus was bounded positively rather than by judgement.** **[measured]** A GitHub code search of
-`erlang/otp` for the literal `4369` returns eight substantive files; the documentation members are
+`erlang/otp` for the literal `4369` returns eight substantive files. The documentation members are
 exactly `epmd_cmd.md`, `erl_dist_protocol.md` and `alt_disco.md`, and the rest are source, headers and
 test data. A search for `epmd` restricted to `.md` returns twenty-five files, of which the
 non-release-notes, non-HOWTO members are the eight named above plus `kernel_app.md` (the
@@ -7699,7 +7699,7 @@ across four priorities — `Critical`, `High`, `Medium`, `Recommendation` — of
 2. **It states the hazard in the owner's voice, and the hazard is enumeration** — *what nodes exist and
    what ports they are listening on* — with two CWE identifiers attached. That is the material for
    §3.1's *"why"* cell, and it is not a cookie.
-3. **Its remedy reaches the port.** *Disable the default EPMD* removes the `4369` listener; the owner's
+3. **Its remedy reaches the port.** *Disable the default EPMD* removes the `4369` listener. The owner's
    own `erl` reference documents the switch — *"`-start_epmd true | false` … Specifies whether Erlang
    should start epmd on startup. By default this is `true`"*. Under **§10.4.3**'s table this is the
    `11211/udp` and `2375/tcp` shape — the remedy **is** the port — so the remedy route does not
@@ -7753,7 +7753,7 @@ setup between two nodes**, after node names have been exchanged, using hashed ch
 `distributed.md` § *Security*, which also opens with *"'Security' here does **not** mean
 cryptographically secure, but rather security against accidental misuse."* The EPMD Protocol chapter of
 `erl_dist_protocol.md` enumerates seven request types and **[measured]** the string `cookie` does not
-appear in it; every cookie reference in that document is in the **handshake** chapter. So the old cell
+appear in it. Every cookie reference in that document is in the **handshake** chapter. So the old cell
 attributed to `4369` a protection that lives on a different port and, per its own owner, is not a
 security mechanism in the first place.
 
@@ -7812,13 +7812,13 @@ remote node — and **the row comes off**, which is §10.6's `161/udp` shape a t
 
 1. **Step 1's text is not specification-only.** It reads *"the specification **or the owner's own
    documentation**"*, and the owner's own documentation answers it the other way. `DEP-001` did not
-   exist when §10.1 was written; it does now, and §10.6's rule that *a verdict changes on retrieval*
+   exist when §10.1 was written. It does now, and §10.6's rule that *a verdict changes on retrieval*
    cuts in this direction as readily as the other.
 2. **The two owners characterise their own lookup oppositely, and that is the whole disanalogy.**
    §9.1's finding about rpcbind is that its maintainers took two restricting acts and **neither reached
    the port**, with no prohibition anywhere. Erlang/OTP's act **reaches the port** — disable the daemon
    — and arrives attached to a `Critical` deployment rule and two CWE identifiers. The architectures
-   are identical; the owners' positions are opposite; and §2.2 keys on the **owner's position**, never
+   are identical. The owners' positions are opposite. And §2.2 keys on the **owner's position**, never
    on the architecture.
 3. **The caller populations differ, and the specifications say so.** `rpcbind(8)`'s *client* is
    whoever an RPC service serves, which is unbounded by design. EPMD's callers are, on the owner's own
@@ -7856,7 +7856,7 @@ so nobody re-derives them.**
    is about the distribution port, not 5984* — which is a statement about what a sentence covers rather
    than an attestation drawn from it. Ownership does not bear on that use.
 2. **It names neither listed port.** CouchDB's distribution port is the `9100-9200` range its own page
-   recommends; `4369` is a **separate row** in the same table.
+   recommends. `4369` is a **separate row** in the same table.
 3. **The claim in it is true**, which is what made the transposition in §20.5 so easy. The cookie
    *does* guard the distribution handshake. It simply does not guard `4369`.
 
@@ -7873,7 +7873,7 @@ changes.**
 
 **The promotion argument, stated because it is good.** `DEP-001`'s **title** is an imperative negative
 naming a network class — *Do Not Expose Default Erlang Distribution on Untrusted Networks* — carried
-at `Critical`, one of six in the document; and its EPMD paragraph advises disabling the daemon
+at `Critical`, one of six in the document. And its EPMD paragraph advises disabling the daemon
 **unconditionally**, which is stronger than any scoping sentence in the tier. On that reading `4369`
 belongs beside `2379`/`2380` in the **prohibition** tier.
 
@@ -8023,7 +8023,7 @@ time.
 
 **`DEP-001` is four months old in a release, and that is the §16.9 hazard pointed at this section's
 own finding.** **[measured]** `secure_coding.md` is absent at `OTP-28.4` and earlier, first appears at
-`OTP-28.5` (released 2026-04-23) and is present at `OTP-29.0.5`; its first commit dates to 2026-02-18.
+`OTP-28.5` (released 2026-04-23) and is present at `OTP-29.0.5`. Its first commit dates to 2026-02-18.
 It is materially better placed than etcd's `THREAT_MODEL.md` — **two** maintained release lines rather
 than one, and on the published documentation site — but it is a young document, its own preamble calls
 it *"a living document"*, and [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md)
@@ -8045,27 +8045,27 @@ where §9.1's and §4.4's refused documents were third parties' hardening prose.
 
 Every artefact was read as shipped bytes from `raw.githubusercontent.com` at a named tag, never through
 a rendered documentation site. `www.erlang.org` was fetched **once**, and only to establish that the
-document is published as well as shipped (§20.3); nothing is quoted from it.
+document is published as well as shipped (§20.3). Nothing is quoted from it.
 
 - **Erlang/OTP tags are not semantic-version tags.** The repository uses `OTP-29.0.5`, and the tag list
   was read before any path was resolved — §16.10 recorded the same hazard and it was honoured rather
-  than rediscovered. `OTP-29.0.5` is the newest `OTP-`prefixed tag; the repository also carries
+  than rediscovered. `OTP-29.0.5` is the newest `OTP-`prefixed tag. The repository also carries
   `patch-base-NN` and historical branch tags that are not releases.
 - **The document that decided this ticket does not contain the port number, so no search keyed on
   `4369` could have found it.** This is [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md)
   limb 1 in its purest form yet: §16.6 searched for the row and found the two documents whose titles
   match the row. The class list, not the row, is what found `DEP-001`.
 - **A class can be invisible because it is new.** #76's retrieval was correct and complete over the
-  classes it knew about; `secure_coding.md` had been in a release for less than four months when #76
+  classes it knew about. `secure_coding.md` had been in a release for less than four months when #76
   ran. **An owner's class list is fixed at the time of the sweep, not for all time** — which is a rider
   ADR-0046 §17.8's *"an owner cannot invent a fourth class to defeat a sweep"* does not quite carry, and
   it is recorded here because this is the case that produced it. The mitigation is the one already in
   place: a class list is cheap to re-enumerate, and re-enumeration is what this section did.
 - **Reading the shipped C settled a question the prose could have been read either way on.** `epmd_cmd.md`
-  says registration from a remote host *"is always an error"*; `epmd_srv.c` shows the gate, names the
+  says registration from a remote host *"is always an error"*. `epmd_srv.c` shows the gate, names the
   four gated request types and the two ungated ones, and shows that a `getpeername` failure is treated
   as non-local. §10.1's Step 2 cell would have survived a prose-only reading of the man page as *"epmd
-  registers node names"*; it does not survive the dispatch table.
+  registers node names"*. It does not survive the dispatch table.
 - **The determinacy by-catch was checked and dropped rather than used.** Three Erlang/OTP documents
   place epmd on `4369`, which is exactly ADR-0048's placement evidence — but `4369` is `reg. yes` and is
   not one of §15.4's nine convention rows, so there is nothing for it to do. Recorded so a later session
@@ -8178,7 +8178,7 @@ from the hypothetical §17.5 was able to write.
 
 **Reading 2 — the committed reading: a file in the owner's repository is the owner's documentation.**
 It has a real argument and it is not §12's argument in disguise. An example config is *unambiguously
-not* the thing it resembles; a merged commit in `apache/kafka` is *unambiguously the owner speaking* —
+not* the thing it resembles. A merged commit in `apache/kafka` is *unambiguously the owner speaking* —
 authored by a committer, reviewed, merged under the project's own governance. §10.5 keys on the
 **artefact** rather than the party, and this artefact is the owner's. And the second form, unlike the
 third, carries **no qualifier**: it says *"the project's or vendor's own documentation"* and not *as
@@ -8187,7 +8187,7 @@ published by the project*, so a publication limb looks like something a reader a
 **It loses on three independent grounds, and two of them are §12's own.**
 
 1. **The costly-act test refuses it**, as above. §12 did not refuse examples because they are
-   unofficial; it refused them because they cost their author nothing. An unissued document is in
+   unofficial. It refused them because they cost their author nothing. An unissued document is in
    exactly that position, and the *"starting point"* commit message is the author saying so.
 2. **It is not stable, and the instability is worse here than in §12.3.** §12.3's ground 2 refused the
    distributor reading because it was *"not stable under repackaging"* — one Debian archive, two
@@ -8255,7 +8255,7 @@ time as a coherence gate. Issuance is read off the artefact: a tag, a distributi
 requires that a retrieval scoped to one gate not sweep the others in, and `7000/tcp` is the measured
 precedent for what happens when a session does. Both of these bear on the **claim** gate.
 
-- **[measured] The document names no port number at all.** `9092` occurs **zero** times in it; so do
+- **[measured] The document names no port number at all.** `9092` occurs **zero** times in it. So do
   `port` and `internet`. Its sentence is about *"every listener"* and *"any untrusted network"*. So an
   issued version of it would meet [#88](https://github.com/winniel123/verge-asm/issues/88)'s question —
   *does an owner's category statement reach a port the owner has not numbered?* — **before** it reached
@@ -8272,7 +8272,7 @@ precedent for what happens when a session does. Both of these bear on the **clai
 **Why recording the second is a retrieval and not a re-reading.** #37's precedent binds — *a row moves
 on retrieval, never on a re-reading of text already held* — and ADR-0040 §4 tells the two apart by
 asking whether the new claim is about a document's **content** or its **import**. §17.5 quoted one bullet
-of a 15,499-byte file; the claim here is that the file also contains a *Known Non-Findings* section
+of a 15,499-byte file. The claim here is that the file also contains a *Known Non-Findings* section
 saying something else, which is content. It is also the direction that keeps a row **out**, and §12.8's
 rule that the admission routes are admission-only means a finding in that direction cannot be the thing
 that moves a row anyway.
@@ -8286,7 +8286,7 @@ prohibition tier (13 pairs) and the scoping tier (10 pairs) of the footing table
 that *"every artefact quoted in §13 was read as shipped bytes, never as a rendered page, **at a named tag
 or release**"*, and §16.10 that *"every artefact was read as shipped bytes at a named tag or release
 branch"*, with rendered pages quoted **from their source at a release branch** — the shipped byte of a
-page the owner serves. A named release tag satisfies limb (a)'s artefact route by construction; a page
+page the owner serves. A named release tag satisfies limb (a)'s artefact route by construction. A page
 the owner serves satisfies its site route. **No prose footing on the list rests on an unissued
 document, and none moves.**
 
@@ -8327,7 +8327,7 @@ it travels identically: **any curated table admitting an owner's documentation i
   on the record. **[measured]** ADR-0040 §2 records #73's corpus as including *"17 active drafts"*, and
   an **Internet-Draft is the IETF's unissued document class**. **No row there rests on one** — the three
   resolving statements are RFC 9325 §4.5, RFC 9846 §C.2 and RFC 8550/8551 §6, all published RFCs — so
-  nothing moves; but that table had no rule saying a draft cannot carry, and now it does.
+  nothing moves. But that table had no rule saying a draft cannot carry, and now it does.
 - **[#83](https://github.com/winniel123/verge-asm/issues/83)** — *reached, and half-answered on its
   face.* Limb (e) settles that a page **served on kubernetes.io is issued**, so *generated* is not a §21
   objection to it, and Kubernetes' shipped `types.go` is carried in release tags, so it is issued too.
@@ -8361,7 +8361,7 @@ configuration case points the same way here, and that the alternative has no sto
 request.
 
 **Reading 2 is the strongest losing argument in this note since §12.3, and for a better reason than
-§12.3's.** An example config genuinely is not what it resembles; a merged commit genuinely is the owner
+§12.3's.** An example config genuinely is not what it resembles. A merged commit genuinely is the owner
 speaking. The refusal is not *this is not the owner* — it is *the owner has not finished*, and that is a
 softer claim resting on a cost argument rather than on an identity one. A reader who holds that
 authorship is what §2.2 asks about, and publication merely a distribution detail, has a real position.
@@ -8373,8 +8373,8 @@ case would. The rule holds anyway — a release branch is still a branch, and Ka
 branches that were re-cut — but a reader should know that the verdict here has a short shelf life.
 
 **Every absence is dated, and none is a claim about the future.** Per limb (c): *not in
-`kafka_2.13-4.3.1-site-docs.tgz`; not at tags `4.3.1`, `4.3.0`, `4.2.x`, `4.1.x`; not at branches `4.3`,
-`4.2`, `4.1`; 404 at three `kafka.apache.org` paths on 2026-08-14.* Intermediate release candidates were
+`kafka_2.13-4.3.1-site-docs.tgz`. Not at tags `4.3.1`, `4.3.0`, `4.2.x`, `4.1.x`. Not at branches `4.3`,
+`4.2`, `4.1`. 404 at three `kafka.apache.org` paths on 2026-08-14.* Intermediate release candidates were
 not enumerated. The claim is **not issued as of these versions**, never *never issued*.
 
 **One by-catch, flagged and not ticketed because it belongs to a ticket already open.** ADR-0037 limb 1
@@ -8394,7 +8394,7 @@ status is recorded with its body size.** No rendering, no summarising layer, no 
   downloaded from `archive.apache.org`, its **SHA-512 verified against the published `.sha512`**, and
   listed locally — which is §12.9's Cassandra method applied to documentation instead of configuration.
   A session that checked only the website and the git tags would have reached the same verdict on weaker
-  evidence; a session that checked only the website would have been relying on a rendering.
+  evidence. A session that checked only the website would have been relying on a rendering.
 - **A 404 is only evidence when a sibling 200 is measured beside it.** §17.10 recorded that
   `kafka.apache.org` serves a **19,879-byte JavaScript shell** to a plain client, which is a 200 that
   means nothing. The check that makes the 404 load-bearing is the sibling: `/43/security/security-model/`
@@ -8407,9 +8407,9 @@ status is recorded with its body size.** No rendering, no summarising layer, no 
 - **Branch existence was checked positively, in both directions.** `4.4` returning 200 is as
   load-bearing as `4.3` returning 404, and the two files were `diff`ed rather than compared by size —
   they are byte-identical at 15,499 bytes.
-- **Reading a published page's source at a release branch is sound; reading it at `main` is not.**
+- **Reading a published page's source at a release branch is sound. Reading it at `main` is not.**
   §16.10's method is preserved by limb (e), with the rider that the branch must correspond to a version
-  the owner serves. `kubernetes/website` `release-1.34` does; `main` would not.
+  the owner serves. `kubernetes/website` `release-1.34` does. `main` would not.
 - **The whole released security class was searched rather than sampled.** All seven files of
   `docs/security/` at `4.3.1` were retrieved and searched for `internet` — **zero** hits — which
   discharges §17.10's *not exhausted* disclosure for the class that bears on §2.2, and leaves it standing
@@ -8620,7 +8620,7 @@ The same documentation set covers **ColdFusion (2025 release)** through Update 9
 default of a generally available product — §15.8's own qualifier on limb 2, met. Limb 3 does not reach
 it: ColdFusion's built-in server and Consul's HTTP API are both carried over HTTP, but limb 3's test is
 *does the second party declare that it speaks the first's protocol*, and Adobe declares nothing about
-Consul's API. Two services sharing a **transport** are not one convention; §4.6's *"one port, two
+Consul's API. Two services sharing a **transport** are not one convention. §4.6's *"one port, two
 completely different services"* is the discriminator, and it is met here.
 
 > **`8500/tcp`'s squat is contested, twice over.** The defeating artefacts are `EUROCONTROL-SPEC-0100`
@@ -8649,7 +8649,7 @@ RDP — *"express purpose"* — from the same sentence. `5601`'s owner-silence n
 
 `8500` is the genuine article. §4.6's own cell concedes that Consul *"is not secure-by-default"* and
 ships `acl.default_policy = "allow"`, which is a live Claim 1 argument on §10.1's first step, so the row
-is not disposed of by the claim set; its exclusion really did rest on owner-silence **plus** the squat,
+is not disposed of by the claim set. Its exclusion really did rest on owner-silence **plus** the squat,
 and this section is what converts the second half from asserted to established.
 
 **One clause of §4.6's `5601` cell is withdrawn** under the name-and-withdraw convention. *"Kibana is
@@ -8672,7 +8672,7 @@ in §22.2.
 
  **Also withdrawn as a transposition risk**, restating what §4.6 already flagged: Elastic's
 *"Never expose an unprotected node to the public internet"* is about **Elasticsearch** and carries
-`9200`; it may not be read onto `5601`, which is the error §2.2 records for CouchDB's Erlang port.
+`9200`. It may not be read onto `5601`, which is the error §2.2 records for CouchDB's Erlang port.
 
 ### 22.6 The ruling — §4.6's two cells restated with their defeating artefacts
 
@@ -8687,12 +8687,12 @@ refusals resting on an unnamed competitor.
 
 **The criterion that would change either verdict.** For `5601`: nothing reachable, and that is the
 stronger statement of the two. Even if Broadcom retired CCS tomorrow the row would still be refused by
-§2.1's claim set, which no retrieval can move; re-admitting `5601` would take a change to §10.2's closed
+§2.1's claim set, which no retrieval can move. Re-admitting `5601` would take a change to §10.2's closed
 set, which is a repair of the standard rather than a row move. For `8500`: **Adobe removing the 8500
 default from the ColdFusion built-in web server, *and* EUROCONTROL withdrawing or superseding
 `EUROCONTROL-SPEC-0100` and closing the FMTP address-coordination service** — both, because either alone
 leaves a live competing placement. The EU repeal of Regulation 633/2007 is the visible pressure on the
-second and it is **not** sufficient on its own; the catalogue entry and the running registry are the
+second and it is **not** sufficient on its own. The catalogue entry and the running registry are the
 things to re-read. At that point the row would still need an owner sentence from HashiCorp stronger than
 *"should be considered"*, so it is two independent events away from admissibility rather than one.
 
@@ -8756,7 +8756,7 @@ handed to §2.4's backlog rather than swept.
 Two things that does **not** mean, stated because a reader will assume both.
 
 **It does not make the *sweep* claim stronger than §17.8 left it.** §17.8's fixed point is about
-**footing** moves re-arming §2.2's sweep; this section moves no footing. What it retires is the separate
+**footing** moves re-arming §2.2's sweep. This section moves no footing. What it retires is the separate
 §2.4 backlog — the untested determinacy calls — and that backlog is re-armed by a different event: **a
 competing owner starting or stopping documenting its service on a number this note relies on**, which is
 the trigger the map's curation patch already prices from [#75](https://github.com/winniel123/verge-asm/issues/75).
@@ -8782,7 +8782,7 @@ Manager port"*. What is **inferred** is that AXENT's ESM agent and Broadcom's CC
 lineage. A reader who rejects the inference still loses the row: limb 2 asks only whether **another
 party** has a current placement statement on the pair for a **different protocol**, and Broadcom's CCS
 agent is that whether or not it descends from `esmagent`. The succession is why the *registration* is
-live; the current table is why the *convention* is contested. **The finding survives the weaker
+live. The current table is why the *convention* is contested. **The finding survives the weaker
 reading**, and it is stated this way rather than smoothed because a session that needs the succession
 proved has not got it here.
 
@@ -8804,7 +8804,7 @@ directions**, which is the strongest thing that can be said for the pair.
 
 **§22.5's re-scoring of §17.1 row 11 is a re-reading, not a retrieval, and it does not move a row.**
 [#37](https://github.com/winniel123/verge-asm/issues/37)'s rule is that *a row moves on retrieval, never
-on a re-reading*; nothing here moves a row, and what is corrected is a **classification column** in a
+on a re-reading*. Nothing here moves a row, and what is corrected is a **classification column** in a
 sibling section's table, on that table's own stated criteria. Recording the distinction because the
 correction would be inadmissible if it had gone the other way.
 
@@ -8821,7 +8821,7 @@ yet defeated* rule and §14.9's, restated.
   registry's **service name** — `esmagent`, `fmtp` — and the service name is exactly the thing that goes
   stale when a product is renamed. The registrant contact is in the registry's **XML** and not in its
   CSV, and it resolved both rows in one fetch: `axent.com` and `eurocontrol.int`. ADR-0048's rider
-  already said to follow the registration to its registrant; this is what doing so costs.
+  already said to follow the registration to its registrant. This is what doing so costs.
 - **The EOL notice was the trap, and it is the shape of trap this note keeps meeting.** Broadcom's own
   KB says Symantec ESM has been out of extended support since 2016. Read as the answer it gives *the
   registration is dead*, which is the finding the ticket predicted and the opposite of the truth. The
@@ -8829,18 +8829,18 @@ yet defeated* rule and §14.9's, restated.
   between an artefact and its label, one gate across.
 - **PDFs were extracted locally rather than read through a rendering or summarising layer**, per
   [#46](https://github.com/winniel123/verge-asm/issues/46). `pdftotext -layout` over the retrieved bytes
-  for all three EUROCONTROL documents; the specification's §6.6 and the catalogue's FMTP entry were then
+  for all three EUROCONTROL documents. The specification's §6.6 and the catalogue's FMTP entry were then
   read in context rather than grepped for a number. A first attempt to read the specification through a
   fetch-and-summarise path returned *"the actual specification body … is not legible"* and would have
   produced a false negative on the strongest sentence in the section.
 - **`techdocs.broadcom.com` and `guides.adobe.com` both serve JavaScript-heavy pages**, the shape §9.5
   recorded for `learn.microsoft.com` and §14.6 for `docs.oracle.com`. The ColdFusion sentence was
-  confirmed against the raw bytes of the page, where it appears in the embedded document payload; the
+  confirmed against the raw bytes of the page, where it appears in the embedded document payload. The
   Broadcom ports table was read from the rendered document and is one step weaker than a raw artefact,
   and that is flagged. The 5601 row was cross-checked against a second Broadcom document — KB 195968,
   *"Windows agent listens on port 5601"* — which is corroboration under §2.3 and not a second ground.
 - **The EU-law check was run because it could only hurt, and it did.** Nothing obliged this section to
-  ask whether FMTP's mandate survived; asking turned a clean *specification in force* into a
+  ask whether FMTP's mandate survived. Asking turned a clean *specification in force* into a
   qualification. Recording it because §2's whole discipline is that a retrieval that weakens your own
   finding is the one worth reporting, and §17.3's `161/udp` sweep is the precedent.
 - **The temptation this section had to refuse by name.** The available shortcut on `5601` is *nobody has
@@ -8872,7 +8872,7 @@ limb 2 forbids. It called this §10.6's shape in a second instance — *a corrob
 owner should* — and §10.6 is what took `161/udp` off the list.
 
 **The second ground is refuted and the first dissolves.** **[measured]** Two owner specifications
-number the pair in their own words, at named revisions, read as shipped bytes; and Dell's statement is
+number the pair in their own words, at named revisions, read as shipped bytes. And Dell's statement is
 **longer than this note has ever quoted it**, the unquoted half placing the DRAC inside IPMI in Dell's
 own words. Limb 2 is closed three hops deep with no reader inference at any hop.
 
@@ -8971,14 +8971,14 @@ and the sentence this note quotes sits under **Dell's own heading**:
 > statement dated 5 December 2014, responded 2014-12-09, revision 3
 
 **This is the artefact that closes limb 2's first hop, and it had been sitting in the citation all
-along.** Dell does not merely happen to be talking about IPMI; Dell enumerates **which IPMI protocol
+along.** Dell does not merely happen to be talking about IPMI. Dell enumerates **which IPMI protocol
 version each DRAC firmware ships**, which is Dell placing the DRAC inside IPMI in its own words. The
 note the statement appears in is titled *"Multiple Dell iDRAC **IPMI v1.5** implementations use
 insufficiently random session ID values"* and its overview reads *"The Intelligent Platform Management
 Interface (IPMI) v1.5 implementations in multiple Dell iDRAC releases…"* — byte-verified.
 
 **Two further things the fuller quote supplies, both of which strengthen the row.** The prohibition is
-not a passing remark but a section Dell titles *Dell Best Practices*; and Dell's own remedy vocabulary
+not a passing remark but a section Dell titles *Dell Best Practices*. And Dell's own remedy vocabulary
 — *"separate management subnet"*, *"isolate the management subnet/vLAN"*, *"firewalls"* — is the same
 vocabulary CISA uses, which makes CISA's sentence a restatement of the owner rather than an
 independent source the row was leaning on.
@@ -9039,7 +9039,7 @@ the precedent for expecting nothing else from a standards body. **The negative i
 and is swept for the record rather than for the verdict.
 
 **ADR-0046 limb 2's *the corpus terminates* claim holds, and it terminates one class short of three.**
-The DMTF publishes two ASF documents and there is no third; the IPMI consortium publishes a
+The DMTF publishes two ASF documents and there is no third. The IPMI consortium publishes a
 specification and its errata and nothing else. ADR-0046's rule that *an owner cannot invent a fourth
 class to defeat a sweep* met a case here where the owner does not even have a second.
 
@@ -9060,8 +9060,8 @@ manner §13.3 recorded its three near-misses.
 It is tempting and it is **refused**, on three grounds and in increasing order of force. §13.7's
 *recommended* is addressed to the **BMC implementer** — its subject is whether a controller must
 implement 802.1q tagging, not where an operator attaches it. §1.7's sentence is a **capability
-description** in the feature-summary chapter, and *"can be used to"* is the weakest modality available;
-it is §12(b)'s *label* rather than *position*, the same line #69 drew and
+description** in the feature-summary chapter, and *"can be used to"* is the weakest modality available.
+It is §12(b)'s *label* rather than *position*, the same line #69 drew and
 [#70](https://github.com/winniel123/verge-asm/issues/70) applied three times. And decisively, **neither
 sentence names the public internet, prohibits anything, or says a BMC outside a management VLAN is
 incorrect** — §20.8 refused `4369`'s promotion on a weaker version of exactly this gap, where
@@ -9078,7 +9078,7 @@ Dell's sentence reaches nothing.*** This is §18.5's own words and it is the tic
 
 **It fails because the rule it invokes is a rule about *reach*, and after this retrieval nothing has to
 reach.** ADR-0050 exists for the case where the owner has **not** numbered the port and a category
-sentence must be stretched to cover it; the unit rule is the fence that stops the stretch going too
+sentence must be stretched to cover it. The unit rule is the fence that stops the stretch going too
 far. §18.5's own taxonomy has a separate bucket for rows where the stretch is unnecessary —
 *"**Numbered by the owner, so the rule is not needed**"* — holding `3306`, `2379`, `2380`, `9042`,
 `25672` and `10250`. **`623/udp` belongs in that bucket and §18.5 could not know it**, because §18
@@ -9091,7 +9091,7 @@ performed no retrieval and said so. Every hop is now an owner artefact:
 | 3 | That deployment is prohibited | **Dell**, VU#843044 — *"not designed nor intended to be placed on or connected to the internet"* |
 
 The reader infers nothing at any hop, which is the whole content of limb 2 — *"the row is the
-concatenation of two owner statements"*; here it is three. **The unit rule is untouched and is not
+concatenation of two owner statements"*. Here it is three. **The unit rule is untouched and is not
 weakened**: a product-line category still may not be stretched to a member the owner has not placed.
 `4369` is still not rescued, for exactly the reason §18.5 gave.
 
@@ -9108,7 +9108,7 @@ on opposite sides of §10.5's own line, and §10.5 has said so since #37: its wo
 because Dell owns IPMI too.
 
 Three further supports, none of them load-bearing on its own. §10.3 asks that **the boundary be named
-by the owner** and does not ask for unanimity among co-owners; **[measured]** no co-author names an
+by the owner** and does not ask for unanimity among co-owners. **[Measured]** no co-author names an
 internet-facing IPMI deployment as supported anywhere retrieved, so §10.3's failure condition is unmet.
 **Supermicro, an implementer speaking about its own BMCs, takes the same position and names the pair
 while doing it** — *"Traffic on default ports for BMCs such as TCP/5900 and, UDP/623 should be
@@ -9178,7 +9178,7 @@ specification's own dispatch rather than its prose, per [#84](https://github.com
 *RMCP Presence Ping*, then *Get Channel Authentication Capabilities* with *"Authentication Type = none
 ('in clear')"*, then *Get Session Challenge*, *"also with Authentication Type = none"*, before any
 authenticated packet. **This is disclosure and not a claim move** — Claim 1 asks whether the protocol
-admits anonymous **commands**, and capability discovery is not a command; the row stays in Class C on
+admits anonymous **commands**, and capability discovery is not a command. The row stays in Class C on
 Claim 3.
 
 ### 23.8 `623/tcp` is not swept in, and the by-catch the artefacts name
@@ -9200,7 +9200,7 @@ now separate the TCP side from the UDP side:
 
 **§6.2's live defect is vindicated a third time**, and this is the first time the evidence for it comes
 from an owner rather than from IANA. Keying both lists on `(port, transport)` pairs is what makes the
-row safe; a containment check over bare integers would pass while probing Intel's telnet proxy.
+row safe. A containment check over bare integers would pass while probing Intel's telnet proxy.
 
 **The by-catch, per ADR-0037 limb 2 — a subject the artefact names and the table lacks.** The
 specification names **`664/udp`**, the *Secure Aux Bus (Secondary RMCP Port)*, and IANA registers it as
@@ -9215,7 +9215,7 @@ and the specification says elsewhere that *"Authenticated and Encrypted sessions
 any UDP port, including port 26Fh. (This is different from ASF 2.0 which requires using a different
 port for authenticated traffic…)"*. So the owner both names `664/udp` and states that its own protocol
 does not use it. ADR-0037 limb 2 requires a named subject the table lacks to be **ticketed rather than
-admitted**; it does not require ticketing a subject the same artefact removes. **The criterion that
+admitted**. It does not require ticketing a subject the same artefact removes. **The criterion that
 would open a ticket:** an owner artefact placing IPMI messaging, or a live implementation's default, on
 `664/udp` — at which point it is a new admission priced under ADR-0009, never a correction of this.
 
@@ -9249,13 +9249,13 @@ would open a ticket:** an owner artefact placing IPMI messaging, or a live imple
 
 **Outside this note.**
 [ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md)
-is **amended**, discharging its *what the rule re-opens elsewhere* item; its Decision, its three limbs
+is **amended**, discharging its *what the rule re-opens elsewhere* item. Its Decision, its three limbs
 and its unit rule are all untouched. **No new ADR.** ADR-0037, ADR-0040, ADR-0042, ADR-0045, ADR-0046
 and ADR-0048 are untouched — each is **applied** here and none is changed by the application, which is
 recorded so the next session does not re-check.
 [`weak-key-and-signature.md`](./weak-key-and-signature.md) is untouched: nothing here is a rule that
 travels under ADR-0032, since this section applies existing rules rather than making one.
-`CONTEXT.md` needs no change; no domain term is added or amended.
+`CONTEXT.md` needs no change. No domain term is added or amended.
 
 ### 23.10 Thin ground, flagged per the standing rule
 
@@ -9291,7 +9291,7 @@ is *"Primary RMCP Port Number, LSByte first. **Default** = 26Fh"*. Under
 **not** a *displaced* convention — the owner does not move the port and does not version-depend it, and
 Table 13-1 makes the primary port mandatory for conformance — but it is the honest root of CISA's
 *"usually"*, which this note should stop reading as vagueness. The vendors then split: Dell and Lenovo
-pin it, Supermicro calls it a default. Every port on this list is settable by its operator; `6379` is
+pin it, Supermicro calls it a default. Every port on this list is settable by its operator. `6379` is
 too.
 
 **One measured caution about owner artefacts in general.** **[measured]** DSP0136 v2.0 §3.2.1 renders
@@ -9322,7 +9322,7 @@ section.
   [#46](https://github.com/winniel123/verge-asm/issues/46) and §22.10. `pdftotext` over the retrieved
   bytes for the IPMI specification (12,037,554 bytes), DSP0136 (749,846), the ASF Overview Document
   (125,532), Intel's Server Management Guide (4,187,453) and Supermicro's white paper (261,369). The
-  IPMI specification's Table 13-1 is a multi-column layout whose cells the text layer interleaves; it
+  IPMI specification's Table 13-1 is a multi-column layout whose cells the text layer interleaves. It
   was reassembled by reading the surrounding pages in context rather than by grepping for `623`, which
   is §22.10's lesson applied before the trap could spring.
 - **`kb.cert.org` serves a compressed JavaScript shell, and the vendor statement is not in it.** A
@@ -9453,7 +9453,7 @@ turns on reading them against each other:
 ```
 
 **Two corrections to §19.8's enumeration, neither of which moves anything it decided.** NodePort is
-**two** rows, TCP and UDP, not one subject; both read `Used By: All` and both are refused on the same
+**two** rows, TCP and UDP, not one subject. Both read `Used By: All` and both are refused on the same
 face, so the refusal is unchanged and its extent is now stated. And **`10250` is the only subject in
 the artefact that appears twice** — `10259` and `10257` are control-plane only, `10256` is
 worker-node only. §19.11 gave *"the same cell appears in the control-plane table and the worker-node
@@ -9562,7 +9562,7 @@ That is §10.1's `111/tcp` rpcbind shape — *the specification names a remote c
 recipient* — and Step 1 is dispositive and first. **Claim 1 is unavailable for `10256`.**
 
 **Claim 2 is unavailable for all three** and needs one sentence: Claim 2 requires *credentials* in
-cleartext. `10259` and `10257` are HTTPS; `10256` carries no credentials to expose.
+cleartext. `10259` and `10257` are HTTPS. `10256` carries no credentials to expose.
 
 **So all three fall to Claim 3, and Claim 3 is where they separate.**
 
@@ -9675,7 +9675,7 @@ reliance on a single artefact"*, and #91 required this section to answer it rath
    other, where a count could not.** A rule that discounts by reliance admits all three or refuses all
    three, because all three sit in the same column of the same table. §24.6 refuses exactly one of
    them, on its own cell's content, tested per member per §16.6 and §18.4. **A rule that produces
-   different answers for `Self` and for `Self, Load balancers` is reading evidence; a rule that counts
+   different answers for `Self` and for `Self, Load balancers` is reading evidence. A rule that counts
    rows is rationing it.** That is what the objection loses to.
 
 **And the honest half, which the answer above does not dissolve.** **[measured]**
@@ -9703,9 +9703,9 @@ than `Self, Control plane`, which §19.5 admitted for `10250`.
 §10.3's failure condition is not met and it is not close: nothing retrieved has Kubernetes naming an
 internet-facing scheduler or controller-manager as supported. **[measured]** `securing-a-cluster.md`
 names etcd, the kubelet HTTPS endpoints and the cloud metadata API and mentions neither component nor
-any port number; `system-metrics.md` names both components but gives no port and states that *"reading
+any port number. `system-metrics.md` names both components but gives no port and states that *"reading
 metrics requires authorization via a user, group or ServiceAccount with a ClusterRole that allows
-accessing `/metrics`"*, which points the same way as §24.3's bytes; and a code search over
+accessing `/metrics`"*, which points the same way as §24.3's bytes. And a code search over
 `kubernetes/website` returns, for each number, only `ports-and-protocols.md`, the **generated** CLI
 reference page for that component, and — for `10259` — an `examples/` YAML, which §12(a) says attests
 nothing.
@@ -9730,13 +9730,13 @@ engaged — the party is the owner either way, and §12(c)'s bar on a **distribu
 sole grounds does not reach it.
 
 **It is a shipped default under §12(a).** A kubeadm user gets `--bind-address=127.0.0.1` without
-acting; it is `defaultArguments`, not an example file, and it takes effect.
+acting. It is `defaultArguments`, not an example file, and it takes effect.
 
 **And §10.4's one-way rule resolves the two-defaults problem without needing §19.3's tie-break.** The
 binary's own default is `0.0.0.0` (`NewSecureServingOptions`), and the two disagree — which looks like
 §19.3's question and is not, because §10.4 already decides it: **a default that restricts is a
-maintainer position; a default that is permissive is the absence of one.** The wildcard bind attests
-nothing in either direction and cannot defeat the row; the loopback bind is a maintainer position and
+maintainer position. A default that is permissive is the absence of one.** The wildcard bind attests
+nothing in either direction and cannot defeat the row. The loopback bind is a maintainer position and
 attests. No ruling about which invocation path is modal is required, which is the deployment-share
 judgement §19.11 records as having sunk the losing option there.
 
@@ -9754,7 +9754,7 @@ enough*, and it does not need the table cell to be enough on its own.
 Claim 1 is unavailable (§24.3, Step 1). Claim 2 is unavailable. **Claim 3's boundary limb fails**, and
 it fails on the owner's own words in two artefacts.
 
-**The cell, read per member.** #76's §16.6 ruled that *ownership is tested per port, not per sentence*;
+**The cell, read per member.** #76's §16.6 ruled that *ownership is tested per port, not per sentence*.
 #88's §18.4 generalised it — *a category sentence is tested per member, not per sentence*, because *a
 sentence is not a unit of evidence, a claim about a subject is*. Applied to a client-list cell, that
 means each named client is tested against §10.3's enumeration, and the four cells in this one table
@@ -9806,7 +9806,7 @@ correct'"* is that this table asks whether the owner has an architecture in whic
 legitimately reached — not how bad it would be if it were. Kubernetes has one for `10256` and states
 it. It has none for `10259` or `10257` and says `Self`. Ranking by harm is the severity instrument
 [#16](https://github.com/winniel123/verge-asm/issues/16) rejected and §2.7 names as the corpus's most
-tempting laundering instance; the disclosure findings above are recorded because they are true and are
+tempting laundering instance. The disclosure findings above are recorded because they are true and are
 **not** relied on by any part of this ruling.
 
 **`10256/tcp` enters §4.6's negative space.** It is a `(port, transport)` pair, so §19.10's reason for
@@ -9832,8 +9832,8 @@ keeping `30000-32767` out of that table — *being a range rather than a pair* �
 
 **Refuse all three, on the argument that a `Used By` cell may not carry a claim.** The strongest
 losing option, and the one §19.12 invited. Its case: §16.9 called this cell shape *"the thinnest
-placement in the table"*; the §12(b) **label** argument has been put twice and both times against a
-row that had, or was about to have, a sentence behind it; and #88's whole move was to take the cell
+placement in the table"*. The §12(b) **label** argument has been put twice and both times against a
+row that had, or was about to have, a sentence behind it. And #88's whole move was to take the cell
 *out* of the position-carrying job, so putting two new rows into it runs against the direction of
 travel. **It loses on §24.6's second support.** These rows are not sole-supported on the cell: the
 owner's installer binds both ports to loopback, which is §2.2's third form, and this note already
@@ -9844,7 +9844,7 @@ itself, is the arbitrariness §2.2's founding paragraph says *"destroys a curate
 **Refuse `10259` and `10257` on the missing repetition.** §19.11 gave *"the same cell appears in the
 control-plane table and the worker-node table"* as a ground, and neither candidate has it. **It loses
 because the repetition tracks the component's topology, not the owner's conviction.** `10250` appears
-twice because the kubelet runs on control-plane nodes *and* worker nodes; the scheduler runs only on
+twice because the kubelet runs on control-plane nodes *and* worker nodes. The scheduler runs only on
 control-plane nodes, so it appears once. Making membership turn on that is making it turn on where a
 daemon happens to run. §19.11 also offered repetition as an additional ground — *"It loses on
 repetition too"* — not a necessary one, and the two grounds that were doing the work, *the cell is the
@@ -9880,7 +9880,7 @@ therefore not minted and the number is left unused**, as `0039` and `0041` are.
 ### 24.10 Thin ground, flagged per the standing rule
 
 **The determinacy negative is bounded and it is the thinnest thing here.** ADR-0048 requires a
-determinacy refusal to name the artefact that defeated the convention; it does not require a *pass* to
+determinacy refusal to name the artefact that defeated the convention. It does not require a *pass* to
 prove a universal negative, and this one cannot. The registry is silent because the range is
 Unassigned, so it cannot name a competitor, and the vendor hunt that returned nothing is a targeted
 search rather than a sweep. **The criterion that would change the verdict:** any party's own current
@@ -9893,7 +9893,7 @@ was proven empty.
 second support is a footing — a statement about network position — and it is genuinely independent,
 but §10.3's boundary limb is answered by the `Used By` cell, and a loopback bind answers it only if a
 reader accepts a bind address as the owner *naming* a boundary. That reading carries `5432` today, so
-it is not novel; it is the weakest joint in this ruling and it is where a reviewer should push.
+it is not novel. It is the weakest joint in this ruling and it is where a reviewer should push.
 **The criterion that would change the verdict** is §16.9's, transferred verbatim: a kubernetes.io
 sentence placing either component's secure port on an untrusted network as a supported deployment
 removes the row outright, and sustained failure to find anything stronger than the table cell is the
@@ -9903,13 +9903,13 @@ argument for demoting the footing rather than the row.
 on a role name and a doc comment to answer §10.1 Step 1. That is the owner writing down its own
 intent, which is exactly what Step 1 asks for — but it is a Go identifier, and identifiers are not
 written to be read as attestations. The finding is overdetermined by Step 2's independent failure, so
-nothing turns on it alone; recorded because a future session may be tempted to use a role name as
+nothing turns on it alone. Recorded because a future session may be tempted to use a role name as
 sole grounds, and it should not.
 
 **The `10256` refusal turns on a reading of *Load balancers*.** If a later pass rules that a
 load-balancer probe is inside the operator's boundary after all, `10256` re-opens as a Claim 3
 candidate and the exclusion count returns to 18. The refusal does **not** turn on the shipped-bytes
-finding, which points the other way and is recorded as colour; nor on harm, which §2 forbids. **The
+finding, which points the other way and is recorded as colour. Nor on harm, which §2 forbids. **The
 criterion that would change the verdict:** a ruling that §10.3's enumeration is illustrative rather
 than exhaustive, at which point `Self, Load balancers` is inside it and `All` is the only cell that
 fails.
@@ -9950,10 +9950,10 @@ limb 2, and **not** admitted:
 | `10258/tcp` | `CloudControllerManagerPort` | Same secure-serving machinery as `10257`, so §24.3's claim analysis likely transfers whole |
 
 `CloudControllerManagerWebhookPort` is imported from `k8s.io/cloud-provider` and its value was **not**
-retrieved; recorded as unresolved rather than guessed.
+retrieved. Recorded as unresolved rather than guessed.
 
 **No ticket is opened from this section.** #91 is scoped to three ports and four passes are editing
-this file concurrently; opening children of the map is the curator's act, not a running pass's. The
+this file concurrently. Opening children of the map is the curator's act, not a running pass's. The
 by-catch is **routed to the curator** — which is §17.6's precedent for a finding that belongs to a
 lane that is not this one.
 
@@ -10034,7 +10034,7 @@ for staying out of that file while concurrent passes are running.
   false in all three.
 - **Two of the ticket's suggested paths do not exist at the tag**, and following them would have
   produced a negative that was really a `404`. `pkg/proxy/healthcheck/proxier_health.go` is
-  `proxy_health.go`; `pkg/master/ports/ports.go` is `pkg/cluster/ports/ports.go`; and
+  `proxy_health.go`. `pkg/master/ports/ports.go` is `pkg/cluster/ports/ports.go`. And
   `DefaultKubeSchedulerPort` is in `pkg/scheduler/apis/config/types.go`, not in
   `apis/config/v1/defaults.go`. Directory listings were taken at `?ref=v1.34.0` before any file was
   quoted. This is §13.6's `.sample` hazard in its cheapest form: **a missing file is not an absent
@@ -10046,7 +10046,7 @@ for staying out of that file while concurrent passes are running.
   to the artefact this section depends on most.
 - **The registry was searched as bytes, not as a rendering.** The IANA CSV was downloaded for this
   section and searched with a literal match, which is how the `10254-10259 Unassigned` **range** row
-  was found; a search of the rendered XHTML for the string `10256` would have returned nothing and a
+  was found. A search of the rendered XHTML for the string `10256` would have returned nothing and a
   careless session would have recorded *"not in the registry"* — true, but for the wrong reason and
   with no range row to cite.
 - **The generated CLI reference pages were located and deliberately not quoted.** `kube-scheduler.md`,
@@ -10144,7 +10144,7 @@ listen URLs are `http://localhost:2379` and `http://localhost:2380` — plaintex
 that a sentence describing a hardened deployment cannot be evidence about the protocol as shipped.
 
 **It is refused, and the refusal is what the two steps are for.** Step 1 reads the owner's statement
-of **whom the protocol is specified to answer**; Step 2 reads the **shipped bytes** for what an
+of **whom the protocol is specified to answer**. Step 2 reads the **shipped bytes** for what an
 unidentified caller actually gets. The gap between the two *is* the Claim 1 row. Were the mTLS
 sentence read as a description of shipped behaviour it would defeat Step 2 — and §25.2 measures that
 it plainly does not describe shipped behaviour. Reading it at Step 1 is the only reading under which
@@ -10160,7 +10160,7 @@ the omitted sentence strengthens the placement it made.
 
 ### 25.2 The Step 2 walk — eleven cells, read off the dispatch at a named tag
 
-§20.6 walked `4369`. The remaining eleven cells of the twelve-row table are walked here; one of them
+§20.6 walked `4369`. The remaining eleven cells of the twelve-row table are walked here. One of them
 (`10250/tcp`) was withdrawn from the walk by §19.5 and is recorded as such rather than read, so
 **ten live cells were read against shipped source or specification**. The question in every row is
 §20.6's: *can an unauthenticated remote caller actually reach the named operation?* — asked of the
@@ -10343,10 +10343,10 @@ gave does not carry to either of §25.5's limbs.
 
 - **Limb 1 was not available.** Nothing in §10.1, §10.5, §16.6 or §20.6 says a boundary sentence
   cannot answer Step 1. §10.1's `10250` strike-through **reports the symptom** — *"the tell nobody
-  read"* — and states no rule; §20.6 expressly declined to decide it. It is a decision, not a
+  read"* — and states no rule. §20.6 expressly declined to decide it. It is a decision, not a
   reading-out.
 - **Limb 2 is forced by a measurement.** Seven of eleven Class A rows turn on it (§25.4). §19.6
-  states the rule for **row admission**; its extension to **Step 2's reachability question** is a
+  states the rule for **row admission**. Its extension to **Step 2's reachability question** is a
   choice this pass made and could have made the other way, and the other way empties most of a class.
   §20.6 never met the question because epmd listens on all interfaces, so the frame never bit.
 
@@ -10385,7 +10385,7 @@ The row's Step 2 cell is **confirmed** by the divergence rather than threatened 
 is reachable, more plainly than the documentation would suggest. §10.4's one-way rule makes the
 permissive bytes **silent**, so they attest nothing in either direction. And the quote is §3.4's,
 which belongs to a different table from the one this section audits — the discipline §17.6 and §20.6
-both used. **Routed to the curator; it does not block
+both used. **Routed to the curator. It does not block
 [#12](https://github.com/winniel123/verge-asm/issues/12).** The criterion that would move it: a moby
 release in which `loadListeners` returns an error on that branch, at which point `2375/tcp`'s Step 2
 cell is in `6379/tcp`'s position and §25.5 limb 2 decides it the same way.
@@ -10402,7 +10402,7 @@ implementation and not about `69/udp`'s specification footing, which is RFC 1350
 *"Files may be written only if they already exist and are publicly writable, unless the `--create`
 option is specified."* So `-c` is required to **create**, not to **write** — a WRQ over an existing
 world-writable file in the served directory succeeds without it. This is a distributor-and-
-implementation fact under §10.5 and carries nothing; it is recorded only because the opposite
+implementation fact under §10.5 and carries nothing. It is recorded only because the opposite
 oversimplification is common and the cell would look overstated to a reader holding it.
 
 ### 25.8 Every dependent figure, checked rather than asserted
@@ -10445,7 +10445,7 @@ oversimplification is common and the cell would look overstated to a reader hold
   on `2379` — which would make `THREAT_MODEL.md` internally inconsistent, and none was found.
 - **`6379`'s survival rests on the frame rather than on a reachable operation.** Every other Class A
   row has an operation an anonymous remote caller reaches in *some* shipped-adjacent state that
-  §25.5's frame plainly covers; `6379` alone needs the operator to disable a named protection.
+  §25.5's frame plainly covers. `6379` alone needs the operator to disable a named protection.
   If §25.5 limb 2 is ever narrowed, `6379/tcp` is the first row it takes, and the row it would take
   it to is **Class C** on Redis's own *"trusted clients inside trusted environments"* — not off the
   list. That is priced here so a future pass need not re-price it.
@@ -10520,7 +10520,7 @@ this section runs the same instrument over the rest.
 ADR-0040's disclosure rule binds this section's own output, so the population is listed. It is §2.2's
 footing table's two **prose** tiers: **explicit prohibition** and **explicit trusted-network scoping**.
 The **weak** tier is excluded because a weak-tier row's footing *is* a negative and was therefore swept
-by §17 (rows 7 and 8 of §17.1); the eleven pairs the table names as out of subject are excluded because
+by §17 (rows 7 and 8 of §17.1). The eleven pairs the table names as out of subject are excluded because
 they rest on §2.2's **first** form, and a specification is not a class list.
 
 **[measured] The population is 24 pairs and #93 was written against 23.** The ticket quotes §16.7's
@@ -10635,7 +10635,7 @@ and §10.3's failure condition is not met.
 instances of the shape. `rsync.samba.org/security.html` is titled *Rsync Security Advisories* and is a
 per-release CVE table — a **disclosure page**, not a posture document. §20.1 scored Erlang/OTP's
 `system/doc/vulnerabilities/vulnerabilities.md` the same way — *"it is an OpenVEX publication policy, not a
-posture document"* — and this is the second. **A page named *security* is not the security class**; what
+posture document"* — and this is the second. **A page named *security* is not the security class**. What
 makes a class member is that it states a position, and a CVE register states a process.
 
 #### The by-catch, and it is reported rather than applied
@@ -10650,7 +10650,7 @@ scopes by trust boundary and never by network topology, so no retrieval can supp
 class list is now exhausted and the sentence does not exist.
 
 **Walked across the whole tier rather than asserted for one row.** Of the 15 prohibition-tier pairs, **13
-carry a sentence naming the internet in the owner's voice**; `3306/tcp` is **marginal** — the prohibition
+carry a sentence naming the internet in the owner's voice**. `3306/tcp` is **marginal** — the prohibition
 clause names *untrusted hosts* and *"the Internet"* is in the immediately preceding sentence of the same
 passage, which §3.4 drops (§26.5) — and **`873/tcp` fails outright**.
 
@@ -10805,16 +10805,16 @@ quoted about:
 **The two owners disagree in tone about the same mechanism**: the implementation calls it *"entirely
 adequate"* on a trusted network and the specification calls it *"unsafe"* flat, with no carve-out. Both
 are owners under §10.5 and neither is withdrawn. The row's warrant is strengthened and now rests on two
-classes of two owners rather than one class of one; **the tier is untouched, because neither RFC sentence
+classes of two owners rather than one class of one. **The tier is untouched, because neither RFC sentence
 names a network.**
 
 **2. §3.3's *"why"* cell and §3.4's quotation are both citing more broadly than the source supports.**
-Corrected here rather than in §3's tables, per §10.7's convention; **the row's grounds do not change and
+Corrected here rather than in §3's tables, per §10.7's convention. **The row's grounds do not change and
 the row does not move.** **[measured]** *"This is an easy system to spoof, but on a trusted physical
 network between trusted hosts, it is entirely adequate"* is not a general statement about NFS
 deployment: it sits in `nfs(5)`'s `.SS "Using non-privileged source ports"` subsection and is scoped to
 the AUTH_SYS-plus-privileged-port trust model. §3.4's ellipsis joins it to a passage roughly 140 lines
-earlier; both are genuinely inside SECURITY CONSIDERATIONS, so the attribution is sound and only the
+earlier. Both are genuinely inside SECURITY CONSIDERATIONS, so the attribution is sound and only the
 precision is wrong. Cite it as `nfs(5)`, SECURITY CONSIDERATIONS, *Using non-privileged source ports*.
 
 **3. §13's strengthening sentence has a neighbour that cuts the other way, and it is disclosed.**
@@ -10898,7 +10898,7 @@ is an argument about sufficiency, not a measurement of completeness.** Naming wh
   be placed on or connected to the internet"* names the internet in a vendor's voice, which is what
   Filter A asks. Whether Dell is the **owner** for this pair, and whether a corroborator may supply the
   **number**, is [#90](https://github.com/winniel123/verge-asm/issues/90)'s question (§18.5). **If #90
-  removes the row the cell leaves with it** (§18.6); **if #90 re-founds the cell on the IPMI or ASF
+  removes the row the cell leaves with it** (§18.6). **If #90 re-founds the cell on the IPMI or ASF
   specification, this pair returns to the residue and owes the retrieval this section did not spend on
   it.** Recorded so the sweep's coverage claim does not silently outlive its premise.
   **Discharged by §28** ([#96](https://github.com/winniel123/verge-asm/issues/96)): #90 re-founded the
@@ -10936,7 +10936,7 @@ and the distinction is the whole answer.
 instrument for saying so. [ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md)
 ([#86](https://github.com/winniel123/verge-asm/issues/86)) ruled that an owner's documentation is what it
 has **issued**, that **issuance is per version**, and that a negative therefore *"names the release and
-the date and never says never issued."* A class sweep is a search over issued documents; it inherits
+the date and never says never issued."* A class sweep is a search over issued documents. It inherits
 that rule without amendment. The disclosure form a sweep owes is not *the class is empty* but **the
 class had no member at release R, dated D**.
 
@@ -10961,15 +10961,15 @@ first instance of it. Making it a ninth trigger would put the obligation somewhe
 
 **Why it loses, and the reason is what a watch costs rather than what it covers.** Trigger (7) is priced
 in the map as *"the cheapest, because it is **announced, by a release**"* — and that pricing is only true
-because the **draft is already known**. Kafka's `security-model.md` sits on the `4.4` branch with no tag;
-the watch is *check whether that file's branch gets tagged*, one named artefact, one owner. Nothing
+because the **draft is already known**. Kafka's `security-model.md` sits on the `4.4` branch with no tag.
+The watch is *check whether that file's branch gets tagged*, one named artefact, one owner. Nothing
 announced `secure_coding.md`. It was authored and released in a single motion, in a class that had never
 had a member, in a repository nobody was watching for it. The corresponding watch is **read every release
 of every owner in the table, forever, for a document that did not previously exist** — twenty-odd owners
 on independent cadences — which is precisely the *"general somebody may have said this somewhere"*
 standing obligation ADR-0046 §2 was written to deny. **A watch that cannot be run is worse than a bounded
 disclosure, because it converts an unbounded obligation into a checked box.** Trigger (7) is not widened
-to cover this; it keeps its cheapness by keeping its scope.
+to cover this. It keeps its cheapness by keeping its scope.
 
 **What discharges it instead, and it has already fired once.**
 [ADR-0040](../adr/0040-a-specifications-silence-is-not-the-owners-silence.md) requires a surviving
@@ -11025,7 +11025,7 @@ measurement, and it is the thinnest thing in this section.
 | §16.7 / §18.6's *"two cells are thin"* successor note | one cell — `10250` | **unchanged.** Nothing here is added to or removed from that flag |
 
 **Nothing in this section is routed to [#12](https://github.com/winniel123/verge-asm/issues/12).** #12
-carries the list and its count; this section moves neither, and the one refutation it records is of a
+carries the list and its count. This section moves neither, and the one refutation it records is of a
 **characterisation of a tier boundary**, not of a row. The
 [#86](https://github.com/winniel123/verge-asm/issues/86) shape — a sweep returning a sentence that
 refutes a listed row — **did not occur**.
@@ -11036,15 +11036,15 @@ refutes a listed row — **did not occur**.
 than by a retrieval, and the arguments are not equally strong.** Filter C is close to tautological and
 Filter A is not: it asserts that a footing already at the table's strongest grade cannot be improved,
 which is true of *strengthening* and says nothing about *refutation*. §26.5 states that residue and
-prices it; it is the thinnest structural thing here.
+prices it. It is the thinnest structural thing here.
 
 **The taxonomy/membership distinction in §26.6 is a ruling and not a measurement**, and §26.6 names the
 reading that would overturn it.
 
 **Class assignment is a judgement in at least three of the twenty-four cells**, and §26.3 met the reason
 why: the class a document *reads as* and the artefact it *ships in* can disagree. `rsyncd.conf.5.md`'s
-`## SECURITY` is a deployment checklist inside a man page; `nfs(5)`'s SECURITY CONSIDERATIONS is the
-same shape; Kubernetes' `security-checklist.md` is a security document that lives in a website
+`## SECURITY` is a deployment checklist inside a man page. `nfs(5)`'s SECURITY CONSIDERATIONS is the
+same shape. Kubernetes' `security-checklist.md` is a security document that lives in a website
 repository. §26.2 assigns on the **artefact**, which is the rule §12.2 already uses for configuration
 files and is the only assignment a reader can check. But a session that assigned on **content** would
 carry `873` and `2049` on Filter C and spend no retrievals at all — and would have missed
@@ -11060,7 +11060,7 @@ rather than guessed**, and **every class list in this section carries the releas
 which is §26.6's rider binding its own output.
 
 - **rsync: `RsyncProject/rsync` at tag `v3.5.0`.** The tree was enumerated in full before any path was
-  resolved; there is **no `doc/` directory**, which is why `SECURITY.md` at the repository root is the
+  resolved. There is **no `doc/` directory**, which is why `SECURITY.md` at the repository root is the
   deployment class and why a session looking for a docs tree would have reported the class empty. This
   is §16.10's etcd `THREAT_MODEL.md` hazard for the second time — **the deployment document is at the
   repository root, where no citation points.**
@@ -11078,7 +11078,7 @@ which is §26.6's rider binding its own output.
   *"no NFS RFC carries status `BEST CURRENT PRACTICE`"* a measurement rather than an impression, and it
   is the instrument §17.3 used on the SNMP family.
 - **A title is not a class, and NFS supplies both halves of the trap.** RFC 2623 is titled *NFS Version 2
-  and Version 3 Security Issues…* and is a **Proposed Standard** about flavour-negotiation downgrades;
+  and Version 3 Security Issues…* and is a **Proposed Standard** about flavour-negotiation downgrades.
   RFC 8000 is the only NFS RFC with *Deployment* in its title and scopes to namespace identity. Neither
   is the operational class, and a session filing by title would have reported that class searched. This
   is the sibling of the *a page named security is not the security class* hazard above — **class
@@ -11089,7 +11089,7 @@ which is §26.6's rider binding its own output.
   what the project **ships**. Recorded because the next session will meet the same failure, and because a
   retrieval that silently substitutes a different host is how §12.9's `default.ini.tpl` hazard happens.
 - **The finding that matters was in an appendix.** RFC 8881's Internet goal is in §1.1 and its
-  withdrawal is in **Appendix C**; a session that read the goals list and the Security Considerations
+  withdrawal is in **Appendix C**. A session that read the goals list and the Security Considerations
   section and stopped would have found the failure condition met. §17.3 and
   [#73](https://github.com/winniel123/verge-asm/issues/73) both turned on appendices, and this is the
   third instance: **read the appendices.**
@@ -11235,7 +11235,7 @@ defaulting function and no documented default in
 `k8s.io/kube-proxy` `v0.34.0` `config/v1alpha1/types.go`, so it is Go's zero value, `false`. Nor are
 the two newer pages — `flagz` is installed only when `flagzReader != nil`, which
 `cmd/kube-proxy/app/options.go` gates on the `ComponentFlagz` feature gate, and `statusz` on
-`ComponentStatusz`; **[measured]** both are declared
+`ComponentStatusz`. **[Measured]** both are declared
 `{Version: version.MustParse("1.32"), Default: false, PreRelease: featuregate.Alpha}` in
 `staging/src/k8s.io/component-base/zpages/features/kube_features.go`. **The row does not need any of
 them and is not rested on any of them.** Recorded because a by-catch note is written by a pass that
@@ -11318,9 +11318,9 @@ sentence is about:
 That is
 [ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md)
 satisfied on all three limbs inside one artefact: **standing**, Kubernetes speaking about the
-component it authors; **membership**, established by the owner's own artefact rather than by a
+component it authors. **Membership**, established by the owner's own artefact rather than by a
 corroborator's port number — and established in the same file as the statement, which is the tightest
-form the rule has yet been met in; and **defeat per member**, tested and absent, because nothing
+form the rule has yet been met in. And **defeat per member**, tested and absent, because nothing
 retrieved has Kubernetes naming a supported internet-facing kube-proxy metrics endpoint.
 
 **Under [ADR-0054](../adr/0054-a-claim-step-is-answered-only-by-evidence-about-that-step.md) limb 1
@@ -11339,7 +11339,7 @@ describes a deployment Kubernetes does not ship for this port. ADR-0054 limb 1:
 > Claim 1 row.**"
 
 `10249` is that sentence's cleanest instance to date. The owner says metrics are for an authorized
-principal; the shipped bytes ask nobody for anything. **Claim 1 is available.**
+principal. The shipped bytes ask nobody for anything. **Claim 1 is available.**
 
 **And the owner's own bytes say it a second time, in a place nobody would look.** **[measured]** the
 `ComponentStatusz` gate's declaration comment reads *"Enables /statusz endpoint for a component making
@@ -11396,7 +11396,7 @@ operator can reach anonymous remote service **without supplying a credential**"*
 
 **§25.4's arithmetic moves, and it moves in the direction that strengthens limb 2 rather than
 straining it.** Seven of eleven Class A rows did not serve an anonymous remote caller on their shipped
-default; with `10249` the count is **eight of twelve**. The rule that would refuse `10249` on its
+default. With `10249` the count is **eight of twelve**. The rule that would refuse `10249` on its
 loopback bind is the rule that empties two thirds of Class A.
 
 **And the same default does a second, different job, which is the ticket's third question.** §10.4's
@@ -11405,19 +11405,19 @@ one-way rule asks whether a shipped default **attests**, and it answers *yes whe
 owner documents it as its default in the published config API — so it satisfies both of
 [ADR-0036](../adr/0036-a-shipped-default-is-the-configuration-that-takes-effect.md)'s limbs and
 attests. **The two rulings are not in tension because they answer different questions.** ADR-0054 limb
-2 asks *in which configuration is reachability read* and answers *the one where the port is reached*;
+2 asks *in which configuration is reachability read* and answers *the one where the port is reached*.
 §10.4 asks *does this default carry evidence* and answers *yes, about the maintainer's position*. A
 session that reads limb 2 as making a loopback default **silent** has confused the frame with the
 attestation, and it would take `5432/tcp` off the list. §27.10 records the ruling and §27.11 the option
 that lost.
 
 **The kubeadm asymmetry is the honest half.** The binary's own `bindAddress` default is `0.0.0.0` and
-is **permissive**, so it is silent in both directions; the metrics bind is the restricting one and it
+is **permissive**, so it is silent in both directions. The metrics bind is the restricting one and it
 is the one that attests. That is §24.6's two-defaults disposal reached without needing §19.3's
 tie-break, in a second instance — and here the two defaults are for **different servers of the same
 process** rather than for the same server, which is a shape the corpus had not met.
 
-### 27.5 `10249/tcp` — admitted, Class A, Claim 1; and the row does not depend on the class
+### 27.5 `10249/tcp` — admitted, Class A, Claim 1. And the row does not depend on the class
 
 > **`10249/tcp` kube-proxy metrics — admitted to Class A on Claim 1.** Step 1 passes: the owner's own
 > metrics document says reading metrics requires authorization via a user, group or ServiceAccount
@@ -11444,7 +11444,7 @@ kinds:
    its own documentation, and the list follows it both times.
 
 **It is not the prohibition tier**, because no sentence anywhere retrieved tells anyone not to expose
-`10249`; and **§18's category statement does not reach it**. **[measured]** `security-checklist.md` at
+`10249`. And **§18's category statement does not reach it**. **[measured]** `security-checklist.md` at
 `release-1.34`, read whole, contains **zero** occurrences of `kube-proxy`, `proxy`, `metrics`,
 `10249`, `10248` or `10258`, so ADR-0050 limb 2 fails for all three of this section's subjects exactly
 as §24.5 found it failing for §24's. That is the negative's **third** instance after `4369` (§18.5)
@@ -11456,7 +11456,7 @@ other side of §27.3 and rules that publication *is* a metrics endpoint's purpos
 unavailable and the row falls to **Claim 3**, whose boundary limb is answered by exactly the two
 supports above — a restricting default plus an owner sentence naming the locality, which is strictly
 more than `5432/tcp` has and is what §24.6 admitted `10259` and `10257` on. **The row survives either
-ruling; only its class turns on Step 1.** That is worth stating plainly, because it bounds what a
+ruling. Only its class turns on Step 1.** That is worth stating plainly, because it bounds what a
 reviewer who disagrees with §27.3 is actually disagreeing about: one cell in §3, not one pair in §1.
 
 ### 27.6 `10248/tcp` kubelet healthz — Claim 1 fails at both steps, and Claim 3 carries it on `5432`'s form
@@ -11474,7 +11474,7 @@ reviewer who disagrees with §27.3 is actually disagreeing about: one cell in §
 A stdlib `ServeMux` with one handler installed on it, on `http.ListenAndServe` — no TLS, no
 authentication, no authorization. The kubelet's own auth filter lives in `pkg/kubelet/server`'s
 `NewServer` and is not reached from here. This is **weaker** than `10256`, not stronger: `10256` at
-least carries `/livez` beside `/healthz`; `10248` carries `/healthz` and its two subpaths and nothing
+least carries `/livez` beside `/healthz`. `10248` carries `/healthz` and its two subpaths and nothing
 else at all.
 
 **Claim 1 is unavailable, and it is overdetermined.** **Step 2 fails**: the anonymous caller writes
@@ -11520,20 +11520,20 @@ rung 1. §39.4.)*
 row.** *"the port of the **localhost** healthz endpoint"* is tempting: it reads like an owner naming a
 locality in prose, which would put the row in the scoping tier. It is refused on the line
 [#69](https://github.com/winniel123/verge-asm/issues/69) drew and the map still carries as an open
-patch — *"# Listen for connections from the local system only"* **describes what the directive does**;
+patch — *"# Listen for connections from the local system only"* **describes what the directive does**.
 *"you should not expose this port to the internet"* **takes a position**. *localhost healthz endpoint*
 is a name for the default, not an instruction about where the port may be reached from, and §16.5
-refused `10255`'s promotion on precisely this distinction. The row rests on the default; the label
+refused `10255`'s promotion on precisely this distinction. The row rests on the default. The label
 tells you the default is deliberate.
 
 **The comparison a reader will reach for, stated before they do.** `10248` and `10256` serve
 substantially the same thing and end in opposite places. **The two separate on the owner's own
 artefacts and on nothing else**: `10256` is wildcard-bound in the shipped default and the owner
-documents an off-node caller at `${NODE_IP}` by design (§24.7); `10248` is loopback-bound in the
+documents an off-node caller at `${NODE_IP}` by design (§24.7). `10248` is loopback-bound in the
 shipped default and no owner document places any caller off the node — **[measured]** a code search
 over `kubernetes/website` returns six files for `10248`, of which the three English ones are
 `kubelet-config-file.md` and the two **generated** reference pages, and none of them takes a network
-position. §24.7 called its own result *"the note's sharpest inversion"*; this is the inversion read
+position. §24.7 called its own result *"the note's sharpest inversion"*. This is the inversion read
 from the other side, and it is the same instrument giving the same kind of answer.
 
 ### 27.7 `10258/tcp` — refused, because Kubernetes ships nothing that listens on it
@@ -11549,7 +11549,7 @@ because the port is HTTPS.
 
 **Claim 3's boundary limb then has nothing to answer it, and the negative is unusually clean.**
 
-- **[measured]** `ports-and-protocols.md` does not carry `10258`; §24.2 enumerates its six subjects and
+- **[measured]** `ports-and-protocols.md` does not carry `10258`. §24.2 enumerates its six subjects and
   this is not one of them.
 - **[measured]** a code search over the whole `kubernetes/website` repository for `10258` returns
   **zero** results — in any language, in any file. The owner's documentation does not contain the
@@ -11576,8 +11576,8 @@ constant. **But Kubernetes ships no binary that listens on it.**
 **[measured]** and the build agrees with the comment: `hack/lib/golang.sh` at `v1.34.0` lists
 `cmd/kube-proxy`, `cmd/kube-apiserver`, `cmd/kube-controller-manager`, `cmd/kubelet`, `cmd/kubeadm`,
 `cmd/kube-scheduler`, `kube-log-runner`, `kube-aggregator`, `apiextensions-apiserver` and
-`gce/gci/mounter` as `server_targets`; `cmd/kube-apiserver`, `cmd/kube-controller-manager`,
-`cmd/kube-scheduler`, `cmd/kube-proxy` and `cmd/kubectl` as `server_image_targets`; and
+`gce/gci/mounter` as `server_targets`. `cmd/kube-apiserver`, `cmd/kube-controller-manager`,
+`cmd/kube-scheduler`, `cmd/kube-proxy` and `cmd/kubectl` as `server_image_targets`. And
 `cmd/kube-proxy`, `cmd/kubeadm`, `cmd/kubelet` and `kube-log-runner` as `node_targets`.
 **`cmd/cloud-controller-manager` appears in none of them.** It is an example program — §12(a)'s
 artefact class, in an executable rather than a configuration file, and it **declares itself** one, in
@@ -11618,7 +11618,7 @@ that **its own software listens on a given `(port, transport)` pair by default**
 **Contested? No, and the registry is silent rather than hostile.** **[measured]** the IANA CSV,
 downloaded 2026-08-14 and searched with a literal match: the strings `10248`, `10249` and `10258`
 return **zero** rows each across all 15,400 lines, and the strings `kube-proxy` and `kubelet` return
-zero. `10248` and `10249` fall inside `,10202-10251,,Unassigned,,,,,,,,`; `10258` inside
+zero. `10248` and `10249` fall inside `,10202-10251,,Unassigned,,,,,,,,`. `10258` inside
 `,10254-10259,,Unassigned,,,,,,,,`, the row §24.4 found. That is `10250`'s and `10255`'s position
 exactly. Under ADR-0048 an unregistered number is not thereby indeterminate — registration
 corroborates and never carries — so the question is only whether another party's **own current
@@ -11711,29 +11711,29 @@ it is said on the ADR.
 
 **Refuse `10249` at Step 1 — publication *is* a metrics endpoint's purpose.** The strongest losing
 option and the one the ticket named. Its case is good: the Prometheus exposition format exists to be
-scraped by anyone who asks; `system-metrics.md`'s own overview calls it *"structured plain text,
-designed so that people and machines can both read it"* and tells the reader to point a scraper at it;
-the authorization sentence is conditioned on RBAC, which never sees a request to `10249`; and
+scraped by anyone who asks. `system-metrics.md`'s own overview calls it *"structured plain text,
+designed so that people and machines can both read it"* and tells the reader to point a scraper at it.
+The authorization sentence is conditioned on RBAC, which never sees a request to `10249`. And
 `source-ip.md` instructs a bare unauthenticated `curl`. **It loses on ADR-0054 limb 1, twice.** The
 authorization sentence is an owner statement about whether its callers are **identified**, which is
 what limb 1 says answers Step 1, and limb 1 expressly permits such a sentence to be prescriptive and
 to describe a deployment the owner does not ship — *"the gap between the two is the Claim 1 row"*. And
 the `curl` instruction is a **placement** statement, which limb 1 bars from Step 1 in either
-direction; a session that used it to refuse Step 1 would be doing what §25.1 was stopped from doing,
+direction. A session that used it to refuse Step 1 would be doing what §25.1 was stopped from doing,
 with the sign flipped. The discriminator against `10256` is the owner's own, not ours: for `10256` the
-owner documents the unidentified caller **by name and by address**; for `10249` its only statement
+owner documents the unidentified caller **by name and by address**. For `10249` its only statement
 about who reads metrics **requires a ServiceAccount**. **The cost of taking this option is one cell,
 not one row** (§27.5), which is the reason it can be recorded honestly rather than defended
 anxiously.
 
 **Refuse `10248` — a bind address is not the owner naming a boundary.** Its case: the whole of
-`10248` is a liveness boolean; the owner has separately declared health endpoints answerable to
-`system:unauthenticated`; and admitting a row whose entire evidence is one default line grows the
+`10248` is a liveness boolean. The owner has separately declared health endpoints answerable to
+`system:unauthenticated`. And admitting a row whose entire evidence is one default line grows the
 note's weakest tier by fifty per cent for a port nothing will ever usefully report. **It loses on
 §10.4.1's measurement, one table over.** The reading that refuses `10248` is the reading that a bind
 address cannot name §10.3's first branch — and that reading takes `5432/tcp` and `5984/tcp` off the
 list, the second of which has no other support at all. §10.4.1 refused the symmetric rule because it
-*"deletes roughly half the list"*; refusing this row requires the same move in the admission direction
+*"deletes roughly half the list"*. Refusing this row requires the same move in the admission direction
 and would delete the tier §2.2 discloses rather than hides. Keeping `5432` on a loopback default while
 refusing `10248` on one is the arbitrariness §2.2's founding paragraph says *"destroys a curated
 list's credibility"*.
@@ -11749,7 +11749,7 @@ ticketed, never decided by whoever meets it"*). §27.14 routes it.
 
 **Admit `10258` alongside them, on the ground that the claim analysis transfers from `10257`.** §24.11
 predicted it would and it does. **It loses on the boundary limb having nothing to answer it.** `10257`
-was admitted on `Used By: Self` plus kubeadm's `--bind-address=127.0.0.1`; `10258` has neither — no
+was admitted on `Used By: Self` plus kubeadm's `--bind-address=127.0.0.1`. `10258` has neither — no
 table cell, no installer, no restricting default, and **zero** occurrences of the number in the
 owner's entire documentation repository. Admitting it would mean admitting a row on a claim analysis
 inherited from a *sibling port* with no attestation of its own, which is §2.2's first sentence — *the
@@ -11768,7 +11768,7 @@ where it can be stated without pretending to be a contest.
 seriously, and §20.9, §23 and §24.9 have all declined an ADR on it. **It loses on both halves.** §12(a)
 and [ADR-0036](../adr/0036-a-shipped-default-is-the-configuration-that-takes-effect.md) are about
 **configuration files** — every one of §12.2's ten artefacts is one — and say nothing about a program
-entry point; extending them to an executable is an extension, not a reading-out. And ADR-0048's *its
+entry point. Extending them to an executable is an extension, not a reading-out. And ADR-0048's *its
 own software listens* clause governs **determinacy only**, which §27.7 expressly declines to rest the
 refusal on, while §2.2's attestation gate and §10.5's owner definition key on **authorship** and never
 ask whether the author ships a listener. The gap is real: on the existing rules, `10258` and `10249`
@@ -11778,7 +11778,7 @@ comment shape — and nothing written down separates them. That is what the ADR 
 **Widen ADR-0037 limb 1 by rewriting limb 2 instead.** Argued because limb 2 is already
 purpose-neutral in its own words and did all the work in §24.11. **It loses because limb 2 is the
 *disposal* rule and limb 1 is the *reading* rule.** Limb 2 tells you what to do with a subject you
-found; it cannot make you find one. The defect §24.11 exposed is that a session may legitimately stop
+found. It cannot make you find one. The defect §24.11 exposed is that a session may legitimately stop
 reading, and only limb 1 addresses that.
 
 ### 27.12 Every dependent figure, walked rather than asserted
@@ -11844,11 +11844,11 @@ and the row moves to Class C on §27.5's two supports. **It would not remove the
 is the honest measure of how much weight this sentence is carrying.
 
 **`10248` is the thinnest row this section adds and it is thinner than §4.5's.** `5432` is disclosed
-as the list's weakest row because PostgreSQL states *no position at all*; `10248` is in the same
+as the list's weakest row because PostgreSQL states *no position at all*. `10248` is in the same
 position with one difference that cuts against it — PostgreSQL's default is documented in prose on the
 project's documentation site, while `10248`'s is a doc comment on a Go struct field in a published
 API. §16.5 admitted `readOnlyPort`'s identical artefact for `10255`'s **footing**, but that row was
-already on the list on Claim 1; this is the first time a config-API doc comment has been asked to
+already on the list on Claim 1. This is the first time a config-API doc comment has been asked to
 carry **admission**. It is inside §2.2's third form on both of ADR-0036's limbs and it is a real
 maintainer act, and it is where a reviewer should push. **The criterion that would change the
 verdict:** a ruling that §2.2's third form requires the default to be documented in the owner's prose
@@ -11857,7 +11857,7 @@ and is therefore not a free move.
 
 **The weak tier grew by fifty per cent in one section, and nobody has re-priced what that tier costs.**
 ADR-0032 §8's watch list exists because a shipped default can be flipped in one commit and nothing
-tells the curator. Two rows was a footnote; three is a population, and the map's *how the tiered port
+tells the curator. Two rows was a footnote. Three is a population, and the map's *how the tiered port
 sets are curated* patch already carries **whether the watch list should key on tier or on
 volatility** as open fog. This section adds a member to the list without touching the question, which
 is deliberate — but the question is now larger than it was.
@@ -11890,7 +11890,7 @@ moves from the weak tier to scoping and the tiers read 15 / 13 / 2.
 
 **`10258`'s refusal rests on a negative about a *population* rather than about a document.** *"No
 cloud provider's own documentation places its CCM on `10258` and names a boundary"* is not something
-this section established; what it established is that **Kubernetes** does not, and that Kubernetes
+this section established. What it established is that **Kubernetes** does not, and that Kubernetes
 ships no listener. AWS's, Azure's, GCP's and OpenStack's cloud-controller-managers were **not**
 retrieved, and per ADR-0037 limb 3 the negative is bounded to what was read. **The criterion that
 would change the verdict:** any one of those vendors' current documentation placing its CCM on
@@ -11917,7 +11917,7 @@ concentration is real and is recorded so that a curator can see it.
 
 - **`CloudControllerManagerWebhookPort` is still unresolved.** §24.11 recorded that its value was not
   retrieved. **[measured]** it is `cpoptions.CloudControllerManagerWebhookPort`, imported into
-  `pkg/cluster/ports/ports.go` from `k8s.io/cloud-provider/options`; the constant's value was **not**
+  `pkg/cluster/ports/ports.go` from `k8s.io/cloud-provider/options`. The constant's value was **not**
   retrieved here either, because ADR-0056 disposes of it in advance — whatever the number is, it is a
   library constant for a binary Kubernetes does not ship, so it is `10258`'s case and not a new one.
   Recorded as **disposed by rule rather than by retrieval**, which is a weaker disposal and is named
@@ -11933,7 +11933,7 @@ concentration is real and is recorded so that a curator can see it.
   > [ADR-0061](../adr/0061-a-comment-is-a-position-only-where-it-outlives-the-value-it-annotates.md).
 - **`kubernetes/website`'s generated reference pages carry all three numbers and were deliberately not
   quoted.** `kube-proxy.md`, `kube-proxy-config.v1alpha1.md`, `kubelet.md` and
-  `kubelet-config.v1beta1.md` are generated from the source this section quotes directly; §19.7's rule
+  `kubelet-config.v1beta1.md` are generated from the source this section quotes directly. §19.7's rule
   is the reason and it cost nothing to obey, because the source was being read anyway.
 
 ### 27.15 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6, §16.10, §17.10 and §22.10
@@ -11943,7 +11943,7 @@ concentration is real and is recorded so that a curator can see it.
   nor `statusz` is installed either — both gates are alpha and default `false`. Had this section
   inherited the record instead of re-reading `serveMetrics`, it would have written *"and pprof"* into
   a §3.1 cell and the row's most quotable fact would have been false. **ADR-0037 limb 3 is usually
-  read as a rule about negatives; this is the positive-direction instance** — a by-catch note states
+  read as a rule about negatives. This is the positive-direction instance** — a by-catch note states
   what a pass saw at the extent it read, and the next pass owes it a re-reading, not a citation.
 - **The two defaults are in the same function and a row-scoped read would have found only one.**
   `getDefaultAddresses` returns healthz and metrics addresses together, and §24.3 quoted it **for
@@ -11952,16 +11952,16 @@ concentration is real and is recorded so that a curator can see it.
   independent reason §27.9 widens limb 1: §24 read the whole file and routed the number, which is why
   it was available to be read properly here.
 - **The registry was searched as bytes.** The IANA CSV was downloaded for this section and searched
-  with literal matches; the `10202-10251` and `10254-10259` **range** rows are how these numbers are
+  with literal matches. The `10202-10251` and `10254-10259` **range** rows are how these numbers are
   covered, and a search of the rendered XHTML for `10249` would have returned nothing and produced a
   correct *"not in the registry"* for the wrong reason. §24.13's hazard, met again and avoided the
   same way.
 - **A missing file is not an absent fact, and one path in the ticket does not exist.** The ticket
-  named `cmd/kube-proxy/app/ports.go`; there is no such file at `v1.34.0` — the constants are in
+  named `cmd/kube-proxy/app/ports.go`. There is no such file at `v1.34.0` — the constants are in
   `pkg/cluster/ports/ports.go` and the serving code in `cmd/kube-proxy/app/server.go`. Directory
   paths were resolved before any file was quoted, per §24.13.
 - **The build system was read to establish a negative that no source file states.** *"Kubernetes ships
-  no cloud-controller-manager"* is not written down in any document; it is read off
+  no cloud-controller-manager"* is not written down in any document. It is read off
   `hack/lib/golang.sh`'s target lists, which is an artefact class this note has not used before. The
   negative's extent is exactly those four lists at `v1.34.0`, and it does not claim that no
   Kubernetes-adjacent project ships such a binary — the SIG-owned provider repositories plainly do,
@@ -12073,7 +12073,7 @@ Two readings of §10.1's Step 1 are available and they must be separated.
 
 **The narrow reading loses on a measurement, not on taste.** It refuses every protocol with a
 pre-authentication handshake — which is most of Class A. `2375/tcp` Docker negotiates TLS before any
-credential; `2379`/`2380` etcd do the same, and §25.1 has just re-founded both Step 1 cells on
+credential. `2379`/`2380` etcd do the same, and §25.1 has just re-founded both Step 1 cells on
 etcd's own *"Any client request must prove its identity at the transport layer using client
 certificates"*. A reading that empties Class A of its handshake-bearing rows is the over-reach
 ADR-0054 limb 2 refused one step later, arriving one step earlier.
@@ -12115,7 +12115,7 @@ table at page 587 where its columns render cleanly:
 
 To which the RMCP+ payload types add the session-establishment exchange itself — **RMCP+ Open
 Session Request/Response, RAKP Messages 1–4** (§13.15) — and **Get Channel Cipher Suites**, which
-§13.15 places pre-session for algorithm discovery; and, one layer down, ASF's **Presence Ping /
+§13.15 places pre-session for algorithm discovery. And, one layer down, ASF's **Presence Ping /
 Presence Pong** (DSP0136 §3.2.4.3, page 36), whose entire payload is an IANA enterprise number, an
 OEM field, an *"IPMI is supported"* bit and an ASF version.
 
@@ -12129,7 +12129,7 @@ Get Channel Authentication Capabilities, Get Session Challenge, and RAKP message
 
 **Two precise negatives, recorded because they are the ones a session would guess wrong.**
 **[measured]** *Set Session Privilege Level* (`3Bh`) is marked `X4`, **not** `p` — it operates
-inside a session. And *Get Device ID* (`01h`) is **not** `p`-marked over LAN; it is session-less
+inside a session. And *Get Device ID* (`01h`) is **not** `p`-marked over LAN. It is session-less
 only on the inherently session-less interfaces. No Chassis, Event or Sensor command is placed
 pre-session anywhere in the specification: the strings *"prior to a session being established"*,
 *"before the session is set up"* and *"outside of an active session"* occur in the whole document
@@ -12175,7 +12175,7 @@ control, user provisioning, Serial-over-LAN. That is Step 2 four times over.
 
 1. **Mandatory *support* is not a shipped *configuration*.** §10.1's premise is *"the service, **in
    the configuration its maintainers ship**, admits anonymous commands"*. The specification mandates
-   that a BMC be **able** to do RAKP-none; enabling it, and creating the null user it needs, are two
+   that a BMC be **able** to do RAKP-none. Enabling it, and creating the null user it needs, are two
    configuration acts. **[measured]** the specification mandates neither: searched §13.28, §22.15,
    §23's LAN Configuration Parameters and Table 22-19, **no clause requires Cipher Suite 0 to be
    enabled**, and LAN parameter 24's own nibble `0h` reads *"Unspecified (given Cipher Suite is
@@ -12225,7 +12225,7 @@ this argument respectable rather than clever:
    challenge is not IPMI's service.
 2. **The read limb requires content the protocol *carries*.** epmd carries a **registry** — data
    deposited by third parties and held for retrieval, which is why §20.6 could name the party it is
-   held on behalf of. A BMC does not carry `HMAC_K[UID]`; it **computes** it per exchange over a
+   held on behalf of. A BMC does not carry `HMAC_K[UID]`. It **computes** it per exchange over a
    nonce the caller itself supplied. What the BMC carries is the password, and the password is not
    disclosed.
 3. **It is a Claim 2-shaped fact, and §10.8 has already ruled Claim 2 structurally unavailable
@@ -12263,8 +12263,8 @@ gave rather than by accident.
 > §27 having admitted `10249/tcp` concurrently) and can only remove; a candidate for **addition** is a
 > different act and is performed here rather than there.
 
-**The `why` cell §23.7 restated stands, and gains its owner citations.** No edit is made to §3.3;
-per §10.7's and §20.5's convention the current text is recorded here:
+**The `why` cell §23.7 restated stands, and gains its owner citations.** No edit is made to §3.3.
+Per §10.7's and §20.5's convention the current text is recorded here:
 
 > | 623/udp | IPMI / ASF-RMCP (BMC) | The IPMI specification puts IPMI-over-LAN on the Primary RMCP Port, and three of that specification's four authors state the position in their own documents — Dell, *"not designed nor intended to be placed on, nor connected directly to the Internet"*; HPE, *"Do not connect iLO directly to the Internet"*; NEC, *"do not connect the BMC to the Internet"*. Session setup is transacted in the clear before authentication, so a caller that reaches the port learns the channel's authentication capabilities without holding a credential (§28.4 — disclosure, not a Claim 1 move) |
 
@@ -12346,7 +12346,7 @@ third party's advisory as the artefact:
 **[measured] HPE and Dell publish the same sentence.** *"Do not allow IPMI/DCMI traffic from outside
 the network"* and *"Do not allow IPMI traffic from outside the network"* are two of the four
 co-authors independently, and it is the closest thing to unanimity §10.3 has ever had for a row.
-§10.3 asks only that the boundary be **named by an owner** and does not require unanimity; it now
+§10.3 asks only that the boundary be **named by an owner** and does not require unanimity. It now
 has three owners anyway.
 
 **NEC, and this is the cell #90 could not find at all:**
@@ -12386,9 +12386,9 @@ that met it cold.**
    through LAN or Internet"* (M70KLP *Integrated BMC Web Console User Guide*, Rev. 1.0, June 2021,
    §5) and the same construction for RMM4 in G37830-002. It is refused on three grounds that must
    travel together: it describes the **web console's KVM on TCP/443**, which the same guide states
-   outright (*"KVM and media use the BMC default web server port: 443"*), not IPMI on `623/udp`; it
+   outright (*"KVM and media use the BMC default web server port: 443"*), not IPMI on `623/udp`. It
    is a **capability** claim, which is §12(b)'s *label* rather than *position* and the line §23.5
-   drew for the specification's own *management VLAN*; and the same guide immediately assumes a
+   drew for the specification's own *management VLAN*. And the same guide immediately assumes a
    firewalled or NATed private network. **This is §17.4's shape not occurring** — the one place in
    the corpus where a class sweep did find an owner naming public networks as supported.
 
@@ -12410,11 +12410,11 @@ write *HPE removed IPMI* would be wrong, and §28.10 records what actually happe
    [ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md) directly rather than
    through §23.6's issuance argument. **§23.6's objection 3 is now moot rather than merely
    answered** — the row no longer needs the CERT/CC statement to be issued, because the same
-   proposition is in Dell's own guide. VU#843044 is **not withdrawn**; it becomes the earliest of
+   proposition is in Dell's own guide. VU#843044 is **not withdrawn**. It becomes the earliest of
    three owner statements rather than the only one.
 2. **`623/udp` acquires §2.2's third form for the first time, and it *restricts*.** **[measured]**
    Dell's *Default Configuration Values* chapter records `iDRAC.IPMILan.Enable — 0 - Disabled`, in
-   both the iDRAC9 and iDRAC10 guides; HPE's *Access settings options* records *"IPMI/DCMI over LAN
+   both the iDRAC9 and iDRAC10 guides. HPE's *Access settings options* records *"IPMI/DCMI over LAN
    … **This setting is disabled by default**"* with *"The default value is UDP 623"*, and HPE's
    *Recommended security settings* row reads *"IPMI/DCMI over LAN — Disabled (includes port
    setting)"*. Under §10.4 a **restricting** default attests, so this is an attestation and not
@@ -12442,9 +12442,9 @@ count**, and it is recorded so that pass does not have to re-check this row.
   October 2012"*. §23.8's `dpcproxy` finding is therefore not stale.
 - **NEC — no dedicated BMC security-configuration guide.** No member found on `nec.com`,
   `jpn.nec.com` or `58support.nec.co.jp`, searched in English and Japanese, read 2026-08-14. NEC has
-  no counterpart to Dell's SCG or HPE's brief; its position is carried by the advisory class.
+  no counterpart to Dell's SCG or HPE's brief. Its position is carried by the advisory class.
 - **NEC — `623/udp` is not in the EXPRESSSCOPE Engine 3 *User's Guide* at all.** Its §4 *TCP/IP
-  PORTS* table enumerates remote media, HTTP, HTTPS, remote KVM, SSH, SMTP, LDAP and SNMP; **623 is
+  PORTS* table enumerates remote media, HTTP, HTTPS, remote KVM, SSH, SMTP, LDAP and SNMP. **623 is
   absent.** Read at revision `ee3_08`, 2026-08-14.
 - **NEC — the shipped default is UNREAD.** Secondary sources state IPMI-over-LAN is enabled by
   default on the models NV21-002 names. **That was not found in NEC's own bytes and is not
@@ -12503,7 +12503,7 @@ containment `28 + 6 + 5 = 39`, exclusions 19.
 **Outside this note.** [ADR-0054](../adr/0054-a-claim-step-is-answered-only-by-evidence-about-that-step.md)
 gains an **annotation** recording the gap this row found in its limb 2 — the frame holds the
 authentication configuration *at its shipped default*, and this is the first row whose owner
-specification expressly declines to set one. **No ADR is minted; 0057 is left unused** (§28.12).
+specification expressly declines to set one. **No ADR is minted. 0057 is left unused** (§28.12).
 ADR-0037, ADR-0040, ADR-0045, ADR-0046, ADR-0048 and ADR-0050 are each **applied** here and none is
 changed by the application, which is recorded so the next session does not re-check.
 `CONTEXT.md` needs no change and no domain term is added or amended.
@@ -12539,8 +12539,8 @@ attribution is not made and the finding does not rest on it.** What disposes of 
 together with the four enumerated exceptions, each corroborated in the specification's prose. **The
 honest bound: if some Chassis command were pre-session, Step 2 would be satisfied and this ruling
 would be wrong.** Three things make that unlikely and none of them is a proof: the spec's prose
-enumerations name no such command; `p` means *works at any privilege level*, which no chassis
-control could be; and the strongest candidate for one of the two strings is **Get Channel Cipher
+enumerations name no such command. `p` means *works at any privilege level*, which no chassis
+control could be. And the strongest candidate for one of the two strings is **Get Channel Cipher
 Suites** (App `55h`), which is on the same page and which §13.15 independently places pre-session.
 **The falsifying act is cheap and is named:** read page 588 of the PDF in a renderer that preserves
 column association.
@@ -12549,8 +12549,8 @@ column association.
 first.** A reader who holds that `HMAC_K[UID]` **is** content the protocol carries on behalf of the
 operator reaches the opposite verdict, and on that reading `623/udp` moves to **Class A** on Step 2's
 read limb — the same limb `4369/tcp` and `10255/tcp` already survive on, which is what makes the
-argument live rather than eccentric. Three things bound it: the value is computed rather than held;
-an owner characterises the harm as **credential discovery**, which is Claim 2's subject; and §10.8
+argument live rather than eccentric. Three things bound it: the value is computed rather than held.
+An owner characterises the harm as **credential discovery**, which is Claim 2's subject. And §10.8
 independently makes Claim 2 unavailable here. **The criterion that would move it:** a ruling that
 Step 2's read limb reaches values **derived from** stored secrets and not only content **held for**
 third parties — which is a general change to §10.1 and would have to be made there, not read out of
@@ -12568,7 +12568,7 @@ advisory* is not one of ADR-0040's four classes, and calling it *outside the tax
 one §26.2 took — and it is the reading that **spent** a retrieval rather than saving one, which is
 the direction to err in.
 
-**What was not done.** No determinacy gate was re-run; §15.4's cell and the `reg.` inconsistency it
+**What was not done.** No determinacy gate was re-run. §15.4's cell and the `reg.` inconsistency it
 records are untouched, and §3's tables are in a sibling's lane this week. `623/tcp` is not revisited
 beyond confirming §23.8. `1433` and `445` share this row's *no configuration artefact* shape and
 were **not** re-tested against Claim 1 — that is a different retrieval on different owners, and
@@ -12583,11 +12583,11 @@ were **not** re-tested against Claim 1 — that is a different retrieval on diff
   the substitution is defensible only because it was **verified**: two independent snapshots
   (2022-02-02 and 2023-01-07) return **byte-identical** files of **12,037,554 bytes**, which is also
   the size §23.1 recorded. A retrieval that silently substitutes a different host is §26.9's
-  `git.linux-nfs.org` hazard; this one is substituted **and checked**.
+  `git.linux-nfs.org` hazard. This one is substituted **and checked**.
 - **Wayback reported HTTP 200 and wrote a 531-byte Akamai error page.** The first `id_` fetch
   claimed the right size and delivered an error document. **Check the magic bytes** — `%PDF` header
   and `%%EOF` trailer — not the status code. And the CDX index's `length` column is the compressed
-  WARC record, ~5.8 MB, not the artefact size; reading it as the file size would have masked this.
+  WARC record, ~5.8 MB, not the artefact size. Reading it as the file size would have masked this.
 - **A search result offering `ipmi_specification_v2.0.pdf` on a `wsimg.com` host is a 229 KB
   abridgement and was rejected.** The owner artefact is 12 MB. This is §22.10's summarising-layer
   trap arriving as a plausible filename.
@@ -12596,7 +12596,7 @@ were **not** re-tested against Claim 1 — that is a different retrieval on diff
   it is not merely inconvenient. Both `-layout` and plain extractions were taken and compared, and
   the four load-bearing Table G-1 rows were re-read on a **single-page extraction** where the
   columns render cleanly.
-- **`support.hpe.com` is not blocked; it needed a browser.** #90 recorded five failures across three
+- **`support.hpe.com` is not blocked. It needed a browser.** #90 recorded five failures across three
   HPE hosts and correctly logged them as a **retrieval failure rather than a negative finding** —
   and that discipline is now vindicated, because the answer was there. A browser session against
   `support.hpe.com/hpesc/public/docDisplay?docId=<id>&page=<GUID>.html&docLocale=en_US` returns
@@ -12604,7 +12604,7 @@ were **not** re-tested against Claim 1 — that is a different retrieval on diff
   is where the part number, edition and revision history live — that is how every HPE document in
   §28.1 is dated. Topic GUIDs are often stable across iLO versions, which makes diffing versions
   cheap: `GUID-7F973A6B…` is the IPMI/DCMI guidelines topic under both the iLO 5 and iLO 6 docIds.
-- **`dell.com/support/manuals` is not blocked either; its rendered page carries the PDF href.**
+- **`dell.com/support/manuals` is not blocked either. Its rendered page carries the PDF href.**
   §23.11's 551-byte response to non-browser clients is real and reproduced. The route through it is
   to render the page, read the `dl.dell.com` link off it, and `curl` **that** — the PDF host serves
   non-browser clients fine. **Do not guess the URL:** `dl.dell.com/content/manual<NNNNNNNN>-<slug>.pdf`
@@ -12618,7 +12618,7 @@ were **not** re-tested against Claim 1 — that is a different retrieval on diff
   tool, and out of the browser's permitted domains. The one document behind it was obtained
   first-party elsewhere (§28.9), so it is recorded as a bounded failure rather than a gap.
 - **NEC's advisories are Japanese-only.** `nec.com/en/global/security-info/secinfo/nv21-002.html`
-  returns **HTTP 404**; the document lives at `jpn.nec.com/security-info/secinfo/nv21-002.html` and
+  returns **HTTP 404**. The document lives at `jpn.nec.com/security-info/secinfo/nv21-002.html` and
   that host serves `curl` with a browser user-agent. **`pdftotext` emits
   `Unknown character collection 'Adobe-Japan1'` on NEC's PDFs** — English extracts correctly but
   Japanese glyphs may be lost, so Japanese was read from HTML rather than from PDF.
@@ -12644,7 +12644,7 @@ addition against. This section enumerates the hot set from
 [`safe-active-probing.md`](./safe-active-probing.md) §2.3 — its actual source — and tests **all 39**
 pairs against it rather than the two the ticket asked about.
 
-**Two results, and the second is larger than the first.** The arithmetic is **correct in every cell**;
+**Two results, and the second is larger than the first.** The arithmetic is **correct in every cell**.
 `28 + 6 + 5 = 39` survives re-derivation and no second cell is wrong. But the *mechanism* §6, §6.1, §1
 and #91's ADR-0009 amendment all name — a one-directional invariant **enforced at build time**, which
 **forces** two hot-set additions — was **dissolved by ADR-0009 three years of tickets ago** and has no
@@ -12683,7 +12683,7 @@ stops at the kubelet and reaches no other control-plane component.
 ### 29.2 The membership test, all 39 rows
 
 `F` is the 123-member frequency half. A row is *in* where its `(port, transport)` pair is a member of
-`F`; since `F` is TCP-only, every UDP row is out by construction.
+`F`. Since `F` is TCP-only, every UDP row is out by construction.
 
 | Pair | Class | In `F`? | Where it enters `F`, or why it does not |
 |---|---|---|---|
@@ -12761,7 +12761,7 @@ cell 1 + cell 2 = |S_tcp| = 34 ;  + cell 3 = |S| = 39
 ```
 
 **Cell 3 measures nothing against the hot set.** `F` is TCP-only, so `S_udp ∩ F = ∅` holds by
-construction for every possible `S`; the cell is a count of the sensitive list's own UDP rows and
+construction for every possible `S`. The cell is a count of the sensitive list's own UDP rows and
 moves only when a UDP row is added or removed. A pass re-deriving these figures should re-run cells 1
 and 2 and simply **count** cell 3.
 
@@ -12882,7 +12882,7 @@ one, and it only reaches a reader who arrives holding the ADR. Two did not:
 forward, it would have instructed implementation to write a build-time containment test — the
 mechanism ADR-0009 rejected **on its failure mode**, not on cost: *"a test is a mechanism that can be
 absent, and the state it guards against is one a definition simply cannot express."* Writing it would
-not be harmless redundancy; it would re-introduce a skippable guard over an unfalsifiable property and
+not be harmless redundancy. It would re-introduce a skippable guard over an unfalsifiable property and
 invite a later reader to conclude the union is maintained by the test rather than by the definition.
 
 The rule this forces is
@@ -12923,7 +12923,7 @@ per day"*. That was an estimate. Measured against
   of *how* a port is probed, not *how many*. The zero-added-capabilities budget §1's Framing sets is
   unaffected.
 - **Peak load is unchanged.** Both caps are per target host and neither binds harder at 129 than at
-  127; §1's middlebox state-table hazard is bounded by **concurrency**, 20 either way, which is
+  127. §1's middlebox state-table hazard is bounded by **concurrency**, 20 either way, which is
   [#80](https://github.com/winniel123/verge-asm/issues/80)'s own reading of the same arithmetic.
 - **The 200 pkt/s global ceiling is untouched** in rate, and moves only duration.
 - **§6.3's `suspect-firewall` threshold is 100 open ports on `verge-core`** and is nowhere near.
@@ -12952,7 +12952,7 @@ from few. It is the shape ADR-0009's coupling direction commits to, priced rathe
    answered: of the 123-member frequency half, named.
 4. **The build-time invariant does not exist and must not reach
    [#12](https://github.com/winniel123/verge-asm/issues/12).** §6, §6.1 and §1's summary row are
-   amended in place; ADR-0009 gains a #97 amendment withdrawing *"forces two hot-set additions"*;
+   amended in place. ADR-0009 gains a #97 amendment withdrawing *"forces two hot-set additions"*.
    [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
    records the rule. **What #12 must carry is the union definition and the decomposition, never a
    test.**
@@ -13007,7 +13007,7 @@ from few. It is the shape ADR-0009's coupling direction commits to, priced rathe
 **Routed to [#12](https://github.com/winniel123/verge-asm/issues/12), and it is a subtraction rather
 than an addition.** #12 must carry §6's containment as **ADR-0009's definition plus §29.3's
 decomposition**, and must **not** carry a build-time test. The ticket that produced this section
-priced itself on the opposite reading; the price was real and it was owed in the other direction.
+priced itself on the opposite reading. The price was real and it was owed in the other direction.
 
 ### 29.9 Thin ground, flagged per the standing rule
 
@@ -13049,7 +13049,7 @@ re-measure.** It is `0` because
 ADR-0009's union puts every sensitive pair inside `verge-core`, and the five UDP pairs are excluded
 from the count on [#44](https://github.com/winniel123/verge-asm/issues/44)'s ground that they hold no
 subject at all rather than on any ground this section establishes. The **denominator** is corrected
-here; the numerator's warrant is #44's and is untouched.
+here. The numerator's warrant is #44's and is untouched.
 
 **The cost table in §29.6 is arithmetic over shipped defaults, not a measurement of a running
 scanner.** It inherits [#80](https://github.com/winniel123/verge-asm/issues/80)'s correction that the
@@ -13074,7 +13074,7 @@ and the one #4 §6.3 originally got wrong. No packet has been sent.
   *number*, not for the topic. Recorded because it is cheap and nobody does it.
 - **§2.3's prose was stale against an ADR that had superseded it for two of its own members.** The
   Management/OOB limb still reads `161 (TCP), 623` — the exact pair ADR-0009 removed and §6.2
-  diagnosed. A session enumerating from §2.3's text alone gets **125** and never learns otherwise;
+  diagnosed. A session enumerating from §2.3's text alone gets **125** and never learns otherwise.
   #78 caught it only because it was counting for a different reason. This is §29.5's rule firing a
   **second time in the same pass**, on a different document, and it is why ADR-0058 is minted rather
   than left as an observation about §6.
@@ -13082,7 +13082,7 @@ and the one #4 §6.3 originally got wrong. No packet has been sent.
   §6.1's first cell are both `28 of 39` and are different sets — **and composed they are no longer even
   equal: 30 of 41 against 28**, §27's two rows taking a footing cell each while neither enters `F`.
   They were enumerated separately and
-  the memberships compared; the coincidence is real and the sets differ. §13.10 recorded a hand count
+  the memberships compared. The coincidence is real and the sets differ. §13.10 recorded a hand count
   as *"the kind of thing that goes wrong"*, and two equal counts over one denominator in one file is
   the version of that hazard that survives a careful reader.
 - **The supplement's duplicates were counted before the total was.** Five of §2.3's 49 supplement
@@ -13091,7 +13091,7 @@ and the one #4 §6.3 originally got wrong. No packet has been sent.
   arithmetic only closes on 125 if the overlap is taken out, which is the step that makes `44` rather
   than `49` the net-new figure #78 also reports.
 - **No new external artefact was retrieved.** Every source here is in-repo: `safe-active-probing.md`
-  §2.1, §2.3, §2.4, §6.3; `sensitive-ports.md` §3, §6, §24; `nmap-services-licence.md` §6.2;
+  §2.1, §2.3, §2.4, §6.3. `sensitive-ports.md` §3, §6, §24. `nmap-services-licence.md` §6.2.
   ADR-0009. That is unusual for this note and it is stated rather than glossed — the question was
   *what do our own documents say*, so an external retrieval would have answered a different one.
 
@@ -13102,8 +13102,8 @@ and the one #4 §6.3 originally got wrong. No packet has been sent.
 Wayfinder ticket [#98](https://github.com/winniel123/verge-asm/issues/98), on the defect
 [#93](https://github.com/winniel123/verge-asm/issues/93) §26.3 measured and deliberately declined to
 apply: §20.8 asserts *"Every prohibition-tier sentence names **the public internet**"* and §2.2's own
-table refutes it on `873/tcp`. This section **amends §20.8, §2.2, §18.6, §3.4 and §26.3 by reference**;
-earlier text stands and is marked, per the name-and-withdraw convention, and where §30 and an earlier
+table refutes it on `873/tcp`. This section **amends §20.8, §2.2, §18.6, §3.4 and §26.3 by reference**.
+Earlier text stands and is marked, per the name-and-withdraw convention, and where §30 and an earlier
 section disagree, **§30 governs**.
 
 **Headline result, stated first.**
@@ -13229,7 +13229,7 @@ the lexical test is **necessary and not sufficient** — but the check is run ra
 | 11 | `10257/tcp` kube-controller-manager | same | n/a | **Stays** |
 
 **The weak tier is not in this section's subject.** `5432/tcp` PostgreSQL and `5984/tcp` CouchDB rest on
-a restricting default with no owner sentence at all; there is no sentence for the criterion to read.
+a restricting default with no owner sentence at all. There is no sentence for the criterion to read.
 Unchanged, and ~~[ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8's
 watch list is unchanged with them~~ *(the *with them* is **SUPERSEDED** by
 [#125](https://github.com/winniel123/verge-asm/issues/125) — the watch does not track the weak tier, so
@@ -13255,7 +13255,7 @@ moves at all — a footing is about network position and is indifferent to which
 
 ### 30.3 `3306/tcp` disposed of — clean, and the retrieval is a currency check rather than a new sentence
 
-#93 §26.5 already moved the quotation; #98 asks whether that alone promotes the cell. **It does.**
+#93 §26.5 already moved the quotation. #98 asks whether that alone promotes the cell. **It does.**
 
 **[measured]**, retrieved for this section at two **issued** versions per
 [ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md):
@@ -13317,8 +13317,8 @@ ground rather than on a weakened one — §30.5.
 >   [#12](https://github.com/winniel123/verge-asm/issues/12).**
 
 **Why the row does not move, stated because it is the constraint #98 made the failure signal.** A
-prohibition scoped to an untrusted network is still an owner's position under §10.3; `873/tcp` is a
-Class C row on Claim 3 and nothing here touches its claim; §13.2's finding that the owner's own SSL/TLS
+prohibition scoped to an untrusted network is still an owner's position under §10.3. `873/tcp` is a
+Class C row on Claim 3 and nothing here touches its claim. §13.2's finding that the owner's own SSL/TLS
 Daemon Setup puts the supported public listener on **874** with `873` on loopback behind it is untouched
 and still refuses §10.3's failure condition (§13.3). **The tier records how strong the footing is, not
 whether the row qualifies** — which is why the answer was available on either option and why a candidate
@@ -13327,7 +13327,7 @@ answer that moved a row would have been the wrong one.
 **And the demotion moves the tier's most forceful sentence downward, which is the clearest possible
 demonstration of what the column does not measure.** rsync's *"Do not expose a cleartext daemon to an
 untrusted network"* is flatter and more imperative than Redis's *"usually it is not a good idea"*, and
-after this section rsync sits below Redis. `873/tcp` is not the scoping tier's weakest member; on any
+after this section rsync sits below Redis. `873/tcp` is not the scoping tier's weakest member. On any
 reading of force it is its strongest, resting on **two** owner imperatives in **two** shipped man pages
 plus a shipped deployment section that puts the port on loopback. **The tier is not a ranking of owners
 and this row is the proof.**
@@ -13348,7 +13348,7 @@ internet.
    each owner speaks — which is the severity-shaped reasoning
    [ADR-0004](../adr/0004-signals-are-release-coupled-rules.md) and §2 exist to keep out, and which
    ADR-0042 refused **by name** in its *Alternatives*: *"gate on the candidate's attestation strength
-   instead … it converts the gates into a ranking."* ADR-0042 refused it for a **gate**; the footing tier
+   instead … it converts the gates into a ranking."* ADR-0042 refused it for a **gate**. The footing tier
    is a **disclosure**, which is a difference in what it costs to be wrong and not a difference in kind.
 2. **It replaces a retrieval with a judgement, which is §15.7's named temptation arriving on schedule.**
    *Does the sentence name the public internet?* is answered by opening the artefact. *Is this sentence
@@ -13413,7 +13413,7 @@ re-founds it on the principal instead of on the proxy.
   under ADR-0059 limb 2: mood is not read, in either direction. The observation is true and it decides
   nothing. Withdrawing it costs the ruling nothing, because the first reason carries it alone.
 - **§20.8's third reason — §17.6's house precedent — is spent rather than withdrawn.** *"A footing found
-  in one lane does not re-tier a row placed in another"* was correct for #84 and correct for #93; #98
+  in one lane does not re-tier a row placed in another"* was correct for #84 and correct for #93. #98
   **is** the lane, and the precedent is what routed the question here rather than letting either earlier
   pass decide it. It binds unchanged for the next pass.
 - **§20.8's *"criterion that would move the cell"* is restated.** It read *"an Erlang/OTP sentence naming
@@ -13459,7 +13459,7 @@ placed by relative strength. **Composed, the tier has thirteen members** — §2
 ([#95](https://github.com/winniel123/verge-asm/issues/95)) added `10249/tcp` in the same merge, on a
 restricting default plus an owner document placing the caller at `localhost`. **Which of this finding's
 two populations that cell belongs to is not decided here**, because deciding it is a footing ruling and
-this pass is arithmetic; it is the same open question, with one more instance. **Disclosed rather than
+this pass is arithmetic. It is the same open question, with one more instance. **Disclosed rather than
 smoothed**, and it is the same shape as §2.2's
 original disclosure that the second and third forms *"are not equally strong"* — a tier holding two kinds
 of evidence needs to say so. Routed to the same ticket as Finding 1.
@@ -13509,7 +13509,7 @@ this file.** The delta this section applies is, in every state of the world:
 > **every other tier, count, denominator and total := unchanged.**
 
 So the numeric result below is `15 → 14` and `11 → 12` **against the composed state at the time of
-writing**; if [#95](https://github.com/winniel123/verge-asm/issues/95) adds a row that takes a scoping
+writing**. If [#95](https://github.com/winniel123/verge-asm/issues/95) adds a row that takes a scoping
 cell the scoping tier is `13` rather than `12`, and if
 [#96](https://github.com/winniel123/verge-asm/issues/96) removes `623/udp` the prohibition tier is `13`
 rather than `14` and the coverage denominator falls to `27 of 38`. **The membership verdict per row is
@@ -13554,7 +13554,7 @@ in §30.2 so the totals can be re-derived rather than hand-patched.**
 | [`CONTEXT.md`](../../CONTEXT.md) | — | **not edited.** No term is minted, and ADR-0048 set the precedent for staying out of that file while concurrent passes are running |
 
 **Nothing is routed to [#12](https://github.com/winniel123/verge-asm/issues/12).** #12 carries the list,
-the claims and the containment arithmetic; none of them reads a tier, and #98's own pricing said so from
+the claims and the containment arithmetic. None of them reads a tier, and #98's own pricing said so from
 both sides. **[measured]** the moved cell changes no input to any of the sixteen rules.
 
 ### 30.9 Thin ground, flagged per the standing rule
@@ -13564,14 +13564,14 @@ being acceptable.** ADR-0059 limb 3 says the lexical test is necessary and not s
 honest and is also an admission: a **necessary** condition can refuse a member and cannot place one. The
 tier assignments were made row by row over eight sections and the criterion was reconstructed from them
 afterwards — §20.8 read the boundary off the thirteen existing members in order to decide `4369`. **This
-section makes the reconstruction true; it does not make it complete.** §30.7's Finding 1 is that
+section makes the reconstruction true. It does not make it complete.** §30.7's Finding 1 is that
 incompleteness with two names attached. **The criterion that would change this section's shape:** a
 ruling that the lexical test is sufficient as well as necessary, on which `2181` and `25672` promote and
 the tiers read `16 / 10 / 2` — **`16 / 11 / 3` on the composed state**. That is a question about §2.2,
 not about rsync, and it is ticketed.
 
 **ADR-0059 limb 1's *premise count* is a ruling and not a measurement**, and its unit is soft at the
-edges. *The internet is an untrusted network* is one premise on any counting; whether Docker's *"an open
+edges. *The internet is an untrusted network* is one premise on any counting. Whether Docker's *"an open
 network"* is a boundary term or a near-naming of the internet is a judgement this section made in the
 easy direction (boundary, therefore scoping, therefore unchanged) without having to defend it, because
 nothing turned on it. **A row will eventually arrive where it does turn on it** — an owner sentence
@@ -13580,7 +13580,7 @@ This section does not price that case and should not be quoted as having settled
 
 **The intuition Option A serves is correct and is not answered — it is relocated.** rsync really is
 saying the same thing Redis is saying. ADR-0059's reply is that the tier does not record what the owner
-means, it records how much of it the owner **wrote**; a reader who holds that a footing table should
+means, it records how much of it the owner **wrote**. A reader who holds that a footing table should
 grade what an owner has committed to rather than which words it used reaches the opposite verdict, and
 that reader has an argument this section refuses rather than defeats. **What decides it against them is
 falsifiability, not correctness**: their reading cannot be checked by opening a document, and §2's whole
@@ -13588,7 +13588,7 @@ architecture is that every cell can be.
 
 **One row's clean verdict is conditional on a concurrent pass.** `623/udp`'s prohibition cell rests on
 Dell's statement and [#96](https://github.com/winniel123/verge-asm/issues/96) is deciding the row. Its
-§30.2 verdict is *clean*, which is a verdict about the **sentence** and survives a class move; it does
+§30.2 verdict is *clean*, which is a verdict about the **sentence** and survives a class move. It does
 not survive a **row** removal, and the arithmetic if #96 removes the row is written out in §30.8 rather
 than left to be discovered.
 
@@ -13600,7 +13600,7 @@ twice — and it is recorded here so that a later reader does not cite the tidin
 ### 30.10 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6, §16.10 and §17.10
 
 - **This section spent one retrieval and it was a *currency* check, not a search for a sentence.** The
-  MySQL passage was already held by §26.5; what §30.3 adds is (a) the same passage at a **second issued
+  MySQL passage was already held by §26.5. What §30.3 adds is (a) the same passage at a **second issued
   version**, per [ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md)'s per-version
   rule, and (b) a **structural** measurement of the rendered HTML. Both are the kind of fact §26.5 could
   not have supplied by quoting harder.
@@ -13626,10 +13626,10 @@ twice — and it is recorded here so that a later reader does not cite the tidin
   note's. Recorded because it is the smallest version of the hazard §12.9 records at scale.
 - **No footing was reopened, and that was the constraint rather than an economy.** #98 fenced the
   evidence under the footings as #93's completed work. Every sentence in §30.2's two tables is quoted
-  from §3.4 as the note already holds it; the only bytes fetched are MySQL's two manual pages and
+  from §3.4 as the note already holds it. The only bytes fetched are MySQL's two manual pages and
   rsync's three files, and the rsync fetch exists solely to re-measure a negative this section rules on.
 - **The walk was run in both directions before the ruling, not after it.** The demoting direction found
-  one row; the promoting direction found two (§30.7) and neither was applied. A criterion applied in one
+  one row. The promoting direction found two (§30.7) and neither was applied. A criterion applied in one
   direction only is a rewrite with a verdict attached, and running the other direction first is what
   turned Option D from an oversight into a refused option.
 
@@ -13700,7 +13700,7 @@ route is shorter than the question assumes.**
 **§2.2's third form has always had two limbs** — *the project's shipped default, **as documented by the
 project***, which §12 states as *the configuration that **takes effect** without the operator acting*
 **and** *the one the project **documents as its default***. ADR-0036 limb 1 already contemplates the two
-limbs living in different artefacts; it says so in terms — *"where the party documents a default
+limbs living in different artefacts. It says so in terms — *"where the party documents a default
 elsewhere and the two disagree, the documented default governs"*.
 
 **A config-API doc comment answers the second limb and can never answer the first.** It is a **schema**,
@@ -13730,7 +13730,7 @@ answers the first limb is the defaulting code. For `10248` both were retrieved, 
 > ```
 > — `kubernetes/kubernetes` `v1.34.0`, `pkg/kubelet/apis/config/v1beta1/defaults.go`
 
-**So the artefact is not a weaker class; it is a narrower one.** It carries half of the third form
+**So the artefact is not a weaker class. It is a narrower one.** It carries half of the third form
 perfectly and the other half not at all, and the half it carries is the half §2.2 has always required in
 prose. **[measured]** §27.6 retrieved both halves and §16.5 did too (through
 [ADR-0036](../adr/0036-a-shipped-default-is-the-configuration-that-takes-effect.md)'s
@@ -13745,8 +13745,8 @@ reader reaches for.** `k8s.io/kubelet` `v0.34.0` is a **release module the owner
 [ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md) limb 1 a document *carried by a
 release artefact the owner publishes* is issued, and limb 5 says issuance is **not rendering** — so a doc
 comment inside a published module is issued exactly as a manual page in a tarball is, and it is **not
-weakened by also being compiled past**. `10248`'s comment fails, where it fails, on being a **label**;
-it never fails on being unread. That closes off the cheapest available disposal of this ticket and
+weakened by also being compiled past**. `10248`'s comment fails, where it fails, on being a **label**.
+It never fails on being unread. That closes off the cheapest available disposal of this ticket and
 forces it onto the axis the map's patch names.
 
 ### 31.3 The costly-act question — it reads the code, and the comment is free
@@ -13767,7 +13767,7 @@ the maintainers support that decision — and the comment describes the purchase
 it.
 
 **In a shipped configuration file nobody had to separate them**, which is why the question is new. A
-`cassandra.yaml` both states `rpc_address: localhost` and enacts it; the cost and the documentation
+`cassandra.yaml` both states `rpc_address: localhost` and enacts it. The cost and the documentation
 arrive in one artefact. A config API splits them across two files, and only then does *which one does the
 test read* have an answer to give.
 
@@ -13811,7 +13811,7 @@ Firewall it if needed."* sits immediately above `rpc_address: localhost` and **a
 shape the patch names as the hard middle. It is a position not because it is emphatic but because it
 **binds the operator who overrides the value**: it goes on being the owner's instruction after
 `localhost` becomes `0.0.0.0`. net-snmp's *"# Listen for connections from the local system only"* does
-not bind anybody; change `agentAddress` and it simply stops describing. **The difference is not force,
+not bind anybody. Change `agentAddress` and it simply stops describing. **The difference is not force,
 and it is not how close the sentence sits to its directive. It is whether the sentence survives the
 directive.**
 
@@ -13819,7 +13819,7 @@ directive.**
 line.** §10.1 removed *"would otherwise require authority"* and §12.4 refused a coherence gate, both
 because they asked a reviewer to imagine **the world** — *does anybody run this?* — with no owner to
 answer. The survival test asks about **the artefact**: the comment's own words, under one substitution
-the artefact itself enumerates (`healthzBindAddress` is a string field of IP addresses; `rpc_address`
+the artefact itself enumerates (`healthzBindAddress` is a string field of IP addresses. `rpc_address`
 takes an address). It is answered by re-reading a sentence, not by modelling a deployment. That is the
 same line §12.2 drew when it made *takes effect* a reading rather than an adjudication, and §31.11
 records that it is drawn one notch finer here.
@@ -13850,7 +13850,7 @@ configuration artefact this note holds:
 | kubelet `healthzPort`'s *"the port of the **localhost** healthz endpoint"* | `healthzBindAddress: "0.0.0.0"` → **false** | **Label** | §27.6's verdict, **re-founded at step one** |
 
 **[measured] Nine comments, nine verdicts, and every one of them is the verdict the note already
-carries.** Eight fail at step one; exactly one reaches step two.
+carries.** Eight fail at step one. Exactly one reaches step two.
 
 **The two kubelet fields separate at two different steps, twelve lines apart in one struct in one file** —
 and that is the finding that makes *necessary and not sufficient* a structure rather than a hedge. A
@@ -13894,7 +13894,7 @@ at `localhost` on the node. `10248/tcp` has **one act, described once and read t
 disclosure, and a disclosure that double-counts is worse than no disclosure.
 
 **The comparison §27.6 drew stands and is sharpened.** `10248` and `10256` serve substantially the same
-thing and end in opposite places because the owner's own artefacts separate them; `10248` and `10255`
+thing and end in opposite places because the owner's own artefacts separate them. `10248` and `10255`
 carry doc comments in the same file and separate because one survives its value and the other does not.
 **In both pairs the discriminator is the owner's, not ours** — which is what §2.2's opening sentence
 requires and what a *conservative branch taken without an instrument* could not have shown.
@@ -13906,7 +13906,7 @@ admissibility. **It does not, and ADR-0059 already contains the reason.**
 
 Limb 1 of that ADR grades *"the distance between the owner's own sentence and the proposition the row
 asserts, counted in premises the reader has to supply"*. **Where the sentence was written is not a
-premise.** A reader who has the sentence has it; whether it arrived in a Go file, a YAML file inside a
+premise.** A reader who has the sentence has it. Whether it arrived in a Go file, a YAML file inside a
 tarball or a paragraph on a documentation site changes nothing about how much of the row's proposition
 the owner said. Reading a class discount into the column would be grading **distance to the reader of the
 artefact** rather than distance to the proposition — a second dimension, silently added to a column
@@ -13926,7 +13926,7 @@ and #95's own amendment to that ADR named `10248` as *"exposed in the sharpest a
 default is documented in a **published config-API doc comment** rather than in prose, so the artefact a
 curator must watch is a Go source file's comment, which one contributor can change in one commit without
 any release note."* **That observation is correct and it belongs where #95 put it.** It is not a reason
-to move a tier; it is a reason the map's open *should the watch list key on tier or on volatility* patch
+to move a tier. It is a reason the map's open *should the watch list key on tier or on volatility* patch
 now has a **third** candidate axis beside tier and evidence age — **artefact class** — and §31.12 reports
 it as fog rather than sharpening it here.
 
@@ -13974,9 +13974,9 @@ it as fog rather than sharpening it here.
 
 **Rule *"the port of the localhost healthz endpoint"* a position and move `10248` to the scoping tier.**
 The strongest losing option, the one the ticket priced, and the one a reader will arrive with. **Its case
-is good.** *localhost* is a **network locality**, not a function; the owner did not have to write the
-word and could have written *"the port of the healthz endpoint"*; §10.3's boundary limb asks the owner
-to **name the boundary** and *localhost* is the narrowest boundary that exists; and §27.6 itself conceded
+is good.** *localhost* is a **network locality**, not a function. The owner did not have to write the
+word and could have written *"the port of the healthz endpoint"*. §10.3's boundary limb asks the owner
+to **name the boundary** and *localhost* is the narrowest boundary that exists. And §27.6 itself conceded
 the word does evidential work — *"the label tells you the default is deliberate"*. **It loses twice.**
 On limb 1, because the sentence does not survive its own value: flip `healthzBindAddress` and it is
 false, which is what distinguishes it from `readOnlyPort`'s comment in the same struct. And on
@@ -13987,8 +13987,8 @@ one cell in a disclosure column** — no row, no class, no claim, no rule versio
 recorded honestly rather than defended anxiously.
 
 **Rule the doc comment a weaker artefact class and discount the footing.** Its case: a Go struct comment
-is further from a reader than a documentation page; §16.5 accepted the artefact for a **footing** only,
-on a row that was already listed; and §27.13 named admission on it as the note's thinnest joint, adding
+is further from a reader than a documentation page. §16.5 accepted the artefact for a **footing** only,
+on a row that was already listed. And §27.13 named admission on it as the note's thinnest joint, adding
 that PostgreSQL's default *"is documented in prose on the project's documentation site"* while `10248`'s
 is not — *"one difference that cuts against it"*. **It loses on ADR-0059 limb 4's reasoning at §31.7**:
 the artefact is not a premise. And it loses on **measurement**: **[measured]** the same discount applied
@@ -14074,7 +14074,7 @@ verdict.
 | ADR count | 0059 highest at `c0881ae` | **0061 minted.** 0060, 0062 and 0063 are reserved to concurrent passes; 0039, 0041, 0052, 0053 and 0057 remain gaps |
 
 **Nothing is routed to [#12](https://github.com/winniel123/verge-asm/issues/12).** The spec carries the
-list, the claims and the containment arithmetic; none of them reads a footing, a tier or an artefact
+list, the claims and the containment arithmetic. None of them reads a footing, a tier or an artefact
 class, and #100's own pricing said so from both sides.
 
 ### 31.11 Thin ground, flagged per the standing rule
@@ -14101,7 +14101,7 @@ evidence**, which is [ADR-0056](../adr/0056-a-port-constant-in-a-library-is-not-
 position exactly and is named as the same cost §25.6 priced.
 
 **Limb 3 is derived rather than measured.** No config-API doc comment in the corpus disagrees with its
-defaulting code; all three pairs agree. So the disagreement rule is written for a case that has not
+defaulting code. All three pairs agree. So the disagreement rule is written for a case that has not
 happened, on an argument — the comment is free, the code is not — rather than on an instance. The nearest
 thing the note holds is §16.5's `readOnlyPort`, where two of the owner's own **documentations** disagree
 and §10.4's one-way rule already disposes of it. **The criterion that would change the verdict:** a
@@ -14112,13 +14112,13 @@ name.
 **`10248/tcp` is not made stronger by this section and remains where a reviewer should push.** §27.13
 called it *"the thinnest row this section adds and thinner than §4.5's"*, and that stands unchanged: one
 restricting default, documented in a Go struct comment, no owner sentence anywhere. This section refuses
-its **promotion**, which is the conservative direction; it does not cure the row and does not claim to.
+its **promotion**, which is the conservative direction. It does not cure the row and does not claim to.
 §27.13's own reopening criterion is untouched and is expressly refused here rather than left open — a
 ruling that §2.2's third form requires **prose** documentation rather than a published API surface would
 re-open `10255`'s footing and `10249`'s cell, and §31.9's third option prices it.
 
 **One instrument, one section, and it decides a patch that has been open since #69.** ADR-0059 was
-minted three days ago on a criterion two sections had reconstructed differently; this one is minted on a
+minted three days ago on a criterion two sections had reconstructed differently. This one is minted on a
 criterion **no** section had reconstructed at all. The counterfactual is the defence — without it,
 `readOnlyPort` and `healthzPort` are indistinguishable on the written rules, and the next session
 meeting a config comment has nothing to read but two examples — but a rule whose whole warrant is that
@@ -14132,8 +14132,8 @@ records why that is adequate here and where it would not be.
 
 - **[measured] `defaults.go` sets no `ReadOnlyPort` default, so `readOnlyPort`'s documented `Default: 0
   (disabled)` is Go's zero value rather than an assignment the owner wrote.** `pkg/kubelet/apis/config/v1beta1/defaults.go`
-  at `v1.34.0` sets `HealthzPort` and `HealthzBindAddress` explicitly and does not touch `ReadOnlyPort`;
-  the documented value and the operative value agree, and the mechanism producing the operative one is
+  at `v1.34.0` sets `HealthzPort` and `HealthzBindAddress` explicitly and does not touch `ReadOnlyPort`.
+  The documented value and the operative value agree, and the mechanism producing the operative one is
   the **language's**, not the party's. §27.2 already leaned on a zero value in the **refusing** direction
   — *"`enableProfiling` has no defaulting function and no documented default … so it is Go's zero value,
   `false`"* — so there are **two instances pointing in opposite directions** and ADR-0036's *takes
@@ -14161,7 +14161,7 @@ records why that is adequate here and where it would not be.
   refused on cost.
 - **The generated config-API reference pages carry these comments verbatim and were deliberately not
   quoted.** `kubelet-config.v1beta1.md` and `kube-proxy-config.v1alpha1.md` at `kubernetes/website`
-  `release-1.34` are generated from the source this section reads directly; §19.7's rule, obeyed at no
+  `release-1.34` are generated from the source this section reads directly. §19.7's rule, obeyed at no
   cost because the source was being read anyway. §27.14 recorded the same thing for the same pages.
 - **Artefact class is a third candidate axis for ADR-0032 §8's watch list**, beside footing tier and
   evidence age (§31.7). The map's *a row can be exposed to silent de-attestation without being in the weak
@@ -14181,8 +14181,8 @@ records why that is adequate here and where it would not be.
 ### 31.13 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6, §16.10, §17.10, §22.10 and §30.10
 
 - **A quotation this note has made twice was re-read rather than cited, and that was the right call even
-  though it changed nothing.** §27.6 quoted `healthzPort`'s comment and §16.5 quoted `readOnlyPort`'s;
-  both are **exact** at `v0.34.0`. §27.15 established the obligation in the opposite case — a by-catch
+  though it changed nothing.** §27.6 quoted `healthzPort`'s comment and §16.5 quoted `readOnlyPort`'s.
+  Both are **exact** at `v0.34.0`. §27.15 established the obligation in the opposite case — a by-catch
   record that was **wrong** about pprof — and the honest report is that obeying the rule here confirmed
   rather than corrected. **A rule that only pays out when it catches something is a rule nobody will
   run.** Recorded so the negative result is visible.
@@ -14223,8 +14223,8 @@ Wayfinder ticket [#101](https://github.com/winniel123/verge-asm/issues/101), on 
 §30.9 named as its own thin ground: *"This section makes the reconstruction **true**; it does not make
 it **complete**."* [ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md)
 limb 3 states the lexical test as **necessary and not sufficient**, and a necessary condition can
-refuse a member and cannot place one. This section **amends §2.2, §3.4, §20.8, §30.7 and ADR-0059**;
-earlier text stands and is marked, per the name-and-withdraw convention, and where §32 and an earlier
+refuse a member and cannot place one. This section **amends §2.2, §3.4, §20.8, §30.7 and ADR-0059**.
+Earlier text stands and is marked, per the name-and-withdraw convention, and where §32 and an earlier
 section disagree, **§32 governs**. **§16.5's, §24.12's and §27.5's non-prose placements are
 *ratified*, not amended** — no cell of theirs moves and §32.7 supplies the principal they were decided
 on.
@@ -14294,7 +14294,7 @@ whose sentence passes it is **not thereby promoted**: tier membership still requ
 the owner's (§10.5), to be about the port (§2.3, ADR-0050), and to state a **position** rather than an
 aspiration (§26.4)."* That is the conjunction, written out, in an Accepted ADR, followed by *"the note
 has never stated the sufficient condition and this ADR does not invent one."* **The enumeration
-existed; the closure claim did not.** #101 is the closure claim.
+existed. The closure claim did not.** #101 is the closure claim.
 
 ### 32.2 The sufficient condition, stated in four limbs
 
@@ -14328,14 +14328,14 @@ existed; the closure claim did not.** #101 is the closure claim.
 > grading; the tier then records the strongest form that does (§28).
 
 **What is new here is the word *sufficient* and nothing else.** Limbs 1, 2 and 4 are the note's
-existing admissibility rules, applied to the footing column instead of to the claim column; limb 3 is
+existing admissibility rules, applied to the footing column instead of to the claim column. Limb 3 is
 §20.8's. The section adds the claim that **there is no fifth limb** — that once who said it, what it is
 about, which network it names and whether it is a position are all fixed, there is nothing left for a
 reader to supply. That claim is a **ruling** and it is flagged as one at §32.12.
 
 **It is closed the way §10.2 closed the claim set, and that is the note's only precedent for closing an
 enumeration.** §10.2 — *"the three claims are closed, and closed by **construction**"* — did not close
-the set by surveying candidates and finding none left; it argued that the space the claims partition
+the set by surveying candidates and finding none left. It argued that the space the claims partition
 has three parts. This closure is the same move on a smaller object: **the row's proposition has four
 terms, a reader-supplied premise can only be needed for a term, and the note has a rule for each of the
 four.** A fifth limb requires a fifth term, which is what §32.12 says a challenger should go looking
@@ -14363,7 +14363,7 @@ standing temptation does not enter through this door either.
 
 **[measured]** Against the composed state of `main` at `c0881ae` — §2.2 tiers **prohibition 14 ·
 scoping 13 · weak 3 · outside-subject 11**, coverage **30 of 41**. This is the state §30 and §27
-composed to and the state this section walked; it is **not** #98's `15 / 11 / 2` line and it is not
+composed to and the state this section walked. It is **not** #98's `15 / 11 / 2` line and it is not
 §30.9's uncomposed `16 / 10 / 2` projection.
 
 | # | Pair | 1. Owner's? | 2. Reaches the pair? | 3. Names the public internet? | 4. A position? | Verdict |
@@ -14423,7 +14423,7 @@ at**, and the walk is a re-reading of §18.5's ratification rather than a new re
 
 **Limbs 1, 3 and 4 are already measured for all fourteen.** Limb 1 is §10.5's work, completed for this
 table at §16.6 and §20.7. Limb 3 is §30.2's row-by-row table — **14 clean · 0 failing** after `873`
-left. ~~Limb 4: every one of the fourteen is a position; none is an unmet goal, a label, or a preference
+left. ~~Limb 4: every one of the fourteen is a position. None is an unmet goal, a label, or a preference
 against a supported architecture~~ — the one member where the last of those was live, `6443/tcp`, is not
 in the tier because it is not on the list (§4.4, §18.4).
 
@@ -14459,7 +14459,7 @@ section from the owner's own issued site:
 
 **Three things the context supplies that the fragment did not, and only one of them is a hazard.**
 
-1. **The sentence opens the section; nothing precedes it to condition it.** There is no *unless*, no
+1. **The sentence opens the section. Nothing precedes it to condition it.** There is no *unless*, no
    carve-out, and no sentence-run of the `3306` shape that a lift would misread. #46's hazard is tested
    and does not fire.
 2. **It names no port.** The subject is *ZooKeeper*, the coordination service — so the pair is reached
@@ -14475,7 +14475,7 @@ the owner's own documentation or shipped configuration numbers the port — for 
 `27017`) the two are the same file."* The category ZooKeeper spoke about is the same in both sentences
 — the service, the ensemble — so the membership warrant §18.5 established for *"behind a firewall"*
 carries the Internet sentence to `2181` without a second step. **Nothing about the footing is
-reopened; what changes is which tier it lands in once limb 3 is allowed to place rather than only to
+reopened. What changes is which tier it lands in once limb 3 is allowed to place rather than only to
 refuse.**
 
 **Limb 4, argued rather than assumed, because a reader will push here.** *"is a coordination service
@@ -14492,11 +14492,11 @@ disposed of the genre objection in general terms: *"The genre is not the defect;
 **Limb 3's *"directly"* is not a qualifier that costs a premise.** Redis (*"directly to the internet"*),
 memcached (*"directly to the internet"*) and MS SQL (*"directly to the Internet"*) all carry it and all
 sit in the tier. A listener fronted by a proxy is a different listener, which is what *directly*
-excludes; the row is about this pair being reachable from an internet vantage, and that is the case
+excludes. The row is about this pair being reachable from an internet vantage, and that is the case
 *directly* names.
 
 **Limb 1 and ADR-0045.** `security.html` is served on the owner's own published documentation site,
-which §21's second form admits directly; issuance needs no argument here.
+which §21's second form admits directly. Issuance needs no argument here.
 
 ### 32.6 `25672/tcp` RabbitMQ — the context narrows the subject, and there is a second owner sentence nobody had opened
 
@@ -14522,7 +14522,7 @@ fires, and is disposed of **by retrieval rather than by argument** — which is 
 second in the generous direction, after §30.3's.
 
 **Limb 2 needs no rule at all here.** §18.5 lists `25672` under *"Numbered by the owner, so the rule is
-not needed"*; the bullet carrying the sentence **is** the `25672` bullet.
+not needed"*. The bullet carrying the sentence **is** the `25672` bullet.
 
 **A second owner sentence, in a class this note had not opened for this row.** **[measured]** the
 owner's own `rabbitmq.conf` documentation, in the *Inter-node Communication Interface* section, carries
@@ -14583,7 +14583,7 @@ words a reader needs — and the first drawing predates ADR-0059 by fourteen sec
 - **§16.5 ([#76](https://github.com/winniel123/verge-asm/issues/76)) tiered two non-sentence footings
   against each other and put them in different tiers on exactly this line.** `10250/tcp` went to
   **scoping** on `Used By: Self, Control plane`, argued as *"a boundary the owner names (§10.3) rather
-  than a §12(b) **label**"*; `10255/tcp` went to the **weak** tier on `readOnlyPort` *"Default: 0
+  than a §12(b) **label**"*. `10255/tcp` went to the **weak** tier on `readOnlyPort` *"Default: 0
   (disabled)"* **and nothing else**. §16.9 records the losing reading in terms that name the same line
   from the other side: *"the competing reading would put it in the weak tier."* **The test that decided
   those two cells is the test restated above**, run before there was a premise count to state it in.
@@ -14591,7 +14591,7 @@ words a reader needs — and the first drawing predates ADR-0059 by fourteen sec
   the local system only' **describes what the directive does**; 'you should not expose this port to the
   internet' **takes a position**."*
 - **§10.4 supplies the reason.** A default attests in one direction only because a default is what the
-  software *does*; only a **restricting** one is a maintainer position at all. A default therefore never
+  software *does*. Only a **restricting** one is a maintainer position at all. A default therefore never
   states a permitted **network** — it states a bind address, and the owner has to say somewhere else
   that the bind address is a boundary rather than a convenience.
 
@@ -14619,8 +14619,8 @@ of the same dimension that nobody had put side by side.
 **This is §24.12's criterion with its dimension supplied.** §24.12 placed `10259`/`10257` as *"not
 prohibition (no prohibition sentence names them) and not the weak tier (**they have more than a
 default**)"*, and §27.5 applied *"more than a default"* to `10249` in those words. **More than a default
-is a quantity of evidence; one premise is a distance** — and §30.7's Finding 2 is precisely the
-observation that the tier was being sorted on both. It is not that §24 and §27 reasoned wrongly; it is
+is a quantity of evidence. One premise is a distance** — and §30.7's Finding 2 is precisely the
+observation that the tier was being sorted on both. It is not that §24 and §27 reasoned wrongly. It is
 that the *"more"* they required is, in every instance they decided, the owner naming a boundary, and
 naming a boundary is one premise. **The two tests have the same extension over the whole table, so the
 second dimension was never real and is withdrawn rather than reconciled.**
@@ -14665,7 +14665,7 @@ principal instead of left unreached. §32.10.
 
 **Why no row moves, stated because #101 made it the failure signal.** A tier records how strong a
 footing is, never whether a row qualifies (§30.4). `2181` and `25672` are Class C rows on Claim 3 and
-Claim 1 respectively; nothing here touches a claim, a determinacy verdict or a class. The promotion
+Claim 1 respectively. Nothing here touches a claim, a determinacy verdict or a class. The promotion
 changes which row of §2.2's table the two pairs are printed in and changes nothing a rule reads —
 **[measured]**, the moved cells change no input to any of the sixteen rules.
 
@@ -14680,18 +14680,18 @@ written — promotes `4369/tcp`, reversing §20.8's central ruling as a side eff
 failure §30.5 measured Option A committing by a different route, and #101 named it as the thing to test
 for. It loses a second time on `2049`: RFC 7530 §1.2 names the Internet, so a bare lexical test promotes
 NFS on an aspiration RFC 8881 records as abandoned, which §26.4 spent a subsection refusing. **The
-conjunction is not a hedge on the lexical test; it is what stops the lexical test taking two
+conjunction is not a hedge on the lexical test. It is what stops the lexical test taking two
 neighbours.**
 
 **Option B — rule that the tier is graded by a necessary condition plus judgement, and say what bounds
 the judgement.** #101 offered this explicitly and it is the honest second-best. Its case is that the
 tier was in fact assembled row by row over eight sections and that no session has ever applied a
-membership test; declaring one now is a reconstruction claiming more than it can carry. **It loses
+membership test. Declaring one now is a reconstruction claiming more than it can carry. **It loses
 because the judgement it would bound turns out to be empty.** The walk at §32.3 and §32.4 was run
 before the criterion was adopted, in both directions, over all twenty-seven placed prose pairs, and
 **every row resolves on a limb** — none needed a tie-break, none was close on more than one limb, and
 the two that are close (`2049` on limb 4, `4369` on limb 1) are close on a limb that has a documented
-artefact behind it. A judgement with no instance is not a judgement; it is an unstated rule. And
+artefact behind it. A judgement with no instance is not a judgement. It is an unstated rule. And
 ADR-0042 refused *"leave it unwritten and decide case by case"* on exactly this ground, which §30.5
 Option C quoted when it minted ADR-0059 rather than ruling at §-level.
 
@@ -14702,14 +14702,14 @@ defect as *incompleteness of the criterion*, not as *two mislaid cells* — the 
 A pass that moves them without saying why they moved leaves the next session in exactly §30.1's
 position: reconstructing a criterion from the members, in whatever vocabulary comes to hand, which is
 how §18.6 and §20.8 came to state the boundary in two different languages and how `873` fell into the
-gap between them. **The cells are cheap; the reason they move is the deliverable.**
+gap between them. **The cells are cheap. The reason they move is the deliverable.**
 
 **Option D — refuse both promotions and record the sufficient condition as permanently unavailable**,
 on the ground that a footing column is a disclosure and a disclosure may be under-inclusive without
 lying. Cheapest of all, and it survives because no rule reads a tier. **It loses because the note's
 own table would then place two footings below a tier whose stated criterion they satisfy on their
 face, with the note itself recording that they satisfy it** — §30.7 and §2.2's own amendment block both
-say so in the note's voice. That is not under-inclusion; it is a table contradicting its own published
+say so in the note's voice. That is not under-inclusion. It is a table contradicting its own published
 criterion, which is the §2 defect #98 was run to remove and would leave removed by half.
 
 **Option E — mint ADR-0062.** Argued at length at §32.10, and it nearly wins.
@@ -14788,7 +14788,7 @@ applied when it declined the house default and minted ADR-0059.
 
 **Stated in prose as well as in the table below, because a sibling pass is editing this file's tier
 arithmetic concurrently.** In words: **the prohibition tier gains two pairs and the scoping tier loses
-the same two; the weak tier stays at three rows; the outside-subject row stays at eleven pairs; the
+the same two. The weak tier stays at three rows. The outside-subject row stays at eleven pairs. The
 coverage figure and its denominator do not move, because no pair enters or leaves the table.** Sixteen
 plus eleven plus three plus eleven is forty-one.
 
@@ -14838,13 +14838,13 @@ from.
 | [`CONTEXT.md`](../../CONTEXT.md) | — | **not edited.** No term is minted, and ADR-0048's precedent for staying out of that file while concurrent passes run applies again |
 
 **Nothing is routed to [#12](https://github.com/winniel123/verge-asm/issues/12).** #12 carries the
-list, the claims and the containment arithmetic; none of them reads a tier, and #101's own pricing said
+list, the claims and the containment arithmetic. None of them reads a tier, and #101's own pricing said
 so from both sides.
 
 ### 32.12 Thin ground, flagged per the standing rule
 
 **The closure claim is a ruling and not a measurement, and it is this section's thinnest joint.** *There
-is no fifth limb* cannot be measured; it is an argument that the row's proposition has four terms and
+is no fifth limb* cannot be measured. It is an argument that the row's proposition has four terms and
 that the note has a rule for each. A reader who identifies a fifth gap between an owner's statement and
 the row's proposition defeats §32.2 without touching anything else in the section.
 
@@ -14927,7 +14927,7 @@ the fourteen sitting members is taken from §18.5's ratification and §16.4's, b
 retrievals when they were run and neither of which was re-run here. That is defensible — #101 fenced
 the footings as completed work and forbade reopening them — and it is also a dependency: if §18.5's
 ratification is wrong for any pair, §32.4's *zero demotions* is wrong for that pair. The negatives this
-section **rules on** were re-measured (§32.5, §32.6); the positives it **inherits** were not.
+section **rules on** were re-measured (§32.5, §32.6). The positives it **inherits** were not.
 
 > **This flag is DISCHARGED, and it was right** — §33 ([#107](https://github.com/winniel123/verge-asm/issues/107)).
 > The inherited positives were re-measured per row, and §18.5's ratification **was** wrong for one
@@ -14937,7 +14937,7 @@ section **rules on** were re-measured (§32.5, §32.6); the positives it **inher
 **ADR-0059 limb 1's premise count remains a ruling with a soft unit, and §32.7 does not harden it.**
 §30.9 flagged that *"an owner sentence saying 'do not expose to a public network' or 'to the wider
 internet' would sit exactly on the line"*, and that is still true and still unpriced. §32.7 widens what
-counts as a statement; it does not sharpen how a premise is counted, and a reader should not quote this
+counts as a statement. It does not sharpen how a premise is counted, and a reader should not quote this
 section as having done so.
 
 **Two cells move while a sibling pass is editing this file's tier arithmetic.** The delta is stated
@@ -14955,7 +14955,7 @@ numerals in §32.8 and §32.11 are wrong and the parametric statement is right.*
   carries that sentence.
 - **The RabbitMQ Internet clause is *hyperlink anchor text*, and the destination is a third party's.**
   **[measured]** *"not exposed to the public Internet"* on `rabbitmq.com/docs/networking` links to an
-  Erlang Ecosystem Foundation post on epmd exposure. **The words are RabbitMQ's; the destination is
+  Erlang Ecosystem Foundation post on epmd exposure. **The words are RabbitMQ's. The destination is
   not.** A session reading the rendered page could attribute the phrase to the linked party and refuse
   it under §2.3, or could follow the link and rely on a corroborator. Neither happens here: the
   sentence is RabbitMQ's own prose in RabbitMQ's own document, and the linked post is not read, not
@@ -14964,7 +14964,7 @@ numerals in §32.8 and §32.11 are wrong and the parametric statement is right.*
 - **A third owner sentence was found and is deliberately not used to promote anything.**
   `distribution.listener.interface`'s documentation comment carries *"must … not be exposed to the
   public Internet"* about the inter-node listener. It is stronger in mood than the sentence the
-  promotion rests on, and ADR-0059 limb 2 makes that difference inadmissible; it is recorded as
+  promotion rests on, and ADR-0059 limb 2 makes that difference inadmissible. It is recorded as
   redundancy, which is a fact about volatility rather than about strength.
 - **ZooKeeper's own page now links its Admin Guide at `current`, where §3.4 cites `r3.9.3`.**
   **[measured]** `security.html` points at `/doc/current/admin-ops/administrators-guide/`. §3.4's pinned
@@ -14983,7 +14983,7 @@ numerals in §32.8 and §32.11 are wrong and the parametric statement is right.*
   manners.**
 - **No footing was reopened and no evidence beneath one was re-litigated.** #101 fenced the footings and
   ADR-0059 limbs 1 and 2. The only bytes fetched are ZooKeeper's `security.html`, RabbitMQ's
-  `networking` and RabbitMQ's `production-checklist`; every other sentence in this section is quoted
+  `networking` and RabbitMQ's `production-checklist`. Every other sentence in this section is quoted
   from the note as it already holds it.
 
 ---
@@ -14994,7 +14994,7 @@ Wayfinder ticket [#107](https://github.com/winniel123/verge-asm/issues/107), on 
 recorded against itself: *"if §18.5's ratification is wrong for any pair, §32.4's zero demotions is
 wrong for that pair. The negatives this section rules on were re-measured; the positives it inherits
 were not."* This section **amends §2.2, §18.5, §18.6, §18.7, §30.2, §32.4, §32.11, §32.12, ADR-0050
-and ADR-0059**; earlier text stands and is marked, per the name-and-withdraw convention, and where §33
+and ADR-0059**. Earlier text stands and is marked, per the name-and-withdraw convention, and where §33
 and an earlier section disagree, **§33 governs**.
 
 **Headline result, stated first.**
@@ -15174,7 +15174,7 @@ outside-subject 11**, coverage **30 of 41**. Every retrieval below was performed
 **The in-cell members, walked because §18.5 ratified them in the same breath.** `139/tcp`, `137/udp`
 and `138/udp` sit inside `445`'s cell and are **outside the graded table's subject**, so no tier count
 depends on them — but their **warrant changes**. **[measured]** the carrying document's table names
-the `Application protocol` of each row, and it reads `SMB` for **exactly one** row, TCP 445; the other
+the `Application protocol` of each row, and it reads `SMB` for **exactly one** row, TCP 445. The other
 three read `NetBIOS Name Resolution`, `NetBIOS Datagram Service` and `NetBIOS Session Service`. The
 same document adds *"The use of NetBIOS for SMB transport ended in Windows Vista, Windows Server 2008,
 and in all later Microsoft operating systems"*, and the owner's Learn page adds *"Shares made with
@@ -15209,7 +15209,7 @@ SMB2 or later don't use NetBIOS ports 137-139."*
 > [`f7648b1a`](https://github.com/MicrosoftDocs/sql-docs-pr/blob/f7648b1a9356373c29d128c16613547688ed0404/docs/sql-server/install/security-considerations-for-a-sql-server-installation.md),
 > **applies to SQL Server on Windows**. Retrieved 2026-08-14
 
-**#46's hazard is tested and does not fire.** Nothing in the bullet's siblings conditions it; the
+**#46's hazard is tested and does not fire.** Nothing in the bullet's siblings conditions it. The
 three neighbours are about rooms, fire suppression and backups. Reading the whole list makes the
 sentence **stronger**, not weaker — *"Install databases in the secure zone of the corporate
 intranet"* is the affirmative half of the same instruction.
@@ -15357,7 +15357,7 @@ records:
 
 **The owner files the sentence under a heading called *Things to Avoid*, in a bullet it titles
 *Publicly accessible deployment*.** A statement an owner files under *things to avoid* is a
-proscription on its face; the descriptiveness of the sentence's grammar is a fact about the utterance,
+proscription on its face. The descriptiveness of the sentence's grammar is a fact about the utterance,
 which ADR-0059 limb 2 already makes inadmissible.
 
 > **Limb 4 for `2181/tcp` is satisfied by retrieval and no longer depends on `6379`.** §32.12's
@@ -15375,7 +15375,7 @@ layer** rather than as a wrong document — a new shape, and the second reason �
 beat renderings.
 
 **One thing this retrieval confirms rather than moves.** The Administrator's Guide never writes
-*Internet*; **[measured]** the string occurs **zero** times in `zookeeperAdmin.md` at
+*Internet*. **[Measured]** the string occurs **zero** times in `zookeeperAdmin.md` at
 `release-3.9.4`. Limb 3 for `2181` rests on `security.html` alone, exactly as §32.5 has it. The two
 sentences are not interchangeable and a session quoting the Admin Guide for limb 3 would be wrong.
 
@@ -15465,8 +15465,8 @@ ruled — §33.9.
 owner names the public internet as a supported deployment environment, Claim 3 fails however strongly
 a third party disapproves."* The retrieval at §33.4 meets it. **This section rules on the footing and
 not on the claim**, for three reasons that travel together: ADR-0037 limb 2 requires a finding of this
-shape to be reported rather than swept into the ruling that found it; §26.4 set the precedent by
-declining to move `2049/tcp` on exactly this condition; and #37's rule is that **a row moves on a
+shape to be reported rather than swept into the ruling that found it. §26.4 set the precedent by
+declining to move `2049/tcp` on exactly this condition. And #37's rule is that **a row moves on a
 retrieval scoped to the row**, which this was not — it was scoped to a tier. **Ticketed, and it
 blocks [#12](https://github.com/winniel123/verge-asm/issues/12)**, because it can reach a row removal
 and therefore a version bump and an aperture widening.
@@ -15512,7 +15512,7 @@ it. Recorded, not relied on.
 Dell KB **000176947**, last updated **05 May 2026**, carries the same proposition — *"iDRACs are not
 designed nor intended to be placed on or connected to the Internet; they are intended to be on a
 separate management network"* — and is a **dated, currently published** owner artefact. Recorded as
-redundancy and **not relied on**, exactly as §32.6 recorded RabbitMQ's second sentence; it bears on
+redundancy and **not relied on**, exactly as §32.6 recorded RabbitMQ's second sentence. It bears on
 volatility rather than on tier.
 
 ### 33.10 Thin ground, flagged per the standing rule
@@ -15527,7 +15527,7 @@ page is **silent** under §10.4's one-way rule and `1433` keeps its cell.
 one-way rule is about **shipped defaults**, and the Public option is not a default — it is an offering,
 described in the imperative, with the owner configuring the firewall and the network security group on
 the operator's behalf. And §17.4 already applied this test in the **admitting** direction on RabbitMQ's
-*"can mean public networks"*; applying it only where it cuts against a row and not where it cuts for
+*"can mean public networks"*. Applying it only where it cuts against a row and not where it cuts for
 one is the arbitrariness §2.2's founding paragraph names — which is §30.3's own argument for `3306`,
 run the other way. **The criterion that would change the verdict:** Microsoft withdrawing the Public
 connectivity option, or qualifying the *Security considerations* sentence the way Elastic qualifies
@@ -15557,8 +15557,8 @@ thin.** **[measured]** the shipped man page `doc/memcached.1` at tag **1.6.45** 
 *"Listen on UDP port `<num>`, the default is port 0, which is off"* — and **does not itself name
 11211**. Three further owner artefacts close it, all first-party: the wiki's `### TCP` section —
 *"When changing the port via `-p`, the port for UDP will follow suit"* — with `-p`'s documented default
-of `11211`; the same page's own `stats settings` output, which prints **`STAT udpport 11211`** beside
-`STAT tcpport 11211`; and the owner's release notes for **1.5.6**, which name the number directly:
+of `11211`. The same page's own `stats settings` output, which prints **`STAT udpport 11211`** beside
+`STAT tcpport 11211`. And the owner's release notes for **1.5.6**, which name the number directly:
 *"will find the UDP protocol disabled unless they explicitly enable it via `-U 11211`"*. **The number
 is the owner's in three places, so limb 2 does not rest on the man page's silence.** Recorded at
 length because a session reading only the man page would conclude the opposite. The default being
@@ -15578,7 +15578,7 @@ than refusals do. The refusals remain `2049` (aspiration, §26.4), `10248` (labe
 whole corpus after this section, and it is the one this section rules on.**
 
 **The walk is a retrieval for eleven members and a re-reading for five.** `3306`, `2379`, `2380`,
-`9042` and `25672` had their carrying documents re-opened; `623`'s co-owner sweep is §28.9's, run
+`9042` and `25672` had their carrying documents re-opened. `623`'s co-owner sweep is §28.9's, run
 2026-08-14 and not re-run here. Where this section says *the owner numbers the pair* for a member it
 did not re-fetch, it means **the note records that it does**, which is §18.7's own qualifier and the
 defect that produced this ticket. **[measured]** the members re-fetched for this section are `6379`,
@@ -15599,7 +15599,7 @@ and §33.12 are wrong and the parametric statement is right.**
   taken on the **carrying** artefact rather than on the corpus.
 - **A summarising layer produced a false negative that would have moved a cell the wrong way.** Two
   mediated fetches reported `trusted computing environment` absent from ZooKeeper's Administrator's
-  Guide; the release source contains it. **Raw release bytes were used for every ruling in this
+  Guide. The release source contains it. **Raw release bytes were used for every ruling in this
   section**, and §30.10's *cite the version the server returns* is joined by a sibling: **cite the
   bytes the repository returns, because a renderer and a summariser are two different substitutions**.
 - **The defeat test was run in the direction that would have been expensive to skip.** For each of the
@@ -15631,8 +15631,8 @@ and §33.12 are wrong and the parametric statement is right.**
     concession shape pointing the **other** way.
   - **Elastic — the supported endpoint is not the node.** **[measured]** Elastic Cloud Enterprise's own
     inbound-port table puts `9200`/`9243` and `9300`/`9343` on the **Proxy** role and the Elasticsearch
-    nodes on `18000-18999` / `19000-19999`. The thing listening on 9200 at the edge is Elastic's proxy;
-    the sentence's subject is *an unprotected **node***. The owner draws the distinction itself, so it
+    nodes on `18000-18999` / `19000-19999`. The thing listening on 9200 at the edge is Elastic's proxy.
+    The sentence's subject is *an unprotected **node***. The owner draws the distinction itself, so it
     is not the reader's.
   - **memcached — there is no supported architecture to test.** The owner ships tarballs and operates
     no service. And its second page withholds the blessing in terms: *"SASL is not implemented as
@@ -15643,7 +15643,7 @@ and §33.12 are wrong and the parametric statement is right.**
     single IP address or a small range"*. An allow-listed endpoint is outside the class.
 
   **A criterion that demotes one of sixteen and can say, per row, why it spared the other fifteen is a
-  criterion; one that demotes six is §18.2's misreading.**
+  criterion. One that demotes six is §18.2's misreading.**
 - **Nothing beneath a footing was re-litigated.** #101 fenced ADR-0059 limbs 1 and 2 and this section
   reopened neither. No claim, class, determinacy verdict or exclusion was read.
 
@@ -15752,14 +15752,14 @@ below was fetched for this section rather than cited from the sections that quot
 // +optional
 ReadOnlyPort int32 `json:"readOnlyPort,omitempty"`
 ```
-— `staging/src/k8s.io/kubelet/config/v1beta1/types.go`; §16.5's quotation is **exact**
+— `staging/src/k8s.io/kubelet/config/v1beta1/types.go`. §16.5's quotation is **exact**
 
 ```go
 // enableProfiling enables profiling via web interface on /debug/pprof handler.
 // Profiling handlers will be handled by metrics server.
 EnableProfiling bool `json:"enableProfiling"`
 ```
-— `staging/src/k8s.io/kube-proxy/config/v1alpha1/types.go`; §27.2's *"no documented default"* is **exact**
+— `staging/src/k8s.io/kube-proxy/config/v1alpha1/types.go`. §27.2's *"no documented default"* is **exact**
 
 and the two defaulting files: **`ReadOnlyPort` occurs zero times** in
 `pkg/kubelet/apis/config/v1beta1/defaults.go`, whose only port-shaped clauses are the two §31 retrieved —
@@ -15778,7 +15778,7 @@ its default* is the half ADR-0036 limb 1 has required since #69. **The instances
 They differ on a limb that was already written down, and neither section quoted it.**
 
 **[measured] and the difference is partly a house convention rather than a per-field decision, which is
-flagged here rather than smoothed.** `k8s.io/kubelet`'s `types.go` carries **112** `// Default:` lines;
+flagged here rather than smoothed.** `k8s.io/kubelet`'s `types.go` carries **112** `// Default:` lines.
 `k8s.io/kube-proxy`'s carries **zero** — the convention does not exist in that file at all. So
 `enableProfiling`'s silence is its component's style and not a maintainer looking at that field and
 declining to speak. **That weakens the separator as evidence of intent and does not weaken it as a
@@ -15835,14 +15835,14 @@ says it three times.
   who wants it really must set it, and Kubernetes really does field that. **Nothing about the friction
   changes if a line is added to `defaults.go` that assigns the value it already has.**
 - **The two artefacts §12 and ADR-0056 refuse are refused for the opposite reason.** §12(a) refuses an
-  example config because *"a file nobody's daemon reads produces no first run"*;
+  example config because *"a file nobody's daemon reads produces no first run"*.
   [ADR-0056](../adr/0056-a-port-constant-in-a-library-is-not-a-shipped-listener.md) refuses a library
-  constant because *"a module nobody has built produces no first run"*; ADR-0036 limb 4 generalises both
+  constant because *"a module nobody has built produces no first run"*. ADR-0036 limb 4 generalises both
   as *"an act that takes effect nowhere was not taken"*. **A zero value takes effect everywhere.** It is
   those sentences' converse, and citing them against it cites them against their own reason.
 - **A provenance rule measures a gesture rather than a cost.** `obj.ReadOnlyPort = 0` and no line at all
   ship the same binary, produce the same first run and buy the same friction. A rule an owner satisfies
-  by writing a line that changes nothing is not reading an act; it is reading a **signal of intent**,
+  by writing a line that changes nothing is not reading an act. It is reading a **signal of intent**,
   and ADR-0059 limb 2 has already made how firmly an owner speaks inadmissible in the adjacent column.
 
 **And it keeps the test read off the artefact rather than judged**, which is the property ADR-0036 limb 1
@@ -15853,7 +15853,7 @@ by reading the owner's source — and §34.7 measures the case where there is no
 ### 34.5 Why limb (b) is the right place for the refusal, and what it is not
 
 **The refusal has to land somewhere, because an undocumented zero value plainly should not carry a row.**
-`enableProfiling` is `false`; so is `bindAddressHardFail`; so is every unset boolean in every Go config
+`enableProfiling` is `false`. So is `bindAddressHardFail`. So is every unset boolean in every Go config
 struct in the corpus. A rule admitting all of them would hand §2.2's third form to the Go specification.
 Limb (b) refuses them **on the limb that was already there**, and three things follow that a
 provenance-based refusal would not give.
@@ -15863,8 +15863,8 @@ provenance-based refusal would not give.
    because the owner labels it legacy. An undocumented value fails the same half more simply: there is
    nothing to label.
 2. **It does not make the note's verdicts depend on the implementation language.** Go zero-values an
-   `int32` to `0`; a C struct from `calloc` does the same; a Rust `#[derive(Default)]` does it through a
-   macro nobody typed; a Python configuration object raises instead. Under a provenance rule the *same*
+   `int32` to `0`. A C struct from `calloc` does the same. A Rust `#[derive(Default)]` does it through a
+   macro nobody typed. A Python configuration object raises instead. Under a provenance rule the *same*
    maintainer decision — *I did not write a default here* — attests in three languages and does not in
    the fourth. §2.2's founding paragraph refuses exactly that shape: *"an asymmetry driven by a
    documentation accident rather than by any difference in the two services' deployment models, which is
@@ -15915,7 +15915,7 @@ different questions.
 ### 34.7 The walk — every restricting default the footing table rests on, and nothing moves
 
 The test ADR-0042, ADR-0059 and ADR-0061 each set for themselves: **run the rule over the existing cells
-and see what it moves.** Run in the **admitting** direction it admits nothing new; run in the
+and see what it moves.** Run in the **admitting** direction it admits nothing new. Run in the
 **refusing** direction — *which cells would a provenance rule refuse?* — it is the losing option's
 extension that matters, so both are stated.
 
@@ -15976,9 +15976,9 @@ twice.
 
 **Rule *takes effect* to require an act the party performed — the provenance answer.** The ticket's own
 framing, the strongest losing option, and the one a reader will reach for. **Its case is good:** §10.4
-admits a restriction as a **costly act** and nobody performed one; ADR-0036 limb 4 says *"an act that
-takes effect nowhere was not taken"* and there is a real sense in which no act was taken here; it
-separates the note's two instances with no new machinery; and it is **free on today's corpus** —
+admits a restriction as a **costly act** and nobody performed one. ADR-0036 limb 4 says *"an act that
+takes effect nowhere was not taken"* and there is a real sense in which no act was taken here. It
+separates the note's two instances with no new machinery. And it is **free on today's corpus** —
 §34.7 measures it moving nothing, because the one cell it refuses was superseded at §18.
 
 **It loses three ways, and none of them is a cell count.** On **§10.4's own currency**: the cost priced
@@ -16106,11 +16106,11 @@ commit `9a8f1df`. Four siblings were resolving concurrently, so the safe stateme
   and it is reported to the curator rather than ticketed, on #93's ninth-trigger cost reasoning.
 - **The generated config-API reference pages were again not quoted.** `kubelet-config.v1beta1.md` and
   `kube-proxy-config.v1alpha1.md` at `kubernetes/website` `release-1.34` are generated from the source
-  this section reads directly; §19.7's rule, obeyed at no cost, as §27.14 and §31.12 both recorded.
+  this section reads directly. §19.7's rule, obeyed at no cost, as §27.14 and §31.12 both recorded.
 - **ADR-0061's retrieval obligation gains a stated outcome for the empty case.** Limb 3 says the
-  defaulting code *"must be retrieved, not assumed"*; it does not say what a retrieval that finds **no**
+  defaulting code *"must be retrieved, not assumed"*. It does not say what a retrieval that finds **no**
   defaulting code establishes. Under limb (a) it establishes that the zero value is what takes effect,
-  which is a reading rather than a change. ADR-0061 gains a *confirmed and read by use* note; no limb
+  which is a reading rather than a change. ADR-0061 gains a *confirmed and read by use* note. No limb
   moves.
 
 ### 34.13 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6, §16.10, §17.10, §22.10, §30.10 and §31.13
@@ -16118,7 +16118,7 @@ commit `9a8f1df`. Four siblings were resolving concurrently, so the safe stateme
 - **Every quotation this section relies on was re-fetched at a named tag rather than cited**, including
   the two this note has already quoted twice — §16.5's `readOnlyPort` comment and §27.2's
   `enableProfiling` comment are both **exact** at `v1.34.0`. §31.13 recorded that obeying §27.15's rule
-  confirmed rather than corrected; it did so again here, and a rule that only pays out when it catches
+  confirmed rather than corrected. It did so again here, and a rule that only pays out when it catches
   something is a rule nobody will run.
 - **Two negatives are stated as file-and-tag facts rather than as universals.** *"`ReadOnlyPort` occurs
   zero times in `pkg/kubelet/apis/config/v1beta1/defaults.go` at `v1.34.0`"* and the matching statement
@@ -16192,7 +16192,7 @@ This one is scoped to the row.
 ### 35.1 What was retrieved
 
 **Nine Microsoft artefacts, all first-party, all current, retrieved 2026-08-14.** Two are the ones
-§33 read; seven are new to this note, and four of the seven are the reason this retrieval is scoped
+§33 read. Seven are new to this note, and four of the seven are the reason this retrieval is scoped
 to the row rather than to a tier. Every negative below is dated to 2026-08-14 per
 [ADR-0046](../adr/0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md)
 as amended by [#93](https://github.com/winniel123/verge-asm/issues/93), and every one is a count over
@@ -16229,7 +16229,7 @@ all:
 > **supported deployment environment**, Claim 3 fails however strongly a third party disapproves."
 
 **Nothing in that sentence is a test on the owner's prohibition.** It is a test on the owner's
-**affirmative** statement. The prohibition's job at the claim gate is to *name the boundary*; the
+**affirmative** statement. The prohibition's job at the claim gate is to *name the boundary*. The
 failure condition fires on a second, independent utterance that names the internet. So the two gates
 read the same two documents for different propositions, and a defeater at one is not a defeater at
 the other — which is [ADR-0054](../adr/0054-a-claim-step-is-answered-only-by-evidence-about-that-step.md)'s
@@ -16279,8 +16279,8 @@ because §33.10 was wrong about §10.4, but because §10.4 is not the gate the r
 > connectivity guidance. The nearest candidate is the *Use firewalls* section, quoted in full at
 > §35.4 because it is the counter-argument's best evidence.
 
-**The affirmative naming, in three current owner documents rather than one.** §33 had the second;
-the first and third are new to the note and are the reason this retrieval was worth running.
+**The affirmative naming, in three current owner documents rather than one.** §33 had the second.
+The first and third are new to the note and are the reason this retrieval was worth running.
 
 > "If you want to connect to your SQL Server database engine from the internet, select **Public** for
 > the **SQL connectivity** type in the portal during provisioning. The portal automatically does the
@@ -16359,7 +16359,7 @@ authored a year earlier, and the owner's current security writing does not repea
 
 ### 35.4 The *"directly"* reading, heard again on the row — and it makes the case stronger
 
-**§33 rejected it for the footing; the ticket requires it to be heard again for the row, and it is
+**§33 rejected it for the footing. The ticket requires it to be heard again for the row, and it is
 stated here at its strongest.** The argument:
 
 > *"Directly"* is doing real work. Microsoft's own *Use firewalls* section, four paragraphs below the
@@ -16384,17 +16384,17 @@ and slightly overstated about the page.
    still written *"Connect to SQL Server over the internet"*, *"select Public (internet) to allow
    connections to SQL Server from machines or services on the internet"* and *"Any client with
    internet access can connect to the SQL Server instance"*. **The carve-out does not delete those
-   sentences; it removes the only thing that was arguing with them.** A reading that reconciles the
+   sentences. It removes the only thing that was arguing with them.** A reading that reconciles the
    corpus by narrowing the prohibition leaves the affirmative naming **unopposed**, which is a
    stronger position for the failure condition than the one §33 ruled on.
 2. **The bullet's first clause is a positive placement requirement that a firewall does not satisfy.**
    *"Install databases in the **secure zone of the corporate intranet**"* is not a filtering
-   instruction; it is a location. #46's hazard is tested for the third time on this bullet and
+   instruction. It is a location. #46's hazard is tested for the third time on this bullet and
    reading the whole sentence-run makes the affirmative half **stronger**, exactly as §33.4 found.
    A SQL Server on an Azure VM with a public IP and an NSG rule for 1433 is not in the secure zone of
    a corporate intranet under any reading of that phrase.
 3. **The page never says it.** **[measured]** *Internet* occurs twice on the page and nothing joins
-   the two occurrences; there is no *unless*, no cross-reference, and the *Use firewalls* bullets are
+   the two occurrences. There is no *unless*, no cross-reference, and the *Use firewalls* bullets are
    general hardening addressed to the whole installation rather than a stated exception to the
    isolation bullet. Supplying the join is **the reader's inference**, and §2.2's opening sentence —
    *the claim may not be asserted by us* — bars it in the admitting direction as firmly as in the
@@ -16433,10 +16433,10 @@ anticipated has not been given the case.
    not the party, is what the rule keys on."* **[measured]** `ways-to-connect-to-sql.md` and
    `create-sql-vm-portal.md` live in **`MicrosoftDocs/sql-docs`**, the same repository as the
    prohibition page, under `azure-sql/virtual-machines/windows/`. They are not Azure platform
-   documentation that happens to mention SQL Server; they are SQL Server documentation about SQL
+   documentation that happens to mention SQL Server. They are SQL Server documentation about SQL
    Server running on a virtual machine.
 2. **The addressee is the operator in both documents, which is the rider that spares `445`.** §33.2's
-   second rider — *the addressee is part of the class; a statement telling an operator not to expose
+   second rider — *the addressee is part of the class. A statement telling an operator not to expose
    **its own** listener is not defeated by the owner running **its own** hardened service on the same
    number* — is what keeps `445/tcp` on the list against Azure Files, and it is what keeps Azure SQL
    Database's 1433 gateway out of this ruling (§35.13). **It does not reach the Azure VM pages**,
@@ -16444,8 +16444,8 @@ anticipated has not been given the case.
    its credentials and chooses its connectivity. Microsoft is telling **the operator** how to make
    **the operator's own** SQL Server reachable from the internet.
 3. **The sentence's subject is the SQL Server instance, not the VM.** *"Any client with internet
-   access can connect to **the SQL Server instance**"*; *"allow **SQL Server connections** from any
-   client over the internet"*; *"the type of access you want for **the SQL Server instance** on this
+   access can connect to **the SQL Server instance**"*. *"allow **SQL Server connections** from any
+   client over the internet"*. *"the type of access you want for **the SQL Server instance** on this
    VM"*. Claim 3 is a proposition about the protocol's **intended clients**, and these are sentences
    about who may be a client. They answer Claim 3's question directly, which is what ADR-0054
    requires of evidence read at a claim step.
@@ -16465,7 +16465,7 @@ wrote the firewall rule. A firing on that instance is arguable, and the operator
 holding a Microsoft page dated 2026-03-18.
 
 **ADR-0067 limb 2 is this section's act and is stated so it can be attacked**: an `applies to` banner
-scopes the **artefact** and not the **pair**; a deployment-scoped document is the owner speaking
+scopes the **artefact** and not the **pair**. A deployment-scoped document is the owner speaking
 about the pair wherever the sentence's subject is the protocol's clients and its addressee is the
 operator. The banner is admissible — it is what tells you whose deployment is being described — and
 it is not a boundary around the owner's voice.
@@ -16491,7 +16491,7 @@ default, and §28.5's ruling that the reading *"admits half the list"* governs h
 *"credentials or session content in cleartext, **with a standardised encrypted successor reachable on
 a different port**"*, and §2.1 states in terms that *"the successor clause matters: it is what makes
 the plaintext port wrong rather than the protocol family wrong."* TDS negotiates TLS **inside** the
-`PRE_LOGIN` exchange on the same port; Microsoft's own guidance is *"consider enabling encrypted
+`PRE_LOGIN` exchange on the same port. Microsoft's own guidance is *"consider enabling encrypted
 connections for the instance of the SQL Server Database Engine … configure SQL Server instance with a
 signed certificate"* — a setting on the listener, not a second port. **There is no encrypted
 successor on another number, so there is no discriminator and no pair to key on.** This is §9.2's
@@ -16499,7 +16499,7 @@ LDAP disposal exactly: `389` with StartTLS is correct, so the port is not the di
 §10.8 records that as Class B's coverage boundary rather than as an accident.
 
 **So the closed set is exhausted.** §11.6 disposed of `161/udp` this way and §24.7 disposed of
-`10256/tcp` this way; `1433/tcp` is the third, and the first of the three to reach it by **losing** a
+`10256/tcp` this way. `1433/tcp` is the third, and the first of the three to reach it by **losing** a
 claim it held rather than by never having one.
 
 ### 35.7 The rule
@@ -16578,9 +16578,9 @@ nothing on the page joins *Use firewalls* to the isolation bullet, so the join i
 **Option B — the row survives because an `applies to` banner narrows the owner's subject, and the
 Azure pages are §10.5's distributor position.** The best argument against this ruling, and it is not
 the one the ticket named. Refused on four grounds at §35.5: the artefacts are in `MicrosoftDocs/sql-docs`
-and are SQL Server documentation; the **addressee is the operator**, not Microsoft, so §33.2's
-addressee rider does not reach them; the sentences' **subject is the SQL Server instance**, which is
-exactly what Claim 3 is about; and the list is keyed on the **pair**, which has no cell for *except
+and are SQL Server documentation. The **addressee is the operator**, not Microsoft, so §33.2's
+addressee rider does not reach them. The sentences' **subject is the SQL Server instance**, which is
+exactly what Claim 3 is about. And the list is keyed on the **pair**, which has no cell for *except
 on Azure VMs*. **This is the option a reviewer should attack**, and ADR-0067 limb 2 is where it is
 answered.
 
@@ -16598,7 +16598,7 @@ the value space has no place to put it — a `Signal` is binary
 **Option E — decline to rule and route again, on the ground that ADR-0067 limb 2 is a new instrument
 being minted in the same pass that spends it.** This is the strongest procedural objection and it is
 what §33 did one pass earlier. Refused: §33 routed because its **retrieval** was tier-scoped, which
-#37's rule makes dispositive; this retrieval is row-scoped, so the condition that forced the routing
+#37's rule makes dispositive. This retrieval is row-scoped, so the condition that forced the routing
 is discharged. Routing a second time on the ground that the ruling is hard would leave #12 blocked on
 a question that has now been retrieved twice and would be, in the map's own words, *leaving the
 question hanging*. **The instrument is stated before it is applied (§35.7 precedes §35.8) and is
@@ -16622,7 +16622,7 @@ every determinacy refusal in the table: `1433/tcp` passes §2.4 comfortably and 
 retrieval finding that bears on it. **The criterion that would change the verdict:** Microsoft
 withdrawing the **Public** SQL connectivity option, or attaching to it a condition in its own words
 of the kind Elastic attaches to *"unprotected"* — not a hardening recommendation beside it, but a
-statement that the exposure is unsupported. **[measured]** neither exists as of 2026-08-14; §35.13
+statement that the exposure is unsupported. **[measured]** neither exists as of 2026-08-14. §35.13
 records the negative search.
 
 ### 35.11 Every dependent figure, walked rather than asserted
@@ -16689,7 +16689,7 @@ price a removal from this paragraph.**
    derivation `Break`s uniformly. Pre-install this is **vacuous and not waived** — the same sentence
    ADR-0009's #91 and #95 amendments wrote in the adding direction, and §7.2 already ruled the cost
    **symmetric between adding and removing**.
-2. **The aperture **narrows**; it does not widen.** The aperture statement's sensitive-pair line is
+2. **The aperture **narrows**. It does not widen.** The aperture statement's sensitive-pair line is
    `0 of |S| sensitive pairs unread`, and `|S|` falls to 40. **The numerator is `0` for every `|S|`**
    — nothing becomes unread — so what moves is a **denominator**, and one fewer pair is subject to
    the rule. A narrowing is not a revealing, so [ADR-0014](../adr/0014-only-revealed-generalises.md)
@@ -16697,12 +16697,12 @@ price a removal from this paragraph.**
 3. **`verge-core` does not move, and neither does anything that is probed.** **[measured]**
    `1433/tcp` is in the frequency half — §29.2, *top-100, retained* — so `F ∪ S` is unchanged at
    **136 pairs, 131 TCP, 5 UDP**, the daily probe budget is unchanged, and #4 §6's rate limits are
-   untouched. The operator keeps probing 1433 every day; what changes is that the **rule** no longer
+   untouched. The operator keeps probing 1433 every day. What changes is that the **rule** no longer
    evaluates it. **A row leaving costs the union nothing whenever the frequency half already carries
    it**, and that is true of 27 of the list's 40 pairs.
 
-**So the honest price is: one rule-version bump, vacuous pre-install; one denominator; no probing
-change; no union change.** It is still the most consequential *decision* on the map's backlog,
+**So the honest price is: one rule-version bump, vacuous pre-install. One denominator. No probing
+change. No union change.** It is still the most consequential *decision* on the map's backlog,
 because it removes the corpus's most recognisable row on an evidence standard rather than on an
 opinion. It is not the most expensive one.
 
@@ -16735,11 +16735,11 @@ neither moves anything. It **weakens §33.4's use of the hedge** as evidence of 
 recommends a mitigation the same owner calls not robust — which strengthens §33's verdict rather than
 disturbing it. And it does **not** touch §2.4 determinacy for `1433`: a recommendation to move a
 service **off** a number puts no other service **on** it, so nothing contests the convention. Recorded
-per ADR-0048; no residue opens.
+per ADR-0048. No residue opens.
 
 **4. `1433/tcp` stays in `verge-core` and is still probed, so the by-catch of removing it is
 observability rather than blindness.** Worth stating because the obvious worry about a row removal is
-*we stop looking*. We do not. `Availability` and the port census still carry it; what stops is the
+*we stop looking*. We do not. `Availability` and the port census still carry it. What stops is the
 `Signal`. **Recorded and not ticketed** — it is a property of ADR-0009's union, not a new question.
 
 **5. ADR-0067 limb 2 reaches rows other than this one, and the sweep has not been run.** The
@@ -16812,16 +16812,16 @@ parametric statement is right.**
 
 - **Three load-bearing zeros were taken against the raw `live`-branch markdown in
   `MicrosoftDocs/sql-docs`, not against a rendered page and not through a summarising layer.**
-  `1433` on artefact 1; `1433` and `internet` on artefact 5; `1433` on artefact 9. §33.11 records a
+  `1433` on artefact 1. `1433` and `internet` on artefact 5. `1433` on artefact 9. §33.11 records a
   summariser returning a false negative on ZooKeeper's `zookeeperAdmin.md` one pass earlier, and the
   same discipline was applied here **before** any zero was written down. Each is a verdict about
   **that file on 2026-08-14** and says nothing about Microsoft's corpus — ADR-0037 limb 3.
 - **A positive was verified the same way, because it was suspicious.** The *"Create a network
-  security group rule for TCP 1433"* table row reads like a summariser's paraphrase; it is genuine,
+  security group rule for TCP 1433"* table row reads like a summariser's paraphrase. It is genuine,
   at line 121 of the raw source. A quotation that reads too conveniently is re-pulled, which is the
   discipline §12.9 named for substitutions and §33.11 extended to summarisers.
 - **The `applies to` banners were read off the rendered pages rather than inferred from URLs**, and
-  they are the evidence ADR-0067 limb 2 rules about. Artefact 1 carries a **single** moniker; artefact
+  they are the evidence ADR-0067 limb 2 rules about. Artefact 1 carries a **single** moniker. Artefact
   5 carries **three** and SQL Server on Azure VM is **not** among them. Getting these wrong would
   invert §35.5, so they were checked individually.
 - **The deprecation question was asked as a search and its answer is a dated negative.** Microsoft has
@@ -16843,7 +16843,7 @@ parametric statement is right.**
   evidence cutting **both** ways rather than only the convenient one.
 - **Nothing was executed and no instance was provisioned.** *Any client with internet access can
   connect* is read off Microsoft's sentence, not observed. The Azure portal was not opened and no
-  SQL Server was reached; a row removal on this corpus is decided on the owner's documentation, which
+  SQL Server was reached. A row removal on this corpus is decided on the owner's documentation, which
   is §2.2's first sentence.
 
 ---
@@ -16852,7 +16852,7 @@ parametric statement is right.**
 Wayfinder ticket [#110](https://github.com/winniel123/verge-asm/issues/110), on the candidate §32.12
 named against its own closure and §33.5 measured live: *"direction is arguably a qualifier **inside**
 limb 2 rather than a fifth term — but that is the question."* This section **amends §2.2, §3.4, §30.7,
-§32.2, §32.12, §33.5, §33.9 and ADR-0059**; earlier text stands and is marked, per the
+§32.2, §32.12, §33.5, §33.9 and ADR-0059**. Earlier text stands and is marked, per the
 name-and-withdraw convention, and where §36 and an earlier section disagree, **§36 governs**. **No
 cell moves and no row moves** — this section rules on the **criterion**, which is the one thing #107
 routed here rather than deciding.
@@ -16916,7 +16916,7 @@ routed here rather than deciding.
 §33.9 item 2 routed this question in one paragraph and priced it at nothing: *"It does not block #12:
 no candidate answer moves a row, and both live answers leave `445` where it is."* That pricing is
 correct and it is **not** a reason to leave the question open, for the reason §32.10 gave when it
-declined to mint an ADR: **the cells are cheap; the reason they move is the deliverable.** Read the
+declined to mint an ADR: **the cells are cheap. The reason they move is the deliverable.** Read the
 other way round, the reason they *stay* is the deliverable too.
 
 §32.2's closure is the load-bearing claim of the whole footing column. It says a footing satisfying
@@ -16924,7 +16924,7 @@ four limbs sits at **zero** reader-supplied premises, and zero premises **is** t
 ADR-0059 limb 1. If a fifth premise is in fact required and unstated, then every prohibition-tier
 member sits at one premise the note does not disclose, and §2.2's founding paragraph — *"the two forms
 are not equally strong, and the list must not hide the difference"* — is being violated fifteen times
-over rather than not at all. **The stake is not a cell; it is whether the column's own arithmetic is
+over rather than not at all. **The stake is not a cell. It is whether the column's own arithmetic is
 true.**
 
 And §32.12 set the falsification condition itself: *"What would falsify §32.2 is a fifth kind, not a
@@ -16962,14 +16962,14 @@ quotes for `445/tcp`'s imperative, read **whole** rather than for the one senten
 > `word_count` 1602. Retrieved 2026-08-14
 
 **The hypothetical is a heading.** *"Block TCP port 445 outbound to the internet at your corporate
-firewall"* is (1) Microsoft's, for a port Microsoft owns and numbers; (2) about TCP/445 by the number,
-so limb 2's **enumeration** branch is satisfied without ADR-0050 being needed at all; (3) naming *the
-internet*; (4) an unhedged imperative in a document the same owner files its inbound prohibition in,
+firewall"* is (1) Microsoft's, for a port Microsoft owns and numbers. (2) about TCP/445 by the number,
+so limb 2's **enumeration** branch is satisfied without ADR-0050 being needed at all. (3) naming *the
+internet*. (4) an unhedged imperative in a document the same owner files its inbound prohibition in,
 so limb 4 is satisfied on any reading the note has ever applied. **Four limbs, as written, satisfied.**
 
 And it entails **nothing** about the row. The row asserts *this `(port, transport)` pair being
 reachable from an internet vantage is never correct*. A rule blocking egress on TCP/445 says nothing
-about whether anyone can reach a listener on TCP/445; a network can satisfy it perfectly while running
+about whether anyone can reach a listener on TCP/445. A network can satisfy it perfectly while running
 an internet-facing SMB server. The two sentences are Microsoft's two positions and only one of them is
 the row's.
 
@@ -16978,8 +16978,8 @@ the row's.
 1. **§32.12's candidate is real and is not a thought experiment.** It has been sitting one heading
    below the sentence the note has quoted since §3.4 was written.
 2. **The four limbs, read literally, are not sufficient.** A criterion that admits a sentence entailing
-   nothing about the row is not a membership test for the row's tier. Something in §32.2 must change;
-   that much is now measured rather than argued.
+   nothing about the row is not a membership test for the row's tier. Something in §32.2 must change.
+   That much is now measured rather than argued.
 3. **But the failure is *lexical*, not structural.** Both Microsoft sentences name the same two
    objects — TCP/445 and the internet — and differ only in **which object is being reached**. Nothing
    new enters the proposition. That is the whole of §36.4.
@@ -17029,7 +17029,7 @@ is a fifth limb.
 ADR-0050's three limbs carry it there on the owner's own artefacts."* Microsoft's outbound sentence
 **numbers the pair**. It satisfies limb 2's enumeration branch on its face, and no amount of good faith
 gets *inbound* out of the text as it stands. §32.2 said of limb 3 that it is *"unchanged and not
-widened by a syllable"*; reading an unstated qualifier into limb 2 is exactly the widening that
+widened by a syllable"*. Reading an unstated qualifier into limb 2 is exactly the widening that
 discipline refuses.
 
 **3. #107 needed *two* grounds for `445`, and neither is in any limb.** §33.5's own words: the defeat
@@ -17062,7 +17062,7 @@ that turns out to be about places.
 **Applied to direction, the answer is that direction introduces nothing.** The proposition has a
 directed relation, *reachable from*, with exactly two argument places: the endpoint **reached** and the
 vantage the reaching comes **from**. Limb 2 names the first (*this `(port, transport)` pair*). Limb 3
-names the second (*the public internet*). **Direction is not a third object; it is the assignment of
+names the second (*the public internet*). **Direction is not a third object. It is the assignment of
 the two named objects to the two places.** Microsoft's outbound sentence names the same two objects and
 puts them in the opposite places — the internet is what is reached, and a host on TCP/445 is where the
 reaching starts. Nothing has entered the proposition. What has happened is that **limb 2 has been
@@ -17071,7 +17071,7 @@ limb-2 failure by any reading of what limb 2 is *for*.
 
 **Contrast a candidate that would be a genuine fifth limb, so the test is shown discriminating rather
 than accommodating.** Suppose an owner wrote *"do not expose this port to the internet **before
-version 4.0**"*. Time is not an argument place of *reachable from*; it is a new object the proposition
+version 4.0**"*. Time is not an argument place of *reachable from*. It is a new object the proposition
 does not contain, and no limb reaches it. That candidate the four limbs cannot absorb, and §32.2 would
 be falsified by it. **The test refuses direction and would admit that one**, which is what makes it a
 test rather than a rescue.
@@ -17092,7 +17092,7 @@ absorption costs.** It costs limb 2's text. §36.8 restates limb 2, and the rest
 limb 2's clause** in ADR-0059 and in §32.2 rather than only in an appended amendment, per ADR-0058 as
 widened by #106. **A closure that survives a live candidate by amending the limb the candidate hit is
 not a closure that survived untouched, and this section does not claim it was.** The claim is narrower
-and it is the one the evidence supports: **the enumeration of *kinds* of gap holds at four; the
+and it is the one the evidence supports: **the enumeration of *kinds* of gap holds at four. The
 enumeration of what one of those kinds *denotes* was incomplete, and is now written down.** That is
 §26.6's distinction — *ADR-0046 limb 2 closes the **taxonomy**, not the **membership*** — arriving one
 level down, and §32.12 cited it in advance as the governing analogy.
@@ -17119,7 +17119,7 @@ fact about the object rather than a preference about bookkeeping.
 says Microsoft's supported case is *"an on-premises client making an **outbound** connection to a named
 endpoint"*. Ground 1 says the listener at the far end is *"**Microsoft's** listener, not the
 operator's"*. **These are the same connection.** The operator's traffic is outbound *because* the
-listener belongs to someone else; the listener belongs to someone else *because* the traffic left the
+listener belongs to someone else. The listener belongs to someone else *because* the traffic left the
 operator's estate. Neither fact is available without the other, and §33.5 states both because it was
 describing one connection carefully, not because it had found two independent defects.
 
@@ -17138,7 +17138,7 @@ narrower ground read off an owner artefact:
   cell. §33.11 did not use it: *"the supported endpoint is not on the port"* — **[measured]**,
   re-retrieved 2026-08-14, the owner's port table gives database endpoints as *"TCP | **10000-10049,
   10051-19999** | ✅ Yes | Internal, External, Active-Active | Database traffic"* and **`6379` is listed
-  as a port nowhere in it**; the Redis Cloud PrivateLink prerequisites say the same from the other side
+  as a port nowhere in it**. The Redis Cloud PrivateLink prerequisites say the same from the other side
   (*"the database port range (port 10000-19999)"*). The class the defeat would need is **empty**, which
   is a limb-2 enumeration fact and not an addressee argument. **§33.11's *"the string `6379` occurs
   zero times"* is corrected at its clause** — it occurs once, as a substring of `36379` on an unrelated
@@ -17186,7 +17186,7 @@ true-but-incomplete (§30), then necessary-but-not-sufficient (§32), then asser
 
 **[measured]** Against `main` at `94ff868` — §2.2 tiers **prohibition 15 · scoping 11 · weak 3 ·
 outside-subject 11 · uncovered-in-subject 1**, coverage 29 of 41. Figures cited **as of that commit**
-and not restated as current, because a sibling pass may move a member; **this section moves none of
+and not restated as current, because a sibling pass may move a member. **This section moves none of
 them and the sweep's verdicts are membership-independent.**
 
 The weak tier is outside the sweep **by construction, not by omission**: §32.7 rules that its three
@@ -17271,7 +17271,7 @@ definition of the top tier.
 are there: `445`'s Azure Files pages and `623`'s *iLO Direct Connect*. That is §33.2's discriminator —
 *the architecture the owner supports must be an instance of the class the owner's own statement
 forbids* — and §33.2 already wrote **one** of the two candidates into it as a rider: *"the addressee is
-part of the class"*. **Direction is the same rider's sibling and §33.2 did not write it**; §36.8 does.
+part of the class"*. **Direction is the same rider's sibling and §33.2 did not write it**. §36.8 does.
 
 **MongoDB Atlas — retrieved rather than assumed, because it is the obvious place to look for a second
 addressee instance, and it is the cleanest case in the corpus of addressee coming apart from
@@ -17295,7 +17295,7 @@ direction.** **[measured]**, retrieved 2026-08-14 from the owner's own current m
 > ADR-0046 rather than guessed at
 
 **Atlas is an *inbound* listener on 27017 that MongoDB documents as reachable from the public
-internet. Direction gives no answer here; only addressee does** — and MongoDB draws the addressee line
+internet. Direction gives no answer here. Only addressee does** — and MongoDB draws the addressee line
 itself, in its **page titles**: every trusted-networks statement in the manual is headed *for
 Self-Managed Deployments*, so the guidance addresses the operator's own `mongod` and the
 counter-example is the vendor's hosted service.
@@ -17307,7 +17307,7 @@ fails **limb 3**, and limb 4's defeat test does not run on a footing that has al
 independence claim is now **measured** rather than constructed: addressee genuinely comes apart from
 direction, in a live owner's live documentation — and it is *still* a coordinate of the same limb,
 because the question it answers is *which listener the statement is about*. **The *one exception*
-claim is therefore about **load-bearing** instances and is stated that way**; a later pass promoting
+claim is therefore about **load-bearing** instances and is stated that way**. A later pass promoting
 MongoDB on a sentence that names the internet inherits this as a live limb-4 question on day one.
 
 ### 36.7 §32.12's withdrawn clause was false when it was written — `623/udp` is the second instance and it predates §32
@@ -17462,7 +17462,7 @@ two objects limbs 2 and 3 already name to the two places of a directed relation.
 also make the conjunction assert something false about the corpus: a five-limb conjunction says the
 reader supplies a directional premise, and **[measured]** the reader supplies one in **zero** of the
 twenty-six graded members, because the owners write it. **A limb that is satisfied by the owner's own
-words in every live instance is not a gap the reader bridges; it is a description of the subject.** It
+words in every live instance is not a gap the reader bridges. It is a description of the subject.** It
 loses a second time on **extension**: read as a fifth limb it would have to be run over the whole tier
 as a membership test, and §36.6 is that run — it refuses nobody, which is a limb doing no work rather
 than a limb the corpus needed.
@@ -17506,7 +17506,7 @@ usually earns an ADR.
 
 **It loses on three grounds and the third is decisive.**
 
-1. **Nothing here is a new rule.** Limb 2 is ADR-0050's and §2.3's; the restatement says what *"this
+1. **Nothing here is a new rule.** Limb 2 is ADR-0050's and §2.3's. The restatement says what *"this
    pair"* has denoted since §3.4 drew the distinction by hand for `445`. §32.10's own test — *"every
    rule this section applies was already available"* — is met, and §24.9's words fit unchanged: *"This
    states what §10.3 already required. No ADR is added."*
@@ -17530,7 +17530,7 @@ reciting §32.12's withdrawn direction clause or §32.2's unqualified closure, a
 one is struck at its clause: `sensitive-ports.md` §2.2's amendment block, §3.4's `445` carve-out
 paragraph, §30.7's *"read §32.12 before quoting the prohibition row as complete"*, §32.2's limb 2 and
 its *"there is no fifth limb"* paragraph, §32.12's own direction paragraph, §33.5's *"unstated
-directional qualifier"* sentence and §33.9's item 2; and in
+directional qualifier"* sentence and §33.9's item 2. And in
 [ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md), the
 #101 amendment's limb (2) and its *"What this amendment does not reach"* paragraph. **Nine sites, one
 decision, all in two files.** [`CONTEXT.md`](../../CONTEXT.md) is **not edited** — no term is minted,
@@ -17579,7 +17579,7 @@ section's verdicts are unaffected because none of them is a membership claim.
 ### 36.13 Thin ground, flagged per the standing rule
 
 **The closure survived by being amended, and this section does not pretend otherwise.** §32.2's
-enumeration of **kinds** of gap is unchanged at four; limb 2's **text** is not. A reader who holds that
+enumeration of **kinds** of gap is unchanged at four. Limb 2's **text** is not. A reader who holds that
 a limb whose denotation had to be written down after a live counterexample is a limb that failed has a
 position, and the difference between that reading and this section's is a judgement about what the
 closure claimed. **This section's ground is §32.2's own words** — *"a reader-supplied premise can only
@@ -17604,7 +17604,7 @@ page title. **None of those three is a verdict**, because in each case a narrowe
 **A reader who counts *availability* rather than *verdicts* gets three instances and may reach a
 different answer to the ticket's second question.** This section counts verdicts, because a limb that
 never decides anything is not doing the work a limb does — and it states the other count here so the
-choice is visible. The claim is made about today's table, dated to `94ff868`; a later pass promoting
+choice is visible. The claim is made about today's table, dated to `94ff868`. A later pass promoting
 MongoDB on a sentence that names the internet inherits it as a live limb-4 question on day one.
 
 **Direction being *entailed* by a verb is the softest column in §36.6's sweep.** Sixteen of the
@@ -17625,7 +17625,7 @@ available on demand**, and it is also the closest this section comes to #109's q
 further:** #110's constraints forbid reopening #107's `1433` ruling and #109 owns the row.
 
 **Two sibling passes are editing this file concurrently.** This section states an **empty** delta, so
-there is nothing for a merger to re-derive; the only figures it cites are cited **as of `94ff868`** and
+there is nothing for a merger to re-derive. The only figures it cites are cited **as of `94ff868`** and
 are named as such at §36.6 and §36.12 so that a superseded numeral cannot be left standing by the
 serial merge.
 
@@ -17633,7 +17633,7 @@ serial merge.
 
 - **The decisive retrieval was a re-read of a document the note has quoted since §3, not a new
   source.** *Secure SMB Traffic in Windows Server* has carried `445`'s imperative in this note from the
-  beginning; nobody had read past the sentence. ADR-0037 limb 1 requires an artefact opened for one row
+  beginning. Nobody had read past the sentence. ADR-0037 limb 1 requires an artefact opened for one row
   to be read for every subject in the table's domain that it names — **§36.2 is that rule applied to a
   second heading in the same document rather than to a second port**, which is a shape ADR-0037 does
   not name and this section reports.
@@ -17647,13 +17647,13 @@ serial merge.
   table.
 - **The sweep is a re-reading for twenty-two members and a retrieval for four.** `445/tcp`'s carrying
   document, the Kubernetes ports table, HPE's iLO 6 port and security pages, and MongoDB's
-  self-managed-hardening and Atlas pages were fetched for this section; the other carrying statements
+  self-managed-hardening and Atlas pages were fetched for this section. The other carrying statements
   are quoted from the note as §3.4, §32 and §33 hold them, all of which were retrievals when they were
   run. **Where §36.6 says the carrying statement entails direction for a member it did not re-fetch, it
   means the sentence the note records entails it** — the same qualifier §33.9 attached to its own walk.
 - **`623/udp` was re-fetched rather than inherited, and the re-fetch changed two things and not the
   verdict.** §28.9's *iLO Direct Connect* citation is HPE advisory `a00050194en_us` Document Version 4,
-  **2019-10-15**; **[measured]** the feature it names is **retired** and the current outbound path is
+  **2019-10-15**. **[Measured]** the feature it names is **retired** and the current outbound path is
   Compute Ops Management with an owner-written `Initiator` column. The instance is **re-founded on a
   current artefact** (§36.7) and `623/udp` moves from `entailed` to **`named`** in §36.6's sweep,
   because HPE's own port table has a **`Direction`** column. **Neither change moves a cell**, and
@@ -17682,7 +17682,7 @@ serial merge.
   direction twice and on addressee once, and the second direction instance (`623/udp`) was **not**
   known to any prior section as a direction instance.
 - **Nothing beneath a footing was re-litigated, and no cell was reopened.** #110 forbade reopening
-  #107's `1433` ruling and ADR-0059 limbs 1 and 2; neither was touched. No claim, class, determinacy
+  #107's `1433` ruling and ADR-0059 limbs 1 and 2. Neither was touched. No claim, class, determinacy
   verdict, exclusion or weak-tier member was read.
 
 ---
@@ -17695,7 +17695,7 @@ limb 2 rules that an owner's **deployment-scoped** document is the owner speakin
 wherever the sentence's subject is the protocol's clients and its addressee is **the operator**. §35
 applied it to exactly one row and removed it. **Every other member of the list was disposed of by §33
 under §33.2's riders, and not one of them was tested against a limb that did not yet exist.** §35.13
-item 5 ticketed the sweep against itself; this section runs it.
+item 5 ticketed the sweep against itself. This section runs it.
 
 **The answer, in one line: the limb reaches one pair, and this sweep may not move it.** `9200/tcp` and
 `9300/tcp` Elasticsearch meet §10.3's failure condition on Elastic's own operator-addressed **Elastic
@@ -17836,7 +17836,7 @@ discriminator is whether the owner's sentence **states the bound**, which is rea
 
 **[measured]** Against `main` at `d3e78de` — §2.2 tiers **prohibition 15 · scoping 11 · weak 3 ·
 outside-subject 11 · uncovered-in-subject 0**, coverage **29 of 40**, list **40 pairs**, classes
-`12 / 7 / 21`. Figures cited **as of that commit**; this section moves none of them. Every retrieval
+`12 / 7 / 21`. Figures cited **as of that commit**. This section moves none of them. Every retrieval
 below was performed **2026-08-14**.
 
 **How the columns are read.** *Candidate* is the owner document that could meet §10.3's failure
@@ -17924,7 +17924,7 @@ reachability as the **default state**.
 | **④ True of the pair** | **[measured]** the owner's own table numbers `9200` and `9300` under **"Inbound traffic from any source"**, and gives their purpose as *"Elasticsearch REST API"* and *"Elasticsearch transport client"* — the same services §3.3's rows name |
 
 **And the `applies to` banner is exactly what ADR-0067 limb 2 refuses to read as a boundary.** The
-prohibition sits on *Networking settings*, banner `Elastic Stack: Generally available`; the ECE
+prohibition sits on *Networking settings*, banner `Elastic Stack: Generally available`. The ECE
 statements sit on pages bannered `Elastic Cloud Enterprise: Generally available`. **[measured] the two
 sets do not disclaim each other**, which is the same partition-by-silence ADR-0067's own thin-ground
 section measured for Microsoft.
@@ -18052,8 +18052,8 @@ chapter addressed to an operator running MySQL on the operator's **own** compute
 > *Deploying MySQL on Oracle Cloud Infrastructure*
 
 **Limb 2's grounds ①, ② and ③ are all satisfied** — it is the owner's own manual, in the same document
-as §8.1.1's prohibition; the addressee is the operator; the subject is the operator's own `3306`
-listener; and it is in the imperative with **no source restriction and no warning of any kind**.
+as §8.1.1's prohibition. The addressee is the operator. The subject is the operator's own `3306`
+listener. And it is in the imperative with **no source restriction and no warning of any kind**.
 **It fails on §10.3's *network* limb alone: the page never names the public internet, and states no
 source CIDR at all**, so it neither affirms nor forbids `0.0.0.0/0`.
 
@@ -18212,7 +18212,7 @@ member is decided by both**:
 **Option 1 — remove `9200/tcp` and `9300/tcp` here.** The evidence is in hand, the instrument is
 stated, and leaving two rows standing whose claim is measurably defeated is the *leaving the question
 hanging* the map's standing instruction forbids. **It loses on #37, and #37 is not a formality.** §33
-was scoped to a tier and routed `1433`; §35 ran the row-scoped retrieval and found **three** artefacts
+was scoped to a tier and routed `1433`. §35 ran the row-scoped retrieval and found **three** artefacts
 §33 had not opened, one of which (`ms.date` 2026-03-18) is the one §33.10's reopening criterion turned
 on. **A row-scoped retrieval reads every artefact the owner has issued for that pair**, which for
 Elastic means the self-managed corpus, the ECK corpus, the ECE corpus and the shipped
@@ -18320,7 +18320,7 @@ named in every artefact read for this section, checked against the table's domai
 bytes, 31,832 lines): the *NFSv4 Goals* bullet *"Improved access and good performance on the Internet"*
 is at **§1.5**, not §1.1. Appendix C is present at line 31,588 and carries §26.4's sentence verbatim —
 *"would be likely to conclude that NFSv4.1 does not meet the goal of secure use on the Internet"*.
-**Corrected in place at §26.4's clause; `2049/tcp`'s disposal is untouched.**
+**Corrected in place at §26.4's clause. `2049/tcp`'s disposal is untouched.**
 
 **5. Kubernetes' `security-checklist.md` has not been modified since 2025-02-28**, while the pairs it
 carries under ADR-0050 have moved twice. **[measured]** the file was last modified **2025-02-28** at
@@ -18391,8 +18391,8 @@ the same reason.** A merger has nothing to re-derive from this section. **Where 
 The routing is safe — #37 forces it whatever the answer — but the **finding** that §10.3's failure
 condition is met is contested, and a reader who rejects it reaches *nothing moves and nothing is
 ticketed*. **The argument against, at its strongest:** ECE's sentence describes a **default state**,
-not an offering; the component that actually supplies the internet reach is a load balancer Elastic
-expressly puts *"outside the scope of this documentation"*; and §35's own discriminator for `1433` was
+not an offering. The component that actually supplies the internet reach is a load balancer Elastic
+expressly puts *"outside the scope of this documentation"*. And §35's own discriminator for `1433` was
 that Microsoft **ships the provisioning option itself**, in the imperative, writing the firewall rule.
 Elastic does none of that for ECE. **The reply is that ECK does** — `http.service.spec.type:
 LoadBalancer` is Elastic's own field under Elastic's own heading *"Allow public access"* — **but ECK's
@@ -18411,7 +18411,7 @@ spent in one pass.
 
 **The distinction between (b) and (c) is a distinction about what a condition attaches to, and one
 member sits close to the line.** Oracle's *"You must restrict the authorized public IP addresses"*
-attaches to the **exposure Oracle affirms**; Elastic's *"unprotected"* attaches to the **class Elastic
+attaches to the **exposure Oracle affirms**. Elastic's *"unprotected"* attaches to the **class Elastic
 forbids**. **[measured]** the two are in different sentences of different documents and the reading is
 not close for either — but a single sentence could carry both, and this section has no instance of one.
 **A reader who holds that Elastic's *"unprotected"* also bounds what Elastic affirms** — that ECE's
@@ -18444,7 +18444,7 @@ were **wrong on first retrieval** and were caught (§37.14), which is the reason
 a formality.
 
 **Two sibling passes are editing this repository concurrently.** This section states an **empty**
-delta, so there is nothing for a merger to re-derive; the only figures it cites are cited **as of
+delta, so there is nothing for a merger to re-derive. The only figures it cites are cited **as of
 `d3e78de`** and are named as such at §37.4 and §37.12.
 
 ### 37.14 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6, §16.10, §17.10, §22.10, §30.10, §32.13, §33.11 and §36.14
@@ -18452,18 +18452,18 @@ delta, so there is nothing for a merger to re-derive; the only figures it cites 
 - **The sweep is a retrieval for every one of the thirty-two members and a re-reading for none.** Every
   owner corpus in §37.4 was opened on 2026-08-14. Where a carrying statement is quoted from the note it
   is marked as such, and **[measured]** the artefacts newly opened for this section are **Elastic Cloud
-  Enterprise's networking, load-balancer, traffic-filtering and IP-filtering pages; Elastic Cloud on
-  Kubernetes' *Accessing services* and network-policy pages; Redis Software's *Enable private and
-  public database endpoints* and *Configure database settings*; the MySQL Reference Manual's Chapter
-  34; Oracle's HeatWave networking, connection and network-load-balancer pages; MongoDB's Enterprise
-  Kubernetes Operator external-access tutorial; Docker's Build Cloud, contexts, Desktop-settings and
-  Swarm pages; PostgreSQL's SSL and SSH-tunnel chapters and the PGDG wiki; and CouchDB's reverse-proxy
+  Enterprise's networking, load-balancer, traffic-filtering and IP-filtering pages. Elastic Cloud on
+  Kubernetes' *Accessing services* and network-policy pages. Redis Software's *Enable private and
+  public database endpoints* and *Configure database settings*. The MySQL Reference Manual's Chapter
+  34. Oracle's HeatWave networking, connection and network-load-balancer pages. MongoDB's Enterprise
+  Kubernetes Operator external-access tutorial. Docker's Build Cloud, contexts, Desktop-settings and
+  Swarm pages. PostgreSQL's SSL and SSH-tunnel chapters and the PGDG wiki. And CouchDB's reverse-proxy
   and Unix-installation pages.** Not one of the fourteen had been opened by any prior section of this
   note.
 - **A summarising layer fabricated a quotation and it was caught by a direct fetch.** A search snippet
   returned *"**When exposing MongoDB to the public internet**, Make sure that your mongod and mongos
   instances are only accessible on trusted networks"*. **[measured]** the leading clause **does not
-  exist** on MongoDB's *IP Binding in Self-Managed Deployments* page at Manual 8.3; the genuine sentence
+  exist** on MongoDB's *IP Binding in Self-Managed Deployments* page at Manual 8.3. The genuine sentence
   begins at *"Make sure"*. **This is a new shape of §12.9's substitution hazard** — not a wrong
   document (§30.10) and not a false negative from a summariser (§33.11), but a **summariser welding a
   clause onto a genuine sentence**, and the welded clause is precisely the one that would have met
@@ -18484,17 +18484,17 @@ delta, so there is nothing for a merger to re-derive; the only figures it cites 
   **third** with no version marker at all, after Dell's iDRAC guides (§33.9 item 4).
 - **A widely repeated Cassandra sentence does not exist and the row does not depend on it.**
   **[measured]** neither the Cassandra 5.0 *FAQ* nor its *Security* page contains *"do not expose port
-  9042 to the internet"*; the FAQ names the port neutrally. **`9042`'s footing is the shipped
+  9042 to the internet"*. The FAQ names the port neutrally. **`9042`'s footing is the shipped
   `cassandra.yaml` comment** (§12.7, §33.7) and is unaffected — but a session re-founding the cell on a
   documentation page would find nothing, and this is recorded so that it does not conclude the footing
   is gone.
 - **The RabbitMQ *"public networks"* sentence was checked against the page it is on, not against the
   page it is remembered on.** **[measured]** it is in the **production checklist**, scoped to the
   **client** port category, and is **not** on the *Networking* page that carries `25672`'s bullet. §17.4
-  used it for `5672`/`15672` and §3.4 for those rows only; the attribution is correct throughout the
+  used it for `5672`/`15672` and §3.4 for those rows only. The attribution is correct throughout the
   note and is confirmed here because a loose reading would defeat `25672`.
 - **Every string count in this section is a *token* count and says so**, per §36.14's correction.
-  `6379`'s zero across seven Redis pages is a token claim; the substring `36379` is present and is
+  `6379`'s zero across seven Redis pages is a token claim. The substring `36379` is present and is
   named.
 - **The neighbour test was run in the direction that would have been expensive to skip.** For each of
   the thirty-two the question *does this owner publish a deployment-scoped document naming the public
@@ -18570,7 +18570,7 @@ Elastic's corpora. §37 opened two of them.
 ### 38.1 What was retrieved
 
 **Sixteen Elastic artefacts, all first-party, all current, all retrieved 2026-08-14 from raw bytes.**
-Four are the ones §37 read; **twelve are new to this note**, and the one that decides `9200/tcp` is in
+Four are the ones §37 read. **Twelve are new to this note**, and the one that decides `9200/tcp` is in
 a corpus no prior section of this note has opened. Every negative below is dated to 2026-08-14 per
 [ADR-0046](../adr/0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md)
 as amended by [#93](https://github.com/winniel123/verge-asm/issues/93), and every one is a count over
@@ -18625,7 +18625,7 @@ opened — **self-managed** and the shipped `elasticsearch.yml` at the current t
    its verb is *is used for*. §10.4's one-way rule does not have to be reached at all, so the whole of
    §37.13's *"ECE describes a default, not an offering"* counter-argument is **unavailable against
    `9200`** — it was an argument about a different sentence in a different corpus.
-2. **Its subject is exactly Claim 3's.** §2.1 Claim 3 is *"the protocol's intended clients"*; this
+2. **Its subject is exactly Claim 3's.** §2.1 Claim 3 is *"the protocol's intended clients"*. This
    sentence names the HTTP layer's counterparty. ADR-0054's step rule is satisfied on its face —
    evidence about the claim, at the claim.
 3. **Its addressee is the operator and its listener is the operator's own.** It is on a page headed
@@ -18677,13 +18677,13 @@ they are not the same words:**
 ### 38.4 `9200/tcp` — the failure condition met twice, independently, and the second instance is the weaker one
 
 **Instance 1, self-managed, and it is decisive on its own.** Elastic says the HTTP layer is used for
-communication between the cluster and **the internet**; the HTTP layer is `9200` by the owner's own
+communication between the cluster and **the internet**. The HTTP layer is `9200` by the owner's own
 default. §10.3's failure condition — *"Where the owner names the public internet as a **supported
 deployment environment**, Claim 3 fails however strongly a third party disapproves"* — fires. **The
 reader supplies no premise**: the naming, the interface and the number are all in Elastic's own
 artefacts, and ADR-0059 limb 1's arithmetic reads zero.
 
-**Instance 2, ECE, and it needs ADR-0050.** The affirmation numbers no port; the numbers come from a
+**Instance 2, ECE, and it needs ADR-0050.** The affirmation numbers no port. The numbers come from a
 page that names no network. **[measured]** `ece-networking-prereq.md` contains `internet` **×0** and
 `public` **×0** in 7,727 bytes. So the join is made by ADR-0050 limb 2 — the owner's own artefacts
 placing the pair inside the category the statement is about — and the owner makes it three times:
@@ -18715,8 +18715,8 @@ at all, and **[measured]** in ECK — where Elastic states there is no proxy —
 own HTTP service, `hulk-es-http … 9200/TCP`.
 
 **The `applies to` banner argument is ADR-0067 limb 2's and it is answered by limb 2's four grounds
-run over these artefacts**: the pages live in Elastic's own documentation repositories; the addressee
-is the operator; the sentences' subject is the Elasticsearch cluster's own interfaces; and the list is
+run over these artefacts**: the pages live in Elastic's own documentation repositories. The addressee
+is the operator. The sentences' subject is the Elasticsearch cluster's own interfaces. And the list is
 keyed on the **pair**, which has no cell for *except on ECE*. **[measured]** the two document sets do
 not disclaim each other — the counter-instance ADR-0067's thin-ground paragraph names, an owner
 disclaiming a deployment *in its own words*, is **still** not met in this corpus, which is the finding
@@ -18759,15 +18759,15 @@ artefacts place `9300` inside it as squarely as `9200`:
 
 **The third is the join, and it is textual rather than inferential.** `ece-filter-rules.md` says an IP
 filtering rule set *"overrides the default behavior of allow all access over the public internet
-endpoint"* and that rule sets *"apply to **all deployment endpoints**"*; `ip-filtering-ece.md` says
+endpoint"* and that rule sets *"apply to **all deployment endpoints**"*. `ip-filtering-ece.md` says
 what the operator must do for that filter to work on **ports 9300/9343**. The endpoint whose
 unrestricted default Elastic names as public-internet is, in Elastic's own two sentences, the listener
 on `9300/9343`. **ADR-0050 limb 2 is satisfied and no reader-supplied premise is needed for it.**
 
 **§36.8's restated limb 2 is run on the pair rather than assumed.** The ECE `9300` listener is the pair
 **as the endpoint being reached, on the estate the statement addresses**: the estate is the operator's
-own ECE installation on the operator's own hardware; the traffic is **inbound** and Elastic's own table
-heading says *from any source*; and the service is *"{{es}} transport client"* in Elastic's own Purpose
+own ECE installation on the operator's own hardware. The traffic is **inbound** and Elastic's own table
+heading says *from any source*. And the service is *"{{es}} transport client"* in Elastic's own Purpose
 cell. Direction and addressee — the two riders that **do** travel (§37.3(a)) — are both satisfied for
 the row rather than against it.
 
@@ -18841,8 +18841,8 @@ another number, so there is no discriminator and no pair to key on** — §9.2's
 §35.6's TDS disposal, reached a third time, with §10.8 recording it as Class B's coverage boundary
 rather than as an accident.
 
-**So the closed set is exhausted for both pairs.** §11.6, §24.7 and §35.6 disposed of rows this way;
-these are the fourth and fifth, and the **second and third** to reach it by *losing* a claim they held
+**So the closed set is exhausted for both pairs.** §11.6, §24.7 and §35.6 disposed of rows this way.
+These are the fourth and fifth, and the **second and third** to reach it by *losing* a claim they held
 rather than by never having one.
 
 ### 38.7 The load-balancer disclaimer — a fourth candidate rider, argued and refused, and the measurement that refuses it is §17.4
@@ -18871,11 +18871,11 @@ conditioning, addressee and direction.
    [ADR-0010](../adr/0010-exposure-composes-two-reaches.md) and
    [ADR-0017](../adr/0017-exposure-needs-both-legs.md) — Oracle's *"You **must** restrict the authorized
    public IP addresses to a single IP address or a small range"*. **A disclaimer of responsibility
-   enumerates no source set.** It bounds neither the vantage nor the reach; it bounds **who writes the
+   enumerates no source set.** It bounds neither the vantage nor the reach. It bounds **who writes the
    configuration**. §37.3(b)'s discriminator is *"whether the owner's sentence **states the bound**,
    which is read as a string"*, and there is no bound in the string.
 2. **It is not (a) or (c).** The listener is the operator's, not Elastic's, so (a) is satisfied *for*
-   the row; and nothing here narrows a prohibition, so (c) is unreached.
+   the row. And nothing here narrows a prohibition, so (c) is unreached.
 3. **§10.3's element is *naming*, and reading a *supply* element into it is refuted by the note's own
    corpus.** §10.3 says *"where the owner **names** the public internet as a supported deployment
    environment"*. Microsoft's provisioning option was an additional strengthening ground at §35, never
@@ -18887,7 +18887,7 @@ conditioning, addressee and direction.
    by what it deletes, not by how it reads.**
 4. **The hedge is inadmissible, and this is not a new instrument either.**
    [ADR-0059](../adr/0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md)
-   limb 2 makes mood, force and hedging inadmissible **in both directions**; §33.2 records that this is
+   limb 2 makes mood, force and hedging inadmissible **in both directions**. §33.2 records that this is
    *"why a **descriptive** sentence (Redis, ZooKeeper) and a **hedged** one (Redis) are positions here"*.
    *"In some cases … may also be"* is the same grammatical shape as RabbitMQ's *"in some cases can
    mean"*, and it is disposed of the same way. The second ECE bullet is not hedged at all.
@@ -19004,18 +19004,18 @@ own iff and on §17.4's measurement. **Refused for `9200` on mootness and for `9
 default, so joining *"Allow public access"* to it is one inference (§35.9's refusal of `1433`'s *Use
 firewalls* join).** **This option is CONCEDED and it changes nothing.** **[measured]** it is right:
 `accessing-services.md` contains `internet` **×1** and it is *"not reachable from the public Internet
-by default"*; the section heading *"Allow public access"* contains no network word; and the body under
+by default"*. The section heading *"Allow public access"* contains no network word. And the body under
 it names a Kubernetes `Service` type, not a network. **ECK is therefore corroboration under §2.3 and
 carries no row here.** Two things are recorded rather than used: **[measured]** the page's *"Outside the
 Kubernetes cluster"* block instructs the operator to retrieve the `LoadBalancer` ingress IP and run
 `curl --cacert tls.crt -u elastic:$PW https://$IP:9200/` — the mechanism supplied end to end, which is
-the *shape* §35 called *shipping the provisioning option*; and **[measured]** no warning admonition is
+the *shape* §35 called *shipping the provisioning option*. And **[measured]** no warning admonition is
 attached to the section (the page's only admonitions are a `note` about copying a `Secret` and a `tip`
 about {{kib}}).
 
 **Option C — keep the rows and re-found them on another claim.** Unavailable rather than refused, and
 **measured rather than assumed**, which is what the ticket required. Claim 1 fails on §2.1's antecedent
-at `v9.5.1` for both pairs; Claim 2 fails on the successor clause for both. §38.6.
+at `v9.5.1` for both pairs. Claim 2 fails on the successor clause for both. §38.6.
 
 **Option D — remove `9200` and keep `9300`.** **The closest call in this section, and it is a real
 option rather than a straw man.** It follows from taking the self-managed corpus as the only corpus
@@ -19035,7 +19035,7 @@ binary ([ADR-0004](../adr/0004-signals-are-release-coupled-rules.md)).
 
 **Option F — route again, on the ground that ECE's current wording is weaker than the one §37 quoted.**
 **The strongest procedural objection, and it is not the one #112 faced.** Refused. §37 routed because
-its **retrieval** was tier-scoped, which #37's rule makes dispositive; this retrieval is pair-scoped
+its **retrieval** was tier-scoped, which #37's rule makes dispositive. This retrieval is pair-scoped
 across all four corpora, so the condition that forced the routing is discharged. The wording change is
 **material and it is disclosed at §38.3 and §38.15** — but the ruling for `9200` does not rest on the
 sentence that changed, and routing a third time on a question retrieved three times would leave
@@ -19046,7 +19046,7 @@ sentence that changed, and routing a third time on a question retrieved three ti
 precedent, which §35.9 records going the other way for a **new** instrument. This is not one: §37.3 is
 stated as an **iff**, so a rider that bounds nothing is already outside it, and what this section adds
 is an **instance** and its measurement. §35.9's ground for minting ADR-0067 was that *"limb 2 is a new
-instrument with no existing home"*; here the home exists and is cited. **`0070` is left unused and the
+instrument with no existing home"*. Here the home exists and is cited. **`0070` is left unused and the
 close call is recorded.**
 
 ### 38.11 §4.6's two cells, worded from Elastic's own sentences
@@ -19072,8 +19072,8 @@ have no claim**, which is the separation §24.7 established and this is its four
 > `FIGURE DELTA §38: S := S − {9200/tcp, 9300/tcp}. |S| 40 → 38. Classes 12/7/21 → 12/7/19. Tiers 15/11/3/11 → 13/11/3/11. Coverage 29 of 40 → 27 of 38. §4.6 21 → 23. §6.1 27+8+5=40 → 25+8+5=38. Aperture denominator 40 → 38. verge-core UNCHANGED at 136 (both pairs in F). ADR-0008 TRIGGERED. Basis: main at 53b7ef4.`
 
 **Stated parametrically, so it survives whatever a sibling does to the baseline:** *the sensitive list
-loses `{9200/tcp, 9300/tcp}`; §4.6 gains both; §2.2's **prohibition** tier loses both and every other
-tier is unchanged; §6.1's **first** cell loses both; the union, the frequency half and the probed set
+loses `{9200/tcp, 9300/tcp}`. §4.6 gains both. §2.2's **prohibition** tier loses both and every other
+tier is unchanged. §6.1's **first** cell loses both. The union, the frequency half and the probed set
 are unchanged.* **The delta is `−2` on `|S|`, `−2` on the prohibition tier and `−2` on §6.1 cell 1 for
 any baseline.**
 
@@ -19109,7 +19109,7 @@ any baseline.**
 | [`weak-key-and-signature.md`](./weak-key-and-signature.md) · [`insecure-listener-rules.md`](./insecure-listener-rules.md) | — | **untouched.** `insecure-listener-rules.md` uses `9200` as an **illustration of a rule's reach**, not as a list membership claim |
 | [`CONTEXT.md`](../../CONTEXT.md) | — | **not edited.** No term is minted; `Reach`, `Exposure` and `Service` are **read** and the reading is recorded at §38.7 |
 
-**Where §38 and §1 disagree, §1 governs.** A sibling pass may be moving the baseline concurrently; the
+**Where §38 and §1 disagree, §1 governs.** A sibling pass may be moving the baseline concurrently. The
 parametric statement above is what a merger should re-derive from.
 
 ### 38.13 The price, re-derived — and a two-row removal costs what a one-row removal costs
@@ -19132,15 +19132,15 @@ this at §35.12 rather than at #109's, and that is right.
    untouched, and the operator keeps probing `9200` and `9300` every day. **What stops is the `Signal`,
    not the measurement.** This is now true of **25 of the list's 38 pairs** and it has been spent twice.
 
-**So the honest price is: one rule-version bump, vacuous pre-install; one denominator, moved by two; no
-probing change; no union change.** It is the note's **largest** row movement and it is **not** its most
+**So the honest price is: one rule-version bump, vacuous pre-install. One denominator, moved by two. No
+probing change. No union change.** It is the note's **largest** row movement and it is **not** its most
 expensive act — the two are different axes, and pricing them as one is the error §35.12 exists to
 prevent.
 
 ### 38.14 By-catch and open items, routed rather than acted on
 
 **1. ADR-0037 limb 1, discharged over every artefact opened, for every port each names.** The ECE tables
-alone name nine numbers and six ranges, and §37.11 item 3 disposed of them at the **tier**; a
+alone name nine numbers and six ranges, and §37.11 item 3 disposed of them at the **tier**. A
 pair-scoped read re-runs it.
 
 | Port named | Where | Disposal |
@@ -19155,7 +19155,7 @@ pair-scoped read re-runs it.
 
 **2. §37.5's ECE quotation does not exist in the current issued corpus and the finding survives on
 different words.** Recorded at §38.3 and flagged at §38.15. **[measured]** the current wording is
-weaker; the ruling for `9200` does not rest on it.
+weaker. The ruling for `9200` does not rest on it.
 
 **3. `9200`'s and `9300`'s footing cells could have been re-founded and the question is now moot.**
 §37.11 item 2's routing is **answered** at §38.8 rather than passed on: on the unconditioned statement
@@ -19217,10 +19217,10 @@ so it can be attacked.
 **§37's ECE quotation is not the current text, and this is the second retrieval hazard of the pass.**
 **[measured]** *"By default, all your deployments are accessible over the public internet, assuming
 that your Elastic Cloud Enterprise proxies are accessible"* is the legacy *ECE Reference [3.8]*
-wording; the current unified docs read *"In some cases, these proxies may also be accessible over the
+wording. The current unified docs read *"In some cases, these proxies may also be accessible over the
 public internet."* Both are issued, both are Elastic's, and **the current one is weaker**. Two things
 follow and both are stated: the hedge is inadmissible under ADR-0059 limb 2 and §17.4 already ruled a
-sentence of exactly that shape met §10.3's failure condition; and **a reader who thinks a hedge should
+sentence of exactly that shape met §10.3's failure condition. And **a reader who thinks a hedge should
 be admissible at the claim gate even where ADR-0059 bars it at the footing gate** reaches *ECE carries
 nothing*, which costs `9300` and leaves `9200` standing on the self-managed sentence alone.
 
@@ -19229,8 +19229,8 @@ nothing*, which costs `9300` and leaves `9200` standing on the self-managed sent
 bullet in a list of security features, not a deployment-architecture statement, and its purpose on the
 page is to say **why TLS is there**. A reader could say Elastic is describing the layer's *general
 character* rather than **naming a supported environment for `9200/tcp`**. **The reply is three-fold and
-it is measured**: the sentence is in the present indicative with no hedge; its subject is exactly what
-Claim 3 is about; and **the very next bullet draws the opposite boundary for the transport layer**, so
+it is measured**: the sentence is in the present indicative with no hedge. Its subject is exactly what
+Claim 3 is about. And **the very next bullet draws the opposite boundary for the transport layer**, so
 Elastic is discriminating rather than speaking loosely. **A sentence that distinguishes is not a
 sentence that generalises.** But this is the joint the whole `9200` ruling turns on and it is named
 here rather than buried.
@@ -19241,7 +19241,7 @@ default, which §10.4 silences as an attestation. §34.3 limb (c) and ADR-0067 l
 silencing to the **attestation gate**, and this section relies on that confinement for `9300`. A reader
 who holds §10.4's one-way rule governs both gates reaches *ECE is silent*, keeps `9300`, and — run
 consistently — has to explain `1433/tcp`. **The licence is one pass old and it has now been spent
-twice**; that is worth a reader's suspicion and is recorded as such.
+twice**. That is worth a reader's suspicion and is recorded as such.
 
 **Twelve of this section's sixteen artefacts had never been opened by any prior section**, and four of
 its load-bearing facts are **zero counts** — `internet` ×0 in `ece-networking-prereq.md`, `internet` ×0
@@ -19268,7 +19268,7 @@ governs.**
   §38.14 item 6. It is a **new hazard shape**: not a fabrication (§37.14), not a wrong document
   (§30.10), not a line break (§37.14), but **a genuine sentence in the owner's own file that the owner
   has not issued** — and it is invisible in the rendered page, so only a raw-bytes retrieval meets it
-  at all. A session reading rendered HTML would never see it; a session reading raw bytes and not
+  at all. A session reading rendered HTML would never see it. A session reading raw bytes and not
   checking the comment marker would quote it.
 - **§37's own quotation was checked against the page it is on rather than against the page it is
   remembered on, and it failed.** §38.3, §38.15. **[measured]** the string *"assuming that your Elastic
@@ -19277,13 +19277,13 @@ governs.**
   section**, and it is the first time it has caught one.
 - **Claim 1 and Claim 2 were measured off the source and the shipped config, never off a page about
   them.** `XPackSettings.java`, `AnonymousUser.java` and `TransportTLSBootstrapCheck.java` were fetched
-  at the tag and read; `distribution/src/config/elasticsearch.yml` was read whole at **2,702 bytes**.
+  at the tag and read. `distribution/src/config/elasticsearch.yml` was read whole at **2,702 bytes**.
   ADR-0036 limb 1's *documented* half was then satisfied separately from the owner's prose, per
   §31's rule that the config API answers *documented* and the defaulting code answers *takes effect*.
 - **§16.4's two measurements were re-run rather than quoted.** **[measured]** at `v9.5.1` the shipped
   `elasticsearch.yml` still contains **zero** occurrences of `9300` and its Network section is still
-  `network.host` and `http.port` only; `networking-settings.md` still contains `internet` **×1** and
-  `public` **×1** in 60,429 bytes. The section's **findings** stand; only its **placement** is withdrawn.
+  `network.host` and `http.port` only. `networking-settings.md` still contains `internet` **×1** and
+  `public` **×1** in 60,429 bytes. The section's **findings** stand. Only its **placement** is withdrawn.
 - **Every string count in this section is a *token* count and says so**, per §36.14's correction and
   §37.14's restatement. **[measured]** one substring artefact was met and named: `9645` appears in
   `networking-settings.md` and is **not a port** — it is `cpu=9645.94ms` inside a hot-threads stack
@@ -19295,7 +19295,7 @@ governs.**
 - **Nothing beneath the claim gate was re-litigated.** §32.2's four limbs, §10.2's closed claim set,
   §37.3's rider taxonomy, ADR-0059 limbs 1 and 2 and ADR-0067 limb 1's separation were all fenced by
   the ticket and none was touched. **[measured]** no determinacy verdict, no class definition and no
-  existing exclusion was reopened; ADR-0042's and ADR-0048's `9200` and `9300` verdicts were read only
+  existing exclusion was reopened. ADR-0042's and ADR-0048's `9200` and `9300` verdicts were read only
   to confirm that they are not what removed these rows.
 
 ---
@@ -19304,14 +19304,14 @@ governs.**
 
 **Ticket [#125](https://github.com/winniel123/verge-asm/issues/125).** §8's open question 1 — *"who
 revises the sensitive list, on what trigger, and how often?"* — is the last surviving half of the map's
-port-set fog. #21 settled the **evidence**; nobody has settled the **governance**. This section settles
+port-set fog. #21 settled the **evidence**. Nobody has settled the **governance**. This section settles
 it, and settles with it the **watch-list axis** question that
 [ADR-0032](../adr/0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8 has carried since
 it was written and that §27.14 and §31.12 have twice routed here.
 
 **Nothing in this section is a retrieval.** Every fact it uses is already in this note, in a sibling
 note, or in an ADR, and every one is cited to the section that measured it. **No row, class, tier or
-coverage figure moves**; §4.6 gains one entry and it is the discharge of §38.14's backlog rather than a
+coverage figure moves**. §4.6 gains one entry and it is the discharge of §38.14's backlog rather than a
 new candidate. The reasoning is [ADR-0057](../adr/0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md).
 
 ### 39.1 The three questions, answered in one line each
@@ -19331,7 +19331,7 @@ is wrong rather than that three readers were careless.
 
 **It is the unit.** The list enumerates **rows**, and what changes is a **cell's supporting artefact**.
 When `10255` left and `10248` joined, two supports moved and the count did not. A row list cannot show
-that; nor can it show that **four pairs sit on one sentence** — §16.7 records that `139/tcp`, `137/udp`
+that. Nor can it show that **four pairs sit on one sentence** — §16.7 records that `139/tcp`, `137/udp`
 and `138/udp` are *"carried by the same Microsoft sentence as `445` and sit inside that row's cell"*,
 and §13.1 measures that **none of the four has a configuration artefact to fall back on**. That is the
 largest single concentration of exposure in the table and it is invisible on a list of rows.
@@ -19347,7 +19347,7 @@ owner's own product documentation**. Nobody could propose a measurement for any 
 is that nobody had said what the list is **for**.
 
 **It is the order in which a finite reading budget is spent.** The gate exhausts everything that
-terminates; what is left is reading somebody else's corpus, which never terminates. So the list must
+terminates. What is left is reading somebody else's corpus, which never terminates. So the list must
 key on *the probability that a ground has moved with nothing saying so, per unit of reading* — which is
 **volatility**, and volatility is a property of the **artefact**.
 
@@ -19420,7 +19420,7 @@ limb 1 says only a sole-ground negative is exposed. Read on the positive side: a
 ### 39.4 The queue as of evidence already held — ~~eight items~~ **nine since §41**, and ~~two~~ **three** of the pairs it adds are top-tier
 
 **Provisional, and marked as such.** The per-cell independence test has been run only over the cells
-this note has already measured; the full pass over all 38 pairs plus the frequency half is a ticket
+this note has already measured. The full pass over all 38 pairs plus the frequency half is a ticket
 (§39.9). Every ground below is cited to the section that measured it, and **nothing here is retrieved**.
 
 | # | Rung | Item — `(cell, artefact, revision act)` | Pairs | Ground |
@@ -19437,7 +19437,7 @@ this note has already measured; the full pass over all 38 pairs plus the frequen
 ~~**Eight items over ten `(port, transport)` pairs and two non-port cells**~~ **— NINE items over ELEVEN
 pairs and two non-port cells since §41** ([#135](https://github.com/winniel123/verge-asm/issues/135)),
 against a three-row list — and ~~two~~ **three** of the pairs it adds sit in the *top* footing tier. The
-eight items above stand unchanged with their grounds and their rungs; **item 9 is `10250`'s claim cell**
+eight items above stand unchanged with their grounds and their rungs. **Item 9 is `10250`'s claim cell**
 and is stated at §41.4.
 
 **Not on the queue, each with its reason:**
@@ -19450,7 +19450,7 @@ and is stated at §41.4.
 | The count of anything | Barred as an indicator — §39.2 |
 
 **The queue is a superset of the weak tier.** All three weak-tier rows stay on it, so this ruling takes
-nothing off anybody's attention; it only adds. That is what makes it cheap in the one direction that
+nothing off anybody's attention. It only adds. That is what makes it cheap in the one direction that
 could cost something.
 
 ### 39.5 §38.14's backlog, discharged — and §4.6 gains one entry
@@ -19547,12 +19547,12 @@ standing in the present tense, which is G4's own shape found on the sentence tha
 refusal exactly. **[measured]** §37.11 item 5 already ran G11 by hand and recorded the result without
 naming it — `security-checklist.md` unmodified since **2025-02-28** against releases through
 **v1.37.0-rc.0** — and correctly declined to treat it as staleness, because a document that has not
-changed is not thereby stale. G11 marks the cell; it does not condemn it.
+changed is not thereby stale. G11 marks the cell. It does not condemn it.
 
-**A machine may raise; only a release may rule.** Every check above is mechanical enough to automate
+**A machine may raise. Only a release may rule.** Every check above is mechanical enough to automate
 and none of them may **act**: moving a row authors a claim, and §2.2's first sentence bars us from
-asserting one; ADR-0037 limb 2 adds that a row moves only on a retrieval scoped to the row. The
-watch's output is a **question** — *this cell's artefact has moved past the tag it was read at; is the
+asserting one. ADR-0037 limb 2 adds that a row moves only on a retrieval scoped to the row. The
+watch's output is a **question** — *this cell's artefact has moved past the tag it was read at. Is the
 cell still true?* — and the answer is a retrieval, which is a ticket.
 
 **What a release owes the queue is a disclosure, never a quantum.** No number of items per release is
@@ -19699,21 +19699,21 @@ counted from [#125](https://github.com/winniel123/verge-asm/issues/125)'s own en
 *five* — the discrepancy is the point and is recorded at §39.6, not smoothed.
 
 **The instrument is unmeasured in the direction that matters most.** Nobody has yet run G1–G11 to
-completion over the composed table; §39.8 records the two hits G4 produced on the way past. A gate
+completion over the composed table. §39.8 records the two hits G4 produced on the way past. A gate
 whose first full run has not happened is a design, and the honest statement is that it is priced at
 one pass and has not been paid.
 
 ### 39.10 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6, §16.10, §17.10, §22.10, §30.10, §32.13, §33.11, §36.14, §37.14 and §38.16
 
 - **This section performed no retrieval, and that is a method rather than an omission.** #125 is a
-  governance question; every fact it needs was measured by a prior pass and is cited to it. A section
+  governance question. Every fact it needs was measured by a prior pass and is cited to it. A section
   that re-retrieved would be re-deciding the evidence half, which #21 closed and this ticket is
   explicitly scoped out of.
 - **Every quoted string in this section is quoted from this repository**, not from an owner's corpus, so
   G7 is vacuous here and G8 reduces to an internal cross-reference check. Both were run by hand over
   the section's own citations.
 - **The one measured claim about the world is second-hand and says so.** *`623/udp` has already been
-  de-attested once* is §36.7's measurement, not this section's; what is new is the reading of it as an
+  de-attested once* is §36.7's measurement, not this section's. What is new is the reading of it as an
   instance of §8's hazard on a top-tier row, which no prior section drew.
 - **A sibling pass may be editing this repository concurrently.** This section's delta is not empty —
   §4.6 moves 23 → 24 — so it is stated as a delta and its basis is `main` at `4c7fb50`. **Where §39 and
@@ -19910,9 +19910,9 @@ document portals that return an empty body or a `403` to plain fetching.
 ### 40.5 The checks that pass, and what each one's pass actually cost
 
 **G1 — green, walked over all 38 rows rather than asserted.** Class A **12** (eleven carry graded
-footings; `69/udp` is uncovered), Class B **7** (all uncovered by design — they rest on §2.2's *first*
-form), Class C **19** (**every one footed**; `139`, `137`, `138` inside `445`'s cell). By tier:
-prohibition 13 = **8 Class A + 5 Class C**; scoping 11 = **3 Class A + 8 Class C**; weak 3 = **3 Class
+footings. `69/udp` is uncovered), Class B **7** (all uncovered by design — they rest on §2.2's *first*
+form), Class C **19** (**every one footed**. `139`, `137`, `138` inside `445`'s cell). By tier:
+prohibition 13 = **8 Class A + 5 Class C**. Scoping 11 = **3 Class A + 8 Class C**. Weak 3 = **3 Class
 C**. `27 + 11 = 38` and `13 + 11 + 3 = 27`. **[measured] every arithmetic identity in the composed
 state closes.** `2375/tcp` was examined as [#83](https://github.com/winniel123/verge-asm/issues/83)'s
 own shape — a Class A row whose cell records the owner deprecating the unauthenticated default — and
@@ -19921,7 +19921,7 @@ row, and §35 measured the enforcement rather than assuming it.
 
 **G2 — green, and its population is smaller than it looks.** The tier criterion's last amendment is
 **§36** ([#110](https://github.com/winniel123/verge-asm/issues/110)), which restated limb 2's
-denotation; §36's **own** walk covered *"all **26** members of both graded tiers"*, so the walk's date
+denotation. §36's **own** walk covered *"all **26** members of both graded tiers"*, so the walk's date
 is the amendment's date by construction. Today's graded population is **24** — §36's 26 less `9200`
 and `9300`, removed by §38 — and is therefore a **subset** of what was walked. *Disclosure:* the
 **weak tier** is outside the criterion's domain, the four-limb conjunction requiring an owner
@@ -19956,8 +19956,8 @@ prose is byte-identical to the source comment** in both cases: `healthzPort is t
 localhost healthz endpoint`, `Default: 10248`, `healthzBindAddress … Default: "127.0.0.1"`, and
 kube-proxy's `metricsBindAddress`. Two riders, neither moving a cell: **(a)** `10248`'s two quoted
 strings belong to **two different fields** — the *localhost* wording is `healthzPort`'s and the
-`127.0.0.1` default is `healthzBindAddress`'s — so a citation naming one field for both misattributes;
-**(b)** `10249`'s `metricsBindAddress` default is stated **conditionally** on `bindAddress`
+`127.0.0.1` default is `healthzBindAddress`'s — so a citation naming one field for both misattributes.
+**(B)** `10249`'s `metricsBindAddress` default is stated **conditionally** on `bindAddress`
 (`"[::1]:10249"` on an IPv6 cluster), so the unconditional phrasing overstates it slightly. **Both
 branches are loopback, so the restricting-default reading survives in both.**
 
@@ -19968,8 +19968,8 @@ it as *left unused*, which is not a citation — and no `§N` reference exceeds 
 exists. *(**`sole` is struck by §44.3** ([#150](https://github.com/winniel123/verge-asm/issues/150)):
 **ADR-0076** is a second instance, minted as a gap by §40.8 in this same section. The verdict is
 unaffected — an ADR named only in a gap record is not a citation — and §44.3 restates the exception as
-a **rule** so the next unused reservation does not reopen it.)* The **external** half is **not completable** over the note's full citation set inside one pass;
-it is the check whose *finite named set* is largest. The named subset run today all resolved: Kafka's
+a **rule** so the next unused reservation does not reopen it.)* The **external** half is **not completable** over the note's full citation set inside one pass.
+It is the check whose *finite named set* is largest. The named subset run today all resolved: Kafka's
 six URLs, `security-checklist.md` raw and rendered, two Kubernetes config-API references, and fifteen
 owner release pages. **One quoted string was checked character-for-character** — `security-checklist.md`'s
 *"The Kubernetes API, kubelet API and etcd are not exposed publicly on Internet"*, which carries
@@ -20014,7 +20014,7 @@ That sentence has had no referent, because no state had ever been gated. **It ha
 > and the two must not be confused, which is the only reason a baseline is worth writing down.
 
 **What a green gate does not mean.** Seven greens over this table are seven statements about **bytes
-this project holds**, not about the world. G6 grepped a corpus; it did not go looking. G8's external
+this project holds**, not about the world. G6 grepped a corpus. It did not go looking. G8's external
 half is exactly the reading the queue rations. **The gate's completeness is a completeness of
 population, never of enquiry** — which is §39.6's own partition, now measured from the inside.
 
@@ -20032,15 +20032,15 @@ own four-step test is what raises it.** §41.2 is run here over the one cell §3
 **So step 2 says `5432/tcp` is not an item — and step 2's stated warrant says it is.** The warrant is
 *"Two acts are needed to falsify C"*, and **one act falsifies both artefacts**: `postgresql.conf.sample`
 and `pg_hba.conf.sample` are two files in one source tree that move on one PostgreSQL major release, at
-one rung. **The test measures the second ground's *strength*; the warrant is about the *act's*
-multiplicity; and this is the cell where they come apart.** `10255`'s pair does not — a documentation
+one rung. **The test measures the second ground's *strength*. The warrant is about the *act's*
+multiplicity. And this is the cell where they come apart.** `10255`'s pair does not — a documentation
 branch and a shipped default are two acts as well as two artefacts.
 
 **Nothing is ruled here.** Removing `5432/tcp` from the queue would move a figure #135 has just set, on
 a reading of #135's own rule, which is exactly the *machine rules* failure §39.6 bars. It is **raised**,
 with the criterion that decides it named: **whether *independent* in §39.3 means a second adequate
 artefact or a second falsifying act.** The parallel to §41.3 is close and worth stating — #135 found
-the note leaning on one **cell** twice; this is the note holding two **artefacts** that one act moves.
+the note leaning on one **cell** twice. This is the note holding two **artefacts** that one act moves.
 
 > **RULED by [#151](https://github.com/winniel123/verge-asm/issues/151): the act.** Step 2 is corrected
 > to require a **different revision act**, not merely a second artefact — [ADR-0077](../adr/0077-a-second-ground-counts-only-where-it-would-have-carried-the-cells-proposition-alone.md)'s
@@ -20066,7 +20066,7 @@ the note leaning on one **cell** twice; this is the note holding two **artefacts
 | `CONTEXT.md` | — | **not amended.** A gate run is an act at spec time on documents; the product holds nothing about it |
 
 **Outside this note.** **No ADR is minted** — every rule applied was available, and a *run* of an
-instrument is not a decision about it; **ADR-0076 is left unused**. Struck at their clauses:
+instrument is not a decision about it. **ADR-0076 is left unused**. Struck at their clauses:
 **ADR-0004** (rule denominator), **ADR-0032** (three sites — the gate-2 table row and two `161/udp`
 clauses), **ADR-0035** (one `161/udp` clause), **ADR-0042** (three clauses in its Context),
 **ADR-0044** (two clauses). ADR-0057, ADR-0058 and ADR-0077 are **confirmed by use** and none is
@@ -20112,7 +20112,7 @@ amended.
   instead. Recorded because a hazard that reproduces two months later is a property of the source.
 - **The eighteen-defect count is a count of *this run's* findings, not of the corpus's defects**, and
   it is as good as the searches that produced it. Shape A was found by grepping two spellings of one
-  denominator; shape B by grepping four removed port numbers; shape C by grepping one. **A defect
+  denominator. Shape B by grepping four removed port numbers. Shape C by grepping one. **A defect
   phrased in a way none of those matched is not in the count**, and §39.9's warning about the nineteen
   identity sites applies here unchanged and for the same reason.
 - **Eight of the eleven checks were decided entirely from bytes already held**, which is the claim
@@ -20334,7 +20334,7 @@ which would show the two questions are not separable and would put the tier back
 **Three counts here are of this note's own text rather than of the world.** The **five** sites restating
 the queue's size inside this repository — §1, §39.4, §39.8, ADR-0057's Consequences and ADR-0032 §8's
 `#125` box, plus a **sixth on the map**, which this session may not edit — were found by searching for
-*eight items*, *ten pairs*, *two non-port* and *queue of* across this note and `docs/adr/`; a site
+*eight items*, *ten pairs*, *two non-port* and *queue of* across this note and `docs/adr/`. A site
 phrasing it another way would not have matched. The **eleven**
 pairs and **two** non-port cells are §39.4's arithmetic plus one, not re-derived from the items. And
 *"this is most of the list"* at §41.5 is §39.4's own words, never counted — the tier-strict reading's
@@ -20346,7 +20346,7 @@ cost is therefore **large and unquantified**, which is enough to refuse it and i
   ADR-0057 built the filter out of measurements this note already holds. A section that retrieved would
   be re-deciding evidence, which #21 closed.
 - **Every quoted string is quoted from this repository**, so **G7** is vacuous and **G8** reduces to an
-  internal cross-reference check; both were run by hand over this section's citations. The two
+  internal cross-reference check. Both were run by hand over this section's citations. The two
   load-bearing ones are §18.7's fallback sentence and §19.12's *"no second support"*, and each was read
   in its own paragraph rather than through an index.
 - **The hazard this section was most exposed to is re-tiering by accident**, and it is the one the
@@ -20368,7 +20368,7 @@ whether it is a disclosure at all.
 
 **Nothing in this section is a retrieval**, and no row, class, tier or coverage figure moves. Every
 fact it uses is already in this note or in an ADR and is cited to the section that measured it. The
-reasoning is [ADR-0078](../adr/0078-a-residue-is-disclosed-by-the-act-that-leaves-it.md); the
+reasoning is [ADR-0078](../adr/0078-a-residue-is-disclosed-by-the-act-that-leaves-it.md). The
 resulting document is [`docs/spec/curated-table-watch.md`](../spec/curated-table-watch.md).
 
 **The screen question is not this question.**
@@ -20418,9 +20418,9 @@ and it is true forever about the release that made it.
 > test failing on a sentence written to fail it.
 
 **This corpus is the worst possible place to design in that shape**, and it has the measurements to
-prove it: the watch count useless five times running with the membership changing every step (§39.2);
-the *watch list = weak tier* identity regenerating at **nineteen sites** after a withdrawal that named
-no successor (§39.7); and **two superseded sentences standing in the present tense inside the document
+prove it: the watch count useless five times running with the membership changing every step (§39.2).
+The *watch list = weak tier* identity regenerating at **nineteen sites** after a withdrawal that named
+no successor (§39.7). And **two superseded sentences standing in the present tense inside the document
 that specifies the check that finds them** — ADR-0032 §8's open questions 3 and 6, which **G4** turned
 up on the way past (§39.8). A standing residue section would be a fourth instance and the only one
 whose staleness is guaranteed rather than risked.
@@ -20428,7 +20428,7 @@ whose staleness is guaranteed rather than risked.
 **The append-only alternative has the property the standing one lacks**, and it is the same property
 ADR-0057 used to refuse the standing curator. A duty *"whose discharge and whose absence look
 identical"* is unfalsifiable. A **tag-ordered, append-only** ledger makes a skipped release a
-**visible hole**; a rewritten section leaves the previous statement standing, reading true, with
+**visible hole**. A rewritten section leaves the previous statement standing, reading true, with
 nothing to show that anything was skipped. **That test decides the form of the disclosure and not only
 the office of the curator**, which is the half #125 did not draw.
 
@@ -20517,7 +20517,7 @@ than the interface one.
 ### 42.5 The bound — and this is where ADR-0040 needs a limb it never needed before
 
 **Every bounded residue in this corpus has been over somebody else's corpus.** ADR-0040's form —
-*the corpus actually searched, enumerated; what was found and which rows it reached; and the smallest
+*the corpus actually searched, enumerated. What was found and which rows it reached. And the smallest
 extension that could still change the answer* — has fired at `weak-key-and-signature.md` §13 (~340
 documents), at ADR-0069's control-label corpus, at
 [`passive-discovery-sources.md`](./passive-discovery-sources.md) §11's four probed encodings, and at
@@ -20543,7 +20543,7 @@ can falsify without first guessing what we thought the queue contained.
 | **Extensive** — which items were not read | **Ours.** The register | **Named**, item by item, by triple | Naming one register item that appears in neither the head nor the residue |
 | **Intensive** — how far each reading went | **Somebody else's.** The owner's corpus | **Described**, with a **class boundary** — ADR-0040's form unchanged | Naming one artefact **inside** a stated class that the reading did not open |
 
-**The intensive bound is not fastidiousness; it is the difference between a disclosure and an
+**The intensive bound is not fastidiousness. It is the difference between a disclosure and an
 assertion.** *We read item 3* is unfalsifiable, because reading an owner's corpus does not terminate
 and nothing in the sentence says how far it went. *We opened this owner's issued documentation at tag
 `v1.37.0` and its release notes, and no other class* is falsifiable in one move. And **[measured]**,
@@ -20603,7 +20603,7 @@ that names its class is the disclosure that would have caught that.
 
 **Outside this note.** [ADR-0078](../adr/0078-a-residue-is-disclosed-by-the-act-that-leaves-it.md) is
 added and [`docs/spec/curated-table-watch.md`](../spec/curated-table-watch.md) is created with both
-ledgers **empty and each saying why**. ADR-0057 gains the #136 rider at its own site; ADR-0032 §7
+ledgers **empty and each saying why**. ADR-0057 gains the #136 rider at its own site. ADR-0032 §7
 gains the distinguishing box at its own site. `weak-key-and-signature.md` and
 `project-authored-constants.md` are **not edited**: their #125 boxes are dated findings about their
 own contributions and are undisturbed by a siting ruling.
@@ -20657,7 +20657,7 @@ the pressure should be refused at §42.6's row rather than argued afresh.
   an internal cross-reference check**, both run by hand over this section's own citations.
 - **This section quotes no length of the register, and that is a method rather than an omission.**
   Every claim it makes about the queue is over **named members** at a cited section. §39.2 bars the
-  queue's count as an indicator; a section that designed a disclosure forbidding counts while resting
+  queue's count as an indicator. A section that designed a disclosure forbidding counts while resting
   its own argument on one would be G4's shape at the sentence G4 was named to protect. It is also
   simply what survived: #135 moved the membership mid-ticket and nothing here had to be rewritten.
 - **A sibling pass may be editing this repository concurrently, and two of them touch this note.**
@@ -20666,7 +20666,7 @@ the pressure should be refused at §42.6's row rather than argued afresh.
   §39.9. [#133](https://github.com/winniel123/verge-asm/issues/133) is still running G1–G11 to
   completion. **This section's delta is empty** — no row, class, tier, coverage or §4.6 figure moves,
   and **no summary or index row in this note is rewritten by #136** — so it composes with both. Its
-  basis is `main` at `4001e4c`, which **predates #135's merge**; the only overlap is the append anchor
+  basis is `main` at `4001e4c`, which **predates #135's merge**. The only overlap is the append anchor
   before `## Sources`, which is textual adjacency rather than disagreement.
   **Where §42 and §1 disagree, §1 governs.**
 - **The one thing this section reserves rather than specifies is the gate's own record.** §3 of the
@@ -20685,7 +20685,7 @@ uses was measured by a prior pass and is cited to it. **No row, class, tier or c
 [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) is not triggered.
 
 **The output is a SET and it is stated over members.** §39.2 bars the queue's count as an indicator and
-§42.6 bars it everywhere in the residue entry; this section quotes **no length** of the register
+§42.6 bars it everywhere in the residue entry. This section quotes **no length** of the register
 anywhere, which is the rule it inherits applied to itself. The reasoning for the one thing this walk had
 to decide rather than apply is
 [ADR-0076](../adr/0076-a-conjunctively-carried-cell-is-one-item-entered-at-the-rung-of-its-most-volatile-carrier.md).
@@ -20737,7 +20737,7 @@ answer*.
 **Shape 2 — the note leaning on one artefact twice.** §41.3 found it once, at `10250`. **[measured]** it
 recurs at four further rows — `3306/tcp`, `25672/tcp`, `2049/tcp` and the `445`-group — where **one**
 owner artefact carries both the row's claim cell and its footing cell. Both cells are items and they are
-**two** items, the unit being the cell; what they share is that **one reading discharges both**, which
+**two** items, the unit being the cell. What they share is that **one reading discharges both**, which
 is a fact the residue entry's head should record and the register may not fold in.
 
 **Shape 3 — redundancy inside one artefact is not a second ground.** **[measured]** §32.6 retrieved *"a
@@ -20956,8 +20956,8 @@ record rather than assumed.
    the register and no more.
 3. **§2.2's *first* form silently contains three artefact classes with three different revision acts.**
    §16.7 names the eleven out-of-subject pairs as resting on *"a specification, IANA's registry, or
-   OpenBSD's deletions"*. A specification is rung 5; **IANA's registry is a continuously-updated dataset
-   whose service descriptions change with no notice we read**, which is rung 1; a vendor's deletion is a
+   OpenBSD's deletions"*. A specification is rung 5. **IANA's registry is a continuously-updated dataset
+   whose service descriptions change with no notice we read**, which is rung 1. A vendor's deletion is a
    dated release act. **Three pairs' claim cells rest on the registry alone**, and they sort at the head
    of the register beside `10248` and the frequency half. **Whether a registry *description* can carry a
    claim at all is a §2.2 attestation question this section may not decide** — ADR-0048's *a convention
@@ -20980,7 +20980,7 @@ record rather than assumed.
    the two kubelet config-API doc comments — and so does every rung-2 item carried by a continuously
    published page, which is that rung's definition. **G11** — which compares the owner's current release
    tag against the tag the cell was read at — is **vacuous** for every one of them. §41.7 opened this on
-   one cell; the walk finds it reaches the register's whole head. **Stated over members rather than
+   one cell. The walk finds it reaches the register's whole head. **Stated over members rather than
    counted**, per §39.2 as ADR-0076 reads it: a count of the register's **parts** is the register's count
    arriving in instalments. It belongs to
    [#149](https://github.com/winniel123/verge-asm/issues/149) / [#152](https://github.com/winniel123/verge-asm/issues/152)'s
@@ -21024,7 +21024,7 @@ has occurred, and a walk is not a release (ADR-0078 §42.6). ADR-0046, ADR-0054,
 ADR-0077 are **confirmed by use** and none is amended. **One further site restates the figure and this
 session may not edit it**: the map's *CURRENT COMPOSED STATE* bullet
 ([#1](https://github.com/winniel123/verge-asm/issues/1)) reads *"a queue of 9 items over 11 pairs and 2
-non-port cells"*. It is recorded here so the site is not lost; the correction is the map author's, and
+non-port cells"*. It is recorded here so the site is not lost. The correction is the map author's, and
 the correct replacement is a **pointer to §43.3**, never a new number.
 
 ### 43.8 Thin ground, flagged per the standing rule
@@ -21051,12 +21051,12 @@ measurement. Each co-owner's statement is scoped to **its own implementation** a
 **protocol**, which §28.10 keeps deliberately (*"collapsing it would let any BMC vendor's firmware answer
 for the protocol, which is §10.5's distributor fence"*), so each is **part** of the pair's proposition —
 which §41.2's own table makes not a ground. And ADR-0077's Decision row bars removal outright. **The
-first two are reasons; the third is only an authority, and it is listed last for that reason.**
+first two are reasons. The third is only an authority, and it is listed last for that reason.**
 
 **The rung-1/rung-2 boundary was crossed twice by judgement.** memcached's project wiki and IANA's
 registry are both *"continuously published with no version pin"* in one sense and *"a dataset with no
 successor … nothing rendered changes"* in another. The wiki is placed at **rung 2** because its rendered
-page does change; the registry at **rung 1** because a description edit inside a 14,531-row CSV changes
+page does change. The registry at **rung 1** because a description edit inside a 14,531-row CSV changes
 nothing a reader of the registry would meet. **That is a judgement about artefacts wearing the clothes of
 a measurement**, and it is §39.9's flag arriving one rung lower than §39.9 predicted — §39.9 named
 rungs 2 and 4 as the boundary that would fail first. **The first ambiguous case should be ticketed rather
@@ -21072,7 +21072,7 @@ largest class.
 **The register has never been read.** No release has spent a reading budget against it, so
 [`curated-table-watch.md`](../spec/curated-table-watch.md) §2.4's ledger is still empty and the entry
 form at its §2.1 has never been executed against a real register. §42.9 priced the entry form at one
-release and recorded that it had not been paid; **that is still true, and the register is now large
+release and recorded that it had not been paid. **That is still true, and the register is now large
 enough that §42.9's predicted defect — the intensive bound being expensive enough per item to depress
 the head — is the one to watch for.**
 
@@ -21084,7 +21084,7 @@ the head — is the one to watch for.**
   section's citations.
 - **The population was fixed before the walk, from §3's three tables and §18.6's composed footing table,
   and it is enumerated at §43.1 rather than counted at the end.** §13.10 recorded a hand count as *"the
-  kind of thing that goes wrong"*; the defence here is that the walk's output is a **set** and its
+  kind of thing that goes wrong"*. The defence here is that the walk's output is a **set** and its
   membership is checkable cell by cell without any total being trusted.
 - **The hazard this section was most exposed to is the one §41.7 named** — collapsing §18.6's *which
   artefact carries the cell today* into §18.7's *what the cell would say without the carrier*. Step 1 of
@@ -21122,7 +21122,7 @@ the head — is the one to watch for.**
 > triple by **retrieval**, not by loosening the sole-ground test, which is a different act with a
 > different direction. See §43.10.
 
-### 43.10 Ruled by #178 — a registry entry attests through its registrant, never on its own word; three cells re-founded
+### 43.10 Ruled by #178 — a registry entry attests through its registrant, never on its own word. Three cells re-founded
 
 **Ticket [#178](https://github.com/winniel123/verge-asm/issues/178).** §43.6 item 3 named the
 question and declined to decide it: does a bare IANA registry description clear §2.2's attestation
@@ -21141,7 +21141,7 @@ row, and it never needed to for these three — each is re-founded on an artefac
 project's or vendor's own documentation, and the project's shipped default as documented. A registry
 entry is none of the three, on two independent grounds that both point the same way.
 
-1. **Genre.** A specification defines protocol behaviour; IANA's registry records an assignment,
+1. **Genre.** A specification defines protocol behaviour. IANA's registry records an assignment,
    usually a terse description supplied by the registrant at filing time and never revisited for
    currency or accuracy — the doc's own preserved typo at 513's entry (*"priviledged"*) is what a
    thirty-year-old, unedited filing looks like. RFC 6335, the IANA's own registry-procedures document
@@ -21156,11 +21156,11 @@ entry is none of the three, on two independent grounds that both point the same 
    in capitals, on the registry's own page. That is the identical defect ADR-0048's rider already
    found for the sibling gate — *"a registration reaches the limbs only through its registrant… not an
    independent authority"* — reasoned afresh here because §2.2 asks a differently-shaped question than
-   §2.4 does (ADR-0048's own Rationale 1: determinacy is a conclusion **at** the wire; attestation, like
+   §2.4 does (ADR-0048's own Rationale 1: determinacy is a conclusion **at** the wire. Attestation, like
    the claim gate beside it, is a normative statement **after** the wire, over who may make it), so the
    conclusion generalises without the authority doing so automatically.
 
-Both grounds independently exclude the registry; neither depends on the other, and neither depends on
+Both grounds independently exclude the registry. Neither depends on the other, and neither depends on
 volatility. **Rung is a symptom of the defect, not the reason for it.** §43.6 item 3's flag that "IANA's
 registry is a continuously-updated dataset whose service descriptions change with no notice we read"
 (rung 1) is true and stays true — it is why the register carried these cells at the head of the queue
@@ -21182,7 +21182,7 @@ move.
   recycled, and it loses for §21.3's own two reasons, transposed: it is **inert wherever it would
   matter** — a corroborator cannot carry a cell that has nothing else, and every cell this touches is
   a cell with nothing else, which is exactly why the ticket exists — and it **mislabels the object**.
-  §2.3's tier is for the wrong *party* speaking correctly; here nobody entitled has spoken at all. The
+  §2.3's tier is for the wrong *party* speaking correctly. Here nobody entitled has spoken at all. The
   honest disposal is a rescue check, not a demotion to corroboration — and §43.10.3 runs one.
 - **Treat ADR-0048 as already dispositive and rule by reference, minting nothing.** Rejected because
   ADR-0048 says so itself, and because the two gates ask different-shaped questions (43.10.1). Landing
@@ -21206,7 +21206,7 @@ and warned against assuming a rescue exists for protocols this deprecated. **[me
 - **513/tcp `rlogin` — rescued, and was never actually exposed.** RFC 1282 is the protocol's own
   specification (§2.2's first form, rung 5) and its Security Considerations already carries the row's
   claim, quoted in this section since before this ticket existed. §43.3's register filing lumped 513
-  in with 512 and 514 as resting "on the registry alone"; that filing over-stated the cell's exposure.
+  in with 512 and 514 as resting "on the registry alone". That filing over-stated the cell's exposure.
 - **514/tcp `rsh` — rescued, and not by RFC 1282.** **[measured]** RFC 1282 was retrieved and searched
   directly for this ticket: it names neither `rsh`, `rshd` nor `rcmd()` anywhere, and states its own
   scope as rlogin only, in its title, its status section and every technical section. It therefore
@@ -21232,12 +21232,12 @@ reverse.
 in Class B (§3.2), unchanged in membership. Class B carries no footing cell for any row — §43.4 already
 found this ("`512`/`513`/`514` footing — No footing cell exists") — and that stays true regardless of
 which specific artefact backs each claim, since the footing table (§2.2/§16.7) only ever catalogued
-rows attested via the network-*position* wording Class A and Class C need; Class B's claim (cleartext
+rows attested via the network-*position* wording Class A and Class C need. Class B's claim (cleartext
 credentials, or host-based trust, with a standardised encrypted successor) is answered directly in the
 claim cell and was never a candidate for that table. §16.7's and §2.2's amendment boxes still describe
 the eleven out-of-subject pairs as resting on "a specification, IANA's registry, or OpenBSD's
 deletions" — that sentence is a summary gloss over the whole class and was already heterogeneous before
-this ticket (23/tcp and 21/tcp never rested on the registry either); it is not walked clause by clause
+this ticket (23/tcp and 21/tcp never rested on the registry either). It is not walked clause by clause
 here, consistent with this note's own practice of marking the live site of a finding rather than
 sweeping every echo (§16.8's own example of the cost of *not* doing that notwithstanding — the live
 site is §43.6 item 3, marked above, and this section).
@@ -21251,8 +21251,8 @@ described — that line ("the register gains the cells named at §43.3 and loses
 statement about #135's and #151's one-directional tightening and is marked, not repealed, at §43.9's
 own clause above. A cell leaves the register the ordinary way ADR-0057 always allowed: a retrieval
 that grounds it in a real artefact discharges it, exactly as §21 discharged `9092/tcp`'s open question
-and §35/§38 discharged rows on newly-retrieved owner text. Nothing here loosens what counts as a ground;
-it supplies grounds that were simply never looked for.
+and §35/§38 discharged rows on newly-retrieved owner text. Nothing here loosens what counts as a ground.
+It supplies grounds that were simply never looked for.
 
 **`docs/spec/curated-table-watch.md` §1.1's matching row is updated in the same commit**, per
 [ADR-0100](../adr/0100-a-copy-of-a-monotonic-source-is-kept-honest-by-the-act-that-grows-it.md): this
@@ -21261,7 +21261,7 @@ place rather than left to go stale.
 
 **§44.5's G8-entry table is corrected.** It filed *"RFC 1282 (`513`, `514`)"* under the immutable-RFC
 class. **[measured]** RFC 1282 never carried `514` — the corpus's own filing anticipated a coverage
-this section's direct retrieval refutes. Corrected to `513` alone; `514`'s new carrier (FreeBSD
+this section's direct retrieval refutes. Corrected to `513` alone. `514`'s new carrier (FreeBSD
 `rshd(8)`) is a continuously-rendered, unpinned man page and belongs in §44.4's G8-**recurring** table
 instead, alongside `512`'s new carriers (NetBSD `rexecd(8)`, FreeBSD `rexec(3)`) — three new members,
 raising §44.4's "thirty-six members over thirty owners" to **thirty-nine members over thirty-two
@@ -21324,7 +21324,7 @@ note already runs for every unpinned carrier, not a defect specific to this tick
   skimmed for the wanted sentence) and it fired here in the negative direction: the wanted sentence
   was not present, and only reading the whole document confirmed it.
 - **No corpus already held was re-read or re-decided.** This section adds three new artefacts and
-  corrects one mis-filed citation (§44.5); it does not reopen any cell this note has already ruled on
+  corrects one mis-filed citation (§44.5). It does not reopen any cell this note has already ruled on
   other grounds.
 
 #### 43.10.8 ADR minted
@@ -21344,7 +21344,7 @@ speaking in their own voice before it can carry.
   ADR-0057 §5 already named once.
 - **The older summary sentences at §2.2's amendment boxes and §16.7** ("a specification, IANA's
   registry, or OpenBSD's deletions") are historical snapshots, left standing per this note's own
-  convention rather than walked clause by clause; a future session auditing every echo of "IANA's
+  convention rather than walked clause by clause. A future session auditing every echo of "IANA's
   registry" against this ruling would find them imprecise but not load-bearing.
 
 ---
@@ -21381,7 +21381,7 @@ G8's sentence is a conjunction and its halves behave differently:
 
 Half (b) alone is barred from ruling by this note's own discipline. §40.10: *"Inferring withdrawal
 from a fetch failure is the failure mode this discipline exists to prevent."* A `404` is a server
-response; it is not a withdrawal, and §17.10, §21.2, §36.14 and §40.9 record four separate hosts that
+response. It is not a withdrawal, and §17.10, §21.2, §36.14 and §40.9 record four separate hosts that
 serve an empty body, a `403` or a JavaScript shell to a plain client while the document is plainly
 there. **So a citation that carries no quoted string can only ever satisfy the half that decides
 nothing.**
@@ -21406,7 +21406,7 @@ owner's.
 **What a moving citation carries that a pinned one does not is G11's question, not G8's.** *Is this
 still what the owner says?* is the **tag comparison**, and G11 owns it and ran it to completion over
 all 27 footing cells (§40.4). A citation to a moving target answers both questions at one fetch and
-therefore looks like a G8 obligation; a citation to a pinned target hands the currency question
+therefore looks like a G8 obligation. A citation to a pinned target hands the currency question
 wholly to G11 and keeps none of it. **G8's set looked unnameable because it had been carrying G11's
 question**, and the two checks separate cleanly the moment the population is cut on mutability.
 
@@ -21468,7 +21468,7 @@ raw-versus-rendered"*, and expressly leaves open whether it earns a gate check o
 3. **G8's own words already exclude an intermediary, and nobody had noticed.** The check reads *still
    a **token** of the artefact* — a token claim is a claim about the artefact's **bytes** (§36.14,
    §37.14). **A summariser does not return the artefact's bytes**, so a member "checked" through one
-   has not tested G8's proposition at all; it has tested a model of the artefact. That is not a failed
+   has not tested G8's proposition at all. It has tested a model of the artefact. That is not a failed
    check. It is an **unrun** one, and §40's own convention governs: *"Where a check could not be
    completed, it is recorded as **incomplete** with the reason, never as passed."*
 
@@ -21505,7 +21505,7 @@ recurring roster does not go.
 
 **The bar this ruling has to clear is §39.6's own, and it clears it in the direction that was
 failing.** *Closed* means the check terminates without discretion. Option A terminates and is not
-payable; today's state is payable and does not terminate. **This partition is the only one on the
+payable. Today's state is payable and does not terminate. **This partition is the only one on the
 table that is both.**
 
 ### 44.3 The internal population — total, mechanical, and already green
@@ -21542,9 +21542,9 @@ whole of *which citations are internal-only*, and it is the cheap half by an ord
 ### 44.4 G8-recurring — the finite named set, member by member
 
 ~~**Thirty-six members over thirty owners.**~~ **Thirty-nine members over thirty-two owners, since
-§43.10** ([#178](https://github.com/winniel123/verge-asm/issues/178); table D below). Every member is
+§43.10** ([#178](https://github.com/winniel123/verge-asm/issues/178). Table D below). Every member is
 a **moving** target carrying at least one **live** cell of the composed table. Cited to the section
-that placed the cell; nothing here is retrieved.
+that placed the cell. Nothing here is retrieved.
 
 **A. The 38-row table's own cells — claim, class and footing**
 
@@ -21689,7 +21689,7 @@ a true statement about 2026-08-15. What changes is that **UNRUN now has a denomi
 > own reason for writing a baseline down applies unchanged.
 
 **The scoreline the rest of the gate now carries, walked rather than quoted.** §40.6's baseline is
-#133's and is dated; **[measured]** one check has moved since:
+#133's and is dated. **[Measured]** one check has moved since:
 
 | Check | #133 (§40.6) | Today | Moved by |
 | --- | --- | --- | --- |
@@ -21742,12 +21742,12 @@ and the gate's own record is reserved by §42 for the gate to establish.
   are the four registers walked. **A cell whose carrying artefact moved without its register being
   updated is missed by this enumeration**, and that is the same weakness §39.9 flagged for its
   nineteen identity sites — *"as good as the search terms"*. The **rule** at §44.2 is what regenerates
-  the roster; the roster itself is a **dated record** and should be read as one, in this note's own
+  the roster. The roster itself is a **dated record** and should be read as one, in this note's own
   convention.
 - **The mutability test is a string test on a URL, and that is both its strength and its edge.** It
   needs no retrieval, which is why this section could run at all — but it classifies by **URL form**
   rather than by an owner's actual practice. A `latest` path an owner has frozen is scored moving and
-  costs a wasted fetch; **a tag an owner re-points is scored pinned and is the failure mode that
+  costs a wasted fetch. **A tag an owner re-points is scored pinned and is the failure mode that
   costs something.** Force-pushed tags are the case, and no member of §44.5 is known to be one. The
   criterion that would settle it is a commit SHA rather than a tag, which is a **stricter pin the note
   may adopt per citation** and is not required here.
@@ -21757,7 +21757,7 @@ and the gate's own record is reserved by §42 for the gate to establish.
 - **`36 members over 30 owners` is a count of this section's own table**, not a measurement of the
   world, and §39.9's warning about counts of a note's own text applies unchanged.
 - **Two further gate defects are exposed by this enumeration and are RAISED, not repaired**, per
-  §39.6's *a machine may raise; only a release may rule* — §44.11.
+  §39.6's *a machine may raise. Only a release may rule* — §44.11.
 
 ### 44.11 Two defects the enumeration exposes, raised and not repaired
 
@@ -21788,7 +21788,7 @@ is hardest to measure** — §40.9's own words, arriving here from a second dire
 ### 44.12 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6, §16.10, §17.10, §22.10, §30.10, §32.13, §33.11, §36.14, §37.14, §38.16, §39.10 and §40.10
 
 - **This section performed no retrieval, and that is a method rather than an omission.** #150 asks
-  which citations a release must re-resolve; answering it by re-resolving them would be **running**
+  which citations a release must re-resolve. Answering it by re-resolving them would be **running**
   the check rather than **specifying** it, which is the distinction §40 drew in the other direction —
   *a run of an instrument is not a decision about it*, and a decision about one is not a run.
 - **The ruling's own test is answerable without a fetch, and that is what made this section possible.**
@@ -21807,10 +21807,10 @@ is hardest to measure** — §40.9's own words, arriving here from a second dire
   three reasons. **G7 is not amended by this section**, and §45.10's open question is answered in the
   negative rather than absorbed.
 - **Sibling passes are editing this repository concurrently.** This section's delta is **empty** for
-  every figure in §1 and every summary row in this note, so it composes with any of them; its only
+  every figure in §1 and every summary row in this note, so it composes with any of them. Its only
   write outside its own text is **§39.6's G8 row**, **§40.9's first bullet** and **§40.5's `sole`**,
   all three clause-level marks required by ADR-0057 and ADR-0058 rather than rewrites. Its basis is
-  `main` at `1cd41bc`; **§45's figures are read from
+  `main` at `1cd41bc`. **§45's figures are read from
   [#153](https://github.com/winniel123/verge-asm/issues/153)'s branch and cited to §45.8 and §45.10
   rather than restated**, so the two compose whichever merges first — #153 appends §45 at the same
   anchor, which is textual adjacency and not disagreement.
@@ -21837,7 +21837,7 @@ the reason this section exists rather than a second gate run. Two rules put the 
 automate and none of them may act: moving a row authors a claim, and §2.2's first sentence bars us from
 asserting one."* And
 **[ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) limb 2:** a
-cell moves only on a retrieval **scoped to that cell**. Nothing here re-runs G1–G11; §45.8 records what
+cell moves only on a retrieval **scoped to that cell**. Nothing here re-runs G1–G11. §45.8 records what
 the edit does to the §40.6 baseline and that is the whole of this section's relationship to the gate.
 
 **The defect, stated precisely.** §4.6's `22/tcp` cell read *"Remote administration over an untrusted
@@ -21888,7 +21888,7 @@ cluster, or a management network the owner names."*
 **So Claim 3 fails on the owner's sentence rather than on ours, and §10.2's set is closed** — no fourth
 claim is available to catch the row. Claims 1 and 2 are unavailable on their face and neither needs a
 retrieval: Claim 1 requires a protocol that *"admits anonymous commands"*, and RFC 4251 §1 names the
-User Authentication Protocol as one of three mandatory components; Claim 2 requires *"a standardised
+User Authentication Protocol as one of three mandatory components. Claim 2 requires *"a standardised
 encrypted successor reachable on a different port"*, and SSH **is** the encrypted successor — the same
 paragraph the specification uses to place it against *"older solutions (e.g., telnet [RFC0854] and
 rlogin [RFC1282])"* (§4.1).
@@ -21973,7 +21973,7 @@ for free, and #133's raise was over-cautious.
    why the move was legitimate there. §2.1's reason for naming **SSH** is *"remote administration over
    an untrusted network is the express purpose the protocol was designed to serve"* — **the withdrawn
    clause, verbatim**. Citing §2.1 as the surviving ground would move the same uncited sentence one
-   level up the document and call it discharged. A document supersedes itself; this is what that means
+   level up the document and call it discharged. A document supersedes itself. This is what that means
    in practice.
 
 **What the loss taught, promoted to a rule.** §22.5's *"needs no owner"* is right about half of what it
@@ -22017,9 +22017,9 @@ instance is not a measurement.
 ADR-0037 limb 2 governs the disposal: *"The finding is recorded with its measurement and routed, never
 swept into the same ruling."* **[measured]** The string `express purpose` occurs at **nine** sites in
 this note, and they account exactly: **three** are this section's own repairs (§2.1 line 223, §4.6's
-cell, §10.3's walk row); **two** are §22.5, both marked by its narrowing above; **one** is §40.3's
-raise, discharged in place; **one** is §12.6's summary sentence, which counts grounds by category rather
-than stating one and is unaffected in either direction; and **two** carry it as a **live ground for a
+cell, §10.3's walk row). **Two** are §22.5, both marked by its narrowing above. **One** is §40.3's
+raise, discharged in place. **One** is §12.6's summary sentence, which counts grounds by category rather
+than stating one and is unaffected in either direction. And **two** carry it as a **live ground for a
 cell other than `22/tcp`** — §17.1 rows 9 and 10. **A third cell inherits the clause without containing
 the string**, so a grep alone would have missed it:
 
@@ -22041,7 +22041,7 @@ the string**, so a grep alone would have missed it:
 > resting on a question now open.**
 
 **Neither routed cell is on the queue and neither is put on it.** The queue's population is the
-composed table's cells (§39.4); a §4.6 exclusion is not a row and takes no footing cell. The routing is
+composed table's cells (§39.4). A §4.6 exclusion is not a row and takes no footing cell. The routing is
 a **ticket**, which is what §39.6 says the answer to a raise always is.
 
 ### 45.8 Every dependent figure, walked rather than asserted
@@ -22109,7 +22109,7 @@ staying out of that file while concurrent passes run applies with more force in 
   turns on, in a repair whose entire subject is uncited assertions. **A summarising reader is not a
   retrieval**, and G7's rider — *a retrieval that reads raw source must state whether the string it
   quotes is present in the owner's artefact* — should be read as reaching **any** intermediary, not
-  only raw-versus-rendered. Recorded as a method note; whether it earns a gate check of its own is left
+  only raw-versus-rendered. Recorded as a method note. Whether it earns a gate check of its own is left
   open.
 - **The GCP citation resolves through a host redirect** — `cloud.google.com/firewall/docs/firewalls`
   `301`s to `docs.cloud.google.com/…`. The canonical URL is recorded. **Nothing turns on it**: §2.3
@@ -22118,7 +22118,7 @@ staying out of that file while concurrent passes run applies with more force in 
   assertion in a cell during a repair whose subject is uncited assertions would be this note's own
   shape, not because the cell needs it.
 - **This section's two new citations are not added to `## Sources`.** Four passes in this wave append
-  immediately above that heading and the orchestrator resolves the adjacency; editing the heading's own
+  immediately above that heading and the orchestrator resolves the adjacency. Editing the heading's own
   list from inside one of them would manufacture the one conflict the arrangement exists to avoid.
   **Both citations are complete and dated in place at §45.2 and §45.6**, and the `## Sources` entries
   are owed — handed to the merging session rather than left implicit.
@@ -22130,7 +22130,7 @@ staying out of that file while concurrent passes run applies with more force in 
   filter per cell: `22/tcp`'s cell was **off** the queue before this section and is **off** it after —
   a §4.6 exclusion is not a row and takes no cell in the queue's population — and it is **sole-ground**
   after the repair, on one artefact under either reading of *independent* (§45.4). #154 holds the
-  **weak tier**; this section touches no tier and adds no footing cell, so it does not reach that
+  **weak tier**. This section touches no tier and adds no footing cell, so it does not reach that
   territory in either direction.
 
 ---
@@ -22143,7 +22143,7 @@ staying out of that file while concurrent passes run applies with more force in 
 section says so.
 
 **What this section is.** A **statement of a fact the note already holds**, not a rule. It moves no
-row, no class, no tier and no coverage figure; it mints no ADR; it reopens nothing §32, §36, §39, §40
+row, no class, no tier and no coverage figure. It mints no ADR. It reopens nothing §32, §36, §39, §40
 or §41 settled, and it performs **no retrieval**. Every fact it uses was measured by a prior pass and
 is cited to it. What it produces is one sentence with a referent — **the domain of the tier
 criterion** — and the marks that keep the sentence findable from the three sites that would otherwise
@@ -22151,7 +22151,7 @@ send a reader to the wrong population.
 
 ### 46.1 The defect is an omission, and the two premises are already in the note
 
-**Nothing in the corpus is wrong.** G2's verdict at §40.1 is **GREEN** and stays green; the walk §40.5
+**Nothing in the corpus is wrong.** G2's verdict at §40.1 is **GREEN** and stays green. The walk §40.5
 relied on is §36.6's and it was correctly run. What is missing is a statement of **what the criterion
 is a criterion of**, and its absence is what makes the green unreproducible: a reader who re-runs G2
 from §39.6's own words counts a different population from the one that was walked and cannot arrive at
@@ -22201,7 +22201,7 @@ footing is a restricting default"* — and a reader can take that as a third ver
 returns. It is not one, and the ADR's own Rationale table is the check: the premise-count column for
 `5432` and `5984` reads ***"n/a — no sentence to stand at a distance"***, which is the notation for an
 operation that does not apply, not for an operation returning a third value. **The clause defines the
-residue; it is not a test that can be run.** A cell falls into the weak tier by the criterion having
+residue. It is not a test that can be run.** A cell falls into the weak tier by the criterion having
 no purchase on it, which is exactly what *outside the domain* means.
 
 ### 46.3 The arithmetic, walked rather than quoted — and the two 24s are not the same 24
@@ -22221,7 +22221,7 @@ this section exists is that a figure was read off the wrong denominator.
 
 - **The 27 is real and shared.** *Coverage 27 of 38* counts **footing cells**, which is the same
   population G2's *"every graded footing cell"* names on its face. A reader who walks 27 has read the
-  right denominator for the wrong check; that is precisely how this defect is reached, and it is why
+  right denominator for the wrong check. That is precisely how this defect is reached, and it is why
   restating G2's phrase without stating its domain would not cure it.
 - **The 24 in `§4.6 24 entries` is a different denominator that collides.** §4.6's 24 counts
   **excluded pairs** — §40.3 verifies it as `16 base + 2 (§14) + 1 (§24) + 1 (§27) + 1 (§35) + 2 (§38)
@@ -22262,7 +22262,7 @@ owner publishes a statement of the port's permitted network, the cell acquires a
 criterion applies to it for the first time. That is an **addition to the domain**, discovered by
 reading somebody else's corpus — the queue's business under §39.6's own partition — and ruled on by a
 release under [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md)
-limb 2, on a retrieval scoped to the cell. **The gate raises; only a release rules** (§39.6), and G2
+limb 2, on a retrieval scoped to the cell. **The gate raises. Only a release rules** (§39.6), and G2
 is the half that cannot even raise here.
 
 ### 46.5 The options that lost
@@ -22280,7 +22280,7 @@ gives it a corpus and a terminating procedure — the owner's own class list —
 never be green, so §40.6's baseline sentence loses the referent §40 just gave it. **It loses a second
 time on ADR-0037 limb 2**: the only thing the widened check could find is a statement the corpus does
 not hold, and a cell moves on that only through a retrieval scoped to the cell, which §39.6 forbids a
-gate to perform. **The option is not merely more expensive; it converts a gate check into a queue
+gate to perform. **The option is not merely more expensive. It converts a gate check into a queue
 item and calls it a gate check.**
 
 **Option 2 — leave the criterion alone and write the number `24` into G2's check text at §39.6.**
@@ -22293,7 +22293,7 @@ and §39.2's lesson — *the unit is wrong rather than the reader careless* — 
 instrument over. **The domain is therefore stated as a population and the count derived from it**, so
 that the next tier move updates the figure by arithmetic rather than by anybody remembering.
 
-**Option 3 — do nothing; §40.5 already discloses it.** It is what the corpus does today. **It loses on
+**Option 3 — do nothing. §40.5 already discloses it.** It is what the corpus does today. **It loses on
 its own words**: §40.5 says *"**no section says so**"*, which is a disclosure recording its own absence
 rather than curing it, and a disclosure that names a gap is exactly the shape §39.7 measured
 regenerating nineteen times — *a sentence that names no successor is re-derived by the next session
@@ -22304,7 +22304,7 @@ corrected while the *specifying* site stands, which is §40.2's sharpest single 
 reproduced two sections later in the same file.
 
 **Option 4 — mint an ADR for it.** Refused, and the refusal is the house rule rather than modesty. The
-domain is entailed by ADR-0059 limb 1 read with §32.2's conjunction and measured by §32.7's walk; no
+domain is entailed by ADR-0059 limb 1 read with §32.2's conjunction and measured by §32.7's walk. No
 rule is being decided, and §30's and §16.6's precedent — *"both general rules this section applies were
 available"* — is met exactly. **ADR-0090 is left unused, and the customary recital of the other unused
 numbers is deliberately omitted — see §46.9, which is why.** ADR-0059 is **confirmed by use** and gains
@@ -22348,7 +22348,7 @@ criterion, each of which read alone in the present tense sends a session to the 
 uses the phrase — *"G2 walks every graded footing cell against the tier criterion as it currently
 stands"* — inside an argument about the **queue's filter**, where the claim it carries is that
 over-statement of our own distance is the gate's business rather than the queue's. That claim is true
-of the graded cells and is not a population statement; ADR-0058's test asks whether the sentence read
+of the graded cells and is not a population statement. ADR-0058's test asks whether the sentence read
 alone would cause a session to **build the thing**, and this one would not cause a session to walk 27
 because it is not telling anyone what to walk. **A restating site is left standing where its own claim
 survives the correction** — the converse of §40.2's ADR-0044 finding rather than an exception to it.
@@ -22372,8 +22372,8 @@ survives the correction** — the converse of §40.2's ADR-0044 finding rather t
 | `CONTEXT.md` | — | **not amended, as a ruling**, for §39.8's reason unchanged: the curator is not a subject in the model, a footing tier reaches no screen (ADR-0032 §7), and the product holds nothing about either. ADR-0024's three registers are **read** here and are not widened — they are already this note's, by §2's [#33](https://github.com/winniel123/verge-asm/issues/33) amendment |
 
 **Outside this note.** **No ADR is minted and ADR-0090 is left unused.** ADR-0057 is **marked** at its
-gate table's G2 row; ADR-0059 gains a **Confirmed by use** rider stating its domain, is **marked at two
-further clauses** on §46.9's by-catch, and is not amended; ADR-0024, ADR-0032, ADR-0037 and ADR-0046
+gate table's G2 row. ADR-0059 gains a **Confirmed by use** rider stating its domain, is **marked at two
+further clauses** on §46.9's by-catch, and is not amended. ADR-0024, ADR-0032, ADR-0037 and ADR-0046
 are **confirmed by use** and none is amended. **The map needs one line and a by-catch**: G2's domain,
 and that the corpus's *left unused* recitals name ten dead reservations beside one live one, the true
 gap pool standing at **`0076` alone** — §46.9.
@@ -22435,12 +22435,12 @@ defect was visible.
   complement reading is the Rationale table's `n/a`, §32.7's per-cell `none`, and §36.6's and §37.1's
   practice of excluding the tier from every footing sweep** — three artefacts against one clause,
   which is a strong preponderance and is not a proof. **The criterion that would settle it** is
-  whether any pass has ever run the criterion *over* a weak cell and returned *weak* as its output;
-  **[measured] none has** — §32.7 walked the six non-prose footings and recorded the weak three as
+  whether any pass has ever run the criterion *over* a weak cell and returned *weak* as its output.
+  **[Measured] none has** — §32.7 walked the six non-prose footings and recorded the weak three as
   having no input rather than as scoring one.
 - **This section's central figure is a count of this note's own cells and is as good as §40.4's
   enumeration.** The 27 is taken from G11's table, which is the only place every footing cell is
-  listed in one column; if that table omits a cell, this section's 24 is wrong by the same amount and
+  listed in one column. If that table omits a cell, this section's 24 is wrong by the same amount and
   so is §40.4's *"run to completion over all 27"*. It agrees with `13 + 11 + 3` and with §36.6's
   `26 − 2`, which are three derivations from two independent enumerations, and that is the whole of
   the assurance.
@@ -22450,7 +22450,7 @@ defect was visible.
   corpus, which is why §46.2 states a population and §46.6 states the count with its derivation
   attached.
 - **§46.9's *37 places* is a count of this corpus's own text and is as good as one search term.** It
-  was found by grepping the literal string *left unused* over `docs/`; a site phrasing it *not minted
+  was found by grepping the literal string *left unused* over `docs/`. A site phrasing it *not minted
   and the number is free*, *reserved and not spent*, or naming a number without the phrase would not
   have matched, and **[measured]** at least one variant already exists — §23's *"gaps are fine — 0039,
   0041 and …"*. §39.9's warning about the nineteen identity sites applies here unchanged. **The
@@ -22470,9 +22470,9 @@ defect was visible.
   re-retrieved would be re-deciding a footing, which is a retrieval scoped to a cell and a different
   ticket under ADR-0037 limb 2.
 - **Every quoted string in this section is quoted from this repository**, so G7 is vacuous here and G8
-  reduces to an internal cross-reference check; both were run by hand over this section's own
+  reduces to an internal cross-reference check. Both were run by hand over this section's own
   citations, including the four sites marked at §46.7.
-- **The population was re-derived rather than copied.** §40.5 already states *24*; this section
+- **The population was re-derived rather than copied.** §40.5 already states *24*. This section
   reaches it from §40.4's enumeration and from `13 + 11` independently, because the ticket that
   produced it asked for exactly that and because the failure being repaired is a figure read off the
   wrong denominator.
@@ -22506,7 +22506,7 @@ gate-checks table, not a new ADR — ADR-0090 is left unused.
 ### 47.2 Why the gate does not reach it — walked rather than asserted
 
 **G2.** §46's own ruling fixes G2's test: *"walked against the tier criterion **as it currently
-stands**"* (ADR-0057's G2 row). The criterion is a rule **we** apply to a **recorded** proposition; G2
+stands**"* (ADR-0057's G2 row). The criterion is a rule **we** apply to a **recorded** proposition. G2
 asks *does our rule, applied today, agree with what the cell already says* — never *does the artefact
 still say it*. A demotion is silent precisely because the recorded proposition goes stale without our
 rule changing at all, so G2 scores the recorded state and never notices the record itself has rotted.
@@ -22515,7 +22515,7 @@ rule changing at all, so G2 scores the recorded state and never notices the reco
 at."* Both operands are tags. Rung 1 (*"a source comment, an unversioned page … nothing rendered
 changes"*) and rung 2 (*"a continuously-published documentation page with no version pin … no release
 note; the page simply reads differently tomorrow"*) are ADR-0057's own definitions of **an artefact with
-no tag**. G11 is not weak here; it has no inputs. §41.3's two measured demotion cases — `10250/tcp`'s
+no tag**. G11 is not weak here. It has no inputs. §41.3's two measured demotion cases — `10250/tcp`'s
 and `10255/tcp`'s footing cells, both carried by `security-checklist.md` — sit exactly in this shape.
 
 **The other nine, checked in turn against ADR-0057's own table:**
@@ -22542,7 +22542,7 @@ and only its **scope** was unstated. That precedent does not transfer here.
 
 **G11's test is a tag-diff.** Widening its population to include untagged artefacts does not give it
 more to compare — it gives it nothing on one side of the same operation. A test whose inputs do not
-exist for a population is not reached by widening that population to include it; it needs a **different
+exist for a population is not reached by widening that population to include it. It needs a **different
 test** run over that population. The same is true of G8 (`at the tag named`) — its comparison is
 structurally tag-shaped, not content-shaped, and cannot be re-pointed at bytes with no tag without
 becoming a different check wearing G8's number.
@@ -22565,7 +22565,7 @@ measured on"*).
 
 **Currently named population: two cells**, both measured already — `10250/tcp`'s footing (falls back to
 the scoping tier) and `10255/tcp`'s footing (falls back to the weak tier), both carried by
-`security-checklist.md` at rung 1 or 2, per §18.7 and §41.3. Neither has actually demoted; the check
+`security-checklist.md` at rung 1 or 2, per §18.7 and §41.3. Neither has actually demoted. The check
 watches for the day the checklist line moves. #134's per-cell walk may name more.
 
 **This is filed at [ADR-0057](../adr/0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md), not a
@@ -22576,8 +22576,8 @@ the same table rather than re-deriving the gate elsewhere. **ADR-0090 is left un
 
 [#152](https://github.com/winniel123/verge-asm/issues/152) asks whether G11 reaches a **stated
 horizon** — a self-declared future removal target on an artefact that **does** carry a tag (Docker at
-`v29.7.2`, past its own deprecation page's `v28.0` target). That check's population is tagged artefacts;
-its test compares two facts **already on record** (the current tag G11 already tracks, and the horizon
+`v29.7.2`, past its own deprecation page's `v28.0` target). That check's population is tagged artefacts.
+Its test compares two facts **already on record** (the current tag G11 already tracks, and the horizon
 the artefact already stated when read) and needs **no retrieval at all** — it is closer in shape to G1
 (comparing two things we hold) than to G10.
 
@@ -22586,7 +22586,7 @@ population is untagged artefacts, and its test requires a **fresh re-fetch** bec
 else that could reveal a change. The two checks share a symptom (G11 does not fully close the gate's
 reach) and nothing else: different population, different test, different termination shape (retrieval
 vs. no retrieval). **They should not be merged into one check.** The merge session assigns G12 and G13
-across the two in whichever order it prefers; nothing here depends on the order.
+across the two in whichever order it prefers. Nothing here depends on the order.
 
 ### 47.5 Every dependent figure, walked rather than asserted
 
@@ -22606,7 +22606,7 @@ across the two in whichever order it prefers; nothing here depends on the order.
 gate-checks table gains a new row, marked pending a merge-time number. [ADR-0077](../adr/0077-a-second-ground-counts-only-where-it-would-have-carried-the-cells-proposition-alone.md)'s
 gate-shortfall Consequence is marked discharged at its own clause, per
 [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)'s practice
-of a replacement rather than a strike-through. **No new ADR is minted; ADR-0090 stays a gap.**
+of a replacement rather than a strike-through. **No new ADR is minted. ADR-0090 stays a gap.**
 
 ### 47.6 Thin ground, flagged per the standing rule
 
@@ -22617,11 +22617,11 @@ of a replacement rather than a strike-through. **No new ADR is minted; ADR-0090 
   finds rather than to pre-empt it.
 - **"Materially weakened" in the verdict column is a judgement, not a byte comparison**, and is inherited
   unchanged from §18.7's own criterion for the same two cells (*"removal or material weakening of the
-  Network security checklist item"*). This section does not sharpen it; sharpening it is a re-grading of
+  Network security checklist item"*). This section does not sharpen it. Sharpening it is a re-grading of
   the tier criterion itself and is out of scope for a ticket about the gate's **reach**.
 - **Whether this check is decidable purely from bytes already held for its *current* population, or
   requires an actual re-fetch every run, is answered by ADR-0057's own bar** — it is a targeted re-fetch
-  by construction, same as G10, so it terminates. No claim is made that it is cheap; only that it is
+  by construction, same as G10, so it terminates. No claim is made that it is cheap. Only that it is
   finite and named.
 
 ### 47.7 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6, §16.10, §17.10, §22.10, §30.10, §32.13, §33.11, §36.14, §37.14, §38.16, §39.10, §40.10 and §46.11
@@ -22630,9 +22630,9 @@ of a replacement rather than a strike-through. **No new ADR is minted; ADR-0090 
   reading ADR-0057's own check definitions and rung table against the demotion cases §18.7 and §41.3
   already measured. A section that retrieved would be running the new check rather than specifying it.
 - **Every quoted string here is quoted from this repository or from ADR-0057**, so G7 is vacuous and G8
-  reduces to an internal cross-reference check; both were run by hand over this section's citations.
+  reduces to an internal cross-reference check. Both were run by hand over this section's citations.
 - **Sibling passes are editing this note and ADR-0057 concurrently.** This section's delta is stated as a
-  delta: **ADR-0057 gains one specified, unnumbered row; ADR-0077 gains one discharge mark; nothing in
+  delta: **ADR-0057 gains one specified, unnumbered row. ADR-0077 gains one discharge mark. Nothing in
   `sensitive-ports.md` before §47 is edited.** Its basis is `main` at `bd07f77`. [#152](https://github.com/winniel123/verge-asm/issues/152)
   is a sibling ticket in the same region (a second, differently-shaped gate gap) and is addressed at
   §47.4 rather than left for a reader to reconcile. **Where §47 and §1 disagree, §1 governs.**
@@ -22645,7 +22645,7 @@ act."* §43.5 then ran the whole 38-pair walk on the **artefact** reading exactl
 test is written, and named every cell the **act** reading would move, without pre-empting which reading
 governs. This section rules the question §40.7 opened and discharges §43.5's table.
 [ADR-0077](../adr/0077-a-second-ground-counts-only-where-it-would-have-carried-the-cells-proposition-alone.md)
-carries the Amendment; this section carries the register update it licenses. §41.2's four-step test is
+carries the Amendment. This section carries the register update it licenses. §41.2's four-step test is
 **not reopened** — its steps 1, 3 and 4 are unchanged, and only step 2's own stated warrant is made to
 match its own stated check.
 
@@ -22695,7 +22695,7 @@ a wrongly-included item is one reading; the cost of a wrongly-excluded one is a 
 
 **Nothing leaves the register — ADR-0077's removal bar is untouched.** Every cell below moves from *not
 an item* to **item**, or is confirmed unmoved. Grounds are cited to the section that measured the
-act-sharing; rungs are the moving artefact's own, already established in §43.3.
+act-sharing. Rungs are the moving artefact's own, already established in §43.3.
 
 | Cell | Rung | Artefact | Why one act reaches both |
 | --- | --- | --- | --- |
@@ -22718,7 +22718,7 @@ act-sharing; rungs are the moving artefact's own, already established in §43.3.
 **These seven cells are named exhaustively, not sampled.** §43.5 ran ADR-0077's four-step test on the
 artefact reading over every row of §43.4 — the complete *not an item* population of the 38-pair walk —
 and recorded, per row, whether the act reading would move it. This section rules the reading and applies
-it to exactly the rows §43.5 flagged; no further walk is owed.
+it to exactly the rows §43.5 flagged. No further walk is owed.
 
 ### 48.4 Every dependent figure, walked rather than asserted
 
@@ -22751,7 +22751,7 @@ own Amendment.
 **The rung assignments in §48.3 are read off the moving artefact's own already-established rung, not
 re-measured.** `873/tcp`'s man pages are placed at rung 4 (issued prose, shipped and versioned with a
 software release) rather than rung 3, on the same distinction ADR-0057 draws between a **default value**
-(rung 3) and **prose about a default** (rung 4); `postgresql.conf.sample` itself is the rung-3 artefact
+(rung 3) and **prose about a default** (rung 4). `postgresql.conf.sample` itself is the rung-3 artefact
 because it *carries* a default, where `rsyncd.conf.5.md` only *describes* one. A reader who reads
 `rsyncd.conf.5.md` as rung 3 instead would not move any cell's presence on the register, only its tie-break
 position within rung 4 — G11's stale-against-tag mark, not membership.
@@ -22765,15 +22765,15 @@ performed here.
 ### 48.6 Retrieval method and hazards, recorded per §9.5, §11.9, §12.9, §13.10, §14.6, §16.10, §17.10, §22.10, §30.10, §32.13, §33.11, §36.14, §37.14, §38.16, §39.10, §41.8, §42.10 and §43.9
 
 - **This section performed no retrieval.** Every artefact-sharing fact it cites was already measured by
-  §43.4's or §43.5's pass, over bytes this note already holds; ruling which reading of step 2 governs is
+  §43.4's or §43.5's pass, over bytes this note already holds. Ruling which reading of step 2 governs is
   not itself a retrieval. G7 and G8 are vacuous here.
 - **The population was fixed by §43.5, not re-derived.** §43.5 ran the complete 38-pair *not an item* row
-  and named every cell the act reading would move; this section's population is exactly that named set,
+  and named every cell the act reading would move. This section's population is exactly that named set,
   checked against §43.4's grounds for completeness rather than re-walked.
 - **The hazard this section was most exposed to** is ruling a methodological question and then quietly
   widening it past what the corpus already measured — deciding, for cells §43.5 did not flag, that "this
-  one is probably one act too." **That was not done.** Every cell in §48.3 is a cell §43.5 already named;
-  no cell outside that set is moved, and `2181/tcp`'s footing is left undetermined rather than resolved
+  one is probably one act too." **That was not done.** Every cell in §48.3 is a cell §43.5 already named.
+  No cell outside that set is moved, and `2181/tcp`'s footing is left undetermined rather than resolved
   by inference.
 - **Sibling passes are appending to this note concurrently**, per §43.9's and §46.11's own note of the
   batch. This section appends **above** the `---` separator preceding `## Sources`, after §46's own
@@ -22834,7 +22834,7 @@ diff … a continuously-published page with no version pin"* — reaching, per �
 measurement, the register's **whole rung-1 head**: an unbounded-feeling, growing population. This
 ticket's gap is the opposite shape: **a comparand that exists and correctly passes**, alongside a
 second, distinct fact the same tagged ground states that a passing tag comparison gives no reason to
-read. One gap is an absence; the other is an omission next to a presence. Measured against each other:
+read. One gap is an absence. The other is an omission next to a presence. Measured against each other:
 
 | | #149's gap | #152's gap |
 | --- | --- | --- |
@@ -22856,7 +22856,7 @@ construction, and it is stated as an argument for the merge session rather than 
 
 **Amending G11's own definition.** Tempting, because the machinery is identical — fetch the current
 tag, compare it against a value the ground supplies. Refused because G11 already has a baseline run
-(§40) whose verdict is a stated comparison; changing the comparison after the fact is the shape §5's
+(§40) whose verdict is a stated comparison. Changing the comparison after the fact is the shape §5's
 regenerating-clause failure describes, one section over.
 
 **A single merged check with #149.** The stronger argument on the other side, and named in full at
@@ -22891,8 +22891,8 @@ ticket, because the alternative — a disclosure sentence with no mechanism behi
 already shows failing to renew itself.
 
 **The same-check-or-different judgement in §49.4 is this section's own reading of #149's issue body as
-it stands today, not a binding cross-ticket ruling.** #149 is running its own resolution independently;
-if it reaches a different characterisation of its own gap, the comparison table at §49.4 is what a
+it stands today, not a binding cross-ticket ruling.** #149 is running its own resolution independently.
+If it reaches a different characterisation of its own gap, the comparison table at §49.4 is what a
 merge session should re-check first.
 
 ---
@@ -22915,37 +22915,37 @@ Government and standards bodies
 - Retrieved for §9.2 and citable only for what they **do not** contain — `636` and `ldaps://` occur zero times in each: [RFC 4510 (LDAP roadmap)](https://www.rfc-editor.org/rfc/rfc4510.txt) · [RFC 4511 (LDAP protocol)](https://www.rfc-editor.org/rfc/rfc4511.txt) · [RFC 4516 (LDAP URL)](https://www.rfc-editor.org/rfc/rfc4516.txt) · [RFC 2830 (obsoleted LDAP StartTLS extension)](https://www.rfc-editor.org/rfc/rfc2830.txt)
 - Retrieved for §11 ([#66](https://github.com/winniel123/verge-asm/issues/66)) — the SNMP standards family, read for a **placement** sentence and citable chiefly for the absence of one. `management network`, `segregat`, `firewall`, `separate network`, `isolated network`, `private network`, `untrusted network`, `public network` and `out of band` occur **twice across all ten**, both in RFC 6353 and both about certificate distribution: [RFC 3411 (SNMP architecture, STD 62)](https://www.rfc-editor.org/rfc/rfc3411.txt) — `administrative domain` ×8, every one an identifier scope · [RFC 3412 (message processing, STD 62)](https://www.rfc-editor.org/rfc/rfc3412.txt) · [RFC 3413 (SNMP applications, STD 62)](https://www.rfc-editor.org/rfc/rfc3413.txt) · [RFC 3414 (USM, STD 62)](https://www.rfc-editor.org/rfc/rfc3414.txt) §1.1–1.2, the threat model, every threat a property of the message · [RFC 3417 (transport mappings, STD 62)](https://www.rfc-editor.org/rfc/rfc3417.txt) §3.2, which puts SNMPv3 command responders on UDP 161 · [RFC 3584 (coexistence, BCP 74)](https://www.rfc-editor.org/rfc/rfc3584.txt) · [RFC 2570 (RFC 3410's predecessor)](https://www.rfc-editor.org/rfc/rfc2570.txt) · [RFC 1157 (SNMPv1, STD 15, Historic)](https://www.rfc-editor.org/rfc/rfc1157.txt) §3.2.5, which defines an SNMP community as a pairing with *"some arbitrary set of SNMP application entities"* and whose Security Considerations reads in full *"Security issues are not discussed in this memo."* · [RFC 6353 (TLS Transport Model)](https://www.rfc-editor.org/rfc/rfc6353.txt) §8, the `snmptls`/`snmpdtls` 10161 and 10162 registrations — the string `161` occurs in it **zero** times
 - [RFC 5531 (ONC RPC v2)](https://www.rfc-editor.org/rfc/rfc5531.txt) §14 — checked for §9.1. Its Security Considerations govern RPC *auth flavours* (AUTH_SYS, AUTH_DH, RPCSEC_GSS), never rpcbind or port 111, so it attests nothing about exposure
-- Checked and citable only as **non-statements**: RFC 854 (Telnet) has no Security Considerations section and no occurrence of "security", "password", "encrypt" or "authentic"; [RFC 1833](https://www.rfc-editor.org/rfc/rfc1833.txt)'s Security Considerations reads in full: "Security issues are not discussed in this memo."; [RFC 1288](https://www.rfc-editor.org/rfc/rfc1288.txt) §6 reads in full: "Security issues are discussed in Section 3." — and RFC 1288 remains a **Draft Standard** on the [IETF datatracker](https://datatracker.ietf.org/api/v1/doc/document/rfc1288/), never reclassified Historic
-- [CIS Amazon Web Services Foundations Benchmark v1.2.0](https://d1.awsstatic.com/whitepapers/compliance/AWS_CIS_Foundations_Benchmark.pdf) (05-23-2018) — the CIS-authored PDF, ungated. Current versions are behind a registration form at [learn.cisecurity.org/benchmarks](https://learn.cisecurity.org/benchmarks); the "remote server administration ports" phrasing in v3.0.0+ was **not** verified against a CIS document and is second-hand via AWS's mapping page
+- Checked and citable only as **non-statements**: RFC 854 (Telnet) has no Security Considerations section and no occurrence of "security", "password", "encrypt" or "authentic". [RFC 1833](https://www.rfc-editor.org/rfc/rfc1833.txt)'s Security Considerations reads in full: "Security issues are not discussed in this memo.". [RFC 1288](https://www.rfc-editor.org/rfc/rfc1288.txt) §6 reads in full: "Security issues are discussed in Section 3." — and RFC 1288 remains a **Draft Standard** on the [IETF datatracker](https://datatracker.ietf.org/api/v1/doc/document/rfc1288/), never reclassified Historic
+- [CIS Amazon Web Services Foundations Benchmark v1.2.0](https://d1.awsstatic.com/whitepapers/compliance/AWS_CIS_Foundations_Benchmark.pdf) (05-23-2018) — the CIS-authored PDF, ungated. Current versions are behind a registration form at [learn.cisecurity.org/benchmarks](https://learn.cisecurity.org/benchmarks). The "remote server administration ports" phrasing in v3.0.0+ was **not** verified against a CIS document and is second-hand via AWS's mapping page
 
 Cloud providers
 - AWS: [default security group](https://docs.aws.amazon.com/vpc/latest/userguide/default-security-group.html) · [Trusted Advisor security checks](https://docs.aws.amazon.com/awssupport/latest/user/security-checks.html) (check `HCP4007jGY`) · [Security Hub EC2 controls](https://docs.aws.amazon.com/securityhub/latest/userguide/ec2-controls.html) (EC2.13, EC2.14, EC2.19, EC2.21) · [CIS mapping](https://docs.aws.amazon.com/securityhub/latest/userguide/cis-aws-foundations-benchmark.html)
 - Azure: [NSG default security rules](https://learn.microsoft.com/en-us/azure/virtual-network/network-security-groups-overview) · [Defender for Cloud networking recommendations](https://learn.microsoft.com/en-us/azure/defender-for-cloud/recommendations-reference-networking) · [just-in-time VM access](https://learn.microsoft.com/en-us/azure/defender-for-cloud/enable-just-in-time-access)
 - Google Cloud: [VPC firewall rules, including the default network's pre-populated rules](https://docs.cloud.google.com/firewall/docs/firewalls)
 - Microsoft (non-cloud): [Preventing SMB traffic from lateral connections](https://support.microsoft.com/en-us/topic/preventing-smb-traffic-from-lateral-connections-and-entering-or-leaving-the-network-c0541db7-2244-0dce-18fd-14a3ddeb282a) · [Secure SMB traffic in Windows Server](https://learn.microsoft.com/en-us/windows-server/storage/file-server/smb-secure-traffic) · [SQL Server installation security considerations](https://learn.microsoft.com/en-us/sql/sql-server/install/security-considerations-for-a-sql-server-installation) · [LDAP signing for Active Directory Domain Services](https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/ldap-signing) — quoted from [its source Markdown](https://raw.githubusercontent.com/MicrosoftDocs/windowsserverdocs/main/WindowsServerDocs/identity/ad-ds/ldap-signing.md) because the rendered page is a JavaScript shell (§9.5)
-- Red Hat (§9.1) — **corroboration only; declined as sole grounds on §2.3 ownership**, and self-contradictory across products. Both pages refuse direct retrieval and were read via Internet Archive snapshots: [RHEL 7 Security Guide §4.3, Securing Services](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/7/html/security_guide/sec-securing_services) ("difficult to secure", "no built-in form of authentication") · [RHEL 6 Storage Administration Guide §9.7.3, Running NFS Behind a Firewall](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/6/html/storage_administration_guide/s2-nfs-nfs-firewall-config) ("Allow TCP and UDP port 111 (rpcbind/sunrpc).")
+- Red Hat (§9.1) — **corroboration only. Declined as sole grounds on §2.3 ownership**, and self-contradictory across products. Both pages refuse direct retrieval and were read via Internet Archive snapshots: [RHEL 7 Security Guide §4.3, Securing Services](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/7/html/security_guide/sec-securing_services) ("difficult to secure", "no built-in form of authentication") · [RHEL 6 Storage Administration Guide §9.7.3, Running NFS Behind a Firewall](https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/6/html/storage_administration_guide/s2-nfs-nfs-firewall-config) ("Allow TCP and UDP port 111 (rpcbind/sunrpc).")
 
 Retrieved for §23 ([#90](https://github.com/winniel123/verge-asm/issues/90)) — the `623/udp` IPMI corpus, PDFs extracted locally with `pdftotext` per [#46](https://github.com/winniel123/verge-asm/issues/46)
-- [IPMI Specification, Second Generation, v2.0](https://www.intel.com/content/dam/www/public/us/en/documents/product-briefs/ipmi-second-gen-interface-spec-v2-rev1-1.pdf) — **Document Revision 1.1, 1 October 2013**, © Intel Corporation, Hewlett-Packard Company, NEC Corporation, Dell Inc. §13.1.2 and Table 13-1 put the *Primary RMCP Port* at **623 (26Fh)** under *"two well-known ports under UDP"*; Table 13-8 confirms RMCP+ stays on `26Fh`; §13.7 and §1.7 carry the *management VLAN* near-miss refused in §23.5; LAN Configuration Parameter 8 records *"Default = 26Fh"*
+- [IPMI Specification, Second Generation, v2.0](https://www.intel.com/content/dam/www/public/us/en/documents/product-briefs/ipmi-second-gen-interface-spec-v2-rev1-1.pdf) — **Document Revision 1.1, 1 October 2013**, © Intel Corporation, Hewlett-Packard Company, NEC Corporation, Dell Inc. §13.1.2 and Table 13-1 put the *Primary RMCP Port* at **623 (26Fh)** under *"two well-known ports under UDP"*. Table 13-8 confirms RMCP+ stays on `26Fh`. §13.7 and §1.7 carry the *management VLAN* near-miss refused in §23.5. LAN Configuration Parameter 8 records *"Default = 26Fh"*
 - [DMTF DSP0136, *Alert Standard Format (ASF) Specification*](https://www.dmtf.org/sites/default/files/standards/documents/DSP0136.pdf) — **Version 2.0, 23 April 2003, STATUS: Final**. §3.2.1 *RMCP UDP Port Numbers*, page 19 — the document that **assigns** `623/udp`, which IPMI cites normatively and inherits. Carries a measured erratum: `0298h` rendered as *"644 decimal"* where it is 664 (§23.10)
 - [DMTF *ASF Overview Document*](https://www.dmtf.org/sites/default/files/ASF%20Overview%20Document_2010_0.pdf) (2010) and the [ASF standards index](https://www.dmtf.org/standards/asf) — retrieved to **enumerate the class list** rather than for a quote: the DMTF publishes exactly two ASF documents and no deployment or security guidance (§23.4). The Overview names no port and states no placement
 - [CERT/CC VU#843044](https://www.kb.cert.org/vuls/id/843044) — *"Multiple Dell iDRAC **IPMI v1.5** implementations use insufficiently random session ID values"*, published 2014-12-18. Dell's full vendor statement, dated 5 December 2014 and responded 2014-12-09 (revision 3), was read from CERT/CC's JSON API (`/vuls/api/843044/` and `/vendors/`) because the rendered page is a JavaScript shell — §23.3, §23.11
-- [ipmitool](https://github.com/ipmitool/ipmitool) `1.8.19git` — `src/plugins/lan/rmcp.h`: `#define RMCP_UDP_PORT 0x26f /* port 623 */`; `doc/ipmitool.1.in`: *"Remote server UDP port to connect to.  Default is 623."*
+- [ipmitool](https://github.com/ipmitool/ipmitool) `1.8.19git` — `src/plugins/lan/rmcp.h`: `#define RMCP_UDP_PORT 0x26f /* port 623 */`. `doc/ipmitool.1.in`: *"Remote server UDP port to connect to.  Default is 623."*
 - [Supermicro, *Server Management: IPMI Firmware Security*](https://www.supermicro.com/white_paper/IPMI_white_paper.pdf) (August 2014) — *"While the IPMI standard protocol defines UDP port 623 for RMCP communications…"* and *"it is still recommended that administrators block UDP port 623 on unsecured networks"*. Corroborating under §2.3, never sole grounds
 - [Lenovo XClarity Controller 2, *Service Enablement and Port Assignment*](https://pubs.lenovo.com/xcc2/NN1ia_c_configuringportassignments) — *"The port number is 623. This field is not user-configurable."*
-- Intel, *Server Boards and Server Platforms Server Management Guide*, part number **G37830-002, October 2012**, Revision 3.1 ([cdrdv2-public.intel.com/840557](https://cdrdv2-public.intel.com/840557/g37830002_servermanagementguide_r3_1.pdf)) — citable for a **negative**: the string `623` occurs four times and every one is **TCP telnet to `dpcproxy`**; `RMCP` occurs zero times (§23.8)
-- **Not retrieved, recorded as failures rather than as negatives** (§23.11): HPE iLO documentation — five attempts across `support.hpe.com`, `cdn.support.hpe.com` and `www.hpe.com/psnow`, all defeated by a client-side-rendered portal behind a session check; Dell's iDRAC9 *Security Configuration Guide* port table — `dell.com/support/manuals` serves 551 bytes to a non-browser client; NEC — no first-party BMC port document located. **All three retrieved by §28 ([#96](https://github.com/winniel123/verge-asm/issues/96)) — see below. The discipline of logging them as retrieval failures rather than as negative findings is vindicated: the answer was there.**
+- Intel, *Server Boards and Server Platforms Server Management Guide*, part number **G37830-002, October 2012**, Revision 3.1 ([cdrdv2-public.intel.com/840557](https://cdrdv2-public.intel.com/840557/g37830002_servermanagementguide_r3_1.pdf)) — citable for a **negative**: the string `623` occurs four times and every one is **TCP telnet to `dpcproxy`**. `RMCP` occurs zero times (§23.8)
+- **Not retrieved, recorded as failures rather than as negatives** (§23.11): HPE iLO documentation — five attempts across `support.hpe.com`, `cdn.support.hpe.com` and `www.hpe.com/psnow`, all defeated by a client-side-rendered portal behind a session check. Dell's iDRAC9 *Security Configuration Guide* port table — `dell.com/support/manuals` serves 551 bytes to a non-browser client. NEC — no first-party BMC port document located. **All three retrieved by §28 ([#96](https://github.com/winniel123/verge-asm/issues/96)) — see below. The discipline of logging them as retrieval failures rather than as negative findings is vindicated: the answer was there.**
 
 Retrieved for §28 ([#96](https://github.com/winniel123/verge-asm/issues/96)) — the three vendor classes §23.4 recorded as blocked, plus the specification's own pre-session dispatch. Every negative below was read on **2026-08-14** and names the release it was taken at, per §26.6
-- **IPMI Specification v2.0, Document Revision 1.1, 1 October 2013** — re-read as bytes for the **dispatch** rather than the prose: **Table G-1** (Appendix G, p.586-587) and its key *"p = works at any privilege level, can be sent prior to a session being established"*, marking exactly four App commands — Get System GUID `37h`, Get Channel Authentication Capabilities `38h`, Get Session Challenge `39h`, Activate Session `3Ah`; **§6.12.7** p.57, *"A session must be activated before general IPMI messaging can occur"*; §13.27.1 p.156; §13.6 footnote 8 p.133; §22.13 Table 22-15 pp.282-283 (the unauthenticated capability response, including *Anonymous Login status*); §22.14 pp.284-285, *"The Get System GUID will always be accepted outside of an active session"*; **§13.28.2 p.158** and Table 22-19 p.292 and Table 13-17 p.157 (Cipher Suite 0 / RAKP-none, mandatory **support**, *"provides a way to enable access to the BMC without requiring a username and password"*); **§13.31 p.163** (RAKP Message 2's `HMAC_K[UID]`); **§22.22 p.300**, *"The choice of factory default setting for the non-volatile parameters is left to the implementer or system integrator"*. **`intel.com` now 403s every non-browser client**; the bytes were recovered from two independent Wayback `id_` snapshots of Intel's own copy, **byte-identical at 12,037,554** (§28.13)
+- **IPMI Specification v2.0, Document Revision 1.1, 1 October 2013** — re-read as bytes for the **dispatch** rather than the prose: **Table G-1** (Appendix G, p.586-587) and its key *"p = works at any privilege level, can be sent prior to a session being established"*, marking exactly four App commands — Get System GUID `37h`, Get Channel Authentication Capabilities `38h`, Get Session Challenge `39h`, Activate Session `3Ah`. **§6.12.7** p.57, *"A session must be activated before general IPMI messaging can occur"*. §13.27.1 p.156. §13.6 footnote 8 p.133. §22.13 Table 22-15 pp.282-283 (the unauthenticated capability response, including *Anonymous Login status*). §22.14 pp.284-285, *"The Get System GUID will always be accepted outside of an active session"*. **§13.28.2 p.158** and Table 22-19 p.292 and Table 13-17 p.157 (Cipher Suite 0 / RAKP-none, mandatory **support**, *"provides a way to enable access to the BMC without requiring a username and password"*). **§13.31 p.163** (RAKP Message 2's `HMAC_K[UID]`). **§22.22 p.300**, *"The choice of factory default setting for the non-volatile parameters is left to the implementer or system integrator"*. **`intel.com` now 403s every non-browser client**. The bytes were recovered from two independent Wayback `id_` snapshots of Intel's own copy, **byte-identical at 12,037,554** (§28.13)
 - [DMTF DSP0136](https://www.dmtf.org/sites/default/files/standards/documents/DSP0136.pdf) §3.2.4.3, page 36 — the **Presence Pong** field table, an unauthenticated discovery response carrying an IANA/OEM number, an *"IPMI is supported"* bit and an ASF version, and nothing else
-- **HPE iLO 7 *Security Technology Brief*, PN 30-869C87FF-011, Edition 1, July 2026** — *"**Do not connect iLO directly to the Internet.** The iLO processor is a management and administration tool, not an Internet gateway"*; and *Access settings options*, *"IPMI/DCMI over LAN … **This setting is disabled by default**"*, *"The default value is UDP 623"*. Read as browser-rendered HTML at `support.hpe.com/hpesc/public/docDisplay?docId=sd00005845en_us`
-- **HPE iLO 6 *Security Technology Brief*, PN 30-3CC3279C-024, Edition 1, July 2026** (docId `sd00002198en_us`; byte-identical text in the **iLO 5** brief, docId `a00026171en_us`) — *"**Do not allow IPMI/DCMI traffic from outside the network.**"*, *"The IPMI/DCMI port is set to 623 by default"*, and the owner's own characterisation of the RAKP disclosure: *"The IPMI specification requires support for RAKP authentication, which allows remote attackers to obtain password hashes and conduct offline password guessing attacks"*
-- **HPE *Compute Security Reference Guide*, PN 30-2905B658-019, Edition 19, July 2026** (docId `a00018320en_us`) — *"**The Dedicated management network is the preferred iLO network configuration**"*; and **HPE *iLO 7 IPMI User Guide*, PN 30-62D2E6BA-007, June 2026** (docId `sd00005336en_us`), cited for the negative that HPE has **not** removed IPMI-over-LAN
+- **HPE iLO 7 *Security Technology Brief*, PN 30-869C87FF-011, Edition 1, July 2026** — *"**Do not connect iLO directly to the Internet.** The iLO processor is a management and administration tool, not an Internet gateway"*. And *Access settings options*, *"IPMI/DCMI over LAN … **This setting is disabled by default**"*, *"The default value is UDP 623"*. Read as browser-rendered HTML at `support.hpe.com/hpesc/public/docDisplay?docId=sd00005845en_us`
+- **HPE iLO 6 *Security Technology Brief*, PN 30-3CC3279C-024, Edition 1, July 2026** (docId `sd00002198en_us`. Byte-identical text in the **iLO 5** brief, docId `a00026171en_us`) — *"**Do not allow IPMI/DCMI traffic from outside the network.**"*, *"The IPMI/DCMI port is set to 623 by default"*, and the owner's own characterisation of the RAKP disclosure: *"The IPMI specification requires support for RAKP authentication, which allows remote attackers to obtain password hashes and conduct offline password guessing attacks"*
+- **HPE *Compute Security Reference Guide*, PN 30-2905B658-019, Edition 19, July 2026** (docId `a00018320en_us`) — *"**The Dedicated management network is the preferred iLO network configuration**"*. And **HPE *iLO 7 IPMI User Guide*, PN 30-62D2E6BA-007, June 2026** (docId `sd00005336en_us`), cited for the negative that HPE has **not** removed IPMI-over-LAN
 - **Dell *iDRAC10 Security Configuration Guide*, 1.10.xx Series, Rev. A00, December 2024** — 909,763 bytes from `dl.dell.com`, `pdftotext` locally. Ch. 26 *Best Practices*: *"The iDRAC is intended to be on a separate management network. The iDRAC is not designed nor intended to be placed on, nor connected directly to the Internet."* *IPMI Security Best Practices*: *"**Do not allow IPMI traffic from outside the network**"* and *"Disable Cipher 0"*. *Default Configuration Values*: `iDRAC.IPMILan.Enable — 0 - Disabled`. Port table: `623` / UDP / `RMCP/RMCP+`, **not configurable**. Same bullets in **Dell *iDRAC9 Security Configuration Guide* v4.x, Rev. A01, April 2021**, 1,681,018 bytes
 - **NEC advisory NV21-002**, JVN#38752718, **2021-01-07**, Japanese only, at `jpn.nec.com/security-info/secinfo/nv21-002.html` — the vendor advisory for CVE-2020-5633, titled 「IPMI over LAN を使用した RMCP 接続における認証不備の脆弱性」, whose workaround ends 「**BMCをインターネットに接続しない**」 — *"do not connect the BMC to the Internet"*. The English mirror path returns **HTTP 404**. Supporting and weaker: NEC *Express5800 System Configuration Guide — Server Management* (28 September 2018) and the *EXPRESSSCOPE Engine 3 User's Guide* (`ee3_08`), the latter citable for a **negative** — its TCP/IP ports table does not list `623` at all
 - **Intel *Integrated BMC Web Console User Guide*, M70KLP family, Rev. 1.0, June 2021** (10,784,959 bytes) and **Intel *Server Management Guide* G37830-002 rev 3.1, October 2012** re-fetched at 4,187,453 bytes and **confirmed as Intel's current revision** — both citable for a **negative**: neither takes a network-placement position on IPMI. Their *"remote KVM access and control through LAN or Internet"* is a **capability** sentence about the web console on **TCP/443** and is refused as a refutation in §28.9
-- **DMTF class enumeration**, read 2026-08-14: [`dmtf.org/standards/asf`](https://www.dmtf.org/standards/asf) (87,523 bytes) lists the specification and the 2010 *Overview*; the published-documents index (529,506 bytes) carries a **second ASF specification, DSP0114 v1.3.0**. **No deployment or operational class exists for ASF and no RMCP-titled DMTF publication exists** — the class list §23.4 records is unchanged
+- **DMTF class enumeration**, read 2026-08-14: [`dmtf.org/standards/asf`](https://www.dmtf.org/standards/asf) (87,523 bytes) lists the specification and the 2010 *Overview*. The published-documents index (529,506 bytes) carries a **second ASF specification, DSP0114 v1.3.0**. **No deployment or operational class exists for ASF and no RMCP-titled DMTF publication exists** — the class list §23.4 records is unchanged
 
 Upstream projects
 - [Redis security](https://redis.io/docs/latest/operate/oss_and_stack/management/security/)
@@ -22964,7 +22964,7 @@ Upstream projects
 - [Consul security model](https://developer.hashicorp.com/consul/docs/secure/security-model/core) · [ACL configuration](https://developer.hashicorp.com/consul/docs/reference/agent/configuration-file/acl) · [ports reference](https://developer.hashicorp.com/consul/docs/reference/architecture/ports)
 - [Kafka security overview](https://kafka.apache.org/43/security/security-overview/)
 - [Hadoop secure mode](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/SecureMode.html) · [cluster setup](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/ClusterSetup.html)
-- net-snmp (§11), the SNMP reference implementation: [`snmpd(8)`](http://www.net-snmp.org/docs/man/snmpd.html) (*"By default, snmpd listens for incoming SNMP requests on UDP port 161 on all IPv4 interfaces"*) · [`snmpd.conf(5)`](http://www.net-snmp.org/docs/man/snmpd.conf.html) (no exposure statement anywhere) · [upstream FAQ](http://www.net-snmp.org/FAQ.html) (*"irrespective of where it originated"*; *"a completely empty access control configuration"*) · [`EXAMPLE.conf.def`](https://raw.githubusercontent.com/net-snmp/net-snmp/master/EXAMPLE.conf.def) (`agentAddress udp:127.0.0.1:161` active) · [wiki `TUT:Security`](http://www.net-snmp.org/wiki/index.php/TUT:Security) — retrieved and found to contain **no** security prose (§11.9). Debian's packaging read from the shipped bytes, `net-snmp_5.9.5.2+dfsg-2.1.debian.tar.xz` `debian/snmpd.conf`, via [`deb.debian.org`](https://deb.debian.org/debian/pool/main/n/net-snmp/), because `sources.debian.org` and `salsa.debian.org` both serve a proof-of-work challenge (§11.9)
+- net-snmp (§11), the SNMP reference implementation: [`snmpd(8)`](http://www.net-snmp.org/docs/man/snmpd.html) (*"By default, snmpd listens for incoming SNMP requests on UDP port 161 on all IPv4 interfaces"*) · [`snmpd.conf(5)`](http://www.net-snmp.org/docs/man/snmpd.conf.html) (no exposure statement anywhere) · [upstream FAQ](http://www.net-snmp.org/FAQ.html) (*"irrespective of where it originated"*. *"a completely empty access control configuration"*) · [`EXAMPLE.conf.def`](https://raw.githubusercontent.com/net-snmp/net-snmp/master/EXAMPLE.conf.def) (`agentAddress udp:127.0.0.1:161` active) · [wiki `TUT:Security`](http://www.net-snmp.org/wiki/index.php/TUT:Security) — retrieved and found to contain **no** security prose (§11.9). Debian's packaging read from the shipped bytes, `net-snmp_5.9.5.2+dfsg-2.1.debian.tar.xz` `debian/snmpd.conf`, via [`deb.debian.org`](https://deb.debian.org/debian/pool/main/n/net-snmp/), because `sources.debian.org` and `salsa.debian.org` both serve a proof-of-work challenge (§11.9)
 - [Prometheus security model](https://prometheus.io/docs/operating/security/)
 - [Jenkins security](https://www.jenkins.io/doc/book/security/) · [network services](https://www.jenkins.io/doc/book/security/services/)
 - [Oracle Net Listener security](https://docs.oracle.com/en/database/oracle/oracle-database/26/netag/managing-oracle-net-listener-security.html)
@@ -22982,8 +22982,8 @@ Upstream projects
 
 Shipped configuration bytes (§12) — read as bytes at a release, never as a rendered documentation page
 - Apache Cassandra `conf/cassandra.yaml`, from `apache-cassandra-5.0.2-bin.tar.gz` on [`archive.apache.org`](https://archive.apache.org/dist/cassandra/5.0.2/), extracted locally — *"For security reasons, you should not expose this port to the internet. Firewall it if needed."* above both `native_transport_port: 9042` and `rpc_address: localhost`. The [`cassandra-5.0.2`](https://raw.githubusercontent.com/apache/cassandra/cassandra-5.0.2/conf/cassandra.yaml) tag agrees byte-for-byte on both lines. **This is the measurement that moved 9042 out of §2.2's weak tier**
-- PostgreSQL [`src/backend/utils/misc/postgresql.conf.sample`](https://raw.githubusercontent.com/postgres/postgres/REL_17_STABLE/src/backend/utils/misc/postgresql.conf.sample) (*"The commented-out settings shown in this file represent the default values."*; `#listen_addresses = 'localhost'`) and [`guc_tables.c`](https://raw.githubusercontent.com/postgres/postgres/REL_17_STABLE/src/backend/utils/misc/guc_tables.c) (`&ListenAddresses, "localhost"`)
-- CouchDB [`rel/overlay/etc/default.ini`](https://raw.githubusercontent.com/apache/couchdb/3.4.2/rel/overlay/etc/default.ini) (`[chttpd]` → `bind_address = 127.0.0.1`, active; *"Upgrading CouchDB will overwrite this file."*) and [`local.ini`](https://raw.githubusercontent.com/apache/couchdb/3.4.2/rel/overlay/etc/local.ini). **Path hazard (§12.9):** `default.ini.tpl`, the name used in earlier releases, 404s at every current tag
+- PostgreSQL [`src/backend/utils/misc/postgresql.conf.sample`](https://raw.githubusercontent.com/postgres/postgres/REL_17_STABLE/src/backend/utils/misc/postgresql.conf.sample) (*"The commented-out settings shown in this file represent the default values."*. `#listen_addresses = 'localhost'`) and [`guc_tables.c`](https://raw.githubusercontent.com/postgres/postgres/REL_17_STABLE/src/backend/utils/misc/guc_tables.c) (`&ListenAddresses, "localhost"`)
+- CouchDB [`rel/overlay/etc/default.ini`](https://raw.githubusercontent.com/apache/couchdb/3.4.2/rel/overlay/etc/default.ini) (`[chttpd]` → `bind_address = 127.0.0.1`, active. *"Upgrading CouchDB will overwrite this file."*) and [`local.ini`](https://raw.githubusercontent.com/apache/couchdb/3.4.2/rel/overlay/etc/local.ini). **Path hazard (§12.9):** `default.ini.tpl`, the name used in earlier releases, 404s at every current tag
 - Redis [`redis.conf`](https://raw.githubusercontent.com/redis/redis/7.4/redis.conf) — `bind 127.0.0.1 -::1` active, *"So by default we uncomment the following bind directive"*, and a position: *"binding to all the interfaces is dangerous and will expose the instance to everybody on the internet"*
 - RabbitMQ [`rabbitmq.conf.example`](https://raw.githubusercontent.com/rabbitmq/rabbitmq-server/v3.13.7/deps/rabbit/docs/rabbitmq.conf.example) — *"This file is AN EXAMPLE. It is NOT MEANT TO BE USED IN PRODUCTION."*, every directive commented
 - ZooKeeper [`conf/zoo_sample.cfg`](https://raw.githubusercontent.com/apache/zookeeper/release-3.9.3/conf/zoo_sample.cfg) — no address or bind directive of any kind
@@ -22991,22 +22991,22 @@ Shipped configuration bytes (§12) — read as bytes at a release, never as a re
 - net-snmp [`EXAMPLE.conf.def`](https://raw.githubusercontent.com/net-snmp/net-snmp/master/EXAMPLE.conf.def) — *"An example configuration file"*, *"Some entries are deliberately commented out, and will need to be explicitly activated"*
 - Debian packaging from [`deb.debian.org`](https://deb.debian.org/debian/pool/main/)'s pool as tarballs, extracted locally, because `sources.debian.org` and `salsa.debian.org` serve a proof-of-work challenge (§11.9): `rpcbind_1.2.7-1.debian.tar.xz` → `debian/rpcbind.default` (*"Uncomment the following line to restrict rpcbind to localhost only"*, **commented**) and `debian/rpcbind.socket` (`ListenStream=0.0.0.0:111`, **active**) · `memcached_1.6.45-1.debian.tar.xz` → `debian/memcached.conf` (`-l 127.0.0.1` and `-l ::1`, **active**)
 
-Shipped configuration bytes (§13) — the footing-table re-derivation; every path resolved from the repository tree or tarball listing, never guessed
+Shipped configuration bytes (§13) — the footing-table re-derivation. Every path resolved from the repository tree or tarball listing, never guessed
 - Apache Cassandra `conf/cassandra.yaml` at [`cassandra-5.0.2`](https://raw.githubusercontent.com/apache/cassandra/cassandra-5.0.2/conf/cassandra.yaml), [`cassandra-5.0.6`](https://raw.githubusercontent.com/apache/cassandra/cassandra-5.0.6/conf/cassandra.yaml) and [`cassandra-5.0.9`](https://raw.githubusercontent.com/apache/cassandra/cassandra-5.0.9/conf/cassandra.yaml) — the prohibition appears **four times** in each, above `storage_port: 7000`, `ssl_storage_port: 7001`, `native_transport_port: 9042` and `rpc_address: localhost` (§13.5, [#75](https://github.com/winniel123/verge-asm/issues/75))
 - rsync [`rsyncd.conf.5.md`](https://raw.githubusercontent.com/RsyncProject/rsync/v3.5.0/rsyncd.conf.5.md) — *"Do not expose a cleartext daemon to an untrusted network: front it with a TLS proxy … or run it over ssh"*, and the SSL/TLS Daemon Setup section putting the public listener on **874** with `127.0.0.1:873` behind it · [`packaging/systemd/rsync.service`](https://raw.githubusercontent.com/RsyncProject/rsync/v3.5.0/packaging/systemd/rsync.service), [`rsync@.service`](https://raw.githubusercontent.com/RsyncProject/rsync/v3.5.0/packaging/systemd/rsync%40.service), [`rsync.socket`](https://raw.githubusercontent.com/RsyncProject/rsync/v3.5.0/packaging/systemd/rsync.socket) (`ListenStream=873`) · [`README.md`](https://raw.githubusercontent.com/RsyncProject/rsync/v3.5.0/README.md) (*"generally used for public file distribution, although authentication and access control are available"* — §13.3)
-- nfs-utils `nfs-utils-2.9.2.tar.xz` from [`kernel.org`](https://www.kernel.org/pub/linux/utils/nfs-utils/2.9.2/), extracted locally — `nfs.conf` (every setting commented, `# host=` included) · `utils/mount/nfs.man` (*"on a trusted physical network between trusted hosts, it is entirely adequate"*; *"NFS was developed to allow file sharing between systems residing on a local area network"*) · `utils/exportfs/exports.man` (*"exports the public FTP directory to every host in the world"* — a §12(b) label, §13.3)
+- nfs-utils `nfs-utils-2.9.2.tar.xz` from [`kernel.org`](https://www.kernel.org/pub/linux/utils/nfs-utils/2.9.2/), extracted locally — `nfs.conf` (every setting commented, `# host=` included) · `utils/mount/nfs.man` (*"on a trusted physical network between trusted hosts, it is entirely adequate"*. *"NFS was developed to allow file sharing between systems residing on a local area network"*) · `utils/exportfs/exports.man` (*"exports the public FTP directory to every host in the world"* — a §12(b) label, §13.3)
 - MongoDB [`rpm/mongod.conf`](https://raw.githubusercontent.com/mongodb/mongo/r8.3.8/rpm/mongod.conf) and [`debian/mongod.conf`](https://raw.githubusercontent.com/mongodb/mongo/r8.3.8/debian/mongod.conf) — `bindIp: 127.0.0.1` **active** in both, MongoDB Inc's own packaging
 - Elasticsearch [`distribution/src/config/elasticsearch.yml`](https://raw.githubusercontent.com/elastic/elasticsearch/v9.5.1/distribution/src/config/elasticsearch.yml) (*"By default Elasticsearch is only accessible on localhost"*, `#network.host` commented) **and** [`distribution/docker/src/docker/config/elasticsearch.yml`](https://raw.githubusercontent.com/elastic/elasticsearch/v9.5.1/distribution/docker/src/docker/config/elasticsearch.yml) (`network.host: 0.0.0.0`, **active**) — one owner, two operative defaults, opposite directions (§13.3)
 - MySQL [`packaging/deb-in/extra/mysqld.cnf`](https://raw.githubusercontent.com/mysql/mysql-server/mysql-9.7.2/packaging/deb-in/extra/mysqld.cnf), [`my.cnf.fallback`](https://raw.githubusercontent.com/mysql/mysql-server/mysql-9.7.2/packaging/deb-in/extra/my.cnf.fallback), [`mysql.cnf`](https://raw.githubusercontent.com/mysql/mysql-server/mysql-9.7.2/packaging/deb-in/extra/mysql.cnf), [`packaging/rpm-common/my.cnf.in`](https://raw.githubusercontent.com/mysql/mysql-server/mysql-9.7.2/packaging/rpm-common/my.cnf.in) — no `bind-address`, no security prose in any of the four
-- memcached [`scripts/memcached.sysconfig`](https://raw.githubusercontent.com/memcached/memcached/1.6.45/scripts/memcached.sysconfig) (`OPTIONS=""`, upstream's own RPM `Source1`) — upstream ships no `memcached.conf`; the only file of that name in the tree is `t/sasl/memcached.conf`, a test fixture
+- memcached [`scripts/memcached.sysconfig`](https://raw.githubusercontent.com/memcached/memcached/1.6.45/scripts/memcached.sysconfig) (`OPTIONS=""`, upstream's own RPM `Source1`) — upstream ships no `memcached.conf`. The only file of that name in the tree is `t/sasl/memcached.conf`, a test fixture
 - Docker [`contrib/init/systemd/docker.socket`](https://raw.githubusercontent.com/moby/moby/docker-v29.7.2/contrib/init/systemd/docker.socket) (`ListenStream=/run/docker.sock`) and [`docker.service`](https://raw.githubusercontent.com/moby/moby/docker-v29.7.2/contrib/init/systemd/docker.service) (`-H fd://`) — no TCP listener in the operative default
 - PostgreSQL [`pg_hba.conf.sample`](https://raw.githubusercontent.com/postgres/postgres/REL_18_STABLE/src/backend/libpq/pg_hba.conf.sample) — shipped `host` records are `127.0.0.1/32` and `::1/128` only, under *"If you want to allow non-local connections, you need to add more \"host\" records."* A second restricting default, never opened before §13 · [`postgresql.conf.sample`](https://raw.githubusercontent.com/postgres/postgres/REL_18_STABLE/src/backend/utils/misc/postgresql.conf.sample) at `REL_18_STABLE`, agreeing with §12's `REL_17_STABLE` reading
 - CouchDB [`rel/overlay/etc/default.ini`](https://raw.githubusercontent.com/apache/couchdb/3.5.0/rel/overlay/etc/default.ini) at `3.5.0` — `bind_address = 127.0.0.1` **active** under `[chttpd]`, `[httpd]` and `[prometheus]`
 - ZooKeeper [`conf/zoo_sample.cfg`](https://raw.githubusercontent.com/apache/zookeeper/release-3.9.5/conf/zoo_sample.cfg) at `release-3.9.5` · RabbitMQ [`rabbitmq.conf.example`](https://raw.githubusercontent.com/rabbitmq/rabbitmq-server/v4.3.4/deps/rabbit/docs/rabbitmq.conf.example) at `v4.3.4` — both confirm §12's readings at a later release
 - etcd [`etcd.conf.yml.sample`](https://raw.githubusercontent.com/etcd-io/etcd/v3.7.1/etcd.conf.yml.sample) (*"This is the configuration file for the etcd server."* — the tenth artefact and the first that does not declare itself, §13.6) and [`contrib/systemd/etcd.service`](https://raw.githubusercontent.com/etcd-io/etcd/v3.7.1/contrib/systemd/etcd.service) (runs `/usr/bin/etcd` with no `--config-file`)
 
-Shipped configuration and compiled bytes (§14) — the `7000`/`7001` ruling; every path resolved from the repository tree, every configuration file read end to end per [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md)
-- Apache Cassandra `conf/cassandra.yaml` at [`cassandra-5.0.2`](https://raw.githubusercontent.com/apache/cassandra/cassandra-5.0.2/conf/cassandra.yaml), [`cassandra-5.0.6`](https://raw.githubusercontent.com/apache/cassandra/cassandra-5.0.6/conf/cassandra.yaml), [`cassandra-5.0.9`](https://raw.githubusercontent.com/apache/cassandra/cassandra-5.0.9/conf/cassandra.yaml) — the prohibition above `storage_port: 7000` and above `ssl_storage_port: 7001`; `listen_address: localhost` **active** under *"You \_must\_ change this if you want multiple nodes to be able to communicate!"* and *"Setting listen_address to 0.0.0.0 is always wrong"*; `#internode_authenticator:` / `# class_name: org.apache.cassandra.auth.AllowAllInternodeAuthenticator` **commented**; `internode_encryption: none` and `legacy_ssl_storage_port_enabled: false` **active**. **The `7001` deprecation is the decisive line:** *"As of cassandra 4.0, this property is deprecated as a single port can be used for either/both secure and insecure connections."*
+Shipped configuration and compiled bytes (§14) — the `7000`/`7001` ruling. Every path resolved from the repository tree, every configuration file read end to end per [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md)
+- Apache Cassandra `conf/cassandra.yaml` at [`cassandra-5.0.2`](https://raw.githubusercontent.com/apache/cassandra/cassandra-5.0.2/conf/cassandra.yaml), [`cassandra-5.0.6`](https://raw.githubusercontent.com/apache/cassandra/cassandra-5.0.6/conf/cassandra.yaml), [`cassandra-5.0.9`](https://raw.githubusercontent.com/apache/cassandra/cassandra-5.0.9/conf/cassandra.yaml) — the prohibition above `storage_port: 7000` and above `ssl_storage_port: 7001`. `listen_address: localhost` **active** under *"You \_must\_ change this if you want multiple nodes to be able to communicate!"* and *"Setting listen_address to 0.0.0.0 is always wrong"*. `#internode_authenticator:` / `# class_name: org.apache.cassandra.auth.AllowAllInternodeAuthenticator` **commented**. `internode_encryption: none` and `legacy_ssl_storage_port_enabled: false` **active**. **The `7001` deprecation is the decisive line:** *"As of cassandra 4.0, this property is deprecated as a single port can be used for either/both secure and insecure connections."*
 - Apache Cassandra [`conf/cassandra_latest.yaml`](https://raw.githubusercontent.com/apache/cassandra/cassandra-5.0.9/conf/cassandra_latest.yaml) at `cassandra-5.0.9` — **the second operative default the file's own header announces**, retrieved because §13.10 measured that an owner can ship two that contradict each other. It agrees on every line §14 relies on (§14.6)
 - Apache Cassandra compiled defaults at `cassandra-5.0.9`: [`config/Config.java`](https://raw.githubusercontent.com/apache/cassandra/cassandra-5.0.9/src/java/org/apache/cassandra/config/Config.java) (`public int storage_port = 7000;`, `public int ssl_storage_port = 7001;`) · [`auth/AuthConfig.java`](https://raw.githubusercontent.com/apache/cassandra/cassandra-5.0.9/src/java/org/apache/cassandra/auth/AuthConfig.java) (`authInstantiate(conf.internode_authenticator, IInternodeAuthenticator.class, AllowAllInternodeAuthenticator.class)`) · [`config/DatabaseDescriptor.java`](https://raw.githubusercontent.com/apache/cassandra/cassandra-5.0.9/src/java/org/apache/cassandra/config/DatabaseDescriptor.java) (`internodeAuthenticator = new AllowAllInternodeAuthenticator()`)
 - [Cassandra security](https://cassandra.apache.org/doc/latest/cassandra/managing/operating/security.html) — *"Malicious users able to access internode communication and JMX ports can still: Craft internode messages to insert users into authentication schema · Craft internode messages to truncate or drop schema · Use tools such as sstableloader to overwrite system_auth tables · Attach to the cluster directly to capture write traffic"* — Claim 1's §10.1 Step 2 limb · [Cassandra 5.0 FAQ](https://cassandra.apache.org/doc/5.0/cassandra/overview/faq/index.html) — *"By default, Cassandra uses 7000 for cluster communication (7001 if SSL is enabled), 9042 for native protocol clients, and 7199 for JMX."*
@@ -23023,47 +23023,47 @@ Placement statements (§15) — the determinacy source rule and the walk. **Read
 - **Open Mobile Alliance, *Wireless Session Protocol* `OMA-WAP-TS-WSP-V1_0-20110315-A`** — [openmobilealliance.org](https://www.openmobilealliance.org/release/Browser_Protocol_Stack/V2_1-20110315-A/OMA-WAP-TS-WSP-V1_0-20110315-A.pdf). Cited for what it **is not**: an archived release of a suite no party currently ships, so under limb 4 it places nothing and `9200/tcp` stays uncontested (§15.3). **Not retrieved:** OMA's own WDP specification, which is the primary for the WDP/UDP bearer-port claim §15.3 rests its second ground on
 - **RFC 4146** — already in the standards list above, and **re-cited here as the carrying artefact for `79/tcp`'s determinacy limb**, with IANA's `Unauthorized use by some mail users` annotation demoted to corroboration (§15.5, amending §9.3.4's footing rather than its verdict)
 - Walked and found to carry **no competing placement statement** (§15.4): [Kubernetes ports and protocols](https://kubernetes.io/docs/reference/networking/ports-and-protocols/) for `10250` and `10255` · [RabbitMQ networking](https://www.rabbitmq.com/docs/networking) for `25672`, derived as `NODE_PORT + 20000` · [ZooKeeper Administrator's Guide](https://zookeeper.apache.org/doc/r3.9.3/zookeeperAdmin.html) for `2181` · [xhost(1), X.Org](https://www.x.org/releases/current/doc/man/man1/xhost.1.xhtml) for `6000`
-Shipped bytes (§16) — the footing table's seven uncovered rows; every path resolved from the repository tree at a named tag or release branch, and where a rendered page is quoted it is quoted from its **source file** in the project's own docs repository
-- **etcd [`THREAT_MODEL.md`](https://github.com/etcd-io/etcd/blob/v3.7.1/THREAT_MODEL.md) at `v3.7.1`** — **the document that decided this ticket, and it is not where §3.4's citation points.** *"etcd Server assumes it is deployed within a strictly isolated, private network segment. It **must not** be exposed to untrusted networks or the public internet."* · *"etcd clients communicate with etcd Servers over Port 2379."* · *"etcd Server members communicate with other cluster members over Port 2380 to run Raft consensus."* Present at [`v3.7.0`](https://github.com/etcd-io/etcd/blob/v3.7.0/THREAT_MODEL.md), **absent at `v3.6.14` and `v3.5.33`**; the Network Boundary paragraph is byte-identical at `v3.7.0`, `v3.7.1` and `main`. Created 2026-05-19 as *"Define THREAT_MODEL for etcd to decentivize agents reporting CVEs outside it"* — the purpose argument §16.3 states in full and refuses
-- etcd [`etcd.conf.yml.sample`](https://raw.githubusercontent.com/etcd-io/etcd/v3.7.1/etcd.conf.yml.sample) at `v3.7.1` — re-read (§13.6's artefact); `listen-peer-urls: http://localhost:2380` and `listen-client-urls: http://localhost:2379`, a restricting default that now **corroborates** a prohibition rather than standing alone
-- **Elasticsearch [`docs/reference/elasticsearch/configuration-reference/networking-settings.md`](https://github.com/elastic/elasticsearch/blob/v9.5.1/docs/reference/elasticsearch/configuration-reference/networking-settings.md) at `v9.5.1`** — *"Never expose an unprotected node to the public internet"* in a `warning` admonition, three lines below *"Each Elasticsearch node has two different network interfaces"* and *"By default Elasticsearch binds only to `localhost`"*; `network.host` *"Sets the address of this node for **both HTTP and transport traffic**"*; `transport.port` *"Defaults to `9300-9400`"*. **The owner's own page is what links the *node* sentence to `9300`**
-- Elasticsearch [`distribution/src/config/elasticsearch.yml`](https://github.com/elastic/elasticsearch/blob/v9.5.1/distribution/src/config/elasticsearch.yml) at `v9.5.1` — re-read (§13.1's artefact); **contains no prose about the transport interface or `9300` at all**, which is why this row needed the docs source
+Shipped bytes (§16) — the footing table's seven uncovered rows. Every path resolved from the repository tree at a named tag or release branch, and where a rendered page is quoted it is quoted from its **source file** in the project's own docs repository
+- **etcd [`THREAT_MODEL.md`](https://github.com/etcd-io/etcd/blob/v3.7.1/THREAT_MODEL.md) at `v3.7.1`** — **the document that decided this ticket, and it is not where §3.4's citation points.** *"etcd Server assumes it is deployed within a strictly isolated, private network segment. It **must not** be exposed to untrusted networks or the public internet."* · *"etcd clients communicate with etcd Servers over Port 2379."* · *"etcd Server members communicate with other cluster members over Port 2380 to run Raft consensus."* Present at [`v3.7.0`](https://github.com/etcd-io/etcd/blob/v3.7.0/THREAT_MODEL.md), **absent at `v3.6.14` and `v3.5.33`**. The Network Boundary paragraph is byte-identical at `v3.7.0`, `v3.7.1` and `main`. Created 2026-05-19 as *"Define THREAT_MODEL for etcd to decentivize agents reporting CVEs outside it"* — the purpose argument §16.3 states in full and refuses
+- etcd [`etcd.conf.yml.sample`](https://raw.githubusercontent.com/etcd-io/etcd/v3.7.1/etcd.conf.yml.sample) at `v3.7.1` — re-read (§13.6's artefact). `listen-peer-urls: http://localhost:2380` and `listen-client-urls: http://localhost:2379`, a restricting default that now **corroborates** a prohibition rather than standing alone
+- **Elasticsearch [`docs/reference/elasticsearch/configuration-reference/networking-settings.md`](https://github.com/elastic/elasticsearch/blob/v9.5.1/docs/reference/elasticsearch/configuration-reference/networking-settings.md) at `v9.5.1`** — *"Never expose an unprotected node to the public internet"* in a `warning` admonition, three lines below *"Each Elasticsearch node has two different network interfaces"* and *"By default Elasticsearch binds only to `localhost`"*. `network.host` *"Sets the address of this node for **both HTTP and transport traffic**"*. `transport.port` *"Defaults to `9300-9400`"*. **The owner's own page is what links the *node* sentence to `9300`**
+- Elasticsearch [`distribution/src/config/elasticsearch.yml`](https://github.com/elastic/elasticsearch/blob/v9.5.1/distribution/src/config/elasticsearch.yml) at `v9.5.1` — re-read (§13.1's artefact). **Contains no prose about the transport interface or `9300` at all**, which is why this row needed the docs source
 - **Kubernetes [`staging/src/k8s.io/kubelet/config/v1beta1/types.go`](https://github.com/kubernetes/kubernetes/blob/v1.34.1/staging/src/k8s.io/kubelet/config/v1beta1/types.go) at `v1.34.1`** — `readOnlyPort` *"Setting this field to 0 disables the read-only service. **Default: 0 (disabled)**"*. The restricting default that puts `10255` in the weak tier
 - Kubernetes [`pkg/kubelet/apis/config/v1beta1/defaults.go`](https://github.com/kubernetes/kubernetes/blob/v1.34.1/pkg/kubelet/apis/config/v1beta1/defaults.go) and [`cmd/kubelet/app/options/options.go`](https://github.com/kubernetes/kubernetes/blob/v1.34.1/cmd/kubelet/app/options/options.go) at `v1.34.1` — `obj.Address = "0.0.0.0"` (permissive, therefore silent under §10.4) · `obj.Authentication.Anonymous.Enabled = ptr.To(false)` · `obj.Authorization.Mode = …KubeletAuthorizationModeWebhook`, with each flag registered against the already-defaulted struct value. **Routed to [#83](https://github.com/winniel123/verge-asm/issues/83)** as a Claim 1 question
 - Kubernetes [`content/en/docs/reference/networking/ports-and-protocols.md`](https://github.com/kubernetes/website/blob/release-1.34/content/en/docs/reference/networking/ports-and-protocols.md) at `release-1.34` — `10250` `Kubelet API` `Used By: Self, Control plane`, in both the control-plane and worker-node tables. **`10255` does not appear.** §16.9 flags this as the thinnest cell in the tier, because it is a table cell rather than a sentence naming a network
-- Kubernetes [`content/en/docs/reference/command-line-tools-reference/kubelet.md`](https://github.com/kubernetes/website/blob/release-1.34/content/en/docs/reference/command-line-tools-reference/kubelet.md) at `release-1.34` — the **generated** page §3.4 cites, still carrying `--read-only-port int32  Default: 10255`, `--anonymous-auth  Default: true` and `--authorization-mode string  Default: "AlwaysAllow"`. Retrieved as the *contradicted* artefact, not as evidence; §10.4's one-way rule makes the permissive one silent without adjudication (§16.5)
+- Kubernetes [`content/en/docs/reference/command-line-tools-reference/kubelet.md`](https://github.com/kubernetes/website/blob/release-1.34/content/en/docs/reference/command-line-tools-reference/kubelet.md) at `release-1.34` — the **generated** page §3.4 cites, still carrying `--read-only-port int32  Default: 10255`, `--anonymous-auth  Default: true` and `--authorization-mode string  Default: "AlwaysAllow"`. Retrieved as the *contradicted* artefact, not as evidence. §10.4's one-way rule makes the permissive one silent without adjudication (§16.5)
 - **Erlang/OTP [`system/doc/reference_manual/distributed.md`](https://github.com/erlang/otp/blob/OTP-29.0.5/system/doc/reference_manual/distributed.md) at `OTP-29.0.5`** — *"When using insecure distributed nodes, make sure that the network is configured to keep potential attackers out."* What actually carries `4369`, in place of RabbitMQ's non-owner sentence (§10.5, §16.6)
 - Erlang/OTP [`erts/doc/references/epmd_cmd.md`](https://github.com/erlang/otp/blob/OTP-29.0.5/erts/doc/references/epmd_cmd.md) at `OTP-29.0.5`, section *Access Restrictions* — *"only the query commands are answered … if the query comes from a remote host"* · *"To restrict access further, firewall software must be used."* · `-address` / `ERL_EPMD_ADDRESS` are **opt-in**, so epmd's default is permissive and silent. **No cookie appears in epmd's remote exchange**, which is the §3.1 *"why"*-cell defect routed to [#84](https://github.com/winniel123/verge-asm/issues/84)
 The class audit (§17) — the document classes nobody had opened, retrieved as bytes and searched directly
-- **The IETF's operational class for SNMP**, opened for the first time by [#79](https://github.com/winniel123/verge-asm/issues/79) and citable chiefly for the absence of a placement sentence: [RFC 3512, *Configuring Networks and Devices with SNMP*](https://www.rfc-editor.org/rfc/rfc3512.txt) (Informational, April 2003) — §6.2–§6.4, the SNMP family's own deployment guide; the placement strings §11.1 counted occur **five** times and not one describes where an agent belongs · [RFC 3871, *Operational Security Requirements for Large ISP IP Network Infrastructure*](https://www.rfc-editor.org/rfc/rfc3871.txt) (Informational, September 2004) — §2.2, *"There are many situations where in-band management makes sense, is used, and/or is the only option"*, and §9's boilerplate *"deployment of SNMP versions prior to SNMPv3 is NOT RECOMMENDED"*, a **version** statement whose remedy is on 161 · [RFC 4778, *Operational Security Current Practices in Internet Service Provider Environments*](https://www.rfc-editor.org/rfc/rfc4778.txt) (Informational, January 2007) — §2.3, §2.4. **A survey, not a position**: *"In all large ISPs that were interviewed"*, *"SNMPv2 is primarily deployed since it is easier to set up than v3"*. The most placement-shaped title in the corpus and the clearest instance of frequency in a deployment document
+- **The IETF's operational class for SNMP**, opened for the first time by [#79](https://github.com/winniel123/verge-asm/issues/79) and citable chiefly for the absence of a placement sentence: [RFC 3512, *Configuring Networks and Devices with SNMP*](https://www.rfc-editor.org/rfc/rfc3512.txt) (Informational, April 2003) — §6.2–§6.4, the SNMP family's own deployment guide. The placement strings §11.1 counted occur **five** times and not one describes where an agent belongs · [RFC 3871, *Operational Security Requirements for Large ISP IP Network Infrastructure*](https://www.rfc-editor.org/rfc/rfc3871.txt) (Informational, September 2004) — §2.2, *"There are many situations where in-band management makes sense, is used, and/or is the only option"*, and §9's boilerplate *"deployment of SNMP versions prior to SNMPv3 is NOT RECOMMENDED"*, a **version** statement whose remedy is on 161 · [RFC 4778, *Operational Security Current Practices in Internet Service Provider Environments*](https://www.rfc-editor.org/rfc/rfc4778.txt) (Informational, January 2007) — §2.3, §2.4. **A survey, not a position**: *"In all large ISPs that were interviewed"*, *"SNMPv2 is primarily deployed since it is easier to set up than v3"*. The most placement-shaped title in the corpus and the clearest instance of frequency in a deployment document
 - **[RabbitMQ production checklist](https://www.rabbitmq.com/docs/production-checklist)**, *Firewall Configuration* — the deployment class, never opened. Divides RabbitMQ's ports into client-library ports and everything else, restricts the second category to *"hosts running RabbitMQ nodes or CLI tools"*, and says the first *"should be accessible to hosts that run applications, which in some cases can mean **public networks**, for example, behind a load balancer."* **Turns §4.6's `5672`/`15672` negative into a positive** (§17.4). Retrieval hazard: `www.rabbitmq.com` returns HTTP 403 to a plain client and 200 with a browser user-agent
-- **Apache Kafka**, read from `raw.githubusercontent.com` at `trunk` and at release tag `4.3.1` because `kafka.apache.org` serves a JavaScript shell (§17.10): [`docs/security/security-model.md`](https://raw.githubusercontent.com/apache/kafka/trunk/docs/security/security-model.md) — *"Security is off by default … This is appropriate only for closed test environments. Production deployments **must** explicitly configure authentication, authorization, and transport encryption before being exposed to any untrusted network."* **[measured] Present on `trunk`; HTTP 404 at tag `4.3.1`; HTTP 404 at `kafka.apache.org/documentation/security/security-model/`** · [`docs/security/security-overview.md`](https://raw.githubusercontent.com/apache/kafka/4.3.1/docs/security/security-overview.md) at tag `4.3.1`, 2,068 B — **the shipped document**, still carrying *"security is optional - non-secured clusters are supported"*, the sentence §4.6 quotes · `docs/security/listener-configuration.md` and `docs/operations/multi-tenancy.md` — read end to end per [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) limb 1; **[measured]** the string `internet` occurs **zero** times across all four files
+- **Apache Kafka**, read from `raw.githubusercontent.com` at `trunk` and at release tag `4.3.1` because `kafka.apache.org` serves a JavaScript shell (§17.10): [`docs/security/security-model.md`](https://raw.githubusercontent.com/apache/kafka/trunk/docs/security/security-model.md) — *"Security is off by default … This is appropriate only for closed test environments. Production deployments **must** explicitly configure authentication, authorization, and transport encryption before being exposed to any untrusted network."* **[measured] Present on `trunk`. HTTP 404 at tag `4.3.1`. HTTP 404 at `kafka.apache.org/documentation/security/security-model/`** · [`docs/security/security-overview.md`](https://raw.githubusercontent.com/apache/kafka/4.3.1/docs/security/security-overview.md) at tag `4.3.1`, 2,068 B — **the shipped document**, still carrying *"security is optional - non-secured clusters are supported"*, the sentence §4.6 quotes · `docs/security/listener-configuration.md` and `docs/operations/multi-tenancy.md` — read end to end per [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) limb 1. **[Measured]** the string `internet` occurs **zero** times across all four files
 - **[CouchDB documentation, *Security*](https://docs.couchdb.org/en/stable/intro/security.html)** §1.5.1.2 — the class never opened for `5984/tcp`, and the corpus's nearest miss: *"Will your CouchDB instance communicate over a public network? Even a LAN shared with other collocation customers is public."* The second sentence defines what the first means by *public*, and it is not the internet (§17.6)
 - **Kubernetes' security documentation**, the class §16.5 did not open for `10255/tcp`: [`kubernetes/website`, `content/en/docs/concepts/security/security-checklist.md`](https://raw.githubusercontent.com/kubernetes/website/release-1.34/content/en/docs/concepts/security/security-checklist.md) at `release-1.34` — *"The Kubernetes API, kubelet API and etcd are not exposed publicly on Internet"*, and *"The kubelet API access should be restricted and not exposed publicly"*. **The owner naming a boundary about its own component, and naming it by category rather than by port** (§17.6) · [`controlling-access.md`](https://raw.githubusercontent.com/kubernetes/website/release-1.34/content/en/docs/concepts/security/controlling-access.md) at the same tag — read end to end, and it contains no port and no placement statement
 - **Named as the boundary and not searched, because the row's other gate is untested**: Elastic's deployment guidance for Kibana and HashiCorp's for Consul. §17.8 and §8 question 11 — routed to [#87](https://github.com/winniel123/verge-asm/issues/87)
 
-Erlang/OTP's four classes (§20) — `4369/tcp`'s owner, enumerated before the search and all four opened. Every artefact read as bytes at `OTP-29.0.5`; **[measured]** OTP tags are `OTP-`prefixed, never semantic-version
-- **Erlang/OTP [`system/doc/design_principles/secure_coding.md`](https://github.com/erlang/otp/blob/OTP-29.0.5/system/doc/design_principles/secure_coding.md) at `OTP-29.0.5`** — the **deployment / security-guidance class, never opened**, and the document that settles the ticket. Rule **`DEP-001`**, *Do Not Expose Default Erlang Distribution on Untrusted Networks*, priority `Critical` (one of six of the document's thirty-one rules at that priority): *"This configuration should **only** be used in a trusted network."* … *"Note that the Erlang Port Mapper Daemon (EPMD) service will **respond to unauthenticated requests**, and can by this **leak information about what Erlang nodes exist and what ports they are listening on** (CWE-668, CWE-200). You are therefore advised to **disable the default EPMD**"*. **[measured]** the file **does not contain the string `4369`**, so no port-keyed search could reach it; **absent at `OTP-28.4` and earlier, first shipped at `OTP-28.5` (2026-04-23), present at `OTP-29.0.5`**, and published at [`www.erlang.org/doc/system/secure_coding.html`](https://www.erlang.org/doc/system/secure_coding.html) — **issued by both of [ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md)'s routes**, quoted at a tag rather than a branch, which is limb (b)'s distinction and limb (e)'s ordinary case (§20.3)
-- Erlang/OTP [`erts/doc/guides/erl_dist_protocol.md`](https://github.com/erlang/otp/blob/OTP-29.0.5/erts/doc/guides/erl_dist_protocol.md) at `OTP-29.0.5` — the **specification** class. *"By default the EPMD listens on port 4369."* · *"A node fetches the port number of another node through the EPMD (at the other host) to initiate a connection request."* — the sentence behind §20.6's rpcbind parallel, stated and refused · the *EPMD Protocol* chapter enumerates seven request types and **[measured]** contains **no occurrence of `cookie`**; every cookie reference in the document is in the **handshake** chapter
-- Erlang/OTP [`erts/epmd/src/epmd_srv.c`](https://github.com/erlang/otp/blob/OTP-29.0.5/erts/epmd/src/epmd_srv.c) at `OTP-29.0.5` — the **shipped bytes**, read because the prose could be taken either way. **[measured]** `EPMD_ALIVE2_REQ`, `EPMD_DUMP_REQ`, `EPMD_KILL_REQ` and `EPMD_STOP_REQ` each return early on `if (!s->local_peer)`; `EPMD_PORT2_REQ` and `EPMD_NAMES_REQ` do not. `conn_local_peer_check` admits only `127.x.x.x` and the host's own address and treats a `getpeername` failure as **non**-local. **This is what refutes §10.1's Step 2 cell** (§20.6)
+Erlang/OTP's four classes (§20) — `4369/tcp`'s owner, enumerated before the search and all four opened. Every artefact read as bytes at `OTP-29.0.5`. **[Measured]** OTP tags are `OTP-`prefixed, never semantic-version
+- **Erlang/OTP [`system/doc/design_principles/secure_coding.md`](https://github.com/erlang/otp/blob/OTP-29.0.5/system/doc/design_principles/secure_coding.md) at `OTP-29.0.5`** — the **deployment / security-guidance class, never opened**, and the document that settles the ticket. Rule **`DEP-001`**, *Do Not Expose Default Erlang Distribution on Untrusted Networks*, priority `Critical` (one of six of the document's thirty-one rules at that priority): *"This configuration should **only** be used in a trusted network."* … *"Note that the Erlang Port Mapper Daemon (EPMD) service will **respond to unauthenticated requests**, and can by this **leak information about what Erlang nodes exist and what ports they are listening on** (CWE-668, CWE-200). You are therefore advised to **disable the default EPMD**"*. **[measured]** the file **does not contain the string `4369`**, so no port-keyed search could reach it. **Absent at `OTP-28.4` and earlier, first shipped at `OTP-28.5` (2026-04-23), present at `OTP-29.0.5`**, and published at [`www.erlang.org/doc/system/secure_coding.html`](https://www.erlang.org/doc/system/secure_coding.html) — **issued by both of [ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md)'s routes**, quoted at a tag rather than a branch, which is limb (b)'s distinction and limb (e)'s ordinary case (§20.3)
+- Erlang/OTP [`erts/doc/guides/erl_dist_protocol.md`](https://github.com/erlang/otp/blob/OTP-29.0.5/erts/doc/guides/erl_dist_protocol.md) at `OTP-29.0.5` — the **specification** class. *"By default the EPMD listens on port 4369."* · *"A node fetches the port number of another node through the EPMD (at the other host) to initiate a connection request."* — the sentence behind §20.6's rpcbind parallel, stated and refused · the *EPMD Protocol* chapter enumerates seven request types and **[measured]** contains **no occurrence of `cookie`**. Every cookie reference in the document is in the **handshake** chapter
+- Erlang/OTP [`erts/epmd/src/epmd_srv.c`](https://github.com/erlang/otp/blob/OTP-29.0.5/erts/epmd/src/epmd_srv.c) at `OTP-29.0.5` — the **shipped bytes**, read because the prose could be taken either way. **[measured]** `EPMD_ALIVE2_REQ`, `EPMD_DUMP_REQ`, `EPMD_KILL_REQ` and `EPMD_STOP_REQ` each return early on `if (!s->local_peer)`. `EPMD_PORT2_REQ` and `EPMD_NAMES_REQ` do not. `conn_local_peer_check` admits only `127.x.x.x` and the host's own address and treats a `getpeername` failure as **non**-local. **This is what refutes §10.1's Step 2 cell** (§20.6)
 - Erlang/OTP [`erts/doc/guides/alt_disco.md`](https://github.com/erlang/otp/blob/OTP-29.0.5/erts/doc/guides/alt_disco.md) and [`erts/doc/references/erl_cmd.md`](https://github.com/erlang/otp/blob/OTP-29.0.5/erts/doc/references/erl_cmd.md) at `OTP-29.0.5` — *"the EPMD unix process does this by connecting to the other node on a well-known port, port 4369"* · *"`-start_epmd true | false` … By default this is `true`"*, the switch that makes `DEP-001`'s remedy **reach the port** under §10.4.3. `system/doc/vulnerabilities/vulnerabilities.md` was opened and carries nothing — it is an OpenVEX publication policy
 - **CouchDB [`src/docs/src/setup/cluster.rst`](https://github.com/apache/couchdb/blob/3.5.0/src/docs/src/setup/cluster.rst) at `3.5.0`** — read as the repository's reStructuredText rather than the rendered page. Its ports table gives `4369` a **recommended binding** — *"`localhost` for single node installs. Private interface if clustered"* — which is a placement statement in a **non-owner's** voice, so it corroborates under §2.3 alongside RabbitMQ's. It also fixes what §3.4's CouchDB quote is about: the **distribution port** is the `9100-9200` range the same page recommends, a **separate row** from `4369`, which is what makes §3.1's old *"why"* cell a transposition (§20.5, §20.7)
 
 The issuance question (§21) — the released artefact, and the absences that decide `9092/tcp`
-- **[`kafka_2.13-4.3.1-site-docs.tgz`](https://archive.apache.org/dist/kafka/4.3.1/kafka_2.13-4.3.1-site-docs.tgz)** — the ASF's own **released documentation artefact** for Kafka 4.3.1, 3,743,173 B, **SHA-512 verified against [the published sum](https://archive.apache.org/dist/kafka/4.3.1/kafka_2.13-4.3.1-site-docs.tgz.sha512)** and listed locally. 208 entries; `site-docs/security/` holds **seven** files and **`security-model.md` is not among them**. This is the instrument §21 limb (a) reads, and it is §12.9's Cassandra method applied to documentation rather than configuration
-- **`apache/kafka` `docs/security/` enumerated at both refs** — **ten** files at `trunk`, **seven** at release tag `4.3.1`; the three `security-model*` documents exist only on `trunk` and on branch **`4.4`**. **[measured]** all seven released files were retrieved as raw bytes and searched: `internet` occurs **zero** times. `docs/security/security-model.md` is **present at branch `4.4`, byte-identical to `trunk` at 15,499 B**, and **HTTP 404 at branches `4.3`, `4.2` and `4.1`**; the latest tag is `4.3.1` and **no `4.4.x` tag exists**. Its history is two commits — `a5c31c4ac6fa` (2026-06-12) *"MINOR: A starting point for a formal security model"* and `23927a2037f2` (2026-07-16)
+- **[`kafka_2.13-4.3.1-site-docs.tgz`](https://archive.apache.org/dist/kafka/4.3.1/kafka_2.13-4.3.1-site-docs.tgz)** — the ASF's own **released documentation artefact** for Kafka 4.3.1, 3,743,173 B, **SHA-512 verified against [the published sum](https://archive.apache.org/dist/kafka/4.3.1/kafka_2.13-4.3.1-site-docs.tgz.sha512)** and listed locally. 208 entries. `site-docs/security/` holds **seven** files and **`security-model.md` is not among them**. This is the instrument §21 limb (a) reads, and it is §12.9's Cassandra method applied to documentation rather than configuration
+- **`apache/kafka` `docs/security/` enumerated at both refs** — **ten** files at `trunk`, **seven** at release tag `4.3.1`. The three `security-model*` documents exist only on `trunk` and on branch **`4.4`**. **[measured]** all seven released files were retrieved as raw bytes and searched: `internet` occurs **zero** times. `docs/security/security-model.md` is **present at branch `4.4`, byte-identical to `trunk` at 15,499 B**, and **HTTP 404 at branches `4.3`, `4.2` and `4.1`**. The latest tag is `4.3.1` and **no `4.4.x` tag exists**. Its history is two commits — `a5c31c4ac6fa` (2026-06-12) *"MINOR: A starting point for a formal security model"* and `23927a2037f2` (2026-07-16)
 - **The published site, with body sizes so a shell cannot pass for a page** — `kafka.apache.org/documentation/security/security-model/`, `/43/security/security-model/` and `/44/security/security-model/` each **HTTP 404 in 196 B**, against `/43/security/security-overview/` at **HTTP 200 in 59,446 B** of real prose and `/documentation/` at **HTTP 200 in 19,879 B** of JavaScript shell (§17.10's figure, reproduced). Retrieved 2026-08-14
 
-The Class A claim-cell audit (§25) — §10.1's two-step test walked cell by cell. Every Step 2 verdict read from **shipped source at a named tag**, fetched raw rather than through a rendered page per §19.7; one tag per project, each the project's current stable line
-- **[`etcd-io/etcd` `THREAT_MODEL.md`](https://github.com/etcd-io/etcd/blob/v3.7.1/THREAT_MODEL.md) at `v3.7.1`** — 39 lines, five boundary sections, read end to end per [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md). **[measured]** *The Client-to-Server Boundary* is three sentences and §16.3 quoted the first; the third — *"Any client request must prove its identity at the transport layer using client certificates"* — is what re-founds §10.1's Step 1 cell for `2379`, and *"strictly limited to authorized cluster members"* does the same for `2380` (§25.1)
-- **etcd's dispatch, `etcd-io/etcd` `v3.7.1`** — [`server/etcdserver/apply/auth.go`](https://github.com/etcd-io/etcd/blob/v3.7.1/server/etcdserver/apply/auth.go), [`server/auth/store.go`](https://github.com/etcd-io/etcd/blob/v3.7.1/server/auth/store.go) and [`server/storage/schema/auth.go`](https://github.com/etcd-io/etcd/blob/v3.7.1/server/storage/schema/auth.go). **[measured]** `Put` → `checkPutAuth` → `IsPutPermitted` → `isOpPermitted`, whose first statement is `if !as.IsAuthEnabled() { return nil }`; `as.enabled` is seeded by `unsafeReadAuthEnabled`, which returns `false` whenever the `authEnabled` key is absent · [`server/etcdserver/api/etcdhttp/peer.go`](https://github.com/etcd-io/etcd/blob/v3.7.1/server/etcdserver/api/etcdhttp/peer.go) mounts `/raft`, `/members` and `/members/promote/` on the **peer** listener with no authentication filter, and `peerMembersHandler` returns the member list while setting `X-Etcd-Cluster-ID` · [`server/etcdserver/api/rafthttp/http.go`](https://github.com/etcd-io/etcd/blob/v3.7.1/server/etcdserver/api/rafthttp/http.go) and [`server/etcdserver/server.go`](https://github.com/etcd-io/etcd/blob/v3.7.1/server/etcdserver/server.go) — the only gates before `raft.Step` are a cluster-ID match and `m.To`/`m.From` member IDs, all of which the same listener discloses (§25.3) · [`server/embed/config.go`](https://github.com/etcd-io/etcd/blob/v3.7.1/server/embed/config.go) — `client-cert-auth` and `peer-client-cert-auth` default `false`, every cert path defaults `""`, listen URLs default to `http://localhost:2379` and `:2380`
+The Class A claim-cell audit (§25) — §10.1's two-step test walked cell by cell. Every Step 2 verdict read from **shipped source at a named tag**, fetched raw rather than through a rendered page per §19.7. One tag per project, each the project's current stable line
+- **[`etcd-io/etcd` `THREAT_MODEL.md`](https://github.com/etcd-io/etcd/blob/v3.7.1/THREAT_MODEL.md) at `v3.7.1`** — 39 lines, five boundary sections, read end to end per [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md). **[measured]** *The Client-to-Server Boundary* is three sentences and §16.3 quoted the first. The third — *"Any client request must prove its identity at the transport layer using client certificates"* — is what re-founds §10.1's Step 1 cell for `2379`, and *"strictly limited to authorized cluster members"* does the same for `2380` (§25.1)
+- **etcd's dispatch, `etcd-io/etcd` `v3.7.1`** — [`server/etcdserver/apply/auth.go`](https://github.com/etcd-io/etcd/blob/v3.7.1/server/etcdserver/apply/auth.go), [`server/auth/store.go`](https://github.com/etcd-io/etcd/blob/v3.7.1/server/auth/store.go) and [`server/storage/schema/auth.go`](https://github.com/etcd-io/etcd/blob/v3.7.1/server/storage/schema/auth.go). **[measured]** `Put` → `checkPutAuth` → `IsPutPermitted` → `isOpPermitted`, whose first statement is `if !as.IsAuthEnabled() { return nil }`. `as.enabled` is seeded by `unsafeReadAuthEnabled`, which returns `false` whenever the `authEnabled` key is absent · [`server/etcdserver/api/etcdhttp/peer.go`](https://github.com/etcd-io/etcd/blob/v3.7.1/server/etcdserver/api/etcdhttp/peer.go) mounts `/raft`, `/members` and `/members/promote/` on the **peer** listener with no authentication filter, and `peerMembersHandler` returns the member list while setting `X-Etcd-Cluster-ID` · [`server/etcdserver/api/rafthttp/http.go`](https://github.com/etcd-io/etcd/blob/v3.7.1/server/etcdserver/api/rafthttp/http.go) and [`server/etcdserver/server.go`](https://github.com/etcd-io/etcd/blob/v3.7.1/server/etcdserver/server.go) — the only gates before `raft.Step` are a cluster-ID match and `m.To`/`m.From` member IDs, all of which the same listener discloses (§25.3) · [`server/embed/config.go`](https://github.com/etcd-io/etcd/blob/v3.7.1/server/embed/config.go) — `client-cert-auth` and `peer-client-cert-auth` default `false`, every cert path defaults `""`, listen URLs default to `http://localhost:2379` and `:2380`
 - **[`redis/redis` `src/networking.c`](https://github.com/redis/redis/blob/8.10.0/src/networking.c) at `8.10.0`, `clientAcceptHandler()`** — **the pass's most consequential measurement.** A non-local peer is written `-DENIED` and destroyed at accept whenever `server.protected_mode && DefaultUser->flags & USER_FLAG_NOPASS`. **[measured]** the condition **does not consult `server.bindaddr_count`**: that clause is present at [`6.2.19`](https://github.com/redis/redis/blob/6.2.19/src/networking.c) and absent from [`7.0.0`](https://github.com/redis/redis/blob/7.0.0/src/networking.c) onward, so a public `bind` does not lift protected mode on any supported release, and the comment above the check is stale. Supporting: [`redis.conf`](https://github.com/redis/redis/blob/8.10.0/redis.conf) at `8.10.0` — `bind 127.0.0.1 -::1` (88), `protected-mode yes` (112), `# requirepass foobared` (1136) · [`src/acl.c`](https://github.com/redis/redis/blob/8.10.0/src/acl.c) `ACLCreateDefaultUser` — `+@all ~* &* on nopass` · [`src/server.c`](https://github.com/redis/redis/blob/8.10.0/src/server.c) `warnAboutInsecureConfig` — for this exact configuration the binary logs *"Redis will accept connections from any **local** client"* (§25.4)
 - **Retrieval hazard, recorded per §9.5 and §19.7 — [redis.io *Protected mode*](https://redis.io/docs/latest/operate/oss_and_stack/management/security/)** still describes protected mode engaging *"when it is executed with the default configuration (binding all the interfaces) and without any password"*, i.e. the `bindaddr_count == 0` reading removed from the code at `7.0.0`. **The shipped `redis.conf` comment has been updated to match the code and the website has not.** A session reading the owner's own current page would have concluded the opposite of the truth (§25.10)
-- **[`moby/moby` `daemon/command/daemon.go`](https://github.com/moby/moby/blob/docker-v29.7.2/daemon/command/daemon.go) at `docker-v29.7.2`** — `initMiddlewares` assembles the entire chain (experimental, version, authorization-plugin) and **no authentication middleware exists in the tree**; [`pkg/authorization/middleware.go`](https://github.com/moby/moby/blob/docker-v29.7.2/pkg/authorization/middleware.go) returns the handler unwrapped when the plugin list is empty and derives identity only from `r.TLS.PeerCertificates`. **[measured]** `loadListeners()` does **not** fail on TCP-without-TLS: it logs *"[DEPRECATION NOTICE] In future versions this will be a hard failure preventing the daemon from starting!"* and starts, `DefaultTLSValue` being `false` — so §3.4's docs.docker.com quote describes a change that has not shipped (§25.7)
+- **[`moby/moby` `daemon/command/daemon.go`](https://github.com/moby/moby/blob/docker-v29.7.2/daemon/command/daemon.go) at `docker-v29.7.2`** — `initMiddlewares` assembles the entire chain (experimental, version, authorization-plugin) and **no authentication middleware exists in the tree**. [`pkg/authorization/middleware.go`](https://github.com/moby/moby/blob/docker-v29.7.2/pkg/authorization/middleware.go) returns the handler unwrapped when the plugin list is empty and derives identity only from `r.TLS.PeerCertificates`. **[measured]** `loadListeners()` does **not** fail on TCP-without-TLS: it logs *"[DEPRECATION NOTICE] In future versions this will be a hard failure preventing the daemon from starting!"* and starts, `DefaultTLSValue` being `false` — so §3.4's docs.docker.com quote describes a change that has not shipped (§25.7)
 - **[`kubernetes/kubernetes` `pkg/kubelet/server/server.go`](https://github.com/kubernetes/kubernetes/blob/v1.36.3/pkg/kubelet/server/server.go) at `v1.36.3`** — `ListenAndServeKubeletReadOnlyServer` passes `nil` for `auth`, and `NewServer` guards `if auth != nil { server.InstallAuthFilter(ctx) }`, so **the read-only server has no authentication filter**. `GET /pods` → `getPods` → `encodePods`, whose comment reads *"returns a list of pods bound to the Kubelet and their spec"* and which serialises a full `v1.PodList`. **[measured]** at this tag `/spec` no longer exists and `/runningpods/` returns 405 from `InstallDebuggingDisabledHandlers` (§25.2)
-- **[`memcached/memcached`](https://github.com/memcached/memcached/blob/1.6.45/memcached.c) at `1.6.45`** — `settings_init()` sets `sasl = false`, `auth_file = NULL`, `inter = NULL` (wildcard via `AI_PASSIVE`) and `udpport = 0`, the last guarded by a compiled-in `verify_default("udp-port", settings.udpport == 0)`; **[measured]** `udpport` is `11211` at [`1.5.5`](https://github.com/memcached/memcached/blob/1.5.5/memcached.c) and `0` at [`1.5.6`](https://github.com/memcached/memcached/blob/1.5.6/memcached.c), confirming the release that flipped it. **The UDP read limb is refused from the bytes**: `try_read_udp()` strips the 8-byte frame header and drops only multi-packet requests, `try_read_command_udp()` dispatches to the ordinary parsers, and [`proto_text.c`](https://github.com/memcached/memcached/blob/1.6.45/proto_text.c) contains **zero** occurrences of `IS_UDP` — so `set` and `delete` are processed identically over UDP (§25.2, §25.7)
-- **[`apache/zookeeper`](https://github.com/apache/zookeeper/tree/release-3.9.5) at `release-3.9.5`** — `server/DataTree.java` creates the root with ACL id `-1L`; `server/ReferenceCountedACLCache.java` maps `OPEN_UNSAFE_ACL_ID = -1L` to `Ids.OPEN_ACL_UNSAFE`; `ZooDefs.java` defines that as `ACL(Perms.ALL, Id("world","anyone"))`; `server/ZooKeeperServer.java` `checkACL` carries a dedicated early `return` for scheme `world` / id `anyone`, reached without consulting the caller's credentials, and `zookeeper.skipACL` defaults `"no"`; `server/AuthenticationHelper.java` defaults `zookeeper.enforce.auth.enabled` to `"false"`; `conf/zoo_sample.cfg` carries `clientPort=2181` and **no** `clientPortAddress`, so `QuorumPeerConfig` takes the wildcard branch. **This is what refutes the reading that "world-writable znodes" describes the ACL model in the abstract** (§25.2)
-- **[`apache/cassandra`](https://github.com/apache/cassandra/blob/cassandra-5.0.9/conf/cassandra.yaml) at `cassandra-5.0.9`** — `conf/cassandra.yaml` ships the flat scalars `authenticator: AllowAllAuthenticator` and `authorizer: AllowAllAuthorizer`, the nested `class_name:` form appearing only in a commented `MutualTlsAuthenticator` example; `auth/AllowAllAuthenticator.java` returns `false` from `requireAuthentication()` and `AuthenticatedUser.ANONYMOUS_USER` from its negotiator; `transport/messages/StartupMessage.java` returns `ReadyMessage` on that branch; `service/ClientState.java` seats the anonymous user in its constructor and returns `true` from `isSuper()`; `cql3/statements/ModificationStatement.authorize` → `ClientState.ensurePermission` returns at its first line. `rpc_address: localhost` and `native_transport_port: 9042` (§25.2)
+- **[`memcached/memcached`](https://github.com/memcached/memcached/blob/1.6.45/memcached.c) at `1.6.45`** — `settings_init()` sets `sasl = false`, `auth_file = NULL`, `inter = NULL` (wildcard via `AI_PASSIVE`) and `udpport = 0`, the last guarded by a compiled-in `verify_default("udp-port", settings.udpport == 0)`. **[Measured]** `udpport` is `11211` at [`1.5.5`](https://github.com/memcached/memcached/blob/1.5.5/memcached.c) and `0` at [`1.5.6`](https://github.com/memcached/memcached/blob/1.5.6/memcached.c), confirming the release that flipped it. **The UDP read limb is refused from the bytes**: `try_read_udp()` strips the 8-byte frame header and drops only multi-packet requests, `try_read_command_udp()` dispatches to the ordinary parsers, and [`proto_text.c`](https://github.com/memcached/memcached/blob/1.6.45/proto_text.c) contains **zero** occurrences of `IS_UDP` — so `set` and `delete` are processed identically over UDP (§25.2, §25.7)
+- **[`apache/zookeeper`](https://github.com/apache/zookeeper/tree/release-3.9.5) at `release-3.9.5`** — `server/DataTree.java` creates the root with ACL id `-1L`. `server/ReferenceCountedACLCache.java` maps `OPEN_UNSAFE_ACL_ID = -1L` to `Ids.OPEN_ACL_UNSAFE`. `ZooDefs.java` defines that as `ACL(Perms.ALL, Id("world","anyone"))`. `server/ZooKeeperServer.java` `checkACL` carries a dedicated early `return` for scheme `world` / id `anyone`, reached without consulting the caller's credentials, and `zookeeper.skipACL` defaults `"no"`. `server/AuthenticationHelper.java` defaults `zookeeper.enforce.auth.enabled` to `"false"`. `conf/zoo_sample.cfg` carries `clientPort=2181` and **no** `clientPortAddress`, so `QuorumPeerConfig` takes the wildcard branch. **This is what refutes the reading that "world-writable znodes" describes the ACL model in the abstract** (§25.2)
+- **[`apache/cassandra`](https://github.com/apache/cassandra/blob/cassandra-5.0.9/conf/cassandra.yaml) at `cassandra-5.0.9`** — `conf/cassandra.yaml` ships the flat scalars `authenticator: AllowAllAuthenticator` and `authorizer: AllowAllAuthorizer`, the nested `class_name:` form appearing only in a commented `MutualTlsAuthenticator` example. `auth/AllowAllAuthenticator.java` returns `false` from `requireAuthentication()` and `AuthenticatedUser.ANONYMOUS_USER` from its negotiator. `transport/messages/StartupMessage.java` returns `ReadyMessage` on that branch. `service/ClientState.java` seats the anonymous user in its constructor and returns `true` from `isSuper()`. `cql3/statements/ModificationStatement.authorize` → `ClientState.ensurePermission` returns at its first line. `rpc_address: localhost` and `native_transport_port: 9042` (§25.2)
 - **[RFC 1350](https://www.rfc-editor.org/rfc/rfc1350.txt) §1 and Security Considerations**, already in this list for §3.4 and re-read here as `69/udp`'s **Step 2** footing: *"The only thing it can do is read and write files (or mail) from/to a remote server … currently has no provisions for user authentication."* RRQ and WRQ are opcodes 1 and 2 of five, and the specification delegates the entire permission decision to the implementation (ERROR code 2, *Access violation*), so there is no protocol-level gate to read. Secondary and carrying nothing under §10.5: [`in.tftpd(8)`](https://manpages.debian.org/bookworm/tftpd-hpa/in.tftpd.8.en.html) — *"Files may be written only if they already exist and are publicly writable, unless the `--create` option is specified"*, so `-c` gates **creation** rather than **writing** (§25.7)
 
 No shipped configuration artefact exists (§13.1) — nothing to read, so §13 adds no evidence about these rows in either direction
@@ -23075,24 +23075,24 @@ Checked and found to contain **no** position, which is itself the finding
 - [Apache Kafka security overview](https://kafka.apache.org/43/security/security-overview/) — "security is optional - non-secured clusters are supported"
 - PostgreSQL `ssl-tcp.html` and `client-authentication.html` — no statement on network placement (§4.5)
 - **[etcd.io `v3.6/op-guide/security`](https://github.com/etcd-io/website/blob/main/content/en/docs/v3.6/op-guide/security.md)**, `etcd-io/website` `main` — the page §3.4 cites for etcd. A sweep for `internet`, `untrusted`, `expose`, `firewall`, `trusted network` and `public` returns the **consequence** sentence *"can expose its data to any clients"*, TLS certificate mechanics, and **no position**. §13.7's hypothesis was correct about this page and wrong about the project (§15.3)
-- Kubernetes [`content/en/docs/reference/access-authn-authz/kubelet-authn-authz.md`](https://github.com/kubernetes/website/blob/main/content/en/docs/reference/access-authn-authz/kubelet-authn-authz.md) — nothing about network placement for either kubelet port; the `10255` search across `kubernetes/website` returns eight files and no position (§15.10)
+- Kubernetes [`content/en/docs/reference/access-authn-authz/kubelet-authn-authz.md`](https://github.com/kubernetes/website/blob/main/content/en/docs/reference/access-authn-authz/kubelet-authn-authz.md) — nothing about network placement for either kubelet port. The `10255` search across `kubernetes/website` returns eight files and no position (§15.10)
 
 Retrieved for §24 ([#91](https://github.com/winniel123/verge-asm/issues/91)) — `10259`, `10257`, `10256`
 - **`kubernetes/website` at `release-1.34`.** [`content/en/docs/reference/networking/ports-and-protocols.md`](https://raw.githubusercontent.com/kubernetes/website/release-1.34/content/en/docs/reference/networking/ports-and-protocols.md) — read **whole**, and **[measured]** byte-identical to the same path on `main`: SHA-256 `823846f138b28865e4c3db5caecb459d30b2d69633268d89452bc5ac8267fb38` for both. Carries `10259 kube-scheduler Used By: Self`, `10257 kube-controller-manager Used By: Self`, `10256 kube-proxy Used By: Self, Load balancers`, and **two** NodePort rows (TCP and UDP), both `Used By: All` · [`content/en/docs/concepts/security/security-checklist.md`](https://raw.githubusercontent.com/kubernetes/website/release-1.34/content/en/docs/concepts/security/security-checklist.md) — read **whole** and citable chiefly for what it does **not** contain: the strings `scheduler`, `controller-manager`, `controller manager`, `kube-proxy`, `proxy`, `10259`, `10257`, `10256`, `10250`, `metrics` and `healthz` occur **zero** times, so §18's category statement does not reach any of the three (ADR-0050 limb 2) · [`content/en/docs/reference/networking/virtual-ips.md`](https://raw.githubusercontent.com/kubernetes/website/release-1.34/content/en/docs/reference/networking/virtual-ips.md) — *"load balancer health checks are configured to target the service proxy's readiness port and path"*, *"In the case of kube-proxy this evaluates to: `${NODE_IP}:10256/healthz`"*. **The artefact that defeats `10256`'s Claim 3 boundary limb** · [`content/en/docs/concepts/cluster-administration/system-metrics.md`](https://raw.githubusercontent.com/kubernetes/website/release-1.34/content/en/docs/concepts/cluster-administration/system-metrics.md) — names both components, gives **no port**, and states *"reading metrics requires authorization via a user, group or ServiceAccount with a ClusterRole that allows accessing `/metrics`"* · [`content/en/docs/tasks/administer-cluster/securing-a-cluster.md`](https://raw.githubusercontent.com/kubernetes/website/release-1.34/content/en/docs/tasks/administer-cluster/securing-a-cluster.md) — **[measured]** names neither component and no port number at all
-- **`kubernetes/kubernetes` at `v1.34.0`, the shipped bytes.** [`pkg/cluster/ports/ports.go`](https://raw.githubusercontent.com/kubernetes/kubernetes/v1.34.0/pkg/cluster/ports/ports.go) — read **whole**; `ProxyHealthzPort = 10256`, `KubeControllerManagerPort = 10257`, and the by-catch at §24.11 (`ProxyStatusPort = 10249`, `KubeletHealthzPort = 10248`, `CloudControllerManagerPort = 10258`) · [`pkg/scheduler/apis/config/types.go`](https://raw.githubusercontent.com/kubernetes/kubernetes/v1.34.0/pkg/scheduler/apis/config/types.go) — `DefaultKubeSchedulerPort = 10259` · [`staging/src/k8s.io/apiserver/pkg/server/options/authorization.go`](https://raw.githubusercontent.com/kubernetes/kubernetes/v1.34.0/staging/src/k8s.io/apiserver/pkg/server/options/authorization.go) — `AlwaysAllowPaths: []string{"/healthz", "/readyz", "/livez"}`, `/metrics` **not** among them · [`…/options/authentication.go`](https://raw.githubusercontent.com/kubernetes/kubernetes/v1.34.0/staging/src/k8s.io/apiserver/pkg/server/options/authentication.go) — `Anonymous: &apiserver.AnonymousAuthConfig{Enabled: true}`, hard-coded again in `ApplyTo` and **not switchable by flag**; `--authentication-skip-lookup` defaults `false` · [`plugin/pkg/auth/authorizer/rbac/bootstrappolicy/policy.go`](https://raw.githubusercontent.com/kubernetes/kubernetes/v1.34.0/plugin/pkg/auth/authorizer/rbac/bootstrappolicy/policy.go) — `system:public-info-viewer`, *"just enough power read insensitive cluster information"*, granting `get` on `/livez`, `/readyz`, `/healthz` to `user.AllUnauthenticated`. **The §10.1 Step 1 evidence** · [`pkg/proxy/apis/config/v1alpha1/defaults.go`](https://raw.githubusercontent.com/kubernetes/kubernetes/v1.34.0/pkg/proxy/apis/config/v1alpha1/defaults.go) — healthz `0.0.0.0:10256`, metrics `127.0.0.1:10249` · [`pkg/proxy/healthcheck/proxy_health.go`](https://raw.githubusercontent.com/kubernetes/kubernetes/v1.34.0/pkg/proxy/healthcheck/proxy_health.go) — a bare `http.NewServeMux()`, **no authn, no authz, no TLS**, and the `ProxyHealth` response struct · [`cmd/kubeadm/app/phases/controlplane/manifests.go`](https://raw.githubusercontent.com/kubernetes/kubernetes/v1.34.0/cmd/kubeadm/app/phases/controlplane/manifests.go) — `{Name: "bind-address", Value: "127.0.0.1"}` for **both** scheduler and controller-manager. **The restricting default that is the second footing for both admitted rows** · [`cmd/kubeadm/app/phases/addons/proxy/manifests.go`](https://raw.githubusercontent.com/kubernetes/kubernetes/v1.34.0/cmd/kubeadm/app/phases/addons/proxy/manifests.go) — `hostNetwork: true` and **no** healthz override, so `10256` is *not* narrowed. Also `cmd/kube-scheduler/app/options/{options,deprecated}.go` and `cmd/kube-controller-manager/app/options/options.go`, read for the **absence** of `10251` and `10252` and of any `InsecureServing` field
+- **`kubernetes/kubernetes` at `v1.34.0`, the shipped bytes.** [`pkg/cluster/ports/ports.go`](https://raw.githubusercontent.com/kubernetes/kubernetes/v1.34.0/pkg/cluster/ports/ports.go) — read **whole**. `ProxyHealthzPort = 10256`, `KubeControllerManagerPort = 10257`, and the by-catch at §24.11 (`ProxyStatusPort = 10249`, `KubeletHealthzPort = 10248`, `CloudControllerManagerPort = 10258`) · [`pkg/scheduler/apis/config/types.go`](https://raw.githubusercontent.com/kubernetes/kubernetes/v1.34.0/pkg/scheduler/apis/config/types.go) — `DefaultKubeSchedulerPort = 10259` · [`staging/src/k8s.io/apiserver/pkg/server/options/authorization.go`](https://raw.githubusercontent.com/kubernetes/kubernetes/v1.34.0/staging/src/k8s.io/apiserver/pkg/server/options/authorization.go) — `AlwaysAllowPaths: []string{"/healthz", "/readyz", "/livez"}`, `/metrics` **not** among them · [`…/options/authentication.go`](https://raw.githubusercontent.com/kubernetes/kubernetes/v1.34.0/staging/src/k8s.io/apiserver/pkg/server/options/authentication.go) — `Anonymous: &apiserver.AnonymousAuthConfig{Enabled: true}`, hard-coded again in `ApplyTo` and **not switchable by flag**. `--authentication-skip-lookup` defaults `false` · [`plugin/pkg/auth/authorizer/rbac/bootstrappolicy/policy.go`](https://raw.githubusercontent.com/kubernetes/kubernetes/v1.34.0/plugin/pkg/auth/authorizer/rbac/bootstrappolicy/policy.go) — `system:public-info-viewer`, *"just enough power read insensitive cluster information"*, granting `get` on `/livez`, `/readyz`, `/healthz` to `user.AllUnauthenticated`. **The §10.1 Step 1 evidence** · [`pkg/proxy/apis/config/v1alpha1/defaults.go`](https://raw.githubusercontent.com/kubernetes/kubernetes/v1.34.0/pkg/proxy/apis/config/v1alpha1/defaults.go) — healthz `0.0.0.0:10256`, metrics `127.0.0.1:10249` · [`pkg/proxy/healthcheck/proxy_health.go`](https://raw.githubusercontent.com/kubernetes/kubernetes/v1.34.0/pkg/proxy/healthcheck/proxy_health.go) — a bare `http.NewServeMux()`, **no authn, no authz, no TLS**, and the `ProxyHealth` response struct · [`cmd/kubeadm/app/phases/controlplane/manifests.go`](https://raw.githubusercontent.com/kubernetes/kubernetes/v1.34.0/cmd/kubeadm/app/phases/controlplane/manifests.go) — `{Name: "bind-address", Value: "127.0.0.1"}` for **both** scheduler and controller-manager. **The restricting default that is the second footing for both admitted rows** · [`cmd/kubeadm/app/phases/addons/proxy/manifests.go`](https://raw.githubusercontent.com/kubernetes/kubernetes/v1.34.0/cmd/kubeadm/app/phases/addons/proxy/manifests.go) — `hostNetwork: true` and **no** healthz override, so `10256` is *not* narrowed. Also `cmd/kube-scheduler/app/options/{options,deprecated}.go` and `cmd/kube-controller-manager/app/options/options.go`, read for the **absence** of `10251` and `10252` and of any `InsecureServing` field
 - **IANA registry, CSV form**, downloaded 2026-08-14 and searched as bytes rather than through the rendered XHTML — the governing row for all three numbers is the range `,10254-10259,,Unassigned,,,,,,,,`, and a literal search of the whole file for `10256`, `10257` and `10259` matches that row and nothing else. The retired `10252` is the one number in the block that **is** registered: `apollo-relay,10252,tcp,Apollo Relay Port,[Anthony_Carrabino],[Anthony_Carrabino],2003-08`
-- **Located and deliberately not quoted**, per §19.7 — the **generated** pages [`kube-scheduler.md`](https://github.com/kubernetes/website/blob/release-1.34/content/en/docs/reference/command-line-tools-reference/kube-scheduler.md), [`kube-controller-manager.md`](https://github.com/kubernetes/website/blob/release-1.34/content/en/docs/reference/command-line-tools-reference/kube-controller-manager.md), [`kube-proxy.md`](https://github.com/kubernetes/website/blob/release-1.34/content/en/docs/reference/command-line-tools-reference/kube-proxy.md) and `config-api/kube-proxy-config.v1alpha1.md`, all of which carry these numbers and all of which are generated from the source quoted above; and `content/en/examples/admin/sched/my-scheduler.yaml`, which is an **example** and attests nothing under §12(a)
+- **Located and deliberately not quoted**, per §19.7 — the **generated** pages [`kube-scheduler.md`](https://github.com/kubernetes/website/blob/release-1.34/content/en/docs/reference/command-line-tools-reference/kube-scheduler.md), [`kube-controller-manager.md`](https://github.com/kubernetes/website/blob/release-1.34/content/en/docs/reference/command-line-tools-reference/kube-controller-manager.md), [`kube-proxy.md`](https://github.com/kubernetes/website/blob/release-1.34/content/en/docs/reference/command-line-tools-reference/kube-proxy.md) and `config-api/kube-proxy-config.v1alpha1.md`, all of which carry these numbers and all of which are generated from the source quoted above. And `content/en/examples/admin/sched/my-scheduler.yaml`, which is an **example** and attests nothing under §12(a)
 
 Consulted and deliberately not used as evidence
 - `nmap-services` open-frequency data — frequency, and 2008-vintage. Used in §6.1 only to state where a port ranks, never to justify a verdict
-- Shodan / Censys internet-exposure studies — frequency. Named as candidates by the ticket; not used anywhere in this note
+- Shodan / Censys internet-exposure studies — frequency. Named as candidates by the ticket. Not used anywhere in this note
 - [CISA TA14-017A, UDP-Based Amplification Attacks](https://www.cisa.gov/news-events/alerts/2014/01/17/udp-based-amplification-attacks) — a magnitude source (portmap's bandwidth amplification factor is given as "7 to 28"), not a position. It is the most tempting laundering candidate in the corpus and §2.7 records why it was refused
 - Redis's protected-mode prevalence rhetoric — §2.5
 
 Named in §10 and **not retrieved** — recorded so the gap is visible rather than assumed closed
 - **RFC 3411 and the SNMP management-architecture family.** §10.6 finds `161/udp`'s Claim 3 boundary
   limb resting on CISA TA17-156A, a corroborator. A first-party IETF sentence placing SNMPv1/v2c
-  inside a management domain may well exist; **nobody has looked**, and §10.6 declines to move the row
+  inside a management domain may well exist. **Nobody has looked**, and §10.6 declines to move the row
   on a re-reading of text already in this note. The retrieval is
   [#66](https://github.com/winniel123/verge-asm/issues/66)
 - **RFC 3912 (WHOIS) and RFC 9110 (HTTP semantics).** Cited in §10.1's refusal table for what their
@@ -23112,18 +23112,18 @@ Retrieved for §22 ([#87](https://github.com/winniel123/verge-asm/issues/87)) �
 - [Adobe, ColdFusion, *Connect to web servers*](https://guides.adobe.com/coldfusion/en/docs/install-and-configure-coldfusion/web-server-management.html) — *"By default in the server configuration, the built-in web server listens on port 8500"*, in a documentation set covering **ColdFusion (2025 release)**. The **independent second defeater** on `8500`, and the one with no currency question
 - [HashiCorp, Consul agent configuration reference](https://developer.hashicorp.com/consul/docs/reference/agent/configuration-file/general) — *"The HTTP API, -1 to disable. Default 8500. TCP only."*, limb 1 for the candidate
 
-Retrieved for §26 ([#93](https://github.com/winniel123/verge-asm/issues/93)) — the **positive** half of the class sweep. Two rows survived every filter; both class lists are recorded **with the release they were taken at**, per §26.6's rider
+Retrieved for §26 ([#93](https://github.com/winniel123/verge-asm/issues/93)) — the **positive** half of the class sweep. Two rows survived every filter. Both class lists are recorded **with the release they were taken at**, per §26.6's rider
 
-- **rsync, `RsyncProject/rsync` at tag `v3.5.0`** — the whole class list, the tree enumerated before any path was resolved. **[`SECURITY.md`](https://github.com/RsyncProject/rsync/blob/v3.5.0/SECURITY.md)**, the **deployment class and never opened**: a genuine threat model and residual register (*Robustness against malicious peers*, symlink-race-safe path resolution, *Known residuals*, daemon authentication digest) whose scope is the peer and the filesystem and never the network — **[measured]** `internet` and `public` occur in it **zero** times · [`rsync.1.md`](https://github.com/RsyncProject/rsync/blob/v3.5.0/rsync.1.md) § *SECURITY*, which carries a second owner imperative nobody had quoted — *"A direct daemon connection … is **not encrypted** and its authentication is comparatively weak, so do not send sensitive data across an untrusted network"* · [`rsyncd.conf.5.md`](https://github.com/RsyncProject/rsync/blob/v3.5.0/rsyncd.conf.5.md) § *SECURITY*, re-confirmed at the tag · `rsync-ssl.1.md` and `support/rrsync.1.md`, both read for the first time and both silent · `csprotocol.txt`, the self-disclaiming protocol note · `packaging/systemd/rsync.socket` (`ListenStream=873`, `Accept=true`, **no address restriction** → permissive → silent under §10.4; and **rsync ships no default `rsyncd.conf` at all**). **[measured] No rsync artefact names the internet in connection with the daemon or with `873`** — a repository-wide search returns six files, every one off-subject, and the rendered [`rsync.1.html`](https://download.samba.org/pub/rsync/rsync.1.html), [`rsyncd.conf.5.html`](https://download.samba.org/pub/rsync/rsyncd.conf.5.html) and [FAQ](https://rsync.samba.org/FAQ.html) return zero matches
-- [rsync Security Advisories](https://rsync.samba.org/security.html) — **checked and refused as a class member.** A per-release CVE register is a **disclosure page**, not a posture document; §20.1 scored Erlang/OTP's `vulnerabilities.md` the same way and this is the second instance (§26.9)
-- **NFS, the IETF side** — the class list established by sweeping the **complete** [`rfc-index.txt`](https://www.rfc-editor.org/rfc-index.txt) for the family rather than by searching likely titles, which is what makes the empty-class finding a measurement. [RFC 7530](https://www.rfc-editor.org/rfc/rfc7530.txt) §1.2 and [RFC 8881](https://www.rfc-editor.org/rfc/rfc8881.txt) §1.1 — *"Improved access and good performance on the Internet. The protocol is designed to transit firewalls easily…"*, the corpus's strongest §10.3 candidate · **RFC 8881 Appendix C**, which withdraws it — *"NFSv4.1 does not meet the goal of secure use on the Internet"* · RFC 8881 §21 and RFC 7530 §19 on AUTH_SYS — *"it is **unsafe**"*, unscoped, and **stronger than the `nfs(5)` sentence the row holds** · [RFC 8000](https://www.rfc-editor.org/rfc/rfc8000.txt) §1 — v3's numeric IDs *"are **not designed for Internet scaling**"* · [RFC 1094](https://www.rfc-editor.org/rfc/rfc1094.txt) (v2, Informational; the string `security` occurs **zero** times) · [RFC 1813](https://www.rfc-editor.org/rfc/rfc1813.txt) §8 (v3, Informational, with an IESG Note disclaiming IETF involvement). **[measured] The IETF's operational class is empty for NFS: not one RFC in the family carries status `BEST CURRENT PRACTICE`.** [RFC 2623](https://www.rfc-editor.org/rfc/rfc2623.txt) reads like the exception and is a Proposed Standard about MOUNTv3 downgrade attacks
+- **rsync, `RsyncProject/rsync` at tag `v3.5.0`** — the whole class list, the tree enumerated before any path was resolved. **[`SECURITY.md`](https://github.com/RsyncProject/rsync/blob/v3.5.0/SECURITY.md)**, the **deployment class and never opened**: a genuine threat model and residual register (*Robustness against malicious peers*, symlink-race-safe path resolution, *Known residuals*, daemon authentication digest) whose scope is the peer and the filesystem and never the network — **[measured]** `internet` and `public` occur in it **zero** times · [`rsync.1.md`](https://github.com/RsyncProject/rsync/blob/v3.5.0/rsync.1.md) § *SECURITY*, which carries a second owner imperative nobody had quoted — *"A direct daemon connection … is **not encrypted** and its authentication is comparatively weak, so do not send sensitive data across an untrusted network"* · [`rsyncd.conf.5.md`](https://github.com/RsyncProject/rsync/blob/v3.5.0/rsyncd.conf.5.md) § *SECURITY*, re-confirmed at the tag · `rsync-ssl.1.md` and `support/rrsync.1.md`, both read for the first time and both silent · `csprotocol.txt`, the self-disclaiming protocol note · `packaging/systemd/rsync.socket` (`ListenStream=873`, `Accept=true`, **no address restriction** → permissive → silent under §10.4. And **rsync ships no default `rsyncd.conf` at all**). **[measured] No rsync artefact names the internet in connection with the daemon or with `873`** — a repository-wide search returns six files, every one off-subject, and the rendered [`rsync.1.html`](https://download.samba.org/pub/rsync/rsync.1.html), [`rsyncd.conf.5.html`](https://download.samba.org/pub/rsync/rsyncd.conf.5.html) and [FAQ](https://rsync.samba.org/FAQ.html) return zero matches
+- [rsync Security Advisories](https://rsync.samba.org/security.html) — **checked and refused as a class member.** A per-release CVE register is a **disclosure page**, not a posture document. §20.1 scored Erlang/OTP's `vulnerabilities.md` the same way and this is the second instance (§26.9)
+- **NFS, the IETF side** — the class list established by sweeping the **complete** [`rfc-index.txt`](https://www.rfc-editor.org/rfc-index.txt) for the family rather than by searching likely titles, which is what makes the empty-class finding a measurement. [RFC 7530](https://www.rfc-editor.org/rfc/rfc7530.txt) §1.2 and [RFC 8881](https://www.rfc-editor.org/rfc/rfc8881.txt) §1.1 — *"Improved access and good performance on the Internet. The protocol is designed to transit firewalls easily…"*, the corpus's strongest §10.3 candidate · **RFC 8881 Appendix C**, which withdraws it — *"NFSv4.1 does not meet the goal of secure use on the Internet"* · RFC 8881 §21 and RFC 7530 §19 on AUTH_SYS — *"it is **unsafe**"*, unscoped, and **stronger than the `nfs(5)` sentence the row holds** · [RFC 8000](https://www.rfc-editor.org/rfc/rfc8000.txt) §1 — v3's numeric IDs *"are **not designed for Internet scaling**"* · [RFC 1094](https://www.rfc-editor.org/rfc/rfc1094.txt) (v2, Informational. The string `security` occurs **zero** times) · [RFC 1813](https://www.rfc-editor.org/rfc/rfc1813.txt) §8 (v3, Informational, with an IESG Note disclaiming IETF involvement). **[measured] The IETF's operational class is empty for NFS: not one RFC in the family carries status `BEST CURRENT PRACTICE`.** [RFC 2623](https://www.rfc-editor.org/rfc/rfc2623.txt) reads like the exception and is a Proposed Standard about MOUNTv3 downgrade attacks
 - **NFS, retrieved because they could only weaken the finding, and did** (§26.4): [RFC 2624](https://www.rfc-editor.org/rfc/rfc2624.txt) §7, §10.1 — *"NFS's protocol design should allow its use via Internet firewalls"*, the strongest pro-Internet language in the corpus, **Informational, 1999, and a pre-protocol requirements document** · [RFC 2054](https://www.rfc-editor.org/rfc/rfc2054.txt) / [RFC 2055](https://www.rfc-editor.org/rfc/rfc2055.txt) (WebNFS, Informational, 1996) — *"NFS servers **across the Internet**"*, an extension whose public filehandle RFC 8881 §4.1 now names in the **past tense**
-- **NFS, the implementation side** — `nfs-utils-2.9.2.tar.xz`, the project's own shipped release artefact from [`kernel.org`](https://www.kernel.org/pub/linux/utils/nfs-utils/2.9.2/). **All 32 shipped man pages** grepped for `internet`, `firewall`, `LAN`, `trusted` and `public`: `nfs.man` carries the row and **[measured]** its *"entirely adequate"* sentence sits in the `.SS "Using non-privileged source ports"` subsection rather than in the section preamble (§26.4); `exports.man` states **no** network boundary and its `/pub *(ro,insecure,all_squash)` gloss is §13.3's refused **label**; `nfs.conf` ships fully commented → permissive → silent. **[measured] nfs-utils publishes no deployment or security document of any kind** — no `SECURITY` file, no `doc/` directory, no hardening guide. Retrieval hazard: **`git.linux-nfs.org` is serving an expired TLS certificate**, so the shipped tarball was used, which §12 makes the stronger source anyway (§26.9)
+- **NFS, the implementation side** — `nfs-utils-2.9.2.tar.xz`, the project's own shipped release artefact from [`kernel.org`](https://www.kernel.org/pub/linux/utils/nfs-utils/2.9.2/). **All 32 shipped man pages** grepped for `internet`, `firewall`, `LAN`, `trusted` and `public`: `nfs.man` carries the row and **[measured]** its *"entirely adequate"* sentence sits in the `.SS "Using non-privileged source ports"` subsection rather than in the section preamble (§26.4). `exports.man` states **no** network boundary and its `/pub *(ro,insecure,all_squash)` gloss is §13.3's refused **label**. `nfs.conf` ships fully commented → permissive → silent. **[measured] nfs-utils publishes no deployment or security document of any kind** — no `SECURITY` file, no `doc/` directory, no hardening guide. Retrieval hazard: **`git.linux-nfs.org` is serving an expired TLS certificate**, so the shipped tarball was used, which §12 makes the stronger source anyway (§26.9)
 - [MySQL 8.4 *Security Guidelines*](https://dev.mysql.com/doc/refman/8.4/en/security-guidelines.html) §8.1.1, re-read for §26.5 — **[measured]** the sentence §3.4 quotes is preceded, in the same passage, by *"Try to scan your ports from the Internet using a tool such as `nmap`"*, which §3.4 drops
 
 Retrieved for §30 ([#98](https://github.com/winniel123/verge-asm/issues/98))
-- **MySQL, the same passage at a second *issued* version, per [ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md)'s per-version rule.** [MySQL **9.7** *Security Guidelines*](https://dev.mysql.com/doc/refman/9.7/en/security-guidelines.html) §8.1.1, the current innovation release, alongside [**8.4**](https://dev.mysql.com/doc/refman/8.4/en/security-guidelines.html), the LTS. **[measured]** the three-sentence run — *"Try to scan your ports **from the Internet** using a tool such as `nmap`. MySQL uses port 3306 by default. This port should not be accessible from untrusted hosts."* — is present in **both**, identical in wording and order, and both pages also carry the numbered guideline *"Do not transmit plain (unencrypted) data over **the Internet**."* **[measured]** all three sentences sit inside a **single `<p>`**, the first element of the **only** `<li>` of the *Checklist* sub-list under *"Invest in a firewall … Put MySQL behind the firewall or in a demilitarized zone (DMZ)"*; the `telnet server_host 3306` example and *"If **telnet** hangs or the connection is refused, the port is blocked, **which is how you want it to be**"* are siblings inside the same `<li>`. **There is no block boundary between *from the Internet* and the prohibition**, which is what discharges §26.5's *marginal* verdict (§30.3). **Retrieval hazard:** `refman/**9.4**/` returns **HTTP 302** to `refman/9.7/` rather than a 404, so a session citing 9.4 in good faith cites a URL that silently serves a different version — §12.9's substitution hazard arriving through a redirect (§30.10)
-- **rsync at `v3.5.0`, re-measured rather than inherited**, because the absence is what §30 rules on (§11.8, [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) limb 3). **[measured]** case-insensitive `internet` returns **0** matches in [`rsync.1.md`](https://raw.githubusercontent.com/RsyncProject/rsync/v3.5.0/rsync.1.md) (251,801 B), [`rsyncd.conf.5.md`](https://raw.githubusercontent.com/RsyncProject/rsync/v3.5.0/rsyncd.conf.5.md) (72,903 B) and [`SECURITY.md`](https://raw.githubusercontent.com/RsyncProject/rsync/v3.5.0/SECURITY.md) (34,054 B), with non-empty payloads confirmed for each so a zero is a measurement and not a failed fetch. Both owner sentences re-confirmed at the tag; **[measured]** the `rsyncd.conf.5.md` bullet carries **no quotation marks in the source** — the marks in §3.4 and §13.2 are the note's, and the bullet's own heading is *"**Encrypt the connection.**"* (§30.10)
+- **MySQL, the same passage at a second *issued* version, per [ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md)'s per-version rule.** [MySQL **9.7** *Security Guidelines*](https://dev.mysql.com/doc/refman/9.7/en/security-guidelines.html) §8.1.1, the current innovation release, alongside [**8.4**](https://dev.mysql.com/doc/refman/8.4/en/security-guidelines.html), the LTS. **[measured]** the three-sentence run — *"Try to scan your ports **from the Internet** using a tool such as `nmap`. MySQL uses port 3306 by default. This port should not be accessible from untrusted hosts."* — is present in **both**, identical in wording and order, and both pages also carry the numbered guideline *"Do not transmit plain (unencrypted) data over **the Internet**."* **[measured]** all three sentences sit inside a **single `<p>`**, the first element of the **only** `<li>` of the *Checklist* sub-list under *"Invest in a firewall … Put MySQL behind the firewall or in a demilitarized zone (DMZ)"*. The `telnet server_host 3306` example and *"If **telnet** hangs or the connection is refused, the port is blocked, **which is how you want it to be**"* are siblings inside the same `<li>`. **There is no block boundary between *from the Internet* and the prohibition**, which is what discharges §26.5's *marginal* verdict (§30.3). **Retrieval hazard:** `refman/**9.4**/` returns **HTTP 302** to `refman/9.7/` rather than a 404, so a session citing 9.4 in good faith cites a URL that silently serves a different version — §12.9's substitution hazard arriving through a redirect (§30.10)
+- **rsync at `v3.5.0`, re-measured rather than inherited**, because the absence is what §30 rules on (§11.8, [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) limb 3). **[measured]** case-insensitive `internet` returns **0** matches in [`rsync.1.md`](https://raw.githubusercontent.com/RsyncProject/rsync/v3.5.0/rsync.1.md) (251,801 B), [`rsyncd.conf.5.md`](https://raw.githubusercontent.com/RsyncProject/rsync/v3.5.0/rsyncd.conf.5.md) (72,903 B) and [`SECURITY.md`](https://raw.githubusercontent.com/RsyncProject/rsync/v3.5.0/SECURITY.md) (34,054 B), with non-empty payloads confirmed for each so a zero is a measurement and not a failed fetch. Both owner sentences re-confirmed at the tag. **[Measured]** the `rsyncd.conf.5.md` bullet carries **no quotation marks in the source** — the marks in §3.4 and §13.2 are the note's, and the bullet's own heading is *"**Encrypt the connection.**"* (§30.10)
 
 Retrieved for §31 ([#100](https://github.com/winniel123/verge-asm/issues/100)) — three files, one project, and the smallest retrieval of any ruling section here, because the question is about an **instrument** rather than a row (§31.13)
 - **[`k8s.io/kubelet` `v0.34.0`, `config/v1beta1/types.go`](https://raw.githubusercontent.com/kubernetes/kubelet/v0.34.0/config/v1beta1/types.go)** — `HealthzPort`, `HealthzBindAddress` and `ReadOnlyPort` re-read whole with their doc comments, per §27.15's rule that the next pass owes a by-catch record a **re-reading rather than a citation**. **[measured]** §27.6's and §16.5's quotations are **exact**: *"healthzPort is the port of the localhost healthz endpoint (set to 0 to disable). … Default: 10248"*, *"healthzBindAddress is the IP address for the healthz server to serve on. … Default: `"127.0.0.1"`"*, and *"readOnlyPort is the read-only port for the Kubelet to serve on with no authentication/authorization. … Default: 0 (disabled)"*. The two sentences this section's ruling turns on, and they separate at two different steps of ADR-0061 limb 1 twelve lines apart in one struct
@@ -23134,54 +23134,54 @@ Retrieved for §31 ([#100](https://github.com/winniel123/verge-asm/issues/100)) 
 
 Retrieved for §33 ([#107](https://github.com/winniel123/verge-asm/issues/107)) — the per-row walk of limbs 2 and 4 over all sixteen prohibition-tier members. **Every retrieval below was performed 2026-08-14**, and every negative is dated to it per [ADR-0046](../adr/0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md) as amended by [#93](https://github.com/winniel123/verge-asm/issues/93)
 
-- **Microsoft SQL Server — the cell this section demotes, and the only one.** [*Security considerations for a SQL Server installation*](https://learn.microsoft.com/en-us/sql/sql-server/install/security-considerations-for-a-sql-server-installation), `view=sql-server-ver17`, `ms.date` **2025-08-14**, `updated_at` **2026-06-23T17:40Z**, git commit [`f7648b1a`](https://github.com/MicrosoftDocs/sql-docs-pr/blob/f7648b1a9356373c29d128c16613547688ed0404/docs/sql-server/install/security-considerations-for-a-sql-server-installation.md), `word_count` **1238**, *applies to SQL Server on Windows*. **[measured] the string `1433` occurs zero times** — on the rendered page at `ver17` **and** at `view=sql-server-2016`, and in the `live`-branch markdown source. The only ports it names anywhere are `UDP/137`, `UDP/138`, `TCP/139` and `TCP/445`, in its *Disable NetBIOS and Server Message Block* section, which is a **second Microsoft document corroborating the SMB row** (§33.9) · the carrying bullet read with all three of its siblings, which are locked rooms, flood/fire detection and off-site backups — #46's hazard tested and **not fired** · **Retrieval hazard:** `/sql/relational-databases/security/security-considerations-…` returns **HTTP 404**; the live path is `/sql/sql-server/install/…`, and a session citing the former cites nothing
-- **Microsoft SQL Server — the defeating artefact.** [*Connect to a SQL Server Virtual Machine on Azure*](https://learn.microsoft.com/en-us/azure/azure-sql/virtual-machines/windows/ways-to-connect-to-sql), `ms.date` and `updated_at` **2026-01-23**, git commit [`86bc09c4`](https://github.com/MicrosoftDocs/sql-docs-pr/blob/86bc09c49875bd1d235b1ecb885cfcd6b9459d16/azure-sql/virtual-machines/windows/ways-to-connect-to-sql.md), *applies to SQL Server on Azure VM* — *"| **Public** | Connect to SQL Server over the internet. |"*, *"Configures a firewall rule to open the SQL Server TCP port (default 1433)"*, *"**Any client with internet access can connect to the SQL Server instance**"*. The mapping artefact limb 2(b) uses is [*Configure the Windows Firewall to allow SQL Server access*](https://learn.microsoft.com/en-us/sql/sql-server/install/configure-the-windows-firewall-to-allow-sql-server-access) (`ms.date` 2025-05-19), **which the carrying page itself links for exactly this purpose** — so the mapping is the owner's, not the reader's · **Checked and refused as a defeater:** [Azure SQL Managed Instance's public endpoint](https://learn.microsoft.com/en-us/azure/azure-sql/managed-instance/public-endpoint-overview) is on **3342**, and **[measured]** `1433` occurs **zero** times on it; [Azure SQL Database's gateway](https://learn.microsoft.com/en-us/azure/azure-sql/database/connectivity-architecture) *does* listen on 1433 but is **Microsoft's own managed service**, a different addressee, and is corroborative only. **The defeat rests entirely on the Azure VM page**
+- **Microsoft SQL Server — the cell this section demotes, and the only one.** [*Security considerations for a SQL Server installation*](https://learn.microsoft.com/en-us/sql/sql-server/install/security-considerations-for-a-sql-server-installation), `view=sql-server-ver17`, `ms.date` **2025-08-14**, `updated_at` **2026-06-23T17:40Z**, git commit [`f7648b1a`](https://github.com/MicrosoftDocs/sql-docs-pr/blob/f7648b1a9356373c29d128c16613547688ed0404/docs/sql-server/install/security-considerations-for-a-sql-server-installation.md), `word_count` **1238**, *applies to SQL Server on Windows*. **[measured] the string `1433` occurs zero times** — on the rendered page at `ver17` **and** at `view=sql-server-2016`, and in the `live`-branch markdown source. The only ports it names anywhere are `UDP/137`, `UDP/138`, `TCP/139` and `TCP/445`, in its *Disable NetBIOS and Server Message Block* section, which is a **second Microsoft document corroborating the SMB row** (§33.9) · the carrying bullet read with all three of its siblings, which are locked rooms, flood/fire detection and off-site backups — #46's hazard tested and **not fired** · **Retrieval hazard:** `/sql/relational-databases/security/security-considerations-…` returns **HTTP 404**. The live path is `/sql/sql-server/install/…`, and a session citing the former cites nothing
+- **Microsoft SQL Server — the defeating artefact.** [*Connect to a SQL Server Virtual Machine on Azure*](https://learn.microsoft.com/en-us/azure/azure-sql/virtual-machines/windows/ways-to-connect-to-sql), `ms.date` and `updated_at` **2026-01-23**, git commit [`86bc09c4`](https://github.com/MicrosoftDocs/sql-docs-pr/blob/86bc09c49875bd1d235b1ecb885cfcd6b9459d16/azure-sql/virtual-machines/windows/ways-to-connect-to-sql.md), *applies to SQL Server on Azure VM* — *"| **Public** | Connect to SQL Server over the internet. |"*, *"Configures a firewall rule to open the SQL Server TCP port (default 1433)"*, *"**Any client with internet access can connect to the SQL Server instance**"*. The mapping artefact limb 2(b) uses is [*Configure the Windows Firewall to allow SQL Server access*](https://learn.microsoft.com/en-us/sql/sql-server/install/configure-the-windows-firewall-to-allow-sql-server-access) (`ms.date` 2025-05-19), **which the carrying page itself links for exactly this purpose** — so the mapping is the owner's, not the reader's · **Checked and refused as a defeater:** [Azure SQL Managed Instance's public endpoint](https://learn.microsoft.com/en-us/azure/azure-sql/managed-instance/public-endpoint-overview) is on **3342**, and **[measured]** `1433` occurs **zero** times on it. [Azure SQL Database's gateway](https://learn.microsoft.com/en-us/azure/azure-sql/database/connectivity-architecture) *does* listen on 1433 but is **Microsoft's own managed service**, a different addressee, and is corroborative only. **The defeat rests entirely on the Azure VM page**
 - **Microsoft SMB — the member that turns on direction.** [*Preventing SMB traffic from lateral connections*](https://support.microsoft.com/en-us/topic/preventing-smb-traffic-from-lateral-connections-and-entering-or-leaving-the-network-c0541db7-2244-0dce-18fd-14a3ddeb282a), `updated_at` **2026-07-13**, whose *Perimeter firewall approaches* table reads `SMB │ TCP │ 445` and, separately, `NetBIOS Name Resolution │ UDP │ 137`, `NetBIOS Datagram Service │ UDP │ 138`, `NetBIOS Session Service │ TCP │ 139` — **the measurement that re-founds the three in-cell members** (§33.3) · [*Secure SMB traffic in Windows Server*](https://learn.microsoft.com/en-us/windows-server/storage/file-server/smb-secure-traffic) (`ms.date` 2024-10-25) — *"Block TCP port 445 inbound from the internet"*, and *"Shares made with SMB2 or later don't use NetBIOS ports 137-139"* · [*SMB over QUIC*](https://learn.microsoft.com/en-us/windows-server/storage/file-server/smb-over-quic) (`ms.date` 2025-07-24) — *"**Do not allow TCP/445 inbound to the file server**"*, on UDP/443, which **strengthens** the prohibition rather than defeating it · [*Networking considerations for Azure Files*](https://learn.microsoft.com/en-us/azure/storage/files/storage-files-networking-overview) (`ms.date` 2026-04-16) and [*Mount SMB Azure file share on Windows*](https://learn.microsoft.com/en-us/azure/storage/files/storage-how-to-use-files-windows) (`ms.date` 2026-04-08) — *"an internet exposed endpoint"*, *"accessible from anywhere in the world"*, *"requires **TCP port 445** to be open"*. **This is the pair of pages §3.4's outbound disposal did not reach**, and the reason §32.12's direction clause is withdrawn
-- **Apache ZooKeeper — the retrieval that discharges §32.12's thin flag.** [`zookeeperAdmin.md` at `apache/zookeeper` `release-3.9.4`](https://raw.githubusercontent.com/apache/zookeeper/release-3.9.4/zookeeper-docs/src/main/resources/markdown/zookeeperAdmin.md) (tag date **2025-08-29**) — the sentence sits under a section headed **`### Things to Avoid`** in a bullet titled ***Publicly accessible deployment***, which neither §3.4 nor §32.5 records · shipped [`conf/zoo_sample.cfg`](https://raw.githubusercontent.com/apache/zookeeper/release-3.9.4/conf/zoo_sample.cfg) — `clientPort=2181`, verified identical at `release-3.9.5` · **[measured]** `Internet` occurs **zero** times in `zookeeperAdmin.md` at `release-3.9.4`, so **limb 3 for `2181` rests on `security.html` alone** and the two sentences are not interchangeable · **Retrieval hazard, and it is a new shape:** two *summariser-mediated* fetches of this file reported `trusted computing environment` **absent**; the raw release bytes contain it at lines 2939-2940. A false negative from a summarising layer would have put `2181`'s footing in question. §12.9's substitution hazard with a new vector — **cite the bytes the repository returns**
-- **Redis and memcached — the two category-rule members re-measured, and the neighbour test.** [redis.io security](https://redis.io/docs/latest/operate/oss_and_stack/management/security/), carrying sentence unchanged; **[measured]** the page numbers **no port**, so membership comes from shipped [`redis.conf` at `redis/redis` `8.10.0`](https://raw.githubusercontent.com/redis/redis/8.10.0/redis.conf) — *"Accept connections on the specified port, default is 6379"* (release **8.10.0**, published **2026-07-29**) · **[measured]** `6379` occurs **zero** times in the [Redis Software port-configurations table](https://redis.io/docs/latest/operate/rs/networking/port-configurations/), which gives database traffic as `10000-10049, 10051-19999` — **the defeat's class is empty** · memcached [wiki `ConfiguringServer`](https://github.com/memcached/memcached/wiki/ConfiguringServer) — the carrying sentence, plus `-p`/`-U` and the `stats settings` output printing **`STAT udpport 11211`** beside `STAT tcpport 11211`; [`doc/memcached.1` at tag `1.6.45`](https://raw.githubusercontent.com/memcached/memcached/1.6.45/doc/memcached.1) (tagged **2026-07-10**) — *"the default is port 11211"* for `-p`, and *"the default is port 0, which is off"* for `-U`, **which does not name 11211**; [wiki `ReleaseNotes156`](https://github.com/memcached/memcached/wiki/ReleaseNotes156) closes it — *"unless they explicitly enable it via `-U 11211`"* · [wiki `SASLHowto`](https://github.com/memcached/memcached/wiki/SASLHowto) — *"SASL … **isn't suitable for using over the internet**"*, the owner withholding the blessing in terms
-- **Elasticsearch — reach on the enumeration branch, and the managed offering that does not defeat it.** [`networking-settings.md` at `elastic/elasticsearch` `main`](https://raw.githubusercontent.com/elastic/elasticsearch/main/docs/reference/elasticsearch/configuration-reference/networking-settings.md) — the same page defines the subject (*"Each Elasticsearch node has two different network interfaces … The transport interface uses a custom binary protocol sent over long-lived **TCP** channels"*), carries the sentence in a `warning` admonition, and numbers both ports (`http.port` *"Defaults to `9200-9300`"*, `transport.port` *"Defaults to `9300-9400`"*). **Flagged: the defaults are ranges and `9300` is shared between them**; the page's *"the node will bind to the first available port in the range"* is what makes each the default in fact · sentence verified present at **7.17** and at current · **[measured]** Elastic Cloud Enterprise's own [networking prerequisites](https://www.elastic.co/docs/deploy-manage/deploy/cloud-enterprise/ece-networking-prereq) put `9200`/`9243` and `9300`/`9343` on the **Proxy** role and the Elasticsearch nodes on `18000-18999` / `19000-19999` — **the internet-facing 9200 is not a node**, and Elastic draws the distinction itself
-- **Quoted from this note rather than re-fetched, and named as such** — `623/udp`'s co-owner sweep is **§28.9's**, run 2026-08-14 and not re-run; `3306`'s two-version currency check is §30.3's; `25672`'s antecedent reading is §32.6's; `9042`'s comment is §12.7's and §31.5's. Where §33 says *the owner numbers the pair* for a member it did not re-fetch, it means **the note records that it does** — which is §18.7's own qualifier and the defect that produced this ticket
-- **A dated Dell artefact recorded as redundancy and not relied on** (§33.9) — Dell KB [**000176947**](https://www.dell.com/support/kbdoc/en-us/000176947/dsa-2019-028-dell-emc-idrac-multiple-vulnerabilities), *last updated 05 May 2026*, *"iDRACs are not designed nor intended to be placed on or connected to the Internet; they are intended to be on a separate management network"*. The iDRAC9/iDRAC10 *Security Configuration Guide* pages §28.8 cites carry **no retrievable publication date**; this one does
+- **Apache ZooKeeper — the retrieval that discharges §32.12's thin flag.** [`zookeeperAdmin.md` at `apache/zookeeper` `release-3.9.4`](https://raw.githubusercontent.com/apache/zookeeper/release-3.9.4/zookeeper-docs/src/main/resources/markdown/zookeeperAdmin.md) (tag date **2025-08-29**) — the sentence sits under a section headed **`### Things to Avoid`** in a bullet titled ***Publicly accessible deployment***, which neither §3.4 nor §32.5 records · shipped [`conf/zoo_sample.cfg`](https://raw.githubusercontent.com/apache/zookeeper/release-3.9.4/conf/zoo_sample.cfg) — `clientPort=2181`, verified identical at `release-3.9.5` · **[measured]** `Internet` occurs **zero** times in `zookeeperAdmin.md` at `release-3.9.4`, so **limb 3 for `2181` rests on `security.html` alone** and the two sentences are not interchangeable · **Retrieval hazard, and it is a new shape:** two *summariser-mediated* fetches of this file reported `trusted computing environment` **absent**. The raw release bytes contain it at lines 2939-2940. A false negative from a summarising layer would have put `2181`'s footing in question. §12.9's substitution hazard with a new vector — **cite the bytes the repository returns**
+- **Redis and memcached — the two category-rule members re-measured, and the neighbour test.** [redis.io security](https://redis.io/docs/latest/operate/oss_and_stack/management/security/), carrying sentence unchanged. **[Measured]** the page numbers **no port**, so membership comes from shipped [`redis.conf` at `redis/redis` `8.10.0`](https://raw.githubusercontent.com/redis/redis/8.10.0/redis.conf) — *"Accept connections on the specified port, default is 6379"* (release **8.10.0**, published **2026-07-29**) · **[measured]** `6379` occurs **zero** times in the [Redis Software port-configurations table](https://redis.io/docs/latest/operate/rs/networking/port-configurations/), which gives database traffic as `10000-10049, 10051-19999` — **the defeat's class is empty** · memcached [wiki `ConfiguringServer`](https://github.com/memcached/memcached/wiki/ConfiguringServer) — the carrying sentence, plus `-p`/`-U` and the `stats settings` output printing **`STAT udpport 11211`** beside `STAT tcpport 11211`. [`doc/memcached.1` at tag `1.6.45`](https://raw.githubusercontent.com/memcached/memcached/1.6.45/doc/memcached.1) (tagged **2026-07-10**) — *"the default is port 11211"* for `-p`, and *"the default is port 0, which is off"* for `-U`, **which does not name 11211**. [Wiki `ReleaseNotes156`](https://github.com/memcached/memcached/wiki/ReleaseNotes156) closes it — *"unless they explicitly enable it via `-U 11211`"* · [wiki `SASLHowto`](https://github.com/memcached/memcached/wiki/SASLHowto) — *"SASL … **isn't suitable for using over the internet**"*, the owner withholding the blessing in terms
+- **Elasticsearch — reach on the enumeration branch, and the managed offering that does not defeat it.** [`networking-settings.md` at `elastic/elasticsearch` `main`](https://raw.githubusercontent.com/elastic/elasticsearch/main/docs/reference/elasticsearch/configuration-reference/networking-settings.md) — the same page defines the subject (*"Each Elasticsearch node has two different network interfaces … The transport interface uses a custom binary protocol sent over long-lived **TCP** channels"*), carries the sentence in a `warning` admonition, and numbers both ports (`http.port` *"Defaults to `9200-9300`"*, `transport.port` *"Defaults to `9300-9400`"*). **Flagged: the defaults are ranges and `9300` is shared between them**. The page's *"the node will bind to the first available port in the range"* is what makes each the default in fact · sentence verified present at **7.17** and at current · **[measured]** Elastic Cloud Enterprise's own [networking prerequisites](https://www.elastic.co/docs/deploy-manage/deploy/cloud-enterprise/ece-networking-prereq) put `9200`/`9243` and `9300`/`9343` on the **Proxy** role and the Elasticsearch nodes on `18000-18999` / `19000-19999` — **the internet-facing 9200 is not a node**, and Elastic draws the distinction itself
+- **Quoted from this note rather than re-fetched, and named as such** — `623/udp`'s co-owner sweep is **§28.9's**, run 2026-08-14 and not re-run. `3306`'s two-version currency check is §30.3's. `25672`'s antecedent reading is §32.6's. `9042`'s comment is §12.7's and §31.5's. Where §33 says *the owner numbers the pair* for a member it did not re-fetch, it means **the note records that it does** — which is §18.7's own qualifier and the defect that produced this ticket
+- **A dated Dell artefact recorded as redundancy and not relied on** (§33.9) — Dell KB [**000176947**](https://www.dell.com/support/kbdoc/en-us/000176947/dsa-2019-028-dell-emc-idrac-multiple-vulnerabilities), *last updated 05 May 2026*, *"iDRACs are not designed nor intended to be placed on or connected to the Internet; they are intended to be on a separate management network"*. The iDRAC9/iDRAC10 *Security Configuration Guide* pages §28.8 cites carry **no retrievable publication date**. This one does
 
 Retrieved for §34 ([#105](https://github.com/winniel123/verge-asm/issues/105)) — five files at one tag from one project for the ruling, and two from two others opened **to test the option that lost** rather than to support the ruling (§34.13)
 - **[`kubernetes/kubernetes` `v1.34.0`, `staging/src/k8s.io/kubelet/config/v1beta1/types.go`](https://raw.githubusercontent.com/kubernetes/kubernetes/v1.34.0/staging/src/k8s.io/kubelet/config/v1beta1/types.go)** — `readOnlyPort`'s doc comment, re-fetched rather than cited per §27.15. **[measured]** §16.5's quotation is **exact**, including *"Setting this field to 0 disables the read-only service. Default: 0 (disabled)"*, and the file carries **112** `// Default:` lines, which is the convention against which §34.2 reads kube-proxy's silence
 - **[`kubernetes/kubernetes` `v1.34.0`, `pkg/kubelet/apis/config/v1beta1/defaults.go`](https://raw.githubusercontent.com/kubernetes/kubernetes/v1.34.0/pkg/kubelet/apis/config/v1beta1/defaults.go)** — re-fetched for this section rather than inherited from §31. **[measured]** `ReadOnlyPort` occurs **zero** times in the file, whose only port-shaped clauses are `obj.HealthzPort = ptr.To[int32](10248)` and `obj.HealthzBindAddress = "127.0.0.1"`. Stated as *not set at `v1.34.0` in this file*, never as *never set anywhere* — ADR-0037 limb 3
 - **[`kubernetes/kubernetes` `v1.34.0`, `staging/src/k8s.io/kube-proxy/config/v1alpha1/types.go`](https://raw.githubusercontent.com/kubernetes/kubernetes/v1.34.0/staging/src/k8s.io/kube-proxy/config/v1alpha1/types.go)** — `enableProfiling`'s doc comment. **[measured]** §27.2's *"no documented default"* is **exact** — the comment reads *"enableProfiling enables profiling via web interface on /debug/pprof handler. Profiling handlers will be handled by metrics server."* and nothing more — and the file carries **zero** `// Default:` lines for **any** field, which is the honesty finding at §34.2 and §34.11
-- **[`kubernetes/kubernetes` `v1.34.0`, `pkg/proxy/apis/config/v1alpha1/defaults.go`](https://raw.githubusercontent.com/kubernetes/kubernetes/v1.34.0/pkg/proxy/apis/config/v1alpha1/defaults.go)** — **[measured]** `EnableProfiling` occurs **zero** times; `getDefaultAddresses` returns `"0.0.0.0", "127.0.0.1"`, confirming §27.2's and §32.7's `10249/tcp` cell rests on a **written** value
+- **[`kubernetes/kubernetes` `v1.34.0`, `pkg/proxy/apis/config/v1alpha1/defaults.go`](https://raw.githubusercontent.com/kubernetes/kubernetes/v1.34.0/pkg/proxy/apis/config/v1alpha1/defaults.go)** — **[measured]** `EnableProfiling` occurs **zero** times. `getDefaultAddresses` returns `"0.0.0.0", "127.0.0.1"`, confirming §27.2's and §32.7's `10249/tcp` cell rests on a **written** value
 - **[`kubernetes/kubernetes` `v1.34.0`, `cmd/kubelet/app/options/options.go`](https://raw.githubusercontent.com/kubernetes/kubernetes/v1.34.0/cmd/kubelet/app/options/options.go)** — `applyLegacyDefaults`, unchanged at this tag: `kc.ReadOnlyPort = ports.KubeletReadOnlyPort` beside `Anonymous.Enabled = true` and `Mode = AlwaysAllow`. **The only place any maintainer writes a `ReadOnlyPort` value, and the value written is the permissive one** — the strongest fact the losing option has, disclosed at §34.13 rather than left to be found
 - **[`postgres/postgres` `REL_18_0`, `src/backend/utils/misc/guc_tables.c`](https://raw.githubusercontent.com/postgres/postgres/REL_18_0/src/backend/utils/misc/guc_tables.c)** — opened to answer *does a provenance rule move `5432/tcp`?*, the reading §32.7 names as the signal a footing rule is wrong. **[measured]** it does not: the `listen_addresses` entry carries `"localhost"` as `ListenAddresses`'s boot value, written by the owner
 - **[`apache/couchdb` `3.5.0`, `rel/overlay/etc/default.ini`](https://raw.githubusercontent.com/apache/couchdb/3.5.0/rel/overlay/etc/default.ini)** — the same question for `5984/tcp`. **[measured]** `[chttpd] bind_address = 127.0.0.1` is an active written line, as are the `[httpd]` and `[prometheus]` ones beside it. Both of these are **negative** results for §34's extension argument and are reported as such at §34.11
-- **`623/udp`'s footing quoted from §28.10 rather than re-fetched, and named as such** — Dell's `iDRAC.IPMILan.Enable — 0 - Disabled` and HPE's *"This setting is disabled by default"*. It carries §34.7's extension argument and no cell; a correction there would weaken an argument rather than move a figure (§34.11)
+- **`623/udp`'s footing quoted from §28.10 rather than re-fetched, and named as such** — Dell's `iDRAC.IPMILan.Enable — 0 - Disabled` and HPE's *"This setting is disabled by default"*. It carries §34.7's extension argument and no cell. A correction there would weaken an argument rather than move a figure (§34.11)
 
 Retrieved for §35 ([#109](https://github.com/winniel123/verge-asm/issues/109)) — nine Microsoft artefacts, one owner, **scoped to the row** rather than to a tier, which is [#37](https://github.com/winniel123/verge-asm/issues/37)'s condition and the reason §33 routed rather than ruled. **Every retrieval below was performed 2026-08-14**, and every negative is dated to it per [ADR-0046](../adr/0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md) as amended by [#93](https://github.com/winniel123/verge-asm/issues/93)
 
 - **The carrying page, re-read whole and re-measured against the raw source.** [*Security considerations for a SQL Server installation*](https://learn.microsoft.com/en-us/sql/sql-server/install/security-considerations-for-a-sql-server-installation), `ms.date` **2025-08-14**, `updated_at` **2026-06-23T17:40Z**, source `docs/sql-server/install/security-considerations-for-a-sql-server-installation.md` at `MicrosoftDocs/sql-docs@live`, monikers `sql-server-2017` / `ver15` / `ver16` / `ver17`, ***applies to SQL Server on Windows only — a single moniker icon***. **[measured]** the string `1433` occurs **zero** times (§33.4's measurement reproduced independently, against the raw markdown rather than the rendered page) · **[measured]** the word *Internet* occurs **exactly twice**, case-insensitively — the *"don't connect your SQL Server instances **directly** to the Internet"* bullet and *"Put a firewall between the server and the Internet"* — and **no sentence anywhere on the page conditions, qualifies or cross-references the first**. The *Use firewalls* section is quoted in full at §35.4 because it is the losing option's best evidence, and its instruction — *"Block all traffic, and then selectively admit only what is required"* — is general hardening addressed to the whole installation
-- **The affirmative naming, artefact 1 of 3.** [*Connect to a SQL Server virtual machine on Azure*](https://learn.microsoft.com/en-us/azure/azure-sql/virtual-machines/windows/ways-to-connect-to-sql), `ms.date` and `updated_at` **2026-01-23**, commit [`86bc09c4`](https://github.com/MicrosoftDocs/sql-docs-pr/blob/86bc09c49875bd1d235b1ecb885cfcd6b9459d16/azure-sql/virtual-machines/windows/ways-to-connect-to-sql.md), `ms.topic: how-to`, ***applies to SQL Server on Azure VM***. §33's defeating artefact, re-read end to end. **[measured]** `1433` occurs on **6 lines** of the raw markdown; the page carries **no `[!WARNING]`**, no *not recommended*, and no cross-reference to the on-premises isolation bullet · **Verified against the raw source because it read like a paraphrase:** the *"Create a network security group rule for TCP 1433 … if you want to connect over the internet"* table row is **genuine**, at line 121. §33.11's summariser hazard, met in the positive direction
+- **The affirmative naming, artefact 1 of 3.** [*Connect to a SQL Server virtual machine on Azure*](https://learn.microsoft.com/en-us/azure/azure-sql/virtual-machines/windows/ways-to-connect-to-sql), `ms.date` and `updated_at` **2026-01-23**, commit [`86bc09c4`](https://github.com/MicrosoftDocs/sql-docs-pr/blob/86bc09c49875bd1d235b1ecb885cfcd6b9459d16/azure-sql/virtual-machines/windows/ways-to-connect-to-sql.md), `ms.topic: how-to`, ***applies to SQL Server on Azure VM***. §33's defeating artefact, re-read end to end. **[measured]** `1433` occurs on **6 lines** of the raw markdown. The page carries **no `[!WARNING]`**, no *not recommended*, and no cross-reference to the on-premises isolation bullet · **Verified against the raw source because it read like a paraphrase:** the *"Create a network security group rule for TCP 1433 … if you want to connect over the internet"* table row is **genuine**, at line 121. §33.11's summariser hazard, met in the positive direction
 - **The affirmative naming, artefact 2 of 3, and the freshest page in the set.** [*Provision a SQL Server virtual machine in the Azure portal*](https://learn.microsoft.com/en-us/azure/azure-sql/virtual-machines/windows/create-sql-vm-portal), source `azure-sql/virtual-machines/windows/create-sql-vm-portal.md`, `ms.date` **2026-03-18**, ***applies to SQL Server on Azure VM***. **New to this note, and it is the one that *instructs*** — *"select **Public (internet)** to allow connections to SQL Server from machines or services on the internet"*, *"Azure automatically configures the firewall and the network security group to allow traffic on the port selected"*, *"These settings automatically configured the virtual machine to allow **SQL Server connections from any client over the internet**"*, and *"all the options are securable through network security group (NSG) rules and SQL/Windows Authentication"*. It also carries the port-change suggestion artefact 6 contradicts: *"For increased security, change the port … such as 1401"*
-- **The affirmative naming, artefact 3 of 3 — and the owner's *security* class for this deployment, opened because it is where a §33.2-shaped condition would live.** [*Security considerations and best practices for SQL Server on Azure VMs*](https://learn.microsoft.com/en-us/azure/azure-sql/virtual-machines/windows/security-considerations-best-practices), `ms.date` **2025-12-05**, `updated_at` **2026-04-06T17:42Z**, `ms.topic: best-practice`, ***applies to SQL Server on Azure VM***. *"the **SQL Server Connectivity** option gives you the choice of **Local (inside VM)**, **Private (within Virtual Network)**, or **Public (Internet)**"*, *"For the best security, choose the most restrictive option for your scenario"*, *"**If you require Public (internet) access to the SQL Server VM, then make sure to follow other best practices in this topic** to reduce your attack surface area"*. **[measured]** the string `1433` occurs on **exactly one** line — *"You can modify or create new inbound NSG rules to allow traffic to the SQL Server port (default 1433). You can also specify IP addresses that are allowed to communicate over this port."* **[measured] no condition anywhere on the page removes the Public option from support**; what it carries is hardening advice **attached** to it, which is §4.4's *"a hardening preference expressed against a real, supported architecture"* · **[measured]** its just-in-time and Bastion recommendations are scoped to **management** ports (RDP/SSH) and to no other, so they do not reach TCP/1433
+- **The affirmative naming, artefact 3 of 3 — and the owner's *security* class for this deployment, opened because it is where a §33.2-shaped condition would live.** [*Security considerations and best practices for SQL Server on Azure VMs*](https://learn.microsoft.com/en-us/azure/azure-sql/virtual-machines/windows/security-considerations-best-practices), `ms.date` **2025-12-05**, `updated_at` **2026-04-06T17:42Z**, `ms.topic: best-practice`, ***applies to SQL Server on Azure VM***. *"the **SQL Server Connectivity** option gives you the choice of **Local (inside VM)**, **Private (within Virtual Network)**, or **Public (Internet)**"*, *"For the best security, choose the most restrictive option for your scenario"*, *"**If you require Public (internet) access to the SQL Server VM, then make sure to follow other best practices in this topic** to reduce your attack surface area"*. **[measured]** the string `1433` occurs on **exactly one** line — *"You can modify or create new inbound NSG rules to allow traffic to the SQL Server port (default 1433). You can also specify IP addresses that are allowed to communicate over this port."* **[measured] no condition anywhere on the page removes the Public option from support**. What it carries is hardening advice **attached** to it, which is §4.4's *"a hardening preference expressed against a real, supported architecture"* · **[measured]** its just-in-time and Bastion recommendations are scoped to **management** ports (RDP/SSH) and to no other, so they do not reach TCP/1433
 - **The sharpest negative in the section, and it cuts both ways.** [*SQL Server security best practices*](https://learn.microsoft.com/en-us/sql/relational-databases/security/sql-server-security-best-practices), source `docs/relational-databases/security/sql-server-security-best-practices.md`, `ms.date` **2026-05-07** — **the most recently authored SQL Server security page retrieved anywhere in this note** — `updated_at` **2026-07-20T22:35Z**, `ms.topic: best-practice`, *applies to **SQL Server · Azure SQL Database · Azure SQL Managed Instance*** — and **SQL Server on Azure VM is not in its banner**. **[measured]** the string `1433` occurs **zero** times and the word *internet* occurs **zero** times, in any casing, verified against the raw `live` markdown. Its subjects are column- and row-level protection, encryption and TDE, auditing, identity, SQL injection, side-channel and ransomware. **Microsoft's flagship, freshest SQL Server security document states no network-placement position at all** — reported at §35.14 as evidence for **and** against this ruling
-- **The mapping artefact, and the source of a three-page contradiction.** [*Configure a server to listen on a specific TCP port*](https://learn.microsoft.com/en-us/sql/database-engine/configure-windows/configure-a-server-to-listen-on-a-specific-tcp-port), `ms.date` **2025-08-26**, *applies to SQL Server* — *"the default instance of the SQL Server Database Engine listens on **TCP port 1433**"*, which is limb 2(b)'s mapping and is unchanged from §33. Its own note answers the other two pages: *"Because port 1433 is the known standard for SQL Server, some organizations specify that the SQL Server port number should be changed to enhance security. … However, the TCP/IP architecture permits a port scanner to query for open ports, so **changing the port number isn't considered a robust security measure**."* Recorded at §35.13; it weakens §33.4's hedge and moves no figure
-- **Checked as a defeater and refused, for the second time and now with the ground written down.** [*Azure SQL Database connectivity architecture*](https://learn.microsoft.com/en-us/azure/azure-sql/database/connectivity-architecture), `ms.date` **2026-02-26**, *applies to Azure SQL Database · SQL database in Fabric* — *"Clients connect to the gateway that has a public IP address and **listens on port 1433**"*, and a client outside Azure gets `Proxy` mode by default. **The exposure is real and it is Microsoft's own**, so §33.2's addressee rider disposes of it — now stated as [ADR-0067](../adr/0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md) limb 2's second sentence. Corroborative only; **the defeat rests entirely on the Azure VM pages**
-- **Checked as a defeater and refused, and the 3342 measurement re-taken rather than inherited.** [*Use Azure SQL Managed Instance securely with public endpoints*](https://learn.microsoft.com/en-us/azure/azure-sql/managed-instance/public-endpoint-overview) (`ms.date` **2025-08-26**) and [*Configure public endpoint*](https://learn.microsoft.com/en-us/azure/azure-sql/managed-instance/public-endpoint-configure) (`ms.date` **2025-09-11**). **[measured]** `1433` occurs **zero** times on the configure page and `3342` on **five** lines; *"Port 3342 is used for public endpoint connections to SQL managed instance, and **can't be changed** currently"*. Microsoft's own guidance — *"**Use a network security group to limit access** to the SQL managed instance public endpoint on port 3342"* — is the strongest source-IP-restriction language in this whole retrieval, and it is about a port that is not on the list and a service Microsoft operates. `3342/tcp` is examined as an ADR-0037 limb 1 candidate at §35.13 and refused on Claim 3 at sight
+- **The mapping artefact, and the source of a three-page contradiction.** [*Configure a server to listen on a specific TCP port*](https://learn.microsoft.com/en-us/sql/database-engine/configure-windows/configure-a-server-to-listen-on-a-specific-tcp-port), `ms.date` **2025-08-26**, *applies to SQL Server* — *"the default instance of the SQL Server Database Engine listens on **TCP port 1433**"*, which is limb 2(b)'s mapping and is unchanged from §33. Its own note answers the other two pages: *"Because port 1433 is the known standard for SQL Server, some organizations specify that the SQL Server port number should be changed to enhance security. … However, the TCP/IP architecture permits a port scanner to query for open ports, so **changing the port number isn't considered a robust security measure**."* Recorded at §35.13. It weakens §33.4's hedge and moves no figure
+- **Checked as a defeater and refused, for the second time and now with the ground written down.** [*Azure SQL Database connectivity architecture*](https://learn.microsoft.com/en-us/azure/azure-sql/database/connectivity-architecture), `ms.date` **2026-02-26**, *applies to Azure SQL Database · SQL database in Fabric* — *"Clients connect to the gateway that has a public IP address and **listens on port 1433**"*, and a client outside Azure gets `Proxy` mode by default. **The exposure is real and it is Microsoft's own**, so §33.2's addressee rider disposes of it — now stated as [ADR-0067](../adr/0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md) limb 2's second sentence. Corroborative only. **The defeat rests entirely on the Azure VM pages**
+- **Checked as a defeater and refused, and the 3342 measurement re-taken rather than inherited.** [*Use Azure SQL Managed Instance securely with public endpoints*](https://learn.microsoft.com/en-us/azure/azure-sql/managed-instance/public-endpoint-overview) (`ms.date` **2025-08-26**) and [*Configure public endpoint*](https://learn.microsoft.com/en-us/azure/azure-sql/managed-instance/public-endpoint-configure) (`ms.date` **2025-09-11**). **[measured]** `1433` occurs **zero** times on the configure page and `3342` on **five** lines. *"Port 3342 is used for public endpoint connections to SQL managed instance, and **can't be changed** currently"*. Microsoft's own guidance — *"**Use a network security group to limit access** to the SQL managed instance public endpoint on port 3342"* — is the strongest source-IP-restriction language in this whole retrieval, and it is about a port that is not on the list and a service Microsoft operates. `3342/tcp` is examined as an ADR-0037 limb 1 candidate at §35.13 and refused on Claim 3 at sight
 - **A dated negative on deprecation, searched for rather than assumed.** **[measured]** the [SQL Server on Azure VMs *What's new*](https://learn.microsoft.com/en-us/azure/azure-sql/virtual-machines/windows/doc-changes-updates-release-notes-whats-new) page (`ms.date` **2026-07-10**, `updated_at` **2026-08-03**) carries **no** entry mentioning connectivity, the Public/Private/Local option, port 1433 or network security groups in any of its Preview, GA or documentation-changes tables from September 2025 through June 2026. **Microsoft has not withdrawn the Public SQL connectivity option**, and artefact 3 still instructs the reader to select it at `ms.date` 2026-03-18. This is the negative §35.10's reopening criterion is measured against · **One search result surfaced and deliberately not relied on:** that post-deployment editing of connectivity settings was removed from the Azure portal in April 2023. No primary page was retrieved, it is a management-surface change rather than a deprecation, and it is recorded as **unverified** — §21's rule about what an owner has **issued** is why a search snippet is not evidence
-- **Quoted from this note rather than re-fetched, and named as such** — §28.5's refusal of the *supports an unauthenticated mode* reading, which names `1433` by number and carries Claim 1's disposal at §35.6; §29.2's scoring of `1433/tcp` as *top-100, retained*, which carries the whole of §35.12's finding that the union does not move. **The ruling turns on the first and every figure at §35.11 turns on the second**, so both are named rather than absorbed
+- **Quoted from this note rather than re-fetched, and named as such** — §28.5's refusal of the *supports an unauthenticated mode* reading, which names `1433` by number and carries Claim 1's disposal at §35.6. §29.2's scoring of `1433/tcp` as *top-100, retained*, which carries the whole of §35.12's finding that the union does not move. **The ruling turns on the first and every figure at §35.11 turns on the second**, so both are named rather than absorbed
 Retrieved for §36 ([#110](https://github.com/winniel123/verge-asm/issues/110)) — **two artefacts, both re-reads of documents the note already held, and the decisive one is a second heading in a page quoted since §3.4.** Every retrieval performed **2026-08-14**
 
 - **Microsoft SMB — the measurement that shows the conjunction as written was defective.** [*Secure SMB Traffic in Windows Server*](https://learn.microsoft.com/en-us/windows-server/storage/file-server/smb-secure-traffic), `ms.date` **2024-10-25**, `updated_at` **2025-04-28T22:34Z**, git commit [`00769866`](https://github.com/MicrosoftDocs/windowsserverdocs-pr/blob/00769866e7fbcab34905970bd165f4f12c5e9626/WindowsServerDocs/storage/file-server/smb-secure-traffic.md), `word_count` **1602** — read **whole** rather than for the one sentence §3.4 carries, per [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) limb 1. It has **two** sections: `## Block inbound SMB access` (*"Block TCP port 445 **inbound** from the internet at your corporate hardware firewalls"* — the row's) and **`## Block outbound SMB access`** (*"Block TCP port 445 **outbound** to the internet at your corporate firewall"* — **not** the row's, and §32.12's hypothetical fifth-limb sentence made actual). Also carries *"Shares made with SMB2 or later don't use NetBIOS ports 137-139"*, confirming §33.3's re-founding unchanged · [*Preventing SMB traffic from lateral connections and entering or leaving the network*](https://support.microsoft.com/en-us/topic/preventing-smb-traffic-from-lateral-connections-and-entering-or-leaving-the-network-c0541db7-2244-0dce-18fd-14a3ddeb282a), `updated_at` **2026-07-13**, re-read for the **direction** of its own directive: *"unsolicited communication (from the internet) **and outgoing traffic (to the internet)**"*, and *"originating from the internet **or destined for the internet**"* — **[measured]** the corpus's strongest sentence is **bidirectional**, and the note has quoted it in full since §3.4 without recording that half of it is about egress (§36.2) · [*SMB over QUIC*](https://learn.microsoft.com/en-us/windows-server/storage/file-server/smb-over-quic), `ms.date` **2025-07-24**, `updated_at` **2025-09-15T17:34Z**, git commit [`825a9b7a`](https://github.com/MicrosoftDocs/windowsserverdocs-pr/blob/825a9b7a89b5e872e1542287bec3a6904fb08c83/WindowsServerDocs/storage/file-server/smb-over-quic.md) — *"By default SMB over QUIC uses UDP/443 inbound. **Do not allow TCP/445 inbound to the file server.**"* re-confirmed at the tag §33.5 cites, the owner's substitute for internet-facing TCP/445 and the reason the prohibition is **strengthened** rather than defeated
 - **Kubernetes — the owner writing the direction in a column header.** [`content/en/docs/reference/networking/ports-and-protocols.md` at `kubernetes/website` `main`](https://raw.githubusercontent.com/kubernetes/website/main/content/en/docs/reference/networking/ports-and-protocols.md), fetched as **raw repository bytes** rather than as the rendered page, per §33.11's rider. **[measured]** both the control-plane and worker-node tables carry the columns `Protocol · **Direction** · Port Range · Purpose · Used By`, and **every** `Direction` value in both reads **`Inbound`** — for `6443`, `2379-2380`, `10250`, `10259` and `10257`. `10249` appears in **neither** table, which is why §27.5 placed it on `source-ip.md` instead. This is the artefact behind three of §36.6's five *direction named by the owner* cells
-- **HPE — the second owner who writes the direction in a column, and the re-founding of §28.9's instance.** Read through the portal's own document content endpoint rather than from a rendering, because `support.hpe.com` serves a JavaScript shell to a plain client (§9.5's and §14.6's hazard, third instance). [*HPE iLO 6 User Guide*](https://support.hpe.com/hpesc/public/docDisplay?docId=sd00002007en_us&docLocale=en_US), doc `sd00002007en_us`, part number **30-7A345B12-032**, published **July 2026**, Edition 1 — **Ports used by iLO features**, whose table carries a **`Direction`** column: `IPMI/DCMI over LAN port | 623 | UDP | Inbound⁴` with footnote 4 *"An external client initiates the connection to iLO"*, against `Remote support port | 7906 | TCP | Outbound¹` with footnote 1 *"iLO initiates the connection to an external server"*, and the setting itself **`Disabled`**; **Security guidelines**, *"Do not connect iLO directly to the Internet."* … *"The iLO processor is a management and administration tool, not an Internet gateway."* … *"Disable ports and protocols that you do not use (for example, SNMP or IPMI/DCMI over LAN)."*; and **HPE embedded remote support**, *"HPE now supports only Insight Remote Support **central connect**"* — **the measurement that retires the feature §28.9 named** · [*HPE Compute Ops Management Getting Started Guide*](https://support.hpe.com/hpesc/public/docDisplay?docId=sd00001293en_us&docLocale=en_US), doc `sd00001293en_us`, version **98**, content update **15-07-2026** — *"communicate with the following Hewlett Packard Enterprise websites through an **outbound** TCP connection over port 443"*, over a table with an **`Initiator`** column reading `iLO` on every row. **The current artefact §36.7 re-founds `623/udp`'s direction instance on** · *HPE iLO 6 Security Technology Brief* (`sd00002198en_us`) — *"IPMI/DCMI over LAN | Disabled (includes port setting)"* · **[measured]** across those, the *HPE OneView 7.1* remote-support page (`sd00001752en_us`), the *Insight Remote Support Monitored Devices Configuration Guide* (`a00127664en_us`, **February 2026**, Edition 7.16.2) and the iLO 5 User Guide's contents, **no HPE document presents an internet-reachable iLO IPMI service on UDP 623 as supported**
-- **MongoDB — addressee coming apart from direction, retrieved because it is the obvious falsifier (§36.5, §36.6).** [*Network and Configuration Hardening for Self-Managed Deployments*](https://www.mongodb.com/docs/manual/core/security-hardening/), Database Manual **8.3 (Current)** — *"Make sure that your `mongod` and `mongos` instances are only accessible on trusted networks"* · [*Troubleshoot Connection Issues — Atlas*](https://www.mongodb.com/docs/atlas/troubleshoot-connection/) — *"Atlas clusters operate on port `27017`. You must be able to reach this port to connect to your clusters."* · [*Configure IP Access List Entries — Atlas*](https://www.mongodb.com/docs/atlas/security/ip-access-list/) — *"Adding the `/0` CIDR, such as `0.0.0.0/0`, allows access from anywhere"* and *"…**when allowing access from the public internet**"*. **[measured]** MongoDB's pages carry **no publication or revision date** in their source; the manual version selector is the only marker. **The addressee line is drawn by the owner in its own page titles** — *for Self-Managed Deployments* — and the case is **not load-bearing**, `27017` failing limb 3 a limb earlier
-- **Redis — a sibling section's string count corrected without moving its verdict (§36.14).** [*Network port configurations*, Redis Software](https://redis.io/docs/latest/operate/rs/networking/port-configurations/) — *"TCP | **10000-10049, 10051-19999** | ✅ Yes | Internal, External, Active-Active | Database traffic"*, and **[measured]** `6379` occurs **once** on the page, as a substring of `36379` on an unrelated internode row. §33.11's *"zero times"* is a **substring** claim and is wrong; the **token** claim it rests on — `6379` is listed as a port nowhere in the owner's table — is right, and the spare stands · [*Connect to AWS PrivateLink*](https://redis.io/docs/latest/operate/rc/security/aws-privatelink/) — *"the database port range (port 10000-19999)"*, the same fact from the ingress side
+- **HPE — the second owner who writes the direction in a column, and the re-founding of §28.9's instance.** Read through the portal's own document content endpoint rather than from a rendering, because `support.hpe.com` serves a JavaScript shell to a plain client (§9.5's and §14.6's hazard, third instance). [*HPE iLO 6 User Guide*](https://support.hpe.com/hpesc/public/docDisplay?docId=sd00002007en_us&docLocale=en_US), doc `sd00002007en_us`, part number **30-7A345B12-032**, published **July 2026**, Edition 1 — **Ports used by iLO features**, whose table carries a **`Direction`** column: `IPMI/DCMI over LAN port | 623 | UDP | Inbound⁴` with footnote 4 *"An external client initiates the connection to iLO"*, against `Remote support port | 7906 | TCP | Outbound¹` with footnote 1 *"iLO initiates the connection to an external server"*, and the setting itself **`Disabled`**. **Security guidelines**, *"Do not connect iLO directly to the Internet."* … *"The iLO processor is a management and administration tool, not an Internet gateway."* … *"Disable ports and protocols that you do not use (for example, SNMP or IPMI/DCMI over LAN)."*. And **HPE embedded remote support**, *"HPE now supports only Insight Remote Support **central connect**"* — **the measurement that retires the feature §28.9 named** · [*HPE Compute Ops Management Getting Started Guide*](https://support.hpe.com/hpesc/public/docDisplay?docId=sd00001293en_us&docLocale=en_US), doc `sd00001293en_us`, version **98**, content update **15-07-2026** — *"communicate with the following Hewlett Packard Enterprise websites through an **outbound** TCP connection over port 443"*, over a table with an **`Initiator`** column reading `iLO` on every row. **The current artefact §36.7 re-founds `623/udp`'s direction instance on** · *HPE iLO 6 Security Technology Brief* (`sd00002198en_us`) — *"IPMI/DCMI over LAN | Disabled (includes port setting)"* · **[measured]** across those, the *HPE OneView 7.1* remote-support page (`sd00001752en_us`), the *Insight Remote Support Monitored Devices Configuration Guide* (`a00127664en_us`, **February 2026**, Edition 7.16.2) and the iLO 5 User Guide's contents, **no HPE document presents an internet-reachable iLO IPMI service on UDP 623 as supported**
+- **MongoDB — addressee coming apart from direction, retrieved because it is the obvious falsifier (§36.5, §36.6).** [*Network and Configuration Hardening for Self-Managed Deployments*](https://www.mongodb.com/docs/manual/core/security-hardening/), Database Manual **8.3 (Current)** — *"Make sure that your `mongod` and `mongos` instances are only accessible on trusted networks"* · [*Troubleshoot Connection Issues — Atlas*](https://www.mongodb.com/docs/atlas/troubleshoot-connection/) — *"Atlas clusters operate on port `27017`. You must be able to reach this port to connect to your clusters."* · [*Configure IP Access List Entries — Atlas*](https://www.mongodb.com/docs/atlas/security/ip-access-list/) — *"Adding the `/0` CIDR, such as `0.0.0.0/0`, allows access from anywhere"* and *"…**when allowing access from the public internet**"*. **[measured]** MongoDB's pages carry **no publication or revision date** in their source. The manual version selector is the only marker. **The addressee line is drawn by the owner in its own page titles** — *for Self-Managed Deployments* — and the case is **not load-bearing**, `27017` failing limb 3 a limb earlier
+- **Redis — a sibling section's string count corrected without moving its verdict (§36.14).** [*Network port configurations*, Redis Software](https://redis.io/docs/latest/operate/rs/networking/port-configurations/) — *"TCP | **10000-10049, 10051-19999** | ✅ Yes | Internal, External, Active-Active | Database traffic"*, and **[measured]** `6379` occurs **once** on the page, as a substring of `36379` on an unrelated internode row. §33.11's *"zero times"* is a **substring** claim and is wrong. The **token** claim it rests on — `6379` is listed as a port nowhere in the owner's table — is right, and the spare stands · [*Connect to AWS PrivateLink*](https://redis.io/docs/latest/operate/rc/security/aws-privatelink/) — *"the database port range (port 10000-19999)"*, the same fact from the ingress side
 - **Docker — the control case, and it behaves like one.** [`dockerd` reference](https://docs.docker.com/reference/cli/dockerd/) — *"it's not advisable on an **open network**"*, *"By default, it listens on `unix:///var/run/docker.sock` to allow only local connections by the root user"* · [*Configure remote access for Docker daemon*](https://docs.docker.com/engine/daemon/remote-access/) — *"The default port is `2376` if you're using TLS encrypted transport, or `2375` otherwise."* **[measured]** across those and [*Docker Engine security*](https://docs.docker.com/engine/security/) and [*Protect the Docker daemon socket*](https://docs.docker.com/engine/security/protect-access/), **Docker documents no internet-reachable daemon socket as supported and operates no hosted listener**, so **neither** candidate produces a counter-example — which is what a control case looks like and is the reason it was retrieved
-- **Quoted from this note rather than re-fetched, and named as such** (§36.14) — `9200`'s neighbour spare is **§33.11's**; `623/udp`'s prose footing is **§28.10's**; every other carrying statement in §36.6's sweep is quoted as §3.4, §32 and §33 hold it. Where §36.6 says a carrying statement **entails** direction for a member it did not re-fetch, it means the sentence the note records entails it — §33.9's own qualifier, carried forward
+- **Quoted from this note rather than re-fetched, and named as such** (§36.14) — `9200`'s neighbour spare is **§33.11's**. `623/udp`'s prose footing is **§28.10's**. Every other carrying statement in §36.6's sweep is quoted as §3.4, §32 and §33 hold it. Where §36.6 says a carrying statement **entails** direction for a member it did not re-fetch, it means the sentence the note records entails it — §33.9's own qualifier, carried forward
 
 Retrieved for §37 ([#112](https://github.com/winniel123/verge-asm/issues/112)) — **ADR-0067 limb 2 run over all thirty-two members it can reach, across fourteen owner corpora, of which fourteen documents had never been opened by any prior section.** Every retrieval performed **2026-08-14**, and every negative is dated to it per [ADR-0046](../adr/0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md) as amended by [#93](https://github.com/winniel123/verge-asm/issues/93) and [ADR-0045](../adr/0045-an-owners-documentation-is-what-it-has-issued.md)'s per-version issuance rule
 
-- **Elastic — the corpus that carries the sweep's one row-reaching finding, and none of it had been opened before.** [*Networking prerequisites*, Elastic Cloud Enterprise](https://www.elastic.co/docs/deploy-manage/deploy/cloud-enterprise/ece-networking-prereq), `Applies to: Elastic Cloud Enterprise: Generally available`, and the version-tagged [*Elastic Cloud Enterprise Reference [3.8]*](https://www.elastic.co/guide/en/cloud-enterprise/3.8/ece-networking-prereq.html) — the table headed **"Inbound traffic from any source"** carries `9200, 9243 | Proxy | "Elasticsearch REST API. 9200 is plain text and 9243 is with TLS, also required by load balancers"` and `9300, 9343 | Proxy | "Elasticsearch transport client"`, while the **"Inbound traffic from internal components of ECE"** table holds the Elasticsearch instances on `18000-18999`, `19000-19999`, `20000-20999` and `23000-23999`, Allocator role. **[measured]** on that page `9200` ×3, `9300` ×3, `18000` ×2, `19999` ×1, **`internet` ×0, `public` ×0** · [*Traffic Filtering* [3.8]](https://www.elastic.co/guide/en/cloud-enterprise/3.4/ece-traffic-filtering-deployment-configuration.html) — *"**By default, all your deployments are accessible over the public internet**, assuming that your Elastic Cloud Enterprise proxies are accessible."* · [*IP filtering rules in Elastic Cloud Enterprise*](https://www.elastic.co/docs/deploy-manage/security/ece-filter-rules) — *"these proxies may also be accessible **over the public internet**"*, *"the default behavior of **allow all access over the public internet endpoint**"* · [*Load balancers*, ECE](https://www.elastic.co/docs/deploy-manage/deploy/cloud-enterprise/ece-load-balancers) — *"ECE does not include a built-in load balancer, so **you must provision and configure one** in front of the ECE proxies"* and *"Provisioning and configuring the load balancer is the customer's responsibility and is **outside the scope of this documentation**"*, which is the strongest sentence **against** the finding · [*Accessing services*, Elastic Cloud on Kubernetes](https://www.elastic.co/docs/deploy-manage/deploy/cloud-on-k8s/accessing-services), `Applies to: Elastic Cloud on Kubernetes: Generally available` — section heading **"Allow public access"**, *"native Kubernetes services that are **not reachable from the public Internet by default**"*, `type: LoadBalancer` populating `EXTERNAL-IP`, **[measured] with no warning admonition attached**; `internet` ×1, `public` ×2, `9200` ×5. **In ECK there is no proxy and `9200` is the node's own HTTP service** · [*Manage IP filtering in ECK and self-managed clusters*](https://www.elastic.co/docs/deploy-manage/security/ip-filtering-basic) — **the second, unconditioned prohibition**: *"**Elasticsearch installations are not designed to be publicly accessible over the Internet. IP filtering and the other capabilities of the Elasticsearch security features do not change this condition.**"* It numbers no port, so it does not carry the cell; it is routed at §37.11 item 2 · [*Networking settings*](https://www.elastic.co/docs/reference/elasticsearch/configuration-reference/networking-settings) — §16.4's carrying page re-read, *"**Never expose an unprotected node to the public internet**"* unchanged; `unprotected` ×1, `9200` ×3, `9300` ×3 · [*Connect to Elasticsearch*, ECE](https://www.elastic.co/docs/deploy-manage/deploy/cloud-enterprise/connect-elasticsearch) — *"Port 9243 – Secure HTTPS (**recommended**). Port 9200 – Plaintext HTTP (**not recommended**)"*, quoted for the port and not for the mood
-- **Redis — the shape that removed `1433` on three grounds out of four, refused on the pair.** [*Enable private and public database endpoints*, Redis Software](https://redis.io/docs/latest/operate/rs/networking/private-public-endpoints/) — *"**By default, Redis Software databases expose a single endpoint … making it available to the public network (e.g. the internet).**"*, *"This is common for environments such as cloud platforms and enterprises"*, *"**Configure the machine's public IP address for external traffic**"*, **[measured] with no security warning of any kind, and no port number anywhere on the page** · [*Network port configurations*](https://redis.io/docs/latest/operate/rs/networking/port-configurations/) — database traffic `10000-10049, 10051-19999`; **[measured]** `6379` is listed as a port nowhere, the sole substring hit being `36379` on an internode row (§36.14's correction, re-confirmed) · [*Configure database settings*](https://redis.io/docs/latest/operate/rs/databases/configure/) — *"You can define the port number … Otherwise, **a port is randomly selected**"*; `6379` ×0 · [*Configure CentOS/RHEL firewall*](https://redis.io/docs/latest/operate/rs/installing-upgrading/configuring/centos-rhel-firewall/) · [*Redis security*](https://redis.io/docs/latest/operate/oss_and_stack/management/security/) — the carrying page, *"usually it is not a good idea to expose the Redis instance directly to the internet"*, **[measured]** `6379` ×0 on it · [*Block public endpoints*](https://redis.io/docs/latest/operate/rc/security/database-security/block-public-endpoints/) and [*Network security*](https://redis.io/docs/latest/operate/rc/security/database-security/network-security/), Redis Cloud — *"**Public endpoints are accessible from the public internet**"*, on `10000-19999`
-- **Oracle / MySQL — the near-miss, and the bounded affirmation that disposes of it.** [*Network Load Balancer*, MySQL HeatWave Service Guide](https://docs.oracle.com/en-us/iaas/mysql-database/doc/network-load-balancer.html) — *"enables you to connect to a DB system **over the internet**. However, it is a security risk … **You must restrict the authorized public IP addresses to a single IP address or a small range of IP addresses**, and use in-transit encryption"*, with `3306` in the listener, health-check and ingress fields · [*Networking*](https://docs.oracle.com/en-us/iaas/mysql-database/doc/networking.html) — *"**MySQL DB system endpoints are not public.**"* · [*Overview of Connecting to a DB System*](https://docs.oracle.com/en-us/iaas/mysql-database/doc/overview-connecting-db-system.html) — *"**The DB system endpoints are not directly accessible from the internet.**"* · [*Adding Ingress Rules for a Network Load Balancer*](https://docs.oracle.com/en-us/iaas/mysql-database/doc/adding-ingress-rules-network-load-balancer.html) — the step-by-step page, which carries **no** warning of its own, the warning living one page up · **[MySQL 8.0 Reference Manual §34.3, *Configuring Network Access*](https://dev.mysql.com/doc/refman/8.0/en/mysql-oci-marketplace-network-configuration.html)** — **the near-miss**, in the owner's own manual: *"**Important** — You must enable ingress on the following ports: 22: SSH; **3306: MySQL**; 33060: (optional) MySQL X Protocol"*, imperative, no source CIDR, no warning, **and no occurrence of *internet* or *public*** · [§34.2, *Deploying MySQL EE on OCI*](https://dev.mysql.com/doc/refman/8.0/en/mysql-oci-marketplace-deploy.html) · [§8.1.1 *Security Guidelines*, **8.4 LTS**](https://dev.mysql.com/doc/refman/8.4/en/security-guidelines.html) and [**9.7**](https://dev.mysql.com/doc/refman/9.7/en/security-guidelines.html) — **[measured]** the carrying passage is **verbatim identical** across both series: *"MySQL uses port 3306 by default. **This port should not be accessible from untrusted hosts.**"*, in a bullet that also reads *"Try to scan your ports **from the Internet**"*; `3306` ×3, `Internet` ×3
-- **MongoDB — addressee load-bearing at the claim gate, and a fabricated quotation refused.** [*Security Checklist for Self-Managed Deployments*](https://www.mongodb.com/docs/manual/administration/security-checklist/), [*Network and Configuration Hardening*](https://www.mongodb.com/docs/manual/core/security-hardening/), [*IP Binding in Self-Managed Deployments*](https://www.mongodb.com/docs/manual/core/security-mongodb-configuration/) and [*Configuration File Options*](https://www.mongodb.com/docs/manual/reference/configuration-options/), Database Manual **8.3 (Current)** — **[measured]** `public internet` ×0 and `Internet` ×0 across all four; the strongest outward sentence is the conditional *"**Before** you bind your instance to a publicly-accessible IP address, you must secure your cluster from unauthorized access"* · [*Deploy a Self-Managed Replica Set*](https://www.mongodb.com/docs/manual/tutorial/deploy-replica-set/) — *"permitted only on the default MongoDB port and only from within your deployment"* · [*Connect to a MongoDB Database Resource from Outside Kubernetes*](https://www.mongodb.com/docs/kubernetes-operator/current/tutorial/connect-from-outside-k8s/), Enterprise Kubernetes Operator — the nearest miss, `externalAccess` → LoadBalancer at `port: 27017`; **[measured]** `internet`, `public` and `secure` all ×0, TLS mandated, and *"This procedure explains the **simplest** way to enable external connectivity"* · [*Connection Changes FAQ*](https://www.mongodb.com/docs/atlas/reference/faq/connection-changes/) and [*Set Up Cluster Security*](https://www.mongodb.com/docs/atlas/setup-cluster-security/), Atlas — *"**Public IP addresses for Internet connections**"*, `mongodb://xyz456-shard-00-00.ab123.mongodb.net:27017`. **[measured] a search summariser returned *"When exposing MongoDB to the public internet, Make sure that your mongod and mongos instances are only accessible on trusted networks"* — and the leading clause does not exist on the page.** A direct fetch refused it. **The welded clause is precisely the one that would have met §10.3's failure condition for three rows** (§37.14)
-- **Docker — the control case, run wider than §36's and behaving the same.** [`dockerd` reference](https://docs.docker.com/reference/cli/dockerd/), [*Protect the Docker daemon socket*](https://docs.docker.com/engine/security/protect-access/), [*Configure remote access for the Docker daemon*](https://docs.docker.com/engine/daemon/remote-access/) — **[measured]** `internet` ×0 and `public` ×0 on all three, and **every remote-access example binds `tcp://127.0.0.1:2375`**; *"If you are binding to a TCP port, anyone with access to that port has full Docker access; so it's not advisable on an **open network**"* · [*Docker contexts*](https://docs.docker.com/engine/manage-resources/contexts/), [*Docker Desktop settings*](https://docs.docker.com/desktop/settings-and-maintenance/settings/) — *"Expose daemon on **tcp://localhost:2375** without TLS"*, default off · [*Docker Build Cloud setup*](https://docs.docker.com/build-cloud/setup/) — **[measured]** neither `2375` nor `2376` occurs; the service is HTTPS/443 to named Docker hostnames · [*Swarm tutorial*](https://docs.docker.com/engine/swarm/swarm-tutorial/) — the **by-catch**: *"This port should only be opened to a trusted network, and **never at a perimeter firewall**"* over `2377/tcp`, `7946/tcp+udp` and `4789/udp` (§37.11 item 3)
-- **PostgreSQL and CouchDB — the weak tier, swept for the first time, on §10.3 rather than on a footing.** [§20.3 *Connections and Authentication*](https://www.postgresql.org/docs/current/runtime-config-connection.html), [Ch. 20 *Client Authentication*](https://www.postgresql.org/docs/current/client-authentication.html), [§18.9 *Secure TCP/IP Connections with SSL*](https://www.postgresql.org/docs/current/ssl-tcp.html) and [§18.11 *… with SSH Tunnels*](https://www.postgresql.org/docs/current/ssh-tunnels.html), **PostgreSQL 18.6**, plus the [wiki's *Installation and Administration Best practices*](https://wiki.postgresql.org/wiki/Installation_and_Administration_Best_practices) (last edited **18 May 2020**) — **[measured]** `internet` occurs **zero** times in all five; `wiki.postgresql.org/wiki/Security` returns **HTTP 404**; and **[measured]** [postgresql.org/about](https://www.postgresql.org/about/) describes no PGDG-operated service, EDB, Crunchy, Supabase, Neon, RDS and Azure all being third parties · [§3.8 *CouchDB HTTP Server*](https://docs.couchdb.org/en/stable/config/http.html), [*Security*](https://docs.couchdb.org/en/stable/intro/security.html), [*Cluster Setup*](https://docs.couchdb.org/en/stable/setup/cluster.html), [*Reverse Proxies*](https://docs.couchdb.org/en/stable/best-practices/reverse-proxies.html) and [*Installation on Unix-like systems*](https://docs.couchdb.org/en/stable/install/unix.html), **Apache CouchDB 3.5.2** — **[measured]** the docs' only Internet-naming sentence is a **warning about the distribution port**, *"If you expose the distribution port to the Internet or any other untrusted network, then the only thing protecting you is the Erlang cookie"*, which §2.2 already records as covering `4369` and not `5984`; the security chapter sets the bar below the internet — *"**Even a LAN shared with other collocation customers is public**"*; and `internet`, `firewall`, `public`, `0.0.0.0` and `expose` occur **zero** times on the installation page
-- **The remaining owners — dated negatives, each naming its own scope.** memcached, [`ConfiguringServer`](https://github.com/memcached/memcached/wiki/ConfiguringServer) — *"you **must not** expose memcached directly to the internet"*, `-U` *"defaulting to off since 1.5.6"*; the project operates no service · Apache Cassandra, the **5.0** [*FAQ*](https://cassandra.apache.org/doc/latest/cassandra/overview/faq/index.html) and [*Security*](https://cassandra.apache.org/doc/latest/cassandra/managing/operating/security.html) — **[measured] neither contains the widely-repeated *"do not expose port 9042 to the internet"***; the FAQ names the port neutrally and **`9042`'s footing is the shipped `cassandra.yaml` comment**, unaffected (§37.14). **[measured]** `datastax.com` now **301-redirects to `ibm.com`**, so Astra is IBM's · etcd, [`THREAT_MODEL.md`](https://github.com/etcd-io/etcd/blob/main/THREAT_MODEL.md) at `main`, file commit `6c5082e8` (**2026-07-31**), latest release **v3.7.1** (2026-07-23) — *"It **must not** be exposed to untrusted networks or the public internet"*, unchanged · ZooKeeper, `zookeeperAdmin.md` at **`release-3.9.5`** — *"### Things to Avoid … *Publicly accessible deployment*"*, re-confirmed one tag on from §33.6's `release-3.9.4` · RabbitMQ, [*Networking*](https://www.rabbitmq.com/docs/networking) — the `25672` bullet, *"these ports should not be publicly exposed"*; **[measured] the *"can mean public networks"* sentence is on the [production checklist](https://www.rabbitmq.com/docs/production-checklist) and is scoped to the *client* port category**, never to `25672`, confirming §17.4's and §3.4's attribution. **Tanzu RabbitMQ is software the customer's operators run**, not a Broadcom-hosted endpoint · Erlang/OTP, [`DEP-001`](https://www.erlang.org/doc/system/secure_coding.html) at **OTP 29.0.5** · rsync **3.5.0** man pages dated **13 August 2026** — *"The default port used for connecting is **874** (one higher than the normal 873)"*, *"configuring it to only listen on localhost is a good idea"* · Kubernetes, [`security-checklist.md`](https://github.com/kubernetes/website/blob/main/content/en/docs/concepts/security/security-checklist.md) at `kubernetes/website` `main` (**[measured]** file last modified **2025-02-28**, against releases v1.36.3 and v1.37.0-rc.0), [`ports-and-protocols.md`](https://raw.githubusercontent.com/kubernetes/website/main/content/en/docs/reference/networking/ports-and-protocols.md) and [*Kubelet authentication/authorization*](https://kubernetes.io/docs/reference/access-authn-authz/kubelet-authn-authz/), plus [`KubeletConfiguration` v1beta1 `types.go`](https://raw.githubusercontent.com/kubernetes/kubernetes/master/staging/src/k8s.io/kubelet/config/v1beta1/types.go) — *"the port of the **localhost** healthz endpoint"*; **[measured]** `10248` is absent from `ports-and-protocols.md` entirely · Dell, [*iDRAC9 Security Configuration Guide*, §Best Practices](https://www.dell.com/support/manuals/en-us/idrac9-lifecycle-controller-v5.x-series/idrac9_security_configuration_guide/best-practices) — *"The iDRAC is not designed nor intended to be placed on, nor connected directly to the Internet"* · Microsoft, [*SMB over QUIC*](https://learn.microsoft.com/en-us/windows-server/storage/file-server/smb-over-quic) (`ms.date` **2025-07-24**) and [*Secure SMB Traffic in Windows Server*](https://learn.microsoft.com/en-us/windows-server/storage/file-server/smb-secure-traffic) (`ms.date` **2024-10-25**) — *"**Do not allow TCP/445 inbound to the file server**"*, and **[measured]** *"Beginning with Windows 11, version 24H2 and Windows Server 2025, the built-in firewall rules doesn't contain the SMB NetBIOS ports anymore"*, which points `139`/`137`/`138` further **away** from the internet
+- **Elastic — the corpus that carries the sweep's one row-reaching finding, and none of it had been opened before.** [*Networking prerequisites*, Elastic Cloud Enterprise](https://www.elastic.co/docs/deploy-manage/deploy/cloud-enterprise/ece-networking-prereq), `Applies to: Elastic Cloud Enterprise: Generally available`, and the version-tagged [*Elastic Cloud Enterprise Reference [3.8]*](https://www.elastic.co/guide/en/cloud-enterprise/3.8/ece-networking-prereq.html) — the table headed **"Inbound traffic from any source"** carries `9200, 9243 | Proxy | "Elasticsearch REST API. 9200 is plain text and 9243 is with TLS, also required by load balancers"` and `9300, 9343 | Proxy | "Elasticsearch transport client"`, while the **"Inbound traffic from internal components of ECE"** table holds the Elasticsearch instances on `18000-18999`, `19000-19999`, `20000-20999` and `23000-23999`, Allocator role. **[measured]** on that page `9200` ×3, `9300` ×3, `18000` ×2, `19999` ×1, **`internet` ×0, `public` ×0** · [*Traffic Filtering* [3.8]](https://www.elastic.co/guide/en/cloud-enterprise/3.4/ece-traffic-filtering-deployment-configuration.html) — *"**By default, all your deployments are accessible over the public internet**, assuming that your Elastic Cloud Enterprise proxies are accessible."* · [*IP filtering rules in Elastic Cloud Enterprise*](https://www.elastic.co/docs/deploy-manage/security/ece-filter-rules) — *"these proxies may also be accessible **over the public internet**"*, *"the default behavior of **allow all access over the public internet endpoint**"* · [*Load balancers*, ECE](https://www.elastic.co/docs/deploy-manage/deploy/cloud-enterprise/ece-load-balancers) — *"ECE does not include a built-in load balancer, so **you must provision and configure one** in front of the ECE proxies"* and *"Provisioning and configuring the load balancer is the customer's responsibility and is **outside the scope of this documentation**"*, which is the strongest sentence **against** the finding · [*Accessing services*, Elastic Cloud on Kubernetes](https://www.elastic.co/docs/deploy-manage/deploy/cloud-on-k8s/accessing-services), `Applies to: Elastic Cloud on Kubernetes: Generally available` — section heading **"Allow public access"**, *"native Kubernetes services that are **not reachable from the public Internet by default**"*, `type: LoadBalancer` populating `EXTERNAL-IP`, **[measured] with no warning admonition attached**. `internet` ×1, `public` ×2, `9200` ×5. **In ECK there is no proxy and `9200` is the node's own HTTP service** · [*Manage IP filtering in ECK and self-managed clusters*](https://www.elastic.co/docs/deploy-manage/security/ip-filtering-basic) — **the second, unconditioned prohibition**: *"**Elasticsearch installations are not designed to be publicly accessible over the Internet. IP filtering and the other capabilities of the Elasticsearch security features do not change this condition.**"* It numbers no port, so it does not carry the cell. It is routed at §37.11 item 2 · [*Networking settings*](https://www.elastic.co/docs/reference/elasticsearch/configuration-reference/networking-settings) — §16.4's carrying page re-read, *"**Never expose an unprotected node to the public internet**"* unchanged. `unprotected` ×1, `9200` ×3, `9300` ×3 · [*Connect to Elasticsearch*, ECE](https://www.elastic.co/docs/deploy-manage/deploy/cloud-enterprise/connect-elasticsearch) — *"Port 9243 – Secure HTTPS (**recommended**). Port 9200 – Plaintext HTTP (**not recommended**)"*, quoted for the port and not for the mood
+- **Redis — the shape that removed `1433` on three grounds out of four, refused on the pair.** [*Enable private and public database endpoints*, Redis Software](https://redis.io/docs/latest/operate/rs/networking/private-public-endpoints/) — *"**By default, Redis Software databases expose a single endpoint … making it available to the public network (e.g. the internet).**"*, *"This is common for environments such as cloud platforms and enterprises"*, *"**Configure the machine's public IP address for external traffic**"*, **[measured] with no security warning of any kind, and no port number anywhere on the page** · [*Network port configurations*](https://redis.io/docs/latest/operate/rs/networking/port-configurations/) — database traffic `10000-10049, 10051-19999`. **[Measured]** `6379` is listed as a port nowhere, the sole substring hit being `36379` on an internode row (§36.14's correction, re-confirmed) · [*Configure database settings*](https://redis.io/docs/latest/operate/rs/databases/configure/) — *"You can define the port number … Otherwise, **a port is randomly selected**"*. `6379` ×0 · [*Configure CentOS/RHEL firewall*](https://redis.io/docs/latest/operate/rs/installing-upgrading/configuring/centos-rhel-firewall/) · [*Redis security*](https://redis.io/docs/latest/operate/oss_and_stack/management/security/) — the carrying page, *"usually it is not a good idea to expose the Redis instance directly to the internet"*, **[measured]** `6379` ×0 on it · [*Block public endpoints*](https://redis.io/docs/latest/operate/rc/security/database-security/block-public-endpoints/) and [*Network security*](https://redis.io/docs/latest/operate/rc/security/database-security/network-security/), Redis Cloud — *"**Public endpoints are accessible from the public internet**"*, on `10000-19999`
+- **Oracle / MySQL — the near-miss, and the bounded affirmation that disposes of it.** [*Network Load Balancer*, MySQL HeatWave Service Guide](https://docs.oracle.com/en-us/iaas/mysql-database/doc/network-load-balancer.html) — *"enables you to connect to a DB system **over the internet**. However, it is a security risk … **You must restrict the authorized public IP addresses to a single IP address or a small range of IP addresses**, and use in-transit encryption"*, with `3306` in the listener, health-check and ingress fields · [*Networking*](https://docs.oracle.com/en-us/iaas/mysql-database/doc/networking.html) — *"**MySQL DB system endpoints are not public.**"* · [*Overview of Connecting to a DB System*](https://docs.oracle.com/en-us/iaas/mysql-database/doc/overview-connecting-db-system.html) — *"**The DB system endpoints are not directly accessible from the internet.**"* · [*Adding Ingress Rules for a Network Load Balancer*](https://docs.oracle.com/en-us/iaas/mysql-database/doc/adding-ingress-rules-network-load-balancer.html) — the step-by-step page, which carries **no** warning of its own, the warning living one page up · **[MySQL 8.0 Reference Manual §34.3, *Configuring Network Access*](https://dev.mysql.com/doc/refman/8.0/en/mysql-oci-marketplace-network-configuration.html)** — **the near-miss**, in the owner's own manual: *"**Important** — You must enable ingress on the following ports: 22: SSH; **3306: MySQL**; 33060: (optional) MySQL X Protocol"*, imperative, no source CIDR, no warning, **and no occurrence of *internet* or *public*** · [§34.2, *Deploying MySQL EE on OCI*](https://dev.mysql.com/doc/refman/8.0/en/mysql-oci-marketplace-deploy.html) · [§8.1.1 *Security Guidelines*, **8.4 LTS**](https://dev.mysql.com/doc/refman/8.4/en/security-guidelines.html) and [**9.7**](https://dev.mysql.com/doc/refman/9.7/en/security-guidelines.html) — **[measured]** the carrying passage is **verbatim identical** across both series: *"MySQL uses port 3306 by default. **This port should not be accessible from untrusted hosts.**"*, in a bullet that also reads *"Try to scan your ports **from the Internet**"*. `3306` ×3, `Internet` ×3
+- **MongoDB — addressee load-bearing at the claim gate, and a fabricated quotation refused.** [*Security Checklist for Self-Managed Deployments*](https://www.mongodb.com/docs/manual/administration/security-checklist/), [*Network and Configuration Hardening*](https://www.mongodb.com/docs/manual/core/security-hardening/), [*IP Binding in Self-Managed Deployments*](https://www.mongodb.com/docs/manual/core/security-mongodb-configuration/) and [*Configuration File Options*](https://www.mongodb.com/docs/manual/reference/configuration-options/), Database Manual **8.3 (Current)** — **[measured]** `public internet` ×0 and `Internet` ×0 across all four. The strongest outward sentence is the conditional *"**Before** you bind your instance to a publicly-accessible IP address, you must secure your cluster from unauthorized access"* · [*Deploy a Self-Managed Replica Set*](https://www.mongodb.com/docs/manual/tutorial/deploy-replica-set/) — *"permitted only on the default MongoDB port and only from within your deployment"* · [*Connect to a MongoDB Database Resource from Outside Kubernetes*](https://www.mongodb.com/docs/kubernetes-operator/current/tutorial/connect-from-outside-k8s/), Enterprise Kubernetes Operator — the nearest miss, `externalAccess` → LoadBalancer at `port: 27017`. **[Measured]** `internet`, `public` and `secure` all ×0, TLS mandated, and *"This procedure explains the **simplest** way to enable external connectivity"* · [*Connection Changes FAQ*](https://www.mongodb.com/docs/atlas/reference/faq/connection-changes/) and [*Set Up Cluster Security*](https://www.mongodb.com/docs/atlas/setup-cluster-security/), Atlas — *"**Public IP addresses for Internet connections**"*, `mongodb://xyz456-shard-00-00.ab123.mongodb.net:27017`. **[measured] a search summariser returned *"When exposing MongoDB to the public internet, Make sure that your mongod and mongos instances are only accessible on trusted networks"* — and the leading clause does not exist on the page.** A direct fetch refused it. **The welded clause is precisely the one that would have met §10.3's failure condition for three rows** (§37.14)
+- **Docker — the control case, run wider than §36's and behaving the same.** [`dockerd` reference](https://docs.docker.com/reference/cli/dockerd/), [*Protect the Docker daemon socket*](https://docs.docker.com/engine/security/protect-access/), [*Configure remote access for the Docker daemon*](https://docs.docker.com/engine/daemon/remote-access/) — **[measured]** `internet` ×0 and `public` ×0 on all three, and **every remote-access example binds `tcp://127.0.0.1:2375`**. *"If you are binding to a TCP port, anyone with access to that port has full Docker access; so it's not advisable on an **open network**"* · [*Docker contexts*](https://docs.docker.com/engine/manage-resources/contexts/), [*Docker Desktop settings*](https://docs.docker.com/desktop/settings-and-maintenance/settings/) — *"Expose daemon on **tcp://localhost:2375** without TLS"*, default off · [*Docker Build Cloud setup*](https://docs.docker.com/build-cloud/setup/) — **[measured]** neither `2375` nor `2376` occurs. The service is HTTPS/443 to named Docker hostnames · [*Swarm tutorial*](https://docs.docker.com/engine/swarm/swarm-tutorial/) — the **by-catch**: *"This port should only be opened to a trusted network, and **never at a perimeter firewall**"* over `2377/tcp`, `7946/tcp+udp` and `4789/udp` (§37.11 item 3)
+- **PostgreSQL and CouchDB — the weak tier, swept for the first time, on §10.3 rather than on a footing.** [§20.3 *Connections and Authentication*](https://www.postgresql.org/docs/current/runtime-config-connection.html), [Ch. 20 *Client Authentication*](https://www.postgresql.org/docs/current/client-authentication.html), [§18.9 *Secure TCP/IP Connections with SSL*](https://www.postgresql.org/docs/current/ssl-tcp.html) and [§18.11 *… with SSH Tunnels*](https://www.postgresql.org/docs/current/ssh-tunnels.html), **PostgreSQL 18.6**, plus the [wiki's *Installation and Administration Best practices*](https://wiki.postgresql.org/wiki/Installation_and_Administration_Best_practices) (last edited **18 May 2020**) — **[measured]** `internet` occurs **zero** times in all five. `wiki.postgresql.org/wiki/Security` returns **HTTP 404**. And **[measured]** [postgresql.org/about](https://www.postgresql.org/about/) describes no PGDG-operated service, EDB, Crunchy, Supabase, Neon, RDS and Azure all being third parties · [§3.8 *CouchDB HTTP Server*](https://docs.couchdb.org/en/stable/config/http.html), [*Security*](https://docs.couchdb.org/en/stable/intro/security.html), [*Cluster Setup*](https://docs.couchdb.org/en/stable/setup/cluster.html), [*Reverse Proxies*](https://docs.couchdb.org/en/stable/best-practices/reverse-proxies.html) and [*Installation on Unix-like systems*](https://docs.couchdb.org/en/stable/install/unix.html), **Apache CouchDB 3.5.2** — **[measured]** the docs' only Internet-naming sentence is a **warning about the distribution port**, *"If you expose the distribution port to the Internet or any other untrusted network, then the only thing protecting you is the Erlang cookie"*, which §2.2 already records as covering `4369` and not `5984`. The security chapter sets the bar below the internet — *"**Even a LAN shared with other collocation customers is public**"*. And `internet`, `firewall`, `public`, `0.0.0.0` and `expose` occur **zero** times on the installation page
+- **The remaining owners — dated negatives, each naming its own scope.** memcached, [`ConfiguringServer`](https://github.com/memcached/memcached/wiki/ConfiguringServer) — *"you **must not** expose memcached directly to the internet"*, `-U` *"defaulting to off since 1.5.6"*. The project operates no service · Apache Cassandra, the **5.0** [*FAQ*](https://cassandra.apache.org/doc/latest/cassandra/overview/faq/index.html) and [*Security*](https://cassandra.apache.org/doc/latest/cassandra/managing/operating/security.html) — **[measured] neither contains the widely-repeated *"do not expose port 9042 to the internet"***. The FAQ names the port neutrally and **`9042`'s footing is the shipped `cassandra.yaml` comment**, unaffected (§37.14). **[measured]** `datastax.com` now **301-redirects to `ibm.com`**, so Astra is IBM's · etcd, [`THREAT_MODEL.md`](https://github.com/etcd-io/etcd/blob/main/THREAT_MODEL.md) at `main`, file commit `6c5082e8` (**2026-07-31**), latest release **v3.7.1** (2026-07-23) — *"It **must not** be exposed to untrusted networks or the public internet"*, unchanged · ZooKeeper, `zookeeperAdmin.md` at **`release-3.9.5`** — *"### Things to Avoid … *Publicly accessible deployment*"*, re-confirmed one tag on from §33.6's `release-3.9.4` · RabbitMQ, [*Networking*](https://www.rabbitmq.com/docs/networking) — the `25672` bullet, *"these ports should not be publicly exposed"*. **[Measured] the *"can mean public networks"* sentence is on the [production checklist](https://www.rabbitmq.com/docs/production-checklist) and is scoped to the *client* port category**, never to `25672`, confirming §17.4's and §3.4's attribution. **Tanzu RabbitMQ is software the customer's operators run**, not a Broadcom-hosted endpoint · Erlang/OTP, [`DEP-001`](https://www.erlang.org/doc/system/secure_coding.html) at **OTP 29.0.5** · rsync **3.5.0** man pages dated **13 August 2026** — *"The default port used for connecting is **874** (one higher than the normal 873)"*, *"configuring it to only listen on localhost is a good idea"* · Kubernetes, [`security-checklist.md`](https://github.com/kubernetes/website/blob/main/content/en/docs/concepts/security/security-checklist.md) at `kubernetes/website` `main` (**[measured]** file last modified **2025-02-28**, against releases v1.36.3 and v1.37.0-rc.0), [`ports-and-protocols.md`](https://raw.githubusercontent.com/kubernetes/website/main/content/en/docs/reference/networking/ports-and-protocols.md) and [*Kubelet authentication/authorization*](https://kubernetes.io/docs/reference/access-authn-authz/kubelet-authn-authz/), plus [`KubeletConfiguration` v1beta1 `types.go`](https://raw.githubusercontent.com/kubernetes/kubernetes/master/staging/src/k8s.io/kubelet/config/v1beta1/types.go) — *"the port of the **localhost** healthz endpoint"*. **[Measured]** `10248` is absent from `ports-and-protocols.md` entirely · Dell, [*iDRAC9 Security Configuration Guide*, §Best Practices](https://www.dell.com/support/manuals/en-us/idrac9-lifecycle-controller-v5.x-series/idrac9_security_configuration_guide/best-practices) — *"The iDRAC is not designed nor intended to be placed on, nor connected directly to the Internet"* · Microsoft, [*SMB over QUIC*](https://learn.microsoft.com/en-us/windows-server/storage/file-server/smb-over-quic) (`ms.date` **2025-07-24**) and [*Secure SMB Traffic in Windows Server*](https://learn.microsoft.com/en-us/windows-server/storage/file-server/smb-secure-traffic) (`ms.date` **2024-10-25**) — *"**Do not allow TCP/445 inbound to the file server**"*, and **[measured]** *"Beginning with Windows 11, version 24H2 and Windows Server 2025, the built-in firewall rules doesn't contain the SMB NetBIOS ports anymore"*, which points `139`/`137`/`138` further **away** from the internet
 - **[RFC 8881](https://www.rfc-editor.org/rfc/rfc8881.txt), fetched as raw bytes and grepped locally** — 1,593,486 bytes, 31,832 lines, retrieved 2026-08-14. **[measured]** the *NFSv4 Goals* list is **§1.5** (§26.4 cites §1.1 — corrected in place), and **Appendix C, *Security Issues That Need to Be Addressed*, is at line 31,588** carrying *"would be likely to conclude that NFSv4.1 **does not meet the goal of secure use on the Internet**"* verbatim. **Two mediated fetchers truncated the file before the appendices and a third reported the sentence absent** — it wraps as `does not meet the goal of secure` / `use on the Internet`, so a naive search misses it. **§26.4's disposal of `2049/tcp` stands** (§37.14)
