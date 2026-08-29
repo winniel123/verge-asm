@@ -1,19 +1,19 @@
 # Prior art: open-source ASM, recon, and asset-inventory platforms
 
-Research ticket #2 (wayfinder). Survey conducted **2026-07-30/31**. All dates for
-"last commit" / "last release" were read from the GitHub REST API on those dates
+Research ticket #2 (wayfinder). Survey conducted **2026-07-30/31**. This survey read all
+dates for "last commit" / "last release" from the GitHub REST API on those dates
 (`GET /repos/{owner}/{repo}`, `/releases/latest`, `/commits?per_page=1` against the
-default branch) — they are point-in-time facts and will drift.
+default branch). They are point-in-time facts and will drift.
 
-**Method.** Every claim below is sourced to the project's own README, its own
-documentation site, its own source code, or the vendor's own pricing page. No
-listicles, no "top 10 ASM tools" posts. Where a README claim and the source code
-disagreed, the source code wins and the discrepancy is noted.
+**Method.** Every claim below has a first-party source: the project's own README, its own
+documentation site, its own source code, or the vendor's own pricing page. It uses no listicles
+and no "top 10 ASM tools" posts. Where a README claim and the source code disagreed, the source
+code wins. This document notes each discrepancy.
 
 **The question this survey exists to answer:** verge-asm's proposed differentiator is
 *exposure drift* — "what changed since last time". So for each tool the load-bearing
-column is **"models change over time"**, and that column is answered from code or
-docs, not from marketing copy.
+column is **"models change over time"**. Code or docs answer that column, not marketing
+copy.
 
 ---
 
@@ -54,7 +54,7 @@ docs, not from marketing copy.
 
 Three clusters, and only one of them is a real competitor.
 
-**Cluster A — stateless CLI primitives** (subfinder, httpx, naabu, cloudlist, BBOT, Amass-as-enumerator). Excellent, MIT/AGPL, extremely well maintained, and *deliberately* stateless. They are the building blocks verge-asm would consume, not competitors. Amass is the partial exception: `oam_track` genuinely answers "what FQDNs are new since `-since`" out of a persistent graph DB, but the answer is additive-only, DNS-names-only, CLI-only, and has no scheduler or notifier attached.
+**Cluster A — stateless CLI primitives** (subfinder, httpx, naabu, cloudlist, BBOT, Amass-as-enumerator). Excellent, MIT/AGPL, extremely well maintained, and *deliberately* stateless. They are the building blocks verge-asm would consume, not competitors. Amass is the partial exception. `oam_track` genuinely answers "what FQDNs are new since `-since`" from a persistent graph DB. But the answer is additive-only, DNS-names-only, CLI-only, and has no scheduler or notifier attached.
 
 **Cluster B — case-management shells** (Reconmap, Faraday, DefectDojo). These have UIs, users, and persistence, but perform no discovery of their own. They solve "where do findings live", not "what is exposed and what changed".
 
@@ -65,13 +65,13 @@ Three clusters, and only one of them is a real competitor.
 - **Nemo flags new and updated assets** at the record level with per-task history.
 - **ScopeSentry's "monitoring" is not asset monitoring** — it is HTTP body hashing for a URL watchlist. Marketing and code disagree here and the code is unambiguous.
 
-The risk signals in verge-asm's brief — expiring certs, dangling DNS / subdomain takeover, plaintext HTTP, exposed admin panels, unexpected open ports — are **already commodity**. Subdomain-takeover detection is a named feature in ScopeSentry and reNgine; the rest fall out of httpx + a handful of Nuclei templates, which every tool in Cluster C already bundles. There is no differentiation available in the signal set.
+The risk signals in verge-asm's brief — expiring certs, dangling DNS / subdomain takeover, plaintext HTTP, exposed admin panels, unexpected open ports — are **already commodity**. Subdomain-takeover detection is a named feature in ScopeSentry and reNgine. The rest come from httpx + a handful of Nuclei templates, which every tool in Cluster C already bundles. There is no differentiation available in the signal set.
 
 Where Cluster C is genuinely weak, and where the weaknesses are consistent:
 
-1. **Drift is a notification, not an object.** In every one of these tools the primary surface is "here is the current asset list" or "here is scan #47". Change is a Slack message that scrolls past, or a boolean flag. None of them has a first-class, queryable, historical drift record you can open on Monday and read as "here is the diff of your exposure across the last 30 days". reNgine's diff is computed on demand between two adjacent scans and is not itself an entity with a lifecycle.
+1. **Drift is a notification, not an object.** In every one of these tools the primary surface is "here is the current asset list" or "here is scan #47". Change is a Slack message that scrolls past, or a boolean flag. None of them has a first-class, queryable, historical drift record you can open on Monday and read as "here is the diff of your exposure across the last 30 days". reNgine computes its diff on demand between two adjacent scans. That diff is not itself an entity with a lifecycle.
 2. **Drift is subdomain-shaped.** Amass tracks new FQDNs. reNgine diffs subdomains (and vulns). Nobody diffs *ports opening and closing*, *TLS certificates rotating or approaching expiry*, *DNS records repointing*, *HTTP titles/status changing*, or *services appearing on an existing host* as a unified change stream. ScopeSentry diffs page bodies, which is the wrong granularity in the other direction.
-3. **Scope creep to a vuln scanner is universal.** reNgine ships Dalfox and Nuclei; ScopeSentry ships POC scanning; Nemo ships Nuclei; XingRin ships Nuclei and FFUF; Mantis and Sn1per go further. This is what makes them heavy (reNgine's docs tune Celery concurrency for 4–16 GB RAM), noisy, and legally fraught for an operator who only wants to know what's exposed. It is also why they are all framed for pentesters.
+3. **Scope creep to a vuln scanner is universal.** reNgine ships Dalfox and Nuclei. ScopeSentry ships POC scanning. Nemo ships Nuclei. XingRin ships Nuclei and FFUF. Mantis and Sn1per go further. This is what makes them heavy (reNgine's docs tune Celery concurrency for 4–16 GB RAM), noisy, and legally fraught for an operator who only wants to know what's exposed. It is also why they are all framed for pentesters.
 4. **The defensive, English, maintained, permissively-licensed quadrant is empty.** The two tools closest to verge-asm's concept are Chinese-only (Nemo, XingRin) and one of them is on an announced maintenance pause. The English-language leader (reNgine) is offensively framed, has not cut a release in 22 months, and its default branch has been quiet since November 2025. ScopeSentry is disqualified outright for the target user: its README forbids companies and for-profit entities from *using* it without a commercial licence, and it ships no LICENSE file at all.
 
 ---
@@ -91,14 +91,14 @@ Everything on verge-asm's v1 list exists somewhere in open source today:
 
 So the case for building verge-asm cannot be "no tool does exposure drift". It has to be one of the following, and each is a product claim rather than a technical one:
 
-1. **Drift as the primary domain object**, with its own identity, history, and lifecycle — a `Change` you can list, filter, acknowledge, and query over 30/90 days — rather than a diff computed ad hoc between two scan rows and fired at a webhook. No surveyed tool models change this way. This is defensible but it is a data-model and UX claim; a determined contributor could add it to reNgine.
-2. **Drift across all asset facets, not just DNS names.** Ports, certificates, DNS records, service banners, and HTTP identity in one unified change stream. Amass does FQDNs; reNgine does subdomains; ScopeSentry does page bodies. Nobody does the union. This is the most substantive genuine gap found.
+1. **Drift as the primary domain object**, with its own identity, history, and lifecycle — a `Change` you can list, filter, acknowledge, and query over 30/90 days — rather than a diff computed ad hoc between two scan rows and fired at a webhook. No surveyed tool models change this way. This is defensible but it is a data-model and UX claim. A determined contributor could add it to reNgine.
+2. **Drift across all asset facets, not just DNS names.** Ports, certificates, DNS records, service banners, and HTTP identity in one unified change stream. Amass does FQDNs. reNgine does subdomains. ScopeSentry does page bodies. Nobody does the union. This is the most substantive genuine gap found.
 3. **Scope discipline as a feature.** No vulnerability scanner, no cloud connectors, no exploitation. Every Cluster C tool went the other way, and their weight and framing are the direct consequence. A tool a small-org owner can stand up on a 2 GB VPS and hand to an auditor is a different product from reNgine, even if the discovery pipeline is identical.
 4. **Being an actively maintained, English-language, AGPL, defensively-framed option.** Today that quadrant is empty by accident, not by design — reNgine stalled, XingRin paused, SpiderFoot dormant, natlas last released in 2020, ScopeSentry commercially encumbered. This is a real opening and a fragile one: reNgine 3.0 landing, or XingRin's Go rewrite shipping with English docs, would substantially close it.
 
-If the project's differentiation is stated as "we do exposure drift and others don't", that claim is false and should be dropped. The defensible statement is narrower: **"a small, unencumbered, defensively-framed tool where the change record is the product, and where change is tracked across ports, certificates, and DNS — not just subdomains."** Points 1 and 2 are worth building. Points 3 and 4 are worth being honest that they are positioning, and that they can evaporate if reNgine ships 3.0.
+If the project states its differentiation as "we do exposure drift and others don't", that claim is false, and the project should drop it. The defensible statement is narrower: **"a small, unencumbered, defensively-framed tool where the change record is the product, and where change is tracked across ports, certificates, and DNS — not just subdomains."** Points 1 and 2 are worth building. Points 3 and 4 are worth being honest that they are positioning, and that they can evaporate if reNgine ships 3.0.
 
-One further recommendation the survey supports: **before committing, install reNgine and XingRin and use them for a week.** Reading `common_func.py` says reNgine's drift works; it does not say whether it is *usable* as a Monday-morning report, and that is the entire wager.
+One further recommendation the survey supports: **before committing, install reNgine and XingRin and use them for a week.** Reading `common_func.py` says reNgine's drift works. It does not say whether it is *usable* as a Monday-morning report, and that is the entire wager.
 
 ---
 
