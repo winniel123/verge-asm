@@ -88,3 +88,52 @@ func AddressCount(p netip.Prefix) *big.Int {
 func WithinCap(p netip.Prefix, maxAddrs int) bool {
 	return AddressCount(p).Cmp(big.NewInt(int64(maxAddrs))) <= 0
 }
+
+// EnumerateAddresses returns every address a prefix covers, in ascending order.
+// An address scope is its own enumeration (ADR-0047): a declared CIDR produces a
+// probe target for every address inside it — the network and broadcast addresses
+// included, since exempting them would infer a subnetting we never measure. The
+// prefix is masked first, so a host-bits-set input (10.0.0.5/30) enumerates its
+// block (10.0.0.4..10.0.0.7). The per-scope address cap (WithinCap, applied at
+// declaration, §5.3) is what bounds this: callers enumerate a whole scope and
+// never truncate at scan time, which ADR-0047 refuses as a silent aperture. The
+// walk stops when Next overflows to the invalid zero address, so a scope at the
+// very top of the address space terminates cleanly rather than looping.
+func EnumerateAddresses(p netip.Prefix) []netip.Addr {
+	p = p.Masked()
+	if !p.IsValid() {
+		return nil
+	}
+	out := make([]netip.Addr, 0, EnumCapHint(p))
+	for a := p.Addr(); a.IsValid() && p.Contains(a); a = a.Next() {
+		out = append(out, a)
+	}
+	return out
+}
+
+// maxEnumCapHint bounds the capacity PRE-ALLOCATION of an enumeration. It caps
+// only the initial size guess, never the walk itself — ADR-0047 refuses a
+// scan-time cap on the enumeration — so a scope wider than the hint still
+// enumerates whole, its slice regrowing past the hint as before. The bound stops
+// a pathological oversized scope (one declared under a since-lowered cap) from
+// pre-allocating a huge slice from a single AddressCount read.
+const maxEnumCapHint = 1 << 16
+
+// EnumCapHint is the exact address count of p as a slice-capacity hint, bounded
+// by maxEnumCapHint and 0 when the count does not fit an int. It lets a caller
+// pre-size a buffer that will hold EnumerateAddresses(p). It is a hint only, so
+// an inexact value costs at most a few reallocations and never a wrong result.
+func EnumCapHint(p netip.Prefix) int {
+	c := AddressCount(p)
+	if !c.IsInt64() {
+		return 0
+	}
+	n := c.Int64()
+	if n <= 0 {
+		return 0
+	}
+	if n > maxEnumCapHint {
+		return maxEnumCapHint
+	}
+	return int(n)
+}

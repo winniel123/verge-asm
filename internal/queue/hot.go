@@ -13,6 +13,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/retention"
 	"github.com/winniel123/verge-asm/internal/scan"
+	"github.com/winniel123/verge-asm/internal/seed"
 	"github.com/winniel123/verge-asm/internal/vergecore"
 )
 
@@ -26,10 +27,14 @@ import (
 
 // fanOutHot enqueues one hot job per Vantage over the Custody-admitted addresses.
 func (d *Dispatcher) fanOutHot(ctx context.Context, qtx *db.Queries, scanID, dispatchID int64) (int, error) {
-	estate, addrs, err := hotEstate(ctx, qtx, d.now())
+	estate, resolved, err := hotEstate(ctx, qtx, d.now())
 	if err != nil {
 		return 0, err
 	}
+	// The hot tier probes every declared address scope, so it enumerates all of
+	// them (ADR-0047): every declared CIDR is walked daily whether or not a name
+	// resolves into it.
+	addrs := candidateAddrs(resolved, estate.AddressScopes)
 	core, err := hotCore(ctx, qtx)
 	if err != nil {
 		return 0, err
@@ -50,12 +55,15 @@ func (d *Dispatcher) fanOutHot(ctx context.Context, qtx *db.Queries, scanID, dis
 }
 
 // hotEstate builds the Custody derivation's inputs from the confirmed Seeds and
-// the current resolutions, and returns the candidate address set the hot Scan
-// would probe (the addresses names currently resolve to). The gate then admits
-// or refuses each per Vantage class. asOf is the dispatcher's read instant: the
-// current resolutions are read through the live-tier gate (#237, ADR-0041), so an
-// Address held only by an evidential resolution — one no derivation may still read
-// — is not admitted into the probed estate.
+// the current resolutions, and returns the RESOLVED address set (the addresses
+// names currently resolve to). Each fan-out then unions this set with the
+// addresses its own scopes enumerate via candidateAddrs — the hot tier over every
+// declared address scope, the cold tier over only its opted-in scopes — so
+// neither tier enumerates a scope it does not probe. The gate then admits or
+// refuses each address per Vantage class. asOf is the dispatcher's read instant:
+// the current resolutions are read through the live-tier gate (#237, ADR-0041),
+// so an Address held only by an evidential resolution — one no derivation may
+// still read — is not admitted into the probed estate.
 func hotEstate(ctx context.Context, q *db.Queries, asOf time.Time) (custody.Estate, []netip.Addr, error) {
 	scopes, err := q.ListAddressScopeCidrs(ctx)
 	if err != nil {
@@ -107,6 +115,46 @@ func hotEstate(ctx context.Context, q *db.Queries, asOf time.Time) (custody.Esta
 		ExtendedZones: extended,
 		Resolutions:   resolutions,
 	}, addrs, nil
+}
+
+// candidateAddrs is a tier's target set BEFORE the Custody gate: the addresses
+// names currently resolve to, unioned with every address the given scopes
+// enumerate (ADR-0047). Enumerating the scopes here — at the DB boundary, where
+// the per-scope address cap (seed.WithinCap at declaration) guarantees each scope
+// is bounded — is what turns a declared CIDR into probe targets and dark
+// `not-reached` subjects, closing the #779 gap. The caller passes the scopes its
+// tier probes: the hot fan-out passes every declared address scope, the cold
+// fan-out only its opted-in scopes, so neither enumerates a scope it discards.
+// The union is deduplicated and resolved-first, so an address that is both
+// resolved and inside a scope is probed once. The Custody gate (scan.BuildHotJobs
+// / scan.BuildColdJobs) still runs over the result and remains total (ADR-0019):
+// every enumerated candidate is an operator address, but the denotation
+// precondition can still bar a non-globally-reachable one from an
+// internet-class Vantage.
+func candidateAddrs(resolved []netip.Addr, scopes []netip.Prefix) []netip.Addr {
+	capHint := len(resolved)
+	for _, p := range scopes {
+		capHint += seed.EnumCapHint(p)
+	}
+	seen := make(map[netip.Addr]struct{}, capHint)
+	out := make([]netip.Addr, 0, capHint)
+	add := func(a netip.Addr) {
+		a = a.Unmap()
+		if _, ok := seen[a]; ok {
+			return
+		}
+		seen[a] = struct{}{}
+		out = append(out, a)
+	}
+	for _, a := range resolved {
+		add(a)
+	}
+	for _, p := range scopes {
+		for _, a := range seed.EnumerateAddresses(p) {
+			add(a)
+		}
+	}
+	return out
 }
 
 // hotCore reads the shipped verge-core and applies the operator's frequency-half
