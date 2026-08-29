@@ -20,9 +20,9 @@ and no leg moved ([ADR-0029](./0029-an-alert-fires-on-a-leg.md) §2):
 
 1. an existing `Name` gaining a **CNAME whose target does not exist** — `cname-target-name-error`
    opens at *fired*, which is the case [#35](https://github.com/winniel123/verge-asm/issues/35)
-   called the highest-confidence dangling signal available;
+   called the highest-confidence dangling signal available.
 2. an existing `Endpoint` going `NoTLS` → `Presented` with a certificate that is already expired,
-   self-signed or weak — up to six certificate rules open at *fired* at once;
+   self-signed or weak — up to six certificate rules open at *fired* at once.
 3. a `tls-acceptance` timeline opening at *fired* on its own weekly `Scan`, days after its
    `Service` entered — ADR-0031's stated cost, which
    [ADR-0028](./0028-a-facets-cadence-is-the-cadence-of-its-exchange.md) narrowed and did not
@@ -104,14 +104,14 @@ beneath it, and everything else follows from what a `Transition` already is:
 | The subject entered the rule's domain because a value it reads moved | **Yes** | **Message** |
 
 Five causes, one test, no branch. The discriminator is not a fact about the notification layer's
-reasoning; it is a fact the comparison path already derives on read from two adjacent spans. That
+reasoning. It is a fact the comparison path already derives on read from two adjacent spans. That
 is the answer to the ticket's second question: **a carrier can be built without a three-way case
 analysis, because the three ways the analysis would have enumerated are exactly the three ways a
 `Transition` fails to exist.**
 
 Two constraints are met by construction rather than by care. **No threshold and no count in the
 predicate** ([ADR-0007](./0007-drift-is-a-timeline-of-spans.md)) — the test is the existence of an
-adjacency and the inhabitance of a set the fold already computed; every number lives in the census,
+adjacency and the inhabitance of a set the fold already computed. Every number lives in the census,
 which is payload. And **no free read** (ADR-0024) — the `Transition` is on evidence the rule
 already declares and already composes into its own leaf, so no vector grows and no corpus row is
 added.
@@ -131,7 +131,7 @@ So the message fires at the `Transition` and carries the census of what opened b
 This is **ADR-0029 §7's payload shape with a fifth producer**, after the aperture widening, the
 membership entry, the flagship and ADR-0026 §2's re-point. It is computed once at the cause, is a
 description and never a `Transition`, carries no difference set, and alerts nothing individually.
-ADR-0031 wrote that a third producer *"would be a signal that the shape is right"*; this is the
+ADR-0031 wrote that a third producer *"would be a signal that the shape is right"*. This is the
 fifth.
 
 The residue clause — *no message in that fold already covers that opening* — is ADR-0026 §2's own
@@ -201,8 +201,8 @@ message and a fifth producer of an existing payload shape.
 ## Consequences
 
 - **[`CONTEXT.md`](../../CONTEXT.md) is amended in three entries** — `Transition` records that a
-  move carries the rule that opens at `fired` beneath it; `Signal` replaces *"carried by the census
-  of a message above it or by nothing"* with the move-or-schedule cut; `Predicate domain` restates
+  move carries the rule that opens at `fired` beneath it. `Signal` replaces *"carried by the census
+  of a message above it or by nothing"* with the move-or-schedule cut. `Predicate domain` restates
   the stated cost, which is now the schedule half alone.
 - **ADR-0026 §1's table is amended in three rows, and its own reason column is where the residue
   was hiding.** `certificate`'s reason addresses `Presented(c1)` → `Presented(c2)` and
@@ -219,10 +219,10 @@ message and a fifth producer of an existing payload shape.
   timeline merely opened.
 - **`dns-record` is still not a channel.** An MX, TXT or NS change reaches nobody, because no v1
   rule reads those qtypes and so none can open at `fired` beneath them. The map's **Out of scope**
-  entry for a facet-level `dns-record` channel stands untouched; what this ruling adds is one
+  entry for a facet-level `dns-record` channel stands untouched. What this ruling adds is one
   `dns-record` move that is the sole carrier of a rule, not a channel for the facet.
 - **The subdomain-takeover case #35 built a rule for is now covered in both of its shapes.** A
-  CNAME whose target is deleted was already a message (`not-fired` → `fired`, ADR-0026 §5); a CNAME
+  CNAME whose target is deleted was already a message (`not-fired` → `fired`, ADR-0026 §5). A CNAME
   created already dangling is one now. Neither shape is bigger than the other on any measurement in
   this repo, and previously one of them reached nobody.
 - **A fifth wording pair for the notification patch**, after
@@ -236,7 +236,7 @@ message and a fifth producer of an existing payload shape.
 - **Decided on thin ground in one place, and it is not dressed as a derivation.** The base rate of
   `NoHTTPResponse` → `Responded` on an internal estate is unmeasured, exactly as ADR-0029 and
   ADR-0031 left their volumes unmeasured. The argument that it is not the deploy shape is
-  structural and holds; the argument that it is *rare* is an assertion. If it drowns the channel the
+  structural and holds. The argument that it is *rare* is an assertion. If it drowns the channel the
   remedy is coalescing in the notification patch and never a predicate change, because the
   `Transition` is recorded either way — one predicate in the notification layer, no timeline
   touched.

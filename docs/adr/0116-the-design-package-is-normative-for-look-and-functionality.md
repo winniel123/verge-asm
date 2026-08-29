@@ -44,7 +44,7 @@ honest-current-state doctrine is **retired for composition and data shape**. Con
    wanted addition goes through the collision protocol first, never straight into the port.
 4. **Vocabulary rules are unchanged and still binding** — signal / seed / channel / vantage /
    annotation, withdrawn never resolved ([ADR-0024](./0024-a-rules-domain-is-the-extension-of-its-name.md)).
-   The domain term still wins in *copy*; what this ADR removes is its authority over *structure*.
+   The domain term still wins in *copy*. What this ADR removes is its authority over *structure*.
 
 The scope of ADR-0024 is narrowed accordingly: it governs naming, not whether a specced region renders.
 ADR-0110's verbatim-port mandate is affirmed and extended from IA to data shape.
@@ -60,9 +60,9 @@ so it binds every session.
 
 - **`CONTEXT.md`'s "a signal carries no severity" clause is superseded** and withdrawn at its site per
   [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md). A signal now
-  carries a five-level severity (critical / high / medium / low / info) assigned per rule; the datum is
+  carries a five-level severity (critical / high / medium / low / info) assigned per rule. The datum is
   built, not re-skinned (PARITY-CHART P0.1). The surviving true point — that a transition's *timing* is
-  what makes a fact worth saying — stays; a `Message` still carries no severity
+  what makes a fact worth saying — stays. A `Message` still carries no severity
   ([ADR-0064](./0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md)).
 - The parity backlog (map [#440](https://github.com/winniel123/verge-asm/issues/440)) builds the four
   missing model prerequisites — severity + per-instance signals, vs-last-batch deltas, trend series,

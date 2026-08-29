@@ -61,7 +61,7 @@ nine, once, over the life of the install. That is the entire benefit being weigh
 
 ### It is not a threshold, a cap, or a typed confirmation
 
-Nothing branches on the address count. **The gesture is identical at every size**; what changes is
+Nothing branches on the address count. **The gesture is identical at every size**. What changes is
 the sentence the operator reads, because the count is rendered *in the affordance's own label* —
 `Confirm 256 addresses` and `Confirm 8,388,608 addresses` are the same control. That distinction
 matters, because #27 refused a size cap as *an invented threshold inside the safety path* and
@@ -86,7 +86,7 @@ rejected for the `custody extension` on the same grounds.
   *safe* — nothing is confirmed — but it leaves 177 proposals to be re-offered and it is a coverage
   failure, so cheap declining is what buys the asymmetry its ergonomics back.
 - **Undo may not become a confirm shortcut.** Reversing a decline returns the scope to the pending
-  proposals; confirming it afterwards is a fresh, singular confirmation. Otherwise the one
+  proposals. Confirming it afterwards is a fresh, singular confirmation. Otherwise the one
   deliberate act per scope is recoverable in bulk through the undo path.
 - **This binds any future proposer.** It is a rule about the confirmation act, not about the ARIN
   SWIP path or about delegated-stats sibling expansion, so a proposer added in a later release

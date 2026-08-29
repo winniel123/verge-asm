@@ -67,10 +67,15 @@ Three populations follow, and they exhaust the citation set:
 | **Recurring** | Every gate run | A citation whose target is **moving** and which carries a live cell. **This is §39.6's *finite named set*,** and it is named at `sensitive-ports.md` §44.4 |
 
 **The mutability test is a string test on the URL and needs no retrieval.** A target is
-**content-addressed** where the citation names an object that cannot change under that name: an
-**RFC number**; a **git blob or tree at a tag or 40-hex commit**; a **released archive verified
-against a published checksum**; a **vendor document named by its own part, document or revision
-number**; a **frozen per-release page**. Everything else is **moving** — a branch, a
+**content-addressed** where the citation names an object that cannot change under that name:
+
+- an **RFC number**
+- a **git blob or tree at a tag or 40-hex commit**
+- a **released archive verified against a published checksum**
+- a **vendor document named by its own part, document or revision number**
+- a **frozen per-release page**
+
+Everything else is **moving** — a branch, a
 `latest`/`stable`/`current` path, a release-line path the owner edits in place, a wiki, a vendor
 portal page, a live registry, and any page with no version marker at all.
 
@@ -80,7 +85,7 @@ portal page, a live registry, and any page with no version marker at all.
    **moving** citation, because a run has nothing to fetch. The error therefore runs towards a larger
    recurring roster and never towards a missed check.
 2. **A citation naming more than one target is as many members as it names targets.**
-3. **A cell whose ground is an *absence* is in no G8 population.** Half (a) has no string to test; a
+3. **A cell whose ground is an *absence* is in no G8 population.** Half (a) has no string to test. A
    dated negative is re-swept under
    [ADR-0046](./0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md)
    as amended by [#93](https://github.com/winniel123/verge-asm/issues/93), which is a **reading** and
@@ -106,7 +111,7 @@ having had no list of them to attach the discipline to.** This is the first list
 
 **And the corollary that makes the rule worth having rather than merely smaller: pinning is a cure,
 and it is free at the moment it is made.** A pass already reading an owner artefact is already
-holding the tag; writing the tag into the citation moves that member from the recurring roster to the
+holding the tag. Writing the tag into the citation moves that member from the recurring roster to the
 entry set **permanently**. Nothing in the corpus previously rewarded pinning at all, which is why
 nothing did it systematically.
 
@@ -115,14 +120,14 @@ nothing did it systematically.
 **The two checks had been carrying each other's question.** *Is this still what the owner says?* is
 the **tag comparison**, and **G11** owns it and ran it to completion over all 27 footing cells
 (§40.4). A citation to a moving target answers G8's question and G11's at one fetch, so it reads as a
-G8 obligation; a citation to a pinned target hands the currency question wholly to G11 and keeps none
+G8 obligation. A citation to a pinned target hands the currency question wholly to G11 and keeps none
 of it. **G8's set looked unnameable because it was carrying G11's**, and the two separate cleanly the
 moment the population is cut on mutability.
 
 **Reliance, not readership, is the key.** A curated table's gate protects **cells**. A citation
 behind a removed row (`161/udp`, `1433/tcp`, `9200`, `9300`), a withdrawn clause, a **corroborator**
 that §2.3 already bars from being a ground, or a method paragraph carries **no cell** — so its
-failure moves nothing the gate is for. That is not a hole grudgingly accepted; it is what
+failure moves nothing the gate is for. That is not a hole grudgingly accepted. It is what
 *corroborator* and *withdrawn* mean.
 
 **Two options lost.**
@@ -157,7 +162,7 @@ contain.
   row read alone in the present tense licensed a run to choose its own subset. §40.9's first bullet is
   marked **discharged**.
 - **This reaches every curated table, not only the sensitive-port list.** ADR-0032 attaches an
-  evidence standard to a table; ADR-0057's gate is the instrument over any of them. A table with no
+  evidence standard to a table. ADR-0057's gate is the instrument over any of them. A table with no
   citations has an empty recurring roster, which is a legible state.
 - **Two cells are unpinnable and therefore permanently recurring** — MongoDB publishes no revision
   marker of any kind (§36.14) and the memcached wiki has no releases. **[measured]** those are also
@@ -184,7 +189,7 @@ contain.
   artefact announces a change** and G8 asks **whether the artefact can change under its name at all** —
   a rung-5 specification and a rung-1 dataset are both immutable once published under a number, while
   a rung-3 shipped default is immutable at a tag and mutable at a branch. **The rung ladder is about
-  the owner's act; this cut is about the citation's form.**
+  the owner's act. This cut is about the citation's form.**
 - **Sample the roster and disclose a bounded residue,** as the queue does under
   [ADR-0078](./0078-a-residue-is-disclosed-by-the-act-that-leaves-it.md). Refused: a bounded residue
   is the instrument for a population that **cannot terminate**, and this one does. Sampling a
@@ -192,5 +197,5 @@ contain.
   from the gate to the queue on a cost argument alone.
 - **Re-resolve on a slower cadence — every *n*th release — rather than partitioning.** It restores
   discretion in the time axis instead of the membership axis, and it makes *which release ran G8* a
-  fact a later reader must reconstruct. A check that is either run or inherited is legible; a check
+  fact a later reader must reconstruct. A check that is either run or inherited is legible. A check
   that is *due* is not.

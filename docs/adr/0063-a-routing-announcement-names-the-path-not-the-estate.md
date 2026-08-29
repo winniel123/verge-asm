@@ -22,7 +22,7 @@ Four decisions have since moved the ground under it, none of them aimed at it.
   the yield in the same pass. **RouteViews** `api.routeviews.org/asn/<n>` is keyless, **CC BY 4.0**,
   and the only source measured in this project whose rate limit a naive client cannot turn into an
   error — it paces to ~1 req/s rather than returning 429. And **[measured] 0 of 100** announced
-  Safaricom IPv4 prefixes fall outside a registered block; **2 of 11** for Mythic Beasts. The note
+  Safaricom IPv4 prefixes fall outside a registered block. **2 of 11** for Mythic Beasts. The note
   recommended shipping it *"because it is clean and cheap, not because the registry path is
   incomplete without it."*
 - **[#26](https://github.com/winniel123/verge-asm/issues/26)** ruled the modal operator
@@ -87,7 +87,7 @@ fail identically — both are routing facts about the path, offered as facts abo
 
 Every argument the corpus has ever made for a proposer is that the estate exceeds memory: *"Mythic
 Beasts, a small UK hosting company, holds 19 network objects … Nobody types that list from memory
-correctly"*; *"subsidiaries are exactly where forgotten exposure lives."* Registry rows earn that
+correctly"*. *"subsidiaries are exactly where forgotten exposure lives."* Registry rows earn that
 because they are paperwork filed years ago by people who have left.
 
 **A BGP announcement is not paperwork. It is a live router configuration somebody in the operator's
@@ -121,7 +121,7 @@ probing gate actually opens.
 ### RouteViews as an instrument: cleared, and it does not arise
 
 Recorded so that no later session re-derives it. **RouteViews clears ADR-0003 entirely.** CC BY 4.0
-permits automated querying, local storage and cross-run retention (limb 1); the commercial clause
+permits automated querying, local storage and cross-run retention (limb 1). The commercial clause
 triggers only *"when selling services, products, reports, or other derivative works based on
 RouteViews Data to third parties"*, which is the reseller shape ADR-0003 says does not fail (limb 2).
 Its whole shipping obligation is attribution. Had the leg shipped, RouteViews would be its
@@ -129,7 +129,7 @@ instrument, `unencumbered`, and it would displace **nothing** — RIPEstat's `an
 not in the shipped set and has not been since #19.
 
 **The instrument was never the problem, and a clean licence is not a reason to ship.** ADR-0065
-refuses an exclusion resting on a fact about our own artefact rather than about the candidate; this
+refuses an exclusion resting on a fact about our own artefact rather than about the candidate. This
 is the same move in the admitting direction — *it is permitted and it is cheap* are facts about the
 terms and the wire, not about what the operator learns.
 
@@ -152,7 +152,7 @@ sits outside every row their own opaque-id groups, and outside ARIN — where
 to a /29 — may be reachable by no path but this one.
 
 Nobody has measured how often that happens. Both of #20's comparisons are large-ish holders with
-their own PI space; neither is that case, and n=2 with a 0 and an 18% is not a rate. What bounds the
+their own PI space. Neither is that case, and n=2 with a 0 and an 18% is not a rate. What bounds the
 exposure is #26: reaching it at all requires the operator to hold their **own ASN**, which is at most
 57% of a registered population that is itself under 1% of the persona — and an organisation running
 its own AS over borrowed address space is the one operator most certain to know which prefixes it
@@ -170,7 +170,7 @@ on every install, forever.
 
 **Does RouteViews join the default set, and what does it displace?** The question does not arise, and
 its second half was already malformed when it was written. It presupposes RIPEstat's
-`announced-prefixes` is in the shipped set. #19 shipped RIPEstat off; #47 scoped its toggle to
+`announced-prefixes` is in the shipped set. #19 shipped RIPEstat off. #47 scoped its toggle to
 org→prefix. There has been nothing to displace since 2026-08-13, and #20's *"replaces RIPEstat's
 `announced-prefixes` outright"* — true as a statement about capability — has been read three times
 since as a statement about the shipped set.
@@ -180,11 +180,11 @@ since as a statement about the shipped set.
 - **RouteViews is not blacklisted.** No verdict about its terms, availability or quality is disturbed.
   What is ruled out is the **leg**, and the instrument is out with it only because it serves nothing
   else.
-- **CAIDA's `as-org2info` is unaffected.** #43 ships it for the org→prefix path; its ASN column is
+- **CAIDA's `as-org2info` is unaffected.** #43 ships it for the org→prefix path. Its ASN column is
   not what carried that ruling.
 - **The delegated-stats sibling expansion is unaffected**, including the fact that a held row's
   opaque-id groups the holder's **ASNs** alongside their prefixes. That grouping is registry data
-  about a holder and stays exactly as useful as #27 found it; nothing here reads it as a route.
+  about a holder and stays exactly as useful as #27 found it. Nothing here reads it as a route.
 
 ## Consequences
 
@@ -196,7 +196,7 @@ since as a statement about the shipped set.
   [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) sends them
   there.
 - **`Proposal`'s record kinds stay at two** — an RIR delegation, or a compelled reassignment written
-  by an upstream provider. A route announcement would have been a third; it is not one.
+  by an upstream provider. A route announcement would have been a third. It is not one.
 - **Four sites that still specify the BGP leg in the present tense are withdrawn in place**, per
   ADR-0058: [`passive-discovery-sources.md`](../research/passive-discovery-sources.md) §1 and §4.5,
   [`non-arin-prefix-coverage.md`](../research/non-arin-prefix-coverage.md) §1, §6.1, §10.2 and §11

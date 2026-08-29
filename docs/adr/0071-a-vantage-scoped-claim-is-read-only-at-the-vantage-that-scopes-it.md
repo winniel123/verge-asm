@@ -75,7 +75,7 @@ legitimately internet-facing*, and the internal leg is outside the context that 
 term meaning — [#46](https://github.com/winniel123/verge-asm/issues/46)'s truncated conditional. This
 rule succeeds because the vantage is **inside** it: the claim it reads is scoped to the internet, the
 name says so, and the domain admits no other vantage class, so the rule can never be evaluated
-outside the context that gives it meaning. **The distinction is not which fact is more alarming; it
+outside the context that gives it meaning. **The distinction is not which fact is more alarming. It
 is whether the scope is carried or assumed.**
 
 The corollary binds in the closed direction: the internal-leg twin of *this* rule —
@@ -237,7 +237,7 @@ worked examples are the proof.** The wildcard thread's illustrations of what a b
 costs are *literally this rule's false positives*:
 [ADR-0069](./0069-a-control-label-is-one-label-and-the-set-must-falsify-label-independence.md) records
 `traefik.me` answering `10.0.0.1.traefik.me` with `10.0.0.1` and warns that set equality *"reports a
-fictional RFC 1918 address as `Resolved`"*;
+fictional RFC 1918 address as `Resolved`"*.
 [ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md)
 uses `Resolved([10.4.3.1])` for the same purpose. Under every other rule in the set a fabricated
 address set is a wrong value on a timeline. Under this one it is a **fabricated firing on a fictional
@@ -250,7 +250,7 @@ whose failure mode is a firing rather than a value.
 
 The ticket is explicit that the gate must be worked and not waved through on *the registry is
 spec-defined*. It is worked in
-[`special-purpose-address-registry.md`](../research/special-purpose-address-registry.md); the
+[`special-purpose-address-registry.md`](../research/special-purpose-address-registry.md). The
 verdicts and the reasons are here.
 
 **Gate 1 — the closed claim set. Applies, and it is derived rather than inherited.** ADR-0032 §3 is
@@ -270,14 +270,14 @@ allocation — the one table in the product with no gap between claim and claima
 to cross. Per ADR-0037 the retrieval is over the artefact, so one retrieval attests all fifty rows.
 
 Two riders keep this from being a free pass. The **selection predicate must remain the registry's own
-column** (Decision rule 2); and where the registry declines to state a value — four `N/A` and
+column** (Decision rule 2). And where the registry declines to state a value — four `N/A` and
 terminated blocks — **we decline to conclude one**, which is disclosed in the table's §6 with the
 retrieval that would resolve it named.
 
 **Gate 3 — determinacy. Outside the domain, and ADR-0032 §4 already said why in advance.** The gate
 exists because `sensitive-port-reached-from-internet` *cannot read the fact it is named for*: a
 `(port, transport)` pair is a **surrogate** for a service, and the port registry disclaims the
-inference in capitals. Here the key is the address and the fact is a property of the address; the
+inference in capitals. Here the key is the address and the fact is a property of the address. The
 registry does not stand in for the classification, it **is** the classification. Nothing is proxying
 for anything, so the gate does not fail to generalise — it reads ADR-0024's third register, *the
 question does not arise*, which is the shape ADR-0032 §4 predicted and the check it asked for.
@@ -300,7 +300,7 @@ normalisation that is fixed at v1, carries no version and composes no leaf. What
 normative meaning over an already-keyed value, which is the third position and #21's instrument.
 
 **A verdict table is not automatically a signature database.** #31's line, written before ADR-0032
-split three ways, names the failing kind of verdict table; ADR-0032 supplied the failure mode —
+split three ways, names the failing kind of verdict table. ADR-0032 supplied the failure mode —
 *"a false verdict that moves when a vendor's banner moves."* The discriminator that survives both, and
 which is stated as **derived rather than measured**:
 
@@ -332,7 +332,7 @@ made this a signature database is supplied by the owner, which is as good as thi
   is a place drift can be manufactured, and two compositions over one facet is a seam. It is priced
   and flagged rather than smoothed over — see Consequences.
 - **A second rule that is dark on the modal install.** `sensitive-port-reached-from-internet` is
-  permanently `not-evaluable` where no internet vantage is configured; this rule joins it. The
+  permanently `not-evaluable` where no internet vantage is configured. This rule joins it. The
   standing aperture statement on `Coverage` now carries two rules rather than one, and its honesty is
   ADR-0004's #44 amendment's, unchanged.
 - **One inherited failure mode, in the loud direction.** `Vantage class` verifies `internet` for any
@@ -352,7 +352,7 @@ made this a signature database is supplied by the owner, which is as good as thi
   and the count in its #64 amendment moves.
 - **[ADR-0032](./0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) is amended in four
   places**: §4's forward statement about this candidate is **discharged** rather than left pointing at
-  itself; the v1 walk gains a row; *thirteen of sixteen* becomes *thirteen of seventeen*; and gate 2
+  itself. The v1 walk gains a row. *Thirteen of sixteen* becomes *thirteen of seventeen*. And gate 2
   reaches three rules rather than two.
 - **[ADR-0015](./0015-the-value-space-is-the-commitment.md),
   [ADR-0026](./0026-the-facet-layer-is-evidence-not-a-channel.md),
@@ -361,18 +361,18 @@ made this a signature database is supplied by the owner, which is as good as thi
   each carry a *sixteen* that is now stale and each is marked at the sentence**, per
   [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) as widened
   by [#106](https://github.com/winniel123/verge-asm/issues/106). ADR-0026's *four of sixteen* clearing
-  rules is unchanged in membership; only its denominator moves.
+  rules is unchanged in membership. Only its denominator moves.
 - **[#12](https://github.com/winniel123/verge-asm/issues/12) must carry seventeen rules**, and this
   ADR does **not** block it: the rule has predicate content and its table is written, so ADR-0032's
   blocking ground — *a v1 rule with no predicate content cannot be assembled into a spec* — does not
   apply.
 - **Nothing is added to the notification vocabulary.** The firing edge is a message in the drift class
-  like every rule's; a move that admits a name to the domain at `fired` is carried by the
-  `resolution` `Transition` beneath it ([ADR-0033](./0033-a-move-carries-the-rule-that-opens-at-fired.md));
-  an opening at `fired` with no move beneath is carried by the entering `Name`'s membership census
+  like every rule's. A move that admits a name to the domain at `fired` is carried by the
+  `resolution` `Transition` beneath it ([ADR-0033](./0033-a-move-carries-the-rule-that-opens-at-fired.md)).
+  An opening at `fired` with no move beneath is carried by the entering `Name`'s membership census
   ([ADR-0031](./0031-membership-alerts-at-the-root-of-the-entering-subtree.md)). The clearing edge is
   **silent** — it is not one of ADR-0026's four rules whose clearing condition is a name somebody else
-  can claim; a record moving inside the operator's own zone is not an orphaned name being taken.
+  can claim. A record moving inside the operator's own zone is not an orphaned name being taken.
 - **The census gloss states the rule as the rule expresses it**, per
   [#72](https://github.com/winniel123/verge-asm/issues/72): *fires where the address's most specific
   IANA special-purpose allocation is marked not globally reachable* — never the prefix list, and never

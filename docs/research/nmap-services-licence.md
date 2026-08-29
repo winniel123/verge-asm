@@ -21,7 +21,7 @@ Three constraints bind before any evidence is gathered, and they are the ticket'
 2. **This is not a re-litigation of the port tiers.**
    [`project-authored-constants.md`](./project-authored-constants.md) §3.5 already ruled that the
    staleness of `nmap-services` costs **aperture only** and is not grounds to change anything. §11
-   below moves the warm tier on a **licence** ground; #71's value finding is cited only to price
+   below moves the warm tier on a **licence** ground. #71's value finding is cited only to price
    that move, never as an independent reason to make it.
 3. **This is a project decision on retrieved text, not legal advice.** §13 states plainly which
    question turns on a merits call only a court could make, and rules on the conservative reading
@@ -30,7 +30,7 @@ Three constraints bind before any evidence is gathered, and they are the ticket'
 [#71](https://github.com/winniel123/verge-asm/issues/71) §5.4 opened this **as a question rather
 than a finding**, and said why: the NPSL text was never retrieved and quoted against bytes.
 [#37](https://github.com/winniel123/verge-asm/issues/37)'s precedent is why that mattered — *a row
-may not move on a re-reading of text already held; a verdict changes on retrieval*. This note is
+may not move on a re-reading of text already held. A verdict changes on retrieval*. This note is
 that retrieval.
 
 ---
@@ -184,7 +184,7 @@ additional conditions or restrictions"* are both in the bytes, in §3, exactly a
 is *"distribution of any works which meet these criteria **(and that also choose to accept this
 license to benefit from the rights granted herein)** must be…"*. The obligation is **conditional on
 acceptance**, and acceptance is conditional on **needing something the licence grants**. That is
-not an inference from the parenthetical; the paragraph immediately following says it outright, and
+not an inference from the parenthetical. The paragraph immediately following says it outright, and
 so does the commit that added both.
 
 ### 3.3 The version history says the parenthetical was added on purpose, for this exact case
@@ -226,7 +226,7 @@ And announcing v0.95, **2023-01-11**, in the same thread:
 §0 of the licence says its own explanatory page *"does not and can not modify its governing terms in
 any way."* They are cited here for what they are: contemporaneous evidence of how the party who
 would have to enforce §3 reads §3 — which is the only party whose reading is at risk of being
-tested against us. They corroborate the text; they do not carry it. The text carries itself.
+tested against us. They corroborate the text. They do not carry it. The text carries itself.
 
 ---
 
@@ -282,7 +282,7 @@ The file settles it anyway. `nmap-services` lines 1–21, verbatim from the retr
    selection* is **IANA's** selection, and nobody's exclusive right attaches to that.
 
 **Two footnotes on chain of title, neither load-bearing.** The header says the data is
-`(C) 1996-2025 by Insecure.Com LLC`; the licence says `"Licensor" means Nmap Software LLC`, and
+`(C) 1996-2025 by Insecure.Com LLC`. The licence says `"Licensor" means Nmap Software LLC`, and
 commit `158c2e49` (2021-11-23) renamed the entity in `LICENSE` and did not update this header. And
 the `$Id` still reads **2008-08-26** — #71 §5.1's finding, confirmed again here on a fresh fetch.
 
@@ -290,7 +290,7 @@ the `$Id` still reads **2008-08-26** — #71 §5.1's finding, confirmed again he
 
 ## 5. Is there any separate nmap statement about `nmap-services`? No — negative retrieval, with its extent
 
-[#66](https://github.com/winniel123/verge-asm/issues/66) makes a negative retrieval a verdict;
+[#66](https://github.com/winniel123/verge-asm/issues/66) makes a negative retrieval a verdict.
 [#25](https://github.com/winniel123/verge-asm/issues/25) requires it to state its own reach. What
 was searched:
 
@@ -331,7 +331,7 @@ only on a mailing list would have been missed. That is the whole of the gap.
 
 `safe-active-probing.md` §2.3 specifies `verge-core`'s frequency half as an **editable list file**
 of hand-selected integers. It is **not** `nmap-services` and **not** a copy of it. Nothing of
-nmap's ships; nothing of nmap's is read at build time; nothing of nmap's is read at runtime. The
+nmap's ships. Nothing of nmap's is read at build time. Nothing of nmap's is read at runtime. The
 question is whether *"Reads or includes Covered Software data files"* reaches a **design-time
 selection** that ships neither the file nor its contents.
 
@@ -415,7 +415,7 @@ verbatim as a code block**, together with 20 open-frequency values to three deci
 the one place a portion of `nmap-services`' content sits inside an AGPL-3.0 tree.
 
 **It is fine, on §8's reasoning, and it is worth stating why rather than assuming it.** The
-integers are facts; the frequencies are measurements of facts; the arrangement is descending
+integers are facts. The frequencies are measurements of facts. The arrangement is descending
 numerical order. All three are outside copyright under *Feist* and 17 U.S.C. §102(b). And the
 quotation is in a research note documenting a retrieval — the canonical fair-use posture, which §3's
 own closing paragraph expressly declines to override (*"To the extent that copyright doctrines such
@@ -512,7 +512,7 @@ not need to find out.**
 
 ---
 
-## 8. Is a list of port numbers copyrightable at all? The integers never; the selection, only if it is original — and a top-N is not
+## 8. Is a list of port numbers copyrightable at all? The integers never. The selection, only if it is original — and a top-N is not
 
 This is where the answer mostly lives, and it is reasoned from primary authority rather than
 assumed in either direction.
@@ -710,7 +710,7 @@ And NPSL §2, which imposes exactly such further restrictions and says so:
 > Body terms shall take precedence. These additional terms mean that You may not distribute Covered
 > Software or Derivative Works under plain GPL terms without special permission from Licensor.**
 
-That is the whole mechanism. NPSL = GPLv2 + added terms; GPLv2 §6 forbids added terms; therefore
+That is the whole mechanism. NPSL = GPLv2 + added terms. GPLv2 §6 forbids added terms. Therefore
 NPSL is not GPLv2 and cannot be combined with it. AGPL-3.0 is a *third* licence, incompatible with
 GPLv2 in the FSF's own words and reachable from NPSL by no route at all.
 
@@ -721,8 +721,12 @@ and GPL), **with no additional conditions or restrictions**."* AGPL-3.0 is, rela
 set of additional conditions — §13's network-use term most obviously. So a triggered derivative
 work could not ship under AGPL-3.0.
 
-The available responses would be: **relicense** (refused by the map, and this note does not reopen
-it); **obtain a waiver** (§10.3 — refused, and #27 is why); or **remove the dependence** (§11).
+The available responses would be:
+
+- **relicense** (refused by the map, and this note does not reopen it),
+- **obtain a waiver** (§10.3 — refused, and #27 is why), or
+- **remove the dependence** (§11).
+
 Only the third is open. That is why §7's build (ii) is refused rather than argued about.
 
 **Two things are also true and are worth recording, because they bear on how much benefit of the
@@ -747,15 +751,15 @@ reason is specific enough to be worth writing down rather than asserting.
 ### 10.1 Limb 1 is a different shape, and the difference is what is in the tree
 
 #27's structure was: *third party's data, inside our image, conveyed to our users, under terms that
-do not let us convey it.* Every element was present. CAIDA's terms bar it; Censys's bar it in the
+do not let us convey it.* Every element was present. CAIDA's terms bar it. Censys's bar it in the
 words *"Under no circumstances may any Customer … incorporate any Censys Data into its own software
-products or services that are distributed"*; Shodan's grant no data licence at all and demand a
+products or services that are distributed"*. Shodan's grant no data licence at all and demand a
 third-party ownership assertion that cannot ride inside an AGPL-3.0 tree.
 
 Limb 1 has **no** element present. There is no third party's data in the tree. There is nothing to
 convey. The artefact is 123 integers that verge-asm chose, on verge-asm's rule, using nmap's
 published ranking as one input the way any author uses a source. **#27's rule needs a permission we
-require; here we require none.** Applying #27 to limb 1 would be applying a rule about
+require. Here we require none.** Applying #27 to limb 1 would be applying a rule about
 redistribution to a case with no redistribution in it.
 
 ### 10.2 Limb 2 build (i) *is* the shape — and survives on different, thinner ground
@@ -808,8 +812,8 @@ The frequency half's job is **catching a listener no signal names**. Every optio
 that, not against coverage in the abstract.
 
 Given, from #71 §5.1 and not re-derived: **there is no free, redistributable replacement with
-frequency data.** Shodan is readable and unvendorable; Censys bars incorporation in terms; Rapid7
-Sonar bars bulk redistribution; scans.io is non-commercial; Shadowserver publishes no per-port
+frequency data.** Shodan is readable and unvendorable. Censys bars incorporation in terms. Rapid7
+Sonar bars bulk redistribution. scans.io is non-commercial. Shadowserver publishes no per-port
 breakdown *(that last marked unconfirmed there and carried forward unconfirmed here)*.
 
 ### 11.1 Self-generate a ranking — **the losing option**
@@ -826,9 +830,9 @@ ranking, the project would have to scan tens of millions of addresses it does no
 which:
 
 - contradicts #4 §1's second named risk (*"being a permanent, self-inflicted source of noise"*)
-  at a scale the section never contemplated;
+  at a scale the section never contemplated.
 - requires a vantage, an abuse-handling function and a legal posture the project does not have and
-  has never proposed acquiring; and
+  has never proposed acquiring.
 - would make verge-asm a **different product** that happens to also do ASM.
 
 This is not a scoping problem to be deferred to v2. It is a refusal. Named here as the loser
@@ -899,12 +903,12 @@ registry's own header note says so more bluntly than this note could:
 So substituting it changes **what the tier is for**: from *the 1,000 ports most often found open* to
 *the 6,121 ports anyone ever registered*. That is 6× the probe cost of the tier it replaces, ordered
 by nothing, and it cannot be truncated because there is no column to truncate on. As a warm tier it
-is unaffordable; as a filter it is uninformative.
+is unaffordable. As a filter it is uninformative.
 
 **Kept, in the role it actually fits.** IANA's registry is the right source for **service naming** —
 rendering *"port 5432"* as *"PostgreSQL"* — which is a job the product has independently, which
-`nmap-services`' own header says it derives its names from, and which is CC0. **Adopt it for names;
-do not adopt it as a ranking.** That is a smaller conclusion than the ticket's option list
+`nmap-services`' own header says it derives its names from, and which is CC0. **Adopt it for names.
+Do not adopt it as a ranking.** That is a smaller conclusion than the ticket's option list
 anticipated and it is the one the evidence supports.
 
 ### 11.4 The option nobody listed — keep the tier and ship the 1,000 integers
@@ -915,13 +919,16 @@ prices the options it likes is not pricing anything.
 **In its favour:** it is the status quo, it costs nothing to keep, and §8's analysis says the
 selection is unprotectable with the Copyright Office's own registration practice behind it.
 
-**Against:** it is the **only** remaining place where verge-asm would rely on nmap's selection being
-unoriginal rather than on verge-asm's being different (§7.1); it is #27's shape surviving on
-subject-matter grounds rather than on terms (§10.2); §3 is a clause four Linux distributions have
-refused to accept as free (§9.4); and what it buys is **2008's long tail, at 7-day instead of 30-day
-latency, for a job the tail was measured not to serve** (§7.4).
+**Against:**
 
-**It loses on the ratio.** The uncertainty is small but real and permanent; the benefit is small and
+- it is the **only** remaining place where verge-asm would rely on nmap's selection being
+  unoriginal rather than on verge-asm's being different (§7.1),
+- it is #27's shape surviving on subject-matter grounds rather than on terms (§10.2),
+- §3 is a clause four Linux distributions have refused to accept as free (§9.4), and
+- what it buys is **2008's long tail, at 7-day instead of 30-day latency, for a job the tail was
+  measured not to serve** (§7.4).
+
+**It loses on the ratio.** The uncertainty is small but real and permanent. The benefit is small and
 measured. **When the uncertain option buys almost nothing, you do not buy it** — and here the
 project's own cost model prices the alternative at exactly zero.
 
@@ -933,10 +940,10 @@ project's own cost model prices the alternative at exactly zero.
    itself, §3's `such as` list is illustrative and not exhaustive, and no carve-out exists (§4, §5).
    The ticket's reported §3 quotes are verbatim-accurate.
 
-2. **The ~~~140-port~~ hot set is not a derivative work** — *the set is 123 TCP ports, measured; see
+2. **The ~~~140-port~~ hot set is not a derivative work** — *the set is 123 TCP ports, measured. See
    §6's note.* It fails §3's trigger on two independent
    grounds: NPSL v0.95 §3 by its own terms does not reach software that requires none of the rights
-   it grants, and nothing verge-asm ships or builds reads any nmap file (§6.1); and there is no
+   it grants, and nothing verge-asm ships or builds reads any nmap file (§6.1). There is no
    protectable subject matter in a selection of port numbers to reach, least of all one that
    overrides its source 63 times (§6.2, §8). **`verge-core`'s frequency half, as ADR-0009 defines
    it, does not change.**
@@ -967,7 +974,7 @@ project's own cost model prices the alternative at exactly zero.
 8. **One amendment falls out and is not made here.** `safe-active-probing.md` §2.3 describes the hot
    set as *"nmap top-100 minus the ephemeral/obsolete tail … plus a modern-services supplement."*
    That sentence describes a **derivation from** nmap where §6.2 measures an **independent selection
-   informed by** nmap. The set does not change; only the sentence that says where it came from
+   informed by** nmap. The set does not change. Only the sentence that says where it came from
    does, and getting it right is what makes ruling 2 legible to a reader who arrives at the file
    cold. **That file is not edited here** — it is #4's, and this is a footing repair on someone
    else's note.
@@ -998,7 +1005,7 @@ Stated rather than smoothed over, per the ticket's instruction.
 
 - Whether a design-time human reading of a data file, producing a written selection rule that a
   program later implements, is "software that reads" the file. §6.1's steps 1 and 2 are both
-  needed only because this is genuinely open; §7.2 shows where the same question has an obvious
+  needed only because this is genuinely open. §7.2 shows where the same question has an obvious
   answer, which is itself evidence that the boundary is real.
 - Whether §3's added terms are severable from Exhibit A's GPLv2 under NPSL §13, and what NPSL
   §12's anti-*contra proferentem* clause does to the reading of a licence its own author calls
@@ -1011,7 +1018,7 @@ Stated rather than smoothed over, per the ticket's instruction.
 - **No nmap mailing-list archive was searched** (§5). A data-file carve-out stated only on
   `nmap-dev` would have been missed.
 - **`supreme.justia.com` returned HTTP 403.** *Feist* was retrieved from Cornell LII instead. The
-  quoted passages match the syllabus and Part II–III structure of 499 U.S. 340; the LoC PDF of the
+  quoted passages match the syllabus and Part II–III structure of 499 U.S. 340. The LoC PDF of the
   U.S. Reports was fetched as a second copy (730,036 bytes) and **not diffed line-by-line against
   the LII text**. One notch below a direct first-party retrieval, flagged.
 - **No EU or UK case law on the *sui generis* right was retrieved.** §8.5 rests on Articles 3, 7 and
@@ -1059,11 +1066,11 @@ Stated rather than smoothed over, per the ticket's instruction.
 ## Sources
 
 **The licence, and nmap's own statements**
-- [NPSL Version 0.95](https://raw.githubusercontent.com/nmap/nmap/master/LICENSE) — `nmap/nmap`, branch **`master`** (the default branch), HEAD `b403ddee` of 2026-08-13; `LICENSE` blob unchanged since `47919b8d`, 2023-01-11. 29,575 bytes, `sha256 9d9a9a763c0e6145172cfe7d8483e23b38ce60b6c79a82e4894242917bdae6d3`. Retrieved 2026-08-14
+- [NPSL Version 0.95](https://raw.githubusercontent.com/nmap/nmap/master/LICENSE) — `nmap/nmap`, branch **`master`** (the default branch), HEAD `b403ddee` of 2026-08-13. `LICENSE` blob unchanged since `47919b8d`, 2023-01-11. 29,575 bytes, `sha256 9d9a9a763c0e6145172cfe7d8483e23b38ce60b6c79a82e4894242917bdae6d3`. Retrieved 2026-08-14
 - [The same file served by nmap.org](https://svn.nmap.org/nmap/LICENSE) — byte-identical, verified by `diff`
 - [Nmap Public Source License — Annotated Text, v0.95](https://nmap.org/npsl/npsl-annotated.html) · [NPSL landing page](https://nmap.org/npsl/)
 - [Legal Notices, *Nmap Network Scanning*](https://nmap.org/book/man-legal.html) — *"not directly compatible"*
-- [`nmap/nmap` issue #2199, *NPSL License Improvements*](https://github.com/nmap/nmap/issues/2199) — opened 2020-12-06, **still open**, 30 comments. Lyon on the `Reads` bullet (2020-12-07), on GPLv2 incompatibility (2020-12-07), and announcing v0.95 (2023-01-11); Fontana on Fedora's review (2024-07-05)
+- [`nmap/nmap` issue #2199, *NPSL License Improvements*](https://github.com/nmap/nmap/issues/2199) — opened 2020-12-06, **still open**, 30 comments. Lyon on the `Reads` bullet (2020-12-07), on GPLv2 incompatibility (2020-12-07), and announcing v0.95 (2023-01-11). Fontana on Fedora's review (2024-07-05)
 - [`LICENSE` commit history](https://github.com/nmap/nmap/commits/master/LICENSE) — commit `d0a8fb0f`, 2023-01-11, whose message states v0.95's purpose
 
 **The data file**
@@ -1077,17 +1084,17 @@ Stated rather than smoothed over, per the ticket's instruction.
 
 **Copyright**
 - [17 U.S.C. §102](https://www.law.cornell.edu/uscode/text/17/102) · [17 U.S.C. §101](https://www.law.cornell.edu/uscode/text/17/101) — Cornell LII
-- [*Feist Publications, Inc. v. Rural Telephone Service Co.*, 499 U.S. 340 (1991)](https://www.law.cornell.edu/supremecourt/text/499/340) — Cornell LII (Justia HTTP 403; see §13)
+- [*Feist Publications, Inc. v. Rural Telephone Service Co.*, 499 U.S. 340 (1991)](https://www.law.cornell.edu/supremecourt/text/499/340) — Cornell LII (Justia HTTP 403, see §13)
 - [Compendium of U.S. Copyright Office Practices, 3rd ed., Chapter 300](https://www.copyright.gov/comp3/chap300/ch300-copyrightable-authorship.pdf) — ed. 01/28/2021, §§312.2, 313.3(C), 313.4(D)
 - [37 C.F.R. §202.1](https://www.law.cornell.edu/cfr/text/37/202.1) — Cornell LII
 - [Directive 96/9/EC on the legal protection of databases](https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:31996L0009) — EUR-Lex, Articles 3, 7, 9, 10, 11
 
 **The replacement candidate**
-- [IANA, *Service Name and Transport Protocol Port Number Registry*](https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml) · [CSV](https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.csv) — last updated 2026-08-11; 15,399 rows, 6,121 distinct TCP ports. Retrieved 2026-08-14
+- [IANA, *Service Name and Transport Protocol Port Number Registry*](https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml) · [CSV](https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.csv) — last updated 2026-08-11. 15,399 rows, 6,121 distinct TCP ports. Retrieved 2026-08-14
 - [IANA, *Licensing Terms*](https://www.iana.org/help/licensing-terms) — *Joint Statement of IANA and IETF Concerning Copyright Rights in the Protocol Registries*, 10 November 2021, **CC0 1.0**
 
 **Held in this repository, cited not re-derived**
-- [`project-authored-constants.md`](./project-authored-constants.md) §5.1 (the replacement landscape; the 2008 scan; the `0.000076` plateau across 1,969 TCP lines; ranks 1442–3410) and §5.4 (the question this note answers)
+- [`project-authored-constants.md`](./project-authored-constants.md) §5.1 (the replacement landscape, the 2008 scan, the `0.000076` plateau across 1,969 TCP lines, ranks 1442–3410) and §5.4 (the question this note answers)
 - [`safe-active-probing.md`](./safe-active-probing.md) §1, §2.1–§2.5 (the tiers, the hot set's construction, the top-100 list)
-- [ADR-0009](../adr/0009-verge-core-is-a-union.md) (the union; the frequency half's zero drift cost; pre-release vacuity) · [ADR-0004](../adr/0004-signals-are-release-coupled-rules.md) · [ADR-0007](../adr/0007-drift-is-a-timeline-of-spans.md)
+- [ADR-0009](../adr/0009-verge-core-is-a-union.md) (the union, the frequency half's zero drift cost, pre-release vacuity) · [ADR-0004](../adr/0004-signals-are-release-coupled-rules.md) · [ADR-0007](../adr/0007-drift-is-a-timeline-of-spans.md)
 - [#27](https://github.com/winniel123/verge-asm/issues/27) (redistribution is a separate permission from use) · [#25](https://github.com/winniel123/verge-asm/issues/25) · [#37](https://github.com/winniel123/verge-asm/issues/37) · [#66](https://github.com/winniel123/verge-asm/issues/66) · [#67](https://github.com/winniel123/verge-asm/issues/67)

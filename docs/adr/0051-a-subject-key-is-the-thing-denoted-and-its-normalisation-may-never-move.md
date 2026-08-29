@@ -82,13 +82,13 @@ there is no text.**
 | The operator's zone file | Text | The operator |
 
 So *the text a source handed us* is a fiction over the flagship path. What a resolver hands us is
-sixteen octets; the string `2001:db8::1` is produced downstream by a call in our own binary, and which
+sixteen octets. The string `2001:db8::1` is produced downstream by a call in our own binary, and which
 string it produces is a property of that call. Keying on it makes subject identity a function of a
 rendering step that is not part of the measurement — which is
 [ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md)'s test, *can this thing's output move
 while the world does not*, answered in the affirmative in the worst place available.
 
-`CONTEXT.md` was already right and had merely been read loosely: **the world supplies the address; the
+`CONTEXT.md` was already right and had merely been read loosely: **the world supplies the address. The
 text is ours.** The two text-bearing sources are both the operator's, and the operator typed a
 spelling of something rather than the something itself.
 
@@ -106,8 +106,8 @@ compared. That is a sentence about values, and the model has the object to carry
 Re-keying a subject is not that sentence. It says: this timeline belongs to a different row — the
 subject `2001:0db8::1` is retired, the subject `2001:db8::1` is entered, and the timelines beneath
 the first are the timelines of the second. The model has **no object for that**. `appeared`,
-`returned` and `revealed` are the three named ways in ([ADR-0014](./0014-only-revealed-generalises.md));
-`Gap` is the absence of a value; `Break` is the absence of a licence to compare. None of them is
+`returned` and `revealed` are the three named ways in ([ADR-0014](./0014-only-revealed-generalises.md)).
+`Gap` is the absence of a value. `Break` is the absence of a licence to compare. None of them is
 *this subject is that subject*. Carrying a key move would take a sixth thing — a subject merge — and
 a subject merge is a lifecycle, which `Address` does not have and which this ticket forbids giving it.
 
@@ -118,8 +118,8 @@ So the two normalisations part on their failure mode, and the rule generalises p
 > must be **prevented** instead.
 
 That is this project's standing preference stated one level up. ADR-0007 enforced comparability with
-a `Break` rather than discipline; ADR-0011 made the TLS candidate set batch scope rather than trusting
-care; [ADR-0025](./0025-an-offer-is-scope-only-where-the-value-enumerates-it.md) declared the offer
+a `Break` rather than discipline. ADR-0011 made the TLS candidate set batch scope rather than trusting
+care. [ADR-0025](./0025-an-offer-is-scope-only-where-the-value-enumerates-it.md) declared the offer
 rather than reading a default. Here the structural move is the opposite shape and the same instinct:
 where there is no mechanism to absorb a mistake, remove the ability to make one.
 
@@ -133,8 +133,8 @@ will revise: whether TTL is in the value, whether the address set is ordered, wh
 `NoTLS` are one variant or two. Every one of those was argued and several have already moved.
 
 A key normalisation for an address makes exactly one choice — fold `::ffff:0:0/96` — and that choice
-is **read off a specification rather than authored**. RFC 4291 §2.5.5.2 says what a mapped address is;
-we do not get a vote. Everything else in the function is the wire format, which is also not ours.
+is **read off a specification rather than authored**. RFC 4291 §2.5.5.2 says what a mapped address is.
+We do not get a vote. Everything else in the function is the wire format, which is also not ours.
 
 So the constraint that buys versionlessness is a constraint on *content*, and it is stated as a
 prohibition rather than a hope:
@@ -150,7 +150,7 @@ classifying* — and its key-side twin is the moment a key function wants to con
 prefixes to decide what an address *means*.
 
 And the discipline is a mechanism, not a habit. Every named derivation has a golden corpus
-([ADR-0008](./0008-derivation-versions-move-on-content.md)); the key normalisation gets one too, and
+([ADR-0008](./0008-derivation-versions-move-on-content.md)). The key normalisation gets one too, and
 its gate is **inverted**. ADR-0021's gate is bidirectional — a moved row justifies a bump, a bump with
 no moved row fails. Here there is no version to bump, so there is only one direction left and it is
 absolute: **a moved row fails the build.** A row is a claim in prose plus its octets, in ADR-0021's own
@@ -174,7 +174,7 @@ defect as the text one layer down, our own instrument's internal representation 
 Go's `net.IP` holding IPv4 in a sixteen-byte mapped form is the concrete instance waiting to happen.
 
 Refusing the fold has a measurable cost and it lands on the gate. `Custody` is a **total lookup** over
-`Seed`s; under an unfolded key, `::ffff:198.51.100.1` is not inside the operator's declared
+`Seed`s. Under an unfolded key, `::ffff:198.51.100.1` is not inside the operator's declared
 `198.51.100.0/24`, so the address reads `third-party` and the probing gate **closes on the operator's
 own machine**. `Vantage class` fails in the other direction and worse: ADR-0049's every-address test
 finds one uncovered address and verifies `internet`, so a dual-stacked internal prober reporting its
@@ -234,7 +234,7 @@ output.
 
 The one facet consequence follows and is small. `resolution`'s `Resolved(unordered address set)` holds
 members **in the key form**, because those members are the very things that admit the `Address`
-subjects; a set whose members were not the addresses they admitted would be incoherent. The facet
+subjects. A set whose members were not the addresses they admitted would be incoherent. The facet
 canonicaliser therefore has nothing to decide here — it composes the key form rather than restating
 it, which is why ADR-0011's *six parts* is untouched and a facet gains no seventh part. **The facet
 half of the ticket's seam is discharged by the key, not beside it.**
@@ -255,7 +255,7 @@ exactly the movable content the versionless bargain forbids. Refusing it costs n
 wanted: no resolver produces one, because no resolver produces text.
 
 The refusal has to be total, so the domain is stated. The accepted textual forms are strict dotted quad
-for IPv4 and RFC 4291 §2.2's forms for IPv6; **everything else is not an address**, and an address that
+for IPv4 and RFC 4291 §2.2's forms for IPv6. **Everything else is not an address**, and an address that
 cannot be keyed is not a subject. It is absent from the `Batch`'s recorded scope, exactly as
 [`measurement-offers.md`](../spec/measurement-offers.md) §5.3 already rules for a failed query — no
 value, no `Gap`, and currency does the rest. The count is worth surfacing rather than swallowing: a
@@ -273,7 +273,7 @@ thing the received text would have told us and the reason we do not need to keep
   from what a dual-stack socket API does and from Go's `net.IP` representation, both read from
   documentation rather than exercised — the same unmeasured-offerability status
   [`measurement-offers.md`](../spec/measurement-offers.md) carries at its head. The fold is cheap and
-  the failure it prevents is a closed probing gate, so it is worth taking on argued grounds; the flag
+  the failure it prevents is a closed probing gate, so it is worth taking on argued grounds. The flag
   is that they are argued.
 - **`Name` is left with the identical seam open**, deliberately. This ADR's *rule* binds it — a `Name`
   key is the name, its normalisation is fixed and versionless — but the *function* is not decided
@@ -285,14 +285,14 @@ thing the received text would have told us and the reason we do not need to keep
 ## Consequences
 
 - **[`CONTEXT.md`](../../CONTEXT.md) changes in four places.** `Subject` states that a natural key is
-  the thing denoted and that its normalisation is fixed rather than versioned; `Address` states the
-  key's form, the mapped fold, the rendering and the refusal of ambiguous spellings; `Seed` states
-  that an address scope is held in the same form and that containment is family-matched; and
-  `Service` states that a composed key holds the subject rather than its rendering, which `Endpoint`
+  the thing denoted and that its normalisation is fixed rather than versioned. `Address` states the
+  key's form, the mapped fold, the rendering and the refusal of ambiguous spellings. `Seed` states
+  that an address scope is held in the same form and that containment is family-matched. `Service`
+  states that a composed key holds the subject rather than its rendering, which `Endpoint`
   inherits through it. **No term is added and no term changes meaning.**
 - **The `Derivation` vector gains nothing, and this is worth stating because a session will look.**
   There is no `address-key` leaf, no version, and no `Break` cause. ADR-0021's five prober leaves stay
-  five; [ADR-0008](./0008-derivation-versions-move-on-content.md)'s composition rule has nothing new
+  five. [ADR-0008](./0008-derivation-versions-move-on-content.md)'s composition rule has nothing new
   to absorb.
 - **A facet is still six parts.** ADR-0011 is amended in exactly one detail — `resolution`'s address-set
   members are held in the key form — and its rule, its parts and its count are untouched. The
@@ -309,7 +309,7 @@ thing the received text would have told us and the reason we do not need to keep
   and inverted: **a moved row fails the build, unconditionally.** There is no bump that discharges it.
 - **A residue is owed a ticket: `Name`'s key.** Case, the trailing dot, and A-label against U-label —
   live today, since the operator's zone file and our own resolver are the model's only two-source
-  facet and the pair most likely to disagree on all three. This ADR's rule binds it; its function is
+  facet and the pair most likely to disagree on all three. This ADR's rule binds it. Its function is
   undecided.
 - **Nothing retains what a source said.** The received spelling is not stored, so a rendering change
   anywhere upstream is invisible to the model — which is the property, not a loss. The only diagnostic

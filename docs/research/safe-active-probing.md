@@ -56,7 +56,7 @@ it.
 
 ### 2.1 Where the "top ports" lists actually come from
 
-Nmap's default port set is not IANA's registry and not a guess; it is empirical frequency data
+Nmap's default port set is not IANA's registry and not a guess. It is empirical frequency data
 shipped in the `nmap-services` file. The file's own header states the fields:
 
 > `# Fields in this file are: Service name, portnum/protocol, open-frequency, optional comments`
@@ -85,8 +85,9 @@ The defaults derived from it:
 - `--top-ports N`: "specify an arbitrary number of ports to scan."
   — all from [port-scanning-options.html](https://nmap.org/book/port-scanning-options.html)
 
-Nmap's published coverage claims: top 10 ports ≈ half of open ports per protocol; top 100 covers
-**78 % of TCP** and 39 % of UDP; top 1,000 catches **~93 % of TCP** and 49 % of UDP
+Nmap's published coverage claims are these. The top 10 ports cover about half of open ports per
+protocol. The top 100 covers **78 % of TCP** and 39 % of UDP. The top 1,000 catches **~93 % of TCP**
+and 49 % of UDP
 ([performance-port-selection.html](https://nmap.org/book/performance-port-selection.html)).
 
 **I verified this against the shipped data.** Summing the `open-frequency` column for all TCP
@@ -155,7 +156,7 @@ Windows RPC ephemeral ranges, and `2717`, `5101`, `5190`, `6646`, `3986` are art
 consumer software. They cost probe budget and produce findings the operator cannot act on.
 
 **Conclusion: neither top-100 nor top-1000 is the right continuous set.** Top-100 is too small
-*and* misdirected; top-1000 is 10× the cost for coverage of a distribution that no longer matches
+*and* misdirected. Top-1000 is 10× the cost for coverage of a distribution that no longer matches
 the estate being monitored.
 
 ### 2.3 Recommended continuous set — `verge-core`
@@ -284,7 +285,7 @@ reasoning. Four things decided it:
   scheduling rules.
 - **A one-off has no cadence, so it has no currency.** [ADR-0028](../adr/0028-a-facets-cadence-is-the-cadence-of-its-exchange.md)
   sets currency at `k` cadences of the covering `Scan` and publishes the full-range figure as two
-  months; a sweep that runs once leaves `k × cadence` undefined for every timeline it opens.
+  months. A sweep that runs once leaves `k × cadence` undefined for every timeline it opens.
 - **No configured object accounts for its scope**, which [ADR-0005](../adr/0005-scan-execution-model.md)
   refuses outright for ad-hoc runs.
 - **It would make [#44](https://github.com/winniel123/verge-asm/issues/44)'s standing aperture
@@ -294,7 +295,7 @@ reasoning. Four things decided it:
 The onboarding baseline is real and it already exists as an operator act:
 [#51](https://github.com/winniel123/verge-asm/issues/51)'s first-run step 4, *Run the first batch*,
 which dispatches whichever `Scan`s the operator has enabled. If they enabled the cold tier, the
-baseline is full-range; if they did not, it is `verge-core`. Either way it is a button, not a default.
+baseline is full-range. If they did not, it is `verge-core`. Either way it is a button, not a default.
 
 **So a default-settings install measures ~~`verge-core`~~ `verge-core`'s TCP pairs and nothing else,
 permanently** — including the
@@ -492,8 +493,8 @@ For verge-asm this trade-off is **inverted in favour of connect**:
   from a stable, known source address the operator can annotate — not by hiding.
 - Half-open SYN scanning against your own stateful firewall is the exact pattern that fills
   connection-tracking tables with half-open entries. Nmap notes NAT/firewall devices "keep a state
-  entry for every port probe" ([legal-issues.html](https://nmap.org/book/legal-issues.html));
-  completed-and-closed connections clear state promptly, dangling SYNs age out on a timer.
+  entry for every port probe" ([legal-issues.html](https://nmap.org/book/legal-issues.html)).
+  Completed-and-closed connections clear state promptly, dangling SYNs age out on a timer.
 
 ### 3.2 What SYN would demand of the Docker container
 
@@ -584,7 +585,7 @@ that the operator opts into, never in the default file.
 Running unprivileged loses:
 
 - **ICMP echo host discovery.** Nmap's default discovery sends "an ICMP echo request, a TCP SYN
-  packet to port 443, a TCP ACK packet to port 80, and an ICMP timestamp request"; the TCP and ICMP
+  packet to port 443, a TCP ACK packet to port 80, and an ICMP timestamp request". The TCP and ICMP
   raw probes "require root access on Unix systems to send raw packets"
   ([man-host-discovery.html](https://nmap.org/book/man-host-discovery.html)). Unprivileged ICMP is
   possible via `SOCK_DGRAM` ping sockets, but the kernel default is off: `ping_group_range` defaults
@@ -596,8 +597,8 @@ Running unprivileged loses:
 - **OS fingerprinting**, which needs raw packets.
 
 None of these are load-bearing for verge-asm, because **targets are seeded by the operator, not
-discovered by sweeping**. The operator types in domains and IP ranges they own; the tool does not
-need to establish liveness before probing, it needs to record "no ports responded" as a legitimate,
+discovered by sweeping**. The operator types in domains and IP ranges they own. The tool does not
+need to establish liveness before probing. It needs to record "no ports responded" as a legitimate,
 diffable observation. So the default should be the `-Pn` posture — "skips the host discovery stage
 altogether … attempt the requested scanning functions against *every* target IP address specified"
 ([man-host-discovery.html](https://nmap.org/book/man-host-discovery.html)) — with a per-target
@@ -741,13 +742,19 @@ Note the properties worth copying:
 - **`method: GET` only**, unauthenticated, no state change.
 - **`stop-at-first-match`** and **`max-request: 2`** — a hard, declared budget per fingerprint. A
   continuously-running tool needs this to be a first-class concept, not an emergent property.
-- **Severity `info`** for detection; the risk judgement is layered on separately.
+- **Severity `info`** for detection. The risk judgement is applied separately.
 - **Version extraction from the same response** — no extra request.
 
-Strong panel signals, in descending order of reliability: exact `<title>` match; favicon MMH3 hash;
-a product-specific header or cookie name (e.g. `grafana_session`); a unique static asset path; a
-generic-but-corroborated body string. Weak signals that produce false positives on their own:
-status-code-only matches, and the word "login" or "admin" appearing anywhere.
+Strong panel signals, in descending order of reliability:
+
+- an exact `<title>` match
+- a favicon MMH3 hash
+- a product-specific header or cookie name (e.g. `grafana_session`)
+- a unique static asset path
+- a generic-but-corroborated body string
+
+Weak signals that produce false positives on their own: status-code-only matches, and the word
+"login" or "admin" appearing anywhere.
 
 **Where to draw the line: detection yes, authentication never.** The contrast is stark inside
 nuclei's own template set. `grafana-default-login.yaml` does a `POST /login` with
@@ -760,7 +767,7 @@ That is a genuine authentication attempt against production. Unattended, on a sc
 create real sessions, populate audit logs with successful admin logins, trip brute-force lockouts
 against a real admin account, and — if the credentials work — leave the tool holding a live
 privileged session it has no plan for. **verge-asm must not perform credential submission of any
-kind in v1, default or opt-in.** Report "a Grafana login panel is reachable from the internet"; that
+kind in v1, default or opt-in.** Report "a Grafana login panel is reachable from the internet". That
 is the actionable exposure. Whether the password is `admin` is the operator's to check, once,
 by hand.
 
@@ -777,7 +784,7 @@ authentication, no state change, and it answers several v1 risk signals at once.
 
 ### 5.1 Expiry
 
-`Validity` carries `notBefore` and `notAfter`; RFC 5280 §4.1.2.5 requires dates through 2049 to be
+`Validity` carries `notBefore` and `notAfter`. RFC 5280 §4.1.2.5 requires dates through 2049 to be
 encoded as `UTCTime` and 2050+ as `GeneralizedTime`
 ([RFC 5280](https://www.rfc-editor.org/rfc/rfc5280.html)) — worth honouring in the parser rather
 than assuming one encoding.
@@ -829,7 +836,7 @@ will contribute all their newly issued certificates to one or more logs", and do
 "monitor the logs, asking them regularly for all new entries, and can thus check whether domains
 they are responsible for have had certificates issued that they did not expect"
 ([RFC 6962](https://www.rfc-editor.org/rfc/rfc6962.html)). Active SAN harvesting finds names on
-certs *currently served*; CT monitoring finds names on certs *ever issued*, including for hosts that
+certs *currently served*. CT monitoring finds names on certs *ever issued*, including for hosts that
 are down or were never publicly reachable. v1 should do both and reconcile them — a name in CT with
 no live host is a strong dangling-DNS lead (§6).
 
@@ -854,11 +861,11 @@ connection status, validity dates, subject DN, issuer, and cert hashes
   and cipher, plus the `-expired` / `-self-signed` / `-mismatched` / `-untrusted` class of checks
   (tlsx flags, same source).
 - **Weekly:** full `-version-enum` / `-cipher-enum`. Cipher support changes when someone changes
-  config; it does not change hourly.
+  config. It does not change hourly.
 
 Note tlsx's default concurrency is 300 with a 5 s timeout and 3 retries
 ([tlsx README](https://github.com/projectdiscovery/tlsx/blob/main/README.md)). That is tuned for
-scanning many *different* hosts; against a handful of operator-owned hosts it is far too aggressive
+scanning many *different* hosts. Against a handful of operator-owned hosts it is far too aggressive
 per-host and must be re-derived (§6).
 
 ---
@@ -923,7 +930,7 @@ Per target host:
 - **Port scanning:** ≤ 50 connection attempts/sec, ≤ 20 concurrent. 3 s connect timeout (matching
   naabu's `DefaultPortTimeoutConnectScan = 3 * time.Second`
   ([default.go](https://github.com/projectdiscovery/naabu/blob/main/pkg/runner/default.go))),
-  2 retries. At 50/s, `verge-core` completes in under 3 s per host; even a full 65,535-port sweep
+  2 retries. At 50/s, `verge-core` completes in under 3 s per host. Even a full 65,535-port sweep
   finishes in ~22 minutes — entirely acceptable for a monthly job.
 
   > **Corrected by [#80](https://github.com/winniel123/verge-asm/issues/80) — "~22 minutes" is the
@@ -983,7 +990,7 @@ pairs to the sensitive half. The 100-port threshold is untouched and is nowhere 
   logs — but more importantly, exact periodicity means a transient failure recurs at the same phase
   as whatever else runs at 03:00 (backups, log rotation, cert renewal).
 - **Operator-set quiet hours / maintenance windows.** Never probe during the operator's declared
-  change window; a scan concurrent with a deploy produces drift findings that are pure noise.
+  change window. A scan concurrent with a deploy produces drift findings that are pure noise.
 - **Never scan on config save.** Adding a target should queue a scan, not fire one — otherwise
   editing 20 targets fires 20 simultaneous scans.
 
@@ -1022,7 +1029,7 @@ Detection is a staged pipeline, and the first three stages are DNS-only (free, z
 target):
 
 **Stage 1 — resolve the full chain.** For every known name, record the CNAME chain and terminal
-A/AAAA records. Store the chain, not just the endpoint; the chain is what identifies the provider.
+A/AAAA records. Store the chain, not just the endpoint. The chain is what identifies the provider.
 
 **Stage 2 — classify the DNS answer.** RFC 2308 draws the critical distinction: NXDOMAIN (Name
 Error) means "the domain referred to by the QNAME does not exist", whereas NODATA is "a pseudo RCODE
@@ -1100,11 +1107,12 @@ never do this. It costs money, creates real cloud resources under the operator's
 their knowledge, and in a shared-provider namespace it is indistinguishable from the attack. Report
 high-confidence-suspected and let the operator confirm.
 
-Microsoft's remediation guidance is the right thing to surface alongside each finding: remove CNAME
-records pointing to FQDNs of resources no longer provisioned; use Azure DNS alias records, which
-couple "the lifecycle of a DNS record with an Azure resource"; and use App Service custom domain
-verification via an `asuid.{subdomain}` TXT record, since "When such a TXT record exists, no other
-Azure subscription can validate the custom domain or take it over"
+Microsoft's remediation guidance is the right thing to surface alongside each finding:
+
+- remove CNAME records pointing to FQDNs of resources no longer provisioned
+- use Azure DNS alias records, which couple "the lifecycle of a DNS record with an Azure resource"
+- use App Service custom domain verification via an `asuid.{subdomain}` TXT record, since "When such
+  a TXT record exists, no other Azure subscription can validate the custom domain or take it over"
 ([learn.microsoft.com](https://learn.microsoft.com/en-us/azure/security/fundamentals/subdomain-takeover)).
 
 ---
@@ -1138,7 +1146,7 @@ categorically wrong.
 "A NAT MUST support 'Hairpinning'" with hairpinning behaviour "External source IP address and port",
 enabling "communications between two endpoints behind the same NAT when they are trying each other's
 external IP addresses" ([RFC 4787](https://www.rfc-editor.org/rfc/rfc4787.html)). The requirement
-exists because the behaviour is not universal; where hairpinning is absent or handled differently,
+exists because the behaviour is not universal. Where hairpinning is absent or handled differently,
 probing your own public IP from inside either fails outright (false "closed" — worse, a false
 *negative*) or is short-circuited by the NAT without traversing the inbound firewall policy that
 would gate a real external connection (false "open" that does not reflect internet reachability).
@@ -1158,7 +1166,7 @@ less accurate — it is inverted, and it is the *alarming* direction.
 **Egress and inspection paths differ.** From outside, probes traverse the CDN/WAF/reverse proxy, so
 what is fingerprinted is the *edge*: the CDN's `Server` header, the CDN's cert, the WAF's error
 pages. From inside, they hit the origin directly, so the tool fingerprints origin software the
-internet never sees. Both are useful; conflating them is not.
+internet never sees. Both are useful. Conflating them is not.
 
 ### 8.2 Design consequences
 
@@ -1230,7 +1238,7 @@ internet never sees. Both are useful; conflating them is not.
 
 ## 9. Knobs that must be operator-configurable — and why
 
-Each of these is *not* a preference; there is a specific way the default is wrong for some real
+Each of these is *not* a preference. There is a specific way the default is wrong for some real
 operator.
 
 > **Swept 2026-08-15 by [#124](https://github.com/winniel123/verge-asm/issues/124). Six of the
@@ -1301,7 +1309,7 @@ operator.
 - **No vulnerability exploitation or version-specific exploit probes.** Stated project scope: not a
   vulnerability scanner.
 - **No state-changing HTTP methods** in any default probe (POST/PUT/DELETE/PATCH). GET is defined as
-  safe ([RFC 9110 §9.2.1](https://www.rfc-editor.org/rfc/rfc9110.html#section-9.2.1)); stay inside
+  safe ([RFC 9110 §9.2.1](https://www.rfc-editor.org/rfc/rfc9110.html#section-9.2.1)). Stay inside
   that.
 - **No `--privileged`, no `cap_add`, no `network_mode: host`** in the shipped compose file (§3).
 - **No claiming/registering of suspected-dangling resources** (§7.4).
@@ -1310,7 +1318,7 @@ operator.
   legitimate analogue when the thing rate-limiting you is your own firewall.
 - **No IDS-evasion features** (fragmentation, decoys, source spoofing, timing designed to slip under
   thresholds). Nmap's T0/T1 exist for evasion
-  ([timing-templates](https://nmap.org/book/performance-timing-templates.html)); a defensive tool
+  ([timing-templates](https://nmap.org/book/performance-timing-templates.html)). A defensive tool
   scanning owned assets wants to be *seen* by its owner's controls, and wants that traffic to be
   attributable.
 - **No brute-force enumeration** of directories, subdomains by wordlist against live hosts, or
@@ -1341,13 +1349,13 @@ operator.
 
 [#141](https://github.com/winniel123/verge-asm/issues/141) /
 [ADR-0083](../adr/0083-silence-decides-only-on-a-connection-oriented-transport.md). §2.5 and §9's UDP
-row are amended by this section; §2.4's aperture statement is **not** — nothing here moves a figure.
+row are amended by this section. §2.4's aperture statement is **not** — nothing here moves a figure.
 
 ### 13.1 The question, and the two things it is not
 
 [#124](https://github.com/winniel123/verge-asm/issues/124) found that four amendment passes had
 priced UDP without anyone asking what the instrument would **return**. `connect-outcome` decides
-`connected │ refused │ no-response`; `connect(2)` on a datagram socket puts no packet on the wire, it
+`connected │ refused │ no-response`. `connect(2)` on a datagram socket puts no packet on the wire. It
 only fixes the peer address in our own kernel, so `connected` would be a statement about us.
 
 It is not a question about whether UDP ships — §2.5's *off by default* stands, ADR-0009 says so in
@@ -1385,7 +1393,7 @@ through the mechanism that already exists.
 ### 13.3 It is a sixth leaf, not a widened one
 
 `connect-outcome`'s stimulus is *"a socket event and a clock"*
-([ADR-0021](../adr/0021-a-version-leaf-is-a-decision-not-a-binary.md)); a UDP measurement's is a
+([ADR-0021](../adr/0021-a-version-leaf-is-a-decision-not-a-binary.md)). A UDP measurement's stimulus is a
 datagram we compose and an ICMP message or datagram we receive. Widening the existing leaf would put
 both decisions under one version, so **a UDP payload edit would `Break` every TCP `reachability`
 timeline in the estate** — spending ADR-0021's *no leaf is composed by every timeline* property to
@@ -1421,7 +1429,7 @@ named and nobody has closed — *§7.2 argues a wrong dispatch guess fails safe 
 asks whether it is safe for the listener* — now aimed at production over a transport with no handshake
 to fail on. Classification, so the successor need not re-derive it: under
 [#31](https://github.com/winniel123/verge-asm/issues/31) / ADR-0008 a table deciding *where to look*
-is aperture and one deciding *what an answer means* is a signature database; a payload table decides
+is aperture and one deciding *what an answer means* is a signature database. A payload table decides
 which pairs can produce a positive at all, so it is **aperture**, and an **eighth aperture input** the
 day UDP ships.
 
@@ -1475,13 +1483,13 @@ probed*.** TFTP forces it: bind the predicate to the target port and TFTP is sil
 Nmap's own Table 5.3 binds it — *any UDP response from target port* — and collides with RFC 1350 §4
 exactly there. The **implementation consequence is sharp and ironic**: the leaf must use an
 **unconnected** socket, because a connected datagram socket filters on peer address *and port* and
-would drop TFTP's reply. The ticket opened on *a connected UDP socket puts no packet on the wire*; the
-instrument turns out to need an unconnected one for a second and independent reason.
+would drop TFTP's reply. The ticket opened on *a connected UDP socket puts no packet on the wire*. The
+instrument needs an unconnected one for a second and independent reason.
 
 **Nmap cannot supply the table, and for two separate reasons.** Mechanically, it has **no payload for
 `138/udp`** — the one pair whose reply the walk above found least expected — so `nmap -sU -p138` sends
 a zero-length datagram, which matches none of RFC 1002 §5.3.3's cases and can only ever report
-`open|filtered`. And legally, the standalone `nmap-payloads` file is gone from nmap `master`; payloads
+`open|filtered`. And legally, the standalone `nmap-payloads` file is gone from nmap `master`. Payloads
 are now built from **`nmap-service-probes`**, which is NPSL data.
 [#78](https://github.com/winniel123/verge-asm/issues/78) cleared *deriving* `verge-core` from
 `nmap-services` and clears nothing about selecting rows out of a second nmap data file, and
@@ -1539,7 +1547,7 @@ Nmap
 - [Miscellaneous Options (--privileged / --unprivileged)](https://nmap.org/book/man-misc-options.html)
 - [Legal Issues (crash risk)](https://nmap.org/book/legal-issues.html)
 - [UDP Scan (`-sU`), Table 5.3, and Speeding Up UDP Scans](https://nmap.org/book/scan-methods-udp-scan.html) — §13
-- [nmap-payloads](https://nmap.org/book/nmap-payloads.html) · [nmap-service-probes (raw)](https://raw.githubusercontent.com/nmap/nmap/master/nmap-service-probes) — §13.6; the standalone payload file is gone from `master` and payloads are built from the probe file, which is NPSL data
+- [nmap-payloads](https://nmap.org/book/nmap-payloads.html) · [nmap-service-probes (raw)](https://raw.githubusercontent.com/nmap/nmap/master/nmap-service-probes) — §13.6. The standalone payload file is gone from `master` and payloads are built from the probe file, which is NPSL data
 
 ProjectDiscovery
 - [naabu README](https://github.com/projectdiscovery/naabu/blob/main/README.md) · [naabu usage](https://docs.projectdiscovery.io/tools/naabu/usage) · [pkg/runner/default.go](https://github.com/projectdiscovery/naabu/blob/main/pkg/runner/default.go) · [pkg/runner/validate.go](https://github.com/projectdiscovery/naabu/blob/main/pkg/runner/validate.go)

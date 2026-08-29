@@ -163,7 +163,7 @@ Recorded because the gap between the finding and its near-misses is where the ne
   curve size is 224"*. A grep for `224` finds it before it finds the sentence that is actually about
   certificates.
 - **Curve deprecation on popularity.** RFC 8422 §5.1.1 removes every curve below P-256 and states its
-  reason as *"Only three have seen much use."* The effect is a floor; the claim is a deployment
+  reason as *"Only three have seen much use."* The effect is a floor. The claim is a deployment
   measurement. Founding a row on it would be *frequency is not a position* failing in the source's own
   words rather than in ours.
 - **The 112 that traces to a disclaimer.** RFC 9325 §4.2's unscoped `MUST NOT` below 112 bits of
@@ -175,8 +175,8 @@ Recorded because the gap between the finding and its near-misses is where the ne
 
 ## Consequences
 
-- **The weak tier is one limb of one row.** RSA leaves it on four unscoped statements; ECDSA leaves it
-  for SHA-1's tier, strong with a **modality** softness that must not be re-filed as a scope one; DSA's
+- **The weak tier is one limb of one row.** RSA leaves it on four unscoped statements. ECDSA leaves it
+  for SHA-1's tier, strong with a **modality** softness that must not be re-filed as a scope one. DSA's
   `N ≥ 224` limb stays, bounded, and ships disclosed exactly as `5432/tcp` does.
 - **[ADR-0035](./0035-a-cryptographic-primitives-owner-is-its-specifier.md) §7 is confirmed and
   narrowed.** The prediction that a scope weakness resolves only through a corpus search held on its
@@ -188,17 +188,17 @@ Recorded because the gap between the finding and its near-misses is where the ne
   and the smallest extension that could still move it, and call the residue bounded rather than
   permanent.**
 - **Three citations in `weak-key-and-signature.md` and one in ADR-0035 are stale, and one is wrong.**
-  RFC 5280's Security Considerations is **§8**; §11 is *References*, and both documents say §11. RFC
+  RFC 5280's Security Considerations is **§8**. §11 is *References*, and both documents say §11. RFC
   8446 is obsoleted by **RFC 9846**, whose section numbers moved — §4.4.2.4 → §4.5.1.3 and §4.2.3 →
   §4.3.3. The corrections are carried in `weak-key-and-signature.md` §13.7 under the name-and-withdraw
-  convention; **no row's grounds change**.
+  convention. **No row's grounds change**.
 - **The map's curation patch gains a cadence it had not priced.** This table's watch was *re-read SP
   800-131A when a revision goes final and otherwise do nothing*. RFC 9846 landed in July 2026 and
   obsoleted the document two of the five rows cite, four weeks before this was written. The **content**
-  cadence is still about one edit per row per decade; the **citation** cadence is faster, and only the
+  cadence is still about one edit per row per decade. The **citation** cadence is faster, and only the
   first was ever measured.
 - **`sensitive-ports.md` needs no amendment for this ADR** and was not edited — [#70](https://github.com/winniel123/verge-asm/issues/70)
-  holds it. §10.6's two kinds of weak row and ADR-0035's third are unchanged; what changes is what a
+  holds it. §10.6's two kinds of weak row and ADR-0035's third are unchanged. What changes is what a
   disclosure of the third must contain, which lives here and in the instrument's own document.
 - **`CONTEXT.md` is not edited**, on ADR-0032's and ADR-0035's precedent and for their reason. Nothing
   here changes a glossary term.

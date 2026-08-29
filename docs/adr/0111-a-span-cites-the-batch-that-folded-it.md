@@ -21,7 +21,7 @@ never a transition table, it was the ability to say *which Batch caused a given 
 open or close*, so the derived transitions can be grouped by batch the way the screen's
 whole composition is organised.
 
-The `span` table carried no such link. A span records the period a value was held; the
+The `span` table carried no such link. A span records the period a value was held. The
 fold that produced it ran inside a completed Batch's transaction (ADR-0007,
 `internal/queue/spanfold.go`), but the batch id was discarded once the span was written.
 
@@ -33,7 +33,7 @@ ADR-0041 draws the line that governs whether we may add the link at all:
 `Batch` already travels with its observations because the fold reads it for scope and a
 `Break` reads its recorded source set — it is *in* the comparison path. `Dispatch` was
 made Operational **precisely so the grouping cannot be reached from the comparison
-path**. A span citing a batch is therefore legal; a span citing a dispatch would not be.
+path**. A span citing a batch is therefore legal. A span citing a dispatch would not be.
 
 ## Decision
 
@@ -72,7 +72,7 @@ batch within a period (capped at a bounded number of most-recent events so an
 (`N names` / `N addresses` / `N services`) — and classifies each event into the six
 change kinds on read using the existing `internal/drift` grammar — `appeared`/`returned`
 via `MembershipReturn`, `changed` as an ordinary value move with a before/after diff,
-`withdrawn`/`descoped` from a close's `closure_reason`. Nothing is stored; the batch
+`withdrawn`/`descoped` from a close's `closure_reason`. Nothing is stored. The batch
 citation only groups what the fold already derived.
 
 ## Consequences
@@ -90,4 +90,4 @@ citation only groups what the fold already derived.
   the feed honestly shows none. When that path lands it needs no change here: a reasoned
   close already classifies.
 - The `span` corpus gains two columns but no new write semantics beyond carrying an id
-  the fold already held; the corpus is still never compacted or deleted (ADR-0041).
+  the fold already held. The corpus is still never compacted or deleted (ADR-0041).

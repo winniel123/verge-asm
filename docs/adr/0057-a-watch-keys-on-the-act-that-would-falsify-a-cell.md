@@ -49,12 +49,12 @@ in the **top** footing tier that was never on the list.
 
 The map carried the governance half of #21's fog since #21 closed, and three notes handed work
 straight to it: [`project-authored-constants.md`](../research/project-authored-constants.md) §9 hands
-over *"the watch criterion widens per §8.3"*; `sensitive-ports.md` §27.14 records *"the map's curation
-patch already carries **whether the watch list should key on tier or on volatility**"*; §31.12 adds
+over *"the watch criterion widens per §8.3"*. `sensitive-ports.md` §27.14 records *"the map's curation
+patch already carries **whether the watch list should key on tier or on volatility**"*. §31.12 adds
 *"artefact class is a third candidate axis"*. Five candidate axes had accumulated — **tier · evidence
 age · support count · artefact class · contradiction by the owner's own product documentation** — and
-**no proposal for measuring any**. Nobody had said what *evidence age* would even be measured on;
-first-seen date, release line and edit cadence give different answers.
+**no proposal for measuring any**. Nobody had said what *evidence age* would even be measured on.
+First-seen date, release line and edit cadence give different answers.
 
 The full working is [`sensitive-ports.md`](../research/sensitive-ports.md) **§39**.
 
@@ -103,7 +103,7 @@ rung read from the retrieval end.
 ### The thirteen gate checks
 
 Each is decidable over bytes the project already holds, or over a **finite named** set of targeted
-re-fetches. Six are the detectable-defect list; five are watch triggers that turn out to terminate; G12
+re-fetches. Six are the detectable-defect list. Five are watch triggers that turn out to terminate. G12
 and G13 were added in the same merge, per [#149](https://github.com/winniel123/verge-asm/issues/149) and
 [#152](https://github.com/winniel123/verge-asm/issues/152)/[ADR-0099](./0099-a-stated-horizon-is-a-second-comparand-a-tag-match-does-not-discharge.md)
 respectively — ruled to be two checks, not one, over disjoint populations (see the rationale below).
@@ -136,7 +136,7 @@ line from last month, and every rung above says why.
 ruled that a tier demotion is not a de-attestation and routed the hazard to **the gate**, then recorded
 the gate's own shortfall rather than repairing it: *"a tier demotion on an artefact with no retrievable
 tag is caught by neither G2 nor G11."* [#149] confirms the shortfall is real (walked systematically
-against every one of the eleven checks above — none reaches it; G8's *"still a token … at the tag
+against every one of the eleven checks above — none reaches it. G8's *"still a token … at the tag
 named"* and G11's tag-diff both presuppose a tag, G6 only greps bytes already held, G10's re-fetch tests
 a different boolean) and rules that **no existing check's population can be widened to close it** —
 unlike G2's domain (#154) or G8's population (§21 of `sensitive-ports.md`), this needs a new **test**,
@@ -195,7 +195,7 @@ thing, so of course it moved without meaning anything.
 
 §17.6 already links the two halves: *"Every row in it rests on a negative … so every one is
 **sole-ground** and every one is **exposed**."* ADR-0046 limb 1 says only a **sole-ground** negative is
-exposed; the same arithmetic on the positive side says a cell carried by two **independent** artefacts
+exposed. The same arithmetic on the positive side says a cell carried by two **independent** artefacts
 cannot be silently de-attested by one act, because two acts must occur.
 
 That disposes of #88's open worry cleanly. `10255/tcp` was taken **off** the list because it joined the
@@ -262,7 +262,7 @@ discharge its own #109 figures further up the same file"*, which is a defect **o
 
 Every gate check is mechanical enough to automate, and the temptation is to let the automation act.
 It may not. Moving a row **authors a claim**, and §2.2's first sentence is *the claim may not be
-asserted by us*; ADR-0037 limb 2 adds that a row moves only on a retrieval **scoped to the row**. A
+asserted by us*. ADR-0037 limb 2 adds that a row moves only on a retrieval **scoped to the row**. A
 sweep — human or not — may **route** and never rule. So the watch's output is a **question**: *this
 cell's artefact has moved past the tag it was read at; is the cell still true?* The answer is a
 retrieval, and the retrieval is a ticket.
@@ -271,7 +271,7 @@ retrieval, and the retrieval is a ticket.
 
 - **ADR-0032 §8's watch list is superseded as an instrument.** The three-row enumeration is a correct
   record of a *weak tier* and is no longer the watch. §8's `#95` amendment box is marked at the
-  sentence; the fifteen sites in `sensitive-ports.md` are marked at their clauses (§39.7).
+  sentence. The fifteen sites in `sensitive-ports.md` are marked at their clauses (§39.7).
 - **The queue as of evidence already held is ~~eight items over ten `(port, transport)` pairs~~ nine
   items over eleven pairs and two non-port cells**, against a three-row list — and ~~two~~ **three of
   the pairs it adds are in the top footing tier**. Enumerated with grounds at §39.4 and §41.4. **Moved
@@ -309,7 +309,7 @@ retrieval, and the retrieval is a ticket.
   The queue holds both kinds and orders them on the same key, which is what discharges
   `project-authored-constants.md` §9's hand-off.
 - **No row, class, tier or coverage figure moves.** The list stays at **38 pairs**, classes
-  `12 / 7 / 19`, tiers `13 / 11 / 3`, coverage **27 of 38**; `verge-core` stays at **136**. **§4.6 goes
+  `12 / 7 / 19`, tiers `13 / 11 / 3`, coverage **27 of 38**. `verge-core` stays at **136**. **§4.6 goes
   from 23 to 24 entries** on `9443/tcp` (§39.5). [ADR-0008](./0008-derivation-versions-move-on-content.md)
   is **not triggered** — `sensitive-port-reached-from-internet` is byte-identical and a governance
   instrument is not reference data.
@@ -356,7 +356,7 @@ because the revision act, not the cause, fixes priority.** One queue is **one or
 curated tables**, and *how far down it read* is a fact about the **order**. **[measured]**
 [`sensitive-ports.md`](../research/sensitive-ports.md) §39.4 carries two cells that are not port cells
 — `verge-core`'s frequency half and `certificate-expiring`'s fraction — interleaved by **rung** among
-the port cells, the frequency half at **rung 1** sorting above every rung-2 and rung-3 port item; and
+the port cells, the frequency half at **rung 1** sorting above every rung-2 and rung-3 port item. And
 `weak-key-and-signature.md` contributes **zero**, so a per-table statement there would be a standing
 statement of nothing, which ADR-0032 §7 forbids as a permanent caveat.
 

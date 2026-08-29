@@ -3,23 +3,23 @@
 > ⚠️ **Alpha software.** verge-asm is in active early development. Expect breaking
 > changes, incomplete features, and rough edges. Interfaces, the database schema, and
 > behaviour may change without migration paths between releases. Do not depend on it
-> for production security monitoring yet, and review it yourself before pointing it at
-> anything you care about.
+> for production security monitoring yet. Review it yourself before you run it
+> against anything you care about.
 
 **Self-hosted attack surface management for your own estate.** Its subject is not
 inventory but **change**: what of yours is exposed to the internet, and what moved
 since last time.
 
-verge-asm takes the seed domains and IP ranges you declare, discovers the
-internet-exposed assets that grow from them, actively probes what it is allowed to
-probe, and makes **exposure drift a first-class, queryable object** — a timeline
-tracked across ports, certificates, DNS records and HTTP identity, not subdomains
-alone. It is a single-tenant, self-hosted web application you run with
+You declare seed domains and IP ranges. verge-asm discovers the internet-exposed
+assets that grow from them. It actively probes what it is allowed to probe. It makes
+**exposure drift a first-class, queryable object** — a timeline across ports,
+certificates, DNS records, and HTTP identity, not subdomains alone. It is a
+single-tenant, self-hosted web application you run with
 `docker compose`. AGPL-3.0.
 
 > **New to the domain?** Read [`docs/spec/v1-spec.md`](docs/spec/v1-spec.md) for the
-> shape of the whole system, then [`CONTEXT.md`](CONTEXT.md) for the full domain
-> model. This README is the operator's entry point; those two are the source of truth
+> shape of the whole system. Then read [`CONTEXT.md`](CONTEXT.md) for the full domain
+> model. This README is the operator's entry point. Those two are the source of truth
 > for *why* it behaves as it does.
 
 ---
@@ -30,15 +30,15 @@ alone. It is a single-tenant, self-hosted web application you run with
   registrable domain) or an address scope (a CIDR). Nothing is probed until a `Seed`
   gives it custody of the listener.
 - **Discovers outward.** Records followed from your seeds (a CNAME to a CDN, a
-  shared-hosting IP) surface assets you did not type in — and ownership of what is
-  *found* is distinguished from ownership of what was *declared*.
+  shared-hosting IP) surface assets you did not enter. It distinguishes ownership of
+  what is *found* from ownership of what was *declared*.
 - **Probes safely.** TCP connect (never SYN), an identifiable User-Agent, one
   `GET /` per endpoint, rate-limited and unprivileged. Active probing is gated by
   `Custody`, which is derived from your seeds alone.
 - **Models change as a durable object.** Every `(subject, facet, discriminator,
-  vantage, source)` gets a `Span` timeline with its own transition grammar
-  (`appeared` / `returned` / `revealed`) and a strict rule about when two
-  observations may legally be compared at all.
+  vantage, source)` gets a `Span` timeline. The `Span` has its own transition grammar
+  (`appeared` / `returned` / `revealed`). A strict rule governs when two observations
+  may legally be compared at all.
 - **Tells you when it *cannot* tell you.** Where coverage is incomplete or a
   conclusion is unconstructible, it says so (`Coverage`, `Gap`) rather than
   fabricating a clean bill of health.
@@ -46,11 +46,11 @@ alone. It is a single-tenant, self-hosted web application you run with
 For the full feature surface — the six facets, the seventeen signal rules, exposure,
 vantages and notification channels — see [`docs/spec/`](docs/spec/).
 
-> **Implementation status (alpha).** The seventeen rules describe the v1 spec target;
+> **Implementation status (alpha).** The seventeen rules describe the v1 spec target.
 > **15 of them fire on a default install today** — the four Name-only rules,
 > `tls-1.0-accepted` (P0.9), the **six certificate rules** (P0.10), and the four
 > HTTP-identity endpoint rules (P0.11). The remaining **two internet-gated flagship
-> rules** need a provisioned internet vantage, taking a fully-provisioned install to
+> rules** need a provisioned internet vantage. A fully-provisioned install then fires
 > **17 of 17**.
 > See [docs/guides/signals.md](docs/guides/signals.md#rule-status--what-fires-on-a-default-install).
 > Expect the same partial-coverage caveat elsewhere while the tool is in alpha.
@@ -67,9 +67,9 @@ Three services, one image, built from one Go module.
 | `worker` | No listener. Dispatches each `Scan` on its cadence, claims jobs, commits each `Batch` of observations, runs delivery and retention. | none |
 | `postgres` | The estate. A complete, current map of your attack surface. Publishes no port. | none (internal) |
 
-A fourth binary, **`prober`**, is the measurement tool: it reads one job spec on
+A fourth binary, **`prober`**, is the measurement tool. It reads one job spec on
 stdin and writes NDJSON observations to stdout. It is exec'd locally for internal
-measurement and **pushed over SSH** to external hosts to give you an internet
+measurement. It is **pushed over SSH** to external hosts to give you an internet
 `Vantage` — the outside observer that makes `Exposure` constructible.
 
 ```
@@ -88,30 +88,33 @@ design-system/  the canonical visual layer
 You need [Docker](https://docs.docker.com/get-docker/) with Compose. Nothing else —
 Go, sqlc and the toolchain live inside the images.
 
-```sh
-cp .env.example .env
-# Edit .env and set POSTGRES_PASSWORD — compose fails rather than defaulting it.
+1. Copy the example environment file to `.env`. Then set `POSTGRES_PASSWORD` in
+   `.env`. Compose fails rather than defaulting it.
 
-docker compose up -d --build
-```
+   ```sh
+   cp .env.example .env
+   ```
+2. Build and start the stack.
 
-`web` applies the database migrations itself on startup, so the stack is ready once
-all three services report healthy:
+   ```sh
+   docker compose up -d --build
+   ```
+3. Confirm all three services report healthy. `web` applies the database migrations
+   itself on startup.
 
-```sh
-docker compose ps
-```
+   ```sh
+   docker compose ps
+   ```
+4. Read the **single-use setup token** from the `web` logs. With no accounts yet,
+   `web` prints it there.
 
-With no accounts yet, `web` prints a **single-use setup token** to its logs:
+   ```sh
+   docker compose logs web | grep /setup
+   ```
+5. Open <http://localhost:8080/setup>. Paste the token, and create your admin account.
 
-```sh
-docker compose logs web | grep /setup
-```
-
-Open <http://localhost:8080/setup>, paste the token, and create your admin account.
-From there the four-step checklist walks you through declaring your first `Seed`.
-
-Full walkthrough: **[docs/guides/using.md](docs/guides/using.md)**.
+From there, a four-step checklist covers declaring your first `Seed`. Full
+walkthrough: **[docs/guides/using.md](docs/guides/using.md)**.
 
 ---
 
@@ -135,7 +138,7 @@ Grouped as they appear in the docs-site nav.
 | **[Running](docs/guides/running.md)** | Configuration, secrets, volumes, healthchecks, scaling workers, on-demand scan triggers, upgrades. |
 | **[Sources](docs/guides/sources.md)** | Discovery sources and proposers: consent tiers, admin-only toggling, and the crt.sh and RIR-proposer caveats. |
 | **[Prober](docs/guides/prober.md)** | A worked `docker compose` example for a dedicated internet vantage on a second host — the [`deploy/prober/`](deploy/prober/) recipe, host-key pin, and key hardening. |
-| **[Signals](docs/guides/signals.md)** | The v1 signal reference — every rule, its subject, and when it fires; the release-coupled philosophy and the five-level severity ramp (Critical / High / Medium / Low / Info). |
+| **[Signals](docs/guides/signals.md)** | The v1 signal reference — every rule, its subject, and when it fires. The release-coupled philosophy and the five-level severity ramp (Critical / High / Medium / Low / Info). |
 | **[Notification channels](docs/guides/notification-channels.md)** | The outbound HTTPS endpoints the worker POSTs each message to — declaring them, what fires, and why a `Delivery` is a record and never a message. |
 | **[Reports](docs/guides/reports.md)** | Scheduled digests of the estate — how a report differs from a notification, the schedule shape, and the delivered-report artifact and its PDF. |
 | **[Accounts, invites & roles](docs/guides/accounts.md)** | The admin/viewer model, inviting operators and the invite lifecycle, changing a role, re-enrolling a lost second factor, and removing an account. |
@@ -157,11 +160,11 @@ Grouped as they appear in the docs-site nav.
 
 In the interest of full transparency: verge-asm was built with substantial help from
 AI. Anthropic's Claude wrote or assisted with the large majority of the code,
-documentation, and design in this repository — from the domain model and migrations to
-this README. Every change still passes through human review, testing, and the CI gates
-described in [`docs/guides/verifying.md`](docs/guides/verifying.md), but you should know
-that AI was a primary author of this tool. Weigh that as you see fit before you run it
-against your own estate.
+documentation, and design in this repository. That work ran from the domain model and
+migrations to this README. Every change still passes human review, testing, and the CI
+gates described in [`docs/guides/verifying.md`](docs/guides/verifying.md). You should
+still know that AI was a primary author of this tool. Weigh that as you see fit before
+you run it against your own estate.
 
 ---
 

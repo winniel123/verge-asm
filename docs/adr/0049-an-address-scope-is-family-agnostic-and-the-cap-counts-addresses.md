@@ -71,8 +71,8 @@ about. `/22` is the IPv4 spelling of *1,024 addresses* in exactly the way `254 o
 IPv4-shaped spelling of a denominator ADR-0047 had to correct to `256`. **Units slip in this repo,
 and this is the same slip one level up.**
 
-Restating the unit invents nothing. The shipped default stays at 1,024 addresses; every figure
-ADR-0047 states stays exactly true; and there is no second knob, no family branch, and no new
+Restating the unit invents nothing. The shipped default stays at 1,024 addresses. Every figure
+ADR-0047 states stays exactly true. There is no second knob, no family branch, and no new
 threshold. That last point is the [#27](https://github.com/winniel123/verge-asm/issues/27) test the
 ticket carries — *do not invent a threshold inside the safety path* — and a unit restatement passes it
 trivially, because the only thing that changes is how one existing number is written down.
@@ -105,7 +105,7 @@ tier:
 > of the argument.
 
 That is roughly thirty times the age of the universe, for the *daily* tier, on the *smallest* IPv6
-subnet the architecture defines. It is not an expensive request that a knob could buy; it is a
+subnet the architecture defines. It is not an expensive request that a knob could buy. It is a
 request no instrument can serve.
 
 So the honest v1 statement, and the one the `Seeds` screen has to be able to make, is: **verge-asm
@@ -124,7 +124,7 @@ in IPv6 for a reason that has nothing to do with our choices.
 ADR-0047's decisive argument was that an operator declares `198.51.100.0/24` *because they want to
 know when a machine appears in that space*, and that only enumeration lets that arrive as
 `not-reached` → `reached` rather than as a line in a census. In IPv6 **nobody can offer that job at
-all** — see the arithmetic above — so bounding does not silence the flagship there; the flagship was
+all** — see the arithmetic above — so bounding does not silence the flagship there. The flagship was
 never on offer. The argument that decided #81 does not transfer, and pretending it does would be
 manufacturing consensus with a quotation.
 
@@ -188,7 +188,7 @@ address, well inside the cap, enumerated at a cost of one `Address` row and `|ve
 rows. §6's containment test then passes with nothing added to it.
 
 That is the argument that separates the two options, and it is only visible because the cap is
-denominated in addresses. **A family check would have been a claim about IPv6; the cap is a claim
+denominated in addresses. **A family check would have been a claim about IPv6. The cap is a claim
 about us** — which is the exact distinction ADR-0047 used to admit the cap where
 [#27](https://github.com/winniel123/verge-asm/issues/27)'s was refused, and it does not survive
 being re-expressed as a family branch.
@@ -259,7 +259,7 @@ untouched — the extension still may not decide a vantage's class, in either fa
   marked that way here too.
 - **Raising the knob above the cap is the operator's, and for IPv6 it is a worse bargain than for
   IPv4.** ADR-0047 accepted that a knob-raised `/8` is admissible though it cannot complete inside
-  its cadence; an IPv6 `/64` is the same shape, unimaginably further along it, and ADR-0005's overlap
+  its cadence. An IPv6 `/64` is the same shape, unimaginably further along it, and ADR-0005's overlap
   rule turns it into a permanent skip with `Coverage` pinned near zero forever. **No ceiling is
   invented** — that would be #27's threshold arriving in the one place this model has kept clear —
   so the whole weight falls on the refusal copy naming the extension rather than the knob. ~~That is a
@@ -275,7 +275,7 @@ untouched — the extension still may not decide a vantage's class, in either fa
   CIDR is family-agnostic, and states the IPv6 consequence. **`Vantage class`** gains the
   every-address-held limb. No term is added and no term changes meaning.
 - **[ADR-0047](./0047-an-address-scope-is-its-own-enumeration.md) is amended, not reopened.** Every
-  figure it states is unchanged and every argument it makes survives; what it gains is the unit of
+  figure it states is unchanged and every argument it makes survives. What it gains is the unit of
   its own cap and the family-blindness of its own rule.
 - **[ADR-0013](./0013-custody-is-control-and-extends-by-declaration.md) §6 is amended** with the
   containment test's extent, and §4's warning is noted as not reaching the prober's own `/128`.
@@ -290,7 +290,7 @@ untouched — the extension still may not decide a vantage's class, in either fa
   estate by resolution and are probed like any other; IPv6 space is not swept, and an IPv6 address
   scope is admissible only at the sizes the shipped configuration can measure.*
 - **The `Seeds` screen owns a refusal it did not know it had.** #81 gave it the cap's refusal and
-  knob; this adds that the IPv6 refusal must route to the `custody extension` and must not offer the
+  knob. This adds that the IPv6 refusal must route to the `custody extension` and must not offer the
   knob as the remedy.
 - **A subject-key seam is exposed rather than created**, and is ticketed: `Address`'s natural key has
   no stated canonical form, and IPv6 has many textual spellings of one address where IPv4 effectively

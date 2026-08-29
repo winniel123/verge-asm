@@ -13,7 +13,7 @@ three such tables in v1. It is a one-row table.
 [#60](https://github.com/winniel123/verge-asm/issues/60) fixed the row's value at 30 and recorded
 its reason as **stated but unverified against a source**. This note is that retrieval, and
 [#37](https://github.com/winniel123/verge-asm/issues/37)'s precedent is why it had to be one: *a row
-may not move on a re-reading of text already held; a verdict changes on retrieval.*
+may not move on a re-reading of text already held. A verdict changes on retrieval.*
 
 Three constraints bind before any evidence is gathered, and they are the ticket's own.
 
@@ -44,13 +44,13 @@ Three constraints bind before any evidence is gathered, and they are the ticket'
 written.** Certbot removed its fixed 30-day threshold in **4.0.0**, and its documentation says so in
 those words. lego removed the same default in **v5**. cert-manager never had one. Let's Encrypt
 publishes 1/3-of-lifetime as its backstop and computes its ARI window at the same point. Four
-independent implementations and the issuer agree on a **fraction**; one client, `acme.sh`, is the
+independent implementations and the issuer agree on a **fraction**. One client, `acme.sh`, is the
 lone holdout on a flat 30.
 
 **Two measured non-statements frame it.** In RFC 8555 the word `renew` occurs **once** in 196,903
 bytes, and it is about order mechanics. In RFC 9773 — a document whose entire subject is renewal
 timing, where `renew` occurs **80** times — the string `30` occurs **zero** times. The protocol that
-defines ACME says nothing about when to renew; the extension that defines when to renew declines to
+defines ACME says nothing about when to renew. The extension that defines when to renew declines to
 name a number, on purpose.
 
 ---
@@ -143,7 +143,7 @@ value, and §1 of the abstract says why naming one is not its business:
 > This allows servers to mitigate load spikes and **ensures that clients do not make false
 > assumptions about appropriate certificate renewal periods.**
 
-**[measured]** The string `30` occurs **zero** times in RFC 9773; `day` occurs three times, all in
+**[measured]** The string `30` occurs **zero** times in RFC 9773. `day` occurs three times, all in
 §4.3.2 capping the `Retry-After` polling interval. The document that owns renewal timing names no
 lead time whatever, and that is deliberate rather than an omission.
 
@@ -158,7 +158,7 @@ implementation, speaking about the thing it designed or wrote.* Let's Encrypt / 
 times over, and the third is the one that matters.
 
 - **It designed the renewal-timing protocol.** RFC 9773's author is A. Gable, ISRG.
-- **It authors the server implementation ARI was built in.** `boulder` is ISRG's own ACME server;
+- **It authors the server implementation ARI was built in.** `boulder` is ISRG's own ACME server.
   RFC 9773's acknowledgments thank a contributor "for contributing an **independent** server
   implementation", which places boulder as the original.
 - **It sets the validity period of the certificate in question.** From the
@@ -187,7 +187,7 @@ retrieved bytes (the HTML entities are the page's own curly apostrophes):
 **This is the single most important sentence in the note, and the order of its clauses is the
 finding.** The **rule** is *a third of their total lifetime left*. The **thirty days** is an
 arithmetic illustration of that rule at one particular lifetime, offered as a convenience. `30` is
-not the quantity; it is 90 × ⅓ evaluated once, at a lifetime that has a published expiry date
+not the quantity. It is 90 × ⅓ evaluated once, at a lifetime that has a published expiry date
 (§7.2).
 
 **#60 shipped the illustration and discarded the rule.**
@@ -440,7 +440,7 @@ This is the sharper failure and it needs no source, only the two clauses read to
 
 Suppose the premise were true and the modal ACME client triggered renewal 30 days before expiry.
 Then a certificate observed at 30 days remaining is one whose **automation is firing right now, on
-schedule**. That is not the operator's last chance to act; it is the moment at which the operator
+schedule**. That is not the operator's last chance to act. It is the moment at which the operator
 has *no* action, because the machine has it. The operator's last chance is wherever the automation
 has demonstrably **failed**, which is strictly later and about which the premise says nothing.
 
@@ -448,7 +448,7 @@ The inference runs backwards. *Clients renew at 30 days* is a reason to expect 3
 point of **maximum churn**, not of maximum danger — and
 [#16](https://github.com/winniel123/verge-asm/issues/16) said exactly this from the other side when
 it complained that *"a 30-day warning is right for manual renewals and noise for a team on ACME"*.
-#60 answered that complaint correctly (it is a flap; damping belongs in notification) and then, in a
+#60 answered that complaint correctly (it is a flap. Damping belongs in notification) and then, in a
 different section, **adopted the flap's own mechanism as the number's justification**.
 
 **So `N = 30` was not merely unattested. Its stated ground, if true, argues for a different number.**
@@ -515,11 +515,11 @@ retrieval. Distinguishing them is what ADR-0034 is for.
 > `boulder` implements exactly that. Each owner attests the half it owns.
 
 **Why this is a move on a retrieval and not on a re-reading.** #37's precedent bars moving a row on
-text already held. Three things here were not held and could only be retrieved: RFC 9773 exists and
-is a **finished Standards-Track RFC** rather than the draft the ticket expected; Certbot **removed**
-its fixed 30-day threshold in 4.0.0 and documents having done so; and Let's Encrypt's six-day
-profile went **generally available on 2026-01-15**, which is what makes any fixed `N` degenerate
-(§7.3).
+text already held. Three things here were not held and could only be retrieved:
+
+1. RFC 9773 exists and is a **finished Standards-Track RFC** rather than the draft the ticket expected.
+2. Certbot **removed** its fixed 30-day threshold in 4.0.0 and documents having done so.
+3. Let's Encrypt's six-day profile went **generally available on 2026-01-15**, which is what makes any fixed `N` degenerate (§7.3).
 
 **Why the claim's rewording is licensed and is not a re-reading either.** ADR-0032 §3 *required*
 this table to derive its own claim set and the derivation had never been done (§9). Doing an
@@ -652,25 +652,25 @@ answered by reasoning about what a fixed `N` does across heterogeneous lifetimes
 **What would change the verdict, in one line.** An owner sentence — from the IETF, or from a CA
 about certificates it issues — placing the replacement point somewhere other than ⅓ of validity, or
 a demonstration that the rule's claim really is about the operator rather than about the
-certificate. The first would move the fraction; the second would restore the *no owner* finding and
-put `N` back to a disclosed constant.
+certificate. The first would move the fraction. The second would restore the *no owner* finding and
+return `N` to a disclosed constant.
 
 ---
 
 ## 15. Retrieval hazards and errors caught
 
-Recorded per §9.5's practice; four of these would have produced a wrong answer.
+Recorded per §9.5's practice. Four of these would have produced a wrong answer.
 
 - **ARI is not a draft.** The ticket names it *"the draft/RFC"*. It is **RFC 9773**, Standards
   Track, **June 2025** — over a year old at retrieval. Treating it as in-progress would have
   under-weighted the strongest source in the note.
 - **`lego`'s `master` branch is stale and returns HTTP 200.** lego's default branch is `main` and the
-  shipped release is v5; `master` is a v4-era branch still serving `cmd/cmd_renew.go` with
+  shipped release is v5. `master` is a v4-era branch still serving `cmd/cmd_renew.go` with
   `Value: 30` and a `// TODO(ldez): in v5, remove this flag` comment beside it. **A retrieval that
   read `master` would have found a 30-day default that has not shipped for a major version, with no
   error to warn it.** This is §9.5's Red Hat hazard in a new form: not a blocked fetch, but a
   *successful* fetch of superseded bytes.
-- **Certbot's source moved to a `src`-layout in 4.1.0** and `RENEWER_DEFAULTS` no longer exists;
+- **Certbot's source moved to a `src`-layout in 4.1.0** and `RENEWER_DEFAULTS` no longer exists.
   `renew_before_expiry` now has **no default at all**. A search for the old symbol returns nothing
   and could be misread as "not found, therefore unknown" rather than "removed, deliberately".
 - **The 10-day halving threshold is *not* the CA/Browser Forum's short-lived definition, and they
@@ -690,7 +690,7 @@ Recorded per §9.5's practice; four of these would have produced a wrong answer.
   behaviour it was written to replace. The scoping word is *"The first two"*, and it was checked
   against the bytes rather than remembered.
 - **Let's Encrypt's expiry-notification schedule is no longer retrievable from a live first-party
-  page.** The service ended **4 June 2025**; `letsencrypt.org/docs/expiration-emails/` now contains
+  page.** The service ended **4 June 2025**. `letsencrypt.org/docs/expiration-emails/` now contains
   three lines and does not state the historical schedule. It was **20 days and 7 days**, recovered
   only from an Internet Archive capture of that URL (2024-09-09) — one step weaker than direct
   retrieval, flagged per §9.5, and **not load-bearing**: it is a notification schedule, not a

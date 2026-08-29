@@ -77,7 +77,7 @@ class-scoped kind takes a quantifier, and the cross-class kind cannot express on
 > way variance falls. An empty set of available vantages in the named class is `not-evaluable`.
 
 The asymmetry is the whole ruling and it is not a convenience. **Across classes, a difference is a
-fact about our aperture; within a class, a difference is a fact about the authority.** The model
+fact about our aperture. Within a class, a difference is a fact about the authority.** The model
 already holds both halves separately and had never joined them: `Vantage class` is *"which side of
 the operator's boundary a `Vantage` sits on"* — a property of **our** deployment — while ADR-0070
 **[measured]** the within-class case on real authorities, one wildcarded name drawing addresses from
@@ -140,7 +140,7 @@ the value the product is named for.
 
 **This moves no version and breaks nothing.** Nothing was specified, so there is no corpus row whose
 output moves, and [ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md)'s bidirectional
-gate is satisfied by a leaf that does not move. The map plans; this is a spec hole filled before
+gate is satisfied by a leaf that does not move. The map plans. This is a spec hole filled before
 implementation, not a behavioural change.
 
 ### What is refused: the `Reach` treatment
@@ -153,7 +153,7 @@ leaves exactly as ADR-0071 §3 left them.
 question answered, *is it reachable from this class* — so one stored composed value serves all of
 them. `resolution` has **two consumer shapes**: membership wants agreement across classes, #128's rule
 wants existence within one. A single stored composed `resolution` would have to pick one and be wrong
-for the other consumer, every time, on every `Name`. That is not a cost comparison; the object does
+for the other consumer, every time, on every `Name`. That is not a cost comparison. The object does
 not exist to be minted.
 
 ### What is refused: two proper nouns for the two occupied cells
@@ -183,7 +183,7 @@ enumeration gets repaired — *by writing down what a limb denotes, never by wid
   *"every available vantage"*.
 - **No new rule, no new facet, no new field, no new value space, no `Break`, no aperture input, no
   declared parameter, no message, no census member and no coverage member.** The **v1 rule set stays
-  at seventeen**; no rule's leaf moves, because every composition this ADR writes down is either
+  at seventeen**. No rule's leaf moves, because every composition this ADR writes down is either
   unchanged or was never written at all.
 - **The version vector does not widen.** ADR-0071 §3's statement that both compositions sit inside
   their readers' leaves is confirmed rather than withdrawn — what changes is that a leaf must now

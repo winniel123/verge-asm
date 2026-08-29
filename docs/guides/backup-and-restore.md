@@ -9,15 +9,15 @@ description: Take a data-only backup from the UI or a full pgdata dump on the ho
 
 What to back up, how to restore it, and how long the estate keeps its own data.
 This guide expands the restore side that [running.md → Volumes](running.md#volumes)
-and [running.md → Retention](running.md#retention) name but do not walk through.
+and [running.md → Retention](running.md#retention) name but do not detail.
 
 There are **two** ways to take a backup, and they answer different needs:
 
 - **In-app backup** (**Settings → Instance**) — a one-click download of the estate and
   its configuration, and a guided restore, with **no shell**. It excludes the
-  session-minting keys (they regenerate on restore) but it is **not** "no secrets": the
+  session-minting keys (they regenerate on restore) but it is **not** "no secrets". The
   durable per-row credentials the database already holds — password, TOTP and API-token
-  hashes, and SSO/channel secrets — ride with their rows, so a backup file carries the
+  hashes, and SSO/channel secrets — ride with their rows. So a backup file carries the
   **same leak posture as `pgdata`** and deserves the same care. This is the first-class
   way to carry the estate to another host. It is documented first, below.
 - **Host-level `pg_dump`** — a full logical dump of the whole database on the host,
@@ -25,7 +25,7 @@ There are **two** ways to take a backup, and they answer different needs:
   under [Host-level dumps with `pg_dump`](#host-level-dumps-with-pg_dump).
 
 Three named volumes hold everything worth saving, and they are not equal. One is
-the estate itself; losing it is total data loss. The other two hold a single
+the estate itself. Losing it is total data loss. The other two hold a single
 generated secret each, and losing either is a recoverable inconvenience — the
 service mints a new one on next boot. Know which is which before you plan a
 backup.
@@ -37,7 +37,7 @@ backup.
 | `worker-state` | `worker` | `/app/state` | prober SSH private key | provisioned vantages must re-install the new public key |
 
 The service names and volumes above are the real ones from
-[`docker-compose.yml`](../../docker-compose.yml); the commands below use them
+[`docker-compose.yml`](../../docker-compose.yml). The commands below use them
 verbatim.
 
 ---
@@ -47,8 +47,8 @@ verbatim.
 **Settings → Instance** carries a **Backup** card and a **Restore** card — a
 data-only backup you download in one click, and a guided restore, with no host
 shell. Both are admin-only. The design decision behind them is
-[ADR-0124](../adr/0124-a-backup-carries-data-and-no-secret-and-updating-is-guided-not-self-applied.md);
-the export lives in [`cmd/web/backup.go`](../../cmd/web/backup.go).
+[ADR-0124](../adr/0124-a-backup-carries-data-and-no-secret-and-updating-is-guided-not-self-applied.md).
+The export lives in [`cmd/web/backup.go`](../../cmd/web/backup.go).
 
 ### What the backup is — the estate and config, at `pgdata`'s leak posture
 
@@ -65,13 +65,13 @@ a live foothold:
 - **The session signing key and the prober SSH private key are not in it.** Under
   [ADR-0053](../adr/0053-a-secret-is-held-only-where-its-act-is-performed-and-the-shared-store-holds-none.md)
   those two keys live on the `web-state` and `worker-state` volumes, never in
-  Postgres, so a dump that reads the database *cannot* contain them. On restore they
+  Postgres. So a dump that reads the database *cannot* contain them. On restore they
   **regenerate** — see below.
 - **The live `session` table is excluded**, along with six other tables that are
   purely transient or short-lived (`password_reset`, `recovery_code`, `invite`,
   `heartbeat`, the CT-log throttle bucket, and the in-flight scan queue). Their rows
   would be meaningless — or actively harmful phantoms — after a restore, so the
-  archive leaves them out. The exclusion is an **export invariant**, not an accident:
+  archive omits them. The exclusion is an **export invariant**, not an accident:
   the dump reads only an explicit table allowlist, so a future table is never swept
   in by a "dump everything" default.
 
@@ -131,7 +131,7 @@ Restore is deliberately **guarded**, because it **overwrites** the estate. On
    Token **Last used** never regresses across a restore — it rides in the backup data.
 
 Because the manifest carries the schema version, a restore **across a migration bump**
-is caught at preflight: an archive taken on an incompatible schema is refused before
+is caught at preflight. An archive taken on an incompatible schema is refused before
 it overwrites anything, rather than half-loaded.
 
 > The in-app restore is the counterpart to the in-app backup — an `.ndjson` archive,
@@ -151,7 +151,7 @@ path for disaster recovery and the [pre-upgrade drill](#the-pre-upgrade-backup-d
 
 The database holds no secret ([running.md → Where secrets live](running.md#where-secrets-live)),
 but it holds everything else. Take a logical dump with `pg_dump` inside the
-running `postgres` container — it is transactionally consistent without stopping
+running `postgres` container. It is transactionally consistent without stopping
 the stack, so `web` and `worker` keep serving while it runs.
 
 ```sh
@@ -233,10 +233,10 @@ so **every signed-in operator is logged out** and signs in again. No data is los
 and no reconfiguration is needed.
 
 **`worker-state` — prober SSH private key.** Generated by `worker` at prober
-provisioning; only the **public** half ever leaves the instance
-([prober.md](prober.md)). Lose the volume and `worker` generates a new keypair —
-but every prober host still trusts the **old** public key in its
-`authorized_keys`, so pushes fail until you re-provision each vantage and install
+provisioning. Only the **public** half ever leaves the instance
+([prober.md](prober.md)). Lose the volume and `worker` generates a new keypair.
+But every prober host still trusts the **old** public key in its
+`authorized_keys`. So pushes fail until you re-provision each vantage and install
 the new public key on it. This is the one state loss with real operational cost,
 proportional to how many probers you run.
 
@@ -263,7 +263,7 @@ service starts.
 ## The pre-upgrade backup drill
 
 [running.md → Upgrades](running.md#upgrades) flags this, and it is the one time a
-`pgdata` backup is non-negotiable: `web` applies new migrations **before** the new
+`pgdata` backup is non-negotiable. `web` applies new migrations **before** the new
 code serves traffic, and a schema change is not always cleanly reversible. Take
 the dump first, then upgrade:
 
@@ -285,19 +285,19 @@ re-provisioning are recoverable without one.
 
 Backups protect against loss you did not choose. **Retention** is loss you *do*
 choose: two sweeps inside `worker` that retire aged rows on a dial you set at
-**Settings** (the delivery tab; the form posts to `POST /settings/retention`, and
+**Settings** (the delivery tab — the form posts to `POST /settings/retention`, and
 the whole Settings page is admin-only). Both dials ship at **0 — unbounded** — v1
-grows the corpus without limit until you turn a dial up. This matters to backups
+grows the corpus without limit until you raise a dial. This matters to backups
 because it decides how much there is to back up, and because it is the only
 supported way to delete estate data.
 
 The two dials are independent and floored differently:
 
 - **Dispatch retention** (`dispatch_cadence_multiple`) — retires expired
-  operational **dispatch** rows and nothing else; the sweep's data layer exposes
+  operational **dispatch** rows and nothing else. The sweep's data layer exposes
   no observation, span or batch method, so it structurally cannot touch measured
   data. Stated as a **multiple of the slowest enabled scan's cadence**, not a day
-  count. `0` is unbounded; any positive value below **2 cadences** is rejected,
+  count. `0` is unbounded. Any positive value below **2 cadences** is rejected,
   because below that the coverage layer cannot answer whether the slowest scan
   ran.
 - **Observation (evidential) retention** (`observation_currency_days`) — retires
@@ -305,7 +305,7 @@ The two dials are independent and floored differently:
   while it is within the bound of the tightest scan covering its timeline —
   derivations read the live tier and it is **never** discarded — and *evidential*
   once past that bound, read by no derivation. Only evidential rows are eligible,
-  and only past your dial. `0` is unbounded; a positive value below the tightest
+  and only past your dial. `0` is unbounded. A positive value below the tightest
   bound in force is rejected as a no-op (the whole corpus already outlives it).
 
 A live observation is never retired no matter how low the dial goes: the delete
@@ -326,14 +326,14 @@ query evaluates each row's own per-timeline bound. The dial only governs how lon
 **Test the restore, not just the backup.** A dump you have never restored is a
 guess. Periodically:
 
-1. Restore the latest dump into a **throwaway** stack — a separate directory, so
+1. Restore the latest dump into a **throwaway** stack. Use a separate directory, so
    `COMPOSE_PROJECT_NAME` differs and it gets its own volumes.
-2. `docker compose up -d` and confirm `web` comes up healthy and the migrations
+2. `docker compose up -d` and confirm `web` starts healthy and the migrations
    apply cleanly (`docker compose logs web`).
 3. Sign in and spot-check that subjects, observations and spans are present.
-4. Tear it down with `docker compose down -v`.
+4. Remove it with `docker compose down -v`.
 
-If step 2 or 3 fails, the backup was not one. Find out on a rehearsal, not during
+If step 2 or 3 fails, the backup was not one. Discover it on a rehearsal, not during
 an incident.
 
 ---

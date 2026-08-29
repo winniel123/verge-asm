@@ -222,12 +222,15 @@ claims wearing one sentence:
    protocol with an in-band upgrade looks identical, at the TLS layer, to a protocol with no TLS at
    all.
 
-Claim (1) on its own fires on: every plaintext-by-design listener in the estate; every service whose
-TLS is terminated at an edge address; every port in the ~~~140-port~~ **131-port probed** hot set where
-something answers a connect and nothing answers a ClientHello. On a real estate that is most of what
-responds. **A
-signal that fires on most of what responds is not a signal**, and no amount of care in phrasing
-changes that.
+Claim (1) on its own fires on three things:
+
+- every plaintext-by-design listener in the estate
+- every service whose TLS is terminated at an edge address
+- every port in the ~~~140-port~~ **131-port probed** hot set where something answers a connect and
+  nothing answers a ClientHello
+
+On a real estate that is most of what responds. **A signal that fires on most of what responds is not
+a signal**, and no amount of care in phrasing changes that.
 
 > **`~140` was never `verge-core`'s size.** **[measured]** by
 > [#97](https://github.com/winniel123/verge-asm/issues/97): the frequency half is **123, all TCP**, the
@@ -260,7 +263,7 @@ CONNECTION ESTABLISHED
 Protocol version: TLSv1.3
 ```
 
-(OpenSSL 3.5.7. Loopback listeners are my own; the control is an ordinary HTTPS client connection.)
+(OpenSSL 3.5.7. Loopback listeners are my own. The control is an ordinary HTTPS client connection.)
 
 `wrong version number` is the TLS record layer rejecting the greeting's first byte as a record
 header. So the handshake #4 already performs partitions every responding `Service` three ways —
@@ -269,7 +272,7 @@ protocol decision is made. That partition is the aperture input for §4 and §5,
 table-free.
 
 It is worth noticing that this is the same partition nmap encodes as `Probe TCP NULL q||` with a
-6-second wait (§2.1). The distinction is old and structural; what is new here is that we get it as a
+6-second wait (§2.1). The distinction is old and structural. What is new here is that we get it as a
 by-product rather than as a deliberate probing step.
 
 ### 3.4 The one place implicit TLS alone is a verdict
@@ -323,7 +326,7 @@ The three quotable server-speaks-first statements:
 > — [RFC 959 §4.2](https://www.rfc-editor.org/rfc/rfc959.txt)
 
 **Note what the three line-oriented greetings do *not* establish.** SMTP, FTP and POP3 greetings say
-nothing about TLS or authentication. The reply code is spec-defined; everything after it is free
+nothing about TLS or authentication. The reply code is spec-defined. Everything after it is free
 text and is the `match` half of §2.1. RFC 5321 even documents the free text as a fingerprinting
 affordance:
 
@@ -341,7 +344,7 @@ So for three of the five, the free flight buys dispatch and nothing else.
 > no LOGIN/AUTHENTICATE command is needed."
 > — [RFC 9051 §7.1.4](https://www.rfc-editor.org/rfc/rfc9051.txt) (RFC 3501 §7.1.4 is materially identical)
 
-Zero client bytes; the greeting itself states that the connection is in the authenticated state. It
+Zero client bytes. The greeting itself states that the connection is in the authenticated state. It
 is the single cleanest instance in this entire survey of the shape the ticket was looking for: the
 listener's own unauthenticated self-report, answering the question, in a spec-defined token.
 
@@ -664,7 +667,7 @@ lists what it will accept:
 
 Security type `1` appearing in that list *is* "anonymous access permitted", as a number defined by
 the specification. The prober sends 12 bytes — its own ProtocolVersion — which is not the
-authentication message; RFB's authentication message is the 16-byte challenge response of §7.2.2,
+authentication message. RFB's authentication message is the 16-byte challenge response of §7.2.2,
 and the prober never reaches it.
 
 RFC 6143 also supplies the reason 5900 is on #21's list at all —
@@ -704,7 +707,7 @@ And the specification states outright that this happens unprotected:
 > handshake … This step ensures that no tampering has taken place."
 > — [MS-RDPBCGR §5.4.2.1](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-rdpbcgr/db98be23-733a-4fd2-b086-002cd2ba02e5)
 
-That is as close as the document comes; **it never uses the phrase "before authentication"**, and the
+That is as close as the document comes. **It never uses the phrase "before authentication"**, and the
 inference is from "in the clear" plus the ordering. Microsoft's product documentation supplies the
 verdict half:
 
@@ -716,7 +719,7 @@ verdict half:
 **RDP is therefore the one genuinely new, high-value row.** #21 excluded 3389 deliberately — remote
 administration over an untrusted network is what the protocol is *for*, so no claim on the port could
 be made — and this measurement asks a different question the port never could: *does this particular
-listener require CredSSP?* No credential is submitted; the answer is a spec-defined integer.
+listener require CredSSP?* No credential is submitted. The answer is a spec-defined integer.
 
 Two honest deflations. The measurement is *NLA required or not*, which is not the same as *anonymous
 access permitted* — an RDP server without NLA still presents a login screen. And "recommended for
@@ -821,11 +824,11 @@ So the free handshake distinguishes `requireTLS` from everything else and cannot
 three, which is a weaker answer than any other row.
 
 On anonymous access MongoDB is a **documented non-finding**, and it is recorded as such rather than
-filled in by inference. The `hello` reference page says nothing about authentication; MongoDB's own
+filled in by inference. The `hello` reference page says nothing about authentication. MongoDB's own
 driver specification establishes only that the handshake precedes it ("It MUST be the first command
 sent over the respective socket", with `speculativeAuthenticate` as an optional rider —
-[mongodb/specifications, handshake.md](https://raw.githubusercontent.com/mongodb/specifications/master/source/mongodb-handshake/handshake.md));
-and no MongoDB page quotes what an unauthenticated client receives. Under #21's evidence standard
+[mongodb/specifications, handshake.md](https://raw.githubusercontent.com/mongodb/specifications/master/source/mongodb-handshake/handshake.md)).
+And no MongoDB page quotes what an unauthenticated client receives. Under #21's evidence standard
 that is not enough to build a rule on. **MongoDB is excluded for want of an attested answer**, in the
 same way and for the same reason #21 excluded 111/tcp.
 
@@ -919,8 +922,8 @@ implementer would be tempted to slide.
 The obvious alternative — *do not transmit a secret* — is what an implementer reaches for, and all
 three of the hardest cases pass it while being unambiguously logins. FTP `USER anonymous` transmits
 a documented public username. An LDAP anonymous simple bind transmits two zero-length strings. An
-MQTT `CONNECT` with both flag bits clear transmits neither field. None of the three carries a secret;
-all three are the protocol's login.
+MQTT `CONNECT` with both flag bits clear transmits neither field. None of the three carries a secret.
+All three are the protocol's login.
 
 The concrete harm is the one #4 named. Unattended and nightly, these produce successful or failed
 authentication events in the operator's own audit log, they increment whatever lockout counter the
@@ -936,7 +939,7 @@ documented default username. The line has to sit at the exchange or it does not 
 ### 6.3 Redis `PING` before `AUTH` — in
 
 **Verdict: in, and it is not a close call.** Redis has no connect-time handshake and no login packet.
-`AUTH` is one command among hundreds; `PING` is another; sending `PING` does not enter any exchange
+`AUTH` is one command among hundreds. `PING` is another. Sending `PING` does not enter any exchange
 that `AUTH` participates in, and the server's answer is not an authentication result but an ordinary
 command reply.
 
@@ -1057,7 +1060,7 @@ refers to the ability of a client to connect to an FTP server **with minimal aut
 
 **What FTP loses.** Unlike LDAP there is no bind-free path: RFC 959 makes USER the gateway to
 everything, so *anonymous FTP is enabled on this listener* is simply not measurable inside the
-profile. The `FEAT`-based TLS fact (§5.3) survives; the anonymous-access fact does not. This is the
+profile. The `FEAT`-based TLS fact (§5.3) survives. The anonymous-access fact does not. This is the
 clearest case of the line costing us something real.
 
 ### 6.6 An unauthenticated Elasticsearch `GET /` — in, and it establishes less than it looks
@@ -1073,7 +1076,7 @@ safe:
 > — [RFC 9110 §9.2.1](https://www.rfc-editor.org/rfc/rfc9110.txt)
 
 *(A small correction while we are here: #4 §4.1 and §10 both cite **§9.3.1** for the safety of GET.
-§9.3.1 defines the GET method and never uses the word "safe"; safety is §9.2.1. The claim is right
+§9.3.1 defines the GET method and never uses the word "safe". Safety is §9.2.1. The claim is right
 and the section number is wrong in both places.)*
 
 **But the fact established is HTTP's, not Elasticsearch's**, and the distinction is the whole point
@@ -1134,7 +1137,7 @@ and that packet is where the credentials live:
 > — [OASIS MQTT 3.1.1 §3.1.2.8, §3.1.3.4](http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html)
 
 with the response carrying an authorization verdict — `0x04` "Connection Refused, bad user name or
-password" and `0x05` "Connection Refused, not authorized" (§3.2.2.3, Table 3.1; MQTT 5.0's
+password" and `0x05` "Connection Refused, not authorized" (§3.2.2.3, Table 3.1. MQTT 5.0's
 equivalents are reason codes `0x86` and `0x87`).
 
 So there is no MQTT message that is not the authentication exchange. **MQTT contributes nothing to
@@ -1153,7 +1156,7 @@ other protocol whose authorization state is established by a bind, a connect pac
 setup. That is the larger set, and it contains the services an operator is most likely to have
 exposed.
 
-The honest summary is that **the credential line does not merely make anonymous-access expensive; it
+The honest summary is that **the credential line does not merely make anonymous-access expensive. It
 makes it unavailable for most of the estate.** #21's §5 hoped this rule would carry the middle band
 it declined to build. It carries about a third of it.
 
@@ -1178,7 +1181,7 @@ class. Not one of them requires knowing what product is running.
 ### 7.2 Why the grammar table is better than the dispatch table
 
 The two do the same job and one of them dispatches on evidence. §3.3's free partition tells us, at no
-cost, whether the listener spoke first; where it did, §4's greetings identify the protocol from bytes
+cost, whether the listener spoke first. Where it did, §4's greetings identify the protocol from bytes
 the estate sent us rather than from a number we assigned meaning to. **That is a determinacy
 improvement over `sensitive-port-exposed`, and it is the ticket's claim made good** — but only for
 the greeting-first protocols, which are five of the seventeen rows in §5.1.
@@ -1187,7 +1190,7 @@ For the rest the prober must choose from the port, and the determinacy problem r
 undiminished: speaking PostgreSQL at 5432 assumes PostgreSQL is there. **The mitigation is that the
 cost of being wrong is asymmetric and small.** A wrong guess produces a protocol error or silence,
 which canonicalises to `not-evaluable`, not to a firing. `sensitive-port-exposed` guessing wrong
-produces a *signal*; this rule guessing wrong produces a `Gap`. That asymmetry is the real answer to
+produces a *signal*. This rule guessing wrong produces a `Gap`. That asymmetry is the real answer to
 the ticket's "an observation-driven rule has no determinacy problem" — it has one, and it fails in
 the safe direction.
 
@@ -1200,7 +1203,7 @@ For the dispatch table the answer is that **we could not, even if we wanted to.*
 means shipping code that speaks it — a message encoder, a response parser, a canonicalisation of the
 result into the closed value space. There is no file an operator or a maintainer could edit at 3am
 to add MQTT support. The sensitive-port list *could* be hot-loaded from a data file and is
-release-coupled only because we have decided it is; the dispatch table is release-coupled by
+release-coupled only because we have decided it is. The dispatch table is release-coupled by
 construction.
 
 That is a stronger property than ADR-0004 asks for, and it is worth stating because it is what makes
@@ -1212,9 +1215,9 @@ change or **the aperture widening**, and a widened aperture surfaces newly cover
 protocol to the dispatch table:
 
 - does **not** move the rule's version, because the rule reads a canonicalised facet value and does
-  not know which protocols exist;
+  not know which protocols exist.
 - does **not** re-baseline the estate, because the aperture widened only over `Service`s the prober
-  could not previously address;
+  could not previously address.
 - costs exactly a `revealed` transition on the newly covered subjects, which is the treatment
   ADR-0007 already defined for this shape of change.
 
@@ -1339,7 +1342,7 @@ same reason (someone reconfigured the listener) far more often than independentl
 
 ### 8.3 The churn risk is in the canonicaliser, not in the facet
 
-The facet is cheap; the canonicaliser is where a `Break` estate-wide comes from. §7.4's closed value
+The facet is cheap. The canonicaliser is where a `Break` estate-wide comes from. §7.4's closed value
 space is what keeps it non-churny, and the discipline is enforceable rather than aspirational:
 ADR-0008's golden corpus takes fixed observations and expected outputs, and for this canonicaliser a
 corpus row is *these bytes on the wire → this tuple*. Captured wire transcripts are exactly the kind
@@ -1378,7 +1381,7 @@ The tempting shape is `smtp-starttls-absent`, `mysql-tls-not-offered`, `amqp-ano
 It is wrong for a reason that goes beyond taste: **a signal set that grows with the dispatch table is
 a name per product, which is the signature database's silhouette even when every individual rule is
 honest.** ADR-0004 excluded admin-panel titles and default-install pages on the grounds that a corpus
-worth having is one updated continuously; a per-protocol signal set would recreate that pressure in
+worth having is one updated continuously. A per-protocol signal set would recreate that pressure in
 the signal namespace rather than in a data file.
 
 It also forfeits §7.3's payoff. Per-protocol rules make the protocol set part of the rule, so adding
@@ -1566,7 +1569,7 @@ NetBIOS, MS SQL, the Elasticsearch transport port or the RabbitMQ inter-node por
 is said — *and it offers no TLS*, *and it offered security type `None`* — but it produces no firing
 the operator was not already going to see. **Net new signals on the sensitive list: zero.**
 
-That is not a defect; it is the two rules doing different jobs on the same ports. But it means the
+That is not a defect. It is the two rules doing different jobs on the same ports. But it means the
 value has to come from somewhere else entirely.
 
 ### 10.2 Where the new coverage actually is
@@ -1673,7 +1676,7 @@ rather than dropping them.
    > [ADR-0065](../adr/0065-a-rule-is-excluded-by-its-fact-or-by-its-aperture-never-by-the-shape-of-the-set.md).
 3. **Does the `revealed` treatment of a widened dispatch table actually hold in the presence of a
    `Gap`?** §7.3 leans on ADR-0008. But a `Service` already carrying `not-evaluable` under route 5
-   has a timeline; widening the aperture over it looks like a value appearing where a `Gap` was, not
+   has a timeline. Widening the aperture over it looks like a value appearing where a `Gap` was, not
    like a new subject. Whether that is `revealed` or something else is not settled by ADR-0007's
    three membership transitions.
 4. **Where does the golden corpus for the listener canonicaliser come from?** §8.3 proposes captured
@@ -1740,7 +1743,7 @@ rather than dropping them.
 **Checked by #104 and found to state no position, which is the finding**
 - **Microsoft does not document which message triggers `SMBServer/Audit` events 3021/3022.** Whether a NEGOTIATE-only probe is silent on an audit-enabled Windows Server 2025 is therefore **unverified**, and §5.8 routes it to a lab measurement rather than asserting it
 - **No Microsoft page documents any Security-log audit event emitted on SMB2 NEGOTIATE alone.** An absence of documentation, weaker than a statement, and recorded as such
-- **No primary source gives the shipped default of `LDAPServerIntegrity` on a fresh domain controller**; secondary sources disagree, so no default is asserted
+- **No primary source gives the shipped default of `LDAPServerIntegrity` on a fresh domain controller**. Secondary sources disagree, so no default is asserted
 
 **Measured in the course of this note**
 - `nmap-service-probes` directive counts (§2.1) — 187 `Probe`, 11,968 `match`, 203 `softmatch`, 12 `fallback`, over 17,154 lines of the current file
@@ -1750,14 +1753,14 @@ rather than dropping them.
 
 **Checked and found to contain no position, which is itself the finding**
 - RFC 3207 — no rule on what a server's *omission* of the STARTTLS advertisement means (§5.3)
-- RFC 2389 — entirely silent on whether `FEAT` may be issued before login; "login", "logged" and "authenticat" do not occur in the document (§5.3)
-- RFC 4512 — silent on anonymous access to the root DSE; "anonymous" does not occur in the document (§5.4)
-- redis.io — the `-NOAUTH` error string is documented nowhere across AUTH, PING, Security, Encryption, ACL and the RESP protocol spec; only `-DENIED` is documented (§6.3)
+- RFC 2389 — entirely silent on whether `FEAT` may be issued before login. "login", "logged" and "authenticat" do not occur in the document (§5.3)
+- RFC 4512 — silent on anonymous access to the root DSE. "anonymous" does not occur in the document (§5.4)
+- redis.io — the `-NOAUTH` error string is documented nowhere across AUTH, PING, Security, Encryption, ACL and the RESP protocol spec. Only `-DENIED` is documented (§6.3)
 - mongodb.com — the `hello` reference page says nothing about authentication, and no page quotes what an unauthenticated client receives (§5.8)
 - kubernetes.io — the non-resource URLs granted by `system:public-info-viewer` are not enumerated anywhere in the documentation (§5.9)
 - elastic.co — neither the status returned to an unauthenticated request nor the behaviour of `GET /` on a security-disabled cluster is documented (§6.6)
-- docs.docker.com — Docker never writes "no authentication"; it writes "not permitted" and "root access to the machine hosting the daemon" (§5.9)
-- MS-RDPBCGR — never uses the phrase "before authentication"; "initially exchanged in the clear" is the closest verbatim support (§5.7)
+- docs.docker.com — Docker never writes "no authentication". It writes "not permitted" and "root access to the machine hosting the daemon" (§5.9)
+- MS-RDPBCGR — never uses the phrase "before authentication". "initially exchanged in the clear" is the closest verbatim support (§5.7)
 
 **Correction to a sibling note**
-- [`safe-active-probing.md`](https://github.com/winniel123/verge-asm/blob/research/safe-active-probing/docs/research/safe-active-probing.md) §4.1 and §10 cite RFC 9110 **§9.3.1** for the safety of GET. §9.3.1 defines the GET method and does not use the word "safe"; safe methods are **§9.2.1**. The claim is correct and the section number is wrong in both places (§6.6).
+- [`safe-active-probing.md`](https://github.com/winniel123/verge-asm/blob/research/safe-active-probing/docs/research/safe-active-probing.md) §4.1 and §10 cite RFC 9110 **§9.3.1** for the safety of GET. §9.3.1 defines the GET method and does not use the word "safe". Safe methods are **§9.2.1**. The claim is correct and the section number is wrong in both places (§6.6).

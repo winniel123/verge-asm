@@ -8,10 +8,10 @@
 ## Context
 
 [ADR-0007](./0007-drift-is-a-timeline-of-spans.md) keys timelines per source and **refuses to
-arbitrate between them**, on a worked example: the operator's zone file lists
+arbitrate between them**, on a worked example. The operator's zone file lists
 `old.example.com` and our own resolver returns a Name Error. That refusal is what stops a zone
 file keeping a dead name alive, and it is where `authority` finally did work. Its by-product is
-that the estate now *knows* when two sources covering one subject disagree, and
+that the estate now *knows* when two sources covering one subject disagree. And
 [#8](https://github.com/winniel123/verge-asm/issues/8) called telling the operator arguably the
 most valuable thing the zone file buys beyond removal detection. ADR-0007 recorded that as an
 opportunity rather than acting on it, because [#16](https://github.com/winniel123/verge-asm/issues/16)
@@ -55,7 +55,7 @@ collide on. It matters, because a signal must name the timelines it reads.
 
 The zone file cannot produce a `resolution` value. ADR-0011 divided the two DNS facets on **walk
 versus reading**: `resolution` follows CNAMEs and, since #35, queries the delegated authorities
-directly; `dns-record` records what an authority served for a qtype. A file is a reading. It also
+directly. `dns-record` records what an authority served for a qtype. A file is a reading. It also
 cannot reach the two values that need a second measurement — `Lame` needs the delegation walked
 and `Shadowed` needs the ~~parent zone's~~ **parent name's** poison signature — the control probe runs
 under a name's **parent**, which is not a zone boundary
@@ -64,7 +64,7 @@ under a name's **parent**, which is not a zone boundary
 
 So the collision is on **`dns-record`**, which is where ADR-0011 already put this pair when it
 named *"our resolver's wire answer against the operator's zone file"* as a decoder pair. ADR-0007's
-example is right in substance and imprecise about the facet; this ADR fixes the imprecision and
+example is right in substance and imprecise about the facet. This ADR fixes the imprecision and
 disturbs nothing.
 
 But `dns-record` is keyed **per qtype**, and a name declared with A, MX and TXT would fire three
@@ -124,7 +124,7 @@ to damp a signal, which is [ADR-0009](./0009-verge-core-is-a-union.md)'s *a port
 hide is a signal the operator can silence* arriving through DNS.
 
 **An address-scope `Seed` covering an address no resolution cites is not a conflict either.** A
-`Seed` produces no observations, so it is not a source in the ADR-0012 sense one layer over; it
+`Seed` produces no observations, so it is not a source in the ADR-0012 sense one layer over. It
 declares where the estate ends and asserts nothing about what is inside. `CONTEXT.md` already
 makes the two grounds for an `Address`'s membership **disjunctive** — *cited by a current
 resolution* **or** *covered by a `Seed`* — so there is no shared timeline and nothing to
@@ -140,7 +140,7 @@ the second failure is a defect rather than a decision.
 
 It fails the enumerability test: CT is append-only and `corroborative`, so a certificate for a
 long-dead name sits in the log forever and a rule over it would fire on every historical
-certificate in the estate. That is not ADR-0015's licensed *commonness*; it is the **conflation**
+certificate in the estate. That is not ADR-0015's licensed *commonness*. It is the **conflation**
 ADR-0015 distinguished from it, since *a record was added out of band* and *a certificate outlived
 its name* are opposite facts under one predicate. The half of it worth having — a name that
 **resolves** and is absent from the zone — is `resolved-name-absent-from-zone` below, and it reads
@@ -310,7 +310,7 @@ The predicate is the mirror image: `resolution` composes to `Resolved` and no zo
 `dns-record` timeline for that `Name` holds a record, within a scope the zone-file batch recorded
 as completed. The scope clause carries most of the honesty. A name beneath a **delegated subzone**
 is outside the file's zone, so the batch never touched its timeline and the rule is
-`not-evaluable`; likewise a name under a registrable domain for which no file was supplied. What is
+`not-evaluable`. Likewise a name under a registrable domain for which no file was supplied. What is
 left is tight: an A or AAAA-bearing name, inside a zone the operator exported, that the export does
 not contain. `NoData` names — a lone `_acme-challenge` TXT — never reach the predicate, because
 `resolution` did not compose to `Resolved`.
@@ -339,7 +339,7 @@ a third thing and the glossary never made it a precondition. What was missing is
 lists only living subjects cannot render it. The
 [`Subjects` screen](https://github.com/winniel123/verge-asm/issues/1) patch already owns
 *withdrawn* as its first population and
-[#44](https://github.com/winniel123/verge-asm/issues/44) owns where a signal is seen; this is where
+[#44](https://github.com/winniel123/verge-asm/issues/44) owns where a signal is seen. This is where
 the two meet.
 
 It is also what the rule is *for*. The question it answers — *which of the names that left are
@@ -417,9 +417,9 @@ question, which is why it is a ticket and not a paragraph.
   stopped telling us** — the declared timeline ageing into a `Gap`, which takes both rules to
   `not-evaluable`.
 - **The first two-source signal, so a message must name which side moved.** Every prior signal
-  reads one source and a transition needs no attribution; these two do.
+  reads one source and a transition needs no attribution. These two do.
 - **The flagship's population is the withdrawn one.** #44 and the `Subjects` screen patch own the
-  rendering; the model change is none.
+  rendering. The model change is none.
 - **One ticket opens** — which subject a certificate-transparency observation attaches to, given
   ADR-0011 lists `crt.sh` as a `certificate` decoder and a log entry names no `Endpoint` and no
   `Service`.

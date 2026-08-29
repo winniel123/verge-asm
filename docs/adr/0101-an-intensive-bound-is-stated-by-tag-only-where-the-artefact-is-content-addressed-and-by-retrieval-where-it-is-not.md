@@ -28,7 +28,7 @@ own precedent."*
 specifically: *"The class boundary in the intensive bound is a judgement, and it is the same judgement
 the rung ladder makes. … The ladder survives by being read off the artefact, and so does this: is there a
 retrievable prior version of the thing I opened? is a question with a byte answer. The first ambiguous
-case should be ticketed rather than decided by whoever meets it."* Neither section ruled the case; both
+case should be ticketed rather than decided by whoever meets it."* Neither section ruled the case. Both
 deferred it. This ticket is that deferral, discharged.
 
 **The first instance is measured, not hypothetical.** [`curated-table-watch.md`](../spec/curated-table-watch.md)
@@ -75,7 +75,7 @@ the citation names an object that cannot change under that name … everything e
 `latest`/`stable`/`current` path, **a release-line path the owner edits in place**, a wiki, a vendor
 portal page, a live registry."* That phrase is not an analogy to §39.9's *"a vendor that versions its
 documentation site and then edits a prior version in place"* — it is the same fact, named first. **This
-ADR does not mint a test; it points two flagged questions at an answer the corpus already paid for.**
+ADR does not mint a test. It points two flagged questions at an answer the corpus already paid for.**
 
 ### 2. Rung and mutability are already known to disagree, and this ADR only names where
 
@@ -122,15 +122,15 @@ without re-deriving it.
   intensive bound's own site and citing `3306/tcp` as the worked instance.
 - **§1.1's `3306/tcp` rows gain a citation pointer** to §2.2.1, so a future reading of that cell does not
   re-discover the ambiguity from bytes alone.
-- **No row, class, tier, rung, or coverage figure moves.** `3306/tcp` stays at rung 4 in the register;
-  nothing in `sensitive-ports.md` is edited by this ADR.
+- **No row, class, tier, rung, or coverage figure moves.** `3306/tcp` stays at rung 4 in the register.
+  Nothing in `sensitive-ports.md` is edited by this ADR.
 - **[ADR-0088](./0088-a-re-resolution-check-recurs-only-where-its-target-can-move.md) is confirmed by use**
   at a second consumer and is not amended — its ruling on G8's population and cadence is untouched.
 - **[ADR-0078](./0078-a-residue-is-disclosed-by-the-act-that-leaves-it.md) and
   [ADR-0057](./0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md) are confirmed by use and not
   amended.** Neither the entry form nor the rung ladder is reopened.
 - **[ADR-0008](./0008-derivation-versions-move-on-content.md) is not triggered.** No reference-data figure
-  moves; this is governance content.
+  moves. This is governance content.
 - **`CONTEXT.md` is not amended**, on ADR-0057's and ADR-0078's own reason: the curator is not a subject
   in the model.
 - **A successor question is named and left open**: whether `sensitive-ports.md` §39.3's rung ladder should

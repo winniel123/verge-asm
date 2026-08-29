@@ -17,14 +17,14 @@ keys on a claim that is **mutable and reassignable** on common IdPs:
 - Username **recycling** (a departed employee's name handed to a new hire) silently
   points the new identity at the old account.
 
-The `id_token` is genuinely signed, so every cryptographic check passes; the takeover
+The `id_token` is genuinely signed, so every cryptographic check passes. The takeover
 rides in on a *true* claim about a *reassignable* name. ADR-0112 bounds the blast radius
 — SSO authenticates existing accounts and never provisions — but does not close it: the
 matching key itself is the flaw.
 
 The stable OIDC identity is the **`sub` claim**, unique and non-reassignable *per issuer*
 (so the key is the pair `(issuer, sub)`). But `sub` is an opaque provider-assigned
-identifier; it cannot be matched against a human `account.username`. Bridging it to a
+identifier. It cannot be matched against a human `account.username`. Bridging it to a
 local account requires a **binding** — and the security of the whole scheme reduces to
 how that binding is first established. A "first SSO login records the pair" bootstrap
 (trust-on-first-use) was rejected: it re-opens exactly the trusted-`preferred_username`
@@ -42,7 +42,7 @@ own identity — never by trusting a username claim.**
   configured provider it arrived through.
 
 - **Binding store.** A new `sso_identity` table maps a `(provider, sub)` to one
-  `account`. An account may hold **many** identities (one per provider); a
+  `account`. An account may hold **many** identities (one per provider). A
   `UNIQUE(provider_id, sub)` guarantees an external identity binds to **at most one**
   account. A `display_name` (from `email`/`preferred_username` at link time) is stored
   **for display only** and never gates authentication. Both foreign keys are
@@ -61,25 +61,25 @@ own identity — never by trusting a username claim.**
   password and link — not a provision, and not a username fallback. The TOTP second factor
   after a hit is unchanged (ADR-0112).
 
-- **`username_claim` retired as an auth input.** It no longer selects the matching key;
-  the column and its config field are removed. Nothing user-facing keys on a mutable
+- **`username_claim` retired as an auth input.** It no longer selects the matching key.
+  The column and its config field are removed. Nothing user-facing keys on a mutable
   claim any longer.
 
-- **Management & audit.** A user unlinks their own identity; an admin can remove any
+- **Management & audit.** A user unlinks their own identity. An admin can remove any
   binding (the offboarding / seat-reassignment case this bug is about) from the admin
   SSO settings. Link, self-unlink and admin-remove are audited.
 
 ## Consequences
 
 - **A one-time link step precedes SSO** for every user — an intended cost. It is the step
-  that removes all username trust; TOFU would have been cheaper and is exactly what is
+  that removes all username trust. TOFU would have been cheaper and is exactly what is
   rejected.
 - **Schema migration is forward-only.** #293 merged the same day on a single-estate,
   pre-release build with no live SSO bindings: add `sso_identity`, drop
   `sso_provider.username_claim`, no backfill.
 - **The token verification path is untouched.** `Exchange` is refactored to return the
-  verified `{sub, display}` instead of a username string; login (match) and link (bind)
+  verified `{sub, display}` instead of a username string. Login (match) and link (bind)
   share that one extraction, so no crypto path is duplicated.
 - **Auto-provisioning and identity→role mapping remain out of scope** (ADR-0112) — a
-  binding attaches a verified identity to an account that an admin already created; it
+  binding attaches a verified identity to an account that an admin already created. It
   never mints one or changes its role.

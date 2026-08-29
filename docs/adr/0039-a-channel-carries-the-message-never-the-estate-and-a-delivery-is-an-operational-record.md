@@ -18,9 +18,9 @@ need here is push, not pull ... served by the map's separate notification-channe
 deferring the API costs no integration story"*.
 
 **What fires is fully settled and none of it is reopened here.** Four causes, three classes
-partitioning **messages** rather than events; the flagship is the internet `Reach` leg
-`not-reached` → `reached` with a census (ADR-0029 §2, §7); the drift class's membership is at the
-`Reach`, `Signal` and membership layers and never at the facet layer (ADR-0026); a census is
+partitioning **messages** rather than events. The flagship is the internet `Reach` leg
+`not-reached` → `reached` with a census (ADR-0029 §2, §7). The drift class's membership is at the
+`Reach`, `Signal` and membership layers and never at the facet layer (ADR-0026). A census is
 computed once **at the cause** and is a description, never a `Transition`. This ADR is downstream
 of every one of those and moves none of them.
 
@@ -88,10 +88,10 @@ it receives. Delivering a message is one HTTP POST of one JSON document.
   and for the same reason: a name resolving somewhere else would otherwise buy a plaintext
   exemption for a body that is the operator's attack surface.
 - **Redirects are not followed.** [#4](https://github.com/winniel123/verge-asm/issues/4)'s probing
-  profile already refuses to follow them; here the reason is sharper, because following one moves
+  profile already refuses to follow them. Here the reason is sharper, because following one moves
   the destination of the operator's attack surface to a host they never declared. A redirect is a
   delivery failure.
-- **The secret signs; it is never sent.** Where a secret is set, the request carries an HMAC-SHA256
+- **The secret signs. It is never sent.** Where a secret is set, the request carries an HMAC-SHA256
   signature over the body and a timestamp. No bearer header, because a bearer sits in the
   receiver's access log and a signature does not.
 - **The channel grants no read of the instance.** One-way is a property, not a default: there is no
@@ -125,7 +125,7 @@ endpoint), and the secret is write-only in the interface — never rendered back
 footing as #11's recovery codes.
 
 **Routing is by class and by nothing finer.** The three classes are the partition the model itself
-owns; a per-rule or per-subject filter is an operator-authored predicate over a versioned rule set,
+owns. A per-rule or per-subject filter is an operator-authored predicate over a versioned rule set,
 which is [#16](https://github.com/winniel123/verge-asm/issues/16)'s refusal one layer across, and
 it fails silently the first time a rule is renamed. Class routing is also the v1 answer to volume
 (§6), which is why it earns its place rather than being one dial too many.
@@ -170,8 +170,8 @@ as one would like them:
   a quiet estate.
 
 **And it is a record, not a message.** *Your channel is broken* is the most tempting fifth cause in
-the product and it is refused. It cannot go over the broken channel; sending it over another makes
-channels aware of each other and turns one dead receiver into a cross-channel storm; and in the
+the product and it is refused. It cannot go over the broken channel. Sending it over another makes
+channels aware of each other and turns one dead receiver into a cross-channel storm. And in the
 in-app store it would be a message belonging to none of the four causes — the world did not move,
 our looking did not change, and no clock crossed. ADR-0026 refused a fifth cause on the ground that
 *a fifth cause needs a reason and not a slot*, and this one has a slot and no reason.
@@ -183,7 +183,7 @@ thing they would change, not an entry in a log they would have to go read"* — 
 appear as drill-down, never as a top-level log* governs the error string.
 
 **A delivery failure never touches `Coverage`.** Coverage answers *is what I am looking at
-complete?*; delivery answers *were you told?*. Folding one into the other would make a broken
+complete?* — delivery answers *were you told?*. Folding one into the other would make a broken
 webhook render as a blind prober, which is #127's *the audit trail records what operators did, the
 operational record records what the system did* defect one step across.
 
@@ -193,7 +193,7 @@ The licence stays exactly where ADR-0007 put it — damping belongs in notificat
 — and v1 exercises none of it. Three reasons, in order of weight:
 
 1. **Every proposed suppression rests on an unmeasured base rate.** ADR-0026 flagged three unmeasured
-   volumes and ADR-0029 flagged two more; the map has warned about this shape four times. A window
+   volumes and ADR-0029 flagged two more. The map has warned about this shape four times. A window
    chosen now is a threshold deciding whether the operator is told, set from nothing.
 2. **Coalescing delays the flagship.** A digest window is a promise to hold the one message the
    product exists to send, in order to solve a volume problem produced by a different class.
@@ -229,8 +229,8 @@ already stated rather than a new one.
 
 Waiting for a defined set of tiers loses three ways: it makes the message's **content** a function
 of *when* it fired rather than of what happened, so two installs on one release send different
-messages for one event; it holds the flagship for up to a week on `tls-acceptance`'s own `Scan`;
-and it is a coalescing window under another name, refused in §6. Emitting incrementally loses once
+messages for one event. It holds the flagship for up to a week on `tls-acceptance`'s own `Scan`.
+And it is a coalescing window under another name, refused in §6. Emitting incrementally loses once
 and fatally — it turns one cause into a stream of messages, which is ADR-0007's *alert on the cause,
 never per consequence* given away at the layer that was supposed to enforce it.
 
@@ -242,7 +242,7 @@ completes is a schedule arriving, dressed as a message.
 ## Consequences
 
 - **[`CONTEXT.md`](../../CONTEXT.md) gains three terms** — `Channel` in Declared, on `Proposal`'s
-  own layer test (*it is input and does not drift*); `Message` and `Delivery` in Operational, on
+  own layer test (*it is input and does not drift*). `Message` and `Delivery` in Operational, on
   `Dispatch`'s terms (the comparison path may never read them). `Message` is Operational because it
   records that the operator was **told**, not what is true of the estate — the fact is in the
   timelines, and if the two ever disagree the timeline wins and the message is still a true record
@@ -272,7 +272,7 @@ completes is a schedule arriving, dressed as a message.
   > withdrawn — the remedy is the routing this ADR already ships, and it needed a class assignment
   > rather than a mechanism.
 - **A class-assignment conflict is surfaced rather than papered over.** ADR-0026 §5 puts
-  `not-fired` → `fired` in the **drift** class *"for all sixteen"* rules;
+  `not-fired` → `fired` in the **drift** class *"for all sixteen"* rules.
   [#60](https://github.com/winniel123/verge-asm/issues/60) and ADR-0004 put the three
   certificate-lifetime rules in the **clock** class, because they become true with no new
   observation. Both cannot be right, and routing is by class, so an operator routing the clock
@@ -315,7 +315,7 @@ completes is a schedule arriving, dressed as a message.
   budget** — five attempts over roughly an hour, exponential — is chosen on shape (survive a
   receiver restart, do not survive a decommissioned receiver) and measures nothing. And the
   judgement that **a JSON-only body is affordable** rests on the claim that a small org can stand up
-  a ten-line receiver or already runs something that accepts one; that is an argument about the
+  a ten-line receiver or already runs something that accepts one. That is an argument about the
   modal operator, not a measurement, and it is the ruling here most likely to be overturned.
 
 ## Alternatives rejected

@@ -17,9 +17,9 @@ Each is a **multi-arch manifest list** (`linux/amd64` + `linux/arm64`) carrying 
 keyless [Sigstore](https://www.sigstore.dev/) attestations bound to the image's index digest:
 
 - a **SLSA build-provenance** attestation — the signature-plus-build claim: *this digest was
-  built by this repository's release workflow, at a tag, on GitHub's hosted runners*; and
+  built by this repository's release workflow, at a tag, on GitHub's hosted runners*.
 - a **CycloneDX SBOM** attestation — the software bill of materials, cataloguing the image's
-  OS and Go-module layers, which you can pull out and re-scan for new CVEs without a rebuild.
+  OS and Go-module layers, which you can extract and re-scan for new CVEs without a rebuild.
 
 There are **no standalone binaries and no Release-asset downloads** to verify — the images are
 the whole artifact set. This guide is the downstream *consumer's* checklist: run it before you
@@ -27,27 +27,27 @@ pull an image into a real deployment. (To build and test from source yourself, s
 [verifying.md](verifying.md).)
 
 > **Pending the first tagged release.** The release pipeline that produces these attestations
-> is not yet live and no `vX.Y.Z` tag has shipped, so the commands below cannot resolve an
+> is not yet live and no `vX.Y.Z` tag has shipped. So the commands below cannot resolve an
 > image today. They are the verification *contract* — the exact commands a release will be
 > verifiable with — and become runnable the moment the first tag is published.
 
-Throughout, replace `vX.Y.Z` with the release tag you are verifying (e.g. `v0.1.0`), and
-repeat each command for both the `web` and `worker` images. The tag resolves to the
-multi-arch **index** digest — the same digest the attestations are bound to.
+Throughout, replace `vX.Y.Z` with the release tag you are verifying (e.g. `v0.1.0`). Repeat
+each command for both the `web` and `worker` images. The tag resolves to the multi-arch
+**index** digest — the same digest the attestations are bound to.
 
 ---
 
 ## Prerequisites
 
-- The [GitHub CLI](https://cli.github.com/) (`gh`) — the simplest verifier; it needs no
+- The [GitHub CLI](https://cli.github.com/) (`gh`) — the simplest verifier. It needs no
   keys and talks to the GitHub attestations API and GHCR directly.
 - For the SBOM re-scan: [grype](https://github.com/anchore/grype) (or Trivy).
 - Optionally, [cosign](https://docs.sigstore.dev/) — an alternative verifier for consumers
   who do not use `gh` (see [below](#verifying-without-gh-cosign)).
 
 The attestations are keyless: there is no verge-asm public key to fetch or trust on the side.
-Trust is anchored in the **workflow identity** recorded in the Sigstore certificate, which is
-what the `--repo` (and, more strictly, `--signer-workflow`) checks below assert.
+Trust is anchored in the **workflow identity** recorded in the Sigstore certificate. That
+identity is what the `--repo` (and, more strictly, `--signer-workflow`) checks below assert.
 
 ---
 
@@ -78,13 +78,13 @@ gh attestation verify \
   --signer-workflow winniel123/verge-asm/.github/workflows/release.yml
 ```
 
-A successful verify prints the matched attestation and the signer identity — the certificate's
+A successful verify prints the matched attestation and the signer identity. The certificate's
 subject is
 `https://github.com/winniel123/verge-asm/.github/workflows/release.yml@refs/tags/vX.Y.Z`,
 issued by `https://token.actions.githubusercontent.com`. A non-zero exit means the image is
 unsigned, tampered with, or was not produced by this repository — **do not run it**.
 
-> **Pin to the digest for durable references.** A tag can be re-pointed; a digest cannot.
+> **Pin to the digest for durable references.** A tag can be re-pointed. A digest cannot.
 > For a deployment manifest or an air-gapped record, resolve the tag to its index digest once
 > (`docker buildx imagetools inspect ghcr.io/winniel123/verge-asm/web:vX.Y.Z`) and verify the
 > `…/web@sha256:<digest>` form thereafter.
@@ -119,7 +119,7 @@ gh attestation download \
 grype sbom:./<downloaded-cyclonedx>.json
 ```
 
-`gh attestation download` writes the attestation bundle to the working directory; point grype
+`gh attestation download` writes the attestation bundle to the working directory. Point grype
 (or `trivy sbom …`) at the CycloneDX JSON it contains. Because the SBOM catalogues the OS and
 language layers — not just the Go module graph — this surfaces base-image CVEs that a
 source-only scan would miss.
@@ -149,11 +149,11 @@ repository's release workflow, via GitHub's OIDC issuer.
 ## What a passing verification tells you
 
 - The image digest you are about to run was **built and signed by this repository's release
-  workflow**, at a tag, on GitHub-hosted runners (SLSA build provenance) — not rebuilt or
-  substituted by anyone else.
+  workflow**, at a tag, on GitHub-hosted runners (SLSA build provenance). No one else rebuilt
+  or substituted it.
 - A **CycloneDX SBOM** for that exact digest exists and is signed, so you can audit its
   contents and re-scan it against new CVEs at any time.
 
 It does **not** assert the absence of vulnerabilities — that is what the SBOM re-scan above is
-for. Verification proves *provenance and integrity*; the scan tells you about *current
+for. Verification proves *provenance and integrity*. The scan tells you about *current
 exposure*.

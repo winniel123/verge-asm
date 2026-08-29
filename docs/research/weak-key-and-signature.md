@@ -39,7 +39,7 @@ Four constraints bind before any evidence is gathered:
 1. **No severity.** A weak key and a deprecated signature are **one rule and one fact**, per the
    rule's existing name. This note does not split it into a ranked family and does not introduce a
    middle tier as a second threshold (§6.3).
-2. **Frequency is not a position.** *Most CAs stopped issuing SHA-1 in 2017* is frequency; *SHA-1
+2. **Frequency is not a position.** *Most CAs stopped issuing SHA-1 in 2017* is frequency. *SHA-1
    must not be used* is a position. Only the second is cited, and §2.6 records what was refused.
 3. **The table must stay release-coupled** ([ADR-0004](../adr/0004-signals-are-release-coupled-rules.md)).
    It passes with a decade of margin, and §7 tests it rather than assuming it — including the two
@@ -143,7 +143,7 @@ session would otherwise have put in the table, which is how the closure earns it
   `(algorithm, parameter)` pair, so no claim reaches them. They are also what would break release
   coupling — §7.2.
 - **Quantum vulnerability.** Every algorithm in this table and every algorithm that would replace it
-  today is vulnerable to a large-scale quantum computer; FIPS 186-5 §1 says so in its own words:
+  today is vulnerable to a large-scale quantum computer. FIPS 186-5 §1 says so in its own words:
   *"Note that the algorithms in this standard are not expected to provide resistance to attacks from
   a large-scale quantum computer."* Admitting it as a claim would fire the rule on **every**
   certificate, which is not a table but a constant, and a rule that fires everywhere reads the world
@@ -191,7 +191,7 @@ in cryptology"*. The protocol owner has not forgotten to set a floor. It has sai
 its to set, and has named the discipline whose it is.
 
 That sentence is the hinge of everything below. It means the search for an owner is not a search for
-a replacement authority; it is a search for **the party PKIX pointed at**.
+a replacement authority. It is a search for **the party PKIX pointed at**.
 
 #### 2.3.2 The clause §10.5 gains
 
@@ -242,7 +242,7 @@ inference about it. **Outside the domain**, as ADR-0032 predicted.
 
 **But the ticket was right to make this checked rather than assumed, because there is a real way in
 and it looks like a simplification.** 2048-bit RSA and a 224-bit curve order both deliver about 112
-bits of security; the numbers 2048 and 224 are not comparable and neither are the algorithms they
+bits of security. The numbers 2048 and 224 are not comparable and neither are the algorithms they
 belong to. A session tidying this table into a **single bit-count threshold** — *keys under N bits
 are weak* — would be keying on a **surrogate for security strength**, and gate 3 would come inside
 the domain and fail immediately, because the same integer means two incompatible things on a modulus
@@ -266,7 +266,7 @@ and asked for it to be shown. §7 shows it, and names the two things that would 
   here — CT logs make it a query.
 - **The sunset dates themselves as grounds.** *Chrome stopped accepting SHA-1 certificates in 2017*
   is a fact about a shipped release and it is not a statement that SHA-1 is weak. Where a sunset date
-  appears below it is context, never footing; the footing is always a sentence about the primitive.
+  appears below it is context, never footing. The footing is always a sentence about the primitive.
 - **Cryptanalysis papers cited directly.** SHAttered and the Wang MD5 collisions are the *reason*
   RFC 6151, RFC 8446 and SP 800-131A say what they say, and those documents cite them. Citing the
   papers over the standards would put this note in the position of reading cryptanalysis on its own
@@ -380,7 +380,7 @@ the out-of-context error. The chain that does reach certificates has two links a
 > server MUST be signed by a hash/signature algorithm pair that appears in that extension."
 > — [RFC 5246](https://www.rfc-editor.org/rfc/rfc5246.txt) §7.4.2
 
-RFC 5246's requirement is conditional on the client sending the extension; RFC 9155 — which updates
+RFC 5246's requirement is conditional on the client sending the extension. RFC 9155 — which updates
 RFC 5246 — **discharges the antecedent** by making it mandatory. The conclusion is the IETF's, not
 ours: in TLS 1.2 with a conforming client, no certificate the server provides may carry an MD5 or
 SHA-1 signature.
@@ -418,9 +418,12 @@ protocol-specific guidance) and reaches no WebPKI certificate.
 > requirement of 112 bits for Federal Government use."
 > — [NIST SP 800-131A Rev. 2](https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar2.pdf) §3
 
-Table 2's *Digital Signature Generation* row is the enumeration these sentences summarise:
-`< 112 bits of security strength` — DSA `(L, N)` ≠ (2048, 224), (2048, 256) or (3072, 256); ECDSA
-`len(n)` < 224; RSA `len(n)` < 2048 — **Disallowed**.
+Table 2's *Digital Signature Generation* row is the enumeration these sentences summarise —
+`< 112 bits of security strength`, marked **Disallowed**:
+
+- DSA `(L, N)` ≠ (2048, 224), (2048, 256) or (3072, 256)
+- ECDSA `len(n)` < 224
+- RSA `len(n)` < 2048
 
 The elliptic-curve sentence is worth pausing on: the first half is **arithmetic** and carries no
 qualifier, and the second half is the **threshold** and carries *"for Federal Government use"*. That
@@ -520,7 +523,7 @@ Two riders. *Self-signed* here means what `certificate-self-signed` reads — is
 verifying self-signature — so the two rules read the same fact and cannot disagree about it. And
 because we cannot know which certificate a given relying party treats as its **trust anchor**, the
 predicate keys on **self-signed**, which is on the wire, rather than on **trust anchor**, which is
-not. RFC 8446 names both; only one of them is observable from a handshake.
+not. RFC 8446 names both. Only one of them is observable from a handshake.
 
 ### 4.2 An algorithm the table does not name is not weak
 
@@ -528,7 +531,7 @@ The table is a **deny list**. An `(algorithm, parameter)` pair it does not name 
 it does not set, so the rule is **false**, not `not-evaluable`.
 
 The alternative — treating an unrecognised algorithm OID as unevaluable — was considered and refused
-on the model's own grounds. `not-evaluable` means the evidence is absent; here the field was read and
+on the model's own grounds. `not-evaluable` means the evidence is absent. Here the field was read and
 the question *is this among the parameters our table names as below a floor* was answered. Worse, it
 would make the rule's output a function of **our table's coverage** rather than of the world: the day
 post-quantum certificates ship, every one of them would flip an estate to `not-evaluable` with
@@ -656,7 +659,7 @@ have anticipated.
 **Refused.** The argument is that *owner* should key on the **trust ecosystem** rather than on the
 protocol, because the WebPKI is a thing the programmes collectively author and PKIX is not.
 
-It fails on what it would do to the definition. §10.5 keys on an **artefact** and says so; route (a)
+It fails on what it would do to the definition. §10.5 keys on an **artefact** and says so. Route (a)
 would key on **standing** — on being the party whose acceptance decides whether a certificate works.
 That is a market position, not a thing anyone designed, and once *owner* can attach to standing there
 is no principled way to keep out the sources §2.3 was built to exclude. AWS's standing over EC2 is
@@ -701,9 +704,9 @@ It would not be. It would be a scheduling decision, and §6.2 already refuses th
 **Refused, and this is the one worth the most words**, because the argument is good and its refusal
 is already written in §10.5.
 
-The argument: §2.2's third form admits *the project's shipped default*; §10.4 rules that a shipped
-default attests **where it restricts**; a floor is unambiguously a restriction; the BR is enforced in
-code by the parties who accept certificates; therefore the BR admits the rows.
+The argument: §2.2's third form admits *the project's shipped default*. §10.4 rules that a shipped
+default attests **where it restricts**. A floor is unambiguously a restriction. The BR is enforced in
+code by the parties who accept certificates. Therefore the BR admits the rows.
 
 Each step is sound and the conclusion does not follow, because §10.4 answers *whether* a default
 attests and never *what about*. PostgreSQL's `listen_addresses = localhost` admits the 5432 row
@@ -729,13 +732,13 @@ with it:
   the conditional is the source's and not the quoter's.
 - **The BR's ECDSA restriction is not a weakness claim.** §6.1.5 permits only P-256, P-384 and P-521
   and closes with *"No other algorithms or key sizes are permitted."* That excludes P-224 from
-  **issuance**; nowhere does it say P-224 is weak, and NIST — which specified the curve — says the
+  **issuance**. Nowhere does it say P-224 is weak, and NIST — which specified the curve — says the
   opposite, at `len(n) ≥ 224`. Route (c) would have set the ECDSA floor at 256 on a document that
   never made the claim.
 
 So route (c) would have cost the table its MD5 row, put a September sunset inside a release-coupled
 artefact, and moved the ECDSA floor on an issuance rule mistaken for a strength claim. **The refusal
-is on §10.5's artefact test; the measurement is what turns it from a close call into a clear one.**
+is on §10.5's artefact test. The measurement is what turns it from a close call into a clear one.**
 
 ### 8.3 Route (b) — the rule rests on the primitives' specifiers, and the coverage loss is measured
 
@@ -793,9 +796,9 @@ not a universal statement that the parameter is weak.
 The split runs **inside a single sentence**, which is why this is a disclosure rather than a
 withdrawal. *"The security strength provided by an elliptic-curve-based signature algorithm is no
 greater than 1/2 of the length of the domain parameter n"* is arithmetic and carries no qualifier at
-all; *"Therefore, the length of n shall be at least 224 bits to meet the minimum security-strength
+all. *"Therefore, the length of n shall be at least 224 bits to meet the minimum security-strength
 requirement of 112 bits for Federal Government use"* is the threshold and carries it. **The strength
-computation is universal; the number 112 is federal.** Somebody has to say that 112 bits is too
+computation is universal. The number 112 is federal.** Somebody has to say that 112 bits is too
 little, and the only party saying it about these primitives is saying it to federal agencies.
 
 This is `161/udp`'s shape one instrument across — a row whose owner statement does not quite reach
@@ -824,7 +827,7 @@ retrieval and never on re-reading text already held.
    established over those four documents and **not** over the whole IETF corpus — the LAMPS working
    group's current output was not read, and a session with time should read it.
 2. **NIST SP 800-131A Rev. 3 when it goes final.** Rev 2 (March 2019) remains the current final
-   publication; Rev 3 exists only as an initial public draft whose comment period closed on
+   publication. Rev 3 exists only as an initial public draft whose comment period closed on
    2024-12-04. It will restate these floors and may move the 112-bit level. It will **not** resolve
    the scope question, since it will be a NIST publication addressed the same way — recorded so that
    nobody mistakes it for the resolution.
@@ -880,14 +883,14 @@ owner is itself information.
 governs.** Three divergences, and each is an **issuance or compatibility** rule mistaken for a
 strength claim if read carelessly:
 
-- **ECDSA curves.** The BR, Mozilla and Microsoft permit three curves; this table's floor is
+- **ECDSA curves.** The BR, Mozilla and Microsoft permit three curves. This table's floor is
   `len(n) ≥ 224`, so a P-224 certificate fires no rule here while being unissuable under all three.
   That is correct and deliberate — a certificate outside a permitted list is **non-conforming**,
   which is a different fact from weak and is not this rule's name.
-- **SHA-1.** Mozilla still lists it as permitted for some signing; this table condemns it flatly on
+- **SHA-1.** Mozilla still lists it as permitted for some signing. This table condemns it flatly on
   the IETF's and NIST's sentences. **The owner is stricter than the corroborator**, which is the
   direction that ought to reassure.
-- **ECDSA at all.** Microsoft recommends against it; NIST specifies it and rates it acceptable. A
+- **ECDSA at all.** Microsoft recommends against it. NIST specifies it and rates it acceptable. A
   table built on the programmes would have had to arbitrate that, and would have had no principle to
   do it with.
 
@@ -936,12 +939,12 @@ on measurement, one document plus two partial restatements of it.
   of `docs/BR.md`, whose `main` HEAD at retrieval was the v2.2.9 release commit with no post-release
   commits — a retrieval of the published bytes rather than of a rendering of them.
 - **Two root-programme documents are not where the obvious URL points.** `mozilla.github.io/pkipolicy`
-  returns 404; the policy is served from `mozilla.org` and mastered at `mozilla/pkipolicy` on GitHub.
+  returns 404. The policy is served from `mozilla.org` and mastered at `mozilla/pkipolicy` on GitHub.
   Microsoft's `learn.microsoft.com` program-requirements page carries an explicit superseded notice —
   *"This page has been superceded. The program technical requirements can be found here:
   https://github.com/TrustedRootProgram/Program-Requirements"* — while still rendering a full copy of
   the requirements, which is the exact shape of a stale page that reads as current. Its algorithm
-  table matched the live one on this retrieval; that it did is luck, not a reason to cite it.
+  table matched the live one on this retrieval. That it did is luck, not a reason to cite it.
 - **Microsoft's own document disagrees with itself about its version.** The title line reads v1.1 and
   the changelog's latest row reads v1.2, effective 2026-05-20. Recorded so a later session does not
   read one of the two as authoritative without noticing the other.
@@ -1017,11 +1020,11 @@ Three things make this the load-bearing sentence and all three are checkable:
 **Two conditionals quoted rather than dropped, per #46.** §4.5 opens *"When using the cipher suites
 recommended in this document…"*, and the RSA sentence carries its own *"When using RSA"*. A cautious
 reader can ask whether a deployment negotiating something outside §4.2's recommended list escapes the
-floor. Three things answer it and the third is decisive: §1 states the recommendations as minima for
-*"the vast majority of implementation and deployment scenarios"*; the opening clause introduces the
-paragraph that **counts** the public keys in a handshake, not the paragraph that constrains them; and
-**RFC 9846 §C.2 carries the same floor with no cipher-suite antecedent at all**, so the conditional is
-not load-bearing for the row either way.
+floor. Three things answer it and the third is decisive:
+
+1. §1 states the recommendations as minima for *"the vast majority of implementation and deployment scenarios"*.
+2. the opening clause introduces the paragraph that **counts** the public keys in a handshake, not the paragraph that constrains them.
+3. **RFC 9846 §C.2 carries the same floor with no cipher-suite antecedent at all**, so the conditional is not load-bearing for the row either way.
 
 **The scope that is real, and it points the right way.** RFC 9325 is scoped *technically* — to TLS and
 DTLS server authentication — even though it is unscoped *jurisdictionally*. That is a genuine limit and
@@ -1070,7 +1073,7 @@ And the hard verb, in the same family:
 > — [RFC 8551](https://www.rfc-editor.org/rfc/rfc8551.txt) §4.1 *Key Pair Generation*
 
 **Quoted with the hedge, per §12's standing rule and #46's.** *"Considered by many experts to be"* is
-a real hedge and it is not removed here; the sentence is cited for the word **insecure** and for the
+a real hedge and it is not removed here. The sentence is cited for the word **insecure** and for the
 fact that its grammatical subject is **the key**, not a use. **Both bis drafts preserve it verbatim**,
 so it is the working group's current position and not a 2019 residue.
 
@@ -1129,7 +1132,7 @@ agreement** standard rather than a signature one, and RFC 9325's own Appendix A 
 about the ephemeral key-agreement group, not about the certificate's ECDSA key. **A grep for `224`
 finds this sentence before it finds RFC 9846 §C.2, and the two are one word apart in plausibility and
 a whole artefact apart in fact.** This is #46's truncated conditional inverted: there, a quote lost its
-condition; here, a quote arrives with a number that matches and a subject that does not.
+condition. Here, a quote arrives with a number that matches and a subject that does not.
 
 **Trap two — the IETF's ECC-in-PKIX document sets no floor and reads as though it might.** RFC 5480
 §4 asks *"What is the public key size?"*, gives a table of *"comparable minimum bits of security
@@ -1190,7 +1193,7 @@ floor to a search engine and is the opposite of one, and it is recorded so that 
 retrieves the heading and stops.
 
 **Two more negatives, both confirmations.** RFC 8017 (PKCS #1 v2.2) sets **no modulus floor** — §9.2's
-claim is confirmed against the retrieved bytes; its only size constraints are structural (*"If k <
+claim is confirmed against the retrieved bytes. Its only size constraints are structural (*"If k <
 2hLen + 2, output 'decryption error'"*, *"RSA modulus too short"*), which ask whether the modulus can
 hold a padded message and not whether it is strong enough. And **RFC 7935 §3** (RPKI) is the near-miss
 worth naming: *"The RSA key pairs used to compute the signatures MUST have a 2048-bit modulus and a
@@ -1199,7 +1202,7 @@ non-conformant to it — it is RPKI-scoped, and it reaches this table's populati
 
 ### 13.5 The weak tier, restated — one row, on one limb
 
-**Supersedes §9's tier table.** §9 stands unrewritten; this is what it should read.
+**Supersedes §9's tier table.** §9 stands unrewritten. This is what it should read.
 
 | Row | Footing after this retrieval | Tier |
 |---|---|---|
@@ -1214,7 +1217,7 @@ reading. Against it: RFC 9846 §C.2's number sits in a *"For example"*, and a re
 normative content is *enforce some minimum* rather than *enforce 224*. For it: the sentence is
 unscoped, from an owner, over this table's exact population, carrying a fitness predicate rather than
 an approval one, and carried deliberately through three successive specifications with the number
-raised; and this table already ships the SHA-1 row outside the weak tier on a `RECOMMENDED`, so
+raised. This table already ships the SHA-1 row outside the weak tier on a `RECOMMENDED`, so
 holding ECDSA in on a `SHOULD` would apply two standards to one document. **Ruled: it moves, and the
 softness is disclosed as modality.** A session that disagrees is disagreeing about a tier label and
 not about a row — no row's membership, floor or predicate changes here.
@@ -1230,7 +1233,7 @@ a **third kind** of weak row and predicted its resolution route: *it resolves on
 speaks unscoped, so its retrieval is a search of a corpus rather than a request to a party.* **The
 prediction held and the search succeeded on its first run**, which changes what the disclosure is
 allowed to say. [ADR-0040](../adr/0040-a-specifications-silence-is-not-the-owners-silence.md) holds
-the ruling; the two general statements are these.
+the ruling. The two general statements are these.
 
 > **A specification's silence is not the owner's silence.** A standards body speaks in more than one
 > document class, and the classes disagree by design: its **specification** defines the artefact and
@@ -1263,7 +1266,7 @@ ships**, exactly as `5432/tcp` does.
 ### 13.7 Citation corrections forced by this retrieval
 
 Recorded here rather than edited into §3.3 and the Sources, per the name-and-withdraw convention.
-**No row's grounds change; three citations are stale and one is wrong.**
+**No row's grounds change. Three citations are stale and one is wrong.**
 
 | Where | Reads | Should read |
 |---|---|---|
@@ -1302,11 +1305,11 @@ the **content** surface, and only the second was measured.
   two of the three would have left *not yet posted* open.
 - **`rfc-editor.org/errata/rfcNNNN` redirects to a search form that renders "No matching errata
   found" identically to a failed query.** Both RFC 9325 and RFC 9846 were confirmed errata-free by
-  reading that string out of the retrieved HTML; a session that greps for an errata table and finds
+  reading that string out of the retrieved HTML. A session that greps for an errata table and finds
   none cannot distinguish *no errata* from *page did not load*.
 - **`Updated by` is not `Obsoleted by` and both matter.** RFC 9325 is updated by RFC 10015 and RFC
-  9852; RFC 10015 §6 tabulates its changes and **all of them are in §4.1**, so §4.5's RSA sentence
-  stands. Checking only for obsolescence would have missed the question; checking only the count
+  9852. RFC 10015 §6 tabulates its changes and **all of them are in §4.1**, so §4.5's RSA sentence
+  stands. Checking only for obsolescence would have missed the question. Checking only the count
   would have answered it wrongly.
 
 ---
@@ -1319,8 +1322,8 @@ that the IETF sets no certificate key-size floor. **§5's negative space was bui
 by the same method, and has never been re-checked against the rule that failure produced.** This
 section does that. It **amends §5 by reference**: earlier text is left standing and marked, and where
 §14 and §5 disagree, §14 governs. The general rule is
-[ADR-0046](../adr/0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md);
-the companion audit of the other curated table is
+[ADR-0046](../adr/0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md).
+The companion audit of the other curated table is
 [`sensitive-ports.md`](./sensitive-ports.md) §17.
 
 **Headline result.**
@@ -1430,7 +1433,7 @@ not its **completeness**, and §14's disclosure already states it correctly.
 
 ### 14.5 What this changed
 
-**Nothing in the table.** Five rows; §1's summary, §3's tables and §4's chain are untouched. No `Break`
+**Nothing in the table.** Five rows. §1's summary, §3's tables and §4's chain are untouched. No `Break`
 ([ADR-0008](../adr/0008-derivation-versions-move-on-content.md)), no version bump.
 
 **Two things about §5.** The MD2/MD4 entry's ground is **narrowed and strengthened**: it is no longer
@@ -1440,19 +1443,19 @@ half of a two-algorithm exclusion rested on a document about the other algorithm
 
 **One thing about the method.** ADR-0037 limb 1's re-read of held artefacts produced a **confirmation**
 here rather than a discovery — three documents, three zero counts. Limb 1's value is usually argued from
-#69's near-miss, where the re-read found something; this is the other half of the case, where it found
+#69's near-miss, where the re-read found something. This is the other half of the case, where it found
 nothing and thereby converted an inference into a measurement at the cost of three `grep`s.
 
 ### 14.6 Thin ground, flagged per the standing rule
 
 **Zero-count negatives over a document are only as good as the search terms.** `MD2` and `MD4` are exact
-strings and were searched case-sensitively over the retrieved bytes; a document that wrote *"the MD
+strings and were searched case-sensitively over the retrieved bytes. A document that wrote *"the MD
 family"* or referred to the algorithms only by OID would not match. The OID forms
 (`1.2.840.113549.1.1.2`, `md2WithRSAEncryption`) were **not** searched, and that is a real gap in three
 documents whose subject is TLS and S/MIME rather than certificate profiling.
 
 **[measured] RFC 6150's own running header says `MD2 to Historic Status` on every page.** The title,
-abstract and body are all about MD4; the header is a publication defect in the RFC itself. Two
+abstract and body are all about MD4. The header is a publication defect in the RFC itself. Two
 consequences for anyone re-checking this: a case-insensitive search of RFC 6150 for `MD2` returns hits
 that are **all page headers and none content**, and a session searching a local RFC corpus for *"MD4 to
 Historic"* by header will not find the document that is exactly that. This is the `LDAPString` trap
@@ -1465,7 +1468,7 @@ in either direction — MD2 is not in the table and would enter only on a prohib
 visible rather than assumed closed.
 
 **§14.1's *exposed?* column depends on §2.2's closed claim set** in the same way `sensitive-ports.md`
-§15.9 records. Five of seven entries are called un-exposed because a claim failure has no class list; if
+§15.9 records. Five of seven entries are called un-exposed because a claim failure has no class list. If
 §2.2's two-claim derivation is wrong, some of those five become attestation questions and the sweep is
 larger than two.
 
@@ -1474,7 +1477,7 @@ larger than two.
 ## Sources
 
 Retrieved by [#79](https://github.com/winniel123/verge-asm/issues/79) — §14's class audit
-- [RFC 6150, MD4 to Historic Status](https://www.rfc-editor.org/rfc/rfc6150.txt) (March 2011) — §6.2, §7. **The MD4 half of §5's first entry, retrieved for the first time**; carries no certificate prohibition, and its `must not` is about hashing a cryptographic key. Note that the RFC's own running header reads *"MD2 to Historic Status"*, a publication defect in the document itself
+- [RFC 6150, MD4 to Historic Status](https://www.rfc-editor.org/rfc/rfc6150.txt) (March 2011) — §6.2, §7. **The MD4 half of §5's first entry, retrieved for the first time**. It carries no certificate prohibition, and its `must not` is about hashing a cryptographic key. Note that the RFC's own running header reads *"MD2 to Historic Status"*, a publication defect in the document itself
 - RFC 9325, RFC 9846 and RFC 8551 **re-read for the rest of this table's domain** per [ADR-0037](../adr/0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) limb 1, over the same bytes #73 retrieved — `MD2` and `MD4` occur **zero times** in each, and `exponent` occurs in RFC 9325 only at §7.4, about Diffie-Hellman exponent **reuse**
 - Named as the boundary and **not retrieved** — recorded so the gap is visible: [RFC 3279](https://www.rfc-editor.org/rfc/rfc3279.txt) and [RFC 4055](https://www.rfc-editor.org/rfc/rfc4055.txt), the PKIX algorithm profiles, which are **specifications** and on which no row turns
 
@@ -1500,18 +1503,18 @@ Specifications — the IETF, as owner of PKIX and TLS
 - [RFC 5246, The Transport Layer Security (TLS) Protocol Version 1.2](https://www.rfc-editor.org/rfc/rfc5246.txt) (August 2008) — §7.4.2
 - [RFC 9155, Deprecating MD5 and SHA-1 Signature Hashes in TLS 1.2 and DTLS 1.2](https://www.rfc-editor.org/rfc/rfc9155.txt) (December 2021) — §1, §2
 - [RFC 6151, Updated Security Considerations for the MD5 Message-Digest and the HMAC-MD5 Algorithms](https://www.rfc-editor.org/rfc/rfc6151.txt) (March 2011) — §2
-- [RFC 6149, MD2 to Historic Status](https://www.rfc-editor.org/rfc/rfc6149.txt) (March 2011) — §2, §6; the basis for MD2's exclusion
+- [RFC 6149, MD2 to Historic Status](https://www.rfc-editor.org/rfc/rfc6149.txt) (March 2011) — §2, §6. The basis for MD2's exclusion
 - [RFC 3279, Algorithms and Identifiers for the Internet X.509 PKI Certificate and CRL Profile](https://www.rfc-editor.org/rfc/rfc3279.txt) (April 2002) — the signature and key OIDs
 - [RFC 8410, Algorithm Identifiers for Ed25519, Ed448, X25519, and X448 for Use in the Internet X.509 PKI](https://www.rfc-editor.org/rfc/rfc8410.txt) (August 2018) — `id-Ed25519`, `id-Ed448`
 - [RFC 8017, PKCS #1: RSA Cryptography Specifications Version 2.2](https://www.rfc-editor.org/rfc/rfc8017.txt) (November 2016) — sets no modulus floor
 - [RFC 3766 / BCP 86, Determining Strengths For Public Keys Used For Exchanging Symmetric Keys](https://www.rfc-editor.org/rfc/rfc3766.txt) (April 2004) — an estimation method, not a floor
 
 Specifications — NIST, as owner of the SHA family, ECDSA and the P-curves
-- [NIST SP 800-131A Rev. 2, Transitioning the Use of Cryptographic Algorithms and Key Lengths](https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar2.pdf) (March 2019) — §1.2.2, §3 Table 2, §9 Table 8. Current final publication; [Rev. 3 exists as an initial public draft only](https://csrc.nist.gov/pubs/sp/800/131/a/r3/ipd)
+- [NIST SP 800-131A Rev. 2, Transitioning the Use of Cryptographic Algorithms and Key Lengths](https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar2.pdf) (March 2019) — §1.2.2, §3 Table 2, §9 Table 8. Current final publication. [Rev. 3 exists as an initial public draft only](https://csrc.nist.gov/pubs/sp/800/131/a/r3/ipd)
 - [FIPS 186-5, Digital Signature Standard (DSS)](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-5.pdf) (February 2023) — §1, §4, §5.1, §7.1
 
 Corroborators — recorded, never sole grounds
-- [CA/Browser Forum, Baseline Requirements for the Issuance and Management of Publicly-Trusted TLS Server Certificates, v2.2.9](https://github.com/cabforum/servercert/blob/main/docs/BR.md) (adopted 2026-07-02, effective 2026-08-06) — §6.1.5, §6.1.6, §7.1.3.1, §7.1.3.2. Read from the Forum's own `cabforum/servercert` repository; see §12
+- [CA/Browser Forum, Baseline Requirements for the Issuance and Management of Publicly-Trusted TLS Server Certificates, v2.2.9](https://github.com/cabforum/servercert/blob/main/docs/BR.md) (adopted 2026-07-02, effective 2026-08-06) — §6.1.5, §6.1.6, §7.1.3.1, §7.1.3.2. Read from the Forum's own `cabforum/servercert` repository. See §12
 - [Mozilla Root Store Policy v3.1](https://www.mozilla.org/en-US/about/governance/policies/security-group/certs/policy/) (effective 2026-07-01) — §5.1, §5.1.1, §5.1.2, §5.1.3
 - [Microsoft Root Program Requirements](https://github.com/TrustedRootProgram/Program-Requirements/blob/main/Requirements.md) — §3.1.7, §3.1.9, §3.1.14, §3.1.20, §3.3.2
 - [Chrome Root Program Policy v1.8](https://googlechrome.github.io/chromerootprogram/crp/policy/) (2026-02-05) — §1.1.1. States no algorithm or key-size requirement of its own

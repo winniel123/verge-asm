@@ -36,7 +36,7 @@ configured" state. #293 asks to make it real.
 ## Decision
 
 Single sign-on is **admitted, as OIDC only.** The operator (this ticket) has decided
-SSO is wanted; this ADR admits the mechanism that the spec's own security argument does
+SSO is wanted. This ADR admits the mechanism that the spec's own security argument does
 not actually exclude, and holds the line on the one it does.
 
 - **OIDC authorization-code flow with PKCE**, using the vetted `github.com/coreos/go-oidc`
@@ -47,31 +47,31 @@ not actually exclude, and holds the line on the one it does.
 - **Reverse-proxy / forward-auth header-trust remains refused.** The bypass class the
   spec named is untouched: this build never trusts an upstream identity header. §7 keeps
   that non-goal.
-- **SSO authenticates existing local accounts; it does not create them.** A verified
-  identity's configured username claim is matched to an existing `account` by username;
-  no match is an honest refusal, not an auto-provision. Admins stay in control of who
+- **SSO authenticates existing local accounts. It does not create them.** A verified
+  identity's configured username claim is matched to an existing `account` by username.
+  No match is an honest refusal, not an auto-provision. Admins stay in control of who
   exists (the invite path is the only account-creation route), so turning on a broad
   IdP cannot silently mint accounts. Role is still read from the local account row every
   request (unchanged), so SSO changes *how* a session is proven, never *what* it may do.
 - **The IdP client secret is stored write-only**, mirroring the channel secret
   (ADR-0053's shared-store precedent): the config reads and lists expose only whether a
-  secret is set, never its value; a dedicated server-side read hands it to the token
+  secret is set, never its value. A dedicated server-side read hands it to the token
   exchange alone.
 - **Local password + TOTP login stays.** SSO is an additional authentication route on
-  the same accounts, not a replacement; a provider can be disabled without stranding
+  the same accounts, not a replacement. A provider can be disabled without stranding
   anyone.
 
 ## Consequences
 
-- The v1 spec §4.3 and §7 are updated: SSO is no longer a blanket non-goal; OIDC is
+- The v1 spec §4.3 and §7 are updated: SSO is no longer a blanket non-goal. OIDC is
   supported and forward-auth header-trust remains refused, with the distinction above
   recorded.
-- The SignIn screen renders a button per enabled provider and initiates the flow; the
+- The SignIn screen renders a button per enabled provider and initiates the flow. The
   Settings → single-sign-on tab configures providers (add / edit / enable / delete).
   The "not configured" empty state now appears only when no provider is configured.
 - New dependencies enter the tree (`go-oidc`, `oauth2`, and their `go-jose`
   transitive) — vetted, widely-used libraries, the responsible alternative to
   hand-rolling `id_token` verification for a security-critical path.
-- Auto-provisioning and identity→role mapping are deliberately **not** built here; they
+- Auto-provisioning and identity→role mapping are deliberately **not** built here. They
   are a larger policy surface and can be added as explicit dials later without changing
   this decision.

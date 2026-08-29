@@ -57,7 +57,7 @@ makes it *worth curing*.**
 Limb 3 is the one that does the work, and ADR-0034 has it implicitly: *"a row expressing the
 fraction reads the moving quantity from the subject at evaluation time, so it cannot go stale."*
 The *cannot* is the whole of the cure, and it is available only where the subject carries `Q`. A
-certificate carries `not_before` and `not_after`; it does not carry NIST's strength table, the
+certificate carries `not_before` and `not_after`. It does not carry NIST's strength table, the
 internet's port-frequency distribution, or a calendar. **Where limb 3 fails, re-expressing the
 constant as a fraction does not remove the staleness — it relocates it**, because the shipped
 artefact must then carry a value for `Q` anyway, and that value is the stale thing wearing a
@@ -68,8 +68,8 @@ than silent de-attestation *because* nobody has to do anything. Where something 
 a build fails, a rule goes `not-evaluable`, a version moves — the constant is stale-able but not
 silently so, and the defence already exists.
 
-`certificate-expiring`'s `N` passes all four: `30 = ⅓ × 90`; Let's Encrypt publishes the lifetime
-schedule; `not_after − not_before` is on the certificate; and nothing signalled — indeed **nothing
+`certificate-expiring`'s `N` passes all four: `30 = ⅓ × 90`. Let's Encrypt publishes the lifetime
+schedule. `not_after − not_before` is on the certificate. Nothing signalled — indeed **nothing
 signalled for the whole time `N` was wrong**, which is #67's measured point. It is the only
 constant in the repository that passes all four.
 
@@ -81,14 +81,14 @@ curated tables under ADR-0032's three instruments, plus the operational budgets
 [ADR-0021](../adr/0021-a-version-leaf-is-a-decision-not-a-binary.md) puts outside every leaf. It
 excludes an operator's dial, which is not project-authored, and it excludes a value we read from an
 owner and pass through unmodified, which is not a product of anything of ours. Both exclusions
-retire one of the ticket's five named candidates; see §6.3 and §6.6.
+retire one of the ticket's five named candidates. See §6.3 and §6.6.
 
 ---
 
 ## 2. The instance, and why it is the only one — `certificate-expiring`'s `N`
 
 Settled by [#67](https://github.com/winniel123/verge-asm/issues/67) and
-[ADR-0034](../adr/0034-derive-the-claim-before-looking-for-the-owner.md); the retrieval is in
+[ADR-0034](../adr/0034-derive-the-claim-before-looking-for-the-owner.md). The retrieval is in
 [`acme-renewal-timing.md`](./acme-renewal-timing.md). Recorded here only as the sweep's worked
 example of all four limbs passing, and for one scope correction in §8.2.
 
@@ -154,7 +154,7 @@ input happens to sit on the subject.
 ### 3.4 Its residual cost is aperture only, which is why it stays
 
 ADR-0032 §5 places the frequency half outside gate 2 as **aperture**, governed by #31's line. A
-stale aperture makes us **not look**; it can never make us conclude wrongly. So the failure mode of
+stale aperture makes us **not look**. It can never make us conclude wrongly. So the failure mode of
 `verge-core`'s staleness is a missed listener recorded as *we did not look there*, and #44's
 standing aperture statement on `Coverage` is where that already lands.
 
@@ -214,7 +214,7 @@ claims NIST's *routing*, and it is the routing that decides: **product.**
 
 ### 4.2 Limb 3 fails, and #68 had already ruled the re-expression out on independent grounds
 
-No certificate carries NIST's mapping. A certificate carries a modulus length; the table that turns
+No certificate carries NIST's mapping. A certificate carries a modulus length. The table that turns
 a modulus length into a security strength lives in a NIST publication and would have to ship with
 us. So the fraction is unavailable, and **two separate rulings already on the books forbid reaching
 for it anyway** — both written by [#68](https://github.com/winniel123/verge-asm/issues/68) without
@@ -284,7 +284,7 @@ is at §5.
 ## 5. What was retrieved
 
 The ticket binds: *where a constant's staleness is claimed, measure it against a retrieved source.*
-Three retrievals were run. Two tested a claimed staleness; one tested a claimed **non**-staleness,
+Three retrievals were run. Two tested a claimed staleness. One tested a claimed **non**-staleness,
 because a sweep that only looks where it expects to find something is the failure ADR-0034 §1 is
 about.
 
@@ -341,7 +341,7 @@ artefact of whatever sort was used.
 `10250/tcp` (kubelet) is confirmed **genuinely absent** — zero matches over the whole file. And the
 140th-ranked TCP port sits at `0.002129` (`cslistener 9000/tcp`), about **28× the filler value**, so
 none of Redis, Docker or kubelet is anywhere near a frequency-selected set of any plausible size.
-**#4 §2.3's supplement is not a refinement of the ranking; it is the only reason these ports are in
+**#4 §2.3's supplement is not a refinement of the ranking. It is the only reason these ports are in
 `verge-core` at all** — which is §3.3's point, measured.
 
 Exact amendment text for `safe-active-probing.md` is in the resolution comment. **That file is not
@@ -388,10 +388,10 @@ date and are quoted as served on 2026-08-14.
 Run because §6.1 needed the *non*-staleness measured, not assumed. Eleven upstream defaults were
 re-fetched.
 
-**No cited number has moved.** naabu's `DefaultPortTimeoutConnectScan` is still `3 * time.Second`;
-`DefaultRateSynScan` 1000; `DefaultRateConnectScan` 1500; httpx's `-timeout` still 10, `-rate-limit`
-150, `-threads` 50, `-retries` 0; masscan still *"By default, the rate is set to 100
-packets/second"*; tlsx still 300 / 5 s / 3. **So the 3 s timeout is not stale, measured.**
+**No cited number has moved.** naabu's `DefaultPortTimeoutConnectScan` is still `3 * time.Second`.
+`DefaultRateSynScan` 1000. `DefaultRateConnectScan` 1500. httpx's `-timeout` still 10, `-rate-limit`
+150, `-threads` 50, `-retries` 0. masscan still *"By default, the rate is set to 100
+packets/second"*. tlsx still 300 / 5 s / 3. **So the 3 s timeout is not stale, measured.**
 
 Three things the retrieval found that the numbers hide, all of which bear on §6.1's disposal:
 
@@ -403,7 +403,7 @@ Three things the retrieval found that the numbers hide, all of which bear on §6
   the second measured instance of it in this effort.
 - **The cited URLs point at a stale mirror, and this is the `lego` hazard live again.** Both
   ProjectDiscovery repos' default branch is **`dev`**, not `main`. naabu's `main` HEAD is
-  **2026-05-05**; `dev` is **2026-08-10**, and the cited file **differs between them**. #67 logged
+  **2026-05-05**. `dev` is **2026-08-10**, and the cited file **differs between them**. #67 logged
   this exact failure shape on lego's `master` — *"not a blocked fetch but a successful fetch of
   superseded bytes"* — and it is now live on a second citation.
 - **A future de-attestation channel opened upstream.** naabu commit *"faster scanning (#1712)"*
@@ -421,8 +421,8 @@ resolution comment's amendment text.
 
 Reported at §4.1 and §4.2a rather than repeated here. In summary: SP 800-131A Rev 2 (**FINAL**,
 March 2019) and SP 800-57 Part 1 Rev 5 (**FINAL**, May 2020, Tables 2 and 4) were retrieved as
-PDFs and extracted locally; the strength is normative and the size is the lookup; all three of our
-key rows are one transcribed table row; and the scheduled move is a **tier status change** rather
+PDFs and extracted locally. The strength is normative and the size is the lookup. All three of our
+key rows are one transcribed table row. The scheduled move is a **tier status change** rather
 than a size change. SP 800-131A **Rev 3** and **IR 8547** are both **Initial Public Drafts** —
 `csrc.nist.gov/pubs/sp/800/131/a/r3/final` and `csrc.nist.gov/pubs/ir/8547/final` both **404** — so
 their 2030/2035 dates are **not normative** and are not cited as settled anywhere in this note.
@@ -514,7 +514,7 @@ in it. **No change.**
 legally sits, *outside* every derivation, alongside notification routing and flap suppression. It is
 therefore **not a project-authored constant** and is out of the sweep's population by definition —
 [#60](https://github.com/winniel123/verge-asm/issues/60)'s line, not a new one. The ticket named it
-as a candidate; the correct answer is that it is not in the class.
+as a candidate. The correct answer is that it is not in the class.
 
 ### 6.4 The availability window — not a product, and **not yet a number**
 
@@ -539,7 +539,7 @@ documentation level.** ADR-0028 writes them correctly — *"Modal `k`=2 on a dai
 top-1000-only port is two weeks; a full-range-only port is two months"* — the formula first, the
 evaluation after. The **map's Notes do not**: they carry *"its stale-fact window is bounded by
 `certificate`'s currency, two days modally"* with no formula beside it. #61 has already added a
-fourth `Scan`, so the tiering demonstrably moves; when it moves again that numeral goes wrong while
+fourth `Scan`, so the tiering demonstrably moves. When it moves again that numeral goes wrong while
 every document it came from still reads true.
 
 Costs nothing and no `Break` — nothing reads it. **Handed to the map as a wording fix**, in §9.
@@ -624,7 +624,7 @@ row above, which arrives valued, so the two remain the availability window (§6.
 read below. **The original sentence, unamended:**
 [#108](https://github.com/winniel123/verge-asm/issues/108)
 added the match-predicate row to this table without touching §9's and §10's *two declared parameters
-have no value yet (§6.4, §6.8)*, which was briefly three;
+have no value yet (§6.4, §6.8)*, which was briefly three.
 [#111](https://github.com/winniel123/verge-asm/issues/111) closed the row, so both prose sites are
 correct again and the two are the **availability window** (§6.4) and the **capped body read** below.
 **Unmoved again by [#124](https://github.com/winniel123/verge-asm/issues/124)**, which adds two
@@ -653,7 +653,7 @@ correct again and the two are the **availability window** (§6.4) and the **capp
 > parameter without a value; the two open ones are elsewhere and unchanged.
 
 **The capped body read is the one live item, and it is live because it has no value yet.**
-ADR-0021 names the parameter; no ADR fixes a number, and #4 §4's *"64 KB"* was never carried
+ADR-0021 names the parameter. No ADR fixes a number, and #4 §4's *"64 KB"* was never carried
 forward. Whoever sets it should know the shape matters: a **byte count** is a budget against where
 `<title>` sits in a real document, which is a world quantity that moves upward as heads grow, and
 whose failure is silent in the model's own currency — a page whose head outgrows the cap loses its
@@ -751,7 +751,7 @@ the test would be worse. It is recorded, and it is ticketed.
 The cure shape *is* available, because the moving quantity **is** on the subject: the clock rules
 already read `not_before` and `not_after` after ADR-0034. The repair is one extra evaluability
 predicate — **a `certificate` observation feeds the clock class only while its age is small against
-the observed certificate's own validity period; otherwise the three rules are `not-evaluable`** —
+the observed certificate's own validity period. Otherwise the three rules are `not-evaluable`** —
 reading a value those rules already read, with no new measurement, no facet change and no ADR-0011
 cost, at a `Break` on three rules for one cadence, vacuous before first install.
 
@@ -791,7 +791,7 @@ That is true of the mover it was measured against and is over-broad as written.
 The distinction is load-bearing and #67 already measured a live instance of the hazard: the CA/B
 Forum moved its short-lived definition from ≤10 days to **≤7 days on 2026-03-15** while Let's
 Encrypt, `boulder`, Certbot and lego all still use **10 days** for renewal halving. Our 10 is the
-issuer's, correctly; but *the issuer's threshold is a value the issuer can move*, and #67's own
+issuer's, correctly. But *the issuer's threshold is a value the issuer can move*, and #67's own
 retrieval hazards section records that a session conflating the two would "correct" 10 to 7 and be
 wrong. **The port-curation patch's discharge of `certificate-expiring`'s horizon stands** — nobody
 revises a fraction when a lifetime changes — but the row is not attestation-immortal.
@@ -869,7 +869,7 @@ manufactured into an instance by a sweep run on form alone.
 - **To [#77](https://github.com/winniel123/verge-asm/issues/77)** — §7 in full. It is not this
   ticket's rule and it is this ticket's most damaging finding.
 - **To [`safe-active-probing.md`](./safe-active-probing.md) §2.2** — its ranks are artefacts and its
-  conclusion is stronger than it knew (§5.1). Exact amendment text in the resolution comment; the
+  conclusion is stronger than it knew (§5.1). Exact amendment text in the resolution comment. The
   file is not edited here.
 - **To [#78](https://github.com/winniel123/verge-asm/issues/78)** — §5.4, and §5.1's finding that no
   redistributable replacement exists. It **blocks [#12](https://github.com/winniel123/verge-asm/issues/12)**.
@@ -880,7 +880,7 @@ manufactured into an instance by a sweep run on form alone.
 - **Not handed to `sensitive-ports.md` or `weak-key-and-signature.md`** — both are owned by
   concurrent tickets this round ([#70](https://github.com/winniel123/verge-asm/issues/70),
   [#73](https://github.com/winniel123/verge-asm/issues/73)). §4 promotes
-  `weak-key-and-signature.md` §7.3 to a general rule and **takes nothing away from it**; no
+  `weak-key-and-signature.md` §7.3 to a general rule and **takes nothing away from it**. No
   amendment to either file is required.
 
 ---
@@ -890,7 +890,7 @@ manufactured into an instance by a sweep run on form alone.
 - **§8.1's three cure shapes are a generalisation from three instances**, one of which (the
   terminator) has no value chosen yet and so has never been tested against anything. If a fourth
   shape turns up that is none of these, the ruling is the four-limb test, not the taxonomy.
-- **§7's arithmetic is certain; its population is not measured.** How many `Service`s sit on the
+- **§7's arithmetic is certain. Its population is not measured.** How many `Service`s sit on the
   weekly-only tier presenting short-lived certificates is unknown and unmeasurable before an
   install. The defect is real at any population above zero and its *severity* is unpriced, which is
   why #77 is a decision ticket rather than a correction.
@@ -902,7 +902,7 @@ manufactured into an instance by a sweep run on form alone.
   only thing this note asserts about it is that it is worth asking.
 - **The sweep's population is *the constants this repository has written down*.** Two declared
   parameters have no value yet (§6.4, §6.8) and the spec is unassembled, so a constant that has not
-  been chosen cannot have been swept. The four-limb test is the durable output; the tally of
+  been chosen cannot have been swept. The four-limb test is the durable output. The tally of
   eighteen is a snapshot and [#12](https://github.com/winniel123/verge-asm/issues/12) will add to it.
 </content>
 
@@ -912,7 +912,7 @@ manufactured into an instance by a sweep run on form alone.
 
 *Added by [#143](https://github.com/winniel123/verge-asm/issues/143) /
 [ADR-0085](../adr/0085-an-obligation-with-no-failing-test-has-no-owner-and-a-boundary-needs-a-row-on-each-side.md).
-§8.1's cure is unchanged; what is added is the thing that checks it.*
+§8.1's cure is unchanged. What is added is the thing that checks it.*
 
 ### 12.1 What #124 found, and what it did not supply
 
@@ -925,7 +925,7 @@ an implementation to fuse floating-point operations:
 > and rounding the instructions individually."
 > — [Go spec, Floating-point operators](https://go.dev/ref/spec#Floating_point_operators) `[spec]`
 
-Go's `arm64` backend emits the fused instruction; baseline `amd64` at `GOAMD64=v1` has none. So one
+Go's `arm64` backend emits the fused instruction. Baseline `amd64` at `GOAMD64=v1` has none. So one
 expression, one release, two architectures, two results — and the model has no object for it,
 because a `Derivation` version is a claim about **content** and the content is identical. #124's
 ruling ([`packaging-and-configuration.md`](../spec/packaging-and-configuration.md) §1.3) is that

@@ -15,7 +15,7 @@ failure condition in one breath:
 
 The corpus then spent eighteen sections building a **footing** apparatus over the same artefacts:
 [ADR-0050](./0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md)'s
-three limbs of *reach*, whose limb 3 is a **defeat test**; and
+three limbs of *reach*, whose limb 3 is a **defeat test**, and
 [ADR-0059](./0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md)'s four,
 whose limb 4 branch (c) refuses *"a preference against an architecture the owner elsewhere names as
 supported"*. Both cite §10.3. **Nobody wrote down whether they are the same test.**
@@ -48,8 +48,8 @@ attestation gate read the same artefacts for different propositions.**
 
 A second gap surfaced in the same retrieval and had no home anywhere. **[measured]**, retrieved
 2026-08-14, Microsoft's guidance is partitioned by `applies to` banner: the prohibition sits on a
-page scoped to **SQL Server on Windows** carrying a single moniker icon; the Public-connectivity
-guidance sits on pages scoped to **SQL Server on Azure VM**; and **the two sets never cross-reference
+page scoped to **SQL Server on Windows** carrying a single moniker icon. The Public-connectivity
+guidance sits on pages scoped to **SQL Server on Azure VM**. And **the two sets never cross-reference
 each other**. §10.5 keys ownership on the **artefact** rather than the party, and §33.2's *addressee*
 rider keeps an owner's own managed service from defeating a statement addressed to operators — but
 neither answers whether a **deployment-scoped** banner narrows the owner's voice.
@@ -69,7 +69,7 @@ question — ADR-0050 limb 3, ADR-0059 limb 4 — and it is answered at the foot
 Three consequences, and the second is the operative one.
 
 1. **The prohibition's job at the claim gate is to *name the boundary*, and nothing else.** §10.3
-   requires *the boundary must be named by the owner*; the failure condition fires on a **second,
+   requires *the boundary must be named by the owner*. The failure condition fires on a **second,
    independent utterance**.
 2. **A reading that narrows the prohibition does not rescue the claim.** It removes the tension and
    leaves the affirmative naming standing **alone**, which strengthens the failure condition rather
@@ -192,8 +192,8 @@ The limb rests on four grounds, each about the artefact rather than the party, p
 ## Consequences
 
 - **`1433/tcp` Microsoft SQL Server leaves the sensitive list** — `sensitive-ports.md` §35. Claim 3
-  fails on §10.3's failure condition; Claim 1 is unavailable (SQL Server ships admitting no anonymous
-  command, and Microsoft's own page makes SQL authentication **required** for public access); Claim 2
+  fails on §10.3's failure condition. Claim 1 is unavailable (SQL Server ships admitting no anonymous
+  command, and Microsoft's own page makes SQL authentication **required** for public access). Claim 2
   fails on its successor clause (TDS negotiates TLS on the **same** port). §10.2 closed the set, so
   *no claim* is *no row*. **The list is 40 pairs, class totals `12 / 7 / 21`**, and the pair is in
   §4.6 as the table's **21st** entry.
@@ -214,7 +214,7 @@ The limb rests on four grounds, each about the artefact rather than the party, p
   **A pair leaving the sensitive list costs the union nothing wherever the frequency half already
   carries it.** What stops is the `Signal`, not the measurement.
 - **The aperture *narrows*.** `safe-active-probing.md` §2.4's line reads
-  ~~`0 of 41 sensitive pairs unread`~~ ~~`0 of 40`~~ ~~`0 of 38`~~ **`5 of 38`** (#114; numerator
+  ~~`0 of 41 sensitive pairs unread`~~ ~~`0 of 40`~~ ~~`0 of 38`~~ **`5 of 38`** (#114, numerator
   corrected from `0` by [#124](https://github.com/winniel123/verge-asm/issues/124), five sensitive
   pairs being UDP and UDP off on default settings) — a **denominator**, with the
   numerator `5` for every `|S|`, and ~~`0 of 16 rules unevaluable`~~ **`0 of 17 rules unevaluable`**
@@ -224,7 +224,7 @@ The limb rests on four grounds, each about the artefact rather than the party, p
   Corrected by the merging session of the 2026-08-15 batch. Nothing becomes unread, so
   [ADR-0014](./0014-only-revealed-generalises.md) does not bite and no timeline opens.
 - **ADR-0050, ADR-0054, ADR-0059 and ADR-0037 are all confirmed by use and none is amended.** Limb 1
-  does not narrow ADR-0050 limb 3 or ADR-0059 limb 4; it says what they are **not** also deciding.
+  does not narrow ADR-0050 limb 3 or ADR-0059 limb 4. It says what they are **not** also deciding.
 - ~~**Limb 2 reaches rows other than `1433/tcp` and the sweep has not been run.**~~ Every
   prohibition-tier owner documents a managed offering on its own port — Elastic Cloud on `9200`,
   MongoDB Atlas on `27017`, Azure Files on `445`, Oracle on `3306`. §33.2's two riders dispose of each
@@ -306,7 +306,7 @@ corpus partitioned only by silence could be **drift** rather than doctrine.
 security best practices*, `ms.date` **2026-05-07** — the most recently authored SQL Server security
 page in Microsoft's corpus — contains neither `1433` nor the word *internet*, in any casing. A reader
 could take that as the prohibition no longer being maintained, which reaches this ADR's verdict by a
-different route; or as the security corpus moving on while operative guidance stands, which reaches
+different route, or as the security corpus moving on while operative guidance stands, which reaches
 nothing. It is recorded because it is the strongest evidence that the prohibition is stale, and
 because a session finding it later and thinking it was missed would be right to distrust the rest.
 

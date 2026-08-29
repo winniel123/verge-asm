@@ -13,7 +13,7 @@ friendly, modern SaaS" system, and the old "engineered paper" system is frozen t
 The new system arrived as **~110 already-authored components** across `forms/ display/ feedback/
 navigation/ media/`, each shipping a `.jsx`, a `.d.ts` contract, and a `.prompt.md` usage note. None of
 them were written in this repository. They were authored in **Claude Design** — the dedicated design
-workspace — and imported wholesale. Adopting them was **import, not authoring**; the migration added
+workspace — and imported wholesale. Adopting them was **import, not authoring**. The migration added
 no components.
 
 That distinction is the decision this ADR pins. A design system holds its coherence — one type scale,
@@ -42,7 +42,7 @@ Three clarifications on the boundary, so the line is not re-drawn each time:
 1. **Restyling is not authoring.** Changing how an existing component or an existing template class
    renders — within the existing token vocabulary — is ordinary work and stays in this repo. The
    production stylesheet (`cmd/web/templates.go`'s `pageCSS`) is template-local CSS, not a component
-   library; re-skinning its classes is restyling, not authoring.
+   library. Re-skinning its classes is restyling, not authoring.
 2. **Importing is not authoring.** Bringing a component back from Claude Design and dropping its
    `.jsx` + `.d.ts` + `.prompt.md` into `design-system/components/` is the intended flow, not a
    violation — the authorship happened in the design workspace.
@@ -68,5 +68,5 @@ Three clarifications on the boundary, so the line is not re-drawn each time:
   trades immediacy for coherence: the screen waits on a round-trip through Claude Design, and in
   exchange the system never forks. Where the wait is unacceptable, the correct move is still a request
   plus an explicit note of the blockage — never a repo-authored component.
-- **No component authored in this repo is grandfathered.** The migration itself added none; this ADR
+- **No component authored in this repo is grandfathered.** The migration itself added none. This ADR
   keeps it that way.

@@ -36,9 +36,9 @@ the defaults and the surfaces, and an implementation session writes the files.
 This is not a build preference. ADR-0021's gate is bidirectional — *output moved and the version did
 not → fail* — and it is the whole mechanism by which a measurement value cannot move while the world
 stands still. An architecture the corpus is not run on ships five leaves whose output is
-**unverified on that architecture**, and the failure is invisible in band: two installs on one
-release hold **equal derivation vectors**, so the model licenses the comparison, and the values were
-produced by two different implementations.
+**unverified on that architecture**, and the failure is invisible in band. Two installs on one
+release hold **equal derivation vectors**, so the model licenses the comparison, and two different
+implementations produced the values.
 
 `amd64` and `arm64` are in because CI runs the corpus on both natively. Anything else — `386`,
 `arm/v7`, `riscv64`, `ppc64le`, `s390x` — is out until somebody pays for a runner, and the price is
@@ -53,7 +53,7 @@ The Go language specification permits fused multiply-add:
 > and rounding the instructions individually."
 > — [Go spec, Floating-point operators](https://go.dev/ref/spec#Floating_point_operators) `[spec]`
 
-Go's `arm64` backend emits `FMADD`; the baseline `amd64` target (`GOAMD64=v1`) has no FMA
+Go's `arm64` backend emits `FMADD`. The baseline `amd64` target (`GOAMD64=v1`) has no FMA
 instruction to emit. So **one expression, one release, two architectures, two results** — and the
 model has no object for it, because a `Derivation` version is a claim about *content*, and the
 content is identical.
@@ -66,7 +66,7 @@ Two consequences, and both are rules rather than cautions:
    [#67](https://github.com/winniel123/verge-asm/issues/67) cured `certificate-expiring`'s `N` by
    shipping the fraction (⅓ of the certificate's validity period, ½ below a ten-day validity) rather
    than the product — the right cure, and it introduces a division. Evaluated in `float64` that
-   division is a candidate for contraction; evaluated on whole seconds in integer arithmetic it is
+   division is a candidate for contraction. Evaluated on whole seconds in integer arithmetic it is
    not. **The cure must not reintroduce the disease one layer down**: without this, one certificate
    at one instant can be `certificate-expiring` on an `amd64` instance and not on an `arm64` one.
    This binds every fraction in the declared-parameter set, present and future
@@ -96,7 +96,7 @@ multi-arch*.
 [#14](https://github.com/winniel123/verge-asm/issues/14) makes the instance **push the exact binary
 it wants at invocation**, which is what makes version skew structurally impossible. The prober host's
 architecture is the **operator's**, chosen when they provisioned a VPS, and it need not match the
-instance's: an `arm64` instance on a Pi or on Graviton pushing to an `amd64` VPS is an ordinary
+instance's. An `arm64` instance on a Pi or on Graviton pushing to an `amd64` VPS is an ordinary
 deployment, and the reverse is commoner still.
 
 So: **each image variant embeds the prober binary for both matrix architectures**, and the
@@ -268,7 +268,7 @@ and states an act the operator can perform. It never fabricates `exposed`, which
 That rendering is a **`Coverage`** statement, not an alert: it is *we cannot construct the claim*,
 which is the band #22 built. Whether the offer is literally an
 [ADR-0012](../adr/0012-a-proposer-is-not-a-source.md) `Proposal` — a new producer, in answer to an
-operator act — is left open; see the ticket's *handed onward*.
+operator act — is left open. See the ticket's *handed onward*.
 
 ### 4.5 What the operator supplies to provision a prober
 
@@ -289,7 +289,7 @@ And two things read, not typed: the host key (pinned) and `uname -s` / `uname -m
 
 ### 5.1 Where configuration lives
 
-> **The environment configures the process; the database configures the product.**
+> **The environment configures the process. The database configures the product.**
 >
 > **The test:** if a change to it should appear in the audit trail, it may not live in the
 > environment.
@@ -325,7 +325,7 @@ A knob ships only if it clears all three:
 ### 5.3 The knob table, swept
 
 [`safe-active-probing.md`](../research/safe-active-probing.md) §9 proposed eighteen. Every row is
-walked against §5.2's gate; the note's table is struck row by row at its own site.
+walked against §5.2's gate. The note's table is struck row by row at its own site.
 
 | Knob | Verdict |
 | --- | --- |
@@ -417,7 +417,7 @@ recorded scope.
 > vantage** — which is a second, install-shaped route to unevaluability this figure has never had to
 > count. Writing `0 of 17` would assert an answer nobody has walked.
 > Found by [#141](https://github.com/winniel123/verge-asm/issues/141) and recorded by the merging
-> session; the walk is ticketed.
+> session. The walk is ticketed.
 
 ~~**Whether v1's instrument could measure a UDP `Service` honestly at all is not settled here.**~~
 **SETTLED by [#141](https://github.com/winniel123/verge-asm/issues/141) /
@@ -427,11 +427,11 @@ per [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-
 packet, so `connected` would be a fact about our own kernel. ~~It is ticketed rather than guessed.~~
 **It cannot, and neither could a widened `connect-outcome` — but an honest instrument is
 constructible: `answered │ refused │ unanswered`, decided by a **sixth leaf** `datagram-outcome` and
-specified rather than shipped. `refused` is reused unchanged; `no-response` is **not**, because it
-projects to `not-reached` and a connectionless exchange did not decide that; `unanswered` projects
+specified rather than shipped. `refused` is reused unchanged. `no-response` is **not**, because it
+projects to `not-reached` and a connectionless exchange did not decide that. `unanswered` projects
 onto no `Reach` and therefore returns `not-evaluable`. **Nothing in this section's figures moves** —
 `verge-core` is still 136 pairs / 131 probed, and the aperture statement still reads
-`5 of 38 sensitive pairs unread`, because UDP does not turn on here. What ADR-0083 adds to this
+`5 of 38 sensitive pairs unread`, because UDP is not enabled here. What ADR-0083 adds to this
 section is the reason it should not: a payload-free UDP leg buys **zero** net new firings, and the
 payload table that would change that is the wire prober
 [ADR-0015](../adr/0015-the-value-space-is-the-commitment.md) deferred.**
@@ -458,7 +458,7 @@ removal detection*), and the upload instant is the observation instant.
 An **on-disk path** is a mount with no supply act and therefore no instant. **AXFR with a TSIG key**
 is not another way to obtain the same source at all — it is a **different source**, with `measured`
 authority against an authority we walked rather than `declared` authority from the operator, and it
-appears in no enumerated source set. Out of v1; if it is ever added, its TSIG key is `worker`'s under
+appears in no enumerated source set. Out of v1. If it is ever added, its TSIG key is `worker`'s under
 [ADR-0053](../adr/0053-a-secret-is-held-only-where-its-act-is-performed-and-the-shared-store-holds-none.md)
 and it needs its own row in the source table, not a checkbox on this one.
 
@@ -481,7 +481,7 @@ vantage choice** — the worker reads it.
 > [ADR-0084](../adr/0084-a-scan-is-a-cadence-over-an-exchange-and-an-uncovered-facet-has-no-currency-bound.md)
 > added **`dns`** on the same reasoning, covering `resolution` and our own resolver's `dns-record`.
 > Read **two port tiers and five `Scan`s** wherever this document counts them. *(ADR-0005's #124
-> amendment points at this section for the "full statement" of that hole; the statement was never
+> amendment points at this section for the "full statement" of that hole. The statement was never
 > written here, and it is now discharged rather than transcribed.)* Cadence: the **operator's re-supply interval**, shipped at
 **monthly**, which is their declaration of how often they will re-export. Its batches restate the
 stored file's observations at the **supply instant**, so `k × cadence` bounds the operator's promise
@@ -493,7 +493,7 @@ state.
 
 **Why not the daily tier.** Hanging the read off a port-tier `Scan` would give a hand-supplied export
 a **two-day** currency bound, so an operator who did everything right would see the source go
-`not-evaluable` on the third day; and disabling the port tier would silently stop the zone being
+`not-evaluable` on the third day. Disabling the port tier would silently stop the zone being
 read. Both are the hidden-field failure ADR-0005's *port tiers are three `Scan`s* section refuses.
 
 ### 7.3 The zone is read from the file, which discharges #48's second obligation by construction
@@ -502,7 +502,7 @@ read. Both are the hidden-field failure ADR-0005's *port tiers are three `Scan`s
 level too wide fires this rule on every name in every delegated subzone."*
 
 **The zone is read from the file's own `$ORIGIN` and SOA owner name**, never from the filename, never
-from the `Seed`. A zone export states its own apex; a `Seed` states a registrable domain; and where
+from the `Seed`. A zone export states its own apex. A `Seed` states a registrable domain. Where
 those differ the file is right about what it enumerates. A file whose apex sits outside the name
 scope it was uploaded against is **refused at upload**, with the reason — the same
 declaration-time check §1.6 and ADR-0047's cap use.
@@ -515,11 +515,15 @@ An operator with delegated subzones uploads one file per zone, and each carries 
 
 [#28](https://github.com/winniel123/verge-asm/issues/28) and
 [#51](https://github.com/winniel123/verge-asm/issues/51) fixed the checklist as the zero-coverage
-**rendering** of `Coverage` at two densities. Its four steps are *Declare your domain* · *Upload a
-zone file* · *Add an internet vantage* · *Run the first batch*.
+**rendering** of `Coverage` at two densities. Its four steps are:
+
+1. *Declare your domain*
+2. *Upload a zone file*
+3. *Add an internet vantage*
+4. *Run the first batch*
 
 Steps 2 and 3 had capability annotations and no mechanism. §7 supplies step 2's and §4 supplies
-step 3's. Neither adds a step, neither adds a prompt, and neither makes the checklist a wizard: each
-step names a capability and, per [ADR-0044](../adr/0044-a-one-off-measurement-has-no-currency.md)'s
-allowance, may point at the surface where the act is performed, **because here an action genuinely
-exists**.
+step 3's. Neither adds a step, neither adds a prompt, and neither makes the checklist a wizard. Each
+step names a capability. Per [ADR-0044](../adr/0044-a-one-off-measurement-has-no-currency.md)'s
+allowance, each step may point at the surface where the act is performed, **because here an action
+genuinely exists**.

@@ -112,7 +112,7 @@ Every operator act the Declared layer records, and what dates it:
 | Declare an `Annotation` | **nothing** | **passes** | **passes** |
 
 `Annotation` is alone because **its whole effect is a message that does not fire**. A `not-fired` →
-`fired` `Transition` on an annotated pair is *recorded and is not a message*; the acceptance's only
+`fired` `Transition` on an annotated pair is *recorded and is not a message*. The acceptance's only
 consequence is a silence, and a silence has no instant. ADR-0073's own variant C lost on exactly this
 fact — an ordering by recorded firings *"goes **empty on a quiet estate** while four acceptances
 stand"* — so an `Annotation` can live its entire life with **no dated residue anywhere in the
@@ -135,7 +135,7 @@ replaced rather than edited, it would still carry no instant.
 
 ### What this does *not* do
 
-- **`Annotation`'s instant is confirmed, not re-decided.** ADR-0073 §2 stands in outcome; only its
+- **`Annotation`'s instant is confirmed, not re-decided.** ADR-0073 §2 stands in outcome. Only its
   stated ground moves.
 - **No actor anywhere.** #127 and ADR-0073 §1 are untouched, and this ADR adds no field to any
   Declared term.
@@ -150,7 +150,7 @@ replaced rather than edited, it would still carry no instant.
 This is the reading ADR-0073 §2's text supports on its face, and it was argued at strength before it
 was refused.
 
-- **The argument §2 actually gives has nothing to do with prose.** A timeline needs two values; one
+- **The argument §2 actually gives has nothing to do with prose.** A timeline needs two values. One
   instant has none to difference against. That is true of an instant on a `Seed`, a `Channel` and a
   `Scan` exactly as it is true of one on an `Annotation`. Restricting it to the one term the drawing
   session happened to have open is arbitrary.
@@ -170,7 +170,7 @@ was refused.
 never mutated, and `Annotation` and `Proposal` are the only Declared terms with that property — both
 by an explicit ruling. Every other Declared term is edited in place, **by name in the glossary or in
 #127's own text**. On those terms the generalisation does not deliver a single un-differenceable
-instant at all; it delivers either a stale field ADR-0003 already rejected, or a moving one, which is
+instant at all. It delivers either a stale field ADR-0003 already rejected, or a moving one, which is
 the Declared layer acquiring a timeline. On `Seed` the generalisation is therefore not merely wrong,
 it is the scope change #127's out-of-scope entry refuses on principle — arriving as a field rather
 than as a proposal, which is exactly how that entry warns it would arrive.
@@ -183,7 +183,7 @@ drift query will join to**, because it is a scalar on the row rather than an agg
 timelines. That is a seam between two datings of one act, on the **input side**, which #127 §5
 already identified as where it is worse: *"one `WHERE seed_version = …` in a drift query is `ScanRun`
 back through the front door, on the input side, where it is worse — because Declared inputs gate
-probing."* #6's rule is that every seam is a place drift can be manufactured; this is a seam whose
+probing."* #6's rule is that every seam is a place drift can be manufactured. This is a seam whose
 two sides are answers to one question and neither is labelled as which.
 
 **3. The consumer test, on `Channel` and `Scan` config.** ADR-0073 kept `Annotation`'s instant
@@ -192,7 +192,7 @@ the corpus requires a `Channel`'s or a `Scan`'s date. #127 §4 governs and it is
 
 **And the drawings do not rescue it.** ADR-0075 limb 1 and limb 2 exist precisely to stop a drawing
 being read as a ruling. Neither #123's `seeds/` nor #47's `source-enablement/` ever put the field to
-a decision; both reached for it as scaffolding, which is what makes them a **sighting** rather than a
+a decision. Both reached for it as scaffolding, which is what makes them a **sighting** rather than a
 precedent. That they converged is real evidence of what feels natural, and it is answered rather than
 waved past: what feels natural is *the surface should say when this happened*, and under this ruling
 it still can — from `revealed`, from the coverage-class message, from the `Batch`. What it may not do
@@ -213,7 +213,7 @@ no actor — and the Declared terms stay clean.
 **Refused, and not by this ADR.** That is #127's operator-act record with one column left out, and
 #127 ruled it out of scope: *"what is out is the **record**, not the screen."* Its deferral is on a
 consumer that does not exist and its reopening condition is the spec admitting a second party who can
-mutate; leaving the actor off changes neither. Recorded here because this is exactly where a session
+mutate. Leaving the actor off changes neither. Recorded here because this is exactly where a session
 would reach for it, and it is a **scope change** rather than a design choice.
 
 ### The option that lost: rule per surface rather than per term
@@ -226,7 +226,7 @@ field in the first place.
 ### Where the ground is thin
 
 The **reader** half of limb 2 is a judgement, not a measurement. *Nobody has named a consumer for a
-`Channel`'s date* is true of the corpus today and is not proof that none exists; it is the same shape
+`Channel`'s date* is true of the corpus today and is not proof that none exists. It is the same shape
 of ground #127 and ADR-0073 both flagged, and it is flagged here for the same reason. The mitigation
 is the same too: limb 2 is a conjunction, and every term that fails on the reader also fails on the
 residue or on limb 1, so **no cell in the table turns on the thin half alone**.
@@ -241,7 +241,7 @@ residue or on limb 1, so **no cell in the table turns on the thin half alone**.
   at two sites** under [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
   — §2's closing paragraph and the Consequences bullet. Read alone and in the present tense, both
   would cause a competent session to give a new prose-carrying Declared term an instant. **The
-  outcome is confirmed; the ground is replaced**, per ADR-0057 §5 — a withdrawal supplying no
+  outcome is confirmed. The ground is replaced**, per ADR-0057 §5 — a withdrawal supplying no
   successor does not hold.
 - **Two prototypes are marked and neither is redrawn**, per ADR-0075 limb 2 and limb 3, both being
   files this pass held open. `prototypes/seeds/` — a rendered `declared <month>` is a field the

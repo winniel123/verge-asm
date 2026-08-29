@@ -218,7 +218,7 @@ On the Microsoft side: MS-NBTE's Appendix A Product Behavior page was read in fu
 notes). One note (`<11>`, §3.2.5.1) documents a Windows-specific deviation in datagram
 **distribution** for group names — proving MS-NBTE's authors do track datagram-service deviations
 when they exist — but no note anywhere addresses the `DIRECT_UNIQUE`-to-unowned-name error case.
-Under MS-NBTE's own convention (deviations are called out; silence means the RFC 1001/1002 base
+Under MS-NBTE's own convention (deviations are called out — silence means the RFC 1001/1002 base
 applies unmodified), this is *consistent with* Windows following RFC 1002 §5.3.3, but MS-NBTE's body
 text was not found to affirmatively restate or test that specific behavior, so this remains an
 absence of a documented exception, not a positive statement.
@@ -301,14 +301,14 @@ asked for — even though the base IPMI 2.0 spec remains unread.
 across calls — it is left at its `memset`-zeroed default every time, contradicting the spec walk's
 own recommendation (echoed above) to vary the tag to avoid DSP0136 §3.2.2's dedup. The reference
 client evidently doesn't need to, likely because it does not send concurrent/duplicate pings to the
-same target. A prober prober prober sending retries in flight would still need to vary the tag per
-DSP0136's own text; `ipmitool`'s choice not to is a single-shot client's convenience, not a
+same target. A prober sending retries in flight would still need to vary the tag per
+DSP0136's own text. `ipmitool`'s choice not to is a single-shot client's convenience, not a
 counter-example to the spec rule.
 
 **Caveat.** Reply routing depends on the socket being connected (or otherwise scoped) to the specific
 target — `ipmitool` calls `recv()` on the same socket it sent from, relying on the OS/connect-state
 rather than inspecting the reply's source port itself. Unlike TFTP, this pair does not force an
-unconnected socket; it is compatible with either, since the reply's source is the probed host on the
+unconnected socket. It is compatible with either, since the reply's source is the probed host on the
 port we sent to.
 
 ---
@@ -363,7 +363,7 @@ Read `github.com/memcached/memcached`, `memcached.c`. Two independent confirmati
    relying on documentation that could have drifted from the binary.
 
 **Caveat.** This is the one pair whose *own shipped default* removes it from the population before
-the payload is ever relevant. The payload is correct and fully corroborated; what it can reach is
+the payload is ever relevant. The payload is correct and fully corroborated. What it can reach is
 bounded to pre-2018 builds, distros that re-enable UDP, or an operator's deliberate `-U 11211` — the
 same population ADR-0083's walk already named, now confirmed at the source rather than the man page.
 
@@ -412,14 +412,14 @@ represents) does emit DATAGRAM ERROR, the row is already correct for it, at zero
 cost over the other four. Second, the failure mode is not silent or misleading: if the real
 population never emits this reply, the row degenerates to exactly what a payload-free probe already
 does — `unanswered` → `not-evaluable`, ADR-0083's own documented default for these five pairs today.
-Nothing gets *worse*; the row simply may not earn its keep, which is a fact this document states
+Nothing gets *worse*. The row simply may not earn its keep, which is a fact this document states
 rather than hides. Third, blocking it on a lab-verified live Samba/Windows box is a measurement this
 ticket was not resourced to make and the map's own convention (measurement-offers.md's `[thin]`
 mark, ADR-0032's per-row evidence standard) exists precisely so a thin row can ship *labelled* rather
 than stall the table waiting for evidence that may cost more to obtain than the row is worth.
 
 **Ruling: ship it, marked `[thin]` for the send-path, not `[owner]` or `[spec]`.** The cost of
-carrying a possibly-inert row is zero; the cost of blocking the whole table on one unverifiable
+carrying a possibly-inert row is zero. The cost of blocking the whole table on one unverifiable
 protocol behavior is not. The revision price is stated rather than hidden, matching this repo's
 standing convention: the day a live retrieval (or an operator report) confirms or refutes the
 138/udp row, only that row's mark changes — nothing else in the table moves.
@@ -439,7 +439,7 @@ table's. But authoring the five rows surfaces exactly where that question will h
   safe for the listener" exposure this table does not eliminate, only makes unlikely.
 - **`138/udp` carries a second, structural version of the same question.** RFC 1002's own model routes
   a correctly-addressed `DIRECT_UNIQUE` datagram into mailslot/browse dispatch on the receiving
-  service; this table's destination name is chosen to be unowned specifically to avoid that path and
+  service. This table's destination name is chosen to be unowned specifically to avoid that path and
   land on the error case instead. Whether every real implementation's name-ownership check happens
   strictly *before* any dispatch side effect — rather than a wrong guess being partially processed —
   was not established by this retrieval and is exactly the shape of question ADR-0015 left open.
@@ -466,9 +466,9 @@ unshipped leaf's parameter as one already carried on the wire.
 
 **The table costs almost nothing to build and nothing new to ship.** Four of five rows are authored
 to specification and corroborated against a real, current, widely-deployed implementation
-(`[owner]`); the fifth (`138/udp`) is authored to specification but its send-path is unconfirmed after
+(`[owner]`). The fifth (`138/udp`) is authored to specification but its send-path is unconfirmed after
 a genuine two-implementation search and ships marked `[thin]` rather than blocking the table. No row
-needs session state, credentials, or more than a small encoder/matcher pair; the one shared
+needs session state, credentials, or more than a small encoder/matcher pair. The one shared
 engineering cost — an unconnected receive socket matching by content, not source port — was already
 named by ADR-0083 and is paid once. **It is carried by `datagram-outcome`, the already-specified,
 still-unshipped sixth leaf, as that leaf's declared parameter**, alongside the operator-invisible
@@ -507,8 +507,8 @@ for whoever builds the sender.
 
 **Attempted and not usable (recorded so the gap is not silently repeated):**
 - `intel.com`'s IPMI 2.0 specification page — HTTP 403, confirmed still blocked
-- `img1.wsimg.com/.../ipmi_specification_v2.0.pdf` — fetched and inspected; a 2-page `wkhtmltopdf`
-  rendering, not the IPMI 2.0 spec; discarded
+- `img1.wsimg.com/.../ipmi_specification_v2.0.pdf` — fetched and inspected. A 2-page `wkhtmltopdf`
+  rendering, not the IPMI 2.0 spec. Discarded
 - `scribd.com` and `studylib.net` IPMI 2.0 spec mirrors — located, not read (429/rate-limited on fetch)
-- GitHub code search on samba-team/samba — blocked without authentication; substituted with direct
+- GitHub code search on samba-team/samba — blocked without authentication. Substituted with direct
   `curl` of raw file contents and `gh search code`, both of which succeeded and are cited above

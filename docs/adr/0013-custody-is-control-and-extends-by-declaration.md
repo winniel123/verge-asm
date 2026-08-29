@@ -15,15 +15,15 @@ is cloud-resident. All 52,680 published AWS/Azure/GCP IPv4 prefixes belong to **
 holders**, none of whom is the operator.
 
 Read against [ADR-0002](./0002-ownership-gates-probing.md), that looked fatal. If the
-cloud-resident estate is reached only through name scopes, its addresses derive `third-party`,
-the probing gate closes, and the modal install never evaluates
+cloud-resident estate is reached only through name scopes, its addresses derive `third-party`
+and the probing gate closes. The modal install then never evaluates
 `sensitive-port-reached-from-internet` — the product's sharpest signal — for the life of the
 deployment.
 
 Two of the three routes [#40](https://github.com/winniel123/verge-asm/issues/40) proposed had
-already collapsed into each other before the ticket was worked, and this is worth recording
+already collapsed into each other before the ticket was worked. This is worth recording,
 because the framing survived into the ticket itself. Its route 2 asked for *"a route to `owned`
-that does not depend on registry delegation"* — but
+that does not depend on registry delegation"*. But
 [#27](https://github.com/winniel123/verge-asm/issues/27) had already withdrawn registry data
 from the derivation entirely. An address-scope `Seed` over `52.1.2.3/32` derives `owned` today,
 with **no registry check to fail**. *"Asks them to declare a CIDR they do not hold"* is a
@@ -74,7 +74,7 @@ exactly **two kinds** — and it sits beside `exclusions`, which
 the operator adjusting the boundary of a scope they already declared.
 
 **Transitivity stops where the resolution chain leaves the declared zone.** `api.example.com A
-52.1.2.3` extends; `shop.example.com` → `d1x2y3.cloudfront.net` → `13.32.x.x` does not, because
+52.1.2.3` extends. `shop.example.com` → `d1x2y3.cloudfront.net` → `13.32.x.x` does not, because
 the CNAME target is outside every name-scope `Seed`. That test is a **measurement**, not a list
 of providers to recognise — which is what keeps it clear of
 [#31](https://github.com/winniel123/verge-asm/issues/31)'s signature-database line and
@@ -145,7 +145,7 @@ their DNS provider silently made false. This is the common configuration, not an
 
 Requiring the zone file for an extending scope was considered and **rejected**, and the reason
 generalises: it only buys the guarantee if every export distinguishes `ALIAS` from `A`. Route 53's
-API carries `AliasTarget` explicitly; what a Cloudflare export shows with flattening enabled has
+API carries `AliasTarget` explicitly. What a Cloudflare export shows with flattening enabled has
 **not been measured**. A safety precondition whose reliability we have not established is worse
 than a stated cost, because it fails *silently* and the operator believes they are covered.
 
@@ -184,7 +184,7 @@ on the ground that *"every legitimate widening in this model traces back to a De
 the declaration is such an act, made **once**, about a set that is **recomputed**. Between one
 cadence and the next, the party who moves the boundary is the operator's DNS administrator or
 their provider. Leaving that silent is not a stated cost of the same kind as the ones this project
-has accepted elsewhere; those all state a cost the operator can *see*.
+has accepted elsewhere. Those all state a cost the operator can *see*.
 
 ### What it may assert, and what it may not
 
@@ -232,7 +232,7 @@ property. Three things carry it, none of them a form of words alone:
 - **It fires at the cause, carrying a set** ([ADR-0007](./0007-drift-is-a-timeline-of-spans.md)),
   so a CDN cutover that moves a whole zone in one night is one message and not forty.
 - **It reports a boundary, not a suspicion.** *The addresses `example.com` covers have changed* is
-  the register; *you may have over-asserted* is not, and the second is what the nag test forbids.
+  the register. *you may have over-asserted* is not, and the second is what the nag test forbids.
   An operator who added two machines this week reads two addresses they recognise, which is the
   same five-second act §7 already asks of them once.
 
@@ -304,7 +304,7 @@ families against a `Seed` that might cover one of them. Three things follow and 
 untouched by all three.
 
 **The test is *every* address, not *any*.** §6 says the class is re-verified against the
-address-scope `Seed`s the system holds; it never said what a **dual-stacked** prober is verified
+address-scope `Seed`s the system holds. It never said what a **dual-stacked** prober is verified
 against.
 
 > **Rider added 2026-08-15 by [#124](https://github.com/winniel123/verge-asm/issues/124): the
@@ -331,7 +331,7 @@ extension` still may not decide a vantage's class, in either family.
 **§4's perishability warning does not reach a prober's own `/128`.** A v6-only internal prober has no
 route to verify `internal` through the extension — §6 bars it by design — so its route is a literal
 `/128` address scope naming its own address, which the cap admits at one address. §4's hazard is a
-cloud provider reallocating a *released* address to a stranger; the operator's own prober is a
+cloud provider reallocating a *released* address to a stranger. The operator's own prober is a
 machine they control and can see, and this is not the estate.
 
 ## Consequences
@@ -356,7 +356,7 @@ machine they control and can see, and this is not the estate.
 - **Exposure attribution follows.** ADR-0002 splits attribution by the gate — a custody-extended
   address is `operator`, so its exposure belongs to the `Address` rather than to the `Name`.
 - **The registry paths lose their last claim to being load-bearing.** The cloud-resident entry
-  point is a name scope plus a tick; no org→prefix lookup is on the path. This is an input to
+  point is a name scope plus a tick. No org→prefix lookup is on the path. This is an input to
   [#43](https://github.com/winniel123/verge-asm/issues/43).
 - **An operator on shared hosting loses nothing by leaving it off**, and gains a false assertion
   by turning it on. That is the intended shape: being wrong here is an ordinary false declaration,

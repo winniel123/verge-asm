@@ -5,7 +5,7 @@
 - **Ticket:** [#124 Packaging, default configuration, and which container receives which secret](https://github.com/winniel123/verge-asm/issues/124)
 - **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
 - **Discharges:** [ADR-0001](./0001-stack-and-runtime.md)'s consequence — *"first-run configuration must now cover which container receives which secret — the split that gives the topology decision its teeth"* — and its sketch of that split
-- **Extended by (this rule is *kept*, not withdrawn):** [ADR-0124](./0124-a-backup-carries-data-and-no-secret-and-updating-is-guided-not-self-applied.md) (2026-08-26) builds the shipped, UI-taken backup on the #121 consequence below — *a backup carries the estate and no credential* — making it the export's own invariant; the session and prober keys stay out of every backup and regenerate on restore
+- **Extended by (this rule is *kept*, not withdrawn):** [ADR-0124](./0124-a-backup-carries-data-and-no-secret-and-updating-is-guided-not-self-applied.md) (2026-08-26) builds the shipped, UI-taken backup on the #121 consequence below — *a backup carries the estate and no credential* — making it the export's own invariant. The session and prober keys stay out of every backup and regenerate on restore
 
 ## Context
 
@@ -29,7 +29,7 @@ there by the obvious implementation:
 
 - The **zone file** is evidence. It is parsed into `dns-record` observations that `web` renders on
   `Coverage`, on `Subjects` and in two signals' census
-  ([#48](https://github.com/winniel123/verge-asm/issues/48)); its content is in the database
+  ([#48](https://github.com/winniel123/verge-asm/issues/48)). Its content is in the database
   whatever the delivery mechanism is. Listing it as a `worker`-only secret protects nothing.
 - The **SSH key** is separable — but only if it never enters the database. Nothing said so, and the
   natural implementation of *the operator pastes a key* puts it there, because that is where every
@@ -81,14 +81,14 @@ this one thing goes somewhere else* loses to gravity unless it says **why** and 
 The why is asymmetric loss. An attacker holding the database holds the inventory — which is the
 worst outcome this product has, and #14 already priced the SSH key against it: *"compromising the
 instance also yields a VPS — the smaller prize relative to the inventory database."* That pricing is
-correct and it is an argument for **not** spending much on the split; it is not an argument for
+correct and it is an argument for **not** spending much on the split. It is not an argument for
 spending nothing. What separability buys here is narrow and real: the SSH key is the only credential
 in v1 that authorises an act **outside the estate**, on a machine the operator provisioned for us
 and will otherwise forget about — which is the dangling-asset class this product exists to detect,
 with our own name on it (#14's own words).
 
-And the session key's case is different in kind and stronger. Database compromise is not one event;
-it has a **read-only** form that is far commoner than the write form — a backup on a NAS, a `pg_dump`
+And the session key's case is different in kind and stronger. Database compromise is not one event.
+It has a **read-only** form that is far commoner than the write form — a backup on a NAS, a `pg_dump`
 in a home directory, a replica, an export. Password hashes are built to survive exactly that. A
 session signing key is not: it converts a read-only historical leak into live admin access with no
 password and no TOTP. Putting it in the database silently removes the property #11 chose Argon2id
@@ -122,7 +122,7 @@ the bytes end up.
 The cost is stated and it is not nothing: **`docker compose down -v` destroys the prober credential
 and the session key**, and a database backup restored onto a fresh volume comes up with sessions
 invalidated and the prober unreachable until a new public key is installed. Both are recoverable by
-an act the operator has already performed once, both fail **loudly** — every session logs out; the
+an act the operator has already performed once, both fail **loudly** — every session logs out. The
 vantage goes `unavailable`, opens a `Gap` and makes `Exposure` non-constructible
 ([ADR-0005](./0005-scan-execution-model.md)) — and neither can fail **silently**, which is the
 property this repository consistently buys at higher prices than this.
@@ -132,7 +132,7 @@ property this repository consistently buys at higher prices than this.
 `web` and `worker` both hold the database credential and there is no version of this design in which
 they do not: `web` renders the estate and `worker` writes it. Rather than dress that up, it is the
 Decision's own row, because it is what makes the rule readable. **The split is not between two
-containers; it is between the store they share and the two stores they do not.** A future session
+containers. It is between the store they share and the two stores they do not.** A future session
 reading *the secrets are split by blast radius* and reaching for a third `worker`-only credential in
 the database will be reaching past this row.
 
@@ -149,10 +149,10 @@ is already ticketed. [#119](https://github.com/winniel123/verge-asm/issues/119) 
 notification channels, and every candidate — SMTP credentials, a webhook URL with a token in it, a
 chat integration secret — is a secret the operator **types** and a worker **uses**. Under this rule:
 
-- it is written to `worker`'s store by `worker`, never persisted by `web`;
+- it is written to `worker`'s store by `worker`, never persisted by `web`
 - `web` renders **set** / **not set** and a test-send result, never a value, never a masked value
-  that can be un-masked by reading the database;
-- and it is out of every backup that carries the estate, which is a property #121's retention ruling
+  that can be un-masked by reading the database
+- it is out of every backup that carries the estate, which is a property #121's retention ruling
   should be told about rather than discover.
 
 The prohibition that falls out and is worth stating separately: **there is no "show" affordance on a
@@ -163,10 +163,10 @@ can read, and the rule is exactly that `web` cannot.
 
 - **No threat model has been written, and this reasons from one implicitly.** The assumed adversary
   reaches `web` through an HTTP handler or reaches a database backup at rest. An adversary with
-  arbitrary code execution on the host reads every volume and the split buys nothing; that is stated
+  arbitrary code execution on the host reads every volume and the split buys nothing. That is stated
   rather than defended, and it is the same posture ADR-0001 took.
 - **The asymmetric-loss argument is a judgement, not a measurement.** *A VPS is a smaller prize than
-  the inventory* is #14's sentence and this ADR leans on it; nobody has enumerated what an attacker
+  the inventory* is #14's sentence and this ADR leans on it. Nobody has enumerated what an attacker
   does with a prober. The one concrete thing they do is **fabricate observations**, which #14 already
   says no transport prevents — so the marginal loss from the key specifically is genuinely small, and
   the strongest limb of this ADR is the **session key**, not the SSH key.
@@ -184,8 +184,8 @@ can read, and the rule is exactly that `web` cannot.
   it** ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).
   Read alone and in the present tense, *`worker` — database credentials, SSH key, operator-supplied
   zone file* would have a session build a delivery table and call it a boundary. Its topology
-  decision, its blast-radius rationale and its `web`/`worker` split are **untouched and confirmed**;
-  what is withdrawn is the row.
+  decision, its blast-radius rationale and its `web`/`worker` split are **untouched and confirmed**.
+  What is withdrawn is the row.
 - **The compose file gains two named volumes** — `web-state` and `worker-state` — beside `pgdata`,
   and the shipped file is the artefact that carries this ADR. The full shape is in
   [`packaging-and-configuration.md`](../spec/packaging-and-configuration.md).
@@ -194,8 +194,8 @@ can read, and the rule is exactly that `web` cannot.
   have to explain how to produce them safely.
 - **`web` renders no secret value, ever.** This is a UI constraint as much as a storage one, and it
   reaches [#123](https://github.com/winniel123/verge-asm/issues/123)'s `Seeds` screen (the prober's
-  **public** key is rendered; nothing else is) and [#127](https://github.com/winniel123/verge-asm/issues/127)'s
-  audit trail (a secret being **set** is an auditable act; its value is not an auditable datum).
+  **public** key is rendered. Nothing else is) and [#127](https://github.com/winniel123/verge-asm/issues/127)'s
+  audit trail (a secret being **set** is an auditable act. Its value is not an auditable datum).
 - **[#119](https://github.com/winniel123/verge-asm/issues/119) inherits a constraint rather than a
   design.** Whatever channels it picks, their credentials are `worker`'s, written by `worker`, and
   invisible to `web` and to the database.

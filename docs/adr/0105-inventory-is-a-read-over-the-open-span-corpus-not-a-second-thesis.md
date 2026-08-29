@@ -13,7 +13,7 @@ resolution outcome and a reachability verdict, the drill-down renders facet **ti
 `Break`s between them. But an operator legitimately needs to answer a second question the same corpus
 already holds — *what do I actually have right now?* — and today the UI never answers it. A
 `dns-record` span renders as *"5 records"*, a `resolution` as *"Resolved"*, a `certificate` as a bare
-verdict; the addresses, the records, the presented chain, the HTTP identity are all in
+verdict. The addresses, the records, the presented chain, the HTTP identity are all in
 `observation.value` and folded into `span.value`, readable only from a Postgres session. #240 already
 opened one seam — the drill-down expands a `dns-record` and a `resolution` span to its actual items —
 but the gap is systemic: it spans every facet and there is no estate-wide *"here is what you hold"*
@@ -21,13 +21,13 @@ surface at all.
 
 #243 was triaged `ready-for-human` because *committing the product to a second axis* is a maintainer
 call, not a mechanical one, and it asked three questions with no defensible default: **does inventory
-belong as a first-class axis in a change-first product; what is the IA; and how is "current state"
+belong as a first-class axis in a change-first product. What is the IA. And how is "current state"
 defined against the change/span model.** The maintainer's answer is **yes, as a first-class axis**.
 This ADR is the design pass that ruling requires: it commits the axis, defines it entirely against
 the existing model so it dilutes nothing, and pins what *current* means.
 
 **The model already holds the answer, and holds it in exactly one place.** [ADR-0007](./0007-drift-is-a-timeline-of-spans.md)
-folds observations into `Span`s; the `span` table's partial unique index
+folds observations into `Span`s. The `span` table's partial unique index
 (`span_open_timeline_idx`, `db/migrations/19000_span.sql`) makes **at most one open span per
 `(subject, facet, discriminator, vantage, source)` timeline** — and the migration says why in as many
 words: *"current state is that one row, read as a lookup … what makes 'the open span is the current
@@ -39,13 +39,13 @@ instead of diffed over time.** That is the whole idea, and everything below foll
 
 ### 1. Inventory is a **read**, not a second corpus — the same `span` rows, projected differently
 
-Change reads a subject's spans **down a timeline** and derives the `Break`s between them; inventory
+Change reads a subject's spans **down a timeline** and derives the `Break`s between them. Inventory
 reads the **open** span **across subjects** and renders the value it holds. Same rows, two
 projections. There is **no** new table, no new observation, no new `Derivation` leaf, and no new
 value in any facet's space ([ADR-0015](./0015-the-value-space-is-the-commitment.md) is untouched).
 This is what makes the axis *complementary, not diluting*: it commits the product to no new thing to
 measure or version — only to **showing what is already measured**. The facet layer is evidence, not a
-channel ([ADR-0026](./0026-the-facet-layer-is-evidence-not-a-channel.md)); inventory is that evidence
+channel ([ADR-0026](./0026-the-facet-layer-is-evidence-not-a-channel.md)). Inventory is that evidence
 read for its own sake rather than for the message a move would carry.
 
 The read is `ListAllOpenSpans` (`db/queries/span.sql`): every span with `closed_at IS NULL`, ordered
@@ -76,7 +76,7 @@ and inventory states *what is held and since when*, not *what is true this secon
 currency bound** — a one-off measurement ([ADR-0044](./0044-a-one-off-measurement-has-no-currency.md))
 or an uncovered facet whose Scan is disabled (ADR-0084) — is not special-cased and not hidden: it
 holds an open span with an `opened_at`, and inventory shows the value dated by it, exactly as it shows
-a cadenced one. The date is the currency statement; inventory never manufactures a stronger one.
+a cadenced one. The date is the currency statement. Inventory never manufactures a stronger one.
 
 ### 3. A **withdrawn** subject holds no inventory — the axis and membership agree by construction
 
@@ -112,7 +112,7 @@ free, with no special case, exactly as that ADR's §3 anticipated the *"#243 ope
 The surface is `GET /inventory`: the estate's open spans grouped by subject, each subject's facets
 listed with the **actual value** expandable inline to its individual records — the #240 expand-seam
 (`spanDetails`) **generalised to every facet**. The per-subject *"what this holds now"* view is **not**
-a new page duplicating the drill-down; it is the drill-down's existing **Current** rendering, which now
+a new page duplicating the drill-down. It is the drill-down's existing **Current** rendering, which now
 expands *every* facet's open span (not only `dns-record`/`resolution`) through the same shared seam.
 Estate-wide inventory and per-subject inventory are therefore **one mechanism** — `valueLabel` +
 `spanDetails` over an open span — surfaced in two places, so the axis adds a read and a template, not a
@@ -140,8 +140,8 @@ complementary clause and leaves the thesis standing.
   leaf count, and every timeline's vector are all untouched, so **no timeline `Break`s** on account of
   this axis. This is the cheapest possible way to ship the second axis, and it is cheap precisely
   because the axis is a read.
-- **`ListAllOpenSpans` is added to `db/queries/span.sql`** and threaded through the `store` interface;
-  it is a plain, ungated span read alongside `ListOpenSpansForSubject` and `ListSpansForSubject`.
+- **`ListAllOpenSpans` is added to `db/queries/span.sql`** and threaded through the `store` interface.
+  It is a plain, ungated span read alongside `ListOpenSpansForSubject` and `ListSpansForSubject`.
 - **`valueLabel`/`spanDetails` (`cmd/web/subjects.go`) become the shared inventory renderer** and gain
   `certificate` (its presented chain), `http-identity` (its admitted closed set), and `tls-acceptance`
   (its accepted versions and selected suites) expansions. Because these are the same functions the
@@ -155,7 +155,7 @@ complementary clause and leaves the thesis standing.
   `Span`, `Drift`, and `Gap`.
 - **The axis is honest about currency without modelling it further.** Inventory shows `opened_at` and
   never a synthetic *"as of now"*, so it inherits each facet's real currency (ADR-0028/0044/0084)
-  rather than asserting one. No staleness badge is introduced in v1; the date is the statement.
+  rather than asserting one. No staleness badge is introduced in v1. The date is the statement.
 - **Address subjects have no drill-down yet**, so an `address`-kind open span (none is produced today)
   would render in inventory as plain text with no link — additive and forward-compatible with a future
   Address surface, never a blocker.
@@ -180,9 +180,9 @@ complementary clause and leaves the thesis standing.
   to render a staleness signal is a real, defensible next step and is deliberately **not** taken here —
   the honest date is the v1 commitment, a staleness verdict is a later one.
 - **Estate-wide grouping is by subject kind, flat within a kind.** A large estate renders a long list
-  with no server-side search or pagination on `/inventory` in v1 (the Subjects listing has search; this
+  with no server-side search or pagination on `/inventory` in v1 (the Subjects listing has search. This
   read does not yet). The read itself is a single ordered `SELECT`, so adding a search/scope filter is
-  additive; it is unbuilt, not designed against.
+  additive. It is unbuilt, not designed against.
 - **`address`-kind inventory is forward-declared, not exercised.** No `address` facet produces a span
   today, so the unlinked-plain-text rendering for that kind is specification, not `[measured]`. It
   costs nothing and blocks nothing, but it has not run.

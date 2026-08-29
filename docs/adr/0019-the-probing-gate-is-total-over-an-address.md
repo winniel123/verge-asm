@@ -79,7 +79,7 @@ That cost is **already priced and already paid**, twice. ADR-0013's Consequences
 shared hosting loses nothing by leaving it off, and gains a false assertion by turning it on. That
 is the intended shape."* ADR-0002's Consequences: *"Coverage is deliberately narrower than a tool
 that scans everything it reaches. An operator whose estate is mostly SaaS-fronted sees fewer ports.
-That is the intended trade."* This ADR does not choose the trade; it stops the repository from
+That is the intended trade."* This ADR does not choose the trade. It stops the repository from
 describing it two ways.
 
 ## Rationale
@@ -107,7 +107,7 @@ or a derivation — it is a table, and a table that decides *where to look* is a
 ([#31](https://github.com/winniel123/verge-asm/issues/31), ADR-0008). Adding it means an eighth
 aperture input, a dimension on every `Batch`'s recorded scope, and a `revealed` opening whenever it
 moves. None of that exists, and nobody has ever proposed it. A clause that cannot be implemented
-without machinery nobody has costed is not a live decision; it is a sentence that outlived its
+without machinery nobody has costed is not a live decision. It is a sentence that outlived its
 draft.
 
 ### The two limbs were never alternatives — one of them shipped
@@ -128,7 +128,7 @@ population, one row wide.
 The reading that makes this ADR look severe is that the honest install *sees nothing*. It does not.
 
 `resolution` is the facet that puts every address in the estate in the first place, and the facet
-that withdraws them; `dns-record` runs seven qtypes on every name. Between them they carry the
+that withdraws them. `dns-record` runs seven qtypes on every name. Between them they carry the
 whole `Name` side of the estate, every membership event on the two subjects that can be a root
 ([ADR-0031](./0031-membership-alerts-at-the-root-of-the-entering-subtree.md)), and the rules whose
 evidence is a DNS answer. ADR-0002's own Consequences said so and then deferred the drawing of it:
@@ -160,11 +160,11 @@ row of the ADR that made it. That belongs in `docs/adr/`.
 - **[`CONTEXT.md`](../../CONTEXT.md)'s `Custody` entry gains one clause** — the gate is total over
   the address, and the retained value is read by rules until it ages.
 - **Nothing in the measurement binary changes.** No leaf's output moves, no `Derivation` version
-  moves, no `Break` is written. The clause was never implemented; this ADR retires the sentence,
+  moves, no `Break` is written. The clause was never implemented. This ADR retires the sentence,
   not a behaviour. Concretely: no golden-corpus row moves, which is the bidirectional gate in
   [ADR-0008](./0008-derivation-versions-move-on-content.md) confirming that this is a documentation
   repair and not an output-affecting change.
-- **The aperture input count stays at seven.** Limb 1 would have made an eighth; refusing it is
+- **The aperture input count stays at seven.** Limb 1 would have made an eighth. Refusing it is
   what keeps the map's live absolute correct.
 - **[#44](https://github.com/winniel123/verge-asm/issues/44)'s `?fill=modal` prototype overstates
   the honest install** by two populated rules — `certificate-expiring` at 616 subjects and

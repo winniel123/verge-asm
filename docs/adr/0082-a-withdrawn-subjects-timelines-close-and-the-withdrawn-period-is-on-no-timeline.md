@@ -86,7 +86,7 @@ unfounded and wrong that nothing prior bore on it. Two things follow immediately
 
 The reason ADR-0007 gives is subject-kind-agnostic. *Every current-state query returns it as live*
 is true of a `Name` holding an open span exactly as it is of an `Endpoint`. The board, the census,
-`Coverage`'s denominators and every count in the product read current state; a subject with an open
+`Coverage`'s denominators and every count in the product read current state. A subject with an open
 span is in all of them. The only way to hold an open span and stay out of those answers is to make
 every current-state query special-case one value, which is
 [#32](https://github.com/winniel123/verge-asm/issues/32)'s refusal — *a rule reads a leg, never a
@@ -97,7 +97,7 @@ And the two readings **cannot coexist in one tree**. ADR-0007 fixes the cascade 
 returns as live sitting above `Endpoint`s whose spans are closed, and the membership message's
 census — the only carrier a returning sub-tree has
 ([ADR-0031](./0031-membership-alerts-at-the-root-of-the-entering-subtree.md)) — would be computed
-over a half-dead tree. Reversing this sentence therefore does not cost one sentence; it reopens
+over a half-dead tree. Reversing this sentence therefore does not cost one sentence. It reopens
 ADR-0007's cascade closure and the reason `cascaded` exists.
 
 ### The decisive asymmetry: a closed span is free to keep, an open span must be fed
@@ -166,7 +166,7 @@ invented, sitting between present and gone, which is the enumerated refusal ADR-
 better version was built and tested.
 
 **The better version needs no new value at all.** `resolution`'s value space already contains
-`NameError`; a measured negative *"is a value and must not collapse into we did not look"*; a `Name`
+`NameError`. A measured negative *"is a value and must not collapse into we did not look"*. A `Name`
 leaves when our resolver measures a Name Error from every available vantage. So the honest record of
 a departure is the timeline holding an open `NameError` span. Nothing is invented, ADR-0006's
 *removal is an observed value, not an invented event* is honoured more literally than by the
@@ -184,7 +184,7 @@ timeline of that subject that could hold an open value meaning *gone*. The open-
 therefore rescues `returned` for `Name`s and cannot state the `Address` case at all — and the cited
 `Address` is precisely the second population whose membership ADR-0041 traced to `resolution-walk`.
 A rule that works on one of the two membership-bearing subject kinds and is inexpressible on the
-other is not a rule; it is an accident of which facet happened to carry the evidence.
+other is not a rule. It is an accident of which facet happened to carry the evidence.
 
 **And it rots, for the reason in the section above.** A withdrawn name is not re-queried, so its
 `NameError` observation ages past the currency bound within `k` cadences and the span becomes a
@@ -209,7 +209,7 @@ That is not a detail. It is what makes the mechanism work. Because no object hol
 them, the span before the withdrawal and the span after the return are **consecutive spans on one
 timeline**, and a `Transition` is *the adjacency between two consecutive spans* — derived on read,
 by machinery that already exists, with no case for absence anywhere in it. `returned` is that
-adjacency where the two spans share a vector; where a release moved a leaf between them, the
+adjacency where the two spans share a vector. Where a release moved a leaf between them, the
 adjacency is still there and the **licence** is not, which is what a `Break` withdraws.
 
 It also explains why the model's contrast between a closed gate and a withdrawal is not
@@ -218,7 +218,7 @@ the last value ages out, and what follows the bound is a `Gap` naming the operat
 withdrawal removes the subject: the timelines close and there is no `Gap`. If a withdrawn subject
 held an open span, those two paths would be the same path — the value would age out and a `Gap`
 would open — and `Custody`'s explicit *leaves no `Gap` behind* would be false. The competing answer
-does not merely add a value; it collapses a distinction two glossary entries draw deliberately.
+does not merely add a value. It collapses a distinction two glossary entries draw deliberately.
 
 ### The cost is stated rather than reduced
 
@@ -283,7 +283,7 @@ The remedy is the three obligations ADR-0041 already wrote, and they now rest on
   alone and in the present tense it sends a session to open a ticket that has been closed. The item
   was: ADR-0041 states that membership composes `resolution-walk` and nothing else, but a `Name` under
   a `Shadowed` answer *cannot leave at all*, and `Shadowed` is `wildcard-discrimination`'s output
-  rather than `resolution-walk`'s (ADR-0021's leaf table); if deciding that a subject does **not**
+  rather than `resolution-walk`'s (ADR-0021's leaf table). If deciding that a subject does **not**
   leave is deciding presence, then `wildcard-discrimination` is in the membership vector — and its
   control-label count has already moved `5` → `9`
   ([#115](https://github.com/winniel123/verge-asm/issues/115)).
@@ -338,5 +338,5 @@ The remedy is the three obligations ADR-0041 already wrote, and they now rest on
   composes a set of witnesses, chosen by
   [ADR-0080](./0080-a-vantage-composition-is-cross-class-or-class-scoped-and-only-one-takes-a-quantifier.md)'s
   own quantifiers, and `returned` requires no `Break` on any of them — this ADR's mechanism applied
-  once per witness and conjoined, not superseded. The ruling above is unaffected; the gap this
+  once per witness and conjoined, not superseded. The ruling above is unaffected. The gap this
   bullet named is closed.

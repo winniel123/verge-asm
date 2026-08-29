@@ -20,7 +20,7 @@ is:
 > (estate-proportion stays forbidden; a declared range is not the estate).
 
 [ADR-0095](./0095-the-aperture-statement-counts-what-the-instrument-cannot-report-not-what-it-did-not-look-at.md)
-and its lineage (#44 decision 7; ADR-0044; ADR-0072) bar the aperture statement from
+and its lineage (#44 decision 7, ADR-0044, ADR-0072) bar the aperture statement from
 carrying **a count or proportion of the operator's estate** — "counts **our** lists and
 rules; carries **no** count of what is unmeasured". A denominator that is *the estate* is
 [#28](https://github.com/winniel123/verge-asm/issues/28)'s refused completeness score. The
@@ -44,7 +44,7 @@ with that bar.
 
 - **ADR-0095's estate-proportion prohibition is confirmed, not weakened.** It bars a
   denominator that is the estate. A declared address range is a bounded set the operator
-  enumerated; `counted / total` over it is a census of that range. The two never fuse: a
+  enumerated. `counted / total` over it is a census of that range. The two never fuse: a
   name scope, whose addresses are *not* enumerable in advance, keeps the census bar with no
   denominator, exactly as before.
 - **The denominator is a constant of the declaration**, in the spirit of ADR-0044's
@@ -58,15 +58,15 @@ with that bar.
   (`cmd/web/devfixtures.go`, drift-gated by `TestCoverageFixtureMatchesPackage`). This is
   the exact-parity target G2 verifies.
 - **A live estate renders the honest census, pending a first-class numerator.** The
-  denominator (enumerable addresses of a declared range) is already a first-class datum;
-  the numerator — *subjects the batch walked within a declared range* — is **not** a
+  denominator (enumerable addresses of a declared range) is already a first-class datum.
+  The numerator — *subjects the batch walked within a declared range* — is **not** a
   first-class read yet, so `cmd/web/cold.go`'s live `coveragePage` renders the address meter
   as a census rather than fabricate the numerator (which
   [`SPEC-CHANGE.md`](../../design-system/SPEC-CHANGE.md) forbids). Wiring the live
   `counted / total` form is carried as a successor: it needs a per-scope walked-subject
   count, not a spec change — this ruling is the spec.
 - **No coverage-class member, message cause, or aperture input is minted.** This is a
-  rendering refinement to one existing aperture meter; ADR-0095's ten-member class, the
+  rendering refinement to one existing aperture meter. ADR-0095's ten-member class, the
   seven aperture inputs, and the four/five absence registers are untouched.
 
 ## Alternatives rejected

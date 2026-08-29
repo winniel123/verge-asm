@@ -7,23 +7,23 @@ description: A worked Docker example for standing up the dedicated prober host t
 
 # Provisioning a prober — a worked Docker example
 
-Standing up a **dedicated prober host**: the internet `Vantage` that lets verge see
+Provisioning a **dedicated prober host**: the internet `Vantage` that lets verge see
 your estate from the outside. This is [using.md](using.md) step 3 in full, with a
 copy-paste Docker recipe instead of hand-edited `sshd` config.
 
 **Why a second host at all.** `Exposure` needs an outside observer, unconditionally.
 A single all-in-one install builds a complete, honest *internal* reachability
-inventory, but it cannot see its own estate from the internet — probing your own
+inventory, but it cannot see its own estate from the internet. Probing your own
 public address from inside is a hairpinning trap that never traverses the inbound
 policy. So `Exposure` needs a **prober**: a second Linux host the instance reaches
 over SSH and pushes its measurement binary to. Until one exists, exposure claims are
 withheld and the system degrades to internal-only — it never reports `firewalled` or
-`exposed` for something it did not look at. See
+`exposed` for something it did not observe. See
 [packaging-and-configuration.md §4.2–4.3](../spec/packaging-and-configuration.md).
 
 **What the recipe is — and is not.** It is a hardened SSH *target*, not a resident
 prober. The instance ships the exact binary it wants at each invocation, which is what
-makes version skew between instance and vantage impossible; a container that baked in
+makes version skew between instance and vantage impossible. A container that bundled
 its own prober would reintroduce that skew. The recipe therefore runs *only* a minimal
 SSH server. The full rationale is recorded alongside the artifact in
 [`deploy/prober/README.md`](../../deploy/prober/README.md).
@@ -61,7 +61,7 @@ The instance generates the SSH keypair and renders the **public** half for you t
 install. **Only the public key ever leaves the instance** — the private half stays on
 the `worker-state` volume and never moves
 ([ADR-0053](../adr/0053-a-secret-is-held-only-where-its-act-is-performed-and-the-shared-store-holds-none.md)).
-Copy the rendered public key; it is one line beginning `ssh-ed25519 AAAA…`.
+Copy the rendered public key. It is one line beginning `ssh-ed25519 AAAA…`.
 
 > verge never asks you for a private key, and neither does the recipe — the recipe
 > refuses one outright. If anything prompts you to paste a *private* key, stop.
@@ -105,7 +105,7 @@ Server listening on 0.0.0.0 port 2222.
 ```
 
 That fingerprint is what the instance will pin in step 3 — note it if you want to
-compare. sshd listens unprivileged on `2222` inside the container; compose maps your
+compare. sshd listens unprivileged on `2222` inside the container. Compose maps your
 chosen host port (default `22`) onto it, so from the instance's side this is an
 ordinary SSH host on port 22.
 
@@ -113,10 +113,10 @@ ordinary SSH host on port 22.
 
 The recipe stores the host key on a named volume (`prober-hostkeys`) on purpose. The
 instance **pins** this key at provisioning, and a later change is a hard failure,
-never a prompt (§3): an unpinned push would let whoever answers on that address run
+never a prompt (§3). An unpinned push would let whoever answers on that address run
 verge's binary and return fabricated inventory. Keep the volume across restarts and
 the key never changes. If you ever `docker compose down -v` (which deletes the
-volume), the next boot mints a new key and the vantage will stop verifying until you
+volume), the next boot mints a new key. The vantage will stop verifying until you
 re-pin it in the UI.
 
 ---
@@ -135,8 +135,8 @@ Finish provisioning in the **Probers** form. The instance now:
    and offers it for declaration (§4.4). This is a `Coverage` statement — *we cannot
    yet construct exposure* — not an alert.
 
-You did not hand-edit any `sshd` config or `authorized_keys` to get here — the recipe
-wrote both from the key you pasted.
+You did not hand-edit any `sshd` config or `authorized_keys` to reach this point — the
+recipe wrote both from the key you pasted.
 
 ---
 
@@ -147,10 +147,10 @@ internal leg, and `Exposure` stays non-constructible — loud and honest, never 
 fabricated `exposed`. Declaring the rendered egress gives the internal leg and unlocks
 exposure.
 
-The recipe already installs the key under `restrict`, which locks it to the one thing
-the instance does — open a session and exec the pushed binary — disabling port,
+The recipe already installs the key under `restrict`. That locks it to the one thing
+the instance does — open a session and exec the pushed binary. It also disables port,
 agent, X11 forwarding and pty. Once verge has shown your egress address, tighten it
-further by pinning the key to that source. Set it in `.env` and re-up:
+further by pinning the key to that source. Set it in `.env` and apply it:
 
 ```sh
 # .env
@@ -163,15 +163,15 @@ docker compose up -d
 
 The account's `authorized_keys` line is now `restrict,from="203.0.113.5" ssh-ed25519 …`
 — the key is refused from any other source address (§3). This is operator-side
-hardening on *your* `authorized_keys`; verge does not enforce it, it recommends it.
+hardening on *your* `authorized_keys`. verge does not enforce it, it recommends it.
 
 ---
 
 ## Step 5 — Confirm exposure is now constructible
 
 Back in verge, declare the rendered egress (the offer from step 3). With both an
-internal and an internet vantage, the **Exposure** page becomes constructible. Kick a
-batch if you don't want to wait for the cadence:
+internal and an internet vantage, the **Exposure** page becomes constructible. Trigger
+a batch if you don't want to wait for the cadence:
 
 ```sh
 # on the instance host

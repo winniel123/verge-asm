@@ -6,7 +6,7 @@ of them clear the modal-operator consent bar?"
 **Extends:** [#3 / `docs/research/passive-discovery-sources.md`](https://github.com/winniel123/verge-asm/blob/research/passive-discovery-sources/docs/research/passive-discovery-sources.md)
 **Consent bar from:** [#15](https://github.com/winniel123/verge-asm/issues/15) / [ADR-0003](../adr/0003-third-party-source-consent-bar.md)
 **Date of research:** 2026-08-13 (UTC)
-**Status:** research complete. Four of the candidates need an email before a verdict exists; those are listed
+**Status:** research complete. Four of the candidates need an email before a verdict exists. Those are listed
 in §12 as follow-on `task` tickets, not resolved here.
 
 ---
@@ -56,8 +56,8 @@ the work — the capability is one click away for any operator willing to accept
 
 All live measurements were taken from a single commercial IP on 2026-08-13 UTC and are reproducible with
 `curl` (8.21.0). Port-43 whois was driven with `printf '<query>\r\n' | curl telnet://<host>:43`. Measurements
-are labelled **[measured]**. Elapsed times are `%{time_total}`; sizes are `%{size_download}`. Every quoted
-clause below was retrieved and read at its own URL; none is quoted from a secondary write-up.
+are labelled **[measured]**. Elapsed times are `%{time_total}`. Sizes are `%{size_download}`. Every quoted
+clause below was retrieved and read at its own URL. None is quoted from a secondary write-up.
 
 ---
 
@@ -76,7 +76,7 @@ not, and closing them requires an email, not more research.**
 Each region also has a *live registry* path that is faster, fresher and more complete than the offline join —
 AFRINIC's is the best org→prefix endpoint of any RIR, better than ARIN's — but every one of those live paths
 sits under registry terms that cannot be cleared by reading. See §8. Per ADR-0003 all four ship **off by
-default, as `operator-accepted`**, until their registry answers; what is lost is first-run depth, not the
+default, as `operator-accepted`**, until their registry answers. What is lost is first-run depth, not the
 capability.
 
 This is a direct improvement on ADR-0003's stated consequence that *"ARIN's `entities?fn=` org-name path
@@ -145,7 +145,7 @@ echo, not a resource search.
 `fn=Cloudflare*`, `fn=Google*`, `fn=APNIC*`, `fn=*Telstra*`, `fn=a`, and by handle `handle=TA166-AP`.
 
 The same handle fetched directly works: **[measured]** `https://rdap.apnic.net/entity/TA166-AP` → 200 in
-0.15 s, 1,500 B. So the objects exist; the search index does not.
+0.15 s, 1,500 B. So the objects exist. The search index does not.
 
 **This is the single most dangerous finding in this document for client implementation.** RFC 9082 requires a
 501 for unsupported query types. APNIC returns 200 with an empty result set, which is indistinguishable from
@@ -154,7 +154,7 @@ footprint for every organisation on Earth — and in a drift product, on the run
 space is first discovered by some other means, it will report that space as **removed**.
 
 `https://rdap.apnic.net/help` (**[measured]** 200, 802 B) advertises no search capability and no `501`
-behaviour; it is `notices` only. There is no way to detect this from the protocol.
+behaviour. It is `notices` only. There is no way to detect this from the protocol.
 
 ### 2.3 LACNIC — works, non-standard response key, requires an explicit wildcard
 
@@ -168,7 +168,7 @@ behaviour; it is `notices` only. There is no way to detect this from the protoco
 Two client-visible deviations:
 
 1. **The results come back under `"entities"`, not `"entitySearchResults"`.** RFC 9083 §8 names the member
-   `entitySearchResults`; LACNIC uses `entities`. A conformant client reads zero results.
+   `entitySearchResults`. LACNIC uses `entities`. A conformant client reads zero results.
    <https://www.rfc-editor.org/rfc/rfc9083.html>
 2. **No implicit prefix matching.** `fn=Cloudflare` returns only the entity whose `fn` is exactly
    `CLOUDFLARE`. The trailing `*` is required, and case is insensitive.
@@ -307,7 +307,7 @@ That is most organisations. `type-filter=organisation` has no such restriction, 
    autnums**: `2001:678:2e0::/48`, `2001:678:634::/48`, `2a00:1098::/32`, `2a04:ad80::/29`, `2a06:1c80::/29`,
    `2a07:1500::/29`, `36.255.148.0/22`, `45.139.80.0/22`, `46.235.224.0/21`, `93.93.128.0/21`,
    `103.105.48.0/22`, `103.209.164.0/22`, `176.126.240.0/21`, `185.47.60.0/22`, `185.101.96.0/22`,
-   `185.139.144.0/22`, `193.227.244.0/23`, `195.10.223.0/24`, `195.191.54.0/23`, `195.191.56.0/23`;
+   `185.139.144.0/22`, `193.227.244.0/23`, `195.10.223.0/24`, `195.191.54.0/23`, `195.191.56.0/23`.
    AS60011, AS44684, AS198557, AS204345.
 
 **Two client hazards, both [measured]:**
@@ -355,7 +355,7 @@ afrinic|ZA|asn |1228|1|19910301|allocated|F36B9F4B                              
 ```
 
 **The organisation name is not in these files and is not recoverable from them alone.** The ticket asked
-whether the handle resolves to a name keylessly; it does not — the ids are opaque by design and, per the spec
+whether the handle resolves to a name keylessly. It does not — the ids are opaque by design and, per the spec
 above, not even stable across versions. On their own the delegated files answer "which prefixes share a
 holder with this prefix", never "which prefixes belong to Acme Ltd".
 
@@ -382,7 +382,7 @@ dataset README as *"opaque identifier used by RIR extended delegation format"*
              → grep A916A983 delegated-apnic-extended-latest = 143 records
 ```
 
-Cross-checked against §2.4: the AFRINIC RDAP live query returned 13 networks for `ORG-SL70-AFRINIC`; the
+Cross-checked against §2.4: the AFRINIC RDAP live query returned 13 networks for `ORG-SL70-AFRINIC`. The
 offline join returned 12 (10 IPv4 + 2 IPv6) for the same holder. The join is faithful.
 
 ### 5.3 The join's coverage is exactly two regions, and this is the crux
@@ -521,7 +521,7 @@ prefix limits* for peering sessions — a count used to size peer filters, not a
 organisation's own prefixes and must never be treated as owned `Address` subjects.
 
 What PeeringDB genuinely gives is **org name → ASN**, plus `irr_as_set`, which is the correct key for an IRR
-expansion. As a link in a chain it is real; as an answer to this ticket it is not. Its terms are dealt with in
+expansion. As a link in a chain it is real. As an answer to this ticket it is not. Its terms are dealt with in
 §8.7 and they are the same clause as APNIC's.
 
 ---
@@ -659,7 +659,7 @@ is crt.sh, which *asserts nothing*: it has no terms page, points at no terms pag
 LACNIC's RDAP does the opposite — **every response carries a `"title":"Terms and Conditions"` notice and a
 `rel: "terms-of-service"` link**, which is an affirmative assertion that a binding document exists and governs
 the query being answered. A document that is asserted, nominated as binding, and then not served is not an
-absence of terms; it is terms we cannot read. Treating "unreadable" as "absent" would let any source acquire
+absence of terms. It is terms we cannot read. Treating "unreadable" as "absent" would let any source acquire
 `unencumbered` status by breaking its own link, and it inverts the burden the ADR spends its Decision section
 establishing (*"a legal reading performed on strangers' behalf is the same kind of assumption"* — reading a
 document one has not seen is the limit case of that).
@@ -796,7 +796,7 @@ This is the direct, clean replacement for RIPEstat's `announced-prefixes` capabi
 **This is word-for-word APNIC's clause with the name substituted** (§8.1) — **[measured]**, both pages
 retrieved and compared. The identical limb-1 problem applies for the identical reason, and it needs the
 identical question asked. Given that §7 establishes PeeringDB does not answer this ticket's question anyway —
-it yields ASNs, not prefixes — **this email is low priority**; ask it only if PeeringDB is wanted for the
+it yields ASNs, not prefixes — **this email is low priority**. Ask it only if PeeringDB is wanted for the
 `irr_as_set` link.
 
 ### 8.8 CAIDA AS Organizations — `unencumbered`
@@ -819,11 +819,11 @@ the Public-AUA. <https://www.caida.org/about/legal/aua/public_aua/>:
 
 An express licence to *"copy, modify, and use"*, with no non-commercial clause and no storage clause. **Both
 limbs clear.** The citation obligation attaches to *publication*, not to internal use, so a self-hosted
-inventory triggers nothing; the README's requested citation should nonetheless appear in verge-asm's
+inventory triggers nothing. The README's requested citation should nonetheless appear in verge-asm's
 attributions.
 
 **One caveat that is worth stating plainly and not resolving here.** CAIDA's dataset is *derived from RIR
-whois*. CAIDA is the redistributor and carries whatever obligations that entails; a downstream user takes the
+whois*. CAIDA is the redistributor and carries whatever obligations that entails. A downstream user takes the
 data under CAIDA's Public-AUA. This is the ordinary structure of licensed redistribution and is not a hidden
 encumbrance — but it does mean the AFRINIC and APNIC "clean path" in §1 depends on CAIDA's own standing with
 those registries, which is CAIDA's to maintain and not something verge-asm can verify.
@@ -898,7 +898,7 @@ worked comparisons, registered set from the registry path versus announced set f
 more-specific of space already in the delegated file. The BGP leg added decomposition detail, not territory.
 
 **Mythic Beasts (RIPE, AS44684 + AS60011 + AS198557 + AS204345)** — 19 registered network objects carrying 20
-CIDRs (14 IPv4, 6 IPv6); 17 announced prefixes (11 IPv4, 6 IPv6). **[measured] 2 of 11 announced IPv4
+CIDRs (14 IPv4, 6 IPv6), and 17 announced prefixes (11 IPv4, 6 IPv6). **[measured] 2 of 11 announced IPv4
 prefixes fall outside every registered IPv4 CIDR**: `198.199.155.0/24` and `185.33.27.0/24`. Roughly 18 % of
 announced IPv4 prefixes are invisible to the registry path alone — space announced from a transit or customer
 relationship rather than held under the org handle.
@@ -931,8 +931,8 @@ does not:
   **19 network objects (20 CIDRs: 14 IPv4, 6 IPv6) and 4 ASNs** under one org handle, including three separate
   `/29` IPv6 allocations. Nobody types that list from memory correctly.
 - **Needs it — space under subsidiary names:** **[measured]** "Safaricom" resolves to two distinct AFRINIC org
-  handles in two countries; "Telstra" to several APNIC organisation objects (`ORG-TC6-AP`, `ORG-TCL23-AP`,
-  `ORG-TIL3-AP`, `ORG-TIPL8-AP`, `ORG-TNT2-AP`, …) across two countries; "Cloudflare" to eight LACNIC entities
+  handles in two countries. "Telstra" resolves to several APNIC organisation objects (`ORG-TC6-AP`, `ORG-TCL23-AP`,
+  `ORG-TIL3-AP`, `ORG-TIPL8-AP`, `ORG-TNT2-AP`, …) across two countries. "Cloudflare" resolves to eight LACNIC entities
   across five countries. An operator declaring seeds by hand finds the parent and misses the subsidiaries —
   and the subsidiaries are exactly where forgotten exposure lives.
 - **Needs it — announced-but-unregistered space:** the ~18 % measured above for Mythic Beasts.
@@ -966,8 +966,8 @@ two new emails come back.
    the working two-request RIPE chain, measured end to end on a small operator.
 
 4. **#3's RIPE recipe is broken for most organisations and should not be implemented as written.**
-   `type-filter=inetnum` with a multi-word query string returns **HTTP 400 `ERROR:115: invalid search key`**;
-   it only worked in #3 because "cloudflare" is one token. Use `type-filter=organisation`.
+   `type-filter=inetnum` with a multi-word query string returns **HTTP 400 `ERROR:115: invalid search key`**.
+   It only worked in #3 because "cloudflare" is one token. Use `type-filter=organisation`.
 
 5. **LACNIC is a working ARIN-shaped two-request path with two undocumented deviations:** results arrive under
    the non-standard key `"entities"` rather than RFC 9083's `entitySearchResults`, and a trailing `*` is
@@ -1001,8 +1001,8 @@ two new emails come back.
    endpoint nowhere. §14.**
 
 10. **The BGP leg adds less than its reputation suggests.** Measured: **0 of 100** announced IPv4 prefixes
-    outside registered blocks for Safaricom; **2 of 11** for Mythic Beasts. ~~Ship it because it is clean and
-    cheap, not because the registry path is incomplete without it.~~ **The measurements stand; the
+    outside registered blocks for Safaricom. **2 of 11** for Mythic Beasts. ~~Ship it because it is clean and
+    cheap, not because the registry path is incomplete without it.~~ **The measurements stand. The
     recommendation is withdrawn by [#126](https://github.com/winniel123/verge-asm/issues/126) /
     [ADR-0063](../adr/0063-a-routing-announcement-names-the-path-not-the-estate.md) — *clean and cheap*
     prices the request rather than the singular confirmations it queues, and the 2-of-11 residue is the
@@ -1015,22 +1015,22 @@ two new emails come back.
     equivalent of the *"Internet operational or technical research purposes"* phrase that #3 relied on to
     clear ARIN, closed by *"no other use … shall be implied or permitted"*. RIPE's Article 4.1 confines Access
     to the enumerated Article 3 purposes, none of which is estate inventory. **None of these can be resolved
-    by reading; all four are §12 tickets.**
+    by reading. All four are §12 tickets.**
 
 12. **LACNIC serves no retrievable terms at all.** The `rel: "terms-of-service"` URL its own RDAP server
     emits, and four other documented policy URLs, all return a byte-identical 7,014 B JavaScript shell
-    containing no terms text. This is not permissiveness and must not be read as such; it also independently
+    containing no terms text. This is not permissiveness and must not be read as such. It also independently
     breaks ADR-0003's opt-in pattern, which assumes a source's terms can be surfaced to the operator at
     enable-time.
 
 13. **Two registries advertise terms URLs that are broken.** AFRINIC's RDAP and whois both point at
-    `https://afrinic.net/whois/terms`, which returns **HTTP 404**; the live text is at
+    `https://afrinic.net/whois/terms`, which returns **HTTP 404**. The live text is at
     `https://afrinic.net/whois-terms.html`. LACNIC's points at a JS shell. A consent-surfacing UI needs a
     curated terms-URL table, not the `rel: "terms-of-service"` link the protocol hands it.
 
 14. **Of #20's three RIPE sub-questions, one is answered, one is not resolvable by reading, and the binding
     one was not on the list.** Network objects **do** fall outside the personal-data cap — the AUP sets
-    queries to "Unlimited" and caps only *"personal data sets returned"*, confirming #3; the real numeric
+    queries to "Unlimited" and caps only *"personal data sets returned"*, confirming #3. The real numeric
     constraint is the **3 simultaneous connections** limit. The *"significant part"* question is **live in
     both documents** — the AUP still says *"No copy of a significant part of the RIPE Database is made without
     the consent of the RIPE NCC"* and T&C Art. 4.5 permits only *"an insubstantial part"* — and neither
@@ -1038,7 +1038,7 @@ two new emails come back.
     tighter constraint**, and it was not on the ticket's list at all.
 
 15. **`bgpview.io` no longer resolves.** A keyless org→ASN→prefix service that appears in most recon tutorials
-    is simply gone; `curl` cannot resolve `api.bgpview.io` (exit code 6).
+    is simply gone. `curl` cannot resolve `api.bgpview.io` (exit code 6).
 
 16. **PeeringDB does not yield prefixes and should not be modelled as if it does.** `info_prefixes4: 80000`
     is a self-declared peering *max-prefix limit*, and `netixlan` records are IXP peering-LAN addresses
@@ -1074,9 +1074,9 @@ discovery reaches Europe and Latin America.
 
 1. **Extend #19's RIPE NCC email to cover the RIPE Database** (do not open a second thread). Ask: (a) is an
    organisation running verge-asm to inventory its own internet-exposed estate acting within one of the
-   Article 3 purposes; (b) is one organisation's own `inetnum` / `organisation` object set an *"insubstantial
-   part"* under Article 4.5 — equivalently, not *"a significant part"* under the AUP's Introduction;
-   (c) does storing those objects in a local database across runs count as *"re-use"*. Quote §8.4.
+   Article 3 purposes? (b) Is one organisation's own `inetnum` / `organisation` object set an *"insubstantial
+   part"* under Article 4.5 — equivalently, not *"a significant part"* under the AUP's Introduction?
+   (c) Does storing those objects in a local database across runs count as *"re-use"*? Quote §8.4.
 
 2. **Email LACNIC** asking for a retrievable statement of the terms governing automated RDAP querying, local
    storage and cross-run retention — and reporting that the `rel: "terms-of-service"` URL their RDAP server
@@ -1117,7 +1117,7 @@ discovery reaches Europe and Latin America.
   no ASN, and the registered population is itself under 1% of the persona, so the operator is not merely
   ASN-less but **registry-less**. [#126](https://github.com/winniel123/verge-asm/issues/126) then found the
   ASN-keyed leg is worth less than it looks for a reason that is not about the axis at all
-  ([ADR-0063](../adr/0063-a-routing-announcement-names-the-path-not-the-estate.md)); §14.
+  ([ADR-0063](../adr/0063-a-routing-announcement-names-the-path-not-the-estate.md)). §14.
 - Does first-run's "registry-dependent depth" message need to name the *reason* per region — "we cannot query
   the RIPE Database until RIPE NCC answers" reads very differently from "RIPE has no keyless path", and only
   one of them is true.
@@ -1130,7 +1130,7 @@ discovery reaches Europe and Latin America.
 
 ## 14. The BGP leg does not ship — [#126](https://github.com/winniel123/verge-asm/issues/126)
 
-Added 2026-08-15. Sections 1, 6.1, 10.2, 11 (findings 9 and 10) and 13 are amended in place above; this
+Added 2026-08-15. Sections 1, 6.1, 10.2, 11 (findings 9 and 10) and 13 are amended in place above. This
 section carries the reasoning so that none of it is re-derived. **No measurement in this note is
 re-taken, contradicted or re-interpreted.** Every figure §6.1 and §10.2 record is correct, and two of
 them are what decide the question against the recommendation the same sections made.
@@ -1197,7 +1197,7 @@ organisation holds, which is the inversion the map's spine principle refuses.
 clears (the commercial condition triggers only on **selling derivative works to third parties**, the
 reseller shape ADR-0003 says does not fail), and the fifth amendment does not reach it because a public
 licence travels to AGPL-3.0 recipients intact. **The bar decides whether a source may run and is silent
-on whether it is worth running**; this is the corpus's first candidate to clear it cleanly and be refused
+on whether it is worth running**. This is the corpus's first candidate to clear it cleanly and be refused
 anyway.
 
 Nor was there anything to displace. RIPEstat's `announced-prefixes` was never in the shipped set —
@@ -1215,9 +1215,9 @@ custody, it sits outside every row their own opaque-id groups, and outside ARIN 
 /29 — no shipped path may reach it.
 
 **Nobody has measured how often that happens.** Both comparisons in §10.2 are holders with their own PI
-space; neither is that case, and n=2 with a 0 and an 18% is not a rate. Two things bound it: reaching it
+space. Neither is that case, and n=2 with a 0 and an 18% is not a rate. Two things bound it: reaching it
 requires the operator to hold **their own ASN**, which [#26](https://github.com/winniel123/verge-asm/issues/26)
-prices at ≤57% of a population under 1% of the persona; and an organisation running its own AS over
+prices at ≤57% of a population under 1% of the persona. And an organisation running its own AS over
 borrowed address space is the operator most certain to know which prefixes it originates.
 
 **Reopening condition, stated as a measurement so it can be run rather than argued:** for a sample of
@@ -1230,7 +1230,7 @@ and not a new argument.
 ### 14.7 By-catch, not decided here
 
 - **A `Proposal` larger than the range cap has no stated route to becoming a `Seed`.** ADR-0047 caps an
-  address scope at **1,024 addresses**, checked at declaration; the registry leg routinely proposes far
+  address scope at **1,024 addresses**, checked at declaration. The registry leg routinely proposes far
   larger blocks — Safaricom's 10 AFRINIC IPv4 blocks among them. Whether such a proposal is refused,
   offered for narrowing, or routes the operator to a `custody extension` is unspecified. It was raised in
   #126 as a possible rescue for the BGP leg (announced `/24`s fit where a registered `/16` does not) and

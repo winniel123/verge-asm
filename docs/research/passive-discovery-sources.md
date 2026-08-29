@@ -3,7 +3,7 @@
 **Ticket:** wayfinder research #3 — "What can be discovered about an organisation's internet-exposed assets
 using only free, keyless data sources?"
 **Date of research:** 2026-07-30 / 2026-07-31 (UTC)
-**Status:** research complete; feeds the v1 spec. No code exists yet.
+**Status:** research complete. Feeds the v1 spec. No code exists yet.
 
 ## 0. Scope and method
 
@@ -108,14 +108,15 @@ the log SHALL return the maximum number of entries permissible."*
 | Sectigo Tiger2026h2 | **256** | 0.85 s |
 | TrustAsia log2026a | **32** | 1.57 s |
 
-**[measured]** Current tree sizes from `get-sth`: Google Argon2026h2 = **2,248,107,238** entries;
+**[measured]** Current tree sizes from `get-sth`: Google Argon2026h2 = **2,248,107,238** entries.
 Cloudflare Nimbus2026 = **5,712,661,045** entries.
 
 **This is the decisive number.** Reading Nimbus2026 alone at 256 entries/request is ~22.3 million HTTP
 requests. There are 34 usable + 6 qualified logs. **Tailing the CT firehose is not a thing a self-hosted
-small-org tool does.** v1 must not attempt it. CT-log-direct reading is only viable in verge-asm as:
-(a) a *tail* — poll `get-sth`, read only entries appended since the last run, for near-real-time drift
-detection on an already-known asset set; or (b) a verification path for a specific certificate.
+small-org tool does.** v1 must not attempt it. CT-log-direct reading is only viable in verge-asm two ways.
+First, as a *tail* — poll `get-sth`, and read only entries appended since the last run, for
+near-real-time drift detection on an already-known asset set. Second, as a verification path for a
+specific certificate.
 Bulk historical "what certs exist for example.com" must come from an index (crt.sh / Cert Spotter), because
 CT logs are **append-ordered, not name-indexed** — there is no query-by-domain in RFC 6962 at all.
 
@@ -135,7 +136,7 @@ CT logs are **append-ordered, not name-indexed** — there is no query-by-domain
 Tiled logs use the C2SP static-ct-api: `<monitoring prefix>/checkpoint` (the STH as a signed note),
 `<monitoring prefix>/tile/<L>/<N>` (Merkle tiles, 256 hashes / 8192 bytes when full),
 `<monitoring prefix>/tile/data/<N>` (the `TileLeaf` entries), and `<monitoring prefix>/issuer/<fingerprint>`.
-There is **no `get-entries` equivalent**; a monitor fetches static assets and reassembles.
+There is **no `get-entries` equivalent**. A monitor fetches static assets and reassembles.
 <https://c2sp.org/static-ct-api>
 
 **Implication for the spec:** any "read CT logs directly" feature needs *two* client implementations
@@ -152,8 +153,8 @@ well-behaved clients can reliably retrieve log entries at a rate greater than th
 **There is no ToS obstacle to reading CT logs directly.** This is the only major source in this document
 that is contractually clean by design.
 
-**Misses:** certificates never logged to CT (internal CAs, self-signed, pre-2018 legacy certs); hosts that
-have never had a public certificate; wildcard certs hide the specific hostnames behind `*.example.com`.
+**Misses:** certificates never logged to CT (internal CAs, self-signed, pre-2018 legacy certs). Hosts that
+have never had a public certificate. Wildcard certs hide the specific hostnames behind `*.example.com`.
 
 ### 2.2 crt.sh
 
@@ -199,7 +200,7 @@ the documented 5 req/min limit. Critically, crt.sh returns **spurious 404s for d
 have certificates**, which a naive client will misread as "no assets found". See §7 for the resulting
 hard requirements on the client implementation.
 
-**Terms of service.** **[measured]** crt.sh publishes no Terms of Use page; the homepage carries only a
+**Terms of service.** **[measured]** crt.sh publishes no Terms of Use page. The homepage carries only a
 Sectigo copyright notice, and neither `/` nor the JSON endpoint returns terms. The only stated constraint
 anywhere is the operator's rate-limit announcement above. **Assessment:** there is no ToS *prohibiting*
 programmatic use — crt.sh is explicitly an API — but the operator has publicly asked for restraint and has
@@ -208,7 +209,7 @@ throttle at or below 5 req/min, a distinctive `User-Agent` identifying verge-asm
 per-domain result caching. Shipping it with a naive retry loop would make verge-asm an abuse vector at scale
 and is the single most likely way this project ends up rate-limited into uselessness for everyone.
 
-**Misses:** the 999-result cap truncates large estates; wildcard certs; unlogged certificates; and crt.sh's
+**Misses:** the 999-result cap truncates large estates. Wildcard certs. Unlogged certificates. And crt.sh's
 index lag behind the logs.
 
 ### 2.3 SSLMate Cert Spotter CT Search API
@@ -320,11 +321,11 @@ cheap and must run before any name-based expansion:
    - ~~**5 long random labels** (e.g. `<random32>.dev.example.com`) — the count is now **5**, a value
      rather than a range;~~
      **RAISED by [#115](https://github.com/winniel123/verge-asm/issues/115) / §13: **9 long random
-     labels**.** The count is still a **value** and not a range; the value is now **9**. Read alone
+     labels**.** The count is still a **value** and not a range. The value is now **9**. Read alone
      and in the present tense, *the count is now 5* builds a set **[measured]** to misread a
      two-member per-label pool **2 times in 30** — `surge.sh` splits its labels `188/172` over a
      near-fair binary hash, and six draws miss the second member 3.2% of the time against 0.21% at
-     ten. The mechanism the raise is bought against is **per-label sharding**, isolated in §13;
+     ten. The mechanism the raise is bought against is **per-label sharding**, isolated in §13.
    - **1 structured label** of the form `<a>-<b>-<c>-<d>`, the four octets of an address drawn at
      random from **RFC 5737** documentation space (`192.0.2.0/24`, `198.51.100.0/24`,
      `203.0.113.0/24`) — e.g. `203-0-113-7.dev.example.com`. Its job is to be **decodable**, so an
@@ -477,7 +478,7 @@ The case against, for this product specifically:
 
 1. **It is active, not passive.** It sends traffic that lands in the target's authoritative-DNS logs, and it
    hammers whatever recursive resolver it is pointed at. A 100k-word list against 10 domains is a million
-   queries. Pointing that at a public resolver (§3.6) is abuse; pointing it at the operator's own resolver
+   queries. Pointing that at a public resolver (§3.6) is abuse. Pointing it at the operator's own resolver
    is a self-inflicted incident.
 2. **It is redundant against the primary input.** Anything brute force could find in a zone the operator
    controls is already in the zone file / AXFR / NSEC walk — completely, instantly, and without a single
@@ -531,16 +532,16 @@ infrastructure at every install.
 ### 4.1 Bootstrap mechanics (this is the part that makes RDAP work keylessly)
 
 RDAP is the IETF replacement for WHOIS. Lookups are defined in RFC 9082 as path segments: `ip/`, `autnum/`,
-`domain/`, `nameserver/`, `entity/`, `help/`; searches as `domains?name=`, `nameservers?name=`,
+`domain/`, `nameserver/`, `entity/`, `help/`. Searches are `domains?name=`, `nameservers?name=`,
 `entities?fn=`, `entities?handle=`. Search support is **optional** — *"Server implementations are free to
 support only a subset of these features … Servers MUST return an HTTP 501 (Not Implemented) response to
 inform clients of unsupported query types"*, and HTTP 422 when a particular partial-match style is
 unsupported. <https://www.rfc-editor.org/rfc/rfc9082.html>
 
-Response shapes are RFC 9083: `objectClassName` on every object; IP networks carry `startAddress`,
-`endAddress`, `cidr0_cidrs`, `name`, `type`, `country`, `parentHandle`, `status`; autnums carry
-`startAutnum`/`endAutnum`; entities carry `handle`, `roles[]`, `vcardArray` (jCard); `links[]` with
-`rel: "self"`/`"up"` enable navigation; `notices[]` is where servers attach a `"Terms of Service"` title.
+Response shapes come from RFC 9083. `objectClassName` sits on every object. IP networks carry `startAddress`,
+`endAddress`, `cidr0_cidrs`, `name`, `type`, `country`, `parentHandle`, `status`. Autnums carry
+`startAutnum`/`endAutnum`. Entities carry `handle`, `roles[]`, `vcardArray` (jCard). `links[]` with
+`rel: "self"`/`"up"` enable navigation. `notices[]` is where servers attach a `"Terms of Service"` title.
 <https://www.rfc-editor.org/rfc/rfc9083.html>
 
 **Bootstrap** removes the need for any hardcoded registry map. IANA publishes machine-readable bootstrap
@@ -572,12 +573,12 @@ Registry index: <https://www.iana.org/assignments/rdap-dns/rdap-dns.xhtml>
 
 **The org-name → ranges path works on ARIN, and it is the single most valuable RDAP capability for ASM.**
 **[measured]** `https://rdap.arin.net/registry/entities?fn=Cloudflare*` returns an `entitySearchResults`
-array of org handles; fetching `https://rdap.arin.net/registry/entity/CLOUD14` then returns a `networks`
+array of org handles. Fetching `https://rdap.arin.net/registry/entity/CLOUD14` then returns a `networks`
 array containing **202 CIDR prefixes** — the org's complete ARIN-registered IPv4/IPv6 footprint, from a
 free-text company name, with two keyless HTTP requests.
 
 Coverage is uneven, and the spec must not assume otherwise. **[measured]**
-`https://rdap.db.ripe.net/entities?fn=RIPE*` returned **HTTP 500**; `https://rdap.apnic.net/entities?fn=Google*`
+`https://rdap.db.ripe.net/entities?fn=RIPE*` returned **HTTP 500**. `https://rdap.apnic.net/entities?fn=Google*`
 returned 200. Entity search is optional per RFC 9082 and RIPE's implementation is not usable. For RIPE the
 working keyless substitute is the **RIPE Database REST search API** — **[measured]**
 `https://rest.db.ripe.net/search?query-string=cloudflare&type-filter=inetnum&flags=no-filtering` with
@@ -615,7 +616,7 @@ The limit counts *personal data* specifically, so network-object queries are muc
 ### 4.3 gTLD domain RDAP (registration data)
 
 As of **28 January 2025**, RDAP is the required RDDS mechanism for gTLDs and the WHOIS obligation has
-sunset (except .com/.name/.post); ICANN's Registration Data Policy took effect 21 August 2025.
+sunset (except .com/.name/.post). ICANN's Registration Data Policy took effect 21 August 2025.
 <https://www.icann.org/en/announcements/details/icann-update-launching-rdap-sunsetting-whois-27-01-2025-en>,
 <https://www.icann.org/en/contracted-parties/registry-operators/resources/registration-data-access-protocol>
 
@@ -738,8 +739,8 @@ Also supports `?rrType=a&rrType=mx`, `?limit=0`, a POST JSON form at `/pdns/v3/s
 endpoint, and PassiveDNS Common Output Format at `/pdns/v3/cof/`.
 
 **Limits, from mnemonic's own documentation:** *"Unauthenticated users are limited to 10 requests per
-minute, and 1000 requests per day."* Exceeding returns **HTTP 402**; the per-minute limit rejects briefly,
-the per-day limit *"will typically be rejected for a period up to 24 hours."* Unauthenticated queries see
+minute, and 1000 requests per day."* Exceeding returns **HTTP 402**. The per-minute limit rejects briefly.
+The per-day limit *"will typically be rejected for a period up to 24 hours."* Unauthenticated queries see
 **only TLP:WHITE** records, and the public result `limit` ceiling is 1000 (10,000 authenticated).
 <https://docs.mnemonic.no/api/services/pdns/01-public_api.html>
 
@@ -753,13 +754,13 @@ owns.** Querying an IP returns every name observed pointing at it, with first/la
 is exactly how you find a host in your own /24 that no forward source knows about, and how you get historical
 A-record evidence for drift ("this name pointed here until 2026-03, now it points at a cloud provider").
 
-**Recommendation:** Tier 2, opt-in. The 1000/day quota is a shared community resource; a tool that ships it
+**Recommendation:** Tier 2, opt-in. The 1000/day quota is a shared community resource. A tool that ships it
 on-by-default to an unknown number of installs is a good way to get the public endpoint closed. Enable it
 for targeted IP→name questions, not bulk sweeps.
 
 ### 5.2 CIRCL Passive DNS — **not available**
 
-*"Access to CIRCL Passive DNS is restricted to trusted partners both in Luxembourg and abroad"*; prospective
+*"Access to CIRCL Passive DNS is restricted to trusted partners both in Luxembourg and abroad"*. Prospective
 users must *"contact us and provide details about your affiliation and the intended use."*
 <https://www.circl.lu/services/passive-dns/> Vetted, discretionary access. **Unusable for a tool run by
 strangers.**
@@ -826,7 +827,7 @@ Keyless, fast, open-data licensed. <https://commoncrawl.org/terms-of-use>
 
 **Value:** low-to-moderate. It finds hostnames that were *linked from the crawled web*, which skews toward
 public-facing marketing surface — the assets the operator already knows about. It occasionally surfaces a
-forgotten host. Cheap enough to include as a Tier-1 supplement; not worth engineering effort beyond a single
+forgotten host. Cheap enough to include as a Tier-1 supplement. Not worth engineering effort beyond a single
 CDX call per apex domain per index.
 
 ### 6.2 Wayback Machine CDX — **not usable as a default**
@@ -871,7 +872,7 @@ disappeared" alerts.
 2. Never compute drift (added/removed assets) from a run in which the CT index call did not succeed —
    mark the run's CT dimension as `unknown`, not `empty`.
 3. Timeouts must be ≥ 60 s, because legitimate successful responses take that long.
-4. Retry with jittered backoff while respecting the 5 req/min ceiling; cache successful per-domain results
+4. Retry with jittered backoff while respecting the 5 req/min ceiling. Cache successful per-domain results
    for hours (certificate data is immutable).
 5. Surface "CT index degraded/unavailable" prominently in the UI for that run.
 
@@ -973,9 +974,9 @@ disappeared" alerts.
   data) to remove the RIPEstat dependency from the default path entirely?~~
   **Its premise is gone and the door it opens is now closed.** RIPEstat is not on the default path
   ([#15](https://github.com/winniel123/verge-asm/issues/15),
-  [#19](https://github.com/winniel123/verge-asm/issues/19)); `Custody` reads `Seed`s alone and no ASN
+  [#19](https://github.com/winniel123/verge-asm/issues/19)). `Custody` reads `Seed`s alone and no ASN
   enters the model at all ([#27](https://github.com/winniel123/verge-asm/issues/27),
-  [ADR-0012](../adr/0012-a-proposer-is-not-a-source.md)); and sibling expansion is keyed on the
+  [ADR-0012](../adr/0012-a-proposer-is-not-a-source.md)). And sibling expansion is keyed on the
   delegated files' opaque-id rather than on an ASN. A session reviving this must read
   [ADR-0063](../adr/0063-a-routing-announcement-names-the-path-not-the-estate.md) first: a table built
   from route collectors may label **which AS announces an address** and may never be read as saying
@@ -991,8 +992,8 @@ disappeared" alerts.
 Settled by [#111](https://github.com/winniel123/verge-asm/issues/111) /
 [ADR-0068](../adr/0068-a-wildcard-is-discriminated-only-where-its-synthesis-is-determinate.md). This
 section is the measured basis for §3.2 steps 2, 4 and 5 as they now read. §3.2 settles **where** the
-control probe runs ([ADR-0066](../adr/0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md));
-this settles **how its answers are read**.
+control probe runs ([ADR-0066](../adr/0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md)).
+This settles **how its answers are read**.
 
 ### 11.1 The rule
 
@@ -1031,7 +1032,7 @@ of the label at all:
 | One label, one moment, **four authorities of `herokuapp.com`** | four different answers |
 
 The rotation is the **authority's own**, not an anycast-resolver artefact. A recorded signature is
-one draw from a process; the next draw for the same label at the same authority seconds later is a
+one draw from a process. The next draw for the same label at the same authority seconds later is a
 different one.
 
 ### 11.3 Components, because the stable and rotating parts share one answer
@@ -1061,7 +1062,7 @@ parts sit inside **one qtype's answer chain**.
 > a session reading the row as *S3 rotates* would be wrong about which operator to ask.
 
 **ADR-0066's seven-qtype widening pays a second time here.** **[measured]** `appspot.com`'s only
-determinate *positive* component in the seven is **MX**; under §3.2's withdrawn A/AAAA/CNAME clause
+determinate *positive* component in the seven is **MX**. Under §3.2's withdrawn A/AAAA/CNAME clause
 that zone has no positive determinate component at all.
 
 ### 11.4 The base rate, which is what makes the strict rule affordable
@@ -1082,7 +1083,7 @@ eight times**, a shape the ruled ten-label set never takes, which is why this ta
 | …of those, still carrying a determinate component elsewhere | 3 — `s3` (CNAME/TXT/NS/SOA), `appspot` (MX), `vercel` (determinate NODATA at six qtypes) |
 | **No determinate component anywhere** | **1 of 14 — `herokuapp.com`** |
 
-Set equality is not wrong; it is **unscoped**, and right for ~~ten~~ **eight** of fourteen outright.
+Set equality is not wrong. It is **unscoped**, and right for ~~ten~~ **eight** of fourteen outright.
 Total suppression reaches **one measured parent in fourteen**.
 
 > **Two rows of this table are corrected by §12, measured 2026-08-15.** `traefik.me` is filed under
@@ -1100,7 +1101,7 @@ Total suppression reaches **one measured parent in fourteen**.
 
 ### 11.5 Why intersection-with-the-union lost
 
-Signature = the first five labels of the thirty-label runs; test = the next twenty-five.
+Signature = the first five labels of the thirty-label runs. Test = the next twenty-five.
 
 | Zone | Set equality catches | Intersection with the 5-label union catches |
 | --- | --- | --- |
@@ -1292,7 +1293,7 @@ verdicts into `Indeterminate` ones. **[measured]** across 22 zones it turns over
 sampled, 6 parents: **252 resolver queries per batch against 210**.~~ **SUPERSEDED by
 [#115](https://github.com/winniel123/verge-asm/issues/115) / §13.8, which raises the count: it is
 **10 labels × 7 qtypes per parent**, and on the same estate **420 resolver queries per batch**. The
-+20% this line prices was the structured label's; the current figure includes the raised count.**
++20% this line prices was the structured label's. The current figure includes the raised count.**
 These go to a resolver, not to
 the operator's hosts, so §6.3's per-target ceilings in
 [`safe-active-probing.md`](./safe-active-probing.md) do not bind them — and no document prices
@@ -1334,8 +1335,8 @@ objection to intersection-with-the-union. ~~The number stays at **5** and the qu
 **The question was ticketed as [#115](https://github.com/winniel123/verge-asm/issues/115) and is now
 answered: the random count is **9**, bought against a measured process at a stated price.**
 
-Two riders. §11.4's base-rate table files `surge.sh` under *determinate at A across five labels*;
-**today that does not reproduce**, so *10 of 14* has at least one member that is a coin-flip rather
+Two riders. §11.4's base-rate table files `surge.sh` under *determinate at A across five labels*.
+**Today that does not reproduce**, so *10 of 14* has at least one member that is a coin-flip rather
 than a fact — which does not weaken §11's ruling, it is one more zone needing the gate §11 ruled.
 **§13.3 supplies the missing half: it is not a coin-flip, it is a two-member hash *of the label*,
 and each of five labels lands in one of the two shards independently.**
@@ -1389,7 +1390,7 @@ permanent.
 Ruled by [#115](https://github.com/winniel123/verge-asm/issues/115), which **amends
 [ADR-0069](../adr/0069-a-control-label-is-one-label-and-the-set-must-falsify-label-independence.md)
 in place** rather than minting a rule beside it. §3.2 settles **where** the control probe runs, §11
-**how its answers are read**, §12 **what a control label is**; this settles **how many**, by
+**how its answers are read**, §12 **what a control label is**. This settles **how many**, by
 identifying the process the count is bought against — which is the thing §12.6 refused to guess at.
 
 ### 13.1 The rule
@@ -1403,7 +1404,7 @@ identifying the process the count is bought against — which is the thing §12.
 Two riders that are the rest of the ticket's question.
 
 - **`Determinate` acquires no shelf life, because it already has one.** ADR-0011 decides the value
-  inside the batch that measured it and never assembles it across batches; that confinement is what
+  inside the batch that measured it and never assembles it across batches. That confinement is what
   prices per-query rotation, and it turns out to be load-bearing rather than housekeeping.
 - **Nothing else moves.** ADR-0068's per-component gate, its three-member union and its
   `Indeterminate` limb are untouched, and ADR-0069's construction — one label, hyphenated quad, RFC
@@ -1446,7 +1447,7 @@ which the question exists at all.
 
 Run A is what separates the two live mechanisms and it separates them cleanly. `herokuapp.com` and
 `vercel.com` vary while the label is held **fixed**, so the label is not an input and distinctness
-is irrelevant to them; `appspot.com` and `surge.sh` do not vary at all under repetition and vary
+is irrelevant to them. `appspot.com` and `surge.sh` do not vary at all under repetition and vary
 freely across labels, so on those the answer is a **function of the query name**.
 
 The per-label function is deterministic, not merely repeatable within a burst: **[measured]** every
@@ -1481,8 +1482,8 @@ one of the eight identically at every pass.
 | `herokuapp.com` | per-query | **5 of 5** | **3–4 distinct in four repeats**, every pass |
 
 The two columns say the same thing twice. Where the answer is a function of the label it is the
-**same** function 36 minutes later; where it is not, it was already redrawing between two
-back-to-back queries and spacing adds nothing to that.
+**same** function 36 minutes later. Where it is not, it was already redrawing between two
+back-to-back queries, and spacing adds nothing to that.
 
 That is the negative result the ruling turns on. On the two per-label zones the map does not move
 inside a window many times a batch's length, so **spacing buys nothing there**. On the two
@@ -1590,7 +1591,7 @@ run: **[measured]** 20 trials of 10 labels each gave **2/20** false `Determinate
 **So §12.6's observation was a sample, not a law.** Ten labels seeing *one* answer where five saw
 *two* is a draw from a distribution whose ten-label tail is **0.2 %**, and 30 fresh trials did not
 reproduce it once. §12.6 read a single pair of runs as evidence that *more labels is not
-monotonically more sensitive*; it is, and the count buys exactly the sensitivity `k^(1-n)` says it
+monotonically more sensitive*. It is, and the count buys exactly the sensitivity `k^(1-n)` says it
 buys, on the one zone in the corpus where the purchase matters.
 
 ### 13.8 Why `9 + 1`, and not `7 + 1` or `19 + 1`
@@ -1621,11 +1622,11 @@ is the smallest count that clears it:
 Ten draws, and the set already carries one structured label which is a draw like any other against a
 label hash — §12.6 said so of the sixth and it is equally true of the tenth. So **the random count
 becomes 9** and the construction is untouched, which is what ADR-0069 requires of a larger count:
-*a larger count adds random labels; it does not revisit the construction*.
+*a larger count adds random labels. It does not revisit the construction*.
 
 **`9` is still authored data**, which is the bar ADR-0066 set when it pushed the population out of
 the parameter table and which §11.5 used again to kill a convergence stopping rule. The number is
-written down once, from a published measurement, and every batch runs the same ten labels; it is
+written down once, from a published measurement, and every batch runs the same ten labels. It is
 **not** a function of what this batch found, so no eighth aperture input and no second `Batch` scope
 dimension is needed. A count that grew until the observed pool stopped growing would be the barred
 shape, and it stays barred.
@@ -1633,7 +1634,7 @@ shape, and it stays barred.
 **Why not more.** The purchase has sharply diminishing returns against a linear query cost — 11
 draws buys 0.1 %, 12 buys 0.05 % — and, more decisively, the residual it would be chasing is a shape
 the count **cannot** reach. A second answer served to a fraction *f* of labels is missed with
-probability `(1-f)^n`; at ten draws a 50 % member is missed 0.1 % of the time, a 20 % member **11 %**
+probability `(1-f)^n`. At ten draws a 50 % member is missed 0.1 % of the time, a 20 % member **11 %**
 of the time and a 5 % member **60 %** of the time. Buying past the balanced-pool bar buys against
 rare members, and no affordable *n* reaches those. The honest boundary is stated at §13.10 rather
 than papered over with a bigger number.
@@ -1694,8 +1695,8 @@ is untouched, `resolution` does not move, and nothing `Break`s in the model's sh
 
 - **The count cannot reach a rare second answer, and that is a permanent boundary rather than a
   gap.** `(1-f)^n` at ten draws misses a 20 %-share member **11 %** of the time and a 5 %-share
-  member **60 %** of the time. The count buys against balanced pools, which is what was measured;
-  an authority that serves a second answer to one label in twenty is invisible to any affordable
+  member **60 %** of the time. The count buys against balanced pools, which is what was measured.
+  An authority that serves a second answer to one label in twenty is invisible to any affordable
   *n*, and the safe reading of a determinate verdict remains ADR-0068's — evidence, never proof.
 - **Per-time is unfalsified rather than disproved.** The window measured is **35 minutes on one
   day**, and a deploy, a certificate rotation or a health-check flap plainly can move an answer over
@@ -1703,8 +1704,8 @@ is untouched, `resolution` does not move, and nothing `Break`s in the model's sh
   the sample*, not that answers never move with time. Naming one zone whose label→answer map moves
   inside a batch's span falsifies this, which is what makes it bounded.
 - **`surge.sh`'s binary hash carries the whole count argument.** It is **1 of 14** wildcarded zones
-  and the only measured instance of the shape the raise is bought against; `appspot.com`'s pool is
-  wide enough that no count is needed and the per-query zones are caught at any count. So the ruling
+  and the only measured instance of the shape the raise is bought against. `appspot.com`'s pool is
+  wide enough that no count is needed, and the per-query zones are caught at any count. So the ruling
   moves a parameter for the estate on the strength of **one** zone's shape, argued from a model the
   other four are consistent with rather than from four confirmations.
 - **§12.6's un-reproduced run.** Ten labels seeing one answer is a 0.2 % event under the measured
@@ -1725,7 +1726,7 @@ is untouched, `resolution` does not move, and nothing `Break`s in the model's sh
   `wildcard-discrimination` should query **direct-to-authority** is a **query-mode** change — the
   class ADR-0068 refused the DNSSEC discriminator on — and it is not a number. **Not ruled here, and
   not folded in.**~~ Read alone and in the present tense, *not ruled here* would leave a session
-  believing the path is still open; it is not. It is a **declared parameter shared by
+  believing the path is still open. It is not. It is a **declared parameter shared by
   `resolution-walk` and `wildcard-discrimination`, one value per `Batch`**, valued at **the
   `Vantage`'s configured recursive resolver** — and *query-mode change* was never a third home,
   ADR-0068 itself calling a query-mode change *"a parameter change of its own"*. §14.
@@ -1740,7 +1741,7 @@ is untouched, `resolution` does not move, and nothing `Break`s in the model's sh
 Ruled by [#116](https://github.com/winniel123/verge-asm/issues/116) /
 [ADR-0070](../adr/0070-a-control-probe-is-asked-from-where-the-answer-it-discriminates-was-asked-from.md).
 §3.2 settles **where** the control probe runs, §11 **how its answers are read**, §12 **what a
-control label is**, §13 **how many**; this settles **where it is asked from** — the fourth axis, and
+control label is**, §13 **how many**. This settles **where it is asked from** — the fourth axis, and
 the one §13.10 recorded as a parameter nobody had declared.
 
 **[measured]** 2026-08-15, from a **second vantage** — a host resolver on a different network from
@@ -1761,8 +1762,8 @@ Three riders, each answering a limb the ticket asked separately.
 - **`resolution-walk` has the same hole and it is one sentence wider.** The leaf already makes
   **both** queries — a delegation walk for `Lame`, a resolution for the address set — and nothing
   said which answer is the value. It is now stated: **`Resolved`, `NoData` and `NameError` are read
-  on the declared path**; the delegation walk decides `Lame` and the per-nameserver
-  `serves │ does-not-serve` RRset and **supplies no address set**; and **the parameter does not
+  on the declared path**. The delegation walk decides `Lame` and the per-nameserver
+  `serves │ does-not-serve` RRset and **supplies no address set**. And **the parameter does not
   govern the walk**, because `Lame`'s availability is its own definition's rather than a setting's.
 - **A determinacy verdict measured over a resolver is admissible**, and §11.4's base rate is **not**
   re-opened. §14.2.
@@ -1807,7 +1808,7 @@ authority, qtype A:
 | 3 distinct random labels | `CNAME s3-1-w.amazonaws.com.` → `CNAME s3-w.us-east-1.amazonaws.com.` → **eight A records, a different eight on every label** |
 
 Read the components. Direct to the authority the `(A asked, A answered)` component is
-**`NoSynthesis`**, which is a *determinate* reading and not an absent one; through the resolver it is
+**`NoSynthesis`**, which is a *determinate* reading and not an absent one. Through the resolver it is
 **`Indeterminate`**. §11.1 discriminates a candidate carrying *"an RRset where the control
 determinately had none"* — so under a skewed pair (control at the authority, candidate at the
 resolver) **every** fictional label beneath that parent differs at a determinate component, is
@@ -1911,7 +1912,7 @@ words, and `resolution-walk` is already there for `Lame`. It loses four ways.
   a small org's estate is **unmeasured** — the same hole §11.9, §12.8 and §13.10 each flagged.
 - **A hijacking or filtering resolver shadows the whole estate**, and that is left as the loud
   failure rather than ticketed. A resolver that answers every name makes every parent read as
-  wildcarded; the result is total suppression, which is the **honest** reading of an instrument that
+  wildcarded. The result is total suppression, which is the **honest** reading of an instrument that
   answers everything. §3.3's zone upload and §3.6's DoH fallback are the remedies and both are
   already first-class.
 - **The resolver is recorded as declared intent**, so an upstream that moves under a stable
@@ -1941,7 +1942,7 @@ residue into one row instead of a worry.
 - **By observing a facet.** The observation ages under the currency bound — `k` cadences of the
   covering `Scan` — and past it a `Gap` opens. This is what #142 was about.
 - **By admitting without observing** ([ADR-0027](../adr/0027-a-source-may-admit-without-observing.md)).
-  There is no observation to age; the subject's `Citation` hops to the source's `Batch` instead, and
+  There is no observation to age. The subject's `Citation` hops to the source's `Batch` instead, and
   what goes stale is the **citation**. The consequence is **subject withdrawal**, not a `Gap` —
   *"a subject whose last citation goes stale has no chain back to a `Seed`, which withdraws it."*
 
@@ -2030,7 +2031,7 @@ Where its hop is a **`Batch`** — a source that admits without observing — th
 there is no clock, and none is created. What `completeness` governs is not a *rate* but whether a
 later `Batch` may **contradict** a citation: an `enumerable` source's silence within a recorded scope
 covering the subject is a measured absence and withdraws it under
-[ADR-0006](../adr/0006-subjects-leave-by-measurement.md); a `corroborative` source's silence does
+[ADR-0006](../adr/0006-subjects-leave-by-measurement.md). A `corroborative` source's silence does
 nothing, ever, because that is the definition of the value.
 
 Certificate transparency is `corroborative`. **Its citations do not expire.**
@@ -2081,7 +2082,7 @@ a transport for the resolver's own exchange". It is neither.**
   `CONTEXT.md` as *"a candidate **address scope**"*, so a hostname cannot be one and
   [ADR-0012](../adr/0012-a-proposer-is-not-a-source.md)'s route is closed to it.
 - It makes no DNS query, so it is not a transport for the resolver's exchange either. Wayback and
-  public DoH are correctly filed; Common Crawl travelled with them and does not belong there.
+  public DoH are correctly filed. Common Crawl travelled with them and does not belong there.
 
 **A source that yields hostnames and observes no facet is a second instance of ADR-0027's shape** —
 it admits `Name`s without observing, and its hop is a `Batch`.
@@ -2105,13 +2106,13 @@ What the row *does* block is §17.4.
 ### 17.4 What is still open: the poll has no cadence at all, and its scope cannot be drawn yet
 
 **[verified against the corpus]** Nothing in `CONTEXT.md`, `docs/adr/` or `docs/spec/` says when
-`crt.sh` is polled. ADR-0003 clears it and ships it enabled; ADR-0005 gives it a hard 5 req/min
-throttle held instance-wide in Postgres; ADR-0084 declines to hang it off `dns` and refuses the name
+`crt.sh` is polled. ADR-0003 clears it and ships it enabled. ADR-0005 gives it a hard 5 req/min
+throttle held instance-wide in Postgres. ADR-0084 declines to hang it off `dns` and refuses the name
 `discovery` partly to stop a later session doing so. **v1's flagship keyless discovery source has no
 schedule anywhere.**
 
 That is a real hole and it is a **different** one. With withdrawal off the table it carries no
-currency consequence whatsoever; its warrant is **admission latency** — a name issued a certificate
+currency consequence whatsoever. Its warrant is **admission latency** — a name issued a certificate
 today should enter the estate on some stated clock — and **`Coverage`**, whose whole job
 ([#22](https://github.com/winniel123/verge-asm/issues/22)) is *did it run, and when*.
 

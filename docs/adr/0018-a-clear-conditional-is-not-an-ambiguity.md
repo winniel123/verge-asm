@@ -10,13 +10,13 @@
 ## Context
 
 [#38](https://github.com/winniel123/verge-asm/issues/38) measured **657,044** uniquely-named APNIC
-PA-equivalent assignments that no APNIC interface reaches by name at any consent tier — the RDAP
-entity search returns HTTP 200 with an empty array on wildcard *and* exact `fn=`, and port 43 fails
+PA-equivalent assignments that no APNIC interface reaches by name at any consent tier. The RDAP
+entity search returns HTTP 200 with an empty array on wildcard *and* exact `fn=`. Port 43 fails
 on a name whose record it returns fine by address. The bulk file `apnic.db.inetnum.gz` is the only
 instrument that reaches them.
 
 Its header restricts reproduction and storage *"in a retrieval system"*. Indexing a dump so it can be
-searched by name **is** storing it in a retrieval system, so the one path to the largest measured
+searched by name **is** storing it in a retrieval system. So the one path to the largest measured
 unreachable population appeared to be closed by the file itself.
 
 Two settled rules each nearly reach the case and neither was written with it in view.
@@ -84,7 +84,7 @@ The bulk file produces no observations — it yields candidate address scopes �
 property that survives onto it. `consent` is ADR-0003's property, so ADR-0003 governs in full.
 
 Limb 1 reaches the indexing directly, because limb 1's own words are *"automated querying, storing
-results in a database, retaining them across runs"*. Storage is inside limb 1 by construction; no
+results in a database, retaining them across runs"*. Storage is inside limb 1 by construction. No
 stretching is required and no third rule is needed.
 
 [#27](https://github.com/winniel123/verge-asm/issues/27)'s redistribution rule does **not** bite. It
@@ -125,7 +125,7 @@ of `ftp.apnic.net` today. That is a real tension and it does not create an ambig
 is the mirror image of the move [#25](https://github.com/winniel123/verge-asm/issues/25) and ADR-0003
 already refused — *unreadable is not absent, or any source could earn `unencumbered` by breaking its
 own link.* Here: **an unenforced gate is still a gate, or any source could lose its restriction by
-leaving the door open.** The terms travel *inside the file*; nobody can download it without receiving
+leaving the door open.** The terms travel *inside the file*. Nobody can download it without receiving
 them.
 
 ### 3. The tier is `operator-credentialed`, and `Consent` still gains no fourth value
@@ -176,9 +176,9 @@ quoted as a coverage loss** — it is a count of strings in a file, and the esta
 against is the one thing only the operator can declare.
 
 The message also names **no bulk route**. [#22](https://github.com/winniel123/verge-asm/issues/22)
-cut the coverage screen's second axis as an *invitation with a one-click enable*; a route requiring a
+cut the coverage screen's second axis as an *invitation with a one-click enable*. A route requiring a
 signed legal agreement with a registry and a capability the product does not have is not an
-invitation, and rendering it as one would be an offer the screen cannot honour. It belongs in
+invitation. Rendering it as one would be an offer the screen cannot honour. It belongs in
 documentation.
 
 ## Consequences
@@ -193,18 +193,18 @@ documentation.
   pending a licence question.
 - **The clear/ambiguous fork has three positions, not two.** Clear-and-barring (a plain no, which no
   toggle cures), clear-and-conditionally-permitting (the condition is somebody's to satisfy — ask
-  *whose*), and genuinely in tension (ADR-0003's corollary). A session meeting a carve-out should look
-  for a published mechanism before reaching for the ambiguity corollary; here the answer was one page
+  *whose*), and genuinely in tension (ADR-0003's corollary). A session meeting a carve-out should seek
+  a published mechanism before reaching for the ambiguity corollary. Here the answer was one page
   away from a document this project had already quoted twice.
 - **A fifth quotation defect, and the first that is a truncation.**
   [#21](https://github.com/winniel123/verge-asm/issues/21)'s habit has now paid five times.
   `docs/research/asn-less-operators.md` §13.5 quoted the header accurately for two sentences and
   stopped, dropping the advertising and notification sentences — and, more consequentially, quoted the
   header without the page that defines its only operative term. **Verifying a quote against its source
-  is not the same as verifying it against its context**; a clause quoted out of the document that
+  is not the same as verifying it against its context**. A clause quoted out of the document that
   qualifies it can be word-perfect and still wrong about what it permits.
 - **The two APNIC texts are not identical and both are live.** The file header says *"agreed Internet
-  operational purposes"*; the copyright page says *"Internet operational purposes approved by APNIC"*
+  operational purposes"*. The copyright page says *"Internet operational purposes approved by APNIC"*
   and adds a bulk-redistribution sentence the header lacks. Nothing here turns on the difference, but
   a session quoting one should not represent it as the other.
 - **§4's reasoning is a property of the tier, not a fact about one instrument** —

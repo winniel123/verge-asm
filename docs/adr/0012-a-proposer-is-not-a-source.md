@@ -11,14 +11,14 @@
 provider-aggregatable renters through SWIP **customer objects** — `C…` handles, compelled by
 NRPM §4.2.3.7.1 down to a /29 — which is the population everyone had assumed was unreachable
 without an ASN. [#39](https://github.com/winniel123/verge-asm/issues/39) was opened to ask what
-kind of `Source` that path is, and it framed the question as a **safety** question: `authority`
+kind of `Source` that path is, and it framed the question as a **safety** question. `authority`
 governs admission, [ADR-0002](./0002-ownership-gates-probing.md) makes `Ownership` gate probing,
 and a customer object is written by *the upstream provider* — neither the operator's `declared`
 assertion nor our own `measured` observation. A stale SWIP record would therefore admit an
 `Address` on a third party's clerical accuracy, and we would then send packets at it.
 
 That framing did not survive the day it was written. [#27](https://github.com/winniel123/verge-asm/issues/27)
-amended ADR-0002 hours earlier: `Ownership` is computed from **`Seed`s alone**, registry lookups
+amended ADR-0002 hours earlier. `Ownership` is computed from **`Seed`s alone**, registry lookups
 of every kind now only *propose* address scopes that the operator confirms, and *"an unconfirmed
 proposal is read by nothing"*. The amendment states the consequence directly — registry accuracy
 stops being a safety property. A stale SWIP /29 yields a **wrong proposal the operator declines**,
@@ -82,7 +82,7 @@ producer term would earn nothing that the produced term does not already carry.
 
 ### The ARIN SWIP path ships, as one proposer
 
-It is **one** proposer, not two. The org objects and the `C…` customer objects come back in a
+It is **one** proposer, not two. The org objects and the `C…` customer objects arrive in a
 single response from a single endpoint under a single permission — `entities?fn=` returned 257
 entities of which **227 carried `C…` handles**. Splitting them would put two toggles behind one
 request and would make [#47](https://github.com/winniel123/verge-asm/issues/47)'s enablement prompt
@@ -105,7 +105,7 @@ and it keeps the caveat visible without splitting the source.
 It **ships in v1**, on grounds worth stating plainly because the ticket invited the opposite:
 [#15](https://github.com/winniel123/verge-asm/issues/15) already ships `entities?fn=` in the keyless
 default set, and the customer objects arrive in a response verge-asm already fetches. Not shipping
-would mean writing code to **discard** the majority of that response. This is not an addition; it is
+would mean writing code to **discard** the majority of that response. This is not an addition. It is
 ceasing to discard.
 
 ### A `Proposal` is retained in both directions
@@ -139,7 +139,7 @@ false `exposed` gets investigated, a false `internal-only` does not — and the 
 surfaces on [#22](https://github.com/winniel123/verge-asm/issues/22)'s `Coverage`, which is where
 #27 already routed this same cost.
 
-**`Ownership`** said it is *"computed against seeds **and registry data**"*. Withdrawn; `Seed`s
+**`Ownership`** said it is *"computed against seeds **and registry data**"*. Withdrawn. `Seed`s
 alone, per #27.
 
 ## Consequences
@@ -165,7 +165,7 @@ alone, per #27.
   widens an aperture.
 - **A volume constraint, not a consent question.** Turning `C…` handles into prefixes means one
   fetch per handle — 227 in the measured case — against a registry with no published rate limit.
-  The permission is unchanged ([#15](https://github.com/winniel123/verge-asm/issues/15)); the
+  The permission is unchanged ([#15](https://github.com/winniel123/verge-asm/issues/15)). The
   request count is a constraint for whoever specifies the fetch.
 - **[#40](https://github.com/winniel123/verge-asm/issues/40) inherits the `Seed` change.** It
   reconsiders the `Seed` primitive wholesale for a cloud-resident estate and should start from

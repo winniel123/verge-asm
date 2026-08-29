@@ -16,17 +16,17 @@ stays refused ([ADR-0112](../adr/0112-single-sign-on-is-admitted-as-verified-oid
 
 Two rules shape everything below, and both are deliberate:
 
-- **SSO authenticates an existing account; it never creates one.** A verified identity
-  that maps to no local account is refused, not provisioned — so turning on a broad IdP
+- **SSO authenticates an existing account. It never creates one.** A verified identity
+  that maps to no local account is refused, not provisioned — so enabling a broad IdP
   can never silently mint accounts. Create the account first (see
-  [accounts.md](accounts.md)); the user links their identity to it afterward.
+  [accounts.md](accounts.md)). The user links their identity to it afterward.
 - **A binding is keyed on the verified `(provider, sub)`, never a username.** The `sub`
   is the provider's stable, non-reassignable subject id. Matching on it — rather than on a
   mutable, recyclable username or email claim — closes the account-takeover surface a
   reassigned username would open ([ADR-0113](../adr/0113-sso-binds-a-verified-issuer-sub-not-a-mutable-username.md)).
 
-The config lives in [`cmd/web/settings_sso.go`](../../cmd/web/settings_sso.go); the flow
-in [`cmd/web/sso.go`](../../cmd/web/sso.go).
+The config lives in [`cmd/web/settings_sso.go`](../../cmd/web/settings_sso.go). The flow
+lives in [`cmd/web/sso.go`](../../cmd/web/sso.go).
 
 ---
 
@@ -40,12 +40,12 @@ its endpoints and signing keys from `<issuer>/.well-known/openid-configuration`.
 and "google" appear only as example labels and slugs in the forms.
 
 Both **confidential clients** (client id *and* secret) and **public, PKCE-only clients**
-(client id, no secret) are supported. PKCE (S256) is used on every login regardless; the
+(client id, no secret) are supported. PKCE (S256) is used on every login regardless. The
 secret is what distinguishes the two client types.
 
 ### Setting up a specific provider
 
-The mechanics below are the same for every provider; the fiddly part is finding the right
+The mechanics below are the same for every provider. The fiddly part is finding the right
 values in each IdP's own console. These worked examples map a provider's admin console to
 the five fields and two callback URLs this guide describes:
 
@@ -63,8 +63,8 @@ it by its issuer URL and register the two callback URLs.
 
 ## Configure a provider — Settings → SSO
 
-Everything here is **admin-only** — each route is admin-gated, and a non-admin `POST` is
-refused. Open **Settings → Single sign-on** (`/settings?tab=sso`).
+Open **Settings → Single sign-on** (`/settings?tab=sso`). Everything here is
+**admin-only** — each route is admin-gated, and a non-admin `POST` is refused.
 
 ### Add a provider
 
@@ -87,10 +87,10 @@ Each row carries an **Edit** disclosure with three independent forms:
 
 - **Save provider** (`POST /settings/sso/update`) edits the display name, slug, issuer,
   client id, and the **enabled** checkbox. Disabling a provider keeps its config but
-  renders no sign-in button and **refuses its flow** — the clean way to turn SSO off
+  renders no sign-in button and **refuses its flow** — the clean way to disable SSO
   without deleting it, and without stranding password login.
 - **Update secret** (`POST /settings/sso/secret`) is the secret's own write path. Leaving
-  the field blank **keeps** the stored secret; typing a value **replaces** it; ticking
+  the field blank **keeps** the stored secret. Typing a value **replaces** it. Ticking
   **clear the secret** removes it (making the client public/PKCE-only). The clear box wins
   over any typed value. This mirrors the notification-channel secret exactly.
 - **Remove provider** (`POST /settings/sso/delete`) deletes the provider. Its identity
@@ -136,16 +136,16 @@ trusted origin the deployment is reached at (e.g. `https://verge.example.com`), 
 `web` service. Deriving it from a fixed, configured origin — rather than the incoming
 `Host` header — keeps an attacker-influenceable header out of the `redirect_uri`.
 
-**Set `VERGE_EXTERNAL_URL` before you register anything.** When it is unset the app falls
-back to the request's own host and scheme (`https` when TLS terminates in front, matching
-the `VERGE_SECURE_COOKIES` signal), but the value it produces must still match what you
-registered at the IdP — so pin it explicitly for any real deployment. Configure it the
+**Set `VERGE_EXTERNAL_URL` before you register anything.** When it is unset, the app uses
+the request's own host and scheme (`https` when TLS terminates in front, matching the
+`VERGE_SECURE_COOKIES` signal). The value it produces must still match what you registered
+at the IdP. So pin it explicitly for any real deployment. Configure it the
 same way as the other environment variables in
 [running.md → Environment variables](running.md#environment-variables).
 
 > **Note:** `VERGE_EXTERNAL_URL` (web, the SSO redirect origin) is a *different* variable
 > from `VERGE_PUBLIC_URL` (worker, the base for links in notification bodies). SSO uses
-> the former; setting only the latter does not configure the callback origin.
+> the former. Setting only the latter does not configure the callback origin.
 
 ---
 
@@ -171,7 +171,7 @@ that has enrolled TOTP still lands on the same two-factor step after the SSO rou
 owes its code, exactly as a password login would — only an account without TOTP completes
 the login outright. The session's **role** is always read from the local account row, not
 from any IdP claim. And because SSO authenticates *existing* accounts, **password + TOTP
-login always remains available** alongside it; disabling or removing a provider never
+login always remains available** alongside it. Disabling or removing a provider never
 strands anyone out of their account. See [authentication.md](authentication.md) for the
 password and TOTP mechanics.
 
@@ -179,12 +179,12 @@ password and TOTP mechanics.
 
 ## Linking and unlinking an identity — Profile
 
-A binding is established by the account holder themselves, from **Profile → Linked
+The account holder establishes a binding themselves, from **Profile → Linked
 identities** — never trust-on-first-use, which would re-open a first-claimant window.
 
 - **Link** (`GET /profile/sso/<slug>/link` → `…/link/callback`) runs the same OIDC
   round-trip *inside the caller's session*, then records `(provider, sub) → this account`.
-  Re-linking your own identity is a no-op; an identity already bound to a **different**
+  Re-linking your own identity is a no-op. An identity already bound to a **different**
   account is refused cleanly. An account may hold **one identity per provider**.
 - **Unlink** (`POST /profile/sso/unlink`) removes one of your own bindings. It is scoped to
   your account, so you can only ever unlink your own — a stale or foreign id simply no-ops.

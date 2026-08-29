@@ -16,7 +16,7 @@ every remote-administration port vendor lists lead with, and published its own w
 than smoothing it in.
 
 The question this ADR answers is **reach**. *"State the claim, and cite the source that owns it"*
-is not port-specific, and the map has carried a fog patch since #31 asking whether #21's standard
+is not port-specific. The map has carried a fog patch since #31, asking whether #21's standard
 and [#31](https://github.com/winniel123/verge-asm/issues/31)'s spec-defined-field test are two
 instruments or one. [ADR-0030](./0030-an-offer-is-admitted-on-a-finding-or-on-a-falsity-it-prevents.md)
 then ruled an **offer** a third instrument — admitted on a finding or a falsity and never on an
@@ -91,7 +91,7 @@ interval. §10.5 keys on the artefact, and the interval is the artefact.
 
 `N` therefore **moves**, from 30 days to **one third of the certificate's validity period, and one
 half of it below a 10-day validity**, attested by the IETF on form (RFC 9773 §1) and by the issuer
-on value. [ADR-0034](./0034-derive-the-claim-before-looking-for-the-owner.md) holds the ruling;
+on value. [ADR-0034](./0034-derive-the-claim-before-looking-for-the-owner.md) holds the ruling.
 [`docs/research/acme-renewal-timing.md`](../research/acme-renewal-timing.md) holds the retrieval.
 
 **Two things above are amended as rules rather than as rows.**
@@ -408,8 +408,8 @@ map's existing curation patch, not a new object.
 default attests **only where it restricts**: a permissive default is the absence of an act, and
 neither admits nor excludes. Follow it forward. A row admitted on a *restricting* default loses its
 footing the moment that default becomes permissive — and **nobody says anything**. No source
-publishes a retraction; a config default flips in a major release. Under the symmetric reading #37
-rejected, the flip would at least have been an exclusion with a direction; under the one-way rule it
+publishes a retraction. A config default flips in a major release. Under the symmetric reading #37
+rejected, the flip would at least have been an exclusion with a direction. Under the one-way rule it
 is the quiet removal of an admission route.
 
 > **Silent de-attestation is the one way a row can lose its grounds with no document changing
@@ -443,8 +443,8 @@ where an owner should, which a release cannot change. That is a retrieval (#66),
 weak row must not be collapsed — one is watched, the other is chased.
 
 **Marked as derived, not measured.** This section is read off §10.4's rule plus #21's measured
-finding that sources move. Nobody has checked whether any of the three defaults has already moved;
-that check belongs to the curation patch, which is where the watch lives.
+finding that sources move. Nobody has checked whether any of the three defaults has already moved.
+That check belongs to the curation patch, which is where the watch lives.
 
 > **Amendment — [#76](https://github.com/winniel123/verge-asm/issues/76): the watch list is
 > re-enumerated, and it was wrong in both directions.** The three rows named above —
@@ -629,7 +629,7 @@ The claim that thirteen rules carry no curated table is checkable, so it is chec
 
 ~~**Thirteen of sixteen carry nothing this ADR governs.** Two carry a table inside gate 2 and one of
 those two has no content yet.~~ **Thirteen of SEVENTEEN carry nothing this ADR governs**, per
-[#128](https://github.com/winniel123/verge-asm/issues/128); **three** carry a table inside gate 2 and
+[#128](https://github.com/winniel123/verge-asm/issues/128). **Three** carry a table inside gate 2 and
 all three now have content. One carries a table inside all three gates, and it is the one #21 was
 written for.
 
@@ -637,7 +637,7 @@ written for.
 
 - **[ADR-0004](./0004-signals-are-release-coupled-rules.md) is amended once**, in the place #60
   already corrected: its Consequences call `sensitive-port-reached-from-internet` *the only signal
-  whose reference data we curate*; #60 made it two; it is ~~**three**, the third being
+  whose reference data we curate*. #60 made it two. It is ~~**three**, the third being
   `certificate-weak-key-or-signature`'s unwritten table~~ **FOUR since
   [#128](https://github.com/winniel123/verge-asm/issues/128)** — the third is
   `certificate-weak-key-or-signature`'s table, now written, and the fourth is
@@ -649,7 +649,7 @@ written for.
 - **A curated table's cost gains an item.** Under ADR-0024 a rule is four parts plus one cost. Where
   a rule carries a table that asserts about the world, the table owes a **closed claim set derived
   from what the rule reads**, an **owner attestation per row**, and a **determinacy argument where
-  its key is a surrogate**. This is not a fifth part of a rule; it is the table's own accounting.
+  its key is a surrogate**. This is not a fifth part of a rule. It is the table's own accounting.
 - **Gate 2 is not a shipping gate.** A table with an unattested row **ships, disclosed**, exactly as
   ~~`161/udp` and~~ `5432/tcp` ~~do~~ **does**. #37's precedent binds: a row may not move on a re-reading of text
   already held, only on a **retrieval**. So #67 and #68 are retrievals, not blockers on the number

@@ -9,7 +9,7 @@
 
 [ADR-0001](./0001-stack-and-runtime.md) chose a Postgres-backed queue (`SELECT … FOR UPDATE
 SKIP LOCKED` + `LISTEN/NOTIFY`) over a broker, on the grounds that **job outcome and
-observation data must commit together** — a job marked complete over a rolled-back write
+observation data must commit together**. A job marked complete over a rolled-back write
 manufactures false removals across the estate. It accepted, as the cost of that choice,
 that retry, backoff, dead-lettering and job visibility are built rather than inherited,
 and handed that work here.
@@ -51,7 +51,7 @@ observation, never an observation of absence.**
 ### Non-binding implementation defaults
 
 - Per-worker max in-flight jobs: **10**.
-- Job visibility timeout / heartbeat so a worker that dies releases its claim; a lost job
+- Job visibility timeout / heartbeat so a worker that dies releases its claim. A lost job
   counts as an attempt against its retry budget.
 - Progress delivered over ADR-0001's SSE channel as a count query against the `Dispatch`.
 
@@ -66,7 +66,7 @@ reconciliation in exactly the code path where a mistake looks to the operator li
 attack-surface change.
 
 The obvious objection is transaction length. ADR-0001 sizes a hot-set run at ~70k
-reachability observations per day; a batch defined as "the prober against a whole address
+reachability observations per day. A batch defined as "the prober against a whole address
 scope" is a transaction open for hours, holding a `SKIP LOCKED` row throughout, discarding
 everything on a crash at minute 200.
 
@@ -96,7 +96,7 @@ A batch that fails halfway has made real measurements, and discarding them throw
 data to avoid a bookkeeping problem the scope record already solves. So partial results are
 kept, and the batch's scope records what it **completed** — the extent over which its
 silence is evidence. A port attempted and timed out is completed (a timeout *is* a
-measurement); a port whose worker died before recording a result is not.
+measurement). A port whose worker died before recording a result is not.
 
 The dead-letter case is where this bites hardest, and where the naive answer is wrong. A
 dead-lettered batch recording "attempted 140 ports, produced 0 observations" asserts 140
@@ -122,7 +122,7 @@ as two scans run on different cadences over different port sets." That objection
 
 So `Dispatch` exists, holds the fan-out and its progress, and is **structurally barred from
 the comparison path**: it carries no observations, and the drift engine never reads it.
-Batches anchor scope; timelines anchor comparison; `Dispatch` anchors neither. The risk is
+Batches anchor scope. Timelines anchor comparison. `Dispatch` anchors neither. The risk is
 plain — this is `ScanRun` with a haircut, and one `WHERE dispatch_id = previous_dispatch_id`
 in a drift query undoes the rejection — which is why the prohibition is written into the
 glossary entry rather than left to discipline.
@@ -147,7 +147,7 @@ operator can point at — dispatch 41 ran the old config, dispatch 42 the new on
 than being smeared through the middle of one fan-out.
 
 Fan-out is **atomic** for the analogous reason. A partially-enqueued dispatch covers less of
-the estate than its config says; under the completeness rule the missing batches are
+the estate than its config says. Under the completeness rule the missing batches are
 correctly never spoken about, but nothing anywhere records that the dispatch under-covered.
 The idempotency key on `(scan, scheduled_time)` makes the retry safe.
 
@@ -167,7 +167,7 @@ missed — which the skip record already delivers. Consequence handed to
 [#8](https://github.com/winniel123/verge-asm/issues/8): a gap in observations is a *real*
 gap, and the drift engine must not treat a three-day-old batch as current.
 
-Tick jitter is a knob that does nothing here. Enqueueing is atomic and instant; the jobs
+Tick jitter is a knob that does nothing here. Enqueueing is atomic and instant. The jobs
 drain at whatever rate the concurrency cap allows, so **the cap is the throttle**.
 
 ### Port tiers are three `Scan`s
@@ -313,7 +313,7 @@ The window is **fixed and release-coupled**. ADR-0004's test — would we ever w
 out of band? — says no, and the window feeds the derived value the landing view is built from,
 so an operator turning that dial silently makes their entire board non-comparable.
 [#16](https://github.com/winniel123/verge-asm/issues/16) did ship an operator-configurable N
-for certificate expiry, and that precedent cuts against this; the distinction drawn is blast
+for certificate expiry, and that precedent cuts against this. The distinction drawn is blast
 radius — expiry-N invalidates comparability for one signal, this one for the whole board.
 
 ## Consequences

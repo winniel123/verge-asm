@@ -67,7 +67,7 @@ are not the same four: the currency tuple has a `port` the timeline key does not
 `source` the timeline key turns on.
 
 `port` is harmless — it is already inside the subject. A `Service` **is** `(Address, port, transport)`
-and an `Endpoint` is `(Name, Service)`, so naming the port beside the subject restates it; and the two
+and an `Endpoint` is `(Name, Service)`, so naming the port beside the subject restates it. The two
 `Name` facets have no port at all, which is also why *a `Scan` does not have a port list* costs this
 lookup nothing. Coverage over a port is decided by the port list on the two `Scan`s whose exchange is
 a **connect**, exactly where ADR-0084 put it.
@@ -130,7 +130,7 @@ Under the collapse, on the recommended install, that answer names **`zone`** —
 operator would change to shorten the retention horizon on their `reachability` evidence is **their own
 promise about how often they re-export their zone file**. The control's one honest affordance points
 at degrading a `Source`'s declared freshness to buy disk on an unrelated facet. That is not a floor
-the operator can move by changing the world; it is a floor they can only move by making the product
+the operator can move by changing the world. It is a floor they can only move by making the product
 worse, and ADR-0081 built the territory rendering precisely so the answer to *why can I not go there*
 would be a true one.
 
@@ -150,7 +150,7 @@ tightest cadence, multiply by `k`. Every component is Declared and already recor
 records the source and the vantage, the subject carries the port where there is one, and coverage over
 a port is decided by a port list that exists on exactly the two `Scan`s whose exchange is a connect.
 The `discriminator` is in the key and does not move the answer, since `dns` covers the whole declared
-qtype set; carrying it costs nothing and dropping it would put a third tuple in the model.
+qtype set. Carrying it costs nothing and dropping it would put a third tuple in the model.
 
 **Two — what happens where the bound is undefined?** ADR-0084 ruled that an uncovered facet's bound is
 *"undefined rather than loose"*, and the retirement query is the place where that ruling has to be
@@ -186,13 +186,13 @@ own instant with no new machinery, still inert in v1 because both dials ship unb
 It does one thing more. ADR-0081 recorded an asymmetry as the reason the list works: *"the binding row
 names the leaf that moved. A retention row can never name anything."* Under a per-row bound **the
 retention row names the `Scan` that set it** — the one thing a collapsed retention row could never do.
-The per-row query does not weaken the horizon rendering; it is the only version of it in which every
+The per-row query does not weaken the horizon rendering. It is the only version of it in which every
 row in the list carries a cause.
 
 So the distinction the whole ticket turns on is **controls versus computed instants**. *n* controls is
 *n* horizons an operator must find, hold in their head and reconcile — which is what kills the
 per-facet dial set, and #139 is right about it. *n* computed instants under **one** control, each
-rendered where the timeline it bounds is already rendered, is not a horizon at all; it is the one
+rendered where the timeline it bounds is already rendered, is not a horizon at all. It is the one
 horizon, evaluated. Collapsing the control is required. Collapsing the query was never required, and
 buying the second with the first is what made the floor thirty times too high.
 
@@ -204,7 +204,7 @@ would outlive. Under a per-row query, an operator setting seven days will have z
 `dns-record` rows living two months. Does the control then lie?
 
 It does if it is drawn as *discard at D*. So it is not. **The dial names the horizon the operator is
-buying, and the floor is what the product will not sell below** — which is what it already meant; the
+buying, and the floor is what the product will not sell below** — which is what it already meant. The
 collapse merely hid the gap by raising the floor until no row could exceed it. The rendering
 obligation is discharged by an object ADR-0081 already built: **the enumeration beneath the dial.**
 
@@ -227,7 +227,7 @@ supplied zone file"*, and *"a `Scan` whose scope list is empty is a legible stat
 with no zone file, `zone` is **enabled and covers nothing**. The `Dispatch` floor — slowest **enabled**
 — is `k` × monthly. The observation floor — slowest **covering** — is `k` × weekly, from
 `tls-acceptance`. **They differ by a factor of four, today, at shipped settings, on an ordinary
-install.** *Already close to* understates it; they are already apart, and ADR-0081's decision to keep
+install.** *Already close to* understates it. They are already apart, and ADR-0081's decision to keep
 them as two rules is confirmed by the case rather than merely by the argument. Recorded here because
 this ruling makes the observation floor move further from the `Dispatch` one — to the **tightest**
 covering `Scan` — and nothing in the model should read the two as one number again.
@@ -264,8 +264,8 @@ covering `Scan` — and nothing in the model should read the two as one number a
   *slowest **enabled*** — to the observation floor, which is *slowest **covering***. The two differ
   today on any install with no zone file.
 - **[`CONTEXT.md`](../../CONTEXT.md)'s `Observation` entry is amended and gains no term.** The bound is
-  keyed on the timeline; the dial's floor is the tightest bound in force; the query applies each
-  timeline's own; and the two undefined cases are named.
+  keyed on the timeline. The dial's floor is the tightest bound in force. The query applies each
+  timeline's own. The two undefined cases are named.
 - **The number of dials, corpus rows and controls is unchanged** — two dials, seven corpus rows, one
   observation control. **No aperture input, no declared parameter, no new number, and `k` = 2 is
   untouched.**
@@ -273,7 +273,7 @@ covering `Scan` — and nothing in the model should read the two as one number a
   observation floor as the slowest covering `Scan` and draws the two-facet exclusion list. Ticketed
   rather than redrawn here: it is #139's artefact and redrawing it is prototype work.
 - **The floor is still never an operator choice.** Nothing on the control is a floor the operator may
-  type; the territory boundary moves and stays territory, and the per-row floors are display in two
+  type. The territory boundary moves and stays territory, and the per-row floors are display in two
   places that already exist.
 
 ## Alternatives rejected

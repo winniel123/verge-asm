@@ -22,7 +22,7 @@ bill and handed it here, in terms:
 
 This is that ticket, and its scope is exactly one sentence on one surface.
 [#44](https://github.com/winniel123/verge-asm/issues/44) put a standing **aperture statement** on
-`Coverage`, one line per aperture input;
+`Coverage`, one line per aperture input.
 [ADR-0044](./0044-a-one-off-measurement-has-no-currency.md) specified what the **port-tier line**
 says. Today that line names the tier, its cadence and its off state, and carries two figures:
 **`5 of 38 sensitive pairs unread`** and **`0 of 17 rules unevaluable`**. The question is what it
@@ -71,7 +71,7 @@ ADR-0083 calls this *a third route to a `Gap`*. Walk it against
 
 A UDP `Service` inside the recorded scope whose every probe returns `unanswered` **never opens a
 `Reach` timeline at all**. It is probed daily, it writes a `reachability` observation every cadence,
-and its `Reach` leg does not exist. That is not a `Gap`; a `Gap` is a span, and there is no span.
+and its `Reach` leg does not exist. That is not a `Gap`. A `Gap` is a span, and there is no span.
 
 The distinction decides the whole ticket, because **the two cases have wholly different carriers**.
 
@@ -86,8 +86,8 @@ The distinction decides the whole ticket, because **the two cases have wholly di
 
 So the losing option answers itself. *Leave it on the subject, where the `Gap` already records its
 cause* is a complete answer to half the question and no answer at all to the half that matters. The
-aperture statement is the surface #44 built for subjects the operator cannot otherwise account for;
-that is precisely why `5 of 38 sensitive pairs unread` is on it rather than on 38 subject pages.
+aperture statement is the surface #44 built for subjects the operator cannot otherwise account for.
+That is precisely why `5 of 38 sensitive pairs unread` is on it rather than on 38 subject pages.
 
 ### `0 of 38 sensitive pairs unread` is a clean bill of health, and it is what today's line would print
 
@@ -143,7 +143,7 @@ Two near-misses were tried and both assert more than we are entitled to.
 
 ***Cannot yield a `Reach`*** is false. A payload-free UDP probe that draws an ICMP Port Unreachable
 yields `refused`, which projects to `not-reached` unchanged — ADR-0083 kept that member for exactly
-this reason. So the leg can hold a value; what it cannot hold is the **positive** one.
+this reason. So the leg can hold a value. What it cannot hold is the **positive** one.
 
 ***Undecidable*** names a property of the listener. `CONTEXT.md` bars that construction by name, and
 ADR-0083 refused `filtered` and `silent` on it three paragraphs running: a negative is **named for
@@ -157,7 +157,7 @@ instrument cannot ever tell them so.
 
 ### The `Gap` half needs a word, and ADR-0064's own axis is what supplies it
 
-The ticket has two halves. The aperture statement answers the sub-case with no carrier; the sub-case
+The ticket has two halves. The aperture statement answers the sub-case with no carrier. The sub-case
 that **is** a `Gap` carries itself, because a `Gap` **records its cause** — and there is no cause in
 the vocabulary that fits.
 
@@ -197,7 +197,7 @@ reopening because the clause is an enumeration over a corpus that has since acqu
 and ADR-0064's own criterion is what identifies it.)*
 
 **No message class, cause or member is minted by this.** A register is the wording a `Gap`'s recorded
-cause renders as; ADR-0064 established in terms that #44's registers run **under one cause**, so a
+cause renders as. ADR-0064 established in terms that #44's registers run **under one cause**, so a
 fifth register touches neither the four message causes nor the three classes. The coverage class
 stands at ten.
 
@@ -213,7 +213,7 @@ on which it returns `not-evaluable` per row, and the figure over **rules** is bl
 construction.
 
 So the two figures on the line are not redundant and are not substitutes. **The rules figure is over
-our rules; the pairs figure is over our list.** A pass that checks only the first will find `0` and
+our rules. The pairs figure is over our list.** A pass that checks only the first will find `0` and
 `0` and report that nothing moved, which is the shape of every desync this map has measured. This is
 the third figure on this one line whose numerator has been checked less often than its denominator.
 
@@ -243,14 +243,14 @@ looking at this pair every day and cannot report what we find*. Those are differ
 different remedies — the first is fixed by turning a tier on, the second is not fixed by anything
 the operator can do, and the second is the one that must never be mistaken for the first.
 
-The remedy asymmetry is the whole point. The `unread` figure is an **invitation**; the new figure is
+The remedy asymmetry is the whole point. The `unread` figure is an **invitation**. The new figure is
 a statement that no action available to the operator will change it. #22's split between a fault and
 an invitation is the same cut, and the aperture statement owes it here for the same reason.
 
 ### What this does to ADR-0083's ruling: it strengthens it
 
-Nothing in ADR-0083's decision moves. UDP stays off; the union stays at three members; the leaf
-count stays five; `datagram-outcome` stays specified and unshipped.
+Nothing in ADR-0083's decision moves. UDP stays off. The union stays at three members. The leaf
+count stays five. `datagram-outcome` stays specified and unshipped.
 
 What moves is its **pricing of the payload-free knob**, and it moves in the direction ADR-0083 was
 already arguing. Its case was *zero net new firings* — opening payload-free buys nothing. This ADR
@@ -280,21 +280,21 @@ So the honest v1 statement of the UDP position gains a third form, after *it is 
   does not.**
 - **ADR-0010's *`fired` → `not-evaluable` … worded as we stopped looking* is conditionally
   annotated.** On a UDP leg that wording is **false** — we looked, at cadence, and the exchange
-  decided nothing. The edge is unchanged and stays **coverage class, member 5**; only its copy is
+  decided nothing. The edge is unchanged and stays **coverage class, member 5**. Only its copy is
   falsified, and only the day UDP ships. The copy itself belongs to
   [#120](https://github.com/winniel123/verge-asm/issues/120) / ADR-0064's grammar and is not written
   here.
 - **[ADR-0064](./0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md)'s *"exactly
   these four and no fifth"* is conditionally struck at the sentence, and its axis is confirmed.** The
-  clause is an enumeration over a corpus with no connectionless leg; the **reasoning** — four
+  clause is an enumeration over a corpus with no connectionless leg. The **reasoning** — four
   registers, one cause, keyed on **what moved** — is what identifies the fifth mover and is untouched.
   The count is `4` on every shipped configuration. [ADR-0024](./0024-a-rules-domain-is-the-extension-of-its-name.md)'s
   `Gap` rendering row takes the fifth register beside it, and is noted there as a **rendering table
   rather than the vocabulary's enumeration** — it omits #48's *you stopped telling us*, which this
   pass found and did not repair.
 - **No coverage-class member is minted and the class stands at ten.** Walked rather than quoted:
-  opening a UDP tier is an aperture widening and fires member 2 (`revealed`); a `Reach` `Gap`
-  opening on a previously-decided pair is member 5's edge; its closing is member 7; a `Reach`
+  opening a UDP tier is an aperture widening and fires member 2 (`revealed`). A `Reach` `Gap`
+  opening on a previously-decided pair is member 5's edge. Its closing is member 7. A `Reach`
   timeline that never opens fires **nothing**, which is the defect this ADR routes to the aperture
   statement precisely because no message can carry it.
 - **[ADR-0083](./0083-silence-decides-only-on-a-connection-oriented-transport.md)'s *"changes
@@ -322,9 +322,9 @@ So the honest v1 statement of the UDP position gains a third form, after *it is 
   [ADR-0041](./0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md)'s retention
   arithmetic not at all: no corpus grows, no currency bound moves, and a `Reach` timeline that never
   opens is the cheapest object in the model.
-- **Nothing on the map's composed-state line moves.** `verge-core` stays 136 (131 TCP, 5 UDP); the
-  aperture statement stays `5 of 38 sensitive pairs unread`; the rule set stays 17; the aperture
-  inputs stay seven; the leaves stay five; the facets stay six; the coverage class stays ten. This
+- **Nothing on the map's composed-state line moves.** `verge-core` stays 136 (131 TCP, 5 UDP). The
+  aperture statement stays `5 of 38 sensitive pairs unread`. The rule set stays 17. The aperture
+  inputs stay seven. The leaves stay five. The facets stay six. The coverage class stays ten. This
   ADR adds a figure whose value is `0` and a conditional to three sentences.
 
 ## Alternatives rejected

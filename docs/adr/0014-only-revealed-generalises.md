@@ -8,7 +8,7 @@
 ## Context
 
 [ADR-0006](./0006-subjects-leave-by-measurement.md) split appearance into `appeared` and
-`returned`; [ADR-0007](./0007-drift-is-a-timeline-of-spans.md) added `revealed` for a widened
+`returned`. [ADR-0007](./0007-drift-is-a-timeline-of-spans.md) added `revealed` for a widened
 aperture and called all three *opening kinds on the membership timeline*. That framing was
 already leaking. ADR-0007's own [#36](https://github.com/winniel123/verge-asm/issues/36)
 amendment rules that the queried qtype set and the TLS candidate set *"start timelines that did
@@ -68,7 +68,7 @@ cause, and #31 produces one of each. Nothing needed choosing between them.
 ### Only `revealed` generalises, and the reason is not a carve-out
 
 The obvious move is to widen the whole family to any timeline. A slow cadence shows why that
-over-reaches. A `Service` appears at 02:00 and is exchanged with on the daily tier; its
+over-reaches. A `Service` appears at 02:00 and is exchanged with on the daily tier. Its
 `tls-acceptance` timeline opens six days later, when the weekly enumeration next runs. That opening
 is not the world moving — the service was there all along — and not our aperture widening, since
 the aperture always included it. We simply got round to looking. A uniformly widened family has no
@@ -104,7 +104,7 @@ The rule is total because of [ADR-0011](./0011-a-facet-is-six-parts.md)'s closed
 timeline opens exactly when its subject enters the estate, when our aperture widens to include it,
 or when we first get round to it — never because the world changed underneath an existing
 timeline, since every measured negative is a **value** and not an absence. A `Service` that starts
-speaking TLS does not open a `certificate` timeline; it closes a `NoTLS` span on one that already
+speaking TLS does not open a `certificate` timeline. It closes a `NoTLS` span on one that already
 existed.
 
 ### `Gap` → value is an ordinary adjacency, and it is always about us
@@ -183,7 +183,7 @@ real event in the model: `value → Gap → value` on every timeline beneath the
 `Gap` no measurement was ever missed during.
 
 Currency already covers it. An observation is current within `k` cadences of the covering Declared
-`Scan`; the gate closing stops *feeding* the timeline, the last value ages out normally, and a
+`Scan`. The gate closing stops *feeding* the timeline, the last value ages out normally, and a
 `Gap` opens by the mechanism that was already there. A toggle inside one cadence is then a
 non-event in the drift model, with no damping and no threshold — which matters, because damping is
 exactly what this project refuses in the comparison path and exactly what this case invites.
@@ -192,7 +192,7 @@ The cost is real and is discharged elsewhere rather than accepted. ~~On a weekly
 a disclaimed address keeps rendering its last measured `exposed` for up to a fortnight.~~
 **Every sensitive-list pair sits in `verge-core`, so the covering cadence is `daily` and the window
 is `k`=2 cadences — TWO DAYS — since [#78](https://github.com/winniel123/verge-asm/issues/78)
-retired the weekly tier.** The Consequences section below stated this correction; it is repeated
+retired the weekly tier.** The Consequences section below stated this correction. It is repeated
 here because this is the site that *specifies* the window, and per
 [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) read alone
 and in the present tense the struck sentence would build a fortnight-wide window. That is
@@ -218,7 +218,7 @@ Refusing it would make a `Gap` strictly more destructive than a `Break`, inverti
 
 A `Gap` closing therefore **notifies**, in the coverage class, at the cause, and carries the pair
 only where the value actually differs. *We can see again and nothing moved* is a one-line
-all-clear; *we can see again and eleven services differ from what we last saw* is the real message.
+all-clear. *We can see again and eleven services differ from what we last saw* is the real message.
 Suppressing it would leave a `Gap` as the one way a genuine `firewalled` → `exposed` vanishes
 silently — the alert hole ADR-0008 refused to accept across a `Break`, arriving through `Gap`
 instead.
@@ -330,8 +330,8 @@ this section left to whoever got there first.
 ## Consequences
 
 - **[`CONTEXT.md`](../../CONTEXT.md) is amended in three entries.** `Transition` now says that
-  `appeared`/`returned` are membership-only and `revealed` is any timeline; `Gap` records its cause
-  and its closing edge is an ordinary transition; `Custody` states that closing the gate stops
+  `appeared`/`returned` are membership-only and `revealed` is any timeline. `Gap` records its cause
+  and its closing edge is an ordinary transition. `Custody` states that closing the gate stops
   feeding timelines rather than opening a `Gap` directly.
 - **ADR-0007's *"a third opening kind on the membership timeline"* is corrected**, and its
   *"they enter a `Gap`"* sentence for a closing probing gate is amended to go via currency.

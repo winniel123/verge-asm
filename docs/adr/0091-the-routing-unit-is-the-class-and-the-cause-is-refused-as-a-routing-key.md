@@ -177,7 +177,7 @@ lacks:
    forgotten on member eleven. Where the cause is unassigned the mover is not: ADR-0064 §6 assigns
    member 9's mover explicitly — an `Address` entering beneath a live `custody extension` fires *the
    gate your declaration holds open has moved*, **coverage, subject us**.
-2. **It is the axis the operator can act on.** *You stopped telling us* is a thing they fix; *we
+2. **It is the axis the operator can act on.** *You stopped telling us* is a thing they fix. *We
    stopped looking* is a thing we fix. That is the difference a second channel is for.
 3. **It keeps apart exactly what ADR-0020 built to be kept apart**, where the cause levels it (§3).
 4. **It is falsifiable**, which no cause assignment over the coverage class would be.
@@ -217,7 +217,7 @@ invitation. **If §6 trips, the answer is the mover. The cause is closed.**
   to a closed ticket. §9 carries the reasoning.
 - **Two stale sentences in `notification-channels.md` §6 are repaired at the site that specifies
   them**, because this ruling depends on both. *"The ACME flap has no remedy in v1 … Flagged, not
-  ruled here"* was withdrawn by ADR-0064 §2 at ADR-0039's site and never at this one; read alone it
+  ruled here"* was withdrawn by ADR-0064 §2 at ADR-0039's site and never at this one. Read alone it
   would have a competent session re-open #120. And *"for all sixteen rules"* is the retired rule-set
   figure — ADR-0026 §5's own site already reads **seventeen**.
 - **One cross-document figure desync is named and repaired.** ADR-0064's Context paragraph says the

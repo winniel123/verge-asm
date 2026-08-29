@@ -22,7 +22,7 @@ does not settle it. ADR-0048's own rider — *"a registration reaches the limbs 
 registrant… an IANA row is a record of a registrant's own placement declaration, not an independent
 authority"* — is written for §2.4's **determinacy** gate, and ADR-0048's own Rationale 1 explains why
 that does not travel automatically: determinacy asks a **conclusion** question, *what listens here*,
-answered **at** the wire; attestation (like the claim gate beside it) asks a **normative** question,
+answered **at** the wire. Attestation (like the claim gate beside it) asks a **normative** question,
 *may this statement be made, and by whom*, answered **after** the wire. Different instruments, per
 [ADR-0032](./0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §6. Landing at the same
 verdict for the same party does not mean arriving there by the same rule, and §2.2 owed its own
@@ -35,7 +35,7 @@ The full working is [`sensitive-ports.md`](../research/sensitive-ports.md) §43.
 **A registry entry does not attest a claim on its own word. It attests only where it can be traced to
 a registrant, designer, or implementer speaking in their own voice, in a form §2.2 already admits.**
 
-1. **The registry fails §2.2 on genre.** A specification defines protocol behaviour; a registry
+1. **The registry fails §2.2 on genre.** A specification defines protocol behaviour. A registry
    records an assignment, ordinarily a terse description supplied by the registrant at filing time and
    never revisited for currency or accuracy. IANA's own registry-procedures document, RFC 6335, does
    not claim to specify what it catalogues. A registry row sharing a page with a specification is not
@@ -45,20 +45,20 @@ a registrant, designer, or implementer speaking in their own voice, in a form §
    §10.5's *owner* is "the party that designed the protocol, or that authors the reference
    implementation, speaking about the thing it designed or wrote." IANA does neither for a registered
    service — it is a registrar, transcribing a registrant's own declaration and disclaiming, in
-   capitals, any further authority over it. The defect is identical to the one ADR-0048's rider found;
-   this decision applies it to §2.2 rather than assuming §2.4's ruling already covered it.
+   capitals, any further authority over it. The defect is identical to the one ADR-0048's rider found.
+   This decision applies it to §2.2 rather than assuming §2.4's ruling already covered it.
 3. **The two grounds are independent of volatility.** A registry entry is also a **rung-1** artefact
    under [ADR-0057](./0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md) — a dataset whose
    entries change with no notice a reader would meet — and that is a real, separate hazard the queue
    already tracks. It is not, however, the reason the registry fails §2.2: a hypothetical rung-1
    artefact that genuinely were a registrant's own specification would still attest. Rung explains why
-   an admitted registry-adjacent claim would need watching; it does not do the admitting.
+   an admitted registry-adjacent claim would need watching. It does not do the admitting.
 4. **A cell resting on the registry alone is rescued only by finding the artefact §2.2 actually asks
    for** — retrieved and traced to the party that designed the protocol or authors the implementation,
    never assumed from a related protocol's specification by family resemblance. Run once, at
    `sensitive-ports.md` §43.10, over the three rows this ticket named: `512/tcp` is rescued by NetBSD's
-   own `rexecd(8)`, corroborated by FreeBSD's own `rexec(3)`; `513/tcp` was already carried by RFC
-   1282, a genuine specification the corpus had quoted without crediting; `514/tcp` is rescued by
+   own `rexecd(8)`, corroborated by FreeBSD's own `rexec(3)`. `513/tcp` was already carried by RFC
+   1282, a genuine specification the corpus had quoted without crediting. `514/tcp` is rescued by
    FreeBSD's own `rshd(8)` and specifically **not** by RFC 1282, which — checked directly — names
    neither `rsh` nor `rshd` anywhere and states its own scope as rlogin alone.
 
@@ -111,7 +111,7 @@ neighbour sharing its mechanism.
 - **No `(port, transport)` pair moves.** `512/tcp`, `513/tcp` and `514/tcp` stay in Class B, unchanged.
   No footing tier moves — Class B carries no footing cell for any row, on or off this triple.
 - **`sensitive-ports.md` §43.3's register loses this triple** (`§43.10.4`). It was carried at rung 1,
-  sole-ground, at the head of the queue; it is re-founded at rung 4 (`512`, `514`) and rung 5 (`513`),
+  sole-ground, at the head of the queue. It is re-founded at rung 4 (`512`, `514`) and rung 5 (`513`),
   and none of the three cells remains sole-ground. This is a genuine discharge by retrieval, not the
   filter-tightening (#135, #151) the register's prior "loses none" statement described — that
   statement is marked at its own clause and not repealed.
@@ -119,19 +119,19 @@ neighbour sharing its mechanism.
   [ADR-0100](./0100-a-copy-of-a-monotonic-source-is-kept-honest-by-the-act-that-grows-it.md) — the
   Ground column edited in place, no duplicate row appended.
 - **`sensitive-ports.md` §44.5's G8-entry table is corrected**: RFC 1282 was filed against `513` and
-  `514`; it carries only `513`. `514`'s new carrier and both of `512`'s new carriers are unpinned,
+  `514`. It carries only `513`. `514`'s new carrier and both of `512`'s new carriers are unpinned,
   continuously-rendered vendor pages and join §44.4's G8-**recurring** roster instead (three new
-  members; thirty-six over thirty becomes thirty-nine over thirty-two).
+  members. Thirty-six over thirty becomes thirty-nine over thirty-two).
 - **It generalises.** Any future claim cell that reaches for a bare catalogue entry — IANA's registry
   or a similarly-shaped third-party directory — in place of a specification, an owner's documentation,
   or a shipped default fails §2.2 on the same two grounds, genre and ownership, independent of how
   volatile the catalogue is. A rescue is not assumed to exist and must be retrieved and traced to the
   registrant, designer or implementer before a row may rest on it.
 - **Does not generalise to `weak-key-and-signature.md`.** That table's rows all rest on published RFCs
-  and no cell there rests on a registry entry; nothing there is walked or moved by this decision.
+  and no cell there rests on a registry entry. Nothing there is walked or moved by this decision.
 - **[ADR-0048](./0048-a-convention-is-evidenced-by-placement-never-by-catalogue.md) is untouched.**
   This decision does not amend it, extend its scope to §2.2, or rely on it beyond citing the shared
-  reasoning; §2.4's determinacy rule and §2.2's attestation rule remain two separate instruments that
+  reasoning. §2.4's determinacy rule and §2.2's attestation rule remain two separate instruments that
   happen to treat IANA the same way, for related but independently-stated reasons.
 
 ## Alternatives rejected

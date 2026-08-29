@@ -48,20 +48,20 @@ The ready-message is a new, minimal document
 That is the whole body. It deliberately does **not** reuse `delivery.BuildBody`, which carries a
 Message's firing (class, cause, census count, headline) — a report run is none of those. The
 report body — the signals, subjects and withdrawals the artifact renders — **never crosses the
-wire**. The Channel receives a notice and a link; an operator follows the link into the instance,
+wire**. The Channel receives a notice and a link. An operator follows the link into the instance,
 behind session auth, to read the artifact. This is the ADR-0039 rule applied to reports: the
-estate stays home; only the notice and the link leave. The `ReadyBody` type has nowhere to put an
+estate stays home. Only the notice and the link leave. The `ReadyBody` type has nowhere to put an
 estate row, and a test asserts the marshalled body carries only the five permitted keys and not
 one estate term.
 
 ### 2. A schedule binds a Channel; NULL is download-only
 
 Migration 22700 adds `report_schedule.channel_id BIGINT REFERENCES channel(id)`, nullable. A
-non-NULL binding is the destination; **NULL is download-only** — the artifact is generated and
+non-NULL binding is the destination. **NULL is download-only** — the artifact is generated and
 stays viewable in-instance, and nothing is sent. The free-text `delivery_target` column (migration
 21700) is **superseded** by the binding: it is left in place (migrations are append-only) but
 written empty and no longer read as the destination. The wizard's Delivery step offers "Download
-only" plus one option per declared Channel (by URL); the recurring-reports table gains a Delivery
+only" plus one option per declared Channel (by URL). The recurring-reports table gains a Delivery
 column rendering the bound channel's URL or "download only".
 
 ### 3. The send is its own corpus — a notify failure never hides a generated artifact
@@ -93,19 +93,19 @@ it, so both send by identical rules and a fix to the guard fixes both.
 
 ## Consequences
 
-- **The estate never leaves for a report.** The body type cannot carry a row; the guard is a test,
+- **The estate never leaves for a report.** The body type cannot carry a row. The guard is a test,
   not a comment. ADR-0039 holds for reports as it does for Messages.
 - **A failed send never destroys a report.** The generated artifact and the send outcome are
-  independent rows; a dead-lettered notification leaves the artifact viewable. This is the whole
+  independent rows. A dead-lettered notification leaves the artifact viewable. This is the whole
   reason `report_notification` is not a column on `report_delivery`.
-- **One transport, two callers.** `SendSigned` is the shared signed-POST path; `delivery.Runner`'s
+- **One transport, two callers.** `SendSigned` is the shared signed-POST path. `delivery.Runner`'s
   behaviour is unchanged (it now calls `SendSigned` internally). The SSRF guard, no-bearer rule and
   redirect refusal are enforced once.
 - **Download-only is the default and the safe floor.** A schedule with no channel bound sends
   nothing — the pre-T7 behaviour — so an install that declares no Channel, or a schedule left on
   "Download only", is a no-op end to end.
 - **`delivery_target` is dead weight, retained.** It stays in the schema (append-only) but is
-  written empty and read nowhere as a destination; a later cleanup could drop it, on the record.
+  written empty and read nowhere as a destination. A later cleanup could drop it, on the record.
 
 ## Alternatives rejected
 

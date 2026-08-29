@@ -4,10 +4,10 @@
 - **Ruling:** [ADR-0039](../adr/0039-a-channel-carries-the-message-never-the-estate-and-a-delivery-is-an-operational-record.md)
 - **Ticket:** [#119 Which notification channels ship in v1, and what are their delivery semantics?](https://github.com/winniel123/verge-asm/issues/119)
 
-ADR-0039 rules that a `Channel` carries a `Message` and never the estate, that the store is not a
-channel, and that a `Delivery` is an Operational record which never becomes a message. This
+ADR-0039 rules three things. A `Channel` carries a `Message` and never the estate. The store is not a
+channel. A `Delivery` is an Operational record which never becomes a message. This
 document is the enumeration behind it. It is a separate file from the ADR because it is **a list
-that will be revised** and an ADR is a decision that will not.
+that will be revised**. An ADR is a decision that will not.
 
 **This document does not decide what fires.** The message set is closed by
 [ADR-0026](../adr/0026-the-facet-layer-is-evidence-not-a-channel.md),
@@ -33,17 +33,17 @@ Two marks are used, on `measurement-offers.md`'s convention:
 | **The store**, rendered in the interface | No — it is not a channel | No | No | **Never** |
 | A **`Channel`** — outbound `https` POST | Yes, zero or more, none shipped | Yes | One per attempt | Yes, by class routing or by there being no channel |
 
-The store is complete by construction. Every message is written and rendered whatever happens to
-every channel, which is why a misconfigured, disabled or dead channel loses no fact — and why the
+The store is complete by construction. Every message is written and rendered, whatever happens to
+every channel. That is why a misconfigured, disabled or dead channel loses no fact. It is also why the
 one surface that reports a delivery failure is the one surface that cannot have one.
 
 ### 1.1 Where the store renders
 
-A **global element carrying an unread count**, present on every screen, opening a list whose rows
-each link to the object or scope the message fired at — §3.3 says what that is per mover, since it
+A **global element carrying an unread count**, present on every screen. It opens a list. Each row
+links to the object or scope the message fired at. §3.3 says what that is per mover, since it
 is not always the object the sentence is about. Not a nav destination: `Exposure · Subjects · Signals
 · Seeds · Coverage · Settings` is unchanged. `[derived]` — [#10](https://github.com/winniel123/verge-asm/issues/10)
-kept the nav to five and demoted the estate listing to do it; #22 spent the sixth slot and argued
+kept the nav to five and demoted the estate listing to do it. #22 spent the sixth slot and argued
 for it.
 
 Read-state is a property of the message and never of history —
@@ -60,12 +60,12 @@ Read-state is a property of the message and never of history —
 | Classes | A subset of `drift` · `coverage` · `clock`, defaulting to all three | The only routing axis — §5 |
 | Enabled | Boolean | Disabling is not a predicate change |
 
-**No channel ships configured**, and creating or editing one is an **admin** act
+**No channel ships configured**. Creating or editing one is an **admin** act
 ([#11](https://github.com/winniel123/verge-asm/issues/11): a permission check on every mutating
 endpoint). The secret is **write-only** in the interface — set, replaced, cleared, never rendered
 back — on the footing #11 set for recovery codes.
 
-There is no cap on the number of channels and no reason for one: each is one POST per message it
+There is no cap on the number of channels and no reason for one. Each is one POST per message it
 subscribes to.
 
 ---
@@ -89,13 +89,13 @@ One JSON document per message. It carries exactly what the in-app message carrie
 **No rows, in any field.** Not the services behind a census count, not the address set behind a
 `resolution` move, not the evidence behind a `Signal`. `[derived]` — the map's
 high-value-target constraint, discharged in the contract rather than in prose. The chat history,
-the receiver's disk and the log pipeline accumulate *what happened*; the operator who wants *what
+the receiver's disk and the log pipeline accumulate *what happened*. The operator who wants *what
 they have* follows the link and authenticates.
 
 The payload is **one computation at the cause, two renderings** — the same figure in the store and
-in the body, read from one computation, which is
+in the body, read from one computation. This is
 [#50](https://github.com/winniel123/verge-asm/issues/50)'s rule arriving across a screen and a
-channel. A message is written once and **never recomputed**: recomputing reaches back across a
+channel. A message is written once and **never recomputed**. Recomputing reaches back across a
 `Break`.
 
 ### 3.2 Authentication
@@ -106,7 +106,7 @@ channel. A message is written once and **never recomputed**: recomputing reaches
 | Not set | Nothing; the URL is the only credential, as it is for every incoming-webhook receiver |
 
 **No bearer header, ever.** `[derived]` — a bearer sits in the receiver's access log and a
-signature does not. The signature authenticates **us to them**; nothing authenticates them to us,
+signature does not. The signature authenticates **us to them**. Nothing authenticates them to us,
 because there is nothing for them to ask.
 
 The channel is **one-way**: no callback, no ack channel, no fetch, no inbound surface.
@@ -116,10 +116,10 @@ no credential here reads the estate.
 ### 3.3 What "Subject or scope" and "Link" key on, per mover
 
 ADR-0064 §1 assigns every message a **mover** — an object in the estate, us, the operator, or
-nothing — and that is what the *sentence* is about. It is not always what the message **fired
-at**, and §3.1's `Subject or scope` field and `Link` are keyed on the fired-at object, never on
-the mover alone. Two of the four movers are not themselves keyed objects (`us`, `nothing`), and
-what they fired at was open until this ticket. `[derived]` for the first two rows,
+nothing. That is what the *sentence* is about. It is not always what the message **fired
+at**. §3.1's `Subject or scope` field and `Link` are keyed on the fired-at object, never on
+the mover alone. Two of the four movers are not themselves keyed objects (`us`, `nothing`). What
+they fired at was open until this ticket. `[derived]` for the first two rows,
 [**RULED by #159**](https://github.com/winniel123/verge-asm/issues/159) for the fourth.
 
 | Mover | What the message fired at | Link target |
@@ -130,17 +130,17 @@ what they fired at was open until this ticket. `[derived]` for the first two row
 | Us — our aperture, or a rule of ours (an aperture widening) | The `Seed` whose scope the widening act was performed over — [`CONTEXT.md`](../../CONTEXT.md)'s own **"the message fires at the scope"**, true of both a `Seed`'s address-scope declaration and [ADR-0044](../adr/0044-a-one-off-measurement-has-no-currency.md)'s per-`Seed`-scope cold-tier enable | That `Seed`'s own entry, on the existing `Seeds` destination |
 
 **Never `Coverage`'s standing aperture statement.** [#44 decision 10](../adr/0044-a-one-off-measurement-has-no-currency.md)
-discharged that statement's three-densities obligation on the ground that it is **constant**; a
-widening is an event with an instant, so a link that lands there loses which act the message was
-about — the same failure ADR-0064 §5 already refused for a magnitude-conditional rendering, one
-layer across. It is also not a new nav destination: the `Seed` is rendered on `Seeds`, which
-already exists, and following the link offers no act the operator does not already have (they
-declared the `Seed`), which is [ADR-0052](../adr/0052-a-declaration-refusal-names-a-route-and-never-takes-it.md)'s
+discharged that statement's three-densities obligation on the ground that it is **constant**. A
+widening is an event with an instant. So a link that lands there loses which act the message was
+about. This is the same failure ADR-0064 §5 already refused for a magnitude-conditional rendering, one
+layer across. It is also not a new nav destination. The `Seed` is rendered on `Seeds`, which
+already exists. Following the link offers no act the operator does not already have (they
+declared the `Seed`). This is [ADR-0052](../adr/0052-a-declaration-refusal-names-a-route-and-never-takes-it.md)'s
 guard against a link that names a route the operator cannot take.
 
 Where a future "us" trigger's aperture change is not `Seed`-scoped (for example, adding a
-`Vantage`), the same principle governs — link to the Declared configuration object whose change
-was the widening act — but which object that is for a trigger besides the port-aperture case is
+`Vantage`), the same principle governs. Link to the Declared configuration object whose change
+was the widening act. But which object that is for a trigger besides the port-aperture case is
 not decided here.
 
 ---
@@ -164,18 +164,18 @@ discipline that keeps the `Custody` gate and `Vantage class` from turning on a r
 A name resolving elsewhere would otherwise buy a plaintext exemption for a body that is the
 operator's attack surface.
 
-**Stated cost.** A receiver in a sibling compose container is not loopback, so it needs TLS or must
+**Stated cost.** A receiver in a sibling compose container is not loopback. So it needs TLS or must
 be reached over a loopback-published port.
 
 ### 4.2 The retry budget
 
 **Five attempts over roughly one hour, exponential, then dead-lettered.** `[thin]` — chosen on
-shape: it must survive a receiver restart or deploy (minutes) and must not survive a decommissioned
+shape: it must survive a receiver restart or deploy (minutes). It must not survive a decommissioned
 receiver (hours). Nothing is measured. The revision price is one constant and no `Break`, because
 nothing here is inside a derivation.
 
 It is **fixed and project-authored, not a dial**: it governs request rate against somebody else's
-server, which is #4's class of safety property rather than #22's class of operator threshold.
+server. This is #4's class of safety property rather than #22's class of operator threshold.
 
 Retries run on the queue's existing retry, backoff and dead-lettering
 ([ADR-0001](../adr/0001-stack-and-runtime.md),
@@ -187,7 +187,7 @@ Retries run on the queue's existing retry, backoff and dead-lettering
   message identifier in §3.1 is the de-duplication key. There is no exactly-once claim because
   there is no exactly-once mechanism.
 - **No ordering.** Causes fire across concurrent batches and retries reorder. Every message carries
-  the instant of its cause; the channel promises nothing about sequence.
+  the instant of its cause. The channel promises nothing about sequence.
 - **No back-pressure.** A dead channel never blocks measurement, folding, or the writing of a
   `Span`.
 - **A dead-lettered `Delivery` licenses no silence** — ADR-0005's *a dead-lettered `Batch` licenses
@@ -205,7 +205,7 @@ Retries run on the queue's existing retry, backoff and dead-lettering
 | Per subject, per `Seed`, per scope | No | Same shape, and it would let an operator route the flagship away from a scope without saying so |
 | Severity | No | There is no severity — [#16](https://github.com/winniel123/verge-asm/issues/16) |
 
-**Class routing is also v1's whole answer to volume**, which is why it earns its slot rather than
+**Class routing is also v1's whole answer to volume**. That is why it earns its slot rather than
 being one dial too many. See §6.
 
 ---
@@ -214,9 +214,9 @@ being one dial too many. See §6.
 
 - **No coalescing, no digest window, no flap suppression.** The licence stays where
   [ADR-0007](../adr/0007-drift-is-a-timeline-of-spans.md) put it — damping belongs in notification
-  and nowhere else — and v1 exercises none of it. Every candidate rests on an unmeasured base rate;
-  a digest window delays the flagship to solve another class's volume; and the model already
-  answers burst its own way, since a message fires **at the cause** with a **census**, so a
+  and nowhere else. v1 exercises none of it. Every candidate rests on an unmeasured base rate.
+  A digest window delays the flagship to solve another class's volume. The model already
+  answers burst its own way, since a message fires **at the cause** with a **census**. So a
   thousand openings are one message with counts.
 - **Stated cost, and it is real.** An operator drowned by **one rule inside** a class must silence
   the whole class on that channel. The messages are in the store either way. **Reopens on** a
@@ -224,29 +224,29 @@ being one dial too many. See §6.
 - **The ACME flap's remedy is class routing, and it reaches it.** ~~The ACME flap has no remedy in
   v1~~ and ~~whether that reaches it depends on an unsettled class assignment … Flagged, not ruled
   here~~ are **superseded here, at the site that specifies them**
-  ([ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)):
-  read alone and in the present tense they would have a session re-open a settled question.
+  ([ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).
+  Read alone and in the present tense, they would have a session re-open a settled question.
   [#120](https://github.com/winniel123/verge-asm/issues/120) ·
   [ADR-0064](../adr/0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md) §2 ruled
   the class assignment. The classes partition **messages**, so a class is read **per firing** from
-  the fold: every firing of the flap has an unchanged `certificate` span, so every firing is **clock
-  class** and an operator who routes that class off a channel silences the whole flap — while a
+  the fold. Every firing of the flap has an unchanged `certificate` span. So every firing is **clock
+  class**. An operator who routes that class off a channel silences the whole flap. But a
   certificate arriving *already* inside its horizon moved the span and still reaches the drift
   channel. The clearing edge was already silent (ADR-0026 §5). ADR-0026 §5's *drift class* sentence
-  is narrowed at its own site and reads **seventeen** rules, not ~~sixteen~~: drift unconditionally
+  is narrowed at its own site and reads **seventeen** rules, not ~~sixteen~~. Drift unconditionally
   for the fourteen that read no clock, per firing for the three certificate-lifetime rules.
 - **Routing on the cause instead of the class was asked and refused** —
   [#158](https://github.com/winniel123/verge-asm/issues/158) ·
   [ADR-0091](../adr/0091-the-routing-unit-is-the-class-and-the-cause-is-refused-as-a-routing-key.md),
-  §9 below. It is a refusal on the axis rather than a deferral, and the **Reopens on** condition two
+  §9 below. It is a refusal on the axis rather than a deferral. The **Reopens on** condition two
   bullets above now carries a **named candidate** — the `mover`, never the cause.
-- **No pull surface.** No feed, no JSON API, no polling endpoint — #6, unchanged, and the reason
+- **No pull surface.** No feed, no JSON API, no polling endpoint — #6, unchanged. The reason
   is the credential rather than the format.
 - **No email, no vendor integrations, no log-line channel.** ADR-0039's rejected alternatives, each
   with its reopening condition.
 - **Stated cost of the JSON-only body**: a chat platform's incoming-webhook URL is **not** a valid
   channel target in v1 without a small receiver in front of it. `[thin]` — that this is affordable
-  for the modal small-org operator is an argument, not a measurement, and it is the ruling here
+  for the modal small-org operator is an argument, not a measurement. It is the ruling here
   most likely to be overturned.
 
 ---
@@ -254,7 +254,7 @@ being one dial too many. See §6.
 ## 7. When a message is sent
 
 **When the fold that caused it completes, with the census that fold could see.** Not held for a
-defined set of tiers, and not emitted incrementally per completed `Batch` — the two options
+defined set of tiers, and not emitted incrementally per completed `Batch`. These are the two options
 [ADR-0031](../adr/0031-membership-alerts-at-the-root-of-the-entering-subtree.md) and
 [ADR-0033](../adr/0033-a-move-carries-the-rule-that-opens-at-fired.md) recorded as fog and refused
 to guess. `[derived]` — a census is computed **once at the cause**, and *a schedule arriving is not
@@ -266,7 +266,7 @@ the world moving*.
 | Emit the census incrementally per `Batch` | Turns one cause into a stream — ADR-0007's *alert on the cause, never per consequence*, given away at the layer meant to enforce it |
 
 **Stated cost, unchanged from ADR-0031**: a sensitive port that first answers on a slower tier days
-after its `Address` entered is silent. It opened, so no `Transition` exists, and the membership
+after its `Address` entered is silent. It opened, so no `Transition` exists. The membership
 message has already fired.
 
 ---
@@ -279,23 +279,23 @@ message has already fired.
 | On the **channel**, on its own surface | Current state, consecutive failures, and the last error string as **drill-down** |
 | Nowhere else | It is **never a message**, and it **never touches `Coverage`** |
 
-A delivery failure is not the world moving, our looking changing, or a clock crossing, so it has no
+A delivery failure is not the world moving, our looking changing, or a clock crossing. So it has no
 cause and gets no fifth one — ADR-0026's *a fifth cause needs a reason and not a slot*. It is not a
 `Signal` either: it is not about a subject and carries no evidence
 ([#22](https://github.com/winniel123/verge-asm/issues/22), verbatim).
 
-The channel surface follows #22's shape for a cadence misconfiguration — a configuration statement
-next to the thing the operator would change, never an entry in a log they would have to go read —
-and #22's *raw errors appear as drill-down, never as a top-level log* governs the error string.
+The channel surface follows #22's shape for a cadence misconfiguration. It is a configuration statement
+next to the thing the operator would change, never an entry in a log they would have to go read.
+#22's *raw errors appear as drill-down, never as a top-level log* governs the error string.
 
 **Retention of the delivery record is settled by
 [#139](https://github.com/winniel123/verge-asm/issues/139) ·
 [ADR-0081](../adr/0081-a-floor-is-territory-and-an-unbounded-default-is-a-position.md).** A `Delivery`
-**travels with its `Message`** and holds no retention rule of its own, so neither corpus gets a dial:
-the message corpus is what the operator reads back, and a message renders *its* delivery outcomes.
+**travels with its `Message`** and holds no retention rule of its own, so neither corpus gets a dial.
+The message corpus is what the operator reads back. A message renders *its* delivery outcomes.
 ~~Nothing is lost by compacting it aggressively~~ is **superseded here, at the site that specifies
-it** ([ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)):
-*nothing in the comparison path reads it* is not *nothing reads it*, and discarding a dead-lettered
+it** ([ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).
+*nothing in the comparison path reads it* is not *nothing reads it*. Discarding a dead-lettered
 delivery converts *we could not reach you* into *we told you* — **a dead-lettered `Delivery` licenses
 no silence**, defeated by storage.
 
@@ -307,7 +307,7 @@ no silence**, defeated by storage.
 - **Ticket:** [#158 Is the routing unit the class or the cause?](https://github.com/winniel123/verge-asm/issues/158)
 
 §5's `Cause` row previously refused the cause on the ground that the causes *"are a wording
-distinction and belong to #120"*. #120 has ruled, so that reason expired and the row is given a
+distinction and belong to #120"*. #120 has ruled, so that reason expired. The row is given a
 reason of its own here rather than a pointer to a closed ticket
 ([ADR-0057](../adr/0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md): *a withdrawal that
 supplies no replacement does not hold*).
@@ -326,7 +326,7 @@ The three classes are the four causes **with two of them merged**, and nothing e
 So *route on the cause* means exactly and only **split the `coverage` class in two**. `[derived]` —
 the partition is ADR-0064's, read off its own Context paragraph.
 
-Two consequences fall straight out and both cut against the proposal.
+Two consequences follow directly. Both cut against the proposal.
 
 **The want that motivates it is already expressible.** *Tell me when the world moved, and put
 everything about our own looking somewhere quieter* names `drift` on one channel and `coverage` +
@@ -335,7 +335,7 @@ threshold.
 
 **ADR-0064's class-per-firing rule is not an instance of the class being coarser than the cause.**
 The cause moves in lockstep across that seam: a `certificate-expired` firing whose `certificate` span
-moved has the cause *the world moved*; one whose span did not has the cause *a clock crossed*. What
+moved has the cause *the world moved*. One whose span did not has the cause *a clock crossed*. What
 ADR-0064 §2 made finer is the class relative to the **rule**, not relative to the cause.
 
 ### 9.2 Why the split is refused
@@ -351,10 +351,10 @@ ADR-0064 §2 made finer is the class relative to the **rule**, not relative to t
 
 **It is the `mover`, not the cause** — ADR-0064 §1's total, falsifiable function from the fold to
 what the sentence is about: *an object in the estate · us · the operator · nothing*. It is also a
-four-way refinement splitting `coverage`, but it splits it **{us} against {the operator}**, which is
-the cut an operator can act on — *you stopped telling us* is theirs to fix, *we stopped looking* is
+four-way refinement splitting `coverage`. But it splits it **{us} against {the operator}**, which is
+the cut an operator can act on. *you stopped telling us* is theirs to fix, *we stopped looking* is
 ours. It is assigned on every message by construction, so it needs no classification and cannot be
-forgotten; ADR-0064 §6 already assigns it where the cause is unassigned, filing member 9 as
+forgotten. ADR-0064 §6 already assigns it where the cause is unassigned, filing member 9 as
 **coverage, subject us**.
 
 Not adopted here, on the same unmeasured-volume ground as everything else in §6. Named so the

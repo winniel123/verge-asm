@@ -51,7 +51,7 @@ The dispatcher dispatches on that window and **never interprets a cron predicate
 unrecognised cadence falls to the weekly window — exactly as Run-now already treated it. This is
 why ADR-0091 does not bite: the window vocabulary is a **closed, model-owned set**, and no
 operator-authored expression is ever evaluated as a predicate over a versioned rule set. A cron
-string is not run; it is bucketed. ADR-0091's specific hazard — a mutable operator expression
+string is not run. It is bucketed. ADR-0091's specific hazard — a mutable operator expression
 silently deciding a model-relevant outcome — is absent, because the outcome (which of four
 windows) is decided by model-owned string matching, not by the operator's text. The cost is
 honestly stated: a custom cron is approximated as weekly rather than honoured to the minute.
@@ -69,7 +69,7 @@ already IS the one-run record, so migration 22600 adds one nullable column to it
   instant the operator asked and never contends on a tick.
 - A **partial unique index** `(schedule_id, scheduled_tick) WHERE scheduled_tick IS NOT NULL`.
   This is the on-cadence idempotency backstop, mirroring the queue dispatcher's unique
-  `(scan, scheduled_time)`: the first poll in a window inserts and wins the claim; a later poll
+  `(scan, scheduled_time)`: the first poll in a window inserts and wins the claim. A later poll
   conflicts and returns no row (a recorded skip, not a double-run). The partial predicate keeps
   every NULL-tick manual receipt out of the index, so manual runs stay unconstrained while
   scheduled runs are one-per-`(schedule, tick)`.
@@ -84,9 +84,9 @@ dispatcher structure mirrors `queue.Dispatcher` exactly: a minute ticker, a per-
 
 A dispatched run's receipt is stamped `state = 'generated'` with `delivered_at` NULL. The
 dispatcher cuts the artifact with the canonical renderer (`message.RenderArtifact`, result
-discarded — confirming the report is cuttable for the window; content wiring lands later) but
+discarded — confirming the report is cuttable for the window. Content wiring lands later) but
 sends nothing off-instance. Off-instance delivery is a separate ticket
-([#508/T7](https://github.com/winniel123/verge-asm/issues/508)); [ADR-0039](./0039-a-channel-carries-the-message-never-the-estate-and-a-delivery-is-an-operational-record.md)
+([#508/T7](https://github.com/winniel123/verge-asm/issues/508)). [ADR-0039](./0039-a-channel-carries-the-message-never-the-estate-and-a-delivery-is-an-operational-record.md)
 stands — a report run is neither the world moving nor our looking changing, it never becomes a
 Message, and the receipt snapshots nothing (the artifact recomputes from the period bounds at
 render time).
@@ -98,7 +98,7 @@ render time).
   cannot drift.
 - **No new dispatch table, no new join.** The receipt store carries one nullable column and one
   partial index. Reads that ignore `scheduled_tick` (the "Recurring reports" last-sent cell, the
-  artifact view) are unchanged; `InsertReportDelivery` (Run-now) is unchanged and simply leaves
+  artifact view) are unchanged. `InsertReportDelivery` (Run-now) is unchanged and simply leaves
   the new column NULL.
 - **Manual and scheduled runs coexist without collision.** The partial index constrains only
   tick-bearing rows, so a manual Run-now and an on-cadence run in the same window are two

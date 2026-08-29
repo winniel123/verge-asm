@@ -54,7 +54,7 @@ cosign sign-blob ./web_linux_amd64 --bundle web_linux_amd64.sigstore.json
 There is no registry to attach to, so cosign emits a **bundle** (`*.sigstore.json`,
 signature + cert + Rekor proof). You upload that bundle **alongside the binary as a Release
 asset**. Legacy flag form produces separate `--output-signature` / `--output-certificate`
-files; the single `--bundle` is the modern, simplest distribution unit.
+files. The single `--bundle` is the modern, simplest distribution unit.
 
 ### 1b. cosign with a managed key
 
@@ -66,13 +66,13 @@ root. **Not a fit** for a small public repo building on GitHub-hosted runners.
 
 ### 1c. Alternatives
 
-- **GitHub artifact attestations** (see §2) — themselves signed via Sigstore keyless; for
+- **GitHub artifact attestations** (see §2) — themselves signed via Sigstore keyless. For
   many repos they *replace* a separate `cosign sign` step because an attestation is already
   a signed statement about the artifact.
 - **Notary / Notation (CNCF, Notary v2)** — registry-image signing, more common in
   enterprise/Azure ecosystems, heavier trust-policy setup. Overkill here.
 - **GPG-signed checksums** (`SHA256SUMS` + detached `.asc`) — traditional, but long-lived
-  keys and no transparency; weaker than Sigstore and not keyless.
+  keys and no transparency. It is weaker than Sigstore and not keyless.
 
 ---
 
@@ -82,8 +82,8 @@ root. **Not a fit** for a small public repo building on GitHub-hosted runners.
 
 Generates a signed **SLSA build provenance** predicate (in-toto format) binding the
 artifact's digest to *where and how it was built* (repo, workflow, commit, trigger, runner).
-Signed with a short-lived **Sigstore** cert (public-good Sigstore for public repos; GitHub's
-private Sigstore for private/GHEC). The signed attestation is uploaded to GitHub's
+Signed with a short-lived **Sigstore** cert — public-good Sigstore for public repos, GitHub's
+private Sigstore for private/GHEC. The signed attestation is uploaded to GitHub's
 **attestations API** and associated with the repo. Current major tag: **`@v4`** (a thin
 wrapper over `actions/attest`).
 
@@ -129,14 +129,14 @@ adopting an unmaintained dependency and a second verify CLI.
 
 ### 2c. Overlap with cosign
 
-- An **attestation is itself a signed statement**; you do not need `cosign sign` *and*
+- An **attestation is itself a signed statement**. You do not need `cosign sign` *and*
   `attest-build-provenance` to get a signature — the attestation already gives signed
   provenance. Adding a bare `cosign sign` on top only adds a plain "this identity signed
   this digest" signature with no provenance payload.
 - Native attestations are **verifiable with cosign too** (Sigstore bundles), not only with
   `gh` — so choosing native does not lock consumers into the `gh` CLI.
 - Practical takeaway: **one provenance-attestation step covers both "signed" and "has
-  provenance"**; a separate cosign signing step is largely redundant for this repo.
+  provenance"**. A separate cosign signing step is largely redundant for this repo.
 
 ---
 
@@ -150,9 +150,9 @@ gh attestation verify oci://ghcr.io/winniel123/verge-asm/web:v1.2.3 \
 # binary
 gh attestation verify ./web_linux_amd64 -R winniel123/verge-asm
 ```
-Trust is expressed as `-R <owner/repo>` (or `--signer-workflow`); `gh` fetches the
+Trust is expressed as `-R <owner/repo>` (or `--signer-workflow`). `gh` fetches the
 attestation from the API/registry and checks the Sigstore signature + that provenance came
-from that repo. Lowest-friction UX; needs the `gh` CLI logged in.
+from that repo. Lowest-friction UX. It needs the `gh` CLI logged in.
 
 **cosign (image):**
 ```bash
@@ -215,7 +215,7 @@ least-privilege.
 mechanism for both GHCR images and Release binaries — it is keyless, GitHub-maintained,
 covers both artifact types in one step, and verifies with the ubiquitous `gh` CLI (or
 cosign), so a separate cosign signing step is redundant. Ship it **inline first for SLSA
-Build L2** (near-zero setup); if the decision ticket wants **SLSA Build L3**, promote the
+Build L2** (near-zero setup). If the decision ticket wants **SLSA Build L3**, promote the
 build+attest into a **tag-referenced reusable workflow** — the only added cost. Avoid managed
 keys (D) and the unmaintained slsa-github-generator (E).
 
@@ -232,5 +232,5 @@ keys (D) and the unmaintained slsa-github-generator (E).
 - GitHub Docs — Artifact attestations + reusable workflows to reach SLSA v1 Build L3: https://docs.github.com/actions/security-guides/using-artifact-attestations-and-reusable-workflows-to-achieve-slsa-v1-build-level-3
 - Action README — actions/attest-build-provenance (v4): https://github.com/actions/attest-build-provenance
 - GitHub Blog — Enhance build security and reach SLSA L3 with Artifact Attestations: https://github.blog/enterprise-software/devsecops/enhance-build-security-and-reach-slsa-level-3-with-github-artifact-attestations/
-- slsa-framework/slsa-github-generator (maintenance status; recommends native): https://github.com/slsa-framework/slsa-github-generator
+- slsa-framework/slsa-github-generator (maintenance status, recommends native): https://github.com/slsa-framework/slsa-github-generator
 - Sigstore blog — cosign verifying GitHub Artifact Attestation bundles: https://blog.sigstore.dev/cosign-verify-bundles/

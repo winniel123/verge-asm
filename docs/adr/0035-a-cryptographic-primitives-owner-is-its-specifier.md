@@ -25,11 +25,12 @@ about the protocol*, and states the discriminator that decides this ADR: **the a
 party, is what the rule keys on.**
 
 #68 set out three routes and flagged the third as the most interesting and most likely to overreach:
-(a) the root programmes **are** owners because the WebPKI is a thing they collectively author; (b)
-they are corroborators and the rule rests on the algorithm specifiers alone, accepting whatever
-coverage that loses; (c) the CA/Browser Forum Baseline Requirements are a **shipped default** under
-§2.2's third form, so §10.4's *attests only where it restricts* applies and a floor is unambiguously
-a restriction.
+
+- (a) the root programmes **are** owners because the WebPKI is a thing they collectively author.
+- (b) they are corroborators and the rule rests on the algorithm specifiers alone, accepting whatever
+  coverage that loses.
+- (c) the CA/Browser Forum Baseline Requirements are a **shipped default** under §2.2's third form, so
+  §10.4's *attests only where it restricts* applies and a floor is unambiguously a restriction.
 
 The full working is in [`docs/research/weak-key-and-signature.md`](../research/weak-key-and-signature.md).
 This ADR records the parts that are general.
@@ -87,7 +88,7 @@ the protocol owner's own text, which is why §10.5 needed a clause rather than a
 
 §10.5 already said *the IETF owns what its RFCs specify*, so the first paragraph is that sentence
 generalised from RFCs to standards. The second paragraph is the distributor limb applied. **Nothing
-is admitted that §10.5 did not already admit**; what is added is the artefact class, so the next
+is admitted that §10.5 did not already admit**. What is added is the artefact class, so the next
 session meeting a claim about an algorithm rather than about a protocol does not rediscover it.
 
 ### 3. Route (c) is refused by a sentence §10.5 was already carrying
@@ -103,7 +104,7 @@ Route (c) is the strongest of the three and every step of it is sound:
 **The conclusion does not follow, because §10.4 answers *whether* a default attests and never *what
 about*.** PostgreSQL's `listen_addresses = localhost` admits the 5432 row because the artefact
 PostgreSQL restricted — exposing PostgreSQL to the network — **is what the row is about**. A
-browser's verifier refusing SHA-1 restricts **the browser's own acceptance**; the row is about
+browser's verifier refusing SHA-1 restricts **the browser's own acceptance**. The row is about
 **SHA-1's collision resistance**. The artefacts do not match, and §10.5 says it outright: *"The
 artefact, not the party, is what the rule keys on."*
 
@@ -125,12 +126,12 @@ would have rested on BR v2.2.9, and three measured properties would have come wi
   with SHA-1` under a five-condition carve-out *"Until 2026-09-15"*. A row founded on it would have
   been founded on a conditional expiring four weeks after it was written.
 - **The BR's ECDSA restriction is not a weakness claim.** It permits P-256/384/521 and closes the
-  list. That excludes P-224 from **issuance**; nowhere does it say P-224 is weak, and NIST — which
+  list. That excludes P-224 from **issuance**. Nowhere does it say P-224 is weak, and NIST — which
   specified the curve — rates `len(n) ≥ 224` acceptable.
 
 Route (a)'s premise fails the same way. *The root programmes collectively author the WebPKI* implies
-four bodies with positions: **Chrome and Apple state no algorithm requirement of their own** and
-delegate to the BR; **Mozilla still enumerates SHA-1** as a permitted signing algorithm; and
+four bodies with positions. **Chrome and Apple state no algorithm requirement of their own** and
+delegate to the BR. **Mozilla still enumerates SHA-1** as a permitted signing algorithm.
 **Microsoft recommends against ECDSA entirely** — *"ECC/ECDSA certificates shouldn't be issued to
 subscribers"* — on Windows compatibility grounds, in the same table as its key-size floor. That is
 §2.3's measured AWS pattern arriving on the first case.
@@ -165,7 +166,7 @@ The table's key is `(algorithm, parameter)` and the digest OID — fields RFC 52
 exactly these facts. No surrogate, so gate 3 is **outside the domain**, as ADR-0032 predicted.
 
 The check was worth running, because there is a plausible way in that looks like a tidy-up. 2048-bit
-RSA and a 224-bit curve order both deliver about 112 bits of security; the integers are not
+RSA and a 224-bit curve order both deliver about 112 bits of security. The integers are not
 comparable. A session collapsing the table to a **single bit-count threshold** would be keying on a
 surrogate for security strength, and gate 3 would come inside the domain and fail at once.
 
@@ -186,9 +187,9 @@ status* is *"Used to designate usage by the U.S. Federal Government."*
 
 The split runs inside a single sentence. *"The security strength provided by an elliptic-curve-based
 signature algorithm is no greater than 1/2 of the length of the domain parameter n"* is arithmetic
-and unqualified; *"Therefore, the length of n shall be at least 224 bits to meet the minimum
+and unqualified. *"Therefore, the length of n shall be at least 224 bits to meet the minimum
 security-strength requirement of 112 bits for Federal Government use"* is the threshold and is
-scoped. **The strength computation is universal; the number 112 is federal.**
+scoped. **The strength computation is universal. The number 112 is federal.**
 
 > **A scope weakness is a third kind, and it behaves like neither of the other two.** It cannot flip
 > silently, so it is not watched. It cannot be chased by finding the right party, because the right
@@ -219,11 +220,11 @@ scoped. **The strength computation is universal; the number 112 is federal.**
   resolution comment for the parent session to land. **Until it lands, this ADR is where the clause
   lives.**
 - **`the artefact, not the party` is promoted to the general test for placing a source.** Name the
-  artefact a statement is about; ask whether that artefact is what the row claims. It has now decided
+  artefact a statement is about. Ask whether that artefact is what the row claims. It has now decided
   three cases (Debian vs Red Hat, PostgreSQL's bind address, the CA/B BR) and was cited as the rule
   in none of them.
 - **[ADR-0004](./0004-signals-are-release-coupled-rules.md)'s third curated table now has content.**
-  Five rows: MD5 and SHA-1 on the signature digest; RSA `nlen` < 2048, ECDSA `len(n)` < 224 and DSA
+  Five rows: MD5 and SHA-1 on the signature digest. RSA `nlen` < 2048, ECDSA `len(n)` < 224 and DSA
   below (2048, 224) on the key.
 - **[#12](https://github.com/winniel123/verge-asm/issues/12) is unblocked** on this side. The
   sixteenth rule has a predicate, a table and a disclosure, and can be assembled.
@@ -236,7 +237,7 @@ scoped. **The strength computation is universal; the number 112 is federal.**
   rule's output a function of our own coverage and would flip an estate to `not-evaluable` the day
   post-quantum certificates ship.
 - **A scheduled cryptographic transition is a scheduled edit, never a date in a predicate.** NIST
-  expresses several transitions as calendar events; encoding one would move the rule's output at
+  expresses several transitions as calendar events. Encoding one would move the rule's output at
   midnight with no version bump, defeating [ADR-0008](./0008-derivation-versions-move-on-content.md)
   from the inside.
 - **A key-compromise blocklist is permanently out of this table** — refused twice independently, on
@@ -246,7 +247,7 @@ scoped. **The strength computation is universal; the number 112 is federal.**
   re-read SP 800-131A when a revision goes final and otherwise do nothing — against the port list's
   continuous source drift.
 - **`CONTEXT.md` is not edited**, on ADR-0032's precedent and for its reason: concurrent sessions are
-  in that file. Nothing here changes a glossary term; the rule's predicate is spec content, not
+  in that file. Nothing here changes a glossary term. The rule's predicate is spec content, not
   vocabulary.
 
 ## Alternatives rejected

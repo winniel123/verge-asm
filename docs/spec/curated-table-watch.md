@@ -54,7 +54,7 @@ in the owner's own release line.
 > > [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) rather
 > > than at the site that supersedes it. **The live register is
 > > [`sensitive-ports.md`](../research/sensitive-ports.md) §43.3.** §39.4 and §41.4 are no longer the
-> > register; their items all stand on it with their grounds and rungs unchanged, and §39.9's
+> > register. Their items all stand on it with their grounds and rungs unchanged, and §39.9's
 > > provisionality is discharged. **The register is still CITED and not COPIED here**, for this box's own
 > > reason and for one more: it now spans cell kinds §39.4 never held — claim cells, *why* cells and
 > > cells whose artefact coordinate holds a **set** of carriers
@@ -84,7 +84,7 @@ in the owner's own release line.
 > > > sensitive-ports.md rows it copies, rather than a second live authority — a future growth of the
 > > > register (§39.2's *movement is one-way*) still lands in `sensitive-ports.md` first and this snapshot
 > > > goes stale until a later ticket re-transcribes it, exactly as a residue entry goes stale one release
-> > > later. **This document remains the CITED pointer's owner; §1.1 is a dated transcription of it, not a
+> > > later. **This document remains the CITED pointer's owner. §1.1 is a dated transcription of it, not a
 > > > second live register.**
 > > >
 > > > > **What keeps §1.1 from going stale as the register grows is ruled at [§5](#5-keeping-11-honest-as-the-register-grows)
@@ -116,7 +116,7 @@ and §39.3, on how far the owner has moved past the tag the cell was read at, in
 line — and that tie-break is **not re-run here**. §43.3 already carries [#151](https://github.com/winniel123/verge-asm/issues/151)'s
 ruling ([ADR-0077](../adr/0077-a-second-ground-counts-only-where-it-would-have-carried-the-cells-proposition-alone.md)'s
 Amendment, worked at §48) folded in at the cell, marked **RULED §151** below where it changed a cell's
-disposition; nothing here is walked independently of that fold. A conjunctively-carried cell
+disposition. Nothing here is walked independently of that fold. A conjunctively-carried cell
 ([ADR-0076](../adr/0076-a-conjunctively-carried-cell-is-one-item-entered-at-the-rung-of-its-most-volatile-carrier.md))
 is entered once, at its most volatile carrier's rung, and names every carrier. **No length appears
 anywhere below** — not of a rung, not of the whole register — per §39.2 and ADR-0078's own bar.
@@ -194,7 +194,7 @@ release line.**
 
 **What is deliberately absent from this transcription.** Cells §41.2 disposed as *not an item* —
 `sensitive-ports.md` §43.4's whole table, and §43.5's `10255/tcp` and `certificate-weak-key-or-signature`
-rows — carry no ground here because they are not register members; naming them is that table's job, not
+rows — carry no ground here because they are not register members. Naming them is that table's job, not
 this one's. The *why*-cell and by-catch routing notes at §43.6 are cited above only where they changed a
 member's ground, per the same rule.
 
@@ -229,8 +229,8 @@ and enumerable, a residue is named rather than described**
 [ADR-0040](../adr/0040-a-specifications-silence-is-not-the-owners-silence.md)).
 
 **The intensive bound is described, per item, with a class boundary.** Reading **one** item means
-opening **somebody else's** corpus, which does not terminate. *We read item 3* is unfalsifiable;
-*we opened this owner's issued documentation at tag `v1.37.0` and its release notes, and no other
+opening **somebody else's** corpus, which does not terminate. *We read item 3* is unfalsifiable.
+*We opened this owner's issued documentation at tag `v1.37.0` and its release notes, and no other
 class* is falsified by naming one artefact inside that class. This is ADR-0040's form unchanged,
 applied at the item rather than at the list — and **[measured]** ADR-0040's founding failure was a
 class boundary drawn too narrow, [#68](https://github.com/winniel123/verge-asm/issues/68) having read
@@ -258,7 +258,7 @@ roster — `sensitive-ports.md` §44.4 item 7 — described there in terms: *"A 
 edits in place."* The path names a release (`8.4`) exactly as rung 4's *"issued prose in a versioned
 documentation set"* expects, but ADR-0088's own mutability test, already run over this exact citation for
 an unrelated purpose, finds it **moving**, never content-addressed. Rung 4's defining half — *"the prior
-version stays retrievable"* — is not merely undemonstrated here; it is measured false. §39.9's predicted
+version stays retrievable"* — is not merely undemonstrated here. It is measured false. §39.9's predicted
 failure is sitting on a live register member.
 
 **The byte question already had an instrument.** *"Is there a retrievable prior version of the thing I
@@ -266,13 +266,13 @@ opened?"* is [ADR-0088](../adr/0088-a-re-resolution-check-recurs-only-where-its-
 mutability test, asked of a second consumer: an artefact is content-addressed — a tag, a commit, a
 checksum, a vendor part or revision number, a frozen per-release page — exactly where a prior version
 stays retrievable under it, and moving exactly where it does not. §39.9 and §42.9 each asked for a test
-with a byte answer; ADR-0088 had already built one, over the same population, for G8's re-fetch cadence.
+with a byte answer. ADR-0088 had already built one, over the same population, for G8's re-fetch cadence.
 
 > **The ruling.** An intensive bound states its class **by version** only where the opened artefact is
 > **content-addressed** under ADR-0088's mutability test. Where the artefact is a **moving** target under
 > that same test — including one whose path names a release line the owner edits in place — the class is
 > stated **by the artefact and the reading's own retrieval**: its URL or path, and our basis commit or
-> fetch date. **Never by the path's nominal version.** A version-looking path is not a pin; only ADR-0088's
+> fetch date. **Never by the path's nominal version.** A version-looking path is not a pin. Only ADR-0088's
 > test says whether one exists.
 
 **Rung does not decide the class's form.** [ADR-0088](../adr/0088-a-re-resolution-check-recurs-only-where-its-target-can-move.md)'s
@@ -300,7 +300,7 @@ different axes of one form.
 ladder's own rung 2/4 boundary should itself be redrawn on ADR-0088's mutability test, rather than on the
 *"announced"* language it currently uses, is a live successor question and is not settled here. It does
 not reopen ADR-0088's ruling on G8's population or cadence, which stands unamended, confirmed by use at a
-second consumer. It does not amend §2.1's entry form — part 3's shape is unchanged; this rules how the
+second consumer. It does not amend §2.1's entry form — part 3's shape is unchanged. This rules how the
 class is **drawn** where §2.1 left it a judgement.
 
 **Does a moving artefact lose its place in the queue.** No. ADR-0088 §44.7 already names members with **no
@@ -339,7 +339,7 @@ run is unfalsifiable by construction, which is the worse failure. The signing ac
 own resolution (#156, 2026-08-15) — a human-judgement reading of cited artefacts, never a mechanical
 sweep, which is the distinction ADR-0078 actually polices (*"a machine may raise; only a release may
 rule"*). **The stricter reading — that no entry may be signed before an actual curated-table-shipping
-release — is not dismissed here; it is left as live, thin ground**, and is this entry's own successor
+release — is not dismissed here. It is left as live, thin ground**, and is this entry's own successor
 question (closing note, below).
 
 #### Entry — 2026-08-15 (ticket #156)
@@ -349,7 +349,7 @@ question (closing note, below).
 [#151](https://github.com/winniel123/verge-asm/issues/151)'s RULED amendment (§48) — the live register
 per this document's own §1 box, confirmed unmoved since [#155](https://github.com/winniel123/verge-asm/issues/155)'s
 transcription by [#179](https://github.com/winniel123/verge-asm/issues/179)'s independent check. Not
-re-enumerated here; §43.3 and this document's own §1.1 are the citation.
+re-enumerated here. §43.3 and this document's own §1.1 are the citation.
 
 **Part 2 — the head.** Every cell below was read this release, in pairs under Shape 2 (§43.2 of
 `sensitive-ports.md`): one artefact-opening discharges both cells of each pair.
@@ -443,7 +443,7 @@ item, per §3's own rule.
 table), extended by **G12** (§47) and **G13** (§49) — thirteen checks, per
 [ADR-0057](../adr/0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md)'s table. State as last
 confirmed at §43.7's closing table: **G5 RED→GREEN**, **G11 RED** (`2375/tcp` itself listed Current),
-**G8's external half UNRUN**; **G12** and **G13** each population-complete and clean (no cell yet marked
+**G8's external half UNRUN**. **G12** and **G13** each population-complete and clean (no cell yet marked
 `demoted-untagged` or `horizon-passed-unverified`). This release opened no artefact the gate had not
 already fetched and edited no curated-table row, so it required no fresh gate run of its own.
 
@@ -460,7 +460,7 @@ already fetched and edited no curated-table row, so it required no fresh gate ru
   inside that class and was not opened by this reading. The class actually stated above is narrower —
   the three documents §28.8 names, and no other — which the iLO 6 Brief sits outside of, so it survives.
   **This is ADR-0040's own founding failure shape, caught before publication rather than after**: #68's
-  defect was a class drawn too wide (the *specification* class, missing the deployment BCP); this entry
+  defect was a class drawn too wide (the *specification* class, missing the deployment BCP). This entry
   repeats that near-miss in miniature, and the fix is the same in both places — narrow the class to what
   was actually opened, not to what sounds like the right authority.
 
@@ -468,7 +468,7 @@ already fetched and edited no curated-table row, so it required no fresh gate ru
 register is now large enough that §42.9's predicted defect — the intensive bound being expensive enough
 per item to depress the head — is the one to watch for."* It is confirmed rather than merely predicted
 now. Writing two honest, narrow, falsifiable class boundaries — including catching and correcting the
-`623/udp` over-broad draft above — was the majority of this entry's effort; doing the same for the
+`623/udp` over-broad draft above — was the majority of this entry's effort. Doing the same for the
 register's remaining rung-3-through-5 items, each resting on a versioned artefact whose class boundary
 has never been drawn this precisely before, was not attempted this release. **The extensive residue is
 cheap** — every unread item was already named and grounded by the queue walk, so naming it again costs a
@@ -484,24 +484,24 @@ could have caught it.
 **What this entry does not do.** It does not move a row, a class, a tier, or a coverage figure — no part
 above authors a claim, and no cell here changes disposition. It does not quote a length anywhere above —
 the residue is stated over members, per rung, exactly as §2.2 and §39.2 require. It does not resolve the
-*"who signs it"* tension recorded above; that is named as fog for a successor ticket, not settled here by
+*"who signs it"* tension recorded above. That is named as fog for a successor ticket, not settled here by
 the act of writing the entry.
 
 ---
 
 ## 3. The gate ledger — reserved
 
-**The gate is thirteen checks, G1–G13, run over the table as edited; an edit is complete only when the
+**The gate is thirteen checks, G1–G13, run over the table as edited. An edit is complete only when the
 gate is green over the post-edit state, and a red gate blocks the *edit*, never the release**
-([ADR-0057](../adr/0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md);
+([ADR-0057](../adr/0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md),
 [`sensitive-ports.md`](../research/sensitive-ports.md) §39.6). G12 and G13 were added in the 2026-08-15
 merge of [#149](https://github.com/winniel123/verge-asm/issues/149) and
-[#152](https://github.com/winniel123/verge-asm/issues/152)/[ADR-0099](../adr/0099-a-stated-horizon-is-a-second-comparand-a-tag-match-does-not-discharge.md);
+[#152](https://github.com/winniel123/verge-asm/issues/152)/[ADR-0099](../adr/0099-a-stated-horizon-is-a-second-comparand-a-tag-match-does-not-discharge.md).
 ADR-0057's own table is the canonical list.
 
 **This section's shape is [#133](https://github.com/winniel123/verge-asm/issues/133)'s and is
-deliberately unspecified here.** The gate has never been run whole; #133 is running G1–G11 to
-completion over the composed table for the first time and establishes the baseline every later edit
+deliberately unspecified here.** The gate has never been run whole. #133 is running G1–G11 to
+completion over the composed table for the first time. It establishes the baseline every later edit
 is measured against. ADR-0078 reserves the gate's record a place in this document — because the two
 halves of a release's account are read together — and specifies nothing about its form.
 
@@ -533,7 +533,7 @@ forced is a **length**.
 **[Ticket #179](https://github.com/winniel123/verge-asm/issues/179).** §1.1 is a transcription, not a
 live register, and its own history box says so twice — ending *"§1.1 is a dated transcription of it,
 not a second live register."* This section is not a re-litigation of whether that transcription was
-correct to make; [#155](https://github.com/winniel123/verge-asm/issues/155) already ruled that, and its
+correct to make. [#155](https://github.com/winniel123/verge-asm/issues/155) already ruled that, and its
 two reasons for finally copying (the new cell kinds, and the G4 risk being answered by making the
 snapshot explicit) stand. What #155 left open is what keeps §1.1 honest **afterwards**, since
 [`sensitive-ports.md`](../research/sensitive-ports.md) §39.2 fixes the one property that decides how
@@ -578,7 +578,7 @@ an append.
 cite-only pointer.** The cleanest instrument in one sense: a pointer cannot go stale, because it asserts
 nothing about membership. It loses because the failure this ticket found is not the failure #155's
 transcription was weighed against. #155's G4 risk was about copying a **provisional** register that
-could fork on the very next walk ([#134](https://github.com/winniel123/verge-asm/issues/134)); that risk
+could fork on the very next walk ([#134](https://github.com/winniel123/verge-asm/issues/134)). That risk
 was real and #155 answered it by making the copy an explicit, attributed snapshot rather than a second
 live authority. The risk this ticket measures is different: not a fork on a still-moving filter, but an
 **omission** on a since-stabilized, monotonically-growing one — and reverting to a pointer would trade a

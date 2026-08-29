@@ -36,7 +36,7 @@ rows that rest on a shipped default and nothing else.
 **A shipped default is the configuration that takes effect, in the hand of the party being quoted.
 Installing another party's bytes transfers operativeness and not ownership.**
 
-Four limbs. They are stated in full, with their walk, as `sensitive-ports.md` **§12**; this ADR
+Four limbs. They are stated in full, with their walk, as `sensitive-ports.md` **§12**. This ADR
 carries the part that travels.
 
 1. **The third form reads what takes effect, and what the party documents as its default — both.** A
@@ -44,7 +44,7 @@ carries the part that travels.
    file's own text disclaims operativeness, that disclaimer is the author's statement and settles it.
    Where the party documents a default elsewhere and the two disagree, **the documented default
    governs**.
-2. **A directive is not a position; prose in a config file may be.** The documentation form takes a
+2. **A directive is not a position. Prose in a config file may be.** The documentation form takes a
    quotable position wherever the owner wrote it, and a comment in a shipped configuration file is
    the owner's prose exactly as a manual page is. It does not take a **directive** — an instruction
    to software attests only through the shipped-default form — nor a **label** describing what the
@@ -82,16 +82,16 @@ that case, and both are readings rather than new limbs.
 *"Default: 0 (disabled)"*, while `cmd/kubelet/app/options/options.go`'s `applyLegacyDefaults`
 overwrites all three with `true`, `AlwaysAllow` and `10255` *"in order to preserve the command line
 API"* — flags the same file marks deprecated with *"This parameter should be set via the config file
-specified by the Kubelet's `--config` flag."* Both take effect; one is labelled legacy. Under this
+specified by the Kubelet's `--config` flag."* Both take effect. One is labelled legacy. Under this
 amendment the shipped default is the restricting set, which moves `10250/tcp` from Class A to Class C
 in `sensitive-ports.md` **without moving a `(port, transport)` pair**. The walk is `sensitive-ports.md`
-**§18**; the argument for making this a new ADR instead lost on placement, since it refines limb 1
+**§18**. The argument for making this a new ADR instead lost on placement, since it refines limb 1
 and travels exactly where limb 1 travels.
 
 **Thin ground, flagged.** Limb 1 was measured across nine configuration artefacts from as many
 projects before it was stated. This amendment has **one project** behind it — the deprecation label
 appears three times, but all three are Kubernetes. It is stated because it is a reading of limb 1
-rather than a new limb; the shallow measurement is worth knowing before it is relied on elsewhere.
+rather than a new limb. The shallow measurement is worth knowing before it is relied on elsewhere.
 
 ## Amendment — [#105](https://github.com/winniel123/verge-asm/issues/105), 2026-08-14
 
@@ -112,14 +112,14 @@ than new limbs.
    is **friction at first run**, and friction is a property of the running software rather than of its
    source's syntax — so a rule reading the assignment instead would be satisfied by a no-op line that
    buys nothing and refused by an identical binary that buys the same friction. Limb 4's *"an act that
-   takes effect nowhere was not taken"* is the **converse** case and does not carry here; a zero value
+   takes effect nowhere was not taken"* is the **converse** case and does not carry here. A zero value
    takes effect everywhere.
 2. **The conjunction is where a zero value fails when it fails.** Limb 1 requires both halves, and a
    value the party has not published as its default fails the second one: there is no utterance to
    quote, and supplying one from the language's type system is `sensitive-ports.md` §2.2's opening
    sentence failing — *the claim may not be asserted by us*. This is the #83 amendment's half read
    for an absence rather than for a label. It is not a rule that documentation **converts** a value
-   into an act; a documented default's comment may well be a **label** under ADR-0061 limb 1, and a
+   into an act. A documented default's comment may well be a **label** under ADR-0061 limb 1, and a
    label is exactly what the documentation half asks for.
 3. **§10.4's one-way rule governs this form and not a claim's own measurement.** A permissive default
    is silent *as a position*. A value read to establish what the shipped artefact **does** —
@@ -133,13 +133,13 @@ than new limbs.
 
 **[measured]** `kubernetes/kubernetes` at `v1.34.0`. `ReadOnlyPort` occurs **zero** times in
 `pkg/kubelet/apis/config/v1beta1/defaults.go`, so `readOnlyPort`'s documented *"Default: 0
-(disabled)"* is Go's zero value; the only place any maintainer writes a `ReadOnlyPort` value is
+(disabled)"* is Go's zero value. The only place any maintainer writes a `ReadOnlyPort` value is
 `applyLegacyDefaults`, which writes the **permissive** `10255`. In the same release
 `k8s.io/kube-proxy`'s `enableProfiling` is also a zero value and carries **no documented default at
 all**. **The two separate on the second half of limb 1, in the owner's own bytes** — one is published
 as the default and the other is not — and `sensitive-ports.md` §16.5's and §27.2's opposite-looking
 uses of a zero value are both confirmed. **No `(port, transport)` pair, row, class or footing tier
-moves.** The walk is `sensitive-ports.md` **§34**; the argument for minting a new ADR lost on
+moves.** The walk is `sensitive-ports.md` **§34**. The argument for minting a new ADR lost on
 placement, exactly as it did for #83 — this refines limb 1 and travels where limb 1 travels — and on
 reading 3's reach, which ADR-0032 confines to one table.
 
@@ -180,7 +180,7 @@ which is why limb 1 keys on that and nothing else.
 the owner — §10.1 says so in terms for the unauthenticated claim, §10.3 says so for the boundary
 claim — so a distributor's artefact cannot reach any of them however operative it is. §10.5's
 *"artefact, not party"* survives intact and keeps a distributor's **packaging** distinct from its
-**security-guide prose**; what limb 3 adds is that the artefact route terminates at the owner gate.
+**security-guide prose**. What limb 3 adds is that the artefact route terminates at the owner gate.
 
 **Why this is an ADR and not only a note edit.** ADR-0032 ruled that the attestation gate is the one
 instrument that travels to other curated tables. This is a refinement of that gate, so it travels
@@ -191,7 +191,7 @@ the word "distributor".
 
 ## Consequences
 
-- **No `(port, transport)` pair moves.** `sensitive-ports.md` stays at **37 pairs**; §1's count, §3's
+- **No `(port, transport)` pair moves.** `sensitive-ports.md` stays at **37 pairs**. §1's count, §3's
   class totals (12 / 7 / 18), §6.1's containment arithmetic and
   [ADR-0009](./0009-verge-core-is-a-union.md)'s union are all unchanged, each checked rather than
   asserted (§12.7). **No rule version moves and no evaluation `Break`s**
@@ -200,7 +200,7 @@ the word "distributor".
 - **One footing changes.** **[measured]** Apache Cassandra's shipped `conf/cassandra.yaml` carries
   *"For security reasons, you should not expose this port to the internet. Firewall it if needed."*
   immediately above both `native_transport_port: 9042` and `rpc_address: localhost`. §2.2's footing
-  table says the weak tier has *"no prohibition … upstream"*; that is false for this row on the
+  table says the weak tier has *"no prohibition … upstream"*. That is false for this row on the
   shipped bytes. **`9042/tcp` leaves the weak tier, which is now two rows rather than three.** A
   footing is evidence for a claim and not a claim, so the row keeps its class and its place.
 - **`161/udp` does not come back.** #66 removed it on the owner requirement and the closed claim set,

@@ -47,10 +47,13 @@ And [#120](https://github.com/winniel123/verge-asm/issues/120) ·
 instrument both limbs lacked: **a message names what moved, and what moved is read from the fold.**
 That turns *should this speak?* into a question with a procedure behind it.
 
-What is settled and is **not** reopened here: ADR-0016's six riders and its three barred routes;
-ADR-0073's no-author ruling and its six refused renderings; the **four causes** and **three classes**
-that partition messages, the coverage class at **ten** members and the clock class at **three**
-(ADR-0064, ADR-0074); and ADR-0014's *only `revealed` generalises*.
+What is settled and is **not** reopened here:
+
+- ADR-0016's six riders and its three barred routes
+- ADR-0073's no-author ruling and its six refused renderings
+- the **four causes** and **three classes** that partition messages, the coverage class at **ten**
+  members and the clock class at **three** (ADR-0064, ADR-0074)
+- ADR-0014's *only `revealed` generalises*
 
 ## Decision
 
@@ -82,7 +85,7 @@ and the estate's own messages already fire.**
 withdrawal against all four and it matches none.
 
 - **The world moved.** Nothing was measured. The pair holds the same `Span`s at the same values on
-  the same cadence before and after the click; the fold sees no adjacency it did not see yesterday.
+  the same cadence before and after the click. The fold sees no adjacency it did not see yesterday.
 - **We stopped looking.** We did not. ADR-0016's decision is that an annotated pair *"is still
   measured on its cadence, still holds every `Span` it held, still sits inside the rule's `Predicate
   domain` at the same version, and is still counted under `fired`"*. The measurement was never
@@ -95,7 +98,7 @@ withdrawal against all four and it matches none.
 - **A clock crossed.** No threshold, and rider 4 refused an expiry precisely so that no clock ever
   reaches this object.
 
-**This is not a gap in the enumeration; it is the enumeration working.** The corpus has already
+**This is not a gap in the enumeration. It is the enumeration working.** The corpus has already
 refused a fifth cause once, for an object of exactly this kind, and the sentence is verbatim in the
 glossary: a `Delivery` *"is **never itself a `Message`** — a delivery failure is not the world moving,
 our looking changing, or a clock crossing, so it has **no cause and gets no fifth one**"*
@@ -122,7 +125,7 @@ where it is the sole carrier of a fact the operator asked for* — had **no appl
 there was no carrier at all.
 
 **Withdrawing an `Annotation` is the opposite operation on that same test. It does not destroy a
-carrier; it restores one.** The mute's whole content is that a `not-fired` → `fired` edge on one pair
+carrier. It restores one.** The mute's whole content is that a `not-fired` → `fired` edge on one pair
 is *"recorded and is not a message"*. Withdraw it and that edge becomes a message again. So the
 consequence of the act — *this pair can page you now* — is carried by **the message the act
 re-enables**, at the moment the fact becomes true of the estate, in the sentence the operator
@@ -184,7 +187,7 @@ alone admitted loses its `Citation` and leaves — the same carrier failure. …
 reaches it**."*
 
 An `Annotation` is not on that side of the line. Enabled sources are an enumerated aperture input
-(ADR-0014); an annotation is in no batch's recorded scope, and by ADR-0016 it is read by nothing that
+(ADR-0014). An annotation is in no batch's recorded scope, and by ADR-0016 it is read by nothing that
 produces a value. So the rule ADR-0074 states does not reach it — not because a distinction was drawn
 to keep it out, but because its trigger's subject matter is absent.
 
@@ -213,7 +216,7 @@ name repoints, the old `Address` stops being cited and withdraws, and its `Servi
 `Service` membership being *"its `Address`'s membership restated"*. A new `Address` enters, a new
 `Service` key exists, and the pair the operator muted is not the pair the rule now fires on.
 
-**Nothing happens to the `Annotation` at all.** It is Declared and does not drift; it holds no
+**Nothing happens to the `Annotation` at all.** It is Declared and does not drift. It holds no
 timeline to move on, no status to change and — rider 4 — no expiry to reach. It still names the key
 it always named, with the same reason and the same instant. What changed is that the key it names is
 in no current population, and `CONTEXT.md`'s `Subject` entry already says exactly what that means: a
@@ -233,7 +236,7 @@ ADR-0016 chose deliberately over a travelling mute.
 Two things fall out that were not visible before the word was fixed.
 
 **The mute is dormant rather than destroyed, and it needs no re-declaration.** ADR-0016 rider 5 says
-the acceptance *"is re-declared"*; that is true of the redeploy case, where the new `Service` is a
+the acceptance *"is re-declared"*. That is true of the redeploy case, where the new `Service` is a
 genuinely different key and the operator must decide about it afresh. It is **not** true of a
 withdrawal-and-return: an `Address` re-cited by a later resolution is the same key, the same
 `Service`, the same pair, and the row that was always there takes effect again with nobody clicking
@@ -274,7 +277,7 @@ keep the marker on the right side of every rule that governs this screen.
 
 **It is a seventh rendering on a screen with six refusals, and it is the first that is permitted.**
 ADR-0073's Consequences enumerate six refused renderings and say the refusals are drawn so the next
-session finds them; this one is added beside them as **required**, with its reason, so that the
+session finds them. This one is added beside them as **required**, with its reason, so that the
 enumeration does not read as *nothing further may be rendered here*.
 
 ### What this does not buy, stated rather than argued away
@@ -295,15 +298,18 @@ The distinction ADR-0074 drew is what keeps this honest, and it is worth keeping
 question and the audience question are different.** This ruling does **not** rest on *the operator
 knows because they did it* — that is #127's thin single-admin ground, and a ruling built on it would
 inherit #127's condition as a **trigger** rather than as the home of its residue. The ruling rests on
-there being no cause, on the released message being a carrier, and on parity within the dial family;
-all three hold however many operators there are.
+there being no cause, on the released message being a carrier, and on parity within the dial family.
+All three hold however many operators there are.
 
 ## Consequences
 
 - **[`CONTEXT.md`](../../CONTEXT.md)'s `Annotation` entry gains three clauses and no term is added.**
-  That declaring and withdrawing are both silent and why; that the record does not lapse and matches
-  again if its key returns; and that the list marks a row naming a withdrawn subject. The *lapses*
-  wording in that entry is narrowed at the site that specifies it.
+  The three clauses are:
+  - that declaring and withdrawing are both silent and why
+  - that the record does not lapse and matches again if its key returns
+  - that the list marks a row naming a withdrawn subject
+
+  The *lapses* wording in that entry is narrowed at the site that specifies it.
 - **[ADR-0016](./0016-an-annotation-moves-a-message-never-a-number.md) is amended at two sites**, per
   [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) and with a
   replacement supplied rather than a strike alone
@@ -319,14 +325,14 @@ all three hold however many operators there are.
   moves. **This is the answer [#158](https://github.com/winniel123/verge-asm/issues/158) needs from
   this ticket**: there is no message here to route, by class or by cause, and none to word.
 - **[ADR-0074](./0074-an-aperture-narrowing-that-takes-its-carrier-with-it-fires-at-the-scope.md) is
-  confirmed and bounded, not amended.** Its rule is an **aperture** rule; the boundary is now written
+  confirmed and bounded, not amended.** Its rule is an **aperture** rule. The boundary is now written
   down, so the next session that meets a Declared act asks *does this move the aperture?* before
   asking *does it take its carrier with it?* Its named-and-unruled neighbour — disabling a `Source` —
   is on the **aperture** side of that boundary and is untouched by this ADR in either direction.
 - **[ADR-0014](./0014-only-revealed-generalises.md) is confirmed.** No transition name is minted in
   any family, no fourth cause, and the refusal of symmetry is applied rather than merely cited.
-- **Nothing new is stored, and no retention question opens.** The marker is a read; the annotation
-  row is unchanged; no corpus gains a row or a dial.
+- **Nothing new is stored, and no retention question opens.** The marker is a read. The annotation
+  row is unchanged. No corpus gains a row or a dial.
 - **Neither barred repair is reopened.** #17's glob and ADR-0051's coarser key are exactly as barred
   as they were, which is what the fog patch named as the reason it stayed fog. The patch is
   discharged **without** them, because the question it could not answer — *does the lapse itself

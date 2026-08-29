@@ -13,7 +13,7 @@ here (**OpenID Connect only**, the authorization-code flow with PKCE), where the
 config lives, and the two rules that never bend — **SSO authenticates an existing
 account, it never creates one**, and **a binding is keyed on the verified
 `(issuer, sub)`, never a username or email**. Nothing on the Keycloak side changes
-those; this page only maps verge's five fields and two callback URLs onto Keycloak's
+those. This page only maps verge's five fields and two callback URLs onto Keycloak's
 admin console.
 
 verge-asm ships **one generic OIDC connector**, not a Keycloak plug-in. Keycloak is
@@ -65,11 +65,11 @@ verge is verifying tokens against the wrong issuer and will refuse every login.
 
 From the chosen realm: **Clients → Create client**.
 
-1. **Client type** — choose **OpenID Connect**. (SAML is not supported; verge is
+1. **Client type** — choose **OpenID Connect**. (SAML is not supported. verge is
    OIDC-only.)
 2. **Client ID** — set a stable identifier, e.g. `verge-asm`. This is the exact
    string you will paste into verge's **Client ID** field. It is **not** a secret.
-3. **Name** — optional human label inside Keycloak; it has no bearing on verge.
+3. **Name** — optional human label inside Keycloak. It has no bearing on verge.
 
 Continue to the **Capability config** step.
 
@@ -83,10 +83,10 @@ This single toggle decides whether verge stores a client secret.
 | **Client authentication** = **Off** | Public, PKCE-only | Leave it blank |
 
 - Leave **Standard flow** enabled — that is the authorization-code flow verge uses.
-  You can safely turn off *Direct access grants*, *Implicit flow* and *Service
-  accounts*; verge uses none of them.
+  You can safely disable *Direct access grants*, *Implicit flow* and *Service
+  accounts*. verge uses none of them.
 - **PKCE is used on every login regardless of this choice.** verge always sends an
-  S256 PKCE challenge; the client-authentication toggle only decides whether a secret
+  S256 PKCE challenge. The client-authentication toggle only decides whether a secret
   is *also* required. For a public client you may additionally pin
   **Advanced → Proof Key for Code Exchange Code Challenge Method = `S256`** so
   Keycloak enforces it, but verge sends S256 either way.
@@ -94,7 +94,7 @@ This single toggle decides whether verge stores a client secret.
 > **Note:** A confidential client is the stronger default when verge can keep a
 > secret (it can — see [sso.md → Where the client secret is stored](sso.md#where-the-client-secret-is-stored)).
 > Reach for a public PKCE-only client only when you have a deliberate reason not to
-> provision a secret; PKCE alone still binds the code to this login.
+> provision a secret. PKCE alone still binds the code to this login.
 
 ---
 
@@ -130,7 +130,7 @@ https://verge.example.com/profile/sso/keycloak/link/callback
 > `redirect_uri` values, so a wildcard buys you nothing and costs you a guarantee.
 
 Leave **Valid post logout redirect URIs** and **Web origins** at their defaults
-unless you have a separate reason to set them; verge's flow does not require them.
+unless you have a separate reason to set them. verge's flow does not require them.
 **Save** the client.
 
 ---
@@ -141,7 +141,7 @@ unless you have a separate reason to set them; verge's flow does not require the
   **Client ID** field.
 - **Client secret** — *confidential clients only.* Open the client's **Credentials**
   tab, copy the **Client secret**, and paste it into verge's **Client secret** field.
-  For a public (PKCE-only) client there is no Credentials tab and no secret; leave
+  For a public (PKCE-only) client there is no Credentials tab and no secret. Leave
   verge's field blank.
 
 verge stores the secret **write-only**: no screen ever reads it back, and the form
@@ -161,7 +161,7 @@ verge's **Issuer URL** is the realm's issuer, and it depends on your Keycloak ve
 | **16 and older** | `https://<keycloak-host>/auth/realms/<realm>` |
 
 The `/auth` base path was dropped by default in Keycloak 17 (the Quarkus
-distribution); an upgraded install may still serve it if the operator set it back.
+distribution). An upgraded install may still serve it if the operator restored it.
 **Do not guess — verify against the published discovery document.** Fetch:
 
 ```
@@ -193,7 +193,7 @@ configuration.
 verge's account binding keys on the token **subject (`sub`)** — Keycloak's stable,
 non-reassignable per-user identifier — never on the email or username claim. Those
 human claims are captured for display only. This is what makes a renamed or recycled
-Keycloak username unable to take over a verge account; see
+Keycloak username unable to seize a verge account. See
 [sso.md](sso.md) and ADR-0113.
 
 ---
@@ -212,12 +212,12 @@ operations matters:
 3. **The user links their identity themselves** — from **Profile → Linked
    identities**, they run the Keycloak round-trip inside their own session, which
    records `(issuer, sub) → their account`. An operator cannot link on a user's
-   behalf; trust-on-first-use is deliberately not offered.
+   behalf. Trust-on-first-use is deliberately not offered.
 4. **Sign in with SSO.** From then on the Keycloak button on the sign-in screen
    authenticates that account. A local second factor is **not** bypassed: a
    TOTP-enrolled account still lands on the two-factor step, and password + TOTP login
    always remains available alongside SSO.
 
 To offboard a user, an admin removes the binding under **Settings → SSO → Linked
-identities**; to remove the account itself, see [accounts.md](accounts.md). Both are
+identities**. To remove the account itself, see [accounts.md](accounts.md). Both are
 covered in [sso.md](sso.md).

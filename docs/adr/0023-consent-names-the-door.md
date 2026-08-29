@@ -109,7 +109,7 @@ The two cases part on **whose conduct is being asserted**.
 
 - The custody extension is a claim about the **operator's own estate**, and
   [#28](https://github.com/winniel123/verge-asm/issues/28) settled that estate completeness is a thing *the
-  operator is the only source for*. There is nobody else to ask. Taking their word is not a shortcut; it is
+  operator is the only source for*. There is nobody else to ask. Taking their word is not a shortcut. It is
   the only instrument that exists.
 - `operator-credentialed` is a claim about **APNIC's conduct**, and APNIC is right there. Where the source
   can be made to answer — by enforcing — an operator's assertion about it is a guess wearing a record's
@@ -117,7 +117,7 @@ The two cases part on **whose conduct is being asserted**.
 
 So: **an operator may be taken at their word about themselves, and never about a third party.** This is
 [ADR-0003](./0003-third-party-source-consent-bar.md)'s founding move pointed the other way. That ADR
-refused to read a stranger's terms on the operator's behalf; this refuses to let the operator assert a
+refused to read a stranger's terms on the operator's behalf. This refuses to let the operator assert a
 stranger's permission on the project's behalf. `Vantage` is the same instinct a third time — *declared as
 intent and re-verified every batch rather than trusted as configuration*.
 
@@ -149,7 +149,7 @@ that moved the value. It is also the shape #34 refused when it declined a fourth
 about somebody's assessment does not belong on the object that answers *whose permission does this run on*.
 
 **A grant with no artefact is therefore recordable exactly when the source enforces it**, because then the
-artefact is the working request. A countersigned agreement that the source enforces is recordable;
+artefact is the working request. A countersigned agreement that the source enforces is recordable.
 ADR-0018's broadening is correct as a definition. A countersigned agreement the source does not enforce is
 not, and in v1 that describes every instance of the class — which is why the tier's v1 population is empty
 rather than merely small.
@@ -179,7 +179,7 @@ one row down.
   ADR-0003's third amendment price a proposer's addition, removal or state change at no `revealed`, no
   `Break`, no version bump. Since every non-`unencumbered` value in v1 sits on a proposer, **no consent
   value in the v1 spec has an aperture cost at all**. The ticket expected this escape to make the proposer
-  half short and the `Source` half interesting; it does neither, because the question turns on **what a
+  half short and the `Source` half interesting. It does neither, because the question turns on **what a
   value asserts**, not on what enabling costs, and that answers identically for both halves.
 - **`CONTEXT.md`'s aperture clause was stale and is corrected.** *"It decides what is in the aperture"* has
   been false for proposers since [ADR-0012](./0012-a-proposer-is-not-a-source.md), and #47 withdrew the

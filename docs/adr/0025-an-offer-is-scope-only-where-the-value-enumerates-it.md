@@ -56,7 +56,7 @@ The tempting reading of ADR-0011 is *anything our client chooses can move a valu
 client chooses is aperture*. That reading is already false in this repo, and
 [ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md) is the counterexample: the connect
 timeout can move `connected` → `no-response` on every slow host in the estate, and it is a
-**declared parameter** of `connect-outcome`, not an aperture input. Nobody argued that case; it was
+**declared parameter** of `connect-outcome`, not an aperture input. Nobody argued that case. It was
 simply obvious. What was not obvious is *why*.
 
 The reason is the shape of the value, not the existence of the offer. `tls-acceptance`'s value
@@ -101,7 +101,7 @@ which is the tell that it is the cut and not a rationalisation:
 
 **The ALPN list and the HTTP versions we speak — parameter.** `http-identity`'s value space is
 `Responded(status, Location, WWW-Authenticate, Server, title) │ NotHTTP`. Nothing in it is
-enumerated over an HTTP-version list; there is no *we offered h2 and h2 was refused*. The negative
+enumerated over an HTTP-version list. There is no *we offered h2 and h2 was refused*. The negative
 is a **single global one**, and a single global negative is a conditioned value, not a set with a
 hole. What the offer does to it is a naming problem, answered below, and not an aperture problem.
 
@@ -164,7 +164,7 @@ be recorded honestly at all. It cannot — and the answer is the same in both ho
 disposes of the two-homes problem.
 
 **Aperture needs content.** ADR-0014 makes a widening detectable *by diffing named dimensions across
-batches*. Diffing `go1.24.1` against `go1.24.2` says something moved; it does not say whether the
+batches*. Diffing `go1.24.1` against `go1.24.2` says something moved. It does not say whether the
 offer widened or **narrowed**, and a narrowing is the opposite of `revealed`. A scope record that
 cannot tell the two apart cannot license anything.
 
@@ -198,7 +198,7 @@ This is not a tidiness argument, and the worked example is in the flagship direc
 Go's TLS client has defaulted to `MinVersion: TLS 1.2` since Go 1.18. Take the every-run handshake
 that feeds `certificate`, left on library defaults, against a legacy box that speaks **TLS 1.0
 only**. The server sends a `protocol_version` alert, no handshake completes, and the facet records
-`NoTLS`. The service drops out of the population `tls-1.0-accepted` evaluates over — so a v1 signal
+`NoTLS`. The service leaves the population `tls-1.0-accepted` evaluates over — so a v1 signal
 reports nothing **on exactly the estate where it is true**, which is the failure ADR-0011 refused
 when it kept the measured negatives out of `Gap`, arriving instead through a dependency's default.
 
@@ -224,7 +224,7 @@ aperture change yielding `revealed`"*. **It is true of the qtype set and false o
 set.** The qtype is a **discriminator in the timeline key**, so adding CAA opens a `dns-record`
 timeline that did not exist. A cipher is not in any key: `tls-acceptance` has one timeline per
 `Service` and adding a candidate moves its **value**. `revealed` is an *opening* kind
-([ADR-0014](./0014-only-revealed-generalises.md)); a value moving on a running timeline is not an
+([ADR-0014](./0014-only-revealed-generalises.md)). A value moving on a running timeline is not an
 opening at all. It is a **`Break`** — which is already `Break`'s second cause, so nothing new is
 needed.
 
@@ -317,7 +317,7 @@ clean only because the two prices land on **different objects**.
 Check it rather than assume it, as the ticket asks. ADR-0009's case was a sensitive-list revision:
 the signal's version governs comparability, the new `Service` timeline starts fresh — two objects.
 Here both prices would land on the **`tls-acceptance` timeline of the same `Service`**. They do not
-compose; they double. ADR-0009's finding does not transfer, and the trap is real.
+compose. They double. ADR-0009's finding does not transfer, and the trap is real.
 
 The declaration rule disarms it structurally rather than by care. One fact has one home: either we
 enumerate the offer, in which case it is scope and the library is not deciding it — so the library's
@@ -339,8 +339,8 @@ ours. It bumps the leaf and nothing else.
 
 - **[`CONTEXT.md`](../../CONTEXT.md) changes in four places.** `tls-acceptance` states that the
   offer is **declared by us and recorded as wire content, never a library default**, and that
-  widening it is a `Break` rather than a `revealed`; `Certificate` gains `TLSRefused`; `Facet` and
-  `Shadowed` carry the `NotHTTP` → `NoHTTPResponse` rename; `Batch` states that a recorded scope
+  widening it is a `Break` rather than a `revealed`. `Certificate` gains `TLSRefused`. `Facet` and
+  `Shadowed` carry the `NotHTTP` → `NoHTTPResponse` rename. `Batch` states that a recorded scope
   dimension is recorded **by content**.
 - **[ADR-0007](./0007-drift-is-a-timeline-of-spans.md)'s *"Aperture has five inputs"* paragraph is
   corrected twice.** The count is **six** (`Vantage class` joined at
@@ -348,14 +348,14 @@ ours. It bumps the leaf and nothing else.
   is true of the qtype set and false of the TLS candidate set.
 - **[ADR-0011](./0011-a-facet-is-six-parts.md) is amended in two details.** Its *"a library upgrade
   that widens the offer is estate-wide drift we can name"* describes a world where the library owns
-  the offer, which this ADR ends; and `certificate`'s value space gains a third variant, filling the
+  the offer, which this ADR ends. And `certificate`'s value space gains a third variant, filling the
   hole its own `wrong version number` / `unexpected eof` partition implied.
 - **[ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md)'s open question is discharged
   and its worked example corrected.** The three offers it could not place are all parameters, its
   library-as-parameter rule stands with its scope narrowed to what we do not enumerate, and its Go
   upgrade fires **one** message rather than two.
 - **`http-exchange` and `resolution-walk` gain declared parameters they did not have** — the ALPN
-  offer and HTTP versions spoken; the EDNS option set and advertised buffer; the transport and
+  offer and HTTP versions spoken, the EDNS option set and advertised buffer, and the transport and
   fallback policy. `tls-handshake`'s TLS library parameter is joined by the **declared candidate
   set**, which is scope rather than parameter and lives on the `Batch`.
 - **Two prober obligations enter the spec, both discharging false-value risks rather than aperture
@@ -417,7 +417,7 @@ line is right and the test's wording is withdrawn**, replaced by:
 > scope for **every** batch that makes it — including batches whose own facet carries only a global
 > negative. Otherwise it is a declared parameter of the leaf that made it.
 
-The correction changes only the TLS case; ALPN, EDNS and the transport policy stay parameters
+The correction changes only the TLS case. ALPN, EDNS and the transport policy stay parameters
 exactly as placed above.
 
 **2. *"a `Break` on every `tls-acceptance` timeline in the estate"* understates the price by one

@@ -110,7 +110,7 @@ land in one shard 3 times in 30**, reading a false `Determinate` and discriminat
 nine-label draw reads `Indeterminate`. So the exact parameter #115 moved, `5` → `9`, changes which
 names beneath a measured zone are `Shadowed`, and therefore which addresses are cited, and therefore
 which `Address` subjects are in the estate. The presence flip is not hypothetical and it is not
-reasoned from the specification; it is in the repository, measured, in the ADR that valued the
+reasoned from the specification. It is in the repository, measured, in the ADR that valued the
 predicate.
 
 ### The ticket's own ground is true and is the weaker one, and saying so is the review
@@ -123,7 +123,7 @@ composition`. `Shadowed` overwrites whatever `resolution-walk` measured. So the 
 `Name`'s presence is **`NameError` recorded as `Shadowed`** — and that pair is hard to reach, because
 of the protocol rather than because of the model. RFC 4592 makes a covering wildcard answer NOERROR,
 so beneath a parent that synthesises, a deleted name reads `Resolved` or `NoData` and never
-`NameError`; and where the parent does **not** synthesise, ADR-0066's *a probe that completed and
+`NameError`. And where the parent does **not** synthesise, ADR-0066's *a probe that completed and
 found no wildcard licenses everything beneath it* exempts the name and the `NameError` stands.
 
 The residue is the parent that neither synthesises nor reads determinate — every component
@@ -132,7 +132,7 @@ The residue is the parent that neither synthesises nor reads determinate — eve
 measured one.** Every indeterminate zone in ADR-0068's nineteen is a hosting provider that
 synthesises.
 
-So the honest statement is: **the `Name` ground is sound and unmeasured; the `Address` ground is
+So the honest statement is: **the `Name` ground is sound and unmeasured. The `Address` ground is
 sound and measured.** The ruling is the same either way, because the vector is one vector — a `Name`
 and the `Address`es it cites are decided from one `resolution` value by one pair of leaves, and a
 vector that held for one and not the other would have to be recorded per subject kind, which is a
@@ -153,7 +153,7 @@ Membership reads `resolution`. `resolution` is decided by **two** leaves — `re
 `NameError │ NoData │ Lame │ Resolved`, `wildcard-discrimination` decides `Shadowed`, and the
 recorded value is one or the other. There is no projection of `resolution` that membership could read
 which only one leaf reaches, because the leaves do not partition the value space by facet or by
-discriminator; they partition it by **which of them got to decide this observation**. A reader of the
+discriminator. They partition it by **which of them got to decide this observation**. A reader of the
 value composes both, exactly as a reader of two timelines composes both.
 
 This is also what keeps the answer narrow, and the narrowness is obligation 3's whole point.
@@ -174,7 +174,7 @@ It loses on three independent grounds.
 **The model already refused to make it the object that would have kept it out.** A `Gap` is the
 object for *we could not say*, and a `Gap` *"never withdraws a subject."* The model considered that
 home for exactly this fact and split it: where the control probe **did not complete**, the name
-records a `Gap`; where it completed and the answer was not discriminated, the name records
+records a `Gap`. Where it completed and the answer was not discriminated, the name records
 `Shadowed`, *"recorded as a measured value rather than discarded."* Two adjacent cases, deliberately
 given two different objects, and only one of them is the one that never withdraws a subject.
 `Shadowed` is on the value side of a line the model drew on purpose.
@@ -182,7 +182,7 @@ given two different objects, and only one of them is the one that never withdraw
 **Epistemic content does not make a value inert.** A value that changes which subjects are in the
 estate is a membership input whatever its content is about, and `Shadowed` changes it — that is the
 citation argument above, and it is measured. ADR-0014's line is about **aperture**, which is recorded
-on the `Batch` and per-timeline; `Shadowed` is recorded on a facet timeline as a value with a `Span`,
+on the `Batch` and per-timeline. `Shadowed` is recorded on a facet timeline as a value with a `Span`,
 and it is not in the aperture list — ADR-0068 checked that explicitly and left the count at seven.
 
 **And it would leave the failure ADR-0085 exists to prevent standing, one leaf over.** Under the
@@ -207,7 +207,7 @@ v1.0 the same move costs `returned` across every `Name` and every cited `Address
 unrepairably.
 
 The recurring price is the number worth having, and it is smaller than the framing suggests. The
-vector gains one leaf; it does **not** gain a new dependency. ADR-0021 puts the DNS library and the
+vector gains one leaf. It does **not** gain a new dependency. ADR-0021 puts the DNS library and the
 query path in the declared parameters of **both** leaves, so every dependency-cadence and
 `Vantage`-cadence cause that reaches membership through `wildcard-discrimination` already reached it
 through `resolution-walk`. What is genuinely new is three parameters — **control-label count,
@@ -274,7 +274,7 @@ a reviewer can see which seventeen were inherited and which two were minted here
   named a routing question that is now answered. The file's totals move **27 + 17 escrow → 46
   discharged, 0 escrow**.
 - **ADR-0041's obligation 2 is amended at its own site**, and the amendment is to its **scope**
-  rather than to its list. Its five outcomes are all membership-deciding; *`resolution-walk`'s golden
+  rather than to its list. Its five outcomes are all membership-deciding. *`resolution-walk`'s golden
   corpus* is the half that was wrong. ADR-0085 routed this correction to the ticket that owns it and
   this is that ticket.
 - **ADR-0041's obligation 3 gains the discovery rider** and is otherwise unchanged. It still binds,
@@ -295,7 +295,7 @@ a reviewer can see which seventeen were inherited and which two were minted here
   which half moved.
 - **ADR-0006 and ADR-0008 carry the one-leaf sentence in their ADR-0041 annotations** and are amended
   at those clauses, per ADR-0058 and per #106's rule that a document supersedes itself. Neither
-  ruling moves; both name `resolution-walk` alone where the vector has two leaves.
+  ruling moves. Both name `resolution-walk` alone where the vector has two leaves.
 - **[ADR-0072](./0072-absence-is-a-property-of-a-cell-and-withdrawn-is-the-only-population.md)'s
   floor-obligation clause is amended by a phrase.** *A `Name`'s membership composes `resolution-walk`,
   so it clamps and reads `≥`* keeps its conclusion — it still clamps — and gains the second leaf, so
@@ -337,7 +337,7 @@ a reviewer can see which seventeen were inherited and which two were minted here
   zero on the same ground. The credit is real and it is finite, and a session reading any of the three
   after v1.0 must not read *free* as a property of the move.
 - **W7 is minted here rather than escrowed, so it has had no second reader.** The seventeen adopted
-  cells were written by ADR-0085 and reviewed by this ticket; the two new ones have been written and
+  cells were written by ADR-0085 and reviewed by this ticket. The two new ones have been written and
   ruled by one session. They are the block's most load-bearing pair and the least examined.
 - ~~**`returned`'s predicate across a two-leaf vector is not settled here and is not mine.** A subject
   holds many timelines whose last spans may have closed under different vectors, and the vector now

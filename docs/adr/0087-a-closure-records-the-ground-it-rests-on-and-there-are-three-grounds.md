@@ -122,7 +122,7 @@ The name carries the specific rule at both sites, which is ADR-0007's own condit
 What the split would have bought is *which* thing the subject went with — and that is already stored.
 `Citation` is a single-hop link the subject carries, so putting the answer in the reason word too is
 a second representation of one fact, which is the standing seam rule and the argument ADR-0007 used
-to refuse storing `Transition`s beside spans. **The reason names the class; the `Citation` names the
+to refuse storing `Transition`s beside spans. **The reason names the class. The `Citation` names the
 thing.**
 
 `cascaded` is then the wrong word for the merged member, because nothing cascades when a resolution
@@ -172,8 +172,8 @@ population — one of the two membership-bearing subject kinds — **leaving by 
 by the other is the ordinary shape and not a corner.** Work it:
 
 1. `203.0.113.5` is in the estate because a declared address scope covers it. Its timelines run.
-2. The operator narrows the scope. Nothing cites the address, so it withdraws; its timelines close;
-   no `Gap` is left behind, there being no subject to hold one (ADR-0047, ADR-0074).
+2. The operator narrows the scope. Nothing cites the address, so it withdraws. Its timelines close.
+   No `Gap` is left behind, there being no subject to hold one (ADR-0047, ADR-0074).
 3. Weeks later a `Name` in an unrelated name scope resolves to it. The address is cited, re-enters
    the estate, and a span opens.
 
@@ -188,11 +188,11 @@ That is [ADR-0014](./0014-only-revealed-generalises.md)'s distinction — member
 **subject**, aperture is a property of **looking** — collapsing at the storage layer, and it is the
 same shape as ADR-0041's *"deleting the span before an open one converts `returned` into
 `appeared`"*: **a false statement about the world manufactured by what storage failed to keep.**
-ADR-0041 refused that one on the ground that a clock may not move a value; the same ground refuses
+ADR-0041 refused that one on the ground that a clock may not move a value. The same ground refuses
 this one, because a missing field moves it just as effectively as a deleted row.
 
 So `returned` is **not derivable from the spans alone**, and the closure's reason is the input that
-makes it derivable. This ADR rules the record; it does not write the predicate. What follows
+makes it derivable. This ADR rules the record. It does not write the predicate. What follows
 directly, because both halves are already ruled elsewhere, is only this: **`returned` and `appeared`
 are membership-only (ADR-0014) and a scope act is aperture yielding `revealed` (ADR-0047), so a
 `descoped` closure does not license `returned` across it.** Everything else about the predicate —
@@ -266,7 +266,7 @@ the rule that already holds the thing.
   `Break` that is *"derived on read from the two spans' vectors and never stored, which is what lets
   it name the leaf that moved"* — storing a reason there would be the second representation ADR-0007
   built the derived `Break` to avoid.
-- **Free text of any kind.** Not argued; the corpus is never compacted.
+- **Free text of any kind.** Not argued. The corpus is never compacted.
 
 ### The price, stated rather than waved through
 
@@ -318,16 +318,17 @@ structure.
   was missing was the field those rules key on.
 - **No prototype owes a mark.** Per [ADR-0075](./0075-a-prototype-is-a-dated-record-of-a-reading-never-of-a-rule.md),
   a drawn state a ruling makes **unreachable** is owed the mark and a figure it moves is owed nothing.
-  This ADR adds a field nothing has drawn and makes no drawn state unreachable; `Subjects`' `withdrawn`
+  This ADR adds a field nothing has drawn and makes no drawn state unreachable. `Subjects`' `withdrawn`
   population and its by-key lookup are untouched.
 - **Nothing new is stored beyond one enum.** No new object, no new table, no new value on any facet,
   no membership timeline object, no fourth transition name, and no field on a closure that is not a
   withdrawal.
 - **[#148](https://github.com/winniel123/verge-asm/issues/148) is handed a record and not a
-  predicate.** It receives: a closure carries a reason from a closed three-member set; a `Span`
-  carries the vector it was produced under and that vector is by construction the one in force at its
-  closure, so no vector field is added and none is needed; and `returned`'s predicate now has two
-  per-timeline inputs to compose rather than one.
+  predicate.** It receives:
+  - a closure carries a reason from a closed three-member set
+  - a `Span` carries the vector it was produced under and that vector is by construction the one in
+    force at its closure, so no vector field is added and none is needed
+  - `returned`'s predicate now has two per-timeline inputs to compose rather than one
 
 ## Alternatives rejected
 

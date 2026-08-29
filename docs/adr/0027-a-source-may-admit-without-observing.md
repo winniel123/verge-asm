@@ -73,7 +73,7 @@ keying claim.
 `certificate` is a closed union with two variants, and both are outcomes of a wire exchange:
 `Presented(ordered chain fingerprints, leaf first)` is what a listener served us, and `NoTLS` is
 what we measured when it served us nothing. **A CT log entry can produce neither.** It witnesses
-that a certificate was *issued and logged*; it says nothing about whether anything ever presented
+that a certificate was *issued and logged*. It says nothing about whether anything ever presented
 it, and it can never be the evidence for a measured negative. `NoTLS` against a CT row is not a
 hard case — it is the tell that the two facts are not in one value space.
 
@@ -156,7 +156,7 @@ per-source keying the CT timeline **never closes** — so every ordinary certifi
 report a permanent conflict.
 
 **A fifth `Subject` kind for *a certificate that exists*** fails harder. A `Subject` is *anything an
-observation can be about*, each with its own lifecycle; #7 made `Certificate` a value on the ground
+observation can be about*, each with its own lifecycle. #7 made `Certificate` a value on the ground
 that it is signed, therefore immutable, therefore cannot drift, and a subject whose every span holds
 the same value forever is a timeline with nothing in it. Worse, CT is **append-only**, so such a
 subject could never leave — which is ADR-0006's opening sentence verbatim, *"an append-only
@@ -174,7 +174,7 @@ is the useful part:
 
 - **The keying ground is confirmed, not repaired.** The fix is that CT holds **no timeline at all**
   — no facet, no value, no `Span`. A `Signal` is *a named, versioned rule evaluated over
-  observations*, and there are none to evaluate. Settling the subject did not unlock the rule; it
+  observations*, and there are none to evaluate. Settling the subject did not unlock the rule. It
   removed the last thing a rule could have read.
 - **#48's conflation ground stands untouched.** CT is append-only, so a certificate for a long-dead
   name sits in the log forever and the rule fires on every historical certificate in the estate.
@@ -217,9 +217,9 @@ install either.
 ## Consequences
 
 - **[`CONTEXT.md`](../../CONTEXT.md) is amended in four entries.** `Source` records that a source
-  may admit without observing and states the sharpened test; `Endpoint` records that the presented
-  certificate chain is single-valued there beside HTTP identity; `Certificate` records that
-  certificate transparency is not a source of the `certificate` facet; `Citation` records that
+  may admit without observing and states the sharpened test. `Endpoint` records that the presented
+  certificate chain is single-valued there beside HTTP identity. `Certificate` records that
+  certificate transparency is not a source of the `certificate` facet. `Citation` records that
   where a source admits without observing, the hop is its `Batch`.
 - **[ADR-0011](./0011-a-facet-is-six-parts.md) is amended in three places** — its `certificate` row
   names `Endpoint`, its decoder worked example loses the `crt.sh` pair, and its consequence *"a
@@ -233,7 +233,7 @@ install either.
   file, which is the other member of both.
 - **`certificate` timelines are per `Endpoint`, so retention is larger than the fog patch prices
   it.** [#36](https://github.com/winniel123/verge-asm/issues/36) recorded *most `certificate`
-  timelines hold `NoTLS` forever*, counted per `Service`; the count multiplies again by names per
+  timelines hold `NoTLS` forever*, counted per `Service`. The count multiplies again by names per
   service, and the nameless `Endpoint` is the floor rather than the whole.
   *(Priced by [#121](https://github.com/winniel123/verge-asm/issues/121) ·
   [ADR-0041](./0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md): the

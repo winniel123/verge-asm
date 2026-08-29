@@ -11,15 +11,15 @@ verge-asm ships **one generic OpenID Connect connector, not an Okta plug-in** �
 just one IdP that speaks standard OIDC discovery, wired in exactly like any other (see
 [sso.md](sso.md) for the general model, the security rationale, and the Settings and
 Profile screens). This guide is the Okta-specific half: what to create in the Okta Admin
-Console, which of Okta's two issuer flavours to point verge at, and how the pieces line up
+Console, which of Okta's two issuer flavours to point verge at, and how the pieces align
 end to end.
 
-Two rules from [sso.md](sso.md) carry over unchanged, and both matter before you touch
+Two rules from [sso.md](sso.md) apply unchanged, and both matter before you touch
 Okta:
 
-- **SSO authenticates an existing account; it never creates one.** Assigning a user to the
+- **SSO authenticates an existing account. It never creates one.** Assigning a user to the
   Okta app does *not* provision them in verge-asm. Create the local account first (see
-  [accounts.md](accounts.md)); the user links their Okta identity to it from their Profile.
+  [accounts.md](accounts.md)). The user links their Okta identity to it from their Profile.
 - **A binding is keyed on the verified `(provider, sub)`, never a username or email.** For
   Okta the `sub` is the immutable per-user subject its `id_token` carries — not the Okta
   username, not the email, both of which are mutable and reassignable.
@@ -38,7 +38,7 @@ Okta onto them.
   redirect URIs you register at Okta are rooted at it, and Okta rejects any round-trip whose
   `redirect_uri` was not registered verbatim. Pin it before you register anything.
 - A decision on **which Okta issuer** verge will trust — the org authorization server or a
-  custom one. This is the one choice that most often trips a first configuration; see
+  custom one. This is the one choice that most often trips a first configuration. See
   [Choose the issuer](#choose-the-issuer) below.
 
 Pick the **slug** now too (e.g. `okta`): it is URL-safe (lowercase letters, digits, internal
@@ -56,9 +56,9 @@ In the Okta **Admin Console**:
 
 > **Note:** Choose **Web Application** even if you intend to run verge as a *public*
 > PKCE-only client (no secret). verge always uses server-side redirects and completes the
-> code exchange from its backend, so "Web Application" is the correct Okta application type;
-> the confidential-vs-public distinction is made by whether you give verge a client secret,
-> not by picking Okta's SPA type. verge sends PKCE (S256) on every login regardless.
+> code exchange from its backend, so "Web Application" is the correct Okta application type.
+> The confidential-vs-public distinction depends on whether you give verge a client secret,
+> not on picking Okta's SPA type. verge sends PKCE (S256) on every login regardless.
 
 Click **Next** to reach the settings screen.
 
@@ -88,7 +88,7 @@ verge does not use OIDC front-channel logout, so a **Sign-out redirect URI** is 
 required — leave it blank unless your org convention needs one.
 
 Under **Grant type**, keep **Authorization Code** enabled (the default). verge uses the
-authorization-code flow only; it never uses the implicit or client-credentials grants.
+authorization-code flow only. It never uses the implicit or client-credentials grants.
 
 ---
 
@@ -157,8 +157,8 @@ its `"issuer"` field: whatever string appears there is precisely what belongs in
 **Issuer URL**. Okta requires the issuer to be **`https`**, which is also verge's own
 validation rule — a non-`https` issuer is refused at save time.
 
-Which to use is an Okta-org policy question: the org authorization server is the simplest for
-plain sign-in; a custom authorization server lets you scope policies and claims per app. Both
+Which to use is an Okta-org policy question. The org authorization server is the simplest for
+plain sign-in. A custom authorization server lets you scope policies and claims per app. Both
 work identically with verge as long as the Issuer URL matches the emitted `iss`.
 
 ---
@@ -179,7 +179,7 @@ In verge, open **Settings → Single sign-on** (`/settings?tab=sso`, admin-only)
 The **scopes are fixed** at `openid profile email` and are not a field — verge requests
 exactly those on every login, so no scope configuration is needed on the verge side. On the
 Okta side, ensure those three standard OIDC scopes are granted to the app (they are enabled
-by default for a new OIDC integration; a custom authorization server must include the
+by default for a new OIDC integration, and a custom authorization server must include the
 `openid`, `profile`, and `email` scopes in its access policy). verge reads the user's display
 label from the `email` / `preferred_username` / `name` claims for the Settings and Profile
 tables only — never as an authentication input.
@@ -202,7 +202,7 @@ The pieces only authenticate someone once all of this is true, in this order:
    `(provider, sub) → their account`. An account holds **one identity per provider**, and an
    Okta identity already bound to a *different* verge account is refused cleanly.
 4. **The user signs in with Okta**: the **Okta** button on the sign-in screen starts the
-   flow; verge verifies the `id_token` (signature, issuer, audience, per-login nonce),
+   flow. verge verifies the `id_token` (signature, issuer, audience, per-login nonce),
    resolves the `(provider, sub)` binding, and issues the session.
 
 If a user reaches Okta successfully but is not yet linked, verge refuses honestly — *"That

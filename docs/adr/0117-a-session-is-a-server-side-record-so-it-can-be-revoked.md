@@ -46,8 +46,8 @@ account deletion already does.
 - **ADR-0053 is preserved, not weakened.** The HMAC signing key still lives only on `web-state`,
   never in Postgres, so a read-only database leak still cannot **forge** a cookie. And because the
   row keeps only the token's **hash**, a leak cannot **replay** a stored token either — the
-  preimage is only ever in the cookie on the client. The registry strictly *adds* revocability;
-  it removes nothing the leak model relied on. (The one changed property is intentional and
+  preimage is only ever in the cookie on the client. The registry strictly *adds* revocability.
+  It removes nothing the leak model relied on. (The one changed property is intentional and
   desirable: a restore of an old dump no longer silently re-animates sessions — a revoked or
   absent row is dead.)
 
@@ -55,9 +55,9 @@ account deletion already does.
   already read every request, so this is one more point read on the hot path, not a new tier.
   `last_seen_at` is refreshed at most once per minute per session to avoid write amplification.
 
-- **Lifecycle.** Login (password and SSO) inserts a row and sets the cookie to its token; logout
-  and "end session" set `revoked_at`; a password **change** revokes every *other* session for the
-  account; a password **reset** revokes *all* of them. An admin can revoke any single session or
+- **Lifecycle.** Login (password and SSO) inserts a row and sets the cookie to its token. Logout
+  and "end session" set `revoked_at`. A password **change** revokes every *other* session for the
+  account. A password **reset** revokes *all* of them. An admin can revoke any single session or
   every session for an account.
 
 - **Two surfaces.** Personal (any signed-in account, owner-scoped in SQL like personal tokens):
@@ -67,15 +67,15 @@ account deletion already does.
 ## Consequences
 
 - **Revocation is real.** "Sign out other sessions", admin offboarding, and password-change
-  invalidation all work; the UI copy that said they could not is withdrawn at its sites (#409).
+  invalidation all work. The UI copy that said they could not is withdrawn at its sites (#409).
 - **A dead cookie fails closed.** An old signed cookie with no live row simply fails validation
   and redirects to `/login` — no crash, no ambiguous state.
-- **The leak model is intact.** No secret moves into Postgres; the DB holds only hashes and
+- **The leak model is intact.** No secret moves into Postgres. The DB holds only hashes and
   metadata. A dump discloses who was signed in and when, never a usable credential — the same
   posture ADR-0053 already sets for every other stored auth artifact.
 - **Sessions are now Operational state with a lifecycle**, so they carry a retirement story:
-  expired and revoked rows are dead to auth immediately and may be reaped by a later cadence;
-  this ADR ships them unreaped (one row per login is nothing to retire yet), matching the
+  expired and revoked rows are dead to auth immediately and may be reaped by a later cadence.
+  This ADR ships them unreaped (one row per login is nothing to retire yet), matching the
   `Dispatch` stance in spec §4.6.
 - **Forward-only migration.** A single-estate pre-release build with stateless cookies in flight:
-  add the table; existing cookies simply fail the new row check once and re-login. No backfill.
+  add the table. Existing cookies simply fail the new row check once and re-login. No backfill.

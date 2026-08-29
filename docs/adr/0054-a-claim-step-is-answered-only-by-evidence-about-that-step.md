@@ -8,7 +8,7 @@
 ## Context
 
 [`sensitive-ports.md`](../research/sensitive-ports.md) §10.1 restated Claim 1 as a **two-step test**:
-Step 1 asks whether *publication is the purpose* and refuses outright if it is; Step 2 asks what
+Step 1 asks whether *publication is the purpose* and refuses outright if it is. Step 2 asks what
 **authority** the anonymous caller gets. Both steps are answered *"from the specification or the
 owner's own documentation"*, and §10.1 carries a twelve-row table applying the test to every Class A
 row — one row per cell pair.
@@ -43,7 +43,7 @@ Step 2 answers *no* for seven of eleven rows.
 `6379/tcp` forced the question. **[measured]** at `redis/redis` `8.10.0`, `clientAcceptHandler()`
 rejects any non-local peer with `-DENIED` and calls `freeClientAsync` whenever protected mode is on
 and the `default` user is `nopass` — which is the shipped `redis.conf`. The condition no longer
-consults `server.bindaddr_count`; that clause is present at `6.2.19` and absent from `7.0.0` onward,
+consults `server.bindaddr_count`. That clause is present at `6.2.19` and absent from `7.0.0` onward,
 so a public `bind` does not lift it. §10.1's cell for the row — *"`FLUSHALL`, and arbitrary writes"*
 — therefore names operations the shipped configuration serves to no remote caller at all, and unlike
 `4369` there is no ungated operation to fall back to, because the gate is on the **connection**.
@@ -118,7 +118,7 @@ its shipped default. Three consequences, and each is an existing finding read at
 
 The discriminator between (1) and (2) is whether the operator can reach anonymous remote service
 **without supplying a credential**. Redis's `protected-mode no` demands none of anyone, so `6379/tcp`
-falls under (1); the kubelet's `anonymous-auth: false` demands one, so `10250/tcp` fell under (2).
+falls under (1). The kubelet's `anonymous-auth: false` demands one, so `10250/tcp` fell under (2).
 
 ## Consequences
 
@@ -167,7 +167,7 @@ evidence that would **refuse** the step — the owner instructing an unauthentic
 be used that way. **It is a statement about where the caller stands, which is Claim 3's subject, and
 limb 1 bars a placement sentence from Step 1 without regard to which way it points.** A limb that
 excluded boundary evidence only when it helped the row would be a thumb on the scale rather than a
-rule; #95 used the sentence at its footing, where it belongs, and rested Step 1 on the authorization
+rule. #95 used the sentence at its footing, where it belongs, and rested Step 1 on the authorization
 sentence alone. [`sensitive-ports.md`](../research/sensitive-ports.md) §27.3.
 
 **Limb 2's arithmetic moves and its point is unchanged.** *Seven of eleven* Class A rows whose shipped
@@ -192,7 +192,7 @@ Limb 2 answers Step 2's reachability *"holding the **authentication** configurat
 default"*. **All eleven Class A rows have a shipped default to hold. `623/udp` IPMI has none**, and
 the owner says so: **[measured]** IPMI v2.0 rev 1.1 §22.22, page 300 — *"The choice of factory default
 setting for the non-volatile parameters is **left to the implementer or system integrator**."* The
-specification is a multi-vendor consortium's and ships no implementation; a BMC's configuration is
+specification is a multi-vendor consortium's and ships no implementation. A BMC's configuration is
 firmware ([`sensitive-ports.md`](../research/sensitive-ports.md) §13.1).
 
 > **Where the owner ships no configuration, the frame reads the specification's own dispatch.** This
@@ -215,7 +215,7 @@ party. §28.4, §28.5, §28.6.
 it *"provides a way to enable access to the BMC without requiring a username and password"* (§13.28.2)
 — loses because mandatory **support** is not a shipped **configuration**, and because the reading that
 collapses them moves `5432/tcp` PostgreSQL to Class A on its `trust` method, along with `3306`, ~~`1433`~~
-(**removed from the list by [#109](https://github.com/winniel123/verge-asm/issues/109)**; the argument
+(**removed from the list by [#109](https://github.com/winniel123/verge-asm/issues/109)**. The argument
 is unchanged and loses one of its four examples)
 and `2049`. And **RAKP Message 2's password-keyed `HMAC_K[UID]`**, disclosed before the caller proves
 anything (§13.31), loses because a handshake message is not an **operation**, because the value is

@@ -24,7 +24,7 @@ then asked to connect to `10.0.0.5`.
 **`10.0.0.5` is not a machine. It is a machine per network.** The prober connects to whichever one
 is on *its* network — the operator's if it happens to sit there, the hosting provider's if the
 instance runs on a VPS, another tenant's if the provider shares private space. Every safety
-sentence the project has written is about *whose* listener we may touch; none of them noticed that
+sentence the project has written is about *whose* listener we may touch. None of them noticed that
 this address does not name a listener until somebody says which network to ask on.
 
 **Three corrections to the framing this ticket inherited**, all of which change where the fix can
@@ -46,7 +46,7 @@ one-class install, and the one most likely to be a small VPS — the rule is per
 the estates carrying the hazard cannot be the carrier of the safety property.**
 
 **The exposure is not only who we touch. It is what we then say about the operator.** The internet
-`Reach` leg over a non-globally-reachable address is not a measurement we are missing; it is one
+`Reach` leg over a non-globally-reachable address is not a measurement we are missing. It is one
 that **cannot exist**, because there is no internet path to that address by construction. A
 connect from an internet-class vantage does not measure it weakly — it measures a **different
 subject** and files the answer on the flagship timeline. If the stranger's machine answers on 22,
@@ -113,7 +113,7 @@ no rate from nowhere, and an `operator` address that denotes one machine is stil
 wholly.
 
 This is also why the precondition is **not** a third `Custody` value. `unknown` was deleted by
-ADR-0013 §2 because nothing could produce it; reintroducing an indeterminate custody state here
+ADR-0013 §2 because nothing could produce it. Reintroducing an indeterminate custody state here
 would be worse than that — it would be a *determinate* fact (the operator really does control
 `10.0.0.5` on their network) recorded under a word that says we could not tell.
 
@@ -144,8 +144,8 @@ addressed to a realm nobody declared.
 ### The population is the owner's column and nothing finer, because anything finer is ours
 
 The obvious better fix is a **realm taxonomy**: `127.0.0.0/8` and `::1` are host-scoped and denote
-the prober itself; `fe80::/10` is link-scoped; `10/8`, `172.16/12`, `192.168/16`, `100.64/10` and
-`fc00::/7` are realm-scoped; the three TEST-NETs, `2001:db8::/32`, `3fff::/20`, `240.0.0.0/4`,
+the prober itself. `fe80::/10` is link-scoped. `10/8`, `172.16/12`, `192.168/16`, `100.64/10` and
+`fc00::/7` are realm-scoped. The three TEST-NETs, `2001:db8::/32`, `3fff::/20`, `240.0.0.0/4`,
 `100::/64` and `255.255.255.255/32` denote no machine at all. Each class wants a different
 disposal, and a rule cut that way would let an internal prober keep probing `10.0.0.0/24` while
 never touching loopback.
@@ -193,12 +193,12 @@ Two counts that a session could reasonably fear this ADR moves, both checked.
 
 **Aperture inputs stay at seven.** ADR-0014 fixed the criterion — *"aperture is what a `Batch`
 records as its completed scope"* — and enumerated **the custody gate** as one dimension of that
-record. This ADR changes what that dimension admits; it does not add a dimension beside it. Nothing
-new needs recording on a `Batch`, because the scope record is *by content* — an address we did not
+record. This ADR changes what that dimension admits. It does not add a dimension beside it. Nothing
+new needs recording on a `Batch`, because the scope record is *by content*. An address we did not
 ask about is absent from it already. When the registry moves a block from `False` to `True` in some
 future release, addresses inside it become probeable and their `Service` timelines **open**, which
 is `revealed` on the input that already owns that behaviour. ADR-0019 refused limb 1 partly to keep
-this count at seven; that refusal was about a **name → port** table, a dimension the gate does not
+this count at seven. That refusal was about a **name → port** table, a dimension the gate does not
 have. This is the dimension the gate already is.
 
 **The table gains a consumer, not a second reading.** #128 asked which of
@@ -226,14 +226,14 @@ refused**, and not on tidiness.
 It is refused because it is **not** the closed direction, once you ask what the closure is *for*.
 The hazard is reaching a **different machine**, and all four blocks are immune to it: `2002::/16`
 and `2001::/32` embed a globally unique IPv4 address, so a 6to4 or Teredo address denotes exactly
-one host worldwide; `192.88.99.0/24` is globally routed anycast, which the registries themselves
+one host worldwide. `192.88.99.0/24` is globally routed anycast, which the registries themselves
 treat as compatible with reachability (`192.0.0.9`, `192.31.196.0/24` and the AS112 blocks all
-carry `True`); and `2001:10::/28` is terminated and unrouted, so a packet to it reaches nothing at
+carry `True`). `2001:10::/28` is terminated and unrouted, so a packet to it reaches nothing at
 all. Reading them as `False` would buy no safety and would cost the one thing the note is for —
 one column, one reading rule, two consumers.
 
 So the residues part cleanly and the reason is a single sentence: **the signal's residue is toward
-silence because a claim we cannot found is not made; the gate's residue is toward probing because a
+silence because a claim we cannot found is not made, and the gate's residue is toward probing because a
 denotation the owner declined to deny is not in doubt.** Both are the same refusal to supply the
 owner's missing value, read against two different questions.
 

@@ -18,7 +18,7 @@ its first instance by accident:
 It named the failure **silent staleness** and priced it against
 [ADR-0032](./0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8's silent
 de-attestation: **worse**, because de-attestation needs a maintainer to flip a default while this
-needs nobody to do anything; **better**, because it is preventable by construction.
+needs nobody to do anything — **better**, because it is preventable by construction.
 
 `certificate-expiring`'s `N = 30` was found because a retrieval happened to touch it. #71 is the
 sweep nobody had run, and it carried an explicit instruction not to manufacture instances: *if the
@@ -78,7 +78,7 @@ why the rule cannot simply be applied harder: it has an edge, and §2 and §3 ar
 side of it.
 
 Silence is ADR-0034's own price argument read as a test. It ranks silent staleness worst *because*
-nobody has to do anything; where something does happen, the constant is stale-able but not silently
+nobody has to do anything. Where something does happen, the constant is stale-able but not silently
 so, and a defence already exists.
 
 ### 2. `verge-core`'s frequency half — the clearest product, and no fraction exists
@@ -99,7 +99,7 @@ exact question, has been open and unanswered since 2021-11-20. **Eighteen years,
 and Docker are not *ranked low* — they carry `0.000076`, a filler plateau shared by **1,969 TCP
 lines**, blame-dated to **2016-09-14** and the commit *"Merge latest IANA services"*. They entered
 from IANA's **name** registry eight years after the only scan and **nothing was ever measured for
-them**; the quoted ranks are tie-break artefacts of a block spanning 1442–3410. Kubelet is
+them**. The quoted ranks are tie-break artefacts of a block spanning 1442–3410. Kubelet is
 confirmed genuinely absent.
 
 > **The file does not under-weight modern exposure. It holds no information about it at all**, and
@@ -115,7 +115,7 @@ frequencies* rather than a *set of ports* — the same staleness, one indirectio
 each port *maps to a named v1 risk signal* — a project-internal criterion that does not move when
 the world does — and [ADR-0009](./0009-verge-core-is-a-union.md) already made the other half a rule:
 `verge-core = frequency-set ∪ sensitive-list`, membership by claim and attestation rather than by
-frequency. ADR-0009 was built to make an invariant unfalsifiable; it also, unremarked, converted
+frequency. ADR-0009 was built to make an invariant unfalsifiable. It also, unremarked, converted
 half of a stale product into a rule-expressed set. That is §5's generalisation, found rather than
 invented.
 
@@ -151,7 +151,7 @@ key rows are **one row of SP 800-57 Part 1 Rev 5 Table 2**, transcribed.
 **Reach fails**: no certificate carries NIST's mapping. **And two rulings already on the books
 forbid reaching for it anyway**, both written by [#68](https://github.com/winniel123/verge-asm/issues/68)
 without knowing it was answering #71 — §2.4, that the key may not be a bare bit count or gate 3
-comes inside the domain and fails; and §7.3, that encoding a dated transition in the predicate moves
+comes inside the domain and fails. And §7.3, that encoding a dated transition in the predicate moves
 the rule's output at midnight with no version bump, which is release-coupling defeated from the
 inside.
 
@@ -181,14 +181,14 @@ The two rules do not compete. **They partition on reach.**
 are both **Initial Public Drafts** and have sat in draft for about twenty-one months
 (`csrc.nist.gov/pubs/sp/800/131/a/r3/final` and `/pubs/ir/8547/final` both **404**). The only final
 normative date is SP 800-57 Table 4's 2031, which the drafts propose to *soften*. **What remains
-unestablished** is which date governs; **the condition that would move it** is either draft going
+unestablished** is which date governs. **The condition that would move it** is either draft going
 final. It changes no row today, because #68 refused to encode dates at all.
 
 ### 4. The negatives, and why each is stated as a rule rather than a verdict
 
 The sweep's value is mostly in what it declines, so each negative names the reason that stops the
 next session reopening it. [`project-authored-constants.md`](../research/project-authored-constants.md)
-§6 walks all of them; four carry rulings.
+§6 walks all of them. Four carry rulings.
 
 **The connect timeout is not a product, and the re-expression was already forbidden.** #71 asked
 whether 3 s is a fraction of round-trip time. It is not — it is a **classification boundary** whose
@@ -197,13 +197,13 @@ Reach is technically available, since RTT is observable per connect, and **ADR-0
 it in terms**: *"Adaptive back-off inside `connect-outcome` — it halves the rate, never the deadline
 — and had it moved the deadline, **a value would depend on how busy the run was**."* A deadline
 reading a measured quantity makes `connect-outcome` non-deterministic and fails the golden-corpus
-gate ADR-0021 exists to run. **This is #71's *genuinely should not* case, and it was already ruled;
-the sweep only had to notice.**
+gate ADR-0021 exists to run. **This is #71's *genuinely should not* case, and it was already ruled.
+The sweep only had to notice.**
 
 **`k` is the rule already satisfied, and it is the sweep's positive control.**
 [ADR-0007](./0007-drift-is-a-timeline-of-spans.md) set currency at **`k` cadences** rather than at a
-number of hours, on **2026-08-13** — four days before ADR-0034 named the rule. `k` is the fraction;
-`k × cadence` is the product; the cadence is read at evaluation time from `Scan`, which is Declared.
+number of hours, on **2026-08-13** — four days before ADR-0034 named the rule. `k` is the fraction.
+`k × cadence` is the product. The cadence is read at evaluation time from `Scan`, which is Declared.
 Had ADR-0007 shipped *an observation is current for 48 hours*, it would have been `N = 30`'s twin.
 A sweep reporting only failures cannot tell whether its instrument works, so the positive control is
 recorded.
@@ -219,8 +219,8 @@ is wall-clock hours, and we have plenty."*
 **And the near-miss is why motion is not a formality.** The EDNS UDP payload size **1232** is
 *literally* a product and says so — [`measurement-offers.md`](../spec/measurement-offers.md) §4:
 *"derived from IPv6's required 1280-byte MTU."* Motion fails, decisively: RFC 8200 §5 fixes 1280 and
-has since RFC 2460 in 1998. A Standards Track minimum is a **protocol constant, not a measurement**;
-nobody publishes a schedule for it and changing it would break IPv6 rather than update a number. It
+has since RFC 2460 in 1998. A Standards Track minimum is a **protocol constant, not a measurement**.
+Nobody publishes a schedule for it and changing it would break IPv6 rather than update a number. It
 is independently attested as a *value* besides, by DNS Flag Day 2020 and by BIND, Unbound and Knot.
 
 > **A constant can be a product in form and a constant in fact.** A sweep run on form alone would
@@ -291,7 +291,7 @@ world quantity. What was computed against a world quantity is the **safety argum
 > **ADR-0034 §4 catches stale numbers. It does not catch stale arguments, and the argument is where
 > the residual risk in this repository actually sits.**
 
-Recording it as an instance would be the over-fitting #71 forbade; not recording it because it fails
+Recording it as an instance would be the over-fitting #71 forbade. Not recording it because it fails
 the test would be worse. **The repair passes reach** — the clock rules already read `not_before` and
 `not_after` — and is one extra evaluability predicate at a `Break` on three rules for one cadence,
 vacuous before first install. It is **not ruled here**, because it changes three rules' evaluability
@@ -323,7 +323,7 @@ And ADR-0034's *"a third state exists and it is the one to aim for"* is now plac
 
 This is the answer that mints nothing, which ADR-0034 already argued for when it refused to file the
 staleness finding as a watch item: *"filing it as a watch would build the machinery the fix
-removes."* The fix removes the machinery **where it reaches**; where it does not reach, the existing
+removes."* The fix removes the machinery **where it reaches**. Where it does not reach, the existing
 machinery was always the right home.
 
 ### 8. The bound, stated as the result
@@ -357,7 +357,7 @@ products. One near-miss passes form and fails motion.**
   [#69](https://github.com/winniel123/verge-asm/issues/69) — are unaffected.
 - **[`weak-key-and-signature.md`](../research/weak-key-and-signature.md) §7.3 is promoted to a
   general rule** and **nothing is taken from it**. The file is owned by
-  [#73](https://github.com/winniel123/verge-asm/issues/73) this round and is **not edited**; one
+  [#73](https://github.com/winniel123/verge-asm/issues/73) this round and is **not edited**. One
   optional addition is offered in #71's resolution comment for whoever holds it.
 - **[`sensitive-ports.md`](../research/sensitive-ports.md) is not edited** — owned by
   [#70](https://github.com/winniel123/verge-asm/issues/70) this round — and needs no amendment. §2
@@ -370,7 +370,7 @@ products. One near-miss passes form and fails motion.**
   deliberately not pre-empted here.
 - **[#12](https://github.com/winniel123/verge-asm/issues/12) carries two shape decisions for
   parameters that have no value yet.** The **availability window** is expressed in **batches, not
-  hours**, for `k`'s reason; the **capped body read** is a **terminator, not a byte count**, because
+  hours**, for `k`'s reason. The **capped body read** is a **terminator, not a byte count**, because
   a byte budget against where `<title>` sits is a world quantity that moves upward and whose failure
   is a `Transition` indistinguishable from a real one. Both cost nothing now and a `Break` later.
 - **Nothing costs a `Break`, a `revealed`, an aperture change or a message.** No constant is
@@ -386,7 +386,7 @@ products. One near-miss passes form and fails motion.**
   — eight years after the only scan. They were never **measured**, so the quoted ranks (1,683 and
   2,903) are tie-break artefacts of a block spanning ranks 1442–3410. The file contributes **no
   information whatever** about modern exposure, rather than under-weighting it. Amendment text is in
-  #71's resolution comment; **the file is not edited here.**
+  #71's resolution comment. **The file is not edited here.**
 - **[#78](https://github.com/winniel123/verge-asm/issues/78) is opened as by-catch and **blocks
   [#12](https://github.com/winniel123/verge-asm/issues/12)**.** Establishing that no redistributable
   replacement for `nmap-services` exists surfaced a prior question: nmap ships under the **NPSL**,
@@ -397,7 +397,7 @@ products. One near-miss passes form and fails motion.**
   killed bundling CAIDA on the neighbouring ground. It blocks #12 because a spec cannot carry a port
   tier whose licence to exist is unresolved.
 - **The map's Notes carry an illustration without its formula.** #61's staleness bound is recorded
-  as *"two days modally"*; it is `k × cadence` and the tiering has already moved once (#61's fourth
+  as *"two days modally"*. It is `k × cadence` and the tiering has already moved once (#61's fourth
   `Scan`). The wording fix is in #71's resolution comment. No `Break` — nothing reads it.
 
 ## Alternatives rejected
