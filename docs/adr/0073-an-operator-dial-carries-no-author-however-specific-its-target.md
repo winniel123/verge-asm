@@ -22,7 +22,7 @@ term by name, `Annotation` included in its own enumeration.
 operator-authored object in the Declared layer**. Every other Declared term holds a value the
 project's vocabulary supplies: a `Seed`'s scope, a `Scan`'s cadence, a `Source`'s enablement, a
 `Channel`'s URL. An `Annotation` holds **prose a person wrote**. A field naming who wrote it is
-therefore not a gratuitous addition; it is the field the object most obviously invites. So it is
+therefore not a gratuitous addition. It is the field the object most obviously invites. So it is
 either withdrawn with a reason or kept as the named exception with a reason. It may not go on
 quietly sitting in one ADR while another rules it out.
 
@@ -106,13 +106,13 @@ permits. **The same figure cut per rule is barred.** `sensitive-port-reached-fro
 rider 3 refuses has arrived without anybody rendering it.
 
 **A rule row's mute marker is therefore a glyph and never a quantity.** It says *something beneath
-this is annotated*; it does not say how much.
+this is annotated*. It does not say how much.
 
 ### 4. The instant renders as an absolute date, never as an age
 
 `accepted 412 days ago`, particularly with a colour that deepens, is an **expiry the operator
 implements by eye**. Rider 4 refused an expiry because a state that changes because time passed with
-no measurement behind it is `Finding`'s lifecycle arriving through a clock; a screen that ages the
+no measurement behind it is `Finding`'s lifecycle arriving through a clock. A screen that ages the
 instant reinstates it in the one place rider 4 does not reach. The date is mono, absolute,
 uncoloured, and the list is not sorted by staleness.
 
@@ -132,7 +132,7 @@ and rendering the annotations as children of a rule's census reads as a subdivis
 whatever the arithmetic says. This is the drawing's central finding and it is not deducible from
 ADR-0016's text, which forbids the partition as a *number*.
 
-`Annotation`'s home stays `Signals`, per ADR-0016. **No new destination**; the nav remains
+`Annotation`'s home stays `Signals`, per ADR-0016. **No new destination**. The nav remains
 **Exposure · Subjects · Signals · Seeds · Coverage · Settings**.
 
 ## Rationale
@@ -145,7 +145,7 @@ This is a serious answer and it was not waved past. The case for it, at full str
   decided we do not need to hear about this?* is a better question than *who added this seed?*, and
   #127 refused the second while leaving the first unasked.
 - Both of #127's actual arguments fail against this object, as the table above concedes. An
-  annotation cannot be edited, so the field never goes stale; and nothing derived reads an
+  annotation cannot be edited, so the field never goes stale. Nothing derived reads an
   annotation, so identity is not joinable to the probing gate through it.
 - The object already holds free prose. A paragraph a person wrote, with no indication of which
   person, is a strange artefact — and the operator can defeat the ruling in one keystroke by typing
@@ -159,7 +159,7 @@ word"* — and answered it with three structural guards: no timeline, no status 
 census. **None of those three guards addresses the author.** #117 defeated an objection whose stated
 content was *target + author + date* by removing neither the author nor the date. That is the hole
 this ADR closes: `(target, author, date, prose)` is a ticket with the status field taken out, and
-`(target, date, prose)` is a dial with a note on it. The word `Finding` is not what was refused; the
+`(target, date, prose)` is a dial with a note on it. The word `Finding` is not what was refused. The
 shape was.
 
 And it loses on the consumer, which is the same ground #127 lost on and the same ground it is
@@ -230,7 +230,7 @@ Three variants were drawn — `prototypes/signals-annotated/`, `?variant=A|B|C`.
   resolution carries the same clause, on #127's own precedent of posting one on #11.
 - **[`CONTEXT.md`](../../CONTEXT.md)'s `Annotation` entry gains one clause** on rider 6 — it carries
   no author, and it carries the declaration instant. The entry was already silent on the author, so
-  this is an addition rather than a repair; the silence is what let the two ADRs disagree unnoticed.
+  this is an addition rather than a repair. The silence is what let the two ADRs disagree unnoticed.
 - **[#127](https://github.com/winniel123/verge-asm/issues/127)'s ruling is now total.** *No operator
   act is written down anywhere with an actor on it* holds without exception, and its Out-of-scope
   entry needs no amendment: the reopening condition it already carries — **the spec admits a second
@@ -245,8 +245,8 @@ Three variants were drawn — `prototypes/signals-annotated/`, `?variant=A|B|C`.
   prose. Both exceptions are now written down in one place rather than inferred.~~ **Amended by
   [#165](https://github.com/winniel123/verge-asm/issues/165) ·
   [ADR-0093](./0093-an-instant-on-a-declared-term-is-earned-by-an-act-nothing-else-dates.md)**, per
-  §2's amendment above. The instant is earned by an act **nothing else dates**, never by the prose;
-  and *the only one carrying operator prose* was **already inaccurate on `main` when written** —
+  §2's amendment above. The instant is earned by an act **nothing else dates**, never by the prose.
+  And *the only one carrying operator prose* was **already inaccurate on `main` when written** —
   `prototypes/seeds/` renders a free-text `why` on every `Seed` exclusion. The rule now lives in
   `CONTEXT.md`'s Declared-layer preamble rather than being inferred from this asymmetry.
 - **Six refused renderings, not three.** ADR-0016's three are joined by the per-rule count, the
@@ -271,7 +271,7 @@ Three variants were drawn — `prototypes/signals-annotated/`, `?variant=A|B|C`.
   > live again. **It is not drawn**, and this ADR's own history — three of its six findings came only
   > from the layout — is the reason that is flagged rather than assumed away.
 - **§1's dial argument reaches a second question it was not written for** — #163 · ADR-0092. *A dial
-  pointed at one pair is still a dial* refused the author field here; it also decides that the dial's
+  pointed at one pair is still a dial* refused the author field here. It also decides that the dial's
   **movement** fires no message, since no other dial in the model emits one and the specificity of
   this one's target is again the temptation rather than the reason. Confirmed, not amended.
 - **A stated, unfixed cost.** v1 cannot answer *who accepted this risk* on a multi-admin install, and

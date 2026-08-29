@@ -45,7 +45,7 @@ from when §18.6 and §20.8 reconstructed a tier criterion in two different voca
 **published config-API doc comment** — a Go struct field's documentation in
 `k8s.io/kubelet` `v0.34.0` `config/v1beta1/types.go` — rather than a comment in a shipped
 configuration file. §16.5 had accepted that artefact for a **footing** on a row that was already
-listed; §27.6 was the first time one was asked to carry **admission**. The class raises questions
+listed. §27.6 was the first time one was asked to carry **admission**. The class raises questions
 ADR-0036 does not answer: whether the artefact has the same standing as shipped config bytes under the
 *takes effect* test, which of the comment and the code it annotates the **costly act** test reads, and
 whether the class changes the footing **tier**.
@@ -67,7 +67,7 @@ Four limbs.
    configuration other than the one it sits above, so it says something the value does not. A comment
    that goes **false or moot** is a **label**: its whole content is entailed by the value, and reading it
    as a second attestation counts one act twice.
-   **The test is *necessary* and not *sufficient*.** A surviving comment is not thereby a position; §2.2's
+   **The test is *necessary* and not *sufficient*.** A surviving comment is not thereby a position. §2.2's
    second form still requires that what it says be a **position on the proposition the row asserts**, which
    is `sensitive-ports.md` §2.3's and §4.4's position-versus-preference discrimination, unchanged and now
    running second rather than alone.
@@ -78,7 +78,7 @@ Four limbs.
    issued under [ADR-0045](./0045-an-owners-documentation-is-what-it-has-issued.md) limb 1 exactly as a
    manual page is, and a comment fails, where it fails, on being a **label** and never on being unread.
 3. **§2.2's third form has two limbs, they may be answered by two artefacts, and the costly act is paid
-   only by the operative one.** A doc comment can satisfy *documented as its default*; it can **never**
+   only by the operative one.** A doc comment can satisfy *documented as its default*. It can **never**
    satisfy *takes effect*, because a type definition executes nothing. The defaulting code is the other
    limb and must be **retrieved**, not assumed from the comment. ADR-0036's costly-act reasoning reads
    the **code**: friction at first run is produced by the defaulting function, and a comment produces
@@ -87,7 +87,7 @@ Four limbs.
    third form is not satisfied at all:** the comment cannot supply the act and the code cannot supply the
    documentation.
 4. **Artefact class does not grade a footing tier.** ADR-0059 limb 1 counts premises the reader supplies
-   between the owner's **sentence** and the row's proposition; **the artefact carrying the sentence is not
+   between the owner's **sentence** and the row's proposition. **The artefact carrying the sentence is not
    a premise.** A comment in a Go file, a comment in a YAML file and a paragraph on a documentation site
    sit at the same distance from the proposition or at different distances for reasons limb 1 already
    counts. Artefact class bears instead on **volatility** —
@@ -129,19 +129,19 @@ ones.
 **Limb 1 replaces a judgement with a substitution, which is ADR-0036's own move.** ADR-0036 limb 1
 survives because *takes effect* is *"read off the file rather than judged"* — **[measured]** nine
 artefacts, nine self-declarations. *Is this comment forceful enough to be a position?* is a judgement a
-reviewer cannot be wrong about; *does this sentence still say something once the value beneath it
+reviewer cannot be wrong about. *Does this sentence still say something once the value beneath it
 changes?* is answered by re-reading the sentence. `sensitive-ports.md` §15.7 recorded the standing
 temptation — *"the word **live** invites the substitution and the next session will feel the same
 pull"* — and ADR-0059 recorded it for the word *prohibition*. Here the word **position** invites reading
 the line as a force ranking, which ADR-0059 limb 2 has already made inadmissible for the adjacent
-column; limb 1 gives the label/position line the same kind of instrument that column now has.
+column. Limb 1 gives the label/position line the same kind of instrument that column now has.
 
 **Limb 1 also explains the pole ADR-0036 asserted rather than restating it.** Cassandra's sentence sits
 immediately above `rpc_address: localhost` and *argues for* it — the shape the map's fog patch names as
 the hard middle. It is a position not because it is emphatic but because it **binds the operator who
 overrides the value**: the sentence goes on being the owner's instruction after `localhost` becomes
 `0.0.0.0`, where net-snmp's label simply stops describing anything. **The middle the patch feared is not
-between the poles; it is the poles read at the wrong grain.**
+between the poles. It is the poles read at the wrong grain.**
 
 **Limb 3 is the costly-act test applied where the artefact splits.** `sensitive-ports.md` §10.4.2 admits
 a restricting default because a restriction *"buys friction at first run and the maintainer paid for it
@@ -150,7 +150,7 @@ and the documentation arrive together and nobody had to separate them. In a conf
 files: the comment is free — it compiles to nothing, no daemon reads it, no operator meets it at first
 run — and the defaulting function is where the friction is bought. ADR-0036 refused an example config
 because *"a file nobody's daemon reads produces no first run"* and ADR-0056 carried that into
-executables; limb 3 carries it into the schema. **The asymmetry it forecloses is the dangerous one:** a
+executables. Limb 3 carries it into the schema. **The asymmetry it forecloses is the dangerous one:** a
 comment claiming a restriction the code does not perform would otherwise admit a row on an act nobody
 took, which is §2.2's opening sentence — *the claim may not be asserted by us* — failing through the
 owner's own typo.
@@ -180,13 +180,13 @@ published API surface inherits limbs 2 and 3.
   20 exclusions untouched. [ADR-0009](./0009-verge-core-is-a-union.md)'s union is unchanged and
   [ADR-0008](./0008-derivation-versions-move-on-content.md) is **not** triggered — this ADR reads
   evidence and changes no reference data. *(Figures as of `main` at commit `c0881ae`, the composed
-  post-merge state this ruling was walked against; three siblings were resolving concurrently.)*
+  post-merge state this ruling was walked against. Three siblings were resolving concurrently.)*
 - **`10248/tcp` stays in the weak footing tier**, and **[measured]** *"the port of the localhost healthz
   endpoint"* is a **label** under limb 1: set `healthzBindAddress: "0.0.0.0"` and the sentence is false.
   #95's conservative branch is **confirmed on a rule rather than on a citation**, and the
   `15 / 13 / 2` the ticket priced — `14 / 14 / 2` on the composed state — is not spent.
   ~~[ADR-0032](./0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §8's watch list stays at
-  `5432/tcp`, `5984/tcp` and `10248/tcp`.~~ *(The **weak tier** stays at those three; the identity with
+  `5432/tcp`, `5984/tcp` and `10248/tcp`.~~ *(The **weak tier** stays at those three. The identity with
   the watch list is **SUPERSEDED** by [#125](https://github.com/winniel123/verge-asm/issues/125), which
   keys the watch on the **revision act**. `10248` is on the queue either way, and at its **head** —
   this ADR's own artefact class, a config-API doc comment, is **rung 1**.
@@ -205,7 +205,7 @@ published API surface inherits limbs 2 and 3.
   the population is three — `10248/tcp` (§27.6), `10249/tcp` (§27.2) and `10255/tcp` (§16.5 with
   ADR-0036's #83 amendment) — and all three were paired at the time.
 - **[#12](https://github.com/winniel123/verge-asm/issues/12) is not touched.** The spec carries the list,
-  the claims and the containment arithmetic; none of them reads a footing or an artefact class.
+  the claims and the containment arithmetic. None of them reads a footing or an artefact class.
 - **`CONTEXT.md` is not edited**, on ADR-0036's, ADR-0045's, ADR-0048's, ADR-0056's and ADR-0059's
   precedent and for their reason: no term is minted, and the file is left alone while concurrent passes
   are running.
@@ -228,30 +228,30 @@ however the shipped software produces it, so an empty retrieval **confirms** the
 rather than failing the limb, and the honest report of the pairing is *the code writes nothing and the
 value the code leaves in place is the documented one*.
 [ADR-0036](./0036-a-shipped-default-is-the-configuration-that-takes-effect.md) carries the rule at its
-own limb 1; `sensitive-ports.md` **§34** carries the working. **All three paired rows are unaffected
+own limb 1. `sensitive-ports.md` **§34** carries the working. **All three paired rows are unaffected
 and no limb of this ADR moves.**
 
 **And limb 1's label rule is confirmed as not being in competition with the third form's second
 half.** *"Default: 0 (disabled)"* would fail the survival test if it were asked to take a **position**
 — add the defaulting line and it goes false — and that is consistent rather than awkward: the third
 form's *documented as its default* half asks for a description of the value, which is what a label is.
-Limb 1 governs whether a comment is a §2.2 **second-form position**; it says nothing about whether a
+Limb 1 governs whether a comment is a §2.2 **second-form position**. It says nothing about whether a
 comment satisfies the third form's documentation half, and §31.2's *"a schema, not an instance … it
 answers* documented as its default*"* already placed it there.
 
 ## Alternatives rejected
 
 **Rule *"the port of the localhost healthz endpoint"* a position, and move `10248/tcp` to the scoping
-tier.** The strongest losing option and the one the ticket priced. Its case is good: *localhost* is a
-network locality and not a function; the owner did not have to write the word; §10.3's boundary limb asks
-the owner to **name the boundary** and *localhost* is the narrowest boundary there is; and §27.6 conceded
+tier.** The strongest losing option and the one the ticket priced. Its case is good. *localhost* is a
+network locality and not a function. The owner did not have to write the word. §10.3's boundary limb asks
+the owner to **name the boundary**, and *localhost* is the narrowest boundary there is. And §27.6 conceded
 the word does evidential work — *"the label tells you the default is deliberate"*. **It loses on limb 1**,
 and it loses a second time and independently on **double-counting**: the comment's only truth-maker is
 `healthzBindAddress: "127.0.0.1"` twelve lines below it, which is the very default the weak-tier cell
 already records. Promoting on the comment counts one maintainer act twice and calls the second count a
 second support — which is exactly what §24.12's *"more than a default"* criterion for the scoping tier
 forbids. `10259/tcp` and `10257/tcp` are in that tier on **two artefacts and two acts** (the owner's
-ports table plus kubeadm's `--bind-address=127.0.0.1`); `10248` has one act described twice.
+ports table plus kubeadm's `--bind-address=127.0.0.1`). `10248` has one act described twice.
 
 **Rule the doc comment a weaker artefact class and discount the footing.** Its case: a Go struct comment
 is further from a reader than a documentation page, §16.5 accepted the artefact only for a footing on an

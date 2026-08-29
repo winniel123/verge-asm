@@ -4,7 +4,7 @@
 - **Date:** 2026-08-15
 - **Ticket:** [#113 Is a random control label the right construction, given that a synthesis can be a function of the label?](https://github.com/winniel123/verge-asm/issues/113)
 - **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
-- **Discharges:** [ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md)'s *control-label count and construction*, the last declared parameter of `wildcard-discrimination` with no value; and [ADR-0068](./0068-a-wildcard-is-discriminated-only-where-its-synthesis-is-determinate.md)'s **two** stated residues — the label-function synthesis and the third door
+- **Discharges:** [ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md)'s *control-label count and construction*, the last declared parameter of `wildcard-discrimination` with no value. It also discharges [ADR-0068](./0068-a-wildcard-is-discriminated-only-where-its-synthesis-is-determinate.md)'s **two** stated residues — the label-function synthesis and the third door
 - **Amended in place by:** [#115 Is a wildcard authority's answer instability per-label, per-query or per-time?](https://github.com/winniel123/verge-asm/issues/115) — **the random count moves from `5` to `9`**, so the set is **9 random + 1 structured**, ten labels per site. The **construction** is untouched: one label, hyphenated quad, RFC 5737 space, the declared qtype set. #115 amends here rather than minting an ADR beside this one, because this is the site that specifies the parameter and a rule stated in two places is what [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) exists to prevent. Its measured basis is [`passive-discovery-sources.md`](../research/passive-discovery-sources.md) **§13**
 
 ## Context
@@ -23,7 +23,7 @@ random labels*. ADR-0068 then falsified that assumption twice, in its own words,
 
 Both are §3.2's stated catastrophe — an unbounded fictional inventory — arriving through the one
 door ADR-0066 and ADR-0068 each declined to close. The population door is shut and the predicate
-door is shut; **a random label is the one shape that cannot see either failure**, because both
+door is shut. **A random label is the one shape that cannot see either failure**, because both
 authorities are computing an answer from the label and a random label carries nothing to compute
 from.
 
@@ -196,7 +196,7 @@ question is ticketed instead.~~ **The question was ticketed as
 the number to 9 at a stated price.**
 
 Two things follow that are worth writing down rather than leaving implied. ADR-0068's base-rate
-table files `surge.sh` under *determinate at A across five labels*; **today it does not reproduce**,
+table files `surge.sh` under *determinate at A across five labels*. **Today it does not reproduce**,
 so *10 of 14* has at least one member that is a coin-flip rather than a fact. That does not weaken
 ADR-0068 — it is one more zone needing the gate, and the gate is what ADR-0068 ruled. And the
 structured label contributes to this defence for free: it is a ~~sixth~~ **tenth** draw
@@ -231,7 +231,7 @@ a caveat ([ADR-0040](./0040-a-specifications-silence-is-not-the-owners-silence.m
 ### Where this is thin, stated rather than smoothed
 
 - **The corpus of encodings is four, and one ships.** Probed: dotted-decimal (**refused** on depth),
-  hyphenated-decimal (**ships**), hex (`cb007107` → `203.0.113.7` on `nip.io` and `sslip.io`;
+  hyphenated-decimal (**ships**), hex (`cb007107` → `203.0.113.7` on `nip.io` and `sslip.io`.
   `traefik.me` returns its constant and does **not** decode it), and hyphenated IPv6 (`2001-db8--1`
   → `2001:db8::1` on all three). Both extras are **measured redundant**: hyphenated-decimal is
   decoded by **3 of 3** parsers and **0 of 3** decode any other family without also decoding it, so
@@ -272,7 +272,7 @@ a caveat ([ADR-0040](./0040-a-specifications-silence-is-not-the-owners-silence.m
   have a value*. §6.8 is annotated so the next audit of that table does not repeat the reading.
 - **ADR-0068's two stated residues are both discharged**, by one instrument and with no amendment
   to its ruling: its three-member union, its per-component determinacy and its `Indeterminate` limb
-  all reach these cases unchanged. Its *structured control label* ticket closes; the DNSSEC one was
+  all reach these cases unchanged. Its *structured control label* ticket closes. The DNSSEC one was
   ruled out of scope separately.
 - **ADR-0066's licence clause is qualified at the site that specifies it**
   ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)): *a
@@ -285,7 +285,7 @@ a caveat ([ADR-0040](./0040-a-specifications-silence-is-not-the-owners-silence.m
   answer was not discriminated from the parent's synthesis"* (ADR-0068), which covers an
   indeterminate component without change. One stale clause is corrected — see below.
 - **The aperture list stays at seven** and no `Batch` scope dimension is added.
-- **Nothing `Break`s in the model's shape**; the parameter's value moving bumps
+- **Nothing `Break`s in the model's shape.** The parameter's value moving bumps
   `wildcard-discrimination` under ADR-0021, which is free while nothing has shipped.
 - **One ticket, not folded in:** is a wildcard authority's answer instability per-label, per-query
   or per-time — and does the control-label count buy anything against it? It does not block
@@ -293,7 +293,7 @@ a caveat ([ADR-0040](./0040-a-specifications-silence-is-not-the-owners-silence.m
   question is whether that value can be improved. ***Now closed as
   [#115](https://github.com/winniel123/verge-asm/issues/115)***, which **amended this ADR in place**
   rather than ruling beside it: the instability is **per-query** at `herokuapp.com` and
-  `vercel.com`, **per-label** at `appspot.com` and `surge.sh`, and **per-time at none of them**; the
+  `vercel.com`, **per-label** at `appspot.com` and `surge.sh`, and **per-time at none of them**. The
   count **does** buy, it is the only lever of the three that survives a recursive resolver, and the
   random half moves **5 → 9**. The construction this ADR rules is untouched. Measured basis:
   [`passive-discovery-sources.md`](../research/passive-discovery-sources.md) §13.

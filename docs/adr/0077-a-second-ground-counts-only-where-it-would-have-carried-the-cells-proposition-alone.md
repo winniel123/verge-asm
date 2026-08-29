@@ -24,8 +24,12 @@ the rule's soft edge in the same pass, at
 Two things are underdetermined, and only one of them is the one the flag names.
 
 **What a ground has to be strong enough to do.** *Carries the same cell* admits at least three readings:
-that the artefact touches the row at all; that it would have sustained what the cell asserts; that it
-would have sustained the cell **at the cell's own tier**. The three give different queues, and the
+
+- that the artefact touches the row at all
+- that it would have sustained what the cell asserts
+- that it would have sustained the cell **at the cell's own tier**.
+
+The three give different queues, and the
 difference is large — the third empties §39.4's largest *not an item* row (*"every graded row with an
 owner sentence and a configuration artefact"*), which is most of the table.
 
@@ -131,7 +135,7 @@ how the identity ADR-0057 spent a whole section sweeping regenerated in the firs
 nor example, so whether a restricting default is available as a fallback ground is open, and settling it
 is a retrieval. Both pairs are **on** the queue today. The rule keeps them there: an artefact whose
 status as a ground cannot be read off bytes we hold is not a ground yet. The cost of a wrongly-included
-item is one reading; the cost of a wrongly-excluded one is a silent de-attestation, which is the failure
+item is one reading. The cost of a wrongly-excluded one is a silent de-attestation, which is the failure
 ADR-0032 §8 named and has already been paid once on `623/udp`.
 
 ### 5. Why the bar is not *the strongest artefact wins*
@@ -147,7 +151,7 @@ through the front.
 
 - **The queue moves from eight items to nine**, over **eleven** `(port, transport)` pairs and **two**
   non-port cells. The one item added is `10250/tcp`'s **claim** cell at `ports-and-protocols.md`'s
-  `Used By: Self, Control plane`, rung 2. `sensitive-ports.md` §41.4 states it with its ground; §39.4 is
+  `Used By: Self, Control plane`, rung 2. `sensitive-ports.md` §41.4 states it with its ground. §39.4 is
   marked at its clause.
   > **SUPERSEDED as a statement of the queue's membership by [#134](https://github.com/winniel123/verge-asm/issues/134)**,
   > marked here per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
@@ -177,7 +181,7 @@ through the front.
   footing rest on **different** artefacts were counted as two-ground rows and are now two separately
   testable cells, so the walk should expect the queue to grow.
 - **A gate shortfall is opened rather than closed**: a tier demotion on an artefact with no retrievable
-  tag is caught by neither G2 nor G11. Ticketed; not repaired here, because repairing it in the queue is
+  tag is caught by neither G2 nor G11. Ticketed. Not repaired here, because repairing it in the queue is
   the option this ADR refuses.
   > **DISCHARGED, not superseded — [#149](https://github.com/winniel123/verge-asm/issues/149).** The
   > statement above stays true as a description of the gate at this ADR's date. [#149] confirms no
@@ -231,7 +235,7 @@ found six further cells with the same shape.
 
 Steps 1, 3 and 4 are unchanged. Step 4's existing rule — an undetermined step counts the cell **on** —
 is what absorbs the act-independence question where the note's held bytes do not answer it. **No new
-judgement is invented**; the existing fallback is reused for a second question, the same way it already
+judgement is invented**. The existing fallback is reused for a second question, the same way it already
 covers propositional uncertainty.
 
 **Why this is compelled by ADR-0057 and is not a new axis.** ADR-0057's own Decision table: *"What the
@@ -246,7 +250,7 @@ acts are needed"* — is not entailed by its own check — a second artefact exi
 proposition. The cell #151 names shows the gap is not hypothetical: two shipped config-sample files in
 one PostgreSQL release tree is exactly [ADR-0032](./0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md)
 §8's shape — a silent, single-act de-attestation — that ADR-0057 built this queue to catch.
-Under-testing here does not simplify the instrument; it reopens the hole the instrument exists to close,
+Under-testing here does not simplify the instrument. It reopens the hole the instrument exists to close,
 on the cell most obviously shaped like it — a repeat of the `623/udp` failure already measured once
 ([ADR-0057](./0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md) §8, re-founded at
 `sensitive-ports.md` §36.7).
@@ -259,7 +263,7 @@ on the cell most obviously shaped like it — a repeat of the `623/udp` failure 
   **claim** cell, `5432/tcp`'s **claim** cell, `5984/tcp`'s **claim** cell. `2181/tcp`'s **footing** cell
   is **undetermined** under step 4 and stays on the register for that reason, not as a measured act.
 - **Nothing leaves the register.** ADR-0077's own Decision row — *"does anything come off the queue?
-  No"* — is unchanged and untouched by this amendment; the correction can only narrow what counts as a
+  No"* — is unchanged and untouched by this amendment. The correction can only narrow what counts as a
   second ground, so it can only add.
 - `5432/tcp`'s **footing** cell — the cell #151's brief names — does not move. It was already an item
   under this ADR's removal bar, and the act reading independently confirms it: one PostgreSQL release

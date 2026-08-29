@@ -116,7 +116,7 @@ the predicate nor the construction, but through a **disagreement between two set
 
 The reverse skew — control at the resolver, candidate at the authority — is the safe direction and
 still wrong: `Indeterminate` at A, never consulted, everything beneath `Shadowed`. One error is
-loud and confined; the other is silent and propagates across three subject types. ADR-0068's
+loud and confined. The other is silent and propagates across three subject types. ADR-0068's
 asymmetry, unchanged.
 
 **This is what kills the runner-up.** The ticket's cheapest answer — *a declared parameter of
@@ -132,13 +132,13 @@ the rule that reads it is stated as an equivalence rather than as a pair of sett
 negative — we asked about X and X was not there — and then it is scope for every batch that makes
 it; otherwise it is a declared parameter of the leaf that made it.* `resolution`'s value is not a
 subset of the paths asked. There is no *we asked the authority and the authority was not there*
-sitting inside a value; a query path that fails produces a `Gap`, which is ADR-0014's ordinary
+sitting inside a value. A query path that fails produces a `Gap`, which is ADR-0014's ordinary
 adjacency and not an opening. That is the same shape ADR-0025 used to make the **DNS transport and
 fallback policy** a parameter of `resolution-walk`, and the query path is that policy's sibling:
 the transport is *how* we ask, the path is *whom* we ask.
 
 **ADR-0066's aperture test.** *Does it decide which subjects were covered?* No. The population is
-the parents of the names in scope, computed at batch start, unmoved by the path; the candidate set
+the parents of the names in scope, computed at batch start, unmoved by the path. The candidate set
 is the names in scope, unmoved by the path. What moves is what a covered subject's answer means,
 which is the predicate's side of ADR-0066's line — exactly where ADR-0068 put the match predicate
 and ADR-0069 put the construction. Three questions in a row have landed on that line and it has not
@@ -151,7 +151,7 @@ Both tests give the same answer, which is the tell that it is the cut rather tha
 The ticket's third limb is drawn from ADR-0068's refusal of the DNSSEC discriminator, and it is
 worth quoting the whole clause rather than the half that reads as a category: *"It also changes the
 leaf's **query mode** (DO bit, RRSIG parsing, NSEC3 handling), which is **a parameter change of its
-own**."* ADR-0068 did not refuse the DNSSEC discriminator for being a query-mode change; it refused
+own**."* ADR-0068 did not refuse the DNSSEC discriminator for being a query-mode change. It refused
 it on **[measured]** availability — 1 of 15 zones carries a DS, and that one online-signs its
 synthesised answers — and named the query-mode cost as a second, smaller reason, **classified as a
 parameter change**.
@@ -235,7 +235,7 @@ Two rules in the glossary look incompatible until this fact is placed.
 If the resolver were the parameter, §3.6's offer would be an operator dial inside a leaf — the one
 actor `Derivation` says could break the estate without a release and without a corpus row moving,
 and it would leave two installs on one release comparing as comparable while holding different
-content behind one leaf. That is not a wrinkle; it is the exact failure the sentence was written
+content behind one leaf. That is not a wrinkle. It is the exact failure the sentence was written
 against.
 
 The split that dissolves it is the one the model already draws everywhere else between *what the
@@ -331,13 +331,13 @@ two candidate inputs.
 
 **[measured]** the two are not interchangeable: at `s3.amazonaws.com`, at one instant, the
 delegated authority answers a synthesised name with a CNAME and no address while the resolver
-answers it with eight. Read off the walk, the value is `NoData`; read off the resolver, it is
+answers it with eight. Read off the walk, the value is `NoData`. Read off the resolver, it is
 `Resolved` with eight addresses. Nothing in the corpus chose.
 
 One member of that union was already committed and nobody noticed it decided the others.
 `CONTEXT.md`'s `Name` says a name *"leaves when **our own resolver** measures a Name Error from every
 available vantage"* — so `NameError` has always been read on the recursive path. A union whose
-members are read on two different paths is not a closed union of one measurement; it is two
+members are read on two different paths is not a closed union of one measurement. It is two
 measurements wearing one value space, and a name could hold `NameError` on one path while the other
 had an answer for it. Fixing `Resolved` to the same path is therefore not a new commitment so much as
 the completion of one the glossary made and left partial.
@@ -361,13 +361,13 @@ session building from that sentence alone would drop the walk and lose `Lame`.
 
 - **The measurements here are a second vantage, one day, and one host resolver whose behaviour is
   itself the finding.** This vantage's resolver does not honour `vercel.com`'s 1800 s TTL across
-  eight back-to-back repeats; Google Public DNS did. Whether that is forwarding, an anycast pool, or
+  eight back-to-back repeats. Google Public DNS did. Whether that is forwarding, an anycast pool, or
   a shortened cache is **not isolated** — the design that would isolate it is §13.2's, and it was not
   run here because the ruling does not turn on the mechanism. It turns on the fact that two vantages
   disagree, which is what is measured.
 - **The value is chosen on `{161}` and on §3.1, not on a measured comparison of estates.** Nobody has
   run a whole batch either way and counted the `Address`es each path admits. The direct-to-authority
-  under-report is argued from one zone's chain (`s3`) plus the structure of CNAME-across-a-cut; the
+  under-report is argued from one zone's chain (`s3`) plus the structure of CNAME-across-a-cut. The
   frequency of that shape in a small org's estate is **unmeasured**, and it is the same hole
   ADR-0066, ADR-0068 and ADR-0069 each flagged one question over — there is no public sample of
   small-org private zones.
@@ -383,7 +383,7 @@ session building from that sentence alone would drop the walk and lose `Lame`.
   declaration is invisible.** An operator who declares *the host's own resolver* and whose host
   changes upstream by DHCP gets moved answers with no key change, and the model cannot see it. That
   is the same class as `Vantage`'s existing *declared as intent and re-verified every batch* residue
-  and it is not repaired here; re-verifying a resolver's identity would need a probe whose answer is
+  and it is not repaired here. Re-verifying a resolver's identity would need a probe whose answer is
   itself path-dependent.
 - **No control probe has ever run inside a batch**, verbatim from ADR-0066, ADR-0068 and ADR-0069.
   What is measured is DNS behaviour against live authorities and live resolvers.
@@ -394,7 +394,7 @@ session building from that sentence alone would drop the walk and lose `Lame`.
   asked from, and the query path is one declared parameter with one value per batch.
 - **[ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md)'s leaf table gains one
   parameter, shared by two leaves, arriving with a value.** `resolution-walk` and
-  `wildcard-discrimination` each name the **query path**; the value is the `Vantage`'s configured
+  `wildcard-discrimination` each name the **query path**. The value is the `Vantage`'s configured
   recursive resolver. The parameter set changing bumps both leaves under ADR-0021's gate and
   `Break`s `resolution` and `dns-record`, which is **free while nothing has shipped** — the same
   price ADR-0069 paid for the count.
@@ -414,7 +414,7 @@ session building from that sentence alone would drop the walk and lose `Lame`.
   determinacy row is qualified at the site that specifies it**
   ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)). *"reads
   `Determinate` for the 1800 s its TTL is cached over a resolver"* is true of **one label repeated**
-  and false of the ruled ten-distinct-label set; read alone and in the present tense it would have a
+  and false of the ruled ten-distinct-label set. Read alone and in the present tense it would have a
   session believe the shipped probe certifies `vercel.com`. Its ruling is otherwise **untouched**
   and its `Indeterminate` limb reaches every case here unchanged.
 - **[ADR-0011](./0011-a-facet-is-six-parts.md) is confirmed and used rather than amended.** Its
@@ -424,13 +424,13 @@ session building from that sentence alone would drop the walk and lose `Lame`.
   skew inside the batch as well as an assembly across batches — and nothing in it is weakened.
 - **[ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md)
   and [ADR-0069](./0069-a-control-label-is-one-label-and-the-set-must-falsify-label-independence.md)
-  are untouched.** Population, count and construction do not move; the aperture list stays at
-  **seven**; `measurement-offers.md` stays at five offers and gains nothing, the query path being no
+  are untouched.** Population, count and construction do not move. The aperture list stays at
+  **seven**. `measurement-offers.md` stays at five offers and gains nothing, the query path being no
   more a candidate on the wire than the population was.
 - **[`CONTEXT.md`](../../CONTEXT.md) changes in three entries and adds no term.** `Vantage` states
-  that the resolver it resolves through is part of the declared position and therefore of the key;
+  that the resolver it resolves through is part of the declared position and therefore of the key.
   `Shadowed` states that the control probe and the candidate's answer are drawn on one path in one
-  batch; `Lame` states that the delegation walk is not governed by the query path and supplies no
+  batch. `Lame` states that the delegation walk is not governed by the query path and supplies no
   address set.
 - **[`passive-discovery-sources.md`](../research/passive-discovery-sources.md) gains §14** carrying
   the measurements, **§13.10's last bullet is struck at the clause** — it says *not ruled here* and

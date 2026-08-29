@@ -35,7 +35,7 @@ Six things had accumulated around this screen without composing.
   about the world.
 - [#51](https://github.com/winniel123/verge-asm/issues/51) left a warning rather than a rule:
   rendering the `custody extension` here as a `custody: operator` filter is the obvious
-  implementation and is **wrong**. It said the rows are right and the screen is not; it did not say
+  implementation and is **wrong**. It said the rows are right and the screen is not. It did not say
   what makes a filter legal.
 - [#74](https://github.com/winniel123/verge-asm/issues/74) ruled that a rule's census member and
   `Subjects` **may not be the same object**, and added the question nobody had asked: *given both
@@ -79,7 +79,7 @@ number.
 
 **3. `withdrawn` is reachable by key and never as a list.** Search takes a key and returns at most
 one subject, so it is a lookup: no ordering to choose, no length that grows, no partition to state a
-denominator for. **The listing is the estate alone; the search is not.** Refusing the search half as
+denominator for. **The listing is the estate alone. The search is not.** Refusing the search half as
 well would manufacture a false absence at the text box — `No results` for a subject we measured gone
 reads as *we have no record*, which is a source erroring and producing an observation of absence.
 
@@ -98,7 +98,7 @@ chains leave the zone — rows this screen does not have at all.
   fires a membership message at the cause, and every `Message` is written and rendered
   **unconditionally** — the store is not a `Channel`, has no configuration, cannot be disabled and
   cannot fail. Ordered by time, which is correct for a log and wrong for an inventory. The board's
-  `withdrawn` column carries the comparison window; the subject's own page still renders its closed
+  `withdrawn` column carries the comparison window. The subject's own page still renders its closed
   timelines. ~~**Three carriers, and this ADR leans on the first**: if the message store ever acquires
   a retention horizon, the durable record goes with it and decision 3 needs re-pricing.
   [ADR-0041](./0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md) ships both
@@ -116,7 +116,7 @@ chains leave the zone — rows this screen does not have at all.
   > convenient carrier and no longer the only one, so decision 3 leans on a corpus with no horizon
   > and needs no re-pricing.
 - **`Shadowed` is not read off a `Gap`, and the fog patch's wording is corrected here.** It is a
-  **value** the model holds on `resolution`; what is absent is a rule's ability to apply a predicate
+  **value** the model holds on `resolution`. What is absent is a rule's ability to apply a predicate
   to it — #44's fourth cause, *we measured; this rule cannot read the answer*, which is a `Gap` on
   the **signal's** timeline sitting above a good value on the facet's. The record all six are read
   off is **the open span**, not the `Gap`. That is a strictly wider claim and it is what makes the
@@ -138,7 +138,7 @@ chains leave the zone — rows this screen does not have at all.
   silently dropped, or a genuine escalation that happened while a vantage was down vanishes without
   trace. It is worded distinctly from the floor beside it so a reader does not fuse a missing *when*
   with a clamped *how long*.
-- **`Subjects` acquires no signal column.** A rule's population is versioned inside its own leaf; a
+- **`Subjects` acquires no signal column.** A rule's population is versioned inside its own leaf. A
   column of verdicts on a list with no version is #74's refused object arriving as a cell rather than
   as a screen. A subject's own page carries its rules.
 - **No per-row control and no nav badge**, per [ADR-0002](./0002-ownership-gates-probing.md), #51 §4
@@ -170,8 +170,8 @@ chains leave the zone — rows this screen does not have at all.
   Whether an operator finds a three-week-old membership message when they want to know what happened
   to one name is a claim about reading, not a finding. The failure mode if it is wrong is recoverable
   and local: the repair is a search that also reaches the message store by key, not a listing.
-- **Decision 4's filter test is mine.** #51 refused a specific filter and gave screen-level reasons;
-  no prior ticket says what makes a filter legal. *Its predicate is a value the row already renders*
+- **Decision 4's filter test is mine.** #51 refused a specific filter and gave screen-level reasons.
+  No prior ticket says what makes a filter legal. *Its predicate is a value the row already renders*
   is a clean line and it produces the right answer on all three cases available, but three cases is
   not a corpus. If it collapses, it collapses toward **no filters at all**, and the cost lands on
   search alone.

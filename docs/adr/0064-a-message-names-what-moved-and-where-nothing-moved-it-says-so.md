@@ -14,13 +14,18 @@ project's, and nothing in the corpus has ever said what one of these sentences r
 
 What is settled and is **not** reopened here: **four causes** — the world moved · we stopped
 looking · we changed how we look · a clock crossed — partitioned into **three classes** that
-partition **messages** rather than events; the coverage class carrying ~~**nine**~~ **ten** members
-and two of
-the four causes, the third cause carrying **two triggers whose payloads differ and must not be
-levelled** ([ADR-0014](./0014-only-revealed-generalises.md)); the clock class carrying **three**
-([ADR-0004](./0004-signals-are-release-coupled-rules.md)); the census payload's **five producers**
-([ADR-0033](./0033-a-move-carries-the-rule-that-opens-at-fired.md)); routing by class and by nothing
-finer, and **no coalescing and no flap suppression in v1** (ADR-0039 §4, §6).
+partition **messages** rather than events:
+
+- the coverage class carrying ~~**nine**~~ **ten** members
+  and two of
+  the four causes, the third cause carrying **two triggers whose payloads differ and must not be
+  levelled** ([ADR-0014](./0014-only-revealed-generalises.md))
+- the clock class carrying **three**
+  ([ADR-0004](./0004-signals-are-release-coupled-rules.md))
+- the census payload's **five producers**
+  ([ADR-0033](./0033-a-move-carries-the-rule-that-opens-at-fired.md))
+- routing by class and by nothing
+  finer, and **no coalescing and no flap suppression in v1** (ADR-0039 §4, §6).
 
 > **`nine` is superseded here, at the site that states it — the class is `ten`.**
 > [#130](https://github.com/winniel123/verge-asm/issues/130) ·
@@ -57,7 +62,7 @@ messages that can arrive from one fold and must not read as duplicates — and e
 
 **ADR-0039 flagged a class-assignment conflict, refused to rule it, and named this ticket.**
 [ADR-0026](./0026-the-facet-layer-is-evidence-not-a-channel.md) §5 puts `not-fired` → `fired` in the
-**drift** class *"for all seventeen"* rules;
+**drift** class *"for all seventeen"* rules.
 [#60](https://github.com/winniel123/verge-asm/issues/60) and ADR-0004 put the three
 certificate-lifetime rules in the **clock** class, because they become true with no new observation.
 Both cannot be right, routing is by class, and ADR-0039 §6's stated residue — *the ACME flap has no
@@ -66,9 +71,9 @@ remedy in v1* — turns on which one is.
 **The aperture-widening message has never been drawn at magnitude.** ADR-0014 fixes its payload as
 *a count of timelines opened and no comparison at all*.
 [#80](https://github.com/winniel123/verge-asm/issues/80) measured that count for the largest
-widening a v1 operator can perform — a seven-figure number on a ten-address estate;
+widening a v1 operator can perform — a seven-figure number on a ten-address estate.
 [#81](https://github.com/winniel123/verge-asm/issues/81) added a six-figure one that happens **at
-onboarding**; [#85](https://github.com/winniel123/verge-asm/issues/85) capped the second, leaving the
+onboarding**. [#85](https://github.com/winniel123/verge-asm/issues/85) capped the second, leaving the
 seven-figure case exactly **one** producer.
 
 ### The corpus has already answered this shape twice, in two other places
@@ -121,7 +126,7 @@ says moved. It forbids three failures, and each is one this project exists to pr
   passage of time as movement, which ADR-0004 named as the thing *"a product whose claim is what
   moved since last time must not"* do.
 - A **drift** message in the first person — *we detected an open port* — puts the observer where the
-  fact belongs. The estate moved; we are not the news.
+  fact belongs. The estate moved. We are not the news.
 
 **The fourth form is the one nobody would have written.** *A clock crossed* has no agent, and the
 honest sentence says so rather than manufacturing one. **Every clock-class message states that no
@@ -136,7 +141,7 @@ stopped answering* · #48's *you stopped telling us*, the fourth added by
 [ADR-0020](./0020-a-conflict-needs-two-enumerable-sources.md) as *"the first the operator causes"*.
 Four registers, one cause, and nothing ever said why four. **This is why**: the cause is the same in
 all four and the **mover** is not — twice us, once the estate's authority, once the operator's own
-declaration. A vocabulary keyed on the cause would have to level them; one keyed on what moved
+declaration. A vocabulary keyed on the cause would have to level them. One keyed on what moved
 produces exactly these four and ~~no fifth~~ **no fifth in v1**.
 
 > **CONDITIONAL on the count, and a VINDICATION of the axis — 2026-08-15 by
@@ -175,14 +180,14 @@ per firing, and both prior rulings survive as written about different firings.
 reads move in this fold?**
 
 - `certificate-expired` fires on an `Endpoint` whose `certificate` span is **unchanged** and whose
-  `not_after` the clock crossed overnight → **clock class**. Nothing was measured; a threshold was
+  `not_after` the clock crossed overnight → **clock class**. Nothing was measured. A threshold was
   passed.
 - `certificate-expired` fires on an `Endpoint` where a deploy installed a **new** certificate that
   is already expired → **drift class**. The `certificate` timeline moved in the same fold. The world
   moved, in the direction the product exists to report.
 
 **Where both are true in one fold, the world moved wins.** A renewal that installs a certificate
-already past its horizon is a fact about the estate the operator can act on; the calendar is not.
+already past its horizon is a fact about the estate the operator can act on. The calendar is not.
 The tie-break is stated rather than left to whoever implements it, and it breaks **loud**, on the
 footing of *a dead-lettered `Delivery` licenses no silence*.
 
@@ -212,7 +217,7 @@ label on the message moves.
 *fixed*, *cleared*, *improved*, *critical*, *warning*, *high*, *low* or *OK*. Not a colour standing
 for one, and not a severity field standing for all of them.
 
-**This is not new law; it is existing law reaching the object it was always about.**
+**This is not new law. It is existing law reaching the object it was always about.**
 [`CONTEXT.md`](../../CONTEXT.md)'s `Signal` entry already says *"a signal carries no severity: it is
 a named fact"* — and then adds *"and urgency belongs to the transition that surfaced it"*, which,
 read alone and in the present tense, hands the severity straight to the message. That clause is
@@ -228,11 +233,11 @@ Four independent reasons converge, and no one of them is load-bearing alone.
    **resolved**"*, and *"`fired` → `not-evaluable` … must never be worded as a clear either"*. Four
    rules of seventeen clear because somebody else may have claimed the operator's orphaned name, and
    on those four a clear can be the attack having succeeded. A vocabulary with a word for *good* has
-   to remember not to use it at four sites; a vocabulary with no such word cannot get it wrong.
+   to remember not to use it at four sites. A vocabulary with no such word cannot get it wrong.
 2. **A widening is neither.** A seven-figure count of timelines opened is not an alarm and not an
-   all-clear; it is a description of our own aperture. Any valence on it is manufactured.
+   all-clear. It is a description of our own aperture. Any valence on it is manufactured.
 3. **Severity would be a threshold in the notification layer set from nothing.** Every proposed
-   suppression in this project has died on an unmeasured base rate (ADR-0039 §6; the map has warned
+   suppression in this project has died on an unmeasured base rate (ADR-0039 §6 — the map has warned
    about the shape five times), and a severity is that threshold rendered instead of applied.
 4. **It would perform the collapse #22 refused.** `Coverage` cuts four routes apart *"precisely
    because collapsing them trains the operator to dismiss all of them"*. A severity column is that
@@ -268,7 +273,7 @@ why the seven-figure case needs no treatment of its own.**
 
 The number an operator can check is never the product. It is the factors: they enabled one tier,
 over a scope they declared, and the leg count is the model's. Each factor is an act they performed
-or a list we ship; the product is arithmetic over them and is the only part of the sentence they
+or a list we ship. The product is arithmetic over them and is the only part of the sentence they
 cannot audit. **Rendering the product alone is what makes seven figures unreadable, and it is not
 the magnitude that does it.**
 
@@ -286,20 +291,20 @@ four-figure case gets.
 
 Three riders, and the third is the only cost the magnitude actually carries.
 
-- **The count is exact and is never rounded.** It is a count of our own objects, known to the unit;
-  rounding it would be the one place in the product where a number we hold exactly is rendered
+- **The count is exact and is never rounded.** It is a count of our own objects, known to the unit.
+  Rounding it would be the one place in the product where a number we hold exactly is rendered
   approximately, against #22's *one treatment, stated reasons*. The corpus's `~1.3 million` and
   `≈287,000` are **the map's arithmetic over a stated estate size**, not the product's output, and
   this ADR restates neither: the product reads its factors at the cause, from the live tier and the
   declared scope.
 - **It is a count of our own and never of the world.** #44 decision 7 governs, unchanged: counts of
   our own rules and lists, never a count or proportion of the operator's estate. *65,404 pairs we
-  now watch* is admissible; *65,404 of 65,535 unread* is the refused estate-completeness score, and
+  now watch* is admissible. *65,404 of 65,535 unread* is the refused estate-completeness score, and
   ADR-0044 rejected it in those words.
 - **Enumerability does not weaken at magnitude, and this is the seven-figure case's one real cost.**
   #74's shape holds: the message card carries **no rows at all**, and the set behind the count is
   enumerable in full, never sampled, ranked, grouped or truncated. So a two-million-timeline
-  drill-down **paginates**; it does not cap, and it offers no "top" anything. That obligation was
+  drill-down **paginates**. It does not cap, and it offers no "top" anything. That obligation was
   already there and the magnitude only makes it expensive.
 
 ### 5. There is no magnitude-conditional treatment, and the guard sits on the act instead
@@ -337,7 +342,7 @@ Per ADR-0058, each is marked at the site that **specifies** it, with a replaceme
 than a strike alone ([ADR-0057](./0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md)).
 
 - **ADR-0026 §5's *"drift class, for all seventeen"*** — narrowed at its sentence. It is a message
-  for all seventeen; it is drift class for fourteen unconditionally and for the three
+  for all seventeen. It is drift class for fourteen unconditionally and for the three
   certificate-lifetime rules only where the span they read moved in the same fold.
 - **ADR-0026 §5's *"this improved and you should still look"* register** — replaced by §3's
   valence-free form, which keeps the second half and deletes the first. ADR-0004's *this changed,
@@ -348,7 +353,7 @@ than a strike alone ([ADR-0057](./0057-a-watch-keys-on-the-act-that-would-falsif
   narrowed, per §3. Read alone it licenses a severity on the message.
 - **ADR-0038's *"the class #60 ruled is `certificate-expiring`'s only carrier"*** — a paraphrase
   about **carriers** whose literal reading is a per-rule class assignment. Marked at its sentence.
-  The clock class remains `certificate-expiring`'s only *carrier*; it is not its only *class*.
+  The clock class remains `certificate-expiring`'s only *carrier*. It is not its only *class*.
 - **ADR-0039's *"flagged, not ruled: it is a question about causes, and causes are #120's"*** —
   discharged by §2, and its §6 residue *the ACME flap has no remedy in v1* narrowed: class routing
   reaches it.
@@ -356,7 +361,7 @@ than a strike alone ([ADR-0057](./0057-a-watch-keys-on-the-act-that-would-falsif
 ## Consequences
 
 - **[`CONTEXT.md`](../../CONTEXT.md) is amended in two entries and gains no term.** `Message` gains
-  the naming rule, the class-is-per-firing rule and the valence refusal; `Signal` has its *urgency
+  the naming rule, the class-is-per-firing rule and the valence refusal. `Signal` has its *urgency
   belongs to the transition* clause narrowed. No entry is added, because a vocabulary is a property
   of an object the glossary already holds.
 - **The interface gains no severity column, no colour scale and no filter but class.** The global
@@ -368,7 +373,7 @@ than a strike alone ([ADR-0057](./0057-a-watch-keys-on-the-act-that-would-falsif
   same fold — ADR-0033 §3's test, over the two adjacent spans, never reaching back across a `Break`.
   No timeline is touched, nothing is stored, and no predicate moves.
 - **ADR-0039 §6's reopening condition is unchanged and better bounded.** v1 still ships no
-  coalescing and no flap suppression; §2 removes the one **named** flap from the population that
+  coalescing and no flap suppression. §2 removes the one **named** flap from the population that
   would have argued for one. The three unmeasured volumes — ADR-0026's re-point, ADR-0033's
   `NoHTTPResponse` → `Responded`, ADR-0031's `Name` `appeared` — are untouched and still unmeasured.
 - **The seven-figure fog patch is discharged and produces no new object.** The patch asked whether
@@ -392,7 +397,7 @@ than a strike alone ([ADR-0057](./0057-a-watch-keys-on-the-act-that-would-falsif
   closed.
   **Since repaired**: the merging session verified the arithmetic and struck both products at their
   own sites — ADR-0044's `65,404` and ADR-0047's `≈268,000`, with ADR-0047's ceiling clause and
-  ADR-0049's maximum clause corrected alongside. Nothing above is withdrawn; this bullet is the
+  ADR-0049's maximum clause corrected alongside. Nothing above is withdrawn. This bullet is the
   record of the finding, and the repair is at the four sites it names.
 - **Decided on thin ground in one place, and it is not dressed as a derivation.** §3's refusal of
   severity is an argument about what trains an operator to stop reading, and this project has never

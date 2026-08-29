@@ -76,7 +76,7 @@ this ADR never runs.
 
 ### 1. The weakest link is what ADR-0057's key already says
 
-ADR-0057 did not key on *the artefact*; it keyed on *the smallest act by the owner that would falsify
+ADR-0057 did not key on *the artefact*. It keyed on *the smallest act by the owner that would falsify
 the cell, and whether that act publishes a notice we read*. For a conjunction, the set of falsifying
 acts is the **union** over the carriers, and the smallest member of a union is the smallest member of
 any of its parts. **The rule is therefore a reading of ADR-0057 rather than an addition to it** — which
@@ -138,10 +138,10 @@ the walk's output can be re-derived by someone who disagrees with it.
   conjunctively-carried item names its carriers and the carrier its rung was taken from. Each is marked
   `ADR-0076` at its ground, and **the shape is stated over its members rather than counted** — §39.2's
   bar reaches a count of the register's parts as much as a count of the register.
-- **ADR-0077 is confirmed by use and is not amended.** Its four-step test decides membership; this rule
+- **ADR-0077 is confirmed by use and is not amended.** Its four-step test decides membership. This rule
   decides form and position, which its Decision table does not reach. §41.2 is unchanged.
 - **ADR-0057 is confirmed by use and is not amended.** Its unit stays the `(cell, artefact, revision
-  act)` triple; what is fixed is that the artefact coordinate may hold a **set**, which its own
+  act)` triple. What is fixed is that the artefact coordinate may hold a **set**, which its own
   four-pairs-one-sentence measurement had already required in the other direction.
 - **ADR-0078's entry form is unchanged and its intensive bound gains a referent.** For a
   conjunctively-carried item, the bound is stated **per carrier opened** — the class boundary of each
@@ -153,10 +153,10 @@ the walk's output can be re-derived by someone who disagrees with it.
 - **`CONTEXT.md` is not amended**, on ADR-0057's own last Decision row: the curator is not a subject in
   the model and the product holds nothing about it.
 - **No count is introduced anywhere.** The rule reduces a duplication that would have made the
-  register's length depend on citation habits; it does not make the length quotable. §39.2 and ADR-0078
+  register's length depend on citation habits. It does not make the length quotable. §39.2 and ADR-0078
   §42.6 are untouched.
 - **[#151](https://github.com/winniel123/verge-asm/issues/151) is not pre-empted.** Whether step 2 counts
-  adequate **artefacts** or falsifying **acts** decides *whether* a cell is an item; this rule runs only
+  adequate **artefacts** or falsifying **acts** decides *whether* a cell is an item. This rule runs only
   after that question is answered, on cells that are items under either answer. `sensitive-ports.md`
   §43.5 names every cell whose membership the two readings would move.
 

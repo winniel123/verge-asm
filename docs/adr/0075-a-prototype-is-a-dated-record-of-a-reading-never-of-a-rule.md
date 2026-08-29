@@ -29,8 +29,8 @@ stated reason.
   the clause ADR-0019 withdrew. #118 left it: *"a closed ticket's throwaway is not another ticket's to
   re-fill."*
 
-**The tension, as both stated it:** rewriting makes the record lie about when the ruling arrived;
-leaving it makes a wrong example reachable from `main`.
+**The tension, as both stated it:** rewriting makes the record lie about when the ruling arrived.
+Leaving it makes a wrong example reachable from `main`.
 
 ### The third sighting, and it is the one that decides the shape of the rule
 
@@ -52,10 +52,10 @@ no ticket has drawn.
 - **[ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)'s test is
   met by demonstration rather than by judgement**, and #118 says so outright: *"the superseded
   sentence, read alone and in the present tense, **caused a competent session to build the thing**."*
-  #44's prototype did not record the withdrawn clause; it **implemented** it.
+  #44's prototype did not record the withdrawn clause. It **implemented** it.
 - **ADR-0058's Scope row expressly excludes figures** — *"Not **figures**, which already have `FIGURE
   DELTA`, and not claims about the world, which have the amendment convention."* So the sightings
-  cannot be admitted wholesale as ADR-0058 instances; something has to separate the figure from the
+  cannot be admitted wholesale as ADR-0058 instances. Something has to separate the figure from the
   rule.
 - **[#106](https://github.com/winniel123/verge-asm/issues/106) put the unit on the *sentence* and
   the line on *voice, not section*** — the rule reaches a passage asserting, in the **operative
@@ -63,7 +63,7 @@ no ticket has drawn.
   added to make it read historically, it was in the operative voice and owes the mark.*
 - **[ADR-0057](./0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md) §5: a withdrawal that
   supplies no replacement does not hold.** A sentence naming no successor is re-derived by the next
-  session that needs one; the identity ADR-0038 struck regenerated at **19 sites**.
+  session that needs one. The identity ADR-0038 struck regenerated at **19 sites**.
 - **ADR-0057 §6: a standing duty has no artefact**, so its absence is indistinguishable from its
   discharge. Any answer here that reads *and then check the prototypes* is that duty.
 - **The map's own convention is stated over figures**: *"every **figure** inside a Decisions entry or
@@ -76,14 +76,14 @@ no ticket has drawn.
 
 **[measured]** All eleven prototypes on `main` open with the same line —
 `PROTOTYPE — throwaway. Issue #N: "<question>"` — and in **every one of them it is inside an HTML
-comment**, invisible in a browser. Ten put it at line 3, before `<html>`; `seeds/` puts it at line 9,
+comment**, invisible in a browser. Ten put it at line 3, before `<html>`. `seeds/` puts it at line 9,
 inside `<head>`. **Not one carries a date**, a corpus state, or anything at all that a reader sees on
 the rendered page. The `?fill` and `?variant` fixtures do carry dates — `coverage/` alone renders six
 — but they are dates **inside the drawn scenario**, and a reader takes them for the story rather than
 for the artefact's own provenance, which is precisely the confusion a dateline resolves.
 
 **Both sightings were made on the rendered page, not in the source.** #118 quotes what the screen
-*draws* and what its copy *reads*; #81 quotes the button label. The place the belief forms is the
+*draws* and what its copy *reads*. #81 quotes the button label. The place the belief forms is the
 place with no marker on it.
 
 ## Decision
@@ -196,7 +196,7 @@ sentence and leaves a population that is small by construction: a ruling that ma
 unreachable** is rare, it is exactly the kind of ruling that gets an ADR, and the pass that makes it
 already knows it has made it.
 
-`254` is the discriminating instance. Under *rewrite everything wrong*, it is owed an edit; under
+`254` is the discriminating instance. Under *rewrite everything wrong*, it is owed an edit. Under
 *rewrite nothing*, so are 616 and 409 owed nothing. Under this rule it is owed nothing and they are
 owed a mark, and the reason is stateable in one clause: **the `Coverage` screen still works.**
 
@@ -214,7 +214,7 @@ prototype is about the thing it is ruling on.
   populations rather than shrinking them — so #132 leaves the drawing standing and writes **one
   `.anno` block on `?fill=modal`** naming ADR-0019, stating that both rules have empty populations on
   the modal cloud-resident install, and stating that the *"80 and 443"* copy is withdrawn. Its title's
-  *re-fill* is the losing action; the mark is the owed one. Small, mechanical, and it closes.
+  *re-fill* is the losing action. The mark is the owed one. Small, mechanical, and it closes.
 - **[`prototypes/proposal-confirm/`](../../prototypes/proposal-confirm/index.html) `?fill=cloud` is
   owed the same mark** for `Confirm 8,388,608 addresses`, against ADR-0049 and ADR-0047. Not written
   here — #131 rules the convention and does not apply it.
@@ -234,7 +234,7 @@ prototype is about the thing it is ruling on.
   prototype is a repo artefact, not a domain object. Precedent: ADR-0058 and #106 both closed the same
   way.
 - **[#12](https://github.com/winniel123/verge-asm/issues/12) gains nothing and loses nothing.** No
-  prototype is a spec input; this reaches the artefacts, not the specification.
+  prototype is a spec input. This reaches the artefacts, not the specification.
 
 ## Alternatives rejected
 
@@ -256,10 +256,10 @@ because the wrong screen still exists to be pointed at, and #81's collision find
 **Make it a curation trigger, or a standing duty on the reader to check prototypes against the
 corpus.** Rejected on ADR-0057 §6's ground before its cost: a standing duty has no artefact, so its
 absence is indistinguishable from its discharge. The map's triggers are watches on the **world**
-moving; this fires when **we** move, which is the wrong list on shape.
+moving. This fires when **we** move, which is the wrong list on shape.
 
 **Mark the whole file rather than the drawing.** Rejected on measurement: `signal-evaluability/` is
-eight drawings and one is wrong; `seeds/` is 22. Condemning a file buys one correction and loses
+eight drawings and one is wrong. `seeds/` is 22. Condemning a file buys one correction and loses
 twenty-one good answers, and it re-introduces the *"is this whole thing stale?"* question the dateline
 exists to answer.
 
@@ -274,7 +274,7 @@ and leaves a later reader unable to tell a withdrawal from an omission.
 
 ## Thin ground
 
-**The population is three sightings and its *rate* is unmeasured.** Two are the ticket's own; the
+**The population is three sightings and its *rate* is unmeasured.** Two are the ticket's own. The
 third I found in the course of reading #81 rather than by sweeping, and **I did not sweep the other
 eight prototypes — deliberately, because a sweep is the obligation this ADR declines.** So this rests
 on the reach of ADR-0058's own words and on three instances, not on a measured failure rate. That is
@@ -286,11 +286,11 @@ and one of which drew a populated census that must be empty.
 **The cut between limb 1 and limb 2 is a line this ADR draws rather than finds.** No prior ticket
 separated *a number that moved* from *a state that became unreachable*, and `254` is the only measured
 instance on the near side of it. A ruling that both shrinks a population and hollows it in different
-fills would sit on the line; none exists today, and the tie-break is stated in advance: **if the
+fills would sit on the line. None exists today, and the tie-break is stated in advance: **if the
 drawing still answers the question its ticket asked, it is a figure.**
 
 **One case is left open rather than decided.** A prototype whose *load-bearing question* is invalidated
 outright — not a fill but the thing the file was built to answer — is not covered here, because it has
-never happened. The mark would be inadequate and deletion is barred; the likely answer is that the
+never happened. The mark would be inadequate and deletion is barred. The likely answer is that the
 prototype is superseded by a new one and cross-linked, which is what #106 ruled for documents. It is
 not ruled here, because ruling it would be inventing the instance.

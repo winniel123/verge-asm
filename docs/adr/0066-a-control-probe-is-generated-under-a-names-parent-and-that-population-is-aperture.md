@@ -26,7 +26,7 @@ never mentions the control probe.
 [ADR-0025](./0025-an-offer-is-scope-only-where-the-value-enumerates-it.md) makes EDNS options a
 declared parameter of this leaf and is silent on its population. The only statement anywhere is
 §3.2's prose — *query 3–5 long random labels under the apex*, then *"repeat one level down for each
-discovered sub-zone"* *(quoted as it stood; the **labels** half is since superseded by
+discovered sub-zone"* *(quoted as it stood. The **labels** half is since superseded by
 [ADR-0069](./0069-a-control-label-is-one-label-and-the-set-must-falsify-label-independence.md) —
 five random plus one structured, each exactly one label)* — which is a procedure in a research note
 rather than a scope any `Batch` can record, and which is under-inclusive by its own admission, RFC 4592 §2.1.1 putting a wildcard owner
@@ -81,7 +81,7 @@ DNS, 2026-08-14:
 
 A 170-query sweep over ten common labels across seventeen domains returned **31 depth-2 hits**, and
 every one of them was the apex wildcard reaching down through an intermediate label that does not
-exist. The mechanism is not marginal; it is how wildcards behave.
+exist. The mechanism is not marginal. It is how wildcards behave.
 
 `render.com` is the whole ticket in one row. Its apex control label is NXDOMAIN, so §3.2 step 1
 reports *no wildcard* — while `*.staging.render.com` answers `10.4.3.1` for anything beneath it.
@@ -93,7 +93,7 @@ space published in public DNS is the kind of thing this product exists to notice
 §7 of `passive-discovery-sources.md` sampled `%.iana.org` through crt.sh. The same query answers
 this ticket.
 
-**[measured]** — crt.sh, `%.iana.org`, 2026-08-14 (two attempts; the first returned a spurious 404,
+**[measured]** — crt.sh, `%.iana.org`, 2026-08-14 (two attempts. The first returned a spurious 404,
 which is §7's own documented failure mode): **25 distinct non-wildcard names**, whose immediate
 parents are **six** names inside the seed —
 
@@ -148,7 +148,7 @@ inside a single flat zone — the commonest wildcard shape there is — is invis
 `execute-api.us-east-1.amazonaws.com`, `pages.dev`, `workers.dev` — **thirteen carry no wildcard at
 all**. Paying a full control probe per cut buys nothing on most of them.
 
-So the index is not merely imprecise; it tracks a different property of the zone. That is why it
+So the index is not merely imprecise. It tracks a different property of the zone. That is why it
 loses, and it loses to a rule that indexes the thing the RFC indexes.
 
 ### Every `Name` in the estate loses on buying nothing, not on cost
@@ -209,7 +209,7 @@ Read the control-probe population the same way and it is worse than an absence: 
 control-probed is a sub-tree that can never be `Shadowed`**, and the value it takes instead is
 `Resolved` with a fictional address set that goes on to admit `Address`, `Service` and `Endpoint`.
 [ADR-0009](./0009-verge-core-is-a-union.md)'s `{161}` defect is a record asserting an **absence**
-over something it never touched; this is a record asserting a **presence** it never discriminated,
+over something it never touched. This is a record asserting a **presence** it never discriminated,
 which is the same defect in the direction that costs more.
 
 That places it. What settles it is that the alternative is unavailable.
@@ -245,7 +245,7 @@ which member you get. The population decides **whether the value is available at
 whole sub-tree, which is the shape every subject-population aperture input has. The count stays a
 declared parameter, untouched, in ADR-0021's table where it already sits. This is not one fact in
 two homes, which is the trap ADR-0025's [#62](https://github.com/winniel123/verge-asm/issues/62)
-amendment closed; it is two facts in the two homes each belongs in.
+amendment closed. It is two facts in the two homes each belongs in.
 
 ### The seventh input is free, and that is a theorem rather than a promise
 
@@ -265,7 +265,7 @@ timelines that exist, and there are none.
 
 Two cases survive, correctly.
 
-- A batch that could not complete the control probe under P leaves a `Gap`; the next batch closes
+- A batch that could not complete the control probe under P leaves a `Gap`. The next batch closes
   it. `Gap` → value on a running timeline is **`revealed`**, which ADR-0014 already ruled and
   ADR-0025 already quoted. Not a `Break`.
 - A **release** that changes the population rule — a later session widening it to every `Name`, say
@@ -292,7 +292,7 @@ Three things follow, and the third is the one to say out loud.
 `Gap` is the right object and not a stretched one. ADR-0025 reserves it for *we did not look* and
 refuses it for *we looked and got an answer* — and here we **did not look** at the parent, which is
 the measurement `Shadowed` needs. `CONTEXT.md`'s `Gap` already opens on *a dead-lettered `Batch`'s
-empty scope* and already **records its cause**; this is one more cause on an existing object, and a
+empty scope* and already **records its cause**. This is one more cause on an existing object, and a
 `Gap` never withdraws a subject, so nothing cascades.
 
 Nothing widens. `resolution`'s value space is untouched, which matters because
@@ -353,12 +353,12 @@ gate.**
   because that population is small orgs' private zones and there is no public sample of it. Read the
   under-selection limb as `[spec]`, in `measurement-offers.md`'s sense.
 - **The `[measured]` estate is one estate, and it is a registry rather than a small org.** IANA has
-  25 names and six parents; a 300-name flat estate has 300 names and **one** parent, and the
+  25 names and six parents. A 300-name flat estate has 300 names and **one** parent, and the
   reduction the parent set buys is far larger there and untested here. The direction is safe — the
   parent set is never larger than the name set and is usually much smaller — but the 4.2× figure is
   one sample and should not be quoted as a rate.
 - **Nothing has run a control probe inside a batch.** Every claim here about *what the leaf does*
-  is a specification claim; what is measured is DNS behaviour against live authorities, from one
+  is a specification claim. What is measured is DNS behaviour against live authorities, from one
   vantage, on one day, over a resolver we do not control. §3.2 step 5's escape hatch — a name whose
   answer differs from the signature is genuinely present — is untested, and its converse residue
   is untouched by this ADR: **a name that genuinely exists and happens to carry the wildcard's own
@@ -394,7 +394,7 @@ gate.**
   [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) —
   ADR-0007's #36 amendment, ADR-0009, ADR-0011, ADR-0013 and ADR-0025 in three places. Three of the
   five were **already stale**, carrying *five* or *three* after
-  [ADR-0017](./0017-exposure-needs-both-legs.md) made it six; the correction names both moves.
+  [ADR-0017](./0017-exposure-needs-both-legs.md) made it six. The correction names both moves.
 - **[ADR-0025](./0025-an-offer-is-scope-only-where-the-value-enumerates-it.md) is amended and not
   overturned.** Its offer test is unreached: the control-probe population is not an offer, so
   *"this ticket adds none"* was true of #54 and is not a claim about the list's closure. Its
@@ -420,7 +420,7 @@ gate.**
   out-of-scope shelf rather than bought.
 - **[`CONTEXT.md`](../../CONTEXT.md) changes in three entries and adds no term.** `Shadowed` gains
   the population rule and the `Gap`, and loses *"which names are control-probed is a live
-  question"*; `Batch` names the control-probe population as a recorded scope dimension; `Name`'s
+  question"*. `Batch` names the control-probe population as a recorded scope dimension. `Name`'s
   wildcard clause points at the parent rule. The facet list stays six and the `Offer` list stays
   five.
 - **[`passive-discovery-sources.md`](../research/passive-discovery-sources.md) §3.2's procedure is

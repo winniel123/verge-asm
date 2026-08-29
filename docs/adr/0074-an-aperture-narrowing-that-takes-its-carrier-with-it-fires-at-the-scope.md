@@ -43,7 +43,7 @@ nothing new is stored.
 
 What is genuinely gone is the **subject**, and after [#140](https://github.com/winniel123/verge-asm/issues/140)
 · ADR-0082 that can be stated exactly: **the withdrawn period is on no timeline at all — neither a
-value nor a `Gap`.** The history stops; nothing records that it stopped, or when. Only the message
+value nor a `Gap`.** The history stops. Nothing records that it stopped, or when. Only the message
 was missing, and it is the only object that could ever carry the instant.
 
 ## Decision
@@ -138,12 +138,15 @@ widening uses. **No new firing site is added.**
 ### The corpus's standing *shrinking is silent* precedent does not reach this
 
 The strongest objection is that this project silences the shrinking direction everywhere:
-`withdrawn` (ADR-0006, #17 — and `withdrawn` is never a message on any subject kind, in any
-direction); the internal `Reach` leg both ways and the internet leg's `reached` → `not-reached`
-([ADR-0029](./0029-an-alert-fires-on-a-leg.md) §3, §4); `Resolved` → `NoData` and *"any move that
-only removes addresses"* (ADR-0026 §1); ADR-0013 §7's *"a departure does not fire it"*; and
-[ADR-0025](./0025-an-offer-is-scope-only-where-the-value-enumerates-it.md)'s *"a narrowing is the
-opposite of `revealed`"*.
+
+- `withdrawn` (ADR-0006, #17 — and `withdrawn` is never a message on any subject kind, in any
+  direction)
+- the internal `Reach` leg both ways and the internet leg's `reached` → `not-reached`
+  ([ADR-0029](./0029-an-alert-fires-on-a-leg.md) §3, §4)
+- `Resolved` → `NoData` and *"any move that only removes addresses"* (ADR-0026 §1)
+- ADR-0013 §7's *"a departure does not fire it"*
+- [ADR-0025](./0025-an-offer-is-scope-only-where-the-value-enumerates-it.md)'s *"a narrowing is the
+  opposite of `revealed`"*.
 
 **Every one is a drift-class silence about the *world* shrinking, each on a stated ground that does
 not transfer.** #17's is decommissioning noise. ADR-0029 §4's is that a closing port is
@@ -154,7 +157,7 @@ has no hazard to report. ADR-0025's is about what a **scope record** can license
 told.
 
 A `Seed` narrowing is not the world shrinking. It is **our aperture shrinking by a Declared act** —
-the coverage class's own subject matter. And the coverage class has no *shrinking is silent* rule; it
+the coverage class's own subject matter. And the coverage class has no *shrinking is silent* rule. It
 has the opposite. *We stopped looking* is one of the four causes, and members 3, 5 and 8 are all
 messages fired because we stopped looking at something.
 
@@ -177,7 +180,7 @@ false-reassurance failure arriving through the one layer #14's guard does not re
 ADR-0006 already routed exclusions to `Coverage` for exactly this reason, and that surface is the
 best thing the incumbent silence has. It is not enough, twice over: it is a **standing state and
 never an event**, so it says nothing at the instant and nothing afterwards to anyone not looking at
-that screen; and ADR-0006's route is written for **exclusions**, while a *smaller CIDR* replaces the
+that screen. And ADR-0006's route is written for **exclusions**, while a *smaller CIDR* replaces the
 declaration outright and leaves no exclusion row to render.
 
 The narrowing is also the exact inverse of ADR-0047's decisive argument for enumerating at all. That
@@ -230,7 +233,7 @@ message is a receipt, and ADR-0039 §1 makes the channel *the escalation, not th
 
 **The store copy is not an escalation.** ADR-0039 §1 writes and renders every `Message`
 *"unconditionally — no configuration, no enable, no routing, no `Delivery`, and no way to turn it
-off"*. *Does it reach anybody* is answered in the store first; the channel follows from the class.
+off"*. *Does it reach anybody* is answered in the store first. The channel follows from the class.
 
 **The reader is not necessarily the actor.** A `Channel` is a URL pointed at a destination this
 project knows nothing about.
@@ -257,12 +260,12 @@ alerting at the cause rather than per affected subject, so the operator never se
 ## Consequences
 
 - **[`CONTEXT.md`](../../CONTEXT.md)'s `Seed` entry gains one sentence** and **no term is added**.
-  The entry already specifies the widening message at that exact site; the narrowing case is written
+  The entry already specifies the widening message at that exact site. The narrowing case is written
   beside it so the contrast stops being a specification of silence. `Custody`'s and `Address`'s
   narrowing sentences are **not** amended — they specify the span mechanism, which is untouched.
 - **The coverage class moves from nine members to TEN**, and that figure belongs on the map's
   composed-state line. ADR-0026's and ADR-0033's *"the class stays at nine"* are dated records of
-  those tickets and are left standing per the name-and-withdraw convention; the map's own rule is
+  those tickets and are left standing per the name-and-withdraw convention. The map's own rule is
   that a count written once and copied is the defect.
   [#120](https://github.com/winniel123/verge-asm/issues/120) is reading **nine** and must carry
   **ten**. Its other two figures are untouched: the **clock class is still three** and the census
@@ -289,10 +292,10 @@ alerting at the cause rather than per affected subject, so the operator never se
   while asserting the notification this ADR now supplies. Half of it was wrong before this ticket and
   the other half is right after it: no `Gap`, and it does say so.
 - **Nothing new is stored and no retention question opens.** The detection input is the `Batch`
-  scope diff ADR-0014 already defined; the departed `Span`s were already retained by ADR-0041; the
+  scope diff ADR-0014 already defined. The departed `Span`s were already retained by ADR-0041. The
   `Message` corpus already exists under ADR-0039.
 - **`Seed` deletion is not assumed to exist.** The corpus's narrowing vocabulary is exclusions and
-  smaller CIDRs; no ADR, glossary entry or shipped surface offers a delete. If one is ever built it
+  smaller CIDRs. No ADR, glossary entry or shipped surface offers a delete. If one is ever built it
   is the maximal narrowing and fires by this rule, and the message carrying the key of a scope that
   no longer exists is correct — a `Message` is Operational, *"written once and never recomputed"*,
   so a dangling key is a dated fact rather than a broken join.
@@ -302,7 +305,7 @@ alerting at the cause rather than per affected subject, so the operator never se
   source enablement to `Coverage` as a standing state and no message, which is
   [#47](https://github.com/winniel123/verge-asm/issues/47)'s and
   [#15](https://github.com/winniel123/verge-asm/issues/15)'s territory rather than this ticket's. The
-  rule stated here reaches it; whether it fires there is a successor, and it is the only place this
+  rule stated here reaches it. Whether it fires there is a successor, and it is the only place this
   ADR is knowingly incomplete.
 
   > **Rider, settled 2026-08-15 by [#166](https://github.com/winniel123/verge-asm/issues/166): the
@@ -364,7 +367,7 @@ alerting at the cause rather than per affected subject, so the operator never se
   paragraph weaker.
 - **#127's *"no message and no record"* is refined rather than reversed** — the record of the history
   **up to** the act exists in the retained `Span`s and the act itself is visible in the `Batch` scope
-  diff; what does not exist is any timeline on which the removal is a fact. Its ruling, no
+  diff. What does not exist is any timeline on which the removal is a fact. Its ruling, no
   operator-act record, is untouched.
 
 ## Alternatives rejected

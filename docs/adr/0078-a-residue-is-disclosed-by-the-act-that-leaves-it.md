@@ -17,9 +17,12 @@ one obligation towards the queue:
 > the queue's head, how far down it read, and what it did not read, falsifiable by naming one item.
 
 That sentence states an obligation and sites nothing. **Three things were left unstated and #136 is
-all three**: which *document* carries the disclosure; whether it is a per-release statement, a
-standing section of a curated table's own note, or something the **gate** emits; and — the part that
-decides whether it is a disclosure at all — **how it states its bound**.
+all three**:
+
+- which *document* carries the disclosure
+- whether it is a per-release statement, a standing section of a curated table's own note, or something
+  the **gate** emits
+- and — the part that decides whether it is a disclosure at all — **how it states its bound**.
 
 **The screen question is not this question and is not reopened.**
 [ADR-0032](./0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §7 keeps the weak-tier
@@ -95,7 +98,7 @@ Publishing the gate result alone invites the reader to take a green gate as the 
 is completeness arriving labelled as coverage: §7's failure in the governance register rather than the
 interface one. The gate ledger's own shape belongs to
 [#133](https://github.com/winniel123/verge-asm/issues/133), which is running G1–G11 to completion for
-the first time; this ADR reserves its place in the same document and specifies nothing about it.
+the first time. This ADR reserves its place in the same document and specifies nothing about it.
 
 ## Rationale
 
@@ -110,7 +113,7 @@ own test and the three tests do not compete.
 a live absolute and belongs in a standing register. The queue's *spend* is an act at a moment and
 belongs in a dated record. #125 wrote both into one section — §39.4 is titled *"the queue as of
 evidence already held"* and is a dated record doing a register's job — and §39.9 flagged the result as
-provisional. Splitting them is not a criticism of §39.4; it is the thing §39.4's own hedge is asking
+provisional. Splitting them is not a criticism of §39.4. It is the thing §39.4's own hedge is asking
 for.
 
 **Cadence.** ADR-0057 anchored the gate to the **edit** and the residue to the **release**, and those
@@ -259,7 +262,7 @@ the operator.
   population we author. Limbs 1 and 2 — *name the retrieval that resolves it*, *say what a performed
   retrieval established* — are discharged per item by parts 2 and 4 of the entry.
 - **No row, class, tier or coverage figure moves.** `sensitive-ports.md` stays at **38 pairs**, classes
-  `12 / 7 / 19`, tiers `13 / 11 / 3`, coverage **27 of 38**, §4.6 at **24**; `verge-core` stays at
+  `12 / 7 / 19`, tiers `13 / 11 / 3`, coverage **27 of 38**, §4.6 at **24**. `verge-core` stays at
   **136**. ADR-0008 is not triggered.
 - **Nothing reaches the interface**, and this ADR adds a reason to §7's four rather than testing them:
   the residue names artefacts, commits and reading acts, which the operator can act on even less than a

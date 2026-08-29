@@ -26,7 +26,7 @@ beneath it stays `Shadowed` across the move, which is deliberate and correct and
 suppression [`CONTEXT.md`](../../CONTEXT.md)'s `Shadowed` was built for: *"repoint one wildcard and
 every fictional name beneath it reports a resolution change the same night."* But *your wildcard now
 points somewhere else* is one fact about one thing, and today no message and no row carries it. The
-suppression was aimed at the fictional names; it swallowed the real one alongside them.
+suppression was aimed at the fictional names. It swallowed the real one alongside them.
 
 [ADR-0060](./0060-a-wildcard-san-is-a-pattern-over-names-and-admits-none-of-them.md) is what makes
 this a question rather than a shrug, because it removed the obvious answer. *Hold it on the
@@ -152,7 +152,7 @@ The burst `Shadowed` exists to prevent is **N fictional `Name` subjects each clo
 span in one night**. N is unbounded in principle — it is however many names beneath the wildcard some
 `Citation` admitted, a SAN list or a zone file — and it is not merely N rows. Each of those names
 resolves to the wildcard's synthesised address set, so a repoint admits new `Address` subjects, which
-yield `Service`s, which yield `Endpoint`s; membership fires at the root of each entering sub-tree
+yield `Service`s, which yield `Endpoint`s. Membership fires at the root of each entering sub-tree
 ([ADR-0031](./0031-membership-alerts-at-the-root-of-the-entering-subtree.md)) and the internet
 `Reach` leg fires the flagship. The burst is a burst of **messages**, not of storage.
 
@@ -225,7 +225,7 @@ in a note, not a scope any `Batch` can record.
 So the facet would ship with a hole in exactly the place ADR-0011 says facets get shipped broken, and
 minting it now would be that failure with an ADR's authority behind it.
 
-**The gap is not this facet's problem, though; it is v1's.** `Shadowed` is the value a `resolution`
+**The gap is not this facet's problem, though. It is v1's.** `Shadowed` is the value a `resolution`
 observation takes *when the answer matches a wildcard's measured poison signature*. Where no signature
 was measured under X, no name beneath X can be `Shadowed`, so every synthesised answer is recorded as
 `Resolved` with a fictional address set — which admits fictional `Address`es, fictional `Service`s and
@@ -275,7 +275,7 @@ than the facet was.
 
 - **[`CONTEXT.md`](../../CONTEXT.md) changes in two entries and adds no term.** `Shadowed` records
   which subject the signature is a fact about, that v1 holds it nowhere, and that a repoint therefore
-  reaches nobody; `Name` gains one clause pointing the existing sentence at the subject rule. **No
+  reaches nobody. `Name` gains one clause pointing the existing sentence at the subject rule. **No
   term is added, no term changes meaning, no facet is added, and the facet list stays six.**
 - **[ADR-0060](./0060-a-wildcard-san-is-a-pattern-over-names-and-admits-none-of-them.md)'s ticketed
   residue is discharged, and ADR-0060 is confirmed rather than amended.** Its thinness entry — *"the
@@ -287,7 +287,7 @@ than the facet was.
   obligation has stopped something rather than described it.
 - **[ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md) is untouched.** Five leaves stay
   five, `wildcard-discrimination`'s declared parameters are unchanged, and no `Break` cause is added.
-  A session will look here; there is nothing.
+  A session will look here. There is nothing.
 - **[ADR-0026](./0026-the-facet-layer-is-evidence-not-a-channel.md)'s enumeration is unchanged.**
   Exactly one facet `Transition` is a message in v1 and this ruling adds none — it adds no facet.
 - **One new ticket, and it is the larger half of this one's output.**
@@ -344,7 +344,7 @@ declares the control-probe population, so this ADR's stated reopening condition 
 `ns.iana.org` is NXDOMAIN and in no `Citation` while `www.ns.iana.org` is a held `Name` whose
 closest encloser is `iana.org`, so it is a probe site with **no carrier**. This ADR's subject rule —
 *the `Name` the control labels were generated under* — survives unchanged and is still the right
-rule; what it loses is the guarantee, asserted in the Rationale above and now withdrawn, that the
+rule. What it loses is the guarantee, asserted in the Rationale above and now withdrawn, that the
 subject always already exists. Inventing one is barred by ADR-0060 and ADR-0027 alike: nothing cites
 it, and the prober is not an admitting source. Whoever takes the facet up owns that question, and it
 is recorded here rather than ticketed because the facet has no deadline and buying the answer early

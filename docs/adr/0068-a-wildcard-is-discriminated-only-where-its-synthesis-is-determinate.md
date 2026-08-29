@@ -100,7 +100,7 @@ the same zone reads completely differently:
 
 The ticket proposes *the CNAME target rather than the address set*, on the strength of
 `herokuapp.com` and `s3.amazonaws.com`. It is half right and its half is the wrong half. `s3` does
-hold its CNAME target still; `herokuapp.com`'s rotates over **eight** targets, and over **four**
+hold its CNAME target still. `herokuapp.com`'s rotates over **eight** targets, and over **four**
 across four repeats of one label at one authority. Privileging CNAME **by name** gets `s3` right by
 luck and `herokuapp` wrong.
 
@@ -160,7 +160,7 @@ ticket's *two of four* sampled four zones of which two were the pathological one
 
 The ticket's leading candidate is **non-empty intersection with the union of the observed
 signatures**. It loses on arithmetic over the same thirty-label runs. Signature = the first five
-labels; test = the next twenty-five.
+labels. Test = the next twenty-five.
 
 | Zone | Set equality catches | Intersection-with-union catches |
 | --- | --- | --- |
@@ -236,13 +236,13 @@ residue looks like when it survives.
   ruling's own test, while `10.0.0.1.traefik.me` → `10.0.0.1`, `192.168.5.5.traefik.me` →
   `192.168.5.5`, `8.8.4.4.traefik.me` → `8.8.4.4`. A synthesis that is a **function of the label**
   looks constant to random labels, and set equality then reports a fictional RFC 1918 address as
-  `Resolved`. *n* random labels evidence a constant synthesiser; they cannot prove one, and no
+  `Resolved`. *n* random labels evidence a constant synthesiser. They cannot prove one, and no
   finite *n* can. This is `render.com`'s lesson from ADR-0066 arriving through the predicate.
 - **And there is a third door that neither ADR-0066 nor this ruling closes.** **[measured]**
   `nip.io` and `sslip.io` return **NODATA** for random control labels while `10.0.0.1.nip.io` →
   `10.0.0.1`. §3.2 step 1 reports *no wildcard at all*, the probe completes, and ADR-0066's *a probe
   that completed and found no wildcard licenses everything beneath it* licenses a fictional
-  inventory. Neither the population nor the predicate is the defect; the **control label's own
+  inventory. Neither the population nor the predicate is the defect. The **control label's own
   shape** is, and it is `wildcard-discrimination`'s other declared parameter — *control-label count
   and construction* — which this ticket was not asked about and does not touch.
 - **Every indeterminate zone measured is a third-party hosting provider's.** ADR-0066 intersects the
@@ -279,7 +279,7 @@ residue looks like when it survives.
 - **[`CONTEXT.md`](../../CONTEXT.md)'s `Shadowed` is amended at the site that specifies it.** *"when
   the answer matches a wildcard's measured poison signature"* is superseded by *"when the answer was
   not discriminated from the parent's synthesis"*. The entry's own justification — *we cannot see
-  here is a fact the operator needs* — was already epistemic; the *matches* clause was the
+  here is a fact the operator needs* — was already epistemic. The *matches* clause was the
   instrument standing in for the fact, which is the substitution
   [ADR-0013](./0013-custody-is-control-and-extends-by-declaration.md) and ADR-0062 have each caught
   once.

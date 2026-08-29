@@ -47,7 +47,7 @@ a gate. §9.2 is the same move one turn further out: not *the set is closed* but
 shape*. ADR-0015's own Alternatives table records the third instance in one line — *"Keep §9.2's rule
 that a single-protocol signal is illegitimate: **excludes rules for the wrong reason**."*
 
-What is missing is the positive rule. ADR-0004 says what admits a rule; nothing says what may
+What is missing is the positive rule. ADR-0004 says what admits a rule. Nothing says what may
 **exclude** one, so an exclusion has been free to rest on whatever the excluding session found
 persuasive — and §9.2's ground rotted in eleven tickets while the verdict it carried stayed correct
 for a reason nobody had written down.
@@ -68,7 +68,7 @@ Three riders bind.
 **An admissible rule with no aperture is not `not-evaluable` — it renders nothing at all.** ADR-0004's
 #44 amendment settled this: where no subject exists because we never looked, *"no row is possible,
 ever"*, and the honesty lands on `Coverage` as a standing statement rather than on the rule. So
-admitting a rule ahead of its aperture does not buy a visible gap the operator can act on; it buys a
+admitting a rule ahead of its aperture does not buy a visible gap the operator can act on. It buys a
 name in the spec with an empty census behind it.
 
 **The aperture cost is weighed and is never a correctness objection**, unchanged from ADR-0004: *"the
@@ -92,7 +92,7 @@ A principled exclusion is **load-bearing prose**, and prose rots. §9.2 is the m
 principle was withdrawn by ADR-0015 at [#41](https://github.com/winniel123/verge-asm/issues/41), the
 note carrying it cites ADR-0015 **zero times** (#102, measured), and the row went on reading as
 settled all the way to #104 on a ground that had been dead since the day it was written down.
-ADR-0058 exists because a superseded **mechanism** read forward; this is the same failure with a
+ADR-0058 exists because a superseded **mechanism** read forward. This is the same failure with a
 *reason* in the load-bearing position, and it is worse in one respect — a mechanism's absence is
 eventually noticed when someone looks for it, while a reason's absence is never looked for at all.
 
@@ -143,7 +143,7 @@ a `verge-core` pair buys the **connect**, not the exchange.
 **One thing does not defer with it, and it is ADR-0015's own finding one level down.** The integrity
 fact is neither of `listener-negotiation`'s two proposed fields, so it needs a third — and a facet's
 value space is decided **once**, widened afterwards at the cost of a `Break` on every timeline it
-holds. While the facet does not exist the third field is free either way; the day it ships with two,
+holds. While the facet does not exist the third field is free either way. The day it ships with two,
 adding the third stops being free. So the **field** question is owed at that facet's specification
 time, ahead of and independently of whether any rule reads it. The **rule** remains free to defer
 forever. That asymmetry is the general shape ADR-0015 found for `http-identity`'s status class, and it
@@ -172,10 +172,10 @@ the aperture lands, and the obligation is owed to whoever lands it.
 - **An obligation travels with the deferred aperture, and it is not #12's.**
   [`insecure-listener-rules.md`](../research/insecure-listener-rules.md) §8.2 now records that
   whoever specifies `listener-negotiation` owes a decision on a **third field, integrity**, before
-  that facet ships — because a value space is decided once. The rule defers freely; the field does
+  that facet ships — because a value space is decided once. The rule defers freely. The field does
   not defer twice.
-- **The map's out-of-scope lines carry their ground.** Existing entries already do this informally;
-  new ones state it.
+- **The map's out-of-scope lines carry their ground.** Existing entries already do this informally.
+  New ones state it.
 - **This is a *detectable* defect and not a curation trigger**, on ADR-0058's own reasoning: both
   sides are written down — an exclusion's stated ground, and the decision that withdrew it — and it
   fires when *we* move rather than when the world does.
