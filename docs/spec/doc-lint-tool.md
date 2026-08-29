@@ -272,7 +272,7 @@ A writer runs the tool by hand. The command lints one of two targets (ticket Q6)
 The command prints one line per violation, in the `check-links.mjs` style:
 
 ```
-docs/spec/example.md:42  ->  simple-tense  (warning: "has completed" — compound form, confirm current relevance)
+docs/spec/example.md:42  ->  simple-tenses  (warning: a compound verb form "has completed" — confirm current relevance or a hedge, else use a simple tense)
 ```
 
 The command exits non-zero when it finds an error-level violation. A warning alone does not change

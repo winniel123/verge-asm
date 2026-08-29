@@ -6,9 +6,17 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import { RULES } from "./doclint/rules/index.mjs";
 import { checkRuleCorpus } from "./doclint/fixtures.mjs";
 import { parse, extractProse, lintMarkdown } from "./doclint/engine.mjs";
+import { tagSentence } from "./doclint/rules/simple-tenses.mjs";
+
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 
 // The acceptance gate: every rule flags its must-flag set and no must-not-flag set.
 for (const rule of RULES) {
@@ -165,4 +173,68 @@ test("no-phrasal-verbs does not read a blockquote (frozen source) or a code span
   // (acceptance: no code or blockquote text is matched).
   assert.equal(phrasalViolations("> The vendor said to spin up a worker.").length, 0);
   assert.equal(phrasalViolations("Run `spin up` in the shell.").length, 0);
+});
+
+/** The simple-tenses violations of a snippet (drops the other rules' noise). */
+function tenseViolations(markdown) {
+  return lintMarkdown(markdown, RULES).filter((v) => v.rule === "simple-tenses");
+}
+
+test("simple-tenses flags a compound form as a warning, not an error", () => {
+  const violations = tenseViolations("The worker has completed the job.");
+  assert.equal(violations.length, 1);
+  assert.equal(violations[0].severity, "warning");
+  assert.equal(violations[0].rule, "simple-tenses");
+  assert.match(violations[0].message, /"has completed"/);
+});
+
+test("simple-tenses flags each of the have, has, and had anchors", () => {
+  // The anchor set is have/has/had. Each one before a past participle flags (SPEC §2.4).
+  assert.equal(tenseViolations("The tokens have changed since the release.").length, 1);
+  assert.equal(tenseViolations("The worker has completed the job.").length, 1);
+  assert.equal(tenseViolations("The values had changed before the reset.").length, 1);
+});
+
+test("simple-tenses leaves an anchor before a non-participle alone", () => {
+  // "has" before a number or a determiner is possession, not a compound verb form. It must
+  // not flag, or the rule would fire on ordinary "has" sentences (SPEC §2.4 precision).
+  assert.equal(tenseViolations("The tool has three states.").length, 0);
+  assert.equal(tenseViolations("The report has a clear structure.").length, 0);
+});
+
+test("simple-tenses reports the source line of the compound form", () => {
+  const doc = "# Title\n\nA short intro line.\n\nThe worker has completed the job.\n";
+  const violations = tenseViolations(doc);
+  assert.equal(violations.length, 1);
+  assert.equal(violations[0].line, 5);
+});
+
+test("simple-tenses does not read a blockquote (frozen source) or a code span", () => {
+  // Both regions are non-prose (SPEC §3), so a compound form inside them never flags.
+  assert.equal(tenseViolations("> The vendor has completed the work.").length, 0);
+  assert.equal(tenseViolations("Run `has completed` in the shell.").length, 0);
+});
+
+test("the pos tokenizer does not duplicate a word (SPEC §4.3 mitigation)", () => {
+  // The chosen mitigation is the `pos` lexer with a direct tag pass (SPEC §4.3 option 1).
+  // The retext stack this rule avoids turned "a b c" into "a b b c c". The `pos` lexer
+  // returns one token per word, so the token stream holds no duplicate (acceptance #3).
+  const words = tagSentence("alpha beta gamma delta epsilon").map(([w]) => w);
+  assert.deepEqual(words, ["alpha", "beta", "gamma", "delta", "epsilon"]);
+});
+
+test("a warning-only run does not change the exit code (SPEC §5.1)", () => {
+  // The CLI exits non-zero only on an error-level violation. A file that holds a single
+  // simple-tenses warning must exit zero. execFileSync throws on a non-zero exit, so a clean
+  // return is the proof (acceptance #2). The output still prints the warning line.
+  const cli = join(SCRIPT_DIR, "doclint.mjs");
+  const file = join(tmpdir(), `doclint-warn-${process.pid}.md`);
+  writeFileSync(file, "The worker has completed the job.\n");
+  try {
+    const out = execFileSync("node", [cli, file], { encoding: "utf8" });
+    assert.match(out, /simple-tenses/);
+    assert.match(out, /0 error\(s\), 1 warning\(s\)/);
+  } finally {
+    rmSync(file, { force: true });
+  }
 });
