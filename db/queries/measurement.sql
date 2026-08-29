@@ -71,6 +71,17 @@ INSERT INTO queue_job (
 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 RETURNING id;
 
+-- name: NotifyJobProgress :exec
+-- Publish one ephemeral, redacted per-job progress event over the
+-- queue_job_progress LISTEN/NOTIFY channel (#780, collision #40 producer half).
+-- The payload is a small JSON line the RunDetail live stream enriches its
+-- state-derived log with while a job is in flight. NOTHING is persisted at rest:
+-- pg_notify delivers the payload to connected listeners and is gone (ADR-0041's
+-- corpus separation and the instance-privacy posture are untouched — there is no
+-- raw-stdout column or table). Fired inside the job's terminal transaction, so a
+-- job cancelled mid-flight rolls its event back with the rest of its work.
+SELECT pg_notify('queue_job_progress', @payload::text);
+
 -- name: ClaimJob :one
 -- The Postgres-backed claim: FOR UPDATE SKIP LOCKED over ready jobs whose
 -- run_after has passed, oldest first, marking the winner running in one

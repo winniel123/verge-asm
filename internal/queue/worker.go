@@ -415,6 +415,10 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, obs []wire.Ob
 		if err := w.produce(ctx, qtx, batchID, observedAt, changes, departures, membership); err != nil {
 			return err
 		}
+		// Ephemeral per-job progress (#780, collision #40): a completed measurement rides a
+		// count of what it observed onto the live stream — redacted to the count alone, never
+		// the observations. Nothing is persisted by this; the state-derived .Log stands.
+		w.emitJobEvent(ctx, qtx, job, "", countLabel(len(obs), "observation", "observations"))
 		return markDone(ctx, qtx, job.ID, batchID)
 	})
 }
@@ -444,6 +448,10 @@ func (w *Worker) deadLetter(ctx context.Context, job db.ClaimJobRow, cause error
 		if err := applyAvailability(ctx, qtx, job.VantageID, job.Kind, outcomeDeadLettered); err != nil {
 			return err
 		}
+		// Ephemeral per-job progress (#780, collision #40): the redacted dead-letter reason
+		// rides the live stream as an appended line so the operator sees WHY the job gave up,
+		// not a bare `dead`.
+		w.emitJobEvent(ctx, qtx, job, "error", deadLetterLabel(job.Attempt, cause))
 		return markDead(ctx, qtx, job.ID, batchID)
 	})
 }
@@ -453,7 +461,7 @@ func (w *Worker) deadLetter(ctx context.Context, job db.ClaimJobRow, cause error
 func (w *Worker) retry(ctx context.Context, job db.ClaimJobRow, cause error) error {
 	w.log.Printf("worker: job %d attempt %d failed, retrying: %v", job.ID, job.Attempt, cause)
 	return w.runJobTx(ctx, job.ID, func(qtx *db.Queries) error {
-		_, err := qtx.EnqueueJob(ctx, db.EnqueueJobParams{
+		if _, err := qtx.EnqueueJob(ctx, db.EnqueueJobParams{
 			ScanID:         job.ScanID,
 			VantageID:      job.VantageID,
 			DispatchID:     job.DispatchID,
@@ -464,10 +472,13 @@ func (w *Worker) retry(ctx context.Context, job db.ClaimJobRow, cause error) err
 			Attempt:        job.Attempt + 1,
 			MaxAttempts:    job.MaxAttempts,
 			RunAfter:       tstz(w.now().UTC().Add(backoff(job.Attempt + 1))),
-		})
-		if err != nil {
+		}); err != nil {
 			return err
 		}
+		// Ephemeral per-job progress (#780, collision #40): the redacted retry reason — the
+		// crt.sh-502 the ticket cites — keyed to the job that failed, so the stream appends it
+		// as a live line beside that job's state. This is the producer half of collision #40.
+		w.emitJobEvent(ctx, qtx, job, "warn", retryLabel(job.Attempt, cause))
 		return markRetried(ctx, qtx, job.ID)
 	})
 }

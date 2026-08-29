@@ -1041,6 +1041,15 @@ type Querier interface {
 	// first. The caller passes it to InsertReportDelivery; the unique (schedule_id,
 	// delivery_no) key keeps the sequence dense under a single writer.
 	NextReportDeliveryNo(ctx context.Context, scheduleID int64) (int32, error)
+	// Publish one ephemeral, redacted per-job progress event over the
+	// queue_job_progress LISTEN/NOTIFY channel (#780, collision #40 producer half).
+	// The payload is a small JSON line the RunDetail live stream enriches its
+	// state-derived log with while a job is in flight. NOTHING is persisted at rest:
+	// pg_notify delivers the payload to connected listeners and is gone (ADR-0041's
+	// corpus separation and the instance-privacy posture are untouched — there is no
+	// raw-stdout column or table). Fired inside the job's terminal transaction, so a
+	// job cancelled mid-flight rolls its event back with the rest of its work.
+	NotifyJobProgress(ctx context.Context, payload string) error
 	// Open a new span for a timeline. The caller passes the canonical value, the
 	// gap flag, the Derivation vector as a JSON array of {leaf,version}, and the id of
 	// the Batch whose fold opened it (ADR-0111) — nullable, since a span opened outside
