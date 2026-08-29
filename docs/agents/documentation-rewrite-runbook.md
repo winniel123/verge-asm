@@ -67,6 +67,8 @@ In Strict mode, also keep the one-word-one-meaning discipline. Use one word for 
 
 Apply this subset to a procedural section only. First decide the section type.
 
+A family verdict of "whole doc is procedural" is the common case, not an override. Run the boundary test on each section anyway. A reference section in a guide does not get the subset.
+
 1. Ask the boundary test: does the reader do these actions in order?
 2. If yes, the section is procedural. Apply the eight rules below.
 3. If no, the section is reference. Do not apply the subset.
