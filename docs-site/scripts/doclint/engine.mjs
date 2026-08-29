@@ -154,6 +154,22 @@ export function startLineOf(node) {
 }
 
 /**
+ * The 1-based source line an offset inside a text node value falls on: the node start line
+ * plus one for every newline before the offset. A word-level rule that scans a node value
+ * for a match (no-phrasal-verbs) uses this to point at the match's own line, not the node's
+ * first line, because one text node can span several soft-wrapped source lines.
+ * @param {import("mdast").Text} node
+ * @param {string} value  the node value the rule scanned (node.value).
+ * @param {number} offset the match index inside value.
+ * @returns {number}
+ */
+export function lineAtOffset(node, value, offset) {
+  let line = startLineOf(node);
+  for (let i = 0; i < offset; i++) if (value[i] === "\n") line++;
+  return line;
+}
+
+/**
  * A rule.
  * @typedef {Object} Rule
  * @property {string} name        the rule id, printed in the output.

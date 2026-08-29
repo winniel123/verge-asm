@@ -1,0 +1,29 @@
+{
+  "_about": [
+    "The curated phrasal-verb wordlist (SPEC docs/spec/doc-lint-tool.md 2.3).",
+    "A phrasal verb is a verb lemma plus a particle ('spin up', 'kick off'). The style",
+    "standard 4.1 rule 5 makes a phrasal verb in prose a failure. There is no reliable",
+    "POS route, so this list is the detector. It is a maintained repo asset.",
+    "",
+    "Each entry is one verb lemma plus one particle. The rule matches the lemma in its",
+    "regular inflected forms too (base, -s/-es/-ies, -ing, -ed). A verb with an irregular",
+    "form (a doubled consonant, an irregular past, an irregular participle) lists that form",
+    "in 'irregular'. A regular verb omits the field.",
+    "",
+    "This seed comes from the phrasal verbs the style standard 4.1 rule 5 names and the",
+    "ASD-STE100 skill lists (SKILL.md 'Soft phrasal verbs', before-after.md). Grow the list",
+    "as a new false negative appears (SPEC 2.3). Add the lemma, the particle, and any",
+    "irregular form. Precision is moderate by design: the list catches its entries, misses",
+    "an entry not on it, and may over-flag a literal use ('reach out your hand' reads the",
+    "same as 'reach out to the team')."
+  ],
+  "entries": [
+    { "verb": "spin", "particle": "up", "irregular": ["spinning", "spun"] },
+    { "verb": "kick", "particle": "off" },
+    { "verb": "take", "particle": "off", "irregular": ["taking", "took", "taken"] },
+    { "verb": "follow", "particle": "up" },
+    { "verb": "fall", "particle": "back", "irregular": ["fell", "fallen"] },
+    { "verb": "reach", "particle": "out" },
+    { "verb": "dive", "particle": "into", "irregular": ["diving", "dove"] }
+  ]
+}

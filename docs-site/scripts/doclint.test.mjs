@@ -123,3 +123,46 @@ test("sentence-length-cap: documented boundary residue — an abbreviation merge
   assert.equal(violations.length, 1);
   assert.match(violations[0].message, /runs 26 words/);
 });
+
+/** The no-phrasal-verbs violations of a snippet (drops the other rules' noise). */
+function phrasalViolations(markdown) {
+  return lintMarkdown(markdown, RULES).filter((v) => v.rule === "no-phrasal-verbs");
+}
+
+test("no-phrasal-verbs flags a seeded phrasal verb as an error", () => {
+  const violations = phrasalViolations("We spin up a worker for each job.");
+  assert.equal(violations.length, 1);
+  assert.equal(violations[0].severity, "error");
+  assert.equal(violations[0].rule, "no-phrasal-verbs");
+  assert.match(violations[0].message, /"spin up"/);
+});
+
+test("no-phrasal-verbs catches an inflected form the wordlist does not list literally", () => {
+  // "kicked off" is the -ed form of the "kick off" entry. The rule must catch the
+  // inflection, not only the base lemma (acceptance: flags every seeded phrasal verb).
+  assert.equal(phrasalViolations("The scheduler kicked off three runs.").length, 1);
+});
+
+test("no-phrasal-verbs catches an irregular past form", () => {
+  // "spun up" is the irregular past of "spin up", listed in the wordlist's irregular set.
+  assert.equal(phrasalViolations("The operator spun up the cluster.").length, 1);
+});
+
+test("no-phrasal-verbs does not match a particle inside the next word (word boundary)", () => {
+  // "spin upward" must not read as "spin up": "upward" has no word boundary after "up".
+  assert.equal(phrasalViolations("The rotor can spin upward of ten times.").length, 0);
+});
+
+test("no-phrasal-verbs reports the source line of the phrasal verb", () => {
+  const doc = "# Title\n\nA short intro line.\n\nWe spin up a fresh worker here.\n";
+  const violations = phrasalViolations(doc);
+  assert.equal(violations.length, 1);
+  assert.equal(violations[0].line, 5);
+});
+
+test("no-phrasal-verbs does not read a blockquote (frozen source) or a code span", () => {
+  // Both regions are non-prose (SPEC §3), so a phrasal verb inside them never flags
+  // (acceptance: no code or blockquote text is matched).
+  assert.equal(phrasalViolations("> The vendor said to spin up a worker.").length, 0);
+  assert.equal(phrasalViolations("Run `spin up` in the shell.").length, 0);
+});
