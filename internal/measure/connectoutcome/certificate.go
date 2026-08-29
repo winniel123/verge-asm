@@ -271,8 +271,11 @@ func discriminateBlanket(ctx context.Context, c Connector, gen blanketdiscrim.Po
 // Cloudflare-fronted address therefore always reaches Inventory as an incomplete
 // reach Gap — the shape the "Hide proxy edge" toggle now badges (cmd/web/inventory.go,
 // inventoryProxyEdge). The incomplete Gap is the correct verdict for a silent-drop
-// edge, so this leaf needs no change; positive provider-edge detection (answers on
-// service ports, drops the control ports) is a distinct signal for a later ADR.
+// edge, so this leaf needs no change. ADR-0125 rules that positive provider-edge
+// detection (answers on service ports, drops the control ports) is NOT added: that
+// shape does not discriminate a port-selective edge from a plain default-drop origin,
+// so a positive verdict off it would fabricate surface from an absence. The incomplete
+// Gap stays the whole story.
 func controlResultOf(raw ConnResult) blanketdiscrim.ControlResult {
 	switch raw {
 	case ConnOpen:
