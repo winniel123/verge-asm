@@ -12,21 +12,21 @@ This is a provider-specific companion to [sso.md](sso.md): a worked example of w
 connector. Nothing here is Entra-specific on the verge side — the app discovers Entra's
 endpoints and signing keys from `<issuer>/.well-known/openid-configuration`, exactly as it
 would for Okta, Google Workspace or Keycloak. Read [sso.md](sso.md) first for the model
-that governs everything below; this guide only fills in the Entra admin-centre half and the
-one Entra footgun worth calling out — the **issuer URL**.
+that governs everything below. This guide only fills in the Entra admin-centre half and the
+one Entra footgun worth flagging — the **issuer URL**.
 
-Two product rules from [sso.md](sso.md) carry over unchanged, and both matter here:
+Two product rules from [sso.md](sso.md) apply here unchanged, and both matter:
 
-- **SSO authenticates an existing local account; it never creates one.** Provisioning a
+- **SSO authenticates an existing local account. It never creates one.** Provisioning a
   user in Entra does *not* provision them in verge-asm. Create the local account first
-  (see [accounts.md](accounts.md)); the user links their Entra identity to it afterwards.
+  (see [accounts.md](accounts.md)). The user links their Entra identity to it afterwards.
 - **A binding is keyed on the verified `(issuer, sub)`, never a username or email.** For
   Entra the `sub` is the token's stable, per-issuer subject id — not the user's UPN,
   `email` or `preferred_username`, all of which are mutable and reassignable. verge-asm
   captures `email`/`preferred_username`/`name` for display only.
 
 The Entra field labels below are named by their labels in the Microsoft Entra admin centre,
-not by pixel position; Microsoft moves the furniture, but the labels are stable.
+not by pixel position. Microsoft moves the furniture, but the labels are stable.
 
 ---
 
@@ -41,7 +41,7 @@ not by pixel position; Microsoft moves the furniture, but the labels are stable.
 
 > **Note:** SSO's scopes are fixed at `openid profile email` and are not configurable in
 > verge-asm. You do not need to add optional claims or extra Graph permissions for sign-in
-> to work; the default OIDC scopes carry the `sub`, `email`, `preferred_username` and
+> to work. The default OIDC scopes carry the `sub`, `email`, `preferred_username` and
 > `name` claims the app reads.
 
 ---
@@ -80,8 +80,8 @@ For a provider slugged `entra` reached at `https://verge.example.com`, register
 In the app registration, open **Authentication → Add a platform → Web**. Enter the first
 URI, save, then use **Add URI** to add the second. Both must sit under the **Web** platform
 — **not** "Single-page application" (SPA). verge-asm completes the code exchange
-server-side; registering the URIs as SPA opts them into the browser-only PKCE rules and the
-server-side exchange will be refused.
+server-side. Registering the URIs as SPA subjects them to the browser-only PKCE rules, and
+the server-side exchange will be refused.
 
 > **Note:** Entra matches `redirect_uri` **exactly** — scheme, host, path and trailing
 > slash. `https://` is required (Entra rejects plaintext `http` redirect URIs for anything but
@@ -98,22 +98,22 @@ untouched — verge-asm uses neither the implicit flow nor OIDC front-channel lo
 ## Step 3 — Copy the Client ID, and create a Client secret
 
 verge-asm supports both a **confidential client** (client id *and* secret) and a **public,
-PKCE-only client** (client id, no secret). PKCE (S256) is used on every login regardless;
-the secret only distinguishes the two client types.
+PKCE-only client** (client id, no secret). PKCE (S256) is used on every login regardless.
+The secret only distinguishes the two client types.
 
 **Client ID.** On the app's **Overview**, copy **Application (client) ID**. This is
 verge's **Client ID**. It is not a secret.
 
 **Client secret (confidential client — recommended for Entra).** Go to **Certificates &
 secrets → Client secrets → New client secret**. Give it a description and an expiry, then
-**Add**. Copy the secret's **Value** immediately — Entra shows it once and never again;
-after you leave the blade only its "Secret ID" remains visible. This **Value** is verge's
+**Add**. Copy the secret's **Value** immediately — Entra shows it once and never again.
+After you leave the blade, only its "Secret ID" remains visible. This **Value** is verge's
 **Client secret**.
 
 > **Note:** Entra client secrets **expire** (24 months maximum). When one expires, sign-in
 > starts failing at the token exchange. Mint a new secret ahead of the expiry and paste it
-> into verge via **Update secret** (see [sso.md → Edit, disable, re-key, remove](sso.md#edit-disable-re-key-remove));
-> the field is write-only, so replacing it is the only way to change it. Diarise the expiry.
+> into verge via **Update secret** (see [sso.md → Edit, disable, re-key, remove](sso.md#edit-disable-re-key-remove)).
+> The field is write-only, so replacing it is the only way to change it. Diarise the expiry.
 
 **Public PKCE-only client (optional alternative).** If you would rather not manage a
 secret, skip creating one and, under **Authentication → Advanced settings**, set **Allow
@@ -147,7 +147,7 @@ that document's own `issuer` field is `https://login.microsoftonline.com/<tenant
 > `https://login.microsoftonline.com/<tenant-id>` (no `/v2.0`). Its issuer is the
 > `https://sts.windows.net/<tenant-id>/` form, which will **not** equal the v2.0 issuer you
 > configured — verification fails with an issuer mismatch. Only the **v2.0** endpoint's
-> discovery and token issuer line up. If sign-in fails with an issuer-mismatch error, this
+> discovery and token issuer align. If sign-in fails with an issuer-mismatch error, this
 > is almost always the cause: confirm the `/v2.0` suffix is present.
 
 ### Verify against the discovery URL before you save

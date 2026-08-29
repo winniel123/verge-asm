@@ -19,12 +19,12 @@ and enumerated in
 [`docs/spec/notification-channels.md`](../spec/notification-channels.md).
 
 > **Status, read this first.** Report *scheduling* is **live** end-to-end
-> ([#499](https://github.com/winniel123/verge-asm/issues/499)): an admin can create,
+> ([#499](https://github.com/winniel123/verge-asm/issues/499)). An admin can create,
 > list, edit, delete and run-now a schedule, the `worker`'s on-cadence dispatcher runs
 > due schedules and stamps a delivery receipt, and `/reports/delivery` renders the
 > delivered artifact. **Off-instance delivery is built too.** The earlier
 > **collision #17** binding (once *AWAITING DESIGN*) was **ruled and landed** (P0.6,
-> v3.2.3; [#508](https://github.com/winniel123/verge-asm/issues/508)): a schedule carries
+> v3.2.3, [#508](https://github.com/winniel123/verge-asm/issues/508)). A schedule carries
 > a nullable `channel_id`, and the "New schedule" wizard's **Delivery** step binds it to a
 > notification **Channel**. A schedule that binds a channel has its **on-cadence** run
 > deliver a **link-only "report ready"** message to that channel — the notice and a link,
@@ -58,21 +58,21 @@ slice of it. Deliver reports only to targets you would trust with that map.
 
 ## The Reports screen
 
-`/reports` (login-gated; a viewer reads it, mutates nothing) folds the estate's period
+`/reports` (login-gated — a viewer reads it, mutates nothing) folds the estate's period
 analytics into one view — a KPI band, a scans-per-day activity heatmap wired from real
 `Dispatch` history, and, lower on the page, a **recurring-reports table** and a **"New
 schedule" wizard**.
 
-Two of the analytics regions are honest empty-states rather than fabricated series: a
+Two of the analytics regions are honest empty-states rather than fabricated series. A
 signal census carries no severity and is never a trend, so the example mock's "by
 severity" and "open signals over time" charts have no real data behind them and are
 empty-stated on purpose (see the handler comment in
-[`cmd/web/reports.go`](../../cmd/web/reports.go); ADR-0024). The one legitimate series
+[`cmd/web/reports.go`](../../cmd/web/reports.go), ADR-0024). The one legitimate series
 is operational — scans-per-day is activity volume, and that heatmap is real.
 
 You can export the Reports figures for the active period as a file. The export is the
 spec **SplitButton** ([#23c](https://github.com/winniel123/verge-asm/issues/586)) —
-three formats, chosen by `?format=` (an absent format defaults to `csv`; an unrecognised
+three formats, chosen by `?format=` (an absent format defaults to `csv`, an unrecognised
 one is a 400):
 
 ```
@@ -87,7 +87,7 @@ renders, so a viewer may take it. `format=pdf` is **spec-normative** (#23c) and 
 *different* read: the **delivered-report document** for the period, recomputed from the
 period bounds by `internal/message.RenderArtifactPDF` — the same renderer
 `/reports/delivery/pdf` uses, not the activity series. All three are served from this one
-`/reports/export` route; the operational (csv/json) and delivered (pdf) reads must not be
+`/reports/export` route. The operational (csv/json) and delivered (pdf) reads must not be
 conflated.
 
 ---
@@ -109,14 +109,14 @@ shape is:
 | `created_by` | The admin who declared the schedule — the estate is single-tenant, so the list is unscoped and this is the only attribution the row carries. |
 
 A `report_schedule` is **Declared**: it carries no timeline, no per-edit history. Edit is
-a genuine in-place update of what was declared (`UpdateReportSchedule`), never a recompute,
-and Delete is a hard delete (`DeleteReportSchedule`); the list is unbounded and
+a genuine in-place update of what was declared (`UpdateReportSchedule`), never a recompute.
+Delete is a hard delete (`DeleteReportSchedule`). The list is unbounded and
 newest-first (`ListReportSchedules`).
 
 ### Creating, editing and running a schedule
 
 Scheduling is live and every route below is admin-gated (`requireAdmin`) in
-[`cmd/web/handlers.go`](../../cmd/web/handlers.go); a viewer is refused before the handler
+[`cmd/web/handlers.go`](../../cmd/web/handlers.go). A viewer is refused before the handler
 runs. The handlers live in
 [`cmd/web/reports_schedule.go`](../../cmd/web/reports_schedule.go):
 
@@ -130,12 +130,12 @@ runs. The handlers live in
   channel receives the on-cadence link-only "report ready" message (see the status note
   above).
 - **Edit** — `GET /reports/schedule/{id}/edit` opens the same wizard prefilled from the
-  row; `POST /reports/schedule/{id}/edit` updates it in place with `UpdateReportSchedule`.
+  row. `POST /reports/schedule/{id}/edit` updates it in place with `UpdateReportSchedule`.
 - **Run now** — `POST /reports/schedule/run` cuts the artifact for the current period with
   the canonical renderer and stamps a `report_delivery` receipt (state `generated`, no
   `delivered_at`). Run-now is **deliberately download-only and never notifies** — even for a
   schedule that binds a Channel. The operator ran it by hand and is already at the console,
-  so the run stays viewable in-instance and nothing is sent; **only the on-cadence tick
+  so the run stays viewable in-instance and nothing is sent. **Only the on-cadence tick
   delivers** to the bound channel. This asymmetry — Run-now downloads, the cadence tick
   delivers — is by design, ruled in [`SPEC-CHANGE.md`](../../design-system/SPEC-CHANGE.md)
   **#29** (it is the honest reverse of the notification path, not a missing feature).
@@ -143,23 +143,23 @@ runs. The handlers live in
   id is a no-op, not an error).
 
 The **on-cadence dispatcher** ([`internal/report/dispatcher.go`](../../internal/report/dispatcher.go),
-wired into the `worker` in [`cmd/worker/main.go`](../../cmd/worker/main.go); ADR-0118, ADR-0122)
+wired into the `worker` in [`cmd/worker/main.go`](../../cmd/worker/main.go), ADR-0118, ADR-0122)
 polls each minute and fires each schedule at the clock time its cadence declares — **presets
 honoured to the minute, and a Custom cadence interpreted as a real 5-field cron expression**, all
 in **UTC** (this build models no per-instance timezone). `DispatchTick`
 ([`cadence.go`](../../internal/report/cadence.go)) computes the schedule's most-recent firing at or
-before "now"; that fire instant is the idempotency key, and is kept separate from `CadenceWindow`,
+before "now". That fire instant is the idempotency key, and is kept separate from `CadenceWindow`,
 which still names only the artifact **period** a run covers. Under a per-schedule advisory lock the
 dispatcher stamps exactly one receipt per `(schedule, tick)`: `TryInsertScheduledDelivery` inserts
 `ON CONFLICT (schedule_id, scheduled_tick) DO NOTHING` against the partial-unique index (migration
 [`22600`](../../db/migrations/22600_report_delivery_scheduled_tick.sql)), so a second poll before
-the next firing is a recorded skip, never a second run. **Missed firings are not caught up** — a
+the next firing is a recorded skip, never a second run. **Missed firings are not backfilled** — a
 worker that was down over one dispatches only the current firing, never backfills (currency, not
 history). An **invalid Custom cron is refused at schedule create/edit** (the wizard's Cadence step
 will not advance or finish while it does not parse), never silently coerced to a default. A run
 whose schedule binds a Channel then enqueues exactly one link-only "report ready" message that the
 `NotifyRunner` ([`internal/report/notify.go`](../../internal/report/notify.go)) POSTs, flipping the
-receipt to `delivered`; a download-only run (NULL `channel_id`) is *generated* in-instance and never
+receipt to `delivered`. A download-only run (NULL `channel_id`) is *generated* in-instance and never
 sent (collision #17, ruled and landed — not escalated).
 
 ---
@@ -175,12 +175,12 @@ GET /reports/delivery        # the delivered artifact, in the console
 GET /reports/delivery/pdf    # the same artifact as a downloadable PDF
 ```
 
-Both are login-gated; a viewer reads either, because reading a delivered record is not a
+Both are login-gated. A viewer reads either, because reading a delivered record is not a
 mutation. The route is deliberately fixed so the recurring-reports table's "view last
 delivery" link stays valid.
 
 The on-screen document and the PDF are **two render forms of one `Artifact`**. The HTML is
-drawn by `internal/message.RenderArtifact`; the PDF by
+drawn by `internal/message.RenderArtifact`. The PDF is drawn by
 `internal/message.RenderArtifactPDF` ([`internal/message/pdf.go`](../../internal/message/pdf.go)) —
 a **pure-Go render** (go-pdf/fpdf, no CGO, no external binary) chosen so it runs inside the
 distroless-static `web` image with no separate rendering engine. Both read the same content
@@ -214,11 +214,11 @@ them apart:
 - A **report** carries the **estate digest** on a **schedule**, and its delivered artifact
   is the durable record described above.
 
-Both are *outbound* and both produce operational delivery records; neither turns the
+Both are *outbound* and both produce operational delivery records. Neither turns the
 instance into a pull feed a reader could poll, which ADR-0039 refuses outright. The
 practical operator takeaway: route a **channel** when you need to know *the moment a leg
-moves*; use a **report** when you need a *periodic standing snapshot* of the whole surface.
+moves*. Use a **report** when you need a *periodic standing snapshot* of the whole surface.
 
-For getting the stack up and configuring the `worker` that will run scheduled work, see
-[running.md](running.md); for the first-run walkthrough, [using.md](using.md) and
+For starting the stack and configuring the `worker` that will run scheduled work, see
+[running.md](running.md). For the first-run walkthrough, see [using.md](using.md) and
 [first-run.md](first-run.md).

@@ -10,9 +10,9 @@ description: Build, test, regenerate code, and reproduce CI locally through Dock
 How to build, test, regenerate code, and reproduce CI locally — i.e. how to *confirm*
 a checkout is sound before you ship or open a PR.
 
-The Go toolchain and `sqlc` are **not** required on your machine; everything runs
+The Go toolchain and `sqlc` are **not** required on your machine. Everything runs
 through Docker, matching the versions the images and CI pin. Run these from the repo
-root. Examples use `"$PWD"` (Git Bash / macOS / Linux); in PowerShell use `${PWD}`.
+root. Examples use `"$PWD"` (Git Bash / macOS / Linux). In PowerShell use `${PWD}`.
 
 The pipeline of record is [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml).
 Every job below mirrors one of its jobs.
@@ -39,8 +39,8 @@ docker run --rm -v "$PWD":/src -w /src golang:1.25-bookworm \
 > **Windows checkouts and byte-exact tests.** The golden/corpus tests compare exact
 > bytes. If Git checked files out with CRLF line endings, those comparisons fail
 > locally even though CI (which uses LF) is green. Fix the working tree with
-> `git config core.autocrlf false` then `git rm --cached -r . && git reset --hard`,
-> or simply run the tests inside the Linux container above, which sees the committed
+> `git config core.autocrlf false` then `git rm --cached -r . && git reset --hard`.
+> Or simply run the tests inside the Linux container above, which sees the committed
 > LF bytes regardless of how they appear on disk.
 
 ---
@@ -61,8 +61,8 @@ for arch in amd64 arm64; do
 done
 ```
 
-The flags are not cosmetic: `CGO_ENABLED=0` fixes the resolver and keeps the pushed
-prober statically linked, and `GOAMD64=v1` pins the floating-point behaviour so a
+The flags are not cosmetic. `CGO_ENABLED=0` fixes the resolver and keeps the pushed
+prober statically linked. `GOAMD64=v1` pins the floating-point behaviour so a
 measurement value cannot move with the build host. See
 [`docs/spec/packaging-and-configuration.md`](../spec/packaging-and-configuration.md) §1.
 
@@ -72,7 +72,7 @@ measurement value cannot move with the build host. See
 
 `internal/db/*.sql.go` is **generated** from `db/queries/*.sql` against the migration
 schema (`sqlc.yaml`). CI's `sqlc` job regenerates it and fails if the result differs
-from what is committed — so after editing any query or migration, regenerate and
+from what is committed. So after editing any query or migration, regenerate and
 commit the diff:
 
 ```sh
@@ -104,7 +104,7 @@ docker run --rm -v "$PWD":/src -w /src golang:1.25-bookworm \
 The lock file lives at
 `internal/measure/resolutionwalk/corpus/corpus.lock.json`. If you bump a leaf's
 version, the gate expects a corresponding change to the corpus digest, the declared
-parameters, or the uncovered-move rows — the rule is *output moved and the version
+parameters, or the uncovered-move rows. The rule is *output moved and the version
 did not → fail*, and its inverse. See
 [`docs/spec/golden-corpus.md`](../spec/golden-corpus.md).
 
@@ -112,7 +112,7 @@ did not → fail*, and its inverse. See
 
 ## Full-stack smoke test
 
-CI's `compose` job builds the images, brings the stack up, and waits for all three
+CI's `compose` job builds the images, starts the stack, and waits for all three
 services to report healthy. Do the same locally:
 
 ```sh
@@ -129,7 +129,7 @@ against a fresh Postgres, and both `web` and `worker` pass their healthchecks.
 
 ## Before opening a PR — the checklist
 
-Run these four; they are the jobs that gate merge:
+Run these four. They are the jobs that gate merge:
 
 1. `go vet ./...` and `go test ./...` — clean.
 2. `go build` for `amd64` and `arm64` — both compile.
@@ -137,5 +137,5 @@ Run these four; they are the jobs that gate merge:
 4. `docker compose up` — the stack reaches healthy.
 
 There is also a `code-review` skill in this repo (`/code-review`) that reviews the
-diff against the repo's documented standards and the originating issue — useful before
-you push, but not a substitute for the four gates above.
+diff against the repo's documented standards and the originating issue. It is useful
+before you push, but not a substitute for the four gates above.

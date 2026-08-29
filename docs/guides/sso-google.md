@@ -11,7 +11,7 @@ Google Workspace is one OpenID Connect (OIDC) provider among many, and verge-asm
 it through the same generic connector it uses for every provider — there is no Google
 plug-in, only the standard discovery-and-verify path described in [sso.md](sso.md). This
 guide is the Google-specific companion to that page: it walks the Google Cloud console
-side, then hands back to the verge-side form. Read [sso.md](sso.md) first for the rules
+side, then returns to the verge-side form. Read [sso.md](sso.md) first for the rules
 that govern all of this — SSO **authenticates an existing account and never creates one**,
 and a binding is keyed on the verified `(issuer, sub)`, never a username or email.
 
@@ -27,8 +27,8 @@ Two facts shape the whole setup and are worth stating before you start:
   local binding is refused, not provisioned. The consent-screen restriction below is
   defence in depth on top of that, keeping the round-trip itself inside your org.
 
-The verge config lives in [`cmd/web/settings_sso.go`](../../cmd/web/settings_sso.go); the
-flow in [`cmd/web/sso.go`](../../cmd/web/sso.go).
+The verge config lives in [`cmd/web/settings_sso.go`](../../cmd/web/settings_sso.go). The
+flow lives in [`cmd/web/sso.go`](../../cmd/web/sso.go).
 
 ---
 
@@ -42,7 +42,7 @@ flow in [`cmd/web/sso.go`](../../cmd/web/sso.go).
   redirect URIs are rooted at it and must match byte-for-byte on both sides. See
   [sso.md → `<base>` comes from `VERGE_EXTERNAL_URL`](sso.md#base-comes-from-verge_external_url).
 - Admin access to verge-asm's **Settings → Single sign-on**, which is admin-only.
-- A **slug** you will use for this provider. This guide uses `google` throughout; pick your
+- A **slug** you will use for this provider. This guide uses `google` throughout. Pick your
   own (lowercase letters, digits and internal hyphens). The slug rides the callback paths,
   so decide it now — changing it later means re-registering both redirect URIs.
 
@@ -109,7 +109,7 @@ For a deployment at `https://verge.example.com` with the slug `google`, register
 > `localhost` for local testing) and forbids raw IP hosts. This aligns with verge deriving
 > the `redirect_uri` from `VERGE_EXTERNAL_URL` — set that to your real `https` origin, and
 > the values match on both sides. A trailing-slash or scheme mismatch is the usual cause of
-> `redirect_uri_mismatch`; register exactly the two strings above.
+> `redirect_uri_mismatch`. Register exactly the two strings above.
 
 ---
 
@@ -119,11 +119,11 @@ On saving the client, Google shows its **Client ID** and **Client secret**. A We
 application client always has a secret, so configure verge as a **confidential client**:
 paste both.
 
-- The **Client ID** is not a secret; verge stores and displays it plainly.
+- The **Client ID** is not a secret. verge stores and displays it plainly.
 - The **Client secret** is write-only in verge — it is stored in the database
   (`sso_provider.client_secret`) and never read back to any screen. See
   [sso.md → Where the client secret is stored](sso.md#where-the-client-secret-is-stored).
-  Because it lives in Postgres, a database dump carries it; treat `pgdata` accordingly.
+  Because it lives in Postgres, a database dump carries it. Treat `pgdata` accordingly.
 
 > **Note:** verge also supports public, PKCE-only clients (no secret), and it applies S256
 > PKCE on every login regardless. But a Google **Web application** client issues a secret,
@@ -148,7 +148,7 @@ Connect provider** form. It takes exactly **five** fields:
 verge validates the issuer is an `https` URL and then discovers Google's endpoints and
 signing keys from `<issuer>/.well-known/openid-configuration` — for Google, that is
 `https://accounts.google.com/.well-known/openid-configuration`. You can open that document
-in a browser to confirm the issuer before saving; its `issuer` field must read
+in a browser to confirm the issuer before saving. Its `issuer` field must read
 `https://accounts.google.com` exactly, which is the value verge verifies in each
 `id_token`. The scopes are **fixed** at `openid profile email` and are not configurable.
 
@@ -165,7 +165,7 @@ issuer, audience and a per-login nonce — before trusting anything in it. Two c
 - **`sub`** is the binding key. Google documents it as "unique among all Google Accounts
   and never reused" — exactly the stable, non-reassignable subject
   [ADR-0113](../adr/0113-sso-binds-a-verified-issuer-sub-not-a-mutable-username.md) requires.
-  verge binds `(provider, sub)`; it never authenticates on `email`.
+  verge binds `(provider, sub)`. It never authenticates on `email`.
 - **`email`** and **`email_verified`** ride along for the display label only. Google warns
   the email "may not be unique to this account and could change over time", which is
   precisely why verge does not key on it. Treat `email_verified` as a data-quality signal,
@@ -176,7 +176,7 @@ Because Google's issuer is shared across all orgs, verge cannot tell one Workspa
 another by the issuer. Org confinement therefore rests on the **Internal consent screen**
 from Step 1 (and, if you use External, on the fact that verge admits only linked accounts).
 Google also exposes an `hd` (hosted-domain) hint, but verge does not send an `hd`
-authorization parameter and does not gate on the `hd` claim; do not rely on the request-side
+authorization parameter and does not gate on the `hd` claim. Do not rely on the request-side
 `hd` hint for security in any case — Google itself notes it can be altered client-side, so
 only the signed claim would ever be trustworthy.
 

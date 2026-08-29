@@ -9,10 +9,10 @@ description: Discovery sources widen what verge-asm knows about your estate befo
 
 Discovery sources widen what verge-asm knows about your estate *before* it measures.
 This guide covers the **Sources** page (`/sources`): what the catalogue holds, the
-consent tiers that decide what ships on, that toggling is admin-only, and the two
-caveats that trip up first-run operators — crt.sh and the RIR proposers.
+consent tiers that decide what ships on, and that toggling is admin-only. It also covers
+the two caveats that confuse first-run operators — crt.sh and the RIR proposers.
 
-The catalogue is authored in [`cmd/web/sources.go`](../../cmd/web/sources.go); the
+The catalogue is authored in [`cmd/web/sources.go`](../../cmd/web/sources.go). The
 consent model is [ADR-0003](../adr/0003-third-party-source-consent-bar.md) and the
 proposer-vs-source distinction is
 [ADR-0012](../adr/0012-a-proposer-is-not-a-source.md).
@@ -29,9 +29,9 @@ Two different things sit on this page, and the difference matters:
 - A **proposer** *observes nothing*. It answers an **org-name search** with candidate
   **address scopes** you might own, as `Proposal`s. A proposal admits nothing until you
   **confirm it into a `Seed`** — until then it is probed by nothing. Proposers carry
-  `consent` alone; they have no authority and no completeness because they add no facet.
+  `consent` alone. They have no authority and no completeness because they add no facet.
 
-So enabling a source can change what is in your estate; enabling a proposer only changes
+So enabling a source can change what is in your estate. Enabling a proposer only changes
 what an org-name search is allowed to *suggest*.
 
 ---
@@ -52,9 +52,9 @@ comply — the project simply declines to make that call for you. The model rese
 third tier, `operator-credentialed` (a source needing your own API key), but **no v1
 source uses it**.
 
-A third disposition is not a tier at all: some entries are **barred** — excluded on
-their terms and non-toggleable, carrying no consent tier because the project does not run
-them for anyone.
+A third disposition is not a tier at all: some entries are **barred**. They are excluded
+on their terms and non-toggleable. They carry no consent tier, because the project does
+not run them for anyone.
 
 ---
 
@@ -84,13 +84,15 @@ Ten entries ship. What each is, what it discovers, and its consent tier:
 
 The three keyless proposer paths ship on because they are `unencumbered`. The four registry
 paths are `operator-accepted` **by tier**, but **no `proposer.Source` runner ships for them
-yet** — they render consent+toggle but would emit nothing — so they are **catalogued — not
-yet executing** (the #241 mechanism): non-toggleable, offering **no consent dialog**, and off
-for everyone until a runner lands, at which point they return to *ship off — accept the terms*.
-The `/sources` modal buckets every entry by state: *shipped on*, *ship off — accept the terms*
-(empty in v1, since every `operator-accepted` entry is currently runnerless), and the third
-*not run for anyone* bucket — which holds both barred entries and these catalogued-but-runnerless
-proposers.
+yet**. They render consent+toggle but would emit nothing. So they are **catalogued — not
+yet executing** (the #241 mechanism): non-toggleable, offering **no consent dialog**, and
+off for everyone until a runner lands. At that point they return to *ship off — accept the
+terms*.
+
+The `/sources` modal buckets every entry by state. The buckets are *shipped on*, *ship off
+— accept the terms* (empty in v1, since every `operator-accepted` entry is currently
+runnerless), and *not run for anyone*. The third bucket holds both barred entries and
+these catalogued-but-runnerless proposers.
 
 ---
 
@@ -105,7 +107,7 @@ Barred entries are non-toggleable for everyone, admins included.
 
 **What a toggle records.** The current on/off value is stored per-install (one row per
 source, the value overwritten in place). Like every declared term it keeps **no
-per-toggle history and carries no actor or timestamp of its own** — it is **dated by the
+per-toggle history and carries no actor or timestamp of its own**. It is **dated by the
 `Batch` whose recorded source set it moved**, which is where the audit trail lives. So
 "when did this source change" is answered by the batch record, not by a log line on the
 toggle.
@@ -116,22 +118,23 @@ toggle.
 
 ### crt.sh executes (as of the CT runner, ADR-0106)
 
-Earlier builds catalogued crt.sh but shipped **no execution path** — issue
+Earlier builds catalogued crt.sh but shipped **no execution path**. Issue
 [#241](https://github.com/winniel123/verge-asm/issues/241) held it *defined but inert*,
 enabled in the catalogue yet running nothing. **That is no longer the case.** The crt.sh
 CT runner ([#250](https://github.com/winniel123/verge-asm/issues/250), ADR-0106) landed a
-real runner — the **`ct` scan** — so crt.sh is a **live source again**: it ships on,
+real runner — the **`ct` scan**. So crt.sh is a **live source again**: it ships on,
 polls crt.sh on a daily cadence (throttled), and admits the `Name`s it finds. See
 [first-run.md → Confirm a scan ran](first-run.md#confirm-a-scan-actually-ran) and
 [running.md → On-demand scan triggers](running.md#on-demand-scan-triggers) (`-trigger ct`).
 
 The *catalogued-but-runnerless* mechanism #241 built now holds the four RIR **registry
 proposers** — RIPEstat, RIPE Database, APNIC registry, LACNIC registry. Each is
-`operator-accepted` by tier but ships with **no `proposer.Source` runner**, so it is
+`operator-accepted` by tier but ships with **no `proposer.Source` runner**. So it is
 catalogued-yet-inert: rendered in the third *not run for anyone* bucket, **non-toggleable**,
-with **no consent dialog offered**, until a real runner lands and returns it to *ship off —
-accept the terms* (the same reversal crt.sh made). The three keyless proposer paths (ARIN,
-AFRINIC, APNIC via CAIDA) execute today; the four registry paths do not.
+with **no consent dialog offered**. It stays that way until a real runner lands and returns
+it to *ship off — accept the terms* (the same reversal crt.sh made). The three keyless
+proposer paths (ARIN, AFRINIC, APNIC via CAIDA) execute today. The four registry paths do
+not.
 
 ### RIR proposers propose address scopes, not subdomains
 

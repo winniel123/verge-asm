@@ -11,8 +11,8 @@ A tour of the operator workflow, from first login to reading drift. Assumes the 
 is already up — see [running.md](running.md) if it is not.
 
 The product's own vocabulary (`Seed`, `Custody`, `Vantage`, `Exposure`, `Span`,
-`Coverage`) is defined in [`CONTEXT.md`](../../CONTEXT.md). This guide uses the terms;
-that file is where they are pinned down.
+`Coverage`) is defined in [`CONTEXT.md`](../../CONTEXT.md). This guide uses the terms.
+That file is where each term is pinned.
 
 ---
 
@@ -35,28 +35,28 @@ docker compose logs web | grep /setup
 You can later invite more accounts and set roles under **Settings**, and enable TOTP
 on your own account. Two roles exist: **admin** (can perform declared acts — seeds,
 scans, channels) and a read-only viewer. Inviting, re-enrolling and removing accounts
-is covered in **[accounts.md](accounts.md)**; enrolling TOTP, minting API tokens and
-revoking sessions in **[authentication.md](authentication.md)**.
+is covered in **[accounts.md](accounts.md)**. Enrolling TOTP, minting API tokens and
+revoking sessions is covered in **[authentication.md](authentication.md)**.
 
 ---
 
 ## The four-step checklist
 
-The home page renders your `Coverage` as a checklist. Each step unlocks a capability;
-until you complete them, the system is honest about what it cannot yet conclude rather
+The home page renders your `Coverage` as a checklist. Each step unlocks a capability.
+Until you complete them, the system is honest about what it cannot yet conclude rather
 than guessing.
 
 ### 1. Declare your domain
 
 Under **Seeds**, declare a `Seed` — your assertion of *where your estate ends*:
 
-- a **name scope** — a registrable domain such as `example.com`; or
+- a **name scope** — a registrable domain such as `example.com`, or
 - an **address scope** — a CIDR you control, e.g. `203.0.113.0/24`.
 
 A `Seed` is a boundary, not a starting gun: declaring one **queues** a scan rather
-than firing one. An address scope enumerates — every address inside it becomes a
-subject and is walked every cadence, which is what lets *no ports responded* be a
-fact rather than a silence. A name scope enumerates nothing on its own; its addresses
+than firing one. An address scope enumerates. Every address inside it becomes a
+subject and is walked every cadence. That is what lets *no ports responded* be a
+fact rather than a silence. A name scope enumerates nothing on its own. Its addresses
 are reached only by measured resolution, and only under a **custody extension**.
 
 - Address scopes carry a **range-size cap** (1,024 addresses by default,
@@ -64,9 +64,9 @@ are reached only by measured resolution, and only under a **custody extension**.
   estate through a name scope with a custody extension.
 - Draw the boundary inward with **exclusions** — exact names, subtrees, or address
   scopes you declare are *not yours*. *Not mine* is a different claim from *not
-  there*; an excluded name is simply no longer queried. Preview an exclusion before
+  there*. An excluded name is simply no longer queried. Preview an exclusion before
   committing it.
-- Turn on a **custody extension** on a name scope to declare that the addresses its
+- Enable a **custody extension** on a name scope. It declares that the addresses its
   names resolve to are inside your boundary (the cloud-resident case, where you hold
   no address registrations). Transitivity stops where the resolution chain leaves the
   declared zone.
@@ -77,8 +77,8 @@ confirmed asserts nothing and is probed by nothing. Confirm or decline each.
 ### 2. Upload a zone file
 
 Under **Seeds → zone**, upload a zone file for a name scope to enable **removal
-detection**. It is *uploaded, not mounted*: supply is a dated act, and the upload
-instant is the observation instant, so *you stopped telling us* becomes detectable. A
+detection**. It is *uploaded, not mounted*. Supply is a dated act, and the upload
+instant is the observation instant. So *you stopped telling us* becomes detectable. A
 file whose apex sits outside the scope it was uploaded against is refused, with the
 reason.
 
@@ -92,8 +92,8 @@ common DNS providers or your own name servers, see **[zone-files.md](zone-files.
 ### 3. Add an internet vantage (provision a prober)
 
 **Exposure requires an outside observer, unconditionally.** A single all-in-one
-install can build a complete, honest *internal* reachability inventory, but it cannot
-see its own estate from the internet — probing your own public address from inside is
+install can build a complete, honest *internal* reachability inventory. But it cannot
+see its own estate from the internet. Probing your own public address from inside is
 a hairpinning trap that never traverses the inbound policy. So `Exposure` needs a
 **prober**: a second Linux host reached over SSH.
 
@@ -108,35 +108,36 @@ Under **Probers**, supply four non-secret values:
 
 Then:
 
-1. Install the rendered **public** key in that account's `authorized_keys` (harden it
-   with `restrict` and, once your egress address is known, `from=`).
-2. At provisioning the instance reads and **pins** the host key (a later change is a
-   hard failure, never a prompt) and checks `uname -s` / `uname -m` — a host that is
+1. Install the rendered **public** key in that account's `authorized_keys`. Harden it
+   with `restrict` and, once your egress address is known, `from=`.
+2. At provisioning the instance reads and **pins** the host key. A later change is a
+   hard failure, never a prompt. It also checks `uname -s` / `uname -m`. A host that is
    not Linux on `x86_64`/`aarch64` is refused there, with the reason.
 3. On the first connection the prober observes your instance's egress address from
    `SSH_CLIENT`. The instance then renders *your egress is `203.0.113.5`* and offers
    it for declaration.
 
 > **Don't hand-roll the host.** [`deploy/prober/`](../../deploy/prober/) is a
-> `docker compose` recipe that stands up exactly this — a minimal, hardened, non-root
-> SSH target — so steps 1–3 become "paste the rendered public key and `docker compose
+> `docker compose` recipe that creates exactly this — a minimal, hardened, non-root
+> SSH target. So steps 1–3 become "paste the rendered public key and `docker compose
 > up`." The copy-paste walkthrough, including the host-key pin and the `restrict` /
 > `from=` hardening, is in **[prober.md](prober.md)**.
 
-Until an internet vantage exists, exposure claims are withheld — the system degrades
-to internal-only and **never** reports `firewalled` or `exposed` for something it did
-not look at.
+Until an internet vantage exists, exposure claims are withheld. The system degrades
+to internal-only. It **never** reports `firewalled` or `exposed` for something it did
+not observe.
 
 ### 4. Run the first batch
 
 The `dns` scan resolves through the shipped **`local` vantage**, whose `resolver`
 column names the recursive resolver to query. On the `docker compose` deployment this
-ships as `127.0.0.11:53` — Docker's embedded DNS, reachable from the worker container —
-so **on compose you do not need to change it**.
+ships as `127.0.0.11:53` — Docker's embedded DNS, reachable from the worker container.
+So **on compose you do not need to change it**.
 
-Off compose (bare-metal or a host-network install, where `127.0.0.11` is not routed)
-point it at your own recursive resolver *before* the first scan. The `local` vantage is
-resolver-only and has no prober page, so set its resolver directly on the row:
+Off compose — bare-metal or a host-network install — `127.0.0.11` is not routed. Set
+the `local` vantage's resolver to your own recursive resolver *before* the first scan.
+The `local` vantage is resolver-only and has no prober page. So set its resolver
+directly on the row:
 
 ```sh
 docker compose exec postgres \
@@ -144,13 +145,13 @@ docker compose exec postgres \
   -c "UPDATE vantage SET resolver = '203.0.113.53:53' WHERE name = 'local';"
 ```
 
-Substitute your resolver's `host:port`. `-U verge -d verge` are the shipped defaults;
-if you set `POSTGRES_USER` / `POSTGRES_DB` in `.env`, pass those values instead. A
-resolver that nothing answers yields empty records and a `Gap` rather than real data —
-and the scan still commits as `completed`, so a wrong resolver fails silently. This is
+Substitute your resolver's `host:port`. `-U verge -d verge` are the shipped defaults.
+If you set `POSTGRES_USER` / `POSTGRES_DB` in `.env`, pass those values instead. A
+resolver that nothing answers yields empty records and a `Gap` rather than real data.
+The scan still commits as `completed`, so a wrong resolver fails silently. This is
 the one setting you may need to change before the first scan.
 
-Scans dispatch on their own cadence, but you can kick the first one immediately from
+Scans dispatch on their own cadence, but you can trigger the first one immediately from
 the worker (see [running.md → On-demand scan triggers](running.md#on-demand-scan-triggers)):
 
 ```sh
@@ -163,9 +164,9 @@ Once a batch commits, subjects, observations and spans appear across the pages b
 
 ## Reading what it found
 
-For the full tour of every read surface — coverage, exposure, drift, inventory, the
-graph and search, and how to read a single scan run — see
-**[reading-the-estate.md](reading-the-estate.md)**. The quick reference:
+The full tour of every read surface is in **[reading-the-estate.md](reading-the-estate.md)**.
+It covers coverage, exposure, drift, inventory, the graph and search, and how to read a
+single scan run. The quick reference:
 
 | Page | Shows |
 | --- | --- |
@@ -188,26 +189,29 @@ Withdraw it to restore the default message.
 
 ## Notification channels
 
-By default **nothing is routed anywhere** — no channel ships configured, so the
+By default **nothing is routed anywhere**. No channel ships configured, so the
 delivery loop is a no-op until an admin declares one under **Settings → Channels**. A
 channel *carries the message, never the estate*.
 
-The full treatment — creating and editing channels, what fires and what a message body
-carries, the `Delivery` attempt record, and setting `VERGE_PUBLIC_URL` so notification
-bodies link back to the instance — is in
-**[notification-channels.md](notification-channels.md)**.
+The full treatment is in **[notification-channels.md](notification-channels.md)**. It
+covers:
+
+- creating and editing channels,
+- what fires and what a message body carries,
+- the `Delivery` attempt record,
+- setting `VERGE_PUBLIC_URL` so notification bodies link back to the instance.
 
 ---
 
 ## A mental model to keep
 
 - **Declared** is your input and never drifts. **Observed** is what was measured.
-  **Derived** is what was concluded — and two derived values are comparable *only*
-  within one identical derivation, which the system enforces with a `Break` rather
+  **Derived** is what was concluded. Two derived values are comparable *only*
+  within one identical derivation. The system enforces that with a `Break` rather
   than trusting to discipline.
 - When the answer is *we don't know yet*, the product says so in `Coverage` instead
   of inventing certainty. Reading Coverage is as much the job as reading Exposure.
 
-The *why* behind these — and the questions a first run tends to raise (why `Exposure`
-needs two vantages, how to tell a scan that ran from one that failed in silence) — is
-in **[first-run.md](first-run.md)**.
+The *why* behind these is in **[first-run.md](first-run.md)**. That guide answers the
+questions a first run tends to raise. Two examples: why `Exposure` needs two vantages,
+and how to tell a scan that ran from one that failed in silence.
