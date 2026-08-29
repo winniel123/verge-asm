@@ -42,14 +42,14 @@ components and flip the token themes.
 ### 1. Single-source rendering
 
 The guides in `docs/guides/` are the **single source**. The site reads that Markdown and renders it
-through the ported shell; it does not keep a second, transformed copy of any guide under `docs-site/`.
+through the ported shell. It does not keep a second, transformed copy of any guide under `docs-site/`.
 A guide is edited in exactly one place — its `.md` file — and the site re-renders it. There is no
 "import the docs into the site" step, because a copy is a second source of truth and a second source of
 truth is drift waiting to happen.
 
 The T0 placeholder page (`docs-site/src/pages/index.astro` + the `Article` island) is sample prose only,
-present to prove the shell frames real content in both themes. It is explicitly **not** a copied guide;
-the ticket that wires Markdown rendering replaces that body with the rendered guide, keeping the guide
+present to prove the shell frames real content in both themes. It is explicitly **not** a copied guide.
+The ticket that wires Markdown rendering replaces that body with the rendered guide, keeping the guide
 file as the origin.
 
 ### 2. The git-ref version model
@@ -63,7 +63,7 @@ hand-cut folders:
 - **`latest`** is an **alias** to the highest `v*` tag by semver, not a copy of it.
 - **`/` and `/latest/*` redirect** to the resolved highest-tag version's paths, so a bare or
   `latest`-prefixed URL always lands on the current release's docs.
-- **Past versions are immutable.** A shipped version's docs are the guides at that tag; you do not edit
+- **Past versions are immutable.** A shipped version's docs are the guides at that tag. You do not edit
   the published `/v0.9.1/*` tree in place. Fixing a shipped version's docs is a **maintenance branch +
   patch re-tag** (the same discipline the product's releases already follow), which re-derives that
   version from the corrected ref.
@@ -72,7 +72,7 @@ hand-cut folders:
 or the build, a `versions/v0.9.1/`, `versions/v0.9.2/` … set of frozen folders — copies of the guides
 per release. That reintroduces exactly the drift single-source rendering exists to prevent: a snapshot is
 a copy, copies get edited independently of their origin, and the published history stops being a faithful
-record of what shipped. Git already stores an immutable, content-addressed snapshot at every tag; a
+record of what shipped. Git already stores an immutable, content-addressed snapshot at every tag. A
 version folder is a worse copy of information the tag already holds perfectly. Deriving each version from
 its ref keeps "the v0.9.1 docs" defined as "the guides at `v0.9.1`," with no editable duplicate able to
 diverge from it.
@@ -106,7 +106,7 @@ data:
   build time (a Vite `resolveId` redirect of `components/media/Icon.jsx` to a local lucide-react
   wrapper), per the DS README's "one-file swap." No design-system file is edited.
 - **Fonts are self-hosted.** The production build does **not** use the Google Fonts `@import` in
-  `tokens/typography.css`; Instrument Sans + Geist Mono `woff2` (variable, latin + latin-ext) are served
+  `tokens/typography.css`. Instrument Sans + Geist Mono `woff2` (variable, latin + latin-ext) are served
   from the site origin, and `typography.css`'s token values are mirrored locally minus that `@import`.
 - **Shell slots** — the left section-nav rail (`sections`), the right on-page TOC (`toc`), the
   `VersionSelect` version list, and the search box — are separated components taking placeholder props,
@@ -115,17 +115,17 @@ data:
 
 ## Consequences
 
-- **A guide has exactly one home.** Editing `docs/guides/signals.md` updates the site; there is no second
+- **A guide has exactly one home.** Editing `docs/guides/signals.md` updates the site. There is no second
   copy to keep in sync, and no "sync the docs" chore. The cost is that the rendering ticket must read the
   guides from `docs/guides/` at build time rather than from a folder inside `docs-site/`.
-- **Version history is defined by tags, and stays honest.** Publishing a new release is tagging it;
+- **Version history is defined by tags, and stays honest.** Publishing a new release is tagging it.
   `latest` re-resolves to the new highest tag and the root redirect follows, with no folder to cut. Fixing
   old docs is a patch re-tag, not an in-place edit — which is more ceremony than editing a folder, and
   deliberately so, because it keeps every published version a faithful snapshot of what shipped.
 - **The build depends on the repo-root `design-system/`.** `docs-site/` imports tokens and components from
-  `../design-system` via a `@ds` alias; it is coupled to that directory's layout but authors none of it,
+  `../design-system` via a `@ds` alias. It is coupled to that directory's layout but authors none of it,
   honouring ADR-0109. If the design system moves, the alias moves with it — one config line.
-- **The stack is a static bundle with no server.** Astro emits static HTML/CSS/JS; there is nothing to run
+- **The stack is a static bundle with no server.** Astro emits static HTML/CSS/JS. There is nothing to run
   in production beyond a static host. Interactivity is confined to hydrated islands, so the static content
   ships no framework runtime.
 - **Committing to Astro is a reversible-but-load-bearing choice.** Because the site re-implements no design

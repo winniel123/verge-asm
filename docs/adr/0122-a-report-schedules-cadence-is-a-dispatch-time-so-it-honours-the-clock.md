@@ -9,7 +9,7 @@
 
 ## Context
 
-This ADR transcribes a **standing binding ruling** (design side, 2026-08-24; drift-audit
+This ADR transcribes a **standing binding ruling** (design side, 2026-08-24, drift-audit
 ruling **#31**, `design-system/SPEC-CHANGE.md`) and the operator's explicit direction to build
 the full engine. It does **not re-decide** whether report schedules honour the clock — that is
 ruled. It scopes the supersession and records the reconciliation with the ADRs the prior design
@@ -37,7 +37,7 @@ This ADR is that reopening, on the record.
 The `cadence.go` doc comment, its test, ticket #639, and map #630 cite the no-cron doctrine as
 **"ADR-0091 and ADR-0117."** ADR-0117 is *"a session is a server-side record, so it can be
 revoked"* — it says nothing about cron, cadence, or rule-set predicates. The substantive
-report-scheduling decision the citation means is **ADR-0118**; the "0117" is a stale
+report-scheduling decision the citation means is **ADR-0118**. The "0117" is a stale
 mis-citation that propagated from the code comment into the ticket and the map. This ADR
 supersedes the real clauses in **ADR-0118** and leaves ADR-0117 (sessions) untouched. The stale
 `cadence.go`/test citations are corrected at their sites (ADR-0058: withdraw at the site that
@@ -61,20 +61,20 @@ decide a **routing** outcome, and breaks when the corpus it references moves.
 A schedule's cron expression is none of that. It is a **pure predicate over the wall clock** —
 *is this minute a firing minute?* — evaluated against `time.Now()`, and it is:
 
-- **Not a routing key.** It decides *when a run happens*, never *who receives it*; routing stays
+- **Not a routing key.** It decides *when a run happens*, never *who receives it*. Routing stays
   by class alone (ADR-0091 untouched). A schedule with no bound Channel is download-only and
   routes to no one at all.
 - **Not over the estate.** It references no rule, no subject, no span, no signal — nothing that
   can be renamed. It cannot "fail silently when a rule is renamed" because it names no rule. It
   reads a clock, and clocks are not versioned.
-- **Not a rule-set evaluation.** It produces no admission, no class, no derivation; it fires a
+- **Not a rule-set evaluation.** It produces no admission, no class, no derivation. It fires a
   document cut. The corpus separation ADR-0039/ADR-0041 protect is not entered.
 
 So honouring cron reintroduces **none** of the versioned-rule-set risk ADR-0091 and ADR-0039
 guard. It is a firing schedule, exactly the thing ADR-0118 said would be "a firing schedule"
 rather than "a real predicate evaluator." (Had the cadence instead selected *which subjects* a
 report covers by an operator expression over the estate, that WOULD be the guarded hazard and
-this build would have stopped and escalated. It does not: the cadence times the cut; the
+this build would have stopped and escalated. It does not: the cadence times the cut. The
 sections/period decide the content, unchanged.) ADR-0091's decision — the routing unit is the
 class — is not touched, and ADR-0039 §6's coalescing/suppression refusals are not touched (a fire
 schedule delays, holds, and suppresses nothing).
@@ -91,26 +91,28 @@ still summarises the daily window.
 
 ### 3. Grammar and storage — parse-per-tick, no migration
 
-The stored `cadence TEXT` already carries everything needed; **no new columns and no migration**
+The stored `cadence TEXT` already carries everything needed. **No new columns and no migration**
 are added (storage decision: **parse-per-tick**, deterministic and stateless).
 
 - **Presets** are the closed, model-owned CadenceSelect set. Each is translated to an equivalent
-  cron, honouring the clock time and day the label literally carries: `daily · 08:00` → `0 8 * * *`;
-  `weekly · mon 09:00` → `0 9 * * 1`; `every 6h` → `0 */6 * * *`; `monthly · 1st` → `0 0 1 * *`
+  cron, honouring the clock time and day the label literally carries: `daily · 08:00` → `0 8 * * *`,
+  `weekly · mon 09:00` → `0 9 * * 1`, `every 6h` → `0 */6 * * *`, `monthly · 1st` → `0 0 1 * *`
   (the label carries no clock time, so it fires at **day-start, 00:00**).
 - **Custom** is parsed as a 5-field cron directly.
 
 A small **in-repo 5-field cron evaluator** does the work (`internal/report/cadence.go`) — no new
 dependency, matching the dependency-free stance of the queue dispatcher. It implements standard
-Vixie semantics: `*`, lists, ranges, and `*/n` steps; day-of-week `0–7` with both `0` and `7`
-Sunday; and the dom/dow **union** rule (when both day fields are restricted a day matches if
-either does).
+Vixie semantics:
+
+- `*`, lists, ranges, and `*/n` steps.
+- Day-of-week `0–7` with both `0` and `7` Sunday.
+- The dom/dow **union** rule (when both day fields are restricted a day matches if either does).
 
 ### 4. Timezone — UTC, because no instance timezone is modelled
 
-Nothing in the schema or config carries a timezone; every stored instant is UTC. A cadence's
+Nothing in the schema or config carries a timezone. Every stored instant is UTC. A cadence's
 declared clock time is therefore interpreted in **UTC**, and `DispatchTick` computes in UTC. This
-is stated, not assumed; when an instance timezone is ever modelled, `DispatchTick` is the one
+is stated, not assumed. When an instance timezone is ever modelled, `DispatchTick` is the one
 place that resolves the location.
 
 ### 5. Idempotency and missed-tick policy are unchanged
@@ -130,25 +132,25 @@ refusal surface is the wizard's **Cadence step** (`cmd/web/reports_schedule.go`)
 validity gate now requires a Custom cron that both is non-empty **and** parses
 (`report.ValidateCron`), so the wizard neither advances past nor finishes from the Cadence step
 while the cron is malformed, and a finish POST bounces back to that step. The client JS already
-blocked an empty cron; the server now additionally blocks a malformed one, so a hand-crafted POST
+blocked an empty cron. The server now additionally blocks a malformed one, so a hand-crafted POST
 cannot file an uninterpretable schedule. A cadence that somehow reaches the dispatcher
 uninterpretable (a legacy or hand-edited row) is **skipped with a log line**, never fired on a
 wrong default.
 
 ## Consequences
 
-- **Schedules fire when the operator asked.** `daily · 08:00` fires at 08:00 UTC; `0 9 * * 1`
-  fires Mondays at 09:00; `*/15 * * * *` every quarter hour — verified by clock-injected table
+- **Schedules fire when the operator asked.** `daily · 08:00` fires at 08:00 UTC. `0 9 * * 1`
+  fires Mondays at 09:00. `*/15 * * * *` every quarter hour — verified by clock-injected table
   tests, no Postgres required.
 - **ADR-0118 is amended at its cron clauses only.** Its window vocabulary, its no-second-table
   idempotency, and its in-instance stance are unchanged and still cited by the dispatcher.
-- **ADR-0091 and ADR-0039 are untouched.** Routing stays by class; no estate predicate is
-  evaluated; §1 records why a fire schedule is not the guarded hazard.
-- **No schema change.** Parse-per-tick over the existing `cadence` column; the receipt store and
+- **ADR-0091 and ADR-0039 are untouched.** Routing stays by class. No estate predicate is
+  evaluated. §1 records why a fire schedule is not the guarded hazard.
+- **No schema change.** Parse-per-tick over the existing `cadence` column. The receipt store and
   its partial index are unchanged.
 - **The mis-citation is corrected.** `cadence.go` and its test cited ADR-0117 (sessions) for the
-  no-cron doctrine; those comments now cite this ADR and ADR-0118.
-- **UI is unchanged.** No template moves (SPEC-CHANGE #31 is backend + docs); the wizard renders
+  no-cron doctrine. Those comments now cite this ADR and ADR-0118.
+- **UI is unchanged.** No template moves (SPEC-CHANGE #31 is backend + docs). The wizard renders
   exactly as before — the refusal reuses the existing per-step gate.
 
 ## Alternatives rejected

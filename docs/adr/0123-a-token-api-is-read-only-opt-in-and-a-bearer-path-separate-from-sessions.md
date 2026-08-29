@@ -23,9 +23,9 @@ Ground 1 is the one that must be answered on its own terms, because it is a **se
 
 The instance's database is *"a complete, current map of the operator's attack surface"* (ADR-0001, ADR-0039). #11's TOTP guards **admin acts** — a `Seed`, an exclusion, a `Scan` config change, a `Channel` (§4.3: *"every Declared act ... is an authenticated admin act"*). TOTP's protection is therefore, precisely, over **mutation of the estate and its configuration**. A leaked bearer that could perform a Declared act would walk past exactly that guard — ground 1's hazard, verbatim.
 
-But a bearer that can **only read** walks past nothing TOTP was defending, because a session can already read the whole inventory and export it as CSV/JSON **without a second TOTP challenge** (§4.1). The read is already available to any authenticated session; TOTP does not re-gate each read. So a read-only bearer exposes no capability the session model does not already expose to a logged-in operator — it changes *who holds the credential and how it is carried*, which is a credential-management problem (revocation, scoping, transport), not a bypass of an auth factor that was guarding reads. It never was.
+But a bearer that can **only read** walks past nothing TOTP was defending, because a session can already read the whole inventory and export it as CSV/JSON **without a second TOTP challenge** (§4.1). The read is already available to any authenticated session. TOTP does not re-gate each read. So a read-only bearer exposes no capability the session model does not already expose to a logged-in operator — it changes *who holds the credential and how it is carried*, which is a credential-management problem (revocation, scoping, transport), not a bypass of an auth factor that was guarding reads. It never was.
 
-This is the seam the reversal turns on: **read is not what TOTP protects; mutation is.** Reverse #6 for reads, keep it absolute for mutation.
+This is the seam the reversal turns on: **read is not what TOTP protects. Mutation is.** Reverse #6 for reads, keep it absolute for mutation.
 
 ## Decision
 
@@ -33,13 +33,13 @@ This is the seam the reversal turns on: **read is not what TOTP protects; mutati
 
 ### 1. Read-only, always — the property that answers ground 1
 
-A token-authed request can perform **no mutation and no Declared act**: no `Seed`, no exclusion, no `Scan`/config change, no `Channel`, no account change, no enable/disable — nothing that writes to the estate or its configuration. This is not a per-endpoint permission check that a future endpoint might forget; it is a property of the **bearer path itself** (§3): the path mounts only read handlers and the mutating verbs are not routed on it at all, so "a token can mutate" is not an expressible state rather than a guarded one — the same *make-the-violation-inexpressible* move ADR-0009/ADR-0058 prefer over a test.
+A token-authed request can perform **no mutation and no Declared act**: no `Seed`, no exclusion, no `Scan`/config change, no `Channel`, no account change, no enable/disable — nothing that writes to the estate or its configuration. This is not a per-endpoint permission check that a future endpoint might forget. It is a property of the **bearer path itself** (§3): the path mounts only read handlers and the mutating verbs are not routed on it at all, so "a token can mutate" is not an expressible state rather than a guarded one — the same *make-the-violation-inexpressible* move ADR-0009/ADR-0058 prefer over a test.
 
-A leaked read-only bearer therefore retrieves what the session-authed export (§4.1) already yields to any logged-in operator, and **cannot change the estate or its config** — which is where TOTP's protection actually lives (Context). The revocation and scoping story (tokens are revocable, live-role, coarsened last-used) below is what bounds the *read* credential; TOTP continues to guard every write, unbypassed.
+A leaked read-only bearer therefore retrieves what the session-authed export (§4.1) already yields to any logged-in operator, and **cannot change the estate or its config** — which is where TOTP's protection actually lives (Context). The revocation and scoping story (tokens are revocable, live-role, coarsened last-used) below is what bounds the *read* credential. TOTP continues to guard every write, unbypassed.
 
 ### 2. Opt-in, off by default — and "off" means absent
 
-`/api/v1` is **disabled unless an admin enables it**, a single instance-wide flag (`instance_config.api_enabled`, minted by map child F, carrying who/when like the `retention_settings` singleton). Minted tokens stay **inert** until the surface is enabled; a token is not a capability on its own.
+`/api/v1` is **disabled unless an admin enables it**, a single instance-wide flag (`instance_config.api_enabled`, minted by map child F, carrying who/when like the `retention_settings` singleton). Minted tokens stay **inert** until the surface is enabled. A token is not a capability on its own.
 
 **Disabled ⇒ every `/api/v1` path 404s.** Surface-off is made *indistinguishable from surface-absent*: a probe against a disabled instance cannot tell "API exists but is off" from "this build has no API," because both answer `404`, not `401`/`403`. This denies an unauthenticated scanner even the fact that the surface exists, and it means the default posture of every instance is byte-for-byte the pre-ADR-0001 posture — no API reachable at all — until an admin makes a deliberate, audit-recorded choice otherwise.
 
@@ -49,29 +49,29 @@ The token path and the session path share **no** authentication machinery, in ei
 
 - A token **never** mints a cookie, **never** establishes a session, and is **never** accepted on the HTML surface.
 - The session cookie is **never** accepted on `/api` — a browser session cannot drive the API by riding its cookie, and a token cannot drive the HTML app.
-- `currentAccount` (the session-derived request identity the HTML handlers read) is **untouched**; the API derives its own request principal from the verified token and does not enter the session middleware at all.
+- `currentAccount` (the session-derived request identity the HTML handlers read) is **untouched**. The API derives its own request principal from the verified token and does not enter the session middleware at all.
 
 Two consequences follow that matter for the security argument. First, the API surface cannot be reached by CSRF or by a stolen cookie, because it does not read the cookie. Second, the session surface cannot be reached by a stolen token, because the token mints nothing the HTML app trusts. The two credential classes are disjoint, so a compromise of one is not a foothold on the other — which is the isolation ADR-0001's *"second authenticated surface"* worry was really about, delivered by construction rather than asserted away.
 
 ### 4. Live role, revocable, coarsened last-used — bounding the read credential
 
-- **Role read live per request.** The token authenticates *which account*; the account's **role** (admin/viewer) is read from the account row **on every request**, never frozen into the token. This is the same rule §4.3 already states for sessions (*"a session's role is still read from the local account row on every request"*), applied identically here: demoting an account to viewer, or disabling it, takes effect on its tokens' very next request with no token reissue.
-- **Revocable.** Tokens are individually revocable (the management surface already models this); revocation is immediate on the next request for the same live-read reason.
+- **Role read live per request.** The token authenticates *which account*. The account's **role** (admin/viewer) is read from the account row **on every request**, never frozen into the token. This is the same rule §4.3 already states for sessions (*"a session's role is still read from the local account row on every request"*), applied identically here: demoting an account to viewer, or disabling it, takes effect on its tokens' very next request with no token reissue.
+- **Revocable.** Tokens are individually revocable (the management surface already models this). Revocation is immediate on the next request for the same live-read reason.
 - **`last_used_at`, coarsened.** Each successful token request records a `last_used_at` so the operator can spot a live-but-forgotten token, written **coarsened** (at most once per hour per token — the exact cadence is A4/A2's to implement) so the write is not one row per request and the timestamp is not a fine-grained access log of the operator's own integration traffic. A never-used token reads as **null** ("never"), which the Profile surface renders as the empty state.
 
 ### 5. What is explicitly *not* touched
 
-- **The outbound `Channel` (ADR-0039) is unchanged.** It remains one-way, carries the message and never the estate, grants no read of the instance, and uses **no bearer header** — its signature authenticates *us to the receiver*. This ADR opens an **inbound read** surface; ADR-0039 governs an **outbound push** surface. They are different directions of a different credential, and admitting the former says nothing about the latter. ADR-0039's *"a pull feed is the one option #6's constraint genuinely kills"* is narrowed only in that the killed thing was an **unauthenticated** feed a reader polls with no credential; the surface admitted here is bearer-authed, opt-in, and off by default, which is not that feed.
-- **`internal/delivery`'s "no bearer, ever" is unchanged and unrelated.** That rule is about the delivery POST to a receiver (us→receiver); it is not an authentication surface on this instance and this ADR does not reach it.
+- **The outbound `Channel` (ADR-0039) is unchanged.** It remains one-way, carries the message and never the estate, grants no read of the instance, and uses **no bearer header** — its signature authenticates *us to the receiver*. This ADR opens an **inbound read** surface. ADR-0039 governs an **outbound push** surface. They are different directions of a different credential, and admitting the former says nothing about the latter. ADR-0039's *"a pull feed is the one option #6's constraint genuinely kills"* is narrowed only in that the killed thing was an **unauthenticated** feed a reader polls with no credential. The surface admitted here is bearer-authed, opt-in, and off by default, which is not that feed.
+- **`internal/delivery`'s "no bearer, ever" is unchanged and unrelated.** That rule is about the delivery POST to a receiver (us→receiver). It is not an authentication surface on this instance and this ADR does not reach it.
 - **The mutating API stays refused.** ADR-0001's refusal of a *full* JSON API — one that can write — is preserved in full. Only the read-only surface is admitted.
-- **ADR-0053 is preserved.** Token hashes are held where the act is performed; the shared store holds no plaintext secret. (Token *storage* — constant-time hash lookup — is A2's build, not this ADR's decision.)
+- **ADR-0053 is preserved.** Token hashes are held where the act is performed. The shared store holds no plaintext secret. (Token *storage* — constant-time hash lookup — is A2's build, not this ADR's decision.)
 
 ## Consequences
 
 - **`/api/v1` read-only endpoints become buildable** (map child A3), mounted as read mirrors of the reads the HTML surface already wraps, `404` when disabled or absent, with no mutating verb routed.
 - **Token verification and the enable gate become buildable** (A2/A4): `GetPersonalTokenByHash` (constant-time), the coarsened `last_used_at` touch, the Bearer middleware, and the `api_enabled` gate.
-- **#6 is reversed for reads and for nothing else.** The out-of-scope index (§7) loses the unqualified *"a JSON API and API tokens"* entry and gains a read-only, opt-in one pointing here; the mutating API remains out of scope.
-- **The push story is undamaged.** ADR-0039's notification `Channel` still serves *"tell me when `firewalled → exposed` fires"*; this ADR adds *"let me pull the current inventory"* alongside it. Neither displaces the other.
+- **#6 is reversed for reads and for nothing else.** The out-of-scope index (§7) loses the unqualified *"a JSON API and API tokens"* entry and gains a read-only, opt-in one pointing here. The mutating API remains out of scope.
+- **The push story is undamaged.** ADR-0039's notification `Channel` still serves *"tell me when `firewalled → exposed` fires"*. This ADR adds *"let me pull the current inventory"* alongside it. Neither displaces the other.
 - **The default instance is unchanged until an admin acts.** With `api_enabled` false — the ship default — every `/api/v1` path `404`s, so an instance that never enables the API is indistinguishable from one built before this ADR.
 - **The withdrawals are written at their sites** (per ADR-0058): spec §4.1/§4.3/§7, ADR-0001's *"No JSON API"* row / rejected-alternative / pull-refusal amendment, ADR-0039's bearer-bypass and pull-feed clauses, and the `CONTEXT.md` Channel entry's *"opens no second authenticated surface / a pull feed ... there is none"* sentence — each struck-or-annotated in place with a dated pointer here, so no site still reads, alone and in the present tense, *"there is no JSON API / no second authenticated surface / no pull surface."*
 

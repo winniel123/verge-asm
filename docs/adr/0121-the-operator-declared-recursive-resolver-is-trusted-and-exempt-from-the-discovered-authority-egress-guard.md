@@ -75,7 +75,7 @@ resolver needed guarding. This ADR restores the asymmetry the guard was designed
 
 The resolver value flows only from the `vantage.resolver` column, set by an admin via migration or the
 vantage UI — never from scan data, proposer results, or any request surface. An actor who can set it
-already administers the instance. So the exemption widens no attacker's reach; it only lets a
+already administers the instance. So the exemption widens no attacker's reach. It only lets a
 legitimate operator point the instrument at the recursive resolver their network actually uses,
 including the private ones that are the norm on compose and bare metal.
 
@@ -97,13 +97,13 @@ attacker-facing walk path — the only path that carries untrusted target addres
   which additionally exempts the walk's initial NS query (a resolver dial) that the old condition
   wrongly gated.
 - **The shipped default `127.0.0.11:53` now works at runtime.** The seed value from `#239` is
-  unchanged; `db/migrations/18800_measurement_vantage.sql` gains a comment recording that the loopback
+  unchanged. `db/migrations/18800_measurement_vantage.sql` gains a comment recording that the loopback
   value is deliberate and must not be "fixed" back to a public resolver.
 - **No emitted observation changes and no golden corpus moves.** The change is confined to the live
-  network adapter; the hermetic corpus scripts its own peer and never dials, so every fold is
+  network adapter. The hermetic corpus scripts its own peer and never dials, so every fold is
   byte-identical (`TestCorpusLock` green).
 - **The attacker-facing walk path is unchanged.** Both custody guards remain on every discovered
-  authority; the SSRF/rebinding regression tests pass unmodified.
+  authority. The SSRF/rebinding regression tests pass unmodified.
 
 ## Alternatives rejected
 

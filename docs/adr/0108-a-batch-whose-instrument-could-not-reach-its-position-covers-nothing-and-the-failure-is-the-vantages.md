@@ -26,7 +26,7 @@ Two things were already true in the model and false in the code.
   recorded its **attempted** scope and licensed eight absences it never measured.
 - **`Availability`:** *"A vantage that has failed every attempt across the window is `unavailable`,
   which opens a `Gap` on the `Reach` of its class."* Nothing in the measurement path derived
-  `Availability` from batch outcomes; `MarkVantageUnavailable` existed and was called from nowhere.
+  `Availability` from batch outcomes. `MarkVantageUnavailable` existed and was called from nowhere.
 
 So the corpus already names the correct behaviour twice and the running system honoured neither. This
 ADR is what closes the gap between the two, and it decides the one thing that was genuinely
@@ -52,8 +52,8 @@ Six limbs.
 
 2. **The failure is batch-scoped, because the resolver is one position for the whole batch.** A
    `Vantage`'s recursive resolver is part of its identity
-   ([ADR-0070](./0070-a-control-probe-is-asked-from-where-the-answer-it-discriminates-was-asked-from.md));
-   one fixed address answers every name in the batch or none. So the **first** declared-path
+   ([ADR-0070](./0070-a-control-probe-is-asked-from-where-the-answer-it-discriminates-was-asked-from.md)).
+   One fixed address answers every name in the batch or none. So the **first** declared-path
    transport failure aborts the batch — there is no honest partial scope to record, and the model
    forbids recording the attempted one. The delegation **walk** is exempt: it dials delegated
    authorities direct, whose per-authority silence is already the `Gap`/`Lame` vocabulary
@@ -64,11 +64,11 @@ Six limbs.
    failure surfaces as a prober error, so the worker's retry machinery absorbs a transient blip (five
    attempts across a back-off window) and a **persistently** unreachable resolver dead-letters. A
    dead-lettered `Batch` records the **empty** scope `{"names":[]}` and writes **no** observations —
-   the all-`Gap` rows are never committed. This is not new machinery; it is the batch finally taking
+   the all-`Gap` rows are never committed. This is not new machinery. It is the batch finally taking
    the path `Batch` always specified for a failure.
 
 4. **A terminal `dns` (resolution-walk) batch outcome derives the vantage's `Availability`.** A
-   **completed** one marks its vantage `available`; a **dead-lettered** one marks it `unavailable`.
+   **completed** one marks its vantage `available`. A **dead-lettered** one marks it `unavailable`.
    The window `Availability` is *"concluded from recent batch outcomes over"* is, in v1, the **retry
    sequence within one dispatch**: a dead-letter already means every attempt across that window
    failed, and a single completed batch is proof the position observes again, so recovery is immediate
@@ -104,7 +104,7 @@ Six limbs.
    already has a register.
 
 6. **The rule generalises to every backend failure path (#244), each on its own surface.** *A failure
-   renders as a failure, never as a clean empty result* is not a resolver rule; it is the aperture
+   renders as a failure, never as a clean empty result* is not a resolver rule. It is the aperture
    ethos applied to runtime failures. It is discharged per path — and, crucially, on the surface the
    model already assigns that path, never uniformly on `Coverage`:
    - **Proposer** (done, #251): the lookup carries its `perr` to the operator, so a registry outage
@@ -133,7 +133,7 @@ The ticket's sharpest constraint is that *a total-null batch is a heuristic, not
 and limb 1 is built to honour it. The distinction the model already draws — between a **value** and
 *we could not look* — maps exactly onto the wire: a DNS response, of **any** rcode, means the
 resolver was reached and answered, and `NXDOMAIN`/`NoData`/`REFUSED`/`SERVFAIL` are the values that
-carries; **no response off the socket** means we could not look. `decideResolution` was already
+carries. **No response off the socket** means we could not look. `decideResolution` was already
 faithful to this for a single name — *reached but no usable answer is a `Gap`, never a withdrawal* —
 and the only thing missing was that a name for which the **resolver itself** never answered was
 folded into the same per-name `Gap` as a name the resolver answered emptily about. Limb 1 separates
@@ -146,7 +146,7 @@ negative — and it needs no count of how many names came back null.
 `Batch` is unambiguous: a batch that failed outright *"covers nothing and licenses no absence,"* and
 a dead-lettered batch already records the empty scope `{"names":[]}` *"because asserting the
 attempted scope would manufacture absences it never measured."* The defect was never that the model
-lacked a failure path; it was that a resolver-unreachable batch never **entered** it — it returned no
+lacked a failure path. It was that a resolver-unreachable batch never **entered** it — it returned no
 error, so the worker read `probeErr == nil` and called `complete()`. Limb 3 routes it into the path
 `Batch` always specified, and buys the retry/dead-letter semantics — transient-absorbing,
 scope-empty — for free. Recording a **partial** scope for a batch that lost its resolver midway was
@@ -174,7 +174,7 @@ and no prober, and its availability is driven entirely and correctly by its `dns
 **Forward caveat:** when SSH enforcement lands, *completed → available* clears a security pin only if a
 host-key-mismatched **remote** prober cannot complete a `resolution-walk` batch — i.e. only if that
 vantage's `dns` measurement is itself gated behind the SSH connection rather than run from the worker
-against the resolver address directly. That invariant is the successor ticket's to hold; this ADR
+against the resolver address directly. That invariant is the successor ticket's to hold. This ADR
 records the dependency rather than assuming it.
 
 ### Why one ADR for #249 and #244
@@ -184,7 +184,7 @@ and asked that the design *"make 'we could not measure this' a first-class Cover
 from a normal empty result,"* coordinating with #249. Walked against the model, that state is **not**
 a new coverage-class member to be minted — it is `Availability`, finally produced, rendering through
 the `Gap`-on-`Reach` and the *we stopped looking* register the corpus already holds. #249 is the
-worked exemplar of the class; this ADR states the class rule (limb 6) and the exemplar's mechanism
+worked exemplar of the class. This ADR states the class rule (limb 6) and the exemplar's mechanism
 (limbs 1–5) together, because inventing a parallel "could not measure" object beside `Gap` and
 `Availability` would be the record-with-optional-fields mistake
 ([ADR-0011](./0011-a-facet-is-six-parts.md)) one layer up — a second way to say *we could not look*,
@@ -202,12 +202,12 @@ indistinguishable at a glance from the ones the model already has.
 - **The worker** derives `Availability` on every terminal outcome of a vantage-bearing batch. The
   decision is a pure function (`availabilityAfterOutcome`) unit-tested apart from the transaction.
 - **No coverage-class member, `Gap` register, or `Exposure` value is minted.** The class stands where
-  it stood; a resolver-unreachable `Gap` renders under *we stopped looking*.
+  it stood. A resolver-unreachable `Gap` renders under *we stopped looking*.
 - **#244's remaining paths** are addressed under limb 6, each on its own surface: the **probe** path
-  rides limbs 3–5 (dead-letter + unavailability + `Coverage`); **delivery** failures — already durable
+  rides limbs 3–5 (dead-letter + unavailability + `Coverage`). **Delivery** failures — already durable
   — are now rendered on their `Message`. The **scan-dispatch** fan-out error is left as an operational
   log with its rationale recorded (its failure is a missed cadence the currency machinery already
-  tells, not an empty-success masquerade); a durable dispatch-error surface is carried as a follow-up.
+  tells, not an empty-success masquerade). A durable dispatch-error surface is carried as a follow-up.
   The proposer path was discharged at #251.
 - **A dead-lettered dns batch now marks its vantage unavailable**, which can flip `Exposure` from a
   computed reading to an absent one the first cadence a resolver goes down. That is the intended,

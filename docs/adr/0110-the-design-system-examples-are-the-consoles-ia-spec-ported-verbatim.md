@@ -23,7 +23,7 @@ same shape and the local `screen` state for the app's router. Second — and thi
 reversal safe — the canonical console (`examples/console/ConsoleApp.jsx`) is **already
 domain-correct**: its seven top-level screens are **Dashboard · Scope · Inventory · Drift · Signals ·
 Graph · Reports**, with Drift as nav item 4 of 7, plus Settings and SignIn. The example does not demote
-drift; it carries drift as a first-class screen. The very risk the old clause guarded against is not
+drift. It carries drift as a first-class screen. The very risk the old clause guarded against is not
 present in the artefact the clause was guarding against.
 
 So the arm's-length posture now costs more than it protects. Rebuilding each screen's structure "from
@@ -47,13 +47,13 @@ This reverses exactly one clause and nothing else. Every other guardrail in
 - **Drift is the thesis.** Drift remains a top-level screen — nav item 4 of 7 — so "drift is never a
   secondary screen" is preserved *by* the port, not despite it. This is the fact that made the reversal
   admissible.
-- **`signal` never `finding`;** signals are **withdrawn** by the world, never "resolved" by operators.
+- **`signal` never `finding`.** Signals are **withdrawn** by the world, never "resolved" by operators.
 - **Domain nouns, not wire nouns** — `Name` / `Address` / `Service` / `Endpoint`, never
   host / IP / port / URL as modelled things.
 - **`seed` / `scope`** never target · **`channel`** never webhook · **`vantage`** never probe ·
   **`annotation`** never mute / triage.
 - **No technology fingerprinting.**
-- **Severity is exactly `Critical / High / Medium / Low / Info`** via `SeverityBadge`; the change
+- **Severity is exactly `Critical / High / Medium / Low / Info`** via `SeverityBadge`. The change
   vocabulary rides its own drift palette, never the severity ramp.
 - **Verge ASM does not author design-system components** ([ADR-0109](0109-design-system-components-are-authored-in-claude-design-and-imported.md)).
   Porting a screen translates the reference composition into template CSS classes within the existing
@@ -67,7 +67,7 @@ have no serving surface in-repo and are out of scope.
 
 - `docs/agents/design-system.md` is amended at two sites (the `examples/` bullet and the "Drift is the
   thesis" guardrail) to point here and mark the clause superseded. The system remains authoritative on
-  *how things look and how copy sounds*; the examples are now also authoritative on *how the console is
+  *how things look and how copy sounds*. The examples are now also authoritative on *how the console is
   organised*, because the two no longer diverge.
 - The migration (map #275) ports each canonical screen verbatim rather than reinterpreting it. New
   screens with no backing data (Drift's timeline, Graph, Reports beyond exposure) ship design-system

@@ -9,10 +9,10 @@
 The report-artifact page (`/reports/delivery`, [ADR-0110](./0110-the-design-system-examples-are-the-consoles-ia-spec-ported-verbatim.md))
 shipped a **disabled** "Download PDF" control titled *"Export is not wired yet."* It was the only
 export format the console advertised with no backend: CSV and JSON export from `/reports/export`
-work; PDF did not. `internal/message.RenderArtifact` — the on-screen render of a delivered report —
+work. PDF did not. `internal/message.RenderArtifact` — the on-screen render of a delivered report —
 was written all along as *"the one canonical rendered form that also serves as the PDF / email
 spec,"* carrying its own self-contained token styles so it could stand alone as a document body. So
-the intent was always that a PDF exists; only the machinery did not.
+the intent was always that a PDF exists. Only the machinery did not.
 
 Wiring PDF was left for a human ([#345] triage) because it turns on a decision the export writer's
 own doc comment had already flagged and deliberately deferred: *"there is no HTML-to-PDF machinery
@@ -49,7 +49,7 @@ says so.
 
 Three clarifications, so the boundary is not re-drawn each time:
 
-1. **`Artifact` is the single source of report *content*; the PDF is a second *layout* of it.** The
+1. **`Artifact` is the single source of report *content*. The PDF is a second *layout* of it.** The
    HTML render (`RenderArtifact`) and the PDF render (`RenderArtifactPDF`) each read the same
    `Artifact` struct independently. This is a deliberate, named departure from the "one canonical
    rendered form" phrasing in `RenderArtifact`'s comment: there is one canonical *content* model
@@ -64,7 +64,7 @@ Three clarifications, so the boundary is not re-drawn each time:
    renders the design-system empty-state, never a fabricated document ([ADR-0110]).
 
 3. **The PDF is the delivered report, not the operational export.** `/reports/delivery/pdf` renders
-   the delivered-report document; `/reports/export?format=csv|json` renders the operational
+   the delivered-report document. `/reports/export?format=csv|json` renders the operational
    activity series. They are different surfaces backed by different reads and must not be conflated —
    a PDF of the scans-per-day series is out of scope here.
 
@@ -73,7 +73,7 @@ Three clarifications, so the boundary is not re-drawn each time:
 - **One new dependency, chosen to fit the image rather than break it:** `github.com/go-pdf/fpdf`
   is pure Go with no CGO and no external binary, so the distroless-static `web` image is unchanged —
   no Dockerfile edit, no browser, no new base image. It is the first third-party *rendering*
-  dependency in the tree; ADR-0001's small-footprint constraint is honoured because the alternative
+  dependency in the tree. ADR-0001's small-footprint constraint is honoured because the alternative
   that would have broken it (a headless browser) was rejected here, on the record.
 - **Fidelity is deliberately not pixel-exact to the HTML.** `fpdf`'s standard fonts are the
   built-in PDF cores (Helvetica / Courier), not the design system's Instrument Sans / Geist Mono,
@@ -81,7 +81,7 @@ Three clarifications, so the boundary is not re-drawn each time:
   reads as the same document — same content, same palette, same drift vocabulary — but is not a
   screenshot of the page. Embedding the brand fonts is a later refinement, not a blocker.
 - **The PDF follows the delivery backend for free.** There is no report-delivery store yet
-  ([#285](https://github.com/winniel123/verge-asm/issues/285);
+  ([#285](https://github.com/winniel123/verge-asm/issues/285),
   [#290](https://github.com/winniel123/verge-asm/issues/290)/[#291](https://github.com/winniel123/verge-asm/issues/291)),
   so both `/reports/delivery` and its PDF render the empty-state `Artifact` today. When a delivery
   store lands, both handlers fill the same struct with real data and the download follows with no
