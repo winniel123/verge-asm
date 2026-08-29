@@ -432,6 +432,13 @@ type server struct {
 	// request did not itself arrive over TLS — set it when web is fronted by a
 	// TLS-terminating proxy (VERGE_SECURE_COOKIES).
 	secureCookies bool
+	// trustedProxies is the set of front proxy addresses whose X-Forwarded-For web
+	// trusts when deriving the login rate-limit client IP (#738, VERGE_TRUSTED_PROXIES).
+	// When the immediate peer is one of these, loginIPKey resolves per-client from the
+	// rightmost untrusted XFF entry rather than keying the whole console to the proxy
+	// address; unset, it is unused and the key stays the request RemoteAddr. It governs
+	// the limiter key ONLY — never identity or authorization.
+	trustedProxies trustedProxies
 	// externalURL is the trusted origin the deployment is reached at
 	// (VERGE_EXTERNAL_URL, e.g. https://verge.example.com). When set it is the base
 	// for the OIDC callback redirect_uri (#293), so that value never derives from the

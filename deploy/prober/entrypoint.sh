@@ -47,6 +47,26 @@ case "$KEY" in
         ;;
 esac
 
+# Reject a multi-line KEY BEFORE it is embedded on the authorized_keys line at the
+# end. `ssh-keygen -l` happily lists every fingerprint in a multi-key value and
+# exits 0, so a value like "ssh-ed25519 AAAA...\nssh-ed25519 BBBB..." would pass
+# the parse check below and then write a SECOND authorized_keys entry with no
+# `restrict` and no `from=` prefix — a fully unrestricted key that defeats the
+# key-option scoping (§3, §4.2). This gate mirrors the PROBER_FROM charset gate:
+# fail closed on any embedded newline so only a single line is ever written.
+# POSIX-sh newline literal (this script is #!/bin/sh, so $'\n' is unavailable and
+# $(printf '\n') is stripped to empty by command substitution): printf a newline
+# followed by a sentinel, then strip the sentinel back off.
+NL=$(printf '\nX'); NL=${NL%X}
+case "$KEY" in
+    *"$NL"*)
+        echo "prober: PROBER_PUBKEY must be a single line. A multi-line value would" >&2
+        echo "        inject a second, unrestricted authorized_keys entry. Paste only" >&2
+        echo "        the one line verge rendered, e.g. 'ssh-ed25519 AAAA... comment'." >&2
+        exit 1
+        ;;
+esac
+
 # Fail fast on a mangled paste: the value must parse as a public key, so a broken
 # authorized_keys is caught here rather than as a silent auth failure at first push.
 mkdir -p "$SSH_DIR"

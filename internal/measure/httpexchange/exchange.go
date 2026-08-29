@@ -8,8 +8,10 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
+	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/measure"
 )
 
@@ -194,6 +196,12 @@ type NetExchanger struct {
 	// Params carries the timeout and the body cap. Zero values fall back to the
 	// shipped defaults, so a caller may hand a partial profile.
 	Params Params
+	// control overrides the socket-level egress guard installed on the dialer.
+	// Production leaves it nil, which installs custody.EgressGuard so a
+	// non-globally-reachable target fails closed at the socket (#743). It is a
+	// test seam: a test that must reach a loopback server — which the production
+	// guard refuses — sets an allow hook here.
+	control func(network, address string, c syscall.RawConn) error
 }
 
 // Exchange implements Exchanger against the network. It builds an http.Client
@@ -209,6 +217,13 @@ func (n NetExchanger) Exchange(ctx context.Context, target Target) ExchangeResul
 	}
 	if p.BodyCapBytes <= 0 {
 		p.BodyCapBytes = DefaultParams().BodyCapBytes
+	}
+	// The leaf dials only a pre-validated literal IP. A hostname Address would be
+	// re-resolved by the HTTP client at connect time with no rebinding backstop, so
+	// reject a non-literal at entry and fail closed (#743). The socket-level egress
+	// guard below is the second line, refusing a non-globally-reachable literal.
+	if _, err := netip.ParseAddr(target.Address); err != nil {
+		return ExchangeResult{Failed: true, Err: "httpexchange: refusing non-literal address " + target.Address}
 	}
 	scheme := target.Scheme
 	if scheme == "" {
@@ -228,7 +243,18 @@ func (n NetExchanger) Exchange(ctx context.Context, target Target) ExchangeResul
 	// §"Probes safely", spec §3.3). The value is the one repo-owned contract in
 	// internal/measure, reused by every probe rather than minted per leaf.
 	req.Header.Set("User-Agent", measure.ProbeUserAgent)
+	// custody.EgressGuard is the same Control-hook backstop delivery (NewHTTPDoer)
+	// and resolutionwalk install: it refuses the socket when the address the kernel
+	// is about to connect to is non-globally-reachable, the rebinding-proof line
+	// even when the literal-IP invariant is broken upstream (#743).
+	control := n.control
+	if control == nil {
+		control = custody.EgressGuard("httpexchange")
+	}
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.DialContext = (&net.Dialer{Control: control}).DialContext
 	client := &http.Client{
+		Transport: transport,
 		// Redirects are not followed: return the 3xx response unfollowed so its
 		// Location is recorded as identity and no next hop is ever requested.
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },

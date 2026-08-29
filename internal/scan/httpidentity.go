@@ -24,8 +24,11 @@ package scan
 import (
 	"encoding/json"
 	"fmt"
+	"net/netip"
 
+	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/measure/httpexchange"
+	"github.com/winniel123/verge-asm/internal/vantageclass"
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
@@ -54,12 +57,17 @@ type HTTPIdentityJob struct {
 // the Services reached from that Vantage, each rendered as the nameless `Endpoint` on
 // that reached Service (a reached Service presents an HTTP identity whether or not a
 // Name cited it — httpexchange.Target with an empty Name is the distinguished nameless
-// key). It is NOT gated by a port list — the reached Services ARE the scope — and it
-// is not re-gated by Custody here: a Service only enters the reached population by
-// having been probed through the Custody gate already, so re-gating would be a second
-// verdict on a settled fact (mirroring BuildTLSAcceptanceJobs). A Vantage with no
-// reached Service yields no job, a legible empty scope rather than an error.
-func BuildHTTPIdentityJobs(scanID int64, services []ReachedService, vantages []Vantage) []HTTPIdentityJob {
+// key). It is NOT gated by a port list — the reached Services ARE the scope.
+//
+// It IS re-gated by Custody here (ADR-0079, #742), mirroring BuildTLSAcceptanceJobs:
+// the reached-Service population is a stale snapshot, so an address whose authorising
+// address scope was withdrawn — or whose vantage's derived class flipped to `internet`
+// — since it was reached must not be re-enumerated with a daily `GET /`. The SAME
+// denotation/class gate connect-time dispatch enforces is re-applied against the
+// current Estate, dropping any reached Service that no longer passes `MayProbe` for its
+// vantage's freshly-derived class. A Vantage with no admitted reached Service yields no
+// job, a legible empty scope rather than an error.
+func BuildHTTPIdentityJobs(scanID int64, estate custody.Estate, services []ReachedService, vantages []Vantage) []HTTPIdentityJob {
 	if len(services) == 0 || len(vantages) == 0 {
 		return nil
 	}
@@ -72,10 +80,26 @@ func BuildHTTPIdentityJobs(scanID int64, services []ReachedService, vantages []V
 		byID[v.ID] = v
 	}
 
+	// Class is DERIVED per batch from each vantage's presented-address facts against
+	// the declared address scopes (#709), never the vestigial column — mirroring
+	// hot.go/cold.go so the re-gate reads exactly what connect-time dispatch reads.
+	covered := estate.CoversAddressScope
+	vcByID := make(map[int64]custody.VantageClass, len(vantages))
+	for _, v := range vantages {
+		vcByID[v.ID] = vantageclass.Derive(v.Dialled, v.Egress, covered)
+	}
+
 	grouped := make(map[int64][]httpexchange.Target)
 	for _, s := range services {
 		if _, ok := byID[s.VantageID]; !ok {
 			continue // a reached Service at a Vantage no longer configured — dropped
+		}
+		a, err := netip.ParseAddr(s.Address)
+		if err != nil {
+			continue // an address that cannot be named cannot be gated — dropped
+		}
+		if !estate.MayProbe(a, vcByID[s.VantageID]) {
+			continue // the authorising scope/class was withdrawn — re-gated out (#742)
 		}
 		grouped[s.VantageID] = append(grouped[s.VantageID], httpexchange.Target{
 			Name:    "", // the nameless Endpoint — the reached Service's own HTTP identity

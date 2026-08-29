@@ -38,6 +38,15 @@ import (
 // Postgres), so a restore MUST mint fresh ones. The consequence — every session lapses and
 // probers re-pin — is the design, the loud-and-recoverable failure ADR-0053 already priced.
 //
+// The two cleartext-secret columns the backup redacts (#739) — channel.secret (webhook HMAC
+// key) and sso_provider.client_secret (OAuth client secret) — are likewise NOT carried
+// across a restore. applyRestore re-applies redactBackupRow to every row, so even a
+// pre-#739 archive that still holds these values cannot reconstitute them and the redacted
+// null in a current archive cannot silently overwrite a live secret: the columns land NULL
+// and the operator knowingly re-enters them afterward (Settings → the channel/SSO forms).
+// This is a full-replace restore (TRUNCATE + INSERT), so preserving a live secret in place
+// is not possible; leaving these two columns NULL is the safe, documented behaviour.
+//
 // The archive is applied over the raw pgx pool `web` already holds (no sqlc — internal/db
 // stays untouched this round), mirroring how backup.go reads it. Every interpolated table
 // name is validated against B3's `backupTables` allowlist before it reaches SQL, so the
@@ -384,6 +393,17 @@ func (s *server) applyRestore(ctx context.Context, archive []byte) error {
 		}
 		if !backupAllowed(row.Table) {
 			return errRestoreUnknownTbl
+		}
+		// Re-apply the export redaction (#739): the cleartext-secret columns
+		// (channel.secret / sso_provider.client_secret) are never written from an archive,
+		// new or pre-#739. This is a full-replace restore (TRUNCATE + INSERT), so a live
+		// secret cannot be preserved in place; instead these columns land NULL and the
+		// operator knowingly re-enters them after the restore — a restore can never
+		// reconstitute nor silently overwrite them with an archived value.
+		if data, err := redactBackupRow(row.Table, row.Data); err != nil {
+			return fmt.Errorf("restore: redact %s: %w", row.Table, err)
+		} else {
+			row.Data = data
 		}
 		overriding := ""
 		if identity[row.Table] {

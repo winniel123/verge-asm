@@ -31,6 +31,18 @@ func TestNormalizeDomain(t *testing.T) {
 		"*.example.com",   // wildcard
 		"http://example.com",
 		"example.com/path",
+		// Query-injection characters must not survive the validator (#774): the
+		// normalized domain is interpolated into the crt.sh query URL, and
+		// publicsuffix's wildcard rule would otherwise pass these through.
+		"example.com&output=text", // injects a competing query param
+		"example.com#frag",        // fragment drops &output=json
+		"a;b.com",                 // statement/param separator
+		"example.com'",            // quote
+		"example.com%2e",          // percent-encoding
+		"exa mple.com",            // internal whitespace (trailing is trimmed)
+		"exa\tmple.com",           // internal tab
+		"exa\nmple.com",           // internal newline
+		"example_com",             // underscore (not LDH)
 	}
 	for _, in := range bad {
 		if got, err := NormalizeDomain(in); err == nil {
