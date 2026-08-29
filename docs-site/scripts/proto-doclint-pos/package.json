@@ -1,0 +1,23 @@
+{
+  "name": "proto-doclint-pos",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "THROWAWAY PROTOTYPE for wayfinder ticket #792. Judges retext-pos precision for the noun-cluster and simple-tense rules on real verge-asm docs. Do NOT ship. See branch proto/792-pos-precision.",
+  "scripts": {
+    "run": "node proto.mjs"
+  },
+  "dependencies": {
+    "nlcst-to-string": "^4.0.0",
+    "pos": "^0.4.2",
+    "remark-frontmatter": "^5.0.0",
+    "remark-gfm": "^4.0.1",
+    "remark-parse": "^11.0.0",
+    "remark-retext": "^6.0.0",
+    "retext-english": "^5.0.0",
+    "retext-pos": "^5.0.0",
+    "unified": "^11.0.5",
+    "unist-util-visit": "^5.0.0",
+    "unist-util-visit-parents": "^6.0.2"
+  }
+}
