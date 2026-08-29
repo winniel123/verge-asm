@@ -17,7 +17,7 @@
 {{template "chrome" .}}
 <style>
 @keyframes se-pulse { 0% { box-shadow: 0 0 0 0 rgba(3, 122, 192, 0.35); } 70% { box-shadow: 0 0 0 6px rgba(3, 122, 192, 0); } 100% { box-shadow: 0 0 0 0 rgba(3, 122, 192, 0); } }
-.se-main { max-width: 900px; margin: 0 auto; padding: 32px; display: flex; flex-direction: column; gap: 20px; }
+.se-main { max-width: 900px; width: 100%; margin: 0 auto; padding: 32px; display: flex; flex-direction: column; gap: 20px; }
 .se-main h1 { margin: 0; font: 600 21px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
 .se-q { display: flex; align-items: center; height: 36px; padding: 0 12px; background: var(--surface); border: 1px solid var(--border-default); border-radius: 12px; transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); }
 .se-q:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 18%, transparent); }
