@@ -12,9 +12,9 @@
  * style, modeled on check-links.mjs. It exits non-zero when it finds an error-level
  * violation. A warning alone never changes the exit code, because a warning is advisory.
  *
- * This is the walking skeleton (#817). It ships one rule, no-semicolons. Later tickets
- * add the sentence-length (#818), phrasal-verb (#819), and simple-tense (#820) rules,
- * the doclint-disable-line directive (#821), and the CI job (#822).
+ * The skeleton (#817) shipped one rule, no-semicolons. #818 added the sentence-length
+ * rule, #819 the phrasal-verb rule, and #820 the simple-tenses rule (the first warning).
+ * Later tickets add the doclint-disable-line directive (#821) and the CI job (#822).
  */
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";

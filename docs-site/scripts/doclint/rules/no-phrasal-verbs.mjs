@@ -24,7 +24,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { lineAtOffset } from "../engine.mjs";
+import { lineAtOffset, escapeRegex } from "../engine.mjs";
 
 const WORDLIST_PATH = join(dirname(fileURLToPath(import.meta.url)), "..", "phrasal-verbs.json");
 
@@ -55,11 +55,6 @@ function regularForms(verb) {
   else forms.push(verb + "ed");
 
   return forms;
-}
-
-/** A regex metacharacter escaper, so a wordlist token is matched literally. */
-function escapeRegex(token) {
-  return token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /**

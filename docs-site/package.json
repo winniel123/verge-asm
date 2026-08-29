@@ -31,6 +31,7 @@
     "pixelmatch": "7.2.0",
     "playwright": "1.62.1",
     "pngjs": "7.0.0",
+    "pos": "0.4.2",
     "remark-frontmatter": "^5.0.0",
     "remark-parse": "^11.0.0",
     "unified": "^11.0.5",

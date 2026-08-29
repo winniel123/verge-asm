@@ -154,19 +154,44 @@ export function startLineOf(node) {
 }
 
 /**
- * The 1-based source line an offset inside a text node value falls on: the node start line
- * plus one for every newline before the offset. A word-level rule that scans a node value
- * for a match (no-phrasal-verbs) uses this to point at the match's own line, not the node's
- * first line, because one text node can span several soft-wrapped source lines.
+ * The 1-based source line an offset inside a string falls on: the start line plus one for
+ * every newline before the offset. A node-value scan (lineAtOffset) and a block-value search
+ * (the simple-tenses rule) both map an offset back to a source line this way, so the count
+ * lives here once.
+ * @param {string} value      the string the offset indexes into.
+ * @param {number} startLine  the 1-based source line the string starts on.
+ * @param {number} offset     the index inside value.
+ * @returns {number}
+ */
+export function lineAtValueOffset(value, startLine, offset) {
+  let line = startLine;
+  for (let i = 0; i < offset && i < value.length; i++) if (value[i] === "\n") line++;
+  return line;
+}
+
+/**
+ * The 1-based source line an offset inside a text node value falls on. A word-level rule that
+ * scans a node value for a match (no-phrasal-verbs) uses this to point at the match's own
+ * line, not the node's first line, because one text node can span several soft-wrapped source
+ * lines.
  * @param {import("mdast").Text} node
  * @param {string} value  the node value the rule scanned (node.value).
  * @param {number} offset the match index inside value.
  * @returns {number}
  */
 export function lineAtOffset(node, value, offset) {
-  let line = startLineOf(node);
-  for (let i = 0; i < offset; i++) if (value[i] === "\n") line++;
-  return line;
+  return lineAtValueOffset(value, startLineOf(node), offset);
+}
+
+/**
+ * A regex metacharacter escaper, so a prose-derived token matches literally when a rule
+ * builds a RegExp from it. Shared by the rules that compile a matcher from a wordlist or a
+ * tag pass (no-phrasal-verbs, simple-tenses), so the escape lives in one place.
+ * @param {string} token
+ * @returns {string}
+ */
+export function escapeRegex(token) {
+  return token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /**
