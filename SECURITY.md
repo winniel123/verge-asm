@@ -9,12 +9,12 @@ Instead, report privately through GitHub's **Private Vulnerability Reporting**:
 
 1. Go to the [Security tab](https://github.com/winniel123/verge-asm/security) of this repository.
 2. Click **Report a vulnerability**.
-3. Fill in the advisory form with the details below.
+3. Complete the advisory form with the details below.
 
-This opens a private channel visible only to the maintainers. If Private
-Vulnerability Reporting is unavailable to you, open a minimal public issue that
-says only "requesting a private security contact" — with **no exploit
-details** — and a maintainer will follow up.
+This opens a private channel. Only the maintainers can see it. If Private
+Vulnerability Reporting is not available to you, open a minimal public issue.
+Write only "requesting a private security contact". Include **no exploit
+details**. A maintainer will then respond.
 
 ## What to include
 
