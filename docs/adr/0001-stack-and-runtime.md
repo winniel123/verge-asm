@@ -7,10 +7,9 @@
 
 ## Context
 
-verge-asm is an AGPL-3.0, self-hosted, single-tenant web application, deployed via
-`docker compose`, whose differentiation is **exposure drift as a first-class,
-queryable object with its own lifecycle** across ports, certificates, DNS records
-and HTTP identity.
+verge-asm is an AGPL-3.0, self-hosted, single-tenant web application. You deploy it with
+`docker compose`. It makes **exposure drift a first-class, queryable object with its own
+lifecycle**. It tracks that object across ports, certificates, DNS records, and HTTP identity.
 
 Four prior decisions constrain this one:
 
@@ -53,7 +52,7 @@ Recorded for continuity, not decided at ADR altitude — a later session may cha
 without reopening this ADR:
 
 - `pgx` as the driver and **`sqlc`** for queries, **not an ORM**. The drift engine is
-  window-function heavy; an ORM abstracts precisely the layer that carries the
+  window-function heavy. An ORM abstracts precisely the layer that carries the
   product's differentiation. sqlc gives compile-checked raw SQL.
 - `goose` for migrations.
 - Stdlib `net/http.ServeMux` for routing — since Go 1.22 it handles method and wildcard
@@ -168,7 +167,7 @@ wire contract returns to being hand-maintained.
 ### Server-rendered over SPA
 
 An SPA ships third-party npm JavaScript into the exact page that renders the operator's
-complete attack-surface inventory; a supply-chain or XSS problem there is close to
+complete attack-surface inventory. A supply-chain or XSS problem there is close to
 worst-case for this product. It also reintroduces the second toolchain the Go decision
 removed, along with a lockfile to audit.
 
@@ -235,12 +234,12 @@ Secrets split by blast radius:
 > read-only API alongside it. A **mutating** API stays refused. The two arguments are left standing
 > below for their reasoning; read them as scoped to a *write-capable* API.
 
-With htmx the HTTP surface is HTML fragments and SSE, so no API falls out for free;
-shipping one is a deliberate act. Two arguments against doing so in v1:
+With htmx the HTTP surface is HTML fragments and SSE, so no API falls out for free.
+Shipping one is a deliberate act. Two arguments against doing so in v1:
 
 1. An API token is a bearer credential that **bypasses the TOTP #11 just decided on** — a
    weaker second authenticated surface guarding the full inventory.
-2. **The integration need here is push, not pull.** Nobody polls an ASM tool; they want to
+2. **The integration need here is push, not pull.** Nobody polls an ASM tool. They want to
    be told when `firewalled → exposed` fires. That is served by the map's separate
    notification-channels question, so deferring the API costs no integration story.
 
@@ -296,7 +295,7 @@ This ADR deferred the JSON API into the map's notification-channels question in 
 integration need here is push, not pull ... so deferring the API costs no integration story"* —
 and that sentence was promissory until now.
 [ADR-0039](./0039-a-channel-carries-the-message-never-the-estate-and-a-delivery-is-an-operational-record.md)
-discharges it. **Nothing in this ADR's Decision moves; two things around it do.**
+discharges it. **Nothing in this ADR's Decision moves. Two things around it do.**
 
 **The push story exists and costs no inbound credential.** A `Channel` is an outbound, one-way,
 signed `https` POST — it authenticates us to the receiver, grants no read of the instance, and
@@ -320,6 +319,6 @@ deferral.~~
 **The secret split gains a fourth entry, and it is the first of its kind.** Delivery is outbound
 network work and therefore **worker**-side, so a channel secret is a `worker` secret. It is the
 first secret on this instance whose compromise is useful **outside** it — the session key, database
-credentials, SSH key and zone file are all levers on this deployment; a channel secret is a lever on
+credentials, SSH key and zone file are all levers on this deployment. A channel secret is a lever on
 somebody else's receiver. Recorded for
 [#124](https://github.com/winniel123/verge-asm/issues/124), which owns the split.

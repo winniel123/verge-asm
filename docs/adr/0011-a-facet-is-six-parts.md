@@ -8,9 +8,9 @@
 ## Context
 
 [#7](https://github.com/winniel123/verge-asm/issues/7) concentrated the whole comparison problem
-in one place on purpose: one `Observation` covers every facet, so adding a facet was supposed to
+in one place on purpose. One `Observation` covers every facet, so adding a facet was supposed to
 mean writing a **canonicaliser** and never a drift implementation. That left canonicalisation as
-the single site where a mistake manufactures drift estate-wide in one release, and
+the single site where a mistake manufactures drift estate-wide in one release. And
 [ADR-0007](./0007-drift-is-a-timeline-of-spans.md) deferred the actual forms rather than settling
 them.
 
@@ -23,7 +23,7 @@ a version bump* is not a licence to get these wrong.
 The ticket arrived with two stale premises, both of which made the work larger.
 [#35](https://github.com/winniel123/verge-asm/issues/35) had already added **`Lame`** as a fifth
 `resolution` outcome, so the ticket's own table was a row short. And the five facets were already
-six: [#16](https://github.com/winniel123/verge-asm/issues/16) filed *TLS 1.0/1.1 negotiated* under
+six. [#16](https://github.com/winniel123/verge-asm/issues/16) filed *TLS 1.0/1.1 negotiated* under
 `certificate`, which turns out not to be a property of a certificate at all.
 
 ## Decision
@@ -77,8 +77,8 @@ resolved* has nothing to report with. You cannot report a conflict between value
 compare.
 
 So it splits in two. A **decoder** per `(facet, source)` turns whatever the source emits into the
-facet's value space; a **canonicaliser** per facet puts a value into canonical form. The value
-space is shared, so conflicts stay reportable; the parser churn is confined to the timelines of
+facet's value space. A **canonicaliser** per facet puts a value into canonical form. The value
+space is shared, so conflicts stay reportable. The parser churn is confined to the timelines of
 the source that churned — which is precisely what per-source keying already bought and nothing had
 yet spent. The boundary needs policing rather than trusting: **a decoder that helpfully normalises
 is an unversioned canonicaliser wearing a parser's clothes.**
@@ -100,7 +100,7 @@ not look**, and nothing else.
 
 ### `resolution` and `dns-record` divide on walk versus reading
 
-`resolution` answers *does this name exist and where does it point*; `dns-record` records *what an
+`resolution` answers *does this name exist and where does it point*. `dns-record` records *what an
 authority served for a qtype*. One is a walk — it follows CNAMEs and, since
 [#35](https://github.com/winniel123/verge-asm/issues/35), queries the delegated authorities
 directly — and the other is a reading.
@@ -120,7 +120,7 @@ facet.
 detail, disturbing neither the rule nor the count.* This ADR left *what an address is* unstated, and
 in IPv6 one address has many legal spellings — so two spellings of one member would make the set
 unequal and close the `Span`. The members are held in `Address`'s **key form**, which is the address
-itself rather than any rendering of it; those members are the very things that admit the `Address`
+itself rather than any rendering of it. Those members are the very things that admit the `Address`
 subjects, and a set holding something other than the addresses it admitted would be incoherent. So
 this canonicaliser **composes** that form and does not restate it, and **a facet is still six
 parts** — the fix lands on the subject key, not on a seventh part.
@@ -229,10 +229,13 @@ headers, content-length, a normalised body hash, favicon MMH3, Wappalyzer tech-d
 flagged the body-normalisation function as "small but load-bearing" without writing it.
 [#5](https://github.com/winniel123/verge-asm/issues/5) had already killed tech-detect.
 
-**In:** status code; the `Location` header verbatim on 3xx, redirects being unfollowed because the
-redirect *is* the finding; the `WWW-Authenticate` scheme list on 401, which
-[#31](https://github.com/winniel123/verge-asm/issues/31)'s HTTP-shaped rule reads; the `Server`
-header verbatim; and `<title>`.
+**In:**
+
+- status code
+- the `Location` header verbatim on 3xx, redirects being unfollowed because the redirect *is* the finding
+- the `WWW-Authenticate` scheme list on 401, which [#31](https://github.com/winniel123/verge-asm/issues/31)'s HTTP-shaped rule reads
+- the `Server` header verbatim
+- `<title>`
 
 **Out:** body hash, content-length, favicon hash, tech-detect, JARM.
 
@@ -245,7 +248,7 @@ while admitting `Server`, which RFC 9110 §10.2.4 defines by name.
 The body hash is the one to refuse hardest. Its normalisation function is an unbounded corpus — a
 stripper per nonce format, forever — which is ADR-0004's out-of-band tell, and every miss diffs
 that endpoint on **every single run**. `<title>` is the genuine close call, since a dynamic title
-does the same thing at lower volume; it stays because *this host now serves a different app* is the
+does the same thing at lower volume. It stays because *this host now serves a different app* is the
 `http-identity` half of the map's differentiation and nothing else in the admitted set carries it.
 
 ### An `Endpoint` may have no name, and the cascade always had two legs
@@ -262,7 +265,7 @@ is its **worked example** that names one component only: *"an `Endpoint` whose `
 not a measurable thing"*. A nameless endpoint has no `Name` to withdraw, so a reader carrying the
 example rather than the rule keeps a live endpoint under a dead port forever. Stated explicitly
 rather than derived: **an `Endpoint` closes when either its `Name` or its `Service` withdraws**,
-and a nameless one has one leg. The `Service` leg was always necessary; it went unnoticed because
+and a nameless one has one leg. The `Service` leg was always necessary. It went unnoticed because
 a withdrawing `Service` normally arrives alongside a withdrawing `Name`.
 
 ### The differ is free because it is constrained
@@ -279,7 +282,7 @@ what it renders is fully determined by two values whose canonicaliser *is* versi
 change is a bug fix in a projection.
 
 The failure it forbids is concrete and tempting. The moment a differ wants to say *the SAN list
-gained a **wildcard***, it is classifying; classification is reference data; and it has become a
+gained a **wildcard***, it is classifying. Classification is reference data. And it has become a
 derivation that must be versioned. That is #31's zero-row verdict table applied to rendering, and
 anything richer than a diff is a `Signal`, which is versioned already and costs nothing new.
 
@@ -297,7 +300,7 @@ value and nothing was ever comparable across a `Gap`. Where any moved row previo
 *value*, it is a reinterpretation and breaks uniformly, unchanged.
 
 This is the same cut ADR-0007 made for aperture, arriving at the canonicaliser from the other side:
-**creating values where none existed costs `revealed` or nothing; reinterpreting an input that
+**creating values where none existed costs `revealed` or nothing. Reinterpreting an input that
 already had a value costs a `Break`.** Additive is not free, though — it produces a burst of
 first-values across the estate — so it fires **one re-baseline message at the cause**, ADR-0008's
 existing mechanism at zero comparison cost.
@@ -360,21 +363,21 @@ seventh facet, writes a canonicaliser, and silently skips the batch-scope obliga
 ## Consequences
 
 - **[`CONTEXT.md`](../../CONTEXT.md) changes in six places.** `Facet` gains the six parts and the
-  sixth facet; `Endpoint` gains the absent name and the two-legged cascade; `Certificate` loses any
-  implication that negotiated parameters live there; `Shadowed` and `Lame` become values on
-  `dns-record` as well as `resolution` and are marked prober-decided; `Span` records that the key
-  carries a facet-defined discriminator; and `tls-acceptance` is named.
+  sixth facet. `Endpoint` gains the absent name and the two-legged cascade. `Certificate` loses any
+  implication that negotiated parameters live there. `Shadowed` and `Lame` become values on
+  `dns-record` as well as `resolution` and are marked prober-decided. `Span` records that the key
+  carries a facet-defined discriminator. And `tls-acceptance` is named.
 - **[ADR-0007](./0007-drift-is-a-timeline-of-spans.md) is amended twice.** The timeline key is
   `(subject, facet, discriminator, vantage, source)`, and aperture has ~~**five** inputs rather than
   three~~ **seven inputs** — the qtype set and the TLS candidate set join enabled sources, port tiers and the
-  ownership gate. Both were already true in substance; neither was written.
+  ownership gate. Both were already true in substance. Neither was written.
   *(The count moved twice after this bullet was written and the figure here is **withdrawn**:
   [ADR-0017](./0017-exposure-needs-both-legs.md) added `Vantage class` for six, and
   [#108](https://github.com/winniel123/verge-asm/issues/108) /
   [ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md)
   added the **control-probe population** for seven.)*
 - **[ADR-0006](./0006-subjects-leave-by-measurement.md) is amended once, and only in its
-  example.** Its cascade rule was already general; what it now says out loud is that an
+  example.** Its cascade rule was already general. What it now says out loud is that an
   `Endpoint` closes on either leg, `Name` or `Service`, because a key component may be absent
   from the start.
 - **[#16](https://github.com/winniel123/verge-asm/issues/16)'s signal set changes in one row.**
@@ -400,7 +403,7 @@ seventh facet, writes a canonicaliser, and silently skips the batch-scope obliga
   it age out at the currency bound.)*
   *Corrected by [ADR-0027](./0027-a-source-may-admit-without-observing.md): this originally read
   "a `certificate` timeline now exists for every open `Service`", which read as a keying claim and
-  contradicted this ADR's own rationale.* The facet keys on **`Endpoint`**; what is true per
+  contradicted this ADR's own rationale.* The facet keys on **`Endpoint`**. What is true per
   `Service` is the **floor**, the nameless `Endpoint`'s timeline, and the count multiplies again
   by names per service.
 - **`tls-acceptance` puts a weekly-cadence input under a v1 signal.** ADR-0007's currency rule is

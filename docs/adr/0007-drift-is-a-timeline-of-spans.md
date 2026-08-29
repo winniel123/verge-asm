@@ -88,12 +88,12 @@ becomes queryable — *this service has been exposed for eleven days*, *this one
 times this week* — which is the sentence no count-shaped diff can produce, and therefore the
 concrete form of the map's differentiation. And decisively: **a period of not-knowing is
 naturally a span and unnaturally an event.** A vantage down for three days is a three-day span
-of *we cannot say*; as an event log it needs an invented edge into ignorance and another back
+of *we cannot say*. As an event log it needs an invented edge into ignorance and another back
 out.
 
 ### One timeline per source, and what `authority` is actually for
 
-The conflict that settles the key: the operator's zone file lists `old.example.com`; our own
+The conflict that settles the key: the operator's zone file lists `old.example.com`. Our own
 resolver returns a Name Error from every vantage. Both sources are `enumerable` over scopes
 covering that name. One timeline can hold one value, so a merged timeline must arbitrate — and
 the arbitration rule would be a threshold we chose, sitting inside the comparison path, which is
@@ -158,7 +158,7 @@ ever compared across a `Break`, so no transition is emitted and nothing is alert
 
 This is what makes the exposure board legal, and it does so structurally rather than by
 discipline. [#10](https://github.com/winniel123/verge-asm/issues/10) proposed reading the
-never-diff-Derived rule as *same-derivation-or-no-comparison*; storing the version on the span
+never-diff-Derived rule as *same-derivation-or-no-comparison*. Storing the version on the span
 means a query cannot accidentally violate it, because the values on either side of a `Break` are
 not the same kind of thing.
 
@@ -172,7 +172,7 @@ the largest blast radius available.
 
 [#4](https://github.com/winniel123/verge-asm/issues/4) handed over "the body-normalisation
 function for drift hashing", and a hash is the wrong instrument for a product whose entire output
-is *what* changed. A hash answers changed-or-not; the board's drill-down and the notification
+is *what* changed. A hash answers changed-or-not. The board's drill-down and the notification
 payload need *the SAN list gained `dev.example.com`*. So the canonical value is stored and
 compared structurally, with a hash kept only as an index and a short-circuit.
 
@@ -195,7 +195,7 @@ for membership — no counter, no invented intermediate state. A `suspected-expo
 
 There is a positive argument too. Under spans, a flapping service produces many short spans, and
 that is a **queryable fact the operator wants**. Damping at the model layer destroys it
-permanently; damping at the notification layer does not. The drift history is what we measured;
+permanently. Damping at the notification layer does not. The drift history is what we measured.
 the alert stream is what we judge worth waking someone for, and those are allowed to differ.
 
 ### Currency is `k` cadences of a Declared `Scan`
@@ -239,12 +239,12 @@ current, the derived value becomes non-constructible, and a `Gap` opens — the 
 availability window: this dial moves the whole board. It starts at 2 rather than 1 because
 ADR-0005 treats skipped ticks as normal operation and
 [#22](https://github.com/winniel123/verge-asm/issues/22) refuses to surface a single skipped
-tick; at `k=1` every skip would open a `Gap`.
+tick. At `k=1` every skip would open a `Gap`.
 
 ### Aperture has three inputs, and widening yields `revealed`
 
 [#15](https://github.com/winniel123/verge-asm/issues/15) ruled that a subject first observed
-under a widened aperture is not "appeared"; ADR-0006 split appearance into `appeared` and
+under a widened aperture is not "appeared". ADR-0006 split appearance into `appeared` and
 `returned` and noted that a model with one appearance transition has nowhere to put the third
 member. It lands in two places at once: the **`Break`** is the detection — a batch's recorded
 source set differs from the prior one's for that scope, which is data
@@ -263,7 +263,7 @@ from an internal vantage impossible rather than forbidden.
 Aperture is also broader than [#15](https://github.com/winniel123/verge-asm/issues/15) framed it.
 It has **three inputs — enabled sources, port tiers, and the ownership gate** — and all three
 produce `revealed` rather than `appeared`. [#36](https://github.com/winniel123/verge-asm/issues/36)
-adds two more; see the amendment below.
+adds two more. See the amendment below.
 
 ### Alert on the cause, record the consequence
 
@@ -275,7 +275,7 @@ not *measuring absence*. They enter a `Gap`. Getting this wrong retires a chunk 
 because a registry record changed.
 
 The same shape appears twice more. ADR-0006's cascade rule takes every `Endpoint` beneath a
-withdrawn `Name`; those spans must close, or a dead endpoint keeps an open span and every
+withdrawn `Name`. Those spans must close, or a dead endpoint keeps an open span and every
 current-state query returns it as live — but the closure is not independent evidence, so it
 records ~~reason `cascaded`~~ **reason `uncited`**, which is what lets the endpoints return
 coherently if the name does.
@@ -389,9 +389,9 @@ and which the two prober-decided values `Lame` and `Shadowed` settle independent
 
 **A conflict needs two `enumerable` sources.** *Reported, never resolved* governs the `source`
 component of the key alone. A `corroborative` source holds no closing events, so a difference from
-it is its own staleness; two `vantage`s measure different facts and **compose** — reading this
+it is its own staleness. Two `vantage`s measure different facts and **compose** — reading this
 sentence as covering vantage would make [ADR-0010](./0010-exposure-composes-two-reaches.md) illegal,
-and ADR-0006 already met the split-horizon case; and a `Seed` observes nothing at all. In v1
+and ADR-0006 already met the split-horizon case. And a `Seed` observes nothing at all. In v1
 exactly one pair qualifies, which is what discharges the last consequence below.
 
 ## Consequences
@@ -407,7 +407,7 @@ exactly one pair qualifies, which is what discharges the last consequence below.
   builds a `Drift` table and [#7](https://github.com/winniel123/verge-asm/issues/7)'s `Finding`
   rejection is undone.
 - **Spans carry no operator state.** An `Annotation` on `(subject, signal-name)` remains the only
-  home for operator opinion; a drift record is a measurement, not a work item. If operators need
+  home for operator opinion. A drift record is a measurement, not a work item. If operators need
   to mark a transition seen, that is notification read-state, not a property of history.
 - **The effective version of a Derived span composes at least four inputs** — the derivation
   rule, `Availability`'s version, the facet canonicaliser, and `k` — all release-coupled. Any
@@ -439,7 +439,7 @@ exactly one pair qualifies, which is what discharges the last consequence below.
   [#16](https://github.com/winniel123/verge-asm/issues/16) closed the v1 set — so it is recorded
   as an opportunity, not smuggled in here. **Discharged by
   [#48](https://github.com/winniel123/verge-asm/issues/48)** as two rules,
-  `zone-declared-name-returns-name-error` and `resolved-name-absent-from-zone`; the set was never
+  `zone-declared-name-returns-name-error` and `resolved-name-absent-from-zone`. The set was never
   closed ([#35](https://github.com/winniel123/verge-asm/issues/35)).
 
 ## Alternatives rejected

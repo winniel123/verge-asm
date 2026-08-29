@@ -1,12 +1,12 @@
 # Subjects leave by measurement, never by decay
 
 A subject leaves the estate only because something measured its absence. verge-asm ships no
-decay: nothing ages out, no clock and no counter retires a subject, and there is no
+decay. Nothing ages out, no clock and no counter retires a subject, and there is no
 `dormant` / `stale` / `unconfirmed` state between present and gone.
 
 This looks like an omission, so the reasoning has to be written down. The problem it answers
 is real: [`CONTEXT.md`](../../CONTEXT.md) permits only an `enumerable` source to assert an
-absence, and only inside the scope its `Batch` recorded, so a subject that no enumerable
+absence, and only inside the scope its `Batch` recorded. So a subject that no enumerable
 source covers can never die — an append-only inventory, which is half a drift product.
 
 Three findings dissolve most of it rather than solving it.
@@ -15,7 +15,7 @@ Three findings dissolve most of it rather than solving it.
 to whether that name exists, so the scope a resolution batch records is `{name, qtype}`. This
 sets no new precedent — the prober was already enumerable over `(that address, that port
 set)`, a scope we chose rather than one the operator declared. The rule was never *the
-operator must declare the scope*; it was *the batch must record the scope its silence covers*,
+operator must declare the scope*. It was *the batch must record the scope its silence covers*,
 and a singleton is the smallest such scope. Since every known name is re-resolved every cycle,
 the premise that a certificate-discovered name has only `corroborative` sources bearing on it
 is false for every name outside a wildcard.
@@ -30,7 +30,7 @@ and "gone" is diffable with no new machinery.
 **The problem was only ever a `Name` problem.** `Service` and `Endpoint` are known only by
 measurement, so the prober's scope already licenses their absence. `Address` — alone among the
 four subjects — has no lifecycle of its own, because nothing ever observes an address's
-existence; it is in the estate exactly while a current resolution cites it or a `Seed` covers
+existence. It is in the estate exactly while a current resolution cites it or a `Seed` covers
 it.
 
 What remains is the genuine residue: names below a DNS wildcard, where the resolver can never
@@ -55,7 +55,7 @@ now known to be incomplete. Two changes, neither of which disturbs the decision 
 *source error*, a `Name` whose parent zone delegates it to nameservers that were **reached
 and do not serve it** holds `Lame` — RFC 8499 §7's lame delegation. This is an observed
 value and not a source error, because the delegated authorities were queried **directly**
-and answered; the distinction is only purchasable that way, since a recursive resolver's
+and answered. The distinction is only purchasable that way, since a recursive resolver's
 SERVFAIL cannot separate a dead delegation from our own bad upstream. A delegation only
 partly lame is not this value: the name still resolves, so `resolution` has not moved, and
 the per-nameserver detail is recorded on `dns-record`.
@@ -87,7 +87,7 @@ address-scope `Seed` before any name is known. Such an endpoint has no `Name` to
 *"an `Endpoint` whose `Name` has gone is not a measurable thing"* never fires and, read as the
 whole rule, it would keep a live endpoint under a dead port forever.
 
-The `Service` leg was always there and always necessary; it went unnoticed because a withdrawing
+The `Service` leg was always there and always necessary. It went unnoticed because a withdrawing
 `Service` normally arrives alongside a withdrawing `Name`. Stated explicitly: **an `Endpoint`
 closes when either its `Name` or its `Service` withdraws**, and a nameless one simply has one
 leg. The reason is unchanged — ~~`cascaded`~~ **`uncited`** since
@@ -104,17 +104,17 @@ fires on two subject kinds, not four
 settles `appeared` and adds a restriction the split needs and never had: **a membership message
 fires only on a `Name` or an `Address`, and never on a `Service` or an `Endpoint`.**
 
-Those two have keys the model composes from what it already holds — a `Service` from an `Address`
-in the estate and `verge-core`, which is ours; an `Endpoint` from two subjects already in the
-estate — so their membership is another subject's membership restated, and a message for one is
-a second representation of one fact.
+Those two have keys the model composes from what it already holds. It composes a `Service` from an
+`Address` in the estate and `verge-core`, which is ours. It composes an `Endpoint` from two subjects
+already in the estate. So their membership is another subject's membership restated, and a message
+for one is a second representation of one fact.
 
 The restriction governs the **whole** family and not only `appeared`, which is where it earns its
 place: without it an `Address` returning fires one alertable `Service` `returned` per
 `(port, transport)` in `verge-core`, a burst on the one member of the family this ADR made
 alertable. The cascade rule below already writes those spans with a reason — ~~`cascaded`~~
 **`uncited`** since
-[ADR-0087](./0087-a-closure-records-the-ground-it-rests-on-and-there-are-three-grounds.md); they are
+[ADR-0087](./0087-a-closure-records-the-ground-it-rests-on-and-there-are-three-grounds.md). They are
 now also silent. That reason is the field this silence keys on, which is why ADR-0087 rules it
 **necessary** rather than merely warranted: with the three grounds on one row, a departure nobody
 measured is indistinguishable from one we did, and this ADR's own founding sentence — *subjects
@@ -127,7 +127,7 @@ the three, **`measured-absent`**, is a measurement of the subject that left.
   still-resolving name is legal: the operator is saying *not mine*, not *not there*, and a
   tool that refuses that is arguing with its owner about where their estate ends. An excluded
   name is no longer queried. This is deliberately **not** an `Annotation`, which is operator
-  *opinion attached to a measured thing*; using opinion to remove a subject is the suppression
+  *opinion attached to a measured thing*. Using opinion to remove a subject is the suppression
   [#22](https://github.com/winniel123/verge-asm/issues/22) refused, under a different name.
   Exclusions therefore appear on `Coverage`, because they are the one route by which an
   operator can silently shrink the estate until the board looks clean.
@@ -143,7 +143,7 @@ the three, **`measured-absent`**, is a measurement of the subject that left.
   certificate SAN or a zone-file entry is admitted as shadowed, because neither was derived
   from the resolution the wildcard poisoned.
 - **One cascade rule, not several**: a subject leaves when a component of its natural key
-  leaves. An `Endpoint` whose `Name` has gone is not a measurable thing; a `Service` under a
+  leaves. An `Endpoint` whose `Name` has gone is not a measurable thing. A `Service` under a
   departed `Address` likewise.
 - **De-citation closes the probing gate.** An `Address` reached only through a name that has
   since gone has no `Citation` chain back to a `Seed` — the precise condition
@@ -171,7 +171,7 @@ the three, **`measured-absent`**, is a measurement of the subject that left.
 - **No cascade down the tree.** A Name Error at one name licenses no absence below it. RFC
   8020 says it should, but compliance is not universal, and every inferred absence is a
   "removed" alert we never measured. Re-querying is free.
-- **Appearance splits in two.** *Appeared* is discovery; *returned* is a decommission being
+- **Appearance splits in two.** *Appeared* is discovery, and *returned* is a decommission being
   undone, and it is the one of the pair worth an alert — withdrawal is the most common
   intentional change in an estate, and alerting on it trains the operator to ignore the
   channel.

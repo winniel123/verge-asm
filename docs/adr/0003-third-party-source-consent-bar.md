@@ -27,7 +27,7 @@ exception: "non-commercial" was doing three unrelated jobs across the list.
 
 - HackerTarget restricts content to *"your personal and non-commercial use only"* **and**
   forbids transmitting or storing it *"in any other website or other form of electronic
-  retrieval system"*. The first clause is about **who the operator is**; the second is about
+  retrieval system"*. The first clause is about **who the operator is**. The second is about
   **what the software does**, and it describes an asset database exactly.
 - SSLMate's unauthenticated tier is scoped *"for personal or evaluation purposes"* — about
   who the operator is.
@@ -59,7 +59,7 @@ Two corollaries fix the cases the bar does not directly decide:
 **Ambiguity is asked about, not read.** Where terms are genuinely in tension, the project
 writes to the source operator and ships the source **off by default until an answer
 arrives** — indefinitely if none does. Silence is not consent, and no elapsed interval
-converts it into consent. This map has measured rather than assumed at every prior step; a
+converts it into consent. This map has measured rather than assumed at every prior step. A
 legal reading performed on strangers' behalf is the same kind of assumption.
 
 **Absence of terms clears the bar.** A source that publishes no terms presents nothing to
@@ -96,13 +96,13 @@ the operator saying so" is a modelled fact rather than a deployment convention.
   operator's estate appear to grow overnight — a change in the observer surfacing as a
   change in the world, delivered by us, estate-wide, via an upgrade. This binds future
   sessions changing defaults, not just this decision. The handling belongs to
-  [#8](https://github.com/winniel123/verge-asm/issues/8); the rule is that a subject first
+  [#8](https://github.com/winniel123/verge-asm/issues/8). The rule is that a subject first
   observed under a widened aperture is not "appeared".
 - **Disabling is safe, enabling is not.** Every opt-in source in play is `corroborative`, so
   its silence never asserted absence and turning it off cannot manufacture a removal. The
   entire aperture risk sits on the enable side.
 - **The bar is a README obligation too.** An operator inventorying their own estate is
-  inside ARIN's *"Internet operational or technical research"* permission; someone selling
+  inside ARIN's *"Internet operational or technical research"* permission. Someone selling
   ASM-as-a-service built on verge-asm is inside its prohibition on use *"as part of a
   commercial service or product"*, and the AGPL does not exempt them. The distinction is
   documented rather than enforced, because the software cannot tell the two apart.
@@ -133,7 +133,7 @@ line was written while RIPEstat was the only source in question, before
 holds for APNIC (84.36% opaque-id coverage via CAIDA ⋈ delegated-stats) and AFRINIC (100%).
 It does **not** hold for **RIPE** — CAIDA carries no opaque-id for RIPE, 0 of 39,640 — or
 for **LACNIC**, whose CAIDA records carry no organisation names at all. For those two
-regions the operator's toggle is not extra depth; it is the entirety of org→prefix coverage.
+regions the operator's toggle is not extra depth. It is the entirety of org→prefix coverage.
 
 **"First-run discovery depth is registry-dependent" understates the current position.** The
 recorded framing of ARIN as carrying the keyless default set alone is stale in the
@@ -148,14 +148,14 @@ yourself* — which is not a wait.
 and a limb-2 instrument is being applied to it. And LACNIC has no retrievable terms, so the
 consent record specified in [#15](https://github.com/winniel123/verge-asm/issues/15)
 (account, timestamp, terms URL) cannot be completed and its prompt has no restriction to
-state; AFRINIC is a narrower instance, its terms readable but its documented URL a 404. Both
+state. AFRINIC is a narrower instance, its terms readable but its documented URL a 404. Both
 are open as [#34](https://github.com/winniel123/verge-asm/issues/34), which may yet amend
 this ADR further.
 
 ## Second amendment — 2026-08-13
 
 [#34](https://github.com/winniel123/verge-asm/issues/34) resolves what an operator is doing
-at the toggle. The decision above is unchanged; one sentence of it is **scoped**, one value
+at the toggle. The decision above is unchanged. One sentence of it is **scoped**, one value
 it introduced is **redefined**, and the consent record
 [#15](https://github.com/winniel123/verge-asm/issues/15) specified is **replaced**.
 
@@ -205,8 +205,8 @@ where this leaves the default off and moves nothing.
 The reading only holds if the operator is told what is unresolved, so the prompt states it
 **in the project's own words, never the source's**, in **two marked groups**:
 
-- **what you may be able to resolve** — the operator-varying rows above; they can seek
-  APNIC's approval and they know whether they resell;
+- **what you may be able to resolve** — the operator-varying rows above. They can seek
+  APNIC's approval, and they know whether they resell.
 - **what nobody has been able to resolve** — the constant rows, plus *we asked, nobody
   replied*.
 
@@ -218,7 +218,7 @@ answer, which reads as *this is hopeless, leave it off*.
 LACNIC asserts binding terms and serves a 7,014 B JavaScript shell at the URL its own RDAP
 advertises. The toggle **survives**: the operator can do the one thing the project cannot —
 ask LACNIC as a resource holder in their own region — and refusing the toggle forecloses
-that permanently. `Consent` gains **no fourth value**; *we could not read the terms* is an
+that permanently. `Consent` gains **no fourth value**. *We could not read the terms* is an
 epistemic fact about our own assessment, and putting it on a property whose values all
 answer *whose permission does this run on* would be a second property wearing an enum
 case's clothes. It belongs in the prompt and the record, which is where the operator meets
@@ -301,7 +301,7 @@ amendment's Consequences bullet reading *"The aperture rule is untouched. Enabli
 these still widens the aperture for that install… For RIPE and LACNIC it is a zero→full
 widening, the largest the product can make."*
 
-All five registry paths *propose*; none produces an observation.
+All five registry paths *propose*. None produces an observation.
 [ADR-0012](./0012-a-proposer-is-not-a-source.md) states that nothing about a proposer widens
 an aperture, and [#43](https://github.com/winniel123/verge-asm/issues/43) prices a
 proposer's addition or removal at *no `revealed`, no `Break`, no version bump* — the only
@@ -324,7 +324,7 @@ paths feeds an observation rather than a proposal — ~~RIPEstat's BGP leg is th
 candidate~~ **and there is no longer a candidate: the BGP leg is out of scope for v1 on
 [ADR-0063](./0063-a-routing-announcement-names-the-path-not-the-estate.md), struck here at the site
 that specifies it per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
-The conditional stands and is now unwitnessed; see the sixth amendment.**
+The conditional stands and is now unwitnessed. See the sixth amendment.**
 
 ## Fourth amendment — 2026-08-13
 
@@ -347,8 +347,8 @@ produce.** Measured across the four tickets, their GitHub timelines, and every f
 repository's history:
 
 - **No send confirmation of any kind**, on any of the four.
-- **No recipient for three of the four.** #19 names `stat@ripe.net`; #23 and #25 say only
-  *"Write to APNIC"* / *"Write to LACNIC"*; #24 names *"AFRINIC hostmaster"* with no address,
+- **No recipient for three of the four.** #19 names `stat@ripe.net`. #23 and #25 say only
+  *"Write to APNIC"* / *"Write to LACNIC"*. #24 names *"AFRINIC hostmaster"* with no address,
   the terms text having redacted it.
 - **No send date.** The only timestamps in existence are GitHub lifecycle events.
 - **No artefact anywhere in the repository.** Every file ever added on any branch is a
@@ -366,7 +366,7 @@ repository's history:
 So the project cannot distinguish **sent and ignored** from **never sent**. That is not a
 finding that the emails were never sent — it is a finding that **the project has no record
 either way, and never had a mechanism to have one.** Writing to a third party is an act no
-agent session can perform; these were `wayfinder:task` tickets of the kind the skill says
+agent session can perform. These were `wayfinder:task` tickets of the kind the skill says
 must be handed to the human as a checklist, and no such handoff, acceptance or report-back
 is recorded.
 
@@ -391,7 +391,7 @@ operator and will not read them on a stranger's behalf; the operator, who is the
 actually bound by them, makes the reading and bears it"*, and
 [`CONTEXT.md`](../../CONTEXT.md)'s entry says the same. **No clause of either depends on an
 email.** The value rests on the project's *refusal to read*, which is a standing position and
-not an event. The ask was the corollary's **procedure**; the toggle's legitimacy rests on the
+not an event. The ask was the corollary's **procedure**. The toggle's legitimacy rests on the
 corollary's **substance**.
 
 This matters because the over-correction is expensive and available: concluding that the
@@ -433,7 +433,7 @@ conduct rather than to a `Batch`: **record what completed, never what was attemp
 send, which is a dead-lettered batch asserting absences it never measured, one layer up.
 Absence of a file is therefore evidence of absence, which is what converts today's `Gap` into
 a value the moment the dev acts. Drafts live under `docs/correspondence/drafts/` and are
-evidence of nothing; sending means moving the file up one level.
+evidence of nothing. Sending means moving the file up one level.
 
 The rider that generalises past this ADR: **the project may only claim an act it can
 produce**, and this is the first time the rule has been turned on the project itself rather

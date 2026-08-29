@@ -25,7 +25,7 @@ outside. It handed the naming to this ticket.
 Two things established after ADR-0010 change what the third row and column even are.
 
 **[ADR-0014](./0014-only-revealed-generalises.md) separated *no timeline* from `Gap`.** A `Gap` is
-a span holding no value; a timeline that never existed holds nothing at all, and the two are
+a span holding no value. A timeline that never existed holds nothing at all, and the two are
 different objects. ADR-0010's third row and column were labelled *(`Gap`)*, and its Consequences
 say `firewalled` versus `internal-only` is *"precisely value versus `Gap`"*. Under ADR-0014 that
 is not right: §5 of the same ADR says the never-configured case has **no timeline**, and only the
@@ -63,7 +63,7 @@ the surviving leg's `Reach` renders and the statement is *we never looked* — n
 the inventory is complete for the class that runs. Where a configured leg **went silent**, the
 `Exposure` timeline holds a `Gap`, the surviving leg's `Reach` still renders, and the statement is
 *we stopped looking*. [#32](https://github.com/winniel123/verge-asm/issues/32) required the
-`Subjects` screen never to render these two alike; they now have one shape and two statements.
+`Subjects` screen never to render these two alike. They now have one shape and two statements.
 
 **5. The board groups both axes by the internet leg.** With four states the transition matrix is a
 2×2 of 2×2s: the outer square is the internet leg's transition, the inner one the internal leg's.
@@ -76,7 +76,7 @@ escalation is the block on one side of it**, not a cell.
   `internal-only` to be *"one state and a hole, named twice"* and said the mechanism now has a
   name — but left the second name in the enum, so the hole stayed named. Withdrawing
   `internal-only` is that finding carried out. The correction ADR-0010 could not make is that the
-  hole is *no timeline* and not a `Gap`; ADR-0014 supplied the distinction two tickets later.
+  hole is *no timeline* and not a `Gap`. ADR-0014 supplied the distinction two tickets later.
 - **The dangerous cell is removed rather than patched.** Internal `not-reached` with no internet
   leg no longer reads `unreachable`, because it no longer reads as an `Exposure`. The fix is at
   the class of defect — no one-legged reading gets a state name — rather than at the instance, so
@@ -92,7 +92,7 @@ escalation is the block on one side of it**, not a cell.
   cause.** Adding an internet vantage to a running install does not move a `Derivation` version —
   the derivation is unchanged — but it widens what the composition covers, which is
   [ADR-0007](./0007-drift-is-a-timeline-of-spans.md)'s second `Break` cause. Nothing crosses it,
-  so no `Transition` is emitted and the estate does not appear to escalate overnight; the census
+  so no `Transition` is emitted and the estate does not appear to escalate overnight. The census
   still renders, per [ADR-0008](./0008-derivation-versions-move-on-content.md). Vantage class
   therefore joins the enumerated aperture inputs, which ADR-0014 licensed as *recognised rather
   than argued*.
@@ -117,10 +117,10 @@ escalation is the block on one side of it**, not a cell.
   treatment. No board at all"*, which is right where the precondition removes every value and
   wrong where it removes only the composition. Rendering the ink panel alone would empty the board
   #14 deliberately built the no-prober install to have, and would report less than we measured. So
-  the density splits by what the precondition costs: **the value is gone** → panel, no board;
-  **only the composition is gone** → ink bar plus the surviving leg's board.
+  the density splits by what the precondition costs: **the value is gone** → panel, no board.
+  **Only the composition is gone** → ink bar plus the surviving leg's board.
 - **`Reach` gains an operator-facing rendering it did not have.** ADR-0010 made it a named
-  `Derivation` leaf so a rule could compose one leg; this ADR reads it as the object a one-legged
+  `Derivation` leaf so a rule could compose one leg. This ADR reads it as the object a one-legged
   install's board is built over. There was no such object before ADR-0010, which is why #14's
   promise of *"a complete, honest internal reachability inventory"* and #10's *"worthless with one
   vantage"* could not both be honoured. Under #14's own noun they both are.
@@ -139,7 +139,7 @@ escalation is the block on one side of it**, not a cell.
 - **The `Subjects` screen's population list is corrected, not lengthened.** #32 told it that where
   no internet vantage was ever configured *"the subject holds an honest `internal-only`"*. It
   holds an honest internal `Reach` and no `Exposure`. The population is the same and the count is
-  unchanged; what it holds is not.
+  unchanged. What it holds is not.
 
 ## Alternatives rejected
 

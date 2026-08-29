@@ -39,7 +39,7 @@ best signal is not. **Cost yields to correctness**, and the invariant encodes wh
 The invariant is violated today, in two ways at once.
 
 **Two transport mismatches.** `verge-core`'s Management/OOB group is specified as
-`161 (TCP), 623`. Per IANA, SNMP is **161/udp**; IPMI/ASF-RMCP is **623/udp**; and **623/tcp** is
+`161 (TCP), 623`. Per IANA, SNMP is **161/udp**. IPMI/ASF-RMCP is **623/udp**. And **623/tcp** is
 `oob-ws-http`, the DMTF out-of-band web services protocol — a different protocol on the same
 number. As specified, the hot set probes the TCP siblings of two UDP services and evaluates
 neither.
@@ -61,7 +61,7 @@ Two things found while resolving the ticket, each of which changed an answer:
   protocol it was not measuring.
 - **[`CONTEXT.md`](../../CONTEXT.md) was already right.** `Service` is an
   `(Address, port, transport)` triple. The domain model has been transport-keyed since
-  [#7](https://github.com/winniel123/verge-asm/issues/7); it is the two lists and the wire contract
+  [#7](https://github.com/winniel123/verge-asm/issues/7). It is the two lists and the wire contract
   that disagree with the model they feed, not the model that needs changing.
 
 ## Decision
@@ -93,14 +93,14 @@ not the reason that matters.
 **licenses silence to count as evidence of absence**. A batch that records its scope as `{161}`
 asserts an absence over a transport it never touched. That is the no-false-absence rule broken at
 the record — the same failure as the dead-lettered batch recording "attempted 140 ports", arriving
-through the key rather than through the failure path. The invariant is a build convenience; the
+through the key rather than through the failure path. The invariant is a build convenience. The
 scope record is a correctness property, and it is why the re-key may not stop at the list file.
 
 Nothing in the domain model changes. `Service` was already the triple.
 
 ### `verge-core` was already a union; it was implicit and hand-maintained
 
-Look at what the four omissions have in common. 512/tcp ranks 239th by open-frequency; 4369, 25672
+Look at what the four omissions have in common. 512/tcp ranks 239th by open-frequency. 4369, 25672
 and 27019 rank nowhere at all. **None of them belongs in the hot set on the hot set's own evidence
 standard.** They belong there only because the sensitive list forces them.
 
@@ -171,8 +171,8 @@ IANA's own registry. The fix decomposes without residue:
   history never is.
 - **An addition.** 161/udp and 623/udp enter. Plain `revealed`.
 
-Nothing is left over for a third category to hold. The intuition behind it is about **our intent**;
-the model keys on **subjects**. Admitting a change-kind defined by intent is the door ADR-0007
+Nothing remains for a third category to hold. The intuition behind it is about **our intent**.
+The model keys on **subjects**. Admitting a change-kind defined by intent is the door ADR-0007
 closed when it made `Break` structural — and "it's just a fix" is a permanently available feeling,
 which is why the rejection is recorded here rather than left to be re-derived.
 
@@ -185,27 +185,26 @@ riding along on the addition's.
 protocol and a legitimate candidate on the frequency half's terms. But **neither was ever selected
 on those terms**: both entered through the Management/OOB supplement, whose stated rule is that
 each member "maps to a named v1 risk signal" — and after the transport fix, neither does. 623/tcp
-is re-addable later on a fresh frequency or signal argument; nobody has made one, and making one
+is re-addable later on a fresh frequency or signal argument. Nobody has made one, and making one
 would be a new widening rather than a reversal of this.
 
 ### What the operator loses, and why that is the right loss
 
-`verge-core` is computed, so it is not a file. The operator edits the **frequency half**; the
+`verge-core` is computed, so it is not a file. The operator edits the **frequency half**. The
 sensitive half is a shipped signal's reference data, release-coupled under
 [ADR-0004](./0004-signals-are-release-coupled-rules.md), and not a file they reach.
 
 The cost is real: the operator can no longer say *"don't probe 4369"*. That is deliberate, and it
 has a precedent. [ADR-0006](https://github.com/winniel123/verge-asm/blob/adr-0006-subject-lifecycle/docs/adr/0006-subjects-leave-by-measurement.md)
 ruled that removing a subject from the estate belongs to `Seed`, never to `Annotation`, because
-operator opinion may not do the job measurement does; and
-[#22](https://github.com/winniel123/verge-asm/issues/22) refused suppression of coverage gaps for
+operator opinion may not do the job measurement does. [#22](https://github.com/winniel123/verge-asm/issues/22) refused suppression of coverage gaps for
 the same reason. **A port the operator can hide is a signal the operator can silence** — #22's
 refused suppression arriving through the port list. If the operator genuinely needs a host left
 alone, the instrument is the scope declaration, not the port set.
 
 The same construction removes the last enforcement point that would otherwise have been needed. An
 operator-editable `verge-core` could break the invariant after release, which would have wanted a
-config-load check; a computed one cannot.
+config-load check. A computed one cannot.
 
 ### UDP is a transport capability, not a list
 
@@ -220,8 +219,8 @@ union it is superseded rather than amended: the UDP leg is `verge-core`'s UDP pa
 sensitive half contributes six and the frequency half contributes the residue
 `53, 123, 500, 1900, 5353`. Nobody maintains a UDP list by hand again.
 
-Separating the two ideas is what makes this work. Membership of `verge-core` is a *definition*;
-whether a given `Batch` measures a pair is the *prober's* business. A batch that measures no UDP
+Separating the two ideas is what makes this work. Membership of `verge-core` is a *definition*.
+Whether a given `Batch` measures a pair is the *prober's* business. A batch that measures no UDP
 records a scope containing no UDP pairs, and `not-evaluable` falls out of ADR-0004's existing rule
 with no new mechanism — which is exactly what
 [#21](https://github.com/winniel123/verge-asm/issues/21) §6.1 asked for, obtained for free rather
@@ -245,7 +244,7 @@ place.
   state per `Seed` scope and nothing below it, so
   [#21](https://github.com/winniel123/verge-asm/issues/21) §6.1's stated justification for keeping
   the rows — that it makes the gap visible in the product rather than invisible in a list file — is
-  unbacked. This ADR does not repair it; it is open as a separate ticket, and it is not confined to
+  unbacked. This ADR does not repair it. It is open as a separate ticket, and it is not confined to
   UDP.
 - The **governance** question is untouched and stays fog on the map: who revises either source
   list, on what trigger. The union changes who maintains the *derived* set (nobody) and nothing
@@ -266,8 +265,8 @@ pairs.
 - **The UDP arithmetic above is superseded.** *"the sensitive half contributes six"* UDP pairs is now
   **five** — 69/udp, 137/udp, 138/udp, 623/udp, 11211/udp — and *"The six UDP pairs remain
   `not-evaluable` on default settings"* reads **five**. (That sentence is separately corrected by
-  [#44](https://github.com/winniel123/verge-asm/issues/44), which found they hold no subject at all;
-  the count moves either way.)
+  [#44](https://github.com/winniel123/verge-asm/issues/44), which found they hold no subject at all.
+  The count moves either way.)
 - **The worked example in *"Correcting a mis-aimed port"* is superseded in one half.** *"An addition.
   161/udp and 623/udp enter. Plain `revealed`"* — **`161/udp` does not enter.** The frequency half is
   TCP-only ([#4](https://github.com/winniel123/verge-asm/issues/4) §2.5) and this ADR attributes 161
@@ -288,7 +287,7 @@ half has been a removal ([#66](https://github.com/winniel123/verge-asm/issues/66
 [#91](https://github.com/winniel123/verge-asm/issues/91) disposed of the three candidates
 [ADR-0037](./0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md) limb 2 obliged
 [`sensitive-ports.md`](../research/sensitive-ports.md) §19.8 to ticket rather than admit. `10259/tcp`
-kube-scheduler and `10257/tcp` kube-controller-manager are **admitted** on Claim 3; `10256/tcp`
+kube-scheduler and `10257/tcp` kube-controller-manager are **admitted** on Claim 3. `10256/tcp`
 kube-proxy is **refused** — §24. The list is **39** pairs.
 
 - **The union widens by two members**, both in the sensitive half, both **TCP**. The UDP arithmetic
@@ -360,7 +359,7 @@ one **sentence inside it** — written in this ADR, and contradicting the Decisi
 
 [#97](https://github.com/winniel123/verge-asm/issues/97) enumerated the frequency half from
 [#4](https://github.com/winniel123/verge-asm/issues/4) §2.3 and tested all 39 sensitive pairs against
-it — [`sensitive-ports.md`](../research/sensitive-ports.md) §29. **The list is 41 as composed** (**40 after [#109](https://github.com/winniel123/verge-asm/issues/109)** removed `1433/tcp` — see the amendment below; the union is unchanged either way), and
+it — [`sensitive-ports.md`](../research/sensitive-ports.md) §29. **The list is 41 as composed** (**40 after [#109](https://github.com/winniel123/verge-asm/issues/109)** removed `1433/tcp` — see the amendment below. The union is unchanged either way), and
 #95's two are measured against the same limb with the same answer (§27.12): neither is in the
 frequency half.
 
@@ -387,11 +386,11 @@ frequency half.
   widens by two because the sensitive half gained two members the frequency half does not carry** —
   which is what the Decision's *"Derived: `frequency-set ∪ sensitive-list`"* row already says, and it
   needs no invariant to say it. `10259/tcp` and `10257/tcp` were inside `verge-core` from the instant
-  §24 admitted them; there was never a separate addition to perform or a gate to pass.
+  §24 admitted them. There was never a separate addition to perform or a gate to pass.
 - **The widening, the price and the coupling direction are all unaffected.** *Cost yields to
   correctness* still names why the union runs this way. **[measured]** the yield is **+1.6 %** of the
   daily tier's per-host probe budget — 127 → 129 TCP pairs, 19.0 s → 19.3 s per pass on a dropping
-  host under §6.3's caps; **composed with #95's two, 127 → 131 TCP pairs, 19.0 s → 19.6 s, +3.1 %** —
+  host under §6.3's caps. **Composed with #95's two, 127 → 131 TCP pairs, 19.0 s → 19.6 s, +3.1 %** —
   with no change to technique, to the zero-added-capabilities budget, or to
   the concurrency bound that governs the middlebox hazard. [ADR-0044](./0044-a-one-off-measurement-has-no-currency.md)
   does not bite: both pairs join a configured `Scan` at a daily cadence, so they have currency.
@@ -445,7 +444,7 @@ this ADR is the first place a reader would check it.
   this ADR's own union carries and the shipped configuration does not probe** — so nothing becomes
   unread and [ADR-0014](./0014-only-revealed-generalises.md) does not bite.
   [#109](https://github.com/winniel123/verge-asm/issues/109) priced the removal as *"a version bump
-  **and an aperture widening**"*; **the second half is wrong**, and `sensitive-ports.md` §35.12
+  **and an aperture widening**"*. **The second half is wrong**, and `sensitive-ports.md` §35.12
   re-derives it. `sensitive-ports.md` §7.2's *"the cost is symmetric between adding and removing a
   port"* is now instantiated on both sides and is confirmed **for the rule** and refined **for the
   union**: symmetric in version cost, asymmetric in union cost.

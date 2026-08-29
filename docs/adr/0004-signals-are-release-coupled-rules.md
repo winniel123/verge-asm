@@ -7,16 +7,16 @@
 
 ## Context
 
-The map promises that v1 reports *"risk signals that fall out of probing for free"*, and
+The map promises that v1 reports *"risk signals that fall out of probing for free"*.
 [#7](https://github.com/winniel123/verge-asm/issues/7) fixed what a `Signal` is — a named,
 versioned rule evaluated over observations, citing its evidence, with no lifecycle of its
-own. What was never settled is **which** signals ship, and that turns out to be blocked on a
+own. What was never settled is **which** signals ship. That proves to be blocked on a
 prior question: where the line sits between a legal signal and the technology fingerprinting
 [#5](https://github.com/winniel123/verge-asm/issues/5) rejected.
 
 The obvious lines do not cut. *"Does the rule contain a human judgement?"* excludes nothing —
 *TLS 1.0 is weak* is a judgement. *"Is the evidence verifiable by the operator?"* excludes
-nothing either; a fingerprint's banner is right there to read. Meanwhile the candidate signal
+nothing either. A fingerprint's banner is right there to read. Meanwhile the candidate signal
 list contained items — matching admin-panel titles, default-install pages — that are plainly
 a signature database wearing a different hat.
 
@@ -37,7 +37,7 @@ Four rules follow from treating signals this way.
 
 **No severity.** A signal is a named fact with evidence. Severity exists to rank a static
 backlog, which is the `Finding` mental model [#7](https://github.com/winniel123/verge-asm/issues/7)
-rejected; in a product whose subject is change, urgency comes from the transition that
+rejected. In a product whose subject is change, urgency comes from the transition that
 surfaced the signal.
 
 **Absent evidence yields `not-evaluable`, never "did not fire."**
@@ -50,7 +50,7 @@ never earned. The correction makes the sentence *stronger*, not weaker: it is no
 ports are unread there, it is that none is.
 
 **A new signal is alertable if and only if the effective rule version was unchanged between
-the two evaluations.** A signal is a pure function of its inputs and its rule; hold the rule
+the two evaluations.** A signal is a pure function of its inputs and its rule. Hold the rule
 constant and any change in the signal set is attributable to the world, which makes it drift.
 Across a rule change the two sets are **not compared at all** and the presentation is *"your
 rules changed"*.
@@ -275,7 +275,7 @@ is not wanted now, and minting it here would be the second constant
 Two things are corrected, both in the Consequences below, and neither touches this ADR's test.
 
 **"`sensitive-port-reached-from-internet` is the only signal whose reference data we curate" is now
-wrong by two.** #60's amendment above already made it two; walking all sixteen rules for
+wrong by two.** #60's amendment above already made it two. Walking all sixteen rules for
 [ADR-0032](./0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) makes it **three**. The
 third is **`certificate-weak-key-or-signature`**, whose key-size floor and deprecated-algorithm set
 have never been written down anywhere in this repo — it appears in the Consequences list below and in
@@ -330,7 +330,7 @@ its **value**, and what is withdrawn is the sentence that justified the value.
 **`N` is no longer a number of days.** It is **one third of the certificate's validity period
 (`not_after − not_before`), and one half of it where that period is 10 days or less.** *"shipped at
 **30 days**"* above stands unrewritten per this repo's name-and-withdraw convention and is
-superseded. [ADR-0034](./0034-derive-the-claim-before-looking-for-the-owner.md) holds the reasoning;
+superseded. [ADR-0034](./0034-derive-the-claim-before-looking-for-the-owner.md) holds the reasoning.
 [`docs/research/acme-renewal-timing.md`](../research/acme-renewal-timing.md) holds the retrieval.
 
 **The rationale sentence above is withdrawn in both halves.** It reads: *"30 days is where the ACME
@@ -371,7 +371,7 @@ remedy~~ — **withdrawn** by [#119](https://github.com/winniel123/verge-asm/iss
 [ADR-0039](./0039-a-channel-carries-the-message-never-the-estate-and-a-delivery-is-an-operational-record.md)
 on the same ground as the #60 amendment above: ADR-0007 granted a **licence** to damp there and no
 damping was ever built, and v1 builds none. The routing is undisturbed either way — the point this
-sentence was making survives; the mechanism it named does not.
+sentence was making survives. The mechanism it named does not.
 
 **One obligation widens.** The #60 amendment requires a corpus row for a clock-reading rule to carry
 its **evaluation instant** as part of its input. It now carries **`not_before`** as well, or the
@@ -382,7 +382,7 @@ row's expected output is underdetermined.
 **`non-globally-reachable-address-resolved-from-internet` ships** — a `Name` whose `resolution`,
 composed existentially over the available **internet-class** vantages, holds an address inside a block
 the IANA Special-Purpose Address Registry marks `Globally Reachable = False`, read longest-match. Its
-`Predicate domain` is `Name`s whose internet-class `resolution` holds an **answer**; `Shadowed` is
+`Predicate domain` is `Name`s whose internet-class `resolution` holds an **answer**. `Shadowed` is
 `not-evaluable`, `NameError` / `NoData` / `Lame` are outside the domain, and on an install with no
 internet-class vantage every `Name` is `not-evaluable` exactly as
 `sensitive-port-reached-from-internet` already is there.
@@ -398,7 +398,7 @@ but already here.
 
 **The vantage class is in the rule's name and in its domain, and that is what separates it from the
 `sensitive-port-reached-from-internal` [ADR-0029](./0029-an-alert-fires-on-a-leg.md) refused.** A
-claim scoped to a vantage is read only at the vantage that scopes it; the internal twin of this rule
+claim scoped to a vantage is read only at the vantage that scopes it. The internal twin of this rule
 is refused in advance on ADR-0029's own ground, because inside the perimeter a name resolving into
 private space is the correct configuration.
 [ADR-0071](./0071-a-vantage-scoped-claim-is-read-only-at-the-vantage-that-scopes-it.md) holds the
@@ -412,7 +412,7 @@ left standing and marked.
 - **The v1 set is** ~~ten rules~~ **seventeen**, per the
   [#35](https://github.com/winniel123/verge-asm/issues/35),
   [#48](https://github.com/winniel123/verge-asm/issues/48) and
-  [#128](https://github.com/winniel123/verge-asm/issues/128) amendments above; the enumeration that
+  [#128](https://github.com/winniel123/verge-asm/issues/128) amendments above. The enumeration that
   follows is this ADR's own output at the time #16 ran and is **not** the current set.
 - **The v1 set is:** certificate expired / not-yet-valid / expiring within ~~N days (one rule,
   operator-configurable N)~~ **a fraction of the certificate's own lifetime** — see below —,
@@ -451,7 +451,7 @@ left standing and marked.
   **`resolved-name-absent-from-zone`** (a `Name` whose `resolution` composes to `Resolved`, inside
   a zone the operator supplied, that the file does not contain). Zero rows of reference data, no
   new measurement, and **no new field on any facet** — so neither carried an
-  [ADR-0015](./0015-the-value-space-is-the-commitment.md) deadline; they ship because the zone
+  [ADR-0015](./0015-the-value-space-is-the-commitment.md) deadline. They ship because the zone
   file's `completeness` has no other consumer. Both are `not-evaluable` on `Lame`, on `Shadowed`,
   where no declared source is enumerable over the name, and where the declared timeline has aged
   into a `Gap`. `NoData` is an ordinary non-firing evaluation. The first is the only v1 signal
@@ -464,7 +464,7 @@ left standing and marked.
   what stops that from being a misrepresentation.
 - **These two are the first signals to alert on *clearing*.** `cname-target-name-error` stops
   firing when the target starts existing — which is the operator re-provisioning **or somebody
-  else claiming the orphaned name**; `lame-delegation` clears when a dangling NS domain gets
+  else claiming the orphaned name**. `lame-delegation` clears when a dangling NS domain gets
   registered. On these rules alone, a clear may be the attack having succeeded, so it is
   reported as *this changed* and never as *resolved*. `fired → not-evaluable` remains the
   coverage class per [#32](https://github.com/winniel123/verge-asm/issues/32) and must never be
@@ -494,7 +494,7 @@ left standing and marked.
   [#7](https://github.com/winniel123/verge-asm/issues/7), derivation version in
   [#10](https://github.com/winniel123/verge-asm/issues/10) — and this is the fourth.
   [#18](https://github.com/winniel123/verge-asm/issues/18) is therefore not a question about
-  the exposure board; it is a question about a rule binding every Derived value, and the
+  the exposure board. It is a question about a rule binding every Derived value, and the
   answer should be stated once.
 - **`not-evaluable` is likewise the third instance of one idea**, alongside `corroborative`
   silence and `firewalled` vs `internal-only`. Whether the three want a single name is

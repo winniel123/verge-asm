@@ -13,7 +13,7 @@ had run up. An `Exposure` span's effective version composes at least four inputs
 rule, `Availability`'s version, the `reachability` canonicaliser, and the staleness bound `k` —
 and [ADR-0004](./0004-signals-are-release-coupled-rules.md)'s composition rule makes each
 compose automatically. A release touching any one breaks **every `Exposure` span in the estate
-at once**, and the exposure board is a matrix over a time window, so one break inside that
+at once**. The exposure board is a matrix over a time window, so one break inside that
 window was taken to make the whole board not-comparable.
 
 Read that way the model gets *worse as it gets more correct*: every newly composed input is
@@ -21,9 +21,13 @@ another release-coupled trigger, and the screen carrying the entire differentiat
 life saying *not comparable* — honest and useless.
 
 The composite cannot be shrunk. Each of the four genuinely changes what an `Exposure` span
-concludes: the rule obviously; `Availability`'s window because it decides whether exposure is
-constructible at all; the `reachability` canonicaliser because it decides what a connect
-outcome *is*; and `k` because it decides where a `Gap` opens, which decides where spans close.
+concludes:
+
+- the rule obviously
+- `Availability`'s window because it decides whether exposure is constructible at all
+- the `reachability` canonicaliser because it decides what a connect outcome *is*
+- `k` because it decides where a `Gap` opens, which decides where spans close
+
 So there is no composition trick that drops an input, and the two available levers are **how
 often the composite moves** and **what a `Break` actually costs**.
 
@@ -51,7 +55,7 @@ often the composite moves** and **what a `Break` actually costs**.
 reference data may change **only** at release boundaries — an upper bound on change frequency,
 and the property that separates a `Signal` from a signature database. This ticket read it as
 *a version moves with each release*, which is a different and far worse claim, and most of the
-alarm follows from the misreading. A version tracks the **content** of a derivation; the
+alarm follows from the misreading. A version tracks the **content** of a derivation. The
 release cadence is only the ceiling on how often that content is permitted to move.
 
 With that removed the arithmetic changes. `k` is fixed at 2 and nothing has proposed moving it.
@@ -84,9 +88,9 @@ What we care about is neither: it is the derivation's **output**.
 So the version is hand-maintained per derivation, and CI holds a checked-in **golden corpus** —
 fixed observations with their expected derived outputs. If an output moves and the version did
 not, the build fails. The judgement stays human, because no machine knows that a refactor was
-*meant* to be behaviour-preserving; the **check** is mechanical. That is the same move
+*meant* to be behaviour-preserving. The **check** is mechanical. That is the same move
 [ADR-0007](./0007-drift-is-a-timeline-of-spans.md) made in enforcing comparability structurally
-rather than by rule. This project has refused discipline throughout the comparison path; it has
+rather than by rule. This project has refused discipline throughout the comparison path. It has
 never refused a failing test.
 
 The corpus covers **every** named versioned derivation, not only the span-producing ones, and
@@ -94,7 +98,7 @@ per rule, matching ADR-0004's per-rule versioning. For a signal a row is *these 
 fires / does not fire / `not-evaluable` / outside the domain* — the fourth outcome added by
 [ADR-0024](./0024-a-rules-domain-is-the-extension-of-its-name.md), which put the rule's
 `Predicate domain` inside the rule's own leaf, so a domain edit moves a row and must move the
-leaf; for the sensitive-port list the output is which
+leaf. For the sensitive-port list the output is which
 `(port, transport)` pairs the rule fires on, generable from
 [#21](https://github.com/winniel123/verge-asm/issues/21)'s cited table. Scoping the gate to
 spans alone would leave the churniest thing in the product ungated, which is precisely
@@ -120,7 +124,7 @@ rather than beside it, and `k` sits inside `currency` — which every span in th
 including one folded straight from observations.
 
 Flattened rather than nested, so equality stays a set comparison and a break names a **leaf**.
-*The reachability canonicaliser moved* is a sentence an operator can act on; a path through the
+*The reachability canonicaliser moved* is a sentence an operator can act on. A path through the
 composition graph is a stack trace.
 
 The component set is declared **per derivation**, never as one global schema. A shared schema
@@ -174,7 +178,7 @@ separately, the post-upgrade state — the one that appears while the operator's
 the upgrade — would get the least care of the three.
 
 Breaks are also **per timeline**. A change to the certificate canonicaliser breaks certificate
-timelines and leaves the board untouched; only a move in one of `Exposure`'s own four leaves
+timelines and leaves the board untouched. Only a move in one of `Exposure`'s own four leaves
 clamps it.
 
 ### A census survives a break; it does not survive a precondition failing
@@ -220,7 +224,7 @@ comparison.
 
 So duration never crosses, and every truncated duration or count renders as a **floor with its
 reason attached**: *exposed for at least 4 days (derivation changed 4 days ago)*, *flapped 12
-times in the 4 days since*. A bare understated number is a lie the operator cannot detect; a
+times in the 4 days since*. A bare understated number is a lie the operator cannot detect. A
 labelled floor is true. This is the one place a derivation upgrade genuinely degrades the
 product's headline claim, and it degrades it for a full window rather than for a cadence.
 
@@ -240,8 +244,8 @@ showing the operator conclusions we have just decided are wrong for a full windo
 The coverage class carries it instead. One **re-baseline message** per alerting derivation whose
 vector moved: *your `Exposure` derivation changed; under the new one twelve services are exposed
 where ten were, and these three differ.* It is ADR-0004's *"your rules changed"* presentation
-given an actual payload; it fires **on the cause, never per affected subject** per ADR-0007,
-where the cause is our own release; and an empty difference set suppresses the message entirely,
+given an actual payload. It fires **on the cause, never per affected subject** per ADR-0007,
+where the cause is our own release. And an empty difference set suppresses the message entirely,
 which is legal precisely because ADR-0007 put all damping in notification. The break is still
 written and the horizon still clamps — an empty difference set is a fact about values, not a
 licence to compare them.
@@ -288,7 +292,7 @@ A parameter living in an install's database is checkable by nothing, so the corp
 no operator runs and the build's guarantee is void wherever the dial was turned.
 
 **[ADR-0023](./0023-consent-names-the-door.md) already made this move one property across.**
-`consent` is authored by the project and ships in the release; an operator's act **satisfies** it
+`consent` is authored by the project and ships in the release. An operator's act **satisfies** it
 and never moves it, because reading the value as the carrier gives the model two representations of
 one fact. A declared parameter is the same shape: the leaf names what decided the output, and an
 install-local parameter makes the name stop naming it while the string stays equal. Two installs on
@@ -344,7 +348,7 @@ is indistinguishable from shipping a release.
   > [`golden-corpus.md`](../spec/golden-corpus.md) §2 and §8 — and the membership vector may not be
   > widened **by a release**.
 - **The coverage class gains a member whose cause is us.** A `Vantage` going `unavailable` and
-  coverage crossing a threshold are the world or our own infrastructure failing; a re-baseline
+  coverage crossing a threshold are the world or our own infrastructure failing. A re-baseline
   is our release. After ADR-0006's `resolving → shadowed` and ADR-0007's `revealed` and `owned`
   → `third-party`, the three notification classes now also have to carry *we changed how we
   look*.
@@ -352,7 +356,7 @@ is indistinguishable from shipping a release.
   render must be able to declare itself a floor, which is a presentation requirement neither was
   prototyped against.
 - **Nothing here becomes operator-configurable.** ADR-0005 fixed the availability window and
-  ADR-0007 fixed `k` on blast-radius grounds; a dial that moved a version would be the same
+  ADR-0007 fixed `k` on blast-radius grounds. A dial that moved a version would be the same
   failure with an extra step. *(Narrowed and widened by
   [#60](https://github.com/winniel123/verge-asm/issues/60) — see "A declared parameter is authored
   by the project and ships in the release" above. This sentence is a rule about **declared

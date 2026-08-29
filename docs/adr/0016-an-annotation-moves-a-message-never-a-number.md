@@ -10,7 +10,7 @@
 `Annotation` entered [`CONTEXT.md`](../../CONTEXT.md) at
 [#7](https://github.com/winniel123/verge-asm/issues/7) as the **residue of a refusal**, not as a
 term anybody had designed. `Finding` was rejected because it *"invites a stored object that
-accumulates state and gets diffed"*, and the fog patch it displaced had to land somewhere:
+accumulates state and gets diffed"*. The fog patch it displaced had to land somewhere:
 
 > The accepted cost: the fog item **"Finding lifecycle — triage, suppression, accepted-risk"** now
 > has no stored object to hang on. Suppression attaches to a `(subject, signal-name)` pair as an
@@ -25,9 +25,9 @@ reached for the term pushed it away.** Three of its four conceivable jobs are no
 | Narrow a rule's population so it stops firing | [#53](https://github.com/winniel123/verge-asm/issues/53) · [ADR-0024](./0024-a-rules-domain-is-the-extension-of-its-name.md) | An accepted risk is a subject *of which the fact is still true*, so it is **inside** the `Predicate domain`. *"`Annotation` loses its last route into the comparison path"* |
 | Mark a drift record seen, triaged or acknowledged | [#8](https://github.com/winniel123/verge-asm/issues/8) · [ADR-0007](./0007-drift-is-a-timeline-of-spans.md) | *"Spans are **immutable**. No `acknowledged`/`triaged` state, or #7's `Finding` rejection is undone with better provenance"* |
 
-[#22](https://github.com/winniel123/verge-asm/issues/22) closed a fourth door before it opened —
+[#22](https://github.com/winniel123/verge-asm/issues/22) closed a fourth door before it opened:
 *"No annotation or suppression of coverage gaps in v1 … this means inventing a second annotation
-target"* — leaving the term with exactly one target kind and, on the face of it, nothing to do with
+target"*. That left the term with exactly one target kind and, on the face of it, nothing to do with
 it.
 
 **And yet two live documents already spend it as a shipped mechanism**, so it cannot be quietly
@@ -65,7 +65,7 @@ The mechanical statement, and the two halves are the decision:
 So an annotated pair still enters the estate, is still measured on its cadence, still holds every
 `Span` it held, still evaluates under the same `Predicate domain` at the same version, and is still
 counted under `fired` in that rule's census on `Signals`. The operator has not disagreed with the
-measurement and cannot; they have said *do not wake me for this one*, which is a statement about the
+measurement and cannot. They have said *do not wake me for this one*, which is a statement about the
 channel and about nothing else.
 
 Six riders bind, and each closes a door somebody will otherwise open.
@@ -124,7 +124,7 @@ matches pages somebody, a travelling mute silences a subject nobody chose.
 > withdraws nothing. **The cost is confirmed, not reversed** — only its mechanism-word is repaired.
 
 **6. It states its reason, and it is not on `Coverage`.** An annotation carries the operator's
-rationale in their own words beside the key, ~~the author and~~ the time; a mute with no stated reason
+rationale in their own words beside the key, ~~the author and~~ the time. A mute with no stated reason
 is one nobody can review later.
 
 > **`the author` is WITHDRAWN here, at the site that specifies it** —
@@ -163,7 +163,7 @@ And ADR-0007 chose that placement deliberately, in the sentence that refused hys
 ADR-0029 repeats it for the flagship alert. So a per-pair mute is **the same kind of object as flap
 suppression**, differing only in being keyed on a subject rather than on a channel — and being keyed
 on a subject is precisely what makes it need a name. Routing and flap suppression are global dials
-and need none; this one has a target, ~~an author,~~ a time and a reason, and an operator who cannot
+and need none. This one has a target, ~~an author,~~ a time and a reason, and an operator who cannot
 enumerate what they have muted has not accepted a risk, they have lost one.
 
 > **Second withdrawal of the same clause**, and this one is the load-bearing site —
@@ -197,7 +197,7 @@ for.
 is *stop looking*, and `Seed` is the right answer to it. This case is *keep looking, do not page me*,
 which is the ticket's own phrasing — **accepted risk on a thing we are still measuring** — and there
 is no instrument for it. Refusing to build the cheap, non-destructive one does not leave the
-operator without an option; it leaves them with the expensive, destructive one, and it makes the
+operator without an option. It leaves them with the expensive, destructive one, and it makes the
 board's cleanliness a function of how tired they are.
 
 ### Why it is Declared, and why it is not `Finding` returning
@@ -217,7 +217,7 @@ Riders 3 and 4 are what stop it, and they are not discipline:
 - It may not **partition a census**, so the product can never render *9 accepted, 3 outstanding*,
   which is the queue-shaped surface a work-item store is built to serve.
 
-What is left is a mute with a reason attached. That is genuinely not a finding; it is the same
+What is left is a mute with a reason attached. That is genuinely not a finding. It is the same
 category of thing as a notification rule, held per subject.
 
 ### It does not fire ADR-0032's conditional
@@ -261,12 +261,12 @@ repair is at `CONTEXT.md`, and it is a larger part of this ticket's value than t
   specified, `Coverage`'s numerator and denominator are untouched, and no `Derivation` leaf gains an
   input. This ADR is the rare one whose entire content is what may *not* be read.
 - **No new notification class and no new destination.** The three classes remain a partition of
-  messages ([ADR-0007](./0007-drift-is-a-timeline-of-spans.md)); the nav remains
+  messages ([ADR-0007](./0007-drift-is-a-timeline-of-spans.md)). The nav remains
   **Exposure · Subjects · Signals · Seeds · Coverage · Settings**, and the annotation list lives on
   `Signals`.
 - **[ADR-0024](./0024-a-rules-domain-is-the-extension-of-its-name.md) is annotated.** Its
   Consequences say *"the map's open question about whether accepted risk is worth a Declared-layer
-  term is untouched"*; the question is now closed, and the sentence read alone would report it open.
+  term is untouched"*. The question is now closed, and the sentence read alone would report it open.
 - **[ADR-0032](./0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) §7's conditional is
   annotated as *not fired***, with its reason, so that the next session to open that file does not
   read the arrival of `Annotation` as the trigger.
@@ -275,7 +275,7 @@ repair is at `CONTEXT.md`, and it is a larger part of this ticket's value than t
   while the row, the firing and the census all stand.
 - **[ADR-0004](./0004-signals-are-release-coupled-rules.md)'s v1.1 reopening condition is now
   well-founded.** *"Once `Annotation` and versioning have run in production"* previously named a term
-  with no specification behind it; there is now something that can run.
+  with no specification behind it. There is now something that can run.
 - **A stated, unfixed cost.** An acceptance is keyed on the exact subject, so a redeploy onto a new
   address ~~lapses it~~ **leaves it matching nothing**. v1 does not solve this, and the two candidate
   solutions — propagating opinion down a derived tree, or keying on something coarser than a
@@ -288,7 +288,7 @@ repair is at `CONTEXT.md`, and it is a larger part of this ticket's value than t
   without reopening either.)*
 - **Neither declaring nor withdrawing an `Annotation` is a message** — #163 · ADR-0092. A `Message`
   is one firing of one cause and an operator dial's movement is none of the four, so no cause, class
-  or member is minted; withdrawal's carrier is the message it releases, and declaration's is the
+  or member is minted. Withdrawal's carrier is the message it releases, and declaration's is the
   annotation list. Recorded here because this ADR specifies the act (rider 4's *one click*) and was
   silent on whether it speaks, and a silence about notification is what
   [ADR-0074](./0074-an-aperture-narrowing-that-takes-its-carrier-with-it-fires-at-the-scope.md) found

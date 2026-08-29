@@ -130,7 +130,7 @@ whose owner we have not identified, which is the case where scanning is least de
   mechanism already exists.
 - **RDAP accuracy is no longer a safety property** *(amended by
   [#27](https://github.com/winniel123/verge-asm/issues/27))*. It was, while expansion fed
-  the derivation; now a wrong expansion produces a wrong *proposal*, which the operator
+  the derivation. Now a wrong expansion produces a wrong *proposal*, which the operator
   declines. Accuracy governs how much typing onboarding saves, not what gets probed. The
   registry files' own caveat — that they record where a range was *allocated*, not who
   uses it now — is thereby survivable rather than load-bearing.

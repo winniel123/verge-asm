@@ -9,10 +9,10 @@
 
 [#14](https://github.com/winniel123/verge-asm/issues/14) produced a derived per-`Service`
 reachability state with five values — `exposed`, `firewalled`, `internal-only`, `edge-only`,
-`unreachable` — and [ADR-0004](./0004-signals-are-release-coupled-rules.md) settled that
+`unreachable`. [ADR-0004](./0004-signals-are-release-coupled-rules.md) settled that
 `sensitive-port-exposed` reads the derived `Exposure` rather than re-deriving reachability
-from vantage-stamped observations, because a second implementation of the flagship derivation
-would surface its divergence from the first as false drift. Neither said **which values
+from vantage-stamped observations. The reason is that a second implementation of the flagship
+derivation would surface its divergence from the first as false drift. Neither said **which values
 satisfy the rule**, and [#21](https://github.com/winniel123/verge-asm/issues/21) flagged the
 gap rather than closing it.
 
@@ -21,7 +21,7 @@ Read #14's table literally and the states are not a partition:
 - `exposed` — "reachable from an internet vantage"
 - `edge-only` — "reachable from the internet but not internally"
 
-`edge-only` is a **subset** of `exposed`'s written definition. They overlap, and an
+`edge-only` is a **subset** of `exposed`'s written definition. They overlap. An
 implementation that assigns `edge-only` preferentially while a rule tests `state == exposed`
 produces no error, no `not-evaluable` and no evidence that anything was skipped. It simply
 never fires on the more alarming case — a sensitive port published to the internet that the
@@ -30,8 +30,8 @@ operator's own network does not even route to.
 The overlap is a symptom. The five states **flatten two orthogonal legs**: what an
 internet-class vantage found, and what an internal-class one found. Five names were laid over
 that grid, so some names span several cells and some cells have no name at all. A rule that
-enumerates state labels is therefore a list somebody maintains, and the failure mode when the
-list falls behind is silence rather than an error — which is the same shape as the
+enumerates state labels is therefore a list somebody maintains. The failure mode when the
+list is out of date is silence rather than an error. That is the same shape as the
 hand-maintained union that [ADR-0009](./0009-verge-core-is-a-union.md) replaced with a
 definition.
 
@@ -64,7 +64,7 @@ between them has to be invented too.
 > value again on its own account.
 
 **2. The five states are a projection, not the thing.** `Exposure` remains the operator-facing
-enumeration and the board's axis; it is *derived from* the two legs rather than being what the
+enumeration and the board's axis. It is *derived from* the two legs rather than being what the
 model stores as primary:
 
 | internal ↓ · internet → | `reached` | `not-reached` | *(`Gap`)* |
@@ -113,8 +113,8 @@ existed and went silent, `Exposure` opens a `Gap` — *we stopped looking*.
 
 - **`firewalled` versus `internal-only` was a `Gap` all along.** #14's most careful
   distinction — evidence of absence versus absence of evidence — is exactly *value* versus
-  *`Gap`* on the internet leg. It was never a pair of states; it was one state and a hole,
-  named twice, two tickets before `Gap` existed. Nothing about #14's intent is lost; the
+  *`Gap`* on the internet leg. It was never a pair of states. It was one state and a hole,
+  named twice, two tickets before `Gap` existed. Nothing about #14's intent is lost. The
   mechanism it was reaching for now has a name and applies uniformly.
 - **The flagship transition is a column move, not a cell move.** What the product exists to
   catch is the internet `Reach` going `not-reached` → `reached`, which spans **both**
@@ -125,7 +125,7 @@ existed and went silent, `Exposure` opens a `Gap` — *we stopped looking*.
   internet leg in a `Gap` currently reads `unreachable` — "no vantage reaches it" — while we
   never looked from outside. That is #14's own false-reassurance failure occurring in the one
   row where #14 did not guard against it. Naming the cells is board vocabulary and is carried
-  as its own ticket; this ADR fixes only the composition they are cells of.
+  as its own ticket. This ADR fixes only the composition they are cells of.
 - **A rule composes the leaf, not the whole value.** Under
   [ADR-0008](./0008-derivation-versions-move-on-content.md) the version is a vector with one
   leaf per named `Derivation`, so `sensitive-port-reached-from-internet` composes the internet
@@ -133,10 +133,10 @@ existed and went silent, `Exposure` opens a `Gap` — *we stopped looking*.
   presentation change that does **not** break the signal estate-wide. Under the enumerating
   design it would have.
 - **This is the only v1 signal that reads `Exposure`.** Every other rule in
-  [ADR-0004](./0004-signals-are-release-coupled-rules.md)'s set fires on an `Endpoint` and its
+  [ADR-0004](./0004-signals-are-release-coupled-rules.md)'s set fires on an `Endpoint`. Its
   evidence — a `certificate` or `http-identity` observation — presupposes that something
   reached it, so no leg gate is needed. The temptation is to gate *plaintext HTTP with no
-  HTTPS* on internet reach because it feels less urgent internally, but ADR-0004 settled that
+  HTTPS* on internet reach because it feels less urgent internally. But ADR-0004 settled that
   signals carry no severity, and gating would smuggle severity back in disguised as
   evaluability.
 - **`fired` → `not-evaluable` notifies in the coverage class**, worded as *we stopped looking*
@@ -163,13 +163,13 @@ existed and went silent, `Exposure` opens a `Gap` — *we stopped looking*.
   #14 deliberately built the no-prober deployment to be "a complete, honest internal
   reachability inventory". Both survive because `Gap` already does the work: a silent timeline
   produces no span, so there is no adjacency and therefore **no transition to `internal-only`
-  to render** — which is what stops a dying prober from de-escalating every `exposed` service
+  to render**. That is what stops a dying prober from de-escalating every `exposed` service
   in the estate overnight.
 - **The rename is recorded, not retrofitted.** `sensitive-port-exposed` appears in three
   closed resolutions ([#16](https://github.com/winniel123/verge-asm/issues/16),
   [#21](https://github.com/winniel123/verge-asm/issues/21),
   [#29](https://github.com/winniel123/verge-asm/issues/29)) and in
-  [ADR-0004](./0004-signals-are-release-coupled-rules.md). Those stand as written; the map
+  [ADR-0004](./0004-signals-are-release-coupled-rules.md). Those stand as written. The map
   carries the rename. Rewriting closed tickets is not this map's habit.
 
 ## Alternatives rejected

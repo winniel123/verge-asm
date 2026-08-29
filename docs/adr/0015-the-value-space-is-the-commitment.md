@@ -16,7 +16,7 @@ with no `Break`. What neither settled is whether the thing is worth building, an
 a real choice: the HTTP-shaped half costs nothing and covers
 [#21](https://github.com/winniel123/verge-asm/issues/21)'s largest exclusion category, while the
 wire-protocol prober costs a facet, a canonicaliser, a golden corpus of a new kind, per-protocol
-encoders and an expanded safety surface — and buys **six ports**, adding **zero** net new firings
+encoders and an expanded safety surface. It buys **six ports**, adding **zero** net new firings
 across all 38 rows of the sensitive list.
 
 The ticket framed the decision with a deadline: *"adding a signal after v1 costs every operator a
@@ -55,7 +55,7 @@ own blockers**, and it was written before them.
 
 But the symmetric case fails, and it is the finding. **Widening the value space of a facet that
 already has observations is not additive.** ADR-0011's test is that every corpus row whose output
-moved must previously have produced *no* observation; a new field on `http-identity` moves the
+moved must previously have produced *no* observation. A new field on `http-identity` moves the
 output of rows that all produced observations, so it **`Break`s every HTTP timeline in the
 estate**.
 
@@ -288,7 +288,7 @@ Two things this ADR did not say, added rather than corrected.
 
 **Both of §9.2's grounds are gone, not one.** This ADR withdrew the per-protocol half explicitly. Its
 surviving half — *"it is integrity rather than confidentiality, so it fits neither rule"* — is a claim
-about §9.2's **two rules** and not about SMB, so it never excluded anything; this ADR's own *"it would
+about §9.2's **two rules** and not about SMB, so it never excluded anything. This ADR's own *"it would
 be a third signal in any case"* already treated *third* as the shape of the answer. Generalised as
 [ADR-0065](./0065-a-rule-is-excluded-by-its-fact-or-by-its-aperture-never-by-the-shape-of-the-set.md):
 an exclusion rests on **the fact** or on **the aperture**, and the shape of the existing set is
@@ -297,7 +297,7 @@ neither.
 **The deferral is free for the rule and not for the field.** This ADR's own central finding applies to
 the thing it deferred: the integrity fact is neither of `listener-negotiation`'s two proposed fields
 (§7.4), so it needs a **third** — and a facet's value space is decided **once**. While that facet does
-not exist the third field costs nothing either way; the day it ships with two fields, adding the third
+not exist the third field costs nothing either way. The day it ships with two fields, adding the third
 `Break`s every timeline it holds. So whoever builds the prober owes the **field** decision at
 specification time, ahead of and independently of any rule reading it — exactly what this ADR ruled
 for `http-identity`'s status class. Recorded at §8.2.
