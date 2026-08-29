@@ -25,7 +25,7 @@ Three marks are used throughout:
 
 **Offerability is unmeasured in this repo.** Every claim below about what Go's `crypto/tls`,
 `net/http` and DNS client can put on the wire is read from those packages' documentation, not
-exercised — no Go toolchain has been run against this repo, and
+exercised. No Go toolchain has been run against this repo, and
 [#31](https://github.com/winniel123/verge-asm/issues/31) could not even start Docker. §1.4's
 **build-time offerability check** is what converts that whole column from `[owner]` to measured, on
 the first build. Until it runs, read the column as claimed.
@@ -35,7 +35,7 @@ the first build. Until it runs, read the column as claimed.
 ## 1. The TLS candidate set
 
 This is the one list with a deadline. Widening it after v1 `Break`s every `tls-acceptance`
-timeline **and** every `certificate` timeline in the estate (ADR-0030 §3); the other four lists
+timeline **and** every `certificate` timeline in the estate (ADR-0030 §3). The other four lists
 cost `revealed` plus one message or less. So this list is settled first and settled **wide**.
 
 ### 1.1 One list, two exchanges
@@ -48,14 +48,14 @@ The declared candidate set is **one list**, carried by both TLS exchanges the bi
 | The **`tls-acceptance` enumeration** | Enumerate what the listener accepts | Several per `Service` (§1.5) | Recorded scope of its `Batch` |
 
 They are keyed here to **purpose, not tier** — which scan tier each runs on is
-[#61](https://github.com/winniel123/verge-asm/issues/61)'s question and nothing in this document
-turns on the answer. If #61 merges them into one batch, the ruling degenerates gracefully: one
+[#61](https://github.com/winniel123/verge-asm/issues/61)'s question. Nothing in this document
+depends on the answer. If #61 merges them into one batch, the ruling degenerates gracefully: one
 batch, one candidate set, and §3's no-ALPN rule is unaffected because ALPN belongs to a different
 leaf.
 
 ADR-0025 said the two "need not match". They do match, and the reason is not tidiness. The whole
 forcing measurement behind ADR-0025 is that a narrow offer on the `certificate` handshake hides a
-TLS-1.0-only listener as `NoTLS`; a narrow offer on the enumeration hides the same listener from
+TLS-1.0-only listener as `NoTLS`. A narrow offer on the enumeration hides the same listener from
 `tls-1.0-accepted` directly. Two lists means two chances to make the same mistake, on two facets,
 against one box. The cost objection — the enumeration is many handshakes — is real and is answered
 by §1.5's enumeration strategy, not by a shorter list. **The cost argument argues about the
@@ -172,7 +172,7 @@ by the strategy rather than by the list.
 - **Versions:** one handshake per version with `MaxVersion` pinned. Four handshakes.
 - **Suites, per version 1.0–1.2:** iterative narrowing — offer every candidate, record the selected
   suite, remove it, repeat until the listener refuses. That costs *accepted + 1* handshakes, not
-  *candidates*. A modern TLS-1.2 listener accepting six suites costs seven; a listener refusing the
+  *candidates*. A modern TLS-1.2 listener accepting six suites costs seven. A listener refusing the
   version costs one.
 
 The final round is what licenses the negatives: the remaining suites were offered **together** and
@@ -201,7 +201,7 @@ the bucket ADR-0025 created it for.
 candidate **set**. It stays out of the operator's hands, and the reason is
 [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s generalised one step: *a port the operator can
 hide is a signal the operator can silence* becomes **an offer the operator can narrow is a finding
-the operator can silence**. Narrowing the TLS offer is the one edit that would turn off
+the operator can silence**. Narrowing the TLS offer is the one edit that would disable
 `tls-1.0-accepted` while leaving every screen reporting normally.
 
 ---
@@ -209,7 +209,7 @@ the operator can silence**. Narrowing the TLS offer is the one edit that would t
 ## 2. The prober's qtype set
 
 Adding a qtype after v1 opens a `dns-record` timeline that did not exist, because the qtype is a
-**discriminator in the timeline key** (ADR-0011; ADR-0025 §"An aperture widening `Break`s…"). So it
+**discriminator in the timeline key** (ADR-0011, ADR-0025 §"An aperture widening `Break`s…"). So it
 costs `revealed` plus one message and no `Break`. The bar is therefore ordinary, and this list may
 grow.
 
@@ -247,14 +247,14 @@ component held still across every control label. **[measured]** 2026-08-14, `app
 determinate *positive* component in the seven is **MX** — its A and AAAA both rotate — so under the
 withdrawn three-qtype clause that parent would have no positive determinate component at all and
 every name beneath it would be suppressed. The qtype set is still one offer and this list does not
-move; the widening simply pays twice. The **match predicate** that reads them is a declared
+move. The widening simply pays twice. The **match predicate** that reads them is a declared
 parameter of the leaf, not an offer, and has no row here.
 
 **And the control labels themselves are not an offer either.**
 [ADR-0069](../adr/0069-a-control-label-is-one-label-and-the-set-must-falsify-label-independence.md)
 values the leaf's last unvalued parameter — ~~**5 random labels + 1 structured label**~~ **9 random
 labels + 1 structured label** ([#115](https://github.com/winniel123/verge-asm/issues/115) raises the
-count on a measured mechanism; the construction is untouched), each
+count on a measured mechanism — the construction is untouched), each
 **exactly one label**, the structured one being `<a>-<b>-<c>-<d>` over a random RFC 5737
 documentation address, and **every one of the ~~six~~ ten runs the seven qtypes above**, since a component
 is defined over *all n* labels and a label covering fewer leaves that definition ill-formed. Nothing
@@ -288,7 +288,7 @@ facet rather than two.
 
 ### 3.1 The list is `h2, http/1.1`, in that order, and it is complete
 
-ADR-0025 ruled the offer; #62 asks whether it is the *whole* list. It is, by exhaustion over the
+ADR-0025 ruled the offer. #62 asks whether it is the *whole* list. It is, by exhaustion over the
 ALPN identifiers that can mean anything in a TLS-over-TCP ClientHello:
 
 | Candidate | Verdict |
@@ -299,7 +299,7 @@ ALPN identifiers that can mean anything in a TLS-over-TCP ClientHello:
 | `h2c` | **Not offered.** h2c is negotiated by `Upgrade` or prior knowledge, never by ALPN. ADR-0025 already ruled the cleartext h2c case out of scope |
 | `http/1.0` | **Not offered.** Go's `net/http` has no 1.0 client `[owner]` |
 
-Order is declared and recorded because the offer is recorded **by content**; RFC 7301 §3.2 makes
+Order is declared and recorded because the offer is recorded **by content**. RFC 7301 §3.2 makes
 selection the server's, so order is advisory and never a claim.
 
 ### 3.2 `no_application_protocol` resolves to `NoHTTPResponse`, and needs no new variant
