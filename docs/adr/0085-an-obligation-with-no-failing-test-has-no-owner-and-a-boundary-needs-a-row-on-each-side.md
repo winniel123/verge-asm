@@ -16,9 +16,9 @@ release owes* wrote down a failure mode in full and gave it nobody to fail on:
 > membership-deciding outcomes specifically: `Resolved`, `NoData`, `NameError`, `Lame`, `Shadowed`.
 
 The failure it names is the worst shape this project has: **estate-wide, silent, and triggered by a
-no-op upgrade.** A dependency bump moves `resolution-walk`'s leaf; the leaf is inside the vector the
-membership timeline composes; a `Break` between a subject's withdrawal and its return leaves the
-reopening with nothing legally before it; the membership message fires reading **`appeared`** when
+no-op upgrade.** A dependency bump moves `resolution-walk`'s leaf. The leaf is inside the vector the
+membership timeline composes. A `Break` between a subject's withdrawal and its return leaves the
+reopening with nothing legally before it. The membership message fires reading **`appeared`** when
 the truth is `returned`, and history is never re-derived so it cannot be corrected afterwards.
 
 Three things had not been done, and the ticket exists because of the third.
@@ -37,21 +37,21 @@ permits fused multiply-add, Go's `arm64` backend emits it and baseline `amd64` h
 architecture is in the matrix exactly where the golden corpus is run on it in CI**. That makes the
 corpus the instrument deciding *which architectures ship*, which is a release question, on the same
 artefact that decides whether `returned` survives a dependency upgrade. Retention was already
-*"partly a release question"*; this is why.
+*"partly a release question"*. This is why.
 
 ### One of the five outcomes is not this leaf's, and that is a defect rather than a detail
 
 ADR-0041's list is five outcomes long and the ADR scopes it to *`resolution-walk`'s golden corpus*.
 But [ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md)'s leaf table puts **`Shadowed`
 under `wildcard-discrimination`**, a separate leaf, kept separate on purpose *"so a break **names its
-leaf**"*. Four of the five are `resolution-walk`'s; the fifth is not.
+leaf**"*. Four of the five are `resolution-walk`'s. The fifth is not.
 
 That cannot be papered over, because the two ways of repairing it have different prices and one of
 them is expensive:
 
 - **Either the rows belong to a different leaf's corpus** — in which case `wildcard-discrimination`
   is in the membership vector, which [`CONTEXT.md`](../../CONTEXT.md) and ADR-0041 both record as
-  `resolution-walk` alone;
+  `resolution-walk` alone.
 - **or the membership vector is wider than ADR-0041 records** — with the same consequence, and one
   more: `wildcard-discrimination`'s control-label count **already moved**, `5` → `9`
   ([#115](https://github.com/winniel123/verge-asm/issues/115)), which ADR-0021 records as bumping
@@ -114,7 +114,7 @@ leaf whose gate runs it, and nothing else.** A `Shadowed` row sitting in `resolu
 is checked when `resolution-walk`'s version is questioned and is silent when
 `wildcard-discrimination` bumps — which is the leaf that actually decides the value. The row would
 be exercised by a leaf that cannot move it and ignored by the leaf that can. That is not a
-misfiled row; it is a row that **reads green while protecting nothing**, which is strictly worse
+misfiled row. It is a row that **reads green while protecting nothing**, which is strictly worse
 than an absent row, because an absent cell is countable and A5 fails on it.
 
 So the disposal is:
@@ -125,7 +125,7 @@ So the disposal is:
 
 This is [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)'s
 shape run forward rather than backward. ADR-0058 asks whether a sentence read alone would cause a
-competent session to build the wrong thing; here the question is whether a *row* read alone would
+competent session to build the wrong thing. Here the question is whether a *row* read alone would
 cause a competent session to believe the wrong thing is protected. It would.
 
 The rows themselves are not wasted. §7 of [`golden-corpus.md`](../spec/golden-corpus.md) specifies
@@ -188,7 +188,7 @@ two conforming implementations may read it differently.** NXDOMAIN carrying a CN
 section, an empty non-terminal answering NOERROR with no records, a truncated RRset and its TCP
 fallback, an authority that REFUSEs against one that is silent: these are the places DNS libraries
 have historically differed, and each of them lands on the withdrawal edge. The enumeration is in
-[`golden-corpus.md`](../spec/golden-corpus.md) §2 and it will be revised; the criterion is here and
+[`golden-corpus.md`](../spec/golden-corpus.md) §2 and it will be revised. The criterion is here and
 will not.
 
 ### Three legs, one expected output — and the leg that is not an architecture
@@ -226,7 +226,7 @@ it"*. **There is no `GOARM64` level that turns it off**, FMADD being ARMv8.0 bas
 available: not to make the two architectures match, but to make a contraction-eligible expression
 **visible**. And it is genuinely only a detector — `v3` narrows the gap and does not close it, the
 two backends' rewrite-rule sets not being the same set. Leg 3 is not a claim that `v3` and `arm64`
-agree; a green leg 3 says *no expression on this path was contraction-eligible*, which is the
+agree. A green leg 3 says *no expression on this path was contraction-eligible*, which is the
 property #124's rule 2 actually asserts.
 
 ### Every leg states its build settings, because the defaults are a property of the runner
@@ -292,7 +292,7 @@ platforms"* and made tests *"fragile and non-portable"*, so the language made th
 rather than letting it be discovered.
 
 `resolution-walk`'s highest-stakes output is `Resolved(`**`unordered`** ` address set)`. The model
-says unordered; the NDJSON is bytes; and bytes have an order. If the leaf serialises that set from a
+says unordered. The NDJSON is bytes, and bytes have an order. If the leaf serialises that set from a
 map range, the corpus's expected output is unstable **within one runner**, and every cross-leg
 comparison downstream is comparing noise. A red `arm64` leg would then be indistinguishable from a
 flake, which is the failure that trains a team to re-run a gate.
@@ -347,21 +347,21 @@ not a special case at all, which is the only way to be sure it is covered.
   for two**, `resolution-walk` and `wildcard-discrimination`. Superseded here, at the site that
   states it.
 - **ADR-0021's gate gains no third direction.** The second direction already refuses an unjustified
-  bump; what was missing was the evidence that would let it fire, and that is the pin block. This is
+  bump. What was missing was the evidence that would let it fire, and that is the pin block. This is
   deliberate: a third direction would be a new mechanism where an old one was merely unfed.
 - **`packaging-and-configuration.md` §1.2's membership rule is unchanged and now has a referent.**
   *"An architecture is in the matrix exactly where the corpus is run on it"* previously pointed at a
-  corpus whose contents and CI shape were unspecified. Legs 1 and 2 are that corpus; leg 3 is not an
+  corpus whose contents and CI shape were unspecified. Legs 1 and 2 are that corpus. Leg 3 is not an
   architecture.
 - **`packaging-and-configuration.md` §1.4's `CGO_ENABLED=0` reasoning gains a second reader.** It is
-  stated there as a property of the shipped artefact; the corpus legs need it as a property of the
+  stated there as a property of the shipped artefact. The corpus legs need it as a property of the
   **build under test**, and native builds are where the toolchain default disagrees. The rule is
   #124's and its reach is extended here rather than restated there — a pointer is cheaper than a
   duplicate, and that file is #124's.
 - **`project-authored-constants.md` gains §12** — the differential leg as the enforcement §8.1's
   *ship the rule* cure never had, and the note's population as its blast radius.
 - **[`CONTEXT.md`](../../CONTEXT.md) is amended in one entry, by one clause.** `Derivation`'s
-  golden-corpus sentence says the gate runs *in CI* and stops there; it now says the corpus runs on
+  golden-corpus sentence says the gate runs *in CI* and stops there. It now says the corpus runs on
   every shipped architecture against **one** expected output. No term is added, and the
   membership-vector sentence in `Transition` is **deliberately untouched** — that sentence is what
   the routing question is about. **It has since been amended** by
@@ -373,7 +373,7 @@ not a special case at all, which is the only way to be sure it is covered.
   chain already puts the boundary: the wire stops at the binary's edge, and a total order on bytes
   is not a total order on a set.
 - **The block's completeness is a claim about the boundaries, not about DNS.** CI can count cells
-  against the enumeration; it cannot tell anyone the enumeration named every ambiguous place on the
+  against the enumeration. It cannot tell anyone the enumeration named every ambiguous place on the
   wire. That residue is ADR-0021's **uncovered move**, unchanged and now with a population it
   applies to.
 - **Nothing here is a workflow file.** The map's *plan, don't do* rule holds: this specifies legs,
@@ -420,21 +420,21 @@ not a special case at all, which is the only way to be sure it is covered.
   the escrow got **wrong** and ADR-0086 repairs: the seventeen pin the *suppression* ground and have
   **no cell** for the ground the ruling actually turns on — that `Shadowed` carries no address set and
   therefore cites no `Address`. ADR-0086 adds that boundary as a pair, taking the block to **19**.
-  The lesson is not that escrow is unsafe; it is that **an escrow written against a question's
+  The lesson is not that escrow is unsafe. It is that **an escrow written against a question's
   framing may miss the ground its answer lands on**, and the adopting ticket has to check.
 - **Leg 3's yield is unmeasured.** No fraction in the declared-parameter set has been shown to
-  diverge at `v3`; the argument is that the check is cheap and the failure it catches is silent.
+  diverge at `v3`. The argument is that the check is cheap and the failure it catches is silent.
   If it never fires, that is the pin working, and there is no way to distinguish that from the leg
   being unnecessary.
 - **The runner availability is retrieved and the project's CI is not.** `ubuntu-24.04-arm` is GA and
-  free on public repositories, which is checked; that this project's CI will be GitHub Actions is
+  free on public repositories, which is checked. That this project's CI will be GitHub Actions is
   assumed, because no ticket has decided it. If it is not, the legs and the six assertions transfer
   unchanged and only the labels move.
 - **`arm64`'s contraction being ungated is read off the compiler's rewrite rules, not off a document
-  the Go team wrote for readers.** No release note or prose page states it; `_gen/ARM64.rules` and
+  the Go team wrote for readers.** No release note or prose page states it. `_gen/ARM64.rules` and
   `_gen/AMD64.rules` do. It is the owner's own bytes and it is source rather than documentation,
   which is a weaker footing than
   [ADR-0059](./0059-a-footing-tier-grades-evidential-distance-never-the-owners-conviction.md)'s top
   tier and is labelled here rather than smoothed. The **specification** sentence permitting fusion is
-  top-tier and is what the rule actually rests on; the backend detail only says the hazard is live
+  top-tier and is what the rule actually rests on. The backend detail only says the hazard is live
   today.

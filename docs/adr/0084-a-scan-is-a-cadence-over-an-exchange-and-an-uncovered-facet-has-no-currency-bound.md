@@ -101,13 +101,13 @@ exchange that is not made on the install the model spends a whole ADR describing
 measure the only thing it measures on no clock whatsoever.
 
 **Two: the populations are disjoint in both directions.** A port tier runs over the `Address`es in
-custody; the DNS exchange runs over the `Name`s beneath the name scopes. A name scope *"enumerates
+custody. The DNS exchange runs over the `Name`s beneath the name scopes. A name scope *"enumerates
 nothing"* and an address scope produces no names, so a name-scope-only install has an empty port-tier
 scope and a full DNS scope, while an address-scope-only install has the reverse. Neither set contains
 the other, so neither cadence can bound the other's facts.
 
 **Three: it is the hidden-field failure, for the third time.** ADR-0005 refused a cadence hidden
-inside another `Scan` because it makes the aperture a hidden field rather than a configured object;
+inside another `Scan` because it makes the aperture a hidden field rather than a configured object.
 #124 refused it again for the zone file, in terms — *"disabling the port tier would silently stop the
 zone being read"*. Here it is worse: disabling the daily port tier would silently stop the estate
 being **resolved**, on an install where the port tier had nothing to do anyway.
@@ -150,7 +150,7 @@ One exchange, one batch, one recorded scope, one `Scan`.
 `Discovery` is a **refused noun** in `CONTEXT.md` — *"both are sources differing only in `authority`
 and `completeness`; naming them as separate kinds of thing re-splits the pipeline that one
 `Observation` exists to unify"*. A `Scan` is not a source, so a `discovery` `Scan` is not literally
-the refused term returning; the refusal is about *kinds of source*, and it says in terms that the word
+the refused term returning. The refusal is about *kinds of source*, and it says in terms that the word
 *"remains fine as a verb"*.
 
 So the refusal alone would not settle it. What settles it is that **`discovery` would be a false
@@ -223,7 +223,7 @@ currency nothing reads at that resolution.
 
 **The consequence of an operator loosening it needs no new machinery, and this is worth stating
 because the first instinct is to add some.** A `dns` cadence looser than the port tier does not
-produce stale probing; it produces **subject withdrawal**. The resolution ages past its bound, it
+produce stale probing. It produces **subject withdrawal**. The resolution ages past its bound, it
 cites nothing, and the `Address` leaves the estate with its timelines — which is `CONTEXT.md`'s
 `Address` entry and ADR-0013's gate working exactly as written. No invariant coupling two operator
 dials is needed, and none is created: a coupling would be a second mechanism doing `Gap`'s job, which
@@ -246,7 +246,7 @@ retroactively explains why `zone` added none.
 The honest residue, since the ticket asked for it loudly: this ruling **does** cause looking that does
 not happen today, in exactly one sense — it makes the DNS exchange **recur**. Nothing in the corpus
 today says when it is asked a second time. That is not an aperture widening (no scope dimension moves,
-so no `revealed` fires and no coverage-class message is owed); it is the model's standing requirement
+so no `revealed` fires and no coverage-class message is owed). It is the model's standing requirement
 arriving where it had been skipped, since ADR-0044 already holds that a measurement that does not
 recur is not expressible. An operator sees no new *kind* of query and no query against a subject we
 were not already asking about.
@@ -334,7 +334,7 @@ and moving it moves no version and `Break`s nothing — and it is flagged rather
   parameters of `resolution-walk` and `wildcard-discrimination` are untouched.
 - **[#138](https://github.com/winniel123/verge-asm/issues/138) gets its precondition, not its
   answer.** One `Scan` over every vantage on one cadence is what makes a unanimity composition and an
-  existential composition both expressible; which of them a leaf uses is #138's.
+  existential composition both expressible. Which of them a leaf uses is #138's.
 - ~~**The passive sources' `Citation` staleness is open and ticketed**, and the estate of a source that
   errors is the hazard that ticket must price.~~
   **DISCHARGED** by [#176](https://github.com/winniel123/verge-asm/issues/176) ·

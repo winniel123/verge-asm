@@ -14,7 +14,7 @@ are therefore consecutive spans on **one** timeline — a `Transition` by
 [ADR-0007](./0007-drift-is-a-timeline-of-spans.md)'s own definition, unless a `Break` sits between
 them, in which case the reopening has nothing legally before it and the membership message fires
 reading `appeared`. [ADR-0041](./0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md)
-wrote the same mechanism first and flagged it as thin; ADR-0082 confirmed it. Both write the
+wrote the same mechanism first and flagged it as thin. ADR-0082 confirmed it. Both write the
 sentence for one timeline, and both name the gap in their own thin-ground sections: *"a subject
 holds many timelines, at many `(vantage, source)` keys, whose last spans may have closed under
 different vectors."*
@@ -24,7 +24,7 @@ Two decisions since have made the gap load-bearing rather than hypothetical.
 - **[ADR-0080](./0080-a-vantage-composition-is-cross-class-or-class-scoped-and-only-one-takes-a-quantifier.md)**
   settled that `Name` membership reads a **set** of per-vantage `resolution` timelines, not one —
   a `Vantage composition`, cross-class, with no quantifier, where every class must hold a current
-  value and **agree**. Disagreement is not evidence of absence; it is `not-evaluable`. A v1 install
+  value and **agree**. Disagreement is not evidence of absence. It is `not-evaluable`. A v1 install
   running the optional external vantage ([#14](https://github.com/winniel123/verge-asm/issues/14))
   therefore holds **two** `resolution` timelines per `Name` — internal and internet — and
   membership's presence read is a joint fact about both, not a fact read off either alone.
@@ -104,12 +104,12 @@ absent to present and check only its Break status, on the theory that the other 
 "already present" and contribute nothing new. It fails on the composition's own terms.
 
 Cross-class agreement does not have a distinguished "deciding" class. It is defined as *every*
-class's witness concurring; a class that was already reading non-`NameError` before the others
+class's witness concurring. A class that was already reading non-`NameError` before the others
 caught up is not a bystander to the conclusion, it is one of the terms the conclusion is **made
 of**, exactly as much as the witness that changed last. Treating it as inert because its value did
 not move on this particular fold conflates *the value that changed* with *the fact that grounds the
 conclusion* — the same distinction [ADR-0010](./0010-exposure-composes-two-reaches.md) draws
-between a leg and a projection. A rule reads a leg, never a state; a composed presence read
+between a leg and a projection. A rule reads a leg, never a state. A composed presence read
 composes its witnesses, not its deltas.
 
 The one-timeline case already shows why: ADR-0082 does not ask whether the timeline's value
@@ -146,7 +146,7 @@ distinct way the model could overclaim continuity it does not have.
 
 Nothing is priced differently from what ADR-0086 already paid for. That ADR already established
 that a `wildcard-discrimination` bump breaks `resolution` estate-wide exactly as a `resolution-walk`
-bump does, on every witness it touches. This ADR does not add a new way for a leaf bump to hurt; it
+bump does, on every witness it touches. This ADR does not add a new way for a leaf bump to hurt. It
 states precisely which witnesses a *given return event* must check, so that an implementation
 evaluating `returned` for a two-class install knows to look at both `resolution` timelines rather
 than one, and knows a Break on the vantage that was not the one whose value flipped still costs the
@@ -163,18 +163,18 @@ word.
   was written for (one witness) and gains the conjunction for the case ADR-0080 later made real
   (several).
 - **No new object, value, field, message class or census member.** The conjunction is computed at
-  evaluation time from `Vantage composition`'s existing witness selection; nothing is stored beyond
+  evaluation time from `Vantage composition`'s existing witness selection. Nothing is stored beyond
   what ADR-0082 and ADR-0086 already store.
 - **The golden corpus's job is unchanged in kind and unchanged in size.** [ADR-0086](./0086-membership-composes-every-leaf-that-decides-the-value-it-reads.md)'s
   two pin blocks (`resolution-walk` 27, `wildcard-discrimination` 19) still protect exactly the leaf
-  versions they protect; this ADR does not add rows, because a leaf's version is one release-wide
+  versions they protect. This ADR does not add rows, because a leaf's version is one release-wide
   fact regardless of how many vantages read it. What changes is only that an implementation checking
   `returned` for a multi-class subject runs that same per-leaf comparison **once per witness**
   instead of once.
 - **The two membership-family conditions for `returned` are now stated as a pair.** No `Break` on
   any witness the presence read relies on (this ADR), and the closure's ground was not `descoped`
   ([ADR-0087](./0087-a-closure-records-the-ground-it-rests-on-and-there-are-three-grounds.md)). Both
-  must hold; either failing reads `appeared`.
+  must hold. Either failing reads `appeared`.
 - **The single-vantage-class install is untouched.** Its presence read has exactly one witness, so
   the conjunction is over a set of size one and collapses to ADR-0082's original sentence with no
   observable difference — which is also the modal v1 install ([#26](https://github.com/winniel123/verge-asm/issues/26)).

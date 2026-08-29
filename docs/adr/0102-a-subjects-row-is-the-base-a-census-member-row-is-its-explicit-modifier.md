@@ -10,7 +10,7 @@
 [ADR-0072](./0072-absence-is-a-property-of-a-cell-and-withdrawn-is-the-only-population.md) and
 [#74](https://github.com/winniel123/verge-asm/issues/74) already settled that a rule's census
 member list and the `Subjects` listing are different objects and may not be the same object: a
-member row may never carry a `Citation`; a `Subjects` row must. A member list carries a
+member row may never carry a `Citation`. A `Subjects` row must. A member list carries a
 denominator (its header count **is** `list.length`, exact) and no search
 (#74 decision 8 — a filtered member view is two numbers over one population disagreeing on
 screen, [#28](https://github.com/winniel123/verge-asm/issues/28)'s hazard). `Subjects` carries a
@@ -48,7 +48,7 @@ This ticket's pair does not have that shape. Listed against the three axes that 
 
 Every axis flips. Neither row is a strict subset of the other's behaviour — each has exactly one
 thing the other lacks and lacks one thing the other has. "Which is the base" cannot be answered
-by capability containment the way #51 §8 answered it for controls; it has to be answered by
+by capability containment the way #51 §8 answered it for controls. It has to be answered by
 asking which unconfigured render is the less dangerous mistake, since some render has to happen
 when a build session reuses the component and forgets to say which list it is drawing.
 
@@ -80,7 +80,7 @@ configuration can produce are not equally bad.
   an observation of absence.
 
   A wrong denominator on `Subjects` is not locally recoverable the way a stray search box on a
-  census card is; it is exactly the class of defect this map keeps guarding against by name
+  census card is. It is exactly the class of defect this map keeps guarding against by name
   (ADR-0072's alternatives table, #51 §3 and §5, #74 decisions 1 and 9). The base must be the
   configuration that cannot produce it by omission, so the base is `Subjects`, not the member.
 
@@ -96,7 +96,7 @@ and no partial state.
 
 **3. `member` is requested, never inherited.** Whatever screen renders a rule's census
 (`Signals`, per #74) must pass `kind="member"` explicitly on every row it draws. Nothing about
-the component infers it from context (row count, presence of a rule prop, page URL); inference is
+the component infers it from context (row count, presence of a rule prop, page URL). Inference is
 exactly the implicit channel #51 §8 and #123 both ruled out for controls, and it is no safer here
 for a data claim than it was there for an affordance.
 
@@ -110,7 +110,7 @@ reusing one component for them is not a hazard the way the differing three axes 
 
 - **A build ticket for either screen states its row's `kind` and gets the other two facets for
   free, correctly, without restating them.** `Signals`' census card need only say `kind="member"`
-  per row; it does not also have to remember to hide `Citation` and disable search — the mode
+  per row. It does not also have to remember to hide `Citation` and disable search — the mode
   bundle does that.
 - **A code review has one thing to check on a new caller of this component: which `kind` did it
   pass, and does the screen match.** A `Subjects`-shaped row appearing anywhere outside the

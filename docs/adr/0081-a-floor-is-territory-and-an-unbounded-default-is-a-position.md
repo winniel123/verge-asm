@@ -60,14 +60,14 @@ The obvious build is a number field with a minimum: the operator types `30`, pre
 *minimum is 60 days*. That interface has already conceded the point. An error is a response to a
 **choice**, so a rejected value is a value the operator was offered and got wrong — and the next thing
 they do is look for the setting that lifts the minimum, because a minimum that can be stated can
-usually be raised. The floor is not a limit on the operator's choice; it is the boundary of the region
+usually be raised. The floor is not a limit on the operator's choice. It is the boundary of the region
 where a choice exists at all. Below it the dial is not *too small*, it is **not the operator's** — the
 currency bound belongs to `k` and a cadence, and the `Dispatch` floor belongs to `Coverage`'s own
 question.
 
 So the control renders two territories and one of them is ground: hatched, dashed at its edge,
 outside the track the handle moves in. Reaching into it produces no error, because nothing was
-rejected; it produces the derivation — `k` × cadence, and the name of the `Scan` supplying the cadence
+rejected. It produces the derivation — `k` × cadence, and the name of the `Scan` supplying the cadence
 — which is the honest answer to *why can I not go there*, and which names the thing the operator
 **would** change to move the floor. **A floor that names the `Scan` that sets it is a floor the
 operator can move by changing the world rather than by arguing with a form.**
@@ -86,15 +86,15 @@ What works is the third, and it is three moves rather than one:
 
 1. **A position, not an absence.** The track has a labelled terminal stop — *keep everything* — and the
    handle sits **on** it. There is no state in which the control has no value. A parked handle is a
-   decision; an empty field is a gap.
+   decision. An empty field is a gap.
 2. **A price, not a promise.** Directly beneath it, the projection: *one year of evidential
    observations is 97,925,120 rows, about 13 GB in one `compose` volume.* Arithmetic over what the
    operator typed, exact, re-rendered when a scope widens. **This is the whole reason the dials and
    the projection may not be separated.** A default that costs nothing to state is a default nobody
-   audits; a default whose cost is rendered next to it is one the operator can accept on purpose.
+   audits. A default whose cost is rendered next to it is one the operator can accept on purpose.
 3. **A ground, not a shrug.** One sentence: *no default is derivable from anything — ninety days is
    invented and a year is invented, so v1 ships neither.* The failure mode being defended against is
-   not *the operator thinks the value is wrong*; it is *the operator thinks nobody chose*.
+   not *the operator thinks the value is wrong*. It is *the operator thinks nobody chose*.
 
 The generalisation is the ADR: **an unbounded default is legible exactly where it is drawn as a
 position, priced by a projection and grounded by a stated reason.** Any one of the three alone reads
@@ -146,7 +146,7 @@ below.
 
 The symmetry argument for a third dial is real and deserves stating: an **evidential observation** is
 retained only for *a person asking what we actually measured*, and it gets a dial. A `Message` is
-retained only for a person asking *what was I told*. Same kind of reader; why not the same
+retained only for a person asking *what was I told*. Same kind of reader. Why not the same
 instrument?
 
 Two answers, and the first is the one that decides it.
@@ -252,7 +252,7 @@ with the cold tier enabled."*
 `zone` is the fourth `Scan` and ships at **monthly**
 ([#124](https://github.com/winniel123/verge-asm/issues/124)), so on any install that supplies a zone
 file the slowest enabled `Scan` is `zone` and the floor is **two months, not a fortnight** — with no
-cold tier anywhere near it. The figure is a dated record and this ADR does not repair it; the
+cold tier anywhere near it. The figure is a dated record and this ADR does not repair it. The
 structural repair is that the screen **computes** the floor from the enabled `Scan` set and renders
 the multiple, so the interface cannot carry a stale fortnight in the first place. Same shape as
 ADR-0004's *existing suppression* contradiction that #119 found: a document stating a rule and then
@@ -282,7 +282,7 @@ violating it in its own next paragraph.
 - **A fourth register on `Coverage`.** #28 established three — a fault, an invitation, and a boundary
   the operator drew. This is a fourth and it is the quiet one: *a consequence of what you declared*.
   It may never take the fault or the invitation treatment.
-- **This ADR binds beyond retention.** Any bounded operator dial draws its floor as territory; any
+- **This ADR binds beyond retention.** Any bounded operator dial draws its floor as territory. Any
   default-unbounded or default-off setting is a position, a price and a ground.
 
 ## Alternatives rejected
@@ -305,7 +305,7 @@ violating it in its own next paragraph.
 
 - **That an unbounded default reads as chosen rather than broken rests on a rendering judgement, not
   on a measurement.** Nobody has put the three renderings in front of an operator. The claim is that
-  a parked handle on a labelled stop, a price and a stated ground defeat *nobody decided*; it is
+  a parked handle on a labelled stop, a price and a stated ground defeat *nobody decided*. It is
   argued from what the two rejected renderings obviously signal, which is weaker than testing it.
 - ~~**The `Message` corpus's size is asserted rather than computed.** *Messages are a rounding error* is
   an inference from *alerting fires at the cause with a census*, and nobody has measured how many
@@ -341,4 +341,4 @@ violating it in its own next paragraph.
   timeline no `Scan` covers, whose bound is *undefined rather than loose* and whose rows are therefore
   never retired. Everywhere else the collapse was a guard over the wrong hazard: what would discard a
   live row is **ADR-0007's under-keyed currency tuple**, repaired at that ADR's site. The control
-  collapses; the query does not.
+  collapses. The query does not.

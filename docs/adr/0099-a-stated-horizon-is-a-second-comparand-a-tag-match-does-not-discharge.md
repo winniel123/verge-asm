@@ -109,7 +109,7 @@ addressed in Alternatives rejected.
   measured it.
 - **G11's own definition is unchanged**, and its `sensitive-ports.md` §40 baseline is unchanged and
   unre-interpreted.
-- **The new gate check is G13.** `sensitive-ports.md` §49 states it in full; the merge session numbered
+- **The new gate check is G13.** `sensitive-ports.md` §49 states it in full. The merge session numbered
   it alongside [#149](https://github.com/winniel123/verge-asm/issues/149)'s G12, ruling the two stay
   separate rather than merging into one.
 - **[`docs/spec/curated-table-watch.md`](../spec/curated-table-watch.md) §3's *"the gate is eleven
@@ -117,7 +117,7 @@ addressed in Alternatives rejected.
 - **`CONTEXT.md` is not amended**, on ADR-0057's own last Decision row: the curator is not a subject in
   the model.
 - **ADR-0057 and ADR-0077 are confirmed by use and neither is amended.** This ADR adds a check
-  alongside G11; it does not redefine either ADR's decisions.
+  alongside G11. It does not redefine either ADR's decisions.
 
 ## Alternatives rejected
 

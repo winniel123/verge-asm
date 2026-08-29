@@ -68,7 +68,7 @@ an assertion of ours wearing the instrument's clothes, and the repair is a retri
 does not make an exclusion harder to reach — it makes the *stated ground* honest about whose sentence it
 is. And it does not travel to §2.1 or §2.4, which
 [ADR-0032](./0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) confines to
-`sensitive-ports.md`; it rides on **§2.2's attestation gate**, which is the half ADR-0032 says does
+`sensitive-ports.md`. It rides on **§2.2's attestation gate**, which is the half ADR-0032 says does
 travel to other curated tables.
 
 ## Consequences
@@ -76,7 +76,7 @@ travel to other curated tables.
 **`22/tcp`'s cell is re-founded on the owner's specification and the row does not move.** RFC 4251 §1 —
 *"Secure Shell (SSH) is a protocol for secure remote login and other secure network services over an
 insecure network"* — is §2.2's **first** form and states in the specifier's voice what the note had been
-asserting. Claim 3 requires intended clients inside a boundary the operator controls; the owner says the
+asserting. Claim 3 requires intended clients inside a boundary the operator controls. The owner says the
 protocol exists for the case where they are not. §45.2, §45.6.
 
 **§22.5's sentence is narrowed in place, not deleted.** Its first half is this ADR's limb 1. It is
@@ -91,7 +91,7 @@ neither is repaired by the pass that found it. §45.7.
 
 **One figure is put in question and deliberately not moved.** §17.2's arithmetic — *14 negatives · 8
 un-exposed · 5 searched · 1 exhausted · **0 residue*** — un-exposes rows 9 and 10 on the §10.2 gate.
-Limb 1 keeps the gate available; limb 2 leaves the premise those two rows' application of it turns on
+Limb 1 keeps the gate available. Limb 2 leaves the premise those two rows' application of it turns on
 unattested. **Whether an unattested premise still reaches the gate is open**, and answering it inside
 #153 would have moved a figure on a retrieval scoped to a different cell — the *machine rules* failure
 §39.6 bars and §40.7 declined for the same reason. Ticketed.

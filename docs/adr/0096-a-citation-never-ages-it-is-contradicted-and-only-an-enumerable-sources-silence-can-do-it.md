@@ -127,8 +127,8 @@ these cases:
    place ([ADR-0060](./0060-a-wildcard-san-is-a-pattern-over-names-and-admits-none-of-them.md)), so
    there is no citation to expire.
 
-A fourth candidate exists and is unmeasured — whether `crt.sh` retains rows from **retired** logs;
-the research note records Oak as retired. It does not weaken the argument, it repeats it: it is
+A fourth candidate exists and is unmeasured — whether `crt.sh` retains rows from **retired** logs.
+The research note records Oak as retired. It does not weaken the argument, it repeats it: it is
 another property of the instrument.
 
 **Every route by which a CT citation clock could ever fire is a defect of our own reading, and none
@@ -151,14 +151,14 @@ its instances were. Read at the citation hop it decides the ticket's question wi
 
 `CONTEXT.md` says it of CT specifically, in the `Completeness` entry itself: *"certificate
 transparency is append-only, so a certificate's absence from a query means nothing, however the
-query went."* **However the query went** is the whole ruling; §2 is what it looks like applied.
+query went."* **However the query went** is the whole ruling. §2 is what it looks like applied.
 
 The `enumerable` limb is the half that keeps this from being a CT exemption, and it is why the rule
 is stated as a property of `completeness` rather than as a carve-out. An `enumerable` source
 *"returns a complete set over a declared scope, so silence within that scope is evidence"*. A later
 `Batch` from such a source, over a **recorded scope covering the subject**, that does not name it,
 is a **measured absence** — and ADR-0006's existing route handles it with no new machinery, because
-that is precisely what ADR-0006 built. The citation is not expiring; it is being **contradicted**,
+that is precisely what ADR-0006 built. The citation is not expiring. It is being **contradicted**,
 by evidence, in a `Batch` whose scope record is what makes the contradiction admissible.
 
 Two things follow and both matter.
@@ -183,7 +183,7 @@ estate exactly while a **current** resolution cites it or a `Seed` covers it"*. 
 past `k` cadences of `dns`, it is no longer current, it cites nothing, and the `Address` leaves with
 its timelines. ADR-0084 spells the mechanism out as the consequence of loosening the `dns` dial, and
 ADR-0006's *"de-citation closes the probing gate"* is the same event seen from the safety side.
-**That clock belongs to the observation.** The citation is a link; links do not have ages.
+**That clock belongs to the observation.** The citation is a link. Links do not have ages.
 
 Where the hop is a **`Batch`**, there is no observation, so there is no clock to borrow, and §2 and
 §3 say there must not be one of its own. The glossary sentence is therefore **true and total**
@@ -199,7 +199,7 @@ retires, does it **keep alive** a `Name` the resolver has Name-Errored?
 
 **No, and the asymmetry is already in the model.** ADR-0006 makes membership *"a Derived view over
 the latest observation per facet"*. A `Citation` answers *why is this here* — it is the chain that
-makes provenance traversable and the probing gate legible. Losing it withdraws a subject; **holding
+makes provenance traversable and the probing gate legible. Losing it withdraws a subject. **Holding
 it asserts nothing**. So a withdrawn `Name` and a live CT citation coexist without contradiction:
 the name is gone by measurement, and the record of what once introduced it is still the honest answer
 to how it ever entered.
@@ -218,7 +218,7 @@ holding a subject in the estate against the evidence, on any subject kind CT can
 
 This is the answer the ticket's title points at and it had real support. Four `Scan`s existed and
 #124 minted a fifth on the reasoning that *a measurement needing a cadence of its own takes a `Scan`
-of its own*; #142 applied the same reasoning a third time. CT's admissions are the last row in
+of its own*. #142 applied the same reasoning a third time. CT's admissions are the last row in
 [`passive-discovery-sources.md`](../research/passive-discovery-sources.md) §16.2 with no covering
 `Scan`, and the pattern-completion is obvious: mint `ct`, give it a cadence, let `k` cadences bound
 the citation, and the estate stops being append-only.
@@ -269,7 +269,7 @@ re-deriving it:
 **Its scope cannot be drawn today, and that is why it is not minted here.** §16.2's residue is
 enumerated as *exactly one row*, and walking that enumeration against the corpus rather than quoting
 it turns up a second candidate the table mis-files — see §8. A `Scan` cannot be named for a scope
-whose membership is undecided; ADR-0084's own objection to `discovery` was precisely that a `Scan`
+whose membership is undecided. ADR-0084's own objection to `discovery` was precisely that a `Scan`
 name must describe its scope truthfully.
 
 ### 8. The §16.2 enumeration is one row short, and the extra row is undecided rather than missing
@@ -277,12 +277,12 @@ name must describe its scope truthfully.
 The brief for this ticket said to verify the residue against the corpus rather than quote it. Walking
 it:
 
-- **Own recursive resolver** — observes; covered by `dns` (#142). Holds.
-- **Wildcard detection** — admits nothing of its own; rides `dns` in the same batch (ADR-0070). Holds.
-- **Zone file** — observes `dns-record` with `declared` authority; covered by `zone` (#124). Holds,
+- **Own recursive resolver** — observes. Covered by `dns` (#142). Holds.
+- **Wildcard detection** — admits nothing of its own. Rides `dns` in the same batch (ADR-0070). Holds.
+- **Zone file** — observes `dns-record` with `declared` authority. Covered by `zone` (#124). Holds,
   and it is the reason the `enumerable` limb of §3 has no v1 instance.
-- **Our own prober** — observes four facets; covered by the two port tiers and `tls-acceptance`. Holds.
-- **The registry paths** — not sources; they yield `Proposal`s (ADR-0012), produced *"only in answer
+- **Our own prober** — observes four facets. Covered by the two port tiers and `tls-acceptance`. Holds.
+- **The registry paths** — not sources. They yield `Proposal`s (ADR-0012), produced *"only in answer
   to an operator act … never on a cadence"*. Holds, and none is owed a `Scan`.
 - **Certificate transparency** — admits without observing, no covering `Scan`. Holds. This ADR.
 - **Common Crawl index (CDX)** — §16.2 files it as *"either a proposer … or a transport for the
@@ -294,8 +294,8 @@ it:
 
 Whether that second row exists in v1 is **undecided in the corpus, not decided against**.
 [`passive-discovery-sources.md`](../research/passive-discovery-sources.md) §1 lists Common Crawl as
-**Tier 1, on by default**; ADR-0003 disqualified two sources on terms and Common Crawl is neither;
-and it appears in **no ADR, no glossary entry and no spec document** — grepped for the name across
+**Tier 1, on by default**. ADR-0003 disqualified two sources on terms and Common Crawl is neither.
+And it appears in **no ADR, no glossary entry and no spec document** — grepped for the name across
 all three, zero hits.
 
 Nothing in this ruling turns on it, and that is deliberate: §3 is a property of `completeness`, not a
@@ -313,7 +313,7 @@ is §7's `Scan` that cannot be sized until the row is settled.
   measured for this ticket. It is named as a candidate rather than asserted, and the argument does
   not rest on it — the three measured or documented routes already close it.
 - **Common Crawl's shipping status is read off a research note's recommendation, not off a ruling.**
-  §8 states it as undecided precisely because no decision exists to read; a session that finds one
+  §8 states it as undecided precisely because no decision exists to read. A session that finds one
   should correct §8 at its site.
 - **The crt.sh failure rate is quoted, not re-run — and the ruling deliberately does not rest on
   it.** §7's series is dated **2026-07-31** and is a dated record like every other figure in a closed
@@ -337,9 +337,9 @@ is §7's `Scan` that cannot be sized until the row is settled.
 
 - **[`CONTEXT.md`](../../CONTEXT.md) is amended in three entries and gains no term.** `Citation`
   records that it never ages, that the observation hop's clock belongs to the observation, that a
-  `Batch` hop has none, and that a citation is necessary for membership and not sufficient;
+  `Batch` hop has none, and that a citation is necessary for membership and not sufficient.
   `Completeness` records that it governs the citation hop as well as the observation, and that only
-  an `enumerable` source's silence can contradict a citation; `Batch` records that a `Batch` held as
+  an `enumerable` source's silence can contradict a citation. `Batch` records that a `Batch` held as
   the current `Citation` of a subject in the estate is retained until a later `Batch` from that
   source supersedes it in that role, there being no clock that will release it.
 - **[ADR-0041](./0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md)'s seam
@@ -347,7 +347,7 @@ is §7's `Scan` that cannot be sized until the row is settled.
   age at all — marked per ADR-0058, because read alone it sends a session to work out the rate.
 - **[ADR-0084](./0084-a-scan-is-a-cadence-over-an-exchange-and-an-uncovered-facet-has-no-currency-bound.md)'s
   open handoff is discharged in part.** Its *"the passive sources' `Citation` staleness is open and
-  ticketed"* is answered; its decision-table row and its *cover the passive sources' admissions on
+  ticketed"* is answered. Its decision-table row and its *cover the passive sources' admissions on
   this `Scan`* rejection are marked. **The poll's cadence is not discharged** and is re-ticketed with
   a drawn boundary rather than left as prose.
 - **[ADR-0031](./0031-membership-alerts-at-the-root-of-the-entering-subtree.md)'s worked message is
@@ -362,7 +362,7 @@ is §7's `Scan` that cannot be sized until the row is settled.
   nothing for a `Gap` to sit on. This ruling adds no route to a `Gap` of any kind.
 - **The map's `Out of scope` entry for [#56](https://github.com/winniel123/verge-asm/issues/56) —
   *certificate-transparency mis-issuance detection, and any CT-fed facet* — is not reopened.** This
-  ADR mints no facet, no timeline, no value and no observation from CT; it rules on the `Citation`
+  ADR mints no facet, no timeline, no value and no observation from CT. It rules on the `Citation`
   hop, which is the object ADR-0027 put there precisely **because** there is no facet.
 - **The cost is stated: `Name`s admitted by CT beneath a `Shadowed` answer or a `Lame` delegation
   stay in the estate permanently**, with the three operator routes out that ADR-0006 and its #35

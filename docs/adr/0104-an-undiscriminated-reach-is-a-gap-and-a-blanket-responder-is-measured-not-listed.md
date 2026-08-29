@@ -18,11 +18,11 @@ witnesses a service the way it does on an ordinary host.
 **[measured]** — the ticket's repro, a real Cloudflare-fronted domain, 2026-08-16. Seed
 `example.com` (name scope, custody extension on) resolves to `104.21.61.6` and `172.67.204.130`. A
 `hot` scan produced **262 `Service`s — 131 ports × 2 addresses — 100% `reached`**, kubelet `10250`,
-memcached `11211`, and NFS `111` among them; the `certificate` step on those same services returned
+memcached `11211`, and NFS `111` among them. The `certificate` step on those same services returned
 `no-tls` / `tls-refused`, i.e. **open TCP with no service behind it**. Independently confirmed it is
 the edge and not a probe bug: a plain `nc` from a neutral container connected to `104.21.61.6` on
 `13`, `111`, `11211`, `10250`, `9999`, and the arbitrary ephemeral port `62345`, while a TEST-NET
-control host correctly refused. **Cloudflare answers TCP on all ports; a TEST-NET host answers on
+control host correctly refused. **Cloudflare answers TCP on all ports. A TEST-NET host answers on
 none.**
 
 Three consequences, and none is a probe defect:
@@ -41,12 +41,12 @@ Three consequences, and none is a probe defect:
   + cert probing — measuring the CDN, not the estate.
 
 **The model already owns the shape of this problem, one facet over.** `resolution-walk` produces a
-DNS answer; `wildcard-discrimination` ([ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md),
+DNS answer. `wildcard-discrimination` ([ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md),
 [ADR-0068](./0068-a-wildcard-is-discriminated-only-where-its-synthesis-is-determinate.md),
 [ADR-0070](./0070-a-control-probe-is-asked-from-where-the-answer-it-discriminates-was-asked-from.md))
 decides whether that answer can be **trusted**, by sending a **control probe** — random labels that
 should not exist — and reading `Shadowed` where the authority synthesises an answer for them. A name
-whose answer is indistinguishable from that synthesis is not `Resolved`; *"an undiscriminated answer
+whose answer is indistinguishable from that synthesis is not `Resolved`. *"an undiscriminated answer
 is never a value"* ([CONTEXT.md](../../CONTEXT.md) `Gap`; ADR-0066). The blanket responder is the
 **reachability twin**: a control probe of ports that should be **closed**, read for whether the
 address answers regardless.
@@ -66,14 +66,14 @@ responder** exactly where the control set answers.
 - **The control set is generated, not curated.** It is a set of **random high ports** plus at most a
   small structured decoy or two, generated per batch, exactly as
   [ADR-0069](./0069-a-control-label-is-one-label-and-the-set-must-falsify-label-independence.md)
-  generates control labels for DNS. A real host does not *listen* on a random ephemeral port; a
+  generates control labels for DNS. A real host does not *listen* on a random ephemeral port. A
   blanket responder answers it. The set exists to **falsify port-independence**: an origin's open
   ports are port-specific, a blanket responder's are not, and the control set is what tells them
   apart. `62345` in the repro is one draw from exactly this set.
 - **A published CDN/anycast prefix list is refused as the detector**, and the refusal is the
   project's standing one, not a new preference. [ADR-0002](./0002-ownership-gates-probing.md) and
   [ADR-0013](./0013-custody-is-control-and-extends-by-declaration.md) bar a vendor list from
-  deciding what gates or shapes probing; custody transitivity is *"measured rather than read off a
+  deciding what gates or shapes probing. Custody transitivity is *"measured rather than read off a
   list of providers."* [ADR-0089](./0089-an-instrument-supplies-the-test-never-the-premise.md) is
   the general form — an instrument supplies the **test**, and a claim about the world (this address
   is an edge) must be measured, not asserted by us off somebody's file. A prefix list ages,
@@ -83,7 +83,7 @@ responder** exactly where the control set answers.
 
 `blanket-discrimination` is its own leaf and not a parameter of `connect-outcome`, for the reason
 ADR-0021 makes `wildcard-discrimination` its own leaf beside `resolution-walk`: *a leaf is named for
-what it decides.* `connect-outcome` decides *did the handshake complete*; `blanket-discrimination`
+what it decides.* `connect-outcome` decides *did the handshake complete*. `blanket-discrimination`
 decides *is that completion trustworthy or a blanket artefact*. Two decisions, two leaves, two
 golden corpora. **The named-leaf count moves from five to six.**
 
@@ -133,10 +133,10 @@ is absent (`internal/signal/service.go`, `HasInternetReach == false`). **No rule
 signal's `Predicate domain` is untouched, its version does not move, and the census still counts the
 port. This matters: narrowing a rule to make it fire less often is the model-layer damping `Drift`
 refuses ([ADR-0016](./0016-an-annotation-moves-a-message-never-a-number.md),
-[CONTEXT.md](../../CONTEXT.md) `Signal`). We do not tell the rule to ignore edges; we **measure that
+[CONTEXT.md](../../CONTEXT.md) `Signal`). We do not tell the rule to ignore edges. We **measure that
 the fact it reads is undiscriminated**, and the rule reports `not-evaluable` on its own terms.
 Inventory ([#243](https://github.com/winniel123/verge-asm/issues/243)) counts an origin-reached port
-from a `reachability` value; a `Gap` is not one, so a blanket responder's ports drop out of the open
+from a `reachability` value. A `Gap` is not one, so a blanket responder's ports drop out of the open
 count without a special case.
 
 ### 4. The blanket responder is **surfaced on `Coverage`, never silently absorbed**
@@ -170,7 +170,7 @@ the honest resolution and it is consistent with ADR-0013.
 - **The named-leaf count moves from five to six**, and `blanket-discrimination` joins
   `connect-outcome`, `tls-handshake`, `http-exchange`, `resolution-walk`, `wildcard-discrimination`.
   [CONTEXT.md](../../CONTEXT.md) `Derivation` and [ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md)'s
-  enumeration are amended; each *"still five leaves total"* row in
+  enumeration are amended. Each *"still five leaves total"* row in
   [ADR-0062](./0062-a-wildcards-synthesis-is-a-fact-about-the-name-it-was-probed-under.md),
   [ADR-0066](./0066-a-control-probe-is-generated-under-a-names-parent-and-that-population-is-aperture.md),
   [ADR-0068](./0068-a-wildcard-is-discriminated-only-where-its-synthesis-is-determinate.md),
@@ -179,8 +179,8 @@ the honest resolution and it is consistent with ADR-0013.
   is struck at the clause under [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md),
   each read *"and that leaf adds none"* rather than a live count.
 - **`reachability` gains a sixth `Gap` cause and no value.** [CONTEXT.md](../../CONTEXT.md) `Gap`'s
-  *"every gap in v1 is one of the five above"* becomes six; `Reach` names `blanket-discrimination` in
-  its Derivation vector and the undiscriminated-reach `Gap`; `Exposure` is unchanged, since a `Gap`
+  *"every gap in v1 is one of the five above"* becomes six. `Reach` names `blanket-discrimination` in
+  its Derivation vector and the undiscriminated-reach `Gap`. `Exposure` is unchanged, since a `Gap`
   leg is a case it already holds. The value space stays the closed pair, so no `reachability`
   timeline `Break`s on a new value.
 - **`reachability`'s Derivation vector gains a leaf, and that `Break`s every `reachability` timeline
@@ -198,12 +198,12 @@ the honest resolution and it is consistent with ADR-0013.
 - **`Exposure` reads a `Gap` leg on a blanket responder** and therefore yields no `Exposure` there —
   no false `exposed` — under the one-legged / silent-leg handling
   [ADR-0017](./0017-exposure-needs-both-legs.md) already specifies.
-- **The `Address` gains a derived property and no table.** There is no `address` row; blanket-ness is
+- **The `Address` gains a derived property and no table.** There is no `address` row. Blanket-ness is
   derived by the binary and carried as the reach `Gap` and the `Coverage` statement, not stored as a
   column. No migration is required for the concept itself.
 - **The control-port probe spends packets and rides the existing safety budget.** It is TCP connects
   against a target host, so `connect-outcome`'s per-host and global pacing
-  (`SafetyProfile`) bind it exactly as they bind the port tiers; the split ticket prices the control
+  (`SafetyProfile`) bind it exactly as they bind the port tiers. The split ticket prices the control
   set against that ceiling, as ADR-0066 priced the control labels.
 - **The word *edge* is deliberately not used for this concept.** `Exposure`'s `edge-only`
   (internet-reached, internal-not; [#32](https://github.com/winniel123/verge-asm/issues/32),
@@ -236,7 +236,7 @@ the honest resolution and it is consistent with ADR-0013.
 ## Thin ground, flagged rather than smoothed
 
 - **Nothing has run a control-port probe inside a batch.** Every claim here about *what the leaf
-  does* is specification; what is **[measured]** is the edge's TCP behaviour against one Cloudflare
+  does* is specification. What is **[measured]** is the edge's TCP behaviour against one Cloudflare
   estate and one TEST-NET control, from one vantage, on one day (the ticket repro). The signature —
   *all control ports answer ⇒ blanket* — is RFC-free and rests on the observation that a real host
   does not listen on random ephemeral ports, which is robust but untested at scale in the population
@@ -245,7 +245,7 @@ the honest resolution and it is consistent with ADR-0013.
   many random ports, whether *all* must answer or a super-majority, and how to price them against the
   200 pkt/s ceiling are ADR-0069-shaped parameter decisions the detection ticket owns. A too-small
   set risks a false blanket verdict on a host that happens to answer one draw (a honeypot, an
-  intercepting middlebox); the set must falsify port-independence with margin, and that margin is
+  intercepting middlebox). The set must falsify port-independence with margin, and that margin is
   unmeasured.
 - **A partial blanket is possible and unmodelled.** An address that answers on a wide band but
   genuinely refuses some ports is neither a clean origin nor a clean blanket responder. v1 rules the

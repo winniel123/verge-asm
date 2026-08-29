@@ -72,7 +72,7 @@ estate-wide. ADR-0021's central property — *"no leaf is composed by every time
 makes the unsurvivable fallback structurally unreachable — would be spent to save one name.
 
 So the honest instrument is a **sixth leaf, `datagram-outcome`**, named the same way its sibling is:
-for the outcome of the exchange it makes. It is specified here and shipped nowhere; **v1's leaf count
+for the outcome of the exchange it makes. It is specified here and shipped nowhere. **v1's leaf count
 stays five**, and a session reading ADR-0021's table should not move it.
 
 ### `refused` survives and `no-response` does not, which inverts the ticket's emphasis
@@ -96,7 +96,7 @@ keep the other two* — is the option that came closest to winning.
 ### Silence is a value, and for a connectionless exchange it projects onto nothing
 
 For TCP, `no-response` → `not-reached` is sound. We sent a SYN and reached no listener that would
-answer; ADR-0011 states the residual honestly — *"`no-response` is the one reachability value that may
+answer. ADR-0011 states the residual honestly — *"`no-response` is the one reachability value that may
 be about us"* — and both `refused` and `no-response` project to `not-reached`, so nothing false is
 alerted.
 
@@ -129,7 +129,7 @@ member with **no `Reach` projection**: the leg holds no value that batch, and un
 
 The name is chosen the way this project has chosen four times running — the measured word over the
 taxonomy's. Nmap's word is `open|filtered`, which is two conclusions joined by a bar and not a single
-value at all; `filtered` names a conclusion the exchange cannot establish, refused for TCP already;
+value at all. `filtered` names a conclusion the exchange cannot establish, refused for TCP already.
 `silent` names a property of the listener rather than of our exchange, which is the thing
 `CONTEXT.md` bars when it says a negative is *named for the exchange we made*. **`unanswered` names
 our datagram and claims nothing about what is there** — which is precisely the claim we are entitled
@@ -198,7 +198,7 @@ The payload table's classification, ruled here so the successor need not re-deri
 to look is aperture; a table deciding what an answer means is a signature database.* A payload table
 decides which pairs can produce a positive at all, so it is **aperture**, and it is an **eighth
 aperture input** the day UDP ships. It stays on the legal side of #5 only because `answered` reads
-*that* a datagram returned and never *which bytes*; the moment a rule reads the payload's content it
+*that* a datagram returned and never *which bytes*. The moment a rule reads the payload's content it
 is a verdict table and #5 bites.
 
 ### One facet, because the subject key already carries the transport
@@ -229,7 +229,7 @@ that rule rather than amending it: the leg is `reached` where **any** vantage of
 `answered`, `not-reached` where **every** deciding vantage read `refused`, and where no vantage of
 the class decided at all the set of deciding vantages is empty — which ADR-0080 already rules is
 `not-evaluable` and never vacuous. Nothing here makes anything a `Vantage composition` that was not
-one; `datagram-outcome` is a **prober** leaf in ADR-0021's sense, deciding a value, not composing
+one. `datagram-outcome` is a **prober** leaf in ADR-0021's sense, deciding a value, not composing
 observations.
 
 **The other ICMP unreachable codes fold into `refused` rather than earning a member.** An
@@ -299,9 +299,9 @@ is unbounded for a reason the operator cannot fix and we can.
   on.** The leg is `verge-core`'s UDP pairs, and it now has a named leaf, a value space and a
   projection rule. What it does not have is a way to reach `answered`, and that is the deferred wire
   prober's to supply.
-- **No live figure moves.** `verge-core` stays **136 pairs — 131 TCP, 5 UDP**; the aperture statement
-  stays **`5 of 38 sensitive pairs unread`**; the v1 rule set stays **17**; the aperture inputs stay
-  **seven**; the facets stay **six**; the leaves stay **five**; `reachability`'s union stays
+- **No live figure moves.** `verge-core` stays **136 pairs — 131 TCP, 5 UDP**. The aperture statement
+  stays **`5 of 38 sensitive pairs unread`**. The v1 rule set stays **17**. The aperture inputs stay
+  **seven**. The facets stay **six**. The leaves stay **five**. `reachability`'s union stays
   **three members**. This ADR specifies and spends nothing. A session reading it as a widening should
   re-read the additive section.
 - **`unanswered` would be v1's first facet value with no Derived projection**, and ADR-0010's clean
@@ -333,12 +333,12 @@ is unbounded for a reason the operator cannot fix and we can.
   been **off in memcached's own shipped default since 1.5.6**. A retrieval per pair against
   implementations, not only specifications, is owed before any payload ships.
 - **A licence flag is raised and lowered rather than left implicit.** Nmap's payloads no longer live
-  in a standalone `nmap-payloads` file; they are built from `nmap-service-probes`, which is NPSL
+  in a standalone `nmap-payloads` file. They are built from `nmap-service-probes`, which is NPSL
   data. [#78](https://github.com/winniel123/verge-asm/issues/78) cleared *deriving* `verge-core` from
   `nmap-services` and does **not** clear selecting rows out of a second nmap data file — and
   [#128](https://github.com/winniel123/verge-asm/issues/128)'s rule cuts the wrong way here, since
   *selecting from* a table **is** authoring. Nothing is lifted by this ADR, so nothing forces a
-  licence change today; the payload table must be **authored against the protocols' own
+  licence change today. The payload table must be **authored against the protocols' own
   specifications**, which the walk in §13.6 shows is possible for all five and necessary for one —
   `138/udp`, for which nmap has no payload at all.
 - **This ADR does not turn UDP on and could not.** That is an aperture change and it belongs to

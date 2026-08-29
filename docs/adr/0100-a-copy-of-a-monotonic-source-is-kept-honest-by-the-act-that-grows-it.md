@@ -40,7 +40,7 @@ addresses what keeps a **second, appended copy** of the register in sync as the 
 [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) comes closest —
 it rules where a **withdrawal** is marked when a mechanism is superseded — but its Scope row is
 explicit: *"Any mechanism … not figures … and not claims about the world."* §1.1's rows are not a
-withdrawn mechanism when the register grows; every existing row stays true, and the copy is merely
+withdrawn mechanism when the register grows. Every existing row stays true, and the copy is merely
 **incomplete** relative to the source. That is a sibling shape to ADR-0058's, not an instance of it, and
 this ADR states the sibling rule, borrowing ADR-0058's own reasoning where it transfers directly.
 
@@ -100,7 +100,7 @@ Every argument in this ADR depends on §39.2's one-way growth: `sensitive-ports.
 adds members, never removes or reorders them out. That is what makes the re-sync step an **append**
 rather than a **reconciliation** — no growth ticket ever needs to delete or resequence a §1.1 row, only
 add to it. Were the source able to shrink or reorder, the calculus here would not transfer, and a
-gated or periodic check would be worth its cost. It is not; this ADR is stated over the register's
+gated or periodic check would be worth its cost. It is not. This ADR is stated over the register's
 current, measured shape and would need re-arguing if that shape ever changed.
 
 ## Consequences
