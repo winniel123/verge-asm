@@ -43,12 +43,13 @@ type inventoryFacet struct {
 	Since   string
 
 	// ProxyEdge marks a reach Gap the blanket-responder classifier attributed to a
-	// provider-fronted / edge-shared address (R4-Q1 #762, ADR-0104): the reach is a
-	// Gap because the address answers on every port — a proxy edge, not the origin —
-	// so the frozen tmpl rides a "proxy edge" badge on the gap. It is set only on a
-	// reachability Gap whose stored value carries blanketdiscrim's blanket cause AND
-	// its blanket reason; an incomplete-control-probe Gap (the same sixth cause, a
-	// different reason) is NOT a proxy edge and carries no badge.
+	// provider-fronted / edge-shared address (R4-Q1 #762, ADR-0104, #778): the reach
+	// is a Gap because the classifier could not attribute a listener to the origin —
+	// either the address answers on every port (a measured blanket responder) or its
+	// control probe timed out (undiscriminated) — so the frozen tmpl rides a "proxy
+	// edge" badge on the gap. It is set on a reachability Gap whose stored value carries
+	// blanketdiscrim's sixth cause (GapCause), for BOTH the blanket and the incomplete
+	// reason (#778); a non-reachability facet and a non-Gap are never proxy edges.
 	ProxyEdge bool
 
 	// facet is the stored (lower-case) facet tag this row was folded from —
@@ -262,34 +263,90 @@ func buildInventory(rows []db.ListAllOpenSpansRow) []inventoryGroup {
 		groups[gi].Total = len(subs)
 		groups[gi].ShowAllHref = "/inventory?all=" + groups[gi].Kind
 	}
+	propagateProxyEdgeToAddresses(groups)
 	sort.SliceStable(groups, func(a, b int) bool {
 		return inventoryKindRank(groups[a].Kind) < inventoryKindRank(groups[b].Kind)
 	})
 	return groups
 }
 
+// propagateProxyEdgeToAddresses lifts each proxy-edge Service's ProxyEdge onto its
+// bare Address subject (#778). A reach Gap folds under the Service subject
+// (subjectKindFor("reachability") == "service"), so the blanket-responder verdict
+// lands on the Service row (`104.21.61.6:443/tcp`), never the bare Address
+// (`104.21.61.6`) the "Hide proxy edge" toggle filters. The pipeline emits no
+// address-kind reach span, so without this lift a flagged edge never reaches the
+// Address group the toggle scopes. It only sets ProxyEdge, never clears it, so an
+// Address already flagged by its own facet (the design fixture's shape) is untouched.
+func propagateProxyEdgeToAddresses(groups []inventoryGroup) {
+	proxyAddrs := map[string]bool{}
+	for gi := range groups {
+		if groups[gi].Kind != "service" {
+			continue
+		}
+		for _, sub := range groups[gi].Subjects {
+			if sub.ProxyEdge {
+				proxyAddrs[inventoryServiceAddress(sub.Key)] = true
+			}
+		}
+	}
+	if len(proxyAddrs) == 0 {
+		return
+	}
+	for gi := range groups {
+		if groups[gi].Kind != "address" {
+			continue
+		}
+		for si := range groups[gi].Subjects {
+			if proxyAddrs[groups[gi].Subjects[si].Key] {
+				groups[gi].Subjects[si].ProxyEdge = true
+			}
+		}
+	}
+}
+
+// inventoryServiceAddress extracts the bare Address limb of a Service subject key
+// (`address:port/transport`, connectoutcome.ServiceKey) — everything before the last
+// colon, with a bracketed IPv6 host unwrapped so it equals the Address subject key
+// (netip.Addr.String()). It mirrors internal/queue's serviceAddress, kept inventory-
+// local so cmd/web imports nothing from the queue package.
+func inventoryServiceAddress(key string) string {
+	i := strings.LastIndex(key, ":")
+	if i < 0 {
+		return key
+	}
+	host := key[:i]
+	host = strings.TrimPrefix(host, "[")
+	host = strings.TrimSuffix(host, "]")
+	return host
+}
+
 // inventoryProxyEdge reports whether a facet is a proxy-edge reach Gap — a
 // reachability timeline the blanket-responder classifier (internal/measure/
-// blanketdiscrim, ADR-0104) gapped because the address is a measured provider-
-// fronted / edge-shared responder that answers on every port. It reuses the leaf's
-// own cause + reason constants rather than an address/CIDR list (the project refuses
-// a vendor prefix list as the detector): the stored reach-Gap value carries the
-// sixth-cause tag (blanketdiscrim.GapCause) and the operator-facing reason, and only
-// the *blanket* reason marks a proxy edge — an incomplete-control-probe Gap shares
-// the cause but means "we could not discriminate", not "this is a proxy edge", so it
-// carries no badge. Non-reachability facets and non-Gaps are never proxy edges.
+// blanketdiscrim, ADR-0104) gapped because the address is a provider-fronted /
+// edge-shared responder. It reuses the leaf's own cause constant rather than an
+// address/CIDR list (the project refuses a vendor prefix list as the detector): the
+// stored reach-Gap value carries the sixth-cause tag (blanketdiscrim.GapCause).
+//
+// It marks BOTH reasons the cause carries as a proxy edge (#778): the blanket reason
+// (the control set answered on every port — a measured blanket responder) AND the
+// incomplete reason (the control probe timed out, so blanket-ness could not be
+// decided). A live hot scan of a Cloudflare-fronted address times its control probe
+// out far more often than it completes, so the incomplete Gap is the shape the
+// operator actually meets; badging it lets the "Hide proxy edge" toggle hide the edge
+// address the operator asked to hide, rather than only a positively measured blanket
+// responder. Non-reachability facets and non-Gaps are never proxy edges.
 func inventoryProxyEdge(dbFacet string, value []byte, isGap bool) bool {
 	if !isGap || dbFacet != "reachability" {
 		return false
 	}
 	var v struct {
-		Cause  string `json:"cause"`
-		Reason string `json:"reason"`
+		Cause string `json:"cause"`
 	}
 	if err := json.Unmarshal(value, &v); err != nil {
 		return false
 	}
-	return v.Cause == blanketdiscrim.GapCause && v.Reason == blanketdiscrim.ReasonBlanket
+	return v.Cause == blanketdiscrim.GapCause
 }
 
 // inventoryFacetRank is the canonical display order of a subject's facets on the
