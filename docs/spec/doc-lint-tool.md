@@ -324,6 +324,22 @@ reads the directive and skips the marked line.
   error compounds across the four-token window. The signal-to-noise ratio is too low to ship, even
   as a warning. The rule stays a human-review gate only. Revisit it when a better tagger is
   available. #791 noted `en-pos` claims higher accuracy, but it is stale and needs custom wiring.
+- **One-instruction-per-sentence** (candidate warning, §2.5). #824 built the detector and measured
+  it (the #792 method). It passes a clean fixture corpus, but real-doc precision is only about half
+  (16 clear true positives of 34 flags, about 47%, up to about two-thirds if the borderline heading
+  and option-label cases count). The false positives cluster in three classes: a heading read
+  as a prose instruction (the tool has no block-type or section awareness), a declarative whose
+  capitalized opener the `pos` tagger reads as an imperative verb, and a coordinator that joins two
+  adverbials or objects, not two instructions. That noise is below the bar the shipped warnings
+  hold, so the candidate defers. The detector stays at `docs-site/scripts/doclint/candidates/` as a
+  reproducible artifact. Revisit it with a better tagger or with block-type awareness (heading
+  exclusion alone removes the largest false-positive class).
+- **No-ellipsis** (candidate warning, §2.5). #824 built a dropped-verb proxy: a sentence-shaped
+  block with no verb tag. It floods the real corpus — 1043 flags across 161 of 177 files, almost
+  all false positives, because the `pos` tagger mistags a verb as a noun and a verbless lead-in or
+  a list fragment reads as an ellipsis. Detecting a real dropped subject, verb, or article needs a
+  parse the `pos` tagger does not support, exactly as §2.5 predicted, so the candidate defers. The
+  detector stays at `docs-site/scripts/doclint/candidates/` as a reproducible artifact.
 - **Lists-for-sequences.** The style standard §4.2 asks a writer to turn three or more prose steps
   into a list. This rule is section-dependent. It applies inside a procedural section. Ticket Q3
   drops every section-dependent rule from v1, because the tool cannot detect a procedural section.
