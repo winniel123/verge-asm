@@ -13,6 +13,8 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { RULES } from "./doclint/rules/index.mjs";
 import { checkRuleCorpus } from "./doclint/fixtures.mjs";
+import { oneInstruction } from "./doclint/candidates/one-instruction.mjs";
+import { noEllipsis } from "./doclint/candidates/no-ellipsis.mjs";
 import { parse, extractProse, lintMarkdown } from "./doclint/engine.mjs";
 import { tagSentence } from "./doclint/rules/simple-tenses.mjs";
 import { isInScope } from "./doclint/scope.mjs";
@@ -423,6 +425,31 @@ test("isInScope rejects the SPEC §1.3 out-of-scope paths", () => {
 
 test("isInScope rejects a path outside the repo root", () => {
   assert.equal(isInScope(REPO_ROOT, join(REPO_ROOT, "..", "elsewhere", "README.md")), false);
+});
+
+/*
+ * The #824 candidate warnings (SPEC §2.5, deferred). One-instruction-per-sentence and
+ * no-ellipsis were built and measured (the #792 method), then deferred: one-instruction scored
+ * about 60% real-doc precision, no-ellipsis flooded the corpus. The measured result is on the
+ * #824 ticket and in SPEC §7.1. These tests pin the deferral: neither candidate is enabled, so
+ * the tool never runs it, and each still passes its own fixture corpus (the detector is sound on
+ * clean snippets — real-doc precision, not a broken detector, is why it defers).
+ */
+test("the #824 candidates are not enabled (SPEC §7.1 deferral)", () => {
+  const names = new Set(RULES.map((r) => r.name));
+  assert.equal(names.has("one-instruction-per-sentence"), false);
+  assert.equal(names.has("no-ellipsis"), false);
+});
+
+test("the one-instruction candidate is sound on its own fixture corpus", () => {
+  // It defers on real-doc precision (SPEC §7.1), not on the clean fixtures: it flags every
+  // must-flag snippet and no must-not-flag snippet.
+  assert.deepEqual(checkRuleCorpus(oneInstruction), []);
+});
+
+test("the no-ellipsis candidate is sound on its own fixture corpus", () => {
+  // It defers on the real-doc flood (SPEC §7.1), not on the clean fixtures.
+  assert.deepEqual(checkRuleCorpus(noEllipsis), []);
 });
 
 /*
