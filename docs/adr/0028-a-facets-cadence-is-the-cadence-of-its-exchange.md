@@ -95,7 +95,7 @@ It is that the value cannot be interpreted without the connect it rides.
 
 ADR-0011's *every open `Service`, opportunistically* reads as riding whatever tier discovered the
 service, and that reading is correct. A `Service` on a `verge-core` port is exchanged with daily,
-weekly and monthly; one only in nmap's top-1000 weekly and monthly; one reachable only by the
+weekly and monthly. One only in nmap's top-1000 weekly and monthly. One reachable only by the
 opt-in full-range sweep, monthly.
 
 Three tiers do not make three timelines. The key is
@@ -133,7 +133,7 @@ exactly the population it exists for. That is
 second guise, arriving through a port tier instead of a library default.
 
 It also rebuilds the thing ADR-0011 deleted. *A curated implicit-TLS port list* was rejected because
-it *"prices an aperture input rather than deleting one"*; scoping the enumeration to top-1000 is the
+it *"prices an aperture input rather than deleting one"*. Scoping the enumeration to top-1000 is the
 same list wearing nmap-2008's clothes, and ADR-0009 is the standing lesson about hand-maintained
 port tables nobody derives. `CONTEXT.md` already contradicts itself on this inside one sentence —
 *"by enumeration on the weekly tier, one handshake per candidate, and attempted against every open
@@ -212,8 +212,8 @@ the hit rather than in a footer.
 **Vindicated and unchanged in substance**: ADR-0011's *"the daily handshake"*, its `tls-acceptance`
 consequence (which was right that `tls-1.0-accepted` is the slowest-moving signal in the set, and
 needs only *the weekly tier* → *its weekly `Scan`*), ADR-0025's *"every-run handshake"*, and #4 §5.
-The research note stands unrewritten under ADR-0007's *a wrong record is corrected by a new entry*;
-nothing in it was wrong.
+The research note stands unrewritten under ADR-0007's *a wrong record is corrected by a new entry*.
+Nothing in it was wrong.
 
 ### Where this was decided on thin ground
 
@@ -221,7 +221,7 @@ The `certificate` half is firm: four texts and the originating research on one s
 repeated three times on the other, and a structural argument from the value space that does not
 depend on counting texts.
 
-The **fourth `Scan`** is thinner and is flagged as such. No document proposes one; it is derived
+The **fourth `Scan`** is thinner and is flagged as such. No document proposes one. It is derived
 from ADR-0005's one-cadence-per-`Scan` rule plus the measured `verge-core ⊄ top-1000` gap. The
 alternative that would survive is scoping the enumeration to the weekly tier and accepting that four
 sensitive ports go unenumerated — a coverage loss the model can state honestly. It was rejected
@@ -243,7 +243,7 @@ exists to remove, not a cheaper version of the fix.
   measurement needing a cadence of its own takes a `Scan` of its own.***
 - **[ADR-0011](./0011-a-facet-is-six-parts.md) is amended in one word and vindicated in
   substance.** *"A `Gap` opens two weeks after the weekly tier stops"* becomes *after its weekly
-  `Scan` stops*; `tls-1.0-accepted` remains the slowest-moving signal in the set, and that is now
+  `Scan` stops*. `tls-1.0-accepted` remains the slowest-moving signal in the set, and that is now
   true for a stated reason rather than by accident.
 - **[ADR-0014](./0014-only-revealed-generalises.md)'s rule is untouched and its worked example
   moves to `tls-acceptance`.** Anything downstream that cited the rule — ADR-0017's opening leg,
@@ -254,7 +254,7 @@ exists to remove, not a cheaper version of the fix.
   answering this question since it was written. Only its restatement of ADR-0014's example is
   corrected.
 - **`certificate`'s currency is per-`Service` and there is no estate-wide number.** Modal `k`=2 on a
-  daily tier is two days; ~~a top-1000-only port is two weeks;~~ a full-range-only port is two months.
+  daily tier is two days. ~~a top-1000-only port is two weeks;~~ A full-range-only port is two months.
   The expiry and self-signed rules from [#16](https://github.com/winniel123/verge-asm/issues/16) go
   `not-evaluable` on that bound, per-subject.
   > **The two-week limb is WITHDRAWN**: [#78](https://github.com/winniel123/verge-asm/issues/78)
@@ -269,7 +269,7 @@ exists to remove, not a cheaper version of the fix.
   after ADR-0024's domain table, `certificate-expired`, `certificate-not-yet-valid` and
   `certificate-expiring` — is the one place in v1 where a rule compares an **always-current wall
   clock** against a **possibly stale observed value**. Every other signal reads observed values
-  against each other, so staleness moves both sides together and the comparison stays honest; here
+  against each other, so staleness moves both sides together and the comparison stays honest. Here
   it does not, and the failure mode is all three rules asserting a fact about a certificate that has
   already been replaced. The exposure window is exactly `certificate`'s currency bound, which is
   what this ADR sets. Two things follow. **The guard is structural and already present**: past `k`
@@ -277,7 +277,7 @@ exists to remove, not a cheaper version of the fix.
   stale `not_after` — the window is bounded by the mechanism ADR-0007 already built, not by
   discipline. And **the window is now two days on the modal estate** rather than the seven the
   withdrawn ADR-0014 reading implied, because the handshake rides the daily tier for any
-  `verge-core` port. #60's amendment to ADR-0004 left this hanging and pointed here; it is answered
+  `verge-core` port. #60's amendment to ADR-0004 left this hanging and pointed here. It is answered
   in the narrowing direction, and no new machinery is needed.
 
   *Amended by [#77](https://github.com/winniel123/verge-asm/issues/77) /
@@ -322,8 +322,8 @@ exists to remove, not a cheaper version of the fix.
   days on 2027-03-15**, from which date every publicly-trusted certificate is inside the new gate on
   this tier.
 - **The `certificate` handshake's candidate set is one declared set across all ~~three~~ **two**
-  reachability `Scan`s.** [#62](https://github.com/winniel123/verge-asm/issues/62) decides its content;
-  this ADR decides only that there is exactly one of it and that it is not the library's default, which
+  reachability `Scan`s.** [#62](https://github.com/winniel123/verge-asm/issues/62) decides its content.
+  This ADR decides only that there is exactly one of it and that it is not the library's default, which
   ADR-0025 already settled.
   > **Two, not three**, since [#78](https://github.com/winniel123/verge-asm/issues/78) retired the
   > weekly top-1000 tier — recorded in the bullet above and, cross-document, in
@@ -333,8 +333,8 @@ exists to remove, not a cheaper version of the fix.
   > by [#106](https://github.com/winniel123/verge-asm/issues/106). **One set** is what the ruling is;
   > the count is incidental to it.
 - **[`CONTEXT.md`](../../CONTEXT.md) changes in four places.** `Transition`'s worked example moves
-  to `tls-acceptance`; `tls-acceptance` loses *the weekly tier*; `certificate` gains the clause
-  saying its handshake rides the reachability exchange; and `Scan` records that not every `Scan` is
+  to `tls-acceptance`. `tls-acceptance` loses *the weekly tier*. `certificate` gains the clause
+  saying its handshake rides the reachability exchange. `Scan` records that not every `Scan` is
   a port tier.
 - **Nothing costs a `Break`, a `revealed` or a message.** No aperture dimension moved, no
   `Derivation` version moved, and nothing has shipped. This is a defect in the documents, which is

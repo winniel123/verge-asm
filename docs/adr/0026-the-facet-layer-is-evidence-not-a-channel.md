@@ -41,7 +41,7 @@ model already supports.
 ## Decision
 
 **No `Transition` is a message for the layer it sits in. A `Transition` is a message exactly where
-it is the sole carrier of a fact the operator asked for; everything else is recorded, queryable,
+it is the sole carrier of a fact the operator asked for. Everything else is recorded, queryable,
 and silent. Concretely: the facet layer is evidence, not a channel, and the drift class's real
 membership is at the `Reach`, `Signal` and membership layers above it.**
 
@@ -88,7 +88,7 @@ it, `certificate`, `http-identity` and `tls-acceptance` timelines **open** —
 So the flagship message carries the census of what opened beneath the newly-reached `Service`, in
 ADR-0029 §7's and ADR-0031 §3's shape: computed once at the cause, a description and never a
 `Transition`, no difference set, nothing alerted individually. ADR-0031 wrote that a third producer
-of that shape "would be a signal that the shape is right"; this is the third and §2 is the fourth.
+of that shape "would be a signal that the shape is right". This is the third and §2 is the fourth.
 
 ### 4. Openings, and domain entry and exit, are not transitions and are not messages
 
@@ -96,7 +96,7 @@ This is [ADR-0024](./0024-a-rules-domain-is-the-extension-of-its-name.md)'s plai
 outside the domain is not rendered as a member, a row, a state or a **transition*** — and
 ADR-0014's, and it is confirmed rather than extended. ~~A rule that **opens at `fired`** is carried
 by the census of a message above it where one exists (§2, §3, ADR-0031 §3) and by nothing where
-none does.~~ ADR-0024's stated **reason** is withdrawn; see §7.
+none does.~~ ADR-0024's stated **reason** is withdrawn. See §7.
 
 > **NARROWED by the [#65](https://github.com/winniel123/verge-asm/issues/65) amendment below.** A rule
 > that opens at `fired` is carried **by the census where one exists, by the move beneath it where
@@ -164,7 +164,7 @@ payload — which is what ADR-0031 §3's census example was already doing withou
 
 ### 7. What is withdrawn
 
-**ADR-0024's reason for refusing *outside the domain* as a third rendering case is withdrawn; its
+**ADR-0024's reason for refusing *outside the domain* as a third rendering case is withdrawn. Its
 ruling stands.** The reason given was that a subject "left the domain by a `Transition` on the facet
 timeline underneath, which is already stored and **already alerted**". Under §1 most facet
 transitions are stored and not alerted, so the reason is false. The ruling survives on ADR-0024's
@@ -180,15 +180,15 @@ The only additions are payload: two more producers of a census shape that alread
 ## Consequences
 
 - **[`CONTEXT.md`](../../CONTEXT.md) is amended in five entries** — `Transition` gains the
-  sole-carrier rule and the statement that the facet layer is not a channel; `Facet` states that a
-  facet transition is evidence and never a message on its own account; `Signal` gains §5's four
-  edges; `Predicate domain` loses the withdrawn clause; `Reach` records that the flagship carries a
+  sole-carrier rule and the statement that the facet layer is not a channel. `Facet` states that a
+  facet transition is evidence and never a message on its own account. `Signal` gains §5's four
+  edges. `Predicate domain` loses the withdrawn clause. `Reach` records that the flagship carries a
   census.
 - **ADR-0029's §4 third carrier is repaired.** The direction cut on the internet leg rested on three
   carriers, one of which ADR-0031 made conditional. §2 rules that carrier alertable, so all three
   stand and the cut is no longer resting on an unruled residue.
 - **ADR-0031's *`Name` only* / *`Address` only* hole is closed.** Its rejected-alternatives table
-  names both halves of the re-point case; membership closed one and §2 closes the other.
+  names both halves of the re-point case. Membership closed one and §2 closes the other.
 - **ADR-0029's stated cost is wider than it was stated.** *An internal port opening tells nobody* is
   true of more than the leg move: `certificate`, `http-identity` and `tls-acceptance` open beneath
   it, the rules over them open, and §4 makes every one of those openings silent. The reason ADR-0029
@@ -221,7 +221,7 @@ The only additions are payload: two more producers of a census shape that alread
   and ADR-0031's.
 - **Decided on thin ground, in two places, and neither is dressed as a derivation.** The **volume**
   of §2's message on a CDN-fronted or DNS-load-balanced estate is unmeasured, exactly as ADR-0031
-  left `Name` `appeared`'s volume unmeasured; a `Resolved` value is an unordered address set so
+  left `Name` `appeared`'s volume unmeasured. A `Resolved` value is an unordered address set so
   rotation within a fixed pool does not move it, but an edge set that genuinely churns fires every
   cadence, and if that drowns the channel the remedy is coalescing in the notification patch and
   never a predicate change, because the transition is recorded either way. And §5's **twelve silent

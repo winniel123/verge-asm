@@ -63,7 +63,7 @@ domain is wherever the predicate has a truth value. That answer dies on one obse
 Take `plaintext-http-no-https`. Its evidence is two facet values — `http-identity` and
 `certificate` — and there are two total decompositions of the same rule:
 
-- domain *the endpoint answered HTTP*, predicate *it presented no TLS*; or
+- domain *the endpoint answered HTTP*, predicate *it presented no TLS*, or
 - domain *the endpoint presented no TLS*, predicate *it answered HTTP*.
 
 **Both are total. Both fire on exactly the same subjects. Their censuses are different objects** —
@@ -153,7 +153,7 @@ measurement puts it beyond the gate.
 The fork also has no principled edge. A static domain is available only where the discriminating
 fact happens to sit in the subject's **natural key** — which is ADR-0011's own observation that
 `reachability` never needed a discriminator "only because its subject `Service` already carries
-port and transport." Port and transport are measured facts too; they are merely measured earlier
+port and transport." Port and transport are measured facts too. They are merely measured earlier
 and stored in a key. Drawing the legality of a domain along that line makes the rule set a
 consequence of where the model happened to put things.
 
@@ -174,7 +174,7 @@ not the same thing, and the difference is in what the value is *about*:
 | No value at all | **`Gap`** | a census member and a row, cause *we never looked* / *we stopped looking* / *you stopped answering* *(and, on a connectionless leg alone, **we asked and heard nothing** — a fifth register added by [#173](https://github.com/winniel123/verge-asm/issues/173) · [ADR-0095](./0095-the-aperture-statement-counts-what-the-instrument-cannot-report-not-what-it-did-not-look-at.md) on [ADR-0064](./0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md)'s own **what moved** axis, the mover being our own instrument working as specified. **Unreachable in v1**, which probes TCP alone. This list omits #48's **you stopped telling us** and is a rendering table rather than the vocabulary's enumeration)* |
 
 So #44's fourth cause survives and stops being thin ground. It is not a wording judgement about one
-sentence of ADR-0004; `Shadowed` is the only value in the model whose content is our own blindness,
+sentence of ADR-0004. `Shadowed` is the only value in the model whose content is our own blindness,
 which is why it earns the coverage register while every other measured negative does not.
 
 The corollary matters more than the cut: **`not-evaluable` is a coverage word, and a rule whose
@@ -365,7 +365,7 @@ domain difference and there is nothing for a message to explain.
 **The stated cost that follows is recorded rather than left implicit.** A rule that was `fired` and
 leaves its domain goes quiet with no message, and a rule that **opens at `fired`** on entering its
 domain reaches nobody except through the census of a message above it. ADR-0026 §4 confirms both as
-v1's answer and states the cost; the residue is
+v1's answer and states the cost. The residue is
 [#65](https://github.com/winniel123/verge-asm/issues/65).
 
 *Half of that cost is since discharged.*

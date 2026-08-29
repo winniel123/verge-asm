@@ -14,7 +14,7 @@ and that a library default cannot be recorded honestly in either home. It then r
 last consequence, that *"what the offers actually are is now required v1 spec content and is not
 decided here"* — five lists, none of which had ever been written down.
 
-This ADR carries the **rulings**; the five lists live in
+This ADR carries the **rulings**. The five lists live in
 [`docs/spec/measurement-offers.md`](../spec/measurement-offers.md), separately, because a list that
 will be revised does not belong inside a decision that will not.
 
@@ -122,7 +122,7 @@ test as stated. This ADR resolves the inconsistency **in favour of the consequen
 > a declared parameter.
 
 The correction is minimal by construction: it changes only the TLS case. ALPN feeds `http-identity`
-alone; EDNS and transport feed `resolution` and `dns-record`, and neither value enumerates over an
+alone. EDNS and transport feed `resolution` and `dns-record`, and neither value enumerates over an
 EDNS option or a transport. All three stay parameters, exactly as ADR-0025 placed them.
 
 **One consequence follows immediately and ADR-0025 did not price it.** If the candidate set is a
@@ -201,7 +201,7 @@ our **application protocol**. Filing it there is a value naming a property of th
 own offer decided — the `NotHTTP` defect ADR-0025 had just renamed away, one facet across, and the
 sixth instance of a pattern this map now catches reliably.
 
-Widening `certificate`'s value space is refused on ADR-0015's discipline; the pre-v1 price is
+Widening `certificate`'s value space is refused on ADR-0015's discipline. The pre-v1 price is
 vacuous but ADR-0025 has just added `TLSRefused` and a value space that grows every time somebody
 finds an edge is not a closed union.
 
@@ -264,7 +264,7 @@ refused suppression reaching the one layer beneath every guard the model has.
 
 This is an **input to** [#60](https://github.com/winniel123/verge-asm/issues/60), not a ruling on
 it. #60 is deciding whether a *rule's* declared parameter may be operator-configurable and what an
-edit costs; if it rules that a declared parameter may be operator-editable in general, the five
+edit costs. If it rules that a declared parameter may be operator-editable in general, the five
 offers here are excepted by this section rather than by #60's silence.
 
 ## Consequences

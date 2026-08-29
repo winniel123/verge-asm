@@ -136,7 +136,7 @@ measured finding: **the rule's reach in this repository is one instance**.)*
 with a published expiry date. The owner's own words carry the arithmetic and its scope in one
 breath: *"we recommend renewing certificates automatically when they have a third of their total
 lifetime left … For Let's Encrypt's current 90-day certificates, that means renewing 30 days before
-expiration."* The rule is the fraction; the thirty is an illustration. **#60 shipped the illustration
+expiration."* The rule is the fraction. The thirty is an illustration. **#60 shipped the illustration
 and discarded the rule.**
 
 **This is ADR-0032 §8's silent de-attestation one level down, and it differs in both directions.**
@@ -172,7 +172,7 @@ and the reason generalises past this case.
 That dichotomy presupposes that *doing nothing* is available and that the permissive default is what
 doing nothing looks like. `listen_addresses` has that shape.
 
-A renewal trigger does not. A client that renews at no time does not function; every possible value
+A renewal trigger does not. A client that renews at no time does not function. Every possible value
 is an act and none is the absence of one. The axis is **undefined**, not merely hard to read.
 
 > **§10.4 is scoped to defaults over which *no act* is a real option. Where the default is a
@@ -183,7 +183,7 @@ That is the same three-way treatment ADR-0032 §4 gave gate 3, now applied to ga
 and it is stated as a rule so the next required-parameter default does not relitigate it.
 
 **What such a default is instead.** It remains a maintainer position in code, but a position about
-**the maintainer's own behaviour**. Certbot's ⅓ says *this is when Certbot renews*; it does not say
+**the maintainer's own behaviour**. Certbot's ⅓ says *this is when Certbot renews*. It does not say
 *this is when a certificate must be replaced*, because Certbot neither issued the certificate nor
 set its lifetime. So it lands in §2.3's corroborator tier and may never carry a row alone.
 
@@ -232,13 +232,13 @@ disclosed row, and the obligation as written has nothing to say afterwards.
 > (a) what the retrieval established, (b) what remains unestablished, and (c) the condition that
 > would move the row. A performed retrieval may not leave a row pointing at itself.
 
-For `N` that reads: the retrieval established the form (IETF) and the value (the issuer); what
-remains unestablished is that **one CA's fraction governs every issuer's certificates**; and the
+For `N` that reads: the retrieval established the form (IETF) and the value (the issuer). What
+remains unestablished is that **one CA's fraction governs every issuer's certificates**. The
 condition that would move it is another CA publishing a different fraction for its own certificates.
 
 **And `N` leaves both of ADR-0032 §8's piles.** It was filed as **chased** — a footing a retrieval
 could establish. It is not now **watched** either, because ~~a row that reads the moving quantity from
-the subject at evaluation time has nothing to watch~~. Two piles were thought exhaustive; a third
+the subject at evaluation time has nothing to watch~~. Two piles were thought exhaustive. A third
 state exists and it is the one to aim for.
 
 > **That clause is SCOPED, not true as written** — per
@@ -268,8 +268,8 @@ state exists and it is the one to aim for.
   whose automation is firing on schedule, which is the moment the operator has *no* action, not their
   last chance to take one.
 - **[ADR-0032](./0032-an-evidence-standard-attaches-to-a-table-not-to-a-rule.md) is amended twice.**
-  Its gate-2 table and its sixteen-rule walk both record `certificate-expiring` as *unattested, #67*;
-  it is **attested**, and the claim recorded beside it is not the claim the table makes. And its
+  Its gate-2 table and its sixteen-rule walk both record `certificate-expiring` as *unattested, #67*.
+  It is **attested**, and the claim recorded beside it is not the claim the table makes. And its
   disclosure obligation gains the performed-retrieval limb above.
 - **The curated count stays three, and one of the three is now a different kind of object.** The
   sensitive list and the weak-key table are tables of values. `certificate-expiring`'s is a table of
@@ -278,14 +278,14 @@ state exists and it is the one to aim for.
   `not_after`. `certificate-not-yet-valid` already reads `not_before`, so this is **no new
   measurement**, no facet change, and no ADR-0011 cost. Its `Predicate domain` is untouched.
 - **The corpus obligation for clock-reading rules widens.** #60 established that such a row carries
-  its **evaluation instant** as part of its input; it now carries **`not_before`** too, or the row's
+  its **evaluation instant** as part of its input. It now carries **`not_before`** too, or the row's
   expected output is underdetermined. Three rules are affected and the widening is additive.
 - **The cost is one `Break` on one rule for one cadence**, exactly as
   [ADR-0008](./0008-derivation-versions-move-on-content.md) and #60 priced a revision. It is
   **vacuous before the first install**, and §11.6's argument for acting now applies unchanged: the
   price today is zero and after v1 it is a comparability cycle.
 - **No dial is minted and none is made legal.** #60's three grounds all concern per-install
-  variation; the fraction is project-authored, ships in the release, and CI gates exactly the
+  variation. The fraction is project-authored, ships in the release, and CI gates exactly the
   function every install evaluates. [#22](https://github.com/winniel123/verge-asm/issues/22)'s
   inside-versus-outside-the-comparison-path line is untouched.
 - **The flap is unchanged.** On a healthy ACME estate the rule fires and clears every cycle under the

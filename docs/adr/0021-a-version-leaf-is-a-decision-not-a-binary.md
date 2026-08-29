@@ -72,7 +72,7 @@ the right test for *where the decision happens*. It is the wrong test for *what 
 The test that matters is the map's founding fear said out loud: **can this thing's output move
 while the world does not?** Apply it and `reachability` is in.
 [#4](https://github.com/winniel123/verge-asm/issues/4) specifies a **3 s connect timeout with 2
-retries**; a release that halves it moves `connected` → `no-response` on every slow host in the
+retries**. A release that halves it moves `connected` → `no-response` on every slow host in the
 estate with nothing having changed. That is a single-measurement value, so ADR-0011's list passed
 over it, and it is the highest-stakes decision the binary makes: `reachability` is the only prober
 output that reaches `Reach`, `Exposure` and the board.
@@ -113,7 +113,7 @@ vantage by the instance so that skew is impossible ([#14](https://github.com/win
 > [#67](https://github.com/winniel123/verge-asm/issues/67)'s cure for `certificate-expiring`'s `N`
 > becomes an architecture-dependent output with no leaf to name it. See
 > [`packaging-and-configuration.md`](../spec/packaging-and-configuration.md) §1.
-What splits is the **name under which a decision is versioned**, and that is not a seam; it is
+What splits is the **name under which a decision is versioned**, and that is not a seam. It is
 ADR-0008's vector doing the job it was built for.
 
 The general rule, because getting it backwards collapses the whole vector: **a version leaf is
@@ -149,9 +149,9 @@ There is no prober change that can `Break` the estate, so the fallback the ticke
 is not merely discouraged, it is unreachable.
 
 **Only `connect-outcome` reaches the exposure board**, and it is the one leaf with no third-party
-wire library in its parameter set. That is not luck. ADR-0008 already singled the `reachability`
-canonicaliser out as the *non*-churny counterexample because it "maps a small closed value space";
-the same smallness upstream means the kernel decides SYN-ACK, RST or silence and the three-way
+wire library in its parameter set. That is not luck. ADR-0008 already identified the `reachability`
+canonicaliser as the *non*-churny counterexample because it "maps a small closed value space". The
+same smallness upstream means the kernel decides SYN-ACK, RST or silence and the three-way
 mapping is ours. So the flagship value is fed by the one leaf a dependency upgrade cannot move.
 *(**Qualified at the clause** per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
 since [ADR-0104](./0104-an-undiscriminated-reach-is-a-gap-and-a-blanket-responder-is-measured-not-listed.md):
@@ -191,7 +191,7 @@ software, they are hostile peers.
 And the third argument is the one #31 already paid for. Docker Desktop would not start on the
 machine that produced `insecure-listener-rules`, so a capture procedure assuming live listeners has
 an **unbudgeted prerequisite** that this project has failed once already. The corpus is CI's gate
-on every release; it may not depend on a thing that has already been unavailable.
+on every release. It may not depend on a thing that has already been unavailable.
 
 What makes authoring tractable is that the input medium is not one medium, and treating it as one
 is the rest of the mistake:
@@ -229,7 +229,7 @@ ADR-0008 needs the human to judge **the diff, not the fixture**. What CI renders
 the row's claim, the old output and the new one: *row 47 — a name under a wildcarded parent whose
 answer matches the control probe — was `Shadowed`, is now `Resolved([203.0.113.5])`.* That is
 judgeable whether the stimulus was typed by hand or lifted off a wire. **Judgeability is a property
-of the output side of a row; hand-writability is a property of the input side.** They are
+of the output side of a row. Hand-writability is a property of the input side.** They are
 independent, and only the first is what stops the gate being a code hash.
 
 Hand-writability is not thereby worthless — it is load-bearing for a different thing. A corpus you
@@ -275,7 +275,7 @@ asked and no corpus row expected to move.
 ### A library is a parameter where it speaks for us
 
 The residual un-coverable case is a dependency upgrade. Go's `crypto/tls` gains or drops a cipher
-and the offer changes; `net/http` tightens header parsing and the `NotHTTP` boundary moves; a DNS
+and the offer changes. `net/http` tightens header parsing and the `NotHTTP` boundary moves. A DNS
 library changes its EDNS defaults. None of that is our code and all of it can move a value.
 
 **A third-party wire library is a declared parameter of a leaf exactly where the library speaks the
@@ -294,7 +294,7 @@ changes with no bearing on a TCP connect.
 
 Note what a Go upgrade then costs, because it is the worked example of this whole ADR and it is not
 free. `tls-handshake` bumps, `Break`ing `certificate` and `tls-acceptance` timelines and clamping
-`tls-1.0-accepted`; `http-exchange` bumps, `Break`ing `http-identity`. The board is untouched. And
+`tls-1.0-accepted`. `http-exchange` bumps, `Break`ing `http-identity`. The board is untouched. And
 it fires **two messages of one class**: widening the TLS offer is an aperture change yielding
 `revealed` ([ADR-0011](./0011-a-facet-is-six-parts.md) made the candidate set batch scope), while
 the leaf bump is a re-baseline — [ADR-0014](./0014-only-revealed-generalises.md) merged those into
@@ -313,7 +313,7 @@ not a declaration** — a parameter whose value is *whatever the library default
 rejected hash-of-the-parameters, and an aperture dimension recorded as a library version cannot
 tell a widening from a narrowing. So every offer the binary makes — the ALPN list, the TLS
 candidate set, the EDNS options and buffer, the qtypes, the transport fallback — is enumerated in
-the job spec and passed down; the library parameter covers only what remains its to decide. The
+the job spec and passed to the library. The library parameter covers only what remains its to decide. The
 three offers named in the consequence below are all **parameters**: none carries a per-candidate
 negative in any value.
 
@@ -366,8 +366,8 @@ is that the mechanism is sound and its frequency is a guess.
   Derived value* — excludes every leaf named here while ADR-0011 has already made them
   version-bearing. `Batch` records the leaf versions it ran under, beside its completed scope.
 - **`Break`, `Facet` and `Span` are deliberately untouched.** A prober leaf bump is a `Derivation`
-  vector change, which is already `Break`'s first cause; a facet is still six parts, because a
-  facet fed only by the operator's zone file has no prober leaf at all; and the `Span` already
+  vector change, which is already `Break`'s first cause. A facet is still six parts, because a
+  facet fed only by the operator's zone file has no prober leaf at all. The `Span` already
   carries the vector.
   *(Originally "a facet fed only by `crt.sh`" —
   [ADR-0027](./0027-a-source-may-admit-without-observing.md) found CT feeds no facet at all.
@@ -382,8 +382,8 @@ is that the mechanism is sound and its frequency is a guess.
   it* fails the build. A canonicaliser has less need of it, but there is no reason to scope it and
   a uniform gate is one rule.
 - **Three corpora sit in a chain, on three named interfaces, and this is what makes the prober's
-  finite.** The prober leaf's corpus runs scripted peer → NDJSON; the decoder's runs NDJSON →
-  value space; the canonicaliser's runs value → canonical form.
+  finite.** The prober leaf's corpus runs scripted peer → NDJSON. The decoder's runs NDJSON →
+  value space. The canonicaliser's runs value → canonical form.
   [#5](https://github.com/winniel123/verge-asm/issues/5) fixed that NDJSON contract for unrelated
   reasons — keeping the operator's attack surface off the VPS disk — and it is the seam that lets
   the wire stop at the binary's edge.
@@ -453,7 +453,7 @@ current.** A session must not move either figure on the strength of what follows
 `connect-outcome` could produce an honest UDP value and ruled that it **cannot, and that a widened
 `connect-outcome` could not either** — on this ADR's own rule. A connectionless measurement's stimulus
 is a datagram we compose and an ICMP message or datagram we receive, against the *"socket event and a
-clock"* this ADR records for `connect-outcome`; different stimulus, different declared parameters,
+clock"* this ADR records for `connect-outcome`. Different stimulus, different declared parameters,
 different corpus medium. Widening the leaf would put two decisions under one version, so a **UDP
 payload edit would `Break` every TCP `reachability` timeline in the estate** — spending this ADR's
 *no leaf is composed by every timeline* property, the one that makes the unsurvivable fallback
@@ -474,7 +474,7 @@ Two riders this ADR's own text makes load-bearing:
   `datagram-outcome`**, and `safe-active-probing.md` §9's back-off knob would fail gate 1 for that leg
   the day it ships. It is safe today precisely because the only leaf it touches is one it cannot move.
 - **The corpus medium is a fourth kind.** This ADR's *"the input medium is not one medium"* list has
-  `connect-outcome` taking no bytes at all; `datagram-outcome` takes **bytes we authored** and one of
+  `connect-outcome` taking no bytes at all. `datagram-outcome` takes **bytes we authored** and one of
   three replies — a datagram, an ICMP error, or silence — so its rows carry a payload and are
   authorable in the same sense the DNS rows are.
 
@@ -517,11 +517,11 @@ Three consequences follow, and each closes a specific way the escape hatch would
   one does not carry forward, which is what stops one recorded gap from silently excusing every future
   bump of the same leaf.
 - **Present by the commit A6 evaluates.** A6 ([`golden-corpus.md`](../spec/golden-corpus.md) §3.2) runs
-  on every pull request; the row that licenses a PR's bump has to exist at that PR's tip, in practice
+  on every pull request. The row that licenses a PR's bump has to exist at that PR's tip, in practice
   added by the same PR, exactly as a moved pin row or a changed declared parameter already must be.
 - **Append-only.** A row, once merged, is never edited or deleted. This ADR's own words are *"recorded
   rather than resolved"* — the entry is a permanent admission, not a tracked TODO, so a later corpus
-  row that comes to cover the same input class does not retire it; it only means the *next* bump on
+  row that comes to cover the same input class does not retire it. It only means the *next* bump on
   that class can be justified the ordinary way instead. Immutability is what keeps *"if uncovered moves
   become the common case, the corpus is failing and the count says so out loud"* true: a row that could
   be deleted after the fact is a frequency signal a later PR can quietly launder away.
@@ -529,7 +529,7 @@ Three consequences follow, and each closes a specific way the escape hatch would
 **No status field, and none is missing.** The temptation is a `resolved` column once the gap closes.
 This ADR already refused that shape in naming the mechanism — an uncovered move is *recorded*, not
 tracked to resolution — and a status field would let a reviewer read a live gap as closed. The count
-`golden-corpus.md` §9 accumulates is the whole of what this object owes the project; there is nothing
+`golden-corpus.md` §9 accumulates is the whole of what this object owes the project. There is nothing
 else to compute from it and nothing here mandates a report be built on top of it, only that the data
 exists to build one from.
 

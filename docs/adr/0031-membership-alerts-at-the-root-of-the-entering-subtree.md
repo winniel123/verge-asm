@@ -32,9 +32,9 @@ beneath it *opens*, and ADR-0014 is unambiguous that an opening emits no `Transi
 newly-entered `Service`:
 
 - the internet `Reach` leg opens **at `reached`** where the port answers — it does not go
-  `not-reached` → `reached`, so ADR-0029's flagship predicate does not match;
+  `not-reached` → `reached`, so ADR-0029's flagship predicate does not match.
 - `Exposure` opens rather than moving, which is ADR-0017's third consequence working as
-  designed;
+  designed.
 - `sensitive-port-reached-from-internet` opens at *fired*, which is not a `Signal` transition
   either.
 
@@ -148,8 +148,8 @@ class. Same count, and §4 supplies the class §1 would have got wrong.
 
 Because `Service` membership carries no measured fact. Given an `Address` in the estate and the
 `Batch`'s recorded port scope, the set of `Service` subjects is **computed**. The port set is
-`verge-core`, which [ADR-0009](./0009-verge-core-is-a-union.md) made a *definition*; narrowing
-it does not withdraw a `Service` but stops feeding its timeline and opens a `Gap`; widening it
+`verge-core`, which [ADR-0009](./0009-verge-core-is-a-union.md) made a *definition*. Narrowing
+it does not withdraw a `Service` but stops feeding its timeline and opens a `Gap`. Widening it
 is an aperture input and yields `revealed`. So across its whole life a `Service`'s membership is
 `Address` membership, restated. A message for it is a second representation of one fact.
 
@@ -165,11 +165,11 @@ answers, and that fails three ways at once:
   port closing as `withdrawn` — two representations of one fact, and the second one is
   *alertable* under ADR-0006 while the first is the very thing ADR-0029 ruled silent on the
   internal leg. The internal port opening would walk back in through membership, which is
-  exactly what #63 was told not to permit;
+  exactly what #63 was told not to permit.
 - it deletes `unreachable`. ADR-0017's fourth state is *both legs measured, neither reached*,
-  and a `Service` that never answered would not exist to hold it;
+  and a `Service` that never answered would not exist to hold it.
 - it makes the `Batch`'s recorded scope stop meaning what [ADR-0005](./0005-scan-execution-model.md)
-  says it means. A scope of `verge-core` licenses an absence claim over `verge-core`; a
+  says it means. A scope of `verge-core` licenses an absence claim over `verge-core`. A
   population defined by what answered licenses nothing.
 
 ### `Name` and `Address` both, and why kind is the wrong axis for the question
@@ -200,7 +200,7 @@ being live on a one-legged install. **It is, and the ruling stands** — `Name` 
 written and are corrected in the amendment to ADR-0029:
 
 - its Context bullet *"Membership drift runs — `Name`s, `Address`es, `Service`s and `Endpoint`s
-  appear and withdraw"* is true of the **drift** and false of the **messages**; and
+  appear and withdraw"* is true of the **drift** and false of the **messages**.
 - its §4 carrier *"a service moving address, which is a `Service` `appeared` beside it"* names a
   message that does not exist. The carrier is an **`Address`** `appeared`, and it is
   **narrower** than #58 had it: where the service moves to an address already in the estate,
@@ -223,18 +223,18 @@ appearing is never a message under §2, so where a slower reachability tier disc
 beneath an `Address` already in the estate, the root walk terminates at that `Address` and **no
 membership message fires at all** — the opening is unnamed and unalerted after all, exactly as
 ADR-0014 describes. So a slower reachability tier is not disqualified as ADR-0014's worked
-example for the reason ADR-0028 gives; it is disqualified only by ADR-0028's own primary
+example for the reason ADR-0028 gives. It is disqualified only by ADR-0028's own primary
 argument, that `certificate`'s value space has no variant meaning *the port was shut*.
 
 The correction cuts ADR-0028's way. It means scheduling `reachability` slowly would lose the
 discovery news outright rather than having it carried by membership, which is a **cost** of the
-alternative ADR-0028 rejected, not a relief. Nothing in ADR-0028's Decision moves; one
+alternative ADR-0028 rejected, not a relief. Nothing in ADR-0028's Decision moves. One
 rejected-alternative sentence does.
 
 ### The constraint about damping is met by construction
 
 No threshold and no count appears in any predicate here. §1 walks a `Citation` chain, which is
-structure the model already holds; §2 falls out of the key shapes; §4 diffs a `Batch`'s recorded
+structure the model already holds. §2 falls out of the key shapes. §4 diffs a `Batch`'s recorded
 scope. The counts all live in §3's census, which is payload. Coalescing and flap suppression
 stay where ADR-0007 put them, in the notification patch.
 
@@ -242,9 +242,9 @@ stay where ADR-0007 put them, in the notification patch.
 
 - **[`CONTEXT.md`](../../CONTEXT.md) is amended in three entries.** `Subject` gains the
   who-supplies-the-key split, the kind restriction and the root rule — the better home for it
-  than `Transition`, since ADR-0014's own line is that *membership is a property of a subject*;
+  than `Transition`, since ADR-0014's own line is that *membership is a property of a subject*.
   `Service` states that its membership is `Address` membership restated, so a port opening is a
-  `Reach` move and never a membership event; `Reach` states
+  `Reach` move and never a membership event. `Reach` states
   that a leg **opening** at `reached` emits no `Transition` and is carried by the entering
   subject's membership message and its census, never by the flagship predicate.
 - **ADR-0029 §4 and its Context bullet are corrected**, and its stated cost survives with a
@@ -324,7 +324,7 @@ fires nothing.
 
 **§3's payload shape now has four producers, not two.** An aperture widening, a membership entry,
 ADR-0029's flagship, and ADR-0026 §2's re-point. This ADR wrote that *"a third would be a signal
-that the shape is right"*; there are two more, and one of them was hiding inside ADR-0029's own
+that the shape is right"*. There are two more, and one of them was hiding inside ADR-0029's own
 flagship the whole time.
 
 **One count here is stale.** *"All ten signal rules are transition-shaped"* is right about the

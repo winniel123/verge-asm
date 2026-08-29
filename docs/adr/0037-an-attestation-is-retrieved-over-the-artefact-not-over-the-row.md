@@ -29,8 +29,8 @@ anything else. The sentence that would admit two new rows was in the file the wh
 above the one that was quoted.
 
 The generalisation is not about Cassandra and not about YAML. A curated table is a set of subjects,
-and an owner's artefact is a document about **its own** subjects. Those two sets overlap; they are not
-the same set; and a retrieval keyed on the first can only ever return the intersection.
+and an owner's artefact is a document about **its own** subjects. Those two sets overlap. They are not
+the same set. A retrieval keyed on the first can only ever return the intersection.
 
 ## Decision
 
@@ -44,7 +44,7 @@ Three limbs.
    class-list construction or claim analysis** (the narrow trigger is **WITHDRAWN** by the
    [#95](https://github.com/winniel123/verge-asm/issues/95) amendment below) — it is read end to
    end for **every** subject in the table's domain that it names — every port it names, for
-   `sensitive-ports.md`; every algorithm or key size, for a cryptographic table. A retrieval that
+   `sensitive-ports.md`, and every algorithm or key size, for a cryptographic table. A retrieval that
    stops at the row it came for is **not a negative result about the rest of the file**, and must not
    be recorded as one.
 2. **A subject the artefact names and the table lacks is a finding, and it is ticketed rather than
@@ -89,7 +89,7 @@ would have read as a law rather than as a sample of nine had its extent not been
 ## Consequences
 
 - **No `(port, transport)` pair moves and no rule version moves.** This is a method, not a table edit.
-  `sensitive-ports.md` stays at **37 pairs**; §1's count, §3's class totals (12 / 7 / 18), §6.1's
+  `sensitive-ports.md` stays at **37 pairs**. §1's count, §3's class totals (12 / 7 / 18), §6.1's
   containment arithmetic and [ADR-0009](./0009-verge-core-is-a-union.md)'s union are unchanged, each
   checked rather than asserted (`sensitive-ports.md` §13.8). No `Break`
   ([ADR-0008](./0008-derivation-versions-move-on-content.md)).
@@ -101,10 +101,10 @@ would have read as a law rather than as a sample of nine had its extent not been
   [#12](https://github.com/winniel123/verge-asm/issues/12), on exactly the terms #66's removal was
   priced. [#75](https://github.com/winniel123/verge-asm/issues/75).
 - **The retrieval records this repo already holds are, by their own new standard, scoped.** §9.5,
-  §11.9 and §12.9 each record *what was retrieved*; none states *how much of each artefact was read*.
+  §11.9 and §12.9 each record *what was retrieved*. None states *how much of each artefact was read*.
   They are not withdrawn — nothing in them is measured wrong — but they may not be cited as evidence
   about the parts of those artefacts nobody looked at. §11.8 already wrote this rider for one negative
-  finding; limb 3 makes it general.
+  finding. Limb 3 makes it general.
 - **It travels to every curated table under ADR-0032.** The five-row weak-key table
   ([#68](https://github.com/winniel123/verge-asm/issues/68)) is the live instance: a NIST document
   opened to attest SHA-1 names every other digest in the same tables, and
@@ -115,7 +115,7 @@ would have read as a law rather than as a sample of nine had its extent not been
 
 **Limb 2 has now been run end to end.** [#83](https://github.com/winniel123/verge-asm/issues/83) read
 `ports-and-protocols.md` whole for `10250`'s claim and ticketed the three subjects it named that the
-table lacked ([`sensitive-ports.md`](../research/sensitive-ports.md) §19.8);
+table lacked ([`sensitive-ports.md`](../research/sensitive-ports.md) §19.8).
 [#91](https://github.com/winniel123/verge-asm/issues/91) disposed of all three — **`10259/tcp` and
 `10257/tcp` admitted, `10256/tcp` refused** (§24). **Both halves of limb 2's design held.** The
 candidates were not admitted where they were found, and the gates unexamined at discovery did real
@@ -127,7 +127,7 @@ the discovering retrieval was not scoped to answer — split the set two-to-one.
 artefact is opened **to attest a row**"*. §24 opened `pkg/cluster/ports/ports.go` for **determinacy**,
 not attestation, and it names three numbers the table does not hold — `10249` kube-proxy metrics,
 `10248` kubelet healthz, `10258` cloud-controller-manager. Limb 1's *letter* does not reach a
-determinacy retrieval; its **rationale** — a retrieval keyed on the rows you already have returns only
+determinacy retrieval. Its **rationale** — a retrieval keyed on the rows you already have returns only
 the intersection — reaches it exactly. §24.11 records the by-catch on the rationale and routes it on
 limb 2, and ~~declines to widen the limb, on the ground that one instance is not a measurement. **The
 criterion that would force the widening:** a second determinacy retrieval turning up a candidate the
@@ -159,7 +159,7 @@ this ticket"* — and its by-catch produced **two pairs**, a second `Break` unde
 [ADR-0008](./0008-derivation-versions-move-on-content.md), and a second widening of
 [ADR-0009](./0009-verge-core-is-a-union.md)'s union. **A trigger that would have permitted `ports.go`
 to be read row-scoped is a trigger that would have cost the list two rows and left a third
-unexamined.** The rationale was always purpose-blind; the letter's narrowness is now measured rather
+unexamined.** The rationale was always purpose-blind. The letter's narrowness is now measured rather
 than argued.
 
 **#95 also found the same defect inside a file this note had already opened**, which is the second
@@ -179,7 +179,7 @@ determinacy.
    the third needed a build-target check that produced
    [ADR-0056](./0056-a-port-constant-in-a-library-is-not-a-shipped-listener.md).
 3. **The domain clause is untouched.** Limb 1 reads *every subject in the table's domain that it
-   names*; a determinacy retrieval over an owner's artefact enumerates ports, not every identifier in
+   names*. A determinacy retrieval over an owner's artefact enumerates ports, not every identifier in
    the file.
 
 **Limb 2 has now completed two full cycles, and both split the same way.** #83 → #91: three ticketed,
@@ -195,7 +195,7 @@ it found and cannot make it find one. The defect §24.11 exposed is that a sessi
 stop reading, and only limb 1 addresses that.
 
 **Limb 3 gains an instance in the direction nobody reads it.** §24.11's by-catch table said `10249`
-serves pprof; **[measured]** at `v1.34.0` it does not, `enableProfiling` having no defaulting function
+serves pprof. **[measured]** at `v1.34.0` it does not, `enableProfiling` having no defaulting function
 and no documented default, and neither `flagz` nor `statusz` is installed either. A **by-catch record
 is a scoped retrieval too**, and *state your own extent* binds a positive finding as much as a
 negative one. `sensitive-ports.md` §27.2 carries the correction.
@@ -206,7 +206,7 @@ negative one. `sensitive-ports.md` §27.2 carries the correction.
 obvious enough not to need an ADR, and that writing it down is ceremony. It is refused on the
 measurement: #69 was a careful, well-executed ticket, run under a standard that already demanded
 shipped bytes, and it missed two ports in a file it had open. An instrument that a good session fails
-to apply is not obvious; and the failure is silent, because a row-scoped retrieval produces a clean,
+to apply is not obvious. The failure is silent, because a row-scoped retrieval produces a clean,
 confident, correct-as-far-as-it-goes result with nothing in it to signal what was not read.
 
 **State it as a rule about *files* rather than about *artefacts*.** Narrower and easier to check, and
@@ -222,4 +222,4 @@ verifying the list, has no deadline that ADR-0008 imposes, and belongs to the ma
 port sets are curated* patch, where #66 already lodged *a row's footing was never checked against the
 standard it is now held to* as a backlog with an end. **The criterion that would force it earlier:** a
 second unlisted subject found beside a listed one in an artefact already retrieved. `7000/tcp` is the
-first; a second would make it a pattern rather than an instance.
+first. A second would make it a pattern rather than an instance.

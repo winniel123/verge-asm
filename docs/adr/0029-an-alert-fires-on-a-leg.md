@@ -84,9 +84,9 @@ amendment below.*
 **5. The predicate does not change when a second vantage class arrives.** It is keyed on
 `Vantage class`, which is a property of the leg and not of the deployment, so it reads identically
 on a one-legged and a two-legged install. Adding a vantage of a class **starts** that leg and
-therefore starts its alerting behaviour; it changes no rule and silences nothing.
+therefore starts its alerting behaviour. It changes no rule and silences nothing.
 
-**6. The first vantage of a class *opens* `Exposure`; it does not `Break` it.** ADR-0017's
+**6. The first vantage of a class *opens* `Exposure`. It does not `Break` it.** ADR-0017's
 consequence to the contrary is withdrawn — see the amendment recorded in that ADR. `Vantage class`
 remains an enumerated aperture input, so the widening is detected and yields `revealed` on the
 `Reach` and `Exposure` timelines it opens, and one message in the coverage class under *we changed
@@ -98,14 +98,14 @@ timelines opened and no comparison at all"*. A count alone cannot tell the opera
 out of bed on the one widening that starts the value the product is named for. A census is not a
 comparison ([ADR-0008](./0008-derivation-versions-move-on-content.md)), so it is computed once at
 the cause, is a description and never a `Transition`, and carries no difference set: *an internet
-vantage is now configured; 1,412 `Exposure` timelines opened; 37 read `exposed`, 4 `edge-only`.*
+vantage is now configured. 1,412 `Exposure` timelines opened. 37 read `exposed`, 4 `edge-only`.*
 The 37 are **not** alerted individually — they are openings, nothing moved, and that is what
 ADR-0017's aperture ruling exists to secure.
 
 ## Consequences
 
 - **The board's hero and the alert predicate become one predicate.** ADR-0017 §5 made the hero the
-  block on one side of the internet leg's boundary; this ADR makes the alert the same leg move. So
+  block on one side of the internet leg's boundary. This ADR makes the alert the same leg move. So
   the count on the board and the count in the channel are read from one computation, which is
   [#50](https://github.com/winniel123/verge-asm/issues/50)'s rule that a number appearing on two
   screens is read from one computation or it is a defect — arriving here across a screen and a
@@ -176,7 +176,7 @@ sentences are withdrawn as written.
 
 **The Context bullet *"Membership drift runs — `Name`s, `Address`es, `Service`s and `Endpoint`s
 appear and withdraw"* is true of the drift and false of the messages.** All four kinds drift and
-all four are recorded; only `Name` and `Address` membership is ever a message, because `Service`
+all four are recorded. Only `Name` and `Address` membership is ever a message, because `Service`
 and `Endpoint` have keys the model composes from what it already holds and so can bring no ground
 it was not already accounting for. The install's alerting surface is still four things deep.
 
@@ -200,7 +200,7 @@ ADR ruled silent.
 ## Amendment — [#64](https://github.com/winniel123/verge-asm/issues/64): the third carrier is repaired, the flagship gains a census, and the cost is wider than stated
 
 [ADR-0026](./0026-the-facet-layer-is-evidence-not-a-channel.md) enumerated the facet layer.
-Nothing in this ADR's Decision moves; three things around it do.
+Nothing in this ADR's Decision moves. Three things around it do.
 
 **Decision 4's third carrier is repaired.** #63 left it conditional — where a service moves to an
 address already in the estate the sole record is a `resolution` `Transition` nobody had ruled
