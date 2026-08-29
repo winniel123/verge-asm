@@ -79,6 +79,15 @@ function lengthViolations(markdown) {
   return lintMarkdown(markdown, RULES).filter((v) => v.rule === "sentence-length-cap");
 }
 
+/*
+ * The SPEC §2.2 abbreviation-merge residue: two short sentences that parse-english reads as
+ * one 26-word sentence, so the length cap over-flags the pair. It is the documented false
+ * positive the disable directive (SPEC §6, #821) exists for, so the residue test and the
+ * directive test below both use it. One shared literal keeps the two tests honest.
+ */
+const MERGED_OVER_CAP =
+  "The tool measures each sentence against the universal word cap. A second sentence adds more clauses and words and clauses until the pair clearly runs over.";
+
 test("sentence-length-cap flags a sentence over 25 words as an error", () => {
   const sentence =
     "This single sentence keeps going and going and it adds one clause and then one more clause until it clearly runs over the universal cap value here.";
@@ -125,9 +134,7 @@ test("sentence-length-cap: documented boundary residue — an abbreviation merge
   // 26-word sentence and the rule over-flags the pair. This is a known false positive, not
   // a defect. The deferred inline disable directive (SPEC §6, #821) is the escape hatch.
   // This test pins the residue. A parser upgrade that splits on "cap." will change it.
-  const merged =
-    "The tool measures each sentence against the universal word cap. A second sentence adds more clauses and words and clauses until the pair clearly runs over.";
-  const violations = lengthViolations(merged);
+  const violations = lengthViolations(MERGED_OVER_CAP);
   assert.equal(violations.length, 1);
   assert.match(violations[0].message, /runs 26 words/);
 });
@@ -221,6 +228,78 @@ test("the pos tokenizer does not duplicate a word (SPEC §4.3 mitigation)", () =
   // returns one token per word, so the token stream holds no duplicate (acceptance #3).
   const words = tagSentence("alpha beta gamma delta epsilon").map(([w]) => w);
   assert.deepEqual(words, ["alpha", "beta", "gamma", "delta", "epsilon"]);
+});
+
+/*
+ * The inline disable directive (SPEC §6, #821). An `<!-- doclint-disable-line -->` comment
+ * silences every rule on the next line. These tests pin the four acceptance criteria: it
+ * silences the next line, it works for an error rule and a warning rule alike, a silenced
+ * error does not change the exit code, and it silences a real violation that would flag.
+ */
+const DISABLE = "<!-- doclint-disable-line -->";
+
+test("doclint-disable-line silences an error violation on the next line", () => {
+  // Without the directive the semicolon is a real error (proven by the no-semicolons tests
+  // above). The directive on the line before it drops the violation (acceptance #1, #4).
+  const flagged = lintMarkdown("This bad line; has a semicolon.", RULES);
+  assert.equal(flagged.length, 1);
+  const silenced = lintMarkdown(`${DISABLE}\nThis bad line; has a semicolon.`, RULES);
+  assert.equal(silenced.length, 0);
+});
+
+test("doclint-disable-line silences a warning as well as an error (both severities)", () => {
+  // The simple-tenses rule is a warning, the no-semicolons rule is an error. One directive
+  // silences the line for both, so the directive is severity-independent (acceptance #2).
+  const both = "The worker has completed the job; then it stopped.";
+  assert.equal(lintMarkdown(both, RULES).length, 2); // one warning + one error
+  assert.equal(lintMarkdown(`${DISABLE}\n${both}`, RULES).length, 0);
+});
+
+test("doclint-disable-line silences only the next line, not the lines below it", () => {
+  // The directive is line-scoped. A violation two lines down still flags (SPEC §6).
+  const doc = `${DISABLE}\nFirst bad line; here.\n\nSecond bad line; here.`;
+  const violations = lintMarkdown(doc, RULES);
+  assert.equal(violations.length, 1);
+  assert.equal(violations[0].line, 4);
+});
+
+test("doclint-disable-line silences a real documented false positive (SPEC §6)", () => {
+  // The abbreviation-merge residue (MERGED_OVER_CAP above) is exactly the unavoidable false
+  // positive the directive exists for (SPEC §6, #821). The directive on the line before the
+  // merged sentence drops the over-flag (acceptance #4).
+  assert.equal(lengthViolations(MERGED_OVER_CAP).length, 1);
+  assert.equal(lengthViolations(`${DISABLE}\n${MERGED_OVER_CAP}`).length, 0);
+});
+
+test("doclint-disable-line silences the immediate next line only, not across a blank line", () => {
+  // The directive silences "the line after it" (SPEC §6), which is literal: `end.line + 1`.
+  // A blank line between the directive and the violation lands the silenced line on the blank
+  // line, so the violation still flags. This pins the spec-faithful behaviour, not a defect.
+  const doc = `${DISABLE}\n\nThis bad line; still flags.`;
+  assert.equal(lintMarkdown(doc, RULES).length, 1);
+});
+
+test("doclint-disable-line shown inside a code fence does not silence anything", () => {
+  // A copy of the directive inside a fenced code block parses as a `code` node, not an
+  // `html` node, so it never suppresses. The semicolon below the fence still flags.
+  const doc = "```\n<!-- doclint-disable-line -->\n```\n\nThis bad line; still flags.";
+  const violations = lintMarkdown(doc, RULES).filter((v) => v.rule === "no-semicolons");
+  assert.equal(violations.length, 1);
+});
+
+test("doclint-disable-line: a silenced error does not change the exit code (SPEC §6)", () => {
+  // The CLI exits non-zero only on an error-level violation. A file whose only error sits on
+  // a silenced line must exit zero. execFileSync throws on a non-zero exit, so a clean return
+  // is the proof (acceptance #3).
+  const cli = join(SCRIPT_DIR, "doclint.mjs");
+  const file = join(tmpdir(), `doclint-disable-${process.pid}.md`);
+  writeFileSync(file, `A clean intro line.\n\n${DISABLE}\nThis bad line; has a semicolon.\n`);
+  try {
+    const out = execFileSync("node", [cli, file], { encoding: "utf8" });
+    assert.match(out, /check:doclint OK/);
+  } finally {
+    rmSync(file, { force: true });
+  }
 });
 
 test("a warning-only run does not change the exit code (SPEC §5.1)", () => {

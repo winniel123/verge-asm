@@ -14,7 +14,8 @@
  *
  * The skeleton (#817) shipped one rule, no-semicolons. #818 added the sentence-length
  * rule, #819 the phrasal-verb rule, and #820 the simple-tenses rule (the first warning).
- * Later tickets add the doclint-disable-line directive (#821) and the CI job (#822).
+ * #821 added the doclint-disable-line directive (an engine-level filter, SPEC §6). A later
+ * ticket adds the CI job (#822).
  */
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
