@@ -1,0 +1,7 @@
+# Blank issues stay enabled. The agent issue-tracker workflow creates issues
+# with the gh CLI and does not use these templates (docs/agents/issue-tracker.md).
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/winniel123/verge-asm/security/advisories/new
+    about: Do not open a public issue for a vulnerability. Report it privately. See SECURITY.md.
