@@ -102,7 +102,7 @@ what is wanted. The instability warning bites across versions, not within one.
 
 **The file records RIR→holder delegations only.** Sub-allocations an ISP makes to its own customers
 are not in it. **[measured]** the smallest IPv4 record across all five files is 8 addresses (a /29),
-and there are only 9 of those, 5 of size 16 and 31 of size 32 out of ~260,000 records; ARIN's
+and there are only 9 of those, 5 of size 16 and 31 of size 32 out of ~260,000 records. ARIN's
 smallest is 256 (a /24) with no exceptions. If customer reassignments were present, ARIN alone would
 carry tens of thousands of /29-to-/27 records, because its own policy compels their registration
 (§7.2). They are absent. This is the single most important scoping fact in the note: **the delegated
@@ -156,7 +156,7 @@ official statistics for that population:
   "06: <20") and **6,374,594 fewer than 500** (`ENTRSIZE=37`, "19: <500") — that is 99.7 %.
 - **[cited]** **32,255,105 enterprises in the EU27** in 2022 — Eurostat `sbs_sc_ovw`, `geo=EU27_2020`,
   `indic_sbs=ENT_NR` ("Enterprises - number"), `nace_r2=B-S_X_O_S94`, `size_emp=TOTAL`. Of those,
-  **30,394,396 employ 0–9 persons** (94.2 %); only **1,860,707 employ 10 or more**.
+  **30,394,396 employ 0–9 persons** (94.2 %). Only **1,860,707 employ 10 or more**.
 
 The ratios, **[measured]** against **[cited]**:
 
@@ -171,7 +171,7 @@ Both RIPE rows are upper bounds, because the RIPE service region is substantiall
 EU27 while the denominator is not.
 
 Push the denominator as far toward the numerator as honesty allows — restrict to firms with 20+
-employees (675,542 in the US; 1,860,707 with 10+ in the EU27) and pretend every single
+employees (675,542 in the US, and 1,860,707 with 10+ in the EU27) and pretend every single
 registry-holding organisation is such a firm rather than an ISP, university, hospital, government
 department or bank:
 
@@ -238,7 +238,7 @@ with no ASN has no key, and cannot be joined to its prefixes at all — not impe
 structurally.
 
 **[measured]** confirmation in the shipped data: of 98,597 `"type":"Organization"` records,
-**0 carry an `opaqueId`**; of 121,988 `"type":"ASN"` records, 63,245 do.
+**0 carry an `opaqueId`**. Of 121,988 `"type":"ASN"` records, 63,245 do.
 
 ```sh
 grep '"type":"Organization"' latest.as-org2info.jsonl | grep -c 'opaqueId'   # -> 0
@@ -304,14 +304,14 @@ pending the terms email #20 raised. What they lose is first-run depth, one click
 the disposition ADR-0003 already defines and already requires onboarding to state.
 
 **6.2 APNIC is the real casualty, and it is the only one.** #20 recorded that APNIC's RDAP entity
-search is a no-op stub; **[measured]** this reproduces exactly — HTTP 200, empty
+search is a no-op stub. **[measured]** this reproduces exactly — HTTP 200, empty
 `entitySearchResults`, where RFC 9082 requires 501 for an unsupported query type. So APNIC has **no
 name-keyed org→prefix path at any consent tier**, and the AS-keyed CAIDA join is the only instrument
 that exists. The 17,149 ASN-less APNIC address holders are unreachable by *any* path, encumbered or
 not. That is the one place where AS-keying removes a capability rather than deferring it.
 
 **6.3 ARIN needs two requests where AFRINIC needs one.** `entities?fn=` returns the entity but does
-**not** embed networks; `entity/MEDE-1` does. #20 reported the same asymmetry. Also **[measured]**:
+**not** embed networks. `entity/MEDE-1` does. #20 reported the same asymmetry. Also **[measured]**:
 a name search with no match returns **HTTP 404** (`fn=Arcanvs*`, 1,116 B), not an empty result
 array — the opposite convention to APNIC's, and a client written to one will misread the other. A
 404 that means "no such organisation" and a 200 that means "search unimplemented" must both be
@@ -375,7 +375,7 @@ Whether the other four registries expose an equivalent name-searchable path to P
 assignments as `inetnum` objects with `status: ASSIGNED PA`, but whether those carry an `org:`
 attribute naming the end customer often enough to be searchable — and whether they are reachable
 given that #20 measured `type-filter=inetnum` returning HTTP 400 on multi-word queries and RIPE's
-RDAP entity search returning 500 — is open. §12 records it; §11 turns it into a ticket.
+RDAP entity search returning 500 — is open. §12 records it. §11 turns it into a ticket.
 
 > **Answered in [§13](#13-are-provider-aggregatable-assignments-name-searchable-outside-arin)**
 > ([#38](https://github.com/winniel123/verge-asm/issues/38), 2026-08-13). Short version: the *policy*
@@ -427,7 +427,7 @@ that space.
 A detail worth keeping: **[measured]** the second-largest ARIN holder in that list, `4a8a91b5…`
 (5,119 prefixes, including 3.0.0.0/8), carries **no ASN record in CAIDA under that opaque-id**. Even
 Amazon splits address holding from ASN holding across handles. The ASN-less-address-holder shape is
-not a small-business anomaly; it is how the registry system routinely works.
+not a small-business anomaly. It is how the registry system routinely works.
 
 ### 8.2 What ADR-0002 does with those addresses
 
@@ -454,8 +454,8 @@ exists. Nothing in the org→prefix family was ever going to add to it.
 ### 8.3 The awkward part, which is a `Seed` problem and not a registry problem
 
 The addresses an operator holds in a cloud are **not stable the way a delegation is**. An elastic
-address is a /32 that can be released and reallocated; managed load balancers and serverless
-front-ends change address without notice; CDN-fronted names resolve into anycast ranges shared with
+address is a /32 that can be released and reallocated. Managed load balancers and serverless
+front-ends change address without notice. CDN-fronted names resolve into anycast ranges shared with
 every other tenant. So the address-scope `Seed` an ASN-less cloud operator would declare is both
 small and perishable, and declaring a whole provider range would be flatly wrong — it would assert
 ownership over other tenants and, under ADR-0002, make their infrastructure eligible for the full
@@ -543,7 +543,7 @@ registry-dependent and required onboarding to say so. The ticket asks whether de
    is a statement about APNIC's broken entity search, which no email fixes.
 4. **AFRINIC-region ASN-less operators get the existing #15 annotation unchanged** — the capability
    exists at `operator-accepted`, one click deep, pending the AFRINIC terms email (§6.1). No new
-   axis needed; the pattern ADR-0003 already established covers it exactly.
+   axis needed. The pattern ADR-0003 already established covers it exactly.
 
 ---
 
@@ -559,15 +559,15 @@ made more urgent by ASN-lessness. **[inferred]** if anything the priority falls,
 the marginal organisation unlocked holds one CIDR.
 
 **Falsified — the ticket's premise for one region.** *"An organisation holding provider-aggregatable
-space from an upstream, with no ASN of its own, gets nothing from it."* True of the CAIDA join;
-false of ARIN's shipped keyless path, which reaches SWIP customer objects down to a /29 and returns
+space from an upstream, with no ASN of its own, gets nothing from it."* True of the CAIDA join.
+False of ARIN's shipped keyless path, which reaches SWIP customer objects down to a /29 and returns
 their CIDR (§7).
 
 **Confirmed.** #20's path is AS-keyed, provably and by construction (§5.1). The modal operator is
 ASN-less (§4), and more so than the ticket supposed.
 
-**Standing, and unchanged.** #20's per-region consent verdicts; its four "needs an email" tickets;
-its client-correctness hazards, one of which (APNIC's 200-with-empty-array) is independently
+**Standing, and unchanged.** #20's per-region consent verdicts stand. Its four "needs an email" tickets stand.
+Its client-correctness hazards stand, one of which (APNIC's 200-with-empty-array) is independently
 reproduced here and turns out to be the single most consequential defect for this question (§6.2).
 
 **Made stale.** Nothing in `CONTEXT.md` or the ADRs. ADR-0003's consequence that *"first-run
@@ -617,11 +617,11 @@ discovery depth is registry-dependent, and says so"* survives intact — this no
 7. **The four worked organisations in §6 are illustrations, not a sample.** Each was drawn
    mechanically from the delegated files (first ASN-less IPv4 holder encountered, small block
    preferred), but four is four. They establish that the name-keyed paths *can* resolve an ASN-less
-   organisation; they do not measure how often the name string in the registry matches what an
+   organisation. They do not measure how often the name string in the registry matches what an
    operator would type.
 8. **RIPE was probed via RDAP only.** The name→handle step needs RIPE DB REST, whose terms #20
    found ambiguous and #19 is asking about. To avoid leaning on an unresolved source, §6 measured
-   only `rdap.db.ripe.net/entity/<handle>`; the name→handle leg is #20's measurement, not this
+   only `rdap.db.ripe.net/entity/<handle>`. The name→handle leg is #20's measurement, not this
    note's.
 
 ---
@@ -632,7 +632,7 @@ Research ticket [#38](https://github.com/winniel123/verge-asm/issues/38), answer
 left open and §12.4 named as *"the one gap that could materially move the answer"*. Everything in this
 section was retrieved with `curl` on **2026-08-13 UTC** from a single commercial IP, throttled to one
 request every 3–6 s against live registry endpoints, and counted locally with `awk`. No summarising
-fetch layer was used for any quoted text; every policy quotation below was verified against the
+fetch layer was used for any quoted text. Every policy quotation below was verified against the
 registry's own published document, not a secondary write-up — a discipline that earned its keep here
 (§13.7).
 
@@ -745,13 +745,13 @@ from the RIPE Database split file (`ripe.db.inetnum.gz`, 222,676,573 B, `Last-Mo
 customer.** Comparing the org-handle sets on `ASSIGNED PA` against those on `ALLOCATED PA` (which are
 by definition LIR handles):
 
-- **[measured]** 41,570 distinct org handles appear on `ASSIGNED PA`; 2,577 of them are also LIR
+- **[measured]** 41,570 distinct org handles appear on `ASSIGNED PA`. 2,577 of them are also LIR
   handles.
 - **[measured]** of the 272,665 `ASSIGNED PA` records carrying `org:`, **107,082 point at an LIR** and
   only **165,583 point at a non-LIR organisation** — i.e. a genuine End User is named by `org:` on
   **4.24 %** of RIPE's PA assignments.
 
-**The registrations are there; they are just in `descr:`.** 89.48 % of `ASSIGNED PA` objects carry a
+**The registrations are there. They are just in `descr:`.** 89.48 % of `ASSIGNED PA` objects carry a
 free-text `descr:`, and RIPE registers *far* below ARIN's floor, as ripe-733 §6.2's lack of a floor
 predicts:
 
@@ -772,8 +772,8 @@ real:
 | `A1 TELEKOM AUSTRIA AG - BUSINESS CUSTOMER` | 50,940 |
 | `NONE SPECIFIED` | 14,334 |
 
-So **[inferred]** the 1,127,002 once-only strings are the honest estimate of distinct named End Users;
-the 1,418,684 figure is an upper bound and the 291,682 repeated strings are mostly ISP bulk labels.
+So **[inferred]** the 1,127,002 once-only strings are the honest estimate of distinct named End Users.
+The 1,418,684 figure is an upper bound and the 291,682 repeated strings are mostly ISP bulk labels.
 
 ### 13.4 RIPE — the route is open, and #20's blocked route has two alternatives
 
@@ -942,8 +942,8 @@ curl -H 'Accept: application/rdap+json' 'https://rdap.lacnic.net/rdap/entity/CL-
 **Two LACNIC-specific defects bound the path, and both fail silently.** **[measured]**:
 
 1. **The query matches a single token only. Any space returns an empty 200.** Consistent across three
-   independent names: `fn=Typack*` → 1 hit; `fn=Typack%20S*` → **0**, 796 B; `fn=Typack%20S.A.` → **0**;
-   `fn=Universidad*` → 100 hits; `fn=Universidad%20del%20Pacifico` → **0**; `fn=SEP*` → 80 hits;
+   independent names: `fn=Typack*` → 1 hit. `fn=Typack%20S*` → **0**, 796 B. `fn=Typack%20S.A.` → **0**.
+   `fn=Universidad*` → 100 hits. `fn=Universidad%20del%20Pacifico` → **0**. `fn=SEP*` → 80 hits.
    `fn=SEP%20Instituto*` → **0** (against `SEP Instituto Tecnológico de Mérida`, confirmed present via
    `entity/MX-ITME-LACNIC`). A client that sends the operator's full organisation name gets nothing,
    with no error.
@@ -974,7 +974,7 @@ that means "truncated" must both map to `unknown`, never to an empty estate.**
   once-only.
 - AFRINIC exposes **no full-text search**, so `descr:` is unreachable by name. `whois.afrinic.net`
   port 43 on `Cloud Innovation Ltd` returns the `organisation:` object alone (`ORG-CIL1-AFRINIC`) with
-  no `inetnum`; `rdap.afrinic.net/rdap/entities?fn=` returns organisation entities with their **own
+  no `inetnum`. `rdap.afrinic.net/rdap/entities?fn=` returns organisation entities with their **own
   delegations** (`154.192.0.0/11`, `156.224.0.0/11`, …), never the PA assignments beneath them.
 
 So #26 §6.1's "AFRINIC's ASN-less operators lose nothing in capability terms" is correct **for
@@ -1000,7 +1000,7 @@ itself again.
 ### 13.8 What this does to the default set — nothing, and that is the point
 
 The ticket's stake was that *"if it generalises, the keyless default set reaches materially more
-operators than [#20] or [#26] credited it with."* **The capability generalises; the keyless default
+operators than [#20] or [#26] credited it with."* **The capability generalises. The keyless default
 set does not move at all.** Consent tier per finding, which is the constraint #38 asked to have
 recorded explicitly:
 
@@ -1029,7 +1029,7 @@ Three consequences bind:
 3. **§10.3's "exactly one honest missing-capability annotation" is now two, and both are regional.**
    §10.3 named APNIC. **AFRINIC joins it** for the PA-renter case specifically: unlike §10.4's reading,
    the AFRINIC terms email does not buy PA-renter reachability, because AFRINIC's `org:` names the ISP
-   (§13.6). §10.4 remains correct for AFRINIC *delegation holders*; it does not cover renters.
+   (§13.6). §10.4 remains correct for AFRINIC *delegation holders*. It does not cover renters.
 
 **The onboarding message is unchanged in substance and sharpened in honesty.** §10.2's *"declare your
 CIDRs directly, this path is not for you"* survives, because for the modal cloud-resident operator it

@@ -217,7 +217,7 @@ structural rather than a promise.
 **That asymmetry is the general test and it is stated as derived rather than measured**: a verdict
 table is a signature database where staleness produces a **false verdict**, and it is reference data
 where staleness produces a **blind spot**. `nmap-service-probes`' `match` half is the first kind (a
-stale row emits a wrong product name); this registry is the second.
+stale row emits a wrong product name). This registry is the second.
 
 ## 6. The disclosure
 
@@ -244,7 +244,7 @@ of those exceptions makes a `127/8` address globally reachable.
 
 **Nothing here is a shipping gate.** ADR-0032's Consequences are explicit that gate 2 never was one:
 a table with an unattested row ships, disclosed. Both disclosures above are narrower than that — the
-rows are attested; what is disclosed is a reading.
+rows are attested. What is disclosed is a reading.
 
 ## 8. The second consumer — the probing gate, reading the same column by the same rule
 
@@ -256,7 +256,7 @@ a declared **address scope** covers it and only from a `Vantage` that is not `in
 population that condition applies to is read from this table.
 
 **It is the same read, and that is the point.** §2's rule is unchanged and is not restated here:
-*take the most specific registered block containing the address; it is in the set if and only if
+*take the most specific registered block containing the address. It is in the set if and only if
 that block's `Globally Reachable` cell reads `False`*. One column, one reading rule, two consumers
 — which is what keeps [#6](https://github.com/winniel123/verge-asm/issues/6)'s seam out of the
 safety path. A future session may not give the gate a reading of its own.
