@@ -1,0 +1,10 @@
+# CODEOWNERS — request a review from the code owner on every pull request.
+# GitHub auto-requests these owners when a PR touches a matching path.
+#
+# The `main` branch ruleset does not force code-owner review
+# (require_code_owner_review is off). So this file requests a reviewer.
+# It does not block the merge.
+#
+# See docs/agents/issue-tracker.md for the issue and PR workflow.
+
+* @winniel123

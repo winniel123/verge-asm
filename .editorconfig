@@ -1,0 +1,26 @@
+# EditorConfig — cross-editor whitespace and charset consistency.
+# https://editorconfig.org
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+# Go source is gofmt-formatted. gofmt uses tabs and owns the width.
+[*.go]
+indent_style = tab
+
+[Makefile]
+indent_style = tab
+
+[*.{yml,yaml,json,toml}]
+indent_style = space
+indent_size = 2
+
+# Markdown uses trailing whitespace for hard line breaks. Keep it.
+[*.md]
+trim_trailing_whitespace = false
