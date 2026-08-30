@@ -70,8 +70,8 @@ type ColdScanScope struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
-type CrtshThrottle struct {
-	ID         int64              `json:"id"`
+type CtThrottle struct {
+	Source     string             `json:"source"`
 	NextFreeAt pgtype.Timestamptz `json:"next_free_at"`
 }
 

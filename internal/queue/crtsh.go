@@ -101,21 +101,29 @@ type CTThrottle interface {
 }
 
 // pgCTThrottle is the Postgres reservation throttle. Each Reserve atomically
-// claims the next free 12-second slot in the shared crtsh_throttle row, so
-// `--scale worker=N` cannot exceed the ceiling.
+// claims the next free slot in the source's own ct_throttle row, so
+// `--scale worker=N` cannot exceed the ceiling. The row is keyed by source slug:
+// each CT source reserves on its own interval, and today crt.sh is the only one.
 type pgCTThrottle struct {
 	q        *db.Queries
+	source   string
 	interval time.Duration
 }
 
-// NewCTThrottle builds the production throttle over pool at the 5 req/min ceiling.
+// NewCTThrottle builds the production throttle over pool for crt.sh at the 5
+// req/min ceiling — the only active CT source today (12 s spacing, ADR-0005). A
+// second CT source builds its own throttle with its own slug and interval.
 func NewCTThrottle(q *db.Queries) CTThrottle {
-	return pgCTThrottle{q: q, interval: crtshInterval}
+	return pgCTThrottle{q: q, source: scan.CrtshSource, interval: crtshInterval}
 }
 
-// Reserve claims the next slot and returns the instant the fetch may start.
+// Reserve claims the next slot for this source and returns the instant the fetch
+// may start.
 func (t pgCTThrottle) Reserve(ctx context.Context) (time.Time, error) {
-	slot, err := t.q.ReserveCTSlot(ctx, t.interval.Seconds())
+	slot, err := t.q.ReserveCTSlot(ctx, db.ReserveCTSlotParams{
+		Source:          t.source,
+		IntervalSeconds: t.interval.Seconds(),
+	})
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -284,12 +292,14 @@ func sleepUntil(ctx context.Context, now func() time.Time, t time.Time) error {
 	}
 }
 
-// fanOutCT enqueues one CT job per name-scope Seed, gated on the crtsh source
-// being enabled (ADR-0106). The Scan is the Declared schedule and ships enabled;
-// the source toggle is ADR-0003 consent. A disabled source leaves the Scan firing
-// over an empty scope — a legible zero-job state, like `zone` with no file.
+// fanOutCT enqueues one CT job per name-scope Seed, gated on the selected CT
+// source being enabled (ADR-0106). Exactly one CT source is active per config;
+// today that is always crt.sh, keyless and shipped on. The Scan is the Declared
+// schedule and ships enabled; the source toggle is ADR-0003 consent. A disabled
+// source leaves the Scan firing over an empty scope — a legible zero-job state,
+// like `zone` with no file.
 func (d *Dispatcher) fanOutCT(ctx context.Context, qtx *db.Queries, scanID, dispatchID int64) (int, error) {
-	enabled, err := crtshEnabled(ctx, qtx)
+	enabled, err := sourceEnabled(ctx, qtx, scan.CrtshSource, true)
 	if err != nil {
 		return 0, err
 	}
@@ -310,21 +320,23 @@ func (d *Dispatcher) fanOutCT(ctx context.Context, qtx *db.Queries, scanID, disp
 	return enqueued, nil
 }
 
-// crtshEnabled reports whether the crtsh source may run: its operator override
-// where one exists, and its shipped default (on — ADR-0003 unencumbered) where
-// none does. This is the first time the dispatcher reads source_state; the read
-// is confined here, where the CT scope is drawn (ADR-0106).
-func crtshEnabled(ctx context.Context, q *db.Queries) (bool, error) {
+// sourceEnabled reports whether the named source may run: its operator override
+// from source_state where one exists, and the source's shipped default otherwise
+// (crt.sh ships on — ADR-0003 unencumbered). It is per-slug so the `ct` fan-out
+// consults it for the selected source, and a second CT source keys its own gate
+// off the same table with no new read path. The read is confined to the
+// dispatcher, where the CT scope is drawn (ADR-0106).
+func sourceEnabled(ctx context.Context, q *db.Queries, slug string, shipDefault bool) (bool, error) {
 	states, err := q.ListSourceStates(ctx)
 	if err != nil {
 		return false, err
 	}
 	for _, s := range states {
-		if s.Slug == scan.CrtshSource {
+		if s.Slug == slug {
 			return s.Enabled, nil
 		}
 	}
-	return true, nil
+	return shipDefault, nil
 }
 
 // ctSeeds reads the name-scope Seeds the CT Scan queries — id and registrable
