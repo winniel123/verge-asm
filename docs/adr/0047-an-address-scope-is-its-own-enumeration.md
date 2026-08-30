@@ -51,7 +51,7 @@ scope is not.**
 | §3.4's `-Pn` paragraph | **Correct, and not corrected.** It is the clearest statement of this decision in the repository |
 | `Seed`'s *"a boundary, not a starting point"* | **Kept, and scoped to what it always refused** — a name-scope starting point, and a starting gun. It never spoke to an address scope's own arithmetic |
 | §9's ~~`/22`~~ **1,024-address** per-target range size cap | A **validation on the declaration** — §3.4's *"cannot be entered"* — operator-configurable, applied **per scope** and never to a sum. The cap's unit is **addresses**, not prefix lengths, per the [#85](https://github.com/winniel123/verge-asm/issues/85) amendment below; `/22` is its IPv4 spelling and `/118` its IPv6 one |
-| An address scope wider than the cap | **Not declarable** at the shipped default. Custody at that scale belongs to a name scope's `custody extension`, which is ADR-0013's own stated preference |
+| An address scope wider than the cap | ~~**Not declarable** at the shipped default. Custody at that scale belongs to a name scope's `custody extension`, which is ADR-0013's own stated preference~~ — **the upper bound on the knob is WITHDRAWN by [ADR-0127](./0127-the-address-scope-range-cap-has-no-ceiling-a-large-scope-is-priced-not-gated.md).** A scope wider than the *default* cap is still refused **at the default**, but the operator cap has **no ceiling**: raising it (Settings #206, priced at policy time) makes the scope declarable, and its cadence lag is reported after declaration, never gated. The `custody extension` stays the measured route and ADR-0013's preference — but it is no longer the **only** route above the cap. The cap mechanism (at declaration, per scope, never on a sum, family-agnostic) survives |
 | Declaring or widening an address scope | An **aperture widening**: `revealed`, **one** coverage-class message at the scope carrying a count of timelines opened. **Never** 1,024 `appeared` messages |
 | Narrowing one (an exclusion, or a smaller CIDR) | The addresses **leave**, taking their timelines, unless a current resolution still cites them — **no `Gap`**. Where one does cite them, the gate closes and currency opens the `Gap` as it already did. ~~Silent, by contrast with the row above.~~ **It is NOT silent** — [#130](https://github.com/winniel123/verge-asm/issues/130) · [ADR-0074](./0074-an-aperture-narrowing-that-takes-its-carrier-with-it-fires-at-the-scope.md): the span mechanism in this row is untouched and is the premise, but taking the timelines means taking the carrier, so the narrowing fires **one coverage-class message at the scope** carrying a count of subjects withdrawn. The `Gap` half of this row is the case that does **not** fire a second one. Marked at the sentence per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md): read alone beside the row above, this cell specified the silence |
 | What `Coverage` may say about a `/22` seed | **All of it** — *1,024 declared, 1,024 measured*. Address counts are arithmetic over a CIDR, which [#50](https://github.com/winniel123/verge-asm/issues/50) already ruled is not a coverage figure |
@@ -515,11 +515,18 @@ ADR's own cap in the unit it always had. **Nothing here is amended in substance 
   **2^(width−n)** — the `32` above is the only accidentally-IPv4 thing in this document, and it sits
   in the sentence a reader takes the enumeration rule from.
 - **The consequence for IPv6 is arithmetic, not a policy.** `/118` and longer are declarable, of
-  which the usable member is the `/128`. `/117` and shorter are refused by the cap, which is every
-  prefix an operator is assigned. One `/64` on the daily tier is ≈ 4.1 × 10¹¹ years at §6.3's
+  which the usable member is the `/128`. ~~`/117` and shorter are refused by the cap, which is every
+  prefix an operator is assigned.~~ One `/64` on the daily tier is ≈ 4.1 × 10¹¹ years at §6.3's
   ceiling, so **IPv6 space is not swept and no configuration makes it sweepable**. The IPv6 estate's
   route is a **name scope with a `custody extension`**, which is family-agnostic and already works,
   since AAAA is in the shipped resolution offer.
+  > **The struck clause's upper bound is WITHDRAWN by [ADR-0127](./0127-the-address-scope-range-cap-has-no-ceiling-a-large-scope-is-priced-not-gated.md).**
+  > At the **default** cap, `/117` and shorter are refused, as stated. But the operator cap has **no
+  > ceiling**: raising it past 2^32 makes a larger IPv6 scope **declarable-but-inert** — it
+  > enumerates, it never completes (a permanent skip), and it takes a flat confirm and honest
+  > reporting with no family treatment. What survives verbatim is *"IPv6 space is not swept and no
+  > configuration makes it sweepable"*: a raised cap changes **declarability**, never sweepability.
+  > The `/64`-years arithmetic and the `custody extension` route are untouched.
 - **This ADR's ~~≈287,000~~ ≈268,000 `Reach` timelines for a `/22` is therefore a ceiling** (corrected
   with the multiplier above — `~140` retired to `131` probed), not a point in an
   open range: 1,024 addresses is the most any single address-scope declaration can open, in either
