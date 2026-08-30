@@ -20,10 +20,12 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// Prober runs one job spec and returns the observations it produced. The
-// production impl execs the measurement binary; a test supplies a fake.
+// Prober runs one job spec and returns a ProbeResult — the observations it produced
+// and the verbatim Transcript of the exchange (#838). The production impl execs the
+// measurement binary; a test supplies a fake. The Transcript is ABSENT until #840
+// captures it at the prober boundary; this seam only carries the shape.
 type Prober interface {
-	Probe(ctx context.Context, spec wire.JobSpec) ([]wire.Observation, error)
+	Probe(ctx context.Context, spec wire.JobSpec) (wire.ProbeResult, error)
 }
 
 // ExecProber execs the measurement binary at Path, writing the spec to its
@@ -33,11 +35,13 @@ type ExecProber struct {
 	Path string
 }
 
-// Probe implements Prober.
-func (p ExecProber) Probe(ctx context.Context, spec wire.JobSpec) ([]wire.Observation, error) {
+// Probe implements Prober. It returns the observations wrapped in a ProbeResult with
+// an ABSENT Transcript: this ticket (#863) reshapes the seam only — #840 captures the
+// stdin/stdout/stderr and the exit outcome into the Transcript at this boundary.
+func (p ExecProber) Probe(ctx context.Context, spec wire.JobSpec) (wire.ProbeResult, error) {
 	var stdin bytes.Buffer
 	if err := wire.EncodeJobSpec(&stdin, spec); err != nil {
-		return nil, err
+		return wire.ProbeResult{}, err
 	}
 	cmd := exec.CommandContext(ctx, p.Path) // #nosec G204 (Path is operator-configured; no argv args, spec via stdin per ADR-0001 — no tainted input)
 	cmd.Stdin = &stdin
@@ -51,7 +55,7 @@ func (p ExecProber) Probe(ctx context.Context, spec wire.JobSpec) ([]wire.Observ
 	cmd.Stdout = stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("queue: exec prober: %w (stderr: %s)", err, stderr.String())
+		return wire.ProbeResult{}, fmt.Errorf("queue: exec prober: %w (stderr: %s)", err, stderr.String())
 	}
 	sc := wire.NewObservationScanner(bytes.NewReader(stdout.Bytes()))
 	var obs []wire.Observation
@@ -59,9 +63,9 @@ func (p ExecProber) Probe(ctx context.Context, spec wire.JobSpec) ([]wire.Observ
 		obs = append(obs, sc.Observation())
 	}
 	if err := sc.Err(); err != nil {
-		return nil, fmt.Errorf("queue: decode prober output: %w", err)
+		return wire.ProbeResult{}, fmt.Errorf("queue: decode prober output: %w", err)
 	}
-	return obs, nil
+	return wire.ProbeResult{Observations: obs}, nil
 }
 
 // Worker claims jobs off the queue and runs them, committing each job's outcome
@@ -159,7 +163,7 @@ func (w *Worker) produce(ctx context.Context, qtx *db.Queries, batchID int64, ob
 // prober host over SSH. An error is a transient measurement failure (unreachable host,
 // push failure) and drives the same retry/dead-letter path a local probe error does.
 type VantageRouter interface {
-	ProbeVantage(ctx context.Context, vantageID pgtype.Int8, spec wire.JobSpec) (obs []wire.Observation, handled bool, err error)
+	ProbeVantage(ctx context.Context, vantageID pgtype.Int8, spec wire.JobSpec) (res wire.ProbeResult, handled bool, err error)
 }
 
 // NewWorker builds a Worker over pool driving prober.
@@ -258,31 +262,35 @@ func (w *Worker) process(ctx context.Context, job db.ClaimJobRow) error {
 		return w.completeCT(ctx, job, spec)
 	}
 
-	obs, probeErr := w.probe(ctx, job.VantageID, spec)
+	res, probeErr := w.probe(ctx, job.VantageID, spec)
 	if probeErr != nil {
 		// A transient failure. Retry is a new Batch, never a resumption: while
 		// attempts remain we enqueue a fresh job; past them we dead-letter. The
 		// bound is single-sourced in exhaustedRetries, shared with the ct path.
+		//
+		// res.Transcript is absent today (#863 carries the shape only); #840 will
+		// thread it onto the retry/dead-letter tx so a failed job keeps its raw
+		// output, which is exactly when it is most wanted (§2.2).
 		if exhaustedRetries(job.Attempt, job.MaxAttempts) {
 			return w.deadLetter(ctx, job, probeErr)
 		}
 		return w.retry(ctx, job, probeErr)
 	}
-	return w.complete(ctx, job, obs)
+	return w.complete(ctx, job, res.Observations)
 }
 
 // probe runs a job's measurement, routing it off-host when a provisioned prober owns
 // the vantage and running it on the local prober otherwise. The router (when wired) is
 // consulted first: it reports handled=false for a vantage with no prober, so that job
 // falls through to the local ExecProber exactly as before this seam existed.
-func (w *Worker) probe(ctx context.Context, vantageID pgtype.Int8, spec wire.JobSpec) ([]wire.Observation, error) {
+func (w *Worker) probe(ctx context.Context, vantageID pgtype.Int8, spec wire.JobSpec) (wire.ProbeResult, error) {
 	if w.router != nil {
-		obs, handled, err := w.router.ProbeVantage(ctx, vantageID, spec)
+		res, handled, err := w.router.ProbeVantage(ctx, vantageID, spec)
 		if err != nil {
-			return nil, err
+			return wire.ProbeResult{}, err
 		}
 		if handled {
-			return obs, nil
+			return res, nil
 		}
 	}
 	return w.prober.Probe(ctx, spec)
