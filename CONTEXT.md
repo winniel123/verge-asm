@@ -73,10 +73,13 @@ rather than a rule about families. An address scope is held in the same form its
 family, prefix octets, length. **Containment is family-matched prefix comparison**, so the
 `Custody` lookup and `Vantage class`'s re-verification are tests over addresses and never over
 their spellings. That is what stops a rendering from opening the probing gate. So an IPv6 address
-scope is declarable at `/118` and longer — in
-practice the `/128`, which is how a v6-only prober's own address is covered — and the cap refuses
-every prefix an operator is actually assigned, since a `/64` would take on the order of 10¹¹
-years to walk. **IPv6 space is not swept and no configuration makes it sweepable.** An IPv6 estate is
+scope is declarable at `/118` and longer at the default cap — in
+practice the `/128`, which is how a v6-only prober's own address is covered — and at that default the
+cap refuses every prefix an operator is actually assigned, since a `/64` would take on the order of 10¹¹
+years to walk. The operator cap has **no ceiling** ([ADR-0127](./docs/adr/0127-the-address-scope-range-cap-has-no-ceiling-a-large-scope-is-priced-not-gated.md)), so
+raising it past 2^32 makes a larger IPv6 scope **declarable-but-inert** — it enumerates but never
+completes, a permanent skip. But **IPv6 space is not swept and no configuration makes it sweepable**:
+a raised cap changes only declarability, never sweepability. An IPv6 estate is
 reached by a name scope with a `custody extension`, which is family-agnostic and already works,
 AAAA being in the shipped resolution offer. Declaring or widening an address scope is an
 **aperture widening** — `revealed`, one coverage-class message at the scope carrying a count of
