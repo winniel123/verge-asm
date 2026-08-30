@@ -3,11 +3,19 @@ package scan
 import (
 	"encoding/json"
 	"net/netip"
+	"slices"
 	"testing"
 
 	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
 )
+
+// coldJobs collects the streamed cold fan-out into a slice for assertions. The
+// builder yields one job per (Vantage, admitted address); collecting an empty
+// sequence returns nil, so a nil check still reads as "no jobs".
+func coldJobs(scanID int64, estate custody.Estate, addrs []netip.Addr, vantages []Vantage, scope ColdScope) []ColdJob {
+	return slices.Collect(BuildColdJobs(scanID, estate, slices.Values(addrs), vantages, scope))
+}
 
 // coldEstate is the operator's declared estate for the cold tests: one globally
 // reachable block and one non-globally-reachable block, both operator-owned so
@@ -29,7 +37,7 @@ func TestBuildColdJobsEmptyScopeNeverFires(t *testing.T) {
 	addrs := []netip.Addr{addr("93.184.216.10"), addr("10.0.0.5")}
 	vantages := []Vantage{internetVantage(1, "internet-a")}
 
-	if jobs := BuildColdJobs(1, estate, addrs, vantages, ColdScope{}); jobs != nil {
+	if jobs := coldJobs(1, estate, addrs, vantages, ColdScope{}); jobs != nil {
 		t.Fatalf("an empty opt-in scope must produce no cold jobs, got %d", len(jobs))
 	}
 }
@@ -46,7 +54,7 @@ func TestBuildColdJobsOptInIsPerSeedScope(t *testing.T) {
 
 	// Only one address is opted in, by explicit address membership.
 	scope := ColdScope{Addresses: map[netip.Addr]bool{addr(optedIn): true}}
-	jobs := BuildColdJobs(1, estate, addrs, vantages, scope)
+	jobs := coldJobs(1, estate, addrs, vantages, scope)
 	if len(jobs) != 1 {
 		t.Fatalf("got %d jobs, want 1 (one vantage with an opted-in address)", len(jobs))
 	}
@@ -56,16 +64,28 @@ func TestBuildColdJobsOptInIsPerSeedScope(t *testing.T) {
 }
 
 // An opted-in scope may be an address-scope Seed's CIDR: every address inside it
-// is in the sweep, exactly as the Seed enumerates it.
+// is in the sweep, exactly as the Seed enumerates it. One address per Batch
+// (ADR-0005/ADR-0127), so two in-scope addresses fan out into two one-address
+// jobs, not one job carrying both.
 func TestBuildColdJobsAddressScopeMembership(t *testing.T) {
 	estate := coldEstate()
 	addrs := []netip.Addr{addr("93.184.216.10"), addr("93.184.216.42")}
 	vantages := []Vantage{internetVantage(1, "internet-a")}
 
 	scope := ColdScope{AddressPrefixes: []netip.Prefix{netip.MustParsePrefix("93.184.216.0/24")}}
-	jobs := BuildColdJobs(1, estate, addrs, vantages, scope)
-	if len(jobs) != 1 || len(jobs[0].Addresses) != 2 {
-		t.Fatalf("an opted-in CIDR must cover every address inside it, got %+v", jobs)
+	jobs := coldJobs(1, estate, addrs, vantages, scope)
+	if len(jobs) != 2 {
+		t.Fatalf("an opted-in CIDR must cover every address inside it as its own Batch, got %d jobs: %+v", len(jobs), jobs)
+	}
+	probed := map[string]bool{}
+	for _, j := range jobs {
+		if len(j.Addresses) != 1 {
+			t.Fatalf("each Batch carries one address, got %v", j.Addresses)
+		}
+		probed[j.Addresses[0]] = true
+	}
+	if !probed["93.184.216.10"] || !probed["93.184.216.42"] {
+		t.Fatalf("both in-scope addresses must be probed, got %v", probed)
 	}
 }
 
@@ -79,11 +99,11 @@ func TestBuildColdJobsStillCustodyGated(t *testing.T) {
 	scope := ColdScope{Addresses: map[netip.Addr]bool{addr(priv): true}}
 
 	internet := []Vantage{internetVantage(1, "net")}
-	if jobs := BuildColdJobs(1, estate, addrs, internet, scope); len(jobs) != 0 {
+	if jobs := coldJobs(1, estate, addrs, internet, scope); len(jobs) != 0 {
 		t.Errorf("a private address must not be probed from an internet-class vantage, got %d jobs", len(jobs))
 	}
 	internal := []Vantage{internalVantage(2, "lan")}
-	if jobs := BuildColdJobs(1, estate, addrs, internal, scope); len(jobs) != 1 {
+	if jobs := coldJobs(1, estate, addrs, internal, scope); len(jobs) != 1 {
 		t.Errorf("a private address must be probed from an internal-class vantage, got %d jobs", len(jobs))
 	}
 }
@@ -98,7 +118,7 @@ func TestBuildColdJobsNeverProbesThirdParty(t *testing.T) {
 	scope := ColdScope{
 		Addresses: map[netip.Addr]bool{addr("93.184.216.10"): true, addr(third): true},
 	}
-	jobs := BuildColdJobs(1, estate, addrs, vantages, scope)
+	jobs := coldJobs(1, estate, addrs, vantages, scope)
 	if len(jobs) != 1 {
 		t.Fatalf("got %d jobs, want 1", len(jobs))
 	}
@@ -118,7 +138,7 @@ func TestBuildColdJobsFullPortRangeAndConnectOutcome(t *testing.T) {
 	vantages := []Vantage{internetVantage(1, "net")}
 	scope := ColdScope{Addresses: map[netip.Addr]bool{addr(a): true}}
 
-	jobs := BuildColdJobs(1, estate, addrs, vantages, scope)
+	jobs := coldJobs(1, estate, addrs, vantages, scope)
 	if len(jobs) != 1 {
 		t.Fatalf("want 1 job, got %d", len(jobs))
 	}
@@ -159,10 +179,10 @@ func TestBuildColdJobsEmptyInputsAreLegible(t *testing.T) {
 	estate := coldEstate()
 	scope := ColdScope{Addresses: map[netip.Addr]bool{addr("93.184.216.10"): true}}
 	v := []Vantage{internetVantage(1, "net")}
-	if jobs := BuildColdJobs(1, estate, nil, v, scope); jobs != nil {
+	if jobs := coldJobs(1, estate, nil, v, scope); jobs != nil {
 		t.Errorf("no addresses should yield no jobs, got %d", len(jobs))
 	}
-	if jobs := BuildColdJobs(1, estate, []netip.Addr{addr("93.184.216.10")}, nil, scope); jobs != nil {
+	if jobs := coldJobs(1, estate, []netip.Addr{addr("93.184.216.10")}, nil, scope); jobs != nil {
 		t.Errorf("no vantages should yield no jobs, got %d", len(jobs))
 	}
 }
@@ -174,7 +194,7 @@ func TestColdScopeRecordAndDeadLetter(t *testing.T) {
 	estate := coldEstate()
 	a := "93.184.216.10"
 	scope := ColdScope{Addresses: map[netip.Addr]bool{addr(a): true}}
-	j := BuildColdJobs(1, estate, []netip.Addr{addr(a)}, []Vantage{internetVantage(1, "net")}, scope)[0]
+	j := coldJobs(1, estate, []netip.Addr{addr(a)}, []Vantage{internetVantage(1, "net")}, scope)[0]
 
 	raw, err := j.AttemptedScope()
 	if err != nil {

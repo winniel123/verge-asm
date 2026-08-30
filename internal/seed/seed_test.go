@@ -2,6 +2,7 @@ package seed
 
 import (
 	"net/netip"
+	"slices"
 	"testing"
 )
 
@@ -102,7 +103,7 @@ func TestAddressCountAndCap(t *testing.T) {
 
 func TestEnumerateAddresses(t *testing.T) {
 	// A /30 enumerates all four addresses in ascending order.
-	got := EnumerateAddresses(netip.MustParsePrefix("192.0.2.8/30"))
+	got := slices.Collect(EnumerateAddresses(netip.MustParsePrefix("192.0.2.8/30")))
 	want := []string{"192.0.2.8", "192.0.2.9", "192.0.2.10", "192.0.2.11"}
 	if len(got) != len(want) {
 		t.Fatalf("a /30 enumerates %d addresses, got %d: %v", len(want), len(got), got)
@@ -114,23 +115,60 @@ func TestEnumerateAddresses(t *testing.T) {
 	}
 
 	// A /32 enumerates exactly its one address.
-	if g := EnumerateAddresses(netip.MustParsePrefix("203.0.113.5/32")); len(g) != 1 || g[0].String() != "203.0.113.5" {
+	if g := slices.Collect(EnumerateAddresses(netip.MustParsePrefix("203.0.113.5/32"))); len(g) != 1 || g[0].String() != "203.0.113.5" {
 		t.Errorf("a /32 enumerates its one address, got %v", g)
 	}
 
 	// Network and broadcast are NOT exempted (ADR-0047): a /31 yields both ends.
-	if g := EnumerateAddresses(netip.MustParsePrefix("198.51.100.0/31")); len(g) != 2 {
+	if g := slices.Collect(EnumerateAddresses(netip.MustParsePrefix("198.51.100.0/31"))); len(g) != 2 {
 		t.Errorf("a /31 enumerates both addresses, got %v", g)
 	}
 
 	// The prefix is masked first, so host bits in the input do not move the block.
-	if g := EnumerateAddresses(netip.MustParsePrefix("10.0.0.5/30")); len(g) != 4 || g[0].String() != "10.0.0.4" {
+	if g := slices.Collect(EnumerateAddresses(netip.MustParsePrefix("10.0.0.5/30"))); len(g) != 4 || g[0].String() != "10.0.0.4" {
 		t.Errorf("a host-bits-set prefix must be masked before enumeration, got %v", g)
 	}
 
 	// Enumeration is family-agnostic (ADR-0049): a /126 yields four IPv6 addresses.
-	if g := EnumerateAddresses(netip.MustParsePrefix("2001:db8::/126")); len(g) != 4 || g[0].String() != "2001:db8::" {
+	if g := slices.Collect(EnumerateAddresses(netip.MustParsePrefix("2001:db8::/126"))); len(g) != 4 || g[0].String() != "2001:db8::" {
 		t.Errorf("a /126 enumerates 4 IPv6 addresses, got %v", g)
+	}
+}
+
+// EnumerateAddresses streams: it never materializes the whole scope, so a
+// consumer that breaks early stops the walk. This ranges a scope of 2^31
+// addresses (0.0.0.0/1) and breaks after five — a test that CANNOT pass on a
+// materializing implementation, which would try to build billions of addresses
+// first. It is the memory-is-never-a-ceiling-bound proof (#887, ADR-0127).
+func TestEnumerateAddressesStreamsLazily(t *testing.T) {
+	var got []string
+	for a := range EnumerateAddresses(netip.MustParsePrefix("0.0.0.0/1")) {
+		got = append(got, a.String())
+		if len(got) == 5 {
+			break
+		}
+	}
+	want := []string{"0.0.0.0", "0.0.0.1", "0.0.0.2", "0.0.0.3", "0.0.0.4"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("a lazy enumeration yields the first five of a huge scope, got %v", got)
+	}
+}
+
+// BenchmarkEnumerateAddressesLargeScope documents that a full walk of a large
+// scope allocates a bounded, scope-size-independent amount: the enumerator holds
+// no slice of addresses. Run with -benchmem; allocs/op does not scale with the
+// /16's 65,536 addresses.
+func BenchmarkEnumerateAddressesLargeScope(b *testing.B) {
+	p := netip.MustParsePrefix("10.0.0.0/16")
+	b.ReportAllocs()
+	for b.Loop() {
+		n := 0
+		for range EnumerateAddresses(p) {
+			n++
+		}
+		if n != 65536 {
+			b.Fatalf("walked %d addresses, want 65536", n)
+		}
 	}
 }
 
@@ -158,7 +196,7 @@ func TestEnumCapHint(t *testing.T) {
 // A scope at the very top of the address space must terminate: Next overflows to
 // the invalid zero address, and the walk stops rather than looping.
 func TestEnumerateAddressesTerminatesAtTopOfSpace(t *testing.T) {
-	got := EnumerateAddresses(netip.MustParsePrefix("255.255.255.254/31"))
+	got := slices.Collect(EnumerateAddresses(netip.MustParsePrefix("255.255.255.254/31")))
 	if len(got) != 2 || got[0].String() != "255.255.255.254" || got[1].String() != "255.255.255.255" {
 		t.Fatalf("enumeration at the top of the space must terminate cleanly, got %v", got)
 	}

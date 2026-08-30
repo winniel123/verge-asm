@@ -20,6 +20,7 @@ package scan
 import (
 	"encoding/json"
 	"fmt"
+	"iter"
 	"net/netip"
 
 	"github.com/winniel123/verge-asm/internal/custody"
@@ -77,10 +78,11 @@ func (c ColdScope) contains(a netip.Addr) bool {
 	return false
 }
 
-// ColdJob is one queue job the cold Scan produces: one Vantage, the Custody-
-// admitted addresses within the opted-in scope for that Vantage's class, and the
-// full TCP port range. It carries no UDP set — `connect-outcome` decides only a
-// TCP `reachability` value (ADR-0083).
+// ColdJob is one queue job the cold Scan produces: one Vantage, ONE Custody-
+// admitted address within the opted-in scope (one address per Batch,
+// ADR-0005/ADR-0127), and the full TCP port range. It carries no UDP set —
+// `connect-outcome` decides only a TCP `reachability` value (ADR-0083). Addresses
+// holds the single address as a one-element slice so the wire scope stays a list.
 type ColdJob struct {
 	ScanID       int64
 	VantageID    int64
@@ -92,53 +94,59 @@ type ColdJob struct {
 	Profile      connectoutcome.SafetyProfile
 }
 
-// BuildColdJobs fans a cold Scan out into one job per Vantage over the addresses
-// that are BOTH Custody-admitted for that Vantage's class AND covered by an
-// opted-in `Seed` scope. The two gates compose: the opt-in gate bounds the tier
-// to what the operator asked for, and the Custody gate (reused unchanged from
-// `hot`, ADR-0019) refuses any address the derivation does not admit — a third-
-// party address, or a non-globally-reachable one seen from an `internet`-class
-// Vantage — so a wrongly opted-in address can never be smuggled past Custody. An
-// empty opt-in scope, no address or no Vantage each yields no jobs: the shipped
+// BuildColdJobs fans a cold Scan out into one job per (Vantage, admitted address)
+// — one address per Batch (ADR-0005/ADR-0127), yielded as a lazy sequence over
+// the streamed candidate addresses so no record holds the whole scope. An address
+// is admitted when it is BOTH Custody-admitted for that Vantage's class AND
+// covered by an opted-in `Seed` scope. The two gates compose: the opt-in gate
+// bounds the tier to what the operator asked for, and the Custody gate (reused
+// unchanged from `hot`, ADR-0019) refuses any address the derivation does not
+// admit — a third-party address, or a non-globally-reachable one seen from an
+// `internet`-class Vantage — so a wrongly opted-in address can never be smuggled
+// past Custody. An empty opt-in scope or no Vantage yields no jobs: the shipped
 // "configured and disabled" state fires nothing (ADR-0044).
-func BuildColdJobs(scanID int64, estate custody.Estate, addrs []netip.Addr, vantages []Vantage, scope ColdScope) []ColdJob {
-	if scope.empty() || len(addrs) == 0 || len(vantages) == 0 {
-		return nil
-	}
-	tcp := coldTCPPorts()
+func BuildColdJobs(scanID int64, estate custody.Estate, addrs iter.Seq[netip.Addr], vantages []Vantage, scope ColdScope) iter.Seq[ColdJob] {
+	return func(yield func(ColdJob) bool) {
+		if scope.empty() || len(vantages) == 0 {
+			return
+		}
+		tcp := coldTCPPorts()
 
-	// Class is DERIVED per batch from each vantage's presented-address facts against the
-	// declared address scopes (#709), never the vestigial column: covered is the
-	// address-scope-only predicate (#711) the same Estate carries. This is the "every
-	// batch" gating cadence the keystone reconciles — gating uses last-observed facts.
-	covered := estate.CoversAddressScope
-	var jobs []ColdJob
-	for _, v := range vantages {
-		vc := vantageclass.Derive(v.Dialled, v.Egress, covered)
-		admitted := make([]string, 0, len(addrs))
-		for _, a := range addrs {
+		// Class is DERIVED per batch from each vantage's presented-address facts against the
+		// declared address scopes (#709), never the vestigial column: covered is the
+		// address-scope-only predicate (#711) the same Estate carries. This is the "every
+		// batch" gating cadence the keystone reconciles — gating uses last-observed facts.
+		// The classes are derived once, outside the address stream.
+		covered := estate.CoversAddressScope
+		classes := make([]custody.VantageClass, len(vantages))
+		for i, v := range vantages {
+			classes[i] = vantageclass.Derive(v.Dialled, v.Egress, covered)
+		}
+
+		for a := range addrs {
 			if !scope.contains(a) {
 				continue // not in an opted-in Seed scope — the tier was not asked for here
 			}
-			if estate.MayProbe(a, vc) {
-				admitted = append(admitted, a.Unmap().String())
+			for i, v := range vantages {
+				if !estate.MayProbe(a, classes[i]) {
+					continue
+				}
+				job := ColdJob{
+					ScanID:       scanID,
+					VantageID:    v.ID,
+					Vantage:      v.Name,
+					VantageClass: string(classes[i]),
+					Kind:         connectoutcome.Kind,
+					Addresses:    []string{a.Unmap().String()},
+					TCPPorts:     tcp,
+					Profile:      connectoutcome.DefaultProfile(),
+				}
+				if !yield(job) {
+					return
+				}
 			}
 		}
-		if len(admitted) == 0 {
-			continue
-		}
-		jobs = append(jobs, ColdJob{
-			ScanID:       scanID,
-			VantageID:    v.ID,
-			Vantage:      v.Name,
-			VantageClass: string(vc),
-			Kind:         connectoutcome.Kind,
-			Addresses:    admitted,
-			TCPPorts:     tcp,
-			Profile:      connectoutcome.DefaultProfile(),
-		})
 	}
-	return jobs
 }
 
 // JobSpec renders a ColdJob into the wire JobSpec the connect-outcome prober

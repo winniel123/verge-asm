@@ -23,37 +23,35 @@ import (
 // fires it on opt-in: the web opt-in handler reconciles the enabled flag, and
 // this fan-out runs only on the monthly cadence tick.
 
-// fanOutCold enqueues one connect-outcome job per Vantage over the addresses that
-// are both Custody-admitted and inside an opted-in `Seed` scope, across the full
-// TCP port range.
-func (d *Dispatcher) fanOutCold(ctx context.Context, qtx *db.Queries, scanID, dispatchID int64) (int, error) {
-	estate, resolved, err := hotEstate(ctx, qtx, d.now())
+// fanOutCold streams one connect-outcome job per (Vantage, admitted address) —
+// one address per Batch (ADR-0005/ADR-0127) — over the addresses that are both
+// Custody-admitted and inside an opted-in `Seed` scope, across the full TCP port
+// range, and commits them in chunks. It reads the estate on the pool (the
+// Dispatch row is already committed by claimDispatch), then consumes the streamed
+// job sequence through streamEnqueue, so no record holds the whole scope.
+//
+// The cold tier probes only its opted-in scopes, so it enumerates ONLY those
+// address scopes (ADR-0047), never the whole declared estate. BuildColdJobs then
+// filters this set to the opted-in scope (address prefixes and the name-resolved
+// addresses), so a resolved address outside every opted-in scope still drops out.
+func (d *Dispatcher) fanOutCold(ctx context.Context, scanID, dispatchID int64) (int, error) {
+	estate, resolved, err := hotEstate(ctx, d.q, d.now())
 	if err != nil {
 		return 0, err
 	}
-	scope, err := coldScope(ctx, qtx, estate.Resolutions)
+	scope, err := coldScope(ctx, d.q, estate.Resolutions)
 	if err != nil {
 		return 0, err
 	}
-	// The cold tier probes only its opted-in scopes, so it enumerates ONLY those
-	// address scopes (ADR-0047), never the whole declared estate. BuildColdJobs
-	// then filters this set to the opted-in scope (address prefixes and the
-	// name-resolved addresses), so a resolved address outside every opted-in scope
-	// still drops out.
+	vantages, err := vantageList(ctx, d.q)
+	if err != nil {
+		return 0, err
+	}
 	addrs := candidateAddrs(resolved, scope.AddressPrefixes)
-	vantages, err := vantageList(ctx, qtx)
-	if err != nil {
-		return 0, err
-	}
-
-	enqueued := 0
-	for _, j := range scan.BuildColdJobs(scanID, estate, addrs, vantages.scanVantages(), scope) {
-		if err := enqueueColdJob(ctx, qtx, scanID, dispatchID, j); err != nil {
-			return 0, err
-		}
-		enqueued++
-	}
-	return enqueued, nil
+	jobs := scan.BuildColdJobs(scanID, estate, addrs, vantages.scanVantages(), scope)
+	return streamEnqueue(ctx, d, jobs, func(ctx context.Context, qtx *db.Queries, j scan.ColdJob) error {
+		return enqueueColdJob(ctx, qtx, scanID, dispatchID, j)
+	})
 }
 
 // coldScope reads the opted-in `Seed` scopes and folds them into the address
@@ -100,7 +98,7 @@ func coldScope(ctx context.Context, q *db.Queries, resolutions []custody.Resolut
 // range by content; its offers carry the safety profile. It retries like a hot
 // job — a connect is a network step that can transiently fail.
 func enqueueColdJob(ctx context.Context, qtx *db.Queries, scanID, dispatchID int64, j scan.ColdJob) error {
-	spec, err := j.JobSpec(fmt.Sprintf("scan:%d:vantage:%d", scanID, j.VantageID))
+	spec, err := j.JobSpec(fmt.Sprintf("scan:%d:vantage:%d:addr:%s", scanID, j.VantageID, jobAddr(j.Addresses)))
 	if err != nil {
 		return err
 	}

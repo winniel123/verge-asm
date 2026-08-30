@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"iter"
 	"net/netip"
 	"time"
 
@@ -25,33 +26,32 @@ import (
 // jobs. Nothing here probes a target the gate refuses — the gate runs in
 // scan.BuildHotJobs before a job is ever enqueued (ADR-0019).
 
-// fanOutHot enqueues one hot job per Vantage over the Custody-admitted addresses.
-func (d *Dispatcher) fanOutHot(ctx context.Context, qtx *db.Queries, scanID, dispatchID int64) (int, error) {
-	estate, resolved, err := hotEstate(ctx, qtx, d.now())
+// fanOutHot streams one hot job per (Vantage, Custody-admitted address) — one
+// address per Batch (ADR-0005/ADR-0127) — and commits them in chunks. It reads
+// the estate on the pool (the Dispatch row is already committed by claimDispatch),
+// then consumes the streamed job sequence through streamEnqueue, so no record
+// holds the whole scope and an address scope above the cap fans out with bounded
+// memory. The hot tier probes every declared address scope, so it enumerates all
+// of them (ADR-0047): every declared CIDR is walked daily whether or not a name
+// resolves into it.
+func (d *Dispatcher) fanOutHot(ctx context.Context, scanID, dispatchID int64) (int, error) {
+	estate, resolved, err := hotEstate(ctx, d.q, d.now())
 	if err != nil {
 		return 0, err
 	}
-	// The hot tier probes every declared address scope, so it enumerates all of
-	// them (ADR-0047): every declared CIDR is walked daily whether or not a name
-	// resolves into it.
+	core, err := hotCore(ctx, d.q)
+	if err != nil {
+		return 0, err
+	}
+	vantages, err := vantageList(ctx, d.q)
+	if err != nil {
+		return 0, err
+	}
 	addrs := candidateAddrs(resolved, estate.AddressScopes)
-	core, err := hotCore(ctx, qtx)
-	if err != nil {
-		return 0, err
-	}
-	vantages, err := vantageList(ctx, qtx)
-	if err != nil {
-		return 0, err
-	}
-
-	enqueued := 0
-	for _, j := range scan.BuildHotJobs(scanID, estate, addrs, vantages.scanVantages(), core) {
-		if err := enqueueHotJob(ctx, qtx, scanID, dispatchID, j); err != nil {
-			return 0, err
-		}
-		enqueued++
-	}
-	return enqueued, nil
+	jobs := scan.BuildHotJobs(scanID, estate, addrs, vantages.scanVantages(), core)
+	return streamEnqueue(ctx, d, jobs, func(ctx context.Context, qtx *db.Queries, j scan.HotJob) error {
+		return enqueueHotJob(ctx, qtx, scanID, dispatchID, j)
+	})
 }
 
 // hotEstate builds the Custody derivation's inputs from the confirmed Seeds and
@@ -117,44 +117,50 @@ func hotEstate(ctx context.Context, q *db.Queries, asOf time.Time) (custody.Esta
 	}, addrs, nil
 }
 
-// candidateAddrs is a tier's target set BEFORE the Custody gate: the addresses
-// names currently resolve to, unioned with every address the given scopes
-// enumerate (ADR-0047). Enumerating the scopes here — at the DB boundary, where
-// the per-scope address cap (seed.WithinCap at declaration) guarantees each scope
-// is bounded — is what turns a declared CIDR into probe targets and dark
+// candidateAddrs is a tier's target set BEFORE the Custody gate, as a lazy
+// sequence: the addresses names currently resolve to, followed by every address
+// the given scopes enumerate (ADR-0047). Enumerating the scopes here — at the DB
+// boundary — is what turns a declared CIDR into probe targets and dark
 // `not-reached` subjects, closing the #779 gap. The caller passes the scopes its
 // tier probes: the hot fan-out passes every declared address scope, the cold
 // fan-out only its opted-in scopes, so neither enumerates a scope it discards.
-// The union is deduplicated and resolved-first, so an address that is both
-// resolved and inside a scope is probed once. The Custody gate (scan.BuildHotJobs
-// / scan.BuildColdJobs) still runs over the result and remains total (ADR-0019):
-// every enumerated candidate is an operator address, but the denotation
-// precondition can still bar a non-globally-reachable one from an
+//
+// Dedup is against the SMALL resolved set only (ADR-0127): the `seen` map holds
+// the resolved addresses, never the whole scope, so a scope above the cap streams
+// with bounded memory. An address that is both resolved and inside a scope is
+// yielded once — resolved-first — so it is probed once (single-probing). Two
+// declared scopes that OVERLAP are not deduped against each other, so the overlap
+// probes twice; that is the accepted cost of not holding the whole scope in a
+// map, and each probe is its own idempotent Batch. The Custody gate
+// (scan.BuildHotJobs / scan.BuildColdJobs) still runs over the result and remains
+// total (ADR-0019): every enumerated candidate is an operator address, but the
+// denotation precondition can still bar a non-globally-reachable one from an
 // internet-class Vantage.
-func candidateAddrs(resolved []netip.Addr, scopes []netip.Prefix) []netip.Addr {
-	capHint := len(resolved)
-	for _, p := range scopes {
-		capHint += seed.EnumCapHint(p)
-	}
-	seen := make(map[netip.Addr]struct{}, capHint)
-	out := make([]netip.Addr, 0, capHint)
-	add := func(a netip.Addr) {
-		a = a.Unmap()
-		if _, ok := seen[a]; ok {
-			return
+func candidateAddrs(resolved []netip.Addr, scopes []netip.Prefix) iter.Seq[netip.Addr] {
+	return func(yield func(netip.Addr) bool) {
+		seen := make(map[netip.Addr]struct{}, len(resolved))
+		for _, a := range resolved {
+			a = a.Unmap()
+			if _, ok := seen[a]; ok {
+				continue
+			}
+			seen[a] = struct{}{}
+			if !yield(a) {
+				return
+			}
 		}
-		seen[a] = struct{}{}
-		out = append(out, a)
-	}
-	for _, a := range resolved {
-		add(a)
-	}
-	for _, p := range scopes {
-		for _, a := range seed.EnumerateAddresses(p) {
-			add(a)
+		for _, p := range scopes {
+			for a := range seed.EnumerateAddresses(p) {
+				a = a.Unmap()
+				if _, ok := seen[a]; ok {
+					continue // an address a name already resolved to — probed once
+				}
+				if !yield(a) {
+					return
+				}
+			}
 		}
 	}
-	return out
 }
 
 // hotCore reads the shipped verge-core and applies the operator's frequency-half
@@ -177,7 +183,7 @@ func hotCore(ctx context.Context, q *db.Queries) (vergecore.List, error) {
 // its offers carry the safety profile. It retries like a dns job — a connect is
 // a network step that can transiently fail.
 func enqueueHotJob(ctx context.Context, qtx *db.Queries, scanID, dispatchID int64, j scan.HotJob) error {
-	spec, err := j.JobSpec(fmt.Sprintf("scan:%d:vantage:%d", scanID, j.VantageID))
+	spec, err := j.JobSpec(fmt.Sprintf("scan:%d:vantage:%d:addr:%s", scanID, j.VantageID, jobAddr(j.Addresses)))
 	if err != nil {
 		return err
 	}
