@@ -17,6 +17,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/retention"
+	"github.com/winniel123/verge-asm/internal/seed"
 	"github.com/winniel123/verge-asm/internal/vergecore"
 )
 
@@ -101,6 +102,36 @@ type retentionView struct {
 	UpdatedAt               string
 }
 
+// addressCapView renders the address-scope cap control (#888 / Settings #206,
+// ADR-0127, Variant C — the policy-forward dial). It front-loads the cost of a raised
+// cap at policy time so the declaration can stay a flat within-policy confirm: the
+// largest scope the cap admits (as a prefix per family), the dispatch load a cap-sized
+// scope puts on each enabled address-scope scan per cadence, and the projected
+// evidential-observation disk growth (scaling ADR-0041's /22 ≈ 13 GB/year grounding).
+// The operator chooses the lag they accept HERE, when they set the cap, not when they
+// declare. Nothing here branches on the number; it is a readout, never a gate.
+type addressCapView struct {
+	Cap            int64
+	CapLabel       string // the cap as a comma-grouped count, e.g. "262,144"
+	LargestScopeV4 string // the widest IPv4 prefix the cap admits, e.g. "/14"
+	LargestScopeV6 string // the widest IPv6 prefix the cap admits, e.g. "/110"
+	DiskProjection string // projected evidential growth, e.g. "≈ 3.3 TB / year"
+	SweepLoad      []capSweepLine
+	UpdatedBy      string
+	UpdatedAt      string
+}
+
+// capSweepLine is one enabled address-scope scan's dispatch load at the current cap: a
+// cap-sized scope is Probes one-address Batches (ADR-0005) dispatched every Cadence.
+// It is pure arithmetic over the cap and the scan's own cadence_seconds — no throughput
+// is assumed, so the readout promises no completion the model does not (ADR-0127); the
+// predicted-vs-effective cadence lands on the Scans surface itself (#891).
+type capSweepLine struct {
+	Scan    string // the scan kind, e.g. "hot"
+	Cadence string // its declared cadence label, e.g. "daily"
+	Probes  string // the cap as a comma-grouped probe count, e.g. "262,144"
+}
+
 // vantageRow is one measurement position shaped for the vantages section. A
 // vantage is never a probe/scanner/agent (CONTEXT.md): the render carries only its
 // measurement name, verified class, availability, resolver and endpoint — never a
@@ -162,6 +193,12 @@ type settingsForms struct {
 	retError    string
 	retObs      string
 	retDispatch string
+
+	// address-scope cap (#888, ADR-0127). capError is the inline error on the cap
+	// control (Settings · Scans); capValue echoes a rejected value back so the operator
+	// does not retype it.
+	capError string
+	capValue string
 
 	vcError string
 	vcPort  string
@@ -238,6 +275,8 @@ func tabForSection(section string) string {
 		return "channels"
 	case "retention":
 		return "delivery"
+	case "addresscap":
+		return "scans"
 	case "vergecore":
 		return "aperture"
 	case "sources":
@@ -628,6 +667,35 @@ func (s *server) updateRetention(w http.ResponseWriter, r *http.Request, acct db
 		return
 	}
 	http.Redirect(w, r, "/settings?tab=delivery", http.StatusSeeOther)
+}
+
+// updateAddressCap sets the operator address-scope cap (#888 / Settings #206,
+// ADR-0127). The cap has NO upper bound — ADR-0127 removes the ceiling above the
+// operator value, so the only friction is the deliberate act of raising it; the sole
+// guard here is a whole number of addresses, one or more. It persists on the
+// instance_config singleton and is read at declaration (server.addressCap), so a raise
+// takes effect on the next declaration and a lower value never invalidates a scope
+// declared under a higher cap. A rejected value re-renders the Scans tab with the
+// echo state and a 400, exactly as the retention dials do.
+func (s *server) updateAddressCap(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	raw := strings.TrimSpace(r.FormValue("address_cap"))
+	n, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || n < 1 {
+		s.renderSettings(w, r, acct, settingsForms{
+			section:  "addresscap",
+			capError: "The address-scope cap must be a whole number of addresses, one or more.",
+			capValue: raw,
+		})
+		return
+	}
+	if err := s.store.SetSeedAddressCap(r.Context(), db.SetSeedAddressCapParams{
+		SeedAddressCap:          n,
+		SeedAddressCapUpdatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
+	}); err != nil {
+		s.serverError(w, "update address cap", err)
+		return
+	}
+	http.Redirect(w, r, "/settings?tab=scans", http.StatusSeeOther)
 }
 
 // --- render ----------------------------------------------------------------
@@ -1518,6 +1586,76 @@ func toRetentionView(ret db.GetRetentionSettingsRow, accounts []db.ListAccountsR
 		v.UpdatedAt = ret.UpdatedAt.Time.UTC().Format("2006-01-02 15:04 UTC")
 	}
 	return v
+}
+
+// addressScopeScanKinds are the scan tiers that sweep an address scope by enumerating
+// it one address per Batch (ADR-0127: the hot/cold fan-out). The bounded tiers (dns,
+// zone, tls-acceptance, http-identity, ct) enumerate over name scopes or the resolved
+// service population, not an address-scope sweep, so a raised cap puts no per-address
+// dispatch load on them — they are absent from the cap control's sweep-load readout.
+var addressScopeScanKinds = map[string]bool{"hot": true, "cold": true}
+
+// toAddressCapView builds the policy-forward cap dial (#888, ADR-0127 Variant C) from
+// the persisted cap, the enabled scans and the account list (to name who last set it).
+// It reads the effective cap through the same DefaultAddressCap fallback the
+// declaration path uses (server.addressCap), so the readout matches what a declaration
+// would actually check.
+func toAddressCapView(cfg db.GetInstanceConfigRow, scans []db.Scan, accounts []db.ListAccountsRow) addressCapView {
+	capVal := cfg.SeedAddressCap
+	if capVal <= 0 {
+		capVal = int64(seed.DefaultAddressCap)
+	}
+	probes := commaGroup(strconv.FormatInt(capVal, 10))
+	v := addressCapView{
+		Cap:            capVal,
+		CapLabel:       probes,
+		LargestScopeV4: fmt.Sprintf("/%d", seed.LargestPrefixLen(int(capVal), 32)),
+		LargestScopeV6: fmt.Sprintf("/%d", seed.LargestPrefixLen(int(capVal), 128)),
+		DiskProjection: projectedEvidentialDiskPerYear(capVal),
+	}
+	for _, sc := range scans {
+		if !sc.Enabled || !addressScopeScanKinds[sc.Kind] {
+			continue
+		}
+		v.SweepLoad = append(v.SweepLoad, capSweepLine{
+			Scan:    sc.Kind,
+			Cadence: cadenceLabel(sc.CadenceSeconds),
+			Probes:  probes,
+		})
+	}
+	if cfg.SeedAddressCapUpdatedBy.Valid {
+		for _, a := range accounts {
+			if a.ID == cfg.SeedAddressCapUpdatedBy.Int64 {
+				v.UpdatedBy = a.Username
+				break
+			}
+		}
+	}
+	if cfg.SeedAddressCapUpdatedAt.Valid {
+		v.UpdatedAt = cfg.SeedAddressCapUpdatedAt.Time.UTC().Format("2006-01-02 15:04 UTC")
+	}
+	return v
+}
+
+// projectedEvidentialDiskPerYear projects the evidential-observation disk growth a
+// cap-sized address scope drives per year, scaling ADR-0041's grounding: one declared
+// /22 (1024 addresses) grows the evidential corpus ~13 GB/year, and rows are linear in
+// the address count, so the projection is 13 GB/year × cap/1024. It is a projection,
+// stated as one (the "≈"), not a measurement; ADR-0041 moved this figure onto the
+// policy dial so the operator prices the disk cost beside the cadence lag before they
+// raise the cap.
+func projectedEvidentialDiskPerYear(addrCap int64) string {
+	gbPerYear := 13.0 * float64(addrCap) / 1024.0
+	switch {
+	case gbPerYear >= 1024:
+		return fmt.Sprintf("≈ %.1f TB / year", gbPerYear/1024)
+	case gbPerYear >= 10:
+		return fmt.Sprintf("≈ %.0f GB / year", gbPerYear)
+	case gbPerYear >= 1:
+		return fmt.Sprintf("≈ %.1f GB / year", gbPerYear)
+	default:
+		return fmt.Sprintf("≈ %.0f MB / year", gbPerYear*1024)
+	}
 }
 
 // --- helpers ---------------------------------------------------------------

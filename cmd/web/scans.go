@@ -125,6 +125,26 @@ func (s *server) fillScansSection(r *http.Request, acct db.Account, f settingsFo
 		}
 	}
 	data["ColdError"] = f.coldError
+
+	// The address-scope cap control (#888 / Settings #206, ADR-0127, Variant C — the
+	// policy-forward dial). Best-effort like the cold-tier region above: a read failure
+	// drops the card rather than 500ing the whole Scans tab. Its POST is
+	// /settings/address-cap; a rejected value re-renders here through capError/capValue.
+	if cfg, cerr := s.store.GetInstanceConfig(ctx); cerr == nil {
+		if scans, serr := s.store.ListScans(ctx); serr == nil {
+			if accounts, aerr := s.store.ListAccounts(ctx); aerr == nil {
+				view := toAddressCapView(cfg, scans, accounts)
+				data["CapControl"] = view
+				capValue := strconv.FormatInt(view.Cap, 10)
+				if f.section == "addresscap" {
+					capValue = f.capValue
+				}
+				data["CapValue"] = capValue
+			}
+		}
+	}
+	data["CapError"] = f.capError
+
 	rows, err := s.store.ListDispatchProgress(ctx, scansHistoryLimit)
 	if err != nil {
 		return err

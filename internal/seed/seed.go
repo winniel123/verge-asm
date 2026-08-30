@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"iter"
 	"math/big"
+	"math/bits"
 	"net/netip"
 	"strings"
 
@@ -88,6 +89,26 @@ func AddressCount(p netip.Prefix) *big.Int {
 // IPv6 block are treated the same.
 func WithinCap(p netip.Prefix, maxAddrs int) bool {
 	return AddressCount(p).Cmp(big.NewInt(int64(maxAddrs))) <= 0
+}
+
+// LargestPrefixLen returns the length of the widest (shortest-prefix) block whose
+// address count is within maxAddrs for an address family of familyBits (32 for
+// IPv4, 128 for IPv6) — the largest scope the cap admits. The host bits are
+// floor(log2(maxAddrs)), so the prefix is familyBits minus that. It is exact only
+// on a power-of-two cap; on any other value it names the largest FULL prefix that
+// fits, since a prefix is always a power of two of addresses (a cap of 1000 admits
+// a /23's 512, not a /22's 1024). A maxAddrs below 1 admits no scope and returns
+// familyBits — the host route, a single address. The host bits are clamped to
+// familyBits so an oversized cap never returns a negative prefix.
+func LargestPrefixLen(maxAddrs, familyBits int) int {
+	if maxAddrs < 1 {
+		return familyBits
+	}
+	hostBits := bits.Len(uint(maxAddrs)) - 1 // floor(log2)
+	if hostBits > familyBits {
+		hostBits = familyBits
+	}
+	return familyBits - hostBits
 }
 
 // EnumerateAddresses yields every address a prefix covers, in ascending order,

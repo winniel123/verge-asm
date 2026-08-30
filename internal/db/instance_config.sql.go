@@ -15,24 +15,28 @@ const getInstanceConfig = `-- name: GetInstanceConfig :one
 SELECT api_enabled, api_updated_by, api_updated_at,
        update_check_enabled, update_check_updated_by, update_check_updated_at,
        release_state, release_latest_version, release_latest_notes, release_checked_at,
-       last_backup_at, last_backup_size
+       last_backup_at, last_backup_size,
+       seed_address_cap, seed_address_cap_updated_by, seed_address_cap_updated_at
 FROM instance_config
 WHERE id = true
 `
 
 type GetInstanceConfigRow struct {
-	ApiEnabled           bool               `json:"api_enabled"`
-	ApiUpdatedBy         pgtype.Int8        `json:"api_updated_by"`
-	ApiUpdatedAt         pgtype.Timestamptz `json:"api_updated_at"`
-	UpdateCheckEnabled   bool               `json:"update_check_enabled"`
-	UpdateCheckUpdatedBy pgtype.Int8        `json:"update_check_updated_by"`
-	UpdateCheckUpdatedAt pgtype.Timestamptz `json:"update_check_updated_at"`
-	ReleaseState         pgtype.Text        `json:"release_state"`
-	ReleaseLatestVersion pgtype.Text        `json:"release_latest_version"`
-	ReleaseLatestNotes   pgtype.Text        `json:"release_latest_notes"`
-	ReleaseCheckedAt     pgtype.Timestamptz `json:"release_checked_at"`
-	LastBackupAt         pgtype.Timestamptz `json:"last_backup_at"`
-	LastBackupSize       pgtype.Int8        `json:"last_backup_size"`
+	ApiEnabled              bool               `json:"api_enabled"`
+	ApiUpdatedBy            pgtype.Int8        `json:"api_updated_by"`
+	ApiUpdatedAt            pgtype.Timestamptz `json:"api_updated_at"`
+	UpdateCheckEnabled      bool               `json:"update_check_enabled"`
+	UpdateCheckUpdatedBy    pgtype.Int8        `json:"update_check_updated_by"`
+	UpdateCheckUpdatedAt    pgtype.Timestamptz `json:"update_check_updated_at"`
+	ReleaseState            pgtype.Text        `json:"release_state"`
+	ReleaseLatestVersion    pgtype.Text        `json:"release_latest_version"`
+	ReleaseLatestNotes      pgtype.Text        `json:"release_latest_notes"`
+	ReleaseCheckedAt        pgtype.Timestamptz `json:"release_checked_at"`
+	LastBackupAt            pgtype.Timestamptz `json:"last_backup_at"`
+	LastBackupSize          pgtype.Int8        `json:"last_backup_size"`
+	SeedAddressCap          int64              `json:"seed_address_cap"`
+	SeedAddressCapUpdatedBy pgtype.Int8        `json:"seed_address_cap_updated_by"`
+	SeedAddressCapUpdatedAt pgtype.Timestamptz `json:"seed_address_cap_updated_at"`
 }
 
 // The single operator-global row seeded by the migration; it always exists. Both
@@ -54,6 +58,9 @@ func (q *Queries) GetInstanceConfig(ctx context.Context) (GetInstanceConfigRow, 
 		&i.ReleaseCheckedAt,
 		&i.LastBackupAt,
 		&i.LastBackupSize,
+		&i.SeedAddressCap,
+		&i.SeedAddressCapUpdatedBy,
+		&i.SeedAddressCapUpdatedAt,
 	)
 	return i, err
 }
@@ -108,6 +115,27 @@ type SetReleaseCacheParams struct {
 // check instant is stamped now(), so a "checked N ago" reads honestly.
 func (q *Queries) SetReleaseCache(ctx context.Context, arg SetReleaseCacheParams) error {
 	_, err := q.db.Exec(ctx, setReleaseCache, arg.ReleaseState, arg.ReleaseLatestVersion, arg.ReleaseLatestNotes)
+	return err
+}
+
+const setSeedAddressCap = `-- name: SetSeedAddressCap :exec
+UPDATE instance_config
+SET seed_address_cap = $1, seed_address_cap_updated_by = $2, seed_address_cap_updated_at = now()
+WHERE id = true
+`
+
+type SetSeedAddressCapParams struct {
+	SeedAddressCap          int64       `json:"seed_address_cap"`
+	SeedAddressCapUpdatedBy pgtype.Int8 `json:"seed_address_cap_updated_by"`
+}
+
+// Set the operator address-scope cap (#888 / Settings #206, ADR-0127), stamping who
+// acted and when so the Settings control renders the dated act of the current cap.
+// The value is read at declaration only (ADR-0047 §5.3), so lowering it never
+// invalidates a scope declared under a higher cap. ADR-0127: no upper bound is
+// enforced here — the handler floors it at 1 and the column has no ceiling.
+func (q *Queries) SetSeedAddressCap(ctx context.Context, arg SetSeedAddressCapParams) error {
+	_, err := q.db.Exec(ctx, setSeedAddressCap, arg.SeedAddressCap, arg.SeedAddressCapUpdatedBy)
 	return err
 }
 

@@ -101,6 +101,38 @@ func TestAddressCountAndCap(t *testing.T) {
 	}
 }
 
+func TestLargestPrefixLen(t *testing.T) {
+	cases := []struct {
+		cap        int
+		familyBits int
+		want       int
+	}{
+		// A power-of-two cap admits its exact prefix: 1024 = 2^10 is a /22 IPv4,
+		// a /118 IPv6 (both 1024 addresses). This is the shipped default.
+		{1024, 32, 22},
+		{1024, 128, 118},
+		// A raised cap widens the admitted prefix by one bit per doubling.
+		{262144, 32, 14},  // 2^18 -> /14
+		{262144, 128, 110},
+		// A non-power-of-two cap names the largest FULL prefix that fits, since a
+		// prefix is always a power of two: 1000 admits a /23's 512, not a /22's 1024.
+		{1000, 32, 23},
+		{1023, 32, 23},
+		// A cap of one admits only the host route (a single address).
+		{1, 32, 32},
+		{1, 128, 128},
+		// A sub-one cap admits no scope; it clamps to the host route rather than an
+		// invalid prefix. An oversized cap clamps to /0, never a negative prefix.
+		{0, 32, 32},
+		{1 << 33, 32, 0}, // more addresses than IPv4 holds -> /0
+	}
+	for _, c := range cases {
+		if got := LargestPrefixLen(c.cap, c.familyBits); got != c.want {
+			t.Errorf("LargestPrefixLen(%d, %d) = %d, want %d", c.cap, c.familyBits, got, c.want)
+		}
+	}
+}
+
 func TestEnumerateAddresses(t *testing.T) {
 	// A /30 enumerates all four addresses in ascending order.
 	got := slices.Collect(EnumerateAddresses(netip.MustParsePrefix("192.0.2.8/30")))

@@ -112,19 +112,22 @@ type Heartbeat struct {
 }
 
 type InstanceConfig struct {
-	ID                   bool               `json:"id"`
-	ApiEnabled           bool               `json:"api_enabled"`
-	ApiUpdatedBy         pgtype.Int8        `json:"api_updated_by"`
-	ApiUpdatedAt         pgtype.Timestamptz `json:"api_updated_at"`
-	UpdateCheckEnabled   bool               `json:"update_check_enabled"`
-	UpdateCheckUpdatedBy pgtype.Int8        `json:"update_check_updated_by"`
-	UpdateCheckUpdatedAt pgtype.Timestamptz `json:"update_check_updated_at"`
-	ReleaseState         pgtype.Text        `json:"release_state"`
-	ReleaseLatestVersion pgtype.Text        `json:"release_latest_version"`
-	ReleaseLatestNotes   pgtype.Text        `json:"release_latest_notes"`
-	ReleaseCheckedAt     pgtype.Timestamptz `json:"release_checked_at"`
-	LastBackupAt         pgtype.Timestamptz `json:"last_backup_at"`
-	LastBackupSize       pgtype.Int8        `json:"last_backup_size"`
+	ID                      bool               `json:"id"`
+	ApiEnabled              bool               `json:"api_enabled"`
+	ApiUpdatedBy            pgtype.Int8        `json:"api_updated_by"`
+	ApiUpdatedAt            pgtype.Timestamptz `json:"api_updated_at"`
+	UpdateCheckEnabled      bool               `json:"update_check_enabled"`
+	UpdateCheckUpdatedBy    pgtype.Int8        `json:"update_check_updated_by"`
+	UpdateCheckUpdatedAt    pgtype.Timestamptz `json:"update_check_updated_at"`
+	ReleaseState            pgtype.Text        `json:"release_state"`
+	ReleaseLatestVersion    pgtype.Text        `json:"release_latest_version"`
+	ReleaseLatestNotes      pgtype.Text        `json:"release_latest_notes"`
+	ReleaseCheckedAt        pgtype.Timestamptz `json:"release_checked_at"`
+	LastBackupAt            pgtype.Timestamptz `json:"last_backup_at"`
+	LastBackupSize          pgtype.Int8        `json:"last_backup_size"`
+	SeedAddressCap          int64              `json:"seed_address_cap"`
+	SeedAddressCapUpdatedBy pgtype.Int8        `json:"seed_address_cap_updated_by"`
+	SeedAddressCapUpdatedAt pgtype.Timestamptz `json:"seed_address_cap_updated_at"`
 }
 
 type IntegrationState struct {

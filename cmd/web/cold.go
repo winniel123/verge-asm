@@ -315,9 +315,10 @@ func apertureMeters(seeds []db.ListSeedsRow, zones []db.ListZoneDeclarationsRow,
 }
 
 // maxMeterTotal is the largest denominator the address meter renders through the
-// coveragePct int contract. Every address Seed is bounded to seedAddressCap addresses
-// at declaration (seed.WithinCap), so a real range's enumerable count always fits int;
-// this guard degrades an out-of-range denominator to the honest census rather than
+// coveragePct int contract. An address Seed is bounded at declaration to the operator
+// address-scope cap (seed.WithinCap, server.addressCap), which ADR-0127 leaves with no
+// upper ceiling — so a range's enumerable count is no longer guaranteed to fit int.
+// This guard degrades an out-of-range denominator to the honest census rather than
 // overflowing the fill arithmetic.
 const maxMeterTotal = int64(^uint(0) >> 1)
 

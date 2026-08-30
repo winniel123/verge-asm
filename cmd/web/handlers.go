@@ -156,6 +156,11 @@ type store interface {
 	// SetAPIEnabled flips the read-only /api/v1 surface on or off and stamps who/when
 	// (#390); the API access toggle on the Settings · Access · API tab drives it.
 	SetAPIEnabled(ctx context.Context, arg db.SetAPIEnabledParams) error
+	// SetSeedAddressCap sets the operator address-scope cap and stamps who/when (#888,
+	// ADR-0127); the cap control on the Settings · Scanning · Scans tab drives it. The
+	// value is read at declaration (server.addressCap), so lowering it never invalidates
+	// a scope declared under a higher cap.
+	SetSeedAddressCap(ctx context.Context, arg db.SetSeedAddressCapParams) error
 	// TightestEnabledScanCadenceSeconds is the tightest bound in force, which the
 	// observation dial floors at (#208, ADR-0094) — symmetric to the Dispatch
 	// floor's SlowestEnabledScanCadenceSeconds.
@@ -396,11 +401,6 @@ type server struct {
 	// older than this is refused at /reset rather than setting a password, so a
 	// leaked-then-stale link is inert. Kept short by default.
 	resetTTL time.Duration
-	// seedAddressCap is the ceiling on addresses an address-scope Seed may
-	// cover. It defaults to seed.DefaultAddressCap; the Settings screen (#206)
-	// will make it operator-configurable.
-	seedAddressCap int
-
 	// proposer runs the enabled keyless registry proposer paths for one operator
 	// lookup (ADR-0012). It defaults to the shipped registry over a real HTTP
 	// client; tests inject a fake so no lookup touches the network.
@@ -528,7 +528,6 @@ func newServer(s store, key []byte, setupToken string, now func() time.Time) *se
 		sessionTTL:     12 * time.Hour,
 		pendingTTL:     5 * time.Minute,
 		resetTTL:       30 * time.Minute,
-		seedAddressCap: seed.DefaultAddressCap,
 		proposer:       proposer.DefaultRegistry(&http.Client{Timeout: 30 * time.Second}),
 		sso:            newOIDCFlow(&http.Client{Timeout: 30 * time.Second}),
 		channelSender:  newHTTPChannelSender(now),
@@ -546,6 +545,22 @@ func newServer(s store, key []byte, setupToken string, now func() time.Time) *se
 // evidential row is structurally unreadable, not merely awaiting the Retirer.
 func (s *server) obsAsOf() pgtype.Timestamptz {
 	return pgtype.Timestamptz{Time: s.now().UTC(), Valid: true}
+}
+
+// addressCap reads the operator-configured address-scope cap off the instance_config
+// singleton (#888 / Settings #206, ADR-0127), the ceiling on addresses one
+// address-scope Seed may cover. It falls back to seed.DefaultAddressCap when the
+// store read fails or the stored value is non-positive, so an untouched install (its
+// column seeded from the same default) and a degraded read both behave as the shipped
+// default. The cap is read at declaration only (ADR-0047 §5.3), so a since-lowered cap
+// never invalidates a scope declared under a higher one. There is no upper bound
+// (ADR-0127): the setter floors the value at 1 and nothing here caps it.
+func (s *server) addressCap(ctx context.Context) int {
+	cfg, err := s.store.GetInstanceConfig(ctx)
+	if err != nil || cfg.SeedAddressCap <= 0 {
+		return seed.DefaultAddressCap
+	}
+	return int(cfg.SeedAddressCap)
 }
 
 // redirectTo answers a deprecated GET route with a redirect to its canonical
@@ -909,6 +924,7 @@ func (s *server) handler() http.Handler {
 	// integrations, #38/#39). See cmd/web/channels_sendtest.go.
 	mux.HandleFunc("POST /settings/channels/test", s.requireAdmin(s.testChannel))
 	mux.HandleFunc("POST /settings/retention", s.requireAdmin(s.updateRetention))
+	mux.HandleFunc("POST /settings/address-cap", s.requireAdmin(s.updateAddressCap))
 	// Update checks (#391, ADR-0124): opting the worker's best-effort daily release-feed
 	// check in or out is an admin config act, gated like retention. While disabled the
 	// worker never phones home — air-gap-safe; the swap itself always stays a host action.
