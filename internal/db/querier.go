@@ -417,6 +417,11 @@ type Querier interface {
 	// then treats it exactly as an absent cookie. The clock bound is passed in ($2) so
 	// a fixed-clock test and production agree on the boundary.
 	GetSessionByTokenHash(ctx context.Context, arg GetSessionByTokenHashParams) (Session, error)
+	// The single transcript for a queue_job id — the §6 read handler's source for
+	// `?job={id}`. One row per attempt (spec §1.1), so this addresses a transcript
+	// directly. Returns no row when the job produced no capture (a legible absence,
+	// which the handler renders distinctly from a captured-but-empty stream).
+	GetTranscriptByJob(ctx context.Context, queueJobID int64) (Transcript, error)
 	GetVantage(ctx context.Context, id int64) (Vantage, error)
 	// The operator's declared re-supply interval, held as the zone Scan's cadence.
 	GetZoneCadenceSeconds(ctx context.Context) (int64, error)
@@ -502,6 +507,12 @@ type Querier interface {
 	// Declare one OIDC provider. Returns the id only; the secret is write-only and no
 	// read query hands it back. A public (PKCE-only) client passes a NULL secret.
 	InsertSSOProvider(ctx context.Context, arg InsertSSOProviderParams) (int64, error)
+	// Persist one job's verbatim transcript (raw-job-output spec §1.4), mirroring
+	// InsertObservation. The producer calls it once per captured job inside the
+	// worker's terminal transaction (§2.4), so a job cancelled mid-flight rolls its
+	// transcript back with the rest of its work. A job with no capture inserts no
+	// row — the absence is legible, distinct from a captured-but-empty stream.
+	InsertTranscript(ctx context.Context, arg InsertTranscriptParams) error
 	// The zone Scan's scope: the latest supplied file per name-scope Seed, with its
 	// domain and supply instant, for the worker to restate. DISTINCT ON keeps only
 	// the most recent supply per Seed.
@@ -1093,13 +1104,14 @@ type Querier interface {
 	// only (corpus 1), never dispatch, honoring the comparison-path separation (ADR-0041).
 	PreviousBatchTime(ctx context.Context) (pgtype.Timestamptz, error)
 	RecordHeartbeat(ctx context.Context) (Heartbeat, error)
-	// Atomically claim the next free slot for one crt.sh fetch, instance-wide
-	// (ADR-0005: the 5 req/min throttle is per-source across the whole instance, in
-	// Postgres, not worker memory). GREATEST(next_free_at, now()) is this request's
+	// Atomically claim the next free slot for one CT fetch of a given source,
+	// instance-wide (ADR-0005: the throttle is per-source across the whole instance,
+	// in Postgres, not worker memory). GREATEST(next_free_at, now()) is this request's
 	// slot; next_free_at advances one interval past it, so concurrent workers each
-	// reserve a distinct, correctly-spaced slot. The caller waits until slot_at
-	// before going on the wire.
-	ReserveCTSlot(ctx context.Context, intervalSeconds float64) (pgtype.Timestamptz, error)
+	// reserve a distinct, correctly-spaced slot. The interval is the source's own
+	// spacing, supplied by the caller. The caller waits until slot_at before going on
+	// the wire.
+	ReserveCTSlot(ctx context.Context, arg ReserveCTSlotParams) (pgtype.Timestamptz, error)
 	// Require re-enrollment (Settings -> Team, T18): clear an account's second factor so
 	// their current authenticator stops working at once and the next sign-in walks them
 	// through TOTP setup again. It touches neither the password nor any session — a

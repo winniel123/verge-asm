@@ -17,7 +17,7 @@ import (
 // future secret table is never silently swept into the archive nor silently dropped.
 var knownBusinessTables = []string{
 	"account", "admitted_name", "annotation", "batch", "channel", "cold_scan_scope",
-	"crtsh_throttle", "delivery", "dispatch", "exclusion", "heartbeat", "instance_config",
+	"ct_throttle", "delivery", "dispatch", "exclusion", "heartbeat", "instance_config",
 	"integration_state", "invite", "message", "message_read", "observation",
 	"password_reset", "personal_token", "proposal", "proposer_lookup", "queue_job",
 	"recovery_code", "report_delivery", "report_notification", "report_schedule",

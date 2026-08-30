@@ -116,7 +116,7 @@ var backupExcluded = map[string]string{
 	"recovery_code":  "MFA recovery-code hashes — auth-bypass material with no cross-host restore value; a restored instance's operators re-enroll",
 	"invite":         "pending single-use account-creation invite tokens — short-lived, no durable configuration value",
 	"heartbeat":      "worker liveness ping — ephemeral runtime state, re-derived immediately after restore",
-	"crtsh_throttle": "CT-log fetch rate-limit bucket — ephemeral runtime state",
+	"ct_throttle":    "per-source CT fetch rate-limit buckets — ephemeral runtime state",
 	"queue_job":      "in-flight scan queue — transient work-in-progress; stale 'running' rows would be phantom after an overwrite restore",
 }
 

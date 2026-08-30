@@ -29,17 +29,18 @@ FROM admitted_name
 ORDER BY name;
 
 -- name: ReserveCTSlot :one
--- Atomically claim the next free slot for one crt.sh fetch, instance-wide
--- (ADR-0005: the 5 req/min throttle is per-source across the whole instance, in
--- Postgres, not worker memory). GREATEST(next_free_at, now()) is this request's
+-- Atomically claim the next free slot for one CT fetch of a given source,
+-- instance-wide (ADR-0005: the throttle is per-source across the whole instance,
+-- in Postgres, not worker memory). GREATEST(next_free_at, now()) is this request's
 -- slot; next_free_at advances one interval past it, so concurrent workers each
--- reserve a distinct, correctly-spaced slot. The caller waits until slot_at
--- before going on the wire.
+-- reserve a distinct, correctly-spaced slot. The interval is the source's own
+-- spacing, supplied by the caller. The caller waits until slot_at before going on
+-- the wire.
 WITH reserved AS (
-    UPDATE crtsh_throttle
+    UPDATE ct_throttle
     SET next_free_at = GREATEST(next_free_at, now())
         + make_interval(secs => sqlc.arg(interval_seconds)::double precision)
-    WHERE id = 1
+    WHERE source = sqlc.arg(source)
     RETURNING next_free_at
 )
 SELECT (next_free_at
