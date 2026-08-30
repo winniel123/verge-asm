@@ -24,6 +24,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/remoteexec"
 	"github.com/winniel123/verge-asm/internal/report"
 	"github.com/winniel123/verge-asm/internal/retention"
+	"github.com/winniel123/verge-asm/internal/transcript"
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
@@ -56,6 +57,17 @@ func main() {
 	proberPath := env.OrDefault("VERGE_PROBER_PATH", "/app/prober")
 	proberDir := env.OrDefault("VERGE_PROBER_DIR", "/app/probers")
 	stateDir := env.OrDefault("VERGE_STATE_DIR", "/app/state")
+
+	// Provision the instance transcript key on the shared key volume before any
+	// job runs, so the writer (#865) can seal captured output at rest. This is the
+	// worker's half of the one key web (the reader) also mounts. Fatal if the
+	// volume is unwritable — running on without a key would silently drop the
+	// corpus (raw-job-output spec §5.3).
+	transcriptKeyDir := env.OrDefault("VERGE_TRANSCRIPT_KEY_DIR", "/app/transcript-key")
+	if err := transcript.EnsureKey(transcriptKeyDir); err != nil {
+		log.Fatalf("worker: transcript key: %v", err)
+	}
+
 	logger := log.New(os.Stderr, "", log.LstdFlags)
 	dispatcher := queue.NewDispatcher(pool, time.Now, logger)
 	// The off-host measurement router (ADR-0103, #683, P0.8): a provisioned internet

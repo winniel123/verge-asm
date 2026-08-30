@@ -22,8 +22,8 @@ var knownBusinessTables = []string{
 	"password_reset", "personal_token", "proposal", "proposer_lookup", "queue_job",
 	"recovery_code", "report_delivery", "report_notification", "report_schedule",
 	"retention_settings", "scan", "seed", "session", "signal_instance", "source_state",
-	"span", "sso_identity", "sso_provider", "vantage", "verge_core_frequency_edit",
-	"zone_file",
+	"span", "sso_identity", "sso_provider", "transcript", "vantage",
+	"verge_core_frequency_edit", "zone_file",
 }
 
 // TestBackupTablesPartitionSchema proves the allowlist and denylist together cover every
