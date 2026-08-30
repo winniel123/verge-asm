@@ -1093,13 +1093,14 @@ type Querier interface {
 	// only (corpus 1), never dispatch, honoring the comparison-path separation (ADR-0041).
 	PreviousBatchTime(ctx context.Context) (pgtype.Timestamptz, error)
 	RecordHeartbeat(ctx context.Context) (Heartbeat, error)
-	// Atomically claim the next free slot for one crt.sh fetch, instance-wide
-	// (ADR-0005: the 5 req/min throttle is per-source across the whole instance, in
-	// Postgres, not worker memory). GREATEST(next_free_at, now()) is this request's
+	// Atomically claim the next free slot for one CT fetch of a given source,
+	// instance-wide (ADR-0005: the throttle is per-source across the whole instance,
+	// in Postgres, not worker memory). GREATEST(next_free_at, now()) is this request's
 	// slot; next_free_at advances one interval past it, so concurrent workers each
-	// reserve a distinct, correctly-spaced slot. The caller waits until slot_at
-	// before going on the wire.
-	ReserveCTSlot(ctx context.Context, intervalSeconds float64) (pgtype.Timestamptz, error)
+	// reserve a distinct, correctly-spaced slot. The interval is the source's own
+	// spacing, supplied by the caller. The caller waits until slot_at before going on
+	// the wire.
+	ReserveCTSlot(ctx context.Context, arg ReserveCTSlotParams) (pgtype.Timestamptz, error)
 	// Require re-enrollment (Settings -> Team, T18): clear an account's second factor so
 	// their current authenticator stops working at once and the next sign-in walks them
 	// through TOTP setup again. It touches neither the password nor any session — a

@@ -108,10 +108,10 @@ func (q *Queries) ListNameSeeds(ctx context.Context) ([]ListNameSeedsRow, error)
 
 const reserveCTSlot = `-- name: ReserveCTSlot :one
 WITH reserved AS (
-    UPDATE crtsh_throttle
+    UPDATE ct_throttle
     SET next_free_at = GREATEST(next_free_at, now())
         + make_interval(secs => $1::double precision)
-    WHERE id = 1
+    WHERE source = $2
     RETURNING next_free_at
 )
 SELECT (next_free_at
@@ -119,14 +119,20 @@ SELECT (next_free_at
 FROM reserved
 `
 
-// Atomically claim the next free slot for one crt.sh fetch, instance-wide
-// (ADR-0005: the 5 req/min throttle is per-source across the whole instance, in
-// Postgres, not worker memory). GREATEST(next_free_at, now()) is this request's
+type ReserveCTSlotParams struct {
+	IntervalSeconds float64 `json:"interval_seconds"`
+	Source          string  `json:"source"`
+}
+
+// Atomically claim the next free slot for one CT fetch of a given source,
+// instance-wide (ADR-0005: the throttle is per-source across the whole instance,
+// in Postgres, not worker memory). GREATEST(next_free_at, now()) is this request's
 // slot; next_free_at advances one interval past it, so concurrent workers each
-// reserve a distinct, correctly-spaced slot. The caller waits until slot_at
-// before going on the wire.
-func (q *Queries) ReserveCTSlot(ctx context.Context, intervalSeconds float64) (pgtype.Timestamptz, error) {
-	row := q.db.QueryRow(ctx, reserveCTSlot, intervalSeconds)
+// reserve a distinct, correctly-spaced slot. The interval is the source's own
+// spacing, supplied by the caller. The caller waits until slot_at before going on
+// the wire.
+func (q *Queries) ReserveCTSlot(ctx context.Context, arg ReserveCTSlotParams) (pgtype.Timestamptz, error) {
+	row := q.db.QueryRow(ctx, reserveCTSlot, arg.IntervalSeconds, arg.Source)
 	var slot_at pgtype.Timestamptz
 	err := row.Scan(&slot_at)
 	return slot_at, err
