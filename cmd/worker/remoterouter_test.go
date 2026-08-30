@@ -163,12 +163,17 @@ func TestRouterProbesPinnedProberOffHost(t *testing.T) {
 		},
 	}
 
-	obs, handled, err := rt.ProbeVantage(context.Background(), pgtype.Int8{Int64: 3, Valid: true}, wire.JobSpec{Batch: "b7", Kind: "connect-outcome"})
+	res, handled, err := rt.ProbeVantage(context.Background(), pgtype.Int8{Int64: 3, Valid: true}, wire.JobSpec{Batch: "b7", Kind: "connect-outcome"})
 	if err != nil || !handled {
 		t.Fatalf("pinned prober: handled=%v err=%v", handled, err)
 	}
-	if len(obs) != 1 || obs[0].Batch != "b7" {
-		t.Fatalf("observations = %+v, want one b7", obs)
+	if len(res.Observations) != 1 || res.Observations[0].Batch != "b7" {
+		t.Fatalf("observations = %+v, want one b7", res.Observations)
+	}
+	// #863: the remote path returns an absent (nil) Transcript — the shape only, no
+	// bytes carried back until #841.
+	if res.Transcript != nil {
+		t.Errorf("remote Transcript = %+v, want absent (nil) until #841", res.Transcript)
 	}
 	// The binary was pushed before the exec.
 	if len(conn.ran) < 2 || !strings.HasPrefix(conn.ran[0], "cat > ") {

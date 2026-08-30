@@ -57,18 +57,18 @@ func newRemoteProberRouter(store remoteVantageStore, binaries remoteexec.BinaryP
 // deferring to the local prober — for a job with no vantage or a vantage with no
 // prober; handled=true (with observations or a transient error) for a provisioned
 // prober.
-func (rt *remoteProberRouter) ProbeVantage(ctx context.Context, vantageID pgtype.Int8, spec wire.JobSpec) ([]wire.Observation, bool, error) {
+func (rt *remoteProberRouter) ProbeVantage(ctx context.Context, vantageID pgtype.Int8, spec wire.JobSpec) (wire.ProbeResult, bool, error) {
 	if !vantageID.Valid {
-		return nil, false, nil // no vantage (e.g. a worker-read kind) — local
+		return wire.ProbeResult{}, false, nil // no vantage (e.g. a worker-read kind) — local
 	}
 	v, err := rt.store.GetVantage(ctx, vantageID.Int64)
 	if err != nil {
-		return nil, false, fmt.Errorf("router: get vantage %d: %w", vantageID.Int64, err)
+		return wire.ProbeResult{}, false, fmt.Errorf("router: get vantage %d: %w", vantageID.Int64, err)
 	}
 	// A resolver-only vantage has no prober endpoint: its jobs run on the instance host
 	// via the local prober, exactly as before this router existed.
 	if !v.Host.Valid || v.Host.String == "" {
-		return nil, false, nil
+		return wire.ProbeResult{}, false, nil
 	}
 	// This is a provisioned prober, so its measurement belongs off-host. From here the
 	// router owns the outcome (handled=true); a failure is a transient measurement error
@@ -76,11 +76,11 @@ func (rt *remoteProberRouter) ProbeVantage(ctx context.Context, vantageID pgtype
 	if !v.HostKey.Valid || v.HostKey.String == "" {
 		// The host key is pinned on the worker's startup connect. Until then, refuse
 		// rather than silently first-trust a host on the measurement path.
-		return nil, true, fmt.Errorf("router: vantage %d host key not pinned yet", v.ID)
+		return wire.ProbeResult{}, true, fmt.Errorf("router: vantage %d host key not pinned yet", v.ID)
 	}
 	keyData, err := os.ReadFile(vantageKeyPath(rt.stateDir, v.ID))
 	if err != nil {
-		return nil, true, fmt.Errorf("router: read private key for vantage %d: %w", v.ID, err)
+		return wire.ProbeResult{}, true, fmt.Errorf("router: read private key for vantage %d: %w", v.ID, err)
 	}
 	addr := endpointAddr(v)
 	conn, err := rt.dial(ctx, remoteexec.Target{
@@ -91,13 +91,16 @@ func (rt *remoteProberRouter) ProbeVantage(ctx context.Context, vantageID pgtype
 		Timeout:         dialTimeout,
 	})
 	if err != nil {
-		return nil, true, fmt.Errorf("router: dial vantage %d (%s): %w", v.ID, addr, err)
+		return wire.ProbeResult{}, true, fmt.Errorf("router: dial vantage %d (%s): %w", v.ID, addr, err)
 	}
 	defer conn.Close()
 
+	// The remote Transcript is ABSENT until #841 carries the raw bytes back across the
+	// wire; this ticket (#863) returns only the observations in the ProbeResult shape,
+	// so #841 is a pure fill-in with no further signature change.
 	obs, err := remoteexec.Probe(ctx, conn, rt.binaries, spec)
 	if err != nil {
-		return nil, true, fmt.Errorf("router: probe vantage %d off-host: %w", v.ID, err)
+		return wire.ProbeResult{}, true, fmt.Errorf("router: probe vantage %d off-host: %w", v.ID, err)
 	}
-	return obs, true, nil
+	return wire.ProbeResult{Observations: obs}, true, nil
 }
