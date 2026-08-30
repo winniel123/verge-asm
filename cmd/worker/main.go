@@ -96,6 +96,7 @@ func main() {
 	devMode := isTruthy(env.OrDefault("VERGE_DEV", ""))
 	worker := queue.NewWorker(pool, queue.ExecProber{Path: proberPath}, time.Now, logger).
 		WithCT(queue.NewHTTPCTFetcher(env.OrDefault("VERGE_VERSION", "dev")), queue.NewCTThrottle(db.New(pool))).
+		WithCTTail(queue.NewHTTPCTFetcher(env.OrDefault("VERGE_VERSION", "dev"))).
 		WithRouter(router).
 		WithMessages(delivery.EnqueueForMessage, devMode)
 

@@ -84,6 +84,11 @@ type Worker struct {
 	ctFetcher  CTFetcher
 	ctThrottle CTThrottle
 
+	// The ct-tail runner's fetcher (spec §4), wired via WithCTTail. Nil on a worker
+	// built without it: a `ct-tail` job then refuses rather than silently admitting
+	// nothing. It reuses the CTFetcher seam, pointed at the RFC 6962 log endpoints.
+	ctTailFetcher CTFetcher
+
 	// The off-host measurement router (ADR-0103, #683), wired via WithRouter. A
 	// provisioned internet Vantage measures from its OWN position: its jobs are pushed
 	// to and exec'd on the prober host over SSH, not run locally on the instance. Nil
@@ -260,6 +265,12 @@ func (w *Worker) process(ctx context.Context, job db.ClaimJobRow) error {
 	// (ADR-0027, ADR-0106).
 	if spec.Kind == scan.CTKind {
 		return w.completeCT(ctx, job, spec)
+	}
+
+	// The ct-tail Scan is worker-read too: it polls a CT log directly, forward-only,
+	// and admits without observing — no observation, no span (spec §4, ADR-0027).
+	if spec.Kind == scan.CTTailKind {
+		return w.completeCTTail(ctx, job, spec)
 	}
 
 	res, probeErr := w.probe(ctx, job.VantageID, spec)

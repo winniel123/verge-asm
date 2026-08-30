@@ -70,6 +70,13 @@ type ColdScanScope struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
+type CtLogCursor struct {
+	LogID      string             `json:"log_id"`
+	TreeSize   int64              `json:"tree_size"`
+	SignedHead []byte             `json:"signed_head"`
+	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
+}
+
 type CtThrottle struct {
 	Source     string             `json:"source"`
 	NextFreeAt pgtype.Timestamptz `json:"next_free_at"`
