@@ -189,6 +189,12 @@ func (s *server) declareSeed(w http.ResponseWriter, r *http.Request, acct db.Acc
 		return
 	}
 
+	// The operator address-scope cap, read once per paste off the instance_config
+	// singleton (#888, ADR-0127) rather than a compiled constant, so a raise on the
+	// Settings control takes effect on the next declaration. Read here, not per token,
+	// so one paste is one store read; every token in the paste checks the same cap.
+	addrCap := s.addressCap(r.Context())
+
 	// declared tracks the normalized keys committed in THIS paste so a duplicate token
 	// within one paste is refused `already declared` even before the DB unique constraint
 	// would catch it — the first token declares, the second refuses (DF-F1 edge).
@@ -196,7 +202,7 @@ func (s *server) declareSeed(w http.ResponseWriter, r *http.Request, acct db.Acc
 	var refusals []refusalView
 	successes := 0
 	for _, tok := range tokens {
-		if ref := s.declareOneScope(r, acct, tok, declared); ref != nil {
+		if ref := s.declareOneScope(r, acct, tok, declared, addrCap); ref != nil {
 			refusals = append(refusals, *ref)
 		} else {
 			successes++
@@ -232,7 +238,7 @@ func (s *server) declareSeed(w http.ResponseWriter, r *http.Request, acct db.Acc
 	s.renderSeeds(w, r, acct, seedsForms{
 		refusals:  refusals,
 		seedScope: joinRefusedInputs(refusals),
-		seedError: allRefusedFormError(refusals, s.seedAddressCap),
+		seedError: allRefusedFormError(refusals, addrCap),
 	})
 }
 
@@ -242,7 +248,7 @@ func (s *server) declareSeed(w http.ResponseWriter, r *http.Request, acct db.Acc
 // duplicate (`already declared`). declared holds the normalized keys already committed
 // in this paste so a within-paste duplicate refuses before the DB is touched. Each
 // success is its own dated act (a distinct CreateSeed call).
-func (s *server) declareOneScope(r *http.Request, acct db.Account, value string, declared map[string]bool) *refusalView {
+func (s *server) declareOneScope(r *http.Request, acct db.Account, value string, declared map[string]bool, addrCap int) *refusalView {
 	value = strings.TrimSpace(value)
 	if isAddressValue(value) {
 		if _, err := seed.ParseCIDR(cidrForm(value)); err != nil {
@@ -252,8 +258,8 @@ func (s *server) declareOneScope(r *http.Request, acct db.Account, value string,
 		// The raw form is kept for the callout so its Input/Reachable echo the operator's
 		// own base address rather than the masked network address.
 		rawP, _ := netip.ParsePrefix(strings.TrimSpace(cidrForm(value)))
-		if !seed.WithinCap(rawP, s.seedAddressCap) {
-			ref := refusalOverCap(value, rawP, s.seedAddressCap)
+		if !seed.WithinCap(rawP, addrCap) {
+			ref := refusalOverCap(value, rawP, addrCap)
 			return &ref
 		}
 		p := rawP.Masked()
@@ -546,7 +552,7 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		// scope.tmpl styles against the design token vocabulary; the "head" block
 		// inlines tokens/*.css only when this datum is set (as the batch-2 screens do).
 		"DesignTokens": true,
-		"Seeds":        seeds, "AddressCap": s.seedAddressCap,
+		"Seeds":        seeds, "AddressCap": s.addressCap(r.Context()),
 		// The declared name tree (Scope.jsx:86-98): registrable domains → leaf names,
 		// each carrying its own max-of-firing-signals severity.
 		"NameTree": nameTree,
