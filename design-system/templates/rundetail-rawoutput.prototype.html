@@ -1,0 +1,474 @@
+<!doctype html>
+<!--
+  THROWAWAY PROTOTYPE — not production. Ticket #843 (map #838).
+  Question: how is verbatim raw job output surfaced on /runs/{id}?job={n}?
+  Three structurally-different variants, switch with the floating bottom bar or ← →.
+    A — Secondary drawer      (raw is an opt-in card BELOW the untouched redacted log)
+    B — In-place tab swap      (one panel, "Live (redacted)" ↔ "Raw (verbatim)")
+    C — Dedicated split view    (job chip opens a raw-focused full-column view)
+  All variants assume POST-HOC raw (locked: #840 writes the Transcript in the terminal tx;
+  the live stream #780 is in-memory and persists nothing — there is no raw stream to tail).
+  Admin-only + verbatim/unredacted framing is #842.
+  Double-click to run. No server. Tokens + rd-* CSS copied from design-system as of v3.8.0.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raw output prototype · #843</title>
+<style>
+@import url("https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=Geist+Mono:wght@400..700&display=swap");
+
+/* ---- design-system tokens (colors / type / elevation / motion / radius / spacing) ---- */
+:root {
+  --primary-400: #6bbeff; --primary-500: #3f9fe8;
+  --neutral-400: #b8b5b1; --neutral-500: #9b9893; --neutral-600: #83807b; --neutral-700: #6c6864; --neutral-800: #585550;
+  --bg-page: #f9f7f5; --surface: #ffffff; --surface-sunken: #f2f0ec; --surface-inverted: #231f19;
+  --text-ink: #231f19; --text-body: #37322c; --text-secondary: #67625c; --text-muted: #79746d; --text-on-inverted: #f4f2ef;
+  --border-default: #e2dfdb; --border-strong: #c7c3be;
+  --accent: #037ac0; --on-accent: #ffffff; --accent-soft: #e1f6ff; --accent-softer: #effcff; --link: #006eaf;
+  --ok: #05773b; --ok-solid: #3d9c5e; --ok-soft: #e1fae7; --ok-border: #bfebc9;
+  --warn: #8d5500; --warn-solid: #b37903; --warn-soft: #fff0d8; --warn-border: #f8d9af;
+  --danger: #ac312c; --danger-solid: #d5584f; --danger-soft: #ffe8e2; --danger-border: #ffcac2;
+  --font-ui: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Geist Mono", "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+  --heading-tracking: -0.015em;
+  --shadow-sm: 0 1px 2px rgba(35,31,25,.06), 0 2px 8px rgba(35,31,25,.04);
+  --shadow-md: 0 2px 4px rgba(35,31,25,.05), 0 8px 24px rgba(35,31,25,.09);
+  --dur-fast: 120ms; --ease-out: cubic-bezier(0.2,0,0,1);
+  --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-full: 999px;
+}
+[data-theme="dark"] {
+  --primary-400: #6bbeff; --primary-500: #3f9fe8;
+  --neutral-400: #b8b5b1; --neutral-500: #9b9893; --neutral-600: #83807b; --neutral-700: #6c6864; --neutral-800: #585550;
+  --bg-page: #15120f; --surface: #1e1b17; --surface-sunken: #191613; --surface-inverted: #eae7e4;
+  --text-ink: #eae7e4; --text-body: #d9d5d1; --text-secondary: #b1ada8; --text-muted: #898581; --text-on-inverted: #231f19;
+  --border-default: #383530; --border-strong: #514c46;
+  --accent: #6bbeff; --on-accent: #063352; --accent-soft: #272f33; --accent-softer: #20262a; --link: #59acee;
+  --ok: #57c07f; --ok-solid: #3d9c5e; --ok-soft: #17281c; --ok-border: #1f4029;
+  --warn: #e0aa4a; --warn-solid: #c68d00; --warn-soft: #2d2413; --warn-border: #4a3a12;
+  --danger: #f08c82; --danger-solid: #d5584f; --danger-soft: #331b17; --danger-border: #55231d;
+  --shadow-md: 0 2px 4px rgba(0,0,0,.35), 0 8px 24px rgba(0,0,0,.45);
+}
+* { box-sizing: border-box; }
+body { margin: 0; font-family: var(--font-ui); color: var(--text-body); background: var(--bg-page); font-size: 13px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+a { color: var(--link); text-decoration: none; }
+* { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 999px; border: 3px solid transparent; background-clip: padding-box; }
+@keyframes rd-pulse { 0% { box-shadow: 0 0 0 0 rgba(3,122,192,.35); } 70% { box-shadow: 0 0 0 6px rgba(3,122,192,0); } 100% { box-shadow: 0 0 0 0 rgba(3,122,192,0); } }
+
+/* ---- mock console chrome (so variants butt against real density) ---- */
+.pt-shell { display: grid; grid-template-columns: 210px minmax(0,1fr); min-height: 100vh; }
+.pt-side { border-right: 1px solid var(--border-default); background: var(--surface); padding: 18px 14px; display: flex; flex-direction: column; gap: 4px; }
+.pt-brand { font: 600 14px var(--font-mono); color: var(--text-ink); letter-spacing: -.01em; padding: 4px 8px 16px; }
+.pt-brand small { display:block; font: 500 10px var(--font-mono); letter-spacing:.08em; text-transform:uppercase; color: var(--text-muted); margin-top:3px; }
+.pt-nav { display: flex; align-items: center; gap: 9px; height: 34px; padding: 0 10px; border-radius: var(--r-md); font: 500 13px var(--font-ui); color: var(--text-secondary); }
+.pt-nav.on { background: var(--accent-soft); color: var(--link); }
+.pt-nav .d { width: 6px; height: 6px; border-radius: 999px; background: currentColor; opacity:.7; }
+.pt-topbar { display:flex; align-items:center; gap:10px; height:52px; padding:0 32px; border-bottom:1px solid var(--border-default); background: var(--surface); }
+.pt-topbar .who { margin-left:auto; font: 500 12px var(--font-mono); color: var(--text-muted); display:inline-flex; align-items:center; gap:7px; }
+.pt-admin { display:inline-flex; align-items:center; gap:5px; height:20px; padding:0 8px; border-radius: var(--r-full); background: var(--surface-sunken); border:1px solid var(--border-default); font: 600 10px var(--font-mono); letter-spacing:.05em; text-transform:uppercase; color: var(--text-secondary); }
+
+/* ---- rd-* from rundetail.tmpl (verbatim), plus prototype extras ---- */
+.rd-main { max-width: 1440px; width: 100%; margin: 0 auto; padding: 28px 32px 96px; display: flex; flex-direction: column; gap: 20px; }
+.rd-crumb { display:flex; align-items:center; gap:8px; font:500 11px var(--font-mono); letter-spacing:.07em; text-transform:uppercase; }
+.rd-crumb a { color: var(--text-muted); }
+.rd-crumb .sep { color: var(--text-muted); }
+.rd-crumb .here { color: var(--text-body); }
+.rd-main h1 { margin:0; font:600 21px var(--font-mono); letter-spacing:-.01em; color: var(--text-ink); }
+.rd-card { background: var(--surface); border:1px solid var(--border-default); border-radius: 16px; box-shadow: var(--shadow-sm); display:flex; flex-direction:column; }
+.rd-cardhead { display:flex; flex-direction:column; gap:3px; padding:20px 20px 0; }
+.rd-micro { font:500 11px var(--font-mono); letter-spacing:.07em; text-transform:uppercase; color: var(--text-muted); }
+.rd-cardhead h3 { margin:0; font:600 15px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.rd-body { padding:20px; }
+.rd-batch { display:inline-flex; align-items:center; gap:6px; height:20px; padding:0 8px; border-radius:8px; border:1px solid transparent; font-family: var(--font-mono); font-size:10.5px; font-weight:600; letter-spacing:.04em; line-height:1; }
+.rd-batch .dot { width:5px; height:5px; border-radius:999px; }
+.rd-batch.running { background: var(--accent-soft); color: var(--link); }
+.rd-batch.running .dot { background: var(--accent); animation: rd-pulse 1.8s var(--ease-out) infinite; }
+.rd-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; height:36px; padding:0 16px; border-radius:12px; font:600 13px var(--font-ui); cursor:pointer; text-decoration:none; background: var(--surface); color: var(--text-body); border:1px solid var(--border-strong); }
+.rd-btn:hover { background: var(--surface-sunken); }
+.rd-btn.sm { height:28px; padding:0 11px; font-size:12px; border-radius:9px; }
+
+.rd-log { background: var(--surface-inverted); border-radius:12px; overflow:hidden; }
+.rd-loghead { display:flex; align-items:center; gap:8px; padding:8px 14px 0; }
+.rd-loghead .lbl { font:500 10.5px var(--font-mono); letter-spacing:.07em; text-transform:uppercase; color: var(--neutral-500); }
+.rd-loghead .live { margin-left:auto; display:inline-flex; align-items:center; gap:6px; font:500 10px var(--font-mono); letter-spacing:.07em; text-transform:uppercase; color: var(--primary-400); }
+.rd-loghead .live .ldot { width:6px; height:6px; border-radius:999px; background: var(--primary-400); animation: rd-pulse 1.8s var(--ease-out) infinite; }
+.rd-loghead .jf { display:inline-flex; align-items:center; gap:6px; height:18px; padding:0 7px; border-radius:999px; border:1px solid var(--neutral-700); font:500 10px var(--font-mono); letter-spacing:.05em; text-transform:uppercase; color: var(--neutral-400); white-space:nowrap; }
+.rd-logbody { height:300px; overflow-y:auto; overflow-x:hidden; padding:10px 14px 12px; }
+.rd-line { display:flex; gap:10px; font:400 11.5px/1.7 var(--font-mono); }
+.rd-line .t { color: var(--neutral-600); flex:none; }
+.rd-line .x { color: var(--text-on-inverted); overflow-wrap:anywhere; white-space:pre-wrap; }
+.rd-line.warn .x { color:#e0aa4a; }
+.rd-line.error .x { color:#f08c82; }
+.rd-kv { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:14px 20px; padding:16px; background: var(--surface-sunken); border-radius:12px; }
+.rd-kv .cell { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.rd-kv .v { font:400 12.5px var(--font-mono); color: var(--text-body); overflow-wrap:anywhere; }
+.rd-vant { display:flex; align-items:center; gap:10px; }
+.rd-vant .name { font:500 12.5px var(--font-mono); color: var(--text-ink); }
+.rd-vant .right { margin-left:auto; display:inline-flex; align-items:center; gap:8px; }
+.rd-vant .lat { font:400 11.5px var(--font-mono); color: var(--text-muted); }
+.rd-badge { display:inline-flex; align-items:center; gap:6px; height:22px; padding:0 10px; border-radius:999px; border:1px solid transparent; font-size:12px; font-weight:500; }
+.rd-badge .bdot { width:6px; height:6px; border-radius:999px; background: currentColor; }
+.rd-badge.ok { background: var(--ok-soft); border-color: var(--ok-border); color: var(--ok); }
+
+/* raw-output shared primitives */
+.raw-warn { display:flex; align-items:center; gap:8px; padding:7px 12px; background: var(--warn-soft); border:1px solid var(--warn-border); color: var(--warn); border-radius: var(--r-sm); font:500 11.5px var(--font-ui); }
+.raw-warn svg { flex:none; }
+.raw-key { font:500 10px var(--font-mono); letter-spacing:.06em; text-transform:uppercase; color: var(--neutral-500); }
+.seg { display:inline-flex; background: var(--neutral-800); border-radius: 999px; padding:2px; }
+.seg button { appearance:none; border:0; background:transparent; cursor:pointer; height:22px; padding:0 12px; border-radius:999px; font:500 11px var(--font-mono); letter-spacing:.03em; color: var(--neutral-400); display:inline-flex; align-items:center; gap:6px; }
+.seg button .n { font-size:10px; color: var(--neutral-500); }
+.seg button.on { background: var(--surface-inverted); color: var(--text-on-inverted); box-shadow: var(--shadow-sm); }
+.seg button.on .n { color: var(--primary-400); }
+.rawline { display:block; font:400 11.5px/1.7 var(--font-mono); color: var(--text-on-inverted); white-space:pre-wrap; overflow-wrap:anywhere; }
+.rawline.err { color:#f08c82; }
+.trunc { margin:8px 0 2px; padding:5px 0; text-align:center; font:500 10.5px var(--font-mono); letter-spacing:.04em; color: var(--neutral-500); border-top:1px dashed var(--neutral-700); border-bottom:1px dashed var(--neutral-700); }
+.metastrip { display:flex; flex-wrap:wrap; gap:7px; }
+.metachip { display:inline-flex; flex-direction:column; gap:1px; padding:6px 11px; background: var(--neutral-800); border-radius: var(--r-sm); }
+.metachip .k { font:500 9px var(--font-mono); letter-spacing:.07em; text-transform:uppercase; color: var(--neutral-500); }
+.metachip .val { font:600 12px var(--font-mono); color: var(--text-on-inverted); }
+.metachip .val.ok { color:#7fdca0; }
+
+/* A — drawer */
+.drawer-toggle { display:flex; align-items:center; gap:10px; width:100%; padding:14px 20px; background:transparent; border:0; cursor:pointer; text-align:left; }
+.drawer-toggle .chev { transition: transform var(--dur-fast) var(--ease-out); color: var(--text-muted); }
+.rd-card.open .drawer-toggle .chev { transform: rotate(90deg); }
+.drawer-body { display:none; padding:0 20px 20px; flex-direction:column; gap:12px; }
+.rd-card.open .drawer-body { display:flex; }
+
+/* B — tabs */
+.rd-tabs { display:flex; gap:2px; padding:6px 10px 0; }
+.rd-tab { appearance:none; border:0; background:transparent; cursor:pointer; padding:7px 12px 9px; font:500 11.5px var(--font-mono); letter-spacing:.04em; text-transform:uppercase; color: var(--neutral-500); border-bottom:2px solid transparent; }
+.rd-tab.on { color: var(--text-on-inverted); border-bottom-color: var(--primary-400); }
+.rd-tab .n { color: var(--neutral-600); }
+
+/* C — split */
+.split { display:grid; grid-template-columns: minmax(0,1fr) 340px; gap:20px; align-items:start; }
+.split .rd-logbody.tall { height: 520px; }
+.split .rd-logbody.stderr { height: 240px; }
+.backlink { display:inline-flex; align-items:center; gap:7px; font:500 12px var(--font-mono); color: var(--text-muted); cursor:pointer; }
+
+/* floating variant switcher + prototype ribbon (NEVER ships) */
+.pt-ribbon { position:fixed; top:0; left:0; z-index:50; background: var(--danger-solid); color:#fff; font:600 10px var(--font-mono); letter-spacing:.08em; text-transform:uppercase; padding:3px 34px; transform: rotate(-45deg) translate(-30px, -6px); box-shadow: var(--shadow-sm); }
+.pt-switch { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:60; display:flex; align-items:center; gap:4px; padding:6px; background: var(--surface); border:1px solid var(--border-strong); border-radius: var(--r-full); box-shadow: var(--shadow-md); }
+.pt-switch button { appearance:none; border:0; cursor:pointer; width:32px; height:32px; border-radius:999px; background: var(--surface-sunken); color: var(--text-body); font-size:15px; display:inline-flex; align-items:center; justify-content:center; }
+.pt-switch button:hover { background: var(--accent-soft); color: var(--link); }
+.pt-switch .lab { min-width:196px; text-align:center; font:600 12px var(--font-ui); color: var(--text-ink); }
+.pt-switch .lab small { display:block; font:500 10px var(--font-mono); color: var(--text-muted); margin-top:1px; }
+.pt-theme { position:fixed; top:14px; right:18px; z-index:60; }
+.pt-theme button { appearance:none; cursor:pointer; height:30px; padding:0 12px; border-radius:999px; background: var(--surface); border:1px solid var(--border-strong); font:500 11px var(--font-mono); color: var(--text-secondary); }
+[hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<div class="pt-ribbon">Prototype · #843</div>
+<div class="pt-theme"><button id="themeBtn" type="button">◐ theme</button></div>
+
+<div class="pt-shell">
+  <aside class="pt-side">
+    <div class="pt-brand">verge&#8202;·&#8202;asm<small>console</small></div>
+    <div class="pt-nav"><span class="d"></span>Inventory</div>
+    <div class="pt-nav"><span class="d"></span>Drift</div>
+    <div class="pt-nav on"><span class="d"></span>Runs</div>
+    <div class="pt-nav"><span class="d"></span>Vantages</div>
+    <div class="pt-nav"><span class="d"></span>Settings</div>
+  </aside>
+
+  <div>
+    <div class="pt-topbar">
+      <span style="font:600 13px var(--font-ui);color:var(--text-ink)">Scan run detail</span>
+      <span class="who"><span class="pt-admin">admin</span>l.winnie</span>
+    </div>
+
+    <!-- ================= VARIANT A — secondary drawer ================= -->
+    <main class="rd-main" id="variant-A" hidden>
+      <nav class="rd-crumb"><a href="#">Runs</a><span class="sep">/</span><span class="here">batch 7f3a1c</span></nav>
+      <header style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <h1>batch 7f3a1c</h1>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span class="rd-batch running"><span class="dot"></span>running</span>
+            <span style="font:400 12px var(--font-mono);color:var(--text-muted)">203.0.113.0/22 · 1,024 targets · started 14:22</span>
+          </div>
+        </div>
+      </header>
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:24px;align-items:start">
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <!-- untouched redacted log -->
+          <div class="rd-log">
+            <div class="rd-loghead">
+              <span class="lbl">batch 7f3a1c</span>
+              <span class="jf">job #4821 · connect-outcome · local <span aria-hidden="true">×</span></span>
+              <span class="live"><span class="ldot"></span>streaming</span>
+            </div>
+            <div class="rd-logbody" data-redacted></div>
+          </div>
+          <!-- raw output as an opt-in drawer BELOW -->
+          <section class="rd-card open" id="A-drawer">
+            <button class="drawer-toggle" type="button" onclick="this.closest('.rd-card').classList.toggle('open')">
+              <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+              <span style="display:flex;flex-direction:column;gap:1px">
+                <span class="rd-micro">Raw job output</span>
+                <span style="font:600 14px var(--font-ui);color:var(--text-ink)">Verbatim · job #4821</span>
+              </span>
+              <span class="raw-warn" style="margin-left:auto"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>Unredacted · admin-only</span>
+            </button>
+            <div class="drawer-body">
+              <div class="rd-log">
+                <div class="rd-loghead" style="padding-bottom:8px">
+                  <div class="seg" data-seg="A"></div>
+                  <span class="lbl" style="margin-left:auto">captured 14:22:05 · post-hoc</span>
+                </div>
+                <div class="rd-logbody" data-rawbody="A"></div>
+              </div>
+            </div>
+          </section>
+        </div>
+        <div data-rail></div>
+      </div>
+    </main>
+
+    <!-- ================= VARIANT B — in-place tab swap ================= -->
+    <main class="rd-main" id="variant-B" hidden>
+      <nav class="rd-crumb"><a href="#">Runs</a><span class="sep">/</span><span class="here">batch 7f3a1c</span></nav>
+      <header style="display:flex;flex-direction:column;gap:8px">
+        <h1>batch 7f3a1c</h1>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="rd-batch running"><span class="dot"></span>running</span>
+          <span style="font:400 12px var(--font-mono);color:var(--text-muted)">203.0.113.0/22 · 1,024 targets · started 14:22</span>
+        </div>
+      </header>
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:24px;align-items:start">
+        <div class="rd-log">
+          <div class="rd-loghead" style="justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span class="jf">job #4821 · connect-outcome · local <span aria-hidden="true">×</span></span>
+            </div>
+            <span class="live" id="B-live"><span class="ldot"></span>streaming</span>
+          </div>
+          <div class="rd-tabs">
+            <button class="rd-tab on" type="button" data-btab="live">Live · redacted</button>
+            <button class="rd-tab" type="button" data-btab="raw">Raw · verbatim</button>
+          </div>
+          <!-- live pane -->
+          <div data-bpane="live">
+            <div class="rd-logbody" data-redacted></div>
+          </div>
+          <!-- raw pane -->
+          <div data-bpane="raw" hidden>
+            <div style="padding:10px 14px 0"><div class="raw-warn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>Unredacted · admin-only · post-hoc (no live tail)</div></div>
+            <div style="padding:10px 14px 0" class="metastrip" data-meta="B"></div>
+            <div class="rd-loghead" style="padding-top:12px"><div class="seg" data-seg="B"></div></div>
+            <div class="rd-logbody" data-rawbody="B"></div>
+          </div>
+        </div>
+        <div data-rail></div>
+      </div>
+    </main>
+
+    <!-- ================= VARIANT C — dedicated split view ================= -->
+    <main class="rd-main" id="variant-C" hidden>
+      <nav class="rd-crumb"><a href="#">Runs</a><span class="sep">/</span><a href="#">batch 7f3a1c</a><span class="sep">/</span><span class="here">job #4821 · raw</span></nav>
+      <header style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <span class="backlink" onclick="setVariant('C')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>batch log</span>
+        <h1 style="font-size:18px">Raw output · job #4821</h1>
+        <span class="rd-badge ok"><span class="bdot"></span>connect-outcome · local</span>
+        <span class="raw-warn" style="margin-left:auto"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>Verbatim · unredacted · admin-only</span>
+      </header>
+      <div class="split">
+        <div class="rd-log">
+          <div class="rd-loghead" style="padding-bottom:8px">
+            <span class="lbl">stdout · verbatim ndjson</span>
+            <span class="lbl" style="margin-left:auto">captured 14:22:05 · post-hoc</span>
+          </div>
+          <div class="rd-logbody tall" data-rawstream="stdout"></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <section class="rd-card">
+            <div class="rd-cardhead"><span class="rd-micro">Exec metadata</span><h3>How it exited</h3></div>
+            <div class="rd-body">
+              <div class="rd-kv" data-metakv></div>
+            </div>
+          </section>
+          <div class="rd-log">
+            <div class="rd-loghead" style="padding-bottom:8px"><span class="lbl">stderr</span></div>
+            <div class="rd-logbody stderr" data-rawstream="stderr"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+  </div>
+</div>
+
+<div class="pt-switch">
+  <button type="button" id="prev" aria-label="Previous variant">‹</button>
+  <div class="lab" id="lab"></div>
+  <button type="button" id="next" aria-label="Next variant">›</button>
+</div>
+
+<script>
+/* ---------------- mock data (grounded in #839–#842 decisions) ---------------- */
+var redacted = [
+  ["#4821","","connect-outcome · running · local"],
+  ["#4821","","connect-outcome · completed · local"],
+  ["#4822","","tls-capture · running · edge-fra"],
+  ["#4822","warn","tls-capture · retrying · edge-fra"],
+  ["#4823","","cert-transparency · running · local"],
+  ["#4823","error","cert-transparency · dead · local"],
+  ["#4824","","connect-outcome · completed · edge-sing"]
+];
+var stdout = [
+  '{"v":1,"kind":"connect","seq":0,"target":"203.0.113.9:443","open":true,"rtt_ms":41}',
+  '{"v":1,"kind":"connect","seq":1,"target":"203.0.113.10:443","open":false,"err":"i/o timeout"}',
+  '{"v":1,"kind":"connect","seq":2,"target":"203.0.113.11:80","open":true,"rtt_ms":12}',
+  '{"v":1,"kind":"connect","seq":3,"target":"203.0.113.11:443","open":true,"rtt_ms":13}',
+  '{"v":1,"kind":"connect","seq":4,"target":"198.51.100.4:443","open":true,"rtt_ms":88}',
+  '{"v":1,"kind":"connect","seq":5,"target":"198.51.100.5:443","open":false,"err":"connection refused"}',
+  '{"v":1,"kind":"batch-done","observed":1024,"open":387,"errors":12,"elapsed_ms":1837}'
+];
+var stdoutTrunc = "stdout truncated · head+tail · 4 MiB cap · 6,214 lines elided";
+var stderr = [
+  "2026/08/29 14:22:04 probe: worker start pid=2831 vantage=local build=v0.41.2",
+  "2026/08/29 14:22:04 dial 203.0.113.10:443: i/o timeout after 2s",
+  "2026/08/29 14:22:05 tls 198.51.100.4:443: peer presented expired leaf (notAfter 2026-08-01)",
+  "2026/08/29 14:22:05 probe: 1024 targets · 387 open · 12 errors · done"
+];
+var jobspec = '{\n  "kind": "connect-outcome",\n  "vantage": "local",\n  "targets": ["203.0.113.0/22"],\n  "ports": [80, 443],\n  "timeout_ms": 2000,\n  "concurrency": 128\n}';
+var meta = [
+  ["exit code","0",true], ["signal","—",false], ["ctx-cancelled","false",false],
+  ["duration","1.837s",false], ["captured-at","14:22:05Z",false], ["stdout size","4.0 MiB · capped",false]
+];
+
+/* ---------------- renderers ---------------- */
+function elLine(cls, tag, text) {
+  var row = document.createElement("div"); row.className = "rd-line" + (cls ? " " + cls : "");
+  var t = document.createElement("span"); t.className = "t"; t.textContent = tag;
+  var x = document.createElement("span"); x.className = "x"; x.textContent = text;
+  row.appendChild(t); row.appendChild(x); return row;
+}
+function rawLine(cls, text) { var d = document.createElement("span"); d.className = "rawline" + (cls?" "+cls:""); d.textContent = text; return d; }
+function truncMark(text) { var d = document.createElement("div"); d.className = "trunc"; d.textContent = "─── " + text + " ───"; return d; }
+
+function fillRedacted(host) {
+  host.innerHTML = "";
+  redacted.forEach(function (r) { host.appendChild(elLine(r[1], r[0], r[2])); });
+}
+function fillRail(host) {
+  host.innerHTML =
+    '<div style="display:flex;flex-direction:column;gap:24px">'
+  + '<section class="rd-card"><div class="rd-cardhead"><span class="rd-micro">Parameters</span><h3>As configured</h3></div>'
+  + '<div class="rd-body"><div class="rd-kv">'
+  + '<div class="cell"><span class="rd-micro">Scope</span><span class="v">203.0.113.0/22</span></div>'
+  + '<div class="cell"><span class="rd-micro">Ports</span><span class="v">80, 443</span></div>'
+  + '<div class="cell"><span class="rd-micro">Vantages</span><span class="v">local, edge-fra</span></div>'
+  + '<div class="cell"><span class="rd-micro">Concurrency</span><span class="v">128</span></div>'
+  + '</div></div></section>'
+  + '<section class="rd-card"><div class="rd-cardhead"><span class="rd-micro">Vantages</span><h3>Who looked</h3></div>'
+  + '<div class="rd-body"><div style="display:flex;flex-direction:column;gap:10px">'
+  + '<div class="rd-vant"><span class="name">local</span><span class="right"><span class="lat">41 ms</span><span class="rd-badge ok"><span class="bdot"></span>ok</span></span></div>'
+  + '<div class="rd-vant"><span class="name">edge-fra</span><span class="right"><span class="lat">88 ms</span><span class="rd-badge ok"><span class="bdot"></span>ok</span></span></div>'
+  + '</div></div></section></div>';
+}
+var STREAMS = { stdout: { data: stdout, trunc: stdoutTrunc, err: false }, stderr: { data: stderr, trunc: null, err: true } };
+function fillStream(host, which) {
+  host.innerHTML = ""; var s = STREAMS[which];
+  s.data.forEach(function (ln) { host.appendChild(rawLine(s.err ? "err" : "", ln)); });
+  if (s.trunc) host.appendChild(truncMark(s.trunc));
+}
+function fillMetaStrip(host) {
+  host.innerHTML = "";
+  meta.slice(0,5).forEach(function (m) {
+    var c = document.createElement("div"); c.className = "metachip";
+    c.innerHTML = '<span class="k">'+m[0]+'</span><span class="val'+(m[2]?" ok":"")+'">'+m[1]+'</span>';
+    host.appendChild(c);
+  });
+}
+function fillMetaKv(host) {
+  host.innerHTML = "";
+  meta.forEach(function (m) {
+    var c = document.createElement("div"); c.className = "cell";
+    c.innerHTML = '<span class="rd-micro">'+m[0]+'</span><span class="v">'+m[1]+'</span>';
+    host.appendChild(c);
+  });
+  var spec = document.createElement("div"); spec.className = "cell"; spec.style.gridColumn = "1 / -1";
+  spec.innerHTML = '<span class="rd-micro">JobSpec sent</span>';
+  var pre = document.createElement("pre"); pre.style.cssText = "margin:4px 0 0;font:400 11.5px/1.5 var(--font-mono);color:var(--text-body);white-space:pre-wrap;background:var(--surface);border:1px solid var(--border-default);border-radius:8px;padding:10px";
+  pre.textContent = jobspec; spec.appendChild(pre); host.appendChild(spec);
+}
+/* segmented stdout/stderr/exec-meta control for A and B */
+function buildSeg(host, bodyKey) {
+  var tabs = [["stdout", stdout.length+"+"], ["stderr", stderr.length], ["exec-meta", ""]];
+  host.innerHTML = ""; var body = document.querySelector('[data-rawbody="'+bodyKey+'"]');
+  function paint(which) {
+    Array.prototype.forEach.call(host.children, function (b) { b.classList.toggle("on", b.dataset.k === which); });
+    body.innerHTML = "";
+    if (which === "stdout") fillStreamInto(body, "stdout");
+    else if (which === "stderr") fillStreamInto(body, "stderr");
+    else { var wrap = document.createElement("div"); wrap.style.cssText="display:flex;flex-direction:column;gap:12px";
+      var strip = document.createElement("div"); strip.className="metastrip"; fillMetaStrip(strip); wrap.appendChild(strip);
+      var lbl = document.createElement("div"); lbl.className="raw-key"; lbl.textContent="JobSpec sent"; wrap.appendChild(lbl);
+      wrap.appendChild(rawLine("", jobspec)); body.appendChild(wrap); }
+  }
+  tabs.forEach(function (t) {
+    var b = document.createElement("button"); b.type="button"; b.dataset.k=t[0];
+    b.innerHTML = t[0] + (t[1] ? ' <span class="n">'+t[1]+'</span>' : "");
+    b.onclick = function () { paint(t[0]); }; host.appendChild(b);
+  });
+  paint("stdout");
+}
+function fillStreamInto(host, which) {
+  var s = STREAMS[which];
+  s.data.forEach(function (ln) { host.appendChild(rawLine(s.err ? "err" : "", ln)); });
+  if (s.trunc) host.appendChild(truncMark(s.trunc));
+}
+
+/* ---------------- variant switching ---------------- */
+var VARIANTS = [["A","Secondary drawer"],["B","In-place tab swap"],["C","Dedicated split view"]];
+function render() {
+  document.querySelectorAll("[data-redacted]").forEach(fillRedacted);
+  document.querySelectorAll("[data-rail]").forEach(fillRail);
+  buildSeg(document.querySelector('[data-seg="A"]'), "A");
+  buildSeg(document.querySelector('[data-seg="B"]'), "B");
+  fillMetaStrip(document.querySelector('[data-meta="B"]'));
+  fillStream(document.querySelector('[data-rawstream="stdout"]'), "stdout");
+  fillStream(document.querySelector('[data-rawstream="stderr"]'), "stderr");
+  fillMetaKv(document.querySelector("[data-metakv]"));
+  // B tab wiring
+  document.querySelectorAll("[data-btab]").forEach(function (btn) {
+    btn.onclick = function () {
+      document.querySelectorAll("[data-btab]").forEach(function (b){ b.classList.toggle("on", b===btn); });
+      document.querySelectorAll("[data-bpane]").forEach(function (p){ p.hidden = p.dataset.bpane !== btn.dataset.btab; });
+      document.getElementById("B-live").style.visibility = btn.dataset.btab === "live" ? "visible" : "hidden";
+    };
+  });
+}
+function currentVariant() {
+  var q = new URLSearchParams(location.search).get("variant");
+  return VARIANTS.some(function(v){return v[0]===q;}) ? q : "A";
+}
+function setVariant(key) {
+  VARIANTS.forEach(function (v) { document.getElementById("variant-"+v[0]).hidden = v[0] !== key; });
+  var meta = VARIANTS.filter(function(v){return v[0]===key;})[0];
+  document.getElementById("lab").innerHTML = key + " <small>" + meta[1] + "</small>";
+  var u = new URL(location); u.searchParams.set("variant", key); history.replaceState(null,"",u);
+}
+function cycle(d) { var k = currentVariant(); var i = VARIANTS.findIndex(function(v){return v[0]===k;}); setVariant(VARIANTS[(i+d+VARIANTS.length)%VARIANTS.length][0]); }
+
+document.getElementById("prev").onclick = function(){ cycle(-1); };
+document.getElementById("next").onclick = function(){ cycle(1); };
+document.addEventListener("keydown", function (e) {
+  if (/^(INPUT|TEXTAREA)$/.test(e.target.tagName) || e.target.isContentEditable) return;
+  if (e.key === "ArrowLeft") cycle(-1); if (e.key === "ArrowRight") cycle(1);
+});
+document.getElementById("themeBtn").onclick = function () {
+  var d = document.documentElement.getAttribute("data-theme") === "dark";
+  document.documentElement.setAttribute("data-theme", d ? "light" : "dark");
+};
+render();
+setVariant(currentVariant());
+</script>
+</body>
+</html>
