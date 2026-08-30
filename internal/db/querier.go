@@ -417,6 +417,11 @@ type Querier interface {
 	// then treats it exactly as an absent cookie. The clock bound is passed in ($2) so
 	// a fixed-clock test and production agree on the boundary.
 	GetSessionByTokenHash(ctx context.Context, arg GetSessionByTokenHashParams) (Session, error)
+	// The single transcript for a queue_job id — the §6 read handler's source for
+	// `?job={id}`. One row per attempt (spec §1.1), so this addresses a transcript
+	// directly. Returns no row when the job produced no capture (a legible absence,
+	// which the handler renders distinctly from a captured-but-empty stream).
+	GetTranscriptByJob(ctx context.Context, queueJobID int64) (Transcript, error)
 	GetVantage(ctx context.Context, id int64) (Vantage, error)
 	// The operator's declared re-supply interval, held as the zone Scan's cadence.
 	GetZoneCadenceSeconds(ctx context.Context) (int64, error)
@@ -502,6 +507,12 @@ type Querier interface {
 	// Declare one OIDC provider. Returns the id only; the secret is write-only and no
 	// read query hands it back. A public (PKCE-only) client passes a NULL secret.
 	InsertSSOProvider(ctx context.Context, arg InsertSSOProviderParams) (int64, error)
+	// Persist one job's verbatim transcript (raw-job-output spec §1.4), mirroring
+	// InsertObservation. The producer calls it once per captured job inside the
+	// worker's terminal transaction (§2.4), so a job cancelled mid-flight rolls its
+	// transcript back with the rest of its work. A job with no capture inserts no
+	// row — the absence is legible, distinct from a captured-but-empty stream.
+	InsertTranscript(ctx context.Context, arg InsertTranscriptParams) error
 	// The zone Scan's scope: the latest supplied file per name-scope Seed, with its
 	// domain and supply instant, for the worker to restate. DISTINCT ON keeps only
 	// the most recent supply per Seed.

@@ -282,6 +282,7 @@ type RetentionSetting struct {
 	DispatchCadenceMultiple int64              `json:"dispatch_cadence_multiple"`
 	UpdatedBy               pgtype.Int8        `json:"updated_by"`
 	UpdatedAt               pgtype.Timestamptz `json:"updated_at"`
+	TranscriptCurrencyDays  int64              `json:"transcript_currency_days"`
 }
 
 type Scan struct {
@@ -366,6 +367,20 @@ type SsoProvider struct {
 	CreatedBy    int64              `json:"created_by"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+}
+
+type Transcript struct {
+	QueueJobID int64              `json:"queue_job_id"`
+	Kind       string             `json:"kind"`
+	DurationNs int64              `json:"duration_ns"`
+	CapturedAt pgtype.Timestamptz `json:"captured_at"`
+	Variant    string             `json:"variant"`
+	Outcome    []byte             `json:"outcome"`
+	Stdout     []byte             `json:"stdout"`
+	Stderr     []byte             `json:"stderr"`
+	SentScope  []byte             `json:"sent_scope"`
+	Truncation []byte             `json:"truncation"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
 }
 
 type Vantage struct {
