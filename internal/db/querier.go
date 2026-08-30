@@ -1174,6 +1174,12 @@ type Querier interface {
 	// Set, replace or clear the secret. A NULL clears it (a public PKCE-only client); the
 	// value is written and never read back through any interface query.
 	SetSSOProviderSecret(ctx context.Context, arg SetSSOProviderSecretParams) error
+	// Set the operator address-scope cap (#888 / Settings #206, ADR-0127), stamping who
+	// acted and when so the Settings control renders the dated act of the current cap.
+	// The value is read at declaration only (ADR-0047 §5.3), so lowering it never
+	// invalidates a scope declared under a higher cap. ADR-0127: no upper bound is
+	// enforced here — the handler floors it at 1 and the column has no ceiling.
+	SetSeedAddressCap(ctx context.Context, arg SetSeedAddressCapParams) error
 	// Atomically spend the TOTP step just accepted at login (#323, #339). The predicate
 	// makes the advance the single serialisation point: the write lands only when the
 	// account's stored watermark is still NULL or strictly below the presented step, so

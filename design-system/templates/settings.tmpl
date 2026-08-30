@@ -416,6 +416,46 @@
 </div>
 </div>
 </section>
+{{with .CapControl}}
+<section class="st-card">
+<div class="st-cardhead"><div class="hd"><span class="st-micro">Configured · address-scope cap</span><h3>Address-scope cap</h3></div><span style="margin-left:auto"><span class="st-badge neutral">{{.CapLabel}} addresses</span></span></div>
+<div class="st-body">
+<div style="display:flex;flex-direction:column;gap:14px">
+<p class="st-lede" style="max-width:none">The cap bounds how many addresses one address scope may cover, checked when you declare it. Raising it admits a wider blind sweep — the cost is priced here, so the declaration stays a flat confirm. There is no upper limit; you choose the lag you accept when you set the cap, not when you declare.</p>
+<div class="st-kv">
+<div class="cell"><span class="st-micro">Largest scope</span><span class="v">{{.LargestScopeV4}} IPv4 · {{.LargestScopeV6}} IPv6</span></div>
+<div class="cell"><span class="st-micro">Evidential disk</span><span class="v">{{.DiskProjection}}</span></div>
+</div>
+{{if .SweepLoad}}
+<div style="display:flex;flex-direction:column;gap:8px">
+<span class="st-micro">Sweep load — a cap-sized scope, per enabled address-scope scan</span>
+{{range .SweepLoad}}
+<div class="st-row">
+<span style="font:500 12px var(--font-mono);color:var(--text-ink)">{{.Scan}}</span>
+<span class="st-tag">{{.Cadence}}</span>
+<span style="margin-left:auto;font:400 11.5px var(--font-mono);color:var(--text-secondary)">{{.Probes}} probes / cadence</span>
+</div>
+{{end}}
+</div>
+{{else}}
+<span class="st-note">No address-scope scan is enabled, so a cap-sized scope dispatches nothing yet. Enable the hot or cold tier to sweep a declared range.</span>
+{{end}}
+{{if $.CapError}}<div class="st-error">{{$.CapError}}</div>{{end}}
+{{if $.IsAdmin}}
+<form method="post" action="/settings/address-cap" style="margin:0;display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap">
+<span class="st-input" style="width:240px"><span class="lb">Address-scope cap</span><span class="iw"><input name="address_cap" inputmode="numeric" value="{{$.CapValue}}" required><span style="font:400 11.5px var(--font-mono);color:var(--text-muted);flex:none">addresses</span></span></span>
+<button type="submit" class="st-btn sec">Save cap</button>
+</form>
+{{else}}
+<div class="st-kv">
+<div class="cell"><span class="st-micro">Address-scope cap</span><span class="v">{{.CapLabel}} addresses</span></div>
+</div>
+{{end}}
+{{if .UpdatedAt}}<span class="st-note">Last changed {{.UpdatedAt}}{{if .UpdatedBy}} by <span style="font-family:var(--font-mono)">{{.UpdatedBy}}</span>{{end}}.</span>{{end}}
+</div>
+</div>
+</section>
+{{end}}
 {{with .StopTarget}}
 <a class="st-scrim" href="/settings?tab=scans" aria-label="Cancel"></a>
 <div class="st-dialog"><div class="panel" role="dialog" aria-modal="true" aria-label="Stop dispatch">

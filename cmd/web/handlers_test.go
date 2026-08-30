@@ -1000,6 +1000,13 @@ func (f *fakeStore) SetAPIEnabled(_ context.Context, arg db.SetAPIEnabledParams)
 	return nil
 }
 
+func (f *fakeStore) SetSeedAddressCap(_ context.Context, arg db.SetSeedAddressCapParams) error {
+	f.instanceConfig.SeedAddressCap = arg.SeedAddressCap
+	f.instanceConfig.SeedAddressCapUpdatedBy = arg.SeedAddressCapUpdatedBy
+	f.instanceConfig.SeedAddressCapUpdatedAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
+	return nil
+}
+
 func (f *fakeStore) UpdateRetentionSettings(_ context.Context, arg db.UpdateRetentionSettingsParams) error {
 	f.retention.ObservationCurrencyDays = arg.ObservationCurrencyDays
 	f.retention.DispatchCadenceMultiple = arg.DispatchCadenceMultiple

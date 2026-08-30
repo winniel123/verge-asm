@@ -5,7 +5,8 @@
 SELECT api_enabled, api_updated_by, api_updated_at,
        update_check_enabled, update_check_updated_by, update_check_updated_at,
        release_state, release_latest_version, release_latest_notes, release_checked_at,
-       last_backup_at, last_backup_size
+       last_backup_at, last_backup_size,
+       seed_address_cap, seed_address_cap_updated_by, seed_address_cap_updated_at
 FROM instance_config
 WHERE id = true;
 
@@ -38,4 +39,14 @@ WHERE id = true;
 -- surfaced on the Backup card.
 UPDATE instance_config
 SET last_backup_at = now(), last_backup_size = $1
+WHERE id = true;
+
+-- name: SetSeedAddressCap :exec
+-- Set the operator address-scope cap (#888 / Settings #206, ADR-0127), stamping who
+-- acted and when so the Settings control renders the dated act of the current cap.
+-- The value is read at declaration only (ADR-0047 §5.3), so lowering it never
+-- invalidates a scope declared under a higher cap. ADR-0127: no upper bound is
+-- enforced here — the handler floors it at 1 and the column has no ceiling.
+UPDATE instance_config
+SET seed_address_cap = $1, seed_address_cap_updated_by = $2, seed_address_cap_updated_at = now()
 WHERE id = true;
