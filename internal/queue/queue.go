@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"iter"
 	"log"
 	"time"
 
@@ -23,6 +24,16 @@ import (
 )
 
 const notifyChannel = "queue_job"
+
+// chunkCommitSize bounds how many jobs one fan-out transaction enqueues before
+// committing. The address-scope tiers (hot, cold) stream a per-address fan-out
+// and commit it in chunks (ADR-0127's amendment to ADR-0005): transaction
+// duration and memory stay bounded above the address-scope cap. A crash between
+// chunks leaves the tick claimed and the Dispatch under-covering — a re-run hits
+// the (scan, scheduled_time) key and skips, so nothing double-dispatches, and the
+// currency surfaces report the shortfall (#847). The bounded tiers (dns, zone,
+// tls-acceptance, http-identity, ct) keep ADR-0005's single atomic transaction.
+const chunkCommitSize = 500
 
 // Dispatcher fans a Scan out into queue jobs on its cadence and on demand.
 type Dispatcher struct {
@@ -112,13 +123,28 @@ func (d *Dispatcher) Trigger(ctx context.Context, kind string) (int, error) {
 	return d.fanOut(ctx, s, d.now().UTC().Truncate(time.Second))
 }
 
-// fanOut inserts a Dispatch for (scan, scheduledTime) under a per-scan advisory
-// lock and enqueues its jobs — per Vantage for the dns Scan, per supplied zone
-// file for the zone Scan. It returns 0 with no error when the tick was already
-// dispatched: the overlap is skipped (nothing runs, nothing is enqueued) and
-// recorded by the pre-existing fanned-out Dispatch that owns the tick — the
-// unique (scan, scheduled_time) key admits only one.
+// fanOut dispatches a Scan's tick. The address-scope tiers (hot, cold) stream a
+// per-address fan-out and commit it in chunks (fanOutStreamed); every other tier
+// keeps ADR-0005's single atomic transaction (fanOutAtomic). Both key the
+// Dispatch on the unique (scan, scheduled_time): the tick is dispatched once, an
+// overlap is skipped and recorded, never run concurrently.
 func (d *Dispatcher) fanOut(ctx context.Context, s db.Scan, scheduledTime time.Time) (int, error) {
+	switch s.Kind {
+	case scan.HotKind, scan.ColdKind:
+		return d.fanOutStreamed(ctx, s, scheduledTime)
+	default:
+		return d.fanOutAtomic(ctx, s, scheduledTime)
+	}
+}
+
+// fanOutAtomic inserts a Dispatch for (scan, scheduledTime) under a per-scan
+// advisory lock and enqueues all its jobs in ONE transaction (ADR-0005's atomic
+// fan-out) — per Vantage for the dns Scan, per supplied zone file for the zone
+// Scan, and so on for the bounded tiers. It returns 0 with no error when the tick
+// was already dispatched: the overlap is skipped (nothing runs, nothing is
+// enqueued) and recorded by the pre-existing fanned-out Dispatch that owns the
+// tick — the unique (scan, scheduled_time) key admits only one.
+func (d *Dispatcher) fanOutAtomic(ctx context.Context, s db.Scan, scheduledTime time.Time) (int, error) {
 	tx, err := d.pool.Begin(ctx)
 	if err != nil {
 		return 0, err
@@ -147,10 +173,6 @@ func (d *Dispatcher) fanOut(ctx context.Context, s db.Scan, scheduledTime time.T
 	switch s.Kind {
 	case scan.ZoneKind:
 		enqueued, err = d.fanOutZone(ctx, qtx, s.ID, dispatchID)
-	case scan.HotKind:
-		enqueued, err = d.fanOutHot(ctx, qtx, s.ID, dispatchID)
-	case scan.ColdKind:
-		enqueued, err = d.fanOutCold(ctx, qtx, s.ID, dispatchID)
 	case scan.TLSAcceptanceKind:
 		enqueued, err = d.fanOutTLSAcceptance(ctx, qtx, s.ID, dispatchID)
 	case scan.HTTPIdentityKind:
@@ -174,6 +196,126 @@ func (d *Dispatcher) fanOut(ctx context.Context, s db.Scan, scheduledTime time.T
 	}
 	d.log.Printf("dispatcher: %s fanned out %d job(s) at %s", s.Kind, enqueued, scheduledTime.Format(time.RFC3339))
 	return enqueued, nil
+}
+
+// fanOutStreamed dispatches an address-scope tier (hot, cold) as a streamed,
+// chunked fan-out (ADR-0127, amending ADR-0005's atomic fan-out). The Dispatch
+// row is committed first — claiming the (scan, scheduled_time) tick — then the
+// per-address jobs stream out in chunkCommitSize transactions, so no record holds
+// the whole scope and a scope above the cap fans out with bounded memory. A crash
+// between chunks leaves the tick claimed and the Dispatch under-covering: a re-run
+// hits the (scan, scheduled_time) key and skips, so nothing is double-dispatched,
+// and the currency surfaces report the shortfall (#847).
+func (d *Dispatcher) fanOutStreamed(ctx context.Context, s db.Scan, scheduledTime time.Time) (int, error) {
+	dispatchID, skipped, err := d.claimDispatch(ctx, s, scheduledTime)
+	if err != nil || skipped {
+		return 0, err
+	}
+
+	var enqueued int
+	switch s.Kind {
+	case scan.HotKind:
+		enqueued, err = d.fanOutHot(ctx, s.ID, dispatchID)
+	case scan.ColdKind:
+		enqueued, err = d.fanOutCold(ctx, s.ID, dispatchID)
+	}
+	if err != nil {
+		// The Dispatch row is already committed, so the tick is claimed and the
+		// partial fan-out under-covers; a re-run skips on the key. Report the error
+		// with what did commit rather than pretend nothing was enqueued.
+		return enqueued, err
+	}
+	d.log.Printf("dispatcher: %s fanned out %d job(s) at %s", s.Kind, enqueued, scheduledTime.Format(time.RFC3339))
+	return enqueued, nil
+}
+
+// claimDispatch inserts the Dispatch row for (scan, scheduledTime) under the
+// per-scan advisory lock and commits it in its own transaction, so the tick is
+// durably claimed before any job streams out. skipped is true when the tick was
+// already dispatched — the unique (scan, scheduled_time) key admits one, so a
+// re-run never double-dispatches.
+func (d *Dispatcher) claimDispatch(ctx context.Context, s db.Scan, scheduledTime time.Time) (dispatchID int64, skipped bool, err error) {
+	tx, err := d.pool.Begin(ctx)
+	if err != nil {
+		return 0, false, err
+	}
+	defer tx.Rollback(ctx)
+	qtx := d.q.WithTx(tx)
+
+	if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", s.ID); err != nil {
+		return 0, false, err
+	}
+	id, err := qtx.TryFanOut(ctx, db.TryFanOutParams{ScanID: s.ID, ScheduledTime: tstz(scheduledTime)})
+	if errors.Is(err, pgx.ErrNoRows) {
+		d.log.Printf("dispatcher: %s tick %s already dispatched, skipped", s.Kind, scheduledTime.Format(time.RFC3339))
+		return 0, true, tx.Commit(ctx)
+	}
+	if err != nil {
+		return 0, false, fmt.Errorf("queue: try fan out: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return 0, false, err
+	}
+	return id, false, nil
+}
+
+// streamEnqueue consumes a lazy job sequence and commits it in chunkCommitSize
+// transactions, notifying workers once per committed chunk so they drain while
+// the fan-out continues. It holds at most chunkCommitSize jobs at a time, so a
+// scope above the cap enqueues with bounded memory. Each chunk is its own
+// transaction: a failure returns the count already committed, and the Dispatch
+// row (committed earlier) keeps the (scan, scheduled_time) tick claimed so a
+// re-run skips rather than double-dispatching (ADR-0127).
+func streamEnqueue[J any](ctx context.Context, d *Dispatcher, jobs iter.Seq[J], enqueue func(context.Context, *db.Queries, J) error) (int, error) {
+	total := 0
+	chunk := make([]J, 0, chunkCommitSize)
+	flush := func() error {
+		if len(chunk) == 0 {
+			return nil
+		}
+		tx, err := d.pool.Begin(ctx)
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback(ctx)
+		qtx := d.q.WithTx(tx)
+		for i := range chunk {
+			if err := enqueue(ctx, qtx, chunk[i]); err != nil {
+				return err
+			}
+		}
+		if _, err := tx.Exec(ctx, "SELECT pg_notify($1, '')", notifyChannel); err != nil {
+			return err
+		}
+		if err := tx.Commit(ctx); err != nil {
+			return err
+		}
+		total += len(chunk)
+		chunk = chunk[:0]
+		return nil
+	}
+	for j := range jobs {
+		chunk = append(chunk, j)
+		if len(chunk) >= chunkCommitSize {
+			if err := flush(); err != nil {
+				return total, err
+			}
+		}
+	}
+	if err := flush(); err != nil {
+		return total, err
+	}
+	return total, nil
+}
+
+// jobAddr is the single address a one-address-per-Batch connect-outcome job
+// carries, for the Batch label. An empty slice yields "none" — a dead-input
+// guard, never expected on an enqueued job.
+func jobAddr(addrs []string) string {
+	if len(addrs) == 0 {
+		return "none"
+	}
+	return addrs[0]
 }
 
 // fanOutDNS enqueues one dns job per Vantage over the resolution set — the

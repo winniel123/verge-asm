@@ -37,7 +37,7 @@ observation, never an observation of absence.**
 | Batch partitioning | Along any dimension the source **retains enumerability** over |
 | Port tiers | **Three `Scan`s**, one cadence each — not one `Scan` with tiered cadence *(amended to **four** by [ADR-0028](./0028-a-facets-cadence-is-the-cadence-of-its-exchange.md), on this row's own reasoning: `tls-acceptance`'s weekly enumeration is a fourth `Scan` whose scope is the open `Service` population and the TLS candidate set, not a port tier)*. *(Read **two** port tiers and **three** `Scan`s after [#78](https://github.com/winniel123/verge-asm/issues/78) retired the weekly tier — see the amendment under "Port tiers are three `Scan`s".)* *(~~Read **two port tiers and four `Scan`s** after [#124](https://github.com/winniel123/verge-asm/issues/124) added **`zone`**~~, on this row's reasoning again — the operator's zone file needed a cadence of its own and had none, so its observations had no currency bound. Same section.)* *(Read **two port tiers and five `Scan`s** after [#142](https://github.com/winniel123/verge-asm/issues/142) added **`dns`** — [ADR-0084](./0084-a-scan-is-a-cadence-over-an-exchange-and-an-uncovered-facet-has-no-currency-bound.md), on this row's reasoning a third time, closing the hole #124 stated and would not guess at. Same section.)* |
 | Tick firing | **Any worker**, under a Postgres advisory lock, idempotent on `(scan, scheduled_time)` |
-| Fan-out | **Atomic** — the `Dispatch` row and all its job rows commit in one transaction |
+| Fan-out | **Atomic** — the `Dispatch` row and all its job rows commit in one transaction *(amended by [ADR-0127](./0127-the-address-scope-range-cap-has-no-ceiling-a-large-scope-is-priced-not-gated.md) / [#887](https://github.com/winniel123/verge-asm/issues/887): the address-scope tiers (`hot`, `cold`) **relax to chunked commits** — the `Dispatch` row commits first, then per-address jobs stream out in bounded chunks. See the amendment under "Fan-out is atomic". The bounded tiers stay atomic.)* |
 | Overlap | **Skip**, recorded as a first-class operational event |
 | Missed ticks | **No catch-up, no jitter** — skip to now, record the skips |
 | Partial failure | Observations **kept**; batch scope records what **completed** |
@@ -150,6 +150,31 @@ Fan-out is **atomic** for the analogous reason. A partially-enqueued dispatch co
 the estate than its config says. Under the completeness rule the missing batches are
 correctly never spoken about, but nothing anywhere records that the dispatch under-covered.
 The idempotency key on `(scan, scheduled_time)` makes the retry safe.
+
+> **Amended 2026-08-30 by [#887](https://github.com/winniel123/verge-asm/issues/887) /
+> [ADR-0127](./0127-the-address-scope-range-cap-has-no-ceiling-a-large-scope-is-priced-not-gated.md)
+> — the address-scope tiers relax to chunked commits.** Above the 1,024-address cap
+> ([ADR-0127](./0127-the-address-scope-range-cap-has-no-ceiling-a-large-scope-is-priced-not-gated.md)
+> removes the ceiling) a single atomic fan-out of the `hot`/`cold` tiers is a transaction open
+> for as long as the whole scope takes to enqueue, holding one address per `Batch` for millions of
+> addresses. So those two tiers **stream a per-address fan-out and commit it in bounded chunks**:
+> the `Dispatch` row commits **first**, claiming the `(scan, scheduled_time)` tick, then the jobs
+> commit in chunks, each its own transaction. The `Batch` unit is unchanged — still **one address
+> per `Batch`**, still whole-enumeration (this ADR's own partitioning rule, now honoured in code,
+> which `scan/hot.go`'s one-job-per-`Vantage` build had violated).
+>
+> **What this costs, stated plainly:** the atomicity above is relaxed, so a crash between chunks
+> leaves the tick claimed and the dispatch **under-covering** — exactly the "nothing records that
+> the dispatch under-covered" case this paragraph named, now reachable on the address-scope tiers.
+> The **`(scan, scheduled_time)` idempotency key is what keeps a re-run safe**: a retry finds the
+> `Dispatch` row already committed and **skips**, so nothing is double-dispatched; the fan-out is
+> not resumed, and the shortfall is **reported, never hidden** — a scope that cannot finish inside
+> its cadence is a permanent skip the currency surfaces already surface
+> ([#847](https://github.com/winniel123/verge-asm/issues/847)), inside the honest-lag tolerance.
+> The **bounded tiers** (`dns`, `zone`, `tls-acceptance`, `http-identity`, `ct`) enumerate over
+> name scopes or service populations, not an address-scope sweep, so they **stay atomic**
+> unchanged. This is an execution-model amendment only: no `Batch`, no gate, no currency rule
+> moves.
 
 ### Skipping, not queueing or overlapping
 

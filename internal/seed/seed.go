@@ -7,6 +7,7 @@ package seed
 
 import (
 	"fmt"
+	"iter"
 	"math/big"
 	"net/netip"
 	"strings"
@@ -89,40 +90,49 @@ func WithinCap(p netip.Prefix, maxAddrs int) bool {
 	return AddressCount(p).Cmp(big.NewInt(int64(maxAddrs))) <= 0
 }
 
-// EnumerateAddresses returns every address a prefix covers, in ascending order.
-// An address scope is its own enumeration (ADR-0047): a declared CIDR produces a
-// probe target for every address inside it — the network and broadcast addresses
-// included, since exempting them would infer a subnetting we never measure. The
-// prefix is masked first, so a host-bits-set input (10.0.0.5/30) enumerates its
-// block (10.0.0.4..10.0.0.7). The per-scope address cap (WithinCap, applied at
-// declaration, §5.3) is what bounds this: callers enumerate a whole scope and
-// never truncate at scan time, which ADR-0047 refuses as a silent aperture. The
-// walk stops when Next overflows to the invalid zero address, so a scope at the
-// very top of the address space terminates cleanly rather than looping.
-func EnumerateAddresses(p netip.Prefix) []netip.Addr {
-	p = p.Masked()
-	if !p.IsValid() {
-		return nil
+// EnumerateAddresses yields every address a prefix covers, in ascending order,
+// as a lazy sequence. An address scope is its own enumeration (ADR-0047): a
+// declared CIDR produces a probe target for every address inside it — the
+// network and broadcast addresses included, since exempting them would infer a
+// subnetting we never measure. The prefix is masked first, so a host-bits-set
+// input (10.0.0.5/30) enumerates its block (10.0.0.4..10.0.0.7). The per-scope
+// address cap (WithinCap, applied at declaration, §5.3) is what bounds this:
+// callers enumerate a whole scope and never truncate at scan time, which
+// ADR-0047 refuses as a silent aperture. The walk stops when Next overflows to
+// the invalid zero address, so a scope at the very top of the address space
+// terminates cleanly rather than looping.
+//
+// The sequence is streamed — it never materializes the whole scope in a slice —
+// so an address scope above the cap (ADR-0127) fans out with bounded memory: the
+// ceiling is not bound by memory. A consumer that stops early (breaks the range)
+// stops the walk.
+func EnumerateAddresses(p netip.Prefix) iter.Seq[netip.Addr] {
+	return func(yield func(netip.Addr) bool) {
+		p = p.Masked()
+		if !p.IsValid() {
+			return
+		}
+		for a := p.Addr(); a.IsValid() && p.Contains(a); a = a.Next() {
+			if !yield(a) {
+				return
+			}
+		}
 	}
-	out := make([]netip.Addr, 0, EnumCapHint(p))
-	for a := p.Addr(); a.IsValid() && p.Contains(a); a = a.Next() {
-		out = append(out, a)
-	}
-	return out
 }
 
-// maxEnumCapHint bounds the capacity PRE-ALLOCATION of an enumeration. It caps
-// only the initial size guess, never the walk itself — ADR-0047 refuses a
-// scan-time cap on the enumeration — so a scope wider than the hint still
-// enumerates whole, its slice regrowing past the hint as before. The bound stops
+// maxEnumCapHint bounds the capacity hint an enumeration returns. It caps only
+// the size guess, never a walk itself — ADR-0047 refuses a scan-time cap on the
+// enumeration, and EnumerateAddresses streams whole regardless. The bound stops
 // a pathological oversized scope (one declared under a since-lowered cap) from
-// pre-allocating a huge slice from a single AddressCount read.
+// reporting a huge capacity from a single AddressCount read.
 const maxEnumCapHint = 1 << 16
 
-// EnumCapHint is the exact address count of p as a slice-capacity hint, bounded
-// by maxEnumCapHint and 0 when the count does not fit an int. It lets a caller
-// pre-size a buffer that will hold EnumerateAddresses(p). It is a hint only, so
-// an inexact value costs at most a few reallocations and never a wrong result.
+// EnumCapHint is the exact address count of p as a capacity hint, bounded by
+// maxEnumCapHint and 0 when the count does not fit an int. It lets a caller
+// pre-size a buffer sized to a scope. It is a hint only, so an inexact value
+// costs at most a few reallocations and never a wrong result. EnumerateAddresses
+// itself no longer needs it — it streams — but the Settings cap control (#206)
+// still prices a scope by its address count.
 func EnumCapHint(p netip.Prefix) int {
 	c := AddressCount(p)
 	if !c.IsInt64() {
