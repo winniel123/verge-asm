@@ -75,6 +75,12 @@ var sourceCatalog = []catalogSource{
 		ShipNote:  "Certificate transparency logs. Admits the Names a certificate's SAN list carries — authority: inferred — never a wildcard, and observes nothing (ADR-0027). Queried on the ct Scan's daily cadence, throttled to 5 req/min; a failed fetch admits nothing and never an absence.",
 	},
 	{
+		Slug: "ct-tail", Name: "CT drift tail (logs-direct)",
+		Authority: "inferred", Completeness: "corroborative", Consent: consentUnencumbered,
+		DefaultOn: false,
+		ShipNote:  "Certificate transparency, read directly and forward-only (spec §4). Watches new issuance for names you already know, admitting the same way crt.sh does (authority: inferred, ADR-0027). Ships OFF: the tail downloads every new certificate across the CT logs to keep the few that match your estate, so it is heavier than the crt.sh poll — enable it when you want same-shard drift detection. A failed poll admits nothing and never an absence.",
+	},
+	{
 		Slug: "arin", Name: "ARIN (entities?fn=)", IsProposer: true, Consent: consentUnencumbered,
 		DefaultOn: true,
 		ShipNote:  "Keyless org→prefix path. Covers North America.",

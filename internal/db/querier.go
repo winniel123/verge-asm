@@ -12,6 +12,12 @@ import (
 )
 
 type Querier interface {
+	// Move one log's cursor forward to the tree size just read, recording the STH that
+	// signed it (spec §4.2). Forward-only by construction: the ON CONFLICT update advances
+	// the row only when the new tree size is at or beyond the stored one, so a stale or
+	// out-of-order poll can never rewind the cursor and re-admit history (the §4 invariant).
+	// The first poll of a log inserts its row.
+	AdvanceCTLogCursor(ctx context.Context, arg AdvanceCTLogCursorParams) error
 	// Terminate a Dispatch (DF-F4): cancel every in-flight job — ready AND running. A
 	// ready job never runs; a running job is cancelled out from under the worker, whose
 	// guarded terminal write (MarkJobDone/Dead/Retried, WHERE state = 'running') then
@@ -272,6 +278,11 @@ type Querier interface {
 	// refusal (the identity is unlinked), never a provision.
 	GetAccountBySSOIdentity(ctx context.Context, arg GetAccountBySSOIdentityParams) (Account, error)
 	GetAccountByUsername(ctx context.Context, username string) (Account, error)
+	// The tail's forward cursor for one CT log (spec §4.2): the last tree size read and
+	// the last signed head seen. A log with no row yet has never been polled — the caller
+	// treats pgx.ErrNoRows as "start at position 0" and reads the whole current delta from
+	// the log's origin forward, never backfilling below it afterwards.
+	GetCTLogCursor(ctx context.Context, logID string) (GetCTLogCursorRow, error)
 	// Also omits the secret; a caller reads presence, never the value.
 	GetChannel(ctx context.Context, id int64) (GetChannelRow, error)
 	// Reads the target URL and the signing secret. This is the ONE read path that
