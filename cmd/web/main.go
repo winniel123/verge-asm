@@ -25,6 +25,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/env"
 	"github.com/winniel123/verge-asm/internal/pgdb"
 	"github.com/winniel123/verge-asm/internal/queue"
+	"github.com/winniel123/verge-asm/internal/transcript"
 )
 
 func main() {
@@ -102,6 +103,15 @@ func main() {
 	key, err := auth.LoadOrCreateKey(stateDir)
 	if err != nil {
 		log.Fatalf("web: session key: %v", err)
+	}
+
+	// Provision the instance transcript key on the shared key volume: the one key
+	// worker (writer) also mounts, which web (reader, #866) opens the Transcript
+	// corpus with. Fatal if the shared volume is unwritable; either service may
+	// create the key on first boot (raw-job-output spec §5.3).
+	transcriptKeyDir := env.OrDefault("VERGE_TRANSCRIPT_KEY_DIR", "/app/transcript-key")
+	if err := transcript.EnsureKey(transcriptKeyDir); err != nil {
+		log.Fatalf("web: transcript key: %v", err)
 	}
 
 	setupToken, err := bootstrapSetupToken(ctx, queries)

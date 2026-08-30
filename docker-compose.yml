@@ -24,6 +24,10 @@ services:
     volumes:
       # The session signing key lives here and never in Postgres (§4.3).
       - web-state:/app/state
+      # The instance transcript key: one symmetric key shared by web (reader) and
+      # worker (writer), sealing the Transcript corpus at rest. Never in Postgres
+      # (raw-job-output spec §5.3).
+      - transcript-key:/app/transcript-key
     depends_on:
       postgres:
         condition: service_healthy
@@ -40,6 +44,9 @@ services:
       VERGE_PROBER_PATH: "/app/prober"
     volumes:
       - worker-state:/app/state
+      # Same shared transcript key as web mounts: the worker seals the Transcript
+      # streams under it before writing them (raw-job-output spec §5.3).
+      - transcript-key:/app/transcript-key
     depends_on:
       postgres:
         condition: service_healthy
@@ -67,3 +74,7 @@ volumes:
   pgdata:
   web-state:
   worker-state:
+  # One instance key, mounted by both web and worker, seals the Transcript corpus
+  # at rest. Kept off Postgres and out of backups so no ciphertext leaves without
+  # its key and no restore inherits data it cannot decrypt (spec §5.3).
+  transcript-key:

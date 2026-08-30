@@ -43,10 +43,17 @@ RUN mkdir -p /out/probers \
 # copies its ownership into the named volume the first time it is mounted.
 RUN mkdir -p /state && chown 65532:65532 /state
 
+# The shared transcript-key volume mount point, owned by the nonroot uid the same
+# way. Both web (reader) and worker (writer) mount this one volume so the single
+# instance key that seals the Transcript corpus at rest is available to each
+# (raw-job-output spec §5.3). Same runtime-chown limitation as /state.
+RUN mkdir -p /transcript-key && chown 65532:65532 /transcript-key
+
 # tag gcr.io/distroless/static-debian12:nonroot pinned by manifest-list digest (#333)
 FROM gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab AS web
 COPY --from=builder /out/web /app/web
 COPY --from=builder --chown=65532:65532 /state /app/state
+COPY --from=builder --chown=65532:65532 /transcript-key /app/transcript-key
 EXPOSE 8080
 HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 \
     CMD ["/app/web", "-healthcheck"]
@@ -59,6 +66,7 @@ COPY --from=builder /out/prober /app/prober
 # The per-architecture probers the off-host router pushes (VERGE_PROBER_DIR=/app/probers).
 COPY --from=builder /out/probers /app/probers
 COPY --from=builder --chown=65532:65532 /state /app/state
+COPY --from=builder --chown=65532:65532 /transcript-key /app/transcript-key
 HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 \
     CMD ["/app/worker", "-healthcheck"]
 ENTRYPOINT ["/app/worker"]

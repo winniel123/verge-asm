@@ -118,6 +118,7 @@ var backupExcluded = map[string]string{
 	"heartbeat":      "worker liveness ping — ephemeral runtime state, re-derived immediately after restore",
 	"ct_throttle":    "per-source CT fetch rate-limit buckets — ephemeral runtime state",
 	"queue_job":      "in-flight scan queue — transient work-in-progress; stale 'running' rows would be phantom after an overwrite restore",
+	"transcript":     "raw job output (raw-job-output spec §5.4) — bounded-retention verbatim debug bytes, AEAD ciphertext under a volume key the archive must not carry; excluding it keeps ADR-0124's 'a backup carries data and no credential' invariant and avoids shipping ciphertext a fresh restore cannot decrypt",
 }
 
 const (
