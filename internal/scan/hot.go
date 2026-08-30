@@ -10,6 +10,7 @@ package scan
 import (
 	"encoding/json"
 	"fmt"
+	"iter"
 	"net/netip"
 
 	"github.com/winniel123/verge-asm/internal/custody"
@@ -24,10 +25,12 @@ import (
 // `resolution-walk`.
 const HotKind = "hot"
 
-// HotJob is one queue job the hot Scan produces: one Vantage, the addresses
-// Custody admitted for that Vantage's class, and the `verge-core` TCP/UDP sets.
-// Only the TCP pairs are probed; the UDP pairs travel so the Batch records them
-// in scope (open or closed for TCP; recorded-not-probed for UDP).
+// HotJob is one queue job the hot Scan produces: one Vantage, ONE Custody-
+// admitted address (one address per Batch, ADR-0005/ADR-0127), and the
+// `verge-core` TCP/UDP sets. Only the TCP pairs are probed; the UDP pairs travel
+// so the Batch records them in scope (open or closed for TCP; recorded-not-probed
+// for UDP). Addresses holds the single address as a one-element slice so the wire
+// `connect-outcome` scope stays a list, unchanged.
 type HotJob struct {
 	ScanID       int64
 	VantageID    int64
@@ -40,49 +43,56 @@ type HotJob struct {
 	Profile      connectoutcome.SafetyProfile
 }
 
-// BuildHotJobs fans a hot Scan out into one job per Vantage over the addresses
-// Custody admits for that Vantage's class. It is the sole place the gate is
-// applied at dispatch: an address the derivation refuses — a `third-party`
-// address, or a non-globally-reachable one seen from an `internet`-class Vantage
-// — never enters a job, so no prober is ever handed a target it may not probe
-// (ADR-0019). A Vantage with no admitted address yields no job, a legible empty
-// scope rather than an error.
-func BuildHotJobs(scanID int64, estate custody.Estate, addrs []netip.Addr, vantages []Vantage, core vergecore.List) []HotJob {
-	tcp := portsOf(core.TCPProbed())
-	udp := portsOf(core.UDPRecorded())
-	if len(tcp) == 0 || len(addrs) == 0 || len(vantages) == 0 {
-		return nil
-	}
+// BuildHotJobs fans a hot Scan out into one job per (Vantage, admitted address):
+// one address per Batch (ADR-0005, the execution gap ADR-0127 names), yielded as
+// a lazy sequence over the streamed candidate addresses so no record holds the
+// whole scope. It is the sole place the gate is applied at dispatch: an address
+// the derivation refuses — a `third-party` address, or a non-globally-reachable
+// one seen from an `internet`-class Vantage — never enters a job, so no prober is
+// ever handed a target it may not probe (ADR-0019). A Vantage with no admitted
+// address yields no job for that address, a legible empty scope rather than an
+// error. The `addrs` sequence streams: consuming it in chunks (the dispatcher's
+// chunked fan-out) keeps memory bounded above the cap.
+func BuildHotJobs(scanID int64, estate custody.Estate, addrs iter.Seq[netip.Addr], vantages []Vantage, core vergecore.List) iter.Seq[HotJob] {
+	return func(yield func(HotJob) bool) {
+		tcp := portsOf(core.TCPProbed())
+		udp := portsOf(core.UDPRecorded())
+		if len(tcp) == 0 || len(vantages) == 0 {
+			return
+		}
 
-	// Class is DERIVED per batch from each vantage's presented-address facts against the
-	// declared address scopes (#709), never the vestigial column: covered is the
-	// address-scope-only predicate (#711) the same Estate carries.
-	covered := estate.CoversAddressScope
-	var jobs []HotJob
-	for _, v := range vantages {
-		vc := vantageclass.Derive(v.Dialled, v.Egress, covered)
-		admitted := make([]string, 0, len(addrs))
-		for _, a := range addrs {
-			if estate.MayProbe(a, vc) {
-				admitted = append(admitted, a.Unmap().String())
+		// Class is DERIVED per batch from each vantage's presented-address facts against the
+		// declared address scopes (#709), never the vestigial column: covered is the
+		// address-scope-only predicate (#711) the same Estate carries. The classes are
+		// derived once, outside the address stream, since they do not vary per address.
+		covered := estate.CoversAddressScope
+		classes := make([]custody.VantageClass, len(vantages))
+		for i, v := range vantages {
+			classes[i] = vantageclass.Derive(v.Dialled, v.Egress, covered)
+		}
+
+		for a := range addrs {
+			for i, v := range vantages {
+				if !estate.MayProbe(a, classes[i]) {
+					continue
+				}
+				job := HotJob{
+					ScanID:       scanID,
+					VantageID:    v.ID,
+					Vantage:      v.Name,
+					VantageClass: string(classes[i]),
+					Kind:         connectoutcome.Kind,
+					Addresses:    []string{a.Unmap().String()},
+					TCPPorts:     tcp,
+					UDPPorts:     udp,
+					Profile:      connectoutcome.DefaultProfile(),
+				}
+				if !yield(job) {
+					return
+				}
 			}
 		}
-		if len(admitted) == 0 {
-			continue
-		}
-		jobs = append(jobs, HotJob{
-			ScanID:       scanID,
-			VantageID:    v.ID,
-			Vantage:      v.Name,
-			VantageClass: string(vc),
-			Kind:         connectoutcome.Kind,
-			Addresses:    admitted,
-			TCPPorts:     tcp,
-			UDPPorts:     udp,
-			Profile:      connectoutcome.DefaultProfile(),
-		})
 	}
-	return jobs
 }
 
 // JobSpec renders a HotJob into the wire JobSpec the prober reads on stdin.

@@ -2,6 +2,7 @@ package queue
 
 import (
 	"net/netip"
+	"slices"
 	"testing"
 )
 
@@ -11,7 +12,7 @@ func mustAddr(s string) netip.Addr { return netip.MustParseAddr(s) }
 // resolves into it (#779, ADR-0047): a dark /30 alone yields four targets.
 func TestCandidateAddrsEnumeratesDarkScope(t *testing.T) {
 	scopes := []netip.Prefix{netip.MustParsePrefix("93.184.216.0/30")}
-	got := candidateAddrs(nil, scopes)
+	got := slices.Collect(candidateAddrs(nil, scopes))
 	if len(got) != 4 {
 		t.Fatalf("a /30 with no resolutions must yield 4 targets, got %d: %v", len(got), got)
 	}
@@ -28,7 +29,7 @@ func TestCandidateAddrsEnumeratesDarkScope(t *testing.T) {
 func TestCandidateAddrsDedupsResolvedAndEnumerated(t *testing.T) {
 	resolved := []netip.Addr{mustAddr("93.184.216.1"), mustAddr("8.8.8.8")}
 	scopes := []netip.Prefix{netip.MustParsePrefix("93.184.216.0/30")}
-	got := candidateAddrs(resolved, scopes)
+	got := slices.Collect(candidateAddrs(resolved, scopes))
 	// 8.8.8.8 (resolved, outside the scope) + the four /30 addresses = 5; the
 	// resolved 93.184.216.1 that is also inside the scope is not double-counted.
 	if len(got) != 5 {
@@ -53,7 +54,7 @@ func TestCandidateAddrsDedupsResolvedAndEnumerated(t *testing.T) {
 // the pre-#779 behaviour is preserved when nothing enumerates.
 func TestCandidateAddrsNoScopesIsResolvedOnly(t *testing.T) {
 	resolved := []netip.Addr{mustAddr("93.184.216.10"), mustAddr("203.0.113.7")}
-	got := candidateAddrs(resolved, nil)
+	got := slices.Collect(candidateAddrs(resolved, nil))
 	if len(got) != 2 || got[0].String() != "93.184.216.10" || got[1].String() != "203.0.113.7" {
 		t.Fatalf("with no scopes the candidate set is the resolved addresses, got %v", got)
 	}
@@ -66,7 +67,7 @@ func TestCandidateAddrsUnionsMultipleScopes(t *testing.T) {
 		netip.MustParsePrefix("93.184.216.0/31"),
 		netip.MustParsePrefix("198.51.100.0/31"),
 	}
-	got := candidateAddrs(nil, scopes)
+	got := slices.Collect(candidateAddrs(nil, scopes))
 	if len(got) != 4 {
 		t.Fatalf("two /31 scopes enumerate 4 addresses, got %d: %v", len(got), got)
 	}

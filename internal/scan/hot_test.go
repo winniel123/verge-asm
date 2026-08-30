@@ -3,6 +3,7 @@ package scan
 import (
 	"encoding/json"
 	"net/netip"
+	"slices"
 	"testing"
 
 	"github.com/winniel123/verge-asm/internal/custody"
@@ -11,6 +12,13 @@ import (
 )
 
 func addr(s string) netip.Addr { return netip.MustParseAddr(s) }
+
+// hotJobs collects the streamed hot fan-out into a slice for assertions. The
+// builder yields one job per (Vantage, admitted address); collecting an empty
+// sequence returns nil, so a nil check still reads as "no jobs".
+func hotJobs(scanID int64, estate custody.Estate, addrs []netip.Addr, vantages []Vantage, core vergecore.List) []HotJob {
+	return slices.Collect(BuildHotJobs(scanID, estate, slices.Values(addrs), vantages, core))
+}
 
 func operatorEstate() custody.Estate {
 	return custody.Estate{
@@ -41,7 +49,7 @@ func TestBuildHotJobsNeverProbesThirdParty(t *testing.T) {
 	addrs := []netip.Addr{addr("93.184.216.10"), addr(third)}
 	vantages := []Vantage{internetVantage(1, "internet-a")}
 
-	jobs := BuildHotJobs(7, estate, addrs, vantages, vergecore.Default())
+	jobs := hotJobs(7, estate, addrs, vantages, vergecore.Default())
 	if len(jobs) != 1 {
 		t.Fatalf("got %d jobs, want 1 (one vantage with an admitted address)", len(jobs))
 	}
@@ -65,12 +73,12 @@ func TestBuildHotJobsDenotationGate(t *testing.T) {
 	addrs := []netip.Addr{addr(priv)}
 
 	internet := []Vantage{internetVantage(1, "net")}
-	if jobs := BuildHotJobs(1, estate, addrs, internet, vergecore.Default()); len(jobs) != 0 {
+	if jobs := hotJobs(1, estate, addrs, internet, vergecore.Default()); len(jobs) != 0 {
 		t.Errorf("a private address must not be probed from an internet-class vantage, got %d jobs", len(jobs))
 	}
 
 	internal := []Vantage{internalVantage(2, "lan")}
-	jobs := BuildHotJobs(1, estate, addrs, internal, vergecore.Default())
+	jobs := hotJobs(1, estate, addrs, internal, vergecore.Default())
 	if len(jobs) != 1 || len(jobs[0].Addresses) != 1 {
 		t.Fatalf("a private address must be probed from an internal-class vantage, got %d jobs", len(jobs))
 	}
@@ -84,7 +92,7 @@ func TestBuildHotJobsCarriesVergeCore(t *testing.T) {
 	vantages := []Vantage{internetVantage(1, "net")}
 	core := vergecore.Default()
 
-	jobs := BuildHotJobs(1, estate, addrs, vantages, core)
+	jobs := hotJobs(1, estate, addrs, vantages, core)
 	if len(jobs) != 1 {
 		t.Fatalf("want 1 job, got %d", len(jobs))
 	}
@@ -120,10 +128,10 @@ func TestBuildHotJobsCarriesVergeCore(t *testing.T) {
 func TestBuildHotJobsEmptyIsLegible(t *testing.T) {
 	estate := operatorEstate()
 	v := []Vantage{internetVantage(1, "net")}
-	if jobs := BuildHotJobs(1, estate, nil, v, vergecore.Default()); jobs != nil {
+	if jobs := hotJobs(1, estate, nil, v, vergecore.Default()); jobs != nil {
 		t.Errorf("no addresses should yield no jobs, got %d", len(jobs))
 	}
-	if jobs := BuildHotJobs(1, estate, []netip.Addr{addr("93.184.216.10")}, nil, vergecore.Default()); jobs != nil {
+	if jobs := hotJobs(1, estate, []netip.Addr{addr("93.184.216.10")}, nil, vergecore.Default()); jobs != nil {
 		t.Errorf("no vantages should yield no jobs, got %d", len(jobs))
 	}
 }
