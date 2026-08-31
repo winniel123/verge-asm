@@ -22,8 +22,10 @@
     .Chrome.PaletteGroups (items are links; the theme item is the one JS action).
   #27d toasts — the spec ToastStack renders .Chrome.Toasts (the PRG flash store): tone dot,
     title/description, dismiss, 5s auto-dismiss with the leave animation.
-  #27e foot — the spec console Footer gated by .Chrome; the scroll-preservation JS is kept
-    byte-for-byte (behavior contract).
+  #27e foot — the spec console Footer gated by .Chrome; the scroll-preservation JS was kept
+    byte-for-byte (behavior contract). SUPERSEDED by ADR-0130 (#970): the restore now keys on
+    the full URL and gates on navigation type. The byte-for-byte freeze no longer holds; the
+    block comment above the script states the current contract.
   #27f goldens — with the chrome converted the harness stops cropping to <main>: ALL landed
     screens re-render FULL-PAGE goldens in the canonical container — the one-time regen,
     version-bumped here.
@@ -231,21 +233,34 @@ a:hover { text-decoration: underline; }
 {{end}}{{end}}
 
 {{define "foot"}}{{if .Chrome}}<footer class="sh-footer"><span class="note">verge asm · self-hosted · AGPL-3.0</span><span class="links"><a href="https://github.com/winniel123/verge-asm/tree/main/docs" rel="noreferrer">Docs</a><a href="https://github.com/winniel123/verge-asm" rel="noreferrer">GitHub</a><span class="sh-ver">{{.Chrome.Version}}</span></span></footer>{{end}}<script>
-/* Preserve scroll position across the POST-redirect-GET every form action runs.
-   Each mutating handler answers 303 to the same page, so a naive reload lands at
-   the top — jarring on a long screen. On submit we stash scrollY keyed by the
-   current path; on the next load of that same path we restore it, but only within
-   a few seconds so a later fresh visit is unaffected. Native back/forward scroll
-   restoration is left alone. */
+/* Preserve scroll position across the POST-redirect-GET every mutating action
+   runs (ADR-0130 §2). Each mutating handler answers 303 to the URL the form was
+   submitted from, so a naive reload lands at the top — jarring on a long screen.
+   On submit we stash scrollY keyed by the full URL, pathname plus search, so a
+   ?tab=, ?filter= or ?sev= variant of one path never inherits another variant's
+   offset. On the next load of that same URL we restore it, but only when the
+   navigation type is "navigate": an ordinary navigation, never a reload and
+   never a back/forward. Native back/forward scroll restoration is left alone.
+   There is no short freshness budget, because a slow handler can outrun one. The
+   stash is single-consume — we remove it before we restore — and a wide 5-minute
+   TTL discards a stash the operator abandoned. */
 (function () {
-  var FRESH_MS = 5000;
-  var K = "verge:scroll:" + location.pathname;
+  var STALE_MS = 300000;
+  var K = "verge:scroll:" + location.pathname + location.search;
+  function isNavigate() {
+    try {
+      var nav = performance.getEntriesByType("navigation")[0];
+      return !!nav && nav.type === "navigate";
+    } catch (e) {
+      return false;
+    }
+  }
   try {
     var raw = sessionStorage.getItem(K);
     if (raw) {
       sessionStorage.removeItem(K);
       var s = JSON.parse(raw);
-      if (s && typeof s.y === "number" && Date.now() - s.t < FRESH_MS) window.scrollTo(0, s.y);
+      if (s && typeof s.y === "number" && Date.now() - s.t < STALE_MS && isNavigate()) window.scrollTo(0, s.y);
     }
   } catch (e) {}
   document.addEventListener("submit", function (ev) {
