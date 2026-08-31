@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -66,22 +67,29 @@ var embeddedLogList []byte
 const nextShardHorizon = 366 * 24 * time.Hour
 
 // CTLog is one CT log the tail may follow: its log_id (the base64 SHA-256 of the log's
-// public key, the ct_log_cursor primary key), the base URL the RFC 6962 endpoints hang
-// off, and a human description for the live event and logs.
+// public key, the ct_log_cursor primary key), the base URL the read endpoints hang off,
+// a human description for the live event and logs, and which client reads it. Tiled
+// selects the static-ct-api (tiled) client (#877, §4.3); false selects the RFC 6962
+// client (#874). For an RFC 6962 log URL is the log_list.json `url`; for a tiled log it
+// is the `monitoring_url` — the two clients hang different endpoint paths off it, so the
+// discriminator travels with the log.
 type CTLog struct {
 	LogID       string
 	URL         string
 	Description string
+	Tiled       bool
 }
 
-// logList is the subset of log_list.json the tail reads. Only the RFC 6962 logs
-// (operators[].logs[], each carrying a `url`) are decoded here; the static-ct-api
-// tiled logs live under operators[].tiled_logs[] and are #877's client (§4.3), so this
-// shape does not decode them.
+// logList is the subset of log_list.json the tail reads. Both log kinds are decoded: the
+// RFC 6962 logs under operators[].logs[] (each carrying a `url`, #874) and the
+// static-ct-api tiled logs under operators[].tiled_logs[] (each carrying a
+// `monitoring_url`, #877 §4.3). The two arrays are the whole basis for the client
+// discriminator — a log is tiled iff it comes from tiled_logs[].
 type logList struct {
 	Version   string `json:"version"`
 	Operators []struct {
-		Logs []logListEntry `json:"logs"`
+		Logs      []logListEntry      `json:"logs"`
+		TiledLogs []tiledLogListEntry `json:"tiled_logs"`
 	} `json:"operators"`
 }
 
@@ -93,6 +101,18 @@ type logListEntry struct {
 	TemporalInterval *temporalInterval          `json:"temporal_interval"`
 }
 
+// tiledLogListEntry is a static-ct-api log's log_list.json entry. It is read by
+// monitoring_url — the prefix the checkpoint and tile paths hang off — not the
+// submission_url (which is write-only, for a CA submitting a certificate). The state and
+// temporal filters are identical to an RFC 6962 log's (§4.3).
+type tiledLogListEntry struct {
+	Description      string                     `json:"description"`
+	LogID            string                     `json:"log_id"`
+	MonitoringURL    string                     `json:"monitoring_url"`
+	State            map[string]json.RawMessage `json:"state"`
+	TemporalInterval *temporalInterval          `json:"temporal_interval"`
+}
+
 // temporalInterval is a CT log shard's coverage window: it accepts a certificate whose
 // expiry falls in [start_inclusive, end_exclusive) (§4.3).
 type temporalInterval struct {
@@ -100,12 +120,15 @@ type temporalInterval struct {
 	EndExclusive   time.Time `json:"end_exclusive"`
 }
 
-// SelectTailLogs is the pure log-set decision (§4.3): the RFC 6962 logs the tail
-// follows at instant now. A log is followed when BOTH hold — its state is `usable` or
-// `readonly` (both readable; `retired` may 404 and placeholders are skipped), AND its
-// temporal_interval covers now or the near future (the current shard plus the next,
-// nextShardHorizon). A log with no temporal_interval is unsharded and always followed.
-// The result is sorted by log_id so the fan-out is deterministic.
+// SelectTailLogs is the pure log-set decision (§4.3): every CT log the tail follows at
+// instant now, across BOTH client kinds — the RFC 6962 logs (operators[].logs[]) and the
+// static-ct-api tiled logs (operators[].tiled_logs[]). A log is followed when BOTH hold —
+// its state is `usable` or `readonly` (both readable; `retired` may 404 and placeholders
+// are skipped), AND its temporal_interval covers now or the near future (the current
+// shard plus the next, nextShardHorizon). A log with no temporal_interval is unsharded
+// and always followed. Each result carries the Tiled discriminator so the worker reads it
+// with the right client (§4.3). The result is sorted by log_id so the fan-out is
+// deterministic across both kinds.
 func SelectTailLogs(now time.Time) ([]CTLog, error) {
 	var ll logList
 	if err := json.Unmarshal(embeddedLogList, &ll); err != nil {
@@ -114,16 +137,22 @@ func SelectTailLogs(now time.Time) ([]CTLog, error) {
 	var out []CTLog
 	for _, op := range ll.Operators {
 		for _, e := range op.Logs {
-			if !tailReadableState(e.State) {
-				continue
-			}
-			if !tailCoversNow(e.TemporalInterval, now) {
+			if !tailReadableState(e.State) || !tailCoversNow(e.TemporalInterval, now) {
 				continue
 			}
 			if e.LogID == "" || e.URL == "" {
 				continue // a placeholder entry carries no usable identity
 			}
 			out = append(out, CTLog{LogID: e.LogID, URL: e.URL, Description: e.Description})
+		}
+		for _, e := range op.TiledLogs {
+			if !tailReadableState(e.State) || !tailCoversNow(e.TemporalInterval, now) {
+				continue
+			}
+			if e.LogID == "" || e.MonitoringURL == "" {
+				continue // a placeholder entry carries no usable identity
+			}
+			out = append(out, CTLog{LogID: e.LogID, URL: e.MonitoringURL, Description: e.Description, Tiled: true})
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].LogID < out[j].LogID })
@@ -176,19 +205,21 @@ func BuildCTTailJobs(scanID int64, logs []CTLog) []CTTailJob {
 	return jobs
 }
 
-// ctTailScope is the wire payload a tail job carries: the log to poll. The cursor the
-// poll reads and advances lives in ct_log_cursor keyed by LogID, not in the job.
+// ctTailScope is the wire payload a tail job carries: the log to poll and which client
+// reads it. The cursor the poll reads and advances lives in ct_log_cursor keyed by
+// LogID, not in the job.
 type ctTailScope struct {
 	LogID       string `json:"log_id"`
 	URL         string `json:"url"`
 	Description string `json:"description"`
+	Tiled       bool   `json:"tiled,omitempty"`
 }
 
 // JobSpec renders a CTTailJob into the wire JobSpec the worker reads. Like the `ct` and
 // `zone` Scans there is no prober exec — the worker itself polls the log — so the log
 // identity travels in the job rather than a vantage and offers.
 func (j CTTailJob) JobSpec(batch string) (wire.JobSpec, error) {
-	raw, err := json.Marshal(ctTailScope{LogID: j.Log.LogID, URL: j.Log.URL, Description: j.Log.Description})
+	raw, err := json.Marshal(ctTailScope{LogID: j.Log.LogID, URL: j.Log.URL, Description: j.Log.Description, Tiled: j.Log.Tiled})
 	if err != nil {
 		return wire.JobSpec{}, fmt.Errorf("scan: marshal ct-tail scope: %w", err)
 	}
@@ -222,7 +253,7 @@ func CTTailScopeFromSpec(scope []byte) (CTLog, error) {
 	if err := json.Unmarshal(scope, &s); err != nil {
 		return CTLog{}, fmt.Errorf("scan: decode ct-tail scope: %w", err)
 	}
-	return CTLog{LogID: s.LogID, URL: s.URL, Description: s.Description}, nil
+	return CTLog{LogID: s.LogID, URL: s.URL, Description: s.Description, Tiled: s.Tiled}, nil
 }
 
 // --- RFC 6962 wire parsers ---------------------------------------------------
@@ -349,10 +380,17 @@ func LeafSANs(leafInput, extraData []byte) ([]string, error) {
 		return nil, nil // an unrecognised entry type admits nothing, and is not an error
 	}
 
-	// crypto/x509 parses a pre_certificate cleanly: the CT poison extension is critical
-	// but ParseCertificate records unhandled critical extensions rather than rejecting
-	// them (rejection is a Verify-time check, which the tail never runs). So both entry
-	// kinds reach the same SAN read.
+	return CertSANs(der)
+}
+
+// CertSANs decodes one certificate's DER to the DNS names it carries — the SAN dNSName
+// values and the subject common name, unfiltered. It is the shared read half of both tail
+// clients: the RFC 6962 client (LeafSANs) and the static-ct-api tiled client
+// (ParseDataTile) both reduce an entry to a certificate DER, then call this. crypto/x509
+// parses a pre_certificate cleanly: the CT poison extension is critical but
+// ParseCertificate records unhandled critical extensions rather than rejecting them
+// (rejection is a Verify-time check, which the tail never runs).
+func CertSANs(der []byte) ([]string, error) {
 	cert, err := x509.ParseCertificate(der)
 	if err != nil {
 		return nil, fmt.Errorf("scan: parse ct certificate: %w", err)
@@ -380,6 +418,179 @@ func readOpaque24(b []byte) ([]byte, error) {
 		return nil, fmt.Errorf("length %d overruns %d-byte buffer", n, len(b)-ctASN1CertLen)
 	}
 	return b[ctASN1CertLen : ctASN1CertLen+n], nil
+}
+
+// --- static-ct-api (tiled) wire parsers --------------------------------------
+
+// A static-ct-api log (C2SP static-ct-api, #877 §4.3) serves its Merkle tree as static
+// files under the monitoring_url, not the RFC 6962 dynamic endpoints. The tail reads two
+// of them: `checkpoint` (the signed tree head) and `tile/data/<N>` (up to CTTileWidth
+// entries each). There is no get-entries and no get-sth on a tiled log.
+
+// CTTileWidth is the entry count of a full static-ct-api data tile: the spec fixes it at
+// exactly 256 entries ("Full tiles MUST be exactly 256 hashes wide"). It is the tiled
+// batch cap (§4.4) — the tile granularity is the request size, so a tiled poll reads at
+// most 256 entries per fetch by construction. A not-yet-full tail tile is a partial tile,
+// served under the `.p/<W>` suffix with 1..255 entries.
+const CTTileWidth = 256
+
+// ParseCheckpoint decodes a static-ct-api `checkpoint` body into the same
+// CTSignedTreeHead the RFC 6962 path uses. The checkpoint is a C2SP signed-note: an
+// origin line, the decimal tree size, the base64 root hash, a blank line, then one or
+// more `— <keyname> <base64>` signature lines. The tail reads the tree size (line 2) and
+// keeps the whole body verbatim as the durable cursor's signed_head, so a later
+// consistency proof reads the head with the exact bytes the log signed (§4.2). A body
+// with fewer than the three required lines, or a non-numeric size, is an error the poll
+// treats as transient — a malformed 200 is never evidence the log is empty (ADR-0027 §7).
+func ParseCheckpoint(body []byte) (CTSignedTreeHead, error) {
+	lines := strings.Split(string(body), "\n")
+	if len(lines) < 3 {
+		return CTSignedTreeHead{}, fmt.Errorf("scan: checkpoint has %d lines, want at least 3", len(lines))
+	}
+	size, err := strconv.ParseInt(strings.TrimSpace(lines[1]), 10, 64)
+	if err != nil {
+		return CTSignedTreeHead{}, fmt.Errorf("scan: checkpoint tree size %q: %w", lines[1], err)
+	}
+	if size < 0 {
+		return CTSignedTreeHead{}, fmt.Errorf("scan: checkpoint negative tree size %d", size)
+	}
+	return CTSignedTreeHead{TreeSize: size, Raw: body}, nil
+}
+
+// DataTilePath renders a tile index into the static-ct-api path encoding: 3-digit,
+// zero-padded base-1000 segments, most-significant first, with an `x` prefix on every
+// segment but the last. This bounds directory fan-out (a log with billions of entries
+// never puts millions of tiles in one directory). Examples: 0 -> "000", 1 -> "001",
+// 1234 -> "x001/234", 1234567 -> "x001/x234/567". The caller appends it to
+// `<monitoring>/tile/data/` and adds the `.p/<W>` suffix for a partial tile.
+func DataTilePath(index int64) string {
+	segs := []string{fmt.Sprintf("%03d", index%1000)}
+	for index /= 1000; index > 0; index /= 1000 {
+		segs = append([]string{fmt.Sprintf("%03d", index%1000)}, segs...)
+	}
+	for i := 0; i < len(segs)-1; i++ {
+		segs[i] = "x" + segs[i]
+	}
+	return strings.Join(segs, "/")
+}
+
+// ParseDataTile decodes one static-ct-api data tile into the certificate DER of each
+// entry, in tile order. A data tile is a packed sequence of TileLeaf structures with no
+// per-entry length prefix, so it is parsed strictly left to right: each leaf is consumed
+// exactly, and the next begins where it ends. A trailing partial leaf, or any field that
+// overruns the buffer, is an error the poll treats as transient — never a short, silent
+// read (ADR-0027 §7). Each TileLeaf is a RFC 6962 TimestampedEntry (no MerkleTreeLeaf
+// version/leaf_type header, unlike get-entries), then for a precert entry the full
+// pre_certificate, then the issuance chain as SHA-256 fingerprints (skipped — the tail
+// needs only the leaf certificate's names). An entry type the tail does not recognise
+// ends the tile parse with an error rather than a guess, because an unknown type has an
+// unknown length and the next leaf's offset cannot be found.
+func ParseDataTile(body []byte) ([][]byte, error) {
+	var out [][]byte
+	b := body
+	for len(b) > 0 {
+		der, rest, err := parseTileLeaf(b)
+		if err != nil {
+			return nil, fmt.Errorf("scan: data tile leaf %d: %w", len(out), err)
+		}
+		out = append(out, der)
+		b = rest
+	}
+	return out, nil
+}
+
+// parseTileLeaf consumes one TileLeaf from the front of b and returns the leaf
+// certificate's DER and the remaining bytes. The leaf layout (RFC 6962 §3.4 +
+// static-ct-api): timestamp(8) + entry_type(2) + signed_entry + extensions(opaque16),
+// then for a precert entry pre_certificate(opaque24), then certificate_chain(opaque16).
+// For an x509 entry the signed_entry IS the certificate; for a precert entry the
+// signed_entry holds only issuer_key_hash + TBSCertificate, so the parseable certificate
+// is the pre_certificate field read after the extensions.
+func parseTileLeaf(b []byte) (der, rest []byte, err error) {
+	const timestampLen, entryTypeLen = 8, 2
+	if len(b) < timestampLen+entryTypeLen {
+		return nil, nil, fmt.Errorf("truncated leaf header")
+	}
+	entryType := binary.BigEndian.Uint16(b[timestampLen : timestampLen+entryTypeLen])
+	b = b[timestampLen+entryTypeLen:]
+
+	switch entryType {
+	case ctEntryX509:
+		// signed_entry = ASN.1Cert: the certificate itself.
+		cert, after, e := takeOpaque24(b)
+		if e != nil {
+			return nil, nil, fmt.Errorf("x509 signed_entry: %w", e)
+		}
+		der = cert
+		b = after
+	case ctEntryPrecert:
+		// signed_entry = PreCert: issuer_key_hash[32] + TBSCertificate (not a parseable
+		// certificate). The full pre_certificate comes after the extensions.
+		if len(b) < ctIssuerKeyHash {
+			return nil, nil, fmt.Errorf("truncated precert issuer_key_hash")
+		}
+		b = b[ctIssuerKeyHash:]
+		_, after, e := takeOpaque24(b) // TBSCertificate — skipped
+		if e != nil {
+			return nil, nil, fmt.Errorf("precert TBSCertificate: %w", e)
+		}
+		b = after
+	default:
+		// An unknown entry type has an unknown signed_entry length, so the rest of the
+		// tile cannot be framed. Fail the tile rather than guess an offset.
+		return nil, nil, fmt.Errorf("unsupported entry type %d", entryType)
+	}
+
+	// extensions: CtExtensions opaque<0..2^16-1> — skipped.
+	_, after, e := takeOpaque16(b)
+	if e != nil {
+		return nil, nil, fmt.Errorf("extensions: %w", e)
+	}
+	b = after
+
+	if entryType == ctEntryPrecert {
+		// pre_certificate = ASN.1Cert: the parseable certificate for a precert entry.
+		cert, afterPre, pe := takeOpaque24(b)
+		if pe != nil {
+			return nil, nil, fmt.Errorf("pre_certificate: %w", pe)
+		}
+		der = cert
+		b = afterPre
+	}
+
+	// certificate_chain = Fingerprint chain<0..2^16-1> — skipped; the tail needs no chain.
+	_, afterChain, ce := takeOpaque16(b)
+	if ce != nil {
+		return nil, nil, fmt.Errorf("certificate_chain: %w", ce)
+	}
+	return der, afterChain, nil
+}
+
+// takeOpaque24 reads one TLS opaque<1..2^24-1> value (a 3-byte big-endian length then
+// that many bytes) from the front of b and returns the value and the remaining bytes. It
+// reuses readOpaque24's bounds checks and, unlike it, hands back the tail so a packed
+// sequence of values (a data tile) is parsed left to right.
+func takeOpaque24(b []byte) (val, rest []byte, err error) {
+	v, err := readOpaque24(b)
+	if err != nil {
+		return nil, nil, err
+	}
+	return v, b[ctASN1CertLen+len(v):], nil
+}
+
+// takeOpaque16 reads one TLS opaque<0..2^16-1> value (a 2-byte big-endian length then that
+// many bytes) from the front of b and returns the value and the remaining bytes. A
+// zero-length value is legal here (unlike opaque24) — extensions and the chain are both
+// routinely empty.
+func takeOpaque16(b []byte) (val, rest []byte, err error) {
+	if len(b) < 2 {
+		return nil, nil, fmt.Errorf("truncated length prefix")
+	}
+	n := int(b[0])<<8 | int(b[1])
+	if len(b) < 2+n {
+		return nil, nil, fmt.Errorf("length %d overruns %d-byte buffer", n, len(b)-2)
+	}
+	return b[2 : 2+n], b[2+n:], nil
 }
 
 // --- admission ---------------------------------------------------------------
