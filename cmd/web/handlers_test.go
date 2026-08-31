@@ -65,6 +65,11 @@ type fakeStore struct {
 
 	sourceStates map[string]db.SourceState
 
+	// ctReliability mirrors the ct_reliability_sample rolling-window aggregate per
+	// source (#879), keyed by source slug. A missing key reads as the zero row — no
+	// samples — which is the "no recent data" state the reliability card renders.
+	ctReliability map[string]db.CTReliabilityWindowRow
+
 	// integrationStates mirrors the integration_state table (#308): the operator's
 	// per-integration install state, keyed by slug. Absence is the available (not
 	// installed) state, so a disconnect deletes the row.

@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/scan"
 )
 
 // The sources sub-tab's view layer is the design-owned settings.tmpl (its
@@ -249,6 +251,19 @@ func (s *server) fillSourcesSection(r *http.Request, f settingsForms, data map[s
 	data["Barred"] = barred
 	data["SourceError"] = f.sourceError
 
+	// The measured reliability bar for the bulk CT sources (spec §3, #879): the
+	// pass/fail-per-limb and degraded state the CT-source card renders. Exposed here
+	// for the UI; #880/#881 render the active-source hero and KPI tiles from it.
+	rel, err := s.ctReliabilityViews(r.Context())
+	if err != nil {
+		return err
+	}
+	data["CTReliability"] = rel
+	data["CTReliabilityBar"] = ctReliabilityBar{
+		SuccessTarget: fmt.Sprintf("≥ %d%%", int(scan.CTSuccessRateBar*100)),
+		LatencyTarget: fmt.Sprintf("≤ %d s", scan.CTP95LatencyBarMS/1000),
+	}
+
 	// The consent dialog (#26): opened by ?consent=<id>, it renders that source's
 	// terms and the acceptance checkbox. It renders only for an operator-accepted,
 	// currently-off source; a stray param opens no dialog.
@@ -314,6 +329,88 @@ func (s *server) sourceViews(r *http.Request) ([]sourceView, error) {
 		})
 	}
 	return out, nil
+}
+
+// ctReliabilityView is one bulk CT source's reliability-bar card data for the
+// sources tab (spec §3, §6.2/§6.4, #879). It carries the measured limbs display-ready
+// and a pass/fail per limb — or, for the keyless fallback (crt.sh), the exempt
+// marking so it renders muted, not failed. Degraded is the below-bar primary state
+// the card surfaces without a silent swap to crt.sh (runtime failover is deferred,
+// spec §7). HasData is false for a source with no recent samples, so the card reads
+// "no recent data" rather than a false failure.
+type ctReliabilityView struct {
+	Slug     string
+	Name     string
+	Exempt   bool
+	HasData  bool
+	Degraded bool
+	Samples  int64
+
+	SuccessPct  string // e.g. "99.5%", or "—" with no data
+	SuccessPass bool
+
+	P95Display  string // e.g. "3.2 s", or "—" with no data
+	LatencyPass bool
+
+	FalseEmpty     int64
+	FalseEmptyPass bool
+}
+
+// ctReliabilityBar is the bar's targets, formatted for the KPI tiles (spec §3). It is
+// release-authored, the same for every install, so it is derived from the scan-package
+// constants rather than read from Postgres.
+type ctReliabilityBar struct {
+	SuccessTarget string // "≥ 99%"
+	LatencyTarget string // "≤ 5 s"
+}
+
+// ctReliabilityViews reads and evaluates the reliability bar for the two bulk CT
+// sources (spec §3, #879). The tail (ct-tail) is not bulk-by-name and carries no bar.
+// The worker records a sample per bulk query; this reads each source's rolling window
+// and evaluates it against the bar. crt.sh reports exempt, the operator-keyed primary
+// reports pass/fail per limb and degraded when it misses one.
+func (s *server) ctReliabilityViews(ctx context.Context) ([]ctReliabilityView, error) {
+	slugs := []string{scan.CrtshSource, scan.CertSpotterSource}
+	out := make([]ctReliabilityView, 0, len(slugs))
+	for _, slug := range slugs {
+		row, err := s.store.CTReliabilityWindow(ctx, db.CTReliabilityWindowParams{
+			Source:     slug,
+			SampleSize: scan.CTReliabilityWindowSize,
+		})
+		if err != nil {
+			return nil, err
+		}
+		report := scan.EvaluateCTReliability(slug, scan.CTReliabilityWindow{
+			Total:        row.Total,
+			Successes:    row.Successes,
+			Empties:      row.Empties,
+			P95LatencyMS: row.P95LatencyMs,
+		})
+		name := slug
+		if c, ok := catalogBySlug(slug); ok {
+			name = c.Name
+		}
+		out = append(out, newCTReliabilityView(name, report))
+	}
+	return out, nil
+}
+
+// newCTReliabilityView shapes one evaluated report for rendering, formatting the
+// measured success rate as a percentage and the p95 latency in seconds. A source with
+// no samples shows an em dash for both, never a fabricated zero.
+func newCTReliabilityView(name string, r scan.CTReliabilityReport) ctReliabilityView {
+	v := ctReliabilityView{
+		Slug: r.Source, Name: name,
+		Exempt: r.Exempt, HasData: r.HasData, Degraded: r.Degraded, Samples: r.Samples,
+		SuccessPass: r.SuccessPass, LatencyPass: r.LatencyPass,
+		FalseEmpty: r.FalseEmpty, FalseEmptyPass: r.FalseEmptyPass,
+		SuccessPct: "—", P95Display: "—",
+	}
+	if r.HasData {
+		v.SuccessPct = fmt.Sprintf("%.1f%%", r.SuccessRate*100)
+		v.P95Display = fmt.Sprintf("%.1f s", float64(r.P95LatencyMS)/1000)
+	}
+	return v
 }
 
 // toggleSource records an admin's on/off choice for one source. Toggling is an
