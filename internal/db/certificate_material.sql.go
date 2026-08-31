@@ -9,6 +9,22 @@ import (
 	"context"
 )
 
+const countCertificateMaterial = `-- name: CountCertificateMaterial :one
+SELECT count(*)::bigint AS captured FROM certificate_material
+`
+
+// How many leaf certificates the handshake capture has stored (#881, spec §5, §6.2). The
+// More-CT-capabilities card states verification's readout: this is the pool of leaves the
+// point-check verifies against CT. Verification keeps no durable result — its logged /
+// NOT-logged findings are ephemeral events (#878) — so this captured count is the truthful
+// measure of verification's reach. One scalar row always returns.
+func (q *Queries) CountCertificateMaterial(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countCertificateMaterial)
+	var captured int64
+	err := row.Scan(&captured)
+	return captured, err
+}
+
 const getCertificateMaterial = `-- name: GetCertificateMaterial :one
 SELECT fingerprint, der, scts, issuer_spki
 FROM certificate_material

@@ -36,6 +36,13 @@ type Querier interface {
 	// for an empty window. The caller (internal/scan.EvaluateCTReliability) turns the limbs
 	// into pass/fail; the web layer reads last_at separately, never the scan package.
 	CTReliabilityWindow(ctx context.Context, arg CTReliabilityWindowParams) (CTReliabilityWindowRow, error)
+	// The most recent drift-tail (kind='ct-tail') Batch: when it ran and how many Names it
+	// admitted (#881, spec §6.2). The More-CT-capabilities card states the tail's own run
+	// readout, distinct from the bulk `ct` hero's (which excludes ct-tail Batches). last_at
+	// is the newest ct-tail Batch's instant, NULL when the tail has never run; names counts
+	// the admitted_name rows citing that Batch, and COALESCE gives 0 for an empty or
+	// dead-lettered run. One row always returns.
+	CTTailLastBatch(ctx context.Context) (CTTailLastBatchRow, error)
 	// Terminate a Dispatch (DF-F4): cancel every in-flight job — ready AND running. A
 	// ready job never runs; a running job is cancelled out from under the worker, whose
 	// guarded terminal write (MarkJobDone/Dead/Retried, WHERE state = 'running') then
@@ -93,6 +100,12 @@ type Querier interface {
 	// Guards the last-admin invariant: a role change that would drop this to zero is
 	// refused so an operator cannot lock every admin out.
 	CountAdmins(ctx context.Context) (int64, error)
+	// How many leaf certificates the handshake capture has stored (#881, spec §5, §6.2). The
+	// More-CT-capabilities card states verification's readout: this is the pool of leaves the
+	// point-check verifies against CT. Verification keeps no durable result — its logged /
+	// NOT-logged findings are ephemeral events (#878) — so this captured count is the truthful
+	// measure of verification's reach. One scalar row always returns.
+	CountCertificateMaterial(ctx context.Context) (int64, error)
 	CountObservationsForScan(ctx context.Context, scanID int64) (int64, error)
 	// The unread count the caller's nav element carries on every screen (#327).
 	// Read-state is a per-account fact: a message is unread for THIS account until

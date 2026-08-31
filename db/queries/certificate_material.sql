@@ -9,6 +9,14 @@ INSERT INTO certificate_material (fingerprint, der, scts, issuer_spki)
 VALUES ($1, $2, $3, $4)
 ON CONFLICT (fingerprint) DO NOTHING;
 
+-- name: CountCertificateMaterial :one
+-- How many leaf certificates the handshake capture has stored (#881, spec §5, §6.2). The
+-- More-CT-capabilities card states verification's readout: this is the pool of leaves the
+-- point-check verifies against CT. Verification keeps no durable result — its logged /
+-- NOT-logged findings are ephemeral events (#878) — so this captured count is the truthful
+-- measure of verification's reach. One scalar row always returns.
+SELECT count(*)::bigint AS captured FROM certificate_material;
+
 -- name: GetCertificateMaterial :one
 -- Read one leaf's captured CT inputs back for an on-demand verification re-check (spec §5.4,
 -- #878): the leaf DER (embedded SCTs ride inside it), the out-of-cert SCT material, and the

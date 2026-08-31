@@ -7,6 +7,29 @@ SELECT tree_size, signed_head
 FROM ct_log_cursor
 WHERE log_id = $1;
 
+-- name: CTTailLastBatch :one
+-- The most recent drift-tail (kind='ct-tail') Batch: when it ran and how many Names it
+-- admitted (#881, spec §6.2). The More-CT-capabilities card states the tail's own run
+-- readout, distinct from the bulk `ct` hero's (which excludes ct-tail Batches). last_at
+-- is the newest ct-tail Batch's instant, NULL when the tail has never run; names counts
+-- the admitted_name rows citing that Batch, and COALESCE gives 0 for an empty or
+-- dead-lettered run. One row always returns.
+SELECT
+    (SELECT b.created_at FROM batch b
+     WHERE b.kind = 'ct-tail'
+     ORDER BY b.created_at DESC, b.id DESC
+     LIMIT 1) AS last_at,
+    COALESCE((
+        SELECT count(*)
+        FROM admitted_name an
+        WHERE an.batch_id = (
+            SELECT b.id FROM batch b
+            WHERE b.kind = 'ct-tail'
+            ORDER BY b.created_at DESC, b.id DESC
+            LIMIT 1
+        )
+    ), 0)::bigint AS names;
+
 -- name: AdvanceCTLogCursor :exec
 -- Move one log's cursor forward to the tree size just read, recording the STH that
 -- signed it (spec §4.2). Forward-only by construction: the ON CONFLICT update advances
