@@ -47,13 +47,13 @@ rules and why only one of them may be retired by a clock.**
 | Corpus 1 — observations | Two tiers. **Live** — within `k` cadences of the tightest covering `Scan` — may **never** be discarded. **Evidential** — past that — may be discarded at any age with no value moving |
 | Where `Batch` sits | **Corpus 1, not corpus 2.** A `Batch` is read by the comparison path; a `Dispatch` may not be. They are not one record |
 | `Batch` retention | While any observation it produced is retained, **or** while it is the current `Citation` of a subject in the estate |
-| Corpus 2 — the operational record | **`Dispatch` alone**, and it is the **only** corpus a wall clock may retire — because [ADR-0005](./0005-scan-execution-model.md) already fenced it off from every derivation |
+| Corpus 2 — the operational record | **`Dispatch`**, and ~~it is the **only** corpus a wall clock may retire~~ — because [ADR-0005](./0005-scan-execution-model.md) already fenced it off from every derivation. **`only` is superseded by [ADR-0126](./0126-verbatim-job-output-is-a-fourth-operational-corpus-retired-by-a-duration-dial-that-ships-bounded.md): `Transcript` is a second dial-carrying Operational corpus. `Dispatch` remains one a clock may retire; it is no longer the sole one.** |
 | Corpus 3 — `Span`s | **Never compacted. No policy, no dial, no default, in v1** |
 | ADR-0007's hard floor | **Restated as a precondition on any future compaction**, and it gains a third limb: a truncated timeline renders as a **labelled floor**, never as an opening |
 | Is retention a declared parameter? | **No.** It sits outside every derivation and is an operator dial, alongside the coverage threshold, notification routing and flap suppression ([ADR-0004](./0004-signals-are-release-coupled-rules.md)) |
 | The dial's instrument | A **duration**, never a byte or row budget — see the rejected alternatives |
 | Sizing against declared scope size | The dial renders its **projection** from the declared address count, which is the one exact denominator in the product ([ADR-0047](./0047-an-address-scope-is-its-own-enumeration.md)) |
-| v1's shipped defaults | **Unbounded on both retirable corpora.** The dials exist; neither expires anything until an operator says so |
+| v1's shipped defaults | ~~**Unbounded on both retirable corpora.**~~ The dials exist; neither expires anything until an operator says so. **No longer total — [ADR-0126](./0126-verbatim-job-output-is-a-fourth-operational-corpus-retired-by-a-duration-dial-that-ships-bounded.md) adds `Transcript`, a third retirable corpus that ships *bounded* (14-day default). The unbounded default is kept for `Dispatch` and observations.** |
 | Rebuilding `Span`s from retained observations | **Refused**, by ADR-0007 verbatim. Keeping observations longer than spans buys nothing |
 | Who owns `returned` detection | **The release, not the operator.** No retention setting can lengthen the horizon a `Break` sets |
 
@@ -393,10 +393,17 @@ patch's instruction without inventing a measurement of anything.
 
 ### v1 ships no expiry, and that is a ruling rather than a deferral
 
-Both retirable corpora ship **unbounded**, with the dial present. The grounds are the arithmetic:
+~~Both retirable corpora ship **unbounded**~~, with the dial present. The grounds are the arithmetic:
 under a gigabyte a year on the modal install, thirteen at the shipped ceiling, in one `docker compose`
 volume. There is no install the shipped configuration admits where a default expiry is the difference
 between working and not.
+
+> **This section is scoped to `Dispatch` and observations, at the site that states it**
+> ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).
+> [ADR-0126](./0126-verbatim-job-output-is-a-fourth-operational-corpus-retired-by-a-duration-dial-that-ships-bounded.md)
+> adds a third retirable corpus, `Transcript`, that ships **bounded** — a 14-day default, `0`=unbounded
+> — because verbatim job-output bytes are the volume hazard the row-count arithmetic here does not
+> cover. *v1 ships no expiry* holds for the two corpora this ADR shipped; it is no longer total.
 
 The alternative — shipping a default window — would put a clock retiring evidence on 99% of installs
 that have nothing to retire, in order to protect the under-1% that declare an address scope
@@ -414,8 +421,11 @@ default for a quantity nothing bounds is not to bound it.**
 - **[`CONTEXT.md`](../../CONTEXT.md) is amended in five entries and gains no term.** `Observation`
   gains the two tiers and the currency floor. `Batch` gains that it travels with its observations and
   is not part of the operational record. `Span` gains that the corpus is never compacted and is
-  proportional to drift rather than to time. `Dispatch` gains that it is the only corpus a clock may
-  retire and why. `Transition` gains that a withdrawn subject's timelines close, and that `returned`
+  proportional to drift rather than to time. `Dispatch` gains that ~~it is the only corpus a clock may
+  retire~~ it is a clock-retirable corpus and why — **superseded by
+  [ADR-0126](./0126-verbatim-job-output-is-a-fourth-operational-corpus-retired-by-a-duration-dial-that-ships-bounded.md):
+  `Transcript` is a second, marked in CONTEXT.md's `Dispatch` entry too; `Dispatch` is no longer the
+  sole one**. `Transition` gains that a withdrawn subject's timelines close, and that `returned`
   is the one transition a `Break` destroys rather than clamps.
 - **[ADR-0007](./0007-drift-is-a-timeline-of-spans.md)'s hard-floor consequence is amended at its own
   site**, per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
