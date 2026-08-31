@@ -35,6 +35,21 @@ const maxCTBody = 64 << 20 // 64 MiB
 // 5 req/min ceiling the operator asked for (ADR-0005, passive-discovery §2.2).
 const crtshInterval = 12 * time.Second
 
+// certSpotterInterval is the instance-wide spacing between Cert Spotter requests.
+// It is sized to the free authenticated tier's documented cap — 10 full-domain
+// queries per hour, i.e. one every 360s (research §3.3) — because the worker cannot
+// know which paid tier the operator holds, so it spaces to the floor. A paid tier
+// tolerates far more; #879 re-measures this against the reliability bar (spec §3).
+const certSpotterInterval = 360 * time.Second
+
+// maxCTPages bounds how many pages one CT job fetches for a single name-scope
+// domain. crt.sh is single-shot (one page); Cert Spotter paginates by cursor until
+// a page comes back empty. The cap is a backstop against a source that never
+// returns an empty page (a non-advancing cursor is already caught by the
+// next==cursor guard): a legitimate estate's per-domain issuance history sits far
+// below it, so reaching it signals an oversized or misbehaving answer.
+const maxCTPages = 1000
+
 // CTFetcher fetches a crt.sh URL, returning the HTTP status and body. It is an
 // injected seam so the worker is driven by a fake in tests and never touches
 // crt.sh under test — the proposer/delivery Doer pattern, one level up (the whole
@@ -50,16 +65,22 @@ type CTFetcher interface {
 type HTTPCTFetcher struct {
 	client    *http.Client
 	userAgent string
+	// bearer is the Authorization: Bearer credential sent with each request, or ""
+	// for a keyless source (crt.sh sends none). Cert Spotter's operator key rides
+	// here — worker-only (ADR-0053, spec §2.4), set through NewCertSpotterFetcher,
+	// which is constructed only in the worker process.
+	bearer string
 }
 
-// NewHTTPCTFetcher builds the production fetcher. version identifies the running
-// build in the User-Agent, per the operator's request for an identifiable client.
+// NewHTTPCTFetcher builds the production fetcher for a keyless source (crt.sh).
+// version identifies the running build in the User-Agent, per the operator's
+// request for an identifiable client.
 func NewHTTPCTFetcher(version string) *HTTPCTFetcher {
 	return &HTTPCTFetcher{
 		client: &http.Client{
 			Timeout: 90 * time.Second,
 			// Redirects are not followed: a 3xx returns its own response unfollowed,
-			// so a compromised or MITM'd crt.sh cannot bounce the fetch to an
+			// so a compromised or MITM'd source cannot bounce the fetch to an
 			// arbitrary internal host (blind SSRF — IMDS at 169.254.169.254 or an
 			// RFC-1918 address). The caller treats any non-200 as transient failure
 			// and admits nothing, so an unfollowed 3xx is handled like any other
@@ -68,6 +89,17 @@ func NewHTTPCTFetcher(version string) *HTTPCTFetcher {
 		},
 		userAgent: "verge-asm/" + version + " (+https://github.com/winniel123/verge-asm)",
 	}
+}
+
+// NewCertSpotterFetcher builds the production fetcher for the Cert Spotter API,
+// carrying the operator's API token as a Bearer credential (spec §2.4). It shares
+// the crt.sh fetcher's no-redirect SSRF guard and timeout, adding only the auth
+// header. The token stays worker-only: this constructor is called only in the
+// worker process, so the web process never holds it.
+func NewCertSpotterFetcher(version, token string) *HTTPCTFetcher {
+	f := NewHTTPCTFetcher(version)
+	f.bearer = token
+	return f
 }
 
 // Fetch performs one GET against a crt.sh URL. A transport error returns status 0;
@@ -80,6 +112,9 @@ func (f *HTTPCTFetcher) Fetch(ctx context.Context, url string) (int, []byte, err
 	}
 	req.Header.Set("User-Agent", f.userAgent)
 	req.Header.Set("Accept", "application/json")
+	if f.bearer != "" {
+		req.Header.Set("Authorization", "Bearer "+f.bearer)
+	}
 	resp, err := f.client.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -111,10 +146,17 @@ type pgCTThrottle struct {
 }
 
 // NewCTThrottle builds the production throttle over pool for crt.sh at the 5
-// req/min ceiling — the only active CT source today (12 s spacing, ADR-0005). A
-// second CT source builds its own throttle with its own slug and interval.
+// req/min ceiling (12 s spacing, ADR-0005), the keyless fallback source.
 func NewCTThrottle(q *db.Queries) CTThrottle {
 	return pgCTThrottle{q: q, source: scan.CrtshSource, interval: crtshInterval}
+}
+
+// NewCertSpotterThrottle builds the production throttle for Cert Spotter on its own
+// slug and interval (spec §2.5). It reserves against the `certspotter` row of the
+// per-source ct_throttle table (seeded by migration 24100), separate from crt.sh's
+// row, so each source spaces on its own cadence.
+func NewCertSpotterThrottle(q *db.Queries) CTThrottle {
+	return pgCTThrottle{q: q, source: scan.CertSpotterSource, interval: certSpotterInterval}
 }
 
 // Reserve claims the next slot for this source and returns the instant the fetch
@@ -130,13 +172,17 @@ func (t pgCTThrottle) Reserve(ctx context.Context) (time.Time, error) {
 	return slot.Time, nil
 }
 
-// WithCT wires the CT fetcher and throttle onto the Worker. It is separate from
-// NewWorker so the measurement-only worker construction (and its tests) stay
-// unchanged; a worker with no CT fetcher configured refuses a `ct` job rather
-// than silently admitting nothing.
-func (w *Worker) WithCT(fetcher CTFetcher, throttle CTThrottle) *Worker {
+// WithCT wires the CT fetcher, throttle and selected bulk source onto the Worker.
+// source is the one `ct` source active this config (spec §2.3): crt.sh when no
+// operator key is set, Cert Spotter when it is. It decides the query URL, the
+// response decode, and the slug stamped on admissions, so the fetcher and the
+// source always agree. WithCT is separate from NewWorker so the measurement-only
+// worker construction (and its tests) stay unchanged; a worker with no CT fetcher
+// configured refuses a `ct` job rather than silently admitting nothing.
+func (w *Worker) WithCT(fetcher CTFetcher, throttle CTThrottle, source scan.CTSource) *Worker {
 	w.ctFetcher = fetcher
 	w.ctThrottle = throttle
+	w.ctSource = source
 	return w
 }
 
@@ -148,53 +194,76 @@ func (w *Worker) completeCT(ctx context.Context, job db.ClaimJobRow, spec wire.J
 	if w.ctFetcher == nil {
 		return fmt.Errorf("queue: ct job %d with no CT fetcher configured", job.ID)
 	}
+	src := w.ctSource
+	if src == nil {
+		// Default to crt.sh so a worker wired with a fetcher but no explicit source
+		// (older construction, a test) still runs the keyless path unchanged.
+		src = scan.CrtshCTSource()
+	}
 	cs, err := scan.CTScopeFromSpec(spec.Scope)
 	if err != nil {
 		return fmt.Errorf("decode ct scope: %w", err)
 	}
 
-	// Reserve the next instance-wide slot and wait for it before going on the
-	// wire (ADR-0005). The reservation is durable in Postgres; the wait is local.
-	if w.ctThrottle != nil {
-		slot, rerr := w.ctThrottle.Reserve(ctx)
-		if rerr != nil {
-			return fmt.Errorf("ct throttle: %w", rerr)
+	// Fetch the source's answer for this domain, following its pagination cursor.
+	// crt.sh is single-shot (one page); Cert Spotter pages by cursor until a page
+	// comes back empty. Every candidate feeds the shared admitter, which caps the
+	// admission across all pages (spec §2.6). Each page reserves its own throttle
+	// slot, so the per-source spacing bounds the whole paginated fetch.
+	adm := scan.NewCTAdmitter(cs.Domain)
+	cursor := ""
+	for page := 0; page < maxCTPages; page++ {
+		// Reserve the next instance-wide slot and wait for it before going on the
+		// wire (ADR-0005). The reservation is durable in Postgres; the wait is local.
+		if w.ctThrottle != nil {
+			slot, rerr := w.ctThrottle.Reserve(ctx)
+			if rerr != nil {
+				return fmt.Errorf("ct throttle: %w", rerr)
+			}
+			if serr := sleepUntil(ctx, w.now, slot); serr != nil {
+				return serr
+			}
 		}
-		if serr := sleepUntil(ctx, w.now, slot); serr != nil {
-			return serr
+
+		status, body, ferr := w.ctFetcher.Fetch(ctx, src.QueryURL(cs.Domain, cursor))
+		if ferr != nil || status != http.StatusOK {
+			// Any non-200 is transient failure, never an empty result: a CT index
+			// returns spurious 404s and 5xxs for domains that demonstrably have
+			// certificates (ADR-0027 §7).
+			cause := ferr
+			if cause == nil {
+				// A non-200 status carries no source detail — only the code — so it is
+				// marked safe to surface verbatim in the live stream (#780, collision
+				// #40). A transport error (ferr) is NOT marked and stays redacted.
+				cause = safeProgress(fmt.Sprintf("%s returned HTTP %d", src.DisplayName(), status))
+			}
+			return w.retryOrDeadLetterCT(ctx, job, cause)
 		}
+
+		names, next, perr := src.DecodePage(body)
+		if perr != nil {
+			// A 200 whose body is not well-formed is not evidence of anything (§7) —
+			// treat it as transient, not as "no certificates".
+			return w.retryOrDeadLetterCT(ctx, job, perr)
+		}
+		adm.Add(names)
+		// Stop when the source signals no more pages (crt.sh always; Cert Spotter on
+		// an empty page), when the cursor fails to advance, or once the admitter has
+		// filled the cap and further pages could admit nothing more (#741).
+		if next == "" || next == cursor || adm.Full() {
+			break
+		}
+		cursor = next
 	}
 
-	status, body, ferr := w.ctFetcher.Fetch(ctx, scan.CrtshURL(cs.Domain))
-	if ferr != nil || status != http.StatusOK {
-		// Any non-200 is transient failure, never an empty result: crt.sh returns
-		// spurious 404s and 5xxs for domains that demonstrably have certificates
-		// (ADR-0027 §7).
-		cause := ferr
-		if cause == nil {
-			// A non-200 status carries no source detail — only the code — so it is marked safe
-			// to surface verbatim in the live stream (#780, collision #40). A transport error
-			// (ferr) is NOT marked and stays redacted to a generic phrase.
-			cause = safeProgress(fmt.Sprintf("crt.sh returned HTTP %d", status))
-		}
-		return w.retryOrDeadLetterCT(ctx, job, cause)
-	}
-
-	rows, perr := scan.ParseCrtshRows(body)
-	if perr != nil {
-		// A 200 whose body is not a parseable JSON array is not evidence of
-		// anything (§7) — treat it as transient, not as "no certificates".
-		return w.retryOrDeadLetterCT(ctx, job, perr)
-	}
-	names := scan.AdmittedNames(rows, cs.Domain)
-	if len(names) >= scan.MaxAdmittedNames {
-		// AdmittedNames stopped at the ceiling: this response carried at least
+	if adm.Full() {
+		// The admitter stopped at the ceiling: this domain carried at least
 		// MaxAdmittedNames in-scope names and any beyond it were dropped rather than
 		// admitted (#741). Legitimate estates sit far below the cap, so reaching it
-		// signals an oversized or hostile crt.sh answer worth an operator's notice.
+		// signals an oversized or hostile answer worth an operator's notice.
 		w.log.Printf("worker: ct job %d for %q reached the admitted-name cap of %d; names beyond the cap were dropped", job.ID, cs.Domain, scan.MaxAdmittedNames)
 	}
-	return w.admitCT(ctx, job, cs, names)
+	return w.admitCT(ctx, job, cs, src.Slug(), adm.Names())
 }
 
 // retryOrDeadLetterCT enqueues a fresh attempt while the retry budget remains and
@@ -215,7 +284,7 @@ func (w *Worker) retryOrDeadLetterCT(ctx context.Context, job db.ClaimJobRow, ca
 // one transaction. Each admitted Name cites this Batch and terminates at the
 // covering Seed (ADR-0027). There is no observation and no span-fold — CT admits
 // without observing, so a completed CT Batch moves no timeline.
-func (w *Worker) admitCT(ctx context.Context, job db.ClaimJobRow, cs scan.CTSeed, names []string) error {
+func (w *Worker) admitCT(ctx context.Context, job db.ClaimJobRow, cs scan.CTSeed, source string, names []string) error {
 	return w.runJobTx(ctx, job.ID, func(qtx *db.Queries) error {
 		batchID, err := qtx.InsertBatch(ctx, db.InsertBatchParams{
 			ScanID:        job.ScanID,
@@ -232,7 +301,7 @@ func (w *Worker) admitCT(ctx context.Context, job db.ClaimJobRow, cs scan.CTSeed
 		for _, n := range names {
 			if err := qtx.InsertAdmittedName(ctx, db.InsertAdmittedNameParams{
 				Name:    n,
-				Source:  scan.CrtshSource,
+				Source:  source,
 				SeedID:  cs.SeedID,
 				BatchID: batchID,
 			}); err != nil {
@@ -295,13 +364,16 @@ func sleepUntil(ctx context.Context, now func() time.Time, t time.Time) error {
 }
 
 // fanOutCT enqueues one CT job per name-scope Seed, gated on the selected CT
-// source being enabled (ADR-0106). Exactly one CT source is active per config;
-// today that is always crt.sh, keyless and shipped on. The Scan is the Declared
-// schedule and ships enabled; the source toggle is ADR-0003 consent. A disabled
-// source leaves the Scan firing over an empty scope — a legible zero-job state,
-// like `zone` with no file.
+// source being enabled (ADR-0106). Exactly one CT source is active per config,
+// selected at worker wire-time by the presence of the operator key (spec §2.3):
+// crt.sh when absent, Cert Spotter when set. The gate consults only the selected
+// source's slug, so the standby source never fans out even where its own
+// source_state is on. The gate's ship-default is true because the selection has
+// already happened — the operator toggles the selected source OFF in source_state
+// to fire over an empty scope (a legible zero-job state, like `zone` with no file);
+// there is no auto-fallback to the other source.
 func (d *Dispatcher) fanOutCT(ctx context.Context, qtx *db.Queries, scanID, dispatchID int64) (int, error) {
-	enabled, err := sourceEnabled(ctx, qtx, scan.CrtshSource, true)
+	enabled, err := sourceEnabled(ctx, qtx, d.selectedCTSource(), true)
 	if err != nil {
 		return 0, err
 	}

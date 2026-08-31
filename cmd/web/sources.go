@@ -20,6 +20,7 @@ import (
 const (
 	consentUnencumbered = "unencumbered"
 	consentAccepted     = "operator-accepted"
+	consentCredentialed = "operator-credentialed"
 )
 
 // catalogSource is one authored row of the source catalogue. The catalogue is
@@ -125,9 +126,10 @@ var sourceCatalog = []catalogSource{
 		ShipNote: "Excluded on terms. Its terms bar the software's inherent behaviour, which fails regardless of who the operator is — so no operator reading consents past it.",
 	},
 	{
-		Slug: "certspotter", Name: "Cert Spotter (unauthenticated)",
-		Authority: "inferred", Completeness: "corroborative", Barred: true,
-		ShipNote: "Excluded on terms. Its unauthenticated tier is scoped to personal or evaluation use, which the modal operator is outside.",
+		Slug: "certspotter", Name: "Cert Spotter (operator key)",
+		Authority: "inferred", Completeness: "corroborative", Consent: consentCredentialed,
+		DefaultOn: false,
+		ShipNote:  "Certificate transparency, bulk-by-name — the operator-keyed primary (spec §2). Set VERGE_CERTSPOTTER_TOKEN on the worker to select it as the active ct source in place of crt.sh; absent the key, crt.sh runs. Admits the Names a certificate's SAN list carries — authority: inferred — never a wildcard, and observes nothing (ADR-0027), the same way crt.sh does. Its authenticated tier clears the consent bar (ADR-0003); the key is worker-only and web never reads it.",
 	},
 }
 

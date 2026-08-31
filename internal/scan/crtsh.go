@@ -13,8 +13,8 @@ package scan
 import (
 	"encoding/json"
 	"fmt"
+	"iter"
 	"net/url"
-	"sort"
 	"strings"
 
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
@@ -158,60 +158,61 @@ func ParseCrtshRows(body []byte) ([]CrtshRow, error) {
 const MaxAdmittedNames = 100_000
 
 // AdmittedNames is the pure admission decision: the set of `Name`s a crt.sh
-// answer admits under one name-scope domain. It applies the two rulings already
-// made — ADR-0060 (no value with an asterisk label admits a Name; a wildcard
-// denotes a set and a partial wildcard has two denotations, both refused) and
-// ADR-0047 (the Seed decides which names are inside, so a certificate's foreign
-// SANs admit nothing under this scope) — and dedupes, returning a deterministic
-// sorted set. A row's `name_value` is split on newlines; `common_name` is one
-// more candidate. Admission stops once MaxAdmittedNames distinct Names are in hand
-// (#741): the count is capped before any row is inserted, and the split is walked
-// lazily (strings.SplitSeq) so a single giant `name_value` never materialises as
-// one multi-million-element slice.
+// answer admits under one name-scope domain. It feeds every candidate the answer
+// carries through the shared CTAdmitter (spec §2.6) — the same filter Cert Spotter
+// feeds — which applies the two rulings already made (ADR-0060 wildcard refusal,
+// ADR-0047 scope), dedupes, and caps at MaxAdmittedNames (#741), returning a
+// deterministic sorted set. The candidates are yielded lazily (crtshCandidates),
+// so a single giant `name_value` is filtered element by element and never
+// materialises as one multi-million-element slice.
 func AdmittedNames(rows []CrtshRow, domain string) []string {
-	domain = normaliseName(domain)
-	seen := map[string]struct{}{}
-	var out []string
-	consider := func(raw string) {
-		if len(out) >= MaxAdmittedNames {
-			return
-		}
-		n := normaliseName(raw)
-		if n == "" {
-			return
-		}
-		// ADR-0060: an asterisk anywhere in a dNSName value denotes a set (a
-		// wildcard) or has two denotations (a partial wildcard). Neither admits a
-		// Name, and the operative rule on the SAN path is the blunt one.
-		if strings.Contains(n, "*") {
-			return
-		}
-		// ADR-0047: the name scope filters. A cert legitimately carries SANs for
-		// several estates; only the names under the domain we queried are inside.
-		if !withinScope(n, domain) {
-			return
-		}
-		if _, dup := seen[n]; dup {
-			return
-		}
-		seen[n] = struct{}{}
-		out = append(out, n)
-	}
-	for _, r := range rows {
-		if len(out) >= MaxAdmittedNames {
-			break
-		}
-		for line := range strings.SplitSeq(r.NameValue, "\n") {
-			if len(out) >= MaxAdmittedNames {
-				break
-			}
-			consider(line)
-		}
-		consider(r.CommonName)
-	}
-	sort.Strings(out)
-	return out
+	a := NewCTAdmitter(domain)
+	a.Add(crtshCandidates(rows))
+	return a.Names()
 }
+
+// crtshCandidates yields, lazily, every candidate Name a crt.sh answer carries:
+// each newline-separated value in a row's `name_value` (the SAN list) and the
+// row's `common_name`. It is an iter.Seq so the shared CTAdmitter walks it under
+// the count cap without a hostile multi-megabyte `name_value` ever being held
+// whole (#741, strings.SplitSeq).
+func crtshCandidates(rows []CrtshRow) iter.Seq[string] {
+	return func(yield func(string) bool) {
+		for _, r := range rows {
+			for line := range strings.SplitSeq(r.NameValue, "\n") {
+				if !yield(line) {
+					return
+				}
+			}
+			if !yield(r.CommonName) {
+				return
+			}
+		}
+	}
+}
+
+// crtshCTSource is crt.sh as a CTSource (spec §2): the keyless bulk-by-name
+// fallback. It is single-shot — one query returns the whole answer (bounded by
+// crt.sh's own 999-row cap), so it paginates nothing and its next cursor is always
+// empty.
+type crtshCTSource struct{}
+
+func (crtshCTSource) Slug() string        { return CrtshSource }
+func (crtshCTSource) DisplayName() string { return "crt.sh" }
+
+func (crtshCTSource) QueryURL(domain, _ string) string { return CrtshURL(domain) }
+
+func (crtshCTSource) DecodePage(body []byte) (iter.Seq[string], string, error) {
+	rows, err := ParseCrtshRows(body)
+	if err != nil {
+		return nil, "", err
+	}
+	return crtshCandidates(rows), "", nil
+}
+
+// CrtshCTSource is the crt.sh bulk source, the keyless fallback selected when no
+// operator key is configured (spec §2.3).
+func CrtshCTSource() CTSource { return crtshCTSource{} }
 
 // normaliseName renders a candidate Name's key the same way the resolver will
 // when it measures the Name: resolutionwalk.CanonicalName — the ADR-0055 key,
