@@ -18,11 +18,23 @@ type Querier interface {
 	// out-of-order poll can never rewind the cursor and re-admit history (the §4 invariant).
 	// The first poll of a log inserts its row.
 	AdvanceCTLogCursor(ctx context.Context, arg AdvanceCTLogCursorParams) error
+	// How many Names the most recent bulk `ct` Batch admitted (#880, spec §6.2). The
+	// active-source hero's run readout states "last ct scan · <source> · <age> · <n> names
+	// admitted"; this is that <n>. It counts the admitted_name rows citing the newest
+	// kind='ct' Batch (the last bulk run, whichever source produced it — the drift tail's
+	// kind='ct-tail' Batches are excluded). A dead-lettered or empty run admits nothing, so
+	// 0 is a truthful count, and COALESCE gives 0 when no ct Batch has ever run. One scalar
+	// row always returns.
+	CTLastBatchAdmitCount(ctx context.Context) (int64, error)
 	// Aggregate one source's newest `window` samples into the three bar limbs (spec §3):
 	// the total measured, how many succeeded, how many succeeded but returned zero names
 	// (false-empty), and the p95 end-to-end latency over the window. percentile_disc
-	// returns an actual sampled latency, and COALESCE gives 0 for an empty window. The
-	// caller (internal/scan.EvaluateCTReliability) turns these into pass/fail per limb.
+	// returns an actual sampled latency, and COALESCE gives 0 for an empty window. last_at
+	// is the newest sample's instant over the window — the last time this source ran a bulk
+	// query, which the active-source hero reads to tell which source is live (#880): only
+	// the config-selected source keeps producing samples, so the freshest wins. It is NULL
+	// for an empty window. The caller (internal/scan.EvaluateCTReliability) turns the limbs
+	// into pass/fail; the web layer reads last_at separately, never the scan package.
 	CTReliabilityWindow(ctx context.Context, arg CTReliabilityWindowParams) (CTReliabilityWindowRow, error)
 	// Terminate a Dispatch (DF-F4): cancel every in-flight job — ready AND running. A
 	// ready job never runs; a running job is cancelled out from under the worker, whose

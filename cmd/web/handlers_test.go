@@ -70,6 +70,11 @@ type fakeStore struct {
 	// samples — which is the "no recent data" state the reliability card renders.
 	ctReliability map[string]db.CTReliabilityWindowRow
 
+	// ctAdmitCount mirrors CTLastBatchAdmitCount (#880): the Names the last bulk ct
+	// Batch admitted, the run-readout's <n>. Zero stands for a dead-lettered/empty run
+	// and for "no ct Batch has run".
+	ctAdmitCount int64
+
 	// integrationStates mirrors the integration_state table (#308): the operator's
 	// per-integration install state, keyed by slug. Absence is the available (not
 	// installed) state, so a disconnect deletes the row.

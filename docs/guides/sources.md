@@ -157,6 +157,25 @@ scan **keeps running the primary**. There is **no silent swap to crt.sh** — ru
 failover is deferred, spec [§7](../spec/ct-source-replacement.md). The Sources page
 surfaces the **degraded** state so the operator sees it and can reconfigure the worker.
 
+## The active-source hero — which source is live
+
+The CT section of the Sources page leads with an **active-source hero** (spec
+[§6](../spec/ct-source-replacement.md)): which bulk source is live, its reliability
+against the bar, and a run readout — `last ct scan · <source> · <age> · <n> names
+admitted`.
+
+**How the console knows which source is live, without the token.** The web console
+**never reads** `VERGE_CERTSPOTTER_TOKEN` — the key is worker-only (ADR-0053). Instead it
+**infers** the live source from run data: only the config-selected source keeps recording
+reliability samples, so the source with the **freshest sample** is the one this config
+runs. Because selection is exactly the key's presence (key set ⇒ Cert Spotter, absent ⇒
+crt.sh), the hero reports the operator-key presence — **detected** / **not set** — from
+that same inference, never from the token itself.
+
+**No sample yet.** Before any bulk `ct` scan has run under a deployment, neither source
+has a sample, so the hero asserts **no live source** — it names crt.sh as the keyless
+default and how to promote Cert Spotter, without claiming a run.
+
 ---
 
 ## Two caveats worth knowing

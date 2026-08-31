@@ -112,6 +112,10 @@ type store interface {
 	// measured reliability bar (spec §3, #879). The worker records the samples; this
 	// is the web's read of them, evaluated against the bar by scan.EvaluateCTReliability.
 	CTReliabilityWindow(ctx context.Context, arg db.CTReliabilityWindowParams) (db.CTReliabilityWindowRow, error)
+	// CTLastBatchAdmitCount reads how many Names the most recent bulk ct Batch admitted,
+	// for the active-source hero's run readout (spec §6.2, #880). A dead-lettered or empty
+	// run counts 0, and 0 also stands for "no ct Batch has run".
+	CTLastBatchAdmitCount(ctx context.Context) (int64, error)
 	ListIntegrationStates(ctx context.Context) ([]db.IntegrationState, error)
 	UpsertIntegrationState(ctx context.Context, arg db.UpsertIntegrationStateParams) (db.IntegrationState, error)
 	DeleteIntegrationState(ctx context.Context, slug string) error
