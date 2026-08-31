@@ -75,6 +75,15 @@ type fakeStore struct {
 	// and for "no ct Batch has run".
 	ctAdmitCount int64
 
+	// ctTailBatch mirrors CTTailLastBatch (#881): the drift tail's last ct-tail Batch —
+	// its instant and admitted-name count — for the More-CT-capabilities readout. A zero
+	// (invalid) LastAt stands for "the tail has never run".
+	ctTailBatch db.CTTailLastBatchRow
+
+	// certMaterialCount mirrors CountCertificateMaterial (#881): the leaf certificates the
+	// handshake capture has stored, the pool verification checks against on the same card.
+	certMaterialCount int64
+
 	// integrationStates mirrors the integration_state table (#308): the operator's
 	// per-integration install state, keyed by slug. Absence is the available (not
 	// installed) state, so a disconnect deletes the row.

@@ -284,6 +284,30 @@ func (s *server) fillSourcesSection(r *http.Request, f settingsForms, data map[s
 	}
 	data["CTHero"] = newCTSourceHero(crtshView, certView, names, s.now())
 
+	// The "More CT capabilities" card (#881, spec §6.1): the drift tail and the
+	// verification point-check, each with its own readout, beside the bulk hero. Neither
+	// is bulk-by-name and neither carries the §3 reliability bar. The tail is an opt-in
+	// Scan — its effective on/off state is read from the same catalogue the bulk hero
+	// derives from; its run readout is the last ct-tail Batch. Verification is keyless and
+	// always-on and stores no durable result (§5, #878), so its readout is the count of
+	// leaf certificates the handshake capture has stored — the pool it verifies against.
+	tailEnabled := false
+	for _, v := range views {
+		if v.Slug == scan.CTTailSource {
+			tailEnabled = v.Enabled
+			break
+		}
+	}
+	tail, err := s.store.CTTailLastBatch(r.Context())
+	if err != nil {
+		return err
+	}
+	captured, err := s.store.CountCertificateMaterial(r.Context())
+	if err != nil {
+		return err
+	}
+	data["CTCapabilities"] = newCTCapabilities(tailEnabled, tail, captured, s.now())
+
 	// The consent dialog (#26): opened by ?consent=<id>, it renders that source's
 	// terms and the acceptance checkbox. It renders only for an operator-accepted,
 	// currently-off source; a stray param opens no dialog.
@@ -516,6 +540,37 @@ func newCTSourceHero(crtsh, certspotter ctReliabilityView, names int64, now time
 		Names:       names,
 		Active:      crtsh,
 	}
+}
+
+// ctCapabilities is the "More CT capabilities" card (#881, spec §6.1): the drift tail and
+// the verification point-check rendered as capabilities beside the bulk hero, each with its
+// own readout and state. Neither is bulk-by-name; neither is held to the §3 reliability bar,
+// which is bulk-only. The tail is an opt-in Scan (ships off, spec §4) whose readout is its
+// last ct-tail Batch. Verification is keyless, always-on, and stores no durable result — its
+// logged / NOT-logged findings are ephemeral events (#878) — so its readout is the captured-
+// certificate pool it verifies against, not a pass/fail tally the console does not hold.
+type ctCapabilities struct {
+	TailEnabled bool   // the ct-tail Scan is enabled (it ships off)
+	TailHasRun  bool   // the tail has admitted at least one ct-tail Batch
+	TailLastRel string // age of the last ct-tail Batch; "" with no run
+	TailNames   int64  // Names the last ct-tail Batch admitted
+	Captured    int64  // leaf certificates the handshake capture has stored (spec §5)
+}
+
+// newCTCapabilities shapes the tail and verification readouts from real state: the tail's
+// effective on/off, its last ct-tail Batch, and the captured-certificate count. It reads no
+// worker token and no bulk reliability window — both capabilities are keyless.
+func newCTCapabilities(tailEnabled bool, tail db.CTTailLastBatchRow, captured int64, now time.Time) ctCapabilities {
+	c := ctCapabilities{
+		TailEnabled: tailEnabled,
+		TailNames:   tail.Names,
+		Captured:    captured,
+	}
+	if tail.LastAt.Valid {
+		c.TailHasRun = true
+		c.TailLastRel = profileRelTime(tail.LastAt.Time, now)
+	}
+	return c
 }
 
 // toggleSource records an admin's on/off choice for one source. Toggling is an

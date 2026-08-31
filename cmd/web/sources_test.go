@@ -38,6 +38,14 @@ func (f *fakeStore) CTLastBatchAdmitCount(context.Context) (int64, error) {
 	return f.ctAdmitCount, nil
 }
 
+func (f *fakeStore) CTTailLastBatch(context.Context) (db.CTTailLastBatchRow, error) {
+	return f.ctTailBatch, nil
+}
+
+func (f *fakeStore) CountCertificateMaterial(context.Context) (int64, error) {
+	return f.certMaterialCount, nil
+}
+
 // The reliability bar (spec §3, #879) reads each bulk CT source's rolling window,
 // evaluates it, and shapes it for the card: the operator-keyed primary reports
 // pass/fail per limb and degrades when it misses one; crt.sh reports exempt and is
@@ -245,6 +253,62 @@ func TestSourcesCTHeroRendersFallbackExempt(t *testing.T) {
 		if !strings.Contains(page, want) {
 			t.Errorf("fallback hero missing %q; body: %s", want, page)
 		}
+	}
+}
+
+// The More-CT-capabilities card (#881, spec §6.1) renders the drift tail and the
+// verification point-check beside the bulk hero, each from real state: the tail on with
+// its last ct-tail run readout, verification with the captured-certificate pool. Neither
+// reads the worker token or the bulk reliability bar.
+func TestSourcesCTCapabilitiesCardLive(t *testing.T) {
+	f := newFakeStore()
+	f.sourceStates["ct-tail"] = db.SourceState{Slug: "ct-tail", Enabled: true}
+	f.ctTailBatch = db.CTTailLastBatchRow{
+		LastAt: pgtype.Timestamptz{Time: time.Now().Add(-4 * time.Minute), Valid: true},
+		Names:  37,
+	}
+	f.certMaterialCount = 812
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := sourcesBody(t, ac, base)
+	for _, want := range []string{
+		"More CT capabilities",        // the card header
+		"drift tail",                  // the tail capability
+		"last ct-tail scan",           // the tail's own run readout
+		"37 names admitted",           // the tail's admitted count
+		"verification",                // the verification capability
+		"812 certificates captured",   // verification's captured pool
+		"ephemeral event",             // the honest no-durable-result edge (#878)
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("capabilities card missing %q; body: %s", want, page)
+		}
+	}
+}
+
+// With the tail off and nothing captured, the card is honest: the tail reads off with no
+// run readout, and verification awaits its first capture (#881).
+func TestSourcesCTCapabilitiesCardEmpty(t *testing.T) {
+	f := newFakeStore()
+	// ct-tail unset => ships off; no tail batch; zero captures.
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := sourcesBody(t, ac, base)
+	for _, want := range []string{
+		"More CT capabilities",
+		"awaiting captures",         // verification with no captures
+		"0 certificates captured",   // the truthful zero
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("empty capabilities card missing %q; body: %s", want, page)
+		}
+	}
+	if strings.Contains(page, "last ct-tail scan") {
+		t.Errorf("tail with no run must not render a run readout; body: %s", page)
 	}
 }
 
