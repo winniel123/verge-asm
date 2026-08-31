@@ -59,6 +59,10 @@ func (w *Worker) WithCTTail(fetcher CTFetcher) *Worker {
 // Names, and advance the cursor; on any non-200 or malformed body either retries or
 // dead-letters and leaves the cursor untouched, so a failed poll never advances past
 // unread entries and never asserts an absence (ADR-0005, ADR-0027 §7).
+//
+// The tail shares the CT retry/dead-letter helper but captures no transcript: #870 scopes
+// raw-output capture to the crt.sh index producer (the `ct` Scan), not the direct-log
+// tail. Each failure path passes an absent transcript, so no row is written.
 func (w *Worker) completeCTTail(ctx context.Context, job db.ClaimJobRow, spec wire.JobSpec) error {
 	if w.ctTailFetcher == nil {
 		return fmt.Errorf("queue: ct-tail job %d with no CT tail fetcher configured", job.ID)
@@ -92,11 +96,11 @@ func (w *Worker) completeCTTailRFC(ctx context.Context, job db.ClaimJobRow, lg s
 
 	status, body, ferr := w.ctTailFetcher.Fetch(ctx, base+"ct/v1/get-sth")
 	if ferr != nil || status != 200 {
-		return w.retryOrDeadLetterCT(ctx, job, ctHTTPCause(ferr, status, "get-sth"))
+		return w.retryOrDeadLetterCT(ctx, job, nil, ctHTTPCause(ferr, status, "get-sth"))
 	}
 	sth, perr := scan.ParseSTH(body)
 	if perr != nil {
-		return w.retryOrDeadLetterCT(ctx, job, perr)
+		return w.retryOrDeadLetterCT(ctx, job, nil, perr)
 	}
 
 	// The forward window is [start, end): from the cursor up to the head, capped at
@@ -115,11 +119,11 @@ func (w *Worker) completeCTTailRFC(ctx context.Context, job db.ClaimJobRow, lg s
 		}
 		st, eb, fe := w.ctTailFetcher.Fetch(ctx, getEntriesURL(base, reached, reqEnd))
 		if fe != nil || st != 200 {
-			return w.retryOrDeadLetterCT(ctx, job, ctHTTPCause(fe, st, "get-entries"))
+			return w.retryOrDeadLetterCT(ctx, job, nil, ctHTTPCause(fe, st, "get-entries"))
 		}
 		entries, pe := scan.ParseLogEntries(eb)
 		if pe != nil {
-			return w.retryOrDeadLetterCT(ctx, job, pe)
+			return w.retryOrDeadLetterCT(ctx, job, nil, pe)
 		}
 		if len(entries) == 0 {
 			break // no progress possible: stop rather than spin, and admit what we have
@@ -165,11 +169,11 @@ func (w *Worker) completeCTTailTiled(ctx context.Context, job db.ClaimJobRow, lg
 
 	status, body, ferr := w.ctTailFetcher.Fetch(ctx, base+"checkpoint")
 	if ferr != nil || status != 200 {
-		return w.retryOrDeadLetterCT(ctx, job, ctHTTPCause(ferr, status, "checkpoint"))
+		return w.retryOrDeadLetterCT(ctx, job, nil, ctHTTPCause(ferr, status, "checkpoint"))
 	}
 	sth, perr := scan.ParseCheckpoint(body)
 	if perr != nil {
-		return w.retryOrDeadLetterCT(ctx, job, perr)
+		return w.retryOrDeadLetterCT(ctx, job, nil, perr)
 	}
 
 	// Opportunistic append-only guard (§4.4): a checkpoint whose tree is SMALLER than the
@@ -180,7 +184,7 @@ func (w *Worker) completeCTTailTiled(ctx context.Context, job db.ClaimJobRow, lg
 	// shrink the poll admits nothing and leaves the cursor untouched, exactly like any
 	// other transient anomaly.
 	if sth.TreeSize < start {
-		return w.retryOrDeadLetterCT(ctx, job, safeProgress(fmt.Sprintf("CT log checkpoint tree size %d below cursor %d", sth.TreeSize, start)))
+		return w.retryOrDeadLetterCT(ctx, job, nil, safeProgress(fmt.Sprintf("CT log checkpoint tree size %d below cursor %d", sth.TreeSize, start)))
 	}
 
 	end := sth.TreeSize
@@ -200,11 +204,11 @@ func (w *Worker) completeCTTailTiled(ctx context.Context, job db.ClaimJobRow, lg
 		}
 		st, tb, fe := w.ctTailFetcher.Fetch(ctx, dataTileURL(base, tileIdx, width))
 		if fe != nil || st != 200 {
-			return w.retryOrDeadLetterCT(ctx, job, ctHTTPCause(fe, st, "tile/data"))
+			return w.retryOrDeadLetterCT(ctx, job, nil, ctHTTPCause(fe, st, "tile/data"))
 		}
 		ders, pe := scan.ParseDataTile(tb)
 		if pe != nil {
-			return w.retryOrDeadLetterCT(ctx, job, pe)
+			return w.retryOrDeadLetterCT(ctx, job, nil, pe)
 		}
 		// Skip the leaves at or below the cursor within this (possibly re-fetched head)
 		// tile, and stop at the poll window's end. A tile that returns fewer leaves than

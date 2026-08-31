@@ -156,6 +156,70 @@ func TestRawOutputRendersZoneVariant(t *testing.T) {
 	}
 }
 
+// seedCTTranscript stashes one sealed CT transcript in the fake: only the stdout role column
+// carries bytes (the verbatim response body); stderr and sent-scope stay NULL, the streams the
+// crt.sh producer does not carry (§1.2). The request URL and HTTP status ride the outcome object.
+func seedCTTranscript(t *testing.T, f *fakeStore, jobID int64, body []byte, outcome string, capturedAt time.Time) {
+	t.Helper()
+	sealed, err := transcript.Seal(testTranscriptKey, body)
+	if err != nil {
+		t.Fatalf("seal: %v", err)
+	}
+	if f.transcriptsByJob == nil {
+		f.transcriptsByJob = map[int64]db.Transcript{}
+	}
+	f.transcriptsByJob[jobID] = db.Transcript{
+		QueueJobID: jobID,
+		Kind:       "ct",
+		DurationNs: (800 * time.Millisecond).Nanoseconds(),
+		CapturedAt: pgtype.Timestamptz{Time: capturedAt, Valid: true},
+		Variant:    "ct",
+		Outcome:    []byte(outcome),
+		Stdout:     sealed,
+		Stderr:     nil, // NULL — HTTP carries no stderr
+		SentScope:  nil, // NULL — a GET sends no request body
+		Truncation: []byte("{}"),
+	}
+}
+
+// An admin opens the raw view of a ct job and sees the crt.sh exchange: the request URL, the
+// HTTP outcome, and the verbatim response body — not the prober exec-meta, which ct does not
+// carry (#870 AC4, spec §1.2).
+func TestRawOutputRendersCTVariant(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+
+	captured := time.Date(2026, 8, 31, 10, 0, 0, 0, time.UTC)
+	f.jobsByDispatch = map[int64][]db.ListJobsForDispatchRow{
+		52: {{ID: 903, Kind: "ct", State: "done", Attempt: 1, MaxAttempts: 5}},
+	}
+	seedCTTranscript(t, f, 903,
+		[]byte(`[{"name_value":"a.example.com"},{"name_value":"b.example.com"}]`),
+		`{"kind":"http","status":200,"request_url":"https://crt.sh/?q=example.com&output=json"}`, captured)
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	page := getBody(t, ac, base+"/run/52/raw?job=903", http.StatusOK)
+
+	for _, want := range []string{
+		"Raw output · job #903",              // header
+		"CT exchange",                        // the CT exchange card
+		"response body",                      // the primary panel label
+		"a.example.com",                      // a name from the verbatim body (in window.__RAW__)
+		"HTTP 200",                           // the typed CT outcome
+		"https://crt.sh/?q=example.com",      // the request URL
+		"the crt.sh producer sends no stdin", // the CT note
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("ct raw view missing %q; body: %s", want, page)
+		}
+	}
+	// The prober-only exec-meta must not appear for a ct job.
+	if strings.Contains(page, "How it exited") || strings.Contains(page, "Exit code") {
+		t.Errorf("ct raw view must not render prober exec-meta; body: %s", page)
+	}
+}
+
 // A job that produced no capture renders a legible "No transcript captured" absence — not a
 // 404, and distinct from a captured-but-empty stream.
 func TestRawOutputNoCapture(t *testing.T) {

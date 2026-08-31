@@ -28,16 +28,17 @@ const (
 // rest (spec §5.3).
 //
 // The prober variant captures locally (#865); the zone variant captures on its
-// completed path (#869). The ct variant lands with its own ticket (#870); until
-// then its producer returns an absent transcript, so this switch never sees it. An
-// unexpected variant is a wiring bug and errors loudly rather than writing a
-// mislabelled row.
+// completed path (#869); the ct variant captures the crt.sh HTTP exchange on every
+// terminal path (#870). An unexpected variant is a wiring bug and errors loudly
+// rather than writing a mislabelled row.
 func buildTranscriptParams(jobID int64, capturedAt time.Time, t wire.Transcript, key []byte) (db.InsertTranscriptParams, error) {
 	switch v := t.(type) {
 	case wire.ProberTranscript:
 		return buildProberParams(jobID, capturedAt, v, key)
 	case wire.ZoneTranscript:
 		return buildZoneParams(jobID, capturedAt, v, key)
+	case wire.CTTranscript:
+		return buildCTParams(jobID, capturedAt, v, key)
 	default:
 		return db.InsertTranscriptParams{}, fmt.Errorf("queue: transcript variant %T not captured yet", t)
 	}
@@ -102,6 +103,74 @@ func encodeZoneOutcome(o wire.ZoneOutcome, restated int) ([]byte, error) {
 		return json.Marshal(map[string]any{"kind": "decode-error", "restated": restated, "text": v.Text})
 	default:
 		return nil, fmt.Errorf("queue: unknown zone outcome %T", o)
+	}
+}
+
+// buildCTParams builds the row for a CTTranscript. The crt.sh producer sends an HTTP
+// request, so the debug artifact is the exchange: the verbatim response body lands in
+// the stdout role column (migration 23700) — the primary panel of the §6 view —
+// head+tail truncated to the stdout cap and sealed at rest. The request URL and the
+// typed outcome (HTTP status or transport-error text) ride the outcome object, the CT
+// variant's role-column analog of the prober's exit code. The stderr column stays NULL
+// (HTTP has no stderr; the transport-error text is its analog, on the outcome) and the
+// sent-scope column stays NULL (a GET sends no request body).
+func buildCTParams(jobID int64, capturedAt time.Time, v wire.CTTranscript, key []byte) (db.InsertTranscriptParams, error) {
+	stdout, dropped := headTail(v.ResponseBody, capTranscriptStdout)
+
+	markers := map[string]any{}
+	if dropped > 0 {
+		markers["stdout"] = map[string]any{"kept": len(stdout), "dropped": dropped}
+	}
+	truncation, err := json.Marshal(markers) // {} when nothing truncated
+	if err != nil {
+		return db.InsertTranscriptParams{}, fmt.Errorf("queue: marshal truncation marker: %w", err)
+	}
+
+	outcome, err := encodeCTOutcome(v.Outcome, v.RequestURL)
+	if err != nil {
+		return db.InsertTranscriptParams{}, err
+	}
+
+	// A fetch with no body (a transport error or a bodyless status) seals a
+	// captured-but-empty response (non-NULL) — "we made the exchange and got no body",
+	// distinct from a stderr the variant does not carry (NULL).
+	sealedStdout, err := transcript.Seal(key, nonNil(stdout))
+	if err != nil {
+		return db.InsertTranscriptParams{}, fmt.Errorf("queue: seal ct response body: %w", err)
+	}
+
+	return db.InsertTranscriptParams{
+		QueueJobID: jobID,
+		Kind:       v.Kind,
+		DurationNs: v.Duration.Nanoseconds(),
+		CapturedAt: tstz(capturedAt),
+		Variant:    "ct",
+		Outcome:    outcome,
+		Stdout:     sealedStdout,
+		Stderr:     nil, // HTTP carries no stderr — NULL; the transport-error text rides the outcome
+		SentScope:  nil, // a GET sends no request body — NULL
+		Truncation: truncation,
+	}, nil
+}
+
+// encodeCTOutcome encodes a CT exchange's typed outcome as the JSONB object the
+// transcript row stores: {"kind":"http","status":N,"request_url":U} / {"kind":
+// "transport-error","text":T,"request_url":U} / {"kind":"context-cancelled",
+// "request_url":U} (spec §1.2). The request URL rides every arm so the §6 read handler
+// reads it without a separate column, mirroring how the zone outcome carries its
+// restated count. The URL is not secret (crt.sh and Cert Spotter carry the credential
+// in a header, never the URL), so it stays plaintext on the outcome, not in the sealed
+// body column. The union is closed, so an unknown member is a programming error.
+func encodeCTOutcome(o wire.CTOutcome, requestURL string) ([]byte, error) {
+	switch v := o.(type) {
+	case wire.CTHTTP:
+		return json.Marshal(map[string]any{"kind": "http", "status": v.Status, "request_url": requestURL})
+	case wire.CTTransportError:
+		return json.Marshal(map[string]any{"kind": "transport-error", "text": v.Text, "request_url": requestURL})
+	case wire.CTContextCancelled:
+		return json.Marshal(map[string]any{"kind": "context-cancelled", "request_url": requestURL})
+	default:
+		return nil, fmt.Errorf("queue: unknown ct outcome %T", o)
 	}
 }
 
