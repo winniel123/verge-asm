@@ -62,7 +62,12 @@ is what gives *no ports responded* a subject to be a fact about. It is also what
 appearing in declared space fire the flagship `Reach` move instead of arriving as a line in a
 membership census. A **name** scope enumerates nothing: its addresses are reached only by measured
 resolution, and only under a `custody extension`. So an address scope has a `Coverage` denominator
-and a name scope has none, which is the same fact twice. An address scope carries a **range size cap** — **1,024 addresses** by
+and a name scope has none, which is the same fact twice. That census is also where the system states a
+**measurement that contradicts the declaration**: an address inside a declared scope whose fan-out is above
+the threshold is **labelled** there, with the remedy of an exclusion, and is **never vetoed** — the
+declaration is the stronger instrument, and evidence held is shown rather than acted on. The row carries no
+number the product chose and no verdict
+([#956](https://github.com/winniel123/verge-asm/issues/956)). An address scope carries a **range size cap** — **1,024 addresses** by
 default, operator-configurable, checked when the scope is declared and applied per scope rather than
 to a sum. A boundary asserting a measurement the shipped configuration cannot complete inside its own
 cadence is not a boundary. Custody at a larger scale belongs to a `custody extension`.
@@ -139,7 +144,13 @@ extension **holds** it — neither reached nor declined — so the census carrie
 declined ones. Where that `Scan` is disabled the extension reaches direct-A targets as it did before the
 measurement existed. The operator is told by **display** on this same census — the declined edges, each
 with the citing name and the remedy of declaring the origin IPs as an address scope — and never by
-a message, since a veto withholds a probe and is the safe direction. See
+a message, since a veto withholds a probe and is the safe direction. **The veto is scoped to this reach
+and reaches nothing else.** A literal **address-scope** `Seed` covering the same address satisfies the
+*other* limb of subject membership, so the veto never touches it and that address is a probed subject at
+any fan-out count: a measurement may narrow a Derived reach and may never overrule a Declared act, which
+is `Vantage class`'s §6 rule one level down. An address held by both limbs at once keeps its census row,
+qualified — *declined by the extension, covered by that address scope* — since dropping it would hide a
+decline the operator may later need to read. See
 [ADR-0129](./docs/adr/0129-a-shared-foreign-edge-is-measured-by-fan-out-not-read-from-a-list.md). So a rendering cannot open this gate any more than it can open
 the address one. Its extension is recomputed rather than typed. That is a safety property and not a
 convenience: a literal address scope over a released elastic address holds the gate open on whoever
@@ -407,8 +418,10 @@ schedule and the source's `consent` being two controls. See
 [ADR-0106](./docs/adr/0106-the-ct-poll-is-a-scan-that-schedules-and-a-ct-admission-is-a-name-citing-its-batch.md).
 The seventh is **`edge-fanout`**, the no-SNI TLS handshake that measures a candidate edge's **fan-out**.
 Its scope is the **custody-extension candidates** — the direct-A targets, and the apex `ALIAS`/`ANAME`
-flattened to A, of in-zone names the extension would reach — and it is empty until a custody extension is
-declared, a legible empty-scope state. Its exchange is a **connect**, so it is none of the query-only or
+flattened to A, of in-zone names the extension would reach — **and the addresses of declared address
+scopes**, where the result is **labelling only** and decides no membership
+([#956](https://github.com/winniel123/verge-asm/issues/956)). So it is no longer empty until a custody
+extension is declared. Its exchange is a **connect**, so it is none of the query-only or
 worker-read `Scan`s, and it runs **before its target is a member**, so it is neither `hot` nor
 `tls-acceptance`, which cover members only. It ships at **daily**, matching the `dns` cadence that grants
 membership, and has **no vantage dimension** — the default certificate is not a function of vantage, and
@@ -416,7 +429,10 @@ vantage-varying fan-out is anycast, out of v1. Like `ct` it **holds no facet tim
 currency bound and no withdrawal power**: its result — the hostname set the edge presents — is recorded on
 its `Batch` by content and composed into the `Custody` derivation as the **second Observed input** to the
 extension's reach. A candidate not yet measured is **held**, neither reached nor vetoed, until the probe
-clears or declines it. See
+clears or declines it. **That hold does not reach the address-scope population**, which is a subject from
+the declaration and has no reach to withhold: there an unmeasured address is probed and carries no row, and
+the row appears once the probe has measured it. So the `Scan` serves two purposes — deciding membership on
+one population, labelling on the other. See
 [ADR-0129](./docs/adr/0129-a-shared-foreign-edge-is-measured-by-fan-out-not-read-from-a-list.md).
 _Avoid_: job, scan job
 
@@ -1108,7 +1124,10 @@ third value**: *covered by a `Seed`?* is a total question with no lookup left to
 everything not covered is `third-party`, which is the closed direction. It is the one Derived
 value whose change carries a safety consequence, so it holds a `Span` timeline. Alone among
 Derived values its inputs are **not** all Declared — a `custody extension` makes it a function
-of measured resolutions. So it moves when the world moves and not only when the operator does.
+of measured resolutions. So it moves when the world moves and not only when the operator does. Those
+measured inputs act at the **extension's reach and nowhere else**: `shared-edge` carries **no weight on the
+`Seed` limb**, so an address a `Seed` covers derives `operator` at any fan-out count
+([#956](https://github.com/winniel123/verge-asm/issues/956)).
 Its two causes part cleanly. The operator withdrawing an extension closes the gate beneath
 addresses that are still cited. A resolution ceasing to cite an address withdraws the
 `Address` itself, which takes its timelines with it and leaves no `Gap` behind. **Narrowing an

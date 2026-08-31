@@ -388,3 +388,130 @@ The [#956](https://github.com/winniel123/verge-asm/issues/956) address-scope rem
 **act that satisfies the reach**, in the shape [ADR-0023](./0023-consent-names-the-door.md) gave
 `consent`: it never moves the threshold's version. An operator cannot turn this dial, so no install can
 move a `Custody` version without a release.
+
+## Amendment — [#956](https://github.com/winniel123/verge-asm/issues/956): a literal address-scope `Seed` is disjoint from the veto, not ranked above it, and the contradiction is displayed on the scope's own census
+
+§2 named the address-scope declaration as the remedy for an edge wrongly measured as shared, and the
+[#955](https://github.com/winniel123/verge-asm/issues/955) amendment deferred *"the overlap between that
+declaration and the measurement"* to [#956](https://github.com/winniel123/verge-asm/issues/956). This
+amendment settles it, and the finding is that **there is no overlap to adjudicate**. The veto and the
+`Seed` act on different limbs of subject membership, so no precedence rule is needed. What #956 adds is
+the law that makes the disjointness legible, and a display for the one case the map's own mechanism
+creates: the system now holds evidence against a declaration.
+
+### The two mechanisms are disjoint, not ranked
+
+[`CONTEXT.md`](../../CONTEXT.md) holds that an `Address` is a subject exactly while a current resolution
+cites it **or** a `Seed` covers it. Two limbs, a disjunction. The
+[#944](https://github.com/winniel123/verge-asm/issues/944) amendment put the veto at the **custody
+extension's reach**, which decides which in-zone-cited addresses the extension pulls in — the resolution
+limb, and nothing else. An address-scope `Seed` satisfies the **other** limb:
+[ADR-0047](./0047-an-address-scope-is-its-own-enumeration.md) makes every address inside a declared CIDR a
+subject **from the declaration**, its `Citation` hopping straight to the `Seed`, before anything has been
+observed about it.
+
+So an address the operator declared is a probed subject at any fan-out count. The veto does not reach it —
+not because a precedence rule prefers the declaration, but because the veto is scoped to a limb the
+declaration never uses.
+
+### The law, stated once because it is stated nowhere findable
+
+A measurement may **narrow a Derived reach**. It may never **overrule a Declared act**.
+
+ADR-0013 §6 is this law one level up: `Vantage class` reads literal address-scope `Seed`s only, never the
+extension. [ADR-0079](./0079-authority-presupposes-denotation-a-non-globally-reachable-address-is-probed-only-inside-a-declared-realm.md)
+is the same law pointing the other way: a non-globally-reachable address is probed only where a declared
+address scope covers it, and a `custody extension` **may not open the gate over one**. In all three the
+literal declaration is the stronger instrument, and in all three the extension is the weaker. #956 is that
+law applied to the fan-out veto. It is written out here because §6's version reads as a rule about probers,
+and a session reasoning about `Custody` will not find it there.
+
+A **specificity test** was considered and rejected: the declaration wins where the scope is a `/32` naming
+the address, and loses where a `/13` swallows it. Every version of it is an invented threshold inside the
+safety path — the shape [#27](https://github.com/winniel123/verge-asm/issues/27) and ADR-0013 §3 already
+refused — and it would make the boundary depend on a second number the product chose.
+
+### §3 sharpened: `shared-edge` carries no weight on the `Seed` limb
+
+§3 called `shared-edge` *"a second Observed input to `Custody`"*, and the #944 amendment narrowed that to
+*"it acts at the extension-reach step."* The corollary is now explicit: on the address-scope limb
+`shared-edge` carries **no weight at all**, and an address a `Seed` covers derives `operator` at any
+fan-out count. Left as written, §3 reads as a global input to the gate, and that reading contradicts this
+amendment directly.
+
+### The system now holds evidence against a declaration, and it displays it
+
+An operator may declare a CIDR containing measured shared edges — `104.16.0.0/13`, say. Enumeration walks
+it, and the system probes a provider's edge **while holding a measurement that says so**. Before this map
+the model tolerated a false declaration because it held nothing to the contrary: ADR-0013's *"a false
+declaration is as unprevented as it ever was"* was a statement about **ignorance**, never a licence for
+**silence**. The evidence now exists, and evidence held and not shown is the *fails-silently* shape
+ADR-0013 §7 refuses.
+
+The response is **display, and never a gate**. A gate here would be the veto reading the `Seed` limb, which
+the two sections above refuse.
+
+**The surface is the address scope's own membership census** — which, unlike the §7 custody-extension
+census, has a `Coverage` denominator. The row states the boundary fact and an instrument that already
+exists: *this scope covers N addresses; M of them present a fan-out above the threshold; exclude them from
+this scope if they are not yours.* The remedy is a `Seed` **exclusion**, which
+[ADR-0012](./0012-a-proposer-is-not-a-source.md) already extended to address scopes. The row carries **no
+number the product chose** — the threshold stays inside the versioned `Custody` derivation (§3, the #955
+amendment) — and **no verdict**. *You may have over-asserted* is the sentence ADR-0013's nag test forbids,
+and it is forbidden here.
+
+Three surfaces were refused:
+
+| Refused surface | Why |
+| --- | --- |
+| `Coverage`'s **aperture statement** | [ADR-0095](./0095-the-aperture-statement-counts-what-the-instrument-cannot-report-not-what-it-did-not-look-at.md) counts what the instrument **cannot report**, not what it did not look at. A declared shared edge is looked at, and the instrument reports it fine |
+| The **§7 custody-extension census** | §7's subject is which addresses the **extension** pulls in, and an address-scope address is not an extension member. The #944 amendment kept the shared edge and the blanket responder on separate surfaces for this same reason |
+| A **coverage-class message** | The [#55](https://github.com/winniel123/verge-asm/issues/55) message exists because *"the probing gate opens over an address with **no Declared act at all**"*. Here a Declared act stands behind it, so that justification does not transfer — and the nag test bites hardest on the operator who declared a CDN range deliberately |
+
+### `edge-fanout` widens its population, and one of #954's two arguments does not travel
+
+The display needs the measurement, and the [#954](https://github.com/winniel123/verge-asm/issues/954)
+amendment scoped `edge-fanout` to *"the custody-extension candidates alone"*, empty until an extension is
+declared. That scope now also carries **the addresses of declared address scopes**. On that population the
+result is **labelling only, never membership-deciding**.
+
+#954 shipped the `Scan` with no consent dial of its own on two clauses: the handshake is *"a strict subset
+of the probing the extension already authorizes"*, and *"it reduces total probing."* The **second clause
+does not hold here** — on a declared address the handshake narrows nothing and adds a connect — so it is
+**withdrawn for this population**. The first clause carries the authority alone:
+[ADR-0019](./0019-the-probing-gate-is-total-over-an-address.md) makes the probing gate **total over the
+`Address`**, so an address a `Seed` covers is already connected to on every port, and one further handshake
+asks for no authority the declaration did not already give. So there is still **no consent dial**.
+
+Two costs, stated rather than smoothed. #954's *"empty until a custody extension is declared"* legibility is
+**gone**: an install holding address scopes and no extension now runs `edge-fanout`. And the `Scan` now
+serves two purposes — deciding membership on one population, labelling on the other.
+
+### Absence on the labelling population is open-then-label
+
+#954's absence rule is **hold-then-open**: an unmeasured candidate is held out of the reach, and the census
+carries a *pending* row. It **cannot reach this population**. ADR-0047 makes a declared address a subject
+from the declaration, walked every cadence *"whether or not anything has ever answered there"* — there is no
+reach to withhold, so there is nothing to hold. An unmeasured declared address is **probed normally and
+carries no row**, and the row appears once fan-out has measured it. That is **open-then-label**. It is
+written down because a session will otherwise carry hold-then-open across by analogy, and hold a declared
+subject out of its own scope's census — a *pending* row on every address of every scope on the first day,
+which is noise rather than a census.
+
+### The dual-limb address keeps its §7 row, qualified
+
+One address may be **vetoed from the extension and covered by an address scope at once**: an in-zone name's
+direct-A target that the operator has also declared. It is a probed subject by the `Seed`. §7 keeps its row
+and states both limbs — *declined by the extension; covered by address scope X*. A bare *declined* is true
+about the extension and reads as a contradiction to the person the census exists for. Dropping the row
+breaks the #944 amendment's fixed register of **not silence**: the extension did decline, and an operator
+who later withdraws that `Seed` must be able to see why the coverage vanished. The nearest rule in the model
+points the same way — an `Annotation` *"never removes a row from a census it appears in"*.
+
+### The corpus row that pins the disjointness
+
+The #955 amendment gave the `Custody` derivation boundary rows at 99 and 100. This amendment adds one more,
+and it is the strongest guard #956 leaves behind: **a `Seed`-covered address whose Observed SAN set reduces
+to at least 100 distinct unrelated eTLD+1s derives `operator`, and is reached.** A future session that
+"repairs" the apparent inconsistency by making the veto global fails the corpus's A6 gate at once. This
+ticket is planning only, so it specifies the row and its expectation and does not author the corpus.
