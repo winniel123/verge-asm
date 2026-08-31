@@ -283,12 +283,21 @@ Go throughout — web, worker and the measurement binary share one wire contract
 (`internal/wire`), so a schema mismatch cannot silently misparse a field into false exposure
 drift. **PostgreSQL**, core only, no extensions beyond `contrib`. **No ORM** (`pgx` + `sqlc`,
 compile-checked raw SQL — the drift engine is window-function heavy, and an ORM abstracts exactly
-the layer that carries the differentiation). **Server-rendered** `html/template` + **htmx**, with
+the layer that carries the differentiation). **Server-rendered** `html/template` + ~~**htmx**~~, with
 **SSE** for the live drift feed — an SPA would ship third-party npm into the exact page rendering
 the operator's complete attack-surface inventory, which is close to worst-case for this product's
 threat model. ~~**No JSON API in v1**: an API token is a bearer credential that bypasses the TOTP
 auth flow (§4.3), and the integration need is push (notifications, §5.3) rather than pull~~. A
 session-authed CSV/JSON export from the UI covers "get the data out."
+
+> **htmx WITHDRAWN 2026-08-31 by [#942](https://github.com/winniel123/verge-asm/issues/942) /
+> [ADR-0131](../adr/0131-the-console-is-vanilla-server-rendered-prg-and-the-htmx-stack-is-withdrawn.md)
+> ([ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).** htmx
+> was never built — zero `hx-*` anywhere in `design-system/templates/` or `cmd/web`. The console is
+> **vanilla server-rendered PRG** plus inline vanilla JavaScript. The **server-rendered** decision and
+> its SPA-threat argument above are untouched and confirmed; only the htmx clause is withdrawn. **SSE**
+> is likewise unrealized (a `fetch`-poll drives the live feed, `rundetail.tmpl`), but this pass
+> supersedes htmx, **not** SSE, so the SSE clause is left standing rather than struck.
 
 > **WITHDRAWN in part, 2026-08-26 by [#660](https://github.com/winniel123/verge-asm/issues/660) /
 > [ADR-0123](../adr/0123-a-token-api-is-read-only-opt-in-and-a-bearer-path-separate-from-sessions.md)
