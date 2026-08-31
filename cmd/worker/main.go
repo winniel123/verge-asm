@@ -24,6 +24,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/remoteexec"
 	"github.com/winniel123/verge-asm/internal/report"
 	"github.com/winniel123/verge-asm/internal/retention"
+	"github.com/winniel123/verge-asm/internal/scan"
 	"github.com/winniel123/verge-asm/internal/transcript"
 	"github.com/winniel123/verge-asm/internal/wire"
 )
@@ -70,7 +71,18 @@ func main() {
 	}
 
 	logger := log.New(os.Stderr, "", log.LstdFlags)
-	dispatcher := queue.NewDispatcher(pool, time.Now, logger)
+
+	// Select the one bulk CT source active this config (spec §2.3, #876): Cert
+	// Spotter when the operator supplies its API key, crt.sh (keyless) when absent.
+	// The selection is config-time by key presence, not runtime — there is no
+	// failover between them. The key is worker-only (ADR-0053, spec §2.4): it is
+	// read here in the worker process only, and the web process never sees it. Both
+	// the dispatcher (which gates the fan-out on the selected slug) and the worker
+	// (which fetches, decodes and stamps admissions) are given the same selection.
+	ctVersion := env.OrDefault("VERGE_VERSION", "dev")
+	ctFetcher, ctThrottle, ctSource := selectCTSource(env.OrDefault("VERGE_CERTSPOTTER_TOKEN", ""), ctVersion, db.New(pool))
+
+	dispatcher := queue.NewDispatcher(pool, time.Now, logger).WithCTSource(ctSource.Slug())
 	// The off-host measurement router (ADR-0103, #683, P0.8): a provisioned internet
 	// Vantage measures from its OWN position — its jobs are pushed to and exec'd on the
 	// prober host over SSH, arch-matched by `uname`. The instance ships a prober for each
@@ -83,10 +95,10 @@ func main() {
 		stateDir,
 		logger,
 	)
-	// The ct Scan's runner (ADR-0106): a throttled crt.sh fetcher and the
-	// instance-wide 5 req/min reservation throttle, wired onto the worker beside
-	// the prober. The User-Agent identifies this build, which the source operator
-	// asked for (passive-discovery §2.2).
+	// The ct Scan's runner (ADR-0106, spec §2): the selected bulk CT source's
+	// fetcher and per-source reservation throttle, wired onto the worker beside the
+	// prober. The User-Agent identifies this build, which the source operator asked
+	// for (passive-discovery §2.2).
 	// The message producer (P0.7): each batch tx folds a flagship/membership
 	// transition into a Message and routes it to its bound Channels via
 	// delivery.EnqueueForMessage (injected so internal/queue never imports
@@ -96,8 +108,8 @@ func main() {
 	// until an admin declares one.
 	devMode := isTruthy(env.OrDefault("VERGE_DEV", ""))
 	worker := queue.NewWorker(pool, queue.ExecProber{Path: proberPath}, time.Now, logger).
-		WithCT(queue.NewHTTPCTFetcher(env.OrDefault("VERGE_VERSION", "dev")), queue.NewCTThrottle(db.New(pool))).
-		WithCTTail(queue.NewHTTPCTFetcher(env.OrDefault("VERGE_VERSION", "dev"))).
+		WithCT(ctFetcher, ctThrottle, ctSource).
+		WithCTTail(queue.NewHTTPCTFetcher(ctVersion)).
 		WithRouter(router).
 		WithMessages(delivery.EnqueueForMessage, devMode).
 		WithTranscripts(transcriptKey, devMode)
@@ -232,6 +244,20 @@ func main() {
 		log.Fatalf("worker: %v", err)
 	}
 	log.Print("worker: shutting down")
+}
+
+// selectCTSource picks the one bulk CT source active this config by the presence
+// of the operator key (spec §2.3, #876). A non-empty token selects Cert Spotter —
+// the operator-keyed primary, its authenticated tier clearing the consent bar
+// (ADR-0003) — with its Bearer fetcher and its own throttle. An empty token keeps
+// crt.sh, the keyless fallback. The selection is config-time only; there is no
+// runtime failover between the two. It returns the fetcher, throttle and pure
+// source, which the worker and dispatcher are wired with so they always agree.
+func selectCTSource(token, version string, q *db.Queries) (queue.CTFetcher, queue.CTThrottle, scan.CTSource) {
+	if token != "" {
+		return queue.NewCertSpotterFetcher(version, token), queue.NewCertSpotterThrottle(q), scan.CertSpotterCTSource()
+	}
+	return queue.NewHTTPCTFetcher(version), queue.NewCTThrottle(q), scan.CrtshCTSource()
 }
 
 // isTruthy reads the common affirmative spellings of a boolean env value — the

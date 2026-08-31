@@ -41,6 +41,12 @@ type Dispatcher struct {
 	q    *db.Queries
 	now  func() time.Time
 	log  *log.Logger
+
+	// ctSource is the slug of the one bulk CT source active this config (spec
+	// §2.3), the gate fanOutCT consults. Empty defaults to crt.sh, so a dispatcher
+	// built without WithCTSource fans out the keyless source unchanged. The worker
+	// process sets it to Cert Spotter's slug when the operator key is present.
+	ctSource string
 }
 
 // NewDispatcher builds a Dispatcher over pool. now is injectable so tests and
@@ -50,6 +56,23 @@ func NewDispatcher(pool *pgxpool.Pool, now func() time.Time, logger *log.Logger)
 		now = time.Now
 	}
 	return &Dispatcher{pool: pool, q: db.New(pool), now: now, log: logger}
+}
+
+// WithCTSource sets which bulk CT source this dispatcher fans out for (spec §2.3),
+// the selection made at worker wire-time by the presence of the operator key. An
+// empty slug leaves the default (crt.sh). It returns the dispatcher for chaining.
+func (d *Dispatcher) WithCTSource(slug string) *Dispatcher {
+	d.ctSource = slug
+	return d
+}
+
+// selectedCTSource is the slug of the active bulk CT source, defaulting to crt.sh
+// when none was set — the keyless source that ships active with no operator key.
+func (d *Dispatcher) selectedCTSource() string {
+	if d.ctSource == "" {
+		return scan.CrtshSource
+	}
+	return d.ctSource
 }
 
 // Run fans out every enabled Scan once per cadence window until ctx is done. It
