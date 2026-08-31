@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"net/netip"
@@ -103,6 +104,20 @@ func humanCount(p netip.Prefix) string {
 		b.WriteRune(c)
 	}
 	return b.String()
+}
+
+// overCapProposalNotice is the message a Proposal confirm refuses with when the
+// proposed range is wider than the operator's address-scope cap. A Proposal is a
+// registry-authored range the operator confirms whole, so — unlike a typed
+// declaration, whose refusal offers a reachable in-cap prefix — there is no smaller
+// block to fall back to: the routes are to raise the cap under Settings · Scans, or
+// to decline the Proposal (ADR-0052 names the route and never takes it; #884 keeps
+// decline the expected response to a large Proposal). Nothing is auto-corrected.
+func overCapProposalNotice(p netip.Prefix, cap int) string {
+	return fmt.Sprintf(
+		"That proposed scope spans %s addresses — over your cap of %s. Raise your cap in Settings · Scans to confirm it whole, or decline it.",
+		humanCount(p), commaInt(cap),
+	)
 }
 
 // toProposalLookups groups pending proposal rows (already ordered lookup-newest,
@@ -225,11 +240,17 @@ const (
 
 // confirmProposal confirms exactly one Proposal into exactly one Seed. It is
 // singular by construction — one id per request, no batch (ADR-0022) — and the
-// resulting Seed retains the Proposal as provenance. Confirming a proposed scope
-// is not bound by the operator's own address-scope cap: the cap governs scopes
-// the operator types, while a Proposal is a registry-authored range the operator
-// confirms whole (ADR-0022's "Confirm N addresses" is the same gesture at every
-// size).
+// resulting Seed retains the Proposal as provenance. The operator address-scope
+// cap gates the confirm exactly as it gates a typed declaration (ADR-0047 §3.4:
+// the cap is checked "when the operator declares an address scope — or confirms a
+// Proposal into one"; ADR-0127): a confirmed Proposal is a Seed the operator did
+// not type, so a range wider than the operator's policy cap is refused until they
+// raise the cap. The raise is the deliberate policy act, not a gate on the confirm
+// — ADR-0127 restores ADR-0022's original singular-confirm regime, where safety is
+// the singular confirm, not the cap, and decline stays the expected response to a
+// large Proposal (#884). There is no second cap and no Proposal-only branch: this
+// reads the same server.addressCap and seed.WithinCap the declaration path reads,
+// so reporting parity holds by construction — a confirmed Proposal is a Seed (#892).
 func (s *server) confirmProposal(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
@@ -242,6 +263,17 @@ func (s *server) confirmProposal(w http.ResponseWriter, r *http.Request, acct db
 		// Already confirmed, declined, or never existed — a repeat submit opens
 		// no second gate. Return to the screen rather than erroring.
 		http.Redirect(w, r, "/scope", http.StatusSeeOther)
+		return
+	}
+
+	// The cap gates the confirm, read once off the instance_config singleton (#888,
+	// ADR-0127) so a raise on the Settings control takes effect on the next confirm.
+	// An over-cap Proposal is refused, never truncated: nothing branches on the number
+	// beyond in-cap versus over-cap (#848), the same seed.WithinCap the declaration
+	// path applies. The refusal names the routes and takes neither — raise the cap, or
+	// decline (ADR-0052) — and no Seed is created.
+	if addrCap := s.addressCap(r.Context()); !seed.WithinCap(p.AddressCidr, addrCap) {
+		s.renderSeeds(w, r, acct, seedsForms{proposalNotice: overCapProposalNotice(p.AddressCidr, addrCap)})
 		return
 	}
 
