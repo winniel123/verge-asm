@@ -131,6 +131,16 @@ func (s *server) setColdScope(w http.ResponseWriter, r *http.Request, acct db.Ac
 // declared range is NOT the estate, so counted/total over a range is a census of that
 // range, never a proportion of the operator's estate. Counted/Total are pre-formatted
 // strings so the template prints them verbatim (Total is a *string: nil == census).
+//
+// AsOf/AsOfISO carry #890's oldest-current as-of (#847, #882): the earliest instant among
+// the still-current subjects the batch walked in the range. Counted is those current
+// subjects and Total the declared count, so a shortfall (Counted < Total) is the honest lag
+// of a scope the cadence cannot finish — never a reached-ever count, and it folds the
+// trailing-edge staleness Gaps into one figure rather than minting a per-address message.
+// The as-of states how stale that current frontier is. Currency stays nominal — the
+// numerator reads through the k × declared-cadence window, never the effective cadence.
+// AsOf is the relative phrase ("3d ago"), AsOfISO its RFC-3339 tooltip; both empty omit the
+// line, since no honest instant exists when nothing current sits in the range.
 type coverageMeterView struct {
 	Label   string
 	Counted string
@@ -138,6 +148,8 @@ type coverageMeterView struct {
 	Unit    string
 	Pct     int
 	Detail  string
+	AsOf    string
+	AsOfISO string
 }
 
 // coverageGapView is one row of the "expected, not observed" register: a subject
@@ -227,13 +239,13 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	// an address). Best-effort and live-tier gated — an unavailable read leaves the
 	// address meters at a zero numerator rather than 500ing the page, never a
 	// fabricated count.
-	var walked []netip.Addr
+	var walked []walkedAddr
 	if svcs, serr := s.store.ListCurrentServiceSubjects(ctx, db.ListCurrentServiceSubjectsParams{
 		Search: "", AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	}); serr == nil {
 		walked = walkedAddresses(svcs)
 	}
-	meters := apertureMeters(seeds, zones, walked)
+	meters := apertureMeters(seeds, zones, walked, s.now())
 
 	// Gaps + coverage messages. A blanket responder answers on every port, so its
 	// reach is a Gap, never reached (ADR-0104 §4): it surfaces both as a gap row and
@@ -290,7 +302,7 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 // enumerates nothing on its own — its addresses arrive by resolution — so it stays
 // a census counting the owner names its supplied zone declares, and states that its
 // addresses come by resolution. Neither claims a proportion of the estate.
-func apertureMeters(seeds []db.ListSeedsRow, zones []db.ListZoneDeclarationsRow, walked []netip.Addr) []coverageMeterView {
+func apertureMeters(seeds []db.ListSeedsRow, zones []db.ListZoneDeclarationsRow, walked []walkedAddr, now time.Time) []coverageMeterView {
 	declared := make(map[string]int, len(zones))
 	for _, z := range zones {
 		if z.NameDomain.Valid {
@@ -300,7 +312,7 @@ func apertureMeters(seeds []db.ListSeedsRow, zones []db.ListZoneDeclarationsRow,
 	out := make([]coverageMeterView, 0, len(seeds))
 	for _, sd := range seeds {
 		if sd.Kind == "address" && sd.AddressCidr != nil {
-			out = append(out, addressMeter(*sd.AddressCidr, walked))
+			out = append(out, addressMeter(*sd.AddressCidr, walked, now))
 			continue
 		}
 		domain := sd.NameDomain.String
@@ -327,20 +339,29 @@ const maxMeterTotal = int64(^uint(0) >> 1)
 // that range (the denominator = seed.AddressCount, NOT the estate). The fill is the
 // ruled coveragePct(counted, total). A range whose enumerable count exceeds the meter
 // arithmetic degrades to the honest census (Total nil) rather than fabricating a fill.
-func addressMeter(p netip.Prefix, walked []netip.Addr) coverageMeterView {
+func addressMeter(p netip.Prefix, walked []walkedAddr, now time.Time) coverageMeterView {
 	total := seed.AddressCount(p)
 	if total.IsInt64() {
 		if t := total.Int64(); t > 0 && t <= maxMeterTotal {
 			counted := coveredInRange(walked, p)
 			totalStr := humanCount(p)
-			return coverageMeterView{
+			m := coverageMeterView{
 				Label:   p.String(),
 				Counted: strconv.Itoa(counted),
 				Total:   &totalStr,
 				Unit:    "subjects",
 				Pct:     coveragePct(counted, int(t)),
-				Detail:  "address scope — the subjects walked over the enumerable addresses of the declared range",
+				Detail:  "address scope — the subjects still current over the enumerable addresses of the declared range; a shortfall is the honest lag of a scope the cadence cannot finish, never hidden",
 			}
+			// #890: the oldest-current as-of — how stale the current numerator is. Present
+			// only where a current, in-range subject carries a real instant (the honest
+			// empty otherwise). The nominal k × declared-cadence window is the currency
+			// gate on the walked set, so this never stretches to the effective cadence.
+			if asOf, ok := oldestCurrentInRange(walked, p); ok {
+				m.AsOf = agoLabel(asOf, now)
+				m.AsOfISO = asOf.UTC().Format(time.RFC3339)
+			}
+			return m
 		}
 	}
 	return coverageMeterView{
@@ -351,29 +372,62 @@ func addressMeter(p netip.Prefix, walked []netip.Addr) coverageMeterView {
 	}
 }
 
+// walkedAddr is one current, IP-hosted Service subject the batch reached: the address
+// it sits on and when that reading was observed. The observed instant carries the
+// currency frontier — #890's oldest-current as-of is the minimum of these over a range.
+type walkedAddr struct {
+	Addr       netip.Addr
+	ObservedAt time.Time
+}
+
 // coveredInRange counts the distinct walked addresses that fall within p — the
 // covered subjects an address-scope meter's numerator reports (#19c). Distinctness
 // guards against a range being credited twice for two Services on one address.
-func coveredInRange(walked []netip.Addr, p netip.Prefix) int {
+func coveredInRange(walked []walkedAddr, p netip.Prefix) int {
 	seen := make(map[netip.Addr]struct{}, len(walked))
-	for _, a := range walked {
-		if p.Contains(a) {
-			seen[a] = struct{}{}
+	for _, w := range walked {
+		if p.Contains(w.Addr) {
+			seen[w.Addr] = struct{}{}
 		}
 	}
 	return len(seen)
 }
 
+// oldestCurrentInRange is #890's oldest-current as-of: the earliest observed instant
+// among the still-current subjects the batch walked inside p. It is the currency
+// frontier — for a scope too large to finish inside one cadence, the oldest current
+// address sits near the nominal k × declared-cadence bound, so this states how stale
+// the current numerator is without minting a per-address message (#882: the trailing-
+// edge Gap folds to declared/current, and this is its staleness). ok is false where no
+// current, IP-hosted subject with a real instant sits in the range — the honest empty,
+// never a fabricated zero instant.
+func oldestCurrentInRange(walked []walkedAddr, p netip.Prefix) (time.Time, bool) {
+	var oldest time.Time
+	ok := false
+	for _, w := range walked {
+		if !p.Contains(w.Addr) || w.ObservedAt.IsZero() {
+			continue
+		}
+		if !ok || w.ObservedAt.Before(oldest) {
+			oldest = w.ObservedAt
+			ok = true
+		}
+	}
+	return oldest, ok
+}
+
 // walkedAddresses draws the batch-walked addresses from the current Service subjects
 // — a Service is an (Address, port, transport) triple, so its key carries the address
-// the batch reached. Keys on a name host (name@service form) carry no address and are
-// skipped; a range's numerator counts only the addresses actually resolved to an IP.
-func walkedAddresses(svcs []db.ListCurrentServiceSubjectsRow) []netip.Addr {
-	out := make([]netip.Addr, 0, len(svcs))
+// the batch reached and its observed_at the instant of the reading. Keys on a name host
+// (name@service form) carry no address and are skipped; a range's numerator counts only
+// the addresses actually resolved to an IP, and each carries the observed instant that
+// feeds the oldest-current as-of.
+func walkedAddresses(svcs []db.ListCurrentServiceSubjectsRow) []walkedAddr {
+	out := make([]walkedAddr, 0, len(svcs))
 	for _, sv := range svcs {
 		addr, _, _ := splitServiceKey(sv.SubjectKey)
 		if a, err := netip.ParseAddr(addr); err == nil {
-			out = append(out, a)
+			out = append(out, walkedAddr{Addr: a, ObservedAt: sv.ObservedAt.Time})
 		}
 	}
 	return out
