@@ -19,18 +19,26 @@ import (
 type fakeConn struct {
 	// outputs maps an Output/rm command to its stdout.
 	outputs map[string]string
-	// runResp maps the exec of the pushed path to the NDJSON it should write back. The
-	// key is matched as a prefix so the random temp path resolves.
+	// execStdout is the NDJSON the exec of the pushed path writes back.
 	execStdout string
+	// execStderr is the stderr the exec writes back (empty unless a crash is simulated).
+	execStderr string
+	// execExit is the typed exit result the exec Run returns; the zero value is a clean
+	// exited(0).
+	execExit ExitResult
+	// execErr, if set, is the error the exec Run returns (a non-zero exit or a signal on
+	// the real path); its transcript still captures the drained streams and execExit.
+	execErr error
 	// pushErr, if set, fails the `cat > …` push.
 	pushErr error
 	// remoteAddr is the transport peer address the dialled-address read observes.
 	remoteAddr net.Addr
 
-	ran      []string    // every cmd passed to Run
-	outCmds  []string    // every cmd passed to Output
+	ran      []string      // every cmd passed to Run
+	outCmds  []string      // every cmd passed to Output
 	pushed   *bytes.Buffer // the bytes streamed to `cat > …`
-	execPath string      // the path the exec ran
+	pushedIn *bytes.Buffer // the stdin drained by the exec (the sent job spec)
+	execPath string        // the path the exec ran
 }
 
 func (c *fakeConn) Output(_ context.Context, cmd string) ([]byte, error) {
@@ -44,22 +52,28 @@ func (c *fakeConn) Output(_ context.Context, cmd string) ([]byte, error) {
 	return nil, errors.New("fakeConn: no output for " + cmd)
 }
 
-func (c *fakeConn) Run(_ context.Context, cmd string, stdin io.Reader, stdout io.Writer) error {
+func (c *fakeConn) Run(_ context.Context, cmd string, stdin io.Reader, stdout, stderr io.Writer) (ExitResult, error) {
 	c.ran = append(c.ran, cmd)
 	switch {
 	case strings.HasPrefix(cmd, "cat > "):
 		if c.pushErr != nil {
-			return c.pushErr
+			return ExitResult{Kind: ExitExited, Code: -1}, c.pushErr
 		}
 		c.pushed = &bytes.Buffer{}
 		_, _ = io.Copy(c.pushed, stdin)
-		return nil
+		return ExitResult{Kind: ExitExited, Code: 0}, nil
 	default:
-		// The exec of the pushed path: drain the job spec on stdin and write NDJSON back.
+		// The exec of the pushed path: drain the job spec on stdin (recording it as the
+		// sent scope), then write the configured stdout and stderr back and report the
+		// configured exit result.
 		c.execPath = cmd
-		_, _ = io.Copy(io.Discard, stdin)
+		c.pushedIn = &bytes.Buffer{}
+		_, _ = io.Copy(c.pushedIn, stdin)
 		_, _ = io.WriteString(stdout, c.execStdout)
-		return nil
+		if stderr != nil {
+			_, _ = io.WriteString(stderr, c.execStderr)
+		}
+		return c.execExit, c.execErr
 	}
 }
 
@@ -97,12 +111,31 @@ func TestProbePushesMatchingBinaryAndExecs(t *testing.T) {
 	conn := linuxAmd64Conn(obsLine)
 	bins := staticBinaries{goos: "linux", goarch: "amd64", body: "ELF-AMD64-BINARY"}
 
-	obs, err := Probe(context.Background(), conn, bins, wire.JobSpec{Batch: "b1", Kind: "connect-outcome"})
+	res, err := Probe(context.Background(), conn, bins, wire.JobSpec{Batch: "b1", Kind: "connect-outcome"})
 	if err != nil {
 		t.Fatalf("Probe: %v", err)
 	}
+	obs := res.Observations
 	if len(obs) != 1 || obs[0].Batch != "b1" || obs[0].Kind != "connect-outcome" {
 		t.Fatalf("observations = %+v, want one b1/connect-outcome", obs)
+	}
+	// A successful off-host probe carries a ProberTranscript: the verbatim stdout it
+	// decoded, the exact spec sent to stdin, and a clean exited(0) outcome (#867).
+	tr, ok := res.Transcript.(*wire.ProberTranscript)
+	if !ok {
+		t.Fatalf("transcript = %T, want *wire.ProberTranscript", res.Transcript)
+	}
+	if tr.Kind != "connect-outcome" {
+		t.Errorf("transcript kind = %q, want connect-outcome", tr.Kind)
+	}
+	if string(tr.Stdout) != obsLine {
+		t.Errorf("transcript stdout = %q, want the NDJSON the prober wrote %q", tr.Stdout, obsLine)
+	}
+	if conn.pushedIn == nil || !bytes.Equal(tr.SentScope, conn.pushedIn.Bytes()) {
+		t.Errorf("sent scope = %q, want the bytes drained on stdin", tr.SentScope)
+	}
+	if got, ok := tr.Outcome.(wire.ProberExited); !ok || got.Code != 0 {
+		t.Errorf("outcome = %+v, want exited(0)", tr.Outcome)
 	}
 	if conn.pushed == nil || conn.pushed.String() != "ELF-AMD64-BINARY" {
 		t.Errorf("pushed binary = %q, want the amd64 body", conn.pushed)
@@ -117,6 +150,105 @@ func TestProbePushesMatchingBinaryAndExecs(t *testing.T) {
 	// The pushed binary is removed afterwards.
 	if !containsPrefix(conn.outCmds, "rm -f /tmp/verge-prober-") {
 		t.Errorf("pushed binary was not cleaned up: %v", conn.outCmds)
+	}
+}
+
+// On the exec-error path (a non-zero exit or a signalled prober) the transcript still
+// rides the ProbeResult, capturing the drained stderr and the typed outcome — the raw
+// output is highest-value exactly when the job failed (#867, spec §3).
+func TestProbeCapturesTranscriptOnExecError(t *testing.T) {
+	conn := linuxAmd64Conn("")
+	conn.execStderr = "panic: prober boom\n"
+	conn.execExit = ExitResult{Kind: ExitExited, Code: 3}
+	conn.execErr = errors.New("ssh: exit status 3")
+	bins := staticBinaries{goos: "linux", goarch: "amd64", body: "ELF"}
+
+	res, err := Probe(context.Background(), conn, bins, wire.JobSpec{Batch: "b1", Kind: "connect-outcome"})
+	if err == nil {
+		t.Fatal("Probe returned nil error for a failed exec")
+	}
+	tr, ok := res.Transcript.(*wire.ProberTranscript)
+	if !ok {
+		t.Fatalf("transcript = %T, want *wire.ProberTranscript on the error path", res.Transcript)
+	}
+	if string(tr.Stderr) != "panic: prober boom\n" {
+		t.Errorf("transcript stderr = %q, want the captured crash text", tr.Stderr)
+	}
+	if got, ok := tr.Outcome.(wire.ProberExited); !ok || got.Code != 3 {
+		t.Errorf("outcome = %+v, want exited(3)", tr.Outcome)
+	}
+	if len(res.Observations) != 0 {
+		t.Errorf("observations = %+v, want none on the error path", res.Observations)
+	}
+}
+
+// A decode failure (the prober wrote non-NDJSON) still captures the verbatim stdout in
+// the transcript, so an operator can see exactly what the prober emitted.
+func TestProbeCapturesTranscriptOnDecodeFailure(t *testing.T) {
+	const garbage = "this is not valid ndjson\n"
+	conn := linuxAmd64Conn(garbage)
+	bins := staticBinaries{goos: "linux", goarch: "amd64", body: "ELF"}
+
+	res, err := Probe(context.Background(), conn, bins, wire.JobSpec{Batch: "b1", Kind: "connect-outcome"})
+	if err == nil {
+		t.Fatal("Probe returned nil error for undecodable output")
+	}
+	tr, ok := res.Transcript.(*wire.ProberTranscript)
+	if !ok {
+		t.Fatalf("transcript = %T, want *wire.ProberTranscript on decode failure", res.Transcript)
+	}
+	if string(tr.Stdout) != garbage {
+		t.Errorf("transcript stdout = %q, want the verbatim undecodable output", tr.Stdout)
+	}
+}
+
+// A failure BEFORE the exec — here the push — carries no transcript: nothing ran, a
+// legible absence rather than an empty ProberTranscript.
+func TestProbeNoTranscriptWhenPushFails(t *testing.T) {
+	conn := linuxAmd64Conn("")
+	conn.pushErr = errors.New("cat: disk full")
+	bins := staticBinaries{goos: "linux", goarch: "amd64", body: "ELF"}
+
+	res, err := Probe(context.Background(), conn, bins, wire.JobSpec{Batch: "b1", Kind: "connect-outcome"})
+	if err == nil {
+		t.Fatal("Probe returned nil error for a failed push")
+	}
+	if res.Transcript != nil {
+		t.Errorf("transcript = %+v, want nil when the push failed before any exec", res.Transcript)
+	}
+}
+
+// proberOutcome maps each transport ExitResult kind into the closed prober-outcome
+// union (spec §1.2): the mapping the transcript records on every off-host outcome.
+func TestProberOutcomeMapping(t *testing.T) {
+	cases := []struct {
+		name string
+		exit ExitResult
+		want wire.ProberOutcome
+	}{
+		{"exited", ExitResult{Kind: ExitExited, Code: 7}, wire.ProberExited{Code: 7}},
+		{"signalled", ExitResult{Kind: ExitSignalled, Signal: "KILL"}, wire.ProberSignalled{Signal: "KILL"}},
+		{"context-cancelled", ExitResult{Kind: ExitContextCancelled}, wire.ProberContextCancelled{}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := proberOutcome(tc.exit); got != tc.want {
+				t.Errorf("proberOutcome(%+v) = %+v, want %+v", tc.exit, got, tc.want)
+			}
+		})
+	}
+}
+
+// classifyExit maps a session's Wait error into the typed ExitResult. The ssh-specific
+// branches (*ssh.ExitError / *ssh.ExitMissingError) are not constructible outside the
+// library — their fields are unexported — so the seam fakes above the runSession layer;
+// here we lock the two constructible ends: a clean exit, and an unclassifiable error.
+func TestClassifyExit(t *testing.T) {
+	if got := classifyExit(nil); got != (ExitResult{Kind: ExitExited, Code: 0}) {
+		t.Errorf("classifyExit(nil) = %+v, want exited(0)", got)
+	}
+	if got := classifyExit(errors.New("transport reset")); got != (ExitResult{Kind: ExitExited, Code: -1}) {
+		t.Errorf("classifyExit(non-ssh) = %+v, want exited(-1)", got)
 	}
 }
 
