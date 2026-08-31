@@ -283,6 +283,12 @@ type Querier interface {
 	// treats pgx.ErrNoRows as "start at position 0" and reads the whole current delta from
 	// the log's origin forward, never backfilling below it afterwards.
 	GetCTLogCursor(ctx context.Context, logID string) (GetCTLogCursorRow, error)
+	// Read one leaf's captured CT inputs back for an on-demand verification re-check (spec §5.4,
+	// #878): the leaf DER (embedded SCTs ride inside it), the out-of-cert SCT material, and the
+	// issuer SubjectPublicKeyInfo the precert leaf hash needs. Keyed by the leaf fingerprint.
+	// Errors with pgx.ErrNoRows when the certificate was never captured — a verification the
+	// caller reports as unverifiable rather than as not-logged.
+	GetCertificateMaterial(ctx context.Context, fingerprint string) (CertificateMaterial, error)
 	// Also omits the secret; a caller reads presence, never the value.
 	GetChannel(ctx context.Context, id int64) (GetChannelRow, error)
 	// Reads the target URL and the signing secret. This is the ONE read path that
@@ -443,10 +449,11 @@ type Querier interface {
 	InsertAdmittedName(ctx context.Context, arg InsertAdmittedNameParams) error
 	InsertBatch(ctx context.Context, arg InsertBatchParams) (int64, error)
 	// Capture one leaf certificate's raw CT inputs into the immutable side store (spec
-	// §5.3): the leaf DER and the out-of-cert SCT material, keyed by the leaf fingerprint.
-	// Deduped and immutable — many Endpoints present the same certificate, so ON CONFLICT
-	// DO NOTHING keeps the first capture and never rewrites a row. This writes no facet
-	// value; the `certificate` observation still records only the fingerprint (ADR-0027).
+	// §5.3): the leaf DER, the out-of-cert SCT material, and the issuer SubjectPublicKeyInfo,
+	// keyed by the leaf fingerprint. Deduped and immutable — many Endpoints present the same
+	// certificate, so ON CONFLICT DO NOTHING keeps the first capture and never rewrites a row.
+	// This writes no facet value; the `certificate` observation still records only the
+	// fingerprint (ADR-0027).
 	InsertCertificateMaterial(ctx context.Context, arg InsertCertificateMaterialParams) error
 	// Reads and writes behind Channel delivery (#207). A Delivery is the Operational
 	// record of one outbound POST of one Message to one Channel: it never becomes a

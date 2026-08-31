@@ -164,6 +164,13 @@ type HandshakeResult struct {
 	// iff TLSPresented and non-empty. It may carry SCTs in an extension; captured verbatim
 	// for verification (#878), never fed to the facet value.
 	OCSPStaple []byte
+	// IssuerSPKI is the issuer certificate's SubjectPublicKeyInfo DER (chain[1]), carried iff
+	// TLSPresented and the peer presented an issuer above the leaf. Verification of an EMBEDDED
+	// SCT hashes the precertificate, whose leaf hash carries issuer_key_hash = SHA-256(issuer
+	// SPKI) (RFC 6962 §3.2); the leaf alone does not carry the issuer's key, so it is captured
+	// here beside the leaf for the certificate_material side store (#878). Never fed to the
+	// facet value; nil for a lone self-signed leaf.
+	IssuerSPKI []byte
 }
 
 // ChainCert is one presented link's parsed facts, read off the DER at handshake time
@@ -305,12 +312,25 @@ func (n NetHandshaker) Handshake(ctx context.Context, target netip.AddrPort, ser
 		SANIP:      sanIP,
 		ChainCerts: chainCerts,
 		// Capture the raw CT inputs for the certificate_material side store (spec §5.3):
-		// the leaf DER (embedded SCTs ride inside it), the TLS-extension SCTs, and the
-		// stapled OCSP response — all already in `state`, previously discarded.
+		// the leaf DER (embedded SCTs ride inside it), the TLS-extension SCTs, the stapled
+		// OCSP response, and the issuer's SPKI (chain[1], for the embedded-SCT precert leaf
+		// hash) — all already in `state`, previously discarded.
 		LeafDER:    leaf.Raw,
 		SCTsTLSExt: state.SignedCertificateTimestamps,
 		OCSPStaple: state.OCSPResponse,
+		IssuerSPKI: issuerSPKI(state.PeerCertificates),
 	}
+}
+
+// issuerSPKI returns the DER SubjectPublicKeyInfo of the certificate that issued the leaf —
+// chain position 1 in the presented chain — or nil when the peer presented only the leaf. The
+// leaf's own key is at position 0; the issuer's key hash (SHA-256 of this SPKI) is what an
+// embedded SCT's precert leaf hash needs (RFC 6962 §3.2, #878).
+func issuerSPKI(chain []*x509.Certificate) []byte {
+	if len(chain) < 2 {
+		return nil
+	}
+	return chain[1].RawSubjectPublicKeyInfo
 }
 
 // parseChainCert reads one presented certificate's raw facts into a ChainCert: its

@@ -152,6 +152,12 @@ type Worker struct {
 	// nothing. It reuses the CTFetcher seam, pointed at the RFC 6962 log endpoints.
 	ctTailFetcher CTFetcher
 
+	// The verification point-check fetcher (spec §5), wired via WithCTVerify. Nil on a
+	// worker built without it: auto-verify is then a silent no-op and VerifyByFingerprint
+	// refuses, so a measurement worker that does not opt in pays nothing. It reuses the
+	// CTFetcher seam, pointed at the RFC 6962 and static-ct-api read endpoints.
+	ctVerifyFetcher CTFetcher
+
 	// The off-host measurement router (ADR-0103, #683), wired via WithRouter. A
 	// provisioned internet Vantage measures from its OWN position: its jobs are pushed
 	// to and exec'd on the prober host over SSH, not run locally on the instance. Nil
@@ -488,7 +494,7 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, res wire.Prob
 	// transcript keeps the pre-gate stdout verbatim (spec §5.1), so this gating does
 	// not narrow it.
 	obs := parseAuthorizedScope(job.AttemptedScope).gate(res.Observations, w.log, job.ID)
-	return w.runJobTx(ctx, job.ID, func(qtx *db.Queries) error {
+	if err := w.runJobTx(ctx, job.ID, func(qtx *db.Queries) error {
 		batchID, err := qtx.InsertBatch(ctx, db.InsertBatchParams{
 			ScanID:        job.ScanID,
 			DispatchID:    job.DispatchID,
@@ -528,6 +534,7 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, res wire.Prob
 				Fingerprint: o.CertMaterial.Fingerprint,
 				Der:         o.CertMaterial.DER,
 				Scts:        o.CertMaterial.SCTs,
+				IssuerSpki:  o.CertMaterial.IssuerSPKI,
 			}); err != nil {
 				return err
 			}
@@ -572,7 +579,15 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, res wire.Prob
 			return err
 		}
 		return markDone(ctx, qtx, job.ID, batchID)
-	})
+	}); err != nil {
+		return err
+	}
+	// Auto-verify each newly-captured certificate against CT, out of band (spec §5.4). This
+	// runs AFTER the terminal tx commits — it does network I/O to the CT logs, which must
+	// never ride a database transaction — and is best-effort: a verification never fails the
+	// measurement job. A no-op unless the worker was built WithCTVerify.
+	w.autoVerifyCerts(ctx, job, obs)
+	return nil
 }
 
 // deadLetter records a Batch whose scope is empty — never the attempted one —
