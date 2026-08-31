@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -16,6 +17,7 @@ import (
 	"github.com/winniel123/verge-asm/db/migrations"
 	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
 	"github.com/winniel123/verge-asm/internal/retention"
 	"github.com/winniel123/verge-asm/internal/seed"
 	"github.com/winniel123/verge-asm/internal/vergecore"
@@ -123,13 +125,24 @@ type addressCapView struct {
 
 // capSweepLine is one enabled address-scope scan's dispatch load at the current cap: a
 // cap-sized scope is Probes one-address Batches (ADR-0005) dispatched every Cadence.
-// It is pure arithmetic over the cap and the scan's own cadence_seconds — no throughput
-// is assumed, so the readout promises no completion the model does not (ADR-0127); the
-// predicted-vs-effective cadence lands on the Scans surface itself (#891).
+// The Probes figure is pure arithmetic over the cap and the scan's own cadence_seconds —
+// no throughput is assumed, so it promises no completion the model does not (ADR-0127).
+//
+// Effective is the separate predicted-vs-effective cadence #891 states on the Scans
+// surface (#847): the worst-case time one full cap-sized pass takes at the estate
+// packet ceiling — declared size x probed ports x attempts / rate, the same figures
+// ADR-0047 prices with. It is arithmetic, not a new domain term, and it never appears
+// on Coverage (Coverage is evidential; Scans is operational). Cadence is the predicted
+// cadence; Effective is the effective cadence; Outpaces is true when one pass cannot
+// finish inside the predicted cadence, so the trailing edge lags (#847, reported on
+// Coverage as the honest shortfall, never hidden). ADR-0005's skip events confirm the
+// prediction in operation.
 type capSweepLine struct {
-	Scan    string // the scan kind, e.g. "hot"
-	Cadence string // its declared cadence label, e.g. "daily"
-	Probes  string // the cap as a comma-grouped probe count, e.g. "262,144"
+	Scan      string // the scan kind, e.g. "hot"
+	Cadence   string // its declared (predicted) cadence label, e.g. "daily"
+	Probes    string // the cap as a comma-grouped probe count, e.g. "262,144"
+	Effective string // the effective cadence — one full pass, e.g. "≈ 6 days"; "" when unknown
+	Outpaces  bool   // true when Effective exceeds the predicted Cadence (the honest lag)
 }
 
 // vantageRow is one measurement position shaped for the vantages section. A
@@ -1617,11 +1630,21 @@ func toAddressCapView(cfg db.GetInstanceConfigRow, scans []db.Scan, accounts []d
 		if !sc.Enabled || !addressScopeScanKinds[sc.Kind] {
 			continue
 		}
-		v.SweepLoad = append(v.SweepLoad, capSweepLine{
+		line := capSweepLine{
 			Scan:    sc.Kind,
 			Cadence: cadenceLabel(sc.CadenceSeconds),
 			Probes:  probes,
-		})
+		}
+		// The effective cadence (#891, decision #847): one full cap-sized pass at the
+		// estate packet ceiling. A scan with no probed ports (unknown kind) yields no
+		// figure. Outpaces compares the worst-case pass to the declared cadence — a pass
+		// longer than its cadence cannot finish in time, and the trailing edge lags.
+		if ports := addressScopePorts[sc.Kind]; ports > 0 {
+			eff := effectiveCadenceSeconds(capVal, ports)
+			line.Effective = projectedPassLabel(eff)
+			line.Outpaces = sc.CadenceSeconds > 0 && eff > float64(sc.CadenceSeconds)
+		}
+		v.SweepLoad = append(v.SweepLoad, line)
 	}
 	if cfg.SeedAddressCapUpdatedBy.Valid {
 		for _, a := range accounts {
@@ -1655,6 +1678,53 @@ func projectedEvidentialDiskPerYear(addrCap int64) string {
 		return fmt.Sprintf("≈ %.1f GB / year", gbPerYear)
 	default:
 		return fmt.Sprintf("≈ %.0f MB / year", gbPerYear*1024)
+	}
+}
+
+// addressScopePorts is the probed-port count the effective-cadence projection (#891)
+// multiplies the address count by, per address-scope scan tier. hot probes verge-core's
+// TCP pairs — 131 on default settings (internal/vergecore) — and cold connects to every
+// TCP port, 1-65535. These are the shipped nominal figures ADR-0047 prices with; an
+// operator's frequency edits shift hot's count, so the projection states "≈", exactly as
+// projectedEvidentialDiskPerYear projects off a fixed grounding rather than the live set.
+var addressScopePorts = map[string]int64{"hot": 131, "cold": 65535}
+
+// effectiveCadenceSeconds is the worst-case time one full cap-sized address-scope pass
+// takes at the estate packet ceiling (#891, decision #847): (addresses x ports x attempts)
+// / rate. attempts is 1 + the connect-outcome retry budget — the pass where every probe
+// exhausts its retries — so the figure never understates the lag (ADR-0127 promises no
+// completion the model cannot keep). rate and retries read from the leaf's declared safety
+// profile so a change to either moves this figure with it. The math is float64: the cap has
+// no ceiling (ADR-0127), so a very large cap would overflow int64, and this is a stated
+// projection ("≈"), not an exact instant.
+func effectiveCadenceSeconds(addresses, portsPerAddress int64) float64 {
+	p := connectoutcome.DefaultProfile()
+	rate := float64(p.GlobalPacketsPerSec)
+	if rate <= 0 {
+		rate = 1
+	}
+	attempts := float64(1 + p.Retries)
+	return float64(addresses) * float64(portsPerAddress) * attempts / rate
+}
+
+// projectedPassLabel humanizes an effective-cadence projection in seconds as one coarse
+// "≈" figure — the readout compares against the predicted cadence word, so a single unit
+// reads cleaner than a two-unit countdown. It rounds to the largest fitting unit, from
+// minutes up to years, and never renders a bare zero.
+func projectedPassLabel(seconds float64) string {
+	switch {
+	case seconds < 60:
+		return "≈ under a minute"
+	case seconds < 3600:
+		return fmt.Sprintf("≈ %.0f min", math.Round(seconds/60))
+	case seconds < 86400:
+		return fmt.Sprintf("≈ %.0f h", math.Round(seconds/3600))
+	case seconds < 30*86400:
+		return fmt.Sprintf("≈ %.0f days", math.Round(seconds/86400))
+	case seconds < 365*86400:
+		return fmt.Sprintf("≈ %.0f months", math.Round(seconds/(30*86400)))
+	default:
+		return fmt.Sprintf("≈ %.1f years", seconds/(365*86400))
 	}
 }
 
