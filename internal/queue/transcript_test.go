@@ -233,6 +233,90 @@ func TestBuildTranscriptParamsUnknownVariant(t *testing.T) {
 	}
 }
 
+// TestEncodeZoneOutcome pins the JSONB shape the zone outcome stores: the restated
+// count rides the object, and decode-error carries its text.
+func TestEncodeZoneOutcome(t *testing.T) {
+	parsed, err := encodeZoneOutcome(wire.ZoneParsed{}, 42)
+	if err != nil {
+		t.Fatalf("encode parsed: %v", err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(parsed, &got); err != nil {
+		t.Fatalf("unmarshal %s: %v", parsed, err)
+	}
+	if got["kind"] != "parsed" || got["restated"] != float64(42) {
+		t.Errorf("parsed = %v, want {kind:parsed, restated:42}", got)
+	}
+
+	de, err := encodeZoneOutcome(wire.ZoneDecodeError{Text: "bad rr"}, 3)
+	if err != nil {
+		t.Fatalf("encode decode-error: %v", err)
+	}
+	got = nil
+	if err := json.Unmarshal(de, &got); err != nil {
+		t.Fatalf("unmarshal %s: %v", de, err)
+	}
+	if got["kind"] != "decode-error" || got["restated"] != float64(3) || got["text"] != "bad rr" {
+		t.Errorf("decode-error = %v, want {kind:decode-error, restated:3, text:bad rr}", got)
+	}
+
+	if _, err := encodeZoneOutcome(nil, 0); err == nil {
+		t.Error("nil zone outcome: want error, got nil")
+	}
+}
+
+// TestBuildZoneParams checks a captured zone transcript maps to the row the worker
+// inserts: variant is zone, the skipped records seal into the stdout role column and
+// open back verbatim, the restated count rides the outcome, and stderr/sent-scope stay
+// NULL (streams zone does not carry).
+func TestBuildZoneParams(t *testing.T) {
+	capturedAt := time.Date(2026, 8, 31, 9, 0, 0, 0, time.UTC)
+	tr := wire.ZoneTranscript{
+		TranscriptFrame: wire.TranscriptFrame{Kind: "zone", Duration: 12 * time.Millisecond},
+		Restated:        7,
+		Skipped:         []string{"weird IN FOO whatever", "empty IN TXT"},
+		Outcome:         wire.ZoneParsed{},
+	}
+
+	params, err := buildTranscriptParams(88, capturedAt, tr, testKey)
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	if params.Variant != "zone" {
+		t.Errorf("Variant = %q, want zone", params.Variant)
+	}
+	if params.QueueJobID != 88 || params.Kind != "zone" {
+		t.Errorf("QueueJobID/Kind = %d/%q, want 88/zone", params.QueueJobID, params.Kind)
+	}
+
+	// The skipped records seal into stdout and open back, one per line, verbatim.
+	gotStdout, err := transcript.Open(testKey, params.Stdout)
+	if err != nil {
+		t.Fatalf("open zone stdout: %v", err)
+	}
+	if want := "weird IN FOO whatever\nempty IN TXT"; string(gotStdout) != want {
+		t.Errorf("zone skips round-trip = %q, want %q", gotStdout, want)
+	}
+
+	// The restated count rides the outcome object.
+	var outcome map[string]any
+	if err := json.Unmarshal(params.Outcome, &outcome); err != nil {
+		t.Fatalf("unmarshal outcome %s: %v", params.Outcome, err)
+	}
+	if outcome["kind"] != "parsed" || outcome["restated"] != float64(7) {
+		t.Errorf("outcome = %v, want {kind:parsed, restated:7}", outcome)
+	}
+
+	// Zone carries no stderr or sent-scope: those columns stay NULL, distinct from the
+	// prober's captured-but-empty streams.
+	if params.Stderr != nil {
+		t.Errorf("Stderr = %v, want NULL (zone carries no stderr)", params.Stderr)
+	}
+	if params.SentScope != nil {
+		t.Errorf("SentScope = %v, want NULL (zone sends nothing)", params.SentScope)
+	}
+}
+
 // TestClassifyProberOutcome checks the two branches that do not need a real
 // ProcessState: a ctx error wins over any exit, and a prober that never started
 // (nil ProcessState) reads as exited(-1), an honest "no clean exit".

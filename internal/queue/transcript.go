@@ -3,6 +3,7 @@ package queue
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/winniel123/verge-asm/internal/db"
@@ -26,16 +27,81 @@ const (
 // the kind, duration, streams and typed outcome. key seals every captured stream at
 // rest (spec §5.3).
 //
-// Only the prober variant captures locally (#865). The ct and zone variants land
-// with their own tickets (#870, #869); until then their producers return an absent
-// transcript, so this switch never sees them. An unexpected variant is a wiring bug
-// and errors loudly rather than writing a mislabelled row.
+// The prober variant captures locally (#865); the zone variant captures on its
+// completed path (#869). The ct variant lands with its own ticket (#870); until
+// then its producer returns an absent transcript, so this switch never sees it. An
+// unexpected variant is a wiring bug and errors loudly rather than writing a
+// mislabelled row.
 func buildTranscriptParams(jobID int64, capturedAt time.Time, t wire.Transcript, key []byte) (db.InsertTranscriptParams, error) {
 	switch v := t.(type) {
 	case wire.ProberTranscript:
 		return buildProberParams(jobID, capturedAt, v, key)
+	case wire.ZoneTranscript:
+		return buildZoneParams(jobID, capturedAt, v, key)
 	default:
 		return db.InsertTranscriptParams{}, fmt.Errorf("queue: transcript variant %T not captured yet", t)
+	}
+}
+
+// buildZoneParams builds the row for a ZoneTranscript. Zone sends nothing to a
+// prober, so it reuses the role columns (migration 23700): the skipped records
+// land in the stdout column (the primary panel of the §6 view), one per line,
+// head+tail truncated to the stdout cap and sealed at rest. The restated count
+// rides the typed outcome object — the zone variant's role-column analog of the
+// prober's exit code. The stderr and sent-scope columns stay NULL: zone carries
+// neither, and the zone-file bytes are never duplicated here (§1.3).
+func buildZoneParams(jobID int64, capturedAt time.Time, v wire.ZoneTranscript, key []byte) (db.InsertTranscriptParams, error) {
+	skips := []byte(strings.Join(v.Skipped, "\n"))
+	stdout, dropped := headTail(skips, capTranscriptStdout)
+
+	markers := map[string]any{}
+	if dropped > 0 {
+		markers["stdout"] = map[string]any{"kept": len(stdout), "dropped": dropped}
+	}
+	truncation, err := json.Marshal(markers) // {} when nothing truncated
+	if err != nil {
+		return db.InsertTranscriptParams{}, fmt.Errorf("queue: marshal truncation marker: %w", err)
+	}
+
+	outcome, err := encodeZoneOutcome(v.Outcome, v.Restated)
+	if err != nil {
+		return db.InsertTranscriptParams{}, err
+	}
+
+	// A restate with no skips seals a captured-but-empty stdout (non-NULL) — "we
+	// skipped nothing", distinct from a stderr the variant does not carry (NULL).
+	sealedStdout, err := transcript.Seal(key, nonNil(stdout))
+	if err != nil {
+		return db.InsertTranscriptParams{}, fmt.Errorf("queue: seal zone skips: %w", err)
+	}
+
+	return db.InsertTranscriptParams{
+		QueueJobID: jobID,
+		Kind:       v.Kind,
+		DurationNs: v.Duration.Nanoseconds(),
+		CapturedAt: tstz(capturedAt),
+		Variant:    "zone",
+		Outcome:    outcome,
+		Stdout:     sealedStdout,
+		Stderr:     nil, // zone carries no stderr — NULL, not a captured-empty stream
+		SentScope:  nil, // zone sends nothing — NULL
+		Truncation: truncation,
+	}, nil
+}
+
+// encodeZoneOutcome encodes a zone restate's typed outcome as the JSONB object the
+// transcript row stores: {"kind":"parsed","restated":N} / {"kind":"decode-error",
+// "restated":N,"text":T} (spec §1.2, §1.3). The restated count rides the object so
+// the §6 read handler reads it without a separate column, mirroring how the prober
+// outcome carries its exit code. The union is closed, so an unknown member is a bug.
+func encodeZoneOutcome(o wire.ZoneOutcome, restated int) ([]byte, error) {
+	switch v := o.(type) {
+	case wire.ZoneParsed:
+		return json.Marshal(map[string]any{"kind": "parsed", "restated": restated})
+	case wire.ZoneDecodeError:
+		return json.Marshal(map[string]any{"kind": "decode-error", "restated": restated, "text": v.Text})
+	default:
+		return nil, fmt.Errorf("queue: unknown zone outcome %T", o)
 	}
 }
 
