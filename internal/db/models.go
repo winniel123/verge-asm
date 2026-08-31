@@ -256,6 +256,7 @@ type QueueJob struct {
 	BatchID        pgtype.Int8        `json:"batch_id"`
 	RunAfter       pgtype.Timestamptz `json:"run_after"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	ClaimedAt      pgtype.Timestamptz `json:"claimed_at"`
 }
 
 type RecoveryCode struct {

@@ -107,13 +107,18 @@ func main() {
 	// real install binds no Channel, so a Message is written but nothing is POSTed
 	// until an admin declares one.
 	devMode := isTruthy(env.OrDefault("VERGE_DEV", ""))
+	// The per-job probe deadline (#853): a hung prober fails into the retry /
+	// dead-letter path instead of blocking the single-threaded drain loop. Operator
+	// override VERGE_PROBE_TIMEOUT; a value <= 0 disables the bound.
+	probeTimeout := durationOrDefault("VERGE_PROBE_TIMEOUT", queue.DefaultProbeTimeout, logger)
 	worker := queue.NewWorker(pool, queue.ExecProber{Path: proberPath}, time.Now, logger).
 		WithCT(ctFetcher, ctThrottle, ctSource).
 		WithCTTail(queue.NewHTTPCTFetcher(ctVersion)).
 		WithCTVerify(queue.NewHTTPCTFetcher(ctVersion)).
 		WithRouter(router).
 		WithMessages(delivery.EnqueueForMessage, devMode).
-		WithTranscripts(transcriptKey, devMode)
+		WithTranscripts(transcriptKey, devMode).
+		WithProbeTimeout(probeTimeout)
 
 	// A manual run dispatches an existing Scan, drains it synchronously, and
 	// exits — the operator/CI path that produces Observation rows on demand.
@@ -239,6 +244,35 @@ func main() {
 		}
 	}()
 
+	// The stale-`running` reaper runs beside the worker (#853). A job stuck
+	// 'running' because its worker died or hung mid-job is never reclaimed on its
+	// own — ClaimJob claims 'ready' rows alone — so it orphans the job and wedges its
+	// Dispatch as "in flight" until an operator Terminate. The reaper sweeps on a
+	// period and returns a stale 'running' job (lease older than the threshold) to
+	// 'ready' with attempt bumped, or 'dead' past the budget, so a crash is
+	// recoverable without operator action. The threshold sits above the probe timeout,
+	// so a job legitimately mid-probe is never reaped; operator override
+	// VERGE_STALE_JOB_TIMEOUT, and a value <= 0 disables the sweep. A one-minute period
+	// bounds how long a genuinely stuck job waits past its lease before reclaiming.
+	staleThreshold := durationOrDefault("VERGE_STALE_JOB_TIMEOUT", queue.DefaultStaleJobThreshold, logger)
+	// The defaults keep the stale threshold above the probe timeout, so a job that is
+	// legitimately mid-probe is never reaped. The two overrides are independent, so an
+	// operator could invert that. Warn rather than silently override their value: a
+	// threshold at or below the probe timeout risks reaping a job whose probe is still
+	// running. A disabled probe timeout (<= 0) has no bound to sit above, so it is not
+	// a conflict.
+	if staleThreshold > 0 && probeTimeout > 0 && staleThreshold <= probeTimeout {
+		logger.Printf("worker: VERGE_STALE_JOB_TIMEOUT (%s) is at or below VERGE_PROBE_TIMEOUT (%s); "+
+			"the reaper may reclaim a job whose probe is still running — set the stale timeout above the probe timeout",
+			staleThreshold, probeTimeout)
+	}
+	reaper := queue.NewReaper(db.New(pool), staleThreshold, time.Now, logger)
+	go func() {
+		if err := reaper.Run(ctx, 1*time.Minute); err != nil && !errors.Is(err, context.Canceled) {
+			logger.Printf("worker: reaper stopped: %v", err)
+		}
+	}()
+
 	// Channel delivery runs beside the measurement worker (#207, v1 spec §4.5). It
 	// drains routed Deliveries off the queue and POSTs each to its Channel, on the
 	// same retry/backoff/dead-letter curve the measurement queue uses (queue.Backoff)
@@ -272,6 +306,23 @@ func selectCTSource(token, version string, q *db.Queries) (queue.CTFetcher, queu
 		return queue.NewCertSpotterFetcher(version, token), queue.NewCertSpotterThrottle(q), scan.CertSpotterCTSource()
 	}
 	return queue.NewHTTPCTFetcher(version), queue.NewCTThrottle(q), scan.CrtshCTSource()
+}
+
+// durationOrDefault reads a Go duration (e.g. "5m", "90s") from env, falling back to
+// def when the var is unset. A set-but-unparseable value is logged and also falls
+// back to def, so a typo never silently disables a bound — it keeps the safe default
+// and says so. Used for the probe timeout and the stale-job threshold (#853).
+func durationOrDefault(key string, def time.Duration, logger *log.Logger) time.Duration {
+	v := strings.TrimSpace(env.OrDefault(key, ""))
+	if v == "" {
+		return def
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil {
+		logger.Printf("worker: %s=%q is not a duration (%v); using default %s", key, v, err, def)
+		return def
+	}
+	return d
 }
 
 // isTruthy reads the common affirmative spellings of a boolean env value — the

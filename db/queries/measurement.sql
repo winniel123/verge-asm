@@ -85,8 +85,10 @@ SELECT pg_notify('queue_job_progress', @payload::text);
 -- name: ClaimJob :one
 -- The Postgres-backed claim: FOR UPDATE SKIP LOCKED over ready jobs whose
 -- run_after has passed, oldest first, marking the winner running in one
--- statement so two workers never claim the same job.
-UPDATE queue_job SET state = 'running'
+-- statement so two workers never claim the same job. It stamps claimed_at at the
+-- claim instant so the stale-running reaper (internal/queue/reaper.go, #853) knows
+-- when the lease started and can reclaim a job whose worker died or hung mid-run.
+UPDATE queue_job SET state = 'running', claimed_at = now()
 WHERE id = (
     SELECT id FROM queue_job
     WHERE state = 'ready' AND run_after <= now()
@@ -96,6 +98,30 @@ WHERE id = (
 )
 RETURNING id, scan_id, vantage_id, dispatch_id, kind, spec, attempted_scope,
           offers, attempt, max_attempts;
+
+-- name: ReapStaleRunningJobs :execrows
+-- The stale-`running` reaper's sweep (#853): reclaim every job stuck in state
+-- 'running' whose lease (claimed_at) is older than the cutoff — the worker that
+-- claimed it died or hung mid-job, so nothing will ever drive it to a terminal
+-- state. A job with attempts left returns to 'ready' (attempt bumped, run_after and
+-- claimed_at cleared) so a live worker re-claims and re-runs it — a fresh Batch, not
+-- a resumption, since a job orphaned mid-run committed no Batch (batch_id is NULL).
+-- A job past its attempt budget is dead-lettered directly, which bounds a job whose
+-- prober hangs on every attempt: it dies after max_attempts reaps rather than
+-- re-readying forever.
+--
+-- The CASE reads the OLD attempt, so a job at attempt >= max_attempts dies and one
+-- below it re-readies at attempt + 1. Only 'running' rows past the cutoff match; a
+-- NULL claimed_at never satisfies `< cutoff`, so a never-leased row is never reaped.
+-- The reaper writes no Batch and moves no Availability: a dead worker is
+-- infrastructure failure, not measurement evidence, so a reaped dns job must not be
+-- read as a resolver outage (ADR-0108). Returns the count reclaimed.
+UPDATE queue_job
+SET state      = CASE WHEN attempt >= max_attempts THEN 'dead' ELSE 'ready' END,
+    attempt    = attempt + 1,
+    run_after  = now(),
+    claimed_at = NULL
+WHERE state = 'running' AND claimed_at < @cutoff::timestamptz;
 
 -- name: InsertBatch :one
 INSERT INTO batch (
