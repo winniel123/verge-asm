@@ -49,12 +49,31 @@ func toZoneObservationParams(batchID int64, recs []scan.ZoneRecord) []db.InsertO
 // `dns-record` observations at the supply instant, and commits the Batch, its
 // observations and the job's done state in one transaction. A zone read has no
 // network step to fail, so there is no retry or dead-letter path here.
+//
+// When raw-output capture is on (#869, spec §1.3, §2.5), it also builds and
+// persists a ZoneTranscript in the same tx: zone sends nothing to a prober, so
+// the debug artifact is the restate RESULT — the restated count and the records
+// RestateZone skipped. Capture stays on this completed path only; zone has no
+// failure tx (spec §1.3, flagged thin). The zone-file bytes are never duplicated
+// into the transcript — they already sit in the operator's zone-file row.
 func (w *Worker) completeZone(ctx context.Context, job db.ClaimJobRow, spec wire.JobSpec) error {
 	zf, err := scan.ZoneScopeFromSpec(spec.Scope)
 	if err != nil {
 		return fmt.Errorf("decode zone scope: %w", err)
 	}
-	recs := scan.RestateZone(zf)
+	start := w.now()
+	recs, skipped := scan.RestateZone(zf)
+
+	var zt wire.Transcript
+	if w.captureOn() {
+		zt = wire.ZoneTranscript{
+			TranscriptFrame: wire.TranscriptFrame{Kind: job.Kind, Duration: w.now().Sub(start)},
+			Restated:        len(recs),
+			Skipped:         skipped,
+			Outcome:         wire.ZoneParsed{}, // the completed path always parsed
+		}
+	}
+
 	return w.runJobTx(ctx, job.ID, func(qtx *db.Queries) error {
 		batchID, err := qtx.InsertBatch(ctx, db.InsertBatchParams{
 			ScanID:        job.ScanID,
@@ -73,7 +92,10 @@ func (w *Worker) completeZone(ctx context.Context, job db.ClaimJobRow, spec wire
 				return err
 			}
 		}
-		return markDone(ctx, qtx, job.ID, batchID)
+		if err := markDone(ctx, qtx, job.ID, batchID); err != nil {
+			return err
+		}
+		return w.persistTranscript(ctx, qtx, job.ID, zt)
 	})
 }
 

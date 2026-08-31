@@ -47,6 +47,9 @@ type rawOutputView struct {
 	Vantage string
 
 	Captured bool
+	// Variant selects the layout: "prober" (exec-meta + stdout/stderr/sent) or "zone"
+	// (restate result — the skipped records in the primary panel plus a restate card).
+	Variant string
 
 	// Exec-meta — the typed prober outcome unpacked into three display cells (exactly
 	// one is active; the others read "—"/"false"), plus duration and captured-at.
@@ -56,6 +59,11 @@ type rawOutputView struct {
 	OutcomeOK    bool // exited(0): render the exit code in the ok colour
 	Duration     string
 	CapturedAt   string
+
+	// Zone restate result (Variant == "zone"): the restated count and the typed zone
+	// outcome ("parsed" | "decode-error: …"). The skipped records ride Bytes.Stdout.
+	Restated    string
+	ZoneOutcome string
 
 	StdoutSize   string
 	StdoutCapped bool
@@ -146,14 +154,36 @@ func (s *server) rawOutputData(acct db.Account, view rawOutputView) map[string]a
 	}
 }
 
-// fillRawOutputView opens the three sealed streams with the instance key and decodes the
+// fillRawOutputView opens the sealed streams with the instance key and decodes the
 // outcome and truncation JSON the producer wrote. Any open failure is returned so the
-// handler fails closed (§5.3).
+// handler fails closed (§5.3). The layout branches on the variant: the prober carries
+// three streams and the exec-meta outcome; the zone variant carries only the skipped
+// records (in the stdout role column) and a restate result (§1.3), with stderr and
+// sent-scope NULL (Open returns nil for a NULL column, so they simply stay empty).
 func (s *server) fillRawOutputView(view *rawOutputView, row db.Transcript) error {
+	view.Variant = row.Variant
+	view.Duration = time.Duration(row.DurationNs).String()
+	if row.CapturedAt.Valid {
+		view.CapturedAt = row.CapturedAt.Time.UTC().Format(time.RFC3339)
+	}
+	notes := rawDecodeTruncation(row.Truncation)
+
 	stdout, err := transcript.Open(s.transcriptKey, row.Stdout)
 	if err != nil {
 		return fmt.Errorf("open stdout: %w", err)
 	}
+	view.Bytes.Stdout = rawSplitLines(stdout)
+	view.StdoutSize = rawHumanBytes(len(stdout))
+	view.StdoutTrunc = notes["stdout"]
+	view.StdoutCapped = view.StdoutTrunc != ""
+
+	if row.Variant == "zone" {
+		// Zone sends nothing to a prober: the skipped records are the artifact, and the
+		// restate result rides the typed outcome. No stderr, sent-scope or exec-meta.
+		view.Restated, view.ZoneOutcome = rawDecodeZoneOutcome(row.Outcome)
+		return nil
+	}
+
 	stderr, err := transcript.Open(s.transcriptKey, row.Stderr)
 	if err != nil {
 		return fmt.Errorf("open stderr: %w", err)
@@ -162,25 +192,11 @@ func (s *server) fillRawOutputView(view *rawOutputView, row db.Transcript) error
 	if err != nil {
 		return fmt.Errorf("open sent scope: %w", err)
 	}
-
-	view.Bytes = rawOutputBytes{
-		Stdout:    rawSplitLines(stdout),
-		Stderr:    rawSplitLines(stderr),
-		SentScope: string(sent),
-	}
-	view.StdoutSize = rawHumanBytes(len(stdout))
-	view.Duration = time.Duration(row.DurationNs).String()
-	if row.CapturedAt.Valid {
-		view.CapturedAt = row.CapturedAt.Time.UTC().Format(time.RFC3339)
-	}
-
+	view.Bytes.Stderr = rawSplitLines(stderr)
+	view.Bytes.SentScope = string(sent)
 	view.ExitCode, view.Signal, view.CtxCancelled, view.OutcomeOK = rawDecodeOutcome(row.Outcome)
-
-	notes := rawDecodeTruncation(row.Truncation)
-	view.StdoutTrunc = notes["stdout"]
 	view.StderrTrunc = notes["stderr"]
 	view.SentTrunc = notes["sent_scope"]
-	view.StdoutCapped = view.StdoutTrunc != ""
 	return nil
 }
 
@@ -222,6 +238,34 @@ func rawDecodeOutcome(b []byte) (exit, signal, ctx string, ok bool) {
 		ctx = "true"
 	}
 	return exit, signal, ctx, ok
+}
+
+// rawDecodeZoneOutcome unpacks the zone outcome JSON — {"kind":"parsed","restated":N} /
+// {"kind":"decode-error","restated":N,"text":T} (§1.3) — into the restated count and a
+// human outcome label for the zone restate card. A missing count reads "—".
+func rawDecodeZoneOutcome(b []byte) (restated, outcome string) {
+	restated, outcome = "—", "—"
+	var o struct {
+		Kind     string `json:"kind"`
+		Restated *int   `json:"restated"`
+		Text     string `json:"text"`
+	}
+	if err := json.Unmarshal(b, &o); err != nil {
+		return restated, outcome
+	}
+	if o.Restated != nil {
+		restated = strconv.Itoa(*o.Restated)
+	}
+	switch o.Kind {
+	case "parsed":
+		outcome = "parsed"
+	case "decode-error":
+		outcome = "decode-error"
+		if o.Text != "" {
+			outcome += ": " + o.Text
+		}
+	}
+	return restated, outcome
 }
 
 // rawDecodeTruncation turns the per-stream truncation markers ({"stdout":{"kept":…,
