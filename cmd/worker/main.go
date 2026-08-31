@@ -64,7 +64,8 @@ func main() {
 	// volume is unwritable — running on without a key would silently drop the
 	// corpus (raw-job-output spec §5.3).
 	transcriptKeyDir := env.OrDefault("VERGE_TRANSCRIPT_KEY_DIR", "/app/transcript-key")
-	if err := transcript.EnsureKey(transcriptKeyDir); err != nil {
+	transcriptKey, err := transcript.LoadOrCreateKey(transcriptKeyDir)
+	if err != nil {
 		log.Fatalf("worker: transcript key: %v", err)
 	}
 
@@ -98,7 +99,8 @@ func main() {
 		WithCT(queue.NewHTTPCTFetcher(env.OrDefault("VERGE_VERSION", "dev")), queue.NewCTThrottle(db.New(pool))).
 		WithCTTail(queue.NewHTTPCTFetcher(env.OrDefault("VERGE_VERSION", "dev"))).
 		WithRouter(router).
-		WithMessages(delivery.EnqueueForMessage, devMode)
+		WithMessages(delivery.EnqueueForMessage, devMode).
+		WithTranscripts(transcriptKey, devMode)
 
 	// A manual run dispatches an existing Scan, drains it synchronously, and
 	// exits — the operator/CI path that produces Observation rows on demand.

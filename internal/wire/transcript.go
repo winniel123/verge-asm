@@ -70,6 +70,12 @@ type ProberTranscript struct {
 	Stderr []byte
 	// Outcome is how the prober process ended.
 	Outcome ProberOutcome
+	// StdoutOverflow reports that Stdout tripped the 64 MiB MaxProberStdout memory
+	// guard: Stdout then holds only the head bytes the guard retained, and an unknown
+	// further amount was never captured. It is an in-process capture signal (producer
+	// to persist), not a stored field — the persist step (§3.2) reads it to mark the
+	// stored stdout stream memory-guard-tripped rather than plain head+tail truncated.
+	StdoutOverflow bool
 }
 
 func (ProberTranscript) isTranscript() {}
