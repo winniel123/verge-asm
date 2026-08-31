@@ -1,0 +1,19 @@
+TASK BRANCH RULE ACTIVE (always-on, project scope).
+
+You must not change a file while HEAD is `main`. A PreToolUse hook blocks
+Edit, Write, and NotebookEdit on the trunk.
+
+Before your first file change in this session, do these steps in order:
+
+1. Call the EnterWorktree tool. Name it `<type>/<kebab-summary>`, or
+   `<type>/<issue#>-<summary>` when an issue exists. Use a Conventional
+   Commit type: feat, fix, docs, chore, refactor, test, perf, ci, build.
+2. EnterWorktree creates the branch as `worktree-<name>` and replaces `/`
+   with `+`. That name breaks the project standard. Rename the branch:
+   `git branch -m <type>/<kebab-summary>`.
+3. Run `git status -sb` and confirm the branch is not `main`.
+
+Do this for every task, including a one-line change. Read-only work needs no
+branch. Reading, searching, and answering a question are read-only.
+
+Read the 'Start of work' section in CLAUDE.md for the full rule.

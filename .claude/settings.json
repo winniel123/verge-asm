@@ -10,6 +10,21 @@
           {
             "type": "command",
             "command": "powershell -NoProfile -Command \"Get-Content -Raw -LiteralPath '$CLAUDE_PROJECT_DIR/.claude/hooks/ste-activate.txt'\""
+          },
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -Command \"Get-Content -Raw -LiteralPath '$CLAUDE_PROJECT_DIR/.claude/hooks/worktree-activate.txt'\""
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$CLAUDE_PROJECT_DIR/.claude/hooks/require-task-branch.ps1\""
           }
         ]
       }
