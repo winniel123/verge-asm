@@ -18,6 +18,12 @@ type Querier interface {
 	// out-of-order poll can never rewind the cursor and re-admit history (the §4 invariant).
 	// The first poll of a log inserts its row.
 	AdvanceCTLogCursor(ctx context.Context, arg AdvanceCTLogCursorParams) error
+	// Aggregate one source's newest `window` samples into the three bar limbs (spec §3):
+	// the total measured, how many succeeded, how many succeeded but returned zero names
+	// (false-empty), and the p95 end-to-end latency over the window. percentile_disc
+	// returns an actual sampled latency, and COALESCE gives 0 for an empty window. The
+	// caller (internal/scan.EvaluateCTReliability) turns these into pass/fail per limb.
+	CTReliabilityWindow(ctx context.Context, arg CTReliabilityWindowParams) (CTReliabilityWindowRow, error)
 	// Terminate a Dispatch (DF-F4): cancel every in-flight job — ready AND running. A
 	// ready job never runs; a running job is cancelled out from under the worker, whose
 	// guarded terminal write (MarkJobDone/Dead/Retried, WHERE state = 'running') then
@@ -455,6 +461,12 @@ type Querier interface {
 	// not membership (ADR-0096 §5).
 	InsertAdmittedName(ctx context.Context, arg InsertAdmittedNameParams) error
 	InsertBatch(ctx context.Context, arg InsertBatchParams) (int64, error)
+	// Record one bulk-by-name query as a reliability sample (spec §3, #879): the source
+	// it ran against, whether it succeeded (a well-formed 200), its end-to-end fetch
+	// latency in whole milliseconds, and whether a successful query returned zero
+	// certificate names (the false-empty limb). One row per query attempt, so a retry is
+	// its own sample.
+	InsertCTReliabilitySample(ctx context.Context, arg InsertCTReliabilitySampleParams) error
 	// Capture one leaf certificate's raw CT inputs into the immutable side store (spec
 	// §5.3): the leaf DER, the out-of-cert SCT material, and the issuer SubjectPublicKeyInfo,
 	// keyed by the leaf fingerprint. Deduped and immutable — many Endpoints present the same
@@ -1268,6 +1280,11 @@ type Querier interface {
 	// Refresh last_seen_at for the "last active" column. Called at most once per minute
 	// per session (the handler throttles) so a busy session does not amplify writes.
 	TouchSession(ctx context.Context, arg TouchSessionParams) error
+	// Keep only the newest `keep` samples for one source, so the table stays bounded and
+	// the bar is measured over a rolling window rather than all history (spec §3). Run
+	// after each insert. Ordered newest-first, id breaking an observed_at tie, matching
+	// the read window's order.
+	TrimCTReliabilitySamples(ctx context.Context, arg TrimCTReliabilitySamplesParams) error
 	// Idempotent on (scan, scheduled_time): the first tick inserts a fanned-out
 	// Dispatch; an overlapping tick conflicts and returns no row, which the caller
 	// records as a skip rather than a second fan-out.

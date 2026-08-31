@@ -107,6 +107,11 @@ type store interface {
 	DeleteExclusion(ctx context.Context, id int64) error
 	ListSourceStates(ctx context.Context) ([]db.SourceState, error)
 	UpsertSourceState(ctx context.Context, arg db.UpsertSourceStateParams) (db.SourceState, error)
+	// CTReliabilityWindow reads one CT source's rolling-sample aggregate — total,
+	// successes, false-empties and p95 latency over the newest samples — for the
+	// measured reliability bar (spec §3, #879). The worker records the samples; this
+	// is the web's read of them, evaluated against the bar by scan.EvaluateCTReliability.
+	CTReliabilityWindow(ctx context.Context, arg db.CTReliabilityWindowParams) (db.CTReliabilityWindowRow, error)
 	ListIntegrationStates(ctx context.Context) ([]db.IntegrationState, error)
 	UpsertIntegrationState(ctx context.Context, arg db.UpsertIntegrationStateParams) (db.IntegrationState, error)
 	DeleteIntegrationState(ctx context.Context, slug string) error

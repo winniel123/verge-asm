@@ -30,6 +30,92 @@ func (f *fakeStore) UpsertSourceState(_ context.Context, arg db.UpsertSourceStat
 	return st, nil
 }
 
+func (f *fakeStore) CTReliabilityWindow(_ context.Context, arg db.CTReliabilityWindowParams) (db.CTReliabilityWindowRow, error) {
+	return f.ctReliability[arg.Source], nil
+}
+
+// The reliability bar (spec §3, #879) reads each bulk CT source's rolling window,
+// evaluates it, and shapes it for the card: the operator-keyed primary reports
+// pass/fail per limb and degrades when it misses one; crt.sh reports exempt and is
+// never degraded, its measured values kept for contrast.
+func TestCTReliabilityViews(t *testing.T) {
+	f := newFakeStore()
+	f.ctReliability = map[string]db.CTReliabilityWindowRow{
+		"certspotter": {Total: 200, Successes: 196, Empties: 0, P95LatencyMs: 3200},
+		"crtsh":       {Total: 8, Successes: 4, Empties: 2, P95LatencyMs: 59600},
+	}
+	s := &server{store: f}
+
+	views, err := s.ctReliabilityViews(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(views) != 2 {
+		t.Fatalf("want 2 bulk-source views, got %d", len(views))
+	}
+	byslug := map[string]ctReliabilityView{}
+	for _, v := range views {
+		byslug[v.Slug] = v
+	}
+
+	// The operator-keyed primary at 196/200 is below the 99% success bar: not exempt,
+	// degraded, and its measured values render.
+	cs := byslug["certspotter"]
+	if cs.Exempt {
+		t.Errorf("certspotter must not be exempt")
+	}
+	if !cs.Degraded {
+		t.Errorf("certspotter below the success bar must read degraded")
+	}
+	if cs.SuccessPass {
+		t.Errorf("196/200 must fail the 99%% success bar")
+	}
+	if cs.SuccessPct != "98.0%" {
+		t.Errorf("certspotter success = %q, want 98.0%%", cs.SuccessPct)
+	}
+	if cs.P95Display != "3.2 s" {
+		t.Errorf("certspotter p95 = %q, want 3.2 s", cs.P95Display)
+	}
+
+	// crt.sh is exempt as the keyless fallback: never degraded, its measured values
+	// shown for contrast, its name from the catalogue.
+	sh := byslug["crtsh"]
+	if !sh.Exempt {
+		t.Errorf("crt.sh must be exempt")
+	}
+	if sh.Degraded {
+		t.Errorf("an exempt fallback is never degraded")
+	}
+	if sh.SuccessPct != "50.0%" {
+		t.Errorf("crtsh success = %q, want 50.0%%", sh.SuccessPct)
+	}
+	if sh.Name != "crt.sh" {
+		t.Errorf("crtsh name = %q, want crt.sh", sh.Name)
+	}
+}
+
+// A source with no recent samples reports no data — an em dash, never a fabricated
+// zero — and is never degraded (#879).
+func TestCTReliabilityViewsNoData(t *testing.T) {
+	s := &server{store: newFakeStore()}
+
+	views, err := s.ctReliabilityViews(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, v := range views {
+		if v.HasData {
+			t.Errorf("%s reports data with no samples", v.Slug)
+		}
+		if v.Degraded {
+			t.Errorf("%s with no samples must not be degraded", v.Slug)
+		}
+		if v.SuccessPct != "—" || v.P95Display != "—" {
+			t.Errorf("%s no-data view = success %q p95 %q, want em dashes", v.Slug, v.SuccessPct, v.P95Display)
+		}
+	}
+}
+
 // --- helpers ----------------------------------------------------------------
 
 func toggleSourceReq(t *testing.T, c *http.Client, base, slug, enabled string) *http.Response {

@@ -114,6 +114,51 @@ toggle.
 
 ---
 
+## The bulk CT reliability bar
+
+The bulk-by-name CT source has an **operator-keyed primary** (Cert Spotter, selected on
+the worker by `VERGE_CERTSPOTTER_TOKEN`) and a **keyless fallback** (crt.sh). The primary
+is held to a **measured reliability bar**, spec
+[§3](../spec/ct-source-replacement.md). The bar is measured, never asserted once: each
+bulk query records a sample, and the Sources page reports the result.
+
+**What each sample records.** One row per bulk-by-name query
+(`ct_reliability_sample`, migration `24300`), for the source that ran it:
+
+- **Success** — the query returned a well-formed `200`. A non-`200`, a transport error,
+  or an unparseable body is a failure.
+- **Latency** — the end-to-end time on the wire, in milliseconds. The throttle wait is
+  **excluded**, so the figure measures the source, not our own spacing.
+- **False-empty** — a *successful* query that returned **zero certificate names**. This
+  is the source answering empty, measured before the scope filter, so a query whose names
+  the scope filter dropped is **not** counted here.
+
+**The measurement method — sample size and cadence.** The bar is measured over a
+**rolling window of the newest 200 queries per source**
+(`scan.CTReliabilityWindowSize`). The worker trims each source to the window on every
+write, so the read reflects the source's **recent** behaviour, not its distant history.
+The **cadence is one sample per bulk query**: the `ct` scan runs on its daily cadence,
+throttled per source (crt.sh 5 req/min; Cert Spotter spaced to its tier cap), so the
+window fills at the poll rate. A retry is its own sample.
+
+**The bar — the primary must clear all three limbs:**
+
+| Limb | Bar |
+| --- | --- |
+| Success rate | **≥ 99%** over the window |
+| p95 latency | **≤ 5 s** per bulk query |
+| False-empty | **none** |
+
+**crt.sh is exempt.** As the keyless fallback it is reported **bar-exempt** — its
+measured values render for contrast, muted, never as a failure.
+
+**A below-bar primary keeps running.** If the configured primary misses a limb, the `ct`
+scan **keeps running the primary**. There is **no silent swap to crt.sh** — runtime
+failover is deferred, spec [§7](../spec/ct-source-replacement.md). The Sources page
+surfaces the **degraded** state so the operator sees it and can reconfigure the worker.
+
+---
+
 ## Two caveats worth knowing
 
 ### crt.sh executes (as of the CT runner, ADR-0106)

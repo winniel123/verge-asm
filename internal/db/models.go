@@ -84,6 +84,15 @@ type CtLogCursor struct {
 	UpdatedAt  pgtype.Timestamptz `json:"updated_at"`
 }
 
+type CtReliabilitySample struct {
+	ID         int64              `json:"id"`
+	Source     string             `json:"source"`
+	ObservedAt pgtype.Timestamptz `json:"observed_at"`
+	Ok         bool               `json:"ok"`
+	LatencyMs  int64              `json:"latency_ms"`
+	Empty      bool               `json:"empty"`
+}
+
 type CtThrottle struct {
 	Source     string             `json:"source"`
 	NextFreeAt pgtype.Timestamptz `json:"next_free_at"`
