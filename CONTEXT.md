@@ -693,6 +693,11 @@ the subject is **withdrawn**, its timelines are closed and no derivation may rea
 it carries **no floor**, and the dial alone governs it. A `Batch` is unaffected and is not retired per
 row: it travels with **any** observation it produced. See
 [ADR-0094](./docs/adr/0094-a-retention-control-collapses-and-a-retention-query-never-does.md).
+The verbatim NDJSON a probe job writes to stdout — the bytes an observation is **decoded from** — now
+also persists **as-emitted** in that job's `Transcript`, a separate Operational corpus no derivation
+reads (verbatim raw job output, for operator debugging). The observation is the measured fact; the
+`Transcript` is the raw stream it was decoded from, kept for a bounded window. See `Transcript` and
+[ADR-0126](./docs/adr/0126-verbatim-job-output-is-a-fourth-operational-corpus-retired-by-a-duration-dial-that-ships-bounded.md).
 _Avoid_: result, record, datapoint, scan result
 
 **Facet**:
@@ -1644,14 +1649,17 @@ its progress, and the `Scan` config it was fired under. It exists for display an
 operational visibility. It carries no observations, and **the comparison path must never
 read it**. Batches anchor scope, timelines anchor comparison, a dispatch anchors neither.
 See [ADR-0005](./docs/adr/0005-scan-execution-model.md).
-It is **the only corpus a wall clock may retire** — and the
+It is ~~**the only corpus a wall clock may retire**~~ **one of two corpora a wall clock may retire** — and the
 fence above is the reason rather than a coincidence. The property that makes a record safe to
 delete on a schedule is the property that makes it safe to keep out of the comparison path.
 ~~It is the whole of the operational record~~ is **superseded here, at the site that specifies it**
 ([ADR-0058](./docs/adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).
 [#119](https://github.com/winniel123/verge-asm/issues/119) added `Message` and `Delivery` to this
-layer, so the operational record is **three** corpora and this is the only one of them carrying a
-dial. A `Message` is retained while the operator may still read it again, and a `Delivery` travels
+layer, and [#838](https://github.com/winniel123/verge-asm/issues/838) ·
+[ADR-0126](./docs/adr/0126-verbatim-job-output-is-a-fourth-operational-corpus-retired-by-a-duration-dial-that-ships-bounded.md)
+added `Transcript` (verbatim raw job output), so the operational record is **four** corpora, and
+`Dispatch` is **no longer the only one carrying a dial** — `Transcript` carries the second, and it
+ships **bounded** where `Dispatch` ships unbounded. A `Message` is retained while the operator may still read it again, and a `Delivery` travels
 with the message it was against
 ([ADR-0081](./docs/adr/0081-a-floor-is-territory-and-an-unbounded-default-is-a-position.md)). Its
 retention window is an **operator dial**, the strongest instance of *outside every derivation* in the
@@ -1711,6 +1719,33 @@ So it **travels with its `Message`** as a `Batch` travels with its observations,
 ([ADR-0081](./docs/adr/0081-a-floor-is-territory-and-an-unbounded-default-is-a-position.md)). See
 [ADR-0039](./docs/adr/0039-a-channel-carries-the-message-never-the-estate-and-a-delivery-is-an-operational-record.md).
 _Avoid_: send, push, notification attempt, dispatch (reserved), retry
+
+**Transcript**:
+The **verbatim raw output** of one job, captured for an operator debugging it — **stdout**, **stderr**,
+and the **exec-meta** (exit code or signal, duration, and the exact `JobSpec` sent to the prober). The
+**fourth** Operational corpus, beside `Dispatch`, `Message` and `Delivery`, keyed **per job** (the
+`queue_job` grain, one row per attempt). It is not columns on the lean job record (`kind · state ·
+vantage`), because the verbatim bytes are the whole volume and must be **retirable independently** of
+that record, and it is not part of `Dispatch` (wrong grain — a `Dispatch` groups many jobs). It
+inherits the Operational fence: **no derivation may read a `Transcript`**, which is what makes a clock
+legal on it. Only the worker writes one; only the admin-gated `?job={id}` view reads one. Its value is
+a **closed union** — `ProberTranscript | CTTranscript | ZoneTranscript` — over a common frame, each
+variant naming the one exchange it made and carrying its **own typed outcome**; never a record with
+optional fields. It is the **one corpus that ships bounded**: an operator dial,
+`transcript_currency_days`, unit days, **default 14**, floor 1, `0`=unbounded. That non-zero default
+reverses [ADR-0041](./docs/adr/0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md)'s
+unbounded default, because verbatim bytes are the volume hazard row counts are not. It is also the
+**first secret-bearing data Postgres holds** — `stderr`, the sent scope, and pre-gate `stdout` may
+carry credentials — so it is stored **encrypted** (AEAD, per-value nonce) under an instance key that
+lives on a service volume and **never enters Postgres**, read by **admins only**, and **excluded from
+every backup**. That reverses
+[ADR-0053](./docs/adr/0053-a-secret-is-held-only-where-its-act-is-performed-and-the-shared-store-holds-none.md)'s
+*"Postgres holds no secret"* for this one corpus, the key-on-a-volume rule kept. The verbatim bytes
+**never** reach the redacted LogViewer surface (#771/#780); the raw view is a **separate**, admin-gated,
+**post-hoc** surface, so the redaction posture gains a priced, operator-visible exception rather than a
+hole. See
+[ADR-0126](./docs/adr/0126-verbatim-job-output-is-a-fourth-operational-corpus-retired-by-a-duration-dial-that-ships-bounded.md).
+_Avoid_: log, raw log, job log, output, run log
 
 ## Terms deliberately not used
 
