@@ -44,8 +44,14 @@ A typical task moves through these steps. Follow the GitHub project standard thr
 
 1. A bug, feature, chore, security, or doc task starts with a wayfinder chart via `/wayfinder`. The destination is always a SPEC, unless the user specifies otherwise.
 2. Sessions work through the wayfinder map until the destination is complete.
-3. Hand the SPEC to `/to-tickets`. Its output is a NEW parent map, separate from the closed wayfinder map. This parent has the same structure as a wayfinder map, but it is not a wayfinder map.
+3. Hand the SPEC to `/to-tickets`. Its output is a NEW parent map, separate from the closed wayfinder map. This parent has the same structure as a wayfinder map, but it is not a wayfinder map. Label that parent issue `implementation:map`. The label is what tells a later session the issue is a map and not a ticket.
 4. Sessions iterate over the tickets with `/implement` until the implementation map is complete.
+
+**One ticket per session.** When you run `/implement` on an issue labelled `implementation:map`, do exactly one ticket, then stop. Do not chain the next ticket into the same session. Pick the first ticket on the frontier, implement it, open its PR, and end the session. A map with nine tickets takes nine sessions.
+
+This rule holds even when the next ticket looks small or looks blocked on nothing. A session that runs several tickets produces one PR that mixes them, loses the per-ticket review, and buries a regression in the noise.
+
+`/implement` on a plain ticket number implements that ticket. Only a map argument triggers the frontier pick.
 
 At the end of a wayfinder or implementation session, open a PR and make sure the branch is up-to-date with `main`. A human squashes and merges the PR.
 
@@ -66,11 +72,28 @@ New goose migrations race on their number. The `compose` CI job boots the real `
 
 ## Windows local dev gotchas
 
-This machine's Go toolchain is 1.26.5, but CI pins 1.25.13. `go.mod` has no `toolchain` line, so `GOTOOLCHAIN=auto` lets local 1.26.5 satisfy it; local builds and tests run under 1.26.5, CI under 1.25.13.
+**There is no local Go toolchain on this machine.** Measured 2026-08-31: `go` is absent from `PATH`, absent from the persisted user and machine `PATH` in the registry, and a full `C:` drive search finds no `go.exe`. Do not spend a session hunting for it. An earlier version of this file described a local 1.26.5 toolchain. That description is retired.
+
+Run every Go command in Docker instead. The container pins CI's exact version, so it is a stronger check than a local toolchain was:
+
+```sh
+docker run --rm \
+  -v "<absolute-path-to-worktree>:/src" \
+  -v verge-gomodcache:/go/pkg/mod \
+  -v verge-gobuildcache:/root/.cache/go-build \
+  -w /src golang:1.25.13 \
+  sh -c "go vet ./... && go test ./... -count=1"
+```
+
+The two named volumes cache the downloaded modules and the build output. The first run downloads the module graph and is slow. Later runs reuse both caches. `cmd/web` alone takes about 70 s.
+
+`go.mod` pins `go 1.25.13` and has no `toolchain` line. Pin the image tag to `golang:1.25.13` so the container never drifts above it. Do not use 1.26-only features.
 
 `.gitattributes` is `* text=auto` (files stored LF, checked out CRLF on Windows). This causes two traps:
 
-- **gofmt:** `gofmt -l` flags almost every file because of CRLF. This is not a real problem — git normalizes to LF on commit and CI sees clean files. Do not chase it. Do not `gofmt -w` blindly: local 1.26.5 gofmt rewrites to 1.26 style. To verify a file is CI-clean, check its LF-normalized content under a 1.25 gofmt.
-- **sqlc regen:** CI pins sqlc v1.31.1. Run it with `go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1 generate`. sqlc rewrites every `internal/db/*.sql.go` with LF, so `git status` shows ~40 files modified but `git diff` shows no content hunks for the untouched ones. Find real changes with `git diff --numstat -- internal/db/` (non-zero counts changed). Restore the noise with `git checkout -- internal/db/`, keep the real files, and stage explicitly (never `git add -A`).
+- **gofmt:** `gofmt -l` flags almost every file because of CRLF. This is not a real problem — git normalizes to LF on commit and CI sees clean files. Do not chase it. Run gofmt in the container, never against the Windows working tree, and never `gofmt -w` blindly.
+- **sqlc regen:** CI pins sqlc v1.31.1. Run it in the container with `go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1 generate`. sqlc rewrites every `internal/db/*.sql.go` with LF, so `git status` shows ~40 files modified but `git diff` shows no content hunks for the untouched ones. Find real changes with `git diff --numstat -- internal/db/` (non-zero counts changed). Restore the noise with `git checkout -- internal/db/`, keep the real files, and stage explicitly (never `git add -A`).
 
-Pre-existing Windows-only test failures (NOT regressions): `internal/auth/TestLoadOrCreateKey` (file mode), `cmd/worker/TestExecProbeRoundTrip` (prober not in PATH), and every `internal/measure/*/corpus` `TestCorpusExpectation` (CRLF vs LF golden). CI on Linux passes them.
+Pre-existing test failures in the container (NOT regressions): every `internal/measure/*/corpus` `TestCorpusExpectation`. The cause is the CRLF golden, not the host OS. The container bind-mounts the Windows working tree, so it reads the same CRLF files a native Windows run reads. CI passes them because CI checks out fresh with LF.
+
+`internal/auth/TestLoadOrCreateKey` (file mode) and `cmd/worker/TestExecProbeRoundTrip` (prober not in `PATH`) failed under the retired native-Windows setup. Both pass in the container. Treat a failure in either as a real regression now.
