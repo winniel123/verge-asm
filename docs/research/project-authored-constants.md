@@ -904,7 +904,6 @@ manufactured into an instance by a sweep run on form alone.
   parameters have no value yet (§6.4, §6.8) and the spec is unassembled, so a constant that has not
   been chosen cannot have been swept. The four-limb test is the durable output. The tally of
   eighteen is a snapshot and [#12](https://github.com/winniel123/verge-asm/issues/12) will add to it.
-</content>
 
 ---
 

@@ -275,4 +275,3 @@ curl -s https://verge.example.com/api/v1/inventory \
   and which page answers which question.
 - [ADR-0123](../adr/0123-a-token-api-is-read-only-opt-in-and-a-bearer-path-separate-from-sessions.md)
   — why the surface is read-only, opt-in, and separated from sessions.
-</content>

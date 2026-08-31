@@ -414,4 +414,3 @@ products. One near-miss passes form and fails motion.**
 | **Record §6 as an instance of ADR-0034 §4** | It is a stale **argument**, not a stale constant — no constant in it is a product of a world quantity. #71 forbade manufacturing instances, and the honest statement that the sweep's worst finding lies outside its own rule is worth more than a fourth tally mark |
 | **Fold this into ADR-0034 as an amendment** | Two of its rulings are not about ADR-0034's population: the watch-by-shape ruling governs ADR-0032 §8, and §6 governs ADR-0028's safety argument. Wrong population — ADR-0034's own objection to folding into ADR-0032, and ADR-0032's to folding into ADR-0004 |
 | **Leave the sweep unrecorded because it found nothing to change** | A bound is a result. Without it the next session re-runs the sweep, and the session after that applies the rule to the EDNS payload size because nobody wrote down why not |
-</content>
