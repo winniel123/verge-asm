@@ -20,7 +20,10 @@ services:
       # cookie is marked Secure even though web itself sees plain HTTP.
       VERGE_SECURE_COOKIES: ${VERGE_SECURE_COOKIES:-}
     ports:
-      - "8080:8080"
+      # Bind loopback only by default, so the operator UI is not published on
+      # every host address. Front it with a proxy, or set VERGE_BIND=0.0.0.0
+      # (or a specific address) for direct host/LAN access.
+      - "${VERGE_BIND:-127.0.0.1}:8080:8080"
     volumes:
       # The session signing key lives here and never in Postgres (§4.3).
       - web-state:/app/state
