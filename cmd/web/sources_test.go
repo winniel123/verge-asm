@@ -34,6 +34,10 @@ func (f *fakeStore) CTReliabilityWindow(_ context.Context, arg db.CTReliabilityW
 	return f.ctReliability[arg.Source], nil
 }
 
+func (f *fakeStore) CTLastBatchAdmitCount(context.Context) (int64, error) {
+	return f.ctAdmitCount, nil
+}
+
 // The reliability bar (spec §3, #879) reads each bulk CT source's rolling window,
 // evaluates it, and shapes it for the card: the operator-keyed primary reports
 // pass/fail per limb and degrades when it misses one; crt.sh reports exempt and is
@@ -112,6 +116,150 @@ func TestCTReliabilityViewsNoData(t *testing.T) {
 		}
 		if v.SuccessPct != "—" || v.P95Display != "—" {
 			t.Errorf("%s no-data view = success %q p95 %q, want em dashes", v.Slug, v.SuccessPct, v.P95Display)
+		}
+	}
+}
+
+// The active-source hero (#880) derives which bulk source is live from the freshest
+// reliability sample — web never reads the worker token. The keyed primary live means the
+// key is set; crt.sh live means it is not. A below-bar primary reads in danger with no
+// silent swap, and no samples at all means no bulk ct scan has run.
+func TestNewCTSourceHero(t *testing.T) {
+	now := time.Date(2026, 8, 31, 12, 0, 0, 0, time.UTC)
+	const crtName = "crt.sh"
+	const certName = "Cert Spotter (operator key)"
+
+	t.Run("primary live", func(t *testing.T) {
+		cert := ctReliabilityView{Slug: "certspotter", Name: certName, HasData: true, LastRun: now.Add(-5 * time.Minute)}
+		crt := ctReliabilityView{Slug: "crtsh", Name: crtName, HasData: true, Exempt: true, LastRun: now.Add(-2 * time.Hour)}
+		h := newCTSourceHero(crt, cert, 42, now)
+		if !h.HasRun || !h.IsPrimary {
+			t.Fatalf("Cert Spotter fresher must be the live primary: %+v", h)
+		}
+		if h.StatusLabel != "primary · Cert Spotter" || h.StatusClass != "accent" {
+			t.Errorf("status = %q/%q, want primary · Cert Spotter/accent", h.StatusLabel, h.StatusClass)
+		}
+		if !h.KeyDetected || h.KeyLabel != "detected" {
+			t.Errorf("keyed primary live => key detected; got %q", h.KeyLabel)
+		}
+		if h.DormantName != crtName || h.DormantRole != "fallback" {
+			t.Errorf("dormant = %q/%q, want crt.sh/fallback", h.DormantName, h.DormantRole)
+		}
+		if h.LastRunRel != "5m" || h.Names != 42 {
+			t.Errorf("readout = %q/%d, want 5m/42", h.LastRunRel, h.Names)
+		}
+		if h.Active.Slug != "certspotter" {
+			t.Errorf("tiles must read the live source, got %q", h.Active.Slug)
+		}
+	})
+
+	t.Run("primary degraded", func(t *testing.T) {
+		cert := ctReliabilityView{Slug: "certspotter", Name: certName, HasData: true, Degraded: true, LastRun: now.Add(-time.Minute)}
+		h := newCTSourceHero(ctReliabilityView{Slug: "crtsh", Name: crtName}, cert, 0, now)
+		if !h.Degraded || h.StatusClass != "danger" {
+			t.Errorf("a below-bar primary is danger+degraded, got %q degraded=%v", h.StatusClass, h.Degraded)
+		}
+	})
+
+	t.Run("fallback live", func(t *testing.T) {
+		crt := ctReliabilityView{Slug: "crtsh", Name: crtName, HasData: true, Exempt: true, LastRun: now.Add(-9 * time.Minute)}
+		cert := ctReliabilityView{Slug: "certspotter", Name: certName}
+		h := newCTSourceHero(crt, cert, 7, now)
+		if !h.HasRun || h.IsPrimary {
+			t.Fatalf("crt.sh-only must be the live fallback: %+v", h)
+		}
+		if h.StatusLabel != "fallback · crt.sh" || h.StatusClass != "neutral" {
+			t.Errorf("status = %q/%q, want fallback · crt.sh/neutral", h.StatusLabel, h.StatusClass)
+		}
+		if h.KeyDetected || h.KeyLabel != "not set" {
+			t.Errorf("no keyed run => key not set; got %q", h.KeyLabel)
+		}
+		if h.DormantName != "Cert Spotter" || h.DormantRole != "primary" {
+			t.Errorf("dormant = %q/%q, want Cert Spotter/primary", h.DormantName, h.DormantRole)
+		}
+		if h.Active.Slug != "crtsh" {
+			t.Errorf("tiles must read crt.sh, got %q", h.Active.Slug)
+		}
+	})
+
+	t.Run("no run", func(t *testing.T) {
+		h := newCTSourceHero(ctReliabilityView{Slug: "crtsh", Name: crtName}, ctReliabilityView{Slug: "certspotter", Name: certName}, 0, now)
+		if h.HasRun {
+			t.Errorf("no samples must not assert a run: %+v", h)
+		}
+		if h.KeyLabel != "not set" {
+			t.Errorf("no run => key not set, got %q", h.KeyLabel)
+		}
+	})
+}
+
+// A live keyed primary that is below its bar renders the primary badge, the run readout
+// with the admitted count, the failing limb, the honest no-failover callout, the detected
+// key, and the measured targets — all from run data, never the worker token (#880).
+func TestSourcesCTHeroRendersPrimaryDegraded(t *testing.T) {
+	f := newFakeStore()
+	f.ctReliability = map[string]db.CTReliabilityWindowRow{
+		"certspotter": {Total: 200, Successes: 196, P95LatencyMs: 3200, LastAt: pgtype.Timestamptz{Time: time.Now(), Valid: true}},
+	}
+	f.ctAdmitCount = 4213
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := sourcesBody(t, ac, base)
+	for _, want := range []string{
+		"primary · Cert Spotter",        // status badge
+		"last ct scan · Cert Spotter",   // run readout
+		"4213 names admitted",           // the admitted count
+		"under bar",                     // the failing success limb
+		"Runtime failover is not built", // honest no-swap edge (§6.3)
+		"detected",                      // operator-key presence, inferred
+		"≥ 99%", "≤ 5 s",                // the measured targets
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("degraded-primary hero missing %q; body: %s", want, page)
+		}
+	}
+}
+
+// With only crt.sh recording, it is the live keyless fallback: bar-exempt tiles, the key
+// not set, and a hint on how to promote Cert Spotter (#880).
+func TestSourcesCTHeroRendersFallbackExempt(t *testing.T) {
+	f := newFakeStore()
+	f.ctReliability = map[string]db.CTReliabilityWindowRow{
+		"crtsh": {Total: 8, Successes: 4, Empties: 2, P95LatencyMs: 59600, LastAt: pgtype.Timestamptz{Time: time.Now(), Valid: true}},
+	}
+	f.ctAdmitCount = 12
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := sourcesBody(t, ac, base)
+	for _, want := range []string{
+		"fallback · crt.sh",       // status badge
+		"bar-exempt",              // the fallback is muted, not failed
+		"not set",                 // key not set
+		"VERGE_CERTSPOTTER_TOKEN", // the promote hint
+		"12 names admitted",
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("fallback hero missing %q; body: %s", want, page)
+		}
+	}
+}
+
+// No samples from either bulk source: the hero asserts no run, never a fabricated live
+// source (#880).
+func TestSourcesCTHeroNoRun(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := sourcesBody(t, ac, base)
+	for _, want := range []string{"awaiting first scan", "No bulk ct scan has run yet"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("no-run hero missing %q; body: %s", want, page)
 		}
 	}
 }

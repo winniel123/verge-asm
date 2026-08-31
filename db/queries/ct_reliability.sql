@@ -25,10 +25,14 @@ WHERE s.source = sqlc.arg(source)
 -- Aggregate one source's newest `window` samples into the three bar limbs (spec §3):
 -- the total measured, how many succeeded, how many succeeded but returned zero names
 -- (false-empty), and the p95 end-to-end latency over the window. percentile_disc
--- returns an actual sampled latency, and COALESCE gives 0 for an empty window. The
--- caller (internal/scan.EvaluateCTReliability) turns these into pass/fail per limb.
+-- returns an actual sampled latency, and COALESCE gives 0 for an empty window. last_at
+-- is the newest sample's instant over the window — the last time this source ran a bulk
+-- query, which the active-source hero reads to tell which source is live (#880): only
+-- the config-selected source keeps producing samples, so the freshest wins. It is NULL
+-- for an empty window. The caller (internal/scan.EvaluateCTReliability) turns the limbs
+-- into pass/fail; the web layer reads last_at separately, never the scan package.
 WITH w AS (
-    SELECT ok, latency_ms, empty
+    SELECT ok, latency_ms, empty, observed_at
     FROM ct_reliability_sample
     WHERE source = sqlc.arg(source)
     ORDER BY observed_at DESC, id DESC
@@ -38,5 +42,6 @@ SELECT
     count(*)::bigint AS total,
     count(*) FILTER (WHERE ok)::bigint AS successes,
     count(*) FILTER (WHERE ok AND empty)::bigint AS empties,
-    COALESCE(percentile_disc(0.95) WITHIN GROUP (ORDER BY latency_ms), 0)::bigint AS p95_latency_ms
+    COALESCE(percentile_disc(0.95) WITHIN GROUP (ORDER BY latency_ms), 0)::bigint AS p95_latency_ms,
+    MAX(observed_at)::timestamptz AS last_at
 FROM w;
