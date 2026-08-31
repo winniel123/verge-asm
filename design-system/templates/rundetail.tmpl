@@ -65,6 +65,9 @@
 .rd-loghead .jf { display: inline-flex; align-items: center; gap: 6px; height: 18px; padding: 0 7px; border-radius: 999px; border: 1px solid var(--neutral-700); font: 500 10px var(--font-mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--neutral-400); white-space: nowrap; }
 .rd-loghead .jf a { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 999px; color: var(--neutral-500); }
 .rd-loghead .jf a:hover { color: var(--text-on-inverted); background: var(--neutral-800); }
+.rd-loghead .rd-rawlink { display: inline-flex; align-items: center; gap: 5px; height: 18px; padding: 0 9px; border-radius: 999px; border: 1px solid var(--warn-border); background: var(--warn-soft); font: 500 10px var(--font-mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--warn); white-space: nowrap; text-decoration: none; }
+.rd-loghead .rd-rawlink:hover { border-color: var(--warn-solid); }
+.rd-loghead .rd-rawlink svg { flex: none; }
 .rd-logbody { height: 300px; overflow-y: auto; overflow-x: hidden; padding: 10px 14px 12px; }
 .rd-line { display: flex; gap: 10px; font: 400 11.5px/1.7 var(--font-mono); }
 .rd-line .t { color: var(--neutral-600); flex: none; }
@@ -144,7 +147,7 @@
 <div class="rd-log">
 <div class="rd-loghead">
 <span class="lbl">batch {{.Title}}</span>
-{{with .JobFilter}}<span class="jf">job #{{.ID}} · {{.Kind}}{{if .Vantage}} · {{.Vantage}}{{end}}<a href="{{.ClearHref}}" aria-label="Clear job filter"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></a></span>{{end}}
+{{with .JobFilter}}<span class="jf">job #{{.ID}} · {{.Kind}}{{if .Vantage}} · {{.Vantage}}{{end}}<a href="{{.ClearHref}}" aria-label="Clear job filter"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></a></span>{{if $.IsAdmin}}<a class="rd-rawlink" href="{{.RawHref}}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>Raw output (admin)</a>{{end}}{{end}}
 {{if .Active}}<span class="live"><span class="ldot"></span>streaming</span>{{end}}
 </div>
 {{if .Log}}

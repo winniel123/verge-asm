@@ -362,6 +362,12 @@ type runJobFilter struct {
 	Kind      string
 	Vantage   string
 	ClearHref string
+	// RawHref is the admin-only "Raw output (admin)" destination for this job — the
+	// dedicated verbatim Transcript view (#866, spec §6). The frozen chip renders it
+	// only under {{if $.IsAdmin}}, so a viewer never sees it. It is the bare run route
+	// plus /raw?job={id}; the raw handler is itself requireAdmin, so the gate holds
+	// even if the link leaks.
+	RawHref string
 }
 
 // runKV is one row of the run's "as configured" parameters.
@@ -856,7 +862,7 @@ func applyJobFilter(v *runView, jobParam, bareHref string, jobs []jobView) {
 	if err != nil {
 		return
 	}
-	jf := &runJobFilter{ID: jobID, ClearHref: bareHref}
+	jf := &runJobFilter{ID: jobID, ClearHref: bareHref, RawHref: bareHref + "/raw?job=" + jobParam}
 	for _, j := range jobs {
 		if j.ID == jobID {
 			jf.Kind = j.Kind
