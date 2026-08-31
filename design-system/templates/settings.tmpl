@@ -435,6 +435,7 @@
 <span class="st-tag">{{.Cadence}}</span>
 <span style="margin-left:auto;font:400 11.5px var(--font-mono);color:var(--text-secondary)">{{.Probes}} probes / cadence</span>
 </div>
+{{if .Effective}}<span class="st-note">One full pass runs <span class="mono">{{.Effective}}</span> at the 200 pkt/s ceiling{{if .Outpaces}} — longer than its {{.Cadence}} cadence, so the trailing edge lags; Coverage reports the shortfall.{{else}} — inside its {{.Cadence}} cadence.{{end}}</span>{{end}}
 {{end}}
 </div>
 {{else}}
