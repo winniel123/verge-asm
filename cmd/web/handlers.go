@@ -116,6 +116,15 @@ type store interface {
 	// for the active-source hero's run readout (spec §6.2, #880). A dead-lettered or empty
 	// run counts 0, and 0 also stands for "no ct Batch has run".
 	CTLastBatchAdmitCount(ctx context.Context) (int64, error)
+	// CTTailLastBatch reads the drift tail's own run readout — the last ct-tail Batch's
+	// instant and admitted-name count — for the More-CT-capabilities card (spec §6.2, #881).
+	// It is distinct from CTLastBatchAdmitCount, which reads the bulk ct Batch and excludes
+	// the tail.
+	CTTailLastBatch(ctx context.Context) (db.CTTailLastBatchRow, error)
+	// CountCertificateMaterial reads how many leaf certificates the handshake capture has
+	// stored, for verification's readout on the More-CT-capabilities card (spec §5, §6.2, #881).
+	// Verification stores no durable result, so this captured pool is its truthful reach.
+	CountCertificateMaterial(ctx context.Context) (int64, error)
 	ListIntegrationStates(ctx context.Context) ([]db.IntegrationState, error)
 	UpsertIntegrationState(ctx context.Context, arg db.UpsertIntegrationStateParams) (db.IntegrationState, error)
 	DeleteIntegrationState(ctx context.Context, slug string) error

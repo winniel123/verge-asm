@@ -942,6 +942,24 @@
 {{end}}</div>
 </section>
 <section class="st-card">
+<div class="st-cardhead"><div class="hd"><span class="st-micro">certificate transparency · logs-direct</span><h3>More CT capabilities</h3></div></div>
+<div class="st-body">{{with .CTCapabilities}}
+<div style="display:flex;flex-direction:column;gap:16px">
+<p class="st-note">Two keyless capabilities beside the bulk source. Neither is bulk-by-name, and neither carries the reliability bar.</p>
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;align-items:center;gap:10px"><span class="st-micro">drift tail · opt-in scan</span><span style="margin-left:auto">{{if .TailEnabled}}<span class="st-badge ok">on</span>{{else}}<span class="st-badge neutral">off</span>{{end}}</span></div>
+{{if .TailHasRun}}<p class="st-note" style="font-family:var(--font-mono);font-size:12px;color:var(--text-secondary)">last ct-tail scan · {{.TailLastRel}} · {{.TailNames}} names admitted</p>{{else if .TailEnabled}}<p class="st-note" style="font-family:var(--font-mono);font-size:12px;color:var(--text-secondary)">enabled · awaiting first poll</p>{{end}}
+<span class="st-note">Reads CT logs directly, forward-only, and admits new issuance for names you already know. Ships off — enable the CT drift tail in the sources list to run it.</span>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px;padding-top:16px;border-top:1px solid var(--row-sep)">
+<div style="display:flex;align-items:center;gap:10px"><span class="st-micro">verification · point-check</span><span style="margin-left:auto">{{if .Captured}}<span class="st-badge ok">active</span>{{else}}<span class="st-badge neutral">awaiting captures</span>{{end}}</span></div>
+<p class="st-note" style="font-family:var(--font-mono);font-size:12px;color:var(--text-secondary)">{{.Captured}} certificates captured · auto-verified once each</p>
+<span class="st-note">Keyless and always on. Confirms a certificate you saw is logged in CT; a logged / not-logged result is an ephemeral event on the job line, not stored.</span>
+</div>
+</div>
+{{end}}</div>
+</section>
+<section class="st-card">
 <div class="st-cardhead"><div class="hd"><span class="st-micro">unencumbered</span><h3>Shipped on</h3></div></div>
 <div class="st-body"><div style="display:flex;flex-direction:column;gap:8px">
 {{range .Unencumbered}}

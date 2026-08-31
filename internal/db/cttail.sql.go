@@ -7,6 +7,8 @@ package db
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const advanceCTLogCursor = `-- name: AdvanceCTLogCursor :exec
@@ -33,6 +35,42 @@ type AdvanceCTLogCursorParams struct {
 func (q *Queries) AdvanceCTLogCursor(ctx context.Context, arg AdvanceCTLogCursorParams) error {
 	_, err := q.db.Exec(ctx, advanceCTLogCursor, arg.LogID, arg.TreeSize, arg.SignedHead)
 	return err
+}
+
+const cTTailLastBatch = `-- name: CTTailLastBatch :one
+SELECT
+    (SELECT b.created_at FROM batch b
+     WHERE b.kind = 'ct-tail'
+     ORDER BY b.created_at DESC, b.id DESC
+     LIMIT 1) AS last_at,
+    COALESCE((
+        SELECT count(*)
+        FROM admitted_name an
+        WHERE an.batch_id = (
+            SELECT b.id FROM batch b
+            WHERE b.kind = 'ct-tail'
+            ORDER BY b.created_at DESC, b.id DESC
+            LIMIT 1
+        )
+    ), 0)::bigint AS names
+`
+
+type CTTailLastBatchRow struct {
+	LastAt pgtype.Timestamptz `json:"last_at"`
+	Names  int64              `json:"names"`
+}
+
+// The most recent drift-tail (kind='ct-tail') Batch: when it ran and how many Names it
+// admitted (#881, spec §6.2). The More-CT-capabilities card states the tail's own run
+// readout, distinct from the bulk `ct` hero's (which excludes ct-tail Batches). last_at
+// is the newest ct-tail Batch's instant, NULL when the tail has never run; names counts
+// the admitted_name rows citing that Batch, and COALESCE gives 0 for an empty or
+// dead-lettered run. One row always returns.
+func (q *Queries) CTTailLastBatch(ctx context.Context) (CTTailLastBatchRow, error) {
+	row := q.db.QueryRow(ctx, cTTailLastBatch)
+	var i CTTailLastBatchRow
+	err := row.Scan(&i.LastAt, &i.Names)
+	return i, err
 }
 
 const getCTLogCursor = `-- name: GetCTLogCursor :one
