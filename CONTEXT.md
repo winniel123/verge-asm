@@ -128,7 +128,15 @@ no registry resources and every address they use is titled to somebody else. Tra
 where the resolution chain **leaves the declared zone**: a direct A record extends, a CNAME to a
 foreign name does not. The system measures that boundary rather than reading it from a list of
 providers. That test is the same label-wise suffix comparison a `Seed`'s subtrees run, over the
-`Name` key and never over a spelling. So a rendering cannot open this gate any more than it can open
+`Name` key and never over a spelling. A **measured shared foreign edge** narrows the extension
+rather than widening it: where a direct A record points at an edge presenting identities for many
+unrelated registrable domains (fan-out), the extension **declines to reach it**, so the edge
+`Address` stays outside the estate exactly as a CNAME-to-foreign target does — it never becomes a
+`Subject`, holds no `Custody` value and opens no `Gap`. The determination is a measurement, never a
+provider list. The operator is told by **display** on this same census — the declined edges, each
+with the citing name and the remedy of declaring the origin IPs as an address scope — and never by
+a message, since a veto withholds a probe and is the safe direction. See
+[ADR-0129](./docs/adr/0129-a-shared-foreign-edge-is-measured-by-fan-out-not-read-from-a-list.md). So a rendering cannot open this gate any more than it can open
 the address one. Its extension is recomputed rather than typed. That is a safety property and not a
 convenience: a literal address scope over a released elastic address holds the gate open on whoever
 holds it next, while an extension simply stops covering it. What it cannot see is an `ALIAS` flattened
