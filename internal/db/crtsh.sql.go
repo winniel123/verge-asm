@@ -11,6 +11,33 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const cTLastBatchAdmitCount = `-- name: CTLastBatchAdmitCount :one
+SELECT COALESCE((
+    SELECT count(*)
+    FROM admitted_name an
+    WHERE an.batch_id = (
+        SELECT b.id FROM batch b
+        WHERE b.kind = 'ct'
+        ORDER BY b.created_at DESC, b.id DESC
+        LIMIT 1
+    )
+), 0)::bigint AS names
+`
+
+// How many Names the most recent bulk `ct` Batch admitted (#880, spec §6.2). The
+// active-source hero's run readout states "last ct scan · <source> · <age> · <n> names
+// admitted"; this is that <n>. It counts the admitted_name rows citing the newest
+// kind='ct' Batch (the last bulk run, whichever source produced it — the drift tail's
+// kind='ct-tail' Batches are excluded). A dead-lettered or empty run admits nothing, so
+// 0 is a truthful count, and COALESCE gives 0 when no ct Batch has ever run. One scalar
+// row always returns.
+func (q *Queries) CTLastBatchAdmitCount(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, cTLastBatchAdmitCount)
+	var names int64
+	err := row.Scan(&names)
+	return names, err
+}
+
 const insertAdmittedName = `-- name: InsertAdmittedName :exec
 INSERT INTO admitted_name (name, source, seed_id, batch_id)
 VALUES ($1, $2, $3, $4)

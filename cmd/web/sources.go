@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/scan"
@@ -264,6 +266,24 @@ func (s *server) fillSourcesSection(r *http.Request, f settingsForms, data map[s
 		LatencyTarget: fmt.Sprintf("≤ %d s", scan.CTP95LatencyBarMS/1000),
 	}
 
+	// The active-source hero (#880, spec §6): which bulk source is live, its reliability
+	// against the bar, and the last run's readout. It reads the two reliability windows and
+	// the last ct Batch's admitted-name count — never the worker token (spec §2.4).
+	names, err := s.store.CTLastBatchAdmitCount(r.Context())
+	if err != nil {
+		return err
+	}
+	var crtshView, certView ctReliabilityView
+	for _, v := range rel {
+		switch v.Slug {
+		case scan.CrtshSource:
+			crtshView = v
+		case scan.CertSpotterSource:
+			certView = v
+		}
+	}
+	data["CTHero"] = newCTSourceHero(crtshView, certView, names, s.now())
+
 	// The consent dialog (#26): opened by ?consent=<id>, it renders that source's
 	// terms and the acceptance checkbox. It renders only for an operator-accepted,
 	// currently-off source; a stray param opens no dialog.
@@ -345,6 +365,9 @@ type ctReliabilityView struct {
 	HasData  bool
 	Degraded bool
 	Samples  int64
+	LastRun  time.Time // newest sample's instant; zero with no data. The active-source hero
+	//                    (#880) reads it to tell which bulk source is live — only the
+	//                    config-selected source keeps recording, so the freshest wins.
 
 	SuccessPct  string // e.g. "99.5%", or "—" with no data
 	SuccessPass bool
@@ -390,7 +413,11 @@ func (s *server) ctReliabilityViews(ctx context.Context) ([]ctReliabilityView, e
 		if c, ok := catalogBySlug(slug); ok {
 			name = c.Name
 		}
-		out = append(out, newCTReliabilityView(name, report))
+		var lastRun time.Time
+		if row.LastAt.Valid {
+			lastRun = row.LastAt.Time
+		}
+		out = append(out, newCTReliabilityView(name, lastRun, report))
 	}
 	return out, nil
 }
@@ -398,9 +425,9 @@ func (s *server) ctReliabilityViews(ctx context.Context) ([]ctReliabilityView, e
 // newCTReliabilityView shapes one evaluated report for rendering, formatting the
 // measured success rate as a percentage and the p95 latency in seconds. A source with
 // no samples shows an em dash for both, never a fabricated zero.
-func newCTReliabilityView(name string, r scan.CTReliabilityReport) ctReliabilityView {
+func newCTReliabilityView(name string, lastRun time.Time, r scan.CTReliabilityReport) ctReliabilityView {
 	v := ctReliabilityView{
-		Slug: r.Source, Name: name,
+		Slug: r.Source, Name: name, LastRun: lastRun,
 		Exempt: r.Exempt, HasData: r.HasData, Degraded: r.Degraded, Samples: r.Samples,
 		SuccessPass: r.SuccessPass, LatencyPass: r.LatencyPass,
 		FalseEmpty: r.FalseEmpty, FalseEmptyPass: r.FalseEmptyPass,
@@ -411,6 +438,84 @@ func newCTReliabilityView(name string, r scan.CTReliabilityReport) ctReliability
 		v.P95Display = fmt.Sprintf("%.1f s", float64(r.P95LatencyMS)/1000)
 	}
 	return v
+}
+
+// ctSourceHero is the active-source hero the CT theme leads with (#880, spec §6.1). It
+// names which bulk source is live, derived from the freshest reliability sample: web
+// never reads the worker's VERGE_CERTSPOTTER_TOKEN (spec §2.4, ADR-0053), and only the
+// config-selected source keeps recording samples, so the fresher window is the one this
+// config runs. Key presence is inferred from that selection, never from the token —
+// Cert Spotter live means the key is set (spec §2.3's exact key⇒source mapping), crt.sh
+// live means it is not. The run readout and the KPI-tile source (Active) both read the
+// live source. A below-bar primary sets Degraded, so the card draws the honest edge
+// (§6.3): the Scan keeps running the primary, there is no silent swap to crt.sh.
+type ctSourceHero struct {
+	HasRun      bool              // at least one bulk source has recorded a sample
+	IsPrimary   bool              // the operator-keyed primary (Cert Spotter) is live, not the crt.sh fallback
+	StatusClass string            // the badge variant: accent (primary), danger (primary under bar), neutral (fallback)
+	StatusLabel string            // "primary · Cert Spotter" / "fallback · crt.sh"
+	DormantName string            // the source that would run under the other config
+	DormantRole string            // "fallback" / "primary" — the role the dormant source would fill
+	KeyDetected bool              // VERGE_CERTSPOTTER_TOKEN presence, inferred from the live source
+	KeyLabel    string            // "detected" / "not set"
+	LastRunRel  string            // "4m" — age of the last bulk run; "" with no run
+	Names       int64             // Names the last ct Batch admitted
+	Degraded    bool              // the live primary is under its bar (§6.3): no silent swap
+	Active      ctReliabilityView // the live source's limbs, for the three KPI tiles
+}
+
+// newCTSourceHero derives the hero from the two bulk sources' reliability windows and the
+// last ct Batch's admitted-name count. The live source is whichever still records samples;
+// with samples from both, the fresher window wins. With no sample from either, no bulk ct
+// scan has run under this deployment yet, so nothing is asserted live — the card names
+// crt.sh as the keyless default and how to promote the primary, without claiming a run.
+func newCTSourceHero(crtsh, certspotter ctReliabilityView, names int64, now time.Time) ctSourceHero {
+	certName := strings.TrimSuffix(certspotter.Name, " (operator key)")
+	crtHas := crtsh.HasData && !crtsh.LastRun.IsZero()
+	certHas := certspotter.HasData && !certspotter.LastRun.IsZero()
+
+	if !crtHas && !certHas {
+		return ctSourceHero{
+			StatusClass: "neutral",
+			StatusLabel: "fallback · " + crtsh.Name,
+			DormantName: certName,
+			DormantRole: "primary",
+			KeyLabel:    "not set",
+		}
+	}
+
+	if certHas && (!crtHas || certspotter.LastRun.After(crtsh.LastRun)) {
+		h := ctSourceHero{
+			HasRun:      true,
+			IsPrimary:   true,
+			StatusClass: "accent",
+			StatusLabel: "primary · " + certName,
+			DormantName: crtsh.Name,
+			DormantRole: "fallback",
+			KeyDetected: true,
+			KeyLabel:    "detected",
+			LastRunRel:  profileRelTime(certspotter.LastRun, now),
+			Names:       names,
+			Degraded:    certspotter.Degraded,
+			Active:      certspotter,
+		}
+		if h.Degraded {
+			h.StatusClass = "danger" // a below-bar primary reads in danger (§6.3)
+		}
+		return h
+	}
+
+	return ctSourceHero{
+		HasRun:      true,
+		StatusClass: "neutral",
+		StatusLabel: "fallback · " + crtsh.Name,
+		DormantName: certName,
+		DormantRole: "primary",
+		KeyLabel:    "not set",
+		LastRunRel:  profileRelTime(crtsh.LastRun, now),
+		Names:       names,
+		Active:      crtsh,
+	}
 }
 
 // toggleSource records an admin's on/off choice for one source. Toggling is an

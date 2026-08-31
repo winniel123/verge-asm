@@ -916,6 +916,32 @@
 <span class="ct"><b>Toggling is admin-only</b><span>Every account can read this catalogue. Enabling or disabling is an admin act — it keeps no log line of its own; it is dated by the batch whose recorded source set it moved.</span></span>
 </div>
 <section class="st-card">
+<div class="st-cardhead">
+<div class="hd"><span class="st-micro">certificate transparency · bulk-by-name</span><h3>Active source</h3></div>
+<span style="margin-left:auto">{{if .CTHero.HasRun}}<span class="st-badge {{.CTHero.StatusClass}}">{{.CTHero.StatusLabel}}</span>{{else}}<span class="st-badge neutral">awaiting first scan</span>{{end}}</span>
+</div>
+<div class="st-body">{{with .CTHero}}
+<div style="display:flex;flex-direction:column;gap:16px">
+{{if .HasRun}}
+<p class="st-note" style="font-family:var(--font-mono);font-size:12px;color:var(--text-secondary)">last ct scan · {{.Active.Name}} · {{.LastRunRel}} · {{.Names}} names admitted</p>
+{{if .Degraded}}<div class="st-callout warn"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg></span><span class="ct"><b>Primary is under its reliability bar</b><span>Runtime failover is not built (deferred). The ct Scan keeps running {{.Active.Name}}; there is no silent swap to crt.sh. Reconfigure the worker to change the source.</span></span></div>{{end}}
+{{if not .IsPrimary}}<div class="st-callout accent"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg></span><span class="ct"><b>crt.sh is the keyless default</b><span>Set <code>VERGE_CERTSPOTTER_TOKEN</code> on the worker to promote Cert Spotter as the bulk primary. crt.sh stays the keyless fallback, bar-exempt.</span></span></div>{{end}}
+<div style="display:flex;gap:12px;flex-wrap:wrap">
+<div class="st-kv" style="grid-template-columns:1fr;flex:1 1 160px"><div class="cell"><span class="st-micro">operator key</span><span class="v">{{.KeyLabel}}</span></div></div>
+<div class="st-kv" style="grid-template-columns:1fr;flex:1 1 160px"><div class="cell"><span class="st-micro">{{.DormantRole}} · dormant</span><span class="v">{{.DormantName}}</span></div></div>
+</div>
+<div class="st-kv" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+<div class="cell" style="gap:6px"><span class="st-micro">success · {{$.CTReliabilityBar.SuccessTarget}}</span><span style="font:600 22px var(--font-mono);color:var(--text-ink)">{{.Active.SuccessPct}}</span>{{if .Active.Exempt}}<span class="st-badge neutral">bar-exempt</span>{{else if not .Active.HasData}}<span class="st-badge neutral">no data</span>{{else if .Active.SuccessPass}}<span class="st-badge ok">pass</span>{{else}}<span class="st-badge danger">under bar</span>{{end}}</div>
+<div class="cell" style="gap:6px"><span class="st-micro">p95 latency · {{$.CTReliabilityBar.LatencyTarget}}</span><span style="font:600 22px var(--font-mono);color:var(--text-ink)">{{.Active.P95Display}}</span>{{if .Active.Exempt}}<span class="st-badge neutral">bar-exempt</span>{{else if not .Active.HasData}}<span class="st-badge neutral">no data</span>{{else if .Active.LatencyPass}}<span class="st-badge ok">pass</span>{{else}}<span class="st-badge danger">under bar</span>{{end}}</div>
+<div class="cell" style="gap:6px"><span class="st-micro">false-empty · none</span><span style="font:600 22px var(--font-mono);color:var(--text-ink)">{{if .Active.HasData}}{{.Active.FalseEmpty}}{{else}}—{{end}}</span>{{if .Active.Exempt}}<span class="st-badge neutral">bar-exempt</span>{{else if not .Active.HasData}}<span class="st-badge neutral">no data</span>{{else if .Active.FalseEmptyPass}}<span class="st-badge ok">pass</span>{{else}}<span class="st-badge danger">under bar</span>{{end}}</div>
+</div>
+{{else}}
+<div class="st-callout accent"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg></span><span class="ct"><b>No bulk ct scan has run yet</b><span>crt.sh is the keyless default and runs once the ct Scan fires. Set <code>VERGE_CERTSPOTTER_TOKEN</code> on the worker to promote Cert Spotter as the bulk primary.</span></span></div>
+{{end}}
+</div>
+{{end}}</div>
+</section>
+<section class="st-card">
 <div class="st-cardhead"><div class="hd"><span class="st-micro">unencumbered</span><h3>Shipped on</h3></div></div>
 <div class="st-body"><div style="display:flex;flex-direction:column;gap:8px">
 {{range .Unencumbered}}
