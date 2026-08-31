@@ -1,0 +1,358 @@
+<!doctype html>
+<!--
+  THROWAWAY PROTOTYPE — wayfinder ticket #931 "Choose the monitor's bounding mechanism"
+  (map #930 "Bound the /scans in-flight monitor page").
+
+  Question: how should the /scans monitor bound the per-dispatch job rows so the page
+  stops being a huge scroll? Four artboards on one page, switchable via ?variant=:
+
+    ?variant=current  — the problem today: 40 job rows rendered inline, unbounded.
+    ?variant=a        — (a) Paginate in place. Reuse the Signals pager over the rows.
+    ?variant=b        — (b) Summarize + drill. Progress summary here, full detail on run detail.
+    ?variant=c        — (c) Collapse by default. Rows hidden behind an expand toggle.
+
+  Double-click this file. Flip variants with the floating bar or the ← / → keys.
+  Toggle dark with the theme button. This is a mock: no real data, no backend, throwaway.
+  Tokens and the st-* classes are copied from design-system so density reads true.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scans monitor bounding — prototype</title>
+<style>
+:root {
+  --neutral-300: #d5d2ce; --neutral-400: #b8b5b1; --neutral-500: #9b9893;
+  --bg-page: #f9f7f5; --surface: #ffffff; --surface-sunken: #f2f0ec; --surface-raised: #ffffff; --surface-inverted: #231f19;
+  --text-ink: #231f19; --text-body: #37322c; --text-secondary: #67625c; --text-muted: #79746d; --text-on-inverted: #f4f2ef;
+  --border-default: #e2dfdb; --border-strong: #c7c3be; --row-sep: #efece9;
+  --accent: #037ac0; --accent-hover: #006bad; --on-accent: #ffffff; --accent-soft: #e1f6ff; --accent-softer: #effcff;
+  --link: #006eaf; --focus-ring: #037ac0; --row-selected: #e1f6ff;
+  --ok: #05773b; --ok-solid: #3d9c5e; --ok-soft: #e1fae7; --ok-border: #bfebc9;
+  --warn: #8d5500; --warn-solid: #b37903; --warn-soft: #fff0d8; --warn-border: #f8d9af;
+  --danger: #ac312c; --danger-solid: #d5584f; --danger-soft: #ffe8e2; --danger-border: #ffcac2;
+  --shadow-sm: 0 1px 2px rgba(35,31,25,0.06), 0 2px 8px rgba(35,31,25,0.04);
+  --shadow-md: 0 4px 12px rgba(35,31,25,0.08), 0 2px 6px rgba(35,31,25,0.05);
+  --dur-fast: 120ms; --dur-slow: 280ms; --ease-out: cubic-bezier(0.2,0,0,1);
+  --font-ui: "Instrument Sans","Helvetica Neue",Arial,sans-serif;
+  --font-mono: "Geist Mono","IBM Plex Mono","SFMono-Regular",Consolas,monospace;
+  --heading-tracking: -0.015em;
+}
+[data-theme="dark"] {
+  --neutral-300: #514c46; --neutral-400: #6c6864; --neutral-500: #898581;
+  --bg-page: #15120f; --surface: #1e1b17; --surface-sunken: #191613; --surface-raised: #282520; --surface-inverted: #eae7e4;
+  --text-ink: #eae7e4; --text-body: #d9d5d1; --text-secondary: #b1ada8; --text-muted: #898581; --text-on-inverted: #231f19;
+  --border-default: #383530; --border-strong: #514c46; --row-sep: #292622;
+  --accent: #6bbeff; --accent-hover: #9ddaff; --on-accent: #063352; --accent-soft: #272f33; --accent-softer: #20262a;
+  --link: #59acee; --focus-ring: #6bbeff; --row-selected: #272f33;
+  --ok: #57c07f; --ok-solid: #3d9c5e; --ok-soft: #17281c; --ok-border: #1f4029;
+  --warn: #e0aa4a; --warn-solid: #c68d00; --warn-soft: #2d2413; --warn-border: #4a3a12;
+  --danger: #f08c82; --danger-solid: #d5584f; --danger-soft: #331b17; --danger-border: #55231d;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.25);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.4), 0 2px 6px rgba(0,0,0,0.3);
+}
+@keyframes st-pulse { 0% { box-shadow: 0 0 0 0 rgba(3,122,192,0.35); } 70% { box-shadow: 0 0 0 6px rgba(3,122,192,0); } 100% { box-shadow: 0 0 0 0 rgba(3,122,192,0); } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg-page); color: var(--text-body); font-family: var(--font-ui); }
+.wrap { max-width: 1000px; margin: 0 auto; padding: 28px 24px 120px; }
+.protonote { background: var(--accent-softer); border: 1px dashed var(--accent); border-radius: 12px; padding: 12px 14px; margin-bottom: 22px; font: 400 12.5px/1.55 var(--font-ui); color: var(--text-body); }
+.protonote b { color: var(--text-ink); }
+.protonote code { font: 400 0.92em var(--font-mono); background: var(--surface); border: 1px solid var(--border-default); border-radius: 6px; padding: 1px 5px; }
+.st-micro { font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.st-card { background: var(--surface); border: 1px solid var(--border-default); border-radius: 16px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; }
+.st-card.flush { overflow: hidden; }
+.st-cardhead { display: flex; align-items: center; gap: 12px; padding: 20px 20px 0; }
+.st-cardhead .hd { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.st-cardhead h3 { margin: 0; font: 600 15px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.st-lede { margin: 0; font: 400 13px/1.6 var(--font-ui); color: var(--text-secondary); max-width: 72ch; }
+.st-tag { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 8px; background: var(--surface-sunken); border: 1px solid var(--border-default); color: var(--text-secondary); font-family: var(--font-mono); font-size: 11.5px; white-space: nowrap; }
+.st-badge { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 10px; border-radius: 999px; border: 1px solid transparent; font-family: var(--font-ui); font-size: 12px; font-weight: 500; white-space: nowrap; }
+.st-badge .d { width: 6px; height: 6px; border-radius: 999px; background: currentColor; flex: none; }
+.st-badge.ok { background: var(--ok-soft); border-color: var(--ok-border); color: var(--ok); }
+.st-badge.danger { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
+.st-badge.neutral { background: var(--surface-sunken); border-color: var(--border-default); color: var(--text-secondary); }
+.st-badge.accent { background: var(--accent-soft); color: var(--link); }
+.st-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.st-table th { padding: 8px 16px; font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border-default); white-space: nowrap; background: var(--surface); text-align: left; }
+.st-table td { padding: 9px 16px; font: 400 13px var(--font-ui); color: var(--text-body); vertical-align: middle; white-space: nowrap; border-top: 1px solid var(--row-sep); }
+.st-table tbody tr:first-child td { border-top: none; }
+.st-table td.mono { font: 400 12.5px var(--font-mono); }
+.st-btn-sm { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 10px; font: 600 12px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; background: var(--surface); color: var(--text-body); border: 1px solid var(--border-strong); transition: background var(--dur-fast) var(--ease-out); }
+.st-btn-sm:hover { background: var(--surface-sunken); }
+.st-btn-sm[disabled] { opacity: 0.4; pointer-events: none; }
+.st-btn-sm.pri { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.st-meter { height: 6px; border-radius: 999px; background: var(--surface-sunken); overflow: hidden; }
+.st-meter .fill { display: block; height: 100%; border-radius: 999px; background: var(--accent); }
+.st-dotlive { width: 8px; height: 8px; border-radius: 999px; background: var(--accent); animation: st-pulse 1.8s var(--ease-out) infinite; flex: none; }
+.st-dot { width: 8px; height: 8px; border-radius: 999px; background: var(--neutral-400); flex: none; display: inline-block; }
+.st-dot.done { background: var(--ok-solid); }
+.st-dot.dead { background: var(--danger-solid); }
+.dispatchhead { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.dispatchhead a.kind { font: 600 12.5px var(--font-mono); color: var(--link); text-decoration: none; }
+.dispatchhead .disp { font: 400 11.5px var(--font-mono); color: var(--text-muted); }
+.dispatchhead .count { margin-left: auto; font: 400 11.5px var(--font-mono); color: var(--text-secondary); }
+.jobs-body { padding: 0 20px 16px; display: flex; flex-direction: column; gap: 10px; }
+
+/* pager (variant a) */
+.pager { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--row-sep); }
+.pager .info { font: 400 12px var(--font-mono); color: var(--text-muted); }
+.pager .spacer { margin-left: auto; }
+
+/* summary (variant b) */
+.sumgrid { display: grid; grid-template-columns: auto 1fr; gap: 22px; align-items: center; padding: 6px 4px 2px; }
+.sumbig { display: flex; flex-direction: column; gap: 2px; }
+.sumbig .n { font: 600 30px var(--font-mono); color: var(--text-ink); letter-spacing: -0.01em; line-height: 1; }
+.sumbig .l { font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.rollup { display: flex; gap: 8px; flex-wrap: wrap; }
+.vantstrip { display: flex; flex-wrap: wrap; gap: 5px; padding: 4px 4px 2px; }
+.vantstrip .cell { width: 15px; height: 15px; border-radius: 4px; background: var(--surface-sunken); border: 1px solid var(--border-default); }
+.vantstrip .cell.running { background: var(--accent-soft); border-color: var(--accent); }
+.vantstrip .cell.done { background: var(--ok-soft); border-color: var(--ok-border); }
+.vantstrip .cell.dead { background: var(--danger-soft); border-color: var(--danger-border); }
+.drillrow { display: flex; align-items: center; gap: 10px; padding-top: 4px; }
+.drillrow .hint { font: 400 11.5px var(--font-ui); color: var(--text-muted); }
+
+/* collapse (variant c) */
+.collapsebar { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 11px 16px; border: 1px solid var(--border-default); border-radius: 12px; background: var(--surface-sunken); color: var(--text-body); font: 500 12.5px var(--font-ui); cursor: pointer; }
+.collapsebar .chev { transition: transform var(--dur-fast) var(--ease-out); font: 400 12px var(--font-mono); color: var(--text-muted); }
+.collapsebar.open .chev { transform: rotate(90deg); }
+.collapsebar .r { margin-left: auto; display: flex; gap: 8px; }
+
+/* refresh note per variant */
+.refnote { margin-top: 10px; font: 400 11.5px/1.5 var(--font-ui); color: var(--text-muted); border-left: 2px solid var(--border-strong); padding-left: 10px; }
+.refnote b { color: var(--text-secondary); }
+
+/* floating switcher */
+.switcher { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 200; display: flex; align-items: center; gap: 4px; background: var(--surface-inverted); color: var(--text-on-inverted); border-radius: 999px; box-shadow: var(--shadow-md); padding: 5px 6px; font: 500 12.5px var(--font-ui); }
+.switcher button { border: none; background: transparent; color: var(--text-on-inverted); cursor: pointer; height: 30px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; }
+.switcher .arrow { width: 30px; font-size: 15px; }
+.switcher .arrow:hover, .switcher .theme:hover { background: rgba(255,255,255,0.14); }
+.switcher .lbl { padding: 0 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.switcher .lbl .k { font-family: var(--font-mono); opacity: 0.7; margin-right: 6px; }
+.switcher .theme { width: 30px; margin-left: 4px; font-size: 14px; }
+.simleft { position: fixed; bottom: 22px; left: 18px; z-index: 200; font: 400 11px var(--font-mono); color: var(--text-muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="protonote">
+    <b>Throwaway prototype · ticket #931 · map #930.</b>
+    Four takes on bounding the <code>/scans</code> in-flight monitor. Flip with the bar below or the
+    <code>&larr;</code>&nbsp;<code>&rarr;</code> keys. The card header (scan, progress, meter) is identical in every take —
+    only what happens to the <b>40 job rows</b> changes. This is a mock with seeded data.
+  </div>
+
+  <section class="st-card flush">
+    <div class="st-cardhead" style="padding-bottom:14px"><div class="hd"><span class="st-micro">In flight</span><h3>Running now</h3></div></div>
+    <div class="jobs-body">
+      <div class="dispatchhead">
+        <span class="st-dotlive"></span>
+        <a class="kind" href="#">tls_probe</a>
+        <span class="disp">dispatched 3m ago</span>
+        <span class="count" id="head-count">18 / 40 jobs · 45%</span>
+        <a class="st-btn-sm" href="#">Stop dispatch</a>
+        <a class="st-btn-sm" style="color:var(--danger)" href="#">Terminate</a>
+      </div>
+      <div class="st-meter"><span class="fill" style="width:45%"></span></div>
+    </div>
+    <div id="mount"></div>
+  </section>
+</div>
+
+<div class="simleft">variant persists in URL · reload-stable</div>
+<div class="switcher">
+  <button class="arrow" id="prev" title="Previous (&larr;)">&#8249;</button>
+  <span class="lbl"><span class="k" id="vkey">B</span><span id="vname">Summarize + drill</span></span>
+  <button class="arrow" id="next" title="Next (&rarr;)">&#8250;</button>
+  <button class="theme" id="theme" title="Toggle dark">&#9680;</button>
+</div>
+
+<script>
+// ---- seed: one tls_probe dispatch, 40 vantage jobs ----
+var VANTAGES = ["us-east","us-west","eu-west","eu-north","ap-south","ap-ne","sa-east","af-south",
+  "us-east2","us-west2","eu-west2","eu-cent","ap-se","ap-ne2","ca-cent","me-cent"];
+function mkJobs() {
+  var jobs = [], id = 4820;
+  // 16 done, 18 running/ready, 2 dead, 4 superseded — realistic mid-flight mix
+  var plan = [];
+  for (var i=0;i<15;i++) plan.push("done");
+  for (var i=0;i<10;i++) plan.push("running");
+  for (var i=0;i<8;i++) plan.push("ready");
+  plan.push("dead"); plan.push("dead");
+  for (var i=0;i<5;i++) plan.push("superseded");
+  for (var i=0;i<plan.length;i++) {
+    var st = plan[i];
+    jobs.push({
+      id: id + i,
+      kind: "tls_probe",
+      vantage: VANTAGES[i % VANTAGES.length] + (i>=VANTAGES.length? "-b":""),
+      state: st,
+      attempt: st==="dead"?3:(st==="ready"&&i%3===0?2:1),
+      maxAttempts: 3,
+      retrying: st==="ready" && i%3===0,
+      superseded: st==="superseded",
+      batch: st==="done" ? ("b-"+(9200+i)) : null
+    });
+  }
+  return jobs;
+}
+var JOBS = mkJobs();
+var counts = { done:0, running:0, ready:0, dead:0, superseded:0 };
+JOBS.forEach(function(j){ counts[j.state]++; });
+var COMPLETED = counts.done, LIVE = 40, PCT = Math.round(COMPLETED/LIVE*100);
+// header shows the real seeded split
+document.getElementById("head-count").textContent = COMPLETED + " / " + LIVE + " jobs · " + PCT + "%";
+document.querySelector(".st-meter .fill").style.width = PCT + "%";
+
+function stateCell(j) {
+  if (j.state==="running") return '<span style="display:inline-flex;align-items:center;gap:8px"><span class="st-dotlive"></span><span class="st-badge accent">running</span></span>';
+  if (j.state==="ready") return '<span style="display:inline-flex;align-items:center;gap:8px"><span class="st-dot"></span><span class="st-badge neutral">'+(j.retrying?"retrying":"ready")+'</span></span>';
+  if (j.state==="done") return '<span style="display:inline-flex;align-items:center;gap:8px"><span class="st-dot done"></span><span class="st-badge ok">done</span></span>';
+  if (j.state==="dead") return '<span style="display:inline-flex;align-items:center;gap:8px"><span class="st-dot dead"></span><span class="st-badge danger">dead</span></span>';
+  return '<span style="display:inline-flex;align-items:center;gap:8px"><span class="st-dot"></span><span style="color:var(--text-muted)">superseded</span></span>';
+}
+function jobRow(j) {
+  var o = j.superseded ? ' style="opacity:0.5"' : '';
+  return '<tr>'
+    + '<td class="mono"'+o+'><a href="#" style="color:var(--link);text-decoration:none">#'+j.id+'</a></td>'
+    + '<td class="mono"'+o+'>'+j.kind+'</td>'
+    + '<td class="mono"'+o+'>'+j.vantage+'</td>'
+    + '<td>'+stateCell(j)+'</td>'
+    + '<td class="mono">'+j.attempt+'/'+j.maxAttempts+'</td>'
+    + '<td class="mono" style="text-align:right">'+(j.batch?'<span class="st-tag">'+j.batch+'</span>':'<span style="color:var(--text-muted)">&mdash;</span>')+'</td>'
+    + '</tr>';
+}
+function tableHead() {
+  return '<thead><tr>'
+    + '<th style="width:70px">Job</th><th>Kind</th><th style="width:120px">Vantage</th>'
+    + '<th style="width:130px">State</th><th style="width:90px">Attempt</th>'
+    + '<th style="width:170px;text-align:right">Outcome</th></tr></thead>';
+}
+function fullTable(rows) {
+  return '<table class="st-table">'+tableHead()+'<tbody>'+rows.map(jobRow).join('')+'</tbody></table>';
+}
+
+// ---- variants ----
+var PAGE_SIZE = 10;
+function vCurrent() {
+  return '<div style="padding:0 0 4px">'
+    + fullTable(JOBS)
+    + '<div class="refnote"><b>The problem.</b> All '+JOBS.length+' rows render inline for the active dispatch. '
+    + 'A busy day fans out to dozens of vantages, so the card grows without bound and the page becomes one long scroll. '
+    + 'The card also reloads whole via <code style="font-family:var(--font-mono)">&lt;meta refresh&gt;</code> every few seconds.</div></div>';
+}
+function vPaginate(state) {
+  var page = state.page || 1;
+  var pages = Math.ceil(JOBS.length / PAGE_SIZE);
+  var slice = JOBS.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
+  var from = (page-1)*PAGE_SIZE + 1, to = Math.min(page*PAGE_SIZE, JOBS.length);
+  return '<div>'
+    + fullTable(slice)
+    + '<div class="pager">'
+    +   '<span class="info">'+from+'&ndash;'+to+' of '+JOBS.length+' jobs</span>'
+    +   '<span class="spacer"></span>'
+    +   '<button class="st-btn-sm" data-page="'+(page-1)+'" '+(page<=1?'disabled':'')+'>Prev</button>'
+    +   '<span class="info">page '+page+' / '+pages+'</span>'
+    +   '<button class="st-btn-sm" data-page="'+(page+1)+'" '+(page>=pages?'disabled':'')+'>Next</button>'
+    + '</div>'
+    + '<div class="refnote" style="padding:0 16px 14px"><b>Refresh trap.</b> The page you are on is a <code style="font-family:var(--font-mono)">?jobpage=</code> query param, '
+    + 'so the <code style="font-family:var(--font-mono)">&lt;meta refresh&gt;</code> keeps you on it. But rows shift under you as jobs change state, '
+    + 'so &quot;page 2&quot; may show different vantages after a refresh. Mirrors the Signals pager exactly.</div>'
+    + '</div>';
+}
+function vSummarize() {
+  var inflight = counts.running + counts.ready;
+  var chips = ''
+    + '<span class="st-badge accent"><span class="d"></span>'+counts.running+' running</span>'
+    + '<span class="st-badge neutral"><span class="d"></span>'+counts.ready+' ready</span>'
+    + '<span class="st-badge ok"><span class="d"></span>'+counts.done+' done</span>'
+    + (counts.dead? '<span class="st-badge danger"><span class="d"></span>'+counts.dead+' dead</span>':'')
+    + (counts.superseded? '<span class="st-tag">'+counts.superseded+' superseded</span>':'');
+  // vantage strip: one cell per job, colored by state
+  var strip = JOBS.map(function(j){
+    var c = j.state==="running"?"running":(j.state==="done"?"done":(j.state==="dead"?"dead":""));
+    return '<span class="cell '+c+'" title="'+j.vantage+' · '+j.state+'"></span>';
+  }).join('');
+  return '<div style="padding:4px 20px 18px;display:flex;flex-direction:column;gap:16px">'
+    + '<div class="sumgrid">'
+    +   '<div class="sumbig"><span class="n">'+COMPLETED+' / '+LIVE+'</span><span class="l">vantages committed</span></div>'
+    +   '<div class="rollup">'+chips+'</div>'
+    + '</div>'
+    + '<div><div class="st-micro" style="margin-bottom:6px">Vantages</div><div class="vantstrip">'+strip+'</div></div>'
+    + '<div class="drillrow"><a class="st-btn-sm pri" href="#">View all '+LIVE+' jobs &rarr;</a>'
+    +   '<span class="hint">full per-job table, live log and stages live on the run-detail page (already built, already linked)</span></div>'
+    + '<div class="refnote"><b>Refresh friendly.</b> No inline table means nothing to scroll and nothing to lose. '
+    + 'The summary is small and re-renders cleanly on every <code style="font-family:var(--font-mono)">&lt;meta refresh&gt;</code>. '
+    + 'Owner leans this shape. Open question graduating from here: the exact summary contents (this shows counts + a vantage strip).</div>'
+    + '</div>';
+}
+function vCollapse(state) {
+  var open = !!state.open;
+  var head = '<div style="padding:2px 20px 18px;display:flex;flex-direction:column;gap:12px">'
+    + '<button class="collapsebar'+(open?' open':'')+'" id="collapsetoggle">'
+    +   '<span class="chev">&#9656;</span>'
+    +   '<span>'+(open?'Hide':'Show')+' '+JOBS.length+' job rows</span>'
+    +   '<span class="r"><span class="st-badge accent">'+counts.running+' running</span>'
+    +     '<span class="st-badge ok">'+counts.done+' done</span>'
+    +     (counts.dead?'<span class="st-badge danger">'+counts.dead+' dead</span>':'')+'</span>'
+    + '</button>';
+  var body = open ? '<div style="border:1px solid var(--border-default);border-radius:12px;overflow:hidden">'+fullTable(JOBS)+'</div>' : '';
+  var note = '<div class="refnote"><b>Refresh trap.</b> Collapsed by default keeps the page short. '
+    + 'But <code style="font-family:var(--font-mono)">&lt;meta refresh&gt;</code> replaces the whole page, so an expanded table snaps shut '
+    + 'unless the open/closed state rides a <code style="font-family:var(--font-mono)">?jobs=open</code> param through the reload.</div>';
+  return head + body + note + '</div>';
+}
+
+var VARIANTS = [
+  { key: "current", label: "Current (the problem)", render: vCurrent },
+  { key: "a", label: "Paginate in place", render: vPaginate },
+  { key: "b", label: "Summarize + drill", render: vSummarize },
+  { key: "c", label: "Collapse by default", render: vCollapse }
+];
+var localState = { page: 1, open: false }; // in-memory only; not persisted
+
+function currentIndex() {
+  var v = (new URLSearchParams(location.search)).get("variant") || "b";
+  var i = VARIANTS.findIndex(function(x){ return x.key === v; });
+  return i < 0 ? 2 : i;
+}
+function render() {
+  var i = currentIndex(), V = VARIANTS[i];
+  document.getElementById("mount").innerHTML = V.render(localState);
+  document.getElementById("vkey").textContent = V.key === "current" ? "0" : V.key.toUpperCase();
+  document.getElementById("vname").textContent = V.label;
+  // wire variant-local controls
+  if (V.key === "a") {
+    [].forEach.call(document.querySelectorAll(".pager [data-page]"), function(b){
+      b.addEventListener("click", function(){ localState.page = parseInt(b.getAttribute("data-page"),10); render(); });
+    });
+  }
+  if (V.key === "c") {
+    var t = document.getElementById("collapsetoggle");
+    if (t) t.addEventListener("click", function(){ localState.open = !localState.open; render(); });
+  }
+}
+function setVariant(i) {
+  var wrap = (i + VARIANTS.length) % VARIANTS.length;
+  localState = { page: 1, open: false };
+  var p = new URLSearchParams(location.search);
+  p.set("variant", VARIANTS[wrap].key);
+  history.replaceState(null, "", location.pathname + "?" + p.toString());
+  render();
+}
+document.getElementById("prev").addEventListener("click", function(){ setVariant(currentIndex()-1); });
+document.getElementById("next").addEventListener("click", function(){ setVariant(currentIndex()+1); });
+document.addEventListener("keydown", function(e){
+  var t = e.target.tagName;
+  if (t === "INPUT" || t === "TEXTAREA" || e.target.isContentEditable) return;
+  if (e.key === "ArrowLeft") setVariant(currentIndex()-1);
+  if (e.key === "ArrowRight") setVariant(currentIndex()+1);
+});
+document.getElementById("theme").addEventListener("click", function(){
+  var d = document.documentElement.getAttribute("data-theme") === "dark";
+  document.documentElement.setAttribute("data-theme", d ? "light" : "dark");
+});
+render();
+</script>
+</body>
+</html>
