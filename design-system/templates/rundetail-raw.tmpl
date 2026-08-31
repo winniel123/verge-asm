@@ -13,14 +13,17 @@
   pre-gate stdout included). They ride window.__RAW__ as JSON (html/template JS-escapes it) and are
   built into the DOM span-by-span with textContent — NEVER innerHTML — exactly as the #780 client does.
 
-  Two variants share this view (§1.3). The PROBER variant renders exec-meta (exit/signal/
+  Three variants share this view (§1.2, §1.3). The PROBER variant renders exec-meta (exit/signal/
   ctx-cancelled) beside verbatim stdout/stderr and the JobSpec sent. The ZONE variant renders
   the restate result: the records RestateZone skipped (in the primary panel) beside a restate
-  card (restated count + parsed|decode-error). Zone carries no stderr, sent-scope or exec-meta.
+  card (restated count + parsed|decode-error). The CT variant renders the crt.sh HTTP exchange:
+  the verbatim response body (in the primary panel) beside an exchange card (request URL +
+  HTTP status|transport error|context-cancelled). Zone and CT carry no stderr, sent-scope or exec-meta.
 
   Define "runraw". Holes: .IsAdmin (chrome), .Raw{RunID, RunHref, JobID, Kind, Vantage, Captured,
   Variant, ExitCode, Signal, CtxCancelled, OutcomeOK, Duration, CapturedAt, Restated, ZoneOutcome,
-  StdoutSize, StdoutCapped, StdoutTrunc, StderrTrunc, SentTrunc, Bytes{stdout[], stderr[], sentScope}}.
+  RequestURL, CTOutcome, StdoutSize, StdoutCapped, StdoutTrunc, StderrTrunc, SentTrunc,
+  Bytes{stdout[], stderr[], sentScope}}.
 */}}
 {{define "runraw"}}{{template "head" .}}
 {{template "chrome" .}}
@@ -91,6 +94,28 @@
 <div class="cell"><span class="rd-micro">Duration</span><span class="v">{{.Duration}}</span></div>
 <div class="cell"><span class="rd-micro">Captured at</span><span class="v">{{.CapturedAt}}</span></div>
 <div class="cell wide"><span class="rd-micro">Note</span><span class="v">zone sends nothing to a prober; the skipped records are its debug artifact, and the zone-file bytes are not duplicated here.</span></div>
+</div>
+</div>
+</section>
+</div>
+</div>
+{{else if eq .Variant "ct"}}
+<div class="rr-split">
+<div class="rd-log">
+<div class="rd-loghead"><span class="lbl">response body · verbatim</span><span class="lbl" style="margin-left:auto">{{.StdoutSize}}{{if .StdoutCapped}} · capped{{end}} · post-hoc</span></div>
+<div class="rd-logbody tall" data-raw="stdout"></div>
+{{with .StdoutTrunc}}<div class="rr-trunc">─── {{.}} ───</div>{{end}}
+</div>
+<div class="rr-rail">
+<section class="rd-card">
+<div class="rd-cardhead"><span class="rd-micro">CT exchange</span><h3>HTTP result</h3></div>
+<div class="rd-body">
+<div class="rd-kv">
+<div class="cell"><span class="rd-micro">Outcome</span><span class="v">{{.CTOutcome}}</span></div>
+<div class="cell"><span class="rd-micro">Duration</span><span class="v">{{.Duration}}</span></div>
+<div class="cell wide"><span class="rd-micro">Captured at</span><span class="v">{{.CapturedAt}}</span></div>
+<div class="cell wide"><span class="rd-micro">Request URL</span><span class="v">{{.RequestURL}}</span></div>
+<div class="cell wide"><span class="rd-micro">Note</span><span class="v">the crt.sh producer sends no stdin and has no stderr; the transport-error text is the stderr analog and rides the outcome.</span></div>
 </div>
 </div>
 </section>

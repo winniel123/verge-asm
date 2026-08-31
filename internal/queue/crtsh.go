@@ -3,6 +3,7 @@ package queue
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -190,6 +191,13 @@ func (w *Worker) WithCT(fetcher CTFetcher, throttle CTThrottle, source scan.CTSo
 // admit (on a well-formed 200) or retry/dead-letter (on anything else). It writes
 // no observation and folds nothing into the Span corpus — CT admits without
 // observing (ADR-0027).
+//
+// When raw-output capture is on (#870, spec §1.2), every terminal path also carries
+// a CTTranscript — the crt.sh HTTP exchange it made: the request URL dialled, the
+// verbatim response body, and the typed outcome (http(status) | transport-error |
+// context-cancelled). It captures the LAST exchange the paginated fetch made, which
+// on a failure is the exchange that failed and on a success is the final page. Unlike
+// zone, CT has retry and dead-letter paths, so it captures on all three (spec §2.2).
 func (w *Worker) completeCT(ctx context.Context, job db.ClaimJobRow, spec wire.JobSpec) error {
 	if w.ctFetcher == nil {
 		return fmt.Errorf("queue: ct job %d with no CT fetcher configured", job.ID)
@@ -204,6 +212,7 @@ func (w *Worker) completeCT(ctx context.Context, job db.ClaimJobRow, spec wire.J
 	if err != nil {
 		return fmt.Errorf("decode ct scope: %w", err)
 	}
+	start := w.now()
 
 	// Fetch the source's answer for this domain, following its pagination cursor.
 	// crt.sh is single-shot (one page); Cert Spotter pages by cursor until a page
@@ -212,6 +221,8 @@ func (w *Worker) completeCT(ctx context.Context, job db.ClaimJobRow, spec wire.J
 	// slot, so the per-source spacing bounds the whole paginated fetch.
 	adm := scan.NewCTAdmitter(cs.Domain)
 	cursor := ""
+	var lastURL string
+	var lastBody []byte
 	for page := 0; page < maxCTPages; page++ {
 		// Reserve the next instance-wide slot and wait for it before going on the
 		// wire (ADR-0005). The reservation is durable in Postgres; the wait is local.
@@ -225,7 +236,9 @@ func (w *Worker) completeCT(ctx context.Context, job db.ClaimJobRow, spec wire.J
 			}
 		}
 
-		status, body, ferr := w.ctFetcher.Fetch(ctx, src.QueryURL(cs.Domain, cursor))
+		url := src.QueryURL(cs.Domain, cursor)
+		status, body, ferr := w.ctFetcher.Fetch(ctx, url)
+		lastURL, lastBody = url, body
 		if ferr != nil || status != http.StatusOK {
 			// Any non-200 is transient failure, never an empty result: a CT index
 			// returns spurious 404s and 5xxs for domains that demonstrably have
@@ -237,14 +250,17 @@ func (w *Worker) completeCT(ctx context.Context, job db.ClaimJobRow, spec wire.J
 				// #40). A transport error (ferr) is NOT marked and stays redacted.
 				cause = safeProgress(fmt.Sprintf("%s returned HTTP %d", src.DisplayName(), status))
 			}
-			return w.retryOrDeadLetterCT(ctx, job, cause)
+			t := w.buildCTTranscript(job.Kind, start, url, body, ctFetchOutcome(ferr, status))
+			return w.retryOrDeadLetterCT(ctx, job, t, cause)
 		}
 
 		names, next, perr := src.DecodePage(body)
 		if perr != nil {
 			// A 200 whose body is not well-formed is not evidence of anything (§7) —
-			// treat it as transient, not as "no certificates".
-			return w.retryOrDeadLetterCT(ctx, job, perr)
+			// treat it as transient, not as "no certificates". The exchange was a real
+			// HTTP 200; the unparseable body is captured verbatim as the debug artifact.
+			t := w.buildCTTranscript(job.Kind, start, url, body, wire.CTHTTP{Status: status})
+			return w.retryOrDeadLetterCT(ctx, job, t, perr)
 		}
 		adm.Add(names)
 		// Stop when the source signals no more pages (crt.sh always; Cert Spotter on
@@ -263,7 +279,41 @@ func (w *Worker) completeCT(ctx context.Context, job db.ClaimJobRow, spec wire.J
 		// signals an oversized or hostile answer worth an operator's notice.
 		w.log.Printf("worker: ct job %d for %q reached the admitted-name cap of %d; names beyond the cap were dropped", job.ID, cs.Domain, scan.MaxAdmittedNames)
 	}
-	return w.admitCT(ctx, job, cs, src.Slug(), adm.Names())
+	t := w.buildCTTranscript(job.Kind, start, lastURL, lastBody, wire.CTHTTP{Status: http.StatusOK})
+	return w.admitCT(ctx, job, cs, src.Slug(), adm.Names(), t)
+}
+
+// buildCTTranscript builds the CTTranscript for one crt.sh exchange, or returns an
+// absent (nil) transcript when capture is off (spec §2.5) — the same guard the zone
+// path applies. The worker stamps the queue_job id and captured-at at persist; the
+// producer supplies the kind, duration, request URL, verbatim response body and typed
+// outcome. A nil return is a legible absence: persistTranscript writes no row.
+func (w *Worker) buildCTTranscript(kind string, start time.Time, url string, body []byte, outcome wire.CTOutcome) wire.Transcript {
+	if !w.captureOn() {
+		return nil
+	}
+	return wire.CTTranscript{
+		TranscriptFrame: wire.TranscriptFrame{Kind: kind, Duration: w.now().Sub(start)},
+		RequestURL:      url,
+		ResponseBody:    body,
+		Outcome:         outcome,
+	}
+}
+
+// ctFetchOutcome maps one fetch result to the CT typed outcome (spec §1.2). A
+// ctx-killed fetch reads as CTContextCancelled, never a fake CTTransportError — a
+// shutdown or job-timeout is not a transport fault. A transport error before any
+// status carries its text (the stderr analog); any status the fetch returned rides
+// CTHTTP, including a non-200.
+func ctFetchOutcome(ferr error, status int) wire.CTOutcome {
+	switch {
+	case errors.Is(ferr, context.Canceled) || errors.Is(ferr, context.DeadlineExceeded):
+		return wire.CTContextCancelled{}
+	case ferr != nil:
+		return wire.CTTransportError{Text: ferr.Error()}
+	default:
+		return wire.CTHTTP{Status: status}
+	}
 }
 
 // retryOrDeadLetterCT enqueues a fresh attempt while the retry budget remains and
@@ -271,20 +321,21 @@ func (w *Worker) completeCT(ctx context.Context, job db.ClaimJobRow, spec wire.J
 // applies, over the two transient-failure cases a CT fetch has (a non-200 and an
 // unparseable 200). Either way the failed fetch admits nothing and asserts no
 // absence (ADR-0005, ADR-0027 §7).
-func (w *Worker) retryOrDeadLetterCT(ctx context.Context, job db.ClaimJobRow, cause error) error {
+func (w *Worker) retryOrDeadLetterCT(ctx context.Context, job db.ClaimJobRow, t wire.Transcript, cause error) error {
 	if exhaustedRetries(job.Attempt, job.MaxAttempts) {
-		return w.deadLetterCT(ctx, job, cause)
+		return w.deadLetterCT(ctx, job, t, cause)
 	}
-	// A CT retry carries no transcript yet — the crt.sh producer capture is #870.
-	// Until then it passes an absent transcript, so no row is written.
-	return w.retry(ctx, job, nil, cause)
+	// The failed fetch's transcript rides the retry: it attaches to this (failed)
+	// attempt's row, never the fresh one enqueued (spec §1.1, §2.4). Absent when
+	// capture is off, so no row is written.
+	return w.retry(ctx, job, t, cause)
 }
 
 // admitCT writes the completed Batch, its admissions and the job's done state in
 // one transaction. Each admitted Name cites this Batch and terminates at the
 // covering Seed (ADR-0027). There is no observation and no span-fold — CT admits
 // without observing, so a completed CT Batch moves no timeline.
-func (w *Worker) admitCT(ctx context.Context, job db.ClaimJobRow, cs scan.CTSeed, source string, names []string) error {
+func (w *Worker) admitCT(ctx context.Context, job db.ClaimJobRow, cs scan.CTSeed, source string, names []string, t wire.Transcript) error {
 	return w.runJobTx(ctx, job.ID, func(qtx *db.Queries) error {
 		batchID, err := qtx.InsertBatch(ctx, db.InsertBatchParams{
 			ScanID:        job.ScanID,
@@ -311,6 +362,11 @@ func (w *Worker) admitCT(ctx context.Context, job db.ClaimJobRow, cs scan.CTSeed
 		// Ephemeral per-job progress (#780, collision #40): a completed CT fetch rides the count
 		// of names it admitted onto the live stream — the count alone, never the names.
 		w.emitJobEvent(ctx, qtx, job, "", countLabel(len(names), "name admitted", "names admitted"))
+		// Persist the verbatim CT exchange on the completed row, sealed at rest, in
+		// this same tx (spec §2.4). A no-op when capture is off or absent.
+		if err := w.persistTranscript(ctx, qtx, job.ID, t); err != nil {
+			return err
+		}
 		return markDone(ctx, qtx, job.ID, batchID)
 	})
 }
@@ -319,7 +375,7 @@ func (w *Worker) admitCT(ctx context.Context, job db.ClaimJobRow, cs scan.CTSeed
 // — and marks the job dead, together. An empty scope licenses no absence: a failed
 // fetch of an append-only, corroborative source says nothing about what exists
 // (ADR-0005, ADR-0027).
-func (w *Worker) deadLetterCT(ctx context.Context, job db.ClaimJobRow, cause error) error {
+func (w *Worker) deadLetterCT(ctx context.Context, job db.ClaimJobRow, t wire.Transcript, cause error) error {
 	w.log.Printf("worker: ct job %d dead-lettered after %d attempts: %v", job.ID, job.Attempt, cause)
 	empty, err := scan.EmptyCTScope()
 	if err != nil {
@@ -341,6 +397,11 @@ func (w *Worker) deadLetterCT(ctx context.Context, job db.ClaimJobRow, cause err
 		// Ephemeral per-job progress (#780, collision #40): the redacted dead-letter reason —
 		// the crt.sh non-200 marked safe above — rides the live stream so the operator sees why.
 		w.emitJobEvent(ctx, qtx, job, "error", deadLetterLabel(job.Attempt, cause))
+		// The raw output is highest-value on a dead-letter: persist the failed
+		// exchange on the dead-lettered row in this same tx (spec §2.2, §2.4).
+		if err := w.persistTranscript(ctx, qtx, job.ID, t); err != nil {
+			return err
+		}
 		return markDead(ctx, qtx, job.ID, batchID)
 	})
 }

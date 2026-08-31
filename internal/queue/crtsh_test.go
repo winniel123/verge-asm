@@ -2,11 +2,15 @@ package queue
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/winniel123/verge-asm/internal/wire"
 )
 
 // The production fetcher sends a distinctive User-Agent (the operator asked for
@@ -91,6 +95,41 @@ func TestHTTPCTFetcherDoesNotFollowRedirect(t *testing.T) {
 	}
 	if strings.Contains(string(body), "pwned.example.com") {
 		t.Errorf("body carries the redirect target's response, meaning the hop was followed: %s", body)
+	}
+}
+
+// TestCTFetchOutcome pins how a fetch result maps to the CT typed outcome (spec §1.2).
+// A ctx-killed fetch reads as CTContextCancelled — never a fake transport error — even
+// when the http client wraps context.Canceled in a *url.Error. A transport error before
+// any status carries its text; any status the fetch returned rides CTHTTP, non-200 too.
+func TestCTFetchOutcome(t *testing.T) {
+	// The http client returns ctx errors wrapped (e.g. *url.Error); ctFetchOutcome must
+	// see through the wrap, so test a wrapped context.Canceled and DeadlineExceeded.
+	wrappedCancel := fmt.Errorf("Get %q: %w", "https://crt.sh", context.Canceled)
+	wrappedDeadline := fmt.Errorf("Get %q: %w", "https://crt.sh", context.DeadlineExceeded)
+
+	if got := ctFetchOutcome(wrappedCancel, 0); got != (wire.CTContextCancelled{}) {
+		t.Errorf("wrapped ctx-cancel: got %#v, want CTContextCancelled", got)
+	}
+	if got := ctFetchOutcome(wrappedDeadline, 0); got != (wire.CTContextCancelled{}) {
+		t.Errorf("wrapped ctx-deadline: got %#v, want CTContextCancelled", got)
+	}
+
+	transport := errors.New("dial tcp: i/o timeout")
+	got := ctFetchOutcome(transport, 0)
+	te, ok := got.(wire.CTTransportError)
+	if !ok || te.Text != transport.Error() {
+		t.Errorf("transport error: got %#v, want CTTransportError{%q}", got, transport.Error())
+	}
+
+	got = ctFetchOutcome(nil, http.StatusBadGateway)
+	h, ok := got.(wire.CTHTTP)
+	if !ok || h.Status != http.StatusBadGateway {
+		t.Errorf("non-200: got %#v, want CTHTTP{502}", got)
+	}
+
+	if got := ctFetchOutcome(nil, http.StatusOK); got != (wire.CTHTTP{Status: http.StatusOK}) {
+		t.Errorf("200: got %#v, want CTHTTP{200}", got)
 	}
 }
 

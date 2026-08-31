@@ -221,15 +221,13 @@ func TestBuildProberParamsMemoryGuard(t *testing.T) {
 	}
 }
 
-// TestBuildTranscriptParamsUnknownVariant checks that a variant with no local
-// capture yet (ct, zone) errors loudly rather than writing a mislabelled row.
-func TestBuildTranscriptParamsUnknownVariant(t *testing.T) {
-	ct := wire.CTTranscript{
-		TranscriptFrame: wire.TranscriptFrame{Kind: "ct"},
-		Outcome:         wire.CTHTTP{Status: 200},
-	}
-	if _, err := buildTranscriptParams(1, time.Now(), ct, testKey); err == nil {
-		t.Error("ct variant: want error (not captured yet), got nil")
+// TestBuildTranscriptParamsNilVariant checks the builder's defensive floor: an absent
+// (nil) transcript reaching it errors loudly rather than writing a mislabelled row.
+// persistTranscript guards nil before it calls the builder, and the wire union is closed
+// so no unknown non-nil variant can be constructed — this covers the default branch.
+func TestBuildTranscriptParamsNilVariant(t *testing.T) {
+	if _, err := buildTranscriptParams(1, time.Now(), nil, testKey); err == nil {
+		t.Error("nil transcript: want error, got nil")
 	}
 }
 
@@ -314,6 +312,140 @@ func TestBuildZoneParams(t *testing.T) {
 	}
 	if params.SentScope != nil {
 		t.Errorf("SentScope = %v, want NULL (zone sends nothing)", params.SentScope)
+	}
+}
+
+// TestEncodeCTOutcome pins the JSONB shape each CT outcome stores: the request URL rides
+// every arm, http carries its status, transport-error carries its text, and a ctx-killed
+// fetch is context-cancelled — never a fake http(0).
+func TestEncodeCTOutcome(t *testing.T) {
+	url := "https://crt.sh/?q=example.com&output=json"
+	cases := []struct {
+		name    string
+		outcome wire.CTOutcome
+		want    map[string]any
+	}{
+		{"http", wire.CTHTTP{Status: 200}, map[string]any{"kind": "http", "status": float64(200), "request_url": url}},
+		{"transport-error", wire.CTTransportError{Text: "dial tcp: i/o timeout"}, map[string]any{"kind": "transport-error", "text": "dial tcp: i/o timeout", "request_url": url}},
+		{"context-cancelled", wire.CTContextCancelled{}, map[string]any{"kind": "context-cancelled", "request_url": url}},
+	}
+	for _, c := range cases {
+		raw, err := encodeCTOutcome(c.outcome, url)
+		if err != nil {
+			t.Fatalf("%s: encode: %v", c.name, err)
+		}
+		var got map[string]any
+		if err := json.Unmarshal(raw, &got); err != nil {
+			t.Fatalf("%s: unmarshal %s: %v", c.name, raw, err)
+		}
+		if len(got) != len(c.want) {
+			t.Errorf("%s: got %v, want %v", c.name, got, c.want)
+		}
+		for k, v := range c.want {
+			if got[k] != v {
+				t.Errorf("%s: field %q = %v, want %v", c.name, k, got[k], v)
+			}
+		}
+	}
+
+	if _, err := encodeCTOutcome(nil, url); err == nil {
+		t.Error("nil ct outcome: want error, got nil")
+	}
+}
+
+// TestBuildCTParams checks a captured CT transcript maps to the row the worker inserts:
+// variant is ct, the verbatim response body seals into the stdout role column and opens
+// back, the request URL and status ride the outcome, and stderr/sent-scope stay NULL
+// (streams the crt.sh producer does not carry).
+func TestBuildCTParams(t *testing.T) {
+	capturedAt := time.Date(2026, 8, 31, 10, 0, 0, 0, time.UTC)
+	body := []byte(`[{"name_value":"a.example.com"},{"name_value":"b.example.com"}]`)
+	url := "https://crt.sh/?q=example.com&output=json"
+	tr := wire.CTTranscript{
+		TranscriptFrame: wire.TranscriptFrame{Kind: "ct", Duration: 800 * time.Millisecond},
+		RequestURL:      url,
+		ResponseBody:    body,
+		Outcome:         wire.CTHTTP{Status: 200},
+	}
+
+	params, err := buildTranscriptParams(91, capturedAt, tr, testKey)
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	if params.Variant != "ct" {
+		t.Errorf("Variant = %q, want ct", params.Variant)
+	}
+	if params.QueueJobID != 91 || params.Kind != "ct" {
+		t.Errorf("QueueJobID/Kind = %d/%q, want 91/ct", params.QueueJobID, params.Kind)
+	}
+	if params.DurationNs != int64(800*time.Millisecond) {
+		t.Errorf("DurationNs = %d, want %d", params.DurationNs, int64(800*time.Millisecond))
+	}
+
+	// The verbatim response body seals into stdout and opens back exactly.
+	gotBody, err := transcript.Open(testKey, params.Stdout)
+	if err != nil {
+		t.Fatalf("open ct response body: %v", err)
+	}
+	if !bytes.Equal(gotBody, body) {
+		t.Errorf("ct body round-trip = %q, want %q (verbatim)", gotBody, body)
+	}
+
+	// The request URL and status ride the outcome object.
+	var outcome map[string]any
+	if err := json.Unmarshal(params.Outcome, &outcome); err != nil {
+		t.Fatalf("unmarshal outcome %s: %v", params.Outcome, err)
+	}
+	if outcome["kind"] != "http" || outcome["status"] != float64(200) || outcome["request_url"] != url {
+		t.Errorf("outcome = %v, want {kind:http, status:200, request_url:%q}", outcome, url)
+	}
+
+	// The crt.sh producer carries no stderr and sends no request body: those columns
+	// stay NULL, distinct from the prober's captured-but-empty streams.
+	if params.Stderr != nil {
+		t.Errorf("Stderr = %v, want NULL (HTTP carries no stderr)", params.Stderr)
+	}
+	if params.SentScope != nil {
+		t.Errorf("SentScope = %v, want NULL (a GET sends no body)", params.SentScope)
+	}
+}
+
+// TestBuildCTParamsTransportError checks the bodyless failure path: a transport error
+// carries no response body, so the stdout column seals a captured-but-empty stream
+// (non-NULL) — "we made the exchange and got no body" — and the transport-error text
+// rides the outcome, the stderr analog for this producer.
+func TestBuildCTParamsTransportError(t *testing.T) {
+	tr := wire.CTTranscript{
+		TranscriptFrame: wire.TranscriptFrame{Kind: "ct", Duration: 5 * time.Second},
+		RequestURL:      "https://crt.sh/?q=example.com&output=json",
+		ResponseBody:    nil, // a transport error returns no body
+		Outcome:         wire.CTTransportError{Text: "dial tcp: i/o timeout"},
+	}
+
+	params, err := buildTranscriptParams(92, time.Now(), tr, testKey)
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+
+	// A captured-but-empty body seals to real ciphertext and opens to a non-nil empty
+	// slice — NOT NULL. The CT variant always captures the response body stream.
+	if params.Stdout == nil {
+		t.Fatal("Stdout sealed to NULL, want ciphertext for a captured-but-empty body")
+	}
+	gotBody, err := transcript.Open(testKey, params.Stdout)
+	if err != nil {
+		t.Fatalf("open ct response body: %v", err)
+	}
+	if gotBody == nil || len(gotBody) != 0 {
+		t.Errorf("body round-trip = %v, want non-nil empty", gotBody)
+	}
+
+	var outcome map[string]any
+	if err := json.Unmarshal(params.Outcome, &outcome); err != nil {
+		t.Fatalf("unmarshal outcome %s: %v", params.Outcome, err)
+	}
+	if outcome["kind"] != "transport-error" || outcome["text"] != "dial tcp: i/o timeout" {
+		t.Errorf("outcome = %v, want {kind:transport-error, text:dial tcp: i/o timeout}", outcome)
 	}
 }
 
