@@ -83,6 +83,11 @@ type Worker struct {
 	// unchanged.
 	ctFetcher  CTFetcher
 	ctThrottle CTThrottle
+	// ctSource is the one bulk CT source active this config (spec §2.3): crt.sh
+	// when no operator key is set, Cert Spotter when it is. It decides the query
+	// URL, the decode and the admission source stamp. Nil defaults to crt.sh, so a
+	// worker wired with a fetcher but no explicit source runs the keyless path.
+	ctSource scan.CTSource
 
 	// The ct-tail runner's fetcher (spec §4), wired via WithCTTail. Nil on a worker
 	// built without it: a `ct-tail` job then refuses rather than silently admitting
