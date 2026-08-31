@@ -226,3 +226,90 @@ it — the modal cloud install fronts everything behind a CDN, so a message on d
 exactly the population that chose this deliberately, and would train that population to ignore the
 safety channel. Change stays visible on the panel, pulled and never pushed, as a CNAME-to-foreign
 edge is silent today.
+
+## Amendment — [#955](https://github.com/winniel123/verge-asm/issues/955): the threshold is a boolean count fixed at 100, and the single-estate false positive is bounded, never measured away
+
+§3 made the fan-out threshold a versioned parameter of the `Custody` derivation and deferred its
+value to [#955](https://github.com/winniel123/verge-asm/issues/955). This amendment sets it, and
+sharpens what the count counts.
+
+### The determination is boolean; the calibration is where the threshold sits
+
+The reach decision has two outcomes: the extension reaches the edge, or it vetoes it (the #944
+amendment). It has no third resting state — the *pending* state the
+[#954](https://github.com/winniel123/verge-asm/issues/954) amendment added is a **currency** state,
+not a count band. So `shared-edge` is a **boolean** determination: one threshold turns the fan-out
+count into `shared` or `not-shared`, and the veto reads that boolean.
+
+[#941](https://github.com/winniel123/verge-asm/issues/941) recommended treating the count "as a
+graded signal, not a boolean". This amendment reads that advice as calibration guidance, not as a
+value shape. The grading it asked for lives in **where the threshold sits**, never in a multi-valued
+output the binary veto would collapse anyway. The raw fan-out count may still render on the §7 census
+for a human; the value that gates the veto is the boolean.
+
+### The count is the distinct registrable domains, with no relatedness filter
+
+The Observed input is the **SAN set** the edge presents (the #954 amendment). The derivation reduces
+it to registrable domains with the Public Suffix List and counts the **distinct eTLD+1s** — both the
+reduction and the count are versioned parameters of the `Custody` derivation, per #954. "Unrelated"
+means "distinct registrable domain" and nothing more. A relatedness filter — clustering eTLD+1s that
+"look like one brand" — is an ownership heuristic in disguise, and §1 already refused ownership as the
+discriminator. So the count carries no such filter.
+
+### The single-estate-many-brands false positive is bounded, never measured away
+
+One owner may legitimately front many of its own registrable domains on one **dedicated** origin IP.
+Fan-out counts those domains and cannot tell them from a shared edge's tenants — a single multi-SAN
+certificate produces the same count, and the only signal that would separate them is ownership, which
+§1 rules out. So this false positive is **not measurable away**. Three levers bound it, none of them a
+cleverer measurement:
+
+1. **A high threshold.** A genuine single estate rarely fronts a hundred unrelated registrable domains
+   on one IP ([#941](https://github.com/winniel123/verge-asm/issues/941)). The threshold sits above
+   where a single estate lands.
+2. **A loud surface.** A wrongly-vetoed edge surfaces as coverage on the §7 census (the #944
+   amendment), never as silence. §2's safe direction holds: the miss is visible, and its remedy is
+   stated.
+3. **A remedy.** The operator declares the origin IPs as an address scope. The overlap between that
+   declaration and the measurement is [#956](https://github.com/winniel123/verge-asm/issues/956).
+
+The residual miss §2 stated stands, now with its bound named: the estate must reach a hundred
+unrelated registrable domains on one IP before the misread occurs, and it surfaces loudly when it
+does.
+
+### The initial value is 100, an absolute integer
+
+`shared-edge` is `true` when the count of distinct unrelated eTLD+1s is **at least 100**. The value is
+an **absolute integer**, not a fraction: fan-out has no natural denominator, unlike
+`certificate-expiring`'s horizon.
+
+100 sits between the two bands [#941](https://github.com/winniel123/verge-asm/issues/941) measured. A
+real shared edge presents "dozens to thousands" of unrelated registrable domains, so 100 catches the
+large majority of them. A single estate "rarely fronts hundreds" on one IP, so 100 clears the
+single-estate band. The choice favours the **safe direction**: a high value makes a false veto of the
+operator's own edge rare, at the cost of probing small shared edges that present fewer than a hundred
+identities. That cost is the loud, wasteful direction §2 already accepts, never the silent one.
+
+The number is a first value on qualitative evidence, not a measured optimum. It moves on evidence as
+the next section governs.
+
+### What moves the version, and what pins it
+
+The threshold is a **declared parameter of the `Custody` derivation**, governed by
+[ADR-0008](./0008-derivation-versions-move-on-content.md): project-authored, fixed at the release, and
+**never operator-configurable**. Moving the value — or the count function that feeds it — changes the
+derivation's output, so it moves the `Custody` version as a **`Break`**, never as drift. This
+satisfies §3 and the [#55](https://github.com/winniel123/verge-asm/issues/55) constraint: the number
+lives inside the versioned derivation, outside the operator's dials and outside the census payload.
+
+The move is pinned the way ADR-0008 pins every declared parameter: by a golden-corpus row whose output
+the value decides. The `Custody` derivation's corpus gains **boundary rows** — an Observed SAN set that
+reduces to 99 distinct unrelated eTLD+1s derives `not-shared` (the edge is reached); one that reduces
+to 100 derives `shared` (the edge is vetoed). A value move with no version bump then fails the corpus's
+A6 gate, exactly as the two membership leaves are pinned today. This ticket is planning only, so it
+specifies the row shape and the boundary; it does not author the corpus.
+
+The [#956](https://github.com/winniel123/verge-asm/issues/956) address-scope remedy is an operator
+**act that satisfies the reach**, in the shape [ADR-0023](./0023-consent-names-the-door.md) gave
+`consent`: it never moves the threshold's version. An operator cannot turn this dial, so no install can
+move a `Custody` version without a release.
