@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/winniel123/verge-asm/internal/wire"
 )
@@ -85,26 +86,35 @@ func remotePlatform(ctx context.Context, conn Conn) (Platform, error) {
 //
 // The pushed binary is the instance's own cmd/prober, so it carries the shared
 // identifiable probe User-Agent (measure.ProbeUserAgent) on its HTTP leg unchanged.
-func Probe(ctx context.Context, conn Conn, binaries BinaryProvider, spec wire.JobSpec) ([]wire.Observation, error) {
+//
+// Probe captures the verbatim off-host exchange — the exact bytes sent to the prober's
+// stdin, the stdout and stderr it wrote back, the exec duration, and the typed exit
+// outcome — into a ProberTranscript that rides the ProbeResult on EVERY outcome (#867,
+// spec §3), the SSH twin of the local ExecProber. The transcript is present even on the
+// exec-error and decode-failure returns, because the raw output is highest-value exactly
+// when the job failed. A failure BEFORE the exec (platform read, binary select, push,
+// spec encode) returns no transcript: nothing ran, a legible absence.
+func Probe(ctx context.Context, conn Conn, binaries BinaryProvider, spec wire.JobSpec) (wire.ProbeResult, error) {
 	plat, err := remotePlatform(ctx, conn)
 	if err != nil {
-		return nil, err
+		return wire.ProbeResult{}, err
 	}
 
 	bin, err := binaries.Binary(plat.GOOS, plat.GOARCH)
 	if err != nil {
-		return nil, fmt.Errorf("remoteexec: select binary for %s/%s: %w", plat.GOOS, plat.GOARCH, err)
+		return wire.ProbeResult{}, fmt.Errorf("remoteexec: select binary for %s/%s: %w", plat.GOOS, plat.GOARCH, err)
 	}
 	defer bin.Close()
 
 	path, err := tempPath()
 	if err != nil {
-		return nil, err
+		return wire.ProbeResult{}, err
 	}
 
 	// Push: stream the binary to the temp path and make it executable in one command.
-	if err := conn.Run(ctx, "cat > "+path+" && chmod 0700 "+path, bin, io.Discard); err != nil {
-		return nil, fmt.Errorf("remoteexec: push binary: %w", err)
+	// The push predates the measured exec, so a push failure carries no transcript.
+	if _, err := conn.Run(ctx, "cat > "+path+" && chmod 0700 "+path, bin, io.Discard, io.Discard); err != nil {
+		return wire.ProbeResult{}, fmt.Errorf("remoteexec: push binary: %w", err)
 	}
 	// Best-effort cleanup regardless of how the exec goes — the pushed binary is
 	// disposable, one per invocation, so version skew is structurally impossible.
@@ -112,16 +122,38 @@ func Probe(ctx context.Context, conn Conn, binaries BinaryProvider, spec wire.Jo
 
 	var stdin bytes.Buffer
 	if err := wire.EncodeJobSpec(&stdin, spec); err != nil {
-		return nil, err
+		return wire.ProbeResult{}, err
 	}
+	// Capture the exact bytes sent to the prober verbatim (spec §3), copied before Run
+	// drains the buffer, so the transcript holds the literal JobSpec payload.
+	sent := append([]byte(nil), stdin.Bytes()...)
 	// Fail-closed sink: the prober is untrusted (a compromised host, or a MITM
 	// before the host key is pinned), so its stdout is capped at MaxProberStdout
 	// during the streaming copy rather than buffered without bound — a hostile
 	// prober cannot OOM the worker (#772). Exceeding the cap surfaces as a Run
-	// error, driving the same retry/dead-letter path any exec failure does.
+	// error, driving the same retry/dead-letter path any exec failure does; the
+	// transcript then keeps the retained head, marked memory-guard-tripped.
 	stdout := wire.NewLimitedBuffer(wire.MaxProberStdout)
-	if err := conn.Run(ctx, path, &stdin, stdout); err != nil {
-		return nil, fmt.Errorf("remoteexec: exec prober: %w", err)
+	var stderr bytes.Buffer
+
+	start := time.Now()
+	exit, runErr := conn.Run(ctx, path, &stdin, stdout, &stderr)
+	dur := time.Since(start)
+
+	// The transcript is built on every post-exec outcome; the worker stamps the
+	// queue_job id and captured-at instant and applies the head+tail store caps
+	// (spec §3.2) at persist, so this leaves them to the shared persist path.
+	t := &wire.ProberTranscript{
+		TranscriptFrame: wire.TranscriptFrame{Kind: spec.Kind, Duration: dur},
+		SentScope:       sent,
+		Stdout:          stdout.Bytes(),
+		Stderr:          stderr.Bytes(),
+		Outcome:         proberOutcome(exit),
+		StdoutOverflow:  stdout.Overflowed(),
+	}
+
+	if runErr != nil {
+		return wire.ProbeResult{Transcript: t}, fmt.Errorf("remoteexec: exec prober: %w", runErr)
 	}
 
 	sc := wire.NewObservationScanner(bytes.NewReader(stdout.Bytes()))
@@ -130,9 +162,24 @@ func Probe(ctx context.Context, conn Conn, binaries BinaryProvider, spec wire.Jo
 		obs = append(obs, sc.Observation())
 	}
 	if err := sc.Err(); err != nil {
-		return nil, fmt.Errorf("remoteexec: decode prober output: %w", err)
+		return wire.ProbeResult{Transcript: t}, fmt.Errorf("remoteexec: decode prober output: %w", err)
 	}
-	return obs, nil
+	return wire.ProbeResult{Observations: obs, Transcript: t}, nil
+}
+
+// proberOutcome maps the transport's typed ExitResult into the closed prober-outcome
+// union (spec §1.2), the SSH twin of queue.classifyProberOutcome. A ctx-cancelled
+// session reads as context-cancelled; a signal reads as signalled; anything else reads
+// as exited(code), where code is -1 for an outcome the server left unstated.
+func proberOutcome(exit ExitResult) wire.ProberOutcome {
+	switch exit.Kind {
+	case ExitContextCancelled:
+		return wire.ProberContextCancelled{}
+	case ExitSignalled:
+		return wire.ProberSignalled{Signal: exit.Signal}
+	default:
+		return wire.ProberExited{Code: exit.Code}
+	}
 }
 
 // tempPath returns a fresh, collision-resistant remote path under /tmp for the pushed

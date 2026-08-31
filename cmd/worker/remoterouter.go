@@ -95,12 +95,13 @@ func (rt *remoteProberRouter) ProbeVantage(ctx context.Context, vantageID pgtype
 	}
 	defer conn.Close()
 
-	// The remote Transcript is ABSENT until #841 carries the raw bytes back across the
-	// wire; this ticket (#863) returns only the observations in the ProbeResult shape,
-	// so #841 is a pure fill-in with no further signature change.
-	obs, err := remoteexec.Probe(ctx, conn, rt.binaries, spec)
+	// Probe carries the verbatim off-host exchange back in the ProbeResult's Transcript
+	// on every outcome (#867). The result rides the error return too, so a failed or
+	// decode-failed off-host job keeps its raw output onto the retry/dead-letter tx —
+	// exactly when it is most wanted.
+	res, err := remoteexec.Probe(ctx, conn, rt.binaries, spec)
 	if err != nil {
-		return wire.ProbeResult{}, true, fmt.Errorf("router: probe vantage %d off-host: %w", v.ID, err)
+		return res, true, fmt.Errorf("router: probe vantage %d off-host: %w", v.ID, err)
 	}
-	return wire.ProbeResult{Observations: obs}, true, nil
+	return res, true, nil
 }

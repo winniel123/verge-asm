@@ -53,15 +53,15 @@ func (c *routerConn) Output(_ context.Context, cmd string) ([]byte, error) {
 	}
 }
 
-func (c *routerConn) Run(_ context.Context, cmd string, stdin io.Reader, stdout io.Writer) error {
+func (c *routerConn) Run(_ context.Context, cmd string, stdin io.Reader, stdout, _ io.Writer) (remoteexec.ExitResult, error) {
 	c.ran = append(c.ran, cmd)
 	if strings.HasPrefix(cmd, "cat > ") {
 		_, _ = io.Copy(io.Discard, stdin)
-		return nil
+		return remoteexec.ExitResult{}, nil
 	}
 	_, _ = io.Copy(io.Discard, stdin)
 	_, _ = io.WriteString(stdout, c.obsLine)
-	return nil
+	return remoteexec.ExitResult{}, nil
 }
 
 func (c *routerConn) RemoteAddr() net.Addr {
@@ -170,10 +170,17 @@ func TestRouterProbesPinnedProberOffHost(t *testing.T) {
 	if len(res.Observations) != 1 || res.Observations[0].Batch != "b7" {
 		t.Fatalf("observations = %+v, want one b7", res.Observations)
 	}
-	// #863: the remote path returns an absent (nil) Transcript — the shape only, no
-	// bytes carried back until #841.
-	if res.Transcript != nil {
-		t.Errorf("remote Transcript = %+v, want absent (nil) until #841", res.Transcript)
+	// #867: the remote path now carries the verbatim transcript back — a ProberTranscript
+	// with the exec's kind and a clean exited(0) outcome, no longer an absent (nil) shape.
+	tr, ok := res.Transcript.(*wire.ProberTranscript)
+	if !ok {
+		t.Fatalf("remote Transcript = %T, want *wire.ProberTranscript (#867)", res.Transcript)
+	}
+	if tr.Kind != "connect-outcome" {
+		t.Errorf("transcript kind = %q, want connect-outcome", tr.Kind)
+	}
+	if got, ok := tr.Outcome.(wire.ProberExited); !ok || got.Code != 0 {
+		t.Errorf("transcript outcome = %+v, want exited(0)", tr.Outcome)
 	}
 	// The binary was pushed before the exec.
 	if len(conn.ran) < 2 || !strings.HasPrefix(conn.ran[0], "cat > ") {

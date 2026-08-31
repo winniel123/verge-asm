@@ -405,7 +405,9 @@ func (w *Worker) probe(ctx context.Context, vantageID pgtype.Int8, spec wire.Job
 	if w.router != nil {
 		res, handled, err := w.router.ProbeVantage(ctx, vantageID, spec)
 		if err != nil {
-			return wire.ProbeResult{}, err
+			// res carries the off-host Transcript on the error path (#867), so a failed
+			// remote probe still threads its raw output onto the retry/dead-letter tx.
+			return res, err
 		}
 		if handled {
 			return res, nil

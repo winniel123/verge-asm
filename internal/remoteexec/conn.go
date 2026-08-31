@@ -15,6 +15,7 @@ package remoteexec
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -31,11 +32,19 @@ type Conn interface {
 	// arch check and the SSH_CLIENT read for egress. cmd is always a constant this
 	// package supplies (never operator or spec input), so it carries no injected data.
 	Output(ctx context.Context, cmd string) ([]byte, error)
-	// Run streams stdin into cmd and cmd's stdout into stdout. It is the write/exec
-	// side: piping the binary to `cat > path` on push, then exec'ing the pushed path
-	// with the job spec on stdin and reading NDJSON back — never the spec on argv
-	// (ADR-0001). cmd is again a constant plus this package's own generated temp path.
-	Run(ctx context.Context, cmd string, stdin io.Reader, stdout io.Writer) error
+	// Run streams stdin into cmd, cmd's stdout into stdout, and cmd's stderr into
+	// stderr. It is the write/exec side: piping the binary to `cat > path` on push,
+	// then exec'ing the pushed path with the job spec on stdin and reading NDJSON back
+	// — never the spec on argv (ADR-0001). cmd is again a constant plus this package's
+	// own generated temp path.
+	//
+	// Run surfaces all three of SSH's native channels: the caller supplies the stderr
+	// sink (nil discards it) and receives a typed ExitResult classifying how the remote
+	// command ended (#867). The returned error is non-nil for a session-level failure
+	// AND for a non-zero exit or a signal (mirroring os/exec's cmd.Run), so a caller
+	// that only checks err still treats a failed command as a failure; ExitResult
+	// supplies the typed detail the transcript records on every outcome.
+	Run(ctx context.Context, cmd string, stdin io.Reader, stdout, stderr io.Writer) (ExitResult, error)
 	// RemoteAddr is the transport peer address of the established connection — the
 	// address the instance actually dialled to reach the prober, observed locally at
 	// connect (no remote command). It is the presented DIALLED address the Vantage-class
@@ -45,6 +54,31 @@ type Conn interface {
 	RemoteAddr() net.Addr
 	// Close releases the underlying connection.
 	Close() error
+}
+
+// ExitKind names how a remote command ended: it exited with a status code, a signal
+// killed it, or the context cancelled the session before it finished. It is the SSH
+// twin of the local path's os.ProcessState classification (queue.classifyProberOutcome).
+type ExitKind int
+
+const (
+	// ExitExited: the command ran to completion and returned Code. Code is -1 when the
+	// server reported no status (an honest "no clean exit", never a fabricated success).
+	ExitExited ExitKind = iota
+	// ExitSignalled: a signal killed the command. Signal is the SSH signal name, or
+	// empty when the server sent no exit status at all (*ssh.ExitMissingError).
+	ExitSignalled
+	// ExitContextCancelled: the caller's context cancelled the session before the
+	// command finished; the worker killed the remote command.
+	ExitContextCancelled
+)
+
+// ExitResult is the typed outcome of one remote Run. Exactly one field is meaningful,
+// selected by Kind: Code for ExitExited, Signal for ExitSignalled, neither otherwise.
+type ExitResult struct {
+	Kind   ExitKind
+	Code   int    // valid when Kind == ExitExited
+	Signal string // valid when Kind == ExitSignalled
 }
 
 // Target is where and as whom to dial a prober, and how to verify its host key. The
@@ -96,20 +130,23 @@ func (c *clientConn) Output(ctx context.Context, cmd string) ([]byte, error) {
 	defer sess.Close()
 	var stdout bytes.Buffer
 	sess.Stdout = &stdout
-	if err := runSession(ctx, sess, cmd); err != nil {
+	// Output is the read side (uname / SSH_CLIENT); it needs only stdout, so the typed
+	// exit result is discarded and any non-zero exit stays an error, exactly as before.
+	if _, err := runSession(ctx, sess, cmd); err != nil {
 		return nil, err
 	}
 	return stdout.Bytes(), nil
 }
 
-func (c *clientConn) Run(ctx context.Context, cmd string, stdin io.Reader, stdout io.Writer) error {
+func (c *clientConn) Run(ctx context.Context, cmd string, stdin io.Reader, stdout, stderr io.Writer) (ExitResult, error) {
 	sess, err := c.client.NewSession()
 	if err != nil {
-		return err
+		return ExitResult{Kind: ExitExited, Code: -1}, err
 	}
 	defer sess.Close()
 	sess.Stdin = stdin
 	sess.Stdout = stdout
+	sess.Stderr = stderr
 	return runSession(ctx, sess, cmd)
 }
 
@@ -120,10 +157,14 @@ func (c *clientConn) RemoteAddr() net.Addr { return c.client.RemoteAddr() }
 func (c *clientConn) Close() error { return c.client.Close() }
 
 // runSession starts cmd on sess and waits, honouring ctx: a cancelled context kills
-// the remote command and closes the session rather than blocking on a silent host.
-func runSession(ctx context.Context, sess *ssh.Session, cmd string) error {
+// the remote command and closes the session rather than blocking on a silent host. It
+// returns the typed ExitResult alongside the error so a caller capturing a transcript
+// classifies the ending on every outcome. The error is preserved unchanged (nil only on
+// a clean exit-0), so err-only callers keep their existing behaviour.
+func runSession(ctx context.Context, sess *ssh.Session, cmd string) (ExitResult, error) {
 	if err := sess.Start(cmd); err != nil {
-		return err
+		// The command never started, so there is no exit status to report.
+		return ExitResult{Kind: ExitExited, Code: -1}, err
 	}
 	done := make(chan error, 1)
 	go func() { done <- sess.Wait() }()
@@ -131,8 +172,32 @@ func runSession(ctx context.Context, sess *ssh.Session, cmd string) error {
 	case <-ctx.Done():
 		_ = sess.Signal(ssh.SIGKILL)
 		_ = sess.Close()
-		return ctx.Err()
+		return ExitResult{Kind: ExitContextCancelled}, ctx.Err()
 	case err := <-done:
-		return err
+		return classifyExit(err), err
 	}
+}
+
+// classifyExit maps an ssh.Session.Wait error into the typed ExitResult. A nil error is
+// a clean exit-0. An *ssh.ExitError carries either a signal name (signalled) or an exit
+// status (exited). An *ssh.ExitMissingError — the server closed the channel with no exit
+// status — reads as signalled with an empty name. Any other error (a transport or
+// stdout-sink failure, e.g. the 64 MiB guard tripping) leaves the outcome unknown, read
+// as exited(-1): an honest "no clean exit", never a fabricated success.
+func classifyExit(err error) ExitResult {
+	if err == nil {
+		return ExitResult{Kind: ExitExited, Code: 0}
+	}
+	var exitErr *ssh.ExitError
+	if errors.As(err, &exitErr) {
+		if sig := exitErr.Signal(); sig != "" {
+			return ExitResult{Kind: ExitSignalled, Signal: sig}
+		}
+		return ExitResult{Kind: ExitExited, Code: exitErr.ExitStatus()}
+	}
+	var missingErr *ssh.ExitMissingError
+	if errors.As(err, &missingErr) {
+		return ExitResult{Kind: ExitSignalled}
+	}
+	return ExitResult{Kind: ExitExited, Code: -1}
 }
