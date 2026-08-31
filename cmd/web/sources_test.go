@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -313,6 +314,57 @@ func TestCoverageApertureMeters(t *testing.T) {
 		if !strings.Contains(page, want) {
 			t.Errorf("aperture meter is missing %q; body: %s", want, page)
 		}
+	}
+}
+
+// #890: a lagging address scope — one the batch cannot finish inside its cadence —
+// renders the oldest-current as-of beside counted/total, and the addresses that have
+// aged out of currency mint NO operator message (the trailing-edge staleness Gap folds
+// to declared/current, decision #882; a Gap mints no message, ADR-0026/0104). Currency
+// stays nominal: the numerator reads through the k×declared-cadence window (here
+// 2×86400s), so an aged observation drops from the current set, never stretching the
+// window to an effective cadence.
+func TestCoverageLaggingScopeAsOfNoStalenessMessage(t *testing.T) {
+	now := time.Date(2026, 8, 30, 12, 0, 0, 0, time.UTC)
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := startAt(t, f, now)
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	declare(t, ac, base, "address", "203.0.113.0/24").Body.Close()
+
+	// Three subjects still current (inside the 2×86400s window), one of them the oldest.
+	oldest := now.Add(-30 * time.Hour)
+	f.addReachability(t, "203.0.113.10:443/tcp", now.Add(-1*time.Hour), "reached")
+	f.addReachability(t, "203.0.113.20:443/tcp", oldest, "reached")
+	f.addReachability(t, "203.0.113.30:443/tcp", now.Add(-3*time.Hour), "reached")
+	// Two subjects aged out of currency — the trailing edge. They must mint no message.
+	f.addReachability(t, "203.0.113.98:443/tcp", now.Add(-96*time.Hour), "reached")
+	f.addReachability(t, "203.0.113.99:443/tcp", now.Add(-96*time.Hour), "reached")
+
+	page := coverageBody(t, ac, base)
+
+	// The honest lag: 3 still-current subjects over 256 declared addresses.
+	if !strings.Contains(page, "3 / 256") {
+		t.Errorf("lagging scope must show counted/total 3 / 256; body: %s", page)
+	}
+	// The oldest-current as-of, with its ISO instant as the tooltip.
+	if !strings.Contains(page, "oldest still current") {
+		t.Errorf("the oldest-current as-of line is missing; body: %s", page)
+	}
+	if iso := oldest.UTC().Format(time.RFC3339); !strings.Contains(page, iso) {
+		t.Errorf("the as-of ISO instant %q is missing; body: %s", iso, page)
+	}
+	// The aged-out addresses mint no operator message — they never appear on the page.
+	for _, aged := range []string{"203.0.113.98", "203.0.113.99"} {
+		if strings.Contains(page, aged) {
+			t.Errorf("an aged-out address (%s) surfaced; the trailing-edge Gap must fold to declared/current, never a per-address message; body: %s", aged, page)
+		}
+	}
+	// No blanket responder and no unavailable vantage, so the currency card stays at its
+	// empty state — the lag is the meter's figure, not a message.
+	if !strings.Contains(page, "No coverage messages") {
+		t.Errorf("a lagging scope must not add a coverage message; body: %s", page)
 	}
 }
 

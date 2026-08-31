@@ -1,12 +1,14 @@
 {{/*
   DESIGN-OWNED ARTIFACT — coverage.tmpl · package v3.7.0 · WORKFLOW.md v4
   Source of truth: examples/console/Coverage.jsx · shot 07. Replaces templates_coverage.go.
-  Holes: .Meters[{Label,Counted,Total(nullable),Unit,Detail}], .Messages[{Kind,Badge,Bound,
-  Subject,Text,When,ISO}], .Gaps[{Subject,Gap,Expected,Since}], .Unevaluable[{ID,Version,Why}],
-  .StaleZones[{Zone,Age}]. Reconciliation (SPEC-CHANGE #19): an ADDRESS scope's meter renders
-  counted/total (denominator = enumerable addresses of the declared range); name scopes stay
-  census (ADR-0095's estate-proportion rule is about the estate, not a declared range).
-  Messages gain the spec's relative-time column (title = ISO instant).
+  Holes: .Meters[{Label,Counted,Total(nullable),Unit,Detail,AsOf,AsOfISO}], .Messages[{Kind,
+  Badge,Bound,Subject,Text,When,ISO}], .Gaps[{Subject,Gap,Expected,Since}], .Unevaluable[{ID,
+  Version,Why}], .StaleZones[{Zone,Age}]. Reconciliation (SPEC-CHANGE #19): an ADDRESS scope's
+  meter renders counted/total (denominator = enumerable addresses of the declared range); name
+  scopes stay census (ADR-0095's estate-proportion rule is about the estate, not a declared
+  range). Messages gain the spec's relative-time column (title = ISO instant). #890: an address
+  meter also carries AsOf/AsOfISO — the oldest-current as-of, how stale the current numerator is
+  when a scope cannot finish inside its cadence; empty omits the line.
 */}}
 {{define "coverage"}}{{template "head" .}}
 {{template "chrome" .}}
@@ -79,6 +81,7 @@
 <div class="top"><span class="lbl">{{.Label}}</span><span class="val">{{if .Total}}{{.Counted}} / {{.Total}}{{if .Unit}} {{.Unit}}{{end}}{{else}}census · {{.Counted}}{{if .Unit}} {{.Unit}}{{end}}{{end}}</span></div>
 {{if .Total}}<div class="track" role="progressbar" aria-valuemin="0" aria-valuemax="{{.Total}}" aria-valuenow="{{.Counted}}"><span class="fill" style="width:{{.Pct}}%"></span></div>{{else}}<div class="census" aria-label="Census — no denominator"></div>{{end}}
 {{if .Detail}}<span class="det">{{.Detail}}</span>{{end}}
+{{if .AsOf}}<span class="det" title="{{.AsOfISO}}">oldest still current · {{.AsOf}}</span>{{end}}
 </div>
 {{end}}
 </div>
