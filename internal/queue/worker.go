@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"time"
 
@@ -35,27 +36,46 @@ type ExecProber struct {
 	Path string
 }
 
-// Probe implements Prober. It returns the observations wrapped in a ProbeResult with
-// an ABSENT Transcript: this ticket (#863) reshapes the seam only — #840 captures the
-// stdin/stdout/stderr and the exit outcome into the Transcript at this boundary.
+// Probe implements Prober. It captures the verbatim exchange with the exec'd
+// prober — the exact bytes sent to stdin, the stdout and stderr it wrote back, the
+// exec duration, and the typed exit outcome — into a ProberTranscript that rides the
+// ProbeResult on EVERY outcome (#865, spec §2). The transcript is present even on the
+// exec-error and decode-failure returns, because the raw output is highest-value
+// exactly when the job failed (§2.2). The worker stamps the queue_job id and
+// captured-at instant and persists it, sealed, inside the job's terminal tx.
+//
+// An encode failure returns before the prober runs, so it carries no transcript:
+// nothing was sent and no exchange happened (a legible absence).
 func (p ExecProber) Probe(ctx context.Context, spec wire.JobSpec) (wire.ProbeResult, error) {
 	var stdin bytes.Buffer
 	if err := wire.EncodeJobSpec(&stdin, spec); err != nil {
 		return wire.ProbeResult{}, err
 	}
+	// Capture the exact bytes sent to the prober verbatim (§2.3), copied before Run
+	// drains the buffer, so the transcript holds the literal JobSpec payload — not a
+	// re-encoded struct.
+	sent := append([]byte(nil), stdin.Bytes()...)
+
 	cmd := exec.CommandContext(ctx, p.Path) // #nosec G204 (Path is operator-configured; no argv args, spec via stdin per ADR-0001 — no tainted input)
 	cmd.Stdin = &stdin
 	// Fail-closed stdout sink: even the local prober is treated as untrusted
 	// output for this bound (#772) — its stdout is capped at MaxProberStdout
 	// during the copy rather than buffered without limit, so a runaway or
 	// compromised prober binary cannot OOM the worker. Exceeding the cap makes
-	// cmd.Run return a write error, driving the normal retry/dead-letter path.
+	// cmd.Run return a write error, driving the normal retry/dead-letter path;
+	// the transcript then keeps the retained head, marked memory-guard-tripped.
 	stdout := wire.NewLimitedBuffer(wire.MaxProberStdout)
 	var stderr bytes.Buffer
 	cmd.Stdout = stdout
 	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		return wire.ProbeResult{}, fmt.Errorf("queue: exec prober: %w (stderr: %s)", err, stderr.String())
+
+	start := time.Now()
+	runErr := cmd.Run()
+	dur := time.Since(start)
+	t := buildProberTranscript(spec, sent, stdout, stderr.Bytes(), dur, cmd.ProcessState, ctx.Err())
+
+	if runErr != nil {
+		return wire.ProbeResult{Transcript: t}, fmt.Errorf("queue: exec prober: %w (stderr: %s)", runErr, stderr.String())
 	}
 	sc := wire.NewObservationScanner(bytes.NewReader(stdout.Bytes()))
 	var obs []wire.Observation
@@ -63,9 +83,47 @@ func (p ExecProber) Probe(ctx context.Context, spec wire.JobSpec) (wire.ProbeRes
 		obs = append(obs, sc.Observation())
 	}
 	if err := sc.Err(); err != nil {
-		return wire.ProbeResult{}, fmt.Errorf("queue: decode prober output: %w", err)
+		return wire.ProbeResult{Transcript: t}, fmt.Errorf("queue: decode prober output: %w", err)
 	}
-	return wire.ProbeResult{Observations: obs}, nil
+	return wire.ProbeResult{Observations: obs, Transcript: t}, nil
+}
+
+// buildProberTranscript assembles the ProberTranscript for one local exec. The
+// worker stamps the queue_job id and captured-at instant at persist time (spec
+// §1.2), so this leaves them zero and supplies only what the boundary knows: the
+// kind, the exec duration, the verbatim streams, the typed outcome, and whether the
+// 64 MiB stdout guard tripped.
+func buildProberTranscript(spec wire.JobSpec, sent []byte, stdout *wire.LimitedBuffer, stderr []byte, dur time.Duration, ps *os.ProcessState, ctxErr error) wire.ProberTranscript {
+	return wire.ProberTranscript{
+		TranscriptFrame: wire.TranscriptFrame{Kind: spec.Kind, Duration: dur},
+		SentScope:       sent,
+		Stdout:          stdout.Bytes(),
+		Stderr:          stderr,
+		Outcome:         classifyProberOutcome(ps, ctxErr),
+		StdoutOverflow:  stdout.Overflowed(),
+	}
+}
+
+// classifyProberOutcome maps an exec's end into the closed prober-outcome union
+// (spec §1.2). A ctx-killed prober reads as context-cancelled first, never a fake
+// exited(0). A clean or non-zero exit yields exited(code); a process the kernel
+// killed by signal (ExitCode() == -1 with a signal) yields signalled. A prober that
+// never started (exec error, nil ProcessState) reads as exited(-1) — an honest "no
+// clean exit", not a fabricated success.
+func classifyProberOutcome(ps *os.ProcessState, ctxErr error) wire.ProberOutcome {
+	if ctxErr != nil {
+		return wire.ProberContextCancelled{}
+	}
+	if ps == nil {
+		return wire.ProberExited{Code: -1}
+	}
+	if code := ps.ExitCode(); code >= 0 {
+		return wire.ProberExited{Code: code}
+	}
+	if sig := signalName(ps); sig != "" {
+		return wire.ProberSignalled{Signal: sig}
+	}
+	return wire.ProberExited{Code: -1}
 }
 
 // Worker claims jobs off the queue and runs them, committing each job's outcome
@@ -107,6 +165,50 @@ type Worker struct {
 	produceMsgs bool
 	devMode     bool
 	enqueue     func(ctx context.Context, q *db.Queries, messageID int64, class message.Class) (int, error)
+
+	// The raw-output capture seam (#865, spec §2.5), wired via WithTranscripts. When
+	// on, each terminal tx also writes the job's verbatim ProberTranscript, sealed
+	// with transcriptKey (spec §5.3). Off on a worker built without it, and always
+	// off in devMode — a fixture install writes no transcript, so no golden fixture
+	// moves. captureOn is the single guard; the producer captures unconditionally,
+	// the worker decides whether to persist.
+	captureTranscripts bool
+	transcriptKey      []byte
+}
+
+// WithTranscripts enables raw-output capture (#865, spec §2.5): each job's terminal
+// tx also persists the verbatim ProberTranscript, sealed at rest with key (spec
+// §5.3). Mirrors WithMessages / WithCT / WithRouter — off when unwired, and a no-op
+// under devMode so a fixture-only install writes no transcript and no golden fixture
+// moves. Returns the worker for chaining.
+func (w *Worker) WithTranscripts(key []byte, devMode bool) *Worker {
+	w.captureTranscripts = true
+	w.transcriptKey = key
+	w.devMode = devMode
+	return w
+}
+
+// captureOn reports whether this worker persists transcripts: wired via
+// WithTranscripts and not in devMode (spec §2.5). The measurement-only construction
+// and fixture installs return false, so they write no transcript.
+func (w *Worker) captureOn() bool { return w.captureTranscripts && !w.devMode }
+
+// persistTranscript writes the job's captured transcript inside its terminal tx,
+// sealed at rest (spec §2.4, §5.3). It is a no-op when capture is off or the
+// transcript is absent (t == nil): a job with no capture inserts no row, so the
+// absence stays legible, distinct from a captured-but-empty stream. The worker
+// stamps the queue_job id (the failed attempt's row on retry — jobID, never the
+// fresh one) and the captured-at instant here; a mid-flight cancel rolls this insert
+// back with the rest of the tx, so a terminated job persists nothing.
+func (w *Worker) persistTranscript(ctx context.Context, qtx *db.Queries, jobID int64, t wire.Transcript) error {
+	if !w.captureOn() || t == nil {
+		return nil
+	}
+	params, err := buildTranscriptParams(jobID, w.now().UTC(), t, w.transcriptKey)
+	if err != nil {
+		return err
+	}
+	return qtx.InsertTranscript(ctx, params)
 }
 
 // WithMessages enables the message producer (P0.7): after a batch's folds commit,
@@ -279,15 +381,15 @@ func (w *Worker) process(ctx context.Context, job db.ClaimJobRow) error {
 		// attempts remain we enqueue a fresh job; past them we dead-letter. The
 		// bound is single-sourced in exhaustedRetries, shared with the ct path.
 		//
-		// res.Transcript is absent today (#863 carries the shape only); #840 will
-		// thread it onto the retry/dead-letter tx so a failed job keeps its raw
-		// output, which is exactly when it is most wanted (§2.2).
+		// res.Transcript rides the error return (#865, spec §2.2): the raw output
+		// is threaded onto the retry/dead-letter tx so a failed or decode-failed job
+		// keeps its raw output, which is exactly when it is most wanted.
 		if exhaustedRetries(job.Attempt, job.MaxAttempts) {
-			return w.deadLetter(ctx, job, probeErr)
+			return w.deadLetter(ctx, job, res.Transcript, probeErr)
 		}
-		return w.retry(ctx, job, probeErr)
+		return w.retry(ctx, job, res.Transcript, probeErr)
 	}
-	return w.complete(ctx, job, res.Observations)
+	return w.complete(ctx, job, res)
 }
 
 // probe runs a job's measurement, routing it off-host when a provisioned prober owns
@@ -368,16 +470,19 @@ func (w *Worker) runJobTx(ctx context.Context, jobID int64, fn func(*db.Queries)
 	return err
 }
 
-// complete writes the Batch, its Observations and the job's done state in one
-// transaction — the outcome and the observation data commit together.
-func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, obs []wire.Observation) error {
+// complete writes the Batch, its Observations, the job's verbatim transcript and its
+// done state in one transaction — the outcome, the observation data and the raw
+// output commit together (spec §2.4).
+func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, res wire.ProbeResult) error {
 	// Re-gate the prober's self-reported subjects against what this job authorised
 	// (#773): a compromised prober can put any string in an Observation's Subject —
 	// the field written as SubjectKey and keyed on by the span/estate/message folds —
 	// so any observation naming a subject outside job.AttemptedScope is dropped before
 	// the write, rather than minting false spans/drift/messages for a subject the job
-	// never dispatched. Dropped lines are logged; legitimate lines are untouched.
-	obs = parseAuthorizedScope(job.AttemptedScope).gate(obs, w.log, job.ID)
+	// never dispatched. Dropped lines are logged; legitimate lines are untouched. The
+	// transcript keeps the pre-gate stdout verbatim (spec §5.1), so this gating does
+	// not narrow it.
+	obs := parseAuthorizedScope(job.AttemptedScope).gate(res.Observations, w.log, job.ID)
 	return w.runJobTx(ctx, job.ID, func(qtx *db.Queries) error {
 		batchID, err := qtx.InsertBatch(ctx, db.InsertBatchParams{
 			ScanID:        job.ScanID,
@@ -401,6 +506,24 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, obs []wire.Ob
 		observedAt := w.now().UTC()
 		for _, p := range toObservationParams(batchID, job.VantageID, tstz(observedAt), obs) {
 			if err := qtx.InsertObservation(ctx, p); err != nil {
+				return err
+			}
+		}
+		// Land any captured certificate material in its fingerprint-keyed side store, in
+		// the same transaction (ADR-0027, spec §5.3). It rides certificate observation
+		// lines BESIDE the facet value, never inside it, so the observation still records
+		// only the fingerprint and the fence stays closed. The insert is deduped and
+		// immutable — ON CONFLICT DO NOTHING keeps the first capture — so repeated
+		// presentations of one certificate write its material once.
+		for _, o := range obs {
+			if o.CertMaterial == nil {
+				continue
+			}
+			if err := qtx.InsertCertificateMaterial(ctx, db.InsertCertificateMaterialParams{
+				Fingerprint: o.CertMaterial.Fingerprint,
+				Der:         o.CertMaterial.DER,
+				Scts:        o.CertMaterial.SCTs,
+			}); err != nil {
 				return err
 			}
 		}
@@ -438,13 +561,18 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, obs []wire.Ob
 		// count of what it observed onto the live stream — redacted to the count alone, never
 		// the observations. Nothing is persisted by this; the state-derived .Log stands.
 		w.emitJobEvent(ctx, qtx, job, "", countLabel(len(obs), "observation", "observations"))
+		// Persist the verbatim transcript on the completed row, sealed at rest, in
+		// this same tx (spec §2.4). A no-op when capture is off or absent.
+		if err := w.persistTranscript(ctx, qtx, job.ID, res.Transcript); err != nil {
+			return err
+		}
 		return markDone(ctx, qtx, job.ID, batchID)
 	})
 }
 
 // deadLetter records a Batch whose scope is empty — never the attempted one —
-// and marks the job dead, together.
-func (w *Worker) deadLetter(ctx context.Context, job db.ClaimJobRow, cause error) error {
+// the job's verbatim transcript, and the job's dead state, together.
+func (w *Worker) deadLetter(ctx context.Context, job db.ClaimJobRow, t wire.Transcript, cause error) error {
 	w.log.Printf("worker: job %d dead-lettered after %d attempts: %v", job.ID, job.Attempt, cause)
 	return w.runJobTx(ctx, job.ID, func(qtx *db.Queries) error {
 		batchID, err := qtx.InsertBatch(ctx, db.InsertBatchParams{
@@ -471,13 +599,19 @@ func (w *Worker) deadLetter(ctx context.Context, job db.ClaimJobRow, cause error
 		// rides the live stream as an appended line so the operator sees WHY the job gave up,
 		// not a bare `dead`.
 		w.emitJobEvent(ctx, qtx, job, "error", deadLetterLabel(job.Attempt, cause))
+		// The raw output is highest-value on a dead-letter: persist it on the
+		// dead-lettered row in this same tx (spec §2.2, §2.4).
+		if err := w.persistTranscript(ctx, qtx, job.ID, t); err != nil {
+			return err
+		}
 		return markDead(ctx, qtx, job.ID, batchID)
 	})
 }
 
 // retry enqueues a new job (attempt+1) and marks the current one retried, so the
-// eventual Batch is a fresh one and no partial batch is ever resumed.
-func (w *Worker) retry(ctx context.Context, job db.ClaimJobRow, cause error) error {
+// eventual Batch is a fresh one and no partial batch is ever resumed. The failed
+// attempt keeps its own transcript on its own (retired) row.
+func (w *Worker) retry(ctx context.Context, job db.ClaimJobRow, t wire.Transcript, cause error) error {
 	w.log.Printf("worker: job %d attempt %d failed, retrying: %v", job.ID, job.Attempt, cause)
 	return w.runJobTx(ctx, job.ID, func(qtx *db.Queries) error {
 		if _, err := qtx.EnqueueJob(ctx, db.EnqueueJobParams{
@@ -498,6 +632,12 @@ func (w *Worker) retry(ctx context.Context, job db.ClaimJobRow, cause error) err
 		// crt.sh-502 the ticket cites — keyed to the job that failed, so the stream appends it
 		// as a live line beside that job's state. This is the producer half of collision #40.
 		w.emitJobEvent(ctx, qtx, job, "warn", retryLabel(job.Attempt, cause))
+		// Attach the transcript to the FAILED attempt's row (job.ID), not the fresh
+		// one just enqueued, in this same tx (spec §1.1, §2.4). A mid-flight cancel
+		// rolls both the fresh job and this transcript back together.
+		if err := w.persistTranscript(ctx, qtx, job.ID, t); err != nil {
+			return err
+		}
 		return markRetried(ctx, qtx, job.ID)
 	})
 }

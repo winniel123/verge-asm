@@ -73,6 +73,12 @@ func (b *LimitedBuffer) Write(p []byte) (int, error) {
 // without ErrProberOutputTooLarge.
 func (b *LimitedBuffer) Bytes() []byte { return b.buf.Bytes() }
 
+// Overflowed reports whether a write tripped the ceiling. A transcript capture
+// (#865) reads this to mark the stored stdout stream memory-guard-tripped rather
+// than head+tail truncated (raw-job-output spec §3.2): once it is true the buffer
+// holds only the head bytes retained before the trip, never the true tail.
+func (b *LimitedBuffer) Overflowed() bool { return b.over }
+
 // JobSpec is written as a single JSON object to the prober's stdin.
 type JobSpec struct {
 	// Batch identifies the Batch this job belongs to, so the observations
@@ -103,6 +109,69 @@ type Observation struct {
 	Address       string          `json:"address,omitempty"`
 	Data          json.RawMessage `json:"data,omitempty"`
 	Err           string          `json:"err,omitempty"`
+	// CertMaterial rides a `certificate` observation line as additive, optional
+	// enrichment — the raw CT inputs a handshake carried (leaf DER + out-of-cert SCTs).
+	// It is NEVER part of the facet value in Data: ADR-0027 fences that value to the
+	// presented chain's fingerprints, so the material lands in a separate side store
+	// (certificate_material) keyed by fingerprint. Present only on a presented handshake
+	// whose leaf DER we captured; every other line leaves it nil.
+	CertMaterial *CertMaterial `json:"cert_material,omitempty"`
+}
+
+// CertMaterial is the raw CT-input capture for one leaf certificate, carried on the
+// certificate observation line and landed by the worker in the certificate_material
+// side store. The observation still records only the fingerprint in its facet value, so
+// ADR-0027's fence stays closed (spec §5.3).
+type CertMaterial struct {
+	// Fingerprint is the leaf DER's `sha256:<hex>` — the side store's PK and the same
+	// value the facet's chain[0] carries, so a chain fingerprint joins here.
+	Fingerprint string `json:"fingerprint"`
+	// DER is the leaf certificate DER bytes. Embedded SCTs ride INSIDE it.
+	DER []byte `json:"der"`
+	// SCTs is the out-of-cert SCT material, already serialized by EncodeSCTCapture; nil
+	// when the handshake carried none.
+	SCTs []byte `json:"scts,omitempty"`
+}
+
+// SCTCapture is the out-of-cert SCT material captured at a TLS handshake, before it is
+// serialized into the certificate_material.scts column. Embedded SCTs are NOT here —
+// they ride inside the leaf DER. Verification (#878) decodes this to check the leaf
+// against CT.
+type SCTCapture struct {
+	// TLSExt is the SCTs delivered in the TLS handshake extension (crypto/tls
+	// ConnectionState.SignedCertificateTimestamps), each a serialized SCT.
+	TLSExt [][]byte `json:"tls_ext,omitempty"`
+	// OCSP is the raw stapled OCSP response (ConnectionState.OCSPResponse), which may
+	// carry SCTs in an extension; stored verbatim and parsed by the consumer.
+	OCSP []byte `json:"ocsp,omitempty"`
+}
+
+// EncodeSCTCapture serializes c for the certificate_material.scts column. It returns nil
+// when c carries no material, so an empty capture stores a NULL column rather than an
+// empty-object blob.
+func EncodeSCTCapture(c SCTCapture) []byte {
+	if len(c.TLSExt) == 0 && len(c.OCSP) == 0 {
+		return nil
+	}
+	b, err := json.Marshal(c)
+	if err != nil {
+		// c holds only [][]byte and []byte, which json.Marshal cannot fail on.
+		panic("wire: marshal SCT capture: " + err.Error())
+	}
+	return b
+}
+
+// DecodeSCTCapture reverses EncodeSCTCapture. A nil or empty blob decodes to a zero
+// SCTCapture — no material — the state a NULL scts column reads back as.
+func DecodeSCTCapture(b []byte) (SCTCapture, error) {
+	var c SCTCapture
+	if len(b) == 0 {
+		return c, nil
+	}
+	if err := json.Unmarshal(b, &c); err != nil {
+		return SCTCapture{}, fmt.Errorf("wire: decode SCT capture: %w", err)
+	}
+	return c, nil
 }
 
 // DecodeJobSpec reads a single JobSpec JSON object from r.
