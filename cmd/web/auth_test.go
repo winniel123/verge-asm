@@ -20,7 +20,9 @@ import (
 // cookies set alongside it.
 func start(t *testing.T, f *fakeStore, setupToken string) string {
 	t.Helper()
-	ts := httptest.NewServer(newServer(f, testKey, setupToken, fixedClock()).handler())
+	srv := newServer(f, testKey, setupToken, fixedClock())
+	srv.transcriptKey = testTranscriptKey
+	ts := httptest.NewServer(srv.handler())
 	t.Cleanup(ts.Close)
 	return ts.URL
 }
@@ -31,7 +33,9 @@ func start(t *testing.T, f *fakeStore, setupToken string) string {
 // boundary without any delete.
 func startAt(t *testing.T, f *fakeStore, now time.Time) string {
 	t.Helper()
-	ts := httptest.NewServer(newServer(f, testKey, "", func() time.Time { return now }).handler())
+	srv := newServer(f, testKey, "", func() time.Time { return now })
+	srv.transcriptKey = testTranscriptKey
+	ts := httptest.NewServer(srv.handler())
 	t.Cleanup(ts.Close)
 	return ts.URL
 }

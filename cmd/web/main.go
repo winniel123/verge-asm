@@ -105,12 +105,14 @@ func main() {
 		log.Fatalf("web: session key: %v", err)
 	}
 
-	// Provision the instance transcript key on the shared key volume: the one key
+	// Load the instance transcript key from the shared key volume: the one key
 	// worker (writer) also mounts, which web (reader, #866) opens the Transcript
 	// corpus with. Fatal if the shared volume is unwritable; either service may
-	// create the key on first boot (raw-job-output spec §5.3).
+	// create the key on first boot (raw-job-output spec §5.3). The admin raw-output
+	// view (#866) opens each sealed stream with this key on read.
 	transcriptKeyDir := env.OrDefault("VERGE_TRANSCRIPT_KEY_DIR", "/app/transcript-key")
-	if err := transcript.EnsureKey(transcriptKeyDir); err != nil {
+	transcriptKey, err := transcript.LoadOrCreateKey(transcriptKeyDir)
+	if err != nil {
 		log.Fatalf("web: transcript key: %v", err)
 	}
 
@@ -136,6 +138,9 @@ func main() {
 	}
 	web := newServer(queries, key, setupToken, clock)
 	web.devMode = devMode
+	// The instance transcript key the admin raw-output view opens sealed streams with
+	// (#866, spec §5.3). Held off Postgres, on the shared key volume loaded above.
+	web.transcriptKey = transcriptKey
 	// The web-only state volume the session signing key lives in, so a restore can
 	// regenerate it in place (#391/B4, ADR-0124: every session lapses on restore).
 	web.stateDir = stateDir
