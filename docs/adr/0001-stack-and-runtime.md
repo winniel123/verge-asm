@@ -42,7 +42,7 @@ must produce a working instance with no external services to provision.
 | Persistence | **PostgreSQL**, core only — no extensions beyond `contrib` |
 | Queue | **Postgres-backed**: `SELECT … FOR UPDATE SKIP LOCKED` + `LISTEN/NOTIFY` |
 | Backend | **Go** across web, worker and measurement binary |
-| Frontend | **Server-rendered** `html/template` + **htmx**, SSE for the live drift feed |
+| Frontend | **Server-rendered** `html/template` + ~~**htmx**~~, SSE for the live drift feed — **htmx WITHDRAWN 2026-08-31 by [#942](https://github.com/winniel123/verge-asm/issues/942) / [ADR-0131](./0131-the-console-is-vanilla-server-rendered-prg-and-the-htmx-stack-is-withdrawn.md) ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)): the console is vanilla server-rendered PRG; zero `hx-*` was ever built. Server-rendering stands. SSE is likewise unrealized (a `fetch`-poll only) but is NOT withdrawn here.** |
 | Topology | **One image, two compose services** (`web`, `worker`), plus `postgres` |
 | API | ~~**No JSON API in v1**~~; session-authed CSV/JSON export from the UI — **a read-only, opt-in JSON API is now admitted, [ADR-0123](./0123-a-token-api-is-read-only-opt-in-and-a-bearer-path-separate-from-sessions.md) (2026-08-26)** |
 
@@ -176,7 +176,14 @@ simpler than SPA token custody, and TOTP enrolment plus the single-use bootstrap
 natural form-post flows.
 
 The accepted cost is real: the core screen is a filterable, sortable inventory with a live
-change feed, and heavy client-side filter state is where htmx starts to hurt.
+change feed, and ~~heavy client-side filter state is where htmx starts to hurt~~.
+
+> **WITHDRAWN 2026-08-31 by [#942](https://github.com/winniel123/verge-asm/issues/942) /
+> [ADR-0131](./0131-the-console-is-vanilla-server-rendered-prg-and-the-htmx-stack-is-withdrawn.md)
+> ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).** htmx
+> was never built — zero `hx-*` anywhere. The console is vanilla server-rendered PRG plus inline
+> vanilla JavaScript, so there is no htmx to hurt. The **server-rendered-over-SPA** argument this
+> paragraph opens is untouched and confirmed; only the htmx clause is withdrawn.
 
 Scope note: **what** the screens are remains [#10](https://github.com/winniel123/verge-asm/issues/10)'s
 question. This ADR decides only how they are rendered.
@@ -234,8 +241,17 @@ Secrets split by blast radius:
 > read-only API alongside it. A **mutating** API stays refused. The two arguments are left standing
 > below for their reasoning; read them as scoped to a *write-capable* API.
 
-With htmx the HTTP surface is HTML fragments and SSE, so no API falls out for free.
+~~With htmx the HTTP surface is HTML fragments and SSE, so no API falls out for free.~~
 Shipping one is a deliberate act. Two arguments against doing so in v1:
+
+> **The htmx premise is WITHDRAWN 2026-08-31 by [#942](https://github.com/winniel123/verge-asm/issues/942) /
+> [ADR-0131](./0131-the-console-is-vanilla-server-rendered-prg-and-the-htmx-stack-is-withdrawn.md)
+> ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).** htmx was
+> never built. The HTTP surface is whole server-rendered pages over PRG, not HTML fragments, and the
+> live feed is a `fetch`-poll, not SSE — SSE is likewise unrealized but is NOT withdrawn here. The
+> conclusion this sentence supports — *no API falls out for free* — is unchanged and independently
+> true: whole-page server rendering yields no JSON API either. (The read-only API is a later,
+> deliberate act — [ADR-0123](./0123-a-token-api-is-read-only-opt-in-and-a-bearer-path-separate-from-sessions.md).)
 
 1. An API token is a bearer credential that **bypasses the TOTP #11 just decided on** — a
    weaker second authenticated surface guarding the full inventory.
