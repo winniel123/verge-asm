@@ -66,3 +66,13 @@ Run `gh issue view <number> --comments`.
   2. **These endpoints return only the first 30 entries without `--paginate`.** #12's blocker list read 30 unpaginated and 36 paginated. It silently hid six edges, including one that had just been added. Truncation looks exactly like a missing dependency. So omitting `--paginate` invents frontier tickets that are actually blocked.
 - **Claim**: run `gh issue edit <n> --add-assignee @me`. This is the session's first write.
 - **Resolve**: run `gh issue comment <n> --body "<answer>"`. Then run `gh issue close <n>`. Then append a context pointer (gist + link) to the map's Decisions-so-far.
+
+## Implementation-map operations
+
+`/to-tickets` and `/implement` use these. An **implementation map** is the parent issue `/to-tickets` cuts from a finished SPEC. It has the same body structure as a wayfinder map, but it is not one: a wayfinder map plans, an implementation map builds.
+
+- **Map**: a single issue labelled `implementation:map`. `/to-tickets` applies the label when it creates the parent. Create it with `gh issue create --label implementation:map`. The label is the only reliable signal that an issue is a map and not a ticket, so never omit it.
+- **Child ticket**: same shape as a wayfinder child. Link it as a GitHub sub-issue, record `Blocked by` edges as native issue dependencies, and list it in the map body's Tickets section.
+- **Frontier query**: identical to the wayfinder frontier query above, including both traps. Use `--paginate`, and filter blockers on `state`.
+- **One ticket per session.** A session that runs `/implement` against an `implementation:map` takes the first frontier ticket, implements it, opens its PR, and stops. It does not continue to the next ticket. This keeps one PR to one ticket, so the review and the blame stay readable.
+- **Resolve**: close the ticket when its PR merges. Then append a one-line context pointer (gist + link) to the map's Decisions-so-far. The map closes when every child is closed.
