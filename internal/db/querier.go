@@ -65,7 +65,9 @@ type Querier interface {
 	ClaimDelivery(ctx context.Context) (ClaimDeliveryRow, error)
 	// The Postgres-backed claim: FOR UPDATE SKIP LOCKED over ready jobs whose
 	// run_after has passed, oldest first, marking the winner running in one
-	// statement so two workers never claim the same job.
+	// statement so two workers never claim the same job. It stamps claimed_at at the
+	// claim instant so the stale-running reaper (internal/queue/reaper.go, #853) knows
+	// when the lease started and can reclaim a job whose worker died or hung mid-run.
 	ClaimJob(ctx context.Context) (ClaimJobRow, error)
 	// The Postgres-backed claim: FOR UPDATE SKIP LOCKED over pending notifications whose
 	// run_after has passed, oldest first, marking the winner 'sending' in one statement so
@@ -1171,6 +1173,23 @@ type Querier interface {
 	// against, so a delta is withheld rather than compared against nothing. Reads batch
 	// only (corpus 1), never dispatch, honoring the comparison-path separation (ADR-0041).
 	PreviousBatchTime(ctx context.Context) (pgtype.Timestamptz, error)
+	// The stale-`running` reaper's sweep (#853): reclaim every job stuck in state
+	// 'running' whose lease (claimed_at) is older than the cutoff — the worker that
+	// claimed it died or hung mid-job, so nothing will ever drive it to a terminal
+	// state. A job with attempts left returns to 'ready' (attempt bumped, run_after and
+	// claimed_at cleared) so a live worker re-claims and re-runs it — a fresh Batch, not
+	// a resumption, since a job orphaned mid-run committed no Batch (batch_id is NULL).
+	// A job past its attempt budget is dead-lettered directly, which bounds a job whose
+	// prober hangs on every attempt: it dies after max_attempts reaps rather than
+	// re-readying forever.
+	//
+	// The CASE reads the OLD attempt, so a job at attempt >= max_attempts dies and one
+	// below it re-readies at attempt + 1. Only 'running' rows past the cutoff match; a
+	// NULL claimed_at never satisfies `< cutoff`, so a never-leased row is never reaped.
+	// The reaper writes no Batch and moves no Availability: a dead worker is
+	// infrastructure failure, not measurement evidence, so a reaped dns job must not be
+	// read as a resolver outage (ADR-0108). Returns the count reclaimed.
+	ReapStaleRunningJobs(ctx context.Context, cutoff pgtype.Timestamptz) (int64, error)
 	RecordHeartbeat(ctx context.Context) (Heartbeat, error)
 	// Atomically claim the next free slot for one CT fetch of a given source,
 	// instance-wide (ADR-0005: the throttle is per-source across the whole instance,

@@ -185,6 +185,17 @@ type Worker struct {
 	// the worker decides whether to persist.
 	captureTranscripts bool
 	transcriptKey      []byte
+
+	// The per-job probe deadline (#853). The drain loop is single-threaded
+	// (drain → RunOnce → process → probe), so a prober exec that hangs blocks the
+	// whole loop: no further job is claimed until it returns. This bounds ONE probe
+	// call — the off-host router or the local ExecProber — so a hung prober fails
+	// into the normal retry / dead-letter path (ctx deadline → ProberContextCancelled)
+	// instead of wedging the worker. NewWorker sets DefaultProbeTimeout; a value <= 0
+	// disables the bound (probe runs under the parent ctx alone). It brackets only the
+	// probe, never the terminal transaction, so a slow probe never truncates the
+	// commit that records its outcome.
+	probeTimeout time.Duration
 }
 
 // WithTranscripts enables raw-output capture (#865, spec §2.5): each job's terminal
@@ -284,12 +295,30 @@ type VantageRouter interface {
 	ProbeVantage(ctx context.Context, vantageID pgtype.Int8, spec wire.JobSpec) (res wire.ProbeResult, handled bool, err error)
 }
 
-// NewWorker builds a Worker over pool driving prober.
+// DefaultProbeTimeout is the per-job probe deadline a Worker starts with. A single
+// measurement probe — a resolver walk or a port/TLS/HTTP exchange against one target
+// — settles in seconds, so a probe still running at this bound has hung; the bound
+// then drives it into the retry / dead-letter path rather than blocking the
+// single-threaded drain loop (#853). It sits well below DefaultStaleJobThreshold, so
+// a hung probe is bounded here long before the reaper would ever reclaim its job.
+const DefaultProbeTimeout = 5 * time.Minute
+
+// NewWorker builds a Worker over pool driving prober. It starts with
+// DefaultProbeTimeout; override it with WithProbeTimeout.
 func NewWorker(pool *pgxpool.Pool, prober Prober, now func() time.Time, logger *log.Logger) *Worker {
 	if now == nil {
 		now = time.Now
 	}
-	return &Worker{pool: pool, q: db.New(pool), prober: prober, now: now, log: logger}
+	return &Worker{pool: pool, q: db.New(pool), prober: prober, now: now, log: logger, probeTimeout: DefaultProbeTimeout}
+}
+
+// WithProbeTimeout overrides the per-job probe deadline (#853). A value <= 0
+// disables the bound — the probe then runs under the parent ctx alone. Separate from
+// NewWorker so the default construction and its tests stay unchanged. Returns the
+// worker for chaining.
+func (w *Worker) WithProbeTimeout(d time.Duration) *Worker {
+	w.probeTimeout = d
+	return w
 }
 
 // WithRouter wires the off-host measurement router onto the Worker (ADR-0103, #683).
@@ -408,6 +437,17 @@ func (w *Worker) process(ctx context.Context, job db.ClaimJobRow) error {
 // consulted first: it reports handled=false for a vantage with no prober, so that job
 // falls through to the local ExecProber exactly as before this seam existed.
 func (w *Worker) probe(ctx context.Context, vantageID pgtype.Int8, spec wire.JobSpec) (wire.ProbeResult, error) {
+	// Bracket the probe with the per-job deadline so a hung prober fails into the
+	// retry / dead-letter path instead of blocking the single-threaded drain loop
+	// (#853). It wraps ONLY the probe, so the terminal transaction that records the
+	// outcome runs under the parent ctx, never this shorter deadline. A timeout
+	// surfaces as ctx.Err() on the exec, which classifyProberOutcome reads as
+	// ProberContextCancelled — the same benign transcript a Terminate produces.
+	if w.probeTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, w.probeTimeout)
+		defer cancel()
+	}
 	if w.router != nil {
 		res, handled, err := w.router.ProbeVantage(ctx, vantageID, spec)
 		if err != nil {
