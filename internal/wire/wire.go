@@ -73,6 +73,12 @@ func (b *LimitedBuffer) Write(p []byte) (int, error) {
 // without ErrProberOutputTooLarge.
 func (b *LimitedBuffer) Bytes() []byte { return b.buf.Bytes() }
 
+// Overflowed reports whether a write tripped the ceiling. A transcript capture
+// (#865) reads this to mark the stored stdout stream memory-guard-tripped rather
+// than head+tail truncated (raw-job-output spec §3.2): once it is true the buffer
+// holds only the head bytes retained before the trip, never the true tail.
+func (b *LimitedBuffer) Overflowed() bool { return b.over }
+
 // JobSpec is written as a single JSON object to the prober's stdin.
 type JobSpec struct {
 	// Batch identifies the Batch this job belongs to, so the observations

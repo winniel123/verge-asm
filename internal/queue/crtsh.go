@@ -275,7 +275,9 @@ func (w *Worker) retryOrDeadLetterCT(ctx context.Context, job db.ClaimJobRow, ca
 	if exhaustedRetries(job.Attempt, job.MaxAttempts) {
 		return w.deadLetterCT(ctx, job, cause)
 	}
-	return w.retry(ctx, job, cause)
+	// A CT retry carries no transcript yet — the crt.sh producer capture is #870.
+	// Until then it passes an absent transcript, so no row is written.
+	return w.retry(ctx, job, nil, cause)
 }
 
 // admitCT writes the completed Batch, its admissions and the job's done state in
