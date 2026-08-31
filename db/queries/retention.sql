@@ -1,6 +1,7 @@
 -- name: GetRetentionSettings :one
 -- The single operator-global row seeded by the migration; it always exists.
-SELECT observation_currency_days, dispatch_cadence_multiple, updated_by, updated_at
+SELECT observation_currency_days, dispatch_cadence_multiple,
+       transcript_currency_days, updated_by, updated_at
 FROM retention_settings
 WHERE id = true;
 
@@ -147,3 +148,13 @@ WHERE obs.id IN (
 -- operational back-references rather than cascade into measured data.
 DELETE FROM dispatch
 WHERE scheduled_time < $1;
+
+-- name: DeleteExpiredTranscripts :execrows
+-- The one and only path that deletes Transcript rows (raw-job-output spec §4,
+-- ADR-0126 amending ADR-0041). It touches the transcript table and nothing else:
+-- no derivation reads a Transcript (the §1 fence), so a wall clock retiring it by
+-- captured_at moves no value on any timeline — the same legality the Dispatch
+-- sweep rests on. The caller passes the floored cutoff (now minus the
+-- transcript_currency_days window); this deletes every captured row older than it.
+DELETE FROM transcript
+WHERE captured_at < $1;
