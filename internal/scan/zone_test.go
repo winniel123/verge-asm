@@ -2,6 +2,7 @@ package scan
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 )
@@ -28,7 +29,7 @@ func TestRestateZoneStampsSupplyInstantNotReadTime(t *testing.T) {
 	// stamped at the supply instant, never at this later read.
 	zf := ZoneFile{Domain: "example.com", SuppliedAt: supply, Content: sampleZone}
 
-	recs := RestateZone(zf)
+	recs, _ := RestateZone(zf)
 	if len(recs) == 0 {
 		t.Fatal("expected observations from the zone file, got none")
 	}
@@ -42,7 +43,7 @@ func TestRestateZoneStampsSupplyInstantNotReadTime(t *testing.T) {
 
 func TestRestateZoneGroupsRRsetsAndResolvesNames(t *testing.T) {
 	supply := time.Date(2026, 1, 1, 9, 30, 0, 0, time.UTC)
-	recs := RestateZone(ZoneFile{Domain: "example.com", SuppliedAt: supply, Content: sampleZone})
+	recs, _ := RestateZone(ZoneFile{Domain: "example.com", SuppliedAt: supply, Content: sampleZone})
 
 	byKey := map[string]ZoneRecord{}
 	for _, r := range recs {
@@ -79,6 +80,42 @@ func TestRestateZoneGroupsRRsetsAndResolvesNames(t *testing.T) {
 	// The multi-line SOA is one record, not five stray lines.
 	if _, ok := byKey["example.com/SOA"]; !ok {
 		t.Errorf("multi-line SOA not joined into one record; got %v", keys(byKey))
+	}
+}
+
+func TestRestateZoneSurfacesSkips(t *testing.T) {
+	supply := time.Date(2026, 1, 1, 9, 30, 0, 0, time.UTC)
+	// A file whose records the estate should get, mixed with lines RestateZone must
+	// drop and surface, and blank/comment/directive lines it must NOT surface.
+	content := `$ORIGIN example.com.
+$TTL 3600
+; a plain comment line
+
+@       IN A    203.0.113.10
+weird   IN FOO  whatever
+empty   IN TXT
+lonely  IN
+www     IN CNAME example.com.
+`
+	recs, skipped := RestateZone(ZoneFile{Domain: "example.com", SuppliedAt: supply, Content: content})
+
+	// The two good records survive.
+	if len(recs) != 2 {
+		t.Fatalf("got %d records, want 2 (apex A + www CNAME); recs=%v", len(recs), recs)
+	}
+
+	// The three record-shaped-but-dropped lines are surfaced, verbatim; the
+	// directive, blank and comment lines are not.
+	joined := strings.Join(skipped, "\n")
+	for _, want := range []string{"weird   IN FOO  whatever", "empty   IN TXT", "lonely  IN"} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("skip %q not surfaced; got skips=%v", want, skipped)
+		}
+	}
+	for _, notWant := range []string{"$ORIGIN", "$TTL", "comment"} {
+		if strings.Contains(joined, notWant) {
+			t.Errorf("non-record line %q wrongly surfaced as a skip; got skips=%v", notWant, skipped)
+		}
 	}
 }
 

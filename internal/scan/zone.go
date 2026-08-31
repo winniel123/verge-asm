@@ -181,23 +181,34 @@ type ZoneRecord struct {
 // skipped rather than guessed at: a zone file is the operator's own ground
 // truth, and inventing a record it does not clearly state would fabricate an
 // observation (v1 spec §4.1).
-func RestateZone(zf ZoneFile) []ZoneRecord {
+//
+// It also SURFACES the skips (#869, raw-job-output spec §1.3): the second return
+// is the verbatim text of every line that looked like a record but was dropped —
+// an unknown RR type, an empty rdata, an orphan continuation, or an RRset that
+// could not marshal. Blank lines, comments and directives carry no record by
+// design and are NOT surfaced. The skips are the zone variant's debug artifact:
+// they answer "why is this DNS record missing from the estate?" with "we skipped
+// it". Skips are returned in first-seen order.
+func RestateZone(zf ZoneFile) (records []ZoneRecord, skipped []string) {
 	p := &zoneParser{origin: fqdn(zf.Domain)}
 	rrsets := map[string]*zoneRRset{}
 	var order []string
 	for _, line := range logicalLines(zf.Content) {
-		rec, ok := p.parse(line)
-		if !ok {
-			continue
+		rec, res := p.parse(line)
+		switch res {
+		case parseSkipped:
+			skipped = append(skipped, strings.TrimSpace(line))
+		case parseRecord:
+			key := rec.name + "\x00" + rec.qtype
+			set, seen := rrsets[key]
+			if !seen {
+				set = &zoneRRset{name: rec.name, qtype: rec.qtype}
+				rrsets[key] = set
+				order = append(order, key)
+			}
+			set.rrs = append(set.rrs, rec.rdata)
 		}
-		key := rec.name + "\x00" + rec.qtype
-		set, seen := rrsets[key]
-		if !seen {
-			set = &zoneRRset{name: rec.name, qtype: rec.qtype}
-			rrsets[key] = set
-			order = append(order, key)
-		}
-		set.rrs = append(set.rrs, rec.rdata)
+		// parseNone carries no record and is not a skip: a blank, comment or directive.
 	}
 
 	out := make([]ZoneRecord, 0, len(order))
@@ -205,6 +216,10 @@ func RestateZone(zf ZoneFile) []ZoneRecord {
 		set := rrsets[key]
 		data, err := json.Marshal(zoneValue{RRs: set.rrs})
 		if err != nil {
+			// The literal "skipped because it could not marshal" case (spec §1.3).
+			// json.Marshal of a []string does not fail in practice, so this is a
+			// defensive surface, named by the RRset it dropped.
+			skipped = append(skipped, set.name+" "+set.qtype)
 			continue
 		}
 		out = append(out, ZoneRecord{
@@ -214,8 +229,21 @@ func RestateZone(zf ZoneFile) []ZoneRecord {
 			ObservedAt: zf.SuppliedAt,
 		})
 	}
-	return out
+	return out, skipped
 }
+
+// parseResult is the three-way outcome of parsing one logical zone line: a
+// well-formed record, nothing at all (a blank, comment or directive — no record
+// by design), or a dropped candidate (a line that looked like a record but could
+// not be parsed). Only parseSkipped is surfaced to the operator (#869): a blank
+// line is not a missing record.
+type parseResult int
+
+const (
+	parseNone    parseResult = iota // blank, comment, or directive — carries no record
+	parseRecord                     // a well-formed record
+	parseSkipped                    // looked like a record but was dropped
+)
 
 // zoneValue is the value a zone `dns-record` observation carries: the RRset's
 // rdata, as strings. It is deliberately the zone file's own words rather than a
@@ -255,14 +283,16 @@ var knownTypes = map[string]bool{
 	"SPF": true, "TLSA": true, "SSHFP": true, "DS": true,
 }
 
-// parse turns one logical zone line into a record, or reports that the line
-// carries none (a directive, a blank, a comment, or an unparseable line). It
+// parse turns one logical zone line into a record, or reports why it carries
+// none: parseNone for a directive, a blank or a comment (no record by design),
+// and parseSkipped for a line that looked like a record but was dropped (an
+// orphan continuation, too few fields, an unknown type, or an empty rdata). It
 // handles $ORIGIN and $TTL directives, owner-name inheritance, an optional TTL
 // and class prefix, and relative-vs-absolute owner names.
-func (p *zoneParser) parse(line string) (parsedRecord, bool) {
+func (p *zoneParser) parse(line string) (parsedRecord, parseResult) {
 	line = stripComment(line)
 	if strings.TrimSpace(line) == "" {
-		return parsedRecord{}, false
+		return parsedRecord{}, parseNone
 	}
 
 	// Directives carry no record but set state for the lines that follow.
@@ -272,22 +302,24 @@ func (p *zoneParser) parse(line string) (parsedRecord, bool) {
 		if fields := strings.Fields(trimmed); len(fields) >= 2 {
 			p.origin = fqdn(fields[1])
 		}
-		return parsedRecord{}, false
+		return parsedRecord{}, parseNone
 	case strings.HasPrefix(trimmed, "$"):
-		return parsedRecord{}, false // $TTL, $INCLUDE and friends carry no record
+		return parsedRecord{}, parseNone // $TTL, $INCLUDE and friends carry no record
 	}
 
 	// A leading blank means the owner is inherited from the previous record.
 	ownerInherited := line[0] == ' ' || line[0] == '\t'
 	fields := strings.Fields(line)
 	if len(fields) == 0 {
-		return parsedRecord{}, false
+		return parsedRecord{}, parseNone
 	}
 
 	var owner string
 	if ownerInherited {
 		if p.lastOwner == "" {
-			return parsedRecord{}, false
+			// A continuation line with no prior owner: a dropped candidate, not a
+			// clean no-op — the operator wrote rdata the estate never got.
+			return parsedRecord{}, parseSkipped
 		}
 		owner = p.lastOwner
 	} else {
@@ -311,17 +343,17 @@ func (p *zoneParser) parse(line string) (parsedRecord, bool) {
 		break
 	}
 	if len(fields) < 2 {
-		return parsedRecord{}, false
+		return parsedRecord{}, parseSkipped
 	}
 	qtype := strings.ToUpper(fields[0])
 	if !knownTypes[qtype] {
-		return parsedRecord{}, false
+		return parsedRecord{}, parseSkipped
 	}
 	rdata := strings.TrimSpace(strings.Join(fields[1:], " "))
 	if rdata == "" {
-		return parsedRecord{}, false
+		return parsedRecord{}, parseSkipped
 	}
-	return parsedRecord{name: owner, qtype: qtype, rdata: rdata}, true
+	return parsedRecord{name: owner, qtype: qtype, rdata: rdata}, parseRecord
 }
 
 // resolveName turns an owner field into an absolute, lowercased name without a

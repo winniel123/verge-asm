@@ -13,9 +13,14 @@
   pre-gate stdout included). They ride window.__RAW__ as JSON (html/template JS-escapes it) and are
   built into the DOM span-by-span with textContent — NEVER innerHTML — exactly as the #780 client does.
 
+  Two variants share this view (§1.3). The PROBER variant renders exec-meta (exit/signal/
+  ctx-cancelled) beside verbatim stdout/stderr and the JobSpec sent. The ZONE variant renders
+  the restate result: the records RestateZone skipped (in the primary panel) beside a restate
+  card (restated count + parsed|decode-error). Zone carries no stderr, sent-scope or exec-meta.
+
   Define "runraw". Holes: .IsAdmin (chrome), .Raw{RunID, RunHref, JobID, Kind, Vantage, Captured,
-  ExitCode, Signal, CtxCancelled, OutcomeOK, Duration, CapturedAt, StdoutSize, StdoutCapped,
-  StdoutTrunc, StderrTrunc, SentTrunc, Bytes{stdout[], stderr[], sentScope}}.
+  Variant, ExitCode, Signal, CtxCancelled, OutcomeOK, Duration, CapturedAt, Restated, ZoneOutcome,
+  StdoutSize, StdoutCapped, StdoutTrunc, StderrTrunc, SentTrunc, Bytes{stdout[], stderr[], sentScope}}.
 */}}
 {{define "runraw"}}{{template "head" .}}
 {{template "chrome" .}}
@@ -69,6 +74,29 @@
 <span class="rr-warn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>Verbatim · unredacted · admin-only</span>
 </header>
 {{if .Captured}}
+{{if eq .Variant "zone"}}
+<div class="rr-split">
+<div class="rd-log">
+<div class="rd-loghead"><span class="lbl">skipped records · verbatim</span><span class="lbl" style="margin-left:auto">{{.StdoutSize}}{{if .StdoutCapped}} · capped{{end}} · post-hoc</span></div>
+<div class="rd-logbody tall" data-raw="stdout"></div>
+{{with .StdoutTrunc}}<div class="rr-trunc">─── {{.}} ───</div>{{end}}
+</div>
+<div class="rr-rail">
+<section class="rd-card">
+<div class="rd-cardhead"><span class="rd-micro">Zone restate</span><h3>Restate result</h3></div>
+<div class="rd-body">
+<div class="rd-kv">
+<div class="cell"><span class="rd-micro">Restated</span><span class="v">{{.Restated}}</span></div>
+<div class="cell"><span class="rd-micro">Outcome</span><span class="v">{{.ZoneOutcome}}</span></div>
+<div class="cell"><span class="rd-micro">Duration</span><span class="v">{{.Duration}}</span></div>
+<div class="cell"><span class="rd-micro">Captured at</span><span class="v">{{.CapturedAt}}</span></div>
+<div class="cell wide"><span class="rd-micro">Note</span><span class="v">zone sends nothing to a prober; the skipped records are its debug artifact, and the zone-file bytes are not duplicated here.</span></div>
+</div>
+</div>
+</section>
+</div>
+</div>
+{{else}}
 <div class="rr-split">
 <div class="rd-log">
 <div class="rd-loghead"><span class="lbl">stdout · verbatim</span><span class="lbl" style="margin-left:auto">{{.StdoutSize}}{{if .StdoutCapped}} · capped{{end}} · post-hoc</span></div>
@@ -96,6 +124,7 @@
 </div>
 </div>
 </div>
+{{end}}
 <script>window.__RAW__ = {{.Bytes}};</script>
 <script>
 (function () {

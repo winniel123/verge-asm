@@ -89,6 +89,73 @@ func TestRawOutputRendersCapture(t *testing.T) {
 	}
 }
 
+// seedZoneTranscript stashes one sealed ZONE transcript in the fake: only the stdout role
+// column carries bytes (the skipped records); stderr and sent-scope stay NULL, the streams
+// zone does not carry (§1.3). The restated count rides the outcome object.
+func seedZoneTranscript(t *testing.T, f *fakeStore, jobID int64, skips []byte, outcome string, capturedAt time.Time) {
+	t.Helper()
+	sealed, err := transcript.Seal(testTranscriptKey, skips)
+	if err != nil {
+		t.Fatalf("seal: %v", err)
+	}
+	if f.transcriptsByJob == nil {
+		f.transcriptsByJob = map[int64]db.Transcript{}
+	}
+	f.transcriptsByJob[jobID] = db.Transcript{
+		QueueJobID: jobID,
+		Kind:       "zone",
+		DurationNs: (5 * time.Millisecond).Nanoseconds(),
+		CapturedAt: pgtype.Timestamptz{Time: capturedAt, Valid: true},
+		Variant:    "zone",
+		Outcome:    []byte(outcome),
+		Stdout:     sealed,
+		Stderr:     nil, // NULL — zone carries no stderr
+		SentScope:  nil, // NULL — zone sends nothing
+		Truncation: []byte("{}"),
+	}
+}
+
+// An admin opens the raw view of a zone job and sees the restate result: the restated count,
+// the parsed outcome, and the records RestateZone skipped — not the prober exec-meta, which
+// zone does not carry (#869 AC4, spec §1.3).
+func TestRawOutputRendersZoneVariant(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+
+	captured := time.Date(2026, 8, 31, 9, 0, 0, 0, time.UTC)
+	f.jobsByDispatch = map[int64][]db.ListJobsForDispatchRow{
+		52: {{ID: 902, Kind: "zone", State: "done", Attempt: 1, MaxAttempts: 1}},
+	}
+	seedZoneTranscript(t, f, 902,
+		[]byte("weird.example.com IN FOO whatever\nempty.example.com IN TXT"),
+		`{"kind":"parsed","restated":5}`, captured)
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	page := getBody(t, ac, base+"/run/52/raw?job=902", http.StatusOK)
+
+	for _, want := range []string{
+		"Raw output · job #902",             // header
+		"Restate result",                    // the zone restate card
+		"skipped records",                   // the primary panel label
+		"weird.example.com IN FOO whatever", // a surfaced skip (in window.__RAW__)
+		"parsed",                            // the typed zone outcome
+		"zone sends nothing to a prober",    // the zone note
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("zone raw view missing %q; body: %s", want, page)
+		}
+	}
+	// The restated count renders in the card.
+	if !strings.Contains(page, ">5<") {
+		t.Errorf("zone raw view should render the restated count 5; body: %s", page)
+	}
+	// The prober-only exec-meta must not appear for a zone job.
+	if strings.Contains(page, "How it exited") || strings.Contains(page, "Exit code") {
+		t.Errorf("zone raw view must not render prober exec-meta; body: %s", page)
+	}
+}
+
 // A job that produced no capture renders a legible "No transcript captured" absence — not a
 // 404, and distinct from a captured-but-empty stream.
 func TestRawOutputNoCapture(t *testing.T) {
