@@ -50,6 +50,12 @@ type Batch struct {
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 }
 
+type CertificateMaterial struct {
+	Fingerprint string `json:"fingerprint"`
+	Der         []byte `json:"der"`
+	Scts        []byte `json:"scts"`
+}
+
 type Channel struct {
 	ID            int64              `json:"id"`
 	Url           string             `json:"url"`

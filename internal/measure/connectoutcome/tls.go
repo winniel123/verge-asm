@@ -148,6 +148,22 @@ type HandshakeResult struct {
 	// verification and subject/issuer DNs feed certificate-weak-key-or-signature and
 	// certificate-self-signed at read (P0.10b, #704).
 	ChainCerts []ChainCert
+	// LeafDER is the leaf certificate's DER bytes (chain[0].Raw), carried iff TLSPresented.
+	// It is the raw material the certificate_material side store holds — its sha-256 is the
+	// leaf fingerprint — and it carries any SCTs embedded in the cert. It NEVER feeds the
+	// facet value (ADR-0027, spec §5.3); it rides the observation as CertMaterial for a
+	// side-store write only. Reading it is a read-only widening of the presented chain, so
+	// it moves no params digest and needs no CertVersion bump (see the v3 note above).
+	LeafDER []byte
+	// SCTsTLSExt is the SCTs the peer delivered in the TLS handshake extension
+	// (ConnectionState.SignedCertificateTimestamps), each a serialized SCT, carried iff
+	// TLSPresented. Out-of-cert SCT material captured for verification (#878); never fed to
+	// the facet value.
+	SCTsTLSExt [][]byte
+	// OCSPStaple is the raw stapled OCSP response (ConnectionState.OCSPResponse), carried
+	// iff TLSPresented and non-empty. It may carry SCTs in an extension; captured verbatim
+	// for verification (#878), never fed to the facet value.
+	OCSPStaple []byte
 }
 
 // ChainCert is one presented link's parsed facts, read off the DER at handshake time
@@ -288,6 +304,12 @@ func (n NetHandshaker) Handshake(ctx context.Context, target netip.AddrPort, ser
 		SANDNS:     leaf.DNSNames,
 		SANIP:      sanIP,
 		ChainCerts: chainCerts,
+		// Capture the raw CT inputs for the certificate_material side store (spec §5.3):
+		// the leaf DER (embedded SCTs ride inside it), the TLS-extension SCTs, and the
+		// stapled OCSP response — all already in `state`, previously discarded.
+		LeafDER:    leaf.Raw,
+		SCTsTLSExt: state.SignedCertificateTimestamps,
+		OCSPStaple: state.OCSPResponse,
 	}
 }
 
