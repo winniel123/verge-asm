@@ -104,6 +104,37 @@ func TestAddressCapRejectsInvalid(t *testing.T) {
 	}
 }
 
+// TestEffectiveCadenceMatchesADR0047 pins the effective-cadence arithmetic (#891, decision
+// #847) against ADR-0047's own worst-case figures: at a /22 cap (1,024 addresses) the hot
+// pass is ~34 min and the full-range cold pass ~12 days — the upper ends of ADR-0047's
+// "12-36 minutes" and "3.9-11.6 days" ranges, the pass where every probe exhausts its retry
+// budget. It also guards projectedPassLabel's unit boundaries.
+func TestEffectiveCadenceMatchesADR0047(t *testing.T) {
+	// A /22 is 1,024 addresses. hot probes 131 ports, cold 65,535, both x3 attempts / 200 pkt/s.
+	if got := projectedPassLabel(effectiveCadenceSeconds(1024, addressScopePorts["hot"])); got != "≈ 34 min" {
+		t.Errorf("hot /22 effective cadence = %q, want ≈ 34 min", got)
+	}
+	if got := projectedPassLabel(effectiveCadenceSeconds(1024, addressScopePorts["cold"])); got != "≈ 12 days" {
+		t.Errorf("cold /22 effective cadence = %q, want ≈ 12 days", got)
+	}
+	// projectedPassLabel unit boundaries: seconds, hours, days, months, years.
+	for _, tc := range []struct {
+		seconds float64
+		want    string
+	}{
+		{30, "≈ under a minute"},
+		{90, "≈ 2 min"},
+		{7200, "≈ 2 h"},
+		{3 * 86400, "≈ 3 days"},
+		{60 * 86400, "≈ 2 months"},
+		{800 * 86400, "≈ 2.2 years"},
+	} {
+		if got := projectedPassLabel(tc.seconds); got != tc.want {
+			t.Errorf("projectedPassLabel(%v) = %q, want %q", tc.seconds, got, tc.want)
+		}
+	}
+}
+
 // TestAddressCapControlPricesTheCost covers the Variant C readout on the Scans tab: the
 // largest scope the cap admits, the per-cadence sweep load on each enabled address-scope
 // scan, and the projected evidential disk growth.
@@ -118,16 +149,27 @@ func TestAddressCapControlPricesTheCost(t *testing.T) {
 
 	page := body(t, get(t, ac, base+"/settings?tab=scans"))
 	// The default fakeStore enables the hot scan on a daily cadence, so the sweep-load
-	// readout prices a cap-sized scope against it.
+	// readout prices a cap-sized scope against it. At 262,144 addresses the hot pass
+	// (262144 x 131 ports x 3 attempts / 200 pkt/s ≈ 5.96 days) outpaces its daily
+	// cadence, so the effective-cadence readout (#891) states the honest lag.
 	for _, want := range []string{
 		"Address-scope cap",
 		"262,144 addresses",
 		"/14 IPv4",
 		"probes / cadence",
 		"TB / year",
+		"One full pass runs",
+		"6 days",
+		"longer than its daily cadence",
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("cap control missing %q; body: %s", want, page)
 		}
+	}
+	// The effective cadence is a Scans-surface figure only — it never leaks onto Coverage
+	// (#891 acceptance: Coverage is evidential, Scans operational).
+	coverage := body(t, get(t, ac, base+"/coverage"))
+	if strings.Contains(coverage, "One full pass runs") {
+		t.Errorf("effective cadence leaked onto Coverage; body: %s", coverage)
 	}
 }

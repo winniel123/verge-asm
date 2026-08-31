@@ -203,6 +203,13 @@ type Querier interface {
 	// v1 default — the caller does not run the sweep then); @floor_cadences is k; @as_of
 	// is the sweep instant, injected so a sweep is reproducible.
 	DeleteExpiredObservations(ctx context.Context, arg DeleteExpiredObservationsParams) (int64, error)
+	// The one and only path that deletes Transcript rows (raw-job-output spec §4,
+	// ADR-0126 amending ADR-0041). It touches the transcript table and nothing else:
+	// no derivation reads a Transcript (the §1 fence), so a wall clock retiring it by
+	// captured_at moves no value on any timeline — the same legality the Dispatch
+	// sweep rests on. The caller passes the floored cutoff (now minus the
+	// transcript_currency_days window); this deletes every captured row older than it.
+	DeleteExpiredTranscripts(ctx context.Context, capturedAt pgtype.Timestamptz) (int64, error)
 	// Disconnect an integration, returning it to available (not installed). Absence of
 	// a row is the available state, so a disconnect removes the row rather than storing
 	// a sentinel.
