@@ -4,10 +4,35 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 )
+
+// countingSeq sets *saw on the first name and passes every name through unchanged, so
+// the false-empty limb (#879) tells a source that answered empty apart from one whose
+// names the filter dropped.
+func TestCountingSeq(t *testing.T) {
+	// A non-empty source sets saw and yields every name.
+	saw := false
+	got := slices.Collect(countingSeq(slices.Values([]string{"a", "b"}), &saw))
+	if !saw {
+		t.Errorf("saw not set for a non-empty sequence")
+	}
+	if !slices.Equal(got, []string{"a", "b"}) {
+		t.Errorf("passed-through names = %v, want [a b]", got)
+	}
+
+	// An empty source leaves saw false — the false-empty case.
+	empty := false
+	if n := len(slices.Collect(countingSeq(slices.Values([]string{}), &empty))); n != 0 {
+		t.Errorf("empty sequence yielded %d names", n)
+	}
+	if empty {
+		t.Errorf("saw set for an empty sequence — a false-empty would be missed")
+	}
+}
 
 // The production fetcher sends a distinctive User-Agent (the operator asked for
 // one) and returns the status and body without erroring on a non-200 — a 404 or

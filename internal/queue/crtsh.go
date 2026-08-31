@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"iter"
 	"net/http"
 	"time"
 
@@ -212,6 +213,14 @@ func (w *Worker) completeCT(ctx context.Context, job db.ClaimJobRow, spec wire.J
 	// slot, so the per-source spacing bounds the whole paginated fetch.
 	adm := scan.NewCTAdmitter(cs.Domain)
 	cursor := ""
+	// The reliability bar (spec §3, #879) measures each bulk-by-name query. fetchElapsed
+	// accumulates the wall time on the wire across this query's pages, excluding the
+	// throttle wait, so latency reflects the source and not our own spacing. sawAny
+	// records whether the source returned any certificate name across all pages, so a
+	// successful-but-zero query is recorded as the false-empty limb. One sample per
+	// query attempt, so a retry is its own sample.
+	var fetchElapsed time.Duration
+	sawAny := false
 	for page := 0; page < maxCTPages; page++ {
 		// Reserve the next instance-wide slot and wait for it before going on the
 		// wire (ADR-0005). The reservation is durable in Postgres; the wait is local.
@@ -225,11 +234,14 @@ func (w *Worker) completeCT(ctx context.Context, job db.ClaimJobRow, spec wire.J
 			}
 		}
 
+		fetchStart := w.now()
 		status, body, ferr := w.ctFetcher.Fetch(ctx, src.QueryURL(cs.Domain, cursor))
+		fetchElapsed += w.now().Sub(fetchStart)
 		if ferr != nil || status != http.StatusOK {
 			// Any non-200 is transient failure, never an empty result: a CT index
 			// returns spurious 404s and 5xxs for domains that demonstrably have
 			// certificates (ADR-0027 §7).
+			w.recordCTSample(ctx, src.Slug(), false, fetchElapsed, false)
 			cause := ferr
 			if cause == nil {
 				// A non-200 status carries no source detail — only the code — so it is
@@ -244,9 +256,13 @@ func (w *Worker) completeCT(ctx context.Context, job db.ClaimJobRow, spec wire.J
 		if perr != nil {
 			// A 200 whose body is not well-formed is not evidence of anything (§7) —
 			// treat it as transient, not as "no certificates".
+			w.recordCTSample(ctx, src.Slug(), false, fetchElapsed, false)
 			return w.retryOrDeadLetterCT(ctx, job, perr)
 		}
-		adm.Add(names)
+		// Count the raw candidate names this page carried as the admitter pulls them,
+		// before the scope/wildcard/cap filter, so sawAny reflects whether the SOURCE
+		// returned anything — a source empty, not a scope-filtered empty (spec §3).
+		adm.Add(countingSeq(names, &sawAny))
 		// Stop when the source signals no more pages (crt.sh always; Cert Spotter on
 		// an empty page), when the cursor fails to advance, or once the admitter has
 		// filled the cap and further pages could admit nothing more (#741).
@@ -255,6 +271,9 @@ func (w *Worker) completeCT(ctx context.Context, job db.ClaimJobRow, spec wire.J
 		}
 		cursor = next
 	}
+	// A well-formed 200 (or paginated run) is a successful sample; empty is true when
+	// the source returned no certificate name at all — the false-empty limb (spec §3).
+	w.recordCTSample(ctx, src.Slug(), true, fetchElapsed, !sawAny)
 
 	if adm.Full() {
 		// The admitter stopped at the ceiling: this domain carried at least
@@ -264,6 +283,50 @@ func (w *Worker) completeCT(ctx context.Context, job db.ClaimJobRow, spec wire.J
 		w.log.Printf("worker: ct job %d for %q reached the admitted-name cap of %d; names beyond the cap were dropped", job.ID, cs.Domain, scan.MaxAdmittedNames)
 	}
 	return w.admitCT(ctx, job, cs, src.Slug(), adm.Names())
+}
+
+// countingSeq wraps a candidate-name sequence to set *saw true the moment it yields
+// its first name, without consuming the sequence twice: the admitter still pulls
+// every name through it (spec §3, #879). It counts the SOURCE's raw output, before
+// the scope/wildcard/cap filter, so a query that the source answered empty is told
+// apart from one whose names the scope filter dropped — only the former is a
+// false-empty.
+func countingSeq(names iter.Seq[string], saw *bool) iter.Seq[string] {
+	return func(yield func(string) bool) {
+		for n := range names {
+			*saw = true
+			if !yield(n) {
+				return
+			}
+		}
+	}
+}
+
+// recordCTSample records one bulk-by-name query as a reliability sample and trims the
+// source's window to CTReliabilityWindowSize (spec §3, #879). It is best-effort: a
+// sample write that fails is logged and never fails the job, because the measurement
+// must not change the outcome of the query it measures. It writes on w.q (the pool),
+// not the job transaction, so the sample records the attempt independent of whether
+// the job goes on to commit, retry, or dead-letter.
+func (w *Worker) recordCTSample(ctx context.Context, source string, ok bool, latency time.Duration, empty bool) {
+	if w.q == nil {
+		return
+	}
+	if err := w.q.InsertCTReliabilitySample(ctx, db.InsertCTReliabilitySampleParams{
+		Source:    source,
+		Ok:        ok,
+		LatencyMs: latency.Milliseconds(),
+		Empty:     empty,
+	}); err != nil {
+		w.log.Printf("worker: ct reliability sample for %q: %v", source, err)
+		return
+	}
+	if err := w.q.TrimCTReliabilitySamples(ctx, db.TrimCTReliabilitySamplesParams{
+		Source:    source,
+		KeepCount: scan.CTReliabilityWindowSize,
+	}); err != nil {
+		w.log.Printf("worker: ct reliability trim for %q: %v", source, err)
+	}
 }
 
 // retryOrDeadLetterCT enqueues a fresh attempt while the retry budget remains and
