@@ -22,6 +22,22 @@ verge-asm follows Logan's portable GitHub project standard. It governs branching
 
 All visual work uses the Verge ASM design system at `design-system/`. This covers production UI, prototypes, mocks, and slides. Invoke the `verge-asm-design` skill before you write markup. `design-system/` is the shared home for UI assets. It is the source of truth. The web app embeds and serves `templates/` and `tokens/` through `design-system/designfs.go`. The docs-site reads `tokens/` and `components/`. You may edit all of it in the repo. The old design-system handoff workflow authored markup in a separate package and byte-compared it into this repo. That workflow was retired 2026-08-28. See superseded ADR-0109 and ADR-0116. See `docs/agents/design-system.md`.
 
+## Start of work
+
+Do this before your first file change in a session. This step is mandatory. It applies to a one-line change.
+
+1. Call the `EnterWorktree` tool. Name the worktree `<type>/<kebab-summary>`, or `<type>/<issue#>-<summary>` when an issue exists. Use a Conventional Commit type.
+2. Rename the branch. `EnterWorktree` creates the branch as `worktree-<name>` and replaces `/` with `+`. That name breaks the project standard. Run `git branch -m <type>/<kebab-summary>`.
+3. Confirm the branch. Run `git status -sb`. The branch must not be `main`.
+
+The worktree is cut from `origin/main`. This satisfies the trunk-based rule in `CONTRIBUTING.md`.
+
+A `PreToolUse` hook blocks `Edit`, `Write`, and `NotebookEdit` when the target file sits on `main`. The hook is `.claude/hooks/require-task-branch.ps1`. It fails open. Do not treat a permitted edit as proof of a correct branch. Check the branch yourself.
+
+Skip this step only for read-only work. Reading, searching, and answering a question need no branch.
+
+Do not leave a stale worktree behind. Call `ExitWorktree` when the work is done. Use `remove` after the PR merges. Use `keep` when the work continues in a later session.
+
 ## Workflow
 
 A typical task moves through these steps. Follow the GitHub project standard throughout. A wayfinder map is planning only. An implementation map is for implementation.
