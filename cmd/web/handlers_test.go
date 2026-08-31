@@ -1042,6 +1042,7 @@ func (f *fakeStore) SetSeedAddressCap(_ context.Context, arg db.SetSeedAddressCa
 func (f *fakeStore) UpdateRetentionSettings(_ context.Context, arg db.UpdateRetentionSettingsParams) error {
 	f.retention.ObservationCurrencyDays = arg.ObservationCurrencyDays
 	f.retention.DispatchCadenceMultiple = arg.DispatchCadenceMultiple
+	f.retention.TranscriptCurrencyDays = arg.TranscriptCurrencyDays
 	f.retention.UpdatedBy = arg.UpdatedBy
 	f.retention.UpdatedAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
 	return nil

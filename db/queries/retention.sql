@@ -8,7 +8,7 @@ WHERE id = true;
 -- name: UpdateRetentionSettings :exec
 UPDATE retention_settings
 SET observation_currency_days = $1, dispatch_cadence_multiple = $2,
-    updated_by = $3, updated_at = now()
+    transcript_currency_days = $3, updated_by = $4, updated_at = now()
 WHERE id = true;
 
 -- name: SlowestEnabledScanCadenceSeconds :one
