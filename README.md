@@ -113,6 +113,10 @@ Go, sqlc and the toolchain live inside the images.
    ```
 5. Open <http://localhost:8080/setup>. Paste the token, and create your admin account.
 
+> By default `web` binds `127.0.0.1:8080` — loopback only. Front it with a proxy
+> for remote access, or set `VERGE_BIND` (for example `0.0.0.0`) for direct
+> host/LAN access.
+
 From there, a four-step checklist covers declaring your first `Seed`. Full
 walkthrough: **[docs/guides/using.md](docs/guides/using.md)**.
 
