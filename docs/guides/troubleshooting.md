@@ -158,6 +158,34 @@ migration that could not apply. It is not in the UI.
 
 ---
 
+## `compose up` fails with "bind source path does not exist"
+
+Only in external-database mode. The full error names a path:
+
+```
+Error response from daemon: invalid mount config for type "bind":
+bind source path does not exist: /etc/ssl/certs/my-db-ca.crt
+```
+
+That path is your **CA root**, and `POSTGRES_SSLROOTCERT_SRC` points at it. The error means
+the variable is set to somewhere the file is not. Put the CA root there, or correct the
+variable:
+
+```sh
+ls -l "$POSTGRES_SSLROOTCERT_SRC"
+```
+
+This failure is deliberate. The override sets `create_host_path: false` so Docker refuses
+the mount instead of quietly creating an **empty directory** at that path — which would boot
+the stack and then fail `verify-full` with a TLS error pointing nowhere near the real cause.
+
+A *different* error, `POSTGRES_SSLROOTCERT_SRC: unset`, comes from compose before any
+container exists: the variable is not set at all. Both guards exist because
+`docker compose config` catches neither. See
+[running.md → An external Postgres](running.md#an-external-postgres-with-a-verified-tls-connection).
+
+---
+
 ## "Why does it say Gap / Coverage incomplete?"
 
 A `Gap` is the honest *we-could-not-construct-this*, not an error. Common causes:
@@ -237,4 +265,5 @@ Two surfaces confirm a service is live without opening the UI, both reported by
 | Exposure blank or withheld | [prober.md](prober.md) |
 | Signals fire, nothing arrives | [notification-channels.md](notification-channels.md) |
 | `web` restart-looping on boot | [Migrations on boot](#migrations-on-boot) |
+| `compose up` rejects a bind mount | [bind source path does not exist](#compose-up-fails-with-bind-source-path-does-not-exist) |
 | Reading Coverage / Exposure in depth | [reading-the-estate.md](reading-the-estate.md) |
