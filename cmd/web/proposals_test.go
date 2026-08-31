@@ -210,12 +210,17 @@ func TestConfirmOrgSourcedCIDRIsCanonicalAndScanEligible(t *testing.T) {
 	}
 }
 
-func TestConfirmSkipsTheAddressScopeCap(t *testing.T) {
+// TestConfirmRefusesOverCapProposalUntilCapAdmitsIt covers #892 (ADR-0047 §3.4,
+// ADR-0127): the operator address-scope cap gates a Proposal confirm exactly as it
+// gates a typed declaration. A Proposal wider than the operator's cap is refused —
+// no Seed is created — and the refusal names the raise route (Settings · Scans) and
+// leaves decline the expected response (#884, ADR-0052). Raising the cap so it admits
+// the range then confirms it with the same singular gesture: no second cap, no
+// Proposal-only branch — a confirmed Proposal is a Seed.
+func TestConfirmRefusesOverCapProposalUntilCapAdmitsIt(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
-	// A /8 is 16,777,216 addresses — far over the operator's own 1024 cap. A
-	// Proposal is a registry-authored scope confirmed whole (ADR-0022), so the
-	// cap that governs typed scopes does not bind it.
+	// A /8 is 16,777,216 addresses — far over the operator's default 1024 cap.
 	fp := &fakeProposer{candidates: []proposer.Candidate{
 		{SourceSlug: proposer.SlugAFRINIC, RecordKind: proposer.RecordRIRDelegation,
 			Scope: netip.MustParsePrefix("10.0.0.0/8"), OrgName: "Big Holder"},
@@ -224,13 +229,35 @@ func TestConfirmSkipsTheAddressScopeCap(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 	lookup(t, ac, base, "Big").Body.Close()
 
+	// Over the cap: the confirm is refused and files no Seed. The response names the
+	// raise route and keeps the decline affordance — decline stays the expected answer.
 	resp := postForm(t, ac, base+"/proposals/confirm", url.Values{"id": {itoa(f.proposals[0].ID)}})
+	page := body(t, resp)
+	if len(f.seeds) != 0 {
+		t.Fatalf("over-cap proposal was confirmed into a seed despite the cap: %+v", f.seeds)
+	}
+	if f.proposals[0].Status != "pending" {
+		t.Errorf("refused proposal status=%q, want pending (a refused confirm spends nothing)", f.proposals[0].Status)
+	}
+	for _, want := range []string{"over your cap", "Settings · Scans", "decline"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("over-cap refusal missing %q; body: %s", want, page)
+		}
+	}
+	if !strings.Contains(page, "Decline selected") {
+		t.Errorf("decline affordance gone after an over-cap refusal; body: %s", page)
+	}
+
+	// Raise the cap past the /8, exactly as the Settings control persists it (#888),
+	// then re-confirm: the same singular confirm now admits the range into one Seed.
+	f.instanceConfig.SeedAddressCap = 16777216
+	resp = postForm(t, ac, base+"/proposals/confirm", url.Values{"id": {itoa(f.proposals[0].ID)}})
 	if resp.StatusCode != http.StatusSeeOther {
-		t.Fatalf("confirm over-cap proposal status=%d, want 303 (body: %s)", resp.StatusCode, body(t, resp))
+		t.Fatalf("confirm within a raised cap status=%d, want 303 (body: %s)", resp.StatusCode, body(t, resp))
 	}
 	resp.Body.Close()
 	if len(f.seeds) != 1 || f.seeds[0].AddressCidr.String() != "10.0.0.0/8" {
-		t.Fatalf("over-cap proposal was not confirmed into a seed: %+v", f.seeds)
+		t.Fatalf("raised-cap proposal was not confirmed into its seed: %+v", f.seeds)
 	}
 }
 
