@@ -103,6 +103,31 @@ func EmitCertificate(batch, vantage string, target netip.AddrPort, serverName st
 			SANIP:      presentedStrings(res, res.SANIP),
 			ChainCerts: presentedChainCerts(res),
 		}),
+		// CertMaterial rides BESIDE Data, never inside it: the facet value stays the
+		// fingerprint chain (ADR-0027), and the worker lands the raw CT inputs in the
+		// certificate_material side store. Nil on every negative and on a scripted golden
+		// row (no leaf DER), so the observation JSON stays byte-identical there (§5.3).
+		CertMaterial: presentedCertMaterial(res),
+	}
+}
+
+// presentedCertMaterial captures the leaf's raw CT inputs — the leaf DER (embedded SCTs
+// ride inside it), the TLS-extension SCTs and the stapled OCSP response — for the
+// certificate_material side store, carried only on a presented handshake whose leaf DER
+// we read. The hermetic golden corpus scripts fingerprints with no DER, so it captures
+// none and its goldens stay byte-identical. The fingerprint equals the facet value's
+// chain[0], so a chain fingerprint joins the side store (ADR-0027, spec §5.3).
+func presentedCertMaterial(res HandshakeResult) *wire.CertMaterial {
+	if res.Outcome != TLSPresented || len(res.LeafDER) == 0 {
+		return nil
+	}
+	return &wire.CertMaterial{
+		Fingerprint: Fingerprint(res.LeafDER),
+		DER:         res.LeafDER,
+		SCTs: wire.EncodeSCTCapture(wire.SCTCapture{
+			TLSExt: res.SCTsTLSExt,
+			OCSP:   res.OCSPStaple,
+		}),
 	}
 }
 
