@@ -290,17 +290,23 @@ func (q *Queries) TightestEnabledScanCadenceSeconds(ctx context.Context) (int64,
 const updateRetentionSettings = `-- name: UpdateRetentionSettings :exec
 UPDATE retention_settings
 SET observation_currency_days = $1, dispatch_cadence_multiple = $2,
-    updated_by = $3, updated_at = now()
+    transcript_currency_days = $3, updated_by = $4, updated_at = now()
 WHERE id = true
 `
 
 type UpdateRetentionSettingsParams struct {
 	ObservationCurrencyDays int64       `json:"observation_currency_days"`
 	DispatchCadenceMultiple int64       `json:"dispatch_cadence_multiple"`
+	TranscriptCurrencyDays  int64       `json:"transcript_currency_days"`
 	UpdatedBy               pgtype.Int8 `json:"updated_by"`
 }
 
 func (q *Queries) UpdateRetentionSettings(ctx context.Context, arg UpdateRetentionSettingsParams) error {
-	_, err := q.db.Exec(ctx, updateRetentionSettings, arg.ObservationCurrencyDays, arg.DispatchCadenceMultiple, arg.UpdatedBy)
+	_, err := q.db.Exec(ctx, updateRetentionSettings,
+		arg.ObservationCurrencyDays,
+		arg.DispatchCadenceMultiple,
+		arg.TranscriptCurrencyDays,
+		arg.UpdatedBy,
+	)
 	return err
 }

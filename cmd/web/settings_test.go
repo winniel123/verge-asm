@@ -418,15 +418,17 @@ func TestRetentionPersistsAndValidates(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// Valid values persist.
+	// Valid values persist — all three dials.
 	resp := postForm(t, ac, base+"/settings/retention", url.Values{
 		"observation_currency_days": {"90"}, "dispatch_cadence_multiple": {"4"},
+		"transcript_currency_days": {"30"},
 	})
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("retention save: status=%d (%s)", resp.StatusCode, body(t, resp))
 	}
 	resp.Body.Close()
-	if f.retention.ObservationCurrencyDays != 90 || f.retention.DispatchCadenceMultiple != 4 {
+	if f.retention.ObservationCurrencyDays != 90 || f.retention.DispatchCadenceMultiple != 4 ||
+		f.retention.TranscriptCurrencyDays != 30 {
 		t.Fatalf("dials not persisted: %+v", f.retention)
 	}
 	if !f.retention.UpdatedBy.Valid {
@@ -436,6 +438,7 @@ func TestRetentionPersistsAndValidates(t *testing.T) {
 	// A negative value is refused and the previous value stands.
 	resp = postForm(t, ac, base+"/settings/retention", url.Values{
 		"observation_currency_days": {"-1"}, "dispatch_cadence_multiple": {"4"},
+		"transcript_currency_days": {"30"},
 	})
 	got := body(t, resp)
 	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(got, "zero or more") {
@@ -451,6 +454,7 @@ func TestRetentionPersistsAndValidates(t *testing.T) {
 	// an operator choice (#208, ADR-0094).
 	resp = postForm(t, ac, base+"/settings/retention", url.Values{
 		"observation_currency_days": {"1"}, "dispatch_cadence_multiple": {"4"},
+		"transcript_currency_days": {"30"},
 	})
 	got = body(t, resp)
 	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(got, "at least 2 days") {
@@ -465,6 +469,7 @@ func TestRetentionPersistsAndValidates(t *testing.T) {
 	// one cadence is below the floor.
 	resp = postForm(t, ac, base+"/settings/retention", url.Values{
 		"observation_currency_days": {"90"}, "dispatch_cadence_multiple": {"1"},
+		"transcript_currency_days": {"30"},
 	})
 	got = body(t, resp)
 	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(got, "at least 2 cadences") {
@@ -474,15 +479,35 @@ func TestRetentionPersistsAndValidates(t *testing.T) {
 		t.Fatalf("rejected save mutated the dispatch dial: %+v", f.retention)
 	}
 
-	// Zero (unbounded, the v1 default) is always allowed.
+	// A non-numeric transcript dial is refused and the previous value stands. The
+	// dial has no derived floor — a positive value is floored UP to 1 day by the
+	// retirer (#868), so only a non-numeric or negative value is rejected here.
+	resp = postForm(t, ac, base+"/settings/retention", url.Values{
+		"observation_currency_days": {"90"}, "dispatch_cadence_multiple": {"4"},
+		"transcript_currency_days": {"soon"},
+	})
+	got = body(t, resp)
+	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(got, "zero or more") {
+		t.Fatalf("non-numeric transcript dial not refused: status=%d body=%s", resp.StatusCode, got)
+	}
+	if !strings.Contains(got, `value="soon"`) {
+		t.Errorf("rejected transcript value not echoed back: %s", got)
+	}
+	if f.retention.TranscriptCurrencyDays != 30 {
+		t.Fatalf("rejected save mutated the transcript dial: %+v", f.retention)
+	}
+
+	// Zero (unbounded) is always allowed on every dial — here the transcript dial's
+	// explicit operator opt-out (raw-job-output spec §4).
 	resp = postForm(t, ac, base+"/settings/retention", url.Values{
 		"observation_currency_days": {"90"}, "dispatch_cadence_multiple": {"0"},
+		"transcript_currency_days": {"0"},
 	})
 	if resp.StatusCode != http.StatusSeeOther {
-		t.Fatalf("unbounded (0) dispatch dial refused: status=%d (%s)", resp.StatusCode, body(t, resp))
+		t.Fatalf("unbounded (0) dial refused: status=%d (%s)", resp.StatusCode, body(t, resp))
 	}
 	resp.Body.Close()
-	if f.retention.DispatchCadenceMultiple != 0 {
+	if f.retention.DispatchCadenceMultiple != 0 || f.retention.TranscriptCurrencyDays != 0 {
 		t.Fatalf("unbounded dial not persisted: %+v", f.retention)
 	}
 }

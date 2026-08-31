@@ -96,10 +96,11 @@ type sessionRow struct {
 	Current   bool
 }
 
-// retentionView renders the two dials and who last moved them.
+// retentionView renders the three dials and who last moved them.
 type retentionView struct {
 	ObservationCurrencyDays int64
 	DispatchCadenceMultiple int64
+	TranscriptCurrencyDays  int64
 	UpdatedBy               string
 	UpdatedAt               string
 }
@@ -203,9 +204,10 @@ type settingsForms struct {
 	ssoIssuer   string
 	ssoClientID string
 
-	retError    string
-	retObs      string
-	retDispatch string
+	retError      string
+	retObs        string
+	retDispatch   string
+	retTranscript string
 
 	// address-scope cap (#888, ADR-0127). capError is the inline error on the cap
 	// control (Settings · Scans); capValue echoes a rejected value back so the operator
@@ -628,20 +630,25 @@ func (s *server) deleteChannel(w http.ResponseWriter, r *http.Request, acct db.A
 
 // --- retention -------------------------------------------------------------
 
-// updateRetention persists the two dial values. Both are floored, and both floors
-// are DERIVED not asserted (ADR-0094) — never presented as an operator choice. The
-// observation-currency dial (#208, §4.6) floors at the tightest observation bound
-// in force: k cadences of the tightest enabled Scan, below which the control
-// changes no row at all. The Dispatch dial (#209, §4.6) floors at k cadences of the
-// slowest enabled Scan. For both, 0 is the unbounded v1 default and always allowed,
-// and any positive value below the floor is rejected. Deletion of expired rows is a
-// structurally separate path (internal/retention), never reached from here.
+// updateRetention persists the three dial values. The observation and dispatch
+// floors are DERIVED not asserted (ADR-0094) — never presented as an operator
+// choice. The observation-currency dial (#208, §4.6) floors at the tightest
+// observation bound in force: k cadences of the tightest enabled Scan, below which
+// the control changes no row at all. The Dispatch dial (#209, §4.6) floors at k
+// cadences of the slowest enabled Scan. The transcript-currency dial (#868,
+// raw-job-output spec §4, ADR-0126) is a whole number of days: 0 is the explicit
+// unbounded opt-out, and a positive value is floored UP to 1 day by the retirer
+// (retention.TranscriptFloorDays), so no positive whole-day value is rejected here.
+// For all three, 0 is always allowed. Deletion of expired rows is a structurally
+// separate path (internal/retention), never reached from here.
 func (s *server) updateRetention(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	obsRaw := strings.TrimSpace(r.FormValue("observation_currency_days"))
 	dispRaw := strings.TrimSpace(r.FormValue("dispatch_cadence_multiple"))
+	transRaw := strings.TrimSpace(r.FormValue("transcript_currency_days"))
 	fail := func(msg string) {
 		s.renderSettings(w, r, acct, settingsForms{
-			section: "retention", retError: msg, retObs: obsRaw, retDispatch: dispRaw,
+			section: "retention", retError: msg,
+			retObs: obsRaw, retDispatch: dispRaw, retTranscript: transRaw,
 		})
 	}
 
@@ -653,6 +660,11 @@ func (s *server) updateRetention(w http.ResponseWriter, r *http.Request, acct db
 	disp, err := strconv.ParseInt(dispRaw, 10, 64)
 	if err != nil || disp < 0 {
 		fail("Dispatch floor must be a whole number of cadences, zero or more.")
+		return
+	}
+	trans, err := strconv.ParseInt(transRaw, 10, 64)
+	if err != nil || trans < 0 {
+		fail("Transcript retention must be a whole number of days, zero or more.")
 		return
 	}
 	// The observation floor is the tightest bound in force — k cadences of the
@@ -674,7 +686,8 @@ func (s *server) updateRetention(w http.ResponseWriter, r *http.Request, acct db
 	}
 	if err := s.store.UpdateRetentionSettings(r.Context(), db.UpdateRetentionSettingsParams{
 		ObservationCurrencyDays: obs, DispatchCadenceMultiple: disp,
-		UpdatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
+		TranscriptCurrencyDays: trans,
+		UpdatedBy:              pgtype.Int8{Int64: acct.ID, Valid: true},
 	}); err != nil {
 		s.serverError(w, "update retention", err)
 		return
@@ -899,6 +912,7 @@ func (s *server) fillDeliverySection(r *http.Request, f settingsForms, data map[
 	data["RetError"] = f.retError
 	data["RetObs"] = f.retObs
 	data["RetDispatch"] = f.retDispatch
+	data["RetTranscript"] = f.retTranscript
 	return nil
 }
 
@@ -1586,6 +1600,7 @@ func toRetentionView(ret db.GetRetentionSettingsRow, accounts []db.ListAccountsR
 	v := retentionView{
 		ObservationCurrencyDays: ret.ObservationCurrencyDays,
 		DispatchCadenceMultiple: ret.DispatchCadenceMultiple,
+		TranscriptCurrencyDays:  ret.TranscriptCurrencyDays,
 	}
 	if ret.UpdatedBy.Valid {
 		for _, a := range accounts {

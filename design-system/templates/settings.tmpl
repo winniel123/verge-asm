@@ -1455,7 +1455,7 @@
 {{end}}
 {{end}}
 
-{{/* delivery — holes: .Deliveries[{ChannelHost,Class,Failed,State,When}] .Retention{ObservationCurrencyDays,DispatchCadenceMultiple,UpdatedAt,UpdatedBy} .RetError .RetObs .RetDispatch .IsAdmin (#26h) */}}
+{{/* delivery — holes: .Deliveries[{ChannelHost,Class,Failed,State,When}] .Retention{ObservationCurrencyDays,DispatchCadenceMultiple,TranscriptCurrencyDays,UpdatedAt,UpdatedBy} .RetError .RetObs .RetDispatch .RetTranscript .IsAdmin (#26h) */}}
 {{define "settings-delivery"}}
 <header style="display:flex;flex-direction:column;gap:6px">
 <span class="st-micro">Delivery · operational record</span>
@@ -1484,18 +1484,20 @@
 <div class="st-cardhead"><div class="hd"><span class="st-micro">Retention</span><h3>Retention dials</h3></div></div>
 <div class="st-body">
 <div style="display:flex;flex-direction:column;gap:14px">
-<span class="st-note">Retention is what may still be read, never age. Dispatch retention is a multiple of the slowest enabled scan's cadence, floored at 2 cadences; 0 leaves it unbounded, the default. The observation-currency floor lands with later work; for now zero means no operator floor.</span>
+<span class="st-note">Retention is what may still be read, never age. Dispatch retention is a multiple of the slowest enabled scan's cadence, floored at 2 cadences; 0 leaves it unbounded, the default. The observation-currency floor lands with later work; for now zero means no operator floor. Transcript retention is a whole number of days, floored at 1 day when positive; 0 leaves raw job output unbounded.</span>
 {{if .RetError}}<div class="st-error">{{.RetError}}</div>{{end}}
 {{if .IsAdmin}}
 <form method="post" action="/settings/retention" style="margin:0;display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap">
 <span class="st-input" style="width:220px"><span class="lb">Observation-currency floor</span><span class="iw"><input name="observation_currency_days" inputmode="numeric" value="{{if .RetError}}{{.RetObs}}{{else}}{{.Retention.ObservationCurrencyDays}}{{end}}" required><span style="font:400 11.5px var(--font-mono);color:var(--text-muted);flex:none">days</span></span></span>
 <span class="st-input" style="width:260px"><span class="lb">Dispatch retention</span><span class="iw"><input name="dispatch_cadence_multiple" inputmode="numeric" value="{{if .RetError}}{{.RetDispatch}}{{else}}{{.Retention.DispatchCadenceMultiple}}{{end}}" required><span style="font:400 11.5px var(--font-mono);color:var(--text-muted);flex:none">× slowest cadence</span></span></span>
+<span class="st-input" style="width:220px"><span class="lb">Transcript retention</span><span class="iw"><input name="transcript_currency_days" inputmode="numeric" value="{{if .RetError}}{{.RetTranscript}}{{else}}{{.Retention.TranscriptCurrencyDays}}{{end}}" required><span style="font:400 11.5px var(--font-mono);color:var(--text-muted);flex:none">days</span></span></span>
 <button type="submit" class="st-btn sec">Save dials</button>
 </form>
 {{else}}
 <div class="st-kv">
 <div class="cell"><span class="st-micro">Observation floor</span><span class="v">{{.Retention.ObservationCurrencyDays}} days</span></div>
 <div class="cell"><span class="st-micro">Dispatch retention</span><span class="v">{{.Retention.DispatchCadenceMultiple}} × slowest scan cadence</span></div>
+<div class="cell"><span class="st-micro">Transcript retention</span><span class="v">{{.Retention.TranscriptCurrencyDays}} days</span></div>
 </div>
 {{end}}
 {{if .Retention.UpdatedAt}}<span class="st-note">Last changed {{.Retention.UpdatedAt}}{{if .Retention.UpdatedBy}} by <span style="font-family:var(--font-mono)">{{.Retention.UpdatedBy}}</span>{{end}}.</span>{{end}}
