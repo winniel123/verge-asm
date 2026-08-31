@@ -9,6 +9,42 @@ import (
 	"testing"
 )
 
+func TestSCTCaptureRoundTrip(t *testing.T) {
+	want := SCTCapture{
+		TLSExt: [][]byte{[]byte("sct-a"), []byte("sct-b")},
+		OCSP:   []byte("ocsp"),
+	}
+	b := EncodeSCTCapture(want)
+	if len(b) == 0 {
+		t.Fatal("EncodeSCTCapture returned empty for a non-empty capture")
+	}
+	got, err := DecodeSCTCapture(b)
+	if err != nil {
+		t.Fatalf("DecodeSCTCapture: %v", err)
+	}
+	if len(got.TLSExt) != 2 || !bytes.Equal(got.TLSExt[0], want.TLSExt[0]) || !bytes.Equal(got.TLSExt[1], want.TLSExt[1]) {
+		t.Errorf("TLSExt round trip: got %v, want %v", got.TLSExt, want.TLSExt)
+	}
+	if !bytes.Equal(got.OCSP, want.OCSP) {
+		t.Errorf("OCSP round trip: got %q, want %q", got.OCSP, want.OCSP)
+	}
+}
+
+// An empty capture serializes to nil, so certificate_material.scts stores a NULL column
+// rather than an empty-object blob; a nil or empty blob decodes back to no material.
+func TestSCTCaptureEmpty(t *testing.T) {
+	if b := EncodeSCTCapture(SCTCapture{}); b != nil {
+		t.Errorf("EncodeSCTCapture(empty) = %q, want nil", b)
+	}
+	got, err := DecodeSCTCapture(nil)
+	if err != nil {
+		t.Fatalf("DecodeSCTCapture(nil): %v", err)
+	}
+	if len(got.TLSExt) != 0 || len(got.OCSP) != 0 {
+		t.Errorf("DecodeSCTCapture(nil) = %+v, want zero", got)
+	}
+}
+
 func TestJobSpecRoundTrip(t *testing.T) {
 	want := JobSpec{Batch: "b1", Kind: "tcp-connect", Scope: []byte(`{"port":443}`)}
 

@@ -404,6 +404,24 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, obs []wire.Ob
 				return err
 			}
 		}
+		// Land any captured certificate material in its fingerprint-keyed side store, in
+		// the same transaction (ADR-0027, spec §5.3). It rides certificate observation
+		// lines BESIDE the facet value, never inside it, so the observation still records
+		// only the fingerprint and the fence stays closed. The insert is deduped and
+		// immutable — ON CONFLICT DO NOTHING keeps the first capture — so repeated
+		// presentations of one certificate write its material once.
+		for _, o := range obs {
+			if o.CertMaterial == nil {
+				continue
+			}
+			if err := qtx.InsertCertificateMaterial(ctx, db.InsertCertificateMaterialParams{
+				Fingerprint: o.CertMaterial.Fingerprint,
+				Der:         o.CertMaterial.DER,
+				Scts:        o.CertMaterial.SCTs,
+			}); err != nil {
+				return err
+			}
+		}
 		// The declared-input context (Seeds, Exclusions) the fold composes membership
 		// against — read once for both the aperture-widened opening marker and the
 		// withdrawal closure below (internal/estate).

@@ -442,6 +442,12 @@ type Querier interface {
 	// not membership (ADR-0096 §5).
 	InsertAdmittedName(ctx context.Context, arg InsertAdmittedNameParams) error
 	InsertBatch(ctx context.Context, arg InsertBatchParams) (int64, error)
+	// Capture one leaf certificate's raw CT inputs into the immutable side store (spec
+	// §5.3): the leaf DER and the out-of-cert SCT material, keyed by the leaf fingerprint.
+	// Deduped and immutable — many Endpoints present the same certificate, so ON CONFLICT
+	// DO NOTHING keeps the first capture and never rewrites a row. This writes no facet
+	// value; the `certificate` observation still records only the fingerprint (ADR-0027).
+	InsertCertificateMaterial(ctx context.Context, arg InsertCertificateMaterialParams) error
 	// Reads and writes behind Channel delivery (#207). A Delivery is the Operational
 	// record of one outbound POST of one Message to one Channel: it never becomes a
 	// Message and never touches the comparison path. Routing is by class alone — the

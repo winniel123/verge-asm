@@ -88,6 +88,72 @@ func TestEmitCertificateValueSpace(t *testing.T) {
 	}
 }
 
+// A presented handshake whose leaf DER we captured rides the raw CT inputs — the leaf
+// DER, the TLS-extension SCTs and the stapled OCSP response — as CertMaterial BESIDE the
+// facet value, keyed by the leaf fingerprint. The facet value stays byte-identical to the
+// same presentation without capture, so no CT input feeds it and ADR-0027's fence stays
+// closed (spec §5.3). Every negative, and a presentation with no captured DER (the
+// scripted golden shape), rides no material.
+func TestEmitCertificateMaterial(t *testing.T) {
+	target := ap("198.51.100.1:443")
+	leafDER := []byte("\x30\x82fake-leaf-der")
+	sct1, sct2 := []byte("sct-one"), []byte("sct-two")
+	ocsp := []byte("ocsp-staple")
+
+	presented := HandshakeResult{
+		Outcome:    TLSPresented,
+		Chain:      []string{Fingerprint(leafDER), "sha256:ca"},
+		LeafDER:    leafDER,
+		SCTsTLSExt: [][]byte{sct1, sct2},
+		OCSPStaple: ocsp,
+	}
+	obs := EmitCertificate("b1", "v1", target, "api.example.com", presented)
+
+	// The fence: the facet value must be byte-identical to the same presentation with no
+	// capture, proving no CT input reached it.
+	bare := EmitCertificate("b1", "v1", target, "api.example.com",
+		HandshakeResult{Outcome: TLSPresented, Chain: presented.Chain})
+	if string(obs.Data) != string(bare.Data) {
+		t.Fatalf("capture changed the facet value:\n got  %s\n want %s", obs.Data, bare.Data)
+	}
+
+	if obs.CertMaterial == nil {
+		t.Fatal("presented handshake with leaf DER carried no CertMaterial")
+	}
+	if obs.CertMaterial.Fingerprint != Fingerprint(leafDER) {
+		t.Errorf("material fingerprint = %q, want %q", obs.CertMaterial.Fingerprint, Fingerprint(leafDER))
+	}
+	if obs.CertMaterial.Fingerprint != presented.Chain[0] {
+		t.Errorf("material fingerprint %q != chain leaf %q", obs.CertMaterial.Fingerprint, presented.Chain[0])
+	}
+	if !bytes.Equal(obs.CertMaterial.DER, leafDER) {
+		t.Errorf("material DER = %q, want %q", obs.CertMaterial.DER, leafDER)
+	}
+	capt, err := wire.DecodeSCTCapture(obs.CertMaterial.SCTs)
+	if err != nil {
+		t.Fatalf("DecodeSCTCapture: %v", err)
+	}
+	if len(capt.TLSExt) != 2 || !bytes.Equal(capt.TLSExt[0], sct1) || !bytes.Equal(capt.TLSExt[1], sct2) {
+		t.Errorf("captured TLS-ext SCTs = %v, want [%q %q]", capt.TLSExt, sct1, sct2)
+	}
+	if !bytes.Equal(capt.OCSP, ocsp) {
+		t.Errorf("captured OCSP staple = %q, want %q", capt.OCSP, ocsp)
+	}
+
+	for _, c := range []struct {
+		name string
+		res  HandshakeResult
+	}{
+		{"tls-refused", HandshakeResult{Outcome: TLSRefused}},
+		{"no-tls", HandshakeResult{Outcome: NoTLS}},
+		{"presented-no-der", HandshakeResult{Outcome: TLSPresented, Chain: []string{"sha256:leaf"}}},
+	} {
+		if m := EmitCertificate("b1", "v1", target, "api.example.com", c.res).CertMaterial; m != nil {
+			t.Errorf("%s: carried CertMaterial %+v, want nil", c.name, m)
+		}
+	}
+}
+
 // The handshake step rides the reachability exchange: it fires ONLY for a reached
 // Service, sends SNI equal to the Endpoint name, and emits one certificate
 // observation per reached Service alongside its reachability line. A not-reached
