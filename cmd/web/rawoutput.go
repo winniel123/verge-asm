@@ -47,8 +47,10 @@ type rawOutputView struct {
 	Vantage string
 
 	Captured bool
-	// Variant selects the layout: "prober" (exec-meta + stdout/stderr/sent) or "zone"
-	// (restate result — the skipped records in the primary panel plus a restate card).
+	// Variant selects the layout: "prober" (exec-meta + stdout/stderr/sent), "zone"
+	// (restate result — the skipped records in the primary panel plus a restate card), or
+	// "ct" (the crt.sh HTTP exchange — the response body in the primary panel plus an
+	// exchange card).
 	Variant string
 
 	// Exec-meta — the typed prober outcome unpacked into three display cells (exactly
@@ -64,6 +66,12 @@ type rawOutputView struct {
 	// outcome ("parsed" | "decode-error: …"). The skipped records ride Bytes.Stdout.
 	Restated    string
 	ZoneOutcome string
+
+	// CT exchange (Variant == "ct"): the request URL dialled and a human outcome label
+	// ("HTTP 200" | "transport error: …" | "context-cancelled"). The verbatim response
+	// body rides Bytes.Stdout.
+	RequestURL string
+	CTOutcome  string
 
 	StdoutSize   string
 	StdoutCapped bool
@@ -158,8 +166,10 @@ func (s *server) rawOutputData(acct db.Account, view rawOutputView) map[string]a
 // outcome and truncation JSON the producer wrote. Any open failure is returned so the
 // handler fails closed (§5.3). The layout branches on the variant: the prober carries
 // three streams and the exec-meta outcome; the zone variant carries only the skipped
-// records (in the stdout role column) and a restate result (§1.3), with stderr and
-// sent-scope NULL (Open returns nil for a NULL column, so they simply stay empty).
+// records (in the stdout role column) and a restate result (§1.3); the ct variant
+// carries only the response body (in the stdout role column) and the HTTP exchange
+// result. For zone and ct, stderr and sent-scope are NULL (Open returns nil for a NULL
+// column, so they simply stay empty).
 func (s *server) fillRawOutputView(view *rawOutputView, row db.Transcript) error {
 	view.Variant = row.Variant
 	view.Duration = time.Duration(row.DurationNs).String()
@@ -181,6 +191,14 @@ func (s *server) fillRawOutputView(view *rawOutputView, row db.Transcript) error
 		// Zone sends nothing to a prober: the skipped records are the artifact, and the
 		// restate result rides the typed outcome. No stderr, sent-scope or exec-meta.
 		view.Restated, view.ZoneOutcome = rawDecodeZoneOutcome(row.Outcome)
+		return nil
+	}
+
+	if row.Variant == "ct" {
+		// The crt.sh producer sends an HTTP request: the response body is the artifact
+		// (already opened into Bytes.Stdout above), and the request URL and HTTP result
+		// ride the typed outcome. No stderr, sent-scope or exec-meta.
+		view.RequestURL, view.CTOutcome = rawDecodeCTOutcome(row.Outcome)
 		return nil
 	}
 
@@ -266,6 +284,40 @@ func rawDecodeZoneOutcome(b []byte) (restated, outcome string) {
 		}
 	}
 	return restated, outcome
+}
+
+// rawDecodeCTOutcome unpacks the CT outcome JSON — {"kind":"http","status":N,
+// "request_url":U} / {"kind":"transport-error","text":T,"request_url":U} / {"kind":
+// "context-cancelled","request_url":U} (§1.2) — into the request URL and a human outcome
+// label for the CT exchange card. A missing status reads "—".
+func rawDecodeCTOutcome(b []byte) (requestURL, outcome string) {
+	requestURL, outcome = "—", "—"
+	var o struct {
+		Kind    string `json:"kind"`
+		Status  *int   `json:"status"`
+		Text    string `json:"text"`
+		Request string `json:"request_url"`
+	}
+	if err := json.Unmarshal(b, &o); err != nil {
+		return requestURL, outcome
+	}
+	if o.Request != "" {
+		requestURL = o.Request
+	}
+	switch o.Kind {
+	case "http":
+		if o.Status != nil {
+			outcome = "HTTP " + strconv.Itoa(*o.Status)
+		}
+	case "transport-error":
+		outcome = "transport error"
+		if o.Text != "" {
+			outcome += ": " + o.Text
+		}
+	case "context-cancelled":
+		outcome = "context-cancelled"
+	}
+	return requestURL, outcome
 }
 
 // rawDecodeTruncation turns the per-stream truncation markers ({"stdout":{"kept":…,
