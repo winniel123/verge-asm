@@ -312,6 +312,11 @@ type store interface {
 	// (ADR-0041); the drift engine never reads Dispatch, queue_job or batch.
 	ListDispatchProgress(ctx context.Context, limit int32) ([]db.ListDispatchProgressRow, error)
 	ListJobsForDispatch(ctx context.Context, dispatchID pgtype.Int8) ([]db.ListJobsForDispatchRow, error)
+	// GetTranscriptByJob reads the one verbatim Transcript keyed on a queue_job id —
+	// the admin raw-output view's source for ?job={id} (#866, spec §6). Nothing else
+	// reads a Transcript (ADR-0126). It returns pgx.ErrNoRows when the job produced no
+	// capture, a legible absence the handler renders distinctly from an empty stream.
+	GetTranscriptByJob(ctx context.Context, queueJobID int64) (db.Transcript, error)
 	// Stop-dispatch / terminate (DF-F4, #633): the admin acts that end a Dispatch in
 	// flight. CancelReadyJobsForDispatch cancels the pending (ready) jobs of a stop and
 	// returns the count; CancelActiveJobsForDispatch cancels ready AND running jobs for a
@@ -388,9 +393,15 @@ type server struct {
 	// It is HKDF-derived from the file-backed session key with a domain-separation
 	// label, so a database dump discloses no usable TOTP secret and the raw signing
 	// key is never reused for two purposes (ADR-0053). Derived once in newServer.
-	totpKey    []byte
-	setupToken string
-	now        func() time.Time
+	totpKey []byte
+	// transcriptKey is the instance symmetric key that seals the Transcript corpus at
+	// rest (#866, spec §5.3). main.go loads it from the shared key volume (never
+	// Postgres) and the admin raw-output view opens each sealed stream with it. Unset
+	// on a server built without it (tests set it directly), where the raw view fails
+	// closed rather than rendering unauthenticated bytes.
+	transcriptKey []byte
+	setupToken    string
+	now           func() time.Time
 	// startedAt is the instant this process came up, read off the injectable clock
 	// so the instance-health tab (#313) shows a real uptime rather than a fabricated
 	// one. A fixed-clock test reads ~0, which humanizes honestly.
@@ -519,21 +530,21 @@ func newServer(s store, key []byte, setupToken string, now func() time.Time) *se
 	// on the encrypt path, never silently store cleartext.
 	totpKey, _ := auth.DeriveTOTPKey(key)
 	return &server{
-		store:          s,
-		key:            key,
-		totpKey:        totpKey,
-		setupToken:     setupToken,
-		now:            now,
-		startedAt:      now(),
-		sessionTTL:     12 * time.Hour,
-		pendingTTL:     5 * time.Minute,
-		resetTTL:       30 * time.Minute,
-		proposer:       proposer.DefaultRegistry(&http.Client{Timeout: 30 * time.Second}),
-		sso:            newOIDCFlow(&http.Client{Timeout: 30 * time.Second}),
-		channelSender:  newHTTPChannelSender(now),
-		loginLimiter:   newLoginLimiter(now),
-		flash:          newFlashStore(),
-		restoreStage:   make(map[int64]*restoreStaging),
+		store:         s,
+		key:           key,
+		totpKey:       totpKey,
+		setupToken:    setupToken,
+		now:           now,
+		startedAt:     now(),
+		sessionTTL:    12 * time.Hour,
+		pendingTTL:    5 * time.Minute,
+		resetTTL:      30 * time.Minute,
+		proposer:      proposer.DefaultRegistry(&http.Client{Timeout: 30 * time.Second}),
+		sso:           newOIDCFlow(&http.Client{Timeout: 30 * time.Second}),
+		channelSender: newHTTPChannelSender(now),
+		loginLimiter:  newLoginLimiter(now),
+		flash:         newFlashStore(),
+		restoreStage:  make(map[int64]*restoreStaging),
 	}
 }
 
@@ -751,6 +762,14 @@ func (s *server) handler() http.Handler {
 	// under both run-route aliases so the stream base matches whichever the viewer is on.
 	mux.HandleFunc("GET /run/{id}/stream", s.requireLogin(s.runStream))
 	mux.HandleFunc("GET /runs/{id}/stream", s.requireLogin(s.runStream))
+	// The admin raw-output view (#866, spec §6): the dedicated, admin-gated view of one
+	// job's verbatim Transcript — stdout, stderr, exec-meta, and the JobSpec sent —
+	// reached by the "Raw output (admin)" affordance on the ?job filter chip. requireAdmin,
+	// not requireLogin: a Transcript can carry secrets the state-derived log cannot, so a
+	// viewer loses the raw-output visibility they have for the redacted log (spec §5.2, an
+	// intentional escalation). Registered under both run-route aliases like the stream.
+	mux.HandleFunc("GET /run/{id}/raw", s.requireAdmin(s.rawOutputPage))
+	mux.HandleFunc("GET /runs/{id}/raw", s.requireAdmin(s.rawOutputPage))
 
 	mux.HandleFunc("GET /signals", s.requireLogin(s.signalsPage))
 	// The Signals CSV export (#346): the current census set the page evaluates, as a

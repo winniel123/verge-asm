@@ -52,12 +52,12 @@ func TestWalkedAddressesDropsNameHosts(t *testing.T) {
 // address credit the range once, and out-of-range addresses do not count.
 func TestCoveredInRangeDistinctAndBounded(t *testing.T) {
 	p := mustPrefix(t, "203.0.113.0/24")
-	walked := []netip.Addr{
-		mustAddr(t, "203.0.113.44"), // in
-		mustAddr(t, "203.0.113.44"), // in, duplicate — counts once
-		mustAddr(t, "203.0.113.9"),  // in
-		mustAddr(t, "198.51.100.7"), // out of range
-		mustAddr(t, "2001:db8::1"),  // other family — never contained
+	walked := []walkedAddr{
+		{Addr: mustAddr(t, "203.0.113.44")}, // in
+		{Addr: mustAddr(t, "203.0.113.44")}, // in, duplicate — counts once
+		{Addr: mustAddr(t, "203.0.113.9")},  // in
+		{Addr: mustAddr(t, "198.51.100.7")}, // out of range
+		{Addr: mustAddr(t, "2001:db8::1")},  // other family — never contained
 	}
 	if got := coveredInRange(walked, p); got != 2 {
 		t.Fatalf("coveredInRange: want 2 distinct in-range, got %d", got)
@@ -72,12 +72,12 @@ func TestCoveredInRangeDistinctAndBounded(t *testing.T) {
 func TestApertureMetersAddressCountedTotal(t *testing.T) {
 	p := mustPrefix(t, "203.0.113.0/24")
 	seeds := []db.ListSeedsRow{{Kind: "address", AddressCidr: &p}}
-	walked := []netip.Addr{
-		mustAddr(t, "203.0.113.10"),
-		mustAddr(t, "203.0.113.20"),
-		mustAddr(t, "203.0.113.30"),
+	walked := []walkedAddr{
+		{Addr: mustAddr(t, "203.0.113.10")},
+		{Addr: mustAddr(t, "203.0.113.20")},
+		{Addr: mustAddr(t, "203.0.113.30")},
 	}
-	m := apertureMeters(seeds, nil, walked)
+	m := apertureMeters(seeds, nil, walked, time.Now())
 	if len(m) != 1 {
 		t.Fatalf("want 1 meter, got %d", len(m))
 	}
@@ -103,7 +103,7 @@ func TestApertureMetersAddressCountedTotal(t *testing.T) {
 func TestApertureMetersAddressZeroNumerator(t *testing.T) {
 	p := mustPrefix(t, "203.0.113.0/24")
 	seeds := []db.ListSeedsRow{{Kind: "address", AddressCidr: &p}}
-	m := apertureMeters(seeds, nil, nil)
+	m := apertureMeters(seeds, nil, nil, time.Now())
 	if m[0].Total == nil || m[0].Counted != "0" || m[0].Pct != 0 {
 		t.Fatalf("empty walk: want 0/256 at 0%%, got counted=%q total=%v pct=%d", m[0].Counted, m[0].Total, m[0].Pct)
 	}
@@ -112,9 +112,79 @@ func TestApertureMetersAddressZeroNumerator(t *testing.T) {
 // A name scope stays a census — no denominator (ADR-0072).
 func TestApertureMetersNameCensus(t *testing.T) {
 	seeds := []db.ListSeedsRow{{Kind: "name", NameDomain: pgtype.Text{String: "acmecorp.io", Valid: true}}}
-	m := apertureMeters(seeds, nil, nil)
+	m := apertureMeters(seeds, nil, nil, time.Now())
 	if m[0].Total != nil {
 		t.Fatalf("name scope must be a census (Total nil), got %v", m[0].Total)
+	}
+}
+
+// oldestCurrentInRange is #890's oldest-current as-of: the earliest observed instant
+// among the current in-range subjects — the currency frontier's staleness. An address
+// out of range or with no real instant does not count, and an empty in-range set reads
+// ok=false (the honest empty), never a fabricated zero instant.
+func TestOldestCurrentInRange(t *testing.T) {
+	p := mustPrefix(t, "203.0.113.0/24")
+	old := time.Date(2026, 8, 28, 6, 0, 0, 0, time.UTC)
+	mid := time.Date(2026, 8, 29, 6, 0, 0, 0, time.UTC)
+	newest := time.Date(2026, 8, 30, 6, 0, 0, 0, time.UTC)
+	walked := []walkedAddr{
+		{Addr: mustAddr(t, "203.0.113.10"), ObservedAt: mid},
+		{Addr: mustAddr(t, "203.0.113.20"), ObservedAt: old},                      // the oldest in range
+		{Addr: mustAddr(t, "203.0.113.30"), ObservedAt: newest},                   // newer
+		{Addr: mustAddr(t, "198.51.100.7"), ObservedAt: old.Add(-48 * time.Hour)}, // out of range — older, ignored
+		{Addr: mustAddr(t, "203.0.113.40")},                                       // in range, no instant — ignored
+	}
+	got, ok := oldestCurrentInRange(walked, p)
+	if !ok {
+		t.Fatalf("want an as-of, got ok=false")
+	}
+	if !got.Equal(old) {
+		t.Fatalf("as-of = the oldest current in-range instant: want %s, got %s", old, got)
+	}
+	// No current, in-range subject with a real instant — the honest empty.
+	if _, ok := oldestCurrentInRange([]walkedAddr{{Addr: mustAddr(t, "203.0.113.40")}}, p); ok {
+		t.Fatalf("a range with no real instant must read ok=false")
+	}
+	if _, ok := oldestCurrentInRange(nil, p); ok {
+		t.Fatalf("oldestCurrentInRange(nil): want ok=false")
+	}
+}
+
+// A lagging address scope — most of its declared range not current — renders the
+// oldest-current as-of alongside counted/total (#890, #847). Counted is the still-current
+// subjects and Total the declared count, so Counted < Total is the honest lag; the as-of
+// states how stale the current frontier is, folding the trailing-edge Gaps to one figure
+// with no per-address message.
+func TestAddressMeterOldestCurrentAsOf(t *testing.T) {
+	p := mustPrefix(t, "203.0.113.0/24")
+	now := time.Date(2026, 8, 30, 12, 0, 0, 0, time.UTC)
+	oldest := now.Add(-30 * time.Hour)
+	seeds := []db.ListSeedsRow{{Kind: "address", AddressCidr: &p}}
+	walked := []walkedAddr{
+		{Addr: mustAddr(t, "203.0.113.10"), ObservedAt: now.Add(-1 * time.Hour)},
+		{Addr: mustAddr(t, "203.0.113.20"), ObservedAt: oldest},
+		{Addr: mustAddr(t, "203.0.113.30"), ObservedAt: now.Add(-3 * time.Hour)},
+	}
+	m := apertureMeters(seeds, nil, walked, now)[0]
+	if m.Total == nil || *m.Total != "256" || m.Counted != "3" {
+		t.Fatalf("lagging meter is counted/total 3/256: got counted=%q total=%v", m.Counted, m.Total)
+	}
+	if m.AsOfISO != oldest.UTC().Format(time.RFC3339) {
+		t.Fatalf("as-of ISO = the oldest current instant: want %q, got %q", oldest.UTC().Format(time.RFC3339), m.AsOfISO)
+	}
+	if m.AsOf != agoLabel(oldest, now) {
+		t.Fatalf("as-of phrase = agoLabel(oldest, now)=%q, got %q", agoLabel(oldest, now), m.AsOf)
+	}
+}
+
+// A scope the batch has not walked at all carries no as-of — the honest empty, not a
+// fabricated instant. The lag (0 / 256) is still shown; the as-of line is simply absent.
+func TestAddressMeterNoAsOfWhenNothingCurrent(t *testing.T) {
+	p := mustPrefix(t, "203.0.113.0/24")
+	seeds := []db.ListSeedsRow{{Kind: "address", AddressCidr: &p}}
+	m := apertureMeters(seeds, nil, nil, time.Now())[0]
+	if m.AsOf != "" || m.AsOfISO != "" {
+		t.Fatalf("no current subject: as-of must be empty, got AsOf=%q AsOfISO=%q", m.AsOf, m.AsOfISO)
 	}
 }
 
@@ -159,7 +229,7 @@ func TestStaleZonesSkipsUnsupplied(t *testing.T) {
 	now := time.Date(2026, 8, 27, 0, 0, 0, 0, time.UTC)
 	cadence := int64(7 * 24 * 3600)
 	rows := []db.ListZoneFileStatusRow{
-		{SeedID: 1, NameDomain: pgtype.Text{String: "never.acmecorp.io", Valid: true}}, // SuppliedAt invalid
+		{SeedID: 1, NameDomain: pgtype.Text{String: "never.acmecorp.io", Valid: true}},                 // SuppliedAt invalid
 		{SeedID: 2, SuppliedAt: pgtype.Timestamptz{Time: now.Add(-100 * 24 * time.Hour), Valid: true}}, // no domain
 	}
 	if got := staleZones(rows, cadence, now); len(got) != 0 {

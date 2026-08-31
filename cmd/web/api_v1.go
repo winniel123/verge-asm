@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"net/netip"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -341,6 +340,11 @@ type apiCoverageMeter struct {
 	Unit    string  `json:"unit"`
 	Pct     int     `json:"pct"`
 	Detail  string  `json:"detail"`
+	// #890's oldest-current as-of, in parity with the screen: as_of is the relative
+	// phrase, as_of_iso its RFC-3339 instant; both empty where no current, in-range
+	// subject carries a real instant.
+	AsOf    string `json:"as_of"`
+	AsOfISO string `json:"as_of_iso"`
 }
 
 // apiCoverage projects the aperture meters the Coverage screen's meter card renders
@@ -367,7 +371,7 @@ func (s *server) apiCoverage(w http.ResponseWriter, r *http.Request, _ db.Accoun
 	// The #19c address-scope numerator: the distinct addresses the batch walked, from
 	// the current Service subjects (live-tier gated). Best-effort — an unavailable read
 	// leaves the address meters at a zero numerator, mirroring the page's live path.
-	var walked []netip.Addr
+	var walked []walkedAddr
 	if svcs, serr := s.store.ListCurrentServiceSubjects(ctx, db.ListCurrentServiceSubjectsParams{
 		Search: "", AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	}); serr == nil {
@@ -375,12 +379,13 @@ func (s *server) apiCoverage(w http.ResponseWriter, r *http.Request, _ db.Accoun
 	} else {
 		log.Printf("web: api: coverage: list service subjects: %v", serr)
 	}
-	meters := apertureMeters(seeds, zones, walked)
+	meters := apertureMeters(seeds, zones, walked, s.now())
 
 	out := apiCoverageResponse{Meters: make([]apiCoverageMeter, 0, len(meters))}
 	for _, m := range meters {
 		out.Meters = append(out.Meters, apiCoverageMeter{
 			Label: m.Label, Counted: m.Counted, Total: m.Total, Unit: m.Unit, Pct: m.Pct, Detail: m.Detail,
+			AsOf: m.AsOf, AsOfISO: m.AsOfISO,
 		})
 	}
 	writeAPIJSON(w, out)

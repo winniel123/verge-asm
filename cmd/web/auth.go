@@ -783,7 +783,7 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 	}
 
 	services, hasServices := 0, false
-	var walked []netip.Addr
+	var walked []walkedAddr
 	if rows, serr := s.store.ListCurrentServiceSubjects(ctx, db.ListCurrentServiceSubjectsParams{
 		Search: "", AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	}); serr == nil {
@@ -977,7 +977,7 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 		if z, zerr := s.store.ListZoneDeclarations(ctx); zerr == nil {
 			zones = z
 		}
-		coverageMeters = apertureMeters(seedRows, zones, walked)
+		coverageMeters = apertureMeters(seedRows, zones, walked, s.now())
 	}
 	// A silent source drives the Coverage card's staleness callout (#21e3): where a
 	// provisioned vantage has stopped reporting, the card names the silent position. Bound

@@ -1,0 +1,127 @@
+{{/*
+  DESIGN-OWNED ARTIFACT — rundetail-raw.tmpl · raw job output (#866, map #838, spec §6)
+  The dedicated, ADMIN-GATED view of one job's verbatim Transcript — stdout, stderr,
+  exec-meta and the JobSpec sent — reached by the "Raw output (admin)" affordance on the
+  ?job filter chip in rundetail.tmpl. Prototype primary source: research/843-rawoutput-prototype
+  variant C (dedicated split view). The frozen redacted LogViewer stays untouched; verbatim
+  bytes never land on the redacted surface (§6.1).
+
+  POST-HOC ONLY (§6.2): the Transcript is written in the job's terminal tx and the #780 live
+  hub persists nothing, so there is no raw stream to tail. This is a static, terminal-state view.
+
+  ESCAPE ON RENDER (§6.4): the three verbatim streams are untrusted at rest (attacker-influenceable
+  pre-gate stdout included). They ride window.__RAW__ as JSON (html/template JS-escapes it) and are
+  built into the DOM span-by-span with textContent — NEVER innerHTML — exactly as the #780 client does.
+
+  Define "runraw". Holes: .IsAdmin (chrome), .Raw{RunID, RunHref, JobID, Kind, Vantage, Captured,
+  ExitCode, Signal, CtxCancelled, OutcomeOK, Duration, CapturedAt, StdoutSize, StdoutCapped,
+  StdoutTrunc, StderrTrunc, SentTrunc, Bytes{stdout[], stderr[], sentScope}}.
+*/}}
+{{define "runraw"}}{{template "head" .}}
+{{template "chrome" .}}
+<style>
+.rr-main { max-width: 1440px; width: 100%; margin: 0 auto; padding: 32px; display: flex; flex-direction: column; gap: 20px; }
+.rr-crumb { display: flex; align-items: center; gap: 8px; font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; }
+.rr-crumb a { color: var(--text-muted); text-decoration: none; }
+.rr-crumb a:hover { color: var(--link); }
+.rr-crumb .sep, .rr-crumb .here { color: var(--text-muted); }
+.rr-crumb .here { color: var(--text-body); }
+.rr-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.rr-head h1 { margin: 0; font: 600 18px var(--font-mono); letter-spacing: -0.01em; color: var(--text-ink); }
+.rr-back { display: inline-flex; align-items: center; gap: 7px; font: 500 12px var(--font-mono); color: var(--text-muted); text-decoration: none; }
+.rr-back:hover { color: var(--link); }
+.rr-kind { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--border-default); background: var(--surface-sunken); font: 500 12px var(--font-mono); color: var(--text-secondary); }
+.rr-warn { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; padding: 7px 12px; background: var(--warn-soft); border: 1px solid var(--warn-border); color: var(--warn); border-radius: 8px; font: 500 11.5px var(--font-ui); }
+.rr-warn svg { flex: none; }
+.rr-split { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
+.rr-rail { display: flex; flex-direction: column; gap: 16px; }
+.rd-card { background: var(--surface); border: 1px solid var(--border-default); border-radius: 16px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; }
+.rd-cardhead { display: flex; flex-direction: column; gap: 3px; padding: 20px 20px 0; }
+.rd-micro { font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.rd-cardhead h3 { margin: 0; font: 600 15px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
+.rd-body { padding: 20px; }
+.rd-log { background: var(--surface-inverted); border-radius: 12px; overflow: hidden; }
+.rd-loghead { display: flex; align-items: center; gap: 8px; padding: 8px 14px 0; }
+.rd-loghead .lbl { font: 500 10.5px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--neutral-500); }
+.rd-logbody { overflow: auto; padding: 10px 14px 12px; }
+.rd-logbody.tall { height: 520px; }
+.rd-logbody.short { height: 240px; }
+.rd-kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 20px; }
+.rd-kv .cell { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.rd-kv .cell.wide { grid-column: 1 / -1; }
+.rd-kv .v { font: 400 12.5px var(--font-mono); color: var(--text-body); overflow-wrap: anywhere; }
+.rd-kv .v.ok { color: var(--ok); }
+.rawline { display: block; font: 400 11.5px/1.7 var(--font-mono); color: var(--text-on-inverted); white-space: pre-wrap; overflow-wrap: anywhere; }
+.rawline.err { color: var(--danger); }
+.rr-spec { margin: 4px 0 0; font: 400 11.5px/1.5 var(--font-mono); color: var(--text-body); white-space: pre-wrap; overflow-wrap: anywhere; background: var(--surface-sunken); border: 1px solid var(--border-default); border-radius: 8px; padding: 10px; }
+.rr-trunc { margin: 8px 0 2px; padding: 5px 0; text-align: center; font: 500 10.5px var(--font-mono); letter-spacing: 0.04em; color: var(--neutral-500); border-top: 1px dashed var(--neutral-700); border-bottom: 1px dashed var(--neutral-700); }
+.rr-empty { display: flex; flex-direction: column; gap: 6px; align-items: center; text-align: center; padding: 56px 24px; background: var(--surface); border: 1px solid var(--border-default); border-radius: 16px; }
+.rr-empty .msg { font: 600 14px var(--font-ui); color: var(--text-ink); }
+.rr-empty .det { font: 400 13px/1.6 var(--font-ui); color: var(--text-secondary); max-width: 460px; }
+</style>
+<main class="rr-main">
+{{with .Raw}}
+<nav class="rr-crumb"><a href="/drift">Drift</a><span class="sep">/</span><a href="{{.RunHref}}">run {{.RunID}}</a><span class="sep">/</span><span class="here">job #{{.JobID}} · raw</span></nav>
+<header class="rr-head">
+<a class="rr-back" href="{{.RunHref}}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"></path></svg>batch log</a>
+<h1>Raw output · job #{{.JobID}}</h1>
+<span class="rr-kind">{{.Kind}}{{if .Vantage}} · {{.Vantage}}{{end}}</span>
+<span class="rr-warn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>Verbatim · unredacted · admin-only</span>
+</header>
+{{if .Captured}}
+<div class="rr-split">
+<div class="rd-log">
+<div class="rd-loghead"><span class="lbl">stdout · verbatim</span><span class="lbl" style="margin-left:auto">{{.StdoutSize}}{{if .StdoutCapped}} · capped{{end}} · post-hoc</span></div>
+<div class="rd-logbody tall" data-raw="stdout"></div>
+{{with .StdoutTrunc}}<div class="rr-trunc">─── {{.}} ───</div>{{end}}
+</div>
+<div class="rr-rail">
+<section class="rd-card">
+<div class="rd-cardhead"><span class="rd-micro">Exec metadata</span><h3>How it exited</h3></div>
+<div class="rd-body">
+<div class="rd-kv">
+<div class="cell"><span class="rd-micro">Exit code</span><span class="v{{if .OutcomeOK}} ok{{end}}">{{.ExitCode}}</span></div>
+<div class="cell"><span class="rd-micro">Signal</span><span class="v">{{.Signal}}</span></div>
+<div class="cell"><span class="rd-micro">Ctx-cancelled</span><span class="v">{{.CtxCancelled}}</span></div>
+<div class="cell"><span class="rd-micro">Duration</span><span class="v">{{.Duration}}</span></div>
+<div class="cell wide"><span class="rd-micro">Captured at</span><span class="v">{{.CapturedAt}}</span></div>
+<div class="cell wide"><span class="rd-micro">JobSpec sent</span><pre class="rr-spec" data-raw="sentscope"></pre>{{with .SentTrunc}}<div class="rr-trunc">─── {{.}} ───</div>{{end}}</div>
+</div>
+</div>
+</section>
+<div class="rd-log">
+<div class="rd-loghead"><span class="lbl">stderr</span></div>
+<div class="rd-logbody short" data-raw="stderr"></div>
+{{with .StderrTrunc}}<div class="rr-trunc">─── {{.}} ───</div>{{end}}
+</div>
+</div>
+</div>
+<script>window.__RAW__ = {{.Bytes}};</script>
+<script>
+(function () {
+  var d = window.__RAW__ || {};
+  function fill(sel, lines, isErr) {
+    var host = document.querySelector(sel);
+    if (!host) return;
+    (lines || []).forEach(function (ln) {
+      var s = document.createElement("span");
+      s.className = "rawline" + (isErr ? " err" : "");
+      s.textContent = ln;
+      host.appendChild(s);
+    });
+  }
+  fill('[data-raw="stdout"]', d.stdout, false);
+  fill('[data-raw="stderr"]', d.stderr, true);
+  var spec = document.querySelector('[data-raw="sentscope"]');
+  if (spec) spec.textContent = d.sentScope || "";
+})();
+</script>
+{{else}}
+<div class="rr-empty">
+<span class="msg">No transcript captured</span>
+<span class="det">This job produced no raw-output capture — a legible absence, distinct from a captured-but-empty stream. Only jobs that ran a producer and reached a terminal state carry a transcript; measurement-only and cancelled-mid-flight jobs write none.</span>
+</div>
+{{end}}
+{{end}}
+</main>
+{{template "foot" .}}{{end}}

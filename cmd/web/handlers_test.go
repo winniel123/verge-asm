@@ -151,6 +151,10 @@ type fakeStore struct {
 	// Scans monitor (#245); the scans test seeds them directly.
 	dispatchProgress []db.ListDispatchProgressRow
 	jobsByDispatch   map[int64][]db.ListJobsForDispatchRow
+	// transcriptsByJob stands in for the transcript table the admin raw-output view reads
+	// (#866): one sealed Transcript per queue_job id. A job with no entry is a legible
+	// absence — GetTranscriptByJob returns pgx.ErrNoRows, which the view renders distinctly.
+	transcriptsByJob map[int64]db.Transcript
 	// dispatchStatus records the operator-ended disposition SetDispatchStatus writes
 	// ('stopped' / 'terminated'), so a stop/terminate test asserts the status was set.
 	dispatchStatus map[int64]string
@@ -255,6 +259,15 @@ func (f *fakeStore) ListDispatchProgress(_ context.Context, limit int32) ([]db.L
 
 func (f *fakeStore) ListJobsForDispatch(_ context.Context, dispatchID pgtype.Int8) ([]db.ListJobsForDispatchRow, error) {
 	return f.jobsByDispatch[dispatchID.Int64], nil
+}
+
+// GetTranscriptByJob returns the one sealed Transcript for a queue_job id, or pgx.ErrNoRows
+// for a job that produced no capture (the legible absence the raw view renders distinctly).
+func (f *fakeStore) GetTranscriptByJob(_ context.Context, queueJobID int64) (db.Transcript, error) {
+	if t, ok := f.transcriptsByJob[queueJobID]; ok {
+		return t, nil
+	}
+	return db.Transcript{}, pgx.ErrNoRows
 }
 
 // dispatchIdx finds the progress row for a dispatch id, or -1.
@@ -2851,6 +2864,10 @@ func (f *fakeStore) usernameForID(id int64) string {
 
 // testKey is a fixed 32-byte session signing key for tests.
 var testKey = []byte("0123456789abcdef0123456789abcdef")
+
+// testTranscriptKey is the 32-byte instance transcript key the test server opens sealed
+// streams with (#866). It matches the key a raw-output test seals its fixture streams with.
+var testTranscriptKey = []byte("transcriptkey0123456789abcdef012")
 
 func fixedClock() func() time.Time {
 	return func() time.Time { return time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC) }
