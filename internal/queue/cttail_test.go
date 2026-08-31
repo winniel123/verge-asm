@@ -14,6 +14,19 @@ func TestGetEntriesURL(t *testing.T) {
 	}
 }
 
+// TestDataTileURL confirms a full tile is served at the bare path and the head (partial)
+// tile carries the `.p/<W>` suffix with its current width (#877, §4.3).
+func TestDataTileURL(t *testing.T) {
+	full := dataTileURL("https://mon.example/2026h2/", 1234, 256)
+	if full != "https://mon.example/2026h2/tile/data/x001/234" {
+		t.Fatalf("full tile URL: %q", full)
+	}
+	partial := dataTileURL("https://mon.example/2026h2/", 1234, 100)
+	if partial != "https://mon.example/2026h2/tile/data/x001/234.p/100" {
+		t.Fatalf("partial tile URL: %q", partial)
+	}
+}
+
 func TestEnsureTrailingSlash(t *testing.T) {
 	if got := ensureTrailingSlash("https://ct.example/log"); got != "https://ct.example/log/" {
 		t.Fatalf("missing slash not added: %q", got)

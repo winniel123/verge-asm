@@ -52,12 +52,13 @@ func (w *Worker) WithCTTail(fetcher CTFetcher) *Worker {
 	return w
 }
 
-// completeCTTail is the worker-read path for a `ct-tail` job: read the log's cursor,
-// fetch its current signed tree head, read only the forward delta above the cursor
-// (bounded by maxEntriesPerPoll), decode the certificates, and admit the in-scope Names.
-// On any non-200 or malformed body it retries/dead-letters and leaves the cursor
-// untouched, so a failed poll never advances past unread entries and never asserts an
-// absence (ADR-0005, ADR-0027 §7).
+// completeCTTail is the worker-read path for a `ct-tail` job. It reads the log with the
+// client its scope names — the RFC 6962 client (#874) or the static-ct-api tiled client
+// (#877) — decided by the Tiled discriminator that travelled from SelectTailLogs. Both
+// clients read only the forward delta above the log's durable cursor, admit the in-scope
+// Names, and advance the cursor; on any non-200 or malformed body either retries or
+// dead-letters and leaves the cursor untouched, so a failed poll never advances past
+// unread entries and never asserts an absence (ADR-0005, ADR-0027 §7).
 func (w *Worker) completeCTTail(ctx context.Context, job db.ClaimJobRow, spec wire.JobSpec) error {
 	if w.ctTailFetcher == nil {
 		return fmt.Errorf("queue: ct-tail job %d with no CT tail fetcher configured", job.ID)
@@ -66,6 +67,16 @@ func (w *Worker) completeCTTail(ctx context.Context, job db.ClaimJobRow, spec wi
 	if err != nil {
 		return fmt.Errorf("decode ct-tail scope: %w", err)
 	}
+	if lg.Tiled {
+		return w.completeCTTailTiled(ctx, job, lg)
+	}
+	return w.completeCTTailRFC(ctx, job, lg)
+}
+
+// completeCTTailRFC reads one RFC 6962 log's forward delta (#874): fetch get-sth for the
+// current tree size, read positions [cursor, min(size, cursor+maxEntriesPerPoll)) in
+// get-entries batches, decode each MerkleTreeLeaf, and admit the in-scope Names.
+func (w *Worker) completeCTTailRFC(ctx context.Context, job db.ClaimJobRow, lg scan.CTLog) error {
 	base := ensureTrailingSlash(lg.URL)
 
 	// The forward cursor: the position the last poll read up to. No row yet means the
@@ -132,6 +143,111 @@ func (w *Worker) completeCTTail(ctx context.Context, job db.ClaimJobRow, spec wi
 	}
 	admissions := scan.AdmitCTNames(sans, seeds)
 	return w.admitCTTail(ctx, job, lg, sth.Raw, reached, admissions)
+}
+
+// completeCTTailTiled reads one static-ct-api log's forward delta (#877, §4.3). A tiled
+// log serves no get-sth and no get-entries; it serves static files under monitoring_url.
+// The poll fetches `checkpoint` (the signed tree head) for the current tree size, then
+// reads the entries in [cursor, min(size, cursor+maxEntriesPerPoll)) from the
+// `tile/data/<N>` files that cover them, one tile per fetch. A data tile holds at most
+// CTTileWidth (256) entries, so the tile granularity IS the tiled batch cap (§4.4) — no
+// separate request-size dial. The forward-only invariant holds exactly as in the RFC
+// path: the cursor starts at the last position read and never moves below it.
+func (w *Worker) completeCTTailTiled(ctx context.Context, job db.ClaimJobRow, lg scan.CTLog) error {
+	base := ensureTrailingSlash(lg.URL)
+
+	start := int64(0)
+	if cur, gerr := w.q.GetCTLogCursor(ctx, lg.LogID); gerr == nil {
+		start = cur.TreeSize
+	} else if !errors.Is(gerr, pgx.ErrNoRows) {
+		return fmt.Errorf("ct-tail cursor: %w", gerr)
+	}
+
+	status, body, ferr := w.ctTailFetcher.Fetch(ctx, base+"checkpoint")
+	if ferr != nil || status != 200 {
+		return w.retryOrDeadLetterCT(ctx, job, ctHTTPCause(ferr, status, "checkpoint"))
+	}
+	sth, perr := scan.ParseCheckpoint(body)
+	if perr != nil {
+		return w.retryOrDeadLetterCT(ctx, job, perr)
+	}
+
+	// Opportunistic append-only guard (§4.4): a checkpoint whose tree is SMALLER than the
+	// cursor is a shrink — a log fork or rollback, which an append-only tree must never
+	// do. It is keyless and near-free (the checkpoint is already fetched), so it runs each
+	// poll, but it is NOT the full consistency proof: signature and inclusion verification
+	// stay deferred with #874's, the checkpoint kept verbatim to enable them later. On a
+	// shrink the poll admits nothing and leaves the cursor untouched, exactly like any
+	// other transient anomaly.
+	if sth.TreeSize < start {
+		return w.retryOrDeadLetterCT(ctx, job, safeProgress(fmt.Sprintf("CT log checkpoint tree size %d below cursor %d", sth.TreeSize, start)))
+	}
+
+	end := sth.TreeSize
+	if end > start+maxEntriesPerPoll {
+		end = start + maxEntriesPerPoll
+	}
+	var sans []string
+	reached := start
+	for reached < end {
+		tileIdx := reached / scan.CTTileWidth
+		tileBase := tileIdx * scan.CTTileWidth
+		// The tile's server-side width: a full tile below the head, or the partial width
+		// of the head tile. The partial `.p/<W>` suffix names exactly this width.
+		width := int64(scan.CTTileWidth)
+		if tileBase+scan.CTTileWidth > sth.TreeSize {
+			width = sth.TreeSize - tileBase
+		}
+		st, tb, fe := w.ctTailFetcher.Fetch(ctx, dataTileURL(base, tileIdx, width))
+		if fe != nil || st != 200 {
+			return w.retryOrDeadLetterCT(ctx, job, ctHTTPCause(fe, st, "tile/data"))
+		}
+		ders, pe := scan.ParseDataTile(tb)
+		if pe != nil {
+			return w.retryOrDeadLetterCT(ctx, job, pe)
+		}
+		// Skip the leaves at or below the cursor within this (possibly re-fetched head)
+		// tile, and stop at the poll window's end. A tile that returns fewer leaves than
+		// the cursor expects makes no progress: stop rather than spin.
+		offset := int(reached - tileBase)
+		if offset >= len(ders) {
+			break
+		}
+		limit := len(ders)
+		if tileBase+int64(limit) > end {
+			limit = int(end - tileBase)
+		}
+		for i := offset; i < limit; i++ {
+			names, derr := scan.CertSANs(ders[i])
+			if derr != nil {
+				// One malformed entry does not fail the poll: the tail reads a
+				// corroborative source, so it skips the entry and reads on.
+				w.log.Printf("worker: ct-tail job %d skipped a tiled log entry: %v", job.ID, derr)
+				continue
+			}
+			sans = append(sans, names...)
+		}
+		reached = tileBase + int64(limit)
+	}
+
+	seeds, err := ctSeeds(ctx, w.q)
+	if err != nil {
+		return err
+	}
+	admissions := scan.AdmitCTNames(sans, seeds)
+	return w.admitCTTail(ctx, job, lg, sth.Raw, reached, admissions)
+}
+
+// dataTileURL builds a static-ct-api data-tile request. A tile below the head is full and
+// served at `tile/data/<path>`; the head tile is partial and served at
+// `tile/data/<path>.p/<W>` with its current width W (1..255). The path segments come from
+// scan.DataTilePath (§4.3).
+func dataTileURL(base string, tileIdx, width int64) string {
+	p := scan.DataTilePath(tileIdx)
+	if width < scan.CTTileWidth {
+		return fmt.Sprintf("%stile/data/%s.p/%d", base, p, width)
+	}
+	return fmt.Sprintf("%stile/data/%s", base, p)
 }
 
 // admitCTTail writes the completed Batch, its admissions, the advanced cursor and the
