@@ -202,6 +202,19 @@ func main() {
 		}
 	}()
 
+	// Transcript retention runs beside the other two (raw-job-output spec §4,
+	// ADR-0126 amending ADR-0041). It retires captured transcripts by age alone —
+	// no derivation reads a Transcript, so a wall clock moves no value. Unlike the
+	// Dispatch and Observation dials it SHIPS BOUNDED at 14 days, so this sweep is
+	// active on a fresh install; the operator sets the dial to 0 to opt back into
+	// unbounded retention.
+	transcriptRetirer := retention.NewTranscriptRetirer(db.New(pool), time.Now, logger)
+	go func() {
+		if err := transcriptRetirer.Run(ctx, 24*time.Hour); err != nil && !errors.Is(err, context.Canceled) {
+			logger.Printf("worker: transcript retention stopped: %v", err)
+		}
+	}()
+
 	// Release check runs beside the retirers (#391, ADR-0124: check + surface +
 	// guide, never self-replace). A daily best-effort poll of the upstream release
 	// feed, gated on instance_config.update_check_enabled: while the operator has

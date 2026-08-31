@@ -108,8 +108,28 @@ func (q *Queries) DeleteExpiredObservations(ctx context.Context, arg DeleteExpir
 	return result.RowsAffected(), nil
 }
 
+const deleteExpiredTranscripts = `-- name: DeleteExpiredTranscripts :execrows
+DELETE FROM transcript
+WHERE captured_at < $1
+`
+
+// The one and only path that deletes Transcript rows (raw-job-output spec §4,
+// ADR-0126 amending ADR-0041). It touches the transcript table and nothing else:
+// no derivation reads a Transcript (the §1 fence), so a wall clock retiring it by
+// captured_at moves no value on any timeline — the same legality the Dispatch
+// sweep rests on. The caller passes the floored cutoff (now minus the
+// transcript_currency_days window); this deletes every captured row older than it.
+func (q *Queries) DeleteExpiredTranscripts(ctx context.Context, capturedAt pgtype.Timestamptz) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredTranscripts, capturedAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getRetentionSettings = `-- name: GetRetentionSettings :one
-SELECT observation_currency_days, dispatch_cadence_multiple, updated_by, updated_at
+SELECT observation_currency_days, dispatch_cadence_multiple,
+       transcript_currency_days, updated_by, updated_at
 FROM retention_settings
 WHERE id = true
 `
@@ -117,6 +137,7 @@ WHERE id = true
 type GetRetentionSettingsRow struct {
 	ObservationCurrencyDays int64              `json:"observation_currency_days"`
 	DispatchCadenceMultiple int64              `json:"dispatch_cadence_multiple"`
+	TranscriptCurrencyDays  int64              `json:"transcript_currency_days"`
 	UpdatedBy               pgtype.Int8        `json:"updated_by"`
 	UpdatedAt               pgtype.Timestamptz `json:"updated_at"`
 }
@@ -128,6 +149,7 @@ func (q *Queries) GetRetentionSettings(ctx context.Context) (GetRetentionSetting
 	err := row.Scan(
 		&i.ObservationCurrencyDays,
 		&i.DispatchCadenceMultiple,
+		&i.TranscriptCurrencyDays,
 		&i.UpdatedBy,
 		&i.UpdatedAt,
 	)
