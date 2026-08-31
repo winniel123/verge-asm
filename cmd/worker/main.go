@@ -110,6 +110,7 @@ func main() {
 	worker := queue.NewWorker(pool, queue.ExecProber{Path: proberPath}, time.Now, logger).
 		WithCT(ctFetcher, ctThrottle, ctSource).
 		WithCTTail(queue.NewHTTPCTFetcher(ctVersion)).
+		WithCTVerify(queue.NewHTTPCTFetcher(ctVersion)).
 		WithRouter(router).
 		WithMessages(delivery.EnqueueForMessage, devMode).
 		WithTranscripts(transcriptKey, devMode)

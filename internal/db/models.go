@@ -54,6 +54,7 @@ type CertificateMaterial struct {
 	Fingerprint string `json:"fingerprint"`
 	Der         []byte `json:"der"`
 	Scts        []byte `json:"scts"`
+	IssuerSpki  []byte `json:"issuer_spki"`
 }
 
 type Channel struct {

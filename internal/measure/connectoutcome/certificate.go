@@ -128,6 +128,7 @@ func presentedCertMaterial(res HandshakeResult) *wire.CertMaterial {
 			TLSExt: res.SCTsTLSExt,
 			OCSP:   res.OCSPStaple,
 		}),
+		IssuerSPKI: res.IssuerSPKI,
 	}
 }
 

@@ -9,9 +9,32 @@ import (
 	"context"
 )
 
+const getCertificateMaterial = `-- name: GetCertificateMaterial :one
+SELECT fingerprint, der, scts, issuer_spki
+FROM certificate_material
+WHERE fingerprint = $1
+`
+
+// Read one leaf's captured CT inputs back for an on-demand verification re-check (spec §5.4,
+// #878): the leaf DER (embedded SCTs ride inside it), the out-of-cert SCT material, and the
+// issuer SubjectPublicKeyInfo the precert leaf hash needs. Keyed by the leaf fingerprint.
+// Errors with pgx.ErrNoRows when the certificate was never captured — a verification the
+// caller reports as unverifiable rather than as not-logged.
+func (q *Queries) GetCertificateMaterial(ctx context.Context, fingerprint string) (CertificateMaterial, error) {
+	row := q.db.QueryRow(ctx, getCertificateMaterial, fingerprint)
+	var i CertificateMaterial
+	err := row.Scan(
+		&i.Fingerprint,
+		&i.Der,
+		&i.Scts,
+		&i.IssuerSpki,
+	)
+	return i, err
+}
+
 const insertCertificateMaterial = `-- name: InsertCertificateMaterial :exec
-INSERT INTO certificate_material (fingerprint, der, scts)
-VALUES ($1, $2, $3)
+INSERT INTO certificate_material (fingerprint, der, scts, issuer_spki)
+VALUES ($1, $2, $3, $4)
 ON CONFLICT (fingerprint) DO NOTHING
 `
 
@@ -19,14 +42,21 @@ type InsertCertificateMaterialParams struct {
 	Fingerprint string `json:"fingerprint"`
 	Der         []byte `json:"der"`
 	Scts        []byte `json:"scts"`
+	IssuerSpki  []byte `json:"issuer_spki"`
 }
 
 // Capture one leaf certificate's raw CT inputs into the immutable side store (spec
-// §5.3): the leaf DER and the out-of-cert SCT material, keyed by the leaf fingerprint.
-// Deduped and immutable — many Endpoints present the same certificate, so ON CONFLICT
-// DO NOTHING keeps the first capture and never rewrites a row. This writes no facet
-// value; the `certificate` observation still records only the fingerprint (ADR-0027).
+// §5.3): the leaf DER, the out-of-cert SCT material, and the issuer SubjectPublicKeyInfo,
+// keyed by the leaf fingerprint. Deduped and immutable — many Endpoints present the same
+// certificate, so ON CONFLICT DO NOTHING keeps the first capture and never rewrites a row.
+// This writes no facet value; the `certificate` observation still records only the
+// fingerprint (ADR-0027).
 func (q *Queries) InsertCertificateMaterial(ctx context.Context, arg InsertCertificateMaterialParams) error {
-	_, err := q.db.Exec(ctx, insertCertificateMaterial, arg.Fingerprint, arg.Der, arg.Scts)
+	_, err := q.db.Exec(ctx, insertCertificateMaterial,
+		arg.Fingerprint,
+		arg.Der,
+		arg.Scts,
+		arg.IssuerSpki,
+	)
 	return err
 }

@@ -131,6 +131,12 @@ type CertMaterial struct {
 	// SCTs is the out-of-cert SCT material, already serialized by EncodeSCTCapture; nil
 	// when the handshake carried none.
 	SCTs []byte `json:"scts,omitempty"`
+	// IssuerSPKI is the issuer certificate's SubjectPublicKeyInfo DER (chain[1]); nil when the
+	// handshake presented no issuer. Verification of an embedded SCT hashes the precertificate,
+	// whose leaf hash carries issuer_key_hash = SHA-256(this) (RFC 6962 §3.2, #878). It rides
+	// beside the leaf, never inside the facet value; omitempty keeps a golden row with no
+	// material byte-identical.
+	IssuerSPKI []byte `json:"issuer_spki,omitempty"`
 }
 
 // SCTCapture is the out-of-cert SCT material captured at a TLS handshake, before it is
