@@ -133,7 +133,11 @@ rather than widening it: where a direct A record points at an edge presenting id
 unrelated registrable domains (fan-out), the extension **declines to reach it**, so the edge
 `Address` stays outside the estate exactly as a CNAME-to-foreign target does — it never becomes a
 `Subject`, holds no `Custody` value and opens no `Gap`. The determination is a measurement, never a
-provider list. The operator is told by **display** on this same census — the declined edges, each
+provider list. That measurement is the **`edge-fanout`** `Scan`'s no-SNI handshake
+([#954](https://github.com/winniel123/verge-asm/issues/954)), and until it has cleared a candidate the
+extension **holds** it — neither reached nor declined — so the census carries a **pending** row beside the
+declined ones. Where that `Scan` is disabled the extension reaches direct-A targets as it did before the
+measurement existed. The operator is told by **display** on this same census — the declined edges, each
 with the citing name and the remedy of declaring the origin IPs as an address scope — and never by
 a message, since a veto withholds a probe and is the safe direction. See
 [ADR-0129](./docs/adr/0129-a-shared-foreign-edge-is-measured-by-fan-out-not-read-from-a-list.md). So a rendering cannot open this gate any more than it can open
@@ -356,8 +360,8 @@ what cadence, **and which ports only where its exchange is a connect**. The port
 two of the five carrying none. The configured thing, never the executed one. **Not every `Scan` is a port
 tier**: ~~two are, and the third is `tls-acceptance`'s weekly enumeration, whose scope is the
 open `Service` population and the TLS candidate set.~~ ~~there are four and only two are port
-tiers.~~ ~~there are five and only two are port tiers.~~ **there are six and only two are port
-tiers.** The third is `tls-acceptance`'s weekly enumeration, whose scope is the open `Service`
+tiers.~~ ~~there are five and only two are port tiers.~~ ~~there are six and only two are port
+tiers.~~ **there are seven and only two are port tiers.** The third is `tls-acceptance`'s weekly enumeration, whose scope is the open `Service`
 population and the TLS candidate set. The fourth is **`zone`**, whose scope is the name scopes
 holding a supplied zone file and which has **no port list and no vantage choice at all**, the
 worker reading it. The fifth is **`dns`**, whose scope is the name scopes **unconditionally** —
@@ -401,6 +405,19 @@ schedule and the source's `consent` being two controls. See
 [ADR-0044](./docs/adr/0044-a-one-off-measurement-has-no-currency.md),
 [ADR-0096](./docs/adr/0096-a-citation-never-ages-it-is-contradicted-and-only-an-enumerable-sources-silence-can-do-it.md) and
 [ADR-0106](./docs/adr/0106-the-ct-poll-is-a-scan-that-schedules-and-a-ct-admission-is-a-name-citing-its-batch.md).
+The seventh is **`edge-fanout`**, the no-SNI TLS handshake that measures a candidate edge's **fan-out**.
+Its scope is the **custody-extension candidates** — the direct-A targets, and the apex `ALIAS`/`ANAME`
+flattened to A, of in-zone names the extension would reach — and it is empty until a custody extension is
+declared, a legible empty-scope state. Its exchange is a **connect**, so it is none of the query-only or
+worker-read `Scan`s, and it runs **before its target is a member**, so it is neither `hot` nor
+`tls-acceptance`, which cover members only. It ships at **daily**, matching the `dns` cadence that grants
+membership, and has **no vantage dimension** — the default certificate is not a function of vantage, and
+vantage-varying fan-out is anycast, out of v1. Like `ct` it **holds no facet timeline**, so it carries **no
+currency bound and no withdrawal power**: its result — the hostname set the edge presents — is recorded on
+its `Batch` by content and composed into the `Custody` derivation as the **second Observed input** to the
+extension's reach. A candidate not yet measured is **held**, neither reached nor vetoed, until the probe
+clears or declines it. See
+[ADR-0129](./docs/adr/0129-a-shared-foreign-edge-is-measured-by-fan-out-not-read-from-a-list.md).
 _Avoid_: job, scan job
 
 **Annotation**:

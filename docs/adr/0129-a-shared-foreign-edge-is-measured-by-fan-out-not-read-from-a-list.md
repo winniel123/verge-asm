@@ -227,6 +227,81 @@ exactly the population that chose this deliberately, and would train that popula
 safety channel. Change stays visible on the panel, pulled and never pushed, as a CNAME-to-foreign
 edge is silent today.
 
+## Amendment — [#954](https://github.com/winniel123/verge-asm/issues/954): the fan-out measurement is a membership-deciding probe on its own `Scan`, not a six-part facet, and the SAN set is what is Observed
+
+§6 called the no-SNI handshake *"a new measurement [that] carries [ADR-0011](./0011-a-facet-is-six-parts.md)'s
+six obligations and needs a home `Scan`, a cadence, and a currency bound,"* and deferred that pipeline to
+[#954](https://github.com/winniel123/verge-asm/issues/954). #954 specs it and finds two clauses of §6
+wrong: it is **not a facet**, and it has **no currency bound**. §3's *"the fan-out count is Observed"* is
+sharpened in the same pass. Nothing above is struck; the Decision's shape — a measured discriminator that
+vetoes at the extension's reach — is untouched.
+
+### The measurement is membership-deciding, not a facet
+
+A facet holds a `Span` timeline on a subject ([ADR-0011](./0011-a-facet-is-six-parts.md)). The vetoed edge
+is a **non-member with no subject and no timeline** (§4, the #944 amendment). So the measurement cannot be
+a facet: it has nothing to hang a timeline on in the exact case it exists to decide. It is instead the
+**`wildcard-discrimination` shape** — a measurement the binary makes to *decide membership*, recorded on
+its `Batch` **by content**, composed into the `Custody` derivation. It carries none of ADR-0011's six
+parts, because it is not a facet, and it opens no timeline, so it has no differ, no discriminator and no
+facet's batch-scope obligation. §6's *"carries the six obligations"* is withdrawn; the pipeline it deferred
+to #954 is the one specced here.
+
+### It rides a `Scan` of its own — the seventh
+
+The probe is an active TLS **connect** to a candidate edge IP, run **before** that address is a member. No
+existing `Scan` can carry it: `dns` and `ct` are connect-free, `hot` and `tls-acceptance` run over members
+only. So it takes a `Scan` of its own — the **seventh**, `edge-fanout` — on
+[ADR-0028](./0028-a-facets-cadence-is-the-cadence-of-its-exchange.md)'s rule that a measurement needing a
+cadence of its own takes a `Scan` of its own. That `Scan` schedules and gives `Coverage` a row. Because its
+result feeds a derivation and holds no facet timeline, it carries **no currency bound and no withdrawal
+power** — exactly as `ct` does, for the parallel reason. Its cadence ships at **daily**: the
+membership-granting input (`resolution`, via `dns`) is daily, and a slower fan-out probe would leave an edge
+probed as a member before the veto. It has **no vantage dimension** — fan-out is the keyless single-vantage
+signal, and vantage-varying fan-out is anycast, out of scope (§5).
+
+### Its population and gate
+
+The `Scan`'s scope is the **custody-extension candidates alone** — the direct-A targets, and the apex
+`ALIAS`/`ANAME` flattened to A, of in-zone names that pass the label-suffix test. It ships **enabled** and
+**`unencumbered`**, gated by the custody-extension declaration itself: no extension means an empty scope and
+no probe, a legible empty-scope state. The one handshake is a strict **subset** of the probing the extension
+already authorizes, run one step earlier, and it *reduces* total probing. A pure narrowing needs no
+widening-style consent dial, so this adds no `Source` toggle of its own.
+
+### The absence rule stands in for the currency bound
+
+The `Custody` derivation decides each candidate on the fan-out result: **shared** declines the reach
+(census: *declined*, per #944); **not-shared** reaches it; **enabled but not yet measured** *holds* the
+reach (census: *measurement pending*), bounded by the daily cadence; a **disabled or errored** `Scan`
+reaches it, the pre-ADR-0129 behaviour. This is **hold-then-open**. It admits no direct-A edge until fan-out
+clears it, so the modal all-CDN install never shows appear-then-withdraw churn, and it falls back to
+reach-everything only where the feature is off. The census gains one **pending** reason beside #944's
+**declined**; neither is a new membership state — the address is *not-reached* with a reason.
+
+### §3 sharpened: the SAN set is Observed, the count is a reduction
+
+§3 said *"the fan-out count is Observed."* More precisely, the **hostname set the edge presents** is
+Observed — the no-SNI default certificate's SANs, read through the `Certificate` entity **by fingerprint**,
+recorded on the fan-out `Batch` by content. The **count** is a *reduction* over that set: eTLD+1 via the
+Public Suffix List, dedup, count the unrelated registrable domains. The PSL reduction, the count and the
+threshold are all **versioned parameters of the `Custody` derivation**. So a PSL update or a threshold move
+is a `Break`, never drift, and no product-chosen number reaches the census or the operator's dials (§3,
+[#55](https://github.com/winniel123/verge-asm/issues/55)). The threshold's **value** stays
+[#955](https://github.com/winniel123/verge-asm/issues/955)'s to calibrate; this amendment fixes only that
+the SAN set is the Observed wire fact and everything interpretive is versioned derivation.
+
+### CT never binds to the IP
+
+The ticket asked how CT SANs bind to an `Address`. The standing `Certificate` rule already answers it: CT
+**is not a source of that facet and cannot be**, because a log entry witnesses issuance, never presentation,
+and attributing a logged certificate to an endpoint nobody watched serve it asserts a presence no scope
+record can catch. So CT never binds a certificate to a serving IP. CT admits `Name`s only; the `dns` `Scan`
+resolves them; a name that actively resolves to the edge is bound by measured `resolution`, not by CT. The
+**no-SNI handshake is the sole channel that binds a certificate to the edge IP.** CT contributes to fan-out
+only indirectly, as resolved names that corroborate — which is why the fan-out sample is deliberately small
+on SNI-required and ECH edges, the loud/wasteful direction §2 accepts.
+
 ## Amendment — [#955](https://github.com/winniel123/verge-asm/issues/955): the threshold is a boolean count fixed at 100, and the single-estate false positive is bounded, never measured away
 
 §3 made the fan-out threshold a versioned parameter of the `Custody` derivation and deferred its
