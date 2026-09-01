@@ -728,6 +728,25 @@ type Querier interface {
 	// The run page renders that recorded token as its terminal batch badge (runStatusLabel),
 	// so a stopped/terminated drill-in shows the real outcome, not the live derivation.
 	ListDispatchProgress(ctx context.Context, limit int32) ([]ListDispatchProgressRow, error)
+	// The newest `edge-fanout` measurement per address, with the certificate the edge
+	// presented beside it. This is the ONE read path from the leaf's store to the `Custody`
+	// derivation's extension-reach veto (#985, ADR-0129 §4).
+	//
+	// DISTINCT ON takes the newest row per address, and `id` breaks a tie between two rows
+	// sharing a `measured_at` instant — the order the migration's index is built for. Only
+	// the newest row is read: an edge measured as shared last month and dedicated today is
+	// decided by today's handshake, so a veto lifts as soon as a measurement contradicts it.
+	//
+	// The join to `certificate_material` is a LEFT JOIN and `der` is nullable, because the
+	// three negative outcomes carry no fingerprint at all. A negative measured the address
+	// and found no identity there, which reduces to a fan-out of zero — measured and
+	// not-shared, never pending. The SAN set is derived from the DER at read (ADR-0027,
+	// #983), so no SAN text is stored anywhere.
+	//
+	// Every address the Scan measured is returned, whether or not the extension still
+	// reaches it. The caller keys the derivation's input on the address, and an address no
+	// longer cited by an in-zone name simply never reaches the lookup.
+	ListEdgeFanoutMeasurements(ctx context.Context) ([]ListEdgeFanoutMeasurementsRow, error)
 	// The enabled providers the SignIn screen renders a button for, newest-first. No
 	// secret, and no created-by join — SignIn is pre-auth and needs only what a button
 	// carries: the slug (its route) and the display name.
@@ -1241,6 +1260,16 @@ type Querier interface {
 	// Admin revocation of any single session by id, not owner-scoped — gated by
 	// requireAdmin at the handler, never reachable by a viewer. Idempotent.
 	RevokeSessionByIDForAdmin(ctx context.Context, arg RevokeSessionByIDForAdminParams) error
+	// Whether a `Scan` of this kind has ever completed a Batch. A Batch row exists only at
+	// a terminal outcome, so this asks whether the Scan has actually RUN on this install,
+	// as against being merely enabled.
+	//
+	// The `edge-fanout` veto reads it to tell its two empty states apart (#985, ADR-0129
+	// §4): a Scan that has not run yet, whose candidates are *measurement pending* and are
+	// HELD, from a Scan that runs and records nothing, which is an ERRORED Scan and opens
+	// the reach. A dead-lettered Batch does not count — it is the job failing, and the tick
+	// retries.
+	ScanHasCompletedBatch(ctx context.Context, kind string) (bool, error)
 	// Flip the read-only /api/v1 surface on or off, stamping who acted and when so the
 	// settings card can render the dated act of the current state (#390). Off by default;
 	// a minted token stays inert until this is true.

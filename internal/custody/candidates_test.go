@@ -66,7 +66,7 @@ func TestExtensionCandidatesAreDistinctInFirstSeenOrder(t *testing.T) {
 
 // A non-globally-reachable address is not a candidate: the extension does not cover one
 // (ADR-0079), so there is no reach to narrow and nothing to measure. This is the same
-// stopping condition coveredByExtension applies, read from one place.
+// stopping condition extensionReaches applies, read from one place.
 func TestExtensionCandidatesSkipsNonGloballyReachable(t *testing.T) {
 	e := Estate{
 		ExtendedZones: []string{"example.com"},
@@ -84,7 +84,7 @@ func TestExtensionCandidatesSkipsNonGloballyReachable(t *testing.T) {
 // extension-covered resolution address is in the set. The two must not drift: the Scan
 // exists to narrow that exact reach, and a candidate outside it would be a probe of an
 // address no extension claims.
-func TestExtensionCandidatesAgreeWithCoveredByExtension(t *testing.T) {
+func TestExtensionCandidatesAgreeWithExtensionReaches(t *testing.T) {
 	e := Estate{
 		AddressScopes: []netip.Prefix{netip.MustParsePrefix("104.16.132.0/24")},
 		ExtendedZones: []string{"example.com", "example.org"},
@@ -97,7 +97,7 @@ func TestExtensionCandidatesAgreeWithCoveredByExtension(t *testing.T) {
 	}
 	got := map[netip.Addr]bool{}
 	for _, a := range e.ExtensionCandidates() {
-		if !e.coveredByExtension(a) {
+		if !e.extensionReaches(a) {
 			t.Fatalf("candidate %s is not covered by the extension", a)
 		}
 		got[a] = true
@@ -106,7 +106,7 @@ func TestExtensionCandidatesAgreeWithCoveredByExtension(t *testing.T) {
 		t.Fatal("no candidates at all — the fixture proves nothing")
 	}
 	for _, r := range e.Resolutions {
-		if e.coveredByExtension(r.Address) && !got[r.Address] {
+		if e.extensionReaches(r.Address) && !got[r.Address] {
 			t.Fatalf("extension-covered address %s is not a candidate", r.Address)
 		}
 	}

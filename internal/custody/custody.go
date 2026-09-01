@@ -7,8 +7,11 @@
 //
 // The package is database-free and pure. Its inputs are the two Declared `Seed`
 // kinds — address scopes (direct custody, enumerating) and custody-extended
-// name scopes — and one Observed fact, the addresses those scopes' names resolve
-// to (ADR-0013 §5). Nothing probes in v1 until ticket 14; this package produces
+// name scopes — and two Observed facts: the addresses those scopes' names resolve
+// to (ADR-0013 §5), and the `edge-fanout` measurement that narrows which of those
+// addresses the custody extension reaches (ADR-0129 §4; see EdgeFanout). The
+// second acts on the extension limb alone, never on the declaration limb.
+// Nothing probes in v1 until ticket 14; this package produces
 // the derivation and the gate, and its tests prove the gate holds by attempting
 // to probe fixture data and observing the total block.
 //
@@ -63,11 +66,19 @@ type Estate struct {
 	ExtendedZones []string
 	// Resolutions are the observed direct A/AAAA records of names in the estate.
 	Resolutions []Resolution
+	// EdgeFanout is the `edge-fanout` Scan's measured result. It narrows the
+	// custody extension's reach and reaches NOTHING ELSE (ADR-0129 §4).
+	EdgeFanout EdgeFanout
 }
 
 // Derive returns the Custody of addr, reading the Estate's Seeds alone. The two
 // operator limbs are disjunctive: an address scope covers it directly, or a
 // custody extension covers it by resolution. Everything else is third-party.
+//
+// The `edge-fanout` measurement acts on the SECOND limb alone. An address a
+// literal address-scope `Seed` covers returns from the first limb before the
+// extension is asked, so it derives `operator` at any fan-out count (ADR-0129's
+// #956 amendment). See EdgeFanout for the law that puts the veto there.
 func (e Estate) Derive(addr netip.Addr) Custody {
 	addr = addr.Unmap()
 	if e.coveredByAddressScope(addr) {
@@ -105,8 +116,28 @@ func (e Estate) coveredByAddressScope(addr netip.Addr) bool {
 	return false
 }
 
-// coveredByExtension reports whether a custody extension covers addr. Two
-// stopping conditions, both measurements rather than lists (ADR-0013 §3 as
+// coveredByExtension reports whether a custody extension covers addr. It is the
+// extension's REACH narrowed by the `edge-fanout` measurement: the label-suffix
+// test decides which in-zone-cited addresses the extension would pull in, and the
+// fan-out result decides which of those it declines (ADR-0129 §4 as amended by
+// #944).
+//
+// The two are a conjunction, never a ranking. A clear measurement admits no
+// address the reach did not already hold, and a shared measurement drops one the
+// reach did hold. So a measured shared edge and a CNAME-to-foreign edge reach the
+// same resting state: outside the estate, never a `Subject`, holding no `Custody`
+// value, opening no `Gap` and queueing no probe.
+func (e Estate) coveredByExtension(addr netip.Addr) bool {
+	return e.extensionReaches(addr) && e.EdgeFanout.admits(addr)
+}
+
+// extensionReaches reports whether a custody extension REACHES addr, before the
+// fan-out measurement narrows it. It is what the `edge-fanout` Scan measures over
+// (ExtensionCandidates), so a vetoed edge stays a candidate and is handshaked
+// again on the next tick — a veto read back into the population would freeze the
+// last measurement and no later one could lift it.
+//
+// Two stopping conditions, both measurements rather than lists (ADR-0013 §3 as
 // amended by ADR-0079):
 //
 //   - The extension does not cover a non-globally-reachable address, whether or
@@ -118,7 +149,7 @@ func (e Estate) coveredByAddressScope(addr netip.Addr) bool {
 //     record's owner name must itself be within a custody-extended name scope.
 //     A CNAME to a foreign name puts the A record on that foreign name, which is
 //     within no extended scope, so it does not extend.
-func (e Estate) coveredByExtension(addr netip.Addr) bool {
+func (e Estate) extensionReaches(addr netip.Addr) bool {
 	if IsNonGloballyReachable(addr) {
 		return false
 	}
