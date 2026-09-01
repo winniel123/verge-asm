@@ -84,7 +84,33 @@ type EdgeFanout struct {
 	//
 	// Keys are Unmap'ed addresses, matching the family-agnostic form every
 	// comparison in this package runs over.
+	//
+	// IT MAY COVER ONE LIMB ALONE. See Partial.
 	Shared map[netip.Addr]bool
+
+	// Partial reports that Shared covers a BOUND SET of addresses rather than every
+	// address the Scan measured (#1036). The `/scope` render binds its read to the
+	// extension candidates, so the declaration limb's rows never arrive.
+	//
+	// It exists because the two ways of reading Shared do not survive a bound
+	// equally. A reader that LOOKS UP a key it holds a candidate for is safe: the
+	// bound names that candidate, so a missing key still means what it always meant.
+	// A reader that WALKS the map wholesale is not: every row the bound left behind
+	// reads as an address the Scan never measured, and the answer is quietly short.
+	//
+	// AddressScopeCensus is that second reader, and it is the only one. It refuses a
+	// partial record rather than reporting over it — see there for why no entries is
+	// the honest answer on that surface where an undercount is not.
+	//
+	// FALSE IS THE WHOLE POPULATION, and it is the zero value. An Estate assembled
+	// without this field carries a complete measurement, which is what every reader
+	// assumed before the bound existed. Only the reader that narrows its own query
+	// sets it, and queue.ReadEdgeFanout is that reader.
+	//
+	// It moves NO GATE and NO VERDICT. admits, inForce and overExtension never read
+	// it: the veto's question is per address, over a candidate the bound named, so
+	// the answer is the same either way.
+	Partial bool
 }
 
 // admits reports whether the fan-out measurement lets the extension reach addr.

@@ -109,6 +109,23 @@ type custodyCensusStore interface {
 // current cited addresses through the live-tier gate, and the `edge-fanout`
 // measurement — so the census names the same declines the dispatch acts on.
 //
+// THE MEASUREMENT IS THE ONE READ THAT NO LONGER MIRRORS. hotEstate takes the whole
+// store; this takes queue.EdgeFanoutOver(estate.ExtensionCandidates()), so the returned
+// estate carries a measurement of the EXTENSION LIMB ALONE (#1036). The declines it
+// names do not move — the census asks about nothing but those candidates, and the
+// per-limb errored floor resolves over the same set — but the estate is narrower than
+// hotEstate's and must not be treated as interchangeable with it.
+//
+// ExtensionCensus is its ONLY legal consumer. A reader that walks the measurement
+// wholesale instead of looking a candidate's key up would read every declaration-limb
+// row the bound left behind as an address the Scan never measured.
+// custody.Estate.AddressScopeCensus is that reader, `/coverage` is its surface, and
+// addressscopecensus.go assembles its own estate off an unbound read for exactly this
+// reason. The record carries custody.EdgeFanout.Partial so that census refuses this
+// estate rather than reporting a short count, but the refusal is a backstop and not a
+// licence: a new consumer of this estate that needs the declaration limb needs an
+// unbound read, not a narrower assertion.
+//
 // A read that FAILS returns the error. The caller degrades the section rather than
 // rendering a row: a census that fabricated one on a database error would name a
 // decline that did not happen.
@@ -151,27 +168,41 @@ func custodyExtensionEstate(ctx context.Context, q custodyCensusStore, asOf time
 		resolutions = append(resolutions, custody.Resolution{Owner: c.SubjectKey, Address: addr.Unmap()})
 	}
 
-	fanout, err := queue.ReadEdgeFanout(ctx, q)
+	excluded, err := queue.ReadAddressExclusions(ctx, q)
 	if err != nil {
 		return custody.Estate{}, err
 	}
 
-	excluded, err := queue.ReadAddressExclusions(ctx, q)
+	// The estate is assembled BEFORE the measurement is read, so the read can be BOUND
+	// to this estate's own extension candidates (#1036). The exclusions go in here.
+	// They narrow the address-scope limb alone, which is the limb this census reads to
+	// name a declined edge's covering Scope: an excluded address is covered by no
+	// scope, so the dual-limb row becomes a bare decline rather than naming a scope the
+	// operator has withdrawn.
+	estate := custody.Estate{
+		AddressScopes: prefixes,
+		ExtendedZones: extended,
+		Resolutions:   resolutions,
+	}.WithAddressExclusions(excluded)
+
+	// BOUND to the extension candidates. This census reads the EXTENSION limb alone —
+	// ExtensionCensus walks the resolutions under the two conditions ExtensionCandidates
+	// itself applies, and nothing else on this estate reads the measurement — so the
+	// unbound read pulled every measured address of every declared address scope to
+	// answer a question about a handful of cited direct-A targets (#1036).
+	//
+	// It is the SAME set WithEdgeFanout resolves the errored floor over, so the bound
+	// cannot drop a key either consumer looks up. Computing it twice is one linear pass
+	// over the resolutions, and it buys back a read whose cost grows with the estate and
+	// with time — `edge_fanout_observation` is never pruned (#985).
+	fanout, err := queue.ReadEdgeFanout(ctx, q, queue.EdgeFanoutOver(estate.ExtensionCandidates()))
 	if err != nil {
 		return custody.Estate{}, err
 	}
 
 	// The measurement goes in LAST, through WithEdgeFanout: its errored floor is read
 	// per limb, over the extension candidates this estate's own resolutions hold.
-	// The exclusions go in before it. They narrow the address-scope limb alone, which
-	// is the limb this census reads to name a declined edge's covering Scope: an
-	// excluded address is covered by no scope, so the dual-limb row becomes a bare
-	// decline rather than naming a scope the operator has withdrawn.
-	return custody.Estate{
-		AddressScopes: prefixes,
-		ExtendedZones: extended,
-		Resolutions:   resolutions,
-	}.WithAddressExclusions(excluded).WithEdgeFanout(fanout), nil
+	return estate.WithEdgeFanout(fanout), nil
 }
 
 // toCustodyCensusView shapes the derivation's census entries for scope.tmpl. It is

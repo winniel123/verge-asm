@@ -164,9 +164,15 @@ type store interface {
 	// measurement read names one fingerprint per measured address, and this reads each
 	// DISTINCT certificate once. It is not the /sources card's CountCertificateMaterial
 	// and not CT verification's GetCertificateMaterial.
+	//
+	// ListEdgeFanoutMeasurementsOver is the same measurement read under an address
+	// predicate (#1036). `/scope` takes it, bound to its own extension candidates;
+	// `/coverage` takes the unbound form. queue.ReadEdgeFanout picks between them, so
+	// both still reduce through one absence rule.
 	ListExtendedZoneDomains(ctx context.Context) ([]pgtype.Text, error)
 	NameCitedAddresses(ctx context.Context, arg db.NameCitedAddressesParams) ([]db.NameCitedAddressesRow, error)
 	ListEdgeFanoutMeasurements(ctx context.Context) ([]db.ListEdgeFanoutMeasurementsRow, error)
+	ListEdgeFanoutMeasurementsOver(ctx context.Context, addresses []string) ([]db.ListEdgeFanoutMeasurementsOverRow, error)
 	ListCertificateMaterialDER(ctx context.Context, fingerprints []string) ([]db.ListCertificateMaterialDERRow, error)
 	ScanHasCompletedBatch(ctx context.Context, kind string) (bool, error)
 	ListUnavailableVantages(ctx context.Context) ([]db.ListUnavailableVantagesRow, error)

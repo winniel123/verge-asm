@@ -451,3 +451,85 @@ func TestCustodyCensusFiresNoMessage(t *testing.T) {
 		t.Errorf("messages = %d after a decline, want %d — a decline is display, never a message", len(f.messages), before)
 	}
 }
+
+// `/scope` BINDS its measurement read to its own extension candidates, and `/coverage`
+// does not (#1036). This test walks the assembler seam for both, so a session that
+// swapped either bound is told here.
+//
+// The bound is the whole point of the ticket: the unbound read pulled every measured
+// address of every declared address scope on a render whose census asks about a handful
+// of cited direct-A targets. `edge_fanout_observation` is never pruned (#985), so that
+// read grows with the estate AND with time.
+//
+// The fixture holds a declaration-limb row no in-zone name cites, so a bound that had
+// quietly widened back to the whole store shows up as that address arriving.
+func TestTheScopeCensusBindsItsFanOutReadAndTheCoverageCensusDoesNot(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	declareExtendedZone(t, f, ac, base, "example.com")
+	declare(t, ac, base, "address", "23.20.0.0/24").Body.Close()
+	censusEstateFixture(t, f)
+	f.completedBatchKinds[scan.EdgeFanoutKind] = true
+	shared := sharedEdgeDER(t)
+	// Two extension candidates, and one declaration-limb address no in-zone name cites.
+	f.measuredEdge("93.184.216.10", string(edgefanout.Presented), shared)
+	f.measuredEdge("93.184.216.20", string(edgefanout.Presented), shared)
+	f.measuredEdge("23.20.0.30", string(edgefanout.Presented), shared)
+
+	estate, err := custodyExtensionEstate(t.Context(), f, time.Now().UTC())
+	if err != nil {
+		t.Fatalf("assemble the census estate: %v", err)
+	}
+	if len(f.edgeFanoutBounds) != 1 {
+		t.Fatalf("the Scope render issued %d bound reads, want 1 — it must not take the unbound query",
+			len(f.edgeFanoutBounds))
+	}
+	want := estate.ExtensionCandidates()
+	if len(f.edgeFanoutBounds[0]) != len(want) {
+		t.Fatalf("the bound named %v, want the extension candidates %v", f.edgeFanoutBounds[0], want)
+	}
+	for i, addr := range want {
+		if f.edgeFanoutBounds[0][i] != addr.String() {
+			t.Fatalf("the bound named %v, want the extension candidates %v", f.edgeFanoutBounds[0], want)
+		}
+	}
+	// The census still declines both candidates. A bound that had dropped one would turn
+	// it from measured into pending, which is a HOLD and renders no row at all.
+	declined := map[string]bool{}
+	for _, e := range estate.ExtensionCensus() {
+		if e.State == custody.ExtensionDeclined {
+			declined[e.Address.String()] = true
+		}
+	}
+	for _, addr := range []string{"93.184.216.10", "93.184.216.20"} {
+		if !declined[addr] {
+			t.Errorf("%s did not decline under the bound read: the bound turned a measured edge into a held one", addr)
+		}
+	}
+
+	// `/coverage` reads the DECLARATION limb, whose candidate set already is most of the
+	// store, so it takes the unbound query and lands on no bound at all.
+	calls := len(f.edgeFanoutBounds)
+	got, err := addressScopeSharedEdges(t.Context(), f)
+	if err != nil {
+		t.Fatalf("read the address-scope census: %v", err)
+	}
+	if len(f.edgeFanoutBounds) != calls {
+		t.Errorf("the address-scope census bound its read to %v: the declaration limb takes the unbound query (#1036)",
+			f.edgeFanoutBounds[calls:])
+	}
+	scope := netip.MustParsePrefix("23.20.0.0/24")
+	if got[scope] != 1 {
+		t.Errorf("the declared scope counted %d shared edges, want 1 — the unbound read lost its own limb's row", got[scope])
+	}
+
+	// The backstop, at the seam the two surfaces share. Handing the Scope render's
+	// estate to the address-scope census yields NO ENTRY rather than a count short by
+	// every declaration-limb row its bound left behind (#1036).
+	if entries := estate.AddressScopeCensus(); entries != nil {
+		t.Errorf("the address-scope census counted %+v over the Scope render's bound estate: "+
+			"a short count states a number this install did not measure", entries)
+	}
+}

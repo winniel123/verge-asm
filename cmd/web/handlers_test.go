@@ -60,6 +60,11 @@ type fakeStore struct {
 	certMaterial        map[string][]byte
 	completedBatchKinds map[string]bool
 
+	// edgeFanoutBounds records every address bound the measurement read was asked for
+	// (#1036). It is a slice of calls, not a set, so a test can pin that `/coverage`
+	// takes the UNBOUND read and never lands here at all.
+	edgeFanoutBounds [][]string
+
 	exclusions []db.Exclusion
 	exclNextID int64
 
@@ -681,6 +686,32 @@ func (f *fakeStore) NameCitedAddresses(context.Context, db.NameCitedAddressesPar
 // the certificate the edge presented. It carries no DER (#1035).
 func (f *fakeStore) ListEdgeFanoutMeasurements(context.Context) ([]db.ListEdgeFanoutMeasurementsRow, error) {
 	return f.edgeFanout, nil
+}
+
+// ListEdgeFanoutMeasurementsOver returns the same rows under the caller's address bound
+// (#1036). It FILTERS rather than returning everything, which is what makes the `/scope`
+// tests exercise the bound: a census that had come to depend on a row outside its own
+// extension candidates would lose it here, exactly as it would against the SQL.
+//
+// It also records each bound it was asked for, so a test can pin WHICH addresses the
+// render narrowed to — and that `/coverage`, which takes the unbound read, never reaches
+// this method at all.
+func (f *fakeStore) ListEdgeFanoutMeasurementsOver(_ context.Context, addresses []string) ([]db.ListEdgeFanoutMeasurementsOverRow, error) {
+	f.edgeFanoutBounds = append(f.edgeFanoutBounds, addresses)
+	want := make(map[string]struct{}, len(addresses))
+	for _, a := range addresses {
+		want[a] = struct{}{}
+	}
+	out := []db.ListEdgeFanoutMeasurementsOverRow{}
+	for _, r := range f.edgeFanout {
+		if _, asked := want[r.Address]; !asked {
+			continue
+		}
+		out = append(out, db.ListEdgeFanoutMeasurementsOverRow{
+			Address: r.Address, Outcome: r.Outcome, Fingerprint: r.Fingerprint,
+		})
+	}
+	return out, nil
 }
 
 // ListCertificateMaterialDER returns the leaf DER of each named certificate, ONE ROW

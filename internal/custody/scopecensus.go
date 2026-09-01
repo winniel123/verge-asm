@@ -96,8 +96,21 @@ type AddressScopeCensusEntry struct {
 // rows would render one fact twice and read as two scopes.
 //
 // Entries are in declaration order, so one render matches the next.
+//
+// IT REFUSES A PARTIAL MEASUREMENT (EdgeFanout.Partial, #1036). This is the ONE reader
+// that walks Shared wholesale rather than looking a candidate's key up, so it is the one
+// reader a BOUND read can mislead: every declaration-limb row the bound left behind
+// reads here as an address the Scan never measured, and the count comes out short with
+// nothing to say so. The `/scope` assembler binds its read to the extension candidates,
+// so its estate carries exactly such a record.
+//
+// NO ENTRIES is the honest answer and an undercount is not. Absence and zero are the
+// same on this surface — that is the declaration limb's open-then-label absence rule
+// above — so refusing costs the operator a row they see on the next load from an
+// unbound read, where a short count would state a number this install did not measure.
+// A refusal cannot be a silent wrong answer here; a short count is exactly that.
 func (e Estate) AddressScopeCensus() []AddressScopeCensusEntry {
-	if !e.edgeFanout.Enabled {
+	if !e.edgeFanout.Enabled || e.edgeFanout.Partial {
 		return nil
 	}
 	scopes := make([]netip.Prefix, 0, len(e.AddressScopes))

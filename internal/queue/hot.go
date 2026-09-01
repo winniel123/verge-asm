@@ -112,7 +112,17 @@ func hotEstate(ctx context.Context, q *db.Queries, asOf time.Time) (custody.Esta
 		}
 	}
 
-	fanout, err := ReadEdgeFanout(ctx, q)
+	// UNBOUND, because this estate has no ONE limb (#1036). hotEstate serves five
+	// dispatches — hot, cold, edge-fanout, http-identity, tls-acceptance — and
+	// foldAddressExclusionWithdrawals on job completion, and its consumers reach both
+	// limbs: the edge-fanout dispatch walks EdgeFanoutPopulation, and every gate over a
+	// declared address reads the declaration limb. There is no candidate set to bind to
+	// that would serve all six, so binding here could only starve one of them.
+	//
+	// It is NOT bound on the grounds of being rare. The withdrawal fold above runs on a
+	// completion rather than on a tick, so this read is not once a day. It is off the
+	// render path, which is what #1036 acts on, and that is the whole claim.
+	fanout, err := ReadEdgeFanout(ctx, q, EdgeFanoutUnbounded())
 	if err != nil {
 		return custody.Estate{}, nil, err
 	}
