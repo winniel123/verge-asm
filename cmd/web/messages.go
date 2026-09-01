@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -134,10 +133,9 @@ func (s *server) fillMessagesSection(r *http.Request, acct db.Account, data map[
 // the MarkMessageUnread mutation. Marked at this site per ADR-0058 (a superseded
 // mechanism is withdrawn where it is specified), rather than only at ADR-0116.
 func (s *server) markMessageRead(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	dest := messageReturn(r)
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
-		http.Redirect(w, r, dest, http.StatusSeeOther) // #nosec G710 (target is messageReturn()'s /inbox-allowlisted or /messages-constant same-origin path; no host control)
+		s.redirectBack(w, r, messagesFallback)
 		return
 	}
 	if err := s.store.MarkMessageRead(r.Context(), db.MarkMessageReadParams{
@@ -146,7 +144,7 @@ func (s *server) markMessageRead(w http.ResponseWriter, r *http.Request, acct db
 		s.serverError(w, "mark message read", err)
 		return
 	}
-	http.Redirect(w, r, dest, http.StatusSeeOther) // #nosec G710 (target is messageReturn()'s /inbox-allowlisted or /messages-constant same-origin path; no host control)
+	s.redirectBack(w, r, messagesFallback)
 }
 
 // markAllMessagesRead clears the caller's own unread count in one act. Read-state
@@ -159,7 +157,7 @@ func (s *server) markAllMessagesRead(w http.ResponseWriter, r *http.Request, acc
 		s.serverError(w, "mark all messages read", err)
 		return
 	}
-	http.Redirect(w, r, messageReturn(r), http.StatusSeeOther) // #nosec G710 (target is messageReturn()'s /inbox-allowlisted or /messages-constant same-origin path; no host control)
+	s.redirectBack(w, r, messagesFallback)
 }
 
 // markMessageUnread returns one message to unread for the caller and redirects
@@ -170,22 +168,9 @@ func (s *server) markAllMessagesRead(w http.ResponseWriter, r *http.Request, acc
 // delete is idempotent, so re-marking an already-unread message is harmless. The
 // unread count and the shell bell reflect the flip on the next read.
 func (s *server) markMessageUnread(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	// The unread control posts return="/inbox" (a constant); resolve the target to
-	// a bool here and redirect to a string LITERAL at each call site below, so no
-	// request-derived value ever reaches http.Redirect. This satisfies gosec's
-	// G107 open-redirect taint analyzer by construction (a #nosec its taint pass
-	// ignores would not), and preserves markMessageRead's /inbox-or-/messages home.
-	toInbox := false
-	if ret := r.FormValue("return"); ret == "/inbox" || strings.HasPrefix(ret, "/inbox") {
-		toInbox = true
-	}
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
-		if toInbox {
-			http.Redirect(w, r, "/inbox", http.StatusSeeOther)
-		} else {
-			http.Redirect(w, r, "/messages", http.StatusSeeOther)
-		}
+		s.redirectBack(w, r, messagesFallback)
 		return
 	}
 	if err := s.store.MarkMessageUnread(r.Context(), db.MarkMessageUnreadParams{
@@ -194,25 +179,30 @@ func (s *server) markMessageUnread(w http.ResponseWriter, r *http.Request, acct 
 		s.serverError(w, "mark message unread", err)
 		return
 	}
-	if toInbox {
-		http.Redirect(w, r, "/inbox", http.StatusSeeOther)
-	} else {
-		http.Redirect(w, r, "/messages", http.StatusSeeOther)
-	}
+	s.redirectBack(w, r, messagesFallback)
 }
 
-// messageReturn is where a message-read POST returns to. The two read handlers are
-// shared by the viewer-readable /messages fold and the V3 /inbox surface (#299);
-// an /inbox form carries a `return` field so the redirect lands back on the Inbox,
-// while /messages posts (which carry none) keep their historical /messages home. The
-// value is admitted only when it names the Inbox, so the field is not an open
-// redirect into an arbitrary URL.
-func messageReturn(r *http.Request) string {
-	if ret := r.FormValue("return"); ret == "/inbox" || strings.HasPrefix(ret, "/inbox?") {
-		return ret
-	}
-	return "/messages"
-}
+// messagesFallback is where a message read/unread act lands when its form carried no
+// submitting URL the guard would admit: the historical /messages home of these handlers.
+//
+// The three acts are shared by the viewer-readable /messages fold and the V3 /inbox surface
+// (#299), and they used to pick between the two with messageReturn — a hand-rolled carrier
+// that admitted a `return` value only when it began "/inbox". Ticket #977 folds it into the
+// shared one (backurl.go): the field name is the same (`return`), the guard is stricter
+// (same-origin relative path, clean, and served by a real GET route), and the value it
+// admits is the WHOLE submitting URL rather than the two allowlisted homes.
+//
+// That is the point of the change, not tidiness. The Inbox carries ?id=<message> and
+// ?filter=unread, so marking a message read from a filtered Inbox used to land on a bare
+// "/inbox" — the filter dropped and the open message closed, which is failure class E on
+// the one surface where a read act is meant to leave you exactly where you were.
+//
+// The #nosec G710 annotations these three sites carried are gone with messageReturn.
+// markMessageUnread's literal-destination pattern goes with them: it enumerated its two
+// destinations so no request-derived value reached http.Redirect, which was the stronger
+// answer while there were two, and cannot express an arbitrary filtered Inbox URL.
+// resolveBack is the guard that replaces it (backurl.go states the same trade).
+const messagesFallback = "/messages"
 
 // inboxView is one message shaped for the Inbox screen (#299): the shared
 // messageRow plus the relative instant the list and detail render, the jump-link

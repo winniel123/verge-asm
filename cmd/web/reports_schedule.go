@@ -112,6 +112,18 @@ type scheduleWizardView struct {
 	// channel_id — the run generates in-instance and no ready-message leaves), and any
 	// other value is a declared Channel's id (P0.6c/T7).
 	ChannelID int64
+	// Back is the /reports URL the operator opened the wizard from, threaded through every
+	// step so the finishing 303 lands on THAT list rather than on a bare /reports
+	// (ADR-0130 §3, ticket #977). /reports carries the report window as ?start=&end= or
+	// ?period=, and a schedule declared from a custom window used to drop it.
+	//
+	// It is the one piece of wizard state that is not the operator's answer to a step, so
+	// it rides the same carrier the rest of the console uses: the `return` field name
+	// (backurl.go backField), read from the entry link's query on the opening GET and from
+	// the form body on every step POST. It is held raw and unvalidated here — the value
+	// only ever reaches a hidden input, an escaped query parameter, and resolveBack, which
+	// is the guard that decides whether it may become a Location.
+	Back string
 }
 
 // readScheduleWizardView reconstructs the controlled state from the request form.
@@ -155,6 +167,7 @@ func readScheduleWizardView(r *http.Request) scheduleWizardView {
 		Cad:       cad,
 		Cron:      strings.TrimSpace(r.FormValue("cron")),
 		ChannelID: channelID,
+		Back:      strings.TrimSpace(r.FormValue(backField)),
 	}
 }
 
@@ -255,6 +268,17 @@ func reportCadPresetFor(cadence string) (cad, cron string) {
 // flow is bookmarkable and harness-addressable (the wizard goldens hit the GET URLs).
 const reportsNewWizardPath = "/reports/schedule/new"
 
+// reportsPath is where a schedule act lands when its form carried no submitting URL the
+// guard would admit — the Reports list, with no window on it. Every act on this surface
+// answers s.redirectBack against it (ticket #977): the row menu's Run now and Delete are
+// submitted FROM the list and return to it query and all, and the wizard's finish returns
+// to the list the operator opened it from, threaded through the steps as
+// scheduleWizardView.Back.
+//
+// A stale id is not an error here. Delete is idempotent and a wizard whose row went away
+// has nothing to save, so both land the operator back where they were rather than 500.
+const reportsPath = "/reports"
+
 func reportsEditWizardPath(id int64) string {
 	return "/reports/schedule/" + strconv.FormatInt(id, 10) + "/edit"
 }
@@ -274,6 +298,12 @@ func redirectWizardStep(w http.ResponseWriter, r *http.Request, base string, v s
 		q.Set("cron", v.Cron)
 	}
 	q.Set("channel", strconv.FormatInt(v.ChannelID, 10))
+	// Carry the entry URL to the next step, so it is still in hand at the finish
+	// (ticket #977). base is a constant route and this is its query, so the operator-held
+	// value gets no say over the host.
+	if v.Back != "" {
+		q.Set(backField, v.Back)
+	}
 	http.Redirect(w, r, base+"?"+q.Encode(), http.StatusSeeOther)
 }
 
@@ -290,7 +320,11 @@ func (s *server) newReportScheduleWizard(w http.ResponseWriter, r *http.Request,
 	}
 	var v scheduleWizardView
 	if r.URL.Query().Get("step") == "" {
-		v = scheduleWizardView{Sections: reportScheduleDefaultSections(), Cad: reportDefaultCad}
+		v = scheduleWizardView{
+			Sections: reportScheduleDefaultSections(),
+			Cad:      reportDefaultCad,
+			Back:     strings.TrimSpace(r.FormValue(backField)),
+		}
 	} else {
 		v = readScheduleWizardView(r)
 	}
@@ -305,7 +339,7 @@ func (s *server) newReportScheduleWizard(w http.ResponseWriter, r *http.Request,
 func (s *server) editReportScheduleWizard(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
-		http.Redirect(w, r, "/reports", http.StatusSeeOther)
+		s.redirectBack(w, r, reportsPath)
 		return
 	}
 	// A PRG GET carries the accumulated state; render it without re-reading the row.
@@ -318,7 +352,7 @@ func (s *server) editReportScheduleWizard(w http.ResponseWriter, r *http.Request
 	sc, err := s.store.GetReportSchedule(r.Context(), id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			http.Redirect(w, r, "/reports", http.StatusSeeOther)
+			s.redirectBack(w, r, reportsPath)
 			return
 		}
 		s.serverError(w, "get report schedule", err)
@@ -331,6 +365,7 @@ func (s *server) editReportScheduleWizard(w http.ResponseWriter, r *http.Request
 		Sections: parseScheduleSections(sc.Sections),
 		Cad:      cad,
 		Cron:     cron,
+		Back:     strings.TrimSpace(r.FormValue(backField)),
 	}
 	if sc.ChannelID.Valid {
 		v.ChannelID = sc.ChannelID.Int64
@@ -397,7 +432,7 @@ func (s *server) createReportSchedule(w http.ResponseWriter, r *http.Request, ac
 		s.serverError(w, "insert report schedule", err)
 		return
 	}
-	http.Redirect(w, r, "/reports", http.StatusSeeOther)
+	s.redirectBack(w, r, reportsPath)
 }
 
 // editReportSchedule drives the edit wizard: the same Back/Next stepping as create,
@@ -412,7 +447,7 @@ func (s *server) editReportSchedule(w http.ResponseWriter, r *http.Request, acct
 		}
 	}
 	if v.ID == 0 {
-		http.Redirect(w, r, "/reports", http.StatusSeeOther)
+		s.redirectBack(w, r, reportsPath)
 		return
 	}
 
@@ -453,13 +488,13 @@ func (s *server) editReportSchedule(w http.ResponseWriter, r *http.Request, acct
 	}); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			// The schedule was deleted between opening the wizard and saving.
-			http.Redirect(w, r, "/reports", http.StatusSeeOther)
+			s.redirectBack(w, r, reportsPath)
 			return
 		}
 		s.serverError(w, "update report schedule", err)
 		return
 	}
-	http.Redirect(w, r, "/reports", http.StatusSeeOther)
+	s.redirectBack(w, r, reportsPath)
 }
 
 // runReportScheduleNow dispatches one on-demand run of a schedule (the row menu's
@@ -473,13 +508,13 @@ func (s *server) editReportSchedule(w http.ResponseWriter, r *http.Request, acct
 func (s *server) runReportScheduleNow(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
-		http.Redirect(w, r, "/reports", http.StatusSeeOther)
+		s.redirectBack(w, r, reportsPath)
 		return
 	}
 	sc, err := s.store.GetReportSchedule(r.Context(), id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			http.Redirect(w, r, "/reports", http.StatusSeeOther)
+			s.redirectBack(w, r, reportsPath)
 			return
 		}
 		s.serverError(w, "get report schedule", err)
@@ -519,7 +554,7 @@ func (s *server) runReportScheduleNow(w http.ResponseWriter, r *http.Request, ac
 		s.serverError(w, "insert report delivery", err)
 		return
 	}
-	http.Redirect(w, r, "/reports", http.StatusSeeOther)
+	s.redirectBack(w, r, reportsPath)
 }
 
 // deleteReportSchedule removes a schedule (the row menu's "Delete"). Delete is
@@ -528,14 +563,14 @@ func (s *server) runReportScheduleNow(w http.ResponseWriter, r *http.Request, ac
 func (s *server) deleteReportSchedule(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
-		http.Redirect(w, r, "/reports", http.StatusSeeOther)
+		s.redirectBack(w, r, reportsPath)
 		return
 	}
 	if err := s.store.DeleteReportSchedule(r.Context(), id); err != nil {
 		s.serverError(w, "delete report schedule", err)
 		return
 	}
-	http.Redirect(w, r, "/reports", http.StatusSeeOther)
+	s.redirectBack(w, r, reportsPath)
 }
 
 // channelBinding maps the wizard's chosen destination to the schedule's channel_id:
@@ -639,11 +674,17 @@ func (s *server) renderScheduleWizard(ctx context.Context, w http.ResponseWriter
 	}
 
 	s.render(w, r, "schedulewizard", map[string]any{
-		"Title":       title,
-		"Account":     acct,
-		"IsAdmin":     acct.Role == roleAdmin,
-		"NavActive":   "reports",
+		"Title":        title,
+		"Account":      acct,
+		"IsAdmin":      acct.Role == roleAdmin,
+		"NavActive":    "reports",
 		"DesignTokens": true,
+
+		// The wizard's forms return to the list the operator opened it from, NOT to the
+		// wizard's own URL. injectChrome only stamps BackURL when a page has not set one,
+		// so setting it here — empty included — keeps the "backfield" partial emitting the
+		// threaded entry URL rather than the step URL a finishing 303 must leave behind.
+		"BackURL": v.Back,
 
 		"WizardTitle": title,
 		"FormAction":  formAction,

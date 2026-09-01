@@ -120,12 +120,39 @@ func TestRestorePreflightRefusesInFlightScan(t *testing.T) {
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("preflight during scan: status = %d, want 303", resp.StatusCode)
 	}
-	if loc := resp.Header.Get("Location"); !strings.Contains(loc, "restore-error=inflight") {
-		t.Fatalf("preflight during scan: Location = %q, want restore-error=inflight", loc)
+	// The refusal lands on the URL the form was submitted from — here the fallback, since
+	// this post carries no `return` field — and spells nothing on it (ADR-0130 §1/§3,
+	// ticket #977). The operator-facing line rides the session form flash instead.
+	if loc := resp.Header.Get("Location"); loc != "/settings?tab=instance" {
+		t.Fatalf("preflight during scan: Location = %q, want /settings?tab=instance", loc)
+	}
+	if got := pendingSettingsFlash(t, srv).restoreError; got != restoreErrorMessage("inflight") {
+		t.Fatalf("flashed restoreError = %q, want the in-flight line", got)
 	}
 	if srv.stagedRestore(admin.ID) != nil {
 		t.Fatal("a refused pre-flight still staged an archive")
 	}
+}
+
+// pendingSettingsFlash returns the one settingsForms waiting in the session form flash, for
+// a test that has just made a single refused settings act. It reads the store directly
+// rather than driving the landing GET, so the assertion is about the refusal the handler
+// stashed and not about everything else the Settings render happens to need.
+func pendingSettingsFlash(t *testing.T, srv *server) settingsForms {
+	t.Helper()
+	srv.formFlash.mu.Lock()
+	defer srv.formFlash.mu.Unlock()
+	if n := len(srv.formFlash.m); n != 1 {
+		t.Fatalf("form flash holds %d entries, want exactly 1", n)
+	}
+	for _, e := range srv.formFlash.m {
+		f, ok := e.value.(settingsForms)
+		if !ok {
+			t.Fatalf("form flash holds %T, want settingsForms", e.value)
+		}
+		return f
+	}
+	return settingsForms{}
 }
 
 // TestRestorePreflightPassesGateWithoutPool proves that with no scan in flight an admin
@@ -184,18 +211,26 @@ func TestRestoreApplyRequiresConfirmWord(t *testing.T) {
 
 	keyBefore := string(srv.key)
 
-	// Wrong confirmation word — no apply.
+	// Wrong confirmation word — no apply. Both refusals 303 to the same URL a success
+	// would, and carry their line on the session flash rather than on the query (#977).
 	resp := postForm(t, ac, ts.URL+"/settings/restore", url.Values{"confirm": {"yes"}})
 	resp.Body.Close()
-	if loc := resp.Header.Get("Location"); !strings.Contains(loc, "restore-error=confirm") {
-		t.Fatalf("wrong confirm: Location = %q, want restore-error=confirm", loc)
+	if loc := resp.Header.Get("Location"); loc != "/settings?tab=instance" {
+		t.Fatalf("wrong confirm: Location = %q, want /settings?tab=instance", loc)
+	}
+	if got := pendingSettingsFlash(t, srv).restoreError; got != restoreErrorMessage("confirm") {
+		t.Fatalf("wrong confirm: flashed restoreError = %q, want the confirm line", got)
 	}
 
-	// Correct word but nothing staged — refused as expired, still no apply.
+	// Correct word but nothing staged — refused as expired, still no apply. The second
+	// refusal replaces the first in the store, so the session never banks two callouts.
 	resp = postForm(t, ac, ts.URL+"/settings/restore", url.Values{"confirm": {"restore"}})
 	resp.Body.Close()
-	if loc := resp.Header.Get("Location"); !strings.Contains(loc, "restore-error=expired") {
-		t.Fatalf("no staged archive: Location = %q, want restore-error=expired", loc)
+	if loc := resp.Header.Get("Location"); loc != "/settings?tab=instance" {
+		t.Fatalf("no staged archive: Location = %q, want /settings?tab=instance", loc)
+	}
+	if got := pendingSettingsFlash(t, srv).restoreError; got != restoreErrorMessage("expired") {
+		t.Fatalf("no staged archive: flashed restoreError = %q, want the expired line", got)
 	}
 
 	if string(srv.key) != keyBefore {

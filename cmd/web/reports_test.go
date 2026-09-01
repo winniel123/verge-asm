@@ -318,6 +318,9 @@ func TestReportScheduleRowMenu(t *testing.T) {
 	data := map[string]any{
 		"Title": "Reports", "NavActive": "reports", "IsAdmin": true,
 		"Account": db.Account{},
+		// The URL this render was made at, as injectChrome stamps it. A window is on it,
+		// because a window is what the row acts must not lose (ADR-0130 §3).
+		"BackURL":   "/reports?period=30d",
 		"Schedules": []reportScheduleRow{
 			{ID: 7, Name: "Weekly exposure summary", Cadence: "weekly · mon 09:00", Format: "pdf", LastSent: "3d", HasDelivery: true, DeliveryHref: "/reports/delivery"},
 			{ID: 8, Name: "Monthly asset inventory", Cadence: "monthly · 1st", Format: "csv", LastSent: "—", HasDelivery: false},
@@ -344,9 +347,12 @@ func TestReportScheduleRowMenu(t *testing.T) {
 	for _, want := range []string{
 		`action="/reports/schedule/run"`,     // Run now POST form
 		`action="/reports/schedule/delete"`,  // Delete POST form
-		`href="/reports/schedule/7/edit"`,    // Edit link, first row's id
-		`href="/reports/schedule/8/edit"`,    // Edit link, second row's id
+		// The Edit link carries the id AND the submitting URL, so the wizard can 303 the
+		// operator back to the list they opened it from when they finish (ADR-0130 §3).
+		`href="/reports/schedule/7/edit?return=`,
+		`href="/reports/schedule/8/edit?return=`,
 		`<input type="hidden" name="id" value="7">`, // the id rides the row-menu forms
+		`<input type="hidden" name="return" value="/reports?period=30d">`, // and so does that URL, window included
 		"Run now", "Edit schedule", "Delete schedule",
 	} {
 		if !strings.Contains(page, want) {
@@ -725,7 +731,7 @@ func TestReportScheduleWizardLive(t *testing.T) {
 	// The New schedule control on the Reports page opens the wizard, and the old
 	// disabled copy is gone.
 	page := getBody(t, ac, base+"/reports", http.StatusOK)
-	if !strings.Contains(page, `href="/reports/schedule/new"`) {
+	if !strings.Contains(page, `href="/reports/schedule/new?return=`) {
 		t.Errorf("Reports should link the New schedule control to the wizard; body: %s", page)
 	}
 	if strings.Contains(page, "Report scheduling is not available yet") {

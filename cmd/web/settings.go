@@ -319,6 +319,8 @@ func tabForSection(section string) string {
 		return "sessions"
 	case "vantages":
 		return "vantages"
+	case "instance":
+		return "instance"
 	case "scans", "cold":
 		return "scans"
 	default:
@@ -359,6 +361,26 @@ func dialogParams(section string) []string {
 		return []string{"role", "reenroll", "remove", "invite"}
 	case "sources":
 		return []string{"consent"}
+	case "sessions":
+		// The Sessions tab is the third case (ticket #977), and it is Team's shape exactly.
+		// ?revoke=<id> opens the per-row revoke confirm and ?revoke-account=<id> the
+		// offboarding one (fillSessionsSection), and each act's form sits inside its dialog.
+		// A verbatim return would re-offer the revoke of a session already ended, and would
+		// put the scrim over the typed-name refusal that renders at page level behind it.
+		return []string{"revoke", "revoke-account"}
+	case "scans":
+		// The Scans tab is the fourth case (ticket #977). ?stop=<id> and ?terminate=<id>
+		// open the stop and terminate confirms (scansPage), and the act's form lives inside
+		// the confirm. Returning verbatim would re-offer the confirm for a dispatch that has
+		// just been ended, and on a refusal the same scrim would cover the receipt. The
+		// dispatch list behind the dialog survives either way.
+		return []string{"stop", "terminate"}
+	case "instance":
+		// ?restore-confirm=1 opens the typed-confirm dialog the restore APPLY form lives in
+		// (settingsPage). A refused apply must land on the tab BEHIND the dialog, where the
+		// .RestoreError callout renders; returning verbatim would re-open the confirm over
+		// it, and would re-offer a restore whose staged archive the refusal may have spent.
+		return []string{"restore-confirm"}
 	}
 	return nil
 }
@@ -419,6 +441,38 @@ func (s *server) takeSettingsFlash(r *http.Request, tab string) settingsForms {
 // settingsForms{...})` with the same struct. Callers not yet migrated keep rendering
 // in place, and settingsForms.section keeps working for them.
 func (s *server) failSettings(w http.ResponseWriter, r *http.Request, f settingsForms) {
+	s.flashSettings(w, r, f)
+}
+
+// toastBackToSection stashes a single-consume TOAST for the next render and answers
+// backToSection's 303. It is flashRedirect (shell.go) over the submitting-URL carrier, and
+// the dispatch stop and terminate acts are its callers (ticket #977).
+//
+// toastRedirectBack would be wrong for those two. The Scans surface re-renders itself with
+// a meta-refresh while a dispatch is in flight, and a toast spelled on the URL fires again
+// on every one of those reloads — the "Scan started" spam WORK-ORDER-DOGFOOD-R1 reported.
+// The per-account flash store keeps the receipt single-consume; backToSection lands the
+// operator on their own list, whichever of /settings?tab=scans or /scans they acted from,
+// with the confirm dialog's ?stop= or ?terminate= dropped (dialogParams).
+func (s *server) toastBackToSection(w http.ResponseWriter, r *http.Request, accountID int64, section, tone, title, description string) {
+	s.flash.set(accountID, toastVM{Tone: tone, Title: title, Description: description})
+	s.backToSection(w, r, section)
+}
+
+// flashSettings is failSettings without the word "fail". It stashes f for the section's
+// landing GET and 303s back to the submitting URL, and it does not care whether f carries
+// a refusal or a receipt.
+//
+// Ticket #977 needs the neutral name for a SUCCESS notice. The admin session revokes used
+// to spell their receipt on the destination — `/settings?tab=sessions&notice=revoked` —
+// which made the landing URL differ from the submitting one, so the scroll key ticket #970
+// set missed by construction (ADR-0130 §2), and on a long session table the operator was
+// thrown to the top for a line of text. The notice rides the flash now and the URL is left
+// exactly as the form declared it.
+//
+// A flashed render answers 200, not 400 (renderSettings), so a receipt carried here is an
+// ordinary navigation, which is what it is.
+func (s *server) flashSettings(w http.ResponseWriter, r *http.Request, f settingsForms) {
 	f.flashTab = tabForSection(f.section)
 	stashFormFlash(s, r, f)
 	s.backToSection(w, r, f.section)
@@ -436,6 +490,19 @@ func (s *server) settingsPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		return
 	}
 	q := r.URL.Query()
+	tab := validTab(q.Get("tab"))
+	// The Integrations surface is gated (#388, integrationsEnabled). Bounce a direct
+	// ?tab=integrations navigation to the default tab BEFORE the flash is taken.
+	//
+	// The bounce used to sit in renderSettings, which runs AFTER the take (#974 recorded
+	// it and left it to this ticket). A take there consumes the session's pending stash
+	// and then answers a redirect that renders none of it, so the callout would be
+	// swallowed on the way past. Claiming nothing is the honest answer for a page this
+	// request never renders.
+	if tab == "integrations" && !integrationsEnabled {
+		http.Redirect(w, r, "/settings?tab=scans", http.StatusSeeOther)
+		return
+	}
 	// A refused settings act redirected here and left its callout and the operator's
 	// typed values in the session-keyed form flash (ADR-0130 §1, flash.go). Read it
 	// once: the take deletes it, so a reload of this same URL — the operator's own, or
@@ -446,17 +513,17 @@ func (s *server) settingsPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	// exists for: the form carried the submitting URL, the handler 303'd back to it,
 	// and that URL says `tab=team`, so a refused team act renders on Team instead of on
 	// the default Scans tab the old `section` derivation dropped it onto.
-	forms := s.takeSettingsFlash(r, validTab(q.Get("tab")))
-	if forms.notice == "" {
-		forms.notice = sessionsNotice(q.Get("notice"))
-	}
-	// Restore card state (#391/B4, ADR-0124) rides the Instance tab only. A failed
-	// pre-flight or apply redirects here with ?restore-error=<code>, mapped to a fixed
-	// line (never reflected text). A completed pre-flight left the validated archive
-	// staged for this admin; surface it as the warn callout, or — with ?restore-confirm=1
-	// — as the typed-confirm dialog.
+	forms := s.takeSettingsFlash(r, tab)
+	// Restore card state (#391/B4, ADR-0124) rides the Instance tab only. A completed
+	// pre-flight left the validated archive staged for this admin; surface it as the warn
+	// callout, or — with ?restore-confirm=1 — as the typed-confirm dialog.
+	//
+	// A refused pre-flight or apply arrives on .RestoreError through the flash above, not
+	// through a ?restore-error= code on the URL (ticket #977). The code carried a fixed
+	// line and reflected nothing, so it was never unsafe; what it did was land the
+	// operator on a URL their form was not submitted from, which is the class-E miss this
+	// map exists to close, on the one act slow enough for the offset to matter.
 	if forms.tab == "instance" {
-		forms.restoreError = restoreErrorMessage(q.Get("restore-error"))
 		if stg := s.stagedRestore(acct.ID); stg != nil {
 			if q.Get("restore-confirm") == "1" {
 				forms.restoreConfirm = &restoreConfirmView{
@@ -472,19 +539,10 @@ func (s *server) settingsPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	s.renderSettings(w, r, acct, forms)
 }
 
-// sessionsNotice maps a redirect's notice code to a fixed success line so a
-// completed admin session act (#407) confirms on the reloaded surface without
-// reflecting arbitrary query text into the page. An unknown code renders no notice.
-func sessionsNotice(code string) string {
-	switch code {
-	case "revoked":
-		return "Session revoked — its next request lands on the sign-in screen."
-	case "revoked-account":
-		return "Every session for that account was revoked."
-	default:
-		return ""
-	}
-}
+// The completed admin session acts (#407) confirm through settingsForms.notice, stashed on
+// the session flash by flashSettings. The sessionsNotice code table that used to map
+// ?notice=revoked / ?notice=revoked-account is gone with the query carrier it decoded
+// (ticket #977): the two lines it held are now stated at the two handlers that mean them.
 
 // --- team ------------------------------------------------------------------
 
@@ -829,7 +887,7 @@ func (s *server) updateRetention(w http.ResponseWriter, r *http.Request, acct db
 		s.serverError(w, "update retention", err)
 		return
 	}
-	http.Redirect(w, r, "/settings?tab=delivery", http.StatusSeeOther)
+	s.backToSection(w, r, "retention")
 }
 
 // updateAddressCap sets the operator address-scope cap (#888 / Settings #206,
@@ -858,7 +916,7 @@ func (s *server) updateAddressCap(w http.ResponseWriter, r *http.Request, acct d
 		s.serverError(w, "update address cap", err)
 		return
 	}
-	http.Redirect(w, r, "/settings?tab=scans", http.StatusSeeOther)
+	s.backToSection(w, r, "addresscap")
 }
 
 // --- render ----------------------------------------------------------------
@@ -873,14 +931,13 @@ func (s *server) renderSettings(w http.ResponseWriter, r *http.Request, acct db.
 		active = tabForSection(f.section)
 	}
 
-	// The Integrations surface is hidden (#388, integrationsEnabled). A direct
-	// ?tab=integrations navigation renders no tab and no section, so bounce it to
-	// the default Scans tab rather than an empty page — nothing integration-related
-	// is reachable while the flag is off.
-	if active == "integrations" && !integrationsEnabled {
-		http.Redirect(w, r, "/settings?tab=scans", http.StatusSeeOther)
-		return
-	}
+	// The gate on the Integrations surface (#388, integrationsEnabled) moved UP to
+	// settingsPage, ahead of the flash take (ticket #977). It cannot live here: this is
+	// the render, and by the time it runs the caller has already consumed the session's
+	// pending stash, so a bounce answered from here would swallow the callout on its way
+	// past. Nothing else reaches this function with tab "integrations" — the folded read
+	// surfaces name their own section, and integrations.go's own handlers 303 rather than
+	// render.
 
 	data := map[string]any{
 		"Title": "Settings", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
@@ -1292,7 +1349,7 @@ func (s *server) fillSessionsSection(r *http.Request, f settingsForms, data map[
 func (s *server) revokeSessionAdmin(w http.ResponseWriter, r *http.Request, _ db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
-		http.Redirect(w, r, "/settings?tab=sessions", http.StatusSeeOther)
+		s.backToSection(w, r, "sessions")
 		return
 	}
 	if err := s.store.RevokeSessionByIDForAdmin(r.Context(), db.RevokeSessionByIDForAdminParams{
@@ -1301,7 +1358,10 @@ func (s *server) revokeSessionAdmin(w http.ResponseWriter, r *http.Request, _ db
 		s.serverError(w, "admin revoke session", err)
 		return
 	}
-	http.Redirect(w, r, "/settings?tab=sessions&notice=revoked", http.StatusSeeOther)
+	s.flashSettings(w, r, settingsForms{
+		section: "sessions",
+		notice:  "Session revoked — its next request lands on the sign-in screen.",
+	})
 }
 
 // revokeAccountSessions revokes every live session for one account — the offboarding
@@ -1312,13 +1372,13 @@ func (s *server) revokeSessionAdmin(w http.ResponseWriter, r *http.Request, _ db
 func (s *server) revokeAccountSessions(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("account_id"), 10, 64)
 	if err != nil {
-		http.Redirect(w, r, "/settings?tab=sessions", http.StatusSeeOther)
+		s.backToSection(w, r, "sessions")
 		return
 	}
 	target, err := s.store.GetAccountByID(r.Context(), id)
 	if err != nil {
 		// The account is gone; there is nothing to revoke and no dialog to re-open.
-		http.Redirect(w, r, "/settings?tab=sessions", http.StatusSeeOther)
+		s.backToSection(w, r, "sessions")
 		return
 	}
 	if strings.TrimSpace(r.FormValue("confirm_name")) != target.Username {
@@ -1334,7 +1394,10 @@ func (s *server) revokeAccountSessions(w http.ResponseWriter, r *http.Request, a
 		s.serverError(w, "admin revoke account sessions", err)
 		return
 	}
-	http.Redirect(w, r, "/settings?tab=sessions&notice=revoked-account", http.StatusSeeOther)
+	s.flashSettings(w, r, settingsForms{
+		section: "sessions",
+		notice:  "Every session for that account was revoked.",
+	})
 }
 
 // sessionDeviceFromUA describes a session from a stored User-Agent string — a real
@@ -1617,7 +1680,7 @@ func (s *server) updateCheckToggle(w http.ResponseWriter, r *http.Request, acct 
 		s.serverError(w, "set update check enabled", err)
 		return
 	}
-	http.Redirect(w, r, "/settings?tab=instance", http.StatusSeeOther)
+	s.backToSection(w, r, "instance")
 }
 
 // apiToggle flips the read-only /api/v1 surface on or off (#390, ADR-0123). The hidden
@@ -1638,11 +1701,11 @@ func (s *server) apiToggle(w http.ResponseWriter, r *http.Request, acct db.Accou
 		return
 	}
 	if enabled {
-		s.toastRedirect(w, r, "/settings?tab=api", "ok", "API access enabled",
+		s.toastRedirectBack(w, r, "/settings?tab=api", "ok", "API access enabled",
 			"Personal tokens now answer GET /api/v1/… — read-only, always.")
 		return
 	}
-	s.toastRedirect(w, r, "/settings?tab=api", "neutral", "API access disabled", "")
+	s.toastRedirectBack(w, r, "/settings?tab=api", "neutral", "API access disabled", "")
 }
 
 // diskLabel renders the used / total volume figure the instance-health disk row shows
