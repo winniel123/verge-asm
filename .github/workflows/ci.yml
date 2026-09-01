@@ -109,19 +109,30 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          # Every lock A6 is evaluated against. `resolution-walk` is the
-          # membership leaf golden-corpus.md §3.2 names. `custody` is the
-          # `Custody` derivation's own lock (§10), which pins the fan-out
-          # threshold ADR-0129 §3 makes a Break. A6 is evaluated PER LOCK: a
-          # bump of one is tested against that one's own block, and the two
-          # blocks are never pooled.
+          # The locks A6 is evaluated against — the three blocks
+          # golden-corpus.md specifies, and no others. `resolution-walk` (§2)
+          # and `wildcard-discrimination` (§8) are the two membership leaves
+          # §3.2's A6 row names; `custody` (§10) is the `Custody` derivation,
+          # whose lock pins the fan-out threshold ADR-0129 §3 makes a Break.
+          #
+          # The other four measure corpora hold locks that §3.2 does not name,
+          # so they are deliberately absent. Widening A6 onto them is a decision
+          # golden-corpus.md takes first.
+          #
+          # A6 is evaluated PER LOCK: a bump of one is tested against that one's
+          # own block, and the blocks are never pooled. Every failing lock is
+          # reported before the step exits, so one run names them all.
           locks="internal/measure/resolutionwalk/corpus/corpus.lock.json
+          internal/measure/wildcarddiscrim/corpus/corpus.lock.json
           internal/custody/corpus/corpus.lock.json"
           field() { echo "$1" | jq -r "$2"; }
           refused=0
           for lock in $locks; do
             base=$(git show "$BASE_SHA:$lock" 2>/dev/null || echo '{}')
-            head=$(cat "$lock")
+            # A lock absent at HEAD reads as `{}` rather than aborting the step
+            # on `cat`, so a rename or removal still lets the remaining locks be
+            # evaluated and reported.
+            head=$(cat "$lock" 2>/dev/null || echo '{}')
             bv=$(field "$base" '.leaf_version // ""')
             hv=$(field "$head" '.leaf_version // ""')
             bc=$(field "$base" '.corpus_digest // ""')

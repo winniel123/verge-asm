@@ -3,6 +3,7 @@ package corpus
 import (
 	"bytes"
 	"flag"
+	"fmt"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -42,7 +43,15 @@ func regenerate() error {
 			return err
 		}
 	}
-	existing, _ := LoadLock(".")
+	// The register is append-only and maintained by hand, so a lock that exists
+	// and fails to decode must STOP the bless rather than yield a zero Lock. A
+	// JSON typo added while appending an uncovered move would otherwise be
+	// blessed away as `"uncovered_moves": null`, erasing the justification a
+	// later bump depends on (golden-corpus.md §9.2).
+	existing, err := LoadLock(".")
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("corpus: refusing to re-bless over an unreadable lock: %w", err)
+	}
 	return WriteLock(".", Lock{
 		LeafVersion:    custody.Version,
 		CorpusDigest:   CorpusDigest(rendered),
@@ -110,6 +119,64 @@ func TestCorpusCoverage(t *testing.T) {
 	for _, c := range AllCells {
 		if !covered[c] {
 			t.Errorf("cell %q holds no corpus row", c)
+		}
+	}
+}
+
+// TestRowsAreWellFormed closes the two ways a row can cite a cell while pinning
+// nothing. Both survive A2 and A5, so neither is caught anywhere else, and both
+// are the silent move this block exists to catch.
+func TestRowsAreWellFormed(t *testing.T) {
+	// One golden per row. RenderAll keys by filename, so two rows sharing one
+	// would collapse to a single render: A5 would still count the second row's
+	// cells as covered, A2 would compare both rows against the one surviving
+	// file, and the digest would hash one entry fewer.
+	byGolden := make(map[string]string, len(Rows))
+	for _, r := range Rows {
+		if r.Golden == "" {
+			t.Errorf("row citing %v declares no golden filename", r.Cells)
+			continue
+		}
+		if first, dup := byGolden[r.Golden]; dup {
+			t.Errorf("golden %s is claimed by two rows (%v and %v): the second render replaces the first and its cells are pinned by nothing",
+				r.Golden, first, r.Cells)
+			continue
+		}
+		byGolden[r.Golden] = fmt.Sprint(r.Cells)
+	}
+
+	// Every observed address is an address the row renders or resolves. A
+	// mistyped literal in Observed parses fine, attaches to no rendered address,
+	// and silently degrades a boundary row into a measurement-pending one — a row
+	// citing C1 that pins C3's claim, blessed on the next -update.
+	for _, r := range Rows {
+		known := make(map[netip.Addr]struct{}, len(r.Step.Under)+len(r.Step.Resolutions))
+		for _, s := range r.Step.Under {
+			known[netipMust(t, s)] = struct{}{}
+		}
+		for _, res := range r.Step.Resolutions {
+			known[netipMust(t, res.Address)] = struct{}{}
+		}
+		for spelling := range r.Step.Observed {
+			if _, ok := known[netipMust(t, spelling)]; !ok {
+				t.Errorf("row %s observes %s, which it neither renders nor resolves: the measurement attaches to no address and the row reads as measurement-pending",
+					r.Golden, spelling)
+			}
+		}
+		// An address under test that no resolution cites renders a line the
+		// estate has no basis for, so the row would claim a reach nothing
+		// resolved to.
+		for _, s := range r.Step.Under {
+			addr := netipMust(t, s)
+			cited := false
+			for _, res := range r.Step.Resolutions {
+				if netipMust(t, res.Address) == addr {
+					cited = true
+				}
+			}
+			if !cited {
+				t.Errorf("row %s renders %s, which no resolution in its estate cites", r.Golden, s)
+			}
 		}
 	}
 }
