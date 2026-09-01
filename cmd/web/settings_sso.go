@@ -127,10 +127,15 @@ func validateSSOForm(v ssoFormValues) string {
 
 // createSSOProvider declares one OIDC provider. The secret is optional (a public
 // PKCE-only client sets none) and write-only.
+//
+// Both outcomes are a post-redirect-get back to the URL the form was submitted from
+// (ADR-0130 §1 and §3, map #969 ticket #975). A refusal carries its message and the
+// operator's typed values to that landing GET through the session form flash, so the
+// typed client secret never enters the URL and the operator keeps their scroll offset.
 func (s *server) createSSOProvider(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	v := readSSOForm(r)
 	fail := func(msg string) {
-		s.renderSettings(w, r, acct, settingsForms{
+		s.failSettings(w, r, settingsForms{
 			section: "sso", ssoError: msg,
 			ssoSlug: v.slug, ssoName: v.name, ssoIssuer: v.issuer, ssoClientID: v.clientID,
 		})
@@ -153,14 +158,20 @@ func (s *server) createSSOProvider(w http.ResponseWriter, r *http.Request, acct 
 		s.serverError(w, "create sso provider", err)
 		return
 	}
-	http.Redirect(w, r, "/settings?tab=sso", http.StatusSeeOther)
+	s.backToSection(w, r, "sso")
 }
 
 // updateSSOProvider edits a provider's fields and enabled state, applying a secret
 // change only if one was asked for (blank leaves the stored secret untouched).
-func (s *server) updateSSOProvider(w http.ResponseWriter, r *http.Request, acct db.Account) {
+//
+// The edit form is one row's disclosure (settings.tmpl st-disc), not a query-opened
+// dialog, so a refusal has no modal to re-open: it lands on the tab and the callout
+// renders above the provider table. The typed values are not echoed, because the
+// disclosure renders each field from the stored row. The migration does not change
+// that.
+func (s *server) updateSSOProvider(w http.ResponseWriter, r *http.Request, _ db.Account) {
 	fail := func(msg string) {
-		s.renderSettings(w, r, acct, settingsForms{section: "sso", ssoError: msg})
+		s.failSettings(w, r, settingsForms{section: "sso", ssoError: msg})
 	}
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
@@ -190,7 +201,7 @@ func (s *server) updateSSOProvider(w http.ResponseWriter, r *http.Request, acct 
 		fail("That provider could not be found.")
 		return
 	}
-	http.Redirect(w, r, "/settings?tab=sso", http.StatusSeeOther)
+	s.backToSection(w, r, "sso")
 }
 
 // setSSOProviderSecret writes, replaces or clears a provider's client secret through
@@ -198,10 +209,10 @@ func (s *server) updateSSOProvider(w http.ResponseWriter, r *http.Request, acct 
 // the clear box unchecked is a no-op — the stored secret is kept, honouring the form's
 // "leave blank to keep" — exactly the channel-secret pattern (settings.go). Clearing a
 // stored secret requires the explicit clear box, which wins over any typed value.
-func (s *server) setSSOProviderSecret(w http.ResponseWriter, r *http.Request, acct db.Account) {
+func (s *server) setSSOProviderSecret(w http.ResponseWriter, r *http.Request, _ db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
-		s.renderSettings(w, r, acct, settingsForms{section: "sso", ssoError: "That provider could not be found."})
+		s.failSettings(w, r, settingsForms{section: "sso", ssoError: "That provider could not be found."})
 		return
 	}
 	switch {
@@ -218,22 +229,22 @@ func (s *server) setSSOProviderSecret(w http.ResponseWriter, r *http.Request, ac
 			return
 		}
 	}
-	http.Redirect(w, r, "/settings?tab=sso", http.StatusSeeOther)
+	s.backToSection(w, r, "sso")
 }
 
 // deleteSSOProvider removes a provider. Idempotent: deleting a row already gone
 // satisfies the operator's intent either way.
-func (s *server) deleteSSOProvider(w http.ResponseWriter, r *http.Request, acct db.Account) {
+func (s *server) deleteSSOProvider(w http.ResponseWriter, r *http.Request, _ db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
-		s.renderSettings(w, r, acct, settingsForms{section: "sso", ssoError: "That provider could not be found."})
+		s.failSettings(w, r, settingsForms{section: "sso", ssoError: "That provider could not be found."})
 		return
 	}
 	if err := s.store.DeleteSSOProvider(r.Context(), id); err != nil {
 		s.serverError(w, "delete sso provider", err)
 		return
 	}
-	http.Redirect(w, r, "/settings?tab=sso", http.StatusSeeOther)
+	s.backToSection(w, r, "sso")
 }
 
 // removeSSOBinding lets an admin revoke any verified-identity binding — the offboarding
@@ -243,7 +254,7 @@ func (s *server) deleteSSOProvider(w http.ResponseWriter, r *http.Request, acct 
 func (s *server) removeSSOBinding(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
-		s.renderSettings(w, r, acct, settingsForms{section: "sso", ssoError: "That identity could not be found."})
+		s.failSettings(w, r, settingsForms{section: "sso", ssoError: "That identity could not be found."})
 		return
 	}
 	if err := s.store.DeleteSSOIdentity(r.Context(), id); err != nil {
@@ -251,5 +262,5 @@ func (s *server) removeSSOBinding(w http.ResponseWriter, r *http.Request, acct d
 		return
 	}
 	log.Printf("web: sso: admin %d removed identity binding %d", acct.ID, id)
-	http.Redirect(w, r, "/settings?tab=sso", http.StatusSeeOther)
+	s.backToSection(w, r, "sso")
 }

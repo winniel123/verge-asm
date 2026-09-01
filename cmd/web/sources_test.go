@@ -460,19 +460,21 @@ func TestCataloguedSourceOffersNoEnable(t *testing.T) {
 	if strings.Contains(dlg, "Accept and enable") {
 		t.Errorf("consent dialog opened for a catalogued source; body: %s", dlg)
 	}
-	// The settings twin refuses an enable POST — it renders the sources section with an
-	// error (a 400 by renderSettings' section-error convention), never the consent-dialog
-	// bounce, and persists nothing.
-	resp := postForm(t, ac, base+"/settings/sources", url.Values{"id": {"ripestat"}, "enable": {"true"}})
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("catalogued enable: status=%d, want 400 (refusal render)", resp.StatusCode)
+	// The settings twin refuses an enable POST and persists nothing. The refusal is a
+	// post-redirect-get back to the submitting URL (ADR-0130 §1, ticket #975), so the
+	// callout renders on the landing GET rather than as a 400 body at the POST URL.
+	const from = "/settings?tab=sources"
+	resp := postForm(t, ac, base+"/settings/sources", url.Values{
+		"id": {"ripestat"}, "enable": {"true"}, "return": {from},
+	})
+	if loc := submitLoc(t, resp); loc != from {
+		t.Fatalf("catalogued enable landed at %q, want %q", loc, from)
 	}
-	if loc := resp.Header.Get("Location"); loc != "" {
-		t.Errorf("catalogued enable bounced to %q rather than refusing", loc)
-	}
-	resp.Body.Close()
 	if st, ok := f.sourceStates["ripestat"]; ok && st.Enabled {
 		t.Fatalf("catalogued source enabled: %+v", st)
+	}
+	if land := getBody(t, ac, base+from, http.StatusOK); !strings.Contains(land, "could not be found") {
+		t.Fatalf("the refusal is not on the landing page; body: %s", land)
 	}
 }
 
