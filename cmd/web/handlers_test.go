@@ -44,6 +44,15 @@ type fakeStore struct {
 	seeds      []db.Seed
 	seedNextID int64
 
+	// The custody-extension census's three reads beyond the seeds (#987): the
+	// current (Name, Address) resolutions, the newest `edge-fanout` measurement per
+	// address, and which Scan kinds have completed a Batch. citedErr poses the read
+	// failure the census must degrade on rather than fabricate a row.
+	cited               []db.NameCitedAddressesRow
+	citedErr            error
+	edgeFanout          []db.ListEdgeFanoutMeasurementsRow
+	completedBatchKinds map[string]bool
+
 	exclusions []db.Exclusion
 	exclNextID int64
 
@@ -263,8 +272,9 @@ func newFakeStore() *fakeStore {
 		},
 		obsNextID: 1, batchNextID: 1, scanNextID: 1, tokenNextID: 1,
 		resetNextID: 1, recoveryNextID: 1, inviteNextID: 1, sessionNextID: 1,
-		freqEdits:  map[int32]fakeFreqEdit{},
-		coldScopes: map[int64]bool{},
+		freqEdits:           map[int32]fakeFreqEdit{},
+		coldScopes:          map[int64]bool{},
+		completedBatchKinds: map[string]bool{},
 	}
 }
 
@@ -594,6 +604,42 @@ func (f *fakeStore) ListAddressScopeCidrs(context.Context) ([]*netip.Prefix, err
 	conv := netip.MustParsePrefix("10.0.0.0/8")
 	out = append(out, &conv)
 	return out, nil
+}
+
+// ListExtendedZoneDomains returns the domains of the name-scope Seeds carrying a
+// custody extension, mirroring the SQL's `kind = 'name' AND custody_extension`.
+func (f *fakeStore) ListExtendedZoneDomains(context.Context) ([]pgtype.Text, error) {
+	out := []pgtype.Text{}
+	for _, s := range f.seeds {
+		if s.Kind == "name" && s.CustodyExtension && s.NameDomain.Valid {
+			out = append(out, s.NameDomain)
+		}
+	}
+	return out, nil
+}
+
+// NameCitedAddresses returns the seeded (Name, Address) resolutions the custody
+// census reads (#987). The fake holds them directly: it folds no resolution-walk
+// observation into the current-cited projection the SQL derives, so a test poses the
+// pairs it means to reason about. citedErr poses the read failure the census degrades
+// on.
+func (f *fakeStore) NameCitedAddresses(context.Context, db.NameCitedAddressesParams) ([]db.NameCitedAddressesRow, error) {
+	if f.citedErr != nil {
+		return nil, f.citedErr
+	}
+	return f.cited, nil
+}
+
+// ListEdgeFanoutMeasurements returns the newest `edge-fanout` measurement per address
+// (#983). The fake holds the rows the test posed, DER and all.
+func (f *fakeStore) ListEdgeFanoutMeasurements(context.Context) ([]db.ListEdgeFanoutMeasurementsRow, error) {
+	return f.edgeFanout, nil
+}
+
+// ScanHasCompletedBatch reports whether a Batch of the given Scan kind has ever
+// completed — the ERRORED half of ADR-0129's fourth absence case (#985).
+func (f *fakeStore) ScanHasCompletedBatch(_ context.Context, kind string) (bool, error) {
+	return f.completedBatchKinds[kind], nil
 }
 
 // DeleteSeed removes a Seed by id (#21a), returning the rows affected so a missing id

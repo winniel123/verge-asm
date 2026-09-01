@@ -108,12 +108,26 @@ func (e Estate) CoversAddressScope(addr netip.Addr) bool {
 // Containment is family-matched prefix comparison over the address, never over a
 // spelling (CONTEXT.md `Seed`), so the lookup cannot turn on a rendering.
 func (e Estate) coveredByAddressScope(addr netip.Addr) bool {
+	_, covered := e.coveringAddressScope(addr)
+	return covered
+}
+
+// coveringAddressScope returns the first declared address scope containing addr,
+// and whether one does. It is coveredByAddressScope's answer plus the scope that
+// gave it, which the custody-extension census names on its dual-limb row (#987).
+// Both callers share this one matcher so the predicate and the row cannot
+// disagree about which addresses a `Seed` covers.
+//
+// FIRST match, not most specific. Two overlapping scopes both cover the address
+// and the derivation is the same either way; picking between them would be a
+// specificity test, which this package refuses (see EdgeFanout).
+func (e Estate) coveringAddressScope(addr netip.Addr) (netip.Prefix, bool) {
 	for _, p := range e.AddressScopes {
 		if p.Contains(addr) {
-			return true
+			return p, true
 		}
 	}
-	return false
+	return netip.Prefix{}, false
 }
 
 // coveredByExtension reports whether a custody extension covers addr. It is the

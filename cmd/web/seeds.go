@@ -603,6 +603,11 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 	if corpus, cerr := s.buildSignalCorpus(r); cerr == nil {
 		nameTree = declaredNameTree(nameSeeds, corpus.Names, signal.EvaluateCorpus(corpus))
 	}
+	// The custody-extension census (#987): the declines and the held candidates the
+	// `edge-fanout` veto produced. Best-effort and additive, exactly like the name
+	// tree above — a failed read degrades this one section to an honest note rather
+	// than 500ing the Scope screen, and it NEVER falls back to a fabricated row.
+	census, censusErr := s.custodyCensus(r.Context())
 	data := map[string]any{
 		"Title": "Scope", "NavActive": "scope",
 		"Account": acct, "IsAdmin": acct.Role == roleAdmin,
@@ -628,6 +633,12 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		// The custody-extension section reads name scopes alone — an address scope can
 		// never carry one — each with its per-name census meter (#21b).
 		"CustodyScopes": toCustodyViews(nameSeeds), "CustodyError": f.custodyError,
+		// The custody-extension census (#987, ADR-0129 §5): the in-zone names whose
+		// direct-A edge the extension does not reach, each with its citing name and
+		// the address-scope remedy. .CustodyCensusFailed is the honest degrade — the
+		// section says the read did not resolve rather than showing a row nothing
+		// measured.
+		"CustodyCensus": census, "CustodyCensusFailed": censusErr != nil,
 		// The zone-file section (#21c): the status rows show which name scopes hold a
 		// supplied file, and the interval dial is the declared re-supply cadence. The
 		// FileDrop infers the apex from the uploaded file, so no per-scope select.
