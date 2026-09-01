@@ -95,6 +95,43 @@ func TestToJobView(t *testing.T) {
 	}
 }
 
+// toJobRollup folds a dispatch's job states into the card's chip counts (#961). A
+// superseded (retried) attempt earns no chip — it belongs on run detail — but it still
+// counts toward Total, the drill button's "all N jobs".
+func TestToJobRollup(t *testing.T) {
+	self := func(s string) string { return s }
+
+	got := toJobRollup([]string{"done", "done", "running", "ready", "dead", "retried"}, self)
+	want := jobRollup{Ready: 1, Running: 1, Done: 2, Dead: 1, Total: 6}
+	if got != want {
+		t.Errorf("rollup = %+v, want %+v", got, want)
+	}
+
+	if empty := toJobRollup(nil, self); empty != (jobRollup{}) {
+		t.Errorf("a dispatch with no jobs should roll up to zero, got %+v", empty)
+	}
+}
+
+// The dev fixture path folds the same rollup off its own job shape, so the VERGE_DEV
+// card and the live card render one shape (#961). The stop / terminate dialogs read
+// their Pending and Running counts off that rollup.
+func TestFillFixtureRollups(t *testing.T) {
+	active := []sfActive{{
+		ID: 1409,
+		Jobs: []sfJob{
+			{ID: 912, State: "done"}, {ID: 913, State: "done"},
+			{ID: 914, State: "ready"}, {ID: 915, State: "running"},
+			{ID: 916, State: "retried"},
+		},
+	}}
+	fillFixtureRollups(active)
+
+	want := jobRollup{Ready: 1, Running: 1, Done: 2, Total: 5}
+	if active[0].Rollup != want {
+		t.Errorf("fixture rollup = %+v, want %+v", active[0].Rollup, want)
+	}
+}
+
 // An in-flight scan renders as in-progress with its per-job state and a self-refresh
 // so it stays current as jobs complete (AC: shows in progress with job state; shows
 // completed-vs-enqueued for the active dispatch).
@@ -126,15 +163,83 @@ func TestScansPageInFlight(t *testing.T) {
 	if !strings.Contains(page, "1 / 3 jobs") {
 		t.Errorf("progress count missing; body: %s", page)
 	}
-	// Per-job state renders, including the retrying attempt and the batch outcome.
-	for _, want := range []string{"running", "retrying", "completed", "eu-prober", "us-prober", "ap-prober"} {
+	// The card summarises the fan-out as state chips (#961) instead of per-job rows.
+	for _, want := range []string{
+		`<span class="n">1</span>running`,
+		`<span class="n">1</span>ready`,
+		`<span class="n">1</span>done`,
+	} {
 		if !strings.Contains(page, want) {
-			t.Errorf("job detail missing %q; body: %s", want, page)
+			t.Errorf("rollup chip missing %q; body: %s", want, page)
+		}
+	}
+	// The drill button carries the total job count and points at run detail.
+	if !strings.Contains(page, `href="/runs/10">View all 3 jobs</a>`) {
+		t.Errorf("drill button missing; body: %s", page)
+	}
+	// No per-job table, and no per-vantage detail, survives on the card. The card and
+	// the history are the only two st-table users on this tab, and this fixture has no
+	// history, so a single st-table here would be the removed per-job one.
+	if strings.Contains(page, `class="st-table"`) {
+		t.Errorf("the active card must render no table; body: %s", page)
+	}
+	// A zero count draws no chip, so nothing died here and no dead chip appears. The
+	// Vantage and Outcome column headers were the removed table's alone.
+	for _, gone := range []string{
+		"eu-prober", "us-prober", "ap-prober", "retrying", `</span>dead`,
+		">Vantage</th>", ">Outcome</th>",
+	} {
+		if strings.Contains(page, gone) {
+			t.Errorf("the card should not carry %q; body: %s", gone, page)
 		}
 	}
 	// The in-flight view self-refreshes.
 	if !strings.Contains(page, `http-equiv="refresh"`) {
 		t.Errorf("an in-flight scans page should self-refresh; body: %s", page)
+	}
+}
+
+// The rollup shows running and done always, ready and dead only when the count is
+// above zero, and superseded never — a retried attempt is run-detail detail (#961).
+// The drill button counts every job the dispatch fanned out, the retried one included,
+// because run detail lists them all.
+func TestScansCardRollupChipRules(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+
+	tick := time.Date(2026, 8, 16, 9, 30, 0, 0, time.UTC)
+	f.dispatchProgress = []db.ListDispatchProgressRow{
+		progressRow(11, "hot", tick, 7, 0, 2, 3, 1, 1), // active, nothing ready
+	}
+	jobs := []db.ListJobsForDispatchRow{
+		{ID: 200, Kind: "hot", State: "running", Attempt: 1, MaxAttempts: 5},
+		{ID: 201, Kind: "hot", State: "running", Attempt: 1, MaxAttempts: 5},
+		{ID: 202, Kind: "hot", State: "done", Attempt: 1, MaxAttempts: 5},
+		{ID: 203, Kind: "hot", State: "done", Attempt: 1, MaxAttempts: 5},
+		{ID: 204, Kind: "hot", State: "done", Attempt: 2, MaxAttempts: 5},
+		{ID: 205, Kind: "hot", State: "dead", Attempt: 5, MaxAttempts: 5},
+		{ID: 206, Kind: "hot", State: "retried", Attempt: 1, MaxAttempts: 5},
+	}
+	f.jobsByDispatch = map[int64][]db.ListJobsForDispatchRow{11: jobs}
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	page := getBody(t, ac, base+"/scans", http.StatusOK)
+
+	for _, want := range []string{
+		`<span class="n">2</span>running`,
+		`<span class="n">3</span>done`,
+		`<span class="n">1</span>dead`,
+		`href="/runs/11">View all 7 jobs</a>`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("rollup missing %q; body: %s", want, page)
+		}
+	}
+	for _, gone := range []string{`</span>ready`, "superseded"} {
+		if strings.Contains(page, gone) {
+			t.Errorf("the rollup should not carry %q; body: %s", gone, page)
+		}
 	}
 }
 

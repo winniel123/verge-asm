@@ -49,6 +49,10 @@ type sfActive struct {
 	Live         int     `json:"live"`
 	Percent      int     `json:"percent"`
 	Jobs         []sfJob `json:"jobs"`
+	// Rollup is derived, not stored: the card's state-chip counts folded from Jobs at
+	// fill time (#961), the same way fillScansSection folds them from the live rows. The
+	// fixture keeps its jobs because the stop / terminate dialogs still count over them.
+	Rollup jobRollup `json:"-"`
 }
 
 type sfHistory struct {
@@ -445,6 +449,7 @@ func (s *server) settingsFixtureData(acct db.Account, r *http.Request) map[strin
 
 	switch tab {
 	case "scans":
+		fillFixtureRollups(fx.Scans.Active)
 		data["Active"] = fx.Scans.Active
 		data["History"] = fx.Scans.History
 		data["ColdEnabled"] = fx.Scans.ColdEnabled
@@ -452,22 +457,21 @@ func (s *server) settingsFixtureData(acct db.Account, r *http.Request) map[strin
 		data["ColdError"] = ""
 		// The stop / terminate confirm dialogs (DF-F4, states scans-stop-confirm /
 		// scans-terminate-confirm at id 1409, #35). The harness navigates ?stop=/?terminate=;
-		// the target is built from the matching active dispatch, its Pending / Running
-		// counts folded live from that dispatch's job states — the same shape the live
-		// fillScansSection builds from the progress row.
+		// the target is built from the matching active dispatch. Pending is the ready jobs
+		// a stop cancels and Running the running jobs it lets finish — the rollup already
+		// folded both, so the dialog reads them off it rather than folding a second time.
 		if id := q.Get("stop"); id != "" {
 			if a := findActiveDispatch(fx.Scans.Active, id); a != nil {
-				pending, running := jobStateCounts(a.Jobs)
 				data["StopTarget"] = map[string]any{
-					"ID": a.ID, "ScanKind": a.ScanKind, "Pending": pending, "Running": running,
+					"ID": a.ID, "ScanKind": a.ScanKind,
+					"Pending": a.Rollup.Ready, "Running": a.Rollup.Running,
 				}
 			}
 		}
 		if id := q.Get("terminate"); id != "" {
 			if a := findActiveDispatch(fx.Scans.Active, id); a != nil {
-				_, running := jobStateCounts(a.Jobs)
 				data["TerminateTarget"] = map[string]any{
-					"ID": a.ID, "ScanKind": a.ScanKind, "Running": running,
+					"ID": a.ID, "ScanKind": a.ScanKind, "Running": a.Rollup.Running,
 				}
 			}
 		}
@@ -611,19 +615,14 @@ func findActiveDispatch(active []sfActive, raw string) *sfActive {
 	return nil
 }
 
-// jobStateCounts folds a dispatch's jobs into the dialog's live counts: pending is the
-// ready (not-yet-claimed) jobs a stop cancels, running is the running jobs a stop lets
-// finish and a terminate kills. A superseded (retried) attempt is neither.
-func jobStateCounts(jobs []sfJob) (pending, running int) {
-	for _, j := range jobs {
-		switch j.State {
-		case "ready":
-			pending++
-		case "running":
-			running++
-		}
+// fillFixtureRollups folds each active fixture dispatch's jobs into the Running-now
+// card's state-chip counts (#961), the same fold fillScansSection runs over the live
+// rows. The stop / terminate dialogs read their Pending and Running off it too.
+// loadSettingsFixture decodes a fresh copy per request, so this writes to no shared state.
+func fillFixtureRollups(active []sfActive) {
+	for i := range active {
+		active[i].Rollup = toJobRollup(active[i].Jobs, func(j sfJob) string { return j.State })
 	}
-	return pending, running
 }
 
 // findMember returns the fixture member with the given id, or nil.

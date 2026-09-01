@@ -91,7 +91,12 @@ function ScansSection({ onToast, onOpenRun }) {
       ? { tone: "neutral", title: "Dispatch stopped", description: pend + " pending job" + (pend === 1 ? "" : "s") + " cancelled · " + runn + " running finishing." }
       : { tone: "danger", title: "Scan terminated", description: runn + " job" + (runn === 1 ? "" : "s") + " stopped · committed batches stand." });
   };
-  const stateBadge = (s) => s === "done" ? <Badge tone="ok" dot>done</Badge> : s === "running" ? <Badge dot>running</Badge> : s === "dead" ? <Badge tone="danger" dot>dead</Badge> : <Badge tone="neutral" dot>{s}</Badge>;
+  const doneN = dispatch ? dispatch.jobs.filter((j) => j.state === "done").length : 0;
+  const deadN = dispatch ? dispatch.jobs.filter((j) => j.state === "dead").length : 0;
+  // The Running-now card summarises the fan-out as one chip per job state, count in
+  // mono, instead of a per-job table that grows without bound. Full per-job detail
+  // lives on run detail, one click away through the drill button.
+  const rollupChip = (tone, n, label) => <Badge tone={tone} dot><span style={{ fontFamily: "var(--font-mono)" }}>{n}</span>{label}</Badge>;
   const runLink = (label) => <button onClick={onOpenRun} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", font: "600 12.5px var(--font-mono)", color: "var(--link)" }}>{label}</button>;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
@@ -119,17 +124,16 @@ function ScansSection({ onToast, onOpenRun }) {
               <Button size="sm" variant="ghost" style={{ color: "var(--danger)" }} onClick={() => setConfirm("terminate")}>Terminate</Button>
             </div>
             <Progress label="Fan-out" detail={dispatch.completed + "/" + dispatch.live + " jobs"} value={dispatch.percent} />
-            <Table columns={[
-              { key: "id", label: "Job", mono: true, width: 70, render: (r) => <button onClick={() => onOpenRun && onOpenRun(r)} title="Open this job's live output" style={{ background: "none", border: "none", padding: 0, cursor: "pointer", font: "400 12px var(--font-mono)", color: "var(--link)" }}>#{r.id}</button> },
-              { key: "kind", label: "Kind", mono: true },
-              { key: "vantage", label: "Vantage", mono: true, width: 120, render: (r) => r.vantage || <span style={{ color: "var(--text-muted)" }}>—</span> },
-              { key: "state", label: "State", width: 130, render: (r) => stateBadge(r.state) },
-              { key: "attempt", label: "Attempt", mono: true, width: 90 },
-              { key: "batch", label: "Outcome", align: "right", width: 170, render: (r) => r.batch ? <Tag>{r.batch}</Tag> : <span style={{ color: "var(--text-muted)" }}>—</span> },
-            ]} rows={dispatch.jobs} />
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              {rollupChip("accent", runn, "running")}
+              {pend > 0 && rollupChip("neutral", pend, "ready")}
+              {rollupChip("ok", doneN, "done")}
+              {deadN > 0 && rollupChip("danger", deadN, "dead")}
+              <Button size="sm" variant="ghost" style={{ marginLeft: "auto" }} onClick={onOpenRun}>View all {dispatch.jobs.length} jobs</Button>
+            </div>
           </div>
         ) : (
-          <EmptyState message="No scan running" detail="Nothing is dispatched right now. When a scan's cadence comes due the worker fans it out, and it appears here with its jobs while it runs. This view refreshes on its own while a scan is in flight." />
+          <EmptyState message="No scan running" detail="Nothing is dispatched right now. When a scan's cadence comes due the worker fans it out, and it appears here with its progress while it runs. This view refreshes on its own while a scan is in flight." />
         )}
       </Card>
       <Card microLabel="Batches" title="Recent dispatches">

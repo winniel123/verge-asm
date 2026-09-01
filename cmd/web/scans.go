@@ -53,7 +53,7 @@ const scansHistoryLimit = 50
 
 // dispatchView is one Dispatch shaped for the monitor: its Scan kind and tick, the
 // per-state job counts folded into a completed / in-flight / total progress, and —
-// for an in-flight Dispatch — the per-job detail.
+// for an in-flight Dispatch — the state-chip rollup the card summarises it with.
 type dispatchView struct {
 	ID int64
 	// Href is the run-detail link (/runs/{dispatch}) the Running-now scan kind and the
@@ -76,18 +76,48 @@ type dispatchView struct {
 	// buildRunView passes it to runStatusLabel so a stopped/terminated drill-in renders
 	// its real terminal badge instead of the live-derived one.
 	Status string
-	Jobs   []jobView
+	// Rollup is the active card's state-chip summary (#961, SPEC §2.3). It replaces the
+	// per-job rows the card used to draw, so the card no longer grows with fan-out.
+	Rollup jobRollup
+}
+
+// jobRollup summarises one Dispatch's jobs by state for the Running-now card: a count
+// per chip, and the Dispatch's total job count for the "View all N jobs" drill button.
+// A superseded (retried) attempt gets no chip — run detail owns that detail — but it
+// still counts toward Total, because run detail lists every job the Dispatch fanned out.
+type jobRollup struct {
+	Ready   int
+	Running int
+	Done    int
+	Dead    int
+	Total   int
+}
+
+// toJobRollup folds a Dispatch's job states into the card's chip counts (#961). It
+// reads the state off each job through a caller-supplied accessor, so the live handler
+// and the dev fixture path fold their different job shapes exactly the same way.
+func toJobRollup[T any](jobs []T, state func(T) string) jobRollup {
+	r := jobRollup{Total: len(jobs)}
+	for _, job := range jobs {
+		switch state(job) {
+		case "ready":
+			r.Ready++
+		case "running":
+			r.Running++
+		case "done":
+			r.Done++
+		case "dead":
+			r.Dead++
+		}
+	}
+	return r
 }
 
 // jobView is one queue job in a Dispatch's drill-down: its kind, live state, the
 // attempt it is on (attempt > 1 is a retry in progress), the Vantage it runs at
 // where it has one, and its Batch outcome once terminal.
 type jobView struct {
-	ID int64
-	// Href is the per-job live-log link (/runs/{run}?job={id}, DF-F3b) each Running-now
-	// job id carries. Set by fillScansSection, which knows the run (dispatch) id; empty
-	// on a jobView built outside that context (the run drill-in's own job list).
-	Href        string
+	ID          int64
 	Kind        string
 	State       string
 	Attempt     int32
@@ -111,7 +141,7 @@ func (s *server) scansPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 }
 
 // fillScansSection assembles the Settings scans sub-tab's read-side data: the
-// in-flight Dispatches with their per-job detail, the recent history, the
+// in-flight Dispatches with their state-chip rollup, the recent history, the
 // self-refresh flag while a scan is running, and — for an admin — the on-demand
 // trigger panel (#252), whose "in flight" markers reuse the active kinds computed
 // here. A failed panel build degrades to an absent panel rather than 500ing the
@@ -163,14 +193,11 @@ func (s *server) fillScansSection(r *http.Request, acct db.Account, f settingsFo
 			if err != nil {
 				return err
 			}
-			for _, j := range jobs {
-				jv := toJobView(j)
-				// The per-job live-log link (DF-F3b): each Running-now job id links to the
-				// run page filtered to its own rows. The run is the dispatch this job belongs
-				// to, so the href is /runs/{dispatch}?job={id}.
-				jv.Href = fmt.Sprintf("/runs/%d?job=%d", row.DispatchID, jv.ID)
-				dv.Jobs = append(dv.Jobs, jv)
-			}
+			// The card renders no per-job rows (#961, SPEC §2.2): the jobs are read only
+			// to fold into the state-chip counts and the drill button's total. The per-job
+			// live-log link that served the removed table went with it — run detail
+			// (/runs/{dispatch}) still carries one per row.
+			dv.Rollup = toJobRollup(jobs, func(j db.ListJobsForDispatchRow) string { return j.State })
 			active = append(active, dv)
 		} else {
 			history = append(history, dv)
