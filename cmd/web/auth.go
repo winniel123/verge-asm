@@ -1185,7 +1185,11 @@ func (s *server) createAccount(w http.ResponseWriter, r *http.Request, acct db.A
 		s.renderFormError(w, r, acct, createError(err))
 		return
 	}
-	s.renderSettings(w, r, acct, settingsForms{tab: "team", notice: "Account " + username + " created."})
+	// The success is a post-redirect-get too (ADR-0130 §3): the confirmation line rides
+	// the session flash and the 303 goes back to the submitting URL, so the operator
+	// lands on Team where they acted rather than on a body rendered at the POST URL.
+	stashFormFlash(s, r, settingsForms{flashTab: "team", notice: "Account " + username + " created."})
+	s.backToSection(w, r, "team")
 }
 
 // totpEnable is the profile "Enable two-factor" POST (screen 3, profile.tmpl). It opens the
@@ -2407,11 +2411,16 @@ func isForeignKeyViolation(err error) bool {
 	return errors.As(err, &e) && e.SQLState() == "23503"
 }
 
-// renderFormError re-renders the Settings Team sub-tab with the form's error and a
-// 400, so a rejected /accounts POST echoes its message where account management now
-// lives (#281, retargeted to Team in #313).
-func (s *server) renderFormError(w http.ResponseWriter, r *http.Request, acct db.Account, msg string) {
-	s.renderSettings(w, r, acct, settingsForms{section: "team", teamError: msg})
+// renderFormError answers a rejected /accounts POST with the Settings Team sub-tab's
+// inline error, where account management now lives (#281, retargeted to Team in #313).
+//
+// It is a post-redirect-get since ADR-0130 §1 (#974): the message rides the session
+// form flash and the POST answers 303 to the URL the form was submitted from, so the
+// operator lands on their own tab at their own scroll offset and a reload re-shows
+// nothing. The name is kept — every caller reads as "answer this form with an error" —
+// but nothing is rendered here any more, so acct is no longer needed.
+func (s *server) renderFormError(w http.ResponseWriter, r *http.Request, _ db.Account, msg string) {
+	s.failSettings(w, r, settingsForms{section: "team", teamError: msg})
 }
 
 func (s *server) render(w http.ResponseWriter, r *http.Request, name string, data any) {

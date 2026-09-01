@@ -69,17 +69,30 @@ func backURL(r *http.Request) string {
 	return p + "?" + q
 }
 
-// stripToastParam removes every `toast` pair from a raw query and returns what is
-// left, with the order and the encoding of every other pair untouched. It walks the
-// raw string rather than parsing it, because a parse-and-re-encode round trip is what
-// re-orders the query and breaks the scroll key.
+// stripToastParam removes every `toast` pair from a raw query. It is stripParams at
+// the one name every carrier in this file drops.
+func stripToastParam(raw string) string { return stripParams(raw, "toast") }
+
+// stripParams removes every pair whose key is one of names from a raw query and
+// returns what is left, with the order and the encoding of every other pair
+// untouched. It walks the raw string rather than parsing it, because a
+// parse-and-re-encode round trip is what re-orders the query and breaks the scroll
+// key (see backURL).
 //
 // The key is unescaped before it is compared, so a percent-encoded spelling of the
 // name is dropped too. A malformed key is compared raw, which is the safe direction:
 // an unrecognised pair is kept rather than silently discarded.
-func stripToastParam(raw string) string {
-	if raw == "" {
-		return ""
+func stripParams(raw string, names ...string) string {
+	if raw == "" || len(names) == 0 {
+		return raw
+	}
+	drop := func(key string) bool {
+		for _, n := range names {
+			if key == n {
+				return true
+			}
+		}
+		return false
 	}
 	var kept []string
 	for _, pair := range strings.Split(raw, "&") {
@@ -93,12 +106,28 @@ func stripToastParam(raw string) string {
 		if name, err := url.QueryUnescape(key); err == nil {
 			key = name
 		}
-		if key == "toast" {
+		if drop(key) {
 			continue
 		}
 		kept = append(kept, pair)
 	}
 	return strings.Join(kept, "&")
+}
+
+// stripDestParams removes names from the query of a resolved destination URL, keeping
+// the path and every surviving pair exactly as they were. It is the redirect-time twin
+// of stripParams: a caller uses it when a parameter is part of the page's transient UI
+// state rather than of the list the operator wants back (see settings.go dialogParams).
+func stripDestParams(dest string, names ...string) string {
+	i := strings.IndexByte(dest, '?')
+	if i < 0 || len(names) == 0 {
+		return dest
+	}
+	q := stripParams(dest[i+1:], names...)
+	if q == "" {
+		return dest[:i]
+	}
+	return dest[:i+1] + q
 }
 
 // resolveBack reads the submitting URL off the posted form and returns it when it

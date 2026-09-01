@@ -268,15 +268,7 @@ func TestAnnotationDeclareGuards(t *testing.T) {
 // message belongs on the GET that follows.
 func refusalPage(t *testing.T, c *http.Client, base string, resp *http.Response) string {
 	t.Helper()
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusSeeOther {
-		t.Fatalf("refused mutation: status = %d, want 303 (body: %s)", resp.StatusCode, body(t, resp))
-	}
-	loc := resp.Header.Get("Location")
-	if loc == "" {
-		t.Fatal("refused mutation: 303 carries no Location")
-	}
-	return getBody(t, c, base+loc, http.StatusOK)
+	return prgLanding(t, c, base, resp)
 }
 
 // annotateFrom declares an Annotation the way the drawer's form does: carrying the

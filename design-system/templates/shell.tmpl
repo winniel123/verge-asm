@@ -267,7 +267,21 @@ a:hover { text-decoration: underline; }
    and every control this covers still works with JavaScript off. */
 (function () {
   var STALE_MS = 300000;
-  function keyFor(u) { return "verge:scroll:" + u.pathname + u.search; }
+  /* `toast` is a single-consume PRG receipt (shell.go toastRedirect), never part of
+     the page's identity: /settings?tab=channels and that same URL with a receipt
+     appended are the same list, at the same offset. So the key drops it and keeps
+     every other pair byte for byte, in the order it arrived — the server's own rule
+     (backurl.go stripToastParam), now agreed on both ends. Without this a toasting
+     act stashes under one key and lands under another, and the restore misses. That
+     is every toastRedirect in the tree, not only the acts ADR-0130 §3 migrated. */
+  function keyFor(u) {
+    var q = u.search.replace(/^\?/, ""), kept = [], parts = q ? q.split("&") : [], i;
+    for (i = 0; i < parts.length; i++) {
+      if (parts[i] && parts[i].split("=")[0] !== "toast") kept.push(parts[i]);
+    }
+    q = kept.join("&");
+    return "verge:scroll:" + u.pathname + (q ? "?" + q : "");
+  }
   var K = keyFor(location);
   function isNavigate() {
     try {

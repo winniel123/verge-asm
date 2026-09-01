@@ -37,8 +37,14 @@ func TestFootScrollRestoreHonoursADR0130(t *testing.T) {
 
 	page := settingsBody(t, ac, base)
 	for _, want := range []string{
-		`function keyFor(u) { return "verge:scroll:" + u.pathname + u.search; }`,
+		`return "verge:scroll:" + u.pathname + (q ? "?" + q : "");`,
 		`var K = keyFor(location);`,
+		// #974 amends the §2 key: a `toast` receipt is not part of a page's identity,
+		// so it is dropped on both ends. Without it a toasting act — the channel and
+		// integration Send tests, the scan trigger, every other toastRedirect — stashes
+		// under the submitting URL and lands under that URL plus `&toast=`, and the
+		// restore misses the stash it just wrote.
+		`parts[i].split("=")[0] !== "toast"`,
 		`getEntriesByType("navigation")`,
 		`nav.type === "navigate"`,
 	} {

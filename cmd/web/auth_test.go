@@ -335,10 +335,11 @@ func TestViewerDeniedMutation(t *testing.T) {
 
 	// An admin may perform it.
 	ac := login(t, base, "admin", "hunter2hunter2")
+	// The create is a post-redirect-get (ADR-0130 §3, #974): the confirmation line rides
+	// the session flash to the landing GET, so the 303 itself carries no body.
 	resp = postForm(t, ac, base+"/accounts", url.Values{"username": {"eve"}, "password": {"hunter2hunter2"}, "role": {"viewer"}})
-	got := body(t, resp)
-	if resp.StatusCode != http.StatusOK || !strings.Contains(got, "created") {
-		t.Fatalf("admin mutation: status=%d body=%s", resp.StatusCode, got)
+	if got := prgLanding(t, ac, base, resp); !strings.Contains(got, "created") {
+		t.Fatalf("admin mutation: landing body=%s", got)
 	}
 	if n, _ := f.CountAccounts(t.Context()); n != 3 {
 		t.Fatalf("accounts after admin create = %d, want 3", n)
@@ -352,8 +353,8 @@ func TestCreateAccountDuplicateUsername(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 
 	resp := postForm(t, ac, base+"/accounts", url.Values{"username": {"admin"}, "password": {"hunter2hunter2"}, "role": {"viewer"}})
-	if got := body(t, resp); !strings.Contains(got, "already taken") {
-		t.Fatalf("duplicate username not reported; body: %s", got)
+	if got := refusalPage(t, ac, base, resp); !strings.Contains(got, "already taken") {
+		t.Fatalf("duplicate username not reported; landing body: %s", got)
 	}
 }
 
@@ -494,8 +495,8 @@ func TestPasswordTooLongRejected(t *testing.T) {
 
 	long := strings.Repeat("x", 73)
 	resp := postForm(t, ac, base+"/accounts", url.Values{"username": {"eve"}, "password": {long}, "role": {"viewer"}})
-	if got := body(t, resp); !strings.Contains(got, "72 characters or fewer") {
-		t.Fatalf("over-long password not rejected clearly; body: %s", got)
+	if got := refusalPage(t, ac, base, resp); !strings.Contains(got, "72 characters or fewer") {
+		t.Fatalf("over-long password not rejected clearly; landing body: %s", got)
 	}
 	if n, _ := f.CountAccounts(t.Context()); n != 1 {
 		t.Fatalf("accounts = %d, want 1 (no account created)", n)
