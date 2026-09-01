@@ -93,12 +93,13 @@ type jobRollup struct {
 	Total   int
 }
 
-// toJobRollup folds a Dispatch's job states into the card's chip counts. It takes the
-// bare states so the live handler and the dev fixture path fold the same way.
-func toJobRollup(states []string) jobRollup {
-	r := jobRollup{Total: len(states)}
-	for _, state := range states {
-		switch state {
+// toJobRollup folds a Dispatch's job states into the card's chip counts (#961). It
+// reads the state off each job through a caller-supplied accessor, so the live handler
+// and the dev fixture path fold their different job shapes exactly the same way.
+func toJobRollup[T any](jobs []T, state func(T) string) jobRollup {
+	r := jobRollup{Total: len(jobs)}
+	for _, job := range jobs {
+		switch state(job) {
 		case "ready":
 			r.Ready++
 		case "running":
@@ -116,11 +117,7 @@ func toJobRollup(states []string) jobRollup {
 // attempt it is on (attempt > 1 is a retry in progress), the Vantage it runs at
 // where it has one, and its Batch outcome once terminal.
 type jobView struct {
-	ID int64
-	// Href is the per-job live-log link (/runs/{run}?job={id}, DF-F3b) each Running-now
-	// job id carries. Set by fillScansSection, which knows the run (dispatch) id; empty
-	// on a jobView built outside that context (the run drill-in's own job list).
-	Href        string
+	ID          int64
 	Kind        string
 	State       string
 	Attempt     int32
@@ -200,11 +197,7 @@ func (s *server) fillScansSection(r *http.Request, acct db.Account, f settingsFo
 			// to fold into the state-chip counts and the drill button's total. The per-job
 			// live-log link that served the removed table went with it — run detail
 			// (/runs/{dispatch}) still carries one per row.
-			states := make([]string, 0, len(jobs))
-			for _, j := range jobs {
-				states = append(states, j.State)
-			}
-			dv.Rollup = toJobRollup(states)
+			dv.Rollup = toJobRollup(jobs, func(j db.ListJobsForDispatchRow) string { return j.State })
 			active = append(active, dv)
 		} else {
 			history = append(history, dv)

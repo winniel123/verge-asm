@@ -99,14 +99,36 @@ func TestToJobView(t *testing.T) {
 // superseded (retried) attempt earns no chip — it belongs on run detail — but it still
 // counts toward Total, the drill button's "all N jobs".
 func TestToJobRollup(t *testing.T) {
-	got := toJobRollup([]string{"done", "done", "running", "ready", "dead", "retried"})
+	self := func(s string) string { return s }
+
+	got := toJobRollup([]string{"done", "done", "running", "ready", "dead", "retried"}, self)
 	want := jobRollup{Ready: 1, Running: 1, Done: 2, Dead: 1, Total: 6}
 	if got != want {
 		t.Errorf("rollup = %+v, want %+v", got, want)
 	}
 
-	if empty := toJobRollup(nil); empty != (jobRollup{}) {
+	if empty := toJobRollup(nil, self); empty != (jobRollup{}) {
 		t.Errorf("a dispatch with no jobs should roll up to zero, got %+v", empty)
+	}
+}
+
+// The dev fixture path folds the same rollup off its own job shape, so the VERGE_DEV
+// card and the live card render one shape (#961). The stop / terminate dialogs read
+// their Pending and Running counts off that rollup.
+func TestFillFixtureRollups(t *testing.T) {
+	active := []sfActive{{
+		ID: 1409,
+		Jobs: []sfJob{
+			{ID: 912, State: "done"}, {ID: 913, State: "done"},
+			{ID: 914, State: "ready"}, {ID: 915, State: "running"},
+			{ID: 916, State: "retried"},
+		},
+	}}
+	fillFixtureRollups(active)
+
+	want := jobRollup{Ready: 1, Running: 1, Done: 2, Total: 5}
+	if active[0].Rollup != want {
+		t.Errorf("fixture rollup = %+v, want %+v", active[0].Rollup, want)
 	}
 }
 
@@ -161,8 +183,12 @@ func TestScansPageInFlight(t *testing.T) {
 	if strings.Contains(page, `class="st-table"`) {
 		t.Errorf("the active card must render no table; body: %s", page)
 	}
-	// A zero count draws no chip, so nothing died here and no dead chip appears.
-	for _, gone := range []string{"eu-prober", "us-prober", "ap-prober", "retrying", `</span>dead`} {
+	// A zero count draws no chip, so nothing died here and no dead chip appears. The
+	// Vantage and Outcome column headers were the removed table's alone.
+	for _, gone := range []string{
+		"eu-prober", "us-prober", "ap-prober", "retrying", `</span>dead`,
+		">Vantage</th>", ">Outcome</th>",
+	} {
 		if strings.Contains(page, gone) {
 			t.Errorf("the card should not carry %q; body: %s", gone, page)
 		}
