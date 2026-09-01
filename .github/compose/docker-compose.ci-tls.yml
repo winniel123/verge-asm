@@ -1,0 +1,96 @@
+# CI only. The throwaway TLS Postgres the live-TLS boot job raises, so the stack
+# can be proven to complete a `verify-full` connection against a real TLS server
+# (packaging-and-configuration.md §9.6).
+#
+#   docker compose -f docker-compose.yml \
+#                  -f docker-compose.external-db.yml \
+#                  -f .github/compose/docker-compose.ci-tls.yml up -d
+#
+# This file only ADDS to the merge set. It never stands in for
+# docker-compose.external-db.yml, which the job exercises verbatim: a job that
+# booted a copy would prove the copy works.
+#
+# This is NOT the bundled `postgres` learning to speak TLS. §9.1 keeps the
+# in-compose hop plaintext on a private network, by the operator's own default.
+# A fixture under `.github/` ships to nobody, so it is not the service the base
+# file describes, and reading it as a reversal is a misreading.
+#
+# GitHub Actions `services:` is refused as the mechanism. It publishes to the
+# runner's localhost rather than to the compose network, so it would need an
+# `extra_hosts` mapping anyway and saves nothing.
+
+services:
+  # The external database, in the only sense that matters here: the override
+  # dropped the bundled service, and web and worker now reach this one across a
+  # connection they verify. The service name is the DSN host AND the server
+  # certificate's SAN, and `verify-full` fails the handshake if the two part.
+  verge-db:
+    # tag postgres:16-bookworm pinned by manifest-list digest (#333)
+    image: postgres:16-bookworm@sha256:60f4761b9035e0b8d5218f701a8c3382f641bf12b1604822574cf5be3baeb537
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    user: postgres
+    environment:
+      POSTGRES_USER: verge
+      # The base file's `${POSTGRES_PASSWORD:?}` fires during base-file load
+      # whatever an override says (§9.4), so the job must set this variable in
+      # any case. The fixture reuses that one throwaway value rather than
+      # introducing a second credential the DSN would have to be kept in step
+      # with. In a real external-db deployment nothing reads it.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: verge
+    # TLS on, serving the signed leaf. Postgres reads the key as its own uid and
+    # refuses a group- or world-readable file, so the job chowns the key before
+    # `up`.
+    command:
+      - postgres
+      - -c
+      - ssl=on
+      - -c
+      - ssl_cert_file=/etc/verge/tls/server.crt
+      - -c
+      - ssl_key_file=/etc/verge/tls/server.key
+    volumes:
+      # The same long syntax and the same `create_host_path: false` guard the
+      # override uses (§9.3). A short-syntax bind on a mistyped path would
+      # create an empty DIRECTORY there, and Postgres would then fail to start
+      # for a reason that names neither the path nor the typo.
+      - type: bind
+        source: ${VERGE_CI_TLS_DIR:?}/server.crt
+        target: /etc/verge/tls/server.crt
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${VERGE_CI_TLS_DIR:?}/server.key
+        target: /etc/verge/tls/server.key
+        read_only: true
+        bind:
+          create_host_path: false
+      - ci-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U verge -d verge"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  # The override cleared every `depends_on` edge with `!reset null`, because the
+  # service they pointed at went with them. Restore them onto the fixture, so
+  # the stack waits for a database that can complete a handshake instead of
+  # racing it.
+  web:
+    depends_on:
+      verge-db:
+        condition: service_healthy
+
+  worker:
+    depends_on:
+      verge-db:
+        condition: service_healthy
+
+# The fixture's own data directory. `docker compose down -v` drops it with the
+# run, and no operator ever sees it.
+volumes:
+  ci-pgdata:

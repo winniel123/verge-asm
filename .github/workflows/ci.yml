@@ -184,6 +184,124 @@ jobs:
       - if: always()
         run: docker compose down -v
 
+  # The live-TLS boot job (packaging-and-configuration.md §9.6, assertion 1): the
+  # stack completes a `verify-full` connection against a real TLS server. Every
+  # guard docker-compose.external-db.yml ships is a claim about RUNTIME
+  # behaviour, and no compose-file review can check one.
+  #
+  # It runs on every pull request. A path filter is refused: it is the classic
+  # way to make a check not run on the change that breaks it, and a
+  # `DATABASE_URL` edit in an unlisted file is exactly that change. A nightly
+  # schedule is refused for decoupling the signal from its cause.
+  #
+  # The job is ADVISORY, by ruling rather than by oversight. A required status
+  # check is a repository SETTINGS change rather than a file, so no pull request
+  # can land one, and making it normative would create an obligation with no way
+  # to discharge it. It follows the `compose` job above, which is also advisory.
+  # Known cost: an advisory check can go red unnoticed. Promotion stays available
+  # as a separate human step. The job gates no merge, so its wall-clock cost
+  # blocks nobody.
+  #
+  # This job proves assertion 1 only. The two negative runs — an unrelated CA
+  # root, and a missing bind source — are #997, and they reuse this fixture,
+  # this chain and this wiring.
+  compose-external-db-tls:
+    runs-on: ubuntu-latest
+    env:
+      # The shipped override is exercised VERBATIM. The CI overlay may add to
+      # the merge set; it may not stand in for the file under test. COMPOSE_FILE
+      # carries the set, so every `docker compose` below reads the same three
+      # files with no repeated flags. The project directory is the first file's
+      # directory, so it is the repository root.
+      COMPOSE_FILE: docker-compose.yml:docker-compose.external-db.yml:.github/compose/docker-compose.ci-tls.yml
+      # Compose interpolates the base file BEFORE it merges the others, so the
+      # base's `${POSTGRES_PASSWORD:?}` fires whatever the override says (§9.4).
+      # Like the `compose` job above, this one needs the variable set for every
+      # invocation, so it lives at job level. The fixture database reuses the
+      # same throwaway value.
+      POSTGRES_PASSWORD: ci-only-password
+      # The DSN names NO `sslmode`, or the job tests nothing: an explicit DSN
+      # parameter beats `PGSSLMODE`, so a DSN carrying one would silently void
+      # the dial under test (§9.5). The host is the fixture certificate's SAN,
+      # and the password is POSTGRES_PASSWORD above.
+      DATABASE_URL: postgres://verge:ci-only-password@verge-db:5432/verge
+      # POSTGRES_SSLMODE is deliberately unset. The override defaults it to
+      # `verify-full`, and the default is what an operator gets.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: generate the CA root and the server certificate it signs
+        run: |
+          # Invoked through `bash`, because the repository stores its shell
+          # scripts without the executable bit.
+          bash .github/compose/gen-tls-fixture.sh "$RUNNER_TEMP/tls"
+          # Postgres reads the key as its own uid (999 in the pinned image) and
+          # refuses a group- or world-readable file. The runner wrote the file,
+          # so hand that one file over; the certificates stay world-readable.
+          sudo chown 999:999 "$RUNNER_TEMP/tls/server.key"
+          # The CA root the override mounts, and the leaf the fixture serves.
+          # Both are host paths, so they are bind sources rather than container
+          # environment (§9.2).
+          echo "VERGE_CI_TLS_DIR=$RUNNER_TEMP/tls" >> "$GITHUB_ENV"
+          echo "POSTGRES_SSLROOTCERT_SRC=$RUNNER_TEMP/tls/root.crt" >> "$GITHUB_ENV"
+      - run: docker compose build
+      - name: docker compose up
+        run: docker compose up -d
+      - name: wait for a healthy stack
+        run: |
+          for i in $(seq 1 60); do
+            bad=$(docker compose ps --all --format json | jq -r \
+              'select(.State != "running" or (.Health != "" and .Health != "healthy")) | .Name')
+            count=$(docker compose ps --all --format json | jq -rs 'length')
+            if [ "$count" = "3" ] && [ -z "$bad" ]; then
+              echo "all services healthy"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "services never became healthy:"
+          docker compose ps --all
+          docker compose logs
+          exit 1
+      - name: assert a verify-full connection from web and from worker
+        run: |
+          # Each binary's -healthcheck opens a live database connection under the
+          # override's PGSSLMODE and PGSSLROOTCERT, so a failed verification
+          # exits non-zero here rather than passing quietly.
+          #
+          # web's /healthz writes a heartbeat row and answers 503 when that write
+          # fails, so a 200 is a completed round trip over the pool. worker's
+          # opens a FRESH pgx pool and pings it, so it dials and verifies again
+          # at assertion time rather than reporting a connection made at boot.
+          docker compose exec -T web /app/web -healthcheck
+          docker compose exec -T worker /app/worker -healthcheck
+          echo "web and worker both completed a verify-full connection"
+      - name: assert the server saw TLS on every client connection
+        run: |
+          # The step above proves each service reached the database. This one
+          # proves the transport: `verify-full` is enforced client-side, so a
+          # server-side count of unencrypted client connections is the
+          # independent check that the dial was not quietly downgraded.
+          #
+          # `client_addr IS NOT NULL` drops this very psql, which arrives over
+          # the container's unix socket and is never TLS.
+          counts=$(docker compose exec -T verge-db psql -U verge -d verge -tAF' ' -c \
+            "SELECT count(*) FILTER (WHERE s.ssl),
+                    count(*) FILTER (WHERE NOT s.ssl),
+                    count(DISTINCT a.client_addr)
+               FROM pg_stat_activity a JOIN pg_stat_ssl s USING (pid)
+              WHERE a.client_addr IS NOT NULL")
+          read -r ssl plain hosts <<<"$counts"
+          echo "client connections: $ssl over TLS, $plain in the clear, from $hosts host(s)"
+          if [ "$plain" != "0" ] || [ "$hosts" -lt 2 ]; then
+            docker compose exec -T verge-db psql -U verge -d verge -c \
+              "SELECT a.client_addr, a.application_name, s.ssl, s.version
+                 FROM pg_stat_activity a JOIN pg_stat_ssl s USING (pid)
+                WHERE a.client_addr IS NOT NULL"
+            exit 1
+          fi
+      - if: always()
+        run: docker compose down -v
+
   # --- Supply-chain / SAST / secret scanning (#331) ---
 
   # Dependency vulnerability scan against the Go vulnerability database.
