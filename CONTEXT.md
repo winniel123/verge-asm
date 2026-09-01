@@ -140,11 +140,15 @@ unrelated registrable domains (fan-out), the extension **declines to reach it**,
 `Subject`, holds no `Custody` value and opens no `Gap`. The determination is a measurement, never a
 provider list. That measurement is the **`edge-fanout`** `Scan`'s no-SNI handshake
 ([#954](https://github.com/winniel123/verge-asm/issues/954)), and until it has cleared a candidate the
-extension **holds** it — neither reached nor declined — so the census carries a **pending** row beside the
-declined ones. Where that `Scan` is disabled the extension reaches direct-A targets as it did before the
-measurement existed. The operator is told by **display** on this same census — the declined edges, each
-with the citing name and the remedy of declaring the origin IPs as an address scope — and never by
-a message, since a veto withholds a probe and is the safe direction. **The veto is scoped to this reach
+extension **holds** it — neither reached nor declined — so the census states the held candidates as one
+**pending** line beside the declined rows. The line counts held **edges** and never a row each
+([#1015](https://github.com/winniel123/verge-asm/issues/1015)): a held candidate carries no remedy, and
+the state clears within one `Scan` cadence with no act of the operator's. A decline counts the other
+way round, one row per citing `Name`, because there the name is what the operator acts on. Where that `Scan` is disabled
+the extension reaches direct-A targets as it did before the measurement existed. The operator is told
+by **display** on this same census — the declined edges, each with the citing name and the remedy of
+declaring the origin IPs as an address scope — and never by a message, since a veto withholds a probe
+and is the safe direction. **The veto is scoped to this reach
 and reaches nothing else.** A literal **address-scope** `Seed` covering the same address satisfies the
 *other* limb of subject membership, so the veto never touches it and that address is a probed subject at
 any fan-out count: a measurement may narrow a Derived reach and may never overrule a Declared act, which

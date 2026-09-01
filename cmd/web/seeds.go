@@ -639,11 +639,15 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		// never carry one — each with its per-name census meter (#21b).
 		"CustodyScopes": toCustodyViews(nameSeeds), "CustodyError": f.custodyError,
 		// The custody-extension census (#987, ADR-0129 §5): the in-zone names whose
-		// direct-A edge the extension does not reach, each with its citing name and
-		// the address-scope remedy. .CustodyCensusFailed is the honest degrade — the
+		// direct-A edge the extension DECLINED, each with its citing name and the
+		// address-scope remedy. .CustodyCensusFailed is the honest degrade — the
 		// section says the read did not resolve rather than showing a row nothing
 		// measured.
-		"CustodyCensus": census, "CustodyCensusFailed": censusErr != nil,
+		"CustodyCensus": census.Rows, "CustodyCensusFailed": censusErr != nil,
+		// The held candidates collapse to this one count (#1015). A pending candidate
+		// carries no remedy and clears within one Scan cadence, so a row each would
+		// make the section's worst render its first one.
+		"CustodyCensusPending": census.Pending,
 		// The zone-file section (#21c): the status rows show which name scopes hold a
 		// supplied file, and the interval dial is the declared re-supply cadence. The
 		// FileDrop infers the apex from the uploaded file, so no per-scope select.

@@ -5,7 +5,7 @@
   Holes: .Notice .IsAdmin .AddressCap .Seeds[{ID,Anchor,Scope,IsAddress}] .FormScope .FormError
   .Refusals[{Input,Reason,Reachable}] (one per refused token — DF-F1; replaces the single .Refusal)
   .CustodyScopes[{ID,Scope,CustodyExtension,Census}]
-  .CustodyCensus[{Name,Address,Declined,Scope}] .CustodyCensusFailed (#987)
+  .CustodyCensus[{Name,Address,Scope}] .CustodyCensusFailed (#987) .CustodyCensusPending (#1015)
   .CustodyError .ZoneScopes[{ID,Domain,HasFile,SuppliedAt,IntervalLabel,AgingLabel}]
   .ZoneErrors[{File,Reason}] (one per refused file — DF-F2; replaces .ZoneError)
   .ZoneIntervalDays .ZoneIntervalError .NameTree[{Label,Count,Sev,Children[{Label,Sev}]}]
@@ -236,28 +236,43 @@ button.sc-trow { cursor: pointer; }
 </div>
 </section>
 {{/* The custody-extension census (#987, ADR-0129 §5): the companion section to the census
-     above. Each row names one in-zone Name whose direct-A edge the extension does not
-     reach, why, and the address-scope remedy. The register is DISPLAY — a veto withholds
-     a probe, which is the safe direction, so nothing here fires a message. No row carries
-     a count or a threshold: both are versioned parameters of the Custody derivation. */}}
+     above. Each row names one in-zone Name whose direct-A edge the extension DECLINED,
+     and the address-scope remedy. The register is DISPLAY — a veto withholds a probe,
+     which is the safe direction, so nothing here fires a message. No row carries a count
+     or a threshold: both are versioned parameters of the Custody derivation.
+     A HELD candidate gets no row (#1015). It has no remedy — the operator cannot act on
+     a measurement that has not happened — and it clears within one scan cadence, so the
+     held candidates collapse to the one .CustodyCensusPending line below the declines.
+     Without the collapse this section's WORST render is its FIRST: the scan ships enabled
+     and measures nothing until its first batch completes, so a zone holding thousands of
+     in-estate names would render thousands of rows that all say the same thing.
+     The count chip counts the ROWS listed below it, so it counts declines alone. The held
+     line carries its own number and is one line. A chip that summed the two would add
+     citing names to edges, which count differently on purpose — a decline is per name,
+     because the name is what the operator acts on; a hold is per edge, because two
+     hundred names fronting one held edge is one thing waiting, not two hundred. */}}
 <section class="sc-card">
 <div class="sc-cardhead"><div class="hd"><span class="sc-micro">Custody extension</span><h3>Edges not reached</h3></div>{{if .CustodyCensus}}<span class="sc-count">{{len .CustodyCensus}}</span>{{end}}</div>
 <div class="sc-body">
 {{if .CustodyCensusFailed}}
 <span class="sc-hint">The fan-out measurement did not resolve on this load. Nothing is listed rather than a guessed edge. Reload to read it again.</span>
-{{else if .CustodyCensus}}
-<p class="sc-lede">These in-zone names front an edge the custody extension does not reach. Declare the origin addresses as an address scope, and the true origin is monitored directly.</p>
+{{else if or .CustodyCensus .CustodyCensusPending}}
+{{if .CustodyCensus}}<p class="sc-lede">These in-zone names front an edge the custody extension does not reach. Declare the origin addresses as an address scope, and the true origin is monitored directly.</p>{{end}}
 <div class="sc-census">
 {{range .CustodyCensus}}
 <div class="sc-crow">
-{{if .Declined}}<span class="sc-declined">declined</span>{{else}}<span class="sc-stale">pending</span>{{end}}
+<span class="sc-declined">declined</span>
 <div class="ct">
 <span class="nm">{{.Name}}</span>
-{{if .Declined}}
 <span class="det">Its direct A record cites <span class="mono">{{.Address}}</span>, measured as a shared edge{{if .Scope}}, and covered by address scope <span class="mono">{{.Scope}}</span>. The declaration stands, so that address is still probed. Withdraw the scope and the decline takes effect.{{else}}. Declare the origin addresses as an address scope, to monitor the true origin.{{end}}</span>
-{{else}}
-<span class="det">Its direct A record cites <span class="mono">{{.Address}}</span>, which the daily <span class="mono">edge-fanout</span> scan has not measured yet{{if .Scope}}, and which address scope <span class="mono">{{.Scope}}</span> covers{{end}}. The extension holds the reach until it does.</span>
+</div>
+</div>
 {{end}}
+{{if .CustodyCensusPending}}
+<div class="sc-crow">
+<span class="sc-stale">pending</span>
+<div class="ct">
+<span class="det">{{if eq .CustodyCensusPending 1}}One edge awaits{{else}}<span class="mono">{{.CustodyCensusPending}}</span> edges await{{end}} a first <span class="mono">edge-fanout</span> measurement. The extension holds the reach until the scan runs, and the hold clears on its own.</span>
 </div>
 </div>
 {{end}}

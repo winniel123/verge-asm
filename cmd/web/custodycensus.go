@@ -31,10 +31,13 @@ import (
 // store to the derivation — so the render and the gate cannot apply different
 // absence rules.
 
-// custodyCensusRow is one row of the custody-extension census, shaped for
-// scope.tmpl. It carries FACTS ALONE: the citing name, the edge, why the extension
-// does not reach it, and the declared address scope that also covers it on a
-// dual-limb row. The template writes the words.
+// custodyCensusRow is one DECLINED row of the custody-extension census, shaped for
+// scope.tmpl. It carries FACTS ALONE: the citing name, the edge, and the declared
+// address scope that also covers it on a dual-limb row. The template writes the
+// words.
+//
+// A pending candidate gets no row. It is counted in custodyCensusView.Pending and
+// stated once — see that field for why.
 //
 // There is no count and no threshold here, and there must never be one. The fan-out
 // figure and the boundary it is compared against are versioned parameters of the
@@ -46,12 +49,6 @@ type custodyCensusRow struct {
 	Name string
 	// Address is the edge that name's direct A record cites.
 	Address string
-	// Declined is true where fan-out measured the edge as shared and the extension
-	// declined the reach; false where the Scan is in force and has not measured the
-	// candidate yet, which is the *pending* row. The census carries no third state
-	// — a reached edge is an ordinary covered address and is not this section's
-	// business.
-	Declined bool
 	// Scope is the declared address scope that ALSO covers the edge, empty where
 	// none does. Set, it is ADR-0129's dual-limb row: declined by the extension and
 	// covered by an address-scope `Seed` at once. A bare *declined* would be true
@@ -59,6 +56,34 @@ type custodyCensusRow struct {
 	// exists for, and dropping the row would hide a decline they need if they later
 	// withdraw the `Seed`.
 	Scope string
+}
+
+// custodyCensusView is the whole section, shaped for scope.tmpl: the declined rows,
+// and how many candidates still wait on their first measurement (#1015).
+type custodyCensusView struct {
+	// Rows are the declines, one per (citing name, edge) pair, in resolution order.
+	Rows []custodyCensusRow
+	// Pending is the number of DISTINCT edges the `edge-fanout` Scan holds and has
+	// not measured yet. It is a COUNT and never a row, because a pending candidate
+	// carries no remedy: the operator cannot act on it, and the state clears within
+	// one Scan cadence with no act of theirs.
+	//
+	// It counts EDGES and not census entries, and the two differ. The derivation
+	// emits one entry per (citing name, edge) pair, so a single unmeasured edge that
+	// two hundred in-zone names front is two hundred entries and ONE held edge. A
+	// count of entries would read as two hundred edges and inflate the one fact this
+	// line carries. The declines count the other way round, one row per citing name,
+	// because there the name is what the operator acts on.
+	//
+	// A row each would make the section's WORST render its FIRST one. The Scan ships
+	// enabled and measures nothing until its first Batch completes, so a zone holding
+	// thousands of in-estate names would render thousands of rows on the first load
+	// of /scope, all of them the same fact, all of them gone by the next day (#1015).
+	//
+	// The number is a fact this install measured, never a product-chosen one, so it
+	// does not collide with ADR-0129 §5. That rule bars the fan-out figure and the
+	// boundary it is compared against, both of which stay inside the derivation.
+	Pending int
 }
 
 // custodyCensusStore is the read surface the census needs beyond what the Scope
@@ -149,32 +174,46 @@ func custodyExtensionEstate(ctx context.Context, q custodyCensusStore, asOf time
 	}.WithAddressExclusions(excluded).WithEdgeFanout(fanout), nil
 }
 
-// toCustodyCensusRows shapes the derivation's census entries for scope.tmpl. It is
-// the pure half of the render, so the row states are tested without a database.
-func toCustodyCensusRows(entries []custody.ExtensionCensusEntry) []custodyCensusRow {
-	out := make([]custodyCensusRow, 0, len(entries))
+// toCustodyCensusView shapes the derivation's census entries for scope.tmpl. It is
+// the pure half of the render, so the section's shape is tested without a database.
+//
+// It SPLITS the entries by state rather than mapping them one for one: a decline
+// becomes a row, and a held edge becomes one increment of Pending however many names
+// front it. The derivation still yields both — the collapse is a display choice, made
+// here, and internal/custody keeps naming every candidate it holds.
+//
+// The switch names the two states of ADR-0129 §5 and SKIPS anything else. A later
+// state absorbed into Pending would be asserted on screen as *awaiting a first
+// measurement*, which is a claim about the Scan's progress that nothing measured —
+// and this section must never state a fact it does not hold. A state it does not know
+// goes unmentioned, which is a silence rather than a wrong number.
+func toCustodyCensusView(entries []custody.ExtensionCensusEntry) custodyCensusView {
+	var view custodyCensusView
+	held := make(map[netip.Addr]struct{})
 	for _, e := range entries {
-		row := custodyCensusRow{
-			Name:     e.Name,
-			Address:  e.Address.String(),
-			Declined: e.State == custody.ExtensionDeclined,
+		switch e.State {
+		case custody.ExtensionDeclined:
+			row := custodyCensusRow{Name: e.Name, Address: e.Address.String()}
+			if e.Scope.IsValid() {
+				row.Scope = e.Scope.String()
+			}
+			view.Rows = append(view.Rows, row)
+		case custody.ExtensionPending:
+			held[e.Address] = struct{}{}
 		}
-		if e.Scope.IsValid() {
-			row.Scope = e.Scope.String()
-		}
-		out = append(out, row)
 	}
-	return out
+	view.Pending = len(held)
+	return view
 }
 
 // custodyCensus reads the custody-extension census for the Scope render. It is
 // best-effort and additive: a read failure returns the error and renderSeeds
 // degrades the section to an honest note rather than 500ing the whole screen or
 // showing a row nothing measured.
-func (s *server) custodyCensus(ctx context.Context) ([]custodyCensusRow, error) {
+func (s *server) custodyCensus(ctx context.Context) (custodyCensusView, error) {
 	estate, err := custodyExtensionEstate(ctx, s.store, s.now().UTC())
 	if err != nil {
-		return nil, err
+		return custodyCensusView{}, err
 	}
-	return toCustodyCensusRows(estate.ExtensionCensus()), nil
+	return toCustodyCensusView(estate.ExtensionCensus()), nil
 }
