@@ -81,6 +81,10 @@ const (
 // The predicate is the conjunction of both conditions: either failing alone
 // reads `appeared`, because each guards a distinct way the model could overclaim
 // a continuity it does not have.
+//
+// It reads the two membership guards ALONE. A re-entry asks one further question
+// this function cannot answer — whether the operator's aperture widened back over
+// the subject — and ReEntryKind composes that third guard over this one.
 func MembershipReturn(priorClosure *Span, witnessBroke bool) Kind {
 	if priorClosure == nil {
 		return KindAppeared
@@ -92,6 +96,40 @@ func MembershipReturn(priorClosure *Span, witnessBroke bool) Kind {
 		return KindAppeared
 	}
 	return KindReturned
+}
+
+// ReEntryKind names the Transition for a timeline re-opening behind a closed span.
+// It is the one place the membership pair and `revealed` meet, and it composes the
+// two functions on either side of it rather than restating their guards.
+//
+// A re-entry behind a `descoped` closure asks a question the membership grammar
+// alone cannot answer: WHY are we looking again. MembershipReturn refuses `returned`
+// across the narrowing and reads `appeared`, which is right where the world brought
+// the subject back — a resolution citing the Address again. It is wrong where the
+// operator widened the Declared scope back over the subject. ADR-0041 holds that
+// widening or narrowing a Declared scope is a Declared act yielding `revealed`
+// (ADR-0047), never `appeared`, for exactly that population.
+//
+// apertureWidened answers the question. It is the aperture-opening marker the fold
+// stamps on the opening, which reports that the Declared aperture covers the subject
+// NOW and that no Exclusion cuts it back out (queue.openedByAperture). The guard is
+// the CONJUNCTION with the `descoped` ground, because neither input is sufficient:
+//
+//   - The marker alone is not. A `measured-absent` or `uncited` re-entry under a
+//     covering aperture is a decommission undone and stays `returned`. The aperture
+//     did not move; the world did.
+//   - The `descoped` ground alone is not. An unmarked re-entry is the world citing a
+//     subject the operator has not re-widened over, and stays `appeared`.
+//
+// The rule reads the marker and never the subject kind. The fold stamps the marker
+// only where a Seed declares the subject, so it already carries ADR-0041's
+// `Seed`-covered population without a kind switch, and a Name or Service the
+// operator re-widened over reads the same word an Address does.
+func ReEntryKind(priorClosure *Span, witnessBroke, apertureWidened bool) Kind {
+	if apertureWidened && priorClosure != nil && priorClosure.Reason == ReasonDescoped {
+		return KindRevealed
+	}
+	return MembershipReturn(priorClosure, witnessBroke)
 }
 
 // OpeningKind names the Transition for a timeline opening that is not a

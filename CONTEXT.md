@@ -1617,6 +1617,14 @@ ordinary rather than exotic, an `Address`'s two membership limbs being disjuncti
 because the operator narrowed a scope and returns because some resolution cites it would otherwise
 read as a decommission undone that never happened. See
 [ADR-0087](./docs/adr/0087-a-closure-records-the-ground-it-rests-on-and-there-are-three-grounds.md).
+What the re-entry reads **instead** rests on why we are looking again. A resolution citing the
+`Address` again is the world, and that opening reads **`appeared`**. The operator removing the
+`Exclusion` is a **Declared widening**, so that opening carries the aperture marker the fold stamps
+and reads **`revealed`**: we started looking again and the world did not move. The marker is the
+whole distinction and the subject kind is never read, a `Name` the operator re-widens over reading
+the same word an `Address` does. See
+[ADR-0041](./docs/adr/0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md) and
+[ADR-0047](./docs/adr/0047-an-address-scope-is-its-own-enumeration.md).
 _Avoid_: change, event, diff, delta
 
 **Break**:

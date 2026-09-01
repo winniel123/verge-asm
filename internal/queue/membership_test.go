@@ -159,6 +159,49 @@ func TestOpenedByAperture(t *testing.T) {
 	}
 }
 
+// An Exclusion cuts the subject back OUT of the Declared aperture, so an excluded
+// subject is unmarked even where a Seed scope still contains it (#1039). The case is
+// ordinary: an exclusion cuts the `Seed` limb alone, so an excluded Address a custody
+// extension reaches is still probed and still opens a span (ADR-0133 §3). The world's
+// resolution is why we looked at that one, so it opens `appeared`, and a later
+// re-entry across its `descoped` closure must not read `revealed` (drift.ReEntryKind).
+func TestOpenedByApertureExcludedSubjectIsUnmarked(t *testing.T) {
+	in := membershipInputs{
+		seeds:      []db.ListSeedsRow{nameSeed("example.com"), addressSeed("198.51.100.0/24")},
+		exclusions: []db.ListExclusionsRow{nameExclusion("api.example.com"), addressExclusion("198.51.100.0/28")},
+	}
+
+	cases := []struct {
+		kind, key string
+		want      bool
+	}{
+		{"name", "api.example.com", false},     // excluded by name, though the Seed declares it
+		{"name", "other.example.com", true},    // the exclusion covers one name only
+		{"address", "198.51.100.7", false},     // inside the excluded /28
+		{"address", "198.51.100.90", true},     // inside the Seed, outside the exclusion
+		{"service", "198.51.100.7:443", false}, // the Service rides an excluded Address
+		{"service", "198.51.100.90:443", true},
+	}
+	for _, c := range cases {
+		if got := openedByAperture(c.kind, c.key, in); got != c.want {
+			t.Errorf("openedByAperture(%q, %q) = %v, want %v", c.kind, c.key, got, c.want)
+		}
+	}
+
+	// A subtree exclusion cuts the whole branch back out, the same guard nameExcluded
+	// applies on the way out.
+	sub := membershipInputs{
+		seeds:      []db.ListSeedsRow{nameSeed("example.com")},
+		exclusions: []db.ListExclusionsRow{subtreeExclusion("internal.example.com")},
+	}
+	if openedByAperture("name", "db.internal.example.com", sub) {
+		t.Error("a name beneath a subtree exclusion is outside the Declared aperture")
+	}
+	if !openedByAperture("name", "www.example.com", sub) {
+		t.Error("a name the subtree exclusion does not cover stays aperture-declared")
+	}
+}
+
 // nameWithinDomain gates subtree coverage on a label boundary, so a look-alike name
 // is not read as within the domain — the guard both Seed coverage and subtree
 // exclusion share.

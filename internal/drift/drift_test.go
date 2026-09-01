@@ -221,3 +221,35 @@ func TestCloseWithdrawalClosesEveryTimelineWithReason(t *testing.T) {
 		}
 	}
 }
+
+// ReEntryKind composes the aperture marker over the membership pair (#1039). A
+// re-entry behind a `descoped` closure reads `revealed` where the operator widened a
+// Declared scope back over the subject, and `appeared` where the world cited the
+// subject again. Neither input alone decides the word.
+func TestReEntryKindRevealedOnDeclaredWidening(t *testing.T) {
+	descoped := &Span{Reason: ReasonDescoped, ClosedAt: day(1)}
+
+	// ADR-0041: a Declared widening yields revealed, never appeared.
+	if got := ReEntryKind(descoped, false, true); got != KindRevealed {
+		t.Errorf("a marked re-entry across a descoped closure = %q, want revealed", got)
+	}
+	// Unmarked: the world cited the subject again and no scope widened.
+	if got := ReEntryKind(descoped, false, false); got != KindAppeared {
+		t.Errorf("an unmarked re-entry across a descoped closure = %q, want appeared", got)
+	}
+	// The marker never promotes a decommission undone. Those grounds keep returned.
+	for _, r := range []ClosureReason{ReasonMeasuredAbsent, ReasonUncited} {
+		if got := ReEntryKind(&Span{Reason: r, ClosedAt: day(1)}, false, true); got != KindReturned {
+			t.Errorf("a marked re-entry across a %s closure = %q, want returned", r, got)
+		}
+	}
+	// A Break on a witness still voids returned, and the marker does not restore it.
+	if got := ReEntryKind(&Span{Reason: ReasonMeasuredAbsent, ClosedAt: day(1)}, true, true); got != KindAppeared {
+		t.Errorf("a broken witness = %q, want appeared", got)
+	}
+	// No prior span is a first discovery. This function defers to MembershipReturn
+	// for that rather than reading a marker as a widening.
+	if got := ReEntryKind(nil, false, true); got != KindAppeared {
+		t.Errorf("no prior closure = %q, want appeared", got)
+	}
+}
