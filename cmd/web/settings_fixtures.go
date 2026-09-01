@@ -72,8 +72,12 @@ type sfColdScope struct {
 }
 
 type sfScans struct {
-	Active      []sfActive    `json:"active"`
-	History     []sfHistory   `json:"history"`
+	Active  []sfActive  `json:"active"`
+	History []sfHistory `json:"history"`
+	// Truncated drives the history truncation callout (#962). The live handler derives it
+	// from a LIMIT N+1 read; a fixture states it outright, since a fixture never carries
+	// 51 rows just to render one line.
+	Truncated   bool          `json:"truncated"`
 	ColdEnabled bool          `json:"cold_enabled"`
 	ColdScopes  []sfColdScope `json:"cold_scopes"`
 }
@@ -452,6 +456,8 @@ func (s *server) settingsFixtureData(acct db.Account, r *http.Request) map[strin
 		fillFixtureRollups(fx.Scans.Active)
 		data["Active"] = fx.Scans.Active
 		data["History"] = fx.Scans.History
+		data["Truncated"] = fx.Scans.Truncated
+		data["HistoryLimit"] = scansHistoryLimit
 		data["ColdEnabled"] = fx.Scans.ColdEnabled
 		data["ColdScopes"] = fx.Scans.ColdScopes
 		data["ColdError"] = ""

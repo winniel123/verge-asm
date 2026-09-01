@@ -179,43 +179,63 @@ func (s *server) fillScansSection(r *http.Request, acct db.Account, f settingsFo
 	}
 	data["CapError"] = f.capError
 
-	rows, err := s.store.ListDispatchProgress(ctx, scansHistoryLimit)
+	// Active and History read separately (#962, SPEC §3/§4). They were one capped read
+	// split in this handler, so a burst of in-flight jobs ate the shared 50 and silently
+	// shrank completed history. The Active read carries no cap — few Scans run at once,
+	// so reality bounds it — and the History read owns the scansHistoryLimit window
+	// outright. The two queries are exact complements, so a Dispatch appears in one.
+	activeRows, err := s.store.ListActiveDispatchProgress(ctx)
 	if err != nil {
 		return err
 	}
-	var active, history []dispatchView
+	inFlight := activeProgressRows(activeRows)
+	active := make([]dispatchView, 0, len(inFlight))
 	activeKinds := make(map[string]bool)
-	for _, row := range rows {
+	for _, row := range inFlight {
 		dv := toDispatchView(row)
-		if dv.Active {
-			activeKinds[row.ScanKind] = true
-			jobs, err := s.store.ListJobsForDispatch(ctx, pgtype.Int8{Int64: row.DispatchID, Valid: true})
-			if err != nil {
-				return err
-			}
-			// The card renders no per-job rows (#961, SPEC §2.2): the jobs are read only
-			// to fold into the state-chip counts and the drill button's total. The per-job
-			// live-log link that served the removed table went with it — run detail
-			// (/runs/{dispatch}) still carries one per row.
-			dv.Rollup = toJobRollup(jobs, func(j db.ListJobsForDispatchRow) string { return j.State })
-			active = append(active, dv)
-		} else {
-			history = append(history, dv)
+		activeKinds[row.ScanKind] = true
+		jobs, err := s.store.ListJobsForDispatch(ctx, pgtype.Int8{Int64: row.DispatchID, Valid: true})
+		if err != nil {
+			return err
 		}
+		// The card renders no per-job rows (#961, SPEC §2.2): the jobs are read only
+		// to fold into the state-chip counts and the drill button's total. The per-job
+		// live-log link that served the removed table went with it — run detail
+		// (/runs/{dispatch}) still carries one per row.
+		dv.Rollup = toJobRollup(jobs, func(j db.ListJobsForDispatchRow) string { return j.State })
+		active = append(active, dv)
 	}
 	data["Active"] = active
+
+	// History is fetched one row past its cap (LIMIT N+1). A full extra row means older
+	// dispatches exist beyond the window, which is what the truncation callout reports;
+	// the extra row is then dropped, so the visible depth stays exactly scansHistoryLimit.
+	historyRows, err := s.store.ListConcludedDispatchProgress(ctx, scansHistoryLimit+1)
+	if err != nil {
+		return err
+	}
+	truncated := len(historyRows) > scansHistoryLimit
+	if truncated {
+		historyRows = historyRows[:scansHistoryLimit]
+	}
+	history := make([]dispatchView, 0, len(historyRows))
+	for _, row := range concludedProgressRows(historyRows) {
+		history = append(history, toDispatchView(row))
+	}
 	data["History"] = history
+	data["Truncated"] = truncated
+	data["HistoryLimit"] = scansHistoryLimit
 
 	// The stop / terminate PRG dialogs (DF-F4): an admin opens one by navigating
 	// ?stop={id} or ?terminate={id}. The dialog reads its counts live from the already-
-	// gathered progress rows — Pending is the ready jobs, Running the running jobs — so
-	// no extra read is needed. Only an in-flight dispatch owns a dialog; a ?stop for a
-	// concluded or unknown id renders none (the POST guards it too). Admin-only, matching
-	// the row controls that link here.
+	// gathered Active rows — Pending is the ready jobs, Running the running jobs — so
+	// no extra read is needed. Only an in-flight dispatch owns a dialog, so the Active
+	// read is the guard: a ?stop for a concluded or unknown id finds no row and renders
+	// none (the POST guards it too). Admin-only, matching the row controls that link here.
 	if acct.Role == roleAdmin {
 		q := r.URL.Query()
 		if id, ok := parseDispatchID(q.Get("stop")); ok {
-			if row, found := findDispatchRow(rows, id); found && toDispatchView(row).InFlight > 0 {
+			if row, found := findDispatchRow(inFlight, id); found {
 				data["StopTarget"] = map[string]any{
 					"ID": row.DispatchID, "ScanKind": row.ScanKind,
 					"Pending": row.Ready, "Running": row.Running,
@@ -223,7 +243,7 @@ func (s *server) fillScansSection(r *http.Request, acct db.Account, f settingsFo
 			}
 		}
 		if id, ok := parseDispatchID(q.Get("terminate")); ok {
-			if row, found := findDispatchRow(rows, id); found && toDispatchView(row).InFlight > 0 {
+			if row, found := findDispatchRow(inFlight, id); found {
 				data["TerminateTarget"] = map[string]any{
 					"ID": row.DispatchID, "ScanKind": row.ScanKind,
 					"Running": row.Running,
@@ -259,9 +279,41 @@ func parseDispatchID(raw string) (int64, bool) {
 	return id, true
 }
 
-// findDispatchRow locates one dispatch's progress row in the recent-history read, the
-// same read the monitor and the run drill-in use (no new store method). A dispatch that
-// has aged past the window is not found — treated as already concluded, never fabricated.
+// activeProgressRows and concludedProgressRows re-shape the split monitor reads (#962)
+// onto the shared progress row. The three queries select identical columns, but sqlc
+// emits one row type per query, so this narrowing keeps a single toDispatchView fold
+// and a single findDispatchRow lookup instead of duplicating either per row type.
+func activeProgressRows(rows []db.ListActiveDispatchProgressRow) []db.ListDispatchProgressRow {
+	out := make([]db.ListDispatchProgressRow, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, db.ListDispatchProgressRow{
+			DispatchID: r.DispatchID, ScanID: r.ScanID, ScanKind: r.ScanKind,
+			CreatedAt: r.CreatedAt, Status: r.Status,
+			Total: r.Total, Ready: r.Ready, Running: r.Running,
+			Done: r.Done, Dead: r.Dead, Retried: r.Retried,
+		})
+	}
+	return out
+}
+
+func concludedProgressRows(rows []db.ListConcludedDispatchProgressRow) []db.ListDispatchProgressRow {
+	out := make([]db.ListDispatchProgressRow, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, db.ListDispatchProgressRow{
+			DispatchID: r.DispatchID, ScanID: r.ScanID, ScanKind: r.ScanKind,
+			CreatedAt: r.CreatedAt, Status: r.Status,
+			Total: r.Total, Ready: r.Ready, Running: r.Running,
+			Done: r.Done, Dead: r.Dead, Retried: r.Retried,
+		})
+	}
+	return out
+}
+
+// findDispatchRow locates one dispatch's progress row in a progress read. The stop and
+// terminate acts pass the uncapped Active read (#962), so an in-flight dispatch is found
+// however busy the queue is, and a concluded one is absent from that read and so refused.
+// Run detail passes both halves in turn, which is what keeps every row the monitor lists
+// resolvable. A dispatch that is in neither read is not found — never fabricated.
 func findDispatchRow(rows []db.ListDispatchProgressRow, id int64) (db.ListDispatchProgressRow, bool) {
 	for i := range rows {
 		if rows[i].DispatchID == id {
@@ -290,15 +342,16 @@ func (s *server) stopScan(w http.ResponseWriter, r *http.Request, acct db.Accoun
 		s.concludedFlash(w, r, acct, "There was nothing in flight to stop.")
 		return
 	}
-	rows, err := s.store.ListDispatchProgress(r.Context(), scansHistoryLimit)
+	rows, err := s.store.ListActiveDispatchProgress(r.Context())
 	if err != nil {
 		s.serverError(w, "stop scan: list dispatches", err)
 		return
 	}
-	row, found := findDispatchRow(rows, id)
-	if !found || toDispatchView(row).InFlight == 0 {
-		// Unknown id, or a dispatch that already finished or was already ended: the disabled
-		// cold tier is never in flight, so this also refuses a stop aimed at it.
+	row, found := findDispatchRow(activeProgressRows(rows), id)
+	if !found {
+		// Unknown id, or a dispatch that already finished or was already ended: the Active
+		// read lists only in-flight dispatches, and the disabled cold tier is never in
+		// flight, so this also refuses a stop aimed at it.
 		s.concludedFlash(w, r, acct, "It has already finished or been ended — nothing was stopped.")
 		return
 	}
@@ -330,13 +383,14 @@ func (s *server) terminateScan(w http.ResponseWriter, r *http.Request, acct db.A
 		s.concludedFlash(w, r, acct, "There was nothing in flight to terminate.")
 		return
 	}
-	rows, err := s.store.ListDispatchProgress(r.Context(), scansHistoryLimit)
+	rows, err := s.store.ListActiveDispatchProgress(r.Context())
 	if err != nil {
 		s.serverError(w, "terminate scan: list dispatches", err)
 		return
 	}
-	row, found := findDispatchRow(rows, id)
-	if !found || toDispatchView(row).InFlight == 0 {
+	// The row itself is not read here — terminate reports the count the cancel actually
+	// affected, not a pre-action count — so only its presence in the Active read matters.
+	if _, found := findDispatchRow(activeProgressRows(rows), id); !found {
 		s.concludedFlash(w, r, acct, "It has already finished or been ended — nothing was terminated.")
 		return
 	}
@@ -504,24 +558,33 @@ func (s *server) runPage(w http.ResponseWriter, r *http.Request, acct db.Account
 		return
 	}
 
-	rows, err := s.store.ListDispatchProgress(r.Context(), scansHistoryLimit)
+	// Run detail resolves off the same two reads the monitor lists from (#962), so every
+	// row the monitor shows has a run page. Active is tried first — an in-flight dispatch
+	// is the common drill-in and that read is uncapped — then the dedicated history
+	// window. Before the split both halves came from one capped read; keeping run detail
+	// on that read would have 404'd the history rows a busy queue pushed past its 50.
+	activeRows, err := s.store.ListActiveDispatchProgress(r.Context())
 	if err != nil {
 		s.serverError(w, "run detail: list dispatches", err)
 		return
 	}
-	var found *db.ListDispatchProgressRow
-	for i := range rows {
-		if rows[i].DispatchID == id {
-			found = &rows[i]
-			break
+	found, ok := findDispatchRow(activeProgressRows(activeRows), id)
+	if !ok {
+		historyRows, herr := s.store.ListConcludedDispatchProgress(r.Context(), scansHistoryLimit)
+		if herr != nil {
+			s.serverError(w, "run detail: list dispatches", herr)
+			return
 		}
+		found, ok = findDispatchRow(concludedProgressRows(historyRows), id)
 	}
-	if found == nil {
+	if !ok {
+		// A dispatch that has aged past the history window is genuinely unlisted; the
+		// missing-run screen says so rather than rendering a half-known run.
 		s.renderMissingRun(w, r, acct, raw)
 		return
 	}
 
-	dv := toDispatchView(*found)
+	dv := toDispatchView(found)
 	jobRows, err := s.store.ListJobsForDispatch(r.Context(), pgtype.Int8{Int64: id, Valid: true})
 	if err != nil {
 		s.serverError(w, "run detail: list jobs", err)
@@ -1209,10 +1272,11 @@ func toDispatchView(row db.ListDispatchProgressRow) dispatchView {
 
 	dv := dispatchView{
 		ID: row.DispatchID,
-		// Every dispatch in the recent window has a run page (runPage serves /runs/{id}
-		// off this same read), so the Running-now kind and each history row link to it
-		// (DF-F3). A history row whose dispatch aged past the window would 404, but the
-		// same read bounds both, so a listed row always resolves.
+		// Every dispatch the monitor lists has a run page, so the Running-now kind and each
+		// history row link to it (DF-F3). runPage serves /runs/{id} off the same two reads
+		// the monitor lists from — Active, then the history window (#962) — so a listed row
+		// always resolves. A dispatch aged past the history window would 404, but it is by
+		// then unlisted too.
 		Href:      "/runs/" + strconv.FormatInt(row.DispatchID, 10),
 		ScanKind:  row.ScanKind,
 		Live:      live,
