@@ -75,3 +75,41 @@ func TestRunDispatchesHTTPExchange(t *testing.T) {
 		t.Fatalf("scanner error: %v", err)
 	}
 }
+
+// TestRunDispatchesEdgeFanout proves the edge-fanout kind reaches the edgefanout leaf
+// rather than falling through to the skeleton echo. An empty address list is the
+// legible no-custody-extension state, and it makes the leaf produce zero observations,
+// whereas the default echo would emit exactly one carrying the Kind — so an empty
+// output stream is proof the dispatch case handled the spec.
+func TestRunDispatchesEdgeFanout(t *testing.T) {
+	inR, inW, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	outR, outW, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	go func() {
+		_ = wire.EncodeJobSpec(inW, wire.JobSpec{
+			Batch: "b3",
+			Kind:  "edge-fanout",
+			Scope: []byte(`{"addresses":[]}`),
+		})
+		inW.Close()
+	}()
+
+	if err := run(inR, outW); err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	outW.Close()
+
+	sc := wire.NewObservationScanner(outR)
+	if sc.Next() {
+		t.Fatalf("edge-fanout with no addresses should emit no observations; got %+v (default echo was not bypassed)", sc.Observation())
+	}
+	if err := sc.Err(); err != nil {
+		t.Fatalf("scanner error: %v", err)
+	}
+}
