@@ -10,7 +10,7 @@
   .ZoneErrors[{File,Reason}] (one per refused file — DF-F2; replaces .ZoneError)
   .ZoneIntervalDays .ZoneIntervalError .NameTree[{Label,Count,Sev,Children[{Label,Sev}]}]
   .CoverageMsgs[{Kind,Badge,Bound,Subject,Text,When,ISO}] .Proposals[{ID,Value,Kind,Source}]
-  .OrgQuery .Exclusions[{ID,Kind,Value}] .ExclError .ExclKind .ExclValue .ExclPreview{Fires,Headline,Loss}
+  .OrgQuery .ProposalError .Exclusions[{ID,Kind,Value}] .ExclError .ExclKind .ExclValue .ExclPreview{Fires,Headline,Loss}
   Reconciliations (SPEC-CHANGE #21, ruled): spec two-column card layout; seed kind select drops —
   the handler infers name/address from the value's shape (#21a); refusals render the spec
   RefusalCallout from .Refusal; custody renders the spec toggle+census once per name scope (#21b);
@@ -365,6 +365,7 @@ button.sc-trow { cursor: pointer; }
 {{template "backfield" $}}<span class="sc-input" style="flex:1"><span class="il">Org-name search</span><span class="iw"><input name="org" value="{{.OrgQuery}}" placeholder="Acme Corporation" autocomplete="off"></span></span>
 <button type="submit" class="sc-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>Search registries</button>
 </form>
+{{if .ProposalError}}<span class="sc-errline" style="display:block;margin:-8px 0 14px">{{.ProposalError}}</span>{{end}}
 {{end}}
 <span style="display:block;font:400 11.5px/1.6 var(--font-ui);color:var(--text-muted);margin-bottom:14px">Proposers answer an org-name search with address scopes — never subdomains. A proposal asserts nothing until confirmed into a seed; declines are recorded as exclusions.</span>
 {{if .Proposals}}

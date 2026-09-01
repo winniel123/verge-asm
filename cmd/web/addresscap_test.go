@@ -82,6 +82,10 @@ func TestAddressCapHasNoUpperBound(t *testing.T) {
 
 // TestAddressCapRejectsInvalid covers the sole guard: a whole number of addresses, one
 // or more. A rejected value leaves the previous cap standing.
+//
+// The refusal is a post-redirect-get since ticket #978 (ADR-0130 §1): the 303 goes back
+// to the URL the dial was submitted from, and the callout and the typed value ride the
+// session flash to that landing GET. Nothing the operator typed enters the URL.
 func TestAddressCapRejectsInvalid(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -90,11 +94,17 @@ func TestAddressCapRejectsInvalid(t *testing.T) {
 
 	postForm(t, ac, base+"/settings/address-cap", url.Values{"address_cap": {"4096"}}).Body.Close()
 
+	const tab = "/settings?tab=scans"
 	for _, bad := range []string{"0", "-5", "abc", ""} {
-		resp := postForm(t, ac, base+"/settings/address-cap", url.Values{"address_cap": {bad}})
-		got := body(t, resp)
-		if resp.StatusCode != http.StatusBadRequest || !strings.Contains(got, "one or more") {
-			t.Fatalf("invalid cap %q not refused: status=%d body=%s", bad, resp.StatusCode, got)
+		resp := postForm(t, ac, base+"/settings/address-cap", url.Values{
+			"address_cap": {bad}, "return": {tab},
+		})
+		if loc := submitLoc(t, resp); loc != tab {
+			t.Fatalf("refused cap %q landed at %q, want %q", bad, loc, tab)
+		}
+		page := getBody(t, ac, base+tab, http.StatusOK)
+		if !strings.Contains(page, "one or more") {
+			t.Fatalf("invalid cap %q: no callout on the landing page; body: %s", bad, page)
 		}
 		if f.instanceConfig.SeedAddressCap != 4096 {
 			t.Fatalf("rejected cap %q mutated the stored value: %d", bad, f.instanceConfig.SeedAddressCap)

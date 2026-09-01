@@ -239,11 +239,22 @@ func TestIntegrationsChannelUnbindAndUnknownRefused(t *testing.T) {
 	}
 
 	// An unknown channel id is refused, and no dangling reference is written.
-	resp = postForm(t, ac, base+"/settings/integrations/channel", url.Values{"id": {"slack"}, "channel": {"999"}})
-	got := resp.StatusCode
-	resp.Body.Close()
-	if got != http.StatusBadRequest {
-		t.Errorf("bind unknown channel: status=%d, want 400", got)
+	//
+	// An operator CAN reach this: the select's options are the Channels that existed when
+	// the drawer rendered, so another admin deleting one between the render and the submit
+	// lands here. It is a refusal, so since ticket #978 it answers the way every refusal on
+	// this surface answers (ADR-0130 §1) — a 303 back to the drawer with a toast — rather
+	// than a 400 text body at the POST URL that loses the drawer, the tab and the offset.
+	const drawer = "/settings?tab=integrations&view=slack"
+	resp = postForm(t, ac, base+"/settings/integrations/channel", url.Values{
+		"id": {"slack"}, "channel": {"999"}, "return": {drawer},
+	})
+	loc := submitLoc(t, resp)
+	if !strings.HasPrefix(loc, drawer) {
+		t.Errorf("refused bind landed at %q, want the drawer %q", loc, drawer)
+	}
+	if !strings.Contains(loc, "toast=") {
+		t.Errorf("refused bind carried no toast: %q", loc)
 	}
 	if st := f.integrationStates["slack"]; st.ChannelID.Valid {
 		t.Fatalf("a refused bind wrote a dangling reference: %+v", st)

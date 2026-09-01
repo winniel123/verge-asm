@@ -175,14 +175,6 @@ type settingsForms struct {
 	tab     string // explicit active tab; when "", derived from section (default scans)
 	notice  string // a success line, rendered above the active section
 
-	// flashed marks a settingsForms that reached the render through the session form
-	// flash on a GET (ADR-0130 §1, flash.go) rather than from an inline re-render of a
-	// POST. The echo values are the same; the response is not. A flashed render IS the
-	// landing page of a post-redirect-get, so it answers 200 like any other navigation.
-	// Only the shrinking set of handlers that still render in place at their own POST
-	// URL answers 400. See renderSettings.
-	flashed bool
-
 	// flashTab names the tab whose GET may consume this stash. The settings surface has
 	// more than one landing — /settings renders whichever tab its query names, /scans
 	// renders the Scans section on a URL of its own — and they are not interchangeable:
@@ -355,8 +347,13 @@ func tabForSection(section string) string {
 // lives inside that dialog. On a success, returning verbatim would re-open the terms of
 // a source the operator has just enabled. On a refusal, the same scrim would hide the
 // callout. The list of tiers behind the dialog survives either way.
-func dialogParams(section string) []string {
-	switch section {
+// It is keyed on the TAB, not on the section, and the difference is load-bearing. Three
+// sections render on the Scans tab — "scans", "cold" and "addresscap" — so a cap or an
+// opt-in refusal submitted from a URL with the stop confirm open would have kept ?stop=
+// on the way back if the key were the section. The destination is derived from the tab
+// (backToSection), so what may be dropped from it is a fact about the tab too.
+func dialogParams(tab string) []string {
+	switch tab {
 	case "team":
 		return []string{"role", "reenroll", "remove", "invite"}
 	case "sources":
@@ -393,8 +390,9 @@ func dialogParams(section string) []string {
 // the whole point of the contract, since a refusal the operator cannot tell apart from a
 // success is a refusal that keeps their scroll offset — and only the flash differs.
 func (s *server) backToSection(w http.ResponseWriter, r *http.Request, section string) {
-	dest := s.resolveBack(r, "/settings?tab="+tabForSection(section))
-	http.Redirect(w, r, stripDestParams(dest, dialogParams(section)...), http.StatusSeeOther)
+	tab := tabForSection(section)
+	dest := s.resolveBack(r, "/settings?tab="+tab)
+	http.Redirect(w, r, stripDestParams(dest, dialogParams(tab)...), http.StatusSeeOther)
 }
 
 // takeSettingsFlash reads this session's pending settings form off the flash carrier
@@ -408,17 +406,16 @@ func (s *server) backToSection(w http.ResponseWriter, r *http.Request, section s
 // why that check has to exist rather than being left to chance.
 //
 // A GET that is nobody's landing takes nothing and renders a zero settingsForms, which
-// is the ordinary read. flashed records which of the two happened, because the value
-// alone cannot say: a stash whose only payload is an inviteLink carries no section, and
-// a stash that carries one must still answer 200 here (see renderSettings).
+// is the ordinary read. The two cases need no flag to tell them apart any more: every
+// caller of renderSettings is a GET now, so the render answers 200 either way (ticket
+// #978 removed the settingsForms.flashed field with the last 400).
 //
 // The carrier is typed too, so a rejected form belonging to another surface — a
 // /signals declaration, say — is left in place rather than consumed here.
 func (s *server) takeSettingsFlash(r *http.Request, tab string) settingsForms {
-	f, ok := takeFormFlashIf[settingsForms](s, r, func(v settingsForms) bool {
+	f, _ := takeFormFlashIf[settingsForms](s, r, func(v settingsForms) bool {
 		return v.flashTab == tab
 	})
-	f.flashed = ok
 	f.tab = tab
 	return f
 }
@@ -436,10 +433,11 @@ func (s *server) takeSettingsFlash(r *http.Request, tab string) settingsForms {
 // states the section and nothing else. Every caller already did, exactly as it did for
 // the inline re-render.
 //
-// It is the whole of the migration for a caller: an inline
-// `renderSettings(w, r, acct, settingsForms{...})` becomes `failSettings(w, r,
-// settingsForms{...})` with the same struct. Callers not yet migrated keep rendering
-// in place, and settingsForms.section keeps working for them.
+// It was the whole of the migration for a caller: an inline
+// `renderSettings(w, r, acct, settingsForms{...})` became `failSettings(w, r,
+// settingsForms{...})` with the same struct. Ticket #978 moved the last four — the two
+// retention dials, the address cap, prober provisioning and the revoke-all typed-name
+// gate — so no settings handler renders a refusal in place any more.
 func (s *server) failSettings(w http.ResponseWriter, r *http.Request, f settingsForms) {
 	s.flashSettings(w, r, f)
 }
@@ -841,7 +839,7 @@ func (s *server) updateRetention(w http.ResponseWriter, r *http.Request, acct db
 	dispRaw := strings.TrimSpace(r.FormValue("dispatch_cadence_multiple"))
 	transRaw := strings.TrimSpace(r.FormValue("transcript_currency_days"))
 	fail := func(msg string) {
-		s.renderSettings(w, r, acct, settingsForms{
+		s.failSettings(w, r, settingsForms{
 			section: "retention", retError: msg,
 			retObs: obsRaw, retDispatch: dispRaw, retTranscript: transRaw,
 		})
@@ -896,13 +894,14 @@ func (s *server) updateRetention(w http.ResponseWriter, r *http.Request, acct db
 // guard here is a whole number of addresses, one or more. It persists on the
 // instance_config singleton and is read at declaration (server.addressCap), so a raise
 // takes effect on the next declaration and a lower value never invalidates a scope
-// declared under a higher cap. A rejected value re-renders the Scans tab with the
-// echo state and a 400, exactly as the retention dials do.
+// declared under a higher cap. A rejected value is a post-redirect-get back to the
+// submitting URL with the echo state on the session flash (ADR-0130 §1), exactly as
+// the retention dials do.
 func (s *server) updateAddressCap(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	raw := strings.TrimSpace(r.FormValue("address_cap"))
 	n, err := strconv.ParseInt(raw, 10, 64)
 	if err != nil || n < 1 {
-		s.renderSettings(w, r, acct, settingsForms{
+		s.failSettings(w, r, settingsForms{
 			section:  "addresscap",
 			capError: "The address-scope cap must be a whole number of addresses, one or more.",
 			capValue: raw,
@@ -983,16 +982,14 @@ func (s *server) renderSettings(w http.ResponseWriter, r *http.Request, acct db.
 		return
 	}
 
-	// A section names the form that failed, and while a handler still answers its own
-	// POST with a rendered body that failure is a 400. A MIGRATED handler answers 303
-	// instead (ADR-0130 §1), and its section reaches this render on the landing GET
-	// through the flash — an ordinary navigation, which is a 200. flashed is what tells
-	// the two apart; the section alone cannot.
-	status := http.StatusOK
-	if f.section != "" && !f.flashed {
-		status = http.StatusBadRequest
-	}
-	s.renderStatus(w, r, status, "settings", data)
+	// Always 200, callouts or none. Every caller of this render is now a GET — /settings,
+	// /scans, /sources, /verge-core and /messages — so a section reaches it only as the
+	// landing of a post-redirect-get (ADR-0130 §1), which is an ordinary navigation. The
+	// 400 branch answered a handler that rendered a refusal in place at its own POST URL,
+	// and it went with the last handler that did (ticket #978), taking settingsForms.flashed
+	// with it. A refusal now answers exactly as a success does, which is what lets the shell
+	// restore the operator's scroll offset on both.
+	s.renderStatus(w, r, http.StatusOK, "settings", data)
 }
 
 // fillVantagesSection lists the provisioned measurement positions (CONTEXT.md
@@ -1369,7 +1366,7 @@ func (s *server) revokeSessionAdmin(w http.ResponseWriter, r *http.Request, _ db
 // act does: the operator must type the account's username to confirm, and it is reached
 // only through the revoke-all ConfirmDialog. It never touches the account's membership,
 // role or personal tokens — only its live sessions — and is idempotent.
-func (s *server) revokeAccountSessions(w http.ResponseWriter, r *http.Request, acct db.Account) {
+func (s *server) revokeAccountSessions(w http.ResponseWriter, r *http.Request, _ db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("account_id"), 10, 64)
 	if err != nil {
 		s.backToSection(w, r, "sessions")
@@ -1382,7 +1379,7 @@ func (s *server) revokeAccountSessions(w http.ResponseWriter, r *http.Request, a
 		return
 	}
 	if strings.TrimSpace(r.FormValue("confirm_name")) != target.Username {
-		s.renderSettings(w, r, acct, settingsForms{
+		s.failSettings(w, r, settingsForms{
 			section: "sessions", revokeAccountID: id,
 			revokeAccountError: "That did not match. Type " + target.Username + " exactly to revoke every session.",
 		})

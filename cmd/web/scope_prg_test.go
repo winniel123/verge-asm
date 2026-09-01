@@ -190,6 +190,33 @@ func TestBulkDeclareEndsCarryOnlyWhatTheyEarned(t *testing.T) {
 	})
 }
 
+// A refused org-name search shows its reason. The refusal already rode the flash before
+// ticket #978, but seedsForms.proposalError had no hole to render into: the parity
+// conversion (#574) dropped .ProposalError from scope.tmpl and the field from
+// renderSeeds, so both refusals — an empty search and a scope already declared — landed
+// on a clean page saying nothing at all. The sweep found the field with two setters and
+// no reader, and restored the hole.
+func TestRefusedOrgSearchShowsItsReason(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	const from = "/scope"
+	resp := postForm(t, ac, base+"/proposals/search", url.Values{"org": {"   "}, "return": {from}})
+	if loc := submitLoc(t, resp); loc != from {
+		t.Fatalf("refused org search landed at %q, want %q", loc, from)
+	}
+	page := getBody(t, ac, base+from, http.StatusOK)
+	if !strings.Contains(page, "Enter an organisation name to search") {
+		t.Fatalf("the refusal is not on the landing page; body: %s", page)
+	}
+	// Single-consume, like every other callout on this surface.
+	if again := getBody(t, ac, base+from, http.StatusOK); strings.Contains(again, "Enter an organisation name") {
+		t.Fatalf("the callout survived a reload; body: %s", again)
+	}
+}
+
 // The narrowing preview is a receipt, not a refusal, and it must still reach the
 // operator after the redirect. It rides the same session flash the callouts do.
 func TestNarrowingPreviewSurvivesTheRedirect(t *testing.T) {
