@@ -97,12 +97,6 @@ type seedsForms struct {
 	// refused token in a paste, in declaration order. It replaces the single .Refusal
 	// hole — a paste declares many scopes at once, each validated independently.
 	refusals []refusalView
-	// flash is a success toast rendered INLINE (not via the PRG `toast` query): a bulk
-	// declare/upload with a mix of successes and refusals must show the success flash AND
-	// the per-item callouts in one response, so the flash rides the render (injectChrome
-	// honours it) rather than a redirect that would drop the callouts. Nil on a pure
-	// success (a plain PRG toastRedirect fires it) or a pure failure (no flash at all).
-	flash *toastVM
 }
 
 // zoneErrorView is one per-file zone-upload refusal (DF-F2): the file's name and the
@@ -126,6 +120,71 @@ func nameScopes(views []seedView) []seedView {
 	return out
 }
 
+// backToScope answers a mutating scope act with the 303 ADR-0130 §3 asks for: back to
+// the URL the form was submitted from, falling back to bare /scope when the form
+// carried no `return` that passed the guard (backurl.go).
+//
+// A success and a refusal share it. The destination rule is the same for both — that is
+// the point of the contract, since a refusal the operator cannot tell apart from a
+// success is a refusal that keeps their scroll offset — and only the flash differs.
+//
+// The scope surface needs no dialogParams twin of the settings helper. Every form on
+// this screen renders in the page itself. No query parameter on /scope opens a modal,
+// so there is nothing to drop from the destination.
+func (s *server) backToScope(w http.ResponseWriter, r *http.Request) {
+	s.redirectBack(w, r, "/scope")
+}
+
+// flashScopeBack stashes f as this session's pending scope form and 303s back to the
+// submitting URL. It is the whole of the migration for a caller: an inline
+// `renderSeeds(w, r, acct, seedsForms{...})` becomes `flashScopeBack(w, r,
+// seedsForms{...})` with the same struct, and seedsPage renders it on the landing.
+//
+// It carries a REFUSAL and it also carries the narrowing preview, which is not one. The
+// exclusion preview is a receipt the operator reads before they commit (#205 AC8), and
+// it rides the same carrier because it needs the same thing a refusal does: to survive
+// the redirect and render on the landing GET. Only renderSeeds tells the two apart, and
+// it does so off the error fields, not off the carrier.
+//
+// /scope is the surface's ONLY landing GET, so this needs no claim check of the kind
+// takeFormFlashIf exists for. The flash is typed, so a rejected form belonging to
+// another surface is left in place rather than consumed here.
+func (s *server) flashScopeBack(w http.ResponseWriter, r *http.Request, f seedsForms) {
+	stashFormFlash(s, r, f)
+	s.backToScope(w, r)
+}
+
+// flashScopeToastBack is flashScopeBack with a success toast: it stashes f AND fires one
+// toast on the landing. It is the MIXED bulk result — a paste or an upload where some
+// items committed and others were refused.
+//
+// That case is why seedsForms used to carry an inline toast. A mixed result must show
+// the success receipt and every per-item callout in ONE response, and before ADR-0130 a
+// redirect would have dropped the callouts, so the toast rode the inline render instead.
+// Under §1 the callouts ride the session flash through the redirect, so both arrive on
+// the landing GET and the workaround is gone: the toast takes the ordinary `toast=`
+// query carrier every other success uses.
+//
+// The receipt is no part of the page's identity, on either side. backURL and resolveBack
+// strip `toast` from the submitting URL, and the §2 scroll key ignores it (shell.tmpl),
+// so appending one here does not move the operator's stash.
+func (s *server) flashScopeToastBack(w http.ResponseWriter, r *http.Request, f seedsForms, tone, title, desc string) {
+	stashFormFlash(s, r, f)
+	s.toastRedirectBack(w, r, "/scope", tone, title, desc)
+}
+
+// takeScopeFlash reads this session's pending scope form off the flash carrier. It is
+// the GET half of the ADR-0130 §1 post-redirect-get, and /scope is the one landing that
+// calls it.
+//
+// A GET that is nobody's landing takes nothing and renders a zero seedsForms, which is
+// the ordinary read. The render needs no flag distinguishing the two, because it answers
+// 200 either way — see renderSeeds.
+func (s *server) takeScopeFlash(r *http.Request) seedsForms {
+	f, _ := takeFormFlash[seedsForms](s, r)
+	return f
+}
+
 func (s *server) seedsPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	// VERGE_DEV pixel-parity path (#574). The frozen scope.tmpl renders a curated
 	// corpus — the two seeds, the custody census, the seven-leaf name tree, the three
@@ -142,14 +201,17 @@ func (s *server) seedsPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 		s.render(w, r, "scope", s.scopeFixtureData(acct, scopeOverlay{}))
 		return
 	}
-	var f seedsForms
-	// A partial-failure lookup redirects here with a notice flag rather than
-	// rendering inline off its POST, so the caveat survives the redirect without
-	// making a refresh re-file the proposals (#251).
-	if r.URL.Query().Get("notice") == noticePartialProposals {
-		f.proposalNotice = partialProposalNotice
-	}
-	s.renderSeeds(w, r, acct, f)
+	// A refused scope act redirected here and left its callouts, the operator's typed
+	// values, and any narrowing preview in the session-keyed form flash (ADR-0130 §1,
+	// flash.go). Read it once, here, and hand it to the render. The read is
+	// single-consume, so a reload of the same URL shows a clean page.
+	//
+	// The partial-lookup caveat rides the same carrier (#251, proposals.go runLookup).
+	// It used to travel as a `?notice=` query flag, which kept the search idempotent on
+	// refresh but changed the URL — and a landing URL that differs from the submitting
+	// one is exactly the §2 scroll-key miss this map exists to close. The flash keeps
+	// the idempotence and the destination both.
+	s.renderSeeds(w, r, acct, s.takeScopeFlash(r))
 }
 
 // declareSeed handles a scope declaration. It is reached only through
@@ -185,7 +247,7 @@ func (s *server) declareSeed(w http.ResponseWriter, r *http.Request, acct db.Acc
 	tokens := parseSeedTokens(raw)
 	if len(tokens) == 0 {
 		// Nothing to declare — an empty submit is a no-op redirect, no flash, no error.
-		http.Redirect(w, r, "/scope", http.StatusSeeOther)
+		s.backToScope(w, r)
 		return
 	}
 
@@ -216,26 +278,26 @@ func (s *server) declareSeed(w http.ResponseWriter, r *http.Request, acct db.Acc
 			desc = fmt.Sprintf("%d refused — see the callouts", len(refusals))
 		}
 		if len(refusals) == 0 {
-			// Pure success: a plain post-redirect-get fires the flash (PARITY-CHART P1.7).
-			s.toastRedirect(w, r, "/scope", "neutral", title, desc)
+			// Pure success: a plain post-redirect-get back to the submitting URL fires the
+			// toast (PARITY-CHART P1.7).
+			s.toastRedirectBack(w, r, "/scope", "neutral", title, desc)
 			return
 		}
-		// Mixed: the callouts must render AND the flash must fire, so both ride one
-		// response — the flash is carried inline (renderSeeds → injectChrome) rather than
-		// through a redirect that would drop the refusals.
-		s.renderSeeds(w, r, acct, seedsForms{
+		// Mixed: the callouts must render AND the toast must fire, and under ADR-0130 §1
+		// both survive one redirect — the callouts in the session flash, the toast in the
+		// `toast` query. The operator lands back on their own URL with the whole result.
+		s.flashScopeToastBack(w, r, seedsForms{
 			refusals:  refusals,
 			seedScope: joinRefusedInputs(refusals),
-			flash:     &toastVM{Tone: "neutral", Title: title, Description: desc},
-		})
+		}, "neutral", title, desc)
 		return
 	}
 
-	// All-refused: no flash, callouts only. The field-level line reddens the input and
+	// All-refused: no toast, callouts only. The field-level line reddens the input and
 	// replaces the hint; a single over-cap token keeps its terse cap line (and its
 	// TestAddressScopeOverCapRejected contract), any other single refusal shows its
 	// reason, and a multi-token paste summarizes the count.
-	s.renderSeeds(w, r, acct, seedsForms{
+	s.flashScopeBack(w, r, seedsForms{
 		refusals:  refusals,
 		seedScope: joinRefusedInputs(refusals),
 		seedError: allRefusedFormError(refusals, addrCap),
@@ -336,12 +398,12 @@ func allRefusedFormError(refusals []refusalView, cap int) string {
 // rather than erroring.
 func (s *server) deleteSeed(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	if s.devMode {
-		http.Redirect(w, r, "/scope", http.StatusSeeOther)
+		s.backToScope(w, r)
 		return
 	}
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
-		s.renderSeeds(w, r, acct, seedsForms{seedError: "That scope could not be found."})
+		s.flashScopeBack(w, r, seedsForms{seedError: "That scope could not be found."})
 		return
 	}
 	// Resolve the scope's display string BEFORE the delete so the removal flash can name
@@ -353,10 +415,10 @@ func (s *server) deleteSeed(w http.ResponseWriter, r *http.Request, acct db.Acco
 		return
 	}
 	if scope == "" {
-		http.Redirect(w, r, "/scope", http.StatusSeeOther)
+		s.backToScope(w, r)
 		return
 	}
-	s.toastRedirect(w, r, "/scope", "neutral", "Scope removed",
+	s.toastRedirectBack(w, r, "/scope", "neutral", "Scope removed",
 		scope+" — nothing new is admitted under it; existing subjects keep their citations.")
 }
 
@@ -522,16 +584,6 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		s.serverError(w, "list proposals", err)
 		return
 	}
-	// A failure with no accompanying success flash renders 400. A bulk paste/upload that
-	// mixed successes with refusals (f.flash set) is a 200 — the successes committed, the
-	// refusals show as callouts alongside the success toast.
-	status := http.StatusOK
-	failed := f.seedError != "" || f.exclError != "" || f.custodyError != "" ||
-		f.zoneIntervalError != "" || f.proposalError != "" ||
-		len(f.refusals) > 0 || len(f.zoneErrors) > 0
-	if failed && f.flash == nil {
-		status = http.StatusBadRequest
-	}
 	seeds := toSeedViews(rows)
 	nameSeeds := nameScopes(seeds)
 	intervalDays := f.zoneIntervalDays
@@ -589,13 +641,13 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 	if f.proposalNotice != "" {
 		data["Notice"] = f.proposalNotice
 	}
-	// A mixed bulk result carries its success flash inline: injectChrome honours an
-	// already-set FlashToasts in place of the PRG `toast` query, so the ToastStack fires
-	// on this same response, next to the rendered refusal callouts.
-	if f.flash != nil {
-		data["FlashToasts"] = []toastVM{*f.flash}
-	}
-	s.renderStatus(w, r, status, "scope", data)
+	// Always 200, callouts or none. This render has one caller, seedsPage, and it is a
+	// GET: a refusal reaches it only as the landing of a post-redirect-get (ADR-0130 §1),
+	// which is an ordinary navigation. It used to answer 400 when it rendered a refusal
+	// in place at the POST URL, and that branch went with the last handler that did.
+	// A refusal now answers exactly as a success does, which is what lets the shell
+	// restore the operator's scroll offset on both.
+	s.render(w, r, "scope", data)
 }
 
 // coverageMsgView is one coverage fact shaped for the Scope screen's coverage
@@ -882,12 +934,15 @@ func zoneIntervalLabel(cadenceSeconds int64) string {
 // flash fires on ≥1 accepted file.
 func (s *server) uploadZoneFile(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	if s.devMode {
-		http.Redirect(w, r, "/scope", http.StatusSeeOther)
+		s.backToScope(w, r)
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, maxTotalZoneUpload)
 	if err := r.ParseMultipartForm(maxZoneUpload); err != nil { // #nosec G120 (request body bounded by the MaxBytesReader immediately above; per-part 8 MiB cap enforced on read)
-		s.renderSeeds(w, r, acct, seedsForms{zoneErrors: []zoneErrorView{{
+		// A body this handler could not parse carries no `return` field either, so the
+		// redirect falls back to bare /scope. That is the honest destination: the
+		// submitting URL is exactly what was lost with the rest of the body.
+		s.flashScopeBack(w, r, seedsForms{zoneErrors: []zoneErrorView{{
 			Reason: "The upload was too large or malformed. A zone file is text, up to 8 MB.",
 		}}})
 		return
@@ -897,7 +952,7 @@ func (s *server) uploadZoneFile(w http.ResponseWriter, r *http.Request, acct db.
 		files = r.MultipartForm.File["zonefile"]
 	}
 	if len(files) == 0 {
-		s.renderSeeds(w, r, acct, seedsForms{zoneErrors: []zoneErrorView{{
+		s.flashScopeBack(w, r, seedsForms{zoneErrors: []zoneErrorView{{
 			Reason: "Choose a zone file to upload.",
 		}}})
 		return
@@ -924,18 +979,16 @@ func (s *server) uploadZoneFile(w http.ResponseWriter, r *http.Request, acct db.
 			desc = fmt.Sprintf("%d refused", len(zoneErrors))
 		}
 		if len(zoneErrors) == 0 {
-			s.toastRedirect(w, r, "/scope", "neutral", title, desc)
+			s.toastRedirectBack(w, r, "/scope", "neutral", title, desc)
 			return
 		}
-		// Mixed: refusal rows AND the success flash on one response.
-		s.renderSeeds(w, r, acct, seedsForms{
-			zoneErrors: zoneErrors,
-			flash:      &toastVM{Tone: "neutral", Title: title, Description: desc},
-		})
+		// Mixed: refusal rows AND the success toast, both carried through one redirect
+		// back to the submitting URL (see flashScopeToastBack).
+		s.flashScopeToastBack(w, r, seedsForms{zoneErrors: zoneErrors}, "neutral", title, desc)
 		return
 	}
-	// Zero accepted: no flash, refusal rows only.
-	s.renderSeeds(w, r, acct, seedsForms{zoneErrors: zoneErrors})
+	// Zero accepted: no toast, refusal rows only.
+	s.flashScopeBack(w, r, seedsForms{zoneErrors: zoneErrors})
 }
 
 // uploadOneZoneFile stores ONE uploaded zone file (DF-F2). It returns nil on a recorded
@@ -1043,7 +1096,7 @@ func (s *server) setZoneInterval(w http.ResponseWriter, r *http.Request, acct db
 	raw := strings.TrimSpace(r.FormValue("interval_days"))
 	days, err := strconv.Atoi(raw)
 	if err != nil || days < 1 {
-		s.renderSeeds(w, r, acct, seedsForms{
+		s.flashScopeBack(w, r, seedsForms{
 			zoneIntervalError: "Enter a re-supply interval of at least one day.",
 			zoneIntervalDays:  raw,
 		})
@@ -1053,7 +1106,7 @@ func (s *server) setZoneInterval(w http.ResponseWriter, r *http.Request, acct db
 		s.serverError(w, "set zone cadence", err)
 		return
 	}
-	http.Redirect(w, r, "/scope", http.StatusSeeOther)
+	s.backToScope(w, r)
 }
 
 // isNameSeed reports whether id is a currently declared name-scope Seed.

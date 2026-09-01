@@ -1,7 +1,6 @@
 package main
 
 import (
-	"net/http"
 	"strings"
 	"testing"
 )
@@ -47,12 +46,9 @@ func TestOverCapRefusalNamesRaiseRoute(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// /20 is 4096 addresses, over the default 1024 cap.
-	resp := declare(t, ac, base, "address", "10.0.0.0/20")
-	got := body(t, resp)
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("over-cap declaration status = %d, want 400; body: %s", resp.StatusCode, got)
-	}
+	// /20 is 4096 addresses, over the default 1024 cap. The refusal is a
+	// post-redirect-get (ADR-0130 §1), so the callout is read off the landing GET.
+	got := refusalPage(t, ac, base, declare(t, ac, base, "address", "10.0.0.0/20"))
 	// The refusal names the raise route.
 	if !strings.Contains(got, "Raise your cap") || !strings.Contains(got, "Settings") {
 		t.Errorf("over-cap refusal does not name the raise route; body: %s", got)

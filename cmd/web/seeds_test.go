@@ -65,13 +65,13 @@ func TestAddressScopeOverCapRejected(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// /21 is 2048 addresses, over the 1024 cap.
-	resp := declare(t, ac, base, "address", "10.0.0.0/21")
-	got := body(t, resp)
+	// /21 is 2048 addresses, over the 1024 cap. The refusal is a post-redirect-get
+	// (ADR-0130 §1), so the callout is read off the landing GET.
+	got := refusalPage(t, ac, base, declare(t, ac, base, "address", "10.0.0.0/21"))
 	// #21a: over-cap declarations are REFUSED, not auto-corrected — the RefusalCallout
 	// names the span against the cap.
-	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(got, "over the 1,024-address cap") {
-		t.Fatalf("over-cap scope not rejected clearly: status=%d body=%s", resp.StatusCode, got)
+	if !strings.Contains(got, "over the 1,024-address cap") {
+		t.Fatalf("over-cap scope not rejected clearly; body=%s", got)
 	}
 	// The rejected value is preserved so the admin need not retype it.
 	if !strings.Contains(got, `value="10.0.0.0/21"`) {
@@ -83,7 +83,8 @@ func TestAddressScopeOverCapRejected(t *testing.T) {
 
 	// The IPv4 boundary /22 (exactly 1024) is accepted, and so is an
 	// equivalently-sized IPv6 block — the cap is family-agnostic.
-	if resp = declare(t, ac, base, "address", "10.0.0.0/22"); resp.StatusCode != http.StatusSeeOther {
+	resp := declare(t, ac, base, "address", "10.0.0.0/22")
+	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("/22 at the cap should be accepted: status=%d", resp.StatusCode)
 	}
 	resp.Body.Close()
@@ -99,9 +100,9 @@ func TestNameScopeMustBeRegistrable(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	resp := declare(t, ac, base, "name", "www.example.com")
-	if got := body(t, resp); resp.StatusCode != http.StatusBadRequest || !strings.Contains(got, "registrable domain example.com") {
-		t.Fatalf("subdomain not rejected toward its registrable domain: status=%d body=%s", resp.StatusCode, got)
+	got := refusalPage(t, ac, base, declare(t, ac, base, "name", "www.example.com"))
+	if !strings.Contains(got, "registrable domain example.com") {
+		t.Fatalf("subdomain not rejected toward its registrable domain; body=%s", got)
 	}
 	if len(f.seeds) != 0 {
 		t.Fatalf("seeds = %d, want 0", len(f.seeds))
@@ -115,8 +116,8 @@ func TestDuplicateSeedRejected(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 
 	declare(t, ac, base, "name", "example.com").Body.Close()
-	resp := declare(t, ac, base, "name", "example.com")
-	if got := body(t, resp); !strings.Contains(got, "already declared") {
+	got := refusalPage(t, ac, base, declare(t, ac, base, "name", "example.com"))
+	if !strings.Contains(got, "already declared") {
 		t.Fatalf("duplicate not reported; body: %s", got)
 	}
 }

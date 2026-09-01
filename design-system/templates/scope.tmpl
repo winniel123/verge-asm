@@ -175,8 +175,8 @@ button.sc-trow { cursor: pointer; }
 <div style="display:flex;flex-direction:column;gap:6px">
 <div class="sc-fieldrow">
 <div class="sc-field{{if .FormError}} err{{end}}" data-focus-input>
-{{range .Seeds}}<span class="sc-tag" id="seed-{{.Anchor}}">{{.Scope}}{{if $.IsAdmin}}<form method="post" action="/seeds/delete"><input type="hidden" name="id" value="{{.ID}}"><button class="rm" type="submit" aria-label="Remove seed"><svg viewBox="0 0 10 10" width="8" height="8"><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></button></form>{{end}}</span>{{end}}
-{{if .IsAdmin}}<form method="post" action="/seeds" id="sc-declare"><input name="scope" value="{{.FormScope}}" placeholder="{{if not .Seeds}}acmecorp.io or 203.0.113.0/24{{end}}" autocomplete="off" aria-label="Declare a scope" data-declare-input></form>{{end}}
+{{range .Seeds}}<span class="sc-tag" id="seed-{{.Anchor}}">{{.Scope}}{{if $.IsAdmin}}<form method="post" action="/seeds/delete"><input type="hidden" name="id" value="{{.ID}}">{{template "backfield" $}}<button class="rm" type="submit" aria-label="Remove seed"><svg viewBox="0 0 10 10" width="8" height="8"><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></button></form>{{end}}</span>{{end}}
+{{if .IsAdmin}}<form method="post" action="/seeds" id="sc-declare">{{template "backfield" $}}<input name="scope" value="{{.FormScope}}" placeholder="{{if not .Seeds}}acmecorp.io or 203.0.113.0/24{{end}}" autocomplete="off" aria-label="Declare a scope" data-declare-input></form>{{end}}
 </div>
 {{if .IsAdmin}}<button type="submit" form="sc-declare" class="sc-btn" data-declare-confirm>Confirm</button>{{end}}
 </div>
@@ -206,7 +206,7 @@ button.sc-trow { cursor: pointer; }
 <div style="display:flex;flex-direction:column;gap:12px">
 <div class="sc-switchrow">
 {{if $.IsAdmin}}
-<form method="post" action="/seeds/custody"><input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="extend" value="{{if .CustodyExtension}}false{{else}}true{{end}}"><button type="submit" role="switch" aria-checked="{{if .CustodyExtension}}true{{else}}false{{end}}" class="sc-switch{{if .CustodyExtension}} on{{end}}" aria-label="Extend custody — {{.Scope}}"><span class="knob"></span></button></form>
+<form method="post" action="/seeds/custody"><input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="extend" value="{{if .CustodyExtension}}false{{else}}true{{end}}">{{template "backfield" $}}<button type="submit" role="switch" aria-checked="{{if .CustodyExtension}}true{{else}}false{{end}}" class="sc-switch{{if .CustodyExtension}} on{{end}}" aria-label="Extend custody — {{.Scope}}"><span class="knob"></span></button></form>
 {{else}}<span class="sc-switch{{if .CustodyExtension}} on{{end}}" role="switch" aria-checked="{{if .CustodyExtension}}true{{else}}false{{end}}"><span class="knob"></span></span>{{end}}
 <span class="lbl">Extend custody to adjacent infrastructure — <span class="mono">{{.Scope}}</span></span>
 </div>
@@ -244,6 +244,7 @@ button.sc-trow { cursor: pointer; }
 {{end}}
 {{if .IsAdmin}}
 <form method="post" action="/seeds/zone" enctype="multipart/form-data" style="margin:0">
+{{template "backfield" $}}
 <label class="sc-drop" id="sc-zone-drop">
 <span class="ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" x2="12" y1="3" y2="15"></line></svg></span>
 <span class="l">Re-supply zone files</span>
@@ -254,7 +255,7 @@ button.sc-trow { cursor: pointer; }
 <div class="sc-introw">
 <span class="sc-micro">Re-supply interval</span>
 <form method="post" action="/seeds/zone/interval" style="margin:0 0 0 auto;display:flex;align-items:center;gap:8px">
-<input name="interval_days" inputmode="numeric" value="{{.ZoneIntervalDays}}" aria-label="Re-supply interval in days"><span class="unit">days</span>
+{{template "backfield" $}}<input name="interval_days" inputmode="numeric" value="{{.ZoneIntervalDays}}" aria-label="Re-supply interval in days"><span class="unit">days</span>
 <button type="submit" class="sc-btn-sm">Save</button>
 </form>
 </div>
@@ -318,13 +319,13 @@ button.sc-trow { cursor: pointer; }
 <div class="sc-body">
 {{if .IsAdmin}}
 <form method="post" action="/proposals/search" style="display:flex;gap:8px;align-items:flex-end;margin:0 0 14px">
-<span class="sc-input" style="flex:1"><span class="il">Org-name search</span><span class="iw"><input name="org" value="{{.OrgQuery}}" placeholder="Acme Corporation" autocomplete="off"></span></span>
+{{template "backfield" $}}<span class="sc-input" style="flex:1"><span class="il">Org-name search</span><span class="iw"><input name="org" value="{{.OrgQuery}}" placeholder="Acme Corporation" autocomplete="off"></span></span>
 <button type="submit" class="sc-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>Search registries</button>
 </form>
 {{end}}
 <span style="display:block;font:400 11.5px/1.6 var(--font-ui);color:var(--text-muted);margin-bottom:14px">Proposers answer an org-name search with address scopes — never subdomains. A proposal asserts nothing until confirmed into a seed; declines are recorded as exclusions.</span>
 {{if .Proposals}}
-<form method="post" action="/proposals/decline" id="sc-decline-form" style="margin:0"></form>
+<form method="post" action="/proposals/decline" id="sc-decline-form" style="margin:0">{{template "backfield" $}}</form>
 <div style="display:flex;flex-direction:column">
 {{range .Proposals}}
 <div class="sc-prow">
@@ -332,7 +333,7 @@ button.sc-trow { cursor: pointer; }
 <span class="pv">{{.Value}}</span>
 <span class="sc-tag">{{.Kind}}</span>
 <span class="psrc">{{.Source}}</span>
-{{if $.IsAdmin}}<form method="post" action="/proposals/confirm"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" class="sc-btn-sm">Confirm</button></form>{{end}}
+{{if $.IsAdmin}}<form method="post" action="/proposals/confirm"><input type="hidden" name="id" value="{{.ID}}">{{template "backfield" $}}<button type="submit" class="sc-btn-sm">Confirm</button></form>{{end}}
 </div>
 {{end}}
 <div style="display:flex;align-items:center;gap:10px;padding-top:12px;border-top:1px solid var(--row-sep)">
@@ -355,7 +356,7 @@ button.sc-trow { cursor: pointer; }
 <div class="sc-xrow">
 <span class="sc-tag">{{.Kind}}</span>
 <span class="xv">{{if eq .Kind "subtree"}}*.{{end}}{{.Value}}</span>
-{{if $.IsAdmin}}<form method="post" action="/exclusions/delete"><input type="hidden" name="id" value="{{.ID}}"><button class="rm" type="submit" aria-label="Remove exclusion"><svg viewBox="0 0 10 10" width="9" height="9"><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></button></form>{{end}}
+{{if $.IsAdmin}}<form method="post" action="/exclusions/delete"><input type="hidden" name="id" value="{{.ID}}">{{template "backfield" $}}<button class="rm" type="submit" aria-label="Remove exclusion"><svg viewBox="0 0 10 10" width="9" height="9"><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></button></form>{{end}}
 </div>
 {{else}}
 <span style="font:400 12.5px var(--font-ui);color:var(--text-muted)">No exclusions. Everything declared is in scope.</span>
@@ -363,7 +364,7 @@ button.sc-trow { cursor: pointer; }
 </div>
 {{if .IsAdmin}}
 <form method="post" action="/exclusions" style="display:flex;gap:8px;align-items:center;margin:0" class="sc-xadd">
-<input type="hidden" name="kind" value="{{if .ExclKind}}{{.ExclKind}}{{else}}subtree{{end}}" id="sc-xkind">
+<input type="hidden" name="kind" value="{{if .ExclKind}}{{.ExclKind}}{{else}}subtree{{end}}" id="sc-xkind">{{template "backfield" $}}
 <span class="sc-listbox">
 <button type="button" class="trig" id="sc-xkind-btn" aria-haspopup="listbox" aria-expanded="false"><span class="cv">Subtree</span><svg class="chev" viewBox="0 0 16 16" width="14" height="14"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
 <div class="panel" id="sc-xkind-panel" hidden>

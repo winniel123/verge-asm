@@ -231,8 +231,10 @@ func TestConfirmRefusesOverCapProposalUntilCapAdmitsIt(t *testing.T) {
 
 	// Over the cap: the confirm is refused and files no Seed. The response names the
 	// raise route and keeps the decline affordance — decline stays the expected answer.
+	// The refusal is a post-redirect-get (ADR-0130 §1), so its notice is read off the
+	// landing GET.
 	resp := postForm(t, ac, base+"/proposals/confirm", url.Values{"id": {itoa(f.proposals[0].ID)}})
-	page := body(t, resp)
+	page := refusalPage(t, ac, base, resp)
 	if len(f.seeds) != 0 {
 		t.Fatalf("over-cap proposal was confirmed into a seed despite the cap: %+v", f.seeds)
 	}
@@ -387,7 +389,7 @@ func TestLookupBackendFailureIsNotAMiss(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 
 	logs := captureLog(t)
-	page := body(t, lookup(t, ac, base, "Example"))
+	page := refusalPage(t, ac, base, lookup(t, ac, base, "Example"))
 	if strings.Contains(page, "No candidate scopes matched that name.") {
 		t.Errorf("a backend failure was rendered as a no-match; body: %s", page)
 	}
@@ -413,7 +415,7 @@ func TestLookupGenuineMissStillReadsAsAMiss(t *testing.T) {
 	base := startWithProposer(t, f, fp)
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	page := body(t, lookup(t, ac, base, "Nonesuch"))
+	page := refusalPage(t, ac, base, lookup(t, ac, base, "Nonesuch"))
 	if !strings.Contains(page, "No candidate scopes matched that name.") {
 		t.Errorf("a genuine no-match lost its message; body: %s", page)
 	}
@@ -446,13 +448,15 @@ func TestLookupPartialFailureFilesAndFlags(t *testing.T) {
 	}
 	loc := resp.Header.Get("Location")
 	resp.Body.Close()
-	if !strings.Contains(loc, "notice=partial-proposals") {
-		t.Fatalf("partial-failure redirect %q carries no incompleteness flag", loc)
+	// The caveat rides the session form flash, not the URL (ADR-0130 §3): the landing is
+	// the URL the search was submitted from, so the operator keeps their scroll offset.
+	if loc != "/scope" {
+		t.Fatalf("partial-failure redirect %q is not the submitting URL", loc)
 	}
 
 	// Following the redirect, the Seeds page shows the caveat and the candidates
 	// that did come back.
-	page := body(t, get(t, ac, base+loc))
+	page := getBody(t, ac, base+loc, http.StatusOK)
 	if !strings.Contains(page, "partial") {
 		t.Errorf("partial failure was not flagged to the operator; body: %s", page)
 	}

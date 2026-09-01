@@ -82,17 +82,16 @@ func TestInvalidExclusionsRejected(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// A wildcard is not a name.
-	resp := exclude(t, ac, base, "name", "*.example.com")
-	if got := body(t, resp); resp.StatusCode != http.StatusBadRequest || !strings.Contains(got, "bare name") {
-		t.Fatalf("wildcard not rejected clearly: status=%d body=%s", resp.StatusCode, got)
+	// A wildcard is not a name. The refusal is a post-redirect-get (ADR-0130 §1), so the
+	// callout is read off the landing GET.
+	if got := refusalPage(t, ac, base, exclude(t, ac, base, "name", "*.example.com")); !strings.Contains(got, "bare name") {
+		t.Fatalf("wildcard not rejected clearly; body=%s", got)
 	}
 
 	// A malformed address is rejected, and the typed value is preserved.
-	resp = exclude(t, ac, base, "address", "not-an-address")
-	got := body(t, resp)
-	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(got, "not an address or CIDR block") {
-		t.Fatalf("bad address not rejected clearly: status=%d body=%s", resp.StatusCode, got)
+	got := refusalPage(t, ac, base, exclude(t, ac, base, "address", "not-an-address"))
+	if !strings.Contains(got, "not an address or CIDR block") {
+		t.Fatalf("bad address not rejected clearly; body=%s", got)
 	}
 	if !strings.Contains(got, `value="not-an-address"`) {
 		t.Errorf("rejected value not retained in the form; body: %s", got)
@@ -109,12 +108,12 @@ func TestDuplicateExclusionRejected(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 
 	exclude(t, ac, base, "name", "dup.example.com").Body.Close()
-	resp := exclude(t, ac, base, "name", "dup.example.com")
-	if got := body(t, resp); !strings.Contains(got, "already excluded") {
+	if got := refusalPage(t, ac, base, exclude(t, ac, base, "name", "dup.example.com")); !strings.Contains(got, "already excluded") {
 		t.Fatalf("duplicate not reported; body: %s", got)
 	}
 	// A subtree of the same string is a different claim and is accepted.
-	if resp = exclude(t, ac, base, "subtree", "dup.example.com"); resp.StatusCode != http.StatusSeeOther {
+	resp := exclude(t, ac, base, "subtree", "dup.example.com")
+	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("subtree of the same name should be accepted: status=%d", resp.StatusCode)
 	}
 	resp.Body.Close()
