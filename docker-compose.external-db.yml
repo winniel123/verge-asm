@@ -56,10 +56,13 @@ services:
     depends_on: !reset null
     environment:
       DATABASE_URL: ${DATABASE_URL:?}
-      # SCRATCH ONLY (#1021): the single-service drift under test. `require`
-      # still negotiates TLS, so it verifies nothing. Never merge this line.
+      # SCRATCH ONLY (#1021): the single-service drift under test. worker's copy
+      # of the TLS environment drifts: the mode drops to `require` and the root
+      # anchor goes away. pgx then negotiates TLS and verifies NOTHING, so the
+      # dial still succeeds and run 1 stays green. `require` alone is not the
+      # drift: pgx verifies against sslrootcert whenever one is set, which is
+      # why the first attempt at this branch stayed green. Never merge.
       PGSSLMODE: require
-      PGSSLROOTCERT: /etc/verge/ca/root.crt
     volumes:
       # Both services open the pool, so both mount the anchor (ADR-0132 §3).
       - type: bind
