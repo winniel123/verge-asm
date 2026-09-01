@@ -38,7 +38,7 @@ import (
 //
 // There is no count and no threshold here, and there must never be one. The fan-out
 // figure and the boundary it is compared against are versioned parameters of the
-// `Custody` derivation, locked by the `custody/v1` corpus, and a row that rendered
+// `Custody` derivation, locked by the `custody/v2` corpus, and a row that rendered
 // either would put a product-chosen number in front of the operator (ADR-0129 §5).
 type custodyCensusRow struct {
 	// Name is the in-zone Name holding the A record — the name the operator
@@ -125,12 +125,13 @@ func custodyExtensionEstate(ctx context.Context, q custodyCensusStore, asOf time
 		return custody.Estate{}, err
 	}
 
+	// The measurement goes in LAST, through WithEdgeFanout: its errored floor is read
+	// per limb, over the extension candidates this estate's own resolutions hold.
 	return custody.Estate{
 		AddressScopes: prefixes,
 		ExtendedZones: extended,
 		Resolutions:   resolutions,
-		EdgeFanout:    fanout,
-	}, nil
+	}.WithEdgeFanout(fanout), nil
 }
 
 // toCustodyCensusRows shapes the derivation's census entries for scope.tmpl. It is

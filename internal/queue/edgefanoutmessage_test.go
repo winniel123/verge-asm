@@ -22,8 +22,7 @@ func declineEstate(edge netip.Addr) custody.Estate {
 	return custody.Estate{
 		ExtendedZones: []string{"example.com"},
 		Resolutions:   []custody.Resolution{{Owner: "shop.example.com", Address: edge}},
-		EdgeFanout:    custody.EdgeFanout{Enabled: true, Shared: map[netip.Addr]bool{edge: true}},
-	}
+	}.WithEdgeFanout(custody.EdgeFanout{Enabled: true, Shared: map[netip.Addr]bool{edge: true}})
 }
 
 // A decline fires no coverage-class message. The chain is structural rather than

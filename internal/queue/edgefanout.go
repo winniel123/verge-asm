@@ -248,9 +248,16 @@ type EdgeFanoutStore interface {
 //     computes over the SAN set of the certificate the edge served. An address with no
 //     row gets NO KEY, which is what the derivation reads as *measurement pending* and
 //     holds.
-//   - Whether a Batch of this Scan has ever completed, and ONLY where the Scan recorded
-//     nothing at all. That read is the fourth case's other half — the ERRORED Scan —
-//     and toEdgeFanout states why it is needed.
+//   - Whether a Batch of this Scan has ever completed. That read is the fourth case's
+//     other half — the ERRORED Scan — and it is carried out to the assembler rather
+//     than resolved here: the floor is PER LIMB since #1018, and the question *did the
+//     Scan measure any extension candidate?* needs a candidate set this package does
+//     not hold. custody.Estate.WithEdgeFanout resolves it.
+//
+// The completion read runs on EVERY read now, where #985 ran it on an empty store
+// alone. A non-empty store no longer answers the floor: since #988 the two limbs share
+// one store, so a declaration-limb row alone would lift a whole-store floor while every
+// extension candidate stayed unmeasured (#1018). The query is one EXISTS over `batch`.
 //
 // A read that FAILS returns the error rather than an open reach. A failed read is not a
 // decision: it is the dispatch failing, and the tick retries. Opening the reach on a
@@ -271,14 +278,9 @@ func ReadEdgeFanout(ctx context.Context, q EdgeFanoutStore) (custody.EdgeFanout,
 	if err != nil {
 		return custody.EdgeFanout{}, err
 	}
-	// The second query runs ONLY on an empty store, so the healthy path — where the
-	// Scan has measured something — pays one row count and nothing more.
-	completed := false
-	if len(rows) == 0 {
-		completed, err = q.ScanHasCompletedBatch(ctx, scan.EdgeFanoutKind)
-		if err != nil {
-			return custody.EdgeFanout{}, err
-		}
+	completed, err := q.ScanHasCompletedBatch(ctx, scan.EdgeFanoutKind)
+	if err != nil {
+		return custody.EdgeFanout{}, err
 	}
 	return toEdgeFanout(completed, rows), nil
 }
@@ -290,53 +292,38 @@ func ReadEdgeFanout(ctx context.Context, q EdgeFanoutStore) (custody.EdgeFanout,
 // custody.SharedEdge computes over the SAN set the edge served. An address with no row
 // gets no key, and that missing key is what the derivation holds on.
 //
-// AN EMPTY STORE HAS TWO MEANINGS, and completed is what tells them apart. It is the
-// ERRORED half of ADR-0129's fourth absence case, and without it hold-then-open has no
-// floor at all:
+// THE ERRORED FLOOR IS NOT DECIDED HERE. completed is carried out on the record
+// (custody.EdgeFanout.BatchCompleted) and custody.Estate.WithEdgeFanout resolves the
+// floor against the extension candidates. It is the ERRORED half of ADR-0129's fourth
+// absence case, and without it hold-then-open has no floor at all:
 //
 //   - The Scan has not run yet (completed false). Its candidates are genuinely
 //     *measurement pending*, so they are HELD, bounded by the daily cadence. This is
-//     the fresh install and the newly-declared extension, and holding here is exactly
-//     what keeps the modal all-CDN install from showing appear-then-withdraw churn.
-//   - The Scan RUNS and records nothing (completed true). It is enabled, it has
-//     completed a Batch, and the store is still empty. That is not a lag — it is the
-//     measurement failing. The commonest cause is a prober binary older than #982,
-//     which falls through its kind switch, emits a line the recording fold drops, and
-//     completes the Batch clean. So it repeats every tick, forever.
+//     the fresh install, and holding here is exactly what keeps the modal all-CDN
+//     install from showing appear-then-withdraw churn. It is NO LONGER the extension
+//     declared on an install that has already run the Scan — that one arrives with a
+//     completed Batch and no measured candidate, so it reaches for a cadence. See
+//     custody.EdgeFanout.overExtension, which states that residue.
+//   - The Scan RUNS and measures no extension candidate (completed true). That is not
+//     a lag — it is the measurement failing on the limb the veto gates. The commonest
+//     cause is a prober binary older than #982, which falls through its kind switch,
+//     emits a line the recording fold drops, and completes the Batch clean. So it
+//     repeats every tick, forever.
 //
-// Holding on the second case would withhold the WHOLE custody-extension limb — every
-// in-zone direct-A address, on every Scan the gate covers — silently and for good. A
-// silently missing estate is the direction ADR-0129 §2 refuses; probing edges it could
-// have skipped is the loud direction it accepts. So the errored Scan reaches, which is
-// the pre-ADR-0129 behaviour the fourth case names.
+// THE FLOOR IS PER LIMB, and #1018 is why this file no longer holds it. #985 asked
+// *did the Scan record anything at all*, which the store answers. #988 put both limbs
+// in one store, so a DECLARATION-limb row alone lifted that floor while every extension
+// candidate stayed unmeasured and HELD — silently, and for as long as the condition
+// lasted. The question is now *did the Scan measure any EXTENSION CANDIDATE*, and this
+// package holds no candidate set: it sees rows, and the estate is what knows which of
+// them are the gating limb's.
 //
-// One recorded measurement of any kind lifts the floor, and the three negative outcomes
-// each record one. So a store that stays empty means the Scan measured NOTHING — never
-// that the network was bad — and the reading cannot be reached by a run of failed
-// handshakes.
-//
-// An install with NEITHER a custody extension nor an address scope records nothing
-// either, and reads as errored; it holds no extension-covered address, so the reading
-// changes no answer. Since #988 an install holding address scopes alone DOES record
-// rows, so it reads as in force with a map of declared addresses in it. Those keys reach
-// no gate — the veto reads the extension limb alone (custody.EdgeFanout) — so that
-// reading changes no answer either. Every key here is measured-and-labelled; which limb
-// it came from is decided where it is read, never here.
-//
-// #988 NARROWED THIS FLOOR, and the residue is stated rather than smoothed. The floor
-// asks *did the Scan record anything at all*, and the two limbs now share one store, so
-// a DECLARATION-limb row alone lifts it. On an install holding both limbs, an extension
-// limb that records nothing while the declaration limb records cleanly no longer reads
-// as errored: every candidate stays unmeasured and is HELD by admits case 3, silently.
-// The floor's own motivating case is unaffected — a prober older than #982 falls through
-// its kind switch and records nothing on EITHER limb, so the store is empty and the floor
-// fires. What the floor no longer catches is a PARTIAL failure that spares the
-// declaration limb. Closing that needs a per-limb floor, which needs the candidate set
-// at read time; it is its own decision and #1018 holds it.
+// So every key here is measured-and-labelled, and WHICH LIMB it came from is decided
+// where it is read. An install holding address scopes alone records rows and reads as
+// in force with a map of declared addresses in it; those keys reach no gate, because
+// the veto reads the extension limb alone (custody.EdgeFanout). An install with NEITHER
+// limb records nothing and holds no candidate, so its floor is moot.
 func toEdgeFanout(completed bool, rows []db.ListEdgeFanoutMeasurementsRow) custody.EdgeFanout {
-	if len(rows) == 0 && completed {
-		return custody.EdgeFanout{}
-	}
 	shared := make(map[netip.Addr]bool, len(rows))
 	for _, r := range rows {
 		addr, err := netip.ParseAddr(r.Address)
@@ -356,7 +343,7 @@ func toEdgeFanout(completed bool, rows []db.ListEdgeFanoutMeasurementsRow) custo
 		}
 		shared[addr.Unmap()] = custody.SharedEdge(sans)
 	}
-	return custody.EdgeFanout{Enabled: true, Shared: shared}
+	return custody.EdgeFanout{Enabled: true, BatchCompleted: completed, Shared: shared}
 }
 
 // edgeFanoutSANs decodes one measured edge's default certificate to the dNSName SANs

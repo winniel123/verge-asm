@@ -130,7 +130,7 @@ func TestCustodyCensusDeclinedAndPendingRows(t *testing.T) {
 
 // No row carries a count or a threshold, and the type is what holds that. The fan-out
 // figure and the boundary it is compared against are versioned parameters of the
-// `Custody` derivation, locked by the `custody/v1` corpus, so a row that rendered
+// `Custody` derivation, locked by the `custody/v2` corpus, so a row that rendered
 // either would put a product-chosen number in front of the operator and pin the
 // renderer to a parameter that is free to move (ADR-0129 §5, #987).
 //
@@ -209,6 +209,37 @@ func TestCustodyCensusDegradesOnReadFailure(t *testing.T) {
 	}
 	if strings.Contains(page, "shop.example.com") {
 		t.Errorf("a row rendered from a failed read; body: %s", page)
+	}
+}
+
+// A Scan that COMPLETED A BATCH and measured no extension candidate is errored on that
+// limb, and the section renders the empty state (#1018). Every candidate reaches, so a
+// *pending* row here would name a hold that is not happening.
+//
+// The store is NOT empty: it holds a declaration-limb row, which is the whole point.
+// This test walks the assembler seam — custodyExtensionEstate must carry the
+// measurement in through WithEdgeFanout, or the floor is never resolved and both
+// candidates render as pending forever.
+func TestCustodyCensusEmptyWhereTheExtensionLimbErrored(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	declareExtendedZone(t, f, ac, base, "example.com")
+	censusEstateFixture(t, f)
+	f.completedBatchKinds[scan.EdgeFanoutKind] = true
+	// One row, on an address no in-zone name cites — the declaration limb's. Neither
+	// extension candidate was measured.
+	f.edgeFanout = []db.ListEdgeFanoutMeasurementsRow{
+		{Address: "23.20.0.20", Outcome: string(edgefanout.Presented), Der: sharedEdgeDER(t)},
+	}
+
+	page := seedsBody(t, ac, base)
+	if !strings.Contains(page, "No in-zone name fronts an edge the extension declined.") {
+		t.Errorf("no empty state on an errored extension limb; body: %s", page)
+	}
+	if strings.Contains(page, `<span class="sc-stale">pending</span>`) {
+		t.Errorf("a pending row rendered on an errored extension limb; body: %s", page)
 	}
 }
 
