@@ -51,6 +51,158 @@ func (q *Queries) CancelReadyJobsForDispatch(ctx context.Context, dispatchID pgt
 	return result.RowsAffected(), nil
 }
 
+const listActiveDispatchProgress = `-- name: ListActiveDispatchProgress :many
+SELECT
+    d.id       AS dispatch_id,
+    d.scan_id  AS scan_id,
+    s.kind     AS scan_kind,
+    d.created_at,
+    d.status   AS status,
+    count(j.id)                                 AS total,
+    count(*) FILTER (WHERE j.state = 'ready')   AS ready,
+    count(*) FILTER (WHERE j.state = 'running') AS running,
+    count(*) FILTER (WHERE j.state = 'done')    AS done,
+    count(*) FILTER (WHERE j.state = 'dead')    AS dead,
+    count(*) FILTER (WHERE j.state = 'retried') AS retried
+FROM dispatch d
+JOIN scan s ON s.id = d.scan_id
+LEFT JOIN queue_job j ON j.dispatch_id = d.id
+GROUP BY d.id, d.scan_id, s.kind, d.created_at, d.status
+HAVING count(*) FILTER (WHERE j.state IN ('ready', 'running')) > 0
+ORDER BY d.id DESC
+`
+
+type ListActiveDispatchProgressRow struct {
+	DispatchID int64              `json:"dispatch_id"`
+	ScanID     int64              `json:"scan_id"`
+	ScanKind   string             `json:"scan_kind"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	Status     string             `json:"status"`
+	Total      int64              `json:"total"`
+	Ready      int64              `json:"ready"`
+	Running    int64              `json:"running"`
+	Done       int64              `json:"done"`
+	Dead       int64              `json:"dead"`
+	Retried    int64              `json:"retried"`
+}
+
+// The Dispatches still in flight, newest first, with the same per-state job counts
+// ListDispatchProgress folds — the Active half of the Scans monitor's split read
+// (#962, SPEC §3/§4). In flight means at least one job still 'ready' or 'running',
+// the same predicate the view derives Active from (toDispatchView: ready + running > 0).
+// It carries no LIMIT on purpose: few Scans run at once, so reality bounds this read,
+// and a cap here is what let a burst of in-flight work evict completed history from the
+// old shared window. Only an in-flight Dispatch owns a stop / terminate dialog, so this
+// read is also the lookup behind those (scans.go findDispatchRow).
+// A Dispatch whose jobs were retired to NULL by the Dispatch sweep (ADR-0041) counts
+// zero in-flight jobs, so it falls to the history read rather than pinning here.
+func (q *Queries) ListActiveDispatchProgress(ctx context.Context) ([]ListActiveDispatchProgressRow, error) {
+	rows, err := q.db.Query(ctx, listActiveDispatchProgress)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListActiveDispatchProgressRow{}
+	for rows.Next() {
+		var i ListActiveDispatchProgressRow
+		if err := rows.Scan(
+			&i.DispatchID,
+			&i.ScanID,
+			&i.ScanKind,
+			&i.CreatedAt,
+			&i.Status,
+			&i.Total,
+			&i.Ready,
+			&i.Running,
+			&i.Done,
+			&i.Dead,
+			&i.Retried,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listConcludedDispatchProgress = `-- name: ListConcludedDispatchProgress :many
+SELECT
+    d.id       AS dispatch_id,
+    d.scan_id  AS scan_id,
+    s.kind     AS scan_kind,
+    d.created_at,
+    d.status   AS status,
+    count(j.id)                                 AS total,
+    count(*) FILTER (WHERE j.state = 'ready')   AS ready,
+    count(*) FILTER (WHERE j.state = 'running') AS running,
+    count(*) FILTER (WHERE j.state = 'done')    AS done,
+    count(*) FILTER (WHERE j.state = 'dead')    AS dead,
+    count(*) FILTER (WHERE j.state = 'retried') AS retried
+FROM dispatch d
+JOIN scan s ON s.id = d.scan_id
+LEFT JOIN queue_job j ON j.dispatch_id = d.id
+GROUP BY d.id, d.scan_id, s.kind, d.created_at, d.status
+HAVING count(*) FILTER (WHERE j.state IN ('ready', 'running')) = 0
+ORDER BY d.id DESC
+LIMIT $1
+`
+
+type ListConcludedDispatchProgressRow struct {
+	DispatchID int64              `json:"dispatch_id"`
+	ScanID     int64              `json:"scan_id"`
+	ScanKind   string             `json:"scan_kind"`
+	CreatedAt  pgtype.Timestamptz `json:"created_at"`
+	Status     string             `json:"status"`
+	Total      int64              `json:"total"`
+	Ready      int64              `json:"ready"`
+	Running    int64              `json:"running"`
+	Done       int64              `json:"done"`
+	Dead       int64              `json:"dead"`
+	Retried    int64              `json:"retried"`
+}
+
+// The Dispatches no longer in flight, newest first — the History half of the Scans
+// monitor's split read (#962, SPEC §3/§4). It is the exact complement of
+// ListActiveDispatchProgress: no job left 'ready' or 'running'. The two halves are
+// disjoint, so a Dispatch is listed once, and history gets a dedicated window —
+// in-flight volume no longer evicts completed rows from it.
+// The caller passes scansHistoryLimit + 1 and shows scansHistoryLimit, so one extra
+// row is the truncation signal (LIMIT N+1; scans.go fillScansSection).
+func (q *Queries) ListConcludedDispatchProgress(ctx context.Context, limit int32) ([]ListConcludedDispatchProgressRow, error) {
+	rows, err := q.db.Query(ctx, listConcludedDispatchProgress, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListConcludedDispatchProgressRow{}
+	for rows.Next() {
+		var i ListConcludedDispatchProgressRow
+		if err := rows.Scan(
+			&i.DispatchID,
+			&i.ScanID,
+			&i.ScanKind,
+			&i.CreatedAt,
+			&i.Status,
+			&i.Total,
+			&i.Ready,
+			&i.Running,
+			&i.Done,
+			&i.Dead,
+			&i.Retried,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listDispatchProgress = `-- name: ListDispatchProgress :many
 SELECT
     d.id       AS dispatch_id,

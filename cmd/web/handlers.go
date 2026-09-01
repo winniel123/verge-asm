@@ -340,6 +340,14 @@ type store interface {
 	// (ADR-0041); the drift engine never reads Dispatch, queue_job or batch.
 	ListDispatchProgress(ctx context.Context, limit int32) ([]db.ListDispatchProgressRow, error)
 	ListJobsForDispatch(ctx context.Context, dispatchID pgtype.Int8) ([]db.ListJobsForDispatchRow, error)
+	// The monitor's split read (#962, SPEC §3–§5). Active is the in-flight Dispatches
+	// with no cap — few Scans run at once, so reality bounds it — and is also the lookup
+	// behind the stop / terminate dialogs, since only an in-flight Dispatch owns one.
+	// Concluded is the dedicated history window, called with scansHistoryLimit + 1 so a
+	// full extra row is the truncation signal. The two halves are disjoint, so a Dispatch
+	// is listed once and in-flight volume never evicts completed history.
+	ListActiveDispatchProgress(ctx context.Context) ([]db.ListActiveDispatchProgressRow, error)
+	ListConcludedDispatchProgress(ctx context.Context, limit int32) ([]db.ListConcludedDispatchProgressRow, error)
 	// GetTranscriptByJob reads the one verbatim Transcript keyed on a queue_job id —
 	// the admin raw-output view's source for ?job={id} (#866, spec §6). Nothing else
 	// reads a Transcript (ADR-0126). It returns pgx.ErrNoRows when the job produced no

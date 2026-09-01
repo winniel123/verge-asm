@@ -333,7 +333,7 @@
 </script>
 {{template "foot" .}}{{end}}
 
-{{/* scans — holes: .Active[{ID,Href,ScanKind,DispatchedAt,Completed,Live,Percent,Rollup{Ready,Running,Done,Dead,Total}}] .StopTarget{ID,ScanKind,Pending,Running} (nullable) .TerminateTarget{ID,ScanKind,Running} (nullable) .History[{Href (nullable),ScanKind,DispatchedAt,Live,Completed,Dead}] .ColdEnabled .ColdError .ColdScopes[{ID,Scope,IsAddress,OptedIn}] .IsAdmin — calls repo "scantrigger". */}}
+{{/* scans — holes: .Active[{ID,Href,ScanKind,DispatchedAt,Completed,Live,Percent,Rollup{Ready,Running,Done,Dead,Total}}] .StopTarget{ID,ScanKind,Pending,Running} (nullable) .TerminateTarget{ID,ScanKind,Running} (nullable) .History[{Href (nullable),ScanKind,DispatchedAt,Live,Completed,Dead}] .Truncated .HistoryLimit .ColdEnabled .ColdError .ColdScopes[{ID,Scope,IsAddress,OptedIn}] .IsAdmin — calls repo "scantrigger". */}}
 {{define "settings-scans"}}
 <header style="display:flex;flex-direction:column;gap:6px">
 <span class="st-micro">Scanning · scans</span>
@@ -386,6 +386,8 @@
 </tr>{{end}}
 </tbody>
 </table>
+{{if .Truncated}}<div style="padding:14px 20px 16px"><div class="st-callout"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg></span>
+<span class="ct"><span>Showing the {{.HistoryLimit}} most recent dispatches.</span></span></div></div>{{end}}
 {{else}}
 <div class="st-body"><div class="st-empty" style="padding:24px 12px">
 <span class="msg">No dispatches yet</span>
