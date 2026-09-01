@@ -19,7 +19,11 @@ import (
 // certWithSANs builds one self-signed leaf carrying the given dNSName SANs and returns
 // its DER. The fan-out reduction reads a certificate off the wire, so the fixture is a
 // real certificate rather than a hand-written SAN list.
-func certWithSANs(t *testing.T, sans ...string) []byte {
+//
+// It takes a testing.TB rather than a *testing.T so BenchmarkToEdgeFanout builds its
+// fixture through the same helper the tests use (#1014). A hand-written byte slice
+// leaves x509.ParseCertificate nothing to do, and would measure nothing.
+func certWithSANs(t testing.TB, sans ...string) []byte {
 	t.Helper()
 	_, key, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {

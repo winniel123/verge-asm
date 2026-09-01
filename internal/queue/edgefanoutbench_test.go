@@ -1,0 +1,225 @@
+package queue
+
+import (
+	"fmt"
+	"net/netip"
+	"testing"
+
+	"github.com/winniel123/verge-asm/internal/custody"
+	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/measure/edgefanout"
+)
+
+// This file measures toEdgeFanout, the pure reduction half of ReadEdgeFanout (#1014).
+//
+// #987 put that reduction on the `/scope` render: renderSeeds assembles a
+// custody.Estate per request, and the estate reaches the measurement through
+// queue.ReadEdgeFanout. The dispatcher pays the same reduction once per daily tick.
+// The render pays it per request, per logged-in operator.
+//
+// #1014 argues the cost from the query and the reduction alone. No profile was taken.
+// This benchmark supplies the number, so the fix choice — or a `wontfix` — rests on a
+// measurement. It TAKES NO FIX: nothing here caches, narrows the query, or stores a
+// verdict.
+//
+// The subject is the pure half on purpose. toEdgeFanout takes the `completed` boolean
+// and the row slice the query generates, and needs no database, so the number is the
+// parse and the Public Suffix List reduction and nothing else. A benchmark through a
+// database would measure the database.
+
+// The two SAN counts the benchmark contrasts. They are the two bands ADR-0129 §1's
+// threshold sits between: an estate's own edge presents a handful of identities, and a
+// shared CDN edge presents hundreds to thousands.
+//
+// They are ABSOLUTE INTEGERS, in the way internal/custody/corpus/rows.go authors its
+// own pair and for a related reason. Written as offsets from
+// custody.SharedEdgeThreshold they would follow a threshold move, and the cost this
+// benchmark reports would move with it — so two releases' numbers could not be
+// compared, which is the whole point of leaving the benchmark in the tree.
+// benchCheckFixture pins both against the shipped constant instead, so a session that
+// moves the threshold past either count is told by name.
+const (
+	// benchDedicatedSANs is the TOP of #1014's "1 to 5 dNSName SANs" band. The top is
+	// the conservative end: it charges the dedicated shape the most the band allows,
+	// so the contrast against the shared shape is not flattered. The band is sampled
+	// at this one point and not swept — the row count is the axis that matters, and a
+	// sweep of four more counts inside a 5-SAN band would move no number.
+	benchDedicatedSANs = 5
+	// benchSharedSANs is "several hundred unrelated registrable domains". It sits far
+	// above custody.SharedEdgeThreshold, so every such row reduces to `shared` and the
+	// reduction walks the whole SAN set.
+	benchSharedSANs = 400
+)
+
+// benchSANShape is one of the two edges the benchmark contrasts: how many dNSName SANs
+// one certificate carries, and the verdict custody.SharedEdge owes over that SAN set.
+type benchSANShape struct {
+	name string
+	// sans is the count of dNSName SANs, each on its own registrable domain, so the
+	// fan-out count equals this value exactly.
+	sans int
+	// shared is the verdict the reduction must reach. benchCheckFixture asserts it,
+	// which is what holds the two counts either side of the shipped threshold.
+	shared bool
+}
+
+// benchCertShape is how a cell spreads certificates over its rows — the axis that
+// measures the reduce-once-per-fingerprint option's headroom.
+type benchCertShape struct {
+	name string
+	// oneCertificate shares a single DER across every row. Otherwise each row carries
+	// its own.
+	oneCertificate bool
+}
+
+// benchEdgeFanoutSink holds the reduction's result so the compiler cannot discard the
+// call it is timing. It is TYPED, never `any`: boxing custody.EdgeFanout into an
+// interface heap-allocates once per iteration, and it would land on allocs/op and
+// B/op — the two columns the certificate axis below must be read off.
+var benchEdgeFanoutSink custody.EdgeFanout
+
+// BenchmarkToEdgeFanout measures the edge-fanout reduction over generated rows, across
+// three axes:
+//
+//   - Row count: 10, 100, 1000 and 5000. The row count is the count of addresses the
+//     Scan ever measured, and `edge_fanout_observation` is never pruned (#985), so it
+//     grows with the estate and with time.
+//   - SAN shape: a dedicated edge and a shared edge. This is what the Public Suffix
+//     List reduction walks.
+//   - Certificate shape: every row carrying the SAME certificate's DER, and every row
+//     carrying a unique one. `certificate_material` is keyed by fingerprint and the
+//     read joins per address, so many addresses on one shared CDN edge return — and
+//     re-parse — one certificate many times over. The gap between these two cells IS
+//     the headroom of the reduce-once-per-certificate option, and nothing else
+//     measures it.
+//
+// READ THE CERTIFICATE AXIS OFF allocs/op AND B/op, NEVER OFF ns/op. The reduction
+// treats the two cells identically today — it keys on the address and never on the
+// fingerprint — so their allocation counts agree, and that agreement is the finding:
+// none of the repetition is exploited, so all of it is headroom.
+//
+// Their ns/op does NOT agree, and it can run the WRONG WAY: when this benchmark landed
+// the one-certificate cell was the SLOWER of the two. That is an artifact of the
+// fixture, not of the reduction. One shared DER leaves a live heap of kilobytes where N
+// unique DERs leave one of tens of megabytes; GOGC paces the collector against the live
+// heap, so the small-heap cell collects the same garbage far more often. Read no
+// speedup out of that column.
+//
+// Every row carries the `presented` outcome. A negative outcome carries no DER and is
+// not parsed at all, so a mix would only dilute the number this issue asks for.
+//
+// The `wire-bytes` metric is the TOTAL DER byte count the query returns for that cell,
+// not a per-iteration figure. It is the wire cost #1014 argues about, and it is exact
+// for generated data.
+//
+// It runs under -bench alone, so no CI job gets slower.
+func BenchmarkToEdgeFanout(b *testing.B) {
+	sanShapes := []benchSANShape{
+		{name: "dedicated", sans: benchDedicatedSANs, shared: false},
+		{name: "shared", sans: benchSharedSANs, shared: true},
+	}
+	certShapes := []benchCertShape{
+		{name: "one-certificate", oneCertificate: true},
+		{name: "unique-certificates", oneCertificate: false},
+	}
+	for _, san := range sanShapes {
+		for _, cert := range certShapes {
+			for _, rows := range []int{10, 100, 1000, 5000} {
+				name := fmt.Sprintf("sans=%s/certs=%s/rows=%d", san.name, cert.name, rows)
+				b.Run(name, func(b *testing.B) {
+					// The fixture is built INSIDE b.Run, so a filtered run — say
+					// -bench '.../rows=10' — generates that cell's certificates alone
+					// and not all sixteen cells'. It is UNTIMED wherever it sits:
+					// b.Loop's first call resets the timer, so everything above it is
+					// setup. A -count run rebuilds it once per repeat, which is the
+					// price of the filter and is paid outside the measurement.
+					fixture := benchEdgeFanoutRows(b, rows, san, cert)
+					wire := 0
+					for _, r := range fixture {
+						wire += len(r.Der)
+					}
+					benchCheckFixture(b, fixture, rows, san)
+
+					b.ReportAllocs()
+					for b.Loop() {
+						benchEdgeFanoutSink = toEdgeFanout(true, fixture)
+					}
+					// AFTER the loop, not before. b.Loop's first call resets the
+					// timer, and ResetTimer clears the reported-metric map — a
+					// wire-bytes reported ahead of the loop never reaches the output.
+					b.ReportMetric(float64(wire), "wire-bytes")
+				})
+			}
+		}
+	}
+}
+
+// benchCheckFixture fails the cell unless the reduction read EVERY row and reached the
+// verdict the SAN shape names. It runs once, before the timed loop, so it costs the
+// measurement nothing.
+//
+// toEdgeFanout drops an unparseable address silently, and reduces an undecodable DER to
+// a fan-out of zero. Both are the right absence rules for the read path — withholding
+// the probe is the safe direction — and both make a DEGRADED fixture measure as a FAST
+// one rather than fail. A benchmark that had quietly stopped parsing certificates would
+// still report the number #1014 asked for, and would mean nothing by it.
+//
+// The verdict half also pins benchSharedSANs and benchDedicatedSANs against the shipped
+// custody.SharedEdgeThreshold, as internal/custody/corpus does for its own absolute
+// integers. A session moving the threshold past 400 is told here, by name, rather than
+// left with a `shared` cell that stopped being shared while its label still said it was.
+func benchCheckFixture(b *testing.B, fixture []db.ListEdgeFanoutMeasurementsRow, rows int, san benchSANShape) {
+	b.Helper()
+	got := toEdgeFanout(true, fixture)
+	if len(got.Shared) != rows {
+		b.Fatalf("the reduction keyed %d of %d rows: the fixture holds an address it cannot read, "+
+			"so this cell would measure a parse it never did", len(got.Shared), rows)
+	}
+	for _, r := range fixture {
+		addr := netip.MustParseAddr(r.Address)
+		if got.Shared[addr] != san.shared {
+			b.Fatalf("a %s edge of %d SANs reduced to shared=%v, want %v "+
+				"(custody.SharedEdgeThreshold is %d): move the SAN count, not the threshold",
+				san.name, san.sans, got.Shared[addr], san.shared, custody.SharedEdgeThreshold)
+		}
+	}
+}
+
+// benchEdgeFanoutRows builds one cell's row slice in the shape ListEdgeFanoutMeasurements
+// returns: one row per address, already deduplicated to the newest per address by the
+// query, each carrying the outcome and the nullable DER.
+//
+// A one-certificate cell shares a SINGLE DER across every row, which is what the read
+// returns when many measured addresses sit behind one shared edge — the join repeats the
+// same certificate_material row per address.
+//
+// Both cert shapes carry the SAME SAN set. That is deliberate: the two cells then differ
+// in one thing only — whether the parse and the reduction could be done once per distinct
+// fingerprint instead of once per address. A unique certificate is unique by its key and
+// therefore by its fingerprint, which is what the read joins on.
+func benchEdgeFanoutRows(tb testing.TB, rows int, san benchSANShape, cert benchCertShape) []db.ListEdgeFanoutMeasurementsRow {
+	tb.Helper()
+	sans := distinctSANs(san.sans)
+	var one []byte
+	if cert.oneCertificate {
+		one = certWithSANs(tb, sans...)
+	}
+	out := make([]db.ListEdgeFanoutMeasurementsRow, 0, rows)
+	for i := range rows {
+		der := one
+		if !cert.oneCertificate {
+			der = certWithSANs(tb, sans...)
+		}
+		out = append(out, row(benchAddress(i), string(edgefanout.Presented), der))
+	}
+	return out
+}
+
+// benchAddress renders the i-th distinct measured address. It walks 10.0.0.0/8, which
+// holds 16,777,216 addresses and so has room far past this benchmark's 5000-row ceiling.
+// toEdgeFanout parses the rendering back, so every value must be one netip.ParseAddr
+// accepts, and benchCheckFixture's key count catches a collision if a later row count
+// ever outgrows the range.
+func benchAddress(i int) string {
+	return fmt.Sprintf("10.%d.%d.%d", i/65536%256, i/256%256, i%256)
+}
