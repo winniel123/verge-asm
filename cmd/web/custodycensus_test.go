@@ -140,10 +140,10 @@ func TestCustodyCensusDualLimbRowDropsAnExcludedScope(t *testing.T) {
 }
 
 // A measured shared edge renders a DECLINED row naming the citing name and the
-// address-scope remedy, and an unmeasured candidate renders a PENDING row. Without
-// this section a veto withholds a probe with nothing on screen to say so (ADR-0129
-// §5, #987).
-func TestCustodyCensusDeclinedAndPendingRows(t *testing.T) {
+// address-scope remedy, and an unmeasured candidate is counted on the held line.
+// Without this section a veto withholds a probe with nothing on screen to say so
+// (ADR-0129 §5, #987).
+func TestCustodyCensusDeclinedRowAndHeldLine(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
@@ -168,17 +168,131 @@ func TestCustodyCensusDeclinedAndPendingRows(t *testing.T) {
 	if !strings.Contains(page, "Declare the origin addresses as an address scope, to monitor the true origin.") {
 		t.Errorf("declined row states no address-scope remedy; body: %s", page)
 	}
-	// The pending row: the Scan is in force and has not measured this candidate, so
-	// the extension holds the reach.
-	if !strings.Contains(page, "api.example.com") || !strings.Contains(page, "93.184.216.20") {
-		t.Errorf("pending row does not name the citing name and its edge; body: %s", page)
+	// The held candidate: the Scan is in force and has not measured it, so the
+	// extension holds the reach. It is stated once, and it names nobody — see
+	// TestCustodyCensusHeldCandidatesCollapseToOneLine for why.
+	if !strings.Contains(page, "One edge awaits a first") {
+		t.Errorf("the held candidate is not stated; body: %s", page)
 	}
-	if !strings.Contains(page, "The extension holds the reach until it does.") {
-		t.Errorf("pending row does not read as held; body: %s", page)
+	if !strings.Contains(page, "The extension holds the reach until the scan runs") {
+		t.Errorf("the held line does not read as held; body: %s", page)
 	}
 	if !strings.Contains(page, `<span class="sc-declined">declined</span>`) ||
 		!strings.Contains(page, `<span class="sc-stale">pending</span>`) {
-		t.Errorf("the two row states do not carry their own chips; body: %s", page)
+		t.Errorf("the two states do not carry their own chips; body: %s", page)
+	}
+	// The count chip counts the ROWS listed, so it counts the one decline. The held
+	// line carries its own number and is one line: a chip that summed the two would
+	// add citing names to edges, which this section counts differently on purpose.
+	if !strings.Contains(page, censusCountChip(1)) {
+		t.Errorf("the count chip does not count the listed decline; body: %s", page)
+	}
+}
+
+// censusCountChip is the custody-extension card's count chip, anchored to its own
+// heading. Bare `sc-count` appears on other cards of the same screen, so an assertion
+// that did not anchor would read another section's number.
+func censusCountChip(n int) string {
+	return fmt.Sprintf(`Edges not reached</h3></div><span class="sc-count">%d</span>`, n)
+}
+
+// The held candidates COLLAPSE to one line, and the declines keep a row each (#1015).
+//
+// A pending candidate carries no remedy: the operator cannot act on a measurement that
+// has not happened, and the state clears within one Scan cadence with no act of theirs.
+// A row each would make this section's WORST render its FIRST — the Scan ships enabled
+// and measures nothing until its first Batch completes, so a zone holding thousands of
+// in-estate names would render thousands of rows on the first load of /scope, all of
+// them the same fact.
+//
+// The declines are the OTHER case: the citing name is the one thing the operator acts
+// on, so each keeps its own row however many there are.
+func TestCustodyCensusHeldCandidatesCollapseToOneLine(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	declareExtendedZone(t, f, ac, base, "example.com")
+	f.scans = append(f.scans, db.Scan{ID: 99, Kind: scan.EdgeFanoutKind, Enabled: true, CadenceSeconds: 86400})
+	// Three in-zone names, TWO edges: the first two names front the same one. Nothing
+	// is measured, so every candidate is held.
+	f.cited = []db.NameCitedAddressesRow{
+		{SubjectKey: "a.example.com", Address: "93.184.216.10"},
+		{SubjectKey: "b.example.com", Address: "93.184.216.10"},
+		{SubjectKey: "c.example.com", Address: "93.184.216.20"},
+	}
+
+	page := seedsBody(t, ac, base)
+	if got := strings.Count(page, `<span class="sc-stale">pending</span>`); got != 1 {
+		t.Errorf("pending chips = %d, want 1 — the held candidates collapse to one line", got)
+	}
+	// TWO, not three. The derivation emits one entry per (citing name, edge) pair, and
+	// the line counts EDGES: two names fronting one held edge is one thing waiting.
+	if !strings.Contains(page, `<span class="mono">2</span> edges await a first`) {
+		t.Errorf("the held line does not count the distinct held edges; body: %s", page)
+	}
+	// Nothing is measured, so nothing is declined and no row is listed.
+	if strings.Contains(page, `<span class="sc-declined">declined</span>`) {
+		t.Errorf("a declined chip rendered with nothing measured; body: %s", page)
+	}
+	// The chip counts the rows listed, and nothing is listed, so the card carries none.
+	for n := range 4 {
+		if strings.Contains(page, censusCountChip(n)) {
+			t.Errorf("the card carries a count chip reading %d with no row listed; body: %s", n, page)
+		}
+	}
+	// The lede carries the address-scope remedy, which belongs to a decline alone.
+	// Held candidates have no remedy, so the lede must not appear over them.
+	if strings.Contains(page, "These in-zone names front an edge the custody extension does not reach.") {
+		t.Errorf("the decline lede rendered with no decline to lead; body: %s", page)
+	}
+}
+
+// toCustodyCensusView splits the derivation's entries: a decline becomes a row, and a
+// held EDGE becomes one increment of the count however many names front it (#1015).
+// The derivation still yields every candidate — the collapse is a display choice, made
+// in the web layer alone, so internal/custody keeps naming them all.
+//
+// The two counts run on different units on purpose. A decline is per citing name,
+// because the name is what the operator acts on. A hold is per edge, because two names
+// fronting one held edge is ONE thing waiting, and a line reading two would inflate the
+// only fact it carries.
+func TestToCustodyCensusViewSplitsDeclinesFromHeld(t *testing.T) {
+	entries := []custody.ExtensionCensusEntry{
+		{Name: "a.example.com", Address: netip.MustParseAddr("93.184.216.10"), State: custody.ExtensionPending},
+		{
+			Name: "b.example.com", Address: netip.MustParseAddr("93.184.216.20"),
+			State: custody.ExtensionDeclined, Scope: netip.MustParsePrefix("93.184.216.0/24"),
+		},
+		// The same held edge as the first entry, fronted by a second name.
+		{Name: "c.example.com", Address: netip.MustParseAddr("93.184.216.10"), State: custody.ExtensionPending},
+		{Name: "d.example.com", Address: netip.MustParseAddr("93.184.216.30"), State: custody.ExtensionPending},
+	}
+
+	view := toCustodyCensusView(entries)
+	want := []custodyCensusRow{{Name: "b.example.com", Address: "93.184.216.20", Scope: "93.184.216.0/24"}}
+	if !reflect.DeepEqual(view.Rows, want) {
+		t.Errorf("rows = %+v, want %+v — only a decline earns a row", view.Rows, want)
+	}
+	if view.Pending != 2 {
+		t.Errorf("pending = %d, want 2 — the count is of held EDGES, and two names front one of them", view.Pending)
+	}
+}
+
+// A state this render does not know is SKIPPED, never absorbed into the held count.
+// ExtensionState is a string type, so a state added later would otherwise be asserted
+// on screen as *awaiting a first measurement* — a claim about the Scan's progress that
+// nothing measured. The section states what it holds and stays silent about the rest.
+func TestToCustodyCensusViewSkipsAnUnknownState(t *testing.T) {
+	view := toCustodyCensusView([]custody.ExtensionCensusEntry{
+		{Name: "a.example.com", Address: netip.MustParseAddr("93.184.216.10"), State: custody.ExtensionState("reconsidered")},
+		{Name: "b.example.com", Address: netip.MustParseAddr("93.184.216.20")},
+	})
+	if len(view.Rows) != 0 {
+		t.Errorf("rows = %+v, want none — an unknown state is not a decline", view.Rows)
+	}
+	if view.Pending != 0 {
+		t.Errorf("pending = %d, want 0 — an unknown state is not a held edge", view.Pending)
 	}
 }
 
@@ -191,6 +305,10 @@ func TestCustodyCensusDeclinedAndPendingRows(t *testing.T) {
 // The test reads the SHAPE rather than the rendering: an address and a CIDR both
 // contain digits, so no substring search over the page can tell a product-chosen
 // number from an address the operator declared.
+//
+// The held count of #1015 sits on custodyCensusView and NOT here, which is what keeps
+// this assertion true. That number is a fact this install measured — how many of its
+// own candidates wait — never a number the product chose, so §5 does not reach it.
 func TestCustodyCensusRowCarriesNoNumber(t *testing.T) {
 	rt := reflect.TypeOf(custodyCensusRow{})
 	for i := range rt.NumField() {
@@ -226,7 +344,7 @@ func TestCustodyCensusDualLimbRow(t *testing.T) {
 	// contradiction, which is the very thing this row exists to avoid. What they can
 	// act on here is the withdrawal, so that is what the row names.
 	// The section lede carries the remedy in general terms, so the assertion names the
-	// ROW's own sentence — the one TestCustodyCensusDeclinedAndPendingRows pins present
+	// ROW's own sentence — the one TestCustodyCensusDeclinedRowAndHeldLine pins present
 	// on a plain decline.
 	if strings.Contains(page, "Declare the origin addresses as an address scope, to monitor the true origin.") {
 		t.Errorf("the dual-limb row repeats a remedy already taken; body: %s", page)
