@@ -179,9 +179,9 @@ This failure is deliberate. The override sets `create_host_path: false` so Docke
 the mount instead of quietly creating an **empty directory** at that path — which would boot
 the stack and then fail `verify-full` with a TLS error pointing nowhere near the real cause.
 
-A *different* error, `POSTGRES_SSLROOTCERT_SRC: unset`, comes from compose before any
-container exists: the variable is not set at all. Both guards exist because
-`docker compose config` catches neither. See
+A *different* error comes from compose before any container exists, when the variable
+is not set at all: `required variable POSTGRES_SSLROOTCERT_SRC is missing a value`.
+Both guards exist because `docker compose config` catches neither. See
 [running.md → An external Postgres](running.md#an-external-postgres-with-a-verified-tls-connection).
 
 ---
