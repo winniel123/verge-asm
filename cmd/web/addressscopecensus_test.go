@@ -57,11 +57,34 @@ func TestAddressScopeCensusRowStatesTheCountsAndTheRemedy(t *testing.T) {
 	}
 
 	page := coverageBody(t, ac, base)
-	if !strings.Contains(page, "This scope covers 256 addresses. 1 of them present a fan-out above the threshold.") {
+	if !strings.Contains(page, "This scope covers 256 addresses. 1 of them presents a fan-out above the threshold.") {
 		t.Errorf("the row does not state the covered count and the count above the boundary; body: %s", page)
 	}
-	if !strings.Contains(page, `<a href="/scope#exclusions">Exclude them from this scope</a> if they are not yours.`) {
+	if !strings.Contains(page, `<a href="/scope#exclusions">Exclude it from this scope</a> if it is not yours.`) {
 		t.Errorf("the row does not name the exclusion remedy; body: %s", page)
+	}
+}
+
+// The row reads as a sentence at either count. One shared edge is the modal case and
+// the one a fixed plural would render wrong, so both are pinned.
+func TestAddressScopeCensusRowReadsAsASentenceInThePlural(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	declaredScopeFixture(t, f, ac, base, "93.184.216.0/24")
+	der := sharedEdgeDER(t)
+	f.edgeFanout = []db.ListEdgeFanoutMeasurementsRow{
+		{Address: "93.184.216.10", Outcome: string(edgefanout.Presented), Der: der},
+		{Address: "93.184.216.11", Outcome: string(edgefanout.Presented), Der: der},
+	}
+
+	page := coverageBody(t, ac, base)
+	if !strings.Contains(page, "This scope covers 256 addresses. 2 of them present a fan-out above the threshold.") {
+		t.Errorf("the plural row does not state the two counts; body: %s", page)
+	}
+	if !strings.Contains(page, `<a href="/scope#exclusions">Exclude them from this scope</a> if they are not yours.`) {
+		t.Errorf("the plural row does not name the exclusion remedy; body: %s", page)
 	}
 }
 

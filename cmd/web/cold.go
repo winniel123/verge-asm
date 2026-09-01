@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"html/template"
+	"log"
 	"math"
 	"net/http"
 	"net/netip"
@@ -264,9 +265,16 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	// as shared edges. Best-effort — a failed read leaves the meters with no row, which
 	// is the same shape an unmeasured scope renders, rather than 500ing the page or
 	// naming evidence the read did not return.
+	//
+	// It LOGS, unlike the degraded reads around it. Those leave a visibly empty meter
+	// or section, which an operator can see. This one leaves evidence unshown, and an
+	// estate-wide silence with nothing in the log to explain it is the same
+	// fails-silently shape the row exists to close.
 	var sharedEdges map[netip.Prefix]int
 	if m, ferr := addressScopeSharedEdges(ctx, s.store); ferr == nil {
 		sharedEdges = m
+	} else {
+		log.Printf("web: coverage: address-scope shared edges: %v", ferr)
 	}
 	meters := apertureMeters(seeds, zones, walked, s.now(), sharedEdges)
 

@@ -91,7 +91,10 @@
 {{if .Total}}<div class="track" role="progressbar" aria-valuemin="0" aria-valuemax="{{.Total}}" aria-valuenow="{{.Counted}}"><span class="fill" style="width:{{.Pct}}%"></span></div>{{else}}<div class="census" aria-label="Census — no denominator"></div>{{end}}
 {{if .Detail}}<span class="det">{{.Detail}}</span>{{end}}
 {{if .AsOf}}<span class="det" title="{{.AsOfISO}}">oldest still current · {{.AsOf}}</span>{{end}}
-{{if .SharedEdges}}<div class="evid"><span class="hd">Shared edges inside this scope</span><span class="tx">This scope covers {{.Covers}} addresses. {{.SharedEdges}} of them present a fan-out above the threshold. <a href="/scope#exclusions">Exclude them from this scope</a> if they are not yours.</span></div>{{end}}
+{{/* Both counts are decimal strings, so `eq "1"` is the singular test. Covers carries
+     thousands separators and SharedEdges does not; neither reaches "1" by any other
+     spelling. */}}
+{{if .SharedEdges}}<div class="evid"><span class="hd">Shared edges inside this scope</span><span class="tx">This scope covers {{.Covers}} address{{if ne .Covers "1"}}es{{end}}. {{if eq .SharedEdges "1"}}1 of them presents a fan-out above the threshold. <a href="/scope#exclusions">Exclude it from this scope</a> if it is not yours.{{else}}{{.SharedEdges}} of them present a fan-out above the threshold. <a href="/scope#exclusions">Exclude them from this scope</a> if they are not yours.{{end}}</span></div>{{end}}
 </div>
 {{end}}
 </div>
