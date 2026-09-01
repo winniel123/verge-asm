@@ -93,12 +93,17 @@ func foldOne(ctx context.Context, qtx *db.Queries, batchID int64, vantageID pgty
 	if !changed {
 		return nil
 	}
-	// A FIRST span on this timeline (no open predecessor) opens `revealed` where the
-	// operator's aperture is why the fold looked at the subject — a Seed-declared
-	// Name/Address/Service (openedByAperture) — versus `appeared` where the world
-	// brought a subject the aperture had not declared. The marker is the estate
-	// signal the drift feed reads to tell the two apart (#637, ADR-0014); a value
-	// MOVE on an existing timeline (open != nil) is `changed` and never carries it.
+	// An opening with NO OPEN PREDECESSOR is marked where the operator's aperture is
+	// why the fold looked at the subject — a Seed-declared Name/Address/Service the
+	// exclusions do not cut back out (openedByAperture) — and unmarked where the world
+	// brought a subject the aperture had not declared. The marker is the estate signal
+	// the drift feed reads to tell the two apart (#637, ADR-0014). A value MOVE on an
+	// existing timeline (open != nil) is `changed` and never carries it.
+	//
+	// `open == nil` is a first span OR a re-entry behind a closed one, and both are
+	// marked. A first span reads the marker as `revealed`. A re-entry behind a
+	// `descoped` closure reads it as the operator widening a Declared scope back over
+	// the subject, which is `revealed` as well (drift.ReEntryKind, ADR-0041, #1039).
 	openedAperture := open == nil && openedByAperture(key.SubjectKind, key.SubjectKey, in)
 	if open != nil && !closeAt.IsZero() {
 		// An ordinary value move or a version change: close with no reason, citing the
