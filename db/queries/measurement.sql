@@ -236,3 +236,17 @@ SELECT DISTINCT
 FROM latest
 WHERE outcome = 'Resolved'
 ORDER BY subject_key, address;
+
+-- name: ScanHasCompletedBatch :one
+-- Whether a `Scan` of this kind has ever completed a Batch. A Batch row exists only at
+-- a terminal outcome, so this asks whether the Scan has actually RUN on this install,
+-- as against being merely enabled.
+--
+-- The `edge-fanout` veto reads it to tell its two empty states apart (#985, ADR-0129
+-- §4): a Scan that has not run yet, whose candidates are *measurement pending* and are
+-- HELD, from a Scan that runs and records nothing, which is an ERRORED Scan and opens
+-- the reach. A dead-lettered Batch does not count — it is the job failing, and the tick
+-- retries.
+SELECT EXISTS (
+    SELECT 1 FROM batch WHERE kind = $1 AND outcome = 'completed'
+) AS completed;

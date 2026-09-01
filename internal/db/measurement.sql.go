@@ -706,6 +706,28 @@ func (q *Queries) ReapStaleRunningJobs(ctx context.Context, cutoff pgtype.Timest
 	return result.RowsAffected(), nil
 }
 
+const scanHasCompletedBatch = `-- name: ScanHasCompletedBatch :one
+SELECT EXISTS (
+    SELECT 1 FROM batch WHERE kind = $1 AND outcome = 'completed'
+) AS completed
+`
+
+// Whether a `Scan` of this kind has ever completed a Batch. A Batch row exists only at
+// a terminal outcome, so this asks whether the Scan has actually RUN on this install,
+// as against being merely enabled.
+//
+// The `edge-fanout` veto reads it to tell its two empty states apart (#985, ADR-0129
+// §4): a Scan that has not run yet, whose candidates are *measurement pending* and are
+// HELD, from a Scan that runs and records nothing, which is an ERRORED Scan and opens
+// the reach. A dead-lettered Batch does not count — it is the job failing, and the tick
+// retries.
+func (q *Queries) ScanHasCompletedBatch(ctx context.Context, kind string) (bool, error) {
+	row := q.db.QueryRow(ctx, scanHasCompletedBatch, kind)
+	var completed bool
+	err := row.Scan(&completed)
+	return completed, err
+}
+
 const tryFanOut = `-- name: TryFanOut :one
 INSERT INTO dispatch (scan_id, scheduled_time, status)
 VALUES ($1, $2, 'fanned-out')

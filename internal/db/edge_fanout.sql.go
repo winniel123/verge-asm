@@ -45,3 +45,57 @@ func (q *Queries) InsertEdgeFanoutObservation(ctx context.Context, arg InsertEdg
 	)
 	return err
 }
+
+const listEdgeFanoutMeasurements = `-- name: ListEdgeFanoutMeasurements :many
+SELECT DISTINCT ON (o.address)
+    o.address,
+    o.outcome,
+    m.der
+FROM edge_fanout_observation o
+LEFT JOIN certificate_material m ON m.fingerprint = o.fingerprint
+ORDER BY o.address, o.measured_at DESC, o.id DESC
+`
+
+type ListEdgeFanoutMeasurementsRow struct {
+	Address string `json:"address"`
+	Outcome string `json:"outcome"`
+	Der     []byte `json:"der"`
+}
+
+// The newest `edge-fanout` measurement per address, with the certificate the edge
+// presented beside it. This is the ONE read path from the leaf's store to the `Custody`
+// derivation's extension-reach veto (#985, ADR-0129 §4).
+//
+// DISTINCT ON takes the newest row per address, and `id` breaks a tie between two rows
+// sharing a `measured_at` instant — the order the migration's index is built for. Only
+// the newest row is read: an edge measured as shared last month and dedicated today is
+// decided by today's handshake, so a veto lifts as soon as a measurement contradicts it.
+//
+// The join to `certificate_material` is a LEFT JOIN and `der` is nullable, because the
+// three negative outcomes carry no fingerprint at all. A negative measured the address
+// and found no identity there, which reduces to a fan-out of zero — measured and
+// not-shared, never pending. The SAN set is derived from the DER at read (ADR-0027,
+// #983), so no SAN text is stored anywhere.
+//
+// Every address the Scan measured is returned, whether or not the extension still
+// reaches it. The caller keys the derivation's input on the address, and an address no
+// longer cited by an in-zone name simply never reaches the lookup.
+func (q *Queries) ListEdgeFanoutMeasurements(ctx context.Context) ([]ListEdgeFanoutMeasurementsRow, error) {
+	rows, err := q.db.Query(ctx, listEdgeFanoutMeasurements)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListEdgeFanoutMeasurementsRow{}
+	for rows.Next() {
+		var i ListEdgeFanoutMeasurementsRow
+		if err := rows.Scan(&i.Address, &i.Outcome, &i.Der); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

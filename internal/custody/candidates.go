@@ -8,16 +8,21 @@ import "net/netip"
 // a zone apex, the `ALIAS`/`ANAME` a provider has flattened into an A record, which is
 // a direct A record on the apex name and so arrives on this same limb.
 //
-// It is the SET form of coveredByExtension's per-address question, and it holds that
+// It is the SET form of extensionReaches's per-address question, and it holds that
 // predicate's two stopping conditions: the address must be globally reachable, and the
 // name owning the A record must itself be within a custody-extended zone. The set and
 // the reach must not drift apart — a candidate outside the reach would be a probe of an
 // address no extension claims, and a reached address outside the candidates would be an
 // edge the veto could never narrow — so a test pins the two against each other over a
-// mixed estate (TestExtensionCandidatesAgreeWithCoveredByExtension).
+// mixed estate (TestExtensionCandidatesAgreeWithExtensionReaches).
+//
+// It reads the PRE-VETO reach on purpose (#985). A vetoed edge stays a candidate and is
+// handshaked again on every tick, so a shared edge that later serves a dedicated
+// certificate is measured again and the veto lifts. Reading the post-veto reach here
+// would freeze the last measurement in place and no later one could ever contradict it.
 //
 // The conditions are applied to the resolution in hand rather than by asking
-// coveredByExtension per address, which would rescan every resolution for each one. This
+// extensionReaches per address, which would rescan every resolution for each one. This
 // runs inside the dispatch transaction, under the per-scan advisory lock, over an estate
 // that grows with the address-scope cap; one linear pass keeps that lock held for as
 // long as the read takes and no longer.
@@ -36,7 +41,7 @@ func (e Estate) ExtensionCandidates() []netip.Addr {
 	// admitted holds every address already emitted, so one edge cited by many in-zone
 	// names yields one candidate. An address a resolution failed to admit is NOT
 	// recorded: a later resolution may hold the same address on an in-zone owner, and
-	// that one does admit it — exactly as coveredByExtension takes the first owner that
+	// that one does admit it — exactly as extensionReaches takes the first owner that
 	// extends and ignores the ones that do not.
 	admitted := make(map[netip.Addr]struct{}, len(e.Resolutions))
 	for _, r := range e.Resolutions {
