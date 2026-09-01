@@ -84,11 +84,13 @@
 .st-tag { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 8px; background: var(--surface-sunken); border: 1px solid var(--border-default); color: var(--text-secondary); font-family: var(--font-mono); font-size: 11.5px; white-space: nowrap; }
 .st-badge { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 10px; border-radius: 999px; border: 1px solid transparent; font-family: var(--font-ui); font-size: 12px; font-weight: 500; white-space: nowrap; }
 .st-badge .d { width: 6px; height: 6px; border-radius: 999px; background: currentColor; flex: none; }
+.st-badge .n { font-family: var(--font-mono); font-weight: 500; }
 .st-badge.ok { background: var(--ok-soft); border-color: var(--ok-border); color: var(--ok); }
 .st-badge.warn { background: var(--warn-soft); border-color: var(--warn-border); color: var(--warn); }
 .st-badge.danger { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
 .st-badge.neutral { background: var(--surface-sunken); border-color: var(--border-default); color: var(--text-secondary); }
 .st-badge.accent { background: var(--accent-soft); color: var(--link); }
+.st-rollup { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .st-table { width: 100%; border-collapse: separate; border-spacing: 0; }
 .st-table th { padding: 8px 16px; font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border-default); white-space: nowrap; background: var(--surface); text-align: left; }
 .st-table td { padding: 9px 16px; font: 400 13px var(--font-ui); color: var(--text-body); vertical-align: middle; white-space: nowrap; border-top: 1px solid var(--row-sep); }
@@ -331,7 +333,7 @@
 </script>
 {{template "foot" .}}{{end}}
 
-{{/* scans — holes: .Active[{ID,Href,ScanKind,DispatchedAt,Completed,Live,Percent,Jobs[{ID,Href (nullable — /runs/{run}?job={id}),Kind,Vantage,State,Retrying,Superseded,Attempt,MaxAttempts,Batch}]}] .StopTarget{ID,ScanKind,Pending,Running} (nullable) .TerminateTarget{ID,ScanKind,Running} (nullable) .History[{Href (nullable),ScanKind,DispatchedAt,Live,Completed,Dead}] .ColdEnabled .ColdError .ColdScopes[{ID,Scope,IsAddress,OptedIn}] .IsAdmin — calls repo "scantrigger". */}}
+{{/* scans — holes: .Active[{ID,Href,ScanKind,DispatchedAt,Completed,Live,Percent,Rollup{Ready,Running,Done,Dead,Total}}] .StopTarget{ID,ScanKind,Pending,Running} (nullable) .TerminateTarget{ID,ScanKind,Running} (nullable) .History[{Href (nullable),ScanKind,DispatchedAt,Live,Completed,Dead}] .ColdEnabled .ColdError .ColdScopes[{ID,Scope,IsAddress,OptedIn}] .IsAdmin — calls repo "scantrigger". */}}
 {{define "settings-scans"}}
 <header style="display:flex;flex-direction:column;gap:6px">
 <span class="st-micro">Scanning · scans</span>
@@ -352,27 +354,19 @@
 {{if $.IsAdmin}}<a class="st-btn-sm" href="/settings?tab=scans&amp;stop={{.ID}}">Stop dispatch</a><a class="st-btn-sm" style="color:var(--danger)" href="/settings?tab=scans&amp;terminate={{.ID}}">Terminate</a>{{end}}
 </div>
 <div class="st-meter"><span class="fill" style="width:{{.Percent}}%"></span></div>
+<div class="st-rollup">
+<span class="st-badge accent"><span class="d"></span><span class="n">{{.Rollup.Running}}</span>running</span>
+{{if gt .Rollup.Ready 0}}<span class="st-badge neutral"><span class="d"></span><span class="n">{{.Rollup.Ready}}</span>ready</span>{{end}}
+<span class="st-badge ok"><span class="d"></span><span class="n">{{.Rollup.Done}}</span>done</span>
+{{if gt .Rollup.Dead 0}}<span class="st-badge danger"><span class="d"></span><span class="n">{{.Rollup.Dead}}</span>dead</span>{{end}}
+<a class="st-btn-sm" style="margin-left:auto" href="{{.Href}}">View all {{.Rollup.Total}} jobs</a>
 </div>
-{{if .Jobs}}
-<table class="st-table">
-<thead><tr><th style="width:70px">Job</th><th>Kind</th><th style="width:120px">Vantage</th><th style="width:130px">State</th><th style="width:90px">Attempt</th><th style="width:170px;text-align:right">Outcome</th></tr></thead>
-<tbody>
-{{range .Jobs}}<tr>
-<td class="mono"{{if .Superseded}} style="opacity:0.5"{{end}}>{{if .Href}}<a href="{{.Href}}" style="color:var(--link);text-decoration:none">#{{.ID}}</a>{{else}}#{{.ID}}{{end}}</td>
-<td class="mono"{{if .Superseded}} style="opacity:0.5"{{end}}>{{.Kind}}</td>
-<td class="mono"{{if .Superseded}} style="opacity:0.5"{{end}}>{{if .Vantage}}{{.Vantage}}{{else}}<span style="color:var(--text-muted)">—</span>{{end}}</td>
-<td><span style="display:inline-flex;align-items:center;gap:8px">{{if eq .State "running"}}<span class="st-dotlive"></span><span class="st-badge accent">running</span>{{else if eq .State "ready"}}<span class="st-dot"></span><span class="st-badge neutral">{{if .Retrying}}retrying{{else}}ready{{end}}</span>{{else if eq .State "done"}}<span class="st-dot done"></span><span class="st-badge ok">done</span>{{else if eq .State "dead"}}<span class="st-dot dead"></span><span class="st-badge danger">dead</span>{{else}}<span class="st-dot"></span><span style="color:var(--text-muted)">superseded</span>{{end}}</span></td>
-<td class="mono">{{.Attempt}}/{{.MaxAttempts}}</td>
-<td class="mono" style="text-align:right">{{if .Batch}}<span class="st-tag">{{.Batch}}</span>{{else}}<span style="color:var(--text-muted)">—</span>{{end}}</td>
-</tr>{{end}}
-</tbody>
-</table>
-{{end}}
+</div>
 {{end}}
 {{else}}
 <div class="st-body"><div class="st-empty" style="padding:24px 12px">
 <span class="msg">No scan running</span>
-<span class="det">Nothing is dispatched right now. When a scan's cadence comes due the worker fans it out, and it appears here with its jobs while it runs. This view refreshes on its own while a scan is in flight.</span>
+<span class="det">Nothing is dispatched right now. When a scan's cadence comes due the worker fans it out, and it appears here with its progress while it runs. This view refreshes on its own while a scan is in flight.</span>
 </div></div>
 {{end}}
 </section>

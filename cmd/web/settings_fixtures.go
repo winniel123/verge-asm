@@ -49,6 +49,10 @@ type sfActive struct {
 	Live         int     `json:"live"`
 	Percent      int     `json:"percent"`
 	Jobs         []sfJob `json:"jobs"`
+	// Rollup is derived, not stored: the card's state-chip counts folded from Jobs at
+	// fill time (#961), the same way fillScansSection folds them from the live rows. The
+	// fixture keeps its jobs because the stop / terminate dialogs still count over them.
+	Rollup jobRollup `json:"-"`
 }
 
 type sfHistory struct {
@@ -445,6 +449,16 @@ func (s *server) settingsFixtureData(acct db.Account, r *http.Request) map[strin
 
 	switch tab {
 	case "scans":
+		// Fold each active dispatch's fixture jobs into the card's chip counts (#961).
+		// loadSettingsFixture decodes a fresh copy per request, so this writes to no
+		// shared state.
+		for i := range fx.Scans.Active {
+			states := make([]string, 0, len(fx.Scans.Active[i].Jobs))
+			for _, j := range fx.Scans.Active[i].Jobs {
+				states = append(states, j.State)
+			}
+			fx.Scans.Active[i].Rollup = toJobRollup(states)
+		}
 		data["Active"] = fx.Scans.Active
 		data["History"] = fx.Scans.History
 		data["ColdEnabled"] = fx.Scans.ColdEnabled
