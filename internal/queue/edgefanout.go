@@ -207,7 +207,17 @@ func pgTextOrNull(s string) pgtype.Text {
 	return pgtype.Text{String: s, Valid: true}
 }
 
-// readEdgeFanout reads the `edge-fanout` Scan's measured result in the form the custody
+// EdgeFanoutStore is the narrow read surface ReadEdgeFanout needs. It exists so the
+// render path — which holds the web layer's own store interface and not a *db.Queries
+// — reaches the measurement through the SAME reader the dispatcher uses, rather than
+// growing a second one that could apply a different absence rule (#987).
+type EdgeFanoutStore interface {
+	GetScanByKind(ctx context.Context, kind string) (db.Scan, error)
+	ListEdgeFanoutMeasurements(ctx context.Context) ([]db.ListEdgeFanoutMeasurementsRow, error)
+	ScanHasCompletedBatch(ctx context.Context, kind string) (bool, error)
+}
+
+// ReadEdgeFanout reads the `edge-fanout` Scan's measured result in the form the custody
 // extension's reach consumes (#985, ADR-0129 §4). It is the ONE read path from the
 // leaf's store to the derivation: every caller that assembles a custody.Estate reaches
 // the stored rows through here, so no second reader can apply a different absence rule.
@@ -231,7 +241,7 @@ func pgTextOrNull(s string) pgtype.Text {
 // decision: it is the dispatch failing, and the tick retries. Opening the reach on a
 // transient database error would widen the estate on the one signal that says nothing
 // was measured.
-func readEdgeFanout(ctx context.Context, q *db.Queries) (custody.EdgeFanout, error) {
+func ReadEdgeFanout(ctx context.Context, q EdgeFanoutStore) (custody.EdgeFanout, error) {
 	s, err := q.GetScanByKind(ctx, scan.EdgeFanoutKind)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

@@ -5,6 +5,7 @@
   Holes: .Notice .IsAdmin .AddressCap .Seeds[{ID,Anchor,Scope,IsAddress}] .FormScope .FormError
   .Refusals[{Input,Reason,Reachable}] (one per refused token — DF-F1; replaces the single .Refusal)
   .CustodyScopes[{ID,Scope,CustodyExtension,Census}]
+  .CustodyCensus[{Name,Address,Declined,Scope}] .CustodyCensusFailed (#987)
   .CustodyError .ZoneScopes[{ID,Domain,HasFile,SuppliedAt,IntervalLabel,AgingLabel}]
   .ZoneErrors[{File,Reason}] (one per refused file — DF-F2; replaces .ZoneError)
   .ZoneIntervalDays .ZoneIntervalError .NameTree[{Label,Count,Sev,Children[{Label,Sev}]}]
@@ -118,6 +119,15 @@ button.sc-trow { cursor: pointer; }
 .sc-gapbadge { display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 6px; border-radius: 8px; background: transparent; border: 1px dotted var(--border-strong); color: var(--text-secondary); font: 600 10px var(--font-mono); letter-spacing: 0.04em; white-space: nowrap; }
 .sc-stale { display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 6px; border-radius: 8px; background: var(--stale-bg); border: 1px solid var(--stale-border); color: var(--stale-fg); font: 600 10px var(--font-mono); letter-spacing: 0.04em; white-space: nowrap; line-height: 1; }
 .sc-stale .b { font-weight: 400; opacity: 0.8; }
+.sc-lede { margin: 0 0 14px; font: 400 12.5px/1.5 var(--font-ui); color: var(--text-secondary); }
+.sc-census { display: flex; flex-direction: column; font-family: var(--font-ui); }
+.sc-crow { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; padding: 11px 0; }
+.sc-crow + .sc-crow { border-top: 1px solid var(--row-sep); }
+.sc-crow .ct { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.sc-crow .nm { font: 600 12px var(--font-mono); color: var(--text-ink); overflow-wrap: anywhere; }
+.sc-crow .det { font: 400 12.5px/1.5 var(--font-ui); color: var(--text-secondary); }
+.sc-crow .det .mono { font: 500 12px var(--font-mono); color: var(--text-body); }
+.sc-declined { display: inline-flex; align-items: center; height: 18px; padding: 0 6px; border-radius: 8px; background: var(--surface-sunken); border: 1px solid var(--border-strong); color: var(--text-secondary); font: 600 10px var(--font-mono); letter-spacing: 0.04em; white-space: nowrap; }
 .sc-input { display: flex; flex-direction: column; gap: 6px; font-family: var(--font-ui); }
 .sc-input .il { font-size: 12.5px; font-weight: 500; color: var(--text-body); }
 .sc-input .iw { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; background: var(--surface); border: 1px solid var(--border-default); border-radius: 12px; transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); }
@@ -222,6 +232,38 @@ button.sc-trow { cursor: pointer; }
 </div>
 {{else}}
 <span style="font:400 12.5px var(--font-ui);color:var(--text-muted)">A custody extension is a property of a name scope. Declare a name scope, then extend custody to the addresses it resolves into.</span>
+{{end}}
+</div>
+</section>
+{{/* The custody-extension census (#987, ADR-0129 §5): the companion section to the census
+     above. Each row names one in-zone Name whose direct-A edge the extension does not
+     reach, why, and the address-scope remedy. The register is DISPLAY — a veto withholds
+     a probe, which is the safe direction, so nothing here fires a message. No row carries
+     a count or a threshold: both are versioned parameters of the Custody derivation. */}}
+<section class="sc-card">
+<div class="sc-cardhead"><div class="hd"><span class="sc-micro">Custody extension</span><h3>Edges not reached</h3></div>{{if .CustodyCensus}}<span class="sc-count">{{len .CustodyCensus}}</span>{{end}}</div>
+<div class="sc-body">
+{{if .CustodyCensusFailed}}
+<span class="sc-hint">The fan-out measurement did not resolve on this load. Nothing is listed rather than a guessed edge. Reload to read it again.</span>
+{{else if .CustodyCensus}}
+<p class="sc-lede">These in-zone names front an edge the custody extension does not reach. Declare the origin addresses as an address scope, and the true origin is monitored directly.</p>
+<div class="sc-census">
+{{range .CustodyCensus}}
+<div class="sc-crow">
+{{if .Declined}}<span class="sc-declined">declined</span>{{else}}<span class="sc-stale">pending</span>{{end}}
+<div class="ct">
+<span class="nm">{{.Name}}</span>
+{{if .Declined}}
+<span class="det">Its direct A record cites <span class="mono">{{.Address}}</span>, measured as a shared edge{{if .Scope}}, and covered by address scope <span class="mono">{{.Scope}}</span>. The declaration stands, so that address is still probed. Withdraw the scope and the decline takes effect.{{else}}. Declare the origin addresses as an address scope, to monitor the true origin.{{end}}</span>
+{{else}}
+<span class="det">Its direct A record cites <span class="mono">{{.Address}}</span>, which the daily <span class="mono">edge-fanout</span> scan has not measured yet{{if .Scope}}, and which address scope <span class="mono">{{.Scope}}</span> covers{{end}}. The extension holds the reach until it does.</span>
+{{end}}
+</div>
+</div>
+{{end}}
+</div>
+{{else}}
+<span class="sc-hint">No in-zone name fronts an edge the extension declined. A declined edge appears here with the address-scope remedy.</span>
 {{end}}
 </div>
 </section>

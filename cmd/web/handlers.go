@@ -146,6 +146,16 @@ type store interface {
 	// the same custody.Estate{AddressScopes} from it to offer `covered` to the class
 	// derivation (#709), so batch and render classify against one identical corpus.
 	ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error)
+	// The other three reads the custody-extension census assembles its Estate from
+	// (#987, custodycensus.go): the custody-extended zones, the current cited
+	// addresses through the live-tier gate, and — with GetScanByKind below —
+	// queue.ReadEdgeFanout's own surface. Together with ListAddressScopeCidrs they
+	// mirror internal/queue/hot.go:hotEstate read for read, so the Scope render names
+	// the same declines the dispatch acts on.
+	ListExtendedZoneDomains(ctx context.Context) ([]pgtype.Text, error)
+	NameCitedAddresses(ctx context.Context, arg db.NameCitedAddressesParams) ([]db.NameCitedAddressesRow, error)
+	ListEdgeFanoutMeasurements(ctx context.Context) ([]db.ListEdgeFanoutMeasurementsRow, error)
+	ScanHasCompletedBatch(ctx context.Context, kind string) (bool, error)
 	ListUnavailableVantages(ctx context.Context) ([]db.ListUnavailableVantagesRow, error)
 	GetScanByKind(ctx context.Context, kind string) (db.Scan, error)
 	ListAccounts(ctx context.Context) ([]db.ListAccountsRow, error)

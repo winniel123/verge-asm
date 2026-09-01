@@ -112,7 +112,7 @@ func hotEstate(ctx context.Context, q *db.Queries, asOf time.Time) (custody.Esta
 		}
 	}
 
-	fanout, err := readEdgeFanout(ctx, q)
+	fanout, err := ReadEdgeFanout(ctx, q)
 	if err != nil {
 		return custody.Estate{}, nil, err
 	}
