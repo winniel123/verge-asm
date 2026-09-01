@@ -10,6 +10,7 @@ import (
 	"os"
 
 	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
+	"github.com/winniel123/verge-asm/internal/measure/edgefanout"
 	"github.com/winniel123/verge-asm/internal/measure/httpexchange"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/measure/tlsacceptance"
@@ -60,6 +61,14 @@ func run(stdin io.Reader, stdout io.Writer) error {
 		// 3xx (spec §3.3, ADR-0011/ADR-0025). Wiring this case is what lights the
 		// four dormant HTTP identity rules.
 		return httpexchange.Run(spec, stdout)
+	case edgefanout.Kind:
+		// The edge-fanout leaf: the seventh Scan's no-SNI TLS handshake, which
+		// captures the certificate a candidate edge serves to a client that names
+		// nothing. Like wildcard-discrimination it decides MEMBERSHIP rather than a
+		// facet — it opens no timeline — and it runs BEFORE its target is a member,
+		// which is why it rides neither the hot Scan nor tls-acceptance (ADR-0129 §6,
+		// #954 amendment).
+		return edgefanout.Run(spec, stdout)
 	default:
 		// The skeleton's job-spec-in / NDJSON-out proof for kinds whose leaf
 		// a later ticket adds (TCP/TLS/HTTP).

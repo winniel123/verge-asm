@@ -171,6 +171,20 @@ type HandshakeResult struct {
 	// here beside the leaf for the certificate_material side store (#878). Never fed to the
 	// facet value; nil for a lone self-signed leaf.
 	IssuerSPKI []byte
+	// Unreachable reports that the dial failed in its CONNECT phase — the connect was
+	// refused or reset, it timed out, or the egress guard refused the socket — so no
+	// peer was ever reached, nothing spoke TLS and nothing turned us down. A handshake
+	// that fails after the connect completed is never unreachable, however it failed.
+	// It is carried only with a negative Outcome, and its zero value (false) reads as
+	// *a peer answered*, which is what a scripted Handshaker models.
+	//
+	// The `certificate` facet never reads it: that leaf handshakes a Service the connect
+	// already reported `reached`, so it folds an unreachable dial into `no-tls` and its
+	// two negatives stay two. A leaf that dials an address nobody has reached yet must
+	// keep the case apart — `edge-fanout` reads this to render its own `unreachable`
+	// value. It is never part of a facet value, so it moves no params digest and forces
+	// no CertVersion bump.
+	Unreachable bool
 }
 
 // ChainCert is one presented link's parsed facts, read off the DER at handshake time
@@ -245,9 +259,10 @@ func (n NetHandshaker) Handshake(ctx context.Context, target netip.AddrPort, ser
 	// A target must be a valid literal IP: the leaf handshakes only pre-validated
 	// addresses. Reject an invalid target at entry, backed by the socket-level
 	// egress guard on the dialer below so a non-globally-reachable literal fails
-	// closed even if that invariant is ever broken upstream (#743).
+	// closed even if that invariant is ever broken upstream (#743). Nothing was
+	// dialled, so no peer was reached.
 	if !target.Addr().IsValid() {
-		return HandshakeResult{Outcome: NoTLS}
+		return HandshakeResult{Outcome: NoTLS, Unreachable: true}
 	}
 	dialCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -265,7 +280,8 @@ func (n NetHandshaker) Handshake(ctx context.Context, target netip.AddrPort, ser
 	}
 	conn, err := d.DialContext(dialCtx, "tcp", target.String())
 	if err != nil {
-		return HandshakeResult{Outcome: classifyTLSError(err)}
+		outcome, unreachable := classifyDialError(err)
+		return HandshakeResult{Outcome: outcome, Unreachable: unreachable}
 	}
 	defer func() { _ = conn.Close() }()
 
@@ -396,42 +412,55 @@ func sigDigestName(a x509.SignatureAlgorithm) string {
 	}
 }
 
-// classifyTLSError splits a failed handshake dial into its two negatives. A TLS
-// record- or alert-level rejection is TLSRefused (the peer spoke TLS and turned us
-// down); a reset, EOF or plaintext-looking failure is NoTLS (nothing there spoke
-// TLS). The split is best-effort and unversioned by the corpus — the golden rows
-// pin the fold, not this live classification.
-func classifyTLSError(err error) TLSOutcome {
+// classifyDialError splits a failed handshake dial three ways: the outcome the
+// `certificate` facet's two negatives use, plus whether the dial ever reached a peer.
+// A TLS record- or alert-level rejection is TLSRefused (the peer spoke TLS and turned
+// us down); a reset, EOF or plaintext-looking failure is NoTLS (something answered, and
+// it was not TLS); a failure in the CONNECT phase never got a peer at all, and reports
+// unreachable alongside the conservative NoTLS.
+//
+// The split is best-effort and unversioned by the corpus — the golden rows pin the fold,
+// not this live classification.
+func classifyDialError(err error) (outcome TLSOutcome, unreachable bool) {
+	// One tls.Dialer covers two phases under one deadline: the TCP connect and the TLS
+	// handshake. Which phase failed is READ off the error, never guessed from its text:
+	// net.Dialer stamps every connect-phase failure — a refusal, a connect-phase reset,
+	// a timeout, and the egress guard's Control-hook refusal — as a *net.OpError whose
+	// Op is "dial", and no handshake-phase error carries that Op (a stalled or dropped
+	// handshake surfaces as a read, an alert or a record error). Without this a
+	// middlebox that swallows the ClientHello would report *nothing was there*, and a
+	// connect-phase RST would report *something answered*.
+	var opErr *net.OpError
+	if errors.As(err, &opErr) && opErr.Op == "dial" {
+		return NoTLS, true
+	}
 	var recordErr tls.RecordHeaderError
 	if errors.As(err, &recordErr) {
 		// A malformed TLS record header means the peer answered with something
 		// that is not TLS at all.
-		return NoTLS
+		return NoTLS, false
 	}
 	var alertErr *tls.CertificateVerificationError
 	if errors.As(err, &alertErr) {
-		return TLSRefused
+		return TLSRefused, false
 	}
 	if errors.Is(err, io.EOF) {
-		return NoTLS
+		return NoTLS, false
 	}
 	msg := strings.ToLower(err.Error())
 	switch {
 	case strings.Contains(msg, "first record does not look like a tls handshake"),
 		strings.Contains(msg, "connection reset"),
 		strings.Contains(msg, "eof"):
-		return NoTLS
+		return NoTLS, false
 	case strings.Contains(msg, "tls:"),
 		strings.Contains(msg, "handshake failure"),
 		strings.Contains(msg, "protocol version"),
 		strings.Contains(msg, "no cipher suite"):
-		return TLSRefused
+		return TLSRefused, false
 	}
-	// An unclassifiable transport failure is treated as no TLS spoken — the
-	// conservative side, since it asserts no refusal we did not observe.
-	var netErr net.Error
-	if errors.As(err, &netErr) {
-		return NoTLS
-	}
-	return NoTLS
+	// An unclassifiable handshake-phase failure is treated as no TLS spoken — the
+	// conservative side, since it asserts no refusal we did not observe. It is NOT
+	// reported unreachable: the connect phase already completed, so a peer was there.
+	return NoTLS, false
 }
