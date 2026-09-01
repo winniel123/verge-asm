@@ -661,10 +661,11 @@ estate exactly while a current resolution cites it or a `Seed` covers it. The tw
 declared address scope is a subject **from the declaration**, before anything has been observed
 about it, with its `Citation` hopping straight to the `Seed`. Its `Service`s then hold `Reach` =
 `not-reached` — a **measured value**, not a `Gap` and not *nothing at all* — until something
-answers there. Leaving a declared scope, by exclusion or by a narrower declaration, withdraws it
-and takes its timelines with it, unless a current resolution still cites it. Those closures
-carry the **`descoped`** reason, our aperture having stopped covering it rather than the world
-having moved. That is what stops a later re-citation reading as `returned`
+answers there. A declared scope that stops covering it — by exclusion, or by a `Seed` that
+narrows or is withdrawn — withdraws it and takes its timelines with it, unless a current
+resolution still cites it. Those closures carry the **`descoped`** reason, our aperture having
+stopped covering it rather than the world having moved. That is what stops a later re-citation
+reading as `returned`
 ([ADR-0087](./docs/adr/0087-a-closure-records-the-ground-it-rests-on-and-there-are-three-grounds.md)).
 See
 [ADR-0047](./docs/adr/0047-an-address-scope-is-its-own-enumeration.md).
@@ -1513,8 +1514,9 @@ Error for, and the only closure in the model that is independent evidence),
 withdrawn root, or a cited `Address` whose last citing resolution moves — one reason, because the
 closure is not independent evidence at either site and the subject returns when its ground returns
 at either, while the `Citation` already names *which* ground was lost), and
-**`descoped`** (**our own aperture** stopped covering it: an exclusion, a narrower `Seed`, or a
-release narrowing a composed population). Those three exhaust the grounds a fact can come from in a
+**`descoped`** (**our own aperture** stopped covering it: an exclusion, a `Seed` that narrows or is
+withdrawn, or a release narrowing a composed population). Those three exhaust the grounds a fact can
+come from in a
 model whose Declared layer does not drift, which is why the union is closed. Only a **withdrawal's**
 closure carries a reason. An ordinary value move closes one span and opens the next in a single
 fold step, so the adjacency is the fact. A version change's `Break` is derived on read from the
