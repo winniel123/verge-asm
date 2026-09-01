@@ -207,6 +207,13 @@ and a count, no comparison and no rows. N per-subject `declared-input` rows for 
 would be the census the receipt exists to replace. The Name limb keeps its per-subject
 `declared-input` message, because a name exclusion withdraws one Name and has no aggregate to state.
 
+**Scope of this discharge.** Both limbs of the EXCLUSION act have shipped. `CONTEXT.md` names a
+second narrowing act — a `Seed` that narrows or is withdrawn — and this ADR rules nothing about
+it. That act is
+[ADR-0134](./0134-a-seed-withdrawal-is-recorded-by-a-tombstone-because-the-mover-does-not-survive-the-act.md)
+and [#1040](https://github.com/winniel123/verge-asm/issues/1040). It cannot reuse the machinery
+here: this fold reads the live `exclusion` corpus, and a `Seed` delete destroys its own mover.
+
 ## Consequences
 
 - An address exclusion becomes enforcing for the first time. An operator who excludes a range
