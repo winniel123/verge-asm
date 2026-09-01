@@ -405,7 +405,15 @@ func (s *server) bindIntegrationChannel(w http.ResponseWriter, r *http.Request, 
 			return
 		}
 		if !ok {
-			http.Error(w, "unknown channel", http.StatusBadRequest)
+			// An operator CAN reach this: the select's options are the Channels that
+			// existed when the drawer rendered, so another admin deleting one between the
+			// render and the submit lands here. That is a refusal, not a malformed
+			// request, so it answers the way every refusal on this surface answers — a 303
+			// back to the drawer with a toast (ADR-0130 §1, ticket #978) — rather than a
+			// 400 text body at the POST URL that loses the drawer, the tab and the offset.
+			// The neighbouring testIntegration already degrades this same race this way.
+			s.toastRedirectBack(w, r, dest, "danger", "Channel not bound",
+				"That channel no longer exists. Pick another.")
 			return
 		}
 		binding = pgtype.Int8{Int64: chID, Valid: true}

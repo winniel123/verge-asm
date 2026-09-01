@@ -2118,6 +2118,19 @@ func (s *server) createPersonalToken(w http.ResponseWriter, r *http.Request, acc
 		s.serverError(w, "profile: create token", err)
 		return
 	}
+	s.revealMintedToken(w, r, acct, plaintext, name)
+}
+
+// revealMintedToken renders the Profile with the freshly minted plaintext in it. This is
+// the one console answer that must be a body, and it lives in its own method so the
+// ADR-0130 class-A guard can exempt THIS answer rather than the whole route
+// (adr0130_contract_test.go, classAExemptAnswers). A refusal branch that went back to
+// rendering in place would then still fail the guard, which is what the exemption's own
+// wording promises.
+//
+// The plaintext exists in this response and nowhere else — Verge stores the hash — so it
+// cannot ride a redirect without stashing key material in a store to survive the hop.
+func (s *server) revealMintedToken(w http.ResponseWriter, r *http.Request, acct db.Account, plaintext, name string) {
 	s.renderProfile(w, r, acct, profileState{minted: plaintext, mintedName: name})
 }
 

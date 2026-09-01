@@ -34,6 +34,11 @@ type contractPkg struct {
 	// methods maps a *server method name to its declaration. A handler, a helper and a
 	// renderer are all here; the guards tell them apart by name and by who calls whom.
 	methods map[string]*ast.FuncDecl
+	// funcs maps a package-level FUNCTION name to its declaration. The walk follows these
+	// too, because an answer written through a free function is the same answer: both
+	// redirectOnboardStep and redirectWizardStep call http.Redirect on a caller-supplied
+	// base, and a guard that saw only *server methods would look straight past them.
+	funcs map[string]*ast.FuncDecl
 	// postHandlers maps a routed POST pattern to the *server method that answers it.
 	postHandlers map[string]string
 	// consts maps every package-level string constant to its value, so the class-E guard
@@ -54,6 +59,7 @@ func parseWebPackage(t *testing.T) *contractPkg {
 	c := &contractPkg{
 		fset:         fset,
 		methods:      map[string]*ast.FuncDecl{},
+		funcs:        map[string]*ast.FuncDecl{},
 		postHandlers: map[string]string{},
 		consts:       map[string]string{},
 	}
@@ -86,7 +92,14 @@ func parseWebPackage(t *testing.T) *contractPkg {
 				continue
 			}
 			fn, ok := d.(*ast.FuncDecl)
-			if !ok || fn.Recv == nil || len(fn.Recv.List) != 1 {
+			if !ok {
+				continue
+			}
+			if fn.Recv == nil {
+				c.funcs[fn.Name.Name] = fn
+				continue
+			}
+			if len(fn.Recv.List) != 1 {
 				continue
 			}
 			star, ok := fn.Recv.List[0].Type.(*ast.StarExpr)
@@ -175,7 +188,9 @@ func inspectLive(fn *ast.FuncDecl, f func(ast.Node) bool) {
 	})
 }
 
-// calleesOf lists the *server methods fn calls on its live path, in source order.
+// calleesOf lists what fn calls on its live path, in source order: each *server method
+// as "s.Name", each package-level function by its bare name, and each answer written
+// straight to the ResponseWriter as "http.Error" or "http.Redirect".
 func (c *contractPkg) calleesOf(fn *ast.FuncDecl) []string {
 	var out []string
 	inspectLive(fn, func(n ast.Node) bool {
@@ -183,21 +198,44 @@ func (c *contractPkg) calleesOf(fn *ast.FuncDecl) []string {
 		if !ok {
 			return true
 		}
-		sel, ok := call.Fun.(*ast.SelectorExpr)
-		if !ok {
-			return true
-		}
-		if id, ok := sel.X.(*ast.Ident); ok && id.Name == "s" {
-			out = append(out, sel.Sel.Name)
+		switch f := call.Fun.(type) {
+		case *ast.SelectorExpr:
+			id, ok := f.X.(*ast.Ident)
+			if !ok {
+				return true
+			}
+			switch id.Name {
+			case "s":
+				out = append(out, "s."+f.Sel.Name)
+			case "http":
+				if f.Sel.Name == "Error" || f.Sel.Name == "Redirect" {
+					out = append(out, "http."+f.Sel.Name)
+				}
+			}
+		case *ast.Ident:
+			if _, ok := c.funcs[f.Name]; ok {
+				out = append(out, f.Name)
+			}
 		}
 		return true
 	})
 	return out
 }
 
-// reach walks the call graph out of a handler and calls visit on every *server method
-// body the handler can reach, itself included. stop names the methods the walk does not
-// descend into, so a guard can treat a sanctioned answer as terminal.
+// decl resolves a callee name from calleesOf back to its declaration, method or function.
+func (c *contractPkg) decl(name string) (*ast.FuncDecl, bool) {
+	if m, ok := strings.CutPrefix(name, "s."); ok {
+		fn, found := c.methods[m]
+		return fn, found
+	}
+	fn, found := c.funcs[name]
+	return fn, found
+}
+
+// reach walks the call graph out of a handler and calls visit on every body the handler
+// can reach, itself included. Names are as calleesOf spells them ("s.Method", or a bare
+// function name). stop names what the walk does not descend into, so a guard can treat a
+// sanctioned answer as terminal.
 func (c *contractPkg) reach(start string, stop map[string]bool, visit func(name string, fn *ast.FuncDecl)) {
 	seen := map[string]bool{}
 	var walk func(string)
@@ -206,16 +244,25 @@ func (c *contractPkg) reach(start string, stop map[string]bool, visit func(name 
 			return
 		}
 		seen[name] = true
-		fn, ok := c.methods[name]
+		fn, ok := c.decl(name)
 		if !ok {
 			return
 		}
-		visit(name, fn)
+		visit(shortName(name), fn)
 		for _, callee := range c.calleesOf(fn) {
 			walk(callee)
 		}
 	}
 	walk(start)
+}
+
+// shortName drops the "s." a method callee carries, so a finding reads as the source
+// does: "updateRetention → s.renderSettings", never "s.updateRetention → …".
+func shortName(name string) string {
+	if m, ok := strings.CutPrefix(name, "s."); ok {
+		return m
+	}
+	return name
 }
 
 func isSelector(e ast.Expr, x, sel string) bool {
@@ -254,30 +301,34 @@ func uniqSorted(in []string) []string {
 
 // --- class A: a refusal is a redirect, never a body ------------------------
 
-// renderMethods are the *server methods that write a rendered page body. A POST that
-// reaches one of these answers its own POST URL with a body, which is the class-A
-// failure ADR-0130 §1 closes.
-var renderMethods = map[string]bool{
-	"render": true, "renderStatus": true, "renderSettings": true, "renderSeeds": true,
-	"renderSignals": true, "renderProfile": true, "renderOnboard": true,
-	"renderScheduleWizard": true,
+// bodyAnswers are the calls that put a BODY on the response at the URL the form was
+// posted to. The eight renders are the page templates; http.Error is the same failure in
+// plain text — a status and a line the browser shows in place of the console, with the
+// tab, the filter and the scroll offset all gone and a reload that re-submits the form.
+// A guard that watched only the renders would bless the text-body half of class A, so it
+// watches both.
+var bodyAnswers = map[string]bool{
+	"s.render": true, "s.renderStatus": true, "s.renderSettings": true, "s.renderSeeds": true,
+	"s.renderSignals": true, "s.renderProfile": true, "s.renderOnboard": true,
+	"s.renderScheduleWizard": true,
+	"http.Error":             true,
 }
 
 // errorPageMethods answer a BROKEN request — a 500 the operator cannot act on, a
 // missing subject, a forbidden page. None is a form refusal, so the class-A walk treats
-// them as terminal rather than as a rendered answer. ADR-0130 is about the form the
-// operator filled in; a request that names no such form has no URL worth returning to
-// and no typed values worth echoing.
+// them as terminal rather than as an answer. ADR-0130 is about the form the operator
+// filled in; a request that names no such form has no URL worth returning to and no
+// typed values worth echoing.
 var errorPageMethods = map[string]bool{
-	"serverError": true, "renderError": true, "notFound": true, "forbidden": true,
-	"renderMissingSubject": true, "renderMissingRun": true, "settingsForbidden": true,
-	"requireLogin": true, "requireAdmin": true, "requireSettingsAdmin": true,
+	"s.serverError": true, "s.renderError": true, "s.notFound": true, "s.forbidden": true,
+	"s.renderMissingSubject": true, "s.renderMissingRun": true, "s.settingsForbidden": true,
+	"s.requireLogin": true, "s.requireAdmin": true, "s.requireSettingsAdmin": true,
 }
 
-// classAExempt names every POST route allowed to answer with a body, and says why.
-// ADR-0130 §1 covers the console forms an operator fills in on a long page. Each entry
-// below sits outside that, and map #969's audit records every one.
-var classAExempt = map[string]string{
+// classAExemptRoutes names a whole POST route ADR-0130 §1 does not govern, and says why.
+// §1 covers the console forms an operator fills in on a long page; each surface below
+// sits outside that entirely, and map #969's audit records every one.
+var classAExemptRoutes = map[string]string{
 	// The pre-authentication credential flow. These pages are short, carry no filter
 	// state and no scroll offset, and the caller holds no session for a session-keyed
 	// flash to hang on. Map #969 excludes the authentication flow by name.
@@ -294,57 +345,121 @@ var classAExempt = map[string]string{
 	// material in a store to survive it.
 	"POST /account/totp/enable":  "renders the enrolment screen (QR + secret), a step and not a refusal",
 	"POST /account/totp/confirm": "the same enrolment screen, re-rendered with its own prompt",
+}
 
-	// The one console form whose SUCCESS must be a body. createPersonalToken reveals the
-	// minted plaintext once, in this response only; Verge stores the hash alone. Its
-	// refusals are post-redirect-gets like every other console form — this entry buys the
-	// success path and nothing else.
-	"POST /profile/tokens": "the minted token plaintext is revealed once in the body and never stored",
+// classAExemptAnswers names ONE answer inside a route that is otherwise governed, keyed
+// exactly as a finding reads. A route-level entry would be too blunt for these: it would
+// bless every future answer in the handler too, including a refusal that slipped back to
+// rendering in place — which is the regression this file exists to catch.
+var classAExemptAnswers = map[string]string{
+	// The one console answer that must be a body. The minted plaintext exists in this
+	// response and nowhere else, since Verge stores the hash, so it cannot ride a redirect
+	// without stashing key material in a store to survive the hop. It lives in its own
+	// method for exactly this reason: createPersonalToken's REFUSALS go through
+	// failProfile, and one that went back to rendering would read as
+	// "createPersonalToken → s.renderProfile" and fail here.
+	"POST /profile/tokens · revealMintedToken → s.renderProfile": "the minted plaintext is revealed once in the body and never stored",
+
+	// A MALFORMED request, not a refusal. Each slug below is compiled into the catalogue
+	// and rendered into the form by the same table the handler validates against, so no
+	// operator-driven submit can carry an unknown one — only a hand-crafted request can,
+	// and that request names no form to return to. The reachable refusal on this surface
+	// is the channel race, and ticket #978 moved it onto a toast redirect.
+	"POST /settings/integrations/install · installIntegration → http.Error":         "an unknown catalogue slug is a hand-crafted request, not an operator refusal",
+	"POST /settings/integrations/remove · removeIntegration → http.Error":           "an unknown catalogue slug is a hand-crafted request, not an operator refusal",
+	"POST /settings/integrations/disconnect · removeIntegration → http.Error":       "an unknown catalogue slug is a hand-crafted request, not an operator refusal",
+	"POST /settings/integrations/test · testIntegration → http.Error":               "an unknown catalogue slug is a hand-crafted request, not an operator refusal",
+	"POST /settings/integrations/channel · bindIntegrationChannel → http.Error":     "an unknown catalogue slug, or an unparseable channel id, is a hand-crafted request",
+	"POST /proposals/confirm · confirmProposal → http.Error":                        "an unparseable proposal id; the row's own form always carries a valid one (#976)",
+	"POST /proposals/decline · declineLookup → http.Error":                          "an unparseable form body; there is no form state to echo back (#976)",
+
+	// A download, not a page. The backup act answers with the archive itself, so the
+	// response body IS the deliverable and there is nothing to redirect to.
+	"POST /settings/backup · backupDownload → http.Error": "answers with the archive; the unavailable-mode line is its only other answer",
+
+	// A restore runs only against a real database. In a fixture-backed VERGE_DEV build
+	// there is nothing to restore, and the refusal names the MODE rather than anything the
+	// operator typed.
+	"POST /settings/restore/preflight · restorePreflight → http.Error": "states that this build mode has no database to restore into",
+	"POST /settings/restore · restoreApply → http.Error":               "states that this build mode has no database to restore into",
+}
+
+// classAStop is where the class-A walk halts: the error pages, which answer a broken
+// request rather than a form, and the body answers themselves. A body answer is the
+// terminal event — the response is written — so what it calls next is template plumbing,
+// and descending would report the same one answer once per layer of it.
+func classAStop() map[string]bool {
+	stop := map[string]bool{}
+	for k := range errorPageMethods {
+		stop[k] = true
+	}
+	for k := range bodyAnswers {
+		stop[k] = true
+	}
+	return stop
 }
 
 // TestNoMutatingHandlerAnswersAValidationFailureWithABody is the class-A regression
-// guard. It fails when a POST handler can reach a page render, which is what answering
-// a refusal in place looks like: the body arrives at the POST URL, the browser performs
-// no navigation for the scroll restore to fire on, and a reload re-submits the form.
+// guard. It fails when a POST handler can reach a body answer, which is what answering a
+// refusal in place looks like: the body arrives at the POST URL, the browser performs no
+// navigation for the scroll restore to fire on, and a reload re-submits the form.
 func TestNoMutatingHandlerAnswersAValidationFailureWithABody(t *testing.T) {
 	c := parseWebPackage(t)
 	var bad []string
 	for pattern, handler := range c.postHandlers {
-		if _, ok := classAExempt[pattern]; ok {
+		if _, ok := classAExemptRoutes[pattern]; ok {
 			continue
 		}
 		var hits []string
-		c.reach(handler, errorPageMethods, func(name string, fn *ast.FuncDecl) {
+		c.reach("s."+handler, classAStop(), func(name string, fn *ast.FuncDecl) {
 			for _, callee := range c.calleesOf(fn) {
-				if renderMethods[callee] {
-					hits = append(hits, name+" → s."+callee)
+				if !bodyAnswers[callee] {
+					continue
+				}
+				hit := pattern + " · " + name + " → " + callee
+				if _, ok := classAExemptAnswers[hit]; !ok {
+					hits = append(hits, hit)
 				}
 			}
 		})
-		if len(hits) > 0 {
-			bad = append(bad, pattern+" ("+handler+"): "+strings.Join(uniqSorted(hits), ", "))
-		}
+		bad = append(bad, uniqSorted(hits)...)
 	}
 	if len(bad) > 0 {
 		sort.Strings(bad)
-		t.Errorf("these POST handlers answer with a rendered body instead of a 303 (ADR-0130 §1):\n  %s\n"+
-			"Stash the refusal on the session form flash and redirect back, or add a justified entry to classAExempt.",
+		t.Errorf("these POST handlers answer with a body instead of a 303 (ADR-0130 §1):\n  %s\n"+
+			"Stash the refusal on the session form flash and redirect back, or add a justified entry to\n"+
+			"classAExemptAnswers (one answer) or classAExemptRoutes (a surface §1 does not govern).",
 			strings.Join(bad, "\n  "))
 	}
 }
 
-// TestClassAExemptionsAreLive keeps the exemption list honest. An entry naming a route
-// the tree no longer serves is deleted rather than left to imply a live exception.
-func TestClassAExemptionsAreLive(t *testing.T) {
+// TestContractExemptionsAreLive keeps the three exemption lists honest. An entry naming a
+// route the tree no longer serves, or an answer no handler makes any more, is deleted
+// rather than left to imply a live exception.
+func TestContractExemptionsAreLive(t *testing.T) {
 	c := parseWebPackage(t)
-	for pattern := range classAExempt {
-		if _, ok := c.postHandlers[pattern]; !ok {
-			t.Errorf("classAExempt names %q, which is no longer a POST route; delete the entry", pattern)
+	for _, m := range []map[string]string{classAExemptRoutes, classEExempt} {
+		for pattern := range m {
+			if _, ok := c.postHandlers[pattern]; !ok {
+				t.Errorf("an exemption names %q, which is no longer a POST route; delete the entry", pattern)
+			}
 		}
 	}
-	for pattern := range classEExempt {
-		if _, ok := c.postHandlers[pattern]; !ok {
-			t.Errorf("classEExempt names %q, which is no longer a POST route; delete the entry", pattern)
+	// An answer exemption has to match a body answer the tree actually makes. Collect
+	// every one the walk can see, then check each entry against that set.
+	live := map[string]bool{}
+	for pattern, handler := range c.postHandlers {
+		c.reach("s."+handler, classAStop(), func(name string, fn *ast.FuncDecl) {
+			for _, callee := range c.calleesOf(fn) {
+				if bodyAnswers[callee] {
+					live[pattern+" · "+name+" → "+callee] = true
+				}
+			}
+		})
+	}
+	for hit := range classAExemptAnswers {
+		if !live[hit] {
+			t.Errorf("classAExemptAnswers names %q, which no handler answers any more; delete the entry", hit)
 		}
 	}
 }
@@ -357,9 +472,9 @@ func TestClassAExemptionsAreLive(t *testing.T) {
 // The class-E walk stops at them, so their own fallback literal is not a finding — the
 // fallback is the guard's answer to a forged or absent field, not a handler's destination.
 var backHelpers = map[string]bool{
-	"redirectBack": true, "toastRedirectBack": true,
-	"backToSection": true, "toastBackToSection": true, "failSettings": true, "flashSettings": true,
-	"backToScope": true, "flashScopeBack": true, "flashScopeToastBack": true,
+	"s.redirectBack": true, "s.toastRedirectBack": true,
+	"s.backToSection": true, "s.toastBackToSection": true, "s.failSettings": true, "s.flashSettings": true,
+	"s.backToScope": true, "s.flashScopeBack": true, "s.flashScopeToastBack": true,
 }
 
 // classEExempt names every POST route allowed to redirect to a bare path, and says why.
@@ -441,9 +556,10 @@ func TestNoMutatingHandlerRedirectsToABarePath(t *testing.T) {
 			continue
 		}
 		var hits []string
-		c.reach(handler, stop, func(name string, fn *ast.FuncDecl) {
+		c.reach("s."+handler, stop, func(name string, fn *ast.FuncDecl) {
+			params := paramNames(fn)
 			for _, dest := range redirectDestinations(fn) {
-				if lit, ok := literalPath(dest, consts); ok {
+				if lit, ok := literalPath(dest, consts, params); ok {
 					hits = append(hits, name+" → "+lit)
 				}
 			}
@@ -533,24 +649,56 @@ func TestTheSessionFormFlashIsSingleConsume(t *testing.T) {
 	}
 }
 
+// paramNames is the set of fn's own parameter names.
+func paramNames(fn *ast.FuncDecl) map[string]bool {
+	out := map[string]bool{}
+	if fn.Type == nil || fn.Type.Params == nil {
+		return out
+	}
+	for _, field := range fn.Type.Params.List {
+		for _, name := range field.Names {
+			out[name.Name] = true
+		}
+	}
+	return out
+}
+
 // literalPath reports the absolute path a destination expression spells, when it spells
-// one. A bare string, a package constant, and either of those with a query concatenated
-// on all count: each names a destination the handler chose rather than one the operator's
-// form declared.
-func literalPath(e ast.Expr, consts map[string]string) (string, bool) {
+// one. Four shapes count, and each names a destination the source chose rather than one
+// the operator's form declared:
+//
+//   - a bare string;
+//   - a package constant;
+//   - either of those with a query concatenated on;
+//   - one of the enclosing function's own PARAMETERS.
+//
+// The parameter case is what makes the guard see through a helper. redirectWizardStep
+// and redirectOnboardStep both redirect to `base + "?" + …`, where base is a route
+// constant the caller hands in, so the destination is spelled one frame up and a guard
+// that stopped at literals would report nothing and quietly bless the shape. Reporting
+// the parameter is the honest reading: whatever the caller passes, it is not the URL the
+// operator's form declared — a handler that meant to return there would have resolved it
+// through the back helpers instead.
+func literalPath(e ast.Expr, consts map[string]string, params map[string]bool) (string, bool) {
 	switch v := e.(type) {
 	case *ast.BasicLit:
 		s, ok := stringLit(v)
 		return s, ok && strings.HasPrefix(s, "/")
 	case *ast.Ident:
-		s, ok := consts[v.Name]
-		return s, ok && strings.HasPrefix(s, "/")
+		if s, ok := consts[v.Name]; ok {
+			return s, strings.HasPrefix(s, "/")
+		}
+		if params[v.Name] {
+			return v.Name + " (supplied by the caller)", true
+		}
 	case *ast.BinaryExpr:
 		if v.Op != token.ADD {
 			return "", false
 		}
-		if s, ok := literalPath(v.X, consts); ok {
-			return s + "…", true
+		if s, ok := literalPath(v.X, consts, params); ok {
+			// One ellipsis, however many terms are concatenated: `base + "?" + q.Encode()`
+			// nests, and a mark per term would only make the finding harder to read.
+			return strings.TrimSuffix(s, "…") + "…", true
 		}
 	}
 	return "", false
