@@ -49,6 +49,11 @@ func normalizeSubjectKey(input string) string {
 // no status, no expiry, no author. Re-declaring an existing pair is rejected as a
 // duplicate rather than editing it: an Annotation cannot be edited, so changing a
 // reason is a withdraw-then-declare (ADR-0093).
+//
+// The success path answers 303 to the URL the form was submitted from (backurl.go,
+// ADR-0130 §3), not to a bare `/signals`, so an operator who accepts a risk from a
+// filtered, sorted, paginated list lands back on that same list. The error path still
+// re-renders in place; ticket #972 turns it into a redirect of its own.
 func (s *server) declareAnnotation(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	subject := normalizeSubjectKey(r.FormValue("subject"))
 	sigName := strings.TrimSpace(r.FormValue("signal"))
@@ -83,14 +88,15 @@ func (s *server) declareAnnotation(w http.ResponseWriter, r *http.Request, acct 
 		s.serverError(w, "create annotation", err)
 		return
 	}
-	http.Redirect(w, r, "/signals", http.StatusSeeOther)
+	s.redirectBack(w, r, "/signals")
 }
 
 // withdrawAnnotation withdraws an Annotation. Withdrawing is a plain state change
 // that produces no `Message`: its carrier is the message it releases, the pair's
 // own next firing. It is admin-only and idempotent — deleting a row already gone
 // is not an error, since the operator's intent that the acceptance no longer
-// stand is satisfied either way.
+// stand is satisfied either way. Like the declare above, the success path 303s back
+// to the submitting URL (backurl.go, ADR-0130 §3) rather than to a bare `/signals`.
 func (s *server) withdrawAnnotation(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
@@ -101,7 +107,7 @@ func (s *server) withdrawAnnotation(w http.ResponseWriter, r *http.Request, acct
 		s.serverError(w, "delete annotation", err)
 		return
 	}
-	http.Redirect(w, r, "/signals", http.StatusSeeOther)
+	s.redirectBack(w, r, "/signals")
 }
 
 // knownRule reports whether name is a shipped rule. An Annotation may only name a

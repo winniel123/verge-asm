@@ -2456,6 +2456,20 @@ func (s *server) injectChrome(data any, r *http.Request) {
 	navActive, _ := m["NavActive"].(string)
 	scanning, hasScanning := m["Scanning"].(bool)
 
+	// The submitting-URL carrier (ADR-0130 §3, backurl.go). Every chrome page gets the
+	// URL it was rendered at, so the "backfield" partial can stamp it into a mutating
+	// form and the handler can 303 the operator back to their own filtered list. It is
+	// set here for the same reason the chrome is: this is the one touchpoint every
+	// chrome render passes through, so a form opts in with one template line and no
+	// handler threads a field of its own. A page that already set BackURL keeps it.
+	//
+	// On an error re-render of a POST the value is that POST's own path, which serves
+	// no GET — resolveBack rejects it and the handler falls back. That is the honest
+	// answer until ticket #972 makes the error path a redirect of its own.
+	if _, set := m["BackURL"]; !set {
+		m["BackURL"] = backURL(r)
+	}
+
 	// VERGE_DEV: compose the chrome from the pinned fixtures.json shell slice, so the
 	// seeded candidate renders the SAME chrome the golden harness composes (v4 pixel
 	// parity). The scan-running variant already lit m["Scanning"] on the dashboard;

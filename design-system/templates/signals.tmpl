@@ -312,7 +312,7 @@
 <div class="sg-anno">
 <div style="display:flex;align-items:center;gap:10px">
 <span class="chip"><span class="d"></span>accepted risk</span>
-{{if $.IsAdmin}}<form method="post" action="/annotations/withdraw" style="margin:0 0 0 auto"><input type="hidden" name="id" value="{{.AnnoID}}"><button type="submit" class="sg-btn-ghost">Remove annotation</button></form>{{end}}
+{{if $.IsAdmin}}<form method="post" action="/annotations/withdraw" style="margin:0 0 0 auto"><input type="hidden" name="id" value="{{.AnnoID}}">{{template "backfield" $}}<button type="submit" class="sg-btn-ghost">Remove annotation</button></form>{{end}}
 </div>
 <p>{{.AnnoReason}}</p>
 </div>
@@ -321,9 +321,10 @@
 <span style="font:500 11px var(--font-mono);letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted)">Annotation</span>
 <input type="hidden" name="subject" value="{{.Asset}}">
 <input type="hidden" name="signal" value="{{.RuleID}}">
+{{template "backfield" $}}
 <textarea name="reason" rows="3" placeholder="Why this risk is accepted" required></textarea>
 <div style="display:flex;align-items:center;gap:10px">
-<button type="submit" class="sg-btn-pri-sm" disabled data-anno-submit>Accept this risk</button>
+<button type="submit" class="sg-btn-pri-sm" data-anno-submit>Accept this risk</button>
 <span style="font:400 11.5px var(--font-ui);color:var(--text-muted)">Applies to this subject–signal pair. No expiry, no status, no author.</span>
 </div>
 </form>
@@ -408,7 +409,13 @@
     });
   });
   var af=document.querySelector(".sg-annoform");
+  /* The empty-reason disable is a JS enhancement, so the markup ships the button
+     ENABLED and this disables it on load. Shipping it disabled would make the act
+     unreachable with JavaScript off, which the ADR-0130 contract forbids. The
+     textarea is `required`, so a browser still refuses an empty submit, and the
+     server rejects an empty reason either way (annotations.go). */
   if(af){var ta2=af.querySelector("textarea"),asb=af.querySelector("[data-anno-submit]");
+    if(!ta2.value.trim())asb.setAttribute("disabled","");
     ta2.addEventListener("input",function(){if(ta2.value.trim())asb.removeAttribute("disabled");else asb.setAttribute("disabled","");});}
   var dn=document.getElementById("sg-descope-name");
   if(dn){var di=document.querySelector(".sg-dialog input.typed"),ds=document.querySelector("[data-descope-submit]");

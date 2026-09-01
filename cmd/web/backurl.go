@@ -1,0 +1,166 @@
+package main
+
+import (
+	"net/http"
+	"net/url"
+	"path"
+	"strings"
+)
+
+// The submitting-URL carrier (ADR-0130 §3, map #969 ticket #971). A mutating form
+// tells the server the exact URL it was submitted from, and the handler redirects
+// back to that URL rather than to a bare path. This closes the redirect half of
+// failure class E: an operator who acts from `/signals?tab=open&sev=High&page=3`
+// lands back on that same list, so the filter survives the act and the scroll key
+// the shell stashes on submit (shell.tmpl, ticket #970) hits on both ends.
+//
+// The URL rides a hidden form field, never the `Referer` header. `Referer` is
+// stripped by proxies and privacy settings, and is absent under several referrer
+// policies, so a handler that trusted it would silently lose the filter for some
+// operators and not others. Nothing in this file reads `Referer`.
+//
+// Progressive enhancement is untouched. The field is server-rendered markup and the
+// answer is a plain 303, so every path here works with JavaScript off. The scroll
+// restore stays a pure enhancement layered on top.
+//
+// A form field is operator-controlled input, so resolveBack is a real open-redirect
+// guard — the first in this repo. It admits only a same-origin relative path that
+// this server actually serves a GET at, and falls back to a caller-supplied path on
+// anything else. A rejected value never reaches the Location header.
+
+// backField is the hidden form field the "backfield" template partial emits and
+// resolveBack reads. It keeps the name the Inbox acts already use for the same job
+// (`return`, inbox.tmpl / settings.tmpl), so the console carries one name for this
+// datum rather than two. Those older handlers keep their own inline checks for now;
+// ticket #978 converges them onto this helper.
+const backField = "return"
+
+// backURL is the submitting URL to stamp into a page's forms: the request's own path
+// plus its query, and nothing else. It is deliberately relative — a host or a scheme
+// would make the field an open-redirect vector for no gain, since every destination
+// is on this server.
+//
+// The `toast` parameter is dropped. It is a single-consume PRG receipt (shell.go
+// toastRedirect): carrying it back would re-fire a spent toast on the next landing,
+// and would let a stale receipt win over the fresh one, because decodeToasts reads
+// only the first `toast` value. Every other parameter is kept, because the filter
+// state is the whole point of the carrier.
+func backURL(r *http.Request) string {
+	if r == nil || r.URL == nil {
+		return ""
+	}
+	p := r.URL.EscapedPath()
+	if p == "" {
+		p = "/"
+	}
+	q := r.URL.Query()
+	q.Del("toast")
+	if len(q) == 0 {
+		return p
+	}
+	return p + "?" + q.Encode()
+}
+
+// resolveBack reads the submitting URL off the posted form and returns it when it
+// passes the guard, or fallback when it does not. The caller always supplies a
+// fallback, so a handler is never left without a destination.
+//
+// The guard admits a value only when ALL of these hold. Each rejection is a real
+// attack shape, not a formality:
+//
+//   - It is not empty. A form that carries no field states no opinion.
+//   - It holds no backslash. A browser folds `\` to `/` in a URL, so `/\evil.example`
+//     and `\\evil.example` reach an origin this server does not own.
+//   - It starts with a single `/`. This rejects `https://evil.example/x` (absolute)
+//     and `//evil.example/x` (scheme-relative, which inherits the page's scheme).
+//   - It parses, and carries no scheme, no host, no userinfo, no opaque part and no
+//     fragment. A parse that yields any of those is not the relative path it claimed
+//     to be.
+//   - Its path is already clean. `/signals/../admin` is rejected rather than folded,
+//     so the routing check below reads the same path the browser would request.
+//   - This server serves a GET at that path. A path the router does not serve is a
+//     303 into a 404, which loses the operator's place as surely as a bare path does.
+//
+// The query rides through once the path passes. A query cannot change the origin, and
+// its values are the filter state the carrier exists to preserve.
+func (s *server) resolveBack(r *http.Request, fallback string) string {
+	if r == nil {
+		return fallback
+	}
+	raw := strings.TrimSpace(r.FormValue(backField))
+	if raw == "" {
+		return fallback
+	}
+	if strings.Contains(raw, `\`) {
+		return fallback
+	}
+	if !strings.HasPrefix(raw, "/") || strings.HasPrefix(raw, "//") {
+		return fallback
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return fallback
+	}
+	if u.Scheme != "" || u.Host != "" || u.User != nil || u.Opaque != "" || u.Fragment != "" {
+		return fallback
+	}
+	if u.Path == "" || path.Clean(u.Path) != u.Path {
+		return fallback
+	}
+	if !s.routeServesGET(u.Path) {
+		return fallback
+	}
+	return raw
+}
+
+// routeServesGET reports whether this server serves a GET at p. It asks the very mux
+// handler() built (s.routes), so the guard tracks the route table rather than a second
+// list that drifts from it.
+//
+// Two answers from ServeMux need care. An unmatched path yields an empty pattern, and
+// a path the mux would first redirect (a trailing-slash or a cleaning hop) yields a
+// bare path rather than a pattern — neither starts with the method, so requiring the
+// "GET " prefix rejects both. The catch-all `GET /` is the second: it matches every
+// path, but its handler (auth.go home) answers 404 for anything but "/", so this
+// returns true for that pattern only at the root.
+//
+// A server whose handler() never ran has no route table, and the honest answer is then
+// no: the caller falls back rather than trusting a path nothing checked.
+func (s *server) routeServesGET(p string) bool {
+	if s == nil || s.routes == nil {
+		return false
+	}
+	probe := &http.Request{
+		Method: http.MethodGet,
+		URL:    &url.URL{Path: p},
+		Host:   "localhost",
+	}
+	_, pattern := s.routes.Handler(probe)
+	if !strings.HasPrefix(pattern, "GET ") {
+		return false
+	}
+	if pattern == "GET /" {
+		return p == "/"
+	}
+	return true
+}
+
+// redirectBack answers the post-redirect-get of a mutating act with a 303 to the URL
+// the form was submitted from, or to fallback when the form carried none that passed
+// the guard. It is the plain form of the carrier: no toast, just the operator's own
+// list again.
+func (s *server) redirectBack(w http.ResponseWriter, r *http.Request, fallback string) {
+	http.Redirect(w, r, s.resolveBack(r, fallback), http.StatusSeeOther) // #nosec G710 -- resolveBack admits only a same-origin relative path this router serves a GET at; every other value falls back to the caller's constant path
+}
+
+// toastRedirectBack is redirectBack composed with the toast carrier (shell.go
+// toastRedirect): it 303s to the submitting URL AND fires one toast there.
+//
+// toastRedirect appends `toast=` with the right separator, so a submitting URL that
+// already carries its own query keeps every parameter of it — the `?`/`&` choice is
+// made against the resolved destination, not against the fallback. The two carriers
+// compose rather than compete: this one owns the path and the filter state, that one
+// owns the receipt.
+func (s *server) toastRedirectBack(w http.ResponseWriter, r *http.Request, fallback, tone, title, description string) {
+	s.toastRedirect(w, r, s.resolveBack(r, fallback), tone, title, description)
+}

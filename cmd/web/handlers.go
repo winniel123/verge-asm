@@ -540,6 +540,14 @@ type server struct {
 	// applies no seed — renders the full fixture again. In-process, devMode-only.
 	coverageMu        sync.Mutex
 	coverageEmptyOnce bool
+
+	// routes is the router handler() built, kept so the submitting-URL carrier can ask
+	// one honest question of it: does this server serve a GET at that path (backurl.go,
+	// ADR-0130 §3)? The open-redirect guard must reject a path the router does not
+	// serve, and the route table is the only truth about which paths those are. handler()
+	// sets it as it finishes building the mux. It is nil on a server whose handler() never
+	// ran, and resolveBack then falls back rather than trusting an unchecked path.
+	routes *http.ServeMux
 }
 
 func newServer(s store, key []byte, setupToken string, now func() time.Time) *server {
@@ -1046,6 +1054,11 @@ func (s *server) handler() http.Handler {
 	// bearer-resolved and read-only otherwise. Kept a single localized line so sibling
 	// route additions to this file union-merge cleanly.
 	s.mountAPIv1(mux)
+
+	// Keep the finished route table for the submitting-URL guard (backurl.go). Set here,
+	// after the last mux.HandleFunc above, so routeServesGET sees every route this server
+	// serves — the devMode block and the /api/v1 tree included.
+	s.routes = mux
 
 	// Recovered panics render the 500 error page with a real, logged incident id
 	// (T11, #306). Wrapped once here at the mux-construction boundary; the render
