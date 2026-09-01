@@ -81,6 +81,10 @@ type messageStore interface {
 	// ListAddressScopeCidrs is the declared address-scope corpus the flagship's Vantage
 	// class is DERIVED against per read (#709/#711) — the same read hotEstate uses.
 	ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error)
+	// AddressExclusionStore is the declared `address` exclusions, which narrow that
+	// same predicate (ADR-0133 §4). It is embedded rather than restated, so this
+	// surface and the gate cannot read a different exclusion set.
+	AddressExclusionStore
 	InsertMessage(ctx context.Context, arg db.InsertMessageParams) (db.Message, error)
 }
 
@@ -371,6 +375,14 @@ func legsFromAt(rows []db.ListServiceReachabilitySpansByClassAtRow, covered func
 // corpus and the same family-matched containment hotEstate uses at the fan-out side, so
 // batch gating and the flagship classify against one identical corpus. It routes through
 // custody.Estate.CoversAddressScope (address scopes ALONE — never the extension).
+//
+// It reads the declared `address` EXCLUSIONS too, so the predicate narrows with the
+// derivation (ADR-0133 §4). A vantage whose egress sits inside an excluded range
+// stops being covered and exposure.VerifyClass may reclassify it. That is intended:
+// the operator has said the range is not theirs, so a prober inside it is not inside
+// the estate. A second, un-narrowed predicate for classification alone would leave
+// two coverage rules a later session has to hold in step, which is what #711's
+// one-binding invariant refuses.
 func coveredAddressScope(ctx context.Context, store messageStore) (func(netip.Addr) bool, error) {
 	scopes, err := store.ListAddressScopeCidrs(ctx)
 	if err != nil {
@@ -382,7 +394,11 @@ func coveredAddressScope(ctx context.Context, store messageStore) (func(netip.Ad
 			prefixes = append(prefixes, *p)
 		}
 	}
-	return custody.Estate{AddressScopes: prefixes}.CoversAddressScope, nil
+	excluded, err := ReadAddressExclusions(ctx, store)
+	if err != nil {
+		return nil, err
+	}
+	return custody.Estate{AddressScopes: prefixes}.WithAddressExclusions(excluded).CoversAddressScope, nil
 }
 
 // composeInternetLeg applies the existential internet-class Reach composition over

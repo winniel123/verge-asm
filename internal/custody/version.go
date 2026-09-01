@@ -26,4 +26,14 @@ package custody
 // declaration-limb row alone used to lift a whole-store floor and leave every
 // candidate held. That is the absence rule moving, which this comment's list makes
 // a `Break` rather than drift.
-const Version = "custody/v2"
+//
+// v3 (#1022): a declared `address` EXCLUSION narrows the address-scope limb
+// (ADR-0133 §5). An address inside a declared scope and inside an exclusion now
+// derives `third-party` and the gate shuts over it, where it used to derive
+// `operator`. That is one of the two coverage limbs moving, which this comment's
+// list names first.
+//
+// The bump is owed by the RULE and not by the operator act. Declaring an exclusion
+// afterwards changes an `Estate` input, exactly as declaring a scope already does,
+// and moves this version not at all.
+const Version = "custody/v3"

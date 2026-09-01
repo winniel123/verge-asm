@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
+	"net/netip"
 	"reflect"
 	"strings"
 	"testing"
@@ -83,6 +84,63 @@ func declareExtendedZone(t *testing.T, f *fakeStore, c *http.Client, base, domai
 	t.Fatalf("name scope %q not declared", domain)
 }
 
+// The dual-limb row stops naming a scope the operator has EXCLUDED (ADR-0133 §1,
+// #1022). The row's Scope is the declared address scope that ALSO covers the declined
+// edge, and an exclusion cuts that limb — so the row becomes a bare decline.
+//
+// This test walks the assembler seam. custodyExtensionEstate must read the exclusions
+// and carry them in through WithAddressExclusions, or this screen keeps naming a scope
+// that covers the address no longer, and contradicts the address-scope census beside
+// it on the same page.
+func TestCustodyCensusDualLimbRowDropsAnExcludedScope(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	declareExtendedZone(t, f, ac, base, "example.com")
+	declare(t, ac, base, "address", "93.184.216.0/24").Body.Close()
+	censusEstateFixture(t, f)
+	f.completedBatchKinds[scan.EdgeFanoutKind] = true
+	// One measured SHARED edge, cited by an in-zone name and inside the declared
+	// scope: the dual-limb row.
+	f.edgeFanout = []db.ListEdgeFanoutMeasurementsRow{
+		{Address: "93.184.216.10", Outcome: string(edgefanout.Presented), Der: sharedEdgeDER(t)},
+	}
+
+	entry := func() custody.ExtensionCensusEntry {
+		t.Helper()
+		estate, err := custodyExtensionEstate(t.Context(), f, time.Now().UTC())
+		if err != nil {
+			t.Fatalf("assemble the census estate: %v", err)
+		}
+		for _, e := range estate.ExtensionCensus() {
+			if e.Address.String() == "93.184.216.10" {
+				return e
+			}
+		}
+		t.Fatal("the declined edge holds no census row")
+		return custody.ExtensionCensusEntry{}
+	}
+
+	before := entry()
+	if !before.Scope.IsValid() {
+		t.Fatal("the declined edge names no covering scope before the exclusion: the row below pins nothing")
+	}
+
+	excl := netip.MustParsePrefix("93.184.216.8/29")
+	if _, err := f.CreateAddressExclusion(t.Context(), db.CreateAddressExclusionParams{AddressCidr: &excl, CreatedBy: 1}); err != nil {
+		t.Fatalf("declare the exclusion: %v", err)
+	}
+
+	after := entry()
+	if after.Scope.IsValid() {
+		t.Errorf("the row still names scope %s after the operator excluded the address: the assembler dropped the exclusion read", after.Scope)
+	}
+	if after.State != before.State {
+		t.Errorf("the decline state moved from %q to %q: an exclusion cuts the Seed limb alone and must not touch the extension's verdict", before.State, after.State)
+	}
+}
+
 // A measured shared edge renders a DECLINED row naming the citing name and the
 // address-scope remedy, and an unmeasured candidate renders a PENDING row. Without
 // this section a veto withholds a probe with nothing on screen to say so (ADR-0129
@@ -130,7 +188,7 @@ func TestCustodyCensusDeclinedAndPendingRows(t *testing.T) {
 
 // No row carries a count or a threshold, and the type is what holds that. The fan-out
 // figure and the boundary it is compared against are versioned parameters of the
-// `Custody` derivation, locked by the `custody/v2` corpus, so a row that rendered
+// `Custody` derivation, locked by the `custody/v3` corpus, so a row that rendered
 // either would put a product-chosen number in front of the operator and pin the
 // renderer to a parameter that is free to move (ADR-0129 §5, #987).
 //

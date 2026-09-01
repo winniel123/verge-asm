@@ -30,6 +30,10 @@ func (s Step) Estate() custody.Estate {
 	for _, c := range s.AddressScopes {
 		scopes = append(scopes, netip.MustParsePrefix(c).Masked())
 	}
+	excluded := make([]netip.Prefix, 0, len(s.AddressExclusions))
+	for _, c := range s.AddressExclusions {
+		excluded = append(excluded, netip.MustParsePrefix(c).Masked())
+	}
 	res := make([]custody.Resolution, 0, len(s.Resolutions))
 	for _, r := range s.Resolutions {
 		res = append(res, custody.Resolution{Owner: r.Owner, Address: netip.MustParseAddr(r.Address).Unmap()})
@@ -41,14 +45,15 @@ func (s Step) Estate() custody.Estate {
 			fanout.Shared[netip.MustParseAddr(addr).Unmap()] = custody.SharedEdge(sans)
 		}
 	}
-	// The measurement enters through WithEdgeFanout, exactly as the production
-	// assemblers take it, so the row renders the extension limb's errored floor
-	// (#1018) rather than a state no assembler can produce.
+	// The measurement enters through WithEdgeFanout and the exclusions through
+	// WithAddressExclusions, exactly as the production assemblers take them, so the
+	// row renders the extension limb's errored floor (#1018) and the narrowed
+	// address-scope limb (ADR-0133) rather than a state no assembler can produce.
 	return custody.Estate{
 		AddressScopes: scopes,
 		ExtendedZones: s.ExtendedZones,
 		Resolutions:   res,
-	}.WithEdgeFanout(fanout)
+	}.WithAddressExclusions(excluded).WithEdgeFanout(fanout)
 }
 
 // observed keys the row's SAN sets by parsed address, so a row's spelling of an

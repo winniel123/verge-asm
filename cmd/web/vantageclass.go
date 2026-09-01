@@ -9,6 +9,7 @@ import (
 
 	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/queue"
 	"github.com/winniel123/verge-asm/internal/vantageclass"
 )
 
@@ -26,6 +27,12 @@ import (
 // MayProbe, #711). It mirrors internal/queue/hot.go:hotEstate's scope load exactly
 // (drop nil rows into custody.Estate{AddressScopes}). A read failure returns the error;
 // callers degrade the affected screen rather than 500ing.
+//
+// It reads the declared `address` EXCLUSIONS too, so the predicate narrows with the
+// derivation (ADR-0133 §4). A vantage whose egress sits inside an excluded range stops
+// being covered and may reclassify. That is intended: the operator has said the range
+// is not theirs, so a prober inside it is not inside the estate. #711's invariant is
+// ONE binding, so there is no un-narrowed second predicate for classification alone.
 func (s *server) addressScopeCovered(ctx context.Context) (func(netip.Addr) bool, error) {
 	scopes, err := s.store.ListAddressScopeCidrs(ctx)
 	if err != nil {
@@ -37,7 +44,11 @@ func (s *server) addressScopeCovered(ctx context.Context) (func(netip.Addr) bool
 			prefixes = append(prefixes, *p)
 		}
 	}
-	estate := custody.Estate{AddressScopes: prefixes}
+	excluded, err := queue.ReadAddressExclusions(ctx, s.store)
+	if err != nil {
+		return nil, err
+	}
+	estate := custody.Estate{AddressScopes: prefixes}.WithAddressExclusions(excluded)
 	return estate.CoversAddressScope, nil
 }
 

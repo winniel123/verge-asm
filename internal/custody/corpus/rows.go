@@ -32,6 +32,10 @@ type Resolution struct {
 type Step struct {
 	// AddressScopes are the declared address-scope `Seed`s, as CIDR literals.
 	AddressScopes []string
+	// AddressExclusions are the declared `address` exclusions, as CIDR literals. An
+	// address inside one is covered by NO address scope, so it derives `third-party`
+	// unless a custody extension also reaches it (ADR-0133 §1).
+	AddressExclusions []string
 	// ExtendedZones are the registrable domains of custody-extended name scopes.
 	ExtendedZones []string
 	// Resolutions are the observed direct A/AAAA records.
@@ -75,6 +79,10 @@ var AllCells = []string{
 	// and one MEASURED CANDIDATE does.
 	"C3/pending-held", "C3/scan-not-in-force-reaches",
 	"C3/extension-limb-errored-reaches", "C3/measured-candidate-holds-the-rest",
+	// C4 — a declared `address` EXCLUSION cuts the `Seed` limb and cuts it ALONE
+	// (ADR-0133 §1, #1022). The third cell is the load-bearing one.
+	"C4/excluded-inside-a-scope-is-third-party", "C4/the-same-address-without-the-exclusion",
+	"C4/excluded-but-extension-reached-is-operator",
 }
 
 // Rows is the checked-in corpus. Every cell in AllCells appears in some row's
@@ -274,5 +282,83 @@ var Rows = []Row{
 			Under:              []string{"104.16.132.230"},
 		},
 		Golden: "scan_not_in_force.ndjson",
+	},
+
+	// ---- C4, the exclusion refuses ----
+	// A declared /24 with a /29 excluded out of it. The address is cited by an
+	// OUT-of-zone owner, so no custody extension reaches it and the `Seed` limb is
+	// the only limb it ever had. The exclusion cuts that limb: no address scope
+	// covers it, it derives `third-party`, and the gate is shut.
+	//
+	// This row and the one below are ADR-0085's pair — one estate, one bit apart —
+	// so the refusal is provably the exclusion and never the fixture.
+	{
+		Cells:        []string{"C4/excluded-inside-a-scope-is-third-party"},
+		Claim:        "an address inside a declared address scope AND inside a declared address exclusion is covered by no scope: it derives third-party and the probing gate is shut",
+		SpecVerified: true,
+		Step: Step{
+			AddressScopes:      []string{"93.184.217.0/24"},
+			AddressExclusions:  []string{"93.184.217.0/29"},
+			Resolutions:        []Resolution{{Owner: "edge.provider.net", Address: "93.184.217.5"}},
+			ScanInForce:        true,
+			ScanBatchCompleted: true,
+			Under:              []string{"93.184.217.5"},
+		},
+		Golden: "excluded_inside_a_scope.ndjson",
+	},
+
+	// ---- C4, the same estate with the exclusion absent ----
+	// One bit apart from the row above: the exclusion is gone and NOTHING else
+	// moves. The declaration covers the address, it derives `operator`, and the gate
+	// opens. Without this row the row above would pass on a fixture that never
+	// derived `operator` in the first place.
+	{
+		Cells:        []string{"C4/the-same-address-without-the-exclusion"},
+		Claim:        "the same address with the exclusion ABSENT is covered by the declared scope, derives operator and is probed: the refusal above is the exclusion and not the fixture",
+		SpecVerified: true,
+		Step: Step{
+			AddressScopes:      []string{"93.184.217.0/24"},
+			Resolutions:        []Resolution{{Owner: "edge.provider.net", Address: "93.184.217.5"}},
+			ScanInForce:        true,
+			ScanBatchCompleted: true,
+			Under:              []string{"93.184.217.5"},
+		},
+		Golden: "exclusion_removed.ndjson",
+	},
+
+	// ---- C4: the exclusion cuts the `Seed` limb ALONE ----
+	// ONE estate, ONE exclusion over the whole declared /24, TWO addresses. The
+	// first is cited by an IN-zone owner of a custody-extended zone and measured
+	// below the threshold, so the EXTENSION reaches it: it derives `operator` and is
+	// probed, and no address scope covers it. The second is cited out of zone, so
+	// the `Seed` limb was its only limb and the exclusion took it.
+	//
+	// This is the load-bearing row of the block, and it is C2's guard in the other
+	// direction. C2 stops a session making the VETO global; this stops a session
+	// reading *the operator said not mine* and making the EXCLUSION global. Such a
+	// session moves 104.16.140.20 to `third-party`, which moves this golden and the
+	// digest, and the gate names the row.
+	//
+	// The bound it pins: the set an exclusion removes is never larger than the set
+	// the declaration added. *Not mine* is a claim about the operator's own
+	// declaration, and it does not overrule their own name resolving at the address.
+	{
+		Cells:        []string{"C4/excluded-but-extension-reached-is-operator"},
+		Claim:        "an excluded address a custody extension ALSO reaches derives operator and is probed, while its excluded sibling that no extension reaches derives third-party: the exclusion cuts the Seed limb alone",
+		SpecVerified: true,
+		Step: Step{
+			AddressScopes:     []string{"104.16.140.0/24"},
+			AddressExclusions: []string{"104.16.140.0/24"},
+			ExtendedZones:     []string{"example.com"},
+			Resolutions: []Resolution{
+				{Owner: "www.example.com", Address: "104.16.140.20"},
+				{Owner: "edge.provider.net", Address: "104.16.140.21"},
+			},
+			ScanInForce:        true,
+			ScanBatchCompleted: true,
+			Observed:           map[string][]string{"104.16.140.20": SANsBelowThreshold()},
+			Under:              []string{"104.16.140.20", "104.16.140.21"},
+		},
+		Golden: "excluded_but_extension_reached.ndjson",
 	},
 }

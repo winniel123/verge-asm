@@ -747,6 +747,20 @@ func (f *fakeStore) ListExclusions(context.Context) ([]db.ListExclusionsRow, err
 	return rows, nil
 }
 
+// ListAddressExclusionCidrs returns the declared `address` exclusion CIDRs, mirroring
+// the SQL (kind='address' AND address_cidr IS NOT NULL, in id order). It reads the
+// SAME rows the exclusion handlers write, so a test that declares an exclusion sees
+// the Vantage-class predicate and the address-scope census narrow by it (ADR-0133).
+func (f *fakeStore) ListAddressExclusionCidrs(context.Context) ([]*netip.Prefix, error) {
+	out := []*netip.Prefix{}
+	for _, e := range f.exclusions {
+		if e.Kind == "address" && e.AddressCidr != nil {
+			out = append(out, e.AddressCidr)
+		}
+	}
+	return out, nil
+}
+
 func (f *fakeStore) CreateVantage(_ context.Context, arg db.CreateVantageParams) (db.Vantage, error) {
 	for _, v := range f.vantages {
 		if v.Host.String == arg.Host && v.Port.Int32 == arg.Port && v.Username.String == arg.Username {
