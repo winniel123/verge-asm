@@ -242,8 +242,8 @@ a:hover { text-decoration: underline; }
 {{end}}{{end}}
 
 {{define "foot"}}{{if .Chrome}}<footer class="sh-footer"><span class="note">verge asm · self-hosted · AGPL-3.0</span><span class="links"><a href="https://github.com/winniel123/verge-asm/tree/main/docs" rel="noreferrer">Docs</a><a href="https://github.com/winniel123/verge-asm" rel="noreferrer">GitHub</a><span class="sh-ver">{{.Chrome.Version}}</span></span></footer>{{end}}<script>
-/* Preserve scroll position across the POST-redirect-GET every mutating action
-   runs (ADR-0130 §2). Each mutating handler answers 303 to the URL the form was
+/* Preserve the scroll position across the navigations the console runs
+   (ADR-0130 §2 and §3). Each mutating handler answers 303 to the URL the form was
    submitted from, so a naive reload lands at the top — jarring on a long screen.
    On submit we stash scrollY keyed by the full URL, pathname plus search, so a
    ?tab=, ?filter= or ?sev= variant of one path never inherits another variant's
@@ -252,10 +252,23 @@ a:hover { text-decoration: underline; }
    never a back/forward. Native back/forward scroll restoration is left alone.
    There is no short freshness budget, because a slow handler can outrun one. The
    stash is single-consume — we remove it before we restore — and a wide 5-minute
-   TTL discards a stash the operator abandoned. */
+   TTL discards a stash the operator abandoned.
+
+   A form is not the only control that re-lists a screen. A tab, a severity
+   filter, a sort header, a pager, a "clear filters" and a drawer open or close
+   are plain <a> links. They never reach the submit listener, so they never
+   stashed. That is ADR-0130 failure class B. A click now stashes too, when the
+   clicked <a>, type=button control or [data-href] row targets this same list:
+   same origin, same pathname, any query.
+
+   The stash goes under the TARGET's key, because the landing page reads that
+   key. A target on another path stashes nothing. That page holds different
+   content, and a scroll reset there is correct. We convert no control to a form,
+   and every control this covers still works with JavaScript off. */
 (function () {
   var STALE_MS = 300000;
-  var K = "verge:scroll:" + location.pathname + location.search;
+  function keyFor(u) { return "verge:scroll:" + u.pathname + u.search; }
+  var K = keyFor(location);
   function isNavigate() {
     try {
       var nav = performance.getEntriesByType("navigation")[0];
@@ -263,6 +276,11 @@ a:hover { text-decoration: underline; }
     } catch (e) {
       return false;
     }
+  }
+  function stash(k) {
+    try {
+      sessionStorage.setItem(k, JSON.stringify({ y: window.scrollY, t: Date.now() }));
+    } catch (e) {}
   }
   try {
     var raw = sessionStorage.getItem(K);
@@ -274,11 +292,31 @@ a:hover { text-decoration: underline; }
   } catch (e) {}
   document.addEventListener("submit", function (ev) {
     var f = ev.target;
-    if (f && (f.method || "").toLowerCase() === "post") {
-      try {
-        sessionStorage.setItem(K, JSON.stringify({ y: window.scrollY, t: Date.now() }));
-      } catch (e) {}
+    if (f && (f.method || "").toLowerCase() === "post") stash(K);
+  }, true);
+  /* A modified click opens a new tab. A target= link and a download= link do
+     the same. A bare "#" href is a script hook the page rewires. None of them
+     navigates this document, so none of them earns a stash. The type=button
+     clause in the selector guards a second case: a kebab or a copy button inside
+     a [data-href] row must not stash the row's target, because that button opens
+     a menu and never navigates. No type=button control in the tree navigates
+     today, so the clause covers the contract rather than a live control. */
+  document.addEventListener("click", function (ev) {
+    if (ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
+    var el = ev.target && ev.target.closest ? ev.target.closest("a[href], button[type=button], [data-href]") : null;
+    if (!el) return;
+    var href = el.getAttribute("data-href") || (el.tagName === "A" ? el.getAttribute("href") : "");
+    if (!href || href.charAt(0) === "#" || el.hasAttribute("download")) return;
+    var tgt = el.getAttribute("target");
+    if (tgt && tgt !== "_self") return;
+    var u;
+    try {
+      u = new URL(href, location.href);
+    } catch (e) {
+      return;
     }
+    if (u.origin !== location.origin || u.pathname !== location.pathname) return;
+    stash(keyFor(u));
   }, true);
 })();
 /* Shell affordances: theme toggle (explicit data-theme override, persisted), the
