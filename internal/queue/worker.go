@@ -635,6 +635,15 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, res wire.Prob
 		if err := foldAddressExclusionWithdrawals(ctx, qtx, batchID, observedAt, membership, w.narrowingCollector(&narrowings)); err != nil {
 			return err
 		}
+		// Close the timelines a WITHDRAWN address Seed takes with it, with the same
+		// `descoped` ground (ADR-0134, #1040) — the other half of the rule CONTEXT.md
+		// states, driven from a `seed_withdrawal` tombstone because the delete destroys
+		// the mover. It runs LAST of the three folds: an address the exclusion
+		// withdrawal already closed is not open, so it is never counted or attributed
+		// twice.
+		if err := foldSeedWithdrawals(ctx, qtx, batchID, observedAt, membership, w.narrowingCollector(&narrowings)); err != nil {
+			return err
+		}
 		// Fold each signal/drift transition into a Message and route it to its bound
 		// channels, in this same transaction (P0.7): a flagship internet-leg move or a
 		// membership entry becomes a Message row and its Deliveries. A no-op unless the

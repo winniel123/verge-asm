@@ -191,3 +191,84 @@ WHERE s.closed_at IS NULL
           AND EXISTS (SELECT 1 FROM withdrawn_addr w WHERE s.subject_key LIKE w.subject_key || ':%'))
   )
 ORDER BY s.subject_key, s.id;
+
+-- name: ListPendingSeedWithdrawals :many
+-- The tombstones of withdrawn address Seeds the membership fold has not spent yet
+-- (ADR-0134 §2, #1040). Each row is the MOVER of one withdrawal: the CIDR the
+-- operator stopped declaring, which is both the mover's identity and the site the
+-- coverage message fires at.
+--
+-- A spent row is filtered out on `consumed_at`, never on `consumed_batch_id`: the
+-- batch FK sets that id NULL if its batch ever goes, and reading the id would then
+-- resurrect the tombstone and withdraw the same ground a second time.
+SELECT w.id, w.address_cidr
+FROM seed_withdrawal w
+WHERE w.consumed_at IS NULL
+ORDER BY w.id;
+
+-- name: ListSeedWithdrawalCandidates :many
+-- Every open timeline a pending Seed-withdrawal tombstone MAY withdraw, for the
+-- membership fold to close with the `descoped` ground (ADR-0134 §5, #1040).
+--
+-- It is the tombstone twin of ListAddressExclusionWithdrawals and carries the same
+-- two CTE shapes, read against `seed_withdrawal` instead of `exclusion`, so the
+-- two narrowing acts remove the same shape of ground.
+--
+-- It answers CANDIDATES. Of ADR-0134 §4's three survivor rules this query applies
+-- ONE — an address a current resolution still cites does not leave, the NOT EXISTS
+-- clause. The other two are decided in Go by composeSeedWithdrawals: a LIVE Seed
+-- covering the address (read from the Seed corpus, never from the tombstone, which
+-- is what settles a second covering Seed and a re-declared scope), and
+-- custody.Estate.Derive still calling the address `operator`, which the
+-- rejected-alternatives table forbids restating outside the package the corpus
+-- locks.
+--
+-- The two limits ListAddressExclusionWithdrawals inherits from
+-- PreviewExclusionWithdrawal are inherited here too, so all three queries bound
+-- the same set. The `~ '^[0-9.]+$'` gate reads IPv4 subject keys alone, and the
+-- resolution test is a substring match over the span value. Both bound the
+-- withdrawal SMALLER than the model asks, never larger: an address that should
+-- have left stays, and none leaves that should have stayed.
+WITH withdrawn_addr AS (
+    SELECT DISTINCT s.subject_key
+    FROM span s
+    WHERE s.closed_at IS NULL
+      AND s.subject_kind = 'address'
+      AND s.subject_key ~ '^[0-9.]+$'
+      AND EXISTS (
+          SELECT 1 FROM seed_withdrawal w
+          WHERE w.consumed_at IS NULL
+            AND s.subject_key::inet <<= w.address_cidr
+      )
+      AND NOT EXISTS (
+          SELECT 1 FROM span r
+          WHERE r.closed_at IS NULL
+            AND r.facet = 'resolution'
+            AND r.is_gap = false
+            AND position(s.subject_key IN r.value::text) > 0
+      )
+)
+SELECT s.id, s.subject_kind, s.subject_key
+FROM span s
+WHERE s.closed_at IS NULL
+  AND (
+      s.subject_key IN (SELECT subject_key FROM withdrawn_addr)
+      OR (s.subject_kind IN ('service', 'endpoint')
+          AND EXISTS (SELECT 1 FROM withdrawn_addr w WHERE s.subject_key LIKE w.subject_key || ':%'))
+  )
+ORDER BY s.subject_key, s.id;
+
+-- name: MarkSeedWithdrawalsConsumed :exec
+-- Spends the tombstones a fold has acted on, stamping the batch that performed the
+-- withdrawal (ADR-0134 §5). It runs after the closures, in the same batch
+-- transaction, so a rolled-back fold spends nothing.
+--
+-- Every tombstone the fold READ is spent, including one that closed nothing. A
+-- withdrawal over ground a live Seed still covers, or ground no open timeline
+-- sits on, has taken everything it was going to take.
+--
+-- `WHERE consumed_at IS NULL` keeps the stamp write-once, so a row cannot be
+-- re-attributed to a later batch.
+UPDATE seed_withdrawal
+SET consumed_at = sqlc.arg(consumed_at), consumed_batch_id = sqlc.arg(consumed_batch_id)
+WHERE consumed_at IS NULL AND id = ANY(sqlc.arg(ids)::bigint[]);

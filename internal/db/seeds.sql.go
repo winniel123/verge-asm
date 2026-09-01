@@ -64,21 +64,6 @@ func (q *Queries) CreateNameSeed(ctx context.Context, arg CreateNameSeedParams) 
 	return i, err
 }
 
-const deleteSeed = `-- name: DeleteSeed :execrows
-DELETE FROM seed WHERE id = $1
-`
-
-// Withdraws a declared Seed by id (#21a: the Scope chip-remove act). A viewer
-// never reaches it (requireAdmin). Idempotent: deleting a row already gone
-// affects zero rows and is not an error, so a stale chip submit is a no-op.
-func (q *Queries) DeleteSeed(ctx context.Context, id int64) (int64, error) {
-	result, err := q.db.Exec(ctx, deleteSeed, id)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
-}
-
 const listSeeds = `-- name: ListSeeds :many
 SELECT s.id, s.kind, s.name_domain, s.address_cidr, s.custody_extension,
        s.created_by, s.created_at, a.username AS created_by_username
@@ -125,4 +110,51 @@ func (q *Queries) ListSeeds(ctx context.Context) ([]ListSeedsRow, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const withdrawSeed = `-- name: WithdrawSeed :one
+WITH removed AS (
+    DELETE FROM seed WHERE seed.id = $1 RETURNING seed.kind, seed.address_cidr
+),
+tombstone AS (
+    INSERT INTO seed_withdrawal (address_cidr, created_by)
+    SELECT r.address_cidr, $2
+    FROM removed r
+    WHERE r.kind = 'address' AND r.address_cidr IS NOT NULL
+    RETURNING 1 AS written
+)
+SELECT
+    (SELECT count(*) FROM removed)::bigint   AS seeds_removed,
+    (SELECT count(*) FROM tombstone)::bigint AS tombstones_written
+`
+
+type WithdrawSeedParams struct {
+	SeedID    int64 `json:"seed_id"`
+	CreatedBy int64 `json:"created_by"`
+}
+
+type WithdrawSeedRow struct {
+	SeedsRemoved      int64 `json:"seeds_removed"`
+	TombstonesWritten int64 `json:"tombstones_written"`
+}
+
+// Withdraws a declared Seed by id (#21a: the Scope chip-remove act), and records
+// the tombstone an ADDRESS withdrawal owes (ADR-0134 §2, #1040). A viewer never
+// reaches it (requireAdmin). Idempotent: withdrawing a row already gone deletes
+// nothing, writes no tombstone and is not an error, so a stale chip submit is a
+// no-op.
+//
+// The delete and the tombstone are ONE statement, so they commit together and no
+// path can leave a withdrawn scope with no mover for the membership fold to name.
+// A data-modifying CTE runs exactly once and always to completion, whether or not
+// the primary query reads it, so `tombstone` fires on its own.
+//
+// The tombstone is written for an `address` Seed alone. A name Seed's withdrawal
+// is a different message contract and stays the gap ADR-0134 §7 names, so it
+// deletes exactly as it did before.
+func (q *Queries) WithdrawSeed(ctx context.Context, arg WithdrawSeedParams) (WithdrawSeedRow, error) {
+	row := q.db.QueryRow(ctx, withdrawSeed, arg.SeedID, arg.CreatedBy)
+	var i WithdrawSeedRow
+	err := row.Scan(&i.SeedsRemoved, &i.TombstonesWritten)
+	return i, err
 }

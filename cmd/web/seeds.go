@@ -416,36 +416,60 @@ func (s *server) deleteSeed(w http.ResponseWriter, r *http.Request, acct db.Acco
 		s.flashScopeBack(w, r, seedsForms{seedError: "That scope could not be found."})
 		return
 	}
-	// Resolve the scope's display string BEFORE the delete so the removal flash can name
-	// it (WORK-ORDER-DOGFOOD-R1 item 2). A stale chip whose row is already gone leaves
-	// scope empty and simply redirects — the delete stays idempotent.
-	scope := s.seedScopeByID(r, id)
-	if _, err := s.store.DeleteSeed(r.Context(), id); err != nil {
-		s.serverError(w, "delete seed", err)
+	// Resolve the scope's display string BEFORE the withdrawal so the removal flash can
+	// name it (WORK-ORDER-DOGFOOD-R1 item 2). A stale chip whose row is already gone
+	// leaves scope empty and simply redirects — the act stays idempotent.
+	scope, isAddress := s.seedScopeByID(r, id)
+	// The delete and the tombstone the withdrawal owes commit together (ADR-0134 §2,
+	// #1040), so no path can leave a withdrawn address scope with no mover for the
+	// membership fold to name.
+	if _, err := s.store.WithdrawSeed(r.Context(), db.WithdrawSeedParams{SeedID: id, CreatedBy: acct.ID}); err != nil {
+		s.serverError(w, "withdraw seed", err)
 		return
 	}
 	if scope == "" {
 		s.backToScope(w, r)
 		return
 	}
-	s.toastRedirectBack(w, r, "/scope", "neutral", "Scope removed",
-		scope+" — nothing new is admitted under it; existing subjects keep their citations.")
+	s.toastRedirectBack(w, r, "/scope", "neutral", "Scope removed", removalFlash(scope, isAddress))
+}
+
+// removalFlash is the sentence the removal toast states about what the act does to
+// the subjects already in the estate. The two limbs answer it differently, so the
+// toast says what is true of the scope the operator actually removed.
+//
+// An ADDRESS scope is now enforcing (ADR-0134). The subjects it alone held leave
+// the estate, and their timelines close with the `descoped` ground on the next
+// completed job. The old copy promised the opposite — "existing subjects keep their
+// citations" — which was a plain statement of the bug.
+//
+// A NAME scope still keeps them. Its Names stop being enumerated, so the fold never
+// revisits them and nothing closes them. That is the gap ADR-0134 §7 names and
+// leaves open, and the toast states it rather than promising a fix that is not
+// built.
+func removalFlash(scope string, isAddress bool) string {
+	if isAddress {
+		return scope + " — nothing new is admitted under it; the subjects it alone held " +
+			"leave the estate on the next completed job."
+	}
+	return scope + " — nothing new is admitted under it; existing subjects keep their citations."
 }
 
 // seedScopeByID returns the display scope for a declared seed id — the address CIDR for
-// an address scope, the domain for a name scope — or "" when no such seed exists. It
-// reuses toSeedViews so the string matches the chip the operator clicked.
-func (s *server) seedScopeByID(r *http.Request, id int64) string {
+// an address scope, the domain for a name scope — and whether it is an address scope,
+// or "" when no such seed exists. It reuses toSeedViews so the string matches the chip
+// the operator clicked.
+func (s *server) seedScopeByID(r *http.Request, id int64) (string, bool) {
 	rows, err := s.store.ListSeeds(r.Context())
 	if err != nil {
-		return ""
+		return "", false
 	}
 	for _, v := range toSeedViews(rows) {
 		if v.ID == id {
-			return v.Scope
+			return v.Scope, v.IsAddress
 		}
 	}
-	return ""
+	return "", false
 }
 
 // refusalView is the spec RefusalCallout (#21a): a declaration the handler refused

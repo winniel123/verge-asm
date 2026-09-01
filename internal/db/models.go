@@ -339,6 +339,15 @@ type Seed struct {
 	CustodyExtension bool               `json:"custody_extension"`
 }
 
+type SeedWithdrawal struct {
+	ID              int64              `json:"id"`
+	AddressCidr     netip.Prefix       `json:"address_cidr"`
+	CreatedBy       int64              `json:"created_by"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	ConsumedAt      pgtype.Timestamptz `json:"consumed_at"`
+	ConsumedBatchID pgtype.Int8        `json:"consumed_batch_id"`
+}
+
 type Session struct {
 	ID         int64              `json:"id"`
 	AccountID  int64              `json:"account_id"`
