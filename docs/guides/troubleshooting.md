@@ -181,7 +181,8 @@ the stack and then fail `verify-full` with a TLS error pointing nowhere near the
 
 A *different* error comes from compose before any container exists, when the variable
 is not set at all: `required variable POSTGRES_SSLROOTCERT_SRC is missing a value`.
-Both guards exist because `docker compose config` catches neither. See
+Both guards exist because neither covers the other: `docker compose config` reports
+the unset variable, and exits 0 on a source path that does not exist. See
 [running.md → An external Postgres](running.md#an-external-postgres-with-a-verified-tls-connection).
 
 ---

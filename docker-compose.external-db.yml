@@ -37,7 +37,8 @@ services:
       # interpolation when the variable is unset. `create_host_path: false`
       # fails at `up` when it is set but wrong — the default is `true`, and a
       # short-syntax bind would silently create an empty DIRECTORY at a
-      # mistyped path. `docker compose config` catches neither.
+      # mistyped path. `docker compose config` exits 0 on a missing source, so
+      # no parse-time gate stands in for the second guard.
       - type: bind
         source: ${POSTGRES_SSLROOTCERT_SRC:?}
         target: /etc/verge/ca/root.crt
@@ -45,6 +46,12 @@ services:
         bind:
           create_host_path: false
 
+  # web and worker repeat the same three variables and the same bind. A YAML
+  # anchor would fold them, and the tidy form is the risky one: an alias over a
+  # fragment holding `!reset` puts a compose-go custom tag inside an alias node,
+  # in the one file whose whole risk surface is merge tags. `<<` also does not
+  # deep-merge, so a later service-local `environment:` would drop the aliased
+  # mapping without a word. The repetition is cheaper than either failure.
   worker:
     depends_on: !reset null
     environment:
