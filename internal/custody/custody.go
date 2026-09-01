@@ -66,9 +66,32 @@ type Estate struct {
 	ExtendedZones []string
 	// Resolutions are the observed direct A/AAAA records of names in the estate.
 	Resolutions []Resolution
-	// EdgeFanout is the `edge-fanout` Scan's measured result. It narrows the
+	// edgeFanout is the `edge-fanout` Scan's measured result. It narrows the
 	// custody extension's reach and reaches NOTHING ELSE (ADR-0129 §4).
-	EdgeFanout EdgeFanout
+	//
+	// It is UNEXPORTED and WithEdgeFanout is the only way to set it. The record
+	// carries a floor that is read per limb (EdgeFanout.ExtensionErrored), and
+	// resolving that floor needs the candidate set — which the assembler holds and
+	// the read path does not. An exported field would let an assembler carry a
+	// measurement in with the floor unresolved, and the failure that produces is
+	// silent: every extension candidate held, for as long as the condition lasts.
+	// The zero value is safe (the extension reaches what it reached before
+	// ADR-0129), so an Estate that never takes a measurement is unharmed.
+	edgeFanout EdgeFanout
+}
+
+// WithEdgeFanout returns e carrying f, with f's extension-limb floor resolved
+// against e's OWN extension candidates. It is the ONE way a measurement enters an
+// Estate.
+//
+// Call it LAST, on an Estate whose ExtendedZones and Resolutions are already set:
+// the floor is read over ExtensionCandidates, and an Estate missing those holds no
+// candidate to measure. The cost is ONE candidate-set build per assembly — a linear
+// pass over the resolutions — which is why the floor lives here and not in
+// coveredByExtension, where it would rebuild the set on every derived address.
+func (e Estate) WithEdgeFanout(f EdgeFanout) Estate {
+	e.edgeFanout = f.overExtension(e.ExtensionCandidates())
+	return e
 }
 
 // Derive returns the Custody of addr, reading the Estate's Seeds alone. The two
@@ -142,7 +165,7 @@ func (e Estate) coveringAddressScope(addr netip.Addr) (netip.Prefix, bool) {
 // same resting state: outside the estate, never a `Subject`, holding no `Custody`
 // value, opening no `Gap` and queueing no probe.
 func (e Estate) coveredByExtension(addr netip.Addr) bool {
-	return e.extensionReaches(addr) && e.EdgeFanout.admits(addr)
+	return e.extensionReaches(addr) && e.edgeFanout.admits(addr)
 }
 
 // extensionReaches reports whether a custody extension REACHES addr, before the

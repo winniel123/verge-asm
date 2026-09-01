@@ -24,7 +24,7 @@ func sharedFanout(shared []string, notShared []string) map[netip.Addr]bool {
 func TestAddressScopeCensusCountsSharedEdgesInScope(t *testing.T) {
 	e := Estate{
 		AddressScopes: []netip.Prefix{cidr("93.184.216.0/24"), cidr("93.184.217.0/24")},
-		EdgeFanout: EdgeFanout{
+		edgeFanout: EdgeFanout{
 			Enabled: true,
 			Shared: sharedFanout(
 				[]string{"93.184.216.7", "93.184.216.9", "93.184.217.4"},
@@ -49,7 +49,7 @@ func TestAddressScopeCensusCountsSharedEdgesInScope(t *testing.T) {
 func TestAddressScopeCensusNoRowWithoutASharedEdge(t *testing.T) {
 	e := Estate{
 		AddressScopes: []netip.Prefix{cidr("93.184.216.0/24")},
-		EdgeFanout: EdgeFanout{
+		edgeFanout: EdgeFanout{
 			Enabled: true,
 			Shared:  sharedFanout(nil, []string{"93.184.216.8", "93.184.216.9"}),
 		},
@@ -65,7 +65,7 @@ func TestAddressScopeCensusNoRowWithoutASharedEdge(t *testing.T) {
 func TestAddressScopeCensusUnmeasuredCarriesNoRow(t *testing.T) {
 	e := Estate{
 		AddressScopes: []netip.Prefix{cidr("93.184.216.0/24")},
-		EdgeFanout:    EdgeFanout{Enabled: true, Shared: map[netip.Addr]bool{}},
+		edgeFanout:    EdgeFanout{Enabled: true, Shared: map[netip.Addr]bool{}},
 	}
 	if got := e.AddressScopeCensus(); len(got) != 0 {
 		t.Fatalf("rows = %+v, want none", got)
@@ -77,7 +77,7 @@ func TestAddressScopeCensusUnmeasuredCarriesNoRow(t *testing.T) {
 func TestAddressScopeCensusScanOutOfForceYieldsNoRow(t *testing.T) {
 	e := Estate{
 		AddressScopes: []netip.Prefix{cidr("93.184.216.0/24")},
-		EdgeFanout: EdgeFanout{
+		edgeFanout: EdgeFanout{
 			Enabled: false,
 			Shared:  sharedFanout([]string{"93.184.216.7"}, nil),
 		},
@@ -92,7 +92,7 @@ func TestAddressScopeCensusScanOutOfForceYieldsNoRow(t *testing.T) {
 func TestAddressScopeCensusIgnoresSharedEdgesOutsideEveryScope(t *testing.T) {
 	e := Estate{
 		AddressScopes: []netip.Prefix{cidr("93.184.216.0/24")},
-		EdgeFanout: EdgeFanout{
+		edgeFanout: EdgeFanout{
 			Enabled: true,
 			Shared:  sharedFanout([]string{"93.184.218.4"}, nil),
 		},
@@ -109,7 +109,7 @@ func TestAddressScopeCensusIgnoresSharedEdgesOutsideEveryScope(t *testing.T) {
 func TestAddressScopeCensusCountsAnOverlapOnBothScopes(t *testing.T) {
 	e := Estate{
 		AddressScopes: []netip.Prefix{cidr("93.184.216.0/24"), cidr("93.184.216.0/25")},
-		EdgeFanout: EdgeFanout{
+		edgeFanout: EdgeFanout{
 			Enabled: true,
 			Shared:  sharedFanout([]string{"93.184.216.7"}, nil),
 		},
@@ -131,7 +131,7 @@ func TestAddressScopeCensusCollapsesADuplicateScope(t *testing.T) {
 	p := cidr("93.184.216.0/24")
 	e := Estate{
 		AddressScopes: []netip.Prefix{p, p},
-		EdgeFanout: EdgeFanout{
+		edgeFanout: EdgeFanout{
 			Enabled: true,
 			Shared:  sharedFanout([]string{"93.184.216.7"}, nil),
 		},
@@ -149,7 +149,7 @@ func TestAddressScopeCensusRowGatesNothing(t *testing.T) {
 	a := netip.MustParseAddr("93.184.216.7")
 	e := Estate{
 		AddressScopes: []netip.Prefix{cidr("93.184.216.0/24")},
-		EdgeFanout: EdgeFanout{
+		edgeFanout: EdgeFanout{
 			Enabled: true,
 			Shared:  sharedFanout([]string{"93.184.216.7"}, nil),
 		},
@@ -171,7 +171,7 @@ func TestAddressScopeCensusRowGatesNothing(t *testing.T) {
 func TestAddressScopeCensusLeavesTheExtensionCensusAlone(t *testing.T) {
 	e := Estate{
 		AddressScopes: []netip.Prefix{cidr("93.184.216.0/24")},
-		EdgeFanout: EdgeFanout{
+		edgeFanout: EdgeFanout{
 			Enabled: true,
 			Shared:  sharedFanout([]string{"93.184.216.7"}, nil),
 		},

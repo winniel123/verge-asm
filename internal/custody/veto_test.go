@@ -16,7 +16,7 @@ func extended(f EdgeFanout) Estate {
 	return Estate{
 		ExtendedZones: []string{"example.com"},
 		Resolutions:   []Resolution{{Owner: "www.example.com", Address: edge}},
-		EdgeFanout:    f,
+		edgeFanout:    f,
 	}
 }
 
@@ -139,7 +139,7 @@ func TestASeedCoveredAddressIsOperatorAtAnyFanOutCount(t *testing.T) {
 	// declaration limb alone.
 	declaredOnly := Estate{
 		AddressScopes: []netip.Prefix{netip.MustParsePrefix("104.16.0.0/13")},
-		EdgeFanout:    measured(true),
+		edgeFanout:    measured(true),
 	}
 	if got := declaredOnly.Derive(edge); got != Operator {
 		t.Fatalf("Derive(%s) on the Seed limb alone = %s, want %s", edge, got, Operator)
@@ -162,7 +162,7 @@ func TestCoversAddressScopeIsUnchangedByTheVeto(t *testing.T) {
 			{Owner: "www.example.com", Address: cited},
 			{Owner: "api.example.com", Address: declared},
 		},
-		EdgeFanout: EdgeFanout{Enabled: true, Shared: map[netip.Addr]bool{cited: true, declared: true}},
+		edgeFanout: EdgeFanout{Enabled: true, Shared: map[netip.Addr]bool{cited: true, declared: true}},
 	}
 	if !e.CoversAddressScope(declared) {
 		t.Fatal("a declared address measured as shared left the address-scope coverage")
@@ -172,7 +172,7 @@ func TestCoversAddressScopeIsUnchangedByTheVeto(t *testing.T) {
 		t.Fatal("an extension-cited address entered the address-scope coverage")
 	}
 	cleared := e
-	cleared.EdgeFanout = EdgeFanout{Enabled: true, Shared: map[netip.Addr]bool{cited: false, declared: false}}
+	cleared.edgeFanout = EdgeFanout{Enabled: true, Shared: map[netip.Addr]bool{cited: false, declared: false}}
 	if cleared.CoversAddressScope(cited) {
 		t.Fatal("clearing the fan-out admitted an extension-cited address to the address-scope coverage")
 	}
@@ -199,7 +199,7 @@ func TestTheVetoFoldsMappedSpellings(t *testing.T) {
 	e := Estate{
 		ExtendedZones: []string{"example.com"},
 		Resolutions:   []Resolution{{Owner: "www.example.com", Address: netip.MustParseAddr("::ffff:104.16.132.229")}},
-		EdgeFanout:    measured(true),
+		edgeFanout:    measured(true),
 	}
 	if got := e.Derive(netip.MustParseAddr("::ffff:104.16.132.229")); got != ThirdParty {
 		t.Fatalf("Derive(mapped) = %s, want %s — the lookup turned on a rendering", got, ThirdParty)
@@ -214,7 +214,7 @@ func TestAClearedMeasurementDoesNotOpenANonGloballyReachableAddress(t *testing.T
 	e := Estate{
 		ExtendedZones: []string{"example.com"},
 		Resolutions:   []Resolution{{Owner: "api.example.com", Address: private}},
-		EdgeFanout:    EdgeFanout{Enabled: true, Shared: map[netip.Addr]bool{private: false}},
+		edgeFanout:    EdgeFanout{Enabled: true, Shared: map[netip.Addr]bool{private: false}},
 	}
 	if got := e.Derive(private); got != ThirdParty {
 		t.Fatalf("Derive(%s) = %s, want %s — a measurement may narrow a reach, never widen one", private, got, ThirdParty)
@@ -228,9 +228,178 @@ func TestAClearedMeasurementDoesNotWidenTheReach(t *testing.T) {
 	e := Estate{
 		ExtendedZones: []string{"example.com"},
 		Resolutions:   []Resolution{{Owner: "edge.provider.net", Address: edge}},
-		EdgeFanout:    measured(false),
+		edgeFanout:    measured(false),
 	}
 	if got := e.Derive(edge); got != ThirdParty {
 		t.Fatalf("Derive(%s) = %s, want %s — a cleared measurement widened the reach", edge, got, ThirdParty)
+	}
+}
+
+// declaredEdge is an address a declared address scope covers, cited by an OUT-of-zone
+// owner. It is a DECLARATION-limb address and never an extension candidate, which is
+// what lets a fixture record a row on one limb alone.
+var declaredEdge = netip.MustParseAddr("23.20.0.20")
+
+// bothLimbs is the estate the per-limb floor exists for: one custody extension whose
+// in-zone name cites `edge`, and one declared address scope covering declaredEdge. The
+// caller supplies the measurement, which WithEdgeFanout takes with its floor resolved.
+func bothLimbs(f EdgeFanout) Estate {
+	return Estate{
+		AddressScopes: []netip.Prefix{netip.MustParsePrefix("23.20.0.0/24")},
+		ExtendedZones: []string{"example.com"},
+		Resolutions: []Resolution{
+			{Owner: "www.example.com", Address: edge},
+			{Owner: "edge.provider.net", Address: declaredEdge},
+		},
+	}.WithEdgeFanout(f)
+}
+
+// A DECLARATION-LIMB ROW ALONE DOES NOT LIFT THE FLOOR (#1018). The Scan is enabled, it
+// completed a Batch, and it measured one declared address and no extension candidate.
+// That is the measurement failing on the limb the veto gates, and it repeats every
+// tick — so the extension limb is errored and REACHES, which is case 4.
+//
+// Before the floor was per limb this estate read as in force: the store held a row, so
+// `edge` stayed unmeasured and was HELD by case 3, silently and for as long as the
+// condition lasted.
+func TestADeclarationLimbRowAloneDoesNotLiftTheFloor(t *testing.T) {
+	e := bothLimbs(EdgeFanout{
+		Enabled:        true,
+		BatchCompleted: true,
+		Shared:         map[netip.Addr]bool{declaredEdge: true},
+	})
+	if got := e.Derive(edge); got != Operator {
+		t.Fatalf("Derive(%s) = %s, want %s — the extension limb measured nothing and must reach", edge, got, Operator)
+	}
+	if !e.MayProbe(edge, ClassInternet) {
+		t.Fatal("MayProbe = false on an errored extension limb — the reach did not open")
+	}
+	// The census reads the same floor, so it names no decline and no hold. A *pending*
+	// row beside a reached address would state a hold that is not happening.
+	if got := e.ExtensionCensus(); len(got) != 0 {
+		t.Fatalf("ExtensionCensus = %+v on an errored limb, want none", got)
+	}
+}
+
+// A Scan that has completed NO BATCH still HOLDS its extension candidates. It is the
+// same estate one bit earlier — the fresh install and the newly-declared extension —
+// and holding here is what keeps the modal all-CDN install from showing
+// appear-then-withdraw churn. The floor must not swallow this case.
+func TestAScanWithNoCompletedBatchStillHoldsItsCandidates(t *testing.T) {
+	e := bothLimbs(EdgeFanout{
+		Enabled: true,
+		Shared:  map[netip.Addr]bool{declaredEdge: true},
+	})
+	if got := e.Derive(edge); got != ThirdParty {
+		t.Fatalf("Derive(%s) = %s, want %s — a Scan that has not run holds, it does not reach", edge, got, ThirdParty)
+	}
+	entries := e.ExtensionCensus()
+	if len(entries) != 1 || entries[0].State != ExtensionPending {
+		t.Fatalf("ExtensionCensus = %+v, want one pending row for the held candidate", entries)
+	}
+}
+
+// ONE MEASURED CANDIDATE LIFTS THE FLOOR, and the rest stay HELD. A partial failure is
+// case 3 doing its job, not the floor failing: the Scan demonstrably measured this
+// limb, so an unmeasured candidate on it is a lag and is bounded by the daily cadence.
+func TestOneMeasuredCandidateLeavesTheRestHeld(t *testing.T) {
+	second := netip.MustParseAddr("93.184.216.34")
+	e := Estate{
+		ExtendedZones: []string{"example.com"},
+		Resolutions: []Resolution{
+			{Owner: "www.example.com", Address: edge},
+			{Owner: "api.example.com", Address: second},
+		},
+	}.WithEdgeFanout(EdgeFanout{
+		Enabled:        true,
+		BatchCompleted: true,
+		Shared:         map[netip.Addr]bool{edge: false},
+	})
+	if got := e.Derive(edge); got != Operator {
+		t.Fatalf("Derive(%s) = %s, want %s — the measured candidate cleared", edge, got, Operator)
+	}
+	if got := e.Derive(second); got != ThirdParty {
+		t.Fatalf("Derive(%s) = %s, want %s — one measured candidate must not open the unmeasured ones", second, got, ThirdParty)
+	}
+}
+
+// THE DECLARATION LIMB IS UNAFFECTED at every floor state. It gates nothing — a
+// declared address is a subject from the declaration and returns from the first limb
+// before the extension is asked — and its LABEL survives too: the errored floor decides
+// one limb's reach and takes no row off the address-scope census.
+func TestTheErroredLimbLeavesTheDeclarationLimbAlone(t *testing.T) {
+	e := bothLimbs(EdgeFanout{
+		Enabled:        true,
+		BatchCompleted: true,
+		Shared:         map[netip.Addr]bool{declaredEdge: true},
+	})
+	if got := e.Derive(declaredEdge); got != Operator {
+		t.Fatalf("Derive(%s) = %s, want %s — a declared address is operator at any fan-out count", declaredEdge, got, Operator)
+	}
+	if !e.MayProbe(declaredEdge, ClassInternet) {
+		t.Fatal("MayProbe = false on a declared address — the floor reached the wrong limb")
+	}
+	entries := e.AddressScopeCensus()
+	if len(entries) != 1 || entries[0].SharedEdges != 1 {
+		t.Fatalf("AddressScopeCensus = %+v, want one scope holding one shared edge — the floor took the row", entries)
+	}
+}
+
+// An estate holding NO EXTENSION CANDIDATES is not errored. There is no limb to
+// measure, so there is no reach to open and nothing the verdict could change — and the
+// declaration limb's census must still render, which reads the Scan's disposition.
+func TestAnEstateWithNoExtensionCandidatesIsNotErrored(t *testing.T) {
+	e := Estate{
+		AddressScopes: []netip.Prefix{netip.MustParsePrefix("23.20.0.0/24")},
+	}.WithEdgeFanout(EdgeFanout{
+		Enabled:        true,
+		BatchCompleted: true,
+		Shared:         map[netip.Addr]bool{declaredEdge: true},
+	})
+	if e.edgeFanout.ExtensionErrored {
+		t.Fatal("an estate with no extension candidates read as errored")
+	}
+	if got := e.AddressScopeCensus(); len(got) != 1 {
+		t.Fatalf("AddressScopeCensus = %+v, want the one scope's row", got)
+	}
+}
+
+// WithEdgeFanout is the ONE way a measurement enters an Estate, and it resolves the
+// floor against the estate's own candidates. The zero Estate takes the zero
+// measurement, which reaches — the pre-ADR-0129 behaviour an Estate assembled without
+// this input must keep.
+func TestWithEdgeFanoutResolvesTheFloorAndTheZeroValueReaches(t *testing.T) {
+	errored := bothLimbs(EdgeFanout{Enabled: true, BatchCompleted: true, Shared: map[netip.Addr]bool{declaredEdge: true}})
+	if !errored.edgeFanout.ExtensionErrored {
+		t.Fatal("WithEdgeFanout left the floor unresolved on an errored extension limb")
+	}
+	// The same record carried in with the candidate set EMPTY — the shape a caller
+	// producing an estate without its resolutions would get — is not errored, which is
+	// why the field is unexported and this is the only setter.
+	if (Estate{}).WithEdgeFanout(EdgeFanout{}).Derive(edge) != ThirdParty {
+		t.Fatal("the zero estate covered an address")
+	}
+	if got := bothLimbs(EdgeFanout{}).Derive(edge); got != Operator {
+		t.Fatalf("Derive(%s) on the zero measurement = %s, want %s — the pre-ADR-0129 behaviour", edge, got, Operator)
+	}
+}
+
+// The resolution is TOTAL: it CLEARS an inbound verdict rather than only ever setting
+// one. A record already resolved over one estate, carried into a second whose candidate
+// IS measured, must read that second estate's answer — otherwise a stale errored
+// reading opens a whole extension limb that nothing errored.
+func TestWithEdgeFanoutClearsAnInboundErroredReading(t *testing.T) {
+	stale := EdgeFanout{
+		Enabled:          true,
+		BatchCompleted:   true,
+		ExtensionErrored: true,
+		Shared:           map[netip.Addr]bool{edge: true},
+	}
+	e := bothLimbs(stale)
+	if e.edgeFanout.ExtensionErrored {
+		t.Fatal("a stale errored reading survived a resolution over a measured candidate")
+	}
+	if got := e.Derive(edge); got != ThirdParty {
+		t.Fatalf("Derive(%s) = %s, want %s — the stale reading opened a measured shared edge", edge, got, ThirdParty)
 	}
 }

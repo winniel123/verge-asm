@@ -155,44 +155,43 @@ func TestEdgeFanoutSANsReadsTheDNSNamesAlone(t *testing.T) {
 	}
 }
 
-// An empty store on a Scan that has ALREADY COMPLETED A BATCH is an ERRORED Scan, not a
-// pending one. It is enabled, it ran, and it recorded nothing — the shape a prober
-// binary older than #982 produces on every tick, forever. The reach opens, which is
-// ADR-0129's fourth absence case and the behaviour before the measurement existed.
+// The completion read is CARRIED OUT rather than acted on here. It is the ERRORED half
+// of ADR-0129's fourth absence case, and since #1018 the floor is read PER LIMB — over
+// the extension candidates, which this package does not hold. So the read path reports
+// what it saw and custody.Estate.WithEdgeFanout decides.
 //
-// Without this floor hold-then-open has none: every in-zone direct-A address would be
-// withheld from every Scan the gate covers, silently and for good.
-func TestToEdgeFanoutOpensTheReachOnAScanThatRunsAndMeasuresNothing(t *testing.T) {
-	got := toEdgeFanout(true, nil)
-	if got.Enabled {
-		t.Fatal("Enabled = true on a Scan that completed a Batch and recorded nothing — the veto has no floor")
-	}
-	if len(got.Shared) != 0 {
-		t.Fatalf("Shared = %v, want empty", got.Shared)
+// A Scan that RUNS and records nothing must not read as disabled here. It is enabled,
+// and flattening the two would lose the disposition the declaration limb's census reads
+// (custody.Estate.AddressScopeCensus).
+func TestToEdgeFanoutCarriesTheCompletionOutToTheAssembler(t *testing.T) {
+	for _, completed := range []bool{true, false} {
+		got := toEdgeFanout(completed, nil)
+		if !got.Enabled {
+			t.Fatalf("completed=%v: Enabled = false — the caller reads the Scan row, not this", completed)
+		}
+		if got.BatchCompleted != completed {
+			t.Fatalf("completed=%v: BatchCompleted = %v, want %v", completed, got.BatchCompleted, completed)
+		}
+		if got.ExtensionErrored {
+			t.Fatalf("completed=%v: ExtensionErrored = true — this package holds no candidate set and may not resolve the floor", completed)
+		}
+		if len(got.Shared) != 0 {
+			t.Fatalf("completed=%v: Shared = %v, want empty", completed, got.Shared)
+		}
 	}
 }
 
-// A Scan that has NOT run yet is pending, never errored. Its candidates are held,
-// bounded by the daily cadence, so a fresh install and a newly-declared extension never
-// show appear-then-withdraw churn.
-func TestToEdgeFanoutHoldsAScanThatHasNotRunYet(t *testing.T) {
-	got := toEdgeFanout(false, nil)
-	if !got.Enabled {
-		t.Fatal("Enabled = false before the Scan has run — a pending Scan must hold, not open")
-	}
-}
-
-// One recorded measurement of ANY kind lifts the floor. The three negatives each record
-// a row, so a run of failed handshakes leaves the Scan in force and its unmeasured
-// candidates held — the floor cannot be reached by a bad network.
-func TestOneMeasurementLiftsTheErroredFloor(t *testing.T) {
+// A DECLARATION-LIMB ROW IS AN ORDINARY KEY. The recording half is blind to which limb
+// a row came from, so the read path hands the derivation every measured address and the
+// estate decides which of them are the gating limb's (#988, #1018).
+func TestToEdgeFanoutCarriesEveryMeasuredAddressWhicheverLimbItCameFrom(t *testing.T) {
 	got := toEdgeFanout(true, []db.ListEdgeFanoutMeasurementsRow{
-		row("104.16.132.229", string(edgefanout.Unreachable), nil),
+		row("198.51.100.7", string(edgefanout.Unreachable), nil),
 	})
-	if !got.Enabled {
-		t.Fatal("Enabled = false with a measurement in the store — a recorded negative is the Scan working")
+	if !got.Enabled || !got.BatchCompleted {
+		t.Fatalf("Enabled = %v, BatchCompleted = %v, want both true", got.Enabled, got.BatchCompleted)
 	}
-	if _, measured := got.Shared[netip.MustParseAddr("104.16.132.229")]; !measured {
+	if _, measured := got.Shared[netip.MustParseAddr("198.51.100.7")]; !measured {
 		t.Fatal("the recorded measurement did not reach the derivation")
 	}
 }

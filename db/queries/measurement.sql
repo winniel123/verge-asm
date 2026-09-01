@@ -242,11 +242,12 @@ ORDER BY subject_key, address;
 -- a terminal outcome, so this asks whether the Scan has actually RUN on this install,
 -- as against being merely enabled.
 --
--- The `edge-fanout` veto reads it to tell its two empty states apart (#985, ADR-0129
--- §4): a Scan that has not run yet, whose candidates are *measurement pending* and are
--- HELD, from a Scan that runs and records nothing, which is an ERRORED Scan and opens
--- the reach. A dead-lettered Batch does not count — it is the job failing, and the tick
--- retries.
+-- The `edge-fanout` veto reads it to tell its two UNMEASURED states apart (#985 as
+-- narrowed by #1018, ADR-0129 §4): a Scan that has not run yet, whose candidates are
+-- *measurement pending* and are HELD, from a Scan that runs and measures no extension
+-- candidate, which is ERRORED on that limb and opens the reach. The floor is read PER
+-- LIMB, so this answers the read path and the estate resolves it. A dead-lettered Batch
+-- does not count — it is the job failing, and the tick retries.
 SELECT EXISTS (
     SELECT 1 FROM batch WHERE kind = $1 AND outcome = 'completed'
 ) AS completed;

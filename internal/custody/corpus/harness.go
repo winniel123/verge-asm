@@ -34,19 +34,21 @@ func (s Step) Estate() custody.Estate {
 	for _, r := range s.Resolutions {
 		res = append(res, custody.Resolution{Owner: r.Owner, Address: netip.MustParseAddr(r.Address).Unmap()})
 	}
-	fanout := custody.EdgeFanout{Enabled: s.ScanInForce}
+	fanout := custody.EdgeFanout{Enabled: s.ScanInForce, BatchCompleted: s.ScanBatchCompleted}
 	if len(s.Observed) > 0 {
 		fanout.Shared = make(map[netip.Addr]bool, len(s.Observed))
 		for addr, sans := range s.Observed {
 			fanout.Shared[netip.MustParseAddr(addr).Unmap()] = custody.SharedEdge(sans)
 		}
 	}
+	// The measurement enters through WithEdgeFanout, exactly as the production
+	// assemblers take it, so the row renders the extension limb's errored floor
+	// (#1018) rather than a state no assembler can produce.
 	return custody.Estate{
 		AddressScopes: scopes,
 		ExtendedZones: s.ExtendedZones,
 		Resolutions:   res,
-		EdgeFanout:    fanout,
-	}
+	}.WithEdgeFanout(fanout)
 }
 
 // observed keys the row's SAN sets by parsed address, so a row's spelling of an

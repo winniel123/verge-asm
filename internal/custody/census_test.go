@@ -18,7 +18,7 @@ func censusEstate(shared map[netip.Addr]bool, scopes ...netip.Prefix) Estate {
 			{Owner: "api.example.com", Address: netip.MustParseAddr("93.184.216.20")},
 			{Owner: "www.example.com", Address: netip.MustParseAddr("93.184.216.30")},
 		},
-		EdgeFanout: EdgeFanout{Enabled: true, Shared: shared},
+		edgeFanout: EdgeFanout{Enabled: true, Shared: shared},
 	}
 }
 
@@ -81,8 +81,7 @@ func TestExtensionCensusDualLimbRow(t *testing.T) {
 // case, the pre-ADR-0129 reach-everything behaviour — so a row here would name a
 // decline that did not happen. The census must never fabricate one.
 func TestExtensionCensusEmptyWhereScanNotInForce(t *testing.T) {
-	e := censusEstate(nil)
-	e.EdgeFanout = EdgeFanout{}
+	e := censusEstate(nil).WithEdgeFanout(EdgeFanout{})
 	if got := e.ExtensionCensus(); len(got) != 0 {
 		t.Errorf("census = %+v on a Scan out of force, want no rows", got)
 	}
@@ -98,7 +97,7 @@ func TestExtensionCensusHoldsTheReachConditions(t *testing.T) {
 			{Owner: "internal.example.com", Address: netip.MustParseAddr("10.0.0.5")},
 			{Owner: "edge.foreign.test", Address: netip.MustParseAddr("93.184.216.40")},
 		},
-		EdgeFanout: EdgeFanout{Enabled: true, Shared: map[netip.Addr]bool{
+		edgeFanout: EdgeFanout{Enabled: true, Shared: map[netip.Addr]bool{
 			netip.MustParseAddr("10.0.0.5"):      true,
 			netip.MustParseAddr("93.184.216.40"): true,
 		}},
@@ -120,7 +119,7 @@ func TestExtensionCensusRowPerCitingName(t *testing.T) {
 			{Owner: "www.example.com", Address: edge},
 			{Owner: "shop.example.com", Address: edge},
 		},
-		EdgeFanout: EdgeFanout{Enabled: true, Shared: map[netip.Addr]bool{edge: true}},
+		edgeFanout: EdgeFanout{Enabled: true, Shared: map[netip.Addr]bool{edge: true}},
 	}
 	got := e.ExtensionCensus()
 	if len(got) != 2 {

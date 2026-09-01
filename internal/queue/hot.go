@@ -117,12 +117,13 @@ func hotEstate(ctx context.Context, q *db.Queries, asOf time.Time) (custody.Esta
 		return custody.Estate{}, nil, err
 	}
 
+	// The measurement goes in LAST, through WithEdgeFanout: its errored floor is read
+	// per limb, over the extension candidates this estate's own resolutions hold.
 	return custody.Estate{
 		AddressScopes: prefixes,
 		ExtendedZones: extended,
 		Resolutions:   resolutions,
-		EdgeFanout:    fanout,
-	}, addrs, nil
+	}.WithEdgeFanout(fanout), addrs, nil
 }
 
 // candidateAddrs is a tier's target set BEFORE the Custody gate, as a lazy

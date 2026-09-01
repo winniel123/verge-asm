@@ -65,7 +65,11 @@ func addressScopeSharedEdges(ctx context.Context, q addressScopeCensusStore) (ma
 		return nil, err
 	}
 
-	estate := custody.Estate{AddressScopes: prefixes, EdgeFanout: fanout}
+	// This estate carries no resolutions, so it holds NO extension candidates and
+	// WithEdgeFanout resolves the extension limb's errored floor to *not errored*
+	// (#1018). That is the right answer for this surface: the floor decides one
+	// limb's reach, and the limb this census reads has none to open.
+	estate := custody.Estate{AddressScopes: prefixes}.WithEdgeFanout(fanout)
 	entries := estate.AddressScopeCensus()
 	if len(entries) == 0 {
 		return nil, nil

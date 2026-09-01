@@ -21,7 +21,7 @@ import "net/netip"
 //
 // It carries NO THRESHOLD and NO VERDICT. SharedEdges is a count of the operator's own
 // declared addresses, and the boundary it was compared against stays inside the
-// versioned derivation (SharedEdgeThreshold, locked by the `custody/v1` corpus).
+// versioned derivation (SharedEdgeThreshold, locked by the `custody/v2` corpus).
 // *You may have over-asserted* is the sentence ADR-0013's nag test forbids, and it is
 // forbidden here. The renderer states the two counts and names the remedy — a `Seed`
 // exclusion, which ADR-0012 already extended to address scopes.
@@ -59,6 +59,12 @@ type AddressScopeCensusEntry struct {
 // A `Scan` that is not in force yields NO ENTRIES AT ALL — EdgeFanout's fourth absence
 // case. The census must never name evidence the Scan does not hold.
 //
+// It reads the Scan's DISPOSITION (Enabled) and never inForce, so the extension limb's
+// errored floor moves nothing here (#1018). That floor decides one limb's REACH, and
+// this limb has no reach to open: a declared address is a subject from the declaration,
+// and the fan-out result labels it. An extension limb that measured nothing takes no
+// row off a scope that measured something.
+//
 // A scope with no measured shared edge yields no entry either. The register's whole
 // worth is that it fires on evidence alone.
 //
@@ -80,7 +86,7 @@ type AddressScopeCensusEntry struct {
 //
 // Entries are in declaration order, so one render matches the next.
 func (e Estate) AddressScopeCensus() []AddressScopeCensusEntry {
-	if !e.EdgeFanout.Enabled {
+	if !e.edgeFanout.Enabled {
 		return nil
 	}
 	scopes := make([]netip.Prefix, 0, len(e.AddressScopes))
@@ -92,7 +98,7 @@ func (e Estate) AddressScopeCensus() []AddressScopeCensusEntry {
 		counts[p] = 0
 		scopes = append(scopes, p)
 	}
-	for addr, shared := range e.EdgeFanout.Shared {
+	for addr, shared := range e.edgeFanout.Shared {
 		if !shared {
 			continue
 		}

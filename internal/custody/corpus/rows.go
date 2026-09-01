@@ -36,8 +36,14 @@ type Step struct {
 	ExtendedZones []string
 	// Resolutions are the observed direct A/AAAA records.
 	Resolutions []Resolution
-	// ScanInForce is `edge-fanout`'s disposition and health together — EdgeFanout.Enabled.
+	// ScanInForce is `edge-fanout`'s DISPOSITION — EdgeFanout.Enabled. False is a
+	// disabled Scan and a Scan whose row is absent.
 	ScanInForce bool
+	// ScanBatchCompleted is whether a Batch of the Scan has ever completed —
+	// EdgeFanout.BatchCompleted. It is what tells the two unmeasured states apart: a
+	// Scan that has not run yet HOLDS its extension candidates, and one that has run
+	// and measured none of them is ERRORED on that limb and reaches (#1018).
+	ScanBatchCompleted bool
 	// Observed maps an address literal to the SAN set the Scan read off its
 	// default certificate. An address ABSENT from this map is measurement
 	// PENDING, which is the whole of the row that pins the hold.
@@ -64,8 +70,11 @@ var AllCells = []string{
 	"C1/below-threshold-reached", "C1/at-threshold-vetoed",
 	// C2 — the `Seed` limb is disjoint from the veto (ADR-0129's #956 amendment)
 	"C2/seed-covered-at-threshold-operator", "C2/seed-covered-stays-a-candidate",
-	// C3 — absence is hold-then-open, and the fall back is the Scan not in force
+	// C3 — absence is hold-then-open, and the fall back is the Scan not in force.
+	// The errored floor is PER LIMB (#1018): a declaration-limb row does not lift it,
+	// and one MEASURED CANDIDATE does.
 	"C3/pending-held", "C3/scan-not-in-force-reaches",
+	"C3/extension-limb-errored-reaches", "C3/measured-candidate-holds-the-rest",
 }
 
 // Rows is the checked-in corpus. Every cell in AllCells appears in some row's
@@ -80,11 +89,12 @@ var Rows = []Row{
 		Claim:        "an edge whose SAN set reduces to 99 distinct registrable domains is not-shared: the custody extension reaches it, it derives operator, and the probing gate opens",
 		SpecVerified: true,
 		Step: Step{
-			ExtendedZones: []string{"example.com"},
-			Resolutions:   []Resolution{{Owner: "www.example.com", Address: "93.184.216.34"}},
-			ScanInForce:   true,
-			Observed:      map[string][]string{"93.184.216.34": SANsBelowThreshold()},
-			Under:         []string{"93.184.216.34"},
+			ExtendedZones:      []string{"example.com"},
+			Resolutions:        []Resolution{{Owner: "www.example.com", Address: "93.184.216.34"}},
+			ScanInForce:        true,
+			ScanBatchCompleted: true,
+			Observed:           map[string][]string{"93.184.216.34": SANsBelowThreshold()},
+			Under:              []string{"93.184.216.34"},
 		},
 		Golden: "below_threshold.ndjson",
 	},
@@ -99,11 +109,12 @@ var Rows = []Row{
 		Claim:        "an edge whose SAN set reduces to 100 distinct registrable domains is shared: the extension declines it, it derives third-party, the gate is shut, and it stays a candidate so a later measurement can lift the veto",
 		SpecVerified: true,
 		Step: Step{
-			ExtendedZones: []string{"example.com"},
-			Resolutions:   []Resolution{{Owner: "www.example.com", Address: "104.16.132.229"}},
-			ScanInForce:   true,
-			Observed:      map[string][]string{"104.16.132.229": SANsAtThreshold()},
-			Under:         []string{"104.16.132.229"},
+			ExtendedZones:      []string{"example.com"},
+			Resolutions:        []Resolution{{Owner: "www.example.com", Address: "104.16.132.229"}},
+			ScanInForce:        true,
+			ScanBatchCompleted: true,
+			Observed:           map[string][]string{"104.16.132.229": SANsAtThreshold()},
+			Under:              []string{"104.16.132.229"},
 		},
 		Golden: "at_threshold.ndjson",
 	},
@@ -134,7 +145,8 @@ var Rows = []Row{
 				{Owner: "www.example.com", Address: "104.16.132.10"},
 				{Owner: "cdn.example.com", Address: "23.20.0.10"},
 			},
-			ScanInForce: true,
+			ScanInForce:        true,
+			ScanBatchCompleted: true,
 			Observed: map[string][]string{
 				"104.16.132.10": SANsAtThreshold(),
 				"23.20.0.10":    SANsAtThreshold(),
@@ -154,22 +166,96 @@ var Rows = []Row{
 	// The row exists because the three rows above all carry a measurement, so
 	// none of them would move if a session flipped the hold to a reach. That is
 	// exactly the silent move the corpus is for.
+	//
+	// `ScanBatchCompleted` is FALSE and load-bearing (#1018). This is the fresh
+	// install: the Scan has not run, so its candidates are genuinely pending and the
+	// errored floor must not fire. The row below is the same estate one completed
+	// Batch later, and it reaches.
 	{
 		Cells:        []string{"C3/pending-held"},
-		Claim:        "an in-force Scan that has not yet measured an edge HOLDS the reach: the address is a candidate, derives third-party, and queues no probe until a handshake clears it",
+		Claim:        "an in-force Scan that has completed no Batch HOLDS the reach: the address is a candidate, derives third-party, and queues no probe until a handshake clears it",
 		SpecVerified: true,
 		Step: Step{
-			ExtendedZones: []string{"example.com"},
-			Resolutions:   []Resolution{{Owner: "www.example.com", Address: "93.184.216.35"}},
-			ScanInForce:   true,
-			Observed:      nil,
-			Under:         []string{"93.184.216.35"},
+			ExtendedZones:      []string{"example.com"},
+			Resolutions:        []Resolution{{Owner: "www.example.com", Address: "93.184.216.35"}},
+			ScanInForce:        true,
+			ScanBatchCompleted: false,
+			Observed:           nil,
+			Under:              []string{"93.184.216.35"},
 		},
 		Golden: "measurement_pending.ndjson",
 	},
 
+	// ---- C3, the errored EXTENSION LIMB ----
+	// The Scan is in force, it has completed a Batch, and it recorded a row on the
+	// DECLARATION limb alone. No extension candidate was measured, so the extension
+	// limb is ERRORED: it reaches every candidate, which is case 4 and the
+	// pre-ADR-0129 behaviour (#1018).
+	//
+	// The estate holds BOTH limbs, because that is the only shape the bug has. The
+	// declared address is cited by an OUT-of-zone owner, so it is a declaration-limb
+	// address and not an extension candidate — a measured candidate would lift the
+	// floor and the row would pin nothing.
+	//
+	// Read this row against `measurement_pending` above. The two estates differ in
+	// ONE bit — whether a Batch has completed — and the extension candidate holds in
+	// the first and reaches here. A session that puts the floor back on the whole
+	// store moves this golden: the declaration-limb row lifts a whole-store floor,
+	// 93.184.216.36 goes back to `third-party`, and the gate names the row.
+	{
+		Cells:        []string{"C3/extension-limb-errored-reaches"},
+		Claim:        "a Scan that completes a Batch and records declaration-limb rows alone is ERRORED on the extension limb: its candidates reach and derive operator, and the declaration limb keeps its own measurement",
+		SpecVerified: true,
+		Step: Step{
+			AddressScopes: []string{"23.20.0.0/24"},
+			ExtendedZones: []string{"example.com"},
+			Resolutions: []Resolution{
+				{Owner: "www.example.com", Address: "93.184.216.36"},
+				{Owner: "edge.provider.net", Address: "23.20.0.20"},
+			},
+			ScanInForce:        true,
+			ScanBatchCompleted: true,
+			Observed:           map[string][]string{"23.20.0.20": SANsAtThreshold()},
+			Under:              []string{"93.184.216.36", "23.20.0.20"},
+		},
+		Golden: "extension_limb_errored.ndjson",
+	},
+
+	// ---- C3, the hold on an ESTABLISHED install ----
+	// The Scan is in force, it has completed a Batch, and it measured ONE of two
+	// extension candidates. That one measured candidate LIFTS the errored floor, so
+	// the other is an ordinary unmeasured candidate and is HELD by case 3.
+	//
+	// This is the row that stops the floor from widening. `measurement_pending` above
+	// pins the hold on an install that has completed no Batch, and a session that
+	// read the new floor as *any unmeasured candidate reaches* would move nothing
+	// there — every candidate in that row is unmeasured and the Scan has not run. It
+	// moves HERE: 93.184.216.38 goes to `operator`, its gate opens, and the golden
+	// and the digest move with it.
+	//
+	// It is also the shape a PARTIAL failure takes. The Scan demonstrably measured
+	// this limb, so a candidate without a row is a lag bounded by the daily cadence
+	// and never an error, and holding it is what the cadence is for.
+	{
+		Cells:        []string{"C3/measured-candidate-holds-the-rest"},
+		Claim:        "one measured extension candidate lifts the errored floor and the rest stay HELD: on an install whose Scan has run this limb, an unmeasured candidate is a lag bounded by the cadence, never a failure",
+		SpecVerified: true,
+		Step: Step{
+			ExtendedZones: []string{"example.com"},
+			Resolutions: []Resolution{
+				{Owner: "www.example.com", Address: "93.184.216.37"},
+				{Owner: "api.example.com", Address: "93.184.216.38"},
+			},
+			ScanInForce:        true,
+			ScanBatchCompleted: true,
+			Observed:           map[string][]string{"93.184.216.37": SANsBelowThreshold()},
+			Under:              []string{"93.184.216.37", "93.184.216.38"},
+		},
+		Golden: "measured_candidate_holds_the_rest.ndjson",
+	},
+
 	// ---- C3, the fall back ----
-	// The Scan is NOT in force — disabled, its row absent, or errored — and a
+	// The Scan's DISPOSITION is off — disabled, or its row absent — and a
 	// shared measurement is on record anyway. Case 4 is the only fall back to
 	// reach-everything, so the extension reaches the address and the address
 	// derives `operator` DESPITE the shared verdict the row still renders. That is
@@ -180,11 +266,12 @@ var Rows = []Row{
 		Claim:        "a Scan that is not in force reaches the address even where a shared measurement is on record: case 4 is the pre-ADR-0129 behaviour and the zero value, so an estate assembled without this input probes what it probed before",
 		SpecVerified: true,
 		Step: Step{
-			ExtendedZones: []string{"example.com"},
-			Resolutions:   []Resolution{{Owner: "www.example.com", Address: "104.16.132.230"}},
-			ScanInForce:   false,
-			Observed:      map[string][]string{"104.16.132.230": SANsAtThreshold()},
-			Under:         []string{"104.16.132.230"},
+			ExtendedZones:      []string{"example.com"},
+			Resolutions:        []Resolution{{Owner: "www.example.com", Address: "104.16.132.230"}},
+			ScanInForce:        false,
+			ScanBatchCompleted: true,
+			Observed:           map[string][]string{"104.16.132.230": SANsAtThreshold()},
+			Under:              []string{"104.16.132.230"},
 		},
 		Golden: "scan_not_in_force.ndjson",
 	},

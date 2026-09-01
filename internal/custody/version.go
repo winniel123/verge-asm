@@ -21,4 +21,9 @@ package custody
 // of it, and the corpus does not take it. Here the constant does ONE job: it
 // names the derivation the lock binds, so a threshold move with no bump fails
 // the A6 gate.
-const Version = "custody/v1"
+// v2 (#1018): the errored floor became PER LIMB. A `Scan` that completes a Batch
+// and measures no EXTENSION CANDIDATE now reaches those candidates, where a
+// declaration-limb row alone used to lift a whole-store floor and leave every
+// candidate held. That is the absence rule moving, which this comment's list makes
+// a `Break` rather than drift.
+const Version = "custody/v2"

@@ -571,7 +571,7 @@ the derivation** — the fan-out threshold, `custody.SharedEdgeThreshold`, fixed
 operator-configurable — and ADR-0008 pins such a number by a corpus row whose output the value
 decides. That is a different obligation with the same instrument, so it gets its own block and its
 own lock, and the two are **never pooled**: a break in the fan-out boundary moves THIS digest and
-bumps `custody/v1`, never `resolution-walk`'s.
+bumps `custody/v2`, never `resolution-walk`'s.
 
 The block also holds a row a `Seed`-covered address appears in. That is not §1 reversed. The row
 pins that the veto does **not** reach the declaration, which is a fact about the derivation and not
@@ -585,10 +585,12 @@ about a membership timeline.
 | `C1/at-threshold-vetoed` | An Observed SAN set reducing to **100** derives `shared`. The extension **declines** the reach, the address derives `third-party`, and the gate is shut |
 | `C2/seed-covered-at-threshold-operator` | A **`Seed`-covered** address whose SAN set reduces to at least 100 derives `operator` and is **reached**. The veto and the declaration are disjoint limbs, never ranked |
 | `C2/seed-covered-stays-a-candidate` | That same address is still an `edge-fanout` candidate. The population reads the **pre-veto** reach, so a later handshake can lift a veto |
-| `C3/pending-held` | An in-force `Scan` that has measured nothing **holds** the reach — neither reaching nor declining. Absence is hold-then-open |
-| `C3/scan-not-in-force-reaches` | A `Scan` that is disabled or errored **reaches** the address even with a shared measurement on record. That is the pre-ADR-0129 behaviour and the zero value |
+| `C3/pending-held` | An in-force `Scan` that has completed **no Batch** holds the reach — neither reaching nor declining. Absence is hold-then-open |
+| `C3/scan-not-in-force-reaches` | A `Scan` that is disabled or whose row is absent **reaches** the address even with a shared measurement on record. That is the pre-ADR-0129 behaviour and the zero value |
+| `C3/extension-limb-errored-reaches` | A `Scan` that completes a Batch and records **declaration-limb rows alone** is errored on the **extension limb**: its candidates reach and derive `operator`, and the declaration limb keeps its own measurement |
+| `C3/measured-candidate-holds-the-rest` | **One measured extension candidate lifts the floor** and the rest stay held. On an install whose `Scan` has run this limb, an unmeasured candidate is a lag bounded by the cadence, never a failure |
 
-**Six is the length of a list, not a target**, on §2.5's rule. It moves when a cell is added or
+**Eight is the length of a list, not a target**, on §2.5's rule. It moves when a cell is added or
 retired.
 
 `C1` is ADR-0085's boundary rule in force: two rows, one on each side, authored as a pair and failing
@@ -596,6 +598,18 @@ as a pair. `C2` is the guard ADR-0129's #956 amendment asks for and is the stron
 leaves behind — a session that "repairs" the apparent inconsistency by making the veto global fails
 this gate at once, on a named row. `C3` exists because every other row carries a measurement, so none
 of them would move if a session flipped the hold to a reach.
+
+`C3/pending-held` and `C3/extension-limb-errored-reaches` are **one bit apart** and are authored as a
+pair. Both hold an in-force `Scan` with no extension-limb measurement; one has completed a Batch and
+one has not. The first holds and the second reaches — the floor is **per limb** since
+[#1018](https://github.com/winniel123/verge-asm/issues/1018), so a declaration-limb row does not lift
+it. A session that puts the floor back on the whole store moves the errored row's golden and the
+digest with it.
+
+`C3/measured-candidate-holds-the-rest` closes that pair's other side. Neither row above moves if a
+session read the new floor as *any unmeasured candidate reaches*, because every candidate in them is
+unmeasured. This row holds a **measured** candidate beside an unmeasured one, so the widening moves
+its golden and is named.
 
 ### 10.3 The row shape, and where the threshold enters
 
@@ -624,7 +638,7 @@ zero — the row is a claim about the **reduction**, not about a list length.
 
 ### 10.4 What A6 tests on this block
 
-`custody.Version` (`custody/v1`) is the derivation's version leaf. The lock binds it to the corpus
+`custody.Version` (`custody/v2`) is the derivation's version leaf. The lock binds it to the corpus
 digest and to the declared-parameter digest — the threshold and the Public Suffix List's own revision
 string, which ADR-0129's [#954](https://github.com/winniel123/verge-asm/issues/954) amendment makes
 the same kind of input as the threshold.
@@ -648,7 +662,7 @@ the [#55](https://github.com/winniel123/verge-asm/issues/55) constraint in force
 
 ### 10.5 Where §10 is thin
 
-- **`custody/v1` composes into no `drift` component vector.** The measure leaves are in that vector
+- **`custody/v2` composes into no `drift` component vector.** The measure leaves are in that vector
   because a `Span` reads their outcomes. Whether `Custody` joins it has an estate-wide `Break` on the
   other side of it, and #986 did not take that decision. Today the constant does one job: it names
   the derivation the lock binds.

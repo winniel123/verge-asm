@@ -264,7 +264,7 @@ func TestEdgeFanoutPopulationLabelsTheDeclarationLimbAndGatesNothing(t *testing.
 	declared := netip.MustParseAddr("104.16.132.1")
 	e := Estate{
 		AddressScopes: []netip.Prefix{netip.MustParsePrefix("104.16.132.0/31")},
-		EdgeFanout:    EdgeFanout{Enabled: true, Shared: map[netip.Addr]bool{declared: true}},
+		edgeFanout:    EdgeFanout{Enabled: true, Shared: map[netip.Addr]bool{declared: true}},
 	}
 	if got := e.Derive(declared); got != Operator {
 		t.Fatalf("Derive(%s) = %s, want %s — a measurement overruled a Declared act", declared, got, Operator)
@@ -294,7 +294,7 @@ func TestAnUnmeasuredDeclaredAddressIsProbedAndCarriesNoRow(t *testing.T) {
 	declared := netip.MustParseAddr("104.16.132.1")
 	e := Estate{
 		AddressScopes: []netip.Prefix{netip.MustParsePrefix("104.16.132.0/31")},
-		EdgeFanout:    EdgeFanout{Enabled: true, Shared: map[netip.Addr]bool{}},
+		edgeFanout:    EdgeFanout{Enabled: true, Shared: map[netip.Addr]bool{}},
 	}
 	if got := e.Derive(declared); got != Operator {
 		t.Fatalf("Derive(%s) = %s, want %s — an unmeasured declared address was held", declared, got, Operator)

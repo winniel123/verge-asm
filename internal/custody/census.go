@@ -29,7 +29,7 @@ const (
 //
 // It carries NO count and NO threshold. The fan-out figure and the boundary it is
 // compared against are parameters of this derivation (SharedEdgeThreshold, locked
-// by the `custody/v1` corpus), and a row that rendered either would put a
+// by the `custody/v2` corpus), and a row that rendered either would put a
 // product-chosen number in front of the operator as if it were their business
 // (ADR-0129 §5, #987).
 type ExtensionCensusEntry struct {
@@ -72,17 +72,22 @@ type ExtensionCensusEntry struct {
 // normally and carries no row, and a *pending* row on every address of every scope on
 // the first day would be noise rather than a census.
 //
-// A Scan that is not in force yields NO ENTRIES AT ALL. Nothing is declined and
-// nothing is held where the measurement does not narrow — that is EdgeFanout's
-// fourth absence case, the pre-ADR-0129 behaviour — so a row here would name a
-// decline that did not happen. The census must never fabricate a row.
+// A Scan that is not in force ON THIS LIMB yields NO ENTRIES AT ALL — disabled, its
+// row absent, or errored over the extension candidates (EdgeFanout.inForce). Nothing
+// is declined and nothing is held where the measurement does not narrow — that is
+// EdgeFanout's fourth absence case, the pre-ADR-0129 behaviour — so a row here would
+// name a decline that did not happen. The census must never fabricate a row.
+//
+// It reads inForce and never Enabled, so the census and the gate cannot disagree about
+// the errored case. An errored extension limb REACHES every candidate, and a *pending*
+// row beside a reached address would name a hold that is not happening (#1018).
 //
 // Entries are one per (Name, Address) pair, in resolution order, so the render is
 // deterministic. Two in-zone names citing the same shared edge are TWO entries:
 // each names its own citing name, which is the one thing the operator can act on.
 // The same name citing the same edge twice is one.
 func (e Estate) ExtensionCensus() []ExtensionCensusEntry {
-	if !e.EdgeFanout.Enabled {
+	if !e.edgeFanout.inForce() {
 		return nil
 	}
 	type pair struct {
@@ -96,7 +101,7 @@ func (e Estate) ExtensionCensus() []ExtensionCensusEntry {
 		if IsNonGloballyReachable(addr) || !e.withinExtendedZone(r.Owner) {
 			continue
 		}
-		shared, measured := e.EdgeFanout.Shared[addr]
+		shared, measured := e.edgeFanout.Shared[addr]
 		if measured && !shared {
 			continue
 		}
