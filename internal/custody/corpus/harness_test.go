@@ -296,6 +296,91 @@ func TestThresholdMoveFailsTheGate(t *testing.T) {
 	// TestCorpusExpectation fails on the golden.
 }
 
+// TestTheExclusionCutsTheSeedLimbAlone states, as a test beside the golden, the
+// guard ADR-0133 §1 asks the corpus to leave behind. It is C2's guard in the other
+// direction: a session that reads *the operator said not mine* and makes the
+// exclusion global would move the extension-reached address off `operator`, and this
+// names what broke before A2's byte diff has to be read.
+func TestTheExclusionCutsTheSeedLimbAlone(t *testing.T) {
+	estate := rowByGolden(t, "excluded_but_extension_reached.ndjson").Step.Estate()
+
+	reached := netipMust(t, "104.16.140.20")
+	if got := estate.Derive(reached); got != custody.Operator {
+		t.Errorf("an excluded address a custody extension ALSO reaches derives %q, not %q.\n"+
+			"The exclusion cut the extension limb. It cuts the `Seed` limb alone: the set an exclusion\n"+
+			"removes is never larger than the set the declaration added (ADR-0133 §1).",
+			got, custody.Operator)
+	}
+	if !estate.MayProbe(reached, custody.ClassInternet) {
+		t.Error("an excluded address the custody extension reaches is not probed: the exclusion reached the extension limb")
+	}
+	if estate.CoversAddressScope(reached) {
+		t.Error("an excluded address still reads as address-scope covered: the exclusion did not narrow the Seed limb at all")
+	}
+
+	sibling := netipMust(t, "104.16.140.21")
+	if got := estate.Derive(sibling); got != custody.ThirdParty {
+		t.Errorf("the excluded sibling no extension reaches derives %q, not %q: the exclusion stopped working", got, custody.ThirdParty)
+	}
+	if estate.MayProbe(sibling, custody.ClassInternet) {
+		t.Error("the excluded sibling is still probed: the gate does not read the narrowed limb")
+	}
+}
+
+// TestRemovingTheExclusionRestoresOperator reads the C4 pair as a pair. The two
+// estates differ in ONE bit — whether the exclusion is declared — so the refusal in
+// the first is provably the exclusion and not the fixture.
+func TestRemovingTheExclusionRestoresOperator(t *testing.T) {
+	addr := netipMust(t, "93.184.217.5")
+
+	excluded := rowByGolden(t, "excluded_inside_a_scope.ndjson").Step.Estate()
+	if got := excluded.Derive(addr); got != custody.ThirdParty {
+		t.Errorf("an address inside a declared scope and inside an exclusion derives %q, not %q", got, custody.ThirdParty)
+	}
+	if excluded.MayProbe(addr, custody.ClassInternet) {
+		t.Error("an excluded address is still probed from an internet-class Vantage")
+	}
+
+	restored := rowByGolden(t, "exclusion_removed.ndjson").Step.Estate()
+	if got := restored.Derive(addr); got != custody.Operator {
+		t.Errorf("the same address with the exclusion ABSENT derives %q, not %q.\n"+
+			"The pair no longer straddles the exclusion, so the refused row above pins the fixture rather than the exclusion.",
+			got, custody.Operator)
+	}
+	if !restored.MayProbe(addr, custody.ClassInternet) {
+		t.Error("the same address with the exclusion absent is not probed: the pair pins nothing")
+	}
+}
+
+// TestExcludedAddressLeavesTheFanOutPopulation pins ADR-0133 §3's cost half on the
+// declaration limb: the walk stops yielding an excluded address, and keeps yielding
+// the extension candidate the exclusion does not reach.
+func TestExcludedAddressLeavesTheFanOutPopulation(t *testing.T) {
+	estate := rowByGolden(t, "excluded_but_extension_reached.ndjson").Step.Estate()
+	var got []netip.Addr
+	for a := range estate.EdgeFanoutPopulation() {
+		got = append(got, a)
+	}
+	want := []netip.Addr{netipMust(t, "104.16.140.20")}
+	if len(got) != len(want) || got[0] != want[0] {
+		t.Errorf("the fan-out population is %v, want %v: an excluded address is out of the DECLARATION limb, and an extension candidate stays in", got, want)
+	}
+}
+
+// rowByGolden finds a checked-in row by its golden filename, failing the test where
+// the row is gone — so a deleted row reads as a named failure rather than as an
+// assertion against a zero Estate that quietly passes.
+func rowByGolden(t *testing.T, golden string) Row {
+	t.Helper()
+	for _, r := range Rows {
+		if r.Golden == golden {
+			return r
+		}
+	}
+	t.Fatalf("the row for golden %s is gone, and the guard it carries went with it", golden)
+	return Row{}
+}
+
 // netipMust parses an address literal for a test, failing the test rather than
 // panicking, so a bad literal reads as this test's failure and not as a crash
 // inside the corpus package.

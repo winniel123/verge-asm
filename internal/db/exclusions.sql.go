@@ -75,6 +75,41 @@ func (q *Queries) DeleteExclusion(ctx context.Context, id int64) error {
 	return err
 }
 
+const listAddressExclusionCidrs = `-- name: ListAddressExclusionCidrs :many
+SELECT address_cidr
+FROM exclusion
+WHERE kind = 'address' AND address_cidr IS NOT NULL
+ORDER BY id
+`
+
+// The declared `address` exclusion CIDRs, for the Custody derivation: an address
+// inside one is NOT covered by the address-scope limb, so it derives third-party
+// unless a custody extension also reaches it (ADR-0012 §125, ADR-0133 §1).
+//
+// It is a separate query from ListExclusions on purpose. That one returns all three
+// kinds joined to `account` for the chip render, and this is a batch-time read that
+// wants the CIDRs alone. It is the address twin of measurement.sql's
+// ListAddressScopeCidrs and mirrors its shape read for read.
+func (q *Queries) ListAddressExclusionCidrs(ctx context.Context) ([]*netip.Prefix, error) {
+	rows, err := q.db.Query(ctx, listAddressExclusionCidrs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []*netip.Prefix{}
+	for rows.Next() {
+		var address_cidr *netip.Prefix
+		if err := rows.Scan(&address_cidr); err != nil {
+			return nil, err
+		}
+		items = append(items, address_cidr)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listExclusions = `-- name: ListExclusions :many
 SELECT e.id, e.kind, e.name, e.address_cidr, e.created_by, e.created_at,
        a.username AS created_by_username

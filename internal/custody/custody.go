@@ -78,6 +78,53 @@ type Estate struct {
 	// The zero value is safe (the extension reaches what it reached before
 	// ADR-0129), so an Estate that never takes a measurement is unharmed.
 	edgeFanout EdgeFanout
+	// addressExclusions are the CIDRs of declared `address` exclusions — the
+	// operator's *not mine* claim over a range (ADR-0012 §125, ADR-0133 §1). They
+	// narrow the ADDRESS-SCOPE limb and NOTHING ELSE. An address an exclusion covers
+	// that a custody extension ALSO reaches still derives operator and is still
+	// probed: the set an exclusion removes is never larger than the set the
+	// declaration added, and *not mine* is a claim about the operator's own
+	// declaration rather than about their own name resolving at the address.
+	//
+	// It is UNEXPORTED and WithAddressExclusions is the only way to set it, for the
+	// reason edgeFanout gives above. Three sites build an Estate literal, and a new
+	// EXPORTED field is silently zero at each of them with no compiler error. The
+	// zero value means NO EXCLUSIONS, which is the safe reading for an assembler
+	// that has not opted in: it derives what it derived before ADR-0133.
+	addressExclusions []netip.Prefix
+}
+
+// WithAddressExclusions returns e carrying the declared `address` exclusions. It is
+// the ONE way an exclusion enters an Estate (ADR-0133 §2).
+//
+// The prefixes need no masking. Containment is netip.Prefix.Contains, which compares
+// the prefix-length bits alone, so a prefix carrying host bits covers the same
+// addresses a masked one does.
+func (e Estate) WithAddressExclusions(prefixes []netip.Prefix) Estate {
+	e.addressExclusions = prefixes
+	return e
+}
+
+// AddressExcluded reports whether a declared `address` exclusion covers addr.
+// Containment is the family-matched prefix comparison coveringAddressScope already
+// applies to a scope, never a comparison over a spelling (CONTEXT.md `Seed`).
+//
+// It is EXPORTED because the two fan-out enumerators outside this package need it.
+// queue.candidateAddrs walks the COLD tier's opted-in prefixes rather than this
+// Estate's scopes, so it cannot reach the exclusion through the coverage predicate
+// (ADR-0133 §3).
+//
+// It answers about the SEED LIMB ALONE, and it is NOT a probing verdict. An address
+// it returns true for is still probed where a custody extension reaches it, so no
+// gate may read it in place of Derive or MayProbe.
+func (e Estate) AddressExcluded(addr netip.Addr) bool {
+	addr = addr.Unmap()
+	for _, p := range e.addressExclusions {
+		if p.Contains(addr) {
+			return true
+		}
+	}
+	return false
 }
 
 // WithEdgeFanout returns e carrying f, with f's extension-limb floor resolved
@@ -123,6 +170,17 @@ func (e Estate) Derive(addr netip.Addr) Custody {
 // by an extension (CONTEXT.md `Vantage class`), so admitting extension-covered
 // addresses here would corrupt the class. addr is Unmap'ed to match the family-agnostic
 // containment, mirroring exposure.VerifyClass's own covered(a.Unmap()).
+//
+// IT NARROWS WITH THE DERIVATION, and that is INTENDED (ADR-0133 §4). Routing through
+// coveredByAddressScope means a declared `address` exclusion takes its addresses out of
+// this predicate too, so a vantage whose egress sits inside an excluded range stops
+// being covered and exposure.VerifyClass may reclassify it. The consequence is
+// consistent on its own terms: the operator has said the range is not theirs, so a
+// prober inside it is not inside the estate.
+//
+// DO NOT add a second, un-narrowed predicate to avoid the reclassification. #711's
+// invariant is ONE binding used identically by batch gating and every render, and two
+// coverage rules would have to be held in step by hand from then on.
 func (e Estate) CoversAddressScope(addr netip.Addr) bool {
 	return e.coveredByAddressScope(addr.Unmap())
 }
@@ -144,7 +202,17 @@ func (e Estate) coveredByAddressScope(addr netip.Addr) bool {
 // FIRST match, not most specific. Two overlapping scopes both cover the address
 // and the derivation is the same either way; picking between them would be a
 // specificity test, which this package refuses (see EdgeFanout).
+//
+// A declared `address` EXCLUSION answers first, and answers NOT COVERED (ADR-0133
+// §1). This is the whole of the exclusion limb, and putting it HERE is what keeps
+// the narrowing to the `Seed` limb: Derive asks coveredByExtension afterwards, so an
+// excluded address a custody extension reaches still derives operator and is still
+// probed. A refusal placed in MayProbe instead would shut the gate over that address
+// too, which is the semantics ADR-0133 rejects.
 func (e Estate) coveringAddressScope(addr netip.Addr) (netip.Prefix, bool) {
+	if e.AddressExcluded(addr) {
+		return netip.Prefix{}, false
+	}
 	for _, p := range e.AddressScopes {
 		if p.Contains(addr) {
 			return p, true

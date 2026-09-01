@@ -47,7 +47,7 @@ func (d *Dispatcher) fanOutHot(ctx context.Context, scanID, dispatchID int64) (i
 	if err != nil {
 		return 0, err
 	}
-	addrs := candidateAddrs(resolved, estate.AddressScopes)
+	addrs := candidateAddrs(resolved, estate.AddressScopes, estate.AddressExcluded)
 	jobs := scan.BuildHotJobs(scanID, estate, addrs, vantages.scanVantages(), core)
 	return streamEnqueue(ctx, d, jobs, func(ctx context.Context, qtx *db.Queries, j scan.HotJob) error {
 		return enqueueHotJob(ctx, qtx, scanID, dispatchID, j)
@@ -117,13 +117,20 @@ func hotEstate(ctx context.Context, q *db.Queries, asOf time.Time) (custody.Esta
 		return custody.Estate{}, nil, err
 	}
 
+	excluded, err := ReadAddressExclusions(ctx, q)
+	if err != nil {
+		return custody.Estate{}, nil, err
+	}
+
 	// The measurement goes in LAST, through WithEdgeFanout: its errored floor is read
 	// per limb, over the extension candidates this estate's own resolutions hold.
+	// The exclusions go in before it — they narrow the address-scope limb and the
+	// floor reads the extension limb, so the two do not interact (ADR-0133 §1).
 	return custody.Estate{
 		AddressScopes: prefixes,
 		ExtendedZones: extended,
 		Resolutions:   resolutions,
-	}.WithEdgeFanout(fanout), addrs, nil
+	}.WithAddressExclusions(excluded).WithEdgeFanout(fanout), addrs, nil
 }
 
 // candidateAddrs is a tier's target set BEFORE the Custody gate, as a lazy
@@ -145,7 +152,23 @@ func hotEstate(ctx context.Context, q *db.Queries, asOf time.Time) (custody.Esta
 // total (ADR-0019): every enumerated candidate is an operator address, but the
 // denotation precondition can still bar a non-globally-reachable one from an
 // internet-class Vantage.
-func candidateAddrs(resolved []netip.Addr, scopes []netip.Prefix) iter.Seq[netip.Addr] {
+//
+// excluded is custody.Estate.AddressExcluded — the declared `address` exclusions
+// (ADR-0133 §3). It skips an excluded address out of the SCOPE ENUMERATION alone and
+// never out of the resolved set: an exclusion cuts the `Seed` limb, so an excluded
+// address a custody extension reaches is still an operator address and is still
+// probed. Filtering the resolved set would take it out of the target set entirely,
+// which is a removal larger than the declaration the exclusion narrows.
+//
+// The gate refuses an excluded address either way, so this skip is for COST: an
+// excluded /16 inside a declared /8 is 65,536 addresses walked per tick and refused
+// one at a time. A nil predicate means no exclusions.
+//
+// The CALLER passes it, and the cold tier has to pass it explicitly: fanOutCold
+// enumerates coldScope's opted-in prefixes rather than the Estate's scopes, so a
+// change that reached only the hot path would leave the cold sweep walking the
+// excluded range.
+func candidateAddrs(resolved []netip.Addr, scopes []netip.Prefix, excluded func(netip.Addr) bool) iter.Seq[netip.Addr] {
 	return func(yield func(netip.Addr) bool) {
 		seen := make(map[netip.Addr]struct{}, len(resolved))
 		for _, a := range resolved {
@@ -163,6 +186,9 @@ func candidateAddrs(resolved []netip.Addr, scopes []netip.Prefix) iter.Seq[netip
 				a = a.Unmap()
 				if _, ok := seen[a]; ok {
 					continue // an address a name already resolved to — probed once
+				}
+				if excluded != nil && excluded(a) {
+					continue // the operator declared this range is not theirs
 				}
 				if !yield(a) {
 					return

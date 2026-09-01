@@ -176,6 +176,56 @@ func mustNameFacts(t *testing.T, s *server, r *http.Request) []signal.NameFacts 
 	return facts
 }
 
+// addressScopeCovered narrows with the derivation (ADR-0133 §4). A declared `address`
+// exclusion takes its addresses out of the `covered` predicate the Vantage-class
+// derivation binds, and this is the RECLASSIFICATION that follows: a vantage whose
+// dialled address sat inside a covered range and now sits inside an excluded one
+// derives `internet` rather than `internal`.
+//
+// The consequence is accepted rather than worked around. #711's invariant is ONE
+// binding used identically by batch gating and every render, so there is no second,
+// un-narrowed predicate for classification alone.
+func TestAddressScopeCoveredNarrowsByAnAddressExclusion(t *testing.T) {
+	// The fake's ListAddressScopeCidrs always returns the 10.0.0.0/8 convention scope.
+	inside := netip.MustParseAddr("10.200.0.1")
+	outside := netip.MustParseAddr("10.0.0.5")
+
+	f := newFakeStore()
+	s := newServer(f, testKey, "", fixedClock())
+
+	covered, err := s.addressScopeCovered(t.Context())
+	if err != nil {
+		t.Fatalf("addressScopeCovered: %v", err)
+	}
+	if !covered(inside) || !covered(outside) {
+		t.Fatal("both fixtures must start covered by the convention scope, or the row below pins nothing")
+	}
+	classes := deriveVantageClasses([]db.Vantage{{ID: 1, DialledAddr: pgtype.Text{String: inside.String(), Valid: true}}}, covered)
+	if classes[1] != custody.ClassInternal {
+		t.Fatalf("class = %q, want %q before the exclusion is declared", classes[1], custody.ClassInternal)
+	}
+
+	excl := netip.MustParsePrefix("10.200.0.0/24")
+	if _, err := f.CreateAddressExclusion(t.Context(), db.CreateAddressExclusionParams{AddressCidr: &excl, CreatedBy: 1}); err != nil {
+		t.Fatalf("declare the exclusion: %v", err)
+	}
+
+	covered, err = s.addressScopeCovered(t.Context())
+	if err != nil {
+		t.Fatalf("addressScopeCovered after the exclusion: %v", err)
+	}
+	if covered(inside) {
+		t.Error("an address inside a declared exclusion still reads as address-scope covered: the class predicate did not narrow")
+	}
+	if !covered(outside) {
+		t.Error("an address the exclusion does not cover lost its coverage: the exclusion removed more than it names")
+	}
+	classes = deriveVantageClasses([]db.Vantage{{ID: 1, DialledAddr: pgtype.Text{String: inside.String(), Valid: true}}}, covered)
+	if classes[1] != custody.ClassInternet {
+		t.Errorf("class = %q, want %q: a vantage inside a newly excluded range reclassifies (ADR-0133 §4)", classes[1], custody.ClassInternet)
+	}
+}
+
 func serviceRule(t *testing.T, name string) signal.ServiceRule {
 	t.Helper()
 	for _, r := range signal.AllServiceRules() {

@@ -26,6 +26,10 @@ type fakeMessageStore struct {
 	inserted    []db.InsertMessageParams
 	nextID      int64
 	touchedRead bool
+	// addressExclusions are the declared `address` exclusions the class predicate
+	// narrows by (ADR-0133 §4). Nil in every fixture here, so the convention scope
+	// covers what it covered before.
+	addressExclusions []*netip.Prefix
 }
 
 func (f *fakeMessageStore) PreviousBatchTime(context.Context) (pgtype.Timestamptz, error) {
@@ -56,6 +60,13 @@ func (f *fakeMessageStore) InsertMessage(_ context.Context, arg db.InsertMessage
 func (f *fakeMessageStore) ListAddressScopeCidrs(context.Context) ([]*netip.Prefix, error) {
 	p := netip.MustParsePrefix("10.0.0.0/8")
 	return []*netip.Prefix{&p}, nil
+}
+
+// ListAddressExclusionCidrs returns the declared `address` exclusions, which narrow
+// that same predicate (ADR-0133 §4). The fixtures declare none, so the convention
+// scope covers what it covered before.
+func (f *fakeMessageStore) ListAddressExclusionCidrs(context.Context) ([]*netip.Prefix, error) {
+	return f.addressExclusions, nil
 }
 
 // dialledInternet is an uncovered public address (derives `internet`); dialledInternal

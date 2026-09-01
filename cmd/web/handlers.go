@@ -146,6 +146,13 @@ type store interface {
 	// the same custody.Estate{AddressScopes} from it to offer `covered` to the class
 	// derivation (#709), so batch and render classify against one identical corpus.
 	ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error)
+	// ListAddressExclusionCidrs reads the declared `address` exclusion CIDRs, which
+	// NARROW that same predicate (ADR-0133 §4): an address inside one is covered by
+	// no address scope, so a vantage whose egress sits there stops being covered.
+	// It is also what clears the address-scope census row (addressscopecensus.go).
+	// Reached through queue.ReadAddressExclusions, the one read path, so this surface
+	// and the batch gate cannot read a different exclusion set.
+	ListAddressExclusionCidrs(ctx context.Context) ([]*netip.Prefix, error)
 	// The other reads the custody-extension census assembles its Estate from (#987,
 	// custodycensus.go): the custody-extended zones, the current cited addresses
 	// through the live-tier gate, and — with GetScanByKind below —

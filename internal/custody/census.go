@@ -29,7 +29,7 @@ const (
 //
 // It carries NO count and NO threshold. The fan-out figure and the boundary it is
 // compared against are parameters of this derivation (SharedEdgeThreshold, locked
-// by the `custody/v2` corpus), and a row that rendered either would put a
+// by the `custody/v3` corpus), and a row that rendered either would put a
 // product-chosen number in front of the operator as if it were their business
 // (ADR-0129 §5, #987).
 type ExtensionCensusEntry struct {

@@ -614,6 +614,15 @@ type Querier interface {
 	// A Dispatch whose jobs were retired to NULL by the Dispatch sweep (ADR-0041) counts
 	// zero in-flight jobs, so it falls to the history read rather than pinning here.
 	ListActiveDispatchProgress(ctx context.Context) ([]ListActiveDispatchProgressRow, error)
+	// The declared `address` exclusion CIDRs, for the Custody derivation: an address
+	// inside one is NOT covered by the address-scope limb, so it derives third-party
+	// unless a custody extension also reaches it (ADR-0012 §125, ADR-0133 §1).
+	//
+	// It is a separate query from ListExclusions on purpose. That one returns all three
+	// kinds joined to `account` for the chip render, and this is a batch-time read that
+	// wants the CIDRs alone. It is the address twin of measurement.sql's
+	// ListAddressScopeCidrs and mirrors its shape read for read.
+	ListAddressExclusionCidrs(ctx context.Context) ([]*netip.Prefix, error)
 	// The declared address-scope Seeds, for the hot Scan's Custody derivation: every
 	// address inside one derives operator directly (ADR-0013).
 	ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error)
