@@ -118,6 +118,62 @@ func TestExtensionCandidatesAgreeWithExtensionReaches(t *testing.T) {
 	}
 }
 
+// THE CENSUS ASKS ABOUT NOTHING BUT THE CANDIDATES, and that is what makes a measurement
+// read BOUND to the candidate set safe (#1036). `/scope` reads the store through
+// queue.EdgeFanoutOver(estate.ExtensionCandidates()), so a key ExtensionCensus looked up
+// from outside that set would simply be missing — and a missing key is *measurement
+// pending*, which the derivation HOLDS. The decline would become a hold, in silence.
+//
+// The two are written apart: ExtensionCensus walks the resolutions applying the two
+// conditions itself, and ExtensionCandidates applies the same two over the same slice.
+// This pins them together, so a session that widens one and not the other is told here
+// rather than in a render nobody can read the fault off.
+//
+// The estate carries the addresses the census must NOT ask about, one of each kind: an
+// address covered by a declared scope but cited by a foreign owner, and a
+// non-globally-reachable one.
+func TestExtensionCensusAsksOnlyAboutExtensionCandidates(t *testing.T) {
+	e := Estate{
+		AddressScopes: []netip.Prefix{netip.MustParsePrefix("23.20.0.0/24")},
+		ExtendedZones: []string{"example.com"},
+		Resolutions: []Resolution{
+			{Owner: "www.example.com", Address: netip.MustParseAddr("93.184.216.34")},
+			{Owner: "cdn.example.com", Address: netip.MustParseAddr("104.16.132.10")},
+			{Owner: "edge.provider.net", Address: netip.MustParseAddr("23.20.0.10")},
+			{Owner: "int.example.com", Address: netip.MustParseAddr("10.0.0.5")},
+		},
+	}
+	candidates := map[netip.Addr]bool{}
+	for _, a := range e.ExtensionCandidates() {
+		candidates[a] = true
+	}
+	if len(candidates) == 0 {
+		t.Fatal("no candidates at all — the fixture proves nothing")
+	}
+
+	// The measurement is IN FORCE and measures nothing, so every candidate is pending
+	// and the census names each of them. That is the widest address set the census can
+	// ask about, which is what makes this the whole test rather than a sample.
+	//
+	// The floor is left unresolved on purpose: WithEdgeFanout over an estate holding
+	// candidates and a completed Batch would read the limb as errored, the census would
+	// return nothing, and the assertion below would pass over an empty set.
+	e = e.WithEdgeFanout(EdgeFanout{Enabled: true})
+	asked := map[netip.Addr]bool{}
+	for _, entry := range e.ExtensionCensus() {
+		if !candidates[entry.Address] {
+			t.Fatalf("the census asked about %s, which is not an extension candidate: "+
+				"a read bound to the candidate set would hold it (#1036)", entry.Address)
+		}
+		asked[entry.Address] = true
+	}
+	// The count is asserted the other way round too, so a census that quietly stopped
+	// naming a candidate cannot pass this by asking about nothing at all.
+	if len(asked) != len(candidates) {
+		t.Fatalf("the census asked about %d addresses over %d candidates", len(asked), len(candidates))
+	}
+}
+
 // An instance with no custody extension has an empty candidate set. It is a legible
 // state, not an error: the dispatcher enqueues no job and the Scan records an empty
 // scope. A declared address scope is the OTHER limb of membership and contributes no

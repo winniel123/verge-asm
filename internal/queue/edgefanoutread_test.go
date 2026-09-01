@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math/big"
 	"net/netip"
+	"slices"
 	"testing"
 	"time"
 
@@ -391,6 +392,15 @@ type fakeEdgeFanoutStore struct {
 	// It is a slice of calls, not a set, so a test can pin that an EMPTY set is not
 	// asked for at all rather than asked for and answered with nothing.
 	materialAsked [][]string
+
+	// boundsAsked records every address bound the measurement read was called with, and
+	// unboundReads counts the calls that took the whole store instead (#1036). Together
+	// they pin WHICH of the two queries a bound reached, so a test can hold that an
+	// empty bound issues no query rather than falling back to the unbound read.
+	boundsAsked  [][]string
+	unboundReads int
+	// rowsErr poses the measurement read's own failure.
+	rowsErr error
 }
 
 func (f *fakeEdgeFanoutStore) GetScanByKind(context.Context, string) (db.Scan, error) {
@@ -398,7 +408,35 @@ func (f *fakeEdgeFanoutStore) GetScanByKind(context.Context, string) (db.Scan, e
 }
 
 func (f *fakeEdgeFanoutStore) ListEdgeFanoutMeasurements(context.Context) ([]db.ListEdgeFanoutMeasurementsRow, error) {
+	f.unboundReads++
+	if f.rowsErr != nil {
+		return nil, f.rowsErr
+	}
 	return f.rows, nil
+}
+
+// ListEdgeFanoutMeasurementsOver mirrors the SQL's `address = ANY(...)` over the same
+// posed rows (#1036). It FILTERS, so a bound that dropped a row the caller needed is
+// visible here exactly as it would be against the database.
+func (f *fakeEdgeFanoutStore) ListEdgeFanoutMeasurementsOver(_ context.Context, addresses []string) ([]db.ListEdgeFanoutMeasurementsOverRow, error) {
+	f.boundsAsked = append(f.boundsAsked, addresses)
+	if f.rowsErr != nil {
+		return nil, f.rowsErr
+	}
+	want := make(map[string]struct{}, len(addresses))
+	for _, a := range addresses {
+		want[a] = struct{}{}
+	}
+	out := []db.ListEdgeFanoutMeasurementsOverRow{}
+	for _, r := range f.rows {
+		if _, asked := want[r.Address]; !asked {
+			continue
+		}
+		out = append(out, db.ListEdgeFanoutMeasurementsOverRow{
+			Address: r.Address, Outcome: r.Outcome, Fingerprint: r.Fingerprint,
+		})
+	}
+	return out, nil
 }
 
 func (f *fakeEdgeFanoutStore) ListCertificateMaterialDER(_ context.Context, fingerprints []string) ([]db.ListCertificateMaterialDERRow, error) {
@@ -430,7 +468,7 @@ func TestReadEdgeFanoutReadsEachDistinctCertificateOnce(t *testing.T) {
 		material: []db.ListCertificateMaterialDERRow{{Fingerprint: fp, Der: der}},
 	}
 
-	got, err := ReadEdgeFanout(context.Background(), f)
+	got, err := ReadEdgeFanout(context.Background(), f, EdgeFanoutUnbounded())
 	if err != nil {
 		t.Fatalf("ReadEdgeFanout: %v", err)
 	}
@@ -459,7 +497,7 @@ func TestReadEdgeFanoutSkipsTheMaterialReadWhereNoRowNamesACertificate(t *testin
 		},
 	}
 
-	got, err := ReadEdgeFanout(context.Background(), f)
+	got, err := ReadEdgeFanout(context.Background(), f, EdgeFanoutUnbounded())
 	if err != nil {
 		t.Fatalf("ReadEdgeFanout: %v", err)
 	}
@@ -486,7 +524,7 @@ func TestReadEdgeFanoutReturnsTheMaterialReadsFailure(t *testing.T) {
 		materialErr: boom,
 	}
 
-	got, err := ReadEdgeFanout(context.Background(), f)
+	got, err := ReadEdgeFanout(context.Background(), f, EdgeFanoutUnbounded())
 	if !errors.Is(err, boom) {
 		t.Fatalf("err = %v, want the material read's own failure", err)
 	}
@@ -500,7 +538,7 @@ func TestReadEdgeFanoutReturnsTheMaterialReadsFailure(t *testing.T) {
 func TestReadEdgeFanoutReadsNoMaterialWhereTheScanIsNotInForce(t *testing.T) {
 	f := &fakeEdgeFanoutStore{scan: db.Scan{Kind: scan.EdgeFanoutKind, Enabled: false}}
 
-	got, err := ReadEdgeFanout(context.Background(), f)
+	got, err := ReadEdgeFanout(context.Background(), f, EdgeFanoutUnbounded())
 	if err != nil {
 		t.Fatalf("ReadEdgeFanout: %v", err)
 	}
@@ -509,5 +547,236 @@ func TestReadEdgeFanoutReadsNoMaterialWhereTheScanIsNotInForce(t *testing.T) {
 	}
 	if len(f.materialAsked) != 0 {
 		t.Fatalf("the material read ran over a disabled Scan: %v", f.materialAsked)
+	}
+}
+
+// The addresses the two limbs contribute, as #1036's tests pose them. extensionEdge and
+// secondExtensionEdge are cited direct-A targets of an in-zone name — the limb the veto
+// gates, and the limb the bound read names. scopeEdge is covered by a declared address
+// scope and cited by an OUT-of-zone owner, so it is a declaration-limb row and never a
+// candidate: it is the row a bound read is meant to leave behind.
+const (
+	extensionEdge       = "104.16.132.229"
+	secondExtensionEdge = "104.16.132.230"
+	scopeEdge           = "23.20.0.20"
+)
+
+// boundFixtureStore poses one store holding all three addresses, each measured
+// `presented` against the one given certificate.
+func boundFixtureStore(t *testing.T, der []byte) *fakeEdgeFanoutStore {
+	t.Helper()
+	fp := co.Fingerprint(der)
+	named := func(addr string) db.ListEdgeFanoutMeasurementsRow {
+		return db.ListEdgeFanoutMeasurementsRow{
+			Address:     addr,
+			Outcome:     string(edgefanout.Presented),
+			Fingerprint: pgtype.Text{String: fp, Valid: true},
+		}
+	}
+	return &fakeEdgeFanoutStore{
+		scan:      db.Scan{Kind: scan.EdgeFanoutKind, Enabled: true},
+		completed: true,
+		rows: []db.ListEdgeFanoutMeasurementsRow{
+			named(extensionEdge), named(secondExtensionEdge), named(scopeEdge),
+		},
+		material: []db.ListCertificateMaterialDERRow{{Fingerprint: fp, Der: der}},
+	}
+}
+
+// A BOUND read asks the store for the named addresses and no others, and takes the bound
+// query rather than the unbound one (#1036). The declaration-limb row the bound does not
+// name gets NO KEY, and that is the whole saving: `/scope` no longer pulls every measured
+// address of every declared address scope to answer a question about a handful of cited
+// direct-A targets.
+func TestABoundReadAsksForTheNamedAddressesAlone(t *testing.T) {
+	f := boundFixtureStore(t, certWithSANs(t, distinctSANs(custody.SharedEdgeThreshold)...))
+
+	got, err := ReadEdgeFanout(context.Background(), f, EdgeFanoutOver([]netip.Addr{
+		netip.MustParseAddr(extensionEdge),
+		netip.MustParseAddr(secondExtensionEdge),
+	}))
+	if err != nil {
+		t.Fatalf("ReadEdgeFanout: %v", err)
+	}
+	if f.unboundReads != 0 {
+		t.Fatalf("the unbound query ran %d times under a bound read", f.unboundReads)
+	}
+	if len(f.boundsAsked) != 1 {
+		t.Fatalf("the bound query ran %d times, want 1", len(f.boundsAsked))
+	}
+	want := []string{extensionEdge, secondExtensionEdge}
+	if !slices.Equal(f.boundsAsked[0], want) {
+		t.Fatalf("the bound query asked for %v, want %v", f.boundsAsked[0], want)
+	}
+	if _, measured := got.Shared[netip.MustParseAddr(scopeEdge)]; measured {
+		t.Fatalf("the declaration-limb row %s reached a read bound to the extension limb", scopeEdge)
+	}
+}
+
+// A BOUND READ NEVER TURNS A MEASURED ADDRESS INTO A PENDING ONE. This is the safety
+// property the whole ticket rests on: a missing key is *measurement pending* and the
+// derivation HOLDS, so a bound that dropped a candidate the Scan had measured would
+// withhold a probe in silence.
+//
+// It is pinned by running both reads over the same store. Every address the bound names
+// arrives with the SAME key and the SAME verdict the unbound read gives it.
+func TestABoundReadKeepsEveryNamedAddressMeasured(t *testing.T) {
+	f := boundFixtureStore(t, certWithSANs(t, distinctSANs(custody.SharedEdgeThreshold)...))
+	candidates := []netip.Addr{
+		netip.MustParseAddr(extensionEdge),
+		netip.MustParseAddr(secondExtensionEdge),
+	}
+
+	whole, err := ReadEdgeFanout(context.Background(), f, EdgeFanoutUnbounded())
+	if err != nil {
+		t.Fatalf("the unbound read: %v", err)
+	}
+	bound, err := ReadEdgeFanout(context.Background(), f, EdgeFanoutOver(candidates))
+	if err != nil {
+		t.Fatalf("the bound read: %v", err)
+	}
+
+	for _, addr := range candidates {
+		wantShared, wantMeasured := whole.Shared[addr]
+		gotShared, gotMeasured := bound.Shared[addr]
+		if !wantMeasured {
+			t.Fatalf("the fixture left %s unmeasured — this test would prove nothing", addr)
+		}
+		if !gotMeasured {
+			t.Fatalf("the bound read turned the measured address %s into a pending one", addr)
+		}
+		if gotShared != wantShared {
+			t.Fatalf("%s read as shared=%v under the bound and shared=%v unbound", addr, gotShared, wantShared)
+		}
+	}
+}
+
+// The EXTENSION LIMB derives the same verdict either way, end to end — the gate, the
+// census and the per-limb errored floor (#1018) all included. `/scope` reaches nothing
+// else on its estate, so this is the whole of what the bound may not move.
+//
+// The estate carries BOTH limbs on purpose. The declaration-limb row is the one the
+// bound leaves behind, and it is exactly the row that must make no difference here: the
+// floor asks *did the Scan measure any EXTENSION candidate*, and a declared address has
+// never been an answer to it.
+func TestABoundReadDerivesTheSameExtensionVerdictAsAnUnboundOne(t *testing.T) {
+	f := boundFixtureStore(t, certWithSANs(t, distinctSANs(custody.SharedEdgeThreshold)...))
+	estate := custody.Estate{
+		AddressScopes: []netip.Prefix{netip.MustParsePrefix("23.20.0.0/24")},
+		ExtendedZones: []string{"example.com"},
+		Resolutions: []custody.Resolution{
+			{Owner: "www.example.com", Address: netip.MustParseAddr(extensionEdge)},
+			{Owner: "cdn.example.com", Address: netip.MustParseAddr(secondExtensionEdge)},
+			{Owner: "edge.provider.net", Address: netip.MustParseAddr(scopeEdge)},
+		},
+	}
+	candidates := estate.ExtensionCandidates()
+	if len(candidates) != 2 {
+		t.Fatalf("the fixture holds %d extension candidates, want the two in-zone edges", len(candidates))
+	}
+
+	whole, err := ReadEdgeFanout(context.Background(), f, EdgeFanoutUnbounded())
+	if err != nil {
+		t.Fatalf("the unbound read: %v", err)
+	}
+	bound, err := ReadEdgeFanout(context.Background(), f, EdgeFanoutOver(candidates))
+	if err != nil {
+		t.Fatalf("the bound read: %v", err)
+	}
+
+	wide, narrow := estate.WithEdgeFanout(whole), estate.WithEdgeFanout(bound)
+	for _, addr := range candidates {
+		if narrow.Derive(addr) != wide.Derive(addr) {
+			t.Fatalf("Derive(%s) = %s bound, %s unbound", addr, narrow.Derive(addr), wide.Derive(addr))
+		}
+		// The floor is unexported, so it is read where it lands: an errored limb
+		// REACHES every candidate, and this measurement declines both. A bound that had
+		// starved the floor would open the reach here.
+		if narrow.MayProbe(addr, custody.ClassInternet) != wide.MayProbe(addr, custody.ClassInternet) {
+			t.Fatalf("MayProbe(%s) moved under the bound: the errored floor read differently", addr)
+		}
+	}
+	if got, want := len(narrow.ExtensionCensus()), len(wide.ExtensionCensus()); got != want {
+		t.Fatalf("the census named %d entries under the bound and %d unbound", got, want)
+	}
+}
+
+// A bound over an EMPTY set issues NO QUERY. An install holding no custody extension has
+// no candidate, so no consumer of that estate can look a key up, and the unbound read
+// would answer a question nobody asked. It must not fall back to it — that is the trap a
+// bare nil slice would have set. See EdgeFanoutBound.
+func TestABoundOverNoAddressIssuesNoQueryAtAll(t *testing.T) {
+	f := boundFixtureStore(t, certWithSANs(t, distinctSANs(custody.SharedEdgeThreshold)...))
+
+	got, err := ReadEdgeFanout(context.Background(), f, EdgeFanoutOver(nil))
+	if err != nil {
+		t.Fatalf("ReadEdgeFanout: %v", err)
+	}
+	if f.unboundReads != 0 || len(f.boundsAsked) != 0 {
+		t.Fatalf("a bound over no address read the store: %d unbound, %d bound", f.unboundReads, len(f.boundsAsked))
+	}
+	if len(f.materialAsked) != 0 {
+		t.Fatalf("a bound over no address read the certificate material: %v", f.materialAsked)
+	}
+	if !got.Enabled || len(got.Shared) != 0 {
+		t.Fatalf("got = %+v, want the in-force record carrying no key", got)
+	}
+}
+
+// The DISPATCHER's read still covers the whole population, both limbs. It acts over
+// EdgeFanoutPopulation once per daily tick, so it takes the unbound form and gains
+// nothing from a bound (#1036).
+func TestAnUnboundReadCoversBothLimbs(t *testing.T) {
+	f := boundFixtureStore(t, certWithSANs(t, distinctSANs(custody.SharedEdgeThreshold)...))
+
+	got, err := ReadEdgeFanout(context.Background(), f, EdgeFanoutUnbounded())
+	if err != nil {
+		t.Fatalf("ReadEdgeFanout: %v", err)
+	}
+	if len(f.boundsAsked) != 0 {
+		t.Fatalf("the unbound read took the bound query: %v", f.boundsAsked)
+	}
+	for _, addr := range []string{extensionEdge, secondExtensionEdge, scopeEdge} {
+		if _, measured := got.Shared[netip.MustParseAddr(addr)]; !measured {
+			t.Errorf("the unbound read left %s unmeasured", addr)
+		}
+	}
+}
+
+// The bound renders each address the way the WRITER stores it — Unmap'ed — so the
+// predicate matches on the value and never on a spelling. A mapped IPv4 candidate
+// reaching the query in its mapped form would match no row, and every candidate would
+// come back pending.
+func TestABoundRendersTheAddressTheWriterStores(t *testing.T) {
+	f := boundFixtureStore(t, certWithSANs(t, distinctSANs(custody.SharedEdgeThreshold)...))
+	mapped := netip.MustParseAddr("::ffff:" + extensionEdge)
+
+	got, err := ReadEdgeFanout(context.Background(), f, EdgeFanoutOver([]netip.Addr{mapped}))
+	if err != nil {
+		t.Fatalf("ReadEdgeFanout: %v", err)
+	}
+	if len(f.boundsAsked) != 1 || !slices.Equal(f.boundsAsked[0], []string{extensionEdge}) {
+		t.Fatalf("the bound asked for %v, want the Unmap'ed %q", f.boundsAsked, extensionEdge)
+	}
+	if _, measured := got.Shared[mapped.Unmap()]; !measured {
+		t.Fatalf("%s came back pending under a mapped bound", extensionEdge)
+	}
+}
+
+// A BOUND read that FAILS returns the error rather than an open reach, exactly as the
+// unbound one does. A failed read is not a finding that those candidates are unmeasured:
+// reading it as one would hold every extension candidate at once, on the one signal that
+// says nothing could be read.
+func TestABoundReadReturnsItsFailure(t *testing.T) {
+	boom := errors.New("connection reset")
+	f := boundFixtureStore(t, certWithSANs(t, distinctSANs(custody.SharedEdgeThreshold)...))
+	f.rowsErr = boom
+
+	got, err := ReadEdgeFanout(context.Background(), f, EdgeFanoutOver([]netip.Addr{netip.MustParseAddr(extensionEdge)}))
+	if !errors.Is(err, boom) {
+		t.Fatalf("err = %v, want the bound read's own failure", err)
+	}
+	if got.Enabled || len(got.Shared) != 0 {
+		t.Fatalf("got = %+v, want the zero record — a failed read decides nothing", got)
 	}
 }

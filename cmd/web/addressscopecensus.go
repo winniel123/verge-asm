@@ -64,7 +64,14 @@ func addressScopeSharedEdges(ctx context.Context, q addressScopeCensusStore) (ma
 		}
 	}
 
-	fanout, err := queue.ReadEdgeFanout(ctx, q)
+	// UNBOUND, and that is a recorded decision rather than an omission (#1036). This
+	// census reads the DECLARATION limb, whose candidate set is every address inside
+	// every declared scope. Since #988 the store holds one row per globally-reachable
+	// address of exactly those scopes, so the set already IS most of the store and a
+	// bound would filter out little but the stale rows #985 owns. ADR-0127 also leaves
+	// a declared scope free to be a `/8`, which no address list can hold — the same
+	// reason AddressScopeCensus below walks the measurement and never the scope.
+	fanout, err := queue.ReadEdgeFanout(ctx, q, queue.EdgeFanoutUnbounded())
 	if err != nil {
 		return nil, err
 	}

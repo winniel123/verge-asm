@@ -112,7 +112,9 @@ func hotEstate(ctx context.Context, q *db.Queries, asOf time.Time) (custody.Esta
 		}
 	}
 
-	fanout, err := ReadEdgeFanout(ctx, q)
+	// UNBOUND. The dispatch acts over the whole population, both limbs, and it pays
+	// this read once per daily tick rather than per render (#1036).
+	fanout, err := ReadEdgeFanout(ctx, q, EdgeFanoutUnbounded())
 	if err != nil {
 		return custody.Estate{}, nil, err
 	}

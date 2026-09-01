@@ -825,7 +825,41 @@ type Querier interface {
 	// Every address the Scan measured is returned, whether or not the extension still
 	// reaches it. The caller keys the derivation's input on the address, and an address no
 	// longer cited by an in-zone name simply never reaches the lookup.
+	//
+	// IT IS THE UNBOUND FORM. `ListEdgeFanoutMeasurementsOver` is the same read under an
+	// address predicate (#1036), and the caller picks between them. This one serves the
+	// dispatcher, which needs both limbs once per daily tick, and `/coverage`, whose
+	// declaration limb has no bound worth writing — see the sibling query for why.
 	ListEdgeFanoutMeasurements(ctx context.Context) ([]ListEdgeFanoutMeasurementsRow, error)
+	// ListEdgeFanoutMeasurements BOUND to a named address set (#1036). Same three columns,
+	// same DISTINCT ON, same tie-break, same index. The only difference is the predicate.
+	//
+	// It is the EXTENSION LIMB's read. `/scope` asks about the custody-extension candidates
+	// alone — a discrete list of cited direct-A targets — and the unbound query walks every
+	// address of every declared address scope to answer it. `edge_fanout_observation` is
+	// never pruned (#985), so that walk grows with the estate AND with time, and the render
+	// pays it per request per logged-in operator. `address = ANY(...)` turns it into one
+	// index probe per candidate against edge_fanout_observation_address_time.
+	//
+	// THE DECLARATION LIMB DOES NOT USE THIS QUERY, and that is a recorded decision rather
+	// than an omission (#1036). Since #988 the store holds one row per globally-reachable
+	// address of every declared scope, so that limb's candidate set already IS most of the
+	// store, and ADR-0127 leaves a declared scope free to be a `/8` — which cannot become an
+	// `ANY(...)` list. A CIDR containment predicate would fit its shape, but `address` is
+	// TEXT, so it would need `address::inet <<= ANY(...)` over a new functional index, bought
+	// to filter out the stale rows #985 already owns. `/coverage` and the dispatcher read
+	// ListEdgeFanoutMeasurements unbound.
+	//
+	// A BOUND READ IS A SUBSET, and a subset is the one direction that can do harm: a
+	// missing row is *measurement pending* and the derivation HOLDS, so a candidate dropped
+	// here turns a measured edge into a held one in silence. The caller binds the read to
+	// the SAME set the derivation asks about — custody.Estate.ExtensionCandidates, which is
+	// both what ExtensionCensus walks and what WithEdgeFanout resolves the errored floor
+	// over — so every key either consumer looks up is a key this predicate asked for.
+	//
+	// Addresses are the netip rendering the writer stores (InsertEdgeFanoutObservation), so
+	// the caller passes Unmap'ed addresses and the match never turns on a spelling.
+	ListEdgeFanoutMeasurementsOver(ctx context.Context, addresses []string) ([]ListEdgeFanoutMeasurementsOverRow, error)
 	// The enabled providers the SignIn screen renders a button for, newest-first. No
 	// secret, and no created-by join — SignIn is pre-auth and needs only what a button
 	// carries: the slug (its route) and the display name.

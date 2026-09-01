@@ -229,8 +229,65 @@ func pgTextOrNull(s string) pgtype.Text {
 type EdgeFanoutStore interface {
 	GetScanByKind(ctx context.Context, kind string) (db.Scan, error)
 	ListEdgeFanoutMeasurements(ctx context.Context) ([]db.ListEdgeFanoutMeasurementsRow, error)
+	ListEdgeFanoutMeasurementsOver(ctx context.Context, addresses []string) ([]db.ListEdgeFanoutMeasurementsOverRow, error)
 	ListCertificateMaterialDER(ctx context.Context, fingerprints []string) ([]db.ListCertificateMaterialDERRow, error)
 	ScanHasCompletedBatch(ctx context.Context, kind string) (bool, error)
+}
+
+// EdgeFanoutBound names WHICH measured addresses a read must return a key for (#1036).
+// It is a parameter of the ONE reader and never a second reader: both forms land in the
+// same toEdgeFanout, so the absence rule is written once whichever bound is passed.
+//
+// It is a TYPE rather than a bare slice because the two states a slice would conflate
+// are not the same question. `nil` would have to mean *read everything*, which leaves a
+// caller whose candidate set came out empty asking for the whole store — the opposite of
+// what it wanted, and silent. The two constructors below make each call site say which
+// it means, and EdgeFanoutOver over an empty set reads nothing at all.
+//
+// THE UNBOUND FORM IS THE SAFE DEFAULT, and the zero value is it. A read wider than the
+// caller needs costs time and decides nothing wrong; a read NARROWER than the caller
+// needs drops a row, and a missing row is *measurement pending*, so it turns a measured
+// edge into a held one in silence. So a caller in doubt binds nothing.
+type EdgeFanoutBound struct {
+	// over is the address set the read is bound to, in the netip rendering the writer
+	// stores. It is meaningful only where bounded is true.
+	over []string
+	// bounded distinguishes *bound to no address* from *not bound at all*. See above.
+	bounded bool
+}
+
+// EdgeFanoutUnbounded reads every address the Scan ever measured, both limbs.
+//
+// It is what the DISPATCHER takes — it acts over the whole population once per daily
+// tick — and what `/coverage` takes. `/coverage` renders the DECLARATION limb, whose
+// candidate set is every address inside every declared address scope. That set already
+// IS most of the store since #988, and ADR-0127 leaves a declared scope free to be a
+// `/8`, which no address list can hold. See ListEdgeFanoutMeasurementsOver for the whole
+// of that decision (#1036).
+func EdgeFanoutUnbounded() EdgeFanoutBound { return EdgeFanoutBound{} }
+
+// EdgeFanoutOver reads the named addresses alone.
+//
+// It is what the `/scope` render takes, bound to custody.Estate.ExtensionCandidates —
+// the EXTENSION limb, a discrete list of cited direct-A targets. That is the same set
+// the estate's two consumers of the measurement ask about: Estate.ExtensionCensus walks
+// the resolutions under the two conditions ExtensionCandidates itself applies, and
+// Estate.WithEdgeFanout resolves the errored floor (#1018) over ExtensionCandidates
+// exactly. So the bound cannot drop a key either of them looks up.
+//
+// Addresses are Unmap'ed here, matching both the form the writer stores and the
+// family-agnostic form every comparison in internal/custody runs over, so the match
+// never turns on a spelling.
+//
+// An EMPTY set is a bound to nothing, and the read is SKIPPED rather than widened. An
+// install with no custody extension holds no candidate, so there is no key any consumer
+// of that estate can look up, and the whole store would answer a question nobody asked.
+func EdgeFanoutOver(addrs []netip.Addr) EdgeFanoutBound {
+	over := make([]string, 0, len(addrs))
+	for _, a := range addrs {
+		over = append(over, a.Unmap().String())
+	}
+	return EdgeFanoutBound{over: over, bounded: true}
 }
 
 // ReadEdgeFanout reads the `edge-fanout` Scan's measured result in the form the custody
@@ -245,9 +302,10 @@ type EdgeFanoutStore interface {
 //     migrations predate #983 — both yield the zero custody.EdgeFanout, which reaches
 //     every direct-A target exactly as the extension did before ADR-0129. That is half
 //     of the fourth absence case.
-//   - The measurements. One row per measured address, carrying the outcome and the
-//     FINGERPRINT of the certificate the edge presented. An address with no row gets NO
-//     KEY, which is what the derivation reads as *measurement pending* and holds.
+//   - The measurements, over the addresses `bound` names (readEdgeFanoutRows). One row
+//     per measured address, carrying the outcome and the FINGERPRINT of the certificate
+//     the edge presented. An address with no row gets NO KEY, which is what the
+//     derivation reads as *measurement pending* and holds.
 //   - The certificate material, over the DISTINCT fingerprints those rows name, and
 //     SKIPPED where they name none (readEdgeFanoutMaterial). This read is #1035. The
 //     measurement read used to carry the DER itself, through a join on the fingerprint,
@@ -271,7 +329,13 @@ type EdgeFanoutStore interface {
 // was measured. THE MATERIAL READ IS NO EXCEPTION. A failure there is a failure to read
 // the certificates, not a finding that those edges present no identity, and reading it
 // as the latter would reach every measured address at once, silently.
-func ReadEdgeFanout(ctx context.Context, q EdgeFanoutStore) (custody.EdgeFanout, error) {
+//
+// BOUND names which addresses the measurement read must return a key for (#1036). It is
+// a parameter of this ONE reader and never a second one: both forms reach the same
+// toEdgeFanout below, so the absence rule cannot fork. EdgeFanoutUnbounded is the safe
+// default — see EdgeFanoutBound for which caller takes which, and why a bound wider than
+// the caller needs is harmless where a narrower one is not.
+func ReadEdgeFanout(ctx context.Context, q EdgeFanoutStore, bound EdgeFanoutBound) (custody.EdgeFanout, error) {
 	s, err := q.GetScanByKind(ctx, scan.EdgeFanoutKind)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -282,7 +346,7 @@ func ReadEdgeFanout(ctx context.Context, q EdgeFanoutStore) (custody.EdgeFanout,
 	if !s.Enabled {
 		return custody.EdgeFanout{}, nil
 	}
-	rows, err := q.ListEdgeFanoutMeasurements(ctx)
+	rows, err := readEdgeFanoutRows(ctx, q, bound)
 	if err != nil {
 		return custody.EdgeFanout{}, err
 	}
@@ -295,6 +359,44 @@ func ReadEdgeFanout(ctx context.Context, q EdgeFanoutStore) (custody.EdgeFanout,
 		return custody.EdgeFanout{}, err
 	}
 	return toEdgeFanout(completed, rows, material), nil
+}
+
+// readEdgeFanoutRows reads the newest measurement per address, under the caller's bound
+// (#1036). It is the half of ReadEdgeFanout that picks a QUERY, and it is deliberately
+// the only place that choice is made — the rows it returns reduce through one
+// toEdgeFanout whichever query produced them, so no bound can carry its own absence
+// rule in with it.
+//
+// An UNBOUND read is the whole store, both limbs, as every caller read it before #1036.
+//
+// A BOUND read over an empty address set issues NO QUERY. `= ANY('{}')` matches nothing,
+// so the round trip could only return the rows the caller already knows are none.
+//
+// The bound rows are RE-SHAPED rather than reduced where they lie. sqlc names a row type
+// per query, so the two reads return two Go types over the same three columns; copying
+// the narrow side into the wide side's type is what keeps one reduction instead of two.
+// The copy is O(the bound set), which is the small side by construction — an unbound
+// read, the large one, is handed straight through and copies nothing.
+func readEdgeFanoutRows(ctx context.Context, q EdgeFanoutStore, bound EdgeFanoutBound) ([]db.ListEdgeFanoutMeasurementsRow, error) {
+	if !bound.bounded {
+		return q.ListEdgeFanoutMeasurements(ctx)
+	}
+	if len(bound.over) == 0 {
+		return nil, nil
+	}
+	rows, err := q.ListEdgeFanoutMeasurementsOver(ctx, bound.over)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]db.ListEdgeFanoutMeasurementsRow, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, db.ListEdgeFanoutMeasurementsRow{
+			Address:     r.Address,
+			Outcome:     r.Outcome,
+			Fingerprint: r.Fingerprint,
+		})
+	}
+	return out, nil
 }
 
 // readEdgeFanoutMaterial reads the leaf DER of every certificate the measurements name,
