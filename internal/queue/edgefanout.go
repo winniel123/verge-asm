@@ -20,10 +20,17 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// The `edge-fanout` Scan (CONTEXT.md `Scan`, ADR-0129 §6, ticket #983) is the daily
-// no-SNI TLS handshake over the custody-extension candidates. This file holds its
-// dispatch half — the candidate read and the enqueue — and its recording half, which
-// lands one row per measured address in the leaf's own store.
+// The `edge-fanout` Scan (CONTEXT.md `Scan`, ADR-0129 §6, tickets #983 and #988) is the
+// daily no-SNI TLS handshake over the custody-extension candidates AND the addresses of
+// declared address scopes. This file holds its dispatch half — the population read and
+// the enqueue — and its recording half, which lands one row per measured address in the
+// leaf's own store.
+//
+// The Scan serves TWO PURPOSES over that one population, and the recording half is blind
+// to which limb a row came from: on the extension limb the result decides membership, on
+// the declaration limb it labels and decides nothing. The split is made where it is
+// read, not where it is written — custody.Estate.EdgeFanoutPopulation states both
+// purposes and both (opposite) absence rules.
 //
 // The measurement decides MEMBERSHIP and opens no timeline, so it holds no row in the
 // `observation` table: there is no facet, subject or discriminator for that table's
@@ -31,40 +38,48 @@ import (
 // recording half here is additive to the shared completion path and changes no existing
 // fold.
 
-// fanOutEdgeFanout enqueues the edge-fanout jobs for one tick, over the custody-
-// extension candidates alone. Those are the direct-A targets — and the apex
-// `ALIAS`/`ANAME` flattened to A — of in-zone names the extension would reach.
+// fanOutEdgeFanout enqueues the edge-fanout jobs for one tick, over BOTH limbs of the
+// population (custody.Estate.EdgeFanoutPopulation): the custody-extension candidates —
+// the direct-A targets, and the apex `ALIAS`/`ANAME` flattened to A, of in-zone names
+// the extension would reach — and every address a declared address scope covers.
 //
-// An instance with no custody extension has an empty candidate set and enqueues no job.
-// That is a legible state, not an error: the Dispatch is recorded over an empty scope
-// and nothing is probed.
+// #983's legibility that an install with no custody extension enqueues no job is GONE
+// (#988): an install holding address scopes and no extension now dispatches a non-empty
+// scope. Only an install with NEITHER enqueues nothing, and that stays a legible state
+// rather than an error — the Dispatch is recorded over an empty scope and nothing is
+// probed.
 //
-// The candidates are read through the same current Custody Estate the hot dispatch
-// reads (hotEstate), so a name whose authorising scope was withdrawn since it resolved
-// contributes no candidate (ADR-0079, #742). There is no vantage fan-out: a default
-// certificate is not a function of vantage, and vantage-varying fan-out is anycast, out
-// of v1 (ADR-0129 §5).
-func (d *Dispatcher) fanOutEdgeFanout(ctx context.Context, qtx *db.Queries, scanID, dispatchID int64) (int, error) {
-	estate, _, err := hotEstate(ctx, qtx, d.now())
+// It STREAMS, like the hot and cold tiers and for the same reason. #988 made this an
+// address-scope tier: the declaration limb enumerates every declared scope, ADR-0127
+// removed the ceiling above the operator's address cap, and ADR-0047 refuses a scan-time
+// aperture. So the Dispatch row is committed first and the jobs stream out in
+// chunkCommitSize transactions (streamEnqueue), rather than materializing the whole
+// scope and holding one transaction and the per-scan advisory lock open across it. A
+// crash between chunks leaves the tick claimed and the Dispatch under-covering; a re-run
+// hits the (scan, scheduled_time) key and skips, so nothing double-dispatches (#847).
+//
+// The population is read through the same current Custody Estate the hot dispatch reads
+// (hotEstate), so a name whose authorising scope was withdrawn since it resolved
+// contributes no candidate (ADR-0079, #742), and a withdrawn address scope contributes
+// no address. There is no vantage fan-out: a default certificate is not a function of
+// vantage, and vantage-varying fan-out is anycast, out of v1 (ADR-0129 §5).
+func (d *Dispatcher) fanOutEdgeFanout(ctx context.Context, scanID, dispatchID int64) (int, error) {
+	estate, _, err := hotEstate(ctx, d.q, d.now())
 	if err != nil {
 		return 0, err
 	}
-	enqueued := 0
-	for i, j := range scan.BuildEdgeFanoutJobs(scanID, estate.ExtensionCandidates()) {
-		if err := enqueueEdgeFanoutJob(ctx, qtx, scanID, dispatchID, i, j); err != nil {
-			return 0, err
-		}
-		enqueued++
-	}
-	return enqueued, nil
+	jobs := scan.BuildEdgeFanoutJobs(scanID, estate.EdgeFanoutPopulation())
+	return streamEnqueue(ctx, d, jobs, func(ctx context.Context, qtx *db.Queries, j scan.EdgeFanoutJob) error {
+		return enqueueEdgeFanoutJob(ctx, qtx, scanID, dispatchID, j)
+	})
 }
 
 // enqueueEdgeFanoutJob enqueues one edge-fanout job. It carries NO Vantage — the Scan
 // has no vantage dimension — and its Batch label names the chunk of candidates it
 // measures, since there is no vantage or seed to key it on. It retries like a hot job:
 // a handshake is a network step that can transiently fail.
-func enqueueEdgeFanoutJob(ctx context.Context, qtx *db.Queries, scanID, dispatchID int64, chunk int, j scan.EdgeFanoutJob) error {
-	spec, err := j.JobSpec(fmt.Sprintf("scan:%d:edges:%d", scanID, chunk))
+func enqueueEdgeFanoutJob(ctx context.Context, qtx *db.Queries, scanID, dispatchID int64, j scan.EdgeFanoutJob) error {
+	spec, err := j.JobSpec(fmt.Sprintf("scan:%d:edges:%d", scanID, j.Chunk))
 	if err != nil {
 		return err
 	}
@@ -298,8 +313,26 @@ func ReadEdgeFanout(ctx context.Context, q EdgeFanoutStore) (custody.EdgeFanout,
 // One recorded measurement of any kind lifts the floor, and the three negative outcomes
 // each record one. So a store that stays empty means the Scan measured NOTHING — never
 // that the network was bad — and the reading cannot be reached by a run of failed
-// handshakes. An install with no custody extension records nothing either, and reads as
-// errored; it holds no extension-covered address, so the reading changes no answer.
+// handshakes.
+//
+// An install with NEITHER a custody extension nor an address scope records nothing
+// either, and reads as errored; it holds no extension-covered address, so the reading
+// changes no answer. Since #988 an install holding address scopes alone DOES record
+// rows, so it reads as in force with a map of declared addresses in it. Those keys reach
+// no gate — the veto reads the extension limb alone (custody.EdgeFanout) — so that
+// reading changes no answer either. Every key here is measured-and-labelled; which limb
+// it came from is decided where it is read, never here.
+//
+// #988 NARROWED THIS FLOOR, and the residue is stated rather than smoothed. The floor
+// asks *did the Scan record anything at all*, and the two limbs now share one store, so
+// a DECLARATION-limb row alone lifts it. On an install holding both limbs, an extension
+// limb that records nothing while the declaration limb records cleanly no longer reads
+// as errored: every candidate stays unmeasured and is HELD by admits case 3, silently.
+// The floor's own motivating case is unaffected — a prober older than #982 falls through
+// its kind switch and records nothing on EITHER limb, so the store is empty and the floor
+// fires. What the floor no longer catches is a PARTIAL failure that spares the
+// declaration limb. Closing that needs a per-limb floor, which needs the candidate set
+// at read time; it is its own decision and #1018 holds it.
 func toEdgeFanout(completed bool, rows []db.ListEdgeFanoutMeasurementsRow) custody.EdgeFanout {
 	if len(rows) == 0 && completed {
 		return custody.EdgeFanout{}
