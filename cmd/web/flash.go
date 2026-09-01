@@ -200,6 +200,26 @@ func stashFormFlash(s *server, r *http.Request, v any) bool {
 // render it. The next stash for the session replaces it, and the TTL retires it if no
 // landing ever comes, so nothing accumulates.
 func takeFormFlash[T any](s *server, r *http.Request) (T, bool) {
+	return takeFormFlashIf[T](s, r, nil)
+}
+
+// takeFormFlashIf is takeFormFlash with a claim check: it consumes the pending form
+// only when accept says this reader is the landing the stash was written for, and
+// LEAVES IT IN PLACE otherwise. A nil accept takes whatever is there.
+//
+// One shape can have several landing GETs, and they are not interchangeable. The
+// settings surface is the case that forced this: /settings renders whichever tab its
+// query names, and /scans renders the Scans section on a URL of its own, so both read
+// a settingsForms flash — but a callout stashed by a refused CHANNEL act renders
+// nothing on the Scans tab. Without the check that GET would delete it and show
+// nothing, and the operator's own landing would arrive to a page with no error and no
+// echo of what they typed. That is not a rare race: a Scans view with a scan in flight
+// re-requests itself every six seconds (fillScansSection's Refresh), so it would eat
+// the session's every refusal for as long as the scan ran.
+//
+// A declined flash keeps its stashedAt, so the TTL still retires it if its own landing
+// never comes. Nothing accumulates.
+func takeFormFlashIf[T any](s *server, r *http.Request, accept func(T) bool) (T, bool) {
 	var zero T
 	if s == nil || s.formFlash == nil {
 		return zero, false
@@ -224,6 +244,9 @@ func takeFormFlash[T any](s *server, r *http.Request) (T, bool) {
 	}
 	typed, ok := held.value.(T)
 	if !ok {
+		return zero, false
+	}
+	if accept != nil && !accept(typed) {
 		return zero, false
 	}
 	delete(f.m, sessionID)

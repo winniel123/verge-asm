@@ -85,7 +85,7 @@ func toColdScopeViews(seeds []seedView, optedIn []int64) []coldScopeView {
 func (s *server) setColdScope(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
-		s.renderSettings(w, r, acct, settingsForms{section: "scans", coldError: "That scope could not be found."})
+		s.failSettings(w, r, settingsForms{section: "scans", coldError: "That scope could not be found."})
 		return
 	}
 	// The form carries the intended end state, not a blind flip: a stale page is
@@ -111,8 +111,11 @@ func (s *server) setColdScope(w http.ResponseWriter, r *http.Request, acct db.Ac
 		s.serverError(w, "sync cold scan enabled", err)
 		return
 	}
-	// #21d: the cold-tier region relocated to Settings → Scans.
-	http.Redirect(w, r, "/settings?tab=scans", http.StatusSeeOther)
+	// #21d: the cold-tier region relocated to Settings → Scans. The 303 goes back to the
+	// URL the opt-in was submitted from (ADR-0130 §3), which is /settings?tab=scans or
+	// the folded /scans read surface that renders the same region — so a long scope list
+	// keeps its scroll offset instead of jumping to the top of the default tab.
+	s.backToSection(w, r, "scans")
 }
 
 // --- Coverage (#301, ADR-0110) ----------------------------------------------

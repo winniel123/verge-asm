@@ -439,6 +439,11 @@ func (s *server) channelExists(ctx context.Context, id int64) (bool, error) {
 // sent"; any other outcome toasts an honest non-ok degrade. When unbound the template
 // already disables the button; the handler defends that too (nothing to send through →
 // a "connect a channel" warn, never a fabricated delivery). It is an admin act.
+//
+// Like the channel Send test it sits beside, every outcome 303s back to the URL the
+// button was submitted from and toasts there (ADR-0130 §3). dest — the drawer's own
+// ?view= URL — stays as the fallback, so a form that carried no usable submitting URL
+// still re-opens the drawer the operator tested from.
 func (s *server) testIntegration(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id := integrationFormID(r)
 	integ, ok := integrationBySlug(id)
@@ -455,7 +460,7 @@ func (s *server) testIntegration(w http.ResponseWriter, r *http.Request, acct db
 		return
 	}
 	if err != nil || !binding.Valid {
-		s.toastRedirect(w, r, dest, "warn", "No delivery channel",
+		s.toastRedirectBack(w, r, dest, "warn", "No delivery channel",
 			"Connect a channel before sending a test.")
 		return
 	}
@@ -465,7 +470,7 @@ func (s *server) testIntegration(w http.ResponseWriter, r *http.Request, acct db
 		// The bound Channel is gone (a race with a delete the ON DELETE SET NULL would
 		// normally settle) or the read failed — degrade honestly rather than send nothing
 		// into the void.
-		s.toastRedirect(w, r, dest, "danger", "Test message not sent",
+		s.toastRedirectBack(w, r, dest, "danger", "Test message not sent",
 			"The bound delivery channel is unavailable — reconnect a channel and try again.")
 		return
 	}
@@ -489,11 +494,11 @@ func (s *server) testIntegration(w http.ResponseWriter, r *http.Request, acct db
 
 	statusCode, sendErr := s.channelSender.Send(r.Context(), ch.Url, body, secret)
 	if sendErr != nil || !delivery.Delivered(statusCode) {
-		s.toastRedirect(w, r, dest, "danger", "Test message not sent",
+		s.toastRedirectBack(w, r, dest, "danger", "Test message not sent",
 			"Delivery through "+integ.Name+"'s channel failed — check the channel and try again.")
 		return
 	}
-	s.toastRedirect(w, r, dest, "ok", "Test message sent",
+	s.toastRedirectBack(w, r, dest, "ok", "Test message sent",
 		"Check "+integ.Name+" for the delivery.")
 }
 

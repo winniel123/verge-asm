@@ -12,6 +12,27 @@ import (
 
 func itoa(n int64) string { return strconv.FormatInt(n, 10) }
 
+// prgLanding follows a mutating act's 303 and returns the page it lands on.
+//
+// Under ADR-0130 (#971 §3, #972 §1, #974) a migrated console act answers 303 whether it
+// succeeded or was refused, and whatever it has to SAY — an inline callout, a minted
+// invite link, a confirmation line — rides the session form flash to the landing GET.
+// So every assertion about an act's message belongs on the page this returns, never on
+// the POST response, which carries no body at all. refusalPage is the same walk under
+// the name the refusal case reads better as.
+func prgLanding(t *testing.T, c *http.Client, base string, resp *http.Response) string {
+	t.Helper()
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("mutating act: status = %d, want 303 (body: %s)", resp.StatusCode, body(t, resp))
+	}
+	loc := resp.Header.Get("Location")
+	if loc == "" {
+		t.Fatal("mutating act: 303 carries no Location")
+	}
+	return getBody(t, c, base+loc, http.StatusOK)
+}
+
 func settingsBody(t *testing.T, c *http.Client, base string) string {
 	t.Helper()
 	resp, err := c.Get(base + "/settings")
@@ -163,9 +184,10 @@ func TestChannelURLValidation(t *testing.T) {
 				resp.Body.Close()
 				return
 			}
-			got := body(t, resp)
-			if resp.StatusCode != http.StatusBadRequest || !strings.Contains(got, tc.wantMsg) {
-				t.Fatalf("status=%d body=%s, want 400 containing %q", resp.StatusCode, got, tc.wantMsg)
+			// A refused create is a post-redirect-get since ADR-0130 §1 (#974): the
+			// message rides the session flash, so it is asserted on the landing GET.
+			if got := refusalPage(t, ac, base, resp); !strings.Contains(got, tc.wantMsg) {
+				t.Fatalf("landing page missing %q; body: %s", tc.wantMsg, got)
 			}
 		})
 	}
@@ -242,9 +264,8 @@ func TestRoleAssignmentAndLastAdminGuard(t *testing.T) {
 	resp := postForm(t, ac, base+"/settings/accounts/role", url.Values{
 		"id": {itoa(admin.ID)}, "role": {roleViewer},
 	})
-	got := body(t, resp)
-	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(got, "last admin") {
-		t.Fatalf("last-admin demotion not refused: status=%d body=%s", resp.StatusCode, got)
+	if got := refusalPage(t, ac, base, resp); !strings.Contains(got, "last admin") {
+		t.Fatalf("last-admin demotion not refused; landing body: %s", got)
 	}
 	if f.accounts[admin.ID].Role != roleAdmin {
 		t.Fatalf("last admin was demoted despite the guard")
@@ -261,7 +282,10 @@ func TestInviteMintsAgainstInviteTable(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	page := body(t, postForm(t, ac, base+"/settings/accounts", url.Values{"role": {roleViewer}}))
+	// The mint is a post-redirect-get (ADR-0130 §3, #974). The plaintext join link is a
+	// live credential, so it rides the session flash rather than the URL and is revealed
+	// once on the landing page.
+	page := prgLanding(t, ac, base, postForm(t, ac, base+"/settings/accounts", url.Values{"role": {roleViewer}}))
 
 	if len(f.invites) != 1 {
 		t.Fatalf("invites minted = %d, want 1", len(f.invites))
@@ -299,9 +323,8 @@ func TestInviteRejectsUnknownRole(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 
 	resp := postForm(t, ac, base+"/settings/accounts", url.Values{"role": {"operator"}})
-	got := body(t, resp)
-	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(got, "admin or viewer") {
-		t.Fatalf("bad-role invite not refused: status=%d body=%s", resp.StatusCode, got)
+	if got := refusalPage(t, ac, base, resp); !strings.Contains(got, "admin or viewer") {
+		t.Fatalf("bad-role invite not refused; landing body: %s", got)
 	}
 	if len(f.invites) != 0 {
 		t.Fatalf("a rejected invite minted a row: %d", len(f.invites))
@@ -363,9 +386,8 @@ func TestRemoveMemberTypedNameGate(t *testing.T) {
 	resp := postForm(t, ac, base+"/settings/accounts/remove", url.Values{
 		"id": {itoa(member.ID)}, "confirm_name": {"wrong"},
 	})
-	got := body(t, resp)
-	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(got, "did not match") {
-		t.Fatalf("typed-name mismatch not caught: status=%d body=%s", resp.StatusCode, got)
+	if got := refusalPage(t, ac, base, resp); !strings.Contains(got, "did not match") {
+		t.Fatalf("typed-name mismatch not caught; landing body: %s", got)
 	}
 	if _, ok := f.accounts[member.ID]; !ok {
 		t.Fatalf("member removed despite a wrong confirmation")
@@ -375,8 +397,8 @@ func TestRemoveMemberTypedNameGate(t *testing.T) {
 	resp = postForm(t, ac, base+"/settings/accounts/remove", url.Values{
 		"id": {itoa(admin.ID)}, "confirm_name": {"admin"},
 	})
-	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(body(t, resp), "your own account") {
-		t.Fatalf("self-removal not refused")
+	if got := refusalPage(t, ac, base, resp); !strings.Contains(got, "your own account") {
+		t.Fatalf("self-removal not refused; landing body: %s", got)
 	}
 
 	// The exact username removes the member.

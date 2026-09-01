@@ -175,6 +175,23 @@ type settingsForms struct {
 	tab     string // explicit active tab; when "", derived from section (default scans)
 	notice  string // a success line, rendered above the active section
 
+	// flashed marks a settingsForms that reached the render through the session form
+	// flash on a GET (ADR-0130 §1, flash.go) rather than from an inline re-render of a
+	// POST. The echo values are the same; the response is not. A flashed render IS the
+	// landing page of a post-redirect-get, so it answers 200 like any other navigation.
+	// Only the shrinking set of handlers that still render in place at their own POST
+	// URL answers 400. See renderSettings.
+	flashed bool
+
+	// flashTab names the tab whose GET may consume this stash. The settings surface has
+	// more than one landing — /settings renders whichever tab its query names, /scans
+	// renders the Scans section on a URL of its own — and they are not interchangeable:
+	// a refused CHANNEL act renders nothing on the Scans tab. takeSettingsFlash claims a
+	// stash only when this matches the tab it is rendering, so any other GET leaves it
+	// for the landing it belongs to. It is set on the way IN (failSettings, and each
+	// success stash) and read on the way out; it never reaches the template.
+	flashTab string
+
 	// team (T18). teamError is an inline error on the members surface; roleError is
 	// the change-role guard's message. inviteLink is a freshly minted join URL,
 	// revealed once by createInvite; inviteOpen re-opens the invite dialog on a
@@ -309,6 +326,95 @@ func tabForSection(section string) string {
 	}
 }
 
+// dialogParams names the query parameters that OPEN A DIALOG on a section's tab, as
+// opposed to naming the list the operator wants back. backToSection drops them from
+// every destination it answers.
+//
+// The Team tab is the case. Its change-role, require-re-enrollment, remove and invite
+// forms all live inside a modal, and each modal is opened by a query parameter so that
+// a destructive act is a navigation rather than a menu click (fillTeamSection). The
+// submitting URL therefore carries one, and returning to it verbatim is wrong twice
+// over. On a SUCCESS it re-opens the confirm the operator just accepted, which reads as
+// "nothing happened" and offers the act again. On a REFUSAL the modal covers the page:
+// .st-scrim is fixed over the whole viewport, and the role and re-enrollment callouts
+// render at page level BEHIND it, so the operator would land on a dimmed page with no
+// message at all.
+//
+// Dropping them is not a hole in ADR-0130 §3. A dialog is modal state, which the ADR
+// puts out of scope as failure class D; what §3 asks the redirect to preserve is the
+// list — the tab, the filter, the page — and every one of those survives. What must
+// re-open on a refusal re-opens from the FLASH instead, which is the stronger carrier
+// anyway: removeID/removeError re-open the remove dialog with the message inside it,
+// and inviteOpen does the same for the invite. Both are single-consume, so a reload
+// leaves the operator on a clean tab rather than in a dialog they never re-opened.
+func dialogParams(section string) []string {
+	if section == "team" {
+		return []string{"role", "reenroll", "remove", "invite"}
+	}
+	return nil
+}
+
+// backToSection answers a mutating settings act with the 303 ADR-0130 §3 asks for: back
+// to the URL the form was submitted from, minus that section's dialog parameters, and
+// falling back to the section's own tab when the form carried no usable `return`.
+//
+// A success and a refusal share it. The destination rule is the same for both — that is
+// the whole point of the contract, since a refusal the operator cannot tell apart from a
+// success is a refusal that keeps their scroll offset — and only the flash differs.
+func (s *server) backToSection(w http.ResponseWriter, r *http.Request, section string) {
+	dest := s.resolveBack(r, "/settings?tab="+tabForSection(section))
+	http.Redirect(w, r, stripDestParams(dest, dialogParams(section)...), http.StatusSeeOther)
+}
+
+// takeSettingsFlash reads this session's pending settings form off the flash carrier
+// (flash.go) and pins it to the tab the URL asked for. It is the GET half of the
+// ADR-0130 §1 post-redirect-get, and every GET that can be the landing of a migrated
+// settings act calls it: /settings itself, and /scans, which renders the same Scans
+// section and so is a legitimate submitting URL for the cold-tier opt-in.
+//
+// It claims a stash only when the stash named this tab (settingsForms.flashTab). A GET
+// on another tab leaves it for the landing it was written for — see takeFormFlashIf for
+// why that check has to exist rather than being left to chance.
+//
+// A GET that is nobody's landing takes nothing and renders a zero settingsForms, which
+// is the ordinary read. flashed records which of the two happened, because the value
+// alone cannot say: a stash whose only payload is an inviteLink carries no section, and
+// a stash that carries one must still answer 200 here (see renderSettings).
+//
+// The carrier is typed too, so a rejected form belonging to another surface — a
+// /signals declaration, say — is left in place rather than consumed here.
+func (s *server) takeSettingsFlash(r *http.Request, tab string) settingsForms {
+	f, ok := takeFormFlashIf[settingsForms](s, r, func(v settingsForms) bool {
+		return v.flashTab == tab
+	})
+	f.flashed = ok
+	f.tab = tab
+	return f
+}
+
+// failSettings answers a refused settings act the way ADR-0130 §1 asks: stash the
+// callout and the operator's typed values in the session flash, then 303 back to the
+// URL the form was submitted from. Nothing the operator typed enters the URL.
+//
+// The refusal is then indistinguishable from a success — both are a plain
+// post-redirect-get to the same URL — so the scroll offset the shell stashed on submit
+// is restored on the landing, and the tab in that URL is the tab they acted on. That
+// closes failure classes A and E together for the migrated handler.
+//
+// The destination and the flash's claim are both derived from f.section, so a caller
+// states the section and nothing else. Every caller already did, exactly as it did for
+// the inline re-render.
+//
+// It is the whole of the migration for a caller: an inline
+// `renderSettings(w, r, acct, settingsForms{...})` becomes `failSettings(w, r,
+// settingsForms{...})` with the same struct. Callers not yet migrated keep rendering
+// in place, and settingsForms.section keeps working for them.
+func (s *server) failSettings(w http.ResponseWriter, r *http.Request, f settingsForms) {
+	f.flashTab = tabForSection(f.section)
+	stashFormFlash(s, r, f)
+	s.backToSection(w, r, f.section)
+}
+
 func (s *server) settingsPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	// A VERGE_DEV build serves the design's curated fixtures.json settings slice so each
 	// section renders byte-for-byte for the pixel-parity harness (the 19 golden states).
@@ -321,9 +427,19 @@ func (s *server) settingsPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		return
 	}
 	q := r.URL.Query()
-	forms := settingsForms{
-		tab:    validTab(q.Get("tab")),
-		notice: sessionsNotice(q.Get("notice")),
+	// A refused settings act redirected here and left its callout and the operator's
+	// typed values in the session-keyed form flash (ADR-0130 §1, flash.go). Read it
+	// once: the take deletes it, so a reload of this same URL — the operator's own, or
+	// the scan-running auto-refresh — renders no stale callout. An ordinary GET finds
+	// nothing and renders none.
+	//
+	// The URL, never the flash, chooses the tab. That is the class-E fix this ticket
+	// exists for: the form carried the submitting URL, the handler 303'd back to it,
+	// and that URL says `tab=team`, so a refused team act renders on Team instead of on
+	// the default Scans tab the old `section` derivation dropped it onto.
+	forms := s.takeSettingsFlash(r, validTab(q.Get("tab")))
+	if forms.notice == "" {
+		forms.notice = sessionsNotice(q.Get("notice"))
 	}
 	// Restore card state (#391/B4, ADR-0124) rides the Instance tab only. A failed
 	// pre-flight or apply redirects here with ?restore-error=<code>, mapped to a fixed
@@ -379,7 +495,7 @@ const inviteTTL = 7 * 24 * time.Hour
 func (s *server) inviteAccount(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	role := r.FormValue("role")
 	fail := func(msg string) {
-		s.renderSettings(w, r, acct, settingsForms{
+		s.failSettings(w, r, settingsForms{
 			section: "team", teamError: msg, inviteOpen: true, inviteRole: role,
 		})
 	}
@@ -403,7 +519,15 @@ func (s *server) inviteAccount(w http.ResponseWriter, r *http.Request, acct db.A
 	link := s.inviteLink(r, plaintext)
 	// The one delivery this self-hosted build honestly has: the operator's own logs.
 	log.Printf("web: invite minted at role %q; accept it at %s (expires in %s)", role, link, inviteTTL) // #nosec G706 (role is enum-validated admin|viewer; link is server-constructed)
-	s.renderSettings(w, r, acct, settingsForms{tab: "team", inviteLink: link})
+	// The success is a post-redirect-get too (ADR-0130 §3), and the minted link rides
+	// the session flash rather than the URL. The link carries the PLAINTEXT invite
+	// token, so putting it in a query would write a live credential to the access log
+	// and to the browser's history — the flash is the only carrier that can hold it.
+	// inviteOpen is what re-opens the dialog to reveal the link, not the ?invite=1 the
+	// submitting URL carried — backToSection drops that (dialogParams), so the reveal is
+	// single-consume and a reload leaves the operator on a clean Team tab.
+	stashFormFlash(s, r, settingsForms{flashTab: "team", inviteOpen: true, inviteLink: link})
+	s.backToSection(w, r, "team")
 }
 
 // inviteLink builds the absolute join URL an invitee presents at /invite. It reads
@@ -424,7 +548,7 @@ func (s *server) inviteLink(r *http.Request, token string) string {
 // UI; the guards still hold on the raw POST.
 func (s *server) setAccountRole(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	fail := func(msg string) {
-		s.renderSettings(w, r, acct, settingsForms{section: "team", roleError: msg})
+		s.failSettings(w, r, settingsForms{section: "team", roleError: msg})
 	}
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
@@ -456,7 +580,7 @@ func (s *server) setAccountRole(w http.ResponseWriter, r *http.Request, acct db.
 		s.serverError(w, "update account role", err)
 		return
 	}
-	http.Redirect(w, r, "/settings?tab=team", http.StatusSeeOther)
+	s.backToSection(w, r, "team")
 }
 
 // reenrollAccount clears a member's second factor (Settings.jsx "Require
@@ -466,14 +590,14 @@ func (s *server) setAccountRole(w http.ResponseWriter, r *http.Request, acct db.
 func (s *server) reenrollAccount(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
-		s.renderSettings(w, r, acct, settingsForms{section: "team", teamError: "That account could not be found."})
+		s.failSettings(w, r, settingsForms{section: "team", teamError: "That account could not be found."})
 		return
 	}
 	if err := s.store.ResetAccountTOTP(r.Context(), id); err != nil {
 		s.serverError(w, "reset account totp", err)
 		return
 	}
-	http.Redirect(w, r, "/settings?tab=team", http.StatusSeeOther)
+	s.backToSection(w, r, "team")
 }
 
 // removeAccount removes a member through a typed-name gate — the worst destructive
@@ -485,21 +609,25 @@ func (s *server) reenrollAccount(w http.ResponseWriter, r *http.Request, acct db
 func (s *server) removeAccount(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
-		s.renderSettings(w, r, acct, settingsForms{section: "team", teamError: "That account could not be found."})
+		s.failSettings(w, r, settingsForms{section: "team", teamError: "That account could not be found."})
 		return
 	}
+	// The remove dialog is opened by ?remove=<id>, so the submitting URL re-opens it on
+	// the landing GET all by itself. removeID stays on the stash for the fallback path,
+	// where a form carried no usable `return` field and the landing is a bare
+	// /settings?tab=team with no dialog in its query.
 	reopen := func(msg string) {
-		s.renderSettings(w, r, acct, settingsForms{section: "team", removeID: id, removeError: msg})
+		s.failSettings(w, r, settingsForms{section: "team", removeID: id, removeError: msg})
 	}
 	if id == acct.ID {
 		// Self has no remove dialog (a member never acts on their own row), so the
 		// refusal shows inline rather than in a dialog that would not render.
-		s.renderSettings(w, r, acct, settingsForms{section: "team", teamError: "You cannot remove your own account."})
+		s.failSettings(w, r, settingsForms{section: "team", teamError: "You cannot remove your own account."})
 		return
 	}
 	target, err := s.store.GetAccountByID(r.Context(), id)
 	if err != nil {
-		s.renderSettings(w, r, acct, settingsForms{section: "team", teamError: "That account could not be found."})
+		s.failSettings(w, r, settingsForms{section: "team", teamError: "That account could not be found."})
 		return
 	}
 	if strings.TrimSpace(r.FormValue("confirm_name")) != target.Username {
@@ -525,7 +653,7 @@ func (s *server) removeAccount(w http.ResponseWriter, r *http.Request, acct db.A
 		s.serverError(w, "delete account", err)
 		return
 	}
-	http.Redirect(w, r, "/settings?tab=team", http.StatusSeeOther)
+	s.backToSection(w, r, "team")
 }
 
 // --- channels --------------------------------------------------------------
@@ -537,7 +665,7 @@ func (s *server) createChannel(w http.ResponseWriter, r *http.Request, acct db.A
 	rawURL := strings.TrimSpace(r.FormValue("url"))
 	drift, coverage, clock := classesFromForm(r)
 	fail := func(msg string) {
-		s.renderSettings(w, r, acct, settingsForms{
+		s.failSettings(w, r, settingsForms{
 			section: "channels", chanError: msg, chanURL: rawURL,
 			chanDrift: drift, chanCoverage: coverage, chanClock: clock,
 		})
@@ -560,7 +688,7 @@ func (s *server) createChannel(w http.ResponseWriter, r *http.Request, acct db.A
 		s.serverError(w, "create channel", err)
 		return
 	}
-	http.Redirect(w, r, "/settings?tab=channels", http.StatusSeeOther)
+	s.backToSection(w, r, "channels")
 }
 
 // updateChannel edits a channel's URL, routing classes and enabled state, and
@@ -569,7 +697,7 @@ func (s *server) createChannel(w http.ResponseWriter, r *http.Request, acct db.A
 // and a value replaces it.
 func (s *server) updateChannel(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	fail := func(msg string) {
-		s.renderSettings(w, r, acct, settingsForms{section: "channels", chanError: msg})
+		s.failSettings(w, r, settingsForms{section: "channels", chanError: msg})
 	}
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
@@ -610,7 +738,7 @@ func (s *server) updateChannel(w http.ResponseWriter, r *http.Request, acct db.A
 			return
 		}
 	}
-	http.Redirect(w, r, "/settings?tab=channels", http.StatusSeeOther)
+	s.backToSection(w, r, "channels")
 }
 
 // deleteChannel removes a channel. It is idempotent: deleting a row that is
@@ -618,14 +746,14 @@ func (s *server) updateChannel(w http.ResponseWriter, r *http.Request, acct db.A
 func (s *server) deleteChannel(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
-		s.renderSettings(w, r, acct, settingsForms{section: "channels", chanError: "That channel could not be found."})
+		s.failSettings(w, r, settingsForms{section: "channels", chanError: "That channel could not be found."})
 		return
 	}
 	if err := s.store.DeleteChannel(r.Context(), id); err != nil {
 		s.serverError(w, "delete channel", err)
 		return
 	}
-	http.Redirect(w, r, "/settings?tab=channels", http.StatusSeeOther)
+	s.backToSection(w, r, "channels")
 }
 
 // --- retention -------------------------------------------------------------
@@ -789,8 +917,13 @@ func (s *server) renderSettings(w http.ResponseWriter, r *http.Request, acct db.
 		return
 	}
 
+	// A section names the form that failed, and while a handler still answers its own
+	// POST with a rendered body that failure is a 400. A MIGRATED handler answers 303
+	// instead (ADR-0130 §1), and its section reaches this render on the landing GET
+	// through the flash — an ordinary navigation, which is a 200. flashed is what tells
+	// the two apart; the section alone cannot.
 	status := http.StatusOK
-	if f.section != "" {
+	if f.section != "" && !f.flashed {
 		status = http.StatusBadRequest
 	}
 	s.renderStatus(w, r, status, "settings", data)

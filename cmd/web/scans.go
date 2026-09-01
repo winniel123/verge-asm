@@ -102,8 +102,12 @@ type jobView struct {
 // Scans currently in flight with their per-job progress, and recent completed
 // Dispatches beneath as history. With nothing dispatched it shows an idle state —
 // a fact and the next action — never an error or a blank. A viewer reads it.
+// It is also a landing page of the ADR-0130 §1 post-redirect-get: the cold-tier
+// opt-in renders here as well as on /settings?tab=scans, so an operator can submit it
+// from this URL and a refusal must be able to show its callout here. It therefore takes
+// the session form flash the same way settingsPage does.
 func (s *server) scansPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	s.renderSettings(w, r, acct, settingsForms{tab: "scans"})
+	s.renderSettings(w, r, acct, s.takeSettingsFlash(r, "scans"))
 }
 
 // fillScansSection assembles the Settings scans sub-tab's read-side data: the

@@ -405,7 +405,7 @@
 <span class="st-tag">{{if .IsAddress}}address{{else}}name{{end}}</span>
 <span style="margin-left:auto;display:inline-flex;align-items:center;gap:10px">
 {{if .OptedIn}}<span class="st-badge ok"><span class="d"></span>opted in</span>{{else}}<span class="st-badge neutral">off</span>{{end}}
-{{if $.IsAdmin}}<form method="post" action="/settings/cold" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="opt_in" value="{{if .OptedIn}}false{{else}}true{{end}}"><button type="submit" class="st-btn-sm">{{if .OptedIn}}Opt out{{else}}Opt in{{end}}</button></form>{{end}}
+{{if $.IsAdmin}}<form method="post" action="/settings/cold" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="opt_in" value="{{if .OptedIn}}false{{else}}true{{end}}">{{template "backfield" $}}<button type="submit" class="st-btn-sm">{{if .OptedIn}}Opt out{{else}}Opt in{{end}}</button></form>{{end}}
 </span>
 </div>
 {{end}}
@@ -728,7 +728,7 @@
 <h2>Change role</h2>
 <p class="desc" style="font-family:var(--font-mono);font-size:12.5px">{{.Username}}</p>
 <form method="post" action="/settings/accounts/role" style="margin:16px 0 0;display:flex;flex-direction:column;gap:12px">
-<input type="hidden" name="id" value="{{.ID}}">
+<input type="hidden" name="id" value="{{.ID}}">{{template "backfield" $}}
 <span class="st-input"><span class="lb">Role</span>
 <select id="st-role-select" name="role" data-current="{{.Role}}" style="height:36px;padding:0 12px;background:var(--surface);color:var(--text-ink);font:400 13px var(--font-ui);border:1px solid var(--border-default);border-radius:12px;outline:none">
 <option value="admin"{{if eq .Role "admin"}} selected{{end}}>admin — declared acts</option>
@@ -749,7 +749,7 @@
 <p class="detail">Their current authenticator stops working immediately; the next sign-in walks them through two-factor setup again. Active sessions stay signed in.</p>
 <div class="acts">
 <a class="st-btn ghost" href="/settings?tab=team">Cancel</a>
-<form method="post" action="/settings/accounts/reenroll" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" class="st-btn sec">Require re-enrollment</button></form>
+<form method="post" action="/settings/accounts/reenroll" style="margin:0"><input type="hidden" name="id" value="{{.ID}}">{{template "backfield" $}}<button type="submit" class="st-btn sec">Require re-enrollment</button></form>
 </div>
 </div></div>
 {{end}}
@@ -761,7 +761,7 @@
 <p class="detail">Their annotations and audit history stay attributed. Personal API tokens are revoked.</p>
 {{if $.RemoveError}}<div class="st-error" style="margin-top:12px">{{$.RemoveError}}</div>{{end}}
 <form method="post" action="/settings/accounts/remove" style="margin:16px 0 0;display:flex;flex-direction:column;gap:6px">
-<input type="hidden" name="id" value="{{.ID}}">
+<input type="hidden" name="id" value="{{.ID}}">{{template "backfield" $}}
 <span style="font:400 12.5px var(--font-ui);color:var(--text-secondary)">Type <span id="st-typed-name" style="font:600 12px var(--font-mono);color:var(--text-ink)">{{.Username}}</span> to confirm.</span>
 <input class="typed" name="confirm_name" autocomplete="off" spellcheck="false" required aria-label="Type the username to confirm">
 <div class="acts">
@@ -791,7 +791,7 @@
 <p class="desc">They get a join link; the role applies on acceptance. This build has no mail, so you hand the link over out of band.</p>
 {{if .TeamError}}<div class="st-error" style="margin-top:12px">{{.TeamError}}</div>{{end}}
 <form method="post" action="/settings/accounts" style="margin:16px 0 0;display:flex;flex-direction:column;gap:12px">
-<span class="st-input"><span class="lb">Role</span>
+{{template "backfield" $}}<span class="st-input"><span class="lb">Role</span>
 <select name="role" style="height:36px;padding:0 12px;background:var(--surface);color:var(--text-ink);font:400 13px var(--font-ui);border:1px solid var(--border-default);border-radius:12px;outline:none">
 <option value="viewer"{{if eq .InviteRole "viewer"}} selected{{end}}>viewer — read-only</option>
 <option value="admin"{{if eq .InviteRole "admin"}} selected{{end}}>admin — declared acts</option>
@@ -1264,12 +1264,12 @@
 <td class="mono">{{.By}}<br><span style="color:var(--text-muted)">{{.At}}</span></td>
 {{if $.IsAdmin}}<td style="overflow:visible">
 <span style="display:inline-flex;gap:8px;align-items:center;justify-content:flex-end">
-<form method="post" action="/settings/channels/test" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" class="st-btn-sm">Send test</button></form>
+<form method="post" action="/settings/channels/test" style="margin:0"><input type="hidden" name="id" value="{{.ID}}">{{template "backfield" $}}<button type="submit" class="st-btn-sm">Send test</button></form>
 <details class="st-disc" style="position:relative">
 <summary><span class="st-btn-sm">Edit</span></summary>
 <div class="sheet" style="position:absolute;right:0;z-index:95;width:340px;box-shadow:var(--shadow-md);border:1px solid var(--border-default);background:var(--surface-raised)">
 <form method="post" action="/settings/channels/update" style="margin:0;display:flex;flex-direction:column;gap:10px">
-<input type="hidden" name="id" value="{{.ID}}">
+<input type="hidden" name="id" value="{{.ID}}">{{template "backfield" $}}
 <span class="st-input"><span class="lb">URL</span><span class="iw"><input name="url" value="{{.URL}}" autocomplete="off" required></span></span>
 <div style="display:flex;gap:16px;flex-wrap:wrap">
 {{range .ClassStates}}<label class="st-check"><input type="checkbox" name="{{.Name}}"{{if .Checked}} checked{{end}}><span class="box"><svg viewBox="0 0 18 18" width="12" height="12"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="var(--on-accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>{{.Name}}</label>{{end}}
@@ -1279,7 +1279,7 @@
 {{if .HasSecret}}<label class="st-check"><input type="checkbox" name="clear_secret"><span class="box"><svg viewBox="0 0 18 18" width="12" height="12"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="var(--on-accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>clear the secret</label>{{end}}
 <div style="display:flex;gap:8px"><button type="submit" class="st-btn-sm">Save channel</button></div>
 </form>
-<form method="post" action="/settings/channels/delete" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" class="st-btn-sm" style="color:var(--danger);border-color:var(--danger-border)">Delete channel</button></form>
+<form method="post" action="/settings/channels/delete" style="margin:0"><input type="hidden" name="id" value="{{.ID}}">{{template "backfield" $}}<button type="submit" class="st-btn-sm" style="color:var(--danger);border-color:var(--danger-border)">Delete channel</button></form>
 </div>
 </details>
 </span>
@@ -1299,7 +1299,7 @@
 <div class="st-cardhead"><div class="hd"><span class="st-micro">New channel</span><h3>Declare a channel</h3></div></div>
 <div class="st-body">
 <form method="post" action="/settings/channels" class="st-form" style="margin:0">
-<span class="st-input"><span class="lb">Channel URL</span><span class="iw"><input name="url" value="{{.ChanURL}}" placeholder="https://ops.example/hook" autocomplete="off" required></span><span class="hint">One-way https delivery</span></span>
+{{template "backfield" $}}<span class="st-input"><span class="lb">Channel URL</span><span class="iw"><input name="url" value="{{.ChanURL}}" placeholder="https://ops.example/hook" autocomplete="off" required></span><span class="hint">One-way https delivery</span></span>
 <span class="st-input"><span class="lb">Secret (optional)</span><span class="iw"><input name="secret" type="password" autocomplete="off" placeholder="signs the body — never shown again"></span></span>
 <div style="display:flex;flex-direction:column;gap:8px">
 <span style="font:500 12.5px var(--font-ui);color:var(--text-body)">Receives</span>
@@ -1411,7 +1411,7 @@
 {{else}}
 <form method="post" action="/settings/integrations/remove" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" class="st-btn ghost">Remove</button></form>
 {{if .BoundChannel}}
-<form method="post" action="/settings/integrations/test" style="margin:0;margin-left:auto"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" class="st-btn sec">Send test</button></form>
+<form method="post" action="/settings/integrations/test" style="margin:0;margin-left:auto"><input type="hidden" name="id" value="{{.ID}}">{{template "backfield" $}}<button type="submit" class="st-btn sec">Send test</button></form>
 {{else}}
 <span style="margin-left:auto;display:inline-flex;align-items:center;gap:10px"><span class="st-note">Connect a channel to test</span><button type="button" class="st-btn sec" disabled style="opacity:0.45;cursor:default">Send test</button></span>
 {{end}}
