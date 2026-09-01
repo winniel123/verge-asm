@@ -164,9 +164,12 @@ type pageCell struct {
 	Ellipsis bool
 }
 
-// signalsForms carries a declare-form error back onto a re-rendered Signals page
-// so a rejected declaration keeps its message and its typed values without a
-// redirect.
+// signalsForms carries a declare-form error and the operator's typed values onto the
+// Signals page a refused declaration lands back on. Since ticket #972 it travels
+// through the session-keyed form flash (flash.go, ADR-0130 §1) rather than sitting in
+// an in-place re-render: annotations.go stashes one and 303s, signalsPage takes it
+// once and hands it here. It is the ONE error model for this surface — the flash is
+// typed on this struct, so nothing else can be read as a signals error.
 type signalsForms struct {
 	annoError   string
 	annoSubject string
@@ -190,7 +193,12 @@ func (s *server) signalsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		s.render(w, r, "signals", s.signalsFixtureData(acct, r))
 		return
 	}
-	s.renderSignals(w, r, acct, signalsForms{})
+	// A refused declaration or withdrawal redirected here and left its message in the
+	// session-keyed form flash (ADR-0130 §1). Read it once: the take deletes it, so a
+	// reload of this same URL — an operator's own, or the scan-running auto-refresh —
+	// renders no stale callout. An ordinary GET finds nothing and renders none.
+	forms, _ := takeFormFlash[signalsForms](s, r)
+	s.renderSignals(w, r, acct, forms)
 }
 
 // signalsExport streams the CURRENT TAB's filtered rows as a downloadable CSV
@@ -252,9 +260,10 @@ func (s *server) writeSignalsExportCSV(w http.ResponseWriter, tab string, rows [
 }
 
 // renderSignals builds the flat per-instance table view model and renders the
-// Signals screen. It is the single render path the GET handler and the declare
-// handler's failure case both use, so a rejected declaration re-renders the live
-// page with its error banner.
+// Signals screen. Since ticket #972 the GET handler is its only caller: a refused
+// declaration redirects rather than re-rendering, and its message reaches this
+// function through the form flash signalsPage consumed, so one code path serves both
+// an ordinary load and the landing after a refusal.
 func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.Account, forms signalsForms) {
 	open, annotated, withdrawn, err := s.buildSignalTabs(r)
 	if err != nil {
@@ -426,6 +435,31 @@ func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.A
 		}
 	}
 
+	// The refused declaration's typed reason, echoed back into the drawer's declare
+	// textarea (ADR-0130 §1) so the operator does not retype it. The reason is the only
+	// field they type: the pair rides two hidden inputs the drawer renders from the row,
+	// and the submitting URL carried `view=<ViewKey>`, so the SAME drawer re-opens and
+	// re-derives the subject and the rule by itself. Those two need no echo.
+	//
+	// The echo is gated on the drawer being the SUBJECT the reason was written about. A
+	// submission whose `return` named no drawer, or whose value the open-redirect guard
+	// refused, lands on a page with no form or on another row's, and dropping one
+	// subject's reason into another's textarea would invite an acceptance recorded
+	// against the wrong thing. The comparison runs through normalizeSubjectKey, the same
+	// fold declareAnnotation applied before it stashed the value.
+	//
+	// The stashed SIGNAL is deliberately NOT compared. It is not operator-typed, and the
+	// one refusal that leaves a reason worth echoing on a still-unannotated pair is
+	// exactly the one where that field is wrong — an unknown rule name. Requiring it to
+	// match the drawer would discard the reason in the single case this echo exists for.
+	// A duplicate refusal, the other reason-carrying refusal, lands on a row that now
+	// reads as annotated, and that drawer renders the accepted-risk block rather than a
+	// form, so it has no textarea to echo into either way.
+	var annoReasonDraft string
+	if forms.annoReason != "" && drawer != nil && normalizeSubjectKey(drawer.Asset) == forms.annoSubject {
+		annoReasonDraft = forms.annoReason
+	}
+
 	// Export CSV is gated on the current tab having rows to export (Signals.jsx
 	// disables the button when the tab is empty), and carries the current filters.
 	hasExport := total > 0
@@ -464,6 +498,9 @@ func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.A
 		"Drawer":         drawer,
 		"Descope":        descope,
 		"AnnoError":      forms.annoError,
+		// Named apart from the row's own .AnnoReason (an EXISTING annotation's reason,
+		// rendered in the accepted-risk block) so the two never read as one datum.
+		"AnnoReasonDraft": annoReasonDraft,
 	})
 }
 
