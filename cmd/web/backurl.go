@@ -40,7 +40,16 @@ const backField = "return"
 // would make the field an open-redirect vector for no gain, since every destination
 // is on this server.
 //
-// The `toast` parameter is dropped. It is a single-consume PRG receipt (shell.go
+// The query is preserved BYTE FOR BYTE, in the order it arrived. Do not rebuild it
+// through url.Values.Encode(): Encode sorts the parameters alphabetically, and the
+// scroll key ticket #970 set is a raw string compare on `location.pathname +
+// location.search` (shell.tmpl). A re-ordered query is a different string, so the
+// stash written on submit would miss on the landing — the exact class-C/E failure
+// this map exists to close. The orders in play are not alphabetical: the /signals
+// filter form submits `tab, sev, sort, dir, q` in DOM order, and its severity links
+// emit `tab, q, sev, sort, dir`.
+//
+// Only the `toast` parameter is dropped. It is a single-consume PRG receipt (shell.go
 // toastRedirect): carrying it back would re-fire a spent toast on the next landing,
 // and would let a stale receipt win over the fresh one, because decodeToasts reads
 // only the first `toast` value. Every other parameter is kept, because the filter
@@ -53,12 +62,43 @@ func backURL(r *http.Request) string {
 	if p == "" {
 		p = "/"
 	}
-	q := r.URL.Query()
-	q.Del("toast")
-	if len(q) == 0 {
+	q := stripToastParam(r.URL.RawQuery)
+	if q == "" {
 		return p
 	}
-	return p + "?" + q.Encode()
+	return p + "?" + q
+}
+
+// stripToastParam removes every `toast` pair from a raw query and returns what is
+// left, with the order and the encoding of every other pair untouched. It walks the
+// raw string rather than parsing it, because a parse-and-re-encode round trip is what
+// re-orders the query and breaks the scroll key.
+//
+// The key is unescaped before it is compared, so a percent-encoded spelling of the
+// name is dropped too. A malformed key is compared raw, which is the safe direction:
+// an unrecognised pair is kept rather than silently discarded.
+func stripToastParam(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	var kept []string
+	for _, pair := range strings.Split(raw, "&") {
+		if pair == "" {
+			continue
+		}
+		key := pair
+		if i := strings.Index(pair, "="); i >= 0 {
+			key = pair[:i]
+		}
+		if name, err := url.QueryUnescape(key); err == nil {
+			key = name
+		}
+		if key == "toast" {
+			continue
+		}
+		kept = append(kept, pair)
+	}
+	return strings.Join(kept, "&")
 }
 
 // resolveBack reads the submitting URL off the posted form and returns it when it
@@ -81,8 +121,13 @@ func backURL(r *http.Request) string {
 //   - This server serves a GET at that path. A path the router does not serve is a
 //     303 into a 404, which loses the operator's place as surely as a bare path does.
 //
-// The query rides through once the path passes. A query cannot change the origin, and
-// its values are the filter state the carrier exists to preserve.
+// The query rides through once the path passes, in its own order — it is the filter
+// state the carrier exists to preserve, and re-ordering it would break the scroll key
+// (see backURL). One parameter is stripped: `toast`. backURL never emits one, so a
+// legitimate value is unchanged, but a hand-crafted value must not be allowed to plant
+// a receipt. decodeToasts (chrome.go) reads only the FIRST `toast`, so a planted one
+// would beat the real toast toastRedirectBack appends and put an operator-chosen
+// system message on the landing page.
 func (s *server) resolveBack(r *http.Request, fallback string) string {
 	if r == nil {
 		return fallback
@@ -109,6 +154,16 @@ func (s *server) resolveBack(r *http.Request, fallback string) string {
 	}
 	if !s.routeServesGET(u.Path) {
 		return fallback
+	}
+	// Strip a planted `toast` receipt, keeping every other byte of the path and of the
+	// surviving query in place. Splitting the raw string rather than re-encoding the
+	// URL is deliberate: a parse-and-re-encode round trip re-orders the query.
+	if i := strings.IndexByte(raw, '?'); i >= 0 {
+		q := stripToastParam(raw[i+1:])
+		if q == "" {
+			return raw[:i]
+		}
+		return raw[:i+1] + q
 	}
 	return raw
 }
@@ -149,8 +204,22 @@ func (s *server) routeServesGET(p string) bool {
 // the form was submitted from, or to fallback when the form carried none that passed
 // the guard. It is the plain form of the carrier: no toast, just the operator's own
 // list again.
+//
+// markMessageUnread (messages.go) meets the same taint problem a different way: it
+// resolves a bool and redirects to a string LITERAL at each branch, so no
+// request-derived value reaches http.Redirect at all. That pattern is stronger, and it
+// is the right one THERE, because the Inbox acts have exactly two destinations to
+// enumerate. It cannot express this ticket: ADR-0130 §3 requires a redirect back to an
+// arbitrary filtered list URL, and an arbitrary URL has no literal form. The guard
+// above is the substitute the ADR asks for, so the taint is admitted deliberately
+// rather than overlooked. Do not read this as licence to skip the literal pattern
+// where a handler CAN enumerate its destinations.
+//
+// This line carries no `#nosec`. Measured with CI's own flags (-exclude-generated
+// -severity high -confidence high), gosec raises nothing here, so an annotation would
+// suppress no finding and would only imply one had been silenced.
 func (s *server) redirectBack(w http.ResponseWriter, r *http.Request, fallback string) {
-	http.Redirect(w, r, s.resolveBack(r, fallback), http.StatusSeeOther) // #nosec G710 -- resolveBack admits only a same-origin relative path this router serves a GET at; every other value falls back to the caller's constant path
+	http.Redirect(w, r, s.resolveBack(r, fallback), http.StatusSeeOther)
 }
 
 // toastRedirectBack is redirectBack composed with the toast carrier (shell.go

@@ -46,10 +46,14 @@ func TestBackURLCarriesPathAndQuery(t *testing.T) {
 		want string
 	}{
 		{"bare path", "/signals", "/signals"},
-		{"path and query", "/signals?tab=open&sev=High", "/signals?sev=High&tab=open"},
+		{"path and query", "/signals?tab=open&sev=High", "/signals?tab=open&sev=High"},
 		{"root", "/", "/"},
 		{"toast receipt dropped", "/signals?tab=open&toast=abc", "/signals?tab=open"},
+		{"toast dropped from the front", "/signals?toast=abc&tab=open", "/signals?tab=open"},
+		{"toast dropped from the middle", "/signals?tab=open&toast=abc&q=lame", "/signals?tab=open&q=lame"},
+		{"a percent-encoded toast key is dropped too", "/signals?tab=open&%74oast=abc", "/signals?tab=open"},
 		{"toast-only query leaves a bare path", "/signals?toast=abc", "/signals"},
+		{"a value that merely contains toast is kept", "/signals?q=toaster", "/signals?q=toaster"},
 		{"escaped path segment kept", "/asset/host.example.com?tab=x", "/asset/host.example.com?tab=x"},
 	}
 	for _, tc := range cases {
@@ -62,6 +66,25 @@ func TestBackURLCarriesPathAndQuery(t *testing.T) {
 	}
 	if got := backURL(nil); got != "" {
 		t.Errorf("backURL(nil) = %q, want the empty string", got)
+	}
+}
+
+// The scroll key ticket #970 set is a raw string compare on `location.pathname +
+// location.search`, so the carrier must not re-order the query. Rebuilding it through
+// url.Values.Encode() sorts it alphabetically and the stash then misses on the
+// landing — the class-C/E failure this map exists to close. These are the two orders
+// /signals actually emits: the filter form's DOM order and the severity link's order.
+// Neither is alphabetical.
+func TestBackURLPreservesQueryOrder(t *testing.T) {
+	for _, in := range []string{
+		"/signals?tab=open&sev=High&sort=asset&dir=desc",
+		"/signals?tab=open&q=lame&sev=High&sort=asset&dir=desc",
+		"/signals?tab=open&sev=High&sort=asset&dir=desc&page=2",
+	} {
+		got := backURL(httptest.NewRequest(http.MethodGet, in, nil))
+		if got != in {
+			t.Errorf("backURL(%q) = %q; the query must survive in its own order, or the scroll key misses", in, got)
+		}
 	}
 }
 
@@ -117,6 +140,38 @@ func TestResolveBackRejectsAndFallsBack(t *testing.T) {
 				t.Errorf("resolveBack(%q) = %q, want the fallback %q", tc.in, got, fallback)
 			}
 		})
+	}
+}
+
+// A hand-crafted field must not plant a toast on the landing page. decodeToasts reads
+// only the FIRST `toast`, so a planted receipt would beat the real one the act fires
+// and put an operator-chosen system message on the screen. backURL never emits a
+// `toast`, so a legitimate value passes through untouched.
+func TestResolveBackStripsAPlantedToast(t *testing.T) {
+	s := backSrv(t)
+	planted := "eyJ0b25lIjoiZGFuZ2VyIiwidGl0bGUiOiJTZXNzaW9uIGV4cGlyZWQifQ"
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"/signals?toast=" + planted, "/signals"},
+		{"/signals?tab=open&toast=" + planted, "/signals?tab=open"},
+		{"/signals?toast=" + planted + "&tab=open", "/signals?tab=open"},
+		{"/signals?tab=open&sev=High", "/signals?tab=open&sev=High"},
+	}
+	for _, tc := range cases {
+		if got := s.resolveBack(backPost(tc.in), "/signals"); got != tc.want {
+			t.Errorf("resolveBack(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+
+	// End to end: the act's own toast is the one that lands.
+	w := httptest.NewRecorder()
+	s.toastRedirectBack(w, backPost("/signals?tab=open&toast="+planted), "/signals", "ok", "Annotation declared", "")
+	dest := httptest.NewRequest(http.MethodGet, w.Header().Get("Location"), nil)
+	got := decodeToasts(dest)
+	if len(got) != 1 || got[0].Title != "Annotation declared" {
+		t.Errorf("a planted toast survived the guard: %+v (Location %q)", got, w.Header().Get("Location"))
 	}
 }
 
@@ -210,8 +265,8 @@ func TestSignalsFormsCarryTheSubmittingURL(t *testing.T) {
 	list := getBody(t, ac, base+view, http.StatusOK)
 	key := firstViewKey(t, list)
 	drawer := getBody(t, ac, base+view+"&view="+url.QueryEscape(key), http.StatusOK)
-	// backURL sorts the query, and html/template escapes the `&` in an attribute.
-	const wantField = `name="return" value="/signals?q=lame&amp;tab=open&amp;view=`
+	// The query keeps its own order, and html/template escapes the `&` in an attribute.
+	const wantField = `name="return" value="/signals?tab=open&amp;q=lame&amp;view=`
 	if !strings.Contains(drawer, wantField) {
 		t.Errorf("the declare form carries no submitting-URL field starting %q; body: %s", wantField, drawer)
 	}
