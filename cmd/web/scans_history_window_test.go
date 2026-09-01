@@ -50,6 +50,13 @@ func TestScansHistorySurvivesBusyQueue(t *testing.T) {
 	if strings.Contains(page, "No dispatches yet") {
 		t.Errorf("history rendered its empty state with three completed dispatches; body: %s", page)
 	}
+	// A listed row must resolve. Run detail reads the same two windows the monitor lists
+	// from, so a history row a busy queue pushed past the old shared 50 still has a page,
+	// and so does an in-flight dispatch deep in the uncapped Active read. renderMissingRun
+	// answers 404, so the status assertion alone catches an unresolvable row.
+	for _, id := range []int64{1000, 998, 8941} {
+		getBody(t, ac, fmt.Sprintf("%s/runs/%d", base, id), http.StatusOK)
+	}
 }
 
 // Truncation is detected with LIMIT N+1: the read fetches scansHistoryLimit + 1 rows,
