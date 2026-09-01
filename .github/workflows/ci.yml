@@ -218,6 +218,11 @@ jobs:
   #
   # Neither negative passes on a non-zero exit alone. A broken image exits
   # non-zero too, so each negative greps for its own error text.
+  #
+  # Each negative also asserts PER SERVICE (#1021). The override repeats
+  # PGSSLMODE, PGSSLROOTCERT and the CA bind for web and for worker, so one copy
+  # can drift on its own. An assertion that reads both services at once passes
+  # on either one, and the drifted service stays green.
   compose-external-db-tls:
     runs-on: ubuntu-latest
     env:
@@ -346,20 +351,31 @@ jobs:
           # client does not hold. Matching the text is the assertion: a run with
           # verification switched off connects instead, prints nothing like it,
           # and falls through to the failure at the bottom.
+          #
+          # Each service is collected and searched ALONE, and BOTH must report
+          # the error (#1021). docker-compose.external-db.yml repeats PGSSLMODE,
+          # PGSSLROOTCERT and the CA bind per service on purpose, so one copy
+          # can drift on its own. One grep over a combined log passes on web's
+          # error while worker verifies nothing.
           want='certificate signed by unknown authority'
-          log="$RUNNER_TEMP/run2.log"
           for i in $(seq 1 45); do
-            # Collected to a file first. Piping into `grep -q` lets grep close
-            # the pipe on its first match, and `docker compose logs` then dies
-            # of SIGPIPE, which `pipefail` reports as a failed search.
-            docker compose logs --no-color web worker >"$log" 2>&1 || true
-            if grep -qF "$want" "$log"; then
-              echo "a client refused the unrelated root: $want"
+            silent=
+            for svc in web worker; do
+              log="$RUNNER_TEMP/run2-$svc.log"
+              # Collected to a file first. Piping into `grep -q` lets grep close
+              # the pipe on its first match, and `docker compose logs` then dies
+              # of SIGPIPE, which `pipefail` reports as a failed search.
+              docker compose logs --no-color "$svc" >"$log" 2>&1 || true
+              grep -qF "$want" "$log" || silent="$silent $svc"
+            done
+            if [ -z "$silent" ]; then
+              echo "web and worker both refused the unrelated root: $want"
               exit 0
             fi
             sleep 2
           done
-          echo "no client reported \"$want\" within 90s, so nothing verified the root"
+          echo "no \"$want\" within 90s from:$silent"
+          echo "a silent service completed the dial, so it verified the root against nothing"
           docker compose ps --all
           docker compose logs
           exit 1
@@ -374,21 +390,31 @@ jobs:
           # `docker compose config` is no substitute for this run. It exits 0 on
           # a missing bind source (#995), so only `up` reaches the daemon check
           # that `create_host_path: false` arms.
-          log="$RUNNER_TEMP/run3.log"
-          if docker compose up -d >"$log" 2>&1; then
-            echo "compose up SUCCEEDED on a missing bind source; create_host_path: false is not holding"
+          #
+          # Each service is raised ALONE, and BOTH must be refused (#1021). One
+          # `up` over the stack stops at whichever container the engine reaches
+          # first, so worker's guard could be dropped and the step would still
+          # go red on web. One service at a time also names the service in the
+          # failure message. verge-db comes up with the first of the two and
+          # stays up for the second, because `depends_on` still holds.
+          for svc in web worker; do
+            log="$RUNNER_TEMP/run3-$svc.log"
+            if docker compose up -d "$svc" >"$log" 2>&1; then
+              echo "compose up $svc SUCCEEDED on a missing bind source; create_host_path: false is not holding for $svc"
+              cat "$log"
+              exit 1
+            fi
             cat "$log"
-            exit 1
-          fi
-          cat "$log"
 
-          # The non-zero exit above is not the assertion. A broken image exits
-          # non-zero too. This is the wording troubleshooting.md quotes for the
-          # same failure, so the assertion holds the guard and the doc together.
-          if ! grep -qF 'bind source path does not exist' "$log"; then
-            echo "compose up failed for some reason other than the missing bind source"
-            exit 1
-          fi
+            # The non-zero exit above is not the assertion. A broken image exits
+            # non-zero too. This is the wording troubleshooting.md quotes for the
+            # same failure, so the assertion holds the guard and the doc together.
+            if ! grep -qF 'bind source path does not exist' "$log"; then
+              echo "compose up $svc failed for some reason other than the missing bind source"
+              exit 1
+            fi
+            echo "compose up refused the missing bind source for $svc"
+          done
 
           # `create_host_path` defaults to TRUE, and a short-syntax bind would
           # have created an empty DIRECTORY here. Nothing may appear.
@@ -397,7 +423,7 @@ jobs:
             ls -la "$RUNNER_TEMP/no-such-ca-dir"
             exit 1
           fi
-          echo "compose up refused the missing bind source, and created nothing at $missing"
+          echo "web and worker both refused the missing bind source, and nothing was created at $missing"
 
   # --- Supply-chain / SAST / secret scanning (#331) ---
 
