@@ -623,6 +623,33 @@ type Querier interface {
 	// wants the CIDRs alone. It is the address twin of measurement.sql's
 	// ListAddressScopeCidrs and mirrors its shape read for read.
 	ListAddressExclusionCidrs(ctx context.Context) ([]*netip.Prefix, error)
+	// Every open timeline a DECLARED address exclusion withdraws, for the membership
+	// fold to close with the `descoped` ground (ADR-0133 §8, #1032). It is the
+	// listing twin of PreviewExclusionWithdrawal: the same two CTE shapes read
+	// against the declared `exclusion` rows instead of one candidate CIDR, so the
+	// preview counts and the withdrawal act over the same set by construction.
+	//
+	// It reads the exclusion corpus itself rather than taking one CIDR per call. The
+	// fold runs this once per batch, and once the withdrawal has closed the spans it
+	// returns no row, so a later batch does no work and writes no second message.
+	//
+	// The withdrawal is never larger than the declaration it narrows (ADR-0133 §1):
+	// an address a current resolution still cites does NOT leave, which is the NOT
+	// EXISTS clause. The SECOND survivor rule — an address the custody extension
+	// still reaches does not leave either — is applied in Go, because it is
+	// custody.Estate.Derive and the rejected-alternatives table forbids restating
+	// that rule outside the package the corpus locks. So this query answers which
+	// timelines are CANDIDATES to close, and composeAddressWithdrawals decides.
+	//
+	// Two limits are inherited from PreviewExclusionWithdrawal deliberately, so the
+	// receipt and the act cannot drift apart. The `~ '^[0-9.]+$'` gate reads IPv4
+	// subject keys alone, so an IPv6 address exclusion previews and withdraws
+	// nothing. And the resolution test is a substring match over the span value, so
+	// a resolution citing 10.0.0.10 also holds 10.0.0.1 in the estate. Both bound
+	// the withdrawal SMALLER than the model asks, never larger, which is the safe
+	// direction: an address that should have left stays, and none leaves that should
+	// have stayed. Widening either one has to move both queries together.
+	ListAddressExclusionWithdrawals(ctx context.Context) ([]ListAddressExclusionWithdrawalsRow, error)
 	// The declared address-scope Seeds, for the hot Scan's Custody derivation: every
 	// address inside one derives operator directly (ADR-0013).
 	ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error)

@@ -139,12 +139,12 @@ type departure struct {
 // before any read or write, so a fixture-only install writes no message and enqueues
 // no delivery, and the golden fixtures stay message-free. A batch with no transition
 // is likewise a no-op.
-func produceMessages(ctx context.Context, store messageStore, batchID int64, observedAt time.Time, changes []spanChange, departures []departure, in membershipInputs, enqueue enqueueFunc, devMode bool) error {
+func produceMessages(ctx context.Context, store messageStore, batchID int64, observedAt time.Time, changes []spanChange, departures []departure, narrowings []message.NarrowingReceipt, in membershipInputs, enqueue enqueueFunc, devMode bool) error {
 	_ = batchID // the message links by fired-at subject key, not the batch id
-	if devMode || (len(changes) == 0 && len(departures) == 0) {
+	if devMode || (len(changes) == 0 && len(departures) == 0 && len(narrowings) == 0) {
 		return nil
 	}
-	msgs, err := buildMessages(ctx, store, observedAt, changes, departures, in)
+	msgs, err := buildMessages(ctx, store, observedAt, changes, departures, narrowings, in)
 	if err != nil {
 		return err
 	}
@@ -187,7 +187,7 @@ func insertParams(m *message.Message) db.InsertMessageParams {
 // answers it is deterministic, so the whole producer is driven by a fake store in
 // the unit tests. The flagship leg reads the class-composed internet leg; the
 // membership leg reads only the changes and the declared-input context.
-func buildMessages(ctx context.Context, store messageStore, observedAt time.Time, changes []spanChange, departures []departure, in membershipInputs) ([]*message.Message, error) {
+func buildMessages(ctx context.Context, store messageStore, observedAt time.Time, changes []spanChange, departures []departure, narrowings []message.NarrowingReceipt, in membershipInputs) ([]*message.Message, error) {
 	var msgs []*message.Message
 
 	flagship, err := flagshipMessages(ctx, store, observedAt, changes)
@@ -198,7 +198,31 @@ func buildMessages(ctx context.Context, store messageStore, observedAt time.Time
 
 	msgs = append(msgs, membershipMessages(observedAt, changes, in)...)
 	msgs = append(msgs, declaredInputMessages(observedAt, departures)...)
+	msgs = append(msgs, narrowingMessages(observedAt, narrowings)...)
 	return msgs, nil
+}
+
+// narrowingMessages fires one coverage-class message.Narrowing per address
+// Exclusion whose withdrawal this batch applied (ADR-0074, ADR-0133 §8, #1032).
+// This is the first production call to message.Narrowing: until #1032 only
+// PreviewNarrowing was called, so `POST /exclusions/preview` promised a message
+// that no path ever wrote.
+//
+// It fires at the Seed scope the narrowing moved, carries the two counts and no
+// rows, and stays silent over an uninhabited withdrawn set — message.Narrowing
+// returns nil where the receipt does not fire, which is the same gate the preview
+// applies, so the operator is never shown a receipt for a message that will not
+// come. One message per act, not one per subject: the count IS the payload
+// (message.NarrowingReceipt), and a row per withdrawn subject would be the census
+// the receipt exists to replace.
+func narrowingMessages(observedAt time.Time, narrowings []message.NarrowingReceipt) []*message.Message {
+	var msgs []*message.Message
+	for _, r := range narrowings {
+		if m := message.Narrowing(r, r.Scope, observedAt); m != nil {
+			msgs = append(msgs, m)
+		}
+	}
+	return msgs
 }
 
 // declaredInputMessages fires one coverage-class message.DeclaredInput per subject

@@ -85,6 +85,90 @@ func (q *Queries) InsertMessage(ctx context.Context, arg InsertMessageParams) (M
 	return i, err
 }
 
+const listAddressExclusionWithdrawals = `-- name: ListAddressExclusionWithdrawals :many
+WITH withdrawn_addr AS (
+    SELECT DISTINCT s.subject_key
+    FROM span s
+    WHERE s.closed_at IS NULL
+      AND s.subject_kind = 'address'
+      AND s.subject_key ~ '^[0-9.]+$'
+      AND EXISTS (
+          SELECT 1 FROM exclusion e
+          WHERE e.kind = 'address'
+            AND e.address_cidr IS NOT NULL
+            AND s.subject_key::inet <<= e.address_cidr
+      )
+      AND NOT EXISTS (
+          SELECT 1 FROM span r
+          WHERE r.closed_at IS NULL
+            AND r.facet = 'resolution'
+            AND r.is_gap = false
+            AND position(s.subject_key IN r.value::text) > 0
+      )
+)
+SELECT s.id, s.subject_kind, s.subject_key
+FROM span s
+WHERE s.closed_at IS NULL
+  AND (
+      s.subject_key IN (SELECT subject_key FROM withdrawn_addr)
+      OR (s.subject_kind IN ('service', 'endpoint')
+          AND EXISTS (SELECT 1 FROM withdrawn_addr w WHERE s.subject_key LIKE w.subject_key || ':%'))
+  )
+ORDER BY s.subject_key, s.id
+`
+
+type ListAddressExclusionWithdrawalsRow struct {
+	ID          int64  `json:"id"`
+	SubjectKind string `json:"subject_kind"`
+	SubjectKey  string `json:"subject_key"`
+}
+
+// Every open timeline a DECLARED address exclusion withdraws, for the membership
+// fold to close with the `descoped` ground (ADR-0133 §8, #1032). It is the
+// listing twin of PreviewExclusionWithdrawal: the same two CTE shapes read
+// against the declared `exclusion` rows instead of one candidate CIDR, so the
+// preview counts and the withdrawal act over the same set by construction.
+//
+// It reads the exclusion corpus itself rather than taking one CIDR per call. The
+// fold runs this once per batch, and once the withdrawal has closed the spans it
+// returns no row, so a later batch does no work and writes no second message.
+//
+// The withdrawal is never larger than the declaration it narrows (ADR-0133 §1):
+// an address a current resolution still cites does NOT leave, which is the NOT
+// EXISTS clause. The SECOND survivor rule — an address the custody extension
+// still reaches does not leave either — is applied in Go, because it is
+// custody.Estate.Derive and the rejected-alternatives table forbids restating
+// that rule outside the package the corpus locks. So this query answers which
+// timelines are CANDIDATES to close, and composeAddressWithdrawals decides.
+//
+// Two limits are inherited from PreviewExclusionWithdrawal deliberately, so the
+// receipt and the act cannot drift apart. The `~ '^[0-9.]+$'` gate reads IPv4
+// subject keys alone, so an IPv6 address exclusion previews and withdraws
+// nothing. And the resolution test is a substring match over the span value, so
+// a resolution citing 10.0.0.10 also holds 10.0.0.1 in the estate. Both bound
+// the withdrawal SMALLER than the model asks, never larger, which is the safe
+// direction: an address that should have left stays, and none leaves that should
+// have stayed. Widening either one has to move both queries together.
+func (q *Queries) ListAddressExclusionWithdrawals(ctx context.Context) ([]ListAddressExclusionWithdrawalsRow, error) {
+	rows, err := q.db.Query(ctx, listAddressExclusionWithdrawals)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAddressExclusionWithdrawalsRow{}
+	for rows.Next() {
+		var i ListAddressExclusionWithdrawalsRow
+		if err := rows.Scan(&i.ID, &i.SubjectKind, &i.SubjectKey); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listMessages = `-- name: ListMessages :many
 SELECT id, cause, class, subject_kind, fired_at, instant, census, headline, read_at, created_at
 FROM message
