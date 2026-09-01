@@ -26,14 +26,14 @@ import (
 const notifyChannel = "queue_job"
 
 // chunkCommitSize bounds how many jobs one fan-out transaction enqueues before
-// committing. The address-scope tiers (hot, cold) stream a per-address fan-out
-// and commit it in chunks (ADR-0127's amendment to ADR-0005): transaction
-// duration and memory stay bounded above the address-scope cap. A crash between
-// chunks leaves the tick claimed and the Dispatch under-covering — a re-run hits
-// the (scan, scheduled_time) key and skips, so nothing double-dispatches, and the
-// currency surfaces report the shortfall (#847). The bounded tiers (dns, zone,
-// tls-acceptance, http-identity, ct, edge-fanout) keep ADR-0005's single atomic
-// transaction.
+// committing. The address-scope tiers (hot, cold, and since #988 edge-fanout)
+// stream a per-address fan-out and commit it in chunks (ADR-0127's amendment to
+// ADR-0005): transaction duration and memory stay bounded above the address-scope
+// cap. A crash between chunks leaves the tick claimed and the Dispatch
+// under-covering — a re-run hits the (scan, scheduled_time) key and skips, so
+// nothing double-dispatches, and the currency surfaces report the shortfall
+// (#847). The bounded tiers (dns, zone, tls-acceptance, http-identity, ct) keep
+// ADR-0005's single atomic transaction.
 const chunkCommitSize = 500
 
 // Dispatcher fans a Scan out into queue jobs on its cadence and on demand.
@@ -149,14 +149,15 @@ func (d *Dispatcher) Trigger(ctx context.Context, kind string) (int, error) {
 	return d.fanOut(ctx, s, d.now().UTC().Truncate(time.Second))
 }
 
-// fanOut dispatches a Scan's tick. The address-scope tiers (hot, cold) stream a
-// per-address fan-out and commit it in chunks (fanOutStreamed); every other tier
-// keeps ADR-0005's single atomic transaction (fanOutAtomic). Both key the
-// Dispatch on the unique (scan, scheduled_time): the tick is dispatched once, an
-// overlap is skipped and recorded, never run concurrently.
+// fanOut dispatches a Scan's tick. The address-scope tiers (hot, cold,
+// edge-fanout) stream a per-address fan-out and commit it in chunks
+// (fanOutStreamed); every other tier keeps ADR-0005's single atomic transaction
+// (fanOutAtomic). Both key the Dispatch on the unique (scan, scheduled_time): the
+// tick is dispatched once, an overlap is skipped and recorded, never run
+// concurrently.
 func (d *Dispatcher) fanOut(ctx context.Context, s db.Scan, scheduledTime time.Time) (int, error) {
 	switch s.Kind {
-	case scan.HotKind, scan.ColdKind:
+	case scan.HotKind, scan.ColdKind, scan.EdgeFanoutKind:
 		return d.fanOutStreamed(ctx, s, scheduledTime)
 	default:
 		return d.fanOutAtomic(ctx, s, scheduledTime)
@@ -207,8 +208,6 @@ func (d *Dispatcher) fanOutAtomic(ctx context.Context, s db.Scan, scheduledTime 
 		enqueued, err = d.fanOutCT(ctx, qtx, s.ID, dispatchID)
 	case scan.CTTailKind:
 		enqueued, err = d.fanOutCTTail(ctx, qtx, s.ID, dispatchID)
-	case scan.EdgeFanoutKind:
-		enqueued, err = d.fanOutEdgeFanout(ctx, qtx, s.ID, dispatchID)
 	default:
 		enqueued, err = d.fanOutDNS(ctx, qtx, s.ID, dispatchID)
 	}
@@ -228,7 +227,7 @@ func (d *Dispatcher) fanOutAtomic(ctx context.Context, s db.Scan, scheduledTime 
 	return enqueued, nil
 }
 
-// fanOutStreamed dispatches an address-scope tier (hot, cold) as a streamed,
+// fanOutStreamed dispatches an address-scope tier (hot, cold, edge-fanout) as a streamed,
 // chunked fan-out (ADR-0127, amending ADR-0005's atomic fan-out). The Dispatch
 // row is committed first — claiming the (scan, scheduled_time) tick — then the
 // per-address jobs stream out in chunkCommitSize transactions, so no record holds
@@ -248,6 +247,8 @@ func (d *Dispatcher) fanOutStreamed(ctx context.Context, s db.Scan, scheduledTim
 		enqueued, err = d.fanOutHot(ctx, s.ID, dispatchID)
 	case scan.ColdKind:
 		enqueued, err = d.fanOutCold(ctx, s.ID, dispatchID)
+	case scan.EdgeFanoutKind:
+		enqueued, err = d.fanOutEdgeFanout(ctx, s.ID, dispatchID)
 	}
 	if err != nil {
 		// The Dispatch row is already committed, so the tick is claimed and the

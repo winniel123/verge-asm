@@ -66,6 +66,12 @@ type ExtensionCensusEntry struct {
 //   - Measured NOT-SHARED — NO ENTRY. The extension reaches it, and a reached
 //     address is not this census's business.
 //
+// It walks the RESOLUTIONS, so an address a declared address scope covers and no
+// in-zone name cites gets no entry — measured or not. That is #988's open-then-label
+// absence rule holding: on the declaration limb an unmeasured address is probed
+// normally and carries no row, and a *pending* row on every address of every scope on
+// the first day would be noise rather than a census.
+//
 // A Scan that is not in force yields NO ENTRIES AT ALL. Nothing is declined and
 // nothing is held where the measurement does not narrow — that is EdgeFanout's
 // fourth absence case, the pre-ADR-0129 behaviour — so a row here would name a

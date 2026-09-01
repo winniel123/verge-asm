@@ -72,9 +72,11 @@ type line struct {
 	// where nothing measured, because an absence is never a value.
 	FanOut     *int  `json:"fanout"`
 	SharedEdge *bool `json:"shared_edge"`
-	// ExtensionCandidate reports membership of the population the Scan measures.
-	// It reads the PRE-veto reach, so a vetoed edge is still true here and a later
-	// handshake can lift the veto.
+	// ExtensionCandidate reports membership of the EXTENSION LIMB of the population
+	// the Scan measures. It reads the PRE-veto reach, so a vetoed edge is still true
+	// here and a later handshake can lift the veto. Since #988 the Scan also measures
+	// the declaration limb, which this column does NOT report: there the result labels
+	// and gates nothing, and AddressScopeCovered below is that limb's column.
 	ExtensionCandidate bool `json:"extension_candidate"`
 	// AddressScopeCovered reports whether a declared address-scope `Seed` covers
 	// the address — the OTHER limb of subject membership, which the veto never

@@ -18,8 +18,12 @@ import "net/netip"
 // (ADR-0047 makes it a subject from the declaration), and Derive returns from that
 // limb before the extension is asked. Such an address derives `operator` at any
 // fan-out count. There is no precedence rule to write, because the two mechanisms
-// are disjoint rather than ranked (ADR-0129's #956 amendment). On the `Seed` limb
-// fan-out is labelling only, and that display is #988's and #989's, not a gate.
+// are disjoint rather than ranked (ADR-0129's #956 amendment).
+//
+// The Scan MEASURES that limb as well (#988, EdgeFanoutPopulation), so Shared below
+// carries keys for declared addresses too. Those keys reach no gate: admits is called
+// from coveredByExtension alone, and Derive never gets there for a `Seed`-covered
+// address. On the `Seed` limb fan-out is labelling only, and its display is #989's.
 //
 // A SPECIFICITY TEST IS REFUSED. The declaration does not win at a `/32` naming the
 // address and lose inside a `/13` that swallows it. Every version of that is an
