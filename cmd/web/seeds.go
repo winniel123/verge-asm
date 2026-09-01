@@ -211,6 +211,11 @@ func (s *server) seedsPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	// refresh but changed the URL — and a landing URL that differs from the submitting
 	// one is exactly the §2 scroll-key miss this map exists to close. The flash keeps
 	// the idempotence and the destination both.
+	//
+	// The VERGE_DEV branch above returns before this read, and declareSeed's own dev
+	// branch still renders its refusal in place. Both are the pixel-parity harness, which
+	// posts fixed states to compare bytes and never rides the contract; a flash stashed
+	// under VERGE_DEV is simply retired by the TTL. A real deployment takes neither path.
 	s.renderSeeds(w, r, acct, s.takeScopeFlash(r))
 }
 

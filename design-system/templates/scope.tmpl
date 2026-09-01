@@ -251,6 +251,7 @@ button.sc-trow { cursor: pointer; }
 <span class="h">Upload is a dated act — the upload instant is the observation instant. Drop several — each file is its own act. An apex outside your name scopes is refused, with the reason.</span>
 <input type="file" name="zonefile" accept=".zone,.txt" multiple style="display:none">
 </label>
+<button type="submit" class="sc-btn-sm" data-zone-submit style="margin-top:10px">Upload</button>
 </form>
 <div class="sc-introw">
 <span class="sc-micro">Re-supply interval</span>
@@ -338,7 +339,7 @@ button.sc-trow { cursor: pointer; }
 {{end}}
 <div style="display:flex;align-items:center;gap:10px;padding-top:12px;border-top:1px solid var(--row-sep)">
 <span style="font:400 11.5px var(--font-ui);color:var(--text-muted)">Confirm one at a time; decline in bulk.</span>
-{{if .IsAdmin}}<button type="submit" form="sc-decline-form" class="sc-btn-ghost" id="sc-decline-btn" style="margin-left:auto" disabled>Decline selected</button>{{end}}
+{{if .IsAdmin}}<button type="submit" form="sc-decline-form" class="sc-btn-ghost" id="sc-decline-btn" style="margin-left:auto">Decline selected</button>{{end}}
 </div>
 </div>
 {{else}}
@@ -406,9 +407,23 @@ button.sc-trow { cursor: pointer; }
   var boxes=[].slice.call(document.querySelectorAll("[data-decline]")),db=document.getElementById("sc-decline-btn");
   function recount(){if(!db)return;var n=boxes.filter(function(b){return b.checked;}).length;db.textContent="Decline selected"+(n?" ("+n+")":"");if(n)db.removeAttribute("disabled");else db.setAttribute("disabled","");}
   boxes.forEach(function(b){b.addEventListener("change",recount);});
+  /* The button ships ENABLED and the script disables it on load (ADR-0130 §3 ticket
+     #976, the ruling #971 and #975 each made on their own surface). A control disabled
+     in the markup and enabled only by script is a control that does not work with
+     JavaScript off. Enabled markup plus this call is the same affordance for a
+     scripted browser, and a working one for every other. An empty selection is already
+     a no-op redirect on the server (declineLookup). */
+  recount();
   var drop=document.getElementById("sc-zone-drop");
   if(drop){
     var fi=drop.querySelector("input[type=file]");
+    /* The form ships a real submit control, because the drop zone's own submit is a
+       `change` / `drop` handler and neither fires with JavaScript off — the label still
+       opens the picker, but nothing would send the file (ADR-0130 §3 ticket #976). The
+       script hides it once it has taken that job, so a scripted browser keeps the
+       design's drop-only card. */
+    var zb=fi.form.querySelector("[data-zone-submit]");
+    if(zb)zb.style.display="none";
     var zsub=function(){if(fi.form.requestSubmit)fi.form.requestSubmit();else fi.form.submit();};
     fi.addEventListener("change",function(){if(fi.files.length)zsub();});
     drop.addEventListener("dragover",function(e){e.preventDefault();drop.classList.add("over");});

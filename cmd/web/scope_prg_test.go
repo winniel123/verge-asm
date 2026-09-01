@@ -263,6 +263,66 @@ func TestSucceedingScopeActsReturnToTheSubmittingURL(t *testing.T) {
 	}
 }
 
+// Every act on the screen has to work with JavaScript off, which means the markup has
+// to ship the control that starts it. Two on this screen did not: the bulk-decline
+// button was `disabled` in the markup and enabled only by script, and the zone form had
+// no submit control at all — its only submit was the file input's `change` handler.
+//
+// Both are the ruling #971 and #975 each made on their own surface, applied here: the
+// markup ships the control working, and the script takes over on load for a browser
+// that has one. This test reads the markup, because a Go HTTP client runs no script and
+// so cannot tell a script-enabled control from a broken one.
+func TestScopeControlsShipUsableWithoutScript(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	addNameSeed(t, f, admin.ID, "example.com")
+	base := startWithProposer(t, f, &fakeProposer{candidates: []proposer.Candidate{
+		{SourceSlug: proposer.SlugAFRINIC, RecordKind: proposer.RecordRIRDelegation,
+			Scope: netip.MustParsePrefix("203.0.113.0/24"), OrgName: "Acme"},
+	}})
+	ac := login(t, base, "admin", "hunter2hunter2")
+	lookup(t, ac, base, "Acme").Body.Close()
+
+	page := getBody(t, ac, base+"/scope", http.StatusOK)
+	if !strings.Contains(page, `id="sc-decline-btn"`) {
+		t.Fatal("the bulk-decline button is not on the page")
+	}
+	if strings.Contains(page, `id="sc-decline-btn" style="margin-left:auto" disabled`) {
+		t.Error("the bulk-decline button ships disabled, so it cannot be used without script")
+	}
+	if !strings.Contains(page, `data-zone-submit`) {
+		t.Error("the zone form ships no submit control, so an upload cannot be started without script")
+	}
+}
+
+// The bulk decline works on plain markup: the ids ride the checkboxes' own form
+// association, the act 303s back to the submitting URL, and each declined scope is
+// recorded as the address exclusion that makes the decline durable.
+func TestBulkDeclineWorksWithoutScript(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := startWithProposer(t, f, &fakeProposer{candidates: []proposer.Candidate{
+		{SourceSlug: proposer.SlugAFRINIC, RecordKind: proposer.RecordRIRDelegation,
+			Scope: netip.MustParsePrefix("203.0.113.0/24"), OrgName: "Acme"},
+	}})
+	ac := login(t, base, "admin", "hunter2hunter2")
+	lookup(t, ac, base, "Acme").Body.Close()
+
+	const from = "/scope?seen=1"
+	loc := submitLoc(t, postForm(t, ac, base+"/proposals/decline", url.Values{
+		"ids": {itoa(f.proposals[0].ID)}, "return": {from},
+	}))
+	if loc != from {
+		t.Fatalf("the decline landed at %q, want %q", loc, from)
+	}
+	if f.proposals[0].Status != "declined" {
+		t.Fatalf("proposal status = %q, want declined", f.proposals[0].Status)
+	}
+	if len(f.exclusions) != 1 {
+		t.Fatalf("the decline recorded %d exclusions, want 1", len(f.exclusions))
+	}
+}
+
 // The guard refuses a `return` this server does not serve a GET at, and falls back to
 // bare /scope rather than 303ing the operator off-site (backurl.go resolveBack). The
 // scope forms are operator-controlled input like any other, so the check is asserted
