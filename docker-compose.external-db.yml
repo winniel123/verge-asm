@@ -56,7 +56,9 @@ services:
     depends_on: !reset null
     environment:
       DATABASE_URL: ${DATABASE_URL:?}
-      PGSSLMODE: ${POSTGRES_SSLMODE:-verify-full}
+      # SCRATCH ONLY (#1021): the single-service drift under test. `require`
+      # still negotiates TLS, so it verifies nothing. Never merge this line.
+      PGSSLMODE: require
       PGSSLROOTCERT: /etc/verge/ca/root.crt
     volumes:
       # Both services open the pool, so both mount the anchor (ADR-0132 §3).

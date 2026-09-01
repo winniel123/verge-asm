@@ -321,6 +321,29 @@ jobs:
         if: always()
         run: docker compose down -v
 
+      # SCRATCH ONLY (#1021): run 2 exactly as it stood before the fix, one
+      # grep over both services. `continue-on-error` keeps it advisory, so its
+      # GREEN result is visible beside the fixed step's RED one. Never merge.
+      - name: SCRATCH the OLD run 2 assertion, one grep over both services
+        continue-on-error: true
+        run: |
+          bash .github/compose/gen-tls-fixture.sh "$RUNNER_TEMP/wrong-ca-old" unrelated
+          export POSTGRES_SSLROOTCERT_SRC="$RUNNER_TEMP/wrong-ca-old/root.crt"
+          trap 'docker compose down -v >/dev/null 2>&1 || true' EXIT
+          docker compose up -d
+          want='certificate signed by unknown authority'
+          log="$RUNNER_TEMP/run2-old.log"
+          for i in $(seq 1 45); do
+            docker compose logs --no-color web worker >"$log" 2>&1 || true
+            if grep -qF "$want" "$log"; then
+              echo "SCRATCH RESULT: the OLD assertion PASSED with worker drifted to PGSSLMODE=require"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "SCRATCH RESULT: the OLD assertion FAILED"
+          exit 1
+
       # --- Run 2 (§9.6, assertion 2): an unrelated CA root must fail ---
       #
       # A step that fails is SKIPPED past by the steps after it, so a red run 1
