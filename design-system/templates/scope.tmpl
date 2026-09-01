@@ -254,7 +254,7 @@ button.sc-trow { cursor: pointer; }
 <div class="ct">
 <span class="nm">{{.Name}}</span>
 {{if .Declined}}
-<span class="det">Its direct A record cites <span class="mono">{{.Address}}</span>, measured as a shared edge{{if .Scope}}, and covered by address scope <span class="mono">{{.Scope}}</span>{{end}}. Declare the origin addresses as an address scope, to monitor the true origin.</span>
+<span class="det">Its direct A record cites <span class="mono">{{.Address}}</span>, measured as a shared edge{{if .Scope}}, and covered by address scope <span class="mono">{{.Scope}}</span>. The declaration stands, so that address is still probed. Withdraw the scope and the decline takes effect.{{else}}. Declare the origin addresses as an address scope, to monitor the true origin.{{end}}</span>
 {{else}}
 <span class="det">Its direct A record cites <span class="mono">{{.Address}}</span>, which the daily <span class="mono">edge-fanout</span> scan has not measured yet{{if .Scope}}, and which address scope <span class="mono">{{.Scope}}</span> covers{{end}}. The extension holds the reach until it does.</span>
 {{end}}

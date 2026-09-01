@@ -161,6 +161,19 @@ func TestCustodyCensusDualLimbRow(t *testing.T) {
 		!strings.Contains(page, "93.184.216.0/24") {
 		t.Errorf("the dual-limb row does not state both limbs; body: %s", page)
 	}
+	// The remedy is the OTHER row's. Telling an operator to declare an address scope
+	// in the same sentence that says one already covers the address reads as a
+	// contradiction, which is the very thing this row exists to avoid. What they can
+	// act on here is the withdrawal, so that is what the row names.
+	// The section lede carries the remedy in general terms, so the assertion names the
+	// ROW's own sentence — the one TestCustodyCensusDeclinedAndPendingRows pins present
+	// on a plain decline.
+	if strings.Contains(page, "Declare the origin addresses as an address scope, to monitor the true origin.") {
+		t.Errorf("the dual-limb row repeats a remedy already taken; body: %s", page)
+	}
+	if !strings.Contains(page, "Withdraw the scope and the decline takes effect.") {
+		t.Errorf("the dual-limb row does not say what the decline would do; body: %s", page)
+	}
 }
 
 // The section degrades honestly when the read fails. It says the measurement did not
