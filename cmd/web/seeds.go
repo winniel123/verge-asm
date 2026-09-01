@@ -423,7 +423,9 @@ func (s *server) deleteSeed(w http.ResponseWriter, r *http.Request, acct db.Acco
 	// The delete and the tombstone the withdrawal owes commit together (ADR-0134 §2,
 	// #1040), so no path can leave a withdrawn address scope with no mover for the
 	// membership fold to name.
-	if _, err := s.store.WithdrawSeed(r.Context(), db.WithdrawSeedParams{SeedID: id, CreatedBy: acct.ID}); err != nil {
+	if _, err := s.store.WithdrawSeed(r.Context(), db.WithdrawSeedParams{
+		SeedID: id, CreatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
+	}); err != nil {
 		s.serverError(w, "withdraw seed", err)
 		return
 	}

@@ -129,8 +129,8 @@ SELECT
 `
 
 type WithdrawSeedParams struct {
-	SeedID    int64 `json:"seed_id"`
-	CreatedBy int64 `json:"created_by"`
+	SeedID    int64       `json:"seed_id"`
+	CreatedBy pgtype.Int8 `json:"created_by"`
 }
 
 type WithdrawSeedRow struct {

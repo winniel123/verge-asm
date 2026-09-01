@@ -60,6 +60,20 @@ import (
 // It runs LAST in the batch transaction, after the value fold, the Name estate
 // fold and the exclusion withdrawal. An address the exclusion fold already closed
 // is not open, so it is never counted or attributed twice.
+//
+// A TOMBSTONE IS SPENT LATE, once no open timeline is left under its CIDR, and not
+// on the first fold that reads it. Two of the three survivors above are transient —
+// a citing resolution goes away, a custody extension is turned off — and the
+// exclusion twin can afford to act late because its live `exclusion` row is still
+// there to re-read. A tombstone is the only mover its act will ever have. Spending
+// it while its ground is still held would strand those addresses open for ever,
+// which is the leak this file exists to close.
+//
+// The pending read takes FOR UPDATE SKIP LOCKED, because workers are
+// multi-instance. Without it two folds completing at once both collect the same
+// receipt, and the loser writes a coverage message for subjects its own batch
+// withdrew none of. A Message is written once and never recomputed, so that
+// duplicate would be permanent.
 
 // foldSeedWithdrawals closes every open timeline a withdrawn address Seed takes
 // with it, with the `descoped` ground, citing the folding batch — then spends the
@@ -98,14 +112,20 @@ func foldSeedWithdrawals(ctx context.Context, qtx *db.Queries, batchID int64, ob
 			*out = append(*out, narrowings...)
 		}
 	}
-	// Spend every tombstone this fold read, including one that closed nothing: it
-	// has taken everything it was going to take. The stamp runs after the closures
-	// and inside the same transaction, so a rolled-back fold spends nothing.
+	// Spend the tombstones whose withdrawal is now EXHAUSTED — the ones with no open
+	// timeline left under their CIDR. The query decides that, so it reads the
+	// closures above from inside the same transaction. A tombstone whose ground a
+	// transient survivor still holds stays pending and is retried on the next
+	// completed job.
+	//
+	// Only the rows THIS fold claimed are offered. The pending read holds a row lock
+	// on each of them, so the update never waits on a row another worker's fold is
+	// holding.
 	ids := make([]int64, 0, len(pending))
 	for _, w := range pending {
 		ids = append(ids, w.ID)
 	}
-	return qtx.MarkSeedWithdrawalsConsumed(ctx, db.MarkSeedWithdrawalsConsumedParams{
+	return qtx.SpendSeedWithdrawals(ctx, db.SpendSeedWithdrawalsParams{
 		ConsumedAt:      tstz(observedAt),
 		ConsumedBatchID: pgInt8(batchID),
 		Ids:             ids,
