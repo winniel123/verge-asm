@@ -215,3 +215,61 @@ func TestAddressScopeCensusClearsOnAnAddressExclusion(t *testing.T) {
 		t.Errorf("census = %+v, want the row: an exclusion elsewhere in the scope must not clear it", got)
 	}
 }
+
+// The census REFUSES a partial measurement (#1036). It is the one reader that walks
+// Shared wholesale, so a record bound to the extension limb would show it every
+// declaration-limb row missing and it would count short with nothing to say so.
+//
+// The two estates below differ in the Partial flag and in nothing else, so the refusal
+// cannot be read off the fixture: the same map counts a row when the record covers the
+// whole population.
+func TestAddressScopeCensusRefusesAPartialMeasurement(t *testing.T) {
+	measured := sharedFanout([]string{"93.184.216.7", "93.184.216.9"}, nil)
+	scopes := []netip.Prefix{cidr("93.184.216.0/24")}
+
+	whole := Estate{
+		AddressScopes: scopes,
+		edgeFanout:    EdgeFanout{Enabled: true, Shared: measured},
+	}
+	if got := whole.AddressScopeCensus(); len(got) != 1 || got[0].SharedEdges != 2 {
+		t.Fatalf("census = %+v over the whole population, want one row of 2: the fixture proves nothing", got)
+	}
+
+	partial := Estate{
+		AddressScopes: scopes,
+		edgeFanout:    EdgeFanout{Enabled: true, Partial: true, Shared: measured},
+	}
+	if got := partial.AddressScopeCensus(); got != nil {
+		t.Errorf("census = %+v over a partial measurement, want no entry — a short count "+
+			"would state a number this install did not measure (#1036)", got)
+	}
+}
+
+// Partial moves NO GATE and NO VERDICT. The veto asks its question per address, over a
+// candidate the bound named, so the answer cannot turn on how the map was read.
+func TestPartialMovesNoVerdict(t *testing.T) {
+	shared := netip.MustParseAddr("104.16.132.10")
+	dedicated := netip.MustParseAddr("93.184.216.34")
+	measured := map[netip.Addr]bool{shared: true, dedicated: false}
+
+	for _, partial := range []bool{false, true} {
+		e := Estate{
+			ExtendedZones: []string{"example.com"},
+			Resolutions: []Resolution{
+				{Owner: "cdn.example.com", Address: shared},
+				{Owner: "www.example.com", Address: dedicated},
+			},
+		}.WithEdgeFanout(EdgeFanout{Enabled: true, BatchCompleted: true, Partial: partial, Shared: measured})
+
+		if got := e.Derive(shared); got != ThirdParty {
+			t.Errorf("Partial=%v: Derive(%s) = %s, want %s", partial, shared, got, ThirdParty)
+		}
+		if got := e.Derive(dedicated); got != Operator {
+			t.Errorf("Partial=%v: Derive(%s) = %s, want %s", partial, dedicated, got, Operator)
+		}
+		if len(e.ExtensionCensus()) != 1 {
+			t.Errorf("Partial=%v: the extension census named %d entries, want the one decline",
+				partial, len(e.ExtensionCensus()))
+		}
+	}
+}

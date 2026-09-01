@@ -524,4 +524,12 @@ func TestTheScopeCensusBindsItsFanOutReadAndTheCoverageCensusDoesNot(t *testing.
 	if got[scope] != 1 {
 		t.Errorf("the declared scope counted %d shared edges, want 1 — the unbound read lost its own limb's row", got[scope])
 	}
+
+	// The backstop, at the seam the two surfaces share. Handing the Scope render's
+	// estate to the address-scope census yields NO ENTRY rather than a count short by
+	// every declaration-limb row its bound left behind (#1036).
+	if entries := estate.AddressScopeCensus(); entries != nil {
+		t.Errorf("the address-scope census counted %+v over the Scope render's bound estate: "+
+			"a short count states a number this install did not measure", entries)
+	}
 }

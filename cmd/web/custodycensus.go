@@ -109,6 +109,23 @@ type custodyCensusStore interface {
 // current cited addresses through the live-tier gate, and the `edge-fanout`
 // measurement — so the census names the same declines the dispatch acts on.
 //
+// THE MEASUREMENT IS THE ONE READ THAT NO LONGER MIRRORS. hotEstate takes the whole
+// store; this takes queue.EdgeFanoutOver(estate.ExtensionCandidates()), so the returned
+// estate carries a measurement of the EXTENSION LIMB ALONE (#1036). The declines it
+// names do not move — the census asks about nothing but those candidates, and the
+// per-limb errored floor resolves over the same set — but the estate is narrower than
+// hotEstate's and must not be treated as interchangeable with it.
+//
+// ExtensionCensus is its ONLY legal consumer. A reader that walks the measurement
+// wholesale instead of looking a candidate's key up would read every declaration-limb
+// row the bound left behind as an address the Scan never measured.
+// custody.Estate.AddressScopeCensus is that reader, `/coverage` is its surface, and
+// addressscopecensus.go assembles its own estate off an unbound read for exactly this
+// reason. The record carries custody.EdgeFanout.Partial so that census refuses this
+// estate rather than reporting a short count, but the refusal is a backstop and not a
+// licence: a new consumer of this estate that needs the declaration limb needs an
+// unbound read, not a narrower assertion.
+//
 // A read that FAILS returns the error. The caller degrades the section rather than
 // rendering a row: a census that fabricated one on a database error would name a
 // decline that did not happen.

@@ -611,6 +611,26 @@ func TestABoundReadAsksForTheNamedAddressesAlone(t *testing.T) {
 	if _, measured := got.Shared[netip.MustParseAddr(scopeEdge)]; measured {
 		t.Fatalf("the declaration-limb row %s reached a read bound to the extension limb", scopeEdge)
 	}
+	// The record says so. Partial is what makes the one reader that walks Shared
+	// wholesale — custody.Estate.AddressScopeCensus — refuse this map rather than count
+	// short by every row the bound left behind.
+	if !got.Partial {
+		t.Error("a bound read returned Partial = false: the address-scope census would count over it")
+	}
+}
+
+// An UNBOUND read is NOT partial. The flag rides the bound and nothing else, so the
+// dispatcher and `/coverage` hand the address-scope census a record it can count.
+func TestAnUnboundReadIsNotPartial(t *testing.T) {
+	f := boundFixtureStore(t, certWithSANs(t, distinctSANs(custody.SharedEdgeThreshold)...))
+
+	got, err := ReadEdgeFanout(context.Background(), f, EdgeFanoutUnbounded())
+	if err != nil {
+		t.Fatalf("ReadEdgeFanout: %v", err)
+	}
+	if got.Partial {
+		t.Error("an unbound read returned Partial = true: the address-scope census would refuse the whole store")
+	}
 }
 
 // A BOUND READ NEVER TURNS A MEASURED ADDRESS INTO A PENDING ONE. This is the safety

@@ -358,7 +358,13 @@ func ReadEdgeFanout(ctx context.Context, q EdgeFanoutStore, bound EdgeFanoutBoun
 	if err != nil {
 		return custody.EdgeFanout{}, err
 	}
-	return toEdgeFanout(completed, rows, material), nil
+	// The record carries the bound out with it. A BOUND read's Shared map covers the
+	// named addresses alone, and custody.EdgeFanout.Partial is what tells the one reader
+	// that walks that map wholesale — custody.Estate.AddressScopeCensus — to refuse it
+	// rather than report a count short by every row the bound left behind (#1036).
+	out := toEdgeFanout(completed, rows, material)
+	out.Partial = bound.bounded
+	return out, nil
 }
 
 // readEdgeFanoutRows reads the newest measurement per address, under the caller's bound
