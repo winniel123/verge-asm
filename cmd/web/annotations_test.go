@@ -2,11 +2,13 @@ package main
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 // annotate declares an Annotation on one (subject, signal-name) pair.
@@ -380,27 +382,67 @@ func TestWithdrawNotFoundRedirectsBack(t *testing.T) {
 	}
 }
 
-// The flash is keyed by SESSION, not by account. Two tabs signed in as one account
-// are two sessions, and a rejected form belongs to the tab that submitted it: the
-// other tab must not consume the error, which would leave its operator on an
-// unexplained page and rob the first tab of its message.
-func TestFormFlashIsSessionScopedNotAccountScoped(t *testing.T) {
+// The flash is keyed by SESSION, not by account. A session is one SIGN-IN, so a
+// refusal on the operator's laptop must not be consumed by their phone, or by a
+// private window, signed in as the same account. An account key would have made that
+// the behaviour across every device at once.
+//
+// Note what this does NOT claim. Each login below gets its own cookie jar, so these
+// are two sign-ins, not two tabs. Tabs of one browser share the session cookie, resolve
+// to one session row, and so share one slot — see the formFlashStore doc comment.
+func TestFormFlashIsScopedToOneSignInNotTheAccount(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	lameName(t, f, "lame.example.com")
 
 	base := start(t, f, "")
-	first := login(t, base, "admin", "hunter2hunter2")
-	second := login(t, base, "admin", "hunter2hunter2")
+	laptop := login(t, base, "admin", "hunter2hunter2")
+	phone := login(t, base, "admin", "hunter2hunter2")
 
-	annotate(t, first, base, "lame.example.com", "no-such-rule", "why").Body.Close()
+	annotate(t, laptop, base, "lame.example.com", "no-such-rule", "why").Body.Close()
 
-	// The second tab loads /signals and must see nothing.
-	if page := getBody(t, second, base+"/signals", http.StatusOK); strings.Contains(page, "Choose the signal") {
-		t.Errorf("a second session consumed the first session's refusal; body: %s", page)
+	// The other sign-in loads /signals and must see nothing.
+	if page := getBody(t, phone, base+"/signals", http.StatusOK); strings.Contains(page, "Choose the signal") {
+		t.Errorf("a second sign-in consumed the first one's refusal; body: %s", page)
 	}
-	// The first tab still has its message waiting.
-	if page := getBody(t, first, base+"/signals", http.StatusOK); !strings.Contains(page, "Choose the signal") {
-		t.Errorf("the submitting session lost its own refusal; body: %s", page)
+	// The submitting sign-in still has its message waiting.
+	if page := getBody(t, laptop, base+"/signals", http.StatusOK); !strings.Contains(page, "Choose the signal") {
+		t.Errorf("the submitting sign-in lost its own refusal; body: %s", page)
+	}
+}
+
+// A flash whose landing GET never arrives — the operator closed the tab as they
+// submitted, or the connection dropped — expires rather than waiting to ambush their
+// next visit to the surface. Without the TTL that stale callout would fire on a page
+// the operator did nothing to provoke, and would hold the pending() gate open for
+// every other signed-in operator's GET in the meantime.
+func TestFormFlashExpiresWhenItsLandingNeverComes(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	lameName(t, f, "lame.example.com")
+
+	// A clock the test advances, so the TTL is exercised without a sleep.
+	now := fixedClock()()
+	srv := newServer(f, testKey, "", func() time.Time { return now })
+	srv.transcriptKey = testTranscriptKey
+	ts := httptest.NewServer(srv.handler())
+	t.Cleanup(ts.Close)
+	base := ts.URL
+
+	ac := login(t, base, "admin", "hunter2hunter2")
+	annotate(t, ac, base, "lame.example.com", "no-such-rule", "why").Body.Close()
+
+	// Still collectable inside the window, and the store still holds it.
+	if !srv.formFlash.pending(now) {
+		t.Fatal("precondition: the refusal was not stashed")
+	}
+
+	now = now.Add(formFlashTTL + time.Second)
+	if page := getBody(t, ac, base+"/signals", http.StatusOK); strings.Contains(page, "Choose the signal") {
+		t.Errorf("an expired refusal still rendered; body: %s", page)
+	}
+	// The prune ran, so the gate is closed again and no later GET pays the session read.
+	if srv.formFlash.pending(now) {
+		t.Error("an expired entry survived the prune and holds the pending gate open")
 	}
 }
