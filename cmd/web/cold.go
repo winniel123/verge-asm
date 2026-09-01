@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"html/template"
+	"log"
 	"math"
 	"net/http"
 	"net/netip"
@@ -144,15 +145,27 @@ func (s *server) setColdScope(w http.ResponseWriter, r *http.Request, acct db.Ac
 // numerator reads through the k × declared-cadence window, never the effective cadence.
 // AsOf is the relative phrase ("3d ago"), AsOfISO its RFC-3339 tooltip; both empty omit the
 // line, since no honest instant exists when nothing current sits in the range.
+//
+// Covers/SharedEdges are ADR-0129's #956 contradiction row (#989), and they are set
+// on an ADDRESS scope alone. Covers is the addresses the scope covers and SharedEdges
+// how many of them fan-out measured as a shared edge; both are pre-formatted strings,
+// and both are EMPTY where the evidence does not exist — an unmeasured scope, a scope
+// with nothing above the boundary, or a `Scan` out of force. The pair carries no
+// threshold and no verdict: the boundary they were compared against stays inside the
+// versioned `Custody` derivation, and the row states the two counts and names the
+// exclusion remedy. It is display and never a gate — every address counted is still a
+// declared subject and is still probed.
 type coverageMeterView struct {
-	Label   string
-	Counted string
-	Total   *string
-	Unit    string
-	Pct     int
-	Detail  string
-	AsOf    string
-	AsOfISO string
+	Label       string
+	Counted     string
+	Total       *string
+	Unit        string
+	Pct         int
+	Detail      string
+	AsOf        string
+	AsOfISO     string
+	Covers      string
+	SharedEdges string
 }
 
 // coverageGapView is one row of the "expected, not observed" register: a subject
@@ -248,7 +261,22 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	}); serr == nil {
 		walked = walkedAddresses(svcs)
 	}
-	meters := apertureMeters(seeds, zones, walked, s.now())
+	// #989's contradiction row: the declared scopes holding addresses fan-out measured
+	// as shared edges. Best-effort — a failed read leaves the meters with no row, which
+	// is the same shape an unmeasured scope renders, rather than 500ing the page or
+	// naming evidence the read did not return.
+	//
+	// It LOGS, unlike the degraded reads around it. Those leave a visibly empty meter
+	// or section, which an operator can see. This one leaves evidence unshown, and an
+	// estate-wide silence with nothing in the log to explain it is the same
+	// fails-silently shape the row exists to close.
+	var sharedEdges map[netip.Prefix]int
+	if m, ferr := addressScopeSharedEdges(ctx, s.store); ferr == nil {
+		sharedEdges = m
+	} else {
+		log.Printf("web: coverage: address-scope shared edges: %v", ferr)
+	}
+	meters := apertureMeters(seeds, zones, walked, s.now(), sharedEdges)
 
 	// Gaps + coverage messages. A blanket responder answers on every port, so its
 	// reach is a Gap, never reached (ADR-0104 §4): it surfaces both as a gap row and
@@ -305,7 +333,13 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 // enumerates nothing on its own — its addresses arrive by resolution — so it stays
 // a census counting the owner names its supplied zone declares, and states that its
 // addresses come by resolution. Neither claims a proportion of the estate.
-func apertureMeters(seeds []db.ListSeedsRow, zones []db.ListZoneDeclarationsRow, walked []walkedAddr, now time.Time) []coverageMeterView {
+//
+// sharedEdges carries #989's contradiction row per declared scope, keyed by the masked
+// prefix (addressScopeSharedEdges). A NIL map is the honest empty — no scope holds a
+// measured shared edge, or the read degraded — and it renders no row anywhere. A name
+// scope never takes one: its addresses arrive by resolution, so a shared edge it fronts
+// belongs to the custody-extension census (#987) and not to this meter.
+func apertureMeters(seeds []db.ListSeedsRow, zones []db.ListZoneDeclarationsRow, walked []walkedAddr, now time.Time, sharedEdges map[netip.Prefix]int) []coverageMeterView {
 	declared := make(map[string]int, len(zones))
 	for _, z := range zones {
 		if z.NameDomain.Valid {
@@ -315,7 +349,8 @@ func apertureMeters(seeds []db.ListSeedsRow, zones []db.ListZoneDeclarationsRow,
 	out := make([]coverageMeterView, 0, len(seeds))
 	for _, sd := range seeds {
 		if sd.Kind == "address" && sd.AddressCidr != nil {
-			out = append(out, addressMeter(*sd.AddressCidr, walked, now))
+			p := *sd.AddressCidr
+			out = append(out, addressMeter(p, walked, now, sharedEdges[p.Masked()]))
 			continue
 		}
 		domain := sd.NameDomain.String
@@ -342,19 +377,32 @@ const maxMeterTotal = int64(^uint(0) >> 1)
 // that range (the denominator = seed.AddressCount, NOT the estate). The fill is the
 // ruled coveragePct(counted, total). A range whose enumerable count exceeds the meter
 // arithmetic degrades to the honest census (Total nil) rather than fabricating a fill.
-func addressMeter(p netip.Prefix, walked []walkedAddr, now time.Time) coverageMeterView {
+//
+// sharedEdges is how many addresses inside p fan-out measured as a shared edge (#989).
+// ZERO renders no contradiction row, which is both acceptance criteria at once: a scope
+// with nothing above the boundary is silent, and so is an unmeasured one, because the
+// declaration limb's absence rule is open-then-label. Above zero the row states the two
+// counts on BOTH meter shapes — the evidence does not depend on whether the denominator
+// fits the fill arithmetic.
+func addressMeter(p netip.Prefix, walked []walkedAddr, now time.Time, sharedEdges int) coverageMeterView {
+	covers, shared := "", ""
+	if sharedEdges > 0 {
+		covers, shared = humanCount(p), strconv.Itoa(sharedEdges)
+	}
 	total := seed.AddressCount(p)
 	if total.IsInt64() {
 		if t := total.Int64(); t > 0 && t <= maxMeterTotal {
 			counted := coveredInRange(walked, p)
 			totalStr := humanCount(p)
 			m := coverageMeterView{
-				Label:   p.String(),
-				Counted: strconv.Itoa(counted),
-				Total:   &totalStr,
-				Unit:    "subjects",
-				Pct:     coveragePct(counted, int(t)),
-				Detail:  "address scope — the subjects still current over the enumerable addresses of the declared range; a shortfall is the honest lag of a scope the cadence cannot finish, never hidden",
+				Label:       p.String(),
+				Counted:     strconv.Itoa(counted),
+				Total:       &totalStr,
+				Unit:        "subjects",
+				Pct:         coveragePct(counted, int(t)),
+				Detail:      "address scope — the subjects still current over the enumerable addresses of the declared range; a shortfall is the honest lag of a scope the cadence cannot finish, never hidden",
+				Covers:      covers,
+				SharedEdges: shared,
 			}
 			// #890: the oldest-current as-of — how stale the current numerator is. Present
 			// only where a current, in-range subject carries a real instant (the honest
@@ -368,10 +416,12 @@ func addressMeter(p netip.Prefix, walked []walkedAddr, now time.Time) coverageMe
 		}
 	}
 	return coverageMeterView{
-		Label:   p.String(),
-		Counted: humanCount(p),
-		Unit:    "addresses",
-		Detail:  "address scope — a census of the addresses it enumerates, never a proportion of your estate",
+		Label:       p.String(),
+		Counted:     humanCount(p),
+		Unit:        "addresses",
+		Detail:      "address scope — a census of the addresses it enumerates, never a proportion of your estate",
+		Covers:      covers,
+		SharedEdges: shared,
 	}
 }
 

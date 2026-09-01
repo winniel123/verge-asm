@@ -27,8 +27,16 @@ import (
 // so the figure appears here and nowhere in the page.
 func sharedEdgeDER(t *testing.T) []byte {
 	t.Helper()
-	sans := make([]string, 0, custody.SharedEdgeThreshold)
-	for i := 0; i < custody.SharedEdgeThreshold; i++ {
+	return edgeDER(t, custody.SharedEdgeThreshold)
+}
+
+// edgeDER builds one self-signed leaf presenting identities for fanOut distinct
+// registrable domains. It is sharedEdgeDER's parameter, so a test can pose an edge on
+// either side of the boundary without a second certificate generator.
+func edgeDER(t *testing.T, fanOut int) []byte {
+	t.Helper()
+	sans := make([]string, 0, fanOut)
+	for i := 0; i < fanOut; i++ {
 		sans = append(sans, fmt.Sprintf("www.d%d.invalid", i))
 	}
 	_, key, err := ed25519.GenerateKey(rand.Reader)

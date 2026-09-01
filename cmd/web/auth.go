@@ -977,7 +977,11 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 		if z, zerr := s.store.ListZoneDeclarations(ctx); zerr == nil {
 			zones = z
 		}
-		coverageMeters = apertureMeters(seedRows, zones, walked, s.now())
+		// No shared-edge map: #989's contradiction row belongs to the address scope's
+		// own membership census on /coverage, which is the surface ADR-0129 names. The
+		// dashboard card is a summary of that screen and links to it, so the evidence
+		// is shown where the remedy is stated rather than repeated here.
+		coverageMeters = apertureMeters(seedRows, zones, walked, s.now(), nil)
 	}
 	// A silent source drives the Coverage card's staleness callout (#21e3): where a
 	// provisioned vantage has stopped reporting, the card names the silent position. Bound

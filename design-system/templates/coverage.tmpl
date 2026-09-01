@@ -1,14 +1,18 @@
 {{/*
   DESIGN-OWNED ARTIFACT — coverage.tmpl · package v3.7.0 · WORKFLOW.md v4
   Source of truth: examples/console/Coverage.jsx · shot 07. Replaces templates_coverage.go.
-  Holes: .Meters[{Label,Counted,Total(nullable),Unit,Detail,AsOf,AsOfISO}], .Messages[{Kind,
+  Holes: .Meters[{Label,Counted,Total(nullable),Unit,Detail,AsOf,AsOfISO,Covers,SharedEdges}], .Messages[{Kind,
   Badge,Bound,Subject,Text,When,ISO}], .Gaps[{Subject,Gap,Expected,Since}], .Unevaluable[{ID,
   Version,Why}], .StaleZones[{Zone,Age}]. Reconciliation (SPEC-CHANGE #19): an ADDRESS scope's
   meter renders counted/total (denominator = enumerable addresses of the declared range); name
   scopes stay census (ADR-0095's estate-proportion rule is about the estate, not a declared
   range). Messages gain the spec's relative-time column (title = ISO instant). #890: an address
   meter also carries AsOf/AsOfISO — the oldest-current as-of, how stale the current numerator is
-  when a scope cannot finish inside its cadence; empty omits the line.
+  when a scope cannot finish inside its cadence; empty omits the line. ADR-0129's #956
+  amendment (#989): an address meter also carries Covers/SharedEdges — the addresses the scope
+  covers and how many of them fan-out measured as a shared edge. Both empty omits the row, which
+  is the declaration limb's open-then-label absence. The row is DISPLAY: it states the two counts
+  and names the exclusion remedy, and it carries no threshold and no verdict.
 */}}
 {{define "coverage"}}{{template "head" .}}
 {{template "chrome" .}}
@@ -33,6 +37,11 @@
 .cv-meter .track .fill { display: block; height: 100%; border-radius: 999px; background: var(--accent); transition: width var(--dur-slow) var(--ease-out); }
 .cv-meter .census { height: 6px; border-radius: 999px; overflow: hidden; background: repeating-linear-gradient(45deg, var(--accent-soft) 0 5px, var(--surface-sunken) 5px 10px); }
 .cv-meter .det { font: 400 11px var(--font-ui); color: var(--text-muted); }
+.cv-meter .evid { display: flex; flex-direction: column; gap: 4px; margin-top: 2px; padding: 10px 12px; border-radius: var(--r-sm); background: var(--surface-sunken); border: 1px solid var(--border-default); }
+.cv-meter .evid .hd { font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.cv-meter .evid .tx { font: 400 12px/1.55 var(--font-ui); color: var(--text-secondary); }
+.cv-meter .evid a { color: var(--accent); text-decoration: none; }
+.cv-meter .evid a:hover { text-decoration: underline; }
 .cv-msgs { display: flex; flex-direction: column; font-family: var(--font-ui); }
 .cv-msg { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: start; padding: 11px 0; }
 .cv-msg + .cv-msg { border-top: 1px solid var(--row-sep); }
@@ -82,6 +91,10 @@
 {{if .Total}}<div class="track" role="progressbar" aria-valuemin="0" aria-valuemax="{{.Total}}" aria-valuenow="{{.Counted}}"><span class="fill" style="width:{{.Pct}}%"></span></div>{{else}}<div class="census" aria-label="Census — no denominator"></div>{{end}}
 {{if .Detail}}<span class="det">{{.Detail}}</span>{{end}}
 {{if .AsOf}}<span class="det" title="{{.AsOfISO}}">oldest still current · {{.AsOf}}</span>{{end}}
+{{/* Both counts are decimal strings, so `eq "1"` is the singular test. Covers carries
+     thousands separators and SharedEdges does not; neither reaches "1" by any other
+     spelling. */}}
+{{if .SharedEdges}}<div class="evid"><span class="hd">Shared edges inside this scope</span><span class="tx">This scope covers {{.Covers}} address{{if ne .Covers "1"}}es{{end}}. {{if eq .SharedEdges "1"}}1 of them presents a fan-out above the threshold. <a href="/scope#exclusions">Exclude it from this scope</a> if it is not yours.{{else}}{{.SharedEdges}} of them present a fan-out above the threshold. <a href="/scope#exclusions">Exclude them from this scope</a> if they are not yours.{{end}}</span></div>{{end}}
 </div>
 {{end}}
 </div>
