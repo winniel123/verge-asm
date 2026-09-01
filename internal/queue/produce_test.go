@@ -157,7 +157,7 @@ func TestProduceWritesFlagshipAndMembershipAndEnqueues(t *testing.T) {
 	changes, store := batchMovingBothSignals()
 	var log []routed
 
-	if err := produceMessages(context.Background(), store, 7, produceT0, changes, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 7, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 
@@ -219,7 +219,7 @@ func TestProduceIsNoOpUnderDevMode(t *testing.T) {
 	changes, store := batchMovingBothSignals()
 	var log []routed
 
-	if err := produceMessages(context.Background(), store, 7, produceT0, changes, nil, membershipInputs{}, fakeEnqueuer(1, &log), true); err != nil {
+	if err := produceMessages(context.Background(), store, 7, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 
@@ -241,7 +241,7 @@ func TestProduceUnboundConfigMakesNoDelivery(t *testing.T) {
 	changes, store := batchMovingBothSignals()
 	var log []routed
 
-	if err := produceMessages(context.Background(), store, 7, produceT0, changes, nil, membershipInputs{}, fakeEnqueuer(0, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 7, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(0, &log), false); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 
@@ -272,7 +272,7 @@ func TestProduceOpeningAtReachedIsNotFlagship(t *testing.T) {
 		current: []db.ListServiceReachabilitySpansByClassRow{internetReachRow(svc, "reached")},
 	}
 	var log []routed
-	if err := produceMessages(context.Background(), store, 1, produceT0, changes, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 1, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if len(store.inserted) != 0 {
@@ -293,7 +293,7 @@ func TestProduceInternalLegNeverFlagship(t *testing.T) {
 		at:      []db.ListServiceReachabilitySpansByClassAtRow{internalReachAtRow(svc, "not-reached")},
 	}
 	var log []routed
-	if err := produceMessages(context.Background(), store, 2, produceT0, changes, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 2, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if len(store.inserted) != 0 {
@@ -313,7 +313,7 @@ func TestProduceDescopedDepartureFiresDeclaredInput(t *testing.T) {
 	store := &fakeMessageStore{}
 	var log []routed
 
-	if err := produceMessages(context.Background(), store, 9, produceT0, nil, departures, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 9, produceT0, nil, departures, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 
@@ -349,7 +349,7 @@ func TestProduceMeasuredAbsentDepartureFiresNoDeclaredInput(t *testing.T) {
 	store := &fakeMessageStore{}
 	var log []routed
 
-	if err := produceMessages(context.Background(), store, 10, produceT0, nil, departures, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+	if err := produceMessages(context.Background(), store, 10, produceT0, nil, departures, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if len(store.inserted) != 0 {
@@ -369,7 +369,82 @@ func TestProduceDescopedDepartureIsNoOpUnderDevMode(t *testing.T) {
 	store := &fakeMessageStore{}
 	var log []routed
 
-	if err := produceMessages(context.Background(), store, 11, produceT0, nil, departures, membershipInputs{}, fakeEnqueuer(1, &log), true); err != nil {
+	if err := produceMessages(context.Background(), store, 11, produceT0, nil, departures, nil, membershipInputs{}, fakeEnqueuer(1, &log), true); err != nil {
+		t.Fatalf("produce: %v", err)
+	}
+	if len(store.inserted) != 0 || len(log) != 0 {
+		t.Errorf("a dev install writes and routes nothing, got %d messages / %d routings", len(store.inserted), len(log))
+	}
+}
+
+// An address exclusion's withdrawal fires ONE coverage-class message.Narrowing at
+// the Seed scope it narrowed, carrying the two counts and no rows (ADR-0074,
+// ADR-0133 §8, #1032). This is the first production call to message.Narrowing:
+// until #1032 only PreviewNarrowing was called, so `POST /exclusions/preview`
+// described an act the system never performed.
+func TestProduceNarrowingFiresOnceAtTheScope(t *testing.T) {
+	narrowings := []narrowing{
+		{Scope: "198.51.100.0/24", Removed: "198.51.100.128/25", SubjectsWithdrawn: 3, TimelinesRemoved: 7},
+	}
+	store := &fakeMessageStore{}
+	var log []routed
+
+	if err := produceMessages(context.Background(), store, 12, produceT0, nil, nil, narrowings, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+		t.Fatalf("produce: %v", err)
+	}
+
+	if len(store.inserted) != 1 {
+		t.Fatalf("want 1 narrowing message, got %d", len(store.inserted))
+	}
+	m := store.inserted[0]
+	if m.Cause != string(message.CauseAperture) || m.Class != string(message.ClassCoverage) {
+		t.Errorf("a narrowing is an aperture / coverage firing, got cause=%q class=%q", m.Cause, m.Class)
+	}
+	if m.SubjectKind != "seed" || m.FiredAt != "198.51.100.0/24" {
+		t.Errorf("the message fires at the Seed scope that moved, got kind=%q fired=%q", m.SubjectKind, m.FiredAt)
+	}
+	if !strings.Contains(m.Headline, "198.51.100.128/25") || !strings.Contains(m.Headline, "3") || !strings.Contains(m.Headline, "7") {
+		t.Errorf("the headline states the removed value and both counts, got %q", m.Headline)
+	}
+	if len(m.Census) != 0 {
+		t.Errorf("a narrowing carries a count, not a census of rows, got %d bytes", len(m.Census))
+	}
+	if message.ContainsValence(m.Headline) {
+		t.Errorf("the headline carries a valence word: %q", m.Headline)
+	}
+	if len(log) != 1 || log[0].class != message.ClassCoverage {
+		t.Errorf("the message is routed on the coverage class, got %+v", log)
+	}
+}
+
+// A withdrawal over uninhabited ground fires NOTHING. message.Narrowing returns nil
+// where the receipt does not fire, which is the same gate the preview applies — so
+// the operator is never shown a receipt for a message that will not come.
+func TestProduceNarrowingSilentOverUninhabitedGround(t *testing.T) {
+	narrowings := []narrowing{
+		{Scope: "198.51.100.0/24", Removed: "198.51.100.128/25", SubjectsWithdrawn: 0, TimelinesRemoved: 0},
+	}
+	store := &fakeMessageStore{}
+	var log []routed
+
+	if err := produceMessages(context.Background(), store, 13, produceT0, nil, nil, narrowings, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+		t.Fatalf("produce: %v", err)
+	}
+	if len(store.inserted) != 0 || len(log) != 0 {
+		t.Errorf("an empty withdrawal writes and routes nothing, got %d messages / %d routings", len(store.inserted), len(log))
+	}
+}
+
+// A VERGE_DEV / fixture install writes no narrowing message either — the dev guard
+// short-circuits the whole producer before any narrowing is folded (AL-25).
+func TestProduceNarrowingIsNoOpUnderDevMode(t *testing.T) {
+	narrowings := []narrowing{
+		{Scope: "198.51.100.0/24", Removed: "198.51.100.128/25", SubjectsWithdrawn: 3, TimelinesRemoved: 7},
+	}
+	store := &fakeMessageStore{}
+	var log []routed
+
+	if err := produceMessages(context.Background(), store, 14, produceT0, nil, nil, narrowings, membershipInputs{}, fakeEnqueuer(1, &log), true); err != nil {
 		t.Fatalf("produce: %v", err)
 	}
 	if len(store.inserted) != 0 || len(log) != 0 {

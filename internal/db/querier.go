@@ -623,6 +623,22 @@ type Querier interface {
 	// wants the CIDRs alone. It is the address twin of measurement.sql's
 	// ListAddressScopeCidrs and mirrors its shape read for read.
 	ListAddressExclusionCidrs(ctx context.Context) ([]*netip.Prefix, error)
+	// Every open timeline a DECLARED address exclusion withdraws, for the membership
+	// fold to close with the `descoped` ground (ADR-0133 §8, #1032). It is the
+	// listing twin of PreviewExclusionWithdrawal: the same two CTE shapes read
+	// against the declared `exclusion` rows instead of one candidate CIDR, so the
+	// preview counts and the withdrawal act over the same set by construction.
+	//
+	// It reads the exclusion corpus itself rather than taking one CIDR per call. The
+	// fold runs this once per batch, and once the withdrawal has closed the spans it
+	// returns no row, so a later batch does no work and writes no second message.
+	//
+	// The withdrawal is never larger than the declaration it narrows (ADR-0133 §1):
+	// an address a current resolution still cites does NOT leave, which is the NOT
+	// EXISTS clause. The covering exclusion and the firing Seed scope are attributed
+	// in Go, over the same declared-input context the rest of the fold composes
+	// against, so this query answers WHICH timelines close and nothing else.
+	ListAddressExclusionWithdrawals(ctx context.Context) ([]ListAddressExclusionWithdrawalsRow, error)
 	// The declared address-scope Seeds, for the hot Scan's Custody derivation: every
 	// address inside one derives operator directly (ADR-0013).
 	ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error)

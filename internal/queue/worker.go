@@ -267,12 +267,24 @@ func (w *Worker) departureCollector(deps *[]departure) *[]departure {
 	return deps
 }
 
+// narrowingCollector is the address-withdrawal fold's collector, twin to
+// departureCollector: the real slice pointer where the producer is enabled and
+// needs the narrowing feed (ADR-0133 §8, #1032), nil where it is off. The fold
+// still CLOSES the withdrawn timelines with a nil collector — a withdrawal is a
+// fact about the estate, and only the message it fires is optional.
+func (w *Worker) narrowingCollector(narrowings *[]narrowing) *[]narrowing {
+	if !w.produceMsgs {
+		return nil
+	}
+	return narrowings
+}
+
 // produce folds the batch's transitions into messages inside the batch tx. It binds
 // the injected enqueuer to this transaction's queries so the producer never imports
 // internal/delivery, and is a no-op unless the worker was built WithMessages. The
 // devMode guard lives inside produceMessages (AL-25), so an enabled dev worker still
 // writes nothing.
-func (w *Worker) produce(ctx context.Context, qtx *db.Queries, batchID int64, observedAt time.Time, changes []spanChange, departures []departure, in membershipInputs) error {
+func (w *Worker) produce(ctx context.Context, qtx *db.Queries, batchID int64, observedAt time.Time, changes []spanChange, departures []departure, narrowings []narrowing, in membershipInputs) error {
 	if !w.produceMsgs {
 		return nil
 	}
@@ -282,7 +294,7 @@ func (w *Worker) produce(ctx context.Context, qtx *db.Queries, batchID int64, ob
 			return w.enqueue(c, qtx, messageID, class)
 		}
 	}
-	return produceMessages(ctx, qtx, batchID, observedAt, changes, departures, in, enqueue, w.devMode)
+	return produceMessages(ctx, qtx, batchID, observedAt, changes, departures, narrowings, in, enqueue, w.devMode)
 }
 
 // VantageRouter decides whether a job runs off-host and, if so, runs it there. It is
@@ -603,6 +615,7 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, res wire.Prob
 		// into `changes` — the estate/drift feed the message producer consumes below.
 		var changes []spanChange
 		var departures []departure
+		var narrowings []narrowing
 		if err := foldObservationsIntoSpans(ctx, qtx, batchID, job.VantageID, observedAt, obs, membership, w.changeCollector(&changes)); err != nil {
 			return err
 		}
@@ -613,11 +626,20 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, res wire.Prob
 		if err := foldEstateTransitions(ctx, qtx, batchID, observedAt, obs, membership, w.departureCollector(&departures)); err != nil {
 			return err
 		}
+		// Close the timelines the operator's own declared ADDRESS exclusions withdraw,
+		// with the `descoped` ground (ADR-0133 §8, #1032). It runs beside the Name
+		// withdrawal above and not inside it: ADR-0133 §3 stops enumerating an excluded
+		// address, so no observation about one ever arrives again and a fold scoped to
+		// the batch's observed subjects could never reach it. This limb reads the
+		// declared exclusions instead.
+		if err := foldAddressExclusionWithdrawals(ctx, qtx, batchID, observedAt, membership, w.narrowingCollector(&narrowings)); err != nil {
+			return err
+		}
 		// Fold each signal/drift transition into a Message and route it to its bound
 		// channels, in this same transaction (P0.7): a flagship internet-leg move or a
 		// membership entry becomes a Message row and its Deliveries. A no-op unless the
 		// worker was built WithMessages, and always a no-op in devMode (AL-25).
-		if err := w.produce(ctx, qtx, batchID, observedAt, changes, departures, membership); err != nil {
+		if err := w.produce(ctx, qtx, batchID, observedAt, changes, departures, narrowings, membership); err != nil {
 			return err
 		}
 		// Ephemeral per-job progress (#780, collision #40): a completed measurement rides a

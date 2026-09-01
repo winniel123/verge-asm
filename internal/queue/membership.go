@@ -102,7 +102,7 @@ func foldEstateTransitions(ctx context.Context, qtx *db.Queries, batchID int64, 
 				SubjectKind: subjectKindName,
 				SubjectKey:  name,
 				Reason:      string(reason),
-				SourceKey:   coveringExclusionKey(name, reason, in.exclusions),
+				SourceKey:   coveringExclusionKey(subjectKindName, name, reason, in.exclusions),
 				Timelines:   len(open),
 			})
 		}
@@ -110,19 +110,35 @@ func foldEstateTransitions(ctx context.Context, qtx *db.Queries, batchID int64, 
 	return nil
 }
 
-// coveringExclusionKey is the declared value of the Exclusion that descoped a Name —
-// the Source identity a `declared-input` message links to (message.DeclaredInput →
-// LinkSource). It is consulted only for a `descoped` departure: a world withdrawal
-// (measured-absent) has no declared-input mover, so it returns "". It mirrors
-// nameExcluded's coverage test (an exact `name` exclusion or a `subtree` exclusion of
-// the Name or an ancestor) and returns the matching Exclusion's normalized declared
-// name, so the same declared boundary that removed the Name is the key the message
-// cites.
-func coveringExclusionKey(name string, reason drift.ClosureReason, exclusions []db.ListExclusionsRow) string {
+// coveringExclusionKey is the declared value of the Exclusion that descoped a
+// subject — the Source identity a `declared-input` message links to
+// (message.DeclaredInput → LinkSource). It is consulted only for a `descoped`
+// departure: a world withdrawal (measured-absent) has no declared-input mover, so
+// it returns "".
+//
+// It mirrors the coverage test of the predicate that decided the departure, so the
+// same declared boundary that removed the subject is the key the message cites. A
+// Name reads nameExcluded's test (an exact `name` exclusion or a `subtree`
+// exclusion of the Name or an ancestor) and returns the matching Exclusion's
+// normalized declared name. An Address — or a Service or Endpoint sitting on one —
+// reads addressExcluded's family-matched prefix test and returns the covering
+// Exclusion's CIDR (ADR-0133 §8, #1032). Before that ticket this helper skipped
+// every row carrying no name, so an address exclusion could name no mover at all.
+func coveringExclusionKey(subjectKind, subjectKey string, reason drift.ClosureReason, exclusions []db.ListExclusionsRow) string {
 	if reason != drift.ReasonDescoped {
 		return ""
 	}
-	name = normalizeDomain(name)
+	if subjectKind != subjectKindName {
+		addr, ok := subjectAddress(subjectKind, subjectKey)
+		if !ok {
+			return ""
+		}
+		if p := coveringAddressExclusion(addr, exclusions); p != nil {
+			return p.String()
+		}
+		return ""
+	}
+	name := normalizeDomain(subjectKey)
 	for _, e := range exclusions {
 		if !e.Name.Valid {
 			continue
@@ -283,21 +299,28 @@ func closeSubjectTimelines(ctx context.Context, qtx *db.Queries, open []db.ListO
 // opens `appeared`. It is consulted only for a first span (open == nil in the
 // fold); a value MOVE on an existing timeline is `changed`, never an opening.
 func openedByAperture(subjectKind, subjectKey string, in membershipInputs) bool {
-	switch subjectKind {
-	case subjectKindName:
+	if subjectKind == subjectKindName {
 		return nameSeedCovered(subjectKey, in.seeds)
+	}
+	addr, ok := subjectAddress(subjectKind, subjectKey)
+	return ok && addressSeedCovered(addr, in.seeds)
+}
+
+// subjectAddress is the Address a subject key stands at — the key itself for an
+// `address` subject, and the address limb of the key for a Service or Endpoint
+// sitting on one. Any other subject kind, and any key netip will not parse, report
+// false: they stand at no address, so neither an address Seed nor an address
+// Exclusion has anything to test against them.
+func subjectAddress(subjectKind, subjectKey string) (netip.Addr, bool) {
+	switch subjectKind {
 	case "address":
-		if addr, err := netip.ParseAddr(subjectKey); err == nil {
-			return addressSeedCovered(addr, in.seeds)
-		}
-		return false
+		addr, err := netip.ParseAddr(subjectKey)
+		return addr, err == nil
 	case "service", "endpoint":
-		if addr, err := netip.ParseAddr(serviceAddress(subjectKey)); err == nil {
-			return addressSeedCovered(addr, in.seeds)
-		}
-		return false
+		addr, err := netip.ParseAddr(serviceAddress(subjectKey))
+		return addr, err == nil
 	default:
-		return false
+		return netip.Addr{}, false
 	}
 }
 
@@ -338,6 +361,32 @@ func nameExcluded(name string, exclusions []db.ListExclusionsRow) bool {
 		}
 	}
 	return false
+}
+
+// addressExcluded reports whether an Exclusion covers this address — the address
+// analogue of nameExcluded that ADR-0012 §125 owed and #1032 supplies. Containment
+// is the family-matched prefix test the coverage predicate already applies, so an
+// IPv4 address is never read as inside an IPv6 scope. Name and subtree exclusions
+// cover no Address.
+func addressExcluded(addr netip.Addr, exclusions []db.ListExclusionsRow) bool {
+	return coveringAddressExclusion(addr, exclusions) != nil
+}
+
+// coveringAddressExclusion is the first declared `address` Exclusion whose scope
+// contains the address, in ListExclusions order, or nil where none does. Exclusions
+// do not nest into a precedence the way Seeds do — every one of them is the same
+// "not mine" claim — so first match is the whole rule, exactly as nameExcluded's
+// loop already treats them.
+func coveringAddressExclusion(addr netip.Addr, exclusions []db.ListExclusionsRow) *netip.Prefix {
+	for _, e := range exclusions {
+		if e.Kind != "address" || e.AddressCidr == nil {
+			continue
+		}
+		if e.AddressCidr.Contains(addr) {
+			return e.AddressCidr
+		}
+	}
+	return nil
 }
 
 // addressSeedCovered reports whether an address Seed's scope contains the address.
