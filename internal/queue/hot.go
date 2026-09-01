@@ -54,9 +54,11 @@ func (d *Dispatcher) fanOutHot(ctx context.Context, scanID, dispatchID int64) (i
 	})
 }
 
-// hotEstate builds the Custody derivation's inputs from the confirmed Seeds and
-// the current resolutions, and returns the RESOLVED address set (the addresses
-// names currently resolve to). Each fan-out then unions this set with the
+// hotEstate builds the Custody derivation's inputs from the confirmed Seeds, the
+// current resolutions and the `edge-fanout` measurement, and returns the RESOLVED
+// address set (the addresses names currently resolve to). It is the one Estate
+// assembler, so every Scan's fan-out gates on the same veto (#985, ADR-0129 §4).
+// Each fan-out then unions this set with the
 // addresses its own scopes enumerate via candidateAddrs — the hot tier over every
 // declared address scope, the cold tier over only its opted-in scopes — so
 // neither tier enumerates a scope it does not probe. The gate then admits or
@@ -110,10 +112,16 @@ func hotEstate(ctx context.Context, q *db.Queries, asOf time.Time) (custody.Esta
 		}
 	}
 
+	fanout, err := readEdgeFanout(ctx, q)
+	if err != nil {
+		return custody.Estate{}, nil, err
+	}
+
 	return custody.Estate{
 		AddressScopes: prefixes,
 		ExtendedZones: extended,
 		Resolutions:   resolutions,
+		EdgeFanout:    fanout,
 	}, addrs, nil
 }
 
