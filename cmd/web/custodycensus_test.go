@@ -103,9 +103,7 @@ func TestCustodyCensusDualLimbRowDropsAnExcludedScope(t *testing.T) {
 	f.completedBatchKinds[scan.EdgeFanoutKind] = true
 	// One measured SHARED edge, cited by an in-zone name and inside the declared
 	// scope: the dual-limb row.
-	f.edgeFanout = []db.ListEdgeFanoutMeasurementsRow{
-		{Address: "93.184.216.10", Outcome: string(edgefanout.Presented), Der: sharedEdgeDER(t)},
-	}
+	f.measuredEdge("93.184.216.10", string(edgefanout.Presented), sharedEdgeDER(t))
 
 	entry := func() custody.ExtensionCensusEntry {
 		t.Helper()
