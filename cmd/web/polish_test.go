@@ -37,7 +37,8 @@ func TestFootScrollRestoreHonoursADR0130(t *testing.T) {
 
 	page := settingsBody(t, ac, base)
 	for _, want := range []string{
-		`"verge:scroll:" + location.pathname + location.search`,
+		`function keyFor(u) { return "verge:scroll:" + u.pathname + u.search; }`,
+		`var K = keyFor(location);`,
 		`getEntriesByType("navigation")`,
 		`nav.type === "navigate"`,
 	} {
@@ -47,6 +48,30 @@ func TestFootScrollRestoreHonoursADR0130(t *testing.T) {
 	}
 	if strings.Contains(page, "FRESH_MS") {
 		t.Fatal("the FRESH_MS freshness window is back; ADR-0130 §2 replaced it with a navigation-type gate")
+	}
+}
+
+// ADR-0130 §3 tail, ticket #973. A tab, a severity filter, a sort header, a pager
+// and a drawer open or close are plain links, so they never reach the submit
+// listener. That is failure class B. The click listener stashes for them, but only
+// when the target stays on this list, and it writes the stash under the target's
+// key because that is the key the landing page reads.
+func TestFootClickStashCoversClassB(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := settingsBody(t, ac, base)
+	for _, want := range []string{
+		`document.addEventListener("click"`,
+		`closest("a[href], button[type=button], [data-href]")`,
+		`if (u.origin !== location.origin || u.pathname !== location.pathname) return;`,
+		`stash(keyFor(u));`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Fatalf("rendered page missing ADR-0130 §3 class-B marker %q", want)
+		}
 	}
 }
 
