@@ -5,8 +5,11 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
+	co "github.com/winniel123/verge-asm/internal/measure/connectoutcome"
 	"github.com/winniel123/verge-asm/internal/measure/edgefanout"
 )
 
@@ -14,18 +17,20 @@ import (
 //
 // #987 put that reduction on the `/scope` render: renderSeeds assembles a
 // custody.Estate per request, and the estate reaches the measurement through
-// queue.ReadEdgeFanout. The dispatcher pays the same reduction once per daily tick.
-// The render pays it per request, per logged-in operator.
+// queue.ReadEdgeFanout. #1018's second census put the same reduction on `/coverage`.
+// The dispatcher pays it once per daily tick; the two renders pay it per request, per
+// logged-in operator.
 //
-// #1014 argues the cost from the query and the reduction alone. No profile was taken.
-// This benchmark supplies the number, so the fix choice — or a `wontfix` — rests on a
-// measurement. It TAKES NO FIX: nothing here caches, narrows the query, or stores a
-// verdict.
+// #1014 argued the cost from the query and the reduction alone. No profile was taken.
+// This benchmark supplied the number, the fix rested on it (#1035), and it stays in the
+// tree so the next change to the reduction is measured against the same cells. It TAKES
+// NO FIX of its own: nothing here caches, narrows a query, or stores a verdict.
 //
-// The subject is the pure half on purpose. toEdgeFanout takes the `completed` boolean
-// and the row slice the query generates, and needs no database, so the number is the
-// parse and the Public Suffix List reduction and nothing else. A benchmark through a
-// database would measure the database.
+// The subject is the pure half on purpose. toEdgeFanout takes the `completed` boolean,
+// the row slice the measurement query generates and the material map the second read
+// generates, and needs no database, so the number is the parse and the Public Suffix
+// List reduction and nothing else. A benchmark through a database would measure the
+// database.
 
 // The two SAN counts the benchmark contrasts. They are the two bands ADR-0129 §1's
 // threshold sits between: an estate's own edge presents a handful of identities, and a
@@ -63,19 +68,19 @@ type benchSANShape struct {
 	shared bool
 }
 
-// benchCertShape is how a cell spreads certificates over its rows — the axis that
-// measures the reduce-once-per-fingerprint option's headroom.
+// benchCertShape is how a cell spreads certificates over its rows — the axis #1035
+// acted on, and the axis a later change to the reduction is judged against.
 type benchCertShape struct {
 	name string
-	// oneCertificate shares a single DER across every row. Otherwise each row carries
-	// its own.
+	// oneCertificate points every row at a single fingerprint. Otherwise each row
+	// names its own.
 	oneCertificate bool
 }
 
 // benchEdgeFanoutSink holds the reduction's result so the compiler cannot discard the
 // call it is timing. It is TYPED, never `any`: boxing custody.EdgeFanout into an
 // interface heap-allocates once per iteration, and it would land on allocs/op and
-// B/op — the two columns the certificate axis below must be read off.
+// B/op — the two columns the certificate axis below is read off.
 var benchEdgeFanoutSink custody.EdgeFanout
 
 // BenchmarkToEdgeFanout measures the edge-fanout reduction over generated rows, across
@@ -86,31 +91,33 @@ var benchEdgeFanoutSink custody.EdgeFanout
 //     grows with the estate and with time.
 //   - SAN shape: a dedicated edge and a shared edge. This is what the Public Suffix
 //     List reduction walks.
-//   - Certificate shape: every row carrying the SAME certificate's DER, and every row
-//     carrying a unique one. `certificate_material` is keyed by fingerprint and the
-//     read joins per address, so many addresses on one shared CDN edge return — and
-//     re-parse — one certificate many times over. The gap between these two cells IS
-//     the headroom of the reduce-once-per-certificate option, and nothing else
-//     measures it.
+//   - Certificate shape: every row naming the SAME certificate, and every row naming a
+//     unique one. `certificate_material` is keyed by fingerprint, so many addresses on
+//     one shared CDN edge name — and, before #1035, re-parsed — one certificate many
+//     times over.
 //
-// READ THE CERTIFICATE AXIS OFF allocs/op AND B/op, NEVER OFF ns/op. The reduction
-// treats the two cells identically today — it keys on the address and never on the
-// fingerprint — so their allocation counts agree, and that agreement is the finding:
-// none of the repetition is exploited, so all of it is headroom.
+// THE CERTIFICATE AXIS IS THE FIX'S OWN MEASUREMENT. Before #1035 the two cells agreed
+// on allocs/op and B/op to within 0.001% at every row count: the reduction keyed on the
+// address and never on the fingerprint, so none of the repetition was exploited and all
+// of it was headroom. Since #1035 the one-certificate cell parses ONE certificate at
+// every row count, so it must now cost far less than the unique-certificates cell at
+// the same row count. THE TWO CELLS AGREEING AGAIN IS A REGRESSION, and it is what this
+// axis exists to catch.
 //
-// Their ns/op does NOT agree, and it can run the WRONG WAY: when this benchmark landed
-// the one-certificate cell was the SLOWER of the two. That is an artifact of the
-// fixture, not of the reduction. One shared DER leaves a live heap of kilobytes where N
-// unique DERs leave one of tens of megabytes; GOGC paces the collector against the live
-// heap, so the small-heap cell collects the same garbage far more often. Read no
-// speedup out of that column.
+// Read that axis off allocs/op and B/op. Its ns/op now moves the same way, and #1035
+// made the columns agree in DIRECTION where they used to disagree — but do not read a
+// precise speedup off ns/op. The fixtures' live heaps still differ by orders of
+// magnitude (one shared DER against N unique ones), GOGC paces the collector against
+// the live heap, and the small-heap cell therefore collects more often than its own
+// allocation count implies. The allocation columns carry no such term.
 //
-// Every row carries the `presented` outcome. A negative outcome carries no DER and is
-// not parsed at all, so a mix would only dilute the number this issue asks for.
+// Every row carries the `presented` outcome. A negative outcome names no certificate
+// and is not parsed at all, so a mix would only dilute the number this issue asks for.
 //
-// The `wire-bytes` metric is the TOTAL DER byte count the query returns for that cell,
-// not a per-iteration figure. It is the wire cost #1014 argues about, and it is exact
-// for generated data.
+// The `wire-bytes` metric is the TOTAL DER byte count the reads return for that cell,
+// not a per-iteration figure. Since #1035 that is one DER per DISTINCT certificate,
+// where it was one per row, so the one-certificate cells report a flat figure at every
+// row count. It is the wire cost #1014 argued about, and it is exact for generated data.
 //
 // It runs under -bench alone, so no CI job gets slower.
 func BenchmarkToEdgeFanout(b *testing.B) {
@@ -133,16 +140,16 @@ func BenchmarkToEdgeFanout(b *testing.B) {
 					// b.Loop's first call resets the timer, so everything above it is
 					// setup. A -count run rebuilds it once per repeat, which is the
 					// price of the filter and is paid outside the measurement.
-					fixture := benchEdgeFanoutRows(b, rows, san, cert)
+					fixture, material := benchEdgeFanoutFixture(b, rows, san, cert)
 					wire := 0
-					for _, r := range fixture {
-						wire += len(r.Der)
+					for _, der := range material {
+						wire += len(der)
 					}
-					benchCheckFixture(b, fixture, rows, san)
+					benchCheckFixture(b, fixture, material, rows, san)
 
 					b.ReportAllocs()
 					for b.Loop() {
-						benchEdgeFanoutSink = toEdgeFanout(true, fixture)
+						benchEdgeFanoutSink = toEdgeFanout(true, fixture, material)
 					}
 					// AFTER the loop, not before. b.Loop's first call resets the
 					// timer, and ResetTimer clears the reported-metric map — a
@@ -158,19 +165,28 @@ func BenchmarkToEdgeFanout(b *testing.B) {
 // verdict the SAN shape names. It runs once, before the timed loop, so it costs the
 // measurement nothing.
 //
-// toEdgeFanout drops an unparseable address silently, and reduces an undecodable DER to
-// a fan-out of zero. Both are the right absence rules for the read path — withholding
-// the probe is the safe direction — and both make a DEGRADED fixture measure as a FAST
-// one rather than fail. A benchmark that had quietly stopped parsing certificates would
-// still report the number #1014 asked for, and would mean nothing by it.
+// toEdgeFanout drops an unparseable address silently, and reduces an absent or
+// undecodable DER to a fan-out of zero. Both are the right absence rules for the read
+// path — withholding the probe is the safe direction — and both make a DEGRADED fixture
+// measure as a FAST one rather than fail. A benchmark that had quietly stopped parsing
+// certificates would still report the number #1014 asked for, and would mean nothing by
+// it. Since #1035 there is a second way to degrade: a row naming a fingerprint the
+// material map does not hold parses nothing at all, and the count check below catches a
+// fixture whose two halves have drifted apart.
 //
 // The verdict half also pins benchSharedSANs and benchDedicatedSANs against the shipped
 // custody.SharedEdgeThreshold, as internal/custody/corpus does for its own absolute
 // integers. A session moving the threshold past 400 is told here, by name, rather than
 // left with a `shared` cell that stopped being shared while its label still said it was.
-func benchCheckFixture(b *testing.B, fixture []db.ListEdgeFanoutMeasurementsRow, rows int, san benchSANShape) {
+func benchCheckFixture(b *testing.B, fixture []db.ListEdgeFanoutMeasurementsRow, material map[string][]byte, rows int, san benchSANShape) {
 	b.Helper()
-	got := toEdgeFanout(true, fixture)
+	for _, r := range fixture {
+		if _, held := material[r.Fingerprint.String]; !held {
+			b.Fatalf("address %s names fingerprint %q the material map does not hold: "+
+				"this cell would measure a parse it never did", r.Address, r.Fingerprint.String)
+		}
+	}
+	got := toEdgeFanout(true, fixture, material)
 	if len(got.Shared) != rows {
 		b.Fatalf("the reduction keyed %d of %d rows: the fixture holds an address it cannot read, "+
 			"so this cell would measure a parse it never did", len(got.Shared), rows)
@@ -185,19 +201,18 @@ func benchCheckFixture(b *testing.B, fixture []db.ListEdgeFanoutMeasurementsRow,
 	}
 }
 
-// benchEdgeFanoutRows builds one cell's row slice in the shape ListEdgeFanoutMeasurements
-// returns: one row per address, already deduplicated to the newest per address by the
-// query, each carrying the outcome and the nullable DER.
+// benchEdgeFanoutFixture builds one cell in the shape ReadEdgeFanout's two reads
+// return: one measurement row per address, naming its certificate by fingerprint, and
+// one material entry per DISTINCT certificate (#1035).
 //
-// A one-certificate cell shares a SINGLE DER across every row, which is what the read
-// returns when many measured addresses sit behind one shared edge — the join repeats the
-// same certificate_material row per address.
+// A one-certificate cell points EVERY row at one fingerprint and the map holds ONE DER,
+// which is what the two reads return when many measured addresses sit behind one shared
+// edge. The old fixture repeated that DER once per row, because the old query did.
 //
 // Both cert shapes carry the SAME SAN set. That is deliberate: the two cells then differ
-// in one thing only — whether the parse and the reduction could be done once per distinct
-// fingerprint instead of once per address. A unique certificate is unique by its key and
-// therefore by its fingerprint, which is what the read joins on.
-func benchEdgeFanoutRows(tb testing.TB, rows int, san benchSANShape, cert benchCertShape) []db.ListEdgeFanoutMeasurementsRow {
+// in one thing only — whether the parse and the reduction are done once per distinct
+// fingerprint or once per address.
+func benchEdgeFanoutFixture(tb testing.TB, rows int, san benchSANShape, cert benchCertShape) ([]db.ListEdgeFanoutMeasurementsRow, map[string][]byte) {
 	tb.Helper()
 	sans := distinctSANs(san.sans)
 	var one []byte
@@ -205,14 +220,21 @@ func benchEdgeFanoutRows(tb testing.TB, rows int, san benchSANShape, cert benchC
 		one = certWithSANs(tb, sans...)
 	}
 	out := make([]db.ListEdgeFanoutMeasurementsRow, 0, rows)
+	material := make(map[string][]byte, rows)
 	for i := range rows {
 		der := one
 		if !cert.oneCertificate {
 			der = certWithSANs(tb, sans...)
 		}
-		out = append(out, row(benchAddress(i), string(edgefanout.Presented), der))
+		fingerprint := co.Fingerprint(der)
+		material[fingerprint] = der
+		out = append(out, db.ListEdgeFanoutMeasurementsRow{
+			Address:     benchAddress(i),
+			Outcome:     string(edgefanout.Presented),
+			Fingerprint: pgtype.Text{String: fingerprint, Valid: true},
+		})
 	}
-	return out
+	return out, material
 }
 
 // benchAddress renders the i-th distinct measured address. It walks 10.0.0.0/8, which

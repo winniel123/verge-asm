@@ -664,6 +664,22 @@ type Querier interface {
 	// Service keys to their distinct Addresses; a Gap span is never routed through the
 	// live-tier gate for the reason above.
 	ListBlanketedReachServices(ctx context.Context) ([]string, error)
+	// Read the leaf DER of each named certificate, over a fingerprint SET (#1035). This is
+	// the second step of the `edge-fanout` read: ListEdgeFanoutMeasurements returns one
+	// fingerprint per measured address, and this returns each DISTINCT certificate ONCE,
+	// whatever number of addresses presented it.
+	//
+	// It is not GetCertificateMaterial in a loop, and it returns the DER alone. The SCT
+	// material and the issuer SubjectPublicKeyInfo are CT verification's inputs (spec §5.4);
+	// the fan-out reduction reads the dNSName SANs off the leaf and nothing else, so
+	// carrying them here would put bytes on the wire the caller drops.
+	//
+	// A fingerprint with NO captured material returns NO ROW. That absence is a value, not
+	// an error: a `presented` handshake whose material never landed yields no names, so its
+	// edge reduces to a fan-out of zero and is reached (ADR-0129 §2). The caller must not
+	// read a missing row as *measurement pending* — the missing MEASUREMENT row is what
+	// means that, and it is a different absence.
+	ListCertificateMaterialDER(ctx context.Context, fingerprints []string) ([]ListCertificateMaterialDERRow, error)
 	// Never selects the secret: it exposes only whether one is set, so the render
 	// path is structurally unable to leak it.
 	ListChannels(ctx context.Context) ([]ListChannelsRow, error)
@@ -756,20 +772,28 @@ type Querier interface {
 	// The run page renders that recorded token as its terminal batch badge (runStatusLabel),
 	// so a stopped/terminated drill-in shows the real outcome, not the live derivation.
 	ListDispatchProgress(ctx context.Context, limit int32) ([]ListDispatchProgressRow, error)
-	// The newest `edge-fanout` measurement per address, with the certificate the edge
-	// presented beside it. This is the ONE read path from the leaf's store to the `Custody`
-	// derivation's extension-reach veto (#985, ADR-0129 §4).
+	// The newest `edge-fanout` measurement per address, and the FINGERPRINT of the
+	// certificate the edge presented. This is the ONE read path from the leaf's store to
+	// the `Custody` derivation's extension-reach veto (#985, ADR-0129 §4).
 	//
 	// DISTINCT ON takes the newest row per address, and `id` breaks a tie between two rows
 	// sharing a `measured_at` instant — the order the migration's index is built for. Only
 	// the newest row is read: an edge measured as shared last month and dedicated today is
 	// decided by today's handshake, so a veto lifts as soon as a measurement contradicts it.
 	//
-	// The join to `certificate_material` is a LEFT JOIN and `der` is nullable, because the
-	// three negative outcomes carry no fingerprint at all. A negative measured the address
-	// and found no identity there, which reduces to a fan-out of zero — measured and
-	// not-shared, never pending. The SAN set is derived from the DER at read (ADR-0027,
-	// #983), so no SAN text is stored anywhere.
+	// IT CARRIES NO DER, and joins to `certificate_material` not at all (#1035). That table
+	// is keyed by fingerprint, and many addresses on one shared CDN edge present ONE
+	// certificate, so the join returned that certificate once per address: 5000 addresses
+	// behind one edge pulled the same DER 5000 times, and the reduction re-parsed it 5000
+	// times. #1014 measured the waste. The caller reads the material once per DISTINCT
+	// fingerprint instead (ListCertificateMaterialDER) and derives one verdict per
+	// certificate.
+	//
+	// `fingerprint` is NULLABLE, because the three negative outcomes carry none. A negative
+	// measured the address and found no identity there, which reduces to a fan-out of zero
+	// — measured and not-shared, never pending. So a NULL fingerprint is NOT the absence
+	// the veto holds on. Only a MISSING ROW is. The SAN set stays derived from the DER at
+	// read (ADR-0027, #983), so no SAN text is stored anywhere.
 	//
 	// Every address the Scan measured is returned, whether or not the extension still
 	// reaches it. The caller keys the derivation's input on the address, and an address no

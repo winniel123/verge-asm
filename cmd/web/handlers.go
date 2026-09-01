@@ -153,15 +153,21 @@ type store interface {
 	// Reached through queue.ReadAddressExclusions, the one read path, so this surface
 	// and the batch gate cannot read a different exclusion set.
 	ListAddressExclusionCidrs(ctx context.Context) ([]*netip.Prefix, error)
-	// The other three reads the custody-extension census assembles its Estate from
-	// (#987, custodycensus.go): the custody-extended zones, the current cited
-	// addresses through the live-tier gate, and — with GetScanByKind below —
+	// The other reads the custody-extension census assembles its Estate from (#987,
+	// custodycensus.go): the custody-extended zones, the current cited addresses
+	// through the live-tier gate, and — with GetScanByKind below —
 	// queue.ReadEdgeFanout's own surface. Together with ListAddressScopeCidrs they
 	// mirror internal/queue/hot.go:hotEstate read for read, so the Scope render names
 	// the same declines the dispatch acts on.
+	//
+	// ListCertificateMaterialDER is the second half of that fan-out read (#1035): the
+	// measurement read names one fingerprint per measured address, and this reads each
+	// DISTINCT certificate once. It is not the /sources card's CountCertificateMaterial
+	// and not CT verification's GetCertificateMaterial.
 	ListExtendedZoneDomains(ctx context.Context) ([]pgtype.Text, error)
 	NameCitedAddresses(ctx context.Context, arg db.NameCitedAddressesParams) ([]db.NameCitedAddressesRow, error)
 	ListEdgeFanoutMeasurements(ctx context.Context) ([]db.ListEdgeFanoutMeasurementsRow, error)
+	ListCertificateMaterialDER(ctx context.Context, fingerprints []string) ([]db.ListCertificateMaterialDERRow, error)
 	ScanHasCompletedBatch(ctx context.Context, kind string) (bool, error)
 	ListUnavailableVantages(ctx context.Context) ([]db.ListUnavailableVantagesRow, error)
 	GetScanByKind(ctx context.Context, kind string) (db.Scan, error)

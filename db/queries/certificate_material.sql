@@ -26,3 +26,23 @@ SELECT count(*)::bigint AS captured FROM certificate_material;
 SELECT fingerprint, der, scts, issuer_spki
 FROM certificate_material
 WHERE fingerprint = $1;
+
+-- name: ListCertificateMaterialDER :many
+-- Read the leaf DER of each named certificate, over a fingerprint SET (#1035). This is
+-- the second step of the `edge-fanout` read: ListEdgeFanoutMeasurements returns one
+-- fingerprint per measured address, and this returns each DISTINCT certificate ONCE,
+-- whatever number of addresses presented it.
+--
+-- It is not GetCertificateMaterial in a loop, and it returns the DER alone. The SCT
+-- material and the issuer SubjectPublicKeyInfo are CT verification's inputs (spec §5.4);
+-- the fan-out reduction reads the dNSName SANs off the leaf and nothing else, so
+-- carrying them here would put bytes on the wire the caller drops.
+--
+-- A fingerprint with NO captured material returns NO ROW. That absence is a value, not
+-- an error: a `presented` handshake whose material never landed yields no names, so its
+-- edge reduces to a fan-out of zero and is reached (ADR-0129 §2). The caller must not
+-- read a missing row as *measurement pending* — the missing MEASUREMENT row is what
+-- means that, and it is a different absence.
+SELECT fingerprint, der
+FROM certificate_material
+WHERE fingerprint = ANY(@fingerprints::text[]);

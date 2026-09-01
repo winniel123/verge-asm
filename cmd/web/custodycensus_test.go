@@ -103,9 +103,7 @@ func TestCustodyCensusDualLimbRowDropsAnExcludedScope(t *testing.T) {
 	f.completedBatchKinds[scan.EdgeFanoutKind] = true
 	// One measured SHARED edge, cited by an in-zone name and inside the declared
 	// scope: the dual-limb row.
-	f.edgeFanout = []db.ListEdgeFanoutMeasurementsRow{
-		{Address: "93.184.216.10", Outcome: string(edgefanout.Presented), Der: sharedEdgeDER(t)},
-	}
+	f.measuredEdge("93.184.216.10", string(edgefanout.Presented), sharedEdgeDER(t))
 
 	entry := func() custody.ExtensionCensusEntry {
 		t.Helper()
@@ -154,9 +152,7 @@ func TestCustodyCensusDeclinedAndPendingRows(t *testing.T) {
 	censusEstateFixture(t, f)
 	// .10 is measured shared. .20 carries no row at all, which is measurement
 	// pending — an absence is never a value.
-	f.edgeFanout = []db.ListEdgeFanoutMeasurementsRow{
-		{Address: "93.184.216.10", Outcome: string(edgefanout.Presented), Der: sharedEdgeDER(t)},
-	}
+	f.measuredEdge("93.184.216.10", string(edgefanout.Presented), sharedEdgeDER(t))
 
 	page := seedsBody(t, ac, base)
 	if !strings.Contains(page, "Edges not reached") {
@@ -218,9 +214,7 @@ func TestCustodyCensusDualLimbRow(t *testing.T) {
 	declareExtendedZone(t, f, ac, base, "example.com")
 	declare(t, ac, base, "address", "93.184.216.0/24").Body.Close()
 	censusEstateFixture(t, f)
-	f.edgeFanout = []db.ListEdgeFanoutMeasurementsRow{
-		{Address: "93.184.216.10", Outcome: string(edgefanout.Presented), Der: sharedEdgeDER(t)},
-	}
+	f.measuredEdge("93.184.216.10", string(edgefanout.Presented), sharedEdgeDER(t))
 
 	page := seedsBody(t, ac, base)
 	if !strings.Contains(page, "measured as a shared edge, and covered by address scope") ||
@@ -252,9 +246,7 @@ func TestCustodyCensusDegradesOnReadFailure(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 	declareExtendedZone(t, f, ac, base, "example.com")
 	censusEstateFixture(t, f)
-	f.edgeFanout = []db.ListEdgeFanoutMeasurementsRow{
-		{Address: "93.184.216.10", Outcome: string(edgefanout.Presented), Der: sharedEdgeDER(t)},
-	}
+	f.measuredEdge("93.184.216.10", string(edgefanout.Presented), sharedEdgeDER(t))
 	f.citedErr = errors.New("resolution read failed")
 
 	resp := get(t, ac, base+"/scope")
@@ -288,9 +280,7 @@ func TestCustodyCensusEmptyWhereTheExtensionLimbErrored(t *testing.T) {
 	f.completedBatchKinds[scan.EdgeFanoutKind] = true
 	// One row, on an address no in-zone name cites — the declaration limb's. Neither
 	// extension candidate was measured.
-	f.edgeFanout = []db.ListEdgeFanoutMeasurementsRow{
-		{Address: "23.20.0.20", Outcome: string(edgefanout.Presented), Der: sharedEdgeDER(t)},
-	}
+	f.measuredEdge("23.20.0.20", string(edgefanout.Presented), sharedEdgeDER(t))
 
 	page := seedsBody(t, ac, base)
 	if !strings.Contains(page, "No in-zone name fronts an edge the extension declined.") {
@@ -333,9 +323,7 @@ func TestCustodyCensusFiresNoMessage(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 	declareExtendedZone(t, f, ac, base, "example.com")
 	censusEstateFixture(t, f)
-	f.edgeFanout = []db.ListEdgeFanoutMeasurementsRow{
-		{Address: "93.184.216.10", Outcome: string(edgefanout.Presented), Der: sharedEdgeDER(t)},
-	}
+	f.measuredEdge("93.184.216.10", string(edgefanout.Presented), sharedEdgeDER(t))
 
 	before := len(f.messages)
 	if page := seedsBody(t, ac, base); !strings.Contains(page, "measured as a shared edge") {

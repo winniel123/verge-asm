@@ -52,9 +52,7 @@ func TestAddressScopeCensusRowStatesTheCountsAndTheRemedy(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 	declaredScopeFixture(t, f, ac, base, "93.184.216.0/24")
-	f.edgeFanout = []db.ListEdgeFanoutMeasurementsRow{
-		{Address: "93.184.216.10", Outcome: string(edgefanout.Presented), Der: sharedEdgeDER(t)},
-	}
+	f.measuredEdge("93.184.216.10", string(edgefanout.Presented), sharedEdgeDER(t))
 
 	page := coverageBody(t, ac, base)
 	if !strings.Contains(page, "This scope covers 256 addresses. 1 of them presents a fan-out above the threshold.") {
@@ -74,10 +72,8 @@ func TestAddressScopeCensusRowReadsAsASentenceInThePlural(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 	declaredScopeFixture(t, f, ac, base, "93.184.216.0/24")
 	der := sharedEdgeDER(t)
-	f.edgeFanout = []db.ListEdgeFanoutMeasurementsRow{
-		{Address: "93.184.216.10", Outcome: string(edgefanout.Presented), Der: der},
-		{Address: "93.184.216.11", Outcome: string(edgefanout.Presented), Der: der},
-	}
+	f.measuredEdge("93.184.216.10", string(edgefanout.Presented), der)
+	f.measuredEdge("93.184.216.11", string(edgefanout.Presented), der)
 
 	page := coverageBody(t, ac, base)
 	if !strings.Contains(page, "This scope covers 256 addresses. 2 of them present a fan-out above the threshold.") {
@@ -96,9 +92,7 @@ func TestAddressScopeCensusRowAbsentBelowTheThreshold(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 	declaredScopeFixture(t, f, ac, base, "93.184.216.0/24")
-	f.edgeFanout = []db.ListEdgeFanoutMeasurementsRow{
-		{Address: "93.184.216.10", Outcome: string(edgefanout.Presented), Der: edgeDER(t, custody.SharedEdgeThreshold-1)},
-	}
+	f.measuredEdge("93.184.216.10", string(edgefanout.Presented), edgeDER(t, custody.SharedEdgeThreshold-1))
 
 	if row := evidRow(coverageBody(t, ac, base)); row != "" {
 		t.Errorf("a row rendered below the boundary: %s", row)
@@ -135,9 +129,7 @@ func TestAddressScopeCensusRowCarriesNoThresholdOrVerdict(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 	declaredScopeFixture(t, f, ac, base, "93.184.216.0/24")
-	f.edgeFanout = []db.ListEdgeFanoutMeasurementsRow{
-		{Address: "93.184.216.10", Outcome: string(edgefanout.Presented), Der: sharedEdgeDER(t)},
-	}
+	f.measuredEdge("93.184.216.10", string(edgefanout.Presented), sharedEdgeDER(t))
 
 	row := evidRow(coverageBody(t, ac, base))
 	if row == "" {
@@ -162,9 +154,7 @@ func TestAddressScopeCensusRowLeavesTheApertureStatementAlone(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 	declaredScopeFixture(t, f, ac, base, "93.184.216.0/24")
-	f.edgeFanout = []db.ListEdgeFanoutMeasurementsRow{
-		{Address: "93.184.216.10", Outcome: string(edgefanout.Presented), Der: sharedEdgeDER(t)},
-	}
+	f.measuredEdge("93.184.216.10", string(edgefanout.Presented), sharedEdgeDER(t))
 
 	page := coverageBody(t, ac, base)
 	for _, want := range []string{
@@ -188,9 +178,7 @@ func TestAddressScopeCensusRowLeavesTheExtensionPanelAlone(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 	declaredScopeFixture(t, f, ac, base, "93.184.216.0/24")
-	f.edgeFanout = []db.ListEdgeFanoutMeasurementsRow{
-		{Address: "93.184.216.10", Outcome: string(edgefanout.Presented), Der: sharedEdgeDER(t)},
-	}
+	f.measuredEdge("93.184.216.10", string(edgefanout.Presented), sharedEdgeDER(t))
 	if row := evidRow(coverageBody(t, ac, base)); row == "" {
 		t.Fatal("the row did not render, so the panel assertion proves nothing")
 	}
@@ -211,9 +199,7 @@ func TestAddressScopeCensusRowFiresNoMessage(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 	declaredScopeFixture(t, f, ac, base, "93.184.216.0/24")
-	f.edgeFanout = []db.ListEdgeFanoutMeasurementsRow{
-		{Address: "93.184.216.10", Outcome: string(edgefanout.Presented), Der: sharedEdgeDER(t)},
-	}
+	f.measuredEdge("93.184.216.10", string(edgefanout.Presented), sharedEdgeDER(t))
 
 	before := len(f.messages)
 	if row := evidRow(coverageBody(t, ac, base)); row == "" {
