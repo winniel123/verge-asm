@@ -286,6 +286,45 @@ func (f *fakeStore) ListDispatchProgress(_ context.Context, limit int32) ([]db.L
 	return rows, nil
 }
 
+// ListActiveDispatchProgress and ListConcludedDispatchProgress split the seeded rows the
+// way the two real queries do (#962): in flight is ready + running > 0, concluded is the
+// exact complement, and only the concluded half takes a limit. Both derive from the one
+// dispatchProgress slice, so a test seeds the monitor's whole world in one place.
+func (f *fakeStore) ListActiveDispatchProgress(_ context.Context) ([]db.ListActiveDispatchProgressRow, error) {
+	out := []db.ListActiveDispatchProgressRow{}
+	for _, r := range f.dispatchProgress {
+		if r.Ready+r.Running == 0 {
+			continue
+		}
+		out = append(out, db.ListActiveDispatchProgressRow{
+			DispatchID: r.DispatchID, ScanID: r.ScanID, ScanKind: r.ScanKind,
+			CreatedAt: r.CreatedAt, Status: r.Status,
+			Total: r.Total, Ready: r.Ready, Running: r.Running,
+			Done: r.Done, Dead: r.Dead, Retried: r.Retried,
+		})
+	}
+	return out, nil
+}
+
+func (f *fakeStore) ListConcludedDispatchProgress(_ context.Context, limit int32) ([]db.ListConcludedDispatchProgressRow, error) {
+	out := []db.ListConcludedDispatchProgressRow{}
+	for _, r := range f.dispatchProgress {
+		if r.Ready+r.Running > 0 {
+			continue
+		}
+		if len(out) >= int(limit) {
+			break
+		}
+		out = append(out, db.ListConcludedDispatchProgressRow{
+			DispatchID: r.DispatchID, ScanID: r.ScanID, ScanKind: r.ScanKind,
+			CreatedAt: r.CreatedAt, Status: r.Status,
+			Total: r.Total, Ready: r.Ready, Running: r.Running,
+			Done: r.Done, Dead: r.Dead, Retried: r.Retried,
+		})
+	}
+	return out, nil
+}
+
 func (f *fakeStore) ListJobsForDispatch(_ context.Context, dispatchID pgtype.Int8) ([]db.ListJobsForDispatchRow, error) {
 	return f.jobsByDispatch[dispatchID.Int64], nil
 }
