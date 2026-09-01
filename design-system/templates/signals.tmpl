@@ -6,7 +6,8 @@
   routes; view JS layers only what navigation cannot express (row kebab menu, right-click menu,
   Escape-to-close, typed-confirm gate, annotate enable). Holes kept: .Tab .OpenCount
   .AnnotatedCount .WithdrawnCount .Q .Sev .SevOptions .Shown .Total .HasAny .ClearHref .HasExport
-  .ExportHref .IsAdmin .AnnoError .ViewPrefix .SelKey .Sort{Key,Dir,SevHref,AssetHref,IDHref,SeenHref}
+  .ExportHref .IsAdmin .AnnoError .AnnoReasonDraft .ViewPrefix .SelKey
+  .Sort{Key,Dir,SevHref,AssetHref,IDHref,SeenHref}
   .ShowPagination .PageInfo .Pages[{Ellipsis,Href,Num,Active}] .Prev/NextDisabled .Prev/NextHref
   .CloseHref. Changed (SPEC-CHANGE #21, ruled): header Descope button drops — descope lives on the
   row menus and drawer; .Rows gains .SevLabel + .DescopeHref; the .Sort.*Arrow string holes retire
@@ -15,7 +16,12 @@
   posting the typed value to POST /exclusions kind=subtree; .Drawer gains the spec's real data —
   .Tags[] .CVE .Desc .RuleID/.RuleVersion .DetectedBy .Diff{Title,Lines[{Type,Text}]}
   .History[{Title,Detail,Time,Tone,Mono}] (#21j — rule metadata, the drift join, and span-derived
-  history exist; build the reads).
+  history exist; build the reads). Added (ADR-0130 §1, #972): the declare form's textarea
+  echoes .AnnoReasonDraft, the reason an operator typed on a submission the server refused.
+  The refusal is a redirect now, not an in-place re-render, so without the echo the typed
+  text would be gone from the page they land on. The server sends the draft only when the
+  re-opened drawer is the pair the refusal was about; it is "" on every ordinary load, and
+  an empty textarea is exactly the untouched control.
 */}}
 {{define "sevbadge"}}{{if eq .Severity "critical"}}<span style="display:inline-flex;align-items:center;gap:5px;height:18px;padding:0 8px;border-radius:999px;font-family:var(--font-mono);font-size:10px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;white-space:nowrap;background:var(--sev-critical-fill);color:var(--sev-critical-text)">{{.SevLabel}}</span>{{else}}<span style="display:inline-flex;align-items:center;gap:5px;height:18px;padding:0 8px;border-radius:999px;font-family:var(--font-mono);font-size:10px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;white-space:nowrap;background:var(--sev-{{.Severity}}-bg);border:1px solid var(--sev-{{.Severity}}-border);color:var(--sev-{{.Severity}}-fg)"><span style="width:5px;height:5px;border-radius:999px;background:var(--sev-{{.Severity}}-dot);flex:none"></span>{{.SevLabel}}</span>{{end}}{{end}}
 
@@ -322,7 +328,7 @@
 <input type="hidden" name="subject" value="{{.Asset}}">
 <input type="hidden" name="signal" value="{{.RuleID}}">
 {{template "backfield" $}}
-<textarea name="reason" rows="3" placeholder="Why this risk is accepted" required></textarea>
+<textarea name="reason" rows="3" placeholder="Why this risk is accepted" required>{{$.AnnoReasonDraft}}</textarea>
 <div style="display:flex;align-items:center;gap:10px">
 <button type="submit" class="sg-btn-pri-sm" data-anno-submit>Accept this risk</button>
 <span style="font:400 11.5px var(--font-ui);color:var(--text-muted)">Applies to this subject–signal pair. No expiry, no status, no author.</span>

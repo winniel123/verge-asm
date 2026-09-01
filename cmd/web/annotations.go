@@ -50,19 +50,28 @@ func normalizeSubjectKey(input string) string {
 // duplicate rather than editing it: an Annotation cannot be edited, so changing a
 // reason is a withdraw-then-declare (ADR-0093).
 //
-// The success path answers 303 to the URL the form was submitted from (backurl.go,
-// ADR-0130 §3), not to a bare `/signals`, so an operator who accepts a risk from a
-// filtered, sorted, paginated list lands back on that same list. The error path still
-// re-renders in place; ticket #972 turns it into a redirect of its own.
+// BOTH paths answer 303 to the URL the form was submitted from (backurl.go, ADR-0130
+// §3), not to a bare `/signals`, so an operator who accepts a risk from a filtered,
+// sorted, paginated list lands back on that same list.
+//
+// The refusal is a post-redirect-get too (ADR-0130 §1, ticket #972). It stashes the
+// message and the operator's typed values in the session-keyed form flash (flash.go)
+// and redirects; the /signals GET reads that stash once and renders the same inline
+// callout the in-place re-render used to. Two things follow. The load the operator
+// lands on is an ordinary navigation to the same URL, indistinguishable from a
+// success, so the scroll key the shell stashed on submit hits and they keep their
+// place — failure class A. And nothing of what they typed rides in the URL, so no
+// reason text reaches the access log or the browser history.
 func (s *server) declareAnnotation(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	subject := normalizeSubjectKey(r.FormValue("subject"))
 	sigName := strings.TrimSpace(r.FormValue("signal"))
 	reason := strings.TrimSpace(r.FormValue("reason"))
 
 	fail := func(msg string) {
-		s.renderSignals(w, r, acct, signalsForms{
+		stashFormFlash(s, r, signalsForms{
 			annoError: msg, annoSubject: subject, annoSignal: sigName, annoReason: reason,
 		})
+		s.redirectBack(w, r, "/signals")
 	}
 
 	if subject == "" {
@@ -96,11 +105,14 @@ func (s *server) declareAnnotation(w http.ResponseWriter, r *http.Request, acct 
 // own next firing. It is admin-only and idempotent — deleting a row already gone
 // is not an error, since the operator's intent that the acceptance no longer
 // stand is satisfied either way. Like the declare above, the success path 303s back
-// to the submitting URL (backurl.go, ADR-0130 §3) rather than to a bare `/signals`.
+// to the submitting URL (backurl.go, ADR-0130 §3) rather than to a bare `/signals`,
+// and the not-found path carries its message through the same form flash the declare
+// refusal uses (ADR-0130 §1) instead of re-rendering at the POST URL.
 func (s *server) withdrawAnnotation(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
-		s.renderSignals(w, r, acct, signalsForms{annoError: "That annotation could not be found."})
+		stashFormFlash(s, r, signalsForms{annoError: "That annotation could not be found."})
+		s.redirectBack(w, r, "/signals")
 		return
 	}
 	if err := s.store.DeleteAnnotation(r.Context(), id); err != nil {

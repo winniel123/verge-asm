@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -238,8 +239,9 @@ func TestAnnotationDeclareGuards(t *testing.T) {
 
 	ac := login(t, base, "admin", "hunter2hunter2")
 	// An unknown signal is refused: accepting a firing on a rule that does not
-	// exist would be an acceptance with no reader.
-	page := body(t, annotate(t, ac, base, "lame.example.com", "no-such-rule", "why"))
+	// exist would be an acceptance with no reader. Since ADR-0130 §1 (#972) the
+	// refusal is a redirect, so the message reads on the page it lands on.
+	page := refusalPage(t, ac, base, annotate(t, ac, base, "lame.example.com", "no-such-rule", "why"))
 	if !strings.Contains(page, "Choose the signal") {
 		t.Errorf("unknown signal not rejected; body: %s", page)
 	}
@@ -249,11 +251,156 @@ func TestAnnotationDeclareGuards(t *testing.T) {
 
 	// A duplicate pair is rejected — an Annotation cannot be edited.
 	annotate(t, ac, base, "lame.example.com", "lame-delegation", "first").Body.Close()
-	page = body(t, annotate(t, ac, base, "lame.example.com", "lame-delegation", "second"))
+	page = refusalPage(t, ac, base, annotate(t, ac, base, "lame.example.com", "lame-delegation", "second"))
 	if !strings.Contains(page, "already carries an annotation") {
 		t.Errorf("duplicate pair not rejected; body: %s", page)
 	}
 	if got, _ := f.ListAnnotations(t.Context()); len(got) != 1 {
 		t.Fatalf("duplicate declaration stored a second row; got %d", len(got))
+	}
+}
+
+// refusalPage follows a refused mutation's 303 and returns the page it lands on.
+// ADR-0130 §1 (#972): a refusal renders nothing at the POST URL. It stashes its
+// message in the session form flash and redirects, so every assertion about the
+// message belongs on the GET that follows.
+func refusalPage(t *testing.T, c *http.Client, base string, resp *http.Response) string {
+	t.Helper()
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("refused mutation: status = %d, want 303 (body: %s)", resp.StatusCode, body(t, resp))
+	}
+	loc := resp.Header.Get("Location")
+	if loc == "" {
+		t.Fatal("refused mutation: 303 carries no Location")
+	}
+	return getBody(t, c, base+loc, http.StatusOK)
+}
+
+// annotateFrom declares an Annotation the way the drawer's form does: carrying the
+// `return` field that names the exact URL the operator submitted from (backurl.go).
+func annotateFrom(t *testing.T, c *http.Client, base, from, subject, signal, reason string) *http.Response {
+	t.Helper()
+	return postForm(t, c, base+"/annotations", url.Values{
+		"subject": {subject}, "signal": {signal}, "reason": {reason}, "return": {from},
+	})
+}
+
+// openSigID reads the SIG id of the one fired instance on the Open tab. It is the
+// row Drawer's ViewKey, so `/signals?…&view=<id>` re-opens that row's declare form.
+func openSigID(t *testing.T, c *http.Client, base string) string {
+	t.Helper()
+	page := getBody(t, c, base+"/signals", http.StatusOK)
+	m := regexp.MustCompile(`SIG-\d+`).FindString(page)
+	if m == "" {
+		t.Fatalf("no SIG id on the Open tab; body: %s", page)
+	}
+	return m
+}
+
+// ADR-0130 §1 (#972): a REFUSED declaration is a post-redirect-get, exactly like an
+// accepted one. It renders nothing at the POST URL, it answers 303 to the URL the
+// form was submitted from, and it carries its message in a server-side flash rather
+// than in the URL. That is what fixes failure class A — the landing is an ordinary
+// navigation to the same URL, indistinguishable from a success, so the scroll key the
+// shell stashed on submit hits and the operator keeps their place.
+func TestRefusedAnnotationRedirectsBackWithNothingInTheURL(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	lameName(t, f, "lame.example.com")
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	// The submitting URL is the shape the carrier exists to preserve: a tab, a sort,
+	// and the row's drawer open. Its parameters are deliberately NOT alphabetical, so
+	// a re-encode that sorted them would show up as a mismatch below.
+	from := "/signals?tab=open&sort=id&dir=desc&view=" + openSigID(t, ac, base)
+
+	const typed = "Accepted under OPS-1 until the delegation is retired."
+	resp := annotateFrom(t, ac, base, from, "lame.example.com", "no-such-rule", typed)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("refused declaration: status = %d, want 303 (body: %s)", resp.StatusCode, body(t, resp))
+	}
+	loc := resp.Header.Get("Location")
+	if loc != from {
+		t.Fatalf("refused declaration: Location = %q, want the submitting URL %q byte for byte", loc, from)
+	}
+	// The payload never enters the URL. A URL is written to the access log and kept in
+	// browser history, and the typed reason can be sensitive.
+	for _, leak := range []string{"OPS-1", "Accepted", "Choose+the+signal", "Choose%20the%20signal", "error="} {
+		if strings.Contains(loc, leak) {
+			t.Errorf("Location %q carries %q; no field error and no typed value may ride in a URL", loc, leak)
+		}
+	}
+
+	// The message and the typed reason both come back on the page it lands on, so an
+	// operator with JavaScript off sees the refusal inline exactly as before.
+	page := getBody(t, ac, base+loc, http.StatusOK)
+	if !strings.Contains(page, "Choose the signal") {
+		t.Errorf("landing page carries no callout; body: %s", page)
+	}
+	if !strings.Contains(page, typed) {
+		t.Errorf("landing page dropped the typed reason; the operator must not retype it; body: %s", page)
+	}
+
+	// Single consume: a second load of the SAME URL shows no stale callout. This is
+	// what keeps the scan-running auto-refresh from re-showing a spent refusal.
+	again := getBody(t, ac, base+loc, http.StatusOK)
+	if strings.Contains(again, "Choose the signal") || strings.Contains(again, typed) {
+		t.Errorf("stale callout on a second load; the flash is not single-consume; body: %s", again)
+	}
+}
+
+// The withdraw not-found path uses the same carrier: it stashes and 303s rather than
+// re-rendering at the POST URL.
+func TestWithdrawNotFoundRedirectsBack(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	lameName(t, f, "lame.example.com")
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	from := "/signals?tab=annotated&sort=asset"
+	resp := postForm(t, ac, base+"/annotations/withdraw", url.Values{
+		"id": {"not-a-number"}, "return": {from},
+	})
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("withdraw not-found: status = %d, want 303 (body: %s)", resp.StatusCode, body(t, resp))
+	}
+	if loc := resp.Header.Get("Location"); loc != from {
+		t.Fatalf("withdraw not-found: Location = %q, want %q", loc, from)
+	}
+	if page := getBody(t, ac, base+from, http.StatusOK); !strings.Contains(page, "could not be found") {
+		t.Errorf("withdraw not-found message did not land on the GET; body: %s", page)
+	}
+}
+
+// The flash is keyed by SESSION, not by account. Two tabs signed in as one account
+// are two sessions, and a rejected form belongs to the tab that submitted it: the
+// other tab must not consume the error, which would leave its operator on an
+// unexplained page and rob the first tab of its message.
+func TestFormFlashIsSessionScopedNotAccountScoped(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	lameName(t, f, "lame.example.com")
+
+	base := start(t, f, "")
+	first := login(t, base, "admin", "hunter2hunter2")
+	second := login(t, base, "admin", "hunter2hunter2")
+
+	annotate(t, first, base, "lame.example.com", "no-such-rule", "why").Body.Close()
+
+	// The second tab loads /signals and must see nothing.
+	if page := getBody(t, second, base+"/signals", http.StatusOK); strings.Contains(page, "Choose the signal") {
+		t.Errorf("a second session consumed the first session's refusal; body: %s", page)
+	}
+	// The first tab still has its message waiting.
+	if page := getBody(t, first, base+"/signals", http.StatusOK); !strings.Contains(page, "Choose the signal") {
+		t.Errorf("the submitting session lost its own refusal; body: %s", page)
 	}
 }

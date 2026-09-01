@@ -484,6 +484,15 @@ type server struct {
 	// consumes it on the first chrome render. Best-effort, per-process.
 	flash *flashStore
 
+	// formFlash is the session-keyed, single-consume rejected-form store (flash.go,
+	// ADR-0130 §1). A handler that refuses a submission stashes the field error and the
+	// operator's typed values here and answers 303 to the submitting URL, so the error
+	// path is a post-redirect-get like the success path and the scroll restore fires on
+	// it. The GET handler for that URL reads the stash once and clears it. Keyed by
+	// session, not by account, so two tabs of one account do not consume each other's
+	// errors. Best-effort, per-process.
+	formFlash *formFlashStore
+
 	// loginLimiter throttles failed credential attempts on /login and /login/totp
 	// (#322): per-account and per-IP failed-attempt tracking with a temporary,
 	// exponential lockout, so a 6-digit TOTP is no longer brute-forceable and an
@@ -570,6 +579,7 @@ func newServer(s store, key []byte, setupToken string, now func() time.Time) *se
 		channelSender: newHTTPChannelSender(now),
 		loginLimiter:  newLoginLimiter(now),
 		flash:         newFlashStore(),
+		formFlash:     newFormFlashStore(),
 		restoreStage:  make(map[int64]*restoreStaging),
 	}
 }
