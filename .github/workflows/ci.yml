@@ -362,9 +362,13 @@ jobs:
             silent=
             for svc in web worker; do
               log="$RUNNER_TEMP/run2-$svc.log"
-              # Collected to a file first. Piping into `grep -q` lets grep close
-              # the pipe on its first match, and `docker compose logs` then dies
-              # of SIGPIPE, which `pipefail` reports as a failed search.
+              # Collected to a file first, rather than piped into `grep -q`.
+              # grep closes the pipe on its first match, and `docker compose
+              # logs` then dies of SIGPIPE. The workflow sets no
+              # `defaults.run.shell`, so these steps run under `bash -e` with no
+              # `pipefail`, and the pipeline still reports grep's own status
+              # today. The file keeps the search correct if `pipefail` is ever
+              # set, and gives each service a snapshot of its own.
               docker compose logs --no-color "$svc" >"$log" 2>&1 || true
               grep -qF "$want" "$log" || silent="$silent $svc"
             done
@@ -374,8 +378,15 @@ jobs:
             fi
             sleep 2
           done
-          echo "no \"$want\" within 90s from:$silent"
-          echo "a silent service completed the dial, so it verified the root against nothing"
+          # The step does not know WHY a service stayed silent, so it does not
+          # say. A service that verified nothing and a service that died before
+          # it reached the dial leave the same empty log, and a message that
+          # named only the first would send the next reader hunting a
+          # PGSSLROOTCERT drift that is not there. The state and the full logs
+          # below separate the two.
+          echo "no \"$want\" after 45 polls from:$silent"
+          echo "either a silent service verified the root against nothing, or it"
+          echo "never reached the dial. Read the state and the logs below."
           docker compose ps --all
           docker compose logs
           exit 1
