@@ -369,14 +369,30 @@ func TestProfileTokenRevealOnce(t *testing.T) {
 }
 
 // A duplicate token name is refused rather than minting a second row.
+//
+// The refusal is a post-redirect-get since ticket #978 (ADR-0130 §1): the 303 goes to
+// /profile and the callout, the typed name and the re-opened create dialog ride the
+// session flash to the landing GET. The reveal-once SUCCESS is the one Profile answer
+// that stays a rendered body, because the plaintext is never stored.
 func TestProfileTokenDuplicateName(t *testing.T) {
 	f, base, _ := profileBase(t)
 	c := login(t, base, "ola", "hunter2hunter2")
 
 	postForm(t, c, base+"/profile/tokens", url.Values{"name": {"ci"}}).Body.Close()
-	resp := postForm(t, c, base+"/profile/tokens", url.Values{"name": {"ci"}})
-	if got := body(t, resp); !strings.Contains(got, "already have a token named that") {
-		t.Fatalf("duplicate token name not reported; body: %s", got)
+	if loc := submitLoc(t, postForm(t, c, base+"/profile/tokens", url.Values{"name": {"ci"}})); loc != "/profile" {
+		t.Fatalf("refused token create landed at %q, want /profile", loc)
+	}
+	got := getBody(t, c, base+"/profile", http.StatusOK)
+	if !strings.Contains(got, "already have a token named that") {
+		t.Fatalf("duplicate token name not reported on the landing page; body: %s", got)
+	}
+	// The refusal re-opens the create dialog with the typed name still in it.
+	if !strings.Contains(got, `value="ci"`) {
+		t.Fatalf("the typed token name was not echoed back; body: %s", got)
+	}
+	// The flash is single-consume, so a reload shows a clean Profile.
+	if again := getBody(t, c, base+"/profile", http.StatusOK); strings.Contains(again, "already have a token named that") {
+		t.Fatalf("the callout survived a reload; body: %s", again)
 	}
 	if len(f.personalTokens) != 1 {
 		t.Fatalf("tokens after duplicate = %d, want 1", len(f.personalTokens))
@@ -425,13 +441,18 @@ func TestProfileChangePassword(t *testing.T) {
 	f, base, acct := profileBase(t)
 	c := login(t, base, "ola", "hunter2hunter2")
 
-	// A wrong current password is refused and changes nothing.
+	// A wrong current password is refused and changes nothing. The refusal is a
+	// post-redirect-get since ticket #978 (ADR-0130 §1): the callout rides the session
+	// flash to /profile rather than rendering at the POST URL.
 	before := f.accounts[acct.ID].PasswordHash
 	resp := postForm(t, c, base+"/profile/password", url.Values{
 		"current_password": {"nope"}, "new_password": {"brandnewpass99"},
 	})
-	if got := body(t, resp); !strings.Contains(got, "Current password is incorrect") {
-		t.Fatalf("wrong current password not reported; body: %s", got)
+	if loc := submitLoc(t, resp); loc != "/profile" {
+		t.Fatalf("refused password change landed at %q, want /profile", loc)
+	}
+	if got := getBody(t, c, base+"/profile", http.StatusOK); !strings.Contains(got, "Current password is incorrect") {
+		t.Fatalf("wrong current password not reported on the landing page; body: %s", got)
 	}
 	if f.accounts[acct.ID].PasswordHash != before {
 		t.Fatalf("password changed despite wrong current password")

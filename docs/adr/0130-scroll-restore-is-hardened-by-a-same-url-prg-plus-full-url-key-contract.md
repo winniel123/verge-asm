@@ -94,6 +94,19 @@ reset there is correct. No class-B control is converted to a form.
 - Error handling gets a reusable server-side session-flash carrier for field errors and typed
   values. A build session adds it once; `annotations.go` and `seeds.go` are the first callers.
   Every mutating handler that re-renders inline on error migrates to it over time.
+  **Complete as of map [#969](https://github.com/winniel123/verge-asm/issues/969) ticket
+  [#978](https://github.com/winniel123/verge-asm/issues/978).** No POST handler answers a
+  validation failure with a body — a rendered page or an `http.Error` line alike — and every
+  exception is named and reasoned in `cmd/web/adr0130_contract_test.go`. A whole surface §1 does
+  not govern is exempted by route (`classAExemptRoutes`, `classEExempt`): the pre-authentication
+  credential flow, two-factor enrolment, the onboarding and wizard step moves, the Profile
+  surface (no operative query), and a completed restore (no session survives it). One answer
+  inside a governed route is exempted by answer (`classAExemptAnswers`): the personal-token
+  reveal, whose plaintext is never stored, and the hand-crafted-request refusals in
+  `integrations.go` and `proposals.go`. Three guards in that file read the package's own route
+  table and call graph, and fail on a regression: a POST that answers a refusal with a body, a
+  POST that redirects to a path spelled in its own source, and a flash that is not
+  single-consume.
 - Every mutating handler must know the URL it was submitted from and redirect back to it. The
   build session audits the ~80 redirects (`cmd/web/*.go`) and adds the hidden submitting-URL
   field to the forms whose page carries an operative query.

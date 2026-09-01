@@ -330,6 +330,10 @@ func TestSourcesCTHeroNoRun(t *testing.T) {
 
 // --- helpers ----------------------------------------------------------------
 
+// sourcesTab is the Sources section's own tab, and the fallback destination of a toggle
+// submitted with no `return` field (backToSection).
+const sourcesTab = "/settings?tab=sources"
+
 func toggleSourceReq(t *testing.T, c *http.Client, base, slug, enabled string) *http.Response {
 	t.Helper()
 	return postForm(t, c, base+"/sources/toggle", url.Values{"slug": {slug}, "enabled": {enabled}})
@@ -415,13 +419,19 @@ func TestToggleSourcePersistsOverride(t *testing.T) {
 	// RIPEstat is catalogued-not-executing now (#241, ruling #30): no runner ships,
 	// so it is non-toggleable — an enable POST is refused and persists nothing, even
 	// carrying the acceptance field the old operator-accepted gate wanted.
+	//
+	// The refusal is a post-redirect-get since ticket #978 (ADR-0130 §1 and §3), and it
+	// carries the same callout its twin handler /settings/sources does: the surface now
+	// reports the refusal one way rather than two.
 	resp := postForm(t, ac, base+"/sources/toggle", url.Values{
 		"slug": {"ripestat"}, "enabled": {"true"}, "agreed": {"on"},
 	})
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("catalogued-source toggle: status=%d, want 400", resp.StatusCode)
+	if loc := submitLoc(t, resp); loc != sourcesTab {
+		t.Fatalf("refused toggle landed at %q, want %q", loc, sourcesTab)
 	}
-	resp.Body.Close()
+	if got := getBody(t, ac, base+sourcesTab, http.StatusOK); !strings.Contains(got, "could not be found") {
+		t.Fatalf("refused toggle showed no callout; body: %s", got)
+	}
 	if _, ok := f.sourceStates["ripestat"]; ok {
 		t.Fatalf("no-runner source wrote state: %+v", f.sourceStates["ripestat"])
 	}
@@ -488,13 +498,14 @@ func TestToggleRejectsBarredAndUnknown(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// hackertarget: excluded on terms. no-such-source: unknown.
+	// hackertarget: excluded on terms. no-such-source: unknown. Each is refused with the
+	// post-redirect-get every console refusal answers with since ticket #978.
 	for _, slug := range []string{"hackertarget", "no-such-source"} {
-		resp := toggleSourceReq(t, ac, base, slug, "true")
-		got := resp.StatusCode
-		resp.Body.Close()
-		if got != http.StatusBadRequest {
-			t.Errorf("toggle %q: status=%d, want 400", slug, got)
+		if loc := submitLoc(t, toggleSourceReq(t, ac, base, slug, "true")); loc != sourcesTab {
+			t.Errorf("refused toggle %q landed at %q, want %q", slug, loc, sourcesTab)
+		}
+		if got := getBody(t, ac, base+sourcesTab, http.StatusOK); !strings.Contains(got, "could not be found") {
+			t.Errorf("refused toggle %q showed no callout; body: %s", slug, got)
 		}
 	}
 	if len(f.sourceStates) != 0 {

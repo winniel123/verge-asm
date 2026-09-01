@@ -21,11 +21,15 @@ func provision(t *testing.T, c *http.Client, base, host, port, username string) 
 	})
 }
 
+// vantagesTab is the section's own URL, and the fallback destination of a provision
+// submitted with no `return` field.
+const vantagesTab = "/settings?tab=vantages"
+
 // vantagesBody reads the Settings → Vantages tab, where prober provisioning + the
 // prober listing now live.
 func vantagesBody(t *testing.T, c *http.Client, base string) string {
 	t.Helper()
-	return getBody(t, c, base+"/settings?tab=vantages", http.StatusOK)
+	return getBody(t, c, base+vantagesTab, http.StatusOK)
 }
 
 func TestProvisionProber(t *testing.T) {
@@ -35,7 +39,7 @@ func TestProvisionProber(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 
 	resp := provision(t, ac, base, "prober.example.com", "2222", "scanner")
-	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/settings?tab=vantages" {
+	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != vantagesTab {
 		t.Fatalf("provision: status=%d location=%q", resp.StatusCode, resp.Header.Get("Location"))
 	}
 	resp.Body.Close()
@@ -63,6 +67,9 @@ func TestProvisionProber(t *testing.T) {
 	}
 }
 
+// A refused provision is a post-redirect-get since ticket #978 (ADR-0130 §1): the 303
+// goes back to the Vantages tab and the callout and the typed endpoint ride the session
+// flash to that landing GET, so a long Vantages list keeps its scroll offset.
 func TestProvisionRejectsRootAndBadPort(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -70,19 +77,23 @@ func TestProvisionRejectsRootAndBadPort(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 
 	// Root username is refused, and the typed values are preserved.
-	resp := provision(t, ac, base, "host", "22", "root")
-	got := body(t, resp)
-	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(got, "non-root") {
-		t.Fatalf("root username not refused: status=%d body=%s", resp.StatusCode, got)
+	if loc := submitLoc(t, provision(t, ac, base, "host", "22", "root")); loc != vantagesTab {
+		t.Fatalf("refused provision landed at %q, want %q", loc, vantagesTab)
+	}
+	got := vantagesBody(t, ac, base)
+	if !strings.Contains(got, "non-root") {
+		t.Fatalf("root username not refused; body: %s", got)
 	}
 	if !strings.Contains(got, `value="host"`) {
 		t.Errorf("rejected host not retained; body: %s", got)
 	}
 
 	// Out-of-range port is refused.
-	resp = provision(t, ac, base, "host", "70000", "scanner")
-	if got := body(t, resp); resp.StatusCode != http.StatusBadRequest || !strings.Contains(got, "between 1 and 65535") {
-		t.Fatalf("bad port not refused: status=%d body=%s", resp.StatusCode, got)
+	if loc := submitLoc(t, provision(t, ac, base, "host", "70000", "scanner")); loc != vantagesTab {
+		t.Fatalf("refused port landed at %q, want %q", loc, vantagesTab)
+	}
+	if got := vantagesBody(t, ac, base); !strings.Contains(got, "between 1 and 65535") {
+		t.Fatalf("bad port not refused; body: %s", got)
 	}
 
 	if len(f.vantages) != 0 {
@@ -97,9 +108,14 @@ func TestProvisionDuplicateRejected(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 
 	provision(t, ac, base, "host", "22", "scanner").Body.Close()
-	resp := provision(t, ac, base, "host", "22", "scanner")
-	if got := body(t, resp); !strings.Contains(got, "already provisioned") {
+	provision(t, ac, base, "host", "22", "scanner").Body.Close()
+	got := vantagesBody(t, ac, base)
+	if !strings.Contains(got, "already provisioned") {
 		t.Fatalf("duplicate endpoint not reported; body: %s", got)
+	}
+	// The flash is single-consume, so a reload of the same tab shows no stale callout.
+	if again := vantagesBody(t, ac, base); strings.Contains(again, "already provisioned") {
+		t.Fatalf("the callout survived a reload; body: %s", again)
 	}
 }
 

@@ -57,9 +57,12 @@ func (s *server) provisionProber(w http.ResponseWriter, r *http.Request, acct db
 	port := r.FormValue("port")
 	username := r.FormValue("username")
 	fail := func(msg string) {
-		// #21d: prober provisioning relocated to Settings → Vantages; a rejected
-		// provision re-renders that tab with its own error and typed values.
-		s.renderSettings(w, r, acct, settingsForms{
+		// #21d: prober provisioning relocated to Settings → Vantages. A rejected provision
+		// is a post-redirect-get like every other console refusal (ADR-0130 §1, ticket
+		// #978): the error and the typed endpoint ride the session flash, and the 303 goes
+		// back to the URL the form was submitted from, so the operator keeps their place in
+		// a long Vantages list.
+		s.failSettings(w, r, settingsForms{
 			section: "vantages", proberError: msg, proberHost: host, proberPort: port, proberUser: username,
 		})
 	}

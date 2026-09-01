@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -594,21 +593,28 @@ func (s *server) toggleSource(w http.ResponseWriter, r *http.Request, acct db.Ac
 	// runner (#241) has nothing to run, so neither is toggleable; an unknown slug
 	// is refused rather than written.
 	if !ok || c.Barred || c.NoRunner {
-		http.Error(w, "unknown source", http.StatusBadRequest)
+		s.failSettings(w, r, settingsForms{section: "sources", sourceError: "That source could not be found."})
 		return
 	}
 	enabled, err := strconv.ParseBool(r.FormValue("enabled"))
 	if err != nil {
-		http.Error(w, "bad state", http.StatusBadRequest)
+		s.failSettings(w, r, settingsForms{section: "sources", sourceError: "That source state was not understood."})
 		return
 	}
 	// Enabling an operator-accepted source is gated on accepting its terms: the
 	// project could not clear them on your behalf, so the enable act must carry your
-	// acceptance. Without it, bounce back to the terms dialog rather than enabling —
-	// a real gate, not only a UI affordance. Disabling and unencumbered sources are
-	// never gated.
+	// acceptance. Disabling and unencumbered sources are never gated.
+	//
+	// The gate used to bounce to `/sources?terms=<slug>`, which re-opened the terms
+	// dialog and said nothing. Ticket #975 replaced that shape on the twin handler with
+	// a callout, and ticket #978 converges this one, so the surface reports the refusal
+	// one way rather than two: the message rides the session flash and the 303 goes back
+	// to the URL the toggle was submitted from (ADR-0130 §1 and §3).
 	if enabled && c.Consent == consentAccepted && r.FormValue("agreed") == "" {
-		http.Redirect(w, r, "/sources?terms="+url.QueryEscape(slug), http.StatusSeeOther)
+		s.failSettings(w, r, settingsForms{
+			section:     "sources",
+			sourceError: "Accept the terms before you enable " + c.Name + ".",
+		})
 		return
 	}
 	if _, err := s.store.UpsertSourceState(r.Context(), db.UpsertSourceStateParams{
