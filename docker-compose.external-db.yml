@@ -65,7 +65,9 @@ services:
         target: /etc/verge/ca/root.crt
         read_only: true
         bind:
-          create_host_path: false
+          # SCRATCH ONLY (#1021): worker's guard is flipped. This is the
+          # single-service drift under test. Never merge this line.
+          create_host_path: true
 
 # The bundled Postgres is gone, so its data volume is too. web-state,
 # worker-state and transcript-key still come from the base file.

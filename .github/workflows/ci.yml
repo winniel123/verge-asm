@@ -380,6 +380,33 @@ jobs:
           docker compose logs
           exit 1
 
+      # SCRATCH ONLY (#1021): run 3 exactly as it stood before the fix, one
+      # `up` over the stack. `continue-on-error` keeps it advisory, so its
+      # result is visible beside the fixed step's. Never merge.
+      - name: SCRATCH the OLD run 3 assertion, one up over the stack
+        continue-on-error: true
+        run: |
+          missing="$RUNNER_TEMP/no-such-ca-dir-old/root.crt"
+          export POSTGRES_SSLROOTCERT_SRC="$missing"
+          trap 'docker compose down -v >/dev/null 2>&1 || true' EXIT
+          log="$RUNNER_TEMP/run3-old.log"
+          if docker compose up -d >"$log" 2>&1; then
+            echo "SCRATCH RESULT: the OLD assertion FAILED, compose up succeeded"
+            cat "$log"
+            exit 1
+          fi
+          cat "$log"
+          if ! grep -qF 'bind source path does not exist' "$log"; then
+            echo "SCRATCH RESULT: the OLD assertion FAILED, no bind-source error"
+            exit 1
+          fi
+          if [ -e "$missing" ] || [ -e "$RUNNER_TEMP/no-such-ca-dir-old" ]; then
+            echo "SCRATCH RESULT: the OLD assertion FAILED, docker created a path at $missing"
+            ls -la "$RUNNER_TEMP/no-such-ca-dir-old"
+            exit 1
+          fi
+          echo "SCRATCH RESULT: the OLD assertion PASSED with worker's guard flipped"
+
       # --- Run 3 (§9.6, assertion 3): a missing bind source must fail ---
       - name: assert a missing bind source fails at compose up
         run: |
