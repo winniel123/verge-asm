@@ -1168,21 +1168,21 @@ func (s *server) accountPage(w http.ResponseWriter, r *http.Request, _ db.Accoun
 	http.Redirect(w, r, "/settings?tab=team", http.StatusSeeOther)
 }
 
-func (s *server) createAccount(w http.ResponseWriter, r *http.Request, acct db.Account) {
+func (s *server) createAccount(w http.ResponseWriter, r *http.Request, _ db.Account) {
 	username := strings.TrimSpace(r.FormValue("username"))
 	password := r.FormValue("password")
 	role := r.FormValue("role")
 
 	if role != roleAdmin && role != roleViewer {
-		s.renderFormError(w, r, acct, "Role must be admin or viewer.")
+		s.renderFormError(w, r, "Role must be admin or viewer.")
 		return
 	}
 	if msg := validateCredentials(username, password); msg != "" {
-		s.renderFormError(w, r, acct, msg)
+		s.renderFormError(w, r, msg)
 		return
 	}
 	if _, err := s.createAccountRow(r, username, role, password); err != nil {
-		s.renderFormError(w, r, acct, createError(err))
+		s.renderFormError(w, r, createError(err))
 		return
 	}
 	// The success is a post-redirect-get too (ADR-0130 §3): the confirmation line rides
@@ -1705,7 +1705,15 @@ type profileState struct {
 // credentials and tokens. The create/revoke/end-session dialogs are opened by query
 // param so the destructive ones are a navigation, never a click that fires the act.
 func (s *server) profilePage(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	st := profileState{}
+	// A refused Profile act redirected here and left its callout, the operator's typed
+	// values and the dialog that must re-open in the session form flash (ADR-0130 §1,
+	// failProfile). Take it once: the take deletes it, so a reload of /profile shows a
+	// clean page rather than a stale callout. An ordinary GET finds nothing.
+	//
+	// The take needs no tab claim of the kind takeSettingsFlash carries. Profile is one
+	// section on one URL, so this GET is the only landing a profileState stash can have,
+	// and the typed carrier already leaves another surface's stash in place.
+	st, _ := takeFormFlash[profileState](s, r)
 	q := r.URL.Query()
 	if q.Get("new") != "" {
 		st.createOpen = true
@@ -1756,6 +1764,27 @@ func (s *server) profilePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		st.ssoError = "Linking could not be completed. Try again."
 	}
 	s.renderProfile(w, r, acct, st)
+}
+
+// profilePath is the Profile's one URL, and the destination of every Profile act.
+const profilePath = "/profile"
+
+// failProfile answers a refused Profile act the way ADR-0130 §1 asks: stash the callout,
+// the operator's typed values and the dialog that must re-open in the session form flash,
+// then 303 to the Profile. Nothing the operator typed enters the URL.
+//
+// The destination is the bare path, not resolveBack's submitting URL, and that is the
+// deliberate reading of §3 map #969's audit recorded for this surface. Every parameter
+// /profile reads is either a dialog opener (?new=, ?revoke=, ?endsession=,
+// ?signoutothers=) or a single-consume SSO receipt (?linked=, ?unlinked=, ?linkerr=).
+// Returning to such a URL verbatim would re-open a confirm the act has already answered,
+// or re-show a receipt already spent — the same reason dialogParams strips those
+// parameters on the settings surface. The page carries no filter, no sort and no pager,
+// so there is no list state a bare path loses, and the dialog that SHOULD re-open on a
+// refusal re-opens from the flash (createOpen), which is single-consume.
+func (s *server) failProfile(w http.ResponseWriter, r *http.Request, st profileState) {
+	stashFormFlash(s, r, st)
+	http.Redirect(w, r, profilePath, http.StatusSeeOther)
 }
 
 // renderProfile assembles the Profile page's real data of the shape Profile.jsx
@@ -2015,11 +2044,11 @@ func (s *server) changePassword(w http.ResponseWriter, r *http.Request, acct db.
 		return
 	}
 	if !auth.CheckPassword(fresh.PasswordHash, current) {
-		s.renderProfile(w, r, acct, profileState{pwError: "Current password is incorrect."})
+		s.failProfile(w, r, profileState{pwError: "Current password is incorrect."})
 		return
 	}
 	if msg := validatePassword(next); msg != "" {
-		s.renderProfile(w, r, acct, profileState{pwError: msg})
+		s.failProfile(w, r, profileState{pwError: msg})
 		return
 	}
 	hash, err := auth.HashPassword(next)
@@ -2050,21 +2079,28 @@ func (s *server) changePassword(w http.ResponseWriter, r *http.Request, acct db.
 	}
 	// Act result rides the shell toast pipeline (#18, P1.7) with the spec's copy
 	// (Profile.jsx:68) rather than an inline notice.
-	s.toastRedirect(w, r, "/profile", "ok", "Password changed", "Other sessions keep working until they expire.")
+	s.toastRedirect(w, r, profilePath, "ok", "Password changed", "Other sessions keep working until they expire.")
 }
 
 // createPersonalToken mints a personal API token and reveals it once. The plaintext
 // is generated, its hash stored, and the plaintext handed back in THIS response
 // only — the page is rendered directly (not redirected) so the value can be shown a
 // single time; a refresh re-GETs /profile without it. Verge keeps only the hash.
+//
+// That render is the one console SUCCESS ADR-0130 §1 exempts, and the exemption buys
+// the success path alone (adr0130_contract_test.go, classAExempt). Every REFUSAL here
+// is a post-redirect-get like any other console form: the callout, the typed name and
+// the re-opened dialog ride the session flash through failProfile. A redirect could not
+// carry the plaintext without stashing key material in a store to survive it, which is
+// exactly what "Verge keeps only the hash" forbids.
 func (s *server) createPersonalToken(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	name := strings.TrimSpace(r.FormValue("name"))
 	switch {
 	case name == "":
-		s.renderProfile(w, r, acct, profileState{createOpen: true, tokError: "Give the token a name.", tokName: name})
+		s.failProfile(w, r, profileState{createOpen: true, tokError: "Give the token a name.", tokName: name})
 		return
 	case len(name) > 64:
-		s.renderProfile(w, r, acct, profileState{createOpen: true, tokError: "Name must be 64 characters or fewer.", tokName: name})
+		s.failProfile(w, r, profileState{createOpen: true, tokError: "Name must be 64 characters or fewer.", tokName: name})
 		return
 	}
 	plaintext, prefix, hash, err := s.newPersonalToken()
@@ -2076,7 +2112,7 @@ func (s *server) createPersonalToken(w http.ResponseWriter, r *http.Request, acc
 		AccountID: acct.ID, Name: name, Prefix: prefix, TokenHash: hash,
 	}); err != nil {
 		if isUniqueViolation(err) {
-			s.renderProfile(w, r, acct, profileState{createOpen: true, tokError: "You already have a token named that.", tokName: name})
+			s.failProfile(w, r, profileState{createOpen: true, tokError: "You already have a token named that.", tokName: name})
 			return
 		}
 		s.serverError(w, "profile: create token", err)
@@ -2418,8 +2454,9 @@ func isForeignKeyViolation(err error) bool {
 // form flash and the POST answers 303 to the URL the form was submitted from, so the
 // operator lands on their own tab at their own scroll offset and a reload re-shows
 // nothing. The name is kept — every caller reads as "answer this form with an error" —
-// but nothing is rendered here any more, so acct is no longer needed.
-func (s *server) renderFormError(w http.ResponseWriter, r *http.Request, _ db.Account, msg string) {
+// but nothing is rendered here any more, so the account parameter went with the render
+// (ticket #978).
+func (s *server) renderFormError(w http.ResponseWriter, r *http.Request, msg string) {
 	s.failSettings(w, r, settingsForms{section: "team", teamError: msg})
 }
 

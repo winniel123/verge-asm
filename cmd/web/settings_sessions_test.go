@@ -125,14 +125,19 @@ func TestAdminRevokeAllForAccount(t *testing.T) {
 		t.Fatalf("boyd live sessions = %d, want 2", countLiveSessions(f, boyd.ID))
 	}
 
-	// A wrong typed name changes nothing and re-opens the dialog with an error.
+	// A wrong typed name changes nothing and re-opens the dialog with an error. The
+	// refusal is a post-redirect-get since ticket #978 (ADR-0130 §1): the 303 goes back
+	// to the Sessions tab with ?revoke-account= dropped (dialogParams), and the dialog
+	// re-opens from the flash instead — carrying the error inside it.
+	const sessionsTab = "/settings?tab=sessions"
 	resp := postForm(t, ac, base+"/settings/sessions/revoke-account", url.Values{
 		"account_id": {itoa(boyd.ID)}, "confirm_name": {"nope"},
+		"return": {sessionsTab + "&revoke-account=" + itoa(boyd.ID)},
 	})
-	got := body(t, resp)
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("mismatch typed-name: status=%d, want 400", resp.StatusCode)
+	if loc := submitLoc(t, resp); loc != sessionsTab {
+		t.Fatalf("refused revoke-all landed at %q, want %q", loc, sessionsTab)
 	}
+	got := getBody(t, ac, base+sessionsTab, http.StatusOK)
 	if !strings.Contains(got, "That did not match") {
 		t.Fatalf("mismatch typed-name missing re-open error; body: %s", got)
 	}

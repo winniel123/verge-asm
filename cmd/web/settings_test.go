@@ -457,14 +457,26 @@ func TestRetentionPersistsAndValidates(t *testing.T) {
 		t.Errorf("updated_by not attributed")
 	}
 
+	// Every refusal below is a post-redirect-get since ticket #978 (ADR-0130 §1): the
+	// 303 goes back to the tab the dials live on, and the callout and the typed values
+	// ride the session flash to that landing GET. refuse asserts the redirect and hands
+	// back the landing page the operator actually reads.
+	const deliveryTab = "/settings?tab=delivery"
+	refuse := func(what string, vals url.Values) string {
+		t.Helper()
+		if loc := submitLoc(t, postForm(t, ac, base+"/settings/retention", vals)); loc != deliveryTab {
+			t.Fatalf("refused %s landed at %q, want %q", what, loc, deliveryTab)
+		}
+		return getBody(t, ac, base+deliveryTab, http.StatusOK)
+	}
+
 	// A negative value is refused and the previous value stands.
-	resp = postForm(t, ac, base+"/settings/retention", url.Values{
+	got := refuse("negative dial", url.Values{
 		"observation_currency_days": {"-1"}, "dispatch_cadence_multiple": {"4"},
 		"transcript_currency_days": {"30"},
 	})
-	got := body(t, resp)
-	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(got, "zero or more") {
-		t.Fatalf("negative dial not refused: status=%d body=%s", resp.StatusCode, got)
+	if !strings.Contains(got, "zero or more") {
+		t.Fatalf("negative dial not refused; body: %s", got)
 	}
 	if f.retention.ObservationCurrencyDays != 90 {
 		t.Fatalf("rejected save mutated the dial: %+v", f.retention)
@@ -474,13 +486,12 @@ func TestRetentionPersistsAndValidates(t *testing.T) {
 	// previous value stands. With the dns Scan (daily) enabled the tightest bound
 	// is k=2 daily cadences, so 1 day is below the floor. The floor is derived, not
 	// an operator choice (#208, ADR-0094).
-	resp = postForm(t, ac, base+"/settings/retention", url.Values{
+	got = refuse("below-floor observation dial", url.Values{
 		"observation_currency_days": {"1"}, "dispatch_cadence_multiple": {"4"},
 		"transcript_currency_days": {"30"},
 	})
-	got = body(t, resp)
-	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(got, "at least 2 days") {
-		t.Fatalf("below-floor observation dial not refused: status=%d body=%s", resp.StatusCode, got)
+	if !strings.Contains(got, "at least 2 days") {
+		t.Fatalf("below-floor observation dial not refused; body: %s", got)
 	}
 	if f.retention.ObservationCurrencyDays != 90 {
 		t.Fatalf("rejected save mutated the observation dial: %+v", f.retention)
@@ -489,13 +500,12 @@ func TestRetentionPersistsAndValidates(t *testing.T) {
 	// A Dispatch multiple below the k=2 floor is refused; the previous value
 	// stands. The dial is a multiple of the slowest enabled Scan's cadence, so
 	// one cadence is below the floor.
-	resp = postForm(t, ac, base+"/settings/retention", url.Values{
+	got = refuse("below-floor dispatch dial", url.Values{
 		"observation_currency_days": {"90"}, "dispatch_cadence_multiple": {"1"},
 		"transcript_currency_days": {"30"},
 	})
-	got = body(t, resp)
-	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(got, "at least 2 cadences") {
-		t.Fatalf("below-floor dispatch dial not refused: status=%d body=%s", resp.StatusCode, got)
+	if !strings.Contains(got, "at least 2 cadences") {
+		t.Fatalf("below-floor dispatch dial not refused; body: %s", got)
 	}
 	if f.retention.DispatchCadenceMultiple != 4 {
 		t.Fatalf("rejected save mutated the dispatch dial: %+v", f.retention)
@@ -504,13 +514,12 @@ func TestRetentionPersistsAndValidates(t *testing.T) {
 	// A non-numeric transcript dial is refused and the previous value stands. The
 	// dial has no derived floor — a positive value is floored UP to 1 day by the
 	// retirer (#868), so only a non-numeric or negative value is rejected here.
-	resp = postForm(t, ac, base+"/settings/retention", url.Values{
+	got = refuse("non-numeric transcript dial", url.Values{
 		"observation_currency_days": {"90"}, "dispatch_cadence_multiple": {"4"},
 		"transcript_currency_days": {"soon"},
 	})
-	got = body(t, resp)
-	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(got, "zero or more") {
-		t.Fatalf("non-numeric transcript dial not refused: status=%d body=%s", resp.StatusCode, got)
+	if !strings.Contains(got, "zero or more") {
+		t.Fatalf("non-numeric transcript dial not refused; body: %s", got)
 	}
 	if !strings.Contains(got, `value="soon"`) {
 		t.Errorf("rejected transcript value not echoed back: %s", got)

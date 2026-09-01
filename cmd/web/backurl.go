@@ -31,8 +31,9 @@ import (
 // backField is the hidden form field the "backfield" template partial emits and
 // resolveBack reads. It keeps the name the Inbox acts already use for the same job
 // (`return`, inbox.tmpl / settings.tmpl), so the console carries one name for this
-// datum rather than two. Those older handlers keep their own inline checks for now;
-// ticket #978 converges them onto this helper.
+// datum rather than two. The Inbox acts kept their own inline check until ticket #977
+// deleted messageReturn; every handler in the tree now reads this field through
+// resolveBack and nothing else parses it.
 const backField = "return"
 
 // backURL is the submitting URL to stamp into a page's forms: the request's own path
@@ -234,15 +235,15 @@ func (s *server) routeServesGET(p string) bool {
 // the guard. It is the plain form of the carrier: no toast, just the operator's own
 // list again.
 //
-// markMessageUnread (messages.go) meets the same taint problem a different way: it
-// resolves a bool and redirects to a string LITERAL at each branch, so no
-// request-derived value reaches http.Redirect at all. That pattern is stronger, and it
-// is the right one THERE, because the Inbox acts have exactly two destinations to
-// enumerate. It cannot express this ticket: ADR-0130 §3 requires a redirect back to an
-// arbitrary filtered list URL, and an arbitrary URL has no literal form. The guard
-// above is the substitute the ADR asks for, so the taint is admitted deliberately
-// rather than overlooked. Do not read this as licence to skip the literal pattern
-// where a handler CAN enumerate its destinations.
+// A request-derived value reaches http.Redirect here, and that is admitted deliberately
+// rather than overlooked. The stronger pattern is to enumerate the destinations and
+// redirect to a string LITERAL at each branch, which is what the Inbox acts did until
+// ticket #977 (markMessageUnread). It cannot express this contract: ADR-0130 §3 requires
+// a redirect back to an arbitrary filtered list URL, and an arbitrary URL has no literal
+// form — which is why the Inbox pattern had to go, since its two literals dropped the
+// filter and closed the open message. The guard above is the substitute the ADR asks
+// for. Do not read this as licence to skip the literal pattern where a handler CAN
+// enumerate its destinations.
 //
 // This line carries no `#nosec`. Measured with CI's own flags (-exclude-generated
 // -severity high -confidence high), gosec raises nothing here, so an annotation would

@@ -71,13 +71,18 @@ type seedView struct {
 // seedsForms carries the echo state of the two forms the Seeds screen hosts —
 // the scope declaration and the exclusion — so a rejected submission on one
 // leaves its own error and typed value in place without disturbing the other.
+//
+// It carries only what /scope actually renders. Four fields went in ticket #978 because
+// nothing on this surface read them any more: seedKind (the seed form's kind select,
+// dropped in #21a when declareSeed began inferring the shape from the value), and the
+// coldError and prober echoes (the cold-tier and provisioning regions relocated to
+// Settings in #21d, where settingsForms carries the same names). A field with a setter
+// and no hole is a refusal the operator never sees, so this struct holds none.
 type seedsForms struct {
-	seedError, seedKind, seedScope                  string
-	exclError, exclKind, exclValue                  string
-	custodyError                                    string
-	proberError, proberHost, proberPort, proberUser string
-	zoneIntervalError                               string
-	coldError                                       string
+	seedError, seedScope           string
+	exclError, exclKind, exclValue string
+	custodyError                   string
+	zoneIntervalError              string
 	// zoneErrors are the per-file zone-upload refusals (DF-F2): one row per rejected
 	// file, in upload order. It replaces the single zoneError string — a bulk upload
 	// refuses each file independently.
@@ -638,7 +643,12 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		"ZoneIntervalError": f.zoneIntervalError,
 		"ZoneIntervalDays":  intervalDays,
 		// Pending Proposals flattened to the spec rows + the org-name search echo (#21).
+		// ProposalError is the refusal beside that search box. The field had two setters
+		// and no hole between the parity conversion (#574, which dropped both the hole and
+		// this line) and ticket #978's sweep, so an empty search and an already-declared
+		// scope each refused in silence — the operator saw a clean page and no reason.
 		"Proposals": flattenProposals(lookups), "OrgQuery": f.proposalQuery,
+		"ProposalError": f.proposalError,
 		// The narrowing receipt (#205 AC8): shown before an exclusion commits, only
 		// where a withdrawal message would fire.
 		"ExclPreview": f.exclPreview,
