@@ -77,7 +77,7 @@ func TestApertureMetersAddressCountedTotal(t *testing.T) {
 		{Addr: mustAddr(t, "203.0.113.20")},
 		{Addr: mustAddr(t, "203.0.113.30")},
 	}
-	m := apertureMeters(seeds, nil, walked, time.Now())
+	m := apertureMeters(seeds, nil, walked, time.Now(), nil)
 	if len(m) != 1 {
 		t.Fatalf("want 1 meter, got %d", len(m))
 	}
@@ -103,7 +103,7 @@ func TestApertureMetersAddressCountedTotal(t *testing.T) {
 func TestApertureMetersAddressZeroNumerator(t *testing.T) {
 	p := mustPrefix(t, "203.0.113.0/24")
 	seeds := []db.ListSeedsRow{{Kind: "address", AddressCidr: &p}}
-	m := apertureMeters(seeds, nil, nil, time.Now())
+	m := apertureMeters(seeds, nil, nil, time.Now(), nil)
 	if m[0].Total == nil || m[0].Counted != "0" || m[0].Pct != 0 {
 		t.Fatalf("empty walk: want 0/256 at 0%%, got counted=%q total=%v pct=%d", m[0].Counted, m[0].Total, m[0].Pct)
 	}
@@ -112,7 +112,7 @@ func TestApertureMetersAddressZeroNumerator(t *testing.T) {
 // A name scope stays a census — no denominator (ADR-0072).
 func TestApertureMetersNameCensus(t *testing.T) {
 	seeds := []db.ListSeedsRow{{Kind: "name", NameDomain: pgtype.Text{String: "acmecorp.io", Valid: true}}}
-	m := apertureMeters(seeds, nil, nil, time.Now())
+	m := apertureMeters(seeds, nil, nil, time.Now(), nil)
 	if m[0].Total != nil {
 		t.Fatalf("name scope must be a census (Total nil), got %v", m[0].Total)
 	}
@@ -165,7 +165,7 @@ func TestAddressMeterOldestCurrentAsOf(t *testing.T) {
 		{Addr: mustAddr(t, "203.0.113.20"), ObservedAt: oldest},
 		{Addr: mustAddr(t, "203.0.113.30"), ObservedAt: now.Add(-3 * time.Hour)},
 	}
-	m := apertureMeters(seeds, nil, walked, now)[0]
+	m := apertureMeters(seeds, nil, walked, now, nil)[0]
 	if m.Total == nil || *m.Total != "256" || m.Counted != "3" {
 		t.Fatalf("lagging meter is counted/total 3/256: got counted=%q total=%v", m.Counted, m.Total)
 	}
@@ -182,7 +182,7 @@ func TestAddressMeterOldestCurrentAsOf(t *testing.T) {
 func TestAddressMeterNoAsOfWhenNothingCurrent(t *testing.T) {
 	p := mustPrefix(t, "203.0.113.0/24")
 	seeds := []db.ListSeedsRow{{Kind: "address", AddressCidr: &p}}
-	m := apertureMeters(seeds, nil, nil, time.Now())[0]
+	m := apertureMeters(seeds, nil, nil, time.Now(), nil)[0]
 	if m.AsOf != "" || m.AsOfISO != "" {
 		t.Fatalf("no current subject: as-of must be empty, got AsOf=%q AsOfISO=%q", m.AsOf, m.AsOfISO)
 	}

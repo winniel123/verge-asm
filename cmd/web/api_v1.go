@@ -379,7 +379,12 @@ func (s *server) apiCoverage(w http.ResponseWriter, r *http.Request, _ db.Accoun
 	} else {
 		log.Printf("web: api: coverage: list service subjects: %v", serr)
 	}
-	meters := apertureMeters(seeds, zones, walked, s.now())
+	// #989's contradiction row is a SCREEN row, not a projected field. ADR-0129 names
+	// the address scope's own membership census as its surface, and the row's worth is
+	// the sentence beside the count — the boundary fact and the exclusion remedy, which
+	// no JSON field carries. So no shared-edge map is read here and the projection is
+	// unchanged.
+	meters := apertureMeters(seeds, zones, walked, s.now(), nil)
 
 	out := apiCoverageResponse{Meters: make([]apiCoverageMeter, 0, len(meters))}
 	for _, m := range meters {
