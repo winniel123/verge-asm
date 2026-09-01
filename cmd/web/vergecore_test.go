@@ -7,9 +7,14 @@ import (
 	"testing"
 )
 
+// editFreq submits one frequency edit from the folded /verge-core surface, carrying the
+// submitting-URL field that surface's forms stamp (ADR-0130 §3, backurl.go). Every
+// outcome therefore comes back to /verge-core, which is where the operator was.
 func editFreq(t *testing.T, c *http.Client, base, action, port string) *http.Response {
 	t.Helper()
-	return postForm(t, c, base+"/verge-core/frequency", url.Values{"action": {action}, "port": {port}})
+	return postForm(t, c, base+"/verge-core/frequency", url.Values{
+		"action": {action}, "port": {port}, "return": {"/verge-core"},
+	})
 }
 
 func vergeCoreBody(t *testing.T, c *http.Client, base string) string {
@@ -69,7 +74,10 @@ func TestVergeCoreAdminEditsFrequency(t *testing.T) {
 	}
 }
 
-// A bad port is rejected with the typed value preserved, and stores nothing.
+// A bad port is rejected with the typed value preserved, and stores nothing. The
+// refusal is a post-redirect-get (ADR-0130 §1, ticket #975), so the message and the
+// typed port reach the operator on the landing GET rather than as a 400 body at the
+// POST URL.
 func TestVergeCoreRejectsBadPort(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -77,12 +85,18 @@ func TestVergeCoreRejectsBadPort(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 
 	resp := editFreq(t, ac, base, "add", "70000")
-	got := body(t, resp)
-	if resp.StatusCode != http.StatusBadRequest || !strings.Contains(got, "between 1 and 65535") {
-		t.Fatalf("bad port not rejected clearly: status=%d body len=%d", resp.StatusCode, len(got))
+	if loc := submitLoc(t, resp); loc != "/verge-core" {
+		t.Fatalf("rejected port landed at %q, want /verge-core", loc)
 	}
 	if len(f.freqEdits) != 0 {
 		t.Errorf("a rejected edit stored a row: %+v", f.freqEdits)
+	}
+	got := vergeCoreBody(t, ac, base)
+	if !strings.Contains(got, "between 1 and 65535") {
+		t.Fatalf("bad port not rejected clearly on the landing; body len=%d", len(got))
+	}
+	if !strings.Contains(got, `value="70000"`) {
+		t.Fatalf("the typed port was not echoed back; body len=%d", len(got))
 	}
 }
 

@@ -306,8 +306,16 @@
   var tn=document.getElementById("st-typed-name");
   if(tn){var ti=document.querySelector(".st-dialog input.typed"),ts=document.querySelector("[data-st-typed-submit]");
     if(ti&&ts){ti.addEventListener("input",function(){if(ti.value===tn.textContent)ts.removeAttribute("disabled");else ts.setAttribute("disabled","");});ti.focus();}}
+  // The consent submit ships ENABLED and is disabled here on load, never in the markup
+  // (ADR-0130 ticket #975, the ruling #971 made for the /signals declare button). The
+  // acceptance box is the `accept_terms` carrier the handler reads, so with JavaScript
+  // off the operator can still tick it and submit, and an unticked submit is refused by
+  // settingsSources rather than silently enabling the source.
   var cc=document.getElementById("st-consent-check"),cs=document.querySelector("[data-st-consent-submit]");
-  if(cc&&cs)cc.addEventListener("change",function(){if(cc.checked)cs.removeAttribute("disabled");else cs.setAttribute("disabled","");});
+  if(cc&&cs){
+    var csSync=function(){if(cc.checked)cs.removeAttribute("disabled");else cs.setAttribute("disabled","");};
+    cc.addEventListener("change",csSync);csSync();
+  }
   var rs=document.getElementById("st-role-select");
   if(rs){var rb=document.getElementById("st-role-save");
     rs.addEventListener("change",function(){if(rs.value===rs.getAttribute("data-current"))rb.setAttribute("disabled","");else rb.removeAttribute("disabled");});}
@@ -610,7 +618,7 @@
 <summary><span class="st-btn-sm">Edit</span></summary>
 <div class="sheet" style="position:absolute;right:0;z-index:95;width:340px;box-shadow:var(--shadow-md);border:1px solid var(--border-default);background:var(--surface-raised)">
 <form method="post" action="/settings/sso/update" style="margin:0;display:flex;flex-direction:column;gap:10px">
-<input type="hidden" name="id" value="{{.ID}}">
+<input type="hidden" name="id" value="{{.ID}}">{{template "backfield" $}}
 <span class="st-input"><span class="lb">Display name</span><span class="iw"><input name="name" value="{{.Name}}" required></span></span>
 <span class="st-input"><span class="lb">Slug</span><span class="iw"><input name="slug" value="{{.Slug}}" required></span></span>
 <span class="st-input"><span class="lb">Issuer URL</span><span class="iw"><input name="issuer" value="{{.Issuer}}" required></span></span>
@@ -619,12 +627,12 @@
 <div><button type="submit" class="st-btn-sm">Save provider</button></div>
 </form>
 <form method="post" action="/settings/sso/secret" style="margin:0;display:flex;flex-direction:column;gap:10px">
-<input type="hidden" name="id" value="{{.ID}}">
+<input type="hidden" name="id" value="{{.ID}}">{{template "backfield" $}}
 <span class="st-input"><span class="lb">Replace client secret</span><span class="iw"><input name="client_secret" type="password" autocomplete="off" placeholder="{{if .HasSecret}}set — leave blank to keep{{else}}not set — leave blank for none{{end}}"></span></span>
 {{if .HasSecret}}<label class="st-check"><input type="checkbox" name="clear_secret"><span class="box"><svg viewBox="0 0 18 18" width="12" height="12"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="var(--on-accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>clear the secret</label>{{end}}
 <div><button type="submit" class="st-btn-sm">Update secret</button></div>
 </form>
-<form method="post" action="/settings/sso/delete" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" class="st-btn-sm" style="color:var(--danger);border-color:var(--danger-border)">Remove provider</button></form>
+<form method="post" action="/settings/sso/delete" style="margin:0"><input type="hidden" name="id" value="{{.ID}}">{{template "backfield" $}}<button type="submit" class="st-btn-sm" style="color:var(--danger);border-color:var(--danger-border)">Remove provider</button></form>
 </div>
 </details>
 </td>{{end}}
@@ -643,6 +651,7 @@
 <div class="st-cardhead"><div class="hd"><span class="st-micro">New provider</span><h3>Add an OpenID Connect provider</h3></div></div>
 <div class="st-body">
 <form method="post" action="/settings/sso" class="st-form" style="margin:0">
+{{template "backfield" $}}
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
 <span class="st-input"><span class="lb">Display name</span><span class="iw"><input name="name" value="{{.SSOName}}" placeholder="Okta" required></span></span>
 <span class="st-input"><span class="lb">Slug</span><span class="iw"><input name="slug" value="{{.SSOSlug}}" placeholder="okta" autocomplete="off" required></span></span>
@@ -667,7 +676,7 @@
 <td class="mono">{{.Account}}</td>
 <td class="mono">{{if .DisplayName}}{{.DisplayName}}{{else}}<span style="color:var(--text-muted)">—</span>{{end}}</td>
 <td class="mono">{{.LinkedAt}}</td>
-<td style="text-align:right"><form method="post" action="/settings/sso/identity/remove" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" class="st-btn-sm">Remove</button></form></td>
+<td style="text-align:right"><form method="post" action="/settings/sso/identity/remove" style="margin:0"><input type="hidden" name="id" value="{{.ID}}">{{template "backfield" $}}<button type="submit" class="st-btn-sm">Remove</button></form></td>
 </tr>{{end}}
 </tbody>
 </table>
@@ -969,7 +978,7 @@
 <span class="st-note">{{.What}}</span>
 <span style="margin-left:auto;display:inline-flex;align-items:center;gap:10px">
 <span class="st-badge ok">unencumbered</span>
-{{if $.IsAdmin}}<form method="post" action="/settings/sources" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="enable" value="{{if .On}}false{{else}}true{{end}}"><button type="submit" role="switch" aria-checked="{{if .On}}true{{else}}false{{end}}" class="st-switch{{if .On}} on{{end}}" aria-label="{{if .On}}Disable{{else}}Enable{{end}} {{.Name}}"><span class="knob"></span></button></form>{{else}}<span class="st-switch{{if .On}} on{{end}}" role="switch" aria-checked="{{if .On}}true{{else}}false{{end}}"><span class="knob"></span></span>{{end}}
+{{if $.IsAdmin}}<form method="post" action="/settings/sources" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="enable" value="{{if .On}}false{{else}}true{{end}}">{{template "backfield" $}}<button type="submit" role="switch" aria-checked="{{if .On}}true{{else}}false{{end}}" class="st-switch{{if .On}} on{{end}}" aria-label="{{if .On}}Disable{{else}}Enable{{end}} {{.Name}}"><span class="knob"></span></button></form>{{else}}<span class="st-switch{{if .On}} on{{end}}" role="switch" aria-checked="{{if .On}}true{{else}}false{{end}}"><span class="knob"></span></span>{{end}}
 </span>
 </div>
 {{end}}
@@ -985,7 +994,7 @@
 <span class="st-note">{{.What}}</span>
 <span style="margin-left:auto;display:inline-flex;align-items:center;gap:10px">
 <span class="st-badge warn">operator-accepted</span>
-{{if $.IsAdmin}}{{if .On}}<form method="post" action="/settings/sources" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="enable" value="false"><button type="submit" role="switch" aria-checked="true" class="st-switch on" aria-label="Disable {{.Name}}"><span class="knob"></span></button></form>{{else}}<a href="/settings?tab=sources&consent={{.ID}}" role="switch" aria-checked="false" class="st-switch" aria-label="Enable {{.Name}} — accept the terms" style="text-decoration:none"><span class="knob"></span></a>{{end}}{{else}}<span class="st-switch{{if .On}} on{{end}}" role="switch" aria-checked="{{if .On}}true{{else}}false{{end}}"><span class="knob"></span></span>{{end}}
+{{if $.IsAdmin}}{{if .On}}<form method="post" action="/settings/sources" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="enable" value="false">{{template "backfield" $}}<button type="submit" role="switch" aria-checked="true" class="st-switch on" aria-label="Disable {{.Name}}"><span class="knob"></span></button></form>{{else}}<a href="/settings?tab=sources&consent={{.ID}}" role="switch" aria-checked="false" class="st-switch" aria-label="Enable {{.Name}} — accept the terms" style="text-decoration:none"><span class="knob"></span></a>{{end}}{{else}}<span class="st-switch{{if .On}} on{{end}}" role="switch" aria-checked="{{if .On}}true{{else}}false{{end}}"><span class="knob"></span></span>{{end}}
 </span>
 </div>
 {{end}}
@@ -1019,12 +1028,11 @@
 </div>
 <form method="post" action="/settings/sources" style="margin:16px 0 0;display:flex;flex-direction:column;gap:14px">
 <input type="hidden" name="id" value="{{.ID}}">
-<input type="hidden" name="enable" value="true">
-<input type="hidden" name="accept_terms" value="true">
-<label class="st-check"><input type="checkbox" id="st-consent-check"><span class="box"><svg viewBox="0 0 18 18" width="12" height="12"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="var(--on-accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>I accept these terms</label>
+<input type="hidden" name="enable" value="true">{{template "backfield" $}}
+<label class="st-check"><input type="checkbox" id="st-consent-check" name="accept_terms" value="true"><span class="box"><svg viewBox="0 0 18 18" width="12" height="12"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="var(--on-accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>I accept these terms</label>
 <div class="acts" style="margin-top:0">
 <a class="st-btn ghost" href="/settings?tab=sources">Cancel</a>
-<button type="submit" class="st-btn pri" disabled data-st-consent-submit>Accept and enable</button>
+<button type="submit" class="st-btn pri" data-st-consent-submit>Accept and enable</button>
 </div>
 </form>
 </div></div>
@@ -1059,7 +1067,7 @@
 {{if .VCError}}<div class="st-error">{{.VCError}}</div>{{end}}
 {{if .IsAdmin}}
 <form method="post" action="/verge-core/frequency" style="margin:0;display:flex;gap:8px;align-items:flex-end">
-<input type="hidden" name="action" value="add">
+<input type="hidden" name="action" value="add">{{template "backfield" $}}
 <span class="st-input" style="width:200px"><span class="lb">Add a frequency port</span><span class="iw"><input name="port" inputmode="numeric" value="{{.VCPort}}" placeholder="8443" autocomplete="off" required></span></span>
 <button type="submit" class="st-btn sec">Add to frequency</button>
 </form>
@@ -1074,8 +1082,8 @@
 <td>{{if .AlsoSensitive}}<span class="st-badge neutral">sensitive</span>{{else}}<span style="color:var(--text-muted)">—</span>{{end}}</td>
 <td>{{if .Edited}}<span class="st-badge accent">{{.EditAction}}</span>{{else}}<span style="color:var(--text-muted)">shipped</span>{{end}}</td>
 {{if $.IsAdmin}}<td style="text-align:right"><span style="display:inline-flex;gap:6px">
-<form method="post" action="/verge-core/frequency" style="margin:0"><input type="hidden" name="action" value="remove"><input type="hidden" name="port" value="{{.Port}}"><button type="submit" class="st-btn-sm">Remove</button></form>
-{{if .Edited}}<form method="post" action="/verge-core/frequency" style="margin:0"><input type="hidden" name="action" value="reset"><input type="hidden" name="port" value="{{.Port}}"><button type="submit" class="st-btn-sm">Reset</button></form>{{end}}
+<form method="post" action="/verge-core/frequency" style="margin:0"><input type="hidden" name="action" value="remove"><input type="hidden" name="port" value="{{.Port}}">{{template "backfield" $}}<button type="submit" class="st-btn-sm">Remove</button></form>
+{{if .Edited}}<form method="post" action="/verge-core/frequency" style="margin:0"><input type="hidden" name="action" value="reset"><input type="hidden" name="port" value="{{.Port}}">{{template "backfield" $}}<button type="submit" class="st-btn-sm">Reset</button></form>{{end}}
 </span></td>{{end}}
 </tr>{{end}}
 </tbody>

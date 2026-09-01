@@ -204,8 +204,18 @@ func cadenceLabel(seconds int64) string {
 // sub-tab, #308): #281 originally parked this catalogue under the "integrations"
 // tab as a stopgap before the real Integrations screen existed; #308 gave
 // integrations their own tab and returned this catalogue to its own "sources" tab.
+//
+// It is the folded read surface for the sources tab: /sources renders the same section
+// /settings?tab=sources does, so it is a legitimate submitting URL for the enable and
+// disable forms and therefore a legitimate LANDING for a refused one. It reads the
+// session form flash for that reason (ADR-0130 §1, flash.go). A GET that is nobody's
+// landing takes nothing and renders the ordinary page.
+//
+// The tab it claims is derived, not spelled — see vergeCorePage for why. Here the
+// section and the tab happen to share a name, so the derivation costs nothing and
+// keeps the two folded surfaces reading the same way.
 func (s *server) sourcesModal(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	s.renderSettings(w, r, acct, settingsForms{tab: "sources"})
+	s.renderSettings(w, r, acct, s.takeSettingsFlash(r, tabForSection("sources")))
 }
 
 // sourceTierRow is one source shaped for the spec tier cards (#26): its id, name,
@@ -613,24 +623,39 @@ func (s *server) toggleSource(w http.ResponseWriter, r *http.Request, acct db.Ac
 // settingsSources records an admin's on/off choice from the spec sources tab (#26).
 // It is the settings-tab twin of toggleSource: the form posts an id and an enable
 // flag, and enabling an operator-accepted source carries accept_terms=true from the
-// consent dialog. Without that acceptance, enabling an operator-accepted source
-// bounces to the consent dialog (?consent=<id>) rather than enabling — a real gate,
-// not only a UI affordance. It is reached only through requireAdmin.
-func (s *server) settingsSources(w http.ResponseWriter, r *http.Request, acct db.Account) {
+// consent dialog's acceptance box. Without that acceptance the enable is REFUSED
+// rather than applied — a real gate, not only a UI affordance. It is reached only
+// through requireAdmin.
+//
+// Every outcome is a post-redirect-get back to the URL the form was submitted from
+// (ADR-0130 §1 and §3, map #969 ticket #975), so an admin who acts from the folded
+// /sources surface lands there and one who acts from /settings?tab=sources lands
+// there. A refusal's callout rides the session form flash to that landing GET.
+//
+// The unaccepted enable used to bounce to the consent dialog (?consent=<id>) instead
+// of refusing. A refusal is the better answer now that the acceptance box is the
+// carrier: the box only reaches here unticked with JavaScript off, and a silent bounce
+// back to the dialog the operator just submitted states nothing. The callout does, and
+// it renders at page level, where backToSection's dropped `consent` parameter leaves it
+// visible rather than behind .st-scrim. The row's own switch re-opens the dialog.
+func (s *server) settingsSources(w http.ResponseWriter, r *http.Request, _ db.Account) {
 	id := r.FormValue("id")
 	c, ok := catalogBySlug(id)
 	if !ok || c.Barred || c.NoRunner {
-		s.renderSettings(w, r, acct, settingsForms{section: "sources", sourceError: "That source could not be found."})
+		s.failSettings(w, r, settingsForms{section: "sources", sourceError: "That source could not be found."})
 		return
 	}
 	enable, err := strconv.ParseBool(r.FormValue("enable"))
 	if err != nil {
-		s.renderSettings(w, r, acct, settingsForms{section: "sources", sourceError: "That source state was not understood."})
+		s.failSettings(w, r, settingsForms{section: "sources", sourceError: "That source state was not understood."})
 		return
 	}
 	// Enabling an operator-accepted source is gated on accepting its terms.
 	if enable && c.Consent == consentAccepted && r.FormValue("accept_terms") != "true" {
-		http.Redirect(w, r, "/settings?tab=sources&consent="+url.QueryEscape(id), http.StatusSeeOther)
+		s.failSettings(w, r, settingsForms{
+			section:     "sources",
+			sourceError: "Accept the terms before you enable " + c.Name + ".",
+		})
 		return
 	}
 	if _, err := s.store.UpsertSourceState(r.Context(), db.UpsertSourceStateParams{
@@ -639,5 +664,5 @@ func (s *server) settingsSources(w http.ResponseWriter, r *http.Request, acct db
 		s.serverError(w, "upsert source state", err)
 		return
 	}
-	http.Redirect(w, r, "/settings?tab=sources", http.StatusSeeOther)
+	s.backToSection(w, r, "sources")
 }

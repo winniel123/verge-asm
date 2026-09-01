@@ -347,9 +347,18 @@ func tabForSection(section string) string {
 // anyway: removeID/removeError re-open the remove dialog with the message inside it,
 // and inviteOpen does the same for the invite. Both are single-consume, so a reload
 // leaves the operator on a clean tab rather than in a dialog they never re-opened.
+//
+// The Sources tab is the second case, and it is the same shape (ticket #975). Its
+// consent dialog is opened by ?consent=<id> (fillSourcesSection), and the enable form
+// lives inside that dialog. On a success, returning verbatim would re-open the terms of
+// a source the operator has just enabled. On a refusal, the same scrim would hide the
+// callout. The list of tiers behind the dialog survives either way.
 func dialogParams(section string) []string {
-	if section == "team" {
+	switch section {
+	case "team":
 		return []string{"role", "reenroll", "remove", "invite"}
+	case "sources":
+		return []string{"consent"}
 	}
 	return nil
 }
