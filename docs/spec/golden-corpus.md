@@ -38,11 +38,11 @@ obligation and gave it nobody to fail on. This file is the owner. It is a checke
 **46 membership cells** (§2 and §8), plus the matrix the rows run on. Each cell must hold a corpus
 row, counted by CI.
 
-**§10 is a third block against a different obligation.** Its **6 cells** pin the `Custody`
+**§10 is a third block against a different obligation.** Its **11 cells** pin the `Custody`
 derivation, which is not a membership leaf and composes into no `Span`. It is here because the gate
 and the matrix are here, and it discharges [ADR-0008](../adr/0008-derivation-versions-move-on-content.md)'s
 rule — *a declared parameter is pinned by a corpus row whose output the value decides* — rather than
-ADR-0041's. Read the two obligations apart: **46 + 6 is not a membership count.**
+ADR-0041's. Read the two obligations apart: **46 + 11 is not a membership count.**
 
 ~~a checked-in enumeration of **27 cells** ... and **17 further cells held in escrow** against a
 routing question this ticket may not answer (§7)~~ is **superseded here, at the site that specifies
@@ -548,7 +548,7 @@ never by an edit to one already here.
 
 ---
 
-## 10. The `Custody` block — 6 cells
+## 10. The `Custody` block — 11 cells
 
 - **Ticket:** [#986](https://github.com/winniel123/verge-asm/issues/986), under the
   [ADR-0129](../adr/0129-a-shared-foreign-edge-is-measured-by-fan-out-not-read-from-a-list.md) map
@@ -571,7 +571,7 @@ the derivation** — the fan-out threshold, `custody.SharedEdgeThreshold`, fixed
 operator-configurable — and ADR-0008 pins such a number by a corpus row whose output the value
 decides. That is a different obligation with the same instrument, so it gets its own block and its
 own lock, and the two are **never pooled**: a break in the fan-out boundary moves THIS digest and
-bumps `custody/v2`, never `resolution-walk`'s.
+bumps `custody/v3`, never `resolution-walk`'s.
 
 The block also holds a row a `Seed`-covered address appears in. That is not §1 reversed. The row
 pins that the veto does **not** reach the declaration, which is a fact about the derivation and not
@@ -589,8 +589,11 @@ about a membership timeline.
 | `C3/scan-not-in-force-reaches` | A `Scan` that is disabled or whose row is absent **reaches** the address even with a shared measurement on record. That is the pre-ADR-0129 behaviour and the zero value |
 | `C3/extension-limb-errored-reaches` | A `Scan` that completes a Batch and records **declaration-limb rows alone** is errored on the **extension limb**: its candidates reach and derive `operator`, and the declaration limb keeps its own measurement |
 | `C3/measured-candidate-holds-the-rest` | **One measured extension candidate lifts the floor** and the rest stay held. On an install whose `Scan` has run this limb, an unmeasured candidate is a lag bounded by the cadence, never a failure |
+| `C4/excluded-inside-a-scope-is-third-party` | An address inside a declared scope and inside an **address exclusion** derives `third-party`, and the gate is shut |
+| `C4/the-same-address-without-the-exclusion` | The same address with the exclusion **absent** derives `operator` and the gate opens, so the refusal above is the exclusion and not the fixture |
+| `C4/excluded-but-extension-reached-is-operator` | An excluded address the **custody extension also reaches** derives `operator` and is probed. The exclusion cuts the `Seed` limb alone |
 
-**Eight is the length of a list, not a target**, on §2.5's rule. It moves when a cell is added or
+**Eleven is the length of a list, not a target**, on §2.5's rule. It moves when a cell is added or
 retired.
 
 `C1` is ADR-0085's boundary rule in force: two rows, one on each side, authored as a pair and failing
@@ -610,6 +613,15 @@ digest with it.
 session read the new floor as *any unmeasured candidate reaches*, because every candidate in them is
 unmeasured. This row holds a **measured** candidate beside an unmeasured one, so the widening moves
 its golden and is named.
+
+`C4` is [ADR-0133](../adr/0133-an-address-exclusion-is-a-limb-of-the-custody-derivation.md) in force
+([#1022](https://github.com/winniel123/verge-asm/issues/1022)). Its first two rows are ADR-0085's
+pair — one estate, one bit apart — so the refusal in the first is provably the exclusion and not the
+fixture. **The third row is the load-bearing one**, and it is `C2`'s guard in the other direction:
+`C2` stops a session making the **veto** global, and this stops a session reading *the operator said
+not mine* and making the **exclusion** global. Such a session moves the extension-reached address to
+`third-party`, which moves this golden and the digest, and `TestTheExclusionCutsTheSeedLimbAlone`
+names it before the byte diff has to be read.
 
 ### 10.3 The row shape, and where the threshold enters
 
@@ -638,7 +650,7 @@ zero — the row is a claim about the **reduction**, not about a list length.
 
 ### 10.4 What A6 tests on this block
 
-`custody.Version` (`custody/v2`) is the derivation's version leaf. The lock binds it to the corpus
+`custody.Version` (`custody/v3`) is the derivation's version leaf. The lock binds it to the corpus
 digest and to the declared-parameter digest — the threshold and the Public Suffix List's own revision
 string, which ADR-0129's [#954](https://github.com/winniel123/verge-asm/issues/954) amendment makes
 the same kind of input as the threshold.
@@ -662,7 +674,7 @@ the [#55](https://github.com/winniel123/verge-asm/issues/55) constraint in force
 
 ### 10.5 Where §10 is thin
 
-- **`custody/v2` composes into no `drift` component vector.** The measure leaves are in that vector
+- **`custody/v3` composes into no `drift` component vector.** The measure leaves are in that vector
   because a `Span` reads their outcomes. Whether `Custody` joins it has an estate-wide `Break` on the
   other side of it, and #986 did not take that decision. Today the constant does one job: it names
   the derivation the lock binds.

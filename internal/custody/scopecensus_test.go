@@ -183,3 +183,35 @@ func TestAddressScopeCensusLeavesTheExtensionCensusAlone(t *testing.T) {
 		t.Fatal("want the declaration-limb row")
 	}
 }
+
+// The row names an exclusion as its remedy, and since #1022 (ADR-0133 §7) taking that
+// remedy CLEARS the row. The measurement is filtered on READ: the stored observation
+// is untouched, so the count returns the moment the exclusion is withdrawn.
+func TestAddressScopeCensusClearsOnAnAddressExclusion(t *testing.T) {
+	fanout := EdgeFanout{
+		Enabled: true,
+		Shared:  sharedFanout([]string{"93.184.216.7"}, nil),
+	}
+	base := Estate{
+		AddressScopes: []netip.Prefix{cidr("93.184.216.0/24")},
+		edgeFanout:    fanout,
+	}
+	if len(base.AddressScopeCensus()) != 1 {
+		t.Fatal("want the declaration-limb row before the remedy is taken")
+	}
+
+	excluded := base.WithAddressExclusions([]netip.Prefix{cidr("93.184.216.0/29")})
+	if got := excluded.AddressScopeCensus(); len(got) != 0 {
+		t.Errorf("census = %+v, want none: the row's own remedy must clear the row", got)
+	}
+	if got := len(excluded.edgeFanout.Shared); got != len(fanout.Shared) {
+		t.Errorf("the stored measurement holds %d rows, want %d: the census filtered on READ and deletes nothing", got, len(fanout.Shared))
+	}
+
+	// The exclusion narrows the count and nothing else. An address the exclusion
+	// does NOT cover keeps its row on the same scope.
+	outside := base.WithAddressExclusions([]netip.Prefix{cidr("93.184.216.128/25")})
+	if got := outside.AddressScopeCensus(); len(got) != 1 {
+		t.Errorf("census = %+v, want the row: an exclusion elsewhere in the scope must not clear it", got)
+	}
+}

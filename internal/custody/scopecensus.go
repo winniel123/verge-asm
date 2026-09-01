@@ -21,18 +21,29 @@ import "net/netip"
 //
 // It carries NO THRESHOLD and NO VERDICT. SharedEdges is a count of the operator's own
 // declared addresses, and the boundary it was compared against stays inside the
-// versioned derivation (SharedEdgeThreshold, locked by the `custody/v2` corpus).
+// versioned derivation (SharedEdgeThreshold, locked by the `custody/v3` corpus).
 // *You may have over-asserted* is the sentence ADR-0013's nag test forbids, and it is
 // forbidden here. The renderer states the two counts and names the remedy — a `Seed`
 // exclusion, which ADR-0012 already extended to address scopes.
 //
-// THAT REMEDY IS NOT ENFORCED TODAY, and #1022 holds the gap. ADR-0012 §125 extended
-// exclusions to address scopes and no gate was ever built on that limb: an address
-// exclusion narrows neither ListAddressScopeCidrs, nor the enumeration, nor
-// EdgeFanoutPopulation, nor Derive, nor MayProbe. So an operator who takes the row's
-// remedy sees the same row at the same count on the next load. The row still names it,
-// because ADR-0129's #956 amendment names it and the instrument is meant to work — the
-// fix belongs on the exclusion limb and not on this display.
+// THE REMEDY IS ENFORCED SINCE #1022 (ADR-0133). A declared `address` exclusion
+// narrows the address-scope limb: an excluded address derives `third-party`, the gate
+// shuts over it, and neither fan-out walk yields it any more. So an operator who takes
+// the row's remedy stops probing the range on the next cadence.
+//
+// THE ROW CLEARS ON READ, and no measurement is deleted. SharedEdges counts STORED
+// `edge_fanout_observation` rows, so stopping the enumeration stops new rows and
+// removes none of the rows on record. AddressScopeCensus therefore DROPS an
+// observation whose address an exclusion now covers, and prunes nothing (ADR-0133 §7).
+// The measurement happened and the record is true; ADR-0006 puts departures on
+// measurement and argues against a declaration erasing one.
+//
+// The drop is unconditional, and that is consistent with the exclusion cutting the
+// `Seed` limb alone. This census is the DECLARATION limb's display: it counts the
+// shared edges inside a scope the operator declared, so that they can exclude them.
+// An excluded address is inside that scope no longer. Where a custody extension also
+// reaches it, it stays probed and stays on the EXTENSION limb's own census, which is
+// the surface that names an extension decline.
 type AddressScopeCensusEntry struct {
 	// Scope is the declared address-scope `Seed`, canonical, as the operator wrote
 	// it. It is the thing they can act on: an exclusion is declared against a scope.
@@ -101,6 +112,9 @@ func (e Estate) AddressScopeCensus() []AddressScopeCensusEntry {
 	for addr, shared := range e.edgeFanout.Shared {
 		if !shared {
 			continue
+		}
+		if e.AddressExcluded(addr) {
+			continue // the remedy the row names, taken — filtered on READ, pruned never
 		}
 		for _, p := range scopes {
 			if p.Contains(addr) {

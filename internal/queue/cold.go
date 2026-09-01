@@ -34,6 +34,12 @@ import (
 // address scopes (ADR-0047), never the whole declared estate. BuildColdJobs then
 // filters this set to the opted-in scope (address prefixes and the name-resolved
 // addresses), so a resolved address outside every opted-in scope still drops out.
+//
+// The exclusions are applied EXPLICITLY here, because this enumeration walks
+// coldScope's opted-in prefixes and not the Estate's scopes (ADR-0133 §3). The gate
+// refuses an excluded address on this tier either way — MayProbe runs in
+// BuildColdJobs — but a sweep that walked the excluded range would spend the whole
+// cadence refusing it one address at a time.
 func (d *Dispatcher) fanOutCold(ctx context.Context, scanID, dispatchID int64) (int, error) {
 	estate, resolved, err := hotEstate(ctx, d.q, d.now())
 	if err != nil {
@@ -47,7 +53,7 @@ func (d *Dispatcher) fanOutCold(ctx context.Context, scanID, dispatchID int64) (
 	if err != nil {
 		return 0, err
 	}
-	addrs := candidateAddrs(resolved, scope.AddressPrefixes)
+	addrs := candidateAddrs(resolved, scope.AddressPrefixes, estate.AddressExcluded)
 	jobs := scan.BuildColdJobs(scanID, estate, addrs, vantages.scanVantages(), scope)
 	return streamEnqueue(ctx, d, jobs, func(ctx context.Context, qtx *db.Queries, j scan.ColdJob) error {
 		return enqueueColdJob(ctx, qtx, scanID, dispatchID, j)

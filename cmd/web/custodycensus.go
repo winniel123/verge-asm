@@ -38,7 +38,7 @@ import (
 //
 // There is no count and no threshold here, and there must never be one. The fan-out
 // figure and the boundary it is compared against are versioned parameters of the
-// `Custody` derivation, locked by the `custody/v2` corpus, and a row that rendered
+// `Custody` derivation, locked by the `custody/v3` corpus, and a row that rendered
 // either would put a product-chosen number in front of the operator (ADR-0129 §5).
 type custodyCensusRow struct {
 	// Name is the in-zone Name holding the A record — the name the operator
@@ -67,6 +67,12 @@ type custodyCensusRow struct {
 // both.
 type custodyCensusStore interface {
 	queue.EdgeFanoutStore
+	// AddressExclusionStore is the declared `address` exclusions. This census names
+	// the address scope that ALSO covers a declined edge, through the same
+	// coveringAddressScope an exclusion now narrows (ADR-0133 §1), so an assembler
+	// that skipped this read would keep naming a scope that covers the address no
+	// longer — and would contradict the address-scope census on the same screen.
+	queue.AddressExclusionStore
 	ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error)
 	ListExtendedZoneDomains(ctx context.Context) ([]pgtype.Text, error)
 	NameCitedAddresses(ctx context.Context, arg db.NameCitedAddressesParams) ([]db.NameCitedAddressesRow, error)
@@ -74,9 +80,9 @@ type custodyCensusStore interface {
 
 // custodyExtensionEstate assembles the Custody derivation's inputs for a render, at
 // asOf. It mirrors internal/queue/hot.go:hotEstate read for read — the declared
-// address scopes, the custody-extended zones, the current cited addresses through
-// the live-tier gate, and the `edge-fanout` measurement — so the census names the
-// same declines the dispatch acts on.
+// address scopes, the declared `address` exclusions, the custody-extended zones, the
+// current cited addresses through the live-tier gate, and the `edge-fanout`
+// measurement — so the census names the same declines the dispatch acts on.
 //
 // A read that FAILS returns the error. The caller degrades the section rather than
 // rendering a row: a census that fabricated one on a database error would name a
@@ -125,13 +131,22 @@ func custodyExtensionEstate(ctx context.Context, q custodyCensusStore, asOf time
 		return custody.Estate{}, err
 	}
 
+	excluded, err := queue.ReadAddressExclusions(ctx, q)
+	if err != nil {
+		return custody.Estate{}, err
+	}
+
 	// The measurement goes in LAST, through WithEdgeFanout: its errored floor is read
 	// per limb, over the extension candidates this estate's own resolutions hold.
+	// The exclusions go in before it. They narrow the address-scope limb alone, which
+	// is the limb this census reads to name a declined edge's covering Scope: an
+	// excluded address is covered by no scope, so the dual-limb row becomes a bare
+	// decline rather than naming a scope the operator has withdrawn.
 	return custody.Estate{
 		AddressScopes: prefixes,
 		ExtendedZones: extended,
 		Resolutions:   resolutions,
-	}.WithEdgeFanout(fanout), nil
+	}.WithAddressExclusions(excluded).WithEdgeFanout(fanout), nil
 }
 
 // toCustodyCensusRows shapes the derivation's census entries for scope.tmpl. It is

@@ -1,6 +1,6 @@
 {
-  "leaf_version": "custody/v2",
-  "corpus_digest": "sha256:c511b924da52f7e42dcec4ebd0d7108acfecafa5b0b070f89f16e05f7e33236b",
+  "leaf_version": "custody/v3",
+  "corpus_digest": "sha256:1feb4e6c6b9bd278c315c87a16b7b524b7baf7009000bf3f3d6822640d229ec6",
   "params_digest": "sha256:7fb605fd74b57dafe74b433af2a36ef1ae0f0373d51dcf9b5a6be365dce10bea",
   "uncovered_moves": null
 }

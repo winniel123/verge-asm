@@ -35,6 +35,10 @@ import (
 // declared address scopes, and the `edge-fanout` measurement through its one reader.
 type addressScopeCensusStore interface {
 	queue.EdgeFanoutStore
+	// AddressExclusionStore is the declared `address` exclusions. The census drops an
+	// observation an exclusion now covers, on READ, and deletes nothing (ADR-0133 §7)
+	// — which is what makes the row's own remedy clear the row.
+	queue.AddressExclusionStore
 	ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error)
 }
 
@@ -65,11 +69,22 @@ func addressScopeSharedEdges(ctx context.Context, q addressScopeCensusStore) (ma
 		return nil, err
 	}
 
+	excluded, err := queue.ReadAddressExclusions(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+
 	// This estate carries no resolutions, so it holds NO extension candidates and
 	// WithEdgeFanout resolves the extension limb's errored floor to *not errored*
 	// (#1018). That is the right answer for this surface: the floor decides one
 	// limb's reach, and the limb this census reads has none to open.
-	estate := custody.Estate{AddressScopes: prefixes}.WithEdgeFanout(fanout)
+	//
+	// The exclusions narrow the count and delete nothing (ADR-0133 §7). An operator
+	// who takes the row's remedy sees the row clear on the next load, while every
+	// `edge_fanout_observation` row stays on record.
+	estate := custody.Estate{AddressScopes: prefixes}.
+		WithAddressExclusions(excluded).
+		WithEdgeFanout(fanout)
 	entries := estate.AddressScopeCensus()
 	if len(entries) == 0 {
 		return nil, nil

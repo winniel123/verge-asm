@@ -135,6 +135,21 @@ func (e Estate) EdgeFanoutPopulation() iter.Seq[netip.Addr] {
 				if IsNonGloballyReachable(a) {
 					continue
 				}
+				if e.AddressExcluded(a) {
+					// A declared `address` exclusion cuts the Seed limb, so the address
+					// is out of the DECLARATION limb of this population (ADR-0133 §3).
+					// The gate already refuses it, so this skip is for COST: an excluded
+					// /16 inside a declared /8 is 65,536 addresses walked per tick and
+					// refused one at a time. The skip is a `continue` and never prefix
+					// arithmetic — subtracting an excluded /25 from a scope produces a
+					// set of covering prefixes and is easy to get wrong at the family
+					// boundary.
+					//
+					// The EXTENSION limb above is NOT narrowed. An excluded address a
+					// custody extension reaches still derives operator and is still
+					// probed, so it stays a candidate and stays measured.
+					continue
+				}
 				if !yield(a) {
 					return
 				}
