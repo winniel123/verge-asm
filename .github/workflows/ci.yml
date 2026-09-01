@@ -202,9 +202,22 @@ jobs:
   # as a separate human step. The job gates no merge, so its wall-clock cost
   # blocks nobody.
   #
-  # This job proves assertion 1 only. The two negative runs — an unrelated CA
-  # root, and a missing bind source — are #997, and they reuse this fixture,
-  # this chain and this wiring.
+  # The job makes three runs over one fixture, and each run asserts one thing.
+  # Run 1 boots the stack and proves a `verify-full` connection. Run 2 swaps an
+  # unrelated CA root in at the mount source and proves the connection then
+  # fails. Run 3 points the mount source at a missing path and proves `up`
+  # refuses it.
+  #
+  # The two negatives fail at DIFFERENT LAYERS — run 2 inside the container at
+  # connect time, run 3 in the engine before a container exists — so they stay
+  # separate runs. Combined, one masks the other.
+  #
+  # Run 2 is what gives the job teeth. Run 1 alone passes with verification
+  # switched off, so an `sslmode=disable` regression would boot happily and this
+  # check would stay green.
+  #
+  # Neither negative passes on a non-zero exit alone. A broken image exits
+  # non-zero too, so each negative greps for its own error text.
   compose-external-db-tls:
     runs-on: ubuntu-latest
     env:
@@ -299,8 +312,92 @@ jobs:
                 WHERE a.client_addr IS NOT NULL"
             exit 1
           fi
-      - if: always()
+      - name: tear down run 1
+        if: always()
         run: docker compose down -v
+
+      # --- Run 2 (§9.6, assertion 2): an unrelated CA root must fail ---
+      #
+      # A step that fails is SKIPPED past by the steps after it, so a red run 1
+      # stops here rather than reporting a second cause for the same break.
+      - name: assert an unrelated CA root fails verification
+        run: |
+          # A second root, minted by the same fixture script from a fresh key,
+          # under a label that reads clearly in the log below. It signs nothing
+          # in the stack: verge-db still serves the leaf the FIRST root signed.
+          # Only root.crt is read here. The server pair beside it is a
+          # by-product of reusing the script rather than forking it.
+          bash .github/compose/gen-tls-fixture.sh "$RUNNER_TEMP/wrong-ca" unrelated
+
+          # Overrides the value the setup step wrote to GITHUB_ENV, for this
+          # step alone. Nothing else about the run changes, so the mounted root
+          # is the single variable under test.
+          export POSTGRES_SSLROOTCERT_SRC="$RUNNER_TEMP/wrong-ca/root.crt"
+          trap 'docker compose down -v >/dev/null 2>&1 || true' EXIT
+
+          # `up` SUCCEEDS here. This negative fails inside the container at
+          # connect time, so the evidence is in the log rather than in an exit
+          # code. web dials first, in migrateUp, and log.Fatalf ends the
+          # process; `restart: unless-stopped` then dials again, so the string
+          # keeps arriving until the poll below sees it.
+          docker compose up -d
+
+          # The Go error pgx wraps when the served leaf chains to a root the
+          # client does not hold. Matching the text is the assertion: a run with
+          # verification switched off connects instead, prints nothing like it,
+          # and falls through to the failure at the bottom.
+          want='certificate signed by unknown authority'
+          log="$RUNNER_TEMP/run2.log"
+          for i in $(seq 1 45); do
+            # Collected to a file first. Piping into `grep -q` lets grep close
+            # the pipe on its first match, and `docker compose logs` then dies
+            # of SIGPIPE, which `pipefail` reports as a failed search.
+            docker compose logs --no-color web worker >"$log" 2>&1 || true
+            if grep -qF "$want" "$log"; then
+              echo "a client refused the unrelated root: $want"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "no client reported \"$want\" within 90s, so nothing verified the root"
+          docker compose ps --all
+          docker compose logs
+          exit 1
+
+      # --- Run 3 (§9.6, assertion 3): a missing bind source must fail ---
+      - name: assert a missing bind source fails at compose up
+        run: |
+          missing="$RUNNER_TEMP/no-such-ca-dir/root.crt"
+          export POSTGRES_SSLROOTCERT_SRC="$missing"
+          trap 'docker compose down -v >/dev/null 2>&1 || true' EXIT
+
+          # `docker compose config` is no substitute for this run. It exits 0 on
+          # a missing bind source (#995), so only `up` reaches the daemon check
+          # that `create_host_path: false` arms.
+          log="$RUNNER_TEMP/run3.log"
+          if docker compose up -d >"$log" 2>&1; then
+            echo "compose up SUCCEEDED on a missing bind source; create_host_path: false is not holding"
+            cat "$log"
+            exit 1
+          fi
+          cat "$log"
+
+          # The non-zero exit above is not the assertion. A broken image exits
+          # non-zero too. This is the wording troubleshooting.md quotes for the
+          # same failure, so the assertion holds the guard and the doc together.
+          if ! grep -qF 'bind source path does not exist' "$log"; then
+            echo "compose up failed for some reason other than the missing bind source"
+            exit 1
+          fi
+
+          # `create_host_path` defaults to TRUE, and a short-syntax bind would
+          # have created an empty DIRECTORY here. Nothing may appear.
+          if [ -e "$missing" ] || [ -e "$RUNNER_TEMP/no-such-ca-dir" ]; then
+            echo "docker created a path at $missing:"
+            ls -la "$RUNNER_TEMP/no-such-ca-dir"
+            exit 1
+          fi
+          echo "compose up refused the missing bind source, and created nothing at $missing"
 
   # --- Supply-chain / SAST / secret scanning (#331) ---
 
