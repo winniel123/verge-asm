@@ -1128,6 +1128,13 @@ of measured resolutions. So it moves when the world moves and not only when the 
 measured inputs act at the **extension's reach and nowhere else**: `shared-edge` carries **no weight on the
 `Seed` limb**, so an address a `Seed` covers derives `operator` at any fan-out count
 ([#956](https://github.com/winniel123/verge-asm/issues/956)).
+The limbs are independent in **both** directions. An **address exclusion** cuts the `Seed` limb
+**alone**: an address inside an excluded range stops deriving `operator` from the declaration, and a
+`custody extension` that reaches it still derives `operator` there. *Not mine* is a claim about the
+operator's own declaration, and it does not overrule their own name resolving at the address. So the
+exclusion is not a global veto, and the set an exclusion removes is never larger than the set the
+declaration added
+([ADR-0133](./docs/adr/0133-an-address-exclusion-is-a-limb-of-the-custody-derivation.md)).
 Its two causes part cleanly. The operator withdrawing an extension closes the gate beneath
 addresses that are still cited. A resolution ceasing to cite an address withdraws the
 `Address` itself, which takes its timelines with it and leaves no `Gap` behind. **Narrowing an
