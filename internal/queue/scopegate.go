@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
+	"github.com/winniel123/verge-asm/internal/measure/edgefanout"
 	"github.com/winniel123/verge-asm/internal/measure/httpexchange"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/measure/tlsacceptance"
@@ -34,6 +35,9 @@ import (
 //     these addresses (connectoutcome.ServiceKey / EndpointKey, tlsacceptance /
 //     httpexchange emit), rendered from the Address's netip form — so the authorised
 //     denotation is exact under netip normalisation.
+//     The `edge-fanout` kind's `addresses` fills the same set, and its facet-LESS line
+//     is gated on the Address it names rather than on a subject — it decides membership
+//     and so has none (ADR-0129 §6).
 //   - names — the authorised Name set, from the dns kind's `names`. A resolution /
 //     dns-record observation's Subject is exactly CanonicalName(one of the resolved
 //     Names) (resolutionwalk.Resolve / emit): the walk emits its CNAME targets as RR
@@ -129,6 +133,33 @@ func (a authorizedScope) admits(o wire.Observation) bool {
 		}
 		_, ok := a.addrs[subjectAddrKey(o.Subject)]
 		return ok
+	case "":
+		// A facet-LESS line. The `edge-fanout` leaf emits one: it decides membership
+		// and opens no timeline, so it names no subject at all — what it names is the
+		// Address it measured (edgefanout.Emit). That address is the dimension to gate,
+		// and gating it matters as much as any subject: an injected row would feed the
+		// custody-extension veto (#985) an answer nothing measured, and suppress
+		// probing of an address the operator never declined.
+		//
+		// This ONE arm fails CLOSED where the others fail open. An undenoted dimension
+		// is left ungated everywhere else because gating an empty set would drop every
+		// legitimate line of that kind. Here the reverse holds: an edge-fanout line can
+		// only come from an edge-fanout job, and BuildEdgeFanoutJobs enqueues no job
+		// for an empty candidate set, so such a job's scope ALWAYS denotes addresses.
+		// An edge-fanout line arriving under a scope that denotes none is by
+		// construction not one that job dispatched — a dns job's scope, say, which
+		// denotes names alone. Admitting it would be the whole bypass.
+		//
+		// Every other facet-less kind carries no Address relation this scope denotes
+		// and stays ungated.
+		if o.Kind != edgefanout.Kind {
+			return true
+		}
+		if a.addrs == nil {
+			return false
+		}
+		_, ok := a.addrs[normAddr(o.Address)]
+		return ok
 	default:
 		// A facet with no address/name subject relation (or one a later wave adds):
 		// nothing to gate it against here, so it is not this check's to reject.
@@ -164,7 +195,8 @@ func (a authorizedScope) gate(obs []wire.Observation, logger *log.Logger, jobID 
 			continue
 		}
 		if logger != nil {
-			logger.Printf("worker: job %d dropped out-of-scope observation: facet=%q subject=%q (#773)", jobID, o.Facet, o.Subject)
+			logger.Printf("worker: job %d dropped out-of-scope observation: kind=%q facet=%q subject=%q address=%q (#773)",
+				jobID, o.Kind, o.Facet, o.Subject, o.Address)
 		}
 	}
 	return out

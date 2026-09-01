@@ -120,6 +120,15 @@ type Dispatch struct {
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
 }
 
+type EdgeFanoutObservation struct {
+	ID          int64              `json:"id"`
+	BatchID     int64              `json:"batch_id"`
+	Address     string             `json:"address"`
+	Outcome     string             `json:"outcome"`
+	Fingerprint pgtype.Text        `json:"fingerprint"`
+	MeasuredAt  pgtype.Timestamptz `json:"measured_at"`
+}
+
 type Exclusion struct {
 	ID          int64              `json:"id"`
 	Kind        string             `json:"kind"`
