@@ -2521,13 +2521,14 @@ func (s *server) injectChrome(data any, r *http.Request) {
 		messages = s.bellMessages(ctx, acct.ID, 4)
 	}
 
-	// A page may carry a flash INLINE (a bulk act that mixed successes with refusals
-	// renders the callouts and the success toast in one response, rather than a PRG that
-	// would drop the callouts). An inline FlashToasts wins over the PRG `toast` query.
+	// An inline FlashToasts datum used to let a page render a success toast in the SAME
+	// response as its refusal callouts, because a bulk act that mixed the two had no
+	// redirect that could carry both. ADR-0130 §1 gave it one: the callouts ride the
+	// session form flash (flash.go) and the toast rides the ordinary `toast` query, so
+	// the mixed result is a post-redirect-get like every other act (seeds.go
+	// flashScopeToastBack). No page sets the datum any more, so the branch that honoured
+	// it is gone with its last caller (map #969 ticket #976).
 	toasts := decodeToasts(r)
-	if pt, ok := m["FlashToasts"].([]toastVM); ok {
-		toasts = pt
-	}
 	initials := "?"
 	userName := ""
 	if hasAcct {
@@ -2539,9 +2540,9 @@ func (s *server) injectChrome(data any, r *http.Request) {
 	// (flash.go) additionally carries the scan trigger / stop / terminate receipts (#633,
 	// WORK-ORDER-DOGFOOD-R1 item 1): stashed server-side and read-and-deleted here on the
 	// first chrome render, so the in-flight auto-refresh reloading the same clean URL does
-	// not re-show them. A flash, when present, is the authoritative single toast (it wins
-	// over the inline FlashToasts above — in practice the two never co-occur, since the
-	// bulk-act pages that set FlashToasts do not stash a scan receipt).
+	// not re-show them. A flash, when present, is the authoritative single toast: it wins
+	// over the `toast` query, and in practice the two never co-occur, since the acts that
+	// stash a scan receipt redirect to a clean URL.
 	if hasAcct {
 		if t, ok := s.flash.take(acct.ID); ok {
 			toasts = []toastVM{t}

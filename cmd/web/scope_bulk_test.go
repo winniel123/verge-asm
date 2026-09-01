@@ -70,13 +70,10 @@ func TestDeclareBulkPasteMixedSuccessRefusalDuplicate(t *testing.T) {
 
 	// good1 declares, good2 declares, good1 again is a within-paste duplicate, and the
 	// /21 block is over the 1,024 cap.
-	resp := declareScope(t, ac, base, "good1.com good2.com good1.com 10.0.0.0/21")
-	got := body(t, resp)
+	// The result is one post-redirect-get (ADR-0130 §1): the callouts ride the session
+	// form flash and the toast the `toast` query, so both land on one GET.
+	got := refusalPage(t, ac, base, declareScope(t, ac, base, "good1.com good2.com good1.com 10.0.0.0/21"))
 
-	// Two committed, so the render is a 200 (not the all-refused 400).
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("mixed paste status = %d, want 200", resp.StatusCode)
-	}
 	// Exactly the two distinct valid names committed — the duplicate did not create a
 	// second row, the over-cap block created none.
 	if len(f.seeds) != 2 {
@@ -102,19 +99,15 @@ func TestDeclareBulkPasteMixedSuccessRefusalDuplicate(t *testing.T) {
 	}
 }
 
-// TestDeclareBulkPasteAllRefusedNoFlash: when no token declares, there is no flash —
-// only the callouts — and the render is a 400.
+// TestDeclareBulkPasteAllRefusedNoFlash: when no token declares, there is no toast —
+// only the callouts, on the landing GET of the refusal's own post-redirect-get.
 func TestDeclareBulkPasteAllRefusedNoFlash(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	resp := declareScope(t, ac, base, "www.example.com, 10.0.0.0/21")
-	got := body(t, resp)
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("all-refused status = %d, want 400", resp.StatusCode)
-	}
+	got := refusalPage(t, ac, base, declareScope(t, ac, base, "www.example.com, 10.0.0.0/21"))
 	if len(f.seeds) != 0 {
 		t.Fatalf("all-refused committed %d seeds, want 0", len(f.seeds))
 	}
@@ -148,18 +141,14 @@ func TestZoneBulkUploadMixedAcceptRefuse(t *testing.T) {
 	foreign := "$ORIGIN notmine.example.\n@ IN A 203.0.113.10\n"
 	garbage := "this is not a zone file at all\n"
 
-	resp := uploadZones(t, ac, base, []zonePart{
+	// Two accepted, two refused: one post-redirect-get carries the toast and the refusal
+	// rows to the landing GET (ADR-0130 §1).
+	got := refusalPage(t, ac, base, uploadZones(t, ac, base, []zonePart{
 		{"one.example.com.zone", first},
 		{"foreign.zone", foreign},
 		{"garbage.zone", garbage},
 		{"two.example.com.zone", second},
-	})
-	got := body(t, resp)
-
-	// Two accepted (both example.com files), so the render is a 200 with the flash + rows.
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("mixed upload status = %d, want 200", resp.StatusCode)
-	}
+	}))
 	if len(f.zoneFiles) != 2 {
 		t.Fatalf("stored %d zone files, want 2 (both example.com acts recorded)", len(f.zoneFiles))
 	}
@@ -186,7 +175,8 @@ func TestZoneBulkUploadMixedAcceptRefuse(t *testing.T) {
 	}
 }
 
-// TestZoneBulkUploadAllRefusedNoFlash: zero accepted → refusal rows only, no flash, 400.
+// TestZoneBulkUploadAllRefusedNoFlash: zero accepted → refusal rows only, no toast, on
+// the landing GET of the refusal's own post-redirect-get.
 func TestZoneBulkUploadAllRefusedNoFlash(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -195,14 +185,10 @@ func TestZoneBulkUploadAllRefusedNoFlash(t *testing.T) {
 
 	declare(t, ac, base, "name", "example.com").Body.Close()
 
-	resp := uploadZones(t, ac, base, []zonePart{
+	got := refusalPage(t, ac, base, uploadZones(t, ac, base, []zonePart{
 		{"foreign.zone", "$ORIGIN notmine.example.\n@ IN A 203.0.113.10\n"},
 		{"garbage.zone", "definitely not a zone\n"},
-	})
-	got := body(t, resp)
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("all-refused upload status = %d, want 400", resp.StatusCode)
-	}
+	}))
 	if len(f.zoneFiles) != 0 {
 		t.Fatalf("all-refused upload stored %d files, want 0", len(f.zoneFiles))
 	}

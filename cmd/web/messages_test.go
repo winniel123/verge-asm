@@ -236,11 +236,13 @@ func TestNarrowingPreviewWiredUp(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// Address exclusion: the receipt fires, carrying the counts and the loss.
+	// Address exclusion: the receipt fires, carrying the counts and the loss. The preview
+	// is a post-redirect-get like every other scope act (ADR-0130 §1), so the receipt is
+	// read off the landing GET.
 	resp := postForm(t, ac, base+"/exclusions/preview", url.Values{
 		"kind": {"address"}, "value": {"198.51.100.128/25"},
 	})
-	page := body(t, resp)
+	page := refusalPage(t, ac, base, resp)
 	for _, want := range []string{"128 subjects withdrawn", "17,920 timelines", "not seen"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("narrowing preview missing %q\nbody: %s", want, page)
@@ -252,7 +254,7 @@ func TestNarrowingPreviewWiredUp(t *testing.T) {
 	resp = postForm(t, ac, base+"/exclusions/preview", url.Values{
 		"kind": {"name"}, "value": {"api.example.com"},
 	})
-	page = body(t, resp)
+	page = refusalPage(t, ac, base, resp)
 	if !strings.Contains(page, "Nothing is withdrawn") {
 		t.Errorf("a non-firing name exclusion should say nothing is withdrawn\nbody: %s", page)
 	}

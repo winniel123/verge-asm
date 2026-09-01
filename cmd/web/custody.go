@@ -23,7 +23,10 @@ import (
 func (s *server) setCustody(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
-		s.renderSeeds(w, r, acct, seedsForms{custodyError: "That scope could not be found."})
+		// The refusal is a post-redirect-get like the toggle's success (ADR-0130 §1): the
+		// callout rides the session flash to the landing GET, so the operator keeps their
+		// place in a custody list that can run to many rows.
+		s.flashScopeBack(w, r, seedsForms{custodyError: "That scope could not be found."})
 		return
 	}
 	// The form carries the intended end state, not a blind flip: a stale page
@@ -36,5 +39,5 @@ func (s *server) setCustody(w http.ResponseWriter, r *http.Request, acct db.Acco
 		s.serverError(w, "set custody extension", err)
 		return
 	}
-	http.Redirect(w, r, "/scope", http.StatusSeeOther)
+	s.backToScope(w, r)
 }

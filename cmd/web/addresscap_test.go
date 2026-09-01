@@ -16,12 +16,12 @@ func TestAddressCapPersistsAndGovernsDeclaration(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// Under the shipped default (1024), a /20 (4096 addresses) is over cap.
-	resp := declare(t, ac, base, "address", "10.0.0.0/20")
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("/20 over the default cap should be refused: status=%d", resp.StatusCode)
+	// Under the shipped default (1024), a /20 (4096 addresses) is over cap. The refusal
+	// is a post-redirect-get (ADR-0130 §1), so its callout renders on the landing GET.
+	if page := refusalPage(t, ac, base, declare(t, ac, base, "address", "10.0.0.0/20")); !strings.Contains(page, "over the 1,024-address cap") {
+		t.Fatalf("/20 over the default cap should be refused; body: %s", page)
 	}
-	resp.Body.Close()
+	var resp *http.Response
 
 	// Raise the cap to 65536. It persists and attributes who set it.
 	resp = postForm(t, ac, base+"/settings/address-cap", url.Values{"address_cap": {"65536"}})
@@ -56,11 +56,9 @@ func TestAddressCapPersistsAndGovernsDeclaration(t *testing.T) {
 
 	// A NEW /20 is refused again now the cap is back to 1024 — the cap governs the
 	// declaration, live.
-	resp = declare(t, ac, base, "address", "10.1.0.0/20")
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Fatalf("/20 under the lowered cap should be refused: status=%d", resp.StatusCode)
+	if page := refusalPage(t, ac, base, declare(t, ac, base, "address", "10.1.0.0/20")); !strings.Contains(page, "over the 1,024-address cap") {
+		t.Fatalf("/20 under the lowered cap should be refused; body: %s", page)
 	}
-	resp.Body.Close()
 }
 
 // TestAddressCapHasNoUpperBound covers ADR-0127's load-bearing ruling: nothing gates a

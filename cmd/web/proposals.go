@@ -170,7 +170,7 @@ func (s *server) runLookup(w http.ResponseWriter, r *http.Request, acct db.Accou
 		query = strings.TrimSpace(r.FormValue("query"))
 	}
 	if query == "" {
-		s.renderSeeds(w, r, acct, seedsForms{proposalError: "Enter an organisation name to search."})
+		s.flashScopeBack(w, r, seedsForms{proposalError: "Enter an organisation name to search."})
 		return
 	}
 
@@ -196,7 +196,7 @@ func (s *server) runLookup(w http.ResponseWriter, r *http.Request, acct db.Accou
 		if perr != nil {
 			msg = "The lookup could not be completed — a registry path errored and no candidates were found. See the server log for details."
 		}
-		s.renderSeeds(w, r, acct, seedsForms{proposalQuery: query, proposalNotice: msg})
+		s.flashScopeBack(w, r, seedsForms{proposalQuery: query, proposalNotice: msg})
 		return
 	}
 
@@ -220,23 +220,24 @@ func (s *server) runLookup(w http.ResponseWriter, r *http.Request, acct db.Accou
 		// Partial failure: some paths returned candidates (now filed) while
 		// another errored, so this list may be missing scopes. Redirect exactly
 		// like a clean success — the filed candidates persist, so a plain inline
-		// render would re-file duplicates on refresh — but carry a flag that has
-		// the Seeds page surface the incompleteness (see seedsPage).
-		http.Redirect(w, r, "/scope?notice="+noticePartialProposals, http.StatusSeeOther)
+		// render would re-file duplicates on refresh — and carry the caveat in the
+		// session flash so the Scope page surfaces the incompleteness (see seedsPage).
+		s.flashScopeBack(w, r, seedsForms{proposalNotice: partialProposalNotice})
 		return
 	}
-	http.Redirect(w, r, "/scope", http.StatusSeeOther)
+	s.backToScope(w, r)
 }
 
-// noticePartialProposals is the /scope query flag a partial-failure lookup
-// redirects with (retargeted from /seeds → /scope in #286), and
-// partialProposalNotice is the message the Scope page then renders. Carrying the
-// caveat through the redirect (rather than inline off the POST) keeps the search
-// idempotent on refresh while still surfacing that some registry path errored (#251).
-const (
-	noticePartialProposals = "partial-proposals"
-	partialProposalNotice  = "Showing partial results — one or more registry paths errored, so this list may be incomplete. See the server log for details."
-)
+// partialProposalNotice is the caveat a partial-failure lookup carries to the Scope
+// page. Carrying it through the redirect (rather than rendering inline off the POST)
+// keeps the search idempotent on refresh while still surfacing that some registry path
+// errored (#251).
+//
+// It travelled as a `?notice=partial-proposals` query flag until ADR-0130 §3. The flag
+// changed the landing URL, so the operator landed at a URL the submit was not made
+// from, and the §2 scroll key missed. The session flash (flash.go) carries the same
+// caveat with the same idempotence and leaves the URL alone.
+const partialProposalNotice = "Showing partial results — one or more registry paths errored, so this list may be incomplete. See the server log for details."
 
 // confirmProposal confirms exactly one Proposal into exactly one Seed. It is
 // singular by construction — one id per request, no batch (ADR-0022) — and the
@@ -262,7 +263,7 @@ func (s *server) confirmProposal(w http.ResponseWriter, r *http.Request, acct db
 	if err != nil {
 		// Already confirmed, declined, or never existed — a repeat submit opens
 		// no second gate. Return to the screen rather than erroring.
-		http.Redirect(w, r, "/scope", http.StatusSeeOther)
+		s.backToScope(w, r)
 		return
 	}
 
@@ -273,7 +274,7 @@ func (s *server) confirmProposal(w http.ResponseWriter, r *http.Request, acct db
 	// path applies. The refusal names the routes and takes neither — raise the cap, or
 	// decline (ADR-0052) — and no Seed is created.
 	if addrCap := s.addressCap(r.Context()); !seed.WithinCap(p.AddressCidr, addrCap) {
-		s.renderSeeds(w, r, acct, seedsForms{proposalNotice: overCapProposalNotice(p.AddressCidr, addrCap)})
+		s.flashScopeBack(w, r, seedsForms{proposalNotice: overCapProposalNotice(p.AddressCidr, addrCap)})
 		return
 	}
 
@@ -294,7 +295,7 @@ func (s *server) confirmProposal(w http.ResponseWriter, r *http.Request, acct db
 	})
 	if err != nil {
 		if isUniqueViolation(err) {
-			s.renderSeeds(w, r, acct, seedsForms{proposalError: "That scope is already declared as a seed."})
+			s.flashScopeBack(w, r, seedsForms{proposalError: "That scope is already declared as a seed."})
 			return
 		}
 		s.serverError(w, "create seed from proposal", err)
@@ -306,7 +307,7 @@ func (s *server) confirmProposal(w http.ResponseWriter, r *http.Request, acct db
 		s.serverError(w, "confirm proposal", err)
 		return
 	}
-	http.Redirect(w, r, "/scope", http.StatusSeeOther)
+	s.backToScope(w, r)
 }
 
 // declineLookup declines every still-pending Proposal under one lookup in a
@@ -321,7 +322,7 @@ func (s *server) confirmProposal(w http.ResponseWriter, r *http.Request, acct db
 // scopes survive the decline; an already-excluded scope is left as-is.
 func (s *server) declineLookup(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	if s.devMode {
-		http.Redirect(w, r, "/scope", http.StatusSeeOther)
+		s.backToScope(w, r)
 		return
 	}
 	// The frozen scope.tmpl declines the CHECKED proposals: the checkboxes post their
@@ -336,7 +337,7 @@ func (s *server) declineLookup(w http.ResponseWriter, r *http.Request, acct db.A
 	raw := r.Form["ids"]
 	if len(raw) == 0 {
 		// Nothing selected — a stale or empty submit is a no-op, not an error.
-		http.Redirect(w, r, "/scope", http.StatusSeeOther)
+		s.backToScope(w, r)
 		return
 	}
 	for _, idStr := range raw {
@@ -361,7 +362,7 @@ func (s *server) declineLookup(w http.ResponseWriter, r *http.Request, acct db.A
 			return
 		}
 	}
-	http.Redirect(w, r, "/scope", http.StatusSeeOther)
+	s.backToScope(w, r)
 }
 
 // enabledProposers returns the keyless proposer slugs the operator has left

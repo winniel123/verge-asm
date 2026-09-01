@@ -39,8 +39,11 @@ type exclusionView struct {
 func (s *server) declareExclusion(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	kind := r.FormValue("kind")
 	value := strings.TrimSpace(r.FormValue("value"))
+	// A refusal is a post-redirect-get like a success (ADR-0130 §1): the callout and the
+	// operator's typed value ride the session flash to the landing GET, so the two paths
+	// answer the same way and the scroll offset survives either.
 	fail := func(msg string) {
-		s.renderSeeds(w, r, acct, seedsForms{exclError: msg, exclKind: kind, exclValue: value})
+		s.flashScopeBack(w, r, seedsForms{exclError: msg, exclKind: kind, exclValue: value})
 	}
 
 	switch kind {
@@ -72,7 +75,7 @@ func (s *server) declareExclusion(w http.ResponseWriter, r *http.Request, acct d
 		fail("Choose an exclusion type.")
 		return
 	}
-	http.Redirect(w, r, "/scope", http.StatusSeeOther)
+	s.backToScope(w, r)
 }
 
 // previewExclusion computes the narrowing receipt for a candidate exclusion and
@@ -96,7 +99,7 @@ func (s *server) previewExclusion(w http.ResponseWriter, r *http.Request, acct d
 	kind := r.FormValue("kind")
 	value := strings.TrimSpace(r.FormValue("value"))
 	fail := func(msg string) {
-		s.renderSeeds(w, r, acct, seedsForms{exclError: msg, exclKind: kind, exclValue: value})
+		s.flashScopeBack(w, r, seedsForms{exclError: msg, exclKind: kind, exclValue: value})
 	}
 
 	var receipt message.NarrowingReceipt
@@ -138,7 +141,11 @@ func (s *server) previewExclusion(w http.ResponseWriter, r *http.Request, acct d
 		fail("Choose an exclusion type.")
 		return
 	}
-	s.renderSeeds(w, r, acct, seedsForms{exclKind: kind, exclValue: value, exclPreview: &receipt})
+	// The receipt is not a refusal, but it needs what a refusal needs: to survive the
+	// redirect and render on the landing GET. It rides the same session flash, so the
+	// preview is a post-redirect-get too and the operator reads it without losing their
+	// place. renderSeeds answers 200 for it, because no error field is set.
+	s.flashScopeBack(w, r, seedsForms{exclKind: kind, exclValue: value, exclPreview: &receipt})
 }
 
 // unexclude withdraws an exclusion. It is admin-only and idempotent: deleting a
@@ -147,14 +154,14 @@ func (s *server) previewExclusion(w http.ResponseWriter, r *http.Request, acct d
 func (s *server) unexclude(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
-		s.renderSeeds(w, r, acct, seedsForms{exclError: "That exclusion could not be found."})
+		s.flashScopeBack(w, r, seedsForms{exclError: "That exclusion could not be found."})
 		return
 	}
 	if err := s.store.DeleteExclusion(r.Context(), id); err != nil {
 		s.serverError(w, "delete exclusion", err)
 		return
 	}
-	http.Redirect(w, r, "/scope", http.StatusSeeOther)
+	s.backToScope(w, r)
 }
 
 func toExclusionViews(rows []db.ListExclusionsRow) []exclusionView {

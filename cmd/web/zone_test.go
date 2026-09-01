@@ -151,9 +151,10 @@ func TestZoneUploadRequiresName_ScopeAndAdmin(t *testing.T) {
 	// outside every declared name scope is refused with the reason (never attached to a
 	// scope the operator did not name).
 	foreignZone := "$ORIGIN notmine.example.\n@   IN A 203.0.113.10\n"
-	resp = uploadZone(t, ac, base, seedID, foreignZone)
-	if got := body(t, resp); resp.StatusCode != http.StatusBadRequest || !strings.Contains(got, "outside every declared name scope") {
-		t.Fatalf("upload of a foreign-apex zone not refused: status=%d body=%s", resp.StatusCode, got)
+	// The refusal is a post-redirect-get (ADR-0130 §1), so the per-file refusal row is
+	// read off the landing GET.
+	if got := refusalPage(t, ac, base, uploadZone(t, ac, base, seedID, foreignZone)); !strings.Contains(got, "outside every declared name scope") {
+		t.Fatalf("upload of a foreign-apex zone not refused; body=%s", got)
 	}
 }
 
@@ -181,7 +182,7 @@ func TestZoneIntervalIsConfigurable(t *testing.T) {
 
 	// A non-positive interval is rejected and the typed value preserved.
 	resp = postForm(t, ac, base+"/seeds/zone/interval", url.Values{"interval_days": {"0"}})
-	if got := body(t, resp); resp.StatusCode != http.StatusBadRequest || !strings.Contains(got, "at least one day") {
-		t.Fatalf("zero interval not rejected: status=%d body=%s", resp.StatusCode, got)
+	if got := refusalPage(t, ac, base, resp); !strings.Contains(got, "at least one day") {
+		t.Fatalf("zero interval not rejected; body=%s", got)
 	}
 }
