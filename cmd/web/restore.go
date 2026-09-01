@@ -262,7 +262,11 @@ func (s *server) restorePreflight(w http.ResponseWriter, r *http.Request, acct d
 		schema:   strconv.FormatInt(pf.SchemaVersion, 10),
 		archive:  archive,
 	})
-	http.Redirect(w, r, "/settings?tab=instance", http.StatusSeeOther)
+	// Back to the URL the pre-flight was submitted from (ADR-0130 §3, ticket #977). A
+	// pre-flight reads and hashes the whole archive, so it is one of the slow acts failure
+	// class C named: the operator has been waiting, and landing them at the top of the
+	// Instance tab rather than at the restore card they submitted from is the miss.
+	s.backToSection(w, r, "instance")
 }
 
 // restoreApply applies the staged, pre-flighted archive after a typed confirmation
@@ -574,15 +578,25 @@ func (s *server) clearRestore(accountID int64) {
 	delete(s.restoreStage, accountID)
 }
 
-// restoreErrorRedirect PRG-redirects to the Instance tab carrying a fixed error code, which
-// restoreErrorMessage maps to a stable line — arbitrary text is never reflected back.
+// restoreErrorRedirect PRG-redirects a refused pre-flight or apply back to the URL its form
+// was submitted from, carrying the refusal on the session form flash (ADR-0130 §1).
+//
+// The code used to ride the destination as ?restore-error=<code>. It reflected nothing —
+// restoreErrorMessage mapped it to a fixed line — so it was never unsafe; what it did was
+// land the operator at a URL their form was not submitted from, which misses the scroll key
+// (ADR-0130 §2) on the slowest act in the console. The code is still the internal currency,
+// because it is what the call sites name; restoreErrorMessage resolves it here instead of
+// on the far side of a query string.
 func (s *server) restoreErrorRedirect(w http.ResponseWriter, r *http.Request, code string) {
-	http.Redirect(w, r, "/settings?tab=instance&restore-error="+code, http.StatusSeeOther)
+	s.flashSettings(w, r, settingsForms{
+		section:      "instance",
+		restoreError: restoreErrorMessage(code),
+	})
 }
 
-// restoreErrorMessage maps a redirect's restore-error code to a fixed `.RestoreError` line.
-// An unknown code renders no error, mirroring sessionsNotice — the page never reflects the
-// raw query value.
+// restoreErrorMessage maps a refusal's code to a fixed `.RestoreError` line. An unknown code
+// yields no line, so a caller that names one this table does not hold leaves the landing
+// page with no callout rather than with a fabricated one.
 func restoreErrorMessage(code string) string {
 	switch code {
 	case "inflight":

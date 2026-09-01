@@ -84,8 +84,11 @@ func (s *server) provisionProber(w http.ResponseWriter, r *http.Request, acct db
 		fail("Could not provision the prober.")
 		return
 	}
-	// #21d: prober provisioning relocated to Settings → Vantages.
-	http.Redirect(w, r, "/settings?tab=vantages", http.StatusSeeOther)
+	// #21d: prober provisioning relocated to Settings → Vantages. The 303 goes back to the
+	// URL the form was submitted from (ADR-0130 §3, ticket #977), falling back to the tab
+	// that hosts the section, so a provision made from a scrolled Vantages list keeps the
+	// operator's place.
+	s.backToSection(w, r, "vantages")
 }
 
 func toProberViews(rows []db.ListVantagesRow) []proberView {

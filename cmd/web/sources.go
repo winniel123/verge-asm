@@ -617,7 +617,12 @@ func (s *server) toggleSource(w http.ResponseWriter, r *http.Request, acct db.Ac
 		s.serverError(w, "upsert source state", err)
 		return
 	}
-	http.Redirect(w, r, "/sources", http.StatusSeeOther)
+	// Back to the URL the toggle was submitted from (ADR-0130 §3, ticket #977). No template
+	// in the tree posts to this route today — the Sources tab's own switch posts to
+	// /settings/sources (settingsSources, ticket #975) — so the fallback is what answers.
+	// The carrier is wired anyway, because the route is live and a caller that gains a form
+	// should get the contract rather than a bare path.
+	s.redirectBack(w, r, "/sources")
 }
 
 // settingsSources records an admin's on/off choice from the spec sources tab (#26).

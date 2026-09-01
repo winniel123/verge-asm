@@ -245,10 +245,11 @@ func findDispatchRow(rows []db.ListDispatchProgressRow, id int64) (db.ListDispat
 }
 
 // concludedFlash stashes the shared "already concluded" danger toast for a stop/terminate
-// aimed at an unknown or already-terminal dispatch, and redirects back to the tab. It is
-// the honest refusal: nothing was ended because there was nothing in flight to end.
+// aimed at an unknown or already-terminal dispatch, and redirects back to the URL the
+// confirm was submitted from. It is the honest refusal: nothing was ended because there was
+// nothing in flight to end.
 func (s *server) concludedFlash(w http.ResponseWriter, r *http.Request, acct db.Account, detail string) {
-	s.flashRedirect(w, r, acct.ID, "/settings?tab=scans", "danger", "Dispatch already concluded", detail)
+	s.toastBackToSection(w, r, acct.ID, "scans", "danger", "Dispatch already concluded", detail)
 }
 
 // stopScan gracefully ends a Dispatch in flight (DF-F4). Its pending (ready) jobs are
@@ -288,7 +289,7 @@ func (s *server) stopScan(w http.ResponseWriter, r *http.Request, acct db.Accoun
 	// action time is how many are finishing.
 	desc := fmt.Sprintf("%d pending %s cancelled · %d running finishing",
 		n, plural(int(n), "job", "jobs"), row.Running)
-	s.flashRedirect(w, r, acct.ID, "/settings?tab=scans", "neutral", "Dispatch stopped", desc)
+	s.toastBackToSection(w, r, acct.ID, "scans", "neutral", "Dispatch stopped", desc)
 }
 
 // terminateScan hard-kills a Dispatch in flight (DF-F4). Both its pending AND running
@@ -323,7 +324,7 @@ func (s *server) terminateScan(w http.ResponseWriter, r *http.Request, acct db.A
 		return
 	}
 	desc := fmt.Sprintf("%d %s stopped", n, plural(int(n), "job", "jobs"))
-	s.flashRedirect(w, r, acct.ID, "/settings?tab=scans", "neutral", "Scan terminated", desc)
+	s.toastBackToSection(w, r, acct.ID, "scans", "neutral", "Scan terminated", desc)
 }
 
 // Run detail (#297, T2) — the per-run drill-in ported from

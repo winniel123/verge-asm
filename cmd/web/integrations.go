@@ -349,7 +349,11 @@ func (s *server) installIntegration(w http.ResponseWriter, r *http.Request, acct
 		s.serverError(w, "install integration", err)
 		return
 	}
-	http.Redirect(w, r, "/settings?tab=integrations", http.StatusSeeOther)
+	// Back to the URL the button was submitted from (ADR-0130 §3, ticket #977). The
+	// catalogue's ?view=<slug> drawer parameter is NOT dropped here, unlike Team's confirm
+	// dialogs (settings.go dialogParams): a drawer is the panel the operator is reading,
+	// not a confirm to re-offer, and re-rendering it is how they see the state flip.
+	s.backToSection(w, r, "integrations")
 }
 
 // removeIntegration returns an integration to available (not installed) — the spec
@@ -366,7 +370,7 @@ func (s *server) removeIntegration(w http.ResponseWriter, r *http.Request, acct 
 		s.serverError(w, "remove integration", err)
 		return
 	}
-	http.Redirect(w, r, "/settings?tab=integrations", http.StatusSeeOther)
+	s.backToSection(w, r, "integrations")
 }
 
 // bindIntegrationChannel binds an installed integration to a delivery Channel, or
@@ -413,7 +417,10 @@ func (s *server) bindIntegrationChannel(w http.ResponseWriter, r *http.Request, 
 		s.serverError(w, "bind integration channel", err)
 		return
 	}
-	http.Redirect(w, r, dest, http.StatusSeeOther)
+	// The submitting URL already names the drawer this select sits in, so it is the better
+	// destination than the one rebuilt above; dest stays as the fallback for a post that
+	// carried no usable `return` (ticket #977).
+	s.redirectBack(w, r, dest)
 }
 
 // channelExists reports whether a Channel with the given id is declared.

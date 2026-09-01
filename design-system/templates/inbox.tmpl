@@ -81,7 +81,7 @@
 <span class="ib-sub">Everything Verge told you, by class. <span class="n">{{.Unread}}</span> unread.</span>
 </div>
 <span style="margin-left:auto;display:inline-flex;gap:8px;align-items:center">
-<form method="post" action="/messages/read-all" style="margin:0"><input type="hidden" name="return" value="/inbox">
+<form method="post" action="/messages/read-all" style="margin:0">{{template "backfield" $}}
 <button type="submit" class="ib-ghost"{{if not .Unread}} disabled{{end}}>Mark all read</button></form>
 <span class="ib-seg" role="radiogroup" aria-label="Filter">
 <a class="{{if eq .Filter "all"}}on{{end}}" role="radio" aria-checked="{{if eq .Filter "all"}}true{{else}}false{{end}}" href="{{.AllHref}}">All</a>
@@ -152,7 +152,7 @@
 {{end}}
 <div style="display:flex;gap:8px">
 <a class="ib-btn" href="{{.Href}}"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>{{.JumpLabel}}</a>
-<form method="post" action="/messages/unread" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="return" value="/inbox">
+<form method="post" action="/messages/unread" style="margin:0"><input type="hidden" name="id" value="{{.ID}}">{{template "backfield" $}}
 <button type="submit" class="ib-btnghost">Mark unread</button></form>
 </div>
 </div>

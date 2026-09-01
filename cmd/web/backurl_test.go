@@ -363,6 +363,112 @@ func TestAnnotationActRefusesAnOffOriginReturn(t *testing.T) {
 	}
 }
 
+// A report schedule act lands the operator back on the /reports list it was submitted
+// from, window and all (ticket #977). /reports carries the report window as ?start=&end=
+// or ?period=, so the bare "/reports" destination dropped that window on every Run now and
+// every Delete.
+func TestReportScheduleActsLandBackOnTheSubmittingURL(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	const from = "/reports?start=2026-01-01&end=2026-03-31"
+	// A stale id is the idempotent path — the act answers the contract's 303 rather than a
+	// 500 — so this exercises the destination without seeding a schedule row.
+	resp := postForm(t, ac, base+"/reports/schedule/delete", url.Values{
+		"id": {"4242"}, backField: {from},
+	})
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("delete: status = %d, want 303 (body: %s)", resp.StatusCode, body(t, resp))
+	}
+	if got := resp.Header.Get("Location"); got != from {
+		t.Errorf("delete landed at %q, want the submitting URL %q", got, from)
+	}
+
+	rresp := postForm(t, ac, base+"/reports/schedule/run", url.Values{
+		"id": {"4242"}, backField: {from},
+	})
+	defer rresp.Body.Close()
+	if got := rresp.Header.Get("Location"); got != from {
+		t.Errorf("run now landed at %q, want the submitting URL %q", got, from)
+	}
+}
+
+// The wizard threads the entry URL across every step, so the finishing 303 lands on the
+// list the operator opened it from (ticket #977). The wizard's own step URLs are never the
+// destination — finishing must LEAVE the wizard — which is why this one act reads its
+// return value from the entry link rather than from the page it is submitted on.
+func TestReportScheduleWizardThreadsTheEntryURL(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	const from = "/reports?period=90d"
+
+	// The opening GET reads the entry URL off its own query and stamps it into the form.
+	wiz := getBody(t, ac, base+"/reports/schedule/new?return="+url.QueryEscape(from), http.StatusOK)
+	if !strings.Contains(wiz, `name="return" value="`+from+`"`) {
+		t.Fatalf("the wizard did not stamp the entry URL into its form; body: %s", wiz)
+	}
+
+	// A step advance carries it on to the next step's GET URL.
+	step := postForm(t, ac, base+"/reports/schedule/new", url.Values{
+		"step": {"0"}, "action": {"next"}, "name": {"Quarterly exposure"},
+		"sections": {"kpis"}, backField: {from},
+	})
+	defer step.Body.Close()
+	if loc := step.Header.Get("Location"); !strings.Contains(loc, "return="+url.QueryEscape(from)) {
+		t.Errorf("the step advance dropped the entry URL; Location = %q", loc)
+	}
+
+	// The finish leaves the wizard for that list.
+	done := postForm(t, ac, base+"/reports/schedule/new", url.Values{
+		"step": {"3"}, "name": {"Quarterly exposure"}, "sections": {"kpis"},
+		"cad": {reportDefaultCad}, "channel": {"0"}, backField: {from},
+	})
+	defer done.Body.Close()
+	if got := done.Header.Get("Location"); got != from {
+		t.Errorf("the finish landed at %q, want the entry URL %q", got, from)
+	}
+}
+
+// An Inbox read act lands back on the filtered, message-open Inbox it was submitted from
+// (ticket #977). These three handlers used to pick between two allowlisted homes with a
+// carrier of their own (messageReturn), so a mark-read from /inbox?id=3&filter=unread
+// landed on a bare /inbox — the filter dropped and the open message closed.
+func TestInboxReadActsLandBackOnTheFilteredInbox(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	const from = "/inbox?id=3&filter=unread"
+	for _, act := range []string{"/messages/read", "/messages/unread", "/messages/read-all"} {
+		resp := postForm(t, ac, base+act, url.Values{"id": {"3"}, backField: {from}})
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusSeeOther {
+			t.Fatalf("%s: status = %d, want 303", act, resp.StatusCode)
+		}
+		if got := resp.Header.Get("Location"); got != from {
+			t.Errorf("%s landed at %q, want the submitting URL %q", act, got, from)
+		}
+	}
+
+	// With no field the historical /messages home still answers: the viewer-readable fold
+	// these acts are shared with posts none.
+	resp := postForm(t, ac, base+"/messages/read", url.Values{"id": {"3"}})
+	resp.Body.Close()
+	if got := resp.Header.Get("Location"); got != messagesFallback {
+		t.Errorf("a post with no return landed at %q, want %q", got, messagesFallback)
+	}
+}
+
 // firstViewKey pulls one row's Drawer key off a rendered Signals list, so a test can
 // open a Drawer without hardcoding a minted SIG id.
 func firstViewKey(t *testing.T, page string) string {

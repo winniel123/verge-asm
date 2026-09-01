@@ -451,7 +451,7 @@
 {{end}}
 {{if $.CapError}}<div class="st-error">{{$.CapError}}</div>{{end}}
 {{if $.IsAdmin}}
-<form method="post" action="/settings/address-cap" style="margin:0;display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap">
+<form method="post" action="/settings/address-cap" style="margin:0;display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap">{{template "backfield" $}}
 <span class="st-input" style="width:240px"><span class="lb">Address-scope cap</span><span class="iw"><input name="address_cap" inputmode="numeric" value="{{$.CapValue}}" required><span style="font:400 11.5px var(--font-mono);color:var(--text-muted);flex:none">addresses</span></span></span>
 <button type="submit" class="st-btn sec">Save cap</button>
 </form>
@@ -473,7 +473,7 @@
 <p class="detail" style="color:var(--text-secondary)">The dispatch is recorded as stopped · partial. The scan runs again on its normal cadence.</p>
 <div class="acts">
 <a class="st-btn ghost" href="/settings?tab=scans">Cancel</a>
-<form method="post" action="/scans/stop" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" class="st-btn">Stop dispatch</button></form>
+<form method="post" action="/scans/stop" style="margin:0"><input type="hidden" name="id" value="{{.ID}}">{{template "backfield" $}}<button type="submit" class="st-btn">Stop dispatch</button></form>
 </div>
 </div></div>
 {{end}}
@@ -485,7 +485,7 @@
 <p class="detail" style="color:var(--text-secondary)">The dispatch is recorded as terminated. Anything half-measured is simply absent until the next run.</p>
 <div class="acts">
 <a class="st-btn ghost" href="/settings?tab=scans">Cancel</a>
-<form method="post" action="/scans/terminate" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" class="st-btn danger">Terminate</button></form>
+<form method="post" action="/scans/terminate" style="margin:0"><input type="hidden" name="id" value="{{.ID}}">{{template "backfield" $}}<button type="submit" class="st-btn danger">Terminate</button></form>
 </div>
 </div></div>
 {{end}}
@@ -567,7 +567,7 @@
 <div class="st-body">
 <div style="display:flex;flex-direction:column;gap:14px">
 {{if .ProberError}}<div class="st-error">{{.ProberError}}</div>{{end}}
-<form method="post" action="/settings/probers" style="margin:0;display:grid;grid-template-columns:2fr 90px 1.4fr auto;gap:12px;align-items:end">
+<form method="post" action="/settings/probers" style="margin:0;display:grid;grid-template-columns:2fr 90px 1.4fr auto;gap:12px;align-items:end">{{template "backfield" $}}
 <span class="st-input"><span class="lb">Host</span><span class="iw"><input name="host" value="{{.ProberHost}}" placeholder="probe-1.example.net" autocomplete="off" spellcheck="false" required></span></span>
 <span class="st-input"><span class="lb">Port</span><span class="iw"><input name="port" value="{{if .ProberPort}}{{.ProberPort}}{{else}}22{{end}}" autocomplete="off"></span></span>
 <span class="st-input"><span class="lb">Username</span><span class="iw"><input name="username" value="{{.ProberUser}}" placeholder="verge" autocomplete="off" spellcheck="false" required></span></span>
@@ -862,7 +862,7 @@
 <p class="detail" style="color:var(--text-secondary)">Its next request lands on the sign-in screen. The account's other sessions are unaffected.</p>
 <div class="acts">
 <a class="st-btn ghost" href="/settings?tab=sessions">Cancel</a>
-<form method="post" action="/settings/sessions/revoke" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" class="st-btn danger">Revoke session</button></form>
+<form method="post" action="/settings/sessions/revoke" style="margin:0"><input type="hidden" name="id" value="{{.ID}}">{{template "backfield" $}}<button type="submit" class="st-btn danger">Revoke session</button></form>
 </div>
 </div></div>
 {{end}}
@@ -873,7 +873,7 @@
 <p class="detail">Every live session {{.Username}} holds is signed out immediately.</p>
 <p class="detail" style="color:var(--text-secondary)">Their membership, role and personal tokens are unaffected; remove the member on <a href="/settings?tab=team" style="color:var(--link)">Team</a> to fully offboard.</p>
 {{if $.RevokeAccountError}}<div class="st-error" style="margin-top:12px">{{$.RevokeAccountError}}</div>{{end}}
-<form method="post" action="/settings/sessions/revoke-account" style="margin:16px 0 0;display:flex;flex-direction:column;gap:6px">
+<form method="post" action="/settings/sessions/revoke-account" style="margin:16px 0 0;display:flex;flex-direction:column;gap:6px">{{template "backfield" $}}
 <input type="hidden" name="account_id" value="{{.AccountID}}">
 <span style="font:400 12.5px var(--font-ui);color:var(--text-secondary)">Type <span id="st-typed-name" style="font:600 12px var(--font-mono);color:var(--text-ink)">{{.Username}}</span> to confirm.</span>
 <input class="typed" name="confirm_name" autocomplete="off" spellcheck="false" required aria-label="Type the username to confirm">
@@ -1169,7 +1169,7 @@
 </div>
 {{else}}
 {{if $.IsAdmin}}
-<form method="post" action="/settings/restore/preflight" enctype="multipart/form-data" style="margin:0;display:flex;align-items:center;gap:10px">
+<form method="post" action="/settings/restore/preflight" enctype="multipart/form-data" style="margin:0;display:flex;align-items:center;gap:10px">{{template "backfield" $}}
 <label class="st-btn ghost" style="cursor:pointer">Choose archive…<input type="file" name="archive" accept=".tar.gz,.vgbak" style="display:none" onchange="this.form.submit()"></label>
 <span class="st-note">Pre-flight only — nothing is applied yet.</span>
 </form>
@@ -1198,7 +1198,7 @@
 <span style="font:400 12.5px var(--font-ui);color:var(--text-muted)">Update checks are off — air-gap friendly; Verge never phones home while disabled. Compare {{$.Instance.Version}} against the releases page when you choose.</span>
 {{end}}
 <div style="display:flex;align-items:center;gap:12px">
-{{if $.IsAdmin}}<form method="post" action="/settings/updates/check" style="margin:0"><input type="hidden" name="enabled" value="{{if .CheckEnabled}}false{{else}}true{{end}}"><button type="submit" class="st-btn-sm">{{if .CheckEnabled}}Disable update checks{{else}}Enable update checks{{end}}</button></form>{{end}}
+{{if $.IsAdmin}}<form method="post" action="/settings/updates/check" style="margin:0"><input type="hidden" name="enabled" value="{{if .CheckEnabled}}false{{else}}true{{end}}">{{template "backfield" $}}<button type="submit" class="st-btn-sm">{{if .CheckEnabled}}Disable update checks{{else}}Enable update checks{{end}}</button></form>{{end}}
 <span class="st-note">Best-effort check against the release feed — a failed check reports nothing and never blocks.</span>
 </div>
 {{end}}
@@ -1210,7 +1210,7 @@
 <h2>Restore {{.File}}</h2>
 <p class="detail">This overwrites the current estate and configuration with the archive’s ({{.Subjects}} subjects, taken {{.TakenAt}}). Fresh session and prober keys are generated — every session signs in again, and probers re-pin.</p>
 <p class="detail" style="color:var(--text-secondary)">Type <span style="font-family:var(--font-mono);font-size:12.5px">restore</span> to confirm.</p>
-<form method="post" action="/settings/restore" style="margin:16px 0 0;display:flex;flex-direction:column;gap:16px">
+<form method="post" action="/settings/restore" style="margin:16px 0 0;display:flex;flex-direction:column;gap:16px">{{template "backfield" $}}
 <input class="typed" name="confirm" autocomplete="off" spellcheck="false" aria-label="Type restore to confirm" data-typed-confirm="restore">
 <div class="acts" style="margin-top:0">
 <a class="st-btn ghost" href="/settings?tab=instance">Cancel</a>
@@ -1236,7 +1236,7 @@
 <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
 {{if .Enabled}}<span class="st-badge ok">enabled</span>{{else}}<span class="st-badge neutral">disabled</span>{{end}}
 {{if $.IsAdmin}}
-<form method="post" action="/settings/api" style="margin:0"><input type="hidden" name="enabled" value="{{if .Enabled}}false{{else}}true{{end}}"><button type="submit" class="st-btn-sm">{{if .Enabled}}Disable API access{{else}}Enable API access{{end}}</button></form>
+<form method="post" action="/settings/api" style="margin:0"><input type="hidden" name="enabled" value="{{if .Enabled}}false{{else}}true{{end}}">{{template "backfield" $}}<button type="submit" class="st-btn-sm">{{if .Enabled}}Disable API access{{else}}Enable API access{{end}}</button></form>
 {{else}}<span class="st-note">You have read access. Enabling or disabling the API is admin-only.</span>{{end}}
 {{if .Enabled}}<span class="st-note">Enabled by {{.By}} · {{.At}}</span>{{end}}
 </div>
@@ -1387,7 +1387,7 @@
 {{end}}
 {{if ne .State "available"}}
 {{$bound := .BoundChannel}}
-<form method="post" action="/settings/integrations/channel" style="margin:0;display:flex;flex-direction:column;gap:8px">
+<form method="post" action="/settings/integrations/channel" style="margin:0;display:flex;flex-direction:column;gap:8px">{{template "backfield" $}}
 <input type="hidden" name="id" value="{{.ID}}">
 <span class="st-input"><span class="lb">Delivery channel</span>
 <select name="channel" onchange="this.form.submit()" style="height:36px;padding:0 12px;background:var(--surface);color:var(--text-ink);font:400 13px var(--font-ui);border:1px solid var(--border-default);border-radius:12px;outline:none;cursor:pointer">
@@ -1415,9 +1415,9 @@
 </div>
 <div class="df">
 {{if eq .State "available"}}
-<form method="post" action="/settings/integrations/install" style="margin:0;width:100%"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" class="st-btn pri" style="width:100%">Install {{.Name}}</button></form>
+<form method="post" action="/settings/integrations/install" style="margin:0;width:100%"><input type="hidden" name="id" value="{{.ID}}">{{template "backfield" $}}<button type="submit" class="st-btn pri" style="width:100%">Install {{.Name}}</button></form>
 {{else}}
-<form method="post" action="/settings/integrations/remove" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><button type="submit" class="st-btn ghost">Remove</button></form>
+<form method="post" action="/settings/integrations/remove" style="margin:0"><input type="hidden" name="id" value="{{.ID}}">{{template "backfield" $}}<button type="submit" class="st-btn ghost">Remove</button></form>
 {{if .BoundChannel}}
 <form method="post" action="/settings/integrations/test" style="margin:0;margin-left:auto"><input type="hidden" name="id" value="{{.ID}}">{{template "backfield" $}}<button type="submit" class="st-btn sec">Send test</button></form>
 {{else}}
@@ -1437,7 +1437,7 @@
 <h2 style="margin:0;font:600 17px var(--font-ui);letter-spacing:var(--heading-tracking);color:var(--text-ink)">Messages</h2>
 <p class="st-lede">Every message that has fired, newest first. Each names what moved — the estate's own object, our own aperture, your declared input, or a threshold crossed — and links to what it fired at. The store carries the message and never the estate: the fact itself is in the timelines. The <a href="/inbox">Inbox</a> is the reading surface; this is the operational record.</p>
 </div>
-{{if .Messages}}<form method="post" action="/messages/read-all" style="margin-left:auto;flex:none"><input type="hidden" name="return" value="/settings?tab=messages"><button type="submit" class="st-btn sec">Mark all read</button></form>{{end}}
+{{if .Messages}}<form method="post" action="/messages/read-all" style="margin-left:auto;flex:none">{{template "backfield" $}}<button type="submit" class="st-btn sec">Mark all read</button></form>{{end}}
 </header>
 {{if .Messages}}
 <section class="st-card">
@@ -1467,7 +1467,7 @@
 {{end}}
 <div style="display:flex;gap:10px;align-items:center">
 <a class="st-btn-sm" href="{{.Href}}">{{.LinkText}}</a>
-{{if not .Read}}<form method="post" action="/messages/read" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="return" value="/settings?tab=messages"><button type="submit" class="st-btn-sm" style="border-color:transparent;background:transparent;color:var(--text-secondary)">Mark read</button></form>{{end}}
+{{if not .Read}}<form method="post" action="/messages/read" style="margin:0"><input type="hidden" name="id" value="{{.ID}}">{{template "backfield" $}}<button type="submit" class="st-btn-sm" style="border-color:transparent;background:transparent;color:var(--text-secondary)">Mark read</button></form>{{end}}
 </div>
 </div>
 {{end}}
@@ -1513,7 +1513,7 @@
 <span class="st-note">Retention is what may still be read, never age. Dispatch retention is a multiple of the slowest enabled scan's cadence, floored at 2 cadences; 0 leaves it unbounded, the default. The observation-currency floor lands with later work; for now zero means no operator floor. Transcript retention is a whole number of days, floored at 1 day when positive; 0 leaves raw job output unbounded.</span>
 {{if .RetError}}<div class="st-error">{{.RetError}}</div>{{end}}
 {{if .IsAdmin}}
-<form method="post" action="/settings/retention" style="margin:0;display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap">
+<form method="post" action="/settings/retention" style="margin:0;display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap">{{template "backfield" $}}
 <span class="st-input" style="width:220px"><span class="lb">Observation-currency floor</span><span class="iw"><input name="observation_currency_days" inputmode="numeric" value="{{if .RetError}}{{.RetObs}}{{else}}{{.Retention.ObservationCurrencyDays}}{{end}}" required><span style="font:400 11.5px var(--font-mono);color:var(--text-muted);flex:none">days</span></span></span>
 <span class="st-input" style="width:260px"><span class="lb">Dispatch retention</span><span class="iw"><input name="dispatch_cadence_multiple" inputmode="numeric" value="{{if .RetError}}{{.RetDispatch}}{{else}}{{.Retention.DispatchCadenceMultiple}}{{end}}" required><span style="font:400 11.5px var(--font-mono);color:var(--text-muted);flex:none">× slowest cadence</span></span></span>
 <span class="st-input" style="width:220px"><span class="lb">Transcript retention</span><span class="iw"><input name="transcript_currency_days" inputmode="numeric" value="{{if .RetError}}{{.RetTranscript}}{{else}}{{.Retention.TranscriptCurrencyDays}}{{end}}" required><span style="font:400 11.5px var(--font-mono);color:var(--text-muted);flex:none">days</span></span></span>
