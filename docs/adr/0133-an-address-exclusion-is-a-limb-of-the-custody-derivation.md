@@ -169,6 +169,44 @@ They ship as two tickets, gate first. The preview receipt is **not** re-worded t
 broken code in the meantime: it states the model's intent correctly, and editing it to promise
 less would write the defect into the interface.
 
+#### 8.1 Discharged by [#1032](https://github.com/winniel123/verge-asm/issues/1032) (2026-09-01)
+
+~~The withdrawal limb is a separate ticket.~~ **Both limbs have shipped.** The withdrawal lives in
+`internal/queue/withdrawal.go`. It closes the affected spans with the `descoped` reason and makes
+the first production call to `message.Narrowing`. #1032 left two questions open and hit a third.
+All three are ruled here, and the code comment points back at this section.
+
+**When the withdrawal runs.** On the next membership fold, not at declaration time. Two things
+force that. A closure cites the folding batch ([ADR-0111](./0111-a-span-cites-the-batch-that-folded-it.md)),
+and a web handler holds no batch. And §3 stops enumerating an excluded address, so no observation
+about one need ever arrive again. A withdrawal scoped to the subjects a batch observed — the rule
+`foldEstateTransitions` applies to Names — could therefore never reach it. The fold is driven from
+the declaration side instead and reads the exclusion corpus. The accepted bound: the withdrawal
+lands on the next completed job, so an estate running no jobs holds its spans open until one
+completes.
+
+**Whether the preview's counts must match the act's.** They are not required to. The listing query
+is the twin of `PreviewExclusionWithdrawal` and reads the same CTE shapes, so the two agree over an
+estate that has not moved. The estate may move between them. Each count is a measurement at its own
+instant.
+
+**An address the custody extension still reaches does NOT leave.** This is forced by §1 and #1032
+did not see it. §1 keeps the extension limb standing under an exclusion, and §3 skips an excluded
+address out of the scope enumeration alone. Such an address is still enumerated, still probed and
+still measured. Closing its timelines would reopen them on the next batch and close them again on
+the one after — a `descoped` departure and a `Narrowing` message every cadence, for an address the
+gate never stopped probing. The survivor test is `custody.Estate.Derive` itself, so the membership
+decision and the probe gate read one derivation and cannot disagree. It is the same shape as the
+resolution survivor `CONTEXT.md` already states: another limb still holds the address, so the
+narrowing does not remove it, and the set an exclusion removes stays no larger than the set the
+declaration added.
+
+**One message per act, not one per subject.** `message.Narrowing` is the count-carrying form
+[ADR-0074](./0074-an-aperture-narrowing-that-takes-its-carrier-with-it-fires-at-the-scope.md) defines — a scope
+and a count, no comparison and no rows. N per-subject `declared-input` rows for one operator act
+would be the census the receipt exists to replace. The Name limb keeps its per-subject
+`declared-input` message, because a name exclusion withdraws one Name and has no aggregate to state.
+
 ## Consequences
 
 - An address exclusion becomes enforcing for the first time. An operator who excludes a range
@@ -181,8 +219,11 @@ less would write the defect into the interface.
 - **No migration.** The `exclusion` table already holds `address` rows carrying a CIDR
   (`db/migrations/00004_exclusions.sql:20`). The change needs a new `sqlc` query and therefore a
   regenerated `internal/db`, which the `sqlc` check enforces.
-- The preview receipt stays a promise the code does not yet keep, until the §8 ticket lands. That
-  is a known and time-boxed inconsistency rather than an accepted one.
+- ~~The preview receipt stays a promise the code does not yet keep, until the §8 ticket lands. That
+  is a known and time-boxed inconsistency rather than an accepted one.~~ **The §8 ticket
+  ([#1032](https://github.com/winniel123/verge-asm/issues/1032)) has landed. The code keeps the
+  promise: declaring an address exclusion closes the withdrawn timelines and writes the coverage
+  message. See §8.1.**
 
 ## Alternatives rejected
 

@@ -135,9 +135,20 @@ type ListAddressExclusionWithdrawalsRow struct {
 //
 // The withdrawal is never larger than the declaration it narrows (ADR-0133 §1):
 // an address a current resolution still cites does NOT leave, which is the NOT
-// EXISTS clause. The covering exclusion and the firing Seed scope are attributed
-// in Go, over the same declared-input context the rest of the fold composes
-// against, so this query answers WHICH timelines close and nothing else.
+// EXISTS clause. The SECOND survivor rule — an address the custody extension
+// still reaches does not leave either — is applied in Go, because it is
+// custody.Estate.Derive and the rejected-alternatives table forbids restating
+// that rule outside the package the corpus locks. So this query answers which
+// timelines are CANDIDATES to close, and composeAddressWithdrawals decides.
+//
+// Two limits are inherited from PreviewExclusionWithdrawal deliberately, so the
+// receipt and the act cannot drift apart. The `~ '^[0-9.]+$'` gate reads IPv4
+// subject keys alone, so an IPv6 address exclusion previews and withdraws
+// nothing. And the resolution test is a substring match over the span value, so
+// a resolution citing 10.0.0.10 also holds 10.0.0.1 in the estate. Both bound
+// the withdrawal SMALLER than the model asks, never larger, which is the safe
+// direction: an address that should have left stays, and none leaves that should
+// have stayed. Widening either one has to move both queries together.
 func (q *Queries) ListAddressExclusionWithdrawals(ctx context.Context) ([]ListAddressExclusionWithdrawalsRow, error) {
 	rows, err := q.db.Query(ctx, listAddressExclusionWithdrawals)
 	if err != nil {

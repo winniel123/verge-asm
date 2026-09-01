@@ -6,8 +6,9 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
-	"github.com/winniel123/verge-asm/internal/drift"
+	"github.com/winniel123/verge-asm/internal/message"
 )
 
 func addressExclusion(cidr string) db.ListExclusionsRow {
@@ -23,10 +24,14 @@ func withdrawalRow(id int64, kind, key string) db.ListAddressExclusionWithdrawal
 	return db.ListAddressExclusionWithdrawalsRow{ID: id, SubjectKind: kind, SubjectKey: key}
 }
 
-// addressExcluded is the address analogue nameExcluded had no twin for (#1032):
-// containment is the family-matched prefix test, and a name or subtree exclusion
-// covers no Address at all.
-func TestAddressExcluded(t *testing.T) {
+// thirdParty is the derivation of an estate whose extension reaches nothing — the
+// common case, where the exclusion is the only limb in play.
+func thirdParty(netip.Addr) custody.Custody { return custody.ThirdParty }
+
+// coveringAddressExclusion is the address analogue nameExcluded had no twin for
+// (#1032): containment is the family-matched prefix test, and a name or subtree
+// exclusion covers no Address.
+func TestCoveringAddressExclusion(t *testing.T) {
 	exclusions := []db.ListExclusionsRow{
 		nameExclusion("example.com"),
 		addressExclusion("198.51.100.128/25"),
@@ -34,59 +39,31 @@ func TestAddressExcluded(t *testing.T) {
 	}
 	tests := []struct {
 		addr string
-		want bool
+		want string
 	}{
-		{"198.51.100.200", true},
-		{"198.51.100.127", false}, // below the excluded half
-		{"203.0.113.5", false},
-		{"2001:db8::1", true},
-		{"2001:db9::1", false},
+		{"198.51.100.200", "198.51.100.128/25"},
+		{"198.51.100.127", ""}, // below the excluded half
+		{"203.0.113.5", ""},
+		{"2001:db8::1", "2001:db8::/32"},
+		{"2001:db9::1", ""},
 	}
 	for _, tt := range tests {
-		if got := addressExcluded(netip.MustParseAddr(tt.addr), exclusions); got != tt.want {
-			t.Errorf("addressExcluded(%s) = %v, want %v", tt.addr, got, tt.want)
+		got := ""
+		if p := coveringAddressExclusion(netip.MustParseAddr(tt.addr), exclusions); p != nil {
+			got = p.String()
+		}
+		if got != tt.want {
+			t.Errorf("coveringAddressExclusion(%s) = %q, want %q", tt.addr, got, tt.want)
 		}
 	}
-	// A name exclusion alone excludes no address, whatever the address is.
-	if addressExcluded(netip.MustParseAddr("198.51.100.200"), []db.ListExclusionsRow{nameExclusion("example.com")}) {
+	// A name exclusion alone covers no address, whatever the address is.
+	if coveringAddressExclusion(netip.MustParseAddr("198.51.100.200"), []db.ListExclusionsRow{nameExclusion("example.com")}) != nil {
 		t.Error("a name exclusion covers no Address")
 	}
 }
 
-// coveringExclusionKey names the mover for an ADDRESS departure too. Before #1032
-// it skipped every exclusion row carrying no name, so an address exclusion that
-// descoped a subject could name no Source.
-func TestCoveringExclusionKeyNamesTheAddressExclusion(t *testing.T) {
-	exclusions := []db.ListExclusionsRow{
-		subtreeExclusion("example.com"),
-		addressExclusion("198.51.100.128/25"),
-	}
-	tests := []struct {
-		name        string
-		subjectKind string
-		subjectKey  string
-		reason      drift.ClosureReason
-		want        string
-	}{
-		{"an address inside the exclusion", "address", "198.51.100.200", drift.ReasonDescoped, "198.51.100.128/25"},
-		{"a service on that address", "service", "198.51.100.200:443", drift.ReasonDescoped, "198.51.100.128/25"},
-		{"an endpoint on that address", "endpoint", "198.51.100.200:80", drift.ReasonDescoped, "198.51.100.128/25"},
-		{"an address no exclusion covers", "address", "203.0.113.5", drift.ReasonDescoped, ""},
-		{"a name still reads the name limb", "name", "www.example.com", drift.ReasonDescoped, "example.com"},
-		{"a world withdrawal names no mover", "address", "198.51.100.200", drift.ReasonMeasuredAbsent, ""},
-		{"an unparseable address key", "address", "not-an-address", drift.ReasonDescoped, ""},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := coveringExclusionKey(tt.subjectKind, tt.subjectKey, tt.reason, exclusions); got != tt.want {
-				t.Errorf("coveringExclusionKey = %q, want %q", got, tt.want)
-			}
-		})
-	}
-}
-
 // The withdrawal states its two counts with their factors, never as a product: a
-// subject holding three timelines is ONE subject withdrawn and THREE timelines
+// subject holding two timelines is ONE subject withdrawn and TWO timelines
 // removed (message.NarrowingReceipt). The message fires at the declared Seed scope
 // the excluded ground sits inside, which is the site the preview already names.
 func TestComposeAddressWithdrawalsCountsSubjectsAndTimelines(t *testing.T) {
@@ -101,31 +78,83 @@ func TestComposeAddressWithdrawalsCountsSubjectsAndTimelines(t *testing.T) {
 		withdrawalRow(4, "address", "198.51.100.201"),
 	}
 
-	spanIDs, narrowings := composeAddressWithdrawals(rows, in)
+	spanIDs, receipts := composeAddressWithdrawals(rows, in, thirdParty)
 
 	if len(spanIDs) != 4 {
 		t.Fatalf("every listed timeline closes, got %v", spanIDs)
 	}
-	if len(narrowings) != 1 {
-		t.Fatalf("one narrowing per covering exclusion, got %d", len(narrowings))
+	if len(receipts) != 1 {
+		t.Fatalf("one receipt per covering exclusion, got %d", len(receipts))
 	}
-	n := narrowings[0]
-	if n.Scope != "198.51.100.0/24" {
-		t.Errorf("the message fires at the covering Seed scope, got %q", n.Scope)
+	r := receipts[0]
+	if r.Scope != "198.51.100.0/24" {
+		t.Errorf("the message fires at the covering Seed scope, got %q", r.Scope)
 	}
-	if n.Removed != "198.51.100.128/25" {
-		t.Errorf("the removed value is the declared exclusion, got %q", n.Removed)
+	if r.Removed != "198.51.100.128/25" {
+		t.Errorf("the removed value is the declared exclusion, got %q", r.Removed)
 	}
-	if n.SubjectsWithdrawn != 3 {
-		t.Errorf("three distinct subjects left, got %d", n.SubjectsWithdrawn)
+	if r.SubjectsWithdrawn != 3 {
+		t.Errorf("three distinct subjects left, got %d", r.SubjectsWithdrawn)
 	}
-	if n.TimelinesRemoved != 4 {
-		t.Errorf("four timelines closed, got %d", n.TimelinesRemoved)
+	if r.TimelinesRemoved != 4 {
+		t.Errorf("four timelines closed, got %d", r.TimelinesRemoved)
+	}
+	if !r.Fires {
+		t.Error("an inhabited withdrawal fires")
 	}
 }
 
-// Two declared exclusions are two acts, so they are two narrowings and two
-// messages — never one merged count over a scope neither of them names.
+// ADR-0133 §1: an address inside an excluded range that a custody extension ALSO
+// reaches still derives operator and is still probed. It has not left the estate,
+// so its timelines stay open. Closing them would reopen and re-close them every
+// cadence, because the enumeration never stopped walking it.
+func TestComposeAddressWithdrawalsKeepsAnExtensionReachedAddress(t *testing.T) {
+	in := membershipInputs{
+		seeds:      []db.ListSeedsRow{addressSeed("198.51.100.0/24")},
+		exclusions: []db.ListExclusionsRow{addressExclusion("198.51.100.128/25")},
+	}
+	rows := []db.ListAddressExclusionWithdrawalsRow{
+		withdrawalRow(1, "address", "198.51.100.200"), // the extension reaches this one
+		withdrawalRow(2, "address", "198.51.100.201"),
+	}
+	reached := netip.MustParseAddr("198.51.100.200")
+	derive := func(a netip.Addr) custody.Custody {
+		if a == reached {
+			return custody.Operator
+		}
+		return custody.ThirdParty
+	}
+
+	spanIDs, receipts := composeAddressWithdrawals(rows, in, derive)
+
+	if len(spanIDs) != 1 || spanIDs[0] != 2 {
+		t.Errorf("the extension-reached address keeps its timeline, got %v", spanIDs)
+	}
+	if len(receipts) != 1 || receipts[0].SubjectsWithdrawn != 1 || receipts[0].TimelinesRemoved != 1 {
+		t.Errorf("the counts state what actually left, got %+v", receipts)
+	}
+}
+
+// Where the extension reaches every excluded address, nothing leaves and no
+// message fires — the receipt does not fire on an empty withdrawn set.
+func TestComposeAddressWithdrawalsSilentWhereTheExtensionHoldsEverything(t *testing.T) {
+	in := membershipInputs{exclusions: []db.ListExclusionsRow{addressExclusion("198.51.100.128/25")}}
+	rows := []db.ListAddressExclusionWithdrawalsRow{withdrawalRow(1, "address", "198.51.100.200")}
+
+	spanIDs, receipts := composeAddressWithdrawals(rows, in, func(netip.Addr) custody.Custody {
+		return custody.Operator
+	})
+
+	if len(spanIDs) != 0 {
+		t.Errorf("nothing closes, got %v", spanIDs)
+	}
+	if len(receipts) != 0 {
+		t.Errorf("nothing is collected, so no message fires, got %+v", receipts)
+	}
+}
+
+// Two declared exclusions are two acts, so they are two receipts and two messages —
+// never one merged count over a scope neither of them names.
 func TestComposeAddressWithdrawalsGroupsPerExclusion(t *testing.T) {
 	in := membershipInputs{
 		seeds: []db.ListSeedsRow{addressSeed("198.51.100.0/24"), addressSeed("203.0.113.0/24")},
@@ -139,16 +168,16 @@ func TestComposeAddressWithdrawalsGroupsPerExclusion(t *testing.T) {
 		withdrawalRow(2, "address", "203.0.113.5"),
 	}
 
-	_, narrowings := composeAddressWithdrawals(rows, in)
+	_, receipts := composeAddressWithdrawals(rows, in, thirdParty)
 
-	if len(narrowings) != 2 {
-		t.Fatalf("want 2 narrowings, got %d", len(narrowings))
+	if len(receipts) != 2 {
+		t.Fatalf("want 2 receipts, got %d", len(receipts))
 	}
-	if narrowings[0].Removed != "198.51.100.128/25" || narrowings[1].Removed != "203.0.113.0/28" {
-		t.Errorf("narrowings are keyed by their own exclusion, got %+v", narrowings)
+	if receipts[0].Removed != "198.51.100.128/25" || receipts[1].Removed != "203.0.113.0/28" {
+		t.Errorf("receipts are keyed by their own exclusion, got %+v", receipts)
 	}
-	if narrowings[0].Scope != "198.51.100.0/24" || narrowings[1].Scope != "203.0.113.0/24" {
-		t.Errorf("each fires at its own covering scope, got %+v", narrowings)
+	if receipts[0].Scope != "198.51.100.0/24" || receipts[1].Scope != "203.0.113.0/24" {
+		t.Errorf("each fires at its own covering scope, got %+v", receipts)
 	}
 }
 
@@ -180,24 +209,57 @@ func TestComposeAddressWithdrawalsDropsAnUnattributableRow(t *testing.T) {
 		withdrawalRow(4, "address", "198.51.100.200"),
 	}
 
-	spanIDs, narrowings := composeAddressWithdrawals(rows, in)
+	spanIDs, receipts := composeAddressWithdrawals(rows, in, thirdParty)
 
 	if len(spanIDs) != 1 || spanIDs[0] != 4 {
 		t.Errorf("only the attributable timeline closes, got %v", spanIDs)
 	}
-	if len(narrowings) != 1 || narrowings[0].TimelinesRemoved != 1 {
-		t.Errorf("the counts state what closed, got %+v", narrowings)
+	if len(receipts) != 1 || receipts[0].TimelinesRemoved != 1 {
+		t.Errorf("the counts state what closed, got %+v", receipts)
 	}
 }
 
-// Nothing withdrawn is nothing to do: no span closes and no narrowing is collected,
+// Nothing withdrawn is nothing to do: no span closes and no receipt is collected,
 // which is what makes the fold idempotent. The closure is what removes the row from
 // the query's answer, so the batch after the withdrawal reads none.
 func TestComposeAddressWithdrawalsIsEmptyWithNoRows(t *testing.T) {
-	spanIDs, narrowings := composeAddressWithdrawals(nil, membershipInputs{
+	spanIDs, receipts := composeAddressWithdrawals(nil, membershipInputs{
 		exclusions: []db.ListExclusionsRow{addressExclusion("198.51.100.128/25")},
-	})
-	if len(spanIDs) != 0 || len(narrowings) != 0 {
-		t.Errorf("an empty answer closes and collects nothing, got %v / %+v", spanIDs, narrowings)
+	}, thirdParty)
+	if len(spanIDs) != 0 || len(receipts) != 0 {
+		t.Errorf("an empty answer closes and collects nothing, got %v / %+v", spanIDs, receipts)
+	}
+}
+
+// hasAddressExclusion is the guard that keeps the withdrawal read off a batch that
+// cannot withdraw anything — the shipped default, where no address exclusion is
+// declared at all.
+func TestHasAddressExclusion(t *testing.T) {
+	if (membershipInputs{}).hasAddressExclusion() {
+		t.Error("an empty corpus declares no address exclusion")
+	}
+	only := membershipInputs{exclusions: []db.ListExclusionsRow{nameExclusion("example.com"), subtreeExclusion("x.com")}}
+	if only.hasAddressExclusion() {
+		t.Error("name and subtree exclusions are not address exclusions")
+	}
+	with := membershipInputs{exclusions: []db.ListExclusionsRow{nameExclusion("example.com"), addressExclusion("198.51.100.0/24")}}
+	if !with.hasAddressExclusion() {
+		t.Error("a declared address exclusion is found")
+	}
+}
+
+// The receipt the fold collects is the SAME value the producer fires from, so the
+// act and the preview render one sentence through one constructor.
+func TestComposeAddressWithdrawalsRendersThroughPreviewNarrowing(t *testing.T) {
+	in := membershipInputs{
+		seeds:      []db.ListSeedsRow{addressSeed("198.51.100.0/24")},
+		exclusions: []db.ListExclusionsRow{addressExclusion("198.51.100.128/25")},
+	}
+	_, receipts := composeAddressWithdrawals(
+		[]db.ListAddressExclusionWithdrawalsRow{withdrawalRow(1, "address", "198.51.100.200")}, in, thirdParty)
+
+	want := message.PreviewNarrowing("198.51.100.0/24", "198.51.100.128/25", 1, 1)
+	if receipts[0] != want {
+		t.Errorf("the fold's receipt is PreviewNarrowing's own:\n got %+v\nwant %+v", receipts[0], want)
 	}
 }

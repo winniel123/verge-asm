@@ -383,8 +383,8 @@ func TestProduceDescopedDepartureIsNoOpUnderDevMode(t *testing.T) {
 // until #1032 only PreviewNarrowing was called, so `POST /exclusions/preview`
 // described an act the system never performed.
 func TestProduceNarrowingFiresOnceAtTheScope(t *testing.T) {
-	narrowings := []narrowing{
-		{Scope: "198.51.100.0/24", Removed: "198.51.100.128/25", SubjectsWithdrawn: 3, TimelinesRemoved: 7},
+	narrowings := []message.NarrowingReceipt{
+		message.PreviewNarrowing("198.51.100.0/24", "198.51.100.128/25", 3, 7),
 	}
 	store := &fakeMessageStore{}
 	var log []routed
@@ -421,8 +421,8 @@ func TestProduceNarrowingFiresOnceAtTheScope(t *testing.T) {
 // where the receipt does not fire, which is the same gate the preview applies — so
 // the operator is never shown a receipt for a message that will not come.
 func TestProduceNarrowingSilentOverUninhabitedGround(t *testing.T) {
-	narrowings := []narrowing{
-		{Scope: "198.51.100.0/24", Removed: "198.51.100.128/25", SubjectsWithdrawn: 0, TimelinesRemoved: 0},
+	narrowings := []message.NarrowingReceipt{
+		message.PreviewNarrowing("198.51.100.0/24", "198.51.100.128/25", 0, 0),
 	}
 	store := &fakeMessageStore{}
 	var log []routed
@@ -438,8 +438,8 @@ func TestProduceNarrowingSilentOverUninhabitedGround(t *testing.T) {
 // A VERGE_DEV / fixture install writes no narrowing message either — the dev guard
 // short-circuits the whole producer before any narrowing is folded (AL-25).
 func TestProduceNarrowingIsNoOpUnderDevMode(t *testing.T) {
-	narrowings := []narrowing{
-		{Scope: "198.51.100.0/24", Removed: "198.51.100.128/25", SubjectsWithdrawn: 3, TimelinesRemoved: 7},
+	narrowings := []message.NarrowingReceipt{
+		message.PreviewNarrowing("198.51.100.0/24", "198.51.100.128/25", 3, 7),
 	}
 	store := &fakeMessageStore{}
 	var log []routed

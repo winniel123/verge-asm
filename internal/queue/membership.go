@@ -102,7 +102,7 @@ func foldEstateTransitions(ctx context.Context, qtx *db.Queries, batchID int64, 
 				SubjectKind: subjectKindName,
 				SubjectKey:  name,
 				Reason:      string(reason),
-				SourceKey:   coveringExclusionKey(subjectKindName, name, reason, in.exclusions),
+				SourceKey:   coveringExclusionKey(name, reason, in.exclusions),
 				Timelines:   len(open),
 			})
 		}
@@ -116,29 +116,23 @@ func foldEstateTransitions(ctx context.Context, qtx *db.Queries, batchID int64, 
 // departure: a world withdrawal (measured-absent) has no declared-input mover, so
 // it returns "".
 //
-// It mirrors the coverage test of the predicate that decided the departure, so the
-// same declared boundary that removed the subject is the key the message cites. A
-// Name reads nameExcluded's test (an exact `name` exclusion or a `subtree`
-// exclusion of the Name or an ancestor) and returns the matching Exclusion's
-// normalized declared name. An Address — or a Service or Endpoint sitting on one —
-// reads addressExcluded's family-matched prefix test and returns the covering
-// Exclusion's CIDR (ADR-0133 §8, #1032). Before that ticket this helper skipped
-// every row carrying no name, so an address exclusion could name no mover at all.
-func coveringExclusionKey(subjectKind, subjectKey string, reason drift.ClosureReason, exclusions []db.ListExclusionsRow) string {
+// It mirrors nameExcluded's coverage test (an exact `name` exclusion or a
+// `subtree` exclusion of the Name or an ancestor) and returns the matching
+// Exclusion's normalized declared name, so the same declared boundary that removed
+// the Name is the key the message cites.
+//
+// It stays a NAME helper. #1032 reads its skip of every row carrying no name as
+// half the address gap, and the address limb is answered by
+// coveringAddressExclusion (below) rather than by a second branch here. The reason
+// is the message shape: an address withdrawal fires ONE aggregate
+// message.Narrowing per exclusion, not one declared-input row per subject, so the
+// address side attributes its mover once, in composeAddressWithdrawals
+// (internal/queue/withdrawal.go). A branch here would have no caller.
+func coveringExclusionKey(name string, reason drift.ClosureReason, exclusions []db.ListExclusionsRow) string {
 	if reason != drift.ReasonDescoped {
 		return ""
 	}
-	if subjectKind != subjectKindName {
-		addr, ok := subjectAddress(subjectKind, subjectKey)
-		if !ok {
-			return ""
-		}
-		if p := coveringAddressExclusion(addr, exclusions); p != nil {
-			return p.String()
-		}
-		return ""
-	}
-	name := normalizeDomain(subjectKey)
+	name = normalizeDomain(name)
 	for _, e := range exclusions {
 		if !e.Name.Valid {
 			continue
@@ -157,7 +151,18 @@ func coveringExclusionKey(subjectKind, subjectKey string, reason drift.ClosureRe
 	return ""
 }
 
-const subjectKindName = "name"
+// The subject kinds this fold tests by name. They are the stored `span.subject_kind`
+// values, named here so the address limb reads them from one place.
+const (
+	subjectKindName     = "name"
+	subjectKindAddress  = "address"
+	subjectKindService  = "service"
+	subjectKindEndpoint = "endpoint"
+
+	// exclusionKindAddress is the stored `exclusion.kind` of an address-scope
+	// exclusion — a CIDR the operator declares is not theirs (ADR-0012 §125).
+	exclusionKindAddress = "address"
+)
 
 // observedResolutionNames is the distinct set of Names carried by a batch's
 // `resolution` observations, in first-seen order — the Names whose membership this
@@ -276,12 +281,24 @@ func resolutionOutcome(value []byte) string {
 // CloseSpan's `WHERE closed_at IS NULL` is the guard, and the fold only ever hands
 // it open spans.
 func closeSubjectTimelines(ctx context.Context, qtx *db.Queries, open []db.ListOpenSpansForSubjectRow, at time.Time, reason drift.ClosureReason, batchID int64) error {
+	ids := make([]int64, 0, len(open))
 	for _, s := range open {
+		ids = append(ids, s.ID)
+	}
+	return closeSpansByID(ctx, qtx, ids, at, reason, batchID)
+}
+
+// closeSpansByID is the write closeSubjectTimelines applies, addressed by id. The
+// address withdrawal reads its spans from the exclusion side and holds no
+// per-subject row, so both limbs of the fold close through this one call
+// (internal/queue/withdrawal.go).
+func closeSpansByID(ctx context.Context, qtx *db.Queries, ids []int64, at time.Time, reason drift.ClosureReason, batchID int64) error {
+	for _, id := range ids {
 		if err := qtx.CloseSpan(ctx, db.CloseSpanParams{
 			ClosedAt:      tstz(at),
 			ClosureReason: pgText(string(reason)),
 			ClosedBatchID: pgInt8(batchID),
-			ID:            s.ID,
+			ID:            id,
 		}); err != nil {
 			return err
 		}
@@ -313,10 +330,10 @@ func openedByAperture(subjectKind, subjectKey string, in membershipInputs) bool 
 // Exclusion has anything to test against them.
 func subjectAddress(subjectKind, subjectKey string) (netip.Addr, bool) {
 	switch subjectKind {
-	case "address":
+	case subjectKindAddress:
 		addr, err := netip.ParseAddr(subjectKey)
 		return addr, err == nil
-	case "service", "endpoint":
+	case subjectKindService, subjectKindEndpoint:
 		addr, err := netip.ParseAddr(serviceAddress(subjectKey))
 		return addr, err == nil
 	default:
@@ -363,23 +380,22 @@ func nameExcluded(name string, exclusions []db.ListExclusionsRow) bool {
 	return false
 }
 
-// addressExcluded reports whether an Exclusion covers this address — the address
-// analogue of nameExcluded that ADR-0012 §125 owed and #1032 supplies. Containment
-// is the family-matched prefix test the coverage predicate already applies, so an
-// IPv4 address is never read as inside an IPv6 scope. Name and subtree exclusions
-// cover no Address.
-func addressExcluded(addr netip.Addr, exclusions []db.ListExclusionsRow) bool {
-	return coveringAddressExclusion(addr, exclusions) != nil
-}
-
-// coveringAddressExclusion is the first declared `address` Exclusion whose scope
-// contains the address, in ListExclusions order, or nil where none does. Exclusions
-// do not nest into a precedence the way Seeds do — every one of them is the same
-// "not mine" claim — so first match is the whole rule, exactly as nameExcluded's
-// loop already treats them.
+// coveringAddressExclusion is the address analogue of nameExcluded that ADR-0012
+// §125 owed and #1032 supplies: the first declared `address` Exclusion whose scope
+// contains the address, in ListExclusions order, or nil where none does.
+//
+// Containment is the family-matched prefix test the coverage predicate already
+// applies, so an IPv4 address is never read as inside an IPv6 scope. Name and
+// subtree exclusions cover no Address. Exclusions do not nest into a precedence
+// the way Seeds do — every one of them is the same "not mine" claim — so first
+// match is the whole rule, exactly as nameExcluded's loop already treats them.
+//
+// It returns the covering prefix rather than a bool because both its callers need
+// it: the withdrawal names the Exclusion as the message's mover, and it finds the
+// Seed scope the message fires at from the prefix.
 func coveringAddressExclusion(addr netip.Addr, exclusions []db.ListExclusionsRow) *netip.Prefix {
 	for _, e := range exclusions {
-		if e.Kind != "address" || e.AddressCidr == nil {
+		if e.Kind != exclusionKindAddress || e.AddressCidr == nil {
 			continue
 		}
 		if e.AddressCidr.Contains(addr) {

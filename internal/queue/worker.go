@@ -272,7 +272,7 @@ func (w *Worker) departureCollector(deps *[]departure) *[]departure {
 // needs the narrowing feed (ADR-0133 §8, #1032), nil where it is off. The fold
 // still CLOSES the withdrawn timelines with a nil collector — a withdrawal is a
 // fact about the estate, and only the message it fires is optional.
-func (w *Worker) narrowingCollector(narrowings *[]narrowing) *[]narrowing {
+func (w *Worker) narrowingCollector(narrowings *[]message.NarrowingReceipt) *[]message.NarrowingReceipt {
 	if !w.produceMsgs {
 		return nil
 	}
@@ -284,7 +284,7 @@ func (w *Worker) narrowingCollector(narrowings *[]narrowing) *[]narrowing {
 // internal/delivery, and is a no-op unless the worker was built WithMessages. The
 // devMode guard lives inside produceMessages (AL-25), so an enabled dev worker still
 // writes nothing.
-func (w *Worker) produce(ctx context.Context, qtx *db.Queries, batchID int64, observedAt time.Time, changes []spanChange, departures []departure, narrowings []narrowing, in membershipInputs) error {
+func (w *Worker) produce(ctx context.Context, qtx *db.Queries, batchID int64, observedAt time.Time, changes []spanChange, departures []departure, narrowings []message.NarrowingReceipt, in membershipInputs) error {
 	if !w.produceMsgs {
 		return nil
 	}
@@ -615,7 +615,7 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, res wire.Prob
 		// into `changes` — the estate/drift feed the message producer consumes below.
 		var changes []spanChange
 		var departures []departure
-		var narrowings []narrowing
+		var narrowings []message.NarrowingReceipt
 		if err := foldObservationsIntoSpans(ctx, qtx, batchID, job.VantageID, observedAt, obs, membership, w.changeCollector(&changes)); err != nil {
 			return err
 		}

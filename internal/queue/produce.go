@@ -139,7 +139,7 @@ type departure struct {
 // before any read or write, so a fixture-only install writes no message and enqueues
 // no delivery, and the golden fixtures stay message-free. A batch with no transition
 // is likewise a no-op.
-func produceMessages(ctx context.Context, store messageStore, batchID int64, observedAt time.Time, changes []spanChange, departures []departure, narrowings []narrowing, in membershipInputs, enqueue enqueueFunc, devMode bool) error {
+func produceMessages(ctx context.Context, store messageStore, batchID int64, observedAt time.Time, changes []spanChange, departures []departure, narrowings []message.NarrowingReceipt, in membershipInputs, enqueue enqueueFunc, devMode bool) error {
 	_ = batchID // the message links by fired-at subject key, not the batch id
 	if devMode || (len(changes) == 0 && len(departures) == 0 && len(narrowings) == 0) {
 		return nil
@@ -187,7 +187,7 @@ func insertParams(m *message.Message) db.InsertMessageParams {
 // answers it is deterministic, so the whole producer is driven by a fake store in
 // the unit tests. The flagship leg reads the class-composed internet leg; the
 // membership leg reads only the changes and the declared-input context.
-func buildMessages(ctx context.Context, store messageStore, observedAt time.Time, changes []spanChange, departures []departure, narrowings []narrowing, in membershipInputs) ([]*message.Message, error) {
+func buildMessages(ctx context.Context, store messageStore, observedAt time.Time, changes []spanChange, departures []departure, narrowings []message.NarrowingReceipt, in membershipInputs) ([]*message.Message, error) {
 	var msgs []*message.Message
 
 	flagship, err := flagshipMessages(ctx, store, observedAt, changes)
@@ -215,11 +215,10 @@ func buildMessages(ctx context.Context, store messageStore, observedAt time.Time
 // come. One message per act, not one per subject: the count IS the payload
 // (message.NarrowingReceipt), and a row per withdrawn subject would be the census
 // the receipt exists to replace.
-func narrowingMessages(observedAt time.Time, narrowings []narrowing) []*message.Message {
+func narrowingMessages(observedAt time.Time, narrowings []message.NarrowingReceipt) []*message.Message {
 	var msgs []*message.Message
-	for _, n := range narrowings {
-		r := message.PreviewNarrowing(n.Scope, n.Removed, n.SubjectsWithdrawn, n.TimelinesRemoved)
-		if m := message.Narrowing(r, n.Scope, observedAt); m != nil {
+	for _, r := range narrowings {
+		if m := message.Narrowing(r, r.Scope, observedAt); m != nil {
 			msgs = append(msgs, m)
 		}
 	}
