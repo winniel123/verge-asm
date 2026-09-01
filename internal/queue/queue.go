@@ -32,7 +32,8 @@ const notifyChannel = "queue_job"
 // chunks leaves the tick claimed and the Dispatch under-covering — a re-run hits
 // the (scan, scheduled_time) key and skips, so nothing double-dispatches, and the
 // currency surfaces report the shortfall (#847). The bounded tiers (dns, zone,
-// tls-acceptance, http-identity, ct) keep ADR-0005's single atomic transaction.
+// tls-acceptance, http-identity, ct, edge-fanout) keep ADR-0005's single atomic
+// transaction.
 const chunkCommitSize = 500
 
 // Dispatcher fans a Scan out into queue jobs on its cadence and on demand.
@@ -100,15 +101,17 @@ func (d *Dispatcher) dispatchDue(ctx context.Context) {
 	}
 	for _, s := range scans {
 		switch s.Kind {
-		case scan.DNSKind, scan.ZoneKind, scan.HotKind, scan.ColdKind, scan.TLSAcceptanceKind, scan.CTKind, scan.HTTPIdentityKind, scan.CTTailKind:
+		case scan.DNSKind, scan.ZoneKind, scan.HotKind, scan.ColdKind, scan.TLSAcceptanceKind, scan.CTKind, scan.HTTPIdentityKind, scan.CTTailKind, scan.EdgeFanoutKind:
 			// The dns Scan (worker-probed, per Vantage), the zone Scan
 			// (worker-read, no Vantage), the hot Scan (Custody-gated, per Vantage),
 			// the cold Scan (Custody-gated, opt-in per Seed scope, full range) and
 			// the tls-acceptance Scan (weekly enumeration over the open Service
 			// population, no port list — ADR-0028), the ct Scan (worker-read
 			// crt.sh poll that admits Names without observing, no port list, no
-			// vantage — ADR-0106) and the http-identity Scan (daily HTTP exchange
+			// vantage — ADR-0106), the http-identity Scan (daily HTTP exchange
 			// over the reached Endpoint population, no port list — ADR-0011/ADR-0024)
+			// and the edge-fanout Scan (daily no-SNI handshake over the custody-
+			// extension candidates, no port list, no vantage — ADR-0129 §6)
 			// each fan out on their own cadence.
 			// The cold Scan reaches this switch only while at least one Seed scope has
 			// opted in — that is what flips it enabled and into ListEnabledScans
@@ -204,6 +207,8 @@ func (d *Dispatcher) fanOutAtomic(ctx context.Context, s db.Scan, scheduledTime 
 		enqueued, err = d.fanOutCT(ctx, qtx, s.ID, dispatchID)
 	case scan.CTTailKind:
 		enqueued, err = d.fanOutCTTail(ctx, qtx, s.ID, dispatchID)
+	case scan.EdgeFanoutKind:
+		enqueued, err = d.fanOutEdgeFanout(ctx, qtx, s.ID, dispatchID)
 	default:
 		enqueued, err = d.fanOutDNS(ctx, qtx, s.ID, dispatchID)
 	}

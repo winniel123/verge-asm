@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
+	"github.com/winniel123/verge-asm/internal/measure/edgefanout"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/wire"
 )
@@ -122,5 +123,61 @@ func TestGateLeavesUndenotedDimensionsUngated(t *testing.T) {
 		connectoutcome.Reached, connectoutcome.ConnResult("open"))
 	if got := empty.gate([]wire.Observation{svc}, nil, 2); len(got) != 1 {
 		t.Errorf("empty-denotation scope dropped an observation instead of no-op: %v", subjectsOf(got))
+	}
+}
+
+// The `edge-fanout` leaf's line carries no facet and no subject — it decides membership
+// and opens no timeline — so the gate reads the Address it names instead. An injected
+// address is dropped: a fabricated row would feed the custody-extension veto (#985) an
+// answer nothing measured, and withhold probing of an address the operator never
+// declined.
+func TestGateAdmitsInScopeAndDropsOutOfScopeEdgeFanoutAddresses(t *testing.T) {
+	scope := parseAuthorizedScope([]byte(`{"addresses":["93.184.216.34"]}`))
+
+	inScope := edgefanout.Emit("b1", netip.MustParseAddrPort("93.184.216.34:443"),
+		edgefanout.Result{Outcome: edgefanout.TLSRefused})
+	// A compromised prober naming an edge this job never dispatched.
+	outOfScope := edgefanout.Emit("b1", netip.MustParseAddrPort("104.16.132.229:443"),
+		edgefanout.Result{Outcome: edgefanout.TLSRefused})
+
+	got := scope.gate([]wire.Observation{inScope, outOfScope}, nil, 7)
+	if len(got) != 1 || got[0].Address != "93.184.216.34" {
+		t.Fatalf("gate admitted %d line(s) %v, want the in-scope address alone", len(got), got)
+	}
+}
+
+// A mapped or padded spelling of an authorised address is that same address, so a
+// legitimate line is never dropped over a rendering difference the two sides disagree
+// about.
+func TestGateAdmitsEdgeFanoutAddressUnderNetipNormalisation(t *testing.T) {
+	scope := parseAuthorizedScope([]byte(`{"addresses":["93.184.216.34"]}`))
+	line := wire.Observation{Kind: edgefanout.Kind, Address: "::ffff:93.184.216.34"}
+	if got := scope.gate([]wire.Observation{line}, nil, 7); len(got) != 1 {
+		t.Fatalf("gate dropped the mapped spelling of an authorised address")
+	}
+}
+
+// An edge-fanout line under a scope that denotes NO address is dropped, not admitted.
+// This one arm fails closed where the others fail open: such a line can only come from
+// an edge-fanout job, and one of those always denotes addresses (BuildEdgeFanoutJobs
+// enqueues no job for an empty candidate set), so a line arriving under a dns job's
+// name-only scope is by construction not one that job dispatched.
+func TestGateDropsEdgeFanoutUnderAScopeDenotingNoAddress(t *testing.T) {
+	scope := parseAuthorizedScope([]byte(`{"vantage":"v1","names":["www.example.com"]}`))
+	line := edgefanout.Emit("b1", netip.MustParseAddrPort("104.16.132.229:443"),
+		edgefanout.Result{Outcome: edgefanout.TLSRefused})
+	if got := scope.gate([]wire.Observation{line}, nil, 7); len(got) != 0 {
+		t.Fatalf("gate admitted %v under a name-only scope, want none", got)
+	}
+}
+
+// The gate reads the Address dimension for the edge-fanout kind alone. A facet-less
+// line of any other kind carries no Address relation this scope denotes, so it stays
+// ungated rather than being over-rejected.
+func TestGateLeavesOtherFacetlessKindsUngated(t *testing.T) {
+	scope := parseAuthorizedScope([]byte(`{"addresses":["93.184.216.34"]}`))
+	line := wire.Observation{Kind: "some-later-kind", Address: "104.16.132.229"}
+	if got := scope.gate([]wire.Observation{line}, nil, 7); len(got) != 1 {
+		t.Fatalf("gate dropped a facet-less line of another kind")
 	}
 }

@@ -511,6 +511,18 @@ type Querier interface {
 	// routed pair. Idempotent: re-enqueuing the same pair is a no-op, so the message
 	// identifier the receiver de-duplicates on is stable across retries.
 	InsertDelivery(ctx context.Context, arg InsertDeliveryParams) error
+	// Record one measured candidate edge on its Batch (ADR-0129 §6, #983): the address
+	// measured, the leaf's closed outcome, the served certificate's fingerprint on
+	// `presented` alone, and the handshake instant. One row per measured address.
+	//
+	// It writes no facet value and opens no timeline — this leaf decides membership, so
+	// there is no subject for the `observation` table's four-part key to name. The
+	// certificate DER rides the same Batch into `certificate_material` under the same
+	// fingerprint, so the SAN set the fan-out reduction counts is derived at read (#984)
+	// and never copied here. An address the Scan did not measure carries no row at all:
+	// an absence is never a value, and the missing row is what the veto reads as
+	// *measurement pending* (#985).
+	InsertEdgeFanoutObservation(ctx context.Context, arg InsertEdgeFanoutObservationParams) error
 	// Reads and writes behind the global message panel (#205). A Message is one
 	// firing of one cause, written once at the cause and never recomputed
 	// (CONTEXT.md `Message`, ADR-0064). The store is unconditional — there is no

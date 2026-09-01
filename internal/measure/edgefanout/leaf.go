@@ -69,6 +69,19 @@ const (
 	Unreachable Outcome = "unreachable"
 )
 
+// Valid reports whether o is a member of the closed union. It is what the recording
+// side tests a prober's self-reported outcome against before it persists one: the union
+// is closed here, in the leaf that defines it, and the store's own CHECK holds the same
+// membership, so neither is the only guard.
+func (o Outcome) Valid() bool {
+	switch o {
+	case Presented, TLSRefused, NoTLS, Unreachable:
+		return true
+	default:
+		return false
+	}
+}
+
 // Result is one candidate edge's measurement. The fingerprint and the DER are carried
 // iff the outcome is Presented; every negative carries neither, because a negative is a
 // value in its own right and never a certificate we half-read.

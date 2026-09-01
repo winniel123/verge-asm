@@ -2,19 +2,47 @@ package edgefanout
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/netip"
 
 	co "github.com/winniel123/verge-asm/internal/measure/connectoutcome"
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// edgeValue is the JSON payload of an `edge-fanout` observation: the outcome tag, plus
-// — only on `presented` — the fingerprint of the certificate the edge served. The three
+// Value is the JSON payload of an `edge-fanout` observation: the outcome tag, plus —
+// only on `presented` — the fingerprint of the certificate the edge served. The three
 // negatives carry no fingerprint, because each is a value in its own right and not a
 // half-read certificate.
-type edgeValue struct {
+//
+// It is exported because the recording side reads it back (internal/queue) to persist
+// one row per measured address. Writer and reader share this one declaration, so the
+// wire shape has a single owner and the two cannot drift.
+type Value struct {
 	Outcome     Outcome `json:"outcome"`
 	Fingerprint string  `json:"fingerprint,omitempty"`
+}
+
+// DecodeValue reads an `edge-fanout` observation's payload back. It is the recording
+// side's entry: the prober is re-gated at the boundary (#773), so a malformed or
+// unknown-outcome line is an error the caller drops and logs rather than a row it
+// persists.
+//
+// Two things are refused. An outcome outside the closed union is not a value this leaf
+// can report. A `presented` with no fingerprint is a half-read certificate, and a
+// fingerprint on a negative is a certificate a negative never carries; the leaf emits
+// neither, and the store holds the same pairing as a constraint.
+func DecodeValue(raw json.RawMessage) (Value, error) {
+	var v Value
+	if err := json.Unmarshal(raw, &v); err != nil {
+		return Value{}, fmt.Errorf("edgefanout: decode value: %w", err)
+	}
+	if !v.Outcome.Valid() {
+		return Value{}, fmt.Errorf("edgefanout: outcome %q is outside the closed union", v.Outcome)
+	}
+	if (v.Outcome == Presented) != (v.Fingerprint != "") {
+		return Value{}, fmt.Errorf("edgefanout: outcome %q carries fingerprint %q", v.Outcome, v.Fingerprint)
+	}
+	return v, nil
 }
 
 // Emit renders one candidate edge's measurement into an NDJSON observation.
@@ -38,7 +66,7 @@ func Emit(batch string, target netip.AddrPort, res Result) wire.Observation {
 		Batch:   batch,
 		Kind:    Kind,
 		Address: target.Addr().String(),
-		Data: mustJSON(edgeValue{
+		Data: mustJSON(Value{
 			Outcome:     res.Outcome,
 			Fingerprint: res.Fingerprint,
 		}),

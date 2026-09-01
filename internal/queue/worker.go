@@ -581,6 +581,15 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, res wire.Prob
 				return err
 			}
 		}
+		// Land the measured candidate edges in the `edge-fanout` leaf's own store, in
+		// the same transaction (ADR-0129 §6, #983). That leaf decides MEMBERSHIP and
+		// opens no timeline, so its lines carry no facet and hold no row in the
+		// `observation` table; this is where they are recorded on the Batch by content.
+		// It admits itself on the kind the DISPATCHER enqueued, never on a line's
+		// self-declared kind, so a job of any other kind writes no row here.
+		if err := foldEdgeFanoutObservations(ctx, qtx, job, batchID, tstz(observedAt), obs, w.log); err != nil {
+			return err
+		}
 		// The declared-input context (Seeds, Exclusions) the fold composes membership
 		// against — read once for both the aperture-widened opening marker and the
 		// withdrawal closure below (internal/estate).
