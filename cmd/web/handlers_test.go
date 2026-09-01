@@ -44,13 +44,20 @@ type fakeStore struct {
 	seeds      []db.Seed
 	seedNextID int64
 
-	// The custody-extension census's three reads beyond the seeds (#987): the
-	// current (Name, Address) resolutions, the newest `edge-fanout` measurement per
-	// address, and which Scan kinds have completed a Batch. citedErr poses the read
-	// failure the census must degrade on rather than fabricate a row.
+	// The custody-extension census's reads beyond the seeds (#987): the current
+	// (Name, Address) resolutions, the newest `edge-fanout` measurement per address,
+	// the certificate material those measurements name, and which Scan kinds have
+	// completed a Batch. citedErr poses the read failure the census must degrade on
+	// rather than fabricate a row.
+	//
+	// edgeFanout and certMaterial are the TWO reads ReadEdgeFanout issues since
+	// #1035: a row names its certificate by fingerprint, and the material is keyed by
+	// that fingerprint, one entry per DISTINCT certificate. Pose both through
+	// measuredEdge, so no test names a certificate the store does not hold.
 	cited               []db.NameCitedAddressesRow
 	citedErr            error
 	edgeFanout          []db.ListEdgeFanoutMeasurementsRow
+	certMaterial        map[string][]byte
 	completedBatchKinds map[string]bool
 
 	exclusions []db.Exclusion
@@ -670,9 +677,46 @@ func (f *fakeStore) NameCitedAddresses(context.Context, db.NameCitedAddressesPar
 }
 
 // ListEdgeFanoutMeasurements returns the newest `edge-fanout` measurement per address
-// (#983). The fake holds the rows the test posed, DER and all.
+// (#983). The fake holds the rows the test posed: the outcome, and the FINGERPRINT of
+// the certificate the edge presented. It carries no DER (#1035).
 func (f *fakeStore) ListEdgeFanoutMeasurements(context.Context) ([]db.ListEdgeFanoutMeasurementsRow, error) {
 	return f.edgeFanout, nil
+}
+
+// ListCertificateMaterialDER returns the leaf DER of each named certificate, ONE ROW
+// PER DISTINCT fingerprint (#1035). It mirrors the SQL's `fingerprint = ANY(...)`: a
+// fingerprint the store holds no material for returns no row, and the caller reduces
+// that to a fan-out of zero rather than to measurement pending.
+func (f *fakeStore) ListCertificateMaterialDER(_ context.Context, fingerprints []string) ([]db.ListCertificateMaterialDERRow, error) {
+	out := []db.ListCertificateMaterialDERRow{}
+	for _, fp := range fingerprints {
+		if der, held := f.certMaterial[fp]; held {
+			out = append(out, db.ListCertificateMaterialDERRow{Fingerprint: fp, Der: der})
+		}
+	}
+	return out, nil
+}
+
+// measuredEdge poses one stored `edge-fanout` measurement across BOTH reads: the newest
+// row for the address, naming its certificate by fingerprint, and the material that
+// fingerprint keys. Two calls carrying the same DER share one fingerprint and one
+// material entry, which is the shared-edge shape.
+//
+// A nil DER poses a row with NO fingerprint, which is what each of the three negative
+// outcomes stores. The fingerprint is minted the way the leaf mints the side store's
+// key (edgefanout.presentedMaterial), so a fixture cannot name a certificate under a
+// key production would never write.
+func (f *fakeStore) measuredEdge(addr, outcome string, der []byte) {
+	row := db.ListEdgeFanoutMeasurementsRow{Address: addr, Outcome: outcome}
+	if len(der) > 0 {
+		fingerprint := connectoutcome.Fingerprint(der)
+		row.Fingerprint = pgtype.Text{String: fingerprint, Valid: true}
+		if f.certMaterial == nil {
+			f.certMaterial = map[string][]byte{}
+		}
+		f.certMaterial[fingerprint] = der
+	}
+	f.edgeFanout = append(f.edgeFanout, row)
 }
 
 // ScanHasCompletedBatch reports whether a Batch of the given Scan kind has ever

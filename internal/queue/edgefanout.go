@@ -229,6 +229,7 @@ func pgTextOrNull(s string) pgtype.Text {
 type EdgeFanoutStore interface {
 	GetScanByKind(ctx context.Context, kind string) (db.Scan, error)
 	ListEdgeFanoutMeasurements(ctx context.Context) ([]db.ListEdgeFanoutMeasurementsRow, error)
+	ListCertificateMaterialDER(ctx context.Context, fingerprints []string) ([]db.ListCertificateMaterialDERRow, error)
 	ScanHasCompletedBatch(ctx context.Context, kind string) (bool, error)
 }
 
@@ -237,17 +238,22 @@ type EdgeFanoutStore interface {
 // leaf's store to the derivation: every caller that assembles a custody.Estate reaches
 // the stored rows through here, so no second reader can apply a different absence rule.
 //
-// Three reads, in this order:
+// Four reads, in this order:
 //
 //   - The Scan row. The measurement narrows the reach only where the Scan is IN FORCE.
 //     A disabled Scan, and a Scan row that is absent altogether — an install whose
 //     migrations predate #983 — both yield the zero custody.EdgeFanout, which reaches
 //     every direct-A target exactly as the extension did before ADR-0129. That is half
 //     of the fourth absence case.
-//   - The measurements. Each address is keyed to the boolean custody.SharedEdge
-//     computes over the SAN set of the certificate the edge served. An address with no
-//     row gets NO KEY, which is what the derivation reads as *measurement pending* and
-//     holds.
+//   - The measurements. One row per measured address, carrying the outcome and the
+//     FINGERPRINT of the certificate the edge presented. An address with no row gets NO
+//     KEY, which is what the derivation reads as *measurement pending* and holds.
+//   - The certificate material, over the DISTINCT fingerprints those rows name, and
+//     SKIPPED where they name none (readEdgeFanoutMaterial). This read is #1035. The
+//     measurement read used to carry the DER itself, through a join on the fingerprint,
+//     so a shared CDN edge behind 5000 addresses pulled one certificate 5000 times and
+//     the reduction parsed it 5000 times. #1014 measured that. One certificate now
+//     crosses the wire once and is parsed once, whatever number of addresses present it.
 //   - Whether a Batch of this Scan has ever completed. That read is the fourth case's
 //     other half — the ERRORED Scan — and it is carried out to the assembler rather
 //     than resolved here: the floor is PER LIMB since #1018, and the question *did the
@@ -262,7 +268,9 @@ type EdgeFanoutStore interface {
 // A read that FAILS returns the error rather than an open reach. A failed read is not a
 // decision: it is the dispatch failing, and the tick retries. Opening the reach on a
 // transient database error would widen the estate on the one signal that says nothing
-// was measured.
+// was measured. THE MATERIAL READ IS NO EXCEPTION. A failure there is a failure to read
+// the certificates, not a finding that those edges present no identity, and reading it
+// as the latter would reach every measured address at once, silently.
 func ReadEdgeFanout(ctx context.Context, q EdgeFanoutStore) (custody.EdgeFanout, error) {
 	s, err := q.GetScanByKind(ctx, scan.EdgeFanoutKind)
 	if err != nil {
@@ -278,11 +286,66 @@ func ReadEdgeFanout(ctx context.Context, q EdgeFanoutStore) (custody.EdgeFanout,
 	if err != nil {
 		return custody.EdgeFanout{}, err
 	}
+	material, err := readEdgeFanoutMaterial(ctx, q, rows)
+	if err != nil {
+		return custody.EdgeFanout{}, err
+	}
 	completed, err := q.ScanHasCompletedBatch(ctx, scan.EdgeFanoutKind)
 	if err != nil {
 		return custody.EdgeFanout{}, err
 	}
-	return toEdgeFanout(completed, rows), nil
+	return toEdgeFanout(completed, rows, material), nil
+}
+
+// readEdgeFanoutMaterial reads the leaf DER of every certificate the measurements name,
+// keyed by fingerprint, ONE ROW PER DISTINCT CERTIFICATE (#1035).
+//
+// It SKIPS the read where the rows name no fingerprint at all. That is the whole state
+// of an install the Scan has not run for, and of one measuring nothing but negatives,
+// so the common empty case costs no round trip.
+//
+// A fingerprint the store holds no material for is simply ABSENT from the map. The
+// caller reduces an absent DER to no names, which is measured-and-not-shared. It is a
+// different absence from the missing measurement row, which is *measurement pending*.
+func readEdgeFanoutMaterial(ctx context.Context, q EdgeFanoutStore, rows []db.ListEdgeFanoutMeasurementsRow) (map[string][]byte, error) {
+	fingerprints := edgeFanoutFingerprints(rows)
+	if len(fingerprints) == 0 {
+		return nil, nil
+	}
+	material, err := q.ListCertificateMaterialDER(ctx, fingerprints)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string][]byte, len(material))
+	for _, m := range material {
+		out[m.Fingerprint] = m.Der
+	}
+	return out, nil
+}
+
+// edgeFanoutFingerprints collects the DISTINCT fingerprints the measurements name, in
+// first-seen order. It is the pure half of the material read, so the de-duplication is
+// tested without a database.
+//
+// A NULL fingerprint contributes nothing. The three negative outcomes each carry one:
+// each measured its address and found no identity there, so there is no certificate to
+// read and the row still reduces to a value. The empty string is dropped for the same
+// reason — the writer stores an absent fingerprint as NULL (pgTextOrNull), and neither
+// spelling names a certificate `certificate_material` could hold.
+func edgeFanoutFingerprints(rows []db.ListEdgeFanoutMeasurementsRow) []string {
+	seen := make(map[string]struct{}, len(rows))
+	out := make([]string, 0, len(rows))
+	for _, r := range rows {
+		if !r.Fingerprint.Valid || r.Fingerprint.String == "" {
+			continue
+		}
+		if _, dup := seen[r.Fingerprint.String]; dup {
+			continue
+		}
+		seen[r.Fingerprint.String] = struct{}{}
+		out = append(out, r.Fingerprint.String)
+	}
+	return out
 }
 
 // toEdgeFanout reduces the stored measurements to the derivation's input. It is the
@@ -291,6 +354,21 @@ func ReadEdgeFanout(ctx context.Context, q EdgeFanoutStore) (custody.EdgeFanout,
 // Every returned key is an address the Scan MEASURED, and its value is the boolean
 // custody.SharedEdge computes over the SAN set the edge served. An address with no row
 // gets no key, and that missing key is what the derivation holds on.
+//
+// THE VERDICT IS DERIVED ONCE PER DISTINCT FINGERPRINT, then keyed per address (#1035).
+// `material` holds one DER per certificate rather than one per row, and `verdict`
+// memoises the parse and the Public Suffix List reduction over it. The shared CDN edge
+// is the shape this exists for: it is the expensive certificate — hundreds of SANs —
+// and it is the one many addresses share, so the old per-address parse walked the whole
+// reduction again for every address behind the same edge. The verdict itself does not
+// move: the same SAN set reaches the same custody.SharedEdge over the same shipped
+// threshold.
+//
+// A `presented` row whose fingerprint is NULL, and one whose fingerprint the store
+// holds no material for, both read an absent DER and reduce to a fan-out of zero. Both
+// are MEASURED AND NOT SHARED, never pending — edgeFanoutSANs states why that is the
+// direction ADR-0129 §2 accepts. Both key the memo on the empty or missing fingerprint,
+// so each is derived once as well.
 //
 // THE ERRORED FLOOR IS NOT DECIDED HERE. completed is carried out on the record
 // (custody.EdgeFanout.BatchCompleted) and custody.Estate.WithEdgeFanout resolves the
@@ -323,8 +401,9 @@ func ReadEdgeFanout(ctx context.Context, q EdgeFanoutStore) (custody.EdgeFanout,
 // in force with a map of declared addresses in it; those keys reach no gate, because
 // the veto reads the extension limb alone (custody.EdgeFanout). An install with NEITHER
 // limb records nothing and holds no candidate, so its floor is moot.
-func toEdgeFanout(completed bool, rows []db.ListEdgeFanoutMeasurementsRow) custody.EdgeFanout {
+func toEdgeFanout(completed bool, rows []db.ListEdgeFanoutMeasurementsRow, material map[string][]byte) custody.EdgeFanout {
 	shared := make(map[netip.Addr]bool, len(rows))
+	verdict := make(map[string]bool, len(material))
 	for _, r := range rows {
 		addr, err := netip.ParseAddr(r.Address)
 		if err != nil {
@@ -337,11 +416,20 @@ func toEdgeFanout(completed bool, rows []db.ListEdgeFanoutMeasurementsRow) custo
 		// Only a `presented` handshake can hold identities. The three negatives each
 		// measured the address and found none there, which reduces to a fan-out of zero
 		// — measured and not-shared, never pending.
-		var sans []string
+		var edge bool
 		if r.Outcome == string(edgefanout.Presented) {
-			sans = edgeFanoutSANs(r.Der)
+			var fingerprint string
+			if r.Fingerprint.Valid {
+				fingerprint = r.Fingerprint.String
+			}
+			v, derived := verdict[fingerprint]
+			if !derived {
+				v = custody.SharedEdge(edgeFanoutSANs(material[fingerprint]))
+				verdict[fingerprint] = v
+			}
+			edge = v
 		}
-		shared[addr.Unmap()] = custody.SharedEdge(sans)
+		shared[addr.Unmap()] = edge
 	}
 	return custody.EdgeFanout{Enabled: true, BatchCompleted: completed, Shared: shared}
 }
@@ -353,6 +441,10 @@ func toEdgeFanout(completed bool, rows []db.ListEdgeFanoutMeasurementsRow) custo
 // It reads the dNSName SANs ALONE and folds in no subject common name. A CN is not a
 // SAN, a modern certificate repeats it among them anyway, and a legacy CN-only
 // certificate names one identity and could never reach the threshold on its own.
+//
+// It is called ONCE PER DISTINCT FINGERPRINT since #1035, where it was called once per
+// measured address before. Its behaviour does not move: the same DER yields the same
+// names, so the memo above it changes the cost and not the verdict.
 //
 // An absent or undecodable DER yields no names, so the edge reduces to a fan-out of
 // zero and is reached. A `presented` row whose material never landed — a handshake that
