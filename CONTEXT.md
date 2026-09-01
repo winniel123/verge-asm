@@ -1757,6 +1757,25 @@ elsewhere and not by this entry — see
 [ADR-0039](./docs/adr/0039-a-channel-carries-the-message-never-the-estate-and-a-delivery-is-an-operational-record.md).
 _Avoid_: alert, notification, event, finding, incident, ticket
 
+**Narrowing receipt**:
+The count a narrowing act states: the subjects it withdraws, and the timelines those subjects
+take out of the estate. One term serves **two instants** — the preview shown before the operator
+commits, and the payload of the coverage-class `Message` that fires at the scope once the
+withdrawal lands. It is a **measurement at its own instant and never a promise about a later
+one**. The estate moves between the two, and a withdrawal lands on the next completed job rather
+than at the act, so the two counts may disagree and **neither is wrong**. Reading a divergence as
+an error is the mistake this entry exists to prevent. It is owed **only where the withdrawn set
+is inhabited**: where nothing leaves, no receipt is owed at either instant, because a preview for
+a message that will not fire is a promise the widening side never has to make good on. It states
+its count with the **factors** that produced it rather than as a bare product, and carries **no
+valence word** — a narrowing is neither good news nor bad. It names the loss in the same breath:
+a listener answering inside the withdrawn ground after the act is not seen, and no later message
+recovers it. See
+[ADR-0074](./docs/adr/0074-an-aperture-narrowing-that-takes-its-carrier-with-it-fires-at-the-scope.md)
+and
+[ADR-0134](./docs/adr/0134-a-seed-withdrawal-is-recorded-by-a-tombstone-because-the-mover-does-not-survive-the-act.md).
+_Avoid_: confirmation, warning, impact analysis, dry run, estimate, projection
+
 **Delivery**:
 One `Channel`'s attempt to carry one `Message`, holding the attempt count and the outcome.
 Operational, on `Dispatch`'s terms. Retries on a bounded, project-authored budget and is then
