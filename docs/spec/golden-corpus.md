@@ -1,7 +1,7 @@
 # The golden corpus: the membership pin block, and the CI matrix that runs it
 
 - **Status:** Accepted — spec content for [#12](https://github.com/winniel123/verge-asm/issues/12)
-- **Ticket:** [#143 `resolution-walk`'s golden corpus owes rows pinning the membership-deciding outcomes](https://github.com/winniel123/verge-asm/issues/143). §8 by [#146 Is `wildcard-discrimination` in the membership vector?](https://github.com/winniel123/verge-asm/issues/146). §9 by [#177 Specify ADR-0021's uncovered move — form, home, and what counts as one](https://github.com/winniel123/verge-asm/issues/177)
+- **Ticket:** [#143 `resolution-walk`'s golden corpus owes rows pinning the membership-deciding outcomes](https://github.com/winniel123/verge-asm/issues/143). §8 by [#146 Is `wildcard-discrimination` in the membership vector?](https://github.com/winniel123/verge-asm/issues/146). §9 by [#177 Specify ADR-0021's uncovered move — form, home, and what counts as one](https://github.com/winniel123/verge-asm/issues/177). §10 by [#986 The `Custody` golden corpus and its A6 gate](https://github.com/winniel123/verge-asm/issues/986)
 - **Rulings:** [ADR-0085](../adr/0085-an-obligation-with-no-failing-test-has-no-owner-and-a-boundary-needs-a-row-on-each-side.md) (this file's rules), [ADR-0086](../adr/0086-membership-composes-every-leaf-that-decides-the-value-it-reads.md) (the membership vector, and §8), [ADR-0021](../adr/0021-a-version-leaf-is-a-decision-not-a-binary.md) (the corpus, the gate, and — by its [#177 annotation](../adr/0021-a-version-leaf-is-a-decision-not-a-binary.md#annotation--177-2026-08-15-the-uncovered-move-is-given-form) — §9's register), [ADR-0041](../adr/0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md) (the obligation), [`packaging-and-configuration.md`](./packaging-and-configuration.md) §1 (the architecture rule)
 
 This is a separate file from the ADR that rules it. It follows
@@ -35,7 +35,14 @@ An implementation session writes them.
 
 It named the
 obligation and gave it nobody to fail on. This file is the owner. It is a checked-in enumeration of
-**46 cells**, plus the matrix the rows run on. Each cell must hold a corpus row, counted by CI.
+**46 membership cells** (§2 and §8), plus the matrix the rows run on. Each cell must hold a corpus
+row, counted by CI.
+
+**§10 is a third block against a different obligation.** Its **6 cells** pin the `Custody`
+derivation, which is not a membership leaf and composes into no `Span`. It is here because the gate
+and the matrix are here, and it discharges [ADR-0008](../adr/0008-derivation-versions-move-on-content.md)'s
+rule — *a declared parameter is pinned by a corpus row whose output the value decides* — rather than
+ADR-0041's. Read the two obligations apart: **46 + 6 is not a membership count.**
 
 ~~a checked-in enumeration of **27 cells** ... and **17 further cells held in escrow** against a
 routing question this ticket may not answer (§7)~~ is **superseded here, at the site that specifies
@@ -74,6 +81,11 @@ The `Seed`-covered `Address` composes **nothing at all** — a `Seed` is Declare
 vector — so that population's membership timeline cannot break. It is out of the block because it
 needs no protection, and that is a property to preserve rather than an accident
 ([ADR-0047](../adr/0047-an-address-scope-is-its-own-enumeration.md)).
+
+**This section is about the membership obligation and nothing else.** §10's `Custody` block is not a
+membership leaf and does not amend the table above; it discharges
+[ADR-0008](../adr/0008-derivation-versions-move-on-content.md)'s declared-parameter rule instead.
+§10.1 states the difference.
 
 ---
 
@@ -203,8 +215,8 @@ Three notes that will otherwise be re-derived:
 | A2 | **Expectation** — each leg's output equals the **one shared** expected-output artefact | Every leg | ADR-0021's gate, first direction: *output moved and the version did not → fail* |
 | A3 | **Cross-architecture identity** — legs 1 and 2 agree | Legs 1, 2 | A2 gives it by transitivity; it is asserted separately so the failure reads *architecture divergence* rather than *row 47 moved* |
 | A4 | **Contraction differential** — leg 3 equals leg 1 | Leg 3 | The only check in the repository that a declared parameter's fraction was actually evaluated in exact integer arithmetic. A difference names the fraction that escaped |
-| A5 | **Coverage** — every cell of §2 **and of §8** holds at least one row | Once | This is what gives the obligation an owner. A missing cell fails the build and the failure **names the cell** |
-| A6 | **Gate direction 2** — on `resolution-walk` **and on `wildcard-discrimination`**, a version bump with no moved pin row, no changed declared parameter and no recorded uncovered move fails | Once | ADR-0021's second direction, now with the evidence that lets it fire. This is the assertion that protects `returned`. *"Recorded uncovered move"* means a row in **§9** whose `Leaf` and `Bumped to` match the bump under test — form and validity rule at [ADR-0021's #177 annotation](../adr/0021-a-version-leaf-is-a-decision-not-a-binary.md#annotation--177-2026-08-15-the-uncovered-move-is-given-form) |
+| A5 | **Coverage** — every cell of §2, **of §8 and of §10** holds at least one row | Once | This is what gives the obligation an owner. A missing cell fails the build and the failure **names the cell** |
+| A6 | **Gate direction 2** — on `resolution-walk`, on `wildcard-discrimination` **and on the `Custody` derivation (§10)**, a version bump with no moved pin row, no changed declared parameter and no recorded uncovered move fails | Once | ADR-0021's second direction, now with the evidence that lets it fire. This is the assertion that protects `returned`. *"Recorded uncovered move"* means a row in **§9** whose `Leaf` and `Bumped to` match the bump under test — form and validity rule at [ADR-0021's #177 annotation](../adr/0021-a-version-leaf-is-a-decision-not-a-binary.md#annotation--177-2026-08-15-the-uncovered-move-is-given-form) |
 
 **There is no per-architecture expected output, ever.** An `arm64` golden file is the divergence
 #124 exists to prevent, written down and blessed. It is the first repair a session will attempt
@@ -239,7 +251,7 @@ way to be sure it is covered.
 | --- | --- |
 | **Owes** | **The release**, per [ADR-0041](../adr/0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md) §*What the release owes* — unchanged |
 | **Owns** | **§2's and §8's enumerations**, checked in as data. An obligation with no failing test has no owner. **§9's register** owns ADR-0021's uncovered-move escape hatch the same way |
-| **Enforces** | **A5** (a cell with no row fails, naming the cell) and **A6** (an unjustified bump on **either** membership leaf fails, tested against that leaf's own block, with §9 as A6's third limb) |
+| **Enforces** | **A5** (a cell with no row fails, naming the cell) and **A6** (an unjustified bump on **either** membership leaf, or on the `Custody` derivation, fails — tested against that leaf's own block, with §9 as A6's third limb) |
 | **Renders on failure** | The row's **claim**, the old output and the new one — ADR-0021's judgeability property, unchanged |
 | **Undischarged** | ~~The `Shadowed` outcome — **§7**, and it has no owner until the routing question is answered~~ — **nothing.** All five of ADR-0041's outcomes are discharged, across two blocks against two leaves ([ADR-0086](../adr/0086-membership-composes-every-leaf-that-decides-the-value-it-reads.md)). Superseded here, at the site that specifies it |
 
@@ -515,10 +527,15 @@ session edits when adding a row.
 
 ### 9.3 What consumes it, today
 
-Only [§3.2](#32-the-assertions-in-the-order-they-fail)'s **A6**, and only for `resolution-walk` and
-`wildcard-discrimination` — the two leaves whose corpus and CI matrix this file specifies. A row for
-one of the other four leaves is legal, checked-in data with no consumer yet, on the same ground ADR-0021
-already used for `datagram-outcome`: specified, and not yet load-bearing.
+Only [§3.2](#32-the-assertions-in-the-order-they-fail)'s **A6**, and only for `resolution-walk`,
+`wildcard-discrimination` and `custody` — the leaves whose corpus and CI matrix this file specifies.
+A row for one of the other four leaves is legal, checked-in data with no consumer yet, on the same
+ground ADR-0021 already used for `datagram-outcome`: specified, and not yet load-bearing.
+
+**`custody` is a legal value of the `Leaf` field**, added by §10. It is not one of ADR-0021's six
+measurement leaves; it is [ADR-0008](../adr/0008-derivation-versions-move-on-content.md)'s name for
+the `Custody` derivation's version, and §10's lock carries it. Everything in §9.1 and §9.2 governs
+such a row unchanged.
 
 ### 9.4 The register
 
@@ -528,3 +545,116 @@ never by an edit to one already here.
 | Leaf | Bumped to | Input class | Ticket | Date |
 | --- | --- | --- | --- | --- |
 | *(none recorded)* | — | — | — | — |
+
+---
+
+## 10. The `Custody` block — 6 cells
+
+- **Ticket:** [#986](https://github.com/winniel123/verge-asm/issues/986), under the
+  [ADR-0129](../adr/0129-a-shared-foreign-edge-is-measured-by-fan-out-not-read-from-a-list.md) map
+  [#981](https://github.com/winniel123/verge-asm/issues/981)
+- **Ruled by** [ADR-0008](../adr/0008-derivation-versions-move-on-content.md) (a declared parameter is
+  pinned by a corpus row whose output the value decides), ADR-0129 §3 and its
+  [#955](https://github.com/winniel123/verge-asm/issues/955) and
+  [#956](https://github.com/winniel123/verge-asm/issues/956) amendments
+- **Lives at** `internal/custody/corpus/` — rows, script, harness, `corpus.lock.json`, `testdata/`
+
+### 10.1 What this block is not
+
+It is **not a membership block.** The `Custody` derivation composes into no `Span`, so ADR-0041's
+estate-wide `Break` — the failure §0 exists to prevent — cannot arrive through it. §1's rule stands
+unamended: a `Seed`-covered `Address` composes nothing at all, and it is out of the **membership**
+block because it needs no protection there.
+
+What brings `Custody` here instead is ADR-0008. ADR-0129 §3 puts a **project-authored number inside
+the derivation** — the fan-out threshold, `custody.SharedEdgeThreshold`, fixed at 100 and never
+operator-configurable — and ADR-0008 pins such a number by a corpus row whose output the value
+decides. That is a different obligation with the same instrument, so it gets its own block and its
+own lock, and the two are **never pooled**: a break in the fan-out boundary moves THIS digest and
+bumps `custody/v1`, never `resolution-walk`'s.
+
+The block also holds a row a `Seed`-covered address appears in. That is not §1 reversed. The row
+pins that the veto does **not** reach the declaration, which is a fact about the derivation and not
+about a membership timeline.
+
+### 10.2 The cells
+
+| Cell | Claim the row pins |
+| --- | --- |
+| `C1/below-threshold-reached` | An Observed SAN set reducing to **99** distinct registrable domains derives `not-shared`. The custody extension **reaches** the edge, it derives `operator`, and the probing gate opens |
+| `C1/at-threshold-vetoed` | An Observed SAN set reducing to **100** derives `shared`. The extension **declines** the reach, the address derives `third-party`, and the gate is shut |
+| `C2/seed-covered-at-threshold-operator` | A **`Seed`-covered** address whose SAN set reduces to at least 100 derives `operator` and is **reached**. The veto and the declaration are disjoint limbs, never ranked |
+| `C2/seed-covered-stays-a-candidate` | That same address is still an `edge-fanout` candidate. The population reads the **pre-veto** reach, so a later handshake can lift a veto |
+| `C3/pending-held` | An in-force `Scan` that has measured nothing **holds** the reach — neither reaching nor declining. Absence is hold-then-open |
+| `C3/scan-not-in-force-reaches` | A `Scan` that is disabled or errored **reaches** the address even with a shared measurement on record. That is the pre-ADR-0129 behaviour and the zero value |
+
+**Six is the length of a list, not a target**, on §2.5's rule. It moves when a cell is added or
+retired.
+
+`C1` is ADR-0085's boundary rule in force: two rows, one on each side, authored as a pair and failing
+as a pair. `C2` is the guard ADR-0129's #956 amendment asks for and is the strongest one the map
+leaves behind — a session that "repairs" the apparent inconsistency by making the veto global fails
+this gate at once, on a named row. `C3` exists because every other row carries a measurement, so none
+of them would move if a session flipped the hold to a reach.
+
+### 10.3 The row shape, and where the threshold enters
+
+A row is an `(estate, observed SAN set per address, expected NDJSON)` tuple, rendered hermetically
+through `custody.Estate`. **No network, no database, no containers** — the estate is in-process data.
+
+Each rendered line carries the whole path, from the measurement in to the gate out: the fan-out
+count, the `shared-edge` verdict, whether the address is an `edge-fanout` candidate, whether a
+declared address scope covers it, the derived `Custody`, and whether the probing gate opens from an
+`internet`-class Vantage. A row therefore fails on the path rather than on one boolean.
+
+Two authoring rules carry the whole value of the block:
+
+- **The verdict is computed at render time, never written into the row.** A row declares a SAN set;
+  `custody.SharedEdge` — reading the shipped `const` alone — decides which side of the boundary it
+  lands on. That is what puts the threshold inside the corpus digest.
+- **The boundary counts are absolute integers**, deliberately not `SharedEdgeThreshold` and
+  `SharedEdgeThreshold - 1`. Written relative to the constant they would follow a move and keep
+  straddling it, pinning the boundary's *shape* and never its *position*. Written absolutely, a move
+  to 99 flips the first row's verdict, its golden and the digest at once.
+
+The SAN fixtures reduce under `.invalid`, which RFC 2606 reserves and delegates to nobody, so the
+corpus reaches no real estate and no PSL entry can be registered under it. Each set also carries a
+wildcard SAN over an already-counted domain and one `iPAddress` SAN, both of which raise the count by
+zero — the row is a claim about the **reduction**, not about a list length.
+
+### 10.4 What A6 tests on this block
+
+`custody.Version` (`custody/v1`) is the derivation's version leaf. The lock binds it to the corpus
+digest and to the declared-parameter digest — the threshold and the Public Suffix List's own revision
+string, which ADR-0129's [#954](https://github.com/winniel123/verge-asm/issues/954) amendment makes
+the same kind of input as the threshold.
+
+A threshold move with no version bump fails in **three** places, and
+`TestThresholdMoveFailsTheGate` proves each:
+
+1. The **params digest** moves, so `TestCorpusLock` fails — this limb fires even where no row's
+   output happened to cross the boundary.
+2. The **corpus digest** moves, because the 99 row's rendered verdict, `Custody` and gate all flip.
+3. `TestFixtureStraddlesTheThreshold` fails first and by name, telling the session it owes a
+   `custody.Version` bump and a re-bless.
+
+The other direction — a bump with nothing else moved — is CI's `corpus-version-gate` job, which reads
+this lock beside `resolution-walk`'s. **A6 is evaluated per lock.** The blocks are never pooled.
+
+An **operator act moves this version not at all.** Declaring an address scope satisfies the reach; it
+does not change what the derivation computes. Every input to the version is a `const` or a
+dependency, so no install can move a `Custody` version without a release — which is ADR-0129 §3 and
+the [#55](https://github.com/winniel123/verge-asm/issues/55) constraint in force.
+
+### 10.5 Where §10 is thin
+
+- **`custody/v1` composes into no `drift` component vector.** The measure leaves are in that vector
+  because a `Span` reads their outcomes. Whether `Custody` joins it has an estate-wide `Break` on the
+  other side of it, and #986 did not take that decision. Today the constant does one job: it names
+  the derivation the lock binds.
+- **The block pins the derivation, never the store.** Whether the `edge-fanout` `Scan` recorded the
+  right rows in the first place is `internal/queue`'s and the leaf's, pinned by their own tests. A
+  row here starts from an estate already assembled.
+- **Legs 3's contraction differential (A4) tests nothing here.** The threshold is an absolute integer
+  and the reduction is a set count, so this block evaluates no fraction. It runs on every leg anyway,
+  under §3.3's *running everything on everything*.

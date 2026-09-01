@@ -1,0 +1,6 @@
+{
+  "leaf_version": "custody/v1",
+  "corpus_digest": "sha256:f386c7ed4f5ca33c7c7ca5adb67c1faa65f488f7172a83720721bf78054232a4",
+  "params_digest": "sha256:7fb605fd74b57dafe74b433af2a36ef1ae0f0373d51dcf9b5a6be365dce10bea",
+  "uncovered_moves": null
+}

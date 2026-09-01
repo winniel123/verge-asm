@@ -64,11 +64,12 @@ jobs:
       - run: sqlc generate
       - run: git diff --exit-code -- internal/db
 
-  # The golden corpus (golden-corpus.md §3): the resolution-walk leaf's pinning
-  # rows, run hermetically (no network, no containers) against every matrix
-  # architecture. Legs 1 and 2 are the architectures; leg 3 (GOAMD64=v3) is the
-  # contraction differential and ships no artefact. A2 (expectation) and the
-  # lock gate run inside `go test`; A5 (coverage) names any unpinned cell.
+  # The golden corpus (golden-corpus.md §3): the measure leaves' pinning rows and
+  # the `Custody` derivation's (§10), run hermetically (no network, no
+  # containers) against every matrix architecture. Legs 1 and 2 are the
+  # architectures; leg 3 (GOAMD64=v3) is the contraction differential and ships
+  # no artefact. A2 (expectation) and the lock gate run inside `go test`; A5
+  # (coverage) names any unpinned cell.
   golden-corpus:
     strategy:
       fail-fast: false
@@ -90,12 +91,13 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version: ${{ env.GO_VERSION }}
-      - run: go test ./internal/measure/...
+      - run: go test ./internal/measure/... ./internal/custody/...
 
-  # A6, gate direction 2 (golden-corpus.md §3.2): a leaf version bump with no
-  # moved corpus digest, no changed declared-parameter digest and no new
+  # A6, gate direction 2 (golden-corpus.md §3.2): a version bump with no moved
+  # corpus digest, no changed declared-parameter digest and no new
   # uncovered-move row fails. Evaluated against the PR base, since "the version
-  # moved and nothing else did" is only visible across commits.
+  # moved and nothing else did" is only visible across commits. It runs over
+  # every lock named below, and every lock fails on its own name.
   corpus-version-gate:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -103,27 +105,49 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-      - name: refuse an unjustified leaf-version bump
+      - name: refuse an unjustified version bump
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          lock=internal/measure/resolutionwalk/corpus/corpus.lock.json
-          base=$(git show "$BASE_SHA:$lock" 2>/dev/null || echo '{}')
-          head=$(cat "$lock")
+          # The locks A6 is evaluated against — the three blocks
+          # golden-corpus.md specifies, and no others. `resolution-walk` (§2)
+          # and `wildcard-discrimination` (§8) are the two membership leaves
+          # §3.2's A6 row names; `custody` (§10) is the `Custody` derivation,
+          # whose lock pins the fan-out threshold ADR-0129 §3 makes a Break.
+          #
+          # The other four measure corpora hold locks that §3.2 does not name,
+          # so they are deliberately absent. Widening A6 onto them is a decision
+          # golden-corpus.md takes first.
+          #
+          # A6 is evaluated PER LOCK: a bump of one is tested against that one's
+          # own block, and the blocks are never pooled. Every failing lock is
+          # reported before the step exits, so one run names them all.
+          locks="internal/measure/resolutionwalk/corpus/corpus.lock.json
+          internal/measure/wildcarddiscrim/corpus/corpus.lock.json
+          internal/custody/corpus/corpus.lock.json"
           field() { echo "$1" | jq -r "$2"; }
-          bv=$(field "$base" '.leaf_version // ""')
-          hv=$(field "$head" '.leaf_version // ""')
-          bc=$(field "$base" '.corpus_digest // ""')
-          hc=$(field "$head" '.corpus_digest // ""')
-          bp=$(field "$base" '.params_digest // ""')
-          hp=$(field "$head" '.params_digest // ""')
-          bm=$(field "$base" '(.uncovered_moves // []) | length')
-          hm=$(field "$head" '(.uncovered_moves // []) | length')
-          if [ "$hv" != "$bv" ] && [ "$hc" = "$bc" ] && [ "$hp" = "$bp" ] && [ "$hm" = "$bm" ]; then
-            echo "leaf version moved $bv -> $hv with no moved corpus row, no changed"
-            echo "declared parameter and no new uncovered-move row. Refused (ADR-0021)."
-            exit 1
-          fi
+          refused=0
+          for lock in $locks; do
+            base=$(git show "$BASE_SHA:$lock" 2>/dev/null || echo '{}')
+            # A lock absent at HEAD reads as `{}` rather than aborting the step
+            # on `cat`, so a rename or removal still lets the remaining locks be
+            # evaluated and reported.
+            head=$(cat "$lock" 2>/dev/null || echo '{}')
+            bv=$(field "$base" '.leaf_version // ""')
+            hv=$(field "$head" '.leaf_version // ""')
+            bc=$(field "$base" '.corpus_digest // ""')
+            hc=$(field "$head" '.corpus_digest // ""')
+            bp=$(field "$base" '.params_digest // ""')
+            hp=$(field "$head" '.params_digest // ""')
+            bm=$(field "$base" '(.uncovered_moves // []) | length')
+            hm=$(field "$head" '(.uncovered_moves // []) | length')
+            if [ "$hv" != "$bv" ] && [ "$hc" = "$bc" ] && [ "$hp" = "$bp" ] && [ "$hm" = "$bm" ]; then
+              echo "$lock: version moved $bv -> $hv with no moved corpus row, no changed"
+              echo "declared parameter and no new uncovered-move row. Refused (ADR-0021)."
+              refused=1
+            fi
+          done
+          [ "$refused" = 0 ] || exit 1
           echo "version gate ok"
 
   compose:

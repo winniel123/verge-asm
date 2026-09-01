@@ -1,0 +1,2 @@
+{"address":"104.16.132.10","measured":true,"fanout":100,"shared_edge":true,"extension_candidate":true,"address_scope_covered":true,"custody":"operator","may_probe_internet":true}
+{"address":"23.20.0.10","measured":true,"fanout":100,"shared_edge":true,"extension_candidate":true,"address_scope_covered":false,"custody":"third-party","may_probe_internet":false}
