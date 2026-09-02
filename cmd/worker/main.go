@@ -82,7 +82,14 @@ func main() {
 	ctVersion := env.OrDefault("VERGE_VERSION", "dev")
 	ctFetcher, ctThrottle, ctSource := selectCTSource(env.OrDefault("VERGE_CERTSPOTTER_TOKEN", ""), ctVersion, db.New(pool))
 
-	dispatcher := queue.NewDispatcher(pool, time.Now, logger).WithCTSource(ctSource.Slug())
+	// Read here, not beside the reaper below, because the dispatcher needs the same
+	// value: the hot cadence-lag gate (#1114) only arms while the reaper can terminate
+	// a wedged 'running' job, so the two must never disagree about the threshold.
+	staleThreshold := durationOrDefault("VERGE_STALE_JOB_TIMEOUT", queue.DefaultStaleJobThreshold, logger)
+
+	dispatcher := queue.NewDispatcher(pool, time.Now, logger).
+		WithCTSource(ctSource.Slug()).
+		WithStaleJobThreshold(staleThreshold)
 	// The off-host measurement router (ADR-0103, #683, P0.8): a provisioned internet
 	// Vantage measures from its OWN position — its jobs are pushed to and exec'd on the
 	// prober host over SSH, arch-matched by `uname`. The instance ships a prober for each
@@ -254,7 +261,6 @@ func main() {
 	// so a job legitimately mid-probe is never reaped; operator override
 	// VERGE_STALE_JOB_TIMEOUT, and a value <= 0 disables the sweep. A one-minute period
 	// bounds how long a genuinely stuck job waits past its lease before reclaiming.
-	staleThreshold := durationOrDefault("VERGE_STALE_JOB_TIMEOUT", queue.DefaultStaleJobThreshold, logger)
 	// The defaults keep the stale threshold above the probe timeout, so a job that is
 	// legitimately mid-probe is never reaped. The two overrides are independent, so an
 	// operator could invert that. Warn rather than silently override their value: a

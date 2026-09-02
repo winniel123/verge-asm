@@ -176,7 +176,12 @@ func main() {
 	// running worker claims the enqueued jobs off the pg_notify the fan-out sends —
 	// so web only needs to insert the Dispatch and its jobs, which the Dispatcher
 	// over this pool does.
-	web.dispatcher = queue.NewDispatcher(pool, time.Now, log.New(os.Stderr, "", log.LstdFlags))
+	// VERGE_STALE_JOB_TIMEOUT is the WORKER's knob, read here only so a manual trigger
+	// arms the hot cadence-lag gate on the same terms the worker's cadence dispatch
+	// does (#1114). An operator who disabled the reaper on the worker must set it on
+	// web too, or a manual hot trigger would gate on a reaper that is not running.
+	web.dispatcher = queue.NewDispatcher(pool, time.Now, log.New(os.Stderr, "", log.LstdFlags)).
+		WithStaleJobThreshold(durationOrDefault("VERGE_STALE_JOB_TIMEOUT", queue.DefaultStaleJobThreshold))
 	// Explicit timeouts guard the only internet-facing listener against
 	// Slowloris-style slow-request DoS (gosec G112). The operator UI serves
 	// bounded request/response bodies with no long-lived streaming or SSE, so
@@ -237,6 +242,23 @@ func isTruthy(v string) bool {
 	default:
 		return false
 	}
+}
+
+// durationOrDefault reads a duration env value, falling back to def when unset or
+// unparseable. It mirrors cmd/worker's helper of the same name so both processes read
+// a shared knob the same way; an unparseable value must not become a different
+// configuration in one process than in the other.
+func durationOrDefault(key string, def time.Duration) time.Duration {
+	v := strings.TrimSpace(env.OrDefault(key, ""))
+	if v == "" {
+		return def
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil {
+		log.Printf("web: %s=%q is not a duration (%v); using default %s", key, v, err, def)
+		return def
+	}
+	return d
 }
 
 func migrateUp(databaseURL string) error {

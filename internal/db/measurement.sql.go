@@ -729,6 +729,35 @@ func (q *Queries) ScanHasCompletedBatch(ctx context.Context, kind string) (bool,
 	return completed, err
 }
 
+const scanHasNonTerminalJobs = `-- name: ScanHasNonTerminalJobs :one
+SELECT EXISTS (
+    SELECT 1
+    FROM queue_job
+    WHERE scan_id = $1::bigint
+      AND dispatch_id IS DISTINCT FROM $2::bigint
+      AND state IN ('ready', 'running')
+) AS lagging
+`
+
+type ScanHasNonTerminalJobsParams struct {
+	ScanID     int64 `json:"scan_id"`
+	DispatchID int64 `json:"dispatch_id"`
+}
+
+// The hot cadence-lag gate (#1114, ADR-0137 §4). True when this Scan still holds a
+// job from an EARLIER dispatch that no terminal state has claimed — 'ready' or
+// 'running'. Only those two hold the gate: 'done', 'dead', 'retried' and 'cancelled'
+// are terminal, so a dead-lettered backlog never wedges the next tick.
+// `IS DISTINCT FROM` rather than `<>` because the Dispatch sweep (ADR-0041) retires a
+// job's dispatch_id to NULL; a NULL is a different dispatch and must still hold the
+// gate.
+func (q *Queries) ScanHasNonTerminalJobs(ctx context.Context, arg ScanHasNonTerminalJobsParams) (bool, error) {
+	row := q.db.QueryRow(ctx, scanHasNonTerminalJobs, arg.ScanID, arg.DispatchID)
+	var lagging bool
+	err := row.Scan(&lagging)
+	return lagging, err
+}
+
 const tryFanOut = `-- name: TryFanOut :one
 INSERT INTO dispatch (scan_id, scheduled_time, status)
 VALUES ($1, $2, 'fanned-out')

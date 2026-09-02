@@ -48,6 +48,13 @@ type Dispatcher struct {
 	// built without WithCTSource fans out the keyless source unchanged. The worker
 	// process sets it to Cert Spotter's slug when the operator key is present.
 	ctSource string
+
+	// staleJobThreshold is the worker's stale-`running` lease timeout, read only to
+	// decide whether the hot cadence-lag gate arms (hotlag.go). It defaults to
+	// DefaultStaleJobThreshold rather than to the zero value, because zero MEANS the
+	// reaper is off: a dispatcher built without WithStaleJobThreshold must not read
+	// its own default as an operator's decision to disable the reaper.
+	staleJobThreshold time.Duration
 }
 
 // NewDispatcher builds a Dispatcher over pool. now is injectable so tests and
@@ -56,7 +63,18 @@ func NewDispatcher(pool *pgxpool.Pool, now func() time.Time, logger *log.Logger)
 	if now == nil {
 		now = time.Now
 	}
-	return &Dispatcher{pool: pool, q: db.New(pool), now: now, log: logger}
+	return &Dispatcher{pool: pool, q: db.New(pool), now: now, log: logger, staleJobThreshold: DefaultStaleJobThreshold}
+}
+
+// WithStaleJobThreshold tells the dispatcher the stale-`running` lease timeout the
+// worker's reaper actually runs with (VERGE_STALE_JOB_TIMEOUT). A non-positive value
+// disables the reaper, and the hot cadence-lag gate then refuses to arm — see
+// hotlag.go. Both binaries that build a Dispatcher must pass the same value they give
+// the reaper, or a manual trigger would gate on a reaper that is not running. It
+// returns the dispatcher for chaining.
+func (d *Dispatcher) WithStaleJobThreshold(threshold time.Duration) *Dispatcher {
+	d.staleJobThreshold = threshold
+	return d
 }
 
 // WithCTSource sets which bulk CT source this dispatcher fans out for (spec §2.3),
@@ -264,7 +282,9 @@ func (d *Dispatcher) fanOutStreamed(ctx context.Context, s db.Scan, scheduledTim
 // per-scan advisory lock and commits it in its own transaction, so the tick is
 // durably claimed before any job streams out. skipped is true when the tick was
 // already dispatched — the unique (scan, scheduled_time) key admits one, so a
-// re-run never double-dispatches.
+// re-run never double-dispatches — or, for the hot Scan alone, when an earlier
+// dispatch of the same Scan has not drained (hotlag.go, ADR-0137 §4). Both checks
+// run under the ONE advisory lock, so two concurrent dispatchers cannot both pass.
 func (d *Dispatcher) claimDispatch(ctx context.Context, s db.Scan, scheduledTime time.Time) (dispatchID int64, skipped bool, err error) {
 	tx, err := d.pool.Begin(ctx)
 	if err != nil {
@@ -283,6 +303,20 @@ func (d *Dispatcher) claimDispatch(ctx context.Context, s db.Scan, scheduledTime
 	}
 	if err != nil {
 		return 0, false, fmt.Errorf("queue: try fan out: %w", err)
+	}
+	if hotLagGateApplies(s.Kind) {
+		lagging, lerr := hotTickLags(ctx, qtx, s.ID, id, d.staleJobThreshold, d.log)
+		if lerr != nil {
+			return 0, false, fmt.Errorf("queue: hot cadence-lag gate: %w", lerr)
+		}
+		if lagging {
+			// The Dispatch row commits, so the tick is burned and the skip is on the
+			// record. Rolling it back instead would leave the window unclaimed and a
+			// later poll inside it would dispatch at a scheduled_time it did not run
+			// at, which is the deferral ADR-0137 §4 rules out.
+			d.log.Printf("dispatcher: %s tick %s overtakes an undrained dispatch, skipped", s.Kind, scheduledTime.Format(time.RFC3339))
+			return 0, true, tx.Commit(ctx)
+		}
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return 0, false, err
