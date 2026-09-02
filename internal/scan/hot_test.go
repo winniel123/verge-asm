@@ -116,7 +116,7 @@ func TestBuildHotJobsCarriesVergeCore(t *testing.T) {
 	if err := json.Unmarshal(spec.Scope, &sc); err != nil {
 		t.Fatal(err)
 	}
-	if sc.Profile.PerHostConnPerSec != 50 || sc.Profile.GlobalPacketsPerSec != 200 {
+	if sc.Profile.PerHostConnPerSec != 50 || sc.Profile.PerVantagePacketsPerSec != 200 {
 		t.Errorf("safety profile not recorded by content: %+v", sc.Profile)
 	}
 	if len(sc.UDPPorts) != core.Count().UDP {

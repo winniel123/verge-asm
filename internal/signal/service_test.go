@@ -27,7 +27,7 @@ func TestSensitivePortReachedFromInternet(t *testing.T) {
 
 func TestSensitivePortVersionComposesConnectOutcome(t *testing.T) {
 	got := sensitivePortReachedFromInternet{}.Version().String()
-	const want = "rule@v1|connect-outcome/v1"
+	const want = "rule@v1|connect-outcome/v2"
 	if got != want {
 		t.Fatalf("version = %q, want %q", got, want)
 	}

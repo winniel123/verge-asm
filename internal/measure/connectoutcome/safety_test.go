@@ -65,17 +65,17 @@ func TestBackoffNeverTouchesDeadline(t *testing.T) {
 	}
 }
 
-// The pacer spaces per-host connects at ≥ 1/rate and never exceeds the global
+// The pacer spaces per-host connects at ≥ 1/rate and never exceeds the aggregate
 // ceiling across hosts.
-func TestPacerHonoursPerHostAndGlobal(t *testing.T) {
-	// A tiny profile so the arithmetic is exact: 4 conn/s/host, 10 pkt/s global.
-	p := SafetyProfile{PerHostConnPerSec: 4, GlobalPacketsPerSec: 10}
+func TestPacerHonoursPerHostAndAggregate(t *testing.T) {
+	// A tiny profile so the arithmetic is exact: 4 conn/s/host, 10 pkt/s aggregate.
+	p := SafetyProfile{PerHostConnPerSec: 4, PerVantagePacketsPerSec: 10}
 	pacer := NewPacer(p)
 	start := time.Unix(0, 0)
 	h := netip.MustParseAddr("198.51.100.1")
 
 	// Two connects to one host: spaced by the per-host interval (250 ms), which
-	// is larger than the global interval (100 ms), so the per-host rate binds.
+	// is larger than the aggregate interval (100 ms), so the per-host rate binds.
 	t0 := pacer.Next(h, start)
 	t1 := pacer.Next(h, start)
 	if gap := t1.Sub(t0); gap < 250*time.Millisecond {
@@ -83,10 +83,10 @@ func TestPacerHonoursPerHostAndGlobal(t *testing.T) {
 	}
 }
 
-// Across many hosts the global ceiling binds: connects to distinct hosts are
-// still spaced by the global interval so adding targets does not multiply load.
-func TestPacerGlobalCeilingBindsAcrossHosts(t *testing.T) {
-	p := SafetyProfile{PerHostConnPerSec: 1000, GlobalPacketsPerSec: 5} // 200 ms global
+// Across many hosts the aggregate ceiling binds: connects to distinct hosts are
+// still spaced by the aggregate interval so adding targets does not multiply load.
+func TestPacerAggregateCeilingBindsAcrossHosts(t *testing.T) {
+	p := SafetyProfile{PerHostConnPerSec: 1000, PerVantagePacketsPerSec: 5} // 200 ms aggregate
 	pacer := NewPacer(p)
 	start := time.Unix(0, 0)
 	prev := pacer.Next(netip.MustParseAddr("198.51.100.1"), start)
@@ -94,7 +94,7 @@ func TestPacerGlobalCeilingBindsAcrossHosts(t *testing.T) {
 		h := netip.MustParseAddr("198.51.100." + itoa(i))
 		now := pacer.Next(h, start)
 		if gap := now.Sub(prev); gap < 200*time.Millisecond {
-			t.Errorf("host %d: global gap = %v, want ≥ 200ms (5 pkt/s)", i, gap)
+			t.Errorf("host %d: aggregate gap = %v, want ≥ 200ms (5 pkt/s)", i, gap)
 		}
 		prev = now
 	}
@@ -103,8 +103,8 @@ func TestPacerGlobalCeilingBindsAcrossHosts(t *testing.T) {
 // A stress signal on a host widens that host's spacing at the pacer.
 func TestPacerBacksOffSignalledHost(t *testing.T) {
 	p := SafetyProfile{
-		PerHostConnPerSec:   10,
-		GlobalPacketsPerSec: 1000,
+		PerHostConnPerSec:       10,
+		PerVantagePacketsPerSec: 1000,
 		// The declared policy the runtime halves on — real profiles set it via
 		// DefaultProfile; a Signal only halves for a cause the offers enabled.
 		AdaptiveBackoff: BackoffPolicy{HalveOnTimeout: true},
