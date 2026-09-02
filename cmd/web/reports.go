@@ -697,9 +697,9 @@ func buildReportsTimeSeries(pts []drift.SignalPoint) (reportsTimeSeries, bool) {
 	var grid []reportsGridLine
 	for v := 0.0; v <= top+1e-9; v += step {
 		yy := f1(y(v))
-		stroke := "var(--sunken)"
+		stroke := "var(--row-sep)"
 		if v == 0 {
-			stroke = "var(--hairline)"
+			stroke = "var(--border-default)"
 		}
 		grid = append(grid, reportsGridLine{
 			X1: strconv.Itoa(PL), X2: strconv.Itoa(axisRightX), Y: yy,
@@ -983,9 +983,13 @@ func (s *server) foldScanActivity(rows []db.ListDispatchProgressRow, days int) (
 	}
 
 	// Intensity steps mirror HeatmapCalendar.jsx: 0/28/48/72/100% of --chart-1
-	// mixed into --surface, with the sunken step at zero. The 0..4 level per day is
+	// mixed into --surface, with --surface-sunken at zero. The 0..4 level per day is
 	// the shared scans-per-day ramp (internal/drift.HeatLevels, P0.3), so the page,
 	// the export and any later surface intensify identically off one rule.
+	// A zero cell reads as a square only through its border: in dark mode its
+	// --surface-sunken fill sits about 5/255 off the --surface ground. --row-sep is
+	// the token the design-owned reports fixture and the legend swatch beside this
+	// grid both pin, so grid, legend and HeatmapCalendar.jsx now agree on one.
 	pct := []int{0, 28, 48, 72, 100}
 	levels := drift.HeatLevels(counts)
 	cells = make([]heatCell, days)
@@ -993,8 +997,8 @@ func (s *server) foldScanActivity(rows []db.ListDispatchProgressRow, days int) (
 		level := levels[i]
 		cell := heatCell{Title: pluralScans(c)}
 		if level == 0 {
-			cell.Bg = template.CSS("var(--sunken)")
-			cell.Border = template.CSS("var(--hairline)")
+			cell.Bg = template.CSS("var(--surface-sunken)")
+			cell.Border = template.CSS("var(--row-sep)")
 		} else {
 			cell.Bg = template.CSS("color-mix(in srgb, var(--chart-1) " + strconv.Itoa(pct[level]) + "%, var(--surface))") // #nosec G203 (constant color-mix CSS; only interpolant is strconv.Itoa of a fixed 0-4 index)
 			cell.Border = template.CSS("transparent")
