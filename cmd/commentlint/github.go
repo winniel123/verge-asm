@@ -67,9 +67,8 @@ func reportGithub(stdout io.Writer, fileCount int, found []violation, lexFailure
 	}
 	text := summary(fileCount, found, lexFailures)
 	if raw := os.Getenv("GITHUB_STEP_SUMMARY"); raw != "" {
-		// gosec G703 taints an environment path into a file open, and Clean is
-		// what clears the taint on CI's high-severity run.
 		path := filepath.Clean(raw)
+		// #nosec G703 -- GITHUB_STEP_SUMMARY names the runner's own summary file, and --github runs only inside Actions.
 		if f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); err == nil {
 			fmt.Fprint(f, text)
 			f.Close()
