@@ -139,7 +139,7 @@ Grouped as they appear in the docs-site nav.
 
 | Guide | Covers |
 | --- | --- |
-| **[Running](docs/guides/running.md)** | Configuration, secrets, volumes, healthchecks, scaling workers, on-demand scan triggers, upgrades. |
+| **[Running](docs/guides/running.md)** | Configuration, secrets, volumes, healthchecks, the single-instance worker rule, on-demand scan triggers, upgrades. |
 | **[Sources](docs/guides/sources.md)** | Discovery sources and proposers: consent tiers, admin-only toggling, and the crt.sh and RIR-proposer caveats. |
 | **[Prober](docs/guides/prober.md)** | A worked `docker compose` example for a dedicated internet vantage on a second host — the [`deploy/prober/`](deploy/prober/) recipe, host-key pin, and key hardening. |
 | **[Signals](docs/guides/signals.md)** | The v1 signal reference — every rule, its subject, and when it fires. The release-coupled philosophy and the five-level severity ramp (Critical / High / Medium / Low / Info). |

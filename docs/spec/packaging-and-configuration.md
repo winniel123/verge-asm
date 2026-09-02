@@ -304,8 +304,13 @@ vantages, notification routing — is a row, edited through the UI by an authent
 [#11](https://github.com/winniel123/verge-asm/issues/11) requires an author for *who changed the seed
 list, who launched a scan against production* and a file has no author.
 
-Two consequences: **there is no configuration file to mount**, and `--scale worker=N` workers are
+Two consequences: **there is no configuration file to mount**, and any two worker replicas are
 byte-identical, so no worker can be running a different aperture from its siblings.
+
+That is a claim about configuration and not about rate, and it is not a licence to
+`--scale worker=N`. The measurement safety budget is enforced per prober process, so the
+measurement worker is single-instance by design
+([#1092](https://github.com/winniel123/verge-asm/issues/1092), [running guide](../guides/running.md)).
 
 One object mounts anyway, and it does not reopen this rule. §9.3 admits a **CA root** for an external
 database because it passes the test above rather than earning an exception to it: a trust anchor has

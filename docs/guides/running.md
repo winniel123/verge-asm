@@ -197,14 +197,33 @@ Both `web` and `worker` ship a `-healthcheck` flag that compose runs on an inter
 `docker compose ps` shows the result. `web`'s check hits `/healthz`. `worker`'s check
 verifies it can reach Postgres.
 
-### Scaling workers
+### The worker is single-instance
 
-Workers are byte-identical and carry no per-instance configuration, so you can run
-several safely — none can drift to a different aperture from its siblings:
+**Run exactly one `worker`. Do not `--scale worker=N`.** This guide once recommended
+`--scale worker=3`. That recommendation was wrong. This guide withdraws it
+([#1092](https://github.com/winniel123/verge-asm/issues/1092)).
 
-```sh
-docker compose up -d --scale worker=3
-```
+The prober process holds the active-scan safety budget: 50 conn/s and 20 in-flight
+connections per host. The worker execs a fresh prober for every job, and its drain loop
+is single-threaded. So exactly one prober runs at a time, on this host or on a remote
+vantage, and the declared ceilings hold for the whole instance.
+
+Two workers run two probers, and those two probers share no state. Point both at one
+host and the instance emits up to twice the declared rate against it.
+
+Nothing warns you, and nothing refuses the work. Each `Batch` still records the
+**declared** profile. A run that emitted twice the rate therefore records the single
+rate. That record is wrong, and not merely incomplete.
+
+Workers are byte-identical and carry no per-instance configuration, so a second worker
+could not drift to a different aperture from its siblings. That argument covers
+configuration, not rate. It does not make scaling safe.
+
+If you need more measurement throughput, move the budget out of the prober process. The
+`ct` throttle shows the shape: it claims each slot in Postgres, so the limit holds
+across every process
+([ADR-0106](../adr/0106-the-ct-poll-is-a-scan-that-schedules-and-a-ct-admission-is-a-name-citing-its-batch.md)).
+A compose flag does not.
 
 ### On-demand scan triggers
 

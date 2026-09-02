@@ -43,6 +43,14 @@ const Kind = "connect-outcome"
 // The rate/concurrency/ceiling knobs are consumed by the limiter in safety.go;
 // they are declared here so a change to any of them is a declared-parameter
 // change that moves the leaf's params digest and forces a Version bump.
+//
+// Scope: the limiter runs inside ONE prober process, and the worker execs a
+// fresh prober per job (`ExecProber.Probe`). Every ceiling below therefore
+// governs one process and not the estate. Each holds estate-wide only while the
+// worker runs single-instance. That is how `docker-compose.yml` ships it, and
+// why the running guide forbids `--scale worker=N`. N workers run N pacers that
+// share no state, so the instance emits up to N times the rate the Batch still
+// records (#1092).
 type SafetyProfile struct {
 	// Technique is fixed: TCP connect, never SYN. Recorded so the Batch states it
 	// rather than leaving it to be inferred from the absence of raw sockets.
@@ -52,9 +60,15 @@ type SafetyProfile struct {
 	// real subject rather than a reason to skip the host.
 	HostDiscovery string `json:"host_discovery"`
 
-	// PerHostConnPerSec is the per-host connection rate ceiling — ≤ 50 conn/s.
+	// PerHostConnPerSec is the per-host connection rate ceiling — ≤ 50 conn/s per
+	// prober process (see the scope note above). ADR-0005 called this limit
+	// intra-job and needing no coordination. That argument holds at one vantage.
+	// The `hot` Scan builds one job per `(Vantage, Address)` pair. Two vantages
+	// therefore put one host in two jobs, and a second worker can double the real
+	// rate against it.
 	PerHostConnPerSec int `json:"per_host_conn_per_sec"`
-	// PerHostConcurrency is the per-host in-flight connection ceiling — ≤ 20.
+	// PerHostConcurrency is the per-host in-flight connection ceiling — ≤ 20 per
+	// prober process, under the same condition as PerHostConnPerSec.
 	PerHostConcurrency int `json:"per_host_concurrency"`
 	// ConnectTimeoutMillis bounds one connect attempt — 3 s.
 	ConnectTimeoutMillis int `json:"connect_timeout_millis"`
@@ -62,8 +76,16 @@ type SafetyProfile struct {
 	// verdict is decided — 2. A refusal (RST) is an answer and is never retried.
 	Retries int `json:"retries"`
 
-	// GlobalPacketsPerSec is the estate-wide ceiling — 200 pkt/s across all
-	// targets, round-robin by host so adding targets never multiplies load.
+	// GlobalPacketsPerSec is the 200 pkt/s ceiling across every target ONE prober
+	// process holds, round-robin by host so adding targets never multiplies load.
+	// It is not estate-wide — see the scope note above.
+	//
+	// It also does not bind under the shipped partitioning. A `hot` job carries
+	// one Address (ADR-0005, ADR-0127), so the pacer's per-host map holds one
+	// entry. 50 conn/s is a 20 ms interval and 200 pkt/s is a 5 ms one. The
+	// per-host interval is therefore always the later, and Pacer.Next always
+	// returns the per-host instant. The value is a recorded commitment, not a
+	// limit that has governed a connect (#1092).
 	GlobalPacketsPerSec int `json:"global_packets_per_sec"`
 	// RoundRobinByHost records that scheduling cycles hosts, never ports — the
 	// canonical way to avoid a dense burst against one destination.
