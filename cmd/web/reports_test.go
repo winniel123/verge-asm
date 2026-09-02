@@ -803,15 +803,53 @@ func TestFoldScanActivity(t *testing.T) {
 	}
 	// Today is the last cell and yesterday the one before; both were dispatched to,
 	// so both carry a wired (non-sunken) fill.
-	if string(cells[reportsHeatDays-1].Bg) == "var(--sunken)" {
+	if string(cells[reportsHeatDays-1].Bg) == "var(--surface-sunken)" {
 		t.Errorf("today's cell should be wired, got sunken")
 	}
-	if string(cells[reportsHeatDays-2].Bg) == "var(--sunken)" {
+	if string(cells[reportsHeatDays-2].Bg) == "var(--surface-sunken)" {
 		t.Errorf("yesterday's cell should be wired, got sunken")
 	}
 	// A day with no dispatch stays at the sunken step.
-	if string(cells[0].Bg) != "var(--sunken)" {
+	if string(cells[0].Bg) != "var(--surface-sunken)" {
 		t.Errorf("the oldest, empty day should be sunken, got %q", cells[0].Bg)
+	}
+	// #1088: the zero cell's border carried the defect the fill did, and an
+	// undefined var() drops the whole shorthand, so the square lost its outline
+	// too. Pin the exact token — the legend swatch beside this grid uses it.
+	if string(cells[0].Border) != "var(--row-sep)" {
+		t.Errorf("the empty day's border = %q, want var(--row-sep)", cells[0].Border)
+	}
+	if string(cells[reportsHeatDays-1].Border) != "transparent" {
+		t.Errorf("a wired day's border = %q, want transparent", cells[reportsHeatDays-1].Border)
+	}
+}
+
+// #1088: both gridline strokes named tokens the console never defines, so the
+// chart lost its horizontal rules and its zero baseline. The two carry different
+// weights on purpose — TimeSeriesChart.jsx:51 is the design intent.
+func TestReportsTimeSeriesGridStrokes(t *testing.T) {
+	pts := []drift.SignalPoint{
+		{Start: reportsClock.AddDate(0, 0, -14), Standing: 0, StandingElevated: 0},
+		{Start: reportsClock.AddDate(0, 0, -7), Standing: 40, StandingElevated: 12},
+		{Start: reportsClock, Standing: 20, StandingElevated: 4},
+	}
+	ts, ok := buildReportsTimeSeries(pts)
+	if !ok {
+		t.Fatal("buildReportsTimeSeries declined a three-point series")
+	}
+	if len(ts.Grid) < 2 {
+		t.Fatalf("grid has %d lines, want at least a baseline and one rule", len(ts.Grid))
+	}
+	if ts.Grid[0].Label != "0" {
+		t.Fatalf("first grid line is %q, want the zero baseline", ts.Grid[0].Label)
+	}
+	if ts.Grid[0].Stroke != "var(--border-default)" {
+		t.Errorf("zero baseline stroke = %q, want var(--border-default)", ts.Grid[0].Stroke)
+	}
+	for _, g := range ts.Grid[1:] {
+		if g.Stroke != "var(--row-sep)" {
+			t.Errorf("gridline at %q stroke = %q, want var(--row-sep)", g.Label, g.Stroke)
+		}
 	}
 }
 
@@ -908,7 +946,7 @@ func TestFoldScanActivitySparseCorpusIsContiguous(t *testing.T) {
 			t.Fatalf("cell %d has no title — a day was omitted from the series", i)
 		}
 		switch string(c.Bg) {
-		case "var(--sunken)":
+		case "var(--surface-sunken)":
 			zeros++
 		default:
 			wired++
@@ -924,7 +962,7 @@ func TestFoldScanActivitySparseCorpusIsContiguous(t *testing.T) {
 	// The three wired days sit at the exact offsets from today (index 0 = oldest).
 	for _, off := range activeOffsets {
 		idx := reportsHeatDays - 1 - off
-		if string(cells[idx].Bg) == "var(--sunken)" {
+		if string(cells[idx].Bg) == "var(--surface-sunken)" {
 			t.Errorf("cell at offset %d (index %d) should be wired, got sunken", off, idx)
 		}
 	}

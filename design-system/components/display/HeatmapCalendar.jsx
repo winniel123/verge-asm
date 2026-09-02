@@ -8,7 +8,7 @@ export function HeatmapCalendar({ values = [], cell = 12, gap = 3, label, unit =
   React.useEffect(() => { const id = requestAnimationFrame(() => setOn(true)); return () => cancelAnimationFrame(id); }, []);
   const level = (v) => (v <= 0 ? 0 : Math.max(1, Math.ceil((v / max) * 4)));
   const bg = (l) => (l === 0 ? "var(--surface-sunken)" : "color-mix(in srgb, var(--chart-1) " + [0, 28, 48, 72, 100][l] + "%, var(--surface))");
-  const cellBorder = (l) => "1px solid " + (l === 0 ? "var(--border-default)" : "transparent");
+  const cellBorder = (l) => "1px solid " + (l === 0 ? "var(--row-sep)" : "transparent");
   return (
     <div style={{ display: "inline-flex", flexDirection: "column", gap: 8, fontFamily: "var(--font-ui)", ...style }}>
       <div role="img" aria-label={label} style={{ display: "grid", gridTemplateRows: "repeat(7, " + cell + "px)", gridAutoFlow: "column", gridAutoColumns: cell + "px", gap }}>
