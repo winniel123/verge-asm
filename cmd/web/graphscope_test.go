@@ -9,6 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/signal"
 )
 
 // graphScopes reads the declared Seeds into the selector's vocabulary — the whole
@@ -225,5 +226,86 @@ func TestGraphPageRendersScopeSelector(t *testing.T) {
 	fallback := getBody(t, ac, base+"/graph?scope=nobody.declared.this", http.StatusOK)
 	if !strings.Contains(fallback, `<a class="opt on" href="/graph?scope=all"`) {
 		t.Errorf("unrecognised token did not fall back to the whole estate; body: %s", fallback)
+	}
+}
+
+// An endpoint firing the scope excluded is DROPPED, not re-attributed. joinSignals
+// falls back to the Service leg when a named endpoint's Name node is absent, which
+// is right for an estate that never measured the name. Under a scope the Name node
+// is also absent when the scope dropped it, and falling back there would assert a
+// signal on a service against a subject the operator's scope excluded.
+func TestJoinSignalsDropsEndpointFiringTheScopeExcluded(t *testing.T) {
+	rows := []db.ListAllOpenSpansRow{
+		openSpanRow("name", "api.example.com", "resolution", "", `{"outcome":"Resolved","addresses":["203.0.113.5"]}`, false),
+		openSpanRow("service", "203.0.113.5:443/tcp", "reachability", "", `{"outcome":"reached"}`, false),
+	}
+	scope := graphScope{Token: "example.com", Domain: "example.com"}
+	censuses := []signal.Census{
+		{Rule: "plaintext-http-no-https", Fired: []signal.Member{{Subject: "evil.other.test@203.0.113.5:443/tcp"}}},
+	}
+
+	g := joinSignals(buildScopedGraph(rows, scope), censuses)
+
+	for _, n := range g.Nodes {
+		if len(n.OpenSignals) != 0 {
+			t.Errorf("node %q carries a firing whose Name the scope excluded; %#v", n.ID, n.OpenSignals)
+		}
+	}
+
+	// The same firing on an in-scope name still lights its Name node.
+	inScope := []signal.Census{
+		{Rule: "plaintext-http-no-https", Fired: []signal.Member{{Subject: "api.example.com@203.0.113.5:443/tcp"}}},
+	}
+	g = joinSignals(buildScopedGraph(rows, scope), inScope)
+	for _, n := range g.Nodes {
+		if n.ID == "api.example.com" && len(n.OpenSignals) != 1 {
+			t.Errorf("in-scope endpoint firing did not light its Name node; %#v", n.OpenSignals)
+		}
+	}
+}
+
+// The unscoped graph keeps the Service fallback for a named endpoint whose Name node
+// the corpus never held — the zero graphMembers narrows nothing.
+func TestJoinSignalsKeepsServiceFallbackUnscoped(t *testing.T) {
+	g := buildGraph([]db.ListAllOpenSpansRow{
+		openSpanRow("service", "203.0.113.5:443/tcp", "reachability", "", `{"outcome":"reached"}`, false),
+	})
+	censuses := []signal.Census{
+		{Rule: "plaintext-http-no-https", Fired: []signal.Member{{Subject: "www.example.com@203.0.113.5:443/tcp"}}},
+	}
+
+	g = joinSignals(g, censuses)
+
+	for _, n := range g.Nodes {
+		if n.ID == "203.0.113.5:443/tcp" && len(n.OpenSignals) != 1 {
+			t.Errorf("unscoped graph lost the Service fallback; %#v", n.OpenSignals)
+		}
+	}
+}
+
+// A scope that holds nothing states so, and names the whole estate as the way back,
+// rather than telling the operator to declare a scope they already declared.
+func TestGraphPageEmptyScopeStatesItsOwnEmptiness(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	if _, err := f.CreateNameSeed(context.Background(), db.CreateNameSeedParams{
+		NameDomain: pgtype.Text{String: "example.com", Valid: true}, CreatedBy: admin.ID,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := getBody(t, ac, base+"/graph?scope=example.com", http.StatusOK)
+	if !strings.Contains(page, "Nothing to plot in example.com") {
+		t.Errorf("empty scope did not name itself; body: %s", page)
+	}
+	if !strings.Contains(page, `href="/graph?scope=all"`) {
+		t.Errorf("empty scope offered no way back to the whole estate; body: %s", page)
+	}
+
+	whole := getBody(t, ac, base+"/graph", http.StatusOK)
+	if !strings.Contains(whole, "Nothing to plot yet") {
+		t.Errorf("unscoped empty graph lost its own empty-state copy; body: %s", whole)
 	}
 }

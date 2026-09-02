@@ -142,6 +142,10 @@ type graphView struct {
 	Scopes                     []graphScope
 	Scope                      string
 	ScopeLabel                 string
+	// members is the resolved membership the build narrowed by. joinSignals reads it
+	// to tell a Name node the scope dropped from one the corpus never held. Zero
+	// means the whole estate, so a graphView assembled by hand narrows nothing.
+	members graphMembers
 }
 
 // graphScopeAll is the ?scope token for the whole estate — the drawing /graph has
@@ -183,7 +187,10 @@ func graphScopes(seeds []db.ListSeedsRow) []graphScope {
 				continue
 			}
 			out = append(out, graphScope{Token: d, Label: d, Domain: d})
-		case s.Kind == "address" && s.AddressCidr != nil:
+		// The validity check is not redundant with the nil check. An invalid prefix
+		// spells "invalid Prefix" and bounds nothing, so an entry built from one would
+		// label itself a scope and draw the whole estate.
+		case s.Kind == "address" && s.AddressCidr != nil && s.AddressCidr.IsValid():
 			p := s.AddressCidr.Masked()
 			out = append(out, graphScope{Token: p.String(), Label: p.String(), Prefix: p})
 		}
@@ -282,8 +289,10 @@ func buildGraph(rows []db.ListAllOpenSpansRow) graphView {
 //
 // A Service is held where the Address it rides is held. It is keyed on that address,
 // so it needs no rule of its own.
+// The ZERO value holds everything. A graphView assembled by hand — a fixture, a
+// test — therefore narrows nothing, and a scope can only ever be applied by a build
+// that resolved one.
 type graphMembers struct {
-	all    bool
 	domain string
 	prefix netip.Prefix
 	names  map[string]struct{}
@@ -295,7 +304,7 @@ type graphMembers struct {
 // kind's population into the other's column.
 func graphScopeMembers(rows []db.ListAllOpenSpansRow, sc graphScope) graphMembers {
 	if sc.Domain == "" && !sc.Prefix.IsValid() {
-		return graphMembers{all: true}
+		return graphMembers{}
 	}
 	m := graphMembers{
 		domain: sc.Domain,
@@ -325,9 +334,15 @@ func graphScopeMembers(rows []db.ListAllOpenSpansRow, sc graphScope) graphMember
 	return m
 }
 
+// unbounded reports whether these members are the whole estate — the zero value,
+// which names no domain and no prefix and so bounds nothing.
+func (m graphMembers) unbounded() bool {
+	return m.domain == "" && !m.prefix.IsValid()
+}
+
 // holdsName reports whether the scope holds this Name.
 func (m graphMembers) holdsName(name string) bool {
-	if m.all {
+	if m.unbounded() {
 		return true
 	}
 	if m.domain != "" {
@@ -342,7 +357,7 @@ func (m graphMembers) holdsName(name string) bool {
 // never a comparison of spellings. An address that does not parse is held by no
 // scope.
 func (m graphMembers) holdsAddress(spelling string) bool {
-	if m.all {
+	if m.unbounded() {
 		return true
 	}
 	addr, err := netip.ParseAddr(spelling)
@@ -418,7 +433,7 @@ func buildScopedGraph(rows []db.ListAllOpenSpansRow, sc graphScope) graphView {
 			if keyed && !members.holdsAddress(addr) {
 				continue
 			}
-			if !keyed && !members.all {
+			if !keyed && !members.unbounded() {
 				continue
 			}
 			services[row.SubjectKey] = struct{}{}
@@ -491,6 +506,7 @@ func buildScopedGraph(rows []db.ListAllOpenSpansRow, sc graphScope) graphView {
 		Nodes: nodes, Edges: edges, Empty: len(nodes) == 0,
 		ViewW: graphViewW, ViewH: graphViewH, MiniW: graphMiniW, MiniH: graphMiniH,
 		ContentW: contentW, ContentH: contentH,
+		members: members,
 	}
 }
 
@@ -559,6 +575,13 @@ func joinSignals(g graphView, censuses []signal.Census) graphView {
 				// falling back to the Service leg for a nameless endpoint or when the
 				// Name node is not in the topology (so a real firing never vanishes).
 				name, service := splitEndpointName(m.Subject)
+				// A scope that does not hold the name takes the WHOLE firing out
+				// (#1102). Without this the fallback would re-attribute it to the
+				// Service leg, and the drawing would assert a signal the engine
+				// censused against a subject the operator's scope excluded.
+				if name != "" && !g.members.holdsName(name) {
+					continue
+				}
 				if name == "" || !attach(name, sig) {
 					attach(service, sig)
 				}

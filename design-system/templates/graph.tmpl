@@ -36,6 +36,7 @@
 .gr-listbox .opt { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; border: none; border-radius: 8px; text-align: left; cursor: pointer; background: transparent; color: var(--text-body); font: 500 12.5px var(--font-ui); transition: background var(--dur-fast) var(--ease-out); }
 .gr-listbox .opt:hover { background: var(--surface-sunken); }
 .gr-listbox a.opt { text-decoration: none; }
+.gr-listbox a.opt .lb { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gr-listbox .opt.on { color: var(--link); font-weight: 600; }
 .gr-listbox .opt .ck { margin-left: auto; display: inline-flex; color: var(--link); }
 .gnode { cursor: pointer; }
@@ -87,7 +88,7 @@
 <span class="gr-listbox">
 <button type="button" class="trig" id="gr-scope-btn" aria-haspopup="listbox" aria-expanded="false"><span class="cv">{{.Graph.ScopeLabel}}</span><svg class="chev" viewBox="0 0 16 16" width="14" height="14"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
 <div class="panel" id="gr-scope-panel" hidden>
-{{$sel := .Graph.Scope}}{{range .Graph.Scopes}}<a class="opt{{if eq .Token $sel}} on{{end}}" href="/graph?scope={{.Token}}"{{if eq .Token $sel}} aria-current="true"{{end}}>{{.Label}}{{if eq .Token $sel}}<span class="ck"><svg viewBox="0 0 18 18" width="13" height="13"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>{{end}}</a>{{end}}
+{{$sel := .Graph.Scope}}{{range .Graph.Scopes}}<a class="opt{{if eq .Token $sel}} on{{end}}" href="/graph?scope={{.Token}}" title="{{.Label}}"{{if eq .Token $sel}} aria-current="true"{{end}}><span class="lb">{{.Label}}</span>{{if eq .Token $sel}}<span class="ck"><svg viewBox="0 0 18 18" width="13" height="13"><path d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>{{end}}</a>{{end}}
 </div>
 </span>
 {{end}}
@@ -114,16 +115,25 @@
   if (!b || !p) return;
   b.addEventListener("click", function (e) { e.stopPropagation(); var open = p.hasAttribute("hidden"); if (open) p.removeAttribute("hidden"); else p.setAttribute("hidden", ""); b.setAttribute("aria-expanded", open ? "true" : "false"); });
   document.addEventListener("mousedown", function (e) { if (!p.hasAttribute("hidden") && !p.contains(e.target) && !b.contains(e.target)) { p.setAttribute("hidden", ""); b.setAttribute("aria-expanded", "false"); } });
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !p.hasAttribute("hidden")) { p.setAttribute("hidden", ""); b.setAttribute("aria-expanded", "false"); b.focus(); } });
+  // stopImmediatePropagation, not just a return: this handler is registered before
+  // the drawer's own Escape handler, so without it one Escape would close the panel
+  // AND the drawer behind it. Escape closes the topmost layer only.
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !p.hasAttribute("hidden")) { e.stopImmediatePropagation(); p.setAttribute("hidden", ""); b.setAttribute("aria-expanded", "false"); b.focus(); } });
 })();
 </script>
 {{end}}
 {{if .Graph.Empty}}
 <div class="gr-card"><div class="gr-empty">
 <span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><circle cx="19" cy="5" r="2"></circle><circle cx="5" cy="19" r="2"></circle><path d="M10.4 9.6 6.3 17.2"></path><path d="m13.6 9.6 4.1-3.2"></path></svg></span>
+{{if and .Graph.Scope (ne .Graph.Scope "all")}}
+<span class="msg">Nothing to plot in {{.Graph.ScopeLabel}}</span>
+<span class="det">The graph draws from the same subjects the inventory holds. No scan has measured a subject into this scope yet. Pick another scope, or let a scan run.</span>
+<span class="act"><a class="gr-btn-sm" href="/graph?scope=all">Draw the whole estate</a></span>
+{{else}}
 <span class="msg">Nothing to plot yet</span>
 <span class="det">The graph draws from the same subjects the inventory holds. Declare a scope and let a scan measure a subject into the estate to populate it.</span>
 <span class="act"><a class="gr-btn-sm" href="/scope">Go to Scope</a></span>
+{{end}}
 </div></div>
 {{else}}
 <div class="gr-card">
