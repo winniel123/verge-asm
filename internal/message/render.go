@@ -104,6 +104,23 @@ func narrowingHeadline(scope, removed string, subjects, timelines int) string {
 		plural(timelines, "timeline", "timelines"))
 }
 
+// seedWithdrawalHeadline states a Seed withdrawal with the same two counts as
+// factors (ADR-0134 §6). It is narrowingHeadline's twin for the act that takes the
+// scope itself away.
+//
+// It needs its own sentence because narrowingHeadline names two objects — a scope
+// that narrowed and a value excluded from it — and this act has only one. Rendering
+// it through narrowingHeadline would read "10.0.0.0/24 narrowed · 10.0.0.0/24
+// excluded", which says EXCLUDED for an act that declared no exclusion and NARROWED
+// for a scope that is gone. A Message is written once and never recomputed, so a
+// false sentence written here stays false for as long as the corpus is retained.
+func seedWithdrawalHeadline(scope string, subjects, timelines int) string {
+	return fmt.Sprintf("%s withdrawn · %s withdrawn · %s taken out of the estate",
+		scope,
+		plural(subjects, "subject", "subjects"),
+		plural(timelines, "timeline", "timelines"))
+}
+
 // narrowingLoss names what can no longer be told — the one payload element that
 // is not a mirror of the widening receipt, because the narrowing cannot be
 // corrected afterwards and naming it is the whole of the remedy (ADR-0074).

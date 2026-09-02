@@ -266,10 +266,6 @@ type Querier interface {
 	// never unlink another's; returns rows so a stale or foreign id no-ops honestly.
 	DeleteSSOIdentityForAccount(ctx context.Context, arg DeleteSSOIdentityForAccountParams) (int64, error)
 	DeleteSSOProvider(ctx context.Context, id int64) error
-	// Withdraws a declared Seed by id (#21a: the Scope chip-remove act). A viewer
-	// never reaches it (requireAdmin). Idempotent: deleting a row already gone
-	// affects zero rows and is not an error, so a stale chip submit is a no-op.
-	DeleteSeed(ctx context.Context, id int64) (int64, error)
 	// Reset a port to its shipped default by dropping its edit row. Idempotent: a
 	// port with no edit is already at its default.
 	DeleteVergeCoreFrequencyEdit(ctx context.Context, port int32) error
@@ -958,6 +954,24 @@ type Querier interface {
 	// lookup so each lookup carries its own bulk-decline act. Only 'pending' rows
 	// surface: a confirmed Proposal is already a Seed and a declined one is spent.
 	ListPendingProposals(ctx context.Context) ([]ListPendingProposalsRow, error)
+	// The tombstones of withdrawn address Seeds the membership fold has not spent yet
+	// (ADR-0134 §2, #1040). Each row is the MOVER of one withdrawal: the CIDR the
+	// operator stopped declaring, which is both the mover's identity and the site the
+	// coverage message fires at.
+	//
+	// A spent row is filtered out on `consumed_at`, never on `consumed_batch_id`: the
+	// batch FK sets that id NULL if its batch ever goes, and reading the id would then
+	// resurrect the tombstone and withdraw the same ground a second time.
+	//
+	// FOR UPDATE SKIP LOCKED, the idiom ClaimJob already uses. Workers are
+	// multi-instance, so two jobs can complete at once; without the lock both folds
+	// read the same tombstone, both compose the same receipts, and the second writes a
+	// coverage message stating subjects that its own batch withdrew none of. Only the
+	// closure and the stamp are guarded by `IS NULL` predicates, and the receipt is
+	// collected before either runs. A Message is written once and never recomputed, so
+	// that duplicate would be permanent. Skipping a locked row makes the second fold a
+	// no-op, and the row is picked up by whichever job completes next.
+	ListPendingSeedWithdrawals(ctx context.Context) ([]ListPendingSeedWithdrawalsRow, error)
 	// One account's tokens, newest first. token_hash is omitted from the read: listing
 	// tokens never needs it, so the secret material stays out of the render path — only
 	// the label, the non-secret prefix, and the timestamps are surfaced.
@@ -1017,6 +1031,29 @@ type Querier interface {
 	// secret: it exposes only whether one is set, so the render path cannot leak it.
 	ListSSOProviders(ctx context.Context) ([]ListSSOProvidersRow, error)
 	ListScans(ctx context.Context) ([]Scan, error)
+	// Every open timeline a pending Seed-withdrawal tombstone MAY withdraw, for the
+	// membership fold to close with the `descoped` ground (ADR-0134 §5, #1040).
+	//
+	// It is the tombstone twin of ListAddressExclusionWithdrawals and carries the same
+	// two CTE shapes, read against `seed_withdrawal` instead of `exclusion`, so the
+	// two narrowing acts remove the same shape of ground.
+	//
+	// It answers CANDIDATES. Of ADR-0134 §4's three survivor rules this query applies
+	// ONE — an address a current resolution still cites does not leave, the NOT EXISTS
+	// clause. The other two are decided in Go by composeSeedWithdrawals: a LIVE Seed
+	// covering the address (read from the Seed corpus, never from the tombstone, which
+	// is what settles a second covering Seed and a re-declared scope), and
+	// custody.Estate.Derive still calling the address `operator`, which the
+	// rejected-alternatives table forbids restating outside the package the corpus
+	// locks.
+	//
+	// The two limits ListAddressExclusionWithdrawals inherits from
+	// PreviewExclusionWithdrawal are inherited here too, so all three queries bound
+	// the same set. The `~ '^[0-9.]+$'` gate reads IPv4 subject keys alone, and the
+	// resolution test is a substring match over the span value. Both bound the
+	// withdrawal SMALLER than the model asks, never larger: an address that should
+	// have left stays, and none leaves that should have stayed.
+	ListSeedWithdrawalCandidates(ctx context.Context) ([]ListSeedWithdrawalCandidatesRow, error)
 	ListSeeds(ctx context.Context) ([]ListSeedsRow, error)
 	// The CURRENT `reachability` span per (Service, Vantage) (#254, ADR-0104). The caller
 	// reads the SPAN, not the latest observation, because the span carries `is_gap`: a
@@ -1460,6 +1497,36 @@ type Querier interface {
 	// nothing. It reads only the scan table and never the operational or measured
 	// corpora.
 	SlowestEnabledScanCadenceSeconds(ctx context.Context) (int64, error)
+	// Spends the tombstones whose withdrawal is EXHAUSTED, stamping the batch that
+	// performed it (ADR-0134 §5). It runs after the closures, in the same batch
+	// transaction, so it sees the timelines this fold just closed and a rolled-back
+	// fold spends nothing.
+	//
+	// A tombstone is exhausted when no open timeline is left under its CIDR. That is
+	// the whole spend rule, and it is deliberately NOT "every row the fold read".
+	//
+	// Two of ADR-0134 §4's three survivors are TRANSIENT. A citing resolution goes
+	// away; a custody extension is turned off. The exclusion twin re-reads its live
+	// `exclusion` row on every batch, so it acts the moment a survivor lapses. A
+	// tombstone is the only mover its act will ever have, so spending it while its
+	// ground is still held would leave those addresses open for ever, uncited and
+	// undeclared — the leak this table exists to close. Nothing else would close
+	// them: foldEstateTransitions decides departures for NAMES, and
+	// estate.AddressClosure has no production caller.
+	//
+	// A row that is not spent costs the next fold the two reads above and closes
+	// nothing, because the same survivor still drops every candidate.
+	//
+	// `family(...) = 4` refuses to spend an IPv6 withdrawal at all. The candidate
+	// query's IPv4-only subject-key gate cannot see an IPv6 span, so it reports the
+	// ground empty when it is not. For the exclusion twin that limit only bounds the
+	// act smaller, because the declared row survives and a later widening still acts.
+	// Here the mover is destroyed, so a spent IPv6 tombstone loses its ground for
+	// good. Leaving it pending keeps the mover until the gate widens.
+	//
+	// `WHERE consumed_at IS NULL` keeps the stamp write-once, so a row cannot be
+	// re-attributed to a later batch.
+	SpendSeedWithdrawals(ctx context.Context, arg SpendSeedWithdrawalsParams) error
 	// Reconciles the cold Scan's enabled flag with its scope: enabled exactly while
 	// at least one `Seed` scope is opted in. This is the whole of "enabling it is
 	// per-Seed, not global" (ADR-0044) — the operator never toggles a global switch;
@@ -1544,6 +1611,21 @@ type Querier interface {
 	// replaces the earlier one, so toggling add→remove on a port is an update, not a
 	// second row.
 	UpsertVergeCoreFrequencyEdit(ctx context.Context, arg UpsertVergeCoreFrequencyEditParams) error
+	// Withdraws a declared Seed by id (#21a: the Scope chip-remove act), and records
+	// the tombstone an ADDRESS withdrawal owes (ADR-0134 §2, #1040). A viewer never
+	// reaches it (requireAdmin). Idempotent: withdrawing a row already gone deletes
+	// nothing, writes no tombstone and is not an error, so a stale chip submit is a
+	// no-op.
+	//
+	// The delete and the tombstone are ONE statement, so they commit together and no
+	// path can leave a withdrawn scope with no mover for the membership fold to name.
+	// A data-modifying CTE runs exactly once and always to completion, whether or not
+	// the primary query reads it, so `tombstone` fires on its own.
+	//
+	// The tombstone is written for an `address` Seed alone. A name Seed's withdrawal
+	// is a different message contract and stays the gap ADR-0134 §7 names, so it
+	// deletes exactly as it did before.
+	WithdrawSeed(ctx context.Context, arg WithdrawSeedParams) (WithdrawSeedRow, error)
 }
 
 var _ Querier = (*Queries)(nil)

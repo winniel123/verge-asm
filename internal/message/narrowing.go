@@ -16,11 +16,15 @@ import "time"
 // carries it), Fires is false and no preview is owed: a preview for a message
 // that will not fire is a promise the widening side never has to make good on.
 type NarrowingReceipt struct {
-	// Scope is the Seed scope the message fires at — the only object that
-	// survives the act, and the firing site the widening message already uses.
+	// Scope is the Seed scope the message fires at — the firing site the widening
+	// message already uses. It survives an exclusion, which narrows it from
+	// inside. It does NOT survive a Seed withdrawal (ADR-0134): there the scope
+	// is the thing that went, and the key is a dated fact rather than a live join
+	// — which Narrowing's doc already licenses.
 	Scope string
-	// Removed is the excluded value (an address scope, a name, or a subtree) that
-	// narrows the scope.
+	// Removed is the ground that left: the excluded value (an address scope, a
+	// name, or a subtree) for an exclusion, and the withdrawn CIDR itself — the
+	// same string as Scope — for a Seed withdrawal.
 	Removed string
 	// SubjectsWithdrawn is the count of subjects the act removes — the trigger
 	// (inhabitance of the withdrawn set) and half the payload.
@@ -54,6 +58,30 @@ func PreviewNarrowing(scope, removed string, subjectsWithdrawn, timelinesRemoved
 	if r.Fires {
 		r.Headline = narrowingHeadline(scope, removed, subjectsWithdrawn, timelinesRemoved)
 		r.Loss = narrowingLoss(removed)
+	}
+	return r
+}
+
+// PreviewSeedWithdrawal computes the receipt for the OTHER narrowing act: an
+// address Seed the operator withdrew entirely (ADR-0134 §1, §6). Removal is the
+// limiting case of narrowing, so it carries the same receipt, the same coverage
+// class and the same `descoped` ground; only the rendered sentence differs.
+//
+// Scope and Removed are both the withdrawn CIDR, because an address Seed's display
+// scope IS its CIDR: the scope that moved and the ground that left are one object
+// here. That is exactly why the copy cannot go through PreviewNarrowing, whose
+// headline names the two separately.
+func PreviewSeedWithdrawal(scope string, subjectsWithdrawn, timelinesRemoved int) NarrowingReceipt {
+	r := NarrowingReceipt{
+		Scope:             scope,
+		Removed:           scope,
+		SubjectsWithdrawn: subjectsWithdrawn,
+		TimelinesRemoved:  timelinesRemoved,
+		Fires:             subjectsWithdrawn > 0,
+	}
+	if r.Fires {
+		r.Headline = seedWithdrawalHeadline(scope, subjectsWithdrawn, timelinesRemoved)
+		r.Loss = narrowingLoss(scope)
 	}
 	return r
 }

@@ -98,8 +98,12 @@ type store interface {
 	CreateNameSeed(ctx context.Context, arg db.CreateNameSeedParams) (db.Seed, error)
 	CreateAddressSeed(ctx context.Context, arg db.CreateAddressSeedParams) (db.Seed, error)
 	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
-	// DeleteSeed withdraws a declared Seed by id — the Scope chip-remove act (#21a).
-	DeleteSeed(ctx context.Context, id int64) (int64, error)
+	// WithdrawSeed withdraws a declared Seed by id — the Scope chip-remove act (#21a).
+	// It deletes the row and, for an ADDRESS Seed, writes the `seed_withdrawal`
+	// tombstone in the same statement (ADR-0134 §2, #1040): the delete destroys the
+	// mover, so the membership fold reads the tombstone to know what moved and to
+	// close the timelines the withdrawn scope alone held.
+	WithdrawSeed(ctx context.Context, arg db.WithdrawSeedParams) (db.WithdrawSeedRow, error)
 	SetCustodyExtension(ctx context.Context, arg db.SetCustodyExtensionParams) error
 	CreateNameExclusion(ctx context.Context, arg db.CreateNameExclusionParams) (db.Exclusion, error)
 	CreateAddressExclusion(ctx context.Context, arg db.CreateAddressExclusionParams) (db.Exclusion, error)

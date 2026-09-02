@@ -78,6 +78,11 @@ var backupTables = []string{
 	"batch",
 	"observation",
 	"span",
+	// A declared input (ADR-0134 §2) that sits here rather than beside `seed`,
+	// because it carries the FK to the batch that spent it. An unspent tombstone is
+	// a withdrawal the estate still owes, so dropping it from the archive would
+	// restore an estate holding timelines nothing will ever close.
+	"seed_withdrawal",
 	"verge_core_frequency_edit",
 	// Estate — findings + curation.
 	"signal_instance",

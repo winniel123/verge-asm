@@ -82,6 +82,14 @@ its rejected-alternatives table names the case explicitly. A `seed_withdrawal` r
 input, not a closure. The boundary is a rule, not an accident: `created_by` never reaches the
 span and never reaches the message.
 
+**Amended in implementation (#1040).** `created_by` is **nullable**, `ON DELETE SET NULL`, which
+is where the mirror of `seed` and `exclusion` stops. Those two carry a `NOT NULL` FK that refuses
+to remove an account which authored a live declaration, and the operator lifts that refusal by
+removing the declaration. A tombstone is removable by no operator act, so the same FK would make
+the admin who withdrew an address scope permanently undeletable, with no cleanup path even once
+the row is spent. The attribution is worth keeping while the account exists. It is not worth
+making a member undeletable.
+
 ### 4. Three survivors keep an address open
 
 An address does not leave while any limb still holds it. The fold applies all three:
@@ -128,6 +136,35 @@ by-construction idempotency the exclusion act has — but the stamp earns its pl
 over. It bounds the read. It satisfies ADR-0041, because a spent row is a row nothing may still
 read. And it records which batch performed the withdrawal, mirroring ADR-0111 at the declared
 input.
+
+### 5.1 A tombstone is spent late, and the read is claimed
+
+Amended in implementation (#1040). Three rulings the section above left implicit, each found by
+review of the first commit.
+
+**A tombstone is spent only once its withdrawal is EXHAUSTED** — once no open timeline is left
+under its CIDR — never on the first fold that reads it. Idempotency does not depend on the stamp,
+but **liveness does**, and §4's survivors are not all permanent. A citing resolution goes away. A
+custody extension is turned off (§7). The exclusion twin can afford to act late because its live
+`exclusion` row is still there to re-read on the next batch. A tombstone is the only mover its act
+will ever have. Spending it while its ground is still held would strand exactly the addresses this
+ADR exists to release — open for ever, uncited and undeclared — and nothing else would reach them:
+`foldEstateTransitions` decides departures for **Names**, and `estate.AddressClosure` has no
+production caller. A row that is not spent costs the next fold two reads and closes nothing,
+because the same survivor drops every candidate again.
+
+**An IPv6 withdrawal is never spent.** The candidate query inherits the IPv4-only subject-key gate
+from `PreviewExclusionWithdrawal`, so it cannot see an IPv6 span and reports the ground empty when
+it is not. For the exclusion twin that limit only bounds the act smaller, because the declared row
+survives and a later widening still acts. Here the mover is destroyed, so a spent IPv6 tombstone
+loses its ground for good. It stays pending until the gate widens.
+
+**The pending read is claimed with `FOR UPDATE SKIP LOCKED`**, the idiom `ClaimJob` already uses.
+Workers are multi-instance. Without the lock two folds completing at once both compose the same
+receipt, and the loser writes a coverage message stating subjects its own batch withdrew none of —
+the closure and the stamp are guarded by `IS NULL` predicates, but the receipt is collected before
+either runs. A `Message` is written once and never recomputed, so that duplicate would be
+permanent.
 
 ### 6. The message keeps ADR-0074's form and gains its own sentence
 
@@ -194,3 +231,4 @@ their absence as a ruling.
 | **Close the spans in the delete handler** | Ruled out by ADR-0111 and already ruled out by ADR-0133 §8.1 for the exclusion act. A closure cites the folding batch and a web handler holds none |
 | **Close the spans and fire no message** | The operator loses the only trace of an act that removed subjects from the estate. ADR-0074 exists to make exactly this act legible, and `message.Narrowing` was written for it |
 | **A fourth `descoped` ground-bearer** for removal, beside narrowing | It would split one ground into two names and buy nothing. The ground is what the closure records, and the ground does not move |
+| **Spend every tombstone the fold reads** (#1040 review) | §5.1. Two of §4's survivors are transient, and the tombstone is the only mover the act will ever have. Spending it early strands the addresses this ADR exists to release |

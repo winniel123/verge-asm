@@ -202,11 +202,13 @@ func buildMessages(ctx context.Context, store messageStore, observedAt time.Time
 	return msgs, nil
 }
 
-// narrowingMessages fires one coverage-class message.Narrowing per address
-// Exclusion whose withdrawal this batch applied (ADR-0074, ADR-0133 §8, #1032).
-// This is the first production call to message.Narrowing: until #1032 only
-// PreviewNarrowing was called, so `POST /exclusions/preview` promised a message
-// that no path ever wrote.
+// narrowingMessages fires one coverage-class message.Narrowing per narrowing act
+// whose withdrawal this batch applied (ADR-0074). Both acts CONTEXT.md names
+// arrive here on one slice: an address Exclusion (ADR-0133 §8, #1032) and a
+// withdrawn address Seed (ADR-0134, #1040). They differ only in the sentence their
+// receipt already carries — the two constructors render it — so this producer has
+// no branch. Until #1032 only PreviewNarrowing was called, so
+// `POST /exclusions/preview` promised a message that no path ever wrote.
 //
 // It fires at the Seed scope the narrowing moved, carries the two counts and no
 // rows, and stays silent over an uninhabited withdrawn set — message.Narrowing

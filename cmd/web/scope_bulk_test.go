@@ -224,6 +224,47 @@ func TestDeleteSeedWritesRemovalFlash(t *testing.T) {
 	if !strings.Contains(page, "existing subjects keep their citations") {
 		t.Errorf("removal flash body missing; body: %s", page)
 	}
+	// A name Seed writes no tombstone. Its Names stop being enumerated, so the fold
+	// never revisits them — the gap ADR-0134 §7 names and leaves open — and the flash
+	// above states that rather than promising a withdrawal nothing performs.
+	if len(f.seedWithdrawals) != 0 {
+		t.Errorf("a name Seed records no address withdrawal, got %+v", f.seedWithdrawals)
+	}
+}
+
+// TestWithdrawAddressSeedRecordsItsTombstone: withdrawing an ADDRESS scope writes
+// the mover the membership fold reads (ADR-0134 §2, #1040), and the flash stops
+// promising that existing subjects keep their citations — which stated the bug.
+func TestWithdrawAddressSeedRecordsItsTombstone(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	declare(t, ac, base, "address", "198.51.100.0/24").Body.Close()
+	id := f.seeds[0].ID
+
+	resp := postForm(t, ac, base+"/seeds/delete", url.Values{"id": {intStr(id)}})
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("withdraw: status=%d", resp.StatusCode)
+	}
+	loc := resp.Header.Get("Location")
+	resp.Body.Close()
+
+	if len(f.seedWithdrawals) != 1 {
+		t.Fatalf("the act must record its mover, got %+v", f.seedWithdrawals)
+	}
+	if got := f.seedWithdrawals[0].AddressCidr.String(); got != "198.51.100.0/24" {
+		t.Errorf("the tombstone names the withdrawn CIDR, got %q", got)
+	}
+
+	page := followString(t, ac, base+loc)
+	if !strings.Contains(page, "leave the estate on the next completed job") {
+		t.Errorf("the flash must state the withdrawal it now performs; body: %s", page)
+	}
+	if strings.Contains(page, "existing subjects keep their citations") {
+		t.Errorf("the flash must stop promising the opposite of the act; body: %s", page)
+	}
 }
 
 // --- helpers ---------------------------------------------------------------
