@@ -66,7 +66,7 @@ At the end of a wayfinder or implementation session, open a PR and make sure the
 - `sqlc` runs `sqlc generate` then `git diff --exit-code -- internal/db`. Any migration or query change must ship regenerated `internal/db`.
 - Strict up-to-date policy. When you merge PRs in sequence, update each later branch (`gh pr update-branch <n>`) after an earlier merge. This re-triggers CI.
 
-`go.mod` pins `go 1.25.13`. CI `GO_VERSION` and the Dockerfile base digest also pin 1.25.13. Do not use 1.26-only features. Do NOT add a `toolchain` directive equal to the `go` line — it breaks CI's `-mod=readonly` build.
+`go.mod` pins `go 1.26.8`. CI `GO_VERSION` and the Dockerfile base digest also pin 1.26.8. Do not use 1.27-only features. Do NOT add a `toolchain` directive equal to the `go` line — it breaks CI's `-mod=readonly` build.
 
 New goose migrations race on their number. The `compose` CI job boots the real `web` binary, which runs `goose.Up`; a duplicate goose version panics the binary and `compose` fails at "wait for a healthy stack" (look for `panic: goose: duplicate version NNNNN`). CI tests your branch merged with `main`. Before pushing, `git fetch origin main` and number your migration above `origin/main`'s current max in `db/migrations/` (they increment by ~100).
 
@@ -81,13 +81,13 @@ docker run --rm \
   -v "<absolute-path-to-worktree>:/src" \
   -v verge-gomodcache:/go/pkg/mod \
   -v verge-gobuildcache:/root/.cache/go-build \
-  -w /src golang:1.25.13 \
+  -w /src golang:1.26.8 \
   sh -c "go vet ./... && go test ./... -count=1"
 ```
 
 The two named volumes cache the downloaded modules and the build output. The first run downloads the module graph and is slow. Later runs reuse both caches. `cmd/web` alone takes about 70 s.
 
-`go.mod` pins `go 1.25.13` and has no `toolchain` line. Pin the image tag to `golang:1.25.13` so the container never drifts above it. Do not use 1.26-only features.
+`go.mod` pins `go 1.26.8` and has no `toolchain` line. Pin the image tag to `golang:1.26.8` so the container never drifts above it. Do not use 1.27-only features.
 
 `.gitattributes` is `* text=auto` (files stored LF, checked out CRLF on Windows). This causes two traps:
 

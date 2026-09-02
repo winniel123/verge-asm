@@ -8,7 +8,7 @@ branching, Conventional Commits, and green CI as the gate for every merge to `ma
 
 ## Prerequisites
 
-- **Go 1.25.13** (the version CI pins — see `.github/workflows/ci.yml`).
+- **Go 1.26.8** (the version CI pins — see `.github/workflows/ci.yml`).
 - **Docker** and the Compose plugin, to run the stack and the `compose` CI job locally.
 - **sqlc 1.31.1**, if you change SQL or the schema (`sqlc generate`).
 
