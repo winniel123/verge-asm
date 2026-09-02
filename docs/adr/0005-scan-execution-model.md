@@ -90,6 +90,31 @@ That claim does **not** extend to third-party sources.
 req/min throttle, and that limit is per-source across the whole instance — so it lives in
 Postgres alongside the queue, not in worker memory.
 
+> **Amended 2026-09-02 by [#1106](https://github.com/winniel123/verge-asm/issues/1106) — the
+> intra-job claim above is scoped, not withdrawn.** It holds at **one vantage**. It does not hold
+> at two, and the paragraph above states it without that condition.
+>
+> **The shape.** The `hot` Scan fans out **one job per `(Vantage, Custody-admitted address)` pair**
+> (`internal/queue/hot.go`, `scan.BuildHotJobs`), so one address sits in N jobs when the instance
+> declares N vantages. **[measured]** by `TestBuildHotJobsPutOneHostInOneJobPerVantage`: two
+> vantages, one address, two jobs, each carrying its own copy of the 50 conn/s per-host ceiling.
+>
+> **Why that breaks the argument.** The limiter runs inside **one prober process**, and the worker
+> execs a fresh prober per job. At one vantage one host is in one job, so one pacer owns it and the
+> paragraph above is exact. At two vantages one host is in two jobs, so two pacers govern it and
+> neither can read the other. The per-host limit is no longer intra-job.
+>
+> **What carries the ceiling today is serialization, not this argument.** The worker's drain loop is
+> single-threaded and the instance ships single-worker, so the two jobs never run at once.
+> [#1092](https://github.com/winniel123/verge-asm/issues/1092) removed the `--scale worker=N`
+> invitation from the running guide for that reason, and recorded the same condition on
+> `SafetyProfile.PerHostConnPerSec` ([#1105](https://github.com/winniel123/verge-asm/pull/1105)).
+>
+> **Nothing moves.** No coordination is built, and the per-host state stays in prober memory. What
+> is corrected is the **record**, which is what a later reader cites when they decide whether a
+> cross-worker per-host bucket is needed. It is needed exactly when the worker stops being
+> single-instance at two or more vantages — never at one.
+
 ### Failure records what completed, not what was attempted
 
 A batch that fails halfway has made real measurements, and discarding them throws away good
@@ -355,7 +380,11 @@ radius — expiry-N invalidates comparability for one signal, this one for the w
   current.
 - **Third-party source throttling needs cross-worker state in Postgres** — a token bucket
   beside the queue. This is the one coordination problem the partitioning decision does not
-  eliminate, and it should not be mistaken for solved.
+  eliminate, and it should not be mistaken for solved. *(Amended 2026-09-02 by
+  [#1106](https://github.com/winniel123/verge-asm/issues/1106): read **one of two**. The
+  per-host limit is the second, and unlike this one it is **conditional** — the partitioning
+  does eliminate it at one vantage, and at two or more the single-instance worker is what
+  holds it. See the amendment under "One job is one batch, sized by enumerability".)*
 - **Job visibility must include skips and dead letters**, since both are states the operator
   can only learn about from the operational record — by construction they leave no trace in
   the observation data.

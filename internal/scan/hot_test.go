@@ -124,6 +124,43 @@ func TestBuildHotJobsCarriesVergeCore(t *testing.T) {
 	}
 }
 
+// The measured half of #1106. ADR-0005 justified keeping the per-host pacer in
+// prober memory on an intra-job argument, and that argument holds only while one
+// host sits in one job. The fan-out is one job per (Vantage, admitted address),
+// so at two vantages one host sits in two jobs, each carrying its own copy of the
+// 50 conn/s per-host ceiling. Two probers can then be pointed at that one host.
+func TestBuildHotJobsPutOneHostInOneJobPerVantage(t *testing.T) {
+	estate := operatorEstate()
+	host := "93.184.216.10"
+	addrs := []netip.Addr{addr(host)}
+	vantages := []Vantage{
+		internetVantage(1, "internet-a"),
+		{ID: 2, Name: "internet-b", Dialled: "198.51.100.7"},
+	}
+
+	jobs := hotJobs(1, estate, addrs, vantages, vergecore.Default())
+	if len(jobs) != len(vantages) {
+		t.Fatalf("got %d jobs for one address at %d vantages, want %d", len(jobs), len(vantages), len(vantages))
+	}
+
+	seen := map[int64]bool{}
+	for _, j := range jobs {
+		if len(j.Addresses) != 1 || j.Addresses[0] != host {
+			t.Fatalf("job from vantage %d carries %v, want only %s", j.VantageID, j.Addresses, host)
+		}
+		if seen[j.VantageID] {
+			t.Fatalf("vantage %d produced two jobs for one address", j.VantageID)
+		}
+		seen[j.VantageID] = true
+		if j.Profile.PerHostConnPerSec != 50 {
+			t.Errorf("per-host ceiling = %d, want 50 in every job", j.Profile.PerHostConnPerSec)
+		}
+	}
+	if len(seen) != len(vantages) {
+		t.Fatalf("one host reached %d vantages, want %d", len(seen), len(vantages))
+	}
+}
+
 // Empty inputs are legible: no addresses, or no vantages, yields no jobs.
 func TestBuildHotJobsEmptyIsLegible(t *testing.T) {
 	estate := operatorEstate()
