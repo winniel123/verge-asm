@@ -2361,7 +2361,7 @@ func devGraphData() graphView {
 		// Every pinned node sits inside the viewport box, so the content box IS the
 		// viewport box and the design's own pinned Mx/My stay the minimap's basis.
 		ContentW: graphViewW, ContentH: graphViewH,
-		FitX: fitX, FitY: fitY, FitK: fitK, MinK: minK,
+		FitX: fitX, FitY: fitY, FitK: fitK, MinK: minK, LabelMinK: graphLabelMinK,
 	}
 }
 

@@ -2,7 +2,7 @@
   DESIGN-OWNED ARTIFACT — graph.tmpl · package v3.10.0 · WORKFLOW.md v4
   Source of truth: examples/console/GraphView.jsx + components/display/Graph.jsx · shot 08.
   Replaces templates_graph.go (define "graph" kept; "sevbadge" from signals.tmpl reused).
-  Holes: .Graph{Empty, ViewW, ViewH, MiniW, MiniH, ContentW, ContentH, FitX, FitY, FitK, MinK,
+  Holes: .Graph{Empty, ViewW, ViewH, MiniW, MiniH, ContentW, ContentH, FitX, FitY, FitK, MinK, LabelMinK,
   Scope, ScopeLabel, Scopes[{Token,Label}],
   Cap, CutEdges, CutSignals, Capped[{Label,Drawn,Held}],
   Edges[{X1,Y1,X2,Y2,ToService}],
@@ -22,6 +22,9 @@
   set of links rather than a client-side filter: it bounds the drawing server-side (ADR-0136 §3).
   #1103 adds the .gr-callout shortfall statement above the card, reusing drift.tmpl's .dr-callout
   pattern: the column cap draws fewer subjects, so the screen states what it left out (§2, §4, §6).
+  #1104 adds .gr-hushed, the label suppression the view toggles on .LabelMinK: below that scale
+  an 11px label renders under 7px, so the subdomain, ip and service labels go and the 13px domain
+  apex label stays (ADR-0136 §5). The PNG export lifts it, since it renders at its own scale.
 */}}
 {{define "graph"}}{{template "head" .}}
 {{template "chrome" .}}
@@ -57,6 +60,10 @@
 .gnode:hover .gbody { stroke-width: 2; }
 .gnode .gsel { display: none; }
 .gnode.sel .gsel { display: block; }
+/* #1104: .gr-hushed hides the 11px subdomain, ip and service labels below the scale at which
+   they render under 7px. The 13px domain apex label is exempt: it answers which apex the
+   operator is looking at. Only the glyph goes, so no node, halo, edge or minimap dot moves. */
+#gr-svg.gr-hushed .gnode:not([data-type="domain"]) text { display: none; }
 .gr-legend { padding: 12px 20px; border-top: 1px solid var(--row-sep); display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
 .gr-legend .it { display: inline-flex; align-items: center; gap: 7px; }
 .gr-legend .lb { font: 400 11px var(--font-mono); color: var(--text-secondary); }
@@ -236,11 +243,16 @@
   // reach that scale and no lower, so a graph that fits keeps the standing 0.5 (#1101).
   var FITX = {{.Graph.FitX}}, FITY = {{.Graph.FitY}}, FITK = {{.Graph.FitK}};
   var MINK = {{.Graph.MinK}}, MAXK = 2.5;
+  // Below LMINK an 11px label renders under 7px and reads as noise laid over the plot,
+  // so apply() hushes the labels there and restores them as the operator zooms back in
+  // (#1104). LMINK and the column cap are one threshold, derived server-side (ADR-0136 §5).
+  var LMINK = {{.Graph.LabelMinK}};
   var view = { x: FITX, y: FITY, k: FITK };
   var drag = null, movedRecently = false;
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
   function apply() {
     vp.setAttribute("transform", "translate(" + view.x + "," + view.y + ") scale(" + view.k + ")");
+    svg.classList.toggle("gr-hushed", view.k < LMINK);
     updateMini();
   }
   function zoomAt(f, cx, cy) {
@@ -366,6 +378,11 @@
   });
   var exp = document.getElementById("gr-export");
   if (exp) exp.addEventListener("click", function () {
+    // The export renders at its own scale, so it keeps every label. Lift the view's
+    // suppression first: a hushed label is display:none, so it would fall out of the
+    // getBBox frame as well as out of the clone (#1104).
+    var hushed = svg.classList.contains("gr-hushed");
+    svg.classList.remove("gr-hushed");
     try {
       // A serialized SVG rasterized inside an <img> is isolated from this page:
       // it never sees the token stylesheet, so every var(--…) fill/stroke collapses
@@ -421,6 +438,7 @@
       };
       img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(xml);
     } catch (err) { console.error("graph PNG export failed", err); }
+    finally { if (hushed) svg.classList.add("gr-hushed"); }
   });
   apply();
 })();
