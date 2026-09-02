@@ -80,6 +80,17 @@ const (
 	graphZoomFloor = 0.5 // the standing zoom-out limit for a graph that fits the viewport
 )
 
+// graphColumnCap bounds each of the three columns (ADR-0136 §2, §4). Twenty is
+// derived, not chosen: a name column of N measures
+// (N-1)*graphRowStep + 2*graphPad + graphRadius("subdomain") = (N-1)*46 + 98 px, so
+// fit to the graphViewH viewport its 11px labels render at 11 * 640 / ((N-1)*46 + 98)
+// px. Twenty gives 7.2px, twenty-one gives 6.9px, so 20 is the largest column whose
+// labels still clear the 7px legibility threshold that label suppression reads (§5).
+// Past the cap the drawing holds fewer subjects and states the shortfall. It never
+// folds them into a prefix or a parent: a rollup node is not one of the four Subject
+// kinds, and no measurement produced it.
+const graphColumnCap = 20
+
 // graphSignal is one open (fired) signal joined to a node: the rule that fired, the
 // exact subject it fired on, and the rule's severity (P0.1). Subject may be more
 // specific than the node it lights — an Endpoint firing attached to its Name node
@@ -137,6 +148,10 @@ type graphEdge struct {
 // floor that reaches the fit (#1101).
 // Scopes is the scope selector's vocabulary, Scope the selected ?scope token and
 // ScopeLabel its label, so the control renders and marks its own selection (#1102).
+// Cap is graphColumnCap, Capped names each column the cap truncated, CutEdges counts
+// the edges it left with an unplaced endpoint and CutSignals the firings it left with
+// no node to light, so the screen states the shortfall rather than dropping subjects,
+// relationships and signals silently (#1103).
 type graphView struct {
 	Nodes                      []graphNode
 	Edges                      []graphEdge
@@ -148,10 +163,30 @@ type graphView struct {
 	Scopes                     []graphScope
 	Scope                      string
 	ScopeLabel                 string
+	Cap                        int
+	Capped                     []graphColumnCount
+	CutEdges                   int
+	CutSignals                 int
 	// members is the resolved membership the build narrowed by. joinSignals reads it
 	// to tell a Name node the scope dropped from one the corpus never held. Zero
 	// means the whole estate, so a graphView assembled by hand narrows nothing.
 	members graphMembers
+	// held is every subject the scoped corpus put in a column BEFORE the cap, keyed by
+	// the internal id place uses. joinSignals reads it to tell a node the CAP dropped
+	// from one the corpus never held: the first is a deletion the screen must state,
+	// the second was never in the drawing. Zero holds nothing, so a graphView
+	// assembled by hand reports no deletion.
+	held map[string]struct{}
+}
+
+// graphColumnCount is one column the cap truncated: the column's plural subject noun,
+// how many nodes the drawing holds, and how many the scoped corpus held. It is only
+// ever built for a column where Drawn is less than Held, so the screen states a
+// shortfall and never a redundant "12 of 12".
+type graphColumnCount struct {
+	Label string
+	Drawn int
+	Held  int
 }
 
 // graphScopeAll is the ?scope token for the whole estate — the drawing /graph has
@@ -481,14 +516,35 @@ func buildScopedGraph(rows []db.ListAllOpenSpansRow, sc graphScope) graphView {
 		nodes = append(nodes, n)
 	}
 
+	var capped []graphColumnCount
+	held := map[string]struct{}{}
+	// The cap takes the first graphColumnCap keys of the column's existing sorted
+	// order, so a column at or under the cap is drawn exactly as it was and a capped
+	// one draws the same set on every reload of an unchanged corpus. It is not ordered
+	// by severity: that would make the graph a second triage surface and would move
+	// the drawing under the operator as rules fire.
+	capColumn := func(label, prefix string, keys []string) []string {
+		for _, k := range keys {
+			held[prefix+k] = struct{}{}
+		}
+		if len(keys) <= graphColumnCap {
+			return keys
+		}
+		capped = append(capped, graphColumnCount{Label: label, Drawn: graphColumnCap, Held: len(keys)})
+		return keys[:graphColumnCap]
+	}
+
+	// The tier split reads the whole observed name set, not the capped one: a name's
+	// apex standing is a fact about the corpus, so the cap must not demote an apex
+	// whose children it happened to drop.
 	nameType := classifyNameTypes(names)
-	for i, k := range sortedSet(names) {
+	for i, k := range capColumn("names", "name:", sortedSet(names)) {
 		place("name:"+k, k, k, nameType[k], graphColName, i, "—")
 	}
-	for i, a := range sortedSet(addrs) {
+	for i, a := range capColumn("addresses", "addr:", sortedSet(addrs)) {
 		place("addr:"+a, a, a, "ip", graphColAddr, i, joinPorts(addrPorts[a]))
 	}
-	for i, k := range sortedSet(services) {
+	for i, k := range capColumn("services", "svc:", sortedSet(services)) {
 		place("svc:"+k, k, svcLabel[k], "service", graphColSvc, i, "—")
 	}
 
@@ -499,10 +555,16 @@ func buildScopedGraph(rows []db.ListAllOpenSpansRow, sc graphScope) graphView {
 	}
 
 	var edges []graphEdge
+	cutEdges := 0
 	for _, e := range order {
 		a, ok1 := pos[e.from]
 		b, ok2 := pos[e.to]
+		// An endpoint with no placed position is one the cap left out. The guard is
+		// older than the cap and used to be unreachable, so it discarded nothing. It
+		// now deletes real relationships, and a deletion the screen does not state is
+		// the failure this ticket exists to end (ADR-0136 §6).
 		if !ok1 || !ok2 {
+			cutEdges++
 			continue
 		}
 		edges = append(edges, graphEdge{X1: a.x, Y1: a.y, X2: b.x, Y2: b.y, ToService: e.toSvc})
@@ -515,7 +577,9 @@ func buildScopedGraph(rows []db.ListAllOpenSpansRow, sc graphScope) graphView {
 		ViewW: graphViewW, ViewH: graphViewH, MiniW: graphMiniW, MiniH: graphMiniH,
 		ContentW: contentW, ContentH: contentH,
 		FitX: fitX, FitY: fitY, FitK: fitK, MinK: minK,
+		Cap: graphColumnCap, Capped: capped, CutEdges: cutEdges,
 		members: members,
+		held:    held,
 	}
 }
 
@@ -589,6 +653,13 @@ func joinSignals(g graphView, censuses []signal.Census) graphView {
 		}
 		return false
 	}
+	// cut counts a firing the CAP deleted — one whose node the corpus held and the
+	// drawing does not. A firing whose node the corpus never held is not counted: it
+	// was never in the drawing, and the cap did not take it.
+	cut := func(internalID string) bool {
+		_, ok := g.held[internalID]
+		return ok
+	}
 	for _, c := range censuses {
 		kind := signal.SubjectKindFor(c.Rule)
 		sev, _ := signal.SeverityFor(c.Rule)
@@ -596,7 +667,13 @@ func joinSignals(g graphView, censuses []signal.Census) graphView {
 			sig := graphSignal{Severity: sev.String(), SevLabel: sevLabel(sev.String()), Rule: c.Rule, Subject: m.Subject}
 			switch kind {
 			case "name", "service":
-				attach(m.Subject, sig)
+				prefix := "name:"
+				if kind == "service" {
+					prefix = "svc:"
+				}
+				if !attach(m.Subject, sig) && cut(prefix+m.Subject) {
+					g.CutSignals++
+				}
 			case "endpoint":
 				// name@service — light the Name leg (the endpoint's DNS identity),
 				// falling back to the Service leg for a nameless endpoint or when the
@@ -609,8 +686,23 @@ func joinSignals(g graphView, censuses []signal.Census) graphView {
 				if name != "" && !g.members.holdsName(name) {
 					continue
 				}
-				if name == "" || !attach(name, sig) {
-					attach(service, sig)
+				if name != "" {
+					if attach(name, sig) {
+						continue
+					}
+					// The fallback answers a nameless or unmeasured endpoint. Taking it
+					// because the CAP dropped the Name node would move the firing onto
+					// the Service leg for a reason that is about the drawing being
+					// full, and the drawer would then name a Name the drawing does not
+					// hold (#1103). Count the deletion instead, as #1102 does for a
+					// scope that excludes the name.
+					if cut("name:" + name) {
+						g.CutSignals++
+						continue
+					}
+				}
+				if !attach(service, sig) && cut("svc:"+service) {
+					g.CutSignals++
 				}
 			}
 		}

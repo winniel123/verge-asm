@@ -4,6 +4,7 @@
   Replaces templates_graph.go (define "graph" kept; "sevbadge" from signals.tmpl reused).
   Holes: .Graph{Empty, ViewW, ViewH, MiniW, MiniH, ContentW, ContentH, FitX, FitY, FitK, MinK,
   Scope, ScopeLabel, Scopes[{Token,Label}],
+  Cap, CutEdges, CutSignals, Capped[{Label,Drawn,Held}],
   Edges[{X1,Y1,X2,Y2,ToService}],
   Nodes[{ID,Label,Type(domain|subdomain|ip|service),X,Y,Mx,My,Sev,HaloA,HaloB,LabelDX,Ports,First,
   OpenSignals[{Severity,SevLabel,Rule,Subject}]}]}.
@@ -19,6 +20,8 @@
   original viewport-framed engine and is no longer the source of truth for this block.
   #1102 adds the scope listbox, which reuses the severity listbox's .gr-listbox pattern but is a
   set of links rather than a client-side filter: it bounds the drawing server-side (ADR-0136 §3).
+  #1103 adds the .gr-callout shortfall statement above the card, reusing drift.tmpl's .dr-callout
+  pattern: the column cap draws fewer subjects, so the screen states what it left out (§2, §4, §6).
 */}}
 {{define "graph"}}{{template "head" .}}
 {{template "chrome" .}}
@@ -30,6 +33,9 @@
 .gr-main h1 { margin: 0; font: 600 21px var(--font-ui); letter-spacing: var(--heading-tracking); color: var(--text-ink); }
 .gr-sub { font: 400 12.5px var(--font-ui); color: var(--text-muted); white-space: nowrap; }
 .gr-card { background: var(--surface); border: 1px solid var(--border-default); border-radius: 16px; box-shadow: var(--shadow-sm); overflow: hidden; display: flex; flex-direction: column; }
+.gr-callout { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; background: var(--surface-sunken); border: 1px solid var(--border-default); border-radius: 12px; font-family: var(--font-ui); }
+.gr-callout .ic { color: var(--text-secondary); display: inline-flex; margin-top: 1px; flex: none; }
+.gr-callout .tx { font: 400 13px/1.55 var(--font-ui); color: var(--text-body); }
 .gr-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 16px; border-radius: 12px; font: 600 13px var(--font-ui); cursor: pointer; white-space: nowrap; text-decoration: none; background: var(--surface); color: var(--text-body); border: 1px solid var(--border-strong); transition: background var(--dur-fast) var(--ease-out); }
 .gr-btn:hover { background: var(--surface-sunken); }
 .gr-listbox { position: relative; display: inline-flex; width: 170px; }
@@ -143,6 +149,9 @@
 {{end}}
 </div></div>
 {{else}}
+{{if .Graph.Capped}}<div class="gr-callout"><span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg></span>
+<span class="tx">Showing {{range $i, $c := .Graph.Capped}}{{if $i}}, {{end}}{{$c.Drawn}} of {{$c.Held}} {{$c.Label}}{{end}}. The graph draws at most {{.Graph.Cap}} nodes per column.{{if .Graph.CutEdges}} {{if eq .Graph.CutEdges 1}}1 edge reaches a node it left out and is not drawn.{{else}}{{.Graph.CutEdges}} edges reach a node it left out and are not drawn.{{end}}{{end}}{{if .Graph.CutSignals}} {{if eq .Graph.CutSignals 1}}1 open signal fired on a node it left out and is not lit.{{else}}{{.Graph.CutSignals}} open signals fired on a node it left out and are not lit.{{end}}{{end}} {{if le (len .Graph.Scopes) 1}}Declare a seed on the Scope screen to bound the drawing.{{else if eq .Graph.Scope "all"}}Pick a scope to bound the drawing to one declared seed.{{else}}This scope still holds more than the cap. Pick a smaller scope, or declare a narrower seed on the Scope screen.{{end}}</span></div>
+{{end}}
 <div class="gr-card">
 <div style="position:relative" id="gr-canvas">
 <svg id="gr-svg" viewBox="0 0 {{.Graph.ViewW}} {{.Graph.ViewH}}" style="display:block;width:100%;height:560px;cursor:grab;touch-action:none">
