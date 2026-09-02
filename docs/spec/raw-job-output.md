@@ -364,16 +364,16 @@ state. This **dissolves collision #40** — the two surfaces never share a panel
 
 ### 6.3 Multi-stream layout
 
-`stdout` is the primary reading surface — a large inverted panel with room for the 4 MiB cap and the
+`stdout` is the primary reading surface — a large console panel with room for the 4 MiB cap and the
 head+tail truncation marker. `exec-meta` and `stderr` sit in a **340px side rail**:
 
 | Region | Content |
 | --- | --- |
-| Primary panel | `stdout` — large inverted panel; 4 MiB cap; head+tail truncation marker |
+| Primary panel | `stdout` — large console panel; 4 MiB cap; head+tail truncation marker |
 | Side rail — `.rd-kv` card | exec-meta: exit code, signal, ctx-cancelled, duration, captured-at, and the **JobSpec sent** |
-| Side rail — panel | `stderr` — a shorter inverted panel |
+| Side rail — panel | `stderr` — a shorter console panel |
 
-Reuse the design-system `rd-log` / `rd-logbody` / `rd-line` vocabulary, the `--surface-inverted`
+Reuse the design-system `rd-log` / `rd-logbody` / `rd-line` vocabulary, the `--console-surface`
 tokens, and `.rd-card` / `.rd-kv`. Invoke the `verge-asm-design` skill before writing the markup.
 
 ### 6.4 Escape-on-render — mandatory
