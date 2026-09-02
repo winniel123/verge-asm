@@ -204,12 +204,37 @@ verifies it can reach Postgres.
 ([#1092](https://github.com/winniel123/verge-asm/issues/1092)).
 
 The prober process holds the active-scan safety budget: 50 conn/s and 20 in-flight
-connections per host. The worker execs a fresh prober for every job, and its drain loop
-is single-threaded. So exactly one prober runs at a time, on this host or on a remote
-vantage, and the declared ceilings hold for the whole instance.
+connections per host, and 200 pkt/s across every target one vantage probes. The worker
+execs a fresh prober for every job, and its drain loop is single-threaded. So exactly one
+prober runs at a time, on this host or on a remote vantage.
 
-Two workers run two probers, and those two probers share no state. Point both at one
-host and the instance emits up to twice the declared rate against it.
+Those ceilings are enforced **per `Vantage`**. One vantage emits at most the declared
+rate at one target. That is not the scope the numbers were chosen for. They are chosen
+for what one **target** receives, because a destination's SYN backlog and connection
+table do not care how many sources the traffic arrived from. The two scopes differ, and
+the gap is disclosed rather than closed
+([ADR-0137](../adr/0137-the-safety-budget-promises-a-targets-rate-and-enforces-a-vantages.md)).
+
+**A target inside N declared vantages receives up to N times the declared rate**, and
+nothing prevents that. Nothing gates the vantage count either — a cost you declared
+deliberately is priced at policy time, not refused by a threshold
+([ADR-0127](../adr/0127-the-address-scope-range-cap-has-no-ceiling-a-large-scope-is-priced-not-gated.md)).
+Each `Batch` records the per-vantage figure. Multiply it by your vantage count to read
+what one target receives. Dividing each vantage's rate by the vantage count would enforce
+the promise exactly, and it is refused: it makes declaring a second vantage slow the
+first, and comparing what different vantages see is the reason to declare more than one.
+
+The per-host ceiling does not depend on the worker count. A `hot` scan fans out **one job
+per `(Vantage, Address)` pair**, so two concurrent jobs of one `Dispatch` never share a
+target from one position. Where a lagging `hot` tick would re-enqueue a pair the previous
+dispatch has not drained, the tick is skipped and recorded rather than run beside it. That
+gate does not arm while the stale-job reaper is off (`VERGE_STALE_JOB_TIMEOUT` at or below
+zero), because one wedged job would then skip every later `hot` tick.
+
+What N workers do break is the **per-vantage aggregate**. Nothing serialises probers per
+vantage host. The worker pushes a fresh prober binary over SSH for each job, so N workers
+run N concurrent probers on one vantage, and each paces to the full budget. That vantage
+then emits up to N times the rate it declared.
 
 Nothing warns you, and nothing refuses the work. Each `Batch` still records the
 **declared** profile. A run that emitted twice the rate therefore records the single
@@ -219,11 +244,27 @@ Workers are byte-identical and carry no per-instance configuration, so a second 
 could not drift to a different aperture from its siblings. That argument covers
 configuration, not rate. It does not make scaling safe.
 
-If you need more measurement throughput, move the budget out of the prober process. The
-`ct` throttle shows the shape: it claims each slot in Postgres, so the limit holds
-across every process
+The mechanism that would bound N probers on one vantage is a **grant**, not a Postgres
+reservation. This guide once recommended the reservation, on the `ct` throttle's shape
 ([ADR-0106](../adr/0106-the-ct-poll-is-a-scan-that-schedules-and-a-ct-admission-is-a-name-citing-its-batch.md)).
-A compose flag does not.
+It withdraws that recommendation. A prober on a remote vantage runs over SSH with no
+route to the database, so the reservation cannot exist where the packets are emitted.
+ADR-0137 rejects it on capability, not on cost.
+
+The grant inverts it. The worker reaches Postgres, so the worker computes a budget from a
+reservation at claim time and carries it to the prober in the `JobSpec` on stdin. That is
+one round trip **per job**, never on the connect path, and it expires with the probe
+timeout (`VERGE_PROBE_TIMEOUT`), so a departed worker never holds a share.
+
+**The grant is not built.** It is blocked on a wall-clock measurement of a `hot` scan at
+the default address-scope cap
+([#1115](https://github.com/winniel123/verge-asm/issues/1115)), and it is deliberately
+falsifiable. If that scan finishes comfortably inside its cadence at one worker, nobody
+scales, no second prober runs on a vantage, and the grant guards a case that does not
+occur. The honest outcome then is to keep the per-vantage scope in prose and close the
+grant unbuilt ([#1116](https://github.com/winniel123/verge-asm/issues/1116)).
+
+Until the grant lands or is closed unbuilt, **`--scale worker=N` stays forbidden**.
 
 ### On-demand scan triggers
 
