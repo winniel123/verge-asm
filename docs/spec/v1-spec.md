@@ -186,7 +186,7 @@ so it decides membership as affirmatively as `resolution-walk`'s own outcomes
 | Redirects | Not followed by default; a declared parameter of `http-exchange`, not an operator dial |
 | Admin-panel / credential probing | Response-matching only; default-credential login attempts never, not even opt-in |
 | TLS | Certificate fetched every run (rides the `reachability` exchange); version/cipher enumeration weekly, own `Scan` |
-| Global ceiling | 200 pkt/s across all targets; round-robin by host, never by port |
+| Per-vantage ceiling | 200 pkt/s across the targets one `Vantage` probes; round-robin by host, never by port (ADR-0137) |
 | Adaptive back-off | Halves the rate on timeout/RST-spike/429/503; never touches the deadline (ADR-0021 keeps it outside `connect-outcome`) |
 
 TCP connect is chosen over SYN specifically to avoid `CAP_NET_RAW`/root in the container — SYN

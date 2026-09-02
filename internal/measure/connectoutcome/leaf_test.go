@@ -118,8 +118,8 @@ func TestDefaultProfileMatchesTable(t *testing.T) {
 	if p.Retries != 2 {
 		t.Errorf("retries = %d, want 2", p.Retries)
 	}
-	if p.GlobalPacketsPerSec != 200 {
-		t.Errorf("global ceiling = %d, want 200 pkt/s", p.GlobalPacketsPerSec)
+	if p.PerVantagePacketsPerSec != 200 {
+		t.Errorf("per-vantage ceiling = %d, want 200 pkt/s", p.PerVantagePacketsPerSec)
 	}
 	if !p.RoundRobinByHost {
 		t.Errorf("round-robin by host must be set")

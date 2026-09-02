@@ -130,7 +130,7 @@ type addressCapView struct {
 // no throughput is assumed, so it promises no completion the model does not (ADR-0127).
 //
 // Effective is the separate predicted-vs-effective cadence #891 states on the Scans
-// surface (#847): the worst-case time one full cap-sized pass takes at the estate
+// surface (#847): the worst-case time one full cap-sized pass takes at the per-vantage
 // packet ceiling — declared size x probed ports x attempts / rate, the same figures
 // ADR-0047 prices with. It is arithmetic, not a new domain term, and it never appears
 // on Coverage (Coverage is evidential; Scans is operational). Cadence is the predicted
@@ -1853,7 +1853,7 @@ func toAddressCapView(cfg db.GetInstanceConfigRow, scans []db.Scan, accounts []d
 			Probes:  probes,
 		}
 		// The effective cadence (#891, decision #847): one full cap-sized pass at the
-		// estate packet ceiling. A scan with no probed ports (unknown kind) yields no
+		// per-vantage packet ceiling. A scan with no probed ports (unknown kind) yields no
 		// figure. Outpaces compares the worst-case pass to the declared cadence — a pass
 		// longer than its cadence cannot finish in time, and the trailing edge lags.
 		if ports := addressScopePorts[sc.Kind]; ports > 0 {
@@ -1907,7 +1907,7 @@ func projectedEvidentialDiskPerYear(addrCap int64) string {
 var addressScopePorts = map[string]int64{"hot": 131, "cold": 65535}
 
 // effectiveCadenceSeconds is the worst-case time one full cap-sized address-scope pass
-// takes at the estate packet ceiling (#891, decision #847): (addresses x ports x attempts)
+// takes at the per-vantage packet ceiling (#891, decision #847): (addresses x ports x attempts)
 // / rate. attempts is 1 + the connect-outcome retry budget — the pass where every probe
 // exhausts its retries — so the figure never understates the lag (ADR-0127 promises no
 // completion the model cannot keep). rate and retries read from the leaf's declared safety
@@ -1916,7 +1916,7 @@ var addressScopePorts = map[string]int64{"hot": 131, "cold": 65535}
 // projection ("≈"), not an exact instant.
 func effectiveCadenceSeconds(addresses, portsPerAddress int64) float64 {
 	p := connectoutcome.DefaultProfile()
-	rate := float64(p.GlobalPacketsPerSec)
+	rate := float64(p.PerVantagePacketsPerSec)
 	if rate <= 0 {
 		rate = 1
 	}

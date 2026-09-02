@@ -8,8 +8,8 @@ import (
 
 // This file is the §3.3 safety limiter, kept deliberately OUTSIDE the verdict
 // (ADR-0021): it paces the connects — per-host rate, per-host concurrency, a
-// global ceiling round-robin by host, and an adaptive back-off that halves the
-// rate on a stress signal — and can neither manufacture nor suppress a
+// per-vantage ceiling round-robin by host, and an adaptive back-off that halves
+// the rate on a stress signal — and can neither manufacture nor suppress a
 // reachability value. Every part is pure and clock-injectable, so the pacing is
 // tested without a real sleep and without the network.
 
@@ -100,29 +100,30 @@ func (b *Backoff) Interval() time.Duration {
 }
 
 // Pacer computes when each connect may start, honouring both a per-host minimum
-// spacing (from that host's Backoff) and a single global minimum spacing (the
-// 200 pkt/s estate ceiling). It holds no timers: Next is pure arithmetic over a
-// caller-supplied clock, so a test drives it with a fixed `now` and asserts the
-// spacing rather than sleeping. A real run sleeps until the returned instant.
+// spacing (from that host's Backoff) and a single aggregate minimum spacing (the
+// 200 pkt/s per-vantage ceiling). It holds no timers: Next is pure arithmetic
+// over a caller-supplied clock, so a test drives it with a fixed `now` and
+// asserts the spacing rather than sleeping. A real run sleeps until the returned
+// instant.
 type Pacer struct {
-	globalInterval time.Duration
-	lastGlobal     time.Time
-	lastHost       map[netip.Addr]time.Time
-	backoff        map[netip.Addr]*Backoff
-	profile        SafetyProfile
+	aggregateInterval time.Duration
+	lastAggregate     time.Time
+	lastHost          map[netip.Addr]time.Time
+	backoff           map[netip.Addr]*Backoff
+	profile           SafetyProfile
 }
 
-// NewPacer builds a Pacer over the profile's global ceiling and per-host rate.
+// NewPacer builds a Pacer over the profile's aggregate ceiling and per-host rate.
 func NewPacer(profile SafetyProfile) *Pacer {
-	gp := profile.GlobalPacketsPerSec
-	if gp < 1 {
-		gp = 1
+	pps := profile.PerVantagePacketsPerSec
+	if pps < 1 {
+		pps = 1
 	}
 	return &Pacer{
-		globalInterval: time.Second / time.Duration(gp),
-		lastHost:       map[netip.Addr]time.Time{},
-		backoff:        map[netip.Addr]*Backoff{},
-		profile:        profile,
+		aggregateInterval: time.Second / time.Duration(pps),
+		lastHost:          map[netip.Addr]time.Time{},
+		backoff:           map[netip.Addr]*Backoff{},
+		profile:           profile,
 	}
 }
 
@@ -136,20 +137,20 @@ func (p *Pacer) backoffFor(host netip.Addr) *Backoff {
 }
 
 // Signal halves the given host's rate on a stress cause, so the next Next for
-// that host is spaced further out. It never moves the global interval and never
-// touches a deadline.
+// that host is spaced further out. It never moves the aggregate interval and
+// never touches a deadline.
 func (p *Pacer) Signal(host netip.Addr, cause Stress) { p.backoffFor(host).Signal(cause) }
 
 // Next returns the instant the next connect to host may start, given the current
 // clock. It is the later of: the per-host interval since that host's last emit,
-// and the global interval since any host's last emit — so the global ceiling
-// binds across hosts while each host also respects its own (possibly backed-off)
-// rate. Calling Next records the emit at the returned instant, so a sequence of
-// calls produces a correctly-spaced schedule.
+// and the aggregate interval since any host's last emit — so the aggregate
+// ceiling binds across hosts while each host also respects its own (possibly
+// backed-off) rate. Calling Next records the emit at the returned instant, so a
+// sequence of calls produces a correctly-spaced schedule.
 func (p *Pacer) Next(host netip.Addr, now time.Time) time.Time {
 	earliest := now
-	if !p.lastGlobal.IsZero() {
-		if t := p.lastGlobal.Add(p.globalInterval); t.After(earliest) {
+	if !p.lastAggregate.IsZero() {
+		if t := p.lastAggregate.Add(p.aggregateInterval); t.After(earliest) {
 			earliest = t
 		}
 	}
@@ -158,7 +159,7 @@ func (p *Pacer) Next(host netip.Addr, now time.Time) time.Time {
 			earliest = t
 		}
 	}
-	p.lastGlobal = earliest
+	p.lastAggregate = earliest
 	p.lastHost[host] = earliest
 	return earliest
 }

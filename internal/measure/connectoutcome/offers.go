@@ -29,7 +29,7 @@ import (
 // output-affecting change and only on one, gated bidirectionally by this leaf's
 // own golden corpus (§4.4) — separately from the other leaves, so a break names
 // its leaf.
-const Version = "connect-outcome/v1"
+const Version = "connect-outcome/v2"
 
 // Kind is the JobSpec.Kind that dispatches to this leaf. It is distinct from the
 // `hot` Scan's DB kind: the Scan is `hot`, the leaf it dispatches is
@@ -44,13 +44,20 @@ const Kind = "connect-outcome"
 // they are declared here so a change to any of them is a declared-parameter
 // change that moves the leaf's params digest and forces a Version bump.
 //
-// Scope: the limiter runs inside ONE prober process, and the worker execs a
-// fresh prober per job (`ExecProber.Probe`). Every ceiling below therefore
-// governs one process and not the estate. Each holds estate-wide only while the
-// worker runs single-instance. That is how `docker-compose.yml` ships it, and
-// why the running guide forbids `--scale worker=N`. N workers run N pacers that
-// share no state, so the instance emits up to N times the rate the Batch still
-// records (#1092).
+// Scope: every ceiling below is chosen for what one TARGET receives and is
+// enforced over what one `Vantage` emits. ADR-0137 discloses that gap rather
+// than closing it — a target inside N declared Vantages receives up to N times
+// the declared rate, and nothing gates the vantage count.
+//
+// The per-target half needs no cross-process coordination: `hot` fans out one
+// job per `(Vantage, Address)` pair, so two concurrent jobs of one Dispatch
+// never share a target from one position, at any worker count. Two overlapping
+// Dispatches would, and the cadence-lag gate closes that (#1114). The per-vantage
+// half is NOT enforced across processes — the limiter runs inside ONE prober
+// process and the worker execs a fresh prober per job (`ExecProber.Probe`), and
+// a prober on a remote vantage runs over SSH with no route to Postgres, so no
+// reservation can live where the packets leave. The running guide therefore
+// still forbids `--scale worker=N` (#1092, #1105, ADR-0137).
 type SafetyProfile struct {
 	// Technique is fixed: TCP connect, never SYN. Recorded so the Batch states it
 	// rather than leaving it to be inferred from the absence of raw sockets.
@@ -60,16 +67,17 @@ type SafetyProfile struct {
 	// real subject rather than a reason to skip the host.
 	HostDiscovery string `json:"host_discovery"`
 
-	// PerHostConnPerSec is the per-host connection rate ceiling — ≤ 50 conn/s per
-	// prober process (see the scope note above). ADR-0005 called this limit
-	// intra-job and needing no coordination, and is amended by #1106 to say that
-	// argument holds only while one host is in one job. The `hot` and `cold` Scans
-	// each build one job per `(Vantage, Address)` pair over an overlapping address
-	// population, so a second vantage or an opted-in cold scope puts one host in
-	// two jobs, and a second worker can then double the real rate against it.
+	// PerHostConnPerSec is the per-host connection rate ceiling — ≤ 50 conn/s from
+	// one `Vantage` (see the scope note above). ADR-0005 called this limit
+	// intra-job and needing no coordination; the conclusion holds and the unit is
+	// wrong. The `hot` and `cold` Scans each build one job per `(Vantage, Address)`
+	// pair, so the unit is intra-pair and holds at any worker count within one
+	// Dispatch (ADR-0137). #1106 holds the amendment. A host inside two Vantages
+	// sits in two jobs and receives twice the rate — the disclosed gap above, not
+	// a coordination defect.
 	PerHostConnPerSec int `json:"per_host_conn_per_sec"`
-	// PerHostConcurrency is the per-host in-flight connection ceiling — ≤ 20 per
-	// prober process, under the same condition as PerHostConnPerSec.
+	// PerHostConcurrency is the per-host in-flight connection ceiling — ≤ 20 from
+	// one `Vantage`, under the same condition as PerHostConnPerSec.
 	PerHostConcurrency int `json:"per_host_concurrency"`
 	// ConnectTimeoutMillis bounds one connect attempt — 3 s.
 	ConnectTimeoutMillis int `json:"connect_timeout_millis"`
@@ -77,9 +85,9 @@ type SafetyProfile struct {
 	// verdict is decided — 2. A refusal (RST) is an answer and is never retried.
 	Retries int `json:"retries"`
 
-	// GlobalPacketsPerSec is the 200 pkt/s ceiling across every target ONE prober
-	// process holds, round-robin by host so adding targets never multiplies load.
-	// It is not estate-wide — see the scope note above.
+	// PerVantagePacketsPerSec is the 200 pkt/s aggregate ceiling across every
+	// target one `Vantage` probes, round-robin by host so adding targets never
+	// multiplies load. It is not estate-wide — see the scope note above.
 	//
 	// It also does not bind under the shipped partitioning. A `hot` job carries
 	// one Address (ADR-0005, ADR-0127), so the pacer's per-host map holds one
@@ -87,7 +95,7 @@ type SafetyProfile struct {
 	// per-host interval is therefore always the later, and Pacer.Next always
 	// returns the per-host instant. The value is a recorded commitment, not a
 	// limit that has governed a connect (#1092).
-	GlobalPacketsPerSec int `json:"global_packets_per_sec"`
+	PerVantagePacketsPerSec int `json:"per_vantage_packets_per_sec"`
 	// RoundRobinByHost records that scheduling cycles hosts, never ports — the
 	// canonical way to avoid a dense burst against one destination.
 	RoundRobinByHost bool `json:"round_robin_by_host"`
@@ -113,14 +121,14 @@ type BackoffPolicy struct {
 // the leaf and the Batch records exactly what governed the probe.
 func DefaultProfile() SafetyProfile {
 	return SafetyProfile{
-		Technique:            "tcp-connect",
-		HostDiscovery:        "skipped", // -Pn
-		PerHostConnPerSec:    50,
-		PerHostConcurrency:   20,
-		ConnectTimeoutMillis: 3000,
-		Retries:              2,
-		GlobalPacketsPerSec:  200,
-		RoundRobinByHost:     true,
+		Technique:               "tcp-connect",
+		HostDiscovery:           "skipped", // -Pn
+		PerHostConnPerSec:       50,
+		PerHostConcurrency:      20,
+		ConnectTimeoutMillis:    3000,
+		Retries:                 2,
+		PerVantagePacketsPerSec: 200,
+		RoundRobinByHost:        true,
 		AdaptiveBackoff: BackoffPolicy{
 			HalveOnTimeout:  true,
 			HalveOnRSTSpike: true,
