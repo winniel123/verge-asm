@@ -98,7 +98,10 @@ func TestTriggerScanLandsBackOnTheSubmittingURL(t *testing.T) {
 		t.Fatalf("the trigger form does not carry the submitting URL; body: %s", page)
 	}
 
-	for _, from := range []string{"/scans", "/settings?tab=scans"} {
+	// The last case is the one the stop and terminate siblings do NOT keep: a trigger
+	// answers no confirm, so an unanswered ?stop= opener stays on the destination
+	// rather than being stripped off it and moving the scroll key.
+	for _, from := range []string{"/scans", "/settings?tab=scans", "/scans?stop=12"} {
 		resp := postForm(t, ac, base+"/scans/trigger", url.Values{"kind": {"dns"}, backField: {from}})
 		got := resp.Header.Get("Location")
 		resp.Body.Close()

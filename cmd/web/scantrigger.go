@@ -151,21 +151,31 @@ func (s *server) runTrigger(w http.ResponseWriter, r *http.Request) (triggerOutc
 }
 
 // triggerScan is POST /scans/trigger: the Run now button beside a scan kind. It
-// answers through toastBackToSection, so the operator lands back on the URL they
-// pressed the button from — /scans or /settings?tab=scans, query and all — at the
-// offset they were at (ADR-0130 §3, ticket #1087).
+// lands the operator back on the URL they pressed the button from — /scans or
+// /settings?tab=scans, query and all — at the offset they were at (ADR-0130 §3,
+// ticket #1087).
 //
 // It used to spell its receipt on the destination instead (`/scans?notice=…&kind=…`),
 // which made the landing URL differ from the submitting one by construction, so the
 // scroll key ticket #970 set could never hit. The receipt is a single-consume toast
 // now: `toast` is the one parameter both stripToastParam and the shell's keyFor drop,
-// so it cannot move the key.
+// so it cannot move the key. It rides the per-account flash store rather than the URL
+// because the Scans surface meta-refreshes itself while a dispatch is in flight, and a
+// toast spelled on the URL fires again on every one of those reloads.
+//
+// This is redirectBack and NOT toastBackToSection, which is the one place the trigger
+// parts from its stop and terminate siblings. toastBackToSection strips the ?stop= and
+// ?terminate= confirm openers off the destination (settings.go dialogParams). That is
+// right for those two acts, because each ANSWERS the confirm it strips. A trigger ends
+// no dispatch, so an unanswered confirm is part of the place the operator is returning
+// to, and dropping it would move the scroll key for nothing.
 func (s *server) triggerScan(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	out, ok := s.runTrigger(w, r)
 	if !ok {
 		return
 	}
-	s.toastBackToSection(w, r, acct.ID, "scans", out.Tone, out.Title, out.Description)
+	s.flash.set(acct.ID, toastVM{Tone: out.Tone, Title: out.Title, Description: out.Description})
+	s.redirectBack(w, r, "/settings?tab=scans")
 }
 
 // finishOnboarding is POST /onboarding/finish: the wizard's "Start first scan". It
