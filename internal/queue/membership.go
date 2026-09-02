@@ -306,21 +306,34 @@ func closeSpansByID(ctx context.Context, qtx *db.Queries, ids []int64, at time.T
 	return nil
 }
 
-// openedByAperture reports whether a subject's FIRST span opening was driven by the
-// operator's aperture rather than the world — the signal the drift feed reads
-// `revealed` from (ADR-0014). A subject a Seed declares (a Name beneath a name
-// Seed, an Address inside an address Seed's scope, or a Service on such an Address)
-// is declared input: the fold looked at it because the aperture covers it, not
-// because the world produced it, so its first timeline opens `revealed`. A subject
-// no Seed declares — a resolved Address the world cited, a CT-admitted Name —
-// opens `appeared`. It is consulted only for a first span (open == nil in the
-// fold); a value MOVE on an existing timeline is `changed`, never an opening.
+// openedByAperture reports whether a span opening was driven by the operator's
+// aperture rather than the world — the signal the drift feed reads `revealed` from
+// (ADR-0014). A subject the Declared aperture covers (a Name beneath a name Seed, an
+// Address inside an address Seed's scope, or a Service on such an Address) is
+// declared input: the fold looked at it because the aperture covers it, not because
+// the world produced it. A subject no Seed declares — a resolved Address the world
+// cited, a CT-admitted Name — is unmarked and opens `appeared`.
+//
+// An Exclusion cuts the subject back OUT of the Declared aperture, so an excluded
+// subject is unmarked even where a Seed scope still contains it. The case is
+// ordinary rather than defensive. An exclusion cuts the `Seed` limb alone, so an
+// excluded Address a custody extension reaches still derives operator, is still
+// probed, and still opens a span (ADR-0133 §3, internal/custody/candidates.go). The
+// world's resolution is why we looked at that one, so it opens `appeared`. This is
+// the disjunction decideNameDeparture composes on the way out, read on the way in.
+//
+// The fold consults it for an opening with no OPEN predecessor, which is a first
+// span or a re-entry behind a closed one. A first span reads the marker as
+// `revealed`. A re-entry behind a `descoped` closure reads it as the operator
+// widening a Declared scope back over the subject, which is `revealed` as well
+// (drift.ReEntryKind, ADR-0041, #1039). A value MOVE on an existing timeline is
+// `changed` and never consults it.
 func openedByAperture(subjectKind, subjectKey string, in membershipInputs) bool {
 	if subjectKind == subjectKindName {
-		return nameSeedCovered(subjectKey, in.seeds)
+		return nameSeedCovered(subjectKey, in.seeds) && !nameExcluded(subjectKey, in.exclusions)
 	}
 	addr, ok := subjectAddress(subjectKind, subjectKey)
-	return ok && addressSeedCovered(addr, in.seeds)
+	return ok && addressSeedCovered(addr, in.seeds) && coveringAddressExclusion(addr, in.exclusions) == nil
 }
 
 // subjectAddress is the Address a subject key stands at — the key itself for an

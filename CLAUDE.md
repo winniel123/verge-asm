@@ -97,3 +97,19 @@ The two named volumes cache the downloaded modules and the build output. The fir
 Pre-existing test failures in the container (NOT regressions): every `TestCorpusExpectation` in a golden corpus — `internal/measure/*/corpus` and `internal/custody/corpus`. The cause is the CRLF golden, not the host OS. The container bind-mounts the Windows working tree, so it reads the same CRLF files a native Windows run reads. CI passes them because CI checks out fresh with LF. A corpus you just blessed with `-update` in the container passes until git rewrites its goldens with CRLF on a later checkout.
 
 `internal/auth/TestLoadOrCreateKey` (file mode) and `cmd/worker/TestExecProbeRoundTrip` (prober not in `PATH`) failed under the retired native-Windows setup. Both pass in the container. Treat a failure in either as a real regression now.
+
+## Comments
+
+Do not write code comments. No docstrings, no inline comments, no block
+headers, no section-divider comments. The only exceptions:
+1. A comment explaining WHY something non-obvious is done a certain way
+   (a workaround, a gotcha, an external spec requirement).
+2. Comments I explicitly request.
+
+Never write comments that describe WHAT the code does — the code says that.
+
+When editing existing code: do not add new comments, and delete any
+existing comments that are redundant or inaccurate for the code you touch.
+
+Do not use comments as change narration ("// updated to handle X",
+"// new function"). Explain changes in your response, not in the file.

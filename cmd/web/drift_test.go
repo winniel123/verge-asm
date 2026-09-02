@@ -152,7 +152,9 @@ func TestClassifyDriftEventRevealed(t *testing.T) {
 // which the estate wiring now writes so this kind can fire. A `descoped` prior
 // closure instead reads `appeared`: a narrowing is not a decommission, so a
 // re-citation must not be narrated as the world bringing the subject back
-// (drift.MembershipReturn, ADR-0087).
+// (drift.MembershipReturn, ADR-0087). Both rows here are unmarked — a `descoped`
+// re-entry the fold marked aperture-driven reads `revealed` instead, which
+// TestClassifyDriftEventRevealedAfterDescopedReEntry holds.
 func TestClassifyDriftEventReturned(t *testing.T) {
 	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
 
@@ -471,5 +473,41 @@ func TestDriftTransitionDelta(t *testing.T) {
 	tooYoung := pgtype.Timestamptz{Time: now.Add(-9 * 24 * time.Hour), Valid: true}
 	if got := driftTransitionDelta(5, prevRows, tooYoung, prevStart, now); got != "" {
 		t.Errorf("young-install delta = %q, want empty", got)
+	}
+}
+
+// Un-excluding an address widens a Declared scope back over the subject. The
+// exclusion's own withdrawal closed the prior span with `descoped`. Removing the
+// exclusion restores the probing gate, so the fold enumerates the address again and
+// stamps the aperture marker on the re-entry opening. ADR-0041 holds that widening
+// or narrowing a Declared scope yields `revealed`, never `appeared`: we started
+// looking again and the world did not move (#1039).
+//
+// The marker is the whole discriminator. A `descoped` re-entry the fold left
+// unmarked stays `appeared`, no Declared scope having widened over it.
+func TestClassifyDriftEventRevealedAfterDescopedReEntry(t *testing.T) {
+	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
+
+	widened := driftOpenedRow(11, now.Add(-time.Hour), "203.0.113.77", `{"outcome":"Resolved"}`, `{"outcome":"Resolved"}`)
+	widened.SubjectKind = "address"
+	widened.PrevClosureReason = pgtype.Text{String: "descoped", Valid: true}
+	widened.OpenedAperture = true
+	ev, ok := classifyDriftEvent(widened, now)
+	if !ok || ev.Change != "revealed" {
+		t.Fatalf("aperture-marked re-entry across a descoped closure => change %q (ok=%v), want revealed", ev.Change, ok)
+	}
+	if ev.Family != "gain" {
+		t.Errorf("revealed family = %q, want gain", ev.Family)
+	}
+
+	// A `measured-absent` closure is a decommission undone, not a widening. The
+	// aperture marker must not turn it into `revealed`.
+	recommissioned := driftOpenedRow(11, now.Add(-time.Hour), "203.0.113.78", `{"outcome":"Resolved"}`, `{"outcome":"NameError"}`)
+	recommissioned.SubjectKind = "address"
+	recommissioned.PrevClosureReason = pgtype.Text{String: "measured-absent", Valid: true}
+	recommissioned.OpenedAperture = true
+	ev, ok = classifyDriftEvent(recommissioned, now)
+	if !ok || ev.Change != "returned" {
+		t.Fatalf("aperture-marked re-entry across a measured-absent closure => change %q (ok=%v), want returned", ev.Change, ok)
 	}
 }

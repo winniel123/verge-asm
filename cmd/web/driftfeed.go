@@ -35,11 +35,14 @@ import (
 //     reason today), but classified end-to-end for when it lands.
 //   - withdrawn — a close by withdrawal (closure reason measured-absent / uncited).
 //   - descoped  — a close by operator exclusion (closure reason descoped).
-//   - revealed  — a widened aperture: a first span whose opening the fold marked
-//     aperture-driven (span.opened_aperture), where the operator's declared scope is
-//     why we started looking at a Seed-declared subject rather than the world
-//     bringing it (drift.OpeningKind, ADR-0014). The estate wiring stamps the marker
-//     at fold time (#637), so `revealed` is derived on read exactly like the rest.
+//   - revealed  — a widened aperture: an opening the fold marked aperture-driven
+//     (span.opened_aperture), where the operator's declared scope is why we started
+//     looking at a Seed-declared subject rather than the world producing that subject
+//     (drift.OpeningKind, ADR-0014). A first span reads the marker this way. So does a
+//     re-entry behind a `descoped` closure, where the operator widened a Declared
+//     scope back over a subject an earlier narrowing had removed (drift.ReEntryKind,
+//     ADR-0041, #1039). The estate wiring stamps the marker at fold time (#637), so
+//     `revealed` is derived on read like the rest.
 //
 // A transition across a Break (the predecessor sits under a different Derivation
 // vector) is not a value move — nothing compares across a Break (ADR-0008) — so it
@@ -132,13 +135,23 @@ func classifyDriftEvent(row db.ListRecentDriftEventsRow, now time.Time) (driftEv
 	prevReason := drift.ClosureReason(row.PrevClosureReason.String)
 	if prevReason.Valid() {
 		// The predecessor was a withdrawal closure, so this opening is a re-entry across
-		// an absence. drift.MembershipReturn decides returned vs appeared — a `descoped`
-		// prior closure reads `appeared` (a narrowing is not a decommission), the rest
-		// read `returned`. witnessBroke is folded into the vector-equality guard above.
-		kind := drift.MembershipReturn(&drift.Span{Reason: prevReason}, false)
+		// an absence, and drift.ReEntryKind holds the whole grammar for one. A
+		// `measured-absent` or `uncited` closure reads `returned`. A `descoped` closure
+		// blocks `returned`, a narrowing being no decommission, and the aperture marker
+		// then decides between the two remaining words: `revealed` where the operator
+		// widened a Declared scope back over the subject (ADR-0041, #1039), `appeared`
+		// where the world cited it again. witnessBroke is folded into the vector-equality
+		// guard above.
+		//
+		// The marker is the same span.opened_aperture the first-span branch reads. The
+		// fold stamps it on any opening with no open predecessor, so a re-entry carries
+		// it exactly as a first span does.
 		change := "returned"
-		if kind == drift.KindAppeared {
+		switch drift.ReEntryKind(&drift.Span{Reason: prevReason}, false, row.OpenedAperture) {
+		case drift.KindAppeared:
 			change = "appeared"
+		case drift.KindRevealed:
+			change = "revealed"
 		}
 		return driftEvent{
 			Change:  change,
