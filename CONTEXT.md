@@ -1714,6 +1714,21 @@ know ([ADR-0072](./docs/adr/0072-absence-is-a-property-of-a-cell-and-withdrawn-i
 See [ADR-0105](./docs/adr/0105-inventory-is-a-read-over-the-open-span-corpus-not-a-second-thesis.md).
 _Avoid_: asset inventory, snapshot, asset database, current-state store
 
+**Topology**:
+What the estate's subjects **point at** — the `Name` to `Address` resolution edges and the
+`Address` to `Service` edges the open-span corpus already states, read for **shape** rather than
+for completeness. Like `Inventory` it is a projection of that one corpus and not a modelled
+thing: no new store, observation, `Derivation` leaf or value. It holds **no node beyond the four
+`Subject` kinds** — an address never folds into its prefix and a subdomain never folds into its
+parent, since a rollup would be a node the model has no kind for and no measurement produced.
+It is a **reading, not a census**: where it draws fewer subjects than the corpus holds it
+**says so and names the remedy**, which is a scope selection. That is what separates it from
+`Inventory`, which shows every subject and states no denominator. Its bound is the operator's
+own `Seed`, so one address scope is one drawing. The bound is a **rendering** limit and reaches
+no measurement — the hot tier still walks every declared address. See
+[ADR-0136](./docs/adr/0136-topology-is-a-reading-not-a-census-so-the-graph-caps-rather-than-folds.md).
+_Avoid_: map, network map, asset graph, topology discovery, diagram
+
 ### Operational
 
 **Dispatch**:
