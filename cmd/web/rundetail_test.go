@@ -688,3 +688,82 @@ func TestRunDetailRequiresLogin(t *testing.T) {
 			resp.StatusCode, resp.Header.Get("Location"))
 	}
 }
+
+// linkRunLog turns each state log line's job tag into the ?job={id} entry point (#1083). It is
+// the only place the UI produces a ?job= URL, so the per-job filter and the admin raw-output
+// link both hang off it.
+func TestLinkRunLog(t *testing.T) {
+	// Unfiltered: every line that carries a job id links to that job.
+	v := runView{Log: []runLogLine{
+		{JobID: 900, Tag: "#900", Text: "dns-sweep · done"},
+		{JobID: 901, Tag: "#901", Text: "reachability · running"},
+	}}
+	linkRunLog(&v, "/runs/52")
+	if v.Log[0].Href != "/runs/52?job=900" || v.Log[1].Href != "/runs/52?job=901" {
+		t.Errorf("unfiltered log should link each job: %+v", v.Log)
+	}
+
+	// A line with no job id (the pinned completed fixture's timestamp tags) stays plain text.
+	v = runView{Log: []runLogLine{{Tag: "14:00:02", Text: "batch started"}}}
+	linkRunLog(&v, "/runs/52")
+	if v.Log[0].Href != "" {
+		t.Errorf("a line with no job id should not link, got %q", v.Log[0].Href)
+	}
+
+	// Already filtered: the chip owns the job, so the tag does not link back to itself.
+	v = runView{
+		Log:       []runLogLine{{JobID: 901, Tag: "#901", Text: "reachability · running"}},
+		JobFilter: &runJobFilter{ID: 901},
+	}
+	linkRunLog(&v, "/runs/52")
+	if v.Log[0].Href != "" {
+		t.Errorf("a filtered log should not link its tags, got %q", v.Log[0].Href)
+	}
+}
+
+// The run-detail log's job tags are the UI's only ?job= entry point (#1083). Clicking one
+// narrows the log to that job and — for an admin — reveals the raw-output link, which
+// rundetail.tmpl renders inside {{with .JobFilter}}. #961 deleted the active-dispatch card's
+// per-job table, the previous entry point, which left both features URL-only.
+func TestRunDetailLogTagsLinkToJob(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+
+	tick := time.Date(2026, 8, 22, 14, 0, 0, 0, time.UTC)
+	f.dispatchProgress = []db.ListDispatchProgressRow{
+		progressRow(52, "standard", tick, 2, 1, 0, 1, 0, 0),
+	}
+	f.jobsByDispatch = map[int64][]db.ListJobsForDispatchRow{
+		52: {
+			{ID: 900, Kind: "dns-sweep", State: "done", Attempt: 1, MaxAttempts: 3,
+				VantageName: pgtype.Text{String: "eu-west-1", Valid: true}},
+			{ID: 901, Kind: "reachability", State: "running", Attempt: 1, MaxAttempts: 3,
+				VantageName: pgtype.Text{String: "us-east-2", Valid: true}},
+		},
+	}
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	bare := getBody(t, ac, base+"/run/52", http.StatusOK)
+	for _, want := range []string{`href="/run/52?job=900"`, `href="/run/52?job=901"`} {
+		if !strings.Contains(bare, want) {
+			t.Errorf("run detail should link each log tag to its job (%s); body: %s", want, bare)
+		}
+	}
+	// The unfiltered page carries no chip, so it must not offer the raw link either.
+	if strings.Contains(bare, "Raw output (admin)") {
+		t.Errorf("the bare run should not render the raw-output link; body: %s", bare)
+	}
+
+	// Following one tag reaches the filter chip and, for an admin, the raw-output view.
+	filtered := getBody(t, ac, base+"/run/52?job=901", http.StatusOK)
+	if !strings.Contains(filtered, "Raw output (admin)") ||
+		!strings.Contains(filtered, `href="/run/52/raw?job=901"`) {
+		t.Errorf("following a job tag should reveal the admin raw-output link; body: %s", filtered)
+	}
+	// The chip owns the job now, so the surviving tag does not link back to itself.
+	if strings.Contains(filtered, `href="/run/52?job=901"`) {
+		t.Errorf("a filtered log should not re-link its own job tag; body: %s", filtered)
+	}
+}

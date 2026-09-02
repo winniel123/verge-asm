@@ -431,12 +431,15 @@ type runStage struct {
 // optional level (a dead job is an error, a superseded or retrying attempt a warn),
 // and the terse text (kind · state · vantage · batch). JobID carries the source
 // queue-job id so the per-job filter (DF-F3b, ?job={id}) can narrow the log
-// server-side; the frozen tmpl reads only Tag/Level/Text, never JobID.
+// server-side; the tmpl reads Tag/Level/Text and Href, never JobID.
 type runLogLine struct {
 	JobID int64
 	Tag   string
 	Level string // "" | "warn" | "error"
 	Text  string
+	// Href is the ?job={id} route the tag links to, set by linkRunLog (#1083). Empty
+	// renders the tag as plain text — the tmpl guards it with {{if .Href}}.
+	Href string
 }
 
 // runJobFilter is the loghead per-job filter chip (DF-F3b): the queue-job the log is
@@ -687,6 +690,7 @@ func (s *server) buildRunView(r *http.Request, dv dispatchView, jobRows []db.Lis
 	// handed, never filtering client-side. The filter lives in the URL so it survives the
 	// live meta-refresh; the × clears back to the bare run route.
 	applyJobFilter(&v, r.URL.Query().Get("job"), r.URL.Path, jobs)
+	linkRunLog(&v, r.URL.Path)
 
 	// StreamHref (R4-D7 #761, collision #40 a-scoped): the per-job live-progress long-poll
 	// the frozen tmpl tails while work is in flight. It is set only while the in-scope job
@@ -973,6 +977,26 @@ func applyJobFilter(v *runView, jobParam, bareHref string, jobs []jobView) {
 	}
 	v.Log = filtered
 	v.JobFilter = jf
+}
+
+// linkRunLog turns each log line's job tag into its ?job={id} route (#1083). #961 deleted the
+// active-dispatch card's per-job table, and with it the only control in the UI that produced a
+// ?job= URL — which orphaned both the per-job log filter (DF-F3b) and the admin raw-output view
+// (#866), since rundetail.tmpl renders the raw link inside {{with .JobFilter}}. The run-detail
+// log is where #961 said per-job detail lives, and its lines already carry JobID, so the tag
+// carries the entry point with no new data plumbing. A line with no job id (the pinned
+// completed fixture's timestamp tags) stays plain text, and a log already narrowed to one job
+// links nothing — the loghead chip owns that job, and the tag would point at itself.
+func linkRunLog(v *runView, bareHref string) {
+	if v.JobFilter != nil {
+		return
+	}
+	for i, ln := range v.Log {
+		if ln.JobID == 0 {
+			continue
+		}
+		v.Log[i].Href = bareHref + "?job=" + strconv.FormatInt(ln.JobID, 10)
+	}
 }
 
 // runStages folds the dispatch's jobs into pipeline steps, grouped by job kind in

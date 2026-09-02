@@ -990,6 +990,7 @@ func (s *server) runningRunFixtureData(acct db.Account, jobParam, bareHref strin
 		},
 	}
 	applyJobFilter(&view, jobParam, bareHref, jobs)
+	linkRunLog(&view, bareHref)
 	return map[string]any{
 		"Title": "batch " + view.Title, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"NavActive":    "drift",
