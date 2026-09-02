@@ -257,10 +257,10 @@ func main() {
 	// Dispatch as "in flight" until an operator Terminate. The reaper sweeps on a
 	// period and returns a stale 'running' job (lease older than the threshold) to
 	// 'ready' with attempt bumped, or 'dead' past the budget, so a crash is
-	// recoverable without operator action. The threshold sits above the probe timeout,
-	// so a job legitimately mid-probe is never reaped; operator override
-	// VERGE_STALE_JOB_TIMEOUT, and a value <= 0 disables the sweep. A one-minute period
-	// bounds how long a genuinely stuck job waits past its lease before reclaiming.
+	// recoverable without operator action. A one-minute period bounds how long a
+	// genuinely stuck job waits past its lease before reclaiming. staleThreshold is read
+	// above, beside the dispatcher that shares it.
+	//
 	// The defaults keep the stale threshold above the probe timeout, so a job that is
 	// legitimately mid-probe is never reaped. The two overrides are independent, so an
 	// operator could invert that. Warn rather than silently override their value: a

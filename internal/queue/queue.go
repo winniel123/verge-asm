@@ -283,8 +283,16 @@ func (d *Dispatcher) fanOutStreamed(ctx context.Context, s db.Scan, scheduledTim
 // durably claimed before any job streams out. skipped is true when the tick was
 // already dispatched — the unique (scan, scheduled_time) key admits one, so a
 // re-run never double-dispatches — or, for the hot Scan alone, when an earlier
-// dispatch of the same Scan has not drained (hotlag.go, ADR-0137 §4). Both checks
-// run under the ONE advisory lock, so two concurrent dispatchers cannot both pass.
+// dispatch of the same Scan has not drained (hotlag.go, ADR-0137 §4).
+//
+// Both checks run under the ONE advisory lock, so two dispatchers cannot interleave
+// between them. The lock is TRANSACTION-scoped and this transaction commits before
+// fanOutStreamed enqueues anything, so it does not serialise the gate against the
+// fan-out it guards: a second dispatcher claiming a DIFFERENT scheduled_time inside
+// that window reads no jobs yet and passes. Only a manual Trigger keys a different
+// scheduled_time (the cadence path quantises to one tick per window and is stopped by
+// the unique key), and cmd/web refuses a trigger over an in-flight Dispatch before
+// reaching here, so the residual window is a trigger racing the cadence poll.
 func (d *Dispatcher) claimDispatch(ctx context.Context, s db.Scan, scheduledTime time.Time) (dispatchID int64, skipped bool, err error) {
 	tx, err := d.pool.Begin(ctx)
 	if err != nil {

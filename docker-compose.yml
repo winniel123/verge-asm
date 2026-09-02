@@ -19,6 +19,13 @@ services:
       # Set to true when a TLS-terminating proxy fronts web, so the session
       # cookie is marked Secure even though web itself sees plain HTTP.
       VERGE_SECURE_COOKIES: ${VERGE_SECURE_COOKIES:-}
+      # Passed to BOTH services from one variable on purpose. It configures the
+      # worker's stale-`running` reaper, and the hot cadence-lag gate (#1114) refuses
+      # to arm without that reaper. If web read a different value than worker, a
+      # manual trigger would gate on a reaper that is not running, which is the
+      # permanent-skip configuration the gate exists to refuse. A value <= 0 disables
+      # both.
+      VERGE_STALE_JOB_TIMEOUT: ${VERGE_STALE_JOB_TIMEOUT:-}
     ports:
       # Bind loopback only by default, so the operator UI is not published on
       # every host address. Front it with a proxy, or set VERGE_BIND=0.0.0.0
@@ -51,6 +58,8 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-verge}:${POSTGRES_PASSWORD:?}@postgres:5432/${POSTGRES_DB:-verge}?sslmode=disable
       VERGE_PROBER_PATH: "/app/prober"
+      # Must match web's. See the note on the web service.
+      VERGE_STALE_JOB_TIMEOUT: ${VERGE_STALE_JOB_TIMEOUT:-}
     volumes:
       - worker-state:/app/state
       # Same shared transcript key as web mounts: the worker seals the Transcript
