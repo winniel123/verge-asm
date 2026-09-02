@@ -419,7 +419,7 @@ func (s *server) deleteSeed(w http.ResponseWriter, r *http.Request, acct db.Acco
 	// Resolve the scope's display string BEFORE the withdrawal so the removal flash can
 	// name it (WORK-ORDER-DOGFOOD-R1 item 2). A stale chip whose row is already gone
 	// leaves scope empty and simply redirects — the act stays idempotent.
-	scope, _ := s.seedScopeByID(r, id)
+	scope := s.seedScopeByID(r, id)
 	// The delete and the tombstone the withdrawal owes commit together (ADR-0134 §2,
 	// ADR-0135 §2), so no path can leave a withdrawn scope of either kind with no
 	// mover for the membership fold to name.
@@ -449,20 +449,19 @@ func removalFlash(scope string) string {
 }
 
 // seedScopeByID returns the display scope for a declared seed id — the address CIDR for
-// an address scope, the domain for a name scope — and whether it is an address scope,
-// or "" when no such seed exists. It reuses toSeedViews so the string matches the chip
-// the operator clicked.
-func (s *server) seedScopeByID(r *http.Request, id int64) (string, bool) {
+// an address scope, the domain for a name scope — or "" when no such seed exists. It
+// reuses toSeedViews so the string matches the chip the operator clicked.
+func (s *server) seedScopeByID(r *http.Request, id int64) string {
 	rows, err := s.store.ListSeeds(r.Context())
 	if err != nil {
-		return "", false
+		return ""
 	}
 	for _, v := range toSeedViews(rows) {
 		if v.ID == id {
-			return v.Scope, v.IsAddress
+			return v.Scope
 		}
 	}
-	return "", false
+	return ""
 }
 
 // refusalView is the spec RefusalCallout (#21a): a declaration the handler refused

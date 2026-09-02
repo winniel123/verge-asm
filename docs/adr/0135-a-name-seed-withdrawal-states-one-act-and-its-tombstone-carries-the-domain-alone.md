@@ -160,6 +160,38 @@ surviving `Seed`'s next CT poll can re-admit a Name whose admission the cascade
 removed. A tombstone is the only mover its act will ever have, so spending it while
 its ground is still held would strand those Names open for ever.
 
+**Exhausted is not enough on its own, and here the name limb parts from the address
+one.** A dns Scan fans out one job **per vantage**, and every job freezes the whole
+resolution set into its own scope gate — `authorizedScope.admits` reads the job's
+own name list, never the live corpus. So a job enqueued before the withdrawal still
+admits observations about the withdrawn domain when it completes after it, and the
+value fold opens a fresh resolution span for a Name this act just closed.
+
+Spending on the first exhausted fold would strand exactly those spans. The batch
+that closed vantage 1's timeline would consume the mover, and vantage 2's job would
+then re-open its own with nothing left to close it — this table's own leak,
+reintroduced by the fan-out.
+
+The address twin is safe from this by accident, not by rule. An address re-opens
+only through a resolution citing it, and an address a current resolution cites is
+dropped from the candidate set, so its span stays open and its tombstone stays
+pending.
+
+So a name tombstone additionally waits for the **dns queue to drain**. A job fanned
+out after the withdrawal cannot carry the domain — `fanOutDNS` reads the live seed
+domains and the live admitted names, and the cascade removed the admissions — so
+once no dns job is outstanding, none can re-open the ground. Waiting on every dns
+job rather than only the older ones is deliberately conservative: a retry enqueues a
+**fresh row carrying the old frozen spec**, so neither its id nor its `created_at`
+can tell a stale job from a current one.
+
+**A re-declared domain spends immediately**, whatever is in flight. Survivor one
+drops every candidate once a live `Seed` covers the ground again, so the tombstone
+can never close anything and its exhaustion test could never come true — it would
+stay pending for ever and cost every completed job the candidate read. Live truth
+settles re-declaration at the spend exactly as it does in the fold, and a later
+withdrawal of the re-declared `Seed` writes its own row.
+
 There is no `family()` guard to carry across. That one exists because the address
 candidate query reads IPv4 subject keys alone and would call an IPv6 tombstone's
 ground empty when it is not. The name subtree test matches every name the candidate

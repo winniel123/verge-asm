@@ -379,14 +379,61 @@ ORDER BY s.subject_key, s.id;
 -- candidate query reads IPv4 subject keys alone and would call an IPv6 tombstone's
 -- ground empty when it is not. The subtree test below matches every name the
 -- candidate query matches, so the two agree on what is left.
+--
+-- EXHAUSTED IS NOT ENOUGH ON ITS OWN, and this is where the name limb parts from
+-- the address one. `BuildDNSJobs` fans a dns Scan out into one job PER VANTAGE, and
+-- every job freezes the whole resolution set into its own scope gate
+-- (authorizedScope.admits reads the job's name list, never the live corpus). So a
+-- job enqueued BEFORE the withdrawal still admits observations about the withdrawn
+-- domain when it completes after it, and foldObservationsIntoSpans opens a fresh
+-- resolution span for a Name this act just closed.
+--
+-- Spending the tombstone on the first exhausted fold would strand exactly those
+-- spans. The batch that closed vantage 1's timeline would consume the mover, and
+-- vantage 2's job would then re-open its own with no mover left to close it — the
+-- leak this table exists to prevent, reintroduced by the fan-out.
+--
+-- The address twin is safe from this by accident. An address re-opens only through
+-- a resolution citing it, and an address a current resolution cites is dropped from
+-- the candidate set, so its span stays open and its tombstone stays pending.
+--
+-- So a name tombstone waits for the dns queue to DRAIN. A job fanned out after the
+-- withdrawal cannot carry the domain — fanOutDNS reads the live seed domains and
+-- the live admitted names, and the FK cascade removed the admissions — so once no
+-- dns job is outstanding, no in-flight job can re-open the ground. Waiting on every
+-- dns job rather than only the older ones is deliberately conservative: a retry
+-- enqueues a FRESH row carrying the old frozen spec, so neither its id nor its
+-- created_at can tell a stale job from a current one.
+--
+-- A RE-DECLARED DOMAIN spends immediately, whatever is in flight. Survivor one
+-- (nameSeedCovered) drops every candidate once a live Seed covers the ground again,
+-- so the tombstone can never close anything and its NOT EXISTS could never come
+-- true — it would stay pending for ever and cost every completed job the candidate
+-- read. Live truth settles re-declaration here exactly as it does in the fold
+-- (ADR-0134 §4), and a later withdrawal of the re-declared Seed writes its own row.
 UPDATE seed_withdrawal w
 SET consumed_at = sqlc.arg(consumed_at), consumed_batch_id = sqlc.arg(consumed_batch_id)
 WHERE w.consumed_at IS NULL
   AND w.kind = 'name'
   AND w.id = ANY(sqlc.arg(ids)::bigint[])
-  AND NOT EXISTS (
-      SELECT 1 FROM span s
-      WHERE s.closed_at IS NULL
-        AND s.subject_kind = 'name'
-        AND (s.subject_key = w.name_domain OR s.subject_key LIKE '%.' || w.name_domain)
+  AND (
+      EXISTS (
+          SELECT 1 FROM seed s
+          WHERE s.kind = 'name'
+            AND s.name_domain IS NOT NULL
+            AND (w.name_domain = s.name_domain OR w.name_domain LIKE '%.' || s.name_domain)
+      )
+      OR (
+          NOT EXISTS (
+              SELECT 1 FROM span s
+              WHERE s.closed_at IS NULL
+                AND s.subject_kind = 'name'
+                AND (s.subject_key = w.name_domain OR s.subject_key LIKE '%.' || w.name_domain)
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM queue_job j
+              WHERE j.kind = 'resolution-walk'
+                AND j.state IN ('ready', 'running')
+          )
+      )
   );

@@ -99,6 +99,16 @@ func foldNameSeedWithdrawals(ctx context.Context, qtx *db.Queries, batchID int64
 			*out = append(*out, narrowings...)
 		}
 	}
+	// Spend only the tombstones whose withdrawal is EXHAUSTED and whose ground no
+	// in-flight job can re-open. A dns Scan fans out one job PER VANTAGE, each
+	// freezing the whole resolution set into its own scope gate, so a job enqueued
+	// before the withdrawal still opens a fresh span for a withdrawn Name when it
+	// completes after it. Spending on the first exhausted fold would leave the
+	// sibling vantage's span open with no mover left (ADR-0135 §5). The query decides
+	// it, so it reads the closures above from inside the same transaction.
+	//
+	// Only the rows THIS fold claimed are offered. The pending read holds a row lock
+	// on each of them.
 	ids := make([]int64, 0, len(pending))
 	for _, w := range pending {
 		ids = append(ids, w.ID)
