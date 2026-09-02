@@ -100,16 +100,17 @@ Pre-existing test failures in the container (NOT regressions): every `TestCorpus
 
 ## Comments
 
-Do not write code comments. No docstrings, no inline comments, no block
-headers, no section-divider comments. The only exceptions:
-1. A comment explaining WHY something non-obvious is done a certain way
-   (a workaround, a gotcha, an external spec requirement).
-2. Comments I explicitly request.
+Write a comment only when it passes both gates:
 
-Never write comments that describe WHAT the code does — the code says that.
+1. **Unrecoverable** — a competent reader cannot recover the fact from the declaration, its body, and its callers.
+2. **External cause** — the fact names a decision, a constraint, a hazard, a cost, or a rejected alternative outside this code.
 
-When editing existing code: do not add new comments, and delete any
-existing comments that are redundant or inaccurate for the code you touch.
+When you cannot decide, write nothing.
 
-Do not use comments as change narration ("// updated to handle X",
-"// new function"). Explain changes in your response, not in the file.
+A surviving comment takes the form `// <reason clause> (ADR-nnnn §x.y, #nnn)`, 25 words or fewer. The citation is optional. Put it beside the statement its reason is about. Declaration position stays empty.
+
+A machine directive (`//go:`, `-- +goose`, `eslint`) is not a comment. Write one when the tool needs it.
+
+Restating what the code does fails gate 1. Narrating a change ("updated to handle X") fails both. Explain a change in your response.
+
+When you edit code, delete a comment the edit makes redundant or wrong. Write a comment I explicitly request.
