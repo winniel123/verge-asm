@@ -54,6 +54,18 @@ func (d *Dispatcher) fanOutHot(ctx context.Context, scanID, dispatchID int64) (i
 	})
 }
 
+// EstateStore is the read set hotEstate needs. It is an interface because the
+// chip-remove preview assembles the same estate from `cmd/web`, whose store is its
+// own narrow interface rather than *db.Queries (#1046). A preview that built the
+// derivation from a different read set could state a count the fold will not honour.
+type EstateStore interface {
+	AddressExclusionStore
+	EdgeFanoutStore
+	ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error)
+	ListExtendedZoneDomains(ctx context.Context) ([]pgtype.Text, error)
+	NameCitedAddresses(ctx context.Context, arg db.NameCitedAddressesParams) ([]db.NameCitedAddressesRow, error)
+}
+
 // hotEstate builds the Custody derivation's inputs from the confirmed Seeds, the
 // current resolutions and the `edge-fanout` measurement, and returns the RESOLVED
 // address set (the addresses names currently resolve to). It is the one Estate
@@ -66,7 +78,7 @@ func (d *Dispatcher) fanOutHot(ctx context.Context, scanID, dispatchID int64) (i
 // the current resolutions are read through the live-tier gate (#237, ADR-0041),
 // so an Address held only by an evidential resolution — one no derivation may
 // still read — is not admitted into the probed estate.
-func hotEstate(ctx context.Context, q *db.Queries, asOf time.Time) (custody.Estate, []netip.Addr, error) {
+func hotEstate(ctx context.Context, q EstateStore, asOf time.Time) (custody.Estate, []netip.Addr, error) {
 	scopes, err := q.ListAddressScopeCidrs(ctx)
 	if err != nil {
 		return custody.Estate{}, nil, err
@@ -120,8 +132,13 @@ func hotEstate(ctx context.Context, q *db.Queries, asOf time.Time) (custody.Esta
 	// that would serve all six, so binding here could only starve one of them.
 	//
 	// It is NOT bound on the grounds of being rare. The withdrawal fold above runs on a
-	// completion rather than on a tick, so this read is not once a day. It is off the
-	// render path, which is what #1036 acts on, and that is the whole claim.
+	// completion rather than on a tick, so this read is not once a day.
+	//
+	// SINCE #1046 IT IS ALSO REACHED FROM A CLICK — SeedWithdrawalReceipt, behind
+	// `POST /seeds/preview` — so the earlier claim that it is off the render path no
+	// longer holds. It is kept unbound anyway, on the same grounds as the paragraph
+	// above and on cold.go's precedent, but the cost is now paid by an admin waiting on
+	// a page. A bound that served all seven consumers is the fix if that cost bites.
 	fanout, err := ReadEdgeFanout(ctx, q, EdgeFanoutUnbounded())
 	if err != nil {
 		return custody.Estate{}, nil, err

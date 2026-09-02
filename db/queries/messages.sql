@@ -217,12 +217,24 @@ ORDER BY w.id
 FOR UPDATE SKIP LOCKED;
 
 -- name: ListSeedWithdrawalCandidates :many
--- Every open timeline a pending Seed-withdrawal tombstone MAY withdraw, for the
--- membership fold to close with the `descoped` ground (ADR-0134 §5, #1040).
+-- Every open timeline a withdrawn address Seed MAY withdraw, for the membership
+-- fold to close with the `descoped` ground (ADR-0134 §5, #1040).
 --
 -- It is the tombstone twin of ListAddressExclusionWithdrawals and carries the same
--- two CTE shapes, read against `seed_withdrawal` instead of `exclusion`, so the
--- two narrowing acts remove the same shape of ground.
+-- two CTE shapes, read against one CIDR set instead of `exclusion`, so the two
+-- narrowing acts remove the same shape of ground.
+--
+-- IT TAKES THE CIDRs RATHER THAN READING `seed_withdrawal` (#1046). Two acts ask
+-- this question and only one of them has a tombstone. The fold passes the CIDRs of
+-- the tombstones its own pending read locked; the chip-remove preview passes the
+-- one scope the operator is about to withdraw, before any tombstone exists. A
+-- second query for the preview would be a second copy of the survivor set, and a
+-- preview that disagrees with the fold is worse than no preview.
+--
+-- Passing the fold's locked CIDRs also narrows it. Reading `seed_withdrawal`
+-- inline returned candidates for tombstones another worker's FOR UPDATE SKIP
+-- LOCKED had claimed, which composeSeedWithdrawals then dropped for want of a
+-- covering tombstone.
 --
 -- It answers CANDIDATES. Of ADR-0134 §4's three survivor rules this query applies
 -- ONE — an address a current resolution still cites does not leave, the NOT EXISTS
@@ -246,9 +258,8 @@ WITH withdrawn_addr AS (
       AND s.subject_kind = 'address'
       AND s.subject_key ~ '^[0-9.]+$'
       AND EXISTS (
-          SELECT 1 FROM seed_withdrawal w
-          WHERE w.consumed_at IS NULL
-            AND s.subject_key::inet <<= w.address_cidr
+          SELECT 1 FROM unnest(sqlc.arg(cidrs)::text[]) AS w(net)
+          WHERE s.subject_key::inet <<= w.net::cidr
       )
       AND NOT EXISTS (
           SELECT 1 FROM span r

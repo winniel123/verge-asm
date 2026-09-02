@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"net/netip"
@@ -17,6 +18,7 @@ import (
 	designfs "github.com/winniel123/verge-asm/design-system"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/message"
+	"github.com/winniel123/verge-asm/internal/queue"
 	"github.com/winniel123/verge-asm/internal/scan"
 	"github.com/winniel123/verge-asm/internal/seed"
 	"github.com/winniel123/verge-asm/internal/signal"
@@ -36,7 +38,8 @@ import (
 // .ZoneIntervalError .NameTree[{Label,Count,Sev,Children[{Label,Sev}]}] .CoverageMsgs[
 // {Kind,Badge,Bound,Subject,Text,When,ISO}] .Proposals[{ID,Value,Kind,Source}] .OrgQuery
 // .Exclusions[{ID,Kind,Value}] .ExclError .ExclKind .ExclValue .ExclPreview{Fires,
-// Headline,Loss}. It styles against the design token vocabulary, so the render opts in
+// Headline,Loss} .SeedConfirm{ID,Scope,Fires,Headline,Loss,Failed} (#1046, the chip
+// under confirmation). It styles against the design token vocabulary, so the render opts in
 // with DesignTokens:true (the "head" block inlines tokens/*.css only then). scope.tmpl
 // auto-embeds through designfs's existing templates/*.tmpl glob, so no designfs.go
 // change is needed. Reconciliations (SPEC-CHANGE #21, ruled): the seed kind select drops
@@ -98,6 +101,10 @@ type seedsForms struct {
 	// loss named — but only where a withdrawal message would actually fire. Nil
 	// when no preview was requested.
 	exclPreview *message.NarrowingReceipt
+	// seedConfirm is the chip the operator clicked remove on, held for the confirm
+	// step (#1046). Nil when no chip is under confirmation, which is every render but
+	// the landing of a preview.
+	seedConfirm *seedConfirmView
 	// refusals are the per-token declaration refusals (DF-F1): one RefusalCallout per
 	// refused token in a paste, in declaration order. It replaces the single .Refusal
 	// hole — a paste declares many scopes at once, each validated independently.
@@ -402,10 +409,95 @@ func allRefusedFormError(refusals []refusalView, cap int) string {
 	return fmt.Sprintf("%d refused — see the callouts.", len(refusals))
 }
 
-// deleteSeed withdraws a declared Seed by id — the Scope chip-remove act (#21a). It
-// is admin-only (requireAdmin) and idempotent: removing a row already gone satisfies
-// the operator's intent either way, so a stale chip submit redirects back cleanly
-// rather than erroring.
+// seedConfirmView is the one chip under confirmation and the receipt its withdrawal
+// would produce (#1046). ID is the chip's id as a STRING because the dev fixture's
+// seed rows carry string ids and the live rows carry int64, and the template compares
+// the two through one printf.
+//
+// The copy is the stored message's own: Headline and Loss are the strings
+// message.PreviewSeedWithdrawal renders, so the confirm step and the coverage message
+// the fold writes read as one sentence. Fires is false for a name Seed and for an
+// address Seed whose count is zero, and the template renders no receipt block at all
+// there — the exclusion preview's non-firing sentence states a model rule that is
+// false of this act (ADR-0134 §7).
+// Failed is the honest degrade, after .CustodyCensusFailed on the same screen: the
+// count read did not resolve, so the block says so rather than rendering a zero the
+// estate does not hold. The withdrawal stays available — see previewSeedWithdrawal.
+type seedConfirmView struct {
+	ID       string
+	Scope    string
+	Fires    bool
+	Headline string
+	Loss     string
+	Failed   bool
+}
+
+// previewSeedWithdrawal is the FIRST of the chip-remove act's two steps (#1046). It
+// withdraws nothing. It computes the narrowing receipt the withdrawal would produce
+// and re-renders the chip in a confirm state, so the act that closes timelines shows
+// its count before the operator commits — as declaring an exclusion already does.
+//
+// It rides the same one-shot scope flash the exclusion preview rides, so the landing
+// GET consumes the confirm state: reloading or navigating away abandons the
+// withdrawal and leaves the Seed declared. The carrier holds one chip, so at most one
+// is under confirmation.
+//
+// A stale chip whose row is already gone redirects cleanly rather than erroring,
+// matching the withdrawal's own idempotency.
+//
+// ONLY AN ADDRESS Seed carries a count. Withdrawing a name Seed closes nothing today
+// — its Names stop being enumerated and the fold never revisits them, the gap
+// ADR-0134 §7 leaves open — so its honest count is zero and its confirm step states
+// none. Both kinds still take the two-step act, so the same click behaves alike.
+func (s *server) previewSeedWithdrawal(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	// VERGE_DEV pixel-parity: the fixture corpus is not an estate, so there is no
+	// honest count to state over it. The confirm state renders with no receipt block,
+	// which is what a zero count renders anyway, and no database is touched.
+	if s.devMode {
+		s.render(w, r, "scope", s.scopeFixtureDataConfirm(acct, r.FormValue("id")))
+		return
+	}
+	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
+	if err != nil {
+		s.flashScopeBack(w, r, seedsForms{seedError: "That scope could not be found."})
+		return
+	}
+	scope, isAddress := s.seedScopeByID(r, id)
+	if scope == "" {
+		s.backToScope(w, r)
+		return
+	}
+	confirm := seedConfirmView{ID: strconv.FormatInt(id, 10), Scope: scope}
+	if isAddress {
+		p, perr := netip.ParsePrefix(scope)
+		if perr != nil {
+			s.serverError(w, "parse seed scope", perr)
+			return
+		}
+		// A FAILED COUNT DEGRADES THE BLOCK, IT DOES NOT REFUSE THE ACT. The receipt
+		// reads the candidate spans, the Seeds and the whole estate, and this step is
+		// now the ONLY route to the withdrawal — the chip's control reaches
+		// /seeds/delete through here. A 500 on any of those reads would leave the
+		// operator with no way to withdraw the scope at all, over a count that is
+		// advisory by construction (ADR-0134 §5). So the confirm step renders, says the
+		// count did not resolve, and still offers the act.
+		receipt, rerr := queue.SeedWithdrawalReceipt(r.Context(), s.store, s.now().UTC(), p)
+		if rerr != nil {
+			log.Printf("web: preview seed withdrawal %s: %v", p, rerr)
+			confirm.Failed = true
+		} else {
+			confirm.Fires = receipt.Fires
+			confirm.Headline = receipt.Headline
+			confirm.Loss = receipt.Loss
+		}
+	}
+	s.flashScopeBack(w, r, seedsForms{seedConfirm: &confirm})
+}
+
+// deleteSeed withdraws a declared Seed by id — the SECOND of the chip-remove act's
+// two steps (#21a, #1046). It is admin-only (requireAdmin) and idempotent: removing a
+// row already gone satisfies the operator's intent either way, so a stale chip submit
+// redirects back cleanly rather than erroring.
 func (s *server) deleteSeed(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	if s.devMode {
 		s.backToScope(w, r)
@@ -693,6 +785,10 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		// The narrowing receipt (#205 AC8): shown before an exclusion commits, only
 		// where a withdrawal message would fire.
 		"ExclPreview": f.exclPreview,
+		// The chip under confirmation and the receipt its withdrawal would produce
+		// (#1046). The withdrawal is the same class of act as an exclusion, so it
+		// states the same count before it commits.
+		"SeedConfirm": f.seedConfirm,
 	}
 	if f.proposalNotice != "" {
 		data["Notice"] = f.proposalNotice
