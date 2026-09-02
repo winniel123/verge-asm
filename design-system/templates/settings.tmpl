@@ -168,10 +168,10 @@
 .st-kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 20px; padding: 16px; background: var(--surface-sunken); border-radius: 12px; }
 .st-kv .cell { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .st-kv .v { font: 400 12.5px var(--font-mono); color: var(--text-body); overflow-wrap: anywhere; }
-.st-code { position: relative; background: var(--surface-inverted); border-radius: 12px; overflow: hidden; }
+.st-code { position: relative; background: var(--console-surface); border-radius: 12px; overflow: hidden; }
 .st-code .ttl { padding: 8px 14px 0; font: 500 10.5px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--neutral-500); }
 .st-code pre { margin: 0; padding: 13px 16px; overflow: auto; }
-.st-code code { font: 400 12.5px/1.6 var(--font-mono); color: var(--text-on-inverted); overflow-wrap: anywhere; white-space: pre-wrap; }
+.st-code code { font: 400 12.5px/1.6 var(--font-mono); color: var(--console-text); overflow-wrap: anywhere; white-space: pre-wrap; }
 .st-code .cp { position: absolute; top: 6px; right: 8px; display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px; border: 1px solid rgba(255,255,255,0.18); border-radius: 8px; background: rgba(255,255,255,0.08); color: var(--neutral-400); font: 500 10.5px var(--font-mono); letter-spacing: 0.05em; cursor: pointer; opacity: 0; transition: opacity var(--dur-fast) var(--ease-out); }
 .st-code:hover .cp, .st-code .cp.ok { opacity: 1; }
 .st-code .cp.ok { color: var(--primary-300); }
@@ -1186,7 +1186,7 @@
 <span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" x2="12" y1="3" y2="15"></line></svg></span>
 <span class="ct"><b>{{.Latest.Version}} is available</b><span>{{.Latest.Notes}} Verge never rewrites its own image — the swap is a host action. The exact steps:</span></span>
 </div>
-<pre style="margin:0;padding:12px 14px;background:var(--surface-inverted);border-radius:12px;font:400 12px/1.7 var(--font-mono);color:var(--text-on-inverted);overflow-x:auto">{{range .Steps}}{{.}}
+<pre style="margin:0;padding:12px 14px;background:var(--console-surface);border-radius:12px;font:400 12px/1.7 var(--font-mono);color:var(--console-text);overflow-x:auto">{{range .Steps}}{{.}}
 {{end}}</pre>
 {{else if eq .State "current"}}
 <span style="display:inline-flex;align-items:center;gap:8px;font:400 12.5px var(--font-ui);color:var(--text-secondary)"><span class="st-dot done"></span>Up to date — checked {{.CheckedAt}}.</span>
