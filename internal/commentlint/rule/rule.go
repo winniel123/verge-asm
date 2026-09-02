@@ -5,6 +5,7 @@ import (
 	"go/scanner"
 	"go/token"
 	"regexp"
+	"sort"
 	"strings"
 	"unicode"
 
@@ -108,6 +109,17 @@ var deleteSet = map[Class]bool{
 
 func InDeleteSet(c Class) bool {
 	return deleteSet[c]
+}
+
+// DeleteSet lets the §3.9 gate name a class that no block reached, because a
+// class with no verdict is a hole in the gate rather than a pass.
+func DeleteSet() []Class {
+	out := make([]Class, 0, len(deleteSet))
+	for c := range deleteSet {
+		out = append(out, c)
+	}
+	sort.Slice(out, func(a, b int) bool { return out[a] < out[b] })
+	return out
 }
 
 func Deletable(b surface.Block) (Class, string, bool) {

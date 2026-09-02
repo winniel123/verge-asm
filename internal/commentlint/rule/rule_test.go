@@ -301,6 +301,22 @@ func TestLintReportsTheFlagSetByRuleID(t *testing.T) {
 	}
 }
 
+func TestDeleteSetNamesEverySeedClass(t *testing.T) {
+	want := []Class{
+		CommentedOutCode, DocstringExportedConventional, DocstringUnexported,
+		SectionDivider, ShortLabel,
+	}
+	got := DeleteSet()
+	if !slices.Equal(got, want) {
+		t.Fatalf("DeleteSet is %v, want %v", got, want)
+	}
+	for _, c := range got {
+		if !InDeleteSet(c) {
+			t.Errorf("DeleteSet named %q, and InDeleteSet denies it", c)
+		}
+	}
+}
+
 func TestRuleIDsCarryNoDoclintPrefix(t *testing.T) {
 	ids := []string{
 		string(SectionDivider), string(CommentedOutCode), string(ShortLabel),

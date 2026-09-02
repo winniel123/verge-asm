@@ -36,6 +36,8 @@ func runWith(args []string, stdout, stderr io.Writer, g git) int {
 		return runLint(args[1:], stdout, stderr)
 	case "strip":
 		return runStrip(args[1:], stdout, stderr)
+	case "sample":
+		return runSample(args[1:], stdout, stderr)
 	case "verify":
 		return runVerify(args[1:], stdout, stderr, g)
 	default:
@@ -49,6 +51,7 @@ func usage(w io.Writer) {
 	fmt.Fprint(w, "usage:\n"+
 		"  commentlint lint   [--github] [--in-scope-only] [paths...]\n"+
 		"  commentlint strip  [--write] [--manifest PATH] <paths...>\n"+
+		"  commentlint sample [--population production|test] [--round N] [--size N] [paths...]\n"+
 		"  commentlint verify --base <ref> [--in-scope-only] <paths...>\n")
 }
 
