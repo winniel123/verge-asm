@@ -67,7 +67,7 @@ All ≥ 4.5:1 (WCAG AA for normal text). Low sits in cyan-teal (distinct from th
 
 Ships. Warm graphite (not cool slate) keeps the brand temperature: page `#15120f`, surfaces `#1e1b17` / `#282520`. Primary buttons invert to bright-fill-with-ink-text (`#6bbeff` on `#063352`) for AA. Severity chips become translucent-feeling deep tints with bright text — measured ratios above. Toggle by setting `data-theme="dark"` on `<html>` or any subtree root.
 
-**One group does not flip: the console.** `--surface-console` / `--text-on-console` / `--warn-on-console` / `--danger-on-console` carry the same value in `:root` and in `[data-theme="dark"]`. A log or code panel reads as a terminal, and a terminal is dark in every theme, so those surfaces cannot ride `--surface-inverted`. "Inverted" means the opposite of the page ground, which is right for a tooltip or a floating toast and wrong for a console. Log and code surfaces take the console group; `Tooltip` and `BulkActionsBar` stay on `--surface-inverted`. Measured against the `#231f19` console ground: `--text-on-console` 14.7:1, `--warn-on-console` 7.9:1, `--danger-on-console` 6.9:1.
+**One group does not flip: the console.** `--console-surface` / `--console-text` / `--console-warn` / `--console-danger` carry the same value in `:root` and in `[data-theme="dark"]`. A log or code panel reads as a terminal, and a terminal is dark in every theme, so those surfaces cannot ride `--surface-inverted`. "Inverted" means the opposite of the page ground, which is right for a tooltip or a floating toast and wrong for a console. Log and code surfaces take the console group; `Tooltip` and `BulkActionsBar` stay on `--surface-inverted`. Measured against the `#231f19` console ground: `--console-text` 14.7:1, `--console-warn` 7.9:1, `--console-danger` 6.9:1. The warn pill on that ground (`--console-pill-warn-*`) is pinned for the same reason — `--warn-soft` is `#2d2413` in dark, which is 1.07:1 against the ground and erases the pill.
 
 ## Iconography
 
@@ -82,7 +82,7 @@ Ships. Warm graphite (not cool slate) keeps the brand temperature: page `#15120f
 - `Pagination`, `Progress`, `Skeleton`, `Banner`, `Popover`, `DropdownMenu` — user-requested extensions beyond the brief’s §6 inventory (page controls, scan progress, loading states, persistent inline alerts, floating panels, row-action menus).
 - `Drawer`, `Timeline`, `KeyValueList`, `DiffView` — signal-detail & drift batch (user-requested): slide-in detail panel, event history, definition grid, before/after drift block.
 - `Sparkline`, `BarChart`, `ReportCard`, `DateRangePicker` — reports & data-viz batch (user-requested); chart series use `--chart-1..4`, never severity colors.
-- `TagInput`, `Breadcrumb`, `CodeBlock`, `Kbd`, `Avatar` — input & chrome batch (user-requested): multi-value filters, micro-label trail, copyable code on inverted ink, key caps, initials chips (no photos).
+- `TagInput`, `Breadcrumb`, `CodeBlock`, `Kbd`, `Avatar` — input & chrome batch (user-requested): multi-value filters, micro-label trail, copyable code on the console ground, key caps, initials chips (no photos).
 - `BulkActionsBar`, `CommandPalette` + Table multi-select — inventory & bulk-ops batch (user-requested).
 - `Graph` + `GraphLegend` — asset-graph batch (user-requested): typed nodes, severity halos, pan/zoom.
 - `Callout`, `Accordion`, `Stepper`, `FileDrop` — docs & long-form batch (user-requested): prose asides, disclosure lists, install steps, drag-and-drop imports.

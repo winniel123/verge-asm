@@ -27,12 +27,17 @@
   /* console (log + code panels). "console" here means a terminal panel, not the
      Verge console app. A terminal reads dark in EVERY theme, so this group holds
      one value across both blocks instead of flipping like --surface-inverted.
-     The two foreground accents equal the dark-theme --warn / --danger, which were
-     tuned against this ground. */
-  --surface-console: #231f19;
-  --text-on-console: #f4f2ef;
-  --warn-on-console: #e0aa4a;
-  --danger-on-console: #f08c82;
+     NOTHING painted on this ground may flip, which is why the warn pill carries
+     its own four rather than reading --warn-soft / --warn-border / --warn. Every
+     value is the light-theme pairing, already tuned against this ground. */
+  --console-surface: #231f19;
+  --console-text: #f4f2ef;
+  --console-warn: #e0aa4a;
+  --console-danger: #f08c82;
+  --console-pill-warn-bg: #fff0d8;
+  --console-pill-warn-border: #f8d9af;
+  --console-pill-warn-solid: #b37903;
+  --console-pill-warn-fg: #8d5500;
 
   /* borders */
   --border-default: #e2dfdb;
@@ -91,10 +96,14 @@
   --text-on-inverted: #231f19;
 
   /* console — restated identical to :root on purpose. A terminal does not flip. */
-  --surface-console: #231f19;
-  --text-on-console: #f4f2ef;
-  --warn-on-console: #e0aa4a;
-  --danger-on-console: #f08c82;
+  --console-surface: #231f19;
+  --console-text: #f4f2ef;
+  --console-warn: #e0aa4a;
+  --console-danger: #f08c82;
+  --console-pill-warn-bg: #fff0d8;
+  --console-pill-warn-border: #f8d9af;
+  --console-pill-warn-solid: #b37903;
+  --console-pill-warn-fg: #8d5500;
 
   --border-default: #383530;
   --border-strong: #514c46;

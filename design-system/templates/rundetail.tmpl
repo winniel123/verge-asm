@@ -57,25 +57,25 @@
 .rd-step .sttitle.done { color: var(--text-body); }
 .rd-step .sttitle.current { font-weight: 600; color: var(--text-ink); }
 .rd-step .stdetail { font: 400 12.5px/1.5 var(--font-ui); color: var(--text-secondary); }
-.rd-log { background: var(--surface-console); border-radius: 12px; overflow: hidden; }
+.rd-log { background: var(--console-surface); border-radius: 12px; overflow: hidden; }
 .rd-loghead { display: flex; align-items: center; gap: 8px; padding: 8px 14px 0; }
 .rd-loghead .lbl { font: 500 10.5px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--neutral-500); }
 .rd-loghead .live { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font: 500 10px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--primary-400); }
 .rd-loghead .live .ldot { width: 6px; height: 6px; border-radius: 999px; background: var(--primary-400); animation: rd-pulse 1.8s var(--ease-out) infinite; }
 .rd-loghead .jf { display: inline-flex; align-items: center; gap: 6px; height: 18px; padding: 0 7px; border-radius: 999px; border: 1px solid var(--neutral-700); font: 500 10px var(--font-mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--neutral-400); white-space: nowrap; }
 .rd-loghead .jf a { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 999px; color: var(--neutral-500); }
-.rd-loghead .jf a:hover { color: var(--text-on-console); background: var(--neutral-800); }
-.rd-loghead .rd-rawlink { display: inline-flex; align-items: center; gap: 5px; height: 18px; padding: 0 9px; border-radius: 999px; border: 1px solid var(--warn-border); background: var(--warn-soft); font: 500 10px var(--font-mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--warn); white-space: nowrap; text-decoration: none; }
-.rd-loghead .rd-rawlink:hover { border-color: var(--warn-solid); }
+.rd-loghead .jf a:hover { color: var(--console-text); background: var(--neutral-800); }
+.rd-loghead .rd-rawlink { display: inline-flex; align-items: center; gap: 5px; height: 18px; padding: 0 9px; border-radius: 999px; border: 1px solid var(--console-pill-warn-border); background: var(--console-pill-warn-bg); font: 500 10px var(--font-mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--console-pill-warn-fg); white-space: nowrap; text-decoration: none; }
+.rd-loghead .rd-rawlink:hover { border-color: var(--console-pill-warn-solid); }
 .rd-loghead .rd-rawlink svg { flex: none; }
 .rd-logbody { height: 300px; overflow-y: auto; overflow-x: hidden; padding: 10px 14px 12px; }
 .rd-line { display: flex; gap: 10px; font: 400 11.5px/1.7 var(--font-mono); }
-.rd-line .t { color: var(--neutral-600); flex: none; }
+.rd-line .t { color: var(--neutral-500); flex: none; }
 .rd-line .t a { color: inherit; text-decoration: none; border-bottom: 1px solid transparent; }
-.rd-line .t a:hover { color: var(--text-on-console); border-bottom-color: var(--neutral-600); }
-.rd-line .x { color: var(--text-on-console); overflow-wrap: anywhere; }
-.rd-line.warn .x { color: var(--warn-on-console); }
-.rd-line.error .x { color: var(--danger-on-console); }
+.rd-line .t a:hover { color: var(--console-text); border-bottom-color: var(--neutral-500); }
+.rd-line .x { color: var(--console-text); overflow-wrap: anywhere; }
+.rd-line.warn .x { color: var(--console-warn); }
+.rd-line.error .x { color: var(--console-danger); }
 .rd-stat { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .rd-stat .num { font: 600 28px var(--font-mono); color: var(--text-ink); line-height: 1.1; }
 .rd-callout { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; background: var(--warn-soft); border: 1px solid var(--warn-border); border-radius: 12px; font-family: var(--font-ui); }
@@ -161,7 +161,7 @@
 {{else}}
 <div style="height:300px;display:flex;align-items:center;justify-content:center">
 <div class="rd-empty">
-<span class="msg" style="color:var(--text-on-console)">No log to show</span>
+<span class="msg" style="color:var(--console-text)">No log to show</span>
 <span class="det" style="color:var(--neutral-500)">This run recorded no per-job event yet. Each job the fan-out enqueued appears here with its kind, live state and the vantage it ran at as the worker moves it.</span>
 </div>
 </div>
