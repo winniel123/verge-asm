@@ -93,7 +93,10 @@ func foldSeedWithdrawals(ctx context.Context, qtx *db.Queries, batchID int64, ob
 	if len(pending) == 0 {
 		return nil
 	}
-	rows, err := qtx.ListSeedWithdrawalCandidates(ctx)
+	// The candidate read is bound to the CIDRs of the tombstones THIS fold locked, not
+	// to every unspent tombstone (#1046). The candidate query is shared with the
+	// chip-remove preview, which has no tombstone to read.
+	rows, err := qtx.ListSeedWithdrawalCandidates(ctx, pendingWithdrawnCIDRs(pending))
 	if err != nil {
 		return err
 	}
@@ -148,6 +151,27 @@ func foldSeedWithdrawals(ctx context.Context, qtx *db.Queries, batchID int64, ob
 // Receipts are keyed by CIDR, not by tombstone id, so two tombstones naming the
 // same withdrawn scope state one act to the operator rather than two.
 func composeSeedWithdrawals(rows []db.ListSeedWithdrawalCandidatesRow, pending []db.ListPendingSeedWithdrawalsRow, in membershipInputs, derive func(netip.Addr) custody.Custody) ([]int64, []message.NarrowingReceipt) {
+	spanIDs, order, counts := composeWithdrawnGround(rows, func(addr netip.Addr) *netip.Prefix {
+		return coveringSeedWithdrawal(addr, pending)
+	}, in.seeds, derive)
+
+	receipts := make([]message.NarrowingReceipt, 0, len(order))
+	for _, key := range order {
+		c := counts[key]
+		receipts = append(receipts, message.PreviewSeedWithdrawal(c.scope, len(c.subjects), c.timelines))
+	}
+	return spanIDs, receipts
+}
+
+// composeWithdrawnGround is the ONE place ADR-0134 §4's two Go-side survivors are
+// applied, shared by the fold above and by SeedWithdrawalReceipt below (#1046). A
+// second copy of the survivor rules would drift, and a preview that disagrees with
+// the fold is worse than no preview.
+//
+// `covering` is the whole of what the two callers differ by. The fold answers it
+// from the tombstones it locked; the preview answers it from the one CIDR the
+// operator is about to withdraw, which has no tombstone yet.
+func composeWithdrawnGround(rows []db.ListSeedWithdrawalCandidatesRow, covering func(netip.Addr) *netip.Prefix, seeds []db.ListSeedsRow, derive func(netip.Addr) custody.Custody) ([]int64, []string, map[string]*withdrawalCount) {
 	var spanIDs []int64
 	var order []string
 	counts := map[string]*withdrawalCount{}
@@ -157,11 +181,11 @@ func composeSeedWithdrawals(rows []db.ListSeedWithdrawalCandidatesRow, pending [
 		if !ok {
 			continue
 		}
-		p := coveringSeedWithdrawal(addr, pending)
+		p := covering(addr)
 		if p == nil {
 			continue
 		}
-		if addressSeedCovered(addr, in.seeds) {
+		if addressSeedCovered(addr, seeds) {
 			continue // a live Seed still declares it (ADR-0134 §4)
 		}
 		if derive != nil && derive(addr) == custody.Operator {
@@ -185,13 +209,89 @@ func composeSeedWithdrawals(rows []db.ListSeedWithdrawalCandidatesRow, pending [
 			c.subjects[row.SubjectKey] = true
 		}
 	}
+	return spanIDs, order, counts
+}
 
-	receipts := make([]message.NarrowingReceipt, 0, len(order))
-	for _, key := range order {
-		c := counts[key]
-		receipts = append(receipts, message.PreviewSeedWithdrawal(c.scope, len(c.subjects), c.timelines))
+// pendingWithdrawnCIDRs is the bound the shared candidate query takes.
+func pendingWithdrawnCIDRs(pending []db.ListPendingSeedWithdrawalsRow) []string {
+	out := make([]string, 0, len(pending))
+	for _, w := range pending {
+		out = append(out, w.AddressCidr.String())
 	}
-	return spanIDs, receipts
+	return out
+}
+
+// SeedWithdrawalPreviewStore is the read set the chip-remove preview needs. It is
+// EstateStore plus the two reads the survivors are decided from.
+type SeedWithdrawalPreviewStore interface {
+	EstateStore
+	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
+	ListSeedWithdrawalCandidates(ctx context.Context, cidrs []string) ([]db.ListSeedWithdrawalCandidatesRow, error)
+}
+
+// SeedWithdrawalReceipt is the narrowing receipt the chip-remove act shows before
+// the operator commits (#1046, ADR-0134 §5). It counts what foldSeedWithdrawals
+// would close for `cidr` at asOf, through the same candidate query and the same
+// survivor rules the fold runs.
+//
+// THE WITHDRAWN SCOPE IS TAKEN OUT OF BOTH SURVIVOR READS FIRST, because the Seed
+// is still declared when the preview runs and the fold reads an estate the delete
+// has already left. Without that, the live-Seed survivor would spare every address
+// under the scope and custody.Estate.Derive would return `operator` for all of them
+// off the address-scope limb, so the count would be zero for every scope. A CIDR is
+// declared once (seed_address_cidr_key), so dropping it by value drops exactly the
+// row the operator clicked.
+//
+// The two instants' counts are not required to agree with the message's (ADR-0134
+// §5). The estate may move between the preview and the fold, and each count is a
+// measurement at its own instant.
+func SeedWithdrawalReceipt(ctx context.Context, q SeedWithdrawalPreviewStore, asOf time.Time, cidr netip.Prefix) (message.NarrowingReceipt, error) {
+	rows, err := q.ListSeedWithdrawalCandidates(ctx, []string{cidr.String()})
+	if err != nil {
+		return message.NarrowingReceipt{}, err
+	}
+	seeds, err := q.ListSeeds(ctx)
+	if err != nil {
+		return message.NarrowingReceipt{}, err
+	}
+	estate, _, err := hotEstate(ctx, q, asOf)
+	if err != nil {
+		return message.NarrowingReceipt{}, err
+	}
+	estate.AddressScopes = withoutPrefix(estate.AddressScopes, cidr)
+
+	_, _, counts := composeWithdrawnGround(rows, func(addr netip.Addr) *netip.Prefix {
+		if !cidr.Contains(addr) {
+			return nil
+		}
+		return &cidr
+	}, withoutAddressSeed(seeds, cidr), estate.Derive)
+
+	if c := counts[cidr.String()]; c != nil {
+		return message.PreviewSeedWithdrawal(cidr.String(), len(c.subjects), c.timelines), nil
+	}
+	return message.PreviewSeedWithdrawal(cidr.String(), 0, 0), nil
+}
+
+func withoutPrefix(prefixes []netip.Prefix, drop netip.Prefix) []netip.Prefix {
+	out := make([]netip.Prefix, 0, len(prefixes))
+	for _, p := range prefixes {
+		if p != drop {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+func withoutAddressSeed(seeds []db.ListSeedsRow, drop netip.Prefix) []db.ListSeedsRow {
+	out := make([]db.ListSeedsRow, 0, len(seeds))
+	for _, s := range seeds {
+		if s.Kind == "address" && s.AddressCidr != nil && *s.AddressCidr == drop {
+			continue
+		}
+		out = append(out, s)
+	}
+	return out
 }
 
 // coveringSeedWithdrawal is the tombstone analogue of coveringAddressExclusion:
