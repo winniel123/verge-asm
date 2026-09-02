@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -79,6 +80,76 @@ func TestBuildGraphTopologyFromOpenSpans(t *testing.T) {
 // (falling back to its Service node when nameless). Addresses carry none. Each node
 // also folds to its worst (most urgent) severity — the real severity its fired rules
 // carry (P0.1), never a fabricated level.
+// #1089: the three columns run unbounded (y = 44 + idx*46), so a real estate reaches
+// far below the 1200x640 viewport. The minimap scaled the VIEWPORT box into its
+// 110x59 SVG, so every node past ~row 13 mapped outside the SVG and was clipped —
+// the minimap showed a handful of dots and represented almost nothing. The mapping
+// now reads the content bounds, so every placed node lands inside the mini box.
+func TestGraphMinimapMapsEveryNodeInsideTheMiniBox(t *testing.T) {
+	var rows []db.ListAllOpenSpansRow
+	for i := 0; i < 40; i++ {
+		name := fmt.Sprintf("n%02d.example.com", i)
+		addr := fmt.Sprintf("203.0.113.%d", i+1)
+		rows = append(rows, openSpanRow("name", name, "resolution", "",
+			fmt.Sprintf(`{"outcome":"Resolved","addresses":[%q]}`, addr), false))
+	}
+
+	g := buildGraph(rows)
+	if len(g.Nodes) != 80 {
+		t.Fatalf("nodes = %d, want 80 (40 names, 40 addresses)", len(g.Nodes))
+	}
+
+	var tallest int
+	for _, n := range g.Nodes {
+		if n.Y > tallest {
+			tallest = n.Y
+		}
+	}
+	if tallest <= g.ViewH {
+		t.Fatalf("tallest node y = %d, want past the %dpx viewport for this case to bite", tallest, g.ViewH)
+	}
+	if g.ContentH <= tallest {
+		t.Errorf("ContentH = %d, want past the tallest node at y = %d", g.ContentH, tallest)
+	}
+	if g.ContentW != g.ViewW {
+		t.Errorf("ContentW = %d, want the viewport width %d (the columns are fixed)", g.ContentW, g.ViewW)
+	}
+
+	for _, n := range g.Nodes {
+		if n.Mx < 0 || n.Mx > float64(g.MiniW) {
+			t.Errorf("node %q minimap x = %v, outside the 0..%d mini box", n.ID, n.Mx, g.MiniW)
+		}
+		if n.My < 0 || n.My > float64(g.MiniH) {
+			t.Errorf("node %q minimap y = %v, outside the 0..%d mini box", n.ID, n.My, g.MiniH)
+		}
+	}
+}
+
+// A graph that fits the viewport keeps the viewport as its content box, so its
+// minimap mapping is exactly what it was before #1089.
+func TestGraphContentBoundsFloorAtTheViewport(t *testing.T) {
+	rows := []db.ListAllOpenSpansRow{
+		openSpanRow("name", "api.example.com", "resolution", "", `{"outcome":"Resolved","addresses":["203.0.113.5"]}`, false),
+		openSpanRow("service", "203.0.113.5:443/tcp", "reachability", "", `{"outcome":"reached"}`, false),
+	}
+
+	g := buildGraph(rows)
+	if g.ContentW != g.ViewW || g.ContentH != g.ViewH {
+		t.Fatalf("content box = %dx%d, want the viewport box %dx%d for a graph that fits",
+			g.ContentW, g.ContentH, g.ViewW, g.ViewH)
+	}
+
+	byID := map[string]graphNode{}
+	for _, n := range g.Nodes {
+		byID[n.ID] = n
+	}
+	name := byID["api.example.com"]
+	if name.Mx != round1(float64(name.X)*graphMiniW/graphViewW) ||
+		name.My != round1(float64(name.Y)*graphMiniH/graphViewH) {
+		t.Errorf("name node minimap point = (%v,%v), want the unchanged viewport-basis mapping", name.Mx, name.My)
+	}
+}
+
 func TestJoinSignalsToGraph(t *testing.T) {
 	rows := []db.ListAllOpenSpansRow{
 		openSpanRow("name", "api.example.com", "resolution", "", `{"outcome":"Resolved","addresses":["203.0.113.5"]}`, false),
@@ -231,13 +302,14 @@ func TestGraphPageRendersTopology(t *testing.T) {
 	page := getBody(t, ac, base+"/graph", http.StatusOK)
 
 	for _, want := range []string{
-		`id="gr-svg"`,                          // the canvas
-		`id="gr-minimap"`,                      // the minimap
-		`data-gr-zoom="in"`,                    // the pan/zoom controls
-		`id="gr-drawer"`,                       // the node drawer
-		"api.example.com",                      // the real Name node
-		"203.0.113.5",                          // the real Address node
-		":443 tcp",                             // the real Service node label
+		`id="gr-svg"`,                      // the canvas
+		`id="gr-minimap"`,                  // the minimap
+		`data-gr-zoom="in"`,                // the pan/zoom controls
+		`id="gr-drawer"`,                   // the node drawer
+		"var CW =  1200 , CH =  640 ;",     // the minimap's content basis (#1089)
+		"api.example.com",                  // the real Name node
+		"203.0.113.5",                      // the real Address node
+		":443 tcp",                         // the real Service node label
 		`class="sh-pill on" href="/graph"`, // NavActive wired to graph
 	} {
 		if !strings.Contains(page, want) {

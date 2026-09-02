@@ -184,6 +184,7 @@
   if (!svg) return;
   var vp = document.getElementById("gr-viewport");
   var VW = {{.Graph.ViewW}}, VH = {{.Graph.ViewH}};
+  var CW = {{.Graph.ContentW}}, CH = {{.Graph.ContentH}};
   var view = { x: 0, y: 0, k: 1 };
   var drag = null, movedRecently = false;
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
@@ -238,9 +239,11 @@
   function updateMini() {
     if (!mrect) return;
     var mw = +mrect.getAttribute("data-mw"), mh = +mrect.getAttribute("data-mh");
-    var s = mw / VW;
-    var vx = clamp((-view.x / view.k) * s, 0, mw), vy = clamp((-view.y / view.k) * s, 0, mh);
-    var vw = clamp((VW / view.k) * s, 8, mw - vx), vh = clamp((VH / view.k) * s, 8, mh - vy);
+    // The dots are placed against the CONTENT box, not the viewport box (#1089), so
+    // the rectangle reads the same basis or the two disagree on a tall graph.
+    var sx = mw / CW, sy = mh / CH;
+    var vx = clamp((-view.x / view.k) * sx, 0, mw), vy = clamp((-view.y / view.k) * sy, 0, mh);
+    var vw = clamp((VW / view.k) * sx, 8, mw - vx), vh = clamp((VH / view.k) * sy, 8, mh - vy);
     mrect.setAttribute("x", vx); mrect.setAttribute("y", vy);
     mrect.setAttribute("width", vw); mrect.setAttribute("height", vh);
   }
@@ -316,18 +319,31 @@
       // A serialized SVG rasterized inside an <img> is isolated from this page:
       // it never sees the token stylesheet, so every var(--…) fill/stroke collapses
       // to default black and the whole plot rasterizes wrong (#754). Clone the live
-      // tree, copy each element's RESOLVED presentation styles inline, reset the
-      // pan/zoom transform (export the whole graph, not the current view), bake the
-      // page background, and render at 2× for a crisp file.
+      // tree, copy each element's RESOLVED presentation styles inline, frame the
+      // viewBox on the content's own measured bounds, bake the page background, and
+      // render at 2× for a crisp file. The columns run unbounded past the 1200×640
+      // viewport, so a viewport-framed export cropped every row past ~13 (#1089).
       var SCALE = 2;
+      // A canvas past the engine's limit rasterizes blank rather than raising, and a
+      // tall estate at 2× reaches one, so hold the output inside a conservative budget
+      // and drop the scale to reach it.
+      var MAX_SIDE = 16384, MAX_AREA = 16e6;
       var PROPS = ["fill", "fill-opacity", "stroke", "stroke-width", "stroke-opacity",
         "stroke-dasharray", "stroke-linecap", "stroke-linejoin", "opacity",
         "font-family", "font-size", "font-weight", "letter-spacing", "text-anchor"];
+      // getBBox reads the union of the group's children in the group's OWN
+      // coordinate system, so the operator's pan/zoom never moves it. Pad it past the
+      // outermost halo and the label run so no glyph sits on the cut.
+      var bb = vp.getBBox(), PAD = 24;
+      var bx = bb.x - PAD, by = bb.y - PAD, bw = bb.width + PAD * 2, bh = bb.height + PAD * 2;
+      if (!(bw > 0) || !(bh > 0)) return;
+      var os = Math.min(SCALE, MAX_SIDE / bw, MAX_SIDE / bh, Math.sqrt(MAX_AREA / (bw * bh)));
+      var outW = Math.max(1, Math.round(bw * os)), outH = Math.max(1, Math.round(bh * os));
       var clone = svg.cloneNode(true);
       clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-      clone.setAttribute("width", VW * SCALE);
-      clone.setAttribute("height", VH * SCALE);
-      clone.setAttribute("viewBox", "0 0 " + VW + " " + VH);
+      clone.setAttribute("width", outW);
+      clone.setAttribute("height", outH);
+      clone.setAttribute("viewBox", bx + " " + by + " " + bw + " " + bh);
       var vpClone = clone.querySelector("#gr-viewport");
       if (vpClone) vpClone.setAttribute("transform", "translate(0,0) scale(1)");
       var src = svg.querySelectorAll("*"), dst = clone.querySelectorAll("*");
@@ -343,7 +359,7 @@
       var img = new Image();
       img.onload = function () {
         var cv = document.createElement("canvas");
-        cv.width = VW * SCALE; cv.height = VH * SCALE;
+        cv.width = outW; cv.height = outH;
         var ctx = cv.getContext("2d");
         var bg = getComputedStyle(document.body).backgroundColor;
         ctx.fillStyle = (bg && bg !== "rgba(0, 0, 0, 0)") ? bg : "#ffffff";
@@ -353,7 +369,7 @@
         a.download = "graph.png"; a.href = cv.toDataURL("image/png"); a.click();
       };
       img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(xml);
-    } catch (err) {}
+    } catch (err) { console.error("graph PNG export failed", err); }
   });
   apply();
 })();

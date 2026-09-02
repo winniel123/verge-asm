@@ -72,6 +72,7 @@ const (
 	graphRowStep = 46
 	graphMiniW   = 110
 	graphMiniH   = 59
+	graphPad     = 44 // content-box margin past the outermost node
 )
 
 // graphSignal is one open (fired) signal joined to a node: the rule that fired, the
@@ -88,7 +89,10 @@ type graphSignal struct {
 }
 
 // graphNode is one placed node: its key (the drawer's identity), display label,
-// tier type (subdomain | ip | service), canvas and minimap coordinates, the
+// tier type (subdomain | ip | service), canvas and minimap coordinates (Mx/My scale
+// the canvas point into the minimap box against the CONTENT bounds, not the viewport:
+// the column run is unbounded, so past ~14 rows a viewport-basis dot lands outside the
+// minimap SVG and is clipped, #1089), the
 // label's x-offset (past the node's own radius), the halo radius, the Address's open
 // ports where it has them, the earliest instant an open span placed it, the open
 // signals joined to it, and Sev — the node's worst (most urgent) severity among
@@ -119,12 +123,17 @@ type graphEdge struct {
 
 // graphView is the whole rendered graph: the placed nodes and resolved edges, the
 // empty marker (no node has an open span to place), and the canvas/minimap dims
-// the template and its script read back.
+// the template and its script read back. ContentW/ContentH are the padded bounds of
+// everything actually placed. They grow past ViewW/ViewH once a column runs longer
+// than the viewport, and the minimap maps BOTH its dots and its viewport rectangle
+// against them so the two agree (#1089). They never fall below ViewW/ViewH, so a
+// graph that fits the viewport maps exactly as it did before.
 type graphView struct {
 	Nodes                      []graphNode
 	Edges                      []graphEdge
 	Empty                      bool
 	ViewW, ViewH, MiniW, MiniH int
+	ContentW, ContentH         int
 }
 
 // graphRadius is a node type's drawn radius, mirroring the design's NODE_R. The
@@ -261,8 +270,6 @@ func buildGraph(rows []db.ListAllOpenSpansRow) graphView {
 			LabelDX: r + 9,
 			HaloA:   float64(r) + 7,   // #22f: outer fill halo (r+7, opacity 0.12)
 			HaloB:   float64(r) + 4.5, // #22f: inner ring halo (r+4.5, sw2, opacity 0.65)
-			Mx:      round1(float64(x) * graphMiniW / graphViewW),
-			My:      round1(float64(y) * graphMiniH / graphViewH),
 			Ports:   ports,
 		}
 		if t, ok := first[internalID]; ok {
@@ -282,6 +289,12 @@ func buildGraph(rows []db.ListAllOpenSpansRow) graphView {
 		place("svc:"+k, k, svcLabel[k], "service", graphColSvc, i, "—")
 	}
 
+	contentW, contentH := graphContentBounds(nodes)
+	for i := range nodes {
+		nodes[i].Mx = round1(float64(nodes[i].X) * graphMiniW / float64(contentW))
+		nodes[i].My = round1(float64(nodes[i].Y) * graphMiniH / float64(contentH))
+	}
+
 	var edges []graphEdge
 	for _, e := range order {
 		a, ok1 := pos[e.from]
@@ -295,7 +308,28 @@ func buildGraph(rows []db.ListAllOpenSpansRow) graphView {
 	return graphView{
 		Nodes: nodes, Edges: edges, Empty: len(nodes) == 0,
 		ViewW: graphViewW, ViewH: graphViewH, MiniW: graphMiniW, MiniH: graphMiniH,
+		ContentW: contentW, ContentH: contentH,
 	}
+}
+
+// graphContentBounds measures the box the placed nodes occupy, padded past the
+// outermost node's own radius. The column run is unbounded (y = graphRowTop +
+// idx*graphRowStep), so a large estate reaches far below graphViewH and the viewport
+// box stops describing the content. The floor is the viewport box itself, which keeps
+// a small estate mapping exactly as it did and keeps the divisor non-zero when every
+// node shares one row.
+func graphContentBounds(nodes []graphNode) (int, int) {
+	w, h := graphViewW, graphViewH
+	for _, n := range nodes {
+		r := graphRadius(n.Type)
+		if right := n.X + r + graphPad; right > w {
+			w = right
+		}
+		if bottom := n.Y + r + graphPad; bottom > h {
+			h = bottom
+		}
+	}
+	return w, h
 }
 
 // joinSignals lights each graph node with the open (fired) signals whose subject
