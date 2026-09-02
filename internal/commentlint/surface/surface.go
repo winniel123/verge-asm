@@ -58,8 +58,12 @@ type Lexer interface {
 }
 
 func For(name string) (Lexer, error) {
-	if strings.EqualFold(path.Ext(name), ".go") {
+	ext := strings.ToLower(path.Ext(name))
+	if ext == ".go" {
 		return Go{}, nil
 	}
-	return nil, fmt.Errorf("no lexer for %s", name)
+	if ext == "" {
+		ext = path.Base(name)
+	}
+	return nil, fmt.Errorf("commentlint does not read the %s surface yet", ext)
 }

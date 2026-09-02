@@ -27,7 +27,9 @@ func TestClassify(t *testing.T) {
 		{"docs-site/src/pages/index.astro", Refused},
 		{"design-system/preview/index.html", Refused},
 		{"./cmd/web/main.go", InScope},
-		{"cmd\\web\\main.go", InScope},
+		{`cmd\web\main.go`, InScope},
+		{`prototypes\inbox\app.jsx`, OutOfScope},
+		{`internal\db\scans.sql.go`, OutOfScope},
 	}
 
 	for _, c := range cases {

@@ -145,6 +145,28 @@ func TestGoBlocks(t *testing.T) {
 			},
 		},
 		{
+			name: "a carriage-return file keeps the whole byte range",
+			src: "package p\r\n" +
+				"\r\n" +
+				"/* one\r\n" +
+				"two */\r\n" +
+				"func F() {}\r\n",
+			want: []wantBlock{
+				{startLine: 3, endLine: 4, style: StyleBlock, declaration: true, text: "/* one\r\ntwo */"},
+			},
+		},
+		{
+			name: "a carriage-return run joins on the whole byte range",
+			src: "package p\r\n" +
+				"\r\n" +
+				"// one\r\n" +
+				"// two\r\n" +
+				"func F() {}\r\n",
+			want: []wantBlock{
+				{startLine: 3, endLine: 4, style: StyleLine, declaration: true, text: "// one\r\n// two"},
+			},
+		},
+		{
 			name: "a block inside a body is not declaration position",
 			src: "package p\n" +
 				"\n" +
@@ -220,6 +242,55 @@ func TestGoSkeletonDropsCommentsAndKeepsDirectives(t *testing.T) {
 		if comments[i] != want[i] {
 			t.Errorf("skeleton comment %d is %q, want %q", i, comments[i], want[i])
 		}
+	}
+}
+
+func TestGoSkeletonHoldsTheBuildConstraintSeparator(t *testing.T) {
+	cases := []struct {
+		name string
+		src  string
+		want bool
+	}{
+		{"a blank line separates the constraint", "//go:build linux\n\npackage p\n", true},
+		{"no blank line separates the constraint", "//go:build linux\npackage p\n", false},
+		{"the old-style constraint counts too", "// +build linux\n\npackage p\n", true},
+		{"a prose line does not separate it", "//go:build linux\n// prose\n\npackage p\n", false},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := Go{}.Lex([]byte(c.src))
+			if err != nil {
+				t.Fatalf("Lex: %v", err)
+			}
+			found := false
+			for _, tok := range got.Skeleton {
+				if tok.Kind == BlankLine {
+					found = true
+				}
+			}
+			if found != c.want {
+				t.Errorf("the skeleton holds a %s token %t, want %t: %v", BlankLine, found, c.want, got.Skeleton)
+			}
+		})
+	}
+}
+
+func TestGoLineDirectiveDoesNotMoveTheReportedLine(t *testing.T) {
+	src := "package p\n" +
+		"\n" +
+		"//line fake.go:100\n" +
+		"\n" +
+		"// prose\n" +
+		"func F() {}\n"
+
+	got, err := Go{}.Lex([]byte(src))
+	if err != nil {
+		t.Fatalf("Lex: %v", err)
+	}
+	last := got.Blocks[len(got.Blocks)-1]
+	if last.StartLine != 5 {
+		t.Errorf("the prose block reports line %d, want the physical line 5", last.StartLine)
 	}
 }
 

@@ -1,6 +1,7 @@
 package surface
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -13,6 +14,10 @@ type Go struct{}
 
 var goDirectivePrefixes = []string{"//go:", "// +build", "//nolint", "//lint:", "//revive:"}
 
+var goConstraintPrefixes = []string{"//go:build", "// +build"}
+
+const BlankLine = "BLANKLINE"
+
 func (Go) Lex(src []byte) (Result, error) {
 	docs, err := goDocSpans(src)
 	if err != nil {
@@ -24,7 +29,7 @@ func (Go) Lex(src []byte) (Result, error) {
 	}
 	blocks := goBlocks(src, comments)
 	for i, b := range blocks {
-		blocks[i].Declaration = spansCover(docs, b.Start, b.End)
+		blocks[i].Declaration = spansHold(docs, b.Start)
 	}
 	return Result{Blocks: blocks, Skeleton: skeleton}, nil
 }
@@ -59,17 +64,21 @@ func goScan(src []byte) ([]goComment, []Token, error) {
 		if tok == token.EOF {
 			break
 		}
-		line := file.Position(pos).Line
+		// A //line directive remaps the reported line, so every position
+		// this tool reports asks for the physical one (SPEC §2.3, #1133).
+		line := file.PositionFor(pos, false).Line
 		if tok == token.COMMENT {
 			c := goComment{
 				start:     file.Offset(pos),
 				startLine: line,
-				endLine:   line + strings.Count(lit, "\n"),
-				text:      lit,
 				style:     StyleLine,
 				directive: goDirective(lit),
 			}
-			c.end = c.start + len(lit)
+			// go/scanner strips every carriage return from a comment literal,
+			// so the literal's length is not the source range (#1133).
+			c.end = goCommentEnd(src, c.start)
+			c.text = string(src[c.start:c.end])
+			c.endLine = line + strings.Count(c.text, "\n")
 			if strings.HasPrefix(lit, "/*") {
 				c.style = StyleBlock
 			}
@@ -79,6 +88,12 @@ func goScan(src []byte) ([]goComment, []Token, error) {
 			comments = append(comments, c)
 			if c.directive {
 				skeleton = append(skeleton, Token{Kind: tok.String(), Text: lit, Line: line})
+			}
+			// A build constraint applies only when a blank line separates it
+			// from the package clause, so that blank line is part of the
+			// directive rather than layout (SPEC §5.1, #1133).
+			if goConstraint(lit) && blankLineFollows(src, c.end) {
+				skeleton = append(skeleton, Token{Kind: BlankLine, Line: c.endLine + 1})
 			}
 			continue
 		}
@@ -98,12 +113,53 @@ func goScan(src []byte) ([]goComment, []Token, error) {
 }
 
 func goDirective(text string) bool {
-	for _, p := range goDirectivePrefixes {
+	return hasAnyPrefix(text, goDirectivePrefixes)
+}
+
+func goConstraint(text string) bool {
+	return hasAnyPrefix(text, goConstraintPrefixes)
+}
+
+func hasAnyPrefix(text string, prefixes []string) bool {
+	for _, p := range prefixes {
 		if strings.HasPrefix(text, p) {
 			return true
 		}
 	}
 	return false
+}
+
+func goCommentEnd(src []byte, start int) int {
+	if start+1 < len(src) && src[start+1] == '*' {
+		if i := bytes.Index(src[start:], []byte("*/")); i >= 0 {
+			return start + i + 2
+		}
+		return len(src)
+	}
+	end := start
+	for end < len(src) && src[end] != '\n' {
+		end++
+	}
+	if end > start && src[end-1] == '\r' {
+		end--
+	}
+	return end
+}
+
+func blankLineFollows(src []byte, end int) bool {
+	i := end
+	for i < len(src) && src[i] != '\n' {
+		i++
+	}
+	if i == len(src) {
+		return false
+	}
+	i++
+	j := i
+	for j < len(src) && src[j] != '\n' {
+		j++
+	}
+	return strings.TrimSpace(string(src[i:j])) == ""
 }
 
 func goBlocks(src []byte, comments []goComment) []Block {
@@ -154,7 +210,7 @@ func goDocSpans(src []byte) ([]span, error) {
 		if g == nil {
 			return
 		}
-		spans = append(spans, span{fset.Position(g.Pos()).Offset, fset.Position(g.End()).Offset})
+		spans = append(spans, span{fset.PositionFor(g.Pos(), false).Offset, fset.PositionFor(g.End(), false).Offset})
 	}
 	ast.Inspect(file, func(n ast.Node) bool {
 		switch d := n.(type) {
@@ -178,9 +234,11 @@ func goDocSpans(src []byte) ([]span, error) {
 	return spans, nil
 }
 
-func spansCover(spans []span, start, end int) bool {
+func spansHold(spans []span, start int) bool {
 	for _, s := range spans {
-		if start >= s.start && end <= s.end {
+		// go/ast reports a group's end from the carriage-return-stripped
+		// literal, so only the start offset is comparable (#1133).
+		if start >= s.start && start < s.end {
 			return true
 		}
 	}

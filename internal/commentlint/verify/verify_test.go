@@ -80,6 +80,13 @@ func TestRun(t *testing.T) {
 			want: Changed, wantExit: 1,
 		},
 		{
+			name: "deleting the blank line under a build constraint is a violation",
+			path: "internal/p/a.go",
+			base: "//go:build linux\n\npackage p\n\nfunc F() {}\n",
+			head: "//go:build linux\npackage p\n\nfunc F() {}\n",
+			want: Changed, wantExit: 1,
+		},
+		{
 			name: "a file absent from the base ref is a violation",
 			path: "internal/p/absent.go",
 			head: "package p\n",
