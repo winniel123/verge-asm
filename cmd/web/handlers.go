@@ -728,11 +728,13 @@ func (s *server) handler() http.Handler {
 
 	// The onboarding wizard (#307, T12): first-run seeds -> cadence -> channel ->
 	// review. Stepping is a viewer-safe re-render; completion enqueues the first
-	// scan through the existing admin-only trigger (triggerScan), so /onboarding/finish
-	// carries the same requireAdmin gate POST /scans/trigger uses.
+	// scan through the same guarded dispatch the trigger runs (runTrigger), so
+	// /onboarding/finish carries the same requireAdmin gate POST /scans/trigger uses.
+	// It lands on the monitor rather than back on the wizard, because a wizard must
+	// be left behind (ticket #1087 split the two landings apart).
 	mux.HandleFunc("GET /onboarding", s.requireLogin(s.onboarding))
 	mux.HandleFunc("POST /onboarding", s.requireLogin(s.onboardingStep))
-	mux.HandleFunc("POST /onboarding/finish", s.requireAdmin(s.triggerScan))
+	mux.HandleFunc("POST /onboarding/finish", s.requireAdmin(s.finishOnboarding))
 
 	mux.HandleFunc("GET /scope", s.requireLogin(s.seedsPage))
 	// /seeds moved to /scope (#286): the scope presentation is the canonical home
