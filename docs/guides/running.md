@@ -224,12 +224,20 @@ what one target receives. Dividing each vantage's rate by the vantage count woul
 the promise exactly, and it is refused: it makes declaring a second vantage slow the
 first, and comparing what different vantages see is the reason to declare more than one.
 
-The per-host ceiling does not depend on the worker count. A `hot` scan fans out **one job
-per `(Vantage, Address)` pair**, so two concurrent jobs of one `Dispatch` never share a
-target from one position. Where a lagging `hot` tick would re-enqueue a pair the previous
-dispatch has not drained, the tick is skipped and recorded rather than run beside it. That
-gate does not arm while the stale-job reaper is off (`VERGE_STALE_JOB_TIMEOUT` at or below
-zero), because one wedged job would then skip every later `hot` tick.
+**Within one scan**, the per-host ceiling does not depend on the worker count. A `hot`
+scan fans out **one job per `(Vantage, Address)` pair**, so two concurrent jobs of one
+`Dispatch` never share a target from one position. Where a lagging `hot` tick would
+re-enqueue a pair the previous dispatch has not drained, the tick is skipped and recorded
+rather than run beside it. That gate does not arm while the stale-job reaper is off
+(`VERGE_STALE_JOB_TIMEOUT` at or below zero), because one wedged job would then skip every
+later `hot` tick.
+
+**Across scans it does depend on the worker count.** `cold` probes with the same leaf and
+the same per-host numbers, and it draws its addresses from the same estate. So an address
+inside an opted-in `cold` scope sits in a `hot` job and a `cold` job at once. Those are two
+`Scan`s and two `Dispatch`es, and the lag gate reads one scan's jobs. At one worker the
+drain loop is serial, so the two never overlap. At N workers they can, and that host then
+receives up to twice the per-host rate.
 
 What N workers do break is the **per-vantage aggregate**. Nothing serialises probers per
 vantage host. The worker pushes a fresh prober binary over SSH for each job, so N workers
