@@ -10,7 +10,8 @@ import (
 )
 
 func seedTombstone(id int64, cidr string) db.ListPendingSeedWithdrawalsRow {
-	return db.ListPendingSeedWithdrawalsRow{ID: id, AddressCidr: netip.MustParsePrefix(cidr)}
+	p := netip.MustParsePrefix(cidr)
+	return db.ListPendingSeedWithdrawalsRow{ID: id, AddressCidr: &p}
 }
 
 func candidateRow(id int64, kind, key string) db.ListSeedWithdrawalCandidatesRow {

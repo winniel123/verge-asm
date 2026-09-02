@@ -54,6 +54,11 @@ type fakeStore struct {
 	// applies, so the chip-remove preview counts over the same shape the fold does.
 	withdrawalCandidates []db.ListSeedWithdrawalCandidatesRow
 
+	// nameWithdrawalCandidates is the name limb's half of the same thing (ADR-0135):
+	// the open name timelines the shared candidate query returns. The fake applies the
+	// apex-or-beneath test the SQL applies.
+	nameWithdrawalCandidates []db.ListNameSeedWithdrawalCandidatesRow
+
 	// The custody-extension census's reads beyond the seeds (#987): the current
 	// (Name, Address) resolutions, the newest `edge-fanout` measurement per address,
 	// the certificate material those measurements name, and which Scan kinds have
@@ -766,23 +771,30 @@ func (f *fakeStore) ScanHasCompletedBatch(_ context.Context, kind string) (bool,
 	return f.completedBatchKinds[kind], nil
 }
 
-// WithdrawSeed removes a Seed by id (#21a) and records the tombstone an ADDRESS
-// withdrawal owes (ADR-0134 §2, #1040), mirroring the SQL: the two are one act, a
-// name Seed writes no tombstone, and a missing id is an idempotent no-op.
+// WithdrawSeed removes a Seed by id (#21a) and records the tombstone the
+// withdrawal owes (ADR-0134 §2, ADR-0135 §2), mirroring the SQL: the two are one
+// act, both limbs write a tombstone carrying the kind and the one scope column
+// that kind populates, and a missing id is an idempotent no-op.
 func (f *fakeStore) WithdrawSeed(_ context.Context, arg db.WithdrawSeedParams) (db.WithdrawSeedRow, error) {
 	for i, s := range f.seeds {
 		if s.ID != arg.SeedID {
 			continue
 		}
 		f.seeds = append(f.seeds[:i], f.seeds[i+1:]...)
-		if s.Kind != "address" || s.AddressCidr == nil {
+		w := db.SeedWithdrawal{
+			ID:        int64(len(f.seedWithdrawals) + 1),
+			Kind:      s.Kind,
+			CreatedBy: arg.CreatedBy,
+		}
+		switch {
+		case s.Kind == "address" && s.AddressCidr != nil:
+			w.AddressCidr = s.AddressCidr
+		case s.Kind == "name" && s.NameDomain.Valid:
+			w.NameDomain = s.NameDomain
+		default:
 			return db.WithdrawSeedRow{SeedsRemoved: 1}, nil
 		}
-		f.seedWithdrawals = append(f.seedWithdrawals, db.SeedWithdrawal{
-			ID:          int64(len(f.seedWithdrawals) + 1),
-			AddressCidr: *s.AddressCidr,
-			CreatedBy:   arg.CreatedBy,
-		})
+		f.seedWithdrawals = append(f.seedWithdrawals, w)
 		return db.WithdrawSeedRow{SeedsRemoved: 1, TombstonesWritten: 1}, nil
 	}
 	return db.WithdrawSeedRow{}, nil
@@ -818,6 +830,36 @@ func (f *fakeStore) ListSeedWithdrawalCandidates(_ context.Context, cidrs []stri
 			}
 		}
 	}
+	return out, nil
+}
+
+func (f *fakeStore) ListNameSeedWithdrawalCandidates(_ context.Context, domains []string) ([]db.ListNameSeedWithdrawalCandidatesRow, error) {
+	out := []db.ListNameSeedWithdrawalCandidatesRow{}
+	for _, row := range f.nameWithdrawalCandidates {
+		key := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(row.SubjectKey)), ".")
+		for _, d := range domains {
+			if key == d || strings.HasSuffix(key, "."+d) {
+				out = append(out, row)
+				break
+			}
+		}
+	}
+	return out, nil
+}
+
+// ListAdmittedNamesOutsideSeed mirrors the SQL: the distinct admitted names some
+// OTHER Seed admits, which is the set that survives this Seed's delete cascade.
+func (f *fakeStore) ListAdmittedNamesOutsideSeed(_ context.Context, seedID int64) ([]string, error) {
+	seen := map[string]bool{}
+	out := []string{}
+	for _, a := range f.admitted {
+		if a.SeedID == seedID || seen[a.Name] {
+			continue
+		}
+		seen[a.Name] = true
+		out = append(out, a.Name)
+	}
+	sort.Strings(out)
 	return out, nil
 }
 

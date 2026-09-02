@@ -114,13 +114,15 @@ func (q *Queries) ListSeeds(ctx context.Context) ([]ListSeedsRow, error) {
 
 const withdrawSeed = `-- name: WithdrawSeed :one
 WITH removed AS (
-    DELETE FROM seed WHERE seed.id = $1 RETURNING seed.kind, seed.address_cidr
+    DELETE FROM seed WHERE seed.id = $1
+    RETURNING seed.kind, seed.address_cidr, seed.name_domain
 ),
 tombstone AS (
-    INSERT INTO seed_withdrawal (address_cidr, created_by)
-    SELECT r.address_cidr, $2
+    INSERT INTO seed_withdrawal (kind, address_cidr, name_domain, created_by)
+    SELECT r.kind, r.address_cidr, r.name_domain, $2
     FROM removed r
-    WHERE r.kind = 'address' AND r.address_cidr IS NOT NULL
+    WHERE (r.kind = 'address' AND r.address_cidr IS NOT NULL)
+       OR (r.kind = 'name' AND r.name_domain IS NOT NULL)
     RETURNING 1 AS written
 )
 SELECT
@@ -139,7 +141,7 @@ type WithdrawSeedRow struct {
 }
 
 // Withdraws a declared Seed by id (#21a: the Scope chip-remove act), and records
-// the tombstone an ADDRESS withdrawal owes (ADR-0134 §2, #1040). A viewer never
+// the tombstone the withdrawal owes (ADR-0134 §2, ADR-0135 §2). A viewer never
 // reaches it (requireAdmin). Idempotent: withdrawing a row already gone deletes
 // nothing, writes no tombstone and is not an error, so a stale chip submit is a
 // no-op.
@@ -149,9 +151,10 @@ type WithdrawSeedRow struct {
 // A data-modifying CTE runs exactly once and always to completion, whether or not
 // the primary query reads it, so `tombstone` fires on its own.
 //
-// The tombstone is written for an `address` Seed alone. A name Seed's withdrawal
-// is a different message contract and stays the gap ADR-0134 §7 names, so it
-// deletes exactly as it did before.
+// BOTH limbs write one (ADR-0135 §2, #1045). The row takes `seed`'s own shape, so
+// it carries the kind it records and the one scope column that kind populates. A
+// Seed carrying neither scope column cannot exist under `seed_shape`, so the WHERE
+// only restates that constraint at the insert.
 func (q *Queries) WithdrawSeed(ctx context.Context, arg WithdrawSeedParams) (WithdrawSeedRow, error) {
 	row := q.db.QueryRow(ctx, withdrawSeed, arg.SeedID, arg.CreatedBy)
 	var i WithdrawSeedRow

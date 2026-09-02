@@ -657,6 +657,19 @@ type Querier interface {
 	// the same names on every poll; unconditional of the source's current enablement,
 	// since resolution is the dns Scan's act and a Name leaves only by measurement.
 	ListAdmittedNames(ctx context.Context) ([]string, error)
+	// The distinct CT-admitted names that some Seed OTHER than this one admits — the
+	// admitted set as it will stand once this Seed is withdrawn (ADR-0135 §3, #1046).
+	//
+	// `admitted_name.seed_id` cascades on a Seed delete, so after the withdrawal the
+	// table holds exactly the admissions of the Seeds that survive. This answers that
+	// question BEFORE the act, which is what the chip-remove preview needs: the Seed is
+	// still declared when the preview runs, so reading ListAdmittedNames would find
+	// every Name this Seed admitted still admitted, spare all of them through survivor
+	// two, and state a count of zero for a withdrawal that removes many.
+	//
+	// The fold reads ListAdmittedNames instead. By then the cascade has already run, so
+	// the two reads return the same set and the preview and the act agree.
+	ListAdmittedNamesOutsideSeed(ctx context.Context, seedID int64) ([]string, error)
 	// Every account's live sessions for the admin surface, joined to the account so the
 	// view can show whose session it is and at what role. Ordered by account then
 	// recency. token_hash is never selected here either.
@@ -942,6 +955,32 @@ type Querier interface {
 	// observed_at DESC, id DESC tiebreak the old DISTINCT ON (subject_key, v.class) had.
 	ListNameResolutionsByClass(ctx context.Context, arg ListNameResolutionsByClassParams) ([]ListNameResolutionsByClassRow, error)
 	ListNameSeedDomains(ctx context.Context) ([]pgtype.Text, error)
+	// Every open timeline a pending NAME Seed-withdrawal tombstone MAY withdraw, for
+	// the membership fold to close with the `descoped` ground (ADR-0135 §3, #1045).
+	//
+	// It closes exactly what foldEstateTransitions closes for a departing Name — the
+	// Name's OWN open spans, no fan-out to a subordinate subject. The two are one
+	// closure reached by two routes, so they must remove the same shape of ground. The
+	// address limb fans out to `service` and `endpoint` because an Address's
+	// subordinates are keyed by the address itself; a Name's are not.
+	//
+	// It applies NEITHER survivor rule. Both are decided in Go by
+	// composeWithdrawnNameGround, and both must be, because each has to use the SAME
+	// key function the dns Scan's resolution set uses (nameSeedCovered for the live
+	// Seed corpus, resolutionNameKey over the admitted names for the CT limb). A
+	// survivor test that keys names differently from the enumeration would drop a Name
+	// the estate still walks, or hold one it stopped walking (ADR-0135 §3).
+	//
+	// IT TAKES THE DOMAINS RATHER THAN READING `seed_withdrawal`, for the two reasons
+	// ListSeedWithdrawalCandidates takes its CIDRs (#1046). Two acts ask this question
+	// and only one has a tombstone: the fold passes the domains its own pending read
+	// locked, and the chip-remove preview passes the one scope the operator is about to
+	// withdraw, before any tombstone exists. Reading the table inline would also return
+	// candidates for tombstones another worker's SKIP LOCKED had claimed.
+	//
+	// The `LIKE '%.' || w.domain` subtree test is the idiom FindCoveringNameSeed
+	// already uses. A domain cannot legally carry a LIKE metacharacter.
+	ListNameSeedWithdrawalCandidates(ctx context.Context, domains []string) ([]ListNameSeedWithdrawalCandidatesRow, error)
 	// The name-scope Seeds the CT Scan queries — id and registrable domain, one
 	// crt.sh query per row (ADR-0106). Distinct from ListNameSeedDomains (domains
 	// only, for the dns Scan): a CT admission's Citation chain terminates at the Seed,
@@ -950,6 +989,14 @@ type Querier interface {
 	// Every open timeline a subject currently holds — what a withdrawal closes, all
 	// at once, with the ground it rests on.
 	ListOpenSpansForSubject(ctx context.Context, arg ListOpenSpansForSubjectParams) ([]ListOpenSpansForSubjectRow, error)
+	// The tombstones of withdrawn NAME Seeds the membership fold has not spent yet
+	// (ADR-0135 §2, #1045). The address twin above is ListPendingSeedWithdrawals, and
+	// everything it says about `consumed_at` as the filter and about FOR UPDATE SKIP
+	// LOCKED holds here for the same reasons.
+	//
+	// The domain is both the mover's identity and the site the coverage message fires
+	// at, exactly as the CIDR is on the address side.
+	ListPendingNameSeedWithdrawals(ctx context.Context) ([]ListPendingNameSeedWithdrawalsRow, error)
 	// The pending Proposals the Seeds screen renders, grouped for the caller by
 	// lookup so each lookup carries its own bulk-decline act. Only 'pending' rows
 	// surface: a confirmed Proposal is already a Seed and a declined one is spent.
@@ -971,6 +1018,10 @@ type Querier interface {
 	// collected before either runs. A Message is written once and never recomputed, so
 	// that duplicate would be permanent. Skipping a locked row makes the second fold a
 	// no-op, and the row is picked up by whichever job completes next.
+	//
+	// `kind = 'address'` because the table carries both limbs (ADR-0135 §2). Each fold
+	// claims only its own rows, so the two never lock each other out through SKIP
+	// LOCKED and neither can read a tombstone whose scope column is NULL for it.
 	ListPendingSeedWithdrawals(ctx context.Context) ([]ListPendingSeedWithdrawalsRow, error)
 	// One account's tokens, newest first. token_hash is omitted from the read: listing
 	// tokens never needs it, so the secret material stays out of the render path — only
@@ -1509,6 +1560,53 @@ type Querier interface {
 	// nothing. It reads only the scan table and never the operational or measured
 	// corpora.
 	SlowestEnabledScanCadenceSeconds(ctx context.Context) (int64, error)
+	// Spends the NAME tombstones whose withdrawal is EXHAUSTED — no open timeline left
+	// under the domain — stamping the batch that performed it (ADR-0135 §3).
+	//
+	// The late-spend rule is SpendSeedWithdrawals' rule and it is load-bearing for the
+	// same reason. Both name survivors are TRANSIENT: a withdrawn domain can be
+	// declared again, and a surviving Seed's next CT poll can re-admit a Name whose
+	// admission the cascade removed. A tombstone is the only mover its act will ever
+	// have, so spending it while its ground is still held would strand those Names
+	// open for ever.
+	//
+	// There is no `family()` guard to carry over. That one exists because the address
+	// candidate query reads IPv4 subject keys alone and would call an IPv6 tombstone's
+	// ground empty when it is not. The subtree test below matches every name the
+	// candidate query matches, so the two agree on what is left.
+	//
+	// EXHAUSTED IS NOT ENOUGH ON ITS OWN, and this is where the name limb parts from
+	// the address one. `BuildDNSJobs` fans a dns Scan out into one job PER VANTAGE, and
+	// every job freezes the whole resolution set into its own scope gate
+	// (authorizedScope.admits reads the job's name list, never the live corpus). So a
+	// job enqueued BEFORE the withdrawal still admits observations about the withdrawn
+	// domain when it completes after it, and foldObservationsIntoSpans opens a fresh
+	// resolution span for a Name this act just closed.
+	//
+	// Spending the tombstone on the first exhausted fold would strand exactly those
+	// spans. The batch that closed vantage 1's timeline would consume the mover, and
+	// vantage 2's job would then re-open its own with no mover left to close it — the
+	// leak this table exists to prevent, reintroduced by the fan-out.
+	//
+	// The address twin is safe from this by accident. An address re-opens only through
+	// a resolution citing it, and an address a current resolution cites is dropped from
+	// the candidate set, so its span stays open and its tombstone stays pending.
+	//
+	// So a name tombstone waits for the dns queue to DRAIN. A job fanned out after the
+	// withdrawal cannot carry the domain — fanOutDNS reads the live seed domains and
+	// the live admitted names, and the FK cascade removed the admissions — so once no
+	// dns job is outstanding, no in-flight job can re-open the ground. Waiting on every
+	// dns job rather than only the older ones is deliberately conservative: a retry
+	// enqueues a FRESH row carrying the old frozen spec, so neither its id nor its
+	// created_at can tell a stale job from a current one.
+	//
+	// A RE-DECLARED DOMAIN spends immediately, whatever is in flight. Survivor one
+	// (nameSeedCovered) drops every candidate once a live Seed covers the ground again,
+	// so the tombstone can never close anything and its NOT EXISTS could never come
+	// true — it would stay pending for ever and cost every completed job the candidate
+	// read. Live truth settles re-declaration here exactly as it does in the fold
+	// (ADR-0134 §4), and a later withdrawal of the re-declared Seed writes its own row.
+	SpendNameSeedWithdrawals(ctx context.Context, arg SpendNameSeedWithdrawalsParams) error
 	// Spends the tombstones whose withdrawal is EXHAUSTED, stamping the batch that
 	// performed it (ADR-0134 §5). It runs after the closures, in the same batch
 	// transaction, so it sees the timelines this fold just closed and a rolled-back
@@ -1624,7 +1722,7 @@ type Querier interface {
 	// second row.
 	UpsertVergeCoreFrequencyEdit(ctx context.Context, arg UpsertVergeCoreFrequencyEditParams) error
 	// Withdraws a declared Seed by id (#21a: the Scope chip-remove act), and records
-	// the tombstone an ADDRESS withdrawal owes (ADR-0134 §2, #1040). A viewer never
+	// the tombstone the withdrawal owes (ADR-0134 §2, ADR-0135 §2). A viewer never
 	// reaches it (requireAdmin). Idempotent: withdrawing a row already gone deletes
 	// nothing, writes no tombstone and is not an error, so a stale chip submit is a
 	// no-op.
@@ -1634,9 +1732,10 @@ type Querier interface {
 	// A data-modifying CTE runs exactly once and always to completion, whether or not
 	// the primary query reads it, so `tombstone` fires on its own.
 	//
-	// The tombstone is written for an `address` Seed alone. A name Seed's withdrawal
-	// is a different message contract and stays the gap ADR-0134 §7 names, so it
-	// deletes exactly as it did before.
+	// BOTH limbs write one (ADR-0135 §2, #1045). The row takes `seed`'s own shape, so
+	// it carries the kind it records and the one scope column that kind populates. A
+	// Seed carrying neither scope column cannot exist under `seed_shape`, so the WHERE
+	// only restates that constraint at the insert.
 	WithdrawSeed(ctx context.Context, arg WithdrawSeedParams) (WithdrawSeedRow, error)
 }
 

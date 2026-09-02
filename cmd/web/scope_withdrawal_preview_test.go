@@ -226,10 +226,14 @@ func TestSeedWithdrawalPreviewOfZeroCountRendersNoReceipt(t *testing.T) {
 	}
 }
 
-// A NAME Seed takes the same two-step act, so the same click behaves alike on both
-// kinds — but it closes nothing today (the gap ADR-0134 §7 leaves open), so its honest
-// count is zero and its confirm step states none.
-func TestNameSeedConfirmStepStatesNoCount(t *testing.T) {
+// A NAME Seed carries its own count now (ADR-0135). It takes the same two-step act
+// and reads its own limb — the Names under its domain, never the address candidates.
+//
+// It also pins the live-Seed survivor's preview correction. The Seed under withdrawal
+// is still declared when the preview runs, so without taking it out of the corpus
+// first, survivor one would spare every Name beneath it and the count would be zero
+// for every name scope.
+func TestNameSeedWithdrawalPreviewCountsSubjectsAndTimelines(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
@@ -237,18 +241,60 @@ func TestNameSeedConfirmStepStatesNoCount(t *testing.T) {
 
 	declare(t, ac, base, "name", "example.com").Body.Close()
 	id := f.seeds[0].ID
+	// Two Names over three timelines: the receipt states the two factors, never their
+	// product.
+	f.nameWithdrawalCandidates = []db.ListNameSeedWithdrawalCandidatesRow{
+		{ID: 1, SubjectKey: "www.example.com"},
+		{ID: 2, SubjectKey: "www.example.com"},
+		{ID: 3, SubjectKey: "api.example.com"},
+	}
 	// Rows the fake would return for an address act. A name Seed must not read them.
 	f.withdrawalCandidates = []db.ListSeedWithdrawalCandidatesRow{
-		candidateSpan(1, "address", "198.51.100.200"),
+		candidateSpan(9, "address", "198.51.100.200"),
 	}
 
 	page := previewChip(t, ac, base, id)
 
-	if !strings.Contains(page, `action="/seeds/delete"`) {
-		t.Errorf("a name chip still gets the confirm step; body: %s", page)
+	want := message.PreviewSeedWithdrawal("example.com", 2, 3)
+	if !strings.Contains(page, want.Headline) {
+		t.Errorf("headline %q missing; body: %s", want.Headline, page)
 	}
-	if strings.Contains(page, "taken out of the estate") {
-		t.Errorf("a name withdrawal closes nothing, so it states no count; body: %s", page)
+	if !strings.Contains(page, want.Loss) {
+		t.Errorf("loss %q missing; body: %s", want.Loss, page)
+	}
+}
+
+// Survivor two, corrected for preview time. The withdrawn Seed's own `admitted_name`
+// rows have NOT cascaded yet when the preview runs, so counting them would spare
+// every Name it admitted and state zero. Only an admission belonging to ANOTHER Seed
+// survives the delete, so only that one spares its Name (ADR-0135 §3).
+func TestNameSeedWithdrawalPreviewSparesOnlyASurvivingSeedsAdmission(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	declare(t, ac, base, "name", "example.com").Body.Close()
+	declare(t, ac, base, "name", "example.net").Body.Close()
+	id := f.seeds[0].ID
+	other := f.seeds[1].ID
+
+	f.nameWithdrawalCandidates = []db.ListNameSeedWithdrawalCandidatesRow{
+		{ID: 1, SubjectKey: "www.example.com"},
+		{ID: 2, SubjectKey: "api.example.com"},
+	}
+	f.admitted = []db.AdmittedName{
+		// This Seed's own admission goes with it, so it spares nothing.
+		{Name: "www.example.com", SeedID: id},
+		// The surviving Seed keeps admitting this one, so it stays enumerated.
+		{Name: "api.example.com", SeedID: other},
+	}
+
+	page := previewChip(t, ac, base, id)
+
+	want := message.PreviewSeedWithdrawal("example.com", 1, 1)
+	if !strings.Contains(page, want.Headline) {
+		t.Errorf("headline %q missing; body: %s", want.Headline, page)
 	}
 }
 

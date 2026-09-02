@@ -416,10 +416,9 @@ func allRefusedFormError(refusals []refusalView, cap int) string {
 //
 // The copy is the stored message's own: Headline and Loss are the strings
 // message.PreviewSeedWithdrawal renders, so the confirm step and the coverage message
-// the fold writes read as one sentence. Fires is false for a name Seed and for an
-// address Seed whose count is zero, and the template renders no receipt block at all
-// there — the exclusion preview's non-firing sentence states a model rule that is
-// false of this act (ADR-0134 §7).
+// the fold writes read as one sentence. Fires is false where the count is zero, and
+// the template renders no receipt block at all there — the exclusion preview's
+// non-firing sentence states a model rule that is false of this act.
 // Failed is the honest degrade, after .CustodyCensusFailed on the same screen: the
 // count read did not resolve, so the block says so rather than rendering a zero the
 // estate does not hold. The withdrawal stays available — see previewSeedWithdrawal.
@@ -445,10 +444,11 @@ type seedConfirmView struct {
 // A stale chip whose row is already gone redirects cleanly rather than erroring,
 // matching the withdrawal's own idempotency.
 //
-// ONLY AN ADDRESS Seed carries a count. Withdrawing a name Seed closes nothing today
-// — its Names stop being enumerated and the fold never revisits them, the gap
-// ADR-0134 §7 leaves open — so its honest count is zero and its confirm step states
-// none. Both kinds still take the two-step act, so the same click behaves alike.
+// BOTH LIMBS CARRY A COUNT (ADR-0135). Each reads its own receipt — the address
+// scope counts what falls under its CIDR, the name scope what falls under its domain
+// — and each applies its own survivor rules, so the confirm step states the act the
+// fold will actually perform. The name limb stated none until #1045, when withdrawing
+// a name Seed still closed nothing.
 func (s *server) previewSeedWithdrawal(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	// VERGE_DEV pixel-parity: the fixture corpus is not an estate, so there is no
 	// honest count to state over it. The confirm state renders with no receipt block,
@@ -467,29 +467,33 @@ func (s *server) previewSeedWithdrawal(w http.ResponseWriter, r *http.Request, a
 		s.backToScope(w, r)
 		return
 	}
+	// A FAILED COUNT DEGRADES THE BLOCK, IT DOES NOT REFUSE THE ACT. The receipt
+	// reads the candidate spans and the corpora the survivors are decided from, and
+	// this step is now the ONLY route to the withdrawal — the chip's control reaches
+	// /seeds/delete through here. A 500 on any of those reads would leave the
+	// operator with no way to withdraw the scope at all, over a count that is
+	// advisory by construction (ADR-0134 §5). So the confirm step renders, says the
+	// count did not resolve, and still offers the act.
 	confirm := seedConfirmView{ID: strconv.FormatInt(id, 10), Scope: scope}
+	var receipt message.NarrowingReceipt
+	var rerr error
 	if isAddress {
 		p, perr := netip.ParsePrefix(scope)
 		if perr != nil {
 			s.serverError(w, "parse seed scope", perr)
 			return
 		}
-		// A FAILED COUNT DEGRADES THE BLOCK, IT DOES NOT REFUSE THE ACT. The receipt
-		// reads the candidate spans, the Seeds and the whole estate, and this step is
-		// now the ONLY route to the withdrawal — the chip's control reaches
-		// /seeds/delete through here. A 500 on any of those reads would leave the
-		// operator with no way to withdraw the scope at all, over a count that is
-		// advisory by construction (ADR-0134 §5). So the confirm step renders, says the
-		// count did not resolve, and still offers the act.
-		receipt, rerr := queue.SeedWithdrawalReceipt(r.Context(), s.store, s.now().UTC(), p)
-		if rerr != nil {
-			log.Printf("web: preview seed withdrawal %s: %v", p, rerr)
-			confirm.Failed = true
-		} else {
-			confirm.Fires = receipt.Fires
-			confirm.Headline = receipt.Headline
-			confirm.Loss = receipt.Loss
-		}
+		receipt, rerr = queue.SeedWithdrawalReceipt(r.Context(), s.store, s.now().UTC(), p)
+	} else {
+		receipt, rerr = queue.NameSeedWithdrawalReceipt(r.Context(), s.store, id, scope)
+	}
+	if rerr != nil {
+		log.Printf("web: preview seed withdrawal %s: %v", scope, rerr)
+		confirm.Failed = true
+	} else {
+		confirm.Fires = receipt.Fires
+		confirm.Headline = receipt.Headline
+		confirm.Loss = receipt.Loss
 	}
 	s.flashScopeBack(w, r, seedsForms{seedConfirm: &confirm})
 }
@@ -511,10 +515,10 @@ func (s *server) deleteSeed(w http.ResponseWriter, r *http.Request, acct db.Acco
 	// Resolve the scope's display string BEFORE the withdrawal so the removal flash can
 	// name it (WORK-ORDER-DOGFOOD-R1 item 2). A stale chip whose row is already gone
 	// leaves scope empty and simply redirects — the act stays idempotent.
-	scope, isAddress := s.seedScopeByID(r, id)
+	scope, _ := s.seedScopeByID(r, id)
 	// The delete and the tombstone the withdrawal owes commit together (ADR-0134 §2,
-	// #1040), so no path can leave a withdrawn address scope with no mover for the
-	// membership fold to name.
+	// ADR-0135 §2), so no path can leave a withdrawn scope of either kind with no
+	// mover for the membership fold to name.
 	if _, err := s.store.WithdrawSeed(r.Context(), db.WithdrawSeedParams{
 		SeedID: id, CreatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
 	}); err != nil {
@@ -525,28 +529,19 @@ func (s *server) deleteSeed(w http.ResponseWriter, r *http.Request, acct db.Acco
 		s.backToScope(w, r)
 		return
 	}
-	s.toastRedirectBack(w, r, "/scope", "neutral", "Scope removed", removalFlash(scope, isAddress))
+	s.toastRedirectBack(w, r, "/scope", "neutral", "Scope removed", removalFlash(scope))
 }
 
 // removalFlash is the sentence the removal toast states about what the act does to
-// the subjects already in the estate. The two limbs answer it differently, so the
-// toast says what is true of the scope the operator actually removed.
+// the subjects already in the estate.
 //
-// An ADDRESS scope is now enforcing (ADR-0134). The subjects it alone held leave
-// the estate, and their timelines close with the `descoped` ground on the next
-// completed job. The old copy promised the opposite — "existing subjects keep their
-// citations" — which was a plain statement of the bug.
-//
-// A NAME scope still keeps them. Its Names stop being enumerated, so the fold never
-// revisits them and nothing closes them. That is the gap ADR-0134 §7 names and
-// leaves open, and the toast states it rather than promising a fix that is not
-// built.
-func removalFlash(scope string, isAddress bool) string {
-	if isAddress {
-		return scope + " — nothing new is admitted under it; the subjects it alone held " +
-			"leave the estate on the next completed job."
-	}
-	return scope + " — nothing new is admitted under it; existing subjects keep their citations."
+// BOTH limbs are enforcing now (ADR-0134 for the address scope, ADR-0135 for the
+// name scope), so the two say one thing. The name limb said the opposite until
+// #1045 — "existing subjects keep their citations" — which was a plain statement of
+// the bug, and the address limb said it until #1040.
+func removalFlash(scope string) string {
+	return scope + " — nothing new is admitted under it; the subjects it alone held " +
+		"leave the estate on the next completed job."
 }
 
 // seedScopeByID returns the display scope for a declared seed id — the address CIDR for

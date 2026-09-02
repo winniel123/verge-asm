@@ -99,16 +99,22 @@ type store interface {
 	CreateAddressSeed(ctx context.Context, arg db.CreateAddressSeedParams) (db.Seed, error)
 	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
 	// WithdrawSeed withdraws a declared Seed by id — the Scope chip-remove act (#21a).
-	// It deletes the row and, for an ADDRESS Seed, writes the `seed_withdrawal`
-	// tombstone in the same statement (ADR-0134 §2, #1040): the delete destroys the
-	// mover, so the membership fold reads the tombstone to know what moved and to
-	// close the timelines the withdrawn scope alone held.
+	// It deletes the row and writes the `seed_withdrawal` tombstone in the same
+	// statement (ADR-0134 §2, ADR-0135 §2): the delete destroys the mover, so the
+	// membership fold reads the tombstone to know what moved and to close the
+	// timelines the withdrawn scope alone held.
 	WithdrawSeed(ctx context.Context, arg db.WithdrawSeedParams) (db.WithdrawSeedRow, error)
 	// ListSeedWithdrawalCandidates is queue.SeedWithdrawalReceipt's candidate read —
 	// the same query the membership fold runs, taken over the one CIDR the chip-remove
 	// act is about to withdraw (#1046). The web never closes a span; it reads this to
 	// state a count before the operator commits.
 	ListSeedWithdrawalCandidates(ctx context.Context, cidrs []string) ([]db.ListSeedWithdrawalCandidatesRow, error)
+	// The name limb's two preview reads (queue.NameSeedWithdrawalReceipt, ADR-0135).
+	// ListAdmittedNamesOutsideSeed answers the admitted set as it will stand once this
+	// Seed is withdrawn: its own `admitted_name` rows have not cascaded yet at preview
+	// time, and counting them would spare every Name it admitted.
+	ListNameSeedWithdrawalCandidates(ctx context.Context, domains []string) ([]db.ListNameSeedWithdrawalCandidatesRow, error)
+	ListAdmittedNamesOutsideSeed(ctx context.Context, seedID int64) ([]string, error)
 	SetCustodyExtension(ctx context.Context, arg db.SetCustodyExtensionParams) error
 	CreateNameExclusion(ctx context.Context, arg db.CreateNameExclusionParams) (db.Exclusion, error)
 	CreateAddressExclusion(ctx context.Context, arg db.CreateAddressExclusionParams) (db.Exclusion, error)

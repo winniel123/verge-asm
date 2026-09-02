@@ -216,6 +216,12 @@ func composeWithdrawnGround(rows []db.ListSeedWithdrawalCandidatesRow, covering 
 func pendingWithdrawnCIDRs(pending []db.ListPendingSeedWithdrawalsRow) []string {
 	out := make([]string, 0, len(pending))
 	for _, w := range pending {
+		// The column became nullable when the table grew its name limb (ADR-0135 §2).
+		// The read filters to `kind = 'address'`, where the shape CHECK forbids a NULL,
+		// so nothing reaches here with one.
+		if w.AddressCidr == nil {
+			continue
+		}
 		out = append(out, w.AddressCidr.String())
 	}
 	return out
@@ -304,10 +310,15 @@ func withoutAddressSeed(seeds []db.ListSeedsRow, drop netip.Prefix) []db.ListSee
 // declaring this" — so first match is the whole rule.
 func coveringSeedWithdrawal(addr netip.Addr, pending []db.ListPendingSeedWithdrawalsRow) *netip.Prefix {
 	for _, w := range pending {
-		// The column is NOT NULL, so unlike an exclusion's CIDR there is no nil to
-		// skip. An unset Prefix contains nothing, so a zero value never matches.
+		// The column became nullable when the table grew its name limb (ADR-0135 §2),
+		// so a nil is skipped as an exclusion's CIDR is. The read is already filtered
+		// to `kind = 'address'`, where the shape CHECK forbids a NULL, so nothing
+		// reaches here with one.
+		if w.AddressCidr == nil {
+			continue
+		}
 		if w.AddressCidr.Contains(addr) {
-			cidr := w.AddressCidr
+			cidr := *w.AddressCidr
 			return &cidr
 		}
 	}

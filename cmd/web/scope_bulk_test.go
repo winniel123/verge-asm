@@ -221,14 +221,26 @@ func TestDeleteSeedWritesRemovalFlash(t *testing.T) {
 	if !strings.Contains(page, "Scope removed") {
 		t.Errorf("removal flash title missing; body: %s", page)
 	}
-	if !strings.Contains(page, "existing subjects keep their citations") {
+	if !strings.Contains(page, "leave the estate on the next completed job") {
 		t.Errorf("removal flash body missing; body: %s", page)
 	}
-	// A name Seed writes no tombstone. Its Names stop being enumerated, so the fold
-	// never revisits them — the gap ADR-0134 §7 names and leaves open — and the flash
-	// above states that rather than promising a withdrawal nothing performs.
-	if len(f.seedWithdrawals) != 0 {
-		t.Errorf("a name Seed records no address withdrawal, got %+v", f.seedWithdrawals)
+	// A name Seed records its mover too (ADR-0135 §2, #1045). Its Names stop being
+	// enumerated the moment the Seed goes, so foldEstateTransitions can never revisit
+	// them; the tombstone is what foldNameSeedWithdrawals reads instead.
+	if len(f.seedWithdrawals) != 1 {
+		t.Fatalf("a name Seed records its withdrawal, got %+v", f.seedWithdrawals)
+	}
+	if got := f.seedWithdrawals[0].Kind; got != "name" {
+		t.Errorf("the tombstone records the kind it withdrew, got %q", got)
+	}
+	if got := f.seedWithdrawals[0].NameDomain.String; got != "example.com" {
+		t.Errorf("the tombstone names the withdrawn domain, got %q", got)
+	}
+	if f.seedWithdrawals[0].AddressCidr != nil {
+		t.Errorf("a name tombstone carries no CIDR, got %v", f.seedWithdrawals[0].AddressCidr)
+	}
+	if strings.Contains(page, "existing subjects keep their citations") {
+		t.Errorf("the flash must stop promising the opposite of the act; body: %s", page)
 	}
 }
 
@@ -253,6 +265,9 @@ func TestWithdrawAddressSeedRecordsItsTombstone(t *testing.T) {
 
 	if len(f.seedWithdrawals) != 1 {
 		t.Fatalf("the act must record its mover, got %+v", f.seedWithdrawals)
+	}
+	if f.seedWithdrawals[0].AddressCidr == nil {
+		t.Fatalf("an address tombstone carries its CIDR, got %+v", f.seedWithdrawals[0])
 	}
 	if got := f.seedWithdrawals[0].AddressCidr.String(); got != "198.51.100.0/24" {
 		t.Errorf("the tombstone names the withdrawn CIDR, got %q", got)
