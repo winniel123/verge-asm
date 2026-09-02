@@ -440,6 +440,24 @@ one population, labelling on the other. See
 [ADR-0129](./docs/adr/0129-a-shared-foreign-edge-is-measured-by-fan-out-not-read-from-a-list.md).
 _Avoid_: job, scan job
 
+**Safety budget**:
+The ceiling on what an active `Scan` may emit at a target — the connection rate, the in-flight count,
+and the packet rate an active probe holds. It is declared as parameters of the leaf and recorded on
+every `Batch` by content, so what governed a probe is legible and never a library default. Its promise
+and its enforcement have **different scopes, and the difference is disclosed rather than closed**: the
+numbers are chosen for what one *target* receives, and they are enforced over what one `Vantage`
+*emits*. A target inside N declared `Vantage`s therefore receives N times the declared rate. Nothing
+gates the vantage count, on
+[ADR-0127](./docs/adr/0127-the-address-scope-range-cap-has-no-ceiling-a-large-scope-is-priced-not-gated.md)'s
+rule that a cost the operator chose is priced and not refused. The per-target ceiling needs **no
+cross-process coordination**, because the `hot` `Scan` fans out **one job per `(Vantage, Address)`
+pair**: two concurrent jobs of one `Dispatch` never share a target from one position. That is a
+property of the fan-out and not of the limiter, so it holds at any worker count, and it fails only
+where a second `Dispatch` re-enqueues a pair the first has not yet drained. See
+[ADR-0005](./docs/adr/0005-scan-execution-model.md),
+[ADR-0137](./docs/adr/0137-the-safety-budget-promises-a-targets-rate-and-enforces-a-vantages.md).
+_Avoid_: rate limit, throttle, pacer
+
 **Annotation**:
 An operator's declaration, about one `(subject, signal-name)` pair, that a fired rule is an
 **accepted risk on a thing we are still measuring**. Its whole effect is on the **message**: a
