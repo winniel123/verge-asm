@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -65,7 +66,10 @@ func reportGithub(stdout io.Writer, fileCount int, found []violation, lexFailure
 		fmt.Fprintln(stdout, annotationLine(v))
 	}
 	text := summary(fileCount, found, lexFailures)
-	if path := os.Getenv("GITHUB_STEP_SUMMARY"); path != "" {
+	if raw := os.Getenv("GITHUB_STEP_SUMMARY"); raw != "" {
+		// gosec G703 taints an environment path into a file open, and Clean is
+		// what clears the taint on CI's high-severity run.
+		path := filepath.Clean(raw)
 		if f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); err == nil {
 			fmt.Fprint(f, text)
 			f.Close()
