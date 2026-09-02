@@ -77,19 +77,43 @@ const (
 	graphMiniH   = 59
 	graphPad     = 44 // content-box margin past the outermost node
 
+	graphRadiusSubdomain = 10 // the subdomain node radius graphColumnCap derives its column height from
+
 	graphZoomFloor = 0.5 // the standing zoom-out limit for a graph that fits the viewport
+
+	// The subdomain, ip and service labels are authored at graphLabelPx and the
+	// smallest legible rendering of one is graphLabelMinPx (ADR-0136 §5). This single
+	// pair states the whole constraint: graphLabelMinK reads it as the scale the view
+	// suppresses below, and graphColumnCap reads it as a column length.
+	//
+	// Both are viewBox USER UNITS, the basis the ADR's own derivation uses, not rendered
+	// CSS pixels. The template lays the 1200x640 viewBox out at width:100%;height:560px,
+	// so one user unit draws at most 0.875 CSS px and less on a narrow card. Re-basing the
+	// budget on the rendered pixel would move graphColumnCap off the 20 the ADR ruled, so
+	// it is an ADR question rather than a constant to retune here.
+	graphLabelPx    = 11
+	graphLabelMinPx = 7
 )
 
+// graphLabelMinK is the scale below which a graphLabelPx label renders under
+// graphLabelMinPx, so the view hides it (ADR-0136 §5). It rounds UP, so no label is
+// ever left DRAWN under graphLabelMinPx. The cost of rounding that way is the sliver of
+// scales just above the exact threshold, whose labels are hidden while they still just
+// cleared it. The domain apex label is exempt at every scale: it answers which apex the
+// operator is looking at.
+var graphLabelMinK = math.Ceil(float64(graphLabelMinPx)/float64(graphLabelPx)*1e4) / 1e4
+
 // graphColumnCap bounds each of the three columns (ADR-0136 §2, §4). Twenty is
-// derived, not chosen: a name column of N measures
-// (N-1)*graphRowStep + 2*graphPad + graphRadius("subdomain") = (N-1)*46 + 98 px, so
-// fit to the graphViewH viewport its 11px labels render at 11 * 640 / ((N-1)*46 + 98)
-// px. Twenty gives 7.2px, twenty-one gives 6.9px, so 20 is the largest column whose
-// labels still clear the 7px legibility threshold that label suppression reads (§5).
-// Past the cap the drawing holds fewer subjects and states the shortfall. It never
-// folds them into a prefix or a parent: a rollup node is not one of the four Subject
-// kinds, and no measurement produced it.
-const graphColumnCap = 20
+// derived, not chosen, and it is graphLabelMinK's threshold solved for N rather than a
+// second constant that could drift from it: a name column of N measures
+// (N-1)*graphRowStep + 2*graphPad + graphRadiusSubdomain = (N-1)*46 + 98 px, so fit to
+// the graphViewH viewport its graphLabelPx labels render at 11 * 640 / ((N-1)*46 + 98)
+// px. The tallest column whose labels still clear graphLabelMinPx measures
+// graphViewH*graphLabelPx/graphLabelMinPx = 1005 px, which holds 20 rows. Twenty gives
+// 7.2px, twenty-one gives 6.9px. Past the cap the drawing holds fewer subjects and
+// states the shortfall. It never folds them into a prefix or a parent: a rollup node is
+// not one of the four Subject kinds, and no measurement produced it.
+const graphColumnCap = (graphViewH*graphLabelPx/graphLabelMinPx-2*graphPad-graphRadiusSubdomain)/graphRowStep + 1
 
 // graphSignal is one open (fired) signal joined to a node: the rule that fired, the
 // exact subject it fired on, and the rule's severity (P0.1). Subject may be more
@@ -146,6 +170,9 @@ type graphEdge struct {
 // graph that fits the viewport maps exactly as it did before.
 // FitX/FitY/FitK frame that content box inside the viewport, and MinK is the zoom
 // floor that reaches the fit (#1101).
+// LabelMinK is graphLabelMinK: below it the view hides the 11px labels and keeps the
+// domain apex label, so a drawing fit past the legibility threshold reads as shape
+// rather than as noise (#1104).
 // Scopes is the scope selector's vocabulary, Scope the selected ?scope token and
 // ScopeLabel its label, so the control renders and marks its own selection (#1102).
 // Cap is graphColumnCap, Capped names each column the cap truncated, CutEdges counts
@@ -160,6 +187,7 @@ type graphView struct {
 	ContentW, ContentH         int
 	FitX, FitY, FitK           float64
 	MinK                       float64
+	LabelMinK                  float64
 	Scopes                     []graphScope
 	Scope                      string
 	ScopeLabel                 string
@@ -264,7 +292,7 @@ func graphRadius(typ string) int {
 	case "service":
 		return 6
 	default: // subdomain
-		return 10
+		return graphRadiusSubdomain
 	}
 }
 
@@ -576,7 +604,7 @@ func buildScopedGraph(rows []db.ListAllOpenSpansRow, sc graphScope) graphView {
 		Nodes: nodes, Edges: edges, Empty: len(nodes) == 0,
 		ViewW: graphViewW, ViewH: graphViewH, MiniW: graphMiniW, MiniH: graphMiniH,
 		ContentW: contentW, ContentH: contentH,
-		FitX: fitX, FitY: fitY, FitK: fitK, MinK: minK,
+		FitX: fitX, FitY: fitY, FitK: fitK, MinK: minK, LabelMinK: graphLabelMinK,
 		Cap: graphColumnCap, Capped: capped, CutEdges: cutEdges,
 		members: members,
 		held:    held,
