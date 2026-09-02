@@ -67,6 +67,8 @@ All ≥ 4.5:1 (WCAG AA for normal text). Low sits in cyan-teal (distinct from th
 
 Ships. Warm graphite (not cool slate) keeps the brand temperature: page `#15120f`, surfaces `#1e1b17` / `#282520`. Primary buttons invert to bright-fill-with-ink-text (`#6bbeff` on `#063352`) for AA. Severity chips become translucent-feeling deep tints with bright text — measured ratios above. Toggle by setting `data-theme="dark"` on `<html>` or any subtree root.
 
+**One group does not flip: the console.** `--surface-console` / `--text-on-console` / `--warn-on-console` / `--danger-on-console` carry the same value in `:root` and in `[data-theme="dark"]`. A log or code panel reads as a terminal, and a terminal is dark in every theme, so those surfaces cannot ride `--surface-inverted`. "Inverted" means the opposite of the page ground, which is right for a tooltip or a floating toast and wrong for a console. Log and code surfaces take the console group; `Tooltip` and `BulkActionsBar` stay on `--surface-inverted`. Measured against the `#231f19` console ground: `--text-on-console` 14.7:1, `--warn-on-console` 7.9:1, `--danger-on-console` 6.9:1.
+
 ## Iconography
 
 **Lucide, confirmed** (the old system's substitution is now the choice): 1.75px stroke at 16px, `currentColor`, matching Instrument Sans's tone. Loaded from CDN (`https://unpkg.com/lucide@latest/dist/umd/lucide.min.js`) and rendered via the `Icon` component (`<i data-lucide>` under the hood) — no icon binaries are stored in this repo. Lucide carries no brand marks, so GitHub links are plain text links, not icons. No emoji, no unicode glyphs as icons. Common vocabulary: `radar` scans, `globe` domains, `server` IPs/services, `shield-alert` signals, `network` graph, `file-text` reports, `git-branch` drift.

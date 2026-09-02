@@ -373,7 +373,7 @@ head+tail truncation marker. `exec-meta` and `stderr` sit in a **340px side rail
 | Side rail — `.rd-kv` card | exec-meta: exit code, signal, ctx-cancelled, duration, captured-at, and the **JobSpec sent** |
 | Side rail — panel | `stderr` — a shorter inverted panel |
 
-Reuse the design-system `rd-log` / `rd-logbody` / `rd-line` vocabulary, the `--surface-inverted`
+Reuse the design-system `rd-log` / `rd-logbody` / `rd-line` vocabulary, the `--surface-console`
 tokens, and `.rd-card` / `.rd-kv`. Invoke the `verge-asm-design` skill before writing the markup.
 
 ### 6.4 Escape-on-render — mandatory

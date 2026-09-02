@@ -1,6 +1,6 @@
 import React from "react";
 
-/* Code on inverted ink. Copy control appears on hover; title renders a micro-label bar. */
+/* Code on the console ground. Copy control appears on hover; title renders a micro-label bar. */
 export function CodeBlock({ children, title, copyText, style }) {
   const [hov, setHov] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
@@ -27,10 +27,10 @@ export function CodeBlock({ children, title, copyText, style }) {
   };
   return (
     <div onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
-      style={{ position: "relative", background: "var(--surface-inverted)", borderRadius: 12, overflow: "hidden", ...style }}>
+      style={{ position: "relative", background: "var(--surface-console)", borderRadius: 12, overflow: "hidden", ...style }}>
       {title && <div style={{ padding: "8px 14px 0", font: "500 10.5px var(--font-mono)", letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--neutral-500)" }}>{title}</div>}
       <pre ref={preRef} style={{ margin: 0, padding: "13px 16px", overflow: "auto" }}>
-        <code style={{ font: "400 12.5px/1.6 var(--font-mono)", color: "var(--text-on-inverted)" }}>{children}</code>
+        <code style={{ font: "400 12.5px/1.6 var(--font-mono)", color: "var(--text-on-console)" }}>{children}</code>
       </pre>
       {children != null && (
         <button type="button" aria-label="Copy" onClick={copy}
