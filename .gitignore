@@ -17,3 +17,6 @@ temp/
 
 # Agent memory notes — session scratch, never committed
 memory/
+
+# commentlint residue manifest — sweep scratch, never committed (SPEC §3.8)
+.commentlint/
