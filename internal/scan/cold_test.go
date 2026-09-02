@@ -8,6 +8,7 @@ import (
 
 	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
+	"github.com/winniel123/verge-asm/internal/vergecore"
 )
 
 // coldJobs collects the streamed cold fan-out into a slice for assertions. The
@@ -184,6 +185,36 @@ func TestBuildColdJobsEmptyInputsAreLegible(t *testing.T) {
 	}
 	if jobs := coldJobs(1, estate, []netip.Addr{addr("93.184.216.10")}, nil, scope); jobs != nil {
 		t.Errorf("no vantages should yield no jobs, got %d", len(jobs))
+	}
+}
+
+// The second half of #1106's measurement, and the one the vantage count hides.
+// The hot and cold tiers dispatch the same connect-outcome leaf over overlapping
+// address populations, so an opted-in cold scope puts one host in two jobs at ONE
+// vantage. Each job carries its own copy of the 50 conn/s per-host ceiling, so the
+// intra-job argument ADR-0005 made is conditional on job count, never on vantage
+// count.
+func TestHotAndColdPutOneHostInTwoJobsAtOneVantage(t *testing.T) {
+	estate := coldEstate()
+	host := "93.184.216.10"
+	addrs := []netip.Addr{addr(host)}
+	vantages := []Vantage{internetVantage(1, "net")}
+	scope := ColdScope{Addresses: map[netip.Addr]bool{addr(host): true}}
+
+	hot := hotJobs(1, estate, addrs, vantages, vergecore.Default())
+	cold := coldJobs(2, estate, addrs, vantages, scope)
+	if len(hot) != 1 || len(cold) != 1 {
+		t.Fatalf("got %d hot and %d cold jobs for one address at one vantage, want 1 and 1", len(hot), len(cold))
+	}
+	if hot[0].Addresses[0] != host || cold[0].Addresses[0] != host {
+		t.Fatalf("the two jobs must carry the same host: hot %v, cold %v", hot[0].Addresses, cold[0].Addresses)
+	}
+	if hot[0].Kind != cold[0].Kind {
+		t.Fatalf("the tiers must dispatch one leaf: hot %q, cold %q", hot[0].Kind, cold[0].Kind)
+	}
+	if hot[0].Profile.PerHostConnPerSec != 50 || cold[0].Profile.PerHostConnPerSec != 50 {
+		t.Errorf("each job carries its own 50 conn/s ceiling: hot %d, cold %d",
+			hot[0].Profile.PerHostConnPerSec, cold[0].Profile.PerHostConnPerSec)
 	}
 }
 
