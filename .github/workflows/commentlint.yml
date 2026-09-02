@@ -1,0 +1,82 @@
+name: commentlint
+
+on:
+  pull_request:
+    paths:
+      - "**/*.go"
+      - "**/*.sql"
+      - "**/*.mjs"
+      - "**/*.ts"
+      - "**/*.jsx"
+      - "**/*.tmpl"
+      - "**/*.css"
+      - "cmd/commentlint/**"
+      - "internal/commentlint/**"
+      - ".github/workflows/commentlint.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: commentlint-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GO_VERSION: "1.26.8"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Check out the head commit with the history the merge base needs
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Lint the changed in-scope files
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          readarray -t changed < <(git diff --name-only --diff-filter=ACMRT "$BASE_SHA...$HEAD_SHA")
+          echo "changed files in the diff: ${#changed[@]}"
+          if [ "${#changed[@]}" -eq 0 ]; then
+            echo "no changed file to lint"
+            exit 0
+          fi
+          go run ./cmd/commentlint lint --github --in-scope-only "${changed[@]}"
+
+  verify:
+    runs-on: ubuntu-latest
+    if: contains(github.event.pull_request.labels.*.name, 'sweep:comments')
+    steps:
+      - name: Check out the head commit with the history the merge base needs
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Prove the sweep moved no non-comment byte
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          merge_base="$(git merge-base "$BASE_SHA" "$HEAD_SHA")"
+          echo "merge base: $merge_base"
+          readarray -t changed < <(git diff --name-only --diff-filter=ACMRT "$merge_base...$HEAD_SHA")
+          echo "changed files in the diff: ${#changed[@]}"
+          if [ "${#changed[@]}" -eq 0 ]; then
+            echo "no changed file to verify"
+            exit 0
+          fi
+          go run ./cmd/commentlint verify --base "$merge_base" "${changed[@]}"
