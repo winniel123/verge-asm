@@ -1,0 +1,243 @@
+package surface
+
+import (
+	"strings"
+	"testing"
+)
+
+type wantBlock struct {
+	startLine   int
+	endLine     int
+	style       Style
+	directive   bool
+	declaration bool
+	text        string
+}
+
+func TestGoBlocks(t *testing.T) {
+	cases := []struct {
+		name string
+		src  string
+		want []wantBlock
+	}{
+		{
+			name: "an own-line run is one block in declaration position",
+			src: "package p\n" +
+				"\n" +
+				"// one\n" +
+				"// two\n" +
+				"func F() {}\n",
+			want: []wantBlock{
+				{startLine: 3, endLine: 4, style: StyleLine, declaration: true, text: "// one\n// two"},
+			},
+		},
+		{
+			name: "a blank line splits the run",
+			src: "package p\n" +
+				"\n" +
+				"// one\n" +
+				"\n" +
+				"// two\n" +
+				"func F() {}\n",
+			want: []wantBlock{
+				{startLine: 3, endLine: 3, style: StyleLine, text: "// one"},
+				{startLine: 5, endLine: 5, style: StyleLine, declaration: true, text: "// two"},
+			},
+		},
+		{
+			name: "a style change splits the run",
+			src: "package p\n" +
+				"\n" +
+				"// one\n" +
+				"/* two */\n" +
+				"func F() {}\n",
+			want: []wantBlock{
+				{startLine: 3, endLine: 3, style: StyleLine, declaration: true, text: "// one"},
+				{startLine: 4, endLine: 4, style: StyleBlock, declaration: true, text: "/* two */"},
+			},
+		},
+		{
+			name: "a multi-line general comment is one block",
+			src: "package p\n" +
+				"\n" +
+				"/* one\n" +
+				"two */\n" +
+				"func F() {}\n",
+			want: []wantBlock{
+				{startLine: 3, endLine: 4, style: StyleBlock, declaration: true, text: "/* one\ntwo */"},
+			},
+		},
+		{
+			name: "a trailing comment is never a block",
+			src: "package p\n" +
+				"\n" +
+				"func F() { // opener\n" +
+				"\t_ = 1 // note\n" +
+				"}\n",
+			want: nil,
+		},
+		{
+			name: "code after a general comment makes it trailing",
+			src: "package p\n" +
+				"\n" +
+				"func F() {\n" +
+				"\t/* c */ _ = 1\n" +
+				"}\n",
+			want: nil,
+		},
+		{
+			name: "a directive line is its own block and absorbs no prose",
+			src: "// prose above\n" +
+				"//go:build linux\n" +
+				"// prose below\n" +
+				"\n" +
+				"package p\n",
+			want: []wantBlock{
+				{startLine: 1, endLine: 1, style: StyleLine, text: "// prose above"},
+				{startLine: 2, endLine: 2, style: StyleLine, directive: true, text: "//go:build linux"},
+				{startLine: 3, endLine: 3, style: StyleLine, text: "// prose below"},
+			},
+		},
+		{
+			name: "every protected pattern marks a directive",
+			src: "package p\n" +
+				"\n" +
+				"// +build linux\n" +
+				"\n" +
+				"//nolint:gosec\n" +
+				"\n" +
+				"//lint:ignore SA1000 reason\n" +
+				"\n" +
+				"//revive:disable\n" +
+				"\n" +
+				"func F() {}\n",
+			want: []wantBlock{
+				{startLine: 3, endLine: 3, style: StyleLine, directive: true, text: "// +build linux"},
+				{startLine: 5, endLine: 5, style: StyleLine, directive: true, text: "//nolint:gosec"},
+				{startLine: 7, endLine: 7, style: StyleLine, directive: true, text: "//lint:ignore SA1000 reason"},
+				{startLine: 9, endLine: 9, style: StyleLine, directive: true, text: "//revive:disable"},
+			},
+		},
+		{
+			name: "a package clause is declaration position",
+			src: "// package prose\n" +
+				"package p\n",
+			want: []wantBlock{
+				{startLine: 1, endLine: 1, style: StyleLine, declaration: true, text: "// package prose"},
+			},
+		},
+		{
+			name: "a struct field and a const member are declaration position",
+			src: "package p\n" +
+				"\n" +
+				"const (\n" +
+				"\t// member prose\n" +
+				"\tA = 1\n" +
+				")\n" +
+				"\n" +
+				"type T struct {\n" +
+				"\t// field prose\n" +
+				"\tF int\n" +
+				"}\n",
+			want: []wantBlock{
+				{startLine: 4, endLine: 4, style: StyleLine, declaration: true, text: "// member prose"},
+				{startLine: 9, endLine: 9, style: StyleLine, declaration: true, text: "// field prose"},
+			},
+		},
+		{
+			name: "a block inside a body is not declaration position",
+			src: "package p\n" +
+				"\n" +
+				"func F() {\n" +
+				"\t// body prose\n" +
+				"\t_ = 1\n" +
+				"}\n",
+			want: []wantBlock{
+				{startLine: 4, endLine: 4, style: StyleLine, text: "// body prose"},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := Go{}.Lex([]byte(c.src))
+			if err != nil {
+				t.Fatalf("Lex: %v", err)
+			}
+			if len(got.Blocks) != len(c.want) {
+				t.Fatalf("got %d blocks, want %d: %+v", len(got.Blocks), len(c.want), got.Blocks)
+			}
+			for i, w := range c.want {
+				b := got.Blocks[i]
+				if b.StartLine != w.startLine || b.EndLine != w.endLine {
+					t.Errorf("block %d: got lines %d-%d, want %d-%d", i, b.StartLine, b.EndLine, w.startLine, w.endLine)
+				}
+				if b.Style != w.style {
+					t.Errorf("block %d: got style %s, want %s", i, b.Style, w.style)
+				}
+				if b.Directive != w.directive {
+					t.Errorf("block %d: got directive %t, want %t", i, b.Directive, w.directive)
+				}
+				if b.Declaration != w.declaration {
+					t.Errorf("block %d: got declaration %t, want %t", i, b.Declaration, w.declaration)
+				}
+				if b.Text != w.text {
+					t.Errorf("block %d: got text %q, want %q", i, b.Text, w.text)
+				}
+				if slice := c.src[b.Start:b.End]; slice != b.Text {
+					t.Errorf("block %d: byte range holds %q, text holds %q", i, slice, b.Text)
+				}
+			}
+		})
+	}
+}
+
+func TestGoSkeletonDropsCommentsAndKeepsDirectives(t *testing.T) {
+	src := "//go:build linux\n" +
+		"\n" +
+		"package p\n" +
+		"\n" +
+		"// prose\n" +
+		"func F() { //nolint:gosec\n" +
+		"\t_ = 1 // note\n" +
+		"}\n"
+
+	got, err := Go{}.Lex([]byte(src))
+	if err != nil {
+		t.Fatalf("Lex: %v", err)
+	}
+	var comments []string
+	for _, tok := range got.Skeleton {
+		if tok.Kind == "COMMENT" {
+			comments = append(comments, tok.Text)
+		}
+	}
+	want := []string{"//go:build linux", "//nolint:gosec"}
+	if len(comments) != len(want) {
+		t.Fatalf("skeleton holds comments %q, want %q", comments, want)
+	}
+	for i := range want {
+		if comments[i] != want[i] {
+			t.Errorf("skeleton comment %d is %q, want %q", i, comments[i], want[i])
+		}
+	}
+}
+
+func TestGoLexRejectsUnparseableSource(t *testing.T) {
+	_, err := Go{}.Lex([]byte("package p\n\nfunc F() {\n"))
+	if err == nil {
+		t.Fatal("Lex accepted unparseable source")
+	}
+	if !strings.Contains(err.Error(), "parse") {
+		t.Errorf("error is %q, want a parse failure", err)
+	}
+}
+
+func TestForRejectsAnUnsupportedSurface(t *testing.T) {
+	if _, err := For("db/queries/scan.sql"); err == nil {
+		t.Fatal("For accepted .sql, which has no lexer yet")
+	}
+	if _, err := For("cmd/web/main.go"); err != nil {
+		t.Fatalf("For rejected .go: %v", err)
+	}
+}
