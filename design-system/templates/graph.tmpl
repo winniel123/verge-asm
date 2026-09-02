@@ -2,7 +2,8 @@
   DESIGN-OWNED ARTIFACT — graph.tmpl · package v3.10.0 · WORKFLOW.md v4
   Source of truth: examples/console/GraphView.jsx + components/display/Graph.jsx · shot 08.
   Replaces templates_graph.go (define "graph" kept; "sevbadge" from signals.tmpl reused).
-  Holes: .Graph{Empty, ViewW, ViewH, MiniW, MiniH, Edges[{X1,Y1,X2,Y2,ToService}],
+  Holes: .Graph{Empty, ViewW, ViewH, MiniW, MiniH, ContentW, ContentH, FitX, FitY, FitK, MinK,
+  Edges[{X1,Y1,X2,Y2,ToService}],
   Nodes[{ID,Label,Type(domain|subdomain|ip|service),X,Y,Mx,My,Sev,HaloA,HaloB,LabelDX,Ports,First,
   OpenSignals[{Severity,SevLabel,Rule,Subject}]}]}.
   Reconciliations (SPEC-CHANGE #22, ruled): .Type gains the domain|subdomain split (apex → domain:
@@ -11,7 +12,10 @@
   replace .HaloR (#22f); the severity filter is the spec listbox (view JS; all nodes stay drawn,
   halos + minimap dots light per level); node select draws the focus ring; the node drawer renders
   the spec Drawer (scrim, 420px panel, slide-in, sunken 1-column KV, sev-badged signal list).
-  The pan/zoom/minimap/PNG-export engine is kept from the landed port (it is Graph.jsx translated).
+  The pan/zoom/minimap/PNG-export engine began as a translation of Graph.jsx and has since parted
+  from it: #1089 reframed the minimap and the export on the measured content bounds, and #1101
+  reframed the view's origin and its clamp floor on the same bounds. GraphView.jsx still holds the
+  original viewport-framed engine and is no longer the source of truth for this block.
 */}}
 {{define "graph"}}{{template "head" .}}
 {{template "chrome" .}}
@@ -109,7 +113,7 @@
 <div class="gr-card">
 <div style="position:relative" id="gr-canvas">
 <svg id="gr-svg" viewBox="0 0 {{.Graph.ViewW}} {{.Graph.ViewH}}" style="display:block;width:100%;height:560px;cursor:grab;touch-action:none">
-<g id="gr-viewport" transform="translate(0,0) scale(1)">
+<g id="gr-viewport" transform="translate({{.Graph.FitX}},{{.Graph.FitY}}) scale({{.Graph.FitK}})">
 {{range .Graph.Edges}}<line x1="{{.X1}}" y1="{{.Y1}}" x2="{{.X2}}" y2="{{.Y2}}" stroke="{{if .ToService}}var(--border-default){{else}}var(--border-strong){{end}}" stroke-width="1.25"></line>
 {{end}}
 {{range .Graph.Nodes}}<g class="gnode" data-id="{{.ID}}" data-type="{{.Type}}" data-ports="{{.Ports}}" data-first="{{.First}}" data-sev="{{.Sev}}" transform="translate({{.X}},{{.Y}})">
@@ -185,7 +189,12 @@
   var vp = document.getElementById("gr-viewport");
   var VW = {{.Graph.ViewW}}, VH = {{.Graph.ViewH}};
   var CW = {{.Graph.ContentW}}, CH = {{.Graph.ContentH}};
-  var view = { x: 0, y: 0, k: 1 };
+  // The columns run unbounded past the viewport, so a large estate cannot be seen
+  // whole at any fixed floor. FIT frames the measured content box; MINK drops to
+  // reach that scale and no lower, so a graph that fits keeps the standing 0.5 (#1101).
+  var FITX = {{.Graph.FitX}}, FITY = {{.Graph.FitY}}, FITK = {{.Graph.FitK}};
+  var MINK = {{.Graph.MinK}}, MAXK = 2.5;
+  var view = { x: FITX, y: FITY, k: FITK };
   var drag = null, movedRecently = false;
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
   function apply() {
@@ -193,7 +202,7 @@
     updateMini();
   }
   function zoomAt(f, cx, cy) {
-    var k = clamp(view.k * f, 0.5, 2.5);
+    var k = clamp(view.k * f, MINK, MAXK);
     view.x = cx - (cx - view.x) * (k / view.k);
     view.y = cy - (cy - view.y) * (k / view.k);
     view.k = k; apply();
@@ -232,7 +241,7 @@
       var m = b.getAttribute("data-gr-zoom");
       if (m === "in") zoom(1.25);
       else if (m === "out") zoom(0.8);
-      else { view = { x: 0, y: 0, k: 1 }; apply(); }
+      else { view = { x: FITX, y: FITY, k: FITK }; apply(); }
     });
   });
   var mrect = document.getElementById("gr-mini-rect");
