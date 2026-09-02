@@ -33,9 +33,9 @@ var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/onboarding.tmpl"))
 // design-system component is authored here.
 //
 // Completion does not fabricate a scan: the review step's "Start first scan"
-// button posts to /onboarding/finish, which is wired to the existing on-demand
-// trigger handler (triggerScan, scantrigger.go) behind the same requireAdmin gate
-// POST /scans/trigger uses. The scan kind is carried as the trigger's `kind`
+// button posts to /onboarding/finish, which runs the existing on-demand dispatch
+// (runTrigger, scantrigger.go) behind the same requireAdmin gate POST
+// /scans/trigger uses. The scan kind is carried as the trigger's `kind`
 // field, mapped from the chosen profile — a standard profile runs the active hot
 // port scan, a passive profile the dns discovery scan — so the same guardrails
 // (disabled-scan refusal, overlap protection) and the same fan-out run, and the

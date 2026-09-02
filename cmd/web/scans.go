@@ -257,7 +257,7 @@ func (s *server) fillScansSection(r *http.Request, acct db.Account, f settingsFo
 	data["Refresh"] = len(active) > 0
 
 	if acct.Role == roleAdmin {
-		if trigger, err := s.buildTriggerPanel(r, activeKinds); err != nil {
+		if trigger, err := s.buildTriggerPanel(r.Context(), activeKinds); err != nil {
 			log.Printf("web: scans: build trigger panel: %v", err)
 		} else {
 			data["Trigger"] = trigger

@@ -38,7 +38,7 @@ func (t *fakeTrigger) Trigger(_ context.Context, kind string) (int, error) {
 
 // startWithTrigger is start with a scan-trigger seam wired in, the way main.go
 // wires the real Dispatcher over the pool. Redirects are not followed so the
-// test reads the 303 and its notice query.
+// test reads the 303 and its destination.
 func startWithTrigger(t *testing.T, f *fakeStore, trig scanTrigger) string {
 	t.Helper()
 	srv := newServer(f, testKey, "", fixedClock())
@@ -59,23 +59,63 @@ func TestTriggerScanAdminEnqueues(t *testing.T) {
 	base := startWithTrigger(t, f, trig)
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	resp := postForm(t, ac, base+"/scans/trigger", url.Values{"kind": {"hot"}})
+	const from = "/settings?tab=scans"
+	resp := postForm(t, ac, base+"/scans/trigger", url.Values{"kind": {"hot"}, backField: {from}})
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("trigger: status = %d, want 303 (body: %s)", resp.StatusCode, body(t, resp))
 	}
 	loc := resp.Header.Get("Location")
 	resp.Body.Close()
-	if !strings.HasPrefix(loc, "/scans?") || !strings.Contains(loc, "notice=triggered") || !strings.Contains(loc, "kind=hot") {
-		t.Fatalf("trigger redirect = %q, want /scans with a triggered notice for hot", loc)
+	if loc != from {
+		t.Fatalf("trigger landed at %q, want the submitting URL %q", loc, from)
 	}
 	if len(trig.calls) != 1 || trig.calls[0] != "hot" {
 		t.Fatalf("dispatcher calls = %v, want one hot fan-out", trig.calls)
 	}
 
-	// The receipt renders on the landing page.
+	// The receipt is the single-consume flash toast, fired on the landing render.
 	page := getBody(t, ac, base+loc, http.StatusOK)
-	if !strings.Contains(page, "3 job") {
+	if !strings.Contains(page, "hot scan dispatched") || !strings.Contains(page, "3 jobs fanned out") {
 		t.Errorf("trigger receipt missing the job count; body: %s", page)
+	}
+}
+
+// The trigger joins the ADR-0130 §3 submitting-URL carrier (ticket #1087). Pressing
+// Run now from a filtered or scrolled page lands the operator back on that exact URL,
+// so the scroll key ticket #970 stashes on submit hits on the landing. A form that
+// carries no field falls back to the scans section.
+func TestTriggerScanLandsBackOnTheSubmittingURL(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+
+	base := startWithTrigger(t, f, &fakeTrigger{jobs: 1})
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	// The panel stamps the page's own URL into the form, so the field is real markup.
+	page := getBody(t, ac, base+"/scans", http.StatusOK)
+	if !strings.Contains(page, `action="/scans/trigger"`) ||
+		!strings.Contains(page, `name="return" value="/scans"`) {
+		t.Fatalf("the trigger form does not carry the submitting URL; body: %s", page)
+	}
+
+	for _, from := range []string{"/scans", "/settings?tab=scans"} {
+		resp := postForm(t, ac, base+"/scans/trigger", url.Values{"kind": {"dns"}, backField: {from}})
+		got := resp.Header.Get("Location")
+		resp.Body.Close()
+		if got != from {
+			t.Errorf("trigger from %q landed at %q, want the submitting URL", from, got)
+		}
+	}
+
+	// A hostile field never reaches the Location header; the act still lands somewhere
+	// this server serves.
+	for _, hostile := range []string{"https://evil.example/x", "//evil.example/x", `/\evil.example`} {
+		resp := postForm(t, ac, base+"/scans/trigger", url.Values{"kind": {"dns"}, backField: {hostile}})
+		got := resp.Header.Get("Location")
+		resp.Body.Close()
+		if got != "/settings?tab=scans" {
+			t.Errorf("trigger with %q landed at %q, want the fallback /settings?tab=scans", hostile, got)
+		}
 	}
 }
 
@@ -110,11 +150,12 @@ func TestTriggerScanDisabledRefused(t *testing.T) {
 	base := startWithTrigger(t, f, trig)
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	resp := postForm(t, ac, base+"/scans/trigger", url.Values{"kind": {"cold"}})
+	const from = "/settings?tab=scans"
+	resp := postForm(t, ac, base+"/scans/trigger", url.Values{"kind": {"cold"}, backField: {from}})
 	loc := resp.Header.Get("Location")
 	resp.Body.Close()
-	if resp.StatusCode != http.StatusSeeOther || !strings.Contains(loc, "notice=disabled") {
-		t.Fatalf("cold trigger: status=%d loc=%q, want a disabled notice", resp.StatusCode, loc)
+	if resp.StatusCode != http.StatusSeeOther || loc != from {
+		t.Fatalf("cold trigger: status=%d loc=%q, want a 303 back to %q", resp.StatusCode, loc, from)
 	}
 	// The refusal is authoritative before the dispatcher: a disabled scan never
 	// reaches the fan-out.
@@ -123,7 +164,7 @@ func TestTriggerScanDisabledRefused(t *testing.T) {
 	}
 
 	page := getBody(t, ac, base+loc, http.StatusOK)
-	if !strings.Contains(page, "disabled") {
+	if !strings.Contains(page, "The cold scan is disabled") {
 		t.Errorf("disabled receipt missing; body: %s", page)
 	}
 }
@@ -142,14 +183,19 @@ func TestTriggerScanOverlapRefused(t *testing.T) {
 	base := startWithTrigger(t, f, trig)
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	resp := postForm(t, ac, base+"/scans/trigger", url.Values{"kind": {"hot"}})
+	const from = "/settings?tab=scans"
+	resp := postForm(t, ac, base+"/scans/trigger", url.Values{"kind": {"hot"}, backField: {from}})
 	loc := resp.Header.Get("Location")
 	resp.Body.Close()
-	if resp.StatusCode != http.StatusSeeOther || !strings.Contains(loc, "notice=running") {
-		t.Fatalf("overlapping trigger: status=%d loc=%q, want a running notice", resp.StatusCode, loc)
+	if resp.StatusCode != http.StatusSeeOther || loc != from {
+		t.Fatalf("overlapping trigger: status=%d loc=%q, want a 303 back to %q", resp.StatusCode, loc, from)
 	}
 	if len(trig.calls) != 0 {
 		t.Fatalf("an in-flight kind was dispatched again: %v", trig.calls)
+	}
+	page := getBody(t, ac, base+loc, http.StatusOK)
+	if !strings.Contains(page, "A hot scan is already in flight") {
+		t.Errorf("overlap receipt missing; body: %s", page)
 	}
 }
 
@@ -163,14 +209,19 @@ func TestTriggerScanUnknownKind(t *testing.T) {
 	base := startWithTrigger(t, f, trig)
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	resp := postForm(t, ac, base+"/scans/trigger", url.Values{"kind": {"nonsense"}})
+	const from = "/settings?tab=scans"
+	resp := postForm(t, ac, base+"/scans/trigger", url.Values{"kind": {"nonsense"}, backField: {from}})
 	loc := resp.Header.Get("Location")
 	resp.Body.Close()
-	if resp.StatusCode != http.StatusSeeOther || !strings.Contains(loc, "notice=unknown") {
-		t.Fatalf("unknown trigger: status=%d loc=%q, want an unknown notice", resp.StatusCode, loc)
+	if resp.StatusCode != http.StatusSeeOther || loc != from {
+		t.Fatalf("unknown trigger: status=%d loc=%q, want a 303 back to %q", resp.StatusCode, loc, from)
 	}
 	if len(trig.calls) != 0 {
 		t.Fatalf("an unknown kind reached the dispatcher: %v", trig.calls)
+	}
+	page := getBody(t, ac, base+loc, http.StatusOK)
+	if !strings.Contains(page, "not one this deployment runs") {
+		t.Errorf("unknown-kind receipt missing; body: %s", page)
 	}
 }
 
@@ -185,11 +236,12 @@ func TestTriggerScanEmptyFanOut(t *testing.T) {
 	base := startWithTrigger(t, f, trig)
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	resp := postForm(t, ac, base+"/scans/trigger", url.Values{"kind": {"dns"}})
+	const from = "/settings?tab=scans"
+	resp := postForm(t, ac, base+"/scans/trigger", url.Values{"kind": {"dns"}, backField: {from}})
 	loc := resp.Header.Get("Location")
 	resp.Body.Close()
-	if resp.StatusCode != http.StatusSeeOther || !strings.Contains(loc, "notice=nojobs") {
-		t.Fatalf("empty fan-out: status=%d loc=%q, want a nojobs notice", resp.StatusCode, loc)
+	if resp.StatusCode != http.StatusSeeOther || loc != from {
+		t.Fatalf("empty fan-out: status=%d loc=%q, want a 303 back to %q", resp.StatusCode, loc, from)
 	}
 	if len(trig.calls) != 1 {
 		t.Fatalf("an empty fan-out should still have dispatched once: %v", trig.calls)

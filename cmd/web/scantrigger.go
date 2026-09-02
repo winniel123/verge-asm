@@ -6,7 +6,6 @@ import (
 	"html/template"
 	"log"
 	"net/http"
-	"net/url"
 	"strconv"
 
 	"github.com/jackc/pgx/v5"
@@ -46,17 +45,6 @@ type scanTrigger interface {
 	Trigger(ctx context.Context, kind string) (int, error)
 }
 
-// Trigger notices — the operator-facing outcome of pressing the button, carried
-// across the post-redirect-get so a browser refresh does not re-file the trigger.
-// The redirect names the outcome and the kind; the panel renders one sentence.
-const (
-	noticeTriggered = "triggered" // dispatched, N jobs enqueued
-	noticeRunning   = "running"   // a scan of this kind is already in flight
-	noticeDisabled  = "disabled"  // the scan is disabled — refused (cold, ADR-0044)
-	noticeNoJobs    = "nojobs"    // dispatched but nothing enqueued — empty scope, or the tick was already owned
-	noticeUnknown   = "unknown"   // no such scan kind — a hand-crafted POST
-)
-
 // triggerScanView is one scan shaped for the trigger panel: its kind, whether it
 // is enabled (only an enabled scan carries a submit control), whether it is in
 // flight right now (an active kind is not re-triggerable), and its cadence for
@@ -71,39 +59,58 @@ type triggerScanView struct {
 }
 
 // triggerPanel is the admin-only control block on the Scans page: the per-scan
-// trigger rows and the receipt from the last press. Notice is the rendered
-// sentence ("" when there is nothing to report); NoticeOK styles a success.
+// trigger rows.
+//
+// It carries no receipt of its own. Ticket #1087 moved every trigger outcome onto
+// the single-consume toast flash, because the `notice` / `kind` / `jobs` query the
+// panel used to read made the landing URL differ from the submitting one, so the
+// scroll key ticket #970 set missed by construction (ADR-0130 §2, failure class E).
 type triggerPanel struct {
-	Scans    []triggerScanView
-	Notice   string
-	NoticeOK bool
+	Scans []triggerScanView
 }
 
-// triggerScan dispatches one Scan on demand. It is reached only through
-// requireAdmin, so a viewer never triggers a scan. The guardrails run in order:
-// an unknown kind is refused at the door, a disabled scan is refused before the
-// Dispatcher (the reason named to the operator), an in-flight kind is not
-// dispatched again, and only then does the fan-out run.
-func (s *server) triggerScan(w http.ResponseWriter, r *http.Request, acct db.Account) {
+// triggerOutcome is the receipt one guarded dispatch produced, shaped for the toast
+// carrier: the tone the console styles it with, the headline, and the sentence under
+// it. Every outcome — the dispatch and all four refusals — is one of these, so the
+// two routes that share the dispatch differ only in where they land it.
+type triggerOutcome struct {
+	Tone        string
+	Title       string
+	Description string
+}
+
+// runTrigger dispatches one Scan on demand and returns the receipt to carry. It is
+// reached only through requireAdmin, so a viewer never triggers a scan. The
+// guardrails run in order: an unknown kind is refused at the door, a disabled scan
+// is refused before the Dispatcher (the reason named to the operator), an in-flight
+// kind is not dispatched again, and only then does the fan-out run.
+//
+// It reports false when it has already answered with a 500, so a caller returns
+// without writing a second answer.
+func (s *server) runTrigger(w http.ResponseWriter, r *http.Request) (triggerOutcome, bool) {
 	ctx := r.Context()
 	kind := r.FormValue("kind")
 
 	sc, err := s.store.GetScanByKind(ctx, kind)
 	if errors.Is(err, pgx.ErrNoRows) {
-		s.redirectTrigger(w, r, noticeUnknown, kind, 0)
-		return
+		return triggerOutcome{"danger", "That scan is not one this deployment runs",
+			"Nothing was dispatched."}, true
 	}
 	if err != nil {
 		s.serverError(w, "trigger scan: get scan", err)
-		return
+		return triggerOutcome{}, false
 	}
 
 	// A disabled scan is the one-off ADR-0044 forbids. The Dispatcher would refuse
 	// it too; checking the live flag here names the reason rather than surfacing a
 	// bare 500, and keeps a disabled scan from ever reaching the fan-out.
 	if !sc.Enabled {
-		s.redirectTrigger(w, r, noticeDisabled, kind, 0)
-		return
+		detail := "A disabled scan cannot be triggered."
+		if kind == scan.ColdKind {
+			detail = "It runs the full-range sweep. Enable it by opting an address scope " +
+				"into the full-range tier on Scope."
+		}
+		return triggerOutcome{"danger", "The " + kind + " scan is disabled", detail}, true
 	}
 
 	// Overlap guard: a kind already in flight is not dispatched again. The unique
@@ -113,11 +120,11 @@ func (s *server) triggerScan(w http.ResponseWriter, r *http.Request, acct db.Acc
 	active, err := s.activeDispatchKinds(ctx)
 	if err != nil {
 		s.serverError(w, "trigger scan: active dispatches", err)
-		return
+		return triggerOutcome{}, false
 	}
 	if active[kind] {
-		s.redirectTrigger(w, r, noticeRunning, kind, 0)
-		return
+		return triggerOutcome{"warn", "A " + kind + " scan is already in flight",
+			"It was not dispatched again. Watch its progress in Running now."}, true
 	}
 
 	n, err := s.dispatcher.Trigger(ctx, kind)
@@ -127,39 +134,50 @@ func (s *server) triggerScan(w http.ResponseWriter, r *http.Request, acct db.Acc
 		// failure (a transaction, advisory-lock or enqueue error), not a normal
 		// outcome. Surface it as a 500 rather than mislabel it a benign refusal.
 		s.serverError(w, "trigger scan: dispatch", err)
-		return
+		return triggerOutcome{}, false
 	}
 	if n == 0 {
 		// A zero-job dispatch is ambiguous from here: either the fan-out found
 		// nothing to enqueue (no scope or vantage covers this scan yet) or the tick
 		// was already owned by an overlapping dispatch. Trigger returns (0, nil) for
-		// both, so the notice names both rather than guess — never a false "already
+		// both, so the receipt names both rather than guess — never a false "already
 		// dispatched" over a scan that just found nothing to look at.
-		s.redirectTrigger(w, r, noticeNoJobs, kind, 0)
-		return
+		return triggerOutcome{"warn", "The " + kind + " scan enqueued no jobs",
+			"Nothing covers it yet — no scope or vantage — or its current tick was already dispatched."}, true
 	}
-	// The act fires ONE toast across the post-redirect-get (PARITY-CHART P1.7). It rides
-	// the single-consume flash store, not the URL, so the in-flight auto-refresh does not
-	// re-show it — the "Scan started" toast spam the dogfood reported (WORK-ORDER-DOGFOOD-R1
-	// item 1). The /scans monitor still renders the fuller receipt sentence the notice query
-	// carries. Copy per the dogfood note: "<kind> scan dispatched" / "N jobs fanned out".
-	jobs := "1 job"
-	if n != 1 {
-		jobs = strconv.Itoa(n) + " jobs"
-	}
-	q := url.Values{"notice": {noticeTriggered}, "kind": {kind}, "jobs": {strconv.Itoa(n)}}
-	s.flashRedirect(w, r, acct.ID, "/scans?"+q.Encode(), "neutral", kind+" scan dispatched", jobs+" fanned out")
+	// Copy per the dogfood note: "<kind> scan dispatched" / "N jobs fanned out".
+	return triggerOutcome{"neutral", kind + " scan dispatched",
+		strconv.Itoa(n) + " " + plural(n, "job", "jobs") + " fanned out"}, true
 }
 
-// redirectTrigger sends the post-redirect-get back to the monitor, naming the
-// outcome so a browser refresh re-reads the receipt instead of re-firing the
-// trigger (the same pattern /seeds uses for its partial-proposal notice, #251).
-func (s *server) redirectTrigger(w http.ResponseWriter, r *http.Request, notice, kind string, jobs int) {
-	q := url.Values{"notice": {notice}, "kind": {kind}}
-	if jobs > 0 {
-		q.Set("jobs", strconv.Itoa(jobs))
+// triggerScan is POST /scans/trigger: the Run now button beside a scan kind. It
+// answers through toastBackToSection, so the operator lands back on the URL they
+// pressed the button from — /scans or /settings?tab=scans, query and all — at the
+// offset they were at (ADR-0130 §3, ticket #1087).
+//
+// It used to spell its receipt on the destination instead (`/scans?notice=…&kind=…`),
+// which made the landing URL differ from the submitting one by construction, so the
+// scroll key ticket #970 set could never hit. The receipt is a single-consume toast
+// now: `toast` is the one parameter both stripToastParam and the shell's keyFor drop,
+// so it cannot move the key.
+func (s *server) triggerScan(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	out, ok := s.runTrigger(w, r)
+	if !ok {
+		return
 	}
-	http.Redirect(w, r, "/scans?"+q.Encode(), http.StatusSeeOther)
+	s.toastBackToSection(w, r, acct.ID, "scans", out.Tone, out.Title, out.Description)
+}
+
+// finishOnboarding is POST /onboarding/finish: the wizard's "Start first scan". It
+// runs the identical guarded dispatch and then LEAVES the wizard for the monitor,
+// which is a deliberate page move rather than a return to the submitting URL (the
+// class-E exemption names it). The receipt rides the same single-consume flash.
+func (s *server) finishOnboarding(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	out, ok := s.runTrigger(w, r)
+	if !ok {
+		return
+	}
+	s.flashRedirect(w, r, acct.ID, "/scans", out.Tone, out.Title, out.Description)
 }
 
 // activeDispatchKinds reads which scan kinds have a Dispatch in flight right now,
@@ -198,11 +216,12 @@ func (s *server) chromeScanRunning(ctx context.Context) bool {
 }
 
 // buildTriggerPanel assembles the admin control block: one row per scan with its
-// enabled and in-flight state, and the receipt from the last trigger read off the
-// request's notice query. Every scan is listed — the disabled cold tier included —
-// so the panel states honestly which scans can be triggered and which cannot.
-func (s *server) buildTriggerPanel(r *http.Request, active map[string]bool) (triggerPanel, error) {
-	scans, err := s.store.ListScans(r.Context())
+// enabled and in-flight state. Every scan is listed — the disabled cold tier
+// included — so the panel states honestly which scans can be triggered and which
+// cannot. The receipt from the last press is a toast, not a panel row, so nothing
+// here reads the request's query.
+func (s *server) buildTriggerPanel(ctx context.Context, active map[string]bool) (triggerPanel, error) {
+	scans, err := s.store.ListScans(ctx)
 	if err != nil {
 		return triggerPanel{}, err
 	}
@@ -216,45 +235,7 @@ func (s *server) buildTriggerPanel(r *http.Request, active map[string]bool) (tri
 			IsCold:  sc.Kind == scan.ColdKind,
 		})
 	}
-	notice, ok := triggerNotice(r.URL.Query())
-	return triggerPanel{Scans: views, Notice: notice, NoticeOK: ok}, nil
-}
-
-// triggerNotice renders the receipt sentence from the redirect's query. It
-// returns "" when there is nothing to report, and a bool marking a success so the
-// panel can style it apart from a refusal.
-func triggerNotice(q url.Values) (string, bool) {
-	kind := q.Get("kind")
-	switch q.Get("notice") {
-	case noticeTriggered:
-		// The success path always carries a positive job count. If the count is
-		// missing or unparseable (only reachable by a hand-crafted URL), fall back
-		// to the countless sentence rather than render "  job s enqueued".
-		if jobs, err := strconv.Atoi(q.Get("jobs")); err == nil && jobs > 0 {
-			plural := "s"
-			if jobs == 1 {
-				plural = ""
-			}
-			return "Dispatched a " + kind + " scan — " + strconv.Itoa(jobs) + " job" + plural +
-				" enqueued. It appears in flight below as the worker runs it.", true
-		}
-		return "Dispatched a " + kind + " scan. It appears in flight below as the worker runs it.", true
-	case noticeRunning:
-		return "A " + kind + " scan is already in flight — it was not dispatched again. Watch its progress below.", false
-	case noticeDisabled:
-		if kind == scan.ColdKind {
-			return "The cold scan is disabled, so it cannot be triggered. It runs the full-range " +
-				"sweep; enable it by opting an address scope into the full-range tier on Seeds.", false
-		}
-		return "The " + kind + " scan is disabled, so it cannot be triggered.", false
-	case noticeNoJobs:
-		return "The " + kind + " scan was dispatched but enqueued no jobs — it has nothing to look at yet " +
-			"(no scope or vantage covers it), or its current tick was already dispatched.", false
-	case noticeUnknown:
-		return "That scan is not one this deployment runs — nothing was dispatched.", false
-	default:
-		return "", false
-	}
+	return triggerPanel{Scans: views}, nil
 }
 
 // triggerTemplates adds the admin trigger panel to the shared template set. It is
@@ -278,7 +259,6 @@ const triggerTemplates = `
 <span style="display:block;font:500 10.5px var(--font-mono);letter-spacing:0.07em;text-transform:uppercase;color:var(--text-muted)">Admin · on-demand</span>
 <h3 style="margin:6px 0 8px;font:600 15px var(--font-ui);letter-spacing:var(--heading-tracking,-0.01em);color:var(--text-ink)">Trigger a scan</h3>
 <p style="margin:0 0 14px;font:400 12.5px/1.5 var(--font-ui);color:var(--text-secondary);max-width:78ch">Dispatch an enabled scan now, without waiting for its cadence. It enqueues the same fan-out the worker runs on cadence — a scan already in flight is not dispatched again, and the disabled cold tier cannot be triggered at all. Pressing this runs an active measurement; the result appears in flight above.</p>
-{{if .Notice}}<div style="border:1px solid {{if .NoticeOK}}var(--ok-border);background:var(--ok-soft);color:var(--ok-solid){{else}}var(--danger-border);background:var(--danger-soft);color:var(--danger-solid){{end}};padding:10px 12px;border-radius:10px;margin-bottom:14px;font:400 12.5px var(--font-ui)">{{.Notice}}</div>{{end}}
 <table style="width:100%;border-collapse:collapse">
 <thead><tr>
 <th style="text-align:left;font:600 10px var(--font-mono);text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);padding:0 16px 8px 0;border-bottom:1px solid var(--border-strong)">Scan</th>
@@ -293,7 +273,7 @@ const triggerTemplates = `
 <td style="padding:10px 16px 10px 0;border-bottom:1px solid var(--row-sep)">{{if .Active}}<span style="display:inline-block;width:8px;height:8px;border-radius:999px;background:var(--accent);margin-right:6px;vertical-align:middle"></span><span style="display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;border:1px solid var(--border-default);font:600 10px var(--font-mono);text-transform:uppercase;letter-spacing:0.06em;color:var(--text-secondary)">in flight</span>{{else if .Enabled}}<span style="display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;border:1px solid var(--border-default);font:600 10px var(--font-mono);text-transform:uppercase;letter-spacing:0.06em;color:var(--text-secondary)">enabled</span>{{else}}<span style="display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;border:1px solid var(--border-default);font:600 10px var(--font-mono);text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted)">disabled</span>{{end}}</td>
 <td style="padding:10px 0;border-bottom:1px solid var(--row-sep)">
 {{if .Active}}<span style="color:var(--text-muted)">running</span>
-{{else if .Enabled}}<form method="post" action="/scans/trigger" style="display:inline;margin:0"><input type="hidden" name="kind" value="{{.Kind}}"><button type="submit" style="font:500 12px var(--font-ui);padding:6px 14px;border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);border-radius:10px;cursor:pointer">Run now</button></form>
+{{else if .Enabled}}<form method="post" action="/scans/trigger" style="display:inline;margin:0"><input type="hidden" name="kind" value="{{.Kind}}">{{template "backfield" $}}<button type="submit" style="font:500 12px var(--font-ui);padding:6px 14px;border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);border-radius:10px;cursor:pointer">Run now</button></form>
 {{else if .IsCold}}<span style="color:var(--text-muted)">disabled — opt a scope in on <a href="/scope" style="color:var(--link)">Scope</a></span>
 {{else}}<span style="color:var(--text-muted)">disabled</span>{{end}}
 </td>
