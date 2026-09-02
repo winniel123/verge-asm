@@ -1484,6 +1484,14 @@ type Querier interface {
 	// LIMB, so this answers the read path and the estate resolves it. A dead-lettered Batch
 	// does not count — it is the job failing, and the tick retries.
 	ScanHasCompletedBatch(ctx context.Context, kind string) (bool, error)
+	// The hot cadence-lag gate (#1114, ADR-0137 §4). True when this Scan still holds a
+	// job from an EARLIER dispatch that no terminal state has claimed — 'ready' or
+	// 'running'. Only those two hold the gate: 'done', 'dead', 'retried' and 'cancelled'
+	// are terminal, so a dead-lettered backlog never wedges the next tick.
+	// `IS DISTINCT FROM` rather than `<>` because the Dispatch sweep (ADR-0041) retires a
+	// job's dispatch_id to NULL; a NULL is a different dispatch and must still hold the
+	// gate.
+	ScanHasNonTerminalJobs(ctx context.Context, arg ScanHasNonTerminalJobsParams) (bool, error)
 	// Flip the read-only /api/v1 surface on or off, stamping who acted and when so the
 	// settings card can render the dated act of the current state (#390). Off by default;
 	// a minted token stays inert until this is true.

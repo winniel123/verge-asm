@@ -64,6 +64,22 @@ VALUES ($1, $2, 'fanned-out')
 ON CONFLICT ON CONSTRAINT dispatch_tick_key DO NOTHING
 RETURNING id;
 
+-- name: ScanHasNonTerminalJobs :one
+-- The hot cadence-lag gate (#1114, ADR-0137 §4). True when this Scan still holds a
+-- job from an EARLIER dispatch that no terminal state has claimed — 'ready' or
+-- 'running'. Only those two hold the gate: 'done', 'dead', 'retried' and 'cancelled'
+-- are terminal, so a dead-lettered backlog never wedges the next tick.
+-- `IS DISTINCT FROM` rather than `<>` because the Dispatch sweep (ADR-0041) retires a
+-- job's dispatch_id to NULL; a NULL is a different dispatch and must still hold the
+-- gate.
+SELECT EXISTS (
+    SELECT 1
+    FROM queue_job
+    WHERE scan_id = @scan_id::bigint
+      AND dispatch_id IS DISTINCT FROM @dispatch_id::bigint
+      AND state IN ('ready', 'running')
+) AS lagging;
+
 -- name: EnqueueJob :one
 INSERT INTO queue_job (
     scan_id, vantage_id, dispatch_id, kind, spec, attempted_scope, offers,
