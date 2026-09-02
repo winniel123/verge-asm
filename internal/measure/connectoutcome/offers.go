@@ -62,10 +62,11 @@ type SafetyProfile struct {
 
 	// PerHostConnPerSec is the per-host connection rate ceiling — ≤ 50 conn/s per
 	// prober process (see the scope note above). ADR-0005 called this limit
-	// intra-job and needing no coordination. That argument holds at one vantage.
-	// The `hot` Scan builds one job per `(Vantage, Address)` pair. Two vantages
-	// therefore put one host in two jobs, and a second worker can double the real
-	// rate against it.
+	// intra-job and needing no coordination, and is amended by #1106 to say that
+	// argument holds only while one host is in one job. The `hot` and `cold` Scans
+	// each build one job per `(Vantage, Address)` pair over an overlapping address
+	// population, so a second vantage or an opted-in cold scope puts one host in
+	// two jobs, and a second worker can then double the real rate against it.
 	PerHostConnPerSec int `json:"per_host_conn_per_sec"`
 	// PerHostConcurrency is the per-host in-flight connection ceiling — ≤ 20 per
 	// prober process, under the same condition as PerHostConnPerSec.

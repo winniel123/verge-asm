@@ -76,6 +76,8 @@ const (
 	graphMiniW   = 110
 	graphMiniH   = 59
 	graphPad     = 44 // content-box margin past the outermost node
+
+	graphZoomFloor = 0.5 // the standing zoom-out limit for a graph that fits the viewport
 )
 
 // graphSignal is one open (fired) signal joined to a node: the rule that fired, the
@@ -131,6 +133,8 @@ type graphEdge struct {
 // than the viewport, and the minimap maps BOTH its dots and its viewport rectangle
 // against them so the two agree (#1089). They never fall below ViewW/ViewH, so a
 // graph that fits the viewport maps exactly as it did before.
+// FitX/FitY/FitK frame that content box inside the viewport, and MinK is the zoom
+// floor that reaches the fit (#1101).
 // Scopes is the scope selector's vocabulary, Scope the selected ?scope token and
 // ScopeLabel its label, so the control renders and marks its own selection (#1102).
 type graphView struct {
@@ -139,6 +143,8 @@ type graphView struct {
 	Empty                      bool
 	ViewW, ViewH, MiniW, MiniH int
 	ContentW, ContentH         int
+	FitX, FitY, FitK           float64
+	MinK                       float64
 	Scopes                     []graphScope
 	Scope                      string
 	ScopeLabel                 string
@@ -502,12 +508,33 @@ func buildScopedGraph(rows []db.ListAllOpenSpansRow, sc graphScope) graphView {
 		edges = append(edges, graphEdge{X1: a.x, Y1: a.y, X2: b.x, Y2: b.y, ToService: e.toSvc})
 	}
 
+	fitX, fitY, fitK, minK := graphFit(contentW, contentH)
+
 	return graphView{
 		Nodes: nodes, Edges: edges, Empty: len(nodes) == 0,
 		ViewW: graphViewW, ViewH: graphViewH, MiniW: graphMiniW, MiniH: graphMiniH,
 		ContentW: contentW, ContentH: contentH,
+		FitX: fitX, FitY: fitY, FitK: fitK, MinK: minK,
 		members: members,
 	}
+}
+
+// graphFit frames the whole content box inside the viewport and centres it, and
+// gives the zoom floor that reaches that framing. The content box floors at the
+// viewport box, so the scale never exceeds 1 and an estate that fits keeps the
+// standing origin at scale 1 and the standing 0.5 floor.
+func graphFit(contentW, contentH int) (x, y, k, minK float64) {
+	k = math.Min(graphViewW/float64(contentW), graphViewH/float64(contentH))
+	// The scale truncates DOWN, so the drawing can only land inside the viewport, never
+	// past its edge. The column run has no cap, so the scale must stay meaningful at any
+	// height: truncating to four SIGNIFICANT digits holds the same relative accuracy all
+	// the way down, where a fixed decimal place would reach 0 — and scale(0) draws
+	// nothing — and would cut the scale by a third just above that floor.
+	e := math.Pow(10, 4-math.Ceil(math.Log10(k)))
+	k = math.Floor(k*e) / e
+	x = math.Round((graphViewW-float64(contentW)*k)/2*10) / 10
+	y = math.Round((graphViewH-float64(contentH)*k)/2*10) / 10
+	return x, y, k, math.Min(graphZoomFloor, k)
 }
 
 // graphContentBounds measures the box the placed nodes occupy, padded past the
