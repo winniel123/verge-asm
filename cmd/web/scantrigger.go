@@ -137,13 +137,15 @@ func (s *server) runTrigger(w http.ResponseWriter, r *http.Request) (triggerOutc
 		return triggerOutcome{}, false
 	}
 	if n == 0 {
-		// A zero-job dispatch is ambiguous from here: either the fan-out found
-		// nothing to enqueue (no scope or vantage covers this scan yet) or the tick
-		// was already owned by an overlapping dispatch. Trigger returns (0, nil) for
-		// both, so the receipt names both rather than guess — never a false "already
-		// dispatched" over a scan that just found nothing to look at.
+		// A zero-job dispatch is ambiguous from here: the fan-out found nothing to
+		// enqueue (no scope or vantage covers this scan yet), the tick was already
+		// owned by an overlapping dispatch, or — for the hot scan — the cadence-lag
+		// gate held it because an earlier dispatch has not drained (#1114). Trigger
+		// returns (0, nil) for all three, so the receipt names them rather than guess —
+		// never a false "already dispatched" over a scan that just found nothing to
+		// look at.
 		return triggerOutcome{"warn", "The " + kind + " scan enqueued no jobs",
-			"Nothing covers it yet — no scope or vantage — or its current tick was already dispatched."}, true
+			"Nothing covers it yet — no scope or vantage — or its current tick was already dispatched, or an earlier dispatch has not finished."}, true
 	}
 	// Copy per the dogfood note: "<kind> scan dispatched" / "N jobs fanned out".
 	return triggerOutcome{"neutral", kind + " scan dispatched",
