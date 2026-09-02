@@ -85,14 +85,22 @@ const (
 	// smallest legible rendering of one is graphLabelMinPx (ADR-0136 §5). This single
 	// pair states the whole constraint: graphLabelMinK reads it as the scale the view
 	// suppresses below, and graphColumnCap reads it as a column length.
+	//
+	// Both are viewBox USER UNITS, the basis the ADR's own derivation uses, not rendered
+	// CSS pixels. The template lays the 1200x640 viewBox out at width:100%;height:560px,
+	// so one user unit draws at most 0.875 CSS px and less on a narrow card. Re-basing the
+	// budget on the rendered pixel would move graphColumnCap off the 20 the ADR ruled, so
+	// it is an ADR question rather than a constant to retune here.
 	graphLabelPx    = 11
 	graphLabelMinPx = 7
 )
 
 // graphLabelMinK is the scale below which a graphLabelPx label renders under
-// graphLabelMinPx, so the view hides it (ADR-0136 §5). It rounds UP, so a suppressed
-// label is never one that still cleared the threshold. The domain apex label is
-// exempt: it answers which apex the operator is looking at.
+// graphLabelMinPx, so the view hides it (ADR-0136 §5). It rounds UP, so no label is
+// ever left DRAWN under graphLabelMinPx. The cost of rounding that way is the sliver of
+// scales just above the exact threshold, whose labels are hidden while they still just
+// cleared it. The domain apex label is exempt at every scale: it answers which apex the
+// operator is looking at.
 var graphLabelMinK = math.Ceil(float64(graphLabelMinPx)/float64(graphLabelPx)*1e4) / 1e4
 
 // graphColumnCap bounds each of the three columns (ADR-0136 §2, §4). Twenty is

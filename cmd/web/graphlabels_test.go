@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -11,7 +13,11 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
-// column places n subdomain nodes down the name column exactly as buildGraph does, so
+// viewportScale reads the scale off the rendered #gr-viewport transform, which is the
+// scale the operator opens the drawing at.
+var viewportScale = regexp.MustCompile(`id="gr-viewport" transform="translate\([^"]*\) scale\(([0-9.]+)\)"`)
+
+// labelColumn places n subdomain nodes down the name column exactly as buildGraph does, so
 // a threshold assertion reads the real geometry rather than a restatement of it.
 func labelColumn(n int) []graphNode {
 	nodes := make([]graphNode, 0, n)
@@ -23,7 +29,7 @@ func labelColumn(n int) []graphNode {
 	return nodes
 }
 
-// fitScale is the scale the view opens a column of n at.
+// labelColumnFitScale is the scale the view opens a column of n at.
 func labelColumnFitScale(t *testing.T, n int) float64 {
 	t.Helper()
 	w, h := graphContentBounds(labelColumn(n))
@@ -87,10 +93,12 @@ func TestGraphPageDrawsEveryLabelWhenItFits(t *testing.T) {
 	}
 }
 
-// A capped drawing opens fit to its content, which is below the threshold, so the view
-// hushes at load. The class is client-side, so the server still emits every label: the
-// assertion is that the drawing opens under LMINK and the rule that hides them is present.
-func TestGraphPageOpensUnderTheLabelThresholdWhenCapped(t *testing.T) {
+// The cap and the threshold are one constraint (ADR-0136 §4, §5), so a drawing the cap
+// filled must open ABOVE the threshold: a full column whose labels the same view then
+// hid would be the drift the ADR forbids. This reads the fit scale the page actually
+// shipped rather than recomputing it, so a change to graphFit that broke the promise
+// fails here.
+func TestGraphPageAtTheCapOpensAboveTheLabelThreshold(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	if _, err := f.CreateNameSeed(context.Background(), db.CreateNameSeedParams{
@@ -112,5 +120,17 @@ func TestGraphPageOpensUnderTheLabelThresholdWhenCapped(t *testing.T) {
 	}
 	if !strings.Contains(page, "n19.example.com") {
 		t.Errorf("graph page dropped a label the cap kept; body: %s", page)
+	}
+	m := viewportScale.FindStringSubmatch(page)
+	if m == nil {
+		t.Fatalf("graph page has no viewport transform to read a scale from; body: %s", page)
+	}
+	k, err := strconv.ParseFloat(m[1], 64)
+	if err != nil {
+		t.Fatalf("viewport scale %q does not parse: %v", m[1], err)
+	}
+	if k < graphLabelMinK {
+		t.Errorf("a capped drawing opens at scale %v, under the %v the view hides labels below: the cap drew a column its own threshold hushes",
+			k, graphLabelMinK)
 	}
 }
