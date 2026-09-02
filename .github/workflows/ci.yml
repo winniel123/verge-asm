@@ -478,7 +478,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Run gosec
-        uses: securego/gosec@549db668017d67c5eedc9ee8a695208bc3af7c23 # v2.29.0
+        # The v2.29.0 tag was cut 83 minutes before the commit that pointed
+        # action.yml at the 2.29.0 image, so the tag still runs 2.28.0.
+        uses: securego/gosec@57f161386e11e13e4c8a37255bc1a6502993d079 # v2.29.0 image sha256:a6cd2f30
         with:
           # -exclude-generated: sqlc/goose output carries the standard
           # "Code generated ... DO NOT EDIT." header; scanning it only yields G101
