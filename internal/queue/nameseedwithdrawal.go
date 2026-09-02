@@ -80,13 +80,20 @@ func foldNameSeedWithdrawals(ctx context.Context, qtx *db.Queries, batchID int64
 	if len(pending) == 0 {
 		return nil
 	}
-	rows, err := qtx.ListNameSeedWithdrawalCandidates(ctx)
+	// The candidate read is bound to the domains of the tombstones THIS fold locked,
+	// not to every unspent tombstone (#1046). The candidate query is shared with the
+	// chip-remove preview, which has no tombstone to read.
+	rows, err := qtx.ListNameSeedWithdrawalCandidates(ctx, pendingWithdrawnDomains(pending))
 	if err != nil {
 		return err
 	}
 	if len(rows) > 0 {
 		// The admitted names are read ONLY where there is ground to withdraw, so a
 		// tombstone over an empty domain never pays for the corpus.
+		//
+		// The fold reads the WHOLE admitted set, unlike the preview. The cascade has
+		// already run by now, so what is left is exactly the admissions of the Seeds
+		// that survive (ADR-0135 §4).
 		admitted, err := admittedNames(ctx, qtx)
 		if err != nil {
 			return err
@@ -130,6 +137,26 @@ func foldNameSeedWithdrawals(ctx context.Context, qtx *db.Queries, batchID int64
 // other narrowing acts drop an unattributable row. A closure with no mover to name
 // is a withdrawal the operator cannot trace back to their own act.
 func composeNameSeedWithdrawals(rows []db.ListNameSeedWithdrawalCandidatesRow, pending []db.ListPendingNameSeedWithdrawalsRow, in membershipInputs, admitted []string) ([]int64, []message.NarrowingReceipt) {
+	spanIDs, order, counts := composeWithdrawnNameGround(rows, func(name string) string {
+		return coveringNameSeedWithdrawal(name, pending)
+	}, in.seeds, admitted)
+
+	receipts := make([]message.NarrowingReceipt, 0, len(order))
+	for _, key := range order {
+		c := counts[key]
+		receipts = append(receipts, message.PreviewSeedWithdrawal(c.scope, len(c.subjects), c.timelines))
+	}
+	return spanIDs, receipts
+}
+
+// composeWithdrawnNameGround is the one place ADR-0135 §3's two survivor rules are
+// applied, shared by the fold and by the chip-remove preview. Two copies would
+// drift, and a preview that disagrees with the fold is worse than no preview.
+//
+// `covering` names the withdrawn domain a Name falls under, or "" where none does.
+// The fold reads it from the tombstones it locked; the preview passes the one scope
+// the operator is about to withdraw.
+func composeWithdrawnNameGround(rows []db.ListNameSeedWithdrawalCandidatesRow, covering func(string) string, seeds []db.ListSeedsRow, admitted []string) ([]int64, []string, map[string]*withdrawalCount) {
 	stillAdmitted := make(map[string]bool, len(admitted))
 	for _, n := range admitted {
 		if key := resolutionNameKey(n); key != "" {
@@ -142,11 +169,11 @@ func composeNameSeedWithdrawals(rows []db.ListNameSeedWithdrawalCandidatesRow, p
 	counts := map[string]*withdrawalCount{}
 
 	for _, row := range rows {
-		domain := coveringNameSeedWithdrawal(row.SubjectKey, pending)
+		domain := covering(row.SubjectKey)
 		if domain == "" {
 			continue
 		}
-		if nameSeedCovered(row.SubjectKey, in.seeds) {
+		if nameSeedCovered(row.SubjectKey, seeds) {
 			continue // a live Seed still declares it (ADR-0135 §3)
 		}
 		if stillAdmitted[resolutionNameKey(row.SubjectKey)] {
@@ -167,13 +194,90 @@ func composeNameSeedWithdrawals(rows []db.ListNameSeedWithdrawalCandidatesRow, p
 		// the two factors and never their product (message.NarrowingReceipt).
 		c.subjects[row.SubjectKey] = true
 	}
+	return spanIDs, order, counts
+}
 
-	receipts := make([]message.NarrowingReceipt, 0, len(order))
-	for _, key := range order {
-		c := counts[key]
-		receipts = append(receipts, message.PreviewSeedWithdrawal(c.scope, len(c.subjects), c.timelines))
+// pendingWithdrawnDomains is the bound the shared candidate query takes.
+func pendingWithdrawnDomains(pending []db.ListPendingNameSeedWithdrawalsRow) []string {
+	out := make([]string, 0, len(pending))
+	for _, w := range pending {
+		if !w.NameDomain.Valid {
+			continue
+		}
+		out = append(out, normalizeDomain(w.NameDomain.String))
 	}
-	return spanIDs, receipts
+	return out
+}
+
+// NameSeedWithdrawalPreviewStore is the read set the name limb's chip-remove
+// preview needs — the two corpora its survivors are decided from, plus the shared
+// candidate query.
+type NameSeedWithdrawalPreviewStore interface {
+	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
+	ListNameSeedWithdrawalCandidates(ctx context.Context, domains []string) ([]db.ListNameSeedWithdrawalCandidatesRow, error)
+	ListAdmittedNamesOutsideSeed(ctx context.Context, seedID int64) ([]string, error)
+}
+
+// NameSeedWithdrawalReceipt is the narrowing receipt the chip-remove act shows
+// before the operator withdraws a NAME Seed (#1046, ADR-0135 §1). It counts what
+// foldNameSeedWithdrawals would close for `domain`, through the same candidate
+// query and the same survivor rules the fold runs.
+//
+// BOTH SURVIVOR READS HAVE THE WITHDRAWN SEED TAKEN OUT FIRST, for the reason
+// SeedWithdrawalReceipt gives: the Seed is still declared when the preview runs and
+// the fold reads a corpus the delete has already left.
+//
+//   - The live-Seed survivor would otherwise spare every Name under the scope,
+//     because the Seed the operator is withdrawing still covers them all. A domain
+//     is declared once (seed_name_domain_key), so dropping it by value drops exactly
+//     the row the operator clicked.
+//   - The admitted survivor would otherwise spare every Name this Seed admitted,
+//     because `admitted_name` still holds its rows until the delete cascades them.
+//     ListAdmittedNamesOutsideSeed answers the set that will remain, which is what
+//     the fold reads after the cascade.
+//
+// Without either, the count would be zero for every name scope — a confirm step
+// stating that an act removing many Names removes none.
+//
+// The two instants' counts are not required to agree with the message's (ADR-0134
+// §5). The estate may move between the preview and the fold.
+func NameSeedWithdrawalReceipt(ctx context.Context, q NameSeedWithdrawalPreviewStore, seedID int64, domain string) (message.NarrowingReceipt, error) {
+	domain = normalizeDomain(domain)
+	rows, err := q.ListNameSeedWithdrawalCandidates(ctx, []string{domain})
+	if err != nil {
+		return message.NarrowingReceipt{}, err
+	}
+	seeds, err := q.ListSeeds(ctx)
+	if err != nil {
+		return message.NarrowingReceipt{}, err
+	}
+	admitted, err := q.ListAdmittedNamesOutsideSeed(ctx, seedID)
+	if err != nil {
+		return message.NarrowingReceipt{}, err
+	}
+
+	_, _, counts := composeWithdrawnNameGround(rows, func(name string) string {
+		if !nameWithinDomain(name, domain) {
+			return ""
+		}
+		return domain
+	}, withoutNameSeed(seeds, domain), admitted)
+
+	if c := counts[domain]; c != nil {
+		return message.PreviewSeedWithdrawal(domain, len(c.subjects), c.timelines), nil
+	}
+	return message.PreviewSeedWithdrawal(domain, 0, 0), nil
+}
+
+func withoutNameSeed(seeds []db.ListSeedsRow, drop string) []db.ListSeedsRow {
+	out := make([]db.ListSeedsRow, 0, len(seeds))
+	for _, s := range seeds {
+		if s.Kind == "name" && s.NameDomain.Valid && normalizeDomain(s.NameDomain.String) == drop {
+			continue
+		}
+		out = append(out, s)
+	}
+	return out
 }
 
 // coveringNameSeedWithdrawal is the name analogue of coveringSeedWithdrawal: the

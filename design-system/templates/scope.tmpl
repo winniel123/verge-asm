@@ -39,6 +39,7 @@
 .sc-tag form { margin: 0; display: inline-flex; }
 .sc-tag .rm { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border: none; border-radius: 999px; background: transparent; color: var(--text-muted); cursor: pointer; padding: 0; }
 .sc-tag .rm:hover { background: var(--border-strong); }
+.sc-tag.confirm { border-color: var(--accent); background: var(--accent-soft); color: var(--text-ink); }
 .sc-field { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-height: 36px; padding: 5px 10px; background: var(--surface); border: 1px solid var(--border-default); border-radius: 12px; transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); cursor: text; }
 .sc-field:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-ring) 18%, transparent); }
 .sc-field.err { border-color: var(--danger-solid); }
@@ -166,6 +167,9 @@ button.sc-trow { cursor: pointer; }
 .sc-receipt { padding: 12px 14px; background: var(--surface-sunken); border-radius: 12px; font-family: var(--font-ui); display: flex; flex-direction: column; gap: 4px; }
 .sc-receipt .hl { margin: 0; font: 600 13px var(--font-ui); color: var(--text-ink); }
 .sc-receipt .ls { margin: 0; font: 400 12.5px/1.5 var(--font-ui); color: var(--text-body); }
+.sc-receipt .sc { margin: 0; font: 400 12.5px var(--font-mono); color: var(--text-secondary); }
+.sc-receipt .act { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.sc-receipt .act form { margin: 0; }
 .sc-notice { display: flex; align-items: flex-start; gap: 10px; padding: 11px 14px; background: var(--ok-soft); border: 1px solid var(--ok-border); border-radius: 12px; font-family: var(--font-ui); font-size: 12.5px; line-height: 1.5; color: var(--text-body); }
 .sc-notice .ic { color: var(--ok); display: inline-flex; margin-top: 1px; flex: none; }
 .sc-error { padding: 10px 14px; background: var(--danger-soft); border: 1px solid var(--danger-border); border-radius: 12px; font: 400 12.5px/1.5 var(--font-ui); color: var(--danger); }
@@ -185,7 +189,7 @@ button.sc-trow { cursor: pointer; }
 <div style="display:flex;flex-direction:column;gap:6px">
 <div class="sc-fieldrow">
 <div class="sc-field{{if .FormError}} err{{end}}" data-focus-input>
-{{range .Seeds}}<span class="sc-tag" id="seed-{{.Anchor}}">{{.Scope}}{{if $.IsAdmin}}<form method="post" action="/seeds/delete"><input type="hidden" name="id" value="{{.ID}}">{{template "backfield" $}}<button class="rm" type="submit" aria-label="Remove seed"><svg viewBox="0 0 10 10" width="8" height="8"><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></button></form>{{end}}</span>{{end}}
+{{range .Seeds}}<span class="sc-tag{{if $.SeedConfirm}}{{if eq (printf "%v" .ID) $.SeedConfirm.ID}} confirm{{end}}{{end}}" id="seed-{{.Anchor}}">{{.Scope}}{{if $.IsAdmin}}<form method="post" action="/seeds/preview"><input type="hidden" name="id" value="{{.ID}}">{{template "backfield" $}}<button class="rm" type="submit" aria-label="Remove seed"><svg viewBox="0 0 10 10" width="8" height="8"><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path></svg></button></form>{{end}}</span>{{end}}
 {{if .IsAdmin}}<form method="post" action="/seeds" id="sc-declare">{{template "backfield" $}}<input name="scope" value="{{.FormScope}}" placeholder="{{if not .Seeds}}acmecorp.io or 203.0.113.0/24{{end}}" autocomplete="off" aria-label="Declare a scope" data-declare-input></form>{{end}}
 </div>
 {{if .IsAdmin}}<button type="submit" form="sc-declare" class="sc-btn" data-declare-confirm>Confirm</button>{{end}}
@@ -193,6 +197,17 @@ button.sc-trow { cursor: pointer; }
 {{if .IsAdmin}}<span class="sc-live" data-declare-live data-cap="{{.AddressCap}}" aria-live="polite" hidden></span>{{end}}
 {{if .FormError}}<span class="sc-errline">{{.FormError}}</span>{{else}}<span class="sc-hint">Names or address scopes · paste several — commas, spaces, or newlines split · a block wider than the {{.AddressCap}}-address cap is refused, never auto-corrected.</span>{{end}}
 </div>
+{{with .SeedConfirm}}
+<div class="sc-receipt">
+<span class="sc-micro">Confirm removal</span>
+<p class="sc">{{.Scope}}</p>
+{{if .Fires}}<p class="hl">{{.Headline}}</p><p class="ls">{{.Loss}}</p>{{else if .Failed}}<p class="ls">The count did not resolve. Removing the scope still withdraws the subjects it alone holds, on the next completed job.</p>{{end}}
+<div class="act">
+<form method="post" action="/seeds/delete"><input type="hidden" name="id" value="{{.ID}}">{{template "backfield" $}}<button type="submit" class="sc-btn-sm">Remove scope</button></form>
+<a class="sc-btn-ghost" href="{{$.BackURL}}">Cancel</a>
+</div>
+</div>
+{{end}}
 {{range .Refusals}}
 <div class="sc-refusal">
 <span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86z"></path><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg></span>

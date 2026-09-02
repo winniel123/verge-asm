@@ -59,7 +59,10 @@ func TestScopeFormsCarryTheSubmittingURL(t *testing.T) {
 	// The screen's own acts, not the chrome's: shell.tmpl's sign-out form posts to a
 	// fixed destination by design and is out of scope for this map.
 	var forms int
-	for _, act := range []string{"/seeds", "/seeds/delete", "/seeds/custody", "/seeds/zone",
+	// The chip's remove control posts to /seeds/preview since #1046 — the withdrawal
+	// is a two-step act, and /seeds/delete ships only inside the confirm state, which
+	// this default render is not in.
+	for _, act := range []string{"/seeds", "/seeds/preview", "/seeds/custody", "/seeds/zone",
 		"/seeds/zone/interval", "/exclusions", "/exclusions/delete", "/proposals/search",
 		"/proposals/confirm", "/proposals/decline"} {
 		if n := strings.Count(page, `action="`+act+`"`); n == 0 {

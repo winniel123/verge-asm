@@ -215,10 +215,8 @@ FROM span s
 WHERE s.closed_at IS NULL
   AND s.subject_kind = 'name'
   AND EXISTS (
-      SELECT 1 FROM seed_withdrawal w
-      WHERE w.consumed_at IS NULL
-        AND w.kind = 'name'
-        AND (s.subject_key = w.name_domain OR s.subject_key LIKE '%.' || w.name_domain)
+      SELECT 1 FROM unnest($1::text[]) AS w(domain)
+      WHERE s.subject_key = w.domain OR s.subject_key LIKE '%.' || w.domain
   )
 ORDER BY s.subject_key, s.id
 `
@@ -238,16 +236,23 @@ type ListNameSeedWithdrawalCandidatesRow struct {
 // subordinates are keyed by the address itself; a Name's are not.
 //
 // It applies NEITHER survivor rule. Both are decided in Go by
-// composeNameSeedWithdrawals, and both must be, because each has to use the SAME
+// composeWithdrawnNameGround, and both must be, because each has to use the SAME
 // key function the dns Scan's resolution set uses (nameSeedCovered for the live
-// Seed corpus, resolutionNameKey over ListAdmittedNames for the CT limb). A
+// Seed corpus, resolutionNameKey over the admitted names for the CT limb). A
 // survivor test that keys names differently from the enumeration would drop a Name
 // the estate still walks, or hold one it stopped walking (ADR-0135 §3).
 //
-// The `LIKE '%.' || w.name_domain` subtree test is the idiom FindCoveringNameSeed
+// IT TAKES THE DOMAINS RATHER THAN READING `seed_withdrawal`, for the two reasons
+// ListSeedWithdrawalCandidates takes its CIDRs (#1046). Two acts ask this question
+// and only one has a tombstone: the fold passes the domains its own pending read
+// locked, and the chip-remove preview passes the one scope the operator is about to
+// withdraw, before any tombstone exists. Reading the table inline would also return
+// candidates for tombstones another worker's SKIP LOCKED had claimed.
+//
+// The `LIKE '%.' || w.domain` subtree test is the idiom FindCoveringNameSeed
 // already uses. A domain cannot legally carry a LIKE metacharacter.
-func (q *Queries) ListNameSeedWithdrawalCandidates(ctx context.Context) ([]ListNameSeedWithdrawalCandidatesRow, error) {
-	rows, err := q.db.Query(ctx, listNameSeedWithdrawalCandidates)
+func (q *Queries) ListNameSeedWithdrawalCandidates(ctx context.Context, domains []string) ([]ListNameSeedWithdrawalCandidatesRow, error) {
+	rows, err := q.db.Query(ctx, listNameSeedWithdrawalCandidates, domains)
 	if err != nil {
 		return nil, err
 	}
@@ -399,10 +404,8 @@ WITH withdrawn_addr AS (
       AND s.subject_kind = 'address'
       AND s.subject_key ~ '^[0-9.]+$'
       AND EXISTS (
-          SELECT 1 FROM seed_withdrawal w
-          WHERE w.consumed_at IS NULL
-            AND w.kind = 'address'
-            AND s.subject_key::inet <<= w.address_cidr
+          SELECT 1 FROM unnest($1::text[]) AS w(net)
+          WHERE s.subject_key::inet <<= w.net::cidr
       )
       AND NOT EXISTS (
           SELECT 1 FROM span r
@@ -429,12 +432,24 @@ type ListSeedWithdrawalCandidatesRow struct {
 	SubjectKey  string `json:"subject_key"`
 }
 
-// Every open timeline a pending Seed-withdrawal tombstone MAY withdraw, for the
-// membership fold to close with the `descoped` ground (ADR-0134 §5, #1040).
+// Every open timeline a withdrawn address Seed MAY withdraw, for the membership
+// fold to close with the `descoped` ground (ADR-0134 §5, #1040).
 //
 // It is the tombstone twin of ListAddressExclusionWithdrawals and carries the same
-// two CTE shapes, read against `seed_withdrawal` instead of `exclusion`, so the
-// two narrowing acts remove the same shape of ground.
+// two CTE shapes, read against one CIDR set instead of `exclusion`, so the two
+// narrowing acts remove the same shape of ground.
+//
+// IT TAKES THE CIDRs RATHER THAN READING `seed_withdrawal` (#1046). Two acts ask
+// this question and only one of them has a tombstone. The fold passes the CIDRs of
+// the tombstones its own pending read locked; the chip-remove preview passes the
+// one scope the operator is about to withdraw, before any tombstone exists. A
+// second query for the preview would be a second copy of the survivor set, and a
+// preview that disagrees with the fold is worse than no preview.
+//
+// Passing the fold's locked CIDRs also narrows it. Reading `seed_withdrawal`
+// inline returned candidates for tombstones another worker's FOR UPDATE SKIP
+// LOCKED had claimed, which composeSeedWithdrawals then dropped for want of a
+// covering tombstone.
 //
 // It answers CANDIDATES. Of ADR-0134 §4's three survivor rules this query applies
 // ONE — an address a current resolution still cites does not leave, the NOT EXISTS
@@ -451,8 +466,8 @@ type ListSeedWithdrawalCandidatesRow struct {
 // resolution test is a substring match over the span value. Both bound the
 // withdrawal SMALLER than the model asks, never larger: an address that should
 // have left stays, and none leaves that should have stayed.
-func (q *Queries) ListSeedWithdrawalCandidates(ctx context.Context) ([]ListSeedWithdrawalCandidatesRow, error) {
-	rows, err := q.db.Query(ctx, listSeedWithdrawalCandidates)
+func (q *Queries) ListSeedWithdrawalCandidates(ctx context.Context, cidrs []string) ([]ListSeedWithdrawalCandidatesRow, error) {
+	rows, err := q.db.Query(ctx, listSeedWithdrawalCandidates, cidrs)
 	if err != nil {
 		return nil, err
 	}

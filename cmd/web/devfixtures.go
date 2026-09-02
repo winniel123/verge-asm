@@ -1319,6 +1319,7 @@ type scopeOverlay struct {
 	exclKind    string
 	exclValue   string
 	exclPreview map[string]any
+	seedConfirm map[string]any
 }
 
 // scopeFixtureData assembles the render data map seedsPage passes to the frozen scope.tmpl in a
@@ -1385,6 +1386,9 @@ func (s *server) scopeFixtureData(acct db.Account, ov scopeOverlay) map[string]a
 	if ov.exclPreview != nil {
 		data["ExclPreview"] = ov.exclPreview
 	}
+	if ov.seedConfirm != nil {
+		data["SeedConfirm"] = ov.seedConfirm
+	}
 	return data
 }
 
@@ -1404,6 +1408,24 @@ func (s *server) scopeFixtureDataRefusal(acct db.Account, value string) map[stri
 		}
 	}
 	return s.scopeFixtureData(acct, ov)
+}
+
+// scopeFixtureDataConfirm is the chip-remove confirm step over the pinned corpus (#1046). It
+// names the FIRST fixture seed and carries NO receipt: the fixture is a curated corpus rather
+// than an estate, so there is no span to count, and a fabricated headline would state a
+// withdrawal nothing measured. A zero count renders the same way in production.
+// It names the chip the operator actually clicked. The fixture ids are the strings the
+// chips render, so the posted id is matched against them directly; an id belonging to
+// no chip renders no confirm state, which is what a withdrawn Seed does in production.
+func (s *server) scopeFixtureDataConfirm(acct db.Account, id string) map[string]any {
+	for _, row := range devScopeSeeds {
+		if row.ID == id {
+			return s.scopeFixtureData(acct, scopeOverlay{
+				seedConfirm: map[string]any{"ID": row.ID, "Scope": row.Scope, "Fires": false},
+			})
+		}
+	}
+	return s.scopeFixtureData(acct, scopeOverlay{})
 }
 
 // scopeFixtureDataPreview is the "exclusion-preview" golden's render (states.json): the pinned

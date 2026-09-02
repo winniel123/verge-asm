@@ -97,6 +97,45 @@ func (q *Queries) ListAdmittedNames(ctx context.Context) ([]string, error) {
 	return items, nil
 }
 
+const listAdmittedNamesOutsideSeed = `-- name: ListAdmittedNamesOutsideSeed :many
+SELECT DISTINCT name
+FROM admitted_name
+WHERE seed_id <> $1
+ORDER BY name
+`
+
+// The distinct CT-admitted names that some Seed OTHER than this one admits — the
+// admitted set as it will stand once this Seed is withdrawn (ADR-0135 §3, #1046).
+//
+// `admitted_name.seed_id` cascades on a Seed delete, so after the withdrawal the
+// table holds exactly the admissions of the Seeds that survive. This answers that
+// question BEFORE the act, which is what the chip-remove preview needs: the Seed is
+// still declared when the preview runs, so reading ListAdmittedNames would find
+// every Name this Seed admitted still admitted, spare all of them through survivor
+// two, and state a count of zero for a withdrawal that removes many.
+//
+// The fold reads ListAdmittedNames instead. By then the cascade has already run, so
+// the two reads return the same set and the preview and the act agree.
+func (q *Queries) ListAdmittedNamesOutsideSeed(ctx context.Context, seedID int64) ([]string, error) {
+	rows, err := q.db.Query(ctx, listAdmittedNamesOutsideSeed, seedID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		items = append(items, name)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listNameSeeds = `-- name: ListNameSeeds :many
 SELECT id, name_domain
 FROM seed

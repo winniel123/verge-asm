@@ -108,6 +108,21 @@ reason for deciding the custody survivor through `Derive` itself: the membership
 decision and the enumeration must read one function and cannot be allowed to
 disagree.
 
+**Both are applied in one place, `composeWithdrawnNameGround`**, shared by the fold
+and by #1046's chip-remove preview, and the candidate query takes its domains rather
+than reading `seed_withdrawal` — both for the reasons #1046 gave on the address side.
+Two copies of a survivor set drift, and a preview that disagrees with the fold is
+worse than no preview.
+
+**The preview takes the withdrawn `Seed` out of both survivor reads first.** The
+`Seed` is still declared when the preview runs and the fold reads a corpus the delete
+has already left. Left in, survivor one spares every Name beneath the domain, and
+survivor two spares every Name the `Seed` admitted — because `admitted_name` still
+holds its rows until the delete cascades them. Either alone makes the count zero for
+every name scope, which is a confirm step telling the operator that an act removing
+many Names removes none. `ListAdmittedNamesOutsideSeed` answers the admitted set that
+will remain, which is exactly what the fold reads after the cascade.
+
 **The address limb's third survivor has no Name counterpart, and neither does
 `CONTEXT.md`'s resolution-citation limb.** `custody.Estate` derives *addresses*,
 and its extension lives on a name `Seed`, so withdrawing that `Seed` takes the
@@ -211,6 +226,10 @@ query matches, so the read and the spend agree on what is left.
 - `CONTEXT.md`'s `Name` entry gains the declared limb of its departure rule. It
   stated only the measured one, and an exclusion has closed a Name `descoped` since
   #722.
+- **#1046's confirm step gains a name receipt.** That act made the two-step confirm
+  the only route to a withdrawal, and it stated no count for a name scope because
+  this limb closed nothing. It would otherwise show an operator an empty confirmation
+  for an act that removes many Names.
 - No new message class, no new cause, no census, and no new constructor.
 
 ## Alternatives rejected

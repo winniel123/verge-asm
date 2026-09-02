@@ -65,3 +65,21 @@ WITH reserved AS (
 SELECT (next_free_at
     - make_interval(secs => sqlc.arg(interval_seconds)::double precision))::timestamptz AS slot_at
 FROM reserved;
+
+-- name: ListAdmittedNamesOutsideSeed :many
+-- The distinct CT-admitted names that some Seed OTHER than this one admits — the
+-- admitted set as it will stand once this Seed is withdrawn (ADR-0135 §3, #1046).
+--
+-- `admitted_name.seed_id` cascades on a Seed delete, so after the withdrawal the
+-- table holds exactly the admissions of the Seeds that survive. This answers that
+-- question BEFORE the act, which is what the chip-remove preview needs: the Seed is
+-- still declared when the preview runs, so reading ListAdmittedNames would find
+-- every Name this Seed admitted still admitted, spare all of them through survivor
+-- two, and state a count of zero for a withdrawal that removes many.
+--
+-- The fold reads ListAdmittedNames instead. By then the cascade has already run, so
+-- the two reads return the same set and the preview and the act agree.
+SELECT DISTINCT name
+FROM admitted_name
+WHERE seed_id <> sqlc.arg(seed_id)
+ORDER BY name;

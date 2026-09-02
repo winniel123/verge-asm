@@ -49,6 +49,16 @@ type fakeStore struct {
 	// keeps them only so a test can assert the act recorded its mover.
 	seedWithdrawals []db.SeedWithdrawal
 
+	// withdrawalCandidates are the open timelines the shared candidate query returns
+	// (#1046). A test poses the rows; the fake applies the containment filter the SQL
+	// applies, so the chip-remove preview counts over the same shape the fold does.
+	withdrawalCandidates []db.ListSeedWithdrawalCandidatesRow
+
+	// nameWithdrawalCandidates is the name limb's half of the same thing (ADR-0135):
+	// the open name timelines the shared candidate query returns. The fake applies the
+	// apex-or-beneath test the SQL applies.
+	nameWithdrawalCandidates []db.ListNameSeedWithdrawalCandidatesRow
+
 	// The custody-extension census's reads beyond the seeds (#987): the current
 	// (Name, Address) resolutions, the newest `edge-fanout` measurement per address,
 	// the certificate material those measurements name, and which Scan kinds have
@@ -788,6 +798,69 @@ func (f *fakeStore) WithdrawSeed(_ context.Context, arg db.WithdrawSeedParams) (
 		return db.WithdrawSeedRow{SeedsRemoved: 1, TombstonesWritten: 1}, nil
 	}
 	return db.WithdrawSeedRow{}, nil
+}
+
+// ListSeedWithdrawalCandidates applies the containment half of the SQL over the posed
+// rows. The resolution survivor is the query's own NOT EXISTS clause, so a test poses
+// only the rows that survived it; the other two survivors are decided in Go and are
+// exercised through the seeds and the estate this fake already serves.
+func (f *fakeStore) ListSeedWithdrawalCandidates(_ context.Context, cidrs []string) ([]db.ListSeedWithdrawalCandidatesRow, error) {
+	prefixes := make([]netip.Prefix, 0, len(cidrs))
+	for _, c := range cidrs {
+		p, err := netip.ParsePrefix(c)
+		if err != nil {
+			return nil, err
+		}
+		prefixes = append(prefixes, p)
+	}
+	out := []db.ListSeedWithdrawalCandidatesRow{}
+	for _, row := range f.withdrawalCandidates {
+		key := row.SubjectKey
+		if i := strings.IndexByte(key, ':'); i >= 0 {
+			key = key[:i]
+		}
+		addr, err := netip.ParseAddr(key)
+		if err != nil {
+			continue
+		}
+		for _, p := range prefixes {
+			if p.Contains(addr) {
+				out = append(out, row)
+				break
+			}
+		}
+	}
+	return out, nil
+}
+
+func (f *fakeStore) ListNameSeedWithdrawalCandidates(_ context.Context, domains []string) ([]db.ListNameSeedWithdrawalCandidatesRow, error) {
+	out := []db.ListNameSeedWithdrawalCandidatesRow{}
+	for _, row := range f.nameWithdrawalCandidates {
+		key := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(row.SubjectKey)), ".")
+		for _, d := range domains {
+			if key == d || strings.HasSuffix(key, "."+d) {
+				out = append(out, row)
+				break
+			}
+		}
+	}
+	return out, nil
+}
+
+// ListAdmittedNamesOutsideSeed mirrors the SQL: the distinct admitted names some
+// OTHER Seed admits, which is the set that survives this Seed's delete cascade.
+func (f *fakeStore) ListAdmittedNamesOutsideSeed(_ context.Context, seedID int64) ([]string, error) {
+	seen := map[string]bool{}
+	out := []string{}
+	for _, a := range f.admitted {
+		if a.SeedID == seedID || seen[a.Name] {
+			continue
+		}
+		seen[a.Name] = true
+		out = append(out, a.Name)
+	}
+	sort.Strings(out)
+	return out, nil
 }
 
 func (f *fakeStore) SetCustodyExtension(_ context.Context, arg db.SetCustodyExtensionParams) error {
