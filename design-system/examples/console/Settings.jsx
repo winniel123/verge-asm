@@ -639,7 +639,7 @@ function InstanceSection({ onToast }) {
                   <span style={{ font: "400 12.5px/1.5 var(--font-ui)", color: "var(--text-body)" }}>Drift-batch memory fixes and a faster census. Verge never rewrites its own image — the swap is a host action. The exact steps:</span>
                 </span>
               </div>
-              <pre style={{ margin: 0, padding: "12px 14px", background: "var(--surface-inverted)", borderRadius: 12, font: "400 12px/1.7 var(--font-mono)", color: "var(--text-on-inverted)", overflowX: "auto" }}>{"# on the host — verge cannot rewrite its own image\ndocker compose pull\ndocker compose up -d web worker\ndocker compose exec web verge migrate status"}</pre>
+              <pre style={{ margin: 0, padding: "12px 14px", background: "var(--console-surface)", borderRadius: 12, font: "400 12px/1.7 var(--font-mono)", color: "var(--console-text)", overflowX: "auto" }}>{"# on the host — verge cannot rewrite its own image\ndocker compose pull\ndocker compose up -d web worker\ndocker compose exec web verge migrate status"}</pre>
             </div>
           ) : (
             <span style={{ font: "400 12.5px var(--font-ui)", color: "var(--text-muted)" }}>Update checks are off — air-gap friendly; Verge never phones home while disabled. Compare v0.9.2 against the releases page when you choose.</span>

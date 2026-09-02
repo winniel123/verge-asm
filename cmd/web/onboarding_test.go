@@ -166,11 +166,16 @@ func TestOnboardingFinishEnqueuesScan(t *testing.T) {
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("finish: status = %d, want 303", resp.StatusCode)
 	}
-	if !strings.HasPrefix(loc, "/scans?") || !strings.Contains(loc, "notice=triggered") || !strings.Contains(loc, "kind=hot") {
-		t.Fatalf("finish redirect = %q, want /scans with a triggered hot notice", loc)
+	if loc != "/scans" {
+		t.Fatalf("finish redirect = %q, want the monitor at /scans", loc)
 	}
 	if len(trig.calls) != 1 || trig.calls[0] != "hot" {
 		t.Fatalf("finish dispatcher calls = %v, want one hot fan-out", trig.calls)
+	}
+	// The receipt rides the single-consume flash, fired on the monitor's render.
+	page := getBody(t, ac, base+loc, http.StatusOK)
+	if !strings.Contains(page, "hot scan dispatched") || !strings.Contains(page, "4 jobs fanned out") {
+		t.Errorf("finish receipt missing; body: %s", page)
 	}
 }
 

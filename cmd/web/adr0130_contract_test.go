@@ -521,10 +521,6 @@ var classEExempt = map[string]string{
 	"POST /reports/schedule/new":      "the wizard's back/next/invalid-step redirects are moves between steps",
 	"POST /reports/schedule/{id}/edit": "the edit wizard's step moves, same as the new-schedule wizard",
 
-	// A scan trigger's receipt belongs on the monitor that shows the scan, which is a
-	// different page from the one the button sits on (ticket #977's audit).
-	"POST /scans/trigger": "the receipt lands on the run monitor, a deliberate page move",
-
 	// A COMPLETED restore replaces the database the caller's own session row lives in, so
 	// there is no session left to return anywhere. Sign-in is the only page the operator
 	// can still reach. Its REFUSALS are not exempt: they leave the instance untouched and
