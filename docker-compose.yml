@@ -36,6 +36,12 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # SINGLE-INSTANCE BY DESIGN. Do not `--scale worker=N` (#1092). The active-scan
+  # safety budget is enforced per prober process, and this service execs a fresh
+  # prober per job. One worker drains its queue serially, so one prober is live at
+  # a time and the declared ceilings hold for the instance. N workers run N probers
+  # that share no state, so the instance emits up to N times the rate every Batch
+  # still records. Nothing warns and nothing refuses. See docs/guides/running.md.
   worker:
     build:
       context: .
