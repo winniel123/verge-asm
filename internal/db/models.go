@@ -341,11 +341,13 @@ type Seed struct {
 
 type SeedWithdrawal struct {
 	ID              int64              `json:"id"`
-	AddressCidr     netip.Prefix       `json:"address_cidr"`
+	AddressCidr     *netip.Prefix      `json:"address_cidr"`
 	CreatedBy       pgtype.Int8        `json:"created_by"`
 	CreatedAt       pgtype.Timestamptz `json:"created_at"`
 	ConsumedAt      pgtype.Timestamptz `json:"consumed_at"`
 	ConsumedBatchID pgtype.Int8        `json:"consumed_batch_id"`
+	Kind            string             `json:"kind"`
+	NameDomain      pgtype.Text        `json:"name_domain"`
 }
 
 type Session struct {

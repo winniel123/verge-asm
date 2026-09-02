@@ -23,8 +23,8 @@ type NarrowingReceipt struct {
 	// — which Narrowing's doc already licenses.
 	Scope string
 	// Removed is the ground that left: the excluded value (an address scope, a
-	// name, or a subtree) for an exclusion, and the withdrawn CIDR itself — the
-	// same string as Scope — for a Seed withdrawal.
+	// name, or a subtree) for an exclusion, and the withdrawn scope itself — the
+	// same string as Scope, a CIDR or a domain — for a Seed withdrawal.
 	Removed string
 	// SubjectsWithdrawn is the count of subjects the act removes — the trigger
 	// (inhabitance of the withdrawn set) and half the payload.
@@ -62,15 +62,20 @@ func PreviewNarrowing(scope, removed string, subjectsWithdrawn, timelinesRemoved
 	return r
 }
 
-// PreviewSeedWithdrawal computes the receipt for the OTHER narrowing act: an
-// address Seed the operator withdrew entirely (ADR-0134 §1, §6). Removal is the
-// limiting case of narrowing, so it carries the same receipt, the same coverage
-// class and the same `descoped` ground; only the rendered sentence differs.
+// PreviewSeedWithdrawal computes the receipt for the OTHER narrowing act: a Seed
+// the operator withdrew entirely (ADR-0134 §1, §6). Removal is the limiting case
+// of narrowing, so it carries the same receipt, the same coverage class and the
+// same `descoped` ground; only the rendered sentence differs.
 //
-// Scope and Removed are both the withdrawn CIDR, because an address Seed's display
-// scope IS its CIDR: the scope that moved and the ground that left are one object
-// here. That is exactly why the copy cannot go through PreviewNarrowing, whose
-// headline names the two separately.
+// BOTH Seed limbs come here (ADR-0135 §1). A name Seed withdrawal removes many
+// Names in one act, so it states the act once rather than writing a row per Name —
+// which would be the census the receipt exists to replace (ADR-0074).
+//
+// Scope and Removed are both the withdrawn scope, because a Seed's display scope
+// IS its scope column: a CIDR for the address limb and a domain for the name limb.
+// The scope that moved and the ground that left are one object here. That is
+// exactly why the copy cannot go through PreviewNarrowing, whose headline names
+// the two separately.
 func PreviewSeedWithdrawal(scope string, subjectsWithdrawn, timelinesRemoved int) NarrowingReceipt {
 	r := NarrowingReceipt{
 		Scope:             scope,

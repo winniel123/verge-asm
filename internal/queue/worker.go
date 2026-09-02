@@ -626,6 +626,15 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, res wire.Prob
 		if err := foldEstateTransitions(ctx, qtx, batchID, observedAt, obs, membership, w.departureCollector(&departures)); err != nil {
 			return err
 		}
+		// Close the timelines a WITHDRAWN name Seed takes with it, with the `descoped`
+		// ground (ADR-0135, #1045). It runs beside the fold above and not inside it,
+		// for that fold's own reason: a withdrawn name Seed stops its Names being
+		// enumerated, so no observation about them arrives again and a fold scoped to
+		// the batch's observed subjects could never reach them. Running it AFTER means
+		// a Name that fold already closed is not open, so neither counts it twice.
+		if err := foldNameSeedWithdrawals(ctx, qtx, batchID, observedAt, membership, w.narrowingCollector(&narrowings)); err != nil {
+			return err
+		}
 		// Close the timelines the operator's own declared ADDRESS exclusions withdraw,
 		// with the `descoped` ground (ADR-0133 §8, #1032). It runs beside the Name
 		// withdrawal above and not inside it: ADR-0133 §3 stops enumerating an excluded
@@ -638,7 +647,7 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, res wire.Prob
 		// Close the timelines a WITHDRAWN address Seed takes with it, with the same
 		// `descoped` ground (ADR-0134, #1040) — the other half of the rule CONTEXT.md
 		// states, driven from a `seed_withdrawal` tombstone because the delete destroys
-		// the mover. It runs LAST of the three folds: an address the exclusion
+		// the mover. It runs LAST of the four folds: an address the exclusion
 		// withdrawal already closed is not open, so it is never counted or attributed
 		// twice.
 		if err := foldSeedWithdrawals(ctx, qtx, batchID, observedAt, membership, w.narrowingCollector(&narrowings)); err != nil {

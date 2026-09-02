@@ -209,17 +209,116 @@ func (q *Queries) ListMessages(ctx context.Context) ([]Message, error) {
 	return items, nil
 }
 
+const listNameSeedWithdrawalCandidates = `-- name: ListNameSeedWithdrawalCandidates :many
+SELECT s.id, s.subject_key
+FROM span s
+WHERE s.closed_at IS NULL
+  AND s.subject_kind = 'name'
+  AND EXISTS (
+      SELECT 1 FROM seed_withdrawal w
+      WHERE w.consumed_at IS NULL
+        AND w.kind = 'name'
+        AND (s.subject_key = w.name_domain OR s.subject_key LIKE '%.' || w.name_domain)
+  )
+ORDER BY s.subject_key, s.id
+`
+
+type ListNameSeedWithdrawalCandidatesRow struct {
+	ID         int64  `json:"id"`
+	SubjectKey string `json:"subject_key"`
+}
+
+// Every open timeline a pending NAME Seed-withdrawal tombstone MAY withdraw, for
+// the membership fold to close with the `descoped` ground (ADR-0135 §3, #1045).
+//
+// It closes exactly what foldEstateTransitions closes for a departing Name — the
+// Name's OWN open spans, no fan-out to a subordinate subject. The two are one
+// closure reached by two routes, so they must remove the same shape of ground. The
+// address limb fans out to `service` and `endpoint` because an Address's
+// subordinates are keyed by the address itself; a Name's are not.
+//
+// It applies NEITHER survivor rule. Both are decided in Go by
+// composeNameSeedWithdrawals, and both must be, because each has to use the SAME
+// key function the dns Scan's resolution set uses (nameSeedCovered for the live
+// Seed corpus, resolutionNameKey over ListAdmittedNames for the CT limb). A
+// survivor test that keys names differently from the enumeration would drop a Name
+// the estate still walks, or hold one it stopped walking (ADR-0135 §3).
+//
+// The `LIKE '%.' || w.name_domain` subtree test is the idiom FindCoveringNameSeed
+// already uses. A domain cannot legally carry a LIKE metacharacter.
+func (q *Queries) ListNameSeedWithdrawalCandidates(ctx context.Context) ([]ListNameSeedWithdrawalCandidatesRow, error) {
+	rows, err := q.db.Query(ctx, listNameSeedWithdrawalCandidates)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListNameSeedWithdrawalCandidatesRow{}
+	for rows.Next() {
+		var i ListNameSeedWithdrawalCandidatesRow
+		if err := rows.Scan(&i.ID, &i.SubjectKey); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPendingNameSeedWithdrawals = `-- name: ListPendingNameSeedWithdrawals :many
+SELECT w.id, w.name_domain
+FROM seed_withdrawal w
+WHERE w.consumed_at IS NULL
+  AND w.kind = 'name'
+ORDER BY w.id
+FOR UPDATE SKIP LOCKED
+`
+
+type ListPendingNameSeedWithdrawalsRow struct {
+	ID         int64       `json:"id"`
+	NameDomain pgtype.Text `json:"name_domain"`
+}
+
+// The tombstones of withdrawn NAME Seeds the membership fold has not spent yet
+// (ADR-0135 §2, #1045). The address twin above is ListPendingSeedWithdrawals, and
+// everything it says about `consumed_at` as the filter and about FOR UPDATE SKIP
+// LOCKED holds here for the same reasons.
+//
+// The domain is both the mover's identity and the site the coverage message fires
+// at, exactly as the CIDR is on the address side.
+func (q *Queries) ListPendingNameSeedWithdrawals(ctx context.Context) ([]ListPendingNameSeedWithdrawalsRow, error) {
+	rows, err := q.db.Query(ctx, listPendingNameSeedWithdrawals)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListPendingNameSeedWithdrawalsRow{}
+	for rows.Next() {
+		var i ListPendingNameSeedWithdrawalsRow
+		if err := rows.Scan(&i.ID, &i.NameDomain); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPendingSeedWithdrawals = `-- name: ListPendingSeedWithdrawals :many
 SELECT w.id, w.address_cidr
 FROM seed_withdrawal w
 WHERE w.consumed_at IS NULL
+  AND w.kind = 'address'
 ORDER BY w.id
 FOR UPDATE SKIP LOCKED
 `
 
 type ListPendingSeedWithdrawalsRow struct {
-	ID          int64        `json:"id"`
-	AddressCidr netip.Prefix `json:"address_cidr"`
+	ID          int64         `json:"id"`
+	AddressCidr *netip.Prefix `json:"address_cidr"`
 }
 
 // The tombstones of withdrawn address Seeds the membership fold has not spent yet
@@ -239,6 +338,10 @@ type ListPendingSeedWithdrawalsRow struct {
 // collected before either runs. A Message is written once and never recomputed, so
 // that duplicate would be permanent. Skipping a locked row makes the second fold a
 // no-op, and the row is picked up by whichever job completes next.
+//
+// `kind = 'address'` because the table carries both limbs (ADR-0135 §2). Each fold
+// claims only its own rows, so the two never lock each other out through SKIP
+// LOCKED and neither can read a tombstone whose scope column is NULL for it.
 func (q *Queries) ListPendingSeedWithdrawals(ctx context.Context) ([]ListPendingSeedWithdrawalsRow, error) {
 	rows, err := q.db.Query(ctx, listPendingSeedWithdrawals)
 	if err != nil {
@@ -298,6 +401,7 @@ WITH withdrawn_addr AS (
       AND EXISTS (
           SELECT 1 FROM seed_withdrawal w
           WHERE w.consumed_at IS NULL
+            AND w.kind = 'address'
             AND s.subject_key::inet <<= w.address_cidr
       )
       AND NOT EXISTS (
@@ -512,10 +616,50 @@ func (q *Queries) PreviewExclusionWithdrawal(ctx context.Context, arg PreviewExc
 	return i, err
 }
 
+const spendNameSeedWithdrawals = `-- name: SpendNameSeedWithdrawals :exec
+UPDATE seed_withdrawal w
+SET consumed_at = $1, consumed_batch_id = $2
+WHERE w.consumed_at IS NULL
+  AND w.kind = 'name'
+  AND w.id = ANY($3::bigint[])
+  AND NOT EXISTS (
+      SELECT 1 FROM span s
+      WHERE s.closed_at IS NULL
+        AND s.subject_kind = 'name'
+        AND (s.subject_key = w.name_domain OR s.subject_key LIKE '%.' || w.name_domain)
+  )
+`
+
+type SpendNameSeedWithdrawalsParams struct {
+	ConsumedAt      pgtype.Timestamptz `json:"consumed_at"`
+	ConsumedBatchID pgtype.Int8        `json:"consumed_batch_id"`
+	Ids             []int64            `json:"ids"`
+}
+
+// Spends the NAME tombstones whose withdrawal is EXHAUSTED — no open timeline left
+// under the domain — stamping the batch that performed it (ADR-0135 §3).
+//
+// The late-spend rule is SpendSeedWithdrawals' rule and it is load-bearing for the
+// same reason. Both name survivors are TRANSIENT: a withdrawn domain can be
+// declared again, and a surviving Seed's next CT poll can re-admit a Name whose
+// admission the cascade removed. A tombstone is the only mover its act will ever
+// have, so spending it while its ground is still held would strand those Names
+// open for ever.
+//
+// There is no `family()` guard to carry over. That one exists because the address
+// candidate query reads IPv4 subject keys alone and would call an IPv6 tombstone's
+// ground empty when it is not. The subtree test below matches every name the
+// candidate query matches, so the two agree on what is left.
+func (q *Queries) SpendNameSeedWithdrawals(ctx context.Context, arg SpendNameSeedWithdrawalsParams) error {
+	_, err := q.db.Exec(ctx, spendNameSeedWithdrawals, arg.ConsumedAt, arg.ConsumedBatchID, arg.Ids)
+	return err
+}
+
 const spendSeedWithdrawals = `-- name: SpendSeedWithdrawals :exec
 UPDATE seed_withdrawal w
 SET consumed_at = $1, consumed_batch_id = $2
 WHERE w.consumed_at IS NULL
+  AND w.kind = 'address'
   AND w.id = ANY($3::bigint[])
   AND family(w.address_cidr) = 4
   AND NOT EXISTS (

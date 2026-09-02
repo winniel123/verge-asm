@@ -48,3 +48,32 @@ func TestSeedWithdrawalDoesNotPinItsAuthor(t *testing.T) {
 			strings.TrimSpace(col))
 	}
 }
+
+// TestSeedWithdrawalCarriesBothLimbs guards ADR-0135 §2's shape.
+//
+// 24700 created the tombstone with `address_cidr CIDR NOT NULL`, because ADR-0134
+// §7 deliberately left the name limb out. 24800 relaxes that column and adds `kind`
+// and `name_domain`, so the row mirrors `seed` itself: one table, a discriminator,
+// and a CHECK that exactly one scope column is populated.
+//
+// A reader who greps only the CREATE TABLE still sees the NOT NULL, so this test
+// asserts the EFFECTIVE schema. A later migration that re-tightens the column, or
+// drops the shape CHECK, silently stops a name Seed recording its mover — and a
+// withdrawal with no mover is the leak the tombstone exists to close.
+func TestSeedWithdrawalCarriesBothLimbs(t *testing.T) {
+	up := strings.ToLower(upMigrations(t))
+
+	for _, want := range []string{
+		"alter table seed_withdrawal alter column address_cidr drop not null",
+		"alter table seed_withdrawal add column name_domain",
+		"alter table seed_withdrawal add column kind",
+		"seed_withdrawal_shape",
+	} {
+		if !strings.Contains(up, want) {
+			t.Errorf("the tombstone must carry both limbs (ADR-0135 §2); no statement matches %q", want)
+		}
+	}
+	if strings.Contains(up, "alter table seed_withdrawal alter column address_cidr set not null") {
+		t.Error("re-tightening seed_withdrawal.address_cidr to NOT NULL forbids the name limb its tombstone")
+	}
+}

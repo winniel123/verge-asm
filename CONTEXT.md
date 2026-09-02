@@ -636,6 +636,14 @@ leave at all, and stays visibly unconfirmed until the operator supplies coverage
 excludes it. It cannot leave beneath a `Lame` delegation either, where there is nobody left to
 return a Name Error and the names beneath hold a `Gap` rather than a value. See
 [ADR-0006](./docs/adr/0006-subjects-leave-by-measurement.md).
+That is how it leaves by **measurement**. It also leaves when our own aperture stops covering
+it — an exclusion over the `Name` or an ancestor, or the `Seed` that declared it being
+**withdrawn** — unless a limb still holds it: a live `Seed` covering it, or a surviving `Seed`'s
+admission still enumerating it. Those closures carry the **`descoped`** reason, and they are the
+`Name`'s half of the rule `Address` states below. A withdrawn `Seed` stops its `Name`s being
+enumerated in the same act, so the withdrawal is driven from a record of the act rather than from
+the next observation, which never comes. See
+[ADR-0135](./docs/adr/0135-a-name-seed-withdrawal-states-one-act-and-its-tombstone-carries-the-domain-alone.md).
 _Avoid_: domain, subdomain, hostname, host
 
 **Address**:

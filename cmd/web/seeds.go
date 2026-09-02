@@ -419,10 +419,10 @@ func (s *server) deleteSeed(w http.ResponseWriter, r *http.Request, acct db.Acco
 	// Resolve the scope's display string BEFORE the withdrawal so the removal flash can
 	// name it (WORK-ORDER-DOGFOOD-R1 item 2). A stale chip whose row is already gone
 	// leaves scope empty and simply redirects — the act stays idempotent.
-	scope, isAddress := s.seedScopeByID(r, id)
+	scope, _ := s.seedScopeByID(r, id)
 	// The delete and the tombstone the withdrawal owes commit together (ADR-0134 §2,
-	// #1040), so no path can leave a withdrawn address scope with no mover for the
-	// membership fold to name.
+	// ADR-0135 §2), so no path can leave a withdrawn scope of either kind with no
+	// mover for the membership fold to name.
 	if _, err := s.store.WithdrawSeed(r.Context(), db.WithdrawSeedParams{
 		SeedID: id, CreatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
 	}); err != nil {
@@ -433,28 +433,19 @@ func (s *server) deleteSeed(w http.ResponseWriter, r *http.Request, acct db.Acco
 		s.backToScope(w, r)
 		return
 	}
-	s.toastRedirectBack(w, r, "/scope", "neutral", "Scope removed", removalFlash(scope, isAddress))
+	s.toastRedirectBack(w, r, "/scope", "neutral", "Scope removed", removalFlash(scope))
 }
 
 // removalFlash is the sentence the removal toast states about what the act does to
-// the subjects already in the estate. The two limbs answer it differently, so the
-// toast says what is true of the scope the operator actually removed.
+// the subjects already in the estate.
 //
-// An ADDRESS scope is now enforcing (ADR-0134). The subjects it alone held leave
-// the estate, and their timelines close with the `descoped` ground on the next
-// completed job. The old copy promised the opposite — "existing subjects keep their
-// citations" — which was a plain statement of the bug.
-//
-// A NAME scope still keeps them. Its Names stop being enumerated, so the fold never
-// revisits them and nothing closes them. That is the gap ADR-0134 §7 names and
-// leaves open, and the toast states it rather than promising a fix that is not
-// built.
-func removalFlash(scope string, isAddress bool) string {
-	if isAddress {
-		return scope + " — nothing new is admitted under it; the subjects it alone held " +
-			"leave the estate on the next completed job."
-	}
-	return scope + " — nothing new is admitted under it; existing subjects keep their citations."
+// BOTH limbs are enforcing now (ADR-0134 for the address scope, ADR-0135 for the
+// name scope), so the two say one thing. The name limb said the opposite until
+// #1045 — "existing subjects keep their citations" — which was a plain statement of
+// the bug, and the address limb said it until #1040.
+func removalFlash(scope string) string {
+	return scope + " — nothing new is admitted under it; the subjects it alone held " +
+		"leave the estate on the next completed job."
 }
 
 // seedScopeByID returns the display scope for a declared seed id — the address CIDR for
