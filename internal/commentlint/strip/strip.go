@@ -72,6 +72,8 @@ func File(name string, src []byte) (Result, error) {
 		out.Source = src
 		return out, nil
 	}
+	// gofmt normalizes every line ending to LF. On a Windows checkout git's
+	// text=auto filter already stores LF, so the committed content is unmoved.
 	formatted, err := format.Source(remove(src, cut))
 	if err != nil {
 		return Result{}, fmt.Errorf("gofmt after the delete pass: %w", err)
@@ -89,7 +91,7 @@ func (e *UsageError) Error() string {
 }
 
 func remove(src []byte, cut []surface.Block) []byte {
-	lines, endings := splitLines(string(src))
+	lines := splitLines(string(src))
 	dead := make([]bool, len(lines)+1)
 	for _, b := range cut {
 		for n := b.StartLine; n <= b.EndLine && n <= len(lines); n++ {
@@ -115,7 +117,6 @@ func remove(src []byte, cut []surface.Block) []byte {
 			continue
 		}
 		out.WriteString(line)
-		out.WriteString(endings[i])
 	}
 	return []byte(out.String())
 }
@@ -142,23 +143,15 @@ func blank(line string) bool {
 	return strings.TrimSpace(line) == ""
 }
 
-func splitLines(src string) (lines, endings []string) {
-	// .gitattributes checks this tree out as CRLF on Windows, so a cut carries
-	// each line's own ending back out.
+func splitLines(src string) []string {
+	var lines []string
 	for len(src) > 0 {
 		i := strings.IndexByte(src, '\n')
 		if i < 0 {
-			return append(lines, src), append(endings, "")
+			return append(lines, src)
 		}
-		line := src[:i]
-		ending := "\n"
-		if strings.HasSuffix(line, "\r") {
-			line = strings.TrimSuffix(line, "\r")
-			ending = "\r\n"
-		}
-		lines = append(lines, line)
-		endings = append(endings, ending)
+		lines = append(lines, src[:i+1])
 		src = src[i+1:]
 	}
-	return lines, endings
+	return lines
 }

@@ -73,12 +73,15 @@ func runStrip(args []string, stdout, stderr io.Writer) int {
 		stdout.Write(lines)
 	}
 
-	verb := "would delete"
 	if *write {
-		verb = "deleted"
+		// A later run replaces the manifest, so a package-by-package sweep
+		// names its own --manifest path. Printing it keeps that visible.
+		fmt.Fprintf(stdout, "commentlint strip: deleted %d block(s) in %d file(s), %d block(s) of residue in %s\n",
+			deleted, changed, len(residue), *manifest)
+		return 0
 	}
-	fmt.Fprintf(stdout, "commentlint strip: %s %d block(s) in %d file(s), %d block(s) of residue\n",
-		verb, deleted, changed, len(residue))
+	fmt.Fprintf(stdout, "commentlint strip: would delete %d block(s) in %d file(s), %d block(s) of residue\n",
+		deleted, changed, len(residue))
 	return 0
 }
 

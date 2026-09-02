@@ -32,6 +32,7 @@ func (Go) Lex(src []byte) (Result, error) {
 		if s, ok := spansHold(docs, b.Start); ok {
 			blocks[i].Declaration = true
 			blocks[i].PackageDoc = s.packageDoc
+			blocks[i].DeclGroup = s.group
 			blocks[i].DeclName = s.name
 		}
 	}
@@ -213,6 +214,7 @@ type span struct {
 	end        int
 	name       string
 	packageDoc bool
+	group      bool
 }
 
 func goDocSpans(src []byte) ([]span, error) {
@@ -222,7 +224,7 @@ func goDocSpans(src []byte) ([]span, error) {
 		return nil, fmt.Errorf("parse: %w", err)
 	}
 	var spans []span
-	add := func(g *ast.CommentGroup, name string, packageDoc bool) {
+	add := func(g *ast.CommentGroup, name string, packageDoc, group bool) {
 		if g == nil {
 			return
 		}
@@ -231,24 +233,25 @@ func goDocSpans(src []byte) ([]span, error) {
 			end:        fset.PositionFor(g.End(), false).Offset,
 			name:       name,
 			packageDoc: packageDoc,
+			group:      group,
 		})
 	}
 	ast.Inspect(file, func(n ast.Node) bool {
 		switch d := n.(type) {
 		case *ast.File:
-			add(d.Doc, "", true)
+			add(d.Doc, "", true, false)
 		case *ast.GenDecl:
-			add(d.Doc, genDeclName(d), false)
+			add(d.Doc, genDeclName(d), false, d.Lparen.IsValid())
 		case *ast.FuncDecl:
-			add(d.Doc, d.Name.Name, false)
+			add(d.Doc, d.Name.Name, false, false)
 		case *ast.TypeSpec:
-			add(d.Doc, d.Name.Name, false)
+			add(d.Doc, d.Name.Name, false, false)
 		case *ast.ValueSpec:
-			add(d.Doc, firstName(d.Names), false)
+			add(d.Doc, firstName(d.Names), false, false)
 		case *ast.ImportSpec:
-			add(d.Doc, "", false)
+			add(d.Doc, "", false, true)
 		case *ast.Field:
-			add(d.Doc, firstName(d.Names), false)
+			add(d.Doc, firstName(d.Names), false, false)
 		}
 		return true
 	})
@@ -258,8 +261,6 @@ func goDocSpans(src []byte) ([]span, error) {
 func genDeclName(d *ast.GenDecl) string {
 	// go/ast hangs a one-spec decl's doc on the GenDecl, not on the spec, so
 	// the name a §2.1 rule 7 comparison needs sits one node down.
-	// A parenthesized group puts `const (` on the next line, which declares no
-	// identifier.
 	if d.Lparen.IsValid() || len(d.Specs) != 1 {
 		return ""
 	}

@@ -47,6 +47,7 @@ type Block struct {
 	Directive   bool
 	Declaration bool
 	PackageDoc  bool
+	DeclGroup   bool
 	DeclName    string
 }
 

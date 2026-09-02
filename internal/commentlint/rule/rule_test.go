@@ -84,6 +84,16 @@ func TestClassifyFollowsThePrecedenceOrder(t *testing.T) {
 			want: DocstringUnexported,
 		},
 		{
+			name: "a const group opener declares no identifier",
+			src:  "package p\n\n// one two three four five six seven\nconst (\n\tA = 1\n)\n",
+			want: ProseOther,
+		},
+		{
+			name: "an import spec doc declares no identifier",
+			src:  "package p\n\nimport (\n\t// one two three four five six seven\n\t\"os\"\n)\n",
+			want: ProseOther,
+		},
+		{
 			name: "a body citation is its own class",
 			src:  "package p\n\nfunc F() {\n\t// ADR-0127 pins this\n\t_ = 1\n}\n",
 			want: Citation,
@@ -189,6 +199,8 @@ func TestDeletableSet(t *testing.T) {
 		{"a banner", "package p\n\n// =================\nfunc F() {}\n", true},
 		{"commented-out code", "package p\n\nfunc F() {\n\t// n := 1\n\t_ = 1\n}\n", true},
 		{"a package doc", "// Package p serves the estate.\npackage p\n", false},
+		{"a group opener over exported members", "package p\n\n// the estate codes the proposer reads for every zone\nconst (\n\tA = 1\n)\n", false},
+		{"a docstring carrying a Deprecated paragraph", "package p\n\n// F reports the estate.\n//\n// Deprecated: use G instead.\nfunc F() {}\n", false},
 		{"an exported docstring opening elsewhere", "package p\n\n// reports the estate.\nfunc F() {}\n", false},
 		{"a banner carrying a citation", "package p\n\n// ===== ADR-0127 =====\nfunc F() {}\n", false},
 		{"a docstring carrying a reason", "package p\n\n// F avoids the second read.\nfunc F() {}\n", false},

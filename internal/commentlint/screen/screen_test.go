@@ -18,6 +18,8 @@ func TestSignal(t *testing.T) {
 		{"a hazard word", "this panics on a nil estate", SignalWhyMarker},
 		{"a bare URL", "see https://go.dev/ref/spec", SignalBareURL},
 		{"a citation outranks a URL", "https://go.dev and ADR-0001", SignalCitation},
+		{"a Deprecated paragraph", "F reports the estate.\n\nDeprecated: use G instead.", SignalToolMarker},
+		{"the word deprecated in prose is not a tool marker", "the deprecated shim stays", ""},
 		{"history is not a screen signal", "no longer used by the worker", ""},
 		{"loose narration is not a screen signal", "now the queue drains", ""},
 	}

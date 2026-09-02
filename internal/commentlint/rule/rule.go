@@ -67,7 +67,10 @@ func Classify(b surface.Block) Class {
 	case sectionDivider(lines):
 		return SectionDivider
 	}
-	if b.Declaration {
+	// §2.1 rules 6 to 9 reach a package clause, a named identifier and a struct
+	// field. A `const (` opener or an import spec declares none of those, so it
+	// falls through to the content classes and an agent judges it.
+	if b.Declaration && !b.DeclGroup {
 		switch {
 		case b.PackageDoc:
 			return PackageDoc

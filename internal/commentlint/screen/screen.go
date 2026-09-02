@@ -7,6 +7,7 @@ const (
 	SignalExternalSpec = "external-spec"
 	SignalWhyMarker    = "why-marker"
 	SignalBareURL      = "bare-url"
+	SignalToolMarker   = "tool-marker"
 )
 
 var (
@@ -16,6 +17,7 @@ var (
 	whyRe          = regexp.MustCompile(`(?i)\b(because|otherwise|so that|avoid|avoids|work ?around|race|races|panic|panics|deliberate|deliberately|intentional|intentionally|on purpose|hazard|gotcha|beware|deadlock|must not|cannot|prevent|prevents|load-bearing|unsafe|breaks|corrupts)\b`)
 	historyRe      = regexp.MustCompile(`(?i)\b(no longer|previously|renamed|superseded|supersedes|deprecated|used to|formerly|as of \d{4}|since \d{4}|replaced by)\b`)
 	looseRe        = regexp.MustCompile(`(?i)\b(now|was)\b`)
+	toolMarkerRe   = regexp.MustCompile(`(?m)^Deprecated:`)
 )
 
 func Signal(payload string) string {
@@ -29,6 +31,10 @@ func Signal(payload string) string {
 		return SignalWhyMarker
 	case urlRe.MatchString(payload):
 		return SignalBareURL
+	case toolMarkerRe.MatchString(payload):
+		// pkg.go.dev, gopls and staticcheck read a `Deprecated:` paragraph, and
+		// §2.3's directive table never weighed it. §3.2 permits a widening.
+		return SignalToolMarker
 	}
 	return ""
 }
