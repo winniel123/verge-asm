@@ -27,11 +27,15 @@ func (Go) Lex(src []byte) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	blocks := goBlocks(src, comments)
+	blocks, trailing := goBlocks(src, comments)
 	for i, b := range blocks {
-		blocks[i].Declaration = spansHold(docs, b.Start)
+		if s, ok := spansHold(docs, b.Start); ok {
+			blocks[i].Declaration = true
+			blocks[i].PackageDoc = s.packageDoc
+			blocks[i].DeclName = s.name
+		}
 	}
-	return Result{Blocks: blocks, Skeleton: skeleton}, nil
+	return Result{Blocks: blocks, Trailing: trailing, Skeleton: skeleton}, nil
 }
 
 type goComment struct {
@@ -162,12 +166,22 @@ func blankLineFollows(src []byte, end int) bool {
 	return strings.TrimSpace(string(src[i:j])) == ""
 }
 
-func goBlocks(src []byte, comments []goComment) []Block {
-	var blocks []Block
+func goBlocks(src []byte, comments []goComment) (blocks, trailing []Block) {
 	open := -1
 	for _, c := range comments {
 		if !c.ownLine {
 			open = -1
+			// §3.4 holds the trailing population apart from the own-line one,
+			// so no mechanical pass can reach it by walking Blocks.
+			trailing = append(trailing, Block{
+				Style:     c.style,
+				Start:     c.start,
+				End:       c.end,
+				StartLine: c.startLine,
+				EndLine:   c.endLine,
+				Text:      c.text,
+				Directive: c.directive,
+			})
 			continue
 		}
 		joins := open >= 0 && !c.directive && c.style == StyleLine && blocks[open].EndLine+1 == c.startLine
@@ -191,12 +205,14 @@ func goBlocks(src []byte, comments []goComment) []Block {
 			open = -1
 		}
 	}
-	return blocks
+	return blocks, trailing
 }
 
 type span struct {
-	start int
-	end   int
+	start      int
+	end        int
+	name       string
+	packageDoc bool
 }
 
 func goDocSpans(src []byte) ([]span, error) {
@@ -206,41 +222,70 @@ func goDocSpans(src []byte) ([]span, error) {
 		return nil, fmt.Errorf("parse: %w", err)
 	}
 	var spans []span
-	add := func(g *ast.CommentGroup) {
+	add := func(g *ast.CommentGroup, name string, packageDoc bool) {
 		if g == nil {
 			return
 		}
-		spans = append(spans, span{fset.PositionFor(g.Pos(), false).Offset, fset.PositionFor(g.End(), false).Offset})
+		spans = append(spans, span{
+			start:      fset.PositionFor(g.Pos(), false).Offset,
+			end:        fset.PositionFor(g.End(), false).Offset,
+			name:       name,
+			packageDoc: packageDoc,
+		})
 	}
 	ast.Inspect(file, func(n ast.Node) bool {
 		switch d := n.(type) {
 		case *ast.File:
-			add(d.Doc)
+			add(d.Doc, "", true)
 		case *ast.GenDecl:
-			add(d.Doc)
+			add(d.Doc, genDeclName(d), false)
 		case *ast.FuncDecl:
-			add(d.Doc)
+			add(d.Doc, d.Name.Name, false)
 		case *ast.TypeSpec:
-			add(d.Doc)
+			add(d.Doc, d.Name.Name, false)
 		case *ast.ValueSpec:
-			add(d.Doc)
+			add(d.Doc, firstName(d.Names), false)
 		case *ast.ImportSpec:
-			add(d.Doc)
+			add(d.Doc, "", false)
 		case *ast.Field:
-			add(d.Doc)
+			add(d.Doc, firstName(d.Names), false)
 		}
 		return true
 	})
 	return spans, nil
 }
 
-func spansHold(spans []span, start int) bool {
+func genDeclName(d *ast.GenDecl) string {
+	// go/ast hangs a one-spec decl's doc on the GenDecl, not on the spec, so
+	// the name a §2.1 rule 7 comparison needs sits one node down.
+	// A parenthesized group puts `const (` on the next line, which declares no
+	// identifier.
+	if d.Lparen.IsValid() || len(d.Specs) != 1 {
+		return ""
+	}
+	switch s := d.Specs[0].(type) {
+	case *ast.TypeSpec:
+		return s.Name.Name
+	case *ast.ValueSpec:
+		return firstName(s.Names)
+	}
+	return ""
+}
+
+func firstName(names []*ast.Ident) string {
+	if len(names) == 0 {
+		return ""
+	}
+	return names[0].Name
+}
+
+func spansHold(spans []span, start int) (span, bool) {
 	for _, s := range spans {
 		// go/ast reports a group's end from the carriage-return-stripped
 		// literal, so only the start offset is comparable (#1133).
 		if start >= s.start && start < s.end {
-			return true
+			return s, true
 		}
 	}
-	return false
+	return span{}, false
 }

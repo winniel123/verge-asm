@@ -38,7 +38,7 @@ func TestRunRejectsUsageErrorsBeforeGit(t *testing.T) {
 		args []string
 	}{
 		{"no subcommand", nil},
-		{"an unknown subcommand", []string{"lint"}},
+		{"an unknown subcommand", []string{"sweep"}},
 		{"verify without --base", []string{"verify", "internal/p/a.go"}},
 		{"verify with an unknown flag", []string{"verify", "--bogus"}},
 		{"verify with no path", []string{"verify", "--base", "main"}},
@@ -101,8 +101,8 @@ func TestSummaryReportsTheSkippedCount(t *testing.T) {
 
 func TestUnknownSubcommandNamesItself(t *testing.T) {
 	var stdout, stderr bytes.Buffer
-	runWith([]string{"strip"}, &stdout, &stderr, stubGit(nil, nil))
-	if !strings.Contains(stderr.String(), `unknown subcommand "strip"`) {
+	runWith([]string{"sweep"}, &stdout, &stderr, stubGit(nil, nil))
+	if !strings.Contains(stderr.String(), `unknown subcommand "sweep"`) {
 		t.Errorf("stderr is %q, want it to name the subcommand", stderr.String())
 	}
 }
