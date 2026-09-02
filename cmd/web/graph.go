@@ -5,11 +5,14 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"net/netip"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	designfs "github.com/winniel123/verge-asm/design-system"
+	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/signal"
 )
@@ -132,6 +135,8 @@ type graphEdge struct {
 // graph that fits the viewport maps exactly as it did before.
 // FitX/FitY/FitK frame that content box inside the viewport, and MinK is the zoom
 // floor that reaches the fit (#1101).
+// Scopes is the scope selector's vocabulary, Scope the selected ?scope token and
+// ScopeLabel its label, so the control renders and marks its own selection (#1102).
 type graphView struct {
 	Nodes                      []graphNode
 	Edges                      []graphEdge
@@ -140,6 +145,76 @@ type graphView struct {
 	ContentW, ContentH         int
 	FitX, FitY, FitK           float64
 	MinK                       float64
+	Scopes                     []graphScope
+	Scope                      string
+	ScopeLabel                 string
+	// members is the resolved membership the build narrowed by. joinSignals reads it
+	// to tell a Name node the scope dropped from one the corpus never held. Zero
+	// means the whole estate, so a graphView assembled by hand narrows nothing.
+	members graphMembers
+}
+
+// graphScopeAll is the ?scope token for the whole estate — the drawing /graph has
+// always rendered. It is the default when the token is absent or names no declared
+// Seed (ADR-0136 §3).
+const graphScopeAll = "all"
+
+// graphScopeAllLabel is the whole-estate entry's label in the selector.
+const graphScopeAllLabel = "Whole estate"
+
+// graphScope is one entry of the graph's scope selector: the ?scope token the URL
+// carries, the label the control renders, and the declared Seed the token names.
+// A Seed entry sets exactly one of Domain and Prefix. The whole-estate entry sets
+// neither, and its zero Domain and invalid Prefix are what mark it.
+//
+// The token is the Seed's own spelling — the domain, or the masked CIDR — so the
+// URL names what the operator declared and a bookmarked link stays readable. The
+// spelling SELECTS the Seed. It never decides membership: an address is inside an
+// address scope by family-matched prefix comparison, and a name is inside a name
+// scope by the label-wise suffix test custody.LabelSuffix owns, so neither answer
+// turns on a rendering (CONTEXT.md `Seed`).
+type graphScope struct {
+	Token  string
+	Label  string
+	Domain string
+	Prefix netip.Prefix
+}
+
+// graphScopes reads the declared Seeds into the selector's vocabulary: the whole
+// estate first, then one entry per Seed in the order ListSeeds returns. A Seed row
+// carrying neither a domain nor a CIDR names no population and is skipped.
+func graphScopes(seeds []db.ListSeedsRow) []graphScope {
+	out := []graphScope{{Token: graphScopeAll, Label: graphScopeAllLabel}}
+	for _, s := range seeds {
+		switch {
+		case s.Kind == "name" && s.NameDomain.Valid:
+			d := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(s.NameDomain.String)), ".")
+			if d == "" {
+				continue
+			}
+			out = append(out, graphScope{Token: d, Label: d, Domain: d})
+		// The validity check is not redundant with the nil check. An invalid prefix
+		// spells "invalid Prefix" and bounds nothing, so an entry built from one would
+		// label itself a scope and draw the whole estate.
+		case s.Kind == "address" && s.AddressCidr != nil && s.AddressCidr.IsValid():
+			p := s.AddressCidr.Masked()
+			out = append(out, graphScope{Token: p.String(), Label: p.String(), Prefix: p})
+		}
+	}
+	return out
+}
+
+// resolveGraphScope maps the ?scope token onto the vocabulary, following the Drift
+// feed's ?period: an absent or unrecognised token falls back to the named default,
+// so a hand-crafted value never draws a scope nobody declared. scopes always holds
+// the whole-estate entry first, which is that default.
+func resolveGraphScope(scopes []graphScope, token string) graphScope {
+	for _, sc := range scopes {
+		if sc.Token == token {
+			return sc
+		}
+	}
+	return scopes[0]
 }
 
 // graphRadius is a node type's drawn radius, mirroring the design's NODE_R. The
@@ -203,6 +278,113 @@ func classifyNameTypes(names map[string]struct{}) map[string]string {
 // Nodes are laid out in three columns — Names, Addresses, Services — each sorted
 // so the layout is deterministic. It never invents a node, an edge, or a severity.
 func buildGraph(rows []db.ListAllOpenSpansRow) graphView {
+	return buildScopedGraph(rows, graphScope{})
+}
+
+// graphMembers is the subject set one declared Seed accounts for, resolved against
+// the corpus once. The whole-estate scope holds everything, which is what keeps a
+// /graph with no ?scope token drawing exactly what it always drew.
+//
+// The two Seed kinds reach the drawing's three columns from opposite ends. A name
+// scope holds the names beneath its domain, and with them the addresses those names
+// resolve to. An address scope holds the addresses its prefix contains, and with
+// them the names whose resolution reaches one — the same resolution edge read in the
+// other direction. That second direction is a reading the brief did not spell out:
+// without it an address scope draws a column of addresses no name points at, and a
+// graph whose point is relationships would show none.
+//
+// A Service is held where the Address it rides is held. It is keyed on that address,
+// so it needs no rule of its own.
+// The ZERO value holds everything. A graphView assembled by hand — a fixture, a
+// test — therefore narrows nothing, and a scope can only ever be applied by a build
+// that resolved one.
+type graphMembers struct {
+	domain string
+	prefix netip.Prefix
+	names  map[string]struct{}
+	addrs  map[netip.Addr]struct{}
+}
+
+// graphScopeMembers resolves a scope's membership over the corpus. It reads the
+// resolution facet alone, because resolution is the only edge that carries one Seed
+// kind's population into the other's column.
+func graphScopeMembers(rows []db.ListAllOpenSpansRow, sc graphScope) graphMembers {
+	if sc.Domain == "" && !sc.Prefix.IsValid() {
+		return graphMembers{}
+	}
+	m := graphMembers{
+		domain: sc.Domain,
+		prefix: sc.Prefix,
+		names:  map[string]struct{}{},
+		addrs:  map[netip.Addr]struct{}{},
+	}
+	for _, row := range rows {
+		if row.SubjectKind != "name" || row.Facet != "resolution" || row.IsGap {
+			continue
+		}
+		underDomain := m.domain != "" && custody.LabelSuffix(row.SubjectKey, m.domain)
+		for _, a := range decodeResolution(row.Value).Addresses {
+			addr, err := netip.ParseAddr(a)
+			if err != nil {
+				continue
+			}
+			addr = addr.Unmap()
+			if underDomain {
+				m.addrs[addr] = struct{}{}
+			}
+			if m.prefix.IsValid() && m.prefix.Contains(addr) {
+				m.names[row.SubjectKey] = struct{}{}
+			}
+		}
+	}
+	return m
+}
+
+// unbounded reports whether these members are the whole estate — the zero value,
+// which names no domain and no prefix and so bounds nothing.
+func (m graphMembers) unbounded() bool {
+	return m.domain == "" && !m.prefix.IsValid()
+}
+
+// holdsName reports whether the scope holds this Name.
+func (m graphMembers) holdsName(name string) bool {
+	if m.unbounded() {
+		return true
+	}
+	if m.domain != "" {
+		return custody.LabelSuffix(name, m.domain)
+	}
+	_, ok := m.names[name]
+	return ok
+}
+
+// holdsAddress reports whether the scope holds this Address. The spelling is parsed
+// before it is judged, so containment is the family-matched prefix comparison and
+// never a comparison of spellings. An address that does not parse is held by no
+// scope.
+func (m graphMembers) holdsAddress(spelling string) bool {
+	if m.unbounded() {
+		return true
+	}
+	addr, err := netip.ParseAddr(spelling)
+	if err != nil {
+		return false
+	}
+	addr = addr.Unmap()
+	if m.domain != "" {
+		_, ok := m.addrs[addr]
+		return ok
+	}
+	return m.prefix.Contains(addr)
+}
+
+// buildScopedGraph is buildGraph bounded to one declared Seed (#1102, ADR-0136 §3).
+// It drops the subjects the scope does not hold before any node is placed, so the
+// drawing states nothing about them — it does not draw them dimmed, fold them, or
+// count them.
+func buildScopedGraph(rows []db.ListAllOpenSpansRow, sc graphScope) graphView {
+	members := graphScopeMembers(rows, sc)
+
 	// earliest open-span instant per internal node id.
 	first := map[string]time.Time{}
 	noteFirst := func(id string, t time.Time) {
@@ -235,19 +417,34 @@ func buildGraph(rows []db.ListAllOpenSpansRow) graphView {
 		at := row.OpenedAt.Time.UTC()
 		switch row.SubjectKind {
 		case "name":
+			if !members.holdsName(row.SubjectKey) {
+				continue
+			}
 			names[row.SubjectKey] = struct{}{}
 			noteFirst("name:"+row.SubjectKey, at)
 			if row.Facet == "resolution" && !row.IsGap {
 				for _, a := range decodeResolution(row.Value).Addresses {
+					if !members.holdsAddress(a) {
+						continue
+					}
 					addrs[a] = struct{}{}
 					noteFirst("addr:"+a, at)
 					addEdge(edge{from: "name:" + row.SubjectKey, to: "addr:" + a})
 				}
 			}
 		case "service":
+			pair, addr, keyed := parseServicePair(row.SubjectKey)
+			// A service key that does not resolve to an address names no address a
+			// scope could contain, so only the whole estate holds it.
+			if keyed && !members.holdsAddress(addr) {
+				continue
+			}
+			if !keyed && !members.unbounded() {
+				continue
+			}
 			services[row.SubjectKey] = struct{}{}
 			noteFirst("svc:"+row.SubjectKey, at)
-			if pair, addr, ok := parseServicePair(row.SubjectKey); ok {
+			if keyed {
 				addrs[addr] = struct{}{}
 				noteFirst("addr:"+addr, at)
 				port := ":" + strconv.Itoa(int(pair.Port))
@@ -318,6 +515,7 @@ func buildGraph(rows []db.ListAllOpenSpansRow) graphView {
 		ViewW: graphViewW, ViewH: graphViewH, MiniW: graphMiniW, MiniH: graphMiniH,
 		ContentW: contentW, ContentH: contentH,
 		FitX: fitX, FitY: fitY, FitK: fitK, MinK: minK,
+		members: members,
 	}
 }
 
@@ -404,6 +602,13 @@ func joinSignals(g graphView, censuses []signal.Census) graphView {
 				// falling back to the Service leg for a nameless endpoint or when the
 				// Name node is not in the topology (so a real firing never vanishes).
 				name, service := splitEndpointName(m.Subject)
+				// A scope that does not hold the name takes the WHOLE firing out
+				// (#1102). Without this the fallback would re-attribute it to the
+				// Service leg, and the drawing would assert a signal the engine
+				// censused against a subject the operator's scope excluded.
+				if name != "" && !g.members.holdsName(name) {
+					continue
+				}
 				if name == "" || !attach(name, sig) {
 					attach(service, sig)
 				}
@@ -468,6 +673,11 @@ func joinPorts(set map[string]struct{}) string {
 // real Name/Address/Service topology, then joins the Signal engine's fired census
 // onto the nodes (#289). An empty corpus renders the empty-state.
 //
+// A ?scope token bounds the drawing to one declared Seed (#1102, ADR-0136 §3). It is
+// the primary bound on the graph's population, and it is an operator act rather than
+// a product rule: it narrows by a declaration the operator made, and it drops nothing
+// the operator did not put outside the scope they picked.
+//
 // The topology read is the page's spine; the signal-corpus read is heavier
 // (buildSignalCorpus fans out over resolution / reachability / certificate /
 // http-identity), so its failure DEGRADES — the graph renders without signal state
@@ -481,12 +691,26 @@ func (s *server) graphPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 		s.render(w, r, "graph", s.graphFixtureData(acct))
 		return
 	}
+	// The scope selector's vocabulary is the operator's own declared Seeds. Its read
+	// DEGRADES like the signal-corpus read below: a failure costs the operator the
+	// control, and an unrecognised token then falls back to the whole estate, rather
+	// than 500ing the topology the viewer came for.
+	seeds, err := s.store.ListSeeds(r.Context())
+	if err != nil {
+		log.Printf("web: graph: list seeds: %v", err)
+	}
+	scopes := graphScopes(seeds)
+	selected := resolveGraphScope(scopes, r.URL.Query().Get("scope"))
+
 	rows, err := s.store.ListAllOpenSpans(r.Context())
 	if err != nil {
 		s.serverError(w, "list all open spans", err)
 		return
 	}
-	g := buildGraph(rows)
+	g := buildScopedGraph(rows, selected)
+	g.Scopes = scopes
+	g.Scope = selected.Token
+	g.ScopeLabel = selected.Label
 	if !g.Empty {
 		corpus, err := s.buildSignalCorpus(r)
 		if err != nil {
