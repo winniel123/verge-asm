@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"net/http"
 	"strings"
 	"testing"
@@ -302,15 +303,17 @@ func TestGraphPageRendersTopology(t *testing.T) {
 	page := getBody(t, ac, base+"/graph", http.StatusOK)
 
 	for _, want := range []string{
-		`id="gr-svg"`,                      // the canvas
-		`id="gr-minimap"`,                  // the minimap
-		`data-gr-zoom="in"`,                // the pan/zoom controls
-		`id="gr-drawer"`,                   // the node drawer
-		"var CW =  1200 , CH =  640 ;",     // the minimap's content basis (#1089)
-		"api.example.com",                  // the real Name node
-		"203.0.113.5",                      // the real Address node
-		":443 tcp",                         // the real Service node label
-		`class="sh-pill on" href="/graph"`, // NavActive wired to graph
+		`id="gr-svg"`,                         // the canvas
+		`id="gr-minimap"`,                     // the minimap
+		`data-gr-zoom="in"`,                   // the pan/zoom controls
+		`id="gr-drawer"`,                      // the node drawer
+		"var CW =  1200 , CH =  640 ;",        // the minimap's content basis (#1089)
+		`transform="translate(0,0) scale(1)"`, // this estate fits, so the fit is the standing origin (#1101)
+		"var MINK =  0.5 ,",                   // and the zoom floor is the standing one (#1101)
+		"api.example.com",                     // the real Name node
+		"203.0.113.5",                         // the real Address node
+		":443 tcp",                            // the real Service node label
+		`class="sh-pill on" href="/graph"`,    // NavActive wired to graph
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("graph page missing %q; body: %s", want, page)
@@ -332,6 +335,80 @@ func TestGraphPageEmptyState(t *testing.T) {
 	}
 	if strings.Contains(page, `id="gr-svg"`) {
 		t.Errorf("empty graph rendered a canvas; want only the empty-state")
+	}
+	if strings.Contains(page, "var MINK") {
+		t.Errorf("empty graph emitted the pan/zoom view JS; want none without a canvas")
+	}
+}
+
+// #1101: the drawing's height is unbounded, so a large estate reaches far past the
+// 1200x640 viewport. The fit frames the whole content box inside the viewport and
+// centres it, and the zoom floor drops to reach that scale.
+func TestGraphFitFramesTheWholeContent(t *testing.T) {
+	var rows []db.ListAllOpenSpansRow
+	for i := 0; i < 40; i++ {
+		rows = append(rows, openSpanRow("name", fmt.Sprintf("n%02d.example.com", i), "resolution", "",
+			fmt.Sprintf(`{"outcome":"Resolved","addresses":["203.0.113.%d"]}`, i+1), false))
+	}
+
+	g := buildGraph(rows)
+	if g.ContentH <= g.ViewH {
+		t.Fatalf("content height = %d, want past the %dpx viewport for this case to bite", g.ContentH, g.ViewH)
+	}
+	if g.FitK >= 1 {
+		t.Fatalf("fit scale = %v, want below 1 for content taller than the viewport", g.FitK)
+	}
+	if w := float64(g.ContentW) * g.FitK; w > float64(g.ViewW) {
+		t.Errorf("fitted content width = %v, want no wider than the %dpx viewport", w, g.ViewW)
+	}
+	if h := float64(g.ContentH) * g.FitK; h > float64(g.ViewH) {
+		t.Errorf("fitted content height = %v, want no taller than the %dpx viewport", h, g.ViewH)
+	}
+	if want := (float64(g.ViewW) - float64(g.ContentW)*g.FitK) / 2; math.Abs(g.FitX-want) > 0.1 {
+		t.Errorf("fit x = %v, want the centring offset %v", g.FitX, want)
+	}
+	if want := (float64(g.ViewH) - float64(g.ContentH)*g.FitK) / 2; math.Abs(g.FitY-want) > 0.1 {
+		t.Errorf("fit y = %v, want the centring offset %v", g.FitY, want)
+	}
+	if g.MinK != g.FitK {
+		t.Errorf("zoom floor = %v, want the fit scale %v (low enough to reach it, no lower)", g.MinK, g.FitK)
+	}
+}
+
+// An estate whose content fits the viewport frames exactly as it did before #1101:
+// the origin at scale 1, with the zoom floor left at its standing 0.5.
+func TestGraphFitIsUnchangedWhenTheContentFits(t *testing.T) {
+	g := buildGraph([]db.ListAllOpenSpansRow{
+		openSpanRow("name", "api.example.com", "resolution", "", `{"outcome":"Resolved","addresses":["203.0.113.5"]}`, false),
+		openSpanRow("service", "203.0.113.5:443/tcp", "reachability", "", `{"outcome":"reached"}`, false),
+	})
+	if g.FitK != 1 || g.FitX != 0 || g.FitY != 0 {
+		t.Errorf("fit = translate(%v,%v) scale(%v), want the unchanged origin at scale 1", g.FitX, g.FitY, g.FitK)
+	}
+	if g.MinK != graphZoomFloor {
+		t.Errorf("zoom floor = %v, want the standing %v for a graph that fits", g.MinK, graphZoomFloor)
+	}
+}
+
+// The column run has no cap, so the content box can reach any height. The fit stays
+// positive and keeps its relative accuracy the whole way down: it never rounds to
+// zero (scale(0) draws nothing) and never gives back a useful part of the viewport.
+func TestGraphFitHoldsAtAnyContentHeight(t *testing.T) {
+	for _, h := range []int{640, 1891, 47102, 5_000_000, 6_400_000, 640_000_000} {
+		_, _, k, minK := graphFit(graphViewW, h)
+		if k <= 0 {
+			t.Errorf("content height %d: fit scale = %v, want above 0", h, k)
+		}
+		got := float64(h) * k
+		if got > graphViewH {
+			t.Errorf("content height %d: fitted height = %v, want no taller than the %dpx viewport", h, got, graphViewH)
+		}
+		if got < float64(graphViewH)*0.998 {
+			t.Errorf("content height %d: fitted height = %v, want within 0.2%% of the %dpx viewport", h, got, graphViewH)
+		}
+		if minK > k {
+			t.Errorf("content height %d: zoom floor = %v, want no higher than the fit scale %v", h, minK, k)
+		}
 	}
 }
 

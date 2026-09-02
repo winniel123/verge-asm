@@ -2354,12 +2354,14 @@ func devGraphData() graphView {
 		{X1: 730, Y1: 312, X2: 1030, Y2: 440, ToService: true},
 		{X1: 730, Y1: 428, X2: 1030, Y2: 508, ToService: true},
 	}
+	fitX, fitY, fitK, minK := graphFit(graphViewW, graphViewH)
 	return graphView{
 		Nodes: nodes, Edges: edges, Empty: false,
 		ViewW: graphViewW, ViewH: graphViewH, MiniW: graphMiniW, MiniH: graphMiniH,
 		// Every pinned node sits inside the viewport box, so the content box IS the
 		// viewport box and the design's own pinned Mx/My stay the minimap's basis.
 		ContentW: graphViewW, ContentH: graphViewH,
+		FitX: fitX, FitY: fitY, FitK: fitK, MinK: minK,
 	}
 }
 
