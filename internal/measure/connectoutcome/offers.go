@@ -51,7 +51,8 @@ const Kind = "connect-outcome"
 //
 // The per-target half needs no cross-process coordination: `hot` fans out one
 // job per `(Vantage, Address)` pair, so two concurrent jobs of one Dispatch
-// never share a target from one position, at any worker count. The per-vantage
+// never share a target from one position, at any worker count. Two overlapping
+// Dispatches would, and the cadence-lag gate closes that (#1114). The per-vantage
 // half is NOT enforced across processes — the limiter runs inside ONE prober
 // process and the worker execs a fresh prober per job (`ExecProber.Probe`), and
 // a prober on a remote vantage runs over SSH with no route to Postgres, so no
@@ -66,17 +67,17 @@ type SafetyProfile struct {
 	// real subject rather than a reason to skip the host.
 	HostDiscovery string `json:"host_discovery"`
 
-	// PerHostConnPerSec is the per-host connection rate ceiling — ≤ 50 conn/s per
-	// prober process (see the scope note above). ADR-0005 called this limit
+	// PerHostConnPerSec is the per-host connection rate ceiling — ≤ 50 conn/s from
+	// one `Vantage` (see the scope note above). ADR-0005 called this limit
 	// intra-job and needing no coordination; the conclusion holds and the unit is
 	// wrong. The `hot` and `cold` Scans each build one job per `(Vantage, Address)`
-	// pair, so the unit is intra-pair and the property survives any worker count
-	// (ADR-0137). #1106 holds the amendment. A host inside two Vantages sits in
-	// two jobs and receives twice the rate — the disclosed gap above, not a
-	// coordination defect.
+	// pair, so the unit is intra-pair and holds at any worker count within one
+	// Dispatch (ADR-0137). #1106 holds the amendment. A host inside two Vantages
+	// sits in two jobs and receives twice the rate — the disclosed gap above, not
+	// a coordination defect.
 	PerHostConnPerSec int `json:"per_host_conn_per_sec"`
-	// PerHostConcurrency is the per-host in-flight connection ceiling — ≤ 20 per
-	// prober process, under the same condition as PerHostConnPerSec.
+	// PerHostConcurrency is the per-host in-flight connection ceiling — ≤ 20 from
+	// one `Vantage`, under the same condition as PerHostConnPerSec.
 	PerHostConcurrency int `json:"per_host_concurrency"`
 	// ConnectTimeoutMillis bounds one connect attempt — 3 s.
 	ConnectTimeoutMillis int `json:"connect_timeout_millis"`

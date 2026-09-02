@@ -8,8 +8,8 @@ import (
 
 // This file is the §3.3 safety limiter, kept deliberately OUTSIDE the verdict
 // (ADR-0021): it paces the connects — per-host rate, per-host concurrency, a
-// global ceiling round-robin by host, and an adaptive back-off that halves the
-// rate on a stress signal — and can neither manufacture nor suppress a
+// per-vantage ceiling round-robin by host, and an adaptive back-off that halves
+// the rate on a stress signal — and can neither manufacture nor suppress a
 // reachability value. Every part is pure and clock-injectable, so the pacing is
 // tested without a real sleep and without the network.
 
@@ -107,7 +107,7 @@ func (b *Backoff) Interval() time.Duration {
 // instant.
 type Pacer struct {
 	aggregateInterval time.Duration
-	lastEmit          time.Time
+	lastAggregate     time.Time
 	lastHost          map[netip.Addr]time.Time
 	backoff           map[netip.Addr]*Backoff
 	profile           SafetyProfile
@@ -149,8 +149,8 @@ func (p *Pacer) Signal(host netip.Addr, cause Stress) { p.backoffFor(host).Signa
 // sequence of calls produces a correctly-spaced schedule.
 func (p *Pacer) Next(host netip.Addr, now time.Time) time.Time {
 	earliest := now
-	if !p.lastEmit.IsZero() {
-		if t := p.lastEmit.Add(p.aggregateInterval); t.After(earliest) {
+	if !p.lastAggregate.IsZero() {
+		if t := p.lastAggregate.Add(p.aggregateInterval); t.After(earliest) {
 			earliest = t
 		}
 	}
@@ -159,7 +159,7 @@ func (p *Pacer) Next(host netip.Addr, now time.Time) time.Time {
 			earliest = t
 		}
 	}
-	p.lastEmit = earliest
+	p.lastAggregate = earliest
 	p.lastHost[host] = earliest
 	return earliest
 }

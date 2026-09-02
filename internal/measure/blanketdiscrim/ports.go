@@ -18,7 +18,7 @@ import (
 // The count is a declared parameter (leaf.go Params) — eight ports, enough to
 // falsify port-independence with margin (a honeypot answering one stray draw does
 // not clear the unanimity Decide requires) while staying cheap against
-// `connect-outcome`'s 50 conn/s per-host and 200 pkt/s global ceilings: eight
+// `connect-outcome`'s 50 conn/s per-host and 200 pkt/s per-vantage ceilings: eight
 // extra connects per address, round-robin by host with the port tiers, is a small
 // fraction of the budget the ADR-0066-priced control set is allotted. A structured
 // decoy (ADR-0069's RFC-5737-style second label) is deliberately omitted in v1:
