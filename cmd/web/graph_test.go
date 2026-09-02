@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"net/http"
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/signal"
 )
@@ -96,8 +98,11 @@ func TestGraphMinimapMapsEveryNodeInsideTheMiniBox(t *testing.T) {
 	}
 
 	g := buildGraph(rows)
-	if len(g.Nodes) != 80 {
-		t.Fatalf("nodes = %d, want 80 (40 names, 40 addresses)", len(g.Nodes))
+	// #1103 caps each column at graphColumnCap, so 40 names and 40 addresses draw as
+	// two capped columns. Twenty rows still reach y=918, past the 640px viewport, so
+	// the viewport-basis mapping this test guards against still fails here.
+	if len(g.Nodes) != 2*graphColumnCap {
+		t.Fatalf("nodes = %d, want %d (a capped name column and a capped address column)", len(g.Nodes), 2*graphColumnCap)
 	}
 
 	var tallest int
@@ -370,9 +375,9 @@ func TestGraphFitFramesTheWholeContent(t *testing.T) {
 	if want := (float64(g.ViewH) - float64(g.ContentH)*g.FitK) / 2; math.Abs(g.FitY-want) > 0.1 {
 		t.Errorf("fit y = %v, want the centring offset %v", g.FitY, want)
 	}
-	if g.MinK != g.FitK {
-		t.Errorf("zoom floor = %v, want the fit scale %v (low enough to reach it, no lower)", g.MinK, g.FitK)
-	}
+	// #1103 caps each column, so a built drawing no longer runs deep enough to push the
+	// fit under the standing 0.5 floor. TestGraphFitHoldsAtAnyContentHeight covers the
+	// floor against a content box of any depth.
 }
 
 // An estate whose content fits the viewport frames exactly as it did before #1101:
@@ -425,5 +430,263 @@ func TestGraphRequiresLogin(t *testing.T) {
 	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/login" {
 		t.Fatalf("unauthenticated /graph: status=%d location=%q, want redirect to /login",
 			resp.StatusCode, resp.Header.Get("Location"))
+	}
+}
+
+// #1103 (ADR-0136 §2, §4, §6): each column draws at most graphColumnCap nodes, and
+// the drawing states the shortfall rather than dropping subjects silently. The
+// selection is the column's existing sorted order, first N — not severity, not
+// recency — so an unchanged corpus draws the same set on every reload.
+func TestGraphCapsEachColumnAtTheCap(t *testing.T) {
+	var rows []db.ListAllOpenSpansRow
+	for i := 0; i < 30; i++ {
+		rows = append(rows, openSpanRow("name", fmt.Sprintf("n%02d.example.com", i), "resolution", "",
+			fmt.Sprintf(`{"outcome":"Resolved","addresses":["203.0.113.%d"]}`, i+1), false))
+		rows = append(rows, openSpanRow("service", fmt.Sprintf("203.0.113.%d:443/tcp", i+1), "reachability", "",
+			`{"outcome":"reached"}`, false))
+	}
+
+	g := buildGraph(rows)
+	if g.Cap != graphColumnCap {
+		t.Errorf("Cap = %d, want graphColumnCap %d", g.Cap, graphColumnCap)
+	}
+
+	drawn := map[string]int{}
+	for _, n := range g.Nodes {
+		drawn[n.Type]++
+	}
+	if got := drawn["subdomain"] + drawn["domain"]; got != graphColumnCap {
+		t.Errorf("name column drew %d nodes, want the cap %d", got, graphColumnCap)
+	}
+	if drawn["ip"] != graphColumnCap {
+		t.Errorf("address column drew %d nodes, want the cap %d", drawn["ip"], graphColumnCap)
+	}
+	if drawn["service"] != graphColumnCap {
+		t.Errorf("service column drew %d nodes, want the cap %d", drawn["service"], graphColumnCap)
+	}
+
+	want := []graphColumnCount{
+		{Label: "names", Drawn: graphColumnCap, Held: 30},
+		{Label: "addresses", Drawn: graphColumnCap, Held: 30},
+		{Label: "services", Drawn: graphColumnCap, Held: 30},
+	}
+	if len(g.Capped) != len(want) {
+		t.Fatalf("Capped = %#v, want one entry per capped column %#v", g.Capped, want)
+	}
+	for i, w := range want {
+		if g.Capped[i] != w {
+			t.Errorf("Capped[%d] = %#v, want %#v", i, g.Capped[i], w)
+		}
+	}
+
+	// No node is folded in: the drawing holds only the four Subject kinds it always
+	// held, and no prefix or parent rollup stands for the ones the cap left out.
+	for _, n := range g.Nodes {
+		switch n.Type {
+		case "domain", "subdomain", "ip", "service":
+		default:
+			t.Errorf("node %q has type %q; the cap must never mint a rollup node", n.ID, n.Type)
+		}
+	}
+
+	// The bounds follow the placed nodes, so the minimap and the PNG export frame the
+	// capped drawing rather than the population the cap left out.
+	wantH := graphRowTop + (graphColumnCap-1)*graphRowStep + graphRadius("subdomain") + graphPad
+	if g.ContentH != wantH {
+		t.Errorf("ContentH = %d, want %d — the capped drawing's own bounds, not the 30 it holds", g.ContentH, wantH)
+	}
+}
+
+// The cap takes the first N of the column's existing sorted order, so the drawn set
+// is exactly the head of what an uncapped build would have drawn, in the same order.
+func TestGraphCapTakesTheSortedHead(t *testing.T) {
+	var rows []db.ListAllOpenSpansRow
+	for i := 0; i < 25; i++ {
+		rows = append(rows, openSpanRow("name", fmt.Sprintf("n%02d.example.com", i), "resolution", "",
+			`{"outcome":"Resolved","addresses":["203.0.113.5"]}`, false))
+	}
+
+	g := buildGraph(rows)
+	var names []string
+	for _, n := range g.Nodes {
+		if n.Type == "subdomain" {
+			names = append(names, n.ID)
+		}
+	}
+	if len(names) != graphColumnCap {
+		t.Fatalf("name column drew %d nodes, want the cap %d", len(names), graphColumnCap)
+	}
+	for i, id := range names {
+		if want := fmt.Sprintf("n%02d.example.com", i); id != want {
+			t.Errorf("name node %d = %q, want %q (the sorted head, first N)", i, id, want)
+		}
+	}
+
+	// Every one of the 25 names resolves to the one address, so the five names the cap
+	// left out take five edges with them. That deletion is counted, not silent.
+	if g.CutEdges != 5 {
+		t.Errorf("CutEdges = %d, want 5 (one per name the cap left out)", g.CutEdges)
+	}
+	if len(g.Edges) != graphColumnCap {
+		t.Errorf("edges = %d, want %d (one per drawn name)", len(g.Edges), graphColumnCap)
+	}
+}
+
+// A column at or under the cap is drawn exactly as it was, and the screen states
+// nothing: no shortfall, no cut edge.
+func TestGraphUnderTheCapStatesNothing(t *testing.T) {
+	var rows []db.ListAllOpenSpansRow
+	for i := 0; i < graphColumnCap; i++ {
+		rows = append(rows, openSpanRow("name", fmt.Sprintf("n%02d.example.com", i), "resolution", "",
+			`{"outcome":"Resolved","addresses":["203.0.113.5"]}`, false))
+	}
+
+	g := buildGraph(rows)
+	if len(g.Capped) != 0 {
+		t.Errorf("Capped = %#v, want none for a column exactly at the cap", g.Capped)
+	}
+	if g.CutEdges != 0 {
+		t.Errorf("CutEdges = %d, want 0 for a drawing the cap did not touch", g.CutEdges)
+	}
+	if len(g.Nodes) != graphColumnCap+1 {
+		t.Errorf("nodes = %d, want %d (every name plus the one address)", len(g.Nodes), graphColumnCap+1)
+	}
+	if len(g.Edges) != graphColumnCap {
+		t.Errorf("edges = %d, want %d (every resolution edge)", len(g.Edges), graphColumnCap)
+	}
+}
+
+// The screen states the shortfall per column and names a scope selection as the
+// remedy, following the Drift feed, which states its 500-event truncation rather
+// than dropping rows silently.
+func TestGraphPageStatesTheCap(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	if _, err := f.CreateNameSeed(context.Background(), db.CreateNameSeedParams{
+		NameDomain: pgtype.Text{String: "example.com", Valid: true}, CreatedBy: admin.ID,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 25; i++ {
+		f.addResolution(t, admin.ID, fmt.Sprintf("n%02d.example.com", i), "dns", obsClock,
+			`{"outcome":"Resolved","addresses":["203.0.113.5"]}`)
+	}
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	page := getBody(t, ac, base+"/graph", http.StatusOK)
+
+	for _, want := range []string{
+		`class="gr-callout"`,
+		"Showing 20 of 25 names.",
+		"The graph draws at most 20 nodes per column.",
+		"5 edges reach a node it left out and are not drawn.",
+		"Pick a scope to bound the drawing to one declared seed.",
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("graph page missing the cap statement %q; body: %s", want, page)
+		}
+	}
+	if !strings.Contains(page, "n19.example.com") || strings.Contains(page, "n20.example.com") {
+		t.Errorf("graph page drew the wrong head of the name column; body: %s", page)
+	}
+}
+
+// A drawing the cap did not touch carries no callout at all.
+func TestGraphPageStatesNoCapWhenNoneApplied(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["203.0.113.5"]}`)
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	page := getBody(t, ac, base+"/graph", http.StatusOK)
+
+	if strings.Contains(page, `class="gr-callout"`) {
+		t.Errorf("graph page stated a cap it did not apply; body: %s", page)
+	}
+}
+
+// #1103: the endpoint fallback answers a nameless or unmeasured endpoint. It must not
+// answer a Name node the CAP dropped: re-attributing that firing to the Service leg
+// would light a node for a reason that is about the drawing being full, and the
+// drawer would name a Name the drawing does not hold. The firing is counted instead,
+// exactly as #1102 counts a scope that excludes the name.
+func TestJoinSignalsDoesNotFallBackToTheServiceLegForACappedName(t *testing.T) {
+	var rows []db.ListAllOpenSpansRow
+	for i := 0; i < 25; i++ {
+		rows = append(rows, openSpanRow("name", fmt.Sprintf("n%02d.example.com", i), "resolution", "",
+			`{"outcome":"Resolved","addresses":["203.0.113.5"]}`, false))
+	}
+	rows = append(rows, openSpanRow("service", "203.0.113.5:443/tcp", "reachability", "", `{"outcome":"reached"}`, false))
+
+	g := buildGraph(rows)
+	g = joinSignals(g, []signal.Census{
+		// n24 is name 25 of 25, so the cap left it out. n00 is drawn.
+		{Rule: "plaintext-http-no-https", Fired: []signal.Member{
+			{Subject: "n24.example.com@203.0.113.5:443/tcp"},
+			{Subject: "n00.example.com@203.0.113.5:443/tcp"},
+		}},
+	})
+
+	byID := map[string]graphNode{}
+	for _, n := range g.Nodes {
+		byID[n.ID] = n
+	}
+	if svc := byID["203.0.113.5:443/tcp"]; len(svc.OpenSignals) != 0 {
+		t.Errorf("service node carries %d signals; the capped name's firing must not move onto the Service leg: %#v",
+			len(svc.OpenSignals), svc.OpenSignals)
+	}
+	if drawn := byID["n00.example.com"]; len(drawn.OpenSignals) != 1 {
+		t.Errorf("drawn name node open signals = %d, want 1 (the cap must not disturb a node it kept)", len(drawn.OpenSignals))
+	}
+	if g.CutSignals != 1 {
+		t.Errorf("CutSignals = %d, want 1 (the firing on the name the cap left out)", g.CutSignals)
+	}
+}
+
+// A firing whose node the cap dropped is counted, so the screen states the deletion
+// rather than losing a severity the operator would otherwise see. A firing whose node
+// the corpus never held is NOT counted: the cap did not take it.
+func TestJoinSignalsCountsOnlyWhatTheCapDeleted(t *testing.T) {
+	var rows []db.ListAllOpenSpansRow
+	for i := 0; i < 25; i++ {
+		rows = append(rows, openSpanRow("name", fmt.Sprintf("n%02d.example.com", i), "resolution", "",
+			`{"outcome":"Resolved","addresses":["203.0.113.5"]}`, false))
+	}
+
+	g := buildGraph(rows)
+	g = joinSignals(g, []signal.Census{
+		{Rule: "lame-delegation", Fired: []signal.Member{
+			{Subject: "n20.example.com"},   // held by the corpus, dropped by the cap
+			{Subject: "n24.example.com"},   // held by the corpus, dropped by the cap
+			{Subject: "ghost.example.com"}, // the corpus never held it
+			{Subject: "n00.example.com"},   // drawn
+		}},
+	})
+
+	if g.CutSignals != 2 {
+		t.Errorf("CutSignals = %d, want 2 (only the firings the cap deleted)", g.CutSignals)
+	}
+	var lit int
+	for _, n := range g.Nodes {
+		lit += len(n.OpenSignals)
+	}
+	if lit != 1 {
+		t.Errorf("lit signals = %d, want 1 (the one firing on a drawn node)", lit)
+	}
+}
+
+// An estate the cap did not touch counts no deleted firing, so a firing that matches
+// no node stays the silent drop it has always been.
+func TestJoinSignalsCountsNothingUnderTheCap(t *testing.T) {
+	g := buildGraph([]db.ListAllOpenSpansRow{
+		openSpanRow("name", "api.example.com", "resolution", "", `{"outcome":"Resolved","addresses":["203.0.113.5"]}`, false),
+	})
+	g = joinSignals(g, []signal.Census{
+		{Rule: "lame-delegation", Fired: []signal.Member{{Subject: "ghost.example.com"}}},
+	})
+	if g.CutSignals != 0 {
+		t.Errorf("CutSignals = %d, want 0 for a drawing the cap did not touch", g.CutSignals)
 	}
 }
