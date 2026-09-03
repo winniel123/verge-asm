@@ -6,8 +6,6 @@ import (
 	"testing"
 )
 
-// scriptConnector answers a fixed sequence of results per target, so a test can
-// script a transient timeout followed by a decided answer.
 type scriptConnector struct {
 	seq   map[netip.AddrPort][]ConnResult
 	calls map[netip.AddrPort]int
@@ -45,7 +43,6 @@ func TestDecideVerdict(t *testing.T) {
 	}
 }
 
-// An open connection is reached on the first attempt — no retry spent.
 func TestProbeOpenDecidesImmediately(t *testing.T) {
 	target := ap("198.51.100.1:443")
 	c := &scriptConnector{seq: map[netip.AddrPort][]ConnResult{target: {ConnOpen}}}
@@ -58,7 +55,6 @@ func TestProbeOpenDecidesImmediately(t *testing.T) {
 	}
 }
 
-// A refusal is an answer and is never retried.
 func TestProbeRefusalNotRetried(t *testing.T) {
 	target := ap("198.51.100.1:3306")
 	c := &scriptConnector{seq: map[netip.AddrPort][]ConnResult{target: {ConnRefused}}}
@@ -71,7 +67,6 @@ func TestProbeRefusalNotRetried(t *testing.T) {
 	}
 }
 
-// A transient timeout is retried within the budget; a later decided answer wins.
 func TestProbeRetriesTransientTimeout(t *testing.T) {
 	target := ap("198.51.100.1:8080")
 	c := &scriptConnector{seq: map[netip.AddrPort][]ConnResult{target: {ConnTimedOut, ConnOpen}}}
@@ -84,7 +79,6 @@ func TestProbeRetriesTransientTimeout(t *testing.T) {
 	}
 }
 
-// Silence that outlasts the retries decides not-reached — 1 initial + 2 retries.
 func TestProbeExhaustsRetriesToNotReached(t *testing.T) {
 	target := ap("198.51.100.1:9200")
 	c := &scriptConnector{seq: map[netip.AddrPort][]ConnResult{target: {ConnTimedOut}}}
@@ -97,8 +91,8 @@ func TestProbeExhaustsRetriesToNotReached(t *testing.T) {
 	}
 }
 
-// The shipped profile is the §3.3 table exactly.
 func TestDefaultProfileMatchesTable(t *testing.T) {
+	// The shipped profile is the v1 spec §3.3 safety table exactly.
 	p := DefaultProfile()
 	if p.Technique != "tcp-connect" {
 		t.Errorf("technique = %q, want tcp-connect (never SYN)", p.Technique)

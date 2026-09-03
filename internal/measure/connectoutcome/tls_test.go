@@ -14,9 +14,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// scriptHandshaker answers a fixed HandshakeResult per Endpoint key, so a test
-// can pin the fold from a scripted TLS outcome with no network. It records the
-// server name each Endpoint was handed, so a test can assert the SNI sent.
 type scriptHandshaker struct {
 	byEndpoint map[string]HandshakeResult
 	seen       map[string]string
@@ -45,8 +42,6 @@ func ndjsonLines(t *testing.T, b []byte) []wire.Observation {
 	return out
 }
 
-// The nameless endpoint renders with an empty name segment and never collides
-// with a named one.
 func TestEndpointKeyNamelessAndNamed(t *testing.T) {
 	target := ap("198.51.100.1:443")
 	if got := EndpointKey("", target, "tcp"); got != "@198.51.100.1:443/tcp" {
@@ -60,8 +55,6 @@ func TestEndpointKeyNamelessAndNamed(t *testing.T) {
 	}
 }
 
-// A presented chain folds to outcome=presented carrying the fingerprints leaf
-// first; the two negatives fold to their own tags with no chain.
 func TestEmitCertificateValueSpace(t *testing.T) {
 	target := ap("198.51.100.1:443")
 	cases := []struct {
@@ -88,12 +81,6 @@ func TestEmitCertificateValueSpace(t *testing.T) {
 	}
 }
 
-// A presented handshake whose leaf DER we captured rides the raw CT inputs — the leaf
-// DER, the TLS-extension SCTs and the stapled OCSP response — as CertMaterial BESIDE the
-// facet value, keyed by the leaf fingerprint. The facet value stays byte-identical to the
-// same presentation without capture, so no CT input feeds it and ADR-0027's fence stays
-// closed (spec §5.3). Every negative, and a presentation with no captured DER (the
-// scripted golden shape), rides no material.
 func TestEmitCertificateMaterial(t *testing.T) {
 	target := ap("198.51.100.1:443")
 	leafDER := []byte("\x30\x82fake-leaf-der")
@@ -109,8 +96,7 @@ func TestEmitCertificateMaterial(t *testing.T) {
 	}
 	obs := EmitCertificate("b1", "v1", target, "api.example.com", presented)
 
-	// The fence: the facet value must be byte-identical to the same presentation with no
-	// capture, proving no CT input reached it.
+	// ADR-0027's fence: no CT input may feed the facet value, so capture moves no byte.
 	bare := EmitCertificate("b1", "v1", target, "api.example.com",
 		HandshakeResult{Outcome: TLSPresented, Chain: presented.Chain})
 	if string(obs.Data) != string(bare.Data) {
@@ -154,10 +140,6 @@ func TestEmitCertificateMaterial(t *testing.T) {
 	}
 }
 
-// The handshake step rides the reachability exchange: it fires ONLY for a reached
-// Service, sends SNI equal to the Endpoint name, and emits one certificate
-// observation per reached Service alongside its reachability line. A not-reached
-// Service produces a reachability line and no certificate line.
 func TestRunExchangeRidesReachability(t *testing.T) {
 	scope := Scope{
 		Vantage:   "v1",
@@ -167,8 +149,8 @@ func TestRunExchangeRidesReachability(t *testing.T) {
 		Profile:   DefaultProfile(),
 	}
 	conn := &scriptConnector{seq: map[netip.AddrPort][]ConnResult{
-		ap("198.51.100.10:443"): {ConnOpen},    // reached -> handshake runs
-		ap("198.51.100.11:443"): {ConnRefused}, // not reached -> no handshake
+		ap("198.51.100.10:443"): {ConnOpen},
+		ap("198.51.100.11:443"): {ConnRefused},
 	}}
 	hs := &scriptHandshaker{byEndpoint: map[string]HandshakeResult{
 		"api.example.com@198.51.100.10:443/tcp": {Outcome: TLSPresented, Chain: []string{"sha256:leaf"}},
@@ -204,8 +186,6 @@ func TestRunExchangeRidesReachability(t *testing.T) {
 	}
 }
 
-// With no declared names, a reached Service is handshaked once, as the nameless
-// endpoint sending no SNI.
 func TestRunExchangeNamelessEndpoint(t *testing.T) {
 	scope := Scope{
 		Vantage:   "v1",
@@ -228,7 +208,6 @@ func TestRunExchangeNamelessEndpoint(t *testing.T) {
 	}
 }
 
-// Fingerprint is the lowercase hex SHA-256 of the DER bytes, prefixed sha256:.
 func TestFingerprintStable(t *testing.T) {
 	sum := sha256.Sum256([]byte("der-bytes"))
 	want := "sha256:" + hex.EncodeToString(sum[:])

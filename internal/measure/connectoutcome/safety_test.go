@@ -6,10 +6,9 @@ import (
 	"time"
 )
 
-// The back-off halves the per-host rate on each stress signal, down to a floor
-// of 1 conn/s, and never below — a struggling host is never fully starved.
 func TestBackoffHalvesToFloor(t *testing.T) {
-	b := NewBackoff(DefaultProfile()) // base 50
+	// The floor is one connection per second, so a struggling host is slowed and never silenced.
+	b := NewBackoff(DefaultProfile())
 	if b.Rate() != 50 {
 		t.Fatalf("initial rate = %d, want 50", b.Rate())
 	}
@@ -22,7 +21,6 @@ func TestBackoffHalvesToFloor(t *testing.T) {
 	}
 }
 
-// Every stress cause halves; the limiter treats them uniformly (§3.3).
 func TestBackoffEveryCauseHalves(t *testing.T) {
 	for _, cause := range []Stress{StressTimeout, StressRSTSpike, Stress429, Stress503} {
 		b := NewBackoff(DefaultProfile())
@@ -33,11 +31,9 @@ func TestBackoffEveryCauseHalves(t *testing.T) {
 	}
 }
 
-// A stress cause the declared policy does not enable is a no-op: the runtime
-// only halves on causes the recorded BackoffPolicy committed to.
 func TestBackoffHonoursDeclaredPolicy(t *testing.T) {
 	p := DefaultProfile()
-	p.AdaptiveBackoff = BackoffPolicy{HalveOnTimeout: true} // only timeout enabled
+	p.AdaptiveBackoff = BackoffPolicy{HalveOnTimeout: true}
 	b := NewBackoff(p)
 	b.Signal(Stress429)
 	if b.Rate() != b.base {
@@ -49,9 +45,6 @@ func TestBackoffHonoursDeclaredPolicy(t *testing.T) {
 	}
 }
 
-// The back-off changes the rate and NOTHING about a deadline — there is no
-// deadline on the type at all (ADR-0021). This is a structural assertion: the
-// interval grows, and the profile's connect timeout is read separately.
 func TestBackoffNeverTouchesDeadline(t *testing.T) {
 	b := NewBackoff(DefaultProfile())
 	before := b.Interval()
@@ -59,23 +52,17 @@ func TestBackoffNeverTouchesDeadline(t *testing.T) {
 	if b.Interval() <= before {
 		t.Errorf("interval did not grow after a signal: %v -> %v", before, b.Interval())
 	}
-	// The connect timeout is the profile's, wholly independent of the back-off.
 	if DefaultProfile().ConnectTimeoutMillis != 3000 {
 		t.Errorf("connect timeout must be the profile's 3 s, untouched by back-off")
 	}
 }
 
-// The pacer spaces per-host connects at ≥ 1/rate and never exceeds the aggregate
-// ceiling across hosts.
 func TestPacerHonoursPerHostAndAggregate(t *testing.T) {
-	// A tiny profile so the arithmetic is exact: 4 conn/s/host, 10 pkt/s aggregate.
 	p := SafetyProfile{PerHostConnPerSec: 4, PerVantagePacketsPerSec: 10}
 	pacer := NewPacer(p)
 	start := time.Unix(0, 0)
 	h := netip.MustParseAddr("198.51.100.1")
 
-	// Two connects to one host: spaced by the per-host interval (250 ms), which
-	// is larger than the aggregate interval (100 ms), so the per-host rate binds.
 	t0 := pacer.Next(h, start)
 	t1 := pacer.Next(h, start)
 	if gap := t1.Sub(t0); gap < 250*time.Millisecond {
@@ -83,10 +70,8 @@ func TestPacerHonoursPerHostAndAggregate(t *testing.T) {
 	}
 }
 
-// Across many hosts the aggregate ceiling binds: connects to distinct hosts are
-// still spaced by the aggregate interval so adding targets does not multiply load.
 func TestPacerAggregateCeilingBindsAcrossHosts(t *testing.T) {
-	p := SafetyProfile{PerHostConnPerSec: 1000, PerVantagePacketsPerSec: 5} // 200 ms aggregate
+	p := SafetyProfile{PerHostConnPerSec: 1000, PerVantagePacketsPerSec: 5}
 	pacer := NewPacer(p)
 	start := time.Unix(0, 0)
 	prev := pacer.Next(netip.MustParseAddr("198.51.100.1"), start)
@@ -100,14 +85,11 @@ func TestPacerAggregateCeilingBindsAcrossHosts(t *testing.T) {
 	}
 }
 
-// A stress signal on a host widens that host's spacing at the pacer.
 func TestPacerBacksOffSignalledHost(t *testing.T) {
 	p := SafetyProfile{
 		PerHostConnPerSec:       10,
 		PerVantagePacketsPerSec: 1000,
-		// The declared policy the runtime halves on — real profiles set it via
-		// DefaultProfile; a Signal only halves for a cause the offers enabled.
-		AdaptiveBackoff: BackoffPolicy{HalveOnTimeout: true},
+		AdaptiveBackoff:         BackoffPolicy{HalveOnTimeout: true},
 	}
 	pacer := NewPacer(p)
 	start := time.Unix(0, 0)
@@ -115,9 +97,9 @@ func TestPacerBacksOffSignalledHost(t *testing.T) {
 
 	a0 := pacer.Next(h, start)
 	a1 := pacer.Next(h, start)
-	baseline := a1.Sub(a0) // 100 ms at 10 conn/s
+	baseline := a1.Sub(a0)
 
-	pacer.Signal(h, StressTimeout) // halve to 5 conn/s -> 200 ms
+	pacer.Signal(h, StressTimeout)
 	b0 := pacer.Next(h, start)
 	b1 := pacer.Next(h, start)
 	if b1.Sub(b0) <= baseline {
@@ -125,8 +107,6 @@ func TestPacerBacksOffSignalledHost(t *testing.T) {
 	}
 }
 
-// RoundRobin cycles hosts and never places two of one host's ports back to back
-// while another host still has an unplaced port (§3.3, §6.3).
 func TestRoundRobinCyclesHosts(t *testing.T) {
 	targets := []netip.AddrPort{
 		ap("198.51.100.1:80"), ap("198.51.100.1:443"), ap("198.51.100.1:22"),
@@ -136,9 +116,6 @@ func TestRoundRobinCyclesHosts(t *testing.T) {
 	if len(got) != len(targets) {
 		t.Fatalf("RoundRobin dropped targets: %d -> %d", len(targets), len(got))
 	}
-	// While both hosts have ports left, the schedule must alternate. The first
-	// four slots cover two ports of each host: no host appears 3 times before the
-	// other appears twice.
 	count := map[netip.Addr]int{}
 	for i := 0; i < 4; i++ {
 		count[got[i].Addr()]++
@@ -150,7 +127,6 @@ func TestRoundRobinCyclesHosts(t *testing.T) {
 	}
 }
 
-// RoundRobin is deterministic across calls.
 func TestRoundRobinDeterministic(t *testing.T) {
 	targets := []netip.AddrPort{
 		ap("203.0.113.5:8080"), ap("198.51.100.1:80"), ap("198.51.100.1:443"),
