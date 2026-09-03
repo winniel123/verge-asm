@@ -338,3 +338,58 @@ first secret on this instance whose compromise is useful **outside** it — the 
 credentials, SSH key and zone file are all levers on this deployment. A channel secret is a lever on
 somebody else's receiver. Recorded for
 [#124](https://github.com/winniel123/verge-asm/issues/124), which owns the split.
+
+## Amendment — [#1081](https://github.com/winniel123/verge-asm/issues/1081): the toolchain identity is one scalar, and the proof is read from the artifact
+
+This ADR chose **Go across web, worker and measurement binary**, and the Non-binding implementation
+defaults record the stack's tooling. It never said **which Go**, or what keeps the answer the same
+in every place that states it. That gap is closed here.
+**Nothing in this ADR's Decision moves.** The subject is the stack's toolchain identity, which is
+why this is an amendment and not a section on
+[ADR-0138](./0138-a-release-pins-every-byte-it-builds-so-it-delegates-no-build-step-and-anchors-identity-in-its-own-workflow.md).
+
+**The measurement that decided the design: a tag written beside a digest is decoration.** Measured
+2026-09-03 against the real `golang` digest `sha256:9fdc884a…`, both of these resolve:
+
+```
+docker buildx imagetools inspect golang:1.19.0-bookworm@sha256:9fdc884a…
+docker buildx imagetools inspect golang:totally-not-a-tag@sha256:9fdc884a…
+```
+
+Both report the same index. Docker resolves the reference by digest and **never validates the tag
+against it**. So the version written beside the `Dockerfile` pin is a comment that happens to sit
+inside a reference, and **a text compare against it proves nothing about the builder**.
+
+**The same manifest carries the answer.** It exposes
+`org.opencontainers.image.version: 1.26.8-bookworm`. The true builder version is therefore readable
+**out of the pinned digest**, with one manifest fetch, no build and no pull.
+
+**The rule.** One exact scalar lives in a new `.go-version` file at the repository root. Three
+workflow copies of the version are **deleted rather than policed**, by passing
+`go-version-file: .go-version` to `setup-go`. The remaining machine-read sites are `.go-version`,
+`go.mod` and the `Dockerfile`.
+
+**Agreement is two predicates, not one.** `go.mod`'s `go` line is a **floor** and the rest are
+**exact**. A `go.mod` line with no `toolchain` directive states a minimum, so a newer builder
+satisfies it and ships a newer standard library. The asymmetry is recorded rather than flattened,
+because `go.mod` cannot express an exact pin.
+
+A POSIX `scripts/check-go-pins.sh` makes three compares. The **gate** is the digest's
+`org.opencontainers.image.version` annotation against `.go-version`. A second compare holds the
+decorative tag to the same value, as hygiene, so the `Dockerfile`'s own prose cannot state something
+false. A third tests the `go.mod` floor. **A Go checker was rejected** for chicken-and-egg reasons,
+because it would be built by the toolchain it is judging.
+
+**One further assert guards the product rather than the builder.** `GOTOOLCHAIN` defaults to `auto`
+and `go.mod` is a floor, so a builder image may fetch and use a newer toolchain than it ships. The
+release reads the shipped binary's `stdlib` version out of a scan it already runs, and compares it
+to the same scalar. **The annotation proves the builder. This proves the product.**
+
+**Two costs are accepted and named.** The check runs inside an already-required CI job rather than
+a new one, so a pin failure reads as that job failing until the log is opened. And a manifest fetch
+can be rate-limited, so a fetch failure is **advisory on a pull request and fatal on a release**.
+Mirroring the base image into a registry this project controls was **rejected**, because it is a new
+supply-chain surface and ADR-0138 §1 already rules that a release pins every byte itself.
+
+`docs/spec/release-pipeline.md` §12 states the mechanism, and `CLAUDE.md`'s existing refusal of a
+`toolchain` directive stands unchanged.
