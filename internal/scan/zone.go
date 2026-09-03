@@ -1,13 +1,6 @@
-// This file builds the `zone` Scan (v1 spec §3.4, CONTEXT.md `Scan` and
-// `Observation`): monthly-shipped, worker-read, with no port list and no vantage
-// choice at all. Its scope is the name scopes holding a supplied zone file, and
-// its batches restate the file's observations **at the operator's supply
-// instant** — never at the worker's read — because re-parsing unchanged bytes on
-// a cadence would otherwise manufacture a current observation of a stale fact and
-// make staleness invisible instead of not-evaluable. The file's `dns-record`
-// timeline is `zone`'s, one timeline per source (the operator's zone file), held
-// distinct from the resolver's own `dns-record` timeline covered by the `dns`
-// Scan.
+// The `zone` Scan restates a supplied zone file's observations at the operator's
+// supply instant, never at the worker's read (v1 spec §3.4): re-parsing unchanged
+// bytes on a cadence would manufacture a current observation of a stale fact.
 package scan
 
 import (
@@ -19,20 +12,12 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// ZoneKind is the scan kind this file dispatches. Kept additive to DNSKind so
-// the measurement binary and the queue register the two independently.
 const ZoneKind = "zone"
 
-// ZoneSource is the source name every zone observation is attributed to: the
-// operator's own zone file, `authority: declared` (CONTEXT.md `Source`,
-// `Authority`). It is not the resolver, so its `dns-record` values age on the
-// zone Scan's re-supply cadence rather than the resolver's daily one.
+// A zone value ages on the re-supply cadence, not the resolver's daily one (CONTEXT.md Source).
+
 const ZoneSource = "zone"
 
-// ZoneFile is one supplied zone file for one name-scope Seed: the operator's
-// declared ground truth (v1 spec §3.1), its content and the instant of the
-// supply act. SuppliedAt is the operator's supply instant — the moment they
-// uploaded — and is the instant every observation restated from Content takes.
 type ZoneFile struct {
 	SeedID     int64
 	Domain     string
@@ -40,31 +25,14 @@ type ZoneFile struct {
 	Content    string
 }
 
-// ZoneAging describes how a supplied zone file ages against the operator's
-// declared re-supply interval. A zone file is dated at its supply instant, and
-// the operator promises to re-export on a cadence; past that cadence the file is
-// stale, and its restated observations carry a supply instant older than the
-// interval promises. A stale zone file widens a coverage gap — the estate as the
-// operator declares it is older than the scan cadence, so what the zone would
-// otherwise cover is no longer current and is recorded as a Gap rather than a
-// clean current fact (v1 spec §3.4). Before the cadence the file is current, and
-// Days counts down to the instant it ages into that gap.
+// A stale file records a Gap: the declared estate is older than the cadence (v1 spec §3.4).
+
 type ZoneAging struct {
 	Supplied bool
-	// Stale reports whether the file has passed its re-supply interval and so has
-	// aged into a coverage gap.
-	Stale bool
-	Days  int
+	Stale    bool
+	Days     int
 }
 
-// ZoneAgingAt computes how a zone file supplied at suppliedAt ages, measured at
-// now against interval — the operator's declared re-supply cadence. A zero
-// supply instant means nothing was supplied (nothing to stale); a zero or
-// negative interval means there is no cadence to age against, so the file is
-// treated as current with no countdown. The gap instant is suppliedAt+interval:
-// at or past it the file is stale and Days counts how long it has been in the
-// gap; before it the file is current and Days counts up (ceiling) to the gap so
-// a still-current file never reads "in 0d".
 func ZoneAgingAt(suppliedAt, now time.Time, interval time.Duration) ZoneAging {
 	if suppliedAt.IsZero() {
 		return ZoneAging{}
@@ -77,8 +45,9 @@ func ZoneAgingAt(suppliedAt, now time.Time, interval time.Duration) ZoneAging {
 	if !now.Before(gapAt) {
 		return ZoneAging{Supplied: true, Stale: true, Days: int(now.Sub(gapAt) / day)}
 	}
+	// A still-current file must never read "in 0d", so the countdown rounds up.
 	remaining := gapAt.Sub(now)
-	days := int((remaining + day - time.Nanosecond) / day) // ceiling
+	days := int((remaining + day - time.Nanosecond) / day)
 	return ZoneAging{Supplied: true, Days: days}
 }
 
@@ -90,9 +59,6 @@ type ZoneJob struct {
 	Content    string
 }
 
-// BuildZoneJobs fans a zone Scan out into one job per supplied zone file. It
-// produces no jobs when no name scope holds a file — an aperture over an empty
-// scope is a legible state, not an error (CONTEXT.md `Scan`).
 func BuildZoneJobs(scanID int64, files []ZoneFile) []ZoneJob {
 	if len(files) == 0 {
 		return nil
@@ -110,20 +76,14 @@ func BuildZoneJobs(scanID int64, files []ZoneFile) []ZoneJob {
 	return jobs
 }
 
-// zoneScope is the wire payload a zone job carries: the supply instant travels
-// with the content so the worker restates at the operator's instant rather than
-// its own read (v1 spec §3.4).
 type zoneScope struct {
 	Domain     string    `json:"domain"`
 	SuppliedAt time.Time `json:"supplied_at"`
 	Content    string    `json:"content"`
 }
 
-// JobSpec renders a ZoneJob into the wire JobSpec the worker reads. Unlike the
-// dns Scan there is no prober exec: the worker itself parses Scope, which is why
-// the whole file content and its supply instant travel in the job rather than a
-// vantage and a resolver.
 func (j ZoneJob) JobSpec(batch string) (wire.JobSpec, error) {
+	// A worker-read Scan runs no prober, so its scope rides in the job, not a vantage (v1 spec §3.4).
 	raw, err := json.Marshal(zoneScope{Domain: j.Domain, SuppliedAt: j.SuppliedAt, Content: j.Content})
 	if err != nil {
 		return wire.JobSpec{}, fmt.Errorf("scan: marshal zone scope: %w", err)
@@ -131,11 +91,8 @@ func (j ZoneJob) JobSpec(batch string) (wire.JobSpec, error) {
 	return wire.JobSpec{Batch: batch, Kind: ZoneKind, Scope: raw}, nil
 }
 
-// AttemptedScope is the by-content record of what the zone job set out to cover:
-// the domain and the supply instant it restated. It is the completed Batch's
-// recorded scope; a zone read has no network step to fail, so it does not
-// dead-letter.
 func (j ZoneJob) AttemptedScope() ([]byte, error) {
+	// A zone read has no network step to fail, so this Batch never dead-letters (ADR-0005).
 	return json.Marshal(zoneScopeRecord{Domain: j.Domain, SuppliedAt: j.SuppliedAt})
 }
 
@@ -144,8 +101,6 @@ type zoneScopeRecord struct {
 	SuppliedAt time.Time `json:"supplied_at"`
 }
 
-// ZoneScopeFromSpec decodes a zone job's wire scope back into a ZoneFile, so the
-// worker restates from the same domain/instant/content the dispatcher enqueued.
 func ZoneScopeFromSpec(scope []byte) (ZoneFile, error) {
 	var zs zoneScope
 	if err := json.Unmarshal(scope, &zs); err != nil {
@@ -154,11 +109,6 @@ func ZoneScopeFromSpec(scope []byte) (ZoneFile, error) {
 	return ZoneFile{Domain: zs.Domain, SuppliedAt: zs.SuppliedAt, Content: zs.Content}, nil
 }
 
-// ZoneRecord is one `dns-record` observation restated from a zone file: one
-// RRset for one (owner name, qtype), stamped at the supply instant. The
-// discriminator on the observation is Qtype; the subject is Name; the source is
-// ZoneSource. ObservedAt is the operator's supply instant, carried here so the
-// worker never substitutes its read time.
 type ZoneRecord struct {
 	Name       string
 	Qtype      string
@@ -166,25 +116,13 @@ type ZoneRecord struct {
 	ObservedAt time.Time
 }
 
-// RestateZone parses a supplied zone file into its `dns-record` observations,
-// every one stamped at the file's supply instant. Records are grouped into one
-// RRset per (owner, qtype) — the shape a `dns-record` timeline holds — in
-// first-seen order so the output is deterministic. Lines it cannot parse are
-// skipped rather than guessed at: a zone file is the operator's own ground
-// truth, and inventing a record it does not clearly state would fabricate an
-// observation (v1 spec §4.1).
-//
-// It also SURFACES the skips (#869, raw-job-output spec §1.3): the second return
-// is the verbatim text of every line that looked like a record but was dropped —
-// an unknown RR type, an empty rdata, an orphan continuation, or an RRset that
-// could not marshal. Blank lines, comments and directives carry no record by
-// design and are NOT surfaced. The skips are the zone variant's debug artifact:
-// they answer "why is this DNS record missing from the estate?" with "we skipped
-// it". Skips are returned in first-seen order.
+// The second return answers "why is this record missing?" for a dropped line (#869, §1.3).
+
 func RestateZone(zf ZoneFile) (records []ZoneRecord, skipped []string) {
 	p := &zoneParser{origin: fqdn(zf.Domain)}
 	rrsets := map[string]*zoneRRset{}
 	var order []string
+	// A zone file is ground truth, so an unclear line is skipped and never guessed (v1 spec §4.1).
 	for _, line := range logicalLines(zf.Content) {
 		rec, res := p.parse(line)
 		switch res {
@@ -200,7 +138,7 @@ func RestateZone(zf ZoneFile) (records []ZoneRecord, skipped []string) {
 			}
 			set.rrs = append(set.rrs, rec.rdata)
 		}
-		// parseNone carries no record and is not a skip: a blank, comment or directive.
+		// A blank, comment or directive is no missing record, so the absent case is deliberate (#869).
 	}
 
 	out := make([]ZoneRecord, 0, len(order))
@@ -208,9 +146,7 @@ func RestateZone(zf ZoneFile) (records []ZoneRecord, skipped []string) {
 		set := rrsets[key]
 		data, err := json.Marshal(zoneValue{RRs: set.rrs})
 		if err != nil {
-			// The literal "skipped because it could not marshal" case (spec §1.3).
-			// json.Marshal of a []string does not fail in practice, so this is a
-			// defensive surface, named by the RRset it dropped.
+			// Marshalling a string slice does not fail, so this arm is the spec's defensive surface (§1.3).
 			skipped = append(skipped, set.name+" "+set.qtype)
 			continue
 		}
@@ -224,22 +160,16 @@ func RestateZone(zf ZoneFile) (records []ZoneRecord, skipped []string) {
 	return out, skipped
 }
 
-// parseResult is the three-way outcome of parsing one logical zone line: a
-// well-formed record, nothing at all (a blank, comment or directive — no record
-// by design), or a dropped candidate (a line that looked like a record but could
-// not be parsed). Only parseSkipped is surfaced to the operator (#869): a blank
-// line is not a missing record.
 type parseResult int
 
 const (
-	parseNone    parseResult = iota // blank, comment, or directive — carries no record
-	parseRecord                     // a well-formed record
-	parseSkipped                    // looked like a record but was dropped
+	parseNone parseResult = iota
+	parseRecord
+	parseSkipped
 )
 
-// zoneValue is the value a zone `dns-record` observation carries: the RRset's
-// rdata, as strings. It is deliberately the zone file's own words rather than a
-// re-resolution, so the timeline reflects what the operator declared.
+// The rdata is the file's own words, never a re-resolution, so the timeline is what was declared.
+
 type zoneValue struct {
 	RRs []string `json:"rrs"`
 }
@@ -256,9 +186,6 @@ type parsedRecord struct {
 	rdata string
 }
 
-// zoneParser carries the master-file parsing state that spans lines: the current
-// $ORIGIN and the last owner name (a line beginning with whitespace inherits it,
-// RFC 1035 §5.1).
 type zoneParser struct {
 	origin    string
 	lastOwner string
@@ -278,7 +205,6 @@ func (p *zoneParser) parse(line string) (parsedRecord, parseResult) {
 		return parsedRecord{}, parseNone
 	}
 
-	// Directives carry no record but set state for the lines that follow.
 	trimmed := strings.TrimSpace(line)
 	switch {
 	case strings.HasPrefix(trimmed, "$ORIGIN"):
@@ -287,10 +213,10 @@ func (p *zoneParser) parse(line string) (parsedRecord, parseResult) {
 		}
 		return parsedRecord{}, parseNone
 	case strings.HasPrefix(trimmed, "$"):
-		return parsedRecord{}, parseNone // $TTL, $INCLUDE and friends carry no record
+		return parsedRecord{}, parseNone
 	}
 
-	// A leading blank means the owner is inherited from the previous record.
+	// A line beginning with whitespace inherits the previous owner name (RFC 1035 §5.1).
 	ownerInherited := line[0] == ' ' || line[0] == '\t'
 	fields := strings.Fields(line)
 	if len(fields) == 0 {
@@ -300,8 +226,7 @@ func (p *zoneParser) parse(line string) (parsedRecord, parseResult) {
 	var owner string
 	if ownerInherited {
 		if p.lastOwner == "" {
-			// A continuation line with no prior owner: a dropped candidate, not a
-			// clean no-op — the operator wrote rdata the estate never got.
+			// The operator wrote rdata the estate never got: a dropped candidate, not a no-op (#869).
 			return parsedRecord{}, parseSkipped
 		}
 		owner = p.lastOwner
@@ -311,8 +236,6 @@ func (p *zoneParser) parse(line string) (parsedRecord, parseResult) {
 	}
 	p.lastOwner = owner
 
-	// Skip an optional TTL and an optional class, in either order, before the
-	// type. TTL is all-digits (optionally with a unit); class is IN/CH/HS/CS.
 	for len(fields) > 0 {
 		f := fields[0]
 		if recordClasses[strings.ToUpper(f)] {
@@ -353,11 +276,8 @@ func (p *zoneParser) resolveName(raw string) string {
 	return trimDot(strings.ToLower(raw) + "." + p.origin)
 }
 
-// logicalLines splits content into logical records, joining lines held open by
-// an unclosed parenthesis (RFC 1035 §5.1's multi-line form, used by SOA). It
-// does not attempt full quoting rules — a zone file with a naked ";" inside a
-// quoted TXT string is rare and is skipped rather than mis-split.
 func logicalLines(content string) []string {
+	// A naked ";" inside a quoted TXT string is rare, so full quoting rules are not attempted.
 	raw := strings.Split(strings.ReplaceAll(content, "\r\n", "\n"), "\n")
 	var out []string
 	var buf strings.Builder
@@ -407,7 +327,6 @@ func isTTL(f string) bool {
 		case r >= '0' && r <= '9':
 			digits = true
 		case i == len(f)-1 && strings.ContainsRune("smhdwSMHDW", r):
-			// a trailing unit is allowed only after at least one digit
 		default:
 			return false
 		}
