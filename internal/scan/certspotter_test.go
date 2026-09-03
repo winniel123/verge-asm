@@ -7,10 +7,8 @@ import (
 	"testing"
 )
 
-// The query is the full-domain form the admission mapping needs (research §3.1):
-// include_subdomains=true, expand=dns_names and expand=issuer, the domain, and the
-// after cursor only once paging has started.
 func TestCertSpotterURL(t *testing.T) {
+	// The decoder reads dns_names, so the query must expand them (ct-source-replacement.md §2.6).
 	first := CertSpotterURL("example.com", "")
 	u, err := url.Parse(first)
 	if err != nil {
@@ -33,14 +31,12 @@ func TestCertSpotterURL(t *testing.T) {
 		t.Errorf("first page must carry no after cursor: %q", first)
 	}
 
-	// Once paging has started the cursor rides as after=<id>.
 	next := CertSpotterURL("example.com", "42")
 	if got := mustQuery(t, next).Get("after"); got != "42" {
 		t.Errorf("after = %q, want 42", got)
 	}
 
-	// Belt-and-braces: the domain is percent-encoded, so an injection character
-	// cannot smuggle a second parameter (mirrors the crt.sh guard, #774).
+	// Percent-encoding the domain stops an injection character smuggling a second parameter (#774).
 	inj := CertSpotterURL("example.com&include_subdomains=false", "")
 	if mustQuery(t, inj).Get("include_subdomains") != "true" {
 		t.Errorf("injection overrode include_subdomains: %q", inj)
@@ -76,8 +72,6 @@ func TestParseCertSpotterPage(t *testing.T) {
 			t.Errorf("issuances = %+v, want empty", got)
 		}
 	})
-	// A malformed 200 is not evidence of anything (ADR-0027 §7): a parse error, so
-	// the caller treats it as transient rather than as "no certificates".
 	t.Run("non-array body is an error, never empty", func(t *testing.T) {
 		for _, body := range []string{"", "   ", "<html>429</html>", "not json"} {
 			if _, err := ParseCertSpotterPage([]byte(body)); err == nil {
@@ -87,9 +81,6 @@ func TestParseCertSpotterPage(t *testing.T) {
 	})
 }
 
-// The next cursor is the highest id on the page, compared as an integer rather than
-// by the page's order, so a page returned in any order still advances the cursor to
-// its true maximum. An empty page yields "" — the signal to stop paging.
 func TestMaxIssuanceID(t *testing.T) {
 	for _, tc := range []struct {
 		name string
@@ -107,10 +98,6 @@ func TestMaxIssuanceID(t *testing.T) {
 	}
 }
 
-// The Cert Spotter source decodes a page into the same filtered admission the ct
-// path makes for crt.sh: the shared CTAdmitter refuses wildcards (ADR-0060), drops
-// out-of-scope co-tenant SANs (ADR-0047), and dedupes. Fed through DecodePage into
-// a CTAdmitter, a mixed page must admit exactly the in-scope, non-wildcard names.
 func TestCertSpotterSourceAdmitsThroughSharedFilter(t *testing.T) {
 	body := []byte(`[
 		{"id":"1","dns_names":["example.com","www.example.com"]},
@@ -138,8 +125,6 @@ func TestCertSpotterSourceAdmitsThroughSharedFilter(t *testing.T) {
 	}
 }
 
-// A single-shot decode reaching an empty page reports next="" so the completion
-// loop stops, and a well-formed page with names reports its max id so it continues.
 func TestCertSpotterSourceEmptyPageStops(t *testing.T) {
 	src := CertSpotterCTSource()
 	_, next, err := src.DecodePage([]byte("[]"))
@@ -151,9 +136,8 @@ func TestCertSpotterSourceEmptyPageStops(t *testing.T) {
 	}
 }
 
-// The DisplayName is the operator-facing label surfaced in the live stream on a
-// non-200 (#780); it is the product name, not the slug.
 func TestCertSpotterSourceDisplayName(t *testing.T) {
+	// The live stream shows this label to an operator on a non-200, so it is the product name (#780).
 	if got := CertSpotterCTSource().DisplayName(); !strings.Contains(got, "Cert Spotter") {
 		t.Errorf("DisplayName = %q, want it to name Cert Spotter", got)
 	}

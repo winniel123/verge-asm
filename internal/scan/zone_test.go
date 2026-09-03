@@ -25,8 +25,6 @@ api.example.com. IN AAAA 2001:db8::1
 
 func TestRestateZoneStampsSupplyInstantNotReadTime(t *testing.T) {
 	supply := time.Date(2026, 1, 1, 9, 30, 0, 0, time.UTC)
-	// The worker reads the file much later; the observations must still be
-	// stamped at the supply instant, never at this later read.
 	zf := ZoneFile{Domain: "example.com", SuppliedAt: supply, Content: sampleZone}
 
 	recs, _ := RestateZone(zf)
@@ -50,8 +48,6 @@ func TestRestateZoneGroupsRRsetsAndResolvesNames(t *testing.T) {
 		byKey[r.Name+"/"+r.Qtype] = r
 	}
 
-	// The apex A RRset groups both address records into one dns-record
-	// observation, keyed on (name, qtype) — the timeline shape.
 	apexA, ok := byKey["example.com/A"]
 	if !ok {
 		t.Fatalf("apex A record missing; got %v", keys(byKey))
@@ -66,8 +62,7 @@ func TestRestateZoneGroupsRRsetsAndResolvesNames(t *testing.T) {
 		t.Errorf("apex A rrset = %v, want both 203.0.113.10 and .11", v.RRs)
 	}
 
-	// A blank-owner line inherits the previous owner (the second apex A above).
-	// A relative name is qualified by $ORIGIN; an absolute name is kept as-is.
+	// A relative owner is qualified by $ORIGIN; a trailing dot keeps it absolute (RFC 1035 §5.1).
 	if _, ok := byKey["www.example.com/CNAME"]; !ok {
 		t.Errorf("relative owner not qualified by origin; got %v", keys(byKey))
 	}
@@ -77,7 +72,6 @@ func TestRestateZoneGroupsRRsetsAndResolvesNames(t *testing.T) {
 	if _, ok := byKey["api.example.com/AAAA"]; !ok {
 		t.Errorf("absolute owner name not kept; got %v", keys(byKey))
 	}
-	// The multi-line SOA is one record, not five stray lines.
 	if _, ok := byKey["example.com/SOA"]; !ok {
 		t.Errorf("multi-line SOA not joined into one record; got %v", keys(byKey))
 	}
@@ -85,8 +79,6 @@ func TestRestateZoneGroupsRRsetsAndResolvesNames(t *testing.T) {
 
 func TestRestateZoneSurfacesSkips(t *testing.T) {
 	supply := time.Date(2026, 1, 1, 9, 30, 0, 0, time.UTC)
-	// A file whose records the estate should get, mixed with lines RestateZone must
-	// drop and surface, and blank/comment/directive lines it must NOT surface.
 	content := `$ORIGIN example.com.
 $TTL 3600
 ; a plain comment line
@@ -103,8 +95,6 @@ www     IN CNAME example.com.
 		t.Fatalf("got %d records, want 2 (apex A + www CNAME); recs=%v", len(recs), recs)
 	}
 
-	// The three record-shaped-but-dropped lines are surfaced, verbatim; the
-	// directive, blank and comment lines are not.
 	joined := strings.Join(skipped, "\n")
 	for _, want := range []string{"weird   IN FOO  whatever", "empty   IN TXT", "lonely  IN"} {
 		if !strings.Contains(joined, want) {
@@ -159,8 +149,7 @@ func TestZoneJobSpecRoundTripsThroughWire(t *testing.T) {
 
 func TestZoneAgingCurrentFileCountsDownToTheGap(t *testing.T) {
 	supply := time.Date(2026, 7, 30, 0, 0, 0, 0, time.UTC)
-	interval := 30 * 24 * time.Hour // monthly
-	// 23 days after supply: still current, seven days from ageing into a gap.
+	interval := 30 * 24 * time.Hour
 	now := supply.Add(23 * 24 * time.Hour)
 
 	a := ZoneAgingAt(supply, now, interval)
@@ -178,7 +167,6 @@ func TestZoneAgingCurrentFileCountsDownToTheGap(t *testing.T) {
 func TestZoneAgingPastTheIntervalIsAGap(t *testing.T) {
 	supply := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
 	interval := 30 * 24 * time.Hour
-	// Five days past the interval: the file has aged into a coverage gap.
 	now := supply.Add(35 * 24 * time.Hour)
 
 	a := ZoneAgingAt(supply, now, interval)
@@ -193,11 +181,9 @@ func TestZoneAgingPastTheIntervalIsAGap(t *testing.T) {
 func TestZoneAgingBoundaryAndNoSupply(t *testing.T) {
 	supply := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
 	interval := 30 * 24 * time.Hour
-	// Exactly at the gap instant: stale, zero days in.
 	if a := ZoneAgingAt(supply, supply.Add(interval), interval); !a.Stale || a.Days != 0 {
 		t.Errorf("at the gap instant, want stale with 0 days; got %+v", a)
 	}
-	// A current file just under a day from the gap rounds up to 1d, never 0d.
 	almost := supply.Add(interval - 12*time.Hour)
 	if a := ZoneAgingAt(supply, almost, interval); a.Stale || a.Days != 1 {
 		t.Errorf("half a day from the gap should read 1d and current; got %+v", a)
