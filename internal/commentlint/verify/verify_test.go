@@ -107,9 +107,9 @@ func TestRun(t *testing.T) {
 		},
 		{
 			name: "a surface with no lexer is a lex failure",
-			path: "docs-site/src/pipeline/render.ts",
-			base: "export const a = 1;\n",
-			head: "export const a = 2;\n",
+			path: "design-system/templates/shell.tmpl",
+			base: "<p>{{ .Title }}</p>\n",
+			head: "<p>{{ .Name }}</p>\n",
 			want: LexFailed, wantExit: 2,
 		},
 		{
@@ -220,6 +220,73 @@ func TestExitPrefersTheLexFailure(t *testing.T) {
 	}
 	if got := report.Exit(); got != 2 {
 		t.Errorf("exit is %d, want 2", got)
+	}
+}
+
+func TestRunReadsTheJSSurfaces(t *testing.T) {
+	// §6.4 gives `verify` all nine lexable surfaces, so ruling 15 has no hole
+	// where the sweep carries the most risk (#1141).
+	cases := []struct {
+		name string
+		path string
+		base string
+		head string
+		want Status
+	}{
+		{
+			name: "an mjs comment deletion is clean",
+			path: "docs-site/scripts/doclint.mjs",
+			base: "// the note\nexport const a = 1;\n",
+			head: "export const a = 1;\n",
+			want: Clean,
+		},
+		{
+			name: "an mjs code change is a violation",
+			path: "docs-site/scripts/doclint.mjs",
+			base: "export const a = 1;\n",
+			head: "export const a = 2;\n",
+			want: Changed,
+		},
+		{
+			name: "a declaration file comment deletion is clean",
+			path: "design-system/components/display/Card.d.ts",
+			base: "export interface Props {\n  /** The visible label. */\n  label: string;\n}\n",
+			head: "export interface Props {\n  label: string;\n}\n",
+			want: Clean,
+		},
+		{
+			// esbuild erases a `.d.ts` file to the empty string, so 109 of 109
+			// code mutations are invisible to it (SPEC §5.3).
+			name: "a declaration file code change is a violation",
+			path: "design-system/components/display/Card.d.ts",
+			base: "export interface Props {\n  label: string;\n}\n",
+			head: "export interface Props {\n  label: number;\n}\n",
+			want: Changed,
+		},
+		{
+			name: "a deleted eslint directive is a violation",
+			path: "docs-site/scripts/doclint.mjs",
+			base: "// eslint-disable-next-line no-console\nconsole.log(1);\n",
+			head: "console.log(1);\n",
+			want: Changed,
+		},
+		{
+			name: "an unreadable mjs file fails closed",
+			path: "docs-site/scripts/doclint.mjs",
+			base: "export const a = 1;\n",
+			head: "export const a = `1;\n",
+			want: LexFailed,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			report := Run([]string{c.path}, false,
+				source(map[string]string{c.path: c.base}),
+				source(map[string]string{c.path: c.head}))
+			if got := report.Findings[0].Status; got != c.want {
+				t.Fatalf("status is %s (%s), want %s", got, report.Findings[0].Detail, c.want)
+			}
+		})
 	}
 }
 

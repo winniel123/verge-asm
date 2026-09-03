@@ -1,6 +1,7 @@
 package surface
 
 import (
+	"bytes"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -16,8 +17,14 @@ const (
 	minGoFiles  = 400
 	minSQLFiles = 35
 	minCSSFiles = 10
+	minJSFiles  = 130
+	minJSXFiles = 135
 	minAllSQL   = 100
 	minAllCSS   = 15
+
+	// A cross-check that reaches no file passes for the wrong reason, so the
+	// vacuous canonical forms are counted out and a floor holds (SPEC §5.5).
+	minCrossChecked = 15
 )
 
 func TestGoCorpusLexes(t *testing.T) {
@@ -50,12 +57,100 @@ func TestCSSCorpusLexes(t *testing.T) {
 	lexCorpus(t, CSS{}, inScopeFiles(t, ".css"), minCSSFiles)
 }
 
-func lexCorpus(t *testing.T, lexer Lexer, files []string, min int) {
+func TestJSCorpusLexes(t *testing.T) {
+	// SPEC §5.2 counts 135 `.mjs`, `.ts` and `.d.ts` files, 109 of them
+	// declaration files (#1141).
+	files := append(inScopeFiles(t, ".mjs"), inScopeFiles(t, ".ts")...)
+	lexCorpus(t, JS{}, files, minJSFiles)
+}
+
+func TestJSXCorpusLexes(t *testing.T) {
+	// SPEC §5.2 counts 141 `.jsx` files and calls esbuild a fixed point on all
+	// of them (#1141).
+	esbuildOrSkip(t)
+	for _, rel := range corpusGuard(t, inScopeFiles(t, ".jsx"), minJSXFiles) {
+		src, err := os.ReadFile(filepath.Join(repoRoot, rel))
+		if err != nil {
+			t.Fatalf("read %s: %v", rel, err)
+		}
+		if _, err := (JSX{Path: filepath.Join(repoRoot, rel)}).Lex(src); err != nil {
+			t.Errorf("%s: %v", rel, err)
+		}
+	}
+}
+
+func TestJSCommentRangesAgreeWithEsbuild(t *testing.T) {
+	// §5.5 records the circularity risk: one hand lexer both finds the
+	// comments and builds the skeleton. esbuild is the independent reader, so
+	// blanking every range the lexer calls a comment must leave its canonical
+	// form untouched (#1141).
+	esbuildOrSkip(t)
+	checked := 0
+	for _, rel := range append(inScopeFiles(t, ".mjs"), inScopeFiles(t, ".ts")...) {
+		path := filepath.Join(repoRoot, rel)
+		src, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", rel, err)
+		}
+		loader := "ts"
+		if strings.HasSuffix(rel, ".mjs") {
+			loader = "js"
+		}
+		before, err := esbuildCanonical(path, src, loader)
+		if err != nil {
+			t.Errorf("%s: %v", rel, err)
+			continue
+		}
+		// esbuild erases a `.d.ts` file to the empty string, so its canonical
+		// form proves nothing and the file is counted out (SPEC §5.3).
+		if len(bytes.TrimSpace(before)) == 0 {
+			continue
+		}
+		res, err := JS{}.Lex(src)
+		if err != nil {
+			t.Errorf("%s: %v", rel, err)
+			continue
+		}
+		after, err := esbuildCanonical(path, blankComments(src, res), loader)
+		if err != nil {
+			t.Errorf("%s: blanking the comments broke the parse: %v", rel, err)
+			continue
+		}
+		if !bytes.Equal(before, after) {
+			t.Errorf("%s: a range the lexer calls a comment carries code", rel)
+		}
+		checked++
+	}
+	if checked < minCrossChecked {
+		t.Errorf("the cross-check reached %d file(s), want at least %d", checked, minCrossChecked)
+	}
+}
+
+// blankComments overwrites every comment range with spaces. A deletion would
+// glue the neighbouring tokens, which is a source change of its own (§5.1).
+func blankComments(src []byte, res Result) []byte {
+	out := append([]byte(nil), src...)
+	for _, b := range append(append([]Block(nil), res.Blocks...), res.Trailing...) {
+		for i := b.Start; i < b.End && i < len(out); i++ {
+			if out[i] != '\n' {
+				out[i] = ' '
+			}
+		}
+	}
+	return out
+}
+
+func corpusGuard(t *testing.T, files []string, min int) []string {
 	t.Helper()
 	if len(files) < min {
 		t.Fatalf("the walk found %d files, want at least %d", len(files), min)
 	}
-	for _, rel := range files {
+	return files
+}
+
+func lexCorpus(t *testing.T, lexer Lexer, files []string, min int) {
+	t.Helper()
+	for _, rel := range corpusGuard(t, files, min) {
 		src, err := os.ReadFile(filepath.Join(repoRoot, rel))
 		if err != nil {
 			t.Fatalf("read %s: %v", rel, err)

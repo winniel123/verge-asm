@@ -273,8 +273,8 @@ func TestGoLexRejectsUnparseableSource(t *testing.T) {
 }
 
 func TestForRejectsAnUnsupportedSurface(t *testing.T) {
-	if _, err := For("docs-site/src/pipeline/render.ts"); err == nil {
-		t.Fatal("For accepted .ts, which has no lexer yet")
+	if _, err := For("design-system/templates/shell.tmpl"); err == nil {
+		t.Fatal("For accepted .tmpl, which has no lexer yet")
 	}
 	if _, err := For("cmd/web/main.go"); err != nil {
 		t.Fatalf("For rejected .go: %v", err)
