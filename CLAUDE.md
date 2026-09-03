@@ -32,7 +32,7 @@ Do this before your first file change in a session. This step is mandatory. It a
 
 The worktree is cut from `origin/main`. This satisfies the trunk-based rule in `CONTRIBUTING.md`.
 
-A `PreToolUse` hook blocks `Edit`, `Write`, and `NotebookEdit` when the target file sits on `main`. The hook is `.claude/hooks/require-task-branch.ps1`. It fails open. Do not treat a permitted edit as proof of a correct branch. Check the branch yourself.
+A `PreToolUse` hook blocks `Edit`, `Write`, and `NotebookEdit` when the target file sits on `main`. The hook is `.claude/hooks/require-task-branch.sh`. It fails open. Do not treat a permitted edit as proof of a correct branch. Check the branch yourself.
 
 Skip this step only for read-only work. Reading, searching, and answering a question need no branch.
 
@@ -70,11 +70,30 @@ At the end of a wayfinder or implementation session, open a PR and make sure the
 
 New goose migrations race on their number. The `compose` CI job boots the real `web` binary, which runs `goose.Up`; a duplicate goose version panics the binary and `compose` fails at "wait for a healthy stack" (look for `panic: goose: duplicate version NNNNN`). CI tests your branch merged with `main`. Before pushing, `git fetch origin main` and number your migration above `origin/main`'s current max in `db/migrations/` (they increment by ~100).
 
-## Windows local dev gotchas
+## Local dev environment
 
-**There is no local Go toolchain on this machine.** Measured 2026-08-31: `go` is absent from `PATH`, absent from the persisted user and machine `PATH` in the registry, and a full `C:` drive search finds no `go.exe`. Do not spend a session hunting for it. An earlier version of this file described a local 1.26.5 toolchain. That description is retired.
+The dev machine is Ubuntu Server 24.04 LTS (x86_64). It replaced a Windows machine on 2026-09-03. Every Windows-specific rule in an earlier version of this file is retired.
 
-Run every Go command in Docker instead. The container pins CI's exact version, so it is a stronger check than a local toolchain was:
+`sudo` asks for a password here. Do not run a command that needs root. Ask the user to run it.
+
+### Toolchain
+
+- **Go 1.26.8.** Install it from the go.dev tarball into `~/.local/go`, and put `~/.local/go/bin` on `PATH`. The `golang-go` apt package is 1.22 and too old. `go.mod` pins `go 1.26.8` and has no `toolchain` line. Do not use 1.27-only features.
+- **Docker with the Compose plugin.** `docker.io`, `docker-buildx` and `docker-compose-v2` come from apt. The user must be in the `docker` group.
+- **sqlc 1.31.1.** Do not install it. Run `go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1 generate`.
+- **Node 20.** Only `docs-site/` and the `doclint` job need it. The apt package is 18, so use nvm or NodeSource. No required check needs Node.
+
+Run `go version` before you trust the toolchain. A missing `go` means the setup above is incomplete.
+
+### Running the checks
+
+Run the gating checks natively:
+
+```sh
+go vet ./... && go test ./... -count=1
+```
+
+Run them in the container instead when you want CI's exact image:
 
 ```sh
 docker run --rm \
@@ -85,18 +104,18 @@ docker run --rm \
   sh -c "go vet ./... && go test ./... -count=1"
 ```
 
-The two named volumes cache the downloaded modules and the build output. The first run downloads the module graph and is slow. Later runs reuse both caches. `cmd/web` alone takes about 70 s.
+The two named volumes cache the module downloads and the build output. The first run downloads the module graph and is slow. Later runs reuse both caches.
 
-`go.mod` pins `go 1.26.8` and has no `toolchain` line. Pin the image tag to `golang:1.26.8` so the container never drifts above it. Do not use 1.27-only features.
+The compose stack needs a `.env` file. Copy `.env.example` and set `POSTGRES_PASSWORD`. Compose fails rather than defaulting it.
 
-`.gitattributes` is `* text=auto` (files stored LF, checked out CRLF on Windows). This causes two traps:
+### Retired Windows traps
 
-- **gofmt:** `gofmt -l` flags almost every file because of CRLF. This is not a real problem — git normalizes to LF on commit and CI sees clean files. Do not chase it. Run gofmt in the container, never against the Windows working tree, and never `gofmt -w` blindly.
-- **sqlc regen:** CI pins sqlc v1.31.1. Run it in the container with `go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1 generate`. sqlc rewrites every `internal/db/*.sql.go` with LF, so `git status` shows ~40 files modified but `git diff` shows no content hunks for the untouched ones. Find real changes with `git diff --numstat -- internal/db/` (non-zero counts changed). Restore the noise with `git checkout -- internal/db/`, keep the real files, and stage explicitly (never `git add -A`).
+`.gitattributes` is `* text=auto`. Linux checks every file out LF, so the CRLF traps are gone:
 
-Pre-existing test failures in the container (NOT regressions): every `TestCorpusExpectation` in a golden corpus — `internal/measure/*/corpus` and `internal/custody/corpus`. The cause is the CRLF golden, not the host OS. The container bind-mounts the Windows working tree, so it reads the same CRLF files a native Windows run reads. CI passes them because CI checks out fresh with LF. A corpus you just blessed with `-update` in the container passes until git rewrites its goldens with CRLF on a later checkout.
-
-`internal/auth/TestLoadOrCreateKey` (file mode) and `cmd/worker/TestExecProbeRoundTrip` (prober not in `PATH`) failed under the retired native-Windows setup. Both pass in the container. Treat a failure in either as a real regression now.
+- **gofmt** is trustworthy again. `gofmt -l` no longer flags almost every file.
+- **sqlc regen** no longer rewrites line endings. `git status` after `sqlc generate` shows only the files that really changed. The `git diff --numstat` workaround is no longer needed.
+- **Golden corpus tests** should pass. The CRLF golden was the cause, and it is gone. This covers `internal/measure/*/corpus` and `internal/custody/corpus`. Confirm it on the first `go test ./...` after you install Go. Treat a failure as a real regression.
+- `internal/auth/TestLoadOrCreateKey` and `cmd/worker/TestExecProbeRoundTrip` failed under the retired native-Windows setup. Treat a failure in either as a real regression now.
 
 ## Comments
 
