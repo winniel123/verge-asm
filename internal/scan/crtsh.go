@@ -1,13 +1,6 @@
-// This file builds the `ct` Scan (ADR-0106): the covering execution path for
-// certificate transparency, queried through crt.sh. It is worker-read like the
-// zone Scan — no port list, no vantage — but unlike every other Scan its source
-// ADMITS WITHOUT OBSERVING (ADR-0027): a completed Batch produces no observation,
-// no facet and no timeline; it produces the set of `Name`s the certificates
-// carry, each admitted on `authority: inferred` and citing the Batch. This file
-// holds the pure half — the job shape, the crt.sh URL, and the name extraction
-// and filtering that decide what a crt.sh answer admits. The impure half (the
-// throttled fetch, the retry/dead-letter, the admission write) is in
-// internal/queue/crtsh.go.
+// The `ct` Scan reads certificate transparency through crt.sh (ADR-0106).
+// Its source admits without observing: a completed Batch produces Names on
+// `authority: inferred`, and no observation, facet or timeline (ADR-0027).
 package scan
 
 import (
@@ -21,20 +14,16 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// CTKind is the scan kind this file dispatches — the exchange (certificate
-// transparency), not the instrument (ADR-0084's `dns`-not-`discovery` move,
-// ADR-0106). Kept additive so the queue and the measurement binary register it
-// independently.
+// Named for the exchange it reads, not the instrument that reads it (ADR-0084, ADR-0106).
+
 const CTKind = "ct"
 
-// CrtshSource is the source every CT admission is attributed to: crt.sh, the
-// keyless CT front door (ADR-0003), `authority: inferred`, `completeness:
-// corroborative` (CONTEXT.md `Source`). It matches the source-catalogue slug so
-// the enablement state keys line up.
+// It must equal the source-catalogue slug, or the enablement state keys stop lining up.
+
 const CrtshSource = "crtsh"
 
-// CTSeed is one name-scope Seed the CT Scan queries: the registrable domain and
-// the Seed id its admissions' Citation chain terminates at (ADR-0027).
+// A CT admission's Citation chain terminates at the name-scope Seed (ADR-0027).
+
 type CTSeed struct {
 	SeedID int64
 	Domain string
@@ -46,11 +35,10 @@ type CTJob struct {
 	Domain string
 }
 
-// BuildCTJobs fans a CT Scan out into one job per name-scope Seed. It produces no
-// jobs when no name scope is declared — an aperture over an empty scope is a
-// legible state, not an error (CONTEXT.md `Scan`). Enablement of the crtsh source
-// is gated by the dispatcher (ADR-0106), not here: this is the pure fan-out.
+// Enablement of the crtsh source is gated by the dispatcher, never here (ADR-0106).
+
 func BuildCTJobs(scanID int64, seeds []CTSeed) []CTJob {
+	// An aperture over an empty scope is a legible state, not an error (CONTEXT.md Scan).
 	if len(seeds) == 0 {
 		return nil
 	}
@@ -66,9 +54,6 @@ type ctScope struct {
 	SeedID int64  `json:"seed_id"`
 }
 
-// JobSpec renders a CTJob into the wire JobSpec the worker reads. Like the zone
-// Scan there is no prober exec — the worker itself fetches crt.sh and reads the
-// names off — so the domain travels in the job rather than a vantage and offers.
 func (j CTJob) JobSpec(batch string) (wire.JobSpec, error) {
 	raw, err := json.Marshal(ctScope{Domain: j.Domain, SeedID: j.SeedID})
 	if err != nil {
@@ -77,19 +62,12 @@ func (j CTJob) JobSpec(batch string) (wire.JobSpec, error) {
 	return wire.JobSpec{Batch: batch, Kind: CTKind, Scope: raw}, nil
 }
 
-// AttemptedScope is the by-content record of what the CT job set out to cover: the
-// domain it queried. It is the completed Batch's recorded scope on success. A
-// dead-lettered CT Batch records EmptyCTScope instead — never this — because a
-// failed fetch of an append-only, corroborative source asserts no absence
-// (ADR-0005, ADR-0027).
 func (j CTJob) AttemptedScope() ([]byte, error) {
 	return json.Marshal(ctScopeRecord{Domain: j.Domain})
 }
 
-// EmptyCTScope is what a dead-lettered CT Batch records — never the attempted
-// domain, which would read as "we covered this domain and found no certificates",
-// the false-absence a non-200 must never assert (ADR-0005, ADR-0027 §7).
 func EmptyCTScope() ([]byte, error) {
+	// A failed fetch of an append-only source asserts no absence (ADR-0005, ADR-0027 §7).
 	return json.Marshal(ctScopeRecord{})
 }
 
@@ -97,8 +75,6 @@ type ctScopeRecord struct {
 	Domain string `json:"domain,omitempty"`
 }
 
-// CTScopeFromSpec decodes a CT job's wire scope back into its domain and Seed, so
-// the worker fetches and attributes from the same values the dispatcher enqueued.
 func CTScopeFromSpec(scope []byte) (CTSeed, error) {
 	var cs ctScope
 	if err := json.Unmarshal(scope, &cs); err != nil {
@@ -107,30 +83,20 @@ func CTScopeFromSpec(scope []byte) (CTSeed, error) {
 	return CTSeed{SeedID: cs.SeedID, Domain: cs.Domain}, nil
 }
 
-// CrtshURL is the crt.sh query for a registrable domain: a wildcard identity
-// match that includes subdomains, in JSON (passive-discovery-sources.md §2.2).
-// `%25` is a URL-encoded `%`, crt.sh's SQL-LIKE wildcard, so `%.example.com`
-// matches every subdomain identity.
 func CrtshURL(domain string) string {
+	// %25 is crt.sh's SQL-LIKE wildcard, covering subdomains (passive-discovery-sources.md §2.2).
 	return "https://crt.sh/?q=%25." + url.QueryEscape(domain) + "&output=json"
 }
 
-// CrtshRow is one row of a crt.sh `output=json` answer. Only the two identity
-// fields are read: `name_value` is the newline-separated SAN list (the field you
-// actually want) and `common_name` is the subject CN. The fingerprint the
-// `certificate` facet would need is absent from the instrument (ADR-0027), which
-// is the whole reason CT observes nothing — so no other field is decoded.
+// crt.sh carries no fingerprint, so a CT answer admits a Name and observes nothing (ADR-0027).
+
 type CrtshRow struct {
 	CommonName string `json:"common_name"`
 	NameValue  string `json:"name_value"`
 }
 
-// ParseCrtshRows decodes a crt.sh `output=json` body into its rows. crt.sh
-// returns a JSON array of objects; leading/trailing whitespace is tolerated. A
-// body that is not a JSON array is an error, not an empty result — a malformed
-// 200 is not evidence of anything (ADR-0027 §7), so the caller treats a parse
-// failure as transient rather than as "no certificates".
 func ParseCrtshRows(body []byte) ([]CrtshRow, error) {
+	// A malformed 200 evidences nothing, so an unreadable body errors, never empty (ADR-0027 §7).
 	trimmed := strings.TrimSpace(string(body))
 	if trimmed == "" {
 		return nil, fmt.Errorf("scan: empty crt.sh body")
@@ -142,36 +108,18 @@ func ParseCrtshRows(body []byte) ([]CrtshRow, error) {
 	return rows, nil
 }
 
-// MaxAdmittedNames caps how many distinct Names one crt.sh response may admit
-// (#741). crt.sh is an explicitly low-trust source (ADR-0027 §7); a compromised or
-// MITM'd operator could pack millions of in-scope names into a single 64 MiB body,
-// and with no count ceiling admitCT would mint an admitted_name row for each — a
-// durable DB-bloat / mass-resolution amplification DoS against the operator's own
-// instance, since every `dns` dispatch reloads the whole admitted set. The ceiling
-// sits well above any legitimate estate's certificate footprint while bounding the
-// hostile case; a response that reaches it is truncated (the caller logs it).
+// A hostile answer could mint unbounded admitted_name rows, a durable DB-bloat DoS (#741).
+
 const MaxAdmittedNames = 100_000
 
-// AdmittedNames is the pure admission decision: the set of `Name`s a crt.sh
-// answer admits under one name-scope domain. It feeds every candidate the answer
-// carries through the shared CTAdmitter (spec §2.6) — the same filter Cert Spotter
-// feeds — which applies the two rulings already made (ADR-0060 wildcard refusal,
-// ADR-0047 scope), dedupes, and caps at MaxAdmittedNames (#741), returning a
-// deterministic sorted set. The candidates are yielded lazily (crtshCandidates),
-// so a single giant `name_value` is filtered element by element and never
-// materialises as one multi-million-element slice.
 func AdmittedNames(rows []CrtshRow, domain string) []string {
 	a := NewCTAdmitter(domain)
 	a.Add(crtshCandidates(rows))
 	return a.Names()
 }
 
-// crtshCandidates yields, lazily, every candidate Name a crt.sh answer carries:
-// each newline-separated value in a row's `name_value` (the SAN list) and the
-// row's `common_name`. It is an iter.Seq so the shared CTAdmitter walks it under
-// the count cap without a hostile multi-megabyte `name_value` ever being held
-// whole (#741, strings.SplitSeq).
 func crtshCandidates(rows []CrtshRow) iter.Seq[string] {
+	// A hostile multi-megabyte name_value is walked element by element, never held whole (#741).
 	return func(yield func(string) bool) {
 		for _, r := range rows {
 			for line := range strings.SplitSeq(r.NameValue, "\n") {
@@ -186,10 +134,8 @@ func crtshCandidates(rows []CrtshRow) iter.Seq[string] {
 	}
 }
 
-// crtshCTSource is crt.sh as a CTSource (spec §2): the keyless bulk-by-name
-// fallback. It is single-shot — one query returns the whole answer (bounded by
-// crt.sh's own 999-row cap), so it paginates nothing and its next cursor is always
-// empty.
+// crt.sh answers in one shot, capped at 999 rows by the service, so nothing paginates.
+
 type crtshCTSource struct{}
 
 func (crtshCTSource) Slug() string        { return CrtshSource }
@@ -205,27 +151,13 @@ func (crtshCTSource) DecodePage(body []byte) (iter.Seq[string], string, error) {
 	return crtshCandidates(rows), "", nil
 }
 
-// CrtshCTSource is the crt.sh bulk source, the keyless fallback selected when no
-// operator key is configured (spec §2.3).
 func CrtshCTSource() CTSource { return crtshCTSource{} }
 
-// normaliseName renders a candidate Name's key the same way the resolver will
-// when it measures the Name: resolutionwalk.CanonicalName — the ADR-0055 key,
-// ASCII-only label lowercasing with the trailing dot stripped — after trimming
-// the surrounding whitespace a crt.sh SAN value may carry. Routing through
-// CanonicalName rather than a parallel Unicode fold is what makes admitted_name.
-// name a fixpoint of the resolver's subject_key, so GetNameCitation's admission
-// hop matches for a non-ASCII-uppercase name as well as an ASCII one — the exact
-// seam #256 found the old parallel fold breaking (ADR-0107). A name admitted here
-// is a membership candidate, not yet a subject; the measurement puts it in the
-// estate (ADR-0027).
 func normaliseName(s string) string {
+	// A parallel Unicode fold here breaks the admission hop's join on subject_key (ADR-0107, #256).
 	return resolutionwalk.CanonicalName(strings.TrimSpace(s))
 }
 
-// withinScope reports whether name falls under the name-scope domain — equal to
-// it or a label-wise subdomain of it (ADR-0047). The suffix test is on a label
-// boundary so `notexample.com` is not read as under `example.com`.
 func withinScope(name, domain string) bool {
 	if domain == "" {
 		return false
