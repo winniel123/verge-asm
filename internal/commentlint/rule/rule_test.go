@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/winniel123/verge-asm/internal/commentlint/screen"
 	"github.com/winniel123/verge-asm/internal/commentlint/surface"
 )
 
@@ -41,6 +42,11 @@ func TestClassifyFollowsThePrecedenceOrder(t *testing.T) {
 		{
 			name: "a directive outranks the declaration position",
 			src:  "package p\n\n//go:build linux\n\nfunc F() {}\n",
+			want: Directive,
+		},
+		{
+			name: "a gosec waiver is a directive, not a short label",
+			src:  "package p\n\nfunc F() {\n\t// #nosec G115 (QR version 1..40)\n\t_ = 1\n}\n",
 			want: Directive,
 		},
 		{
@@ -205,6 +211,7 @@ func TestDeletableSet(t *testing.T) {
 		{"a banner carrying a citation", "package p\n\n// ===== ADR-0127 =====\nfunc F() {}\n", false},
 		{"a docstring carrying a reason", "package p\n\n// F avoids the second read.\nfunc F() {}\n", false},
 		{"body prose", "package p\n\nfunc F() {\n\t// one two three four five six seven\n\t_ = 1\n}\n", false},
+		{"a short own-line gosec waiver", "package p\n\nfunc F() {\n\t// #nosec G115 (QR 1..40)\n\t_ = 1\n}\n", false},
 	}
 
 	for _, c := range cases {
@@ -213,6 +220,29 @@ func TestDeletableSet(t *testing.T) {
 				t.Errorf("Deletable is %t, want %t", got, c.want)
 			}
 		})
+	}
+}
+
+func TestAWaiverTailIsWithheldFromTheDeletePass(t *testing.T) {
+	src := "package p\n" +
+		"\n" +
+		"// #nosec G101 -- keys are table names paired with prose\n" +
+		"// explaining each exclusion.\n" +
+		"var x = 1\n"
+	res := lex(t, src)
+	if len(res.Blocks) != 2 {
+		t.Fatalf("the source holds %d block(s), want 2: %+v", len(res.Blocks), res.Blocks)
+	}
+	tail := res.Blocks[1]
+	if !tail.WaiverTail {
+		t.Fatal("the wrapped half is not marked a waiver tail")
+	}
+	class, signal, deletable := Deletable(tail)
+	if deletable {
+		t.Errorf("the wrapped half of a waiver deletes, class %q", class)
+	}
+	if signal != screen.SignalToolMarker {
+		t.Errorf("signal is %q, want %q", signal, screen.SignalToolMarker)
 	}
 }
 
@@ -288,6 +318,21 @@ func TestLintReportsTheFlagSetByRuleID(t *testing.T) {
 			name: "a directive is never flagged",
 			src:  "package p\n\n//nolint:gosec\nfunc F() {}\n",
 			want: nil,
+		},
+		{
+			name: "a short own-line gosec waiver is never flagged",
+			src:  "package p\n\nfunc F() {\n\t// #nosec G115 (QR version 1..40)\n\t_ = 1\n}\n",
+			want: nil,
+		},
+		{
+			name: "a short trailing gosec waiver is never flagged",
+			src:  "package p\n\ntype T struct {\n\tpassword string // #nosec G101 -- dev fixture\n}\n",
+			want: nil,
+		},
+		{
+			name: "a gosec waiver hides no ratchet target beneath it",
+			src:  "package p\n\nfunc F() {\n\t// #nosec G115 (QR 1..40)\n\t// TODO: drop the shim\n\t_ = 1\n}\n",
+			want: []string{"todo-marker"},
 		},
 		{
 			name: "a trailing docstring-shaped comment reports nothing",
