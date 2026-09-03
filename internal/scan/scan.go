@@ -1,9 +1,6 @@
-// Package scan turns a Scan's configured intent into the concrete jobs the
-// queue dispatches. This ticket builds the `dns` Scan (v1 spec §3.4, ADR-0084):
-// daily, unconditional of Custody, no port list, run at every configured
-// Vantage over the name-scope Seeds, covering `resolution` and the `dns-record`
-// facet. Every offer the leaf will make is enumerated here and travels in the
-// job spec so the Batch records it by content (ADR-0025).
+// Package scan turns a Scan's configured intent into the jobs the queue dispatches.
+// Every offer a leaf will make is enumerated here and travels in the job spec, so a
+// Batch records what governed the measurement by content (ADR-0025).
 package scan
 
 import (
@@ -17,25 +14,15 @@ import (
 
 const DNSKind = "dns"
 
-// Vantage is the position a dns job resolves from. The resolver is part of the
-// Vantage's identity (ADR-0070), so it is carried on the job rather than
-// defaulted by the prober.
+// The stored class is vestigial: hot and cold derive it per batch from presented facts (#709).
+
 type Vantage struct {
 	ID       int64
 	Name     string
-	Resolver string
-	// Class is the vestigial stored `class` column (#709 keystone (b)) — kept on the
-	// struct for the dns/tls job specs that still carry it, but the hot/cold Scans NO
-	// LONGER read it for the Custody gate: they DERIVE the class per batch from the
-	// presented-address facts below (Dialled + Egress) against the declared address
-	// scopes (exposure.VerifyClass), so an `internet`-class vantage bars a
-	// non-globally-reachable address (ADR-0079) off observed facts, never a static field.
-	Class string
-	// Dialled and Egress are the vantage's persisted presented-address facts (#710/#683)
-	// — the dialled peer address and the SSH_CLIENT egress — from which hot.go/cold.go
-	// derive the class the Custody gate reads each batch.
-	Dialled string
-	Egress  string
+	Resolver string // part of the Vantage's identity, never the prober's default (ADR-0070)
+	Class    string
+	Dialled  string
+	Egress   string
 }
 
 type Job struct {
@@ -45,15 +32,10 @@ type Job struct {
 	Kind      string
 	Names     []string
 	Offers    resolutionwalk.Offers
-	resolver  string   // the Vantage's recursive resolver, set by the dispatcher
-	seeds     []string // the name-scope Seeds bounding the control-probe population
+	resolver  string
+	seeds     []string
 }
 
-// BuildDNSJobs fans a dns Scan out into one job per Vantage over the given
-// name-scope domains. It produces no jobs when there is nothing to resolve — a
-// Scan whose scope list is empty is a legible state, not an error — and none
-// when there is no Vantage to resolve from, since Exposure and even resolution
-// require a position to measure from.
 func BuildDNSJobs(scanID int64, names []string, vantages []Vantage) []Job {
 	if len(names) == 0 || len(vantages) == 0 {
 		return nil
@@ -87,14 +69,8 @@ func (j Job) JobSpec(batch string) (wire.JobSpec, error) {
 	return wire.JobSpec{Batch: batch, Kind: j.Kind, Scope: raw}, nil
 }
 
-// AttemptedScope is the by-content record of what the job set out to cover, used
-// as the completed Batch scope on success and replaced by an empty scope on a
-// dead-letter. It carries the **control-probe population** — the parents of the
-// resolved names, deduplicated and intersected with the Seed scopes — as the
-// seventh aperture input, recorded on the Batch by content so a name whose parent
-// was not probed can never be `Shadowed`, which is a silence rather than a value
-// (ADR-0066; ADR-0086).
 func (j Job) AttemptedScope() ([]byte, error) {
+	// A name whose parent went unprobed can never be Shadowed — a silence, not a value (ADR-0066).
 	return json.Marshal(scopeRecord{
 		Vantage:                j.Vantage,
 		Names:                  j.Names,
@@ -102,15 +78,8 @@ func (j Job) AttemptedScope() ([]byte, error) {
 	})
 }
 
-// seedScopes is the Seed name-scope set bounding the control-probe population.
-// Since ADR-0107 the resolution set (Names) is wider than the Seed scopes — it
-// also carries the CT-admitted names beneath the Seeds — so the dispatcher always
-// supplies the Seeds explicitly via WithSeeds, keeping the probing gate bounded at
-// the operator's apex even as the resolved population grows. The fallback to Names
-// remains only for the degenerate no-Seeds case, where Names is likewise empty (an
-// admitted name always has a covering name Seed, so a non-empty admitted set
-// implies a non-empty Seed set) and no job is built at all.
 func (j Job) seedScopes() []string {
+	// Names is wider than the Seeds since ADR-0107, so this fallback is only the no-Seeds case.
 	if len(j.seeds) > 0 {
 		return j.seeds
 	}
@@ -122,9 +91,8 @@ func (j Job) WithSeeds(seeds []string) Job {
 	return j
 }
 
-// EmptyScope is what a dead-lettered Batch records — never the attempted scope,
-// which would manufacture absences it never measured (v1 spec §4.1).
 func EmptyScope(vantage string) ([]byte, error) {
+	// An unmeasured pair must never read as a measured absence (v1 spec §4.1).
 	return json.Marshal(scopeRecord{Vantage: vantage, Names: []string{}})
 }
 
@@ -137,19 +105,13 @@ type scopeRecord struct {
 }
 
 func resolverFor(j Job) string {
-	// The resolver is carried on the Vantage and copied onto the job's spec by
-	// the dispatcher; jobs built without one fall back to the same default the
-	// migration ships (Docker's embedded DNS on the compose deployment), which the
-	// operator replaces off compose. See db/migrations/18800_measurement_vantage.sql.
+	// 127.0.0.11 is Docker's embedded DNS, the same default db/migrations/18800 ships.
 	if j.resolver != "" {
 		return j.resolver
 	}
 	return "127.0.0.11:53"
 }
 
-// WithResolver returns a copy of the job carrying the Vantage's resolver, set by
-// the dispatcher from the Vantage row so the pure builder stays free of
-// deployment detail.
 func (j Job) WithResolver(resolver string) Job {
 	j.resolver = resolver
 	return j
