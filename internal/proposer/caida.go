@@ -14,16 +14,10 @@ import (
 	"strings"
 )
 
-// CAIDA is a keyless org->prefix path for a registry that publishes no org-name
-// search of its own — AFRINIC and APNIC (ADR-0012). It is built by joining two
-// keyless datasets: CAIDA's org->opaque-id mapping resolves the searched name to
-// the registry's opaque holder ids, and the RIR's delegated-extended-stats file
-// turns those ids into the ranges delegated under them. Every range here is an
-// RIR delegation, so each Candidate carries that record kind.
-type CAIDA struct {
+type CAIDA struct { // no org-name search is published, so two keyless sets are joined (ADR-0012)
 	doer          Doer
-	slug          string // the catalogue slug (afrinic, apnic-caida)
-	rir           string // the RIR name in the delegated-stats rows (afrinic, apnic)
+	slug          string
+	rir           string // the RIR name in the delegated-stats rows, not the catalogue slug
 	caidaBase     string
 	delegatedBase string
 }
@@ -100,7 +94,7 @@ func (c *CAIDA) delegations(ctx context.Context, orgName string, ids map[string]
 		}
 		fields := strings.Split(line, "|")
 		if len(fields) < 8 {
-			continue // header, summary, or non-extended row
+			continue // a header, summary, or non-extended row carries no delegation
 		}
 		typ, start, value, opaque := fields[2], fields[3], fields[4], fields[7]
 		if !ids[opaque] {

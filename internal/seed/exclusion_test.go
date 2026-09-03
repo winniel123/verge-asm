@@ -6,10 +6,10 @@ func TestNormalizeExclusionName(t *testing.T) {
 	ok := map[string]string{
 		"api.example.com":       "api.example.com",
 		"  API.Example.COM  ":   "api.example.com",
-		"api.example.com.":      "api.example.com", // trailing dot is presentation only
-		"example.com":           "example.com",     // a subtree may be as shallow as the scope
+		"api.example.com.":      "api.example.com",
+		"example.com":           "example.com",
 		"a.b.c.d.example.co.uk": "a.b.c.d.example.co.uk",
-		"xn--80ak6aa92e.com":    "xn--80ak6aa92e.com", // an A-label is a label like any other
+		"xn--80ak6aa92e.com":    "xn--80ak6aa92e.com",
 	}
 	for in, want := range ok {
 		got, err := NormalizeExclusionName(in)
@@ -23,15 +23,15 @@ func TestNormalizeExclusionName(t *testing.T) {
 	}
 
 	bad := []string{
-		"",              // empty
-		"localhost",     // a single label is not a fully-qualified name
-		"*.example.com", // a wildcard denotes a set of names, not a name
-		"exam ple.com",  // space
+		"",
+		"localhost",
+		"*.example.com",
+		"exam ple.com",
 		"http://example.com/",
 		"example.com/path",
-		"-bad.example.com", // a label may not start with a hyphen
-		"bad-.example.com", // …nor end with one
-		"foo..example.com", // an empty label
+		"-bad.example.com",
+		"bad-.example.com",
+		"foo..example.com",
 	}
 	for _, in := range bad {
 		if got, err := NormalizeExclusionName(in); err == nil {
@@ -43,8 +43,8 @@ func TestNormalizeExclusionName(t *testing.T) {
 func TestNormalizeExclusionCIDR(t *testing.T) {
 	ok := map[string]string{
 		"203.0.113.0/24":  "203.0.113.0/24",
-		"10.0.0.5/24":     "10.0.0.0/24",    // host bits are cleared
-		"203.0.113.5":     "203.0.113.5/32", // a bare address carves a single host
+		"10.0.0.5/24":     "10.0.0.0/24",
+		"203.0.113.5":     "203.0.113.5/32",
 		"2001:db8::1":     "2001:db8::1/128",
 		"2001:db8::/48":   "2001:db8::/48",
 		"  10.1.2.3/32  ": "10.1.2.3/32",

@@ -11,7 +11,7 @@ func TestNormalizeDomain(t *testing.T) {
 		"example.com":     "example.com",
 		"  Example.COM  ": "example.com",
 		"example.com.":    "example.com",
-		"example.co.uk":   "example.co.uk", // eTLD+1 over a multi-label suffix
+		"example.co.uk":   "example.co.uk",
 	}
 	for in, want := range ok {
 		got, err := NormalizeDomain(in)
@@ -26,24 +26,22 @@ func TestNormalizeDomain(t *testing.T) {
 
 	bad := []string{
 		"",
-		"www.example.com", // subdomain, not registrable
-		"co.uk",           // bare public suffix
-		"example",         // no suffix
-		"*.example.com",   // wildcard
+		"www.example.com",
+		"co.uk",
+		"example",
+		"*.example.com",
 		"http://example.com",
 		"example.com/path",
-		// Query-injection characters must not survive the validator (#774): the
-		// normalized domain is interpolated into the crt.sh query URL, and
-		// publicsuffix's wildcard rule would otherwise pass these through.
-		"example.com&output=text", // injects a competing query param
-		"example.com#frag",        // fragment drops &output=json
-		"a;b.com",                 // statement/param separator
-		"example.com'",            // quote
-		"example.com%2e",          // percent-encoding
-		"exa mple.com",            // internal whitespace (trailing is trimmed)
-		"exa\tmple.com",           // internal tab
-		"exa\nmple.com",           // internal newline
-		"example_com",             // underscore (not LDH)
+		// The normalized domain reaches the crt.sh query URL unencoded (#774).
+		"example.com&output=text",
+		"example.com#frag",
+		"a;b.com",
+		"example.com'",
+		"example.com%2e",
+		"exa mple.com",
+		"exa\tmple.com",
+		"exa\nmple.com",
+		"example_com",
 	}
 	for _, in := range bad {
 		if got, err := NormalizeDomain(in); err == nil {
@@ -74,8 +72,8 @@ func TestAddressCountAndCap(t *testing.T) {
 		count int64
 	}{
 		{"203.0.113.0/24", 256},
-		{"10.0.0.0/22", 1024},    // the IPv4 boundary case
-		{"2001:db8::/118", 1024}, // the equivalently-sized IPv6 block
+		{"10.0.0.0/22", 1024},
+		{"2001:db8::/118", 1024},
 		{"2001:db8::/128", 1},
 	}
 	for _, c := range cases {
@@ -85,8 +83,6 @@ func TestAddressCountAndCap(t *testing.T) {
 		}
 	}
 
-	// The cap counts addresses regardless of family: /22 and /118 both sit
-	// exactly on a 1024 cap, while one bit larger blows it.
 	within := []string{"10.0.0.0/22", "2001:db8::/118", "203.0.113.0/24"}
 	for _, s := range within {
 		if !WithinCap(netip.MustParsePrefix(s), DefaultAddressCap) {
@@ -107,24 +103,16 @@ func TestLargestPrefixLen(t *testing.T) {
 		familyBits int
 		want       int
 	}{
-		// A power-of-two cap admits its exact prefix: 1024 = 2^10 is a /22 IPv4,
-		// a /118 IPv6 (both 1024 addresses). This is the shipped default.
 		{1024, 32, 22},
 		{1024, 128, 118},
-		// A raised cap widens the admitted prefix by one bit per doubling.
-		{262144, 32, 14}, // 2^18 -> /14
+		{262144, 32, 14},
 		{262144, 128, 110},
-		// A non-power-of-two cap names the largest FULL prefix that fits, since a
-		// prefix is always a power of two: 1000 admits a /23's 512, not a /22's 1024.
 		{1000, 32, 23},
 		{1023, 32, 23},
-		// A cap of one admits only the host route (a single address).
 		{1, 32, 32},
 		{1, 128, 128},
-		// A sub-one cap admits no scope; it clamps to the host route rather than an
-		// invalid prefix. An oversized cap clamps to /0, never a negative prefix.
 		{0, 32, 32},
-		{1 << 33, 32, 0}, // more addresses than IPv4 holds -> /0
+		{1 << 33, 32, 0},
 	}
 	for _, c := range cases {
 		if got := LargestPrefixLen(c.cap, c.familyBits); got != c.want {
@@ -134,7 +122,6 @@ func TestLargestPrefixLen(t *testing.T) {
 }
 
 func TestEnumerateAddresses(t *testing.T) {
-	// A /30 enumerates all four addresses in ascending order.
 	got := slices.Collect(EnumerateAddresses(netip.MustParsePrefix("192.0.2.8/30")))
 	want := []string{"192.0.2.8", "192.0.2.9", "192.0.2.10", "192.0.2.11"}
 	if len(got) != len(want) {
@@ -146,34 +133,28 @@ func TestEnumerateAddresses(t *testing.T) {
 		}
 	}
 
-	// A /32 enumerates exactly its one address.
 	if g := slices.Collect(EnumerateAddresses(netip.MustParsePrefix("203.0.113.5/32"))); len(g) != 1 || g[0].String() != "203.0.113.5" {
 		t.Errorf("a /32 enumerates its one address, got %v", g)
 	}
 
-	// Network and broadcast are NOT exempted (ADR-0047): a /31 yields both ends.
+	// Network and broadcast are never exempted (ADR-0047).
 	if g := slices.Collect(EnumerateAddresses(netip.MustParsePrefix("198.51.100.0/31"))); len(g) != 2 {
 		t.Errorf("a /31 enumerates both addresses, got %v", g)
 	}
 
-	// The prefix is masked first, so host bits in the input do not move the block.
 	if g := slices.Collect(EnumerateAddresses(netip.MustParsePrefix("10.0.0.5/30"))); len(g) != 4 || g[0].String() != "10.0.0.4" {
 		t.Errorf("a host-bits-set prefix must be masked before enumeration, got %v", g)
 	}
 
-	// Enumeration is family-agnostic (ADR-0049): a /126 yields four IPv6 addresses.
+	// Enumeration is family-agnostic (ADR-0049).
 	if g := slices.Collect(EnumerateAddresses(netip.MustParsePrefix("2001:db8::/126"))); len(g) != 4 || g[0].String() != "2001:db8::" {
 		t.Errorf("a /126 enumerates 4 IPv6 addresses, got %v", g)
 	}
 }
 
-// EnumerateAddresses streams: it never materializes the whole scope, so a
-// consumer that breaks early stops the walk. This ranges a scope of 2^31
-// addresses (0.0.0.0/1) and breaks after five — a test that CANNOT pass on a
-// materializing implementation, which would try to build billions of addresses
-// first. It is the memory-is-never-a-ceiling-bound proof (#887, ADR-0127).
 func TestEnumerateAddressesStreamsLazily(t *testing.T) {
 	var got []string
+	// No materializing implementation passes this: 2^31 addresses, broken early (ADR-0127).
 	for a := range EnumerateAddresses(netip.MustParsePrefix("0.0.0.0/1")) {
 		got = append(got, a.String())
 		if len(got) == 5 {
@@ -201,28 +182,20 @@ func BenchmarkEnumerateAddressesLargeScope(b *testing.B) {
 }
 
 func TestEnumCapHint(t *testing.T) {
-	// A within-cap scope hints its exact size.
 	if got := EnumCapHint(netip.MustParsePrefix("203.0.113.0/24")); got != 256 {
 		t.Errorf("EnumCapHint(/24) = %d, want 256", got)
 	}
 	if got := EnumCapHint(netip.MustParsePrefix("203.0.113.5/32")); got != 1 {
 		t.Errorf("EnumCapHint(/32) = %d, want 1", got)
 	}
-	// An oversized scope whose count still fits an int is bounded to the ceiling,
-	// never allocated whole; the walk (EnumerateAddresses) stays unbounded and only
-	// the pre-size hint is capped.
 	if got := EnumCapHint(netip.MustParsePrefix("10.0.0.0/8")); got != maxEnumCapHint {
 		t.Errorf("EnumCapHint(/8) = %d, want the %d ceiling", got, maxEnumCapHint)
 	}
-	// A count that does not fit an int (2^128) yields hint 0 — the buffer simply
-	// grows from empty, never a pre-allocation from an unbounded number.
 	if got := EnumCapHint(netip.MustParsePrefix("::/0")); got != 0 {
 		t.Errorf("EnumCapHint(::/0) = %d, want 0 (count exceeds int)", got)
 	}
 }
 
-// A scope at the very top of the address space must terminate: Next overflows to
-// the invalid zero address, and the walk stops rather than looping.
 func TestEnumerateAddressesTerminatesAtTopOfSpace(t *testing.T) {
 	got := slices.Collect(EnumerateAddresses(netip.MustParsePrefix("255.255.255.254/31")))
 	if len(got) != 2 || got[0].String() != "255.255.255.254" || got[1].String() != "255.255.255.255" {

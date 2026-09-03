@@ -11,20 +11,10 @@ import (
 	"golang.org/x/crypto/hkdf"
 )
 
-// totpAEADLabel domain-separates the key HKDF derives for the TOTP-secret AEAD from
-// the raw session signing key. The session key signs cookies; a distinct sub-key
-// encrypts the stored TOTP secret, so the same file-backed material is never reused
-// for two unrelated cryptographic purposes (#337, ADR-0053).
-const totpAEADLabel = "totp-secret-aead"
+const totpAEADLabel = "totp-secret-aead" // no key is reused for two purposes (#337, ADR-0053)
 
-// DeriveTOTPKey derives the 256-bit XChaCha20-Poly1305 key that encrypts TOTP
-// secrets at rest, via HKDF-SHA256 over the file-backed session key with a
-// domain-separation label (#337). It never reads or writes Postgres: the input is
-// the same web-only volume key the session path holds, so a database dump discloses
-// neither the session key nor this derivative (v1 spec §4.3, ADR-0053). The result
-// is deterministic for a given session key, so a restart re-derives the identical
-// sub-key and previously-written secrets still decrypt.
 func DeriveTOTPKey(sessionKey []byte) ([]byte, error) {
+	// The nil salt keeps this deterministic, so a restart still decrypts secrets written earlier.
 	out := make([]byte, chacha20poly1305.KeySize)
 	r := hkdf.New(sha256.New, sessionKey, nil, []byte(totpAEADLabel))
 	if _, err := io.ReadFull(r, out); err != nil {
@@ -33,11 +23,8 @@ func DeriveTOTPKey(sessionKey []byte) ([]byte, error) {
 	return out, nil
 }
 
-// EncryptTOTPSecret seals a cleartext base32 TOTP secret under key, returning the
-// base64 of a fresh 24-byte random nonce prepended to the XChaCha20-Poly1305
-// ciphertext — the form stored in the account.totp_secret TEXT column (#337). An
-// empty secret encrypts to empty, so a not-yet-enrolled account stores no ciphertext.
 func EncryptTOTPSecret(key []byte, secret string) (string, error) {
+	// A not-yet-enrolled account stores no ciphertext, so an empty secret stays empty (#337).
 	if secret == "" {
 		return "", nil
 	}
@@ -53,18 +40,11 @@ func EncryptTOTPSecret(key []byte, secret string) (string, error) {
 	return base64.StdEncoding.EncodeToString(sealed), nil
 }
 
-// DecryptTOTPSecret reverses EncryptTOTPSecret, recovering the cleartext base32
-// secret from the stored base64(nonce||ciphertext) (#337). An empty stored value
-// yields an empty secret. Every malformed, wrong-key, or tampered input returns an
-// error rather than a partial result. A correctly-migrated store holds only valid
-// ciphertext, so callers MUST treat a decryption error as a hard fault — fail closed
-// and loudly — never as an ordinary verification miss. A legacy pre-#337 cleartext
-// row is exactly such a fault: it is surfaced as a server error, not silently
-// tolerated or masked as a wrong code.
 func DecryptTOTPSecret(key []byte, stored string) (string, error) {
 	if stored == "" {
 		return "", nil
 	}
+	// A caller must fail closed on any error here; a legacy cleartext row is a fault (#337).
 	raw, err := base64.StdEncoding.DecodeString(stored)
 	if err != nil {
 		return "", fmt.Errorf("auth: decode totp secret: %w", err)

@@ -7,9 +7,6 @@ import (
 	"time"
 )
 
-// Sign/Verify round-trips an arbitrary payload under the key, and a tampered payload,
-// a tampered tag, or the wrong key all collapse to ErrInvalidSession (the OIDC login
-// transaction rides this signer).
 func TestSignVerifyRoundTrip(t *testing.T) {
 	key := []byte("0123456789abcdef0123456789abcdef")
 	payload := []byte(`{"slug":"okta","state":"abc","nonce":"xyz"}`)
@@ -23,26 +20,20 @@ func TestSignVerifyRoundTrip(t *testing.T) {
 		t.Errorf("round-trip payload = %q, want %q", got, payload)
 	}
 
-	// A tampered payload half no longer matches the tag.
 	if _, err := Verify(key, "sso-tx", "tampered."+tok[strings_IndexByte(tok, '.')+1:]); err == nil {
 		t.Errorf("Verify accepted a tampered payload")
 	}
-	// The wrong key rejects a validly-formed token.
 	if _, err := Verify([]byte("wrongwrongwrongwrongwrongwrongwr"), "sso-tx", tok); err == nil {
 		t.Errorf("Verify accepted a token under the wrong key")
 	}
-	// The wrong domain rejects a validly-signed token — the type tag keeps one signed
-	// value from verifying as another under the same key.
 	if _, err := Verify(key, "other", tok); err == nil {
 		t.Errorf("Verify accepted a token under the wrong domain")
 	}
-	// A token with no separator is malformed.
 	if _, err := Verify(key, "sso-tx", "no-dot-here"); err == nil {
 		t.Errorf("Verify accepted a malformed token")
 	}
 }
 
-// strings_IndexByte avoids importing strings just for the tamper case above.
 func strings_IndexByte(s string, b byte) int {
 	for i := 0; i < len(s); i++ {
 		if s[i] == b {
@@ -69,7 +60,7 @@ func TestPasswordRoundTrip(t *testing.T) {
 }
 
 func TestLoadOrCreateKey(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "state") // nonexistent subdir: must be created
+	dir := filepath.Join(t.TempDir(), "state")
 
 	key, err := LoadOrCreateKey(dir)
 	if err != nil {
@@ -146,7 +137,6 @@ func TestSessionRejections(t *testing.T) {
 		}
 	})
 	t.Run("wrong kind", func(t *testing.T) {
-		// A password-verified pending cookie must not satisfy a full-session check.
 		pending, _ := SignSession(key, Session{AccountID: 1, Kind: KindPending, ExpiresAt: now.Add(time.Hour)})
 		if _, err := VerifySession(key, pending, KindSession, now); err != ErrInvalidSession {
 			t.Fatalf("pending cookie accepted as a session: err = %v", err)
@@ -188,8 +178,7 @@ func TestTOTP(t *testing.T) {
 }
 
 func TestTOTPKnownVector(t *testing.T) {
-	// RFC 6238 SHA-1 test vector: secret "12345678901234567890" (ASCII) at
-	// T=59s yields 94287082 -> 6-digit 287082.
+	// RFC 6238 §5 SHA-1 vector: T=59s yields 94287082, truncated to 287082.
 	secret := b32.EncodeToString([]byte("12345678901234567890"))
 	code, err := TOTPCode(secret, time.Unix(59, 0))
 	if err != nil {
