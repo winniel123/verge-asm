@@ -13,10 +13,7 @@ import (
 	co "github.com/winniel123/verge-asm/internal/measure/connectoutcome"
 )
 
-// extServerName is the server_name extension's type code (RFC 6066 §3). Its ABSENCE
-// from the ClientHello is what makes the edge answer with its DEFAULT certificate,
-// which is the whole measurement.
-const extServerName uint16 = 0
+const extServerName uint16 = 0 // the server_name extension's type code (RFC 6066 §3)
 
 type recordingHandshaker struct {
 	serverNames []string
@@ -27,10 +24,6 @@ func (h *recordingHandshaker) Handshake(_ context.Context, _ netip.AddrPort, ser
 	return co.HandshakeResult{Outcome: co.NoTLS}
 }
 
-// TestNetHandshakerSendsNoServerName pins the one handshake argument this leaf
-// controls: the production path always hands connectoutcome's dial an EMPTY server
-// name. An accidental name here would measure a tenant's certificate rather than the
-// edge's default one, and the fan-out reduction would count the wrong SAN set.
 func TestNetHandshakerSendsNoServerName(t *testing.T) {
 	rec := &recordingHandshaker{}
 	got := NetHandshaker{inner: rec}.Handshake(context.Background(), netip.MustParseAddrPort("198.51.100.7:443"))
@@ -46,18 +39,15 @@ func TestNetHandshakerSendsNoServerName(t *testing.T) {
 	}
 }
 
-// TestClientHelloCarriesNoSNIExtension is the byte-level proof behind the leaf's
-// no-SNI claim: crypto/tls handed an empty ServerName emits a ClientHello with no
-// server_name extension AT ALL — not an empty one. The named control proves the parser
-// finds the extension when it is really there, so the empty case is a real absence and
-// not a broken assertion.
 func TestClientHelloCarriesNoSNIExtension(t *testing.T) {
+	// crypto/tls omits server_name entirely for an empty name, never sending an empty one.
 	t.Run("no server name emits no extension", func(t *testing.T) {
 		exts := clientHelloExtensions(t, captureClientHello(t, NoServerName))
 		if hasExtension(exts, extServerName) {
 			t.Errorf("ClientHello extensions = %v, want no server_name (0x%04x)", exts, extServerName)
 		}
 	})
+	// The named control proves the parser finds the extension, so the empty case is a real absence.
 	t.Run("a server name emits the extension", func(t *testing.T) {
 		exts := clientHelloExtensions(t, captureClientHello(t, "edge.example.com"))
 		if !hasExtension(exts, extServerName) {
@@ -75,12 +65,9 @@ func hasExtension(exts []uint16, want uint16) bool {
 	return false
 }
 
-// captureClientHello drives one crypto/tls client handshake over an in-memory pipe and
-// returns the ClientHello handshake message it wrote. The peer never answers, so the
-// handshake fails after the first flight — which is all this test reads. No socket is
-// opened, so the egress guard is not in play here.
 func captureClientHello(t *testing.T, serverName string) []byte {
 	t.Helper()
+	// net.Pipe opens no socket, so the egress guard is not in play here.
 	clientConn, serverConn := net.Pipe()
 
 	done := make(chan struct{})
@@ -93,9 +80,7 @@ func captureClientHello(t *testing.T, serverName string) []byte {
 		cfg := &tls.Config{ServerName: serverName, InsecureSkipVerify: true}
 		_ = tls.Client(clientConn, cfg).Handshake()
 	}()
-	// Defers run last-in-first-out, so the close must be REGISTERED after the wait to
-	// RUN before it. The client blocks reading a reply this test never sends; closing
-	// the pipe first is what unblocks it, and waiting first would deadlock.
+	// Defers run LIFO, so the close must register after the wait or this deadlocks.
 	defer func() { <-done }()
 	defer func() { _ = serverConn.Close() }()
 
@@ -103,8 +88,7 @@ func captureClientHello(t *testing.T, serverName string) []byte {
 		t.Fatalf("set read deadline: %v", err)
 	}
 
-	// One TLS record: content type (1), legacy version (2), length (2), then the
-	// handshake message.
+	// A TLS record header: content type (1), legacy version (2), length (2) — RFC 8446 §5.1.
 	header := make([]byte, 5)
 	if _, err := io.ReadFull(serverConn, header); err != nil {
 		t.Fatalf("read record header: %v", err)
@@ -119,22 +103,20 @@ func captureClientHello(t *testing.T, serverName string) []byte {
 	if len(record) < 4 || record[0] != 0x01 {
 		t.Fatalf("handshake message type = 0x%02x, want 0x01 (ClientHello)", record[0])
 	}
-	// Skip the handshake message header: type (1) and a 24-bit length (3).
+	// Skips the handshake header: type (1) and a 24-bit length (3) — RFC 8446 §4.
 	return record[4:]
 }
 
-// clientHelloExtensions parses a ClientHello body down to its extension type codes. It
-// walks the fixed prefix — legacy version, random, session id, cipher suites,
-// compression methods — then reads the extension list (RFC 8446 §4.1.2).
 func clientHelloExtensions(t *testing.T, hello []byte) []uint16 {
 	t.Helper()
+	// The ClientHello prefix and its extension list are fixed by RFC 8446 §4.1.2.
 	r := &byteReader{t: t, b: hello}
-	r.skip(2)           // legacy_version
-	r.skip(32)          // random
-	r.skipVector(1)     // legacy_session_id
-	r.skipVector(2)     // cipher_suites
-	r.skipVector(1)     // legacy_compression_methods
-	body := r.vector(2) // extensions
+	r.skip(2)
+	r.skip(32)
+	r.skipVector(1)
+	r.skipVector(2)
+	r.skipVector(1)
+	body := r.vector(2)
 
 	var types []uint16
 	ext := &byteReader{t: t, b: body}
@@ -145,8 +127,6 @@ func clientHelloExtensions(t *testing.T, hello []byte) []uint16 {
 	return types
 }
 
-// byteReader walks a ClientHello, failing the test on a short read rather than
-// panicking, so a parse bug reads as a test failure and never as a false absence.
 type byteReader struct {
 	t *testing.T
 	b []byte
@@ -154,6 +134,7 @@ type byteReader struct {
 
 func (r *byteReader) take(n int) []byte {
 	r.t.Helper()
+	// A short read fails the test, so a parse bug never reads as a false absence.
 	if len(r.b) < n {
 		r.t.Fatalf("ClientHello truncated: want %d bytes, have %d", n, len(r.b))
 	}
