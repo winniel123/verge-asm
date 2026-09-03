@@ -2,10 +2,8 @@ package scan
 
 import "testing"
 
-// EvaluateCTReliability turns a source's rolling-window aggregate into pass/fail per
-// limb, marks the keyless fallback exempt, and flags a below-bar primary degraded
-// (spec §3, #879).
 func TestEvaluateCTReliability(t *testing.T) {
+	// crt.sh is the keyless fallback, so it is exempt from every limb (ct-source-replacement.md §3).
 	cases := []struct {
 		name   string
 		source string

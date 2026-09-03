@@ -53,20 +53,14 @@ func TestJobSpecRecordsOffersByContent(t *testing.T) {
 	if scope.Resolver != "10.0.0.1:53" {
 		t.Errorf("resolver = %q, want the vantage's 10.0.0.1:53", scope.Resolver)
 	}
-	// The full offer set travels in the spec, not a library default.
 	want := resolutionwalk.DefaultOffers()
 	if len(scope.Offers.Qtypes) != len(want.Qtypes) || scope.Offers.EDNS.UDPBufSize != 1232 {
 		t.Errorf("offers not recorded by content: %+v", scope.Offers)
 	}
 }
 
-// Wave-1 (ADR-0107): the resolution set (Names) is wider than the Seed scopes
-// (seeds) — it also carries the CT-admitted names beneath the Seeds. The recorded
-// control-probe population must then be the parents of *all* resolved names,
-// bounded by the Seeds: a discovered name's parent inside a Seed is probed, while
-// the Seed apex's own parent (a TLD) stays out of reach by the probing gate. This
-// is what keeps the aperture honest and recorded by content when Names ⊋ seeds.
 func TestAttemptedScopeControlPopulationWidensWithAdmittedNames(t *testing.T) {
+	// The Seed apex's parent is a TLD outside every Seed, so the probing gate drops it (ADR-0107).
 	j := BuildDNSJobs(1,
 		[]string{"example.com", "vpn.example.com", "a.b.example.com"},
 		[]Vantage{{ID: 1, Name: "local", Resolver: "10.0.0.1:53"}},
@@ -80,9 +74,6 @@ func TestAttemptedScopeControlPopulationWidensWithAdmittedNames(t *testing.T) {
 	if err := json.Unmarshal(raw, &rec); err != nil {
 		t.Fatal(err)
 	}
-	// Parents inside the Seed: example.com (parent of vpn.example.com) and
-	// b.example.com (parent of a.b.example.com). The parent of the Seed apex
-	// example.com is `com`, a TLD outside every Seed scope, so it is dropped.
 	want := map[string]bool{"example.com": true, "b.example.com": true}
 	if len(rec.ControlProbePopulation) != len(want) {
 		t.Fatalf("control-probe population = %v, want %v", rec.ControlProbePopulation, want)
@@ -92,7 +83,6 @@ func TestAttemptedScopeControlPopulationWidensWithAdmittedNames(t *testing.T) {
 			t.Errorf("control-probe population has %q, which is not a parent inside the Seed", p)
 		}
 	}
-	// The full resolution set is recorded, admitted names included.
 	if len(rec.Names) != 3 {
 		t.Errorf("recorded names = %v, want all three resolved names", rec.Names)
 	}

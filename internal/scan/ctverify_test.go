@@ -17,10 +17,8 @@ import (
 	"golang.org/x/crypto/cryptobyte"
 )
 
-// refMTH is the RFC 6962 §2.1 Merkle Tree Hash of a list of leaf hashes, computed by the
-// straight recursive definition. It is the trusted reference the tile/proof code is checked
-// against: refMTH computes the root a different way than rootFromInclusionProof reassembles it.
 func refMTH(leaves [][]byte) []byte {
+	// The straight recursive definition is an independent check on the proof code (RFC 6962 §2.1).
 	if len(leaves) == 0 {
 		h := sha256.Sum256(nil)
 		return h[:]
@@ -32,9 +30,6 @@ func refMTH(leaves [][]byte) []byte {
 	return nodeHash(refMTH(leaves[:k]), refMTH(leaves[k:]))
 }
 
-// refPath is the RFC 6962 §2.1.1 audit path for the leaf at index m in a tree of the given
-// leaves, computed by the straight recursive definition — the reference the parsed audit path
-// is checked against.
 func refPath(m int, leaves [][]byte) [][]byte {
 	if len(leaves) <= 1 {
 		return nil
@@ -62,8 +57,7 @@ func leafHashOf(b []byte) []byte {
 }
 
 func TestVerifyInclusionAgainstReferenceTree(t *testing.T) {
-	// A tree of 13 leaves exercises every right-border shape (13 = 1101, so the border has
-	// several set bits). Verify every leaf at every tree size up to 13.
+	// 13 is 1101, so a tree of 13 leaves exercises every right-border shape.
 	all := make([][]byte, 13)
 	for i := range all {
 		all[i] = leafHashOf([]byte{byte(i), 0xAB})
@@ -76,13 +70,11 @@ func TestVerifyInclusionAgainstReferenceTree(t *testing.T) {
 			if !VerifyInclusion(leaves[idx], int64(idx), int64(size), path, root) {
 				t.Fatalf("size=%d idx=%d: valid proof rejected", size, idx)
 			}
-			// A tampered root must not verify.
 			bad := append([]byte(nil), root...)
 			bad[0] ^= 0xFF
 			if VerifyInclusion(leaves[idx], int64(idx), int64(size), path, bad) {
 				t.Fatalf("size=%d idx=%d: tampered root accepted", size, idx)
 			}
-			// A tampered leaf hash must not verify against the true root.
 			badLeaf := append([]byte(nil), leaves[idx]...)
 			badLeaf[0] ^= 0xFF
 			if VerifyInclusion(badLeaf, int64(idx), int64(size), path, root) {
@@ -96,7 +88,6 @@ func TestVerifyInclusionRejectsWrongLengthPath(t *testing.T) {
 	leaves := [][]byte{leafHashOf([]byte("a")), leafHashOf([]byte("b")), leafHashOf([]byte("c"))}
 	root := refMTH(leaves)
 	good := refPath(1, leaves)
-	// Too short and too long are both rejected — the decomposition fixes the exact length.
 	if VerifyInclusion(leaves[1], 1, 3, good[:len(good)-1], root) {
 		t.Fatal("short path accepted")
 	}
@@ -108,18 +99,12 @@ func TestVerifyInclusionRejectsWrongLengthPath(t *testing.T) {
 	}
 }
 
-// TestPrecertTBSRemovesSCTList builds two otherwise-identical certificates — one WITH an
-// embedded SCT-list extension, one WITHOUT — and asserts PrecertTBS on the first yields the
-// exact TBSCertificate bytes of the second. This validates the DER surgery precisely: the only
-// difference between the two certs is the one extension PrecertTBS must drop.
 func TestPrecertTBSRemovesSCTList(t *testing.T) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// A fixed template so both certs share every field but the SCT extension. Include a
-	// second extension (BasicConstraints) so both certs carry an extensions block; without
-	// one, removing the sole extension would leave an empty block the twin never had.
+	// Without a second extension, dropping the sole one leaves an empty block the twin never had.
 	base := &x509.Certificate{
 		SerialNumber:          big.NewInt(0x0102030405),
 		Subject:               pkix.Name{CommonName: "verify.example"},
@@ -132,7 +117,7 @@ func TestPrecertTBSRemovesSCTList(t *testing.T) {
 	withSCT := *base
 	withSCT.ExtraExtensions = []pkix.Extension{{
 		Id:    oidSCTList,
-		Value: []byte{0x04, 0x03, 0x01, 0x02, 0x03}, // any bytes; PrecertTBS drops the whole extension
+		Value: []byte{0x04, 0x03, 0x01, 0x02, 0x03},
 	}}
 
 	derWith, err := x509.CreateCertificate(rand.Reader, &withSCT, &withSCT, &key.PublicKey, key)
@@ -155,7 +140,6 @@ func TestPrecertTBSRemovesSCTList(t *testing.T) {
 	if !bytesEqual(got, certWithout.RawTBSCertificate) {
 		t.Fatalf("reconstructed precert TBS (%d bytes) does not match the SCT-free twin (%d bytes)", len(got), len(certWithout.RawTBSCertificate))
 	}
-	// And the reconstruction must still be a parseable TBSCertificate with the extension gone.
 	if hasSCTListExtension(t, got) {
 		t.Fatal("reconstructed TBS still carries the SCT-list extension")
 	}
@@ -163,7 +147,7 @@ func TestPrecertTBSRemovesSCTList(t *testing.T) {
 
 func hasSCTListExtension(t *testing.T, tbs []byte) bool {
 	t.Helper()
-	// Wrap the TBS back into a minimal cert is heavy; instead scan for the SCT OID DER.
+	// Rewrapping the TBS into a minimal cert is heavy, so this scans for the OID DER instead.
 	oidDER, err := asn1.Marshal(oidSCTList)
 	if err != nil {
 		t.Fatal(err)
@@ -182,12 +166,12 @@ func indexOf(haystack, needle []byte) int {
 
 func buildSCT(logID [32]byte, timestamp uint64, extensions []byte) []byte {
 	var b cryptobyte.Builder
-	b.AddUint8(0) // v1
+	b.AddUint8(0)
 	b.AddBytes(logID[:])
 	b.AddUint64(timestamp)
 	b.AddUint16LengthPrefixed(func(c *cryptobyte.Builder) { c.AddBytes(extensions) })
-	b.AddUint8(4) // hash algorithm (sha256)
-	b.AddUint8(3) // signature algorithm (ecdsa)
+	b.AddUint8(4)
+	b.AddUint8(3)
 	b.AddUint16LengthPrefixed(func(c *cryptobyte.Builder) { c.AddBytes([]byte{0xDE, 0xAD}) })
 	return b.BytesOrPanic()
 }
@@ -217,10 +201,10 @@ func TestParseSCTRoundTrip(t *testing.T) {
 }
 
 func TestSCTLeafIndex(t *testing.T) {
-	// A static-ct-api leaf_index extension: type 0, opaque16 data of 5 big-endian bytes.
+	// A static-ct-api leaf_index extension is type 0 over an opaque16 of five big-endian bytes.
 	idx := int64(0x0102030405)
 	var ext cryptobyte.Builder
-	ext.AddUint8(0) // leaf_index type
+	ext.AddUint8(0)
 	ext.AddUint16LengthPrefixed(func(c *cryptobyte.Builder) {
 		var five [5]byte
 		v := uint64(idx)
@@ -281,7 +265,6 @@ func TestEmbeddedSCTs(t *testing.T) {
 	if !bytesEqual(got[0], sct) {
 		t.Fatalf("extracted SCT does not match the embedded one")
 	}
-	// A cert with no SCT-list extension yields nothing, cleanly.
 	plain := &x509.Certificate{SerialNumber: big.NewInt(10), Subject: pkix.Name{CommonName: "plain"}, NotBefore: time.Now(), NotAfter: time.Now().Add(time.Hour)}
 	plainDER, err := x509.CreateCertificate(rand.Reader, plain, plain, &key.PublicKey, key)
 	if err != nil {
@@ -294,20 +277,20 @@ func TestEmbeddedSCTs(t *testing.T) {
 }
 
 func TestLeafHashX509IsLeafPrefixed(t *testing.T) {
-	leafDER := []byte{0x30, 0x03, 0x02, 0x01, 0x07} // any bytes; the hash does not parse them
+	leafDER := []byte{0x30, 0x03, 0x02, 0x01, 0x07}
 	ts := uint64(1700000000000)
 	got := LeafHashX509(leafDER, nil, ts)
 
-	// Rebuild the MerkleTreeLeaf independently and hash it, to pin the byte layout.
+	// A MerkleTreeLeaf is version, leaf_type, timestamp, entry_type, opaque24 leaf (RFC 6962 §3.4).
 	want := make([]byte, 0, 32)
 	tsb := make([]byte, 8)
 	binary.BigEndian.PutUint64(tsb, ts)
-	mtl := []byte{0, 0} // version v1, leaf_type timestamped_entry
+	mtl := []byte{0, 0}
 	mtl = append(mtl, tsb...)
-	mtl = append(mtl, 0, 0)                                                              // entry_type x509_entry
-	mtl = append(mtl, byte(len(leafDER)>>16), byte(len(leafDER)>>8), byte(len(leafDER))) // opaque24 length
+	mtl = append(mtl, 0, 0)
+	mtl = append(mtl, byte(len(leafDER)>>16), byte(len(leafDER)>>8), byte(len(leafDER)))
 	mtl = append(mtl, leafDER...)
-	mtl = append(mtl, 0, 0) // empty extensions
+	mtl = append(mtl, 0, 0)
 	h := sha256.New()
 	h.Write([]byte{0x00})
 	h.Write(mtl)
@@ -331,8 +314,6 @@ func TestHashTilePathAndLeafInTile(t *testing.T) {
 	if m, present := LeafHashInTile(tile[1], 2, tile); !present || m {
 		t.Fatalf("slot 2 vs wrong leaf = %v, %v; want present, no-match", m, present)
 	}
-	// A slot within this tile's range but past the leaves it holds (a head tile not yet grown
-	// to the SCT's index): present is false, so the caller treats it as not-yet-inclusion.
 	if _, present := LeafHashInTile(tile[0], 5, tile); present {
 		t.Fatal("slot beyond the tile's leaves reported present")
 	}
