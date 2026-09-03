@@ -7,11 +7,6 @@ import (
 	"testing"
 )
 
-// The Cert Spotter fetcher carries the operator's API token as a Bearer credential
-// (spec §2.4), and the keyless crt.sh fetcher sends none. The token rides only on
-// the Authorization header — the credential the source authenticates against — so a
-// server behind the fetcher sees "Bearer <token>" for Cert Spotter and no auth for
-// crt.sh.
 func TestCertSpotterFetcherSendsBearer(t *testing.T) {
 	var gotAuth string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -29,7 +24,6 @@ func TestCertSpotterFetcherSendsBearer(t *testing.T) {
 		t.Errorf("Authorization = %q, want %q", gotAuth, "Bearer s3cr3t-token")
 	}
 
-	// The keyless fetcher (crt.sh) sends no Authorization header at all.
 	gotAuth = "unset"
 	keyless := NewHTTPCTFetcher("9.9.9")
 	if _, _, err := keyless.Fetch(context.Background(), srv.URL); err != nil {
