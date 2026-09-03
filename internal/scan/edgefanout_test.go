@@ -19,15 +19,10 @@ func candidates(t *testing.T, raw ...string) iter.Seq[netip.Addr] {
 	return slices.Values(out)
 }
 
-// jobsOf collects the streamed jobs so a test can assert over the whole tick. The
-// dispatcher never collects — it enqueues in chunks (queue.streamEnqueue).
 func jobsOf(scanID int64, population iter.Seq[netip.Addr]) []EdgeFanoutJob {
 	return slices.Collect(BuildEdgeFanoutJobs(scanID, population))
 }
 
-// The fan-out is over addresses alone. There is no vantage dimension and no port list:
-// a default certificate is not a function of vantage, and the edge is measured on
-// 443/tcp alone.
 func TestBuildEdgeFanoutJobsCarriesTheCandidatesWithNoVantage(t *testing.T) {
 	jobs := jobsOf(7, candidates(t, "93.184.216.34", "203.0.113.10"))
 	if len(jobs) != 1 {
@@ -47,11 +42,8 @@ func TestBuildEdgeFanoutJobsCarriesTheCandidatesWithNoVantage(t *testing.T) {
 	}
 }
 
-// An instance with neither a custody extension nor a declared address scope dispatches an
-// empty scope and enqueues no job. The empty scope is a legible state, not an error. Since
-// #988 an install holding address scopes alone is NOT this case — its population is
-// non-empty (custody.TestEdgeFanoutPopulationNonEmptyWithNoExtension).
 func TestBuildEdgeFanoutJobsEmptyIsLegible(t *testing.T) {
+	// An install holding address scopes alone is not this case: its population is non-empty (#988).
 	if jobs := jobsOf(1, candidates(t)); jobs != nil {
 		t.Fatalf("jobs = %v, want none", jobs)
 	}
@@ -60,12 +52,9 @@ func TestBuildEdgeFanoutJobsEmptyIsLegible(t *testing.T) {
 	}
 }
 
-// A population above the per-job bound splits into chunks rather than riding one job
-// whose serial handshakes would outlast the worker's probe deadline. Every address lands
-// in exactly one chunk, in order, no chunk exceeds the bound, and Chunk numbers them from
-// zero so the Batch labels of one tick are distinct.
 func TestBuildEdgeFanoutJobsChunksAboveTheBound(t *testing.T) {
 	var addrs []netip.Addr
+	// Serial handshakes in one job would outlast the worker's probe deadline, so the job chunks.
 	for i := range EdgeFanoutAddressesPerJob*2 + 3 {
 		addrs = append(addrs, netip.AddrFrom4([4]byte{198, 51, 100, byte(i)}))
 	}
@@ -93,8 +82,6 @@ func TestBuildEdgeFanoutJobsChunksAboveTheBound(t *testing.T) {
 	}
 }
 
-// The JobSpec the dispatcher writes is exactly the scope the leaf decodes: the wire
-// shape is shared by construction, so a dispatched job cannot fail to be read.
 func TestEdgeFanoutJobSpecDecodesAsTheLeafScope(t *testing.T) {
 	j := jobsOf(3, candidates(t, "93.184.216.34"))[0]
 	spec, err := j.JobSpec("scan:3:chunk:0")
@@ -116,8 +103,6 @@ func TestEdgeFanoutJobSpecDecodesAsTheLeafScope(t *testing.T) {
 	}
 }
 
-// The recorded scope is the by-content record of what the job set out to measure, under
-// the `addresses` key the recording-side scope gate reads.
 func TestEdgeFanoutAttemptedScopeRecordsTheAddresses(t *testing.T) {
 	j := jobsOf(1, candidates(t, "203.0.113.10", "203.0.113.11"))[0]
 	raw, err := j.AttemptedScope()
@@ -135,9 +120,8 @@ func TestEdgeFanoutAttemptedScopeRecordsTheAddresses(t *testing.T) {
 	}
 }
 
-// The Scan declares no measurement parameter an operator chooses: the fan-out threshold
-// is a versioned parameter of the `Custody` derivation, never an offer on the probe.
 func TestEdgeFanoutOffersAreEmpty(t *testing.T) {
+	// The threshold is a versioned parameter of the Custody derivation, never an offer on the probe.
 	j := jobsOf(1, candidates(t, "203.0.113.10"))[0]
 	raw, err := j.OffersJSON()
 	if err != nil {
@@ -148,8 +132,6 @@ func TestEdgeFanoutOffersAreEmpty(t *testing.T) {
 	}
 }
 
-// An IPv4-mapped candidate is rendered in its unmapped netip form, so the scope the job
-// carries and the address the leaf reports are the same spelling.
 func TestBuildEdgeFanoutJobsRendersUnmapped(t *testing.T) {
 	j := jobsOf(1, candidates(t, "::ffff:93.184.216.34"))[0]
 	if j.Addresses[0] != "93.184.216.34" {

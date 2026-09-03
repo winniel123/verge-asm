@@ -1,10 +1,6 @@
-// This file builds the `hot` Scan (v1 spec §3.4/§3.5): daily, the only tier
-// that ships enabled, its scope the `verge-core` port set, dispatched as the
-// `connect-outcome` leaf. It is gated TOTALLY by `Custody` (ADR-0019): the hot
-// Scan probes ONLY the addresses the `Custody` derivation admits, per Vantage
-// class, and no other. It is kept additive to the dns and zone Scans — a new
-// job builder and job type, no rewrite of scan.go's core — so the measurement
-// binary and the queue register the tiers independently.
+// The hot Scan is the only tier that ships enabled: daily, over the verge-core port
+// set, dispatched as the connect-outcome leaf, and kept additive to the dns and zone
+// Scans so each tier registers independently (v1 spec §3.4, §3.5).
 package scan
 
 import (
@@ -22,12 +18,8 @@ import (
 
 const HotKind = "hot"
 
-// HotJob is one queue job the hot Scan produces: one Vantage, ONE Custody-
-// admitted address (one address per Batch, ADR-0005/ADR-0127), and the
-// `verge-core` TCP/UDP sets. Only the TCP pairs are probed; the UDP pairs travel
-// so the Batch records them in scope (open or closed for TCP; recorded-not-probed
-// for UDP). Addresses holds the single address as a one-element slice so the wire
-// `connect-outcome` scope stays a list, unchanged.
+// The single admitted address rides as a one-element slice so the wire scope stays a list.
+
 type HotJob struct {
 	ScanID       int64
 	VantageID    int64
@@ -40,16 +32,6 @@ type HotJob struct {
 	Profile      connectoutcome.SafetyProfile
 }
 
-// BuildHotJobs fans a hot Scan out into one job per (Vantage, admitted address):
-// one address per Batch (ADR-0005, the execution gap ADR-0127 names), yielded as
-// a lazy sequence over the streamed candidate addresses so no record holds the
-// whole scope. It is the sole place the gate is applied at dispatch: an address
-// the derivation refuses — a `third-party` address, or a non-globally-reachable
-// one seen from an `internet`-class Vantage — never enters a job, so no prober is
-// ever handed a target it may not probe (ADR-0019). A Vantage with no admitted
-// address yields no job for that address, a legible empty scope rather than an
-// error. The `addrs` sequence streams: consuming it in chunks (the dispatcher's
-// chunked fan-out) keeps memory bounded above the cap.
 func BuildHotJobs(scanID int64, estate custody.Estate, addrs iter.Seq[netip.Addr], vantages []Vantage, core vergecore.List) iter.Seq[HotJob] {
 	return func(yield func(HotJob) bool) {
 		tcp := portsOf(core.TCPProbed())
@@ -58,10 +40,7 @@ func BuildHotJobs(scanID int64, estate custody.Estate, addrs iter.Seq[netip.Addr
 			return
 		}
 
-		// Class is DERIVED per batch from each vantage's presented-address facts against the
-		// declared address scopes (#709), never the vestigial column: covered is the
-		// address-scope-only predicate (#711) the same Estate carries. The classes are
-		// derived once, outside the address stream, since they do not vary per address.
+		// The class is derived from presented-address facts, never the vestigial column (#709, #711).
 		covered := estate.CoversAddressScope
 		classes := make([]custody.VantageClass, len(vantages))
 		for i, v := range vantages {
@@ -70,9 +49,11 @@ func BuildHotJobs(scanID int64, estate custody.Estate, addrs iter.Seq[netip.Addr
 
 		for a := range addrs {
 			for i, v := range vantages {
+				// The gate applies here at dispatch, so no prober gets a target it may not probe (ADR-0019).
 				if !estate.MayProbe(a, classes[i]) {
 					continue
 				}
+				// A Batch carries exactly one address, which is the execution gap ADR-0127 names (ADR-0005).
 				job := HotJob{
 					ScanID:       scanID,
 					VantageID:    v.ID,
@@ -107,13 +88,8 @@ func (j HotJob) JobSpec(batch string) (wire.JobSpec, error) {
 	return wire.JobSpec{Batch: batch, Kind: j.Kind, Scope: raw}, nil
 }
 
-// AttemptedScope is the by-content record of what the hot job set out to cover:
-// the Vantage, the admitted addresses, and the `verge-core` TCP and UDP port
-// sets. A `Service` subject exists for every `(Address, port, transport)` in
-// this record — open or closed for TCP, recorded-not-probed for UDP — which is
-// what the recorded Batch scope must state so a pair we never connected to can
-// never read as an absence we measured (v1 spec §4.1).
 func (j HotJob) AttemptedScope() ([]byte, error) {
+	// A UDP pair is recorded-not-probed, so it must not read as an absence we measured (v1 spec §4.1).
 	return json.Marshal(hotScopeRecord{
 		Vantage:   j.Vantage,
 		Addresses: j.Addresses,
@@ -124,8 +100,6 @@ func (j HotJob) AttemptedScope() ([]byte, error) {
 
 func (j HotJob) OffersJSON() ([]byte, error) { return json.Marshal(j.Profile) }
 
-// EmptyHotScope is what a dead-lettered hot Batch records — never the attempted
-// scope, which would manufacture reachability absences it never measured.
 func EmptyHotScope(vantage string) ([]byte, error) {
 	return json.Marshal(hotScopeRecord{Vantage: vantage, Addresses: []string{}})
 }
