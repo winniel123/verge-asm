@@ -273,11 +273,15 @@ func TestGoLexRejectsUnparseableSource(t *testing.T) {
 }
 
 func TestForRejectsAnUnsupportedSurface(t *testing.T) {
-	if _, err := For("design-system/templates/shell.tmpl"); err == nil {
-		t.Fatal("For accepted .tmpl, which has no lexer yet")
+	for _, name := range []string{"design-system/examples/console/Coverage.html", "docs-site/src/pages/index.astro"} {
+		if _, err := For(name); err == nil {
+			t.Errorf("For accepted %s, which §6.4 excludes from every subcommand", name)
+		}
 	}
-	if _, err := For("cmd/web/main.go"); err != nil {
-		t.Fatalf("For rejected .go: %v", err)
+	for _, name := range []string{"cmd/web/main.go", "design-system/templates/shell.tmpl"} {
+		if _, err := For(name); err != nil {
+			t.Errorf("For rejected %s: %v", name, err)
+		}
 	}
 }
 

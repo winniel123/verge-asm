@@ -108,10 +108,31 @@ func TestRun(t *testing.T) {
 			want: LexFailed, wantExit: 2,
 		},
 		{
-			name: "a surface with no lexer is a lex failure",
+			name: "a .tmpl comment delete keeps the skeleton",
+			path: "design-system/templates/shell.tmpl",
+			base: "<p>{{ .Title }}</p>\n{{/* the note */}}\n<p>x</p>\n",
+			head: "<p>{{ .Title }}</p>\n\n<p>x</p>\n",
+			want: Clean,
+		},
+		{
+			name: "a .tmpl whole-line comment delete is a violation",
+			path: "design-system/templates/shell.tmpl",
+			base: "<p>{{ .Title }}</p>\n{{/* the note */}}\n<p>x</p>\n",
+			head: "<p>{{ .Title }}</p>\n<p>x</p>\n",
+			want: Changed, wantExit: 1,
+		},
+		{
+			name: "a moved .tmpl action is a violation",
 			path: "design-system/templates/shell.tmpl",
 			base: "<p>{{ .Title }}</p>\n",
 			head: "<p>{{ .Name }}</p>\n",
+			want: Changed, wantExit: 1,
+		},
+		{
+			name: "an unparseable .tmpl is a lex failure",
+			path: "design-system/templates/shell.tmpl",
+			base: "<p>{{ .Title }}</p>\n",
+			head: "<p>{{ if .Title }}</p>\n",
 			want: LexFailed, wantExit: 2,
 		},
 		{
