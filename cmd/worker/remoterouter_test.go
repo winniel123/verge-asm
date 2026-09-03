@@ -46,7 +46,7 @@ func (c *routerConn) Output(_ context.Context, cmd string) ([]byte, error) {
 	case "uname -m":
 		return []byte("x86_64\n"), nil
 	default:
-		return nil, nil // rm -f, printenv, etc.
+		return nil, nil
 	}
 }
 
@@ -89,11 +89,9 @@ func provisionedRow(id int64, hostKey string) db.Vantage {
 	return v
 }
 
-// A job with no vantage, and a resolver-only vantage (no prober host), both defer to
-// the local prober (handled=false) — off-host routing is only for provisioned probers.
 func TestRouterDefersLocalForNonProber(t *testing.T) {
 	rt := &remoteProberRouter{
-		store:    fakeVantageGetter{byID: map[int64]db.Vantage{1: {ID: 1}}}, // no host
+		store:    fakeVantageGetter{byID: map[int64]db.Vantage{1: {ID: 1}}},
 		binaries: oneArchBinaries{},
 		stateDir: t.TempDir(),
 	}
@@ -106,8 +104,6 @@ func TestRouterDefersLocalForNonProber(t *testing.T) {
 	}
 }
 
-// A provisioned prober whose host key is not yet pinned is refused (handled, but a
-// transient error) — measurement never silently first-trusts a host.
 func TestRouterRefusesUnpinnedProber(t *testing.T) {
 	rt := &remoteProberRouter{
 		store:    fakeVantageGetter{byID: map[int64]db.Vantage{2: provisionedRow(2, "")}},
@@ -124,8 +120,6 @@ func TestRouterRefusesUnpinnedProber(t *testing.T) {
 	}
 }
 
-// A provisioned, pinned prober is measured off-host: the router dials, pushes the
-// arch-matched binary, exec's it and returns the observations it wrote.
 func TestRouterProbesPinnedProberOffHost(t *testing.T) {
 	var obsBuf bytes.Buffer
 	if err := wire.EncodeObservation(&obsBuf, wire.Observation{Batch: "b7", Kind: "connect-outcome"}); err != nil {
@@ -134,7 +128,6 @@ func TestRouterProbesPinnedProberOffHost(t *testing.T) {
 	conn := &routerConn{obsLine: obsBuf.String()}
 
 	stateDir := t.TempDir()
-	// The router reads the private key off the worker volume before dialling.
 	keyPath := vantageKeyPath(stateDir, 3)
 	if err := os.MkdirAll(filepath.Dir(keyPath), 0o700); err != nil {
 		t.Fatal(err)
@@ -165,8 +158,6 @@ func TestRouterProbesPinnedProberOffHost(t *testing.T) {
 	if len(res.Observations) != 1 || res.Observations[0].Batch != "b7" {
 		t.Fatalf("observations = %+v, want one b7", res.Observations)
 	}
-	// #867: the remote path now carries the verbatim transcript back — a ProberTranscript
-	// with the exec's kind and a clean exited(0) outcome, no longer an absent (nil) shape.
 	tr, ok := res.Transcript.(*wire.ProberTranscript)
 	if !ok {
 		t.Fatalf("remote Transcript = %T, want *wire.ProberTranscript (#867)", res.Transcript)
@@ -177,7 +168,6 @@ func TestRouterProbesPinnedProberOffHost(t *testing.T) {
 	if got, ok := tr.Outcome.(wire.ProberExited); !ok || got.Code != 0 {
 		t.Errorf("transcript outcome = %+v, want exited(0)", tr.Outcome)
 	}
-	// The binary was pushed before the exec.
 	if len(conn.ran) < 2 || !strings.HasPrefix(conn.ran[0], "cat > ") {
 		t.Errorf("run sequence = %v, want a push then exec", conn.ran)
 	}

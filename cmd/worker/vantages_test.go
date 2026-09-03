@@ -50,15 +50,12 @@ func TestProvisionVantageKeysGeneratesAndPublishes(t *testing.T) {
 			t.Errorf("vantage %d: published key is not an ed25519 line: %q", id, pub)
 		}
 
-		// The private half is on the worker volume, and its public half matches
-		// what was published.
 		keyPath := filepath.Join(dir, "vantages", strconv.FormatInt(id, 10), "id_ed25519")
 		data, err := os.ReadFile(keyPath)
 		if err != nil {
 			t.Fatalf("vantage %d: private key not written: %v", id, err)
 		}
 		if strings.Contains(pub, "PRIVATE") || strings.Contains(string(data), pub) {
-			// A weak but real guard that the two halves are distinct.
 			t.Errorf("vantage %d: private and public material overlap", id)
 		}
 		derived, err := vantage.PublicKeyFromPrivatePEM(data)
@@ -69,8 +66,7 @@ func TestProvisionVantageKeysGeneratesAndPublishes(t *testing.T) {
 			t.Errorf("vantage %d: published %q does not match stored key %q", id, pub, derived)
 		}
 
-		// The private key file is not world-readable (skipped on Windows, whose
-		// permission bits do not model POSIX modes).
+		// Windows permission bits do not model POSIX modes, so the check is POSIX-only.
 		if runtime.GOOS != "windows" {
 			info, err := os.Stat(keyPath)
 			if err != nil {
@@ -96,9 +92,6 @@ func TestProvisionVantageKeysIsIdempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// A second pass (e.g. the public write failed and the row still lists as
-	// needing a key) reuses the on-disk private key rather than regenerating,
-	// so the key installed on the prober host stays valid.
 	store2 := &fakeVantageStore{needing: []db.Vantage{{ID: 3}}}
 	provisionVantageKeys(context.Background(), store2, dir)
 
@@ -155,9 +148,6 @@ func (f *fakeLatencyStore) SetVantageProbeFacts(_ context.Context, arg db.SetVan
 	return nil
 }
 
-// fakeProber stands in for the SSH dial so the orchestration is exercised without
-// a live server: it pins the given host key via onFirstUse and returns a fixed
-// round-trip and lifecycle facts, or an error to model an unreachable prober.
 type fakeProber struct {
 	rtt     time.Duration
 	encoded string
@@ -186,9 +176,6 @@ func provisionedVantage(id int64) db.Vantage {
 	}
 }
 
-// A successful connect pins the presented host key trust-on-first-use, records the
-// round-trip in whole milliseconds — the unit the Dashboard renders — and persists the
-// off-host lifecycle facts (platform, egress) the same connect observed.
 func TestMeasureVantageLatenciesPinsAndRecords(t *testing.T) {
 	store := &fakeLatencyStore{needing: []db.Vantage{provisionedVantage(5)}}
 	prober := fakeProber{
@@ -221,8 +208,6 @@ func TestMeasureVantageLatenciesPinsAndRecords(t *testing.T) {
 	}
 }
 
-// A connect that could not read the egress (host does not export SSH_CLIENT) persists
-// a NULL egress rather than a fabricated one — the chip stays collapsed.
 func TestMeasureVantageLatenciesBlankEgressStaysNull(t *testing.T) {
 	store := &fakeLatencyStore{needing: []db.Vantage{provisionedVantage(6)}}
 	prober := fakeProber{
@@ -242,8 +227,6 @@ func TestMeasureVantageLatenciesBlankEgressStaysNull(t *testing.T) {
 	}
 }
 
-// An unreachable prober records nothing: its latency stays NULL and the Dashboard
-// keeps rendering the pending em dash — never a fabricated value.
 func TestMeasureVantageLatenciesSkipsUnreachable(t *testing.T) {
 	store := &fakeLatencyStore{needing: []db.Vantage{provisionedVantage(8)}}
 	prober := fakeProber{err: errors.New("dial: connection refused")}

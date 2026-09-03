@@ -1,7 +1,6 @@
-// Command worker has no listener. It applies no migrations (web owns that),
-// runs the local prober self-test once at startup, and hosts the
-// Postgres-backed queue: the Dispatcher fans each Scan out on its cadence and
-// the Worker claims jobs and commits each Batch with its Observations.
+// Command worker hosts the Postgres-backed queue and the sweeps that run beside it.
+// It has no listener and applies no migrations: the web process owns the schema
+// (ADR-0001, ADR-0103).
 package main
 
 import (
@@ -59,12 +58,8 @@ func main() {
 	proberDir := env.OrDefault("VERGE_PROBER_DIR", "/app/probers")
 	stateDir := env.OrDefault("VERGE_STATE_DIR", "/app/state")
 
-	// Provision the instance transcript key on the shared key volume before any
-	// job runs, so the writer (#865) can seal captured output at rest. This is the
-	// worker's half of the one key web (the reader) also mounts. Fatal if the
-	// volume is unwritable — running on without a key would silently drop the
-	// corpus (raw-job-output spec §5.3).
 	transcriptKeyDir := env.OrDefault("VERGE_TRANSCRIPT_KEY_DIR", "/app/transcript-key")
+	// Running on without a key would silently drop the captured corpus (raw-job-output §5.3).
 	transcriptKey, err := transcript.LoadOrCreateKey(transcriptKeyDir)
 	if err != nil {
 		log.Fatalf("worker: transcript key: %v", err)
@@ -72,52 +67,28 @@ func main() {
 
 	logger := log.New(os.Stderr, "", log.LstdFlags)
 
-	// Select the one bulk CT source active this config (spec §2.3, #876): Cert
-	// Spotter when the operator supplies its API key, crt.sh (keyless) when absent.
-	// The selection is config-time by key presence, not runtime — there is no
-	// failover between them. The key is worker-only (ADR-0053, spec §2.4): it is
-	// read here in the worker process only, and the web process never sees it. Both
-	// the dispatcher (which gates the fan-out on the selected slug) and the worker
-	// (which fetches, decodes and stamps admissions) are given the same selection.
+	// The CT source operator asked that the User-Agent identify this build (passive-discovery §2.2).
 	ctVersion := env.OrDefault("VERGE_VERSION", "dev")
+	// The CT API key is worker-only: the web process never reads it (ADR-0053, spec §2.4).
 	ctFetcher, ctThrottle, ctSource := selectCTSource(env.OrDefault("VERGE_CERTSPOTTER_TOKEN", ""), ctVersion, db.New(pool))
 
-	// Read here, not beside the reaper below, because the dispatcher needs the same
-	// value: the hot cadence-lag gate (#1114) only arms while the reaper can terminate
-	// a wedged 'running' job, so the two must never disagree about the threshold.
+	// The dispatcher's cadence-lag gate and the reaper must never disagree here (#1114).
 	staleThreshold := durationOrDefault("VERGE_STALE_JOB_TIMEOUT", queue.DefaultStaleJobThreshold, logger)
 
 	dispatcher := queue.NewDispatcher(pool, time.Now, logger).
 		WithCTSource(ctSource.Slug()).
 		WithStaleJobThreshold(staleThreshold)
-	// The off-host measurement router (ADR-0103, #683, P0.8): a provisioned internet
-	// Vantage measures from its OWN position — its jobs are pushed to and exec'd on the
-	// prober host over SSH, arch-matched by `uname`. The instance ships a prober for each
-	// matrix architecture under VERGE_PROBER_DIR (an arm64 instance pushes to an amd64
-	// host and vice versa); the own-arch VERGE_PROBER_PATH is the single-binary fallback.
-	// A resolver-only vantage's jobs still run on the local prober.
 	router := newRemoteProberRouter(
 		db.New(pool),
 		remoteexec.DirBinaryProvider{Dir: proberDir, Fallback: proberPath},
 		stateDir,
 		logger,
 	)
-	// The ct Scan's runner (ADR-0106, spec §2): the selected bulk CT source's
-	// fetcher and per-source reservation throttle, wired onto the worker beside the
-	// prober. The User-Agent identifies this build, which the source operator asked
-	// for (passive-discovery §2.2).
-	// The message producer (P0.7): each batch tx folds a flagship/membership
-	// transition into a Message and routes it to its bound Channels via
-	// delivery.EnqueueForMessage (injected so internal/queue never imports
-	// internal/delivery). VERGE_DEV suppresses it entirely — a fixture-only install
-	// serves fixtures, never live estate, so it writes no message (AL-25). A default
-	// real install binds no Channel, so a Message is written but nothing is POSTed
-	// until an admin declares one.
+	// A fixture-only install serves fixtures, never live estate, so it writes no message (AL-25).
 	devMode := isTruthy(env.OrDefault("VERGE_DEV", ""))
-	// The per-job probe deadline (#853): a hung prober fails into the retry /
-	// dead-letter path instead of blocking the single-threaded drain loop. Operator
-	// override VERGE_PROBE_TIMEOUT; a value <= 0 disables the bound.
+	// A hung prober would block the single-threaded drain loop without this bound (#853).
 	probeTimeout := durationOrDefault("VERGE_PROBE_TIMEOUT", queue.DefaultProbeTimeout, logger)
+	// The message hook is injected so internal/queue never imports internal/delivery.
 	worker := queue.NewWorker(pool, queue.ExecProber{Path: proberPath}, time.Now, logger).
 		WithCT(ctFetcher, ctThrottle, ctSource).
 		WithCTTail(queue.NewHTTPCTFetcher(ctVersion)).
@@ -127,8 +98,6 @@ func main() {
 		WithTranscripts(transcriptKey, devMode).
 		WithProbeTimeout(probeTimeout)
 
-	// A manual run dispatches an existing Scan, drains it synchronously, and
-	// exits — the operator/CI path that produces Observation rows on demand.
 	if *trigger != "" {
 		n, err := dispatcher.Trigger(ctx, *trigger)
 		if err != nil {
@@ -142,16 +111,8 @@ func main() {
 		return
 	}
 
-	// Generate SSH keypairs for any newly provisioned vantages, keeping the
-	// private half on this worker-only volume and publishing only the public
-	// half. Measurement is dispatched over the connection by the off-host router
-	// (#683); this loop only provisions the key material it uses.
 	provisionVantageKeys(ctx, db.New(pool), stateDir)
 
-	// Measure the per-vantage connect latency the Dashboard renders (P0.5): for
-	// each provisioned prober with a published keypair but no latency yet, dial the
-	// prober connect that pins its host key and record the round-trip. Best-effort —
-	// an unreachable prober keeps its NULL latency and the Dashboard its em dash.
 	measureVantageLatencies(ctx, db.New(pool), sshProber{}, stateDir)
 
 	runSelfTest(ctx, proberPath)
@@ -162,12 +123,7 @@ func main() {
 		}
 	}()
 
-	// On-cadence report dispatch runs beside the queue dispatcher (#502/T3): each
-	// tick renders every due schedule's artifact and stamps an in-instance receipt
-	// keyed to the tick, idempotent so a second poll in a window is a recorded skip.
-	// A schedule bound to a Channel also enqueues one link-only ready-message per won
-	// tick (#508/T7); a download-only schedule enqueues nothing. It is a no-op until an
-	// admin declares a schedule — no schedule ships, so nothing is cut.
+	// Every runner below stays idle until an operator configures it, except the transcript dial.
 	reportDispatcher := report.NewDispatcher(pool, time.Now, logger)
 	go func() {
 		if err := reportDispatcher.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
@@ -175,15 +131,6 @@ func main() {
 		}
 	}()
 
-	// Report notify runs beside the report dispatcher (#508/T7, ADR-0039 stands): it
-	// drains pending report notifications and POSTs each bound Channel a LINK-ONLY
-	// ready-message — the report name, the run's period, and a session-authed link to
-	// the in-instance artifact, never the estate. On a 2xx it flips the receipt to
-	// 'delivered'; on dead-letter the receipt stays 'generated' and the artifact stays
-	// viewable. It rides the delivery package's shared signed-HTTPS transport and
-	// queue.Backoff curve, and is a no-op until a schedule binds a Channel.
-	// VERGE_PUBLIC_URL is the absolute base the ready-message's link is built on; empty
-	// leaves the link as the bare path.
 	notifyRunner := report.NewNotifyRunner(pool, delivery.NewHTTPDoer(), time.Now, env.OrDefault("VERGE_PUBLIC_URL", ""), logger)
 	go func() {
 		if err := notifyRunner.Run(ctx, 5*time.Second); err != nil && !errors.Is(err, context.Canceled) {
@@ -191,11 +138,6 @@ func main() {
 		}
 	}()
 
-	// Dispatch retention runs beside the dispatcher: expired Dispatch rows are
-	// the one corpus a wall clock may retire (v1 spec §4.6). It is a structurally
-	// separate path that never touches Observation or Span data, and a no-op
-	// until the operator sets the dial — v1 ships Dispatch unbounded. A daily
-	// sweep is ample for a corpus of one row per firing.
 	retirer := retention.NewRetirer(db.New(pool), time.Now, logger)
 	go func() {
 		if err := retirer.Run(ctx, 24*time.Hour); err != nil && !errors.Is(err, context.Canceled) {
@@ -203,11 +145,6 @@ func main() {
 		}
 	}()
 
-	// Observation retention runs beside it (#208, v1 spec §4.6). It retires only
-	// EVIDENTIAL observations — those past their own per-timeline bound AND the
-	// operator's dial — and never a live row: the delete evaluates each row's own
-	// bound, so a derivation always reads live-tier data. It is a no-op until the
-	// operator sets the dial (v1 ships the raw corpus growing without bound).
 	obsRetirer := retention.NewObservationRetirer(db.New(pool), time.Now, logger)
 	go func() {
 		if err := obsRetirer.Run(ctx, 24*time.Hour); err != nil && !errors.Is(err, context.Canceled) {
@@ -215,12 +152,7 @@ func main() {
 		}
 	}()
 
-	// Transcript retention runs beside the other two (raw-job-output spec §4,
-	// ADR-0126 amending ADR-0041). It retires captured transcripts by age alone —
-	// no derivation reads a Transcript, so a wall clock moves no value. Unlike the
-	// Dispatch and Observation dials it SHIPS BOUNDED at 14 days, so this sweep is
-	// active on a fresh install; the operator sets the dial to 0 to opt back into
-	// unbounded retention.
+	// This dial alone ships bounded, at 14 days, so it sweeps on a fresh install (ADR-0126).
 	transcriptRetirer := retention.NewTranscriptRetirer(db.New(pool), time.Now, logger)
 	go func() {
 		if err := transcriptRetirer.Run(ctx, 24*time.Hour); err != nil && !errors.Is(err, context.Canceled) {
@@ -228,16 +160,7 @@ func main() {
 		}
 	}()
 
-	// Release check runs beside the retirers (#391, ADR-0124: check + surface +
-	// guide, never self-replace). A daily best-effort poll of the upstream release
-	// feed, gated on instance_config.update_check_enabled: while the operator has
-	// left the check off, it makes NO network call — not on a tick and not on this
-	// boot run — so an air-gapped instance stays genuinely silent. When enabled it
-	// records a current/newer verdict in the release cache (SetReleaseCache) that
-	// the web Version & updates card renders; a failed or unreachable feed is a
-	// logged no-op that leaves the cache untouched, never a crash. VERGE_VERSION is
-	// the running build compared against the feed's latest; VERGE_RELEASE_FEED_URL
-	// overrides the default GitHub latest-release feed (unset ⇒ release.DefaultFeedURL).
+	// No network call until the operator enables it: an air-gapped instance is silent (ADR-0124).
 	releaseChecker := release.NewChecker(
 		db.New(pool),
 		release.NewHTTPFetcher(env.OrDefault("VERGE_RELEASE_FEED_URL", release.DefaultFeedURL)),
@@ -251,22 +174,7 @@ func main() {
 		}
 	}()
 
-	// The stale-`running` reaper runs beside the worker (#853). A job stuck
-	// 'running' because its worker died or hung mid-job is never reclaimed on its
-	// own — ClaimJob claims 'ready' rows alone — so it orphans the job and wedges its
-	// Dispatch as "in flight" until an operator Terminate. The reaper sweeps on a
-	// period and returns a stale 'running' job (lease older than the threshold) to
-	// 'ready' with attempt bumped, or 'dead' past the budget, so a crash is
-	// recoverable without operator action. A one-minute period bounds how long a
-	// genuinely stuck job waits past its lease before reclaiming. staleThreshold is read
-	// above, beside the dispatcher that shares it.
-	//
-	// The defaults keep the stale threshold above the probe timeout, so a job that is
-	// legitimately mid-probe is never reaped. The two overrides are independent, so an
-	// operator could invert that. Warn rather than silently override their value: a
-	// threshold at or below the probe timeout risks reaping a job whose probe is still
-	// running. A disabled probe timeout (<= 0) has no bound to sit above, so it is not
-	// a conflict.
+	// Warn rather than silently override the operator's value: an inverted pair is theirs to fix.
 	if staleThreshold > 0 && probeTimeout > 0 && staleThreshold <= probeTimeout {
 		logger.Printf("worker: VERGE_STALE_JOB_TIMEOUT (%s) is at or below VERGE_PROBE_TIMEOUT (%s); "+
 			"the reaper may reclaim a job whose probe is still running — set the stale timeout above the probe timeout",
@@ -279,13 +187,6 @@ func main() {
 		}
 	}()
 
-	// Channel delivery runs beside the measurement worker (#207, v1 spec §4.5). It
-	// drains routed Deliveries off the queue and POSTs each to its Channel, on the
-	// same retry/backoff/dead-letter curve the measurement queue uses (queue.Backoff)
-	// rather than a second mechanism beside it. It is a no-op on a default install:
-	// no Channel ships configured, so nothing is ever routed until an admin declares
-	// one. VERGE_PUBLIC_URL is the absolute base each body's link is built on; empty
-	// leaves the link off rather than fabricating one.
 	deliveryRunner := delivery.NewRunner(pool, delivery.NewHTTPDoer(), time.Now, env.OrDefault("VERGE_PUBLIC_URL", ""), logger)
 	go func() {
 		if err := deliveryRunner.Run(ctx, 5*time.Second); err != nil && !errors.Is(err, context.Canceled) {
@@ -300,24 +201,15 @@ func main() {
 	log.Print("worker: shutting down")
 }
 
-// selectCTSource picks the one bulk CT source active this config by the presence
-// of the operator key (spec §2.3, #876). A non-empty token selects Cert Spotter —
-// the operator-keyed primary, its authenticated tier clearing the consent bar
-// (ADR-0003) — with its Bearer fetcher and its own throttle. An empty token keeps
-// crt.sh, the keyless fallback. The selection is config-time only; there is no
-// runtime failover between the two. It returns the fetcher, throttle and pure
-// source, which the worker and dispatcher are wired with so they always agree.
 func selectCTSource(token, version string, q *db.Queries) (queue.CTFetcher, queue.CTThrottle, scan.CTSource) {
+	// Cert Spotter's authenticated tier is what clears the consent bar (ADR-0003).
 	if token != "" {
 		return queue.NewCertSpotterFetcher(version, token), queue.NewCertSpotterThrottle(q), scan.CertSpotterCTSource()
 	}
+	// Selection is config-time by key presence, so there is no runtime failover (spec §2.3).
 	return queue.NewHTTPCTFetcher(version), queue.NewCTThrottle(q), scan.CrtshCTSource()
 }
 
-// durationOrDefault reads a Go duration (e.g. "5m", "90s") from env, falling back to
-// def when the var is unset. A set-but-unparseable value is logged and also falls
-// back to def, so a typo never silently disables a bound — it keeps the safe default
-// and says so. Used for the probe timeout and the stale-job threshold (#853).
 func durationOrDefault(key string, def time.Duration, logger *log.Logger) time.Duration {
 	v := strings.TrimSpace(env.OrDefault(key, ""))
 	if v == "" {
