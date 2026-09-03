@@ -9,11 +9,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "powershell -NoProfile -Command \"Get-Content -Raw -LiteralPath '$CLAUDE_PROJECT_DIR/.claude/hooks/ste-activate.txt'\""
+            "command": "cat \"$CLAUDE_PROJECT_DIR/.claude/hooks/ste-activate.txt\""
           },
           {
             "type": "command",
-            "command": "powershell -NoProfile -Command \"Get-Content -Raw -LiteralPath '$CLAUDE_PROJECT_DIR/.claude/hooks/worktree-activate.txt'\""
+            "command": "cat \"$CLAUDE_PROJECT_DIR/.claude/hooks/worktree-activate.txt\""
           }
         ]
       }
@@ -24,7 +24,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$CLAUDE_PROJECT_DIR/.claude/hooks/require-task-branch.ps1\""
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/require-task-branch.sh\""
           }
         ]
       }
