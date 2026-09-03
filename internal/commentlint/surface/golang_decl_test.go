@@ -104,12 +104,12 @@ func TestBlockPayload(t *testing.T) {
 }
 
 func TestForNamesTheUnsupportedSurface(t *testing.T) {
-	_, err := For("db/queries/scan.sql")
+	_, err := For("docs-site/src/pipeline/render.ts")
 	var unsupported *UnsupportedError
 	if !errors.As(err, &unsupported) {
 		t.Fatalf("For returned %v, want an UnsupportedError", err)
 	}
-	if unsupported.Surface != ".sql" {
-		t.Errorf("the error names %q, want .sql", unsupported.Surface)
+	if unsupported.Surface != ".ts" {
+		t.Errorf("the error names %q, want .ts", unsupported.Surface)
 	}
 }

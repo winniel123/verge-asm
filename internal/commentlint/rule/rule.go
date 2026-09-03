@@ -63,7 +63,7 @@ func Classify(b surface.Block) Class {
 		return Directive
 	case todoRe.MatchString(firstField(lines)):
 		return Todo
-	case commentedOutCode(payload):
+	case commentedOutCode(b.Lang, payload, lines):
 		return CommentedOutCode
 	case sectionDivider(lines):
 		return SectionDivider
@@ -127,7 +127,8 @@ func Deletable(b surface.Block) (Class, string, bool) {
 	// delete pass own-line blocks alone.
 	c := Classify(b)
 	signal := screen.Signal(b.Payload())
-	return c, signal, deleteSet[c] && signal == ""
+	// §3.6 reads `agent` in every non-Go cell, so v1 deletes on Go alone.
+	return c, signal, b.Lang == surface.LangGo && deleteSet[c] && signal == ""
 }
 
 type Finding struct {
@@ -257,13 +258,48 @@ var codeTokens = map[token.Token]bool{
 	token.SUB_ASSIGN: true, token.MUL_ASSIGN: true, token.QUO_ASSIGN: true,
 }
 
-func commentedOutCode(payload string) bool {
+func commentedOutCode(lang surface.Lang, payload string, lines []string) bool {
 	if strings.TrimSpace(payload) == "" {
 		return false
+	}
+	// §6.6: off Go there is no parser, so the class is regex-only. `strip` is
+	// Go-only in v1, so the shape test never reaches a delete.
+	if lang != surface.LangGo {
+		return codeShape(lang, lines)
 	}
 	// The parse alone is not enough, because `see the note above` parses as an
 	// expression statement (SPEC §6.6).
 	return codeOnlyToken(payload) && parsesAsGo(payload)
+}
+
+var (
+	statementEndRe = regexp.MustCompile(`[;{},]$`)
+	sqlStatementRe = regexp.MustCompile(`(?i)^(select|insert|update|delete|with|create|alter|drop|from|where|join|order|group|returning|values|union|set)\b`)
+	cssDeclRe      = regexp.MustCompile(`^[-@a-zA-Z][\w-]*\s*[:{]`)
+)
+
+// codeShape asks two things at once: every payload line ends in a statement
+// terminator, and one line opens with this surface's code keyword. Either test
+// alone reads ordinary prose as code.
+func codeShape(lang surface.Lang, lines []string) bool {
+	opener := sqlStatementRe
+	if lang == surface.LangCSS {
+		opener = cssDeclRe
+	}
+	found, seen := false, 0
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		seen++
+		if !statementEndRe.MatchString(line) {
+			return false
+		}
+		if opener.MatchString(line) {
+			found = true
+		}
+	}
+	return seen > 0 && found
 }
 
 func codeOnlyToken(payload string) bool {

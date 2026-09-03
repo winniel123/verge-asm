@@ -27,7 +27,7 @@ func (Go) Lex(src []byte) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	blocks, trailing := goBlocks(src, comments)
+	blocks, trailing := assembleBlocks(LangGo, src, comments)
 	for i, b := range blocks {
 		if s, ok := spansHold(docs, b.Start); ok {
 			blocks[i].Declaration = true
@@ -39,18 +39,7 @@ func (Go) Lex(src []byte) (Result, error) {
 	return Result{Blocks: blocks, Trailing: trailing, Skeleton: skeleton}, nil
 }
 
-type goComment struct {
-	start     int
-	end       int
-	startLine int
-	endLine   int
-	text      string
-	style     Style
-	ownLine   bool
-	directive bool
-}
-
-func goScan(src []byte) ([]goComment, []Token, error) {
+func goScan(src []byte) ([]rawComment, []Token, error) {
 	fset := token.NewFileSet()
 	file := fset.AddFile("", fset.Base(), len(src))
 	var failure error
@@ -61,7 +50,7 @@ func goScan(src []byte) ([]goComment, []Token, error) {
 		}
 	}, scanner.ScanComments)
 
-	var comments []goComment
+	var comments []rawComment
 	var skeleton []Token
 	lastCodeLine := 0
 	for {
@@ -73,7 +62,7 @@ func goScan(src []byte) ([]goComment, []Token, error) {
 		// this tool reports asks for the physical one (SPEC §2.3, #1133).
 		line := file.PositionFor(pos, false).Line
 		if tok == token.COMMENT {
-			c := goComment{
+			c := rawComment{
 				start:     file.Offset(pos),
 				startLine: line,
 				style:     StyleLine,
@@ -165,48 +154,6 @@ func blankLineFollows(src []byte, end int) bool {
 		j++
 	}
 	return strings.TrimSpace(string(src[i:j])) == ""
-}
-
-func goBlocks(src []byte, comments []goComment) (blocks, trailing []Block) {
-	open := -1
-	for _, c := range comments {
-		if !c.ownLine {
-			open = -1
-			// §3.4 holds the trailing population apart from the own-line one,
-			// so no mechanical pass can reach it by walking Blocks.
-			trailing = append(trailing, Block{
-				Style:     c.style,
-				Start:     c.start,
-				End:       c.end,
-				StartLine: c.startLine,
-				EndLine:   c.endLine,
-				Text:      c.text,
-				Directive: c.directive,
-			})
-			continue
-		}
-		joins := open >= 0 && !c.directive && c.style == StyleLine && blocks[open].EndLine+1 == c.startLine
-		if joins {
-			blocks[open].End = c.end
-			blocks[open].EndLine = c.endLine
-			blocks[open].Text = string(src[blocks[open].Start:c.end])
-			continue
-		}
-		blocks = append(blocks, Block{
-			Style:     c.style,
-			Start:     c.start,
-			End:       c.end,
-			StartLine: c.startLine,
-			EndLine:   c.endLine,
-			Text:      c.text,
-			Directive: c.directive,
-		})
-		open = len(blocks) - 1
-		if c.directive || c.style == StyleBlock {
-			open = -1
-		}
-	}
-	return blocks, trailing
 }
 
 type span struct {
