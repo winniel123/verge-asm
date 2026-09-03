@@ -11,13 +11,16 @@ const (
 )
 
 var (
-	citationRe     = regexp.MustCompile(`(?i)\bADR-\d{4}\b|#\d+`)
+	// Round 1 of the §3.9 gate failed both docstring classes on both
+	// populations, and every load-bearing block it surfaced carried one of the
+	// forms added here (#1136).
+	citationRe     = regexp.MustCompile(`(?i)\bADR-\d{4}\b|#\d+|§\s*\d|\bCONTEXT\.md\b|\bDF-[A-Z]\d+\b`)
 	externalSpecRe = regexp.MustCompile(`\bRFC\b|\bRFC\d+|\bIANA\b|\bX\.509\b|\bBCP\b|\bNIST\b|\bPKIX\b|\bISO\s+\d{4}\b`)
 	urlRe          = regexp.MustCompile(`\bhttps?://\S`)
-	whyRe          = regexp.MustCompile(`(?i)\b(because|otherwise|so that|avoid|avoids|work ?around|race|races|panic|panics|deliberate|deliberately|intentional|intentionally|on purpose|hazard|gotcha|beware|deadlock|must not|cannot|prevent|prevents|load-bearing|unsafe|breaks|corrupts)\b`)
+	whyRe          = regexp.MustCompile(`(?i)\b(because|otherwise|so|so that|avoid|avoids|work ?around|race|races|panic|panics|deliberate|deliberately|intentional|intentionally|on purpose|hazard|gotcha|beware|deadlock|must not|cannot|prevent|prevents|load-bearing|unsafe|breaks|corrupts|rather than|instead of|never|there is no|there are no)\b`)
 	historyRe      = regexp.MustCompile(`(?i)\b(no longer|previously|renamed|superseded|supersedes|deprecated|used to|formerly|as of \d{4}|since \d{4}|replaced by)\b`)
 	looseRe        = regexp.MustCompile(`(?i)\b(now|was)\b`)
-	toolMarkerRe   = regexp.MustCompile(`(?m)^Deprecated:`)
+	toolMarkerRe   = regexp.MustCompile(`(?m)^Deprecated:|#nosec\b`)
 )
 
 func Signal(payload string) string {

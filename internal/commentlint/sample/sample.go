@@ -206,6 +206,8 @@ func Render(w io.Writer, s Sheet) error {
 	fmt.Fprintf(b, "- Blocks drawn into the coverage supplement: %d\n\n", len(s.Extra))
 	fmt.Fprint(b, "Accept a class at 2 or fewer load-bearing blocks. A class that fails three "+
 		"rounds leaves the v1 delete set and stays in the flag set.\n\n")
+	fmt.Fprint(b, "This sheet holds the current round. Every round's verdicts sit in "+
+		"[the round ledger](comment-gate-rounds.md).\n\n")
 
 	writeCounts(b, s)
 	writeVerdicts(b, s)

@@ -1,27 +1,29 @@
-# Comment policy validation gate — production Go, round 1
+# Comment policy validation gate — production Go, round 2
 
 SPEC `docs/spec/comment-policy.md` §3.9. Regenerate this sheet with:
 
 ```sh
-go run ./cmd/commentlint sample --population production --round 1
+go run ./cmd/commentlint sample --population production --round 2
 ```
 
 - In-scope Go files read: 255
-- Blocks the §3.2 screen admits for deletion: 1978
+- Blocks the §3.2 screen admits for deletion: 1022
 - Blocks drawn into the gate sample: 100
 - Blocks drawn into the coverage supplement: 0
 
 Accept a class at 2 or fewer load-bearing blocks. A class that fails three rounds leaves the v1 delete set and stays in the flag set.
+
+This sheet holds the current round. Every round's verdicts sit in [the round ledger](comment-gate-rounds.md).
 
 ## Class coverage
 
 | Class | Admitted | Gate sample | Supplement |
 | --- | --- | --- | --- |
 | `commented-out-code` | 0 | 0 | 0 |
-| `docstring-exported-conventional` | 827 | 48 | 0 |
-| `docstring-unexported` | 1032 | 48 | 0 |
-| `section-divider` | 88 | 3 | 0 |
-| `short-label` | 31 | 1 | 0 |
+| `docstring-exported-conventional` | 462 | 47 | 0 |
+| `docstring-unexported` | 444 | 44 | 0 |
+| `section-divider` | 88 | 8 | 0 |
+| `short-label` | 28 | 1 | 0 |
 
 ## Verdicts
 
@@ -30,191 +32,118 @@ A reviewer fills the last two columns. A class that admits no block on this popu
 | Class | Read | Load-bearing | Verdict |
 | --- | --- | --- | --- |
 | `commented-out-code` | 0 | n/a | n/a |
-| `docstring-exported-conventional` | 48 | | |
-| `docstring-unexported` | 48 | | |
-| `section-divider` | 3 | | |
+| `docstring-exported-conventional` | 47 | | |
+| `docstring-unexported` | 44 | | |
+| `section-divider` | 8 | | |
 | `short-label` | 1 | | |
 
 ## Gate sample
 
-### 1. `cmd/web/annotations.go:125-127` — `docstring-unexported`
+### 1. `cmd/web/api_v1.go:159` — `section-divider`
 
 Load-bearing: [ ]
 
 ```go
-122 | 	s.redirectBack(w, r, "/signals")
-123 | }
-124 | 
-125 | // knownRule reports whether name is a shipped rule. An Annotation may only name a
-126 | // rule that exists — accepting a firing on a signal that can never fire would be
-127 | // an acceptance with no reader.
-128 | func knownRule(name string) bool {
-129 | 	for _, n := range signal.RuleNames() {
-130 | 		if n == name {
+156 | 	writeAPIJSON(w, out)
+157 | }
+158 | 
+159 | // --- subjects ---------------------------------------------------------------
+160 | 
+161 | type apiSubjectsResponse struct {
+162 | 	Names     []apiSubject `json:"names"`
 ```
 
-### 2. `cmd/web/api_v1.go:222` — `section-divider`
+### 2. `cmd/web/api_v1.go:280` — `section-divider`
 
 Load-bearing: [ ]
 
 ```go
-219 | 	writeAPIJSON(w, out)
-220 | }
-221 | 
-222 | // --- drift ------------------------------------------------------------------
-223 | 
-224 | type apiDriftResponse struct {
-225 | 	Period          string          `json:"period"`
+277 | 	writeAPIJSON(w, out)
+278 | }
+279 | 
+280 | // --- signals ----------------------------------------------------------------
+281 | 
+282 | type apiSignalsResponse struct {
+283 | 	Open      []apiSignal `json:"open"`
 ```
 
-### 3. `cmd/web/auth.go:257-259` — `docstring-unexported`
+### 3. `cmd/web/custodycensus.go:64` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
-254 | 	Mark string
-255 | }
-256 | 
-257 | // ssoMark derives the login button's mono mark from a provider name: the first letter of up to
-258 | // the first two words, uppercased (e.g. "Okta" → "O", "Acme Corp" → "AC"). An empty name yields
-259 | // an empty mark, which the tmpl simply renders as a blank chip.
-260 | func ssoMark(name string) string {
-261 | 	mark := ""
-262 | 	for _, field := range strings.Fields(name) {
+61 | // custodyCensusView is the whole section, shaped for scope.tmpl: the declined rows,
+62 | // and how many candidates still wait on their first measurement (#1015).
+63 | type custodyCensusView struct {
+64 | 	// Rows are the declines, one per (citing name, edge) pair, in resolution order.
+65 | 	Rows []custodyCensusRow
+66 | 	// Pending is the number of DISTINCT edges the `edge-fanout` Scan holds and has
+67 | 	// not measured yet. It is a COUNT and never a row, because a pending candidate
 ```
 
-### 4. `cmd/web/auth.go:1343-1348` — `docstring-unexported`
+### 4. `cmd/web/devfixtures.go:599-600` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-1340 | 	s.render(w, r, "forgot", s.signinData(map[string]any{"Title": "Reset password"}))
-1341 | }
-1342 | 
-1343 | // forgotSubmit mints a single-use reset link for the named account, then always
-1344 | // renders the same "if that account exists, a link is on its way" done state — the
-1345 | // response is identical whether or not the username exists, so the endpoint reveals
-1346 | // nothing about which accounts do. There is no mail on a self-hosted host, so the
-1347 | // link is delivered out of band: it is written to the web logs, exactly as the
-1348 | // first-boot setup token is, and the operator can also reset directly on the host.
-1349 | func (s *server) forgotSubmit(w http.ResponseWriter, r *http.Request) {
-1350 | 	username := strings.TrimSpace(r.FormValue("username"))
-1351 | 	if acct, err := s.store.GetAccountByUsername(r.Context(), username); err == nil {
+596 | 	devExposureWithheldVariant = "no-internet-vantage"
+597 | )
+598 | 
+599 | // devExposureRow mirrors one fixtures.json exposure.rows entry: a service's address, its
+600 | // ":port transport", the internal + internet reach legs (expleg display states), and its since.
+601 | type devExposureRow struct {
+602 | 	asset    string
+603 | 	svc      string
 ```
 
-### 5. `cmd/web/clientip.go:55` — `docstring-unexported`
+### 5. `cmd/web/devfixtures.go:1190-1192` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-52 | 	return tp, nil
-53 | }
-54 | 
-55 | // trusts reports whether addr falls inside any configured trusted-proxy range.
-56 | func (tp trustedProxies) trusts(addr netip.Addr) bool {
-57 | 	addr = addr.Unmap()
-58 | 	for _, n := range tp.nets {
+1187 | 	devScopeRefusalReachable = "203.0.113.0/22"
+1188 | 	devScopeRefusalFormError = "Refused — over the 1,024-address cap."
+1189 | 
+1190 | 	// The exclusion-preview golden (states.json scope "exclusion-preview") types
+1191 | 	// devScopeExclPreviewValue and clicks Preview; the handler renders the firing receipt.
+1192 | 	// These mirror fixtures.json scope.exclusion_preview_fixture.
+1193 | 	devScopeExclPreviewKind     = "subtree"
+1194 | 	devScopeExclPreviewValue    = "staging-4.acmecorp.io"
+1195 | 	devScopeExclPreviewFires    = true
 ```
 
-### 6. `cmd/web/cold.go:575-576` — `docstring-unexported`
+### 6. `cmd/web/devfixtures.go:1480-1481` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-572 | 	return out
-573 | }
-574 | 
-575 | // sortCoverageMessages orders the messages deterministically — by kind, then
-576 | // subject — so the currency list is stable across loads.
-577 | func sortCoverageMessages(msgs []coverageMessageView) {
-578 | 	sort.SliceStable(msgs, func(i, j int) bool {
-579 | 		if msgs[i].Kind != msgs[j].Kind {
+1477 | 	devSignalsDiscovered = "2026-08-12"
+1478 | )
+1479 | 
+1480 | // devSignalsSevOptions is the severity listbox vocabulary (fixtures.json signals — the filter
+1481 | // options), in authored order. "All severities" is the unfiltered default.
+1482 | var devSignalsSevOptions = []string{"All severities", "Critical", "High", "Medium", "Low", "Info"}
+1483 | 
+1484 | // devSignalRow mirrors one fixtures.json signals row (open or withdrawn): the SIG id + view key,
 ```
 
-### 7. `cmd/web/devfixtures.go:38-43` — `docstring-unexported`
+### 7. `cmd/web/drift.go:127-129` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-35 | // build keeps the crypto/rand id (newIncidentID, errors.go).
-36 | const devFixtureIncidentID = "err_9f3ka72c"
-37 | 
-38 | // devFixtureAccount is one design fixture login the harness signs in as. states.json
-39 | // carries a per-state `session` ("admin" | "viewer"); the dev session mint resolves that
-40 | // role to one of these accounts and opens a session before the state's route is captured.
-41 | // Dev-only — well-known passwords, seeded only under VERGE_DEV, mirroring fixtures.json →
-42 | // accounts (asserted by TestDevFixturesMatchPackage). The password is #nosec G101: not a
-43 | // real credential, only ever seeded into a throwaway dev database.
-44 | type devFixtureAccount struct {
-45 | 	username string
-46 | 	role     string
+124 | 	Events    []driftEvent
+125 | }
+126 | 
+127 | // driftPeriod is one entry of the period selector: the ?period token, its badge
+128 | // label, and the lookback window it maps to. `all` maps to a zero duration, read as
+129 | // "since the beginning" (no lower bound).
+130 | type driftPeriod struct {
+131 | 	Token  string
+132 | 	Label  string
 ```
 
-### 8. `cmd/web/devfixtures.go:1591-1593` — `docstring-unexported`
-
-Load-bearing: [ ]
-
-```go
-1588 | 	return hist
-1589 | }
-1590 | 
-1591 | // signalsRowMap shapes one fixture row for the table (the holes the frozen tmpl's row reads),
-1592 | // carrying the per-row descope link (filters preserved) and the withdrawn flag (the withdrawn tab
-1593 | // draws the mark).
-1594 | func signalsRowMap(row devSignalRow, closeHref string, withdrawn bool) map[string]any {
-1595 | 	return map[string]any{
-1596 | 		"Severity":    row.Severity,
-```
-
-### 9. `cmd/web/devfixtures.go:1812-1814` — `docstring-unexported`
-
-Load-bearing: [ ]
-
-```go
-1809 | // devDashUnavailable is fixtures.json dashboard.unavailable: the missed-check vantage the banner names.
-1810 | var devDashUnavailable = []string{"ap-south-1"}
-1811 | 
-1812 | // devDashStat mirrors one fixtures.json dashboard.stat_band cell. liveWhenScanning is the JSON's
-1813 | // live_when_scanning flag — the pulse shows only while a scan is running, so Live is set from it AND
-1814 | // the active `scanning` variant, never on the resting default.
-1815 | type devDashStat struct {
-1816 | 	label            string
-1817 | 	value            string
-```
-
-### 10. `cmd/web/diskstat_other.go:5-7` — `docstring-unexported`
-
-Load-bearing: [ ]
-
-```go
- 2 | 
- 3 | package main
- 4 | 
- 5 | // diskUsage has no portable implementation off the unix deployment target (dev on
- 6 | // Windows), so it reports ok=false and the instance-health disk figure collapses rather
- 7 | // than fabricate one — the same honest degradation the rest of the health tab uses.
- 8 | func diskUsage(string) (used, total uint64, ok bool) {
- 9 | 	return 0, 0, false
-10 | }
-```
-
-### 11. `cmd/web/exposure.go:259-261` — `docstring-unexported`
-
-Load-bearing: [ ]
-
-```go
-256 | 	return assetExposure(l.outcome, l.isGap)
-257 | }
-258 | 
-259 | // legFrom lifts a by-class span into the internal/exposure engine's Leg: a decided
-260 | // connection outcome is a valued leg, a Gap is a silent (stopped-looking) leg, and
-261 | // an unmeasured class was never configured. Only a valued leg feeds Project.
-262 | func legFrom(l legInfo) exposure.Leg {
-263 | 	if !l.present {
-264 | 		return exposure.Leg{Status: exposure.LegNeverConfigured}
-```
-
-### 12. `cmd/web/graph.go:225` — `docstring-unexported`
+### 8. `cmd/web/graph.go:225` — `docstring-unexported`
 
 Load-bearing: [ ]
 
@@ -228,97 +157,179 @@ Load-bearing: [ ]
 228 | // graphScope is one entry of the graph's scope selector: the ?scope token the URL
 ```
 
-### 13. `cmd/web/inventory.go:653-659` — `docstring-unexported`
+### 9. `cmd/web/graph.go:299-300` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-650 | 	}
-651 | }
-652 | 
-653 | // devInventoryGroupTotals pins design-system/fixtures/fixtures.json → inventory
-654 | // group totals that differ from the seeded row count, for the VERGE_DEV pixel-parity
-655 | // capture. Only the address group differs: the fixture declares 41 (an estate-scale
-656 | // count) while the loader seeds 3 rows, so the golden's count badge reads "41" and
-657 | // its expander "Show all 41 — 38 more". The other groups' totals equal their seeded
-658 | // counts, so they need no override. TestInventoryFixtureCountsMatchPackage folds
-659 | // these back through the frozen package — the byte-exactness gate before the pixels.
-660 | var devInventoryGroupTotals = map[string]int{
-661 | 	"address": 41,
-662 | }
+296 | 	}
+297 | }
+298 | 
+299 | // round1 rounds a float to one decimal place — the minimap coordinate precision the
+300 | // design fixture carries (e.g. 90·110/1200 = 8.25 → 8.3).
+301 | func round1(v float64) float64 { return math.Round(v*10) / 10 }
+302 | 
+303 | // classifyNameTypes splits the Name set into the domain|subdomain tiers (#22e): a
 ```
 
-### 14. `cmd/web/probers.go:47-54` — `docstring-unexported`
+### 10. `cmd/web/inventory.go:410-412` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-44 | 	At                 string
-45 | }
-46 | 
-47 | // provisionProber declares a prober: the operator supplies host, port and a
-48 | // non-root username, and the row created here DECLARES "this vantage is on the
-49 | // internet" (CONTEXT.md "Vantage class") — there is no network_position field
-50 | // and no setup-wizard step. It is reached only through requireAdmin.
-51 | //
-52 | // No key material is generated here. The worker owns the SSH keypair volume and
-53 | // generates the pair out of band, publishing only the public half back to this
-54 | // row; web never touches a private key.
-55 | func (s *server) provisionProber(w http.ResponseWriter, r *http.Request, acct db.Account) {
-56 | 	host := r.FormValue("host")
-57 | 	port := r.FormValue("port")
+407 | 	return a.Key < b.Key
+408 | }
+409 | 
+410 | // leadingFacet returns a subject's first facet after the canonical facet sort — the
+411 | // facet the subject order keys on — or a zero facet for a subject that (impossibly,
+412 | // every inventory subject holds at least one) holds none.
+413 | func leadingFacet(s inventorySubject) inventoryFacet {
+414 | 	if len(s.Facets) == 0 {
+415 | 		return inventoryFacet{}
 ```
 
-### 15. `cmd/web/progress.go:59-61` — `docstring-unexported`
+### 11. `cmd/web/main.go:237` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-56 | }
-57 | 
-58 | const (
-59 | 	// maxProgressRuns bounds how many dispatches the hub retains events for at once. Events
-60 | 	// matter only while a run is live and re-derive to bare state at any time, so a small ring
-61 | 	// is ample; the least-recently-started run is evicted past the cap.
-62 | 	maxProgressRuns = 256
-63 | 	// maxEventsPerRun caps one run's event log. The stream's cursor is an index into this log,
-64 | 	// so events are FROZEN at the cap (further events dropped) rather than evicted from the
+234 | 	return token, nil
+235 | }
+236 | 
+237 | // isTruthy reads the common affirmative spellings of a boolean env value.
+238 | func isTruthy(v string) bool {
+239 | 	switch strings.ToLower(strings.TrimSpace(v)) {
+240 | 	case "1", "true", "yes", "on":
 ```
 
-### 16. `cmd/web/reports.go:385-387` — `docstring-unexported`
+### 12. `cmd/web/messages.go:39-41` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-382 | 	return strconv.Itoa(n) + " assets"
-383 | }
-384 | 
-385 | // reportsDurationDays renders a duration as the console's terse day figure ("2.4d"),
-386 | // the form the mean-time-to-withdrawal KPI reads (Reports.jsx). A sub-day mean still
-387 | // renders in days ("0.4d") so the KPI keeps one unit.
-388 | func reportsDurationDays(d time.Duration) string {
-389 | 	return strconv.FormatFloat(d.Hours()/24, 'f', 1, 64) + "d"
-390 | }
+36 | 	LastError string
+37 | }
+38 | 
+39 | // messageRow is one message shaped for the panel: the rendered headline, the
+40 | // per-mover link, the cause and class as read-only labels, the instant, the
+41 | // read-state, and the census rows where the firing carries one.
+42 | type messageRow struct {
+43 | 	ID       int64
+44 | 	Cause    string
 ```
 
-### 17. `cmd/web/reports.go:651-654` — `docstring-unexported`
+### 13. `cmd/web/messages.go:55-56` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
-648 | 	Data  []int  `json:"data"`
-649 | }
-650 | 
-651 | // buildReportsTimeSeries folds the signals-over-time buckets into the chart geometry,
-652 | // choosing a nice y-axis step exactly as TimeSeriesChart.jsx does. ok is false where
-653 | // the standing level never rises above zero, so the card renders the design's empty
-654 | // pattern rather than a flat line on a fabricated axis.
-655 | func buildReportsTimeSeries(pts []drift.SignalPoint) (reportsTimeSeries, bool) {
-656 | 	n := len(pts)
-657 | 	if n < 2 {
+52 | 	Instant  string
+53 | 	Read     bool
+54 | 	Census   []censusRowView
+55 | 	// Deliveries is this message's outcome to each routed Channel. A message with
+56 | 	// no channel configured carries none; an undelivered one carries a Failed row.
+57 | 	Deliveries []deliveryView
+58 | 	// AnyUndelivered is true where at least one delivery is undelivered, so the
+59 | 	// panel can flag the message without the operator opening every row.
 ```
 
-### 18. `cmd/web/reports_schedule.go:100-103` — `docstring-unexported`
+### 14. `cmd/web/messages.go:492-496` — `docstring-unexported`
+
+Load-bearing: [ ]
+
+```go
+489 | // itself; the menu item only decides whether a delivery exists to open.
+490 | const reportDeliveryHref = "/reports/delivery"
+491 | 
+492 | // reportScheduleRow is one recurring report shaped for the Reports screen's
+493 | // "Recurring reports" table (T17, after design-system/examples/console/Reports.jsx).
+494 | // Name / Cadence / Format / LastSent are the schedule's facts; the row-action menu
+495 | // carries "View last delivery", which opens the delivered artifact when this report
+496 | // has a delivery and is disabled where it has none (no fabrication).
+497 | type reportScheduleRow struct {
+498 | 	// ID keys the row's mutations — the Run now / Edit / Delete row-menu actions post
+499 | 	// it back so the handler resolves which schedule to act on (P0.6/T4).
+```
+
+### 15. `cmd/web/ratelimit.go:27` — `docstring-unexported`
+
+Load-bearing: [ ]
+
+```go
+24 | type loginLimiter struct {
+25 | 	now func() time.Time
+26 | 
+27 | 	// maxFailures is how many failures a key may accrue before it locks.
+28 | 	maxFailures int
+29 | 	// window is the idle span after which a key's failure count is considered
+30 | 	// stale and reset — a reset that costs no goroutine, applied lazily on the
+```
+
+### 16. `cmd/web/rawoutput.go:38-41` — `docstring-unexported`
+
+Load-bearing: [ ]
+
+```go
+35 | 	SentScope string   `json:"sentScope"`
+36 | }
+37 | 
+38 | // rawOutputView is one job's Transcript shaped for the dedicated admin view. Captured is
+39 | // false for a legible absence (no transcript row) — distinct from a captured-but-empty
+40 | // stream, which renders as an empty panel with Captured true. The exec-meta fields are
+41 | // meaningful only when Captured.
+42 | type rawOutputView struct {
+43 | 	RunID   int64
+44 | 	RunHref string // back to the filtered run page (?job={id})
+```
+
+### 17. `cmd/web/rawoutput.go:350-351` — `docstring-unexported`
+
+Load-bearing: [ ]
+
+```go
+347 | 	return out
+348 | }
+349 | 
+350 | // rawHumanBytes renders a byte count in binary units (KiB/MiB/…) for the exec-meta and
+351 | // truncation notes.
+352 | func rawHumanBytes(n int) string {
+353 | 	const unit = 1024
+354 | 	if n < unit {
+```
+
+### 18. `cmd/web/reports.go:376-377` — `docstring-unexported`
+
+Load-bearing: [ ]
+
+```go
+373 | 	}
+374 | }
+375 | 
+376 | // pluralAssets renders a discovery count as the console's terse asset figure — the
+377 | // bar's hover title. "asset" is the UI collective noun for a watched Name/Service.
+378 | func pluralAssets(n int) string {
+379 | 	if n == 1 {
+380 | 		return "1 asset"
+```
+
+### 19. `cmd/web/reports.go:624-627` — `docstring-unexported`
+
+Load-bearing: [ ]
+
+```go
+621 | 	X, Y, Text string
+622 | }
+623 | 
+624 | // reportsTimeSeries is the server-rendered form of TimeSeriesChart.jsx for the
+625 | // "Open signals over time" card: a fixed viewBox (scaled to width via the SVG),
+626 | // nice-stepped y gridlines, sparse x labels, and the two standing series — All open
+627 | // (--chart-1) and Critical + high (--chart-2). Every string is paint-ready.
+628 | type reportsTimeSeries struct {
+629 | 	W, H     int
+630 | 	Grid     []reportsGridLine
+```
+
+### 20. `cmd/web/reports_schedule.go:100-103` — `docstring-unexported`
 
 Load-bearing: [ ]
 
@@ -335,284 +346,102 @@ Load-bearing: [ ]
 106 | 	ID       int64
 ```
 
-### 19. `cmd/web/reports_schedule.go:334-338` — `docstring-unexported`
+### 21. `cmd/web/restore.go:176-178` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-331 | 	s.renderScheduleWizard(r.Context(), w, r, acct, v, false)
-332 | }
-333 | 
-334 | // editReportScheduleWizard renders the wizard prefilled from an existing schedule. A
-335 | // fresh GET (no ?step) prefills from the stored row; a PRG GET (?step=N&…) reconstructs
-336 | // the accumulated state and renders that step. A stale id (already deleted) redirects
-337 | // back to /reports rather than 500ing. Stepping and finishing post to
-338 | // /reports/schedule/{id}/edit (editReportSchedule).
-339 | func (s *server) editReportScheduleWizard(w http.ResponseWriter, r *http.Request, acct db.Account) {
-340 | 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-341 | 	if err != nil {
+173 | 	}, nil
+174 | }
+175 | 
+176 | // backupAllowed reports whether a table name is in B3's ordered allowlist. Restore reads
+177 | // and overwrites only these — a manifest naming anything else is refused, honouring the
+178 | // same allowlist/denylist partition backup writes with.
+179 | func backupAllowed(table string) bool {
+180 | 	for _, t := range backupTables {
+181 | 		if t == table {
 ```
 
-### 20. `cmd/web/scans.go:467-469` — `docstring-unexported`
+### 22. `cmd/web/seeds.go:996-997` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
-464 | 	K, V string
-465 | }
-466 | 
-467 | // runVantage is one vantage's health in this run: the vantage that looked, a
-468 | // latency (not stored, so "—"), and a status folded from its jobs (degraded if any
-469 | // dead-lettered, else ok). It is a vantage, never a probe/scanner/agent.
-470 | type runVantage struct {
-471 | 	Name    string
-472 | 	Latency string
+ 993 | 	// no cadence to age against.
+ 994 | 	AgingStale bool
+ 995 | 	AgingLabel string
+ 996 | 	// IntervalLabel renders the operator's declared re-supply cadence for the
+ 997 | 	// file line ("monthly", "weekly", or "every N days").
+ 998 | 	IntervalLabel string
+ 999 | }
+1000 | 
 ```
 
-### 21. `cmd/web/scans.go:506-507` — `docstring-exported-conventional`
+### 23. `cmd/web/settings.go:69-70` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-503 | 	Vantages    []runVantage
-504 | 	// Degraded is nullable (#20): a *runDegraded, nil where no vantage fell short.
-505 | 	Degraded *runDegraded
-506 | 	// JobFilter is nullable (DF-F3b): set when the request carries ?job={id}; .Log has
-507 | 	// already been narrowed to that job's rows server-side by the time it renders.
-508 | 	JobFilter *runJobFilter
-509 | 	// StreamHref is the per-job stdout long-poll endpoint the frozen rundetail.tmpl
-510 | 	// tails while a job is running (R4-D7 #761). It is nullable — empty when no job is
+66 | // checkboxes and badges from this, never from a literal set baked into the markup.
+67 | var channelClasses = []string{"drift", "coverage", "clock"}
+68 | 
+69 | // accountRow is one account in the management list. It carries no password hash
+70 | // and no TOTP secret — managing an account needs neither.
+71 | type accountRow struct {
+72 | 	ID          int64
+73 | 	Username    string
 ```
 
-### 22. `cmd/web/scans.go:1051-1054` — `docstring-unexported`
+### 24. `cmd/web/settings.go:187-191` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-1048 | 	return stages
-1049 | }
-1050 | 
-1051 | // runLog turns the dispatch's jobs into the batch log — one line per job, the id
-1052 | // as its tag, a level from its state (a dead job errors, a superseded or retrying
-1053 | // attempt warns), and the terse kind · state · vantage · batch text. Every line is
-1054 | // a real queue event; nothing is invented.
-1055 | func runLog(jobs []jobView) []runLogLine {
-1056 | 	out := make([]runLogLine, 0, len(jobs))
-1057 | 	for _, j := range jobs {
+184 | 	// success stash) and read on the way out; it never reaches the template.
+185 | 	flashTab string
+186 | 
+187 | 	// team (T18). teamError is an inline error on the members surface; roleError is
+188 | 	// the change-role guard's message. inviteLink is a freshly minted join URL,
+189 | 	// revealed once by createInvite; inviteOpen re-opens the invite dialog on a
+190 | 	// rejected mint and inviteRole echoes its role. removeID/removeError re-open the
+191 | 	// remove ConfirmDialog on a typed-name mismatch or a guard refusal.
+192 | 	teamError   string
+193 | 	roleError   string
+194 | 	inviteRole  string
 ```
 
-### 23. `cmd/web/search.go:60-62` — `docstring-unexported`
+### 25. `cmd/web/settings_sso.go:50-53` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-57 | // signals.go) plus the shell's "head"/"chrome"/"foot" — all resolve at execute time.
-58 | var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/search.tmpl"))
-59 | 
-60 | // hiSeg is one run of a matched text field: its literal text and whether it is the
-61 | // highlighted (query-matched) run. The "hisegs" define wraps a hit seg in the accent
-62 | // span and emits an un-hit seg as plain (auto-escaped) text.
-63 | type hiSeg struct {
-64 | 	Text string
-65 | 	Hit  bool
+47 | 	LinkedAt     string
+48 | }
+49 | 
+50 | // fillSSOSection reads the configured providers, the current identity bindings, and the
+51 | // add-form echo. The section is the honest empty-state when none are configured (the
+52 | // SignIn "not configured" state mirrors it); once a provider exists, SignIn renders a
+53 | // button for it.
+54 | func (s *server) fillSSOSection(r *http.Request, f settingsForms, data map[string]any) error {
+55 | 	rows, err := s.store.ListSSOProviders(r.Context())
+56 | 	if err != nil {
 ```
 
-### 24. `cmd/web/seedfixtures.go:150-154` — `docstring-unexported`
+### 26. `cmd/web/sso.go:547` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-147 | 	return nil
-148 | }
-149 | 
-150 | // seedDevOperator makes the fixed dev operator exist so the pixel-parity harness can
-151 | // log in and reach the authenticated Inventory screen. It is idempotent: it creates
-152 | // the operator only when the instance has no account yet, so a re-seed against an
-153 | // instance that already has one (the operator, or a real first-run admin) leaves
-154 | // accounts untouched. Dev-only — the caller (main.go) has already gated on VERGE_DEV.
-155 | func seedDevOperator(ctx context.Context, pool *pgxpool.Pool) error {
-156 | 	q := db.New(pool)
-157 | 	n, err := q.CountAccounts(ctx)
-```
-
-### 25. `cmd/web/seeds.go:60-64` — `docstring-exported-conventional`
-
-Load-bearing: [ ]
-
-```go
-57 | 	ID        int64
-58 | 	IsAddress bool
-59 | 	Scope     string
-60 | 	// Anchor is the row's in-page id — the seed-scoped fragment an
-61 | 	// aperture-widening message links to so it lands on the exact Seed whose
-62 | 	// scope moved, not merely the Seeds list (v1 spec §5.3). Built from Scope by
-63 | 	// seedAnchor, which the message renderer uses for the same key so the two
-64 | 	// agree.
-65 | 	Anchor string
-66 | 	By     string
-67 | 	At     string
-```
-
-### 26. `cmd/web/seeds.go:89-91` — `docstring-unexported`
-
-Load-bearing: [ ]
-
-```go
-86 | 	exclError, exclKind, exclValue string
-87 | 	custodyError                   string
-88 | 	zoneIntervalError              string
-89 | 	// zoneErrors are the per-file zone-upload refusals (DF-F2): one row per rejected
-90 | 	// file, in upload order. It replaces the single zoneError string — a bulk upload
-91 | 	// refuses each file independently.
-92 | 	zoneErrors []zoneErrorView
-93 | 	// zoneIntervalDays echoes a rejected interval so the admin need not retype
-94 | 	// it; empty means render the stored dial.
-```
-
-### 27. `cmd/web/seeds.go:114-116` — `docstring-unexported`
-
-Load-bearing: [ ]
-
-```go
-111 | 	refusals []refusalView
-112 | }
-113 | 
-114 | // zoneErrorView is one per-file zone-upload refusal (DF-F2): the file's name and the
-115 | // reason it was refused (apex outside the name scopes, or not a zone file). It replaces
-116 | // the single .ZoneError hole so a bulk upload lists a row per rejected file.
-117 | type zoneErrorView struct {
-118 | 	File   string
-119 | 	Reason string
-```
-
-### 28. `cmd/web/seeds.go:547-550` — `docstring-unexported`
-
-Load-bearing: [ ]
-
-```go
-544 | 		"leave the estate on the next completed job."
+544 | 	return tx, true
 545 | }
 546 | 
-547 | // seedScopeByID returns the display scope for a declared seed id — the address CIDR for
-548 | // an address scope, the domain for a name scope — and whether it is an address scope,
-549 | // or "" when no such seed exists. It reuses toSeedViews so the string matches the chip
-550 | // the operator clicked.
-551 | func (s *server) seedScopeByID(r *http.Request, id int64) (string, bool) {
-552 | 	rows, err := s.store.ListSeeds(r.Context())
-553 | 	if err != nil {
+547 | // randToken returns a 256-bit URL-safe random token for the state and nonce values.
+548 | func randToken() string {
+549 | 	b := make([]byte, 32)
+550 | 	if _, err := rand.Read(b); err != nil {
 ```
 
-### 29. `cmd/web/settings.go:809-810` — `docstring-unexported`
-
-Load-bearing: [ ]
-
-```go
-806 | 	s.backToSection(w, r, "channels")
-807 | }
-808 | 
-809 | // deleteChannel removes a channel. It is idempotent: deleting a row that is
-810 | // already gone satisfies the operator's intent either way.
-811 | func (s *server) deleteChannel(w http.ResponseWriter, r *http.Request, acct db.Account) {
-812 | 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
-813 | 	if err != nil {
-```
-
-### 30. `cmd/web/settings_fixtures.go:421` — `docstring-unexported`
-
-Load-bearing: [ ]
-
-```go
-418 | 	API          sfAPI             `json:"api"`
-419 | }
-420 | 
-421 | // loadSettingsFixture reads and decodes the fixtures.json → settings slice.
-422 | func loadSettingsFixture() (settingsFixture, error) {
-423 | 	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
-424 | 	if err != nil {
-```
-
-### 31. `cmd/web/settings_sso.go:25-26` — `docstring-unexported`
-
-Load-bearing: [ ]
-
-```go
-22 | // (/login/sso/<slug>), so it is lowercase alphanumeric with internal hyphens.
-23 | var ssoSlugPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
-24 | 
-25 | // ssoProviderView is one configured provider shaped for the Settings table: its
-26 | // display fields, whether a secret is set (never the value), and who declared it.
-27 | type ssoProviderView struct {
-28 | 	ID        int64
-29 | 	Slug      string
-```
-
-### 32. `cmd/web/signals.go:45-47` — `docstring-unexported`
-
-Load-bearing: [ ]
-
-```go
-42 | // owns every verdict, and deriveSignalInstances turns the fired census into the
-43 | // flat rows this screen draws.
-44 | 
-45 | // dnsRecordValue is the JSON payload of a dns-record observation (the shape the
-46 | // resolution-walk leaf emits). The handler reads only the CNAME target off the
-47 | // CNAME discriminator and the delegation's Lame verdict off the NS discriminator.
-48 | type dnsRecordValue struct {
-49 | 	RRs []struct {
-50 | 		Name string `json:"name"`
-```
-
-### 33. `cmd/web/signals.go:1682-1686` — `docstring-unexported`
-
-Load-bearing: [ ]
-
-```go
-1679 | 	return fmt.Sprintf("SIG-%04d", id)
-1680 | }
-1681 | 
-1682 | // subjectAddrPort pulls the address and port out of a subject key for the
-1683 | // per-instance table's IP / Port columns. A Service key is `address:port/transport`
-1684 | // and an Endpoint key is `name@address:port/transport`; a bare Name carries
-1685 | // neither, so both come back empty. It reuses the same parse the engine's fold
-1686 | // uses, so the columns agree with the census's own reading of the key.
-1687 | func subjectAddrPort(subject string) (ip, port string) {
-1688 | 	_, svc := splitEndpointName(subject)
-1689 | 	if p, addr, ok := parseServicePair(svc); ok {
-```
-
-### 34. `cmd/web/sources.go:415-417` — `docstring-unexported`
-
-Load-bearing: [ ]
-
-```go
-412 | 	FalseEmptyPass bool
-413 | }
-414 | 
-415 | // ctReliabilityBar is the bar's targets, formatted for the KPI tiles (spec §3). It is
-416 | // release-authored, the same for every install, so it is derived from the scan-package
-417 | // constants rather than read from Postgres.
-418 | type ctReliabilityBar struct {
-419 | 	SuccessTarget string // "≥ 99%"
-420 | 	LatencyTarget string // "≤ 5 s"
-```
-
-### 35. `cmd/web/subjects.go:123-125` — `docstring-exported-conventional`
-
-Load-bearing: [ ]
-
-```go
-120 | 	// origin from here* rather than *nothing is open*.
-121 | 	ReachGap       bool
-122 | 	ReachGapReason string
-123 | 	// Citation is the "why is this here" chain: Service → Address → the Name whose
-124 | 	// resolution cites the Address (or the address-scope Seed that covers it),
-125 | 	// terminating at a Seed.
-126 | 	Citation           []citationHop
-127 | 	CitationTerminated bool
-128 | 	// Timelines are the Service's reachability Span timelines — current and closed
-```
-
-### 36. `cmd/web/subjects.go:143-145` — `docstring-exported-conventional`
+### 27. `cmd/web/subjects.go:143-145` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
@@ -628,37 +457,56 @@ Load-bearing: [ ]
 148 | 
 ```
 
-### 37. `cmd/web/subjects.go:209` — `docstring-unexported`
+### 28. `cmd/web/subjects.go:599-604` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-206 | 	Fired    bool
-207 | }
-208 | 
-209 | // subjectPageData is the drill-down view for one Name.
-210 | type subjectPageData struct {
-211 | 	Name       string
-212 | 	Withdrawn  bool
+596 | 	return addr, port, transport
+597 | }
+598 | 
+599 | // buildServiceCitation assembles the "why is this here" chain for a Service: the
+600 | // Service itself, the Address the triple sits on, and the ground the Address's
+601 | // membership rests on — the Name whose current resolution cites the Address, or
+602 | // the address-scope Seed that covers it, terminating at a Seed. Where neither
+603 | // limb holds, the Address has left the estate (the `uncited` / `descoped`
+604 | // departure), which the caller renders as a withdrawn Service.
+605 | func (s *server) buildServiceCitation(r *http.Request, addr string) (hops []citationHop, terminated, withdrawn bool, seedScope, inScopeSince string) {
+606 | 	hops = []citationHop{
+607 | 		{Label: "Subject · Service", Value: r.FormValue("key")},
 ```
 
-### 38. `cmd/web/subjects.go:721-723` — `docstring-unexported`
+### 29. `cmd/web/subjects.go:1217` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-718 | 	return best
-719 | }
-720 | 
-721 | // currentReachSince returns the open instant of the current reachability span — the
-722 | // "Since" the Service's current-facet card carries. Empty where the reachability
-723 | // timeline holds no current value (a withdrawn or gapped Service).
-724 | func currentReachSince(tls []timelineView) string {
-725 | 	for _, tl := range tls {
-726 | 		if tl.Facet == "reachability" && tl.Current != nil {
+1214 | 	Fingerprint string
+1215 | }
+1216 | 
+1217 | // assetDNSRow is one resolved record: the RR type, its value, and when last seen.
+1218 | type assetDNSRow struct {
+1219 | 	Type  string
+1220 | 	Value string
 ```
 
-### 39. `docs/guides/embed.go:13-16` — `docstring-exported-conventional`
+### 30. `cmd/web/vantageclass.go:119-121` — `docstring-unexported`
+
+Load-bearing: [ ]
+
+```go
+116 | 	return out
+117 | }
+118 | 
+119 | // moreRecent reports whether a per-vantage leg row should replace the one currently
+120 | // chosen for its (subject, derived class) bucket — the opened_at DESC, id DESC tiebreak
+121 | // the retired SQL DISTINCT ON encoded (a resolution read passes observed_at as openedAt).
+122 | func moreRecent(openedAt time.Time, id int64, cur reachLegRow) bool {
+123 | 	if openedAt.After(cur.openedAt) {
+124 | 		return true
+```
+
+### 31. `docs/guides/embed.go:13-16` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
@@ -675,236 +523,185 @@ Load-bearing: [ ]
 19 | 
 ```
 
-### 40. `internal/auth/key.go:17-23` — `docstring-exported-conventional`
+### 32. `internal/custody/census.go:42` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
-14 | // keyLen is the signing-key length in bytes: 256 bits, matching HMAC-SHA256.
-15 | const keyLen = 32
-16 | 
-17 | // LoadOrCreateKey returns the session signing key held in dir, creating it on
-18 | // first boot. The key is generated by web and written to its own volume; it is
-19 | // never persisted to Postgres, so a database dump does not disclose it and a
-20 | // database restore does not silently rotate it (v1 spec §4.3).
-21 | //
-22 | // The file is written 0600. dir is created if absent. A key of the wrong
-23 | // length is treated as corruption and reported rather than used.
-24 | func LoadOrCreateKey(dir string) ([]byte, error) {
-25 | 	path := filepath.Join(dir, keyFile)
-26 | 
-```
-
-### 41. `internal/auth/session.go:24-25` — `docstring-exported-conventional`
-
-Load-bearing: [ ]
-
-```go
-21 | const (
-22 | 	// KindSession is a completed login: the bearer is authenticated.
-23 | 	KindSession Kind = "session"
-24 | 	// KindPending is a half-login: the password was correct and a TOTP code
-25 | 	// is still owed. It authorises only the TOTP-completion step.
-26 | 	KindPending Kind = "totp"
-27 | )
-28 | 
-```
-
-### 42. `internal/auth/session.go:29-31` — `docstring-exported-conventional`
-
-Load-bearing: [ ]
-
-```go
-26 | 	KindPending Kind = "totp"
-27 | )
-28 | 
-29 | // Session is the claim carried by a signed cookie. It holds no role: the role
-30 | // is read from the account row on every request, so a role change or an
-31 | // account deletion takes effect immediately rather than at cookie expiry.
-32 | type Session struct {
-33 | 	AccountID int64     `json:"aid"`
-34 | 	Kind      Kind      `json:"knd"`
-```
-
-### 43. `internal/custody/census.go:36-37` — `docstring-exported-conventional`
-
-Load-bearing: [ ]
-
-```go
-33 | // product-chosen number in front of the operator as if it were their business
-34 | // (ADR-0129 §5, #987).
-35 | type ExtensionCensusEntry struct {
-36 | 	// Name is the in-zone Name holding the A record — the CITING name, which is
-37 | 	// what the operator recognises. It is never the edge's own reverse name.
-38 | 	Name string
 39 | 	// Address is the edge the record points at, Unmap'ed as every address in this
 40 | 	// package is.
+41 | 	Address netip.Addr
+42 | 	// State is why the extension does not reach it.
+43 | 	State ExtensionState
+44 | 	// Scope is the declared address scope that ALSO covers the edge, and the zero
+45 | 	// Prefix where none does. A valid Prefix here is ADR-0129's dual-limb row: the
 ```
 
-### 44. `internal/delivery/delivery.go:110-111` — `docstring-exported-conventional`
+### 33. `internal/custody/corpus/harness.go:202` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
-107 | 	Link string `json:"link,omitempty"`
-108 | }
-109 | 
-110 | // Subject is the fired-at subject as a bare (kind, key) pair — the key the
-111 | // receiver would follow the link on, not a rendered label.
-112 | type Subject struct {
-113 | 	Kind string `json:"kind"`
-114 | 	Key  string `json:"key"`
+199 | 	UncoveredMoves []UncoveredMove `json:"uncovered_moves"`
+200 | }
+201 | 
+202 | // LoadLock reads corpus.lock.json from dir.
+203 | func LoadLock(dir string) (Lock, error) {
+204 | 	b, err := os.ReadFile(filepath.Join(dir, "corpus.lock.json")) // #nosec G304 (test corpus loader; filename constant, dir is the fixed test corpus directory ".")
+205 | 	if err != nil {
 ```
 
-### 45. `internal/delivery/runner.go:73-77` — `docstring-exported-conventional`
+### 34. `internal/custody/corpus/rows.go:41` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
-70 | 	}
-71 | }
-72 | 
-73 | // Resolver resolves a host to its IP addresses. *net.Resolver satisfies it (so
-74 | // net.DefaultResolver is the production value); a test supplies a fake to place a host
-75 | // in a private range without real DNS. It is exported so SendSigned — the shared
-76 | // signed-POST transport the report notify runner also drives — can be handed the same
-77 | // resolver the delivery Runner uses.
-78 | type Resolver interface {
-79 | 	LookupNetIP(ctx context.Context, network, host string) ([]netip.Addr, error)
-80 | }
+38 | 	AddressExclusions []string
+39 | 	// ExtendedZones are the registrable domains of custody-extended name scopes.
+40 | 	ExtendedZones []string
+41 | 	// Resolutions are the observed direct A/AAAA records.
+42 | 	Resolutions []Resolution
+43 | 	// ScanInForce is `edge-fanout`'s DISPOSITION — EdgeFanout.Enabled. False is a
+44 | 	// disabled Scan and a Scan whose row is absent.
 ```
 
-### 46. `internal/drift/drift.go:171` — `docstring-exported-conventional`
+### 35. `internal/custody/custody.go:67` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
-168 | 	Reason   ClosureReason // set only on a withdrawal closure
-169 | }
-170 | 
-171 | // Open reports whether the span is the timeline's current one.
-172 | func (s Span) Open() bool { return s.ClosedAt.IsZero() }
-173 | 
+64 | 	// custody extension. A name-scope Seed with the extension off contributes
+65 | 	// nothing to the derivation.
+66 | 	ExtendedZones []string
+67 | 	// Resolutions are the observed direct A/AAAA records of names in the estate.
+68 | 	Resolutions []Resolution
+69 | 	// edgeFanout is the `edge-fanout` Scan's measured result. It narrows the
+70 | 	// custody extension's reach and reaches NOTHING ELSE (ADR-0129 §4).
 ```
 
-### 47. `internal/drift/transition.go:50-51` — `docstring-exported-conventional`
+### 36. `internal/delivery/delivery.go:204` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
-47 | type Kind string
-48 | 
-49 | const (
-50 | 	// KindNone is an ordinary adjacency — a value moved, and the move is recorded
-51 | 	// and unnamed.
-52 | 	KindNone Kind = ""
-53 | 	// KindAppeared is discovery: a subject entering the estate with no prior
-54 | 	// membership span to return from. Membership-only.
+201 | type Verdict int
+202 | 
+203 | const (
+204 | 	// VerdictDelivered: a 2xx. Nothing more is sent.
+205 | 	VerdictDelivered Verdict = iota
+206 | 	// VerdictRetry: a failure with attempts remaining. The delivery returns to
+207 | 	// pending on the shared backoff.
 ```
 
-### 48. `internal/drift/trend.go:46-50` — `docstring-exported-conventional`
+### 37. `internal/delivery/delivery.go:206-207` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
+203 | const (
+204 | 	// VerdictDelivered: a 2xx. Nothing more is sent.
+205 | 	VerdictDelivered Verdict = iota
+206 | 	// VerdictRetry: a failure with attempts remaining. The delivery returns to
+207 | 	// pending on the shared backoff.
+208 | 	VerdictRetry
+209 | 	// VerdictUndelivered: a failure with the attempt budget spent. Dead-lettered —
+210 | 	// the undelivered mark — leaving the Message untouched.
+```
+
+### 38. `internal/drift/delta.go:40-45` — `docstring-exported-conventional`
+
+Load-bearing: [ ]
+
+```go
+37 | 	return s.ClosedAt.IsZero() || s.ClosedAt.After(t)
+38 | }
+39 | 
+40 | // OpenAt returns the spans open at instant t — the population one timeline-set
+41 | // held then. Evaluated at the previous batch's instant it is the "value a batch
+42 | // ago"; the current population is CurrentlyOpen. The caller must supply a span set
+43 | // that still carries the spans the most recent batch closed (a read filtered to
+44 | // `closed_at IS NULL OR closed_at > prevBatchAt` does), or a span the batch closed
+45 | // is missing and the previous count is understated.
+46 | func OpenAt(spans []Span, t time.Time) []Span {
+47 | 	out := make([]Span, 0, len(spans))
+48 | 	for _, s := range spans {
+```
+
+### 39. `internal/drift/drift.go:74-76` — `docstring-exported-conventional`
+
+Load-bearing: [ ]
+
+```go
+71 | 	return out
+72 | }
+73 | 
+74 | // Equal reports whether two vectors are the same set of (leaf, version) pairs.
+75 | // This is the whole comparability precondition: two spans compare only where
+76 | // Equal holds, and the boundary between two spans where it does not is a Break.
+77 | func (v Vector) Equal(o Vector) bool {
+78 | 	if len(v) != len(o) {
+79 | 		return false
+```
+
+### 40. `internal/drift/trend.go:44` — `section-divider`
+
+Load-bearing: [ ]
+
+```go
+41 | 	return idx, true
+42 | }
 43 | 
 44 | // --- Signals over time -------------------------------------------------------
 45 | 
 46 | // Raise is one signal instance as the trend fold sees it: the instant the
 47 | // (rule, subject) pair was FIRST seen firing (signal_instance.first_seen) and
-48 | // whether the rule's severity is elevated — critical or high, the design's
-49 | // "Critical + high" series. Severity is the rule's, resolved by the web layer and
-50 | // passed as a bool so this core needs no severity import.
-51 | type Raise struct {
-52 | 	At       time.Time
-53 | 	Elevated bool
 ```
 
-### 49. `internal/drift/trend.go:70-75` — `docstring-exported-conventional`
+### 41. `internal/env/env.go:11` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
-67 | 	StandingElevated int
-68 | }
-69 | 
-70 | // SignalsOverTime folds a set of signal raises into a per-bucket series over the
-71 | // window ending at `now`, oldest bucket first. Incidence (Count/Elevated) counts the
-72 | // raises whose first-seen instant fell in the bucket; standing (Standing/
-73 | // StandingElevated) accumulates every raise on or before the bucket's close, so a
-74 | // signal raised before the window still lifts the standing level it is still part of.
-75 | // A nil/empty raise set yields a series of empty buckets, never a fabricated shape.
-76 | func SignalsOverTime(raises []Raise, now time.Time, bucket time.Duration, buckets int) []SignalPoint {
-77 | 	start := windowStart(now, bucket, buckets)
-78 | 	points := make([]SignalPoint, buckets)
+ 8 | 	"os"
+ 9 | )
+10 | 
+11 | // OrDefault returns the value of key, or fallback if it is unset.
+12 | func OrDefault(key, fallback string) string {
+13 | 	if v, ok := os.LookupEnv(key); ok {
+14 | 		return v
 ```
 
-### 50. `internal/exposure/exposure.go:234-236` — `docstring-exported-conventional`
+### 42. `internal/measure/blanketdiscrim/corpus/harness.go:79-81` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
-231 | 	StoppedLooking OneLeggedReason = "stopped-looking"
-232 | )
-233 | 
-234 | // Board is the populated 2×2: the Service list in each Exposure cell. Every
-235 | // member is enumerable in full — the board is a census, never a sampled or ranked
-236 | // view — so the cells hold lists, not just counts.
-237 | type Board struct {
-238 | 	Exposed     []string
-239 | 	EdgeOnly    []string
+76 | 	Date       string `json:"date"`
+77 | }
+78 | 
+79 | // Lock is the checked-in manifest that binds the leaf version to the corpus and
+80 | // parameter digests. A lock edit that bumps the version with no digest move and no
+81 | // new uncovered move is what CI's version gate refuses.
+82 | type Lock struct {
+83 | 	LeafVersion    string          `json:"leaf_version"`
+84 | 	CorpusDigest   string          `json:"corpus_digest"`
 ```
 
-### 51. `internal/exposure/exposure.go:294-297` — `docstring-exported-conventional`
+### 43. `internal/measure/blanketdiscrim/leaf.go:80` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
-291 | 	WhatMoved []string
-292 | }
-293 | 
-294 | // Build assembles the Screen from the per-Service snapshot and the install's
-295 | // class presence. It runs one pass, routing each Service to the board, the
-296 | // one-legged list, or the broken list, and collecting the flagship moves — which
-297 | // are read off the internet leg regardless of where the Service lands.
-298 | func Build(services []ServiceInput, internetPresent, internalPresent bool) Screen {
-299 | 	s := Screen{
-300 | 		InternetPresent: internetPresent,
+77 | 	ControlIncomplete ControlResult = "incomplete"
+78 | )
+79 | 
+80 | // Verdict is the leaf's decision for one `Address`.
+81 | type Verdict string
+82 | 
+83 | const (
 ```
 
-### 52. `internal/measure/blanketdiscrim/corpus/harness.go:63-66` — `docstring-exported-conventional`
-
-Load-bearing: [ ]
-
-```go
-60 | 	return "sha256:" + hex.EncodeToString(h.Sum(nil))
-61 | }
-62 | 
-63 | // ParamsDigest is the digest of the leaf's declared-parameter set — the
-64 | // control-port count and band — the second thing a version bump may be justified
-65 | // by. It reflects the SHIPPED parameters (blanketdiscrim.DefaultParams), not the
-66 | // corpus's fixed set, so a change to the production count still moves the lock.
-67 | func ParamsDigest() string { return blanketdiscrim.DefaultParams().Digest() }
-68 | 
-69 | // UncoveredMove is one row of golden-corpus.md §9's register: a version bump
-```
-
-### 53. `internal/measure/blanketdiscrim/corpus/rows.go:16-17` — `docstring-exported-conventional`
-
-Load-bearing: [ ]
-
-```go
-13 | // carried by ParamsDigest, so a change to it still moves the lock.
-14 | var ControlPorts = blanketdiscrim.FixedPorts{P: []uint16{50001, 50002, 50003}}
-15 | 
-16 | // Step is one run of the composed exchange inside a row: one Batch at one Vantage
-17 | // over one scope, against one scripted connector and handshaker.
-18 | type Step struct {
-19 | 	Batch     string
-20 | 	Scope     co.Scope
-```
-
-### 54. `internal/measure/blanketdiscrim/leaf.go:146-147` — `docstring-exported-conventional`
+### 44. `internal/measure/blanketdiscrim/leaf.go:146-147` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
@@ -919,237 +716,386 @@ Load-bearing: [ ]
 150 | 		ControlPortCount: ControlPortCount,
 ```
 
-### 55. `internal/measure/blanketdiscrim/ports.go:36-40` — `docstring-exported-conventional`
+### 45. `internal/measure/blanketdiscrim/leaf.go:185-187` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
-33 | 	portBandHigh uint16 = 65535
-34 | )
-35 | 
-36 | // PortGen produces one batch's control-port set. The ports are drawn per batch as
-37 | // independent samples; they never appear on any timeline (a control port is an
-38 | // input to the decision and a value on nothing), so a deterministic generator
-39 | // produces byte-identical observations for the golden corpus while production
-40 | // draws from crypto/rand.
-41 | type PortGen interface {
-42 | 	// Ports returns exactly ControlPortCount distinct ports from the dynamic range,
-43 | 	// sorted, so the control probe is order-stable within a batch.
+182 | 	ReasonIncomplete = "the control-port probe did not complete, so this reach could not be discriminated from a blanket responder"
+183 | )
+184 | 
+185 | // ReasonFor renders the operator-facing reason for a gapping Verdict. Only
+186 | // VerdictBlanket and VerdictGap gap a reach; VerdictNotBlanket passes the connect
+187 | // value through and has no reason.
+188 | func ReasonFor(v Verdict) string {
+189 | 	switch v {
+190 | 	case VerdictBlanket:
 ```
 
-### 56. `internal/measure/connectoutcome/certcorpus/rows.go:30-31` — `docstring-exported-conventional`
+### 46. `internal/measure/connectoutcome/certcorpus/harness.go:89` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
-27 | 	Golden       string
-28 | }
-29 | 
-30 | // AllCells is the enumeration the coverage test counts against: every cell of the
-31 | // tls-handshake / certificate block must be pinned by at least one row.
-32 | var AllCells = []string{
-33 | 	// T1 — the value space's three variants (a closed union, ADR-0011)
-34 | 	"T1/presented", "T1/tls-refused", "T1/no-tls",
+86 | 	UncoveredMoves []UncoveredMove `json:"uncovered_moves"`
+87 | }
+88 | 
+89 | // LoadLock reads corpus.lock.json from dir.
+90 | func LoadLock(dir string) (Lock, error) {
+91 | 	b, err := os.ReadFile(filepath.Join(dir, "corpus.lock.json")) // #nosec G304 (test corpus loader; filename constant, dir is the fixed test corpus directory ".")
+92 | 	if err != nil {
 ```
 
-### 57. `internal/measure/connectoutcome/certcorpus/rows.go:104` — `section-divider`
+### 47. `internal/measure/connectoutcome/certcorpus/rows.go:9-10` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
-101 | 		Golden: "cert_presented_named.ndjson",
-102 | 	},
-103 | 
-104 | 	// ---- T1/tls-refused ----
-105 | 	{
-106 | 		Cells: []string{"T1/tls-refused"},
-107 | 		Claim: "a reached Service whose peer speaks TLS but accepts no candidate we offered records tls-refused — a value, distinct from no-tls, so an SNI-required or SSLv3-only listener is not misfiled as *not a TLS server*",
+ 6 | 	co "github.com/winniel123/verge-asm/internal/measure/connectoutcome"
+ 7 | )
+ 8 | 
+ 9 | // Step is one run of the reachability exchange inside a row: one Batch at one
+10 | // Vantage over one scope, against a scripted connector and a scripted handshaker.
+11 | type Step struct {
+12 | 	Batch     string
+13 | 	Scope     co.Scope
 ```
 
-### 58. `internal/measure/connectoutcome/certcorpus/rows.go:435` — `section-divider`
+### 48. `internal/measure/connectoutcome/corpus/rows.go:30` — `short-label`
 
 Load-bearing: [ ]
 
 ```go
-432 | 		Golden: "cert_v3_sig_digest.ndjson",
-433 | 	},
-434 | 
-435 | 	// ---- T6/self-sig-verifies + T6/self-signed-leaf ----
-436 | 	{
-437 | 		Cells: []string{"T6/self-sig-verifies", "T6/self-signed-leaf"},
-438 | 		Claim: "a self-signed leaf carries subject==issuer AND self_sig_verifies=true, the two raw facts selfSignedOf() folds so certificate-self-signed derives a definite yes at read",
+27 | // AllCells is the enumeration the coverage test counts against: every cell of
+28 | // the connect-outcome block must be pinned by at least one row.
+29 | var AllCells = []string{
+30 | 	// C1 — the two verdicts
+31 | 	"C1/reached", "C1/not-reached",
+32 | 	// C2 — the raw results that decide
+33 | 	"C2/open", "C2/refused", "C2/timeout-exhausted",
 ```
 
-### 59. `internal/measure/connectoutcome/run.go:26-30` — `docstring-exported-conventional`
+### 49. `internal/measure/connectoutcome/leaf.go:21` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
-23 | 	Addresses    []string      `json:"addresses"`
-24 | 	TCPPorts     []uint16      `json:"tcp_ports"`
-25 | 	UDPPorts     []uint16      `json:"udp_ports,omitempty"`
-26 | 	// Names are the server names the certificate handshake offers as SNI, one
-27 | 	// Endpoint per name, for each Service the connect reaches. Empty is the
-28 | 	// nameless endpoint — the only mode available on an address-scope Seed where
-29 | 	// no name is known yet (CONTEXT.md `Endpoint`). It never affects the connect
-30 | 	// targets, only the handshake step composed onto a reached Service.
-31 | 	Names   []string      `json:"names,omitempty"`
-32 | 	Profile SafetyProfile `json:"profile"`
-33 | }
+18 | type ConnResult string
+19 | 
+20 | const (
+21 | 	// ConnOpen: the three-way handshake completed. A decided positive.
+22 | 	ConnOpen ConnResult = "open"
+23 | 	// ConnRefused: the host answered with an RST — the port is shut. A decided
+24 | 	// negative, and an answer, so it is never retried.
 ```
 
-### 60. `internal/measure/httpexchange/leaf.go:58` — `docstring-exported-conventional`
+### 50. `internal/measure/connectoutcome/leaf.go:48-49` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
+45 | type Outcome string
+46 | 
+47 | const (
+48 | 	// Reached: the connection completed. The `Service` is reachable from this
+49 | 	// Vantage.
+50 | 	Reached Outcome = "reached"
+51 | 	// NotReached: the connect was refused, or timed out after its retries. On a
+52 | 	// connection-oriented transport silence decides, so this is a value and not a
+```
+
+### 51. `internal/measure/connectoutcome/offers.go:142-143` — `docstring-exported-conventional`
+
+Load-bearing: [ ]
+
+```go
+139 | 	}
+140 | }
+141 | 
+142 | // Digest is a stable content hash of the profile, used by the golden-corpus lock
+143 | // to bind a declared-parameter change to a Version bump.
+144 | func (p SafetyProfile) Digest() string {
+145 | 	b, err := json.Marshal(p)
+146 | 	if err != nil {
+```
+
+### 52. `internal/measure/connectoutcome/tls.go:54-55` — `docstring-exported-conventional`
+
+Load-bearing: [ ]
+
+```go
+51 | type TLSOutcome string
+52 | 
+53 | const (
+54 | 	// TLSPresented: the peer completed a TLS handshake and presented a
+55 | 	// certificate chain. The value carries the chain, ordered leaf-first.
+56 | 	TLSPresented TLSOutcome = "presented"
+57 | 	// TLSRefused: the peer spoke TLS but accepted no candidate we offered — an
+58 | 	// SSLv3-only or SNI-required listener that would otherwise be misfiled under
+```
+
+### 53. `internal/measure/httpexchange/corpus/harness.go:74-76` — `docstring-exported-conventional`
+
+Load-bearing: [ ]
+
+```go
+71 | 	Date       string `json:"date"`
+72 | }
+73 | 
+74 | // Lock is the checked-in manifest that binds the leaf version to the corpus and
+75 | // parameter digests. A lock edit that bumps the version with no digest move and no
+76 | // new uncovered move is what CI's version gate refuses.
+77 | type Lock struct {
+78 | 	LeafVersion    string          `json:"leaf_version"`
+79 | 	CorpusDigest   string          `json:"corpus_digest"`
+```
+
+### 54. `internal/measure/httpexchange/corpus/rows.go:62` — `section-divider`
+
+Load-bearing: [ ]
+
+```go
+59 | // Rows is the checked-in corpus. Every cell in AllCells appears in some row's
+60 | // Cells; the coverage test fails the build (naming the cell) if one does not.
+61 | var Rows = []Row{
+62 | 	// ---- H1/named-200 ----
+63 | 	{
+64 | 		Cells:        []string{"H1/named-200"},
+65 | 		Claim:        "a completed GET / to a named (Name, Service) pair creates the Endpoint and records its http-identity — outcome responded, status, Server header, and the page <title> lifted from the body (never the body itself)",
+```
+
+### 55. `internal/measure/httpexchange/exchange.go:30` — `docstring-exported-conventional`
+
+Load-bearing: [ ]
+
+```go
+27 | 	// Address is the Service's Address (the `A`/`AAAA` the Name resolved to, or a
+28 | 	// Seed-covered address).
+29 | 	Address string `json:"address"`
+30 | 	// Port is the Service's TCP port.
+31 | 	Port uint16 `json:"port"`
+32 | 	// Scheme is the URL scheme spoken — "http" or "https". It records how the
+33 | 	// exchange was framed and never widens what was probed.
+```
+
+### 56. `internal/measure/httpexchange/leaf.go:55-56` — `docstring-exported-conventional`
+
+Load-bearing: [ ]
+
+```go
+52 | 	Method string `json:"method"`
+53 | 	// Path is fixed: `/`. A single request to the root, never a crawl.
+54 | 	Path string `json:"path"`
 55 | 	// BodyCapBytes bounds the body read — 65536 (64 KB). A response longer than
 56 | 	// this is truncated to the cap and the identity records that it was.
 57 | 	BodyCapBytes int `json:"body_cap_bytes"`
 58 | 	// TimeoutMillis bounds the whole exchange — 10000 (10 s).
 59 | 	TimeoutMillis int `json:"timeout_millis"`
-60 | 	// PerHostReqPerSec is the per-host request rate ceiling — 10 req/s.
-61 | 	PerHostReqPerSec int `json:"per_host_req_per_sec"`
 ```
 
-### 61. `internal/measure/resolutionwalk/leaf.go:104-105` — `docstring-exported-conventional`
+### 57. `internal/measure/resolutionwalk/corpus/rows.go:216` — `section-divider`
 
 Load-bearing: [ ]
 
 ```go
-101 | 	Addresses []string `json:"addresses,omitempty"`
-102 | }
-103 | 
-104 | // NSStatus is one authority's serves/does-not-serve verdict on the delegation
-105 | // walk. It is what a partly-lame delegation records instead of Lame (M1.5).
-106 | type NSStatus struct {
-107 | 	Server string `json:"server"`
-108 | 	Serves bool   `json:"serves"`
+213 | 		}},
+214 | 		"m2f_partly.ndjson"),
+215 | 
+216 | 	// ---- M2.g: set equality <-> serialisation (RR order + 0x20 case) ----
+217 | 	{
+218 | 		Cells:        []string{"M2.g/set"},
+219 | 		Claim:        "an address set in canonical RR order and lower-case qname",
 ```
 
-### 62. `internal/measure/resolutionwalk/leaf.go:127-129` — `docstring-exported-conventional`
+### 58. `internal/measure/resolutionwalk/corpus/rows.go:238` — `section-divider`
 
 Load-bearing: [ ]
 
 ```go
-124 | 	RRs   []RR  `json:"rrs"`
-125 | }
-126 | 
-127 | // Result is the leaf's complete decision for one Name at one Vantage. It names
-128 | // no transition (golden-corpus.md R.1): the leaf emits outcomes, and whether a
-129 | // subject appeared, withdrew or returned is decided downstream from them.
-130 | type Result struct {
-131 | 	Name       string     `json:"name"`
-132 | 	Resolution Resolution `json:"resolution"`
+235 | 		Golden: "m2g_serialisation.ndjson",
+236 | 	},
+237 | 
+238 | 	// ---- M2.h: set equality <-> spelling (IPv4-mapped) ----
+239 | 	one([]string{"M2.h/folds"},
+240 | 		"an AAAA ::ffff:203.0.113.5 and an A 203.0.113.5 fold to one Address key",
+241 | 		ScriptPeer{Rules: []scriptRule{
 ```
 
-### 63. `internal/measure/resolutionwalk/run.go:11` — `docstring-exported-conventional`
+### 59. `internal/measure/tlsacceptance/corpus/harness.go:41-43` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
- 8 | 	"github.com/winniel123/verge-asm/internal/wire"
- 9 | )
-10 | 
-11 | // Kind is the JobSpec.Kind that dispatches to this leaf.
-12 | const Kind = "resolution-walk"
-13 | 
-14 | // Scope is the resolution-walk-specific payload of a JobSpec. It carries the
+38 | 	return out, nil
+39 | }
+40 | 
+41 | // CorpusDigest is a stable hash over the rendered corpus, in golden-filename order.
+42 | // It moves exactly when a row's expected output moves, which binds an output change
+43 | // to a leaf-version bump through the lock.
+44 | func CorpusDigest(rendered map[string][]byte) string {
+45 | 	names := make([]string, 0, len(rendered))
+46 | 	for n := range rendered {
 ```
 
-### 64. `internal/measure/wildcarddiscrim/corpus/rows.go:47` — `short-label`
+### 60. `internal/measure/tlsacceptance/corpus/rows.go:44-45` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-44 | 	"W3b/none-determinate", "W3b/determinate-differing",
-45 | 	"W3c/no-wildcard", "W3c/incomplete",
-46 | 	"W3d/discriminated", "W3d/shadowed-all",
-47 | 	// W4 — control-label set (2)
-48 | 	"W4/set-shape", "W4/independent",
-49 | 	// W5 — the shared path (1)
-50 | 	"W5/shared-path",
+41 | 
+42 | func candidates() ta.CandidateSet { return ta.DefaultCandidateSet() }
+43 | 
+44 | // scope builds a one-vantage scope over the given Services under the default
+45 | // declared candidate set.
+46 | func scope(services []ta.ServiceTarget) ta.Scope {
+47 | 	return ta.Scope{
+48 | 		Vantage:      "v1",
 ```
 
-### 65. `internal/measure/wildcarddiscrim/corpus/script.go:52` — `docstring-exported-conventional`
+### 61. `internal/measure/tlsacceptance/corpus/rows.go:67` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-49 | 	Rules []scriptRule
-50 | }
-51 | 
-52 | // Exchange implements resolutionwalk.Peer.
-53 | func (s ScriptPeer) Exchange(q rw.Query) rw.Msg {
-54 | 	if q.Path != rw.PathDeclared {
-55 | 		// The leaf and its candidate resolution use only the declared path here;
+64 | 	ta.TLS12: {"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"},
+65 | }}
+66 | 
+67 | // A listener that speaks TLS but accepts no candidate we offered.
+68 | var refuses = listener{spoke: true, accepts: map[string][]string{}}
+69 | 
+70 | // Rows is the checked-in corpus. Every cell in AllCells appears in some row's Cells;
 ```
 
-### 66. `internal/measure/wildcarddiscrim/emit.go:66-69` — `docstring-unexported`
+### 62. `internal/measure/tlsacceptance/corpus/rows.go:70-71` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
-63 | 	return obs
-64 | }
-65 | 
-66 | // resolutionFor composes the resolution value: `Shadowed` cites nothing, `Gap`
-67 | // cites nothing, and a not-`Shadowed` verdict passes resolution-walk's own value
-68 | // through unchanged — the membership-deciding value is one or the other and the
-69 | // leaf that decided it is this one exactly when the value is Shadowed or Gap.
-70 | func resolutionFor(res rw.Result, verdict Verdict) resolutionValue {
-71 | 	switch verdict {
-72 | 	case VerdictShadowed:
+67 | // A listener that speaks TLS but accepts no candidate we offered.
+68 | var refuses = listener{spoke: true, accepts: map[string][]string{}}
+69 | 
+70 | // Rows is the checked-in corpus. Every cell in AllCells appears in some row's Cells;
+71 | // the coverage test fails the build (naming the cell) if one does not.
+72 | var Rows = []Row{
+73 | 	// ---- T1/modern-1.2-1.3 ----
+74 | 	{
 ```
 
-### 67. `internal/measure/wildcarddiscrim/leaf.go:90` — `docstring-unexported`
+### 63. `internal/measure/tlsacceptance/corpus/rows.go:89` — `section-divider`
 
 Load-bearing: [ ]
 
 ```go
-87 | // the answer RRs, plus whether every query was reached. Reached is the
-88 | // completed/incomplete discriminator — a probe nothing answered records a Gap.
-89 | type controlAnswers struct {
-90 | 	// perLabel[i][qtype] is label i's answer to that qtype.
-91 | 	perLabel []map[rw.Qtype][]rw.RR
-92 | 	reached  bool // at least one control query was reached
-93 | }
+86 | 		Golden: "tls_modern.ndjson",
+87 | 	},
+88 | 
+89 | 	// ---- T2/tls-1.0-accepted ----
+90 | 	{
+91 | 		Cells:        []string{"T2/tls-1.0-accepted"},
+92 | 		Claim:        "a listener accepting TLS 1.0 records version 1.0 in the value — the finding that reads the v1 signal tls-1.0-accepted (measurement-offers §1.2)",
 ```
 
-### 68. `internal/measure/wildcarddiscrim/leaf.go:95-98` — `docstring-unexported`
+### 64. `internal/measure/tlsacceptance/corpus/rows.go:105` — `section-divider`
 
 Load-bearing: [ ]
 
 ```go
- 92 | 	reached  bool // at least one control query was reached
- 93 | }
- 94 | 
- 95 | // components folds a control probe's answers into the per-component signature
- 96 | // union. A component appears here when some label carried that (asked, answered)
- 97 | // RR; a component no label carried is determinately NoSynthesis and is consulted
- 98 | // on the candidate side (differsAt) rather than enumerated here.
- 99 | func (ca controlAnswers) components() map[compKey]component {
-100 | 	// Gather, per component, each label's RDATA set (empty where the label had
-101 | 	// no such RR). A component's key set is the union of RR types any label
+102 | 		Golden: "tls_1_0_accepted.ndjson",
+103 | 	},
+104 | 
+105 | 	// ---- T3/tls-refused ----
+106 | 	{
+107 | 		Cells:        []string{"T3/tls-refused"},
+108 | 		Claim:        "a peer that spoke TLS and accepted nothing offered is `tls-refused`, carrying no accepted versions — read with the batch's candidate set it is *the peer spoke TLS and refused all of this*",
 ```
 
-### 69. `internal/message/census.go:28-30` — `docstring-exported-conventional`
+### 65. `internal/measure/wildcarddiscrim/corpus/harness.go:37` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
-25 | // entered beneath a membership root, or a rule that opened at `fired` and has no
-26 | // firing edge of its own (a move carries the rule that opens beneath it).
-27 | type CensusEntry struct {
-28 | 	// Kind is what opened: "facet", "service", "endpoint", "name", "address" or
+34 | 	return buf.Bytes(), nil
+35 | }
+36 | 
+37 | // RenderAll renders every row, keyed by its golden filename.
+38 | func RenderAll() (map[string][]byte, error) {
+39 | 	out := make(map[string][]byte, len(Rows))
+40 | 	for _, r := range Rows {
+```
+
+### 66. `internal/measure/wildcarddiscrim/corpus/rows.go:82-83` — `docstring-exported-conventional`
+
+Load-bearing: [ ]
+
+```go
+79 | 	}
+80 | }
+81 | 
+82 | // Rows is the checked-in corpus. Every cell in AllCells appears in some row's
+83 | // Cells; A5 fails the build (naming the cell) if one does not.
+84 | var Rows = []Row{
+85 | 	// ---- W3c/no-wildcard + W1/NoSynthesis + W2/not-Shadowed + W5/shared-path ----
+86 | 	one([]string{"W1/NoSynthesis", "W2/not-Shadowed", "W3c/no-wildcard", "W5/shared-path"},
+```
+
+### 67. `internal/measure/wildcarddiscrim/emit.go:18` — `docstring-unexported`
+
+Load-bearing: [ ]
+
+```go
+15 | 	OutcomeGap      = "Gap"
+16 | )
+17 | 
+18 | // resolutionValue is the JSON payload of a composed resolution observation.
+19 | type resolutionValue struct {
+20 | 	Outcome   string   `json:"outcome"`
+21 | 	Addresses []string `json:"addresses,omitempty"`
+```
+
+### 68. `internal/message/artifactdoc.go:56-57` — `docstring-exported-conventional`
+
+Load-bearing: [ ]
+
+```go
+53 | 	Tone string `json:"tone"`
+54 | }
+55 | 
+56 | // ArtifactDocSevBar is one bar in the "open signals by severity" breakdown: the
+57 | // severity token (selects the dot colour), its label, the fill percentage, and count.
+58 | type ArtifactDocSevBar struct {
+59 | 	Sev   string `json:"sev"`
+60 | 	Label string `json:"label"`
+```
+
+### 69. `internal/message/census.go:32` — `docstring-exported-conventional`
+
+Load-bearing: [ ]
+
+```go
 29 | 	// "signal". It is display-only — the census is a flat enumerable payload, not
 30 | 	// a tree to walk.
 31 | 	Kind string `json:"kind"`
 32 | 	// Key is the facet name, subject key or rule name that opened.
 33 | 	Key string `json:"key"`
+34 | }
+35 | 
 ```
 
-### 70. `internal/message/message.go:136-137` — `docstring-exported-conventional`
+### 70. `internal/message/flagship.go:27` — `docstring-exported-conventional`
+
+Load-bearing: [ ]
+
+```go
+24 | // flagship predicate reads. It carries the leg's class, the from/to values of
+25 | // the transition, and whether the leg opened at `reached` rather than moving.
+26 | type ReachMove struct {
+27 | 	// ServiceKey is the (address:port/transport) key the leg was measured on.
+28 | 	ServiceKey string
+29 | 	// Class is the Vantage class the leg was measured from.
+30 | 	Class VantageClass
+```
+
+### 71. `internal/message/message.go:136-137` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
@@ -1164,408 +1110,312 @@ Load-bearing: [ ]
 140 | 	Cause Cause
 ```
 
-### 71. `internal/message/pdf.go:179-181` — `docstring-unexported`
+### 72. `internal/message/message.go:175-176` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
-176 | 	return out
-177 | }
-178 | 
-179 | // pdfRGB is an sRGB triple drawn from the artifact light-mode token palette. The
-180 | // PDF is a print document, so it renders on the light surface; the values mirror
-181 | // artifactTokens (:root) and cmd/web's pageCSS.
-182 | type pdfRGB struct{ r, g, b int }
-183 | 
-184 | var (
+172 | // LinkKind is the row's link target kind, derived from the cause on read.
+173 | func (m Message) LinkKind() LinkKind { return LinkKindForCause(m.Cause) }
+174 | 
+175 | // CensusLen is the census size, or zero where the message carries none — the
+176 | // count a row renders beside a flagship or membership headline.
+177 | func (m Message) CensusLen() int {
+178 | 	if m.Census == nil {
+179 | 		return 0
 ```
 
-### 72. `internal/message/render.go:132-133` — `docstring-unexported`
+### 73. `internal/message/pdf.go:120-122` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-129 | 		"and no later message names it.", removed)
-130 | }
-131 | 
-132 | // plural renders a count with its noun, thousands-separated so a large factor
-133 | // reads (17,920 rather than 17920).
-134 | func plural(n int, one, many string) string {
-135 | 	noun := many
-136 | 	if n == 1 {
+117 | 	return items
+118 | }
+119 | 
+120 | // artifactChangeItems builds one titled change section — its eyebrow, then a row
+121 | // per change, or a single muted note when nothing moved (the same fact-stating
+122 | // empty behaviour as the HTML render).
+123 | func artifactChangeItems(title string, changes []ArtifactChange, emptyNote string) []artifactPDFItem {
+124 | 	items := []artifactPDFItem{{role: roleEyebrow, text: title}}
+125 | 	if len(changes) == 0 {
 ```
 
-### 73. `internal/message/render.go:589-591` — `docstring-unexported`
+### 74. `internal/proposer/arin.go:39-40` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-586 | 	return s
-587 | }
-588 | 
-589 | // artifactPeriod renders the delivery window and its number as one mono line, used
-590 | // by the console view around the document. It is exported through the web layer's
-591 | // header, not the document body, so it lives beside the other artifact helpers.
-592 | func artifactPeriod(a Artifact) string {
-593 | 	var line string
-594 | 	switch {
+36 | 
+37 | func (a *ARIN) Slug() string { return SlugARIN }
+38 | 
+39 | // maxARINBody caps a single RDAP body read. A busy org's entity runs to tens of
+40 | // kilobytes; this leaves generous headroom while refusing an unbounded read.
+41 | const maxARINBody = 8 << 20
+42 | 
+43 | // The three ARIN object classes an org-name search can match. Only an org and a
 ```
 
-### 74. `internal/proposer/proposer.go:70-71` — `docstring-exported-conventional`
+### 75. `internal/proposer/caida.go:38-39` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-67 | 	Propose(ctx context.Context, orgName string) ([]Candidate, error)
-68 | }
-69 | 
-70 | // Registry is the set of shipped proposer paths. A lookup runs only the paths
-71 | // the operator has left enabled, so a source toggled off proposes nothing.
-72 | type Registry struct {
-73 | 	sources []Source
-74 | }
+35 | 
+36 | func (c *CAIDA) Slug() string { return c.slug }
+37 | 
+38 | // caidaOrgIDs is CAIDA's org->opaque-id answer: the registry holder ids the
+39 | // searched name maps to.
+40 | type caidaOrgIDs struct {
+41 | 	OpaqueIDs []string `json:"opaque_ids"`
+42 | }
 ```
 
-### 75. `internal/qr/qr.go:332` — `docstring-unexported`
+### 76. `internal/proposer/proposer.go:164` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-329 | 	m.set(8, m.Size-8, true, true)
-330 | }
-331 | 
-332 | // drawFinder draws a 7×7 finder centred at (cx,cy) plus its light separator.
-333 | func (m *Matrix) drawFinder(cx, cy int) {
-334 | 	for dy := -4; dy <= 4; dy++ {
-335 | 		for dx := -4; dx <= 4; dx++ {
+161 | 	return new(big.Int).Lsh(big.NewInt(1), tz)
+162 | }
+163 | 
+164 | // largestPow2AtMost returns the largest power of two that is <= n.
+165 | func largestPow2AtMost(n *big.Int, bits int) *big.Int {
+166 | 	if n.Sign() <= 0 {
+167 | 		return big.NewInt(0)
 ```
 
-### 76. `internal/qr/qr.go:629-631` — `docstring-exported-conventional`
+### 77. `internal/proposer/proposer.go:185-186` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-626 | 	return forward || backward
-627 | }
-628 | 
-629 | // Encode builds the QR Matrix for data at error-correction level M, choosing
-630 | // the smallest fitting version (1..10) and the lowest-penalty mask. It returns
-631 | // ErrTooLong when data exceeds a version-10 symbol.
-632 | func Encode(data []byte) (*Matrix, error) {
-633 | 	version, ec, ok := chooseVersion(len(data))
-634 | 	if !ok {
+182 | 	return new(big.Int).SetBytes(b[:])
+183 | }
+184 | 
+185 | // addrAdd returns addr + delta, staying in addr's family. It reports false on
+186 | // overflow past the family's last address.
+187 | func addrAdd(addr netip.Addr, delta *big.Int) (netip.Addr, bool) {
+188 | 	v := new(big.Int).Add(addrToInt(addr), delta)
+189 | 	if addr.Is4() {
 ```
 
-### 77. `internal/queue/crtsh.go:47-52` — `docstring-unexported`
+### 78. `internal/qr/qr.go:46-49` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-44 | // tolerates far more; #879 re-measures this against the reliability bar (spec §3).
-45 | const certSpotterInterval = 360 * time.Second
-46 | 
-47 | // maxCTPages bounds how many pages one CT job fetches for a single name-scope
-48 | // domain. crt.sh is single-shot (one page); Cert Spotter paginates by cursor until
-49 | // a page comes back empty. The cap is a backstop against a source that never
-50 | // returns an empty page (a non-advancing cursor is already caught by the
-51 | // next==cursor guard): a legitimate estate's per-domain issuance history sits far
-52 | // below it, so reaching it signals an oversized or misbehaving answer.
-53 | const maxCTPages = 1000
-54 | 
-55 | // CTFetcher fetches a crt.sh URL, returning the HTTP status and body. It is an
+43 | // fall back to showing the payload as text.
+44 | var ErrTooLong = errors.New("qr: payload too long for a version-10 symbol")
+45 | 
+46 | // ecBlocks describes, for one version at error-correction level M, how the data
+47 | // codewords split into blocks and how many EC codewords each block carries.
+48 | // Group 2 blocks (when present) hold one more data codeword than group 1; a
+49 | // version with a uniform block layout leaves the group-2 fields zero.
+50 | type ecBlocks struct {
+51 | 	totalDataCW  int   // data codewords across all blocks
+52 | 	ecPerBlock   int   // EC codewords per block (same for every block)
 ```
 
-### 78. `internal/queue/produce.go:465-471` — `docstring-unexported`
+### 79. `internal/queue/crtsh.go:31-33` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-462 | 	return out
-463 | }
-464 | 
-465 | // flagshipCensus is the census a flagship message carries: every facet timeline that
-466 | // opened beneath the newly-reached Service this batch — certificate, http-identity,
-467 | // tls-acceptance and the rest — since an opening reaches nobody on its own and rides
-468 | // the flagship census instead (CONTEXT.md `Reach`; message.Census). The reachability
-469 | // leg that fired is not itself a census facet. Facets nest under the Service by key:
-470 | // tls-acceptance keys on the Service, certificate/http-identity on an Endpoint whose
-471 | // key carries the Service key.
-472 | func flagshipCensus(changes []spanChange, service string) message.Census {
-473 | 	seen := map[string]bool{}
-474 | 	var entries []message.CensusEntry
+28 | // This file holds the throttled fetcher, the throttle, the dispatcher's fan-out
+29 | // and the worker's completion path.
+30 | 
+31 | // maxCTBody bounds a crt.sh response read into memory. The documented 999-row cap
+32 | // already bounds the answer, but a defensive ceiling keeps a misbehaving or
+33 | // oversized response from exhausting the worker.
+34 | const maxCTBody = 64 << 20 // 64 MiB
+35 | 
+36 | // crtshInterval is the instance-wide spacing between crt.sh requests: 12s, the
 ```
 
-### 79. `internal/queue/progress.go:56` — `docstring-unexported`
+### 80. `internal/queue/hot.go:243-246` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-53 | 
-54 | func (e safeCause) Error() string { return e.msg }
-55 | 
-56 | // safeProgress marks a cause message as redaction-safe to surface verbatim in the stream.
-57 | func safeProgress(msg string) error { return safeCause{msg} }
-58 | 
-59 | // redactCause returns a stream-safe summary of a failure cause: the verbatim message only when
+240 | 	return vergecore.Default().WithFrequencyEdits(fe), nil
+241 | }
+242 | 
+243 | // enqueueHotJob enqueues one connect-outcome job for one Vantage. Its recorded
+244 | // scope carries the admitted addresses and the verge-core port sets by content;
+245 | // its offers carry the safety profile. It retries like a dns job — a connect is
+246 | // a network step that can transiently fail.
+247 | func enqueueHotJob(ctx context.Context, qtx *db.Queries, scanID, dispatchID int64, j scan.HotJob) error {
+248 | 	spec, err := j.JobSpec(fmt.Sprintf("scan:%d:vantage:%d:addr:%s", scanID, j.VantageID, jobAddr(j.Addresses)))
+249 | 	if err != nil {
 ```
 
-### 80. `internal/queue/worker.go:722-724` — `docstring-unexported`
+### 81. `internal/queue/membership.go:451-454` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-719 | 	})
-720 | }
-721 | 
-722 | // retry enqueues a new job (attempt+1) and marks the current one retried, so the
-723 | // eventual Batch is a fresh one and no partial batch is ever resumed. The failed
-724 | // attempt keeps its own transcript on its own (retired) row.
-725 | func (w *Worker) retry(ctx context.Context, job db.ClaimJobRow, t wire.Transcript, cause error) error {
-726 | 	w.log.Printf("worker: job %d attempt %d failed, retrying: %v", job.ID, job.Attempt, cause)
-727 | 	return w.runJobTx(ctx, job.ID, func(qtx *db.Queries) error {
+448 | 	return strings.TrimSuffix(strings.ToLower(strings.TrimSpace(d)), ".")
+449 | }
+450 | 
+451 | // serviceAddress extracts the address limb of a Service/Endpoint subject key. A
+452 | // Service is keyed "address:port" (an IP and a port); the address is everything
+453 | // before the last colon, which leaves a bracketed or bare IPv6 host intact for the
+454 | // caller's netip.ParseAddr to accept or reject.
+455 | func serviceAddress(key string) string {
+456 | 	if i := strings.LastIndex(key, ":"); i >= 0 {
+457 | 		host := key[:i]
 ```
 
-### 81. `internal/release/release.go:180-184` — `docstring-unexported`
+### 82. `internal/queue/nameseedwithdrawal.go:200` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-177 | 	return false
-178 | }
-179 | 
-180 | // parseVersion splits a version string into its dotted numeric components,
-181 | // stripping a leading "v" and dropping any pre-release/build suffix on the last
-182 | // component (e.g. "v1.4.0-rc1" -> [1 4 0]). It reports ok=false when there is no
-183 | // leading numeric component at all, so a non-version string ("dev") is not
-184 | // silently treated as 0.0.0.
-185 | func parseVersion(s string) ([]int, bool) {
-186 | 	s = strings.TrimSpace(s)
-187 | 	s = strings.TrimPrefix(s, "v")
+197 | 	return spanIDs, order, counts
+198 | }
+199 | 
+200 | // pendingWithdrawnDomains is the bound the shared candidate query takes.
+201 | func pendingWithdrawnDomains(pending []db.ListPendingNameSeedWithdrawalsRow) []string {
+202 | 	out := make([]string, 0, len(pending))
+203 | 	for _, w := range pending {
 ```
 
-### 82. `internal/remoteexec/conn.go:68-69` — `docstring-exported-conventional`
+### 83. `internal/queue/produce.go:126-128` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
-65 | 	// ExitExited: the command ran to completion and returned Code. Code is -1 when the
-66 | 	// server reported no status (an honest "no clean exit", never a fabricated success).
-67 | 	ExitExited ExitKind = iota
-68 | 	// ExitSignalled: a signal killed the command. Signal is the SSH signal name, or
-69 | 	// empty when the server sent no exit status at all (*ssh.ExitMissingError).
-70 | 	ExitSignalled
-71 | 	// ExitContextCancelled: the caller's context cancelled the session before the
-72 | 	// command finished; the worker killed the remote command.
+123 | 	// Reason is the drift.ClosureReason the estate fold decided (descoped /
+124 | 	// measured-absent), stringified as it is stored on the closed span.
+125 | 	Reason string
+126 | 	// SourceKey is the declared-input identity the row links to — the covering
+127 | 	// Exclusion's declared value for a `descoped` departure, empty for a world
+128 | 	// (`measured-absent`) withdrawal that fires no declared-input message.
+129 | 	SourceKey string
+130 | 	// Timelines is the count of open timelines the withdrawal closed at once
+131 | 	// (ADR-0082) — one cause recorded on n objects, the count the headline states.
 ```
 
-### 83. `internal/remoteexec/platform.go:12-16` — `docstring-exported-conventional`
+### 84. `internal/queue/progress.go:77-78` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
- 9 | 	"golang.org/x/crypto/ssh"
-10 | )
-11 | 
-12 | // Platform is the remote prober's operating system and CPU, read from `uname` on
-13 | // the connection. GOOS/GOARCH are the Go identifiers the arch check matches the
-14 | // pushed binary against; Label is the accepted-platform chip the VantageCard renders
-15 | // (fixtures.json pins the "linux · x86_64" spelling — lowercase OS, a middle-dot
-16 | // separator, the raw uname machine — so the live datum reads back in the same shape).
-17 | type Platform struct {
-18 | 	GOOS   string
-19 | 	GOARCH string
+74 | 	return fmt.Sprintf("attempt %d failed · %s · retrying", failedAttempt, redactCause(cause))
+75 | }
+76 | 
+77 | // deadLetterLabel is the redacted text a dead-letter rides: the attempts spent and the safe
+78 | // reason — "dead-lettered after 5 attempts · crt.sh returned HTTP 502".
+79 | func deadLetterLabel(attempts int32, cause error) string {
+80 | 	return fmt.Sprintf("dead-lettered after %d attempts · %s", attempts, redactCause(cause))
+81 | }
 ```
 
-### 84. `internal/remoteexec/platform.go:23-25` — `docstring-unexported`
+### 85. `internal/queue/reaper.go:125` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-20 | 	Label  string
-21 | }
-22 | 
-23 | // unameToGOOS maps the `uname -s` kernel name to the Go GOOS the prober matrix builds
-24 | // for. Only linux is in the matrix today (packaging-and-configuration.md §1.2); an
-25 | // unrecognised kernel yields "" so the arch check refuses rather than guessing.
-26 | func unameToGOOS(s string) string {
-27 | 	switch strings.ToLower(strings.TrimSpace(s)) {
-28 | 	case "linux":
+122 | 	}
+123 | }
+124 | 
+125 | // compile-time proof *db.Queries is a ReaperStore.
+126 | var _ ReaperStore = (*db.Queries)(nil)
+127 | 
 ```
 
-### 85. `internal/report/notify.go:75-77` — `docstring-unexported`
+### 86. `internal/release/fetcher.go:38-40` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
+35 | 	Do(req *http.Request) (*http.Response, error)
+36 | }
+37 | 
+38 | // HTTPFetcher fetches the latest release from a JSON feed URL. It parses the
+39 | // GitHub latest-release shape (tag_name + body); a custom feed mirrors those two
+40 | // fields.
+41 | type HTTPFetcher struct {
+42 | 	url    string
+43 | 	client Doer
+```
+
+### 87. `internal/release/release.go:63` — `docstring-exported-conventional`
+
+Load-bearing: [ ]
+
+```go
+60 | 	Latest(ctx context.Context) (Feed, error)
+61 | }
+62 | 
+63 | // Checker runs the daily release check and records its verdict.
+64 | type Checker struct {
+65 | 	store   Store
+66 | 	fetch   Fetcher
+```
+
+### 88. `internal/report/notify.go:72` — `docstring-exported-conventional`
+
+Load-bearing: [ ]
+
+```go
+69 | 	}
+70 | }
+71 | 
 72 | // MarshalReadyBody renders the ready-message to the exact bytes POSTed and signed.
 73 | func MarshalReadyBody(b ReadyBody) ([]byte, error) { return json.Marshal(b) }
 74 | 
 75 | // shouldNotify is the enqueue predicate: a scheduled run enqueues exactly one
-76 | // ready-message when — and only when — its schedule binds a Channel. A download-only
-77 | // schedule (NULL channel_id) binds none and enqueues nothing (P0.6c/T7).
-78 | func shouldNotify(channelID pgtype.Int8) bool { return channelID.Valid }
-79 | 
-80 | func trimSlash(s string) string {
 ```
 
-### 86. `internal/retention/observation.go:115-129` — `docstring-exported-conventional`
+### 89. `internal/report/notify.go:233-235` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-112 | 	return Evidential
-113 | }
-114 | 
-115 | // RetainObservation reports whether an observation row survives a retention sweep.
-116 | // It is the row-level rule the deletion query encodes in SQL, stated here as a
-117 | // pure function so the two-tier boundary, the tightest-floor collapse and the two
-118 | // exception populations are provable without a database.
-119 | //
-120 | //	ageSeconds   now − observed_at, the row's age.
-121 | //	boundSeconds k cadences of the tightest Scan covering the row's timeline.
-122 | //	dialSeconds  the operator's dial in seconds; 0 == unbounded (the v1 default).
-123 | //	hasBound     false where no enabled Scan covers the timeline (undefined bound).
-124 | //	withdrawn    the row's subject has left the estate — its timelines are closed.
-125 | //
-126 | // A row is retained while its age is inside EITHER its own bound OR the dial,
-127 | // whichever is longer. Two populations fall outside that rule and opposite ways:
-128 | // an undefined bound is never expired (never retired); a withdrawn subject carries
-129 | // no floor at all, so the dial alone governs it.
-130 | func RetainObservation(ageSeconds, boundSeconds, dialSeconds int64, hasBound, withdrawn bool) bool {
-131 | 	if withdrawn {
-132 | 		// No floor: the row's own bound does not protect it, the dial alone governs.
+230 | 	return tx.Commit(ctx)
+231 | }
+232 | 
+233 | // notifyError renders the failure string stored on the notification for the
+234 | // channel-surface drill-down. A transport error carries its own message; a non-2xx
+235 | // carries its status.
+236 | func notifyError(statusCode int, sendErr error) string {
+237 | 	if sendErr != nil {
+238 | 		return sendErr.Error()
 ```
 
-### 87. `internal/retention/observation.go:195-199` — `docstring-exported-conventional`
+### 90. `internal/scan/cttail.go:335` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-192 | 	DeleteExpiredObservations(ctx context.Context, arg db.DeleteExpiredObservationsParams) (int64, error)
-193 | }
-194 | 
-195 | // ObservationRetirer sweeps evidential observations the operator's dial no longer
-196 | // keeps. It never touches a live row: the delete query evaluates each row's own
-197 | // per-timeline bound and reaches only rows past BOTH that bound and the dial (or,
-198 | // for a withdrawn subject, past the dial alone). It is landed beside the Dispatch
-199 | // Retirer, not folded into it.
-200 | type ObservationRetirer struct {
-201 | 	store ObservationStore
-202 | 	now   func() time.Time
+332 | 	// ctLeafHeader is version(1) + leaf_type(1) + timestamp(8) + entry_type(2): the
+333 | 	// fixed prefix before the signed_entry (§3.4).
+334 | 	ctLeafHeader = 1 + 1 + 8 + 2
+335 | 	// ctASN1CertLen is the length prefix width of an ASN.1Cert opaque<1..2^24-1>.
+336 | 	ctASN1CertLen = 3
+337 | 	// ctIssuerKeyHash is the fixed width of PreCert.issuer_key_hash (a SHA-256).
+338 | 	ctIssuerKeyHash = 32
 ```
 
-### 88. `internal/retention/transcript.go:100-103` — `docstring-exported-conventional`
+### 91. `internal/scan/zone.go:422-424` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
- 97 | 	return &TranscriptRetirer{store: store, now: now, log: logger}
- 98 | }
- 99 | 
-100 | // Sweep retires every transcript captured before the floored window and returns how
-101 | // many it deleted. When the dial is 0 it deletes nothing and returns 0 — the
-102 | // explicit operator opt-out. Unlike the other two dials this sweep is ACTIVE on a
-103 | // fresh install: the dial ships bounded at 14 days (migration 23700).
-104 | func (r *TranscriptRetirer) Sweep(ctx context.Context) (int64, error) {
-105 | 	settings, err := r.store.GetRetentionSettings(ctx)
-106 | 	if err != nil {
+419 | 	return line
+420 | }
+421 | 
+422 | // isTTL reports whether a field is a bare TTL — all digits, or digits with a
+423 | // trailing time unit (e.g. 3600, 1h, 2d). It is how the parser tells a TTL
+424 | // prefix from the record type.
+425 | func isTTL(f string) bool {
+426 | 	if f == "" {
+427 | 		return false
 ```
 
-### 89. `internal/scan/cttail.go:460-465` — `docstring-exported-conventional`
-
-Load-bearing: [ ]
-
-```go
-457 | 	return CTSignedTreeHead{TreeSize: size, Raw: body}, nil
-458 | }
-459 | 
-460 | // DataTilePath renders a tile index into the static-ct-api path encoding: 3-digit,
-461 | // zero-padded base-1000 segments, most-significant first, with an `x` prefix on every
-462 | // segment but the last. This bounds directory fan-out (a log with billions of entries
-463 | // never puts millions of tiles in one directory). Examples: 0 -> "000", 1 -> "001",
-464 | // 1234 -> "x001/234", 1234567 -> "x001/x234/567". The caller appends it to
-465 | // `<monitoring>/tile/data/` and adds the `.p/<W>` suffix for a partial tile.
-466 | func DataTilePath(index int64) string {
-467 | 	segs := []string{fmt.Sprintf("%03d", index%1000)}
-468 | 	for index /= 1000; index > 0; index /= 1000 {
-```
-
-### 90. `internal/scan/ctverify.go:47` — `docstring-exported-conventional`
-
-Load-bearing: [ ]
-
-```go
-44 | // (SCTLeafIndex). The digitally-signed signature is read past and discarded: verification
-45 | // recomputes inclusion to the head's root and never checks the log's signature (§4.4).
-46 | type SCT struct {
-47 | 	// Version is the sct_version; only v1 (0) is understood.
-48 | 	Version uint8
-49 | 	// LogID is the 32-byte SHA-256 of the log's public key — the same value log_list.json
-50 | 	// carries base64-encoded, so FindLogByLogID matches on the base64 of this.
-```
-
-### 91. `internal/scan/ctverify.go:52` — `docstring-exported-conventional`
-
-Load-bearing: [ ]
-
-```go
-49 | 	// LogID is the 32-byte SHA-256 of the log's public key — the same value log_list.json
-50 | 	// carries base64-encoded, so FindLogByLogID matches on the base64 of this.
-51 | 	LogID [32]byte
-52 | 	// Timestamp is the SCT's millisecond timestamp, folded verbatim into the leaf hash.
-53 | 	Timestamp uint64
-54 | 	// Extensions is the CtExtensions content (already unwrapped from its opaque<0..2^16-1>
-55 | 	// length). It rides into the TimestampedEntry.extensions when the leaf hash is built, so
-```
-
-### 92. `internal/scan/zone.go:53-54` — `docstring-exported-conventional`
-
-Load-bearing: [ ]
-
-```go
-50 | // clean current fact (v1 spec §3.4). Before the cadence the file is current, and
-51 | // Days counts down to the instant it ages into that gap.
-52 | type ZoneAging struct {
-53 | 	// Supplied reports whether there is a dated supply to age at all. A name
-54 | 	// scope with no zone file has nothing to stale.
-55 | 	Supplied bool
-56 | 	// Stale reports whether the file has passed its re-supply interval and so has
-57 | 	// aged into a coverage gap.
-```
-
-### 93. `internal/signal/endpoint.go:89-93` — `docstring-exported-conventional`
-
-Load-bearing: [ ]
-
-```go
-86 | 	HTTPStatus       int
-87 | 	RedirectLocation string
-88 | 
-89 | 	// RedirectHostInEstate reports whether the host the 3xx `Location` names is a
-90 | 	// subject in the estate — the pre-folded evidence `redirect-to-host-outside-estate`
-91 | 	// reads (the estate membership is a Derived value the web layer folds, like
-92 | 	// InDeclaredZone on NameFacts). It is meaningful only where the Endpoint is in
-93 | 	// that rule's domain (a 3xx with a Location).
-94 | 	RedirectHostInEstate bool
-95 | }
-96 | 
-```
-
-### 94. `internal/signal/endpoint.go:97` — `docstring-exported-conventional`
-
-Load-bearing: [ ]
-
-```go
- 94 | 	RedirectHostInEstate bool
- 95 | }
- 96 | 
- 97 | // EndpointRule is one `Signal` whose subject is an `Endpoint`.
- 98 | type EndpointRule interface {
- 99 | 	Name() string
-100 | 	Version() Version
-```
-
-### 95. `internal/signal/rules.go:44-46` — `docstring-unexported`
+### 92. `internal/signal/rules.go:44-46` — `docstring-unexported`
 
 Load-bearing: [ ]
 
@@ -1581,89 +1431,123 @@ Load-bearing: [ ]
 49 | }
 ```
 
-### 96. `internal/signal/rules.go:99-101` — `docstring-exported-conventional`
+### 93. `internal/signal/severity.go:26-28` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
- 96 | func (cnameTargetNameError) Name() string     { return "cname-target-name-error" }
- 97 | func (cnameTargetNameError) Version() Version { return Version{Rule: "v1", Composes: leafVersions} }
- 98 | 
- 99 | // Severity: high — a CNAME pointing at a NameError target is the classic
-100 | // subdomain-takeover setup: whoever claims the dangling target serves under the
-101 | // operator's name.
-102 | func (cnameTargetNameError) Severity() Severity { return SevHigh }
-103 | func (cnameTargetNameError) Eval(f NameFacts) Outcome {
-104 | 	if f.CNAMETarget == "" {
+23 | 	SevInfo     Severity = "info"
+24 | )
+25 | 
+26 | // SevOrder is the ramp from most urgent to least — critical → info — matching
+27 | // SignalData.jsx's `SEV_ORDER` exactly. A severity-ordered view sorts by each
+28 | // severity's index here.
+29 | var SevOrder = []Severity{SevCritical, SevHigh, SevMedium, SevLow, SevInfo}
+30 | 
+31 | // Rank is the severity's position in SevOrder — 0 for critical (most urgent),
 ```
 
-### 97. `internal/signal/signal.go:85-88` — `docstring-exported-conventional`
+### 94. `internal/signal/signal.go:35` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
-82 | 	Resolution string
-83 | 	Addresses  []string
+32 | 	OutsideDomain Outcome = "outside-domain"
+33 | 	// Fired: the predicate is true of the subject.
+34 | 	Fired Outcome = "fired"
+35 | 	// NotFired: the subject is in the domain and the predicate is false.
+36 | 	NotFired Outcome = "not-fired"
+37 | 	// NotEvaluable: the subject is in the domain but the rule cannot read the
+38 | 	// answer — the evidence is a value about our own sight (`Shadowed`) or there
+```
+
+### 95. `internal/transcript/key.go:85-86` — `docstring-unexported`
+
+Load-bearing: [ ]
+
+```go
+82 | 	return nil
+83 | }
 84 | 
-85 | 	// CNAMETarget is the target `Name` of this Name's dns-record CNAME, empty
-86 | 	// when the Name holds no CNAME (which puts it outside cname-target-name-error's
-87 | 	// domain). TargetResolution is that target's own composed resolution outcome,
-88 | 	// empty when the target was never measured.
-89 | 	CNAMETarget      string
-90 | 	TargetResolution string
-91 | 
+85 | // validateKey rejects a key file whose length is not keyLen as corruption, rather
+86 | // than using truncated key material.
+87 | func validateKey(path string, key []byte) ([]byte, error) {
+88 | 	if len(key) != keyLen {
+89 | 		return nil, fmt.Errorf("transcript: key %s is %d bytes, want %d", path, len(key), keyLen)
 ```
 
-### 98. `internal/transcript/crypto.go:10-20` — `docstring-exported-conventional`
+### 96. `internal/vantage/hostkey.go:16` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
- 7 | 	"golang.org/x/crypto/chacha20poly1305"
- 8 | )
- 9 | 
-10 | // Seal encrypts a single transcript stream for storage in its bytea column,
-11 | // returning a fresh 24-byte random nonce prepended to the XChaCha20-Poly1305
-12 | // ciphertext. The result is raw bytes, not base64 — the column is bytea, so no
-13 | // text encoding is needed (unlike auth.EncryptTOTPSecret, which targets a text
-14 | // column).
-15 | //
-16 | // A nil plaintext returns nil: a stream the variant does not carry stays SQL NULL,
-17 | // preserving the table's NULL-vs-captured-empty distinction (migration 23700). A
-18 | // non-nil but empty stream seals to real ciphertext, so a captured-empty stream is
-19 | // retained as captured, not collapsed to NULL. Each call draws a fresh random
-20 | // nonce, so sealing the same bytes twice yields different ciphertext.
-21 | func Seal(key, plaintext []byte) ([]byte, error) {
-22 | 	if plaintext == nil {
-23 | 		return nil, nil
+13 | // new key (v1 spec §4.2).
+14 | var ErrHostKeyMismatch = errors.New("vantage: host key mismatch — refusing to re-trust")
+15 | 
+16 | // HostKeyResult is the trust-on-first-use decision for a presented host key.
+17 | type HostKeyResult int
+18 | 
+19 | const (
 ```
 
-### 99. `internal/vantage/keypair.go:69-70` — `docstring-exported-conventional`
+### 97. `internal/vergecore/vergecore.go:152-154` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
-66 | 	return AuthorizedKey(signer.PublicKey()), nil
-67 | }
-68 | 
-69 | // AuthorizedKey renders a public key as a single authorized_keys line with no
-70 | // trailing newline, the form stored in the database and rendered on web.
-71 | func AuthorizedKey(key ssh.PublicKey) string {
-72 | 	return strings.TrimSpace(string(ssh.MarshalAuthorizedKey(key)))
-73 | }
+149 | 	return ok
+150 | }
+151 | 
+152 | // Union is the whole set, `frequency ∪ sensitive`, deduplicated and sorted. It
+153 | // is the recorded scope of the hot Scan — every pair a `Service` subject exists
+154 | // for, open or closed.
+155 | func (l List) Union() []Pair {
+156 | 	seen := map[Pair]struct{}{}
+157 | 	for p := range l.frequency {
 ```
 
-### 100. `internal/wire/transcript.go:156` — `docstring-exported-conventional`
+### 98. `internal/wire/transcript.go:162` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
-153 | 
-154 | func (ZoneTranscript) isTranscript() {}
-155 | 
-156 | // ZoneOutcome is how the zone restate ended: a closed union of two.
-157 | type ZoneOutcome interface{ isZoneOutcome() }
-158 | 
 159 | // ZoneParsed is a restate that parsed the zone file.
+160 | type ZoneParsed struct{}
+161 | 
+162 | // ZoneDecodeError is a restate that hit a decode error, carrying the error text.
+163 | type ZoneDecodeError struct{ Text string }
+164 | 
+165 | func (ZoneParsed) isZoneOutcome()      {}
+```
+
+### 99. `internal/wire/wire.go:37-39` — `docstring-exported-conventional`
+
+Load-bearing: [ ]
+
+```go
+34 | 	// surfaces bufio.ErrTooLong via Err() rather than over-allocating.
+35 | 	MaxObservationLine = 1 << 20 // 1 MiB per line
+36 | 
+37 | 	// MaxObservations caps how many observation lines one job may yield. Even
+38 | 	// under MaxProberStdout a flood of tiny lines would grow the decoded slice
+39 | 	// without bound; this bounds the entry COUNT too.
+40 | 	MaxObservations = 1 << 20
+41 | )
+42 | 
+```
+
+### 100. `internal/wire/wire.go:208-209` — `docstring-exported-conventional`
+
+Load-bearing: [ ]
+
+```go
+205 | 	return nil
+206 | }
+207 | 
+208 | // ObservationScanner reads NDJSON observations from a prober's stdout, one
+209 | // per call to Next.
+210 | type ObservationScanner struct {
+211 | 	scanner *bufio.Scanner
+212 | 	obs     Observation
 ```
 

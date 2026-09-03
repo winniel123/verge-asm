@@ -33,6 +33,64 @@ func TestSignal(t *testing.T) {
 	}
 }
 
+// Each payload below is the reason clause of a block the §3.9 round-1 read
+// judged load-bearing while the screen admitted it for deletion (#1136).
+func TestRoundOneFailuresNowScreen(t *testing.T) {
+	cases := []struct {
+		name    string
+		payload string
+		want    string
+	}{
+		{"a bare so", "it is exported so SendSigned can be handed the same resolver", SignalWhyMarker},
+		{"a rejected alternative", "it reports ok=false rather than fabricate a figure", SignalWhyMarker},
+		{"an alternative named instead", "the mark is derived instead of stored", SignalWhyMarker},
+		{"a never", "the board is a census, never a sampled or ranked view", SignalWhyMarker},
+		{"an absent thing", "there is no network_position field and no wizard step", SignalWhyMarker},
+		{"absent things", "there are no mail credentials on a self-hosted host", SignalWhyMarker},
+		{"a section citation", "a database restore does not rotate it (v1 spec §4.3)", SignalCitation},
+		{"a bare section sign", "the cap the rubric sets (§4.8)", SignalCitation},
+		{"a CONTEXT reference", "the row declares the vantage class (CONTEXT.md)", SignalCitation},
+		{"a design-fixture reference", "one per-file zone-upload refusal (DF-F2)", SignalCitation},
+		{"a gosec waiver", "the password is #nosec G101: only ever a dev database", SignalToolMarker},
+		// The bare word "spec" is not a citation. It rides in a URL path, and
+		// the URL signal already withholds that block (#1136).
+		{"a spec URL keeps its own reason", "see https://go.dev/ref/spec", SignalBareURL},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := Signal(c.payload); got != c.want {
+				t.Errorf("Signal(%q) is %q, want %q", c.payload, got, c.want)
+			}
+		})
+	}
+}
+
+// §3.2 lets a revision widen the screen and never narrow it, so every signal
+// the round-1 screen carried has to keep firing (#1136).
+func TestTheWideningNarrowedNothing(t *testing.T) {
+	why := []string{
+		"because", "otherwise", "so that", "avoid", "avoids", "workaround",
+		"work around", "race", "races", "panic", "panics", "deliberate",
+		"deliberately", "intentional", "intentionally", "on purpose", "hazard",
+		"gotcha", "beware", "deadlock", "must not", "cannot", "prevent",
+		"prevents", "load-bearing", "unsafe", "breaks", "corrupts",
+	}
+	for _, word := range why {
+		if !HasWhyMarker("the guard " + word + " here") {
+			t.Errorf("the widened WHY list dropped %q", word)
+		}
+	}
+	for _, payload := range []string{"see ADR-0127", "the shape #1133 fixed"} {
+		if !HasCitation(payload) {
+			t.Errorf("the widened citation test dropped %q", payload)
+		}
+	}
+	if Signal("F reports the estate.\n\nDeprecated: use G instead.") != SignalToolMarker {
+		t.Error("the widened tool-marker test dropped the Deprecated paragraph")
+	}
+}
+
 func TestHistoryAndLooseNarrationSplit(t *testing.T) {
 	if !HasHistoryMarker("previously the worker owned it") {
 		t.Error("the strict set missed a history marker")
