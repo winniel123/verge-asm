@@ -21,49 +21,26 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// Prober runs one job spec and returns a ProbeResult — the observations it produced
-// and the verbatim Transcript of the exchange (#838). The production impl execs the
-// measurement binary; a test supplies a fake. The Transcript is ABSENT until #840
-// captures it at the prober boundary; this seam only carries the shape.
 type Prober interface {
 	Probe(ctx context.Context, spec wire.JobSpec) (wire.ProbeResult, error)
 }
 
-// ExecProber execs the measurement binary at Path, writing the spec to its
-// stdin and decoding every NDJSON observation it writes back — ADR-0001's
-// job-spec-in / NDJSON-out contract.
 type ExecProber struct {
 	Path string
 }
 
-// Probe implements Prober. It captures the verbatim exchange with the exec'd
-// prober — the exact bytes sent to stdin, the stdout and stderr it wrote back, the
-// exec duration, and the typed exit outcome — into a ProberTranscript that rides the
-// ProbeResult on EVERY outcome (#865, spec §2). The transcript is present even on the
-// exec-error and decode-failure returns, because the raw output is highest-value
-// exactly when the job failed (§2.2). The worker stamps the queue_job id and
-// captured-at instant and persists it, sealed, inside the job's terminal tx.
-//
-// An encode failure returns before the prober runs, so it carries no transcript:
-// nothing was sent and no exchange happened (a legible absence).
 func (p ExecProber) Probe(ctx context.Context, spec wire.JobSpec) (wire.ProbeResult, error) {
 	var stdin bytes.Buffer
+	// Nothing was sent and no exchange happened, so an encode failure carries no transcript (§2.2).
 	if err := wire.EncodeJobSpec(&stdin, spec); err != nil {
 		return wire.ProbeResult{}, err
 	}
-	// Capture the exact bytes sent to the prober verbatim (§2.3), copied before Run
-	// drains the buffer, so the transcript holds the literal JobSpec payload — not a
-	// re-encoded struct.
+	// Run drains the buffer, so the bytes are copied first and the transcript holds the literal spec.
 	sent := append([]byte(nil), stdin.Bytes()...)
 
 	cmd := exec.CommandContext(ctx, p.Path) // #nosec G204 (Path is operator-configured; no argv args, spec via stdin per ADR-0001 — no tainted input)
 	cmd.Stdin = &stdin
-	// Fail-closed stdout sink: even the local prober is treated as untrusted
-	// output for this bound (#772) — its stdout is capped at MaxProberStdout
-	// during the copy rather than buffered without limit, so a runaway or
-	// compromised prober binary cannot OOM the worker. Exceeding the cap makes
-	// cmd.Run return a write error, driving the normal retry/dead-letter path;
-	// the transcript then keeps the retained head, marked memory-guard-tripped.
+	// Even a local prober is untrusted for this bound: an uncapped stdout could OOM the worker (#772).
 	stdout := wire.NewLimitedBuffer(wire.MaxProberStdout)
 	var stderr bytes.Buffer
 	cmd.Stdout = stdout
@@ -74,6 +51,7 @@ func (p ExecProber) Probe(ctx context.Context, spec wire.JobSpec) (wire.ProbeRes
 	dur := time.Since(start)
 	t := buildProberTranscript(spec, sent, stdout, stderr.Bytes(), dur, cmd.ProcessState, ctx.Err())
 
+	// Raw output is highest-value when the job failed, so the transcript rides every outcome (§2.2).
 	if runErr != nil {
 		return wire.ProbeResult{Transcript: t}, fmt.Errorf("queue: exec prober: %w (stderr: %s)", runErr, stderr.String())
 	}
@@ -88,12 +66,8 @@ func (p ExecProber) Probe(ctx context.Context, spec wire.JobSpec) (wire.ProbeRes
 	return wire.ProbeResult{Observations: obs, Transcript: t}, nil
 }
 
-// buildProberTranscript assembles the ProberTranscript for one local exec. The
-// worker stamps the queue_job id and captured-at instant at persist time (spec
-// §1.2), so this leaves them zero and supplies only what the boundary knows: the
-// kind, the exec duration, the verbatim streams, the typed outcome, and whether the
-// 64 MiB stdout guard tripped.
 func buildProberTranscript(spec wire.JobSpec, sent []byte, stdout *wire.LimitedBuffer, stderr []byte, dur time.Duration, ps *os.ProcessState, ctxErr error) wire.ProberTranscript {
+	// The worker stamps the job id and instant at persist time, so they are left zero here (§1.2).
 	return wire.ProberTranscript{
 		TranscriptFrame: wire.TranscriptFrame{Kind: spec.Kind, Duration: dur},
 		SentScope:       sent,
@@ -104,16 +78,12 @@ func buildProberTranscript(spec wire.JobSpec, sent []byte, stdout *wire.LimitedB
 	}
 }
 
-// classifyProberOutcome maps an exec's end into the closed prober-outcome union
-// (spec §1.2). A ctx-killed prober reads as context-cancelled first, never a fake
-// exited(0). A clean or non-zero exit yields exited(code); a process the kernel
-// killed by signal (ExitCode() == -1 with a signal) yields signalled. A prober that
-// never started (exec error, nil ProcessState) reads as exited(-1) — an honest "no
-// clean exit", not a fabricated success.
 func classifyProberOutcome(ps *os.ProcessState, ctxErr error) wire.ProberOutcome {
+	// A prober killed by the deadline must not read as a clean exit, so the cancel test comes first.
 	if ctxErr != nil {
 		return wire.ProberContextCancelled{}
 	}
+	// A prober that never started has no clean exit, so exited(-1) is honest and a zero would not be.
 	if ps == nil {
 		return wire.ProberExited{Code: -1}
 	}
@@ -133,74 +103,33 @@ type Worker struct {
 	now    func() time.Time
 	log    *log.Logger
 
-	// The CT runner's seams (ADR-0106), wired via WithCT. Nil on a worker built
-	// without them: a `ct` job then refuses rather than silently admitting
-	// nothing. Separate from NewWorker so the measurement-only construction stays
-	// unchanged.
+	// An unwired seam refuses rather than silently admitting nothing (ADR-0106).
+
 	ctFetcher  CTFetcher
 	ctThrottle CTThrottle
-	// ctSource is the one bulk CT source active this config (spec §2.3): crt.sh
-	// when no operator key is set, Cert Spotter when it is. It decides the query
-	// URL, the decode and the admission source stamp. Nil defaults to crt.sh, so a
-	// worker wired with a fetcher but no explicit source runs the keyless path.
+
+	// A nil source runs the keyless crt.sh path rather than refusing (spec §2.3).
+
 	ctSource scan.CTSource
 
-	// The ct-tail runner's fetcher (spec §4), wired via WithCTTail. Nil on a worker
-	// built without it: a `ct-tail` job then refuses rather than silently admitting
-	// nothing. It reuses the CTFetcher seam, pointed at the RFC 6962 log endpoints.
 	ctTailFetcher CTFetcher
 
-	// The verification point-check fetcher (spec §5), wired via WithCTVerify. Nil on a
-	// worker built without it: auto-verify is then a silent no-op and VerifyByFingerprint
-	// refuses, so a measurement worker that does not opt in pays nothing. It reuses the
-	// CTFetcher seam, pointed at the RFC 6962 and static-ct-api read endpoints.
 	ctVerifyFetcher CTFetcher
 
-	// The off-host measurement router (ADR-0103, #683), wired via WithRouter. A
-	// provisioned internet Vantage measures from its OWN position: its jobs are pushed
-	// to and exec'd on the prober host over SSH, not run locally on the instance. Nil
-	// on a worker built without it — every job then runs on the local prober, exactly
-	// as before this seam — so the measurement-only construction and its tests are
-	// unchanged.
 	router VantageRouter
 
-	// The message producer's seam (P0.7), wired via WithMessages. When enabled the
-	// batch tx folds each signal/drift transition into a message and routes it to its
-	// bound channels via enqueue (delivery.EnqueueForMessage, injected to avoid the
-	// delivery→queue import cycle). Off on a worker built without it — the
-	// measurement-only construction and its tests write no message. devMode suppresses
-	// production entirely even when enabled: a fixture-only install never writes a
-	// message (AL-25), so the golden fixtures stay message-free and G2 does not move.
+	// The enqueuer is injected because internal/delivery imports this package (P0.7).
+
 	produceMsgs bool
 	devMode     bool
 	enqueue     func(ctx context.Context, q *db.Queries, messageID int64, class message.Class) (int, error)
 
-	// The raw-output capture seam (#865, spec §2.5), wired via WithTranscripts. When
-	// on, each terminal tx also writes the job's verbatim ProberTranscript, sealed
-	// with transcriptKey (spec §5.3). Off on a worker built without it, and always
-	// off in devMode — a fixture install writes no transcript, so no golden fixture
-	// moves. captureOn is the single guard; the producer captures unconditionally,
-	// the worker decides whether to persist.
 	captureTranscripts bool
 	transcriptKey      []byte
 
-	// The per-job probe deadline (#853). The drain loop is single-threaded
-	// (drain → RunOnce → process → probe), so a prober exec that hangs blocks the
-	// whole loop: no further job is claimed until it returns. This bounds ONE probe
-	// call — the off-host router or the local ExecProber — so a hung prober fails
-	// into the normal retry / dead-letter path (ctx deadline → ProberContextCancelled)
-	// instead of wedging the worker. NewWorker sets DefaultProbeTimeout; a value <= 0
-	// disables the bound (probe runs under the parent ctx alone). It brackets only the
-	// probe, never the terminal transaction, so a slow probe never truncates the
-	// commit that records its outcome.
 	probeTimeout time.Duration
 }
 
-// WithTranscripts enables raw-output capture (#865, spec §2.5): each job's terminal
-// tx also persists the verbatim ProberTranscript, sealed at rest with key (spec
-// §5.3). Mirrors WithMessages / WithCT / WithRouter — off when unwired, and a no-op
-// under devMode so a fixture-only install writes no transcript and no golden fixture
-// moves. Returns the worker for chaining.
 func (w *Worker) WithTranscripts(key []byte, devMode bool) *Worker {
 	w.captureTranscripts = true
 	w.transcriptKey = key
@@ -208,19 +137,12 @@ func (w *Worker) WithTranscripts(key []byte, devMode bool) *Worker {
 	return w
 }
 
-// captureOn reports whether this worker persists transcripts: wired via
-// WithTranscripts and not in devMode (spec §2.5). The measurement-only construction
-// and fixture installs return false, so they write no transcript.
+// A fixture-only install writes no transcript and no message, so no golden fixture moves (AL-25).
+
 func (w *Worker) captureOn() bool { return w.captureTranscripts && !w.devMode }
 
-// persistTranscript writes the job's captured transcript inside its terminal tx,
-// sealed at rest (spec §2.4, §5.3). It is a no-op when capture is off or the
-// transcript is absent (t == nil): a job with no capture inserts no row, so the
-// absence stays legible, distinct from a captured-but-empty stream. The worker
-// stamps the queue_job id (the failed attempt's row on retry — jobID, never the
-// fresh one) and the captured-at instant here; a mid-flight cancel rolls this insert
-// back with the rest of the tx, so a terminated job persists nothing.
 func (w *Worker) persistTranscript(ctx context.Context, qtx *db.Queries, jobID int64, t wire.Transcript) error {
+	// A job with no capture inserts no row, so the absence stays legible beside an empty stream.
 	if !w.captureOn() || t == nil {
 		return nil
 	}
@@ -231,12 +153,6 @@ func (w *Worker) persistTranscript(ctx context.Context, qtx *db.Queries, jobID i
 	return qtx.InsertTranscript(ctx, params)
 }
 
-// WithMessages enables the message producer (P0.7): after a batch's folds commit,
-// the same transaction folds each flagship / membership transition into a Message and
-// routes it to its bound Channels through enqueue — delivery.EnqueueForMessage bound
-// to the batch tx by the producer. devMode is the VERGE_DEV guard: when true the
-// producer is a no-op, so a fixture install writes no message. Returns the worker for
-// chaining beside WithCT.
 func (w *Worker) WithMessages(enqueue func(ctx context.Context, q *db.Queries, messageID int64, class message.Class) (int, error), devMode bool) *Worker {
 	w.produceMsgs = true
 	w.devMode = devMode
@@ -244,20 +160,14 @@ func (w *Worker) WithMessages(enqueue func(ctx context.Context, q *db.Queries, m
 	return w
 }
 
-// changeCollector is the transition collector the fold appends to — the real slice
-// pointer where the producer is enabled and needs the feed, nil where it is off so
-// the fold does no bookkeeping the measurement-only path would discard.
 func (w *Worker) changeCollector(changes *[]spanChange) *[]spanChange {
+	// A nil collector stops the fold doing bookkeeping the measurement-only path would discard.
 	if !w.produceMsgs {
 		return nil
 	}
 	return changes
 }
 
-// departureCollector is the estate-fold's withdrawal collector, twin to
-// changeCollector: the real slice pointer where the producer is enabled and needs the
-// declared-input feed (AL-2, #722), nil where it is off so foldEstateTransitions does
-// no bookkeeping the measurement-only path would discard.
 func (w *Worker) departureCollector(deps *[]departure) *[]departure {
 	if !w.produceMsgs {
 		return nil
@@ -265,23 +175,14 @@ func (w *Worker) departureCollector(deps *[]departure) *[]departure {
 	return deps
 }
 
-// narrowingCollector is the address-withdrawal fold's collector, twin to
-// departureCollector: the real slice pointer where the producer is enabled and
-// needs the narrowing feed (ADR-0133 §8, #1032), nil where it is off. The fold
-// still CLOSES the withdrawn timelines with a nil collector — a withdrawal is a
-// fact about the estate, and only the message it fires is optional.
 func (w *Worker) narrowingCollector(narrowings *[]message.NarrowingReceipt) *[]message.NarrowingReceipt {
+	// A withdrawal is a fact about the estate, so the fold closes its timelines with a nil collector.
 	if !w.produceMsgs {
 		return nil
 	}
 	return narrowings
 }
 
-// produce folds the batch's transitions into messages inside the batch tx. It binds
-// the injected enqueuer to this transaction's queries so the producer never imports
-// internal/delivery, and is a no-op unless the worker was built WithMessages. The
-// devMode guard lives inside produceMessages (AL-25), so an enabled dev worker still
-// writes nothing.
 func (w *Worker) produce(ctx context.Context, qtx *db.Queries, batchID int64, observedAt time.Time, changes []spanChange, departures []departure, narrowings []message.NarrowingReceipt, in membershipInputs) error {
 	if !w.produceMsgs {
 		return nil
@@ -295,22 +196,14 @@ func (w *Worker) produce(ctx context.Context, qtx *db.Queries, batchID int64, ob
 	return produceMessages(ctx, qtx, batchID, observedAt, changes, departures, narrowings, in, enqueue, w.devMode)
 }
 
-// VantageRouter decides whether a job runs off-host and, if so, runs it there. It is
-// consulted per job before the local prober: ProbeVantage reports handled=false for a
-// vantage with no prober (the resolver-only `local` position), so that job falls
-// through to the local ExecProber; handled=true means the observations came from the
-// prober host over SSH. An error is a transient measurement failure (unreachable host,
-// push failure) and drives the same retry/dead-letter path a local probe error does.
+// A provisioned Vantage measures from its own position; handled=false runs it locally (ADR-0103).
+
 type VantageRouter interface {
 	ProbeVantage(ctx context.Context, vantageID pgtype.Int8, spec wire.JobSpec) (res wire.ProbeResult, handled bool, err error)
 }
 
-// DefaultProbeTimeout is the per-job probe deadline a Worker starts with. A single
-// measurement probe — a resolver walk or a port/TLS/HTTP exchange against one target
-// — settles in seconds, so a probe still running at this bound has hung; the bound
-// then drives it into the retry / dead-letter path rather than blocking the
-// single-threaded drain loop (#853). It sits well below DefaultStaleJobThreshold, so
-// a hung probe is bounded here long before the reaper would ever reclaim its job.
+// The drain loop is single-threaded, so a hung prober would block every later job (#853).
+
 const DefaultProbeTimeout = 5 * time.Minute
 
 func NewWorker(pool *pgxpool.Pool, prober Prober, now func() time.Time, logger *log.Logger) *Worker {
@@ -320,25 +213,16 @@ func NewWorker(pool *pgxpool.Pool, prober Prober, now func() time.Time, logger *
 	return &Worker{pool: pool, q: db.New(pool), prober: prober, now: now, log: logger, probeTimeout: DefaultProbeTimeout}
 }
 
-// WithProbeTimeout overrides the per-job probe deadline (#853). A value <= 0
-// disables the bound — the probe then runs under the parent ctx alone. Separate from
-// NewWorker so the default construction and its tests stay unchanged. Returns the
-// worker for chaining.
 func (w *Worker) WithProbeTimeout(d time.Duration) *Worker {
 	w.probeTimeout = d
 	return w
 }
 
-// WithRouter wires the off-host measurement router onto the Worker (ADR-0103, #683).
-// It is separate from NewWorker so the local-only worker construction and its tests
-// stay unchanged; a worker with no router runs every job on the local prober.
 func (w *Worker) WithRouter(router VantageRouter) *Worker {
 	w.router = router
 	return w
 }
 
-// Run drains the queue, then waits on LISTEN/NOTIFY (with a ticker fallback so a
-// missed notification still makes progress) until ctx is done.
 func (w *Worker) Run(ctx context.Context) error {
 	conn, err := w.pool.Acquire(ctx)
 	if err != nil {
@@ -353,6 +237,7 @@ func (w *Worker) Run(ctx context.Context) error {
 		if err := w.drain(ctx); err != nil && !errors.Is(err, context.Canceled) {
 			w.log.Printf("worker: drain: %v", err)
 		}
+		// A notification can be missed, so the timeout is a fallback that still makes progress.
 		waitCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		_, err := conn.Conn().WaitForNotification(waitCtx)
 		cancel()
@@ -360,7 +245,6 @@ func (w *Worker) Run(ctx context.Context) error {
 			if errors.Is(err, context.Canceled) || ctx.Err() != nil {
 				return ctx.Err()
 			}
-			// A timeout is the ticker fallback: loop and drain again.
 		}
 	}
 }
@@ -399,34 +283,22 @@ func (w *Worker) process(ctx context.Context, job db.ClaimJobRow) error {
 		return fmt.Errorf("decode spec: %w", err)
 	}
 
-	// The zone Scan is worker-read: no prober exec, no Vantage, and its
-	// observations are stamped at the operator's supply instant (v1 spec §3.4).
+	// A worker-read Scan runs no prober and admits without observing, so it opens no span (ADR-0027).
 	if spec.Kind == scan.ZoneKind {
 		return w.completeZone(ctx, job, spec)
 	}
 
-	// The ct Scan is worker-read too, but it fetches crt.sh (a network step, so it
-	// retries/dead-letters) and admits without observing — no observation, no span
-	// (ADR-0027, ADR-0106).
+	// A crt.sh fetch is a network step, so this worker-read Scan retries and dead-letters (ADR-0106).
 	if spec.Kind == scan.CTKind {
 		return w.completeCT(ctx, job, spec)
 	}
 
-	// The ct-tail Scan is worker-read too: it polls a CT log directly, forward-only,
-	// and admits without observing — no observation, no span (spec §4, ADR-0027).
 	if spec.Kind == scan.CTTailKind {
 		return w.completeCTTail(ctx, job, spec)
 	}
 
 	res, probeErr := w.probe(ctx, job.VantageID, spec)
 	if probeErr != nil {
-		// A transient failure. Retry is a new Batch, never a resumption: while
-		// attempts remain we enqueue a fresh job; past them we dead-letter. The
-		// bound is single-sourced in exhaustedRetries, shared with the ct path.
-		//
-		// res.Transcript rides the error return (#865, spec §2.2): the raw output
-		// is threaded onto the retry/dead-letter tx so a failed or decode-failed job
-		// keeps its raw output, which is exactly when it is most wanted.
 		if exhaustedRetries(job.Attempt, job.MaxAttempts) {
 			return w.deadLetter(ctx, job, res.Transcript, probeErr)
 		}
@@ -435,17 +307,8 @@ func (w *Worker) process(ctx context.Context, job db.ClaimJobRow) error {
 	return w.complete(ctx, job, res)
 }
 
-// probe runs a job's measurement, routing it off-host when a provisioned prober owns
-// the vantage and running it on the local prober otherwise. The router (when wired) is
-// consulted first: it reports handled=false for a vantage with no prober, so that job
-// falls through to the local ExecProber exactly as before this seam existed.
 func (w *Worker) probe(ctx context.Context, vantageID pgtype.Int8, spec wire.JobSpec) (wire.ProbeResult, error) {
-	// Bracket the probe with the per-job deadline so a hung prober fails into the
-	// retry / dead-letter path instead of blocking the single-threaded drain loop
-	// (#853). It wraps ONLY the probe, so the terminal transaction that records the
-	// outcome runs under the parent ctx, never this shorter deadline. A timeout
-	// surfaces as ctx.Err() on the exec, which classifyProberOutcome reads as
-	// ProberContextCancelled — the same benign transcript a Terminate produces.
+	// The bracket wraps only the probe, so the terminal transaction runs under the parent ctx (#853).
 	if w.probeTimeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, w.probeTimeout)
@@ -454,8 +317,7 @@ func (w *Worker) probe(ctx context.Context, vantageID pgtype.Int8, spec wire.Job
 	if w.router != nil {
 		res, handled, err := w.router.ProbeVantage(ctx, vantageID, spec)
 		if err != nil {
-			// res carries the off-host Transcript on the error path (#867), so a failed
-			// remote probe still threads its raw output onto the retry/dead-letter tx.
+			// A failed remote probe still carries its transcript, so the error must not discard res (#867).
 			return res, err
 		}
 		if handled {
@@ -465,16 +327,10 @@ func (w *Worker) probe(ctx context.Context, vantageID pgtype.Int8, spec wire.Job
 	return w.prober.Probe(ctx, spec)
 }
 
-// errJobCanceled signals that a job's guarded terminal write matched no row because a
-// stop or terminate (DF-F4) cancelled the job out from under the worker. Returned from
-// inside a job's transaction, it rolls the whole transaction back — discarding the
-// staged batch and observations, so a terminate's "uncommitted work is discarded"
-// holds — and is then swallowed as a benign outcome by runJobTx: the cancellation
-// already recorded the job's terminal ('cancelled') state, so nothing more is owed.
+// A terminate discards uncommitted work, so a zero-row guarded write rolls the tx back (DF-F4).
+
 var errJobCanceled = errors.New("queue: job canceled mid-flight")
 
-// markDone applies the guarded done transition, turning a zero-row result (the job was
-// cancelled mid-flight) into errJobCanceled so the caller's transaction rolls back.
 func markDone(ctx context.Context, qtx *db.Queries, jobID, batchID int64) error {
 	n, err := qtx.MarkJobDone(ctx, db.MarkJobDoneParams{ID: jobID, BatchID: pgInt8(batchID)})
 	if err != nil {
@@ -486,8 +342,6 @@ func markDone(ctx context.Context, qtx *db.Queries, jobID, batchID int64) error 
 	return nil
 }
 
-// markDead is markDone's dead-letter twin: a job cancelled mid-flight does not
-// dead-letter, so a zero-row result rolls the transaction back.
 func markDead(ctx context.Context, qtx *db.Queries, jobID, batchID int64) error {
 	n, err := qtx.MarkJobDead(ctx, db.MarkJobDeadParams{ID: jobID, BatchID: pgInt8(batchID)})
 	if err != nil {
@@ -499,9 +353,6 @@ func markDead(ctx context.Context, qtx *db.Queries, jobID, batchID int64) error 
 	return nil
 }
 
-// markRetried marks the current attempt retired. A zero-row result means the job was
-// cancelled mid-flight, so the fresh attempt the caller enqueued in the same tx is
-// rolled back with it — a terminated run does not retry.
 func markRetried(ctx context.Context, qtx *db.Queries, jobID int64) error {
 	n, err := qtx.MarkJobRetried(ctx, jobID)
 	if err != nil {
@@ -513,12 +364,9 @@ func markRetried(ctx context.Context, qtx *db.Queries, jobID int64) error {
 	return nil
 }
 
-// runJobTx runs a job's terminal transaction and treats a mid-flight cancellation as a
-// benign no-op: errJobCanceled means the tx already rolled back (its work discarded)
-// and the job's terminal state is recorded by the cancellation, so there is nothing
-// left to do or to log as a failure.
 func (w *Worker) runJobTx(ctx context.Context, jobID int64, fn func(*db.Queries) error) error {
 	err := w.inTx(ctx, fn)
+	// The cancellation already recorded the job's terminal state, so nothing more is owed or logged.
 	if errors.Is(err, errJobCanceled) {
 		w.log.Printf("worker: job %d canceled mid-flight; uncommitted work discarded", jobID)
 		return nil
@@ -526,19 +374,10 @@ func (w *Worker) runJobTx(ctx context.Context, jobID int64, fn func(*db.Queries)
 	return err
 }
 
-// complete writes the Batch, its Observations, the job's verbatim transcript and its
-// done state in one transaction — the outcome, the observation data and the raw
-// output commit together (spec §2.4).
 func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, res wire.ProbeResult) error {
-	// Re-gate the prober's self-reported subjects against what this job authorised
-	// (#773): a compromised prober can put any string in an Observation's Subject —
-	// the field written as SubjectKey and keyed on by the span/estate/message folds —
-	// so any observation naming a subject outside job.AttemptedScope is dropped before
-	// the write, rather than minting false spans/drift/messages for a subject the job
-	// never dispatched. Dropped lines are logged; legitimate lines are untouched. The
-	// transcript keeps the pre-gate stdout verbatim (spec §5.1), so this gating does
-	// not narrow it.
+	// A prober can name any subject, so a line outside the job's authorised scope is dropped (#773).
 	obs := parseAuthorizedScope(job.AttemptedScope).gate(res.Observations, w.log, job.ID)
+	// The outcome, its observations and its raw output must commit together (ADR-0007, spec §2.4).
 	if err := w.runJobTx(ctx, job.ID, func(qtx *db.Queries) error {
 		batchID, err := qtx.InsertBatch(ctx, db.InsertBatchParams{
 			ScanID:        job.ScanID,
@@ -552,10 +391,7 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, res wire.Prob
 		if err != nil {
 			return err
 		}
-		// A completed resolution-walk Batch is proof the vantage's resolver can
-		// observe: derive its Availability back to 'available' in the same
-		// transaction (ADR-0108). Scoped to the dns kind so a completing port
-		// probe never clobbers a resolver outage.
+		// A completing port probe must not clobber a resolver outage, so this is dns-scoped (ADR-0108).
 		if err := applyAvailability(ctx, qtx, job.VantageID, job.Kind, outcomeCompleted); err != nil {
 			return err
 		}
@@ -565,12 +401,7 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, res wire.Prob
 				return err
 			}
 		}
-		// Land any captured certificate material in its fingerprint-keyed side store, in
-		// the same transaction (ADR-0027, spec §5.3). It rides certificate observation
-		// lines BESIDE the facet value, never inside it, so the observation still records
-		// only the fingerprint and the fence stays closed. The insert is deduped and
-		// immutable — ON CONFLICT DO NOTHING keeps the first capture — so repeated
-		// presentations of one certificate write its material once.
+		// Material rides beside the facet value, never inside it, so the fence stays closed (ADR-0027).
 		for _, o := range obs {
 			if o.CertMaterial == nil {
 				continue
@@ -584,79 +415,38 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, res wire.Prob
 				return err
 			}
 		}
-		// Land the measured candidate edges in the `edge-fanout` leaf's own store, in
-		// the same transaction (ADR-0129 §6, #983). That leaf decides MEMBERSHIP and
-		// opens no timeline, so its lines carry no facet and hold no row in the
-		// `observation` table; this is where they are recorded on the Batch by content.
-		// It admits itself on the kind the DISPATCHER enqueued, never on a line's
-		// self-declared kind, so a job of any other kind writes no row here.
 		if err := foldEdgeFanoutObservations(ctx, qtx, job, batchID, tstz(observedAt), obs, w.log); err != nil {
 			return err
 		}
-		// The declared-input context (Seeds, Exclusions) the fold composes membership
-		// against — read once for both the aperture-widened opening marker and the
-		// withdrawal closure below (internal/estate).
 		membership, err := readMembershipInputs(ctx, qtx)
 		if err != nil {
 			return err
 		}
-		// Fold the completed batch's observations into the Span corpus in the same
-		// transaction — the outcome, its observations and the drift they move all
-		// commit together (ADR-0007). The fold also collects each transition it made
-		// into `changes` — the estate/drift feed the message producer consumes below.
 		var changes []spanChange
 		var departures []departure
 		var narrowings []message.NarrowingReceipt
 		if err := foldObservationsIntoSpans(ctx, qtx, batchID, job.VantageID, observedAt, obs, membership, w.changeCollector(&changes)); err != nil {
 			return err
 		}
-		// Compose the subject-level departures the batch's evidence shows and close
-		// their timelines with the estate-decided ground (internal/estate wired into
-		// the spanfold closure, #637) — the withdrawn / descoped closures, and the
-		// re-open that lets a later `returned` derive, all citing this batch.
 		if err := foldEstateTransitions(ctx, qtx, batchID, observedAt, obs, membership, w.departureCollector(&departures)); err != nil {
 			return err
 		}
-		// Close the timelines a WITHDRAWN name Seed takes with it, with the `descoped`
-		// ground (ADR-0135, #1045). It runs beside the fold above and not inside it,
-		// for that fold's own reason: a withdrawn name Seed stops its Names being
-		// enumerated, so no observation about them arrives again and a fold scoped to
-		// the batch's observed subjects could never reach them. Running it AFTER means
-		// a Name that fold already closed is not open, so neither counts it twice.
+		// A withdrawn Seed stops its Names being enumerated, so a batch-scoped fold misses them (#1045).
 		if err := foldNameSeedWithdrawals(ctx, qtx, batchID, observedAt, membership, w.narrowingCollector(&narrowings)); err != nil {
 			return err
 		}
-		// Close the timelines the operator's own declared ADDRESS exclusions withdraw,
-		// with the `descoped` ground (ADR-0133 §8, #1032). It runs beside the Name
-		// withdrawal above and not inside it: ADR-0133 §3 stops enumerating an excluded
-		// address, so no observation about one ever arrives again and a fold scoped to
-		// the batch's observed subjects could never reach it. This limb reads the
-		// declared exclusions instead.
 		if err := foldAddressExclusionWithdrawals(ctx, qtx, batchID, observedAt, membership, w.narrowingCollector(&narrowings)); err != nil {
 			return err
 		}
-		// Close the timelines a WITHDRAWN address Seed takes with it, with the same
-		// `descoped` ground (ADR-0134, #1040) — the other half of the rule CONTEXT.md
-		// states, driven from a `seed_withdrawal` tombstone because the delete destroys
-		// the mover. It runs LAST of the four folds: an address the exclusion
-		// withdrawal already closed is not open, so it is never counted or attributed
-		// twice.
+		// The delete destroys the mover, so an address withdrawal is driven from a tombstone (ADR-0134).
 		if err := foldSeedWithdrawals(ctx, qtx, batchID, observedAt, membership, w.narrowingCollector(&narrowings)); err != nil {
 			return err
 		}
-		// Fold each signal/drift transition into a Message and route it to its bound
-		// channels, in this same transaction (P0.7): a flagship internet-leg move or a
-		// membership entry becomes a Message row and its Deliveries. A no-op unless the
-		// worker was built WithMessages, and always a no-op in devMode (AL-25).
 		if err := w.produce(ctx, qtx, batchID, observedAt, changes, departures, narrowings, membership); err != nil {
 			return err
 		}
-		// Ephemeral per-job progress (#780, collision #40): a completed measurement rides a
-		// count of what it observed onto the live stream — redacted to the count alone, never
-		// the observations. Nothing is persisted by this; the state-derived .Log stands.
+		// The live stream carries the count alone, never the observations, and persists nothing (#780).
 		w.emitJobEvent(ctx, qtx, job, "", countLabel(len(obs), "observation", "observations"))
-		// Persist the verbatim transcript on the completed row, sealed at rest, in
-		// this same tx (spec §2.4). A no-op when capture is off or absent.
 		if err := w.persistTranscript(ctx, qtx, job.ID, res.Transcript); err != nil {
 			return err
 		}
@@ -664,17 +454,13 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, res wire.Prob
 	}); err != nil {
 		return err
 	}
-	// Auto-verify each newly-captured certificate against CT, out of band (spec §5.4). This
-	// runs AFTER the terminal tx commits — it does network I/O to the CT logs, which must
-	// never ride a database transaction — and is best-effort: a verification never fails the
-	// measurement job. A no-op unless the worker was built WithCTVerify.
+	// A CT verification does network I/O, which must never ride a database transaction (spec §5.4).
 	w.autoVerifyCerts(ctx, job, obs)
 	return nil
 }
 
-// deadLetter records a Batch whose scope is empty — never the attempted one —
-// the job's verbatim transcript, and the job's dead state, together.
 func (w *Worker) deadLetter(ctx context.Context, job db.ClaimJobRow, t wire.Transcript, cause error) error {
+	// A failed job asserts no absence, so the Batch records an empty scope, never the attempted one.
 	w.log.Printf("worker: job %d dead-lettered after %d attempts: %v", job.ID, job.Attempt, cause)
 	return w.runJobTx(ctx, job.ID, func(qtx *db.Queries) error {
 		batchID, err := qtx.InsertBatch(ctx, db.InsertBatchParams{
@@ -689,20 +475,10 @@ func (w *Worker) deadLetter(ctx context.Context, job db.ClaimJobRow, t wire.Tran
 		if err != nil {
 			return err
 		}
-		// A dead-lettered resolution-walk Batch failed every attempt across the
-		// retry window: the vantage's resolver could not observe, so derive its
-		// Availability to 'unavailable' (ADR-0108). Scoped to the dns kind — a
-		// dead-lettered port probe is its own durable failure, not a resolver
-		// outage, and does not move this scalar.
 		if err := applyAvailability(ctx, qtx, job.VantageID, job.Kind, outcomeDeadLettered); err != nil {
 			return err
 		}
-		// Ephemeral per-job progress (#780, collision #40): the redacted dead-letter reason
-		// rides the live stream as an appended line so the operator sees WHY the job gave up,
-		// not a bare `dead`.
 		w.emitJobEvent(ctx, qtx, job, "error", deadLetterLabel(job.Attempt, cause))
-		// The raw output is highest-value on a dead-letter: persist it on the
-		// dead-lettered row in this same tx (spec §2.2, §2.4).
 		if err := w.persistTranscript(ctx, qtx, job.ID, t); err != nil {
 			return err
 		}
@@ -710,12 +486,10 @@ func (w *Worker) deadLetter(ctx context.Context, job db.ClaimJobRow, t wire.Tran
 	})
 }
 
-// retry enqueues a new job (attempt+1) and marks the current one retried, so the
-// eventual Batch is a fresh one and no partial batch is ever resumed. The failed
-// attempt keeps its own transcript on its own (retired) row.
 func (w *Worker) retry(ctx context.Context, job db.ClaimJobRow, t wire.Transcript, cause error) error {
 	w.log.Printf("worker: job %d attempt %d failed, retrying: %v", job.ID, job.Attempt, cause)
 	return w.runJobTx(ctx, job.ID, func(qtx *db.Queries) error {
+		// A retry is a new Batch, never a resumption, so no partial batch is ever resumed.
 		if _, err := qtx.EnqueueJob(ctx, db.EnqueueJobParams{
 			ScanID:         job.ScanID,
 			VantageID:      job.VantageID,
@@ -730,13 +504,8 @@ func (w *Worker) retry(ctx context.Context, job db.ClaimJobRow, t wire.Transcrip
 		}); err != nil {
 			return err
 		}
-		// Ephemeral per-job progress (#780, collision #40): the redacted retry reason — the
-		// crt.sh-502 the ticket cites — keyed to the job that failed, so the stream appends it
-		// as a live line beside that job's state. This is the producer half of collision #40.
 		w.emitJobEvent(ctx, qtx, job, "warn", retryLabel(job.Attempt, cause))
-		// Attach the transcript to the FAILED attempt's row (job.ID), not the fresh
-		// one just enqueued, in this same tx (spec §1.1, §2.4). A mid-flight cancel
-		// rolls both the fresh job and this transcript back together.
+		// The transcript belongs to the failed attempt's row, not the fresh job just enqueued (§1.1).
 		if err := w.persistTranscript(ctx, qtx, job.ID, t); err != nil {
 			return err
 		}
