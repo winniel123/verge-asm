@@ -19,8 +19,6 @@ func vec(pairs ...string) Vector {
 
 var resKey = TimelineKey{SubjectKind: "name", SubjectKey: "api.example.com", Facet: "resolution", Source: "resolver"}
 
-// --- Fold: span open / close (AC1, AC6) ---
-
 func TestFoldOpensOneSpanForOneValue(t *testing.T) {
 	v := vec("resolution-walk", "v1")
 	spans := Fold(resKey, []Reading{
@@ -40,8 +38,6 @@ func TestFoldOpensOneSpanForOneValue(t *testing.T) {
 }
 
 func TestFoldChangedAnswerClosesOldAndOpensNew(t *testing.T) {
-	// AC6: re-running the dns Scan with a changed answer produces a new Span and
-	// the old one closes.
 	v := vec("resolution-walk", "v1")
 	spans := Fold(resKey, []Reading{
 		{Value: `{"outcome":"Resolved","addresses":["203.0.113.1"]}`, Vector: v, ObservedAt: day(0)},
@@ -65,8 +61,6 @@ func TestFoldChangedAnswerClosesOldAndOpensNew(t *testing.T) {
 }
 
 func TestFoldVersionChangeClosesAndOpensEvenWhenValueEqual(t *testing.T) {
-	// A version change closes every open span of that derivation and opens a new
-	// one, with a Break between — even where the value is byte-identical (ADR-0007).
 	before := vec("resolution-walk", "v1")
 	after := vec("resolution-walk", "v2")
 	spans := Fold(resKey, []Reading{
@@ -96,8 +90,6 @@ func TestFoldStepOpensFirstSpan(t *testing.T) {
 		t.Errorf("a new timeline opens its first span with no close, got changed=%v closeAt=%v", changed, closeAt)
 	}
 }
-
-// --- Break on read names the moved leaf (AC2) ---
 
 func TestBreakNamesMovedLeaf(t *testing.T) {
 	before := vec("resolution-walk", "v1", "wildcard-discrimination", "v1")
@@ -130,8 +122,6 @@ func TestNoBreakWhenVectorsEqual(t *testing.T) {
 }
 
 func TestBreakNamesLeafEnteringVector(t *testing.T) {
-	// The membership vector is discovered, not declared: a leaf entering it is a
-	// real move a Break names (ADR-0086).
 	before := vec("resolution-walk", "v1")
 	after := vec("resolution-walk", "v1", "wildcard-discrimination", "v1")
 	got := MovedLeaves(before, after)
@@ -139,8 +129,6 @@ func TestBreakNamesLeafEnteringVector(t *testing.T) {
 		t.Errorf("a leaf entering the vector has moved, got %v", got)
 	}
 }
-
-// --- Transition on read (AC3, AC4) ---
 
 func TestAppearedWhenNoPriorSpan(t *testing.T) {
 	if MembershipReturn(nil, false) != KindAppeared {
@@ -156,12 +144,10 @@ func TestReturnedAcrossCleanHistory(t *testing.T) {
 }
 
 func TestDescopedClosureSuppressesReturned(t *testing.T) {
-	// AC4: only descoped suppresses a later returned.
 	prior := &Span{Reason: ReasonDescoped, ClosedAt: day(1)}
 	if MembershipReturn(prior, false) != KindAppeared {
 		t.Error("a descoped closure blocks returned — a narrowing is not a decommission")
 	}
-	// uncited and measured-absent do NOT suppress it.
 	for _, r := range []ClosureReason{ReasonMeasuredAbsent, ReasonUncited} {
 		if MembershipReturn(&Span{Reason: r, ClosedAt: day(1)}, false) != KindReturned {
 			t.Errorf("%s must not suppress returned", r)
@@ -170,8 +156,6 @@ func TestDescopedClosureSuppressesReturned(t *testing.T) {
 }
 
 func TestBreakOnWitnessVoidsReturned(t *testing.T) {
-	// AC3/ADR-0097: a Break on any relied-upon witness voids returned; the subject
-	// re-enters reading appeared.
 	prior := &Span{Reason: ReasonMeasuredAbsent, ClosedAt: day(1)}
 	if MembershipReturn(prior, true) != KindAppeared {
 		t.Error("a Break on a witness re-enters as appeared, not returned")
@@ -185,13 +169,10 @@ func TestRevealedIsAnyTimelineNotMembership(t *testing.T) {
 	if OpeningKind(false) != KindNone {
 		t.Error("an ordinary opening is unnamed")
 	}
-	// OpeningKind never returns a membership-only kind.
 	if k := OpeningKind(true); k == KindAppeared || k == KindReturned {
 		t.Error("revealed belongs to any timeline; appeared/returned are membership-only")
 	}
 }
-
-// --- Closure grounds are a closed union of three ---
 
 func TestClosureReasonsAreClosedAtThree(t *testing.T) {
 	for _, r := range []ClosureReason{ReasonMeasuredAbsent, ReasonUncited, ReasonDescoped} {
@@ -222,33 +203,23 @@ func TestCloseWithdrawalClosesEveryTimelineWithReason(t *testing.T) {
 	}
 }
 
-// ReEntryKind composes the aperture marker over the membership pair (#1039). A
-// re-entry behind a `descoped` closure reads `revealed` where the operator widened a
-// Declared scope back over the subject, and `appeared` where the world cited the
-// subject again. Neither input alone decides the word.
 func TestReEntryKindRevealedOnDeclaredWidening(t *testing.T) {
 	descoped := &Span{Reason: ReasonDescoped, ClosedAt: day(1)}
 
-	// ADR-0041: a Declared widening yields revealed, never appeared.
 	if got := ReEntryKind(descoped, false, true); got != KindRevealed {
 		t.Errorf("a marked re-entry across a descoped closure = %q, want revealed", got)
 	}
-	// Unmarked: the world cited the subject again and no scope widened.
 	if got := ReEntryKind(descoped, false, false); got != KindAppeared {
 		t.Errorf("an unmarked re-entry across a descoped closure = %q, want appeared", got)
 	}
-	// The marker never promotes a decommission undone. Those grounds keep returned.
 	for _, r := range []ClosureReason{ReasonMeasuredAbsent, ReasonUncited} {
 		if got := ReEntryKind(&Span{Reason: r, ClosedAt: day(1)}, false, true); got != KindReturned {
 			t.Errorf("a marked re-entry across a %s closure = %q, want returned", r, got)
 		}
 	}
-	// A Break on a witness still voids returned, and the marker does not restore it.
 	if got := ReEntryKind(&Span{Reason: ReasonMeasuredAbsent, ClosedAt: day(1)}, true, true); got != KindAppeared {
 		t.Errorf("a broken witness = %q, want appeared", got)
 	}
-	// No prior span is a first discovery. This function defers to MembershipReturn
-	// for that rather than reading a marker as a widening.
 	if got := ReEntryKind(nil, false, true); got != KindAppeared {
 		t.Errorf("no prior closure = %q, want appeared", got)
 	}
