@@ -10,9 +10,6 @@ type Step struct {
 	Connect *scriptConnector
 }
 
-// Row is one corpus row: the cells it pins, its one-line claim, whether the
-// claim is spec-verified rather than measured, the declared safety profile, the
-// step, and the golden NDJSON file its output must equal byte for byte.
 type Row struct {
 	Cells        []string
 	Claim        string
@@ -24,12 +21,9 @@ type Row struct {
 
 var AllCells = []string{
 	"C1/reached", "C1/not-reached",
-	// C2 — the raw results that decide
 	"C2/open", "C2/refused", "C2/timeout-exhausted",
 	"C3/refusal-not-retried", "C3/transient-timeout-recovers",
-	// C4 — the recorded scope: a Service per pair, open or closed
 	"C4/mixed-open-closed", "C4/round-robin-order",
-	// C5 — UDP recorded but never probed
 	"C5/udp-recorded-not-probed",
 }
 
@@ -133,9 +127,7 @@ var Rows = []Row{
 		Step: Step{
 			Batch:   "b1",
 			Scope:   scope([]string{"198.51.100.30"}, nil, []uint16{161, 623}),
-			Connect: newScript(map[string][]co.ConnResult{
-				// Nothing is scripted: nothing must be probed.
-			}),
+			Connect: newScript(map[string][]co.ConnResult{}),
 		},
 		Golden: "udp_recorded_not_probed.ndjson",
 	},

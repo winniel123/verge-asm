@@ -7,12 +7,6 @@ import (
 	"testing"
 )
 
-// The console group (#1085). A log or code panel reads as a terminal, and a
-// terminal is dark in EVERY theme. --surface-inverted is not that: it means the
-// opposite of the page ground, so it flips, and a console riding it turned
-// off-white in dark mode. These tests pin both halves of the repair — the group
-// does not flip, and the console surfaces read the group rather than the
-// inverted token.
 var consoleTokens = []string{
 	"--console-surface",
 	"--console-text",
@@ -24,9 +18,6 @@ var consoleTokens = []string{
 	"--console-pill-warn-fg",
 }
 
-// Anchored per declaration rather than per file. A file-wide ban would fail the
-// day settings.tmpl grows a tooltip or a bulk-actions bar, both of which are
-// legitimate --surface-inverted callers.
 var consoleDecls = []struct {
 	file   string
 	anchor string
@@ -46,17 +37,13 @@ var consoleDecls = []struct {
 	{"examples/console/Settings.jsx", `<pre style={{ margin: 0, padding: "12px 14px"`, "--console-surface"},
 }
 
-// Asserted from the other side so a future sweep cannot flatten the distinction
-// by rewriting every caller at once.
 var invertedKeepers = []string{
 	"components/feedback/Tooltip.jsx",
 	"components/feedback/BulkActionsBar.jsx",
 }
 
-// Every block form counts, not just the two the file happens to use today. A
-// media-query dark form (as internal/message/render.go already ships) must not
-// be able to reintroduce the flip behind the guard's back.
 func TestConsoleTokensHoldOneValueEverywhereTheyAreDeclared(t *testing.T) {
+	// A console reads as a terminal and is dark in every theme, so its group must not flip (#1085).
 	b, err := fs.ReadFile(FS, "tokens/colors.css")
 	if err != nil {
 		t.Fatalf("read tokens/colors.css: %v", err)
@@ -64,6 +51,7 @@ func TestConsoleTokensHoldOneValueEverywhereTheyAreDeclared(t *testing.T) {
 	css := stripComments(string(b))
 
 	for _, name := range consoleTokens {
+		// Every block form counts, so a media-query dark form cannot reintroduce the flip.
 		values := declaredValues(css, name)
 		switch {
 		case len(values) == 0:
@@ -81,6 +69,7 @@ func TestConsoleTokensHoldOneValueEverywhereTheyAreDeclared(t *testing.T) {
 }
 
 func TestConsoleDeclarationsReadTheConsoleGroup(t *testing.T) {
+	// A file-wide ban would fail the day settings.tmpl grows a legitimate --surface-inverted caller.
 	for _, d := range consoleDecls {
 		decl, ok := lineContaining(readArtifact(t, d.file), d.anchor)
 		if !ok {
@@ -98,9 +87,8 @@ func TestConsoleDeclarationsReadTheConsoleGroup(t *testing.T) {
 	}
 }
 
-// The warn pill sits ON the pinned ground, so it may not read a token that
-// flips. --warn-soft is #2d2413 in dark, which is 1.07:1 against the ground.
 func TestConsolePillReadsNoFlippingToken(t *testing.T) {
+	// The pill sits on the pinned ground, and --warn-soft is 1.07:1 against it in dark.
 	decl, ok := lineContaining(readArtifact(t, "templates/rundetail.tmpl"), ".rd-rawlink {")
 	if !ok {
 		t.Fatal("rundetail.tmpl has no .rd-rawlink declaration")
@@ -113,6 +101,7 @@ func TestConsolePillReadsNoFlippingToken(t *testing.T) {
 }
 
 func TestFeedbackSurfacesKeepTheInvertedToken(t *testing.T) {
+	// Asserted from the other side, so a sweep cannot rewrite every caller and flatten it.
 	for _, name := range invertedKeepers {
 		src := readArtifact(t, name)
 		if !strings.Contains(src, "--surface-inverted") {
@@ -124,13 +113,12 @@ func TestFeedbackSurfacesKeepTheInvertedToken(t *testing.T) {
 	}
 }
 
-// The embedded FS carries only the data artifacts (*.tmpl, *.css, *.json), so
-// the .jsx sources are read from disk beside this file.
 func readArtifact(t *testing.T, name string) string {
 	t.Helper()
 	if b, err := fs.ReadFile(FS, name); err == nil {
 		return string(b)
 	}
+	// The embed globs take only the data artifacts, so a .jsx source is read from disk.
 	b, err := os.ReadFile(name)
 	if err != nil {
 		t.Fatalf("read %s: %v", name, err)
@@ -159,9 +147,6 @@ func declaredValues(css, name string) []string {
 	return out
 }
 
-// A declaration is found by splitting on ";", so a selector and its brace glue
-// themselves to the front of the first declaration inside the block. Break on
-// the braces too, and the split stays block-form agnostic.
 var blockBreaker = strings.NewReplacer("{", ";", "}", ";")
 
 func stripComments(css string) string {
