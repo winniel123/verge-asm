@@ -76,12 +76,14 @@ func TestLintInScopeOnlyNeverWalksTheTree(t *testing.T) {
 }
 
 func TestLintSkipsASurfaceWithNoLexerYet(t *testing.T) {
+	// Every in-scope surface lexes now, so the skip belongs to a surface the
+	// sweep never reads (#1142).
 	dir := t.TempDir()
 	t.Chdir(dir)
-	writeFile(t, dir, "design-system/templates/shell.tmpl", "<p>{{ .Title }}</p>\n")
+	writeFile(t, dir, "docs/spec/comment-policy.md", "# The comment policy\n")
 
 	var stdout, stderr bytes.Buffer
-	if got := runWith([]string{"lint", "design-system/templates/shell.tmpl"}, &stdout, &stderr, stubGit(nil, nil)); got != 0 {
+	if got := runWith([]string{"lint", "docs/spec/comment-policy.md"}, &stdout, &stderr, stubGit(nil, nil)); got != 0 {
 		t.Errorf("exit is %d, want 0 (stderr %q)", got, stderr.String())
 	}
 	if !strings.Contains(stdout.String(), "0 lex failure(s)") {
@@ -107,6 +109,42 @@ func TestLintReadsTheSQLAndCSSSurfaces(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Errorf("stdout is %q, want it to hold %q", out, want)
 		}
+	}
+}
+
+func TestLintReadsTheTmplSurface(t *testing.T) {
+	// §6.4 gives `lint` every lexable surface, and `.tmpl` is the last one to
+	// arrive (#1142).
+	dir := t.TempDir()
+	t.Chdir(dir)
+	writeFile(t, dir, "design-system/templates/shell.tmpl", "{{/* ---------------- */}}\n<p>{{.Title}}</p>\n")
+
+	var stdout, stderr bytes.Buffer
+	got := runWith([]string{"lint", "design-system/templates/shell.tmpl"}, &stdout, &stderr, stubGit(nil, nil))
+	if got != 1 {
+		t.Fatalf("exit is %d, want 1 (stderr %q)", got, stderr.String())
+	}
+	out := stdout.String()
+	for _, want := range []string{"design-system/templates/shell.tmpl:1 -> section-divider", "0 lex failure(s)"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("stdout is %q, want it to hold %q", out, want)
+		}
+	}
+}
+
+func TestStripNamesTheTmplDeleteRule(t *testing.T) {
+	// §6.5 records the `.tmpl` rule now, because the D3 sweep agent deletes by
+	// hand and `strip` is the only place the rule reaches them (#1142).
+	dir := t.TempDir()
+	t.Chdir(dir)
+	writeFile(t, dir, "design-system/templates/shell.tmpl", "{{/* the note */}}\n<p>x</p>\n")
+
+	var stdout, stderr bytes.Buffer
+	if got := runWith([]string{"strip", "design-system/templates/shell.tmpl"}, &stdout, &stderr, stubGit(nil, nil)); got != 2 {
+		t.Fatalf("exit is %d, want 2", got)
+	}
+	if !strings.Contains(stderr.String(), "delete the comment's byte range, leave its line") {
+		t.Errorf("stderr is %q, want it to name the §5.4 rule", stderr.String())
 	}
 }
 
@@ -191,6 +229,7 @@ func TestStripRefusesANonGoPath(t *testing.T) {
 		"docs-site/scripts/doclint.mjs":              "// the note\nexport const a = 1;\n",
 		"design-system/components/display/Card.d.ts": "// the note\nexport type A = 1;\n",
 		"docs-site/src/ds/Icon.jsx":                  "// the note\nconst a = <p>x</p>;\n",
+		"design-system/templates/shell.tmpl":         "{{/* the note */}}\n<p>x</p>\n",
 	}
 	for path, src := range cases {
 		t.Run(path, func(t *testing.T) {

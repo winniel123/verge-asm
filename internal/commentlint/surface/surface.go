@@ -13,6 +13,7 @@ const (
 	LangSQL
 	LangCSS
 	LangJS
+	LangTmpl
 )
 
 func (l Lang) String() string {
@@ -23,8 +24,24 @@ func (l Lang) String() string {
 		return "css"
 	case LangJS:
 		return "js"
+	case LangTmpl:
+		return "tmpl"
 	}
 	return "go"
+}
+
+const DeleteRuleUnmeasured = "measured when the surface's sweep is scheduled (SPEC §6.5)"
+
+func (l Lang) DeleteRule() string {
+	// §6.5 holds one row per surface. Go and `.tmpl` are measured, and every
+	// other row lands when that surface's sweep does.
+	switch l {
+	case LangGo:
+		return "remove the block's own lines, then gofmt (SPEC §3.8)"
+	case LangTmpl:
+		return "delete the comment's byte range, leave its line (SPEC §5.4)"
+	}
+	return DeleteRuleUnmeasured
 }
 
 func (l Lang) lineMarker() string {
@@ -86,6 +103,16 @@ func (b Block) Lines() int {
 
 func (b Block) PayloadLines() []string {
 	text := b.Text
+	if b.Lang == LangTmpl {
+		// The block carries the action delimiters and an optional trim marker,
+		// and the payload is what sits inside the `/* */`.
+		if i := strings.Index(text, "/*"); i >= 0 {
+			text = text[i:]
+		}
+		if i := strings.LastIndex(text, "*/"); i >= 0 {
+			text = text[:i+2]
+		}
+	}
 	if b.Style == StyleBlock {
 		text = strings.TrimSuffix(strings.TrimPrefix(text, "/*"), "*/")
 	}
@@ -132,6 +159,22 @@ func (e *UnsupportedError) Error() string {
 	return fmt.Sprintf("commentlint does not read the %s surface yet", e.Surface)
 }
 
+func LangOf(name string) (Lang, bool) {
+	switch strings.ToLower(path.Ext(name)) {
+	case ".go":
+		return LangGo, true
+	case ".sql":
+		return LangSQL, true
+	case ".css":
+		return LangCSS, true
+	case ".mjs", ".ts", ".jsx":
+		return LangJS, true
+	case ".tmpl":
+		return LangTmpl, true
+	}
+	return LangGo, false
+}
+
 func For(name string) (Lexer, error) {
 	ext := strings.ToLower(path.Ext(name))
 	// §5.3: TypeScript generics look like JSX to a lexer, so the extension
@@ -149,6 +192,8 @@ func For(name string) (Lexer, error) {
 		return JS{}, nil
 	case ".jsx":
 		return JSX{Path: name}, nil
+	case ".tmpl":
+		return Tmpl{}, nil
 	}
 	if ext == "" {
 		ext = path.Base(name)

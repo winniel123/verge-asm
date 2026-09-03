@@ -76,6 +76,24 @@ func TestClassifyReadsTheNonGoSurfaces(t *testing.T) {
 			want:  ShortLabel,
 		},
 		{
+			name:  "a commented-out tmpl action",
+			lexer: surface.Tmpl{},
+			src:   "{{/* {{if .Total}}<p>a</p>{{end}} */}}\n<p>b</p>\n",
+			want:  CommentedOutCode,
+		},
+		{
+			name:  "commented-out tmpl markup",
+			lexer: surface.Tmpl{},
+			src:   "{{/* <p class=\"lead\">the counted total</p> */}}\n<p>b</p>\n",
+			want:  CommentedOutCode,
+		},
+		{
+			name:  "tmpl prose that names a tag is not code",
+			lexer: surface.Tmpl{},
+			src:   "{{/* The lead paragraph carries the counted total */}}\n<p>b</p>\n",
+			want:  ProseOther,
+		},
+		{
 			name:  "a sql divider",
 			lexer: surface.SQL{},
 			src:   "-- ------------------------\nSELECT 1;\n",
@@ -109,6 +127,8 @@ func TestDeletableHoldsOffGo(t *testing.T) {
 		{"a css short label", surface.CSS{}, "/* the azure scale */\na { color: blue; }\n"},
 		{"a js divider", surface.JS{}, "// ------------------------\nexport const a = 1;\n"},
 		{"a js short label", surface.JS{}, "// the guide loader\nexport const a = 1;\n"},
+		{"a tmpl divider", surface.Tmpl{}, "{{/* ------------------------ */}}\n<p>b</p>\n"},
+		{"a tmpl short label", surface.Tmpl{}, "{{/* the shell chrome */}}\n<p>b</p>\n"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

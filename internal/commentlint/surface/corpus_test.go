@@ -14,13 +14,14 @@ import (
 const repoRoot = "../../.."
 
 const (
-	minGoFiles  = 400
-	minSQLFiles = 35
-	minCSSFiles = 10
-	minJSFiles  = 130
-	minJSXFiles = 135
-	minAllSQL   = 100
-	minAllCSS   = 15
+	minGoFiles   = 400
+	minSQLFiles  = 35
+	minCSSFiles  = 10
+	minJSFiles   = 130
+	minJSXFiles  = 135
+	minTmplFiles = 20
+	minAllSQL    = 100
+	minAllCSS    = 15
 
 	minCrossChecked = 15
 )
@@ -73,6 +74,44 @@ func TestJSXCorpusLexes(t *testing.T) {
 		}
 		if _, err := (JSX{Path: filepath.Join(repoRoot, rel)}).Lex(src); err != nil {
 			t.Errorf("%s: %v", rel, err)
+		}
+	}
+}
+
+func TestTmplCorpusLexes(t *testing.T) {
+	// SPEC §5.2 counts 24 `.tmpl` files and 42 comments across them (#1142).
+	lexCorpus(t, Tmpl{}, inScopeFiles(t, ".tmpl"), minTmplFiles)
+}
+
+func TestTmplByteRangeDeleteHoldsAcrossTheCorpus(t *testing.T) {
+	// §5.4 measured the byte-range delete at 24 of 24 and the whole-line
+	// delete at 0 of 24, and both halves are what fix the rule (#1142).
+	for _, rel := range corpusGuard(t, inScopeFiles(t, ".tmpl"), minTmplFiles) {
+		src, err := os.ReadFile(filepath.Join(repoRoot, rel))
+		if err != nil {
+			t.Fatalf("read %s: %v", rel, err)
+		}
+		base, err := Tmpl{}.Lex(src)
+		if err != nil {
+			t.Errorf("%s: %v", rel, err)
+			continue
+		}
+		if len(base.Blocks) == 0 {
+			t.Errorf("%s: the corpus file carries no own-line comment", rel)
+			continue
+		}
+		all := append(append([]Block(nil), base.Blocks...), base.Trailing...)
+		cut, err := Tmpl{}.Lex(TmplCut(src, all))
+		if err != nil {
+			t.Errorf("%s: the byte-range delete broke the parse: %v", rel, err)
+			continue
+		}
+		if !sameSkeleton(base.Skeleton, cut.Skeleton) {
+			t.Errorf("%s: the byte-range delete moved the skeleton", rel)
+		}
+		lines, err := Tmpl{}.Lex([]byte(cutWholeLines(string(src), base.Blocks)))
+		if err == nil && sameSkeleton(base.Skeleton, lines.Skeleton) {
+			t.Errorf("%s: the whole-line delete held, and §5.4 measured it failing", rel)
 		}
 	}
 }
