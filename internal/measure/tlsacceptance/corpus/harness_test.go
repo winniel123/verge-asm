@@ -46,10 +46,8 @@ func regenerate() error {
 	})
 }
 
-// A1: self-identity. Rendering twice in one process is byte-identical — Go
-// randomises map iteration, so an unstable corpus would make every other assertion
-// uninterpretable.
 func TestCorpusSelfIdentity(t *testing.T) {
+	// Go randomises map iteration, so an unstable render would make every other assertion unreadable.
 	first, err := RenderAll()
 	if err != nil {
 		t.Fatal(err)
@@ -65,7 +63,6 @@ func TestCorpusSelfIdentity(t *testing.T) {
 	}
 }
 
-// A2: expectation. Each row's rendered output equals its checked-in golden file.
 func TestCorpusExpectation(t *testing.T) {
 	rendered, err := RenderAll()
 	if err != nil {
@@ -84,8 +81,6 @@ func TestCorpusExpectation(t *testing.T) {
 	}
 }
 
-// A5: coverage. Every cell of the block holds at least one row, and no row cites a
-// cell outside the enumeration.
 func TestCorpusCoverage(t *testing.T) {
 	inEnum := make(map[string]bool, len(AllCells))
 	for _, c := range AllCells {
@@ -110,8 +105,6 @@ func TestCorpusCoverage(t *testing.T) {
 	}
 }
 
-// The lock gate: recomputed digests must equal the checked-in lock, and the lock's
-// leaf version must equal the code's.
 func TestCorpusLock(t *testing.T) {
 	lock, err := LoadLock(".")
 	if err != nil {
@@ -129,6 +122,7 @@ func TestCorpusLock(t *testing.T) {
 		t.Errorf("corpus digest moved: a row's expected output changed.\n  locked: %s\n  now:    %s\nBump tlsacceptance.Version and re-bless with -update.",
 			lock.CorpusDigest, got)
 	}
+	// Widening the candidate set is this leaf's one aperture change, so the version must move.
 	if got := ParamsDigest(); got != lock.ParamsDigest {
 		t.Errorf("candidate-set digest moved: the declared offer changed.\n  locked: %s\n  now:    %s\nBump tlsacceptance.Version and re-bless with -update.",
 			lock.ParamsDigest, got)

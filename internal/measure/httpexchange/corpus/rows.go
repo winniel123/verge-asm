@@ -10,9 +10,6 @@ type Step struct {
 	Exchange *scriptExchanger
 }
 
-// Row is one corpus row: the cells it pins, its one-line claim, whether the claim
-// is spec-verified rather than measured, the declared parameter set, the step, and
-// the golden NDJSON file its output must equal byte for byte.
 type Row struct {
 	Cells        []string
 	Claim        string
@@ -23,19 +20,10 @@ type Row struct {
 }
 
 var AllCells = []string{
-	// H1 — a completed exchange creates the Endpoint and records http-identity,
-	// named and nameless.
 	"H1/named-200", "H1/nameless-204",
-	// H2 — a redirect is recorded (its Location) and NOT followed.
 	"H2/redirect-not-followed",
-	// H3 — the admitted closed set: <title> lifted from the body and the 401
-	// WWW-Authenticate challenge, with NO body hash, length, or Content-Type.
 	"H3/admitted-set",
-	// H4 — a reached Service that speaks no HTTP records the no-http-response
-	// negative and still creates the Endpoint.
 	"H4/no-http-response",
-	// H5 — one batch of mixed targets: every reached target emits, the non-HTTP one
-	// as no-http-response.
 	"H5/mixed-batch",
 }
 
@@ -144,7 +132,6 @@ var Rows = []Row{
 			}),
 			Exchange: newScript(map[string]he.ExchangeResult{
 				"a.example.com@198.51.100.20:443/tcp": {Status: 200, Server: "nginx", Body: []byte("<title>A</title>")},
-				// b.example.com is reached but speaks no HTTP — recorded no-http-response.
 				"b.example.com@198.51.100.21:443/tcp": {Failed: true, Err: "i/o timeout"},
 				"@198.51.100.22:8080/tcp":             {Status: 200, Server: "gunicorn", Body: []byte("{}")},
 			}),

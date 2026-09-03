@@ -1,16 +1,6 @@
-// Package vergecore is the daily hot-tier port set: `verge-core`, the union
-// `frequency-set ∪ sensitive-list` (v1 spec §3.5, ADR-0009). It ships as an
-// editable list file (`verge-core.tsv`, embedded), and only the frequency half
-// is operator-editable — the sensitive half is authored by the project and
-// ships in the release, because moving one would move a version and `Break` the
-// estate without a release and without a golden-corpus row moving.
-//
-// Composed, `verge-core` is 136 pairs (131 TCP, 5 UDP). Only the TCP pairs are
-// probed on default settings, since UDP is off — `connect-outcome` cannot
-// decide an honest UDP value at all (ADR-0083), so the UDP pairs are recorded in
-// scope but never produce a probe. The package is database-free and pure: the
-// operator's frequency edits arrive as a `FrequencyEdit` slice a caller reads
-// from wherever it stores them, and the union is computed here.
+// Package vergecore is the daily hot-tier port set `verge-core`, the union
+// `frequency-set ∪ sensitive-list` (v1 spec §3.5, ADR-0009). Only the frequency
+// half is operator-editable; moving the sensitive half would move a version.
 package vergecore
 
 import (
@@ -21,8 +11,6 @@ import (
 	"strings"
 )
 
-// Transport is the wire transport of a port pair. Only `tcp` is probed by
-// default; `udp` is recorded and never probed.
 type Transport string
 
 const (
@@ -34,9 +22,7 @@ type Half string
 
 const (
 	Frequency Half = "frequency"
-	// Sensitive is the curated never-legitimately-internet-facing list. Authored
-	// by the release and never operator-editable (§3.5).
-	Sensitive Half = "sensitive"
+	Sensitive Half = "sensitive" // authored by the release, never operator-editable (§3.5)
 )
 
 type Pair struct {
@@ -46,8 +32,6 @@ type Pair struct {
 
 func (p Pair) String() string { return strconv.Itoa(int(p.Port)) + "/" + string(p.Transport) }
 
-// less orders pairs by port then transport, so every enumeration this package
-// produces is deterministic (tcp before udp on a tie).
 func (p Pair) less(o Pair) bool {
 	if p.Port != o.Port {
 		return p.Port < o.Port
@@ -63,17 +47,10 @@ type List struct {
 //go:embed verge-core.tsv
 var shipped string
 
-// shippedList is the parsed shipped file, computed once. A parse failure here is
-// a build-time authoring error in the checked-in file, so it panics rather than
-// shipping a half-read set.
 var shippedList = mustParse(shipped)
 
 func Default() List { return shippedList.clone() }
 
-// Parse reads a `verge-core.tsv` body into a List. Lines are
-// `port<TAB>transport<TAB>half`; blank lines and `#` comments are skipped. It is
-// exported so a test can parse an alternative body, but production reads only the
-// embedded shipped file through Default.
 func Parse(body string) (List, error) {
 	l := List{frequency: map[Pair]struct{}{}, sensitive: map[Pair]struct{}{}}
 	for n, raw := range strings.Split(body, "\n") {
@@ -125,9 +102,8 @@ func (l List) clone() List {
 	return c
 }
 
-// IsSensitive reports whether a pair is on the sensitive half. It is what the
-// UI's edit guard reads: a pair the operator cannot move.
 func (l List) IsSensitive(p Pair) bool {
+	// The operator cannot move a sensitive pair, which is what the UI's edit guard reads (§3.5).
 	_, ok := l.sensitive[p]
 	return ok
 }
@@ -148,9 +124,6 @@ func (l List) Union() []Pair {
 	return sortedPairs(seen)
 }
 
-// TCPProbed is the union's TCP pairs, sorted — the pairs actually connected to
-// on default settings. UDP is off, so this is the set the connect-outcome leaf
-// receives per address.
 func (l List) TCPProbed() []Pair {
 	out := map[Pair]struct{}{}
 	for _, p := range l.Union() {
@@ -161,9 +134,8 @@ func (l List) TCPProbed() []Pair {
 	return sortedPairs(out)
 }
 
-// UDPRecorded is the union's UDP pairs, sorted — recorded in scope but never
-// probed (§3.5; ADR-0083).
 func (l List) UDPRecorded() []Pair {
+	// Nothing probes these: connect-outcome cannot decide an honest UDP value (ADR-0083, §3.5).
 	out := map[Pair]struct{}{}
 	for _, p := range l.Union() {
 		if p.Transport == UDP {
@@ -178,11 +150,11 @@ func (l List) FrequencyPairs() []Pair { return sortedSet(l.frequency) }
 func (l List) SensitivePairs() []Pair { return sortedSet(l.sensitive) }
 
 type Counts struct {
-	Frequency int // pairs on the frequency half
-	Sensitive int // pairs on the sensitive half
-	Union     int // distinct pairs
-	TCP       int // distinct TCP pairs (probed)
-	UDP       int // distinct UDP pairs (recorded, never probed)
+	Frequency int
+	Sensitive int
+	Union     int
+	TCP       int
+	UDP       int
 }
 
 func (l List) Count() Counts {
@@ -206,7 +178,7 @@ func (l List) Count() Counts {
 
 type FrequencyEdit struct {
 	Port   uint16
-	Action string // "add" | "remove"
+	Action string
 }
 
 const (
@@ -214,19 +186,14 @@ const (
 	ActionRemove = "remove"
 )
 
-// WithFrequencyEdits returns a copy of the list with the operator's frequency
-// edits applied. It touches ONLY the frequency half: an edit can never add or
-// remove a sensitive pair, so a removed pair that is also sensitive stays in the
-// Union (moving the sensitive half would move a version — §3.5). Non-TCP or
-// zero-port edits are ignored, since the frequency half is TCP-only. Edits are
-// applied in slice order, so a later edit wins over an earlier one on the same
-// port.
 func (l List) WithFrequencyEdits(edits []FrequencyEdit) List {
+	// A sensitive pair never moves: an operator edit would move a version without a release (§3.5).
 	c := l.clone()
 	for _, e := range edits {
 		if e.Port == 0 {
 			continue
 		}
+		// The frequency half is TCP-only, so a non-TCP edit names no pair.
 		p := Pair{Port: e.Port, Transport: TCP}
 		switch e.Action {
 		case ActionAdd:

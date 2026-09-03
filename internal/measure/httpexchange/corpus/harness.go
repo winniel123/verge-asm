@@ -14,9 +14,6 @@ import (
 	he "github.com/winniel123/verge-asm/internal/measure/httpexchange"
 )
 
-// RenderRow runs a row's step through the leaf against its scripted exchanger,
-// returning the NDJSON it emits. It is hermetic: the exchanger is in-process, so
-// nothing here touches the network or a container.
 func RenderRow(r Row) ([]byte, error) {
 	var buf bytes.Buffer
 	if err := he.RunWithExchanger(context.Background(), r.Step.Exchange, r.Step.Batch, r.Step.Scope, &buf); err != nil {
@@ -53,12 +50,8 @@ func CorpusDigest(rendered map[string][]byte) string {
 	return "sha256:" + hex.EncodeToString(h.Sum(nil))
 }
 
-// ParamsDigest is the digest of the leaf's declared-parameter set — the §3.3 HTTP
-// safety table — the second thing a version bump may be justified by.
 func ParamsDigest() string { return he.DefaultParams().Digest() }
 
-// UncoveredMove is one row of golden-corpus.md §9's register: a version bump
-// justified by an input class the corpus cannot reach. Append-only.
 type UncoveredMove struct {
 	Leaf       string `json:"leaf"`
 	BumpedTo   string `json:"bumped_to"`
@@ -71,7 +64,7 @@ type Lock struct {
 	LeafVersion    string          `json:"leaf_version"`
 	CorpusDigest   string          `json:"corpus_digest"`
 	ParamsDigest   string          `json:"params_digest"`
-	UncoveredMoves []UncoveredMove `json:"uncovered_moves"`
+	UncoveredMoves []UncoveredMove `json:"uncovered_moves"` // append-only (golden-corpus.md §9)
 }
 
 func LoadLock(dir string) (Lock, error) {
@@ -86,10 +79,8 @@ func LoadLock(dir string) (Lock, error) {
 	return l, nil
 }
 
-// WriteLock writes a freshly computed lock to dir. It is the deliberate "bless"
-// action a maintainer takes (via the -update test flag) when an output or
-// parameter change is intended and the version has been bumped to match.
 func WriteLock(dir string, l Lock) error {
+	// A bless is deliberate: the output change is intended and the version already moved.
 	b, err := json.MarshalIndent(l, "", "  ")
 	if err != nil {
 		return err

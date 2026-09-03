@@ -10,28 +10,18 @@ type Step struct {
 	Peer     ScriptPeer
 }
 
-// Row is one corpus row: the cells it pins, its one-line claim, whether the
-// claim is spec-verified rather than measured (ADR-0021's honesty rider), the
-// offers on the wire, the steps, and the golden NDJSON file its output must
-// equal byte for byte.
 type Row struct {
 	Cells        []string
 	Claim        string
-	SpecVerified bool
+	SpecVerified bool // spec-verified rather than measured — ADR-0021's honesty rider
 	Offers       resolutionwalk.Offers
 	Steps        []Step
 	Golden       string
 }
 
-// AllCells is the enumeration A5 counts against: every cell of the
-// resolution-walk block (golden-corpus.md §2) must be pinned by at least one
-// row. 27 cells — 5 outcome pins, 9 boundaries × 2, 1 path-provenance pin,
-// 3 withdrawal→return. It is the length of a list, not a target: adding a
-// boundary adds two cells here and a row for each.
 var AllCells = []string{
-	// §2.1 Block M1 — outcome pins (5)
+	// Every cell must be pinned by a row; 27 is a length, not a target (golden-corpus.md §2).
 	"M1.1", "M1.2", "M1.3", "M1.4", "M1.5",
-	// §2.2 Block M2 — boundary pins (9 × 2 = 18)
 	"M2.a/NameError", "M2.a/NoData",
 	"M2.b/NameError", "M2.b/survives",
 	"M2.c/Resolved", "M2.c/NoData",
@@ -41,9 +31,7 @@ var AllCells = []string{
 	"M2.g/set", "M2.g/serialisation",
 	"M2.h/folds", "M2.h/distinct",
 	"M2.i/NoData", "M2.i/Gap",
-	// §2.3 Block M3 — path provenance (1)
 	"M3.1",
-	// §2.4 Block R — withdrawal→return (3)
 	"R.1", "R.2", "R.3",
 }
 
