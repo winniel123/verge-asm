@@ -5,15 +5,6 @@ import (
 	"testing"
 )
 
-type wantBlock struct {
-	startLine   int
-	endLine     int
-	style       Style
-	directive   bool
-	declaration bool
-	text        string
-}
-
 func TestGoBlocks(t *testing.T) {
 	cases := []struct {
 		name string
@@ -186,30 +177,7 @@ func TestGoBlocks(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Lex: %v", err)
 			}
-			if len(got.Blocks) != len(c.want) {
-				t.Fatalf("got %d blocks, want %d: %+v", len(got.Blocks), len(c.want), got.Blocks)
-			}
-			for i, w := range c.want {
-				b := got.Blocks[i]
-				if b.StartLine != w.startLine || b.EndLine != w.endLine {
-					t.Errorf("block %d: got lines %d-%d, want %d-%d", i, b.StartLine, b.EndLine, w.startLine, w.endLine)
-				}
-				if b.Style != w.style {
-					t.Errorf("block %d: got style %s, want %s", i, b.Style, w.style)
-				}
-				if b.Directive != w.directive {
-					t.Errorf("block %d: got directive %t, want %t", i, b.Directive, w.directive)
-				}
-				if b.Declaration != w.declaration {
-					t.Errorf("block %d: got declaration %t, want %t", i, b.Declaration, w.declaration)
-				}
-				if b.Text != w.text {
-					t.Errorf("block %d: got text %q, want %q", i, b.Text, w.text)
-				}
-				if slice := c.src[b.Start:b.End]; slice != b.Text {
-					t.Errorf("block %d: byte range holds %q, text holds %q", i, slice, b.Text)
-				}
-			}
+			checkBlocks(t, c.src, got.Blocks, c.want)
 		})
 	}
 }
@@ -305,10 +273,36 @@ func TestGoLexRejectsUnparseableSource(t *testing.T) {
 }
 
 func TestForRejectsAnUnsupportedSurface(t *testing.T) {
-	if _, err := For("db/queries/scan.sql"); err == nil {
-		t.Fatal("For accepted .sql, which has no lexer yet")
+	if _, err := For("docs-site/src/pipeline/render.ts"); err == nil {
+		t.Fatal("For accepted .ts, which has no lexer yet")
 	}
 	if _, err := For("cmd/web/main.go"); err != nil {
 		t.Fatalf("For rejected .go: %v", err)
+	}
+}
+
+func TestForDecidesByExtensionAndNotByContent(t *testing.T) {
+	// §5.3: TypeScript generics look like JSX to a lexer, so the extension
+	// decides and the content never does.
+	cases := []struct {
+		name string
+		want Lexer
+	}{
+		{"cmd/web/main.go", Go{}},
+		{"db/queries/scan.sql", SQL{}},
+		{"db/migrations/00100_init.sql", SQL{}},
+		{"design-system/tokens/colors.css", CSS{}},
+		{"DESIGN-SYSTEM/TOKENS/COLORS.CSS", CSS{}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := For(c.name)
+			if err != nil {
+				t.Fatalf("For: %v", err)
+			}
+			if got != c.want {
+				t.Errorf("For chose %T, want %T", got, c.want)
+			}
+		})
 	}
 }

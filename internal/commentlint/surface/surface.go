@@ -6,6 +6,31 @@ import (
 	"strings"
 )
 
+type Lang int
+
+const (
+	LangGo Lang = iota
+	LangSQL
+	LangCSS
+)
+
+func (l Lang) String() string {
+	switch l {
+	case LangSQL:
+		return "sql"
+	case LangCSS:
+		return "css"
+	}
+	return "go"
+}
+
+func (l Lang) lineMarker() string {
+	if l == LangSQL {
+		return "--"
+	}
+	return "//"
+}
+
 type Style int
 
 const (
@@ -38,6 +63,7 @@ func (t Token) String() string {
 }
 
 type Block struct {
+	Lang        Lang
 	Style       Style
 	Start       int
 	End         int
@@ -66,7 +92,7 @@ func (b Block) PayloadLines() []string {
 		line = strings.TrimSpace(line)
 		switch {
 		case b.Style == StyleLine:
-			line = strings.TrimPrefix(line, "//")
+			line = strings.TrimPrefix(line, b.Lang.lineMarker())
 		case line == "*":
 			line = ""
 		default:
@@ -105,8 +131,15 @@ func (e *UnsupportedError) Error() string {
 
 func For(name string) (Lexer, error) {
 	ext := strings.ToLower(path.Ext(name))
-	if ext == ".go" {
+	// §5.3: TypeScript generics look like JSX to a lexer, so the extension
+	// decides the lexer and the content never does.
+	switch ext {
+	case ".go":
 		return Go{}, nil
+	case ".sql":
+		return SQL{}, nil
+	case ".css":
+		return CSS{}, nil
 	}
 	if ext == "" {
 		ext = path.Base(name)
