@@ -13,9 +13,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 )
 
-// RenderRow runs every step of a row through the leaf against its scripted peer
-// and returns the concatenated NDJSON. It is hermetic: the peer is in-process,
-// so nothing here touches the network or a container.
 func RenderRow(r Row) ([]byte, error) {
 	var buf bytes.Buffer
 	for _, step := range r.Steps {
@@ -62,9 +59,7 @@ func CorpusDigest(rendered map[string][]byte) string {
 
 func ParamsDigest() string { return resolutionwalk.DefaultOffers().Digest() }
 
-// UncoveredMove is one row of golden-corpus.md §9's register: a version bump
-// justified by an input class the corpus cannot reach. Append-only.
-type UncoveredMove struct {
+type UncoveredMove struct { // golden-corpus.md §9's append-only register
 	Leaf       string `json:"leaf"`
 	BumpedTo   string `json:"bumped_to"`
 	InputClass string `json:"input_class"`
@@ -91,10 +86,8 @@ func LoadLock(dir string) (Lock, error) {
 	return l, nil
 }
 
-// WriteLock writes a freshly computed lock to dir. It is the deliberate "bless"
-// action a maintainer takes (via the -update test flag) when an output or
-// parameter change is intended and the version has been bumped to match.
 func WriteLock(dir string, l Lock) error {
+	// The deliberate bless action: an output move needs an intended version bump first (ADR-0021).
 	b, err := json.MarshalIndent(l, "", "  ")
 	if err != nil {
 		return err

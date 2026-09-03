@@ -15,16 +15,9 @@ import (
 	co "github.com/winniel123/verge-asm/internal/measure/connectoutcome"
 )
 
-// RenderRow runs a row's step through the composed reachability exchange against
-// its scripted connector and handshaker, returning the NDJSON it emits — both the
-// reachability line and, for each reached Endpoint, the certificate line. It is
-// hermetic: the connector and handshaker are in-process, so nothing here touches
-// the network or a TLS stack.
 func RenderRow(r Row) ([]byte, error) {
 	var buf bytes.Buffer
-	// The certificate corpus pins the handshake step, not blanket discrimination, so
-	// it runs with an empty control-port set (no probe, NotBlanket, connect value
-	// passes through) — its rendered output is unchanged by ADR-0104's composition.
+	// An empty control-port set leaves ADR-0104's composition unable to move this output.
 	if err := co.RunExchange(context.Background(), r.Step.Connect, r.Step.Handshake, blanketdiscrim.FixedPorts{}, r.Step.Batch, r.Step.Scope, &buf); err != nil {
 		return nil, fmt.Errorf("certcorpus: render row %q: %w", r.Golden, err)
 	}
@@ -61,9 +54,7 @@ func CorpusDigest(rendered map[string][]byte) string {
 
 func ParamsDigest() string { return co.DefaultHandshakeParams().Digest() }
 
-// UncoveredMove is one row of golden-corpus.md §9's register: a version bump
-// justified by an input class the corpus cannot reach. Append-only.
-type UncoveredMove struct {
+type UncoveredMove struct { // golden-corpus.md §9's append-only register
 	Leaf       string `json:"leaf"`
 	BumpedTo   string `json:"bumped_to"`
 	InputClass string `json:"input_class"`
@@ -90,10 +81,8 @@ func LoadLock(dir string) (Lock, error) {
 	return l, nil
 }
 
-// WriteLock writes a freshly computed lock to dir — the deliberate "bless" action
-// a maintainer takes (via the -update test flag) when an output or parameter
-// change is intended and the version has been bumped to match.
 func WriteLock(dir string, l Lock) error {
+	// The deliberate bless action: an output move needs an intended version bump first (ADR-0021).
 	b, err := json.MarshalIndent(l, "", "  ")
 	if err != nil {
 		return err

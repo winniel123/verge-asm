@@ -7,21 +7,13 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-// ErrHostKeyMismatch is returned by the pinning callback when the host presents
-// a key that differs from the one pinned on first connect. It is a hard failure:
-// the caller marks the vantage unavailable rather than silently re-trusting the
-// new key (v1 spec §4.2).
 var ErrHostKeyMismatch = errors.New("vantage: host key mismatch — refusing to re-trust")
 
 type HostKeyResult int
 
 const (
-	// HostKeyFirstUse means no key is pinned yet, so the presented key is
-	// pinned on this first successful connection.
 	HostKeyFirstUse HostKeyResult = iota
 	HostKeyMatch
-	// HostKeyMismatch means the presented key differs from the pinned key —
-	// a hard failure, never a silent re-trust.
 	HostKeyMismatch
 )
 
@@ -29,10 +21,6 @@ func EncodeHostKey(key ssh.PublicKey) string {
 	return AuthorizedKey(key)
 }
 
-// CheckHostKey is the pure trust-on-first-use decision. pinned is the stored
-// known_hosts key field, empty when nothing is pinned yet; presented is the key
-// the host offered this connection. It compares the encoded forms, so it is a
-// test over the keys themselves and never over an incidental rendering.
 func CheckHostKey(pinned string, presented ssh.PublicKey) HostKeyResult {
 	switch {
 	case pinned == "":
@@ -44,17 +32,6 @@ func CheckHostKey(pinned string, presented ssh.PublicKey) HostKeyResult {
 	}
 }
 
-// PinningHostKeyCallback builds an ssh.HostKeyCallback enforcing
-// trust-on-first-use against a pinned key.
-//
-//   - With no key pinned (pinned == ""), it pins the presented key by calling
-//     onFirstUse with its encoded form and trusts the connection.
-//   - With a pinned key that matches, it trusts silently.
-//   - With a pinned key that differs, it returns ErrHostKeyMismatch and never
-//     re-pins — the caller marks the vantage unavailable.
-//
-// It opens no connection itself, so a test drives it by invoking the returned
-// callback with a generated ssh.PublicKey; no live SSH server is needed.
 func PinningHostKeyCallback(pinned string, onFirstUse func(encoded string) error) ssh.HostKeyCallback {
 	return func(_ string, _ net.Addr, key ssh.PublicKey) error {
 		switch CheckHostKey(pinned, key) {
@@ -66,6 +43,7 @@ func PinningHostKeyCallback(pinned string, onFirstUse func(encoded string) error
 		case HostKeyMatch:
 			return nil
 		default:
+			// The caller marks the vantage unavailable rather than silently re-trust (v1 spec §4.2).
 			return ErrHostKeyMismatch
 		}
 	}

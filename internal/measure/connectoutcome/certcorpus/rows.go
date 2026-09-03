@@ -23,32 +23,25 @@ type Row struct {
 }
 
 var AllCells = []string{
-	// T1 — the value space's three variants (a closed union, ADR-0011)
+	// Every cell owes a row, and each row's Claim states what it pins (golden-corpus.md §4).
 	"T1/presented", "T1/tls-refused", "T1/no-tls",
-	// T2 — the chain is the ordered fingerprints, leaf first
 	"T2/chain-leaf-first",
-	// T2 — the presented value carries the leaf's not_after (RFC3339); negatives omit it
 	"T2/leaf-not-after",
-	// T3 — SNI is the Endpoint's name; the nameless endpoint sends none
 	"T3/named-sni", "T3/nameless-no-sni",
-	// T4 — the handshake rides a REACHED Service only; not-reached emits no cert
 	"T4/rides-reached", "T4/not-reached-no-cert",
-	// T5 — one certificate per Endpoint when a Service carries several names
 	"T5/one-cert-per-endpoint",
-	// T6 — the v3 leaf's raw parsed facts the four dark certificate rules derive
-	// their verdicts from at read (store-raw / derive-at-read, P0.10b, #704).
-	"T6/not-before",                 // leaf validity floor (not-yet-valid input)
-	"T6/san-dns",                    // leaf carries literal dNSName SANs
-	"T6/san-wildcard-leftmost",      // leaf carries a leftmost single-* wildcard SAN
-	"T6/san-wildcard-apex-noncover", // wildcard SAN against an apex name (won't cover)
-	"T6/san-partial-nonmatch",       // partial-label wildcard SAN (never a match)
-	"T6/san-ip-only",                // leaf carries only iPAddress SANs, no dNSName
-	"T6/chain-key-params",           // weak RSA (<2048) leaf key params
-	"T6/weak-intermediate",          // 1024-bit intermediate in an otherwise-strong chain (chain scope)
-	"T6/sig-digest",                 // SHA-1-signed CA-issued leaf (sig-digest limb)
-	"T6/self-sig-verifies",          // leaf self-signature verifies against its own key
-	"T6/self-signed-leaf",           // subject==issuer self-signed leaf
-	"T6/self-signed-root-skip",      // self-signed root whose SHA-1 self-sig must NOT fire the sig limb
+	"T6/not-before",
+	"T6/san-dns",
+	"T6/san-wildcard-leftmost",
+	"T6/san-wildcard-apex-noncover",
+	"T6/san-partial-nonmatch",
+	"T6/san-ip-only",
+	"T6/chain-key-params",
+	"T6/weak-intermediate",
+	"T6/sig-digest",
+	"T6/self-sig-verifies",
+	"T6/self-signed-leaf",
+	"T6/self-signed-root-skip",
 }
 
 func profile() co.SafetyProfile { return co.DefaultProfile() }
