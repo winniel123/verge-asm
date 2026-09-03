@@ -21,72 +21,36 @@ import (
 	"github.com/winniel123/verge-asm/internal/custody"
 )
 
-// CertVersion is the tls-handshake leaf's Derivation version. The handshake that
-// feeds the `certificate` facet is a STEP inside the `reachability` exchange, not
-// a new dispatch path (ADR-0028) — it shares the `connect-outcome` Kind — but it
-// is a distinct leaf with its own version, so a change to how the chain is read
-// Breaks `certificate` timelines without touching `reachability` ones. It is gated
-// by its own golden corpus (certcorpus), separately from the connect verdict.
-//
-// v2 adds the leaf certificate's `not_after` (RFC3339) to the presented value — a
-// value-shape change that Breaks the old `certificate` timelines by design
-// (ADR-0082): the datum the Dashboard "Certs expiring ≤30d" stat reads was never
-// captured under v1 (SPEC-CHANGE.md collision #8, #464).
-//
-// v3 adds the leaf's `not_before` + leaf SANs (`san_dns`/`san_ip`) and per-link
-// parsed chain facts (`chain_certs`: key params, sig digest, self-sig-verifies,
-// subject/issuer DNs) so the four dark certificate rules — certificate-not-yet-valid,
-// certificate-hostname-san-mismatch, certificate-weak-key-or-signature and
-// certificate-self-signed — derive AT READ instead of rendering not-evaluable (store-
-// raw / derive-at-read, P0.10b, #704). It is a value-shape change that Breaks the old
-// `certificate` timelines by design. HandshakeParams is UNCHANGED — nothing new is
-// sent, negotiated or verified (RecordNotVerify stays true) — so the params digest is
-// unmoved; only the read of the already-presented chain widened.
+// A step inside the reachability exchange, sharing its Kind, but with its own timelines (ADR-0028).
+
 const CertVersion = "tls-handshake/v3"
 
-// TLSOutcome is the closed union the `certificate` facet's value space is built
-// on (CONTEXT.md `Certificate`). Every value space is a closed union, never a
-// record with optional fields, because a facet's measured negatives are values
-// and must not collapse into "not measured".
+// A closed union, never optional fields: a measured negative is a value, not "not measured".
+
 type TLSOutcome string
+
+// Collapsing the two negatives files an SNI-required listener as no TLS server (CONTEXT.md).
 
 const (
 	TLSPresented TLSOutcome = "presented"
-	// TLSRefused: the peer spoke TLS but accepted no candidate we offered — an
-	// SSLv3-only or SNI-required listener that would otherwise be misfiled under
-	// *not a TLS server*. A value, and distinct from NoTLS.
-	TLSRefused TLSOutcome = "tls-refused"
-	NoTLS      TLSOutcome = "no-tls"
+	TLSRefused   TLSOutcome = "tls-refused"
+	NoTLS        TLSOutcome = "no-tls"
 )
 
-// HandshakeParams is the tls-handshake leaf's declared-parameter set: the fixed
-// shape of the handshake that feeds the `certificate` facet. None is
-// operator-configurable; they are recorded so that a change to any of them —
-// adding an ALPN extension, sending SNI for the nameless endpoint, verifying the
-// chain instead of recording it, or changing the fingerprint hash or chain order
-// — is a declared-parameter change that moves the leaf's params digest and forces
-// a CertVersion bump, gated by certcorpus's lock (golden-corpus.md §9).
+// None is operator-configurable; changing one moves the params digest and forces a version bump.
+
 type HandshakeParams struct {
-	// SNIEqualsEndpointName: the handshake sends SNI equal to the Endpoint's
-	// name, and none for the nameless endpoint (CONTEXT.md `Certificate`).
-	SNIEqualsEndpointName bool `json:"sni_equals_endpoint_name"`
-	// ALPN is empty — NO ALPN extension at all, so a listener refusing our
-	// application protocols cannot cost us a chain we could otherwise read.
-	ALPN string `json:"alpn"`
-	// RecordNotVerify: verification is disabled — we record WHAT was presented,
-	// not whether it validated, because a chain that fails to verify is still a
-	// measured presentation.
-	RecordNotVerify bool   `json:"record_not_verify"`
-	FingerprintHash string `json:"fingerprint_hash"`
-	ChainOrder      string `json:"chain_order"`
+	SNIEqualsEndpointName bool   `json:"sni_equals_endpoint_name"`
+	ALPN                  string `json:"alpn"`
+	RecordNotVerify       bool   `json:"record_not_verify"`
+	FingerprintHash       string `json:"fingerprint_hash"`
+	ChainOrder            string `json:"chain_order"`
 }
 
-// DefaultHandshakeParams is the v1 shipped handshake shape — the CONTEXT.md
-// `Certificate` table exactly.
 func DefaultHandshakeParams() HandshakeParams {
 	return HandshakeParams{
 		SNIEqualsEndpointName: true,
-		ALPN:                  "", // no ALPN extension
+		ALPN:                  "",
 		RecordNotVerify:       true,
 		FingerprintHash:       "sha-256",
 		ChainOrder:            "leaf-first",
@@ -102,114 +66,43 @@ func (p HandshakeParams) Digest() string {
 	return "sha256:" + hex.EncodeToString(sum[:])
 }
 
-// HandshakeResult is the raw outcome of one TLS handshake step against a reached
-// Service, for one Endpoint's server name. It is what the Handshaker reports; the
-// leaf folds it to a certificate observation. A Chain is carried iff the outcome
-// is TLSPresented, and it is the ordered list of fingerprints, leaf first, since
-// order is on the wire.
-//
-// NotAfter is the leaf certificate's (chain[0]) expiry, carried iff the outcome is
-// TLSPresented — the two negatives leave it zero. The leaf folds it to `not_after`
-// (RFC3339) on the presented value; a zero NotAfter renders no key (CONTEXT.md
-// `Certificate`, SPEC-CHANGE.md collision #8).
+// Chain order is the wire order, leaf first, so it is a fact and never a sort we chose.
+
 type HandshakeResult struct {
-	Outcome  TLSOutcome
-	Chain    []string
-	NotAfter time.Time
-	// Issuer and Algorithm are the leaf's parsed identity, read off chain[0] on a
-	// presented handshake — the issuer distinguished name and the signature
-	// algorithm the leaf certificate carries. Both are carried only on TLSPresented
-	// (the negatives leave them empty); the fold drops an empty via omitempty, so a
-	// negative outcome and a pre-parse span carry neither key (SPEC-CHANGE.md
-	// collision #22c, #581). They feed the Asset detail's TLS-certificate card.
-	Issuer    string
-	Algorithm string
-	// NotBefore is the leaf's (chain[0]) validity floor, carried iff TLSPresented; the
-	// fold renders it `not_before` (RFC3339), a zero value rendering no key. It lights
-	// certificate-not-yet-valid at read (P0.10b, #704).
-	NotBefore time.Time
-	// SANDNS / SANIP are the leaf's Subject Alternative Names — the dNSName entries
-	// verbatim (wildcards NOT expanded) and the iPAddress entries in canonical string
-	// form — carried iff TLSPresented. certificate-hostname-san-mismatch reads san_dns
-	// at read (P0.10b, #704).
-	SANDNS []string
-	SANIP  []string
-	// ChainCerts is the per-link parsed facts, leaf-first and index-aligned with Chain,
-	// carried iff TLSPresented. Each link's key params, signature digest, self-signature
-	// verification and subject/issuer DNs feed certificate-weak-key-or-signature and
-	// certificate-self-signed at read (P0.10b, #704).
-	ChainCerts []ChainCert
-	// LeafDER is the leaf certificate's DER bytes (chain[0].Raw), carried iff TLSPresented.
-	// It is the raw material the certificate_material side store holds — its sha-256 is the
-	// leaf fingerprint — and it carries any SCTs embedded in the cert. It NEVER feeds the
-	// facet value (ADR-0027, spec §5.3); it rides the observation as CertMaterial for a
-	// side-store write only. Reading it is a read-only widening of the presented chain, so
-	// it moves no params digest and needs no CertVersion bump (see the v3 note above).
-	LeafDER []byte
-	// SCTsTLSExt is the SCTs the peer delivered in the TLS handshake extension
-	// (ConnectionState.SignedCertificateTimestamps), each a serialized SCT, carried iff
-	// TLSPresented. Out-of-cert SCT material captured for verification (#878); never fed to
-	// the facet value.
-	SCTsTLSExt [][]byte
-	// OCSPStaple is the raw stapled OCSP response (ConnectionState.OCSPResponse), carried
-	// iff TLSPresented and non-empty. It may carry SCTs in an extension; captured verbatim
-	// for verification (#878), never fed to the facet value.
-	OCSPStaple []byte
-	// IssuerSPKI is the issuer certificate's SubjectPublicKeyInfo DER (chain[1]), carried iff
-	// TLSPresented and the peer presented an issuer above the leaf. Verification of an EMBEDDED
-	// SCT hashes the precertificate, whose leaf hash carries issuer_key_hash = SHA-256(issuer
-	// SPKI) (RFC 6962 §3.2); the leaf alone does not carry the issuer's key, so it is captured
-	// here beside the leaf for the certificate_material side store (#878). Never fed to the
-	// facet value; nil for a lone self-signed leaf.
-	IssuerSPKI []byte
-	// Unreachable reports that the dial failed in its CONNECT phase — the connect was
-	// refused or reset, it timed out, or the egress guard refused the socket — so no
-	// peer was ever reached, nothing spoke TLS and nothing turned us down. A handshake
-	// that fails after the connect completed is never unreachable, however it failed.
-	// It is carried only with a negative Outcome, and its zero value (false) reads as
-	// *a peer answered*, which is what a scripted Handshaker models.
-	//
-	// The `certificate` facet never reads it: that leaf handshakes a Service the connect
-	// already reported `reached`, so it folds an unreachable dial into `no-tls` and its
-	// two negatives stay two. A leaf that dials an address nobody has reached yet must
-	// keep the case apart — `edge-fanout` reads this to render its own `unreachable`
-	// value. It is never part of a facet value, so it moves no params digest and forces
-	// no CertVersion bump.
-	Unreachable bool
+	Outcome     TLSOutcome
+	Chain       []string
+	NotAfter    time.Time
+	Issuer      string
+	Algorithm   string
+	NotBefore   time.Time
+	SANDNS      []string
+	SANIP       []string
+	ChainCerts  []ChainCert
+	LeafDER     []byte
+	SCTsTLSExt  [][]byte
+	OCSPStaple  []byte
+	IssuerSPKI  []byte
+	Unreachable bool // Only edge-fanout reads it; certificate folds an unreachable dial into no-tls.
 }
 
-// ChainCert is one presented link's parsed facts, read off the DER at handshake time
-// (the exported mirror of the fold's chainCert). self_sig_verifies is the ONE datum
-// computed in-leaf — a raw crypto fact needing the parsed key bytes, unavailable at
-// read (T-leaf #712 §0). The rest are raw reads the four dark rules derive verdicts
-// from at read.
+// A self-signature check needs parsed key bytes, so it is the one datum computed in-leaf (#712).
+
 type ChainCert struct {
-	Subject               string // this cert's subject DN
-	Issuer                string // this cert's issuer DN
-	SelfSignatureVerifies *bool  // signature validates against THIS cert's own key
-	KeyAlg                string // "RSA"|"ECDSA"|"DSA"|"Ed25519"|"Ed448"|raw OID
-	KeyBits               int    // RSA nlen | ECDSA len(n) | DSA L
-	KeyParamN             int    // DSA subgroup N (bits); 0 for non-DSA
-	SigDigest             string // digest name: "MD5"|"SHA-1"|"SHA-256"|…
+	Subject               string
+	Issuer                string
+	SelfSignatureVerifies *bool
+	KeyAlg                string
+	KeyBits               int
+	KeyParamN             int
+	SigDigest             string
 }
 
-// Handshaker performs one TLS handshake against a Service that the connect
-// already reached and reports the raw result. The handshake is deliberately
-// stripped: it sends SNI equal to the Endpoint's name (serverName; empty for the
-// nameless endpoint, which sends no SNI) and NO ALPN extension at all, so that a
-// listener refusing our application protocols cannot cost us a chain we could
-// otherwise read — ALPN belongs to `http-exchange`, not here (CONTEXT.md
-// `Certificate`). The production adapter dials real TLS; the golden corpus scripts
-// an in-process Handshaker so the fold runs hermetically with no network.
 type Handshaker interface {
 	Handshake(ctx context.Context, target netip.AddrPort, serverName string) HandshakeResult
 }
 
-// Fingerprint renders one certificate's identity: the lowercase hex SHA-256 of
-// its DER bytes, prefixed `sha256:`. It is how a chain is held — by fingerprint,
-// shared across every endpoint presenting the same certificate (CONTEXT.md
-// `Certificate`).
 func Fingerprint(der []byte) string {
+	// A chain is held by fingerprint, shared by every endpoint presenting it (CONTEXT.md Certificate).
 	sum := sha256.Sum256(der)
 	return "sha256:" + hex.EncodeToString(sum[:])
 }
@@ -225,30 +118,15 @@ func chainFingerprints(certs []*x509.Certificate) []string {
 	return out
 }
 
-// NetHandshaker is the production Handshaker: a real TLS handshake with SNI equal
-// to the server name (omitted when empty), no ALPN, and verification disabled —
-// we record WHAT was presented, not whether it validated, because a chain that
-// fails to verify is still a measured presentation (CONTEXT.md `Certificate`). It
-// is not exercised by the hermetic golden corpus, which pins the fold logic
-// against a scripted Handshaker instead; its error classification is best-effort.
 type NetHandshaker struct {
 	Timeout time.Duration
 }
 
-// Handshake implements Handshaker against the network. A completed handshake
-// reads as TLSPresented with the peer's chain; a TLS-level rejection (an alert,
-// or a protocol/version negotiation failure) as TLSRefused; a peer that never
-// spoke TLS — a plaintext listener that resets or drops mid-handshake — as NoTLS.
 func (n NetHandshaker) Handshake(ctx context.Context, target netip.AddrPort, serverName string) HandshakeResult {
 	timeout := n.Timeout
 	if timeout <= 0 {
 		timeout = 3 * time.Second
 	}
-	// A target must be a valid literal IP: the leaf handshakes only pre-validated
-	// addresses. Reject an invalid target at entry, backed by the socket-level
-	// egress guard on the dialer below so a non-globally-reachable literal fails
-	// closed even if that invariant is ever broken upstream (#743). Nothing was
-	// dialled, so no peer was reached.
 	if !target.Addr().IsValid() {
 		return HandshakeResult{Outcome: NoTLS, Unreachable: true}
 	}
@@ -258,10 +136,9 @@ func (n NetHandshaker) Handshake(ctx context.Context, target netip.AddrPort, ser
 	cfg := &tls.Config{
 		InsecureSkipVerify: true, // #nosec G402 (accepted: certificate-measurement probe — records the presented chain incl. self-signed/expired; verification is a declared-param OFF by design, digest-locked to CertVersion. See HandshakeParams.RecordNotVerify.)
 		ServerName:         serverName,
-		NextProtos:         nil, // no ALPN — CONTEXT.md `Certificate`
+		// No ALPN at all, so a listener refusing our protocols cannot cost us a readable chain.
+		NextProtos: nil,
 	}
-	// custody.EgressGuard is the shared Control-hook backstop (delivery, resolutionwalk):
-	// it refuses the socket when the resolved address is non-globally-reachable (#743).
 	d := tls.Dialer{
 		NetDialer: &net.Dialer{Control: custody.EgressGuard("connectoutcome")},
 		Config:    cfg,
@@ -279,23 +156,11 @@ func (n NetHandshaker) Handshake(ctx context.Context, target netip.AddrPort, ser
 	}
 	state := tlsConn.ConnectionState()
 	chain := chainFingerprints(state.PeerCertificates)
+	// A completed handshake with no certificate is a refusal, never a plaintext port.
 	if len(chain) == 0 {
-		// A completed handshake with no certificate is a TLS peer that offered
-		// nothing we can hold — a refusal, not a plaintext port.
 		return HandshakeResult{Outcome: TLSRefused}
 	}
-	// The leaf (chain[0]) is already in hand for fingerprinting; read its NotAfter
-	// here so the presented value can carry the expiry the certs-expiring stat reads
-	// (SPEC-CHANGE.md collision #8). InsecureSkipVerify does not withhold the chain.
-	// The same leaf carries its parsed identity — the issuer DN and the signature
-	// algorithm — which the presented value carries for the Asset detail's cert card
-	// (#22c, #581); a leaf that carries neither renders the empty string, which the
-	// fold drops via omitempty.
-	//
-	// v3 also reads the leaf's validity floor and SANs, and the per-link parsed facts
-	// off the whole presented chain, so the four dark certificate rules derive at read
-	// (P0.10b, #704). InsecureSkipVerify withholds none of this — the chain is fully
-	// parsed regardless.
+	// Reading more of the presented chain sends nothing new, so it moves no params digest (#704).
 	leaf := state.PeerCertificates[0]
 	sanIP := make([]string, 0, len(leaf.IPAddresses))
 	for _, ip := range leaf.IPAddresses {
@@ -306,19 +171,16 @@ func (n NetHandshaker) Handshake(ctx context.Context, target netip.AddrPort, ser
 		chainCerts = append(chainCerts, parseChainCert(c))
 	}
 	return HandshakeResult{
-		Outcome:    TLSPresented,
-		Chain:      chain,
-		NotAfter:   leaf.NotAfter,
-		Issuer:     leaf.Issuer.String(),
-		Algorithm:  leaf.SignatureAlgorithm.String(),
-		NotBefore:  leaf.NotBefore,
+		Outcome:   TLSPresented,
+		Chain:     chain,
+		NotAfter:  leaf.NotAfter,
+		Issuer:    leaf.Issuer.String(),
+		Algorithm: leaf.SignatureAlgorithm.String(),
+		NotBefore: leaf.NotBefore,
+		// dNSName SANs ride verbatim; wildcards are never expanded for the read-time rule (#704).
 		SANDNS:     leaf.DNSNames,
 		SANIP:      sanIP,
 		ChainCerts: chainCerts,
-		// Capture the raw CT inputs for the certificate_material side store (spec §5.3):
-		// the leaf DER (embedded SCTs ride inside it), the TLS-extension SCTs, the stapled
-		// OCSP response, and the issuer's SPKI (chain[1], for the embedded-SCT precert leaf
-		// hash) — all already in `state`, previously discarded.
 		LeafDER:    leaf.Raw,
 		SCTsTLSExt: state.SignedCertificateTimestamps,
 		OCSPStaple: state.OCSPResponse,
@@ -326,25 +188,16 @@ func (n NetHandshaker) Handshake(ctx context.Context, target netip.AddrPort, ser
 	}
 }
 
-// issuerSPKI returns the DER SubjectPublicKeyInfo of the certificate that issued the leaf —
-// chain position 1 in the presented chain — or nil when the peer presented only the leaf. The
-// leaf's own key is at position 0; the issuer's key hash (SHA-256 of this SPKI) is what an
-// embedded SCT's precert leaf hash needs (RFC 6962 §3.2, #878).
 func issuerSPKI(chain []*x509.Certificate) []byte {
+	// An embedded SCT's precert hash needs SHA-256 of the issuer SPKI (RFC 6962 §3.2, #878).
 	if len(chain) < 2 {
 		return nil
 	}
 	return chain[1].RawSubjectPublicKeyInfo
 }
 
-// parseChainCert reads one presented certificate's raw facts into a ChainCert: its
-// subject/issuer DNs, whether its own signature verifies under its bound key (the ONE
-// in-leaf crypto datum — CheckSignatureFrom against itself), its public-key algorithm
-// and size parameters, and its signature DIGEST name. It never fails: an unrecognised
-// key algorithm carries the algorithm name and no size (not weak at read), and an
-// unrecognised signature algorithm carries an empty digest (never MD5/SHA-1, so never
-// fires the signature limb). Store-raw, derive-at-read (T-leaf #712).
 func parseChainCert(c *x509.Certificate) ChainCert {
+	// Store raw and derive at read: the four dark certificate rules run at read, not here (#712).
 	selfSig := c.CheckSignatureFrom(c) == nil
 	cc := ChainCert{
 		Subject:               c.Subject.String(),
@@ -352,6 +205,7 @@ func parseChainCert(c *x509.Certificate) ChainCert {
 		SelfSignatureVerifies: &selfSig,
 		SigDigest:             sigDigestName(c.SignatureAlgorithm),
 	}
+	// It never fails: an unknown algorithm reads as not-weak rather than firing a rule (#712).
 	switch pk := c.PublicKey.(type) {
 	case *rsa.PublicKey:
 		cc.KeyAlg = "RSA"
@@ -361,24 +215,18 @@ func parseChainCert(c *x509.Certificate) ChainCert {
 		cc.KeyBits = pk.Curve.Params().BitSize
 	case *dsa.PublicKey:
 		cc.KeyAlg = "DSA"
-		cc.KeyBits = pk.P.BitLen()   // L
-		cc.KeyParamN = pk.Q.BitLen() // N
+		cc.KeyBits = pk.P.BitLen()
+		cc.KeyParamN = pk.Q.BitLen()
 	case ed25519.PublicKey:
 		cc.KeyAlg = "Ed25519"
 	default:
-		// Unrecognised key algorithm — carry the algorithm name and no size. A key
-		// with no size row is not weak at read (deny-list §4.2).
 		cc.KeyAlg = c.PublicKeyAlgorithm.String()
 	}
 	return cc
 }
 
-// sigDigestName maps a certificate's signature algorithm to its DIGEST name — the
-// datum certificate-weak-key-or-signature's deny-list {MD5, SHA-1} reads (T-leaf #712
-// §3.1). It is the digest, NOT the signature OID: SHA1WithRSA, DSAWithSHA1 and
-// ECDSAWithSHA1 all map to "SHA-1". An unknown/unset algorithm maps to "" — never
-// MD5/SHA-1, so it never fires the signature limb.
 func sigDigestName(a x509.SignatureAlgorithm) string {
+	// The read-time deny-list is {MD5, SHA-1}, so the datum is the digest and not the OID (#712).
 	switch a {
 	case x509.MD5WithRSA:
 		return "MD5"
@@ -391,41 +239,22 @@ func sigDigestName(a x509.SignatureAlgorithm) string {
 	case x509.SHA512WithRSA, x509.ECDSAWithSHA512, x509.SHA512WithRSAPSS:
 		return "SHA-512"
 	case x509.PureEd25519:
-		// Ed25519 uses SHA-512 internally; it has no key row and never fires the sig
-		// limb when self-signed. Only the {MD5,SHA-1} deny-list consults this, so any
-		// non-MD5/SHA-1 name is equivalent — name it honestly.
 		return "Ed25519"
 	default:
 		return ""
 	}
 }
 
-// classifyDialError splits a failed handshake dial three ways: the outcome the
-// `certificate` facet's two negatives use, plus whether the dial ever reached a peer.
-// A TLS record- or alert-level rejection is TLSRefused (the peer spoke TLS and turned
-// us down); a reset, EOF or plaintext-looking failure is NoTLS (something answered, and
-// it was not TLS); a failure in the CONNECT phase never got a peer at all, and reports
-// unreachable alongside the conservative NoTLS.
-//
-// The split is best-effort and unversioned by the corpus — the golden rows pin the fold,
-// not this live classification.
+// Best-effort and unversioned: the golden rows pin the fold, never this live classification.
+
 func classifyDialError(err error) (outcome TLSOutcome, unreachable bool) {
-	// One tls.Dialer covers two phases under one deadline: the TCP connect and the TLS
-	// handshake. Which phase failed is READ off the error, never guessed from its text:
-	// net.Dialer stamps every connect-phase failure — a refusal, a connect-phase reset,
-	// a timeout, and the egress guard's Control-hook refusal — as a *net.OpError whose
-	// Op is "dial", and no handshake-phase error carries that Op (a stalled or dropped
-	// handshake surfaces as a read, an alert or a record error). Without this a
-	// middlebox that swallows the ClientHello would report *nothing was there*, and a
-	// connect-phase RST would report *something answered*.
 	var opErr *net.OpError
+	// A connect-phase failure carries Op "dial", so the phase is read off the error, never guessed.
 	if errors.As(err, &opErr) && opErr.Op == "dial" {
 		return NoTLS, true
 	}
 	var recordErr tls.RecordHeaderError
 	if errors.As(err, &recordErr) {
-		// A malformed TLS record header means the peer answered with something
-		// that is not TLS at all.
 		return NoTLS, false
 	}
 	var alertErr *tls.CertificateVerificationError
@@ -447,8 +276,6 @@ func classifyDialError(err error) (outcome TLSOutcome, unreachable bool) {
 		strings.Contains(msg, "no cipher suite"):
 		return TLSRefused, false
 	}
-	// An unclassifiable handshake-phase failure is treated as no TLS spoken — the
-	// conservative side, since it asserts no refusal we did not observe. It is NOT
-	// reported unreachable: the connect phase already completed, so a peer was there.
+	// The unclassifiable case takes the conservative side: it asserts no refusal we did not observe.
 	return NoTLS, false
 }

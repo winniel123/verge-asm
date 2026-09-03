@@ -11,15 +11,8 @@ import (
 	designfs "github.com/winniel123/verge-asm/design-system"
 )
 
-// ArtifactDoc is the view model for the design-owned "artifactdoc" define
-// (design-system/templates/reportartifact.tmpl). SPEC-CHANGE #23g moved the delivered
-// document's body OUT of repo-authored markup and INTO that frozen define, so one
-// markup renders across the three shells the report reaches: the on-screen
-// /reports/delivery page (which passes this struct straight to the page tmpl's `.Doc`
-// hole), the delivered email (RenderArtifact executes "artifactdoc" with it), and the
-// PDF print form. Its exported fields are the tmpl's holes verbatim, and its JSON tags
-// mirror the fixtures.json → reportartifact.doc slice so a fixture can unmarshal into it
-// unchanged. BuildArtifactDoc derives one from the domain Artifact.
+// These fields are the design tmpl's holes verbatim; the tags mirror fixtures.json.
+
 type ArtifactDoc struct {
 	Empty         bool                      `json:"empty"`
 	Org           string                    `json:"org"`
@@ -74,11 +67,8 @@ type ArtifactDocDeliveryState struct {
 	Tone  string `json:"tone"`
 }
 
-// artifactTmpl parses the design-owned "artifactdoc" define and every partial it calls
-// — "deltachip" (reports.tmpl), "sevbadge" (signals.tmpl) and "changeglyph"
-// (drift.tmpl) — from the embedded design package, once at init. Executing "artifactdoc"
-// against this set resolves those partials exactly as cmd/web's shared template set does
-// on screen. The four tmpls use only builtin template actions, so no FuncMap is needed.
+// The four tmpls use only builtin actions, so no FuncMap is needed here.
+
 var artifactTmpl = template.Must(template.New("artifact").ParseFS(designfs.FS,
 	"templates/reportartifact.tmpl",
 	"templates/reports.tmpl",
@@ -86,11 +76,8 @@ var artifactTmpl = template.Must(template.New("artifact").ParseFS(designfs.FS,
 	"templates/drift.tmpl",
 ))
 
-// artifactDocTokens is the design-owned CSS-token vocabulary (design-system/tokens/*.css)
-// wrapped in a <style> block, concatenated deterministically (sorted filename order) so a
-// standalone shell — the delivered email, a print form — resolves the artifactdoc's inline
-// var(--…) styles with no console stylesheet in scope. On the /reports/delivery page the
-// chrome already inlines these tokens (DesignTokens), so the page does not use this.
+// The on-screen page's chrome already inlines these tokens, so only a standalone shell reads this.
+
 var artifactDocTokens = loadArtifactDocTokens()
 
 func loadArtifactDocTokens() string {
@@ -113,9 +100,6 @@ func loadArtifactDocTokens() string {
 	return b.String()
 }
 
-// renderArtifactDoc executes the design-owned "artifactdoc" define with doc, returning
-// the delivered document's markup. It is the single markup the on-screen page, the email
-// and the PDF-HTML shells all render (SPEC-CHANGE #23g).
 func renderArtifactDoc(doc ArtifactDoc) (template.HTML, error) {
 	var buf bytes.Buffer
 	if err := artifactTmpl.ExecuteTemplate(&buf, "artifactdoc", doc); err != nil {
@@ -124,12 +108,6 @@ func renderArtifactDoc(doc ArtifactDoc) (template.HTML, error) {
 	return template.HTML(buf.String()), nil // #nosec G203 -- output of the design-owned "artifactdoc" template, not user input
 }
 
-// BuildArtifactDoc derives the design-owned document view model from the domain Artifact
-// — the re-point SPEC-CHANGE #23g requires so RenderArtifact and the on-screen page both
-// feed the frozen "artifactdoc" define the same recomputed data. Percentages for the
-// severity bars scale to the busiest level (mirroring the old on-screen bar math);
-// delta direction is read from the pre-signed delta text; the delivery pill stands only
-// where the run actually left the instance.
 func BuildArtifactDoc(a Artifact) ArtifactDoc {
 	doc := ArtifactDoc{
 		Empty:       a.Empty(),
@@ -186,14 +164,12 @@ func BuildArtifactDoc(a Artifact) ArtifactDoc {
 		})
 	}
 	if a.Delivered != "" {
+		// A receipt records what we said and never grades the news, so ok is not a valence (ADR-0064).
 		doc.DeliveryState = &ArtifactDocDeliveryState{Label: "delivered", Tone: "ok"}
 	}
 	return doc
 }
 
-// deltaDir reads a pre-signed delta's direction from its leading sign — a leading plus is
-// up, a leading ASCII hyphen or a real minus (−, U+2212) is down; anything else has no
-// direction, so the deltachip draws no arrow.
 func deltaDir(delta string) string {
 	d := strings.TrimSpace(delta)
 	switch {
