@@ -1,34 +1,6 @@
-// Package qr renders a small QR code as inline SVG, entirely in-process, with
-// no third-party dependency and no network call.
-//
-// It exists for one screen: TOTP enrollment. The whole reason to generate the
-// image here, by hand, is ADR-0053 — a secret is held only where the act it
-// authorises is performed. Encoding the otpauth:// URI ourselves keeps the
-// secret off any third-party QR service AND out of any imported encoder; the
-// bytes travel from the handler to the pixels without leaving this binary.
-//
-// Scope is deliberately narrow, matching its sole caller rather than the full
-// ISO/IEC 18004 surface:
-//
-//   - Byte mode only. An otpauth:// URI is opaque bytes; the other segment
-//     modes (numeric, alphanumeric, kanji) would never be selected for it.
-//   - Error-correction level M (~15% recovery) — the level every authenticator
-//     app scans without complaint, and the default such QRs are cut at.
-//   - Versions 1..10 (up to 213 bytes of payload). An otpauth:// URI runs
-//     ~100-150 bytes; 10 leaves ample headroom. A longer payload returns
-//     ErrTooLong, and the caller keeps the secret text as the manual-entry
-//     fallback — a code that will not fit degrades to typing, never to a broken
-//     image.
-//
-// The encoder follows the standard construction (Reed-Solomon over GF(256),
-// the eight data masks with penalty-scored selection, BCH format/version bits).
-// qr_test.go pins it to independent Reed-Solomon and BCH known vectors and to a
-// full-matrix golden, the same known-vector discipline the sibling auth package
-// holds its TOTP code to. Its output was additionally cross-checked during
-// development by decoding it with a ZXing-derived reader across versions 1-10 —
-// that round-trip is what caught the alignment-placement bug the golden now
-// guards, and is documented here rather than committed so the package keeps no
-// third-party test dependency.
+// Package qr renders a QR code as inline SVG in-process, with no third-party
+// dependency and no network call, so ADR-0053 holds the TOTP secret only where
+// its act is performed: no external QR service and no imported encoder sees it.
 package qr
 
 import (
@@ -41,13 +13,13 @@ import (
 var ErrTooLong = errors.New("qr: payload too long for a version-10 symbol")
 
 type ecBlocks struct {
-	totalDataCW  int   // data codewords across all blocks
-	ecPerBlock   int   // EC codewords per block (same for every block)
-	group1Blocks int   // number of group-1 blocks
-	group1DataCW int   // data codewords in each group-1 block
-	group2Blocks int   // number of group-2 blocks (0 when uniform)
-	group2DataCW int   // data codewords in each group-2 block
-	alignments   []int // alignment-pattern centre coordinates (nil for v1)
+	totalDataCW  int
+	ecPerBlock   int
+	group1Blocks int
+	group1DataCW int
+	group2Blocks int
+	group2DataCW int
+	alignments   []int
 }
 
 var versionsM = map[int]ecBlocks{
@@ -65,16 +37,13 @@ var versionsM = map[int]ecBlocks{
 
 const maxVersion = 10
 
-// --- Galois field GF(256) with primitive polynomial 0x11d (x^8+x^4+x^3+x^2+1),
-// generator alpha = 2. exp/log tables make Reed-Solomon multiplication a table
-// lookup; exp is doubled so an index up to 508 never wraps.
-
 var (
 	gfExp [512]byte
 	gfLog [256]byte
 )
 
 func init() {
+	// GF(256) under the QR primitive polynomial 0x11d, generator alpha = 2 (ISO/IEC 18004 §7.5.2).
 	x := 1
 	for i := 0; i < 255; i++ {
 		gfExp[i] = byte(x)
@@ -101,8 +70,8 @@ func rsGenerator(n int) []byte {
 	for i := 0; i < n; i++ {
 		next := make([]byte, len(g)+1)
 		for j := 0; j < len(g); j++ {
-			next[j] ^= g[j]                    // g[j] * x
-			next[j+1] ^= gfMul(g[j], gfExp[i]) // g[j] * alpha^i
+			next[j] ^= g[j]
+			next[j+1] ^= gfMul(g[j], gfExp[i])
 		}
 		g = next
 	}
@@ -113,10 +82,6 @@ func rsEncode(data []byte, n int) []byte {
 	return rsRemainder(data, rsGenerator(n))
 }
 
-// rsRemainder returns the EC codewords for data given a precomputed generator
-// polynomial: the remainder of data*x^deg divided by gen. Taking the generator
-// as an argument lets interleave build it once per version rather than once per
-// block.
 func rsRemainder(data, gen []byte) []byte {
 	n := len(gen) - 1
 	res := make([]byte, len(data)+n)
@@ -132,8 +97,6 @@ func rsRemainder(data, gen []byte) []byte {
 	}
 	return res[len(data):]
 }
-
-// --- bit buffer: MSB-first bit accumulation into whole bytes.
 
 type bitBuffer struct {
 	bytes []byte
@@ -168,7 +131,7 @@ func chooseVersion(dataLen int) (version int, ec ecBlocks, ok bool) {
 
 func encodeData(data []byte, version int, ec ecBlocks) []byte {
 	var bb bitBuffer
-	bb.append(0b0100, 4) // byte mode
+	bb.append(0b0100, 4) // the byte-mode indicator; an otpauth URI is opaque bytes
 	countBits := 8
 	if version >= 10 {
 		countBits = 16
@@ -197,13 +160,11 @@ func encodeData(data []byte, version int, ec ecBlocks) []byte {
 	return bb.bytes
 }
 
-// interleave splits the data codewords into their blocks, computes each block's
-// EC codewords, and interleaves both by codeword index — the final codeword
-// stream the symbol is filled with (ISO/IEC 18004 §7.6).
 func interleave(dataCW []byte, ec ecBlocks) []byte {
 	type block struct{ data, ecc []byte }
 	var blocks []block
-	gen := rsGenerator(ec.ecPerBlock) // identical for every block of this version
+	gen := rsGenerator(ec.ecPerBlock)
+	// The codeword interleave order is fixed by ISO/IEC 18004 §7.6, not chosen here.
 	pos := 0
 	take := func(count, size int) {
 		for i := 0; i < count; i++ {
@@ -234,9 +195,6 @@ func interleave(dataCW []byte, ec ecBlocks) []byte {
 	}
 	return out
 }
-
-// --- matrix: the module grid plus a parallel mask of function (fixed) modules
-// that carry no data and are never mask-inverted.
 
 type Matrix struct {
 	Size   int
@@ -269,24 +227,15 @@ func (m *Matrix) set(x, y int, dark, fn bool) {
 func bit(v uint32, i int) bool { return (v>>uint(i))&1 == 1 }
 
 func (m *Matrix) drawFunctionPatterns(version int, ec ecBlocks) {
-	// Timing patterns (row 6 / column 6), laid first so finders overwrite the
-	// overlap.
 	for i := 0; i < m.Size; i++ {
 		dark := i%2 == 0
 		m.set(6, i, dark, true)
 		m.set(i, 6, dark, true)
 	}
-	// Finder patterns with their one-module light separator, at three corners.
 	m.drawFinder(3, 3)
 	m.drawFinder(m.Size-4, 3)
 	m.drawFinder(3, m.Size-4)
-	// Alignment patterns at every centre pair, omitting only the three that
-	// coincide with the finder patterns (the two remaining corners and the
-	// top-left). The patterns that fall on the timing tracks ARE placed — from
-	// version 7 up they overwrite the timing there, exactly as the standard
-	// requires; skipping them (e.g. as "already a function module") leaves the
-	// symbol unlocatable and only silently survives at versions 2-6, which
-	// carry a single centre pattern.
+	// A skipped centre on a timing track leaves the symbol unlocatable above version 6.
 	last := len(ec.alignments) - 1
 	for i, ar := range ec.alignments {
 		for j, ac := range ec.alignments {
@@ -296,13 +245,11 @@ func (m *Matrix) drawFunctionPatterns(version int, ec ecBlocks) {
 			m.drawAlignment(ac, ar)
 		}
 	}
-	// Reserve the format-info modules (written after masking) and, for v>=7,
-	// the version-info modules.
 	m.reserveFormat()
 	if version >= 7 {
 		m.reserveVersion()
 	}
-	// The always-dark module beside the bottom-left finder.
+	// The standard fixes one always-dark module here, beside the bottom-left finder.
 	m.set(8, m.Size-8, true, true)
 }
 
@@ -318,7 +265,6 @@ func (m *Matrix) drawFinder(cx, cy int) {
 			if ay > d {
 				d = ay
 			}
-			// d==2 is the light ring, d==4 the separator; the rest is dark.
 			m.set(x, y, d != 2 && d != 4, true)
 		}
 	}
@@ -337,16 +283,13 @@ func (m *Matrix) drawAlignment(cx, cy int) {
 	}
 }
 
-// reserveFormat marks exactly the modules drawFormat later writes, so data
-// placement skips them. It must not touch the two timing intersections
-// (column 6, row 8) and (column 8, row 6), which stay part of the timing
-// tracks — the standard format strips step over them.
 func (m *Matrix) reserveFormat() {
+	// The two timing intersections stay timing modules; the format strips step over them.
 	for i := 0; i <= 8; i++ {
-		if i != 6 { // column 6 is the vertical timing track
+		if i != 6 {
 			m.set(8, i, false, true)
 		}
-		if i != 6 { // row 6 is the horizontal timing track
+		if i != 6 {
 			m.set(i, 8, false, true)
 		}
 	}
@@ -372,7 +315,8 @@ func (m *Matrix) placeData(codewords []byte) {
 	total := len(codewords) * 8
 	for right := m.Size - 1; right >= 1; right -= 2 {
 		if right == 6 {
-			right = 5 // step over the vertical timing column
+			// Column 6 is the vertical timing track, so the zigzag pairs must not straddle it.
+			right = 5
 		}
 		for vert := 0; vert < m.Size; vert++ {
 			for j := 0; j < 2; j++ {
@@ -414,8 +358,6 @@ func maskCondition(mask, x, y int) bool {
 	return false
 }
 
-// applyMask XORs the mask pattern into every non-function module. It is its own
-// inverse, so calling it twice with the same mask restores the grid.
 func (m *Matrix) applyMask(mask int) {
 	for y := 0; y < m.Size; y++ {
 		for x := 0; x < m.Size; x++ {
@@ -426,11 +368,9 @@ func (m *Matrix) applyMask(mask int) {
 	}
 }
 
-// formatBits returns the 15-bit BCH-encoded format information for level M and
-// the given mask: 5 data bits (level 00 + mask) with 10 BCH check bits, XORed
-// with the 0x5412 constant mask (ISO/IEC 18004 §8.9).
 func formatBits(mask int) uint32 {
 	data := uint32(mask) // #nosec G115 (QR mask pattern 0..7) — level M contributes 00 in the high two bits
+	// 0x537 and 0x5412 are the format BCH generator and mask fixed by ISO/IEC 18004 §8.9.
 	rem := data
 	for i := 0; i < 10; i++ {
 		rem = (rem << 1) ^ ((rem >> 9) * 0x537)
@@ -438,35 +378,32 @@ func formatBits(mask int) uint32 {
 	return (data<<10 | rem) ^ 0x5412
 }
 
-// versionBits returns the 18-bit BCH-encoded version information (6 data bits +
-// 12 check bits) for version >= 7 (ISO/IEC 18004 §8.10).
 func versionBits(version int) uint32 {
 	rem := uint32(version) // #nosec G115 (QR version 1..40)
+	// 0x1f25 is the version BCH generator fixed by ISO/IEC 18004 §8.10.
 	for i := 0; i < 12; i++ {
 		rem = (rem << 1) ^ ((rem >> 11) * 0x1f25)
 	}
 	return uint32(version)<<12 | rem // #nosec G115 (QR version 1..40)
 }
 
-// drawFormat writes both copies of the 15-bit format information for the chosen
-// mask, in the exact bit-to-module mapping of ISO/IEC 18004 §8.9 (bit 0 = LSB).
 func (m *Matrix) drawFormat(mask int) {
 	f := formatBits(mask)
+	// The bit-to-module mapping is fixed exactly by ISO/IEC 18004 §8.9, bit 0 = LSB.
 	for i := 0; i <= 5; i++ {
-		m.set(8, i, bit(f, i), true) // column 8, rows 0..5
+		m.set(8, i, bit(f, i), true)
 	}
 	m.set(8, 7, bit(f, 6), true)
 	m.set(8, 8, bit(f, 7), true)
 	m.set(7, 8, bit(f, 8), true)
 	for i := 9; i < 15; i++ {
-		m.set(14-i, 8, bit(f, i), true) // row 8, columns 5..0
+		m.set(14-i, 8, bit(f, i), true)
 	}
-	// Second copy, split across the top-right and bottom-left finders.
 	for i := 0; i < 8; i++ {
-		m.set(m.Size-1-i, 8, bit(f, i), true) // row 8, columns Size-1..Size-8
+		m.set(m.Size-1-i, 8, bit(f, i), true)
 	}
 	for i := 8; i < 15; i++ {
-		m.set(8, m.Size-15+i, bit(f, i), true) // column 8, rows Size-7..Size-1
+		m.set(8, m.Size-15+i, bit(f, i), true)
 	}
 }
 
@@ -484,8 +421,6 @@ func (m *Matrix) drawVersion(version int) {
 	}
 }
 
-// penalty scores a masked grid by the four ISO/IEC 18004 §8.8.2 rules; the mask
-// with the lowest score is chosen. Lower is better.
 func (m *Matrix) penalty() int {
 	const (
 		n1 = 3
@@ -493,10 +428,10 @@ func (m *Matrix) penalty() int {
 		n3 = 40
 		n4 = 10
 	)
+	// The four rules and their n1 to n4 weights are fixed by ISO/IEC 18004 §8.8.2.
 	score := 0
 	size := m.Size
 
-	// Rule 1: runs of five or more like-coloured modules in a row/column.
 	for y := 0; y < size; y++ {
 		runColor, run := m.module[y][0], 1
 		for x := 1; x < size; x++ {
@@ -530,7 +465,6 @@ func (m *Matrix) penalty() int {
 		}
 	}
 
-	// Rule 2: 2×2 blocks of one colour.
 	for y := 0; y < size-1; y++ {
 		for x := 0; x < size-1; x++ {
 			c := m.module[y][x]
@@ -540,8 +474,6 @@ func (m *Matrix) penalty() int {
 		}
 	}
 
-	// Rule 3: the 1:1:3:1:1 finder-like pattern (with its light run) in any
-	// row or column, either orientation.
 	for y := 0; y < size; y++ {
 		for x := 0; x <= size-11; x++ {
 			if m.matchFinderRun(x, y, true) {
@@ -557,7 +489,6 @@ func (m *Matrix) penalty() int {
 		}
 	}
 
-	// Rule 4: deviation of the dark-module proportion from 50%.
 	dark := 0
 	for y := 0; y < size; y++ {
 		for x := 0; x < size; x++ {
@@ -567,7 +498,7 @@ func (m *Matrix) penalty() int {
 		}
 	}
 	total := size * size
-	k := (abs(dark*20-total*10) + total - 1) / total // ceil(|pct-50|/5)
+	k := (abs(dark*20-total*10) + total - 1) / total
 	score += (k - 1) * n4
 
 	return score
@@ -613,19 +544,15 @@ func Encode(data []byte) (*Matrix, error) {
 		if s := m.penalty(); bestScore < 0 || s < bestScore {
 			bestScore, bestMask = s, mask
 		}
-		m.applyMask(mask) // undo
+		m.applyMask(mask)
 	}
 	m.applyMask(bestMask)
 	m.drawFormat(bestMask)
 	return m, nil
 }
 
-// SVG encodes data and renders the symbol as a self-contained SVG string. The
-// symbol is drawn as dark modules on an explicit white ground with a 4-module
-// quiet zone, so it stays scannable regardless of the surrounding page theme.
-// altText becomes the accessible name. It returns ErrTooLong when data does not
-// fit a version-10 symbol.
 func SVG(data []byte, altText string) (string, error) {
+	// An explicit white ground and a quiet zone keep the symbol scannable in any page theme.
 	m, err := Encode(data)
 	if err != nil {
 		return "", err

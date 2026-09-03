@@ -10,9 +10,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/measure/blanketdiscrim"
 )
 
-// update regenerates the golden files and the lock. It is the deliberate bless
-// action: run `go test ./... -run Corpus -update` after an intended output or
-// parameter change, having bumped blanketdiscrim.Version, and commit the result.
 var update = flag.Bool("update", false, "regenerate golden NDJSON files and corpus.lock.json")
 
 const testdataDir = "testdata"
@@ -40,6 +37,7 @@ func regenerate() error {
 			return err
 		}
 	}
+	// golden-corpus.md §9's register is append-only, so a regenerate carries the existing rows.
 	existing, _ := LoadLock(".")
 	return WriteLock(".", Lock{
 		LeafVersion:    blanketdiscrim.Version,
@@ -49,10 +47,8 @@ func regenerate() error {
 	})
 }
 
-// A1: self-identity. Rendering twice in one process is byte-identical — Go
-// randomises map iteration per iterator, so an unstable corpus would make every
-// other assertion uninterpretable.
 func TestCorpusSelfIdentity(t *testing.T) {
+	// A1: Go randomises map iteration, so an unstable render makes every later assertion moot.
 	first, err := RenderAll()
 	if err != nil {
 		t.Fatal(err)
@@ -68,9 +64,8 @@ func TestCorpusSelfIdentity(t *testing.T) {
 	}
 }
 
-// A2: expectation. Each row's rendered output equals its checked-in golden file.
-// Output moved and the version did not -> fail (ADR-0021's gate, first direction).
 func TestCorpusExpectation(t *testing.T) {
+	// A2 is ADR-0021's gate in its first direction: output moved and the version did not.
 	rendered, err := RenderAll()
 	if err != nil {
 		t.Fatal(err)
@@ -88,8 +83,6 @@ func TestCorpusExpectation(t *testing.T) {
 	}
 }
 
-// A5: coverage. Every cell of the block holds at least one row, and no row cites a
-// cell outside the enumeration. A missing cell fails the build, naming it.
 func TestCorpusCoverage(t *testing.T) {
 	inEnum := make(map[string]bool, len(AllCells))
 	for _, c := range AllCells {
@@ -111,10 +104,8 @@ func TestCorpusCoverage(t *testing.T) {
 	}
 }
 
-// The lock gate: recomputed digests must equal the checked-in lock, and the lock's
-// leaf version must equal the code's. Any output or parameter change forces a lock
-// edit; binding that edit to a version bump is the CI gate's job.
 func TestCorpusLock(t *testing.T) {
+	// Binding a lock edit to a version bump is the CI gate's job, not this test's.
 	lock, err := LoadLock(".")
 	if err != nil {
 		t.Fatalf("load lock (run with -update to create it): %v", err)

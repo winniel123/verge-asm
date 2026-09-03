@@ -24,7 +24,6 @@ func TestLoadOrCreateKeyCreates(t *testing.T) {
 	if err != nil {
 		t.Fatalf("stat key file: %v", err)
 	}
-	// Unix permission bits are not meaningful on Windows.
 	if runtime.GOOS != "windows" {
 		if perm := info.Mode().Perm(); perm != 0o600 {
 			t.Fatalf("key file mode = %o, want 600", perm)
@@ -48,9 +47,6 @@ func TestLoadOrCreateKeyStable(t *testing.T) {
 	}
 }
 
-// TestLoadOrCreateKeyConcurrent proves the create is race-safe: many callers on a
-// fresh shared dir all converge on one key, and exactly one key file remains (no
-// split-brain, no leftover temp files). This is the web-and-worker co-boot case.
 func TestLoadOrCreateKeyConcurrent(t *testing.T) {
 	dir := t.TempDir()
 

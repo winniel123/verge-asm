@@ -9,28 +9,12 @@ import (
 	"time"
 )
 
-// DefaultFeedURL is the release feed the worker checks when VERGE_RELEASE_FEED_URL
-// is unset: this repository's GitHub latest-release endpoint. It returns the
-// latest published release as JSON carrying tag_name (the version) and body (the
-// notes) — the shape HTTPFetcher parses. This reuses the release infrastructure
-// the project already publishes to (release.yml / GHCR on a semver tag, ADR-0118)
-// rather than standing up a new hosted feed; a fork points the env at its own
-// repo's endpoint (or any URL returning the same JSON), and an air-gapped
-// deployment leaves update_check_enabled off so the URL is never fetched.
 const DefaultFeedURL = "https://api.github.com/repos/winniel123/verge-asm/releases/latest"
 
-// feedTimeout bounds a single check: a short deadline, no retry — a slow or
-// unreachable feed fails fast and the tick is a logged no-op (ADR-0124: no retry
-// storm, best-effort).
-const feedTimeout = 10 * time.Second
+const feedTimeout = 10 * time.Second // no retry: a slow feed leaves the tick a no-op (ADR-0124)
 
-// maxFeedBytes caps the response body read so a hostile or misconfigured feed
-// cannot exhaust worker memory; a real latest-release payload is well under this.
-const maxFeedBytes = 1 << 20 // 1 MiB
+const maxFeedBytes = 1 << 20 // a hostile or misconfigured feed cannot exhaust worker memory
 
-// Doer is the outbound HTTP surface, behind an interface so HTTPFetcher is driven
-// by a fake in tests and never touches the live network there. *http.Client
-// satisfies it.
 type Doer interface {
 	Do(req *http.Request) (*http.Response, error)
 }

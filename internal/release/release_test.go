@@ -10,9 +10,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
-// fakeStore records the config it hands back and captures the last release-cache
-// write so a test can assert exactly what the checker wrote (or that it wrote
-// nothing at all).
 type fakeStore struct {
 	cfg       db.GetInstanceConfigRow
 	cfgErr    error
@@ -31,8 +28,6 @@ func (s *fakeStore) SetReleaseCache(_ context.Context, arg db.SetReleaseCachePar
 	return s.setErr
 }
 
-// fakeFetcher returns a canned feed (or error) and counts how many times it was
-// invoked, so a test can assert the network path was never reached.
 type fakeFetcher struct {
 	feed  Feed
 	err   error
@@ -48,8 +43,6 @@ func enabledCfg(enabled bool) db.GetInstanceConfigRow {
 	return db.GetInstanceConfigRow{UpdateCheckEnabled: enabled}
 }
 
-// Disabled flag ⇒ the check is never dispatched: the fetcher is never called and
-// the cache is never written, not even on the boot run.
 func TestCheck_Disabled_NeverDispatches(t *testing.T) {
 	store := &fakeStore{cfg: enabledCfg(false)}
 	fetch := &fakeFetcher{feed: Feed{Version: "v9.9.9"}}
@@ -65,7 +58,6 @@ func TestCheck_Disabled_NeverDispatches(t *testing.T) {
 	}
 }
 
-// Enabled + upstream ahead ⇒ release_state=newer with the latest version + notes.
 func TestCheck_UpstreamAhead_WritesNewer(t *testing.T) {
 	store := &fakeStore{cfg: enabledCfg(true)}
 	fetch := &fakeFetcher{feed: Feed{Version: "v3.19.0", Notes: "shiny things"}}
@@ -87,7 +79,6 @@ func TestCheck_UpstreamAhead_WritesNewer(t *testing.T) {
 	}
 }
 
-// Enabled + upstream equal ⇒ release_state=current, latest fields left null.
 func TestCheck_UpstreamEqual_WritesCurrent(t *testing.T) {
 	store := &fakeStore{cfg: enabledCfg(true)}
 	fetch := &fakeFetcher{feed: Feed{Version: "v3.18.0", Notes: "same"}}
@@ -106,8 +97,6 @@ func TestCheck_UpstreamEqual_WritesCurrent(t *testing.T) {
 	}
 }
 
-// A running build newer than the feed (a pre-release/dev-ahead deploy) also reads
-// as current — never a false "newer" alarm.
 func TestCheck_RunningAhead_WritesCurrent(t *testing.T) {
 	store := &fakeStore{cfg: enabledCfg(true)}
 	fetch := &fakeFetcher{feed: Feed{Version: "v3.17.0"}}
@@ -120,7 +109,6 @@ func TestCheck_RunningAhead_WritesCurrent(t *testing.T) {
 	}
 }
 
-// Enabled + upstream unreachable ⇒ a logged no-op: the cache is left untouched.
 func TestCheck_UpstreamUnreachable_NoOp(t *testing.T) {
 	store := &fakeStore{cfg: enabledCfg(true)}
 	fetch := &fakeFetcher{err: errors.New("dial tcp: no route to host")}
@@ -133,7 +121,6 @@ func TestCheck_UpstreamUnreachable_NoOp(t *testing.T) {
 	}
 }
 
-// A failed config read is also a best-effort no-op — no fetch, no write.
 func TestCheck_ConfigReadFails_NoOp(t *testing.T) {
 	store := &fakeStore{cfgErr: errors.New("db down")}
 	fetch := &fakeFetcher{feed: Feed{Version: "v9.9.9"}}
@@ -149,7 +136,6 @@ func TestCheck_ConfigReadFails_NoOp(t *testing.T) {
 	}
 }
 
-// An unparseable running version ("dev") never fabricates a newer alarm.
 func TestCheck_UnstampedDevBuild_WritesCurrent(t *testing.T) {
 	store := &fakeStore{cfg: enabledCfg(true)}
 	fetch := &fakeFetcher{feed: Feed{Version: "v3.19.0"}}
@@ -173,12 +159,12 @@ func TestIsNewer(t *testing.T) {
 		{"v4.0.0", "v3.18.0", true},
 		{"v3.18.0", "v3.18.0", false},
 		{"v3.17.0", "v3.18.0", false},
-		{"v3.18.0", "v3.18.0-rc1", false}, // core equal ⇒ not newer
-		{"v3.18", "v3.18.0", false},       // 3.18 == 3.18.0
+		{"v3.18.0", "v3.18.0-rc1", false},
+		{"v3.18", "v3.18.0", false},
 		{"v3.19", "v3.18.0", true},
-		{"dev", "v3.18.0", false},   // unparseable latest ⇒ not newer
-		{"v3.19.0", "dev", false},   // unparseable running ⇒ not newer
-		{"", "v3.18.0", false},      // empty latest ⇒ not newer
+		{"dev", "v3.18.0", false},
+		{"v3.19.0", "dev", false},
+		{"", "v3.18.0", false},
 	}
 	for _, tc := range cases {
 		if got := isNewer(tc.latest, tc.running); got != tc.want {
