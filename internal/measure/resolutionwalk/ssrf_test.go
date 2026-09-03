@@ -11,12 +11,6 @@ import (
 	"golang.org/x/net/dns/dnsmessage"
 )
 
-// gatedWalkPeer scripts the initial NS answer of a delegation walk but routes
-// every per-authority SOA sub-query through a real NetPeer, so walk() sees
-// exactly what a live Vantage would when an in-scope delegation points its NS
-// RDATA at a non-globally-reachable address. The initial NS query carries no
-// Server (walk() leaves it to the resolver); the per-authority sub-queries carry
-// Server = the NS RDATA, and those are the ones the SSRF gate must catch.
 type gatedWalkPeer struct {
 	ns   []RR
 	real NetPeer
@@ -29,14 +23,11 @@ func (p gatedWalkPeer) Exchange(q Query) Msg {
 	return p.real.Exchange(q)
 }
 
-// TestWalkRefusesCloudMetadataAuthority is finding #324: an in-scope delegation
-// whose NS RDATA is the cloud-metadata address must not be dialed. The walk
-// records the authority as unreached (a Gap, our own blindness), never a value.
 func TestWalkRefusesCloudMetadataAuthority(t *testing.T) {
+	// #324: an NS RDATA pointing at cloud metadata must never be dialed.
 	peer := gatedWalkPeer{
 		ns: []RR{{Name: "victim.example.com", Type: QtypeNS, Data: "169.254.169.254"}},
-		// A short timeout would still expire if the gate failed and we dialed
-		// the (unroutable) metadata address; the gate returns before any dial.
+		// The gate returns before any dial, so no timeout is needed here.
 		real: NetPeer{Resolver: "127.0.0.1:53"},
 	}
 
@@ -56,14 +47,14 @@ func TestWalkRefusesCloudMetadataAuthority(t *testing.T) {
 func TestWalkServerReachableGate(t *testing.T) {
 	ctx := context.Background()
 	barred := []string{
-		"169.254.169.254:53",   // cloud metadata (link-local)
-		"127.0.0.1:53",         // loopback
-		"10.0.0.5:53",          // RFC1918
-		"192.168.1.1:53",       // RFC1918
-		"172.16.0.1:53",        // RFC1918
-		"[fd00::1]:53",         // ULA
-		"[::1]:53",             // IPv6 loopback
-		"[::ffff:10.0.0.1]:53", // IPv4-mapped RFC1918
+		"169.254.169.254:53",
+		"127.0.0.1:53",
+		"10.0.0.5:53",
+		"192.168.1.1:53",
+		"172.16.0.1:53",
+		"[fd00::1]:53",
+		"[::1]:53",
+		"[::ffff:10.0.0.1]:53",
 	}
 	for _, s := range barred {
 		if walkServerReachable(ctx, s) {
@@ -78,24 +69,20 @@ func TestWalkServerReachableGate(t *testing.T) {
 	}
 }
 
-// TestCustodyDialerControlRefusesNonGlobal pins the socket-level backstop
-// directly (#335): the dialer's Control hook, given the ACTUAL resolved socket
-// address the kernel is about to connect to, refuses every non-globally-reachable
-// range and passes ordinary global unicast. This is the check that stands even
-// when the pre-flight vet was satisfied by a different (public) address.
 func TestCustodyDialerControlRefusesNonGlobal(t *testing.T) {
+	// #335: Control refuses on the actual socket address, even when the vet passed.
 	control := custodyDialer().Control
 	if control == nil {
 		t.Fatal("custodyDialer has no Control hook; the rebinding backstop is absent")
 	}
 	refused := []string{
-		"169.254.169.254:53",      // cloud metadata (link-local)
-		"127.0.0.1:53",            // loopback
-		"10.0.0.5:53",             // RFC1918
-		"192.168.1.1:53",          // RFC1918
-		"[fd00::1]:53",            // ULA
-		"[::1]:53",                // IPv6 loopback
-		"[::ffff:169.254.0.1]:53", // IPv4-mapped link-local
+		"169.254.169.254:53",
+		"127.0.0.1:53",
+		"10.0.0.5:53",
+		"192.168.1.1:53",
+		"[fd00::1]:53",
+		"[::1]:53",
+		"[::ffff:169.254.0.1]:53",
 	}
 	for _, addr := range refused {
 		if err := control("udp", addr, nil); err == nil {
@@ -110,11 +97,6 @@ func TestCustodyDialerControlRefusesNonGlobal(t *testing.T) {
 	}
 }
 
-// rebindResolver starts an in-process UDP DNS server whose A answer flips from
-// pub (first query) to priv (every later query), and returns a *net.Resolver
-// wired to it. It models DNS rebinding: the pre-flight vet resolves the NS name
-// and sees the public address, then the dial re-resolves the same name and gets
-// the private one. AAAA queries answer empty, so only the A record decides.
 func rebindResolver(t *testing.T, pub, priv netip.Addr) *net.Resolver {
 	t.Helper()
 	pc, err := net.ListenPacket("udp", "127.0.0.1:0")
@@ -184,21 +166,15 @@ func buildRebindResponse(query []byte, pub, priv netip.Addr, aCount *atomic.Int3
 	return out, true
 }
 
-// TestExchangeRefusesRebindToPrivate is finding #335 end to end: the walk-path
-// vet resolves the NS name and sees a public address (so the gate admits it),
-// but the dialer re-resolves the same name to a loopback address (rebinding).
-// The Control-hooked dialer must refuse that socket, so Exchange reports
-// Unreachable and NOT ONE packet reaches the private address.
 func TestExchangeRefusesRebindToPrivate(t *testing.T) {
-	pub := netip.MustParseAddr("8.8.8.8")    // global — the vet admits it
-	priv := netip.MustParseAddr("127.0.0.1") // loopback — the dial must be refused
+	// #335 end to end: a name that flips to loopback between vet and dial must send no packet.
+	pub := netip.MustParseAddr("8.8.8.8")
+	priv := netip.MustParseAddr("127.0.0.1")
 
 	orig := netResolver
 	netResolver = rebindResolver(t, pub, priv)
 	t.Cleanup(func() { netResolver = orig })
 
-	// A sink at the exact private socket the rebind points the dial at. If the
-	// Control hook let the dial through, this would receive the DNS query.
 	sink, err := net.ListenPacket("udp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("start private sink: %v", err)
@@ -228,7 +204,7 @@ func TestExchangeRefusesRebindToPrivate(t *testing.T) {
 	if !msg.Unreachable {
 		t.Errorf("Exchange = %+v, want Unreachable (dial to rebound private address refused)", msg)
 	}
-	// Exchange returned synchronously; any packet would already have been sent.
+	// The dial is synchronous, so a leaked packet would already have arrived.
 	time.Sleep(50 * time.Millisecond)
 	if n := sinkGot.Load(); n != 0 {
 		t.Errorf("private sink received %d packet(s); the rebound dial was NOT refused", n)

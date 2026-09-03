@@ -10,10 +10,6 @@ import (
 
 const Kind = "resolution-walk"
 
-// Scope is the resolution-walk-specific payload of a JobSpec. It carries the
-// Vantage and its recursive resolver (part of the Vantage identity, ADR-0070),
-// the Names to resolve, and the Offers put on the wire — all enumerated in the
-// job spec so the Batch records what went on the wire by content (ADR-0025).
 type Scope struct {
 	Vantage  string   `json:"vantage"`
 	Resolver string   `json:"resolver"`
@@ -46,11 +42,7 @@ func RunWithPeer(peer Peer, batch string, scope Scope, w io.Writer) error {
 	for _, name := range scope.Names {
 		res := Resolve(peer, scope.Offers, name)
 		if res.Unreachable {
-			// The declared resolver could not be reached. A batch that failed
-			// outright covers nothing and licenses no absence (CONTEXT.md Batch),
-			// so we emit nothing and return an error: the worker routes this
-			// through retry → dead-letter, which records the empty scope, and the
-			// vantage's Availability is marked unavailable (ADR-0108).
+			// A failed batch licenses no absence, so this dead-letters (ADR-0108, CONTEXT.md).
 			return fmt.Errorf("resolutionwalk: declared resolver %q unreachable; batch covers nothing", scope.Resolver)
 		}
 		out = append(out, Emit(batch, scope.Vantage, res)...)

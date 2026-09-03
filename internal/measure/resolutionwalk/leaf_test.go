@@ -12,7 +12,6 @@ type mapPeer struct {
 func (p mapPeer) Exchange(q Query) Msg { return p.fn(q) }
 
 func TestResolveResolvedFoldsAddresses(t *testing.T) {
-	// An A and an IPv4-mapped AAAA fold to one Address key (M2.h).
 	peer := mapPeer{fn: func(q Query) Msg {
 		if q.Path != PathDeclared {
 			return Msg{}
@@ -49,7 +48,6 @@ func TestResolveNameErrorOnlyWithoutCNAME(t *testing.T) {
 		t.Errorf("plain NXDOMAIN outcome = %q, want NameError", got.Resolution.Outcome)
 	}
 
-	// NXDOMAIN carrying a CNAME does not withdraw: the alias survives as NoData.
 	withCNAME := mapPeer{fn: func(q Query) Msg {
 		if q.Path == PathDeclared && q.Qtype == QtypeA {
 			return Msg{Reached: true, Rcode: NXDOMAIN, Answer: []RR{{Name: "example.com", Type: QtypeCNAME, Data: "t.example.net"}}}
@@ -62,7 +60,6 @@ func TestResolveNameErrorOnlyWithoutCNAME(t *testing.T) {
 }
 
 func TestResolveGapOnUnrecoveredTruncation(t *testing.T) {
-	// TC=1 on UDP and TCP also truncates -> a Gap, never a partial fold.
 	peer := mapPeer{fn: func(q Query) Msg {
 		if q.Path == PathDeclared && q.Qtype == QtypeA {
 			return Msg{Reached: true, Rcode: NOERROR, Truncated: true}
@@ -75,7 +72,6 @@ func TestResolveGapOnUnrecoveredTruncation(t *testing.T) {
 }
 
 func TestWalkLameNeedsReachedRefusalNotSilence(t *testing.T) {
-	// Reached and refused everywhere is Lame; silent everywhere is a Gap (M2.e).
 	base := func(soa Msg) Peer {
 		return mapPeer{fn: func(q Query) Msg {
 			switch {
