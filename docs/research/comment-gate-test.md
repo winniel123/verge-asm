@@ -1,27 +1,29 @@
-# Comment policy validation gate — test Go, round 1
+# Comment policy validation gate — test Go, round 2
 
 SPEC `docs/spec/comment-policy.md` §3.9. Regenerate this sheet with:
 
 ```sh
-go run ./cmd/commentlint sample --population test --round 1
+go run ./cmd/commentlint sample --population test --round 2
 ```
 
 - In-scope Go files read: 221
-- Blocks the §3.2 screen admits for deletion: 580
+- Blocks the §3.2 screen admits for deletion: 404
 - Blocks drawn into the gate sample: 100
 - Blocks drawn into the coverage supplement: 0
 
 Accept a class at 2 or fewer load-bearing blocks. A class that fails three rounds leaves the v1 delete set and stays in the flag set.
+
+This sheet holds the current round. Every round's verdicts sit in [the round ledger](comment-gate-rounds.md).
 
 ## Class coverage
 
 | Class | Admitted | Gate sample | Supplement |
 | --- | --- | --- | --- |
 | `commented-out-code` | 0 | 0 | 0 |
-| `docstring-exported-conventional` | 145 | 28 | 0 |
-| `docstring-unexported` | 277 | 46 | 0 |
-| `section-divider` | 32 | 9 | 0 |
-| `short-label` | 126 | 17 | 0 |
+| `docstring-exported-conventional` | 72 | 18 | 0 |
+| `docstring-unexported` | 177 | 40 | 0 |
+| `section-divider` | 31 | 13 | 0 |
+| `short-label` | 124 | 29 | 0 |
 
 ## Verdicts
 
@@ -30,14 +32,30 @@ A reviewer fills the last two columns. A class that admits no block on this popu
 | Class | Read | Load-bearing | Verdict |
 | --- | --- | --- | --- |
 | `commented-out-code` | 0 | n/a | n/a |
-| `docstring-exported-conventional` | 28 | | |
-| `docstring-unexported` | 46 | | |
-| `section-divider` | 9 | | |
-| `short-label` | 17 | | |
+| `docstring-exported-conventional` | 18 | | |
+| `docstring-unexported` | 40 | | |
+| `section-divider` | 13 | | |
+| `short-label` | 29 | | |
 
 ## Gate sample
 
-### 1. `cmd/web/adr0130_contract_test.go:29` — `section-divider`
+### 1. `cmd/web/addresscap_test.go:146-148` — `docstring-exported-conventional`
+
+Load-bearing: [ ]
+
+```go
+143 | 	}
+144 | }
+145 | 
+146 | // TestAddressCapControlPricesTheCost covers the Variant C readout on the Scans tab: the
+147 | // largest scope the cap admits, the per-cadence sweep load on each enabled address-scope
+148 | // scan, and the projected evidential disk growth.
+149 | func TestAddressCapControlPricesTheCost(t *testing.T) {
+150 | 	f := newFakeStore()
+151 | 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+```
+
+### 2. `cmd/web/adr0130_contract_test.go:29` — `section-divider`
 
 Load-bearing: [ ]
 
@@ -51,136 +69,35 @@ Load-bearing: [ ]
 32 | type contractPkg struct {
 ```
 
-### 2. `cmd/web/adr0130_contract_test.go:34-35` — `docstring-unexported`
+### 3. `cmd/web/adr0130_contract_test.go:31` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
+28 | 
+29 | // --- the source and the route table these guards read ----------------------
+30 | 
 31 | // contractPkg is cmd/web parsed from disk, minus the tests.
 32 | type contractPkg struct {
 33 | 	fset *token.FileSet
 34 | 	// methods maps a *server method name to its declaration. A handler, a helper and a
-35 | 	// renderer are all here; the guards tell them apart by name and by who calls whom.
-36 | 	methods map[string]*ast.FuncDecl
-37 | 	// funcs maps a package-level FUNCTION name to its declaration. The walk follows these
-38 | 	// too, because an answer written through a free function is the same answer: both
 ```
 
-### 3. `cmd/web/adr0130_contract_test.go:191-193` — `docstring-unexported`
+### 4. `cmd/web/adr0130_contract_test.go:225` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-188 | 	})
-189 | }
-190 | 
-191 | // calleesOf lists what fn calls on its live path, in source order: each *server method
-192 | // as "s.Name", each package-level function by its bare name, and each answer written
-193 | // straight to the ResponseWriter as "http.Error" or "http.Redirect".
-194 | func (c *contractPkg) calleesOf(fn *ast.FuncDecl) []string {
-195 | 	var out []string
-196 | 	inspectLive(fn, func(n ast.Node) bool {
+222 | 	return out
+223 | }
+224 | 
+225 | // decl resolves a callee name from calleesOf back to its declaration, method or function.
+226 | func (c *contractPkg) decl(name string) (*ast.FuncDecl, bool) {
+227 | 	if m, ok := strings.CutPrefix(name, "s."); ok {
+228 | 		fn, found := c.methods[m]
 ```
 
-### 4. `cmd/web/adr0130_contract_test.go:235-238` — `docstring-unexported`
-
-Load-bearing: [ ]
-
-```go
-232 | 	return fn, found
-233 | }
-234 | 
-235 | // reach walks the call graph out of a handler and calls visit on every body the handler
-236 | // can reach, itself included. Names are as calleesOf spells them ("s.Method", or a bare
-237 | // function name). stop names what the walk does not descend into, so a guard can treat a
-238 | // sanctioned answer as terminal.
-239 | func (c *contractPkg) reach(start string, stop map[string]bool, visit func(name string, fn *ast.FuncDecl)) {
-240 | 	seen := map[string]bool{}
-241 | 	var walk func(string)
-```
-
-### 5. `cmd/web/adr0130_contract_test.go:302` — `section-divider`
-
-Load-bearing: [ ]
-
-```go
-299 | 	return out
-300 | }
-301 | 
-302 | // --- class A: a refusal is a redirect, never a body ------------------------
-303 | 
-304 | // bodyAnswers are the calls that put a BODY on the response at the URL the form was
-305 | // posted to. The eight renders are the page templates; http.Error is the same failure in
-```
-
-### 6. `cmd/web/adr0130_contract_test.go:436-438` — `docstring-exported-conventional`
-
-Load-bearing: [ ]
-
-```go
-433 | 	}
-434 | }
-435 | 
-436 | // TestContractExemptionsAreLive keeps the three exemption lists honest. An entry naming a
-437 | // route the tree no longer serves, or an answer no handler makes any more, is deleted
-438 | // rather than left to imply a live exception.
-439 | func TestContractExemptionsAreLive(t *testing.T) {
-440 | 	c := parseWebPackage(t)
-441 | 	for _, m := range []map[string]string{classAExemptRoutes, classEExempt} {
-```
-
-### 7. `cmd/web/adr0130_contract_test.go:467` — `section-divider`
-
-Load-bearing: [ ]
-
-```go
-464 | 	}
-465 | }
-466 | 
-467 | // --- class E: a mutating act lands on the URL it was submitted from --------
-468 | 
-469 | // backHelpers are the sanctioned answers to a mutating act: each resolves the submitting
-470 | // URL off the posted `return` field (backurl.go resolveBack) and 303s to it, falling back
-```
-
-### 8. `cmd/web/adr0130_contract_test.go:594-602` — `docstring-exported-conventional`
-
-Load-bearing: [ ]
-
-```go
-591 | 
-592 | // --- the carrier: one refusal, shown once ----------------------------------
-593 | 
-594 | // TestTheSessionFormFlashIsSingleConsume pins the property every §1 landing depends on.
-595 | // A refusal is stashed once and read once. The read DELETES it, so the reload the
-596 | // operator performs — or the meta-refresh a Scans view performs for them while a scan is
-597 | // in flight — finds nothing and re-shows no callout they have already answered.
-598 | //
-599 | // The surface tests next door assert this end to end on /settings, /scope and /signals.
-600 | // This one asserts it at the store, where the property actually lives, so a change to
-601 | // the take path fails here with a one-line reason rather than as a puzzling body
-602 | // mismatch three files away.
-603 | func TestTheSessionFormFlashIsSingleConsume(t *testing.T) {
-604 | 	store := newFormFlashStore()
-605 | 	now := time.Now()
-```
-
-### 9. `cmd/web/annotations_test.go:274-275` — `docstring-unexported`
-
-Load-bearing: [ ]
-
-```go
-271 | 	return prgLanding(t, c, base, resp)
-272 | }
-273 | 
-274 | // annotateFrom declares an Annotation the way the drawer's form does: carrying the
-275 | // `return` field that names the exact URL the operator submitted from (backurl.go).
-276 | func annotateFrom(t *testing.T, c *http.Client, base, from, subject, signal, reason string) *http.Response {
-277 | 	t.Helper()
-278 | 	return postForm(t, c, base+"/annotations", url.Values{
-```
-
-### 10. `cmd/web/api_auth_test.go:39-40` — `docstring-unexported`
+### 5. `cmd/web/api_auth_test.go:39-40` — `docstring-unexported`
 
 Load-bearing: [ ]
 
@@ -195,77 +112,77 @@ Load-bearing: [ ]
 43 | 	f.instanceConfig = db.GetInstanceConfigRow{ApiEnabled: true}
 ```
 
-### 11. `cmd/web/auth_test.go:88` — `docstring-unexported`
+### 6. `cmd/web/auth_test.go:186` — `section-divider`
 
 Load-bearing: [ ]
 
 ```go
-85 | 	return acct
-86 | }
-87 | 
-88 | // login runs a password-only login and returns the authenticated client.
-89 | func login(t *testing.T, base, username, password string) *http.Client {
-90 | 	t.Helper()
-91 | 	c := newClient(t)
+183 | 	}
+184 | }
+185 | 
+186 | // --- login / session -------------------------------------------------------
+187 | 
+188 | func TestLoginAndSession(t *testing.T) {
+189 | 	f := newFakeStore()
 ```
 
-### 12. `cmd/web/auth_test.go:506` — `section-divider`
+### 7. `cmd/web/auth_test.go:299` — `section-divider`
 
 Load-bearing: [ ]
 
 ```go
-503 | 	}
-504 | }
-505 | 
-506 | // --- no forward-auth -------------------------------------------------------
-507 | 
-508 | func TestNoForwardAuthHeaderTrusted(t *testing.T) {
-509 | 	f := newFakeStore()
+296 | 	}
+297 | }
+298 | 
+299 | // --- permission check on the mutating endpoint -----------------------------
+300 | 
+301 | func TestViewerDeniedMutation(t *testing.T) {
+302 | 	f := newFakeStore()
 ```
 
-### 13. `cmd/web/backup_test.go:46` — `short-label`
+### 8. `cmd/web/auth_test.go:336` — `short-label`
 
 Load-bearing: [ ]
 
 ```go
-43 | 		case 0:
-44 | 			t.Errorf("table %q is neither in the backup allowlist nor the documented exclusions — classify it", tbl)
-45 | 		case 1:
-46 | 			// good
-47 | 		default:
-48 | 			t.Errorf("table %q is classified more than once (allowlist and/or exclusions)", tbl)
-49 | 		}
+333 | 		t.Fatalf("anon mutation: status=%d, want 303 to login", resp.StatusCode)
+334 | 	}
+335 | 
+336 | 	// An admin may perform it.
+337 | 	ac := login(t, base, "admin", "hunter2hunter2")
+338 | 	// The create is a post-redirect-get (ADR-0130 §3, #974): the confirmation line rides
+339 | 	// the session flash to the landing GET, so the 303 itself carries no body.
 ```
 
-### 14. `cmd/web/backup_test.go:269` — `short-label`
+### 9. `cmd/web/auth_test.go:361` — `section-divider`
 
 Load-bearing: [ ]
 
 ```go
-266 | 	seedAccount(t, f, "viewer", roleViewer, "hunter2hunter2")
-267 | 	base := start(t, f, "")
-268 | 
-269 | 	// Anonymous -> redirect to /login.
-270 | 	anon := newClient(t)
-271 | 	resp := postForm(t, anon, base+"/settings/backup", url.Values{})
-272 | 	resp.Body.Close()
+358 | 	}
+359 | }
+360 | 
+361 | // --- TOTP ------------------------------------------------------------------
+362 | 
+363 | // secretRE extracts the base32 secret from the frozen enroll screen's copy affordance
+364 | // (signin.tmpl: <span class="val">SECRET</span>). Screen 4's design-owned markup replaced the
 ```
 
-### 15. `cmd/web/backup_test.go:277` — `short-label`
+### 10. `cmd/web/backup_test.go:111` — `short-label`
 
 Load-bearing: [ ]
 
 ```go
-274 | 		t.Fatalf("anonymous backup: status=%d loc=%q, want 303 -> /login", resp.StatusCode, resp.Header.Get("Location"))
-275 | 	}
-276 | 
-277 | 	// Viewer -> 403.
-278 | 	vc := login(t, base, "viewer", "hunter2hunter2")
-279 | 	resp = postForm(t, vc, base+"/settings/backup", url.Values{})
-280 | 	resp.Body.Close()
+108 | 
+109 | 	sc := bufio.NewScanner(&buf)
+110 | 
+111 | 	// Line 1: manifest.
+112 | 	if !sc.Scan() {
+113 | 		t.Fatal("no manifest line")
+114 | 	}
 ```
 
-### 16. `cmd/web/backurl_test.go:263` — `docstring-unexported`
+### 11. `cmd/web/backurl_test.go:263` — `docstring-unexported`
 
 Load-bearing: [ ]
 
@@ -279,38 +196,21 @@ Load-bearing: [ ]
 266 | 	key := firstViewKey(t, list)
 ```
 
-### 17. `cmd/web/backurl_test.go:472-473` — `docstring-unexported`
+### 12. `cmd/web/backurl_test.go:268` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-469 | 	}
-470 | }
-471 | 
-472 | // firstViewKey pulls one row's Drawer key off a rendered Signals list, so a test can
-473 | // open a Drawer without hardcoding a minted SIG id.
-474 | func firstViewKey(t *testing.T, page string) string {
-475 | 	t.Helper()
-476 | 	// The row href is html-escaped, so the separator before `view=` reads `&amp;`.
+265 | 	list := getBody(t, ac, base+view, http.StatusOK)
+266 | 	key := firstViewKey(t, list)
+267 | 	drawer := getBody(t, ac, base+view+"&view="+url.QueryEscape(key), http.StatusOK)
+268 | 	// The query keeps its own order, and html/template escapes the `&` in an attribute.
+269 | 	const wantField = `name="return" value="/signals?tab=open&amp;q=lame&amp;view=`
+270 | 	if !strings.Contains(drawer, wantField) {
+271 | 		t.Errorf("the declare form carries no submitting-URL field starting %q; body: %s", wantField, drawer)
 ```
 
-### 18. `cmd/web/clientip_test.go:9-11` — `docstring-unexported`
-
-Load-bearing: [ ]
-
-```go
- 6 | 	"time"
- 7 | )
- 8 | 
- 9 | // reqWith builds a bare request carrying the given RemoteAddr and, when non-empty,
-10 | // a single X-Forwarded-For header — the two inputs clientIP derives the limiter key
-11 | // from.
-12 | func reqWith(remoteAddr, xff string) *http.Request {
-13 | 	r := &http.Request{RemoteAddr: remoteAddr, Header: http.Header{}}
-14 | 	if xff != "" {
-```
-
-### 19. `cmd/web/credflow_sessions_test.go:47-48` — `docstring-unexported`
+### 13. `cmd/web/credflow_sessions_test.go:47-48` — `docstring-unexported`
 
 Load-bearing: [ ]
 
@@ -325,130 +225,204 @@ Load-bearing: [ ]
 51 | 	resp, err := c.Get(base + "/profile")
 ```
 
-### 20. `cmd/web/devfixtures_test.go:116-121` — `docstring-exported-conventional`
+### 14. `cmd/web/custodycensus_test.go:61-63` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-113 | 	return f
-114 | }
-115 | 
-116 | // TestProfileFixtureMatchesPackage is the byte-exactness gate for the screen-3 seed: every
-117 | // value devfixtures.go pins is folded back through the frozen fixtures.json → profile slice
-118 | // (and the pinned clock), and the clock-relative / UA-derived renders are reproduced with
-119 | // the real formatters (relTime, sessionDeviceFromUA) — so any drift between the seeder and
-120 | // the frozen package fails here rather than in a screenshot, exactly as
-121 | // TestDevFixturesMatchPackage guards the ErrorPage slice.
-122 | func TestProfileFixtureMatchesPackage(t *testing.T) {
-123 | 	f := loadFixtureProfilePackage(t)
-124 | 	p := f.Profile
+58 | 	return der
+59 | }
+60 | 
+61 | // censusEstateFixture poses a custody-extended zone whose two in-zone names front two
+62 | // separate edges, and puts the `edge-fanout` Scan in force. The measurements are the
+63 | // caller's.
+64 | func censusEstateFixture(t *testing.T, f *fakeStore) {
+65 | 	t.Helper()
+66 | 	f.scans = append(f.scans, db.Scan{ID: 99, Kind: scan.EdgeFanoutKind, Enabled: true, CadenceSeconds: 86400})
 ```
 
-### 21. `cmd/web/devfixtures_test.go:443-445` — `docstring-unexported`
+### 15. `cmd/web/devfixtures_test.go:66-67` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-440 | 	}
-441 | }
-442 | 
-443 | // fixtureExposurePackage mirrors the fixtures.json exposure slice the screen-7 dev fixture pins
-444 | // in devfixtures.go (the summary band, the +2 exposed delta, the withheld variant and the six
-445 | // board rows).
-446 | type fixtureExposurePackage struct {
-447 | 	Exposure struct {
-448 | 		Exposed         int    `json:"exposed"`
+63 | 	}
+64 | }
+65 | 
+66 | // fixtureProfilePackage mirrors the design-owned fixtures.json → profile slice (plus the
+67 | // top-level clock) the screen-3 seeder pins in devfixtures.go.
+68 | type fixtureProfilePackage struct {
+69 | 	Clock   string `json:"clock"`
+70 | 	Profile struct {
 ```
 
-### 22. `cmd/web/devfixtures_test.go:464-468` — `docstring-exported-conventional`
+### 16. `cmd/web/devfixtures_test.go:134` — `short-label`
 
 Load-bearing: [ ]
 
 ```go
-461 | 	} `json:"exposure"`
-462 | }
-463 | 
-464 | // TestExposureFixtureMatchesPackage is the byte-exactness gate for the screen-7 conversion: every
-465 | // value the dev fixture pins (devfixtures.go, served by exposurePage under devMode) equals the
-466 | // frozen fixtures.json exposure slice, in authored order — so a drift between the served candidate
-467 | // and the golden (which composes the same fixture statically) fails here rather than in a
-468 | // screenshot diff, exactly as TestCoverageFixtureMatchesPackage guards the Coverage slice.
-469 | func TestExposureFixtureMatchesPackage(t *testing.T) {
-470 | 	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
-471 | 	if err != nil {
+131 | 		t.Fatalf("parse devFixtureClock: %v", err)
+132 | 	}
+133 | 
+134 | 	// Account.
+135 | 	if p.Account.Username != devProfileUsername {
+136 | 		t.Errorf("account username drift: %q vs %q", p.Account.Username, devProfileUsername)
+137 | 	}
 ```
 
-### 23. `cmd/web/devfixtures_test.go:924` — `short-label`
+### 17. `cmd/web/devfixtures_test.go:571` — `short-label`
 
 Load-bearing: [ ]
 
 ```go
-921 | 			r, devScopeRefusalPost, devScopeRefusalInput, devScopeRefusalReason, devScopeRefusalReachable, devScopeRefusalFormError)
-922 | 	}
-923 | 
-924 | 	// Custody.
-925 | 	if len(sc.CustodyScopes) != len(devScopeCustody) {
-926 | 		t.Fatalf("custody length drift: fixtures.json = %d, pinned = %d", len(sc.CustodyScopes), len(devScopeCustody))
-927 | 	}
+568 | 	}
+569 | 	d := f.Drift
+570 | 
+571 | 	// Trigger + tally scalars.
+572 | 	if d.Period != devDriftPeriod {
+573 | 		t.Errorf("period drift: fixtures.json = %q, pinned = %q", d.Period, devDriftPeriod)
+574 | 	}
 ```
 
-### 24. `cmd/web/devfixtures_test.go:979` — `short-label`
+### 18. `cmd/web/devfixtures_test.go:632` — `short-label`
 
 Load-bearing: [ ]
 
 ```go
-976 | 		}
-977 | 	}
-978 | 
-979 | 	// Proposals.
-980 | 	if len(sc.Proposals) != len(devScopeProposals) {
-981 | 		t.Fatalf("proposals length drift: fixtures.json = %d, pinned = %d", len(sc.Proposals), len(devScopeProposals))
-982 | 	}
+629 | 		}
+630 | 	}
+631 | 
+632 | 	// Movement map.
+633 | 	if len(d.Movement) != len(devDriftMovement) {
+634 | 		t.Fatalf("movement length drift: fixtures.json = %d, pinned = %d", len(d.Movement), len(devDriftMovement))
+635 | 	}
 ```
 
-### 25. `cmd/web/devfixtures_test.go:1137` — `short-label`
+### 19. `cmd/web/devfixtures_test.go:672-675` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-1134 | 		t.Errorf("history_rule missing pinned detecting vantage %q: %q", devSignalsDetectedBy, sig.HistoryRule)
-1135 | 	}
-1136 | 
-1137 | 	// Open rows.
-1138 | 	if len(sig.Rows) != len(devSignalsOpen) {
-1139 | 		t.Fatalf("open rows length drift: fixtures.json = %d, pinned = %d", len(sig.Rows), len(devSignalsOpen))
-1140 | 	}
+669 | 	}
+670 | }
+671 | 
+672 | // fixtureRunDetailPackage mirrors the fixtures.json rundetail slice the screen-9 dev fixture pins
+673 | // (devfixtures.go, served by runPage under devMode): the run header + Outcome figures, the four
+674 | // stages, the seven log lines, the nullable degraded callout, the five params and the three
+675 | // vantages. Snake_case JSON → the runView PascalCase the frozen rundetail.tmpl reads.
+676 | type fixtureRunDetailPackage struct {
+677 | 	RunDetail struct {
+678 | 		ID          string `json:"id"`
 ```
 
-### 26. `cmd/web/devfixtures_test.go:1145` — `short-label`
+### 20. `cmd/web/devfixtures_test.go:1101-1106` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
-1142 | 		assertSignalRow(t, "open", i, row, devSignalsOpen[i])
-1143 | 	}
-1144 | 
-1145 | 	// Withdrawn rows.
-1146 | 	if len(sig.Withdrawn) != len(devSignalsWithdrawn) {
-1147 | 		t.Fatalf("withdrawn rows length drift: fixtures.json = %d, pinned = %d", len(sig.Withdrawn), len(devSignalsWithdrawn))
-1148 | 	}
+1098 | 	}
+1099 | }
+1100 | 
+1101 | // TestSignalsFixtureMatchesPackage is the byte-exactness gate before the pixels: it folds the pinned
+1102 | // dev Signals fixture (cmd/web/devfixtures.go) back through the frozen design package
+1103 | // (design-system/fixtures/fixtures.json → signals) and fails the build on any divergence — the open
+1104 | // scalars, the ten open + three withdrawn rows (with rule metadata), the annotations, the drift
+1105 | // diffs, and the two span-history literals the derivation depends on. It guards the same seam
+1106 | // TestScopeFixtureMatchesPackage guards for Scope.
+1107 | func TestSignalsFixtureMatchesPackage(t *testing.T) {
+1108 | 	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
+1109 | 	if err != nil {
 ```
 
-### 27. `cmd/web/devfixtures_test.go:1373` — `docstring-unexported`
+### 21. `cmd/web/devfixtures_test.go:1249-1250` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-1370 | 	}
-1371 | }
-1372 | 
-1373 | // fixtureAssetPackage is the fixtures.json → asset slice, snake_case as stored.
-1374 | type fixtureAssetPackage struct {
-1375 | 	Asset struct {
-1376 | 		Key          string `json:"key"`
+1246 | 	} `json:"signals"`
+1247 | }
+1248 | 
+1249 | // dashCountedStr renders a fixtures.json coverage-meter counted RawMessage as the pinned string:
+1250 | // a JSON string is unquoted ("1,284"), a JSON number is used verbatim ("212").
+1251 | func dashCountedStr(raw json.RawMessage) string {
+1252 | 	s := strings.TrimSpace(string(raw))
+1253 | 	if len(s) >= 1 && s[0] == '"' {
 ```
 
-### 28. `cmd/web/handlers_test.go:269` — `docstring-unexported`
+### 22. `cmd/web/devfixtures_test.go:1726` — `short-label`
+
+Load-bearing: [ ]
+
+```go
+1723 | 	assertServiceFixture(t, "service", f.SubjectDetail.Service, devServiceData())
+1724 | 	assertServiceFixture(t, "service_withdrawn", f.SubjectDetail.ServiceWithdrawn, devServiceWithdrawnData())
+1725 | 
+1726 | 	// Endpoint.
+1727 | 	a, d := f.SubjectDetail.Endpoint, devEndpointData()
+1728 | 	if a.Key != d.Key || a.CopyKey != d.CopyKey || a.Nameless != d.Nameless || a.Withdrawn != d.Withdrawn ||
+1729 | 		a.Seen != d.Seen || a.InScopeSince != d.InScopeSince || a.CitationTerminated != d.CitationTerminated ||
+```
+
+### 23. `cmd/web/devfixtures_test.go:1764` — `docstring-unexported`
+
+Load-bearing: [ ]
+
+```go
+1761 | 	}
+1762 | }
+1763 | 
+1764 | // fixtureGraphPackage is the fixtures.json → graph slice, snake_case as stored.
+1765 | type fixtureGraphPackage struct {
+1766 | 	Graph struct {
+1767 | 		Empty bool `json:"empty"`
+```
+
+### 24. `cmd/web/error_test.go:12-14` — `docstring-exported-conventional`
+
+Load-bearing: [ ]
+
+```go
+ 9 | 	"testing"
+10 | )
+11 | 
+12 | // TestUnknownPathRendersNotFound proves an unmatched URL lands on the ported 404
+13 | // error page (not the scaffold's plain-text NotFound): status 404, an HTML page
+14 | // that names the state.
+15 | func TestUnknownPathRendersNotFound(t *testing.T) {
+16 | 	f := newFakeStore()
+17 | 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+```
+
+### 25. `cmd/web/exclusions_test.go:134` — `short-label`
+
+Load-bearing: [ ]
+
+```go
+131 | 
+132 | 	vc := login(t, base, "viewer", "hunter2hunter2")
+133 | 
+134 | 	// The viewer is denied both mutations.
+135 | 	resp := exclude(t, vc, base, "name", "nope.example.com")
+136 | 	resp.Body.Close()
+137 | 	if resp.StatusCode != http.StatusForbidden {
+```
+
+### 26. `cmd/web/handlers_test.go:29-30` — `docstring-unexported`
+
+Load-bearing: [ ]
+
+```go
+26 | 	"github.com/winniel123/verge-asm/internal/retention"
+27 | )
+28 | 
+29 | // fakeStore is an in-memory store used across the web handler tests, standing
+30 | // in for a live Postgres.
+31 | type fakeStore struct {
+32 | 	hb    db.Heartbeat
+33 | 	hbErr error
+```
+
+### 27. `cmd/web/handlers_test.go:269` — `docstring-unexported`
 
 Load-bearing: [ ]
 
@@ -462,36 +436,36 @@ Load-bearing: [ ]
 272 | 	createdBy int64
 ```
 
-### 29. `cmd/web/handlers_test.go:275-276` — `docstring-unexported`
+### 28. `cmd/web/handlers_test.go:368` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-272 | 	createdBy int64
-273 | }
-274 | 
-275 | // fakeChannel mirrors a channel row, secret included, so tests can assert the
-276 | // secret is stored but never surfaced through the render path.
-277 | type fakeChannel struct {
-278 | 	id                     int64
-279 | 	url                    string
+365 | 	return db.Transcript{}, pgx.ErrNoRows
+366 | }
+367 | 
+368 | // dispatchIdx finds the progress row for a dispatch id, or -1.
+369 | func (f *fakeStore) dispatchIdx(id int64) int {
+370 | 	for i := range f.dispatchProgress {
+371 | 		if f.dispatchProgress[i].DispatchID == id {
 ```
 
-### 30. `cmd/web/handlers_test.go:403` — `docstring-exported-conventional`
+### 29. `cmd/web/handlers_test.go:378-379` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
-400 | 	return n, nil
-401 | }
-402 | 
-403 | // SetDispatchStatus records a dispatch's operator-ended disposition.
-404 | func (f *fakeStore) SetDispatchStatus(_ context.Context, arg db.SetDispatchStatusParams) error {
-405 | 	if f.dispatchStatus == nil {
-406 | 		f.dispatchStatus = map[int64]string{}
+375 | 	return -1
+376 | }
+377 | 
+378 | // CancelReadyJobsForDispatch cancels the pending (ready) jobs of a dispatch — the stop
+379 | // act — moving that count into the cancelled bucket (ready → 0) and returning it.
+380 | func (f *fakeStore) CancelReadyJobsForDispatch(_ context.Context, dispatchID pgtype.Int8) (int64, error) {
+381 | 	i := f.dispatchIdx(dispatchID.Int64)
+382 | 	if i < 0 {
 ```
 
-### 31. `cmd/web/handlers_test.go:412` — `docstring-exported-conventional`
+### 30. `cmd/web/handlers_test.go:412` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
@@ -505,7 +479,51 @@ Load-bearing: [ ]
 415 | }
 ```
 
-### 32. `cmd/web/handlers_test.go:2347` — `docstring-unexported`
+### 31. `cmd/web/handlers_test.go:1025` — `short-label`
+
+Load-bearing: [ ]
+
+```go
+1022 | 
+1023 | func (f *fakeStore) ListAnnotations(context.Context) ([]db.Annotation, error) {
+1024 | 	rows := append([]db.Annotation(nil), f.annotations...)
+1025 | 	// ORDER BY signal_name, subject_key.
+1026 | 	sort.Slice(rows, func(i, j int) bool {
+1027 | 		if rows[i].SignalName != rows[j].SignalName {
+1028 | 			return rows[i].SignalName < rows[j].SignalName
+```
+
+### 32. `cmd/web/handlers_test.go:1100` — `short-label`
+
+Load-bearing: [ ]
+
+```go
+1097 | 
+1098 | func (f *fakeStore) ListMessages(context.Context) ([]db.Message, error) {
+1099 | 	out := make([]db.Message, len(f.messages))
+1100 | 	// Newest-first, mirroring ORDER BY id DESC.
+1101 | 	for i, m := range f.messages {
+1102 | 		out[len(f.messages)-1-i] = m
+1103 | 	}
+```
+
+### 33. `cmd/web/handlers_test.go:1349-1351` — `docstring-unexported`
+
+Load-bearing: [ ]
+
+```go
+1346 | 	return b.ID
+1347 | }
+1348 | 
+1349 | // addResolution records a resolution observation for a Name in a fresh batch of
+1350 | // the given scan kind, mirroring what the measurement worker writes. It is the
+1351 | // only seam the Subjects tests need to populate the estate.
+1352 | func (f *fakeStore) addResolution(t *testing.T, createdBy int64, name, scanKind string, at time.Time, value string) {
+1353 | 	t.Helper()
+1354 | 	b := f.freshBatch(scanKind, "resolution-walk")
+```
+
+### 34. `cmd/web/handlers_test.go:2347` — `docstring-unexported`
 
 Load-bearing: [ ]
 
@@ -519,51 +537,123 @@ Load-bearing: [ ]
 2350 | 		if fakeResolutionOutcome(o.Value) != "Resolved" {
 ```
 
-### 33. `cmd/web/handlers_test.go:3148-3149` — `docstring-unexported`
+### 35. `cmd/web/handlers_test.go:2439-2440` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-3145 | 	return ""
-3146 | }
-3147 | 
-3148 | // usernameForID resolves an account id to its username for the created-by join the
-3149 | // SSO list query performs; an unknown id renders empty (a test rarely asserts it).
-3150 | func (f *fakeStore) usernameForID(id int64) string {
-3151 | 	return f.accounts[id].Username
-3152 | }
+2436 | 	return db.Vantage{}
+2437 | }
+2438 | 
+2439 | // addClassResolution records a resolution observation at a Vantage of the given
+2440 | // class — the Signals reads need the class join the plain Subjects reads do not.
+2441 | func (f *fakeStore) addClassResolution(t *testing.T, name, class string, at time.Time, value string) {
+2442 | 	t.Helper()
+2443 | 	vid := f.vantageForClass(class)
 ```
 
-### 34. `cmd/web/integrations_channel_test.go:234` — `short-label`
+### 36. `cmd/web/handlers_test.go:2905` — `short-label`
 
 Load-bearing: [ ]
 
 ```go
-231 | 	base := start(t, f, "")
-232 | 	ac := login(t, base, "admin", "hunter2hunter2")
-233 | 
-234 | 	// Empty channel unbinds.
-235 | 	resp := postForm(t, ac, base+"/settings/integrations/channel", url.Values{"id": {"slack"}, "channel": {""}})
-236 | 	resp.Body.Close()
-237 | 	if st := f.integrationStates["slack"]; st.ChannelID.Valid {
+2902 | 
+2903 | func (f *fakeStore) ListReportDeliveries(_ context.Context, scheduleID int64) ([]db.ReportDelivery, error) {
+2904 | 	out := []db.ReportDelivery{}
+2905 | 	// Newest-first, mirroring ORDER BY id DESC.
+2906 | 	for i := len(f.reportDeliveries) - 1; i >= 0; i-- {
+2907 | 		if f.reportDeliveries[i].ScheduleID == scheduleID {
+2908 | 			out = append(out, f.reportDeliveries[i])
 ```
 
-### 35. `cmd/web/inventory_fixture_test.go:54-55` — `docstring-unexported`
+### 37. `cmd/web/handlers_test.go:3128-3129` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-51 | 	Data string `json:"data"`
-52 | }
-53 | 
-54 | // fixtureSpanRows builds the exact ListAllOpenSpansRow inputs the loader inserts,
-55 | // from the single-source-of-truth inventoryFixtureSpans slice.
-56 | func fixtureSpanRows(t *testing.T) []db.ListAllOpenSpansRow {
-57 | 	t.Helper()
-58 | 	rows := make([]db.ListAllOpenSpansRow, 0, len(inventoryFixtureSpans))
+3125 | 	return nil
+3126 | }
+3127 | 
+3128 | // ssoSlugForID / ssoNameForID resolve a provider id to its slug/name for the identity
+3129 | // join queries; an unknown id renders empty.
+3130 | func (f *fakeStore) ssoSlugForID(id int64) string {
+3131 | 	for _, p := range f.ssoProviders {
+3132 | 		if p.id == id {
 ```
 
-### 36. `cmd/web/onboarding_test.go:90` — `short-label`
+### 38. `cmd/web/hardening_test.go:142` — `short-label`
+
+Load-bearing: [ ]
+
+```go
+139 | 	if respA.StatusCode != http.StatusSeeOther || !hasCookie(cA, base, sessionCookie) {
+140 | 		t.Fatalf("first use of a valid code did not complete login: status=%d", respA.StatusCode)
+141 | 	}
+142 | 	// The replay watermark advanced.
+143 | 	if got := f.accounts[acct.ID]; !got.TotpLastStep.Valid || got.TotpLastStep.Int64 == 0 {
+144 | 		t.Fatalf("stored totp_last_step did not advance: %+v", got.TotpLastStep)
+145 | 	}
+```
+
+### 39. `cmd/web/integrations_channel_test.go:24-25` — `docstring-unexported`
+
+Load-bearing: [ ]
+
+```go
+21 | // (a reference, not a fold), and a "Send test" that POSTs a real payload through the
+22 | // bound Channel's transport. They run only when the surface is live (integrationsEnabled).
+23 | 
+24 | // fakeChannelSender is the test double for the Send-test egress seam: it records the
+25 | // call and returns a scripted status without ever touching the network.
+26 | type fakeChannelSender struct {
+27 | 	calls      int
+28 | 	lastURL    string
+```
+
+### 40. `cmd/web/integrations_test.go:250` — `short-label`
+
+Load-bearing: [ ]
+
+```go
+247 | 		}
+248 | 	}
+249 | 
+250 | 	// Install persists real state.
+251 | 	resp := postForm(t, ac, base+"/settings/integrations/install", url.Values{"slug": {"pagerduty"}})
+252 | 	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/settings?tab=integrations" {
+253 | 		t.Fatalf("install: status=%d loc=%q", resp.StatusCode, resp.Header.Get("Location"))
+```
+
+### 41. `cmd/web/messages_test.go:17-18` — `docstring-unexported`
+
+Load-bearing: [ ]
+
+```go
+14 | 	"github.com/winniel123/verge-asm/internal/message"
+15 | )
+16 | 
+17 | // putMessage inserts a computed message straight into the fake store, standing
+18 | // in for the cause path that would have written it.
+19 | func putMessage(t *testing.T, f *fakeStore, cause message.Cause, subjectKind, firedAt, headline string, census []byte) db.Message {
+20 | 	t.Helper()
+21 | 	m, err := f.InsertMessage(t.Context(), db.InsertMessageParams{
+```
+
+### 42. `cmd/web/onboarding_test.go:82` — `short-label`
+
+Load-bearing: [ ]
+
+```go
+79 | 		t.Fatalf("committed seed not carried forward; body: %s", cadence)
+80 | 	}
+81 | 
+82 | 	// Advance cadence -> channel.
+83 | 	channel := stepFollow(t, ac, base, url.Values{
+84 | 		"step": {"1"}, "action": {"next"}, "seeds": {"acmecorp.io"}, "profile": {"standard"}, "cad": {"Daily · 08:00"},
+85 | 	})
+```
+
+### 43. `cmd/web/onboarding_test.go:90` — `short-label`
 
 Load-bearing: [ ]
 
@@ -577,37 +667,7 @@ Load-bearing: [ ]
 93 | 		"channel": {"https://ops.example/hook"},
 ```
 
-### 37. `cmd/web/probers_test.go:24-25` — `docstring-unexported`
-
-Load-bearing: [ ]
-
-```go
-21 | 	})
-22 | }
-23 | 
-24 | // vantagesTab is the section's own URL, and the fallback destination of a provision
-25 | // submitted with no `return` field.
-26 | const vantagesTab = "/settings?tab=vantages"
-27 | 
-28 | // vantagesBody reads the Settings → Vantages tab, where prober provisioning + the
-```
-
-### 38. `cmd/web/profile_test.go:114-115` — `docstring-exported-conventional`
-
-Load-bearing: [ ]
-
-```go
-111 | 
-112 | // --- session registry fakes (#405, ADR-0117) -------------------------------
-113 | 
-114 | // CreateSession opens a session row: a monotonic id, now-stamped created_at and
-115 | // last_seen_at, and the caller's token hash / user-agent / ip / expiry.
-116 | func (f *fakeStore) CreateSession(_ context.Context, arg db.CreateSessionParams) (db.Session, error) {
-117 | 	if f.sessionNextID == 0 {
-118 | 		f.sessionNextID = 1
-```
-
-### 39. `cmd/web/profile_test.go:155-157` — `docstring-exported-conventional`
+### 44. `cmd/web/profile_test.go:155-157` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
@@ -623,22 +683,38 @@ Load-bearing: [ ]
 160 | 		if f.sessions[i].ID == arg.ID && f.sessions[i].AccountID == arg.AccountID && !f.sessions[i].RevokedAt.Valid {
 ```
 
-### 40. `cmd/web/profile_test.go:204-205` — `docstring-exported-conventional`
+### 45. `cmd/web/profile_test.go:192-194` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
-201 | 	return nil
-202 | }
-203 | 
-204 | // RevokeAllSessionsForAccount revokes every live session for the account with no
-205 | // exception — the reset path (no current session to keep) and admin offboarding.
-206 | func (f *fakeStore) RevokeAllSessionsForAccount(_ context.Context, arg db.RevokeAllSessionsForAccountParams) error {
-207 | 	for i := range f.sessions {
-208 | 		if f.sessions[i].AccountID == arg.AccountID && !f.sessions[i].RevokedAt.Valid {
+189 | 	return rows, nil
+190 | }
+191 | 
+192 | // RevokeOtherSessionsForAccount revokes every live session for the account EXCEPT the
+193 | // current one (arg.ID) — "sign out other devices" and the password-change invalidation.
+194 | // The acting session survives, mirroring the id <> $2 predicate.
+195 | func (f *fakeStore) RevokeOtherSessionsForAccount(_ context.Context, arg db.RevokeOtherSessionsForAccountParams) error {
+196 | 	for i := range f.sessions {
+197 | 		if f.sessions[i].AccountID == arg.AccountID && f.sessions[i].ID != arg.ID && !f.sessions[i].RevokedAt.Valid {
 ```
 
-### 41. `cmd/web/profile_test.go:255` — `section-divider`
+### 46. `cmd/web/profile_test.go:243-244` — `docstring-exported-conventional`
+
+Load-bearing: [ ]
+
+```go
+240 | 	return rows, nil
+241 | }
+242 | 
+243 | // RevokeSessionByIDForAdmin revokes any one live session by id, NOT owner-scoped — the
+244 | // admin single-revoke, gated by requireAdmin at the handler. Idempotent.
+245 | func (f *fakeStore) RevokeSessionByIDForAdmin(_ context.Context, arg db.RevokeSessionByIDForAdminParams) error {
+246 | 	for i := range f.sessions {
+247 | 		if f.sessions[i].ID == arg.ID && !f.sessions[i].RevokedAt.Valid {
+```
+
+### 47. `cmd/web/profile_test.go:255` — `section-divider`
 
 Load-bearing: [ ]
 
@@ -652,23 +728,7 @@ Load-bearing: [ ]
 258 | 	t.Helper()
 ```
 
-### 42. `cmd/web/proposals_test.go:20-22` — `docstring-unexported`
-
-Load-bearing: [ ]
-
-```go
-17 | 	"github.com/winniel123/verge-asm/internal/proposer"
-18 | )
-19 | 
-20 | // fakeProposer stands in for the real registry: it returns canned candidates and
-21 | // records the enabled set it was asked to run, so a test can assert that the
-22 | // source-enablement state gates which paths run without any network.
-23 | type fakeProposer struct {
-24 | 	candidates  []proposer.Candidate
-25 | 	err         error
-```
-
-### 43. `cmd/web/proposals_test.go:63-64` — `docstring-unexported`
+### 48. `cmd/web/proposals_test.go:63-64` — `docstring-unexported`
 
 Load-bearing: [ ]
 
@@ -683,52 +743,21 @@ Load-bearing: [ ]
 67 | 		{SourceSlug: proposer.SlugARIN, RecordKind: proposer.RecordRIRDelegation,
 ```
 
-### 44. `cmd/web/proposals_test.go:409-410` — `docstring-exported-conventional`
+### 49. `cmd/web/proposals_test.go:494` — `short-label`
 
 Load-bearing: [ ]
 
 ```go
-406 | 	}
-407 | }
-408 | 
-409 | // TestLookupGenuineMissStillReadsAsAMiss keeps the honest no-match message when
-410 | // the registries answered cleanly and simply held nothing.
-411 | func TestLookupGenuineMissStillReadsAsAMiss(t *testing.T) {
-412 | 	f := newFakeStore()
-413 | 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+491 | 			t.Errorf("viewer POST %s: status=%d, want 403", ep.path, resp.StatusCode)
+492 | 		}
+493 | 	}
+494 | 	// Nothing the viewer did changed state.
+495 | 	if len(f.seeds) != 0 {
+496 | 		t.Errorf("viewer opened the gate: seeds=%d", len(f.seeds))
+497 | 	}
 ```
 
-### 45. `cmd/web/ratelimit_test.go:47-48` — `docstring-exported-conventional`
-
-Load-bearing: [ ]
-
-```go
-44 | 	}
-45 | }
-46 | 
-47 | // TestLimiterResetOnSuccess covers the success path: a legitimate operator who
-48 | // mistyped a few times, then authenticated, starts clean.
-49 | func TestLimiterResetOnSuccess(t *testing.T) {
-50 | 	c := &steppableClock{t: time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)}
-51 | 	l := newTestLimiter(c)
-```
-
-### 46. `cmd/web/ratelimit_test.go:85-86` — `docstring-exported-conventional`
-
-Load-bearing: [ ]
-
-```go
-82 | 	}
-83 | }
-84 | 
-85 | // TestLimiterUnlocksAfterLockout covers recovery: once the lockout span elapses the
-86 | // key is usable again, so a locked-out operator is never locked out forever.
-87 | func TestLimiterUnlocksAfterLockout(t *testing.T) {
-88 | 	c := &steppableClock{t: time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)}
-89 | 	l := newTestLimiter(c)
-```
-
-### 47. `cmd/web/reports_test.go:507` — `short-label`
+### 50. `cmd/web/reports_test.go:507` — `short-label`
 
 Load-bearing: [ ]
 
@@ -742,166 +771,50 @@ Load-bearing: [ ]
 510 | 	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/reports" {
 ```
 
-### 48. `cmd/web/restore_test.go:17-19` — `docstring-unexported`
+### 51. `cmd/web/scans_test.go:459` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
-14 | 	"github.com/winniel123/verge-asm/internal/db"
-15 | )
-16 | 
-17 | // buildTestArchive assembles a B3-format archive with the real backup writers (round-trip
-18 | // against cmd/web/backup.go) at a chosen schema version, carrying the given span rows so a
-19 | // pre-flight has real subjects to count.
-20 | func buildTestArchive(t *testing.T, schemaVersion int64, spanRows []string) []byte {
-21 | 	t.Helper()
-22 | 	var buf bytes.Buffer
+456 | 	}
+457 | }
+458 | 
+459 | // TestDispatchBatchIDs collects the distinct valid batch ids a dispatch's jobs committed.
+460 | func TestDispatchBatchIDs(t *testing.T) {
+461 | 	rows := []db.ListJobsForDispatchRow{
+462 | 		{ID: 1, BatchID: pgtype.Int8{Int64: 1407, Valid: true}},
 ```
 
-### 49. `cmd/web/restore_test.go:65-66` — `docstring-exported-conventional`
+### 52. `cmd/web/scope_bulk_test.go:21` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-62 | 	}
-63 | }
-64 | 
-65 | // TestPreflightArchiveRejectsGarbage proves an unparseable upload is refused with nothing
-66 | // touched (the handler maps this to `.RestoreError`).
-67 | func TestPreflightArchiveRejectsGarbage(t *testing.T) {
-68 | 	if _, err := preflightArchive(strings.NewReader("this is not a verge archive\n")); err == nil {
-69 | 		t.Fatal("preflightArchive accepted garbage; want an error")
-```
-
-### 50. `cmd/web/restore_test.go:158-160` — `docstring-exported-conventional`
-
-Load-bearing: [ ]
-
-```go
-155 | 	return settingsForms{}
-156 | }
-157 | 
-158 | // TestRestorePreflightPassesGateWithoutPool proves that with no scan in flight an admin
-159 | // passes the gate and reaches the pool guard (503 off a pool), never a 403 — proof the
-160 | // refusal above was the in-flight check, not the admin gate.
-161 | func TestRestorePreflightPassesGateWithoutPool(t *testing.T) {
-162 | 	f := newFakeStore()
-163 | 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
-```
-
-### 51. `cmd/web/restore_test.go:199-202` — `docstring-exported-conventional`
-
-Load-bearing: [ ]
-
-```go
-196 | 	}
-197 | }
-198 | 
-199 | // TestRestoreApplyRequiresConfirmWord proves the apply never applies without the typed word
-200 | // `restore` (validated server-side, never trusting the JS gate): a wrong word refuses with
-201 | // nothing touched, and a correct word with no staged archive refuses as expired. Neither
-202 | // rotates the session key.
-203 | func TestRestoreApplyRequiresConfirmWord(t *testing.T) {
-204 | 	f := newFakeStore()
-205 | 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
-```
-
-### 52. `cmd/web/restore_test.go:286-287` — `docstring-exported-conventional`
-
-Load-bearing: [ ]
-
-```go
-283 | 	}
-284 | }
-285 | 
-286 | // TestRestoreErrorMessages proves every refusal code maps to a fixed operator line and an
-287 | // unknown code reflects nothing (no arbitrary query text on the page).
-288 | func TestRestoreErrorMessages(t *testing.T) {
-289 | 	for _, code := range []string{"inflight", "unreadable", "schema", "confirm", "expired", "apply"} {
-290 | 		if restoreErrorMessage(code) == "" {
-```
-
-### 53. `cmd/web/scans_test.go:383` — `docstring-unexported`
-
-Load-bearing: [ ]
-
-```go
-380 | 	}
-381 | }
-382 | 
-383 | // progressRow builds a ListDispatchProgressRow with the given per-state counts.
-384 | func progressRow(id int64, kind string, tick time.Time, total, ready, running, done, dead, retried int64) db.ListDispatchProgressRow {
-385 | 	return db.ListDispatchProgressRow{
-386 | 		DispatchID: id,
-```
-
-### 54. `cmd/web/scantrigger_test.go:39-41` — `docstring-unexported`
-
-Load-bearing: [ ]
-
-```go
-36 | 	return t.jobs, nil
-37 | }
-38 | 
-39 | // startWithTrigger is start with a scan-trigger seam wired in, the way main.go
-40 | // wires the real Dispatcher over the pool. Redirects are not followed so the
-41 | // test reads the 303 and its destination.
-42 | func startWithTrigger(t *testing.T, f *fakeStore, trig scanTrigger) string {
-43 | 	t.Helper()
-44 | 	srv := newServer(f, testKey, "", fixedClock())
-```
-
-### 55. `cmd/web/scope_bulk_test.go:15-19` — `docstring-exported-conventional`
-
-Load-bearing: [ ]
-
-```go
-12 | 	"testing"
-13 | )
-14 | 
-15 | // TestScopeAndOnboardingShareTokenizer proves the paste-split declare (DF-F1) and the
-16 | // onboarding seedsadd field tokenize an identical raw string identically — they call
-17 | // the ONE parseSeedTokens (cmd/web/onboarding.go), never a fork. The scope side is
 18 | // checked end-to-end (every valid token becomes a seed); the onboarding side through
 19 | // readOnboardView; and both are pinned to parseSeedTokens' own output.
 20 | func TestScopeAndOnboardingShareTokenizer(t *testing.T) {
 21 | 	// Commas, spaces, tabs and newlines all split; empty tokens (the double comma) drop.
 22 | 	const raw = "a.com, b.com\n c.com\td.com,,e.com"
-```
-
-### 56. `cmd/web/scope_bulk_test.go:25` — `short-label`
-
-Load-bearing: [ ]
-
-```go
-22 | 	const raw = "a.com, b.com\n c.com\td.com,,e.com"
 23 | 	want := []string{"a.com", "b.com", "c.com", "d.com", "e.com"}
 24 | 
-25 | 	// The shared tokenizer itself.
-26 | 	if got := parseSeedTokens(raw); !reflect.DeepEqual(got, want) {
-27 | 		t.Fatalf("parseSeedTokens(%q) = %v, want %v", raw, got, want)
-28 | 	}
 ```
 
-### 57. `cmd/web/scope_bulk_test.go:60-64` — `docstring-exported-conventional`
+### 53. `cmd/web/scope_bulk_test.go:202-203` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
-57 | 	}
-58 | }
-59 | 
-60 | // TestDeclareBulkPasteMixedSuccessRefusalDuplicate covers the DF-F1 paste with a mix of
-61 | // success, refusal, and a within-paste duplicate: two good names declare, the repeat of
-62 | // the first refuses `already declared` (the first wins), and an over-cap block refuses
-63 | // with its reachable set named. The response carries BOTH the success flash AND the
-64 | // per-token callouts on one render (status 200, since successes committed).
-65 | func TestDeclareBulkPasteMixedSuccessRefusalDuplicate(t *testing.T) {
-66 | 	f := newFakeStore()
-67 | 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+199 | 	}
+200 | }
+201 | 
+202 | // TestDeleteSeedWritesRemovalFlash: /seeds/delete names the removed scope in a flash
+203 | // (WORK-ORDER-DOGFOOD-R1 item 2).
+204 | func TestDeleteSeedWritesRemovalFlash(t *testing.T) {
+205 | 	f := newFakeStore()
+206 | 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 ```
 
-### 58. `cmd/web/scope_bulk_test.go:285` — `section-divider`
+### 54. `cmd/web/scope_bulk_test.go:285` — `section-divider`
 
 Load-bearing: [ ]
 
@@ -915,103 +828,164 @@ Load-bearing: [ ]
 288 | // declare endpoint.
 ```
 
-### 59. `cmd/web/scope_bulk_test.go:327-328` — `docstring-unexported`
+### 55. `cmd/web/scope_bulk_test.go:287-288` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-324 | 	return strconv.FormatInt(id, 10)
-325 | }
-326 | 
-327 | // followString GETs a URL and returns the body — used to read the destination page a
-328 | // PRG toast flash lands on.
-329 | func followString(t *testing.T, c *http.Client, url string) string {
-330 | 	t.Helper()
-331 | 	resp, err := c.Get(url)
+284 | 
+285 | // --- helpers ---------------------------------------------------------------
+286 | 
+287 | // declareScope posts a raw (possibly multi-token) scope string to the paste-split
+288 | // declare endpoint.
+289 | func declareScope(t *testing.T, c *http.Client, base, raw string) *http.Response {
+290 | 	t.Helper()
+291 | 	return postForm(t, c, base+"/seeds", url.Values{"scope": {raw}})
 ```
 
-### 60. `cmd/web/scope_withdrawal_preview_test.go:25` — `docstring-unexported`
+### 56. `cmd/web/settings_sessions_test.go:10-12` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-22 | 	return db.ListSeedWithdrawalCandidatesRow{ID: id, SubjectKind: kind, SubjectKey: key}
-23 | }
-24 | 
-25 | // previewChip clicks a chip's remove control and returns the landing GET's body.
-26 | func previewChip(t *testing.T, c *http.Client, base string, id int64) string {
-27 | 	t.Helper()
-28 | 	resp := postForm(t, c, base+"/seeds/preview", url.Values{"id": {intStr(id)}})
+ 7 | 	"testing"
+ 8 | )
+ 9 | 
+10 | // liveSessionID returns the id of an account's single live (unrevoked) session in the
+11 | // fake registry, failing the test if none is found. A signed-in account holds exactly
+12 | // one session per login client.
+13 | func liveSessionID(t *testing.T, f *fakeStore, accountID int64) int64 {
+14 | 	t.Helper()
+15 | 	for _, sess := range f.sessions {
 ```
 
-### 61. `cmd/web/session_test.go:149` — `short-label`
+### 57. `cmd/web/signals_test.go:560` — `short-label`
 
 Load-bearing: [ ]
 
 ```go
-146 | 		t.Fatal("both devices should be authed before any revoke")
-147 | 	}
-148 | 
-149 | 	// Device 1 ends its own session.
-150 | 	postForm(t, c1, base+"/profile/session/revoke", url.Values{}).Body.Close()
-151 | 
-152 | 	if authed(t, c1, base) {
+557 | 		t.Fatalf("want 2 instances (one per fired pair), got %d", len(insts))
+558 | 	}
+559 | 
+560 | 	// Severity ramp order: critical before medium.
+561 | 	crit := insts[0]
+562 | 	if crit.Signal != "sensitive-port-reached-from-internet" {
+563 | 		t.Fatalf("critical instance should sort first, got %q", crit.Signal)
 ```
 
-### 62. `cmd/web/settings_test.go:220` — `short-label`
+### 58. `cmd/web/signin_test.go:130` — `section-divider`
 
 Load-bearing: [ ]
 
 ```go
-217 | 		t.Fatalf("blank secret should keep existing; got %q", ch.secret.String)
-218 | 	}
-219 | 
-220 | 	// A typed value replaces it.
-221 | 	postForm(t, ac, base+"/settings/channels/update", url.Values{
-222 | 		"id": {idStr}, "url": {"https://b.example.com"}, "clock": {"on"}, "secret": {"second"},
-223 | 	}).Body.Close()
+127 | 	return pgx.ErrNoRows
+128 | }
+129 | 
+130 | // --- test seeding helpers ---------------------------------------------------
+131 | 
+132 | // serverClock is the instant start()'s fixed clock is pinned to; expiry seeding is
+133 | // relative to it so a test can mint a live or a deliberately stale grant.
 ```
 
-### 63. `cmd/web/settings_test.go:236` — `short-label`
+### 59. `cmd/web/signin_test.go:261` — `section-divider`
 
 Load-bearing: [ ]
 
 ```go
-233 | 		t.Fatalf("clear box should null the secret; got valid=%v", f.channels[0].secret.Valid)
-234 | 	}
-235 | 
-236 | 	// Delete removes the row.
-237 | 	postForm(t, ac, base+"/settings/channels/delete", url.Values{"id": {idStr}}).Body.Close()
-238 | 	if len(f.channels) != 0 {
-239 | 		t.Fatalf("channel not deleted; %d remain", len(f.channels))
+258 | 	}
+259 | }
+260 | 
+261 | // --- TOTP enrollment + recovery codes ---------------------------------------
+262 | 
+263 | // recoveryCodeRE matches a recovery code only inside its reveal span, so it counts
+264 | // the shown codes rather than any incidental text elsewhere on the page. Post-#338 a
 ```
 
-### 64. `cmd/web/settings_test.go:250` — `short-label`
+### 60. `cmd/web/signin_test.go:429` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-247 | 	base := start(t, f, "")
-248 | 	ac := login(t, base, "admin", "hunter2hunter2")
-249 | 
-250 | 	// Promote the viewer to admin.
-251 | 	postForm(t, ac, base+"/settings/accounts/role", url.Values{
-252 | 		"id": {itoa(viewer.ID)}, "role": {roleAdmin},
-253 | 	}).Body.Close()
+426 | 	}
+427 | }
+428 | 
+429 | // getAnon GETs a URL with no session and asserts the status, returning the body.
+430 | func getAnon(t *testing.T, url string, want int) string {
+431 | 	t.Helper()
+432 | 	resp, err := http.Get(url)
 ```
 
-### 65. `cmd/web/sources_test.go:331` — `section-divider`
+### 61. `cmd/web/sources_test.go:17` — `section-divider`
 
 Load-bearing: [ ]
 
 ```go
-328 | 	}
-329 | }
+14 | 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
+15 | )
+16 | 
+17 | // --- fakeStore source-state methods ----------------------------------------
+18 | 
+19 | func (f *fakeStore) ListSourceStates(context.Context) ([]db.SourceState, error) {
+20 | 	rows := make([]db.SourceState, 0, len(f.sourceStates))
+```
+
+### 62. `cmd/web/sources_test.go:333-334` — `docstring-unexported`
+
+Load-bearing: [ ]
+
+```go
 330 | 
 331 | // --- helpers ----------------------------------------------------------------
 332 | 
 333 | // sourcesTab is the Sources section's own tab, and the fallback destination of a toggle
 334 | // submitted with no `return` field (backToSection).
+335 | const sourcesTab = "/settings?tab=sources"
+336 | 
+337 | func toggleSourceReq(t *testing.T, c *http.Client, base, slug, enabled string) *http.Response {
+```
+
+### 63. `cmd/web/sources_test.go:366` — `short-label`
+
+Load-bearing: [ ]
+
+```go
+363 | 
+364 | 	page := sourcesBody(t, ac, base)
+365 | 
+366 | 	// Every catalogued source appears.
+367 | 	for _, c := range sourceCatalog {
+368 | 		if !strings.Contains(page, c.Name) {
+369 | 			t.Errorf("source %q missing from the modal", c.Name)
+```
+
+### 64. `cmd/web/sso_test.go:74` — `docstring-unexported`
+
+Load-bearing: [ ]
+
+```go
+71 | 	})
+72 | }
+73 | 
+74 | // stateFromRedirect parses the state parameter out of an IdP redirect Location.
+75 | func stateFromRedirect(t *testing.T, loc string) string {
+76 | 	t.Helper()
+77 | 	u, err := url.Parse(loc)
+```
+
+### 65. `cmd/web/sso_test.go:345-347` — `docstring-unexported`
+
+Load-bearing: [ ]
+
+```go
+342 | 	}
+343 | }
+344 | 
+345 | // ssoLinkFlow drives an authenticated Profile self-link end to end: the link start
+346 | // (303 to the IdP with a minted state) then the link callback echoing that state and a
+347 | // code. It returns the callback response for the caller to assert on.
+348 | func ssoLinkFlow(t *testing.T, ac *http.Client, base, slug string) *http.Response {
+349 | 	t.Helper()
+350 | 	r1, err := ac.Get(base + "/profile/sso/" + slug + "/link")
 ```
 
 ### 66. `cmd/web/sso_test.go:399` — `short-label`
@@ -1028,7 +1002,35 @@ Load-bearing: [ ]
 402 | 
 ```
 
-### 67. `cmd/worker/remoterouter_test.go:21` — `docstring-unexported`
+### 67. `cmd/web/vergecore_test.go:70` — `short-label`
+
+Load-bearing: [ ]
+
+```go
+67 | 		t.Errorf("added port not listed in the frequency half")
+68 | 	}
+69 | 
+70 | 	// Reset drops the delta row.
+71 | 	editFreq(t, ac, base, "reset", "12345").Body.Close()
+72 | 	if _, ok := f.freqEdits[12345]; ok {
+73 | 		t.Errorf("reset did not drop the edit row: %+v", f.freqEdits)
+```
+
+### 68. `cmd/web/zone_test.go:173` — `short-label`
+
+Load-bearing: [ ]
+
+```go
+170 | 		t.Errorf("default re-supply interval of 30 days not shown; body: %s", page)
+171 | 	}
+172 | 
+173 | 	// The operator moves the dial.
+174 | 	resp := postForm(t, ac, base+"/seeds/zone/interval", url.Values{"interval_days": {"7"}})
+175 | 	if resp.StatusCode != http.StatusSeeOther {
+176 | 		t.Fatalf("set interval: status=%d", resp.StatusCode)
+```
+
+### 69. `cmd/worker/remoterouter_test.go:21` — `docstring-unexported`
 
 Load-bearing: [ ]
 
@@ -1042,23 +1044,35 @@ Load-bearing: [ ]
 24 | 	err  error
 ```
 
-### 68. `design-system/console_tokens_test.go:27-29` — `docstring-unexported`
+### 70. `cmd/worker/remoterouter_test.go:104` — `short-label`
 
 Load-bearing: [ ]
 
 ```go
-24 | 	"--console-pill-warn-fg",
-25 | }
-26 | 
-27 | // Anchored per declaration rather than per file. A file-wide ban would fail the
-28 | // day settings.tmpl grows a tooltip or a bulk-actions bar, both of which are
-29 | // legitimate --surface-inverted callers.
-30 | var consoleDecls = []struct {
-31 | 	file   string
-32 | 	anchor string
+101 | 		stateDir: t.TempDir(),
+102 | 	}
+103 | 
+104 | 	// No vantage id at all.
+105 | 	if _, handled, err := rt.ProbeVantage(context.Background(), pgtype.Int8{}, wire.JobSpec{}); handled || err != nil {
+106 | 		t.Errorf("no-vantage: handled=%v err=%v, want deferred to local", handled, err)
+107 | 	}
 ```
 
-### 69. `design-system/designfs_test.go:8-10` — `docstring-exported-conventional`
+### 71. `cmd/worker/remoterouter_test.go:108` — `short-label`
+
+Load-bearing: [ ]
+
+```go
+105 | 	if _, handled, err := rt.ProbeVantage(context.Background(), pgtype.Int8{}, wire.JobSpec{}); handled || err != nil {
+106 | 		t.Errorf("no-vantage: handled=%v err=%v, want deferred to local", handled, err)
+107 | 	}
+108 | 	// Resolver-only vantage.
+109 | 	if _, handled, err := rt.ProbeVantage(context.Background(), pgtype.Int8{Int64: 1, Valid: true}, wire.JobSpec{}); handled || err != nil {
+110 | 		t.Errorf("resolver-only: handled=%v err=%v, want deferred to local", handled, err)
+111 | 	}
+```
+
+### 72. `design-system/designfs_test.go:8-10` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
@@ -1074,90 +1088,68 @@ Load-bearing: [ ]
 13 | 		"templates/inventory.tmpl",
 ```
 
-### 70. `internal/custody/corpus/harness_test.go:210-217` — `docstring-exported-conventional`
+### 73. `internal/auth/auth_test.go:183` — `short-label`
 
 Load-bearing: [ ]
 
 ```go
-207 | 	}
-208 | }
-209 | 
-210 | // TestFixtureStraddlesTheThreshold pins the two boundary fixtures against the
-211 | // SHIPPED constant. It is the first thing to go red on a threshold move, and its
-212 | // message is what tells the session what it owes.
-213 | //
-214 | // It also guards the fixture itself. The SAN sets reduce through the Public
-215 | // Suffix List, so a PSL revision that ever listed `invalid` would silently
-216 | // collapse both counts to zero and quietly turn both rows into `not-shared`. That
-217 | // failure arrives here, named, rather than as an unexplained digest move.
-218 | func TestFixtureStraddlesTheThreshold(t *testing.T) {
-219 | 	if atThreshold != custody.SharedEdgeThreshold {
-220 | 		t.Errorf("the corpus boundary is authored at %d and custody.SharedEdgeThreshold is %d.\n"+
+180 | 	if !VerifyTOTP(secret, code, now.Add(25*time.Second)) {
+181 | 		t.Fatal("code rejected inside skew window")
+182 | 	}
+183 | 	// Two steps away, rejected.
+184 | 	if VerifyTOTP(secret, code, now.Add(90*time.Second)) {
+185 | 		t.Fatal("stale code accepted well outside the window")
+186 | 	}
 ```
 
-### 71. `internal/custody/fanout_test.go:102-106` — `docstring-exported-conventional`
+### 74. `internal/custody/coverage_test.go:40` — `short-label`
 
 Load-bearing: [ ]
 
 ```go
- 99 | 	}
-100 | }
-101 | 
-102 | // TestDottedNumericSANsCannotInflateTheCount: a SAN set is third-party wire
-103 | // content and Go's x509 parser does not police a dNSName, so a bundle of
-104 | // dotted-numeric names must raise the fan-out by zero. Without the numeric-top
-105 | // drop the PSL's wildcard rule hands each one back a distinct nonsense eTLD+1
-106 | // and the count that gates the veto inflates on demand.
-107 | func TestDottedNumericSANsCannotInflateTheCount(t *testing.T) {
-108 | 	stuffed := make([]string, 0, 200)
-109 | 	for i := 0; i < 200; i++ {
+37 | func TestCoversAddressScopeRefusesExtension(t *testing.T) {
+38 | 	globallyReachable := netip.MustParseAddr("93.184.216.34")
+39 | 	e := Estate{
+40 | 		// No address scope covers the address...
+41 | 		AddressScopes: nil,
+42 | 		// ...but a custody extension does, via a resolution inside the extended zone.
+43 | 		ExtendedZones: []string{"example.com"},
 ```
 
-### 72. `internal/custody/gate_test.go:24-26` — `docstring-unexported`
+### 75. `internal/custody/gate_test.go:164-168` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
-21 | 	rate    string
-22 | }
-23 | 
-24 | // prober walks a probe plan and gates every connect. connect is the sole egress
-25 | // point; recording the attempt there is what makes "zero attempts" a fact about
-26 | // the gate rather than about the network.
-27 | type prober struct {
-28 | 	estate   Estate
-29 | 	attempts []probeAttempt
+161 | 	}
+162 | }
+163 | 
+164 | // TestQueryIsNotAConnect: the gate is over an active probe against an Address; it
+165 | // says nothing about resolution / dns-record, which run at full aperture on every
+166 | // Name regardless of custody. This test documents that boundary by asserting the
+167 | // gate is the only thing MayProbe governs — a third-party address returns false
+168 | // here, while the DNS facets (not gated by this package) are unaffected.
+169 | func TestQueryIsNotAConnect(t *testing.T) {
+170 | 	e := Estate{} // custody of nothing
+171 | 	if e.MayProbe(addr("52.1.2.3"), ClassInternet) {
 ```
 
-### 73. `internal/delivery/delivery_test.go:346` — `docstring-unexported`
+### 76. `internal/custody/veto_test.go:13-14` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-343 | 	return &http.Response{StatusCode: 200, Body: http.NoBody}, nil
-344 | }
-345 | 
-346 | // fakeResolver places a host in whatever range the test needs without real DNS.
-347 | type fakeResolver map[string][]netip.Addr
-348 | 
-349 | func (f fakeResolver) LookupNetIP(_ context.Context, _, host string) ([]netip.Addr, error) {
+10 | // from one would pass for the wrong reason.
+11 | var edge = netip.MustParseAddr("104.16.132.229")
+12 | 
+13 | // extended is one custody-extended zone whose in-zone name holds a direct A record on
+14 | // the edge — the exact shape the veto narrows.
+15 | func extended(f EdgeFanout) Estate {
+16 | 	return Estate{
+17 | 		ExtendedZones: []string{"example.com"},
 ```
 
-### 74. `internal/delivery/delivery_test.go:387` — `short-label`
-
-Load-bearing: [ ]
-
-```go
-384 | 		t.Fatal("doer.Do was called for the metadata literal")
-385 | 	}
-386 | 
-387 | 	// A public-resolving host still posts.
-388 | 	if _, err := r.send(context.Background(), "https://hooks.example/hook", body, nil); err != nil {
-389 | 		t.Fatalf("send to a public-resolving host errored: %v", err)
-390 | 	}
-```
-
-### 75. `internal/drift/trend_test.go:8-9` — `docstring-unexported`
+### 77. `internal/drift/trend_test.go:8-9` — `docstring-unexported`
 
 Load-bearing: [ ]
 
@@ -1172,242 +1164,184 @@ Load-bearing: [ ]
 12 | const week = 7 * 24 * time.Hour
 ```
 
-### 76. `internal/exposure/exposure_test.go:10` — `docstring-unexported`
+### 78. `internal/estate/withdrawal_test.go:77` — `short-label`
 
 Load-bearing: [ ]
 
 ```go
- 7 | 	"github.com/winniel123/verge-asm/internal/custody"
- 8 | )
- 9 | 
-10 | // valued is a shorthand for a leg holding a Reach value.
-11 | func valued(v ReachValue) Leg { return Leg{Status: LegValued, Value: v} }
-12 | 
-13 | // --- ComposeReach: the class-scoped existential quantifier (ADR-0080) -------
+74 | 		t.Error("cross-class disagreement keeps the Name present")
+75 | 	}
+76 | 
+77 | 	// Both classes agree on NameError: withdrawn.
+78 | 	est2 := Membership([]Observation{
+79 | 		{Name: "dead.example.com", Vantage: "in", Class: "internal", Resolution: ne},
+80 | 		{Name: "dead.example.com", Vantage: "out", Class: "internet", Resolution: ne},
 ```
 
-### 77. `internal/measure/connectoutcome/dialphase_test.go:14-19` — `docstring-exported-conventional`
+### 79. `internal/exposure/exposure_test.go:97` — `section-divider`
 
 Load-bearing: [ ]
 
 ```go
-11 | 	"testing"
-12 | )
-13 | 
-14 | // TestClassifyDialErrorSplitsThePhase pins the connect/handshake split a caller that
-15 | // dials an UNVERIFIED address depends on. One tls.Dialer covers both phases under one
-16 | // deadline, so the phase is read off the error's shape (a *net.OpError with Op "dial")
-17 | // and never guessed from its text. The outcome column is unchanged from the two-way
-18 | // classification the `certificate` facet has always used; only the unreachable column
-19 | // is new.
-20 | func TestClassifyDialErrorSplitsThePhase(t *testing.T) {
-21 | 	dialErr := func(inner error) error {
-22 | 		return &net.OpError{Op: "dial", Net: "tcp", Err: inner}
+ 94 | 	}
+ 95 | }
+ 96 | 
+ 97 | // --- VerifyClass: re-verified per batch against the presented address -------
+ 98 | 
+ 99 | // AC #196: Vantage class is re-verified every Batch against the PRESENTED
+100 | // address, not a static config field (CONTEXT.md `Vantage class`). The quantifier
 ```
 
-### 78. `internal/measure/connectoutcome/egressguard_test.go:39-40` — `docstring-exported-conventional`
+### 80. `internal/measure/edgefanout/leaf_test.go:30-31` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
-36 | 	}
-37 | }
-38 | 
-39 | // TestNetConnectorRejectsInvalidTarget pins the entry assertion: an invalid
-40 | // (zero) AddrPort is refused before any dial.
-41 | func TestNetConnectorRejectsInvalidTarget(t *testing.T) {
-42 | 	c := NetConnector{Timeout: 2 * time.Second}
-43 | 	if got := c.Connect(context.Background(), netip.AddrPort{}); got != ConnError {
+27 | 	return h.byTarget[target]
+28 | }
+29 | 
+30 | // TestFoldOutcomeSpace pins the closed union: a presented chain carries the leaf's
+31 | // fingerprint, and each of the three negatives carries its own value and NO fingerprint.
+32 | func TestFoldOutcomeSpace(t *testing.T) {
+33 | 	fp := co.Fingerprint(leafDER)
+34 | 	cases := []struct {
 ```
 
-### 79. `internal/measure/edgefanout/leaf_test.go:151-152` — `docstring-exported-conventional`
+### 81. `internal/qr/qr_test.go:62-63` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
-148 | 	}
-149 | }
-150 | 
-151 | // TestRunOneConnectPerAddress pins the run loop: one observation and one handshake per
-152 | // DISTINCT candidate, in first-seen order, with an unparseable address skipped.
-153 | func TestRunOneConnectPerAddress(t *testing.T) {
-154 | 	a := netip.MustParseAddrPort("198.51.100.7:443")
-155 | 	b := netip.MustParseAddrPort("203.0.113.9:443")
+59 | 	}
+60 | }
+61 | 
+62 | // TestChooseVersion checks the smallest fitting level-M byte-mode version at a
+63 | // few capacity boundaries.
+64 | func TestChooseVersion(t *testing.T) {
+65 | 	cases := []struct {
+66 | 		n, version int
 ```
 
-### 80. `internal/measure/resolutionwalk/leaf_test.go:8-9` — `docstring-unexported`
+### 82. `internal/queue/edgefanoutbench_test.go:59-60` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
- 5 | 	"testing"
- 6 | )
- 7 | 
- 8 | // mapPeer is a tiny scripted peer for the leaf's own unit tests: it answers by
- 9 | // (path, qtype, transport, edns, server), returning a silent Msg when unmatched.
-10 | type mapPeer struct {
-11 | 	fn func(Query) Msg
-12 | }
-```
-
-### 81. `internal/measure/resolutionwalk/ssrf_test.go:115-119` — `docstring-unexported`
-
-Load-bearing: [ ]
-
-```go
-112 | 	}
-113 | }
-114 | 
-115 | // rebindResolver starts an in-process UDP DNS server whose A answer flips from
-116 | // pub (first query) to priv (every later query), and returns a *net.Resolver
-117 | // wired to it. It models DNS rebinding: the pre-flight vet resolves the NS name
-118 | // and sees the public address, then the dial re-resolves the same name and gets
-119 | // the private one. AAAA queries answer empty, so only the A record decides.
-120 | func rebindResolver(t *testing.T, pub, priv netip.Addr) *net.Resolver {
-121 | 	t.Helper()
-122 | 	pc, err := net.ListenPacket("udp", "127.0.0.1:0")
-```
-
-### 82. `internal/proposer/proposer_test.go:15-17` — `docstring-unexported`
-
-Load-bearing: [ ]
-
-```go
-12 | 	"testing"
-13 | )
-14 | 
-15 | // fakeDoer answers requests from an in-memory map keyed by a substring of the
-16 | // URL, so no test touches the network. A request whose URL matches no route
-17 | // fails loudly, which is what proves the paths never reach a real endpoint.
-18 | type fakeDoer struct {
-19 | 	routes map[string]string // url substring -> body
-20 | 	calls  []string
-```
-
-### 83. `internal/queue/crtsh_test.go:126-129` — `docstring-exported-conventional`
-
-Load-bearing: [ ]
-
-```go
-123 | 	}
-124 | }
-125 | 
-126 | // TestCTFetchOutcome pins how a fetch result maps to the CT typed outcome (spec §1.2).
-127 | // A ctx-killed fetch reads as CTContextCancelled — never a fake transport error — even
-128 | // when the http client wraps context.Canceled in a *url.Error. A transport error before
-129 | // any status carries its text; any status the fetch returned rides CTHTTP, non-200 too.
-130 | func TestCTFetchOutcome(t *testing.T) {
-131 | 	// The http client returns ctx errors wrapped (e.g. *url.Error); ctFetchOutcome must
-132 | 	// see through the wrap, so test a wrapped context.Canceled and DeadlineExceeded.
-```
-
-### 84. `internal/queue/ctverify_test.go:65-66` — `docstring-unexported`
-
-Load-bearing: [ ]
-
-```go
-62 | 	return b.BytesOrPanic()
-63 | }
-64 | 
-65 | // leafIndexExtension builds a static-ct-api leaf_index CtExtensions block (type 0, 5-byte
-66 | // big-endian index) for a tiled SCT.
-67 | func leafIndexExtension(idx int64) []byte {
-68 | 	var b cryptobyte.Builder
-69 | 	b.AddUint8(0)
-```
-
-### 85. `internal/queue/edgefanoutbench_test.go:66-67` — `docstring-unexported`
-
-Load-bearing: [ ]
-
-```go
+56 | 	benchSharedSANs = 400
+57 | )
+58 | 
+59 | // benchSANShape is one of the two edges the benchmark contrasts: how many dNSName SANs
+60 | // one certificate carries, and the verdict custody.SharedEdge owes over that SAN set.
+61 | type benchSANShape struct {
+62 | 	name string
 63 | 	// sans is the count of dNSName SANs, each on its own registrable domain, so the
-64 | 	// fan-out count equals this value exactly.
-65 | 	sans int
-66 | 	// shared is the verdict the reduction must reach. benchCheckFixture asserts it,
-67 | 	// which is what holds the two counts either side of the shipped threshold.
-68 | 	shared bool
-69 | }
-70 | 
 ```
 
-### 86. `internal/queue/edgefanoutread_test.go:53-54` — `docstring-unexported`
+### 83. `internal/queue/membership_test.go:112` — `short-label`
 
 Load-bearing: [ ]
 
 ```go
-50 | 	return der
-51 | }
-52 | 
-53 | // distinctSANs returns n SANs on n distinct registrable domains, so the fan-out count
-54 | // equals n exactly.
-55 | func distinctSANs(n int) []string {
-56 | 	out := make([]string, 0, n)
-57 | 	for i := range n {
+109 | 			wantLeft:    false,
+110 | 		},
+111 | 		{
+112 | 			// stays: nothing to close.
+113 | 			name:     "no open spans cannot leave",
+114 | 			open:     nil,
+115 | 			wantLeft: false,
 ```
 
-### 87. `internal/queue/transcript_test.go:299` — `docstring-unexported`
+### 84. `internal/queue/transcript_test.go:17-19` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
-296 | 		t.Errorf("zone skips round-trip = %q, want %q", gotStdout, want)
-297 | 	}
-298 | 
-299 | 	// The restated count rides the outcome object.
-300 | 	var outcome map[string]any
-301 | 	if err := json.Unmarshal(params.Outcome, &outcome); err != nil {
-302 | 		t.Fatalf("unmarshal outcome %s: %v", params.Outcome, err)
+14 | // testKey is a fixed 32-byte XChaCha20-Poly1305 key for sealing in tests.
+15 | var testKey = bytes.Repeat([]byte{0x42}, 32)
+16 | 
+17 | // TestHeadTail checks the truncation math: a stream within the limit is returned
+18 | // whole with no drop; a stream over it keeps the head and tail halves and reports the
+19 | // exact dropped middle.
+20 | func TestHeadTail(t *testing.T) {
+21 | 	within := []byte("hello")
+22 | 	out, dropped := headTail(within, 10)
 ```
 
-### 88. `internal/remoteexec/probe_test.go:16-18` — `docstring-unexported`
+### 85. `internal/queue/transcript_test.go:149-150` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
-13 | 	"github.com/winniel123/verge-asm/internal/wire"
-14 | )
-15 | 
-16 | // fakeConn is an in-memory Conn: it answers each command from a table and records
+146 | 	}
+147 | }
+148 | 
+149 | // TestBuildProberParamsTruncation checks an over-cap stdout is head+tail truncated to
+150 | // its store cap and carries an accurate {kept, dropped} marker.
+151 | func TestBuildProberParamsTruncation(t *testing.T) {
+152 | 	big := bytes.Repeat([]byte("x"), capTranscriptStdout+100)
+153 | 	tr := wire.ProberTranscript{
+```
+
+### 86. `internal/queue/transcript_test.go:356-359` — `docstring-exported-conventional`
+
+Load-bearing: [ ]
+
+```go
+353 | 	}
+354 | }
+355 | 
+356 | // TestBuildCTParams checks a captured CT transcript maps to the row the worker inserts:
+357 | // variant is ct, the verbatim response body seals into the stdout role column and opens
+358 | // back, the request URL and status ride the outcome, and stderr/sent-scope stay NULL
+359 | // (streams the crt.sh producer does not carry).
+360 | func TestBuildCTParams(t *testing.T) {
+361 | 	capturedAt := time.Date(2026, 8, 31, 10, 0, 0, 0, time.UTC)
+362 | 	body := []byte(`[{"name_value":"a.example.com"},{"name_value":"b.example.com"}]`)
+```
+
+### 87. `internal/remoteexec/probe_test.go:20` — `docstring-unexported`
+
+Load-bearing: [ ]
+
+```go
 17 | // every command run, so the arch check, the push, the exec and the egress read are all
 18 | // exercised with no live SSH server.
 19 | type fakeConn struct {
 20 | 	// outputs maps an Output/rm command to its stdout.
 21 | 	outputs map[string]string
+22 | 	// execStdout is the NDJSON the exec of the pushed path writes back.
+23 | 	execStdout string
 ```
 
-### 89. `internal/remoteexec/probe_test.go:34` — `docstring-unexported`
+### 88. `internal/remoteexec/probe_test.go:22` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-31 | 	execErr error
-32 | 	// pushErr, if set, fails the `cat > …` push.
-33 | 	pushErr error
-34 | 	// remoteAddr is the transport peer address the dialled-address read observes.
-35 | 	remoteAddr net.Addr
-36 | 
-37 | 	ran      []string      // every cmd passed to Run
+19 | type fakeConn struct {
+20 | 	// outputs maps an Output/rm command to its stdout.
+21 | 	outputs map[string]string
+22 | 	// execStdout is the NDJSON the exec of the pushed path writes back.
+23 | 	execStdout string
+24 | 	// execStderr is the stderr the exec writes back (empty unless a crash is simulated).
+25 | 	execStderr string
 ```
 
-### 90. `internal/retention/observation_test.go:142-145` — `docstring-exported-conventional`
+### 89. `internal/remoteexec/probe_test.go:84` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-139 | 	}
-140 | }
-141 | 
-142 | // TestWithdrawnDialAlone proves the second exception: a withdrawn subject's
-143 | // timelines carry no floor at all, so the dial alone governs — a row that would be
-144 | // LIVE on an active subject is still retired once past the dial, and with an
-145 | // unbounded dial nothing is retired. (AC.)
-146 | func TestWithdrawnDialAlone(t *testing.T) {
-147 | 	bound := FloorCadences * monthly // a would-be-generous 60-day bound
-148 | 	dial := int64(3) * SecondsPerDay
+81 | 
+82 | func (c *fakeConn) Close() error { return nil }
+83 | 
+84 | // staticBinaries serves one arch's binary and refuses every other.
+85 | type staticBinaries struct {
+86 | 	goos, goarch string
+87 | 	body         string
 ```
 
-### 91. `internal/retention/observation_test.go:193` — `section-divider`
+### 90. `internal/retention/observation_test.go:193` — `section-divider`
 
 Load-bearing: [ ]
 
@@ -1421,54 +1355,51 @@ Load-bearing: [ ]
 196 | // the observation-only delete. It records the params so the sweep's dial-to-seconds
 ```
 
-### 92. `internal/retention/transcript_test.go:55-57` — `docstring-unexported`
+### 91. `internal/retention/retention_test.go:56-58` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-52 | 	}
-53 | }
-54 | 
-55 | // fakeTranscriptStore is the whole surface the TranscriptRetirer can reach. It has
-56 | // no Observation, Dispatch, Span or Batch method — the compiler will not let the
-57 | // retirer touch anything but the dial and the transcript delete.
-58 | type fakeTranscriptStore struct {
-59 | 	dial          int64
-60 | 	deleteCalled  bool
+53 | 	}
+54 | }
+55 | 
+56 | // fakeStore is the whole surface the Retirer can reach. It has no Observation,
+57 | // Span or Batch method — the compiler will not let retention code touch measured
+58 | // data through it, which is the separation AC proved structurally.
+59 | type fakeStore struct {
+60 | 	multiple      int64
+61 | 	cadence       int64
 ```
 
-### 93. `internal/scan/cold_test.go:14-16` — `docstring-unexported`
+### 92. `internal/scan/cttail_test.go:205` — `docstring-exported-conventional`
 
 Load-bearing: [ ]
 
 ```go
-11 | 	"github.com/winniel123/verge-asm/internal/vergecore"
-12 | )
-13 | 
-14 | // coldJobs collects the streamed cold fan-out into a slice for assertions. The
-15 | // builder yields one job per (Vantage, admitted address); collecting an empty
-16 | // sequence returns nil, so a nil check still reads as "no jobs".
-17 | func coldJobs(scanID int64, estate custody.Estate, addrs []netip.Addr, vantages []Vantage, scope ColdScope) []ColdJob {
-18 | 	return slices.Collect(BuildColdJobs(scanID, estate, slices.Values(addrs), vantages, scope))
-19 | }
+202 | 	}
+203 | }
+204 | 
+205 | // TestCTTailScopeRoundTrip confirms a job's wire scope decodes back to the log it names.
+206 | func TestCTTailScopeRoundTrip(t *testing.T) {
+207 | 	j := CTTailJob{ScanID: 7, Log: CTLog{LogID: "abc=", URL: "https://ct.example/log/", Description: "Example log"}}
+208 | 	spec, err := j.JobSpec("scan:7:log:abc=")
 ```
 
-### 94. `internal/scan/cttail_test.go:196-197` — `docstring-exported-conventional`
+### 93. `internal/scan/ctverify_test.go:114` — `section-divider`
 
 Load-bearing: [ ]
 
 ```go
-193 | 	}
-194 | }
-195 | 
-196 | // TestAdmitCTNamesEmptySeeds confirms that with no declared scope nothing is admitted —
-197 | // the tail reads the whole firehose and keeps only what a Seed covers.
-198 | func TestAdmitCTNamesEmptySeeds(t *testing.T) {
-199 | 	got := AdmitCTNames([]string{"www.example.com"}, nil)
-200 | 	if len(got) != 0 {
+111 | 	}
+112 | }
+113 | 
+114 | // --- precert TBS reconstruction ----------------------------------------------
+115 | 
+116 | // TestPrecertTBSRemovesSCTList builds two otherwise-identical certificates — one WITH an
+117 | // embedded SCT-list extension, one WITHOUT — and asserts PrecertTBS on the first yields the
 ```
 
-### 95. `internal/scan/ctverify_test.go:191` — `section-divider`
+### 94. `internal/scan/ctverify_test.go:191` — `section-divider`
 
 Load-bearing: [ ]
 
@@ -1482,37 +1413,64 @@ Load-bearing: [ ]
 194 | func buildSCT(logID [32]byte, timestamp uint64, extensions []byte) []byte {
 ```
 
-### 96. `internal/scan/ctverify_test.go:193` — `docstring-unexported`
+### 95. `internal/scan/ctverify_test.go:249` — `short-label`
 
 Load-bearing: [ ]
 
 ```go
-190 | 
-191 | // --- SCT parsing -------------------------------------------------------------
-192 | 
-193 | // buildSCT serializes a minimal SignedCertificateTimestamp for a round-trip test.
-194 | func buildSCT(logID [32]byte, timestamp uint64, extensions []byte) []byte {
-195 | 	var b cryptobyte.Builder
-196 | 	b.AddUint8(0) // v1
+246 | 	if !ok || got != idx {
+247 | 		t.Fatalf("SCTLeafIndex = %d, %v; want %d, true", got, ok, idx)
+248 | 	}
+249 | 	// No extensions => no leaf index.
+250 | 	if _, ok := SCTLeafIndex(nil); ok {
+251 | 		t.Fatal("empty extensions reported a leaf index")
+252 | 	}
 ```
 
-### 97. `internal/scan/hot_test.go:16-18` — `docstring-unexported`
+### 96. `internal/scan/ctverify_test.go:262-263` — `docstring-unexported`
 
 Load-bearing: [ ]
 
 ```go
-13 | 
-14 | func addr(s string) netip.Addr { return netip.MustParseAddr(s) }
-15 | 
-16 | // hotJobs collects the streamed hot fan-out into a slice for assertions. The
-17 | // builder yields one job per (Vantage, admitted address); collecting an empty
-18 | // sequence returns nil, so a nil check still reads as "no jobs".
-19 | func hotJobs(scanID int64, estate custody.Estate, addrs []netip.Addr, vantages []Vantage, core vergecore.List) []HotJob {
-20 | 	return slices.Collect(BuildHotJobs(scanID, estate, slices.Values(addrs), vantages, core))
-21 | }
+259 | 	logID[0] = 0x11
+260 | 	sct := buildSCT(logID, 42, nil)
+261 | 
+262 | 	// SignedCertificateTimestampList: opaque16 list of opaque16 SCTs, wrapped in a DER OCTET
+263 | 	// STRING — the shape EmbeddedSCTs unwraps.
+264 | 	var list cryptobyte.Builder
+265 | 	list.AddUint16LengthPrefixed(func(outer *cryptobyte.Builder) {
+266 | 		outer.AddUint16LengthPrefixed(func(one *cryptobyte.Builder) { one.AddBytes(sct) })
 ```
 
-### 98. `internal/signal/endpoint_test.go:5-6` — `docstring-unexported`
+### 97. `internal/scan/zone_test.go:206` — `short-label`
+
+Load-bearing: [ ]
+
+```go
+203 | 	if a := ZoneAgingAt(supply, almost, interval); a.Stale || a.Days != 1 {
+204 | 		t.Errorf("half a day from the gap should read 1d and current; got %+v", a)
+205 | 	}
+206 | 	// No supply: nothing to stale.
+207 | 	if a := ZoneAgingAt(time.Time{}, supply, interval); a.Supplied || a.Stale {
+208 | 		t.Errorf("an unsupplied scope has nothing to age; got %+v", a)
+209 | 	}
+```
+
+### 98. `internal/signal/rules_test.go:11` — `docstring-unexported`
+
+Load-bearing: [ ]
+
+```go
+ 8 | 	wd "github.com/winniel123/verge-asm/internal/measure/wildcarddiscrim"
+ 9 | )
+10 | 
+11 | // ruleByName finds a shipped rule by its name for the per-rule tests.
+12 | func ruleByName(t *testing.T, name string) Rule {
+13 | 	t.Helper()
+14 | 	for _, r := range All() {
+```
+
+### 99. `internal/signal/severity_test.go:5` — `docstring-unexported`
 
 Load-bearing: [ ]
 
@@ -1520,26 +1478,10 @@ Load-bearing: [ ]
 2 | 
 3 | import "testing"
 4 | 
-5 | // cb is a *bool literal — a read certificate attribute. A nil attribute means the
-6 | // datum was not read (not-evaluable); cb(false)/cb(true) are the two read verdicts.
-7 | func cb(b bool) *bool { return &b }
-8 | 
-9 | // presented builds an EndpointFacts with a presented certificate and the given
-```
-
-### 99. `internal/signal/rules_test.go:176-177` — `docstring-exported-conventional`
-
-Load-bearing: [ ]
-
-```go
-173 | 	}
-174 | }
-175 | 
-176 | // TestRuleNamesStable pins the five names — a rule is named for the fact it
-177 | // reads and its name fixes its domain, so a rename is a domain change.
-178 | func TestRuleNamesStable(t *testing.T) {
-179 | 	want := []string{
-180 | 		"lame-delegation",
+5 | // inRamp reports whether a severity is one of the five ramp levels.
+6 | func inRamp(s Severity) bool {
+7 | 	for _, sv := range SevOrder {
+8 | 		if sv == s {
 ```
 
 ### 100. `internal/transcript/crypto_test.go:9` — `docstring-unexported`
