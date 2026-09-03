@@ -10,10 +10,9 @@ const (
 	SignalToolMarker   = "tool-marker"
 )
 
+// Round 1 of the §3.9 gate surfaced load-bearing blocks carrying each form added here (#1136).
+
 var (
-	// Round 1 of the §3.9 gate failed both docstring classes on both
-	// populations, and every load-bearing block it surfaced carried one of the
-	// forms added here (#1136).
 	citationRe     = regexp.MustCompile(`(?i)\bADR-\d{4}\b|#\d+|§\s*\d|\bCONTEXT\.md\b|\bDF-[A-Z]\d+\b`)
 	externalSpecRe = regexp.MustCompile(`\bRFC\b|\bRFC\d+|\bIANA\b|\bX\.509\b|\bBCP\b|\bNIST\b|\bPKIX\b|\bISO\s+\d{4}\b`)
 	urlRe          = regexp.MustCompile(`\bhttps?://\S`)
@@ -35,8 +34,7 @@ func Signal(payload string) string {
 	case urlRe.MatchString(payload):
 		return SignalBareURL
 	case toolMarkerRe.MatchString(payload):
-		// pkg.go.dev, gopls and staticcheck read a `Deprecated:` paragraph, and
-		// §2.3's directive table never weighed it. §3.2 permits a widening.
+		// pkg.go.dev, gopls and staticcheck read a `Deprecated:` paragraph §2.3 never weighed (§3.2).
 		return SignalToolMarker
 	}
 	return ""
@@ -51,8 +49,7 @@ func HasExternalSpec(payload string) bool {
 }
 
 func HasWhyMarker(payload string) bool {
-	// The §3.2 word list is a floor. A revision may widen it. Narrowing it
-	// loses a reason permanently.
+	// The §3.2 word list is a floor: widening is safe, and narrowing loses a reason permanently.
 	return whyRe.MatchString(payload)
 }
 

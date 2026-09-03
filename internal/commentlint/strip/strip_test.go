@@ -206,8 +206,7 @@ func TestFileDeleteSemantics(t *testing.T) {
 }
 
 func TestStripOutputVerifiesAgainstItsInput(t *testing.T) {
-	// The §6.8 property test. A pass that moved a non-comment token would fail
-	// ruling 15 on the sweep PR.
+	// §6.8: a pass that moved a non-comment token would fail ruling 15 on the sweep PR.
 	for _, f := range fixtures {
 		t.Run(f.name, func(t *testing.T) {
 			res, err := File("p.go", []byte(f.src))
@@ -225,8 +224,7 @@ func TestStripOutputVerifiesAgainstItsInput(t *testing.T) {
 }
 
 func TestFileRefusesANonGoPath(t *testing.T) {
-	// §6.4 keeps the delete pass at Go in v1. A `strip` that silently does
-	// nothing is how a sweep agent believes a slice is done.
+	// §6.4 keeps the delete pass at Go in v1, and a silent no-op hides an undone slice.
 	cases := []struct {
 		path string
 		src  string

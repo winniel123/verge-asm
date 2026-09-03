@@ -33,8 +33,6 @@ func (l Lang) String() string {
 const DeleteRuleUnmeasured = "measured when the surface's sweep is scheduled (SPEC §6.5)"
 
 func (l Lang) DeleteRule() string {
-	// §6.5 holds one row per surface. Go and `.tmpl` are measured, and every
-	// other row lands when that surface's sweep does.
 	switch l {
 	case LangGo:
 		return "remove the block's own lines, then gofmt (SPEC §3.8)"
@@ -104,8 +102,7 @@ func (b Block) Lines() int {
 func (b Block) PayloadLines() []string {
 	text := b.Text
 	if b.Lang == LangTmpl {
-		// The block carries the action delimiters and an optional trim marker,
-		// and the payload is what sits inside the `/* */`.
+		// A template action carries an optional trim marker, so the payload is found, not trimmed.
 		if i := strings.Index(text, "/*"); i >= 0 {
 			text = text[i:]
 		}
@@ -126,8 +123,7 @@ func (b Block) PayloadLines() []string {
 		case line == "*":
 			line = ""
 		default:
-			// The trailing space keeps a dereference such as `*p = 1` whole,
-			// because only a decorative star carries one.
+			// Only a decorative star carries the trailing space, so `*p = 1` stays whole.
 			if rest, ok := strings.CutPrefix(line, "* "); ok {
 				line = rest
 			}
@@ -177,8 +173,7 @@ func LangOf(name string) (Lang, bool) {
 
 func For(name string) (Lexer, error) {
 	ext := strings.ToLower(path.Ext(name))
-	// §5.3: TypeScript generics look like JSX to a lexer, so the extension
-	// decides the lexer and the content never does.
+	// TypeScript generics look like JSX, so the extension decides the lexer (SPEC §5.3).
 	switch ext {
 	case ".go":
 		return Go{}, nil
@@ -187,8 +182,7 @@ func For(name string) (Lexer, error) {
 	case ".css":
 		return CSS{}, nil
 	case ".mjs", ".ts":
-		// esbuild erases a `.d.ts` file to the empty string, and 109 of the
-		// tree's 116 `.ts` files are `.d.ts` (SPEC §5.3).
+		// esbuild erases a `.d.ts` file, and 109 of the tree's 116 `.ts` files are `.d.ts` (§5.3).
 		return JS{}, nil
 	case ".jsx":
 		return JSX{Path: name}, nil

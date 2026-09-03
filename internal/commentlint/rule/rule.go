@@ -54,8 +54,7 @@ var (
 func Classify(b surface.Block) Class {
 	payload := b.Payload()
 	lines := b.PayloadLines()
-	// One class per block, by the §2.1 precedence order. The delete decision
-	// needs exactly one answer (SPEC §6.6).
+	// The delete decision needs exactly one answer, so precedence yields one class (SPEC §6.6).
 	switch {
 	case generatedRe.MatchString(payload):
 		return GeneratedHeader
@@ -68,9 +67,7 @@ func Classify(b surface.Block) Class {
 	case sectionDivider(lines):
 		return SectionDivider
 	}
-	// §2.1 rules 6 to 9 reach a package clause, a named identifier and a struct
-	// field. A `const (` opener or an import spec declares none of those, so it
-	// falls through to the content classes and an agent judges it.
+	// A const opener or an import spec names no identifier, so content classes decide it (§2.1).
 	if b.Declaration && !b.DeclGroup {
 		switch {
 		case b.PackageDoc:
@@ -111,9 +108,8 @@ func InDeleteSet(c Class) bool {
 	return deleteSet[c]
 }
 
-// DeleteSet lets the §3.9 gate name a class that no block reached, because a
-// class with no verdict is a hole in the gate rather than a pass.
 func DeleteSet() []Class {
+	// A class with no verdict is a hole in the §3.9 gate, never a pass.
 	out := make([]Class, 0, len(deleteSet))
 	for c := range deleteSet {
 		out = append(out, c)
@@ -123,8 +119,7 @@ func DeleteSet() []Class {
 }
 
 func Deletable(b surface.Block) (Class, string, bool) {
-	// §3.4 keeps every trailing comment with the agent, so a caller hands the
-	// delete pass own-line blocks alone.
+	// §3.4 keeps every trailing comment with the agent, so a caller hands own-line blocks alone.
 	c := Classify(b)
 	signal := screen.Signal(b.Payload())
 	// §3.6 reads `agent` in every non-Go cell, so v1 deletes on Go alone.
@@ -139,8 +134,7 @@ type Finding struct {
 
 func Lint(res surface.Result, testFile bool) []Finding {
 	var out []Finding
-	// Flagging is advisory, so a block that trips several rules reports each
-	// one (SPEC §6.6).
+	// Flagging is advisory, so a block that trips several rules reports each one (SPEC §6.6).
 	for _, b := range res.Blocks {
 		out = append(out, flags(b, false, testFile)...)
 	}
@@ -155,8 +149,7 @@ func flags(b surface.Block, trailing, testFile bool) []Finding {
 	if c == Directive || c == GeneratedHeader {
 		return nil
 	}
-	// Ruling 12 forbids the tool from guessing at intent, and both classes
-	// need intent to judge (SPEC §3.5).
+	// Both classes need intent to judge, and ruling 12 forbids guessing at it (SPEC §3.5).
 	if c == StepNarration || c == ProseOther {
 		return nil
 	}
@@ -165,14 +158,11 @@ func flags(b surface.Block, trailing, testFile bool) []Finding {
 	add := func(id string) {
 		out = append(out, Finding{Line: b.StartLine, Rule: id, Class: c})
 	}
-	// The id is the class name wherever a rule maps to a class (SPEC §6.6).
-	// Ratchet rule 2 is the only rule that reaches a trailing comment, and it
-	// reaches short-label alone (SPEC §3.5).
+	// Ratchet rule 2 is the only rule that reaches a trailing comment, and only short-label (§3.5).
 	if deleteSet[c] && (!trailing || c == ShortLabel) {
 		add(string(c))
 	}
-	// §4.8 keeps a package doc, and Go fixes it in declaration position, so
-	// ratchet rule 1 would flag a block the sweep must not move (#1138).
+	// §4.8 keeps a package doc where Go fixes it, so rule 1 must not flag it (#1138).
 	if b.Declaration && !trailing && !b.PackageDoc {
 		add(RuleGoDeclComment)
 	}
@@ -262,13 +252,11 @@ func commentedOutCode(lang surface.Lang, payload string, lines []string) bool {
 	if strings.TrimSpace(payload) == "" {
 		return false
 	}
-	// §6.6: off Go there is no parser, so the class is regex-only. `strip` is
-	// Go-only in v1, so the shape test never reaches a delete.
+	// Off Go there is no parser, and strip is Go-only, so no shape test reaches a delete (§6.6).
 	if lang != surface.LangGo {
 		return codeShape(lang, lines)
 	}
-	// The parse alone is not enough, because `see the note above` parses as an
-	// expression statement (SPEC §6.6).
+	// The parse alone is not enough: `see the note above` parses as an expression statement (§6.6).
 	return codeOnlyToken(payload) && parsesAsGo(payload)
 }
 
@@ -287,8 +275,7 @@ func codeShape(lang surface.Lang, lines []string) bool {
 	case surface.LangCSS:
 		opener = cssDeclRe
 	case surface.LangJS:
-		// JavaScript is case-sensitive, so the keyword test needs no `(?i)`
-		// and reads "If the value changes;" as prose.
+		// JavaScript is case-sensitive, so no `(?i)` here, and "If the value changes;" is prose.
 		opener = jsStatementRe
 	case surface.LangTmpl:
 		// A template line is markup or an action, and neither ends in a `;`.
@@ -300,8 +287,7 @@ func codeShape(lang surface.Lang, lines []string) bool {
 			continue
 		}
 		seen++
-		// The terminator test and the keyword test both bind, because either
-		// one alone reads ordinary prose as code (SPEC §6.6).
+		// Either test alone reads ordinary prose as code, so both bind (SPEC §6.6).
 		if !ender.MatchString(line) {
 			return false
 		}

@@ -58,8 +58,7 @@ func goScan(src []byte) ([]rawComment, []Token, error) {
 		if tok == token.EOF {
 			break
 		}
-		// A //line directive remaps the reported line, so every position
-		// this tool reports asks for the physical one (SPEC §2.3, #1133).
+		// A //line directive remaps the reported line, so this asks for the physical one (#1133).
 		line := file.PositionFor(pos, false).Line
 		if tok == token.COMMENT {
 			c := rawComment{
@@ -68,24 +67,20 @@ func goScan(src []byte) ([]rawComment, []Token, error) {
 				style:     StyleLine,
 				directive: goDirective(lit),
 			}
-			// go/scanner strips every carriage return from a comment literal,
-			// so the literal's length is not the source range (#1133).
+			// go/scanner strips a literal's carriage returns, so its length is not the range (#1133).
 			c.end = goCommentEnd(src, c.start)
 			c.text = string(src[c.start:c.end])
 			c.endLine = line + strings.Count(c.text, "\n")
 			if strings.HasPrefix(lit, "/*") {
 				c.style = StyleBlock
 			}
-			// go/scanner emits the automatic semicolon at the comment's own
-			// position, so a trailing comment shares a line with that token.
+			// go/scanner emits the auto-semicolon at the comment's own position, not the code's.
 			c.ownLine = lastCodeLine != line
 			comments = append(comments, c)
 			if c.directive {
 				skeleton = append(skeleton, Token{Kind: tok.String(), Text: lit, Line: line})
 			}
-			// A build constraint applies only when a blank line separates it
-			// from the package clause, so that blank line is part of the
-			// directive rather than layout (SPEC §5.1, #1133).
+			// A build constraint binds only above a blank line, so that line is directive (SPEC §5.1).
 			if goConstraint(lit) && blankLineFollows(src, c.end) {
 				skeleton = append(skeleton, Token{Kind: BlankLine, Line: c.endLine + 1})
 			}
@@ -197,8 +192,7 @@ func goDocSpans(src []byte) ([]span, error) {
 }
 
 func genDeclName(d *ast.GenDecl) string {
-	// go/ast hangs a one-spec decl's doc on the GenDecl, not on the spec, so
-	// the name a §2.1 rule 7 comparison needs sits one node down.
+	// go/ast hangs a one-spec decl's doc on the GenDecl, so the name sits one node down (§2.1).
 	if d.Lparen.IsValid() || len(d.Specs) != 1 {
 		return ""
 	}
@@ -220,8 +214,7 @@ func firstName(names []*ast.Ident) string {
 
 func spansHold(spans []span, start int) (span, bool) {
 	for _, s := range spans {
-		// go/ast reports a group's end from the carriage-return-stripped
-		// literal, so only the start offset is comparable (#1133).
+		// go/ast ends a group from the CR-stripped literal, so only the start offset compares (#1133).
 		if start >= s.start && start < s.end {
 			return s, true
 		}
