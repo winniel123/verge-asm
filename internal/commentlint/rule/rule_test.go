@@ -239,9 +239,14 @@ func TestLintReportsTheFlagSetByRuleID(t *testing.T) {
 			want: []string{"docstring-exported-conventional", "go-decl-comment"},
 		},
 		{
-			name: "a package doc reports the ratchet alone",
+			name: "a package doc is never flagged",
 			src:  "// Package p serves the estate.\npackage p\n",
-			want: []string{"go-decl-comment"},
+			want: nil,
+		},
+		{
+			name: "a doc on a struct field still reports the ratchet",
+			src:  "package p\n\ntype T struct {\n\t// F carries the estate.\n\tF int\n}\n",
+			want: []string{"docstring-exported-conventional", "go-decl-comment"},
 		},
 		{
 			name: "a trailing short label is flagged",

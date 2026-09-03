@@ -170,7 +170,9 @@ func flags(b surface.Block, trailing, testFile bool) []Finding {
 	if deleteSet[c] && (!trailing || c == ShortLabel) {
 		add(string(c))
 	}
-	if b.Declaration && !trailing {
+	// §4.8 keeps a package doc, and Go fixes it in declaration position, so
+	// ratchet rule 1 would flag a block the sweep must not move (#1138).
+	if b.Declaration && !trailing && !b.PackageDoc {
 		add(RuleGoDeclComment)
 	}
 	if c == ChangeNarration {
