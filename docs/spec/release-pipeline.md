@@ -2,7 +2,7 @@
 
 - **Status:** Accepted — spec content for [#1064](https://github.com/winniel123/verge-asm/issues/1064)
 - **Map:** [#1064 Release pipeline](https://github.com/winniel123/verge-asm/issues/1064), 25 closed tickets
-- **Rulings:** ADR-0138 (the build pins every byte, Build L2, the keyless anchor) and ADR-0139 (the pushed prober), plus an amendment each on [ADR-0001](../adr/0001-stack-and-runtime.md) and ADR-0124. See §18.
+- **Rulings:** [ADR-0138](../adr/0138-a-release-pins-every-byte-it-builds-so-it-delegates-no-build-step-and-anchors-identity-in-its-own-workflow.md) and [ADR-0139](../adr/0139-the-probers-origin-is-the-image-that-carries-it-and-a-host-bounds-the-binary-rather-than-verifies-it.md), plus an amendment each on [ADR-0001](../adr/0001-stack-and-runtime.md) and [ADR-0124](../adr/0124-a-backup-carries-data-and-no-secret-and-updating-is-guided-not-self-applied.md). See §18.
 
 This is a separate file from the ADRs that rule it, on
 [`packaging-and-configuration.md`](./packaging-and-configuration.md)'s precedent. **The tables
@@ -1762,10 +1762,10 @@ production Go code** ([#1240](https://github.com/winniel123/verge-asm/issues/124
 
 | Record | Subject | Source |
 | --- | --- | --- |
-| **ADR-0138** | *a release pins every byte it builds, so it delegates no build step, and its identity is the keyless anchor of its own workflow* | §2.3, §8.3, §7 |
-| **ADR-0139** | *the prober's origin is the image that carries it, and a host bounds the binary rather than verifies it* | §16 |
-| **amendment on ADR-0001** | the toolchain pins (§12) | #1081 |
-| **amendment on ADR-0124** | three bullets (§13.4, §1.3, §14.6) | #1071, #1129, #1161 |
+| [**ADR-0138**](../adr/0138-a-release-pins-every-byte-it-builds-so-it-delegates-no-build-step-and-anchors-identity-in-its-own-workflow.md) | *a release pins every byte it builds, so it delegates no build step, and its identity is the keyless anchor of its own workflow* | §2.3, §8.3, §7 |
+| [**ADR-0139**](../adr/0139-the-probers-origin-is-the-image-that-carries-it-and-a-host-bounds-the-binary-rather-than-verifies-it.md) | *the prober's origin is the image that carries it, and a host bounds the binary rather than verifies it* | §16 |
+| [**amendment on ADR-0001**](../adr/0001-stack-and-runtime.md) | the toolchain pins (§12) | #1081 |
+| [**amendment on ADR-0124**](../adr/0124-a-backup-carries-data-and-no-secret-and-updating-is-guided-not-self-applied.md) | three bullets (§13.4, §1.3, §14.6) | #1071, #1129, #1161 |
 
 **ADR-0138 has three sections**, one per side of one ruling. §1 the build pins and delegates
 nothing. §2 Build L2 and the L3 refusal. §3 the keyless anchor, and the `required_signatures`

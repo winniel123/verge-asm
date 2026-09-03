@@ -69,3 +69,63 @@ An update-check that fails loudly, retries, or blocks boot would make a self-hos
 | **The UI composes the upgrade shell commands itself** | Any command the UI assembles from its own logic or operator input is a command-injection surface over the host. The UI renders only the **literal** release-authored `.Steps[]`; it composes nothing |
 | **Mandatory, retrying update check** | Couples instance availability and boot to a third-party feed and denies an air-gapped operator a genuinely silent instance. Best-effort + opt-out keeps the signal and the silence both |
 | **Resurrect the pre-assigned ADR-0118** | That number was reused for report-scheduling ([ADR-0122](./0122-a-report-schedules-cadence-is-a-dispatch-time-so-it-honours-the-clock.md)) after #391's old map assigned it. Minting the fresh 0124 keeps the ADR log single-valued, per the map's numbering rule |
+
+## Amendment — [#1240](https://github.com/winniel123/verge-asm/issues/1240): three claims the release pipeline makes true, on §2's own subject
+
+The [#1064](https://github.com/winniel123/verge-asm/issues/1064) release-pipeline map closed 25
+tickets. Three of them land here, on §2's subject — *"the container reports its version, checks
+upstream best-effort."* **Nothing in this ADR's Decision moves.** Each bullet is a claim about the
+world that follows from §2 without an alternative having been rejected, which is what
+[ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)'s split
+makes an amendment rather than a withdrawal. Three bullets is size, not kind.
+
+This ADR's own Context names why the amendment sits here. A future session reading a feature name
+alone would reach for the obvious implementation and reintroduce a closed hole. *"Check for
+updates"* is such a name.
+
+**1. `.Steps[]` is never feed-delivered** ([#1071](https://github.com/winniel123/verge-asm/issues/1071)).
+§2 says the card renders the **literal**, release-authored host steps and that the UI composes
+nothing. A comment in the code promised a feed-delivered list at a later milestone. **That promise
+is struck, permanently.** The release feed is an external service, and a feed-delivered step list
+lets whoever controls the feed put arbitrary shell text in front of an admin, inside a panel that
+reads as authoritative. That is this ADR's refusal to let the UI compose a shell, with one more hop.
+
+The third line of the block also changes, to `docker compose ps web worker`. `web` gains **no**
+migration-status mode and the image gains **no** `verge` alias, because a running container has
+already applied every embedded migration and a status probe inside it can only answer "current".
+The open question after an upgrade is whether the new image landed and came up healthy.
+
+**2. The update check compares numeric cores, so it reports stable releases only**
+([#1129](https://github.com/winniel123/verge-asm/issues/1129)). The project cuts **no** pre-release
+tag, ever. `parseVersion` and `isNewer` gain no pre-release ordering, and the existing assertion
+that a release candidate is not newer than its final release is a deliberate contract rather than an
+oversight.
+
+A fork that repoints the feed to serve pre-releases gets **no defence**, deliberately. The default
+`/releases/latest` endpoint cannot serve one, and refusing a suffixed feed version would make verge
+silently ignore a fork's own shipped release.
+
+**The consequence is stated out loud rather than hidden: a source build is never told that a
+release shipped.** A hand-built binary carries no version the check can reason about, so
+`parseVersion` fails and the state stays `current`. That is §2's best-effort, no-false-alarm design
+working as specified. **A detector that flags an unparseable version as an unofficial build is
+refused**, because it teaches the UI a version grammar needed nowhere else.
+
+**3. A withdrawal acts through the feed, so it is invisible to an instance already running the
+withdrawn version** ([#1161](https://github.com/winniel123/verge-asm/issues/1161)). A bad release is
+repaired by the next patch version and contained by two reversible acts. Containment moves the
+feed's answer and the floating image tag. It never deletes a tag or a Release, because deletion
+breaks every published verify command and every pinned digest.
+
+An operator already running the withdrawn release sees `current` and is told nothing. Once the feed
+serves the older version again, the comparison is false and the state stays `current`. **The
+silence window is accepted, stated, and given no new signal**, because `isNewer` compares numeric
+cores only and has no vocabulary for "the version you run was withdrawn". The successor release
+closes the window. **So a withdrawal contains new installs only.**
+
+One further consequence of §2's guided-not-self-applied rule. The container calls `goose.Up` and
+nothing else, and no code path ever runs a down migration. **An image downgrade is therefore not a
+schema downgrade**, so each release states whether it carried a migration, and the migration case is
+a restore from the pre-upgrade dump rather than an image pin.
+
+`docs/spec/release-pipeline.md` §13, §1 and §14 state the mechanisms.
