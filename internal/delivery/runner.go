@@ -23,27 +23,15 @@ import (
 	"github.com/winniel123/verge-asm/internal/queue"
 )
 
-// Doer is the outbound HTTP surface, behind an interface so the runner is driven
-// by a fake in tests and never touches the live network. It is http.Client's
-// shape, so the production doer is a plain *http.Client.
 type Doer interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
-// NewHTTPDoer builds the production doer: an https client that REFUSES redirects
-// (a 3xx is a failure, never followed — it would move our attack surface to a
-// host the operator never declared, §4) and bounds every attempt with a timeout.
-//
-// Its dialer carries a Control hook that inspects the ACTUAL resolved address of
-// every connection and refuses to open the socket when it lands in a
-// non-globally-reachable range (#325). This is the rebinding-proof backstop to
-// the runner's resolve-and-check: Control runs after DNS resolution, on the very
-// address the kernel is about to connect to, so a name that flips from a public
-// to a private answer between the pre-flight check and the dial is still barred.
 func NewHTTPDoer() *http.Client {
 	dialer := &net.Dialer{
 		Timeout:   30 * time.Second,
 		KeepAlive: 30 * time.Second,
+		// Control runs after resolution, so a rebinding to a private answer is still barred (#325).
 		Control: func(_, address string, _ syscall.RawConn) error {
 			host, _, err := net.SplitHostPort(address)
 			if err != nil {
@@ -64,25 +52,17 @@ func NewHTTPDoer() *http.Client {
 	return &http.Client{
 		Timeout:   15 * time.Second,
 		Transport: transport,
+		// A followed 3xx would move our attack surface to a host the operator never declared (§4).
 		CheckRedirect: func(*http.Request, []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
 	}
 }
 
-// Resolver resolves a host to its IP addresses. *net.Resolver satisfies it (so
-// net.DefaultResolver is the production value); a test supplies a fake to place a host
-// in a private range without real DNS. It is exported so SendSigned — the shared
-// signed-POST transport the report notify runner also drives — can be handed the same
-// resolver the delivery Runner uses.
 type Resolver interface {
 	LookupNetIP(ctx context.Context, network, host string) ([]netip.Addr, error)
 }
 
-// Runner is the worker-side loop that drains routed deliveries off the queue and
-// POSTs each one, recording the outcome. It reuses the measurement queue's own
-// retry/backoff/dead-letter curve (queue.Backoff) rather than minting a second
-// schedule beside it.
 type Runner struct {
 	pool     *pgxpool.Pool
 	q        *db.Queries
@@ -103,14 +83,8 @@ func NewRunner(pool *pgxpool.Pool, doer Doer, now func() time.Time, baseURL stri
 	return &Runner{pool: pool, q: db.New(pool), doer: doer, now: now, baseURL: baseURL, log: logger, resolver: net.DefaultResolver}
 }
 
-// EnqueueForMessage routes a freshly-written Message to its Channels by class
-// alone and enqueues one pending Delivery per Channel that carries the class. It
-// is called at the cause, in the same act that writes the Message, so the body a
-// delivery later posts is read from the one stored computation and never
-// recomputed. Routing consults nothing but each Channel's class subset and
-// whether it is enabled (Routes); a disabled Channel is skipped and no Channel
-// ships configured, so a default install enqueues nothing.
 func EnqueueForMessage(ctx context.Context, q *db.Queries, messageID int64, class message.Class) (int, error) {
+	// A caller enqueues in the same act that writes the Message, so the body is never recomputed.
 	channels, err := q.ListChannels(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("delivery: list channels: %w", err)
@@ -128,12 +102,8 @@ func EnqueueForMessage(ctx context.Context, q *db.Queries, messageID int64, clas
 	return enqueued, nil
 }
 
-// Run drains routed deliveries, then polls on an interval until ctx is done.
-// Delivery has no LISTEN/NOTIFY of its own: a retried delivery is gated by
-// run_after (the shared backoff) and a freshly-routed one is picked up on the
-// next poll, so a short interval is ample for a corpus of one POST per message
-// per subscribed channel.
 func (r *Runner) Run(ctx context.Context, interval time.Duration) error {
+	// No LISTEN/NOTIFY here: run_after gates a retry and a poll picks up a fresh route.
 	if interval <= 0 {
 		interval = 5 * time.Second
 	}
@@ -163,9 +133,6 @@ func (r *Runner) Drain(ctx context.Context) error {
 	}
 }
 
-// RunOnce claims one pending delivery and posts it. It returns false when none is
-// claimable. A claimed delivery always reaches a terminal act — delivered,
-// retried, or dead-lettered — so it never sticks in 'sending'.
 func (r *Runner) RunOnce(ctx context.Context) (bool, error) {
 	claim, err := r.q.ClaimDelivery(ctx)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -210,13 +177,14 @@ func (r *Runner) post(ctx context.Context, claim db.ClaimDeliveryRow) error {
 	case VerdictRetry:
 		failure := deliveryError(statusCode, sendErr)
 		r.log.Printf("delivery: %d attempt %d failed, retrying: %s", claim.ID, claim.Attempt, failure)
+		// The measurement queue's curve is reused rather than a second schedule minted (#188).
 		return r.q.RetryDelivery(ctx, db.RetryDeliveryParams{
 			ID:        claim.ID,
 			Attempt:   claim.Attempt + 1,
 			RunAfter:  tstz(r.now().UTC().Add(queue.Backoff(claim.Attempt + 1))),
 			LastError: pgText(failure),
 		})
-	default: // VerdictUndelivered
+	default:
 		failure := deliveryError(statusCode, sendErr)
 		r.log.Printf("delivery: %d dead-lettered after %d attempts: %s", claim.ID, claim.Attempt, failure)
 		return r.q.MarkDeliveryUndelivered(ctx, db.MarkDeliveryUndeliveredParams{
@@ -225,20 +193,12 @@ func (r *Runner) post(ctx context.Context, claim db.ClaimDeliveryRow) error {
 	}
 }
 
-// send performs the POST and returns the status code (0 on a transport error). It
-// delegates to the shared SendSigned transport — the SSRF guard, request build and
-// POST live in one place, so the report notify runner rides the exact same path.
 func (r *Runner) send(ctx context.Context, targetURL string, body, secret []byte) (int, error) {
 	return SendSigned(ctx, r.doer, r.resolver, targetURL, body, secret, r.now().UTC())
 }
 
-// SendSigned is the shared signed-POST transport: it guards the target against
-// non-globally-reachable hosts (the SSRF check), builds the signed request, POSTs it,
-// and returns the status code (0 on a transport error or a refused target). It is the
-// ONE place the guard and request-build live, so both the delivery Runner and the
-// report notify runner send by identical rules. The response body is drained and
-// closed so the connection is reusable; its contents are never read.
 func SendSigned(ctx context.Context, doer Doer, res Resolver, targetURL string, body, secret []byte, now time.Time) (int, error) {
+	// The ONE place the guard and the request build live, so every sender sends by identical rules.
 	if err := guardTarget(ctx, res, targetURL); err != nil {
 		return 0, err
 	}
@@ -251,21 +211,13 @@ func SendSigned(ctx context.Context, doer Doer, res Resolver, targetURL string, 
 		return 0, err
 	}
 	defer resp.Body.Close()
+	// The body is drained so net/http can reuse the connection; its contents are never read.
 	_, _ = io.Copy(io.Discard, resp.Body)
 	return resp.StatusCode, nil
 }
 
-// guardTarget refuses a send whose target host resolves into a non-globally-reachable
-// range (#325). The settings validator bars internal IP LITERALS at configuration
-// time; this is the send-time complement that resolves the host, closing the two gaps
-// a literal-only config check leaves open: a hostname that points at an internal
-// service, and DNS rebinding of a host that was public when the channel was saved. An
-// IP-literal host resolves to itself, so a literal that slipped past an older config is
-// re-barred here. A refusal returns a transport-style error, so the send fails and
-// rides the same retry/dead-letter curve as any other failure — the body is never
-// POSTed. The dialer's Control hook (NewHTTPDoer) is the socket-level backstop for the
-// residual TOCTOU between this resolution and the actual connect.
 func guardTarget(ctx context.Context, res Resolver, targetURL string) error {
+	// The config-time check sees literals only, so a hostname or a rebinding is barred here (#325).
 	u, err := url.Parse(targetURL)
 	if err != nil {
 		return fmt.Errorf("parse target url: %w", err)
@@ -305,30 +257,19 @@ func firingFromRow(m db.GetMessageForDeliveryRow) Firing {
 	return f
 }
 
-// deliveryError renders the failure string stored on the delivery for the
-// channel-surface drill-down. A transport error carries its own message; a
-// non-2xx carries its status. A transport error's message is redacted first so
-// no credential-bearing target URL reaches the log line, the persisted
-// delivery.last_error, or the UI that renders it.
 func deliveryError(statusCode int, sendErr error) string {
+	// Redacting here covers all three sinks: the log line, delivery.last_error and the UI (#740).
 	if sendErr != nil {
 		return redactTransportError(sendErr)
 	}
 	return fmt.Sprintf("HTTP %d", statusCode)
 }
 
-// redactTransportError strips the target URL from a send failure. For a
-// no-secret Channel the credential IS the URL path (delivery.go), and Go's
-// http.Client.Do — like url.Parse — returns a *url.Error that embeds the URL
-// verbatim, so stringifying it would spill the secret into worker logs, the
-// delivery.last_error column, and the channel-surface drill-down, violating
-// ADR-0053's "web renders no secret value, ever" (#740). When the chain carries
-// a *url.Error we emit only its operation and underlying cause — never its URL —
-// preserving the useful, non-secret diagnostic; any other error carries no URL
-// and passes through unchanged.
 func redactTransportError(sendErr error) string {
 	var urlErr *url.Error
+	// For a no-secret Channel the credential is the URL path itself (ADR-0053, #740).
 	if errors.As(sendErr, &urlErr) {
+		// A *url.Error from http.Client.Do or url.Parse embeds the target URL verbatim.
 		if urlErr.Err != nil {
 			return fmt.Sprintf("%s: %s", urlErr.Op, urlErr.Err)
 		}

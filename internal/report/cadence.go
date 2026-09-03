@@ -1,10 +1,6 @@
-// Package report holds the on-cadence report machinery: the cadence→window
-// vocabulary a schedule dispatches on, the cron/preset next-fire evaluator that
-// decides *when* a schedule fires, and the Dispatcher that renders each due
-// schedule's artifact and stamps its in-instance receipt (#502/T3, #639/T?). It is
-// the report-side twin of package queue's measurement dispatch, and shares queue's
-// idempotency shape — a fire tick keys one run of a window, and a second poll inside
-// the window is a recorded skip rather than a second run.
+// Package report holds the on-cadence report machinery: the cadence-to-window
+// vocabulary, the cron and preset next-fire evaluator, and the dispatch that cuts
+// each due schedule's artifact and stamps its receipt (#502, ADR-0122, ADR-0039).
 package report
 
 import (
@@ -15,21 +11,10 @@ import (
 	"time"
 )
 
-// CadenceWindow is the period a run of a schedule covers, derived from the
-// schedule's stored cadence label: the run cuts the artifact for the window the
-// cadence implies (6h / daily / weekly / monthly), defaulting to a week for an
-// unrecognised label. It is the single source of truth for that mapping — both the
-// Run-now handler (cmd/web) and the on-cadence Dispatcher compute the same window
-// from this one function, so a scheduled run and a manual run of the same schedule
-// cover the same period.
-//
-// CadenceWindow is the artifact *period* (how much of the estate a run summarises),
-// which is deliberately kept SEPARATE from the *fire instant* (when a run happens) —
-// that latter is DispatchTick's job. A schedule fires at its declared clock time
-// (ADR-0122) but still summarises the coarse window its cadence names; the two
-// concerns are orthogonal and Run-now shares only the window mapping.
 func CadenceWindow(cadence string) time.Duration {
+	// One source for the mapping, so a manual Run-now and a scheduled run cover the same period.
 	c := strings.ToLower(cadence)
+	// The artifact period only; the fire instant is a separate concern (ADR-0122).
 	switch {
 	case strings.Contains(c, "6h"):
 		return 6 * time.Hour
@@ -42,40 +27,19 @@ func CadenceWindow(cadence string) time.Duration {
 	}
 }
 
-// Timezone: this build models no per-instance timezone (nothing in the schema or
-// config carries one; every stored instant is UTC — pgtype.Timestamptz, time.Now().
-// UTC()). A schedule's declared clock time is therefore interpreted in UTC, and
-// DispatchTick computes fire instants in UTC. When an instance timezone is ever
-// modelled, this is the one place that resolves the location.
-
-// DispatchTick returns the most recent instant at or before now on which the
-// schedule's cadence declares a firing — the "fire tick" — together with ok=false
-// when the cadence is uninterpretable (neither a known preset nor a parseable cron).
-//
-// It replaces the old epoch-floor scheduledTick: rather than flooring now to the
-// cadence *duration* from the Unix epoch (which fired "daily · 08:00" at ≈00:00 UTC,
-// never at 08:00), it honours the operator's declared clock time — presets to the
-// minute and Custom as a real 5-field cron expression (ADR-0122, superseding the
-// no-cron clauses of ADR-0118 §1). The idempotency shape is unchanged: the fire tick
-// is the value the dispatcher keys (schedule_id, scheduled_tick) on, so two poll
-// ticks between one firing and the next resolve to the same tick (a recorded skip),
-// and the tick advances only when the clock crosses the next declared firing. Missed
-// firings are not caught up — DispatchTick returns the single most-recent firing, so
-// a worker that was down over one is not backfilled (currency, not history), exactly
-// as the epoch floor and the queue dispatcher behave.
 func DispatchTick(now time.Time, cadence string) (time.Time, bool) {
+	// The preset and cron reading is ADR-0122, which supersedes ADR-0118 §1's no-cron clauses.
 	spec, err := cadenceSpec(cadence)
 	if err != nil {
 		return time.Time{}, false
 	}
+	// The dispatcher keys on this tick, so two polls between firings must resolve to one value.
+	// A missed firing is not backfilled: currency, not history.
 	return spec.prevFire(now.UTC())
 }
 
-// ValidateCron reports whether expr is a well-formed 5-field cron expression. It is
-// the guard the schedule create/edit wizard calls to REFUSE a Custom cadence whose
-// cron does not parse (ADR-0122) — an uninterpretable cadence is never persisted and
-// never silently coerced to a weekly default. nil means valid.
 func ValidateCron(expr string) error {
+	// The create/edit wizard refuses here rather than coercing to a weekly default (ADR-0122).
 	_, err := parseCron(expr)
 	return err
 }
@@ -110,7 +74,7 @@ func presetToCron(cadence string) (string, bool) {
 		if !hasClock {
 			hh, mm = 0, 0
 		}
-		dow := 1 // default Monday
+		dow := 1
 		for name, n := range weekdays {
 			if strings.Contains(c, name) {
 				dow = n
@@ -122,7 +86,7 @@ func presetToCron(cadence string) (string, bool) {
 		if !hasClock {
 			hh, mm = 0, 0
 		}
-		dom := 1 // default 1st
+		dom := 1
 		if m := reOrdinal.FindStringSubmatch(c); m != nil {
 			if n, err := strconv.Atoi(m[1]); err == nil && n >= 1 && n <= 31 {
 				dom = n
@@ -152,12 +116,6 @@ type cronSpec struct {
 	dowRestricted              bool
 }
 
-// parseCron parses a 5-field cron expression (minute hour day-of-month month
-// day-of-week). It supports "*", single values, comma lists, ranges "a-b", and steps
-// "*/n" and "a-b/n" (and "a/n" = a-to-max step n). Day-of-week accepts 0–7 with both
-// 0 and 7 meaning Sunday. A malformed expression — wrong field count, out-of-range
-// value, or unparseable token — is an error; the create/edit wizard rejects it via
-// ValidateCron so it never reaches the dispatcher.
 func parseCron(expr string) (cronSpec, error) {
 	fields := strings.Fields(strings.TrimSpace(expr))
 	if len(fields) != 5 {
@@ -177,8 +135,7 @@ func parseCron(expr string) (cronSpec, error) {
 	if s.month, _, err = parseField(fields[3], 1, 12, nil); err != nil {
 		return cronSpec{}, fmt.Errorf("cron month: %w", err)
 	}
-	// Day-of-week ranges over 0–7 for validation (both 0 and 7 spell Sunday);
-	// normalizeDOW folds 7 onto 0 so the mask only ever carries bits 0–6.
+	// Cron spells Sunday as both 0 and 7, so the mask folds 7 onto 0.
 	if s.dow, s.dowRestricted, err = parseField(fields[4], 0, 7, normalizeDOW); err != nil {
 		return cronSpec{}, fmt.Errorf("cron day-of-week: %w", err)
 	}
@@ -241,7 +198,8 @@ func parsePart(part string, min, max int) (lo, hi, step int, err error) {
 			return 0, 0, 0, fmt.Errorf("bad value in %q", part)
 		}
 		if strings.IndexByte(part, '/') >= 0 {
-			hi = max // "a/n" means a..max step n
+			// Cron reads "a/n" as a-to-max with step n, so the range is open-ended.
+			hi = max
 		} else {
 			hi = lo
 		}
@@ -278,14 +236,10 @@ func (s cronSpec) dayMatches(t time.Time) bool {
 	}
 }
 
-// prevFire returns the most recent minute at or before now (UTC, truncated to the
-// minute) whose calendar day and clock time both satisfy the spec, together with
-// ok=false when no firing exists within a year's lookback (a spec that never matches,
-// e.g. an impossible day-of-month in every month). It walks calendar days backwards
-// (cheap: a daily fire is found on day 0, weekly within 7, monthly within ~31), and
-// on each matching day scans that day's minutes back from the cutoff.
 func (s cronSpec) prevFire(now time.Time) (time.Time, bool) {
+	// No per-instance timezone is modelled, so every declared clock time is UTC.
 	now = now.UTC().Truncate(time.Minute)
+	// 400 days covers every matchable calendar pattern, so a spec that never matches terminates.
 	for d := 0; d <= 400; d++ {
 		day := now.AddDate(0, 0, -d)
 		if !s.dayMatches(day) {

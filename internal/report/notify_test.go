@@ -19,18 +19,14 @@ import (
 var periodStart = time.Date(2026, 8, 15, 0, 0, 0, 0, time.UTC)
 var periodEnd = time.Date(2026, 8, 22, 0, 0, 0, 0, time.UTC)
 
-// AC (ADR-0039 hard guard): the ready-message body carries ONLY the report name, the
-// run period, the link and the kind — NO estate. No signal, subject, withdrawal,
-// census, headline or row of any kind may appear in the marshalled document. This is
-// the whole point of a distinct minimal body rather than reusing delivery.BuildBody.
 func TestReadyBodyCarriesNoEstate(t *testing.T) {
+	// ADR-0039's hard guard: no signal, subject, withdrawal, census, headline or row may appear.
 	raw, err := MarshalReadyBody(BuildReadyBody("Weekly exposure summary", periodStart, periodEnd, "https://verge.example"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	doc := string(raw)
 
-	// Not one estate word may appear anywhere in the body.
 	for _, forbidden := range []string{
 		"signal", "subject", "withdraw", "census", "headline", "asset",
 		"service", "address", "severity", "entries", "rows", "cause", "class",
@@ -69,8 +65,6 @@ func TestReadyBodyCarriesNoEstate(t *testing.T) {
 	}
 }
 
-// AC: the link is baseURL + /reports/delivery, with the base's trailing slash trimmed;
-// an empty base still sends, with the bare path (mirroring the delivery runner).
 func TestReadyBodyLink(t *testing.T) {
 	cases := []struct{ base, want string }{
 		{"https://verge.example", "https://verge.example/reports/delivery"},
@@ -85,9 +79,6 @@ func TestReadyBodyLink(t *testing.T) {
 	}
 }
 
-// AC: a schedule WITH a channel enqueues (shouldNotify true); a schedule with a NULL
-// channel enqueues NONE (shouldNotify false). This is the whole enqueue decision the
-// dispatcher makes per won tick.
 func TestShouldNotifyOnlyWhenChannelBound(t *testing.T) {
 	if !shouldNotify(pgtype.Int8{Int64: 7, Valid: true}) {
 		t.Error("a schedule bound to a channel should enqueue a notification")
@@ -97,13 +88,8 @@ func TestShouldNotifyOnlyWhenChannelBound(t *testing.T) {
 	}
 }
 
-// AC: the exact bytes posted to the Channel are the bytes that were signed, they carry
-// no estate, and a 2xx classifies as delivered (the receipt-flip branch). Driven end to
-// end through the shared SendSigned transport with a fake doer — no live network.
 func TestNotifyPostsSignedReadyBodyDelivered(t *testing.T) {
-	// A neutral name: an operator name may legitimately contain an estate word (e.g.
-	// "signals digest"), so the post-round-trip leak check below uses a clean one — the
-	// no-estate guarantee itself is asserted structurally in TestReadyBodyCarriesNoEstate.
+	// An operator name may legitimately hold an estate word, so the leak check needs a clean one.
 	body, err := MarshalReadyBody(BuildReadyBody("Weekly exposure summary", periodStart, periodEnd, "https://verge.example"))
 	if err != nil {
 		t.Fatal(err)
@@ -123,7 +109,6 @@ func TestNotifyPostsSignedReadyBodyDelivered(t *testing.T) {
 	if string(fake.body) != string(body) {
 		t.Errorf("posted body differs from signed body:\n got %s\nwant %s", fake.body, body)
 	}
-	// The posted body still carries no estate after the round trip.
 	if strings.Contains(strings.ToLower(string(fake.body)), "signal") {
 		t.Errorf("posted body leaked estate: %s", fake.body)
 	}
@@ -133,13 +118,9 @@ func TestNotifyPostsSignedReadyBodyDelivered(t *testing.T) {
 	}
 }
 
-// AC: the outcome fork is the shared delivery.Decide over Delivered(status) — a 2xx
-// delivers (the caller flips the receipt), a non-2xx retries while attempts remain and,
-// past the budget, dead-letters (the caller leaves the receipt 'generated', artifact
-// still viewable). Notifications start at attempt 0, so with max 5 the first five
-// failures retry and the sixth dead-letters.
 func TestNotifyOutcomeForkRetriesThenDeadLetters(t *testing.T) {
 	const max = int32(5)
+	// A notification starts at attempt 0, so with max 5 the sixth failure dead-letters.
 	if v := delivery.Decide(delivery.Delivered(200), 0, max); v != delivery.VerdictDelivered {
 		t.Errorf("a 2xx: verdict %v, want delivered", v)
 	}
@@ -153,9 +134,6 @@ func TestNotifyOutcomeForkRetriesThenDeadLetters(t *testing.T) {
 	}
 }
 
-// AC: a target host that resolves into a non-globally-reachable range is refused and
-// the ready-message is NEVER POSTed — the report notify runner rides the same SSRF
-// guard as delivery, since both go through SendSigned.
 func TestNotifyRefusesPrivateResolvedTarget(t *testing.T) {
 	fake := &captureDoer{status: 200}
 	res := fakeResolver{"internal.example": {netip.MustParseAddr("10.0.0.5")}}
