@@ -22,8 +22,6 @@ import (
 
 var causeAt = time.Date(2026, 8, 15, 3, 4, 5, 0, time.UTC)
 
-// a flagship-shaped firing: a headline with a count and a census whose entries
-// (the facets that opened) must NEVER cross the wire.
 func flagshipFiring() Firing {
 	census := message.NewCensus(
 		message.CensusEntry{Kind: "facet", Key: "reachability"},
@@ -43,8 +41,6 @@ func flagshipFiring() Firing {
 	}
 }
 
-// AC: the POST body is byte-identical in content to what the in-app Message
-// renders — the headline verbatim — and the census is a COUNT, never rows.
 func TestBuildBodyCarriesHeadlineVerbatimAndCensusCount(t *testing.T) {
 	f := flagshipFiring()
 	b := BuildBody(f, "https://verge.example")
@@ -69,9 +65,6 @@ func TestBuildBodyCarriesHeadlineVerbatimAndCensusCount(t *testing.T) {
 	}
 }
 
-// AC: no row-level data (service lists, address sets) appears in the body — only
-// what the in-app message already carries. The census entry KEYS must not appear
-// anywhere in the marshalled document.
 func TestBuildBodyCarriesNoRows(t *testing.T) {
 	raw, err := MarshalBody(BuildBody(flagshipFiring(), "https://verge.example"))
 	if err != nil {
@@ -94,8 +87,6 @@ func TestBuildBodyCarriesNoRows(t *testing.T) {
 	}
 }
 
-// A narrowing carries only a count in its headline and no census payload (NULL);
-// the body omits the census field entirely rather than sending a zero or a list.
 func TestBuildBodyOmitsCensusWhenFiringHasNone(t *testing.T) {
 	f := Firing{
 		ID: 7, Cause: message.CauseAperture, Class: message.ClassCoverage,
@@ -110,13 +101,11 @@ func TestBuildBodyOmitsCensusWhenFiringHasNone(t *testing.T) {
 	if strings.Contains(string(raw), "census") {
 		t.Errorf("census field present for a censusless firing: %s", raw)
 	}
-	// An aperture firing links to the Seed whose scope moved, never a subject page.
 	if b.Link != "https://verge.example/seeds" {
 		t.Errorf("aperture link = %q, want the Seeds destination", b.Link)
 	}
 }
 
-// AC: HMAC-SHA256 over body+timestamp when a secret is configured.
 func TestSignIsHMACSHA256OverTimestampAndBody(t *testing.T) {
 	secret := []byte("s3cr3t")
 	body := []byte(`{"message":42}`)
@@ -132,18 +121,15 @@ func TestSignIsHMACSHA256OverTimestampAndBody(t *testing.T) {
 	if got != want {
 		t.Errorf("signature = %s, want %s", got, want)
 	}
-	// The signature covers the body: a changed byte changes the signature.
 	if Sign(secret, []byte(`{"message":43}`), ts) == got {
 		t.Error("signature did not change with the body")
 	}
-	// ...and the timestamp: a replayed body under a new timestamp signs differently.
+	// A replayed body under a fresh timestamp must not reuse the signature.
 	if Sign(secret, body, ts.Add(time.Second)) == got {
 		t.Error("signature did not change with the timestamp")
 	}
 }
 
-// AC: a signed request when a secret is set; no signature otherwise; never a
-// bearer header, in either case.
 func TestNewRequestSignsWithSecretAndNeverCarriesBearer(t *testing.T) {
 	body := []byte(`{"message":42}`)
 	ts := causeAt
@@ -166,8 +152,7 @@ func TestNewRequestSignsWithSecretAndNeverCarriesBearer(t *testing.T) {
 		t.Errorf("method = %s, want POST", signed.Method)
 	}
 
-	// No secret: the URL is the only credential — no signature header, still no
-	// bearer, and the timestamp is still present.
+	// With no secret the URL is the only credential, so no header may carry one instead.
 	unsigned, err := NewRequest(ctx, "https://verge.example/hook", body, nil, ts)
 	if err != nil {
 		t.Fatal(err)
@@ -183,8 +168,6 @@ func TestNewRequestSignsWithSecretAndNeverCarriesBearer(t *testing.T) {
 	}
 }
 
-// AC: routing is by class alone — a channel receives a firing exactly when it
-// carries that firing's class, and nothing finer.
 func TestRoutesByClassAlone(t *testing.T) {
 	cases := []struct {
 		drift, coverage, clock bool
@@ -206,7 +189,6 @@ func TestRoutesByClassAlone(t *testing.T) {
 	}
 }
 
-// AC: only a 2xx is a delivery; a 3xx, 4xx or 5xx is a failure.
 func TestDeliveredOnlyOn2xx(t *testing.T) {
 	for _, code := range []int{200, 201, 202, 204, 299} {
 		if !Delivered(code) {
@@ -220,8 +202,6 @@ func TestDeliveredOnlyOn2xx(t *testing.T) {
 	}
 }
 
-// AC: retry uses the queue's budget — five attempts, then dead-lettered. Decide
-// is the pure fork the runner records, and it reuses queue.Backoff's schedule.
 func TestDecideRetriesFiveTimesThenDeadLetters(t *testing.T) {
 	if Decide(true, 1, 5) != VerdictDelivered {
 		t.Error("a 2xx should be delivered regardless of attempt")
@@ -236,8 +216,6 @@ func TestDecideRetriesFiveTimesThenDeadLetters(t *testing.T) {
 	}
 }
 
-// The production doer refuses redirects: a 3xx is returned, never followed, so it
-// classifies as a failure rather than chasing an undeclared host.
 func TestHTTPDoerRefusesRedirects(t *testing.T) {
 	c := NewHTTPDoer()
 	if c.CheckRedirect == nil {
@@ -248,8 +226,6 @@ func TestHTTPDoerRefusesRedirects(t *testing.T) {
 	}
 }
 
-// End-to-end through the request path with a fake doer: the exact body posted is
-// the body that was signed, and no live network is touched.
 func TestPostedBodyIsTheSignedBody(t *testing.T) {
 	f := flagshipFiring()
 	body, err := MarshalBody(BuildBody(f, "https://verge.example"))
@@ -267,7 +243,6 @@ func TestPostedBodyIsTheSignedBody(t *testing.T) {
 	if _, err := fake.Do(req); err != nil {
 		t.Fatal(err)
 	}
-	// The doer received exactly the bytes we signed.
 	if string(fake.body) != string(body) {
 		t.Errorf("posted body differs from signed body:\n got %s\nwant %s", fake.body, body)
 	}
@@ -277,14 +252,9 @@ func TestPostedBodyIsTheSignedBody(t *testing.T) {
 	}
 }
 
-// AC (#740): for a no-secret Channel the credential IS the URL path, and
-// http.Client.Do returns a *url.Error embedding that URL verbatim. deliveryError
-// is the ONE source of the failure string written to the log line, the persisted
-// delivery.last_error column, and the channel-surface drill-down, so redacting
-// here keeps all three sinks URL-free. The rendered string keeps the operation
-// and the underlying cause but never the URL or its secret path.
 func TestDeliveryErrorRedactsCredentialBearingURL(t *testing.T) {
 	const secretURL = "https://hooks.example.com/services/T0000/B0000/XXXXsecretpathXXXX"
+	// #740: for a no-secret Channel the credential is the URL, and *url.Error embeds it verbatim.
 	sendErr := &url.Error{
 		Op:  "Post",
 		URL: secretURL,
@@ -293,8 +263,7 @@ func TestDeliveryErrorRedactsCredentialBearingURL(t *testing.T) {
 
 	got := deliveryError(0, sendErr)
 
-	// The failure string is the exact value stored in delivery.last_error and
-	// emitted on the log line, so asserting it is URL-free covers both sinks.
+	// This string is the exact value stored and logged, so one assertion covers both sinks.
 	if strings.Contains(got, secretURL) {
 		t.Fatalf("deliveryError leaked the full target URL: %q", got)
 	}
@@ -303,23 +272,18 @@ func TestDeliveryErrorRedactsCredentialBearingURL(t *testing.T) {
 			t.Fatalf("deliveryError leaked URL fragment %q in %q", secret, got)
 		}
 	}
-	// The non-secret diagnostic is preserved: the operation and the cause survive.
 	if !strings.Contains(got, "Post") || !strings.Contains(got, "connection refused") {
 		t.Fatalf("deliveryError dropped the useful diagnostic: %q", got)
 	}
 
-	// A url.Error that also surfaces via url.Parse (guardTarget's parse path) is
-	// redacted the same way, wherever it sits in the wrapped chain.
 	wrapped := fmt.Errorf("parse target url: %w", &url.Error{Op: "parse", URL: secretURL, Err: errors.New("invalid control character in URL")})
 	if got := deliveryError(0, wrapped); strings.Contains(got, secretURL) {
 		t.Fatalf("deliveryError leaked the URL from a wrapped *url.Error: %q", got)
 	}
 
-	// A non-URL error still passes through verbatim.
 	if got := deliveryError(0, errors.New("boom")); got != "boom" {
 		t.Fatalf("deliveryError mangled a non-URL error: %q", got)
 	}
-	// No send error falls back to the HTTP status.
 	if got := deliveryError(503, nil); got != "HTTP 503" {
 		t.Fatalf("deliveryError status fallback = %q, want %q", got, "HTTP 503")
 	}
@@ -349,11 +313,8 @@ func (f fakeResolver) LookupNetIP(_ context.Context, _, host string) ([]netip.Ad
 	return nil, errors.New("no such host: " + host)
 }
 
-// The delivery-time SSRF guard (#325): a channel whose host resolves into a
-// non-globally-reachable range is refused and its body is NEVER POSTed, while a
-// host resolving to public space still posts. This defends against a hostname
-// target and DNS rebinding that the config-time literal check cannot see.
 func TestDeliveryRefusesPrivateResolvedTarget(t *testing.T) {
+	// #325: a host resolving into private space is refused and its body is never POSTed.
 	fake := &captureDoer{}
 	r := &Runner{
 		doer: fake,
@@ -372,7 +333,6 @@ func TestDeliveryRefusesPrivateResolvedTarget(t *testing.T) {
 		t.Fatal("doer.Do was called for a private-resolving host — body was POSTed")
 	}
 
-	// An internal IP literal is refused before the resolver is even consulted.
 	if _, err := r.send(context.Background(), "https://169.254.169.254/", body, nil); err == nil {
 		t.Fatal("send to the metadata literal returned nil; want refusal")
 	}

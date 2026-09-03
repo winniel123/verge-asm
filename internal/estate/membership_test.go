@@ -7,11 +7,8 @@ import (
 	wd "github.com/winniel123/verge-asm/internal/measure/wildcarddiscrim"
 )
 
-// Compose is the site where both membership leaves meet. These cases are the
-// citation pin (golden-corpus.md §8.2) read from the membership side.
 func TestComposeShadowedCitesNothing(t *testing.T) {
-	// resolution-walk measured Resolved with an address set; wildcard-discrimination
-	// says Shadowed. The composed value cites nothing — the address set leaves.
+	// The golden-corpus.md §8.2 citation pin, read from the membership side.
 	got := Compose(OutcomeResolved, []string{"203.0.113.1"}, wd.VerdictShadowed)
 	if got.Outcome != OutcomeShadowed || len(got.Addresses) != 0 {
 		t.Errorf("Shadowed compose = %+v, want Shadowed citing nothing", got)
@@ -26,10 +23,7 @@ func TestComposeNotShadowedCites(t *testing.T) {
 }
 
 func TestComposeShadowedOverwritesNameError(t *testing.T) {
-	// The wildcard verdict wins the recorded value: a name resolution-walk read as
-	// NameError composes to Shadowed. Both outcomes suppress the Name's membership
-	// (WithdrawnCrossClass), so the composed value records what discriminated it —
-	// the wildcard — rather than a bare NameError.
+	// The recorded value names what discriminated it rather than a bare NameError.
 	got := Compose(OutcomeNameError, nil, wd.VerdictShadowed)
 	if got.Outcome != OutcomeShadowed {
 		t.Errorf("NameError under Shadowed = %+v, want Shadowed", got)
@@ -43,11 +37,8 @@ func TestComposeIncompleteProbeIsGap(t *testing.T) {
 	}
 }
 
-// A Name read Shadowed at every available vantage is suppressed — Shadowed
-// decides membership as affirmatively as NameError (AC #192): the fictional name
-// leaves the estate and cites no Address, while the discriminated real name and
-// its address stay.
 func TestMembershipShadowedNameSuppressed(t *testing.T) {
+	// AC #192: Shadowed decides membership as affirmatively as NameError.
 	shadowed := Compose(OutcomeResolved, []string{"203.0.113.1"}, wd.VerdictShadowed)
 	resolved := Compose(OutcomeResolved, []string{"198.51.100.9"}, wd.VerdictNotShadowed)
 	est := Membership([]Observation{
@@ -66,8 +57,6 @@ func TestMembershipShadowedNameSuppressed(t *testing.T) {
 	}
 }
 
-// Suppression is existential like presence: a Name Shadowed at one vantage but
-// still Resolved at another is admitted by that vantage and stays present.
 func TestMembershipShadowedSurvivesWhereAnotherVantageAdmits(t *testing.T) {
 	shadowed := Compose(OutcomeResolved, []string{"203.0.113.1"}, wd.VerdictShadowed)
 	resolved := Compose(OutcomeResolved, []string{"198.51.100.9"}, wd.VerdictNotShadowed)
