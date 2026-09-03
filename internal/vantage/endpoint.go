@@ -14,10 +14,6 @@ type Endpoint struct {
 	Username string
 }
 
-// ParseEndpoint validates the host, port and username an operator supplies when
-// provisioning a prober. A blank port defaults to DefaultPort. The username must
-// be non-root: the prober runs unprivileged, and provisioning a root login would
-// hand a measurement position more of the host than it needs (v1 spec §4.2).
 func ParseEndpoint(host, port, username string) (Endpoint, error) {
 	h := strings.TrimSpace(host)
 	if h == "" {
@@ -43,6 +39,7 @@ func ParseEndpoint(host, port, username string) (Endpoint, error) {
 	if strings.ContainsAny(u, " \t/\\:") {
 		return Endpoint{}, fmt.Errorf("%q is not a bare username", username)
 	}
+	// A root login would hand a measurement position more of the host than it needs (v1 spec §4.2).
 	if u == "root" {
 		return Endpoint{}, fmt.Errorf("use a non-root username — the prober runs unprivileged")
 	}
