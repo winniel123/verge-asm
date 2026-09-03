@@ -9,9 +9,6 @@ import (
 	"testing"
 )
 
-// TestRegistrableDomainsReduceThroughThePSL: each hostname reduces to its
-// eTLD+1, and a multi-label public suffix reduces to the right place — the PSL
-// is what decides, never a count of labels.
 func TestRegistrableDomainsReduceThroughThePSL(t *testing.T) {
 	got := RegistrableDomains([]string{
 		"www.example.com",
@@ -26,8 +23,6 @@ func TestRegistrableDomainsReduceThroughThePSL(t *testing.T) {
 	}
 }
 
-// TestWildcardSANReducesToTheNameBeneathIt: `*.example.com` counts as
-// `example.com`, and the wildcard never becomes a domain of its own.
 func TestWildcardSANReducesToTheNameBeneathIt(t *testing.T) {
 	cases := map[string]string{
 		"*.example.com":       "example.com",
@@ -44,38 +39,33 @@ func TestWildcardSANReducesToTheNameBeneathIt(t *testing.T) {
 			t.Errorf("registrableDomain(%q) = %q, want %q", san, got, want)
 		}
 	}
-	// A wildcard SAN and the bare name beneath it are ONE registrable domain,
-	// never two.
 	if n := FanOut([]string{"*.example.com", "example.com", "www.example.com"}); n != 1 {
 		t.Errorf("FanOut over one domain's wildcard and names = %d, want 1", n)
 	}
 }
 
-// TestSANWithNoRegistrableDomainIsDropped: an address SAN, and a name that
-// reduces to nothing, raise the count by zero. The IPv4 case is the sharp one —
-// its spelling is LDH, so the PSL's wildcard rule would otherwise hand back the
-// nonsense eTLD+1 `2.1`.
 func TestSANWithNoRegistrableDomainIsDropped(t *testing.T) {
+	// An IPv4 spelling is LDH, so the PSL wildcard rule would hand back the nonsense eTLD+1 2.1.
 	dropped := []string{
-		"192.0.2.1",             // iPAddress SAN, IPv4
-		"2001:db8::1",           // iPAddress SAN, IPv6
-		"999.999.999.999",       // dotted-numeric, but no valid address
-		"1.2.3",                 // dotted-numeric, three labels
-		"3232235777",            // an address as one decimal
-		"co.uk",                 // a bare public suffix
-		"com",                   // a bare TLD
-		"localhost",             // a single label
-		"",                      // empty
-		"   ",                   // whitespace only
-		".",                     // the root
-		"*",                     // a bare wildcard
-		"foo.*.example.com",     // a wildcard that is not the first label
-		"https://example.com/a", // a uniformResourceIdentifier SAN
-		"admin@example.com",     // an rfc822Name SAN
-		"exa mple.com",          // a space is not LDH
-		"exam_ple.com",          // an underscore is not LDH
-		"example.com&q=1",       // query-injection characters
-		"xn--ÿ.com",             // a non-ASCII byte outside the allowlist
+		"192.0.2.1",
+		"2001:db8::1",
+		"999.999.999.999",
+		"1.2.3",
+		"3232235777",
+		"co.uk",
+		"com",
+		"localhost",
+		"",
+		"   ",
+		".",
+		"*",
+		"foo.*.example.com",
+		"https://example.com/a",
+		"admin@example.com",
+		"exa mple.com",
+		"exam_ple.com",
+		"example.com&q=1",
+		"xn--ÿ.com",
 	}
 	for _, san := range dropped {
 		if reg, ok := registrableDomain(san); ok {
@@ -85,13 +75,10 @@ func TestSANWithNoRegistrableDomainIsDropped(t *testing.T) {
 	if n := FanOut(dropped); n != 0 {
 		t.Errorf("FanOut over droppable SANs = %d, want 0", n)
 	}
-	// A dropped SAN beside a good one leaves exactly the good one.
 	if n := FanOut([]string{"192.0.2.1", "co.uk", "example.com"}); n != 1 {
 		t.Errorf("FanOut = %d, want 1", n)
 	}
 
-	// A name whose top label holds a letter still passes, so the numeric-top
-	// drop takes no real domain with it.
 	for _, san := range []string{"1.2.3.com", "123.example.com", "99designs.com"} {
 		if _, ok := registrableDomain(san); !ok {
 			t.Errorf("registrableDomain(%q) dropped, want a registrable domain", san)
@@ -99,12 +86,8 @@ func TestSANWithNoRegistrableDomainIsDropped(t *testing.T) {
 	}
 }
 
-// TestDottedNumericSANsCannotInflateTheCount: a SAN set is third-party wire
-// content and Go's x509 parser does not police a dNSName, so a bundle of
-// dotted-numeric names must raise the fan-out by zero. Without the numeric-top
-// drop the PSL's wildcard rule hands each one back a distinct nonsense eTLD+1
-// and the count that gates the veto inflates on demand.
 func TestDottedNumericSANsCannotInflateTheCount(t *testing.T) {
+	// A SAN set is third-party wire content, so stuffing must not inflate the count the veto reads.
 	stuffed := make([]string, 0, 200)
 	for i := 0; i < 200; i++ {
 		stuffed = append(stuffed, fmt.Sprintf("10.0.%d.%d", i/256, i%256))
@@ -117,8 +100,6 @@ func TestDottedNumericSANsCannotInflateTheCount(t *testing.T) {
 	}
 }
 
-// TestSharedEdgeIsTrueAt100AndFalseAt99: the boundary the #955 amendment fixed,
-// and the boundary #986's golden-corpus rows will lock.
 func TestSharedEdgeIsTrueAt100AndFalseAt99(t *testing.T) {
 	at99 := unrelatedDomains(99)
 	if n := FanOut(at99); n != 99 {
@@ -136,23 +117,17 @@ func TestSharedEdgeIsTrueAt100AndFalseAt99(t *testing.T) {
 		t.Error("SharedEdge at a count of 100 = false, want true")
 	}
 
-	// Well above the threshold stays true; an empty SAN set stays false. The
-	// empty case is the one a zero-valued threshold would get wrong, and it is
-	// the unsafe direction: an edge that presented no identity at all must not
-	// read as shared.
 	if !SharedEdge(unrelatedDomains(4000)) {
 		t.Error("SharedEdge far above the threshold = false, want true")
 	}
+	// A zero threshold would read an edge presenting no identity as shared, the unsafe direction.
 	if SharedEdge(nil) {
 		t.Error("SharedEdge over an empty SAN set = true, want false")
 	}
 }
 
-// TestCountAppliesNoRelatednessFilter: 100 registrable domains that all "look
-// like one brand" count as 100, exactly as 100 unrelated ones do. Clustering
-// them would be an ownership heuristic in disguise, and ADR-0129 §1 refuses
-// ownership as the discriminator.
 func TestCountAppliesNoRelatednessFilter(t *testing.T) {
+	// Clustering by brand would be an ownership heuristic, refused as the discriminator (ADR-0129 §1).
 	oneBrand := make([]string, 0, 100)
 	for i := 0; i < 100; i++ {
 		oneBrand = append(oneBrand, fmt.Sprintf("www.acmecorp%02d.com", i))
@@ -164,16 +139,12 @@ func TestCountAppliesNoRelatednessFilter(t *testing.T) {
 		t.Error("SharedEdge over one brand's 100 domains = false, want true")
 	}
 
-	// The same registrable domain under many different TLDs is many domains.
-	// The eTLD+1 is the whole of the identity the count reads.
 	tlds := []string{"acme.com", "acme.net", "acme.org", "acme.co.uk", "acme.de"}
 	if n := FanOut(tlds); n != len(tlds) {
 		t.Errorf("FanOut over one label under %d suffixes = %d, want %d", len(tlds), n, len(tlds))
 	}
 }
 
-// TestParamsDigestStableAndSensitive: the digest is content-addressed, so a
-// threshold move breaks #986's A6 lock.
 func TestParamsDigestStableAndSensitive(t *testing.T) {
 	a := DefaultParams()
 	if a.Digest() != DefaultParams().Digest() {
@@ -189,8 +160,6 @@ func TestParamsDigestStableAndSensitive(t *testing.T) {
 		t.Error("digest did not move when the shared-edge threshold changed")
 	}
 
-	// A PSL update is a Break in the derivation too (the #954 amendment), so it
-	// moves the digest as the threshold does.
 	c := DefaultParams()
 	c.PublicSuffixList = c.PublicSuffixList + " (a later revision)"
 	if a.Digest() == c.Digest() {
@@ -201,21 +170,14 @@ func TestParamsDigestStableAndSensitive(t *testing.T) {
 	}
 }
 
-// TestThresholdIsNotOperatorConfigurable: the threshold is project-authored and
-// fixed at the release (ADR-0008, ADR-0129 §3). Two proofs. The value the
-// shipped params carry IS the constant, so no other source feeds it; and the
-// package imports nothing an operator dial could arrive through — no
-// environment, no settings, no database. The `var _ [SharedEdgeThreshold]struct{}`
-// in fanout.go carries the third proof at compile time.
 func TestThresholdIsNotOperatorConfigurable(t *testing.T) {
+	// The threshold is project-authored, so no operator setting may reach it (ADR-0008, ADR-0129 §3).
 	if DefaultParams().SharedEdgeThreshold != SharedEdgeThreshold {
 		t.Errorf("DefaultParams threshold = %d, want the constant %d",
 			DefaultParams().SharedEdgeThreshold, SharedEdgeThreshold)
 	}
 
-	// Params RECORDS the threshold; it never supplies it. A method on Params
-	// deciding the boolean would let a zero value compare `count >= 0` and veto
-	// every edge, so the type must carry no such method.
+	// A SharedEdge method on Params would let a zero value compare count >= 0 and veto every edge.
 	if _, found := reflect.TypeOf(Params{}).MethodByName("SharedEdge"); found {
 		t.Error("Params has a SharedEdge method — the veto must read the constant, never a caller's value")
 	}
@@ -225,9 +187,6 @@ func TestThresholdIsNotOperatorConfigurable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse the custody package: %v", err)
 	}
-	// Any import through which an operator-set value could reach the
-	// derivation. `os` covers the environment variable; the rest cover a
-	// settings row and the database that would hold one.
 	forbidden := []string{`"os"`, "/internal/env", "/internal/db", "/internal/pgdb", "database/sql"}
 	for _, pkg := range pkgs {
 		for path, file := range pkg.Files {
