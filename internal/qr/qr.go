@@ -379,12 +379,12 @@ func formatBits(mask int) uint32 {
 }
 
 func versionBits(version int) uint32 {
-	rem := uint32(version) // #nosec G115 (QR version 1..40 fits uint32 by construction)
+	rem := uint32(version) // #nosec G115 (QR version 1..40)
 	// 0x1f25 is the version BCH generator fixed by ISO/IEC 18004 §8.10.
 	for i := 0; i < 12; i++ {
 		rem = (rem << 1) ^ ((rem >> 11) * 0x1f25)
 	}
-	return uint32(version)<<12 | rem // #nosec G115 (QR version 1..40 fits uint32 by construction)
+	return uint32(version)<<12 | rem // #nosec G115 (QR version 1..40)
 }
 
 func (m *Matrix) drawFormat(mask int) {
