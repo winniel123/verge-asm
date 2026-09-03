@@ -161,11 +161,12 @@ survey's counts and the tool's. Trust the parser.
 ### 2.3 The protected-directive patterns
 
 Ruling 10 fixes the form as a pattern class rather than an exact list. These patterns are
-normative. 397 lines depend on them. Deleting one changes the build or the generated code.
+normative. 484 lines depend on them. Deleting one changes the build, the generated code, or what a
+required status check reports.
 
 | Surface | Patterns |
 | --- | --- |
-| Go | `//go:`, `// +build`, `//nolint`, `//lint:`, `//revive:` |
+| Go | `//go:`, `// +build`, `//nolint`, `//lint:`, `//revive:`, `// #nosec`, `//#nosec` |
 | SQL | `-- name:`, `-- +goose` |
 | JS and TS | `eslint`, `@ts-check`, `@ts-expect-error`, `prettier-ignore`, `c8 ignore`, `@jsx` |
 | CSS | `stylelint-`, `postcss-` |
@@ -173,13 +174,30 @@ normative. 397 lines depend on them. Deleting one changes the build or the gener
 **To add a pattern, add it to this table.** A directive line forms its own block, so a directive
 never absorbs the prose beneath it.
 
-**This list is complete for this tree, measured 2026-09-01.** Four findings support that:
+**A `#nosec` justification is prose, and prose wraps.** The own-line block that opens on the line
+below a `#nosec` line is the **waiver tail**. `gosec` reads the whole comment group, so that tail is
+part of the waiver. **§3.2 withholds a waiver tail from the delete pass under the `tool-marker`
+signal.** Measured: without the rule, `strip` deleted two justification lines from
+`cmd/web/backup.go` (#1274).
+
+**The tail is withheld from the delete pass alone. Every ratchet rule still reads it.** A tail that
+opens with `TODO` still reports `todo-marker`. A `#nosec` line is not a way to silence the ratchet
+for the lines below it.
+
+**This list is a floor, not a proven-complete list.** The 2026-09-01 measurement claimed completeness
+and missed `#nosec`. `gosec` reads `#nosec`, and `gosec` is one of the 7 required status checks, so
+deleting one changes what that check reports (#1274). Widen this table whenever you find a tool that
+reads a comment. Never narrow it.
+
+Four findings, measured 2026-09-01 and re-measured with the tool on 2026-09-03:
 
 1. No cgo. The tree holds no `import "C"`, no `//export` and no `#cgo`. That removes the most
    dangerous comment class in Go.
 2. No `//go:generate`.
-3. SQL holds 384 of the 397 directive lines: 250 `-- name:` openers and 134 `+goose` markers. Go
-   holds 11 and `.jsx` holds 2.
+3. SQL holds 387 of the 484 directive lines. Go holds 96: 81 `#nosec` blocks that span 85 lines,
+   and 11 lines under the other five patterns. Five more Go blocks name `#nosec` in prose, and the
+   tool reads none of them as a directive. A grep finds 1 line in `.jsx`, because the `.jsx` lexer
+   needs `esbuild`. `.mjs`, `.ts`, `.css` and `.tmpl` hold none.
 4. **No JSDoc tag is consumed by any tool in this repo.** A raw grep reports 13,533 `@param` and
    8,884 `@component`, and every one sits in untracked `docs-site/node_modules`. Tracked files hold
    zero. `docs-site` uses no typedoc and no ts-morph.
@@ -215,6 +233,7 @@ A block is withheld from the mechanical pass when it carries any of these signal
 | External spec | `RFC`, `IANA`, `X.509`, `BCP`, `NIST`, `PKIX`, `ISO nnnn` |
 | WHY marker | the reason and hazard word list, §2.1 rule 12 |
 | Bare URL | an `http` or `https` URL with no citation beside it |
+| Tool marker | a `Deprecated:` paragraph opener, a `#nosec` body, or a §2.3 waiver tail |
 
 Three properties of the screen:
 
@@ -224,6 +243,9 @@ Three properties of the screen:
 - **It is tuned loose.** The cost is asymmetric. A false keep costs agent time. A false delete loses
   a reason permanently. This list is the floor. A later revision may widen it. **A later revision
   must never narrow it.**
+
+The waiver tail is the one signal a block's own body does not carry. §2.3 states why: `gosec` reads
+the comment group, and the block is a smaller unit than the group.
 
 Two signals are **not** screen signals. A strict history marker is a delete signal, because
 `CLAUDE.md` forbids change narration. The loose narration set (`now`, `was`) is the survey's named
@@ -659,7 +681,8 @@ for SQL and CSS a single hand lexer does both jobs. One interface makes that sha
 it puts the §5.5 cross-check on one testable object.
 
 §1.5 defines a block. A protected directive line is its own block, so a directive never absorbs the
-prose beneath it.
+prose beneath it. The own-line block that opens on the line below a `#nosec` line is the **waiver
+tail**. `Lex` marks it, and §2.3 states what the mark buys.
 
 ### 6.3 The command-line surface
 
@@ -677,6 +700,10 @@ lints nothing.
 is JSON Lines, one record per **declined** block: file, line span, class, and the screen signal that
 fired. The default path is `.commentlint/residue.jsonl`. **That path needs a `.gitignore` entry**,
 because §3.8 says the manifest is never committed.
+
+`--manifest` names where `--write` saves the manifest. **`--manifest` without `--write` is a usage
+error, exit 2.** A dry run prints the manifest to stdout, so a named path that saves nothing reads as
+a saved file that is missing (#1274).
 
 **`verify`** reads the pre-sweep content with `git show <base>:<path>`, driven by an explicit
 `--base`. The tool does not compute the merge base itself. With an explicit base, the CI job and a

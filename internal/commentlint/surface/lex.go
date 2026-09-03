@@ -69,10 +69,11 @@ type rawComment struct {
 	style     Style
 	ownLine   bool
 	directive bool
+	waiver    bool
 }
 
 func assembleBlocks(lang Lang, src []byte, comments []rawComment) (blocks, trailing []Block) {
-	open := -1
+	open, waiverEnd := -1, -1
 	for _, c := range comments {
 		if !c.ownLine {
 			open = -1
@@ -88,12 +89,18 @@ func assembleBlocks(lang Lang, src []byte, comments []rawComment) (blocks, trail
 			blocks[open].Text = string(src[blocks[open].Start:c.end])
 			continue
 		}
-		blocks = append(blocks, block(lang, c))
+		b := block(lang, c)
+		// A gosec waiver's justification wraps onto the line below it (SPEC §2.3, #1274).
+		b.WaiverTail = !c.directive && c.style == StyleLine && waiverEnd+1 == c.startLine
+		blocks = append(blocks, b)
 		open = len(blocks) - 1
 		// §6.2 gives a protected directive its own block, so it never absorbs
 		// the prose beneath it.
 		if c.directive || c.style == StyleBlock {
 			open = -1
+		}
+		if c.waiver {
+			waiverEnd = c.endLine
 		}
 	}
 	return blocks, trailing
