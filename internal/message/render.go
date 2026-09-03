@@ -10,13 +10,8 @@ import (
 	"time"
 )
 
-// ValenceWords are the words the message vocabulary refuses (v1 spec §5.3,
-// ADR-0064): nothing is resolved, fixed, improved, critical or OK, because a
-// clear is not always good news and a widening is neither. The list is exported
-// so a test can assert every rendered sentence in the product is clear of them,
-// and so the store's read path can be checked too. Every value is a lowercase
-// whole word; ContainsValence matches on word boundaries, so a value can never
-// falsely fire on a substring (`ok` inside `looked`, say).
+// A clear is not always good news and a widening is neither, so the copy grades nothing (ADR-0064).
+
 var ValenceWords = []string{
 	"resolved", "resolve", "fixed", "fix", "improved", "improve",
 	"critical", "ok", "okay", "good", "bad", "safe", "unsafe",
@@ -35,13 +30,8 @@ var valenceRe = func() *regexp.Regexp {
 
 func ContainsValence(s string) bool { return valenceRe.MatchString(s) }
 
-// Threshold returns a clock-class Message for a rule whose threshold was crossed
-// with no measurement moving — the estate did not move and we did not change how
-// we look, only time passed (CONTEXT.md `Message`). It links to the object whose
-// span the rule read. Where the same rule instead finds the span it reads has
-// moved, the caller fires CauseDrift (a drift-class firing) rather than this —
-// class is a property of the firing.
 func Threshold(subjectKind, subjectKey, headline string, instant time.Time) *Message {
+	// A rule whose span also moved fires CauseDrift instead of this (CONTEXT.md Message).
 	return &Message{
 		Cause:       CauseThreshold,
 		Class:       ClassClock,
@@ -81,43 +71,28 @@ func membershipHeadline(entry Entry, rootKey string, census Census) string {
 		rootKey, verb, plural(census.Len(), "timeline", "timelines"))
 }
 
-// narrowingHeadline states a scope narrowing with its two counts as factors, in
-// the shape the narrowing-receipt prototype fixed (#167): the scope narrowed,
-// the value excluded, the subjects withdrawn, the timelines taken out.
 func narrowingHeadline(scope, removed string, subjects, timelines int) string {
+	// The four-factor shape the narrowing-receipt prototype fixed (#167).
 	return fmt.Sprintf("%s narrowed · %s excluded · %s withdrawn · %s taken out of the estate",
 		scope, removed,
 		plural(subjects, "subject", "subjects"),
 		plural(timelines, "timeline", "timelines"))
 }
 
-// seedWithdrawalHeadline states a Seed withdrawal with the same two counts as
-// factors (ADR-0134 §6). It is narrowingHeadline's twin for the act that takes the
-// scope itself away.
-//
-// It needs its own sentence because narrowingHeadline names two objects — a scope
-// that narrowed and a value excluded from it — and this act has only one. Rendering
-// it through narrowingHeadline would read "10.0.0.0/24 narrowed · 10.0.0.0/24
-// excluded", which says EXCLUDED for an act that declared no exclusion and NARROWED
-// for a scope that is gone. A Message is written once and never recomputed, so a
-// false sentence written here stays false for as long as the corpus is retained.
 func seedWithdrawalHeadline(scope string, subjects, timelines int) string {
+	// Reusing narrowingHeadline would say EXCLUDED for an act that declared none (ADR-0134 §6).
 	return fmt.Sprintf("%s withdrawn · %s withdrawn · %s taken out of the estate",
 		scope,
 		plural(subjects, "subject", "subjects"),
 		plural(timelines, "timeline", "timelines"))
 }
 
-// narrowingLoss names what can no longer be told — the one payload element that
-// is not a mirror of the widening receipt, because the narrowing cannot be
-// corrected afterwards and naming it is the whole of the remedy (ADR-0074).
 func narrowingLoss(removed string) string {
+	// A narrowing cannot be undone, so naming the loss is the whole of the remedy (ADR-0074).
 	return fmt.Sprintf("A listener answering inside %s after this act is not seen, "+
 		"and no later message names it.", removed)
 }
 
-// plural renders a count with its noun, thousands-separated so a large factor
-// reads (17,920 rather than 17920).
 func plural(n int, one, many string) string {
 	noun := many
 	if n == 1 {
@@ -126,55 +101,25 @@ func plural(n int, one, many string) string {
 	return fmt.Sprintf("%s %s", group(n), noun)
 }
 
-// Artifact is one delivered report, rendered — the data of a report delivery of
-// the shape design-system/examples/console/ReportArtifact.jsx fixes, translated
-// to the domain. RenderArtifact turns it into the delivered document itself: the
-// same markup serves the console "view last delivery" surface and doubles as the
-// PDF / email render spec, so it carries its own self-contained token styles
-// (both light and dark) rather than leaning on the console stylesheet.
-//
-// Per-signal severity rides the artifact (P2.10, SPEC-CHANGE.md collision #11):
-// the reference mock's "open signals by severity" bars and its severity-scored
-// "new this week" table are the spec, and the domain now carries the datum — a
-// signal's severity is its rule's severity (P0.1, internal/signal.Severity),
-// which reconciles the old "a signal carries no severity" reading of ADR-0024
-// (the design is normative for look AND functionality; where the domain lacked
-// the datum the fix is to build it). When severity-carrying signals are present
-// the artifact draws the by-severity bar breakdown and a SeverityBadge column,
-// using the five exact levels and mirroring the on-screen ramp. Two holds still
-// stand: change rides its OWN drift vocabulary and palette (appeared / revealed
-// / withdrawn), never the severity ramp; and signals are withdrawn by the world,
-// never resolved by an operator, so the mock's mean-time-to-resolve KPI is not
-// modelled. With no delivery backend the artifact is genuinely Empty and the
-// design-system empty-state stands — nothing is fabricated.
+// A signal's severity is its rule's, against the older reading of ADR-0024.
+
 type Artifact struct {
-	Title       string
-	Org         string
-	PeriodStart string
-	PeriodEnd   string
-	DeliveryNo  int
-	GeneratedAt string
-	Version     string
-	Format      string
-	// Stats is the KPI band — honest current-state / period scalars. No resolve
-	// metric appears: signals are withdrawn by the world, never resolved.
+	Title          string
+	Org            string
+	PeriodStart    string
+	PeriodEnd      string
+	DeliveryNo     int
+	GeneratedAt    string
+	Version        string
+	Format         string
 	Stats          []ArtifactStat
 	SeverityCounts []ArtifactSeverityCount
 	Signals        []ArtifactSignal
-	// Withdrawn is what the world withdrew this period ("withdrawn by the world"),
-	// riding the drift vocabulary and palette, never the severity ramp.
-	Withdrawn []ArtifactChange
-	// Delivered is the delivery instant (ISO), empty where nothing was delivered;
-	// ChannelHost is the destination host only — never the raw URL, where a token
-	// an operator embedded would sit (mirrors the message panel, ADR-0081).
-	Delivered   string
-	ChannelHost string
+	Withdrawn      []ArtifactChange
+	Delivered      string
+	ChannelHost    string
 }
 
-// ArtifactStat is one KPI in the artifact's summary band: a label, a mono value,
-// an optional signed delta with its tone, and a caption. Delta is pre-signed by
-// the caller with a true minus; DeltaTone is "good" / "bad" / "neutral" and only
-// selects a colour, never rendered as text.
 type ArtifactStat struct {
 	Label     string
 	Value     string
@@ -183,19 +128,12 @@ type ArtifactStat struct {
 	Caption   string
 }
 
-// ArtifactChange is one change row — a subject that appeared, was revealed, or was
-// withdrawn this period, with a short note. Change is a drift-vocabulary word and
-// selects the drift-palette family; it is never a severity level.
 type ArtifactChange struct {
 	Change  string
 	Subject string
 	Detail  string
 }
 
-// ArtifactSeverityCount is one bar in the "open signals by severity" breakdown: a
-// severity level and the count of open signals carrying it. Level is one of the
-// five exact tokens (critical / high / medium / low / info); any other value folds
-// to info rather than manufacturing urgency (mirrors signal.SeverityFor).
 type ArtifactSeverityCount struct {
 	Level string
 	Count int
@@ -208,21 +146,12 @@ type ArtifactSignal struct {
 	Raised   string
 }
 
-// Empty reports whether the artifact carries no delivered content — no KPI band,
-// no severity breakdown, no signals, and no change rows. A view of a schedule that
-// has never delivered renders the design-system empty-state rather than a
-// fabricated document (ADR-0110: a screen with no backing data ships an
-// empty-state, never invented data).
 func (a Artifact) Empty() bool {
+	// A screen with no backing data ships an empty-state and never invented data (ADR-0110).
 	return len(a.Stats) == 0 && len(a.SeverityCounts) == 0 &&
 		len(a.Signals) == 0 && len(a.Withdrawn) == 0
 }
 
-// artifactTokens is the self-contained slice of the design system the rendered
-// artifact needs to stand alone as a PDF / email body, with no console stylesheet
-// in scope. The custom-property names and values mirror cmd/web's pageCSS and
-// design-system/tokens; dark ships two ways (prefers-color-scheme default and the
-// explicit data-theme override) so the delivered document is legible in either.
 // #nosec G101 ("artifactTokens" is a CSS <style> constant (design-system tokens), not a credential — name-heuristic FP)
 const artifactTokens = `<style>
 .vg-artifact{
@@ -277,11 +206,8 @@ const artifactTokens = `<style>
 
 const microLabelStyle = `margin:0;font:500 11px var(--mono);letter-spacing:0.07em;text-transform:uppercase;color:var(--muted)`
 
-// The delivered document's fixed copy — the section titles, the empty-section
-// notes stating that nothing moved, and the empty-state block. Both render forms
-// read these constants (RenderArtifact draws them as HTML, RenderArtifactPDF as
-// print) so the two layouts cannot drift in WHAT the document says, only in how it
-// looks (ADR-0114: one canonical content model, two layout forms).
+// Both render forms read these, so the layouts cannot drift in what the document says (ADR-0114).
+
 const (
 	artifactSeverityTitle  = "Open signals by severity"
 	artifactSignalsTitle   = "New this week"
@@ -292,16 +218,8 @@ const (
 	artifactEmptyBody      = "A delivered report is rendered here once report scheduling lands and a schedule runs. Until then there is no delivery to view."
 )
 
-// RenderArtifact renders one delivered report as the document itself by executing the
-// design-owned "artifactdoc" define (design-system/templates/reportartifact.tmpl) with the
-// recomputed data (SPEC-CHANGE #23g) — the SAME markup the on-screen /reports/delivery page
-// and the PDF-HTML shell render, so the three forms cannot drift. The define is fully
-// inline-styled; standalone (email / print) it needs only the design token vocabulary, which
-// is prepended here so its var(--…) styles resolve with no console stylesheet in scope. An
-// artifact with no delivered content renders the design-system empty-state inside the
-// document (ADR-0110) rather than fabricating one. A render error (never expected — the
-// template and data are internal) degrades to an HTML comment rather than panicking a caller.
 func RenderArtifact(a Artifact) template.HTML {
+	// The standalone form needs the token vocabulary inlined: no console stylesheet is in scope.
 	doc, err := renderArtifactDoc(BuildArtifactDoc(a))
 	if err != nil {
 		// #nosec G203 -- err text is HTML-escaped via html.EscapeString and wrapped in an HTML comment; no unescaped data reaches output.
@@ -332,10 +250,6 @@ func artifactStatBand(stats []ArtifactStat) string {
 	return b.String()
 }
 
-// artifactChangeSection renders one titled change list — a mono eyebrow header and
-// a row per change, each a drift-palette chip, the subject in mono, and its note.
-// An empty section states the fact rather than vanishing (empty states are fact +
-// next action; here the fact is that nothing moved).
 func artifactChangeSection(title string, changes []ArtifactChange, emptyNote string) string {
 	var b strings.Builder
 	b.WriteString(`<div style="display:flex;flex-direction:column;gap:10px">`)
@@ -358,10 +272,8 @@ func artifactChangeSection(title string, changes []ArtifactChange, emptyNote str
 
 var artifactSevLevels = []string{"critical", "high", "medium", "low", "info"}
 
-// normSev folds an unknown severity token to info rather than manufacturing
-// urgency (mirrors signal.SeverityFor's calm fold and SeverityBadge's default),
-// so a stale level never collides with critical.
 func normSev(level string) string {
+	// An unknown token folds to info rather than manufacturing urgency (mirrors signal.SeverityFor).
 	for _, l := range artifactSevLevels {
 		if l == level {
 			return l
@@ -375,10 +287,6 @@ func sevTitle(level string) string {
 	return strings.ToUpper(l[:1]) + l[1:]
 }
 
-// artifactSeverityBars renders the "open signals by severity" breakdown — one bar
-// per supplied level, the ramp label, a track whose fill scales to the busiest
-// level, and the count. Mirrors ReportArtifact.jsx's bar block; the fill takes the
-// level's severity-dot token, never a graded colour.
 func artifactSeverityBars(counts []ArtifactSeverityCount) string {
 	max := 0
 	for _, c := range counts {
@@ -407,10 +315,6 @@ func artifactSeverityBars(counts []ArtifactSeverityCount) string {
 	return b.String()
 }
 
-// artifactSignalsTable renders the "new this week" signals table — a Severity
-// column of SeverityBadges, then the signal, the asset (mono), and the raised
-// date (mono, right). Mirrors ReportArtifact.jsx's dense table; the delivered
-// document is self-contained so the table is inline-styled.
 func artifactSignalsTable(sigs []ArtifactSignal) string {
 	var b strings.Builder
 	b.WriteString(`<div style="display:flex;flex-direction:column;gap:10px">`)
@@ -437,12 +341,6 @@ func artifactSignalsTable(sigs []ArtifactSignal) string {
 	return b.String()
 }
 
-// artifactSeverityBadge renders one severity token as a SeverityBadge (sm) —
-// mirroring design-system SeverityBadge.jsx and the on-screen sevbadge: Critical
-// is the only solid fill and the only pill-red and carries no dot; High → Info are
-// tinted pills with a solid dot, fading to stay ordinal. Marked data-sev so the
-// valence guard exempts the ramp label (the one loud voice) as it does the token
-// stylesheet.
 func artifactSeverityBadge(level string) string {
 	l := normSev(level)
 	base := `display:inline-flex;align-items:center;gap:5px;height:18px;padding:0 8px;border-radius:999px;font:600 10px var(--mono);letter-spacing:0.05em;text-transform:uppercase;white-space:nowrap`
@@ -453,8 +351,6 @@ func artifactSeverityBadge(level string) string {
 		`<span style="width:5px;height:5px;border-radius:999px;background:var(--sev-` + l + `-dot);flex:none"></span>` + esc(sevTitle(l)) + `</span>`
 }
 
-// artifactEmptyState is the design-system empty-state for a schedule that has
-// never delivered: the fact, why, and the next action. No document is fabricated.
 func artifactEmptyState() string {
 	return `<div style="border:1px dashed var(--border-strong);background:var(--sunken);border-radius:var(--r-md);padding:32px;text-align:center;display:flex;flex-direction:column;gap:8px;align-items:center">` +
 		`<span style="` + microLabelStyle + `">` + esc(artifactEmptyEyebrow) + `</span>` +
@@ -463,9 +359,6 @@ func artifactEmptyState() string {
 		`</div>`
 }
 
-// artifactChangeChip renders a change as a drift-palette chip — the change
-// vocabulary's own language (violet gain / magenta change / slate loss), never
-// the severity ramp.
 func artifactChangeChip(change string) string {
 	fam := changeFamily(change)
 	return `<span style="display:inline-flex;align-items:center;gap:5px;font:600 10.5px var(--mono);letter-spacing:0.03em;padding:2px 9px;border-radius:var(--r-full);` +
@@ -473,15 +366,12 @@ func artifactChangeChip(change string) string {
 		`<span style="width:5px;height:5px;border-radius:999px;background:currentColor"></span>` + esc(change) + `</span>`
 }
 
-// artifactDeliveredBadge is the ok-toned delivery receipt badge. "delivered" is a
-// record of what we said, never a grade of the news — it carries no valence.
 func artifactDeliveredBadge() string {
 	return `<span style="display:inline-flex;align-items:center;gap:5px;font:600 10px var(--mono);text-transform:uppercase;letter-spacing:0.04em;padding:2px 8px;border-radius:var(--r-full);` +
 		`border:1px solid var(--ok-border);background:var(--ok-soft);color:var(--ok)">` +
 		`<span style="width:5px;height:5px;border-radius:999px;background:var(--ok)"></span>delivered</span>`
 }
 
-// artifactTag renders the delivered-format tag (a neutral pill, never a status).
 func artifactTag(label string) string {
 	return `<span style="display:inline-flex;align-items:center;font:500 11px var(--mono);padding:2px 9px;border-radius:8px;border:1px solid var(--hairline);background:var(--sunken);color:var(--muted)">` + esc(label) + `</span>`
 }
@@ -502,6 +392,7 @@ func artifactReceipt(a Artifact) string {
 		return "not delivered"
 	}
 	line := "delivered " + a.Delivered
+	// The host only, never the raw URL: an operator's embedded token would ride in it (ADR-0081).
 	if a.ChannelHost != "" {
 		line += " · " + a.ChannelHost
 	}
@@ -509,18 +400,17 @@ func artifactReceipt(a Artifact) string {
 }
 
 func changeFamily(change string) string {
+	// Change rides its own drift vocabulary and palette, never the severity ramp.
 	switch change {
 	case "appeared", "returned", "revealed":
 		return "gain"
 	case "withdrawn", "descoped":
 		return "loss"
-	default: // "changed" and any unmodelled word ride the neutral change family
+	default:
 		return "change"
 	}
 }
 
-// deltaColor maps a delta tone to its token. The tone selects a colour only; it
-// is never rendered as text, so no valence word reaches the page.
 func deltaColor(tone string) string {
 	switch tone {
 	case "good":
@@ -534,8 +424,6 @@ func deltaColor(tone string) string {
 
 func esc(s string) string { return html.EscapeString(s) }
 
-// orDash renders an em dash where a value is absent, so an empty cell reads as
-// deliberately blank rather than collapsing.
 func orDash(s string) string {
 	if strings.TrimSpace(s) == "" {
 		return "—"
@@ -543,9 +431,6 @@ func orDash(s string) string {
 	return s
 }
 
-// artifactPeriod renders the delivery window and its number as one mono line, used
-// by the console view around the document. It is exported through the web layer's
-// header, not the document body, so it lives beside the other artifact helpers.
 func artifactPeriod(a Artifact) string {
 	var line string
 	switch {

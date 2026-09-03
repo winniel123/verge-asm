@@ -7,8 +7,6 @@ import (
 
 var t0 = time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
 
-// The four causes each map to exactly one class, and the three classes are the
-// four causes with aperture and declared-input merged (ADR-0091).
 func TestClassForCause(t *testing.T) {
 	cases := map[Cause]Class{
 		CauseDrift:         ClassDrift,
@@ -26,8 +24,6 @@ func TestClassForCause(t *testing.T) {
 	}
 }
 
-// Each message row links per its mover (v1 spec §5.3): drift and threshold to an
-// object page, declared-input to the Source, aperture-widening to the Seed.
 func TestLinkKindPerMover(t *testing.T) {
 	cases := map[Cause]LinkKind{
 		CauseDrift:         LinkObject,
@@ -42,10 +38,6 @@ func TestLinkKindPerMover(t *testing.T) {
 	}
 }
 
-// A Message is computed once at the cause and never recomputed: the package
-// exposes construction alone, and a constructed message is a frozen value whose
-// headline, census and instant do not move when the world later does. This pins
-// the invariant that no code path recomputes an existing message across a Break.
 func TestComputedOnceAtCause(t *testing.T) {
 	census := NewCensus(CensusEntry{Kind: "facet", Key: "certificate"})
 	msg := Flagship(ReachMove{
@@ -57,8 +49,6 @@ func TestComputedOnceAtCause(t *testing.T) {
 	}
 	snapHeadline, snapLen, snapInstant := msg.Headline, msg.CensusLen(), msg.Instant
 
-	// The world moves on: a later census with more facets, a later instant. The
-	// already-computed message must be untouched — there is no recompute path.
 	_ = Flagship(ReachMove{
 		ServiceKey: "198.51.100.1:443/tcp", Class: ClassInternet,
 		From: NotReached, To: Reached,
@@ -72,8 +62,6 @@ func TestComputedOnceAtCause(t *testing.T) {
 	}
 }
 
-// No valence word appears in any rendered message copy — flagship, membership,
-// and narrowing headlines all pass the guard.
 func TestNoValenceInRenderedCopy(t *testing.T) {
 	census := NewCensus(
 		CensusEntry{Kind: "facet", Key: "certificate"},
@@ -94,8 +82,6 @@ func TestNoValenceInRenderedCopy(t *testing.T) {
 	}
 }
 
-// The valence guard matches whole words only — it must not fire on a substring
-// like `ok` inside `looked`.
 func TestValenceGuardWordBoundaries(t *testing.T) {
 	if ContainsValence("we looked and the port is reached") {
 		t.Error("the guard fired on a substring — it must match whole words only")
