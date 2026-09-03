@@ -27,7 +27,7 @@ func TestSealOpenRoundTrip(t *testing.T) {
 		"short":          []byte("connect-outcome running local\n"),
 		"binary":         {0x00, 0xff, 0x00, 0x10, 0x7f, 0x80},
 		"large":          large,
-		"captured-empty": {}, // non-nil, empty: a stream that was captured but held no bytes.
+		"captured-empty": {},
 	}
 	for name, plaintext := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -95,7 +95,6 @@ func TestOpenTamperedFailsClosed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Seal: %v", err)
 	}
-	// Flip a bit in the last byte (inside the ciphertext/tag region).
 	tampered := bytes.Clone(sealed)
 	tampered[len(tampered)-1] ^= 0x01
 	if _, err := Open(key, tampered); err == nil {
@@ -109,11 +108,9 @@ func TestOpenTruncatedFailsClosed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Seal: %v", err)
 	}
-	// Shorter than the nonce: cannot even split.
 	if _, err := Open(key, sealed[:5]); err == nil {
 		t.Fatal("Open of a too-short input succeeded, want fail closed")
 	}
-	// Full nonce but a truncated ciphertext: authentication must fail.
 	if _, err := Open(key, sealed[:len(sealed)-4]); err == nil {
 		t.Fatal("Open of a truncated ciphertext succeeded, want fail closed")
 	}

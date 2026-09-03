@@ -21,14 +21,14 @@ func TestReedSolomonKnownVector(t *testing.T) {
 
 func TestFormatBits(t *testing.T) {
 	want := []uint32{
-		0b101010000010010, // mask 0
-		0b101000100100101, // mask 1
-		0b101111001111100, // mask 2
-		0b101101101001011, // mask 3
-		0b100010111111001, // mask 4
-		0b100000011001110, // mask 5
-		0b100111110010111, // mask 6
-		0b100101010100000, // mask 7
+		0b101010000010010,
+		0b101000100100101,
+		0b101111001111100,
+		0b101101101001011,
+		0b100010111111001,
+		0b100000011001110,
+		0b100111110010111,
+		0b100101010100000,
 	}
 	for mask, w := range want {
 		if got := formatBits(mask); got != w {
@@ -52,15 +52,16 @@ func TestVersionBits(t *testing.T) {
 }
 
 func TestChooseVersion(t *testing.T) {
+	// The boundaries are the ISO/IEC 18004 level-M byte capacities at version 1 and version 10.
 	cases := []struct {
 		n, version int
 		ok         bool
 	}{
 		{1, 1, true},
-		{14, 1, true},   // v1-M byte capacity
-		{15, 2, true},   // spills to v2
-		{213, 10, true}, // v10-M byte capacity
-		{214, 0, false}, // beyond v10
+		{14, 1, true},
+		{15, 2, true},
+		{213, 10, true},
+		{214, 0, false},
 	}
 	for _, c := range cases {
 		v, _, ok := chooseVersion(c.n)
@@ -84,7 +85,7 @@ func TestEncodeStructure(t *testing.T) {
 		for dy := -3; dy <= 3; dy++ {
 			for dx := -3; dx <= 3; dx++ {
 				d := max(abs(dx), abs(dy))
-				want := d != 2 // dark everywhere but the light ring at Chebyshev distance 2
+				want := d != 2
 				if m.module[cy+dy][cx+dx] != want {
 					t.Fatalf("finder(%d,%d) module (%d,%d) = %v, want %v", cx, cy, cx+dx, cy+dy, m.module[cy+dy][cx+dx], want)
 				}
@@ -95,7 +96,6 @@ func TestEncodeStructure(t *testing.T) {
 	finder(m.Size-4, 3)
 	finder(3, m.Size-4)
 
-	// Timing tracks alternate, dark at even coordinate.
 	for i := 8; i < m.Size-8; i++ {
 		if m.module[6][i] != (i%2 == 0) || m.module[i][6] != (i%2 == 0) {
 			t.Fatalf("timing module at %d not alternating", i)
@@ -106,13 +106,6 @@ func TestEncodeStructure(t *testing.T) {
 	}
 }
 
-// goldenPayload and goldenMatrix pin one full symbol end-to-end. The matrix is
-// the version-6 rendering of goldenPayload, captured from this encoder and then
-// confirmed to decode back to goldenPayload by a ZXing-derived reader (see the
-// package doc). Unlike the sub-block vectors, it exercises the whole pipeline at
-// once — interleaving, zigzag placement, mask selection, and format bits — so a
-// regression in any of them that still passes the structural checks (an
-// unscannable but well-formed symbol) fails here.
 const goldenPayload = "otpauth://totp/Verge%20ASM:golden?secret=JBSWY3DPEHPK3PXP&issuer=Verge%20ASM&digits=6&period=30"
 
 var goldenMatrix = []string{
@@ -160,6 +153,7 @@ var goldenMatrix = []string{
 }
 
 func TestGoldenMatrix(t *testing.T) {
+	// Confirmed to decode under a ZXing-derived reader, kept out of tree to add no test dependency.
 	m, err := Encode([]byte(goldenPayload))
 	if err != nil {
 		t.Fatal(err)
@@ -177,12 +171,8 @@ func TestGoldenMatrix(t *testing.T) {
 	}
 }
 
-// TestVersion7AlignmentOnTimingTrack pins the alignment-placement rule that
-// only silently held at versions 2-6: from version 7 up, alignment patterns
-// centred on the timing tracks (here (col 22, row 6)) MUST be placed. A payload
-// of ~108 bytes forces version 7. Omitting these patterns leaves the symbol
-// undecodable, so this guards the regression the ZXing round-trip caught.
 func TestVersion7AlignmentOnTimingTrack(t *testing.T) {
+	// From version 7 up an alignment centre lands on a timing track; omitting it was the bug.
 	m, err := Encode([]byte(strings.Repeat("a", 108)))
 	if err != nil {
 		t.Fatal(err)
@@ -190,8 +180,6 @@ func TestVersion7AlignmentOnTimingTrack(t *testing.T) {
 	if v := (m.Size - 17) / 4; v != 7 {
 		t.Fatalf("payload landed on version %d, want 7", v)
 	}
-	// Alignment pattern centred at column 22, row 6: dark centre, a light ring
-	// at Chebyshev distance 1, dark border at distance 2.
 	cx, cy := 22, 6
 	if !m.module[cy][cx] {
 		t.Errorf("alignment centre (%d,%d) is not dark — pattern missing", cx, cy)
@@ -233,7 +221,7 @@ func TestSVG(t *testing.T) {
 		`xmlns="http://www.w3.org/2000/svg"`,
 		`role="img"`,
 		`aria-label="TOTP enrollment QR"`,
-		`fill="#ffffff"`, // explicit light ground so it scans on any theme
+		`fill="#ffffff"`,
 		`<path fill="#000000"`,
 		`</svg>`,
 	} {

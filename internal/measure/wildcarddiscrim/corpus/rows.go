@@ -14,10 +14,6 @@ type Step struct {
 	Peer       ScriptPeer
 }
 
-// Row is one corpus row: the cells it pins, its one-line claim, whether the claim
-// is spec-verified rather than measured (ADR-0021's honesty rider — every W-cell
-// is spec-verified today, §8.5), the declared parameters, the steps, and the
-// golden NDJSON file its output must equal byte for byte.
 type Row struct {
 	Cells        []string
 	Claim        string
@@ -27,14 +23,9 @@ type Row struct {
 	Golden       string
 }
 
-// AllCells is the enumeration A5 counts against: every cell of the
-// wildcard-discrimination block (golden-corpus.md §8) must be pinned by at least
-// one row. 19 cells — §8.1's adopted escrow W1–W6 (17) plus §8.2's citation pin
-// W7 (2). It is the length of a list, not a target.
 var AllCells = []string{
 	"W1/NoSynthesis", "W1/Determinate", "W1/Indeterminate",
 	"W2/Shadowed", "W2/not-Shadowed",
-	// W3 — boundary pins (4 boundaries × 2 = 8)
 	"W3a/determinate", "W3a/indeterminate-only",
 	"W3b/none-determinate", "W3b/determinate-differing",
 	"W3c/no-wildcard", "W3c/incomplete",
@@ -42,7 +33,6 @@ var AllCells = []string{
 	"W4/set-shape", "W4/independent",
 	"W5/shared-path",
 	"W6/suppression",
-	// W7 — the citation pin (1 boundary × 2 = 2)
 	"W7.1/cites-nothing", "W7.2/cites",
 }
 
@@ -57,6 +47,7 @@ const (
 func params() wd.Params { return wd.DefaultParams() }
 
 func one(cells []string, claim string, specVerified bool, names []string, peer ScriptPeer, golden string) Row {
+	// ADR-0021's honesty rider: every W-cell is spec-verified rather than measured today (§8.5).
 	return Row{
 		Cells:        cells,
 		Claim:        claim,
@@ -87,7 +78,7 @@ var Rows = []Row{
 		[]string{real},
 		ScriptPeer{Rules: []scriptRule{
 			{Name: real, Qtype: rw.QtypeA, Reply: noerror(rrA(real, "198.51.100.1"))},
-			// No Under rule: control labels are unmatched and read not-reached.
+			// No Under rule on purpose: the control labels are unmatched and read not-reached.
 		}},
 		"nowc_gap.ndjson"),
 
