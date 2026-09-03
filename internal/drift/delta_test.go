@@ -34,16 +34,12 @@ func TestChangeIsCurrentMinusPrevious(t *testing.T) {
 
 func TestOpenAtHalfOpenInterval(t *testing.T) {
 	base := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
-	prev := base.Add(1 * time.Hour)   // previous batch instant
-	latest := base.Add(2 * time.Hour) // most recent batch instant
+	prev := base.Add(1 * time.Hour)
+	latest := base.Add(2 * time.Hour)
 
 	all := []Span{
-		// Open since before prev, never closed: open at prev AND now.
 		spanAt("name", "held.example", base, time.Time{}),
-		// Opened by the latest batch (after prev): NOT open at prev, open now.
 		spanAt("name", "new.example", latest, time.Time{}),
-		// Closed by the latest batch (closed_at == latest, after prev): open at prev,
-		// not open now.
 		spanAt("name", "gone.example", base, latest),
 	}
 
@@ -55,8 +51,6 @@ func TestOpenAtHalfOpenInterval(t *testing.T) {
 		t.Fatalf("distinct subjects open now = %d, want 2 (held + new)", got)
 	}
 
-	// A span opened exactly at the boundary is open at it; a span closed exactly at
-	// it is not — the half-open interval [open, close).
 	edgeOpen := spanAt("name", "edge.example", prev, time.Time{})
 	if !openAt(edgeOpen, prev) {
 		t.Error("span opened exactly at t should be open at t")
@@ -72,13 +66,11 @@ func TestCountDeltaNetChangeAcrossBatch(t *testing.T) {
 	prev := base.Add(1 * time.Hour)
 	latest := base.Add(2 * time.Hour)
 
-	// Reachability-style corpus reduced to membership counting: two held, one
-	// appeared in the latest batch, one withdrawn by it. Net = +1 - 1 = 0.
 	all := []Span{
 		spanAt("service", "a", base, time.Time{}),
 		spanAt("service", "b", base, time.Time{}),
-		spanAt("service", "c", latest, time.Time{}), // appeared this batch
-		spanAt("service", "d", base, latest),        // withdrawn this batch
+		spanAt("service", "c", latest, time.Time{}),
+		spanAt("service", "d", base, latest),
 	}
 	d := CountDelta(all, prev, DistinctSubjects)
 	if d.Current != 3 {

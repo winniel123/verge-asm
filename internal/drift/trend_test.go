@@ -9,8 +9,6 @@ var trendNow = time.Date(2026, 8, 24, 0, 0, 0, 0, time.UTC)
 
 const week = 7 * 24 * time.Hour
 
-// --- HeatLevels: the scans-per-day intensity ramp ---
-
 func TestHeatLevelsAllZeroIsAllLevelZero(t *testing.T) {
 	got := HeatLevels([]int{0, 0, 0})
 	for i, l := range got {
@@ -21,8 +19,6 @@ func TestHeatLevelsAllZeroIsAllLevelZero(t *testing.T) {
 }
 
 func TestHeatLevelsRampsInQuartilesOfTheBusiestDay(t *testing.T) {
-	// max = 8, so the four steps are ceil(c/8*4): 1..2 -> 1, 3..4 -> 2, 5..6 -> 3,
-	// 7..8 -> 4. Zero stays 0.
 	counts := []int{0, 1, 2, 3, 4, 5, 6, 7, 8}
 	want := []int{0, 1, 1, 2, 2, 3, 3, 4, 4}
 	got := HeatLevels(counts)
@@ -49,13 +45,12 @@ func TestHeatLevelsNeverExceedsTheRamp(t *testing.T) {
 }
 
 func TestSignalsOverTimeBucketsIncidenceByFirstSeen(t *testing.T) {
-	// Four weekly buckets ending at trendNow; window opens 4 weeks back.
 	start := windowStart(trendNow, week, 4)
 	raises := []Raise{
-		{At: start.Add(1 * time.Hour)},        // bucket 0
-		{At: start.Add(week + 1*time.Hour)},   // bucket 1
-		{At: start.Add(week + 2*time.Hour)},   // bucket 1
-		{At: start.Add(3*week + 1*time.Hour)}, // bucket 3
+		{At: start.Add(1 * time.Hour)},
+		{At: start.Add(week + 1*time.Hour)},
+		{At: start.Add(week + 2*time.Hour)},
+		{At: start.Add(3*week + 1*time.Hour)},
 	}
 	pts := SignalsOverTime(raises, trendNow, week, 4)
 	if len(pts) != 4 {
@@ -72,20 +67,17 @@ func TestSignalsOverTimeBucketsIncidenceByFirstSeen(t *testing.T) {
 func TestSignalsOverTimeStandingAccumulatesAndCountsPreWindowRaises(t *testing.T) {
 	start := windowStart(trendNow, week, 4)
 	raises := []Raise{
-		{At: start.Add(-2 * week)},            // before the window: lifts every standing bucket
-		{At: start.Add(1 * time.Hour)},        // bucket 0
-		{At: start.Add(2*week + 1*time.Hour)}, // bucket 2
+		{At: start.Add(-2 * week)},
+		{At: start.Add(1 * time.Hour)},
+		{At: start.Add(2*week + 1*time.Hour)},
 	}
 	pts := SignalsOverTime(raises, trendNow, week, 4)
-	// Standing: pre-window (1) from bucket 0; +bucket-0 raise -> 2 at bucket 0..1;
-	// +bucket-2 raise -> 3 at bucket 2..3.
 	wantStanding := []int{2, 2, 3, 3}
 	for i, w := range wantStanding {
 		if pts[i].Standing != w {
 			t.Fatalf("bucket %d standing: want %d, got %d", i, w, pts[i].Standing)
 		}
 	}
-	// Incidence never counts the pre-window raise.
 	if pts[0].Count != 1 {
 		t.Fatalf("bucket 0 incidence should exclude the pre-window raise, got %d", pts[0].Count)
 	}
@@ -123,11 +115,11 @@ func TestDiscoverySeriesBucketsAppearancesByInstant(t *testing.T) {
 	const day = 24 * time.Hour
 	start := windowStart(trendNow, day, 4)
 	apps := []Appearance{
-		{At: start.Add(1 * time.Hour)},                    // bucket 0
-		{At: start.Add(day + 1*time.Hour)},                // bucket 1
-		{At: start.Add(day + 2*time.Hour), Service: true}, // bucket 1
-		{At: start.Add(3*day + 1*time.Hour)},              // bucket 3
-		{At: start.Add(-day)},                             // before the window: dropped
+		{At: start.Add(1 * time.Hour)},
+		{At: start.Add(day + 1*time.Hour)},
+		{At: start.Add(day + 2*time.Hour), Service: true},
+		{At: start.Add(3*day + 1*time.Hour)},
+		{At: start.Add(-day)},
 	}
 	pts := DiscoverySeries(apps, trendNow, day, 4)
 	if len(pts) != 4 {
@@ -156,11 +148,11 @@ func TestDiscoverySeriesEmptyIsAllZeroBuckets(t *testing.T) {
 func TestDiscoveryCountSplitsNamesAndServicesInWindow(t *testing.T) {
 	winStart := trendNow.Add(-week)
 	apps := []Appearance{
-		{At: winStart.Add(1 * time.Hour)},                // name, in window
-		{At: winStart.Add(2 * time.Hour), Service: true}, // service, in window
-		{At: winStart.Add(3 * time.Hour), Service: true}, // service, in window
-		{At: winStart.Add(-time.Hour)},                   // before window: excluded
-		{At: trendNow},                                   // at end (exclusive): excluded
+		{At: winStart.Add(1 * time.Hour)},
+		{At: winStart.Add(2 * time.Hour), Service: true},
+		{At: winStart.Add(3 * time.Hour), Service: true},
+		{At: winStart.Add(-time.Hour)},
+		{At: trendNow},
 	}
 	got := DiscoveryCount(apps, winStart, trendNow)
 	if got.Total != 3 || got.Names != 1 || got.Services != 2 {
@@ -174,12 +166,11 @@ func TestWithdrawalDurationValidity(t *testing.T) {
 	if d, ok := (Withdrawal{Appeared: appeared, Withdrawn: withdrawn}).Duration(); !ok || d != 2*week {
 		t.Fatalf("want 2 weeks valid, got %v ok=%v", d, ok)
 	}
-	// Missing appearance, missing withdrawal, and non-positive interval are all unusable.
 	for _, w := range []Withdrawal{
 		{Withdrawn: withdrawn},
 		{Appeared: appeared},
-		{Appeared: withdrawn, Withdrawn: appeared}, // withdrawn before appeared
-		{Appeared: appeared, Withdrawn: appeared},  // zero interval
+		{Appeared: withdrawn, Withdrawn: appeared},
+		{Appeared: appeared, Withdrawn: appeared},
 	} {
 		if _, ok := w.Duration(); ok {
 			t.Fatalf("expected %+v to be unusable", w)
@@ -189,9 +180,9 @@ func TestWithdrawalDurationValidity(t *testing.T) {
 
 func TestMeanTimeToWithdrawalAveragesValidIntervalsOnly(t *testing.T) {
 	ws := []Withdrawal{
-		{Appeared: trendNow.Add(-4 * week), Withdrawn: trendNow.Add(-2 * week)}, // 2 weeks
-		{Appeared: trendNow.Add(-6 * week), Withdrawn: trendNow.Add(-2 * week)}, // 4 weeks
-		{Withdrawn: trendNow}, // unusable, dropped
+		{Appeared: trendNow.Add(-4 * week), Withdrawn: trendNow.Add(-2 * week)},
+		{Appeared: trendNow.Add(-6 * week), Withdrawn: trendNow.Add(-2 * week)},
+		{Withdrawn: trendNow},
 	}
 	mean, ok := MeanTimeToWithdrawal(ws)
 	if !ok || mean != 3*week {
@@ -211,9 +202,7 @@ func TestMeanTimeToWithdrawalEmptyIsUnavailable(t *testing.T) {
 func TestWithdrawalSeriesBucketsByWithdrawalInstant(t *testing.T) {
 	start := windowStart(trendNow, week, 4)
 	ws := []Withdrawal{
-		// Withdrawn in bucket 1, lifespan exactly 2 weeks.
 		{Appeared: start.Add(-week + 1*time.Hour), Withdrawn: start.Add(week + 1*time.Hour)},
-		// Withdrawn in bucket 3, lifespan exactly 1 week.
 		{Appeared: start.Add(2*week + 1*time.Hour), Withdrawn: start.Add(3*week + 1*time.Hour)},
 	}
 	pts := WithdrawalSeries(ws, trendNow, week, 4)
@@ -233,11 +222,9 @@ func TestWithdrawalSeriesBucketsByWithdrawalInstant(t *testing.T) {
 
 func TestBucketIndexBoundaryBelongsToNewerBucket(t *testing.T) {
 	start := trendNow.Add(-4 * week)
-	// An instant exactly on the bucket-1 boundary belongs to bucket 1, not 0.
 	if idx, ok := bucketIndex(start.Add(week), start, week, 4); !ok || idx != 1 {
 		t.Fatalf("boundary want bucket 1, got %d ok=%v", idx, ok)
 	}
-	// An instant at exactly `now` (the last upper bound) is outside the window.
 	if _, ok := bucketIndex(trendNow, start, week, 4); ok {
 		t.Fatal("instant at now should fall outside the window")
 	}

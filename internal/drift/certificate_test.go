@@ -2,17 +2,8 @@ package drift
 
 import "testing"
 
-// The drift machinery is facet-agnostic: a Span is one period a value was held,
-// and that shape does not vary by facet (ADR-0007). These cases pin that the same
-// Fold / Break / Transition / Closure that serve `resolution` on a `Name` and
-// `reachability` on a `Service` also serve the `certificate` facet on an
-// `Endpoint` subject (#197) — the facet is a parameter, never a hardcode, so
-// generalising to it needs no core change (only the facet CHECK widens).
-//
-// A certificate cannot itself change (CONTEXT.md `Certificate`); what drifts is
-// WHICH certificate an Endpoint presents — the ordered chain of fingerprints —
-// and the two TLS negatives (`tls-refused`, `no-tls`) are values that drift like
-// any other, so a move between any two of the closed union opens a new Span.
+// The facet is a parameter and never a hardcode, so #197 needed no core change (ADR-0007).
+// A certificate cannot itself change; what drifts is which chain an Endpoint presents (CONTEXT.md).
 
 var epKey = TimelineKey{
 	SubjectKind: "endpoint",
@@ -21,8 +12,6 @@ var epKey = TimelineKey{
 	Source:      "prober",
 }
 
-// A rotation — the Endpoint presents a new leaf — closes the old chain's span and
-// opens the new one, an ordinary value move with no closure reason.
 func TestCertificateChainRotationOpensNewSpan(t *testing.T) {
 	v := vec("tls-handshake", "tls-handshake/v1")
 	spans := Fold(epKey, []Reading{
@@ -44,9 +33,6 @@ func TestCertificateChainRotationOpensNewSpan(t *testing.T) {
 	}
 }
 
-// A move from a presented chain to a measured negative (the listener stops
-// speaking TLS) is a value move like any other — both are values in the closed
-// union, so it opens a span rather than a Gap.
 func TestCertificatePresentedToNegativeIsAValueMove(t *testing.T) {
 	v := vec("tls-handshake", "tls-handshake/v1")
 	spans := Fold(epKey, []Reading{
@@ -63,8 +49,6 @@ func TestCertificatePresentedToNegativeIsAValueMove(t *testing.T) {
 	}
 }
 
-// A tls-handshake Version bump Breaks the certificate timeline exactly as a leaf
-// bump Breaks resolution — the Break names the moved leaf.
 func TestCertificateVersionBumpBreaks(t *testing.T) {
 	before := vec("tls-handshake", "tls-handshake/v1")
 	after := vec("tls-handshake", "tls-handshake/v2")
@@ -78,10 +62,8 @@ func TestCertificateVersionBumpBreaks(t *testing.T) {
 	}
 }
 
-// An Endpoint withdraws when either leg does (CONTEXT.md `Endpoint`): when the
-// Service beneath it closes, CloseWithdrawal carries the `uncited` ground onto the
-// certificate timeline the Endpoint held.
 func TestCertificateEndpointClosesUncitedWhenServiceWithdraws(t *testing.T) {
+	// An Endpoint withdraws when either leg does (CONTEXT.md Endpoint).
 	open := []Span{
 		{Key: epKey, Value: `{"outcome":"presented","chain":["sha256:leafA"]}`, OpenedAt: day(0)},
 	}
