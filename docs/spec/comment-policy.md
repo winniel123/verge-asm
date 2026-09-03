@@ -161,11 +161,12 @@ survey's counts and the tool's. Trust the parser.
 ### 2.3 The protected-directive patterns
 
 Ruling 10 fixes the form as a pattern class rather than an exact list. These patterns are
-normative. 397 lines depend on them. Deleting one changes the build or the generated code.
+normative. 484 lines depend on them. Deleting one changes the build, the generated code, or what a
+required status check reports.
 
 | Surface | Patterns |
 | --- | --- |
-| Go | `//go:`, `// +build`, `//nolint`, `//lint:`, `//revive:` |
+| Go | `//go:`, `// +build`, `//nolint`, `//lint:`, `//revive:`, `// #nosec`, `//#nosec` |
 | SQL | `-- name:`, `-- +goose` |
 | JS and TS | `eslint`, `@ts-check`, `@ts-expect-error`, `prettier-ignore`, `c8 ignore`, `@jsx` |
 | CSS | `stylelint-`, `postcss-` |
@@ -173,13 +174,30 @@ normative. 397 lines depend on them. Deleting one changes the build or the gener
 **To add a pattern, add it to this table.** A directive line forms its own block, so a directive
 never absorbs the prose beneath it.
 
-**This list is complete for this tree, measured 2026-09-01.** Four findings support that:
+**A `#nosec` justification is prose, and prose wraps.** The own-line block that opens on the line
+below a `#nosec` line is the **waiver tail**. `gosec` reads the whole comment group, so that tail is
+part of the waiver. **§3.2 withholds a waiver tail from the delete pass under the `tool-marker`
+signal.** Measured: without the rule, `strip` deleted two justification lines from
+`cmd/web/backup.go` (#1274).
+
+**The tail is withheld from the delete pass alone. Every ratchet rule still reads it.** A tail that
+opens with `TODO` still reports `todo-marker`. A `#nosec` line is not a way to silence the ratchet
+for the lines below it.
+
+**This list is a floor, not a proven-complete list.** The 2026-09-01 measurement claimed completeness
+and missed `#nosec`. `gosec` reads `#nosec`, and `gosec` is one of the 7 required status checks, so
+deleting one changes what that check reports (#1274). Widen this table whenever you find a tool that
+reads a comment. Never narrow it.
+
+Four findings, measured 2026-09-01 and re-measured with the tool on 2026-09-03:
 
 1. No cgo. The tree holds no `import "C"`, no `//export` and no `#cgo`. That removes the most
    dangerous comment class in Go.
 2. No `//go:generate`.
-3. SQL holds 384 of the 397 directive lines: 250 `-- name:` openers and 134 `+goose` markers. Go
-   holds 11 and `.jsx` holds 2.
+3. SQL holds 387 of the 484 directive lines. Go holds 96: 81 `#nosec` blocks that span 85 lines,
+   and 11 lines under the other five patterns. Five more Go blocks name `#nosec` in prose, and the
+   tool reads none of them as a directive. A grep finds 1 line in `.jsx`, because the `.jsx` lexer
+   needs `esbuild`. `.mjs`, `.ts`, `.css` and `.tmpl` hold none.
 4. **No JSDoc tag is consumed by any tool in this repo.** A raw grep reports 13,533 `@param` and
    8,884 `@component`, and every one sits in untracked `docs-site/node_modules`. Tracked files hold
    zero. `docs-site` uses no typedoc and no ts-morph.
@@ -215,6 +233,7 @@ A block is withheld from the mechanical pass when it carries any of these signal
 | External spec | `RFC`, `IANA`, `X.509`, `BCP`, `NIST`, `PKIX`, `ISO nnnn` |
 | WHY marker | the reason and hazard word list, §2.1 rule 12 |
 | Bare URL | an `http` or `https` URL with no citation beside it |
+| Tool marker | a `Deprecated:` paragraph opener, a `#nosec` body, or a §2.3 waiver tail |
 
 Three properties of the screen:
 
@@ -224,6 +243,9 @@ Three properties of the screen:
 - **It is tuned loose.** The cost is asymmetric. A false keep costs agent time. A false delete loses
   a reason permanently. This list is the floor. A later revision may widen it. **A later revision
   must never narrow it.**
+
+The waiver tail is the one signal a block's own body does not carry. §2.3 states why: `gosec` reads
+the comment group, and the block is a smaller unit than the group.
 
 Two signals are **not** screen signals. A strict history marker is a delete signal, because
 `CLAUDE.md` forbids change narration. The loose narration set (`now`, `was`) is the survey's named
@@ -659,7 +681,8 @@ for SQL and CSS a single hand lexer does both jobs. One interface makes that sha
 it puts the §5.5 cross-check on one testable object.
 
 §1.5 defines a block. A protected directive line is its own block, so a directive never absorbs the
-prose beneath it.
+prose beneath it. The own-line block that opens on the line below a `#nosec` line is the **waiver
+tail**. `Lex` marks it, and §2.3 states what the mark buys.
 
 ### 6.3 The command-line surface
 
@@ -677,6 +700,10 @@ lints nothing.
 is JSON Lines, one record per **declined** block: file, line span, class, and the screen signal that
 fired. The default path is `.commentlint/residue.jsonl`. **That path needs a `.gitignore` entry**,
 because §3.8 says the manifest is never committed.
+
+`--manifest` names where `--write` saves the manifest. **`--manifest` without `--write` is a usage
+error, exit 2.** A dry run prints the manifest to stdout, so a named path that saves nothing reads as
+a saved file that is missing (#1274).
 
 **`verify`** reads the pre-sweep content with `git show <base>:<path>`, driven by an explicit
 `--base`. The tool does not compute the merge base itself. With an explicit base, the CI job and a
@@ -788,8 +815,9 @@ The SQL cross-check (§5.5) is not a unit test. It is a one-time gate on the fir
 the `setup-go` step and the path filter. One file keeps the sweep's whole CI story readable in one
 place. This is a mild departure from `doclint.yml`, which is one file and one job.
 
-- Trigger: `pull_request`. Paths: `**/*.go`, `**/*.sql`, `**/*.mjs`, `**/*.ts`, `**/*.jsx`,
-  `**/*.tmpl`, `**/*.css`, plus the tool and the workflow itself.
+- Trigger: `pull_request`, types `opened`, `synchronize`, `reopened`, `labeled`. Paths: `**/*.go`,
+  `**/*.sql`, `**/*.mjs`, `**/*.ts`, `**/*.jsx`, `**/*.tmpl`, `**/*.css`, plus the tool and the
+  workflow itself.
 - `permissions: contents: read`. Per-ref concurrency with `cancel-in-progress`.
 - **Job one, `lint`.** `continue-on-error: true`. It runs `lint --github --in-scope-only` over the
   three-dot diff. Advisory under ruling 5.
@@ -798,6 +826,34 @@ place. This is a mild departure from `doclint.yml`, which is one file and one jo
   It runs `verify --base`.
 
 `fetch-depth: 0` is load-bearing for both jobs. A shallow clone has no merge base.
+
+**`labeled` is load-bearing for the `verify` gate.** GitHub defaults `types` to `opened`,
+`synchronize` and `reopened`. Labelling a pull request is a second API call, and GitHub builds the
+`opened` run's payload two to four seconds after the pull request opens. **The label and the payload
+race.** When the label loses, the `opened` run reads an empty label list, skips `verify`, and reports
+a check that proves nothing.
+
+The first stage-D1 batch measured both outcomes on 2026-09-03 (#1273):
+
+| PR | Label applied after the PR opened | `verify` on the first run |
+| --- | ---: | --- |
+| #1266 | 1 s | ran |
+| #1270 | 1 s | ran |
+| #1268 | 12 s | **skipped** |
+| #1271 | 14 s | **skipped** |
+
+The two that lost the race closed and reopened their pull request to force a real run. A race a
+session wins half the time is worse than a plain failure, because the green check looks the same
+either way. `labeled` removes the race: the label itself fires the run, so the payload cannot
+predate it.
+
+A path filter on a `pull_request` event is evaluated against the pull request's own diff, not against
+an event file list, so it holds on a `labeled` event the same way it holds on a `synchronize` event.
+
+Two costs follow, and both are accepted. Any label, not only `sweep:comments`, re-runs the workflow;
+GitHub offers no label-name filter on the trigger, and a re-run of an advisory `lint` is cheap. And
+the per-ref `cancel-in-progress` group means a near-simultaneous `opened` run and `labeled` run
+cancel one another, so a sweep PR can end with no `verify` row at all. §7.7 reads that case.
 
 ### 6.10 The `sweep:comments` label
 
@@ -950,10 +1006,35 @@ records. A sweep session must not mistake them for its own regression, and must 
 
 A sweep ticket is done when **four** conditions hold:
 
-1. `commentlint verify` is green on the PR.
+1. `commentlint verify` **ran** on the PR and is green.
 2. `commentlint lint` reports zero flags on the ticket's files.
 3. The PR body carries a keeps ledger (§4.9) and a gaps table (§8.6).
 4. A human approves the PR.
+
+**The sweep session applies `sweep:comments` to its own pull request.** Nothing else applies it.
+Stage A (§7.2) creates the label; it does not put it on a PR. An unlabelled sweep PR has no gate at
+all.
+
+**Condition 1 asks for two facts, not one.** A `verify` job that the `sweep:comments` gate skipped
+also leaves the PR green, and it proves nothing. The sweep session confirms the run itself:
+
+```sh
+gh pr checks <pr> | grep -E '^(lint|verify)\b'
+```
+
+Read the word, not the colour. GitHub's check mosaic renders a skipped job the same shade as a passed
+one. The command can report four states, and only the first is done:
+
+| `verify` row | Meaning | What the session does |
+| --- | --- | --- |
+| `pass` | The job ran and the equivalence held. | Condition 1 is met. |
+| `skipping` | The label was not on the PR when the workflow last fired. | Add or re-add `sweep:comments`. The `labeled` trigger (§6.9) fires a fresh run. |
+| `pending` | The run is still in flight. | Wait, then read again. |
+| *no row at all* | No commentlint run completed. It was cancelled (§6.9), or no in-scope path changed. | Re-add the label to force a run. A sweep PR with no in-scope path is not a sweep PR. |
+
+Do not read the pipeline's exit status. `gh pr checks` exits non-zero while any check is still
+pending, measured as 8 on 2026-09-03, so a zero exit is not the signal. `grep` finding nothing is
+silence, not a pass.
 
 **Condition 2 does not prove conformance on its own.** `lint` flags only the mechanically-decidable
 classes. Condition 3 is the judgment gate. Delete-by-default makes a wrong delete visible in the

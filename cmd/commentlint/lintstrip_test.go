@@ -317,6 +317,27 @@ func TestStripWriteDeletesAndSavesTheManifest(t *testing.T) {
 	}
 }
 
+func TestStripRefusesAManifestPathWithoutWrite(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	writeFile(t, dir, "p.go", "package p\n\n// F reports the estate.\nfunc F() {}\n")
+
+	var stdout, stderr bytes.Buffer
+	got := runWith([]string{"strip", "--manifest", "residue.jsonl", "p.go"}, &stdout, &stderr, stubGit(nil, nil))
+	if got != 2 {
+		t.Errorf("exit is %d, want 2 on --manifest without --write", got)
+	}
+	if !strings.Contains(stderr.String(), "--manifest needs --write") {
+		t.Errorf("stderr is %q, want it to name the missing flag", stderr.String())
+	}
+	if _, err := os.Stat(filepath.Join(dir, "residue.jsonl")); !os.IsNotExist(err) {
+		t.Error("the refused run wrote the named manifest")
+	}
+	if stdout.Len() != 0 {
+		t.Errorf("stdout is %q, want nothing on a usage error", stdout.String())
+	}
+}
+
 func TestStripNeedsAPath(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	if got := runWith([]string{"strip"}, &stdout, &stderr, stubGit(nil, nil)); got != 2 {
