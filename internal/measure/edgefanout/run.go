@@ -12,20 +12,13 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// Scope is the edge-fanout-specific payload of a JobSpec: the candidate edge addresses
-// to measure.
-//
-// There is no vantage — the `Scan` has no vantage dimension. There is no port list —
-// the edge is measured on 443/tcp alone. There is no name list — the handshake sends no
-// server name, so no name selects what the edge serves. An empty address list is a
-// legible state: no custody extension is declared, so there is nothing to measure
-// (CONTEXT.md `Scan`).
 type Scope struct {
-	Addresses []string `json:"addresses"`
+	Addresses []string `json:"addresses"` // the only dimension: no vantage, no port list, no name list
 }
 
 func DecodeScope(spec wire.JobSpec) (Scope, error) {
 	var s Scope
+	// An absent scope is an error, but an empty address list is legible: nothing to measure.
 	if len(spec.Scope) == 0 {
 		return Scope{}, fmt.Errorf("edgefanout: job spec has no scope")
 	}
@@ -43,24 +36,17 @@ func Run(spec wire.JobSpec, w io.Writer) error {
 	return RunWithHandshaker(context.Background(), NetHandshaker{Timeout: 3 * time.Second}, spec.Batch, scope, w)
 }
 
-// RunWithHandshaker executes the leaf against an arbitrary Handshaker. Separating the
-// handshaker from Run is what lets one code path be driven by the network adapter in
-// production and by a scripted handshaker in a hermetic test.
-//
-// It produces one observation per DISTINCT candidate address, in first-seen order. The
-// dedup is what makes the handshake one connect per address: a candidate repeated in
-// the scope — two in-zone names flattening to the same edge is the modal case — is
-// measured once, and measuring it twice would tell us nothing the first handshake did
-// not. An address that does not parse is our own error, never a measured value, so it
-// is skipped and carries no row.
 func RunWithHandshaker(ctx context.Context, h Handshaker, batch string, scope Scope, w io.Writer) error {
 	seen := make(map[netip.AddrPort]struct{}, len(scope.Addresses))
 	var out []wire.Observation
+	// A skipped candidate carries no row, and Custody reads an absent row as pending (CONTEXT.md).
 	for _, addr := range scope.Addresses {
 		target, ok := edgeTarget(addr)
+		// An unparseable address is our own error, never a measured value.
 		if !ok {
 			continue
 		}
+		// Two in-zone names often flatten to one edge, and a second handshake would tell us nothing.
 		if _, dup := seen[target]; dup {
 			continue
 		}
@@ -70,19 +56,14 @@ func RunWithHandshaker(ctx context.Context, h Handshaker, batch string, scope Sc
 	return writeNDJSON(w, out)
 }
 
-// edgeTarget folds one candidate address to the measurement point — the address on
-// 443/tcp — reporting false for an address that does not parse as a literal IP. The
-// leaf dials only literal addresses, never a hostname that would re-resolve at connect
-// time with no rebinding backstop (#743).
-//
-// Surrounding whitespace is trimmed, the way the recording-side scope gate trims
-// (internal/queue/scopegate.go normAddr), so a candidate never fails to be measured
-// over a spelling difference the two sides disagree about.
 func edgeTarget(addr string) (netip.AddrPort, bool) {
+	// Trimmed the way internal/queue's scope gate trims, so the two sides agree on a spelling.
 	ip, err := netip.ParseAddr(strings.TrimSpace(addr))
+	// Never a hostname: it would re-resolve at connect time with no rebinding backstop (#743).
 	if err != nil {
 		return netip.AddrPort{}, false
 	}
+	// One handshake per address on 443/tcp, never a port tier (ADR-0028).
 	return netip.AddrPortFrom(ip.Unmap(), Port), true
 }
 
