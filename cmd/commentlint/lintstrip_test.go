@@ -89,9 +89,9 @@ func TestLintSkipsASurfaceWithNoLexerYet(t *testing.T) {
 	}
 }
 
-// §6.4 gives `lint` every lexable surface, so a divider in `db/queries` or a
-// token file reports like a Go one (#1140).
 func TestLintReadsTheSQLAndCSSSurfaces(t *testing.T) {
+	// §6.4 gives `lint` every lexable surface, so a divider in `db/queries` or
+	// a token file reports like a Go one (#1140).
 	dir := t.TempDir()
 	t.Chdir(dir)
 	writeFile(t, dir, "db/queries/scan.sql", "-- name: X :one\n-- ----------------\nSELECT 1;\n")
@@ -141,8 +141,8 @@ func TestGithubModeAnnotatesAndExitsZeroOnAViolation(t *testing.T) {
 	}
 }
 
-// §6.4 keeps `strip` on Go alone, even now that both surfaces lex (#1140).
 func TestStripRefusesANonGoPath(t *testing.T) {
+	// §6.4 keeps `strip` on Go alone, even now that both surfaces lex (#1140).
 	cases := map[string]string{
 		"db/queries/scan.sql":             "-- name: X :one\nSELECT 1;\n",
 		"design-system/tokens/colors.css": "/* the azure scale */\na { color: red; }\n",

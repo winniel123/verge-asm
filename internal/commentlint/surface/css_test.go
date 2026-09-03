@@ -76,9 +76,9 @@ func TestCSSTokenizesTheValueForms(t *testing.T) {
 	}
 }
 
-// §5.1: a comment can act as a token separator, so removing one is not always
-// a no-op.
 func TestCSSSeparatingCommentMovesTheSkeleton(t *testing.T) {
+	// §5.1: a comment can act as a token separator, so removing one is not
+	// always a no-op.
 	glued := cssSkeleton(t, "a{color:re/*c*/d}")
 	stripped := cssSkeleton(t, "a{color:red}")
 	if glued == stripped {
@@ -112,6 +112,16 @@ func TestCSSProtectsItsDirectives(t *testing.T) {
 				t.Errorf("skeleton is %s, want it to open with the directive", with)
 			}
 		})
+	}
+}
+
+func TestCSSProseNamingALinterIsNotADirective(t *testing.T) {
+	res, err := CSS{}.Lex([]byte("/* the stylelint-disable form is refused here */\na { color: red; }\n"))
+	if err != nil {
+		t.Fatalf("Lex: %v", err)
+	}
+	if len(res.Blocks) != 1 || res.Blocks[0].Directive {
+		t.Fatalf("got blocks %+v, want one comment that is not a directive", res.Blocks)
 	}
 }
 

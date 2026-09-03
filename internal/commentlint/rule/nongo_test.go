@@ -18,8 +18,8 @@ func lexOne(t *testing.T, lexer surface.Lexer, src string) surface.Block {
 	return res.Blocks[0]
 }
 
-// §6.6: off Go there is no parser, so `commented-out-code` is a shape test.
 func TestClassifyReadsTheNonGoSurfaces(t *testing.T) {
+	// §6.6: off Go there is no parser, so `commented-out-code` is a shape test.
 	cases := []struct {
 		name  string
 		lexer surface.Lexer
@@ -78,8 +78,8 @@ func TestClassifyReadsTheNonGoSurfaces(t *testing.T) {
 	}
 }
 
-// §3.6 reads `agent` in every non-Go cell, so no non-Go block is deletable.
 func TestDeletableHoldsOffGo(t *testing.T) {
+	// §3.6 reads `agent` in every non-Go cell, so no non-Go block is deletable.
 	cases := []struct {
 		name  string
 		lexer surface.Lexer
@@ -103,8 +103,8 @@ func TestDeletableHoldsOffGo(t *testing.T) {
 	}
 }
 
-// §3.6 binds the delete pass and not the flag set, so `lint` still reports.
 func TestLintFlagsOffGo(t *testing.T) {
+	// §3.6 binds the delete pass and not the flag set, so `lint` still reports.
 	res, err := surface.SQL{}.Lex([]byte("-- ------------------------\nSELECT 1;\n"))
 	if err != nil {
 		t.Fatalf("Lex: %v", err)

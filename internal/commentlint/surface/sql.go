@@ -21,16 +21,11 @@ const (
 )
 
 type sqlScan struct {
-	src      []byte
-	i        int
-	line     int
-	comments []rawComment
-	skeleton []Token
-	lastCode int
+	byteScan
 }
 
 func (SQL) Lex(src []byte) (Result, error) {
-	s := &sqlScan{src: src, line: 1}
+	s := &sqlScan{byteScan{src: src, line: 1}}
 	if err := s.run(); err != nil {
 		return Result{}, err
 	}
@@ -42,11 +37,7 @@ func (s *sqlScan) run() error {
 	for s.i < len(s.src) {
 		c := s.src[s.i]
 		switch {
-		case c == '\n':
-			s.line++
-			s.i++
-		case isSpaceByte(c):
-			s.i++
+		case s.space(c):
 		case c == '-' && s.peek(1) == '-':
 			s.lineComment()
 		case c == '/' && s.peek(1) == '*':
@@ -85,23 +76,6 @@ func (s *sqlScan) run() error {
 		}
 	}
 	return nil
-}
-
-func (s *sqlScan) peek(n int) byte {
-	if s.i+n >= len(s.src) {
-		return 0
-	}
-	return s.src[s.i+n]
-}
-
-// emit records a code token. A comment that shares the token's line is a
-// trailing comment, and §3.4 holds that population apart.
-func (s *sqlScan) emit(kind, text string, line int) {
-	for k := len(s.comments) - 1; k >= 0 && s.comments[k].endLine == line; k-- {
-		s.comments[k].ownLine = false
-	}
-	s.skeleton = append(s.skeleton, Token{Kind: kind, Text: text, Line: line})
-	s.lastCode = s.line
 }
 
 func (s *sqlScan) lineComment() {
@@ -196,9 +170,9 @@ func (s *sqlScan) quoted(start int, quote byte, kind string, backslash bool) err
 
 var sqlStringPrefixes = []string{"E'", "e'", "N'", "n'", "B'", "b'", "X'", "x'", "U&'", "u&'"}
 
-// stringPrefix reports the length of a string introducer such as `E'`. A
-// prefix that follows an identifier byte is part of that identifier instead.
 func (s *sqlScan) stringPrefix() int {
+	// PostgreSQL reads `abc'x'` as an identifier and then a string, so an
+	// introducer never follows an identifier byte.
 	if s.i > 0 && sqlIdentPart(s.src[s.i-1]) {
 		return 0
 	}
@@ -242,7 +216,6 @@ func (s *sqlScan) dollar() error {
 	return fmt.Errorf("scan: %d: the dollar quote %s opens and never closes", startLine, tag)
 }
 
-// sqlDollarTag returns the full `$tag$` delimiter at i, empty tag included.
 func sqlDollarTag(src []byte, i int) (string, bool) {
 	j := i + 1
 	if j < len(src) && src[j] == '$' {
@@ -273,18 +246,7 @@ func (s *sqlScan) number() {
 	for s.i < len(s.src) && (isDigit(s.src[s.i]) || s.src[s.i] == '.') {
 		s.i++
 	}
-	if s.i < len(s.src) && (s.src[s.i] == 'e' || s.src[s.i] == 'E') {
-		j := s.i + 1
-		if j < len(s.src) && (s.src[j] == '+' || s.src[j] == '-') {
-			j++
-		}
-		if j < len(s.src) && isDigit(s.src[j]) {
-			s.i = j
-			for s.i < len(s.src) && isDigit(s.src[s.i]) {
-				s.i++
-			}
-		}
-	}
+	s.exponent()
 	s.emit(SQLNumber, string(s.src[start:s.i]), startLine)
 }
 
@@ -300,8 +262,8 @@ func sqlIdentStart(c byte) bool {
 	return isLetter(c) || c == '_' || c >= 0x80
 }
 
-// PostgreSQL allows `$` inside an identifier, so a dollar quote never opens
-// straight after one.
 func sqlIdentPart(c byte) bool {
+	// PostgreSQL allows `$` inside an identifier, so a dollar quote never
+	// opens straight after one.
 	return sqlIdentStart(c) || isDigit(c) || c == '$'
 }

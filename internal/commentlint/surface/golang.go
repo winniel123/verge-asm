@@ -114,15 +114,6 @@ func goConstraint(text string) bool {
 	return hasAnyPrefix(text, goConstraintPrefixes)
 }
 
-func hasAnyPrefix(text string, prefixes []string) bool {
-	for _, p := range prefixes {
-		if strings.HasPrefix(text, p) {
-			return true
-		}
-	}
-	return false
-}
-
 func goCommentEnd(src []byte, start int) int {
 	if start+1 < len(src) && src[start+1] == '*' {
 		if i := bytes.Index(src[start:], []byte("*/")); i >= 0 {

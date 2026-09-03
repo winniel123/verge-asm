@@ -21,16 +21,11 @@ const (
 )
 
 type cssScan struct {
-	src      []byte
-	i        int
-	line     int
-	comments []rawComment
-	skeleton []Token
-	lastCode int
+	byteScan
 }
 
 func (CSS) Lex(src []byte) (Result, error) {
-	s := &cssScan{src: src, line: 1}
+	s := &cssScan{byteScan{src: src, line: 1}}
 	if err := s.run(); err != nil {
 		return Result{}, err
 	}
@@ -42,11 +37,7 @@ func (s *cssScan) run() error {
 	for s.i < len(s.src) {
 		c := s.src[s.i]
 		switch {
-		case c == '\n':
-			s.line++
-			s.i++
-		case isSpaceByte(c):
-			s.i++
+		case s.space(c):
 		case c == '/' && s.peek(1) == '*':
 			s.comment()
 		case c == '\'' || c == '"':
@@ -76,21 +67,6 @@ func (s *cssScan) run() error {
 	return nil
 }
 
-func (s *cssScan) peek(n int) byte {
-	if s.i+n >= len(s.src) {
-		return 0
-	}
-	return s.src[s.i+n]
-}
-
-func (s *cssScan) emit(kind, text string, line int) {
-	for k := len(s.comments) - 1; k >= 0 && s.comments[k].endLine == line; k-- {
-		s.comments[k].ownLine = false
-	}
-	s.skeleton = append(s.skeleton, Token{Kind: kind, Text: text, Line: line})
-	s.lastCode = s.line
-}
-
 func (s *cssScan) comment() {
 	start, startLine := s.i, s.line
 	s.i += 2
@@ -107,7 +83,7 @@ func (s *cssScan) comment() {
 	// CSS Syntax §4.3.2 runs an unterminated comment to end-of-file rather
 	// than raising a parse error, so a browser and this lexer agree.
 	text := string(s.src[start:s.i])
-	directive := containsAny(text, cssDirectiveMarkers)
+	directive := cssDirective(text)
 	s.comments = append(s.comments, rawComment{
 		start: start, end: s.i, startLine: startLine, endLine: s.line,
 		text: text, style: StyleBlock,
@@ -140,6 +116,8 @@ func (s *cssScan) str(quote byte) error {
 			s.emit(CSSString, string(s.src[start:s.i]), startLine)
 			return nil
 		case c == '\n':
+			// CSS recovers a newline in a string as a bad-string token. §6.7
+			// prefers "the tool cannot judge this file" over a silent guess.
 			return fmt.Errorf("scan: %d: a string ends at the newline", startLine)
 		default:
 			s.i++
@@ -208,18 +186,7 @@ func (s *cssScan) number() {
 	for s.i < len(s.src) && (isDigit(s.src[s.i]) || s.src[s.i] == '.') {
 		s.i++
 	}
-	if s.i < len(s.src) && (s.src[s.i] == 'e' || s.src[s.i] == 'E') {
-		j := s.i + 1
-		if j < len(s.src) && (s.src[j] == '+' || s.src[j] == '-') {
-			j++
-		}
-		if j < len(s.src) && isDigit(s.src[j]) {
-			s.i = j
-			for s.i < len(s.src) && isDigit(s.src[s.i]) {
-				s.i++
-			}
-		}
-	}
+	s.exponent()
 	// The unit joins the number, so `20px` and `20 px` are different streams.
 	if s.i < len(s.src) && s.src[s.i] == '%' {
 		s.i++
@@ -267,11 +234,9 @@ func cssNumberStart(src []byte, i int) bool {
 	return i+2 < len(src) && src[i+1] == '.' && isDigit(src[i+2])
 }
 
-func containsAny(text string, markers []string) bool {
-	for _, m := range markers {
-		if strings.Contains(text, m) {
-			return true
-		}
-	}
-	return false
+func cssDirective(text string) bool {
+	// A marker anywhere in the text would protect prose that merely names a
+	// linter, so the directive has to open the comment (SPEC §2.3).
+	inner := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(text, "/*"), "*/"))
+	return hasAnyPrefix(inner, cssDirectiveMarkers)
 }

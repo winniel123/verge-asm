@@ -1,6 +1,64 @@
 package surface
 
+import "strings"
+
 const Glue = "GLUE"
+
+type byteScan struct {
+	src      []byte
+	i        int
+	line     int
+	comments []rawComment
+	skeleton []Token
+	lastCode int
+}
+
+func (s *byteScan) peek(n int) byte {
+	if s.i+n >= len(s.src) {
+		return 0
+	}
+	return s.src[s.i+n]
+}
+
+func (s *byteScan) space(c byte) bool {
+	if c == '\n' {
+		s.line++
+		s.i++
+		return true
+	}
+	if isSpaceByte(c) {
+		s.i++
+		return true
+	}
+	return false
+}
+
+func (s *byteScan) emit(kind, text string, line int) {
+	// A comment sharing a code line is trailing, and §3.4 holds that
+	// population apart.
+	for k := len(s.comments) - 1; k >= 0 && s.comments[k].endLine == line; k-- {
+		s.comments[k].ownLine = false
+	}
+	s.skeleton = append(s.skeleton, Token{Kind: kind, Text: text, Line: line})
+	s.lastCode = s.line
+}
+
+func (s *byteScan) exponent() {
+	if s.i >= len(s.src) || (s.src[s.i] != 'e' && s.src[s.i] != 'E') {
+		return
+	}
+	j := s.i + 1
+	if j < len(s.src) && (s.src[j] == '+' || s.src[j] == '-') {
+		j++
+	}
+	if j >= len(s.src) || !isDigit(s.src[j]) {
+		return
+	}
+	s.i = j
+	for s.i < len(s.src) && isDigit(s.src[s.i]) {
+		s.i++
+	}
+}
 
 type rawComment struct {
 	start     int
@@ -54,13 +112,11 @@ func block(lang Lang, c rawComment) Block {
 	}
 }
 
-// glued reports a comment that separates two tokens. `SELECT/*c*/a` strips to
-// `SELECTa`, which is different SQL, so the separation is itself part of the
-// skeleton (SPEC §5.1).
 func glued(src []byte, start, end int) bool {
 	if start == 0 || end >= len(src) {
 		return false
 	}
+	// `SELECT/*c*/a` strips to `SELECTa`, which is different SQL (SPEC §5.1).
 	return !isSpaceByte(src[start-1]) && !isSpaceByte(src[end])
 }
 
@@ -78,4 +134,13 @@ func isDigit(c byte) bool {
 
 func isLetter(c byte) bool {
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+}
+
+func hasAnyPrefix(text string, prefixes []string) bool {
+	for _, p := range prefixes {
+		if strings.HasPrefix(text, p) {
+			return true
+		}
+	}
+	return false
 }

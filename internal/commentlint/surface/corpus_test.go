@@ -17,6 +17,7 @@ const (
 	minSQLFiles = 35
 	minCSSFiles = 10
 	minAllSQL   = 100
+	minAllCSS   = 15
 )
 
 func TestGoCorpusLexes(t *testing.T) {
@@ -31,10 +32,16 @@ func TestSQLCorpusLexes(t *testing.T) {
 	lexCorpus(t, SQL{}, inScopeFiles(t, ".sql"), minSQLFiles)
 }
 
-// The goose markers live in `db/migrations`, which no sweep edits, so the
-// tokenizer would otherwise meet `-- +goose` in a fixture alone (#1140).
 func TestSQLLexesEveryTrackedFile(t *testing.T) {
+	// The goose markers sit in `db/migrations`, which no sweep edits, so the
+	// tokenizer would otherwise meet `-- +goose` in a fixture alone (#1140).
 	lexCorpus(t, SQL{}, walk(t, ".sql", false), minAllSQL)
+}
+
+func TestCSSLexesEveryTrackedFile(t *testing.T) {
+	// `prototypes/` is out of the sweep, and SPEC §5.2 still measures its 7
+	// files, so the tokenizer answers for all 18 (#1140).
+	lexCorpus(t, CSS{}, walk(t, ".css", false), minAllCSS)
 }
 
 func TestCSSCorpusLexes(t *testing.T) {

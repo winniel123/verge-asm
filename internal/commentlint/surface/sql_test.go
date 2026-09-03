@@ -111,9 +111,8 @@ func TestSQLRejectsAnUnclosedConstruct(t *testing.T) {
 	}
 }
 
-// §5.1: a comment can act as a token separator, and `SELECT/*c*/a` strips to
-// `SELECTa`, which is different SQL.
 func TestSQLSeparatingCommentMovesTheSkeleton(t *testing.T) {
+	// §5.1: `SELECT/*c*/a` strips to `SELECTa`, which is different SQL.
 	glued := sqlSkeleton(t, "SELECT/*c*/a")
 	spaced := sqlSkeleton(t, "SELECT a")
 	stripped := sqlSkeleton(t, "SELECTa")

@@ -278,9 +278,6 @@ var (
 	cssDeclRe      = regexp.MustCompile(`^[-@a-zA-Z][\w-]*\s*[:{]`)
 )
 
-// codeShape asks two things at once: every payload line ends in a statement
-// terminator, and one line opens with this surface's code keyword. Either test
-// alone reads ordinary prose as code.
 func codeShape(lang surface.Lang, lines []string) bool {
 	opener := sqlStatementRe
 	if lang == surface.LangCSS {
@@ -292,6 +289,8 @@ func codeShape(lang surface.Lang, lines []string) bool {
 			continue
 		}
 		seen++
+		// The terminator test and the keyword test both bind, because either
+		// one alone reads ordinary prose as code (SPEC §6.6).
 		if !statementEndRe.MatchString(line) {
 			return false
 		}

@@ -281,9 +281,9 @@ func TestForRejectsAnUnsupportedSurface(t *testing.T) {
 	}
 }
 
-// §5.3: TypeScript generics look like JSX to a lexer, so the extension decides
-// and the content never does.
 func TestForDecidesByExtensionAndNotByContent(t *testing.T) {
+	// §5.3: TypeScript generics look like JSX to a lexer, so the extension
+	// decides and the content never does.
 	cases := []struct {
 		name string
 		want Lexer
