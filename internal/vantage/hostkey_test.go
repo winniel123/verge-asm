@@ -55,7 +55,6 @@ func TestPinningCallbackPinsOnFirstUse(t *testing.T) {
 func TestPinningCallbackTrustsMatch(t *testing.T) {
 	key := testHostKey(t)
 
-	// A pinned key that matches trusts without calling onFirstUse again.
 	called := false
 	cb := PinningHostKeyCallback(EncodeHostKey(key), func(string) error {
 		called = true
@@ -73,8 +72,6 @@ func TestPinningCallbackRejectsMismatch(t *testing.T) {
 	pinnedKey := testHostKey(t)
 	presented := testHostKey(t)
 
-	// A different key must be rejected, and onFirstUse must never fire — no
-	// silent re-trust.
 	cb := PinningHostKeyCallback(EncodeHostKey(pinnedKey), func(string) error {
 		t.Error("onFirstUse called on a mismatch — silent re-trust")
 		return nil

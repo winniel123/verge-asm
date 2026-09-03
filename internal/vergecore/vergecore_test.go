@@ -2,8 +2,6 @@ package vergecore
 
 import "testing"
 
-// The shipped file must compose to the exact numbers §3.5 states: 136 pairs
-// (131 TCP, 5 UDP), a 123-TCP frequency half and a 38-pair sensitive half.
 func TestShippedComposition(t *testing.T) {
 	c := Default().Count()
 	if c.Frequency != 123 {
@@ -23,9 +21,8 @@ func TestShippedComposition(t *testing.T) {
 	}
 }
 
-// The frequency half is TCP-only, and the sensitive half holds every UDP pair —
-// which is why UDP is entirely un-editable by the operator.
 func TestFrequencyIsTCPOnly(t *testing.T) {
+	// Every UDP pair sits on the sensitive half, so the operator can never edit one.
 	for _, p := range Default().FrequencyPairs() {
 		if p.Transport != TCP {
 			t.Errorf("frequency pair %s is not TCP; the frequency half is TCP-only", p)
@@ -42,7 +39,6 @@ func TestFrequencyIsTCPOnly(t *testing.T) {
 	}
 }
 
-// Only TCP pairs are probed; the 5 UDP pairs are recorded but never probed.
 func TestTCPProbedAndUDPRecorded(t *testing.T) {
 	l := Default()
 	if got := len(l.TCPProbed()); got != 131 {
@@ -63,17 +59,14 @@ func TestTCPProbedAndUDPRecorded(t *testing.T) {
 	}
 }
 
-// The union deduplicates a pair that sits on both halves.
 func TestUnionDeduplicates(t *testing.T) {
 	c := Default().Count()
-	// frequency(123) + sensitive-tcp(33) would be 156 if disjoint; the union's
-	// 131 TCP proves the overlap is folded, not double-counted.
+	// 123 frequency plus 33 sensitive TCP would be 156 if disjoint; the union folds to 131.
 	if c.Frequency+33 == c.TCP {
 		t.Errorf("union did not deduplicate the frequency∩sensitive overlap")
 	}
 }
 
-// An operator add extends the frequency half and therefore the probed union.
 func TestFrequencyEditAdd(t *testing.T) {
 	before := Default().Count()
 	edited := Default().WithFrequencyEdits([]FrequencyEdit{{Port: 12345, Action: ActionAdd}})
@@ -89,9 +82,7 @@ func TestFrequencyEditAdd(t *testing.T) {
 	}
 }
 
-// Removing a frequency-only port drops it from the probed union.
 func TestFrequencyEditRemoveFrequencyOnly(t *testing.T) {
-	// 22/tcp is a frequency port and not sensitive.
 	p := Pair{Port: 22, Transport: TCP}
 	l := Default()
 	if l.IsSensitive(p) {
@@ -106,10 +97,8 @@ func TestFrequencyEditRemoveFrequencyOnly(t *testing.T) {
 	}
 }
 
-// Removing a port that is ALSO sensitive is a no-op on the union: the sensitive
-// half is not operator-editable, so the pair stays probed. This is the §3.5
-// invariant — an operator cannot move the sensitive half.
 func TestFrequencyEditCannotMoveSensitive(t *testing.T) {
+	// The §3.5 invariant: an operator edit can never move the sensitive half.
 	p := Pair{Port: 445, Transport: TCP}
 	l := Default()
 	if !l.IsSensitive(p) || !l.IsFrequency(p) {
@@ -122,7 +111,6 @@ func TestFrequencyEditCannotMoveSensitive(t *testing.T) {
 	if !edited.IsSensitive(p) {
 		t.Errorf("445/tcp left the sensitive half — the sensitive half must be immutable")
 	}
-	// Still in the union, because the sensitive half keeps it.
 	in := false
 	for _, u := range edited.Union() {
 		if u == p {
@@ -134,7 +122,6 @@ func TestFrequencyEditCannotMoveSensitive(t *testing.T) {
 	}
 }
 
-// A UDP or zero-port edit is ignored: the frequency half is TCP-only.
 func TestFrequencyEditIgnoresNonTCP(t *testing.T) {
 	before := Default().Count()
 	after := Default().WithFrequencyEdits([]FrequencyEdit{{Port: 0, Action: ActionAdd}}).Count()

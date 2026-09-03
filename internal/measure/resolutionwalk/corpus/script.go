@@ -1,33 +1,20 @@
 // Package corpus is the golden corpus for the resolution-walk leaf
-// (docs/spec/golden-corpus.md §2). It holds a checked-in enumeration of the
-// cells the leaf owes a pinning row, each row being a (job-spec fragment,
-// authored peer script, expected NDJSON) triple run hermetically against an
+// (docs/spec/golden-corpus.md §2). Every row runs hermetically against an
 // in-process scripted peer — no network, no containers, no fixture images.
-//
-// Every subsequent leaf ticket adds rows here rather than building its own
-// harness. The bidirectional CI gate (A2/A5/A6) lives in harness_test.go and in
-// the checked-in corpus.lock.json.
 package corpus
 
 import "github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 
-// scriptRule matches a subset of a Query's fields and returns a scripted reply.
-// A zero field matches any value; EDNS is a *bool so "either" and "only with an
-// OPT" are both expressible (the M2.i FORMERR boundary needs the distinction).
 type scriptRule struct {
 	Path      resolutionwalk.Path
 	Server    string
 	Name      string
 	Qtype     resolutionwalk.Qtype
 	Transport resolutionwalk.Transport
-	EDNS      *bool
+	EDNS      *bool // a pointer so the M2.i FORMERR boundary can say "only with an OPT"
 	Reply     resolutionwalk.Msg
 }
 
-// ScriptPeer is a deterministic, in-process Peer built from ordered rules. It is
-// the authored peer script of a corpus row: the first matching rule answers, and
-// an unmatched query returns a silent (not-reached) response so a missing rule
-// fails loudly as our own blindness rather than as a wrong value.
 type ScriptPeer struct {
 	Rules []scriptRule
 }
@@ -38,6 +25,7 @@ func (s ScriptPeer) Exchange(q resolutionwalk.Query) resolutionwalk.Msg {
 			return r.Reply
 		}
 	}
+	// A missing rule must fail as our own blindness, never as a wrong value.
 	return resolutionwalk.Msg{Reached: false}
 }
 
@@ -62,8 +50,6 @@ func (r scriptRule) matches(q resolutionwalk.Query) bool {
 	}
 	return true
 }
-
-// --- reply constructors, so a row's script reads like a zone answer ---
 
 func boolPtr(b bool) *bool { return &b }
 
