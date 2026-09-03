@@ -12,20 +12,14 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// Commands are constants (uname / the SSH_CLIENT read) plus this package's own
-// generated temp path — never operator or job-spec input — so the remote command
-// strings carry no injected data. The job spec travels on stdin, never argv (ADR-0001).
+// Commands are constants and the spec travels on stdin, never argv or operator input (ADR-0001).
+
 const (
 	cmdUnameS     = "uname -s"
 	cmdUnameM     = "uname -m"
 	cmdReadEgress = "printenv SSH_CLIENT"
 )
 
-// Facts are the lifecycle facts the worker observes off-host on the connect that pins
-// a prober's host key: the remote platform (VantageCard's accepted-platform chip, and
-// what the arch check matches the binary to) and the egress address the probe leaves
-// from (SSH_CLIENT). A read that could not identify a fact leaves it zero rather than
-// fabricating one; the caller persists only what was actually observed.
 type Facts struct {
 	Platform   Platform
 	Egress     string
@@ -34,10 +28,6 @@ type Facts struct {
 	HasDialled bool
 }
 
-// Inspect reads the prober's lifecycle facts over an established connection: `uname`
-// for the platform and SSH_CLIENT for the egress. The platform is mandatory (an
-// unidentifiable host is an error); the egress is best-effort (a host that does not
-// export SSH_CLIENT collapses that chip, never fabricates an address).
 func Inspect(ctx context.Context, conn Conn) (Facts, error) {
 	plat, err := remotePlatform(ctx, conn)
 	if err != nil {
@@ -49,10 +39,7 @@ func Inspect(ctx context.Context, conn Conn) (Facts, error) {
 			f.Egress, f.HasEgress = egress, true
 		}
 	}
-	// The dialled address is observed off-host at connect — the SSH transport's peer
-	// address (#710) — with no remote command, exactly what "known by construction"
-	// means. Best-effort like egress: a peer address that will not parse leaves the
-	// fact zero rather than fabricating one.
+	// Observed locally at connect with no remote command: dialled is known by construction (#710).
 	if dialled, ok := normalizeDialled(conn.RemoteAddr()); ok {
 		f.Dialled, f.HasDialled = dialled, true
 	}
@@ -71,33 +58,13 @@ func remotePlatform(ctx context.Context, conn Conn) (Platform, error) {
 	return parsePlatform(string(unameS), string(unameM))
 }
 
-// Probe pushes the matching prober binary to the host and exec's it there, returning
-// the observations it wrote — the SSH twin of the local ExecProber, honouring the same
-// job-spec-in/NDJSON-out contract (ADR-0001). The order is load-bearing:
-//
-//  1. `uname` arch check — identify the remote platform.
-//  2. select the binary built for THAT platform; refuse (ErrNoBinary) rather than push
-//     a mismatched one — the arch check gates the push.
-//  3. stream the binary to a fresh temp path and mark it executable.
-//  4. exec it with the job spec on stdin, decoding the NDJSON observations it writes.
-//  5. best-effort remove the pushed binary.
-//
-// The pushed binary is the instance's own cmd/prober, so it carries the shared
-// identifiable probe User-Agent (measure.ProbeUserAgent) on its HTTP leg unchanged.
-//
-// Probe captures the verbatim off-host exchange — the exact bytes sent to the prober's
-// stdin, the stdout and stderr it wrote back, the exec duration, and the typed exit
-// outcome — into a ProberTranscript that rides the ProbeResult on EVERY outcome (#867,
-// spec §3), the SSH twin of the local ExecProber. The transcript is present even on the
-// exec-error and decode-failure returns, because the raw output is highest-value exactly
-// when the job failed. A failure BEFORE the exec (platform read, binary select, push,
-// spec encode) returns no transcript: nothing ran, a legible absence.
 func Probe(ctx context.Context, conn Conn, binaries BinaryProvider, spec wire.JobSpec) (wire.ProbeResult, error) {
 	plat, err := remotePlatform(ctx, conn)
 	if err != nil {
 		return wire.ProbeResult{}, err
 	}
 
+	// The uname check gates the push, so a mismatched binary is never streamed (ADR-0103).
 	bin, err := binaries.Binary(plat.GOOS, plat.GOARCH)
 	if err != nil {
 		return wire.ProbeResult{}, fmt.Errorf("remoteexec: select binary for %s/%s: %w", plat.GOOS, plat.GOARCH, err)
@@ -109,28 +76,20 @@ func Probe(ctx context.Context, conn Conn, binaries BinaryProvider, spec wire.Jo
 		return wire.ProbeResult{}, err
 	}
 
-	// Push: stream the binary to the temp path and make it executable in one command.
-	// The push predates the measured exec, so a push failure carries no transcript.
+	// The pushed binary is the instance's own cmd/prober, carrying measure.ProbeUserAgent (P0.11).
 	if _, err := conn.Run(ctx, "cat > "+path+" && chmod 0700 "+path, bin, io.Discard, io.Discard); err != nil {
+		// The push predates the measured exec, so a pre-exec failure carries no transcript (#867).
 		return wire.ProbeResult{}, fmt.Errorf("remoteexec: push binary: %w", err)
 	}
-	// Best-effort cleanup regardless of how the exec goes — the pushed binary is
-	// disposable, one per invocation, so version skew is structurally impossible.
 	defer func() { _, _ = conn.Output(ctx, "rm -f "+path) }()
 
 	var stdin bytes.Buffer
 	if err := wire.EncodeJobSpec(&stdin, spec); err != nil {
 		return wire.ProbeResult{}, err
 	}
-	// Capture the exact bytes sent to the prober verbatim (spec §3), copied before Run
-	// drains the buffer, so the transcript holds the literal JobSpec payload.
+	// Copied before Run drains the buffer, or the transcript's sent scope is empty (spec §3).
 	sent := append([]byte(nil), stdin.Bytes()...)
-	// Fail-closed sink: the prober is untrusted (a compromised host, or a MITM
-	// before the host key is pinned), so its stdout is capped at MaxProberStdout
-	// during the streaming copy rather than buffered without bound — a hostile
-	// prober cannot OOM the worker (#772). Exceeding the cap surfaces as a Run
-	// error, driving the same retry/dead-letter path any exec failure does; the
-	// transcript then keeps the retained head, marked memory-guard-tripped.
+	// A hostile or compromised prober must not OOM the worker, so its stdout is capped (#772).
 	stdout := wire.NewLimitedBuffer(wire.MaxProberStdout)
 	var stderr bytes.Buffer
 
@@ -138,9 +97,7 @@ func Probe(ctx context.Context, conn Conn, binaries BinaryProvider, spec wire.Jo
 	exit, runErr := conn.Run(ctx, path, &stdin, stdout, &stderr)
 	dur := time.Since(start)
 
-	// The transcript is built on every post-exec outcome; the worker stamps the
-	// queue_job id and captured-at instant and applies the head+tail store caps
-	// (spec §3.2) at persist, so this leaves them to the shared persist path.
+	// The worker stamps the job id and applies the head and tail store caps at persist (spec §3.2).
 	t := &wire.ProberTranscript{
 		TranscriptFrame: wire.TranscriptFrame{Kind: spec.Kind, Duration: dur},
 		SentScope:       sent,
@@ -165,10 +122,6 @@ func Probe(ctx context.Context, conn Conn, binaries BinaryProvider, spec wire.Jo
 	return wire.ProbeResult{Observations: obs, Transcript: t}, nil
 }
 
-// proberOutcome maps the transport's typed ExitResult into the closed prober-outcome
-// union (spec §1.2), the SSH twin of queue.classifyProberOutcome. A ctx-cancelled
-// session reads as context-cancelled; a signal reads as signalled; anything else reads
-// as exited(code), where code is -1 for an outcome the server left unstated.
 func proberOutcome(exit ExitResult) wire.ProberOutcome {
 	switch exit.Kind {
 	case ExitContextCancelled:

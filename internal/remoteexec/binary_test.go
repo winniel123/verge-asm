@@ -14,8 +14,6 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-// DirBinaryProvider serves the per-arch binary matching the request and refuses a
-// request for an arch it does not hold — the arch check's refusal side.
 func TestDirBinaryProviderSelectsByArch(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "prober-linux-amd64"), "AMD64")
@@ -33,8 +31,6 @@ func TestDirBinaryProviderSelectsByArch(t *testing.T) {
 	}
 }
 
-// With no per-arch directory, the own-arch fallback is served for the instance's own
-// platform only — never handed back for a different architecture.
 func TestDirBinaryProviderFallbackOwnArchOnly(t *testing.T) {
 	dir := t.TempDir()
 	fallback := filepath.Join(dir, "prober")
@@ -44,7 +40,6 @@ func TestDirBinaryProviderFallbackOwnArchOnly(t *testing.T) {
 	if got := readBinary(t, p, runtime.GOOS, runtime.GOARCH); got != "OWN" {
 		t.Errorf("own-arch fallback = %q, want OWN", got)
 	}
-	// A different arch must not be served the own-arch fallback.
 	otherArch := "arm64"
 	if runtime.GOARCH == "arm64" {
 		otherArch = "amd64"
@@ -54,8 +49,6 @@ func TestDirBinaryProviderFallbackOwnArchOnly(t *testing.T) {
 	}
 }
 
-// Fingerprint renders the canonical SHA256 fingerprint of a pinned host key, and
-// collapses to "" for an empty or unparseable pin.
 func TestFingerprint(t *testing.T) {
 	pub, _, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {

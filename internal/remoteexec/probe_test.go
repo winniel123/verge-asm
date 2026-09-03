@@ -13,9 +13,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// fakeConn is an in-memory Conn: it answers each command from a table and records
-// every command run, so the arch check, the push, the exec and the egress read are all
-// exercised with no live SSH server.
 type fakeConn struct {
 	outputs    map[string]string
 	execStdout string
@@ -25,11 +22,11 @@ type fakeConn struct {
 	pushErr    error
 	remoteAddr net.Addr
 
-	ran      []string      // every cmd passed to Run
-	outCmds  []string      // every cmd passed to Output
-	pushed   *bytes.Buffer // the bytes streamed to `cat > …`
-	pushedIn *bytes.Buffer // the stdin drained by the exec (the sent job spec)
-	execPath string        // the path the exec ran
+	ran      []string
+	outCmds  []string
+	pushed   *bytes.Buffer
+	pushedIn *bytes.Buffer
+	execPath string
 }
 
 func (c *fakeConn) Output(_ context.Context, cmd string) ([]byte, error) {
@@ -54,9 +51,6 @@ func (c *fakeConn) Run(_ context.Context, cmd string, stdin io.Reader, stdout, s
 		_, _ = io.Copy(c.pushed, stdin)
 		return ExitResult{Kind: ExitExited, Code: 0}, nil
 	default:
-		// The exec of the pushed path: drain the job spec on stdin (recording it as the
-		// sent scope), then write the configured stdout and stderr back and report the
-		// configured exit result.
 		c.execPath = cmd
 		c.pushedIn = &bytes.Buffer{}
 		_, _ = io.Copy(c.pushedIn, stdin)
@@ -91,8 +85,6 @@ func linuxAmd64Conn(execStdout string) *fakeConn {
 	}
 }
 
-// A successful probe checks the arch, pushes the matching binary, exec's it with the
-// job spec on stdin, and decodes the NDJSON it writes back.
 func TestProbePushesMatchingBinaryAndExecs(t *testing.T) {
 	obsLine, err := oneObservationJSON(wire.Observation{Batch: "b1", Kind: "connect-outcome"})
 	if err != nil {
@@ -109,8 +101,7 @@ func TestProbePushesMatchingBinaryAndExecs(t *testing.T) {
 	if len(obs) != 1 || obs[0].Batch != "b1" || obs[0].Kind != "connect-outcome" {
 		t.Fatalf("observations = %+v, want one b1/connect-outcome", obs)
 	}
-	// A successful off-host probe carries a ProberTranscript: the verbatim stdout it
-	// decoded, the exact spec sent to stdin, and a clean exited(0) outcome (#867).
+	// The success path carries a transcript too, not only the failure paths (#867).
 	tr, ok := res.Transcript.(*wire.ProberTranscript)
 	if !ok {
 		t.Fatalf("transcript = %T, want *wire.ProberTranscript", res.Transcript)
@@ -130,7 +121,6 @@ func TestProbePushesMatchingBinaryAndExecs(t *testing.T) {
 	if conn.pushed == nil || conn.pushed.String() != "ELF-AMD64-BINARY" {
 		t.Errorf("pushed binary = %q, want the amd64 body", conn.pushed)
 	}
-	// The push runs before the exec, and the exec runs the pushed temp path.
 	if len(conn.ran) != 2 || !strings.HasPrefix(conn.ran[0], "cat > /tmp/verge-prober-") {
 		t.Fatalf("run sequence = %v, want push then exec", conn.ran)
 	}
@@ -142,10 +132,8 @@ func TestProbePushesMatchingBinaryAndExecs(t *testing.T) {
 	}
 }
 
-// On the exec-error path (a non-zero exit or a signalled prober) the transcript still
-// rides the ProbeResult, capturing the drained stderr and the typed outcome — the raw
-// output is highest-value exactly when the job failed (#867, spec §3).
 func TestProbeCapturesTranscriptOnExecError(t *testing.T) {
+	// Raw output is highest-value exactly when the job failed (#867, spec §3).
 	conn := linuxAmd64Conn("")
 	conn.execStderr = "panic: prober boom\n"
 	conn.execExit = ExitResult{Kind: ExitExited, Code: 3}
@@ -171,8 +159,6 @@ func TestProbeCapturesTranscriptOnExecError(t *testing.T) {
 	}
 }
 
-// A decode failure (the prober wrote non-NDJSON) still captures the verbatim stdout in
-// the transcript, so an operator can see exactly what the prober emitted.
 func TestProbeCapturesTranscriptOnDecodeFailure(t *testing.T) {
 	const garbage = "this is not valid ndjson\n"
 	conn := linuxAmd64Conn(garbage)
@@ -191,8 +177,6 @@ func TestProbeCapturesTranscriptOnDecodeFailure(t *testing.T) {
 	}
 }
 
-// A failure BEFORE the exec — here the push — carries no transcript: nothing ran, a
-// legible absence rather than an empty ProberTranscript.
 func TestProbeNoTranscriptWhenPushFails(t *testing.T) {
 	conn := linuxAmd64Conn("")
 	conn.pushErr = errors.New("cat: disk full")
@@ -207,8 +191,6 @@ func TestProbeNoTranscriptWhenPushFails(t *testing.T) {
 	}
 }
 
-// proberOutcome maps each transport ExitResult kind into the closed prober-outcome
-// union (spec §1.2): the mapping the transcript records on every off-host outcome.
 func TestProberOutcomeMapping(t *testing.T) {
 	cases := []struct {
 		name string
@@ -228,11 +210,8 @@ func TestProberOutcomeMapping(t *testing.T) {
 	}
 }
 
-// classifyExit maps a session's Wait error into the typed ExitResult. The ssh-specific
-// branches (*ssh.ExitError / *ssh.ExitMissingError) are not constructible outside the
-// library — their fields are unexported — so the seam fakes above the runSession layer;
-// here we lock the two constructible ends: a clean exit, and an unclassifiable error.
 func TestClassifyExit(t *testing.T) {
+	// The ssh error types have unexported fields, so only these two ends are constructible.
 	if got := classifyExit(nil); got != (ExitResult{Kind: ExitExited, Code: 0}) {
 		t.Errorf("classifyExit(nil) = %+v, want exited(0)", got)
 	}
@@ -241,8 +220,6 @@ func TestClassifyExit(t *testing.T) {
 	}
 }
 
-// The arch check GATES the push: when the instance holds no binary for the remote
-// architecture, Probe refuses and never streams a mismatched binary.
 func TestProbeArchCheckRefusesMismatch(t *testing.T) {
 	conn := &fakeConn{outputs: map[string]string{cmdUnameS: "Linux\n", cmdUnameM: "aarch64\n"}}
 	bins := staticBinaries{goos: "linux", goarch: "amd64", body: "ELF-AMD64-BINARY"}
@@ -261,7 +238,6 @@ func TestProbeArchCheckRefusesMismatch(t *testing.T) {
 	}
 }
 
-// An unidentifiable platform (uname not in the matrix) is refused before any push.
 func TestProbeRefusesUnknownPlatform(t *testing.T) {
 	conn := &fakeConn{outputs: map[string]string{cmdUnameS: "Darwin\n", cmdUnameM: "x86_64\n"}}
 	bins := staticBinaries{goos: "linux", goarch: "amd64", body: "x"}
@@ -273,7 +249,6 @@ func TestProbeRefusesUnknownPlatform(t *testing.T) {
 	}
 }
 
-// Inspect reads the platform and the SSH_CLIENT egress off the connection.
 func TestInspectReadsPlatformAndEgress(t *testing.T) {
 	conn := &fakeConn{
 		outputs: map[string]string{
@@ -296,20 +271,17 @@ func TestInspectReadsPlatformAndEgress(t *testing.T) {
 	if !f.HasEgress || f.Egress != "203.0.113.5" {
 		t.Errorf("egress = %q (has=%v), want 203.0.113.5", f.Egress, f.HasEgress)
 	}
-	// The dialled address is the transport peer, IP-normalised with the port stripped.
 	if !f.HasDialled || f.Dialled != "198.51.100.7" {
 		t.Errorf("dialled = %q (has=%v), want 198.51.100.7", f.Dialled, f.HasDialled)
 	}
 }
 
-// A connection exposing no peer address collapses the dialled fact rather than
-// fabricating one — exactly like the egress read.
 func TestInspectMissingDialledIsBlank(t *testing.T) {
 	conn := &fakeConn{outputs: map[string]string{
 		cmdUnameS:     "Linux\n",
 		cmdUnameM:     "x86_64\n",
 		cmdReadEgress: "203.0.113.5 54321 22\n",
-	}} // remoteAddr nil
+	}}
 	f, err := Inspect(context.Background(), conn)
 	if err != nil {
 		t.Fatalf("Inspect: %v", err)
@@ -319,7 +291,6 @@ func TestInspectMissingDialledIsBlank(t *testing.T) {
 	}
 }
 
-// A host that does not export SSH_CLIENT collapses the egress rather than fabricating.
 func TestInspectMissingEgressIsBlank(t *testing.T) {
 	conn := &fakeConn{outputs: map[string]string{
 		cmdUnameS:     "Linux\n",
@@ -338,9 +309,6 @@ func TestInspectMissingEgressIsBlank(t *testing.T) {
 	}
 }
 
-// The probe path carries the shared identifiable User-Agent by pushing the instance's
-// own cmd/prober, which sends measure.ProbeUserAgent on its HTTP leg. This locks the
-// shared contract (P0.11): this package must not mint its own UA string.
 func TestProbeReusesSharedUserAgent(t *testing.T) {
 	if measure.ProbeUserAgent != "verge-asm-prober (+https://github.com/winniel123/verge-asm)" {
 		t.Fatalf("shared probe UA drifted: %q", measure.ProbeUserAgent)
