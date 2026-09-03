@@ -2,13 +2,7 @@ package drift
 
 import "testing"
 
-// The drift machinery is facet-agnostic: a Span is one period a value was held, and
-// that shape does not vary by facet (ADR-0007). These cases pin that the same Fold /
-// Break / Transition / Closure the resolution, reachability, certificate and
-// http-identity tests exercise ALSO serve the `tls-acceptance` facet on a `Service`
-// subject (AC #199: "Drift engine covers tls-acceptance"). The tls-acceptance leaf
-// reuses this machinery unchanged, so the facet stays a parameter and never a
-// hardcode.
+// The tls-acceptance leaf reuses this machinery unchanged, so the facet stays a parameter (#199).
 
 var serviceTLSKey = TimelineKey{
 	SubjectKind: "service",
@@ -17,9 +11,6 @@ var serviceTLSKey = TimelineKey{
 	Source:      "prober",
 }
 
-// A Service that stops accepting TLS 1.0 produces the correct Span transition — the
-// old acceptance span closes and the new one opens. This is the drift that carries
-// a `tls-1.0-accepted` clearing.
 func TestTLSAcceptanceOpensAndClosesOnChange(t *testing.T) {
 	v := vec("tls-acceptance", "tls-acceptance/v1")
 	spans := Fold(serviceTLSKey, []Reading{
@@ -41,8 +32,6 @@ func TestTLSAcceptanceOpensAndClosesOnChange(t *testing.T) {
 	}
 }
 
-// The two TLS negatives are distinct values: a Service moving from `tls-refused` to
-// `no-tls` is a value move that opens a new span, never a collapse into one bucket.
 func TestTLSAcceptanceNegativesAreDistinctValues(t *testing.T) {
 	v := vec("tls-acceptance", "tls-acceptance/v1")
 	spans := Fold(serviceTLSKey, []Reading{
@@ -54,10 +43,8 @@ func TestTLSAcceptanceNegativesAreDistinctValues(t *testing.T) {
 	}
 }
 
-// A tls-acceptance Version bump Breaks the timeline exactly as a leaf bump Breaks
-// resolution — the Break names the moved leaf. Widening the candidate set is such a
-// bump (CONTEXT.md `tls-acceptance`).
 func TestTLSAcceptanceVersionBumpBreaks(t *testing.T) {
+	// Widening the candidate set is such a bump (CONTEXT.md tls-acceptance).
 	before := vec("tls-acceptance", "tls-acceptance/v1")
 	after := vec("tls-acceptance", "tls-acceptance/v2")
 	spans := Fold(serviceTLSKey, []Reading{
@@ -70,9 +57,6 @@ func TestTLSAcceptanceVersionBumpBreaks(t *testing.T) {
 	}
 }
 
-// A tls-acceptance timeline closes when its Service withdraws — CloseWithdrawal
-// carries the `uncited` ground onto the Service's tls-acceptance timeline, since the
-// facet rides the Service and closes with it.
 func TestTLSAcceptanceClosesUncitedWhenServiceWithdraws(t *testing.T) {
 	open := []Span{
 		{Key: serviceTLSKey, Value: `{"outcome":"enumerated","versions":[{"version":"1.2"}]}`, OpenedAt: day(0)},

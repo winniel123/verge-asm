@@ -2,12 +2,7 @@ package drift
 
 import "testing"
 
-// The drift machinery is facet-agnostic: a Span is one period a value was held,
-// and that shape does not vary by facet (ADR-0007). These cases pin that the same
-// Fold / Break / Transition / Closure the resolution and reachability tests
-// exercise also serve the `http-identity` facet on an `Endpoint` subject — the
-// (Name, Service) pair. The http-exchange leaf (#198) reuses this machinery
-// unchanged, so the facet stays a parameter and never a hardcode.
+// The http-exchange leaf reuses this machinery unchanged, so the facet stays a parameter (#198).
 
 var endpointKey = TimelineKey{
 	SubjectKind: "endpoint",
@@ -16,8 +11,6 @@ var endpointKey = TimelineKey{
 	Source:      "prober",
 }
 
-// AC #198: re-running the hot Scan with a changed HTTP identity produces the
-// correct Span transition — the old identity span closes and the new one opens.
 func TestHTTPIdentityOpensAndClosesOnChange(t *testing.T) {
 	v := vec("http-exchange", "http-exchange/v1")
 	spans := Fold(endpointKey, []Reading{
@@ -39,8 +32,6 @@ func TestHTTPIdentityOpensAndClosesOnChange(t *testing.T) {
 	}
 }
 
-// An http-exchange Version bump Breaks the http-identity timeline exactly as a
-// leaf bump Breaks resolution — the Break names the moved leaf.
 func TestHTTPIdentityVersionBumpBreaks(t *testing.T) {
 	before := vec("http-exchange", "http-exchange/v1")
 	after := vec("http-exchange", "http-exchange/v2")
@@ -54,9 +45,6 @@ func TestHTTPIdentityVersionBumpBreaks(t *testing.T) {
 	}
 }
 
-// AC #198: an Endpoint closes when its Service withdraws (the underlying Address
-// is de-cited) — CloseWithdrawal carries the `uncited` ground onto the Endpoint's
-// http-identity timeline, since an Endpoint closes when either leg withdraws.
 func TestHTTPIdentityClosesUncitedWhenServiceWithdraws(t *testing.T) {
 	open := []Span{
 		{Key: endpointKey, Value: `{"status":200}`, OpenedAt: day(0)},

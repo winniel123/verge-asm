@@ -2,12 +2,7 @@ package drift
 
 import "testing"
 
-// The drift machinery is facet-agnostic: a Span is one period a value was held,
-// and that shape does not vary by facet (ADR-0007). These cases pin that the same
-// Fold / Break / Transition / Closure the resolution tests exercise on a `Name`
-// also serve the `reachability` facet on a `Service` subject — the wave-4 facet
-// tickets (#197 certificate, #198 http-identity) reuse this unchanged, so the
-// facet must remain a parameter and never a hardcode (AC #195).
+// The facet stays a parameter and never a hardcode, so the wave-4 facets reuse this (#195).
 
 var svcKey = TimelineKey{
 	SubjectKind: "service",
@@ -16,8 +11,6 @@ var svcKey = TimelineKey{
 	Source:      "prober",
 }
 
-// AC #195: re-running the hot Scan with a Service opening produces the correct
-// Span transition — a not-reached span closes and a reached span opens.
 func TestReachabilityServiceOpensAndCloses(t *testing.T) {
 	v := vec("connect-outcome", "connect-outcome/v1")
 	spans := Fold(svcKey, []Reading{
@@ -39,7 +32,6 @@ func TestReachabilityServiceOpensAndCloses(t *testing.T) {
 	}
 }
 
-// A Service closing (reached -> not-reached) is the mirror transition.
 func TestReachabilityServiceClosesPort(t *testing.T) {
 	v := vec("connect-outcome", "connect-outcome/v1")
 	spans := Fold(svcKey, []Reading{
@@ -51,8 +43,6 @@ func TestReachabilityServiceClosesPort(t *testing.T) {
 	}
 }
 
-// A connect-outcome Version bump Breaks the reachability timeline exactly as a
-// leaf bump Breaks resolution — the Break names the moved leaf.
 func TestReachabilityVersionBumpBreaks(t *testing.T) {
 	before := vec("connect-outcome", "connect-outcome/v1")
 	after := vec("connect-outcome", "connect-outcome/v2")
@@ -66,10 +56,8 @@ func TestReachabilityVersionBumpBreaks(t *testing.T) {
 	}
 }
 
-// AC #195: an Address's Services close under the `uncited` ground when a
-// resolution stops citing the Address — CloseWithdrawal carries that ground onto
-// every reachability timeline the Service held.
 func TestReachabilityServiceClosesUncitedOnDeCitation(t *testing.T) {
+	// A resolution that stops citing an Address withdraws every Service beneath it (#195).
 	open := []Span{
 		{Key: svcKey, Value: `{"outcome":"reached","result":"open"}`, OpenedAt: day(0)},
 		{Key: TimelineKey{SubjectKind: "service", SubjectKey: "198.51.100.1:80/tcp", Facet: "reachability", Source: "prober"}, OpenedAt: day(0)},
