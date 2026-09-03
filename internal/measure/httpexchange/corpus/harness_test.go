@@ -46,10 +46,8 @@ func regenerate() error {
 	})
 }
 
-// A1: self-identity. Rendering twice in one process is byte-identical — Go
-// randomises map iteration, so an unstable corpus would make every other
-// assertion uninterpretable.
 func TestCorpusSelfIdentity(t *testing.T) {
+	// Go randomises map iteration, so an unstable render would make every other assertion unreadable.
 	first, err := RenderAll()
 	if err != nil {
 		t.Fatal(err)
@@ -65,7 +63,6 @@ func TestCorpusSelfIdentity(t *testing.T) {
 	}
 }
 
-// A2: expectation. Each row's rendered output equals its checked-in golden file.
 func TestCorpusExpectation(t *testing.T) {
 	rendered, err := RenderAll()
 	if err != nil {
@@ -84,8 +81,6 @@ func TestCorpusExpectation(t *testing.T) {
 	}
 }
 
-// A5: coverage. Every cell of the block holds at least one row, and no row cites a
-// cell outside the enumeration.
 func TestCorpusCoverage(t *testing.T) {
 	inEnum := make(map[string]bool, len(AllCells))
 	for _, c := range AllCells {
@@ -110,11 +105,6 @@ func TestCorpusCoverage(t *testing.T) {
 	}
 }
 
-// The redirect row's exchanger issues exactly ONE request per render — the leaf
-// never follows a 3xx with a second request. The row's exchanger is a package
-// value reused across every render in this file, so the absolute counter is not
-// order-stable; this asserts the per-render DELTA is exactly one, which is what
-// "not followed" means, structurally and not only in the golden bytes.
 func TestRedirectIssuesExactlyOneRequest(t *testing.T) {
 	var row Row
 	for _, r := range Rows {
@@ -122,6 +112,7 @@ func TestRedirectIssuesExactlyOneRequest(t *testing.T) {
 			row = r
 		}
 	}
+	// The exchanger is a package value reused across renders, so only the delta is stable.
 	before := make(map[string]int, len(row.Step.Exchange.calls))
 	for k, n := range row.Step.Exchange.calls {
 		before[k] = n
@@ -129,6 +120,7 @@ func TestRedirectIssuesExactlyOneRequest(t *testing.T) {
 	if _, err := RenderRow(row); err != nil {
 		t.Fatal(err)
 	}
+	// A per-render delta of one is what "not followed" means structurally, not only in bytes.
 	for key, n := range row.Step.Exchange.calls {
 		if n-before[key] != 1 {
 			t.Errorf("redirect followed: %s requested %d times in one render, want exactly 1", key, n-before[key])
@@ -136,8 +128,6 @@ func TestRedirectIssuesExactlyOneRequest(t *testing.T) {
 	}
 }
 
-// The lock gate: recomputed digests must equal the checked-in lock, and the lock's
-// leaf version must equal the code's.
 func TestCorpusLock(t *testing.T) {
 	lock, err := LoadLock(".")
 	if err != nil {
@@ -155,6 +145,7 @@ func TestCorpusLock(t *testing.T) {
 		t.Errorf("corpus digest moved: a row's expected output changed.\n  locked: %s\n  now:    %s\nBump httpexchange.Version and re-bless with -update.",
 			lock.CorpusDigest, got)
 	}
+	// A declared-parameter change is the second thing that may justify a version bump.
 	if got := ParamsDigest(); got != lock.ParamsDigest {
 		t.Errorf("params digest moved: a declared parameter changed.\n  locked: %s\n  now:    %s\nBump httpexchange.Version and re-bless with -update.",
 			lock.ParamsDigest, got)

@@ -37,12 +37,6 @@ func TestRunEchoesBatchAndKind(t *testing.T) {
 	}
 }
 
-// TestRunDispatchesHTTPExchange proves the http-exchange kind reaches the
-// httpexchange leaf rather than falling through to the skeleton echo. A scope with
-// zero targets makes the leaf produce zero observations (one http-identity per
-// target), whereas the default echo would emit exactly one observation carrying
-// the Kind — so an empty output stream is proof the dispatch case, not the
-// default, handled the spec.
 func TestRunDispatchesHTTPExchange(t *testing.T) {
 	inR, inW, err := os.Pipe()
 	if err != nil {
@@ -76,11 +70,6 @@ func TestRunDispatchesHTTPExchange(t *testing.T) {
 	}
 }
 
-// TestRunDispatchesEdgeFanout proves the edge-fanout kind reaches the edgefanout leaf
-// rather than falling through to the skeleton echo. An empty address list is the
-// legible no-custody-extension state, and it makes the leaf produce zero observations,
-// whereas the default echo would emit exactly one carrying the Kind — so an empty
-// output stream is proof the dispatch case handled the spec.
 func TestRunDispatchesEdgeFanout(t *testing.T) {
 	inR, inW, err := os.Pipe()
 	if err != nil {

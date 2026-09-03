@@ -24,9 +24,6 @@ func TestFSExposesDesignArtifacts(t *testing.T) {
 	}
 }
 
-// TestTokensGlobbed asserts the tokens/*.css glob captured the whole set, not
-// just the two files spot-checked above, so a token file added by a future
-// package version is served without touching this package.
 func TestTokensGlobbed(t *testing.T) {
 	entries, err := fs.Glob(FS, "tokens/*.css")
 	if err != nil {

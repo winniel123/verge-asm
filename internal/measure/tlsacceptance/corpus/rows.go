@@ -10,9 +10,6 @@ type Step struct {
 	Enumerate *scriptEnumerator
 }
 
-// Row is one corpus row: the cells it pins, its one-line claim, whether the claim is
-// spec-verified rather than measured, the declared candidate set, the step, and the
-// golden NDJSON file its output must equal byte for byte.
 type Row struct {
 	Cells        []string
 	Claim        string
@@ -23,15 +20,10 @@ type Row struct {
 }
 
 var AllCells = []string{
-	// T1 — a modern listener: TLS 1.2 (with suites) and TLS 1.3 (version-only).
 	"T1/modern-1.2-1.3",
-	// T2 — a TLS 1.0 accept is recorded (it reads the v1 signal tls-1.0-accepted).
 	"T2/tls-1.0-accepted",
-	// T3 — a peer that spoke TLS and accepted nothing offered is `tls-refused`.
 	"T3/tls-refused",
-	// T4 — a port where nothing spoke TLS is `no-tls`, distinct from a refusal.
 	"T4/no-tls",
-	// T5 — one batch of mixed Services: each emits its own acceptance value.
 	"T5/mixed-batch",
 }
 
