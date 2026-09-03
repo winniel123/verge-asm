@@ -46,18 +46,14 @@ shop.example.com. IN A 5.6.7.8
 `
 	got := DeclaredNames(zone, "example.com")
 
-	// Owner names, qualified against the origin and canonicalised.
 	for _, want := range []string{"example.com", "www.example.com", "api.example.com", "shop.example.com"} {
 		if !got[want] {
 			t.Fatalf("expected %q declared; got set %v", want, got)
 		}
 	}
-	// The AAAA line continues www's owner (leading whitespace) — no new name.
-	// A wildcard owner is not a subject and must not be declared.
 	if got["*.wild.example.com"] || got["wild.example.com"] {
 		t.Fatalf("wildcard owner must not be a declared name: %v", got)
 	}
-	// A name the file never mentions is absent.
 	if got["absent.example.com"] {
 		t.Fatalf("absent name should not be declared")
 	}

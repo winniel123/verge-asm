@@ -72,7 +72,6 @@ func TestEvaluateServiceDropsOutsideDomainAndOrders(t *testing.T) {
 		{Subject: "198.51.100.3:3389/tcp", OnSensitiveList: true, HasInternetReach: false},
 	}
 	c := EvaluateService(sensitivePortReachedFromInternet{}, services)
-	// The non-sensitive :443 service is outside the domain — not rendered at all.
 	if c.InDomain() != 3 {
 		t.Fatalf("InDomain = %d, want 3 (the non-sensitive service excluded)", c.InDomain())
 	}
@@ -85,8 +84,6 @@ func TestEvaluateServiceDropsOutsideDomainAndOrders(t *testing.T) {
 }
 
 func TestTLS10AcceptedEmptyWhenFacetAbsent(t *testing.T) {
-	// The whole population lacks the tls-acceptance facet — no member is in the
-	// domain, so the census is a no-population panel, not a compile dependency.
 	services := []ServiceFacts{
 		{Subject: "198.51.100.1:443/tcp"},
 		{Subject: "198.51.100.2:8443/tcp"},

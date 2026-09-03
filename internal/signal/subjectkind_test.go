@@ -2,9 +2,6 @@ package signal
 
 import "testing"
 
-// The engine is split by subject kind — a rule reads exactly one — so every
-// shipped rule name must resolve to its kind, and an unknown name to "". The
-// Signals web layer relies on this to build route-aware drill-down links (#248).
 func TestSubjectKindForEveryRule(t *testing.T) {
 	for _, r := range All() {
 		if got := SubjectKindFor(r.Name()); got != "name" {

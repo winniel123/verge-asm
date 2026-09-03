@@ -11,10 +11,8 @@ func inRamp(s Severity) bool {
 	return false
 }
 
-// TestEveryRuleHasARampSeverity locks the invariant P0.1 builds: every shipped
-// rule, across all three subject kinds, is assigned a severity on the five-level
-// ramp — never an off-ramp value the SeverityBadge could not key a class off.
 func TestEveryRuleHasARampSeverity(t *testing.T) {
+	// An off-ramp value is one the SeverityBadge could not key a class off (P0.1).
 	for _, r := range All() {
 		if !inRamp(r.Severity()) {
 			t.Fatalf("name rule %q severity %q is not on the ramp", r.Name(), r.Severity())
@@ -32,9 +30,6 @@ func TestEveryRuleHasARampSeverity(t *testing.T) {
 	}
 }
 
-// TestSeverityForResolvesEveryRuleName checks the web layer's read: SeverityFor
-// finds every shipped rule by name and returns its rule severity, and reports a
-// stale name as unknown (folding to the calmest level, never a panic).
 func TestSeverityForResolvesEveryRuleName(t *testing.T) {
 	for _, name := range AllRuleNames() {
 		sev, ok := SeverityFor(name)
@@ -50,9 +45,8 @@ func TestSeverityForResolvesEveryRuleName(t *testing.T) {
 	}
 }
 
-// TestSevOrderMatchesSpec pins the ramp order to SignalData.jsx's SEV_ORDER
-// (critical→info) so a severity-sorted view ranks exactly as the design does.
 func TestSevOrderMatchesSpec(t *testing.T) {
+	// Pinned to SignalData.jsx's SEV_ORDER so a severity-sorted view ranks as the design does.
 	want := []Severity{SevCritical, SevHigh, SevMedium, SevLow, SevInfo}
 	if len(SevOrder) != len(want) {
 		t.Fatalf("SevOrder has %d levels, want %d", len(SevOrder), len(want))

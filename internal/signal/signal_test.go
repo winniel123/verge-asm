@@ -31,15 +31,12 @@ func TestEvaluateBucketsAndDropsOutsideDomain(t *testing.T) {
 	}
 	c := Evaluate(r, estate)
 
-	// OutsideDomain is not rendered anywhere: the denominator excludes it.
 	if c.InDomain() != 4 {
 		t.Fatalf("InDomain = %d, want 4 (outside-domain excluded)", c.InDomain())
 	}
-	// Each member count IS its list length.
 	if len(c.Fired) != 2 || len(c.NotFired) != 1 || len(c.NotEvaluable) != 1 {
 		t.Fatalf("members: fired=%d notfired=%d ne=%d", len(c.Fired), len(c.NotFired), len(c.NotEvaluable))
 	}
-	// Members are ordered by subject, never by attention.
 	if c.Fired[0].Subject != "a.example.com" || c.Fired[1].Subject != "b.example.com" {
 		t.Fatalf("fired not ordered by subject: %v", c.Fired)
 	}
@@ -49,7 +46,7 @@ func TestEvaluateBucketsAndDropsOutsideDomain(t *testing.T) {
 }
 
 func TestEmptyDomainIsNoPopulation(t *testing.T) {
-	r := stubRule{name: "stub", out: map[string]Outcome{}} // everything OutsideDomain
+	r := stubRule{name: "stub", out: map[string]Outcome{}}
 	c := Evaluate(r, []NameFacts{{Name: "a"}, {Name: "b"}})
 	if !c.Empty() {
 		t.Fatalf("all-outside-domain census should be Empty (no-population panel), got InDomain=%d", c.InDomain())
