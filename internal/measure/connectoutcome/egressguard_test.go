@@ -7,9 +7,8 @@ import (
 	"time"
 )
 
-// nonGlobalTargets are literal addresses in non-globally-reachable ranges the
-// active-probe leaves must never dial: cloud metadata (link-local), loopback and
-// RFC1918. The socket-level egress guard refuses each at the dialer's Control hook.
+// 169.254.169.254 is the cloud metadata endpoint, the SSRF target the guard refuses (#743).
+
 var nonGlobalTargets = []netip.AddrPort{
 	netip.MustParseAddrPort("169.254.169.254:80"),
 	netip.MustParseAddrPort("127.0.0.1:80"),
@@ -17,13 +16,9 @@ var nonGlobalTargets = []netip.AddrPort{
 	netip.MustParseAddrPort("192.168.1.1:80"),
 }
 
-// TestNetConnectorGuardRefusesNonGlobal pins the connect leaf's socket-level
-// backstop: a connect to a non-globally-reachable literal is refused at the
-// Control hook (a local error, never a real handshake or a timeout), so no SYN is
-// sent regardless of upstream validation (#743). Were the guard absent these
-// would block until the connect timeout; the guard refuses instantly.
 func TestNetConnectorGuardRefusesNonGlobal(t *testing.T) {
 	c := NetConnector{Timeout: 2 * time.Second}
+	// A socket-level backstop: no SYN leaves the host even where upstream validation fails (#743).
 	for _, target := range nonGlobalTargets {
 		start := time.Now()
 		got := c.Connect(context.Background(), target)
@@ -43,9 +38,6 @@ func TestNetConnectorRejectsInvalidTarget(t *testing.T) {
 	}
 }
 
-// TestNetHandshakerGuardRefusesNonGlobal pins the tls-handshake leaf's backstop: a
-// handshake against a non-globally-reachable literal is refused at the Control hook
-// before any TLS bytes, so the outcome is a negative, never a presented chain (#743).
 func TestNetHandshakerGuardRefusesNonGlobal(t *testing.T) {
 	h := NetHandshaker{Timeout: 2 * time.Second}
 	for _, target := range nonGlobalTargets {
