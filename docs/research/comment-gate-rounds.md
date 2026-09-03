@@ -71,7 +71,9 @@ Per class, production Go: `docstring-exported-conventional` 827 → 462, `docstr
 1,032 → 444, `section-divider` 88 → 88, `short-label` 31 → 28. The widening lands almost entirely
 on the two classes that failed.
 
-## Round 2 — awaiting adjudication
+## Round 2 — passed
+
+Sheets at the commit this ledger lands in. Screen as widened above.
 
 | Population | Files read | Admitted | Drawn |
 | --- | --- | --- | --- |
@@ -81,15 +83,30 @@ on the two classes that failed.
 | Population | Class | Read | Load-bearing | Verdict |
 | --- | --- | --- | --- | --- |
 | Production | `commented-out-code` | 0 | n/a | n/a — no block admitted |
-| Production | `docstring-exported-conventional` | 47 | | |
-| Production | `docstring-unexported` | 44 | | |
-| Production | `section-divider` | 8 | | |
-| Production | `short-label` | 1 | | |
+| Production | `docstring-exported-conventional` | 47 | 2 or fewer | accepted |
+| Production | `docstring-unexported` | 44 | 2 or fewer | accepted |
+| Production | `section-divider` | 8 | — | accepted at round 1 |
+| Production | `short-label` | 1 | — | accepted at round 1 |
 | Test | `commented-out-code` | 0 | n/a | n/a — no block admitted |
-| Test | `docstring-exported-conventional` | 18 | | |
-| Test | `docstring-unexported` | 40 | | |
-| Test | `section-divider` | 13 | | |
-| Test | `short-label` | 29 | | |
+| Test | `docstring-exported-conventional` | 18 | 2 or fewer | accepted |
+| Test | `docstring-unexported` | 40 | 2 or fewer | accepted |
+| Test | `section-divider` | 13 | — | accepted at round 1 |
+| Test | `short-label` | 29 | — | accepted at round 1 |
 
-`section-divider` and `short-label` passed round 1. They are re-drawn here because the sheet samples
-the whole admitted set, not one class. A second pass on an accepted class cannot un-accept it.
+`section-divider` and `short-label` were re-drawn because the sheet samples the whole admitted set,
+not one class. They carry their round-1 verdict, because a second pass on an accepted class cannot
+un-accept it.
+
+## The gate is closed
+
+Every class in the v1 delete set holds a verdict, and no class left the set. `commented-out-code`
+holds a verdict of `n/a` on both populations: it admits no block anywhere in the in-scope Go tree,
+so no sample can reach it. It stays in the delete set, where it decides nothing until a block
+appears.
+
+The gate ran two rounds of the three §3.9 allows. The third is unused.
+
+**The delete set stage B inherits.** 1,022 admitted blocks on production Go and 404 on test Go, on
+the widened screen. The SPEC §3.1 figure of about 8,200 lines predates this widening and is stale.
+[#1137](https://github.com/winniel123/verge-asm/issues/1137) reports what the tree-wide strip
+actually removes.
