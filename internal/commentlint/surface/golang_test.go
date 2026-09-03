@@ -1,6 +1,7 @@
 package surface
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -101,12 +102,45 @@ func TestGoBlocks(t *testing.T) {
 				"\n" +
 				"//revive:disable\n" +
 				"\n" +
+				"// #nosec G101 -- a well-known dev password\n" +
+				"\n" +
+				"//#nosec G101 -- the same waiver, unspaced\n" +
+				"\n" +
 				"func F() {}\n",
 			want: []wantBlock{
 				{startLine: 3, endLine: 3, style: StyleLine, directive: true, text: "// +build linux"},
 				{startLine: 5, endLine: 5, style: StyleLine, directive: true, text: "//nolint:gosec"},
 				{startLine: 7, endLine: 7, style: StyleLine, directive: true, text: "//lint:ignore SA1000 reason"},
 				{startLine: 9, endLine: 9, style: StyleLine, directive: true, text: "//revive:disable"},
+				{startLine: 11, endLine: 11, style: StyleLine, directive: true, text: "// #nosec G101 -- a well-known dev password"},
+				{startLine: 13, endLine: 13, style: StyleLine, directive: true, text: "//#nosec G101 -- the same waiver, unspaced"},
+			},
+		},
+		{
+			name: "a gosec waiver marks the wrapped justification beneath it",
+			src: "package p\n" +
+				"\n" +
+				"// prose above\n" +
+				"// #nosec G101 -- keys are table names paired with prose\n" +
+				"// explaining why each is excluded; none is a credential value.\n" +
+				"var x = 1\n",
+			want: []wantBlock{
+				{startLine: 3, endLine: 3, style: StyleLine, declaration: true, text: "// prose above"},
+				{startLine: 4, endLine: 4, style: StyleLine, declaration: true, directive: true,
+					text: "// #nosec G101 -- keys are table names paired with prose"},
+				{startLine: 5, endLine: 5, style: StyleLine, declaration: true, waiverTail: true,
+					text: "// explaining why each is excluded; none is a credential value."},
+			},
+		},
+		{
+			name: "a build constraint marks no tail",
+			src: "//go:build linux\n" +
+				"// prose below\n" +
+				"\n" +
+				"package p\n",
+			want: []wantBlock{
+				{startLine: 1, endLine: 1, style: StyleLine, directive: true, text: "//go:build linux"},
+				{startLine: 2, endLine: 2, style: StyleLine, text: "// prose below"},
 			},
 		},
 		{
@@ -241,6 +275,35 @@ func TestGoSkeletonHoldsTheBuildConstraintSeparator(t *testing.T) {
 				t.Errorf("the skeleton holds a %s token %t, want %t: %v", BlankLine, found, c.want, got.Skeleton)
 			}
 		})
+	}
+}
+
+func TestGoTrailingNosecIsADirective(t *testing.T) {
+	src := "package p\n" +
+		"\n" +
+		"type T struct {\n" +
+		"\tpassword string // #nosec G101 -- dev-only fixture login\n" +
+		"}\n"
+
+	got, err := Go{}.Lex([]byte(src))
+	if err != nil {
+		t.Fatalf("Lex: %v", err)
+	}
+	if len(got.Trailing) != 1 {
+		t.Fatalf("got %d trailing blocks, want 1: %+v", len(got.Trailing), got.Trailing)
+	}
+	if !got.Trailing[0].Directive {
+		t.Error("the trailing #nosec block is not a directive")
+	}
+	var comments []string
+	for _, tok := range got.Skeleton {
+		if strings.HasPrefix(tok.Text, "//") {
+			comments = append(comments, tok.Text)
+		}
+	}
+	want := []string{"// #nosec G101 -- dev-only fixture login"}
+	if !slices.Equal(comments, want) {
+		t.Errorf("the skeleton holds %q, want %q", comments, want)
 	}
 }
 
