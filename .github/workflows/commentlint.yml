@@ -2,6 +2,9 @@ name: commentlint
 
 on:
   pull_request:
+    # `verify` is gated on the `sweep:comments` label, and `gh pr create` cannot
+    # open and label in one event (#1273).
+    types: [opened, synchronize, reopened, labeled]
     paths:
       - "**/*.go"
       - "**/*.sql"

@@ -788,8 +788,9 @@ The SQL cross-check (§5.5) is not a unit test. It is a one-time gate on the fir
 the `setup-go` step and the path filter. One file keeps the sweep's whole CI story readable in one
 place. This is a mild departure from `doclint.yml`, which is one file and one job.
 
-- Trigger: `pull_request`. Paths: `**/*.go`, `**/*.sql`, `**/*.mjs`, `**/*.ts`, `**/*.jsx`,
-  `**/*.tmpl`, `**/*.css`, plus the tool and the workflow itself.
+- Trigger: `pull_request`, types `opened`, `synchronize`, `reopened`, `labeled`. Paths: `**/*.go`,
+  `**/*.sql`, `**/*.mjs`, `**/*.ts`, `**/*.jsx`, `**/*.tmpl`, `**/*.css`, plus the tool and the
+  workflow itself.
 - `permissions: contents: read`. Per-ref concurrency with `cancel-in-progress`.
 - **Job one, `lint`.** `continue-on-error: true`. It runs `lint --github --in-scope-only` over the
   three-dot diff. Advisory under ruling 5.
@@ -798,6 +799,17 @@ place. This is a mild departure from `doclint.yml`, which is one file and one jo
   It runs `verify --base`.
 
 `fetch-depth: 0` is load-bearing for both jobs. A shallow clone has no merge base.
+
+**`labeled` is load-bearing for the `verify` gate.** GitHub defaults `types` to `opened`,
+`synchronize` and `reopened`. `gh pr create` cannot open a pull request and label it in one event, so
+`sweep:comments` always arrives after the first run. Without `labeled`, that first run reads an empty
+label list, skips `verify`, and reports a check that proves nothing. Two of the four agents in the
+first stage-D1 batch hit this and closed and reopened their pull request to force a real run (#1273).
+
+A path filter on a `pull_request` event is evaluated against the pull request's own diff, not against
+an event file list, so it holds on a `labeled` event the same way it holds on a `synchronize` event.
+The cost of `labeled` is that any label, not only `sweep:comments`, re-runs the workflow. GitHub
+offers no label-name filter on the trigger, and a re-run of an advisory `lint` is cheap.
 
 ### 6.10 The `sweep:comments` label
 
@@ -950,10 +962,22 @@ records. A sweep session must not mistake them for its own regression, and must 
 
 A sweep ticket is done when **four** conditions hold:
 
-1. `commentlint verify` is green on the PR.
+1. `commentlint verify` **ran** on the PR and is green.
 2. `commentlint lint` reports zero flags on the ticket's files.
 3. The PR body carries a keeps ledger (§4.9) and a gaps table (§8.6).
 4. A human approves the PR.
+
+**Condition 1 asks for two facts, not one.** A `verify` job that the `sweep:comments` gate skipped
+also leaves the PR green, and it proves nothing. The sweep session confirms the run itself:
+
+```sh
+gh pr checks <pr> | grep -E '^(lint|verify)\b'
+```
+
+A `verify` row reading `pass` is the run. A row reading `skipping` is the skip. It means the label was
+not on the pull request when the workflow last fired. Add or re-add `sweep:comments`. The `labeled`
+trigger (§6.9) then fires a fresh run. Read the word, not the colour. GitHub's check mosaic renders a
+skipped job the same shade as a passed one.
 
 **Condition 2 does not prove conformance on its own.** `lint` flags only the mechanically-decidable
 classes. Condition 3 is the judgment gate. Delete-by-default makes a wrong delete visible in the
