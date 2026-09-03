@@ -5,8 +5,6 @@ import (
 	"testing"
 )
 
-// The flagship fires on the internet leg going not-reached -> reached, whether
-// or not an internal leg exists, carrying the census of facets that opened.
 func TestFlagshipFiresRegardlessOfInternalLeg(t *testing.T) {
 	census := NewCensus(
 		CensusEntry{Kind: "facet", Key: "certificate"},
@@ -37,8 +35,6 @@ func TestFlagshipFiresRegardlessOfInternalLeg(t *testing.T) {
 	}
 }
 
-// The internal leg never produces a message, in either direction — an internal
-// port opening or closing is recorded and never alerted.
 func TestInternalLegNeverMessages(t *testing.T) {
 	for _, m := range []ReachMove{
 		{ServiceKey: "10.0.0.1:22/tcp", Class: ClassInternal, From: NotReached, To: Reached},
@@ -50,8 +46,6 @@ func TestInternalLegNeverMessages(t *testing.T) {
 	}
 }
 
-// The internet leg's shrinking direction (reached -> not-reached) is silent — it
-// is not the flagship.
 func TestInternetShrinkIsSilent(t *testing.T) {
 	if got := Flagship(ReachMove{
 		ServiceKey: "198.51.100.1:443/tcp", Class: ClassInternet,
@@ -61,9 +55,6 @@ func TestInternetShrinkIsSilent(t *testing.T) {
 	}
 }
 
-// A leg that opened at reached — the first look ever — emits no Transition, so
-// the flagship predicate does not match it; that news rides the membership
-// census instead.
 func TestOpenedAtReachedIsNotFlagship(t *testing.T) {
 	if got := Flagship(ReachMove{
 		ServiceKey: "198.51.100.1:443/tcp", Class: ClassInternet,

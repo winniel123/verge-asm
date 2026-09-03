@@ -5,13 +5,6 @@ import (
 	"testing"
 )
 
-// A populated artifact renders the delivered document by executing the design-owned
-// "artifactdoc" define (SPEC-CHANGE #23g): the identity row, the KPI band with its delta
-// chips, the by-severity bars, the "new this week" table with its SeverityBadge column, the
-// withdrawn drift section, and the delivery receipt. The fixture is a test-local sample (as
-// the reference JSX carries inline sample data); it is never shipped. The standalone form
-// prepends the design token vocabulary so its inline var(--…) styles resolve with no console
-// stylesheet in scope.
 func TestRenderArtifactPopulated(t *testing.T) {
 	a := Artifact{
 		Title:       "Weekly exposure summary",
@@ -48,45 +41,39 @@ func TestRenderArtifactPopulated(t *testing.T) {
 	out := string(RenderArtifact(a))
 
 	for _, want := range []string{
-		"acmecorp",                               // identity row
-		"generated 2026-08-22T09:00:00Z",         // provenance
-		"verge v0.9.2",                           // the tmpl prepends "verge " to .Version
-		"Open signals", "47", "vs previous week", // KPI band
-		"Mean time to withdrawal", "2.4d", // the MTTW KPI (#23a)
-		"Open signals by severity",                // severity bar breakdown header
-		"New this week", "edge-gw-03.acmecorp.io", // signals table
-		"Endpoint reachable from the internet",          // a signal headline
-		"staging-4.acmecorp.io:8080",                    // withdrawn row subject
-		"delivered 2026-08-22T09:00Z · ops.acmecorp.io", // receipt, host only
+		"acmecorp",
+		"generated 2026-08-22T09:00:00Z",
+		"verge v0.9.2",
+		"Open signals", "47", "vs previous week",
+		"Mean time to withdrawal", "2.4d",
+		"Open signals by severity",
+		"New this week", "edge-gw-03.acmecorp.io",
+		"Endpoint reachable from the internet",
+		"staging-4.acmecorp.io:8080",
+		"delivered 2026-08-22T09:00Z · ops.acmecorp.io",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("populated artifact missing %q", want)
 		}
 	}
 
-	// The severity ramp is present (P2.10): the by-severity bars take the severity-dot
-	// tokens, and the signals table carries SeverityBadges keyed on the exact levels — the
-	// design-owned "sevbadge"/bar markup. Critical is the only solid fill; the dot levels tint.
 	for _, want := range []string{
-		"var(--sev-critical-dot)",  // a bar fill
-		"var(--sev-critical-fill)", // the critical badge, the only solid fill
-		"var(--sev-high-bg)",       // a tinted badge
+		"var(--sev-critical-dot)",
+		"var(--sev-critical-fill)",
+		"var(--sev-high-bg)",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("populated artifact missing severity ramp %q", want)
 		}
 	}
 
-	// Change still rides the drift palette, never the severity ramp.
 	if !strings.Contains(out, "var(--drift-loss-fg)") {
 		t.Error("change rows must use the drift palette")
 	}
 
-	// The standalone form is self-contained: the design token vocabulary is inlined so the
-	// document renders as an email/print body, and the dark theme is defined for it.
 	for _, want := range []string{
-		"--sev-critical-dot:", // the token vocabulary is present
-		`[data-theme="dark"]`, // the dark theme is defined for the standalone shell
+		"--sev-critical-dot:",
+		`[data-theme="dark"]`,
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("self-contained document missing %q", want)
@@ -94,8 +81,6 @@ func TestRenderArtifactPopulated(t *testing.T) {
 	}
 }
 
-// An artifact with no delivered content renders the design-owned empty-state document
-// (ADR-0110) rather than a fabricated one.
 func TestRenderArtifactEmpty(t *testing.T) {
 	a := Artifact{}
 	if !a.Empty() {
@@ -104,14 +89,13 @@ func TestRenderArtifactEmpty(t *testing.T) {
 	out := string(RenderArtifact(a))
 
 	for _, want := range []string{
-		"No delivery yet",                          // empty-state headline
-		"This schedule has not delivered a report", // the honest body
+		"No delivery yet",
+		"This schedule has not delivered a report",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("empty artifact missing %q", want)
 		}
 	}
-	// Nothing is fabricated: no KPI numerals, no change chips.
 	if strings.Contains(out, "var(--drift-gain-fg)") || strings.Contains(out, "var(--drift-loss-fg)") {
 		t.Error("empty artifact must not draw change chips")
 	}

@@ -6,8 +6,6 @@ import (
 	"testing"
 )
 
-// sampleArtifact is the populated fixture the PDF tests read — the same delivered
-// report shape the HTML render test uses, kept test-local (never shipped).
 func sampleArtifact() Artifact {
 	return Artifact{
 		Title:       "Weekly exposure summary",
@@ -43,8 +41,6 @@ func sampleArtifact() Artifact {
 	}
 }
 
-// A populated artifact renders a real PDF document: the bytes carry the PDF magic
-// header and the end-of-file marker, and the body is non-trivial.
 func TestRenderArtifactPDFPopulated(t *testing.T) {
 	out, err := RenderArtifactPDF(sampleArtifact())
 	if err != nil {
@@ -61,37 +57,29 @@ func TestRenderArtifactPDFPopulated(t *testing.T) {
 	}
 }
 
-// The PDF says the same things the delivered document says: the identity, the KPI
-// band, the by-severity breakdown, the signals table, the withdrawn section and its
-// subjects, and the delivery receipt — and it grades nothing in prose (no valence
-// word reaches the print copy; the severity ramp is the exempt one loud voice).
 func TestArtifactPDFStringsPopulated(t *testing.T) {
 	got := strings.Join(artifactPDFStrings(sampleArtifact()), "\n")
 
 	for _, want := range []string{
-		"acmecorp",                       // identity
-		"generated 2026-08-22T09:00:00Z", // provenance
+		"acmecorp",
+		"generated 2026-08-22T09:00:00Z",
 		"verge v0.9.2",
-		"Open signals", "47", "+3", "vs previous week", // KPI band, delta appended to numeral
+		"Open signals", "47", "+3", "vs previous week",
 		"Scans run", "128",
-		"Open signals by severity",                // severity breakdown header
-		"New this week", "edge-gw-03.acmecorp.io", // signals table
-		"Endpoint reachable from the internet",                 // a signal headline
-		"Withdrawn by the world", "staging-4.acmecorp.io:8080", // withdrawn section
-		"delivered 2026-08-22T09:00Z · ops.acmecorp.io", // receipt, host only
+		"Open signals by severity",
+		"New this week", "edge-gw-03.acmecorp.io",
+		"Endpoint reachable from the internet",
+		"Withdrawn by the world", "staging-4.acmecorp.io:8080",
+		"delivered 2026-08-22T09:00Z · ops.acmecorp.io",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("PDF content missing %q; text:\n%s", want, got)
 		}
 	}
 
-	// No valence word grades the print copy — the same guarantee the HTML render
-	// makes. The severity ramp is the one loud voice, exempt from the graded-prose
-	// guard exactly as on screen: its labels are never emitted to this view, and its
-	// section title (which names the scale) is dropped here as the HTML test strips
-	// the marked ramp elements. What remains is pure prose and grades nothing.
 	var prose []string
 	for _, s := range artifactPDFStrings(sampleArtifact()) {
+		// The ramp title names the scale, so the prose view drops it as the HTML test does.
 		if s == artifactSeverityTitle {
 			continue
 		}
@@ -102,8 +90,6 @@ func TestArtifactPDFStringsPopulated(t *testing.T) {
 	}
 }
 
-// An artifact with no delivered content renders the empty-state, never a
-// fabricated document, and still produces a valid PDF.
 func TestRenderArtifactPDFEmpty(t *testing.T) {
 	a := Artifact{}
 	if !a.Empty() {
@@ -120,14 +106,13 @@ func TestRenderArtifactPDFEmpty(t *testing.T) {
 
 	got := strings.Join(artifactPDFStrings(a), "\n")
 	for _, want := range []string{
-		"No report has been delivered yet", // empty-state headline
-		"not delivered",                    // receipt states the fact
+		"No report has been delivered yet",
+		"not delivered",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("empty PDF content missing %q; text:\n%s", want, got)
 		}
 	}
-	// Nothing fabricated: no sample org, no KPI numerals, no change subjects.
 	for _, absent := range []string{"acmecorp", "Open signals", "edge-gw-03"} {
 		if strings.Contains(got, absent) {
 			t.Errorf("empty PDF must not fabricate content, found %q; text:\n%s", absent, got)

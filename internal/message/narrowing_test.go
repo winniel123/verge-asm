@@ -5,9 +5,6 @@ import (
 	"testing"
 )
 
-// A narrowing over inhabited ground fires: the receipt carries the subject and
-// timeline counts, names the loss, and produces a coverage-class message at the
-// scope linking to the Seed.
 func TestNarrowingFiresOverInhabitedGround(t *testing.T) {
 	r := PreviewNarrowing("198.51.100.0/24", "198.51.100.128/25", 128, 17920)
 	if !r.Fires {
@@ -38,8 +35,6 @@ func TestNarrowingFiresOverInhabitedGround(t *testing.T) {
 	}
 }
 
-// A narrowing that withdraws no subject is silent: an empty residue (declining a
-// Proposal that was never a subject) or ground a current resolution still cites.
 func TestNarrowingSilentWhereNothingWithdrawn(t *testing.T) {
 	r := PreviewNarrowing("AMAZON-04", "52.94.0.0/16", 0, 0)
 	if r.Fires {
@@ -53,12 +48,6 @@ func TestNarrowingSilentWhereNothingWithdrawn(t *testing.T) {
 	}
 }
 
-// A Seed withdrawal is the limiting case of a narrowing (ADR-0134 §1), so it rides
-// the same receipt, the same coverage class and the same Seed link. Only the
-// sentence differs, and it must not borrow the narrowing sentence: that one says
-// EXCLUDED for an act that declared no exclusion, and NARROWED for a scope that is
-// gone. A Message is written once and never recomputed, so a false sentence here is
-// false for as long as the corpus is retained.
 func TestSeedWithdrawalStatesItsOwnHeadline(t *testing.T) {
 	r := PreviewSeedWithdrawal("10.0.0.0/24", 3, 7)
 	if !r.Fires {
@@ -96,8 +85,6 @@ func TestSeedWithdrawalStatesItsOwnHeadline(t *testing.T) {
 	}
 }
 
-// A withdrawal over uninhabited ground is silent, exactly as a narrowing is: no
-// subject left, so there is nothing to state.
 func TestSeedWithdrawalSilentWhereNothingWithdrawn(t *testing.T) {
 	r := PreviewSeedWithdrawal("10.0.0.0/24", 0, 0)
 	if r.Fires {

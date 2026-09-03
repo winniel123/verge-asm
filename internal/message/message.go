@@ -1,43 +1,14 @@
-// Package message is the v1 `Message` model: one firing of one cause, computed
-// once at the cause and never recomputed — recomputing one would reach back
-// across a `Break` (CONTEXT.md `Message`, v1 spec §5.3, ADR-0064). It is
-// Operational: a message records that the operator was told, never what is true
-// of the estate, so the comparison path may never read one and nothing is ever
-// concluded by comparing two. The fact itself lives in the timelines; if the two
-// ever disagree the timeline wins and the message is still a true record of what
-// we said.
-//
-// The package is a set of pure constructors — one per cause — plus the rendering
-// grammar. Each constructor reads the fold at the cause and returns a frozen
-// Message value: there is deliberately NO method that recomputes an existing
-// message from live state, which is how "computed once at the cause" is enforced
-// structurally rather than by discipline. The web layer stores the returned
-// value verbatim and reads it back verbatim.
-//
-// Four causes, no valence word:
-//
-//   - the estate's own object moved (drift);
-//   - us — our own aperture widened, or a rule of ours (aperture);
-//   - the operator's own declared input (declared-input);
-//   - nothing at all — only a clock or threshold was crossed (threshold).
-//
-// The three routing classes are those four with two merged (ADR-0091): aperture
-// and declared-input both say *we changed how we look* and merge into coverage;
-// drift is its own class; threshold is the clock class.
+// Package message is the operational record of what the operator was told: each
+// firing is computed once at its cause and never recomputed, and the comparison
+// path may never read one (CONTEXT.md, v1 spec §5.3, ADR-0064, ADR-0091).
 package message
 
 import "time"
 
-// Cause is the closed union of the four movers a Message can fire from. It is
-// carried on every message and read by the operator; the router never reads it
-// (routing keys on the class, ADR-0091).
 type Cause string
 
 const (
-	CauseDrift Cause = "drift"
-	// CauseAperture: us — our own aperture widened (or a rule of ours). The row
-	// links to the Seed whose scope moved, never to Coverage's standing aperture
-	// statement.
+	CauseDrift         Cause = "drift"
 	CauseAperture      Cause = "aperture"
 	CauseDeclaredInput Cause = "declared-input"
 	CauseThreshold     Cause = "threshold"
@@ -52,8 +23,8 @@ func (c Cause) Valid() bool {
 	}
 }
 
-// Class is the routing unit — one of three, and the only thing a Channel routes
-// on (ADR-0091). It is a property of the firing, not of the rule.
+// A Channel routes on the class alone, never on the cause, which the operator reads (ADR-0091).
+
 type Class string
 
 const (
@@ -62,12 +33,6 @@ const (
 	ClassClock    Class = "clock"
 )
 
-// ClassForCause maps a firing's cause to its routing class — the merge that
-// turns four causes into three classes (ADR-0091). `aperture` (us) and
-// `declared-input` (the operator) both merge into coverage; `drift` stands
-// alone; `threshold` is the clock class. Class is a property of the firing, so a
-// clock-reading rule that finds its span moved fires CauseDrift and lands in the
-// drift class through this same map — the class is never read off the rule.
 func ClassForCause(c Cause) Class {
 	switch c {
 	case CauseDrift:
@@ -81,24 +46,16 @@ func ClassForCause(c Cause) Class {
 	}
 }
 
-// LinkKind is where a message row points, decided by the mover (v1 spec §5.3).
-// It is derived from the cause and never stored, so a row can never drift out of
-// step with its cause.
+// Derived from the cause and never stored, so a row cannot drift from its cause (v1 spec §5.3).
+
 type LinkKind string
 
 const (
 	LinkObject LinkKind = "object"
 	LinkSource LinkKind = "source"
-	// LinkSeed: the Seed whose scope moved — the aperture-widening mover. NEVER
-	// Coverage's standing aperture statement, which is constant and would lose
-	// which act the message was about.
-	LinkSeed LinkKind = "seed"
+	LinkSeed   LinkKind = "seed"
 )
 
-// LinkKindForCause resolves the row's link target kind per §5.3's per-mover
-// rule. drift and threshold both link to an object page (the object that moved,
-// or the object whose span the rule read); declared-input links to the Source;
-// aperture links to the Seed whose scope moved.
 func LinkKindForCause(c Cause) LinkKind {
 	switch c {
 	case CauseDrift, CauseThreshold:
@@ -106,46 +63,30 @@ func LinkKindForCause(c Cause) LinkKind {
 	case CauseDeclaredInput:
 		return LinkSource
 	case CauseAperture:
+		// Never Coverage's standing aperture statement, which is constant and loses which act fired.
 		return LinkSeed
 	default:
 		return LinkObject
 	}
 }
 
-// Message is one firing of one cause. It carries its class, the key of the
-// subject or scope it fired at, the instant of the cause, and its census where
-// it has one; it holds read-state and no other operator state (CONTEXT.md
-// `Message`). It is a frozen value: once a constructor returns one, nothing in
-// this package recomputes it.
+// Read-state is the only operator state this may hold (CONTEXT.md Message).
+
 type Message struct {
 	ID int64
 
 	Cause Cause
 	Class Class
 
-	// SubjectKind names what FiredAt keys, so the web layer can build the right
-	// drill-down URL: "name" / "address" / "service" / "endpoint" for an object
-	// link, "source" for a Source link, "seed" for a Seed link.
 	SubjectKind string
-	// FiredAt is the key of the subject or scope the message fired at — the unit
-	// of alerting is the message and never the affected subject, so this is one
-	// key, not a set.
-	FiredAt string
+	FiredAt     string // The unit of alerting is the message, so this is one key and never a set.
 
-	// Instant is the instant of the cause, read from the fold. It is frozen at
-	// construction and never re-derived — re-deriving it would reach back across
-	// a Break.
 	Instant time.Time
 
 	Census *Census
 
-	// Headline is the rendered sentence, computed at the cause from the fold. It
-	// carries no valence word and no severity (ADR-0064).
 	Headline string
 
-	// Read is the operator's read-state — the one piece of operator state a
-	// message holds. It is not part of the fact and never reaches the comparison
-	// path.
 	Read bool
 }
 
