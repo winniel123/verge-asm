@@ -179,8 +179,6 @@ func tailCoversNow(ti *temporalInterval, now time.Time) bool {
 	return ti.EndExclusive.After(now) && ti.StartInclusive.Before(now.Add(nextShardHorizon))
 }
 
-// --- job shape ---------------------------------------------------------------
-
 // CTTailJob is one queue job the tail Scan produces: one log to poll. Unlike the `ct`
 // job (one crt.sh query per Seed) the tail fans out per-log — the log is the unit of
 // forward-delta work, and the name-scope Seeds it admits under are read on the worker
@@ -191,9 +189,6 @@ type CTTailJob struct {
 	Log    CTLog
 }
 
-// BuildCTTailJobs fans a tail Scan out into one job per followed log. It produces no
-// jobs when the selected log-set is empty — a legible zero-job state, not an error.
-// Enablement of the `ct-tail` source is gated by the dispatcher, not here.
 func BuildCTTailJobs(scanID int64, logs []CTLog) []CTTailJob {
 	if len(logs) == 0 {
 		return nil
@@ -205,9 +200,6 @@ func BuildCTTailJobs(scanID int64, logs []CTLog) []CTTailJob {
 	return jobs
 }
 
-// ctTailScope is the wire payload a tail job carries: the log to poll and which client
-// reads it. The cursor the poll reads and advances lives in ct_log_cursor keyed by
-// LogID, not in the job.
 type ctTailScope struct {
 	LogID       string `json:"log_id"`
 	URL         string `json:"url"`
@@ -284,9 +276,6 @@ func ParseSTH(body []byte) (CTSignedTreeHead, error) {
 	return CTSignedTreeHead{TreeSize: raw.TreeSize, Raw: body}, nil
 }
 
-// CTLogEntry is one entry of a get-entries answer: the base64-decoded MerkleTreeLeaf
-// (leaf_input, which carries the certificate for an x509 entry) and extra_data (the
-// certificate chain, and for a precert entry the pre_certificate itself).
 type CTLogEntry struct {
 	LeafInput []byte
 	ExtraData []byte
@@ -331,10 +320,8 @@ const (
 
 	// ctLeafHeader is version(1) + leaf_type(1) + timestamp(8) + entry_type(2): the
 	// fixed prefix before the signed_entry (§3.4).
-	ctLeafHeader = 1 + 1 + 8 + 2
-	// ctASN1CertLen is the length prefix width of an ASN.1Cert opaque<1..2^24-1>.
-	ctASN1CertLen = 3
-	// ctIssuerKeyHash is the fixed width of PreCert.issuer_key_hash (a SHA-256).
+	ctLeafHeader    = 1 + 1 + 8 + 2
+	ctASN1CertLen   = 3
 	ctIssuerKeyHash = 32
 )
 
@@ -419,8 +406,6 @@ func readOpaque24(b []byte) ([]byte, error) {
 	}
 	return b[ctASN1CertLen : ctASN1CertLen+n], nil
 }
-
-// --- static-ct-api (tiled) wire parsers --------------------------------------
 
 // A static-ct-api log (C2SP static-ct-api, #877 §4.3) serves its Merkle tree as static
 // files under the monitoring_url, not the RFC 6962 dynamic endpoints. The tail reads two
@@ -516,7 +501,6 @@ func parseTileLeaf(b []byte) (der, rest []byte, err error) {
 
 	switch entryType {
 	case ctEntryX509:
-		// signed_entry = ASN.1Cert: the certificate itself.
 		cert, after, e := takeOpaque24(b)
 		if e != nil {
 			return nil, nil, fmt.Errorf("x509 signed_entry: %w", e)
@@ -541,7 +525,6 @@ func parseTileLeaf(b []byte) (der, rest []byte, err error) {
 		return nil, nil, fmt.Errorf("unsupported entry type %d", entryType)
 	}
 
-	// extensions: CtExtensions opaque<0..2^16-1> — skipped.
 	_, after, e := takeOpaque16(b)
 	if e != nil {
 		return nil, nil, fmt.Errorf("extensions: %w", e)
@@ -578,10 +561,6 @@ func takeOpaque24(b []byte) (val, rest []byte, err error) {
 	return v, b[ctASN1CertLen+len(v):], nil
 }
 
-// takeOpaque16 reads one TLS opaque<0..2^16-1> value (a 2-byte big-endian length then that
-// many bytes) from the front of b and returns the value and the remaining bytes. A
-// zero-length value is legal here (unlike opaque24) — extensions and the chain are both
-// routinely empty.
 func takeOpaque16(b []byte) (val, rest []byte, err error) {
 	if len(b) < 2 {
 		return nil, nil, fmt.Errorf("truncated length prefix")
@@ -592,8 +571,6 @@ func takeOpaque16(b []byte) (val, rest []byte, err error) {
 	}
 	return b[2 : 2+n], b[2+n:], nil
 }
-
-// --- admission ---------------------------------------------------------------
 
 // CTAdmission is one Name the tail admits, with the name-scope Seed its Citation chain
 // terminates at (ADR-0027). It is the tail's analogue of a crt.sh admitted name, but the

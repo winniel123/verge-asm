@@ -331,8 +331,6 @@ func durationOrDefault(key string, def time.Duration, logger *log.Logger) time.D
 	return d
 }
 
-// isTruthy reads the common affirmative spellings of a boolean env value — the
-// VERGE_DEV gate the message producer reads (mirrors cmd/web's own).
 func isTruthy(v string) bool {
 	switch strings.ToLower(strings.TrimSpace(v)) {
 	case "1", "true", "yes", "on":
@@ -342,9 +340,6 @@ func isTruthy(v string) bool {
 	}
 }
 
-// runSelfTest execs the prober once at startup to prove the job-spec-in,
-// NDJSON-out contract works inside this deployment. Failure is logged, not
-// fatal: the worker has no queue work yet for this to gate.
 func runSelfTest(ctx context.Context, proberPath string) {
 	obs, err := execProbe(ctx, proberPath, wire.JobSpec{Batch: "startup-selftest", Kind: "noop"})
 	if err != nil {

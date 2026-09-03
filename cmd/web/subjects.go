@@ -67,8 +67,6 @@ func suppressesNameMembership(outcome string) bool {
 	return outcome == nameOutcomeNameError || outcome == nameOutcomeShadowed
 }
 
-// resolutionValue is the JSON payload of a resolution observation, the shape the
-// resolution-walk leaf emits. The web layer reads only the fields it renders.
 type resolutionValue struct {
 	Outcome   string   `json:"outcome"`
 	Addresses []string `json:"addresses"`
@@ -91,15 +89,12 @@ func decodeDNSRecord(raw []byte) dnsRecordValue {
 	return v
 }
 
-// citationHop is one link in a subject's "why is this here" chain, rendered
-// top-to-bottom from the subject down to the Seed the chain terminates at.
 type citationHop struct {
 	Label  string // the micro-label: what kind of hop this is
 	Value  string // the load-bearing value, rendered mono
 	Detail string // optional muted qualifier
 }
 
-// servicePageData is the drill-down view for one Service subject.
 type servicePageData struct {
 	Key string
 	// CopyKey is the copyable key string the "Copy" card renders (#22): the address,
@@ -118,11 +113,8 @@ type servicePageData struct {
 	// ReachGapReason renders its cause in the operator's words. A Gap is the absence
 	// of a reach value, not `not-reached`, so the page states *we cannot see your
 	// origin from here* rather than *nothing is open*.
-	ReachGap       bool
-	ReachGapReason string
-	// Citation is the "why is this here" chain: Service → Address → the Name whose
-	// resolution cites the Address (or the address-scope Seed that covers it),
-	// terminating at a Seed.
+	ReachGap           bool
+	ReachGapReason     string
 	Citation           []citationHop
 	CitationTerminated bool
 	// Timelines are the Service's reachability Span timelines — current and closed
@@ -137,13 +129,8 @@ type servicePageData struct {
 	Exposure     string // reachability → exposure state (assetExposure); empty when withdrawn/unmeasured
 	Since        string // the current reachability span's OpenedAt
 	Provenance   []assetKV
-	// Rules are every rule whose predicate domain includes this Service, each with
-	// its own versioned verdict (fired / did not fire) and the rule's SeverityBadge.
-	Rules []subjectRule
-	// Signals are the rules firing on this Service right now (the rail's "Signals
-	// here"), each carrying its rule's severity — the same fired census the asset
-	// drill-in reads, filtered to this subject's key.
-	Signals []assetSignal
+	Rules        []subjectRule
+	Signals      []assetSignal
 }
 
 // endpointPageData is the drill-down view for one Endpoint subject (#198): the
@@ -168,15 +155,13 @@ type endpointPageData struct {
 	// The current HTTP identity, decoded for display — the admitted closed set
 	// (ADR-0011): outcome, status, Server, page <title>, WWW-Authenticate challenge,
 	// and the recorded redirect Location. No body hash, length, or Content-Type.
-	Outcome          string
-	Status           string
-	Server           string
-	Title            string
-	WWWAuthenticate  string
-	RedirectLocation string
-	HasIdentity      bool
-	// Citation is the "why is this here" chain: Endpoint → its Name leg → its
-	// Service leg → the Address → the Seed the chain terminates at.
+	Outcome            string
+	Status             string
+	Server             string
+	Title              string
+	WWWAuthenticate    string
+	RedirectLocation   string
+	HasIdentity        bool
 	Citation           []citationHop
 	CitationTerminated bool
 	// Timelines are the Endpoint's http-identity Span timelines — current and
@@ -186,9 +171,7 @@ type endpointPageData struct {
 	Seen         string
 	InScopeSince string
 	Provenance   []assetKV
-	// Rules are every rule whose predicate domain includes this Endpoint, each with
-	// its own versioned verdict and the rule's SeverityBadge.
-	Rules []subjectRule
+	Rules        []subjectRule
 }
 
 // subjectRule is one rule whose predicate domain includes a Service or Endpoint
@@ -206,7 +189,6 @@ type subjectRule struct {
 	Fired    bool
 }
 
-// subjectPageData is the drill-down view for one Name.
 type subjectPageData struct {
 	Name       string
 	Withdrawn  bool
@@ -237,9 +219,6 @@ type timelineView struct {
 	Breaks        []breakView
 }
 
-// spanView is one Span rendered: its value (or a Gap marker), the period it
-// spanned, and — where it is a withdrawal's closing side — the ground the closure
-// rests on.
 type spanView struct {
 	Value string
 	IsGap bool
@@ -260,9 +239,6 @@ type spanView struct {
 	Reason     string
 }
 
-// spanDetail is one row of a span value's expanded contents: an RR (its type and
-// data) for a dns-record span, or a single address (typeless) for a resolution
-// span.
 type spanDetail struct {
 	Type string // the answered RR type ("A", "TXT", …); empty for a resolution address
 	Data string // the record's canonical data, or the address, as stored
@@ -596,12 +572,6 @@ func splitServiceKey(key string) (addr, port, transport string) {
 	return addr, port, transport
 }
 
-// buildServiceCitation assembles the "why is this here" chain for a Service: the
-// Service itself, the Address the triple sits on, and the ground the Address's
-// membership rests on — the Name whose current resolution cites the Address, or
-// the address-scope Seed that covers it, terminating at a Seed. Where neither
-// limb holds, the Address has left the estate (the `uncited` / `descoped`
-// departure), which the caller renders as a withdrawn Service.
 func (s *server) buildServiceCitation(r *http.Request, addr string) (hops []citationHop, terminated, withdrawn bool, seedScope, inScopeSince string) {
 	hops = []citationHop{
 		{Label: "Subject · Service", Value: r.FormValue("key")},
@@ -718,9 +688,6 @@ func firstSeenFromTimelines(tls []timelineView) string {
 	return best
 }
 
-// currentReachSince returns the open instant of the current reachability span — the
-// "Since" the Service's current-facet card carries. Empty where the reachability
-// timeline holds no current value (a withdrawn or gapped Service).
 func currentReachSince(tls []timelineView) string {
 	for _, tl := range tls {
 		if tl.Facet == "reachability" && tl.Current != nil {
@@ -821,10 +788,6 @@ func nameCitationHop(cit db.GetNameCitationRow) citationHop {
 	}
 }
 
-// nameSeedTerm is the Seed a Name's Citation chain terminates at, reduced to the
-// three fields the hop renders. It lets buildCitation treat the two ways the Seed
-// is found — by the admitted_name row's id, or by longest-suffix cover — through
-// one shape.
 type nameSeedTerm struct {
 	NameDomain        pgtype.Text
 	CreatedAt         pgtype.Timestamptz
@@ -915,8 +878,6 @@ func (s *server) buildTimelines(r *http.Request, kind, key string) []timelineVie
 		return nil
 	}
 
-	// Group spans into their timelines, preserving the query's (facet,
-	// discriminator, vantage, source, opened_at) order.
 	type tlkey struct {
 		facet, discriminator string
 		vantage              int64
@@ -1165,9 +1126,6 @@ func httpIdentityDetails(v httpIdentityValue) []spanDetail {
 // empty-state where it does not. No section fabricates a value, none fingerprints
 // technology, and the drift trail rides the change palette (never severity).
 
-// assetPageData is the whole asset record, one place: the header identity plus the
-// six sections — ports census, DNS, TLS cert (empty-state; parsed cert identity is
-// not stored), provenance, signals-here, and the drift trail.
 type assetPageData struct {
 	Key          string
 	Type         string // the domain noun the header tag carries — always "Name"
@@ -1214,15 +1172,12 @@ type assetCert struct {
 	Fingerprint string
 }
 
-// assetDNSRow is one resolved record: the RR type, its value, and when last seen.
 type assetDNSRow struct {
 	Type  string
 	Value string
 	Seen  string
 }
 
-// assetKV is one provenance fact ("how it got here"): a micro-label key and a mono
-// value.
 type assetKV struct {
 	K string
 	V string
@@ -1340,11 +1295,6 @@ func (s *server) assetProvenance(r *http.Request, key string) (items []assetKV, 
 	return items, inScopeSince
 }
 
-// assetDNS lists the asset's resolved records: the A/AAAA addresses off the current
-// resolution, plus every other RR the dns-record facet carries (TXT, MX, CNAME,
-// NS). A/AAAA records from the dns-record facet are dropped as duplicates of the
-// resolution addresses. Best-effort — a dns-record read failure degrades to just
-// the resolution addresses.
 func (s *server) assetDNS(r *http.Request, key string, res resolutionValue) []assetDNSRow {
 	var rows []assetDNSRow
 	for _, a := range res.Addresses {
@@ -1568,11 +1518,6 @@ func assetHeaderSeverity(signals []assetSignal) string {
 	return best
 }
 
-// assetHeaderExposure is the header's aggregate ExposureBadge (AssetDetail.jsx:36):
-// the worst reachability across the asset's open ports (exposed ≻ firewalled ≻
-// not-reached ≻ unverified) — one port answering from the internet makes the asset
-// exposed. It rolls up the states the census already carries, inventing nothing.
-// Empty when no port is measured, in which case the header omits the badge.
 func assetHeaderExposure(ports []assetPort) string {
 	rank := map[string]int{"exposed": 0, "firewalled": 1, "not-reached": 2, "unverified": 3}
 	best := ""
@@ -1586,11 +1531,6 @@ func assetHeaderExposure(ports []assetPort) string {
 	return best
 }
 
-// assetSignals folds the full signal corpus and keeps the fired members whose
-// subject IS this asset (the Name-rule population is keyed by the Name), each row
-// carrying its rule's severity (internal/signal SeverityFor, P0.1) for the
-// SeverityBadge the spec renders. Best-effort: a corpus-build failure yields no
-// signals (the section empty-states).
 func (s *server) assetSignals(r *http.Request, key string) []assetSignal {
 	corpus, err := s.buildSignalCorpus(r)
 	if err != nil {

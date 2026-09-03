@@ -36,20 +36,16 @@ import (
 // leaf hash uses the precert reconstruction (PrecertTBS + IssuerKeyHash), not the final cert.
 var oidSCTList = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 11129, 2, 4, 2}
 
-// --- SCT parsing -------------------------------------------------------------
-
 // SCT is the subset of an RFC 6962 SignedCertificateTimestamp verification reads (§3.2): the
 // log the SCT names, the timestamp that binds the MerkleTreeLeaf, and the SCT's own extensions
 // — empty for a classic RFC 6962 log, but carrying the leaf_index for a static-ct-api log
 // (SCTLeafIndex). The digitally-signed signature is read past and discarded: verification
 // recomputes inclusion to the head's root and never checks the log's signature (§4.4).
 type SCT struct {
-	// Version is the sct_version; only v1 (0) is understood.
 	Version uint8
 	// LogID is the 32-byte SHA-256 of the log's public key — the same value log_list.json
 	// carries base64-encoded, so FindLogByLogID matches on the base64 of this.
-	LogID [32]byte
-	// Timestamp is the SCT's millisecond timestamp, folded verbatim into the leaf hash.
+	LogID     [32]byte
 	Timestamp uint64
 	// Extensions is the CtExtensions content (already unwrapped from its opaque<0..2^16-1>
 	// length). It rides into the TimestampedEntry.extensions when the leaf hash is built, so
@@ -81,7 +77,6 @@ func ParseSCT(b []byte) (SCT, error) {
 		return SCT{}, fmt.Errorf("scan: sct extensions")
 	}
 	sct.Extensions = append([]byte(nil), ext...)
-	// digitally-signed: SignatureAndHashAlgorithm (2 bytes) then opaque<0..2^16-1>.
 	var alg []byte
 	var sig cryptobyte.String
 	if !s.ReadBytes(&alg, 2) || !s.ReadUint16LengthPrefixed(&sig) {
@@ -127,10 +122,7 @@ func SCTLeafIndex(extensions []byte) (int64, bool) {
 	return 0, false
 }
 
-// ctExtLeafIndex is the static-ct-api CtExtensions type for the leaf index (C2SP static-ct-api).
 const ctExtLeafIndex = 0
-
-// --- SCT extraction ----------------------------------------------------------
 
 // EmbeddedSCTs extracts the SCTs embedded in a leaf certificate's X.509v3 SCT-list extension
 // (RFC 6962 §3.3). Each is signed over the PRECERTIFICATE, so its leaf hash uses the precert
@@ -207,8 +199,6 @@ func parseSCTList(b cryptobyte.String) ([][]byte, error) {
 	}
 	return out, nil
 }
-
-// --- precert reconstruction --------------------------------------------------
 
 // IssuerKeyHash is the SHA-256 of the issuer's SubjectPublicKeyInfo (RFC 6962 §3.2's
 // issuer_key_hash). It is captured at the handshake (the issuer sits at chain position 1) and
@@ -314,8 +304,6 @@ func extensionIsSCTList(extElem cryptobyte.String) (bool, error) {
 	}
 	return oid.Equal(oidSCTList), nil
 }
-
-// --- MerkleTreeLeaf hash -----------------------------------------------------
 
 // LeafHashX509 is the RFC 6962 leaf hash of an x509_entry MerkleTreeLeaf (§3.4): the leaf hash
 // of a certificate whose SCT was signed over the FINAL certificate (a TLS-extension or OCSP
@@ -464,8 +452,6 @@ func rootFromInclusionProof(leafHash []byte, index, size int64, auditPath [][]by
 	return h, true
 }
 
-// --- static-ct-api (tiled) inclusion -----------------------------------------
-
 // CheckpointRoot reads the root hash from a static-ct-api checkpoint body (C2SP signed-note):
 // the origin line, the decimal tree size, then the base64 root hash on line 3 (§4.2). A body
 // with fewer than three lines, or a root that is not 32 bytes, is an error the caller treats as
@@ -494,10 +480,6 @@ func HashTilePath(index int64) string {
 	return "0/" + DataTilePath(index/CTTileWidth)
 }
 
-// ParseHashTile decodes a static-ct-api hash tile into its node hashes (C2SP tlog-tiles): a
-// packed sequence of 32-byte SHA-256 hashes with no per-entry framing. A body whose length is
-// not a multiple of 32 is an error — a hash tile is exactly N whole hashes. A full tile holds
-// CTTileWidth hashes; a partial head tile holds 1..255.
 func ParseHashTile(body []byte) ([][]byte, error) {
 	if len(body)%sha256.Size != 0 {
 		return nil, fmt.Errorf("scan: hash tile is %d bytes, not a multiple of %d", len(body), sha256.Size)
@@ -522,8 +504,6 @@ func LeafHashInTile(leafHash []byte, index int64, tileHashes [][]byte) (matches,
 	}
 	return bytesEqual(leafHash, tileHashes[slot]), true
 }
-
-// --- log lookup --------------------------------------------------------------
 
 // AllLogs is every CT log in the embedded log_list.json, of both client kinds, regardless of
 // state or temporal interval. Verification looks a log up by the id an SCT names, and an SCT

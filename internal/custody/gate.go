@@ -18,8 +18,6 @@ const (
 	ClassUnverified VantageClass = "unverified"
 )
 
-// IsInternet reports whether the class is the one the denotation precondition
-// bars for a non-globally-reachable address.
 func (c VantageClass) IsInternet() bool { return c == ClassInternet }
 
 // MayProbe is the total probing gate: whether an active probe may be attempted
@@ -44,7 +42,6 @@ func (c VantageClass) IsInternet() bool { return c == ClassInternet }
 func (e Estate) MayProbe(addr netip.Addr, vc VantageClass) bool {
 	addr = addr.Unmap()
 
-	// Authority — total over the address.
 	if e.Derive(addr) != Operator {
 		return false
 	}

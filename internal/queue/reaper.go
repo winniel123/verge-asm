@@ -78,10 +78,6 @@ func NewReaper(store ReaperStore, threshold time.Duration, now func() time.Time,
 	return &Reaper{store: store, threshold: threshold, now: now, log: logger}
 }
 
-// Sweep reclaims every 'running' job whose lease is older than the threshold and
-// returns how many it reclaimed. A non-positive threshold reclaims nothing and
-// returns 0 — the reaper is disabled. It is the only code path that reclaims stale
-// jobs, and it can reach nothing else: ReaperStore has only the one method.
 func (r *Reaper) Sweep(ctx context.Context) (int64, error) {
 	cutoff, bounded := StaleCutoff(r.now().UTC(), r.threshold)
 	if !bounded {
@@ -122,5 +118,4 @@ func (r *Reaper) sweepAndLog(ctx context.Context) {
 	}
 }
 
-// compile-time proof *db.Queries is a ReaperStore.
 var _ ReaperStore = (*db.Queries)(nil)

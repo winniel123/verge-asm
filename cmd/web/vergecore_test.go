@@ -67,7 +67,6 @@ func TestVergeCoreAdminEditsFrequency(t *testing.T) {
 		t.Errorf("added port not listed in the frequency half")
 	}
 
-	// Reset drops the delta row.
 	editFreq(t, ac, base, "reset", "12345").Body.Close()
 	if _, ok := f.freqEdits[12345]; ok {
 		t.Errorf("reset did not drop the edit row: %+v", f.freqEdits)

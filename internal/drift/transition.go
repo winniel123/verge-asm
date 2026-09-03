@@ -39,22 +39,11 @@ func Breaks(spans []Span) []Break {
 // accidentally compare them (ADR-0008).
 func Comparable(a, b Span) bool { return a.Vector.Equal(b.Vector) }
 
-// Kind is a Transition's name. Three named kinds live in two families:
-// `appeared` and `returned` are membership-only (they describe a subject), and
-// `revealed` belongs to any timeline (aperture is a property of looking). An
-// ordinary value move between two spans is a Transition with no name — the
-// adjacency is the fact and nothing is alerted per consequence.
 type Kind string
 
 const (
-	// KindNone is an ordinary adjacency — a value moved, and the move is recorded
-	// and unnamed.
-	KindNone Kind = ""
-	// KindAppeared is discovery: a subject entering the estate with no prior
-	// membership span to return from. Membership-only.
+	KindNone     Kind = ""
 	KindAppeared Kind = "appeared"
-	// KindReturned is a decommission undone: a subject re-entering across a clean
-	// history. Membership-only, and the more alertable of the pair.
 	KindReturned Kind = "returned"
 	// KindRevealed is a widened aperture — we started looking, the world did not
 	// move. It belongs to any timeline, never to a subject's membership alone.

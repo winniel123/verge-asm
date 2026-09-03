@@ -13,8 +13,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
-// --- fakeStore integration-state methods -----------------------------------
-
 func (f *fakeStore) ListIntegrationStates(context.Context) ([]db.IntegrationState, error) {
 	rows := make([]db.IntegrationState, 0, len(f.integrationStates))
 	for _, st := range f.integrationStates {
@@ -67,8 +65,6 @@ func (f *fakeStore) GetChannelForDelivery(_ context.Context, id int64) (db.GetCh
 	}
 	return db.GetChannelForDeliveryRow{}, pgx.ErrNoRows
 }
-
-// --- helpers ----------------------------------------------------------------
 
 // skipIfIntegrationsHidden skips a behavioural Integrations test while the surface
 // is hidden (#388, integrationsEnabled == false). Flipping the flag to revive the
@@ -198,7 +194,6 @@ func TestIntegrationsTileGridRenders(t *testing.T) {
 
 	page := integrationsBody(t, ac, base, "")
 
-	// Every catalogued integration appears, by name.
 	for _, c := range integrationCatalog {
 		if !strings.Contains(page, c.Name) {
 			t.Errorf("integration %q missing from the tile grid", c.Name)
@@ -247,7 +242,6 @@ func TestIntegrationsConsentGatingAndInstall(t *testing.T) {
 		}
 	}
 
-	// Install persists real state.
 	resp := postForm(t, ac, base+"/settings/integrations/install", url.Values{"slug": {"pagerduty"}})
 	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/settings?tab=integrations" {
 		t.Fatalf("install: status=%d loc=%q", resp.StatusCode, resp.Header.Get("Location"))
@@ -358,7 +352,6 @@ func TestIntegrationsFilterAndSearch(t *testing.T) {
 	if !strings.Contains(siem, "Splunk") || strings.Contains(siem, ">Slack<") {
 		t.Errorf("SIEM filter did not narrow the grid; body: %s", siem)
 	}
-	// Search narrows to a name match.
 	search := integrationsBody(t, ac, base, "&q=jira")
 	if !strings.Contains(search, "Jira") || strings.Contains(search, "Splunk") {
 		t.Errorf("search did not narrow the grid; body: %s", search)

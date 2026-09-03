@@ -47,8 +47,6 @@ type devFixtureAccount struct {
 	password string // #nosec G101 -- dev-only fixture login, seeded only under VERGE_DEV
 }
 
-// devFixtureAccounts pins fixtures.json → accounts: an admin and a viewer. One account
-// per role — the mint resolves states.json's `session` role to the account here.
 var devFixtureAccounts = []devFixtureAccount{
 	{username: "ola.perez", role: roleAdmin, password: "verge-dev-1"},   // #nosec G101 -- dev-only fixture login, seeded only under VERGE_DEV
 	{username: "sam.reader", role: roleViewer, password: "verge-dev-2"}, // #nosec G101 -- dev-only fixture login, seeded only under VERGE_DEV
@@ -171,8 +169,6 @@ const (
 	// the minted-dialog golden's pixel diff is stable. A real build always draws crypto/rand.
 	devFixtureMintedToken = "vg_pat_cigolden0example" // #nosec G101 -- not a real credential: a fixed dev-only fixture token revealed only in a VERGE_DEV build
 
-	// The fixture account whose Profile the screen-3 goldens capture (also seeded, as the
-	// admin, by devFixtureAccounts).
 	devProfileUsername = "ola.perez"
 
 	// devProfileCreated is fixtures.json → profile.account.created: the date-only UTC
@@ -183,14 +179,11 @@ const (
 	// through the frozen package.
 	devProfileCreated = "2026-04-11"
 
-	// The one Okta identity linked to the fixture account, and its date-only UTC link date.
 	devProfileSSOProviderSlug = "okta"
 	devProfileSSOProviderName = "Okta"
 	devProfileSSODisplayName  = "ola.perez@acmecorp.io"
 	devProfileSSOLinkedAt     = "2026-06-30"
 
-	// Google offered as a linkable provider (enabled, no identity → appears under "Link an
-	// identity"). fixtures.json → profile.sso_providers.
 	devProfileLinkableSlug = "google"
 	devProfileLinkableName = "Google"
 
@@ -246,14 +239,10 @@ var devProfileTokens = []devProfileToken{
 	{name: "ci-export", prefix: "vg_pat_r55q…", created: "2026-08-20", last: "", lastNull: true},
 }
 
-// devFixtureClockTime parses the pinned clock; a VERGE_DEV server and the seeder read the
-// same instant from it.
 func devFixtureClockTime() (time.Time, error) {
 	return time.Parse(time.RFC3339, devFixtureClock)
 }
 
-// devFixtureDate parses a fixtures.json date-only string to midnight UTC, which isoDate
-// formats straight back to the same YYYY-MM-DD (date-only UTC, per the work order).
 func devFixtureDate(d string) (time.Time, error) {
 	return time.Parse("2006-01-02", d)
 }
@@ -407,8 +396,6 @@ const (
 	devFixtureResetToken  = "fixture-reset-token"  // #nosec G101 -- not a real credential: a fixed dev-only reset token, seeded (hashed) only under VERGE_DEV
 	devFixtureInviteToken = "fixture-invite-token" // #nosec G101 -- not a real credential: a fixed dev-only invite token, seeded (hashed) only under VERGE_DEV
 
-	// devFixtureInviteRole is fixtures.json → signin.invite_role: the role the seeded invite
-	// grants (the frozen invite card renders it in its sub-line).
 	devFixtureInviteRole = roleViewer
 )
 
@@ -422,7 +409,6 @@ type devSigninProvider struct {
 	mark string
 }
 
-// devSigninProviders pins fixtures.json → signin.sso_providers, in fixture order.
 var devSigninProviders = []devSigninProvider{
 	{slug: "okta", name: "Okta", mark: "O"},
 }
@@ -435,9 +421,6 @@ var devFixtureRecoveryCodes = []string{
 	"q2sl-88bh", "e6ty-r7cn", "a1zw-kk3p", "n9gd-45vu",
 }
 
-// recoveryCodes returns the recovery set to reveal + store at enrolment-confirm. A VERGE_DEV
-// build returns the pinned fixture set (with bcrypt hashes to store); a real build draws fresh
-// high-entropy codes. Splitting here keeps the dev determinism out of the real credential path.
 func (s *server) recoveryCodes() (plain, hashes []string, err error) {
 	if s.devMode {
 		plain = append(plain, devFixtureRecoveryCodes...)
@@ -582,8 +565,6 @@ func (s *server) devSetupSeedEmpty(w http.ResponseWriter, r *http.Request) {
 // a real deployment renders the honest live projection in exposure.go exposurePage instead.
 
 const (
-	// The summary-band figures fixtures.json → exposure pins: 14 exposed (with a +2 vs-last-batch
-	// delta, has_deltas true), 41 firewalled, 7 not reached.
 	devExposureExposed      = 14
 	devExposureExposedDelta = 2
 	devExposureFirewalled   = 41
@@ -596,8 +577,6 @@ const (
 	devExposureWithheldVariant = "no-internet-vantage"
 )
 
-// devExposureRow mirrors one fixtures.json exposure.rows entry: a service's address, its
-// ":port transport", the internal + internet reach legs (expleg display states), and its since.
 type devExposureRow struct {
 	asset    string
 	svc      string
@@ -606,7 +585,6 @@ type devExposureRow struct {
 	since    string
 }
 
-// devExposureRows pins fixtures.json → exposure.rows in authored order.
 var devExposureRows = []devExposureRow{
 	{asset: "edge-gw-03.acmecorp.io", svc: ":5900 vnc", internal: "exposed", internet: "exposed", since: "4m"},
 	{asset: "api.acmecorp.io", svc: ":443 https", internal: "exposed", internet: "exposed", since: "69d"},
@@ -695,8 +673,6 @@ type devCoverageMeter struct {
 	detail  string
 }
 
-// devCoverageMessage mirrors one fixtures.json coverage.messages entry (bound empty where the
-// staleness chip carries no trailing figure).
 type devCoverageMessage struct {
 	kind    string
 	badge   string
@@ -729,16 +705,11 @@ type devCoverageStaleZone struct {
 // address is stable). One named var reads clearer than an intptr helper.
 var coverageTotal214 = 214
 
-// devCoverageMeters pins fixtures.json coverage.meters in authored order: an ADDRESS scope
-// (203.0.113.0/24) rendering 198/214 subjects with the skip breakdown, then a NAME scope
-// (acmecorp.io) as a census of 62 addresses (no denominator).
 var devCoverageMeters = []devCoverageMeter{
 	{label: "203.0.113.0/24", counted: 198, total: &coverageTotal214, unit: "subjects", detail: "16 skipped: excluded subtree + 3 unresolvable names"},
 	{label: "acmecorp.io (name scope)", counted: 62, total: nil, unit: "addresses", detail: "census state — a name scope has no denominator; custody extension reaches what resolution reveals"},
 }
 
-// devCoverageMessages pins fixtures.json coverage.messages in authored order (gap / stale·9d /
-// silent / not-evaluable), each carrying the relative When and the ISO tooltip instant.
 var devCoverageMessages = []devCoverageMessage{
 	{kind: "gap", badge: "no address", subject: "old-blog.acmecorp.io", text: "Expected a resolution; none observed for 3 checks.", when: "2h", iso: "2026-08-22T12:20:04Z"},
 	{kind: "stale", badge: "stale", bound: "9d", subject: "internal.acmecorp.io zone", text: "Zone aged past two re-supply intervals — the source went stale.", when: "9d", iso: "2026-08-13T04:44:19Z"},
@@ -746,20 +717,17 @@ var devCoverageMessages = []devCoverageMessage{
 	{kind: "not-evaluable", badge: "not evaluable", subject: "ap-south-1 conclusions", text: "Missed 2 of 3 checks this batch; exposure conclusions marked unverified.", when: "5h", iso: "2026-08-22T09:03:55Z"},
 }
 
-// devCoverageGaps pins fixtures.json coverage.gaps in authored order.
 var devCoverageGaps = []devCoverageGap{
 	{subject: "old-blog.acmecorp.io", gap: "no address", expected: "A record", since: "2h"},
 	{subject: "203.0.113.44:22", gap: "no banner", expected: "ssh identification", since: "6h"},
 	{subject: "mail.acmecorp.io:25", gap: "no exchange", expected: "smtp greeting", since: "1d"},
 }
 
-// devCoverageUnevaluables pins fixtures.json coverage.unevaluable in authored order.
 var devCoverageUnevaluables = []devCoverageUnevaluable{
 	{id: "tls-weak-key", version: 3, why: "needs a completed tls-acceptance exchange; none committed this batch"},
 	{id: "zone-removal", version: 1, why: "needs a fresh zone file; the upload aged into a gap"},
 }
 
-// devCoverageStaleZones pins fixtures.json coverage.stale_zones in authored order.
 var devCoverageStaleZones = []devCoverageStaleZone{
 	{zone: "internal.acmecorp.io", age: "2 re-supply intervals"},
 }
@@ -845,13 +813,8 @@ func (s *server) coverageFixtureData(acct db.Account) map[string]any {
 // live reads + batch join in scans.go runPage/joinRunOutcome instead.
 
 const (
-	// devRunDetailID is fixtures.json → rundetail.id: the dispatch id the completed run
-	// drill-in serves from the fixture (the golden route /runs/1407). 1409 is the running
-	// run demo (devRunningRunID); 1408 stays the MISSING id the error goldens use — anything
-	// but 1407 and 1409 routes to the missing-run ErrorPage.
 	devRunDetailID = "1407"
 
-	// The run header + Outcome figures fixtures.json → rundetail pins.
 	devRunTitle       = "2026-08-22T14:00Z"
 	devRunStatus      = "complete"
 	devRunScope       = "all scopes"
@@ -865,8 +828,6 @@ const (
 	devRunDegradedDetail  = "missed 2 of 3 checks"
 )
 
-// devRunStages pins fixtures.json → rundetail.stages in authored order: the four-step
-// pipeline, all done (the last drops its trailing connector).
 var devRunStages = []runStage{
 	{Num: 1, Title: "Resolve", Detail: "dns + zone + CT · 1,284 names", Done: true, Current: false, Last: false},
 	{Num: 2, Title: "Probe", Detail: "reachability from 3 vantages", Done: true, Current: false, Last: false},
@@ -886,8 +847,6 @@ var devRunLog = []runLogLine{
 	{Tag: "14:03:14", Level: "", Text: "diff against 08:00Z · 7 transitions · 3 signals raised"},
 }
 
-// devRunParams pins fixtures.json → rundetail.params in authored order: the five "as
-// configured" run parameters.
 var devRunParams = []runKV{
 	{K: "Profile", V: "standard"},
 	{K: "Cadence", V: "daily · 08:00 + 14:00"},
@@ -896,8 +855,6 @@ var devRunParams = []runKV{
 	{K: "Connect timeout", V: "800ms"},
 }
 
-// devRunVantages pins fixtures.json → rundetail.vantages in authored order: three vantages,
-// the degraded ap-south-1 carrying an em-dash latency.
 var devRunVantages = []runVantage{
 	{Name: "eu-west-1", Latency: "34ms", Status: "ok"},
 	{Name: "us-east-2", Latency: "51ms", Status: "ok"},
@@ -948,10 +905,6 @@ func (s *server) runDetailFixtureData(acct db.Account) map[string]any {
 // here and the rundetail·running state gets its own G2 golden this round.
 const devRunningRunID = "1409"
 
-// devRunningRunJobs mirrors fixtures.json → settings.scans.active[0].jobs (id 1409): six
-// queue jobs of the in-flight standard dispatch — three resolved (done, committed under batch
-// 1407), a reachability retry in flight from ap-south-1 (attempt 2, ready → a warn line), a
-// port census running from eu-west-1, and a tls-acceptance done. The ids are the ?job= keys.
 var devRunningRunJobs = []jobView{
 	{ID: 912, Kind: "dns-sweep", State: "done", Attempt: 1, MaxAttempts: 3, Vantage: "eu-west-1", Batch: "1407"},
 	{ID: 913, Kind: "reachability", State: "done", Attempt: 1, MaxAttempts: 3, Vantage: "eu-west-1", Batch: "1407"},
@@ -961,12 +914,6 @@ var devRunningRunJobs = []jobView{
 	{ID: 917, Kind: "tls-acceptance", State: "done", Attempt: 1, MaxAttempts: 3, Vantage: "eu-west-1", Batch: "1407"},
 }
 
-// runningRunFixtureData assembles the render data map runPage passes to the frozen
-// rundetail.tmpl for /runs/1409 in a VERGE_DEV build. Status is running (LIVE pulse + the
-// .Refresh=5 tail), the Outcome holes hold "—" (a running run's diff has not concluded), and
-// the degraded callout is nil. With ?job={id} applyJobFilter narrows .Log to that job's rows
-// server-side and sets the loghead chip (an unknown id → empty .Log + chip, the honest
-// "No log to show"); bareHref is the request path the × clears to. All VERGE_DEV-only.
 func (s *server) runningRunFixtureData(acct db.Account, jobParam, bareHref string) map[string]any {
 	jobs := devRunningRunJobs
 	view := runView{
@@ -1030,10 +977,6 @@ func (s *server) devCoverageSeedEmpty(w http.ResponseWriter, r *http.Request) {
 // VERGE_DEV-only; a real deployment renders the honest live feed in drift.go driftPage instead.
 
 const (
-	// The trigger + tally scalars fixtures.json → drift pins: the active preset (7d),
-	// its label, the batch-detail entry (batch_id 1407 ↔ its ISO label), the transition
-	// count for the period and the signed vs-previous-period delta. batch_id is carried
-	// as a string (the tmpl renders it into /runs/{id} and gates the entry on non-empty).
 	devDriftPeriod          = "7d"
 	devDriftPeriodLabel     = "Last 7d"
 	devDriftHasEvents       = true
@@ -1044,16 +987,10 @@ const (
 	devDriftTransitionDelta = "+2"
 )
 
-// devDriftMovement pins fixtures.json → drift.movement: the per-change-kind tally the
-// Movement card renders (keyed by change word, looked up in .Kinds vocabulary order).
 var devDriftMovement = driftMovement{
 	"appeared": 1, "revealed": 1, "withdrawn": 1, "descoped": 1, "returned": 1, "changed": 2,
 }
 
-// devDriftDiffLine / devDriftEvent / devDriftGroup mirror one fixtures.json → drift.groups
-// entry, in authored order: a batch group (its ISO label, scope meta, and collapsed flag)
-// carrying its transition events (change kind + drift family, subject, detail, relative time,
-// an optional closure reason, and an optional before/after diff).
 type devDriftDiffLine struct {
 	typ  string
 	text string
@@ -1074,9 +1011,6 @@ type devDriftGroup struct {
 	events    []devDriftEvent
 }
 
-// devDriftGroups pins fixtures.json → drift.groups in authored order: the newest batch first
-// (a value move with a nginx-banner diff, an appearance, a withdrawal), the prior batch (a
-// return, a reveal), and the collapsed 2026-08-21 batch (a descope, a certificate change).
 var devDriftGroups = []devDriftGroup{
 	{
 		label: "2026-08-22T14:00Z", meta: "full scan · 3 vantages", collapsed: false,
@@ -1171,39 +1105,26 @@ func (s *server) driftFixtureData(acct db.Account) map[string]any {
 // real deployment renders the honest live projection in seeds.go renderSeeds instead.
 
 const (
-	// devScopeAddressCap is fixtures.json scope.address_cap.
 	devScopeAddressCap = 1024
 
-	// devScopeZoneIntervalDays is fixtures.json scope.zone_interval_days, the re-supply
-	// dial value the interval-form input echoes.
 	devScopeZoneIntervalDays = "30"
 
-	// The refusal golden (states.json scope "refusal") posts devScopeRefusalPost through the
-	// seed form; the handler refuses it over the cap and renders the RefusalCallout + FormError.
-	// These mirror fixtures.json scope.refusal_fixture.
 	devScopeRefusalPost      = "203.0.113.0/20"
 	devScopeRefusalInput     = "203.0.113.0/20"
 	devScopeRefusalReason    = "Spans 4,096 addresses — the cap is 1,024 per scope."
 	devScopeRefusalReachable = "203.0.113.0/22"
 	devScopeRefusalFormError = "Refused — over the 1,024-address cap."
 
-	// The exclusion-preview golden (states.json scope "exclusion-preview") types
-	// devScopeExclPreviewValue and clicks Preview; the handler renders the firing receipt.
-	// These mirror fixtures.json scope.exclusion_preview_fixture.
 	devScopeExclPreviewKind     = "subtree"
 	devScopeExclPreviewValue    = "staging-4.acmecorp.io"
 	devScopeExclPreviewFires    = true
 	devScopeExclPreviewHeadline = "1 name and 2 subjects would close as descoped in the next batch."
 	devScopeExclPreviewLoss     = "staging-4.acmecorp.io and the service spans it anchors leave the estate; their history stays readable."
 
-	// devScopeOrgQuery / devScopeOrgNotice are fixtures.json scope.org_search_fixture: the
-	// org-name search echo and the partial-answer notice. They are asserted by the drift test
-	// but do not drive a golden state.
 	devScopeOrgQuery  = "Acme Corporation"
 	devScopeOrgNotice = "3 registries answered — 1 new proposal for \"Acme Corporation\". RIPE paths are off until you accept their terms."
 )
 
-// devScopeSeedRow mirrors one fixtures.json scope.seeds entry.
 type devScopeSeedRow struct {
 	ID        string
 	Anchor    string
@@ -1242,7 +1163,6 @@ var devScopeZones = []devScopeZoneRow{
 	{ID: "s1", Domain: "acmecorp.io", HasFile: true, SuppliedAt: "2026-07-30", IntervalLabel: "monthly", AgingLabel: "ages into a gap in 7d"},
 }
 
-// devScopeTreeLeaf / devScopeTreeRoot mirror fixtures.json scope.name_tree.
 type devScopeTreeLeaf struct {
 	Label string
 	Sev   string
@@ -1267,7 +1187,6 @@ var devScopeNameTree = []devScopeTreeRoot{
 	}},
 }
 
-// devScopeCovMsg mirrors one fixtures.json scope.coverage_msgs entry.
 type devScopeCovMsg struct {
 	Kind    string
 	Badge   string
@@ -1284,7 +1203,6 @@ var devScopeCoverageMsgs = []devScopeCovMsg{
 	{Kind: "silent", Badge: "no reports", Subject: "dc-fra-01", Text: "Vantage stopped reporting mid-batch; open spans are not evaluable.", When: "41m", ISO: "2026-08-22T13:41:02Z"},
 }
 
-// devScopeProposalRow mirrors one fixtures.json scope.proposals entry.
 type devScopeProposalRow struct {
 	ID     string
 	Value  string
@@ -1298,7 +1216,6 @@ var devScopeProposals = []devScopeProposalRow{
 	{ID: "p3", Value: "198.51.100.0/26", Kind: "range", Source: "announced by AS64500"},
 }
 
-// devScopeExclusionRow mirrors one fixtures.json scope.exclusions entry.
 type devScopeExclusionRow struct {
 	ID    string
 	Kind  string
@@ -1310,9 +1227,6 @@ var devScopeExclusions = []devScopeExclusionRow{
 	{ID: "x2", Kind: "address", Value: "203.0.113.128/25"},
 }
 
-// scopeOverlay carries the transient state a scope golden's POST handler overlays on the
-// pinned fixture: a RefusalCallout (the over-cap seed form), or the exclusion Preview receipt.
-// The zero value is the default state.
 type scopeOverlay struct {
 	formScope   string
 	formError   string
@@ -1429,8 +1343,6 @@ func (s *server) scopeFixtureDataConfirm(acct db.Account, id string) map[string]
 	return s.scopeFixtureData(acct, scopeOverlay{})
 }
 
-// scopeFixtureDataPreview is the "exclusion-preview" golden's render (states.json): the pinned
-// corpus plus the firing Preview receipt for the staging-4.acmecorp.io subtree exclusion.
 func (s *server) scopeFixtureDataPreview(acct db.Account) map[string]any {
 	return s.scopeFixtureData(acct, scopeOverlay{
 		exclKind:  devScopeExclPreviewKind,
@@ -1460,31 +1372,18 @@ func (s *server) scopeFixtureDataPreview(acct db.Account) map[string]any {
 // renders the honest live projection in signals.go renderSignals instead.
 
 const (
-	// devSignalsDetectedBy is fixtures.json signals.detected_by: the vantage every row's drawer
-	// names as the detector.
 	devSignalsDetectedBy = "vantage eu-west-1"
 
-	// The open-tab scalars fixtures.json signals pins: 47 open (the tab badge + Total), 10 shown
-	// on page 1 of 5, with the authored page-info label. Only ten rows are authored — the count
-	// is the design's, not a derivation over a 47-row slice.
 	devSignalsOpenCount = 47
 	devSignalsShown     = 10
 	devSignalsPageCount = 5
 	devSignalsPageInfo  = "1–10 of 47"
 
-	// devSignalsDiscovered is the fixed discovery instant the span-derived "Asset discovered"
-	// history entry renders (fixtures.json signals.history_rule).
 	devSignalsDiscovered = "2026-08-12"
 )
 
-// devSignalsSevOptions is the severity listbox vocabulary (fixtures.json signals — the filter
-// options), in authored order. "All severities" is the unfiltered default.
 var devSignalsSevOptions = []string{"All severities", "Critical", "High", "Medium", "Low", "Info"}
 
-// devSignalRow mirrors one fixtures.json signals row (open or withdrawn): the SIG id + view key,
-// the severity token + its capitalised label, the human title, the asset/ip/port, the relative
-// seen + the two instants, the nullable CVE, the rule tags, the description prose, and the rule
-// ref (name + version) split from the fixture's [name, version] pair.
 type devSignalRow struct {
 	ID          string
 	Severity    string
@@ -1503,8 +1402,6 @@ type devSignalRow struct {
 	RuleVersion string
 }
 
-// devSignalsOpen pins fixtures.json signals.rows in authored order (default sort sev·asc): the ten
-// open rows shown on page 1.
 var devSignalsOpen = []devSignalRow{
 	{ID: "SIG-1042", Severity: "critical", SevLabel: "Critical", Title: "VNC exposed to internet", Asset: "edge-gw-03.acmecorp.io", IP: "203.0.113.7", Port: ":5900", Seen: "4m", First: "2026-08-22T13:58:02Z", Last: "2026-08-22T14:02:11Z", Tags: []string{"vnc", "remote-access"}, Desc: "A VNC service answered on 203.0.113.7:5900 without transport encryption. Close the port or restrict it to your VPN.", RuleID: "vnc-exposure", RuleVersion: "3"},
 	{ID: "SIG-1041", Severity: "critical", SevLabel: "Critical", Title: "TLS certificate expired", Asset: "vpn.acmecorp.io", IP: "203.0.113.12", Port: ":443", Seen: "12m", First: "2026-08-21T00:00:00Z", Last: "2026-08-22T13:54:40Z", Tags: []string{"tls", "cert"}, Desc: "The certificate served on :443 expired 2026-08-21. Clients may accept downgraded or spoofed connections. Renew and redeploy.", RuleID: "tls-acceptance", RuleVersion: "2"},
@@ -1526,8 +1423,6 @@ var devSignalsWithdrawn = []devSignalRow{
 	{ID: "SIG-0944", Severity: "low", SevLabel: "Low", Title: "Verbose server header", Asset: "cdn.acmecorp.io", IP: "203.0.113.66", Port: ":443", Seen: "21d", First: "2026-06-29T12:02:19Z", Last: "2026-08-01T07:12:00Z", Tags: []string{"http", "header"}, Desc: "Header trimmed upstream; key absent from the current population.", RuleID: "svc-exposure", RuleVersion: "3"},
 }
 
-// devSignalsAnnotation is one fixtures.json signals.annotations entry: the operator's accepted-risk
-// reason, keyed on the row's view key (SIG id).
 type devSignalsAnnotation struct {
 	ID     string
 	Reason string
@@ -1540,8 +1435,6 @@ var devSignalsAnnotations = map[string]devSignalsAnnotation{
 	"SIG-1024": {ID: "a2", Reason: "Public banner is intentional — accepted."},
 }
 
-// devSignalsDiffLine / devSignalsDiff mirror one fixtures.json signals.diffs entry: the drift join
-// the drawer shows for a subject (a titled block of typed before/after lines).
 type devSignalsDiffLine struct {
 	Type string
 	Text string
@@ -1551,8 +1444,6 @@ type devSignalsDiff struct {
 	Lines []devSignalsDiffLine
 }
 
-// devSignalsDiffs pins fixtures.json signals.diffs: SIG-1042 (open ports) and SIG-1036 (service
-// banner) carry a drift transition.
 var devSignalsDiffs = map[string]devSignalsDiff{
 	"SIG-1042": {Title: "Open ports · drift", Lines: []devSignalsDiffLine{
 		{Type: "same", Text: ":443 https nginx/1.25.4"},
@@ -1588,9 +1479,6 @@ func signalsHistory(row devSignalRow, hasDiff bool) []map[string]any {
 	return hist
 }
 
-// signalsRowMap shapes one fixture row for the table (the holes the frozen tmpl's row reads),
-// carrying the per-row descope link (filters preserved) and the withdrawn flag (the withdrawn tab
-// draws the mark).
 func signalsRowMap(row devSignalRow, closeHref string, withdrawn bool) map[string]any {
 	return map[string]any{
 		"Severity":    row.Severity,
@@ -1675,7 +1563,6 @@ func (s *server) signalsFixtureData(acct db.Account, r *http.Request) map[string
 		withdrawnSet[w.ID] = true
 	}
 
-	// The active tab's rows, in authored order (default sort sev·asc is the authored order).
 	var tabRows []devSignalRow
 	switch tab {
 	case "withdrawn":
@@ -1795,18 +1682,12 @@ func (s *server) signalsFixtureData(acct db.Account, r *http.Request) map[string
 // resolves in the Signals drawer. All of it is VERGE_DEV-only; a real deployment renders the honest
 // live reads in auth.go dashboardData instead.
 
-// devDashScanningVariant is the states.json dashboard `scanning` variant token: it pins .Scanning
-// (the running-scan Progress row + live pulse) and the .ScanDetail figure.
 const devDashScanningVariant = "scanning"
 
-// devDashScanDetail is fixtures.json dashboard.scan_detail — the running-scan Progress detail the
-// `scanning` variant renders.
 const devDashScanDetail = "214 subjects queued"
 
-// devDashSchedule is fixtures.json dashboard.scan_schedule: the header sub-line's two instants.
 var devDashSchedule = map[string]any{"HasLast": true, "LastAgo": "38m", "HasNext": true, "NextIn": "5h 22m"}
 
-// devDashUnavailable is fixtures.json dashboard.unavailable: the missed-check vantage the banner names.
 var devDashUnavailable = []string{"ap-south-1"}
 
 // devDashStat mirrors one fixtures.json dashboard.stat_band cell. liveWhenScanning is the JSON's
@@ -1822,7 +1703,6 @@ type devDashStat struct {
 	caption          string
 }
 
-// devDashStatBand pins fixtures.json dashboard.stat_band in authored order (five cells).
 var devDashStatBand = []devDashStat{
 	{label: "Open signals", value: "47", liveWhenScanning: true, hasDelta: true, change: 3, tone: "bad", caption: "vs last scan"},
 	{label: "Critical", value: "3", hasDelta: true, change: -1, tone: "good", caption: "1 withdrawn today"},
@@ -1831,7 +1711,6 @@ var devDashStatBand = []devDashStat{
 	{label: "Certs expiring ≤30d", value: "9", hasDelta: true, change: -2, tone: "good", caption: "next: 2026-08-29"},
 }
 
-// devDashSevBars pins fixtures.json dashboard.sev_bars in ramp order (critical→info).
 var devDashSevBars = []dashSevBar{
 	{Sev: "critical", Pct: 17, Count: 3},
 	{Sev: "high", Pct: 61, Count: 11},
@@ -1852,10 +1731,8 @@ var devDashboardMeters = []coverageMeterView{
 	{Label: "acmecorp.io names", Counted: "1,284", Unit: "names"},
 }
 
-// devDashSilentZone pins fixtures.json dashboard.silent_zone: the Coverage card's staleness callout.
 var devDashSilentZone = &dashSilentZone{Bound: "9d", Text: "zone transfer for internal.acmecorp.io"}
 
-// devDashVantages pins fixtures.json dashboard.vantages in authored order (ap-south-1 unavailable).
 var devDashVantages = []dashVantageView{
 	{Name: "eu-west-1", Latency: "34ms", Avail: "available"},
 	{Name: "us-east-2", Latency: "51ms", Avail: "available"},
@@ -2005,8 +1882,6 @@ func (s *server) firstRunFixtureData(acct db.Account) map[string]any {
 // builds the same holes from real Name-scoped reads (#22a–d); this pins the design's exact bytes.
 const devAssetKey = "edge-gw-03.acmecorp.io"
 
-// devAssetCertFingerprint is the pinned leaf fingerprint the certificate card renders and copies
-// (fixtures.json → asset.cert.fingerprint). It is a public certificate digest, not a secret.
 const devAssetCertFingerprint = "SHA256:2b:9e:44:a1:7c:03:d8:f2:61:5b:c9:10:8e:af:72:d4" // #nosec G101 -- a public TLS certificate fingerprint fixture, not a credential
 
 var devAssetPorts = []assetPort{
@@ -2050,9 +1925,6 @@ var devAssetDrift = []assetDriftEvent{
 	{Change: "appeared", Family: "gain", Subject: "edge-gw-03.acmecorp.io", Detail: "name · first seen via certificate transparency", Time: "69d"},
 }
 
-// devAssetData assembles the pinned assetPageData the golden captures. It is the exact
-// fixtures.json → asset slice in authored order; TestAssetFixtureMatchesPackage folds every value
-// back through the frozen package.
 func devAssetData() assetPageData {
 	return assetPageData{
 		Key:          devAssetKey,
@@ -2098,16 +1970,11 @@ func (s *server) assetFixtureData(acct db.Account) map[string]any {
 // byte-exactness gate before the pixels. The production path (subjects.go) builds the same holes
 // from real subject-scoped reads (#22 wiring); this pins the design's exact bytes. All VERGE_DEV-only.
 const (
-	// The three pinned subject keys the golden states drill into (fixtures.json →
-	// subjectdetail.{service,service_withdrawn,endpoint}.key). The endpoint key is the
-	// design's display form ("Name · :port scheme"), not the internal name@service key.
 	devServiceKey          = "203.0.113.7:5900/tcp"
 	devServiceWithdrawnKey = "203.0.113.29:8080/tcp"
 	devEndpointKey         = "edge-gw-03.acmecorp.io · :443 https"
 )
 
-// devServiceData is the pinned fixtures.json → subjectdetail.service slice — the reachable VNC
-// service. TestSubjectDetailFixtureMatchesPackage folds every value back through the frozen package.
 func devServiceData() servicePageData {
 	return servicePageData{
 		Key:          devServiceKey,
@@ -2153,8 +2020,6 @@ func devServiceData() servicePageData {
 	}
 }
 
-// devServiceWithdrawnData is the pinned fixtures.json → subjectdetail.service_withdrawn slice — the
-// jenkins service whose address has left the estate (closed timeline, no current member).
 func devServiceWithdrawnData() servicePageData {
 	return servicePageData{
 		Key:          devServiceWithdrawnKey,
@@ -2196,8 +2061,6 @@ func devServiceWithdrawnData() servicePageData {
 	}
 }
 
-// devEndpointData is the pinned fixtures.json → subjectdetail.endpoint slice — the edge-gw-03
-// HTTPS endpoint (200 · nginx/1.25.0, one closed span, verbose-server-header fired).
 func devEndpointData() endpointPageData {
 	return endpointPageData{
 		Key:          devEndpointKey,
@@ -2263,8 +2126,6 @@ func (s *server) serviceFixtureData(acct db.Account, key string) (map[string]any
 	}, true
 }
 
-// endpointFixtureData is the render map endpointPage passes to the frozen subjectdetail.tmpl in a
-// VERGE_DEV build for the pinned endpoint key; ok=false for any other key.
 func (s *server) endpointFixtureData(acct db.Account, key string) (map[string]any, bool) {
 	if key != devEndpointKey {
 		return nil, false
@@ -2605,8 +2466,6 @@ func (s *server) reportsFixtureData(acct db.Account) map[string]any {
 	}
 }
 
-// --- screen 17: ReportArtifact (reportartifact.tmpl, package v3.11.0) ------------------------
-
 // reportartifactFixture is the pinned fixtures.json → reportartifact slice: the page holes
 // (.Heading .Period .ScheduleID) and the delivered document (.Doc, a message.ArtifactDoc whose
 // JSON tags mirror the fixture keys verbatim), plus the never-delivered variant (schedule s2,
@@ -2844,8 +2703,6 @@ func reportsWizardJoin(parts []string) string {
 	}
 	return out
 }
-
-// --- screen 18: Inbox (inbox.tmpl, package v3.11.1, WORK-ORDER-16-18-BATCH5) -----------------
 
 // inboxFixture is the pinned fixtures.json → inbox slice: the list holes (.Unread .Filter
 // .AllHref .UnreadHref .Messages) and the selected-message detail. Per SPEC-CHANGE #24 (ruled)

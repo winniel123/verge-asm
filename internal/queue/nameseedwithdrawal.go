@@ -197,7 +197,6 @@ func composeWithdrawnNameGround(rows []db.ListNameSeedWithdrawalCandidatesRow, c
 	return spanIDs, order, counts
 }
 
-// pendingWithdrawnDomains is the bound the shared candidate query takes.
 func pendingWithdrawnDomains(pending []db.ListPendingNameSeedWithdrawalsRow) []string {
 	out := make([]string, 0, len(pending))
 	for _, w := range pending {
@@ -209,9 +208,6 @@ func pendingWithdrawnDomains(pending []db.ListPendingNameSeedWithdrawalsRow) []s
 	return out
 }
 
-// NameSeedWithdrawalPreviewStore is the read set the name limb's chip-remove
-// preview needs — the two corpora its survivors are decided from, plus the shared
-// candidate query.
 type NameSeedWithdrawalPreviewStore interface {
 	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
 	ListNameSeedWithdrawalCandidates(ctx context.Context, domains []string) ([]db.ListNameSeedWithdrawalCandidatesRow, error)

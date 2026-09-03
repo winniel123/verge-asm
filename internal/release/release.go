@@ -45,9 +45,6 @@ type Store interface {
 	SetReleaseCache(ctx context.Context, arg db.SetReleaseCacheParams) error
 }
 
-// Feed is the latest release as reported by the upstream feed: a version string
-// and its human-readable notes. Empty fields are tolerated — a feed that omits
-// notes still yields a usable version verdict.
 type Feed struct {
 	Version string
 	Notes   string
@@ -60,7 +57,6 @@ type Fetcher interface {
 	Latest(ctx context.Context) (Feed, error)
 }
 
-// Checker runs the daily release check and records its verdict.
 type Checker struct {
 	store   Store
 	fetch   Fetcher
@@ -69,10 +65,6 @@ type Checker struct {
 	log     *log.Logger
 }
 
-// NewChecker builds a Checker. version is the running build's version string
-// (the worker reads VERGE_VERSION, the same env the web footer and CT client
-// read); it is compared against the feed's latest to decide current vs newer.
-// now is injectable for tests.
 func NewChecker(store Store, fetch Fetcher, version string, now func() time.Time, logger *log.Logger) *Checker {
 	if now == nil {
 		now = time.Now

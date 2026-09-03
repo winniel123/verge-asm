@@ -11,7 +11,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// Kind is the JobSpec.Kind that dispatches to this leaf.
 const Kind = "wildcard-discrimination"
 
 // Scope is the wildcard-discrimination-specific payload of a JobSpec. It carries
@@ -48,8 +47,6 @@ func DefaultParams() Params {
 	}
 }
 
-// Digest is a stable content hash of the declared parameters, used by the golden
-// corpus lock to bind a declared-parameter change to a Version bump.
 func (p Params) Digest() string {
 	b, err := json.Marshal(p)
 	if err != nil {
@@ -59,7 +56,6 @@ func (p Params) Digest() string {
 	return "sha256:" + hex.EncodeToString(sum[:])
 }
 
-// DecodeScope reads a Scope from a JobSpec's opaque Scope payload.
 func DecodeScope(spec wire.JobSpec) (Scope, error) {
 	var s Scope
 	if len(spec.Scope) == 0 {
@@ -84,10 +80,6 @@ func Run(spec wire.JobSpec, w io.Writer) error {
 	return RunWithPeer(peer, spec.Batch, scope, CryptoLabels{}, w)
 }
 
-// RunWithPeer executes the leaf against an arbitrary Peer and LabelGen.
-// Separating them from Run is what lets one code path be driven by the network
-// adapter in production and by a scripted peer and a deterministic label
-// generator in a hermetic test.
 func RunWithPeer(peer rw.Peer, batch string, scope Scope, gen LabelGen, w io.Writer) error {
 	pop := ControlPopulation(scope.Names, scope.SeedScopes)
 	popSet := make(map[string]struct{}, len(pop))
@@ -125,10 +117,6 @@ func decide(res rw.Result, popSet map[string]struct{}, ctrlByParent map[string]c
 	return Discriminate(candidateComponents(res.Records), ctrlByParent[p])
 }
 
-// probeControl runs the control probe under one parent: every control label over
-// the batch's declared qtype set, on the declared path. `reached` records
-// whether any control query completed — a probe nothing answered is incomplete,
-// and every Name beneath it records a `Gap`.
 func probeControl(peer rw.Peer, offers rw.Offers, parentName string, labels []string) controlAnswers {
 	ca := controlAnswers{perLabel: make([]map[rw.Qtype][]rw.RR, 0, len(labels))}
 	for _, label := range labels {
@@ -155,7 +143,6 @@ func probeControl(peer rw.Peer, offers rw.Offers, parentName string, labels []st
 	return ca
 }
 
-// writeNDJSON writes observations to w as NDJSON, one object per line, in order.
 func writeNDJSON(w io.Writer, obs []wire.Observation) error {
 	for _, o := range obs {
 		if err := wire.EncodeObservation(w, o); err != nil {

@@ -32,7 +32,6 @@ type ScriptPeer struct {
 	Rules []scriptRule
 }
 
-// Exchange implements resolutionwalk.Peer.
 func (s ScriptPeer) Exchange(q resolutionwalk.Query) resolutionwalk.Msg {
 	for _, r := range s.Rules {
 		if r.matches(q) {

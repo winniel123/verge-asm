@@ -112,7 +112,7 @@ func TestLargestPrefixLen(t *testing.T) {
 		{1024, 32, 22},
 		{1024, 128, 118},
 		// A raised cap widens the admitted prefix by one bit per doubling.
-		{262144, 32, 14},  // 2^18 -> /14
+		{262144, 32, 14}, // 2^18 -> /14
 		{262144, 128, 110},
 		// A non-power-of-two cap names the largest FULL prefix that fits, since a
 		// prefix is always a power of two: 1000 admits a /23's 512, not a /22's 1024.
@@ -186,10 +186,6 @@ func TestEnumerateAddressesStreamsLazily(t *testing.T) {
 	}
 }
 
-// BenchmarkEnumerateAddressesLargeScope documents that a full walk of a large
-// scope allocates a bounded, scope-size-independent amount: the enumerator holds
-// no slice of addresses. Run with -benchmem; allocs/op does not scale with the
-// /16's 65,536 addresses.
 func BenchmarkEnumerateAddressesLargeScope(b *testing.B) {
 	p := netip.MustParsePrefix("10.0.0.0/16")
 	b.ReportAllocs()

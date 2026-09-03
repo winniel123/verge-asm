@@ -54,8 +54,6 @@ func ControlPopulation(names, seedScopes []string) []string {
 	return out
 }
 
-// parent drops the leftmost label. A single-label name (or empty) has no parent
-// in the estate — its parent is a TLD or the root, which the Seed gate excludes.
 func parent(name string) (string, bool) {
 	i := strings.IndexByte(name, '.')
 	if i < 0 || i == len(name)-1 {

@@ -99,10 +99,6 @@ func coldScope(ctx context.Context, q *db.Queries, resolutions []custody.Resolut
 	return scan.ColdScope{AddressPrefixes: prefixes, Addresses: addrs}, nil
 }
 
-// enqueueColdJob enqueues one connect-outcome job for one Vantage across the full
-// TCP range. Its recorded scope carries the admitted addresses and the port
-// range by content; its offers carry the safety profile. It retries like a hot
-// job — a connect is a network step that can transiently fail.
 func enqueueColdJob(ctx context.Context, qtx *db.Queries, scanID, dispatchID int64, j scan.ColdJob) error {
 	spec, err := j.JobSpec(fmt.Sprintf("scan:%d:vantage:%d:addr:%s", scanID, j.VantageID, jobAddr(j.Addresses)))
 	if err != nil {

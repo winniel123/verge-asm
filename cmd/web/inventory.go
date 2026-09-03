@@ -62,10 +62,6 @@ type inventoryFacet struct {
 	van   pgtype.Int8
 }
 
-// inventorySubject is one subject and every facet it currently holds. Link is the
-// row-click destination — a Name opens the Asset detail (`/asset/{key}`, T1), every
-// other kind its own subject drill-down (inventoryRowHref); it is empty for a kind
-// with no surface yet, which then renders as plain, non-navigable text.
 type inventorySubject struct {
 	Kind string
 	Key  string
@@ -95,8 +91,6 @@ func (s inventorySubject) HasGap() bool {
 	return false
 }
 
-// inventoryGroup buckets subjects of one kind under a plural heading, in the
-// order the kinds first appear in the (kind, key)-ordered read.
 type inventoryGroup struct {
 	Kind     string
 	Label    string
@@ -106,12 +100,8 @@ type inventoryGroup struct {
 	// span, so buildInventory sets Total to the true folded subject count; the
 	// display window (#756) then caps .Subjects to inventoryGroupWindow rows without
 	// touching Total, so the badge always states the whole group.
-	Total int
-	// More is the number of subjects beyond the shown window (Total − len(Subjects)),
-	// 0 when the whole group fits or the group is expanded via ?all=<kind>. The tmpl
-	// gates the "Show all N — M more" expander on it.
-	More int
-	// ShowAllHref lifts the window for this one group — /inventory?all=<kind>.
+	Total       int
+	More        int
 	ShowAllHref string
 }
 
@@ -391,11 +381,6 @@ func inventoryKindRank(kind string) int {
 	}
 }
 
-// lessInventorySubject orders two subjects within a group by their leading facet
-// (facet[0] after the canonical facet sort): a subject whose leading facet holds a
-// value sorts ahead of one whose leading facet is a Gap; among equals the more
-// recently-opened leads (the "since" date compares lexically, later-first); ties
-// break on the subject key. This reproduces the fixture's per-group subject order.
 func lessInventorySubject(a, b inventorySubject) bool {
 	af, bf := leadingFacet(a), leadingFacet(b)
 	if af.IsGap != bf.IsGap {
@@ -407,9 +392,6 @@ func lessInventorySubject(a, b inventorySubject) bool {
 	return a.Key < b.Key
 }
 
-// leadingFacet returns a subject's first facet after the canonical facet sort — the
-// facet the subject order keys on — or a zero facet for a subject that (impossibly,
-// every inventory subject holds at least one) holds none.
 func leadingFacet(s inventorySubject) inventoryFacet {
 	if len(s.Facets) == 0 {
 		return inventoryFacet{}
@@ -438,17 +420,11 @@ func inventoryFacetLabel(dbFacet, discriminator string) string {
 	return displayFacet
 }
 
-// invResolutionValue is the resolution value the Inventory loader stores: the RR
-// type answered and the addresses it resolved to. It is inventory-local — the
-// shared resolutionValue (subjects.go) carries an `outcome` the change views
-// summarise, where the inventory summary is `rrtype · <n> addresses`.
 type invResolutionValue struct {
 	RRType    string   `json:"rrtype"`
 	Addresses []string `json:"addresses"`
 }
 
-// invReachabilityValue is the reachability value the Inventory loader stores: the
-// outcome and the ports it answered on, rendered `outcome · port · port`.
 type invReachabilityValue struct {
 	Outcome string   `json:"outcome"`
 	Ports   []string `json:"ports"`
@@ -587,8 +563,6 @@ func inventorySpanDetails(dbFacet string, value []byte, isGap bool) []spanDetail
 	}
 }
 
-// orderedDistinctRRTypes returns the RR types in a dns-record value, de-duplicated
-// but in first-seen order — the ordered set the collapsed summary joins.
 func orderedDistinctRRTypes(rrs []struct {
 	Name string `json:"name"`
 	Type string `json:"type"`

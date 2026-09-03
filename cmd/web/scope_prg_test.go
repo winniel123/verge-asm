@@ -23,8 +23,6 @@ import (
 // refusalPage / prgLanding helpers (annotations_test.go, settings_test.go), which is the
 // shape every migrated surface's refusal now takes.
 
-// declareFrom posts a scope declaration carrying an explicit submitting URL, the way the
-// markup's own hidden field does.
 func declareFrom(t *testing.T, c *http.Client, base, from, raw string) *http.Response {
 	t.Helper()
 	return postForm(t, c, base+"/seeds", url.Values{"scope": {raw}, "return": {from}})
@@ -56,8 +54,6 @@ func TestScopeFormsCarryTheSubmittingURL(t *testing.T) {
 	}).Body.Close()
 
 	page := getBody(t, ac, base+"/scope", http.StatusOK)
-	// The screen's own acts, not the chrome's: shell.tmpl's sign-out form posts to a
-	// fixed destination by design and is out of scope for this map.
 	var forms int
 	// The chip's remove control posts to /seeds/preview since #1046 — the withdrawal
 	// is a two-step act, and /seeds/delete ships only inside the confirm state, which

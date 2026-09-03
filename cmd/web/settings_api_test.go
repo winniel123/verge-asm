@@ -69,9 +69,6 @@ func TestAPIToggleEnableDisableRecordsWhoWhen(t *testing.T) {
 	}
 }
 
-// TestViewerCannotToggleAPI confirms the switch is admin-only: a viewer's POST is refused
-// by requireAdmin (403) before the handler, and nothing is written. The viewer still reads
-// the read-only api tab (the state + note) — asserted by the disabled badge with no control.
 func TestViewerCannotToggleAPI(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")

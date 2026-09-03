@@ -51,16 +51,12 @@ const CertVersion = "tls-handshake/v3"
 type TLSOutcome string
 
 const (
-	// TLSPresented: the peer completed a TLS handshake and presented a
-	// certificate chain. The value carries the chain, ordered leaf-first.
 	TLSPresented TLSOutcome = "presented"
 	// TLSRefused: the peer spoke TLS but accepted no candidate we offered — an
 	// SSLv3-only or SNI-required listener that would otherwise be misfiled under
 	// *not a TLS server*. A value, and distinct from NoTLS.
 	TLSRefused TLSOutcome = "tls-refused"
-	// NoTLS: nothing on the port spoke TLS at all. A value, and distinct from a
-	// refusal — collapsing the two files a plain listener under *TLS server*.
-	NoTLS TLSOutcome = "no-tls"
+	NoTLS      TLSOutcome = "no-tls"
 )
 
 // HandshakeParams is the tls-handshake leaf's declared-parameter set: the fixed
@@ -80,12 +76,9 @@ type HandshakeParams struct {
 	// RecordNotVerify: verification is disabled — we record WHAT was presented,
 	// not whether it validated, because a chain that fails to verify is still a
 	// measured presentation.
-	RecordNotVerify bool `json:"record_not_verify"`
-	// FingerprintHash names the digest a chain is held by — sha-256 over DER.
+	RecordNotVerify bool   `json:"record_not_verify"`
 	FingerprintHash string `json:"fingerprint_hash"`
-	// ChainOrder records that the chain is the fingerprints leaf-first, since
-	// order is on the wire.
-	ChainOrder string `json:"chain_order"`
+	ChainOrder      string `json:"chain_order"`
 }
 
 // DefaultHandshakeParams is the v1 shipped handshake shape — the CONTEXT.md
@@ -100,8 +93,6 @@ func DefaultHandshakeParams() HandshakeParams {
 	}
 }
 
-// Digest is a stable content hash of the handshake params, used by certcorpus's
-// lock to bind a declared-parameter change to a CertVersion bump.
 func (p HandshakeParams) Digest() string {
 	b, err := json.Marshal(p)
 	if err != nil {
@@ -223,8 +214,6 @@ func Fingerprint(der []byte) string {
 	return "sha256:" + hex.EncodeToString(sum[:])
 }
 
-// chainFingerprints renders a presented chain to fingerprints, leaf first — the
-// order crypto/tls already reports PeerCertificates in.
 func chainFingerprints(certs []*x509.Certificate) []string {
 	if len(certs) == 0 {
 		return nil
@@ -243,7 +232,6 @@ func chainFingerprints(certs []*x509.Certificate) []string {
 // is not exercised by the hermetic golden corpus, which pins the fold logic
 // against a scripted Handshaker instead; its error classification is best-effort.
 type NetHandshaker struct {
-	// Timeout bounds the handshake dial. Zero uses a 3 s default.
 	Timeout time.Duration
 }
 

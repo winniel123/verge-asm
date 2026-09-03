@@ -81,7 +81,6 @@ func resolutionNameKey(name string) string {
 	return resolutionwalk.CanonicalName(strings.TrimSpace(name))
 }
 
-// vantages is the configured Vantage set, with a lookup from id to resolver.
 type vantages struct {
 	rows []db.ListVantagesForDispatchRow
 }

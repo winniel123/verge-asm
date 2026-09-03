@@ -27,13 +27,9 @@ import "sort"
 type Outcome string
 
 const (
-	// OutsideDomain: the subject is not in the rule's predicate domain. Not a
-	// census member; the subject is not rendered by this rule at all.
 	OutsideDomain Outcome = "outside-domain"
-	// Fired: the predicate is true of the subject.
-	Fired Outcome = "fired"
-	// NotFired: the subject is in the domain and the predicate is false.
-	NotFired Outcome = "not-fired"
+	Fired         Outcome = "fired"
+	NotFired      Outcome = "not-fired"
 	// NotEvaluable: the subject is in the domain but the rule cannot read the
 	// answer — the evidence is a value about our own sight (`Shadowed`) or there
 	// is no value at all (`Gap`, or evidence the rule declares that was never
@@ -75,10 +71,6 @@ type NameFacts struct {
 	// withdrawn Name (CONTEXT.md `Signal`).
 	InEstate bool
 
-	// Resolution is the cross-class composed `resolution` outcome our resolver
-	// reads for this Name: Resolved | NoData | NameError | Lame | Shadowed | Gap.
-	// Lame folds the dns-record NS delegation's verdict; Shadowed folds
-	// `wildcard-discrimination`. Addresses is the set a Resolved answer cites.
 	Resolution string
 	Addresses  []string
 
@@ -89,9 +81,6 @@ type NameFacts struct {
 	CNAMETarget      string
 	TargetResolution string
 
-	// ZoneDeclared reports whether the operator's zone file declares this exact
-	// Name. InDeclaredZone reports whether the Name falls within a name scope
-	// that holds a zone file at all (label-wise suffix coverage).
 	ZoneDeclared   bool
 	InDeclaredZone bool
 
@@ -126,23 +115,12 @@ func (v Version) String() string {
 	return out
 }
 
-// Rule is one `Signal`: a named, versioned rule that decides an Outcome for one
-// subject's Derived facts. It has no lifecycle of its own — it is a named fact —
-// and it carries a `Severity`, the five-level ramp assigned per rule (P0.1; the
-// PARITY-CHART.md ruling that the design is normative for look AND functionality,
-// superseding the old "a signal carries no severity" reading). The ramp is a
-// fixed property of the rule, not of the transition that surfaces it.
 type Rule interface {
 	// Name is the fact the rule reads, never a conclusion or a protocol
 	// (CONTEXT.md `Signal`). Its extension is the rule's `Predicate domain`.
 	Name() string
-	// Version is the rule's version vector.
 	Version() Version
-	// Severity is the rule's five-level urgency ramp (critical…info), shared by
-	// every instance the rule raises.
 	Severity() Severity
-	// Eval decides the subject's Outcome. Returning OutsideDomain excludes the
-	// subject from the census entirely.
 	Eval(f NameFacts) Outcome
 }
 
@@ -202,7 +180,6 @@ func Evaluate(r Rule, estate []NameFacts) Census {
 	return c
 }
 
-// EvaluateAll runs every shipped rule over the estate, in a stable order.
 func EvaluateAll(estate []NameFacts) []Census {
 	rules := All()
 	out := make([]Census, 0, len(rules))

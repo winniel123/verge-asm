@@ -13,12 +13,6 @@ type Corpus struct {
 	Endpoints []EndpointFacts
 }
 
-// EvaluateCorpus runs every one of the seventeen shipped rules over its
-// population, in a stable order: the five Name rules, then the ten Endpoint rules,
-// then the two Service rules. The order is what the Signals page renders and the
-// golden gate walks; a census is current state and independent of it. Each rule's
-// census is three members over one population — its `Predicate domain` — and a
-// subject outside a rule's domain is not rendered by that rule at all.
 func EvaluateCorpus(c Corpus) []Census {
 	out := make([]Census, 0, len(All())+len(AllEndpointRules())+len(AllServiceRules()))
 	for _, r := range All() {

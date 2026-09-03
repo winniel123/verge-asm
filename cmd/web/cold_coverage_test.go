@@ -211,7 +211,6 @@ func TestStaleZonesPastTwoIntervals(t *testing.T) {
 	if len(got) != 2 {
 		t.Fatalf("want 2 stale zones, got %d (%v)", len(got), got)
 	}
-	// Ordered by zone.
 	if got[0].Zone != "ancient.acmecorp.io" || got[1].Zone != "internal.acmecorp.io" {
 		t.Fatalf("stale zones must be ordered by zone, got %q then %q", got[0].Zone, got[1].Zone)
 	}

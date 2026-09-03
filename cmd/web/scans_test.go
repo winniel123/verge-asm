@@ -193,7 +193,6 @@ func TestScansPageInFlight(t *testing.T) {
 			t.Errorf("the card should not carry %q; body: %s", gone, page)
 		}
 	}
-	// The in-flight view self-refreshes.
 	if !strings.Contains(page, `http-equiv="refresh"`) {
 		t.Errorf("an in-flight scans page should self-refresh; body: %s", page)
 	}
@@ -380,7 +379,6 @@ func TestHumanizeCountdown(t *testing.T) {
 	}
 }
 
-// progressRow builds a ListDispatchProgressRow with the given per-state counts.
 func progressRow(id int64, kind string, tick time.Time, total, ready, running, done, dead, retried int64) db.ListDispatchProgressRow {
 	return db.ListDispatchProgressRow{
 		DispatchID: id,
@@ -396,8 +394,6 @@ func progressRow(id int64, kind string, tick time.Time, total, ready, running, d
 	}
 }
 
-// openedEvent builds a minimal narratable "appeared" drift event (Role opened, no
-// predecessor) keyed to a batch, for the Outcome-join count tests.
 func openedEvent(batchID int64, batchAt, openedAt time.Time) db.ListRecentDriftEventsRow {
 	return db.ListRecentDriftEventsRow{
 		Role:       "opened",
@@ -456,7 +452,6 @@ func TestCountRunOutcome(t *testing.T) {
 	}
 }
 
-// TestDispatchBatchIDs collects the distinct valid batch ids a dispatch's jobs committed.
 func TestDispatchBatchIDs(t *testing.T) {
 	rows := []db.ListJobsForDispatchRow{
 		{ID: 1, BatchID: pgtype.Int8{Int64: 1407, Valid: true}},

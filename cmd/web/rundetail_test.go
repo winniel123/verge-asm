@@ -437,7 +437,6 @@ func TestApplyJobFilter(t *testing.T) {
 
 // --- per-job live progress stream (R4-D7 #761, collision #40) ----------------------------
 
-// streamLine mirrors the JSON the frozen rundetail.tmpl client reads.
 type streamLine struct {
 	Tag   string `json:"tag"`
 	Level string `json:"level"`
@@ -631,11 +630,9 @@ func TestRunStreamHref(t *testing.T) {
 		{ID: 900, Kind: "dns-sweep", State: "done"},
 		{ID: 901, Kind: "reachability", State: "running"},
 	}
-	// Bare run, active: the plain endpoint.
 	if got := runStreamHref("/run/52", nil, true, jobs); got != "/run/52/stream" {
 		t.Errorf("bare active run: got %q, want /run/52/stream", got)
 	}
-	// Bare run, not active: empty.
 	if got := runStreamHref("/run/52", nil, false, jobs); got != "" {
 		t.Errorf("bare inactive run: got %q, want empty", got)
 	}
@@ -649,7 +646,6 @@ func TestRunStreamHref(t *testing.T) {
 	if got := runStreamHref("/run/52", f, true, jobs); got != "" {
 		t.Errorf("filtered terminal job: got %q, want empty", got)
 	}
-	// Filtered to an unknown job: empty.
 	f = &runJobFilter{ID: 99999}
 	if got := runStreamHref("/run/52", f, true, jobs); got != "" {
 		t.Errorf("filtered unknown job: got %q, want empty", got)

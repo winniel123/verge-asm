@@ -148,9 +148,6 @@ func (s *server) previewExclusion(w http.ResponseWriter, r *http.Request, acct d
 	s.flashScopeBack(w, r, seedsForms{exclKind: kind, exclValue: value, exclPreview: &receipt})
 }
 
-// unexclude withdraws an exclusion. It is admin-only and idempotent: deleting a
-// row that is already gone is not an error, since the operator's intent — that
-// the exclusion no longer stand — is satisfied either way.
 func (s *server) unexclude(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {

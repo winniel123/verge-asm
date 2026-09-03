@@ -38,15 +38,8 @@ import (
 	"strings"
 )
 
-// ErrTooLong is returned when the payload does not fit a version-10 byte-mode
-// symbol at error-correction level M (213 bytes). The caller is expected to
-// fall back to showing the payload as text.
 var ErrTooLong = errors.New("qr: payload too long for a version-10 symbol")
 
-// ecBlocks describes, for one version at error-correction level M, how the data
-// codewords split into blocks and how many EC codewords each block carries.
-// Group 2 blocks (when present) hold one more data codeword than group 1; a
-// version with a uniform block layout leaves the group-2 fields zero.
 type ecBlocks struct {
 	totalDataCW  int   // data codewords across all blocks
 	ecPerBlock   int   // EC codewords per block (same for every block)
@@ -57,8 +50,6 @@ type ecBlocks struct {
 	alignments   []int // alignment-pattern centre coordinates (nil for v1)
 }
 
-// versionsM is the error-correction characteristics table (ISO/IEC 18004
-// Table 9) for level M, versions 1..10 — the only versions this encoder emits.
 var versionsM = map[int]ecBlocks{
 	1:  {16, 10, 1, 16, 0, 0, nil},
 	2:  {28, 16, 1, 28, 0, 0, []int{6, 18}},
@@ -105,22 +96,19 @@ func gfMul(a, b byte) byte {
 	return gfExp[int(gfLog[a])+int(gfLog[b])]
 }
 
-// rsGenerator returns the degree-n Reed-Solomon generator polynomial,
-// product over i of (x - alpha^i), coefficients high-degree first.
 func rsGenerator(n int) []byte {
 	g := []byte{1}
 	for i := 0; i < n; i++ {
 		next := make([]byte, len(g)+1)
 		for j := 0; j < len(g); j++ {
-			next[j] ^= g[j]                        // g[j] * x
-			next[j+1] ^= gfMul(g[j], gfExp[i])     // g[j] * alpha^i
+			next[j] ^= g[j]                    // g[j] * x
+			next[j+1] ^= gfMul(g[j], gfExp[i]) // g[j] * alpha^i
 		}
 		g = next
 	}
 	return g
 }
 
-// rsEncode returns the n Reed-Solomon EC codewords for data over GF(256).
 func rsEncode(data []byte, n int) []byte {
 	return rsRemainder(data, rsGenerator(n))
 }
@@ -164,8 +152,6 @@ func (b *bitBuffer) append(val uint32, n int) {
 	}
 }
 
-// chooseVersion returns the smallest version 1..10 whose level-M byte-mode
-// capacity holds dataLen bytes, or ok=false when none does.
 func chooseVersion(dataLen int) (version int, ec ecBlocks, ok bool) {
 	for v := 1; v <= maxVersion; v++ {
 		blocks := versionsM[v]
@@ -180,9 +166,6 @@ func chooseVersion(dataLen int) (version int, ec ecBlocks, ok bool) {
 	return 0, ecBlocks{}, false
 }
 
-// encodeData turns the payload into the version's full run of data codewords:
-// the byte-mode segment (mode + count + bytes), a terminator, byte padding, and
-// the alternating 0xEC/0x11 pad codewords that fill the capacity.
 func encodeData(data []byte, version int, ec ecBlocks) []byte {
 	var bb bitBuffer
 	bb.append(0b0100, 4) // byte mode
@@ -255,16 +238,12 @@ func interleave(dataCW []byte, ec ecBlocks) []byte {
 // --- matrix: the module grid plus a parallel mask of function (fixed) modules
 // that carry no data and are never mask-inverted.
 
-// Matrix is a rendered QR symbol: Size×Size modules, Dark(x,y) reporting
-// whether a module is dark. It is returned by Encode for callers that want the
-// raw grid; SVG is the usual entry point.
 type Matrix struct {
 	Size   int
 	module [][]bool
 	isFn   [][]bool
 }
 
-// Dark reports whether the module at column x, row y is dark.
 func (m *Matrix) Dark(x, y int) bool { return m.module[y][x] }
 
 func newMatrix(version int) *Matrix {
@@ -289,8 +268,6 @@ func (m *Matrix) set(x, y int, dark, fn bool) {
 
 func bit(v uint32, i int) bool { return (v>>uint(i))&1 == 1 }
 
-// drawFunctionPatterns lays the finders, separators, timing patterns, the dark
-// module, and the alignment patterns, and reserves the format/version regions.
 func (m *Matrix) drawFunctionPatterns(version int, ec ecBlocks) {
 	// Timing patterns (row 6 / column 6), laid first so finders overwrite the
 	// overlap.
@@ -329,7 +306,6 @@ func (m *Matrix) drawFunctionPatterns(version int, ec ecBlocks) {
 	m.set(8, m.Size-8, true, true)
 }
 
-// drawFinder draws a 7×7 finder centred at (cx,cy) plus its light separator.
 func (m *Matrix) drawFinder(cx, cy int) {
 	for dy := -4; dy <= 4; dy++ {
 		for dx := -4; dx <= 4; dx++ {
@@ -348,7 +324,6 @@ func (m *Matrix) drawFinder(cx, cy int) {
 	}
 }
 
-// drawAlignment draws a 5×5 alignment pattern centred at (cx,cy).
 func (m *Matrix) drawAlignment(cx, cy int) {
 	for dy := -2; dy <= 2; dy++ {
 		for dx := -2; dx <= 2; dx++ {
@@ -392,9 +367,6 @@ func (m *Matrix) reserveVersion() {
 	}
 }
 
-// placeData walks the standard zigzag (two-column strips, upward then downward,
-// right to left, skipping the vertical timing column) writing codeword bits
-// MSB-first into every non-function module.
 func (m *Matrix) placeData(codewords []byte) {
 	i := 0
 	total := len(codewords) * 8
@@ -420,7 +392,6 @@ func (m *Matrix) placeData(codewords []byte) {
 	}
 }
 
-// maskCondition reports whether module (x,y) is inverted under the given mask.
 func maskCondition(mask, x, y int) bool {
 	switch mask {
 	case 0:
@@ -481,7 +452,6 @@ func versionBits(version int) uint32 {
 // mask, in the exact bit-to-module mapping of ISO/IEC 18004 §8.9 (bit 0 = LSB).
 func (m *Matrix) drawFormat(mask int) {
 	f := formatBits(mask)
-	// First copy, around the top-left finder.
 	for i := 0; i <= 5; i++ {
 		m.set(8, i, bit(f, i), true) // column 8, rows 0..5
 	}
@@ -500,7 +470,6 @@ func (m *Matrix) drawFormat(mask int) {
 	}
 }
 
-// drawVersion writes both copies of the version information (v >= 7 only).
 func (m *Matrix) drawVersion(version int) {
 	if version < 7 {
 		return
@@ -604,7 +573,6 @@ func (m *Matrix) penalty() int {
 	return score
 }
 
-// finderRun is the 11-module 1:1:3:1:1-plus-light signature rule 3 penalises.
 var finderRun = [11]bool{true, false, true, true, true, false, true, false, false, false, false}
 
 func (m *Matrix) matchFinderRun(x, y int, horizontal bool) bool {
@@ -626,9 +594,6 @@ func (m *Matrix) matchFinderRun(x, y int, horizontal bool) bool {
 	return forward || backward
 }
 
-// Encode builds the QR Matrix for data at error-correction level M, choosing
-// the smallest fitting version (1..10) and the lowest-penalty mask. It returns
-// ErrTooLong when data exceeds a version-10 symbol.
 func Encode(data []byte) (*Matrix, error) {
 	version, ec, ok := chooseVersion(len(data))
 	if !ok {
@@ -668,8 +633,6 @@ func SVG(data []byte, altText string) (string, error) {
 	const quiet = 4
 	dim := m.Size + 2*quiet
 
-	// One subpath per horizontal run of dark modules (not per module), which
-	// keeps the inline path compact.
 	var path strings.Builder
 	for y := 0; y < m.Size; y++ {
 		for x := 0; x < m.Size; {

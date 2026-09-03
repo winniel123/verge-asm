@@ -40,7 +40,6 @@ func TestReadyBodyCarriesNoEstate(t *testing.T) {
 		}
 	}
 
-	// The body has EXACTLY the five permitted keys and nothing else.
 	var m map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &m); err != nil {
 		t.Fatal(err)
@@ -55,7 +54,6 @@ func TestReadyBodyCarriesNoEstate(t *testing.T) {
 		}
 	}
 
-	// The permitted fields carry what they should — the name verbatim, the kind fixed.
 	var b ReadyBody
 	if err := json.Unmarshal(raw, &b); err != nil {
 		t.Fatal(err)
@@ -171,8 +169,6 @@ func TestNotifyRefusesPrivateResolvedTarget(t *testing.T) {
 	}
 }
 
-// captureDoer is the fake HTTP surface: it records the request body and signature and
-// returns a fixed status without touching the network.
 type captureDoer struct {
 	status int
 	body   []byte
@@ -189,7 +185,6 @@ func (d *captureDoer) Do(req *http.Request) (*http.Response, error) {
 	return &http.Response{StatusCode: d.status, Body: http.NoBody}, nil
 }
 
-// fakeResolver places a host in whatever range the test needs without real DNS.
 type fakeResolver map[string][]netip.Addr
 
 func (f fakeResolver) LookupNetIP(_ context.Context, _, host string) ([]netip.Addr, error) {

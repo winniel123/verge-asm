@@ -72,5 +72,4 @@ func sanSet(n int) []string {
 // pair is authored HERE so neither side can be edited without the other in view.
 func SANsBelowThreshold() []string { return sanSet(belowThreshold) }
 
-// SANsAtThreshold is the second half of that pair.
 func SANsAtThreshold() []string { return sanSet(atThreshold) }

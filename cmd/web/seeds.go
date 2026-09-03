@@ -62,12 +62,9 @@ type seedView struct {
 	// scope moved, not merely the Seeds list (v1 spec §5.3). Built from Scope by
 	// seedAnchor, which the message renderer uses for the same key so the two
 	// agree.
-	Anchor string
-	By     string
-	At     string
-	// CustodyExtension is the name scope's declared custody extension — the
-	// operator's assertion that the addresses its names resolve to are under
-	// their Custody. Off by default and meaningful on name scopes alone.
+	Anchor           string
+	By               string
+	At               string
 	CustodyExtension bool
 }
 
@@ -92,9 +89,7 @@ type seedsForms struct {
 	zoneErrors []zoneErrorView
 	// zoneIntervalDays echoes a rejected interval so the admin need not retype
 	// it; empty means render the stored dial.
-	zoneIntervalDays string
-	// The org-name lookup echo: an error keeps the search box populated on a
-	// rejected submit, a notice reports a lookup that returned no candidates.
+	zoneIntervalDays                             string
 	proposalError, proposalNotice, proposalQuery string
 	// exclPreview is the narrowing receipt shown before the operator commits an
 	// exclusion (#205 AC8, ADR-0074): the count of what it would withdraw, and the
@@ -119,9 +114,6 @@ type zoneErrorView struct {
 	Reason string
 }
 
-// nameScopes returns the name-scope subset of a seed listing, in the same order.
-// The custody-extension section is over name scopes alone: an address scope is
-// its own complete enumeration and carries no extension.
 func nameScopes(views []seedView) []seedView {
 	out := make([]seedView, 0, len(views))
 	for _, v := range views {
@@ -375,8 +367,6 @@ func (s *server) declareOneScope(r *http.Request, acct db.Account, value string,
 // already declared — within the same paste or a pre-existing seed (DF-F1).
 const alreadyDeclaredReason = "already declared"
 
-// createRefusal maps a CreateSeed error to a refusal: a unique-constraint violation
-// means the scope is already declared; any other error is an opaque failure.
 func createRefusal(value string, err error) *refusalView {
 	if isUniqueViolation(err) {
 		return &refusalView{Input: value, Reason: alreadyDeclaredReason}
@@ -395,10 +385,6 @@ func joinRefusedInputs(refusals []refusalView) string {
 	return strings.Join(parts, ", ")
 }
 
-// allRefusedFormError builds the field-level error line for an all-refused paste. A
-// single over-cap token keeps its terse cap line (Reachable is set only for over-cap
-// refusals); any other single refusal shows its reason; a multi-token paste names the
-// count and points at the callouts.
 func allRefusedFormError(refusals []refusalView, cap int) string {
 	if len(refusals) == 1 {
 		if refusals[0].Reachable != "" {
@@ -600,8 +586,6 @@ func cidrForm(v string) string {
 	return v
 }
 
-// overCapFormError is the inline error shown in the seed field when a block is refused
-// over the cap — the terse line the tmpl renders in place of the hint.
 func overCapFormError(cap int) string {
 	return fmt.Sprintf("Refused — over the %s-address cap.", commaInt(cap))
 }
@@ -965,9 +949,6 @@ func seedCreateError(err error, noun string) string {
 	return "Could not declare the scope."
 }
 
-// maxZoneUpload bounds a single zone-file upload. A zone file is text and the
-// modal operator's is small; the cap is a defence against an accidental huge
-// upload, not a product limit.
 const maxZoneUpload = 8 << 20 // 8 MiB
 
 // maxTotalZoneUpload bounds the WHOLE multipart request body (DF-F2 allows N
@@ -976,32 +957,18 @@ const maxZoneUpload = 8 << 20 // 8 MiB
 // per-file 8 MiB cap still applies to each accepted part.
 const maxTotalZoneUpload = 64 << 20 // 64 MiB
 
-// zoneView is a name scope shaped for the zone-file section: the scope, and
-// whether it currently holds a supplied file with its supply instant, uploader
-// and size.
 type zoneView struct {
-	SeedID     int64
-	Domain     string
-	HasFile    bool
-	SuppliedAt string
-	By         string
-	Bytes      int64
-	// AgingStale reports that the supplied file has aged past the re-supply
-	// interval into a coverage gap; AgingLabel is the warn-tone badge's copy
-	// ("ages into a gap in 7d" while current, "aged into a gap 5d ago" once
-	// stale). AgingLabel is empty when there is nothing to surface — no file, or
-	// no cadence to age against.
-	AgingStale bool
-	AgingLabel string
-	// IntervalLabel renders the operator's declared re-supply cadence for the
-	// file line ("monthly", "weekly", or "every N days").
+	SeedID        int64
+	Domain        string
+	HasFile       bool
+	SuppliedAt    string
+	By            string
+	Bytes         int64
+	AgingStale    bool
+	AgingLabel    string
 	IntervalLabel string
 }
 
-// toZoneViews decorates each name scope with its latest supplied zone file, if
-// any, and computes the file's staleness → gap read against the operator's
-// re-supply cadence. A scope with no file is shown too, as an empty state
-// inviting an upload. now is the render instant, threaded from s.now().
 func toZoneViews(nameSeeds []seedView, status []db.ListZoneFileStatusRow, cadenceSeconds int64, now time.Time) []zoneView {
 	interval := time.Duration(cadenceSeconds) * time.Second
 	intervalLabel := zoneIntervalLabel(cadenceSeconds)
@@ -1050,8 +1017,6 @@ func zoneAgingLabel(a scan.ZoneAging) string {
 	return fmt.Sprintf("aged into a gap %dd ago", a.Days)
 }
 
-// zoneIntervalLabel renders the re-supply cadence for the file line: the common
-// cadences by name, anything else as "every N days".
 func zoneIntervalLabel(cadenceSeconds int64) string {
 	switch days := cadenceSeconds / 86400; days {
 	case 0:
@@ -1256,7 +1221,6 @@ func (s *server) setZoneInterval(w http.ResponseWriter, r *http.Request, acct db
 	s.backToScope(w, r)
 }
 
-// isNameSeed reports whether id is a currently declared name-scope Seed.
 func (s *server) isNameSeed(r *http.Request, id int64) bool {
 	rows, err := s.store.ListSeeds(r.Context())
 	if err != nil {

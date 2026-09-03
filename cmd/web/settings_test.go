@@ -217,7 +217,6 @@ func TestChannelUpdateAndSecretLifecycle(t *testing.T) {
 		t.Fatalf("blank secret should keep existing; got %q", ch.secret.String)
 	}
 
-	// A typed value replaces it.
 	postForm(t, ac, base+"/settings/channels/update", url.Values{
 		"id": {idStr}, "url": {"https://b.example.com"}, "clock": {"on"}, "secret": {"second"},
 	}).Body.Close()
@@ -225,7 +224,6 @@ func TestChannelUpdateAndSecretLifecycle(t *testing.T) {
 		t.Fatalf("secret not replaced; got %q", f.channels[0].secret.String)
 	}
 
-	// The clear box removes it.
 	postForm(t, ac, base+"/settings/channels/update", url.Values{
 		"id": {idStr}, "url": {"https://b.example.com"}, "clock": {"on"}, "clear_secret": {"on"}, "secret": {"ignored"},
 	}).Body.Close()
@@ -233,7 +231,6 @@ func TestChannelUpdateAndSecretLifecycle(t *testing.T) {
 		t.Fatalf("clear box should null the secret; got valid=%v", f.channels[0].secret.Valid)
 	}
 
-	// Delete removes the row.
 	postForm(t, ac, base+"/settings/channels/delete", url.Values{"id": {idStr}}).Body.Close()
 	if len(f.channels) != 0 {
 		t.Fatalf("channel not deleted; %d remain", len(f.channels))
@@ -247,7 +244,6 @@ func TestRoleAssignmentAndLastAdminGuard(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// Promote the viewer to admin.
 	postForm(t, ac, base+"/settings/accounts/role", url.Values{
 		"id": {itoa(viewer.ID)}, "role": {roleAdmin},
 	}).Body.Close()
@@ -260,7 +256,6 @@ func TestRoleAssignmentAndLastAdminGuard(t *testing.T) {
 		"id": {itoa(viewer.ID)}, "role": {roleViewer},
 	}).Body.Close()
 
-	// Demoting the last admin is refused.
 	resp := postForm(t, ac, base+"/settings/accounts/role", url.Values{
 		"id": {itoa(admin.ID)}, "role": {roleViewer},
 	})
@@ -401,7 +396,6 @@ func TestRemoveMemberTypedNameGate(t *testing.T) {
 		t.Fatalf("self-removal not refused; landing body: %s", got)
 	}
 
-	// The exact username removes the member.
 	resp = postForm(t, ac, base+"/settings/accounts/remove", url.Values{
 		"id": {itoa(member.ID)}, "confirm_name": {"member"},
 	})

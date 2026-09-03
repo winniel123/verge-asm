@@ -37,9 +37,6 @@ func TestStaleThresholdExceedsProbeTimeout(t *testing.T) {
 	}
 }
 
-// fakeReaperStore is the whole surface the Reaper can reach: the one reclaiming
-// sweep. It has no read of measured data and no other write — the compiler will not
-// let the reaper touch anything else.
 type fakeReaperStore struct {
 	reapCalled bool
 	reapCutoff time.Time

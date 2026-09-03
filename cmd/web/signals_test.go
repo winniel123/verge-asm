@@ -141,8 +141,6 @@ func TestTLS10AcceptedFiresFromPersistedAcceptance(t *testing.T) {
 	}
 }
 
-// seedZone declares a name-scope Seed and attaches a zone file to it, returning
-// nothing — the Signals reads pick it up through ListZoneDeclarations.
 func seedZone(t *testing.T, f *fakeStore, admin db.Account, domain, content string) {
 	t.Helper()
 	s, err := f.CreateNameSeed(t.Context(), db.CreateNameSeedParams{
@@ -182,7 +180,6 @@ func TestSignalsOpenTabRendersFlatInstanceTable(t *testing.T) {
 	// An internal address in a public answer → non-global FIRED.
 	f.addClassResolution(t, "leak.example.com", "internet", obsClock, `{"outcome":"Resolved","addresses":["10.0.0.5"]}`)
 
-	// A dangling CNAME → cname-target-name-error FIRED.
 	f.addClassResolution(t, "alias.example.com", "internet", obsClock, `{"outcome":"NoData"}`)
 	f.addDNSRecord(t, "alias.example.com", "CNAME", obsClock, `{"rrs":[{"name":"alias.example.com","type":"CNAME","data":"gone.example.com"}]}`)
 	f.addClassResolution(t, "gone.example.com", "internet", obsClock, `{"outcome":"NameError"}`)
@@ -534,10 +531,6 @@ func TestSignalsExportButtonGated(t *testing.T) {
 	}
 }
 
-// TestDeriveSignalInstancesDatum is the P0.1 datum end-to-end: the handler folds
-// the live censuses into the flat per-instance table SignalData.jsx renders — each
-// currently-fired (rule, subject) pair carrying its rule's severity, a stable minted
-// SIG-#### id, and its first/last-seen instants — ordered by the severity ramp.
 func TestDeriveSignalInstancesDatum(t *testing.T) {
 	f := newFakeStore()
 	srv := newServer(f, testKey, "", fixedClock())
@@ -557,7 +550,6 @@ func TestDeriveSignalInstancesDatum(t *testing.T) {
 		t.Fatalf("want 2 instances (one per fired pair), got %d", len(insts))
 	}
 
-	// Severity ramp order: critical before medium.
 	crit := insts[0]
 	if crit.Signal != "sensitive-port-reached-from-internet" {
 		t.Fatalf("critical instance should sort first, got %q", crit.Signal)

@@ -35,10 +35,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
-// SecondsPerDay converts the operator's day-stated observation dial into the
-// seconds the per-timeline bounds are counted in. The dial is a whole number of
-// days (retention_settings.observation_currency_days); a bound is k cadences, and
-// a cadence is seconds.
 const SecondsPerDay int64 = 86400
 
 // ObservationBoundSeconds is a timeline's live/evidential boundary: k cadences of
@@ -95,9 +91,6 @@ const (
 	// Live: within k cadences of the tightest Scan covering the timeline. Every
 	// derivation reads it and it may never be discarded.
 	Live Tier = iota
-	// Evidential: past the bound (or on a timeline no enabled Scan covers). No
-	// derivation may read it or re-derive history from it; it is retained only as
-	// a record of what was measured.
 	Evidential
 )
 

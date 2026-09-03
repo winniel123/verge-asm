@@ -53,10 +53,6 @@ func (d *Dispatcher) fanOutHTTPIdentity(ctx context.Context, qtx *db.Queries, sc
 	return enqueued, nil
 }
 
-// enqueueHTTPIdentityJob enqueues one http-identity job for one Vantage. Its recorded
-// scope carries the reached Endpoints and the declared params by content; its offers
-// carry the params. It retries like a hot job — an exchange is a network step that can
-// transiently fail.
 func enqueueHTTPIdentityJob(ctx context.Context, qtx *db.Queries, scanID, dispatchID int64, j scan.HTTPIdentityJob) error {
 	spec, err := j.JobSpec(fmt.Sprintf("scan:%d:vantage:%d", scanID, j.VantageID))
 	if err != nil {

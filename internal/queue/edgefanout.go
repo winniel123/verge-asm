@@ -213,8 +213,6 @@ func foldEdgeFanoutObservations(ctx context.Context, qtx *db.Queries, job db.Cla
 	return nil
 }
 
-// pgTextOrNull renders an optional text column: the empty string is the absent value, which
-// is the NULL fingerprint every negative outcome carries.
 func pgTextOrNull(s string) pgtype.Text {
 	if s == "" {
 		return pgtype.Text{}
@@ -249,10 +247,7 @@ type EdgeFanoutStore interface {
 // needs drops a row, and a missing row is *measurement pending*, so it turns a measured
 // edge into a held one in silence. So a caller in doubt binds nothing.
 type EdgeFanoutBound struct {
-	// over is the address set the read is bound to, in the netip rendering the writer
-	// stores. It is meaningful only where bounded is true.
-	over []string
-	// bounded distinguishes *bound to no address* from *not bound at all*. See above.
+	over    []string
 	bounded bool
 }
 

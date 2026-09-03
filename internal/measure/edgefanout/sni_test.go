@@ -18,7 +18,6 @@ import (
 // which is the whole measurement.
 const extServerName uint16 = 0
 
-// recordingHandshaker records the server name it was handed and answers a fixed result.
 type recordingHandshaker struct {
 	serverNames []string
 }
@@ -165,8 +164,6 @@ func (r *byteReader) take(n int) []byte {
 
 func (r *byteReader) skip(n int) { r.take(n) }
 
-// vector reads a length-prefixed vector whose length field is lenBytes wide (1 or 2)
-// and returns its contents.
 func (r *byteReader) vector(lenBytes int) []byte {
 	r.t.Helper()
 	prefix := r.take(lenBytes)

@@ -39,10 +39,6 @@ import (
 // `tls-acceptance`).
 const Version = "tls-acceptance/v1"
 
-// Kind is the JobSpec.Kind that dispatches to this leaf, and — unlike the port
-// tiers, whose Scan kind differs from the `connect-outcome` leaf they dispatch —
-// it is also the DB kind of the Scan that produces it: the `tls-acceptance` Scan
-// dispatches the `tls-acceptance` leaf, its own exchange on its own cadence.
 const Kind = "tls-acceptance"
 
 // Facet is the facet this leaf decides — the versions and suites a `Service`
@@ -73,11 +69,8 @@ const (
 // (measurement-offers §1.3). Under TLS 1.3 the leaf records that the version was
 // accepted and nothing about suites.
 type CandidateSet struct {
-	// Versions is the ordered protocol-version candidate list, TLS 1.0–1.3.
 	Versions []string `json:"versions"`
-	// Ciphers is the cipher-suite candidate list by Go constant name, offered for
-	// the TLS 1.0–1.2 handshakes only.
-	Ciphers []string `json:"ciphers"`
+	Ciphers  []string `json:"ciphers"`
 	// MaxHandshakesPerSecPerHost records the per-host handshake pacing the
 	// enumeration honours (#4 §6: 5 handshakes/s). It is recorded by content and,
 	// like every other pacing knob, sits OUTSIDE the verdict — it changes the rate

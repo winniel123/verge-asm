@@ -61,8 +61,6 @@ import (
 // Dispatch is one fan-out of one Scan; this budget is generous for a busy estate.
 const reportsDispatchPerWeek = 250
 
-// reportsDispatchLimit is the bounded Dispatch read size for a given range in weeks,
-// scaled off reportsDispatchPerWeek. int32 to match ListDispatchProgress.
 func reportsDispatchLimit(weeks int) int32 {
 	return int32(weeks * reportsDispatchPerWeek) // #nosec G115 (weeks bounded by 4-digit-year date parse; weeks*250 well under int32)
 }
@@ -91,8 +89,6 @@ type reportsPeriod struct {
 	Weeks int
 }
 
-// reportsPeriods is the fixed preset vocabulary the range picker offers, in the
-// design's authored order (fixtures.json → reports.periods).
 func reportsPeriods() []reportsPeriod {
 	return []reportsPeriod{
 		{Token: "24h", Label: "Last 24h", Weeks: 4},
@@ -102,8 +98,6 @@ func reportsPeriods() []reportsPeriod {
 	}
 }
 
-// reportsDefaultPeriod is the preset selected when no ?period token is given — 7d, the
-// design's default (fixtures.json → reports.period).
 const reportsDefaultPeriod = "7d"
 
 // resolveReportsPeriod maps the ?period query to a preset, defaulting to
@@ -129,7 +123,6 @@ func resolveReportsPeriod(token string) reportsPeriod {
 // links (/reports/export?period=) carry the same window.
 const reportsCustomPrefix = "custom_"
 
-// parseReportsCustomToken splits a "custom_<start>_<end>" token back into its ISO bounds.
 func parseReportsCustomToken(token string) (start, end string, ok bool) {
 	rest, found := strings.CutPrefix(token, reportsCustomPrefix)
 	if !found {
@@ -142,8 +135,6 @@ func parseReportsCustomToken(token string) (start, end string, ok bool) {
 	return start, end, true
 }
 
-// reportsWindow is the resolved reporting window: the stable .Period token and
-// .PeriodLabel the tmpl renders, and the internal week span the folds read over.
 type reportsWindow struct {
 	Token string
 	Label string
@@ -295,9 +286,6 @@ type reportsBar struct {
 	Title     string
 }
 
-// reportsBarChart is the server-rendered form of BarChart.jsx for the "New assets
-// discovered" card: the per-day bars plus the two span labels the design draws under
-// the axis (oldest edge and today).
 type reportsBarChart struct {
 	Bars       []reportsBar
 	LeftLabel  string
@@ -373,8 +361,6 @@ func buildReportsBarChart(points []drift.DiscoveryPoint, weeks int) reportsBarCh
 	}
 }
 
-// pluralAssets renders a discovery count as the console's terse asset figure — the
-// bar's hover title. "asset" is the UI collective noun for a watched Name/Service.
 func pluralAssets(n int) string {
 	if n == 1 {
 		return "1 asset"
@@ -467,8 +453,6 @@ type reportsDelta struct {
 	Dir  string
 }
 
-// signedCount renders a signed integer delta with a true minus and its arrow
-// direction: "+3"/up, "−2"/down, "0"/none.
 func signedCount(n int) (text, dir string) {
 	switch {
 	case n > 0:
@@ -542,8 +526,6 @@ type sparkline struct {
 	Color      string
 }
 
-// f1 formats an SVG coordinate to one decimal place — terse, stable output for the
-// points/path strings.
 func f1(x float64) string { return strconv.FormatFloat(x, 'f', 1, 64) }
 
 // buildSparkline folds a value series into the Sparkline geometry (polyline, area
@@ -588,8 +570,6 @@ func buildSparkline(data []float64, w, h int, color string) (sparkline, bool) {
 	}, true
 }
 
-// standingSeries lifts the standing (open-at-close) level of each signals-over-time
-// bucket into a float series for the "Open signals" card sparkline.
 func standingSeries(pts []drift.SignalPoint) []float64 {
 	out := make([]float64, len(pts))
 	for i, p := range pts {
@@ -621,10 +601,6 @@ type reportsXLabel struct {
 	X, Y, Text string
 }
 
-// reportsTimeSeries is the server-rendered form of TimeSeriesChart.jsx for the
-// "Open signals over time" card: a fixed viewBox (scaled to width via the SVG),
-// nice-stepped y gridlines, sparse x labels, and the two standing series — All open
-// (--chart-1) and Critical + high (--chart-2). Every string is paint-ready.
 type reportsTimeSeries struct {
 	W, H     int
 	Grid     []reportsGridLine
@@ -640,8 +616,6 @@ type reportsTimeSeries struct {
 	SeriesJSON string
 }
 
-// reportsHoverSeries is one series in the chart's data-series JSON (the hover readout):
-// its legend label, its chart colour token, and the per-point standing values.
 type reportsHoverSeries struct {
 	Label string `json:"label"`
 	Color string `json:"color"`
@@ -915,7 +889,6 @@ func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		"BySeverity":  bySeverity,
 		"HasSeverity": hasOpenSignals && openSignals > 0,
 
-		// Scans-per-day heatmap.
 		"Heat":    cells,
 		"HasHeat": heatTotal > 0,
 
@@ -969,12 +942,6 @@ func (s *server) bucketScanActivity(rows []db.ListDispatchProgressRow, days int)
 	return counts, window, active
 }
 
-// foldScanActivity buckets recent Dispatches into the scans-per-day heatmap and the
-// two activity KPIs over the selected span (days = weeks * 7). Each Dispatch is
-// placed by the whole-day offset of its creation from today (UTC), oldest-first; the
-// window KPI counts the Dispatches inside the span, and the active KPI those with
-// jobs still ready or running. Intensity ramps on --chart-1 in four steps, matching
-// HeatmapCalendar. Passing reportsHeatDays reproduces the original twelve-week fold.
 func (s *server) foldScanActivity(rows []db.ListDispatchProgressRow, days int) (cells []heatCell, total, window, active int) {
 	counts, window, active := s.bucketScanActivity(rows, days)
 
@@ -1088,10 +1055,6 @@ func (s *server) reportDeliveryPDF(w http.ResponseWriter, r *http.Request, acct 
 	}
 }
 
-// reportDeliveryPDFName is the PDF download name: a period-dated
-// report-<start>-to-<end>.pdf where the delivery names a window (mirroring the
-// operational export's ISO-dated filename, reportsExportFilename), else the generic
-// report-delivery.pdf for the empty-state document that names no window.
 func reportDeliveryPDFName(a message.Artifact) string {
 	if a.PeriodStart != "" && a.PeriodEnd != "" {
 		return "report-" + a.PeriodStart + "-to-" + a.PeriodEnd + ".pdf"

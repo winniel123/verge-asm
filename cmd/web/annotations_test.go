@@ -11,7 +11,6 @@ import (
 	"time"
 )
 
-// annotate declares an Annotation on one (subject, signal-name) pair.
 func annotate(t *testing.T, c *http.Client, base, subject, signal, reason string) *http.Response {
 	t.Helper()
 	return postForm(t, c, base+"/annotations", url.Values{
@@ -19,7 +18,6 @@ func annotate(t *testing.T, c *http.Client, base, subject, signal, reason string
 	})
 }
 
-// withdrawAnno withdraws the annotation with the given id.
 func withdrawAnno(t *testing.T, c *http.Client, base string, id int64) *http.Response {
 	t.Helper()
 	return postForm(t, c, base+"/annotations/withdraw", url.Values{"id": {strconv.FormatInt(id, 10)}})
@@ -141,7 +139,6 @@ func TestAnnotatedFiredSignalStaysOpen(t *testing.T) {
 	if !strings.Contains(after, "lame.example.com") {
 		t.Errorf("annotated signal dropped from the Open tab; an annotation moves no number; body: %s", after)
 	}
-	// No census prose.
 	if strings.Contains(after, "carries an annotation right now") {
 		t.Errorf("census prose rendered; that grouping has left the screen")
 	}
@@ -271,8 +268,6 @@ func refusalPage(t *testing.T, c *http.Client, base string, resp *http.Response)
 	return prgLanding(t, c, base, resp)
 }
 
-// annotateFrom declares an Annotation the way the drawer's form does: carrying the
-// `return` field that names the exact URL the operator submitted from (backurl.go).
 func annotateFrom(t *testing.T, c *http.Client, base, from, subject, signal, reason string) *http.Response {
 	t.Helper()
 	return postForm(t, c, base+"/annotations", url.Values{

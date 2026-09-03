@@ -15,7 +15,6 @@ const (
 	OutcomeGap      = "Gap"
 )
 
-// resolutionValue is the JSON payload of a composed resolution observation.
 type resolutionValue struct {
 	Outcome   string   `json:"outcome"`
 	Addresses []string `json:"addresses,omitempty"`
@@ -63,10 +62,6 @@ func Emit(batch, vantage string, res rw.Result, verdict Verdict) []wire.Observat
 	return obs
 }
 
-// resolutionFor composes the resolution value: `Shadowed` cites nothing, `Gap`
-// cites nothing, and a not-`Shadowed` verdict passes resolution-walk's own value
-// through unchanged — the membership-deciding value is one or the other and the
-// leaf that decided it is this one exactly when the value is Shadowed or Gap.
 func resolutionFor(res rw.Result, verdict Verdict) resolutionValue {
 	switch verdict {
 	case VerdictShadowed:

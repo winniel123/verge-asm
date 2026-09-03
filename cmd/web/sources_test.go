@@ -14,8 +14,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 )
 
-// --- fakeStore source-state methods ----------------------------------------
-
 func (f *fakeStore) ListSourceStates(context.Context) ([]db.SourceState, error) {
 	rows := make([]db.SourceState, 0, len(f.sourceStates))
 	for _, st := range f.sourceStates {
@@ -274,13 +272,13 @@ func TestSourcesCTCapabilitiesCardLive(t *testing.T) {
 
 	page := sourcesBody(t, ac, base)
 	for _, want := range []string{
-		"More CT capabilities",        // the card header
-		"drift tail",                  // the tail capability
-		"last ct-tail scan",           // the tail's own run readout
-		"37 names admitted",           // the tail's admitted count
-		"verification",                // the verification capability
-		"812 certificates captured",   // verification's captured pool
-		"ephemeral event",             // the honest no-durable-result edge (#878)
+		"More CT capabilities",      // the card header
+		"drift tail",                // the tail capability
+		"last ct-tail scan",         // the tail's own run readout
+		"37 names admitted",         // the tail's admitted count
+		"verification",              // the verification capability
+		"812 certificates captured", // verification's captured pool
+		"ephemeral event",           // the honest no-durable-result edge (#878)
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("capabilities card missing %q; body: %s", want, page)
@@ -300,8 +298,8 @@ func TestSourcesCTCapabilitiesCardEmpty(t *testing.T) {
 	page := sourcesBody(t, ac, base)
 	for _, want := range []string{
 		"More CT capabilities",
-		"awaiting captures",         // verification with no captures
-		"0 certificates captured",   // the truthful zero
+		"awaiting captures",       // verification with no captures
+		"0 certificates captured", // the truthful zero
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("empty capabilities card missing %q; body: %s", want, page)
@@ -328,10 +326,6 @@ func TestSourcesCTHeroNoRun(t *testing.T) {
 	}
 }
 
-// --- helpers ----------------------------------------------------------------
-
-// sourcesTab is the Sources section's own tab, and the fallback destination of a toggle
-// submitted with no `return` field (backToSection).
 const sourcesTab = "/settings?tab=sources"
 
 func toggleSourceReq(t *testing.T, c *http.Client, base, slug, enabled string) *http.Response {
@@ -351,8 +345,6 @@ func sourcesBody(t *testing.T, c *http.Client, base string) string {
 	return body(t, resp)
 }
 
-// --- tests ------------------------------------------------------------------
-
 // The modal renders every catalogued source, both marked groups, and the
 // shipped defaults from §3.1 with no override in place.
 func TestSourcesModalRendersCatalogueAndDefaults(t *testing.T) {
@@ -363,7 +355,6 @@ func TestSourcesModalRendersCatalogueAndDefaults(t *testing.T) {
 
 	page := sourcesBody(t, ac, base)
 
-	// Every catalogued source appears.
 	for _, c := range sourceCatalog {
 		if !strings.Contains(page, c.Name) {
 			t.Errorf("source %q missing from the modal", c.Name)

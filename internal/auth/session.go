@@ -19,10 +19,7 @@ import (
 type Kind string
 
 const (
-	// KindSession is a completed login: the bearer is authenticated.
 	KindSession Kind = "session"
-	// KindPending is a half-login: the password was correct and a TOTP code
-	// is still owed. It authorises only the TOTP-completion step.
 	KindPending Kind = "totp"
 )
 
@@ -48,8 +45,6 @@ type Session struct {
 // from "wrong kind" and leak which check failed.
 var ErrInvalidSession = errors.New("auth: invalid session")
 
-// SignSession encodes s and appends an HMAC-SHA256 tag over the encoding,
-// producing a "<payload>.<mac>" token where both halves are base64url.
 func SignSession(key []byte, s Session) (string, error) {
 	payload, err := json.Marshal(s)
 	if err != nil {
@@ -84,7 +79,6 @@ func VerifySession(key []byte, token string, want Kind, now time.Time) (Session,
 	return s, nil
 }
 
-// tag returns the base64url HMAC-SHA256 of msg under key.
 func tag(key []byte, msg string) string {
 	m := hmac.New(sha256.New, key)
 	m.Write([]byte(msg))

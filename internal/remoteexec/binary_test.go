@@ -106,7 +106,6 @@ func readBinary(t *testing.T, p BinaryProvider, goos, goarch string) string {
 
 func trimAuthorizedKey(key ssh.PublicKey) string {
 	line := ssh.MarshalAuthorizedKey(key)
-	// drop the trailing newline
 	if n := len(line); n > 0 && line[n-1] == '\n' {
 		line = line[:n-1]
 	}

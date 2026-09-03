@@ -39,9 +39,6 @@ func loginUA(t *testing.T, base, username, password, ua string) *http.Client {
 	return c
 }
 
-// sessionIDByUA finds the fake's live session for an account whose stored user_agent
-// contains uaSubstr — the deterministic way to name a specific seeded session without
-// relying on insertion order.
 func sessionIDByUA(f *fakeStore, accountID int64, uaSubstr string) int64 {
 	for _, s := range f.sessions {
 		if s.AccountID == accountID && !s.RevokedAt.Valid && strings.Contains(s.UserAgent, uaSubstr) {
@@ -65,8 +62,8 @@ func TestProfileListsOwnSessions(t *testing.T) {
 	for _, want := range []string{
 		"Firefox · macOS",  // the requesting device (rendered via sessionDeviceFromUA)
 		"Chrome · Windows", // the other live session
-		"this device",           // the current-session badge
-		"Sign out others",       // the card action appears once there is more than one session
+		"this device",      // the current-session badge
+		"Sign out others",  // the card action appears once there is more than one session
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("profile sessions missing %q; body: %s", want, got)

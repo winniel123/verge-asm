@@ -47,10 +47,6 @@ var onboardStepTitles = []string{"Seeds", "Cadence", "Channel", "Review"}
 
 const onboardLast = 3
 
-// onboardCadPresets are the CadenceSelect presets, ported verbatim from
-// design-system/components/forms/CadenceSelect.jsx. The default is the second
-// (Daily · 08:00), matching the example's initial cad; the last (Custom…) reveals
-// a cron field and gates Next until it is filled.
 var onboardCadPresets = []string{"Every 6h", "Daily · 08:00", "Weekly · mon 09:00", "Monthly · 1st", "Custom…"}
 
 const (
@@ -58,10 +54,6 @@ const (
 	onboardCustomCad  = "Custom…"
 )
 
-// onboardView is the controlled state of the wizard across the post-back flow: the
-// step being shown and every field's current value. Seeds are the committed tag
-// list (the TagInput's values); Profile / Cad / Cron / Channel are the remaining
-// controlled inputs.
 type onboardView struct {
 	Step    int
 	Seeds   []string
@@ -81,11 +73,6 @@ func parseSeedTokens(raw string) []string {
 	})
 }
 
-// readOnboardView reconstructs the controlled state from the request form (or, on
-// GET, the query — ParseForm merges both). Seeds accumulate: the committed list in
-// the hidden `seeds` field plus any new tokens typed into `seedsadd`, deduped in
-// first-seen order. Defaults match the example's initial state (standard profile,
-// daily cadence).
 func readOnboardView(r *http.Request) onboardView {
 	_ = r.ParseForm()
 
@@ -136,9 +123,6 @@ func dedupeStrings(in []string) []string {
 	return out
 }
 
-// onboardStepValid is the per-step valid gate, ported from the example's step
-// `valid` predicates: seeds needs at least one seed; cadence needs a cron when the
-// custom preset is chosen; channel and review are always valid.
 func onboardStepValid(v onboardView) bool {
 	switch v.Step {
 	case 0:
@@ -161,9 +145,6 @@ func onboardingScanKind(profile string) string {
 	return scan.HotKind
 }
 
-// onboarding renders the wizard at its current step. It is a viewer-safe read —
-// stepping mutates nothing; only completion (POST /onboarding/finish) enqueues a
-// scan, and that is admin-gated.
 func (s *server) onboarding(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	s.renderOnboard(w, r, acct, readOnboardView(r))
 }
@@ -221,9 +202,6 @@ func (s *server) onboardingStep(w http.ResponseWriter, r *http.Request, acct db.
 	redirectOnboardStep(w, r, v)
 }
 
-// renderOnboard shapes the controlled state into the template data: the step
-// progress, the current step's fields, and — on the review step — the KeyValueList
-// summary of the real inputs plus the scan kind the finish button carries.
 func (s *server) renderOnboard(w http.ResponseWriter, r *http.Request, acct db.Account, v onboardView) {
 	steps := make([]map[string]any, len(onboardStepTitles))
 	for i, title := range onboardStepTitles {

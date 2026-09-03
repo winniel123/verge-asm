@@ -49,8 +49,6 @@ func lookup(t *testing.T, c *http.Client, base, query string) *http.Response {
 	return postForm(t, c, base+"/proposals", url.Values{"query": {query}})
 }
 
-// get issues a GET and fails the test on a transport error, leaving the caller
-// to read the body (with body()) and assert on status.
 func get(t *testing.T, c *http.Client, rawURL string) *http.Response {
 	t.Helper()
 	resp, err := c.Get(rawURL)
@@ -60,8 +58,6 @@ func get(t *testing.T, c *http.Client, rawURL string) *http.Response {
 	return resp
 }
 
-// twoCandidates is a delegation plus a compelled reassignment — the two record
-// kinds ARIN returns in one response.
 func twoCandidates() []proposer.Candidate {
 	return []proposer.Candidate{
 		{SourceSlug: proposer.SlugARIN, RecordKind: proposer.RecordRIRDelegation,
@@ -406,8 +402,6 @@ func TestLookupBackendFailureIsNotAMiss(t *testing.T) {
 	}
 }
 
-// TestLookupGenuineMissStillReadsAsAMiss keeps the honest no-match message when
-// the registries answered cleanly and simply held nothing.
 func TestLookupGenuineMissStillReadsAsAMiss(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -491,7 +485,6 @@ func TestViewerCannotLookupConfirmOrDecline(t *testing.T) {
 			t.Errorf("viewer POST %s: status=%d, want 403", ep.path, resp.StatusCode)
 		}
 	}
-	// Nothing the viewer did changed state.
 	if len(f.seeds) != 0 {
 		t.Errorf("viewer opened the gate: seeds=%d", len(f.seeds))
 	}

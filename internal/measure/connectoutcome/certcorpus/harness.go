@@ -31,7 +31,6 @@ func RenderRow(r Row) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// RenderAll renders every row, keyed by its golden filename.
 func RenderAll() (map[string][]byte, error) {
 	out := make(map[string][]byte, len(Rows))
 	for _, r := range Rows {
@@ -44,9 +43,6 @@ func RenderAll() (map[string][]byte, error) {
 	return out, nil
 }
 
-// CorpusDigest is a stable hash over the rendered corpus, in golden-filename
-// order. It moves exactly when a row's expected output moves, binding an output
-// change to a leaf-version bump through the lock.
 func CorpusDigest(rendered map[string][]byte) string {
 	names := make([]string, 0, len(rendered))
 	for n := range rendered {
@@ -63,8 +59,6 @@ func CorpusDigest(rendered map[string][]byte) string {
 	return "sha256:" + hex.EncodeToString(h.Sum(nil))
 }
 
-// ParamsDigest is the digest of the tls-handshake leaf's declared-parameter set —
-// the fixed handshake shape — the second thing a version bump may be justified by.
 func ParamsDigest() string { return co.DefaultHandshakeParams().Digest() }
 
 // UncoveredMove is one row of golden-corpus.md §9's register: a version bump
@@ -77,8 +71,6 @@ type UncoveredMove struct {
 	Date       string `json:"date"`
 }
 
-// Lock is the checked-in manifest that binds the leaf version to the corpus and
-// parameter digests.
 type Lock struct {
 	LeafVersion    string          `json:"leaf_version"`
 	CorpusDigest   string          `json:"corpus_digest"`
@@ -86,7 +78,6 @@ type Lock struct {
 	UncoveredMoves []UncoveredMove `json:"uncovered_moves"`
 }
 
-// LoadLock reads corpus.lock.json from dir.
 func LoadLock(dir string) (Lock, error) {
 	b, err := os.ReadFile(filepath.Join(dir, "corpus.lock.json")) // #nosec G304 (test corpus loader; filename constant, dir is the fixed test corpus directory ".")
 	if err != nil {

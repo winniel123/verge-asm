@@ -26,9 +26,6 @@ var knownBusinessTables = []string{
 	"verge_core_frequency_edit", "zone_file",
 }
 
-// TestBackupTablesPartitionSchema proves the allowlist and denylist together cover every
-// business table exactly once — no table is both dumped and excluded, and none is
-// unclassified.
 func TestBackupTablesPartitionSchema(t *testing.T) {
 	seen := map[string]int{}
 	for _, tbl := range backupTables {
@@ -43,7 +40,6 @@ func TestBackupTablesPartitionSchema(t *testing.T) {
 		case 0:
 			t.Errorf("table %q is neither in the backup allowlist nor the documented exclusions — classify it", tbl)
 		case 1:
-			// good
 		default:
 			t.Errorf("table %q is classified more than once (allowlist and/or exclusions)", tbl)
 		}
@@ -87,9 +83,6 @@ func TestBackupExcludesSessionAndAuthFlowTables(t *testing.T) {
 	}
 }
 
-// TestBackupArchiveWellFormed builds an archive with the pure NDJSON writers and re-parses
-// it, proving the manifest carries the schema version and the ordered table list, the
-// per-table markers appear, and row jsonb round-trips verbatim.
 func TestBackupArchiveWellFormed(t *testing.T) {
 	var buf bytes.Buffer
 	const schemaVersion = int64(23000)
@@ -108,7 +101,6 @@ func TestBackupArchiveWellFormed(t *testing.T) {
 
 	sc := bufio.NewScanner(&buf)
 
-	// Line 1: manifest.
 	if !sc.Scan() {
 		t.Fatal("no manifest line")
 	}
@@ -126,7 +118,6 @@ func TestBackupArchiveWellFormed(t *testing.T) {
 		t.Errorf("manifest tables list does not mirror backupTables")
 	}
 
-	// Line 2: table marker.
 	if !sc.Scan() {
 		t.Fatal("no table line")
 	}
@@ -211,8 +202,6 @@ func TestBackupRedactsChannelAndSSOSecrets(t *testing.T) {
 			if bytes.Contains(buf.Bytes(), []byte(tc.plaintext)) {
 				t.Fatalf("archive row for %s carries the cleartext secret: %s", tc.table, buf.String())
 			}
-			// The redacted column must be present and JSON null (not a bogus sentinel that a
-			// restore would write as if it were the real secret).
 			var obj map[string]json.RawMessage
 			if err := json.Unmarshal(redacted, &obj); err != nil {
 				t.Fatalf("redacted row not valid JSON: %v", err)
@@ -224,7 +213,6 @@ func TestBackupRedactsChannelAndSSOSecrets(t *testing.T) {
 			if string(raw) != "null" {
 				t.Errorf("column %q = %s, want JSON null", tc.redactedCol, raw)
 			}
-			// Every other column survives verbatim.
 			var kept string
 			if err := json.Unmarshal(obj[tc.keepCol], &kept); err != nil {
 				t.Fatalf("kept column %q not readable: %v", tc.keepCol, err)
@@ -266,7 +254,6 @@ func TestBackupAdminGated(t *testing.T) {
 	seedAccount(t, f, "viewer", roleViewer, "hunter2hunter2")
 	base := start(t, f, "")
 
-	// Anonymous -> redirect to /login.
 	anon := newClient(t)
 	resp := postForm(t, anon, base+"/settings/backup", url.Values{})
 	resp.Body.Close()
@@ -274,7 +261,6 @@ func TestBackupAdminGated(t *testing.T) {
 		t.Fatalf("anonymous backup: status=%d loc=%q, want 303 -> /login", resp.StatusCode, resp.Header.Get("Location"))
 	}
 
-	// Viewer -> 403.
 	vc := login(t, base, "viewer", "hunter2hunter2")
 	resp = postForm(t, vc, base+"/settings/backup", url.Values{})
 	resp.Body.Close()

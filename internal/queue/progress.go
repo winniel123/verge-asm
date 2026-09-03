@@ -31,11 +31,6 @@ import (
 // NotifyJobProgress query hardcodes the same literal (sqlc cannot bind a channel name).
 const ProgressChannel = "queue_job_progress"
 
-// jobProgress is one ephemeral per-job progress event on the wire. It carries the run it
-// belongs to (Dispatch), the queue job it is about (Job), the redacted level/text the stream
-// merges onto that job's state line, and nothing else — no scope, no observation, no output.
-// The JSON tags are the contract with cmd/web's decoder; the two packages share the shape by
-// convention, not a shared type.
 type jobProgress struct {
 	Dispatch int64  `json:"dispatch"`
 	Job      int64  `json:"job"`
@@ -53,13 +48,8 @@ type safeCause struct{ msg string }
 
 func (e safeCause) Error() string { return e.msg }
 
-// safeProgress marks a cause message as redaction-safe to surface verbatim in the stream.
 func safeProgress(msg string) error { return safeCause{msg} }
 
-// redactCause returns a stream-safe summary of a failure cause: the verbatim message only when
-// it was explicitly marked safe (safeProgress), else a generic phrase that leaks nothing. The
-// state-derived .Log already redacts a job to its state alone; this holds the same discipline
-// for the ephemeral reason the stream adds beside it.
 func redactCause(err error) string {
 	var s safeCause
 	if errors.As(err, &s) {
@@ -68,14 +58,10 @@ func redactCause(err error) string {
 	return "measurement failed"
 }
 
-// retryLabel is the redacted text a retry rides: the attempt that failed, the safe reason,
-// and that a fresh attempt follows — "attempt 4 failed · crt.sh returned HTTP 502 · retrying".
 func retryLabel(failedAttempt int32, cause error) string {
 	return fmt.Sprintf("attempt %d failed · %s · retrying", failedAttempt, redactCause(cause))
 }
 
-// deadLetterLabel is the redacted text a dead-letter rides: the attempts spent and the safe
-// reason — "dead-lettered after 5 attempts · crt.sh returned HTTP 502".
 func deadLetterLabel(attempts int32, cause error) string {
 	return fmt.Sprintf("dead-lettered after %d attempts · %s", attempts, redactCause(cause))
 }

@@ -37,22 +37,14 @@ import (
 // ADR-0039 guarantee, enforced by the type having nowhere to put one. encoding/json
 // emits the fields in declaration order, so the body is stable across retries.
 type ReadyBody struct {
-	// Kind is the fixed discriminator a receiver switches on: always "report-ready".
 	Kind string `json:"kind"`
 	// Report is the schedule's declared name — a label, never estate.
-	Report string `json:"report"`
-	// PeriodStart / PeriodEnd are the window the run covered, the same bounds the
-	// artifact recomputes its contents from at view time.
+	Report      string    `json:"report"`
 	PeriodStart time.Time `json:"period_start"`
 	PeriodEnd   time.Time `json:"period_end"`
-	// URL is the session-authed link into this instance where the operator opens the
-	// generated artifact. The body it points at is served in-instance behind auth; the
-	// link is all that leaves.
-	URL string `json:"url"`
+	URL         string    `json:"url"`
 }
 
-// reportReadyPath is the stable console route the ready-message links to — the same
-// artifact view "View last delivery" opens (reportDeliveryHref in the web tier).
 const reportReadyPath = "/reports/delivery"
 
 // BuildReadyBody assembles the link-only ready-message from the run's facts and the
@@ -69,12 +61,8 @@ func BuildReadyBody(report string, periodStart, periodEnd time.Time, baseURL str
 	}
 }
 
-// MarshalReadyBody renders the ready-message to the exact bytes POSTed and signed.
 func MarshalReadyBody(b ReadyBody) ([]byte, error) { return json.Marshal(b) }
 
-// shouldNotify is the enqueue predicate: a scheduled run enqueues exactly one
-// ready-message when — and only when — its schedule binds a Channel. A download-only
-// schedule (NULL channel_id) binds none and enqueues nothing (P0.6c/T7).
 func shouldNotify(channelID pgtype.Int8) bool { return channelID.Valid }
 
 func trimSlash(s string) string {
@@ -84,10 +72,6 @@ func trimSlash(s string) string {
 	return s
 }
 
-// NotifyRunner is the worker-side loop that drains pending report notifications and
-// POSTs each Channel its link-only ready-message, recording the outcome. It mirrors
-// delivery.Runner exactly — a poll, a Postgres claim, and the shared
-// retry/backoff/dead-letter curve — but announces a report run, not a Message.
 type NotifyRunner struct {
 	pool     *pgxpool.Pool
 	q        *db.Queries
@@ -98,9 +82,6 @@ type NotifyRunner struct {
 	resolver delivery.Resolver
 }
 
-// NewNotifyRunner builds a NotifyRunner over pool driving doer. baseURL is the absolute
-// URL into this instance the ready-message's link is built on; it may be empty, in
-// which case the link is the bare path. now is injectable for tests.
 func NewNotifyRunner(pool *pgxpool.Pool, doer delivery.Doer, now func() time.Time, baseURL string, logger *log.Logger) *NotifyRunner {
 	if now == nil {
 		now = time.Now
@@ -111,7 +92,6 @@ func NewNotifyRunner(pool *pgxpool.Pool, doer delivery.Doer, now func() time.Tim
 	return &NotifyRunner{pool: pool, q: db.New(pool), doer: doer, now: now, baseURL: baseURL, log: logger, resolver: net.DefaultResolver}
 }
 
-// Run drains pending notifications, then polls on an interval until ctx is done.
 func (n *NotifyRunner) Run(ctx context.Context, interval time.Duration) error {
 	if interval <= 0 {
 		interval = 5 * time.Second
@@ -130,7 +110,6 @@ func (n *NotifyRunner) Run(ctx context.Context, interval time.Duration) error {
 	}
 }
 
-// Drain runs every claimable notification until none remain.
 func (n *NotifyRunner) Drain(ctx context.Context) error {
 	for {
 		ran, err := n.RunOnce(ctx)
@@ -230,9 +209,6 @@ func (n *NotifyRunner) markDelivered(ctx context.Context, claim db.ClaimReportNo
 	return tx.Commit(ctx)
 }
 
-// notifyError renders the failure string stored on the notification for the
-// channel-surface drill-down. A transport error carries its own message; a non-2xx
-// carries its status.
 func notifyError(statusCode int, sendErr error) string {
 	if sendErr != nil {
 		return sendErr.Error()

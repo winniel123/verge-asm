@@ -60,18 +60,15 @@ import (
 // archive — new or pre-#739 — can reconstitute these two columns or silently overwrite a
 // live secret: they land NULL and the operator knowingly re-enters them (see restore.go).
 var backupTables = []string{
-	// Config / identity roots.
 	"account",
 	"instance_config",
 	"retention_settings",
-	// Estate — declared inputs.
 	"seed",
 	"exclusion",
 	"cold_scan_scope",
 	"zone_file",
 	"admitted_name",
 	"source_state",
-	// Estate — measurement fleet + runs.
 	"vantage",
 	"scan",
 	"dispatch",
@@ -84,13 +81,11 @@ var backupTables = []string{
 	// restore an estate holding timelines nothing will ever close.
 	"seed_withdrawal",
 	"verge_core_frequency_edit",
-	// Estate — findings + curation.
 	"signal_instance",
 	"annotation",
 	"proposer_lookup",
 	"proposal",
 	"integration_state",
-	// Config — delivery, messaging, reporting.
 	"channel",
 	"delivery",
 	"message",
@@ -179,7 +174,6 @@ type backupManifest struct {
 	Tables        []string `json:"tables"`
 }
 
-// backupTableLine marks the start of a table's rows in the stream.
 type backupTableLine struct {
 	Type string `json:"type"` // always "table"
 	Name string `json:"name"`
@@ -289,7 +283,6 @@ func (s *server) dumpBackupTable(ctx context.Context, w io.Writer, table string)
 	return rows.Err()
 }
 
-// writeBackupManifest emits the manifest as the archive's first NDJSON line.
 func writeBackupManifest(w io.Writer, schemaVersion int64, now time.Time) error {
 	return writeJSONLine(w, backupManifest{
 		Type:          "manifest",
@@ -301,17 +294,14 @@ func writeBackupManifest(w io.Writer, schemaVersion int64, now time.Time) error 
 	})
 }
 
-// writeBackupTableHeader emits a table's start marker.
 func writeBackupTableHeader(w io.Writer, table string) error {
 	return writeJSONLine(w, backupTableLine{Type: "table", Name: table})
 }
 
-// writeBackupRow emits one row line, embedding the Postgres jsonb verbatim.
 func writeBackupRow(w io.Writer, table string, data json.RawMessage) error {
 	return writeJSONLine(w, backupRowLine{Type: "row", Table: table, Data: data})
 }
 
-// writeJSONLine marshals v and writes it as one newline-terminated NDJSON record.
 func writeJSONLine(w io.Writer, v any) error {
 	b, err := json.Marshal(v)
 	if err != nil {

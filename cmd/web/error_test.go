@@ -9,9 +9,6 @@ import (
 	"testing"
 )
 
-// TestUnknownPathRendersNotFound proves an unmatched URL lands on the ported 404
-// error page (not the scaffold's plain-text NotFound): status 404, an HTML page
-// that names the state.
 func TestUnknownPathRendersNotFound(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -34,11 +31,6 @@ func TestUnknownPathRendersNotFound(t *testing.T) {
 	}
 }
 
-// TestForbiddenRendersAccessDenied proves a viewer who reaches a plain admin-gated
-// route (every admin act but Settings, which renders the richer settings-forbidden
-// copy — see TestSettingsIsAdminOnly) gets the ported 403 error page explaining the
-// denial. POST /scans/trigger is such a route: requireAdmin refuses the viewer before
-// the handler runs.
 func TestForbiddenRendersAccessDenied(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -89,8 +81,6 @@ func TestRecoveredPanicRendersIncident(t *testing.T) {
 	}
 }
 
-// TestNewIncidentIDShape guards the minted id shape (err_ + 8 base36 chars), the
-// form ErrorPage.jsx samples, and that two draws differ.
 func TestNewIncidentIDShape(t *testing.T) {
 	a, b := newIncidentID(), newIncidentID()
 	if !incidentRe.MatchString(a) {

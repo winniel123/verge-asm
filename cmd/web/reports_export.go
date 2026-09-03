@@ -35,8 +35,6 @@ import (
 // mutation and adds no store method. It fabricates nothing: an unavailable signal
 // count exports empty (CSV) / null (JSON), never a zero standing in for a real read.
 
-// reportsExportRange bundles the resolved range for the export: the span in weeks and
-// whole days, and the inclusive [From, To] date bounds (UTC whole days, oldest-first).
 type reportsExportRange struct {
 	Weeks int
 	Days  int
@@ -159,7 +157,6 @@ func reportsExportFilename(rng reportsExportRange, ext string) string {
 	return "reports-" + rng.From.Format("2006-01-02") + "-to-" + rng.To.Format("2006-01-02") + "." + ext
 }
 
-// dayDate returns the calendar date of the i-th series bucket (index 0 = oldest).
 func (rng reportsExportRange) dayDate(i int) time.Time {
 	return rng.From.AddDate(0, 0, i)
 }
@@ -201,8 +198,6 @@ func (s *server) writeReportsExportCSV(w http.ResponseWriter, rng reportsExportR
 	}
 }
 
-// reportsExportDoc is the JSON export shape: the resolved range, the KPI band (with a
-// null open_signals where the census read failed), and the per-day series.
 type reportsExportDoc struct {
 	GeneratedAt string                `json:"generated_at"`
 	Range       reportsExportDocRange `json:"range"`
@@ -231,8 +226,6 @@ type reportsExportDocDay struct {
 	Scans int    `json:"scans"`
 }
 
-// writeReportsExportJSON emits the figures as a structured document. open_signals is
-// null where the census was unavailable.
 func (s *server) writeReportsExportJSON(w http.ResponseWriter, rng reportsExportRange, fig reportsExportFigures) {
 	doc := reportsExportDoc{
 		// The actual instant the export was produced, not the range end — so two

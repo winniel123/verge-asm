@@ -53,7 +53,6 @@ func TestOnboardingStepsAdvance(t *testing.T) {
 	base := startWithTrigger(t, f, &fakeTrigger{jobs: 2})
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// Step 0 renders the seeds field.
 	page := getBody(t, ac, base+"/onboarding", http.StatusOK)
 	if !strings.Contains(page, "Set up this workspace") || !strings.Contains(page, `name="seedsadd"`) {
 		t.Fatalf("step 0 did not render the seeds step; body: %s", page)
@@ -79,7 +78,6 @@ func TestOnboardingStepsAdvance(t *testing.T) {
 		t.Fatalf("committed seed not carried forward; body: %s", cadence)
 	}
 
-	// Advance cadence -> channel.
 	channel := stepFollow(t, ac, base, url.Values{
 		"step": {"1"}, "action": {"next"}, "seeds": {"acmecorp.io"}, "profile": {"standard"}, "cad": {"Daily · 08:00"},
 	})
@@ -87,7 +85,6 @@ func TestOnboardingStepsAdvance(t *testing.T) {
 		t.Fatalf("did not advance to channel step; body: %s", channel)
 	}
 
-	// Advance channel -> review.
 	review := stepFollow(t, ac, base, url.Values{
 		"step": {"2"}, "action": {"next"}, "seeds": {"acmecorp.io"}, "profile": {"standard"}, "cad": {"Daily · 08:00"},
 		"channel": {"https://ops.example/hook"},

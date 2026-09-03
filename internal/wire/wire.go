@@ -34,9 +34,6 @@ const (
 	// surfaces bufio.ErrTooLong via Err() rather than over-allocating.
 	MaxObservationLine = 1 << 20 // 1 MiB per line
 
-	// MaxObservations caps how many observation lines one job may yield. Even
-	// under MaxProberStdout a flood of tiny lines would grow the decoded slice
-	// without bound; this bounds the entry COUNT too.
 	MaxObservations = 1 << 20
 )
 
@@ -57,10 +54,8 @@ type LimitedBuffer struct {
 	over  bool
 }
 
-// NewLimitedBuffer returns a LimitedBuffer that fails closed past limit bytes.
 func NewLimitedBuffer(limit int) *LimitedBuffer { return &LimitedBuffer{limit: limit} }
 
-// Write implements io.Writer, failing closed once the ceiling would be exceeded.
 func (b *LimitedBuffer) Write(p []byte) (int, error) {
 	if b.over || b.buf.Len()+len(p) > b.limit {
 		b.over = true
@@ -69,8 +64,6 @@ func (b *LimitedBuffer) Write(p []byte) (int, error) {
 	return b.buf.Write(p)
 }
 
-// Bytes returns the accumulated output, safe to scan once the write completed
-// without ErrProberOutputTooLarge.
 func (b *LimitedBuffer) Bytes() []byte { return b.buf.Bytes() }
 
 // Overflowed reports whether a write tripped the ceiling. A transcript capture
@@ -79,13 +72,11 @@ func (b *LimitedBuffer) Bytes() []byte { return b.buf.Bytes() }
 // holds only the head bytes retained before the trip, never the true tail.
 func (b *LimitedBuffer) Overflowed() bool { return b.over }
 
-// JobSpec is written as a single JSON object to the prober's stdin.
 type JobSpec struct {
 	// Batch identifies the Batch this job belongs to, so the observations
 	// it produces can be attributed back to the scope that was attempted.
 	Batch string `json:"batch"`
-	// Kind names the measurement being requested (e.g. "tcp-connect").
-	Kind string `json:"kind"`
+	Kind  string `json:"kind"`
 	// Scope is the kind-specific payload (addresses, ports, …); left
 	// opaque here so this package does not have to know every measurement
 	// kind to stay compilable.
@@ -126,11 +117,8 @@ type CertMaterial struct {
 	// Fingerprint is the leaf DER's `sha256:<hex>` — the side store's PK and the same
 	// value the facet's chain[0] carries, so a chain fingerprint joins here.
 	Fingerprint string `json:"fingerprint"`
-	// DER is the leaf certificate DER bytes. Embedded SCTs ride INSIDE it.
-	DER []byte `json:"der"`
-	// SCTs is the out-of-cert SCT material, already serialized by EncodeSCTCapture; nil
-	// when the handshake carried none.
-	SCTs []byte `json:"scts,omitempty"`
+	DER         []byte `json:"der"`
+	SCTs        []byte `json:"scts,omitempty"`
 	// IssuerSPKI is the issuer certificate's SubjectPublicKeyInfo DER (chain[1]); nil when the
 	// handshake presented no issuer. Verification of an embedded SCT hashes the precertificate,
 	// whose leaf hash carries issuer_key_hash = SHA-256(this) (RFC 6962 §3.2, #878). It rides
@@ -144,12 +132,8 @@ type CertMaterial struct {
 // they ride inside the leaf DER. Verification (#878) decodes this to check the leaf
 // against CT.
 type SCTCapture struct {
-	// TLSExt is the SCTs delivered in the TLS handshake extension (crypto/tls
-	// ConnectionState.SignedCertificateTimestamps), each a serialized SCT.
 	TLSExt [][]byte `json:"tls_ext,omitempty"`
-	// OCSP is the raw stapled OCSP response (ConnectionState.OCSPResponse), which may
-	// carry SCTs in an extension; stored verbatim and parsed by the consumer.
-	OCSP []byte `json:"ocsp,omitempty"`
+	OCSP   []byte   `json:"ocsp,omitempty"`
 }
 
 // EncodeSCTCapture serializes c for the certificate_material.scts column. It returns nil
@@ -167,8 +151,6 @@ func EncodeSCTCapture(c SCTCapture) []byte {
 	return b
 }
 
-// DecodeSCTCapture reverses EncodeSCTCapture. A nil or empty blob decodes to a zero
-// SCTCapture — no material — the state a NULL scts column reads back as.
 func DecodeSCTCapture(b []byte) (SCTCapture, error) {
 	var c SCTCapture
 	if len(b) == 0 {
@@ -180,7 +162,6 @@ func DecodeSCTCapture(b []byte) (SCTCapture, error) {
 	return c, nil
 }
 
-// DecodeJobSpec reads a single JobSpec JSON object from r.
 func DecodeJobSpec(r io.Reader) (JobSpec, error) {
 	var spec JobSpec
 	if err := json.NewDecoder(r).Decode(&spec); err != nil {
@@ -189,7 +170,6 @@ func DecodeJobSpec(r io.Reader) (JobSpec, error) {
 	return spec, nil
 }
 
-// EncodeJobSpec writes spec to w as a single JSON object.
 func EncodeJobSpec(w io.Writer, spec JobSpec) error {
 	if err := json.NewEncoder(w).Encode(spec); err != nil {
 		return fmt.Errorf("wire: encode job spec: %w", err)
@@ -197,7 +177,6 @@ func EncodeJobSpec(w io.Writer, spec JobSpec) error {
 	return nil
 }
 
-// EncodeObservation writes obs to w as one NDJSON line.
 func EncodeObservation(w io.Writer, obs Observation) error {
 	if err := json.NewEncoder(w).Encode(obs); err != nil {
 		return fmt.Errorf("wire: encode observation: %w", err)
@@ -205,8 +184,6 @@ func EncodeObservation(w io.Writer, obs Observation) error {
 	return nil
 }
 
-// ObservationScanner reads NDJSON observations from a prober's stdout, one
-// per call to Next.
 type ObservationScanner struct {
 	scanner *bufio.Scanner
 	obs     Observation
@@ -225,8 +202,6 @@ func NewObservationScanner(r io.Reader) *ObservationScanner {
 	return &ObservationScanner{scanner: sc}
 }
 
-// Next advances to the next observation, returning false at EOF or on the
-// first decode error (retrievable via Err).
 func (s *ObservationScanner) Next() bool {
 	if s.count >= MaxObservations {
 		s.err = ErrProberOutputTooLarge
@@ -248,12 +223,10 @@ func (s *ObservationScanner) Next() bool {
 	return true
 }
 
-// Observation returns the observation decoded by the most recent Next call.
 func (s *ObservationScanner) Observation() Observation {
 	return s.obs
 }
 
-// Err returns the first error encountered while scanning, if any.
 func (s *ObservationScanner) Err() error {
 	return s.err
 }

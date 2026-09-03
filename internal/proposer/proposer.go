@@ -26,8 +26,6 @@ import (
 // caveats and the operator is the one judging them (ADR-0012), so the kind is
 // recorded on every Candidate rather than erased.
 const (
-	// RecordRIRDelegation is a range delegated by the RIR to a holder — an
-	// allocation or assignment in a delegated-stats file, or an ARIN org network.
 	RecordRIRDelegation = "rir-delegation"
 	// RecordCompelledReassignment is a range an upstream provider was compelled
 	// to reassign downstream — an ARIN SWIP customer (C-handle) object, whose
@@ -60,8 +58,6 @@ type Doer interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
-// Source is one keyless proposer path. It answers an operator's org-name search
-// with the candidate scopes that path believes the org holds.
 type Source interface {
 	Slug() string
 	Propose(ctx context.Context, orgName string) ([]Candidate, error)
@@ -73,14 +69,10 @@ type Registry struct {
 	sources []Source
 }
 
-// NewRegistry builds a registry over an explicit source set. Tests use it to
-// inject fakes; DefaultRegistry wires the shipped paths.
 func NewRegistry(sources ...Source) *Registry {
 	return &Registry{sources: sources}
 }
 
-// DefaultRegistry wires the three shipped keyless paths against their real
-// endpoints. The Doer carries whatever timeout the caller set.
 func DefaultRegistry(doer Doer) *Registry {
 	return NewRegistry(
 		NewARIN(doer, "https://rdap.arin.net/registry"),
@@ -148,9 +140,6 @@ func rangeToPrefixes(start netip.Addr, count *big.Int) ([]netip.Prefix, error) {
 	return out, nil
 }
 
-// alignmentBlock returns the size of the largest power-of-two block that can
-// start at addr without crossing its natural alignment — i.e. the value of
-// addr's lowest set bit, or the whole space when addr is the zero address.
 func alignmentBlock(addr netip.Addr, bits int) *big.Int {
 	v := addrToInt(addr)
 	if v.Sign() == 0 {
@@ -161,7 +150,6 @@ func alignmentBlock(addr netip.Addr, bits int) *big.Int {
 	return new(big.Int).Lsh(big.NewInt(1), tz)
 }
 
-// largestPow2AtMost returns the largest power of two that is <= n.
 func largestPow2AtMost(n *big.Int, bits int) *big.Int {
 	if n.Sign() <= 0 {
 		return big.NewInt(0)
@@ -182,8 +170,6 @@ func addrToInt(addr netip.Addr) *big.Int {
 	return new(big.Int).SetBytes(b[:])
 }
 
-// addrAdd returns addr + delta, staying in addr's family. It reports false on
-// overflow past the family's last address.
 func addrAdd(addr netip.Addr, delta *big.Int) (netip.Addr, bool) {
 	v := new(big.Int).Add(addrToInt(addr), delta)
 	if addr.Is4() {

@@ -70,8 +70,6 @@ func backURL(r *http.Request) string {
 	return p + "?" + q
 }
 
-// stripToastParam removes every `toast` pair from a raw query. It is stripParams at
-// the one name every carrier in this file drops.
 func stripToastParam(raw string) string { return stripParams(raw, "toast") }
 
 // stripParams removes every pair whose key is one of names from a raw query and

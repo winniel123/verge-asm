@@ -40,7 +40,6 @@ func TestDeclareNameAndAddressSeeds(t *testing.T) {
 	}
 	resp.Body.Close()
 
-	// An address scope.
 	resp = declare(t, ac, base, "address", "203.0.113.0/24")
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("declare address: status=%d", resp.StatusCode)

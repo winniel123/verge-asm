@@ -10,7 +10,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/measure/edgefanout"
 )
 
-// candidates is a fixed population as the lazy sequence the builder now takes.
 func candidates(t *testing.T, raw ...string) iter.Seq[netip.Addr] {
 	t.Helper()
 	out := make([]netip.Addr, 0, len(raw))

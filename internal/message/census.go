@@ -20,17 +20,9 @@ type Census struct {
 	Entries []CensusEntry `json:"entries"`
 }
 
-// CensusEntry is one thing that opened beneath the fired-at subject: a facet
-// whose handshake rode the newly-reached Service, a Service or Endpoint that
-// entered beneath a membership root, or a rule that opened at `fired` and has no
-// firing edge of its own (a move carries the rule that opens beneath it).
 type CensusEntry struct {
-	// Kind is what opened: "facet", "service", "endpoint", "name", "address" or
-	// "signal". It is display-only — the census is a flat enumerable payload, not
-	// a tree to walk.
 	Kind string `json:"kind"`
-	// Key is the facet name, subject key or rule name that opened.
-	Key string `json:"key"`
+	Key  string `json:"key"`
 }
 
 // Len is the census size — the count a headline states. Each member's count IS
@@ -38,13 +30,8 @@ type CensusEntry struct {
 // or truncated.
 func (c Census) Len() int { return len(c.Entries) }
 
-// Marshal renders the census to the JSONB bytes the store holds. A census with
-// no entries marshals to a present-but-empty payload, which is distinct from the
-// SQL NULL a firing with no census carries at all.
 func (c Census) Marshal() ([]byte, error) { return json.Marshal(c) }
 
-// ParseCensus reads a census back from the store's JSONB bytes. Empty or nil
-// input yields an empty census — a stored NULL means the firing carried none.
 func ParseCensus(b []byte) (Census, error) {
 	if len(b) == 0 {
 		return Census{}, nil

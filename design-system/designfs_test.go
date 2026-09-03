@@ -5,9 +5,6 @@ import (
 	"testing"
 )
 
-// TestFSExposesDesignArtifacts pins the read-only surface the web app depends
-// on: the inventory template, the full token set, and the fixture corpus must
-// all be reachable through FS by their package-relative paths.
 func TestFSExposesDesignArtifacts(t *testing.T) {
 	want := []string{
 		"templates/inventory.tmpl",

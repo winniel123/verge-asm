@@ -74,7 +74,6 @@ func TestMembershipCrossClassWithdrawalConvergesWithDrift(t *testing.T) {
 		t.Error("cross-class disagreement keeps the Name present")
 	}
 
-	// Both classes agree on NameError: withdrawn.
 	est2 := Membership([]Observation{
 		{Name: "dead.example.com", Vantage: "in", Class: "internal", Resolution: ne},
 		{Name: "dead.example.com", Vantage: "out", Class: "internet", Resolution: ne},

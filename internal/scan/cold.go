@@ -29,9 +29,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// ColdKind is the DB Scan kind this file dispatches. The leaf it dispatches is
-// `connect-outcome`, distinct from the Scan's kind exactly as `hot` dispatches
-// the same leaf and `dns` dispatches `resolution-walk`.
 const ColdKind = "cold"
 
 // ColdPortLow and ColdPortHigh bound the cold Scan's port scope: the full TCP
@@ -42,20 +39,9 @@ const (
 	ColdPortHigh uint16 = 65535
 )
 
-// ColdScope is the opted-in `Seed` scope the cold Scan probes within: the union
-// of the address-scope Seeds opted in (as CIDR prefixes) and the addresses
-// currently cited by names under an opted-in name-scope Seed. An address is in
-// scope when it is enumerated by an opted-in prefix or listed in Addresses. An
-// empty ColdScope is the shipped state — the tier configured with no scope — and
-// produces no jobs at all.
 type ColdScope struct {
-	// AddressPrefixes are the opted-in address-scope Seeds. Every address inside
-	// one is in scope, exactly as an address scope is its own enumeration.
 	AddressPrefixes []netip.Prefix
-	// Addresses are the addresses an opted-in name-scope Seed reaches: the
-	// addresses names under its domain currently resolve to. The dispatcher folds
-	// resolutions to this set; the pure builder only tests membership.
-	Addresses map[netip.Addr]bool
+	Addresses       map[netip.Addr]bool
 }
 
 // empty reports whether no Seed scope has opted in. An empty scope never fires:
@@ -64,7 +50,6 @@ func (c ColdScope) empty() bool {
 	return len(c.AddressPrefixes) == 0 && len(c.Addresses) == 0
 }
 
-// contains reports whether an address falls inside the opted-in scope.
 func (c ColdScope) contains(a netip.Addr) bool {
 	a = a.Unmap()
 	if c.Addresses[a] {
@@ -181,7 +166,6 @@ func (j ColdJob) AttemptedScope() ([]byte, error) {
 	})
 }
 
-// OffersJSON is the safety profile recorded on the Batch by content.
 func (j ColdJob) OffersJSON() ([]byte, error) { return json.Marshal(j.Profile) }
 
 // EmptyColdScope is what a dead-lettered cold Batch records — never the

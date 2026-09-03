@@ -13,8 +13,6 @@ import (
 // carried by ParamsDigest, so a change to it still moves the lock.
 var ControlPorts = blanketdiscrim.FixedPorts{P: []uint16{50001, 50002, 50003}}
 
-// Step is one run of the composed exchange inside a row: one Batch at one Vantage
-// over one scope, against one scripted connector and handshaker.
 type Step struct {
 	Batch     string
 	Scope     co.Scope
@@ -33,8 +31,6 @@ type Row struct {
 	Golden       string
 }
 
-// AllCells is the enumeration the coverage test counts against: every cell of the
-// blanket-discrimination block must be pinned by at least one row.
 var AllCells = []string{
 	// B1 — a blanket responder gaps every Service and is never handshaked
 	"B1/blanket-all-gap", "B1/blanket-no-cert",
@@ -48,7 +44,6 @@ var AllCells = []string{
 
 func profile() co.SafetyProfile { return co.DefaultProfile() }
 
-// scope builds a one-vantage scope over addresses, TCP ports, and declared names.
 func scope(addrs []string, tcp []uint16, names []string) co.Scope {
 	return co.Scope{
 		Vantage:      "v1",
@@ -60,8 +55,6 @@ func scope(addrs []string, tcp []uint16, names []string) co.Scope {
 	}
 }
 
-// Rows is the checked-in corpus. Every cell in AllCells appears in some row's
-// Cells; the coverage test fails the build (naming the cell) if one does not.
 var Rows = []Row{
 	// ---- B1: a blanket responder ----
 	// Every control port answers, so the address is a blanket responder: each of
@@ -118,8 +111,8 @@ var Rows = []Row{
 		Claim:        "a control probe that times out did not complete, so the reach is an undiscriminated Gap with the incomplete reason — never a value",
 		SpecVerified: true,
 		Step: Step{
-			Batch: "b1",
-			Scope: scope([]string{"198.51.100.42"}, []uint16{443}, nil),
+			Batch:   "b1",
+			Scope:   scope([]string{"198.51.100.42"}, []uint16{443}, nil),
 			Connect: newScript(map[string][]co.ConnResult{
 				// nothing scripted: the control ports time out -> incomplete -> Gap.
 			}),

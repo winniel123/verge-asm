@@ -85,11 +85,6 @@ func (d *Dispatcher) dispatchDue(ctx context.Context) {
 	}
 }
 
-// dispatchOne claims one on-cadence run of a schedule for tick under a per-schedule
-// advisory lock and, on winning the claim, cuts the artifact and stamps the receipt.
-// It returns nil with nothing rendered when the tick was already dispatched: the
-// overlap is skipped and recorded by the pre-existing receipt that owns the tick —
-// the partial-unique (schedule_id, scheduled_tick) admits only one.
 func (d *Dispatcher) dispatchOne(ctx context.Context, sc db.ReportSchedule, tick time.Time, window time.Duration) error {
 	tx, err := d.pool.Begin(ctx)
 	if err != nil {

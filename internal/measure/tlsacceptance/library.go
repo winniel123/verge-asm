@@ -33,8 +33,6 @@ var libraryCiphers = func() map[string]uint16 {
 	return m
 }()
 
-// cipherNameByID is the reverse map, for rendering the negotiated suite back to its
-// constant name.
 var cipherNameByID = func() map[uint16]string {
 	m := map[uint16]string{}
 	for name, id := range libraryCiphers {

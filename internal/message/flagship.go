@@ -24,14 +24,10 @@ const (
 // flagship predicate reads. It carries the leg's class, the from/to values of
 // the transition, and whether the leg opened at `reached` rather than moving.
 type ReachMove struct {
-	// ServiceKey is the (address:port/transport) key the leg was measured on.
 	ServiceKey string
-	// Class is the Vantage class the leg was measured from.
-	Class VantageClass
-	// From and To are the two Reach values of the transition. A leg that opened
-	// (see Opened) carries no From.
-	From string
-	To   string
+	Class      VantageClass
+	From       string
+	To         string
 	// Opened is true where this is the first look the leg ever had — the timeline
 	// opened at `reached` rather than moving into it. An opening emits no
 	// Transition, so the flagship predicate does not match it: that news is

@@ -36,11 +36,6 @@ const (
 // buildInventory and asserts deep equality against the parsed fixture JSON, so a
 // drift between loader and derivation fails the build rather than the eye.
 
-// fixtureSpan is one open span the loader synthesizes: the subject it sits on, the
-// facet timeline it values, the structured value the inventory derivations decode,
-// whether it is a Gap, and the UTC date it opened (its Since). vantage_id stays
-// NULL — the "vantage 1/3/prober" qualifiers ride the discriminator column, not a
-// vantage row.
 type fixtureSpan struct {
 	kind          string
 	key           string
@@ -57,7 +52,6 @@ type fixtureSpan struct {
 // quotes “ ” (U+201C/U+201D) around an http-identity title and the arrow → (U+2192)
 // before a redirect; those are NOT in the stored value.
 var inventoryFixtureSpans = []fixtureSpan{
-	// Names.
 	{kind: "name", key: "www.acmecorp.io", facet: "resolution", value: `{"rrtype":"A","addresses":["198.51.100.7","198.51.100.8"]}`, since: "2026-07-14"},
 	{kind: "name", key: "www.acmecorp.io", facet: "dns-record", value: `{"rrs":[{"type":"CNAME","data":"edge.acmecorp.io"},{"type":"TXT","data":"verge-custody=vg1:9f3k…"}]}`, since: "2026-07-14"},
 	{kind: "name", key: "api.acmecorp.io", facet: "resolution", value: `{"rrtype":"A","addresses":["203.0.113.44"]}`, since: "2026-06-02"},
@@ -65,14 +59,12 @@ var inventoryFixtureSpans = []fixtureSpan{
 	{kind: "name", key: "mail.acmecorp.io", facet: "resolution", value: `{"rrtype":"A","addresses":["203.0.113.25"]}`, since: "2026-05-19"},
 	{kind: "name", key: "mail.acmecorp.io", facet: "dns-record", value: `{}`, isGap: true, since: "2026-08-21"},
 
-	// Services.
 	{kind: "service", key: "198.51.100.7:443/tcp", facet: "tls-acceptance", value: `{"outcome":"enumerated","versions":["1.2","1.3"]}`, since: "2026-07-14"},
 	{kind: "service", key: "198.51.100.7:443/tcp", facet: "certificate", value: `{"chain":[{"cn":"www.acmecorp.io","not_after":"2026-11-02"},{"cn":"R11","issuer_org":"Let’s Encrypt"}]}`, since: "2026-08-03"},
 	{kind: "service", key: "203.0.113.44:22/tcp", facet: "reachability", value: `{"outcome":"answers","ports":["22/tcp"]}`, since: "2026-04-30"},
 	{kind: "service", key: "203.0.113.44:22/tcp", facet: "tls-acceptance", value: `{"outcome":"none · plaintext ssh"}`, since: "2026-04-30"},
 	{kind: "service", key: "198.51.100.31:8443/tcp", facet: "certificate", value: `{}`, isGap: true, since: "2026-08-19"},
 
-	// Endpoints.
 	{kind: "endpoint", key: "www.acmecorp.io · :443 https", facet: "http-identity", value: `{"server":"nginx","status":200,"title":"Acme — sign in"}`, since: "2026-07-14"},
 	{kind: "endpoint", key: "grafana.acmecorp.io · :443 https", facet: "http-identity", value: `{"server":"Grafana","status":302,"redirect_location":"/login"}`, since: "2026-06-27"},
 

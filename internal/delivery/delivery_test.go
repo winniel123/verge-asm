@@ -83,7 +83,6 @@ func TestBuildBodyCarriesNoRows(t *testing.T) {
 			t.Errorf("body leaked a census row (%q): %s", entryKey, doc)
 		}
 	}
-	// The census field is present and numeric — a count, not an array.
 	var probe struct {
 		Census json.RawMessage `json:"census"`
 	}
@@ -326,8 +325,6 @@ func TestDeliveryErrorRedactsCredentialBearingURL(t *testing.T) {
 	}
 }
 
-// captureDoer is the fake HTTP surface: it reads the request body and headers and
-// returns a 200 without ever touching the network.
 type captureDoer struct {
 	body   []byte
 	sig    string
@@ -343,7 +340,6 @@ func (d *captureDoer) Do(req *http.Request) (*http.Response, error) {
 	return &http.Response{StatusCode: 200, Body: http.NoBody}, nil
 }
 
-// fakeResolver places a host in whatever range the test needs without real DNS.
 type fakeResolver map[string][]netip.Addr
 
 func (f fakeResolver) LookupNetIP(_ context.Context, _, host string) ([]netip.Addr, error) {
@@ -384,7 +380,6 @@ func TestDeliveryRefusesPrivateResolvedTarget(t *testing.T) {
 		t.Fatal("doer.Do was called for the metadata literal")
 	}
 
-	// A public-resolving host still posts.
 	if _, err := r.send(context.Background(), "https://hooks.example/hook", body, nil); err != nil {
 		t.Fatalf("send to a public-resolving host errored: %v", err)
 	}

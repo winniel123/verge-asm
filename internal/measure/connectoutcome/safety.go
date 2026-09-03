@@ -58,8 +58,6 @@ type Backoff struct {
 	policy   BackoffPolicy // which stress causes the declared offers halve on
 }
 
-// NewBackoff starts a back-off at the profile's per-host rate, honouring the
-// profile's declared adaptive-back-off policy.
 func NewBackoff(profile SafetyProfile) *Backoff {
 	base := profile.PerHostConnPerSec
 	if base < 1 {
@@ -83,8 +81,6 @@ func (b *Backoff) Signal(cause Stress) {
 	}
 }
 
-// Rate is the current effective per-host connection rate, in conn/s: the base
-// halved once per signal, floored at 1.
 func (b *Backoff) Rate() int {
 	r := b.base >> b.halvings
 	if r < 1 {
@@ -93,8 +89,6 @@ func (b *Backoff) Rate() int {
 	return r
 }
 
-// Interval is the minimum spacing between two connects to the host at the
-// current rate. It is what a Pacer adds to a host's last-emit instant.
 func (b *Backoff) Interval() time.Duration {
 	return time.Second / time.Duration(b.Rate())
 }
@@ -113,7 +107,6 @@ type Pacer struct {
 	profile           SafetyProfile
 }
 
-// NewPacer builds a Pacer over the profile's aggregate ceiling and per-host rate.
 func NewPacer(profile SafetyProfile) *Pacer {
 	pps := profile.PerVantagePacketsPerSec
 	if pps < 1 {

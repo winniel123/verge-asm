@@ -116,9 +116,6 @@ func reachRowsFromAt(rows []db.ListServiceReachabilitySpansByClassAtRow) []reach
 	return out
 }
 
-// moreRecent reports whether a per-vantage leg row should replace the one currently
-// chosen for its (subject, derived class) bucket — the opened_at DESC, id DESC tiebreak
-// the retired SQL DISTINCT ON encoded (a resolution read passes observed_at as openedAt).
 func moreRecent(openedAt time.Time, id int64, cur reachLegRow) bool {
 	if openedAt.After(cur.openedAt) {
 		return true

@@ -35,8 +35,7 @@ type Custody string
 
 const (
 	// Operator: the operator controls the listener, so the gate may open.
-	Operator Custody = "operator"
-	// ThirdParty: everything a `Seed` does not cover — the closed direction.
+	Operator   Custody = "operator"
 	ThirdParty Custody = "third-party"
 )
 
@@ -57,15 +56,9 @@ type Resolution struct {
 // `Seed` fact or an observation of a `Seed`'s names; there is no field a
 // registry proposal could populate.
 type Estate struct {
-	// AddressScopes are the CIDRs of declared address-scope Seeds, canonical
-	// (masked). Every address inside one derives operator directly.
 	AddressScopes []netip.Prefix
-	// ExtendedZones are the registrable domains of name-scope Seeds carrying a
-	// custody extension. A name-scope Seed with the extension off contributes
-	// nothing to the derivation.
 	ExtendedZones []string
-	// Resolutions are the observed direct A/AAAA records of names in the estate.
-	Resolutions []Resolution
+	Resolutions   []Resolution
 	// edgeFanout is the `edge-fanout` Scan's measured result. It narrows the
 	// custody extension's reach and reaches NOTHING ELSE (ADR-0129 §4).
 	//
@@ -127,15 +120,6 @@ func (e Estate) AddressExcluded(addr netip.Addr) bool {
 	return false
 }
 
-// WithEdgeFanout returns e carrying f, with f's extension-limb floor resolved
-// against e's OWN extension candidates. It is the ONE way a measurement enters an
-// Estate.
-//
-// Call it LAST, on an Estate whose ExtendedZones and Resolutions are already set:
-// the floor is read over ExtensionCandidates, and an Estate missing those holds no
-// candidate to measure. The cost is ONE candidate-set build per assembly — a linear
-// pass over the resolutions — which is why the floor lives here and not in
-// coveredByExtension, where it would rebuild the set on every derived address.
 func (e Estate) WithEdgeFanout(f EdgeFanout) Estate {
 	e.edgeFanout = f.overExtension(e.ExtensionCandidates())
 	return e

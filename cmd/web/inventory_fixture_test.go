@@ -51,8 +51,6 @@ type fixtureDetail struct {
 	Data string `json:"data"`
 }
 
-// fixtureSpanRows builds the exact ListAllOpenSpansRow inputs the loader inserts,
-// from the single-source-of-truth inventoryFixtureSpans slice.
 func fixtureSpanRows(t *testing.T) []db.ListAllOpenSpansRow {
 	t.Helper()
 	rows := make([]db.ListAllOpenSpansRow, 0, len(inventoryFixtureSpans))
@@ -128,10 +126,6 @@ func TestInventoryFixtureCountsMatchPackage(t *testing.T) {
 	}
 }
 
-// TestBuildInventoryMatchesDesignFixture is the byte-exactness gate: buildInventory
-// over the loader's 17 synthesized spans must reproduce
-// design-system/fixtures/fixtures.json → inventory.groups exactly — every group,
-// subject, and facet string AND their order.
 func TestBuildInventoryMatchesDesignFixture(t *testing.T) {
 	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
 	if err != nil {

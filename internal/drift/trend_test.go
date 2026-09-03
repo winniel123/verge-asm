@@ -5,8 +5,6 @@ import (
 	"time"
 )
 
-// now anchor for the trend fold — distinct from drift_test.go's t0. A weekly bucket
-// is the Reports range's own week granularity (reportsRangeLabel "last N weeks").
 var trendNow = time.Date(2026, 8, 24, 0, 0, 0, 0, time.UTC)
 
 const week = 7 * 24 * time.Hour
@@ -50,16 +48,14 @@ func TestHeatLevelsNeverExceedsTheRamp(t *testing.T) {
 	}
 }
 
-// --- SignalsOverTime ---
-
 func TestSignalsOverTimeBucketsIncidenceByFirstSeen(t *testing.T) {
 	// Four weekly buckets ending at trendNow; window opens 4 weeks back.
 	start := windowStart(trendNow, week, 4)
 	raises := []Raise{
-		{At: start.Add(1 * time.Hour)},               // bucket 0
-		{At: start.Add(week + 1*time.Hour)},          // bucket 1
-		{At: start.Add(week + 2*time.Hour)},          // bucket 1
-		{At: start.Add(3*week + 1*time.Hour)},        // bucket 3
+		{At: start.Add(1 * time.Hour)},        // bucket 0
+		{At: start.Add(week + 1*time.Hour)},   // bucket 1
+		{At: start.Add(week + 2*time.Hour)},   // bucket 1
+		{At: start.Add(3*week + 1*time.Hour)}, // bucket 3
 	}
 	pts := SignalsOverTime(raises, trendNow, week, 4)
 	if len(pts) != 4 {
@@ -123,17 +119,15 @@ func TestSignalsOverTimeEmptyIsAllZeroBuckets(t *testing.T) {
 	}
 }
 
-// --- New assets discovered ---
-
 func TestDiscoverySeriesBucketsAppearancesByInstant(t *testing.T) {
 	const day = 24 * time.Hour
 	start := windowStart(trendNow, day, 4)
 	apps := []Appearance{
-		{At: start.Add(1 * time.Hour)},              // bucket 0
-		{At: start.Add(day + 1*time.Hour)},          // bucket 1
+		{At: start.Add(1 * time.Hour)},                    // bucket 0
+		{At: start.Add(day + 1*time.Hour)},                // bucket 1
 		{At: start.Add(day + 2*time.Hour), Service: true}, // bucket 1
-		{At: start.Add(3*day + 1*time.Hour)},        // bucket 3
-		{At: start.Add(-day)},                       // before the window: dropped
+		{At: start.Add(3*day + 1*time.Hour)},              // bucket 3
+		{At: start.Add(-day)},                             // before the window: dropped
 	}
 	pts := DiscoverySeries(apps, trendNow, day, 4)
 	if len(pts) != 4 {
@@ -162,19 +156,17 @@ func TestDiscoverySeriesEmptyIsAllZeroBuckets(t *testing.T) {
 func TestDiscoveryCountSplitsNamesAndServicesInWindow(t *testing.T) {
 	winStart := trendNow.Add(-week)
 	apps := []Appearance{
-		{At: winStart.Add(1 * time.Hour)},                 // name, in window
-		{At: winStart.Add(2 * time.Hour), Service: true},  // service, in window
-		{At: winStart.Add(3 * time.Hour), Service: true},  // service, in window
-		{At: winStart.Add(-time.Hour)},                    // before window: excluded
-		{At: trendNow},                                    // at end (exclusive): excluded
+		{At: winStart.Add(1 * time.Hour)},                // name, in window
+		{At: winStart.Add(2 * time.Hour), Service: true}, // service, in window
+		{At: winStart.Add(3 * time.Hour), Service: true}, // service, in window
+		{At: winStart.Add(-time.Hour)},                   // before window: excluded
+		{At: trendNow},                                   // at end (exclusive): excluded
 	}
 	got := DiscoveryCount(apps, winStart, trendNow)
 	if got.Total != 3 || got.Names != 1 || got.Services != 2 {
 		t.Fatalf("want total 3 / names 1 / services 2, got %+v", got)
 	}
 }
-
-// --- Withdrawal / MeanTimeToWithdrawal ---
 
 func TestWithdrawalDurationValidity(t *testing.T) {
 	appeared := trendNow.Add(-3 * week)
@@ -199,7 +191,7 @@ func TestMeanTimeToWithdrawalAveragesValidIntervalsOnly(t *testing.T) {
 	ws := []Withdrawal{
 		{Appeared: trendNow.Add(-4 * week), Withdrawn: trendNow.Add(-2 * week)}, // 2 weeks
 		{Appeared: trendNow.Add(-6 * week), Withdrawn: trendNow.Add(-2 * week)}, // 4 weeks
-		{Withdrawn: trendNow},                                                   // unusable, dropped
+		{Withdrawn: trendNow}, // unusable, dropped
 	}
 	mean, ok := MeanTimeToWithdrawal(ws)
 	if !ok || mean != 3*week {
@@ -249,7 +241,6 @@ func TestBucketIndexBoundaryBelongsToNewerBucket(t *testing.T) {
 	if _, ok := bucketIndex(trendNow, start, week, 4); ok {
 		t.Fatal("instant at now should fall outside the window")
 	}
-	// Before the window is outside.
 	if _, ok := bucketIndex(start.Add(-time.Hour), start, week, 4); ok {
 		t.Fatal("instant before the window should be outside")
 	}

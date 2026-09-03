@@ -222,7 +222,6 @@ type graphColumnCount struct {
 // Seed (ADR-0136 §3).
 const graphScopeAll = "all"
 
-// graphScopeAllLabel is the whole-estate entry's label in the selector.
 const graphScopeAllLabel = "Whole estate"
 
 // graphScope is one entry of the graph's scope selector: the ?scope token the URL
@@ -243,9 +242,6 @@ type graphScope struct {
 	Prefix netip.Prefix
 }
 
-// graphScopes reads the declared Seeds into the selector's vocabulary: the whole
-// estate first, then one entry per Seed in the order ListSeeds returns. A Seed row
-// carrying neither a domain nor a CIDR names no population and is skipped.
 func graphScopes(seeds []db.ListSeedsRow) []graphScope {
 	out := []graphScope{{Token: graphScopeAll, Label: graphScopeAllLabel}}
 	for _, s := range seeds {
@@ -296,8 +292,6 @@ func graphRadius(typ string) int {
 	}
 }
 
-// round1 rounds a float to one decimal place — the minimap coordinate precision the
-// design fixture carries (e.g. 90·110/1200 = 8.25 → 8.3).
 func round1(v float64) float64 { return math.Round(v*10) / 10 }
 
 // classifyNameTypes splits the Name set into the domain|subdomain tiers (#22e): a
@@ -409,7 +403,6 @@ func (m graphMembers) unbounded() bool {
 	return m.domain == "" && !m.prefix.IsValid()
 }
 
-// holdsName reports whether the scope holds this Name.
 func (m graphMembers) holdsName(name string) bool {
 	if m.unbounded() {
 		return true
@@ -759,8 +752,6 @@ func worstSeverity(sigs []graphSignal) string {
 	return best
 }
 
-// sortedSet returns a string set's members in ascending order, for a deterministic
-// layout.
 func sortedSet(m map[string]struct{}) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {
@@ -770,8 +761,6 @@ func sortedSet(m map[string]struct{}) []string {
 	return out
 }
 
-// joinPorts renders an Address's open ports as a space-separated list (":443 :22"),
-// or an em dash where it has none.
 func joinPorts(set map[string]struct{}) string {
 	if len(set) == 0 {
 		return "—"

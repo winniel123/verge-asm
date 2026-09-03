@@ -42,7 +42,6 @@ const (
 // the same time and neither is distinguishable from the outside.
 var dummyHash, _ = auth.HashPassword("verge-timing-equaliser")
 
-// authedHandler is a handler that has already resolved the caller's account.
 type authedHandler func(w http.ResponseWriter, r *http.Request, acct db.Account)
 
 // currentAccount resolves the signed session cookie to an account. Identity
@@ -140,8 +139,6 @@ const (
 	roleViewer = "viewer"
 )
 
-// --- setup -----------------------------------------------------------------
-
 func (s *server) setupForm(w http.ResponseWriter, r *http.Request) {
 	if s.setupClosed(r) {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
@@ -179,9 +176,6 @@ func (s *server) setupSubmit(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
-// setupClosed reports whether the bootstrap window is shut: it is shut once any
-// account exists, which is what makes the setup token single-use — the first
-// admin it creates closes it.
 func (s *server) setupClosed(r *http.Request) bool {
 	if s.setupToken == "" {
 		return true
@@ -193,8 +187,6 @@ func (s *server) setupClosed(r *http.Request) bool {
 	}
 	return n > 0
 }
-
-// --- login -----------------------------------------------------------------
 
 // The SignIn-family markup is the DESIGN-OWNED, frozen design-system/templates/signin.tmpl
 // (package v3.7.0, WORKFLOW v4), embedded read-only via the designfs package and parsed into
@@ -254,9 +246,6 @@ type ssoLoginProvider struct {
 	Mark string
 }
 
-// ssoMark derives the login button's mono mark from a provider name: the first letter of up to
-// the first two words, uppercased (e.g. "Okta" → "O", "Acme Corp" → "AC"). An empty name yields
-// an empty mark, which the tmpl simply renders as a blank chip.
 func ssoMark(name string) string {
 	mark := ""
 	for _, field := range strings.Fields(name) {
@@ -596,8 +585,6 @@ func (s *server) completeLogin(w http.ResponseWriter, r *http.Request, id int64)
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
-// --- home / Dashboard -------------------------------------------------------
-
 // The Dashboard screen is now byte-served from the design-owned, frozen dashboard.tmpl
 // (package v3.9.0, WORKFLOW v4), embedded read-only via the designfs package and parsed
 // into the shared set here. The repo authors no dashboard markup/CSS/JS: templates_dashboard.go
@@ -823,8 +810,6 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 	criticalSignals := 0
 	sevCounts := map[string]int{}
 	var recentSignals []dashRecentSignal
-	// firedPairs is the flat (rule, subject) fired set the vs-last-batch signal deltas
-	// read (P0.2), collected from the same census fold.
 	var firedPairs []firedSignal
 	if corpus, cerr := s.buildSignalCorpus(r); cerr == nil {
 		censuses := signal.EvaluateCorpus(corpus)
@@ -1061,8 +1046,6 @@ func statValue(n int, ok bool) string {
 	return commaInt(n)
 }
 
-// commaInt renders an integer with thousands separators ("1,284"), matching the stat
-// band's numerals (Dashboard.jsx).
 func commaInt(n int) string {
 	s := strconv.Itoa(n)
 	neg := strings.HasPrefix(s, "-")
@@ -1161,8 +1144,6 @@ func firstSeedName(rows []db.ListSeedsRow) string {
 	return ""
 }
 
-// --- account management -----------------------------------------------------
-
 // accountPage redirects the temporary `GET /account` home (#277) to its permanent
 // fold in Settings → access (#281). The account details + admin invite/TOTP form
 // now live in the Settings access sub-tab, so this route is a redirect and the
@@ -1196,8 +1177,6 @@ func (s *server) createAccount(w http.ResponseWriter, r *http.Request, _ db.Acco
 	s.backToSection(w, r, "team")
 }
 
-// totpEnable is the profile "Enable two-factor" POST (screen 3, profile.tmpl). It opens the
-// enrollment screen through the shared beginTOTPEnroll path.
 func (s *server) totpEnable(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	s.beginTOTPEnroll(w, r, acct)
 }
@@ -1334,8 +1313,6 @@ func (s *server) totpConfirm(w http.ResponseWriter, r *http.Request, acct db.Acc
 
 // --- forgot / reset password (#314, T19) ------------------------------------
 
-// forgotForm renders the "enter your account name" step of the reset flow. It is
-// pre-auth: a caller who has lost their password has no session to gate on.
 func (s *server) forgotForm(w http.ResponseWriter, r *http.Request) {
 	s.render(w, r, "forgot", s.signinData(map[string]any{"Title": "Reset password"}))
 }
@@ -1461,11 +1438,6 @@ func (s *server) lookupReset(r *http.Request, token string) (db.PasswordReset, b
 
 // --- invite acceptance (#314, T19) ------------------------------------------
 
-// inviteForm renders the set-credentials step for a valid invite token, showing the
-// role the new account will hold, or the honest invalid state when the token is
-// missing, spent, or expired. Pre-auth by construction: an invitee holds only the
-// token, no session. The invite CREATION side (minting a token at a role) lands in
-// T18 under Settings -> Team; this is the acceptance half.
 func (s *server) inviteForm(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")
 	inv, ok := s.lookupInvite(r, token)
@@ -1513,9 +1485,6 @@ func (s *server) inviteAccept(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/login?invited=1", http.StatusSeeOther)
 }
 
-// lookupInvite resolves a presented invite token to its row and reports whether it
-// is spendable: it must exist, be unconsumed, and be unexpired against the server
-// clock — the same discipline lookupReset holds.
 func (s *server) lookupInvite(r *http.Request, token string) (db.Invite, bool) {
 	if token == "" {
 		return db.Invite{}, false
@@ -1538,8 +1507,6 @@ func (s *server) lookupInvite(r *http.Request, token string) (db.Invite, bool) {
 
 // --- pre-auth token helpers (#314, T19) -------------------------------------
 
-// recoveryCodeCount is the number of recovery codes issued at TOTP enrollment,
-// matching the SignIn.jsx enrollment screen.
 const recoveryCodeCount = 8
 
 // recoveryAlphabet is the 31-character set recovery codes draw from: lowercase
@@ -1608,8 +1575,6 @@ func newRecoveryCodes(n int) (plain, hashes []string, err error) {
 // largest multiple of the alphabet length), so every character is equally likely —
 // eliminating the modulo bias the pre-#338 `b % len(alphabet)` draw carried.
 func newRecoveryCode() (string, error) {
-	// max is the largest byte value below which byte % len(alphabet) is unbiased: the
-	// alphabet length divides evenly into [0, max).
 	const max = 256 - (256 % len(recoveryAlphabet))
 	var sb strings.Builder
 	buf := make([]byte, 1)
@@ -1770,7 +1735,6 @@ func (s *server) profilePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	s.renderProfile(w, r, acct, st)
 }
 
-// profilePath is the Profile's one URL, and the destination of every Profile act.
 const profilePath = "/profile"
 
 // failProfile answers a refused Profile act the way ADR-0130 §1 asks: stash the callout,
@@ -1791,11 +1755,6 @@ func (s *server) failProfile(w http.ResponseWriter, r *http.Request, st profileS
 	http.Redirect(w, r, profilePath, http.StatusSeeOther)
 }
 
-// renderProfile assembles the Profile page's real data of the shape Profile.jsx
-// composes and renders it with the transient state. Every figure is a real read of
-// this account: username and role from the row, the 2FA status from totp_enabled,
-// the current session from the live request, and the tokens from the store. No
-// sample datum survives.
 func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.Account, st profileState) {
 	// Read the account fresh so the 2FA status reflects an enrolment completed in
 	// this same session (the shared totp flow mutates the row, not this acct copy).
@@ -1979,8 +1938,6 @@ type profileIdentityView struct {
 	LinkedAt    string
 }
 
-// profileLinkView is an enabled provider the account has not yet linked — the Profile
-// renders a "Link" button per entry.
 type profileLinkView struct {
 	Slug string
 	Name string
@@ -2411,8 +2368,6 @@ func sessionIP(r *http.Request) string {
 	return host
 }
 
-// --- helpers ---------------------------------------------------------------
-
 func (s *server) createAccountRow(r *http.Request, username, role, password string) (db.Account, error) {
 	hash, err := auth.HashPassword(password)
 	if err != nil {
@@ -2423,7 +2378,6 @@ func (s *server) createAccountRow(r *http.Request, username, role, password stri
 	})
 }
 
-// validateCredentials returns a user-facing message, or "" when acceptable.
 func validateCredentials(username, password string) string {
 	switch {
 	case username == "":
@@ -2441,8 +2395,6 @@ func validateCredentials(username, password string) string {
 	}
 }
 
-// createError maps a CreateAccount failure to a user-facing message. A unique
-// violation means the username is taken; everything else is opaque.
 func createError(err error) string {
 	if isUniqueViolation(err) {
 		return "That username is already taken."
@@ -2543,7 +2495,6 @@ func (s *server) injectChrome(data any, r *http.Request) {
 		return
 	}
 
-	// A real deployment: honest live reads.
 	ctx := context.Background()
 	acct, hasAcct := m["Account"].(db.Account)
 	signalCount, _ := m["SignalCount"].(int)

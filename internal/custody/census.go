@@ -35,12 +35,9 @@ const (
 type ExtensionCensusEntry struct {
 	// Name is the in-zone Name holding the A record — the CITING name, which is
 	// what the operator recognises. It is never the edge's own reverse name.
-	Name string
-	// Address is the edge the record points at, Unmap'ed as every address in this
-	// package is.
+	Name    string
 	Address netip.Addr
-	// State is why the extension does not reach it.
-	State ExtensionState
+	State   ExtensionState
 	// Scope is the declared address scope that ALSO covers the edge, and the zero
 	// Prefix where none does. A valid Prefix here is ADR-0129's dual-limb row: the
 	// address is declined by the extension and covered by a `Seed` at once, and the

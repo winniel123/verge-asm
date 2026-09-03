@@ -103,9 +103,6 @@ func (f *fakeStore) GetInviteByTokenHash(_ context.Context, tokenHash string) (d
 	return db.Invite{}, pgx.ErrNoRows
 }
 
-// CreateInvite mints an invite row, mirroring the SQL INSERT ... RETURNING: the
-// creation side T18's Team invite dialog exercises against the same table the
-// acceptance tests seed with addInvite.
 func (f *fakeStore) CreateInvite(_ context.Context, arg db.CreateInviteParams) (db.Invite, error) {
 	inv := db.Invite{
 		ID: f.inviteNextID, TokenHash: arg.TokenHash, Role: arg.Role, InvitedBy: arg.InvitedBy,
@@ -127,8 +124,6 @@ func (f *fakeStore) ConsumeInvite(_ context.Context, arg db.ConsumeInviteParams)
 	return pgx.ErrNoRows
 }
 
-// --- test seeding helpers ---------------------------------------------------
-
 // serverClock is the instant start()'s fixed clock is pinned to; expiry seeding is
 // relative to it so a test can mint a live or a deliberately stale grant.
 var serverClock = time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
@@ -145,8 +140,6 @@ func addReset(t *testing.T, f *fakeStore, acctID int64, plaintext string, expire
 	}
 }
 
-// addInvite seeds an invite row at a role whose token hashes from a known plaintext.
-// The creation side lands in T18; the acceptance tests seed the store directly.
 func addInvite(t *testing.T, f *fakeStore, role, plaintext string, expires time.Time) {
 	t.Helper()
 	f.invites = append(f.invites, db.Invite{
@@ -156,8 +149,6 @@ func addInvite(t *testing.T, f *fakeStore, role, plaintext string, expires time.
 	})
 	f.inviteNextID++
 }
-
-// --- forgot / reset ---------------------------------------------------------
 
 // The sign-in card links to the forgot flow, and the SSO affordance stays the
 // design-system not-configured state — no provider is fabricated (#293 is absent).
@@ -235,7 +226,6 @@ func TestResetFlowSetsPasswordOnceAndExpires(t *testing.T) {
 		t.Fatalf("spent reset token not refused; body: %s", got)
 	}
 
-	// A stale token is refused too.
 	addReset(t, f, acct.ID, "stale-token", serverClock.Add(-time.Hour))
 	if got := getAnon(t, base+"/reset?token=stale-token", http.StatusOK); !strings.Contains(got, "expired or already used") {
 		t.Fatalf("expired reset token not refused; body: %s", got)
@@ -257,8 +247,6 @@ func TestResetDoneStatesGlobalSignOut(t *testing.T) {
 		t.Fatalf("reset-done does not state the global sign-out; body: %s", got)
 	}
 }
-
-// --- TOTP enrollment + recovery codes ---------------------------------------
 
 // recoveryCodeRE matches a recovery code only inside its reveal span, so it counts
 // the shown codes rather than any incidental text elsewhere on the page. Post-#338 a
@@ -367,8 +355,6 @@ func TestRecoveryCodesEntropyAndHashing(t *testing.T) {
 	}
 }
 
-// --- invite acceptance ------------------------------------------------------
-
 // A valid invite → set-credentials screen creates the account at the invited role,
 // is single-use, and grants no session (the acceptor signs in afterwards).
 func TestInviteAcceptanceSetsCredentials(t *testing.T) {
@@ -376,7 +362,6 @@ func TestInviteAcceptanceSetsCredentials(t *testing.T) {
 	base := start(t, f, "")
 	addInvite(t, f, roleViewer, "invite-token", serverClock.Add(24*time.Hour))
 
-	// The set-credentials screen names the role.
 	if got := getAnon(t, base+"/invite?token=invite-token", http.StatusOK); !strings.Contains(got, "Accept your invitation") || !strings.Contains(got, "viewer") {
 		t.Fatalf("invite screen missing role/heading; body: %s", got)
 	}
@@ -426,7 +411,6 @@ func TestInviteInvalidToken(t *testing.T) {
 	}
 }
 
-// getAnon GETs a URL with no session and asserts the status, returning the body.
 func getAnon(t *testing.T, url string, want int) string {
 	t.Helper()
 	resp, err := http.Get(url)

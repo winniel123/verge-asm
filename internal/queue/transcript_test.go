@@ -11,12 +11,8 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// testKey is a fixed 32-byte XChaCha20-Poly1305 key for sealing in tests.
 var testKey = bytes.Repeat([]byte{0x42}, 32)
 
-// TestHeadTail checks the truncation math: a stream within the limit is returned
-// whole with no drop; a stream over it keeps the head and tail halves and reports the
-// exact dropped middle.
 func TestHeadTail(t *testing.T) {
 	within := []byte("hello")
 	out, dropped := headTail(within, 10)
@@ -74,10 +70,6 @@ func TestEncodeProberOutcome(t *testing.T) {
 	}
 }
 
-// TestBuildProberParamsRoundTrip checks a captured prober transcript maps to the row
-// the worker inserts: the frame is stamped, the streams seal and open back verbatim,
-// a captured-but-empty stream stays non-NULL (distinct from an absent one), and an
-// untruncated capture carries the empty {} marker.
 func TestBuildProberParamsRoundTrip(t *testing.T) {
 	capturedAt := time.Date(2026, 8, 30, 12, 0, 0, 0, time.UTC)
 	sent := []byte(`{"batch":"b1","kind":"tcp-connect"}` + "\n")
@@ -146,8 +138,6 @@ func TestBuildProberParamsRoundTrip(t *testing.T) {
 	}
 }
 
-// TestBuildProberParamsTruncation checks an over-cap stdout is head+tail truncated to
-// its store cap and carries an accurate {kept, dropped} marker.
 func TestBuildProberParamsTruncation(t *testing.T) {
 	big := bytes.Repeat([]byte("x"), capTranscriptStdout+100)
 	tr := wire.ProberTranscript{
@@ -190,9 +180,6 @@ func TestBuildProberParamsTruncation(t *testing.T) {
 	}
 }
 
-// TestBuildProberParamsMemoryGuard checks that a stdout that tripped the 64 MiB
-// memory guard is marked memory-guard-tripped, distinct from plain head+tail
-// truncation, even when the retained head is within the store cap.
 func TestBuildProberParamsMemoryGuard(t *testing.T) {
 	tr := wire.ProberTranscript{
 		TranscriptFrame: wire.TranscriptFrame{Kind: "tcp-connect"},
@@ -231,8 +218,6 @@ func TestBuildTranscriptParamsNilVariant(t *testing.T) {
 	}
 }
 
-// TestEncodeZoneOutcome pins the JSONB shape the zone outcome stores: the restated
-// count rides the object, and decode-error carries its text.
 func TestEncodeZoneOutcome(t *testing.T) {
 	parsed, err := encodeZoneOutcome(wire.ZoneParsed{}, 42)
 	if err != nil {
@@ -263,10 +248,6 @@ func TestEncodeZoneOutcome(t *testing.T) {
 	}
 }
 
-// TestBuildZoneParams checks a captured zone transcript maps to the row the worker
-// inserts: variant is zone, the skipped records seal into the stdout role column and
-// open back verbatim, the restated count rides the outcome, and stderr/sent-scope stay
-// NULL (streams zone does not carry).
 func TestBuildZoneParams(t *testing.T) {
 	capturedAt := time.Date(2026, 8, 31, 9, 0, 0, 0, time.UTC)
 	tr := wire.ZoneTranscript{
@@ -296,7 +277,6 @@ func TestBuildZoneParams(t *testing.T) {
 		t.Errorf("zone skips round-trip = %q, want %q", gotStdout, want)
 	}
 
-	// The restated count rides the outcome object.
 	var outcome map[string]any
 	if err := json.Unmarshal(params.Outcome, &outcome); err != nil {
 		t.Fatalf("unmarshal outcome %s: %v", params.Outcome, err)
@@ -353,10 +333,6 @@ func TestEncodeCTOutcome(t *testing.T) {
 	}
 }
 
-// TestBuildCTParams checks a captured CT transcript maps to the row the worker inserts:
-// variant is ct, the verbatim response body seals into the stdout role column and opens
-// back, the request URL and status ride the outcome, and stderr/sent-scope stay NULL
-// (streams the crt.sh producer does not carry).
 func TestBuildCTParams(t *testing.T) {
 	capturedAt := time.Date(2026, 8, 31, 10, 0, 0, 0, time.UTC)
 	body := []byte(`[{"name_value":"a.example.com"},{"name_value":"b.example.com"}]`)
@@ -391,7 +367,6 @@ func TestBuildCTParams(t *testing.T) {
 		t.Errorf("ct body round-trip = %q, want %q (verbatim)", gotBody, body)
 	}
 
-	// The request URL and status ride the outcome object.
 	var outcome map[string]any
 	if err := json.Unmarshal(params.Outcome, &outcome); err != nil {
 		t.Fatalf("unmarshal outcome %s: %v", params.Outcome, err)

@@ -11,10 +11,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/measure"
 )
 
-// TestNetExchangerSendsOneGetRootWithProbeUA proves the production exchanger's
-// wiring: exactly one request, a GET against `/`, carrying the shared identifiable
-// ProbeUserAgent. This is the README §"Probes safely" contract — "an identifiable
-// User-Agent, one GET / per endpoint" — made true.
 func TestNetExchangerSendsOneGetRootWithProbeUA(t *testing.T) {
 	var calls int32
 	var gotMethod, gotPath, gotUA string

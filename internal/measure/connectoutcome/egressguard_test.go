@@ -36,8 +36,6 @@ func TestNetConnectorGuardRefusesNonGlobal(t *testing.T) {
 	}
 }
 
-// TestNetConnectorRejectsInvalidTarget pins the entry assertion: an invalid
-// (zero) AddrPort is refused before any dial.
 func TestNetConnectorRejectsInvalidTarget(t *testing.T) {
 	c := NetConnector{Timeout: 2 * time.Second}
 	if got := c.Connect(context.Background(), netip.AddrPort{}); got != ConnError {

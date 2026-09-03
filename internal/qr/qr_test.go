@@ -5,10 +5,6 @@ import (
 	"testing"
 )
 
-// TestReedSolomonKnownVector pins the GF(256) Reed-Solomon encoder to the
-// canonical "HELLO WORLD" Version 1-M worked example (Thonky QR tutorial): 16
-// data codewords produce these 10 error-correction codewords. This is the same
-// known-vector discipline internal/auth holds its TOTP code to.
 func TestReedSolomonKnownVector(t *testing.T) {
 	data := []byte{32, 91, 11, 120, 209, 114, 220, 77, 67, 64, 236, 17, 236, 17, 236, 17}
 	want := []byte{196, 35, 39, 119, 235, 215, 231, 226, 93, 23}
@@ -23,8 +19,6 @@ func TestReedSolomonKnownVector(t *testing.T) {
 	}
 }
 
-// TestFormatBits pins the BCH format-information encoder to the published
-// level-M strings for all eight masks (Thonky format-information table).
 func TestFormatBits(t *testing.T) {
 	want := []uint32{
 		0b101010000010010, // mask 0
@@ -43,8 +37,6 @@ func TestFormatBits(t *testing.T) {
 	}
 }
 
-// TestVersionBits pins the BCH version-information encoder to the published
-// 18-bit strings for the versions that carry one (7..10).
 func TestVersionBits(t *testing.T) {
 	want := map[int]uint32{
 		7:  0x07C94,
@@ -59,16 +51,14 @@ func TestVersionBits(t *testing.T) {
 	}
 }
 
-// TestChooseVersion checks the smallest fitting level-M byte-mode version at a
-// few capacity boundaries.
 func TestChooseVersion(t *testing.T) {
 	cases := []struct {
 		n, version int
 		ok         bool
 	}{
 		{1, 1, true},
-		{14, 1, true},  // v1-M byte capacity
-		{15, 2, true},  // spills to v2
+		{14, 1, true},   // v1-M byte capacity
+		{15, 2, true},   // spills to v2
 		{213, 10, true}, // v10-M byte capacity
 		{214, 0, false}, // beyond v10
 	}
@@ -80,9 +70,6 @@ func TestChooseVersion(t *testing.T) {
 	}
 }
 
-// TestEncodeStructure checks the invariant function patterns of a rendered
-// symbol: correct dimensions, the three finder patterns with their light rings,
-// alternating timing tracks, and the always-dark module.
 func TestEncodeStructure(t *testing.T) {
 	m, err := Encode([]byte("otpauth://totp/Verge%20ASM:alice?secret=JBSWY3DPEHPK3PXP&issuer=Verge%20ASM&digits=6&period=30"))
 	if err != nil {
@@ -114,7 +101,6 @@ func TestEncodeStructure(t *testing.T) {
 			t.Fatalf("timing module at %d not alternating", i)
 		}
 	}
-	// Always-dark module beside the bottom-left finder.
 	if !m.module[m.Size-8][8] {
 		t.Fatalf("dark module at (8,%d) is not set", m.Size-8)
 	}
@@ -215,8 +201,6 @@ func TestVersion7AlignmentOnTimingTrack(t *testing.T) {
 	}
 }
 
-// TestEncodeIsDeterministic guards against a masking/penalty non-determinism
-// regression: the same payload must render identically every time.
 func TestEncodeIsDeterministic(t *testing.T) {
 	payload := []byte("otpauth://totp/Verge%20ASM:bob?secret=KVKFKRCPNZQUYMLXOVYDSQKJKZDTSRLD&issuer=Verge%20ASM&digits=6&period=30")
 	a, err := Encode(payload)

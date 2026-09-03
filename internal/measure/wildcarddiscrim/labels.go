@@ -13,11 +13,8 @@ import (
 const (
 	RandomLabelCount     = 9
 	StructuredLabelCount = 1
-	// LabelCount is the total control-label count per site.
-	LabelCount = RandomLabelCount + StructuredLabelCount
-	// randomLabelLen is the length of a random label — long enough that
-	// accidental existence is negligible.
-	randomLabelLen = 32
+	LabelCount           = RandomLabelCount + StructuredLabelCount
+	randomLabelLen       = 32
 )
 
 // rfc5737Blocks are the three documentation address ranges the structured label
@@ -37,8 +34,6 @@ var rfc5737Blocks = [3][3]int{
 // deterministic generator produces byte-identical observations for the golden
 // corpus while production draws from crypto/rand.
 type LabelGen interface {
-	// Labels returns exactly LabelCount single labels: RandomLabelCount random
-	// ones followed by StructuredLabelCount structured ones.
 	Labels() []string
 }
 
@@ -46,7 +41,6 @@ type LabelGen interface {
 // structured label over a random RFC 5737 documentation address.
 type CryptoLabels struct{}
 
-// Labels implements LabelGen.
 func (CryptoLabels) Labels() []string {
 	out := make([]string, 0, LabelCount)
 	const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789"

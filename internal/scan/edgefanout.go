@@ -110,10 +110,6 @@ func (j EdgeFanoutJob) JobSpec(batch string) (wire.JobSpec, error) {
 	return wire.JobSpec{Batch: batch, Kind: EdgeFanoutKind, Scope: raw}, nil
 }
 
-// AttemptedScope is the by-content record of what the job set out to measure — the
-// candidate addresses. It is the Batch's recorded scope on both limbs: a completed
-// Batch records what it covered, and a dead-lettered one records the same attempt with
-// no observations behind it.
 func (j EdgeFanoutJob) AttemptedScope() ([]byte, error) {
 	return json.Marshal(edgeFanoutScope{Addresses: j.Addresses})
 }

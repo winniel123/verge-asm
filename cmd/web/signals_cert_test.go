@@ -7,7 +7,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/signal"
 )
 
-// certBoolPtr is a local *bool helper for the v3 chain facts under test.
 func certBoolPtr(b bool) *bool { return &b }
 
 // sanMatchesName is the RFC 6125 §6.4.3 rule-2 predicate: an OR over the dNSName SANs

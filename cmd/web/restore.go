@@ -52,9 +52,6 @@ import (
 // name is validated against B3's `backupTables` allowlist before it reaches SQL, so the
 // manifest cannot smuggle an arbitrary identifier into a statement.
 
-// restoreMaxUpload caps the multipart archive an operator may upload for pre-flight. A
-// restore is a rare admin act over a bounded estate; the cap keeps a single upload from
-// exhausting memory while comfortably covering a real dump.
 const restoreMaxUpload = 1 << 30 // 1 GiB
 
 // restoreStaging is one admin's pre-flighted archive, held in process between the multipart
@@ -151,7 +148,7 @@ func preflightArchive(r io.Reader) (restorePreflight, error) {
 			continue
 		}
 		var span struct {
-			SubjectKey string `json:"subject_key"`
+			SubjectKey string           `json:"subject_key"`
 			ClosedAt   *json.RawMessage `json:"closed_at"`
 		}
 		if err := json.Unmarshal(head.Data, &span); err != nil {
@@ -173,9 +170,6 @@ func preflightArchive(r io.Reader) (restorePreflight, error) {
 	}, nil
 }
 
-// backupAllowed reports whether a table name is in B3's ordered allowlist. Restore reads
-// and overwrites only these — a manifest naming anything else is refused, honouring the
-// same allowlist/denylist partition backup writes with.
 func backupAllowed(table string) bool {
 	for _, t := range backupTables {
 		if t == table {
@@ -536,10 +530,6 @@ func (s *server) rotateSessionKey() error {
 	return nil
 }
 
-// scanInFlight reports whether any recent dispatch still has ready or running jobs — the
-// same "an in-flight dispatch has jobs to run" test the queue monitor uses. Restore refuses
-// while one is in flight (an overwrite would strand it). A read error is treated as in
-// flight: for a destructive act, refusing on uncertainty is the safe direction.
 func (s *server) scanInFlight(ctx context.Context) bool {
 	rows, err := s.store.ListDispatchProgress(ctx, scansHistoryLimit)
 	if err != nil {
@@ -554,9 +544,6 @@ func (s *server) scanInFlight(ctx context.Context) bool {
 	return false
 }
 
-// stashRestore / stagedRestore / clearRestore hold one admin's pre-flighted archive between
-// pre-flight and apply, keyed by account id. In-process and best-effort — a restart drops a
-// pending pre-flight, the safe direction (nothing was applied).
 func (s *server) stashRestore(accountID int64, stg *restoreStaging) {
 	s.restoreMu.Lock()
 	defer s.restoreMu.Unlock()
@@ -635,8 +622,6 @@ func formatArchiveTakenAt(archive []byte) string {
 	return man.CreatedAt
 }
 
-// joinComma joins pre-quoted identifiers for a TRUNCATE list without pulling in strings for
-// one call site.
 func joinComma(parts []string) string {
 	out := ""
 	for i, p := range parts {

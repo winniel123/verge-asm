@@ -164,7 +164,6 @@ func declaredValues(css, name string) []string {
 // the braces too, and the split stays block-form agnostic.
 var blockBreaker = strings.NewReplacer("{", ";", "}", ";")
 
-// A /* ... */ note glues itself on the same way. Drop the notes first.
 func stripComments(css string) string {
 	var b strings.Builder
 	for {

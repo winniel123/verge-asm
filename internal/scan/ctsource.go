@@ -22,15 +22,10 @@ import (
 // drives it and feeds every candidate through the shared CTAdmitter. A single-shot
 // source (crt.sh) returns an empty next cursor, so the loop fetches once.
 type CTSource interface {
-	// Slug is the source-catalogue slug stamped on every admission and consulted
-	// by the dispatcher's per-slug enablement gate. It matches CrtshSource or
-	// CertSpotterSource.
 	Slug() string
 	// DisplayName is the source's operator-facing name, surfaced verbatim in the
 	// live progress stream on a non-200 (#780). It is a rendering, never the key.
 	DisplayName() string
-	// QueryURL builds the request URL for domain at cursor. cursor is "" on the
-	// first page; a single-shot source ignores it.
 	QueryURL(domain, cursor string) string
 	// DecodePage decodes a well-formed 200 body into the candidate names it
 	// carries (walked lazily so a hostile oversized body never materialises as one

@@ -55,10 +55,6 @@ func TranscriptWindowDays(dialDays int64) (days int64, bounded bool) {
 	return dialDays, true
 }
 
-// TranscriptCutoff is the instant before which captured transcripts are retired:
-// now minus the floored window. bounded is false when the dial is 0 — the explicit
-// operator opt-out — and the caller must then retire nothing. The window is the
-// floored day count from TranscriptWindowDays, counted in SecondsPerDay.
 func TranscriptCutoff(now time.Time, dialDays int64) (cutoff time.Time, bounded bool) {
 	days, bounded := TranscriptWindowDays(dialDays)
 	if !bounded {
@@ -97,10 +93,6 @@ func NewTranscriptRetirer(store TranscriptStore, now func() time.Time, logger *l
 	return &TranscriptRetirer{store: store, now: now, log: logger}
 }
 
-// Sweep retires every transcript captured before the floored window and returns how
-// many it deleted. When the dial is 0 it deletes nothing and returns 0 — the
-// explicit operator opt-out. Unlike the other two dials this sweep is ACTIVE on a
-// fresh install: the dial ships bounded at 14 days (migration 23700).
 func (r *TranscriptRetirer) Sweep(ctx context.Context) (int64, error) {
 	settings, err := r.store.GetRetentionSettings(ctx)
 	if err != nil {

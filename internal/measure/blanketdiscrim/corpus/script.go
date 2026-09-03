@@ -38,7 +38,6 @@ func newScript(rules map[string][]connectoutcome.ConnResult) *scriptConnector {
 	return &scriptConnector{seq: seq, calls: map[netip.AddrPort]int{}}
 }
 
-// Connect implements connectoutcome.Connector.
 func (s *scriptConnector) Connect(_ context.Context, t netip.AddrPort) connectoutcome.ConnResult {
 	i := s.calls[t]
 	s.calls[t]++
@@ -60,7 +59,6 @@ type scriptHandshaker struct {
 	byEndpoint map[string]connectoutcome.HandshakeResult
 }
 
-// Handshake implements connectoutcome.Handshaker.
 func (h scriptHandshaker) Handshake(_ context.Context, t netip.AddrPort, serverName string) connectoutcome.HandshakeResult {
 	return h.byEndpoint[connectoutcome.EndpointKey(serverName, t, "tcp")]
 }

@@ -80,7 +80,6 @@ type proposalLookupView struct {
 	Proposals []proposalView
 }
 
-// recordLabel renders a Proposal's record kind in the operator's words.
 func recordLabel(kind string) string {
 	switch kind {
 	case proposer.RecordCompelledReassignment:
@@ -120,8 +119,6 @@ func overCapProposalNotice(p netip.Prefix, cap int) string {
 	)
 }
 
-// toProposalLookups groups pending proposal rows (already ordered lookup-newest,
-// proposal-oldest by the query) into the render shape.
 func toProposalLookups(rows []db.ListPendingProposalsRow) []proposalLookupView {
 	var out []proposalLookupView
 	byLookup := map[int64]int{} // lookup id -> index in out
@@ -148,7 +145,6 @@ func toProposalLookups(rows []db.ListPendingProposalsRow) []proposalLookupView {
 	return out
 }
 
-// proposalLookups reads the pending Proposals for rendering on the Seeds screen.
 func (s *server) proposalLookups(ctx context.Context) ([]proposalLookupView, error) {
 	rows, err := s.store.ListPendingProposals(ctx)
 	if err != nil {

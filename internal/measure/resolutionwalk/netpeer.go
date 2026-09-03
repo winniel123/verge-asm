@@ -30,8 +30,7 @@ type NetPeer struct {
 	// the Vantage's identity (ADR-0070), so it is supplied per batch and never
 	// defaulted here.
 	Resolver string
-	// Timeout bounds one exchange. Zero uses a conservative default.
-	Timeout time.Duration
+	Timeout  time.Duration
 }
 
 // netResolver backs both the pre-flight custody vetting (walkServerReachable)

@@ -16,7 +16,6 @@ import (
 // so each one is also the progressive-enhancement check the ticket asks for: the act
 // works, and its error is shown, on plain markup alone.
 
-// submitLoc asserts a mutating act answered 303 and returns its Location.
 func submitLoc(t *testing.T, resp *http.Response) string {
 	t.Helper()
 	defer resp.Body.Close()

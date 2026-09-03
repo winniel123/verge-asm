@@ -33,9 +33,6 @@ var valenceRe = func() *regexp.Regexp {
 	return regexp.MustCompile(`(?i)\b(` + strings.Join(quoted, "|") + `)\b`)
 }()
 
-// ContainsValence reports whether s carries any refused valence word, matched on
-// word boundaries and case-insensitively. It is the guard behind the model's
-// promise that no rendered message copy grades the news.
 func ContainsValence(s string) bool { return valenceRe.MatchString(s) }
 
 // Threshold returns a clock-class Message for a rule whose threshold was crossed
@@ -55,10 +52,6 @@ func Threshold(subjectKind, subjectKey, headline string, instant time.Time) *Mes
 	}
 }
 
-// DeclaredInput returns a Message whose mover is the operator's own declared
-// input — a Source they toggled, a zone file they re-supplied. It links to the
-// Source the rule reads, and rides the coverage class (we changed what we are
-// told). sourceKey is the Source identity the row links to.
 func DeclaredInput(sourceKey, headline string, instant time.Time) *Message {
 	return &Message{
 		Cause:       CauseDeclaredInput,
@@ -70,17 +63,11 @@ func DeclaredInput(sourceKey, headline string, instant time.Time) *Message {
 	}
 }
 
-// flagshipHeadline states the internet leg reaching, with the count of facets
-// that opened beneath as its factor. `reached` is a Reach value, not a valence
-// word — the sentence names what moved and grades nothing.
 func flagshipHeadline(serviceKey string, census Census) string {
 	return fmt.Sprintf("%s reached from the internet · %s opened beneath it",
 		serviceKey, plural(census.Len(), "facet", "facets"))
 }
 
-// membershipHeadline states a root entering the estate, with the count of
-// timelines that opened beneath as its factor. `appeared` / `returned` /
-// `revealed` are the Transition's own words and carry no valence.
 func membershipHeadline(entry Entry, rootKey string, census Census) string {
 	verb := map[Entry]string{
 		EntryAppeared: "entered the estate",
@@ -161,30 +148,19 @@ func plural(n int, one, many string) string {
 // modelled. With no delivery backend the artifact is genuinely Empty and the
 // design-system empty-state stands — nothing is fabricated.
 type Artifact struct {
-	// Title is the report's name (e.g. "Weekly exposure summary"); Org is the
-	// account the delivery was cut for.
-	Title string
-	Org   string
-	// PeriodStart / PeriodEnd bound the delivery window (ISO dates); DeliveryNo is
-	// the delivery's monotonic number within its schedule.
+	Title       string
+	Org         string
 	PeriodStart string
 	PeriodEnd   string
 	DeliveryNo  int
-	// GeneratedAt is the instant the artifact was cut (ISO); Version names the
-	// release that cut it; Format is the delivered form ("pdf").
 	GeneratedAt string
 	Version     string
 	Format      string
 	// Stats is the KPI band — honest current-state / period scalars. No resolve
 	// metric appears: signals are withdrawn by the world, never resolved.
-	Stats []ArtifactStat
-	// SeverityCounts is the "open signals by severity" bar breakdown — one entry
-	// per severity level present, ordered most urgent first (SevOrder). Each Level
-	// is one of the five exact tokens; the bars draw only what is supplied.
+	Stats          []ArtifactStat
 	SeverityCounts []ArtifactSeverityCount
-	// Signals is the "new this week" table — the signals raised in the period, each
-	// carrying its rule's severity (P0.1) drawn as a SeverityBadge column.
-	Signals []ArtifactSignal
+	Signals        []ArtifactSignal
 	// Withdrawn is what the world withdrew this period ("withdrawn by the world"),
 	// riding the drift vocabulary and palette, never the severity ramp.
 	Withdrawn []ArtifactChange
@@ -225,10 +201,6 @@ type ArtifactSeverityCount struct {
 	Count int
 }
 
-// ArtifactSignal is one row of the "new this week" table — a signal raised in the
-// period, carrying its rule's severity (P0.1). Severity is one of the five exact
-// tokens and selects a SeverityBadge; Signal is the signal's headline, Asset the
-// subject it was raised on (a UI collective noun), Raised the date it surfaced.
 type ArtifactSignal struct {
 	Severity string
 	Signal   string
@@ -303,8 +275,6 @@ const artifactTokens = `<style>
 }
 </style>`
 
-// microLabelStyle is the mono eyebrow the system uses as a section header — the
-// signature motif, reused for every h2 in the artifact document.
 const microLabelStyle = `margin:0;font:500 11px var(--mono);letter-spacing:0.07em;text-transform:uppercase;color:var(--muted)`
 
 // The delivered document's fixed copy — the section titles, the empty-section
@@ -341,8 +311,6 @@ func RenderArtifact(a Artifact) template.HTML {
 	return template.HTML(artifactDocTokens) + doc
 }
 
-// artifactStatBand renders the KPI summary band — three honest scalars, each a
-// mono numeral over a mono eyebrow, with an optional toned delta and a caption.
 func artifactStatBand(stats []ArtifactStat) string {
 	var b strings.Builder
 	b.WriteString(`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px">`)
@@ -388,8 +356,6 @@ func artifactChangeSection(title string, changes []ArtifactChange, emptyNote str
 	return b.String()
 }
 
-// artifactSevLevels is the five exact severity tokens, in the ramp order the
-// on-screen scale uses (SignalData.jsx SEV_ORDER / internal/signal.SevOrder).
 var artifactSevLevels = []string{"critical", "high", "medium", "low", "info"}
 
 // normSev folds an unknown severity token to info rather than manufacturing
@@ -404,8 +370,6 @@ func normSev(level string) string {
 	return "info"
 }
 
-// sevTitle renders a severity token as its title-cased label — the exact word the
-// severity ramp uses (Critical / High / Medium / Low / Info).
 func sevTitle(level string) string {
 	l := normSev(level)
 	return strings.ToUpper(l[:1]) + l[1:]
@@ -522,8 +486,6 @@ func artifactTag(label string) string {
 	return `<span style="display:inline-flex;align-items:center;font:500 11px var(--mono);padding:2px 9px;border-radius:8px;border:1px solid var(--hairline);background:var(--sunken);color:var(--muted)">` + esc(label) + `</span>`
 }
 
-// artifactProvenance is the mono provenance line beside the org: when the artifact
-// was cut and which release cut it, each shown only where present.
 func artifactProvenance(a Artifact) string {
 	var parts []string
 	if a.GeneratedAt != "" {
@@ -535,8 +497,6 @@ func artifactProvenance(a Artifact) string {
 	return strings.Join(parts, " · ")
 }
 
-// artifactReceipt is the footer's delivery line — the instant and the destination
-// host where present, or a plain statement that nothing was delivered.
 func artifactReceipt(a Artifact) string {
 	if a.Delivered == "" {
 		return "not delivered"
@@ -548,8 +508,6 @@ func artifactReceipt(a Artifact) string {
 	return line
 }
 
-// changeFamily maps a change word to its drift-palette family: gain (violet) for
-// what entered view, change (magenta) for what moved, loss (slate) for what left.
 func changeFamily(change string) string {
 	switch change {
 	case "appeared", "returned", "revealed":
@@ -574,7 +532,6 @@ func deltaColor(tone string) string {
 	}
 }
 
-// esc escapes a dynamic string for safe interpolation into the artifact markup.
 func esc(s string) string { return html.EscapeString(s) }
 
 // orDash renders an em dash where a value is absent, so an empty cell reads as
@@ -606,10 +563,8 @@ func artifactPeriod(a Artifact) string {
 	return line
 }
 
-// ArtifactPeriod is the exported delivery-window line for the console header.
 func ArtifactPeriod(a Artifact) string { return artifactPeriod(a) }
 
-// group inserts thousands separators into a non-negative integer.
 func group(n int) string {
 	s := fmt.Sprintf("%d", n)
 	if n < 1000 {

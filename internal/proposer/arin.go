@@ -31,13 +31,10 @@ type ARIN struct {
 	base string // e.g. https://rdap.arin.net/registry
 }
 
-// NewARIN builds the ARIN proposer over an injected Doer and RDAP endpoint base.
 func NewARIN(doer Doer, base string) *ARIN { return &ARIN{doer: doer, base: base} }
 
 func (a *ARIN) Slug() string { return SlugARIN }
 
-// maxARINBody caps a single RDAP body read. A busy org's entity runs to tens of
-// kilobytes; this leaves generous headroom while refusing an unbounded read.
 const maxARINBody = 8 << 20
 
 // The three ARIN object classes an org-name search can match. Only an org and a
@@ -54,16 +51,10 @@ const (
 // hyphens (GOOGL-1, HURRIC-1) and never match.
 var customerHandle = regexp.MustCompile(`^C\d+$`)
 
-// arinSearch is the RDAP entity-search envelope: a list of matched entity stubs.
-// A stub carries the handle and formatted name but no networks — those are read
-// from the full entity fetched by handle.
 type arinSearch struct {
 	Results []arinEntity `json:"entitySearchResults"`
 }
 
-// arinEntity is one RDAP entity, as a search stub or a full fetch. The vCard
-// (jCard) array carries the formatted name; the links name the object class; a
-// full fetch also carries networks.
 type arinEntity struct {
 	Handle     string          `json:"handle"`
 	VCardArray json.RawMessage `json:"vcardArray"`
@@ -71,17 +62,11 @@ type arinEntity struct {
 	Links      []arinLink      `json:"links"`
 }
 
-// arinLink is one RDAP link. The `alternate` link's href points at the Whois-RWS
-// object and names its class in the path (/rest/org/, /rest/customer/, /rest/poc/).
 type arinLink struct {
 	Href string `json:"href"`
 	Rel  string `json:"rel"`
 }
 
-// class reports the entity's ARIN object class from its links — the sturdy
-// signal, since the href path names the class outright — and falls back to the
-// C-digit handle convention when no link classifies. An org is a delegation
-// holder, a customer is a compelled reassignment, a poc holds no scope.
 func (e arinEntity) class() string {
 	for _, l := range e.Links {
 		for _, c := range []string{classCustomer, classOrg, classPOC} {
@@ -105,8 +90,6 @@ type arinNetwork struct {
 	Cidrs []arinCidr `json:"cidr0_cidrs"`
 }
 
-// arinCidr is one aligned prefix from a network's cidr0_cidrs. Exactly one of
-// v4prefix / v6prefix is set alongside the length.
 type arinCidr struct {
 	V4Prefix string `json:"v4prefix"`
 	V6Prefix string `json:"v6prefix"`

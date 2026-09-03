@@ -18,7 +18,6 @@ const (
 	PathWalk     Path = "walk"
 )
 
-// Transport is the wire transport for one exchange.
 type Transport string
 
 const (
@@ -42,9 +41,9 @@ const (
 // payload: a dotted-quad or RFC 5952 address for A/AAAA, a name for CNAME/NS,
 // opaque text otherwise. The leaf reads Data only for the record types it folds.
 type RR struct {
-	Name  string `json:"name"`
-	Type  Qtype  `json:"type"`
-	Data  string `json:"data"`
+	Name string `json:"name"`
+	Type Qtype  `json:"type"`
+	Data string `json:"data"`
 }
 
 // Query is one exchange the leaf asks of a Peer. It carries the offers actually
@@ -95,7 +94,6 @@ const (
 	OutcomeGap       Outcome = "Gap"
 )
 
-// Resolution is the declared-path outcome for one Name.
 type Resolution struct {
 	Outcome   Outcome  `json:"outcome"`
 	Addresses []string `json:"addresses,omitempty"`
@@ -108,9 +106,6 @@ type NSStatus struct {
 	Serves bool   `json:"serves"`
 }
 
-// Delegation is the walk's output. Lame is true only when every reached
-// authority refused; Gap is true when no authority was reached at all (M2.e).
-// Neither is a value the query-path parameter governs.
 type Delegation struct {
 	Lame        bool       `json:"lame"`
 	Gap         bool       `json:"gap"`
@@ -124,9 +119,6 @@ type Record struct {
 	RRs   []RR  `json:"rrs"`
 }
 
-// Result is the leaf's complete decision for one Name at one Vantage. It names
-// no transition (golden-corpus.md R.1): the leaf emits outcomes, and whether a
-// subject appeared, withdrew or returned is decided downstream from them.
 type Result struct {
 	Name       string     `json:"name"`
 	Resolution Resolution `json:"resolution"`
@@ -338,7 +330,6 @@ func walk(peer Peer, offers Offers, name string) Delegation {
 		// Every delegated authority was silent: a Gap, our own blindness (M2.e).
 		return Delegation{Gap: true, Nameservers: statuses}
 	case allRefused && !anyServes:
-		// Reached and refused everywhere: Lame (M1.4).
 		return Delegation{Lame: true, Nameservers: statuses}
 	default:
 		// At least one serves: not Lame, carrying the per-nameserver RRset (M1.5/M2.f).

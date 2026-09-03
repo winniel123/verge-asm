@@ -176,11 +176,9 @@ func TestTOTP(t *testing.T) {
 	if !VerifyTOTP(secret, code, now) {
 		t.Fatal("current code rejected")
 	}
-	// Within one step's skew, still accepted.
 	if !VerifyTOTP(secret, code, now.Add(25*time.Second)) {
 		t.Fatal("code rejected inside skew window")
 	}
-	// Two steps away, rejected.
 	if VerifyTOTP(secret, code, now.Add(90*time.Second)) {
 		t.Fatal("stale code accepted well outside the window")
 	}

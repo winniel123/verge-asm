@@ -36,9 +36,6 @@ type deliveryView struct {
 	LastError string
 }
 
-// messageRow is one message shaped for the panel: the rendered headline, the
-// per-mover link, the cause and class as read-only labels, the instant, the
-// read-state, and the census rows where the firing carries one.
 type messageRow struct {
 	ID       int64
 	Cause    string
@@ -47,13 +44,11 @@ type messageRow struct {
 	// Href and LinkText are the row's link, resolved per its mover (v1 spec
 	// §5.3): the object's page, the Source, or the Seed. LinkText is the key the
 	// link points at, rendered in mono.
-	Href     string
-	LinkText string
-	Instant  string
-	Read     bool
-	Census   []censusRowView
-	// Deliveries is this message's outcome to each routed Channel. A message with
-	// no channel configured carries none; an undelivered one carries a Failed row.
+	Href       string
+	LinkText   string
+	Instant    string
+	Read       bool
+	Census     []censusRowView
 	Deliveries []deliveryView
 	// AnyUndelivered is true where at least one delivery is undelivered, so the
 	// panel can flag the message without the operator opening every row.
@@ -344,9 +339,6 @@ func jumpLabel(cause message.Cause, subjectKind string) string {
 	}
 }
 
-// relTime renders an instant as a terse relative age ("now", "3h", "2d"), the
-// design system's relative-timestamp convention; the absolute instant rides the
-// element's title for the exact reading.
 func relTime(t, now time.Time) string {
 	d := now.Sub(t)
 	if d < 0 {
@@ -489,11 +481,6 @@ func subjectHref(kind, key string) string {
 // itself; the menu item only decides whether a delivery exists to open.
 const reportDeliveryHref = "/reports/delivery"
 
-// reportScheduleRow is one recurring report shaped for the Reports screen's
-// "Recurring reports" table (T17, after design-system/examples/console/Reports.jsx).
-// Name / Cadence / Format / LastSent are the schedule's facts; the row-action menu
-// carries "View last delivery", which opens the delivered artifact when this report
-// has a delivery and is disabled where it has none (no fabrication).
 type reportScheduleRow struct {
 	// ID keys the row's mutations — the Run now / Edit / Delete row-menu actions post
 	// it back so the handler resolves which schedule to act on (P0.6/T4).

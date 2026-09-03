@@ -19,9 +19,7 @@ const CTReliabilityWindowSize = 200
 // The three limbs of the bar (spec §3). A primary clears the bar only when it meets
 // all three; the false-empty limb's bar is zero — none.
 const (
-	// CTSuccessRateBar is the minimum fraction of sampled queries that must succeed.
-	CTSuccessRateBar = 0.99
-	// CTP95LatencyBarMS is the maximum p95 end-to-end latency, in milliseconds.
+	CTSuccessRateBar  = 0.99
 	CTP95LatencyBarMS = 5000
 )
 

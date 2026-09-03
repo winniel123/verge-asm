@@ -93,9 +93,6 @@ type Runner struct {
 	resolver Resolver
 }
 
-// NewRunner builds a Runner over pool driving doer. baseURL is the absolute URL
-// into this instance used to build each body's Link; it may be empty, in which
-// case bodies carry no link. now is injectable for tests.
 func NewRunner(pool *pgxpool.Pool, doer Doer, now func() time.Time, baseURL string, logger *log.Logger) *Runner {
 	if now == nil {
 		now = time.Now
@@ -154,7 +151,6 @@ func (r *Runner) Run(ctx context.Context, interval time.Duration) error {
 	}
 }
 
-// Drain runs every claimable delivery until none remain.
 func (r *Runner) Drain(ctx context.Context) error {
 	for {
 		ran, err := r.RunOnce(ctx)
@@ -184,10 +180,6 @@ func (r *Runner) RunOnce(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
-// post builds, signs and sends one delivery, then records its outcome. A 2xx
-// marks the delivery delivered; any other outcome (a non-2xx status, a refused
-// redirect, a transport error) is a failure that retries while attempts remain
-// and dead-letters past them. Neither branch touches the Message.
 func (r *Runner) post(ctx context.Context, claim db.ClaimDeliveryRow) error {
 	msg, err := r.q.GetMessageForDelivery(ctx, claim.MessageID)
 	if err != nil {

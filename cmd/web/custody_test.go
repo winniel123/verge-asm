@@ -43,7 +43,6 @@ func TestDeclareAndWithdrawCustodyExtension(t *testing.T) {
 		t.Errorf("custody shown on before it was declared; body: %s", page)
 	}
 
-	// Declare it.
 	resp := setCustody(t, ac, base, id, true)
 	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/scope" {
 		t.Fatalf("declare custody: status=%d location=%q", resp.StatusCode, resp.Header.Get("Location"))
@@ -58,7 +57,6 @@ func TestDeclareAndWithdrawCustodyExtension(t *testing.T) {
 		t.Errorf("declared extension not reflected with the on switch + census; body: %s", page)
 	}
 
-	// Withdraw it.
 	resp = setCustody(t, ac, base, id, false)
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("withdraw custody: status=%d", resp.StatusCode)
@@ -135,7 +133,6 @@ func TestViewerCannotToggleCustodyButCanView(t *testing.T) {
 
 	vc := login(t, base, "viewer", "hunter2hunter2")
 
-	// The viewer is denied the mutation.
 	resp := setCustody(t, vc, base, id, false)
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusForbidden {

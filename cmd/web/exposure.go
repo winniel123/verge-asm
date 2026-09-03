@@ -55,9 +55,6 @@ var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/exposure.tmpl"))
 // assetExposure (subjects.go). No figure is fabricated: an unmeasured leg reads
 // `unverified`, never `firewalled` or `exposed`.
 
-// exposureRow is one Service in the both-legs table: the address it sits on, its
-// `:port transport`, the internal and internet reach legs as display states, and
-// when its reachability span opened.
 type exposureRow struct {
 	Asset    string
 	Svc      string
@@ -66,7 +63,6 @@ type exposureRow struct {
 	Since    string
 }
 
-// exposureStats is the summary band over the projected board.
 type exposureStats struct {
 	exposed    int
 	firewalled int
@@ -163,7 +159,6 @@ func (s *server) exposurePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	s.render(w, r, "exposure", data)
 }
 
-// legInfo is one class-scoped reachability leg as the by-class read carries it.
 type legInfo struct {
 	outcome string
 	isGap   bool

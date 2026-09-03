@@ -53,9 +53,6 @@ func TestCutoff(t *testing.T) {
 	}
 }
 
-// fakeStore is the whole surface the Retirer can reach. It has no Observation,
-// Span or Batch method — the compiler will not let retention code touch measured
-// data through it, which is the separation AC proved structurally.
 type fakeStore struct {
 	multiple      int64
 	cadence       int64

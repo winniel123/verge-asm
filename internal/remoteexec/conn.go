@@ -52,24 +52,16 @@ type Conn interface {
 	// egress the prober reports. It may be nil where the underlying transport exposes no
 	// peer address, in which case the fact is left unobserved rather than fabricated.
 	RemoteAddr() net.Addr
-	// Close releases the underlying connection.
 	Close() error
 }
 
-// ExitKind names how a remote command ended: it exited with a status code, a signal
-// killed it, or the context cancelled the session before it finished. It is the SSH
-// twin of the local path's os.ProcessState classification (queue.classifyProberOutcome).
 type ExitKind int
 
 const (
 	// ExitExited: the command ran to completion and returned Code. Code is -1 when the
 	// server reported no status (an honest "no clean exit", never a fabricated success).
 	ExitExited ExitKind = iota
-	// ExitSignalled: a signal killed the command. Signal is the SSH signal name, or
-	// empty when the server sent no exit status at all (*ssh.ExitMissingError).
 	ExitSignalled
-	// ExitContextCancelled: the caller's context cancelled the session before the
-	// command finished; the worker killed the remote command.
 	ExitContextCancelled
 )
 
@@ -81,8 +73,6 @@ type ExitResult struct {
 	Signal string // valid when Kind == ExitSignalled
 }
 
-// Target is where and as whom to dial a prober, and how to verify its host key. The
-// private key stays the worker-volume half; only its signer is used to authenticate.
 type Target struct {
 	Addr            string // host:port
 	Username        string
@@ -119,7 +109,6 @@ func Dial(ctx context.Context, t Target) (Conn, error) {
 	return &clientConn{client: ssh.NewClient(sshConn, chans, reqs)}, nil
 }
 
-// clientConn is the production Conn over an *ssh.Client.
 type clientConn struct{ client *ssh.Client }
 
 func (c *clientConn) Output(ctx context.Context, cmd string) ([]byte, error) {
@@ -150,8 +139,6 @@ func (c *clientConn) Run(ctx context.Context, cmd string, stdin io.Reader, stdou
 	return runSession(ctx, sess, cmd)
 }
 
-// RemoteAddr returns the SSH transport peer address (*ssh.Client embeds ssh.Conn,
-// whose RemoteAddr is the dialled TCP peer) — the observed dialled address.
 func (c *clientConn) RemoteAddr() net.Addr { return c.client.RemoteAddr() }
 
 func (c *clientConn) Close() error { return c.client.Close() }

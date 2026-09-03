@@ -16,8 +16,6 @@ import (
 // address scope's own membership census — the aperture meter, the one surface with a
 // `Coverage` denominator (ADR-0129's #956 amendment, #989).
 
-// declaredScopeFixture declares one address scope and puts the `edge-fanout` Scan in
-// force. The measurements are the caller's.
 func declaredScopeFixture(t *testing.T, f *fakeStore, c *http.Client, base, cidr string) {
 	t.Helper()
 	declare(t, c, base, "address", cidr).Body.Close()

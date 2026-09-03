@@ -22,8 +22,6 @@ func sortedStrings(s ...string) []string {
 	return out
 }
 
-// All returns the five shipped Name-only rules in a stable order: the order they
-// render on the Signals page and the order the golden gate walks them.
 func All() []Rule {
 	return []Rule{
 		lameDelegation{},
@@ -41,9 +39,6 @@ func All() []Rule {
 // is the one the form and the acceptance guard both read.
 func RuleNames() []string { return AllRuleNames() }
 
-// hasAnswer reports whether a composed resolution outcome carries an address set
-// the world affirmed — the two answer-bearing values. NameError / NoData / Lame
-// / Gap carry no answer.
 func hasAnswer(outcome string) bool {
 	return outcome == Resolved || outcome == Shadowed
 }
@@ -61,8 +56,6 @@ type lameDelegation struct{}
 func (lameDelegation) Name() string     { return "lame-delegation" }
 func (lameDelegation) Version() Version { return Version{Rule: "v1", Composes: leafVersions} }
 
-// Severity: medium — a lame delegation is a resolution-health defect that can
-// silently sink a name's records, but it is not itself a reachable exposure.
 func (lameDelegation) Severity() Severity { return SevMedium }
 func (lameDelegation) Eval(f NameFacts) Outcome {
 	// The domain is total over the estate: a withdrawn Name is not in the estate,
@@ -96,9 +89,6 @@ type cnameTargetNameError struct{}
 func (cnameTargetNameError) Name() string     { return "cname-target-name-error" }
 func (cnameTargetNameError) Version() Version { return Version{Rule: "v1", Composes: leafVersions} }
 
-// Severity: high — a CNAME pointing at a NameError target is the classic
-// subdomain-takeover setup: whoever claims the dangling target serves under the
-// operator's name.
 func (cnameTargetNameError) Severity() Severity { return SevHigh }
 func (cnameTargetNameError) Eval(f NameFacts) Outcome {
 	if f.CNAMETarget == "" {
@@ -171,8 +161,6 @@ func (resolvedNameAbsentFromZone) Version() Version {
 	return Version{Rule: "v1", Composes: leafVersions}
 }
 
-// Severity: low — a name resolving inside a declared zone but absent from the
-// zone file is shadow-IT / drift worth surfacing, but rarely urgent on its own.
 func (resolvedNameAbsentFromZone) Severity() Severity { return SevLow }
 func (resolvedNameAbsentFromZone) Eval(f NameFacts) Outcome {
 	if !f.InDeclaredZone {
@@ -215,8 +203,6 @@ func (nonGloballyReachableFromInternet) Version() Version {
 	return Version{Rule: "v1", Composes: leafVersions}
 }
 
-// Severity: medium — an internal (non-globally-reachable) address leaking into a
-// public DNS answer discloses topology and can misroute clients.
 func (nonGloballyReachableFromInternet) Severity() Severity { return SevMedium }
 func (nonGloballyReachableFromInternet) Eval(f NameFacts) Outcome {
 	if !f.HasInternetVantage || !hasAnswer(f.InternetResolution) {

@@ -11,8 +11,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// leafDER stands in for a served leaf certificate's DER bytes. Its content is
-// irrelevant — only that the fingerprint is taken over exactly these bytes.
 var leafDER = []byte{0x30, 0x82, 0x01, 0x0a, 0xde, 0xad, 0xbe, 0xef}
 
 // scriptHandshaker answers a fixed Result per target, so the fold and the run loop are
@@ -27,8 +25,6 @@ func (h *scriptHandshaker) Handshake(_ context.Context, target netip.AddrPort) R
 	return h.byTarget[target]
 }
 
-// TestFoldOutcomeSpace pins the closed union: a presented chain carries the leaf's
-// fingerprint, and each of the three negatives carries its own value and NO fingerprint.
 func TestFoldOutcomeSpace(t *testing.T) {
 	fp := co.Fingerprint(leafDER)
 	cases := []struct {
@@ -148,8 +144,6 @@ func TestEmitMaterialRidesBesideTheValue(t *testing.T) {
 	}
 }
 
-// TestRunOneConnectPerAddress pins the run loop: one observation and one handshake per
-// DISTINCT candidate, in first-seen order, with an unparseable address skipped.
 func TestRunOneConnectPerAddress(t *testing.T) {
 	a := netip.MustParseAddrPort("198.51.100.7:443")
 	b := netip.MustParseAddrPort("203.0.113.9:443")

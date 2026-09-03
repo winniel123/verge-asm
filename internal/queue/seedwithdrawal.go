@@ -75,13 +75,6 @@ import (
 // withdrew none of. A Message is written once and never recomputed, so that
 // duplicate would be permanent.
 
-// foldSeedWithdrawals closes every open timeline a withdrawn address Seed takes
-// with it, with the `descoped` ground, citing the folding batch — then spends the
-// tombstones it read.
-//
-// The closure happens whether or not the producer is on. A withdrawal is a fact
-// about the estate, not a message. `out` is the narrowing collector and is nil on
-// the measurement-only path, exactly as departureCollector is.
 func foldSeedWithdrawals(ctx context.Context, qtx *db.Queries, batchID int64, observedAt time.Time, in membershipInputs, out *[]message.NarrowingReceipt) error {
 	// The pending read is the guard. An estate that has withdrawn no Seed — or
 	// whose withdrawals are all spent — reads one indexed row-less query per
@@ -212,7 +205,6 @@ func composeWithdrawnGround(rows []db.ListSeedWithdrawalCandidatesRow, covering 
 	return spanIDs, order, counts
 }
 
-// pendingWithdrawnCIDRs is the bound the shared candidate query takes.
 func pendingWithdrawnCIDRs(pending []db.ListPendingSeedWithdrawalsRow) []string {
 	out := make([]string, 0, len(pending))
 	for _, w := range pending {
@@ -227,8 +219,6 @@ func pendingWithdrawnCIDRs(pending []db.ListPendingSeedWithdrawalsRow) []string 
 	return out
 }
 
-// SeedWithdrawalPreviewStore is the read set the chip-remove preview needs. It is
-// EstateStore plus the two reads the survivors are decided from.
 type SeedWithdrawalPreviewStore interface {
 	EstateStore
 	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)

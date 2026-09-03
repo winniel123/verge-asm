@@ -71,9 +71,6 @@ func NewVector(components ...Component) Vector {
 	return out
 }
 
-// Equal reports whether two vectors are the same set of (leaf, version) pairs.
-// This is the whole comparability precondition: two spans compare only where
-// Equal holds, and the boundary between two spans where it does not is a Break.
 func (v Vector) Equal(o Vector) bool {
 	if len(v) != len(o) {
 		return false
@@ -128,14 +125,8 @@ func MovedLeaves(before, after Vector) []string {
 type ClosureReason string
 
 const (
-	// ReasonMeasuredAbsent: an observation about this subject says it is absent —
-	// a Name measured NameError on a cross-class Vantage composition. The only
-	// closure that is independent evidence.
 	ReasonMeasuredAbsent ClosureReason = "measured-absent"
-	// ReasonUncited: the subject's chain back to a Seed no longer holds — a child
-	// beneath a withdrawn root, or a resolution that stopped citing an Address.
-	// Covers both the cascade and de-citation.
-	ReasonUncited ClosureReason = "uncited"
+	ReasonUncited        ClosureReason = "uncited"
 	// ReasonDescoped: our aperture stopped covering the subject — an exclusion, a
 	// narrower Seed, or a release narrowing a composed population. The only ground
 	// that blocks a subsequent `returned`, because a narrowing is not a
@@ -143,7 +134,6 @@ const (
 	ReasonDescoped ClosureReason = "descoped"
 )
 
-// Valid reports whether a reason is one of the three closed grounds.
 func (r ClosureReason) Valid() bool {
 	switch r {
 	case ReasonMeasuredAbsent, ReasonUncited, ReasonDescoped:
@@ -168,5 +158,4 @@ type Span struct {
 	Reason   ClosureReason // set only on a withdrawal closure
 }
 
-// Open reports whether the span is the timeline's current one.
 func (s Span) Open() bool { return s.ClosedAt.IsZero() }

@@ -10,9 +10,5 @@ package guides
 
 import "embed"
 
-// FS holds every operator guide (docs/guides/*.md), front-matter and all. The
-// Search index parses each file's YAML front-matter (title + description) to
-// build the Documentation group; see cmd/web/search.go.
-//
 //go:embed *.md
 var FS embed.FS

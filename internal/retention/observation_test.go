@@ -75,7 +75,6 @@ func TestObservationFloorIsTheTightestBound(t *testing.T) {
 // gain by allowing it.
 func TestFloorSettingBelowChangesZeroRows(t *testing.T) {
 	tightest := FloorCadences * daily // the tightest bound in force
-	// Rows spanning both tiers on two different timelines (daily and monthly bounds).
 	type row struct {
 		age   int64
 		bound int64
@@ -99,8 +98,6 @@ func TestFloorSettingBelowChangesZeroRows(t *testing.T) {
 	}
 }
 
-// TestRetainNormalTimeline covers the ordinary rule: a row is retained while its
-// age is inside EITHER its own bound OR the dial, whichever is longer.
 func TestRetainNormalTimeline(t *testing.T) {
 	bound := FloorCadences * daily // 2 days
 	dial := int64(10) * SecondsPerDay
@@ -189,8 +186,6 @@ func TestLiveOnlyGatesDerivationReads(t *testing.T) {
 		}
 	}
 }
-
-// --- Retirer ---------------------------------------------------------------
 
 // fakeObsStore is the whole surface the ObservationRetirer can reach: the dial and
 // the observation-only delete. It records the params so the sweep's dial-to-seconds

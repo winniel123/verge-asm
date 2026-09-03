@@ -52,17 +52,12 @@ const NoServerName = ""
 type Outcome string
 
 const (
-	// Presented: the edge completed a no-SNI handshake and served a certificate. This
-	// is the only value that carries a fingerprint.
 	Presented Outcome = "presented"
 	// TLSRefused: the edge spoke TLS and turned the nameless handshake down — an
 	// SNI-required listener is the modal case, and it is exactly the false negative
 	// ADR-0129 §2 accepts. A value, and distinct from NoTLS.
 	TLSRefused Outcome = "tls-refused"
-	// NoTLS: something answered on 443 and no TLS came back — a plaintext listener, or
-	// a handshake that stalled after the connect completed. A value, and distinct from
-	// a refusal: collapsing the two files a plaintext listener under *refused*.
-	NoTLS Outcome = "no-tls"
+	NoTLS      Outcome = "no-tls"
 	// Unreachable: the connect never reached a peer — refused, reset, timed out, or
 	// refused at the socket by the egress guard. A value, and distinct from the two TLS
 	// negatives: those say something was there, this says nothing was.
@@ -140,7 +135,6 @@ func Fold(res co.HandshakeResult) Result {
 // so this leaf obeys the same socket-level backstop every other connecting leaf obeys
 // (#743) and forks none of it.
 type NetHandshaker struct {
-	// Timeout bounds the handshake dial. Zero uses connectoutcome's 3 s default.
 	Timeout time.Duration
 	// inner is the connectoutcome handshaker the dial goes through. Nil is the
 	// production adapter. It exists as a seam so a test can pin the ONE argument this

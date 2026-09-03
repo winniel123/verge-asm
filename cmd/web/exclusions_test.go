@@ -131,7 +131,6 @@ func TestViewerCannotExcludeButCanView(t *testing.T) {
 
 	vc := login(t, base, "viewer", "hunter2hunter2")
 
-	// The viewer is denied both mutations.
 	resp := exclude(t, vc, base, "name", "nope.example.com")
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusForbidden {

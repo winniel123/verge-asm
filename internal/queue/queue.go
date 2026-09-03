@@ -36,7 +36,6 @@ const notifyChannel = "queue_job"
 // ADR-0005's single atomic transaction.
 const chunkCommitSize = 500
 
-// Dispatcher fans a Scan out into queue jobs on its cadence and on demand.
 type Dispatcher struct {
 	pool *pgxpool.Pool
 	q    *db.Queries
@@ -66,12 +65,6 @@ func NewDispatcher(pool *pgxpool.Pool, now func() time.Time, logger *log.Logger)
 	return &Dispatcher{pool: pool, q: db.New(pool), now: now, log: logger, staleJobThreshold: DefaultStaleJobThreshold}
 }
 
-// WithStaleJobThreshold tells the dispatcher the stale-`running` lease timeout the
-// worker's reaper actually runs with (VERGE_STALE_JOB_TIMEOUT). A non-positive value
-// disables the reaper, and the hot cadence-lag gate then refuses to arm — see
-// hotlag.go. Both binaries that build a Dispatcher must pass the same value they give
-// the reaper, or a manual trigger would gate on a reaper that is not running. It
-// returns the dispatcher for chaining.
 func (d *Dispatcher) WithStaleJobThreshold(threshold time.Duration) *Dispatcher {
 	d.staleJobThreshold = threshold
 	return d
@@ -85,8 +78,6 @@ func (d *Dispatcher) WithCTSource(slug string) *Dispatcher {
 	return d
 }
 
-// selectedCTSource is the slug of the active bulk CT source, defaulting to crt.sh
-// when none was set — the keyless source that ships active with no operator key.
 func (d *Dispatcher) selectedCTSource() string {
 	if d.ctSource == "" {
 		return scan.CrtshSource

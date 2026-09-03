@@ -10,9 +10,6 @@ import (
 	he "github.com/winniel123/verge-asm/internal/measure/httpexchange"
 )
 
-// update regenerates the golden files and the lock. Run
-// `go test ./... -run Corpus -update` after an intended output or parameter
-// change, having bumped httpexchange.Version, and commit the result.
 var update = flag.Bool("update", false, "regenerate golden NDJSON files and corpus.lock.json")
 
 const testdataDir = "testdata"

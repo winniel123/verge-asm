@@ -28,9 +28,6 @@ import (
 // This file holds the throttled fetcher, the throttle, the dispatcher's fan-out
 // and the worker's completion path.
 
-// maxCTBody bounds a crt.sh response read into memory. The documented 999-row cap
-// already bounds the answer, but a defensive ceiling keeps a misbehaving or
-// oversized response from exhausting the worker.
 const maxCTBody = 64 << 20 // 64 MiB
 
 // crtshInterval is the instance-wide spacing between crt.sh requests: 12s, the
@@ -74,9 +71,6 @@ type HTTPCTFetcher struct {
 	bearer string
 }
 
-// NewHTTPCTFetcher builds the production fetcher for a keyless source (crt.sh).
-// version identifies the running build in the User-Agent, per the operator's
-// request for an identifiable client.
 func NewHTTPCTFetcher(version string) *HTTPCTFetcher {
 	return &HTTPCTFetcher{
 		client: &http.Client{
@@ -161,8 +155,6 @@ func NewCertSpotterThrottle(q *db.Queries) CTThrottle {
 	return pgCTThrottle{q: q, source: scan.CertSpotterSource, interval: certSpotterInterval}
 }
 
-// Reserve claims the next slot for this source and returns the instant the fetch
-// may start.
 func (t pgCTThrottle) Reserve(ctx context.Context) (time.Time, error) {
 	slot, err := t.q.ReserveCTSlot(ctx, db.ReserveCTSlotParams{
 		Source:          t.source,
@@ -554,9 +546,6 @@ func ctSeeds(ctx context.Context, q *db.Queries) ([]scan.CTSeed, error) {
 	return seeds, nil
 }
 
-// enqueueCTJob enqueues one worker-read CT job for one name-scope Seed. Unlike the
-// zone job it retries (MaxAttempts 5, like the prober path): a crt.sh fetch has
-// transient failure to back off from, where a stored-file read does not.
 func enqueueCTJob(ctx context.Context, qtx *db.Queries, scanID, dispatchID int64, j scan.CTJob) error {
 	spec, err := j.JobSpec(fmt.Sprintf("scan:%d:seed:%d", scanID, j.SeedID))
 	if err != nil {

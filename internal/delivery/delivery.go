@@ -46,15 +46,9 @@ import (
 // only when a secret is configured; the timestamp is always present because it is
 // part of the signed input the receiver reconstructs.
 const (
-	// HeaderTimestamp carries the Unix-seconds instant the signature was computed
-	// over — the instant of the ATTEMPT, distinct from the instant of the cause in
-	// the body. Always present.
 	HeaderTimestamp = "X-Verge-Timestamp"
-	// HeaderSignature carries `sha256=<hex>`, the HMAC over timestamp and body.
-	// Present only when the Channel has a secret.
 	HeaderSignature = "X-Verge-Signature"
-	// contentType is the one media type: the body is always a single JSON document.
-	contentType = "application/json"
+	contentType     = "application/json"
 	// sigScheme prefixes the signature value, so a receiver reads the algorithm off
 	// the header rather than assuming it.
 	sigScheme = "sha256="
@@ -83,22 +77,15 @@ type Firing struct {
 // Message carries and no rows (notification-channels.md §3.1): the census is a
 // count, and no field enumerates the services, addresses or evidence behind it.
 type Body struct {
-	// Message is the stable, unique identifier — unchanged across retries, the
-	// receiver's de-duplication key.
-	Message int64 `json:"message"`
-	// Class is the routing class the receiver may filter on: drift/coverage/clock.
-	Class string `json:"class"`
+	Message int64  `json:"message"`
+	Class   string `json:"class"`
 	// Cause is which of the four causes fired — a field the operator reads; the
 	// router never keys on it (ADR-0091).
 	Cause string `json:"cause"`
 	// Subject is the KEY of the thing the message fired at, never a rendering of it.
-	Subject Subject `json:"subject"`
-	// Instant is the instant of the CAUSE, read from the frozen Message — not the
-	// instant of the delivery attempt.
-	Instant time.Time `json:"instant"`
-	// Headline is the rendered sentence, byte-identical to the in-app Message's own
-	// headline: one computation at the cause, two renderings.
-	Headline string `json:"headline"`
+	Subject  Subject   `json:"subject"`
+	Instant  time.Time `json:"instant"`
+	Headline string    `json:"headline"`
 	// Census is the count where the firing carries one, and nil (omitted) otherwise.
 	// It is a count and never a list — no rows sit behind it.
 	Census *int `json:"census,omitempty"`
@@ -107,8 +94,6 @@ type Body struct {
 	Link string `json:"link,omitempty"`
 }
 
-// Subject is the fired-at subject as a bare (kind, key) pair — the key the
-// receiver would follow the link on, not a rendered label.
 type Subject struct {
 	Kind string `json:"kind"`
 	Key  string `json:"key"`
@@ -201,13 +186,8 @@ func NewRequest(ctx context.Context, targetURL string, body, secret []byte, ts t
 type Verdict int
 
 const (
-	// VerdictDelivered: a 2xx. Nothing more is sent.
 	VerdictDelivered Verdict = iota
-	// VerdictRetry: a failure with attempts remaining. The delivery returns to
-	// pending on the shared backoff.
 	VerdictRetry
-	// VerdictUndelivered: a failure with the attempt budget spent. Dead-lettered —
-	// the undelivered mark — leaving the Message untouched.
 	VerdictUndelivered
 )
 

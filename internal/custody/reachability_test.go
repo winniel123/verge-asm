@@ -18,7 +18,6 @@ func TestGloballyReachableReading(t *testing.T) {
 		{"52.1.2.3", false, "public IPv4"},
 		{"2606:4700:4700::1111", false, "public IPv6"},
 
-		// Plain `False` blocks fire.
 		{"10.0.0.5", true, "RFC 1918 10/8"},
 		{"172.16.0.1", true, "RFC 1918 172.16/12"},
 		{"192.168.1.1", true, "RFC 1918 192.168/16"},

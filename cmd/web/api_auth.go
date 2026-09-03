@@ -160,9 +160,6 @@ func apiNotFound(w http.ResponseWriter, r *http.Request) {
 	http.NotFound(w, r)
 }
 
-// apiUnauthorized answers an unresolved bearer credential with 401 and a Bearer
-// challenge, carrying no detail that would distinguish "no token" from "unknown token"
-// from "removed account" — every credential failure looks identical from outside.
 func apiUnauthorized(w http.ResponseWriter) {
 	w.Header().Set("WWW-Authenticate", `Bearer realm="verge-asm api"`)
 	w.WriteHeader(http.StatusUnauthorized)

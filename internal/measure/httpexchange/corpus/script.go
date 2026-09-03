@@ -27,7 +27,6 @@ func newScript(rules map[string]he.ExchangeResult) *scriptExchanger {
 	return &scriptExchanger{byKey: rules, calls: map[string]int{}}
 }
 
-// Exchange implements httpexchange.Exchanger.
 func (s *scriptExchanger) Exchange(_ context.Context, t he.Target) he.ExchangeResult {
 	s.calls[t.EndpointKey()]++
 	r, ok := s.byKey[t.EndpointKey()]

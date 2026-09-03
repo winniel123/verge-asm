@@ -399,7 +399,6 @@ type sfDeliverySection struct {
 	Retention  sfRetention `json:"retention"`
 }
 
-// settingsFixture is the whole fixtures.json → settings slice.
 type settingsFixture struct {
 	DefaultTab   string            `json:"default_tab"`
 	Scans        sfScans           `json:"scans"`
@@ -418,7 +417,6 @@ type settingsFixture struct {
 	API          sfAPI             `json:"api"`
 }
 
-// loadSettingsFixture reads and decodes the fixtures.json → settings slice.
 func loadSettingsFixture() (settingsFixture, error) {
 	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
 	if err != nil {
@@ -631,7 +629,6 @@ func fillFixtureRollups(active []sfActive) {
 	}
 }
 
-// findMember returns the fixture member with the given id, or nil.
 func findMember(members []sfMember, id string) *sfMember {
 	for i := range members {
 		if members[i].ID == id {

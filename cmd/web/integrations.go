@@ -151,8 +151,6 @@ var integrationCatalog = []catalogIntegration{
 	},
 }
 
-// integrationCats is the category segmented control, ported verbatim from
-// Integrations.jsx's CATS.
 var integrationCats = []string{integrationCatAll, "Notify", "Ticketing", "SIEM", "Storage"}
 
 func integrationBySlug(slug string) (catalogIntegration, bool) {
@@ -212,9 +210,6 @@ type integrationChannelOption struct {
 	Hint  string
 }
 
-// tileState maps the store's install state to the tmpl's display vocabulary: an
-// installed row is "installed"; a needs-config row reads as "attention"; anything
-// else (no row) is "available".
 func tileState(storeState string) string {
 	switch storeState {
 	case integrationInstalled:
@@ -431,7 +426,6 @@ func (s *server) bindIntegrationChannel(w http.ResponseWriter, r *http.Request, 
 	s.redirectBack(w, r, dest)
 }
 
-// channelExists reports whether a Channel with the given id is declared.
 func (s *server) channelExists(ctx context.Context, id int64) (bool, error) {
 	channels, err := s.store.ListChannels(ctx)
 	if err != nil {
@@ -517,8 +511,6 @@ func (s *server) testIntegration(w http.ResponseWriter, r *http.Request, acct db
 		"Check "+integ.Name+" for the delivery.")
 }
 
-// integrationFormID reads the integration slug from an `id` field (the spec forms),
-// falling back to `slug` (the pre-spec forms).
 func integrationFormID(r *http.Request) string {
 	if id := r.FormValue("id"); id != "" {
 		return id

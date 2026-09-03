@@ -7,7 +7,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// FacetReachability is the facet this leaf covers.
 const FacetReachability = "reachability"
 
 // ServiceKey renders the `Service` subject key for one `(Address, port,
@@ -18,9 +17,6 @@ func ServiceKey(target netip.AddrPort, transport string) string {
 	return target.String() + "/" + transport
 }
 
-// reachabilityValue is the JSON payload of a reachability observation: the
-// verdict, plus the raw connect result as evidence. The differ reads `outcome`;
-// `result` is carried for the person asking *what did we actually measure*.
 type reachabilityValue struct {
 	Outcome Outcome    `json:"outcome"`
 	Result  ConnResult `json:"result"`

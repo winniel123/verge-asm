@@ -63,8 +63,6 @@ func TestDevFixturesMatchPackage(t *testing.T) {
 	}
 }
 
-// fixtureProfilePackage mirrors the design-owned fixtures.json → profile slice (plus the
-// top-level clock) the screen-3 seeder pins in devfixtures.go.
 type fixtureProfilePackage struct {
 	Clock   string `json:"clock"`
 	Profile struct {
@@ -131,7 +129,6 @@ func TestProfileFixtureMatchesPackage(t *testing.T) {
 		t.Fatalf("parse devFixtureClock: %v", err)
 	}
 
-	// Account.
 	if p.Account.Username != devProfileUsername {
 		t.Errorf("account username drift: %q vs %q", p.Account.Username, devProfileUsername)
 	}
@@ -209,10 +206,6 @@ func TestProfileFixtureMatchesPackage(t *testing.T) {
 	}
 }
 
-// fixtureSigninPackage mirrors the design-owned fixtures.json → signin slice the screen-4 dev
-// affordances pin in devfixtures.go: the build version, provider set (slug/name/mark), the
-// well-known reset/invite tokens + invite role, the accepted TOTP code, the enroll secret, and
-// the recovery-code set.
 type fixtureSigninPackage struct {
 	Signin struct {
 		Version      string `json:"version"`
@@ -295,9 +288,6 @@ func TestSigninFixtureMatchesPackage(t *testing.T) {
 	}
 }
 
-// fixtureSetupPackage mirrors the design-owned fixtures.json → setup slice the screen-5 dev
-// affordance pins in devfixtures.go: the empty-seed variant and the single-use setup token the
-// dev seed route (/dev/seed/empty) reopens the first-run window with.
 type fixtureSetupPackage struct {
 	Setup struct {
 		Variant string `json:"variant"`
@@ -440,9 +430,6 @@ func TestCoverageFixtureMatchesPackage(t *testing.T) {
 	}
 }
 
-// fixtureExposurePackage mirrors the fixtures.json exposure slice the screen-7 dev fixture pins
-// in devfixtures.go (the summary band, the +2 exposed delta, the withheld variant and the six
-// board rows).
 type fixtureExposurePackage struct {
 	Exposure struct {
 		Exposed         int    `json:"exposed"`
@@ -507,9 +494,6 @@ func TestExposureFixtureMatchesPackage(t *testing.T) {
 	}
 }
 
-// fixtureDriftPackage mirrors the fixtures.json drift slice the screen-8 dev fixture pins in
-// devfixtures.go (the range-picker presets, the change vocabulary, the trigger + tally scalars,
-// the movement map and the batch groups with their events and optional diffs).
 type fixtureDriftPackage struct {
 	Drift struct {
 		Period          string `json:"period"`
@@ -568,7 +552,6 @@ func TestDriftFixtureMatchesPackage(t *testing.T) {
 	}
 	d := f.Drift
 
-	// Trigger + tally scalars.
 	if d.Period != devDriftPeriod {
 		t.Errorf("period drift: fixtures.json = %q, pinned = %q", d.Period, devDriftPeriod)
 	}
@@ -629,7 +612,6 @@ func TestDriftFixtureMatchesPackage(t *testing.T) {
 		}
 	}
 
-	// Movement map.
 	if len(d.Movement) != len(devDriftMovement) {
 		t.Fatalf("movement length drift: fixtures.json = %d, pinned = %d", len(d.Movement), len(devDriftMovement))
 	}
@@ -669,10 +651,6 @@ func TestDriftFixtureMatchesPackage(t *testing.T) {
 	}
 }
 
-// fixtureRunDetailPackage mirrors the fixtures.json rundetail slice the screen-9 dev fixture pins
-// (devfixtures.go, served by runPage under devMode): the run header + Outcome figures, the four
-// stages, the seven log lines, the nullable degraded callout, the five params and the three
-// vantages. Snake_case JSON → the runView PascalCase the frozen rundetail.tmpl reads.
 type fixtureRunDetailPackage struct {
 	RunDetail struct {
 		ID          string `json:"id"`
@@ -801,9 +779,6 @@ func TestRunDetailFixtureMatchesPackage(t *testing.T) {
 	}
 }
 
-// fixtureScopePackage mirrors the fixtures.json scope slice the screen-10 dev fixture pins
-// (devfixtures.go): the cap, the seeds, the refusal + exclusion-preview + org-search fixtures,
-// custody, zone, name tree, coverage messages, proposals and exclusions.
 type fixtureScopePackage struct {
 	Scope struct {
 		AddressCap int `json:"address_cap"`
@@ -902,7 +877,6 @@ func TestScopeFixtureMatchesPackage(t *testing.T) {
 		t.Errorf("zone_interval_days drift: fixtures.json = %d, pinned = %q", sc.ZoneIntervalDays, got)
 	}
 
-	// Seeds.
 	if len(sc.Seeds) != len(devScopeSeeds) {
 		t.Fatalf("seeds length drift: fixtures.json = %d, pinned = %d", len(sc.Seeds), len(devScopeSeeds))
 	}
@@ -913,7 +887,6 @@ func TestScopeFixtureMatchesPackage(t *testing.T) {
 		}
 	}
 
-	// Refusal fixture.
 	r := sc.RefusalFixture
 	if r.PostValue != devScopeRefusalPost || r.Input != devScopeRefusalInput || r.Reason != devScopeRefusalReason ||
 		r.Reachable != devScopeRefusalReachable || r.FormError != devScopeRefusalFormError {
@@ -921,7 +894,6 @@ func TestScopeFixtureMatchesPackage(t *testing.T) {
 			r, devScopeRefusalPost, devScopeRefusalInput, devScopeRefusalReason, devScopeRefusalReachable, devScopeRefusalFormError)
 	}
 
-	// Custody.
 	if len(sc.CustodyScopes) != len(devScopeCustody) {
 		t.Fatalf("custody length drift: fixtures.json = %d, pinned = %d", len(sc.CustodyScopes), len(devScopeCustody))
 	}
@@ -932,7 +904,6 @@ func TestScopeFixtureMatchesPackage(t *testing.T) {
 		}
 	}
 
-	// Zone.
 	if len(sc.ZoneScopes) != len(devScopeZones) {
 		t.Fatalf("zone length drift: fixtures.json = %d, pinned = %d", len(sc.ZoneScopes), len(devScopeZones))
 	}
@@ -944,7 +915,6 @@ func TestScopeFixtureMatchesPackage(t *testing.T) {
 		}
 	}
 
-	// Name tree.
 	if len(sc.NameTree) != len(devScopeNameTree) {
 		t.Fatalf("name_tree length drift: fixtures.json = %d, pinned = %d", len(sc.NameTree), len(devScopeNameTree))
 	}
@@ -964,7 +934,6 @@ func TestScopeFixtureMatchesPackage(t *testing.T) {
 		}
 	}
 
-	// Coverage messages.
 	if len(sc.CoverageMsgs) != len(devScopeCoverageMsgs) {
 		t.Fatalf("coverage_msgs length drift: fixtures.json = %d, pinned = %d", len(sc.CoverageMsgs), len(devScopeCoverageMsgs))
 	}
@@ -976,7 +945,6 @@ func TestScopeFixtureMatchesPackage(t *testing.T) {
 		}
 	}
 
-	// Proposals.
 	if len(sc.Proposals) != len(devScopeProposals) {
 		t.Fatalf("proposals length drift: fixtures.json = %d, pinned = %d", len(sc.Proposals), len(devScopeProposals))
 	}
@@ -987,13 +955,11 @@ func TestScopeFixtureMatchesPackage(t *testing.T) {
 		}
 	}
 
-	// Org-search fixture.
 	if sc.OrgSearchFixture.Org != devScopeOrgQuery || sc.OrgSearchFixture.Notice != devScopeOrgNotice {
 		t.Errorf("org_search_fixture drift:\n fixtures.json = %+v\n pinned        = org=%q notice=%q",
 			sc.OrgSearchFixture, devScopeOrgQuery, devScopeOrgNotice)
 	}
 
-	// Exclusions.
 	if len(sc.Exclusions) != len(devScopeExclusions) {
 		t.Fatalf("exclusions length drift: fixtures.json = %d, pinned = %d", len(sc.Exclusions), len(devScopeExclusions))
 	}
@@ -1004,7 +970,6 @@ func TestScopeFixtureMatchesPackage(t *testing.T) {
 		}
 	}
 
-	// Exclusion-preview fixture.
 	xp := sc.ExclusionPreviewFixture
 	if xp.PostKind != devScopeExclPreviewKind || xp.PostValue != devScopeExclPreviewValue || xp.Fires != devScopeExclPreviewFires ||
 		xp.Headline != devScopeExclPreviewHeadline || xp.Loss != devScopeExclPreviewLoss {
@@ -1013,8 +978,6 @@ func TestScopeFixtureMatchesPackage(t *testing.T) {
 	}
 }
 
-// fixtureSignalsPackage is the on-disk shape of design-system/fixtures/fixtures.json → signals,
-// the frozen slice TestSignalsFixtureMatchesPackage folds the pinned dev fixture back through.
 type fixtureSignalsPackage struct {
 	Signals struct {
 		OpenCount   int                `json:"open_count"`
@@ -1077,8 +1040,6 @@ func (r fixtureSignalRow) cve() string {
 	return ""
 }
 
-// assertSignalRow folds one fixture row through the pinned devSignalRow and deep-asserts each field
-// (the rule ref split into id + version, the nullable CVE, the tags in order).
 func assertSignalRow(t *testing.T, where string, i int, f fixtureSignalRow, p devSignalRow) {
 	t.Helper()
 	id, ver := f.ruleParts()
@@ -1098,12 +1059,6 @@ func assertSignalRow(t *testing.T, where string, i int, f fixtureSignalRow, p de
 	}
 }
 
-// TestSignalsFixtureMatchesPackage is the byte-exactness gate before the pixels: it folds the pinned
-// dev Signals fixture (cmd/web/devfixtures.go) back through the frozen design package
-// (design-system/fixtures/fixtures.json → signals) and fails the build on any divergence — the open
-// scalars, the ten open + three withdrawn rows (with rule metadata), the annotations, the drift
-// diffs, and the two span-history literals the derivation depends on. It guards the same seam
-// TestScopeFixtureMatchesPackage guards for Scope.
 func TestSignalsFixtureMatchesPackage(t *testing.T) {
 	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
 	if err != nil {
@@ -1115,7 +1070,6 @@ func TestSignalsFixtureMatchesPackage(t *testing.T) {
 	}
 	sig := f.Signals
 
-	// Open-tab scalars.
 	if sig.OpenCount != devSignalsOpenCount || sig.Shown != devSignalsShown ||
 		sig.PageInfo != devSignalsPageInfo || sig.PageCount != devSignalsPageCount ||
 		sig.DetectedBy != devSignalsDetectedBy {
@@ -1134,7 +1088,6 @@ func TestSignalsFixtureMatchesPackage(t *testing.T) {
 		t.Errorf("history_rule missing pinned detecting vantage %q: %q", devSignalsDetectedBy, sig.HistoryRule)
 	}
 
-	// Open rows.
 	if len(sig.Rows) != len(devSignalsOpen) {
 		t.Fatalf("open rows length drift: fixtures.json = %d, pinned = %d", len(sig.Rows), len(devSignalsOpen))
 	}
@@ -1142,7 +1095,6 @@ func TestSignalsFixtureMatchesPackage(t *testing.T) {
 		assertSignalRow(t, "open", i, row, devSignalsOpen[i])
 	}
 
-	// Withdrawn rows.
 	if len(sig.Withdrawn) != len(devSignalsWithdrawn) {
 		t.Fatalf("withdrawn rows length drift: fixtures.json = %d, pinned = %d", len(sig.Withdrawn), len(devSignalsWithdrawn))
 	}
@@ -1150,7 +1102,6 @@ func TestSignalsFixtureMatchesPackage(t *testing.T) {
 		assertSignalRow(t, "withdrawn", i, row, devSignalsWithdrawn[i])
 	}
 
-	// Annotations.
 	if len(sig.Annotations) != len(devSignalsAnnotations) {
 		t.Fatalf("annotations length drift: fixtures.json = %d, pinned = %d", len(sig.Annotations), len(devSignalsAnnotations))
 	}
@@ -1165,7 +1116,6 @@ func TestSignalsFixtureMatchesPackage(t *testing.T) {
 		}
 	}
 
-	// Drift diffs.
 	if len(sig.Diffs) != len(devSignalsDiffs) {
 		t.Fatalf("diffs length drift: fixtures.json = %d, pinned = %d", len(sig.Diffs), len(devSignalsDiffs))
 	}
@@ -1246,8 +1196,6 @@ type fixtureDashboardPackage struct {
 	} `json:"signals"`
 }
 
-// dashCountedStr renders a fixtures.json coverage-meter counted RawMessage as the pinned string:
-// a JSON string is unquoted ("1,284"), a JSON number is used verbatim ("212").
 func dashCountedStr(raw json.RawMessage) string {
 	s := strings.TrimSpace(string(raw))
 	if len(s) >= 1 && s[0] == '"' {
@@ -1370,7 +1318,6 @@ func TestDashboardFixtureMatchesPackage(t *testing.T) {
 	}
 }
 
-// fixtureAssetPackage is the fixtures.json → asset slice, snake_case as stored.
 type fixtureAssetPackage struct {
 	Asset struct {
 		Key          string `json:"key"`
@@ -1505,8 +1452,6 @@ func TestAssetFixtureMatchesPackage(t *testing.T) {
 	}
 }
 
-// fixtureSubjectSpan / …Timeline / …Service / …Endpoint mirror the
-// design-system/fixtures/fixtures.json → subjectdetail shapes for the drift test below.
 type fixtureSubjectSpan struct {
 	IsGap      bool   `json:"is_gap"`
 	Value      string `json:"value"`
@@ -1613,7 +1558,6 @@ type fixtureSubjectPackage struct {
 	} `json:"subjectdetail"`
 }
 
-// assertServiceFixture folds one fixtures.json service slice against its pinned servicePageData.
 func assertServiceFixture(t *testing.T, name string, a fixtureSubjectService, d servicePageData) {
 	t.Helper()
 	if a.Key != d.Key || a.CopyKey != d.CopyKey || a.Withdrawn != d.Withdrawn || a.Exposure != d.Exposure ||
@@ -1660,7 +1604,6 @@ func assertServiceFixture(t *testing.T, name string, a fixtureSubjectService, d 
 	}
 }
 
-// assertSubjectTimelines folds the fixtures.json timeline slice against the pinned []timelineView.
 func assertSubjectTimelines(t *testing.T, name string, a []fixtureSubjectTimeline, d []timelineView) {
 	t.Helper()
 	if len(a) != len(d) {
@@ -1723,7 +1666,6 @@ func TestSubjectDetailFixtureMatchesPackage(t *testing.T) {
 	assertServiceFixture(t, "service", f.SubjectDetail.Service, devServiceData())
 	assertServiceFixture(t, "service_withdrawn", f.SubjectDetail.ServiceWithdrawn, devServiceWithdrawnData())
 
-	// Endpoint.
 	a, d := f.SubjectDetail.Endpoint, devEndpointData()
 	if a.Key != d.Key || a.CopyKey != d.CopyKey || a.Nameless != d.Nameless || a.Withdrawn != d.Withdrawn ||
 		a.Seen != d.Seen || a.InScopeSince != d.InScopeSince || a.CitationTerminated != d.CitationTerminated ||
@@ -1761,7 +1703,6 @@ func TestSubjectDetailFixtureMatchesPackage(t *testing.T) {
 	}
 }
 
-// fixtureGraphPackage is the fixtures.json → graph slice, snake_case as stored.
 type fixtureGraphPackage struct {
 	Graph struct {
 		Empty bool `json:"empty"`

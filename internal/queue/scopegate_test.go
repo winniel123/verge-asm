@@ -10,8 +10,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// subjectsOf lists the surviving observations' subjects, for order-preserving
-// assertions on what the gate admitted.
 func subjectsOf(obs []wire.Observation) []string {
 	out := make([]string, 0, len(obs))
 	for _, o := range obs {

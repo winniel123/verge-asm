@@ -21,10 +21,6 @@ import (
 // at declaration and read by no rule (§5.3).
 const DefaultAddressCap = 1024
 
-// NormalizeDomain validates that input is a registrable domain (eTLD+1) and
-// returns it lowercased and trailing-dot-stripped. It rejects a subdomain
-// (`www.example.com`), a bare public suffix (`co.uk`), a URL, and a wildcard —
-// anything that is not exactly its own registrable domain.
 func NormalizeDomain(input string) (string, error) {
 	d := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(input)), ".")
 	if d == "" {

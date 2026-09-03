@@ -38,8 +38,6 @@ func newScript(byService map[string]listener) *scriptEnumerator {
 	return &scriptEnumerator{byService: byService}
 }
 
-// Handshake implements tlsacceptance.Enumerator: it selects the listener for the
-// target Service and answers the pinned version / offered suites from its model.
 func (s *scriptEnumerator) Handshake(_ context.Context, target netip.AddrPort, version string, offered []string) ta.Attempt {
 	s.calls++
 	l, ok := s.byService[ta.ServiceKey(target, "tcp")]

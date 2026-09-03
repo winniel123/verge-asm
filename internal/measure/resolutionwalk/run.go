@@ -8,7 +8,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// Kind is the JobSpec.Kind that dispatches to this leaf.
 const Kind = "resolution-walk"
 
 // Scope is the resolution-walk-specific payload of a JobSpec. It carries the
@@ -22,7 +21,6 @@ type Scope struct {
 	Offers   Offers   `json:"offers"`
 }
 
-// DecodeScope reads a Scope from a JobSpec's opaque Scope payload.
 func DecodeScope(spec wire.JobSpec) (Scope, error) {
 	var s Scope
 	if len(spec.Scope) == 0 {
@@ -34,9 +32,6 @@ func DecodeScope(spec wire.JobSpec) (Scope, error) {
 	return s, nil
 }
 
-// Run executes the leaf against a live network for one JobSpec, writing NDJSON
-// observations to w. It is the production entrypoint the prober dispatches to;
-// the golden corpus calls Resolve/Emit directly against a scripted Peer instead.
 func Run(spec wire.JobSpec, w io.Writer) error {
 	scope, err := DecodeScope(spec)
 	if err != nil {
@@ -46,9 +41,6 @@ func Run(spec wire.JobSpec, w io.Writer) error {
 	return RunWithPeer(peer, spec.Batch, scope, w)
 }
 
-// RunWithPeer executes the leaf against an arbitrary Peer. Separating the peer
-// from Run is what lets the same code path be driven by the network adapter in
-// production and by a scripted peer in a hermetic test.
 func RunWithPeer(peer Peer, batch string, scope Scope, w io.Writer) error {
 	var out []wire.Observation
 	for _, name := range scope.Names {

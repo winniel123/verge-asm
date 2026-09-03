@@ -22,8 +22,6 @@ const (
 	totpSecretBytes = 20 // 160 bits, the RFC 4226 recommendation
 )
 
-// b32 is unpadded base32, the encoding authenticator apps expect for the
-// shared secret.
 var b32 = base32.StdEncoding.WithPadding(base32.NoPadding)
 
 // totpMod is 10^totpDigits, the modulus that truncates the HOTP value to
@@ -37,7 +35,6 @@ var totpMod = func() uint32 {
 	return m
 }()
 
-// NewTOTPSecret returns a fresh random base32 TOTP secret.
 func NewTOTPSecret() (string, error) {
 	buf := make([]byte, totpSecretBytes)
 	if _, err := rand.Read(buf); err != nil {
@@ -57,12 +54,6 @@ func TOTPCode(secret string, t time.Time) (string, error) {
 	return codeFromKey(key, t), nil
 }
 
-// VerifyTOTP reports whether code is valid for secret at time t, accepting the
-// immediately-adjacent steps as well to tolerate clock skew and a code typed
-// as its window closes. The comparison is constant-time. The secret is decoded
-// once, not once per window. It is the stateless check the enrollment-confirm
-// path uses; the replay-guarded login path uses VerifyTOTPStep to learn and
-// persist which step matched.
 func VerifyTOTP(secret, code string, t time.Time) bool {
 	_, ok := VerifyTOTPStep(secret, code, t)
 	return ok

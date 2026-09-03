@@ -5,9 +5,6 @@ import (
 	"testing"
 )
 
-// sharedFanout builds the measured store an EdgeFanout carries: first the addresses
-// fan-out measured as SHARED, then the ones it measured and found not shared. An
-// address named in neither is unmeasured, which is the open-then-label case.
 func sharedFanout(shared []string, notShared []string) map[netip.Addr]bool {
 	m := make(map[netip.Addr]bool, len(shared)+len(notShared))
 	for _, s := range shared {

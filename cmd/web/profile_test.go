@@ -21,8 +21,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
-// --- fake personal-token + password store ----------------------------------
-
 func (f *fakeStore) UpdatePassword(_ context.Context, arg db.UpdatePasswordParams) error {
 	acct, ok := f.accounts[arg.ID]
 	if !ok {
@@ -111,8 +109,6 @@ func (f *fakeStore) UpdatePersonalTokenLastUsed(_ context.Context, id int64) err
 
 // --- session registry fakes (#405, ADR-0117) -------------------------------
 
-// CreateSession opens a session row: a monotonic id, now-stamped created_at and
-// last_seen_at, and the caller's token hash / user-agent / ip / expiry.
 func (f *fakeStore) CreateSession(_ context.Context, arg db.CreateSessionParams) (db.Session, error) {
 	if f.sessionNextID == 0 {
 		f.sessionNextID = 1
@@ -129,9 +125,6 @@ func (f *fakeStore) CreateSession(_ context.Context, arg db.CreateSessionParams)
 	return sess, nil
 }
 
-// GetSessionByTokenHash mirrors the validation query: the row whose token_hash matches
-// AND is unrevoked AND is unexpired against the passed clock bound (expires_at > arg).
-// A dead session simply returns no row, exactly as the SQL does.
 func (f *fakeStore) GetSessionByTokenHash(_ context.Context, arg db.GetSessionByTokenHashParams) (db.Session, error) {
 	for _, sess := range f.sessions {
 		if sess.TokenHash == arg.TokenHash && !sess.RevokedAt.Valid && sess.ExpiresAt.Time.After(arg.ExpiresAt.Time) {
@@ -141,7 +134,6 @@ func (f *fakeStore) GetSessionByTokenHash(_ context.Context, arg db.GetSessionBy
 	return db.Session{}, pgx.ErrNoRows
 }
 
-// TouchSession refreshes last_seen_at; a missing row is a no-op, matching the SQL.
 func (f *fakeStore) TouchSession(_ context.Context, arg db.TouchSessionParams) error {
 	for i := range f.sessions {
 		if f.sessions[i].ID == arg.ID {
@@ -152,9 +144,6 @@ func (f *fakeStore) TouchSession(_ context.Context, arg db.TouchSessionParams) e
 	return nil
 }
 
-// RevokeSession stamps revoked_at on the row scoped to its owner (id AND account_id),
-// only while it is still live. Idempotent: an already-revoked or foreign row is
-// untouched, mirroring the owner-scoped SQL.
 func (f *fakeStore) RevokeSession(_ context.Context, arg db.RevokeSessionParams) error {
 	for i := range f.sessions {
 		if f.sessions[i].ID == arg.ID && f.sessions[i].AccountID == arg.AccountID && !f.sessions[i].RevokedAt.Valid {
@@ -189,9 +178,6 @@ func (f *fakeStore) ListSessionsForAccount(_ context.Context, arg db.ListSession
 	return rows, nil
 }
 
-// RevokeOtherSessionsForAccount revokes every live session for the account EXCEPT the
-// current one (arg.ID) — "sign out other devices" and the password-change invalidation.
-// The acting session survives, mirroring the id <> $2 predicate.
 func (f *fakeStore) RevokeOtherSessionsForAccount(_ context.Context, arg db.RevokeOtherSessionsForAccountParams) error {
 	for i := range f.sessions {
 		if f.sessions[i].AccountID == arg.AccountID && f.sessions[i].ID != arg.ID && !f.sessions[i].RevokedAt.Valid {
@@ -201,8 +187,6 @@ func (f *fakeStore) RevokeOtherSessionsForAccount(_ context.Context, arg db.Revo
 	return nil
 }
 
-// RevokeAllSessionsForAccount revokes every live session for the account with no
-// exception — the reset path (no current session to keep) and admin offboarding.
 func (f *fakeStore) RevokeAllSessionsForAccount(_ context.Context, arg db.RevokeAllSessionsForAccountParams) error {
 	for i := range f.sessions {
 		if f.sessions[i].AccountID == arg.AccountID && !f.sessions[i].RevokedAt.Valid {
@@ -240,8 +224,6 @@ func (f *fakeStore) ListAllActiveSessions(_ context.Context, expiresAt pgtype.Ti
 	return rows, nil
 }
 
-// RevokeSessionByIDForAdmin revokes any one live session by id, NOT owner-scoped — the
-// admin single-revoke, gated by requireAdmin at the handler. Idempotent.
 func (f *fakeStore) RevokeSessionByIDForAdmin(_ context.Context, arg db.RevokeSessionByIDForAdminParams) error {
 	for i := range f.sessions {
 		if f.sessions[i].ID == arg.ID && !f.sessions[i].RevokedAt.Valid {
@@ -251,8 +233,6 @@ func (f *fakeStore) RevokeSessionByIDForAdmin(_ context.Context, arg db.RevokeSe
 	}
 	return nil
 }
-
-// --- tests -----------------------------------------------------------------
 
 func profileBase(t *testing.T) (*fakeStore, string, db.Account) {
 	t.Helper()
@@ -298,7 +278,7 @@ func TestProfileRendersRealAccount(t *testing.T) {
 	for _, want := range []string{
 		"Profile", "Who you are", `value="ola"`, // identity
 		"Password &amp; two-factor", "two-factor off", "Enable two-factor", // credentials + 2FA status
-		"Signed in right now", // sessions
+		"Signed in right now",                                    // sessions
 		"Personal API tokens", "You have no personal API tokens", // tokens empty state
 	} {
 		if !strings.Contains(got, want) {
@@ -458,7 +438,6 @@ func TestProfileChangePassword(t *testing.T) {
 		t.Fatalf("password changed despite wrong current password")
 	}
 
-	// The correct current password changes it.
 	resp = postForm(t, c, base+"/profile/password", url.Values{
 		"current_password": {"hunter2hunter2"}, "new_password": {"brandnewpass99"},
 	})

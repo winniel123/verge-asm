@@ -70,10 +70,8 @@ func (s Step) observed() map[netip.Addr][]string {
 // concluded about one address, from the measurement in to the gate out. Fields
 // render in declaration order, so the encoding is stable without a sort.
 type line struct {
-	Address string `json:"address"`
-	// Measured reports whether the `edge-fanout` Scan recorded a row for this
-	// address. False is measurement PENDING, and it is not a count band.
-	Measured bool `json:"measured"`
+	Address  string `json:"address"`
+	Measured bool   `json:"measured"`
 	// FanOut is the count of distinct registrable domains the SAN set reduces to,
 	// and SharedEdge the verdict the threshold gives that count. Both are null
 	// where nothing measured, because an absence is never a value.
@@ -88,11 +86,9 @@ type line struct {
 	// AddressScopeCovered reports whether a declared address-scope `Seed` covers
 	// the address — the OTHER limb of subject membership, which the veto never
 	// reaches.
-	AddressScopeCovered bool `json:"address_scope_covered"`
-	// Custody is the derived value, and MayProbeInternet the total probing gate
-	// that reads it from an `internet`-class Vantage.
-	Custody          string `json:"custody"`
-	MayProbeInternet bool   `json:"may_probe_internet"`
+	AddressScopeCovered bool   `json:"address_scope_covered"`
+	Custody             string `json:"custody"`
+	MayProbeInternet    bool   `json:"may_probe_internet"`
 }
 
 // RenderRow runs a row's step through the `Custody` derivation and returns the
@@ -135,7 +131,6 @@ func RenderRow(r Row) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// RenderAll renders every row, keyed by its golden filename.
 func RenderAll() (map[string][]byte, error) {
 	out := make(map[string][]byte, len(Rows))
 	for _, r := range Rows {
@@ -148,9 +143,6 @@ func RenderAll() (map[string][]byte, error) {
 	return out, nil
 }
 
-// CorpusDigest is a stable hash over the rendered corpus, in golden-filename
-// order. It moves exactly when a row's expected output moves, which binds an
-// output change to a derivation-version bump through the lock.
 func CorpusDigest(rendered map[string][]byte) string {
 	names := make([]string, 0, len(rendered))
 	for n := range rendered {
@@ -199,7 +191,6 @@ type Lock struct {
 	UncoveredMoves []UncoveredMove `json:"uncovered_moves"`
 }
 
-// LoadLock reads corpus.lock.json from dir.
 func LoadLock(dir string) (Lock, error) {
 	b, err := os.ReadFile(filepath.Join(dir, "corpus.lock.json")) // #nosec G304 (test corpus loader; filename constant, dir is the fixed test corpus directory ".")
 	if err != nil {

@@ -22,7 +22,6 @@ func candidateSpan(id int64, kind, key string) db.ListSeedWithdrawalCandidatesRo
 	return db.ListSeedWithdrawalCandidatesRow{ID: id, SubjectKind: kind, SubjectKey: key}
 }
 
-// previewChip clicks a chip's remove control and returns the landing GET's body.
 func previewChip(t *testing.T, c *http.Client, base string, id int64) string {
 	t.Helper()
 	resp := postForm(t, c, base+"/seeds/preview", url.Values{"id": {intStr(id)}})

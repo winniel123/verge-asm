@@ -110,7 +110,6 @@ func TestFrequencyEditRemoveFrequencyOnly(t *testing.T) {
 // half is not operator-editable, so the pair stays probed. This is the §3.5
 // invariant — an operator cannot move the sensitive half.
 func TestFrequencyEditCannotMoveSensitive(t *testing.T) {
-	// 445/tcp sits on both halves.
 	p := Pair{Port: 445, Transport: TCP}
 	l := Default()
 	if !l.IsSensitive(p) || !l.IsFrequency(p) {

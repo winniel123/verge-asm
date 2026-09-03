@@ -28,21 +28,16 @@ type CAIDA struct {
 	delegatedBase string
 }
 
-// NewCAIDA builds a CAIDA-join proposer for one RIR.
 func NewCAIDA(doer Doer, slug, rir, caidaBase, delegatedBase string) *CAIDA {
 	return &CAIDA{doer: doer, slug: slug, rir: rir, caidaBase: caidaBase, delegatedBase: delegatedBase}
 }
 
 func (c *CAIDA) Slug() string { return c.slug }
 
-// caidaOrgIDs is CAIDA's org->opaque-id answer: the registry holder ids the
-// searched name maps to.
 type caidaOrgIDs struct {
 	OpaqueIDs []string `json:"opaque_ids"`
 }
 
-// Propose resolves the org name to opaque ids, then reads the delegated-stats
-// file and emits a Candidate for every range delegated under one of those ids.
 func (c *CAIDA) Propose(ctx context.Context, orgName string) ([]Candidate, error) {
 	ids, err := c.orgIDs(ctx, orgName)
 	if err != nil {
@@ -80,13 +75,6 @@ func (c *CAIDA) orgIDs(ctx context.Context, orgName string) ([]string, error) {
 	return parsed.OpaqueIDs, nil
 }
 
-// delegations streams the RIR delegated-extended-stats file and turns matching
-// rows into candidate scopes. The extended format is pipe-delimited:
-//
-//	rir|cc|type|start|value|date|status|opaque-id
-//
-// For an ipv4 row `value` is a raw address count and for an ipv6 row it is a
-// prefix length; both are converted to aligned CIDR prefixes.
 func (c *CAIDA) delegations(ctx context.Context, orgName string, ids map[string]bool) ([]Candidate, error) {
 	u := c.delegatedBase + "/delegated-" + c.rir + "-extended-latest"
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
@@ -135,7 +123,6 @@ func (c *CAIDA) delegations(ctx context.Context, orgName string, ids map[string]
 	return out, nil
 }
 
-// rowPrefixes converts one delegated-stats address row to CIDR prefixes.
 func rowPrefixes(typ, start, value string) ([]netip.Prefix, error) {
 	addr, err := netip.ParseAddr(start)
 	if err != nil {

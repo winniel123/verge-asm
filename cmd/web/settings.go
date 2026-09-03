@@ -66,8 +66,6 @@ type classState struct {
 // checkboxes and badges from this, never from a literal set baked into the markup.
 var channelClasses = []string{"drift", "coverage", "clock"}
 
-// accountRow is one account in the management list. It carries no password hash
-// and no TOTP secret — managing an account needs neither.
 type accountRow struct {
 	ID          int64
 	Username    string
@@ -96,7 +94,6 @@ type sessionRow struct {
 	Current   bool
 }
 
-// retentionView renders the three dials and who last moved them.
 type retentionView struct {
 	ObservationCurrencyDays int64
 	DispatchCadenceMultiple int64
@@ -184,11 +181,6 @@ type settingsForms struct {
 	// success stash) and read on the way out; it never reaches the template.
 	flashTab string
 
-	// team (T18). teamError is an inline error on the members surface; roleError is
-	// the change-role guard's message. inviteLink is a freshly minted join URL,
-	// revealed once by createInvite; inviteOpen re-opens the invite dialog on a
-	// rejected mint and inviteRole echoes its role. removeID/removeError re-open the
-	// remove ConfirmDialog on a typed-name mismatch or a guard refusal.
 	teamError   string
 	roleError   string
 	inviteRole  string
@@ -256,11 +248,6 @@ type settingsForms struct {
 	restoreConfirm *restoreConfirmView
 }
 
-// settingsTabs is the sub-tab order of the Settings screen, ported from
-// examples/console/Settings.jsx's SettingsNav groups: Scanning (scans, vantages),
-// Access (single sign-on, team, audit log), Discovery (sources, port aperture),
-// Instance (health), then Delivery (channels, integrations, messages, delivery
-// record). Each is reached at /settings?tab=<id>.
 var settingsTabs = []string{
 	"scans", "vantages",
 	"sso", "team", "audit", "api", "sessions",
@@ -542,8 +529,6 @@ func (s *server) settingsPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 // ?notice=revoked / ?notice=revoked-account is gone with the query carrier it decoded
 // (ticket #977): the two lines it held are now stated at the two handlers that mean them.
 
-// --- team ------------------------------------------------------------------
-
 // inviteTTL bounds a Team invite's life, matching the Settings.jsx invite dialog's
 // "expires in 7 days". A join link older than this is refused at /invite (T19's
 // lookupInvite), so a leaked-then-stale link is inert.
@@ -721,11 +706,6 @@ func (s *server) removeAccount(w http.ResponseWriter, r *http.Request, acct db.A
 	s.backToSection(w, r, "team")
 }
 
-// --- channels --------------------------------------------------------------
-
-// createChannel declares where Messages go. It persists the fields only — the
-// outbound POST and the Delivery record land with ticket 27, and nothing here
-// delivers anything.
 func (s *server) createChannel(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	rawURL := strings.TrimSpace(r.FormValue("url"))
 	drift, coverage, clock := classesFromForm(r)
@@ -756,10 +736,6 @@ func (s *server) createChannel(w http.ResponseWriter, r *http.Request, acct db.A
 	s.backToSection(w, r, "channels")
 }
 
-// updateChannel edits a channel's URL, routing classes and enabled state, and
-// applies a secret change if one was asked for. The secret is write-only: a
-// blank secret field leaves the stored one untouched, the clear box removes it,
-// and a value replaces it.
 func (s *server) updateChannel(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	fail := func(msg string) {
 		s.failSettings(w, r, settingsForms{section: "channels", chanError: msg})
@@ -806,8 +782,6 @@ func (s *server) updateChannel(w http.ResponseWriter, r *http.Request, acct db.A
 	s.backToSection(w, r, "channels")
 }
 
-// deleteChannel removes a channel. It is idempotent: deleting a row that is
-// already gone satisfies the operator's intent either way.
 func (s *server) deleteChannel(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
@@ -820,8 +794,6 @@ func (s *server) deleteChannel(w http.ResponseWriter, r *http.Request, acct db.A
 	}
 	s.backToSection(w, r, "channels")
 }
-
-// --- retention -------------------------------------------------------------
 
 // updateRetention persists the three dial values. The observation and dispatch
 // floors are DERIVED not asserted (ADR-0094) — never presented as an operator
@@ -917,8 +889,6 @@ func (s *server) updateAddressCap(w http.ResponseWriter, r *http.Request, acct d
 	}
 	s.backToSection(w, r, "addresscap")
 }
-
-// --- render ----------------------------------------------------------------
 
 // renderSettings assembles the active sub-tab and renders the tabbed Settings
 // page. It gathers only the data the active section needs, so a folded read
@@ -1028,7 +998,6 @@ func (s *server) fillVantagesSection(r *http.Request, f settingsForms, data map[
 	return nil
 }
 
-// fillChannelsSection reads the declared channels and the create-form echo.
 func (s *server) fillChannelsSection(r *http.Request, f settingsForms, data map[string]any) error {
 	channels, err := s.store.ListChannels(r.Context())
 	if err != nil {
@@ -1058,10 +1027,6 @@ func (s *server) fillChannelsSection(r *http.Request, f settingsForms, data map[
 	return nil
 }
 
-// initialsFromUsername derives a member's initial-avatar label from their username
-// — the first two letters of the local part, uppercased (Settings.jsx derives the
-// avatar from the username, no new datum). A single-character local part yields one
-// letter; an empty username yields the empty string.
 func initialsFromUsername(username string) string {
 	local := username
 	if i := strings.IndexByte(username, '@'); i >= 0 {
@@ -1095,7 +1060,6 @@ func (s *server) fillDeliverySection(r *http.Request, f settingsForms, data map[
 	}
 	data["Deliveries"] = deliveries
 
-	// Retention dials.
 	accounts, err := s.store.ListAccounts(ctx)
 	if err != nil {
 		return err
@@ -1234,7 +1198,6 @@ func (s *server) fillTeamSection(r *http.Request, acct db.Account, f settingsFor
 	if m := find(qid("role")); m != nil && !m.IsSelf {
 		data["RoleTarget"] = m
 	}
-	// Require-re-enrollment dialog: opened by ?reenroll=<id>.
 	if m := find(qid("reenroll")); m != nil && !m.IsSelf {
 		data["ReenrollTarget"] = m
 	}
@@ -1648,9 +1611,6 @@ func (s *server) migrationsPending(ctx context.Context) (int, bool) {
 	return pending, true
 }
 
-// migrationVersion parses the leading integer of a goose migration filename
-// (e.g. "23000_instance_config.sql" → 23000), the version goose records in its ledger.
-// A name with no leading integer is not a numbered migration and reports ok=false.
 func migrationVersion(name string) (int64, bool) {
 	i := strings.IndexByte(name, '_')
 	if i <= 0 {
@@ -1944,8 +1904,6 @@ func projectedPassLabel(seconds float64) string {
 		return fmt.Sprintf("≈ %.1f years", seconds/(365*86400))
 	}
 }
-
-// --- helpers ---------------------------------------------------------------
 
 // classesFromForm reads the three routing-class checkboxes. Routing is by class
 // and nothing finer (ADR-0091); an absent box is that class switched off.

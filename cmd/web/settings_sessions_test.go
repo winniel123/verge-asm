@@ -7,9 +7,6 @@ import (
 	"testing"
 )
 
-// liveSessionID returns the id of an account's single live (unrevoked) session in the
-// fake registry, failing the test if none is found. A signed-in account holds exactly
-// one session per login client.
 func liveSessionID(t *testing.T, f *fakeStore, accountID int64) int64 {
 	t.Helper()
 	for _, sess := range f.sessions {
@@ -21,8 +18,6 @@ func liveSessionID(t *testing.T, f *fakeStore, accountID int64) int64 {
 	return 0
 }
 
-// countLiveSessions returns how many live (unrevoked) sessions an account holds in the
-// fake registry.
 func countLiveSessions(f *fakeStore, accountID int64) int {
 	n := 0
 	for _, sess := range f.sessions {
@@ -157,7 +152,6 @@ func TestAdminRevokeAllForAccount(t *testing.T) {
 	if countLiveSessions(f, boyd.ID) != 0 {
 		t.Fatalf("boyd live sessions after offboard = %d, want 0", countLiveSessions(f, boyd.ID))
 	}
-	// Cara's session is untouched.
 	if countLiveSessions(f, cara.ID) != 1 {
 		t.Fatalf("cara live sessions = %d, want 1 (must survive Boyd's offboard)", countLiveSessions(f, cara.ID))
 	}

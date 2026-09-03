@@ -126,8 +126,6 @@ func classifyProberOutcome(ps *os.ProcessState, ctxErr error) wire.ProberOutcome
 	return wire.ProberExited{Code: -1}
 }
 
-// Worker claims jobs off the queue and runs them, committing each job's outcome
-// and its observations in one transaction.
 type Worker struct {
 	pool   *pgxpool.Pool
 	q      *db.Queries
@@ -315,8 +313,6 @@ type VantageRouter interface {
 // a hung probe is bounded here long before the reaper would ever reclaim its job.
 const DefaultProbeTimeout = 5 * time.Minute
 
-// NewWorker builds a Worker over pool driving prober. It starts with
-// DefaultProbeTimeout; override it with WithProbeTimeout.
 func NewWorker(pool *pgxpool.Pool, prober Prober, now func() time.Time, logger *log.Logger) *Worker {
 	if now == nil {
 		now = time.Now
@@ -369,11 +365,8 @@ func (w *Worker) Run(ctx context.Context) error {
 	}
 }
 
-// Drain runs every claimable job until none remain. It is what a manual trigger
-// calls to run a fan-out to completion synchronously.
 func (w *Worker) Drain(ctx context.Context) error { return w.drain(ctx) }
 
-// drain runs claimable jobs until none remain.
 func (w *Worker) drain(ctx context.Context) error {
 	for {
 		ran, err := w.RunOnce(ctx)
@@ -386,8 +379,6 @@ func (w *Worker) drain(ctx context.Context) error {
 	}
 }
 
-// RunOnce claims one job and processes it. It returns false when the queue had
-// no claimable job.
 func (w *Worker) RunOnce(ctx context.Context) (bool, error) {
 	job, err := w.q.ClaimJob(ctx)
 	if errors.Is(err, pgx.ErrNoRows) {

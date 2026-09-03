@@ -6,9 +6,6 @@ import (
 	"time"
 )
 
-// reqWith builds a bare request carrying the given RemoteAddr and, when non-empty,
-// a single X-Forwarded-For header — the two inputs clientIP derives the limiter key
-// from.
 func reqWith(remoteAddr, xff string) *http.Request {
 	r := &http.Request{RemoteAddr: remoteAddr, Header: http.Header{}}
 	if xff != "" {
@@ -17,8 +14,6 @@ func reqWith(remoteAddr, xff string) *http.Request {
 	return r
 }
 
-// TestParseTrustedProxies covers the VERGE_TRUSTED_PROXIES parse: bare IPs, CIDRs,
-// blank/whitespace entries, and a malformed entry that must be a hard error.
 func TestParseTrustedProxies(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -53,8 +48,6 @@ func TestParseTrustedProxies(t *testing.T) {
 	}
 }
 
-// TestClientIP covers key derivation across the untrusted-peer (unchanged) and
-// trusted-proxy paths, including the rightmost-untrusted XFF walk and the fallbacks.
 func TestClientIP(t *testing.T) {
 	trusted, err := parseTrustedProxies("10.0.0.0/8, 192.0.2.7")
 	if err != nil {

@@ -86,15 +86,9 @@ type EndpointFacts struct {
 	HTTPStatus       int
 	RedirectLocation string
 
-	// RedirectHostInEstate reports whether the host the 3xx `Location` names is a
-	// subject in the estate — the pre-folded evidence `redirect-to-host-outside-estate`
-	// reads (the estate membership is a Derived value the web layer folds, like
-	// InDeclaredZone on NameFacts). It is meaningful only where the Endpoint is in
-	// that rule's domain (a 3xx with a Location).
 	RedirectHostInEstate bool
 }
 
-// EndpointRule is one `Signal` whose subject is an `Endpoint`.
 type EndpointRule interface {
 	Name() string
 	Version() Version
@@ -141,9 +135,6 @@ func EvaluateEndpoint(r EndpointRule, endpoints []EndpointFacts) Census {
 	return c
 }
 
-// certVersion is the version vector every certificate-reading rule composes: the
-// `tls-handshake` leaf that decides the `certificate` facet. A bump of that leaf
-// moves every rule that reads the value it decides.
 func certVersion() Version { return Version{Rule: "v1", Composes: []string{co.CertVersion}} }
 
 // weakKeyFloorVersion is certificate-weak-key-or-signature's OWN read-side floor
@@ -240,8 +231,6 @@ type certificateHostnameSANMismatch struct{}
 func (certificateHostnameSANMismatch) Name() string     { return "certificate-hostname-san-mismatch" }
 func (certificateHostnameSANMismatch) Version() Version { return certVersion() }
 
-// Severity: high — a chain whose SANs do not cover the endpoint's name fails
-// verification and is indistinguishable from a misissued or wrong certificate.
 func (certificateHostnameSANMismatch) Severity() Severity { return SevHigh }
 func (certificateHostnameSANMismatch) Eval(f EndpointFacts) Outcome {
 	if !presentedCert(f) || !f.HasName {
@@ -324,8 +313,6 @@ func (redirectDoesNotUpgradeToTLS) Version() Version {
 	return Version{Rule: "v1", Composes: []string{hx.Version}}
 }
 
-// Severity: low — a redirect that does not upgrade to TLS is a best-practice miss;
-// the plaintext-http-no-https rule carries the underlying exposure.
 func (redirectDoesNotUpgradeToTLS) Severity() Severity { return SevLow }
 func (redirectDoesNotUpgradeToTLS) Eval(f EndpointFacts) Outcome {
 	if !is3xxWithLocation(f) {
@@ -353,8 +340,6 @@ func (redirectToHostOutsideEstate) Version() Version {
 	return Version{Rule: "v1", Composes: sortedStrings(append([]string{hx.Version}, leafVersions...)...)}
 }
 
-// Severity: medium — a redirect leaving the estate can hand a session or a click
-// to an unowned host, a phishing / open-redirect risk.
 func (redirectToHostOutsideEstate) Severity() Severity { return SevMedium }
 func (redirectToHostOutsideEstate) Eval(f EndpointFacts) Outcome {
 	if !is3xxWithLocation(f) {
@@ -387,8 +372,6 @@ func (unauthenticatedRequestAnswered) Version() Version {
 	return Version{Rule: "v1", Composes: []string{hx.Version}}
 }
 
-// Severity: high — an endpoint answering an unauthenticated request 2xx is an
-// exposed surface (an admin panel or API reachable without a challenge).
 func (unauthenticatedRequestAnswered) Severity() Severity { return SevHigh }
 func (unauthenticatedRequestAnswered) Eval(f EndpointFacts) Outcome {
 	if !f.HTTPResponded {
