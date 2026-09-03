@@ -23,19 +23,13 @@ import (
 	"github.com/winniel123/verge-asm/internal/scan"
 )
 
-// certWithSANs builds one self-signed leaf carrying the given dNSName SANs and returns
-// its DER. The fan-out reduction reads a certificate off the wire, so the fixture is a
-// real certificate rather than a hand-written SAN list.
-//
-// It takes a testing.TB rather than a *testing.T so BenchmarkToEdgeFanout builds its
-// fixture through the same helper the tests use (#1014). A hand-written byte slice
-// leaves x509.ParseCertificate nothing to do, and would measure nothing.
 func certWithSANs(t testing.TB, sans ...string) []byte {
 	t.Helper()
 	_, key, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatalf("generate key: %v", err)
 	}
+	// A hand-written SAN list leaves x509.ParseCertificate nothing to do and would measure nothing.
 	tmpl := &x509.Certificate{
 		SerialNumber: big.NewInt(1),
 		Subject:      pkix.Name{CommonName: "edge"},
@@ -50,8 +44,6 @@ func certWithSANs(t testing.TB, sans ...string) []byte {
 	return der
 }
 
-// distinctSANs returns n SANs on n distinct registrable domains, so the fan-out count
-// equals n exactly.
 func distinctSANs(n int) []string {
 	out := make([]string, 0, n)
 	for i := range n {
@@ -70,24 +62,13 @@ func edge(addr, outcome string, der []byte) edgeFixture {
 	return edgeFixture{addr: addr, outcome: outcome, der: der}
 }
 
-// posed splits the fixtures into the TWO reads ReadEdgeFanout issues since #1035: one
-// measurement row per address, naming its certificate by fingerprint alone, and one
-// material entry per DISTINCT certificate.
-//
-// Two fixtures carrying the same DER share a fingerprint, and the material map then
-// holds ONE entry for both. That is the shared-edge shape — many addresses behind one
-// CDN edge presenting one certificate — and it is what the reduction must now derive
-// once rather than once per address.
-//
-// The fingerprint is minted with connectoutcome.Fingerprint, the same function the leaf
-// keys the side store with (edgefanout.presentedMaterial), so no fixture can name a
-// certificate under a key production would never mint.
 func posed(fx ...edgeFixture) ([]db.ListEdgeFanoutMeasurementsRow, map[string][]byte) {
 	rows := make([]db.ListEdgeFanoutMeasurementsRow, 0, len(fx))
 	material := map[string][]byte{}
 	for _, f := range fx {
 		r := db.ListEdgeFanoutMeasurementsRow{Address: f.addr, Outcome: f.outcome}
 		if len(f.der) > 0 {
+			// Production keys the side store with this function, so no fixture mints a key it never would.
 			fp := co.Fingerprint(f.der)
 			r.Fingerprint = pgtype.Text{String: fp, Valid: true}
 			material[fp] = f.der
@@ -102,9 +83,6 @@ func reduce(completed bool, fx ...edgeFixture) custody.EdgeFanout {
 	return toEdgeFanout(completed, rows, material)
 }
 
-// An edge presenting identities at or above the threshold is shared; one below it is
-// not. The reduction and the threshold are #984's; what this pins is that the read path
-// hands the derivation the same boolean.
 func TestToEdgeFanoutReadsTheSANSetOffTheCertificate(t *testing.T) {
 	shared := certWithSANs(t, distinctSANs(custody.SharedEdgeThreshold)...)
 	dedicated := certWithSANs(t, distinctSANs(custody.SharedEdgeThreshold-1)...)
@@ -125,14 +103,8 @@ func TestToEdgeFanoutReadsTheSANSetOffTheCertificate(t *testing.T) {
 	}
 }
 
-// Each negative outcome MEASURED the address and found no identity there. That reduces
-// to a fan-out of zero — measured and not-shared — so the address is reached, never
-// held. A held address would be withheld forever on an edge that simply refuses TLS.
-//
-// A negative stores a NULL FINGERPRINT (#1035), where it used to arrive as a NULL `der`
-// off the join. Both spellings are a VALUE, not the absence the veto holds on: only a
-// missing ROW is that.
 func TestToEdgeFanoutMeasuresEveryNegativeOutcomeAsNotShared(t *testing.T) {
+	// A negative is a value; only a missing row is the absence that withholds a probe (ADR-0129).
 	for _, outcome := range []edgefanout.Outcome{edgefanout.TLSRefused, edgefanout.NoTLS, edgefanout.Unreachable} {
 		rows, material := posed(edge("104.16.132.229", string(outcome), nil))
 		if rows[0].Fingerprint.Valid {
@@ -149,8 +121,6 @@ func TestToEdgeFanoutMeasuresEveryNegativeOutcomeAsNotShared(t *testing.T) {
 	}
 }
 
-// An address the Scan did not measure carries no row, so it gets NO KEY. That missing
-// key is what the derivation reads as measurement pending and holds on.
 func TestToEdgeFanoutGivesAnUnmeasuredAddressNoKey(t *testing.T) {
 	got := toEdgeFanout(false, nil, nil)
 	if len(got.Shared) != 0 {
@@ -161,18 +131,8 @@ func TestToEdgeFanoutGivesAnUnmeasuredAddressNoKey(t *testing.T) {
 	}
 }
 
-// A `presented` row whose certificate material never landed reduces to a fan-out of
-// zero and is REACHED, not held. Holding it would withhold the address forever on an
-// error that never clears, and a silently missing estate is the direction ADR-0129
-// refuses; probing one edge too many is the loud direction it accepts.
-//
-// #1035 splits that state into three spellings, and all three must reach:
-//
-//   - the row names NO fingerprint, which the old join rendered as a NULL `der`;
-//   - the row NAMES a fingerprint the material read returned nothing for, which is the
-//     shape the second read makes newly expressible;
-//   - the material landed and does not decode.
 func TestToEdgeFanoutReachesAPresentedRowWithNoMaterial(t *testing.T) {
+	// A silently missing estate is the direction ADR-0129 §2 refuses; one edge too many is loud.
 	addr := netip.MustParseAddr("104.16.132.229")
 	orphan := db.ListEdgeFanoutMeasurementsRow{
 		Address:     addr.String(),
@@ -202,8 +162,6 @@ func TestToEdgeFanoutReachesAPresentedRowWithNoMaterial(t *testing.T) {
 	}
 }
 
-// The map is keyed on the address, never on a spelling, so the derivation's Unmap'ed
-// lookup finds a row a mapped rendering wrote.
 func TestToEdgeFanoutKeysOnTheUnmappedAddress(t *testing.T) {
 	got := reduce(false,
 		edge("::ffff:104.16.132.229", string(edgefanout.Presented), certWithSANs(t, distinctSANs(custody.SharedEdgeThreshold)...)),
@@ -213,9 +171,6 @@ func TestToEdgeFanoutKeysOnTheUnmappedAddress(t *testing.T) {
 	}
 }
 
-// A row whose address does not parse is SKIPPED, leaving no key. The address is then
-// held rather than reached: a row nothing can read is a measurement nothing made, and
-// withholding the probe is the safe direction.
 func TestToEdgeFanoutSkipsAnUnparseableAddress(t *testing.T) {
 	got := reduce(false, edge("not-an-address", string(edgefanout.Presented), nil))
 	if len(got.Shared) != 0 {
@@ -223,15 +178,6 @@ func TestToEdgeFanoutSkipsAnUnparseableAddress(t *testing.T) {
 	}
 }
 
-// THE VERDICT IS DERIVED ONCE PER DISTINCT FINGERPRINT (#1035). Many addresses behind
-// ONE shared CDN edge present ONE certificate, and #1014 measured the old reduction
-// parsing that certificate — and walking its several hundred SANs — once per address.
-//
-// The property is measured in ALLOCATIONS, because that is where the repeated parse
-// lands and it is the column #1014 read the headroom off. The same row count over one
-// certificate and over N distinct ones must not cost the same any more. The margin is
-// a full order of magnitude, so the test pins the shape of the fix and not a Go
-// release's allocation accounting.
 func TestToEdgeFanoutDerivesTheVerdictOncePerDistinctFingerprint(t *testing.T) {
 	const rows = 200
 	sans := distinctSANs(400)
@@ -254,6 +200,7 @@ func TestToEdgeFanoutDerivesTheVerdictOncePerDistinctFingerprint(t *testing.T) {
 		t.Fatalf("the unique fixture holds %d certificates, want %d", len(uniqueMaterial), rows)
 	}
 
+	// The margin is an order of magnitude, so this pins the fix's shape, not Go's accounting (#1014).
 	sharedAllocs := testing.AllocsPerRun(2, func() {
 		benchEdgeFanoutSink = toEdgeFanout(true, sharedRows, sharedMaterial)
 	})
@@ -267,9 +214,6 @@ func TestToEdgeFanoutDerivesTheVerdictOncePerDistinctFingerprint(t *testing.T) {
 	}
 }
 
-// The memo keys on the FINGERPRINT, so one certificate's verdict never stands in for
-// another's. Two edges with opposite verdicts must each keep their own, however many
-// addresses present either.
 func TestToEdgeFanoutKeepsEachFingerprintsOwnVerdict(t *testing.T) {
 	shared := certWithSANs(t, distinctSANs(custody.SharedEdgeThreshold)...)
 	dedicated := certWithSANs(t, distinctSANs(custody.SharedEdgeThreshold-1)...)
@@ -294,10 +238,8 @@ func TestToEdgeFanoutKeepsEachFingerprintsOwnVerdict(t *testing.T) {
 	}
 }
 
-// The material read is asked for each fingerprint ONCE, in first-seen order, and a NULL
-// one is not asked for at all. Sending the raw column would pull one DER per address,
-// which is the wire cost #1035 removes.
 func TestEdgeFanoutFingerprintsAsksForEachCertificateOnce(t *testing.T) {
+	// Sending the raw column instead would pull one DER per address, which is the wire cost (#1035).
 	rows := []db.ListEdgeFanoutMeasurementsRow{
 		{Address: "10.0.0.1", Outcome: string(edgefanout.Presented), Fingerprint: pgtype.Text{String: "sha256:aa", Valid: true}},
 		{Address: "10.0.0.2", Outcome: string(edgefanout.Unreachable)},
@@ -318,9 +260,8 @@ func TestEdgeFanoutFingerprintsAsksForEachCertificateOnce(t *testing.T) {
 	}
 }
 
-// The SAN read takes the dNSName SANs alone and folds in no subject common name. A CN
-// is not a SAN, and the fixture's CN is deliberately a name no SAN repeats.
 func TestEdgeFanoutSANsReadsTheDNSNamesAlone(t *testing.T) {
+	// The fixture's CN is deliberately a name no SAN repeats, so folding it in would show here.
 	der := certWithSANs(t, "www.example.com", "*.example.com")
 	got := edgeFanoutSANs(der)
 	want := []string{"www.example.com", "*.example.com"}
@@ -334,15 +275,8 @@ func TestEdgeFanoutSANsReadsTheDNSNamesAlone(t *testing.T) {
 	}
 }
 
-// The completion read is CARRIED OUT rather than acted on here. It is the ERRORED half
-// of ADR-0129's fourth absence case, and since #1018 the floor is read PER LIMB — over
-// the extension candidates, which this package does not hold. So the read path reports
-// what it saw and custody.Estate.WithEdgeFanout decides.
-//
-// A Scan that RUNS and records nothing must not read as disabled here. It is enabled,
-// and flattening the two would lose the disposition the declaration limb's census reads
-// (custody.Estate.AddressScopeCensus).
 func TestToEdgeFanoutCarriesTheCompletionOutToTheAssembler(t *testing.T) {
+	// Flattening enabled into completed would lose the disposition the census reads (#1018).
 	for _, completed := range []bool{true, false} {
 		got := toEdgeFanout(completed, nil, nil)
 		if !got.Enabled {
@@ -360,9 +294,6 @@ func TestToEdgeFanoutCarriesTheCompletionOutToTheAssembler(t *testing.T) {
 	}
 }
 
-// A DECLARATION-LIMB ROW IS AN ORDINARY KEY. The recording half is blind to which limb
-// a row came from, so the read path hands the derivation every measured address and the
-// estate decides which of them are the gating limb's (#988, #1018).
 func TestToEdgeFanoutCarriesEveryMeasuredAddressWhicheverLimbItCameFrom(t *testing.T) {
 	got := reduce(true, edge("198.51.100.7", string(edgefanout.Unreachable), nil))
 	if !got.Enabled || !got.BatchCompleted {
@@ -373,9 +304,6 @@ func TestToEdgeFanoutCarriesEveryMeasuredAddressWhicheverLimbItCameFrom(t *testi
 	}
 }
 
-// fakeEdgeFanoutStore is the narrow EdgeFanoutStore posed by hand, so the READ's own
-// shape — how many reads it issues, over what, and what it does with a failure — is
-// tested without a database.
 type fakeEdgeFanoutStore struct {
 	scan        db.Scan
 	rows        []db.ListEdgeFanoutMeasurementsRow
@@ -383,15 +311,8 @@ type fakeEdgeFanoutStore struct {
 	materialErr error
 	completed   bool
 
-	// materialAsked records every fingerprint set the material read was called with.
-	// It is a slice of calls, not a set, so a test can pin that an EMPTY set is not
-	// asked for at all rather than asked for and answered with nothing.
 	materialAsked [][]string
 
-	// boundsAsked records every address bound the measurement read was called with, and
-	// unboundReads counts the calls that took the whole store instead (#1036). Together
-	// they pin WHICH of the two queries a bound reached, so a test can hold that an
-	// empty bound issues no query rather than falling back to the unbound read.
 	boundsAsked  [][]string
 	unboundReads int
 	rowsErr      error
@@ -409,10 +330,8 @@ func (f *fakeEdgeFanoutStore) ListEdgeFanoutMeasurements(context.Context) ([]db.
 	return f.rows, nil
 }
 
-// ListEdgeFanoutMeasurementsOver mirrors the SQL's `address = ANY(...)` over the same
-// posed rows (#1036). It FILTERS, so a bound that dropped a row the caller needed is
-// visible here exactly as it would be against the database.
 func (f *fakeEdgeFanoutStore) ListEdgeFanoutMeasurementsOver(_ context.Context, addresses []string) ([]db.ListEdgeFanoutMeasurementsOverRow, error) {
+	// The fake mirrors the SQL's address = ANY(...), or a dropped row would not show here (#1036).
 	f.boundsAsked = append(f.boundsAsked, addresses)
 	if f.rowsErr != nil {
 		return nil, f.rowsErr
@@ -445,9 +364,6 @@ func (f *fakeEdgeFanoutStore) ScanHasCompletedBatch(context.Context, string) (bo
 	return f.completed, nil
 }
 
-// The read asks for each DISTINCT fingerprint once and reduces the certificate once,
-// however many addresses present it. This is #1035's whole claim, read at the level of
-// the store calls rather than of the reduction.
 func TestReadEdgeFanoutReadsEachDistinctCertificateOnce(t *testing.T) {
 	der := certWithSANs(t, distinctSANs(custody.SharedEdgeThreshold)...)
 	fp := co.Fingerprint(der)
@@ -479,9 +395,6 @@ func TestReadEdgeFanoutReadsEachDistinctCertificateOnce(t *testing.T) {
 	}
 }
 
-// Where no row names a certificate, the material read is SKIPPED. An install the Scan
-// has not run for, and one measuring nothing but negatives, are the ordinary cases, and
-// neither should cost a round trip.
 func TestReadEdgeFanoutSkipsTheMaterialReadWhereNoRowNamesACertificate(t *testing.T) {
 	f := &fakeEdgeFanoutStore{
 		scan:      db.Scan{Enabled: true},
@@ -503,11 +416,8 @@ func TestReadEdgeFanoutSkipsTheMaterialReadWhereNoRowNamesACertificate(t *testin
 	}
 }
 
-// A material read that FAILS returns the error, never an open reach. A failure there is
-// a failure to read the certificates, not a finding that those edges present no
-// identity — and reading it as the latter would reach every measured address at once,
-// on the one signal that says nothing could be read.
 func TestReadEdgeFanoutReturnsTheMaterialReadsFailure(t *testing.T) {
+	// A failed read is not a finding, or one unreadable signal would move every measured address.
 	boom := errors.New("connection reset")
 	f := &fakeEdgeFanoutStore{
 		scan:      db.Scan{Enabled: true},
@@ -527,8 +437,6 @@ func TestReadEdgeFanoutReturnsTheMaterialReadsFailure(t *testing.T) {
 	}
 }
 
-// A DISABLED Scan reads nothing at all. The measurement narrows the reach only where
-// the Scan is in force, so neither the measurements nor the material are pulled.
 func TestReadEdgeFanoutReadsNoMaterialWhereTheScanIsNotInForce(t *testing.T) {
 	f := &fakeEdgeFanoutStore{scan: db.Scan{Kind: scan.EdgeFanoutKind, Enabled: false}}
 
@@ -544,11 +452,8 @@ func TestReadEdgeFanoutReadsNoMaterialWhereTheScanIsNotInForce(t *testing.T) {
 	}
 }
 
-// The addresses the two limbs contribute, as #1036's tests pose them. extensionEdge and
-// secondExtensionEdge are cited direct-A targets of an in-zone name — the limb the veto
-// gates, and the limb the bound read names. scopeEdge is covered by a declared address
-// scope and cited by an OUT-of-zone owner, so it is a declaration-limb row and never a
-// candidate: it is the row a bound read is meant to leave behind.
+// scopeEdge is a declaration-limb row and never a candidate: it is what a bound read leaves behind.
+
 const (
 	extensionEdge       = "104.16.132.229"
 	secondExtensionEdge = "104.16.132.230"
@@ -575,12 +480,8 @@ func boundFixtureStore(t *testing.T, der []byte) *fakeEdgeFanoutStore {
 	}
 }
 
-// A BOUND read asks the store for the named addresses and no others, and takes the bound
-// query rather than the unbound one (#1036). The declaration-limb row the bound does not
-// name gets NO KEY, and that is the whole saving: `/scope` no longer pulls every measured
-// address of every declared address scope to answer a question about a handful of cited
-// direct-A targets.
 func TestABoundReadAsksForTheNamedAddressesAlone(t *testing.T) {
+	// /scope asks about a handful of cited targets, not every address of every scope (#1036).
 	f := boundFixtureStore(t, certWithSANs(t, distinctSANs(custody.SharedEdgeThreshold)...))
 
 	got, err := ReadEdgeFanout(context.Background(), f, EdgeFanoutOver([]netip.Addr{
@@ -603,16 +504,11 @@ func TestABoundReadAsksForTheNamedAddressesAlone(t *testing.T) {
 	if _, measured := got.Shared[netip.MustParseAddr(scopeEdge)]; measured {
 		t.Fatalf("the declaration-limb row %s reached a read bound to the extension limb", scopeEdge)
 	}
-	// The record says so. Partial is what makes the one reader that walks Shared
-	// wholesale — custody.Estate.AddressScopeCensus — refuse this map rather than count
-	// short by every row the bound left behind.
 	if !got.Partial {
 		t.Error("a bound read returned Partial = false: the address-scope census would count over it")
 	}
 }
 
-// An UNBOUND read is NOT partial. The flag rides the bound and nothing else, so the
-// dispatcher and `/coverage` hand the address-scope census a record it can count.
 func TestAnUnboundReadIsNotPartial(t *testing.T) {
 	f := boundFixtureStore(t, certWithSANs(t, distinctSANs(custody.SharedEdgeThreshold)...))
 
@@ -625,14 +521,8 @@ func TestAnUnboundReadIsNotPartial(t *testing.T) {
 	}
 }
 
-// A BOUND READ NEVER TURNS A MEASURED ADDRESS INTO A PENDING ONE. This is the safety
-// property the whole ticket rests on: a missing key is *measurement pending* and the
-// derivation HOLDS, so a bound that dropped a candidate the Scan had measured would
-// withhold a probe in silence.
-//
-// It is pinned by running both reads over the same store. Every address the bound names
-// arrives with the SAME key and the SAME verdict the unbound read gives it.
 func TestABoundReadKeepsEveryNamedAddressMeasured(t *testing.T) {
+	// A dropped candidate withholds its probe in silence, so a bound may not lose a key (#1036).
 	f := boundFixtureStore(t, certWithSANs(t, distinctSANs(custody.SharedEdgeThreshold)...))
 	candidates := []netip.Addr{
 		netip.MustParseAddr(extensionEdge),
@@ -663,16 +553,9 @@ func TestABoundReadKeepsEveryNamedAddressMeasured(t *testing.T) {
 	}
 }
 
-// The EXTENSION LIMB derives the same verdict either way, end to end — the gate, the
-// census and the per-limb errored floor (#1018) all included. `/scope` reaches nothing
-// else on its estate, so this is the whole of what the bound may not move.
-//
-// The estate carries BOTH limbs on purpose. The declaration-limb row is the one the
-// bound leaves behind, and it is exactly the row that must make no difference here: the
-// floor asks *did the Scan measure any EXTENSION candidate*, and a declared address has
-// never been an answer to it.
 func TestABoundReadDerivesTheSameExtensionVerdictAsAnUnboundOne(t *testing.T) {
 	f := boundFixtureStore(t, certWithSANs(t, distinctSANs(custody.SharedEdgeThreshold)...))
+	// The errored floor asks whether any extension candidate was measured, not a declared one (#1018).
 	estate := custody.Estate{
 		AddressScopes: []netip.Prefix{netip.MustParsePrefix("23.20.0.0/24")},
 		ExtendedZones: []string{"example.com"},
@@ -701,9 +584,6 @@ func TestABoundReadDerivesTheSameExtensionVerdictAsAnUnboundOne(t *testing.T) {
 		if narrow.Derive(addr) != wide.Derive(addr) {
 			t.Fatalf("Derive(%s) = %s bound, %s unbound", addr, narrow.Derive(addr), wide.Derive(addr))
 		}
-		// The floor is unexported, so it is read where it lands: an errored limb
-		// REACHES every candidate, and this measurement declines both. A bound that had
-		// starved the floor would open the reach here.
 		if narrow.MayProbe(addr, custody.ClassInternet) != wide.MayProbe(addr, custody.ClassInternet) {
 			t.Fatalf("MayProbe(%s) moved under the bound: the errored floor read differently", addr)
 		}
@@ -713,11 +593,8 @@ func TestABoundReadDerivesTheSameExtensionVerdictAsAnUnboundOne(t *testing.T) {
 	}
 }
 
-// A bound over an EMPTY set issues NO QUERY. An install holding no custody extension has
-// no candidate, so no consumer of that estate can look a key up, and the unbound read
-// would answer a question nobody asked. It must not fall back to it — that is the trap a
-// bare nil slice would have set. See EdgeFanoutBound.
 func TestABoundOverNoAddressIssuesNoQueryAtAll(t *testing.T) {
+	// A bare nil slice would have fallen back to the unbound read, answering a question nobody asked.
 	f := boundFixtureStore(t, certWithSANs(t, distinctSANs(custody.SharedEdgeThreshold)...))
 
 	got, err := ReadEdgeFanout(context.Background(), f, EdgeFanoutOver(nil))
@@ -735,9 +612,6 @@ func TestABoundOverNoAddressIssuesNoQueryAtAll(t *testing.T) {
 	}
 }
 
-// The DISPATCHER's read still covers the whole population, both limbs. It acts over
-// EdgeFanoutPopulation once per daily tick, so it takes the unbound form and gains
-// nothing from a bound (#1036).
 func TestAnUnboundReadCoversBothLimbs(t *testing.T) {
 	f := boundFixtureStore(t, certWithSANs(t, distinctSANs(custody.SharedEdgeThreshold)...))
 
@@ -755,12 +629,9 @@ func TestAnUnboundReadCoversBothLimbs(t *testing.T) {
 	}
 }
 
-// The bound renders each address the way the WRITER stores it — Unmap'ed — so the
-// predicate matches on the value and never on a spelling. A mapped IPv4 candidate
-// reaching the query in its mapped form would match no row, and every candidate would
-// come back pending.
 func TestABoundRendersTheAddressTheWriterStores(t *testing.T) {
 	f := boundFixtureStore(t, certWithSANs(t, distinctSANs(custody.SharedEdgeThreshold)...))
+	// A mapped candidate would match no row, and every candidate would come back pending (#1036).
 	mapped := netip.MustParseAddr("::ffff:" + extensionEdge)
 
 	got, err := ReadEdgeFanout(context.Background(), f, EdgeFanoutOver([]netip.Addr{mapped}))
@@ -775,10 +646,6 @@ func TestABoundRendersTheAddressTheWriterStores(t *testing.T) {
 	}
 }
 
-// A BOUND read that FAILS returns the error rather than an open reach, exactly as the
-// unbound one does. A failed read is not a finding that those candidates are unmeasured:
-// reading it as one would hold every extension candidate at once, on the one signal that
-// says nothing could be read.
 func TestABoundReadReturnsItsFailure(t *testing.T) {
 	boom := errors.New("connection reset")
 	f := boundFixtureStore(t, certWithSANs(t, distinctSANs(custody.SharedEdgeThreshold)...))
