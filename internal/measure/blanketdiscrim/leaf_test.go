@@ -2,9 +2,6 @@ package blanketdiscrim
 
 import "testing"
 
-// Decide is the leaf's pure heart: a control set that answers with no dissent is a
-// blanket responder; one refused control port clears the verdict; a probe that
-// neither refuses nor fully answers is an undiscriminated Gap.
 func TestDecideVerdicts(t *testing.T) {
 	all := func(r ControlResult, n int) []ControlResult {
 		out := make([]ControlResult, n)
@@ -32,8 +29,6 @@ func TestDecideVerdicts(t *testing.T) {
 	}
 }
 
-// A blanket / gap verdict gaps a reach and carries its operator reason; a
-// not-blanket verdict passes the connect value through with no reason.
 func TestVerdictGapsAndReasons(t *testing.T) {
 	if !VerdictBlanket.Gaps() || !VerdictGap.Gaps() {
 		t.Error("a blanket responder and an incomplete probe both gap the reach")
@@ -52,8 +47,6 @@ func TestVerdictGapsAndReasons(t *testing.T) {
 	}
 }
 
-// The production PortGen draws exactly ControlPortCount distinct ports, all inside
-// the RFC 6335 dynamic range, sorted ascending.
 func TestCryptoPortsShape(t *testing.T) {
 	p := CryptoPorts{}.Ports()
 	if len(p) != ControlPortCount {
@@ -74,8 +67,6 @@ func TestCryptoPortsShape(t *testing.T) {
 	}
 }
 
-// FixedPorts is deterministic: de-duplicated and sorted, whatever order it is
-// constructed in, so a corpus row renders byte-identically.
 func TestFixedPortsDeterministic(t *testing.T) {
 	got := FixedPorts{P: []uint16{60000, 50000, 60000, 55000}}.Ports()
 	want := []uint16{50000, 55000, 60000}
@@ -89,8 +80,6 @@ func TestFixedPortsDeterministic(t *testing.T) {
 	}
 }
 
-// The declared-parameter digest is stable across calls — it is what the golden
-// lock binds a parameter change to a version bump through.
 func TestParamsDigestStable(t *testing.T) {
 	if DefaultParams().Digest() != DefaultParams().Digest() {
 		t.Error("params digest is not stable")

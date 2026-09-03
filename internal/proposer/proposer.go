@@ -1,16 +1,6 @@
-// Package proposer holds the keyless registry proposer paths (v1 spec §3.1,
-// ADR-0012). A proposer admits nothing: it does not observe a facet, so what it
-// yields is never an Observation. It returns Candidate address scopes the
-// operator may confirm into a Seed — a Proposal — and until that confirmation
-// they are read by nothing.
-//
-// Every path here is keyless: it runs on availability alone, with no operator
-// credential. The three shipped keyless paths are ARIN's entities?fn= org-name
-// search and the AFRINIC and APNIC org->prefix paths built by joining CAIDA's
-// org->opaque-id mapping to the RIR's delegated-extended-stats file.
-//
-// All network I/O goes through the injected Doer seam so the paths can be tested
-// against fixtures with no real network, and the parsing is arch-neutral.
+// Package proposer holds the keyless registry proposer paths (v1 spec §3.1, ADR-0012).
+// A proposer admits nothing: it observes no facet, so what it yields is never an
+// Observation, and until the operator confirms it, it is read by nothing.
 package proposer
 
 import (
@@ -22,28 +12,17 @@ import (
 	"net/netip"
 )
 
-// The two kinds of record a Proposal can be built from. They carry different
-// caveats and the operator is the one judging them (ADR-0012), so the kind is
-// recorded on every Candidate rather than erased.
-const (
-	RecordRIRDelegation = "rir-delegation"
-	// RecordCompelledReassignment is a range an upstream provider was compelled
-	// to reassign downstream — an ARIN SWIP customer (C-handle) object, whose
-	// name string is typed by the ISP rather than by the RIR.
-	RecordCompelledReassignment = "compelled-reassignment"
+const ( // the operator judges the caveats, so the kind is recorded, never erased (ADR-0012)
+	RecordRIRDelegation         = "rir-delegation"
+	RecordCompelledReassignment = "compelled-reassignment" // the name is typed by the ISP, not the RIR
 )
 
-// The slugs of the shipped keyless proposers. They match the source catalogue's
-// slugs so the enablement state keys line up.
-const (
+const ( // these match the source catalogue's slugs, so the enablement state keys line up
 	SlugARIN    = "arin"
 	SlugAFRINIC = "afrinic"
 	SlugAPNIC   = "apnic-caida"
 )
 
-// Candidate is one proposed address scope, before it is persisted as a Proposal.
-// It is never an Observation: it records which kind of record produced it and
-// the holder name it was offered under, and nothing about a measured facet.
 type Candidate struct {
 	SourceSlug string
 	RecordKind string
@@ -51,9 +30,6 @@ type Candidate struct {
 	OrgName    string
 }
 
-// Doer is the injected HTTP seam. Production supplies an *http.Client; tests
-// supply a fake that returns fixture bodies, so no proposer touches the network
-// under test.
 type Doer interface {
 	Do(req *http.Request) (*http.Response, error)
 }
@@ -63,8 +39,6 @@ type Source interface {
 	Propose(ctx context.Context, orgName string) ([]Candidate, error)
 }
 
-// Registry is the set of shipped proposer paths. A lookup runs only the paths
-// the operator has left enabled, so a source toggled off proposes nothing.
 type Registry struct {
 	sources []Source
 }
@@ -81,13 +55,10 @@ func DefaultRegistry(doer Doer) *Registry {
 	)
 }
 
-// Propose runs every enabled source for one org-name search and returns the
-// union of their candidates. A source's failure is not fatal to the lookup — the
-// others still answer — so a single registry outage costs coverage, never the
-// whole search; the joined error is returned for the caller to surface.
 func (r *Registry) Propose(ctx context.Context, orgName string, enabled map[string]bool) ([]Candidate, error) {
 	var out []Candidate
 	var errs []error
+	// A source's failure costs its own coverage, never the whole search.
 	for _, s := range r.sources {
 		if !enabled[s.Slug()] {
 			continue
@@ -102,22 +73,16 @@ func (r *Registry) Propose(ctx context.Context, orgName string, enabled map[stri
 	return out, errors.Join(errs...)
 }
 
-// rangeToPrefixes decomposes the half-open address range [start, start+count)
-// into the minimal set of aligned CIDR prefixes that exactly cover it. A
-// delegated-stats IPv4 record states a raw address count rather than a prefix
-// length, and a holder's count need not be a single power of two, so a faithful
-// conversion emits one prefix per aligned block rather than assuming a /n.
 func rangeToPrefixes(start netip.Addr, count *big.Int) ([]netip.Prefix, error) {
+	// A delegated-stats count need not be a power of two, so a single /n would be invented.
 	if !start.IsValid() || count.Sign() <= 0 {
 		return nil, fmt.Errorf("empty or invalid range at %v", start)
 	}
-	bits := start.BitLen() // 32 for IPv4, 128 for IPv6
+	bits := start.BitLen()
 	remaining := new(big.Int).Set(count)
 	cur := start
 	var out []netip.Prefix
 	for remaining.Sign() > 0 {
-		// The largest aligned block startable at cur is bounded by cur's
-		// alignment (its lowest set bit) and by how much is left to cover.
 		maxByAlign := alignmentBlock(cur, bits)
 		maxByCount := largestPow2AtMost(remaining, bits)
 		block := maxByAlign
@@ -145,7 +110,6 @@ func alignmentBlock(addr netip.Addr, bits int) *big.Int {
 	if v.Sign() == 0 {
 		return new(big.Int).Lsh(big.NewInt(1), uint(bits))
 	}
-	// lowest set bit = v & -v, computed as the trailing-zero power of two.
 	tz := v.TrailingZeroBits()
 	return new(big.Int).Lsh(big.NewInt(1), tz)
 }

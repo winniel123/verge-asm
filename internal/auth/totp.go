@@ -13,10 +13,7 @@ import (
 	"time"
 )
 
-// TOTP parameters. These are the values every authenticator app defaults to
-// (RFC 6238): SHA-1, 6 digits, a 30-second step. They are fixed, not dials —
-// changing them would silently invalidate every enrolled device.
-const (
+const ( // fixed, not dials: a change silently invalidates every enrolled device (RFC 6238)
 	totpDigits      = 6
 	totpPeriod      = 30 * time.Second
 	totpSecretBytes = 20 // 160 bits, the RFC 4226 recommendation
@@ -24,9 +21,6 @@ const (
 
 var b32 = base32.StdEncoding.WithPadding(base32.NoPadding)
 
-// totpMod is 10^totpDigits, the modulus that truncates the HOTP value to
-// totpDigits digits. It is derived from the constant so the width and the
-// modulus cannot drift apart.
 var totpMod = func() uint32 {
 	m := uint32(1)
 	for i := 0; i < totpDigits; i++ {
@@ -43,9 +37,6 @@ func NewTOTPSecret() (string, error) {
 	return b32.EncodeToString(buf), nil
 }
 
-// TOTPCode returns the 6-digit code for secret at time t. It is the building
-// block VerifyTOTP compares against; it is exported so a caller can render the
-// current code in a test-only or diagnostic path.
 func TOTPCode(secret string, t time.Time) (string, error) {
 	key, err := decodeSecret(secret)
 	if err != nil {
@@ -59,15 +50,8 @@ func VerifyTOTP(secret, code string, t time.Time) bool {
 	return ok
 }
 
-// VerifyTOTPStep reports whether code is valid for secret at time t and, when it
-// is, the counter step it matched — the RFC 6238 time-step (unix / period) of the
-// accepted window. The step is a monotonic single-use handle: the login path
-// records the last step it accepted per account and refuses any code whose step is
-// not strictly greater, so a captured valid code cannot be replayed within its
-// ~90s validity window (#323, RFC 6238 §5.2). Like VerifyTOTP it accepts the
-// immediately-adjacent steps for clock skew and compares in constant time. On a
-// non-match the returned step is 0 and must be ignored.
 func VerifyTOTPStep(secret, code string, t time.Time) (step int64, ok bool) {
+	// The login path refuses a step not strictly greater, so a valid code cannot be replayed (#323).
 	key, err := decodeSecret(secret)
 	if err != nil {
 		return 0, false
@@ -83,9 +67,6 @@ func VerifyTOTPStep(secret, code string, t time.Time) (step int64, ok bool) {
 	return 0, false
 }
 
-// stepFor is the RFC 6238 time-step covering t: the counter codeFromKey derives
-// its HOTP value from. It is exposed to the login path as the per-account replay
-// watermark, so it must stay the exact expression codeFromKey uses.
 func stepFor(t time.Time) int64 {
 	return int64(uint64(t.Unix()) / uint64(totpPeriod.Seconds())) // #nosec G115 (Unix seconds / 30; ~5.6e7, never overflows)
 }
@@ -98,8 +79,6 @@ func decodeSecret(secret string) ([]byte, error) {
 	return key, nil
 }
 
-// codeFromKey computes the HOTP value for the decoded key at the step covering
-// t (RFC 4226 dynamic truncation, §5.3).
 func codeFromKey(key []byte, t time.Time) string {
 	counter := uint64(stepFor(t)) // #nosec G115 (stepFor >= 0 and ~5.6e7, fits uint64)
 
@@ -109,6 +88,7 @@ func codeFromKey(key []byte, t time.Time) string {
 	mac.Write(msg[:])
 	sum := mac.Sum(nil)
 
+	// RFC 4226 §5.3 dynamic truncation.
 	offset := sum[len(sum)-1] & 0x0f
 	bin := (uint32(sum[offset])&0x7f)<<24 |
 		uint32(sum[offset+1])<<16 |
@@ -117,8 +97,6 @@ func codeFromKey(key []byte, t time.Time) string {
 	return fmt.Sprintf("%0*d", totpDigits, bin%totpMod)
 }
 
-// OtpauthURI builds the otpauth:// URI an authenticator app consumes via QR
-// code, naming issuer and account so the entry is identifiable.
 func OtpauthURI(secret, account, issuer string) string {
 	label := url.PathEscape(issuer + ":" + account)
 	q := url.Values{}

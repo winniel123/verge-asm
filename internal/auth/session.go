@@ -11,41 +11,26 @@ import (
 	"time"
 )
 
-// Kind distinguishes a fully authenticated session cookie from the short-lived
-// intermediate cookie issued between a correct password and a TOTP code. The
-// two are signed with the same key, so the kind is inside the signed payload:
-// a KindPending cookie must never be accepted where a KindSession one is
-// required, or password-only would defeat TOTP.
-type Kind string
+type Kind string // same key signs both, so a pending cookie must never pass as a session
 
 const (
 	KindSession Kind = "session"
 	KindPending Kind = "totp"
 )
 
-// Session is the claim carried by a signed cookie. It holds no role: the role
-// is read from the account row on every request, so a role change or an
-// account deletion takes effect immediately rather than at cookie expiry.
-type Session struct {
+type Session struct { // no role: read per request, so a change takes effect before cookie expiry
 	AccountID int64     `json:"aid"`
 	Kind      Kind      `json:"knd"`
 	ExpiresAt time.Time `json:"exp"`
-	// Token is the opaque server-side session token (#405, ADR-0117): the cookie
-	// carries the plaintext, whose SHA-256 hash is a row in the session registry the
-	// handler validates every request. It rides inside the already-signed,
-	// HMAC-tamper-evident payload, so no extra protection is owed it here. It is
-	// omitempty so an old cookie minted before the registry (or the pending/TOTP
-	// cookie, which has no session row) simply carries an empty token.
-	Token string `json:"tok,omitempty"`
+	Token     string    `json:"tok,omitempty"` // empty on a pending cookie: no registry row (ADR-0117)
 }
 
-// ErrInvalidSession is returned by VerifySession for any token that is
-// malformed, wrongly signed, expired, or of the wrong kind. It is deliberately
-// single: a caller must not be able to distinguish "expired" from "forged"
-// from "wrong kind" and leak which check failed.
+// Deliberately single, so no caller can learn which check failed and leak it.
+
 var ErrInvalidSession = errors.New("auth: invalid session")
 
 func SignSession(key []byte, s Session) (string, error) {
+	// The plaintext token is safe inside the HMAC-signed payload, so it is not sealed (ADR-0117).
 	payload, err := json.Marshal(s)
 	if err != nil {
 		return "", fmt.Errorf("auth: marshal session: %w", err)
@@ -54,9 +39,6 @@ func SignSession(key []byte, s Session) (string, error) {
 	return b64 + "." + tag(key, b64), nil
 }
 
-// VerifySession checks the signature, expiry, and kind of token and returns
-// the carried session. now is passed in so callers (and tests) control the
-// clock. Every failure mode collapses to ErrInvalidSession.
 func VerifySession(key []byte, token string, want Kind, now time.Time) (Session, error) {
 	b64, mac, ok := strings.Cut(token, ".")
 	if !ok {
