@@ -16,10 +16,10 @@ func TestBelowFloor(t *testing.T) {
 		multiple int64
 		below    bool
 	}{
-		{0, false}, // unbounded default — always allowed
-		{1, true},  // one cadence is below the k=2 floor
-		{2, false}, // exactly the floor
-		{3, false}, // above the floor
+		{0, false},
+		{1, true},
+		{2, false},
+		{3, false},
 		{100, false},
 	}
 	for _, c := range cases {

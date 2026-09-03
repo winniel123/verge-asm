@@ -17,11 +17,11 @@ func TestTranscriptWindowDays(t *testing.T) {
 		days    int64
 		bounded bool
 	}{
-		{0, 0, false},  // unbounded opt-out
-		{-3, 0, false}, // negative is treated as unbounded, never a window
-		{1, 1, true},   // exactly the floor
-		{14, 14, true}, // the shipped default
-		{90, 90, true}, // any larger window passes through
+		{0, 0, false},
+		{-3, 0, false},
+		{1, 1, true},
+		{14, 14, true},
+		{90, 90, true},
 	}
 	for _, c := range cases {
 		days, bounded := TranscriptWindowDays(c.dial)
@@ -110,9 +110,7 @@ func TestTranscriptSweepBoundedDeletesAtCutoff(t *testing.T) {
 }
 
 func TestTranscriptSweepFloorsPositiveBelowOne(t *testing.T) {
-	// The dial column stores whole days >= 0, so a sub-floor positive value cannot
-	// reach the sweep from Postgres; the floor still holds it defensively. Passing
-	// the floor through the window keeps the cutoff at one day, never zero days.
+	// The dial column stores whole days, so a sub-floor value never reaches the sweep in production.
 	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
 	cutoff, bounded := TranscriptCutoff(now, TranscriptFloorDays)
 	if !bounded {
