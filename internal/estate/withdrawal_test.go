@@ -24,8 +24,7 @@ func TestWithdrawnAllClassesAgreeNameError(t *testing.T) {
 }
 
 func TestWithdrawnOneClassStillResolvingKeepsName(t *testing.T) {
-	// Split horizon: the internet class still resolves, so the classes disagree —
-	// incommensurability, not evidence. The Name does not withdraw.
+	// A split horizon is incommensurability, not evidence, so disagreement withdraws nothing.
 	if WithdrawnCrossClass([]ClassWitness{
 		{Class: "internal", Outcomes: []string{OutcomeNameError}},
 		{Class: "internet", Outcomes: []string{OutcomeResolved}},
@@ -35,8 +34,6 @@ func TestWithdrawnOneClassStillResolvingKeepsName(t *testing.T) {
 }
 
 func TestWithdrawnMissingClassLeavesComparisonUnmade(t *testing.T) {
-	// The internet class holds no available vantage: a missing term, not a vacuous
-	// pass. The Name does not withdraw even though the class present agrees.
 	if WithdrawnCrossClass([]ClassWitness{
 		{Class: "internal", Outcomes: []string{OutcomeNameError}},
 		{Class: "internet", Outcomes: nil},
@@ -46,8 +43,6 @@ func TestWithdrawnMissingClassLeavesComparisonUnmade(t *testing.T) {
 }
 
 func TestWithdrawnWithinClassAbsenceIsUnanimous(t *testing.T) {
-	// One vantage of the class still resolving keeps the class present (existential
-	// presence), so the Name does not withdraw.
 	if WithdrawnCrossClass([]ClassWitness{
 		{Class: "internal", Outcomes: []string{OutcomeNameError, OutcomeResolved}},
 	}) {
@@ -61,9 +56,6 @@ func TestWithdrawnWithinClassAbsenceIsUnanimous(t *testing.T) {
 }
 
 func TestMembershipCrossClassWithdrawalConvergesWithDrift(t *testing.T) {
-	// Membership must read the same cross-class predicate the drift engine reads —
-	// one membership computation. A Name reading NameError internally but still
-	// resolving from the internet stays present.
 	ne := Compose(OutcomeNameError, nil, wd.VerdictNotShadowed)
 	ok := Compose(OutcomeResolved, []string{"203.0.113.5"}, wd.VerdictNotShadowed)
 	est := Membership([]Observation{

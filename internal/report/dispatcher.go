@@ -15,17 +15,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/message"
 )
 
-// Dispatcher cuts every declared report_schedule's artifact once per firing and
-// stamps an in-instance receipt for the run. It mirrors package queue's Dispatcher
-// closely: a minute poll, a per-item advisory lock, and idempotency on a fire tick —
-// the partial-unique (schedule_id, scheduled_tick) admits only the first poll after a
-// firing, so a second poll before the next firing is a recorded skip, never a second
-// run. Unlike queue's epoch-floored tick, the report fire tick is the operator's
-// declared clock time (preset time-of-day, or Custom cron — DispatchTick, ADR-0122).
-//
-// A run generates but does not leave: state is 'generated', delivered_at NULL. The
-// off-instance send is a later ticket (#508/T7, ADR-0039 stands), so this loop
-// confirms each due schedule is cuttable and records that it was cut, nothing more.
 type Dispatcher struct {
 	pool *pgxpool.Pool
 	q    *db.Queries
@@ -33,8 +22,6 @@ type Dispatcher struct {
 	log  *log.Logger
 }
 
-// NewDispatcher builds a Dispatcher over pool. now is injectable so tests and
-// manual triggers can control the scheduled tick.
 func NewDispatcher(pool *pgxpool.Pool, now func() time.Time, logger *log.Logger) *Dispatcher {
 	if now == nil {
 		now = time.Now
@@ -42,10 +29,8 @@ func NewDispatcher(pool *pgxpool.Pool, now func() time.Time, logger *log.Logger)
 	return &Dispatcher{pool: pool, q: db.New(pool), now: now, log: logger}
 }
 
-// Run dispatches every due schedule once per cadence window until ctx is done. It
-// polls each minute; the idempotency key makes a second poll inside one window a
-// recorded skip rather than a second run.
 func (d *Dispatcher) Run(ctx context.Context) error {
+	// A second poll inside one window is a recorded skip, so a minute ticker is safe.
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
 	d.dispatchDue(ctx)
@@ -66,16 +51,10 @@ func (d *Dispatcher) dispatchDue(ctx context.Context) {
 		return
 	}
 	for _, sc := range schedules {
-		// The window is the artifact PERIOD (how much of the estate the run covers);
-		// the tick is the fire INSTANT (when it runs, at the operator's declared clock
-		// time — ADR-0122). They are computed separately and are orthogonal.
 		window := CadenceWindow(sc.Cadence)
 		tick, ok := DispatchTick(d.now(), sc.Cadence)
 		if !ok {
-			// An uninterpretable cadence (neither a known preset nor a parseable cron)
-			// has no firing to dispatch. Create/edit refuses an invalid Custom cron, so
-			// this only guards legacy or hand-edited rows; skip it rather than firing on
-			// a wrong default.
+			// A legacy or hand-edited row is skipped rather than fired on a wrong default (ADR-0122).
 			d.log.Printf("report dispatcher: schedule %d cadence %q is uninterpretable, skipped", sc.ID, sc.Cadence)
 			continue
 		}
@@ -93,8 +72,7 @@ func (d *Dispatcher) dispatchOne(ctx context.Context, sc db.ReportSchedule, tick
 	defer tx.Rollback(ctx)
 	qtx := d.q.WithTx(tx)
 
-	// The advisory lock serialises concurrent dispatches of the same schedule; the
-	// partial-unique (schedule_id, scheduled_tick) key is the durable backstop.
+	// The durable backstop is the partial-unique (schedule_id, scheduled_tick) key, not this lock.
 	if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", sc.ID); err != nil {
 		return err
 	}
@@ -104,8 +82,6 @@ func (d *Dispatcher) dispatchOne(ctx context.Context, sc db.ReportSchedule, tick
 		return fmt.Errorf("report dispatcher: next delivery no: %w", err)
 	}
 
-	// Period bounds are deterministic per tick: the window ends at the tick and opens
-	// one window before it, so every poll inside the window computes the same bounds.
 	periodEnd := tick
 	periodStart := tick.Add(-window)
 
@@ -115,12 +91,10 @@ func (d *Dispatcher) dispatchOne(ctx context.Context, sc db.ReportSchedule, tick
 		PeriodEnd:     tstz(periodEnd),
 		DeliveryNo:    no,
 		State:         "generated",
-		DeliveredAt:   pgtype.Timestamptz{}, // generated, not delivered — the ready-message send is T7.
+		DeliveredAt:   pgtype.Timestamptz{},
 		ScheduledTick: tstz(tick),
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		// Overlapping tick: the window is already dispatched. Recorded by the existing
-		// receipt; we render nothing and stamp nothing.
 		d.log.Printf("report dispatcher: schedule %d tick %s already dispatched, skipped", sc.ID, tick.Format(time.RFC3339))
 		return tx.Commit(ctx)
 	}
@@ -128,10 +102,7 @@ func (d *Dispatcher) dispatchOne(ctx context.Context, sc db.ReportSchedule, tick
 		return fmt.Errorf("report dispatcher: try insert scheduled delivery: %w", err)
 	}
 
-	// Won the claim: cut the artifact for the window. The delivered document recomputes
-	// from the period bounds at render time, so this render confirms the report is
-	// cuttable; the receipt snapshots nothing. The canonical renderer draws the current
-	// period, mirroring Run-now.
+	// Discarded on purpose: the artifact recomputes at render time, so nothing is snapshotted.
 	_ = message.RenderArtifact(message.Artifact{
 		Title:       sc.Name,
 		PeriodStart: periodStart.Format("2006-01-02"),
@@ -141,12 +112,7 @@ func (d *Dispatcher) dispatchOne(ctx context.Context, sc db.ReportSchedule, tick
 		Format:      sc.Format,
 	})
 
-	// If the schedule binds a Channel, enqueue exactly ONE link-only ready-message for
-	// this run, in the SAME transaction that stamped the receipt — so a won tick and its
-	// notification are one atomic act (#508/T7). A download-only schedule (NULL
-	// channel_id) binds nothing and enqueues nothing; the artifact simply stays viewable
-	// in-instance. The receipt is left 'generated' — the notify runner flips it to
-	// 'delivered' only once the Channel accepts the ready-message (ADR-0039).
+	// The enqueue rides the receipt's transaction, so a won tick and its notice are one act (#508).
 	if shouldNotify(sc.ChannelID) {
 		if err := qtx.InsertReportNotification(ctx, db.InsertReportNotificationParams{
 			ReportDeliveryID: inserted.ID,

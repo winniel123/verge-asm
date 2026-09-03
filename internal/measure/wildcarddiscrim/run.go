@@ -13,11 +13,6 @@ import (
 
 const Kind = "wildcard-discrimination"
 
-// Scope is the wildcard-discrimination-specific payload of a JobSpec. It carries
-// the Vantage and its recursive resolver — the query path is one declared
-// parameter shared with resolution-walk, taking one value per Batch (ADR-0070) —
-// the Names to discriminate, the Seed name scopes that bound the control-probe
-// population, and the Offers put on the wire.
 type Scope struct {
 	Vantage    string    `json:"vantage"`
 	Resolver   string    `json:"resolver"`
@@ -26,19 +21,14 @@ type Scope struct {
 	Offers     rw.Offers `json:"offers"`
 }
 
-// Params is this leaf's declared-parameter set for the golden-corpus gate
-// (ADR-0021): the control-label count and construction, and the query-path /
-// wire offers shared with resolution-walk. The match predicate is fixed in the
-// code (ADR-0068) and moves with the leaf version. A change here is a
-// declared-parameter change that may justify a Version bump.
+// A change here is a declared-parameter change that may justify a Version bump (ADR-0021).
+
 type Params struct {
 	RandomLabelCount     int       `json:"random_label_count"`
 	StructuredLabelCount int       `json:"structured_label_count"`
 	Offers               rw.Offers `json:"offers"`
 }
 
-// DefaultParams is the v1 shipped parameter set: 9 random + 1 structured label
-// (ADR-0069, #115) over resolution-walk's default offers.
 func DefaultParams() Params {
 	return Params{
 		RandomLabelCount:     RandomLabelCount,
@@ -67,15 +57,12 @@ func DecodeScope(spec wire.JobSpec) (Scope, error) {
 	return s, nil
 }
 
-// Run executes the leaf against a live network for one JobSpec. The candidate's
-// own answer and the control probe are drawn on the same declared path — the
-// Vantage's configured recursive resolver — so the predicate never compares two
-// vantages (ADR-0070).
 func Run(spec wire.JobSpec, w io.Writer) error {
 	scope, err := DecodeScope(spec)
 	if err != nil {
 		return err
 	}
+	// Candidate and control share one declared path, so no two vantages are compared (ADR-0070).
 	peer := rw.NetPeer{Resolver: scope.Resolver}
 	return RunWithPeer(peer, spec.Batch, scope, CryptoLabels{}, w)
 }
@@ -87,7 +74,6 @@ func RunWithPeer(peer rw.Peer, batch string, scope Scope, gen LabelGen, w io.Wri
 		popSet[p] = struct{}{}
 	}
 
-	// The control-label set is drawn once per Batch and reused across parents.
 	labels := gen.Labels()
 	ctrlByParent := make(map[string]controlAnswers, len(pop))
 	for _, parentName := range pop {
@@ -103,15 +89,13 @@ func RunWithPeer(peer rw.Peer, batch string, scope Scope, gen LabelGen, w io.Wri
 	return writeNDJSON(w, out)
 }
 
-// decide reads the verdict for one resolved Name. A name whose parent sits in no
-// probed population — a wildcard at or above the apex, out of reach by the Seed
-// gate — can never be `Shadowed`, so its resolution-walk value stands.
 func decide(res rw.Result, popSet map[string]struct{}, ctrlByParent map[string]controlAnswers) Verdict {
 	p, ok := parent(res.Name)
 	if !ok {
 		return VerdictNotShadowed
 	}
 	if _, probed := popSet[p]; !probed {
+		// A parent outside the Seed gate was never probed, so the walk's value stands.
 		return VerdictNotShadowed
 	}
 	return Discriminate(candidateComponents(res.Records), ctrlByParent[p])

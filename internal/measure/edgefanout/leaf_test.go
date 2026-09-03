@@ -13,8 +13,6 @@ import (
 
 var leafDER = []byte{0x30, 0x82, 0x01, 0x0a, 0xde, 0xad, 0xbe, 0xef}
 
-// scriptHandshaker answers a fixed Result per target, so the fold and the run loop are
-// exercised with no network.
 type scriptHandshaker struct {
 	byTarget map[netip.AddrPort]Result
 	calls    []netip.AddrPort
@@ -77,10 +75,8 @@ func TestFoldOutcomeSpace(t *testing.T) {
 	}
 }
 
-// TestEmitDeclaresNoFacet pins the shape a membership-deciding leaf takes: the line
-// names the Address it measured and declares no facet, no subject, no discriminator and
-// no vantage, so it opens no timeline (ADR-0129 §6, #954 amendment).
 func TestEmitDeclaresNoFacet(t *testing.T) {
+	// A membership-deciding leaf names an Address and opens no timeline (ADR-0129 §6, #954).
 	target := netip.MustParseAddrPort("198.51.100.7:443")
 	obs := Emit("batch-1", target, Result{Outcome: Presented, Fingerprint: co.Fingerprint(leafDER), LeafDER: leafDER})
 
@@ -104,10 +100,8 @@ func TestEmitDeclaresNoFacet(t *testing.T) {
 	}
 }
 
-// TestEmitMaterialRidesBesideTheValue pins ADR-0027's fence: the observation value
-// carries the fingerprint alone, and the leaf DER rides beside it for the
-// fingerprint-keyed side store. Every negative carries neither.
 func TestEmitMaterialRidesBesideTheValue(t *testing.T) {
+	// ADR-0027's fence: the value carries the fingerprint alone and the DER rides beside it.
 	target := netip.MustParseAddrPort("198.51.100.7:443")
 	fp := co.Fingerprint(leafDER)
 
@@ -153,8 +147,7 @@ func TestRunOneConnectPerAddress(t *testing.T) {
 	}}
 
 	var buf bytes.Buffer
-	// The repeated candidate is spelled with surrounding whitespace, so the dedup is
-	// pinned to survive a spelling difference rather than measuring the edge twice.
+	// The repeated candidate is spelled with whitespace, so the dedup is pinned across a spelling.
 	scope := Scope{Addresses: []string{"198.51.100.7", "203.0.113.9", " 198.51.100.7 ", "not-an-address"}}
 	if err := RunWithHandshaker(context.Background(), h, "batch-1", scope, &buf); err != nil {
 		t.Fatalf("RunWithHandshaker: %v", err)
@@ -183,8 +176,6 @@ func TestRunOneConnectPerAddress(t *testing.T) {
 	}
 }
 
-// TestRunEmptyScopeIsLegible pins the empty-scope state: no custody extension is
-// declared, so there is nothing to measure and the leaf writes nothing.
 func TestRunEmptyScopeIsLegible(t *testing.T) {
 	h := &scriptHandshaker{}
 	var buf bytes.Buffer
@@ -199,8 +190,6 @@ func TestRunEmptyScopeIsLegible(t *testing.T) {
 	}
 }
 
-// TestDecodeScopeRejectsAnAbsentScope pins that a job spec with no scope is an error,
-// never an empty measurement that would read as *this edge serves nothing*.
 func TestDecodeScopeRejectsAnAbsentScope(t *testing.T) {
 	if _, err := DecodeScope(wire.JobSpec{Batch: "batch-1", Kind: Kind}); err == nil {
 		t.Error("DecodeScope(no scope) = nil error, want a failure")

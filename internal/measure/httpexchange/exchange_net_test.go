@@ -24,15 +24,12 @@ func TestNetExchangerSendsOneGetRootWithProbeUA(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	// httptest binds an ephemeral loopback host:port; split it into the Target the
-	// NetExchanger builds its URL from.
 	ap, err := netip.ParseAddrPort(srv.Listener.Addr().String())
 	if err != nil {
 		t.Fatalf("parse listener addr: %v", err)
 	}
 
-	// httptest binds loopback, which the production egress guard refuses; this
-	// wiring test proves the request shape, so it installs an allow-all control.
+	// httptest binds loopback, which the production egress guard refuses, so this allows it (#743).
 	ex := NetExchanger{Params: DefaultParams(), control: allowAllControl}
 	res := ex.Exchange(context.Background(), Target{
 		Address: ap.Addr().String(),

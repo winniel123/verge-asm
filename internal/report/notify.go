@@ -18,27 +18,10 @@ import (
 	"github.com/winniel123/verge-asm/internal/queue"
 )
 
-// A report notification is a LINK-ONLY ready-message to a Channel that a scheduled
-// report has been cut (P0.6c/T7, #508, ADR-0039). It is NOT a Message and carries NO
-// estate: the body names the report, the run's period, and a session-authed link to
-// the in-instance artifact — nothing else crosses the wire. The report body never
-// leaves the instance; the Channel receives only the notice and the link.
-//
-// The transport is the delivery package's shared signed-HTTPS path (SendSigned: the
-// SSRF guard, the HMAC signing, the redirect-refusing POST) and the shared
-// queue.Backoff retry curve. What is deliberately NOT shared is delivery.BuildBody —
-// that carries a Message's firing (class, cause, census, headline), and a report run
-// is none of those. This is a distinct, minimal body, so no estate field can ride
-// along by accident.
+// No field may carry an estate row; the type is the ADR-0039 guarantee.
 
-// ReadyBody is the entire document POSTed to a Channel: a fixed kind, the report name,
-// the run's period bounds, and the console link to the in-instance artifact. There is
-// no field for signals, subjects, withdrawals or any estate row — that is the
-// ADR-0039 guarantee, enforced by the type having nowhere to put one. encoding/json
-// emits the fields in declaration order, so the body is stable across retries.
 type ReadyBody struct {
-	Kind string `json:"kind"`
-	// Report is the schedule's declared name — a label, never estate.
+	Kind        string    `json:"kind"`
 	Report      string    `json:"report"`
 	PeriodStart time.Time `json:"period_start"`
 	PeriodEnd   time.Time `json:"period_end"`
@@ -47,11 +30,8 @@ type ReadyBody struct {
 
 const reportReadyPath = "/reports/delivery"
 
-// BuildReadyBody assembles the link-only ready-message from the run's facts and the
-// instance base URL. It reads ONLY the report name and the period — never the estate —
-// so no row can ride the body. When baseURL is empty the link is the bare path (the
-// notice still sends), mirroring the delivery runner's empty-baseURL handling.
 func BuildReadyBody(report string, periodStart, periodEnd time.Time, baseURL string) ReadyBody {
+	// The firing-shaped delivery body is deliberately not shared, so no estate field rides along.
 	return ReadyBody{
 		Kind:        "report-ready",
 		Report:      report,
@@ -122,9 +102,6 @@ func (n *NotifyRunner) Drain(ctx context.Context) error {
 	}
 }
 
-// RunOnce claims one pending notification and posts it. It returns false when none is
-// claimable. A claimed notification always reaches a terminal act — delivered, retried
-// or dead-lettered — so it never sticks in 'sending'.
 func (n *NotifyRunner) RunOnce(ctx context.Context) (bool, error) {
 	claim, err := n.q.ClaimReportNotification(ctx)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -139,11 +116,6 @@ func (n *NotifyRunner) RunOnce(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
-// post builds and sends one ready-message, then records its outcome. A 2xx marks the
-// notification delivered AND flips the report_delivery receipt to 'delivered' (the run
-// left); any other outcome retries while attempts remain and dead-letters past them.
-// A failure NEVER touches the receipt: the artifact was generated and stays viewable
-// in-instance regardless of whether its ready-message reached the Channel (ADR-0039).
 func (n *NotifyRunner) post(ctx context.Context, claim db.ClaimReportNotificationRow) error {
 	ch, err := n.q.GetChannelForDelivery(ctx, claim.ChannelID)
 	if err != nil {
@@ -174,22 +146,18 @@ func (n *NotifyRunner) post(ctx context.Context, claim db.ClaimReportNotificatio
 			RunAfter:  tstz(n.now().UTC().Add(queue.Backoff(claim.Attempt + 1))),
 			LastError: pgText(failure),
 		})
-	default: // VerdictUndelivered
+	default:
 		failure := notifyError(statusCode, sendErr)
 		n.log.Printf("report notify: %d dead-lettered after %d attempts: %s", claim.ID, claim.Attempt, failure)
-		// The receipt is deliberately NOT touched: the artifact stays 'generated' and
-		// viewable; only the ready-message failed to leave.
+		// The receipt is untouched on failure: the artifact stays generated and viewable (ADR-0039).
 		return n.q.MarkReportNotificationUndelivered(ctx, db.MarkReportNotificationUndeliveredParams{
 			ID: claim.ID, LastError: pgText(failure),
 		})
 	}
 }
 
-// markDelivered records a successful send: the notification is delivered and, in the
-// same transaction, the report_delivery receipt is flipped to 'delivered' with its
-// delivered_at stamp — the two facts move together so a viewer never sees a delivered
-// receipt without a delivered notification, or the reverse.
 func (n *NotifyRunner) markDelivered(ctx context.Context, claim db.ClaimReportNotificationRow) error {
+	// Both facts move together, or a viewer sees a delivered receipt with an undelivered notice.
 	tx, err := n.pool.Begin(ctx)
 	if err != nil {
 		return err

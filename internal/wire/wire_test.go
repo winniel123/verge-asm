@@ -30,8 +30,6 @@ func TestSCTCaptureRoundTrip(t *testing.T) {
 	}
 }
 
-// An empty capture serializes to nil, so certificate_material.scts stores a NULL column
-// rather than an empty-object blob; a nil or empty blob decodes back to no material.
 func TestSCTCaptureEmpty(t *testing.T) {
 	if b := EncodeSCTCapture(SCTCapture{}); b != nil {
 		t.Errorf("EncodeSCTCapture(empty) = %q, want nil", b)
@@ -92,9 +90,6 @@ func TestObservationScannerReadsMultipleLines(t *testing.T) {
 }
 
 func TestObservationScannerDoesNotLeakFieldsBetweenLines(t *testing.T) {
-	// The first line sets Address and Err; the second omits both
-	// (omitempty). A reused, un-reset struct would let the second
-	// observation inherit the first's values.
 	input := strings.NewReader(
 		`{"batch":"b1","kind":"tcp-connect","address":"10.0.0.1","err":"timeout"}` + "\n" +
 			`{"batch":"b1","kind":"tcp-connect"}` + "\n",
@@ -130,11 +125,8 @@ func TestObservationScannerStopsOnBadLine(t *testing.T) {
 	}
 }
 
-// TestLimitedBufferFailsClosed proves the prober-stdout sink accepts a
-// normal-sized stream but fails closed — errors, retaining no more than the cap —
-// once a prober streams past the ceiling, rather than buffering without bound (#772).
 func TestLimitedBufferFailsClosed(t *testing.T) {
-	// A normal-sized write under the cap succeeds and round-trips.
+	// #772: the sink errors past the ceiling rather than buffering without bound.
 	small := NewLimitedBuffer(1024)
 	if _, err := small.Write([]byte("hello")); err != nil {
 		t.Fatalf("write under cap: %v", err)
@@ -143,31 +135,26 @@ func TestLimitedBufferFailsClosed(t *testing.T) {
 		t.Fatalf("Bytes = %q, want %q", got, "hello")
 	}
 
-	// A stream exceeding the cap errors and never retains more than the cap.
 	b := NewLimitedBuffer(8)
 	if _, err := b.Write([]byte("1234")); err != nil {
 		t.Fatalf("first write within cap: %v", err)
 	}
-	_, err := b.Write([]byte("56789")) // would push total to 9 > 8
+	_, err := b.Write([]byte("56789"))
 	if !errors.Is(err, ErrProberOutputTooLarge) {
 		t.Fatalf("over-cap write err = %v, want ErrProberOutputTooLarge", err)
 	}
 	if len(b.Bytes()) > 8 {
 		t.Fatalf("retained %d bytes, cap is 8", len(b.Bytes()))
 	}
-	// Stays failed closed for every subsequent write.
 	if _, err := b.Write([]byte("x")); !errors.Is(err, ErrProberOutputTooLarge) {
 		t.Fatalf("post-overflow write err = %v, want ErrProberOutputTooLarge", err)
 	}
 }
 
-// TestLimitedBufferBoundsUnboundedStream feeds the sink far more than its cap via
-// io.Copy (the shape conn.Run / cmd.Stdout use) and asserts it errors instead of
-// consuming unboundedly — the OOM the finding described.
 func TestLimitedBufferBoundsUnboundedStream(t *testing.T) {
+	// io.Copy is the shape conn.Run and cmd.Stdout use, so the sink is exercised as it is used.
 	limit := 64 * 1024
 	sink := NewLimitedBuffer(limit)
-	// A 4 MiB "malicious" stream — well past the cap.
 	flood := bytes.NewReader(bytes.Repeat([]byte("A"), 4<<20))
 	_, err := io.Copy(sink, flood)
 	if !errors.Is(err, ErrProberOutputTooLarge) {
@@ -178,10 +165,7 @@ func TestLimitedBufferBoundsUnboundedStream(t *testing.T) {
 	}
 }
 
-// TestObservationScannerCapsLineLength proves an over-long single line is rejected
-// via the explicit per-line cap rather than over-allocating.
 func TestObservationScannerCapsLineLength(t *testing.T) {
-	// One line longer than MaxObservationLine, no newline splits it.
 	huge := bytes.Repeat([]byte("A"), MaxObservationLine+1)
 	sc := NewObservationScanner(bytes.NewReader(huge))
 	if sc.Next() {
@@ -192,8 +176,6 @@ func TestObservationScannerCapsLineLength(t *testing.T) {
 	}
 }
 
-// TestObservationScannerCapsCount proves a flood of tiny valid lines is bounded by
-// MaxObservations, so the decoded slice cannot grow without limit.
 func TestObservationScannerCapsCount(t *testing.T) {
 	var buf bytes.Buffer
 	for i := 0; i < MaxObservations+10; i++ {

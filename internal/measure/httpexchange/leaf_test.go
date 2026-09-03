@@ -11,9 +11,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// countingExchanger records how many times Exchange is called per target, so a
-// test can assert that a redirect is never followed with a second request. Each
-// target answers from a fixed result.
 type countingExchanger struct {
 	byKey map[string]ExchangeResult
 	calls map[string]int
@@ -50,7 +47,7 @@ func TestDefaultParamsAreTheSafetyTable(t *testing.T) {
 func TestParamsDigestMovesWithADeclaredParameter(t *testing.T) {
 	a := DefaultParams()
 	b := DefaultParams()
-	b.FollowRedirects = true // an operator could never do this; a code change would
+	b.FollowRedirects = true // no operator can set this; only a code change (ADR-0025)
 	if a.Digest() == b.Digest() {
 		t.Error("changing a declared parameter must move the params digest")
 	}
@@ -76,8 +73,7 @@ func TestIdentityFoldsACompletedExchange(t *testing.T) {
 }
 
 func TestIdentityFoldsANoHTTPResponse(t *testing.T) {
-	// A reached Service that returns no valid HTTP response folds to the
-	// no-http-response VALUE — never nothing (ADR-0011). Its Endpoint still exists.
+	// The negative is a value, never nothing, and its Endpoint still exists (ADR-0011).
 	id := Identity(ExchangeResult{Failed: true, Err: "connection reset"}, 64)
 	if id.Outcome != OutcomeNoHTTPResponse {
 		t.Errorf("a non-HTTP exchange folds to no-http-response, got %q", id.Outcome)
@@ -88,8 +84,6 @@ func TestIdentityFoldsANoHTTPResponse(t *testing.T) {
 }
 
 func TestIdentityRecordsAdmittedFieldsOnly(t *testing.T) {
-	// The admitted closed set: outcome, status, Server, title, WWW-Authenticate,
-	// redirect location. No body hash, length, or Content-Type reaches the value.
 	id := Identity(ExchangeResult{
 		Status: 401, Server: "caddy", WWWAuthenticate: `Basic realm="x"`,
 		Body: []byte("<title>Sign in</title>"),
@@ -122,9 +116,6 @@ func TestTitleExtraction(t *testing.T) {
 }
 
 func TestRedirectIsRecordedButNotFollowed(t *testing.T) {
-	// A 3xx is a completed exchange: the Endpoint exists and the Location is
-	// recorded as identity. The leaf issues exactly one request — never the
-	// redirect's next hop.
 	tgt := Target{Name: "www.example.com", Address: "198.51.100.7", Port: 80, Scheme: "http"}
 	ex := newCounting(map[string]ExchangeResult{
 		tgt.EndpointKey(): {Status: 301, Location: "https://www.example.com/", Server: "nginx"},
@@ -166,9 +157,6 @@ func TestEndpointCreatedPerReachedExchangeNamedAndNameless(t *testing.T) {
 	if len(obs) != 3 {
 		t.Fatalf("an Endpoint per REACHED exchange: got %d observations, want 3 (no-http-response included)", len(obs))
 	}
-	// The named endpoint key is name@service; the nameless is @service — a
-	// distinguished variant, never an empty name. The reached non-HTTP Service is
-	// an Endpoint too, carrying the no-http-response value.
 	keys := map[string]bool{}
 	for _, o := range obs {
 		if o.Facet != FacetHTTPIdentity {
@@ -194,7 +182,6 @@ func TestEndpointKeyRendering(t *testing.T) {
 	if got := EndpointKey("", "198.51.100.1:443/tcp"); got != "@198.51.100.1:443/tcp" {
 		t.Errorf("nameless key = %q, want @service", got)
 	}
-	// IPv6 Service keys bracket the address; the Endpoint splits at the first @.
 	v6 := Target{Name: "", Address: "2001:db8::1", Port: 443}
 	if got := v6.ServiceKey(); got != "[2001:db8::1]:443/tcp" {
 		t.Errorf("ipv6 service key = %q", got)
@@ -202,14 +189,13 @@ func TestEndpointKeyRendering(t *testing.T) {
 }
 
 func TestPacerSpacesPerHostRequests(t *testing.T) {
-	p := NewPacer(Params{PerHostReqPerSec: 10}) // 100ms spacing
+	p := NewPacer(Params{PerHostReqPerSec: 10})
 	base := time.Unix(0, 0)
 	first := p.Next("198.51.100.1", base)
-	second := p.Next("198.51.100.1", base) // same instant: must be spaced out
+	second := p.Next("198.51.100.1", base)
 	if got := second.Sub(first); got != 100*time.Millisecond {
 		t.Errorf("per-host spacing = %v, want 100ms at 10 req/s", got)
 	}
-	// A different host is not held behind the first host's schedule.
 	other := p.Next("198.51.100.2", base)
 	if !other.Equal(base) {
 		t.Errorf("a fresh host should start at now, got %v", other)
