@@ -31,8 +31,7 @@ func summary(fileCount int, found []violation, lexFailures int) string {
 	b.WriteString("## commentlint\n\n")
 	b.WriteString("Advisory comment lint (SPEC docs/spec/comment-policy.md §6.7). This check never blocks a merge.\n\n")
 	fmt.Fprintf(&b, "**%d file(s) linted, %d violation(s).**\n\n", fileCount, len(found))
-	// The exit code already separates a lex failure from a violation, so the
-	// summary must not re-merge them (SPEC §6.7).
+	// The exit code already separates a lex failure from a violation (SPEC §6.7).
 	fmt.Fprintf(&b, "**Lex failures: %d.** A lex failure is not a violation.\n\n", lexFailures)
 	if len(found) == 0 {
 		return b.String()

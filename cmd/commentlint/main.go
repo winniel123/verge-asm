@@ -76,8 +76,7 @@ func runVerify(args []string, stdout, stderr io.Writer, g git) int {
 		return 2
 	}
 	for _, p := range paths {
-		// Go's flag package stops at the first path, so a later flag would
-		// reach the tool as a path and switch itself off in silence (#1133).
+		// Go's flag package stops at the first path, so a later flag would silently switch off (#1133).
 		if strings.HasPrefix(p, "-") {
 			fmt.Fprintf(stderr, "commentlint verify: %q is a flag, and every flag goes before the first path\n", p)
 			return 2

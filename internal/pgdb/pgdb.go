@@ -12,13 +12,12 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-// Connect opens a pgx pool against databaseURL, pinging once to fail fast
-// on a bad DSN or an unreachable database rather than on the first query.
 func Connect(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
 	pool, err := pgxpool.New(ctx, databaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("pgdb: open pool: %w", err)
 	}
+	// pgxpool.New is lazy, so a bad DSN or an unreachable database surfaces on the first query.
 	if err := pool.Ping(ctx); err != nil {
 		pool.Close()
 		return nil, fmt.Errorf("pgdb: ping: %w", err)
@@ -26,9 +25,6 @@ func Connect(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
 	return pool, nil
 }
 
-// OpenStdlib opens a database/sql handle over the same driver, for tools
-// (goose) that require the standard interface rather than pgx's native one.
-// Callers must Close it.
 func OpenStdlib(databaseURL string) (*sql.DB, error) {
 	db, err := sql.Open("pgx", databaseURL)
 	if err != nil {

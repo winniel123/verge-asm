@@ -33,9 +33,8 @@ func TestSignal(t *testing.T) {
 	}
 }
 
-// Each payload below is the reason clause of a block the §3.9 round-1 read
-// judged load-bearing while the screen admitted it for deletion (#1136).
 func TestRoundOneFailuresNowScreen(t *testing.T) {
+	// Each payload is the reason clause of a block round 1 read as load-bearing (#1136).
 	cases := []struct {
 		name    string
 		payload string
@@ -52,8 +51,7 @@ func TestRoundOneFailuresNowScreen(t *testing.T) {
 		{"a CONTEXT reference", "the row declares the vantage class (CONTEXT.md)", SignalCitation},
 		{"a design-fixture reference", "one per-file zone-upload refusal (DF-F2)", SignalCitation},
 		{"a gosec waiver", "the password is #nosec G101: only ever a dev database", SignalToolMarker},
-		// The bare word "spec" is not a citation. It rides in a URL path, and
-		// the URL signal already withholds that block (#1136).
+		// A bare "spec" is no citation: it rides in a URL, which already withholds the block (#1136).
 		{"a spec URL keeps its own reason", "see https://go.dev/ref/spec", SignalBareURL},
 	}
 
@@ -66,9 +64,8 @@ func TestRoundOneFailuresNowScreen(t *testing.T) {
 	}
 }
 
-// §3.2 lets a revision widen the screen and never narrow it, so every signal
-// the round-1 screen carried has to keep firing (#1136).
 func TestTheWideningNarrowedNothing(t *testing.T) {
+	// §3.2 lets a revision widen the screen and never narrow it (#1136).
 	why := []string{
 		"because", "otherwise", "so that", "avoid", "avoids", "workaround",
 		"work around", "race", "races", "panic", "panics", "deliberate",

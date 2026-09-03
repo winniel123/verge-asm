@@ -46,8 +46,7 @@ func runLint(args []string, stdout, stderr io.Writer) int {
 	for _, p := range files {
 		res, err := lexFile(p)
 		var unsupported *surface.UnsupportedError
-		// A surface with no lexer yet is not a lex failure, and §6.7 folds no
-		// skip into the violation count.
+		// A surface with no lexer is not a lex failure, and §6.7 folds no skip into the count.
 		if errors.As(err, &unsupported) {
 			continue
 		}
@@ -84,8 +83,7 @@ func runLint(args []string, stdout, stderr io.Writer) int {
 
 func resolveLintFiles(paths []string, inScopeOnly bool) ([]string, error) {
 	if len(paths) == 0 {
-		// --in-scope-only never triggers doclint's whole-tree writer's path, so
-		// an empty changed set lints nothing (SPEC §6.3).
+		// An empty changed set lints nothing, because --in-scope-only never walks the tree (§6.3).
 		if inScopeOnly {
 			return nil, nil
 		}
@@ -149,8 +147,7 @@ func walkInScope(root string) ([]string, error) {
 
 func checkPathArgs(paths []string) error {
 	for _, p := range paths {
-		// Go's flag package stops at the first path, so a later flag would
-		// reach the tool as a path and switch itself off in silence (#1133).
+		// Go's flag package stops at the first path, so a later flag would silently switch off (#1133).
 		if strings.HasPrefix(p, "-") {
 			return fmt.Errorf("%q is a flag, and every flag goes before the first path", p)
 		}

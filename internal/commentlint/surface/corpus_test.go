@@ -27,45 +27,38 @@ const (
 )
 
 func TestGoCorpusLexes(t *testing.T) {
-	// The Go surface measures 444 files, so a much smaller walk lost the
-	// tree rather than the corpus (SPEC §1.3, #1133).
+	// The Go surface measures 444 files, so a smaller walk lost the tree, not the corpus (§1.3).
 	lexCorpus(t, Go{}, inScopeFiles(t, ".go"), minGoFiles)
 }
 
 func TestSQLCorpusLexes(t *testing.T) {
-	// SPEC §5.2 counts 106 `.sql` files across the tree. §1.4 then puts
-	// `db/migrations` out of scope, which leaves 39 in `db/queries` (#1140).
+	// §5.2 counts 106 `.sql` files, and §1.4 drops `db/migrations`, leaving 39 in queries (#1140).
 	lexCorpus(t, SQL{}, inScopeFiles(t, ".sql"), minSQLFiles)
 }
 
 func TestSQLLexesEveryTrackedFile(t *testing.T) {
-	// The goose markers sit in `db/migrations`, which no sweep edits, so the
-	// tokenizer would otherwise meet `-- +goose` in a fixture alone (#1140).
+	// No sweep edits `db/migrations`, so `-- +goose` would otherwise reach a fixture alone (#1140).
 	lexCorpus(t, SQL{}, walk(t, ".sql", false), minAllSQL)
 }
 
 func TestCSSLexesEveryTrackedFile(t *testing.T) {
-	// `prototypes/` is out of the sweep, and SPEC §5.2 still measures its 7
-	// files, so the tokenizer answers for all 18 (#1140).
+	// `prototypes/` is out of the sweep, and §5.2 still measures its 7 files, so all 18 lex (#1140).
 	lexCorpus(t, CSS{}, walk(t, ".css", false), minAllCSS)
 }
 
 func TestCSSCorpusLexes(t *testing.T) {
-	// SPEC §5.2 counts 18 `.css` files. §1.4 puts `prototypes/` out of scope,
-	// which leaves 11 (#1140).
+	// §5.2 counts 18 `.css` files, and §1.4 drops `prototypes/`, which leaves 11 (#1140).
 	lexCorpus(t, CSS{}, inScopeFiles(t, ".css"), minCSSFiles)
 }
 
 func TestJSCorpusLexes(t *testing.T) {
-	// SPEC §5.2 counts 135 `.mjs`, `.ts` and `.d.ts` files, 109 of them
-	// declaration files (#1141).
+	// §5.2 counts 135 `.mjs`, `.ts` and `.d.ts` files, 109 of them declaration files (#1141).
 	files := append(inScopeFiles(t, ".mjs"), inScopeFiles(t, ".ts")...)
 	lexCorpus(t, JS{}, files, minJSFiles)
 }
 
 func TestJSXCorpusLexes(t *testing.T) {
-	// SPEC §5.2 counts 141 `.jsx` files and calls esbuild a fixed point on all
-	// of them (#1141).
+	// §5.2 counts 141 `.jsx` files and calls esbuild a fixed point on all of them (#1141).
 	esbuildOrSkip(t)
 	for _, rel := range corpusGuard(t, inScopeFiles(t, ".jsx"), minJSXFiles) {
 		src, err := os.ReadFile(filepath.Join(repoRoot, rel))
@@ -84,8 +77,7 @@ func TestTmplCorpusLexes(t *testing.T) {
 }
 
 func TestTmplByteRangeDeleteHoldsAcrossTheCorpus(t *testing.T) {
-	// §5.4 measured the byte-range delete at 24 of 24 and the whole-line
-	// delete at 0 of 24, and both halves are what fix the rule (#1142).
+	// §5.4 measured the byte-range delete at 24 of 24 and the whole-line delete at 0 of 24 (#1142).
 	for _, rel := range corpusGuard(t, inScopeFiles(t, ".tmpl"), minTmplFiles) {
 		src, err := os.ReadFile(filepath.Join(repoRoot, rel))
 		if err != nil {
@@ -117,8 +109,7 @@ func TestTmplByteRangeDeleteHoldsAcrossTheCorpus(t *testing.T) {
 }
 
 func TestJSCommentRangesAgreeWithEsbuild(t *testing.T) {
-	// §5.5 records the circularity risk: one hand lexer both finds the
-	// comments and builds the skeleton. esbuild reads them apart (#1141).
+	// §5.5 records the circularity risk, and esbuild reads the comments apart from our lexer (#1141).
 	esbuildOrSkip(t)
 	checked := 0
 	for _, rel := range append(inScopeFiles(t, ".mjs"), inScopeFiles(t, ".ts")...) {
@@ -136,8 +127,7 @@ func TestJSCommentRangesAgreeWithEsbuild(t *testing.T) {
 			t.Errorf("%s: %v", rel, err)
 			continue
 		}
-		// esbuild erases a `.d.ts` file to the empty string, so its canonical
-		// form proves nothing and the file is counted out (SPEC §5.3).
+		// esbuild erases a `.d.ts` file to the empty string, so its canonical form proves nothing (§5.3).
 		if len(bytes.TrimSpace(before)) == 0 {
 			continue
 		}
@@ -162,8 +152,7 @@ func TestJSCommentRangesAgreeWithEsbuild(t *testing.T) {
 }
 
 func blankComments(src []byte, res Result) []byte {
-	// A deletion would glue the neighbouring tokens, which is a source change
-	// of its own, so each range fills with spaces (SPEC §5.1).
+	// A deletion would glue the neighbouring tokens, so each range fills with spaces (SPEC §5.1).
 	out := append([]byte(nil), src...)
 	for _, b := range append(append([]Block(nil), res.Blocks...), res.Trailing...) {
 		for i := b.Start; i < b.End && i < len(out); i++ {
