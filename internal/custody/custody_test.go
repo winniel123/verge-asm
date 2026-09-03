@@ -19,8 +19,6 @@ func TestDeriveFromAddressScope(t *testing.T) {
 			t.Errorf("Derive(%s) = %q, want operator", a, got)
 		}
 	}
-	// Outside the scope, and the other family, are third-party — nothing else
-	// covers them.
 	thirdParty := []string{"52.1.3.1", "203.0.113.9", "2001:db8:2::1"}
 	for _, a := range thirdParty {
 		if got := e.Derive(addr(a)); got != ThirdParty {
@@ -29,18 +27,12 @@ func TestDeriveFromAddressScope(t *testing.T) {
 	}
 }
 
-// TestDeriveFromExtensionInZone: a direct A record on a name within a
-// custody-extended zone extends custody to a globally-reachable address; a CNAME
-// to a foreign name does not, because the A record's owner is then outside every
-// extended scope (ADR-0013 §3).
 func TestDeriveFromExtensionInZone(t *testing.T) {
 	e := Estate{
 		ExtendedZones: []string{"example.com"},
 		Resolutions: []Resolution{
-			// api.example.com A 52.1.2.3 — direct A inside the declared zone.
 			{Owner: "api.example.com", Address: addr("52.1.2.3")},
-			// The CNAME target of shop.example.com is a foreign name that holds
-			// the A record — outside every name scope, so it does not extend.
+			// A CNAME puts the A record on the foreign name, inside no extended zone (ADR-0013 §3).
 			{Owner: "d1x2y3.cloudfront.net", Address: addr("13.32.1.1")},
 		},
 	}
@@ -55,7 +47,6 @@ func TestDeriveFromExtensionInZone(t *testing.T) {
 
 func TestExtensionRequiresTheExtensionFlag(t *testing.T) {
 	e := Estate{
-		// example.com is a declared name scope but NOT in ExtendedZones.
 		Resolutions: []Resolution{{Owner: "api.example.com", Address: addr("52.1.2.3")}},
 	}
 	if got := e.Derive(addr("52.1.2.3")); got != ThirdParty {
@@ -63,37 +54,29 @@ func TestExtensionRequiresTheExtensionFlag(t *testing.T) {
 	}
 }
 
-// TestExtensionStopsAtNonGloballyReachableHop: an extension does not cover a
-// non-globally-reachable address even by a direct A record inside the zone
-// (ADR-0079's amendment to ADR-0013 §3). The same address covered by a declared
-// address scope IS operator — the address-scope route is untouched.
 func TestExtensionStopsAtNonGloballyReachableHop(t *testing.T) {
 	ext := Estate{
 		ExtendedZones: []string{"example.com"},
-		// api.example.com A 10.0.0.5 — direct A, inside the zone, but private.
-		Resolutions: []Resolution{{Owner: "api.example.com", Address: addr("10.0.0.5")}},
+		Resolutions:   []Resolution{{Owner: "api.example.com", Address: addr("10.0.0.5")}},
 	}
 	if got := ext.Derive(addr("10.0.0.5")); got != ThirdParty {
 		t.Errorf("Derive(10.0.0.5) via extension = %q, want third-party (NGR hop)", got)
 	}
 
-	// Route 2: a declared address scope over the same private space is operator.
 	scoped := Estate{AddressScopes: []netip.Prefix{cidr("10.0.0.0/24")}}
 	if got := scoped.Derive(addr("10.0.0.5")); got != Operator {
 		t.Errorf("Derive(10.0.0.5) via address scope = %q, want operator", got)
 	}
 }
 
-// TestLabelSuffixIsNotStringSuffix: containment is label-wise, so evilexample.com
-// does not read as inside example.com, and the zone covers its own apex.
 func TestLabelSuffixIsNotStringSuffix(t *testing.T) {
 	e := Estate{
 		ExtendedZones: []string{"example.com"},
 		Resolutions: []Resolution{
-			{Owner: "example.com", Address: addr("52.0.0.1")},              // apex — covered
-			{Owner: "deep.sub.example.com", Address: addr("52.0.0.2")},     // subtree — covered
-			{Owner: "evilexample.com", Address: addr("52.0.0.3")},          // string suffix, not label suffix
-			{Owner: "example.com.attacker.net", Address: addr("52.0.0.4")}, // prefix, not suffix
+			{Owner: "example.com", Address: addr("52.0.0.1")},
+			{Owner: "deep.sub.example.com", Address: addr("52.0.0.2")},
+			{Owner: "evilexample.com", Address: addr("52.0.0.3")},
+			{Owner: "example.com.attacker.net", Address: addr("52.0.0.4")},
 		},
 	}
 	covered := map[string]Custody{
@@ -109,8 +92,6 @@ func TestLabelSuffixIsNotStringSuffix(t *testing.T) {
 	}
 }
 
-// TestCaseAndTrailingDotFold: the owner-name test folds ASCII case and a trailing
-// dot, matching the Name key, so a mixed-case A-record owner still extends.
 func TestCaseAndTrailingDotFold(t *testing.T) {
 	e := Estate{
 		ExtendedZones: []string{"Example.COM"},
@@ -121,19 +102,16 @@ func TestCaseAndTrailingDotFold(t *testing.T) {
 	}
 }
 
-// TestWithinAnyZone exercises the shared containment helper directly — it is now
-// the one label-wise suffix test four packages route through (custody extension,
-// cold-scan opt-in, signal InDeclaredZone, wildcard-discrimination population),
-// so its ASCII fold and label-wise (not string) matching are locked here.
 func TestWithinAnyZone(t *testing.T) {
+	// Four packages route their in-zone question here, so the fold is locked here (ADR-0055).
 	zones := []string{"Example.COM", "corp.test"}
 	cases := map[string]bool{
-		"example.com":          true,  // apex, case-folded
-		"api.example.com.":     true,  // subtree, trailing dot
-		"corp.test":            true,  // second zone apex
-		"evilexample.com":      false, // string suffix, not a label suffix
-		"example.com.evil.net": false, // prefix, not suffix
-		"test":                 false, // parent of a zone, not within it
+		"example.com":          true,
+		"api.example.com.":     true,
+		"corp.test":            true,
+		"evilexample.com":      false,
+		"example.com.evil.net": false,
+		"test":                 false,
 		"":                     false,
 	}
 	for name, want := range cases {
@@ -146,21 +124,13 @@ func TestWithinAnyZone(t *testing.T) {
 	}
 }
 
-// TestNoRegistryExpansionInputReachesTheDerivation is the structural proof of
-// AC-1: the Estate accepts only confirmed Seeds. A registry-proposed address
-// scope the operator has not confirmed is simply not an input, so an address
-// inside it derives third-party. Compare with the same range confirmed into an
-// address-scope Seed, which derives operator — the only difference is the
-// operator's confirmation act.
 func TestNoRegistryExpansionInputReachesTheDerivation(t *testing.T) {
-	// A proposed range covering 76M AWS addresses (ADR-0002's #27 measurement)
-	// is NOT confirmed, so it is absent from the Estate.
+	// A proposal is no Estate field, so the 76M-address AWS range reaches nothing (ADR-0002, #27).
 	unconfirmed := Estate{}
 	if got := unconfirmed.Derive(addr("52.1.2.3")); got != ThirdParty {
 		t.Errorf("Derive(52.1.2.3) with only a proposal = %q, want third-party", got)
 	}
 
-	// The same address once the operator confirms a /32 Seed over it.
 	confirmed := Estate{AddressScopes: []netip.Prefix{cidr("52.1.2.3/32")}}
 	if got := confirmed.Derive(addr("52.1.2.3")); got != Operator {
 		t.Errorf("Derive(52.1.2.3) after confirmation = %q, want operator", got)

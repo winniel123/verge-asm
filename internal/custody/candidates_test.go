@@ -6,15 +6,10 @@ import (
 	"testing"
 )
 
-// population collects the streamed EdgeFanoutPopulation for a whole-sequence assertion.
-// Only a test that pins the ORDER AND CONTENTS of a small estate collects it; the
-// sequence is lazy on purpose (ADR-0127) and the streaming test below never does.
+// Collecting is safe on a small estate only: the sequence is lazy against an IPv4 /8 (ADR-0127).
+
 func population(e Estate) []netip.Addr { return slices.Collect(e.EdgeFanoutPopulation()) }
 
-// Every address here is globally reachable on purpose. The documentation ranges
-// (192.0.2.0/24, 198.51.100.0/24, 203.0.113.0/24) are non-globally-reachable, so an
-// extension covers none of them and a fixture built from one would pass for the wrong
-// reason.
 func addrs(t *testing.T, got []netip.Addr, want ...string) {
 	t.Helper()
 	if len(got) != len(want) {
@@ -27,9 +22,6 @@ func addrs(t *testing.T, got []netip.Addr, want ...string) {
 	}
 }
 
-// The candidate set is the addresses the custody extension would reach — the direct-A
-// targets of names that pass the label-suffix test. A resolution whose owner is outside
-// every extended zone contributes nothing, exactly as it extends nothing.
 func TestExtensionCandidatesReadsTheExtendedZonesAlone(t *testing.T) {
 	e := Estate{
 		ExtendedZones: []string{"example.com"},
@@ -42,10 +34,8 @@ func TestExtensionCandidatesReadsTheExtendedZonesAlone(t *testing.T) {
 	addrs(t, e.ExtensionCandidates(), "93.184.216.34")
 }
 
-// The apex ALIAS/ANAME flattened to A is a direct A record on the apex name, so it is a
-// candidate on the same limb as any other in-zone A record — the zone apex passes the
-// label-suffix test against itself.
 func TestExtensionCandidatesIncludesTheZoneApex(t *testing.T) {
+	// A provider flattens an apex ALIAS or ANAME into an A record, so the apex arrives on this limb.
 	e := Estate{
 		ExtendedZones: []string{"example.com"},
 		Resolutions: []Resolution{
@@ -55,9 +45,6 @@ func TestExtensionCandidatesIncludesTheZoneApex(t *testing.T) {
 	addrs(t, e.ExtensionCandidates(), "104.16.132.229")
 }
 
-// One handshake per address: two in-zone names flattening to the same edge is the modal
-// case, and measuring that edge twice would tell us nothing the first handshake did not.
-// The order is first-seen, so a fan-out is deterministic across ticks.
 func TestExtensionCandidatesAreDistinctInFirstSeenOrder(t *testing.T) {
 	e := Estate{
 		ExtendedZones: []string{"example.com"},
@@ -70,9 +57,6 @@ func TestExtensionCandidatesAreDistinctInFirstSeenOrder(t *testing.T) {
 	addrs(t, e.ExtensionCandidates(), "104.16.132.229", "104.16.132.230")
 }
 
-// A non-globally-reachable address is not a candidate: the extension does not cover one
-// (ADR-0079), so there is no reach to narrow and nothing to measure. This is the same
-// stopping condition extensionReaches applies, read from one place.
 func TestExtensionCandidatesSkipsNonGloballyReachable(t *testing.T) {
 	e := Estate{
 		ExtendedZones: []string{"example.com"},
@@ -86,11 +70,8 @@ func TestExtensionCandidatesSkipsNonGloballyReachable(t *testing.T) {
 	addrs(t, e.ExtensionCandidates(), "93.184.216.34")
 }
 
-// Every candidate the set yields is one the extension actually covers, and every
-// extension-covered resolution address is in the set. The two must not drift: the Scan
-// exists to narrow that exact reach, and a candidate outside it would be a probe of an
-// address no extension claims.
 func TestExtensionCandidatesAgreeWithExtensionReaches(t *testing.T) {
+	// A candidate outside the reach would be a probe of an address no extension claims (ADR-0129 §6).
 	e := Estate{
 		AddressScopes: []netip.Prefix{netip.MustParsePrefix("104.16.132.0/24")},
 		ExtendedZones: []string{"example.com", "example.org"},
@@ -118,21 +99,8 @@ func TestExtensionCandidatesAgreeWithExtensionReaches(t *testing.T) {
 	}
 }
 
-// THE CENSUS ASKS ABOUT NOTHING BUT THE CANDIDATES, and that is what makes a measurement
-// read BOUND to the candidate set safe (#1036). `/scope` reads the store through
-// queue.EdgeFanoutOver(estate.ExtensionCandidates()), so a key ExtensionCensus looked up
-// from outside that set would simply be missing — and a missing key is *measurement
-// pending*, which the derivation HOLDS. The decline would become a hold, in silence.
-//
-// The two are written apart: ExtensionCensus walks the resolutions applying the two
-// conditions itself, and ExtensionCandidates applies the same two over the same slice.
-// This pins them together, so a session that widens one and not the other is told here
-// rather than in a render nobody can read the fault off.
-//
-// The estate carries the addresses the census must NOT ask about, one of each kind: an
-// address covered by a declared scope but cited by a foreign owner, and a
-// non-globally-reachable one.
 func TestExtensionCensusAsksOnlyAboutExtensionCandidates(t *testing.T) {
+	// The census and the candidates are written apart, so a session widening one is told here (#1036).
 	e := Estate{
 		AddressScopes: []netip.Prefix{netip.MustParsePrefix("23.20.0.0/24")},
 		ExtendedZones: []string{"example.com"},
@@ -151,13 +119,7 @@ func TestExtensionCensusAsksOnlyAboutExtensionCandidates(t *testing.T) {
 		t.Fatal("no candidates at all — the fixture proves nothing")
 	}
 
-	// The measurement is IN FORCE and measures nothing, so every candidate is pending
-	// and the census names each of them. That is the widest address set the census can
-	// ask about, which is what makes this the whole test rather than a sample.
-	//
-	// The floor is left unresolved on purpose: WithEdgeFanout over an estate holding
-	// candidates and a completed Batch would read the limb as errored, the census would
-	// return nothing, and the assertion below would pass over an empty set.
+	// A completed Batch would error the limb and the assertion below would pass over an empty set.
 	e = e.WithEdgeFanout(EdgeFanout{Enabled: true})
 	asked := map[netip.Addr]bool{}
 	for _, entry := range e.ExtensionCensus() {
@@ -167,17 +129,11 @@ func TestExtensionCensusAsksOnlyAboutExtensionCandidates(t *testing.T) {
 		}
 		asked[entry.Address] = true
 	}
-	// The count is asserted the other way round too, so a census that quietly stopped
-	// naming a candidate cannot pass this by asking about nothing at all.
 	if len(asked) != len(candidates) {
 		t.Fatalf("the census asked about %d addresses over %d candidates", len(asked), len(candidates))
 	}
 }
 
-// An instance with no custody extension has an empty candidate set. It is a legible
-// state, not an error: the dispatcher enqueues no job and the Scan records an empty
-// scope. A declared address scope is the OTHER limb of membership and contributes no
-// candidate on this one (#988 widens the Scan onto it, where it labels only).
 func TestExtensionCandidatesEmptyWithNoExtension(t *testing.T) {
 	e := Estate{
 		AddressScopes: []netip.Prefix{netip.MustParsePrefix("104.16.132.0/24")},
@@ -193,10 +149,6 @@ func TestExtensionCandidatesEmptyWithNoExtension(t *testing.T) {
 	}
 }
 
-// An address a foreign owner holds is still a candidate when some other resolution
-// holds it on an in-zone owner. The walk takes the first owner that extends and passes
-// over the ones that do not — a shared edge cited by both an in-zone name and a foreign
-// one is the very case this Scan exists to measure.
 func TestExtensionCandidatesTakeTheFirstOwnerThatExtends(t *testing.T) {
 	e := Estate{
 		ExtendedZones: []string{"example.com"},
@@ -208,8 +160,6 @@ func TestExtensionCandidatesTakeTheFirstOwnerThatExtends(t *testing.T) {
 	addrs(t, e.ExtensionCandidates(), "104.16.132.229")
 }
 
-// An IPv4-mapped IPv6 spelling of an address already seen is the same address, so it
-// yields no second candidate and no second handshake.
 func TestExtensionCandidatesFoldMappedSpellings(t *testing.T) {
 	e := Estate{
 		ExtendedZones: []string{"example.com"},
@@ -221,8 +171,6 @@ func TestExtensionCandidatesFoldMappedSpellings(t *testing.T) {
 	addrs(t, e.ExtensionCandidates(), "93.184.216.34")
 }
 
-// #988: the Scan's population is BOTH limbs. The extension candidates come first, then
-// every address a declared address scope covers, so one tick's fan-out matches the next.
 func TestEdgeFanoutPopulationCarriesBothLimbs(t *testing.T) {
 	e := Estate{
 		AddressScopes: []netip.Prefix{netip.MustParsePrefix("104.16.132.0/30")},
@@ -237,24 +185,17 @@ func TestEdgeFanoutPopulationCarriesBothLimbs(t *testing.T) {
 		"104.16.132.0", "104.16.132.1", "104.16.132.2", "104.16.132.3")
 }
 
-// #983's *empty until a custody extension is declared* legibility is gone. An install
-// holding address scopes and no extension dispatches a non-empty scope, which is the
-// stated cost of widening the measurement onto the declaration limb.
 func TestEdgeFanoutPopulationNonEmptyWithNoExtension(t *testing.T) {
 	e := Estate{AddressScopes: []netip.Prefix{netip.MustParsePrefix("104.16.132.0/31")}}
 	addrs(t, population(e), "104.16.132.0", "104.16.132.1")
 	if got := e.ExtensionCandidates(); got != nil {
 		t.Fatalf("extension candidates = %v, want none — the declaration limb must not feed the veto's population", got)
 	}
-	// An install with NEITHER limb still measures nothing, and that stays legible.
 	if got := population(Estate{}); got != nil {
 		t.Fatalf("empty estate population = %v, want none", got)
 	}
 }
 
-// A dual-limb address — cited by an in-zone name and covered by a declared scope at once
-// (#987) — is ONE handshake per tick, not two. It is emitted on the extension limb, which
-// is where its measurement decides something.
 func TestEdgeFanoutPopulationDedupsTheDualLimbAddress(t *testing.T) {
 	dual := "104.16.132.1"
 	e := Estate{
@@ -265,11 +206,6 @@ func TestEdgeFanoutPopulationDedupsTheDualLimbAddress(t *testing.T) {
 	addrs(t, population(e), dual, "104.16.132.0")
 }
 
-// Two declared scopes that OVERLAP are not deduped against each other, so the overlap is
-// handshaked twice. That is ADR-0127's accepted cost, and the same one queue.candidateAddrs
-// takes: deduping across scopes needs a map holding the whole scope, which is the memory
-// ceiling the streamed fan-out exists to avoid. Each handshake is its own idempotent
-// Batch, and the read takes the newest row per address.
 func TestEdgeFanoutPopulationDoesNotDedupOverlappingScopes(t *testing.T) {
 	e := Estate{AddressScopes: []netip.Prefix{
 		netip.MustParsePrefix("104.16.132.0/31"),
@@ -280,11 +216,8 @@ func TestEdgeFanoutPopulationDoesNotDedupOverlappingScopes(t *testing.T) {
 		"104.16.132.0", "104.16.132.1", "104.16.132.2", "104.16.132.3")
 }
 
-// A non-globally-reachable declared address is not in the population. The Scan carries no
-// Vantage, so it can never satisfy ADR-0079's *from a Vantage that is not internet-class*,
-// and the shared egress guard refuses the dial. Dispatching one would spend a job to
-// record `unreachable` and label nothing.
 func TestEdgeFanoutPopulationSkipsNonGloballyReachableDeclared(t *testing.T) {
+	// The Scan carries no Vantage, so it can never satisfy ADR-0079's declared-realm clause.
 	e := Estate{AddressScopes: []netip.Prefix{
 		netip.MustParsePrefix("10.0.0.0/30"),
 		netip.MustParsePrefix("104.16.132.0/31"),
@@ -292,14 +225,6 @@ func TestEdgeFanoutPopulationSkipsNonGloballyReachableDeclared(t *testing.T) {
 	addrs(t, population(e), "104.16.132.0", "104.16.132.1")
 }
 
-// NOTHING BOUNDS THE POPULATION, so it must stream. ADR-0127 removed the ceiling above
-// the operator's address cap and ADR-0047 refuses a scan-time aperture, so a declared
-// scope can be an IPv4 `/8` — 16.7M addresses. A consumer takes what it needs and stops
-// the walk; no record holds the whole scope.
-//
-// A regression to a materialized slice fails here by enumerating all 16.7M addresses
-// before yielding the first one, which is the memory ceiling the streaming exists to
-// avoid.
 func TestEdgeFanoutPopulationStreamsAndHoldsNoScope(t *testing.T) {
 	e := Estate{AddressScopes: []netip.Prefix{netip.MustParsePrefix("104.0.0.0/8")}}
 	var got []netip.Addr
@@ -312,10 +237,6 @@ func TestEdgeFanoutPopulationStreamsAndHoldsNoScope(t *testing.T) {
 	addrs(t, got, "104.0.0.0", "104.0.0.1", "104.0.0.2")
 }
 
-// The veto reads the extension candidates ALONE. A declared address measured as shared is
-// reached at any fan-out count: Derive returns from the address-scope limb before the
-// extension is asked, and the probing gate stays open. This is the #956 amendment, and
-// getting it backwards would let a measurement overrule a Declared act.
 func TestEdgeFanoutPopulationLabelsTheDeclarationLimbAndGatesNothing(t *testing.T) {
 	declared := netip.MustParseAddr("104.16.132.1")
 	e := Estate{
@@ -342,10 +263,6 @@ func TestEdgeFanoutPopulationLabelsTheDeclarationLimbAndGatesNothing(t *testing.
 	}
 }
 
-// Open-then-label: an UNMEASURED declared address is probed normally and carries no row.
-// Hold-then-open is the extension limb's rule and must not be carried across by analogy —
-// it would hold a declared subject out of its own scope's census, and it would put a
-// pending row on every address of every scope on the first day.
 func TestAnUnmeasuredDeclaredAddressIsProbedAndCarriesNoRow(t *testing.T) {
 	declared := netip.MustParseAddr("104.16.132.1")
 	e := Estate{

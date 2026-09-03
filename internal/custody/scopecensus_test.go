@@ -16,8 +16,6 @@ func sharedFanout(shared []string, notShared []string) map[netip.Addr]bool {
 	return m
 }
 
-// A declared scope holding measured shared edges carries a row, and the row counts
-// the shared addresses inside that scope alone.
 func TestAddressScopeCensusCountsSharedEdgesInScope(t *testing.T) {
 	e := Estate{
 		AddressScopes: []netip.Prefix{cidr("93.184.216.0/24"), cidr("93.184.217.0/24")},
@@ -41,8 +39,6 @@ func TestAddressScopeCensusCountsSharedEdgesInScope(t *testing.T) {
 	}
 }
 
-// The acceptance criterion: a scope with no address above the threshold renders no
-// row. A measured not-shared address is measured, and it is not a shared edge.
 func TestAddressScopeCensusNoRowWithoutASharedEdge(t *testing.T) {
 	e := Estate{
 		AddressScopes: []netip.Prefix{cidr("93.184.216.0/24")},
@@ -56,9 +52,6 @@ func TestAddressScopeCensusNoRowWithoutASharedEdge(t *testing.T) {
 	}
 }
 
-// Open-then-label (ADR-0129's #956 amendment): an UNMEASURED declared address is
-// probed normally and carries no row. Hold-then-open carried across by analogy would
-// put a pending row on every address of every scope on the first day.
 func TestAddressScopeCensusUnmeasuredCarriesNoRow(t *testing.T) {
 	e := Estate{
 		AddressScopes: []netip.Prefix{cidr("93.184.216.0/24")},
@@ -69,8 +62,6 @@ func TestAddressScopeCensusUnmeasuredCarriesNoRow(t *testing.T) {
 	}
 }
 
-// A `Scan` out of force yields no row at all — EdgeFanout's fourth absence case, the
-// pre-ADR-0129 behaviour. A row there would name evidence the Scan does not hold.
 func TestAddressScopeCensusScanOutOfForceYieldsNoRow(t *testing.T) {
 	e := Estate{
 		AddressScopes: []netip.Prefix{cidr("93.184.216.0/24")},
@@ -84,8 +75,6 @@ func TestAddressScopeCensusScanOutOfForceYieldsNoRow(t *testing.T) {
 	}
 }
 
-// A shared edge outside every declared scope belongs to the extension limb's census
-// (#987) and never to a scope's own. The row counts containment, never the store.
 func TestAddressScopeCensusIgnoresSharedEdgesOutsideEveryScope(t *testing.T) {
 	e := Estate{
 		AddressScopes: []netip.Prefix{cidr("93.184.216.0/24")},
@@ -99,10 +88,6 @@ func TestAddressScopeCensusIgnoresSharedEdgesOutsideEveryScope(t *testing.T) {
 	}
 }
 
-// Two overlapping scopes both cover the address, and both rows count it. That is
-// coveringAddressScope's refused specificity test holding on the display: the remedy
-// is per scope, so the operator must see the edge on each scope they could exclude
-// it from.
 func TestAddressScopeCensusCountsAnOverlapOnBothScopes(t *testing.T) {
 	e := Estate{
 		AddressScopes: []netip.Prefix{cidr("93.184.216.0/24"), cidr("93.184.216.0/25")},
@@ -122,8 +107,6 @@ func TestAddressScopeCensusCountsAnOverlapOnBothScopes(t *testing.T) {
 	}
 }
 
-// The same scope declared twice is ONE row. Two identical rows would render the same
-// fact twice and read as two scopes.
 func TestAddressScopeCensusCollapsesADuplicateScope(t *testing.T) {
 	p := cidr("93.184.216.0/24")
 	e := Estate{
@@ -138,11 +121,8 @@ func TestAddressScopeCensusCollapsesADuplicateScope(t *testing.T) {
 	}
 }
 
-// The census is DISPLAY and never a gate. A `Seed`-covered address whose measurement
-// says shared is still reached, still derives operator, and is still probed — the
-// #956 disjointness, asserted beside the row that reports it so a session repairing
-// the apparent inconsistency fails here first.
 func TestAddressScopeCensusRowGatesNothing(t *testing.T) {
+	// A session repairing the apparent inconsistency fails here first (ADR-0129's #956 amendment).
 	a := netip.MustParseAddr("93.184.216.7")
 	e := Estate{
 		AddressScopes: []netip.Prefix{cidr("93.184.216.0/24")},
@@ -162,9 +142,6 @@ func TestAddressScopeCensusRowGatesNothing(t *testing.T) {
 	}
 }
 
-// The extension limb's census is untouched by a declaration-limb row. The two
-// registers stay on separate surfaces (the #944 amendment), so an address-scope
-// address must not appear as an extension member.
 func TestAddressScopeCensusLeavesTheExtensionCensusAlone(t *testing.T) {
 	e := Estate{
 		AddressScopes: []netip.Prefix{cidr("93.184.216.0/24")},
@@ -181,9 +158,6 @@ func TestAddressScopeCensusLeavesTheExtensionCensusAlone(t *testing.T) {
 	}
 }
 
-// The row names an exclusion as its remedy, and since #1022 (ADR-0133 §7) taking that
-// remedy CLEARS the row. The measurement is filtered on READ: the stored observation
-// is untouched, so the count returns the moment the exclusion is withdrawn.
 func TestAddressScopeCensusClearsOnAnAddressExclusion(t *testing.T) {
 	fanout := EdgeFanout{
 		Enabled: true,
@@ -205,21 +179,12 @@ func TestAddressScopeCensusClearsOnAnAddressExclusion(t *testing.T) {
 		t.Errorf("the stored measurement holds %d rows, want %d: the census filtered on READ and deletes nothing", got, len(fanout.Shared))
 	}
 
-	// The exclusion narrows the count and nothing else. An address the exclusion
-	// does NOT cover keeps its row on the same scope.
 	outside := base.WithAddressExclusions([]netip.Prefix{cidr("93.184.216.128/25")})
 	if got := outside.AddressScopeCensus(); len(got) != 1 {
 		t.Errorf("census = %+v, want the row: an exclusion elsewhere in the scope must not clear it", got)
 	}
 }
 
-// The census REFUSES a partial measurement (#1036). It is the one reader that walks
-// Shared wholesale, so a record bound to the extension limb would show it every
-// declaration-limb row missing and it would count short with nothing to say so.
-//
-// The two estates below differ in the Partial flag and in nothing else, so the refusal
-// cannot be read off the fixture: the same map counts a row when the record covers the
-// whole population.
 func TestAddressScopeCensusRefusesAPartialMeasurement(t *testing.T) {
 	measured := sharedFanout([]string{"93.184.216.7", "93.184.216.9"}, nil)
 	scopes := []netip.Prefix{cidr("93.184.216.0/24")}
@@ -242,9 +207,8 @@ func TestAddressScopeCensusRefusesAPartialMeasurement(t *testing.T) {
 	}
 }
 
-// Partial moves NO GATE and NO VERDICT. The veto asks its question per address, over a
-// candidate the bound named, so the answer cannot turn on how the map was read.
 func TestPartialMovesNoVerdict(t *testing.T) {
+	// The veto asks per address over a named candidate, so a bound cannot move the answer (#1036).
 	shared := netip.MustParseAddr("104.16.132.10")
 	dedicated := netip.MustParseAddr("93.184.216.34")
 	measured := map[netip.Addr]bool{shared: true, dedicated: false}
