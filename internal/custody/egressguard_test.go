@@ -5,23 +5,19 @@ import (
 	"testing"
 )
 
-// TestEgressGuardRefusesNonGlobal pins the shared socket-level backstop the
-// active-probe leaves, the delivery runner and resolutionwalk all install: given
-// the ACTUAL resolved socket address the kernel is about to connect to, the Control
-// hook refuses every non-globally-reachable range and passes ordinary global
-// unicast (#743). The label names the refusing subsystem in the error.
 func TestEgressGuardRefusesNonGlobal(t *testing.T) {
 	guard := EgressGuard("testleaf")
 
+	// 169.254.169.254 is the cloud metadata endpoint the guard exists to refuse (#743).
 	refused := []string{
-		"169.254.169.254:80",       // cloud metadata (link-local)
-		"127.0.0.1:80",             // loopback
-		"10.0.0.5:80",              // RFC1918
-		"192.168.1.1:80",           // RFC1918
-		"172.16.0.1:80",            // RFC1918
-		"[fd00::1]:80",             // ULA
-		"[::1]:80",                 // IPv6 loopback
-		"[::ffff:169.254.0.1]:80",  // IPv4-mapped link-local
+		"169.254.169.254:80",
+		"127.0.0.1:80",
+		"10.0.0.5:80",
+		"192.168.1.1:80",
+		"172.16.0.1:80",
+		"[fd00::1]:80",
+		"[::1]:80",
+		"[::ffff:169.254.0.1]:80",
 	}
 	for _, addr := range refused {
 		err := guard("tcp", addr, nil)
@@ -41,8 +37,6 @@ func TestEgressGuardRefusesNonGlobal(t *testing.T) {
 		}
 	}
 
-	// A non-literal host (a hostname that slipped past validation) fails closed too:
-	// ParseAddr rejects it, so the socket is never opened.
 	if err := guard("tcp", "metadata.internal:80", nil); err == nil {
 		t.Error("EgressGuard(hostname) = nil, want refusal (non-literal host)")
 	}
