@@ -10,15 +10,10 @@ import (
 )
 
 const (
-	daily   = int64(86400)   // the dns Scan's cadence
-	monthly = int64(2592000) // the zone Scan's cadence (30 days)
+	daily   = int64(86400)
+	monthly = int64(2592000)
 )
 
-// TestObservationBoundIsPerTimeline proves the live/evidential boundary is k
-// cadences of the timeline's OWN covering Scan, never a global number: the
-// resolver timeline (daily) and the zone timeline (monthly) get different bounds,
-// and a timeline no enabled Scan covers has an undefined bound rather than a loose
-// one. (AC: boundary computed per-timeline from its covering Scan's cadence.)
 func TestObservationBoundIsPerTimeline(t *testing.T) {
 	resolver, ok := ObservationBoundSeconds(daily)
 	if !ok || resolver != FloorCadences*daily {
@@ -31,19 +26,12 @@ func TestObservationBoundIsPerTimeline(t *testing.T) {
 	if zone <= resolver {
 		t.Fatalf("a monthly timeline must outlive a daily one: zone=%d resolver=%d", zone, resolver)
 	}
-	// A timeline no enabled Scan covers: undefined, not loose.
 	if _, ok := ObservationBoundSeconds(0); ok {
 		t.Error("no covering Scan must yield an undefined bound (ok=false), not a number")
 	}
 }
 
-// TestObservationFloorIsTheTightestBound proves the dial's floor is the tightest
-// bound in force — k cadences of the tightest ENABLED Scan — and that below it any
-// positive dial is rejected while 0 (unbounded) is always allowed. With no enabled
-// Scan there is no bound to floor against and every non-negative dial is allowed.
-// (AC: dial floors at the tightest in-force bound.)
 func TestObservationFloorIsTheTightestBound(t *testing.T) {
-	// dns daily is the tightest shipped Scan: floor = k*daily = 2 days.
 	floor, ok := ObservationFloorDays(daily)
 	if !ok || floor != 2 {
 		t.Fatalf("floor over a daily Scan = (%d,%v), want (2,true)", floor, ok)
@@ -67,25 +55,20 @@ func TestObservationFloorIsTheTightestBound(t *testing.T) {
 	}
 }
 
-// TestFloorSettingBelowChangesZeroRows is the derivation of the floor (ADR-0094):
-// below the tightest bound the control changes no row at all. For any non-withdrawn
-// row whose own bound is at least the tightest bound, every positive dial value at
-// or below that tightest bound yields the SAME retention decision — so a dial set
-// anywhere in the dead zone (0, floor] is indistinguishable and there is nothing to
-// gain by allowing it.
 func TestFloorSettingBelowChangesZeroRows(t *testing.T) {
-	tightest := FloorCadences * daily // the tightest bound in force
+	// ADR-0094's derivation: below the tightest bound every positive dial gives the same answer.
+	tightest := FloorCadences * daily
 	type row struct {
 		age   int64
 		bound int64
 	}
 	rows := []row{
-		{age: tightest / 2, bound: FloorCadences * daily},                  // live daily
-		{age: tightest * 3, bound: FloorCadences * daily},                  // evidential daily
-		{age: FloorCadences * monthly / 2, bound: FloorCadences * monthly}, // live zone
-		{age: FloorCadences * monthly * 3, bound: FloorCadences * monthly}, // evidential zone
+		{age: tightest / 2, bound: FloorCadences * daily},
+		{age: tightest * 3, bound: FloorCadences * daily},
+		{age: FloorCadences * monthly / 2, bound: FloorCadences * monthly},
+		{age: FloorCadences * monthly * 3, bound: FloorCadences * monthly},
 	}
-	baseline := int64(1) // any positive dial in the dead zone
+	baseline := int64(1)
 	for _, dial := range []int64{1, tightest / 2, tightest} {
 		for _, r := range rows {
 			want := RetainObservation(r.age, r.bound, baseline, true, false)
@@ -99,7 +82,7 @@ func TestFloorSettingBelowChangesZeroRows(t *testing.T) {
 }
 
 func TestRetainNormalTimeline(t *testing.T) {
-	bound := FloorCadences * daily // 2 days
+	bound := FloorCadences * daily
 	dial := int64(10) * SecondsPerDay
 	cases := []struct {
 		name   string
@@ -120,62 +103,44 @@ func TestRetainNormalTimeline(t *testing.T) {
 	}
 }
 
-// TestUndefinedBoundNeverRetired proves the first exception: a timeline with no
-// covering Scan (an enabled-then-disabled-Scan scenario) has an undefined bound and
-// is never retired — even past any dial, and even when the dial would retire an
-// ordinary row of the same age. Undefined is not expired. (AC.)
 func TestUndefinedBoundNeverRetired(t *testing.T) {
 	dial := int64(5) * SecondsPerDay
 	veryOld := dial * 100
-	if !RetainObservation(veryOld, 0, dial, false /*hasBound*/, false) {
+	if !RetainObservation(veryOld, 0, dial, false, false) {
 		t.Fatal("an undefined-bound row must never be retired, however old and whatever the dial")
 	}
-	// Contrast: the same age on a defined (daily) bound IS retired past the dial.
 	if RetainObservation(veryOld, FloorCadences*daily, dial, true, false) {
 		t.Fatal("a defined-bound row of the same age past the dial must be retired — the exception is undefined-only")
 	}
 }
 
-// TestWithdrawnDialAlone proves the second exception: a withdrawn subject's
-// timelines carry no floor at all, so the dial alone governs — a row that would be
-// LIVE on an active subject is still retired once past the dial, and with an
-// unbounded dial nothing is retired. (AC.)
 func TestWithdrawnDialAlone(t *testing.T) {
-	bound := FloorCadences * monthly // a would-be-generous 60-day bound
+	bound := FloorCadences * monthly
 	dial := int64(3) * SecondsPerDay
-	// Age inside the bound but past the dial: an active subject keeps it (live),
-	// a withdrawn subject does not — no floor.
 	ageInsideBound := bound - 1
 	if !RetainObservation(ageInsideBound, bound, dial, true, false) {
 		t.Fatal("active subject: a row inside its own bound is live and kept")
 	}
-	if RetainObservation(ageInsideBound, bound, dial, true, true /*withdrawn*/) {
+	if RetainObservation(ageInsideBound, bound, dial, true, true) {
 		t.Fatal("withdrawn subject: no floor, so a row past the dial is retired even inside the old bound")
 	}
-	// Unbounded dial: a withdrawn subject's rows are all kept (dial alone, dial off).
 	if !RetainObservation(bound*100, bound, 0, true, true) {
 		t.Fatal("withdrawn subject with an unbounded dial keeps everything")
 	}
 }
 
-// TestLiveOnlyGatesDerivationReads proves the readability separation (AC): a
-// derivation reading through LiveOnly sees only live-tier rows, so an evidential
-// row — past its bound, or on an uncovered timeline — is unreadable by any
-// derivation path. The "derivation" here is a fold that would re-derive history; we
-// assert it never receives an evidential row.
 func TestLiveOnlyGatesDerivationReads(t *testing.T) {
 	bound := FloorCadences * daily
 	rows := []AgedObservation{
-		{ID: 1, AgeSeconds: bound - 1, BoundSeconds: bound, HasBound: true},  // live
-		{ID: 2, AgeSeconds: bound + 1, BoundSeconds: bound, HasBound: true},  // evidential (aged out)
-		{ID: 3, AgeSeconds: bound * 50, BoundSeconds: bound, HasBound: true}, // evidential (long dead)
-		{ID: 4, AgeSeconds: 1, BoundSeconds: 0, HasBound: false},             // evidential (no covering Scan)
+		{ID: 1, AgeSeconds: bound - 1, BoundSeconds: bound, HasBound: true},
+		{ID: 2, AgeSeconds: bound + 1, BoundSeconds: bound, HasBound: true},
+		{ID: 3, AgeSeconds: bound * 50, BoundSeconds: bound, HasBound: true},
+		{ID: 4, AgeSeconds: 1, BoundSeconds: 0, HasBound: false},
 	}
 	live := LiveOnly(rows)
 	if len(live) != 1 || live[0].ID != 1 {
 		t.Fatalf("LiveOnly returned %+v, want only the live row (id 1)", live)
 	}
-	// A derivation fold over the gated rows must never observe an evidential id.
 	evidential := map[int64]bool{2: true, 3: true, 4: true}
 	for _, r := range live {
 		if evidential[r.ID] {
@@ -187,9 +152,6 @@ func TestLiveOnlyGatesDerivationReads(t *testing.T) {
 	}
 }
 
-// fakeObsStore is the whole surface the ObservationRetirer can reach: the dial and
-// the observation-only delete. It records the params so the sweep's dial-to-seconds
-// conversion and k are checkable, and can return an error to prove propagation.
 type fakeObsStore struct {
 	days         int64
 	settingsErr  error

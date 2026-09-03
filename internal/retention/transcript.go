@@ -1,28 +1,5 @@
 package retention
 
-// Transcript retention is the plain-wall-clock rule of the raw-job-output spec §4
-// (ADR-0126, amending ADR-0041), landed beside the Dispatch and Observation paths
-// in this same package on its own structurally-separate discipline. Like Dispatch,
-// a Transcript is retired by age alone: no derivation may read it (the spec §1
-// fence), so a clock deleting a captured row by captured_at moves no value on any
-// timeline. There is therefore no two-tier boundary and no coverage-style floor —
-// nothing pins a minimum window the way the tightest covering Scan pins the
-// observation floor.
-//
-// The one difference from the other two dials is the DEFAULT. Dispatch and
-// Observation ship UNBOUNDED (dial 0, the sweep a no-op until the operator sets
-// it). The transcript dial SHIPS BOUNDED at 14 days
-// (retention_settings.transcript_currency_days, migration 23700): verbatim bytes
-// are the volume problem on the address-scope installs that motivated retention,
-// so the non-zero default IS the ADR-0041 reversal. 0 is still the explicit
-// operator opt-out (unbounded), and a positive value below one day is floored up
-// to one day — the tightest window the sweep honours.
-//
-// Everything here is a pure function plus a thin Retirer over a delete-only Store,
-// so the floor and the unbounded sentinel are provable without a database
-// (transcript_test.go), and the row-level decision is the same one the SQL
-// deletion query encodes (db/queries/retention.sql, DeleteExpiredTranscripts).
-
 import (
 	"context"
 	"log"
@@ -33,19 +10,12 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
-// TranscriptFloorDays is the least positive value the transcript dial may take. A
-// positive dial below it is floored UP to it: one day is the tightest window the
-// raw-output sweep honours (spec §4, #841). 0 is the unbounded opt-out and is
-// never floored. Unlike the observation floor, this floor is a fixed constant, not
-// a value derived from any Scan's cadence — no derivation reads a Transcript, so
-// nothing pins a minimum window.
+// Nothing derives this floor: no derivation reads a Transcript, so no cadence pins it (#841).
+
 const TranscriptFloorDays int64 = 1
 
-// TranscriptWindowDays applies the floor to the operator's day-stated dial. 0 stays
-// unbounded (bounded false — the sweep retires nothing); any positive value below
-// TranscriptFloorDays is raised to it; every other positive value passes through.
-// It never returns a bounded window shorter than the floor.
 func TranscriptWindowDays(dialDays int64) (days int64, bounded bool) {
+	// Verbatim bytes are the volume problem, so this dial alone ships bounded at 14 days (ADR-0126).
 	if dialDays <= 0 {
 		return 0, false
 	}
@@ -64,28 +34,17 @@ func TranscriptCutoff(now time.Time, dialDays int64) (cutoff time.Time, bounded 
 	return now.Add(-window), true
 }
 
-// TranscriptStore is the narrow slice of the data layer the TranscriptRetirer
-// needs: the operator's dial and the transcript-only delete. It deliberately
-// exposes no read of measured data and no write other than the retiring delete —
-// the Retirer can only read the dial and delete expired transcripts, never move a
-// value. *db.Queries satisfies it.
 type TranscriptStore interface {
 	GetRetentionSettings(ctx context.Context) (db.GetRetentionSettingsRow, error)
 	DeleteExpiredTranscripts(ctx context.Context, before pgtype.Timestamptz) (int64, error)
 }
 
-// TranscriptRetirer sweeps captured transcripts older than the operator's window.
-// It is landed beside the Dispatch and Observation Retirers, not folded into them:
-// the delete reaches only the transcript table, so a bug here can retire
-// transcript rows and only transcript rows.
 type TranscriptRetirer struct {
 	store TranscriptStore
 	now   func() time.Time
 	log   *log.Logger
 }
 
-// NewTranscriptRetirer builds a TranscriptRetirer over store. now is injectable so
-// tests and manual runs can control the sweep instant.
 func NewTranscriptRetirer(store TranscriptStore, now func() time.Time, logger *log.Logger) *TranscriptRetirer {
 	if now == nil {
 		now = time.Now
@@ -105,11 +64,6 @@ func (r *TranscriptRetirer) Sweep(ctx context.Context) (int64, error) {
 	return r.store.DeleteExpiredTranscripts(ctx, pgtype.Timestamptz{Time: cutoff, Valid: true})
 }
 
-// Run sweeps once at start and then every interval until ctx is done. Like the
-// Dispatch and Observation Retirers it never returns an error of its own beyond
-// the context's: a failed sweep is logged and the loop continues, since a
-// transient delete failure is retried on the next tick and transcript retirement
-// is never on the measurement path.
 func (r *TranscriptRetirer) Run(ctx context.Context, interval time.Duration) error {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()

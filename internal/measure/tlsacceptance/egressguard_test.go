@@ -7,13 +7,8 @@ import (
 	"time"
 )
 
-// TestNetEnumeratorGuardRefusesNonGlobal pins the tls-acceptance leaf's socket-level
-// backstop: a handshake against a non-globally-reachable literal (cloud metadata,
-// loopback, RFC1918) is refused at the dialer's Control hook before any TLS bytes,
-// so the attempt neither spoke TLS nor accepted, regardless of upstream validation
-// (#743). Were the guard absent these would block until the timeout; the guard
-// refuses instantly.
 func TestNetEnumeratorGuardRefusesNonGlobal(t *testing.T) {
+	// Without the guard these would block to the timeout, so the elapsed check is the proof (#743).
 	e := NetEnumerator{Timeout: 2 * time.Second}
 	targets := []netip.AddrPort{
 		netip.MustParseAddrPort("169.254.169.254:443"),

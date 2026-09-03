@@ -11,13 +11,8 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// Scope is the tls-acceptance-specific payload of a JobSpec. It carries the Vantage
-// and its class (recorded), the open Services to enumerate — each already known to
-// have a `reached` connect, since the Scan's population is the open `Service` set —
-// and the declared candidate set, every offer enumerated so the Batch records what
-// went on the wire by content (ADR-0025). There is NO port list: the Services carry
-// their own ports, inherited from reachability, because the Scan is an enumeration
-// over open Services and not a port tier (ADR-0028).
+// There is no port list: the Scan enumerates open Services, not a port tier (ADR-0028).
+
 type Scope struct {
 	Vantage      string          `json:"vantage"`
 	VantageClass string          `json:"vantage_class"`
@@ -25,17 +20,15 @@ type Scope struct {
 	Candidates   CandidateSet    `json:"candidates"`
 }
 
-// ServiceTarget is one open `(Address, port)` the enumeration runs against. The
-// transport is always TCP — TLS rides a connection-oriented transport — so it is
-// not carried per target.
+// Transport is not carried per target: TLS rides TCP, so there is nothing to vary.
+
 type ServiceTarget struct {
 	Address string `json:"address"`
 	Port    uint16 `json:"port"`
 }
 
-// addrPort folds a target to its netip form, skipping one that does not parse — a
-// malformed target is our own error and never an acceptance value.
 func (t ServiceTarget) addrPort() (netip.AddrPort, bool) {
+	// A malformed target is our own error, never an acceptance value, so it is skipped.
 	addr, err := netip.ParseAddr(t.Address)
 	if err != nil {
 		return netip.AddrPort{}, false
@@ -54,12 +47,6 @@ func DecodeScope(spec wire.JobSpec) (Scope, error) {
 	return s, nil
 }
 
-// Run executes the leaf against live TLS for one JobSpec, writing NDJSON
-// tls-acceptance observations to w. It is the production entrypoint the prober
-// dispatches to; the golden corpus calls RunWithEnumerator against a scripted
-// Enumerator instead. The network enumerator is best-effort paced to the candidate
-// set's per-host handshake ceiling — pacing that never changes which versions or
-// suites a listener accepted, only the timing (ADR-0021).
 func Run(spec wire.JobSpec, w io.Writer) error {
 	scope, err := DecodeScope(spec)
 	if err != nil {
