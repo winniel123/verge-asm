@@ -118,7 +118,7 @@ type Worker struct {
 
 	router VantageRouter
 
-	// The enqueuer is injected because internal/delivery imports this package (P0.7).
+	// The enqueuer is injected because internal/delivery imports this package.
 
 	produceMsgs bool
 	devMode     bool
@@ -137,7 +137,7 @@ func (w *Worker) WithTranscripts(key []byte, devMode bool) *Worker {
 	return w
 }
 
-// A fixture-only install writes no transcript and no message, so no golden fixture moves (AL-25).
+// A fixture-only install writes no transcript and no message, so no golden fixture moves.
 
 func (w *Worker) captureOn() bool { return w.captureTranscripts && !w.devMode }
 
@@ -184,6 +184,7 @@ func (w *Worker) narrowingCollector(narrowings *[]message.NarrowingReceipt) *[]m
 }
 
 func (w *Worker) produce(ctx context.Context, qtx *db.Queries, batchID int64, observedAt time.Time, changes []spanChange, departures []departure, narrowings []message.NarrowingReceipt, in membershipInputs) error {
+	// An unwired producer writes no message rather than refusing, so a measurement-only build works.
 	if !w.produceMsgs {
 		return nil
 	}
