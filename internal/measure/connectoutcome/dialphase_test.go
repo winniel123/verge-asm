@@ -11,12 +11,6 @@ import (
 	"testing"
 )
 
-// TestClassifyDialErrorSplitsThePhase pins the connect/handshake split a caller that
-// dials an UNVERIFIED address depends on. One tls.Dialer covers both phases under one
-// deadline, so the phase is read off the error's shape (a *net.OpError with Op "dial")
-// and never guessed from its text. The outcome column is unchanged from the two-way
-// classification the `certificate` facet has always used; only the unreachable column
-// is new.
 func TestClassifyDialErrorSplitsThePhase(t *testing.T) {
 	dialErr := func(inner error) error {
 		return &net.OpError{Op: "dial", Net: "tcp", Err: inner}
@@ -100,8 +94,6 @@ func TestClassifyDialErrorSplitsThePhase(t *testing.T) {
 	}
 }
 
-// TestHandshakeInvalidTargetIsUnreachable pins that a target never dialled reports
-// unreachable rather than a measured negative.
 func TestHandshakeInvalidTargetIsUnreachable(t *testing.T) {
 	res := NetHandshaker{}.Handshake(context.Background(), netip.AddrPort{}, "")
 	if res.Outcome != NoTLS || !res.Unreachable {

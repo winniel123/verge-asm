@@ -12,22 +12,16 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// Scope is the connect-outcome-specific payload of a JobSpec. It carries the
-// Vantage and its class (recorded — the Custody gate has already run at dispatch,
-// ADR-0019), the addresses to probe, the `verge-core` TCP ports to connect to,
-// the UDP ports recorded-but-never-probed, and the safety profile — every offer
-// enumerated so the Batch records what governed the probe by content (ADR-0025).
+// The vantage class is recorded and never re-checked: the Custody gate ran at dispatch (ADR-0019).
+
 type Scope struct {
 	Vantage      string   `json:"vantage"`
 	VantageClass string   `json:"vantage_class"`
 	Addresses    []string `json:"addresses"`
 	TCPPorts     []uint16 `json:"tcp_ports"`
 	UDPPorts     []uint16 `json:"udp_ports,omitempty"`
-	// Names are the server names the certificate handshake offers as SNI, one
-	// Endpoint per name, for each Service the connect reaches. Empty is the
-	// nameless endpoint — the only mode available on an address-scope Seed where
-	// no name is known yet (CONTEXT.md `Endpoint`). It never affects the connect
-	// targets, only the handshake step composed onto a reached Service.
+	// Empty is the nameless endpoint, the one mode an address-scope Seed has (CONTEXT.md `Endpoint`).
+
 	Names   []string      `json:"names,omitempty"`
 	Profile SafetyProfile `json:"profile"`
 }
@@ -43,16 +37,13 @@ func DecodeScope(spec wire.JobSpec) (Scope, error) {
 	return s, nil
 }
 
-// targets folds the scope's addresses and TCP ports into the `(Address, port)`
-// set to connect to, in round-robin-by-host order (§3.3). Only TCP is probed;
-// the UDP ports are recorded in scope and produce no target. An address that
-// does not parse is skipped rather than guessed at — a malformed target is our
-// own error and never a reachability value.
 func (s Scope) targets() []netip.AddrPort {
 	var raw []netip.AddrPort
+	// A UDP port is recorded and never probed: a connect decides no honest UDP value (ADR-0083).
 	for _, a := range s.Addresses {
 		addr, err := netip.ParseAddr(a)
 		if err != nil {
+			// A malformed target is our own error and never a reachability value.
 			continue
 		}
 		addr = addr.Unmap()
@@ -63,12 +54,6 @@ func (s Scope) targets() []netip.AddrPort {
 	return RoundRobin(raw)
 }
 
-// Run executes the leaf against a live network for one JobSpec, writing NDJSON
-// reachability observations to w. It is the production entrypoint the prober
-// dispatches to; the golden corpus calls RunWithConnector against a scripted
-// Connector instead. The production Connector is paced by the safety limiter so
-// the connects honour the per-host rate, the global ceiling and the adaptive
-// back-off (§3.3) — pacing that never changes a verdict, only its timing.
 func Run(spec wire.JobSpec, w io.Writer) error {
 	scope, err := DecodeScope(spec)
 	if err != nil {
@@ -80,12 +65,6 @@ func Run(spec wire.JobSpec, w io.Writer) error {
 	return RunExchange(context.Background(), paced, hs, blanketdiscrim.CryptoPorts{}, spec.Batch, scope, w)
 }
 
-// RunWithConnector executes the leaf against an arbitrary Connector. Separating
-// the connector from Run is what lets one code path be driven by the paced
-// network adapter in production and by a scripted connector in a hermetic test.
-// It produces one `reachability` observation per TCP `Service` in scope — open
-// or closed — and no observation for a UDP pair, which is recorded in the
-// Batch's scope and never probed.
 func RunWithConnector(ctx context.Context, c Connector, batch string, scope Scope, w io.Writer) error {
 	var out []wire.Observation
 	for _, target := range scope.targets() {
@@ -95,12 +74,6 @@ func RunWithConnector(ctx context.Context, c Connector, batch string, scope Scop
 	return writeNDJSON(w, out)
 }
 
-// pacedConnector wraps a Connector with the safety limiter: before each connect
-// it sleeps until the pacer says the host's next slot is due, and it feeds the
-// pacer a stress signal on a timeout so a struggling host is backed off. The
-// deadline is untouched — the wrapped connect keeps its own timeout — so the
-// back-off changes only when the attempt starts, never how long it may run
-// (ADR-0021).
 type pacedConnector struct {
 	inner Connector
 	pacer *Pacer
@@ -113,6 +86,7 @@ func (p *pacedConnector) Connect(ctx context.Context, target netip.AddrPort) Con
 	if wait := due.Sub(p.now()); wait > 0 {
 		p.sleep(wait)
 	}
+	// The back-off moves when an attempt starts and never how long it may run (ADR-0021).
 	res := p.inner.Connect(ctx, target)
 	if res == ConnTimedOut {
 		p.pacer.Signal(target.Addr(), StressTimeout)
