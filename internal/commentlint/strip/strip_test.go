@@ -225,10 +225,26 @@ func TestStripOutputVerifiesAgainstItsInput(t *testing.T) {
 }
 
 func TestFileRefusesANonGoPath(t *testing.T) {
-	_, err := File("db/queries/scan.sql", []byte("-- name: X :one\nSELECT 1;\n"))
-	var usage *UsageError
-	if !errors.As(err, &usage) {
-		t.Fatalf("File on .sql returned %v, want a usage error", err)
+	// §6.4 keeps the delete pass at Go in v1. A `strip` that silently does
+	// nothing is how a sweep agent believes a slice is done.
+	cases := []struct {
+		path string
+		src  string
+	}{
+		{"db/queries/scan.sql", "-- name: X :one\nSELECT 1;\n"},
+		{"docs-site/scripts/doclint.mjs", "// the note\nexport const a = 1;\n"},
+		{"docs-site/src/pipeline/toc.ts", "// the note\nexport const a = 1;\n"},
+		{"design-system/components/display/Card.d.ts", "// the note\nexport type A = 1;\n"},
+		{"docs-site/src/ds/Icon.jsx", "// the note\nconst a = <p>x</p>;\n"},
+	}
+	for _, c := range cases {
+		t.Run(c.path, func(t *testing.T) {
+			_, err := File(c.path, []byte(c.src))
+			var usage *UsageError
+			if !errors.As(err, &usage) {
+				t.Fatalf("File on %s returned %v, want a usage error", c.path, err)
+			}
+		})
 	}
 }
 

@@ -78,10 +78,10 @@ func TestLintInScopeOnlyNeverWalksTheTree(t *testing.T) {
 func TestLintSkipsASurfaceWithNoLexerYet(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
-	writeFile(t, dir, "docs-site/src/pipeline/render.ts", "export const a = 1;\n")
+	writeFile(t, dir, "design-system/templates/shell.tmpl", "<p>{{ .Title }}</p>\n")
 
 	var stdout, stderr bytes.Buffer
-	if got := runWith([]string{"lint", "docs-site/src/pipeline/render.ts"}, &stdout, &stderr, stubGit(nil, nil)); got != 0 {
+	if got := runWith([]string{"lint", "design-system/templates/shell.tmpl"}, &stdout, &stderr, stubGit(nil, nil)); got != 0 {
 		t.Errorf("exit is %d, want 0 (stderr %q)", got, stderr.String())
 	}
 	if !strings.Contains(stdout.String(), "0 lex failure(s)") {
@@ -107,6 +107,47 @@ func TestLintReadsTheSQLAndCSSSurfaces(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Errorf("stdout is %q, want it to hold %q", out, want)
 		}
+	}
+}
+
+func TestLintReadsTheJSAndTSSurfaces(t *testing.T) {
+	// §6.4 gives `lint` every lexable surface. `.jsx` needs esbuild, so this
+	// case stays on the two the hand lexer reads (#1141).
+	dir := t.TempDir()
+	t.Chdir(dir)
+	writeFile(t, dir, "docs-site/scripts/doclint.mjs", "// ----------------\nexport const a = 1;\n")
+	writeFile(t, dir, "design-system/components/display/Card.d.ts", "// ----------------\nexport type A = 1;\n")
+
+	var stdout, stderr bytes.Buffer
+	paths := []string{"lint", "docs-site/scripts/doclint.mjs", "design-system/components/display/Card.d.ts"}
+	if got := runWith(paths, &stdout, &stderr, stubGit(nil, nil)); got != 1 {
+		t.Fatalf("exit is %d, want 1 (stderr %q)", got, stderr.String())
+	}
+	out := stdout.String()
+	for _, want := range []string{
+		"docs-site/scripts/doclint.mjs:1 -> section-divider",
+		"design-system/components/display/Card.d.ts:1 -> section-divider",
+		"0 lex failure(s)",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("stdout is %q, want it to hold %q", out, want)
+		}
+	}
+}
+
+func TestLintFailsClosedOnAJSXFileWithoutEsbuild(t *testing.T) {
+	// §6.7: a lex failure means the tool cannot judge the file, and a missing
+	// esbuild is exactly that case (#1141).
+	dir := t.TempDir()
+	t.Chdir(dir)
+	writeFile(t, dir, "docs-site/src/ds/Icon.jsx", "const a = <p>x</p>;\n")
+
+	var stdout, stderr bytes.Buffer
+	if got := runWith([]string{"lint", "docs-site/src/ds/Icon.jsx"}, &stdout, &stderr, stubGit(nil, nil)); got != 2 {
+		t.Errorf("exit is %d, want 2 (stderr %q)", got, stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "esbuild") {
+		t.Errorf("stderr is %q, want it to name the missing install", stderr.String())
 	}
 }
 
@@ -142,10 +183,14 @@ func TestGithubModeAnnotatesAndExitsZeroOnAViolation(t *testing.T) {
 }
 
 func TestStripRefusesANonGoPath(t *testing.T) {
-	// §6.4 keeps `strip` on Go alone, even now that both surfaces lex (#1140).
+	// §6.4 keeps `strip` on Go alone, even now that every surface lexes
+	// (#1140, #1141).
 	cases := map[string]string{
-		"db/queries/scan.sql":             "-- name: X :one\nSELECT 1;\n",
-		"design-system/tokens/colors.css": "/* the azure scale */\na { color: red; }\n",
+		"db/queries/scan.sql":                        "-- name: X :one\nSELECT 1;\n",
+		"design-system/tokens/colors.css":            "/* the azure scale */\na { color: red; }\n",
+		"docs-site/scripts/doclint.mjs":              "// the note\nexport const a = 1;\n",
+		"design-system/components/display/Card.d.ts": "// the note\nexport type A = 1;\n",
+		"docs-site/src/ds/Icon.jsx":                  "// the note\nconst a = <p>x</p>;\n",
 	}
 	for path, src := range cases {
 		t.Run(path, func(t *testing.T) {

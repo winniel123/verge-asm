@@ -12,6 +12,7 @@ const (
 	LangGo Lang = iota
 	LangSQL
 	LangCSS
+	LangJS
 )
 
 func (l Lang) String() string {
@@ -20,6 +21,8 @@ func (l Lang) String() string {
 		return "sql"
 	case LangCSS:
 		return "css"
+	case LangJS:
+		return "js"
 	}
 	return "go"
 }
@@ -140,6 +143,12 @@ func For(name string) (Lexer, error) {
 		return SQL{}, nil
 	case ".css":
 		return CSS{}, nil
+	case ".mjs", ".ts":
+		// esbuild erases a `.d.ts` file to the empty string, and 109 of the
+		// tree's 116 `.ts` files are `.d.ts` (SPEC §5.3).
+		return JS{}, nil
+	case ".jsx":
+		return JSX{Path: name}, nil
 	}
 	if ext == "" {
 		ext = path.Base(name)

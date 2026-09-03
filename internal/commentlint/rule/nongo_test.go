@@ -57,6 +57,25 @@ func TestClassifyReadsTheNonGoSurfaces(t *testing.T) {
 			want:  ShortLabel,
 		},
 		{
+			name:  "a commented-out js statement",
+			lexer: surface.JS{},
+			src:   "// const total = count + 1;\nexport const a = 1;\n",
+			want:  CommentedOutCode,
+		},
+		{
+			name:  "js prose that ends in a terminator is not code",
+			lexer: surface.JS{},
+			src:   "// The loader reads the guides one level up, outside this Astro project;\nexport const a = 1;\n",
+			want:  ProseOther,
+		},
+		{
+			// JavaScript is case-sensitive, so `If` opens no statement.
+			name:  "js prose that opens with a capitalised keyword is not code",
+			lexer: surface.JS{},
+			src:   "// If the value changes;\nexport const a = 1;\n",
+			want:  ShortLabel,
+		},
+		{
 			name:  "a sql divider",
 			lexer: surface.SQL{},
 			src:   "-- ------------------------\nSELECT 1;\n",
@@ -88,6 +107,8 @@ func TestDeletableHoldsOffGo(t *testing.T) {
 		{"a sql divider", surface.SQL{}, "-- ------------------------\nSELECT 1;\n"},
 		{"a sql short label", surface.SQL{}, "-- the account list\nSELECT 1;\n"},
 		{"a css short label", surface.CSS{}, "/* the azure scale */\na { color: blue; }\n"},
+		{"a js divider", surface.JS{}, "// ------------------------\nexport const a = 1;\n"},
+		{"a js short label", surface.JS{}, "// the guide loader\nexport const a = 1;\n"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
