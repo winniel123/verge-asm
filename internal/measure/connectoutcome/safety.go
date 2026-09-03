@@ -6,33 +6,19 @@ import (
 	"time"
 )
 
-// This file is the §3.3 safety limiter, kept deliberately OUTSIDE the verdict
-// (ADR-0021): it paces the connects — per-host rate, per-host concurrency, a
-// per-vantage ceiling round-robin by host, and an adaptive back-off that halves
-// the rate on a stress signal — and can neither manufacture nor suppress a
-// reachability value. Every part is pure and clock-injectable, so the pacing is
-// tested without a real sleep and without the network.
+// Pacing sits outside the verdict: it can neither manufacture nor suppress a value (ADR-0021).
 
-// Stress is a signal that the limiter halves the rate on (§3.3). Each value is a
-// distinct cause; the limiter halves once for any cause the declared
-// BackoffPolicy enables, treating the enabled causes uniformly. It keeps no
-// per-signal record of its own — the recorded commitment is the declared
-// BackoffPolicy on the Batch (ADR-0025), not a log of which signals fired. This
-// closed set of causes is the value space those four policy flags range over.
+// No per-signal record is kept: the commitment recorded is the declared policy (ADR-0025).
+
 type Stress string
 
 const (
-	StressTimeout  Stress = "timeout"   // a connect timed out
-	StressRSTSpike Stress = "rst-spike" // a burst of refusals — a middlebox shedding load
-	Stress429      Stress = "429"       // an HTTP layer above returned Too Many Requests
-	Stress503      Stress = "503"       // an HTTP layer above returned Service Unavailable
+	StressTimeout  Stress = "timeout"
+	StressRSTSpike Stress = "rst-spike" // a burst of refusals: a middlebox shedding load
+	Stress429      Stress = "429"
+	Stress503      Stress = "503"
 )
 
-// enabledIn reports whether the declared back-off policy halves on this cause.
-// It is the one place the runtime Stress value space and the recorded
-// BackoffPolicy are tied together, so a cause the operator's offers did not
-// enable does not silently halve, and every Stress value maps to exactly one
-// declared flag.
 func (s Stress) enabledIn(p BackoffPolicy) bool {
 	switch s {
 	case StressTimeout:
@@ -48,14 +34,12 @@ func (s Stress) enabledIn(p BackoffPolicy) bool {
 	}
 }
 
-// Backoff is the per-host adaptive back-off state. It halves the effective rate
-// on each stress signal, down to a floor of one connection per second, and
-// never touches the deadline — the deadline belongs to the connect attempt and
-// the rate belongs here (ADR-0021). It starts at the profile's per-host rate.
+// The rate is the limiter's, the deadline the connect's: halving never moves one (ADR-0021).
+
 type Backoff struct {
-	base     int           // the profile's per-host conn/s ceiling
-	halvings int           // how many times the rate has been halved
-	policy   BackoffPolicy // which stress causes the declared offers halve on
+	base     int
+	halvings int
+	policy   BackoffPolicy
 }
 
 func NewBackoff(profile SafetyProfile) *Backoff {
@@ -66,13 +50,8 @@ func NewBackoff(profile SafetyProfile) *Backoff {
 	return &Backoff{base: base, policy: profile.AdaptiveBackoff}
 }
 
-// Signal halves the rate in response to a stress cause the declared policy
-// enables — a cause the offers did not enable is a no-op, so the runtime never
-// halves on a cause the recorded commitment did not declare. It is idempotent
-// per call — one enabled signal, one halving — and saturates at the floor, so a
-// host that keeps shedding load is not driven below one connection per second.
-// It never reads or writes any deadline.
 func (b *Backoff) Signal(cause Stress) {
+	// A cause the offers did not declare is a no-op, so the runtime honours the commitment (ADR-0025).
 	if !cause.enabledIn(b.policy) {
 		return
 	}
@@ -93,12 +72,8 @@ func (b *Backoff) Interval() time.Duration {
 	return time.Second / time.Duration(b.Rate())
 }
 
-// Pacer computes when each connect may start, honouring both a per-host minimum
-// spacing (from that host's Backoff) and a single aggregate minimum spacing (the
-// 200 pkt/s per-vantage ceiling). It holds no timers: Next is pure arithmetic
-// over a caller-supplied clock, so a test drives it with a fixed `now` and
-// asserts the spacing rather than sleeping. A real run sleeps until the returned
-// instant.
+// The limiter lives in one prober process, so the guide forbids --scale worker=N (ADR-0137).
+
 type Pacer struct {
 	aggregateInterval time.Duration
 	lastAggregate     time.Time
@@ -129,19 +104,11 @@ func (p *Pacer) backoffFor(host netip.Addr) *Backoff {
 	return b
 }
 
-// Signal halves the given host's rate on a stress cause, so the next Next for
-// that host is spaced further out. It never moves the aggregate interval and
-// never touches a deadline.
 func (p *Pacer) Signal(host netip.Addr, cause Stress) { p.backoffFor(host).Signal(cause) }
 
-// Next returns the instant the next connect to host may start, given the current
-// clock. It is the later of: the per-host interval since that host's last emit,
-// and the aggregate interval since any host's last emit — so the aggregate
-// ceiling binds across hosts while each host also respects its own (possibly
-// backed-off) rate. Calling Next records the emit at the returned instant, so a
-// sequence of calls produces a correctly-spaced schedule.
 func (p *Pacer) Next(host netip.Addr, now time.Time) time.Time {
 	earliest := now
+	// 50 conn/s is a 20 ms interval and 200 pkt/s a 5 ms one, so the per-host arm always wins (#1092).
 	if !p.lastAggregate.IsZero() {
 		if t := p.lastAggregate.Add(p.aggregateInterval); t.After(earliest) {
 			earliest = t
@@ -157,13 +124,8 @@ func (p *Pacer) Next(host netip.Addr, now time.Time) time.Time {
 	return earliest
 }
 
-// RoundRobin orders a set of `(Address, port)` targets so the schedule cycles
-// hosts and never bursts one host's ports back to back (§3.3, §6.3): iterating
-// ports within a host is the canonical port-scan signature and the canonical way
-// to fill a middlebox state table. Targets are grouped by host, each host's
-// ports sorted, and the groups are then interleaved one port at a time. The
-// output is deterministic: hosts are visited in address order on every round.
 func RoundRobin(targets []netip.AddrPort) []netip.AddrPort {
+	// Bursting one host's ports is the canonical port-scan signature and fills middleboxes (§3.3).
 	byHost := map[netip.Addr][]netip.AddrPort{}
 	var hosts []netip.Addr
 	for _, t := range targets {
