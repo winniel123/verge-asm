@@ -59,8 +59,6 @@ func Inspect(ctx context.Context, conn Conn) (Facts, error) {
 	return f, nil
 }
 
-// remotePlatform runs the uname arch check over the connection, mapping the kernel and
-// machine names to Go identifiers and the chip label.
 func remotePlatform(ctx context.Context, conn Conn) (Platform, error) {
 	unameS, err := conn.Output(ctx, cmdUnameS)
 	if err != nil {
@@ -182,9 +180,6 @@ func proberOutcome(exit ExitResult) wire.ProberOutcome {
 	}
 }
 
-// tempPath returns a fresh, collision-resistant remote path under /tmp for the pushed
-// binary. The random suffix is this package's own — no operator or spec input reaches
-// the command string.
 func tempPath() (string, error) {
 	var b [8]byte
 	if _, err := rand.Read(b[:]); err != nil {

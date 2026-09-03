@@ -23,7 +23,6 @@ type Scope struct {
 	Params       Params   `json:"params"`
 }
 
-// DecodeScope reads a Scope from a JobSpec's opaque Scope payload.
 func DecodeScope(spec wire.JobSpec) (Scope, error) {
 	var s Scope
 	if len(spec.Scope) == 0 {

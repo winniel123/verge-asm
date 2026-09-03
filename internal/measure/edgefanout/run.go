@@ -24,7 +24,6 @@ type Scope struct {
 	Addresses []string `json:"addresses"`
 }
 
-// DecodeScope reads a Scope from a JobSpec's opaque Scope payload.
 func DecodeScope(spec wire.JobSpec) (Scope, error) {
 	var s Scope
 	if len(spec.Scope) == 0 {
@@ -36,9 +35,6 @@ func DecodeScope(spec wire.JobSpec) (Scope, error) {
 	return s, nil
 }
 
-// Run executes the leaf against live TLS for one JobSpec, writing NDJSON `edge-fanout`
-// observations to w. It is the production entrypoint the prober dispatches to; a test
-// calls RunWithHandshaker against a scripted Handshaker instead.
 func Run(spec wire.JobSpec, w io.Writer) error {
 	scope, err := DecodeScope(spec)
 	if err != nil {
@@ -90,7 +86,6 @@ func edgeTarget(addr string) (netip.AddrPort, bool) {
 	return netip.AddrPortFrom(ip.Unmap(), Port), true
 }
 
-// writeNDJSON writes observations to w as NDJSON, one object per line, in order.
 func writeNDJSON(w io.Writer, obs []wire.Observation) error {
 	for _, o := range obs {
 		if err := wire.EncodeObservation(w, o); err != nil {

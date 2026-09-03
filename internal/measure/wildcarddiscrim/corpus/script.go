@@ -49,7 +49,6 @@ type ScriptPeer struct {
 	Rules []scriptRule
 }
 
-// Exchange implements resolutionwalk.Peer.
 func (s ScriptPeer) Exchange(q rw.Query) rw.Msg {
 	if q.Path != rw.PathDeclared {
 		// The leaf and its candidate resolution use only the declared path here;
@@ -114,7 +113,6 @@ func rrMX(name, mx string) rw.RR {
 // Indeterminate rows turn on.
 type DeterministicLabels struct{}
 
-// Labels implements wildcarddiscrim.LabelGen.
 func (DeterministicLabels) Labels() []string {
 	out := make([]string, 0, wd.LabelCount)
 	for i := 0; i < wd.RandomLabelCount; i++ {

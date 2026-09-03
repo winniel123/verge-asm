@@ -10,9 +10,6 @@ import (
 	ta "github.com/winniel123/verge-asm/internal/measure/tlsacceptance"
 )
 
-// update regenerates the golden files and the lock. Run
-// `go test ./... -run Corpus -update` after an intended output or candidate-set
-// change, having bumped tlsacceptance.Version, and commit the result.
 var update = flag.Bool("update", false, "regenerate golden NDJSON files and corpus.lock.json")
 
 const testdataDir = "testdata"

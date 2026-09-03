@@ -24,14 +24,8 @@ import (
 type loginLimiter struct {
 	now func() time.Time
 
-	// maxFailures is how many failures a key may accrue before it locks.
 	maxFailures int
-	// window is the idle span after which a key's failure count is considered
-	// stale and reset — a reset that costs no goroutine, applied lazily on the
-	// next touch.
-	window time.Duration
-	// baseLockout is the first lockout span once the threshold is crossed; each
-	// further failure past the threshold doubles it, up to maxLockout.
+	window      time.Duration
 	baseLockout time.Duration
 	maxLockout  time.Duration
 
@@ -49,8 +43,6 @@ type loginLimiter struct {
 	entries map[string]*limiterEntry
 }
 
-// limiterEntry is one key's running state: how many failures it has accrued, when
-// the last one landed (for the idle reset), and the instant it is locked until.
 type limiterEntry struct {
 	failures    int
 	lastFailure time.Time
@@ -61,10 +53,6 @@ type limiterEntry struct {
 	firstLockedAt time.Time
 }
 
-// newLoginLimiter builds the limiter over an injectable clock with sane defaults:
-// five failures locks a key, a five-minute idle window resets a stale count, and
-// lockout runs from five minutes doubling to a one-hour ceiling. Tests inject a
-// fixed or steppable clock to assert lock and reset boundaries without sleeping.
 func newLoginLimiter(now func() time.Time) *loginLimiter {
 	return &loginLimiter{
 		now:         now,

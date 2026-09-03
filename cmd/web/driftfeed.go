@@ -276,9 +276,6 @@ func csvSafe(s string) string {
 	return s
 }
 
-// driftExportValues resolves the before/after value cells for an export row from the
-// change kind: a `changed` carries both sides, an entry (appeared / returned) carries
-// only the after value, and an exit (withdrawn / descoped) carries only the before.
 func driftExportValues(row db.ListRecentDriftEventsRow, change string) (before, after string) {
 	switch change {
 	case "changed":
@@ -291,7 +288,6 @@ func driftExportValues(row db.ListRecentDriftEventsRow, change string) (before, 
 	}
 }
 
-// driftReasonLabel renders a closure ground for the event's " · reason" line.
 func driftReasonLabel(r drift.ClosureReason) string {
 	switch r {
 	case drift.ReasonMeasuredAbsent:
@@ -305,7 +301,6 @@ func driftReasonLabel(r drift.ClosureReason) string {
 	}
 }
 
-// driftBatchLabel is the group header — the batch kind and how long ago it folded.
 func driftBatchLabel(row db.ListRecentDriftEventsRow, now time.Time) string {
 	kind := strings.TrimSpace(row.BatchKind)
 	if kind == "" {

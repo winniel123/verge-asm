@@ -69,10 +69,6 @@ func (s *server) bellMessages(ctx context.Context, accountID int64, limit int) [
 	return out
 }
 
-// paletteAsset is one current Name subject shaped for the command palette's Assets
-// group (ConsoleApp.jsx): its key and the /asset/{key} detail link. "Asset" is the
-// UI collective noun for a current Name subject — the same corpus the search screen
-// indexes as Assets (search.go).
 type paletteAsset struct {
 	Key  string
 	Href string
@@ -101,10 +97,6 @@ func (s *server) currentAssets(ctx context.Context, limit int) (top []paletteAss
 	return top, len(rows)
 }
 
-// accountInitials derives the avatar's initials from the signed-in account's name,
-// exactly as design-system Avatar.jsx does: the first letter of up to two
-// whitespace-separated words, uppercased, with "?" as the empty fallback. It
-// replaces the literal "VA" placeholder the shell shipped (P1.8).
 func accountInitials(name string) string {
 	var b strings.Builder
 	for _, field := range strings.Fields(name) {

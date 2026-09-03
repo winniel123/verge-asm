@@ -50,8 +50,6 @@ func coveragePct(counted, total int) int {
 	return p
 }
 
-// coldScopeView is a declared Seed shaped for the cold-tier opt-in section: the
-// scope, its kind, and whether it has opted into the full-range Scan.
 type coldScopeView struct {
 	ID        int64
 	IsAddress bool
@@ -168,9 +166,6 @@ type coverageMeterView struct {
 	SharedEdges string
 }
 
-// coverageGapView is one row of the "expected, not observed" register: a subject
-// we expected to observe and did not, the kind of absence, what was expected, and
-// how long the gap has stood. Since is an em dash where no honest instant is read.
 type coverageGapView struct {
 	Subject  string
 	Gap      string
@@ -195,8 +190,6 @@ type coverageMessageView struct {
 	ISO     string
 }
 
-// unevaluableRuleView is one rule the batch could not evaluate: its id and
-// version (rendered as a SignalRuleRef chip) and why it was blocked.
 type unevaluableRuleView struct {
 	ID      string
 	Version string
@@ -583,9 +576,6 @@ func sortCoverageMessages(msgs []coverageMessageView) {
 	})
 }
 
-// unevaluableRules lists the rules whose current census carries not-evaluable
-// members this batch — a subject in the rule's domain the rule could not read
-// (signal.NotEvaluable). EvaluateCorpus already orders its output stably.
 func unevaluableRules(corpus signal.Corpus) []unevaluableRuleView {
 	var out []unevaluableRuleView
 	for _, c := range signal.EvaluateCorpus(corpus) {

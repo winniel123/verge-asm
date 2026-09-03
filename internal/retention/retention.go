@@ -39,11 +39,6 @@ func BelowFloor(multiple int64) bool {
 	return multiple > 0 && multiple < FloorCadences
 }
 
-// Cutoff is the instant before which expired Dispatch rows may be retired: now
-// minus (multiple × the slowest enabled Scan's cadence). bounded is false when
-// retention is unbounded — the operator left the dial at 0, or no Scan is
-// enabled to give the multiple a cadence — and the caller must then retire
-// nothing (v1 ships Dispatch unbounded).
 func Cutoff(now time.Time, multiple, slowestCadenceSeconds int64) (cutoff time.Time, bounded bool) {
 	if multiple <= 0 || slowestCadenceSeconds <= 0 {
 		return time.Time{}, false
@@ -64,7 +59,6 @@ type Store interface {
 	DeleteExpiredDispatches(ctx context.Context, before pgtype.Timestamptz) (int64, error)
 }
 
-// Retirer sweeps expired Dispatch rows on the operator's window.
 type Retirer struct {
 	store Store
 	now   func() time.Time

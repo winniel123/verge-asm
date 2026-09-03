@@ -79,9 +79,6 @@ func Seed(round int, p Population) string {
 	return fmt.Sprintf("comment-policy-3.9/round-%d/%s", round, p)
 }
 
-// Draw orders the population by a seeded digest and keeps the first size
-// items. A pseudo-random generator draws the same sample, and a digest
-// re-derives it from the seed alone on any machine.
 func Draw(items []Item, size int, seed string) []Item {
 	ranked := rank(items, seed)
 	if size < len(ranked) {

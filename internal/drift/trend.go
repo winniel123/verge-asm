@@ -16,8 +16,6 @@ import "time"
 // the render. No value is fabricated — a bucket with no data reports it as such so
 // the caller renders the design's own empty/gap pattern rather than a standing zero.
 
-// --- Windowing ---------------------------------------------------------------
-
 // windowStart is the oldest instant a series over `buckets` buckets of width
 // `bucket` ending at `now` covers. Bucket i (0 = oldest) spans
 // [windowStart + i*bucket, windowStart + (i+1)*bucket); the last bucket ends at
@@ -26,10 +24,6 @@ func windowStart(now time.Time, bucket time.Duration, buckets int) time.Time {
 	return now.Add(-bucket * time.Duration(buckets))
 }
 
-// bucketIndex returns the bucket an instant falls in over the window, and whether it
-// falls inside it at all. The window is half-open per bucket: an instant on a bucket
-// boundary belongs to the newer bucket, and one at exactly `now` (the last bucket's
-// upper bound) is outside.
 func bucketIndex(at, start time.Time, bucket time.Duration, buckets int) (int, bool) {
 	if at.Before(start) {
 		return 0, false
@@ -40,8 +34,6 @@ func bucketIndex(at, start time.Time, bucket time.Duration, buckets int) (int, b
 	}
 	return idx, true
 }
-
-// --- Signals over time -------------------------------------------------------
 
 // Raise is one signal instance as the trend fold sees it: the instant the
 // (rule, subject) pair was FIRST seen firing (signal_instance.first_seen) and
@@ -104,10 +96,6 @@ func SignalsOverTime(raises []Raise, now time.Time, bucket time.Duration, bucket
 	return points
 }
 
-// --- Scans-per-day heatmap intensities ---------------------------------------
-
-// heatSteps is the number of non-zero intensity levels the scans-per-day heatmap
-// ramps through, matching HeatmapCalendar.jsx (four steps above the empty day).
 const heatSteps = 4
 
 // HeatLevels maps a per-day scan-count series to the HeatmapCalendar intensity ramp:
@@ -139,8 +127,6 @@ func HeatLevels(counts []int) []int {
 	}
 	return levels
 }
-
-// --- Mean time to withdrawal -------------------------------------------------
 
 // Withdrawal is one subject departure as the trend fold sees it: the instant the
 // subject first appeared (its earliest span opened_at) and the instant it was
@@ -196,8 +182,6 @@ type WithdrawalPoint struct {
 	HasMean bool
 }
 
-// --- New assets discovered ---------------------------------------------------
-
 // Appearance is one subject's FIRST appearance as the discovery fold sees it: the
 // instant it first entered the estate — its earliest span opened_at, the `appeared`
 // drift-event classification — and whether that subject is a Service (vs a Name),
@@ -211,10 +195,6 @@ type Appearance struct {
 	Service bool
 }
 
-// DiscoveryPoint is one bucket of the new-assets-discovered series: the bucket
-// start and the count of subjects that FIRST appeared within it — the daily bars
-// of the Reports "New assets discovered" card (Reports.jsx DISCOVERY). A bucket
-// with no appearance reports Count 0, a real empty bar, not a fabricated shape.
 type DiscoveryPoint struct {
 	Start time.Time
 	Count int
@@ -239,10 +219,6 @@ func DiscoverySeries(apps []Appearance, now time.Time, bucket time.Duration, buc
 	return points
 }
 
-// DiscoveryTotals is the per-period discovery summary the card's KPI and caption
-// read: the total subjects that first appeared in the window, split into Names and
-// Services (Names + Services == Total). The count is the "New assets discovered"
-// value; the split is its "N names · M services" caption.
 type DiscoveryTotals struct {
 	Total    int
 	Names    int

@@ -80,13 +80,6 @@ func ValidateCron(expr string) error {
 	return err
 }
 
-// cadenceSpec resolves a stored cadence label to the cron spec that decides its
-// firings. A preset label (containing one of the closed kind words 6h / daily /
-// weekly / monthly) is translated to its equivalent cron, honouring any clock time
-// and day the label carries; anything else is treated as a Custom cron expression
-// and parsed directly. The preset set is the closed, model-owned CadenceSelect
-// vocabulary (cmd/web reportCadPresets): "every 6h", "daily · 08:00",
-// "weekly · mon 09:00", "monthly · 1st".
 func cadenceSpec(cadence string) (cronSpec, error) {
 	if cron, ok := presetToCron(cadence); ok {
 		return parseCron(cron)
@@ -102,14 +95,6 @@ var (
 	}
 )
 
-// presetToCron translates a preset cadence label to an equivalent 5-field cron
-// string, honouring the clock time and day the label carries. It returns ok=false
-// when the label is not a preset (a Custom cron, which cadenceSpec parses directly).
-//
-// The translation honours the operator's declared time-of-day literally: "daily ·
-// 08:00" → "0 8 * * *", "weekly · mon 09:00" → "0 9 * * 1". A preset that carries no
-// clock time fires at day-start: "monthly · 1st" → "0 0 1 * *" (00:00 on the 1st),
-// and "every 6h" → "0 */6 * * *" (00:00/06:00/12:00/18:00 UTC).
 func presetToCron(cadence string) (string, bool) {
 	c := strings.ToLower(strings.TrimSpace(cadence))
 	hh, mm, hasClock := parseClock(c)
@@ -148,8 +133,6 @@ func presetToCron(cadence string) (string, bool) {
 	return "", false
 }
 
-// parseClock extracts an HH:MM clock time from a preset label, honouring what the
-// operator declared. hasClock is false when the label carries none.
 func parseClock(c string) (hh, mm int, hasClock bool) {
 	m := reClock.FindStringSubmatch(c)
 	if m == nil {
@@ -163,12 +146,6 @@ func parseClock(c string) (hh, mm int, hasClock bool) {
 	return h, n, true
 }
 
-// cronSpec is a parsed 5-field cron expression as per-field bitmasks over the field's
-// legal range (minute 0–59, hour 0–23, day-of-month 1–31, month 1–12, day-of-week
-// 0–6 with Sunday 0). domRestricted / dowRestricted record whether the day fields
-// were narrowed from "*", which selects the standard Vixie-cron day semantics: when
-// both are restricted a day matches if EITHER matches; when one is "*" only the other
-// constrains.
 type cronSpec struct {
 	min, hour, dom, month, dow uint64
 	domRestricted              bool
@@ -208,7 +185,6 @@ func parseCron(expr string) (cronSpec, error) {
 	return s, nil
 }
 
-// normalizeDOW folds cron's 7 (a second spelling of Sunday) onto 0.
 func normalizeDOW(n int) int {
 	if n == 7 {
 		return 0
@@ -216,9 +192,6 @@ func normalizeDOW(n int) int {
 	return n
 }
 
-// parseField parses one cron field into a bitmask over [min,max]. norm, when set,
-// canonicalises each value after range-checking against the pre-norm bounds (the DOW
-// 7→0 fold). restricted reports whether the field was narrowed from "*".
 func parseField(field string, min, max int, norm func(int) int) (mask uint64, restricted bool, err error) {
 	if field == "*" {
 		return rangeMask(min, max), false, nil
@@ -239,8 +212,6 @@ func parseField(field string, min, max int, norm func(int) int) (mask uint64, re
 	return mask, true, nil
 }
 
-// parsePart parses one comma-separated cron token into an inclusive (lo, hi) span and
-// a step. Forms: "*", "*/n", "a", "a-b", "a-b/n", "a/n" (a-to-max step n).
 func parsePart(part string, min, max int) (lo, hi, step int, err error) {
 	step = 1
 	body := part
@@ -289,10 +260,6 @@ func rangeMask(lo, hi int) uint64 {
 	return m
 }
 
-// dayMatches applies the Vixie-cron day-of-month / day-of-week semantics for the
-// calendar day of t: when both day fields are restricted a day matches if EITHER
-// matches; when only one is restricted that one governs; when neither is, every day
-// matches. The month field must always match.
 func (s cronSpec) dayMatches(t time.Time) bool {
 	if s.month&(1<<uint(int(t.Month()))) == 0 {
 		return false

@@ -10,8 +10,6 @@ import (
 // from one would pass for the wrong reason.
 var edge = netip.MustParseAddr("104.16.132.229")
 
-// extended is one custody-extended zone whose in-zone name holds a direct A record on
-// the edge — the exact shape the veto narrows.
 func extended(f EdgeFanout) Estate {
 	return Estate{
 		ExtendedZones: []string{"example.com"},
@@ -20,7 +18,6 @@ func extended(f EdgeFanout) Estate {
 	}
 }
 
-// measured is an EdgeFanout holding one determination for the edge.
 func measured(shared bool) EdgeFanout {
 	return EdgeFanout{Enabled: true, Shared: map[netip.Addr]bool{edge: shared}}
 }
@@ -240,9 +237,6 @@ func TestAClearedMeasurementDoesNotWidenTheReach(t *testing.T) {
 // what lets a fixture record a row on one limb alone.
 var declaredEdge = netip.MustParseAddr("23.20.0.20")
 
-// bothLimbs is the estate the per-limb floor exists for: one custody extension whose
-// in-zone name cites `edge`, and one declared address scope covering declaredEdge. The
-// caller supplies the measurement, which WithEdgeFanout takes with its floor resolved.
 func bothLimbs(f EdgeFanout) Estate {
 	return Estate{
 		AddressScopes: []netip.Prefix{netip.MustParsePrefix("23.20.0.0/24")},

@@ -16,7 +16,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// endpointAddr is the host:port a provisioned prober is dialled on.
 func endpointAddr(v db.Vantage) string {
 	return net.JoinHostPort(v.Host.String, strconv.FormatInt(int64(v.Port.Int32), 10))
 }
@@ -53,10 +52,6 @@ func newRemoteProberRouter(store remoteVantageStore, binaries remoteexec.BinaryP
 	return &remoteProberRouter{store: store, binaries: binaries, stateDir: stateDir, dial: remoteexec.Dial, log: logger}
 }
 
-// ProbeVantage runs an internet Vantage's job off-host. It returns handled=false —
-// deferring to the local prober — for a job with no vantage or a vantage with no
-// prober; handled=true (with observations or a transient error) for a provisioned
-// prober.
 func (rt *remoteProberRouter) ProbeVantage(ctx context.Context, vantageID pgtype.Int8, spec wire.JobSpec) (wire.ProbeResult, bool, error) {
 	if !vantageID.Valid {
 		return wire.ProbeResult{}, false, nil // no vantage (e.g. a worker-read kind) — local

@@ -39,10 +39,6 @@ import (
 // `connect-outcome`.
 const HTTPIdentityKind = "http-identity"
 
-// HTTPIdentityJob is one queue job the http-identity Scan produces: one Vantage, the
-// reached `Endpoint`s exchanged with from it, and the declared parameter set.
-// Partitioning is per Vantage — an HTTP identity is measured from a position, exactly
-// as reachability is — while every Endpoint stays enumerable in the recorded scope.
 type HTTPIdentityJob struct {
 	ScanID       int64
 	VantageID    int64

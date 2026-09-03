@@ -25,7 +25,4 @@ import (
 //go:embed templates/*.tmpl tokens/*.css fixtures/*.json
 var files embed.FS
 
-// FS is the read-only tree of design-owned artifacts, rooted at the
-// design-system directory. Paths are package-relative, e.g.
-// "templates/inventory.tmpl" and "tokens/colors.css".
 var FS fs.FS = files

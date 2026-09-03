@@ -40,9 +40,6 @@ type CTSeed struct {
 	Domain string
 }
 
-// CTJob is one queue job the CT Scan produces: one crt.sh query for one
-// name-scope Seed. It carries no Vantage — a logged certificate is not a function
-// of where we read the log from — and no offers.
 type CTJob struct {
 	ScanID int64
 	SeedID int64
@@ -64,8 +61,6 @@ func BuildCTJobs(scanID int64, seeds []CTSeed) []CTJob {
 	return jobs
 }
 
-// ctScope is the wire payload a CT job carries: the domain to query and the Seed
-// its admissions terminate at.
 type ctScope struct {
 	Domain string `json:"domain"`
 	SeedID int64  `json:"seed_id"`

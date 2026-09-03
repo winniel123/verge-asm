@@ -57,10 +57,7 @@ const (
 	// VerifyUnverifiable is the fail-closed default: the check could not resolve to logged or
 	// not-logged, so it asserts neither.
 	VerifyUnverifiable VerifyOutcome = iota
-	// VerifyLogged means a reachable CT log proved the certificate's leaf is included.
 	VerifyLogged
-	// VerifyNotLogged means a reachable CT log definitively does not hold the certificate's
-	// leaf, and none holds it — the certificate is not in CT.
 	VerifyNotLogged
 )
 
@@ -72,7 +69,6 @@ type VerifyResult struct {
 	Reason  string
 }
 
-// logCheck is the result of asking one log about one leaf hash.
 type logCheck int
 
 const (
@@ -164,7 +160,6 @@ func (w *Worker) verifyMaterial(ctx context.Context, logs []scan.CTLog, leafDER,
 		return VerifyResult{Outcome: VerifyUnverifiable, Reason: "no SCTs presented"}
 	}
 
-	// The precert TBS is reconstructed at most once and only when an embedded SCT needs it.
 	var precertTBS []byte
 	precertReady := false
 	precertTBSOK := true

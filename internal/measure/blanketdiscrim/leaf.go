@@ -63,8 +63,6 @@ const Kind = "blanket-discrimination"
 type ControlResult string
 
 const (
-	// ControlAnswered: the control port completed the handshake. A well-behaved
-	// origin does not listen on a random high port; a blanket responder answers it.
 	ControlAnswered ControlResult = "answered"
 	// ControlClosed: the control port was refused (RST) — a decided negative. One
 	// refused control port witnesses port-specific behaviour, which is exactly what
@@ -77,7 +75,6 @@ const (
 	ControlIncomplete ControlResult = "incomplete"
 )
 
-// Verdict is the leaf's decision for one `Address`.
 type Verdict string
 
 const (
@@ -143,8 +140,6 @@ type Params struct {
 	PortBandHigh     uint16 `json:"port_band_high"`
 }
 
-// DefaultParams is the v1 shipped parameter set (ports.go): a batch-generated set
-// of random high ports drawn from the ephemeral band.
 func DefaultParams() Params {
 	return Params{
 		ControlPortCount: ControlPortCount,
@@ -153,8 +148,6 @@ func DefaultParams() Params {
 	}
 }
 
-// Digest is a stable content hash of the declared parameters, used by the golden
-// corpus lock to bind a declared-parameter change to a Version bump.
 func (p Params) Digest() string {
 	b, err := json.Marshal(p)
 	if err != nil {
@@ -182,9 +175,6 @@ const (
 	ReasonIncomplete = "the control-port probe did not complete, so this reach could not be discriminated from a blanket responder"
 )
 
-// ReasonFor renders the operator-facing reason for a gapping Verdict. Only
-// VerdictBlanket and VerdictGap gap a reach; VerdictNotBlanket passes the connect
-// value through and has no reason.
 func ReasonFor(v Verdict) string {
 	switch v {
 	case VerdictBlanket:
@@ -196,7 +186,4 @@ func ReasonFor(v Verdict) string {
 	}
 }
 
-// Gaps reports whether a Verdict turns an address's reaches into `Gap`s. A
-// blanket responder and an incomplete probe both do; a NotBlanket verdict does
-// not.
 func (v Verdict) Gaps() bool { return v == VerdictBlanket || v == VerdictGap }

@@ -47,10 +47,6 @@ type ssoBindingView struct {
 	LinkedAt     string
 }
 
-// fillSSOSection reads the configured providers, the current identity bindings, and the
-// add-form echo. The section is the honest empty-state when none are configured (the
-// SignIn "not configured" state mirrors it); once a provider exists, SignIn renders a
-// button for it.
 func (s *server) fillSSOSection(r *http.Request, f settingsForms, data map[string]any) error {
 	rows, err := s.store.ListSSOProviders(r.Context())
 	if err != nil {
@@ -88,7 +84,6 @@ func (s *server) fillSSOSection(r *http.Request, f settingsForms, data map[strin
 	return nil
 }
 
-// ssoFormValues pulls and trims the shared provider fields from a submission.
 type ssoFormValues struct {
 	slug, name, issuer, clientID string
 }
@@ -232,8 +227,6 @@ func (s *server) setSSOProviderSecret(w http.ResponseWriter, r *http.Request, _ 
 	s.backToSection(w, r, "sso")
 }
 
-// deleteSSOProvider removes a provider. Idempotent: deleting a row already gone
-// satisfies the operator's intent either way.
 func (s *server) deleteSSOProvider(w http.ResponseWriter, r *http.Request, _ db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {

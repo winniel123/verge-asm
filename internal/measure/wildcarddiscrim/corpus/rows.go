@@ -5,9 +5,6 @@ import (
 	wd "github.com/winniel123/verge-asm/internal/measure/wildcarddiscrim"
 )
 
-// Step is one run of the leaf inside a row: one Batch, at one Vantage, over one
-// set of Names bounded by one set of Seed scopes, against one scripted Peer and
-// the deterministic control-label generator.
 type Step struct {
 	Batch      string
 	Vantage    string
@@ -35,20 +32,15 @@ type Row struct {
 // one row. 19 cells — §8.1's adopted escrow W1–W6 (17) plus §8.2's citation pin
 // W7 (2). It is the length of a list, not a target.
 var AllCells = []string{
-	// W1 — component signatures (3)
 	"W1/NoSynthesis", "W1/Determinate", "W1/Indeterminate",
-	// W2 — verdicts (2)
 	"W2/Shadowed", "W2/not-Shadowed",
 	// W3 — boundary pins (4 boundaries × 2 = 8)
 	"W3a/determinate", "W3a/indeterminate-only",
 	"W3b/none-determinate", "W3b/determinate-differing",
 	"W3c/no-wildcard", "W3c/incomplete",
 	"W3d/discriminated", "W3d/shadowed-all",
-	// W4 — control-label set (2)
 	"W4/set-shape", "W4/independent",
-	// W5 — the shared path (1)
 	"W5/shared-path",
-	// W6 — the suppression (1)
 	"W6/suppression",
 	// W7 — the citation pin (1 boundary × 2 = 2)
 	"W7.1/cites-nothing", "W7.2/cites",
@@ -64,7 +56,6 @@ const (
 
 func params() wd.Params { return wd.DefaultParams() }
 
-// one builds a single-step row over the default vantage, resolver and seed scope.
 func one(cells []string, claim string, specVerified bool, names []string, peer ScriptPeer, golden string) Row {
 	return Row{
 		Cells:        cells,
@@ -79,10 +70,7 @@ func one(cells []string, claim string, specVerified bool, names []string, peer S
 	}
 }
 
-// Rows is the checked-in corpus. Every cell in AllCells appears in some row's
-// Cells; A5 fails the build (naming the cell) if one does not.
 var Rows = []Row{
-	// ---- W3c/no-wildcard + W1/NoSynthesis + W2/not-Shadowed + W5/shared-path ----
 	one([]string{"W1/NoSynthesis", "W2/not-Shadowed", "W3c/no-wildcard", "W5/shared-path"},
 		"the control probe completes on the declared path and every label answers NXDOMAIN — a determinate NoSynthesis, no wildcard, licensing the name's own Resolved value; a probe on a skewed path would fabricate here",
 		true,
@@ -93,7 +81,6 @@ var Rows = []Row{
 		}},
 		"nowc_license.ndjson"),
 
-	// ---- W3c/incomplete ----
 	one([]string{"W3c/incomplete"},
 		"the control probe under the parent did not complete — every control query was silent — so the name records a Gap, never a value",
 		true,
@@ -104,7 +91,6 @@ var Rows = []Row{
 		}},
 		"nowc_gap.ndjson"),
 
-	// ---- W1/Determinate + W2/Shadowed + W3d/shadowed-all + W7.1/cites-nothing ----
 	one([]string{"W1/Determinate", "W2/Shadowed", "W3d/shadowed-all", "W7.1/cites-nothing"},
 		"a determinate constant wildcard synthesises the same address for every control label and for a fictional name; the name coincides at the one determinate component and is Shadowed on resolution and on every dns-record discriminator, citing no address",
 		true,
@@ -114,7 +100,6 @@ var Rows = []Row{
 		}},
 		"det_shadowed.ndjson"),
 
-	// ---- W3a/determinate + W3b/determinate-differing + W3d/discriminated + W7.2/cites ----
 	one([]string{"W3a/determinate", "W3b/determinate-differing", "W3d/discriminated", "W7.2/cites"},
 		"under the same determinate wildcard a real name carries its own distinct address, differing at the determinate component; it is discriminated, so no answer is synthesised at any qtype and the resolved set cites",
 		true,
@@ -125,7 +110,6 @@ var Rows = []Row{
 		}},
 		"det_differs.ndjson"),
 
-	// ---- W1/Indeterminate + W3b/none-determinate ----
 	one([]string{"W1/Indeterminate", "W3b/none-determinate"},
 		"the control labels disagree at A — the random labels answer one address, the structured label another — so the only component is Indeterminate; with no determinate component every name beneath is Shadowed",
 		true,
@@ -136,7 +120,6 @@ var Rows = []Row{
 		}},
 		"indet_shadowed.ndjson"),
 
-	// ---- W3a/indeterminate-only ----
 	one([]string{"W3a/indeterminate-only"},
 		"MX is determinate across every control label while A is indeterminate; a name that coincides at the determinate MX and differs only at the indeterminate A is Shadowed — an indeterminate component is never consulted",
 		true,
@@ -148,7 +131,6 @@ var Rows = []Row{
 		}},
 		"indet_only.ndjson"),
 
-	// ---- W6/suppression ----
 	one([]string{"W6/suppression"},
 		"beneath a parent that neither synthesises determinately nor is silent, a name the authority answers NXDOMAIN for is recorded Shadowed rather than NameError — no withdrawal-shaped output (the Name suppression case, spec-verified and unmeasured)",
 		true,
@@ -160,7 +142,6 @@ var Rows = []Row{
 		}},
 		"w6_suppress.ndjson"),
 
-	// ---- W4/set-shape + W4/independent ----
 	one([]string{"W4/set-shape", "W4/independent"},
 		"the control-label set is 9 random plus 1 structured label drawn per batch; the random labels answer NODATA and would read 'no wildcard', but the structured label answers an address, making A indeterminate and withholding the licence — the third door (nip.io), which a random-only set cannot see",
 		true,

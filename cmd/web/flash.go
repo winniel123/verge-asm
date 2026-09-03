@@ -117,12 +117,6 @@ type formFlashEntry struct {
 // a stale callout is worse than none.
 const formFlashTTL = time.Minute
 
-// maxFormFlashes bounds the store against the one shape the TTL does not: a burst of
-// refusals inside a single TTL window. On overflow the whole map is dropped rather
-// than one entry evicted, since a flash is a courtesy and the cost of the reset is at
-// most a lost callout on a page an operator has not loaded yet. A console with this
-// many sessions each holding an unconsumed rejected form at one instant is not a shape
-// a real deployment reaches.
 const maxFormFlashes = 256
 
 func newFormFlashStore() *formFlashStore {

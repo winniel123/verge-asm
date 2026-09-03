@@ -14,8 +14,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/message"
 )
 
-// putMessage inserts a computed message straight into the fake store, standing
-// in for the cause path that would have written it.
 func putMessage(t *testing.T, f *fakeStore, cause message.Cause, subjectKind, firedAt, headline string, census []byte) db.Message {
 	t.Helper()
 	m, err := f.InsertMessage(t.Context(), db.InsertMessageParams{
@@ -208,14 +206,12 @@ func TestMarkAllReadIsPerAccount(t *testing.T) {
 	base := start(t, f, "")
 	vc := login(t, base, "viewer", "hunter2hunter2")
 
-	// The viewer marks everything read.
 	resp := postForm(t, vc, base+"/messages/read-all", url.Values{})
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("viewer mark all read: status = %d", resp.StatusCode)
 	}
 	resp.Body.Close()
 
-	// The viewer's own badge clears...
 	if n, _ := f.CountUnreadMessages(t.Context(), viewer.ID); n != 0 {
 		t.Errorf("viewer unread after mark all read = %d, want 0", n)
 	}

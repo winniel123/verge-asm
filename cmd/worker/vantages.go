@@ -19,9 +19,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/vantage"
 )
 
-// vantageKeyStore is the slice of the database the worker's key provisioning
-// uses. Narrowing it to an interface lets a test drive the loop with an
-// in-memory fake, the same seam the web handlers use.
 type vantageKeyStore interface {
 	ListVantagesNeedingKey(ctx context.Context) ([]db.Vantage, error)
 	SetVantagePublicKey(ctx context.Context, arg db.SetVantagePublicKeyParams) error
@@ -100,9 +97,6 @@ func ensureVantageKey(stateDir string, id int64) (string, error) {
 // silent host cannot stall the worker's startup sweep.
 const dialTimeout = 10 * time.Second
 
-// vantageLatencyStore is the slice of the database the worker's latency
-// measurement uses. Narrowing it to an interface lets a test drive the loop with
-// an in-memory fake, the same seam key provisioning uses.
 type vantageLatencyStore interface {
 	ListVantagesNeedingLatency(ctx context.Context) ([]db.Vantage, error)
 	PinVantageHostKey(ctx context.Context, arg db.PinVantageHostKeyParams) error

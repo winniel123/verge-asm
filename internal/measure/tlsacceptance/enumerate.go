@@ -17,8 +17,6 @@ import (
 type AcceptanceOutcome string
 
 const (
-	// Enumerated: the listener spoke TLS and accepted at least one candidate. The
-	// value carries the accepted versions and, for TLS 1.0–1.2, the accepted suites.
 	Enumerated AcceptanceOutcome = "enumerated"
 	// TLSRefused: the peer spoke TLS but accepted NO candidate we offered — an
 	// SSLv3-only, RC4-only or 3DES-refusing-everything-else listener. `TLSRefused`
@@ -26,9 +24,7 @@ const (
 	// peer spoke TLS and refused all of this* (measurement-offers §1.2). A value,
 	// and distinct from NoTLS.
 	TLSRefused AcceptanceOutcome = "tls-refused"
-	// NoTLS: nothing on the port spoke TLS at all. A value, and distinct from a
-	// refusal — collapsing the two files a plaintext listener under *TLS server*.
-	NoTLS AcceptanceOutcome = "no-tls"
+	NoTLS      AcceptanceOutcome = "no-tls"
 )
 
 // VersionAcceptance is one accepted protocol version and, for TLS 1.0–1.2, the
@@ -41,20 +37,9 @@ type VersionAcceptance struct {
 	Ciphers []string `json:"ciphers,omitempty"`
 }
 
-// Attempt is the raw outcome of one enumeration handshake against a Service, at a
-// pinned version, offering a set of suites. It is what the Enumerator reports; the
-// pure fold turns a sequence of them into the acceptance value. `Spoke` records
-// that the peer spoke TLS at all — the single bit that separates `TLSRefused` (all
-// refused, but it spoke) from `NoTLS` (nothing there spoke TLS).
 type Attempt struct {
-	// Spoke is true where the peer spoke TLS at this handshake, whether or not it
-	// accepted a candidate.
-	Spoke bool
-	// Accepted is true where the handshake completed under the pinned version with
-	// one of the offered suites (or, for TLS 1.3, under a library-chosen suite).
-	Accepted bool
-	// SelectedCipher is the Go constant name of the suite the listener selected,
-	// for a TLS 1.0–1.2 accept. Empty for a TLS 1.3 accept and for a refusal.
+	Spoke          bool
+	Accepted       bool
 	SelectedCipher string
 }
 
@@ -134,9 +119,6 @@ func Enumerate(ctx context.Context, e Enumerator, set CandidateSet, target netip
 	}
 }
 
-// removeString returns s without the first occurrence of v. When v is absent the
-// slice is returned unchanged (same length), which the caller reads as "the peer
-// selected a suite outside our offer".
 func removeString(s []string, v string) []string {
 	for i, x := range s {
 		if x == v {
@@ -157,7 +139,6 @@ func removeString(s []string, v string) []string {
 // NOT exercised by the hermetic golden corpus, which pins the accept-fold against a
 // scripted Enumerator instead; its error handling is best-effort.
 type NetEnumerator struct {
-	// Timeout bounds one handshake dial. Zero uses a 3 s default.
 	Timeout time.Duration
 }
 

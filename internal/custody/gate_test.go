@@ -12,7 +12,6 @@ import (
 // recorded — so a barred address that reaches connect zero times was blocked
 // before any packet, across the whole port/tier/rate/vantage matrix.
 
-// probeAttempt records one connect the prober was about to make on the wire.
 type probeAttempt struct {
 	addr    netip.Addr
 	vantage VantageClass
@@ -91,9 +90,6 @@ func TestThirdPartyRefusedOnEveryPortTierRate(t *testing.T) {
 	}
 }
 
-// TestNonGloballyReachableDenotationGate is AC-3. A non-globally-reachable
-// address is connected to only where a declared ADDRESS SCOPE covers it and only
-// from a non-internet-class Vantage; a custody extension alone does not open it.
 func TestNonGloballyReachableDenotationGate(t *testing.T) {
 	// Route that opens it: a declared address scope over private space.
 	scoped := &prober{estate: Estate{AddressScopes: []netip.Prefix{cidr("10.0.0.0/24")}}}
@@ -145,10 +141,6 @@ func TestCloudMetadataAndLoopbackNeverProbed(t *testing.T) {
 	}
 }
 
-// TestExtensionCoveredGloballyReachableProbedEverywhere confirms the extension's
-// motivating case is untouched: a globally-reachable AWS address a custody
-// extension covers is operator and is probed from every vantage class — the
-// denotation precondition binds only non-globally-reachable addresses.
 func TestExtensionCoveredGloballyReachableProbedEverywhere(t *testing.T) {
 	e := Estate{
 		ExtendedZones: []string{"example.com"},
@@ -161,11 +153,6 @@ func TestExtensionCoveredGloballyReachableProbedEverywhere(t *testing.T) {
 	}
 }
 
-// TestQueryIsNotAConnect: the gate is over an active probe against an Address; it
-// says nothing about resolution / dns-record, which run at full aperture on every
-// Name regardless of custody. This test documents that boundary by asserting the
-// gate is the only thing MayProbe governs — a third-party address returns false
-// here, while the DNS facets (not gated by this package) are unaffected.
 func TestQueryIsNotAConnect(t *testing.T) {
 	e := Estate{} // custody of nothing
 	if e.MayProbe(addr("52.1.2.3"), ClassInternet) {

@@ -33,14 +33,8 @@ import (
 // its leaf.
 const Version = "http-exchange/v2"
 
-// Kind is the JobSpec.Kind that dispatches to this leaf. It is distinct from the
-// `hot` Scan's DB kind and from the `connect-outcome` leaf it rides: the Scan is
-// `hot`, the reachability step is `connect-outcome`, and the HTTP step is
-// `http-exchange`.
 const Kind = "http-exchange"
 
-// FacetHTTPIdentity is the facet this leaf decides — HTTP identity, held on an
-// `Endpoint` subject.
 const FacetHTTPIdentity = "http-identity"
 
 // Params is the leaf's declared-parameter set: the exact §3.3 HTTP safety table,
@@ -51,14 +45,10 @@ type Params struct {
 	// Method is fixed: GET. The exchange asks for identity, never mutates.
 	Method string `json:"method"`
 	// Path is fixed: `/`. A single request to the root, never a crawl.
-	Path string `json:"path"`
-	// BodyCapBytes bounds the body read — 65536 (64 KB). A response longer than
-	// this is truncated to the cap and the identity records that it was.
-	BodyCapBytes int `json:"body_cap_bytes"`
-	// TimeoutMillis bounds the whole exchange — 10000 (10 s).
-	TimeoutMillis int `json:"timeout_millis"`
-	// PerHostReqPerSec is the per-host request rate ceiling — 10 req/s.
-	PerHostReqPerSec int `json:"per_host_req_per_sec"`
+	Path             string `json:"path"`
+	BodyCapBytes     int    `json:"body_cap_bytes"`
+	TimeoutMillis    int    `json:"timeout_millis"`
+	PerHostReqPerSec int    `json:"per_host_req_per_sec"`
 	// FollowRedirects records that redirects are NOT followed. It is always false
 	// — the invariant, recorded by content — so a 3xx records its Location as
 	// identity and no second request is issued.
@@ -79,8 +69,6 @@ func DefaultParams() Params {
 	}
 }
 
-// Digest is a stable content hash of the params, used by the golden-corpus lock
-// to bind a declared-parameter change to a Version bump.
 func (p Params) Digest() string {
 	b, err := json.Marshal(p)
 	if err != nil {

@@ -102,11 +102,6 @@ func toObservationParams(batchID int64, vantageID pgtype.Int8, observedAt pgtype
 	return out
 }
 
-// subjectKindFor gives the subject kind for a facet. resolution and dns-record
-// are about a Name; reachability is about a Service (an (Address, port,
-// transport) triple); http-identity is about an Endpoint (the (Name, Service)
-// pair, keyed name@service), whose key the http-exchange leaf renders on the
-// subject. The switch grows one additive case per wave-4 facet.
 func subjectKindFor(facet string) string {
 	switch facet {
 	case connectoutcome.FacetReachability, tlsacceptance.Facet:

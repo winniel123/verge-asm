@@ -42,9 +42,6 @@ import (
 // owns every verdict, and deriveSignalInstances turns the fired census into the
 // flat rows this screen draws.
 
-// dnsRecordValue is the JSON payload of a dns-record observation (the shape the
-// resolution-walk leaf emits). The handler reads only the CNAME target off the
-// CNAME discriminator and the delegation's Lame verdict off the NS discriminator.
 type dnsRecordValue struct {
 	RRs []struct {
 		Name string `json:"name"`
@@ -177,11 +174,6 @@ type signalsForms struct {
 	annoReason  string
 }
 
-// The frozen design-owned signals.tmpl (design-system/templates/signals.tmpl, package
-// v3.9.0) is the view layer: it defines "signals" + the shared "sevbadge" /
-// "sevbadge-md" / "withdrawnmark" partials (dashboard.tmpl consumes "sevbadge"). It is
-// embedded read-only via the designfs package and parsed into the shared set here; the
-// repo authors no markup/CSS/JS for /signals.
 var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/signals.tmpl"))
 
 func (s *server) signalsPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
@@ -311,8 +303,6 @@ func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.A
 	total := len(base)
 	shown := len(filtered)
 
-	// Pagination — the Open tab only, exactly as Signals.jsx paginates only its
-	// working surface. The other tabs list every row.
 	const pageSize = 10
 	page := 1
 	if p, e := strconv.Atoi(r.URL.Query().Get("page")); e == nil && p > 1 {
@@ -853,8 +843,6 @@ func pageWindow(page, pageCount int) []int {
 	}
 }
 
-// sevLabel capitalises a severity token for the badge label ("critical" ->
-// "Critical"); the `.sev` class then upper-cases it in CSS, matching SeverityBadge.
 func sevLabel(sev string) string {
 	if sev == "" {
 		return ""
@@ -862,8 +850,6 @@ func sevLabel(sev string) string {
 	return strings.ToUpper(sev[:1]) + sev[1:]
 }
 
-// parseSigNum reads the numeric identity out of a `SIG-####` display id for the
-// Id-column sort; a row with no minted id (0) sorts first ascending.
 func parseSigNum(id string) int64 {
 	if n, err := strconv.ParseInt(strings.TrimPrefix(id, "SIG-"), 10, 64); err == nil {
 		return n
@@ -871,8 +857,6 @@ func parseSigNum(id string) int64 {
 	return 0
 }
 
-// seenAgeMinutes is the row's last-seen age in whole minutes, the Seen-column sort
-// key. A row with no last-seen instant sorts last (largest age).
 func seenAgeMinutes(iso string, now time.Time) int64 {
 	if iso == "" {
 		return 1 << 62
@@ -888,8 +872,6 @@ func seenAgeMinutes(iso string, now time.Time) int64 {
 	return int64(d / time.Minute)
 }
 
-// annotationViews shapes the stored annotations for rendering, marking each as
-// orphan (naming no current member of its rule) purely on read.
 func annotationViews(annos []db.Annotation, population map[string]map[string]bool) []annotationView {
 	out := make([]annotationView, 0, len(annos))
 	for _, a := range annos {
@@ -909,12 +891,6 @@ func annotationViews(annos []db.Annotation, population map[string]map[string]boo
 	return out
 }
 
-// buildNameFacts assembles the current Derived snapshot the engine reads: the
-// composed cross-class resolution per Name (folding resolution-walk's outcome,
-// the NS delegation's Lame verdict, and wildcard-discrimination's Shadowed), the
-// internet-class view, the dns-record CNAME target, and the operator's zone
-// declarations. It reads resolution / dns-record / membership only — the five
-// rules are Name-only and need no reachability facet.
 func (s *server) buildNameFacts(r *http.Request) ([]signal.NameFacts, error) {
 	ctx := r.Context()
 
@@ -1025,8 +1001,6 @@ func (s *server) buildNameFacts(r *http.Request) ([]signal.NameFacts, error) {
 	return facts, nil
 }
 
-// composedResolution is the one resolution value the four cross-class rules read,
-// folded from the per-class observations and the NS delegation.
 type composedResolution struct {
 	outcome   string
 	addresses []string
@@ -1429,8 +1403,6 @@ func sanMatchesName(sanDNS []string, name string) bool {
 	return false
 }
 
-// dnsLabels splits a DNS name into its dot-labels, dropping a single trailing empty
-// label (a trailing dot / root). An empty or root-only name yields no labels.
 func dnsLabels(name string) []string {
 	labels := strings.Split(name, ".")
 	if n := len(labels); n > 0 && labels[n-1] == "" {
@@ -1453,7 +1425,6 @@ func sanEntryMatches(entry string, nameLabels []string) bool {
 		stars += strings.Count(l, "*")
 	}
 	if stars == 0 {
-		// Literal entry: label-for-label case-insensitive equality.
 		return labelsEqualFold(entryLabels, nameLabels)
 	}
 	// A wildcard is valid ONLY as a single leftmost label that is exactly "*" with no
@@ -1472,7 +1443,6 @@ func sanEntryMatches(entry string, nameLabels []string) bool {
 	return labelsEqualFold(entryLabels[1:], nameLabels[1:])
 }
 
-// labelsEqualFold compares two label sequences for ASCII case-insensitive equality.
 func labelsEqualFold(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
@@ -1535,9 +1505,6 @@ func parseServicePair(key string) (pair vergecore.Pair, addr string, ok bool) {
 	return vergecore.Pair{Port: ap.Port(), Transport: vergecore.Transport(transport)}, ap.Addr().String(), true
 }
 
-// splitEndpointName splits an Endpoint key `name@service` into its Name (empty for
-// the nameless endpoint) and Service legs at the first `@` — neither a DNS Name
-// nor a Service key contains one.
 func splitEndpointName(key string) (name, service string) {
 	if at := strings.Index(key, "@"); at >= 0 {
 		return key[:at], key[at+1:]

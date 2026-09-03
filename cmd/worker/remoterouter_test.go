@@ -18,7 +18,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// fakeVantageGetter is an in-memory remoteVantageStore.
 type fakeVantageGetter struct {
 	byID map[int64]db.Vantage
 	err  error
@@ -35,8 +34,6 @@ func (f fakeVantageGetter) GetVantage(_ context.Context, id int64) (db.Vantage, 
 	return v, nil
 }
 
-// routerConn is a minimal remoteexec.Conn: linux/amd64 by uname, echoes one NDJSON
-// observation on exec.
 type routerConn struct {
 	obsLine string
 	ran     []string
@@ -101,11 +98,9 @@ func TestRouterDefersLocalForNonProber(t *testing.T) {
 		stateDir: t.TempDir(),
 	}
 
-	// No vantage id at all.
 	if _, handled, err := rt.ProbeVantage(context.Background(), pgtype.Int8{}, wire.JobSpec{}); handled || err != nil {
 		t.Errorf("no-vantage: handled=%v err=%v, want deferred to local", handled, err)
 	}
-	// Resolver-only vantage.
 	if _, handled, err := rt.ProbeVantage(context.Background(), pgtype.Int8{Int64: 1, Valid: true}, wire.JobSpec{}); handled || err != nil {
 		t.Errorf("resolver-only: handled=%v err=%v, want deferred to local", handled, err)
 	}

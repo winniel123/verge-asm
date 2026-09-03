@@ -8,7 +8,6 @@ import (
 	"os"
 )
 
-// OrDefault returns the value of key, or fallback if it is unset.
 func OrDefault(key, fallback string) string {
 	if v, ok := os.LookupEnv(key); ok {
 		return v
@@ -16,7 +15,6 @@ func OrDefault(key, fallback string) string {
 	return fallback
 }
 
-// Require returns the value of key, or an error if it is unset or empty.
 func Require(key string) (string, error) {
 	v, ok := os.LookupEnv(key)
 	if !ok || v == "" {

@@ -109,7 +109,6 @@ func TestDecideNameDeparture(t *testing.T) {
 			wantLeft:    false,
 		},
 		{
-			// stays: nothing to close.
 			name:     "no open spans cannot leave",
 			open:     nil,
 			wantLeft: false,
@@ -143,14 +142,14 @@ func TestOpenedByAperture(t *testing.T) {
 		kind, key string
 		want      bool
 	}{
-		{"name", "api.example.com", true},      // revealed: beneath the declared name Seed
-		{"name", "example.com", true},          // revealed: the declared apex itself
-		{"name", "notexample.com", false},      // appeared: a look-alike outside the Seed
+		{"name", "api.example.com", true},       // revealed: beneath the declared name Seed
+		{"name", "example.com", true},           // revealed: the declared apex itself
+		{"name", "notexample.com", false},       // appeared: a look-alike outside the Seed
 		{"name", "discovered.other.net", false}, // appeared: the world brought it, no Seed declares it
-		{"address", "198.51.100.7", true},      // revealed: inside the declared address Seed
-		{"address", "203.0.113.7", false},      // appeared: outside every address Seed
-		{"service", "198.51.100.7:443", true},  // revealed: the Service rides a declared Address
-		{"service", "203.0.113.7:443", false},  // appeared: the Service's Address is undeclared
+		{"address", "198.51.100.7", true},       // revealed: inside the declared address Seed
+		{"address", "203.0.113.7", false},       // appeared: outside every address Seed
+		{"service", "198.51.100.7:443", true},   // revealed: the Service rides a declared Address
+		{"service", "203.0.113.7:443", false},   // appeared: the Service's Address is undeclared
 	}
 	for _, c := range cases {
 		if got := openedByAperture(c.kind, c.key, in); got != c.want {

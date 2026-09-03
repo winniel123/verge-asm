@@ -21,14 +21,9 @@ import (
 // (never an empty name): a Service reached with no citing Name still presents an
 // HTTP identity, held under the nameless Endpoint key.
 type Target struct {
-	// Name is the DNS Name whose resolution cited the Address, or "" for the
-	// nameless endpoint.
-	Name string `json:"name"`
-	// Address is the Service's Address (the `A`/`AAAA` the Name resolved to, or a
-	// Seed-covered address).
+	Name    string `json:"name"`
 	Address string `json:"address"`
-	// Port is the Service's TCP port.
-	Port uint16 `json:"port"`
+	Port    uint16 `json:"port"`
 	// Scheme is the URL scheme spoken — "http" or "https". It records how the
 	// exchange was framed and never widens what was probed.
 	Scheme string `json:"scheme"`
@@ -57,7 +52,6 @@ func EndpointKey(name, serviceKey string) string {
 	return name + "@" + serviceKey
 }
 
-// EndpointKey renders the Endpoint key for this Target.
 func (t Target) EndpointKey() string { return EndpointKey(t.Name, t.ServiceKey()) }
 
 // ExchangeResult is the raw outcome of one HTTP exchange the Exchanger reports,
@@ -69,16 +63,10 @@ func (t Target) EndpointKey() string { return EndpointKey(t.Name, t.ServiceKey()
 // (recorded, never followed); the body is read only to lift the admitted `<title>`
 // from it and is never itself stored.
 type ExchangeResult struct {
-	// Failed is true where the exchange did not complete: no valid HTTP response.
-	Failed bool
-	// Err is the transport error text, carried on a Failed result for the operator.
-	Err string
-	// Status is the HTTP status code of the single `GET /`.
-	Status int
-	// Server is the `Server` response header, empty where absent.
-	Server string
-	// WWWAuthenticate is the `WWW-Authenticate` response header (admitted on a 401),
-	// empty where absent.
+	Failed          bool
+	Err             string
+	Status          int
+	Server          string
 	WWWAuthenticate string
 	// Location is the `Location` header of a 3xx — recorded as identity because
 	// redirects are not followed, so the destination is a fact and not a next hop.

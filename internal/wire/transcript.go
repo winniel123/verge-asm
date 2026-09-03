@@ -18,7 +18,6 @@ import "time"
 // The union is sealed by the unexported isTranscript marker, defined once per variant
 // (not on the promoted frame), so no type outside this package can join it.
 type Transcript interface {
-	// Frame returns the common frame every variant carries.
 	Frame() TranscriptFrame
 	isTranscript()
 }
@@ -52,8 +51,6 @@ type ProbeResult struct {
 	Transcript   Transcript
 }
 
-// --- Prober variant -------------------------------------------------------------
-
 // ProberTranscript is the exchange with an exec'd measurement prober — local now,
 // remote across the vantage wire via #841. It carries the exact bytes sent to the
 // prober's stdin, and the stdout and stderr it wrote back, each verbatim.
@@ -67,8 +64,7 @@ type ProberTranscript struct {
 	Stdout []byte
 	// Stderr is the prober's verbatim stderr: normally empty, non-empty only on a
 	// crash (a panic or log.Fatalf).
-	Stderr []byte
-	// Outcome is how the prober process ended.
+	Stderr  []byte
 	Outcome ProberOutcome
 	// StdoutOverflow reports that Stdout tripped the 64 MiB MaxProberStdout memory
 	// guard: Stdout then holds only the head bytes the guard retained, and an unknown
@@ -85,33 +81,21 @@ func (ProberTranscript) isTranscript() {}
 // fake ProberExited{Code: 0} (§1.2).
 type ProberOutcome interface{ isProberOutcome() }
 
-// ProberExited is a normal process exit carrying the exit code.
 type ProberExited struct{ Code int }
 
-// ProberSignalled is a process killed by a signal, carrying the signal name.
 type ProberSignalled struct{ Signal string }
 
-// ProberContextCancelled is a prober killed by ctx — a job timeout or a mid-flight
-// cancel — carrying no code.
 type ProberContextCancelled struct{}
 
 func (ProberExited) isProberOutcome()           {}
 func (ProberSignalled) isProberOutcome()        {}
 func (ProberContextCancelled) isProberOutcome() {}
 
-// --- CT variant -----------------------------------------------------------------
-
-// CTTranscript is the crt.sh HTTP producer exchange: the request URL dialled and the
-// verbatim response body. The HTTP status and any transport-error text ride the typed
-// outcome, not a separate field.
 type CTTranscript struct {
 	TranscriptFrame
-	// RequestURL is the crt.sh URL dialled (scan.CrtshURL), verbatim.
-	RequestURL string
-	// ResponseBody is the verbatim HTTP response body.
+	RequestURL   string
 	ResponseBody []byte
-	// Outcome is how the HTTP exchange ended.
-	Outcome CTOutcome
+	Outcome      CTOutcome
 }
 
 func (CTTranscript) isTranscript() {}
@@ -120,21 +104,15 @@ func (CTTranscript) isTranscript() {}
 // transport-error text is the stderr analog for this producer (§1.2).
 type CTOutcome interface{ isCTOutcome() }
 
-// CTHTTP is a completed HTTP exchange carrying its status code.
 type CTHTTP struct{ Status int }
 
-// CTTransportError is a failure before a status (DNS, dial, TLS) carrying the error
-// text.
 type CTTransportError struct{ Text string }
 
-// CTContextCancelled is a fetch killed by ctx, carrying no status.
 type CTContextCancelled struct{}
 
 func (CTHTTP) isCTOutcome()             {}
 func (CTTransportError) isCTOutcome()   {}
 func (CTContextCancelled) isCTOutcome() {}
-
-// --- Zone variant ---------------------------------------------------------------
 
 // ZoneTranscript is the zone-restate debug artifact. Zone sends nothing to a prober,
 // so the artifact is the restate RESULT: the count restated and, above all, the records
@@ -143,23 +121,17 @@ func (CTContextCancelled) isCTOutcome() {}
 // already sits in the operator's supplied zone-file row (§1.3).
 type ZoneTranscript struct {
 	TranscriptFrame
-	// Restated is the count of records restated.
 	Restated int
-	// Skipped names the records RestateZone could not marshal and dropped.
-	Skipped []string
-	// Outcome is whether the restate parsed or hit a decode error.
-	Outcome ZoneOutcome
+	Skipped  []string
+	Outcome  ZoneOutcome
 }
 
 func (ZoneTranscript) isTranscript() {}
 
-// ZoneOutcome is how the zone restate ended: a closed union of two.
 type ZoneOutcome interface{ isZoneOutcome() }
 
-// ZoneParsed is a restate that parsed the zone file.
 type ZoneParsed struct{}
 
-// ZoneDecodeError is a restate that hit a decode error, carrying the error text.
 type ZoneDecodeError struct{ Text string }
 
 func (ZoneParsed) isZoneOutcome()      {}

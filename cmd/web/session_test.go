@@ -88,8 +88,6 @@ func TestRevokeTakesEffectNextRequest(t *testing.T) {
 	}
 }
 
-// TestEndSessionHandlerRevokesRow proves the end-session ConfirmDialog handler itself
-// stamps revoked_at (and redirects to /login), not merely clears the cookie.
 func TestEndSessionHandlerRevokesRow(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -146,7 +144,6 @@ func TestSecondDeviceIndependent(t *testing.T) {
 		t.Fatal("both devices should be authed before any revoke")
 	}
 
-	// Device 1 ends its own session.
 	postForm(t, c1, base+"/profile/session/revoke", url.Values{}).Body.Close()
 
 	if authed(t, c1, base) {

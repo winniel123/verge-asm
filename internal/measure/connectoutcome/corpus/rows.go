@@ -4,8 +4,6 @@ import (
 	co "github.com/winniel123/verge-asm/internal/measure/connectoutcome"
 )
 
-// Step is one run of the leaf inside a row: one Batch at one Vantage over one
-// scope, against one scripted connector.
 type Step struct {
 	Batch   string
 	Scope   co.Scope
@@ -24,14 +22,10 @@ type Row struct {
 	Golden       string
 }
 
-// AllCells is the enumeration the coverage test counts against: every cell of
-// the connect-outcome block must be pinned by at least one row.
 var AllCells = []string{
-	// C1 — the two verdicts
 	"C1/reached", "C1/not-reached",
 	// C2 — the raw results that decide
 	"C2/open", "C2/refused", "C2/timeout-exhausted",
-	// C3 — the retry budget
 	"C3/refusal-not-retried", "C3/transient-timeout-recovers",
 	// C4 — the recorded scope: a Service per pair, open or closed
 	"C4/mixed-open-closed", "C4/round-robin-order",
@@ -41,7 +35,6 @@ var AllCells = []string{
 
 func profile() co.SafetyProfile { return co.DefaultProfile() }
 
-// scope builds a one-vantage scope over addresses and the given TCP/UDP ports.
 func scope(addrs []string, tcp, udp []uint16) co.Scope {
 	return co.Scope{
 		Vantage:      "v1",
@@ -53,10 +46,7 @@ func scope(addrs []string, tcp, udp []uint16) co.Scope {
 	}
 }
 
-// Rows is the checked-in corpus. Every cell in AllCells appears in some row's
-// Cells; the coverage test fails the build (naming the cell) if one does not.
 var Rows = []Row{
-	// ---- C1/reached + C2/open ----
 	{
 		Cells:        []string{"C1/reached", "C2/open"},
 		Claim:        "a completed TCP connect to an open port is reached; the connection is opened and closed and the Service records reachable",
@@ -72,7 +62,6 @@ var Rows = []Row{
 		Golden: "reached_open.ndjson",
 	},
 
-	// ---- C1/not-reached + C2/refused + C3/refusal-not-retried ----
 	{
 		Cells:        []string{"C1/not-reached", "C2/refused", "C3/refusal-not-retried"},
 		Claim:        "an RST refusal is an answer — the port is shut — so it decides not-reached in one attempt and is never retried",
@@ -88,7 +77,6 @@ var Rows = []Row{
 		Golden: "notreached_refused.ndjson",
 	},
 
-	// ---- C2/timeout-exhausted ----
 	{
 		Cells:        []string{"C2/timeout-exhausted"},
 		Claim:        "silence that outlasts the retry budget decides not-reached: on a connection-oriented transport an unanswered connect is a value, not a Gap (ADR-0083)",
@@ -104,7 +92,6 @@ var Rows = []Row{
 		Golden: "notreached_timeout.ndjson",
 	},
 
-	// ---- C3/transient-timeout-recovers ----
 	{
 		Cells:        []string{"C3/transient-timeout-recovers"},
 		Claim:        "a transient timeout is retried within the budget; a later open wins, so a single dropped SYN does not manufacture a false not-reached",
@@ -120,7 +107,6 @@ var Rows = []Row{
 		Golden: "recovers_after_timeout.ndjson",
 	},
 
-	// ---- C4/mixed-open-closed + C4/round-robin-order ----
 	{
 		Cells:        []string{"C4/mixed-open-closed", "C4/round-robin-order"},
 		Claim:        "a Service exists for every (Address, port, tcp) in scope, open or closed; two hosts' ports are scheduled round-robin, and both an open and a closed port on each host record a value",
@@ -139,7 +125,6 @@ var Rows = []Row{
 		Golden: "mixed_open_closed.ndjson",
 	},
 
-	// ---- C5/udp-recorded-not-probed ----
 	{
 		Cells:        []string{"C5/udp-recorded-not-probed"},
 		Claim:        "a scope whose only pairs are UDP produces no reachability observation at all — UDP is recorded in scope and never probed (§3.5, ADR-0083)",

@@ -26,20 +26,14 @@ import (
 // the record of a case ADR-0130 does not cover, with its reason stated at the entry, so
 // a reviewer sees the whole set at once and a new entry has to argue for itself.
 
-// --- the source and the route table these guards read ----------------------
-
-// contractPkg is cmd/web parsed from disk, minus the tests.
 type contractPkg struct {
-	fset *token.FileSet
-	// methods maps a *server method name to its declaration. A handler, a helper and a
-	// renderer are all here; the guards tell them apart by name and by who calls whom.
+	fset    *token.FileSet
 	methods map[string]*ast.FuncDecl
 	// funcs maps a package-level FUNCTION name to its declaration. The walk follows these
 	// too, because an answer written through a free function is the same answer: both
 	// redirectOnboardStep and redirectWizardStep call http.Redirect on a caller-supplied
 	// base, and a guard that saw only *server methods would look straight past them.
-	funcs map[string]*ast.FuncDecl
-	// postHandlers maps a routed POST pattern to the *server method that answers it.
+	funcs        map[string]*ast.FuncDecl
 	postHandlers map[string]string
 	// consts maps every package-level string constant to its value, so the class-E guard
 	// reads `profilePath` and `reportsPath` as the paths they are.
@@ -140,8 +134,6 @@ var gateMethods = map[string]bool{
 	"requireAPIAuth": true, "redirectTo": true,
 }
 
-// handlerMethodName reads the *server method out of a route's handler expression,
-// looking through however many gates wrap it.
 func handlerMethodName(e ast.Expr) string {
 	var found string
 	ast.Inspect(e, func(n ast.Node) bool {
@@ -177,7 +169,6 @@ func devModeBodies(fn *ast.FuncDecl) map[ast.Node]bool {
 	return out
 }
 
-// inspectLive walks fn the way ast.Inspect does, minus the VERGE_DEV fixture branches.
 func inspectLive(fn *ast.FuncDecl, f func(ast.Node) bool) {
 	skip := devModeBodies(fn)
 	ast.Inspect(fn, func(n ast.Node) bool {
@@ -188,9 +179,6 @@ func inspectLive(fn *ast.FuncDecl, f func(ast.Node) bool) {
 	})
 }
 
-// calleesOf lists what fn calls on its live path, in source order: each *server method
-// as "s.Name", each package-level function by its bare name, and each answer written
-// straight to the ResponseWriter as "http.Error" or "http.Redirect".
 func (c *contractPkg) calleesOf(fn *ast.FuncDecl) []string {
 	var out []string
 	inspectLive(fn, func(n ast.Node) bool {
@@ -222,7 +210,6 @@ func (c *contractPkg) calleesOf(fn *ast.FuncDecl) []string {
 	return out
 }
 
-// decl resolves a callee name from calleesOf back to its declaration, method or function.
 func (c *contractPkg) decl(name string) (*ast.FuncDecl, bool) {
 	if m, ok := strings.CutPrefix(name, "s."); ok {
 		fn, found := c.methods[m]
@@ -365,13 +352,13 @@ var classAExemptAnswers = map[string]string{
 	// operator-driven submit can carry an unknown one — only a hand-crafted request can,
 	// and that request names no form to return to. The reachable refusal on this surface
 	// is the channel race, and ticket #978 moved it onto a toast redirect.
-	"POST /settings/integrations/install · installIntegration → http.Error":         "an unknown catalogue slug is a hand-crafted request, not an operator refusal",
-	"POST /settings/integrations/remove · removeIntegration → http.Error":           "an unknown catalogue slug is a hand-crafted request, not an operator refusal",
-	"POST /settings/integrations/disconnect · removeIntegration → http.Error":       "an unknown catalogue slug is a hand-crafted request, not an operator refusal",
-	"POST /settings/integrations/test · testIntegration → http.Error":               "an unknown catalogue slug is a hand-crafted request, not an operator refusal",
-	"POST /settings/integrations/channel · bindIntegrationChannel → http.Error":     "an unknown catalogue slug, or an unparseable channel id, is a hand-crafted request",
-	"POST /proposals/confirm · confirmProposal → http.Error":                        "an unparseable proposal id; the row's own form always carries a valid one (#976)",
-	"POST /proposals/decline · declineLookup → http.Error":                          "an unparseable form body; there is no form state to echo back (#976)",
+	"POST /settings/integrations/install · installIntegration → http.Error":     "an unknown catalogue slug is a hand-crafted request, not an operator refusal",
+	"POST /settings/integrations/remove · removeIntegration → http.Error":       "an unknown catalogue slug is a hand-crafted request, not an operator refusal",
+	"POST /settings/integrations/disconnect · removeIntegration → http.Error":   "an unknown catalogue slug is a hand-crafted request, not an operator refusal",
+	"POST /settings/integrations/test · testIntegration → http.Error":           "an unknown catalogue slug is a hand-crafted request, not an operator refusal",
+	"POST /settings/integrations/channel · bindIntegrationChannel → http.Error": "an unknown catalogue slug, or an unparseable channel id, is a hand-crafted request",
+	"POST /proposals/confirm · confirmProposal → http.Error":                    "an unparseable proposal id; the row's own form always carries a valid one (#976)",
+	"POST /proposals/decline · declineLookup → http.Error":                      "an unparseable form body; there is no form state to echo back (#976)",
 
 	// A download, not a page. The backup act answers with the archive itself, so the
 	// response body IS the deliverable and there is nothing to redirect to.
@@ -399,10 +386,6 @@ func classAStop() map[string]bool {
 	return stop
 }
 
-// TestNoMutatingHandlerAnswersAValidationFailureWithABody is the class-A regression
-// guard. It fails when a POST handler can reach a body answer, which is what answering a
-// refusal in place looks like: the body arrives at the POST URL, the browser performs no
-// navigation for the scroll restore to fire on, and a reload re-submits the form.
 func TestNoMutatingHandlerAnswersAValidationFailureWithABody(t *testing.T) {
 	c := parseWebPackage(t)
 	var bad []string
@@ -464,8 +447,6 @@ func TestContractExemptionsAreLive(t *testing.T) {
 	}
 }
 
-// --- class E: a mutating act lands on the URL it was submitted from --------
-
 // backHelpers are the sanctioned answers to a mutating act: each resolves the submitting
 // URL off the posted `return` field (backurl.go resolveBack) and 303s to it, falling back
 // to a bare path only when the form carried no value that passed the open-redirect guard.
@@ -505,20 +486,20 @@ var classEExempt = map[string]string{
 	// SSO receipt (?linked=, ?unlinked=, ?linkerr=), so returning verbatim would re-open a
 	// confirm the act has just answered or re-show a spent receipt. There is no filter,
 	// sort or pager on the page for a bare path to lose. See failProfile.
-	"POST /profile/password":         "/profile carries no operative query; see failProfile",
-	"POST /profile/tokens":           "/profile carries no operative query; see failProfile",
-	"POST /profile/tokens/revoke":    "/profile carries no operative query; see failProfile",
-	"POST /profile/session/revoke":   "ends the caller's own session; the destination is the sign-in screen",
-	"POST /profile/sessions/revoke":  "/profile carries no operative query; see failProfile",
+	"POST /profile/password":               "/profile carries no operative query; see failProfile",
+	"POST /profile/tokens":                 "/profile carries no operative query; see failProfile",
+	"POST /profile/tokens/revoke":          "/profile carries no operative query; see failProfile",
+	"POST /profile/session/revoke":         "ends the caller's own session; the destination is the sign-in screen",
+	"POST /profile/sessions/revoke":        "/profile carries no operative query; see failProfile",
 	"POST /profile/sessions/revoke-others": "/profile carries no operative query; see failProfile",
-	"POST /profile/sso/unlink":       "/profile carries no operative query; see failProfile",
-	"POST /account/totp/enable":      "two-factor enrolment is a screen sequence, not a list act",
-	"POST /account/totp/confirm":     "two-factor enrolment is a screen sequence, not a list act",
+	"POST /profile/sso/unlink":             "/profile carries no operative query; see failProfile",
+	"POST /account/totp/enable":            "two-factor enrolment is a screen sequence, not a list act",
+	"POST /account/totp/confirm":           "two-factor enrolment is a screen sequence, not a list act",
 
 	// The schedule wizard STEPS are page moves between steps, and each carries the
 	// accumulated state in its own query. The FINISH is not exempt: it 303s to the entry
 	// URL threaded in on ?return= (ticket #977), because a wizard must be left behind.
-	"POST /reports/schedule/new":      "the wizard's back/next/invalid-step redirects are moves between steps",
+	"POST /reports/schedule/new":       "the wizard's back/next/invalid-step redirects are moves between steps",
 	"POST /reports/schedule/{id}/edit": "the edit wizard's step moves, same as the new-schedule wizard",
 
 	// A COMPLETED restore replaces the database the caller's own session row lives in, so
@@ -572,8 +553,6 @@ func TestNoMutatingHandlerRedirectsToABarePath(t *testing.T) {
 	}
 }
 
-// redirectDestinations lists the destination expression of every redirect answer fn
-// writes on its live path: http.Redirect's third argument, and toastRedirect's.
 func redirectDestinations(fn *ast.FuncDecl) []ast.Expr {
 	var out []ast.Expr
 	inspectLive(fn, func(n ast.Node) bool {
@@ -588,8 +567,6 @@ func redirectDestinations(fn *ast.FuncDecl) []ast.Expr {
 	})
 	return out
 }
-
-// --- the carrier: one refusal, shown once ----------------------------------
 
 // TestTheSessionFormFlashIsSingleConsume pins the property every §1 landing depends on.
 // A refusal is stashed once and read once. The read DELETES it, so the reload the
@@ -645,7 +622,6 @@ func TestTheSessionFormFlashIsSingleConsume(t *testing.T) {
 	}
 }
 
-// paramNames is the set of fn's own parameter names.
 func paramNames(fn *ast.FuncDecl) map[string]bool {
 	out := map[string]bool{}
 	if fn.Type == nil || fn.Type.Params == nil {

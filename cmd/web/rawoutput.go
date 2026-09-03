@@ -35,10 +35,6 @@ type rawOutputBytes struct {
 	SentScope string   `json:"sentScope"`
 }
 
-// rawOutputView is one job's Transcript shaped for the dedicated admin view. Captured is
-// false for a legible absence (no transcript row) — distinct from a captured-but-empty
-// stream, which renders as an empty panel with Captured true. The exec-meta fields are
-// meaningful only when Captured.
 type rawOutputView struct {
 	RunID   int64
 	RunHref string // back to the filtered run page (?job={id})
@@ -47,11 +43,7 @@ type rawOutputView struct {
 	Vantage string
 
 	Captured bool
-	// Variant selects the layout: "prober" (exec-meta + stdout/stderr/sent), "zone"
-	// (restate result — the skipped records in the primary panel plus a restate card), or
-	// "ct" (the crt.sh HTTP exchange — the response body in the primary panel plus an
-	// exchange card).
-	Variant string
+	Variant  string
 
 	// Exec-meta — the typed prober outcome unpacked into three display cells (exactly
 	// one is active; the others read "—"/"false"), plus duration and captured-at.
@@ -148,9 +140,6 @@ func (s *server) rawOutputPage(w http.ResponseWriter, r *http.Request, acct db.A
 	s.render(w, r, "runraw", s.rawOutputData(acct, view))
 }
 
-// rawOutputData wraps the view in the render map, with the chrome keys the shared
-// head/chrome/foot partials read (Account/IsAdmin/NavActive) and the design-token opt-in
-// the inverted log surfaces need.
 func (s *server) rawOutputData(acct db.Account, view rawOutputView) map[string]any {
 	return map[string]any{
 		"Title":        "Raw output · job #" + strconv.FormatInt(view.JobID, 10),
@@ -347,8 +336,6 @@ func rawDecodeTruncation(b []byte) map[string]string {
 	return out
 }
 
-// rawHumanBytes renders a byte count in binary units (KiB/MiB/…) for the exec-meta and
-// truncation notes.
 func rawHumanBytes(n int) string {
 	const unit = 1024
 	if n < unit {

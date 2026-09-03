@@ -83,7 +83,6 @@ func TestTOTPBruteForceLocksOut(t *testing.T) {
 	base := start(t, f, "")
 
 	c := newClient(t)
-	// Password step mints the pending cookie.
 	postForm(t, c, base+"/login", url.Values{"username": {"admin"}, "password": {"hunter2hunter2"}}).Body.Close()
 	if !hasCookie(c, base, pendingCookie) {
 		t.Fatal("no pending cookie after the password step")
@@ -131,7 +130,6 @@ func TestTOTPCodeNotReplayable(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// First sign-in: the code completes login.
 	cA := newClient(t)
 	postForm(t, cA, base+"/login", url.Values{"username": {"admin"}, "password": {"hunter2hunter2"}}).Body.Close()
 	respA := postForm(t, cA, base+"/login/totp", url.Values{"code": {code}})
@@ -139,7 +137,6 @@ func TestTOTPCodeNotReplayable(t *testing.T) {
 	if respA.StatusCode != http.StatusSeeOther || !hasCookie(cA, base, sessionCookie) {
 		t.Fatalf("first use of a valid code did not complete login: status=%d", respA.StatusCode)
 	}
-	// The replay watermark advanced.
 	if got := f.accounts[acct.ID]; !got.TotpLastStep.Valid || got.TotpLastStep.Int64 == 0 {
 		t.Fatalf("stored totp_last_step did not advance: %+v", got.TotpLastStep)
 	}
@@ -174,7 +171,6 @@ func TestTOTPCodeSingleUseUnderConcurrency(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Each client completes the password step first to hold its own pending cookie.
 	const n = 2
 	clients := make([]*http.Client, n)
 	for i := range clients {
@@ -186,7 +182,6 @@ func TestTOTPCodeSingleUseUnderConcurrency(t *testing.T) {
 		clients[i] = c
 	}
 
-	// Fire both TOTP steps with the same code, released together.
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	var reqErrs []error

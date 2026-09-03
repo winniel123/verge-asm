@@ -30,7 +30,6 @@ func globallyReachable(addr netip.Addr) bool {
 		return false
 	}
 	if !addr.IsGlobalUnicast() {
-		// Loopback, unspecified, link-local, multicast, interface-local.
 		return false
 	}
 	if addr.IsPrivate() {

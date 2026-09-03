@@ -64,14 +64,9 @@ type artifactPDFItem struct {
 	count     int    // count for a severity-bar row
 }
 
-// artifactPDFItems is the ordered content of the delivered report, render-agnostic
-// — the one source both RenderArtifactPDF and the text/valence view read, in the
-// same order RenderArtifact lays the HTML out: identity row, then either the
-// empty-state or the KPI band and the two change sections, then the receipt.
 func artifactPDFItems(a Artifact) []artifactPDFItem {
 	var items []artifactPDFItem
 
-	// Identity: org, provenance, delivered-format tag.
 	items = append(items, artifactPDFItem{role: roleTitle, text: orDash(a.Org)})
 	if prov := artifactProvenance(a); prov != "" {
 		items = append(items, artifactPDFItem{role: roleMeta, text: prov})
@@ -117,9 +112,6 @@ func artifactPDFItems(a Artifact) []artifactPDFItem {
 	return items
 }
 
-// artifactChangeItems builds one titled change section — its eyebrow, then a row
-// per change, or a single muted note when nothing moved (the same fact-stating
-// empty behaviour as the HTML render).
 func artifactChangeItems(title string, changes []ArtifactChange, emptyNote string) []artifactPDFItem {
 	items := []artifactPDFItem{{role: roleEyebrow, text: title}}
 	if len(changes) == 0 {
@@ -238,8 +230,6 @@ func pdfChangeColor(change string) pdfRGB {
 	}
 }
 
-// pdfContentWidth is the printable width in millimetres: A4 (210mm) less the two
-// 18mm margins.
 const pdfContentWidth = 210.0 - 18.0 - 18.0
 
 // RenderArtifactPDF renders one delivered report as a PDF document — the print

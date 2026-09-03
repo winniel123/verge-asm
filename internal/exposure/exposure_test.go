@@ -7,7 +7,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/custody"
 )
 
-// valued is a shorthand for a leg holding a Reach value.
 func valued(v ReachValue) Leg { return Leg{Status: LegValued, Value: v} }
 
 // --- ComposeReach: the class-scoped existential quantifier (ADR-0080) -------
@@ -94,8 +93,6 @@ func TestFlagshipOnlyNotReachedToReached(t *testing.T) {
 	}
 }
 
-// --- VerifyClass: re-verified per batch against the presented address -------
-
 // AC #196: Vantage class is re-verified every Batch against the PRESENTED
 // address, not a static config field (CONTEXT.md `Vantage class`). The quantifier
 // is every-not-any and the closed direction is `internet`.
@@ -157,8 +154,6 @@ func TestVerifyClassIsRecomputedNotStatic(t *testing.T) {
 		t.Error("batch 2 presented an uncovered address — internet, re-verified not remembered")
 	}
 }
-
-// --- Build: the screen's preconditions and the board co-existing ------------
 
 // AC #196: with no Service in the estate at all, the screen renders the
 // no-Service precondition, never a blank grid.

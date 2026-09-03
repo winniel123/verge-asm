@@ -23,8 +23,6 @@ const (
 // Service rules read — the only evidence they declare (ADR-0024). Every field is
 // a value about *now*; a census is current state and never a comparison.
 type ServiceFacts struct {
-	// Subject is the Service key — `address:port/transport`, e.g.
-	// `198.51.100.1:443/tcp`. It is what every census member drills to.
 	Subject string
 
 	// OnSensitiveList reports whether this Service's `(port, transport)` is on
@@ -67,8 +65,6 @@ type ServiceRule interface {
 	Eval(f ServiceFacts) Outcome
 }
 
-// AllServiceRules returns the shipped Service rules in a stable order — the order
-// they render on the Signals page and the golden gate walks them.
 func AllServiceRules() []ServiceRule {
 	return []ServiceRule{
 		tls10Accepted{},
@@ -113,8 +109,6 @@ type tls10Accepted struct{}
 
 func (tls10Accepted) Name() string { return "tls-1.0-accepted" }
 
-// Severity: medium — accepting TLS 1.0 is a deprecated-protocol weakness that
-// downgrades confidentiality without being an open door on its own.
 func (tls10Accepted) Severity() Severity { return SevMedium }
 func (tls10Accepted) Version() Version {
 	// Reads the `tls-acceptance` facet by NAME, not by importing #199's leaf
@@ -153,8 +147,6 @@ func (sensitivePortReachedFromInternet) Name() string {
 	return "sensitive-port-reached-from-internet"
 }
 
-// Severity: critical — a sensitive service (VNC, database, admin transport)
-// reachable from the internet is a live, directly-exploitable exposure.
 func (sensitivePortReachedFromInternet) Severity() Severity { return SevCritical }
 func (sensitivePortReachedFromInternet) Version() Version {
 	// Reads `Reach` (the connect-outcome leaf) and joins the release-coupled

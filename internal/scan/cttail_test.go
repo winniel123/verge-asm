@@ -8,8 +8,6 @@ import (
 	"time"
 )
 
-// readFixture loads one base64 fixture (a real leaf_input / extra_data captured from a
-// live CT log) and decodes it to the raw bytes LeafSANs reads.
 func readFixture(t *testing.T, name string) []byte {
 	t.Helper()
 	b, err := os.ReadFile("testdata/" + name)
@@ -158,8 +156,6 @@ func TestTailCoversNow(t *testing.T) {
 	}
 }
 
-// TestAdmitCTNames covers the admission decision: scope filter, wildcard refusal, dedup,
-// and most-specific-seed attribution.
 func TestAdmitCTNames(t *testing.T) {
 	seeds := []CTSeed{
 		{SeedID: 1, Domain: "example.com"},
@@ -193,8 +189,6 @@ func TestAdmitCTNames(t *testing.T) {
 	}
 }
 
-// TestAdmitCTNamesEmptySeeds confirms that with no declared scope nothing is admitted —
-// the tail reads the whole firehose and keeps only what a Seed covers.
 func TestAdmitCTNamesEmptySeeds(t *testing.T) {
 	got := AdmitCTNames([]string{"www.example.com"}, nil)
 	if len(got) != 0 {
@@ -202,7 +196,6 @@ func TestAdmitCTNamesEmptySeeds(t *testing.T) {
 	}
 }
 
-// TestCTTailScopeRoundTrip confirms a job's wire scope decodes back to the log it names.
 func TestCTTailScopeRoundTrip(t *testing.T) {
 	j := CTTailJob{ScanID: 7, Log: CTLog{LogID: "abc=", URL: "https://ct.example/log/", Description: "Example log"}}
 	spec, err := j.JobSpec("scan:7:log:abc=")
@@ -282,9 +275,6 @@ func TestSelectTailLogsIncludesTiled(t *testing.T) {
 	}
 }
 
-// TestParseCheckpoint decodes the measured Sycamore2026h2 checkpoint shape (origin line,
-// tree size, root hash, blank line, then GREASE and real signature lines) and confirms
-// the tree size is read from line 2 and the whole body is kept as the signed head.
 func TestParseCheckpoint(t *testing.T) {
 	body := []byte("log.sycamore.ct.letsencrypt.org/2026h2\n703324553\nP35OHsKE8gGlY8ueR0uljRJqDXAqFJYCA97Y/2jF8as=\n\n— grease.invalid AAAA\n— sycamore BBBB\n")
 	sth, err := ParseCheckpoint(body)
@@ -391,7 +381,6 @@ func TestParseDataTile(t *testing.T) {
 // TestParseDataTileMalformed confirms a tile whose last leaf is truncated is an error —
 // never a short, silent read that would drop the tail of a tile (ADR-0027 §7).
 func TestParseDataTileMalformed(t *testing.T) {
-	// A leaf header claiming an x509 ASN.1Cert far longer than the buffer holds.
 	var bad []byte
 	bad = append(bad, make([]byte, 8)...)
 	bad = append(bad, 0x00, 0x00)

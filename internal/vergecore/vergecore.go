@@ -30,28 +30,20 @@ const (
 	UDP Transport = "udp"
 )
 
-// Half names which side of the union a pair sits on. A pair may sit on both —
-// the union deduplicates — which is exactly the case that makes an operator's
-// removal of a frequency port a no-op where the same pair is also sensitive.
 type Half string
 
 const (
-	// Frequency is the project's own open-frequency selection. Operator-editable
-	// (TCP only), via the UI.
 	Frequency Half = "frequency"
 	// Sensitive is the curated never-legitimately-internet-facing list. Authored
 	// by the release and never operator-editable (§3.5).
 	Sensitive Half = "sensitive"
 )
 
-// Pair is one `(port, transport)` of the set. It is the smallest thing the hot
-// Scan turns into a `Service` subject, one per `(Address, port, transport)`.
 type Pair struct {
 	Port      uint16    `json:"port"`
 	Transport Transport `json:"transport"`
 }
 
-// String renders a pair as `port/transport`, e.g. `443/tcp`.
 func (p Pair) String() string { return strconv.Itoa(int(p.Port)) + "/" + string(p.Transport) }
 
 // less orders pairs by port then transport, so every enumeration this package
@@ -63,8 +55,6 @@ func (p Pair) less(o Pair) bool {
 	return p.Transport < o.Transport
 }
 
-// List is a parsed `verge-core`: the two halves as sets. It is immutable once
-// built; an operator edit produces a new List via WithFrequencyEdits.
 type List struct {
 	frequency map[Pair]struct{}
 	sensitive map[Pair]struct{}
@@ -78,7 +68,6 @@ var shipped string
 // shipping a half-read set.
 var shippedList = mustParse(shipped)
 
-// Default returns the shipped `verge-core` with no operator edits applied.
 func Default() List { return shippedList.clone() }
 
 // Parse reads a `verge-core.tsv` body into a List. Lines are
@@ -143,15 +132,11 @@ func (l List) IsSensitive(p Pair) bool {
 	return ok
 }
 
-// IsFrequency reports whether a pair is on the frequency half.
 func (l List) IsFrequency(p Pair) bool {
 	_, ok := l.frequency[p]
 	return ok
 }
 
-// Union is the whole set, `frequency ∪ sensitive`, deduplicated and sorted. It
-// is the recorded scope of the hot Scan — every pair a `Service` subject exists
-// for, open or closed.
 func (l List) Union() []Pair {
 	seen := map[Pair]struct{}{}
 	for p := range l.frequency {
@@ -188,15 +173,10 @@ func (l List) UDPRecorded() []Pair {
 	return sortedPairs(out)
 }
 
-// FrequencyPairs is the frequency half, sorted — the only half the UI lists as
-// editable.
 func (l List) FrequencyPairs() []Pair { return sortedSet(l.frequency) }
 
-// SensitivePairs is the sensitive half, sorted — listed read-only.
 func (l List) SensitivePairs() []Pair { return sortedSet(l.sensitive) }
 
-// Counts is the composed shape of the set, the numbers the aperture statement
-// and the tests read.
 type Counts struct {
 	Frequency int // pairs on the frequency half
 	Sensitive int // pairs on the sensitive half
@@ -205,7 +185,6 @@ type Counts struct {
 	UDP       int // distinct UDP pairs (recorded, never probed)
 }
 
-// Count returns the composed shape of the list.
 func (l List) Count() Counts {
 	u := l.Union()
 	tcp, udp := 0, 0
@@ -225,15 +204,11 @@ func (l List) Count() Counts {
 	}
 }
 
-// FrequencyEdit is one operator edit to the frequency half. Action is `add` or
-// `remove`; the pair is always TCP (the frequency half is TCP-only). A caller
-// reads these from wherever the operator's edits are stored and applies them.
 type FrequencyEdit struct {
 	Port   uint16
 	Action string // "add" | "remove"
 }
 
-// Edit action strings.
 const (
 	ActionAdd    = "add"
 	ActionRemove = "remove"

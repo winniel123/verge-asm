@@ -6,7 +6,6 @@ import (
 	"testing"
 )
 
-// newTestKey returns a valid 32-byte key for the seal/open tests.
 func newTestKey(t *testing.T) []byte {
 	t.Helper()
 	key := make([]byte, keyLen)

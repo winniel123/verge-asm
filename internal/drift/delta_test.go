@@ -5,8 +5,6 @@ import (
 	"time"
 )
 
-// spanAt is a terse constructor for a span on one (kind, subject) over [open, close);
-// a zero close leaves it open (the current value of its timeline).
 func spanAt(kind, subject string, open, close time.Time) Span {
 	s := Span{
 		Key:      TimelineKey{SubjectKind: kind, SubjectKey: subject, Facet: "resolution"},

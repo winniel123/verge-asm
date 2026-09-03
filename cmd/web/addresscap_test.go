@@ -143,9 +143,6 @@ func TestEffectiveCadenceMatchesADR0047(t *testing.T) {
 	}
 }
 
-// TestAddressCapControlPricesTheCost covers the Variant C readout on the Scans tab: the
-// largest scope the cap admits, the per-cadence sweep load on each enabled address-scope
-// scan, and the projected evidential disk growth.
 func TestAddressCapControlPricesTheCost(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")

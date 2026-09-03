@@ -8,13 +8,8 @@ import "time"
 type Entry string
 
 const (
-	// EntryAppeared is discovery — the world moved. Drift class.
 	EntryAppeared Entry = "appeared"
-	// EntryReturned is a decommission undone — the world moved. Drift class.
 	EntryReturned Entry = "returned"
-	// EntryRevealed is a widened aperture — we started looking, the world did not
-	// move. Coverage class. A first run is one coverage-class membership message
-	// with no special case.
 	EntryRevealed Entry = "revealed"
 )
 

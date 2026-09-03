@@ -28,9 +28,6 @@ type Keypair struct {
 	PublicKey  string
 }
 
-// Generate creates an ed25519 SSH keypair. ed25519 is fixed-size and needs no
-// key-size parameter, which keeps a prober's key material small and the
-// provisioning act free of a knob the operator has no basis to set.
 func Generate() (Keypair, error) {
 	pub, priv, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -66,8 +63,6 @@ func PublicKeyFromPrivatePEM(privatePEM []byte) (string, error) {
 	return AuthorizedKey(signer.PublicKey()), nil
 }
 
-// AuthorizedKey renders a public key as a single authorized_keys line with no
-// trailing newline, the form stored in the database and rendered on web.
 func AuthorizedKey(key ssh.PublicKey) string {
 	return strings.TrimSpace(string(ssh.MarshalAuthorizedKey(key)))
 }

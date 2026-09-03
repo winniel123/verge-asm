@@ -52,7 +52,6 @@ func parseTrustedProxies(spec string) (trustedProxies, error) {
 	return tp, nil
 }
 
-// trusts reports whether addr falls inside any configured trusted-proxy range.
 func (tp trustedProxies) trusts(addr netip.Addr) bool {
 	addr = addr.Unmap()
 	for _, n := range tp.nets {
@@ -86,8 +85,6 @@ func (s *server) clientIP(r *http.Request) string {
 	if perr != nil || len(s.trustedProxies.nets) == 0 || !s.trustedProxies.trusts(peer) {
 		return host
 	}
-	// Flatten every X-Forwarded-For header (there may be more than one) into a
-	// single left-to-right list of hops.
 	var entries []string
 	for _, v := range r.Header.Values("X-Forwarded-For") {
 		for _, part := range strings.Split(v, ",") {

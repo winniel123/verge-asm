@@ -9,7 +9,6 @@ package auth
 
 import "golang.org/x/crypto/bcrypt"
 
-// HashPassword returns a bcrypt hash of pw at the default cost.
 func HashPassword(pw string) (string, error) {
 	h, err := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
 	if err != nil {

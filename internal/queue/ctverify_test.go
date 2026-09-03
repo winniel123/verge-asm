@@ -48,8 +48,6 @@ func testWorker(f CTFetcher) *Worker {
 	return &Worker{log: log.New(io.Discard, "", 0), ctVerifyFetcher: f}
 }
 
-// serializeSCT builds a minimal SignedCertificateTimestamp for a log id, timestamp, and
-// extensions — enough for ParseSCT and the leaf-hash computation (the signature is filler).
 func serializeSCT(logID [32]byte, ts uint64, ext []byte) []byte {
 	var b cryptobyte.Builder
 	b.AddUint8(0)
@@ -62,8 +60,6 @@ func serializeSCT(logID [32]byte, ts uint64, ext []byte) []byte {
 	return b.BytesOrPanic()
 }
 
-// leafIndexExtension builds a static-ct-api leaf_index CtExtensions block (type 0, 5-byte
-// big-endian index) for a tiled SCT.
 func leafIndexExtension(idx int64) []byte {
 	var b cryptobyte.Builder
 	b.AddUint8(0)
@@ -103,8 +99,6 @@ func selfSignedLeaf(t *testing.T) (der []byte, spki []byte) {
 	return der, cert.RawSubjectPublicKeyInfo
 }
 
-// firstLog returns the first log in the embedded list matching the tiled discriminator, and its
-// 32-byte raw log id. It skips the test when the embedded list carries none of that kind.
 func firstLog(t *testing.T, tiled bool) (scan.CTLog, [32]byte) {
 	t.Helper()
 	logs, err := scan.AllLogs()
@@ -230,8 +224,6 @@ func TestVerifyMaterialEmbeddedPrecertLogged(t *testing.T) {
 	ts := uint64(1700000000000)
 	sct := serializeSCT(logID, ts, nil)
 
-	// A leaf carrying an embedded SCT-list extension: verifyMaterial takes the precert branch
-	// and needs the issuer key to compute the leaf hash.
 	var list cryptobyte.Builder
 	list.AddUint16LengthPrefixed(func(outer *cryptobyte.Builder) {
 		outer.AddUint16LengthPrefixed(func(one *cryptobyte.Builder) { one.AddBytes(sct) })

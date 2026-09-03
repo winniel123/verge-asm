@@ -103,8 +103,6 @@ func apiInstant(ts pgtype.Timestamptz) string {
 	return ts.Time.UTC().Format(time.RFC3339)
 }
 
-// --- inventory --------------------------------------------------------------
-
 type apiInventoryResponse struct {
 	Groups []apiInventoryGroup `json:"groups"`
 }
@@ -155,8 +153,6 @@ func (s *server) apiInventory(w http.ResponseWriter, r *http.Request, _ db.Accou
 	}
 	writeAPIJSON(w, out)
 }
-
-// --- subjects ---------------------------------------------------------------
 
 type apiSubjectsResponse struct {
 	Names     []apiSubject `json:"names"`
@@ -219,8 +215,6 @@ func (s *server) apiSubjects(w http.ResponseWriter, r *http.Request, _ db.Accoun
 	writeAPIJSON(w, out)
 }
 
-// --- drift ------------------------------------------------------------------
-
 type apiDriftResponse struct {
 	Period          string          `json:"period"`
 	TransitionCount int             `json:"transition_count"`
@@ -277,8 +271,6 @@ func (s *server) apiDrift(w http.ResponseWriter, r *http.Request, _ db.Account) 
 	writeAPIJSON(w, out)
 }
 
-// --- signals ----------------------------------------------------------------
-
 type apiSignalsResponse struct {
 	Open      []apiSignal `json:"open"`
 	Annotated []apiSignal `json:"annotated"`
@@ -326,8 +318,6 @@ func projectSignals(rows []signalRow) []apiSignal {
 	}
 	return out
 }
-
-// --- coverage ---------------------------------------------------------------
 
 type apiCoverageResponse struct {
 	Meters []apiCoverageMeter `json:"meters"`

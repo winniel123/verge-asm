@@ -13,23 +13,18 @@ import (
 // new key (v1 spec §4.2).
 var ErrHostKeyMismatch = errors.New("vantage: host key mismatch — refusing to re-trust")
 
-// HostKeyResult is the trust-on-first-use decision for a presented host key.
 type HostKeyResult int
 
 const (
 	// HostKeyFirstUse means no key is pinned yet, so the presented key is
 	// pinned on this first successful connection.
 	HostKeyFirstUse HostKeyResult = iota
-	// HostKeyMatch means the presented key equals the pinned key — trusted.
 	HostKeyMatch
 	// HostKeyMismatch means the presented key differs from the pinned key —
 	// a hard failure, never a silent re-trust.
 	HostKeyMismatch
 )
 
-// EncodeHostKey renders a host key as its known_hosts key field (type plus
-// base64 body, no host prefix and no newline), the form pinned in the database
-// and compared byte-for-byte on later connects.
 func EncodeHostKey(key ssh.PublicKey) string {
 	return AuthorizedKey(key)
 }

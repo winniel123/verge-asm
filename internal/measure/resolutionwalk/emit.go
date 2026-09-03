@@ -13,7 +13,6 @@ const (
 	FacetDNSRecord  = "dns-record"
 )
 
-// resolutionValue is the JSON payload of a resolution observation.
 type resolutionValue struct {
 	Outcome   Outcome  `json:"outcome"`
 	Addresses []string `json:"addresses,omitempty"`

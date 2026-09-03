@@ -19,9 +19,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/drift"
 )
 
-// reportsClock is the fixed server instant the render tests read against
-// (2026-08-15 12:00, matching fixedClock). A Dispatch dated inside the twelve-week
-// window before it lands in the scans-per-day heatmap.
 var reportsClock = time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
 
 // The Reports screen is behind requireLogin — an anonymous GET is bounced to the
@@ -64,13 +61,12 @@ func TestReportsRendersActivityAndComposition(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 	page := getBody(t, ac, base+"/reports", http.StatusOK)
 
-	// The nav pill and the heading.
 	if !strings.Contains(page, `class="sh-pill on" href="/reports"`) {
 		t.Errorf("reports nav pill not marked active; body: %s", page)
 	}
 	for _, want := range []string{
 		"Open signals", "New assets discovered", "Mean time to withdrawal", // KPI band — the three trend cards
-		"Open signals over time",                // time-series card title
+		"Open signals over time",                  // time-series card title
 		"Scans per day", "Scans per day, Last 7d", // heatmap card + grid aria-label (period-labelled, #23b)
 		"Recurring reports", "New schedule", // recurring card + the schedule wizard control
 	} {
@@ -118,10 +114,10 @@ func TestReportsRendersNewAssetsDiscovered(t *testing.T) {
 	page := getBody(t, ac, base+"/reports", http.StatusOK)
 
 	for _, want := range []string{
-		"New assets discovered",                       // card title (not the interim "Assets watched")
-		"1 names",                                     // the name half of the split caption
-		"1 services",                                  // the service half
-		"border-bottom:1px solid var(--chart-grid)",   // the daily-discovery BarChart baseline
+		"New assets discovered", // card title (not the interim "Assets watched")
+		"1 names",               // the name half of the split caption
+		"1 services",            // the service half
+		"border-bottom:1px solid var(--chart-grid)", // the daily-discovery BarChart baseline
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("discovery card missing %q; body: %s", want, page)
@@ -152,10 +148,10 @@ func TestReportsEmptyStates(t *testing.T) {
 	page := getBody(t, ac, base+"/reports", http.StatusOK)
 
 	for _, want := range []string{
-		"No signal history",    // time-series region — no raises yet
-		"No signals firing",    // by-severity region — nothing firing
+		"No signal history",       // time-series region — no raises yet
+		"No signals firing",       // by-severity region — nothing firing
 		"No scans in the Last 7d", // heatmap empty-state (period-labelled, #23b)
-		"No recurring reports", // recurring table empty-state
+		"No recurring reports",    // recurring table empty-state
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("reports empty-state missing %q; body: %s", want, page)
@@ -320,7 +316,7 @@ func TestReportScheduleRowMenu(t *testing.T) {
 		"Account": db.Account{},
 		// The URL this render was made at, as injectChrome stamps it. A window is on it,
 		// because a window is what the row acts must not lose (ADR-0130 §3).
-		"BackURL":   "/reports?period=30d",
+		"BackURL": "/reports?period=30d",
 		"Schedules": []reportScheduleRow{
 			{ID: 7, Name: "Weekly exposure summary", Cadence: "weekly · mon 09:00", Format: "pdf", LastSent: "3d", HasDelivery: true, DeliveryHref: "/reports/delivery"},
 			{ID: 8, Name: "Monthly asset inventory", Cadence: "monthly · 1st", Format: "csv", LastSent: "—", HasDelivery: false},
@@ -345,13 +341,13 @@ func TestReportScheduleRowMenu(t *testing.T) {
 
 	// The four live actions are wired per row, each carrying the schedule id.
 	for _, want := range []string{
-		`action="/reports/schedule/run"`,     // Run now POST form
-		`action="/reports/schedule/delete"`,  // Delete POST form
+		`action="/reports/schedule/run"`,    // Run now POST form
+		`action="/reports/schedule/delete"`, // Delete POST form
 		// The Edit link carries the id AND the submitting URL, so the wizard can 303 the
 		// operator back to the list they opened it from when they finish (ADR-0130 §3).
 		`href="/reports/schedule/7/edit?return=`,
 		`href="/reports/schedule/8/edit?return=`,
-		`<input type="hidden" name="id" value="7">`, // the id rides the row-menu forms
+		`<input type="hidden" name="id" value="7">`,                       // the id rides the row-menu forms
 		`<input type="hidden" name="return" value="/reports?period=30d">`, // and so does that URL, window included
 		"Run now", "Edit schedule", "Delete schedule",
 	} {
@@ -504,7 +500,6 @@ func TestReportScheduleDelete(t *testing.T) {
 		t.Fatalf("viewer's denied delete removed the row: %d left", len(f.reportSchedules))
 	}
 
-	// The admin deletes it.
 	ac := login(t, base, "admin", "hunter2hunter2")
 	resp := postForm(t, ac, base+"/reports/schedule/delete", url.Values{"id": {strconv.FormatInt(sched.ID, 10)}})
 	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/reports" {
@@ -746,9 +741,9 @@ func TestReportScheduleWizardLive(t *testing.T) {
 		t.Errorf("wizard should post to the live create route; body: %s", wiz)
 	}
 	for _, want := range []string{
-		`name="name"`,                   // the Report name input
-		`name="sections" value="kpis"`,  // a section checkbox
-		"Scope", "Cadence", "Review",    // the three step titles
+		`name="name"`,                  // the Report name input
+		`name="sections" value="kpis"`, // a section checkbox
+		"Scope", "Cadence", "Review",   // the three step titles
 	} {
 		if !strings.Contains(wiz, want) {
 			t.Errorf("wizard Scope step missing %q; body: %s", want, wiz)
@@ -781,8 +776,8 @@ func TestReportScheduleWizardRefusesViewer(t *testing.T) {
 func TestFoldScanActivity(t *testing.T) {
 	s := &server{now: func() time.Time { return reportsClock }}
 	rows := []db.ListDispatchProgressRow{
-		progressRow(1, "hot", reportsClock, 2, 0, 1, 1, 0, 0),                 // today, in flight
-		progressRow(2, "dns", reportsClock.AddDate(0, 0, -1), 2, 0, 0, 2, 0, 0), // yesterday, complete
+		progressRow(1, "hot", reportsClock, 2, 0, 1, 1, 0, 0),                     // today, in flight
+		progressRow(2, "dns", reportsClock.AddDate(0, 0, -1), 2, 0, 0, 2, 0, 0),   // yesterday, complete
 		progressRow(3, "dns", reportsClock.AddDate(0, 0, -200), 1, 0, 0, 1, 0, 0), // out of window
 	}
 	// An undated row still contributes to the in-flight count but not the grid.
@@ -858,20 +853,20 @@ func TestReportsTimeSeriesGridStrokes(t *testing.T) {
 // or unrecognised, and resolving a valid custom pair to a stable token + span.
 func TestResolveReportsWindow(t *testing.T) {
 	cases := []struct {
-		query      string
-		wantToken  string
-		wantLabel  string
-		wantWeeks  int
+		query     string
+		wantToken string
+		wantLabel string
+		wantWeeks int
 	}{
-		{"", "7d", "Last 7d", reportsHeatWeeks},                 // absent -> default preset
-		{"period=24h", "24h", "Last 24h", 4},                    // preset
-		{"period=30d", "30d", "Last 30d", 26},                   // preset
-		{"period=90d", "90d", "Last 90d", 52},                   // preset
-		{"period=7d", "7d", "Last 7d", reportsHeatWeeks},        // the default, explicitly
-		{"period=nope", "7d", "Last 7d", reportsHeatWeeks},      // unrecognised -> default
-		{"start=2026-08-01&end=2026-08-14", "custom_2026-08-01_2026-08-14", "2026-08-01 – 2026-08-14", 2}, // custom pair
+		{"", "7d", "Last 7d", reportsHeatWeeks},                                                               // absent -> default preset
+		{"period=24h", "24h", "Last 24h", 4},                                                                  // preset
+		{"period=30d", "30d", "Last 30d", 26},                                                                 // preset
+		{"period=90d", "90d", "Last 90d", 52},                                                                 // preset
+		{"period=7d", "7d", "Last 7d", reportsHeatWeeks},                                                      // the default, explicitly
+		{"period=nope", "7d", "Last 7d", reportsHeatWeeks},                                                    // unrecognised -> default
+		{"start=2026-08-01&end=2026-08-14", "custom_2026-08-01_2026-08-14", "2026-08-01 – 2026-08-14", 2},     // custom pair
 		{"period=custom_2026-08-01_2026-08-07", "custom_2026-08-01_2026-08-07", "2026-08-01 – 2026-08-07", 1}, // custom token from an export link
-		{"start=bogus&end=2026-08-14", "7d", "Last 7d", reportsHeatWeeks}, // malformed custom -> preset fallback
+		{"start=bogus&end=2026-08-14", "7d", "Last 7d", reportsHeatWeeks},                                     // malformed custom -> preset fallback
 	}
 	for _, c := range cases {
 		r := httptest.NewRequest(http.MethodGet, "/reports?"+c.query, nil)
@@ -1226,7 +1221,7 @@ func TestReportsBarChartCapsAtThirtyOneBars(t *testing.T) {
 		wantBars int
 		wantAgg  bool // did we fold below one-bar-per-day?
 	}{
-		{"24h preset — 28 days, daily", 4, 28, false},   // ≤31: per-day bars kept
+		{"24h preset — 28 days, daily", 4, 28, false},    // ≤31: per-day bars kept
 		{"7d default — 84 days → weekly", 12, 12, true},  // the ss3 case: 84 → 12
 		{"30d preset — 182 days → weekly", 26, 26, true}, // 182 → 26 weekly bars
 		{"90d preset — 364 days → 2-week", 52, 26, true}, // 52 weeks > 31 → 14-day buckets

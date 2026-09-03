@@ -21,12 +21,8 @@ func provision(t *testing.T, c *http.Client, base, host, port, username string) 
 	})
 }
 
-// vantagesTab is the section's own URL, and the fallback destination of a provision
-// submitted with no `return` field.
 const vantagesTab = "/settings?tab=vantages"
 
-// vantagesBody reads the Settings → Vantages tab, where prober provisioning + the
-// prober listing now live.
 func vantagesBody(t *testing.T, c *http.Client, base string) string {
 	t.Helper()
 	return getBody(t, c, base+vantagesTab, http.StatusOK)
@@ -88,7 +84,6 @@ func TestProvisionRejectsRootAndBadPort(t *testing.T) {
 		t.Errorf("rejected host not retained; body: %s", got)
 	}
 
-	// Out-of-range port is refused.
 	if loc := submitLoc(t, provision(t, ac, base, "host", "70000", "scanner")); loc != vantagesTab {
 		t.Fatalf("refused port landed at %q, want %q", loc, vantagesTab)
 	}
@@ -119,9 +114,6 @@ func TestProvisionDuplicateRejected(t *testing.T) {
 	}
 }
 
-// TestPublicKeyShownAndPrivateNeverIs asserts the whole exposure rule: once the
-// worker has published a public key, web renders it (status "set" plus the key),
-// and no private key material is ever present on the page.
 func TestPublicKeyShownAndPrivateNeverIs(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")

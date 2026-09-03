@@ -114,10 +114,6 @@ func normAddr(s string) string {
 	return strings.TrimSpace(s)
 }
 
-// admits reports whether observation o names a subject this scope authorised. It
-// gates only the dimension the observation's facet lives on, and only when that
-// dimension is denoted (non-nil map); every other facet, and every undenoted
-// dimension, is admitted unchanged.
 func (a authorizedScope) admits(o wire.Observation) bool {
 	switch o.Facet {
 	case resolutionwalk.FacetResolution, resolutionwalk.FacetDNSRecord:

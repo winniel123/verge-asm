@@ -45,22 +45,16 @@ const (
 	// NoSynthesis: no control label carried this RR — a determinate reading that
 	// there is no wildcard synthesising this component, not an absent one.
 	NoSynthesis Signature = "NoSynthesis"
-	// Determinate: every control label carried the same RRset for this component.
 	Determinate Signature = "Determinate"
 	// Indeterminate: the control labels disagreed. Never consulted — it can
 	// neither shadow a Name nor exempt one.
 	Indeterminate Signature = "Indeterminate"
 )
 
-// Verdict is the leaf's decision for one Name.
 type Verdict string
 
 const (
-	// VerdictShadowed: the answer was not discriminated from the parent's
-	// synthesis. Cites no Address.
-	VerdictShadowed Verdict = "Shadowed"
-	// VerdictNotShadowed: the Name differs at some determinate component, or the
-	// probe found no wildcard at all. The resolution-walk value stands.
+	VerdictShadowed    Verdict = "Shadowed"
 	VerdictNotShadowed Verdict = "NotShadowed"
 	// VerdictGap: the control probe under the Name's parent did not complete. An
 	// undiscriminated answer is never a value (ADR-0066).
@@ -83,11 +77,7 @@ type component struct {
 	RRSet []string // canonical, sorted RDATA; set only when Sig == Determinate
 }
 
-// controlAnswers holds one control probe's answers: per label, per asked qtype,
-// the answer RRs, plus whether every query was reached. Reached is the
-// completed/incomplete discriminator — a probe nothing answered records a Gap.
 type controlAnswers struct {
-	// perLabel[i][qtype] is label i's answer to that qtype.
 	perLabel []map[rw.Qtype][]rw.RR
 	reached  bool // at least one control query was reached
 }
@@ -133,9 +123,6 @@ func (ca controlAnswers) wildcardMeasured() bool {
 	return false
 }
 
-// signatureOf reads the closed union of three from one component's per-label
-// RDATA sets: all-empty is NoSynthesis, all-equal-and-non-empty is Determinate,
-// and anything else — including some empty and some not — is Indeterminate.
 func signatureOf(sets [][]string) component {
 	anyNonEmpty := false
 	for _, s := range sets {
@@ -160,9 +147,6 @@ func signatureOf(sets [][]string) component {
 	return component{Sig: Determinate, RRSet: first}
 }
 
-// Discriminate decides a Name's verdict from its own per-component RDATA sets and
-// the control probe's answers. It errs toward Shadowed by construction: an
-// unmeasurable (Indeterminate) component is refused the power to exempt.
 func Discriminate(candidate map[compKey][]string, ctrl controlAnswers) Verdict {
 	if !ctrl.reached {
 		// The probe under the parent did not complete: a Gap, never a value.
@@ -241,8 +225,6 @@ func candidateComponents(rec []rw.Record) map[compKey][]string {
 	return out
 }
 
-// rdataSet returns the canonical, sorted RDATA of the answered-type RRs inside a
-// single qtype's answer.
 func rdataSet(rrs []rw.RR, answered rw.Qtype) []string {
 	filtered := make([]rw.RR, 0, len(rrs))
 	for _, rr := range rrs {

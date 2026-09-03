@@ -90,10 +90,6 @@ type store interface {
 	// it disarms an account's second factor so the next sign-in re-enrols it.
 	CreateInvite(ctx context.Context, arg db.CreateInviteParams) (db.Invite, error)
 	ResetAccountTOTP(ctx context.Context, id int64) error
-	// DeleteAccount removes a member (Settings -> Team). It is gated behind a typed-
-	// name confirmation and the not-self / last-admin guards; an account that authored
-	// attributed acts (a NOT NULL created_by reference) is refused by the FK rather
-	// than orphaning its work.
 	DeleteAccount(ctx context.Context, id int64) error
 	CreateNameSeed(ctx context.Context, arg db.CreateNameSeedParams) (db.Seed, error)
 	CreateAddressSeed(ctx context.Context, arg db.CreateAddressSeedParams) (db.Seed, error)
@@ -149,9 +145,6 @@ type store interface {
 	// select writes it, the Send-test act reads it to resolve where a test goes.
 	GetIntegrationChannel(ctx context.Context, slug string) (pgtype.Int8, error)
 	SetIntegrationChannel(ctx context.Context, arg db.SetIntegrationChannelParams) error
-	// GetChannelForDelivery reads a Channel's target URL and signing secret — the ONE
-	// read path that returns the secret. The Send-test act needs it to sign the test
-	// payload it POSTs through the bound Channel's transport (delivery.SendSigned).
 	GetChannelForDelivery(ctx context.Context, id int64) (db.GetChannelForDeliveryRow, error)
 	CreateVantage(ctx context.Context, arg db.CreateVantageParams) (db.Vantage, error)
 	ListVantages(ctx context.Context) ([]db.ListVantagesRow, error)
@@ -509,9 +502,6 @@ type server struct {
 	// on the read-only pages, which never reach the trigger handler.
 	dispatcher scanTrigger
 
-	// secureCookies forces the Secure attribute on auth cookies even when the
-	// request did not itself arrive over TLS — set it when web is fronted by a
-	// TLS-terminating proxy (VERGE_SECURE_COOKIES).
 	secureCookies bool
 	// trustedProxies is the set of front proxy addresses whose X-Forwarded-For web
 	// trusts when deriving the login rate-limit client IP (#738, VERGE_TRUSTED_PROXIES).

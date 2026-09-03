@@ -21,8 +21,6 @@ import (
 // (a reference, not a fold), and a "Send test" that POSTs a real payload through the
 // bound Channel's transport. They run only when the surface is live (integrationsEnabled).
 
-// fakeChannelSender is the test double for the Send-test egress seam: it records the
-// call and returns a scripted status without ever touching the network.
 type fakeChannelSender struct {
 	calls      int
 	lastURL    string
@@ -58,8 +56,6 @@ func startWithChannelSender(t *testing.T, f *fakeStore, sender channelTestSender
 	return ts.URL
 }
 
-// addFakeChannel seeds one declared Channel directly (the channels tab's CreateChannel
-// path is exercised elsewhere; here we just need a target to bind and send through).
 func addFakeChannel(f *fakeStore, id int64, rawURL, secret string) {
 	c := fakeChannel{
 		id: id, url: rawURL, drift: true, coverage: true, clock: true, enabled: true,
@@ -100,7 +96,6 @@ func TestIntegrationsChannelBindPersistsAndShowsInDrawer(t *testing.T) {
 		}
 	}
 
-	// Bind channel 1.
 	resp := postForm(t, ac, base+"/settings/integrations/channel", url.Values{"id": {"slack"}, "channel": {"1"}})
 	loc := resp.Header.Get("Location")
 	resp.Body.Close()
@@ -231,7 +226,6 @@ func TestIntegrationsChannelUnbindAndUnknownRefused(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// Empty channel unbinds.
 	resp := postForm(t, ac, base+"/settings/integrations/channel", url.Values{"id": {"slack"}, "channel": {""}})
 	resp.Body.Close()
 	if st := f.integrationStates["slack"]; st.ChannelID.Valid {

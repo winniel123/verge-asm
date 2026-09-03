@@ -80,8 +80,6 @@ type ssoIdentity struct {
 // over the network; tests inject a fake so a login flow asserts its state/nonce/cookie
 // handling and identity binding without a live identity provider.
 type ssoFlow interface {
-	// AuthCodeURL returns the IdP authorization URL to redirect the user to, for the
-	// given config and the state/nonce/PKCE verifier the caller minted.
 	AuthCodeURL(ctx context.Context, cfg ssoConfig, state, nonce, pkceVerifier string) (string, error)
 	// Exchange completes the callback: it exchanges the code, verifies the returned
 	// id_token (signature, issuer, audience) and that its nonce matches, and returns the
@@ -102,12 +100,10 @@ type oidcFlow struct {
 	byIss map[string]*oidc.Provider
 }
 
-// newOIDCFlow builds the production flow with an initialised provider cache.
 func newOIDCFlow(client *http.Client) *oidcFlow {
 	return &oidcFlow{httpClient: client, byIss: map[string]*oidc.Provider{}}
 }
 
-// provider returns the cached provider for an issuer, discovering it once on first use.
 func (f *oidcFlow) provider(ctx context.Context, issuer string) (*oidc.Provider, error) {
 	f.mu.Lock()
 	prov, ok := f.byIss[issuer]
@@ -125,7 +121,6 @@ func (f *oidcFlow) provider(ctx context.Context, issuer string) (*oidc.Provider,
 	return prov, nil
 }
 
-// oauth2Config builds the oauth2 config for a provider over its discovered endpoints.
 func (f *oidcFlow) oauth2Config(cfg ssoConfig, prov *oidc.Provider) oauth2.Config {
 	return oauth2.Config{
 		ClientID:     cfg.ClientID,
@@ -228,8 +223,6 @@ func (s *server) ssoRedirectURL(r *http.Request, path string) string {
 	return scheme + "://" + r.Host + path
 }
 
-// ssoLoginCallbackPath and ssoLinkCallbackPath are the two callback routes the flow
-// returns to: an unauthenticated login match, and an authenticated Profile self-link.
 func ssoLoginCallbackPath(slug string) string { return "/login/sso/" + slug + "/callback" }
 func ssoLinkCallbackPath(slug string) string  { return "/profile/sso/" + slug + "/link/callback" }
 
@@ -381,11 +374,6 @@ func (s *server) ssoLinkStart(w http.ResponseWriter, r *http.Request, _ db.Accou
 	http.Redirect(w, r, authURL, http.StatusSeeOther)
 }
 
-// ssoLinkCallback completes a self-link. It verifies the (Link-flagged) transaction and
-// state, exchanges the code and verifies the id_token, then records
-// (provider, sub) → the caller's account. An identity already bound to this account is a
-// no-op; one bound to a different account is refused (the UNIQUE(provider, sub) makes the
-// binding exclusive). All outcomes return to the Profile with an honest message.
 func (s *server) ssoLinkCallback(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	slug := r.PathValue("slug")
 	tx, ok := s.readSSOTxCookie(r)
@@ -522,9 +510,6 @@ func (s *server) setSSOTxCookie(w http.ResponseWriter, r *http.Request, tx ssoTx
 	return true
 }
 
-// readSSOTxCookie verifies and decodes the transaction cookie, returning ok=false for
-// a missing, forged, malformed, or expired cookie (all indistinguishable to the
-// caller, exactly like the session path).
 func (s *server) readSSOTxCookie(r *http.Request) (ssoTx, bool) {
 	c, err := r.Cookie(ssoTxCookie)
 	if err != nil {
@@ -544,7 +529,6 @@ func (s *server) readSSOTxCookie(r *http.Request) (ssoTx, bool) {
 	return tx, true
 }
 
-// randToken returns a 256-bit URL-safe random token for the state and nonce values.
 func randToken() string {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {

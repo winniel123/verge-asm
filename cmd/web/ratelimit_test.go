@@ -35,7 +35,6 @@ func TestLimiterLocksAtThreshold(t *testing.T) {
 			t.Fatalf("key reported locked after %d failures, want unlocked", i+1)
 		}
 	}
-	// The threshold failure locks it.
 	if locked := l.fail(key); !locked {
 		t.Fatalf("fail #%d did not report a lock", l.maxFailures)
 	}
@@ -44,8 +43,6 @@ func TestLimiterLocksAtThreshold(t *testing.T) {
 	}
 }
 
-// TestLimiterResetOnSuccess covers the success path: a legitimate operator who
-// mistyped a few times, then authenticated, starts clean.
 func TestLimiterResetOnSuccess(t *testing.T) {
 	c := &steppableClock{t: time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)}
 	l := newTestLimiter(c)

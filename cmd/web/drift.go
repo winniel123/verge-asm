@@ -70,16 +70,11 @@ func driftFamily(change string) string {
 	}
 }
 
-// driftKind is one entry of the change vocabulary, shaped for the legend row: the
-// kind word and the drift family (chip class) it rides.
 type driftKind struct {
 	Change string
 	Family string
 }
 
-// driftKinds is the fixed change vocabulary in the example's order. It is the
-// language of drift, not a data read — the legend renders it whether or not any
-// transition has yet been folded.
 func driftKinds() []driftKind {
 	kinds := []string{"appeared", "revealed", "withdrawn", "descoped", "returned", "changed"}
 	out := make([]driftKind, 0, len(kinds))
@@ -89,17 +84,11 @@ func driftKinds() []driftKind {
 	return out
 }
 
-// driftDiffLine is one line of a transition's before/after diff — a removal (the
-// prior value, danger-red, a true minus), an addition (the new value, ok-green), or
-// an unchanged context line. Always mono.
 type driftDiffLine struct {
 	Type string // "add" | "remove" | "same"
 	Text string
 }
 
-// driftEvent is one transition in a batch: its change kind (carrying its drift
-// family), the subject it moved, a terse detail, a relative time, an optional
-// closure/aperture reason, and an optional before/after diff.
 type driftEvent struct {
 	Change  string
 	Family  string
@@ -124,9 +113,6 @@ type driftBatch struct {
 	Events    []driftEvent
 }
 
-// driftPeriod is one entry of the period selector: the ?period token, its badge
-// label, and the lookback window it maps to. `all` maps to a zero duration, read as
-// "since the beginning" (no lower bound).
 type driftPeriod struct {
 	Token  string
 	Label  string
@@ -147,8 +133,6 @@ func driftPeriods() []driftPeriod {
 	}
 }
 
-// driftDefaultPeriod is the preset selected when no ?period token is given — 7d, the
-// design's default (fixtures.json → drift.period).
 const driftDefaultPeriod = "7d"
 
 // resolveDriftPeriod maps the ?period query to a preset, defaulting to driftDefaultPeriod
@@ -174,7 +158,6 @@ func resolveDriftPeriod(token string) driftPeriod {
 // carries the same window and the file mirrors the screen.
 const driftCustomPrefix = "custom_"
 
-// parseCustomToken splits a "custom_<start>_<end>" period token back into its ISO bounds.
 func parseCustomToken(token string) (start, end string, ok bool) {
 	rest, found := strings.CutPrefix(token, driftCustomPrefix)
 	if !found {
@@ -248,11 +231,6 @@ func (s *server) driftSince(p driftPeriod) pgtype.Timestamptz {
 	return pgtype.Timestamptz{Time: s.now().UTC().Add(-p.Window), Valid: true}
 }
 
-// driftPage renders the Drift screen. It carries the change vocabulary (the legend),
-// the batch-grouped transitions for the selected period, and the per-kind movement
-// summary. The timeline falls to the empty-state when the feed is empty; the handler
-// fabricates no change events. A feed read error degrades to the empty-state rather
-// than 500ing the thesis screen.
 func (s *server) driftPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	// VERGE_DEV pixel-parity path (#563). The frozen drift.tmpl renders the batch-grouped
 	// transition timeline, the range picker, the movement tally and the diff affordance —

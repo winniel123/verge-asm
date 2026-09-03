@@ -8,7 +8,6 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-// testHostKey generates a throwaway ssh.PublicKey to stand in for a host key.
 func testHostKey(t *testing.T) ssh.PublicKey {
 	t.Helper()
 	kp, err := Generate()

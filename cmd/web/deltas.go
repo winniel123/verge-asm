@@ -37,15 +37,10 @@ import (
 // window-count locally so the two dedupe trivially at merge rather than conflict.
 const certExpiryWindow = 30 * 24 * time.Hour
 
-// pgtypeTimestamptz wraps a Go instant as the valid timestamptz the span/batch
-// reads take as their @since / @at bound.
 func pgtypeTimestamptz(t time.Time) pgtype.Timestamptz {
 	return pgtype.Timestamptz{Time: t, Valid: true}
 }
 
-// statDeltas carries every vs-last-batch delta a stat tile reads. Known is false
-// when no previous batch exists to compare against, in which case every Delta is
-// zero and the tiles render their no-delta state.
 type statDeltas struct {
 	AssetsWatched drift.Delta
 	Exposed       drift.Delta

@@ -58,9 +58,6 @@ func edgeDER(t *testing.T, fanOut int) []byte {
 	return der
 }
 
-// censusEstateFixture poses a custody-extended zone whose two in-zone names front two
-// separate edges, and puts the `edge-fanout` Scan in force. The measurements are the
-// caller's.
 func censusEstateFixture(t *testing.T, f *fakeStore) {
 	t.Helper()
 	f.scans = append(f.scans, db.Scan{ID: 99, Kind: scan.EdgeFanoutKind, Enabled: true, CadenceSeconds: 86400})
@@ -70,8 +67,6 @@ func censusEstateFixture(t *testing.T, f *fakeStore) {
 	}
 }
 
-// declareExtendedZone declares a name scope and turns its custody extension on, which
-// is what puts its names inside the extension's reach.
 func declareExtendedZone(t *testing.T, f *fakeStore, c *http.Client, base, domain string) {
 	t.Helper()
 	declare(t, c, base, "name", domain).Body.Close()

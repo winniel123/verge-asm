@@ -6,12 +6,8 @@ import (
 	"strings"
 )
 
-// DefaultPort is the SSH port assumed when the operator leaves the port blank.
 const DefaultPort = 22
 
-// Endpoint is a validated prober connection target: where the worker will dial
-// and as whom. It carries no key material — provisioning generates that
-// separately, on the worker volume.
 type Endpoint struct {
 	Host     string
 	Port     int

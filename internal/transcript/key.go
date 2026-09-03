@@ -23,8 +23,6 @@ import (
 // symmetric key seals on write and opens on read (spec §5.3).
 const keyFile = "transcript.key"
 
-// keyLen is the transcript key length in bytes: 256 bits, the XChaCha20-Poly1305
-// key size (chacha20poly1305.KeySize).
 const keyLen = 32
 
 // LoadOrCreateKey returns the instance transcript key held in dir, creating it on
@@ -82,8 +80,6 @@ func EnsureKey(dir string) error {
 	return nil
 }
 
-// validateKey rejects a key file whose length is not keyLen as corruption, rather
-// than using truncated key material.
 func validateKey(path string, key []byte) ([]byte, error) {
 	if len(key) != keyLen {
 		return nil, fmt.Errorf("transcript: key %s is %d bytes, want %d", path, len(key), keyLen)

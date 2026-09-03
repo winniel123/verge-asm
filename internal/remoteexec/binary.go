@@ -15,9 +15,6 @@ import (
 // instance carries a prober for every matrix architecture and pushes the matching one).
 var ErrNoBinary = errors.New("remoteexec: no prober binary for the remote platform")
 
-// BinaryProvider supplies the statically-linked prober binary matched to a remote
-// platform. Binary returns a fresh reader positioned at the start of the binary for
-// (goos, goarch), or ErrNoBinary if none matches.
 type BinaryProvider interface {
 	Binary(goos, goarch string) (io.ReadCloser, error)
 }

@@ -15,7 +15,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// DNSKind is the scan kind this package dispatches.
 const DNSKind = "dns"
 
 // Vantage is the position a dns job resolves from. The resolver is part of the
@@ -39,10 +38,6 @@ type Vantage struct {
 	Egress  string
 }
 
-// Job is one queue job the dns Scan produces: one Vantage, the full name-scope
-// set, and the offers on the wire. Batch partitioning is per Vantage — a
-// resolution's answer is a function of where it was asked from — while the
-// resolver stays enumerable over each Name it lists.
 type Job struct {
 	ScanID    int64
 	VantageID int64
@@ -78,9 +73,6 @@ func BuildDNSJobs(scanID int64, names []string, vantages []Vantage) []Job {
 	return jobs
 }
 
-// JobSpec renders a Job into the wire JobSpec the prober reads on stdin. batch
-// is a traceability token only; the durable Batch identity is the row the queue
-// writes at the job's terminal outcome.
 func (j Job) JobSpec(batch string) (wire.JobSpec, error) {
 	scope := resolutionwalk.Scope{
 		Vantage:  j.Vantage,
@@ -125,8 +117,6 @@ func (j Job) seedScopes() []string {
 	return j.Names
 }
 
-// WithSeeds returns a copy of the job carrying the name-scope Seeds that bound its
-// control-probe population, set by the dispatcher from the Seed rows.
 func (j Job) WithSeeds(seeds []string) Job {
 	j.seeds = seeds
 	return j
@@ -138,7 +128,6 @@ func EmptyScope(vantage string) ([]byte, error) {
 	return json.Marshal(scopeRecord{Vantage: vantage, Names: []string{}})
 }
 
-// OffersJSON is the offers recorded on the Batch by content.
 func (j Job) OffersJSON() ([]byte, error) { return json.Marshal(j.Offers) }
 
 type scopeRecord struct {
@@ -147,8 +136,6 @@ type scopeRecord struct {
 	ControlProbePopulation []string `json:"control_probe_population,omitempty"`
 }
 
-// resolverFor is where a job's resolver comes from. The Vantage row carries it;
-// this indirection is a seam for a later per-vantage override.
 func resolverFor(j Job) string {
 	// The resolver is carried on the Vantage and copied onto the job's spec by
 	// the dispatcher; jobs built without one fall back to the same default the

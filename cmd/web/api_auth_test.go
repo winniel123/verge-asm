@@ -10,8 +10,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
-// apiTokenPlaintext is a fixed vg_pat_ plaintext the middleware tests present; the fake
-// store holds only its SHA-256 digest (hashToken), exactly as a real mint does.
 const apiTokenPlaintext = "vg_pat_deadbeefdeadbeefdeadbeef"
 
 // runAPIBearer drives one request through the Bearer middleware against a fresh server
@@ -36,8 +34,6 @@ func runAPIBearer(t *testing.T, f *fakeStore, method, authz string) (*httptest.R
 	return rec, got
 }
 
-// seedAPIToken enables the API surface, seeds an account, and mints a token for it whose
-// stored hash matches apiTokenPlaintext. It returns the account and the token id.
 func seedAPIToken(t *testing.T, f *fakeStore, role string) (db.Account, int64) {
 	t.Helper()
 	f.instanceConfig = db.GetInstanceConfigRow{ApiEnabled: true}

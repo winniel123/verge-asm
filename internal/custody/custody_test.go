@@ -10,8 +10,6 @@ func cidr(s string) netip.Prefix {
 	return netip.MustParsePrefix(s).Masked()
 }
 
-// TestDeriveFromAddressScope: every address inside a declared address scope is
-// operator directly, from the declaration, family-matched.
 func TestDeriveFromAddressScope(t *testing.T) {
 	e := Estate{AddressScopes: []netip.Prefix{cidr("52.1.2.0/24"), cidr("2001:db8:1::/48")}}
 
@@ -55,10 +53,6 @@ func TestDeriveFromExtensionInZone(t *testing.T) {
 	}
 }
 
-// TestExtensionRequiresTheExtensionFlag: a name scope without the custody
-// extension confers nothing — its resolved addresses stay third-party. The
-// extension is off by default and is the only thing that opens the name-scope
-// route.
 func TestExtensionRequiresTheExtensionFlag(t *testing.T) {
 	e := Estate{
 		// example.com is a declared name scope but NOT in ExtendedZones.
@@ -96,9 +90,9 @@ func TestLabelSuffixIsNotStringSuffix(t *testing.T) {
 	e := Estate{
 		ExtendedZones: []string{"example.com"},
 		Resolutions: []Resolution{
-			{Owner: "example.com", Address: addr("52.0.0.1")},           // apex — covered
-			{Owner: "deep.sub.example.com", Address: addr("52.0.0.2")},  // subtree — covered
-			{Owner: "evilexample.com", Address: addr("52.0.0.3")},       // string suffix, not label suffix
+			{Owner: "example.com", Address: addr("52.0.0.1")},              // apex — covered
+			{Owner: "deep.sub.example.com", Address: addr("52.0.0.2")},     // subtree — covered
+			{Owner: "evilexample.com", Address: addr("52.0.0.3")},          // string suffix, not label suffix
 			{Owner: "example.com.attacker.net", Address: addr("52.0.0.4")}, // prefix, not suffix
 		},
 	}

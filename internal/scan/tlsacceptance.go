@@ -43,10 +43,6 @@ type ReachedService struct {
 	Port      uint16
 }
 
-// TLSAcceptanceJob is one queue job the tls-acceptance Scan produces: one Vantage,
-// the open Services reached from it, and the declared candidate set. Partitioning
-// is per Vantage — acceptance is measured from a position, exactly as reachability
-// is — while every Service stays enumerable in the recorded scope.
 type TLSAcceptanceJob struct {
 	ScanID       int64
 	VantageID    int64

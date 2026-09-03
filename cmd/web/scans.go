@@ -51,9 +51,6 @@ var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/rundetail.tmpl"))
 // cadences without paging.
 const scansHistoryLimit = 50
 
-// dispatchView is one Dispatch shaped for the monitor: its Scan kind and tick, the
-// per-state job counts folded into a completed / in-flight / total progress, and —
-// for an in-flight Dispatch — the state-chip rollup the card summarises it with.
 type dispatchView struct {
 	ID int64
 	// Href is the run-detail link (/runs/{dispatch}) the Running-now scan kind and the
@@ -61,16 +58,13 @@ type dispatchView struct {
 	Href         string
 	ScanKind     string
 	DispatchedAt string
-	// Live is the count of jobs a retry has not superseded (total − retried).
-	// Completed and InFlight partition it; Percent is completed / live.
-	Live      int64
-	Completed int64
-	InFlight  int64
-	Done      int64
-	Dead      int64
-	Percent   int
-	// Active is true while any job is ready or running — the Dispatch is in flight.
-	Active bool
+	Live         int64
+	Completed    int64
+	InFlight     int64
+	Done         int64
+	Dead         int64
+	Percent      int
+	Active       bool
 	// Status is the Dispatch's recorded disposition (DF-F4b): 'fanned-out' for a natural
 	// run, or the operator-ended 'stopped' / 'terminated' the stop/terminate acts write.
 	// buildRunView passes it to runStatusLabel so a stopped/terminated drill-in renders
@@ -113,9 +107,6 @@ func toJobRollup[T any](jobs []T, state func(T) string) jobRollup {
 	return r
 }
 
-// jobView is one queue job in a Dispatch's drill-down: its kind, live state, the
-// attempt it is on (attempt > 1 is a retry in progress), the Vantage it runs at
-// where it has one, and its Batch outcome once terminal.
 type jobView struct {
 	ID          int64
 	Kind        string
@@ -415,9 +406,6 @@ func (s *server) terminateScan(w http.ResponseWriter, r *http.Request, acct db.A
 // drift or signal counts). It is the destination of a Drift "Batch detail" entry —
 // the route `/run/{id}` is stable so T16 can link straight to it.
 
-// runStage is one step of the run's pipeline, folded from the dispatch's jobs
-// grouped by kind. Done renders a filled check, Current an accent ring; Num is the
-// 1-based position (shown only while not done), Last drops the trailing connector.
 type runStage struct {
 	Num     int
 	Title   string
@@ -459,7 +447,6 @@ type runJobFilter struct {
 	RawHref string
 }
 
-// runKV is one row of the run's "as configured" parameters.
 type runKV struct {
 	K, V string
 }
@@ -502,9 +489,7 @@ type runView struct {
 	Params      []runKV
 	Vantages    []runVantage
 	// Degraded is nullable (#20): a *runDegraded, nil where no vantage fell short.
-	Degraded *runDegraded
-	// JobFilter is nullable (DF-F3b): set when the request carries ?job={id}; .Log has
-	// already been narrowed to that job's rows server-side by the time it renders.
+	Degraded  *runDegraded
 	JobFilter *runJobFilter
 	// StreamHref is the per-job stdout long-poll endpoint the frozen rundetail.tmpl
 	// tails while a job is running (R4-D7 #761). It is nullable — empty when no job is
@@ -615,11 +600,6 @@ func (s *server) runPage(w http.ResponseWriter, r *http.Request, acct db.Account
 	})
 }
 
-// buildRunView shapes one Dispatch and its jobs into the Run detail view. Every
-// value is real: the batch status and job counts off the folded progress, the
-// stages / log / vantage health off the jobs, and the parameters off the dispatch
-// and its Scan. A superseded (retried) attempt is out of the stage and vantage
-// reads — a fresh job replaced it — but stays in the log, marked, as a real event.
 func (s *server) buildRunView(r *http.Request, dv dispatchView, jobRows []db.ListJobsForDispatchRow) runView {
 	v := runView{
 		ID:     dv.ID,
@@ -726,8 +706,6 @@ const (
 	runStreamPoll = time.Second
 )
 
-// jobActive reports whether a queue job is still in flight — ready or running. Every other
-// state (done, dead, retried, cancelled) is terminal: the stream is done for that job.
 func jobActive(state string) bool {
 	return state == "ready" || state == "running"
 }
@@ -767,9 +745,6 @@ type runStreamLine struct {
 	Text  string `json:"text"`
 }
 
-// runStreamResp is the long-poll body the frozen client expects: the new state and event lines
-// after the client's (composite) cursor, the new cursor (next), and whether the in-scope work
-// concluded.
 type runStreamResp struct {
 	Lines []runStreamLine `json:"lines"`
 	Next  int             `json:"next"`
@@ -794,8 +769,6 @@ func (s *server) deriveRunStream(ctx context.Context, dispatchID int64, jobParam
 		jobs = append(jobs, toJobView(j))
 	}
 
-	// A numeric ?job narrows both sequences to that job and scopes done to it; a blank or
-	// non-numeric param is the whole run (filtered stays false).
 	var jobFilter int64
 	filtered := false
 	if jobParam != "" {
@@ -947,12 +920,6 @@ func runRefresh(status string) int {
 	return 0
 }
 
-// applyJobFilter narrows a run view's log to a single queue job and sets the loghead chip,
-// server-side (DF-F3b). A blank or non-numeric ?job param is not a filter and leaves the
-// view untouched. A numeric id always renders the chip — even an unknown or superseded id:
-// the log is filtered to the rows tagged with that job id (empty for an unknown id, the
-// honest "No log to show" the tmpl renders), and the chip's kind/vantage come from the
-// matching job where the run has one. ClearHref is the bare run route the × navigates to.
 func applyJobFilter(v *runView, jobParam, bareHref string, jobs []jobView) {
 	if jobParam == "" {
 		return
@@ -999,10 +966,6 @@ func linkRunLog(v *runView, bareHref string) {
 	}
 }
 
-// runStages folds the dispatch's jobs into pipeline steps, grouped by job kind in
-// first-seen order. A stage with no in-flight job is done (a filled check); one
-// still running or ready is current (an accent ring). Superseded attempts are
-// excluded — the fresh job that replaced them carries the count.
 func runStages(jobs []jobView) []runStage {
 	var order []string
 	idx := map[string]int{}
@@ -1048,10 +1011,6 @@ func runStages(jobs []jobView) []runStage {
 	return stages
 }
 
-// runLog turns the dispatch's jobs into the batch log — one line per job, the id
-// as its tag, a level from its state (a dead job errors, a superseded or retrying
-// attempt warns), and the terse kind · state · vantage · batch text. Every line is
-// a real queue event; nothing is invented.
 func runLog(jobs []jobView) []runLogLine {
 	out := make([]runLogLine, 0, len(jobs))
 	for _, j := range jobs {
@@ -1250,8 +1209,6 @@ func countRunOutcome(batchIDs map[int64]bool, driftRows []db.ListRecentDriftEven
 	return out
 }
 
-// nextInstantAfter returns the smallest instant in the ascending slice strictly greater
-// than t, or the zero time when t is the latest (an open-ended final window).
 func nextInstantAfter(asc []time.Time, t time.Time) time.Time {
 	for _, x := range asc {
 		if x.After(t) {
@@ -1261,8 +1218,6 @@ func nextInstantAfter(asc []time.Time, t time.Time) time.Time {
 	return time.Time{}
 }
 
-// sortTimesAsc sorts instants ascending in place (insertion sort — the batch-instant
-// list is short, at most driftFeedLimit distinct batches, usually a handful).
 func sortTimesAsc(ts []time.Time) {
 	for i := 1; i < len(ts); i++ {
 		for j := i; j > 0 && ts[j].Before(ts[j-1]); j-- {
@@ -1271,7 +1226,6 @@ func sortTimesAsc(ts []time.Time) {
 	}
 }
 
-// plural picks the singular or plural noun for a count.
 func plural(n int, one, many string) string {
 	if n == 1 {
 		return one
@@ -1436,9 +1390,6 @@ func humanizeCountdown(d time.Duration) string {
 	}
 }
 
-// toJobView shapes one queue job for the drill-down. A 'retried' row is a
-// superseded attempt the fresh job replaced; a ready-or-running job past its first
-// attempt is a retry currently in flight.
 func toJobView(j db.ListJobsForDispatchRow) jobView {
 	v := jobView{
 		ID:          j.ID,

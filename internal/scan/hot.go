@@ -20,9 +20,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// HotKind is the DB Scan kind this file dispatches. The leaf it dispatches is
-// `connect-outcome`, distinct from the Scan's kind exactly as `dns` dispatches
-// `resolution-walk`.
 const HotKind = "hot"
 
 // HotJob is one queue job the hot Scan produces: one Vantage, ONE Custody-
@@ -95,7 +92,6 @@ func BuildHotJobs(scanID int64, estate custody.Estate, addrs iter.Seq[netip.Addr
 	}
 }
 
-// JobSpec renders a HotJob into the wire JobSpec the prober reads on stdin.
 func (j HotJob) JobSpec(batch string) (wire.JobSpec, error) {
 	raw, err := json.Marshal(connectoutcome.Scope{
 		Vantage:      j.Vantage,
@@ -126,7 +122,6 @@ func (j HotJob) AttemptedScope() ([]byte, error) {
 	})
 }
 
-// OffersJSON is the safety profile recorded on the Batch by content.
 func (j HotJob) OffersJSON() ([]byte, error) { return json.Marshal(j.Profile) }
 
 // EmptyHotScope is what a dead-lettered hot Batch records — never the attempted

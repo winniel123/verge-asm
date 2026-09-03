@@ -15,8 +15,6 @@ import (
 // same-origin relative path this router serves, and an annotation act lands the
 // operator back on the exact list they acted from.
 
-// backSrv builds a server whose route table is populated — handler() sets s.routes as
-// it finishes the mux, and resolveBack answers "no" without one.
 func backSrv(t *testing.T) *server {
 	t.Helper()
 	srv := newServer(newFakeStore(), testKey, "", fixedClock())
@@ -24,8 +22,6 @@ func backSrv(t *testing.T) *server {
 	return srv
 }
 
-// backPost builds a POST carrying one submitting-URL field, as the "backfield" partial
-// emits it.
 func backPost(value string) *http.Request {
 	form := url.Values{}
 	if value != "" {
@@ -260,12 +256,10 @@ func TestSignalsFormsCarryTheSubmittingURL(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// The declare form, opened on an open row's Drawer under a filtered view.
 	const view = "/signals?tab=open&q=lame"
 	list := getBody(t, ac, base+view, http.StatusOK)
 	key := firstViewKey(t, list)
 	drawer := getBody(t, ac, base+view+"&view="+url.QueryEscape(key), http.StatusOK)
-	// The query keeps its own order, and html/template escapes the `&` in an attribute.
 	const wantField = `name="return" value="/signals?tab=open&amp;q=lame&amp;view=`
 	if !strings.Contains(drawer, wantField) {
 		t.Errorf("the declare form carries no submitting-URL field starting %q; body: %s", wantField, drawer)

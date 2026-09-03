@@ -17,7 +17,6 @@ func setColdScope(t *testing.T, c *http.Client, base string, id int64, optIn boo
 	})
 }
 
-// coldBody reads the Settings → Scans tab, where the cold-tier region now lives.
 func coldBody(t *testing.T, c *http.Client, base string) string {
 	t.Helper()
 	return getBody(t, c, base+"/settings?tab=scans", http.StatusOK)

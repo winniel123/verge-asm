@@ -12,8 +12,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/transcript"
 )
 
-// seedTranscript stashes one sealed prober Transcript in the fake, keyed on a queue_job id,
-// sealing the three streams with the same testTranscriptKey the test server opens them with.
 func seedTranscript(t *testing.T, f *fakeStore, jobID int64, kind string, stdout, stderr, sent []byte, outcome, truncation string, dur time.Duration, capturedAt time.Time) {
 	t.Helper()
 	seal := func(b []byte) []byte {

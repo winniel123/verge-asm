@@ -88,11 +88,6 @@ type messageStore interface {
 	InsertMessage(ctx context.Context, arg db.InsertMessageParams) (db.Message, error)
 }
 
-// spanChange is one timeline the batch's value fold opened or moved — the estate
-// feed the producer consumes (collected by foldObservationsIntoSpans). Opened marks
-// a first span on the timeline (a membership / census candidate); a reachability
-// change, opened or moved, is a flagship candidate. Value is the opened value, read
-// only for a resolution root's cited addresses.
 type spanChange struct {
 	SubjectKind    string
 	SubjectKey     string
@@ -117,16 +112,10 @@ type spanChange struct {
 // carries SourceKey "" and folds into no message here (there is no drift-exit
 // constructor, and the `drift` cause is already lit by the flagship leg).
 type departure struct {
-	// SubjectKind / SubjectKey name the subject that left (a Name root).
 	SubjectKind string
 	SubjectKey  string
-	// Reason is the drift.ClosureReason the estate fold decided (descoped /
-	// measured-absent), stringified as it is stored on the closed span.
-	Reason string
-	// SourceKey is the declared-input identity the row links to — the covering
-	// Exclusion's declared value for a `descoped` departure, empty for a world
-	// (`measured-absent`) withdrawal that fires no declared-input message.
-	SourceKey string
+	Reason      string
+	SourceKey   string
 	// Timelines is the count of open timelines the withdrawal closed at once
 	// (ADR-0082) — one cause recorded on n objects, the count the headline states.
 	Timelines int
@@ -365,8 +354,6 @@ func membershipMessages(observedAt time.Time, changes []spanChange, in membershi
 	return msgs
 }
 
-// classLeg is one (service, class) reachability leg normalized across the current
-// and as-of reads, which return distinct row types with identical fields.
 type classLeg struct {
 	subject string
 	class   string
@@ -538,9 +525,6 @@ func citedAddresses(root spanChange) map[string]bool {
 	return out
 }
 
-// subjectBeneathRoot reports whether a Service/Endpoint key sits beneath a membership
-// root — under the Name (its key carries the Name, or it stands on a cited Address)
-// or under the Address (its key carries the Address).
 func subjectBeneathRoot(root spanChange, cited map[string]bool, key string) bool {
 	switch root.SubjectKind {
 	case subjectKindName:
@@ -555,9 +539,6 @@ func subjectBeneathRoot(root spanChange, cited map[string]bool, key string) bool
 	}
 }
 
-// keyNestsService reports whether a facet's subject key sits on the Service — the
-// Service itself (its own facets) or an Endpoint on it (whose key carries the Service
-// key). Used to gather the facets that opened beneath a newly-reached Service.
 func keyNestsService(service, key string) bool {
 	return key == service || strings.Contains(key, service)
 }
@@ -588,10 +569,6 @@ func coveringSeedKey(rootKind, rootKey string, in membershipInputs) string {
 	return ""
 }
 
-// reachOutcome reads the `outcome` tag off a `reachability` span value
-// (`{"outcome":"reached"│"not-reached"│"gap", ...}`). A value that will not parse
-// reads as an empty outcome, which exposure.ComposeReach treats as undecided — the
-// safe reading, since a malformed value is not affirmative evidence of a reach.
 func reachOutcome(value []byte) string {
 	var v struct {
 		Outcome string `json:"outcome"`

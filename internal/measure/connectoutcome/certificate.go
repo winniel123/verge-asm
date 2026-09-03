@@ -10,7 +10,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// FacetCertificate is the facet the tls-handshake step decides.
 const FacetCertificate = "certificate"
 
 // EndpointKey renders the `Endpoint` subject key for one `(Name, Service)` pair:
@@ -197,11 +196,6 @@ func notAfterString(res HandshakeResult) string {
 	return res.NotAfter.UTC().Format(time.RFC3339)
 }
 
-// endpointNames folds a scope's declared server names to the set of Endpoints to
-// hand the handshake for a reached Service. An empty set is the single NAMELESS
-// endpoint — the only mode available on an address-scope Seed where no name is
-// known yet — represented by an empty server name (no SNI). A named scope hands
-// one Endpoint per name, each sending its own SNI.
 func (s Scope) endpointNames() []string {
 	if len(s.Names) == 0 {
 		return []string{""} // the nameless endpoint

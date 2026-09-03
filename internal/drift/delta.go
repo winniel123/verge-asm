@@ -13,16 +13,11 @@ import "time"
 // commit instant; the caller reads it from the batch corpus (corpus 1, ADR-0041)
 // and hands it in, keeping this package scoped to nothing but spans and time.
 
-// Delta is a metric's current value paired with its value at the previous batch —
-// the vs-last-batch comparison a stat tile renders. Change is Current-Previous:
-// positive where the metric grew across the most recent batch, negative where it
-// shrank, zero where the batch moved nothing the metric counts.
 type Delta struct {
 	Current  int
 	Previous int
 }
 
-// Change is the signed movement the tile shows — Current minus Previous.
 func (d Delta) Change() int { return d.Current - d.Previous }
 
 // openAt reports whether a span was open at instant t: it had opened by t and had
@@ -37,12 +32,6 @@ func openAt(s Span, t time.Time) bool {
 	return s.ClosedAt.IsZero() || s.ClosedAt.After(t)
 }
 
-// OpenAt returns the spans open at instant t — the population one timeline-set
-// held then. Evaluated at the previous batch's instant it is the "value a batch
-// ago"; the current population is CurrentlyOpen. The caller must supply a span set
-// that still carries the spans the most recent batch closed (a read filtered to
-// `closed_at IS NULL OR closed_at > prevBatchAt` does), or a span the batch closed
-// is missing and the previous count is understated.
 func OpenAt(spans []Span, t time.Time) []Span {
 	out := make([]Span, 0, len(spans))
 	for _, s := range spans {
@@ -80,9 +69,6 @@ func CountDelta(all []Span, prevBatchAt time.Time, count func(open []Span) int) 
 	}
 }
 
-// CountSpans is the simplest metric over an open-span population: how many spans
-// it holds. It is the count a tile of "open <facet> timelines" reads, and the
-// building block a predicate-filtered metric composes.
 func CountSpans(open []Span) int { return len(open) }
 
 // DistinctSubjects counts the distinct subjects an open-span population covers —

@@ -4,8 +4,6 @@ import (
 	he "github.com/winniel123/verge-asm/internal/measure/httpexchange"
 )
 
-// Step is one run of the leaf inside a row: one Batch at one Vantage over one
-// scope, against one scripted exchanger.
 type Step struct {
 	Batch    string
 	Scope    he.Scope
@@ -24,8 +22,6 @@ type Row struct {
 	Golden       string
 }
 
-// AllCells is the enumeration the coverage test counts against: every cell of the
-// http-exchange block must be pinned by at least one row.
 var AllCells = []string{
 	// H1 — a completed exchange creates the Endpoint and records http-identity,
 	// named and nameless.
@@ -45,8 +41,6 @@ var AllCells = []string{
 
 func params() he.Params { return he.DefaultParams() }
 
-// scope builds a one-vantage scope over the given targets, under the default
-// declared parameters.
 func scope(targets []he.Target) he.Scope {
 	return he.Scope{
 		Vantage:      "v1",
@@ -56,10 +50,7 @@ func scope(targets []he.Target) he.Scope {
 	}
 }
 
-// Rows is the checked-in corpus. Every cell in AllCells appears in some row's
-// Cells; the coverage test fails the build (naming the cell) if one does not.
 var Rows = []Row{
-	// ---- H1/named-200 ----
 	{
 		Cells:        []string{"H1/named-200"},
 		Claim:        "a completed GET / to a named (Name, Service) pair creates the Endpoint and records its http-identity — outcome responded, status, Server header, and the page <title> lifted from the body (never the body itself)",
@@ -75,7 +66,6 @@ var Rows = []Row{
 		Golden: "http_named_200.ndjson",
 	},
 
-	// ---- H1/nameless-204 ----
 	{
 		Cells:        []string{"H1/nameless-204"},
 		Claim:        "a Service reached with no citing Name records identity under the nameless Endpoint key (@service) — a distinguished key variant, never an empty name",
@@ -91,7 +81,6 @@ var Rows = []Row{
 		Golden: "http_nameless_204.ndjson",
 	},
 
-	// ---- H2/redirect-not-followed ----
 	{
 		Cells:        []string{"H2/redirect-not-followed"},
 		Claim:        "a 3xx is a completed exchange: the Endpoint exists and the Location is recorded as identity, and the leaf issues exactly one request — redirects are not followed",
@@ -107,7 +96,6 @@ var Rows = []Row{
 		Golden: "http_redirect_not_followed.ndjson",
 	},
 
-	// ---- H3/admitted-set ----
 	{
 		Cells:        []string{"H3/admitted-set"},
 		Claim:        "the admitted closed set only: a 401 records outcome responded, status, Server, the <title> lifted from the body, and the WWW-Authenticate challenge — and NO body hash, body length, or Content-Type",
@@ -127,7 +115,6 @@ var Rows = []Row{
 		Golden: "http_admitted_set.ndjson",
 	},
 
-	// ---- H4/no-http-response ----
 	{
 		Cells:        []string{"H4/no-http-response"},
 		Claim:        "a reached Service that returns no valid HTTP response records the no-http-response negative as a VALUE and still creates the Endpoint — never an absence",
@@ -143,7 +130,6 @@ var Rows = []Row{
 		Golden: "http_no_http_response.ndjson",
 	},
 
-	// ---- H5/mixed-batch ----
 	{
 		Cells:        []string{"H5/mixed-batch"},
 		Claim:        "one batch of three reached targets — a 200, a non-HTTP one, and a nameless 200 — emits an Endpoint for each in target order, the non-HTTP one as no-http-response",

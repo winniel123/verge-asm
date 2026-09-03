@@ -17,8 +17,6 @@ import (
 	"golang.org/x/crypto/cryptobyte"
 )
 
-// --- inclusion algorithm, against a reference Merkle tree --------------------
-
 // refMTH is the RFC 6962 §2.1 Merkle Tree Hash of a list of leaf hashes, computed by the
 // straight recursive definition. It is the trusted reference the tile/proof code is checked
 // against: refMTH computes the root a different way than rootFromInclusionProof reassembles it.
@@ -105,13 +103,10 @@ func TestVerifyInclusionRejectsWrongLengthPath(t *testing.T) {
 	if VerifyInclusion(leaves[1], 1, 3, append(good, leafHashOf([]byte("x"))), root) {
 		t.Fatal("long path accepted")
 	}
-	// Index out of range is rejected.
 	if VerifyInclusion(leaves[0], 5, 3, good, root) {
 		t.Fatal("out-of-range index accepted")
 	}
 }
-
-// --- precert TBS reconstruction ----------------------------------------------
 
 // TestPrecertTBSRemovesSCTList builds two otherwise-identical certificates — one WITH an
 // embedded SCT-list extension, one WITHOUT — and asserts PrecertTBS on the first yields the
@@ -166,9 +161,6 @@ func TestPrecertTBSRemovesSCTList(t *testing.T) {
 	}
 }
 
-// hasSCTListExtension reports whether a raw TBSCertificate still lists the SCT-list OID. It is
-// a coarse check — a substring of the OID's DER encoding — enough to prove the extension was
-// dropped, not left behind.
 func hasSCTListExtension(t *testing.T, tbs []byte) bool {
 	t.Helper()
 	// Wrap the TBS back into a minimal cert is heavy; instead scan for the SCT OID DER.
@@ -188,9 +180,6 @@ func indexOf(haystack, needle []byte) int {
 	return -1
 }
 
-// --- SCT parsing -------------------------------------------------------------
-
-// buildSCT serializes a minimal SignedCertificateTimestamp for a round-trip test.
 func buildSCT(logID [32]byte, timestamp uint64, extensions []byte) []byte {
 	var b cryptobyte.Builder
 	b.AddUint8(0) // v1
@@ -222,7 +211,6 @@ func TestParseSCTRoundTrip(t *testing.T) {
 	if len(sct.Extensions) != 0 {
 		t.Fatalf("extensions = %x, want empty", sct.Extensions)
 	}
-	// Trailing garbage is rejected.
 	if _, err := ParseSCT(append(raw, 0x00)); err == nil {
 		t.Fatal("trailing byte accepted")
 	}
@@ -246,21 +234,16 @@ func TestSCTLeafIndex(t *testing.T) {
 	if !ok || got != idx {
 		t.Fatalf("SCTLeafIndex = %d, %v; want %d, true", got, ok, idx)
 	}
-	// No extensions => no leaf index.
 	if _, ok := SCTLeafIndex(nil); ok {
 		t.Fatal("empty extensions reported a leaf index")
 	}
 }
-
-// --- embedded SCT extraction -------------------------------------------------
 
 func TestEmbeddedSCTs(t *testing.T) {
 	var logID [32]byte
 	logID[0] = 0x11
 	sct := buildSCT(logID, 42, nil)
 
-	// SignedCertificateTimestampList: opaque16 list of opaque16 SCTs, wrapped in a DER OCTET
-	// STRING — the shape EmbeddedSCTs unwraps.
 	var list cryptobyte.Builder
 	list.AddUint16LengthPrefixed(func(outer *cryptobyte.Builder) {
 		outer.AddUint16LengthPrefixed(func(one *cryptobyte.Builder) { one.AddBytes(sct) })
@@ -310,8 +293,6 @@ func TestEmbeddedSCTs(t *testing.T) {
 	}
 }
 
-// --- leaf hash consistency ---------------------------------------------------
-
 func TestLeafHashX509IsLeafPrefixed(t *testing.T) {
 	leafDER := []byte{0x30, 0x03, 0x02, 0x01, 0x07} // any bytes; the hash does not parse them
 	ts := uint64(1700000000000)
@@ -335,8 +316,6 @@ func TestLeafHashX509IsLeafPrefixed(t *testing.T) {
 		t.Fatalf("LeafHashX509 = %x, want %x", got, want)
 	}
 }
-
-// --- tiled helpers -----------------------------------------------------------
 
 func TestHashTilePathAndLeafInTile(t *testing.T) {
 	if got := HashTilePath(0); got != "0/000" {
@@ -371,8 +350,6 @@ func TestParseHashTile(t *testing.T) {
 		t.Fatal("non-multiple-of-32 tile accepted")
 	}
 }
-
-// --- log lookup --------------------------------------------------------------
 
 func TestFindLogByLogID(t *testing.T) {
 	var id [32]byte

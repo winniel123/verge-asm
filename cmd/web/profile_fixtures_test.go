@@ -73,7 +73,6 @@ func seedProfileFixtureIntoFake(t *testing.T, f *fakeStore, accountID int64, clo
 	})
 	f.ssoIdentNextID = 1
 
-	// Tokens.
 	for i, pt := range devProfileTokens {
 		created, derr := devFixtureDate(pt.created)
 		if derr != nil {

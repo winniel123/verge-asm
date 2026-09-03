@@ -99,7 +99,6 @@ www     IN CNAME example.com.
 `
 	recs, skipped := RestateZone(ZoneFile{Domain: "example.com", SuppliedAt: supply, Content: content})
 
-	// The two good records survive.
 	if len(recs) != 2 {
 		t.Fatalf("got %d records, want 2 (apex A + www CNAME); recs=%v", len(recs), recs)
 	}
@@ -203,11 +202,9 @@ func TestZoneAgingBoundaryAndNoSupply(t *testing.T) {
 	if a := ZoneAgingAt(supply, almost, interval); a.Stale || a.Days != 1 {
 		t.Errorf("half a day from the gap should read 1d and current; got %+v", a)
 	}
-	// No supply: nothing to stale.
 	if a := ZoneAgingAt(time.Time{}, supply, interval); a.Supplied || a.Stale {
 		t.Errorf("an unsupplied scope has nothing to age; got %+v", a)
 	}
-	// No cadence: current, no countdown.
 	if a := ZoneAgingAt(supply, supply.Add(1000*24*time.Hour), 0); !a.Supplied || a.Stale {
 		t.Errorf("with no interval a file cannot age into a gap; got %+v", a)
 	}

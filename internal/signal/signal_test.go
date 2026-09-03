@@ -2,8 +2,6 @@ package signal
 
 import "testing"
 
-// stubRule lets the engine tests drive Evaluate over a fixed outcome map without
-// depending on a real rule's predicate.
 type stubRule struct {
 	name string
 	out  map[string]Outcome

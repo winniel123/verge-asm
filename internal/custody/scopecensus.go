@@ -45,8 +45,6 @@ import "net/netip"
 // reaches it, it stays probed and stays on the EXTENSION limb's own census, which is
 // the surface that names an extension decline.
 type AddressScopeCensusEntry struct {
-	// Scope is the declared address-scope `Seed`, canonical, as the operator wrote
-	// it. It is the thing they can act on: an exclusion is declared against a scope.
 	Scope netip.Prefix
 	// SharedEdges is how many addresses inside Scope fan-out MEASURED as shared. It
 	// is never the scope's size and never a proportion, so the renderer must state

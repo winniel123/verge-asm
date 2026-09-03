@@ -44,8 +44,6 @@ func decodeToast(t *testing.T, loc string) map[string]string {
 // (countLiveSessions lives in settings_sessions_test.go — reused here to prove a revoke
 // landed in the registry.)
 
-// bounced reports whether a client's next authed request is redirected to /login —
-// the observable signature of a session whose registry row was revoked.
 func bounced(t *testing.T, c *http.Client, base string) bool {
 	t.Helper()
 	resp, err := c.Get(base + "/profile")
@@ -146,7 +144,6 @@ func TestResetSignsOutAllSessions(t *testing.T) {
 	})
 	resp.Body.Close()
 
-	// No live session survives a reset.
 	if got := countLiveSessions(f, ola.ID); got != 0 {
 		t.Fatalf("live sessions after reset = %d, want 0", got)
 	}

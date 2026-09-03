@@ -104,17 +104,12 @@ func internalReachAtRow(svc, outcome string) db.ListServiceReachabilitySpansByCl
 	}
 }
 
-// routed is one message the fake enqueuer routed, and how many deliveries it made —
-// the count delivery.EnqueueForMessage returns (zero on an unbound/default install).
 type routed struct {
 	messageID int64
 	class     message.Class
 	made      int
 }
 
-// fakeEnqueuer models delivery.EnqueueForMessage: it records the routing and returns a
-// fixed delivery count — >0 for a bound channel, 0 for an unbound / download-only
-// config where no channel POST is ever made.
 func fakeEnqueuer(made int, log *[]routed) enqueueFunc {
 	return func(_ context.Context, messageID int64, class message.Class) (int, error) {
 		*log = append(*log, routed{messageID: messageID, class: class, made: made})
@@ -126,10 +121,6 @@ func prevAt(t time.Time) pgtype.Timestamptz { return pgtype.Timestamptz{Time: t,
 
 func reachValue(outcome string) []byte { return []byte(`{"outcome":"` + outcome + `"}`) }
 
-// batchMovingBothSignals is a batch that moves a flagship (an internet leg going
-// not-reached → reached on a Service) AND a membership signal (a Name entering the
-// estate), with a facet opening beneath the Service and the Service opening beneath
-// the Name — the census each carries.
 func batchMovingBothSignals() (changes []spanChange, store *fakeMessageStore) {
 	const svc = "198.51.100.1:443/tcp"
 	changes = []spanChange{

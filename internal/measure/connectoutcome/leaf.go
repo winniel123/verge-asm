@@ -12,13 +12,9 @@ import (
 	"github.com/winniel123/verge-asm/internal/custody"
 )
 
-// ConnResult is the raw outcome of one TCP connect attempt, before retries and
-// before the reachability verdict. It is the closed union the Connector reports;
-// the leaf folds it to an Outcome.
 type ConnResult string
 
 const (
-	// ConnOpen: the three-way handshake completed. A decided positive.
 	ConnOpen ConnResult = "open"
 	// ConnRefused: the host answered with an RST — the port is shut. A decided
 	// negative, and an answer, so it is never retried.
@@ -34,8 +30,6 @@ const (
 	ConnError ConnResult = "error"
 )
 
-// decided reports whether a result decides the verdict without a retry: an open
-// or a refusal is an answer, a timeout or a local error is not.
 func (r ConnResult) decided() bool { return r == ConnOpen || r == ConnRefused }
 
 // Outcome is the reachability verdict for one Service at one Vantage — the
@@ -45,8 +39,6 @@ func (r ConnResult) decided() bool { return r == ConnOpen || r == ConnRefused }
 type Outcome string
 
 const (
-	// Reached: the connection completed. The `Service` is reachable from this
-	// Vantage.
 	Reached Outcome = "reached"
 	// NotReached: the connect was refused, or timed out after its retries. On a
 	// connection-oriented transport silence decides, so this is a value and not a
@@ -105,15 +97,9 @@ func Probe(ctx context.Context, c Connector, profile SafetyProfile, target netip
 // reason connect is chosen over SYN (§3.3). It is not exercised by the hermetic
 // golden corpus.
 type NetConnector struct {
-	// Timeout bounds one connect attempt. Zero uses the profile's 3 s default,
-	// filled by the caller from the SafetyProfile.
 	Timeout time.Duration
 }
 
-// Connect implements Connector against the network. A refused connection reads
-// as ConnRefused, a timeout as ConnTimedOut, and any other dial failure as
-// ConnError (our own blindness). A completed connection is closed immediately —
-// the connection is the measurement, and a lingering socket is not.
 func (n NetConnector) Connect(ctx context.Context, target netip.AddrPort) ConnResult {
 	timeout := n.Timeout
 	if timeout <= 0 {

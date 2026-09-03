@@ -18,16 +18,13 @@ import (
 // checked end-to-end (every valid token becomes a seed); the onboarding side through
 // readOnboardView; and both are pinned to parseSeedTokens' own output.
 func TestScopeAndOnboardingShareTokenizer(t *testing.T) {
-	// Commas, spaces, tabs and newlines all split; empty tokens (the double comma) drop.
 	const raw = "a.com, b.com\n c.com\td.com,,e.com"
 	want := []string{"a.com", "b.com", "c.com", "d.com", "e.com"}
 
-	// The shared tokenizer itself.
 	if got := parseSeedTokens(raw); !reflect.DeepEqual(got, want) {
 		t.Fatalf("parseSeedTokens(%q) = %v, want %v", raw, got, want)
 	}
 
-	// Onboarding's seedsadd rides parseSeedTokens through readOnboardView.
 	q := url.Values{"step": {"0"}, "seedsadd": {raw}}
 	r := httptest.NewRequest(http.MethodGet, "/onboarding?"+q.Encode(), nil)
 	if got := readOnboardView(r).Seeds; !reflect.DeepEqual(got, want) {
@@ -86,7 +83,6 @@ func TestDeclareBulkPasteMixedSuccessRefusalDuplicate(t *testing.T) {
 	if !strings.Contains(got, "2 refused — see the callouts") {
 		t.Errorf("flash refusal description missing; body: %s", got)
 	}
-	// The within-paste duplicate refuses `already declared`.
 	if !strings.Contains(got, "already declared") {
 		t.Errorf("duplicate token not refused with 'already declared'; body: %s", got)
 	}
@@ -175,8 +171,6 @@ func TestZoneBulkUploadMixedAcceptRefuse(t *testing.T) {
 	}
 }
 
-// TestZoneBulkUploadAllRefusedNoFlash: zero accepted → refusal rows only, no toast, on
-// the landing GET of the refusal's own post-redirect-get.
 func TestZoneBulkUploadAllRefusedNoFlash(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -199,8 +193,6 @@ func TestZoneBulkUploadAllRefusedNoFlash(t *testing.T) {
 	}
 }
 
-// TestDeleteSeedWritesRemovalFlash: /seeds/delete names the removed scope in a flash
-// (WORK-ORDER-DOGFOOD-R1 item 2).
 func TestDeleteSeedWritesRemovalFlash(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -282,10 +274,6 @@ func TestWithdrawAddressSeedRecordsItsTombstone(t *testing.T) {
 	}
 }
 
-// --- helpers ---------------------------------------------------------------
-
-// declareScope posts a raw (possibly multi-token) scope string to the paste-split
-// declare endpoint.
 func declareScope(t *testing.T, c *http.Client, base, raw string) *http.Response {
 	t.Helper()
 	return postForm(t, c, base+"/seeds", url.Values{"scope": {raw}})
@@ -324,8 +312,6 @@ func intStr(id int64) string {
 	return strconv.FormatInt(id, 10)
 }
 
-// followString GETs a URL and returns the body — used to read the destination page a
-// PRG toast flash lands on.
 func followString(t *testing.T, c *http.Client, url string) string {
 	t.Helper()
 	resp, err := c.Get(url)

@@ -44,9 +44,6 @@ func TestBackoffGrowsAndCaps(t *testing.T) {
 // path (process) and the worker-read ct path (retryOrDeadLetterCT), so this pure
 // test pins the boundary both fork on.
 func TestExhaustedRetries(t *testing.T) {
-	// The standard measurement / ct budget: a ct job is enqueued at attempt 1 with
-	// max_attempts 5 (enqueueCTJob), and a retry re-enqueues attempt+1 keeping the
-	// same budget (worker.retry).
 	const max = 5
 
 	// The exhaustion path: the fifth attempt is the last. It is exhausted, so the

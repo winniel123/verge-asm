@@ -11,14 +11,13 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
-// driftEventRow is a small builder for a raw feed row in the classifier unit tests.
 func driftOpenedRow(batchID int64, at time.Time, subject, value, prevValue string) db.ListRecentDriftEventsRow {
 	const vec = `[{"leaf":"resolution-walk","version":"1"}]`
 	row := db.ListRecentDriftEventsRow{
 		Role: "opened", BatchID: batchID, BatchKind: "hot",
-		BatchAt:     pgtype.Timestamptz{Time: at, Valid: true},
+		BatchAt:       pgtype.Timestamptz{Time: at, Valid: true},
 		RecordedScope: []byte(`{}`),
-		SubjectKind: "name", SubjectKey: subject, Facet: "resolution",
+		SubjectKind:   "name", SubjectKey: subject, Facet: "resolution",
 		Value: []byte(value), Derivation: []byte(vec),
 		OpenedAt: pgtype.Timestamptz{Time: at, Valid: true},
 	}
@@ -81,7 +80,7 @@ func TestBuildDriftFeedClassifiesAndGroups(t *testing.T) {
 func TestBuildDriftFeedSkipsBreakCrossing(t *testing.T) {
 	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
 	row := driftOpenedRow(2, now.Add(-time.Hour), "api.example.com", `{"outcome":"Resolved"}`, `{"outcome":"Resolved"}`)
-	row.Derivation = []byte(`[{"leaf":"resolution-walk","version":"2"}]`)      // moved
+	row.Derivation = []byte(`[{"leaf":"resolution-walk","version":"2"}]`)     // moved
 	row.PrevDerivation = []byte(`[{"leaf":"resolution-walk","version":"1"}]`) // from
 
 	groups, movement := buildDriftFeed([]db.ListRecentDriftEventsRow{row}, now)
@@ -105,8 +104,8 @@ func TestClassifyDriftEventReasonedClose(t *testing.T) {
 	} {
 		row := db.ListRecentDriftEventsRow{
 			Role: "closed", BatchID: 5, BatchKind: "hot",
-			BatchAt:       pgtype.Timestamptz{Time: now, Valid: true},
-			SubjectKind:   "name", SubjectKey: "api.example.com", Facet: "resolution",
+			BatchAt:     pgtype.Timestamptz{Time: now, Valid: true},
+			SubjectKind: "name", SubjectKey: "api.example.com", Facet: "resolution",
 			Value:         []byte(`{"outcome":"Resolved"}`),
 			ClosedAt:      pgtype.Timestamptz{Time: now.Add(-time.Hour), Valid: true},
 			ClosureReason: pgtype.Text{String: reason, Valid: true},
@@ -184,7 +183,6 @@ func TestDriftPageRendersVocabularyAndEmptyState(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 	page := getBody(t, ac, base+"/drift", http.StatusOK)
 
-	// Title and the change-not-severity subtitle.
 	for _, want := range []string{"Drift", "Change is its own language", "By batch", "Movement"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("drift page missing %q; body: %s", want, page)

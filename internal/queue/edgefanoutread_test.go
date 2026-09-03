@@ -60,16 +60,12 @@ func distinctSANs(n int) []string {
 	return out
 }
 
-// edgeFixture is one posed stored measurement: an address, the leaf's outcome, and the
-// DER of the certificate that edge presented. A nil der poses a row carrying NO
-// fingerprint, which is what each of the three negative outcomes stores.
 type edgeFixture struct {
 	addr    string
 	outcome string
 	der     []byte
 }
 
-// edge poses one measurement fixture.
 func edge(addr, outcome string, der []byte) edgeFixture {
 	return edgeFixture{addr: addr, outcome: outcome, der: der}
 }
@@ -101,7 +97,6 @@ func posed(fx ...edgeFixture) ([]db.ListEdgeFanoutMeasurementsRow, map[string][]
 	return rows, material
 }
 
-// reduce runs the pure reduction over posed fixtures.
 func reduce(completed bool, fx ...edgeFixture) custody.EdgeFanout {
 	rows, material := posed(fx...)
 	return toEdgeFanout(completed, rows, material)
@@ -399,8 +394,7 @@ type fakeEdgeFanoutStore struct {
 	// empty bound issues no query rather than falling back to the unbound read.
 	boundsAsked  [][]string
 	unboundReads int
-	// rowsErr poses the measurement read's own failure.
-	rowsErr error
+	rowsErr      error
 }
 
 func (f *fakeEdgeFanoutStore) GetScanByKind(context.Context, string) (db.Scan, error) {
@@ -561,8 +555,6 @@ const (
 	scopeEdge           = "23.20.0.20"
 )
 
-// boundFixtureStore poses one store holding all three addresses, each measured
-// `presented` against the one given certificate.
 func boundFixtureStore(t *testing.T, der []byte) *fakeEdgeFanoutStore {
 	t.Helper()
 	fp := co.Fingerprint(der)

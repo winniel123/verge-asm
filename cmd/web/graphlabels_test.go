@@ -13,8 +13,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
-// viewportScale reads the scale off the rendered #gr-viewport transform, which is the
-// scale the operator opens the drawing at.
 var viewportScale = regexp.MustCompile(`id="gr-viewport" transform="translate\([^"]*\) scale\(([0-9.]+)\)"`)
 
 // labelColumn places n subdomain nodes down the name column exactly as buildGraph does, so
@@ -29,7 +27,6 @@ func labelColumn(n int) []graphNode {
 	return nodes
 }
 
-// labelColumnFitScale is the scale the view opens a column of n at.
 func labelColumnFitScale(t *testing.T, n int) float64 {
 	t.Helper()
 	w, h := graphContentBounds(labelColumn(n))

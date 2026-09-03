@@ -31,7 +31,6 @@ func newScript(rules map[string][]co.ConnResult) *scriptConnector {
 	return &scriptConnector{seq: seq, calls: map[netip.AddrPort]int{}}
 }
 
-// Connect implements connectoutcome.Connector.
 func (s *scriptConnector) Connect(_ context.Context, t netip.AddrPort) co.ConnResult {
 	i := s.calls[t]
 	s.calls[t]++

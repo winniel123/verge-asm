@@ -25,7 +25,6 @@ import (
 // the dynamic band alone carries *long random*'s defence against accidental
 // existence, and a decoy is "at most" optional per ADR-0104 Decision §1.
 const (
-	// ControlPortCount is how many distinct control ports one batch draws.
 	ControlPortCount = 8
 	// portBandLow / portBandHigh bound the RFC 6335 dynamic range the ports are
 	// drawn from — the range IANA assigns to no service.
@@ -44,11 +43,8 @@ type PortGen interface {
 	Ports() []uint16
 }
 
-// CryptoPorts is the production PortGen: crypto/rand ports from the dynamic range.
 type CryptoPorts struct{}
 
-// Ports implements PortGen. It draws ControlPortCount distinct ports uniformly
-// from [portBandLow, portBandHigh].
 func (CryptoPorts) Ports() []uint16 {
 	span := int64(portBandHigh) - int64(portBandLow) + 1
 	seen := map[uint16]struct{}{}
@@ -72,7 +68,6 @@ func (CryptoPorts) Ports() []uint16 {
 // architectures.
 type FixedPorts struct{ P []uint16 }
 
-// Ports implements PortGen.
 func (f FixedPorts) Ports() []uint16 {
 	seen := make(map[uint16]struct{}, len(f.P))
 	for _, p := range f.P {

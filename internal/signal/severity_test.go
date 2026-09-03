@@ -2,7 +2,6 @@ package signal
 
 import "testing"
 
-// inRamp reports whether a severity is one of the five ramp levels.
 func inRamp(s Severity) bool {
 	for _, sv := range SevOrder {
 		if sv == s {

@@ -35,15 +35,11 @@ func buildTestArchive(t *testing.T, schemaVersion int64, spanRows []string) []by
 	return buf.Bytes()
 }
 
-// TestPreflightArchiveRoundTrip proves the pre-flight validator parses a B3-produced archive
-// (round-trip with backup.go's writers): the manifest schema version and table list survive,
-// and the subject count is the distinct open-span subject_key count — closed spans and a
-// duplicate open key do not inflate it.
 func TestPreflightArchiveRoundTrip(t *testing.T) {
 	archive := buildTestArchive(t, 23000, []string{
 		`{"subject_key":"a.example.com","closed_at":null}`,
 		`{"subject_key":"b.example.com","closed_at":null}`,
-		`{"subject_key":"a.example.com","closed_at":null}`,          // duplicate open key — one subject
+		`{"subject_key":"a.example.com","closed_at":null}`,                   // duplicate open key — one subject
 		`{"subject_key":"c.example.com","closed_at":"2026-08-01T00:00:00Z"}`, // closed — not a current subject
 	})
 
@@ -62,8 +58,6 @@ func TestPreflightArchiveRoundTrip(t *testing.T) {
 	}
 }
 
-// TestPreflightArchiveRejectsGarbage proves an unparseable upload is refused with nothing
-// touched (the handler maps this to `.RestoreError`).
 func TestPreflightArchiveRejectsGarbage(t *testing.T) {
 	if _, err := preflightArchive(strings.NewReader("this is not a verge archive\n")); err == nil {
 		t.Fatal("preflightArchive accepted garbage; want an error")
@@ -81,10 +75,6 @@ func TestPreflightArchiveRejectsUnknownTable(t *testing.T) {
 	}
 }
 
-// TestPreflightArchiveSchemaValueDrivesRefusal proves the archive's schema version is the
-// value the handler compares against the running schema: an archive taken on a different
-// version surfaces that version, and the handler refuses when it does not match (a mismatch
-// is `restore-error=schema`, mapped to a fixed line).
 func TestPreflightArchiveSchemaValueDrivesRefusal(t *testing.T) {
 	archive := buildTestArchive(t, 99999, nil)
 	pf, err := preflightArchive(bytes.NewReader(archive))
@@ -174,8 +164,6 @@ func TestRestorePreflightPassesGateWithoutPool(t *testing.T) {
 	}
 }
 
-// TestRestorePreflightAdminGated proves the pre-flight is admin-only: anonymous → /login, a
-// viewer → 403.
 func TestRestorePreflightAdminGated(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "viewer", roleViewer, "hunter2hunter2")
@@ -283,8 +271,6 @@ func TestRotateSessionKeyLapsesSessions(t *testing.T) {
 	}
 }
 
-// TestRestoreErrorMessages proves every refusal code maps to a fixed operator line and an
-// unknown code reflects nothing (no arbitrary query text on the page).
 func TestRestoreErrorMessages(t *testing.T) {
 	for _, code := range []string{"inflight", "unreadable", "schema", "confirm", "expired", "apply"} {
 		if restoreErrorMessage(code) == "" {

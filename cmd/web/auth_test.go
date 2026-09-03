@@ -71,7 +71,6 @@ func body(t *testing.T, resp *http.Response) string {
 	return string(b)
 }
 
-// seedAccount inserts an account with a real bcrypt hash directly into the fake.
 func seedAccount(t *testing.T, f *fakeStore, username, role, password string) db.Account {
 	t.Helper()
 	hash, err := auth.HashPassword(password)
@@ -85,7 +84,6 @@ func seedAccount(t *testing.T, f *fakeStore, username, role, password string) db
 	return acct
 }
 
-// login runs a password-only login and returns the authenticated client.
 func login(t *testing.T, base, username, password string) *http.Client {
 	t.Helper()
 	c := newClient(t)
@@ -107,8 +105,6 @@ func hasCookie(c *http.Client, base, name string) bool {
 	return false
 }
 
-// --- setup / bootstrap -----------------------------------------------------
-
 func TestSetupCreatesFirstAdminThenCloses(t *testing.T) {
 	f := newFakeStore()
 	base := start(t, f, "the-setup-token")
@@ -124,7 +120,6 @@ func TestSetupCreatesFirstAdminThenCloses(t *testing.T) {
 
 	c := newClient(t)
 
-	// A wrong token creates nothing.
 	resp = postForm(t, c, base+"/setup", url.Values{"token": {"wrong"}, "username": {"admin"}, "password": {"hunter2hunter2"}})
 	if got := body(t, resp); !strings.Contains(got, "Invalid setup token") {
 		t.Fatalf("wrong token not rejected; body: %s", got)
@@ -182,8 +177,6 @@ func TestSetupRejectsShortPassword(t *testing.T) {
 		t.Fatalf("accounts = %d, want 0", n)
 	}
 }
-
-// --- login / session -------------------------------------------------------
 
 func TestLoginAndSession(t *testing.T) {
 	f := newFakeStore()
@@ -296,8 +289,6 @@ func TestLoginRejectsBadCredentials(t *testing.T) {
 	}
 }
 
-// --- permission check on the mutating endpoint -----------------------------
-
 func TestViewerDeniedMutation(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -333,7 +324,6 @@ func TestViewerDeniedMutation(t *testing.T) {
 		t.Fatalf("anon mutation: status=%d, want 303 to login", resp.StatusCode)
 	}
 
-	// An admin may perform it.
 	ac := login(t, base, "admin", "hunter2hunter2")
 	// The create is a post-redirect-get (ADR-0130 §3, #974): the confirmation line rides
 	// the session flash to the landing GET, so the 303 itself carries no body.
@@ -358,11 +348,6 @@ func TestCreateAccountDuplicateUsername(t *testing.T) {
 	}
 }
 
-// --- TOTP ------------------------------------------------------------------
-
-// secretRE extracts the base32 secret from the frozen enroll screen's copy affordance
-// (signin.tmpl: <span class="val">SECRET</span>). Screen 4's design-owned markup replaced the
-// old <div class="secret"> the repo-authored template used.
 var secretRE = regexp.MustCompile(`<span class="val">([A-Z2-7]+)</span>`)
 
 // TestTOTPEnrollShowsQR covers #317: the enrollment page renders a scannable QR
@@ -439,7 +424,6 @@ func TestTOTPEnableThenRequiredAtLogin(t *testing.T) {
 		t.Fatal("session granted before TOTP step")
 	}
 
-	// A wrong code is refused.
 	resp = postForm(t, c, base+"/login/totp", url.Values{"code": {"000000"}})
 	if got := body(t, resp); !strings.Contains(got, "Incorrect code") {
 		t.Fatalf("wrong TOTP code accepted; body: %s", got)
@@ -448,7 +432,6 @@ func TestTOTPEnableThenRequiredAtLogin(t *testing.T) {
 		t.Fatal("session granted on wrong TOTP code")
 	}
 
-	// The correct code completes the login.
 	code, _ = auth.TOTPCode(secret, now)
 	resp = postForm(t, c, base+"/login/totp", url.Values{"code": {code}})
 	resp.Body.Close()
@@ -502,8 +485,6 @@ func TestPasswordTooLongRejected(t *testing.T) {
 		t.Fatalf("accounts = %d, want 1 (no account created)", n)
 	}
 }
-
-// --- no forward-auth -------------------------------------------------------
 
 func TestNoForwardAuthHeaderTrusted(t *testing.T) {
 	f := newFakeStore()

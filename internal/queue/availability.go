@@ -17,9 +17,6 @@ import (
 type availabilityAction int
 
 const (
-	// availabilityUnchanged: derive nothing. The Batch carried no real vantage —
-	// the worker-read zone and ct Scans have none — or the outcome is not
-	// terminal.
 	availabilityUnchanged availabilityAction = iota
 	availabilityAvailable
 	availabilityUnavailable
@@ -58,8 +55,6 @@ func availabilityAfterOutcome(vantageValid bool, kind, outcome string) availabil
 	}
 }
 
-// applyAvailability derives and applies the vantage's Availability from a
-// terminal batch outcome, inside the same transaction that wrote the Batch.
 func applyAvailability(ctx context.Context, qtx *db.Queries, vantageID pgtype.Int8, kind, outcome string) error {
 	switch availabilityAfterOutcome(vantageID.Valid, kind, outcome) {
 	case availabilityAvailable:

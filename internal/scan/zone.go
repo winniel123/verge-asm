@@ -50,16 +50,11 @@ type ZoneFile struct {
 // clean current fact (v1 spec §3.4). Before the cadence the file is current, and
 // Days counts down to the instant it ages into that gap.
 type ZoneAging struct {
-	// Supplied reports whether there is a dated supply to age at all. A name
-	// scope with no zone file has nothing to stale.
 	Supplied bool
 	// Stale reports whether the file has passed its re-supply interval and so has
 	// aged into a coverage gap.
 	Stale bool
-	// Days is the whole days until the file ages into a gap (while current) or,
-	// once Stale, the whole days it has been in the gap. Zero and current means
-	// it ages into the gap today; zero and stale means it aged in today.
-	Days int
+	Days  int
 }
 
 // ZoneAgingAt computes how a zone file supplied at suppliedAt ages, measured at
@@ -87,9 +82,6 @@ func ZoneAgingAt(suppliedAt, now time.Time, interval time.Duration) ZoneAging {
 	return ZoneAging{Supplied: true, Days: days}
 }
 
-// ZoneJob is one queue job the zone Scan produces: one supplied zone file, to be
-// read and restated by the worker. It carries no Vantage — a zone file's facts
-// are not a function of where they are read from — and no offers.
 type ZoneJob struct {
 	ScanID     int64
 	SeedID     int64
@@ -272,9 +264,6 @@ type zoneParser struct {
 	lastOwner string
 }
 
-// recordClasses and knownTypes bound what parse accepts. A field equal to a
-// class (IN) is consumed and skipped; a field equal to a type ends the
-// name/ttl/class prefix.
 var recordClasses = map[string]bool{"IN": true, "CH": true, "HS": true, "CS": true}
 
 var knownTypes = map[string]bool{
@@ -283,12 +272,6 @@ var knownTypes = map[string]bool{
 	"SPF": true, "TLSA": true, "SSHFP": true, "DS": true,
 }
 
-// parse turns one logical zone line into a record, or reports why it carries
-// none: parseNone for a directive, a blank or a comment (no record by design),
-// and parseSkipped for a line that looked like a record but was dropped (an
-// orphan continuation, too few fields, an unknown type, or an empty rdata). It
-// handles $ORIGIN and $TTL directives, owner-name inheritance, an optional TTL
-// and class prefix, and relative-vs-absolute owner names.
 func (p *zoneParser) parse(line string) (parsedRecord, parseResult) {
 	line = stripComment(line)
 	if strings.TrimSpace(line) == "" {
@@ -356,9 +339,6 @@ func (p *zoneParser) parse(line string) (parsedRecord, parseResult) {
 	return parsedRecord{name: owner, qtype: qtype, rdata: rdata}, parseRecord
 }
 
-// resolveName turns an owner field into an absolute, lowercased name without a
-// trailing dot. "@" is the origin; a relative name is qualified by the origin; a
-// name already ending in "." is taken as absolute.
 func (p *zoneParser) resolveName(raw string) string {
 	raw = strings.TrimSpace(raw)
 	if raw == "@" {
@@ -410,8 +390,6 @@ func logicalLines(content string) []string {
 	return out
 }
 
-// stripComment removes a ";" comment to end of line. It does not honour ";"
-// inside a quoted string; see logicalLines.
 func stripComment(line string) string {
 	if i := strings.IndexByte(line, ';'); i >= 0 {
 		return line[:i]
@@ -419,9 +397,6 @@ func stripComment(line string) string {
 	return line
 }
 
-// isTTL reports whether a field is a bare TTL — all digits, or digits with a
-// trailing time unit (e.g. 3600, 1h, 2d). It is how the parser tells a TTL
-// prefix from the record type.
 func isTTL(f string) bool {
 	if f == "" {
 		return false

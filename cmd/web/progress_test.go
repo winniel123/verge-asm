@@ -138,7 +138,6 @@ func TestProgressHub(t *testing.T) {
 	}
 }
 
-// fakeProgress is a hub stand-in for the HTTP-level stream test: it returns a fixed event list.
 type fakeProgress struct {
 	byRun map[int64][]jobProgress
 }

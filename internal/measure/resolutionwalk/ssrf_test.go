@@ -53,18 +53,16 @@ func TestWalkRefusesCloudMetadataAuthority(t *testing.T) {
 	}
 }
 
-// TestWalkServerReachableGate pins the gate decision directly: the barred
-// literals refuse the dial, ordinary global unicast is allowed through.
 func TestWalkServerReachableGate(t *testing.T) {
 	ctx := context.Background()
 	barred := []string{
-		"169.254.169.254:53", // cloud metadata (link-local)
-		"127.0.0.1:53",       // loopback
-		"10.0.0.5:53",        // RFC1918
-		"192.168.1.1:53",     // RFC1918
-		"172.16.0.1:53",      // RFC1918
-		"[fd00::1]:53",       // ULA
-		"[::1]:53",           // IPv6 loopback
+		"169.254.169.254:53",   // cloud metadata (link-local)
+		"127.0.0.1:53",         // loopback
+		"10.0.0.5:53",          // RFC1918
+		"192.168.1.1:53",       // RFC1918
+		"172.16.0.1:53",        // RFC1918
+		"[fd00::1]:53",         // ULA
+		"[::1]:53",             // IPv6 loopback
 		"[::ffff:10.0.0.1]:53", // IPv4-mapped RFC1918
 	}
 	for _, s := range barred {
@@ -91,12 +89,12 @@ func TestCustodyDialerControlRefusesNonGlobal(t *testing.T) {
 		t.Fatal("custodyDialer has no Control hook; the rebinding backstop is absent")
 	}
 	refused := []string{
-		"169.254.169.254:53",     // cloud metadata (link-local)
-		"127.0.0.1:53",           // loopback
-		"10.0.0.5:53",            // RFC1918
-		"192.168.1.1:53",         // RFC1918
-		"[fd00::1]:53",           // ULA
-		"[::1]:53",               // IPv6 loopback
+		"169.254.169.254:53",      // cloud metadata (link-local)
+		"127.0.0.1:53",            // loopback
+		"10.0.0.5:53",             // RFC1918
+		"192.168.1.1:53",          // RFC1918
+		"[fd00::1]:53",            // ULA
+		"[::1]:53",                // IPv6 loopback
 		"[::ffff:169.254.0.1]:53", // IPv4-mapped link-local
 	}
 	for _, addr := range refused {
@@ -192,7 +190,7 @@ func buildRebindResponse(query []byte, pub, priv netip.Addr, aCount *atomic.Int3
 // The Control-hooked dialer must refuse that socket, so Exchange reports
 // Unreachable and NOT ONE packet reaches the private address.
 func TestExchangeRefusesRebindToPrivate(t *testing.T) {
-	pub := netip.MustParseAddr("8.8.8.8")   // global — the vet admits it
+	pub := netip.MustParseAddr("8.8.8.8")    // global — the vet admits it
 	priv := netip.MustParseAddr("127.0.0.1") // loopback — the dial must be refused
 
 	orig := netResolver

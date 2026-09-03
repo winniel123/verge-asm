@@ -46,7 +46,6 @@ func TestCandidateAddrsDedupsResolvedAndEnumerated(t *testing.T) {
 			t.Errorf("address %s appears %d times, want 1", a, n)
 		}
 	}
-	// Resolved addresses come first, in order.
 	if got[0].String() != "93.184.216.1" || got[1].String() != "8.8.8.8" {
 		t.Errorf("resolved addresses must lead the candidate set, got %v", got[:2])
 	}

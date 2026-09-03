@@ -31,8 +31,6 @@ import (
 // resolves to it. Reading resolutions here would put a per-request walk on /coverage to
 // populate a field nothing reads.
 
-// addressScopeCensusStore is the read surface the contradiction row needs: the
-// declared address scopes, and the `edge-fanout` measurement through its one reader.
 type addressScopeCensusStore interface {
 	queue.EdgeFanoutStore
 	// AddressExclusionStore is the declared `address` exclusions. The census drops an

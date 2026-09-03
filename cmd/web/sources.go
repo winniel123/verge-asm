@@ -229,9 +229,6 @@ type sourceTierRow struct {
 	On   bool
 }
 
-// fillSourcesSection buckets the discovery-source catalogue into the three spec
-// consent tiers for the sources sub-tab, and opens the consent dialog when
-// ?consent=<id> names an operator-accepted source that is currently off.
 func (s *server) fillSourcesSection(r *http.Request, f settingsForms, data map[string]any) error {
 	views, err := s.sourceViews(r)
 	if err != nil {
@@ -566,9 +563,6 @@ type ctCapabilities struct {
 	Captured    int64  // leaf certificates the handshake capture has stored (spec §5)
 }
 
-// newCTCapabilities shapes the tail and verification readouts from real state: the tail's
-// effective on/off, its last ct-tail Batch, and the captured-certificate count. It reads no
-// worker token and no bulk reliability window — both capabilities are keyless.
 func newCTCapabilities(tailEnabled bool, tail db.CTTailLastBatchRow, captured int64, now time.Time) ctCapabilities {
 	c := ctCapabilities{
 		TailEnabled: tailEnabled,

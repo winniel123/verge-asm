@@ -7,11 +7,8 @@ import (
 	"path/filepath"
 )
 
-// keyFile is the basename, inside the state directory, of the session signing
-// key. The directory is the web-only volume (docker-compose web-state:/app/state).
 const keyFile = "session.key"
 
-// keyLen is the signing-key length in bytes: 256 bits, matching HMAC-SHA256.
 const keyLen = 32
 
 // LoadOrCreateKey returns the session signing key held in dir, creating it on

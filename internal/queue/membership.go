@@ -38,10 +38,6 @@ import (
 // opens), so this file owns only the closing half plus the membership decision the
 // opening half consults.
 
-// membershipInputs is the declared-input context a batch fold composes withdrawal
-// against — the Seeds and Exclusions as they stand at fold time. It is read once
-// per batch (readMembershipInputs) and threaded through both the value fold (for
-// the aperture-widened opening marker) and the withdrawal closure below.
 type membershipInputs struct {
 	seeds      []db.ListSeedsRow
 	exclusions []db.ListExclusionsRow
@@ -164,10 +160,6 @@ const (
 	exclusionKindAddress = "address"
 )
 
-// observedResolutionNames is the distinct set of Names carried by a batch's
-// `resolution` observations, in first-seen order — the Names whose membership this
-// fold re-composes. Other facets (dns-record, reachability) do not re-decide a
-// Name's membership; membership reads the `resolution` facet (internal/estate).
 func observedResolutionNames(obs []wire.Observation) []string {
 	seen := map[string]bool{}
 	var out []string
@@ -261,10 +253,6 @@ func vantageClassKey(v pgtype.Int8) string {
 	return "vantage:" + strconv.FormatInt(v.Int64, 10)
 }
 
-// resolutionOutcome reads the composed outcome tag off a `resolution` span value
-// (`{"outcome": "...", "addresses": [...]}`). A value that will not parse reads as
-// an empty outcome, which estate.suppresses treats as non-suppressing — the safe
-// reading, since a malformed value is not affirmative evidence of absence.
 func resolutionOutcome(value []byte) string {
 	var v struct {
 		Outcome string `json:"outcome"`
@@ -354,9 +342,6 @@ func subjectAddress(subjectKind, subjectKey string) (netip.Addr, bool) {
 	}
 }
 
-// nameSeedCovered reports whether a name Seed declares this Name — an exact match
-// or a name beneath the Seed's domain (the domain apex and everything under it).
-// Address Seeds declare no Name.
 func nameSeedCovered(name string, seeds []db.ListSeedsRow) bool {
 	name = strings.TrimSuffix(strings.ToLower(strings.TrimSpace(name)), ".")
 	for _, s := range seeds {
@@ -370,9 +355,6 @@ func nameSeedCovered(name string, seeds []db.ListSeedsRow) bool {
 	return false
 }
 
-// nameExcluded reports whether an Exclusion covers this Name — an exact `name`
-// exclusion or a `subtree` exclusion of the Name or an ancestor. Address
-// exclusions cover no Name.
 func nameExcluded(name string, exclusions []db.ListExclusionsRow) bool {
 	name = strings.TrimSuffix(strings.ToLower(strings.TrimSpace(name)), ".")
 	for _, e := range exclusions {
@@ -418,7 +400,6 @@ func coveringAddressExclusion(addr netip.Addr, exclusions []db.ListExclusionsRow
 	return nil
 }
 
-// addressSeedCovered reports whether an address Seed's scope contains the address.
 func addressSeedCovered(addr netip.Addr, seeds []db.ListSeedsRow) bool {
 	for _, s := range seeds {
 		if s.Kind != "address" || s.AddressCidr == nil {
@@ -448,10 +429,6 @@ func normalizeDomain(d string) string {
 	return strings.TrimSuffix(strings.ToLower(strings.TrimSpace(d)), ".")
 }
 
-// serviceAddress extracts the address limb of a Service/Endpoint subject key. A
-// Service is keyed "address:port" (an IP and a port); the address is everything
-// before the last colon, which leaves a bracketed or bare IPv6 host intact for the
-// caller's netip.ParseAddr to accept or reject.
 func serviceAddress(key string) string {
 	if i := strings.LastIndex(key, ":"); i >= 0 {
 		host := key[:i]

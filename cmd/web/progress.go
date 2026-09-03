@@ -47,10 +47,6 @@ type jobProgress struct {
 	Text     string `json:"text"`
 }
 
-// progressEvents is the consumer seam the RunDetail stream reads: a run's ephemeral events in
-// emit order. Production wires a progressHub fed by the LISTEN goroutine; it is nil on a server
-// built without it (every test, and any deployment with no pool), where the stream renders bare
-// state exactly as before this producer landed.
 type progressEvents interface {
 	ForDispatch(dispatchID int64) []jobProgress
 }
@@ -67,9 +63,6 @@ const (
 	maxEventsPerRun = 1024
 )
 
-// progressHub is the in-memory, bounded per-dispatch event log. It holds each run's events in
-// emit (append) order and nothing at rest. Safe for concurrent record (the LISTEN goroutine)
-// and ForDispatch (each stream poll).
 type progressHub struct {
 	mu     sync.Mutex
 	byRun  map[int64][]jobProgress
@@ -100,7 +93,6 @@ func (h *progressHub) record(ev jobProgress) {
 	h.byRun[ev.Dispatch] = append(log, ev)
 }
 
-// evictLocked drops least-recently-started runs until the cap holds. Called under h.mu.
 func (h *progressHub) evictLocked() {
 	for len(h.recent) > maxProgressRuns {
 		oldest := h.recent[0]
@@ -155,12 +147,6 @@ func eventStreamLines(events []jobProgress, jobFilter int64, filtered bool) []ru
 	return out
 }
 
-// streamCursorBase splits the stream's single numeric cursor into two independent counters: the
-// low part counts state lines delivered, the high part counts event lines delivered. Encoding
-// state in the low part keeps the contract the frozen client relies on — its initial cursor is
-// the count of already-rendered state lines (event count 0), and a run with no events keeps
-// next == the state-line count exactly as the pre-producer transport did. It is far above any
-// real run's state-line count (job rows per dispatch, bounded by fan-out × retries).
 const streamCursorBase = 1_000_000
 
 // encodeStreamCursor packs the two per-source counts into the one numeric cursor the frozen
@@ -173,8 +159,6 @@ func encodeStreamCursor(events, state int) int {
 	return events*streamCursorBase + state
 }
 
-// decodeStreamCursor splits a client cursor back into (events, state). A first-poll cursor is
-// the bare state-line count (events 0), which decodes correctly since it is below the base.
 func decodeStreamCursor(after int) (events, state int) {
 	if after < 0 {
 		return 0, 0

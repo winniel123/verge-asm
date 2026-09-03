@@ -240,10 +240,6 @@ func hotCore(ctx context.Context, q *db.Queries) (vergecore.List, error) {
 	return vergecore.Default().WithFrequencyEdits(fe), nil
 }
 
-// enqueueHotJob enqueues one connect-outcome job for one Vantage. Its recorded
-// scope carries the admitted addresses and the verge-core port sets by content;
-// its offers carry the safety profile. It retries like a dns job — a connect is
-// a network step that can transiently fail.
 func enqueueHotJob(ctx context.Context, qtx *db.Queries, scanID, dispatchID int64, j scan.HotJob) error {
 	spec, err := j.JobSpec(fmt.Sprintf("scan:%d:vantage:%d:addr:%s", scanID, j.VantageID, jobAddr(j.Addresses)))
 	if err != nil {

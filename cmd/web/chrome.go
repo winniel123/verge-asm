@@ -37,7 +37,6 @@ import (
 // `toast` PRG query, decoded by decodeToasts).
 const devShellToastVariant = "flash-toast"
 
-// chromeVM is the nullable .Chrome hole shell.tmpl's "chrome"/"foot" read.
 type chromeVM struct {
 	Nav           []chromeNav
 	Org           string // the static single-org chip label (ADR-0073; switcher retired, #33)
@@ -87,9 +86,6 @@ type toastVM struct {
 	Description string
 }
 
-// consoleNav is the primary-nav spine the old hardcoded chrome links encoded, in
-// order (Signals carries the open count, threaded at build time). It is the one place
-// the console's nav order lives now that the shell is design-owned.
 var consoleNav = []chromeNav{
 	{ID: "dashboard", Label: "Dashboard", Href: "/"},
 	{ID: "scope", Label: "Scope", Href: "/scope"},
@@ -102,8 +98,6 @@ var consoleNav = []chromeNav{
 	{ID: "reports", Label: "Reports", Href: "/reports"},
 }
 
-// navSlice builds the TopNav pills from consoleNav, marking the active pill and
-// stamping the Signals open count.
 func navSlice(active string, signalCount int) []chromeNav {
 	out := make([]chromeNav, 0, len(consoleNav))
 	for _, n := range consoleNav {
@@ -157,8 +151,6 @@ func paletteGroupsProd(signalCount int, unread int64) []paletteGroup {
 	}
 }
 
-// countHint renders a palette item hint like "47 open" / "2 unread", or "" when the
-// count is zero (the tmpl drops an empty hint).
 func countHint(n int64, word string) string {
 	if n <= 0 {
 		return ""
@@ -166,11 +158,6 @@ func countHint(n int64, word string) string {
 	return strconv.FormatInt(n, 10) + " " + word
 }
 
-// decodeToasts reads the PRG flash the shell's toastRedirect (shell.go) writes into
-// the destination GET's `toast` query — a base64url JSON object {tone,title,
-// description}. The spec ToastStack renders it server-side; the design-owned shell JS
-// then auto-dismisses it. A missing or malformed query yields no toast (the page just
-// renders without one). Text is rendered by html/template, which escapes it.
 func decodeToasts(r *http.Request) []toastVM {
 	if r == nil {
 		return nil
@@ -189,8 +176,6 @@ func decodeToasts(r *http.Request) []toastVM {
 	}
 	return []toastVM{t}
 }
-
-// --- devMode: the pinned fixtures.json shell slice ---------------------------------
 
 // shellFixture is the on-disk fixtures.json → shell slice. render-goldens mirrors this
 // shape one-for-one so golden and candidate compose the identical chrome.
@@ -236,8 +221,6 @@ type shellFixture struct {
 	} `json:"chrome"`
 }
 
-// loadShellFixture reads the pinned fixtures.json shell slice from the embedded design
-// package (designfs). A read/parse failure degrades to the zero fixture.
 func loadShellFixture() shellFixture {
 	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
 	if err != nil {

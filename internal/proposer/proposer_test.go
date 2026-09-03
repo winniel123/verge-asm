@@ -215,7 +215,6 @@ func TestRegistryRunsOnlyEnabledSources(t *testing.T) {
 		t.Errorf("disabled AFRINIC source was queried: %v", caidaDoer.calls)
 	}
 
-	// Both enabled: both answer.
 	cands, err = reg.Propose(context.Background(), "Org", map[string]bool{SlugARIN: true, SlugAFRINIC: true})
 	if err != nil {
 		t.Fatal(err)

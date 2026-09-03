@@ -23,9 +23,6 @@ const (
 	SevInfo     Severity = "info"
 )
 
-// SevOrder is the ramp from most urgent to least — critical → info — matching
-// SignalData.jsx's `SEV_ORDER` exactly. A severity-ordered view sorts by each
-// severity's index here.
 var SevOrder = []Severity{SevCritical, SevHigh, SevMedium, SevLow, SevInfo}
 
 // Rank is the severity's position in SevOrder — 0 for critical (most urgent),
@@ -40,8 +37,6 @@ func (s Severity) Rank() int {
 	return len(SevOrder)
 }
 
-// String renders the severity as its lowercase token — the `sev` value the
-// SeverityBadge keys its class off (SignalData.jsx).
 func (s Severity) String() string { return string(s) }
 
 // SeverityFor returns the severity the named rule is assigned, across all three

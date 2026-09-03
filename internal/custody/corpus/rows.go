@@ -20,40 +20,27 @@ const (
 	atThreshold    = 100
 )
 
-// Resolution is one observed direct A/AAAA record in a row's estate, in the
-// spelling a row is authored in: an owner Name holding an address literal.
 type Resolution struct {
 	Owner   string
 	Address string
 }
 
-// Step is one run of the derivation inside a row: an estate, the `edge-fanout`
-// Scan's disposition, what that Scan observed, and the addresses the row renders.
 type Step struct {
-	// AddressScopes are the declared address-scope `Seed`s, as CIDR literals.
 	AddressScopes []string
 	// AddressExclusions are the declared `address` exclusions, as CIDR literals. An
 	// address inside one is covered by NO address scope, so it derives `third-party`
 	// unless a custody extension also reaches it (ADR-0133 §1).
 	AddressExclusions []string
-	// ExtendedZones are the registrable domains of custody-extended name scopes.
-	ExtendedZones []string
-	// Resolutions are the observed direct A/AAAA records.
-	Resolutions []Resolution
-	// ScanInForce is `edge-fanout`'s DISPOSITION — EdgeFanout.Enabled. False is a
-	// disabled Scan and a Scan whose row is absent.
-	ScanInForce bool
+	ExtendedZones     []string
+	Resolutions       []Resolution
+	ScanInForce       bool
 	// ScanBatchCompleted is whether a Batch of the Scan has ever completed —
 	// EdgeFanout.BatchCompleted. It is what tells the two unmeasured states apart: a
 	// Scan that has not run yet HOLDS its extension candidates, and one that has run
 	// and measured none of them is ERRORED on that limb and reaches (#1018).
 	ScanBatchCompleted bool
-	// Observed maps an address literal to the SAN set the Scan read off its
-	// default certificate. An address ABSENT from this map is measurement
-	// PENDING, which is the whole of the row that pins the hold.
-	Observed map[string][]string
-	// Under are the addresses the row renders, one NDJSON line each, in this order.
-	Under []string
+	Observed           map[string][]string
+	Under              []string
 }
 
 // Row is one corpus row: the cells it pins, its one-line claim, whether the claim
@@ -85,8 +72,6 @@ var AllCells = []string{
 	"C4/excluded-but-extension-reached-is-operator",
 }
 
-// Rows is the checked-in corpus. Every cell in AllCells appears in some row's
-// Cells; the coverage test fails the build (naming the cell) if one does not.
 var Rows = []Row{
 	// ---- C1, below the boundary ----
 	// One in-zone name's direct-A target, measured at 99 distinct registrable

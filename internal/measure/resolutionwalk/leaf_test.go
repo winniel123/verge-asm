@@ -5,8 +5,6 @@ import (
 	"testing"
 )
 
-// mapPeer is a tiny scripted peer for the leaf's own unit tests: it answers by
-// (path, qtype, transport, edns, server), returning a silent Msg when unmatched.
 type mapPeer struct {
 	fn func(Query) Msg
 }

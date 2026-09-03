@@ -77,5 +77,4 @@ func hotTickLags(ctx context.Context, q HotLagStore, scanID, dispatchID int64, s
 	return q.ScanHasNonTerminalJobs(ctx, db.ScanHasNonTerminalJobsParams{ScanID: scanID, DispatchID: dispatchID})
 }
 
-// compile-time proof *db.Queries is a HotLagStore.
 var _ HotLagStore = (*db.Queries)(nil)

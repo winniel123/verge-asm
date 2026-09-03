@@ -21,25 +21,16 @@ type NarrowingReceipt struct {
 	// inside. It does NOT survive a Seed withdrawal (ADR-0134): there the scope
 	// is the thing that went, and the key is a dated fact rather than a live join
 	// — which Narrowing's doc already licenses.
-	Scope string
-	// Removed is the ground that left: the excluded value (an address scope, a
-	// name, or a subtree) for an exclusion, and the withdrawn scope itself — the
-	// same string as Scope, a CIDR or a domain — for a Seed withdrawal.
-	Removed string
-	// SubjectsWithdrawn is the count of subjects the act removes — the trigger
-	// (inhabitance of the withdrawn set) and half the payload.
+	Scope             string
+	Removed           string
 	SubjectsWithdrawn int
 	// TimelinesRemoved is the count of timelines those subjects take out of the
 	// estate — the other half of the count, stated with its factors rather than
 	// as a bare product.
 	TimelinesRemoved int
-	// Fires is true exactly where SubjectsWithdrawn > 0. It gates whether the
-	// preview and the store message appear at all.
-	Fires bool
-	// Headline and Loss are the rendered copy, computed only where Fires. They
-	// carry no valence word: a narrowing is neither good news nor bad.
-	Headline string
-	Loss     string
+	Fires            bool
+	Headline         string
+	Loss             string
 }
 
 // PreviewNarrowing computes the receipt from the counts the caller measured — the

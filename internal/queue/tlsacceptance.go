@@ -96,10 +96,6 @@ func parseServiceKey(key string) (netip.AddrPort, bool) {
 	return ap, true
 }
 
-// enqueueTLSAcceptanceJob enqueues one tls-acceptance job for one Vantage. Its
-// recorded scope carries the open Services and the candidate set by content; its
-// offers carry the candidate set. It retries like a hot job — an enumeration is a
-// network step that can transiently fail.
 func enqueueTLSAcceptanceJob(ctx context.Context, qtx *db.Queries, scanID, dispatchID int64, j scan.TLSAcceptanceJob) error {
 	spec, err := j.JobSpec(fmt.Sprintf("scan:%d:vantage:%d", scanID, j.VantageID))
 	if err != nil {

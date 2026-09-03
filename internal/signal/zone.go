@@ -40,7 +40,6 @@ func DeclaredNames(content, origin string) map[string]bool {
 			continue
 		}
 
-		// A line beginning with whitespace continues the previous owner.
 		var owner string
 		if line[0] == ' ' || line[0] == '\t' {
 			owner = lastOwner
@@ -60,9 +59,6 @@ func DeclaredNames(content, origin string) map[string]bool {
 	return out
 }
 
-// qualify resolves one owner token against the current origin: `@` is the origin,
-// an absolute name (trailing dot) stands alone, and a relative name is completed
-// by the origin. The result is a canonical Name key.
 func qualify(token, origin string) string {
 	if token == "@" {
 		return origin

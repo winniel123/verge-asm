@@ -35,8 +35,6 @@ type ArtifactDoc struct {
 	DeliveryState *ArtifactDocDeliveryState `json:"delivery_state"`
 }
 
-// ArtifactDocStat is one KPI in the summary band: a label, a mono value, an optional
-// signed delta drawn by the "deltachip" partial, and a caption.
 type ArtifactDocStat struct {
 	Label   string           `json:"label"`
 	Value   string           `json:"value"`
@@ -44,8 +42,6 @@ type ArtifactDocStat struct {
 	Caption string           `json:"caption"`
 }
 
-// ArtifactDocDelta is a stat's signed delta: whether one is present, its pre-signed
-// text, its direction (up/down — selects the arrow), and its tone (selects a colour).
 type ArtifactDocDelta struct {
 	Has  bool   `json:"has"`
 	Text string `json:"text"`
@@ -53,8 +49,6 @@ type ArtifactDocDelta struct {
 	Tone string `json:"tone"`
 }
 
-// ArtifactDocSevBar is one bar in the "open signals by severity" breakdown: the
-// severity token (selects the dot colour), its label, the fill percentage, and count.
 type ArtifactDocSevBar struct {
 	Sev   string `json:"sev"`
 	Label string `json:"label"`
@@ -62,9 +56,6 @@ type ArtifactDocSevBar struct {
 	Count int    `json:"count"`
 }
 
-// ArtifactDocNewRow is one row of the "new this week" table: the severity token and
-// its badge label (drawn by the "sevbadge" partial), the signal, the asset, and the
-// date it was seen.
 type ArtifactDocNewRow struct {
 	Severity string `json:"severity"`
 	SevLabel string `json:"sev_label"`
@@ -73,14 +64,11 @@ type ArtifactDocNewRow struct {
 	Seen     string `json:"seen"`
 }
 
-// ArtifactDocWithdrawn is one "withdrawn by the world" row: the subject and the reason.
 type ArtifactDocWithdrawn struct {
 	Text   string `json:"text"`
 	Reason string `json:"reason"`
 }
 
-// ArtifactDocDeliveryState is the receipt's delivery pill: its label and tone
-// (ok/danger/neutral). A nil pointer renders no pill (the tmpl guards it with {{with}}).
 type ArtifactDocDeliveryState struct {
 	Label string `json:"label"`
 	Tone  string `json:"tone"`

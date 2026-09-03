@@ -31,9 +31,6 @@ import (
 // its leaf.
 const Version = "connect-outcome/v2"
 
-// Kind is the JobSpec.Kind that dispatches to this leaf. It is distinct from the
-// `hot` Scan's DB kind: the Scan is `hot`, the leaf it dispatches is
-// `connect-outcome`, exactly as the `dns` Scan dispatches `resolution-walk`.
 const Kind = "connect-outcome"
 
 // SafetyProfile is the leaf's declared-parameter set: the exact §3.3 safety
@@ -75,11 +72,8 @@ type SafetyProfile struct {
 	// Dispatch (ADR-0137). #1106 holds the amendment. A host inside two Vantages
 	// sits in two jobs and receives twice the rate — the disclosed gap above, not
 	// a coordination defect.
-	PerHostConnPerSec int `json:"per_host_conn_per_sec"`
-	// PerHostConcurrency is the per-host in-flight connection ceiling — ≤ 20 from
-	// one `Vantage`, under the same condition as PerHostConnPerSec.
-	PerHostConcurrency int `json:"per_host_concurrency"`
-	// ConnectTimeoutMillis bounds one connect attempt — 3 s.
+	PerHostConnPerSec    int `json:"per_host_conn_per_sec"`
+	PerHostConcurrency   int `json:"per_host_concurrency"`
 	ConnectTimeoutMillis int `json:"connect_timeout_millis"`
 	// Retries is the number of re-attempts after a timeout/error before the
 	// verdict is decided — 2. A refusal (RST) is an answer and is never retried.
@@ -139,8 +133,6 @@ func DefaultProfile() SafetyProfile {
 	}
 }
 
-// Digest is a stable content hash of the profile, used by the golden-corpus lock
-// to bind a declared-parameter change to a Version bump.
 func (p SafetyProfile) Digest() string {
 	b, err := json.Marshal(p)
 	if err != nil {

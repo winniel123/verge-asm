@@ -50,7 +50,6 @@ var _ [SharedEdgeThreshold]struct{}
 // eTLD+1, deduplicate — is fixed in the code and moves with the derivation
 // version, as `wildcard-discrimination`'s match predicate does.
 type Params struct {
-	// SharedEdgeThreshold is the count at or above which an edge is shared.
 	SharedEdgeThreshold int `json:"shared_edge_threshold"`
 	// PublicSuffixList identifies the PSL snapshot the reduction reads. It is
 	// the list's own version string, so a dependency bump that ships a newer
@@ -58,8 +57,6 @@ type Params struct {
 	PublicSuffixList string `json:"public_suffix_list"`
 }
 
-// DefaultParams is the shipped parameter set — the values the derivation
-// actually ran under, rendered for the corpus lock to hash.
 func DefaultParams() Params {
 	return Params{
 		SharedEdgeThreshold: SharedEdgeThreshold,

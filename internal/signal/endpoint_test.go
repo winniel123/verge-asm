@@ -2,12 +2,8 @@ package signal
 
 import "testing"
 
-// cb is a *bool literal — a read certificate attribute. A nil attribute means the
-// datum was not read (not-evaluable); cb(false)/cb(true) are the two read verdicts.
 func cb(b bool) *bool { return &b }
 
-// presented builds an EndpointFacts with a presented certificate and the given
-// parsed detail flags, for the certificate-rule tests.
 func presented(d *CertDetails) EndpointFacts {
 	return EndpointFacts{CertMeasured: true, CertOutcome: CertPresented, CertDetails: d, HasName: true}
 }
@@ -212,8 +208,6 @@ func TestRedirectToHostOutsideEstate(t *testing.T) {
 			t.Errorf("%s: Eval = %q, want %q", c.name, got, c.want)
 		}
 	}
-	// The vector composes http-exchange and both resolution leaves (the estate
-	// membership is Derived from resolution).
 	const wantVer = "rule@v1|http-exchange/v2|resolution-walk/v1|wildcard-discrimination/v1"
 	if got := r.Version().String(); got != wantVer {
 		t.Fatalf("version = %q, want %q", got, wantVer)
@@ -273,7 +267,6 @@ func TestEvaluateCorpusReturnsSeventeenRules(t *testing.T) {
 	if len(AllRuleNames()) != 17 {
 		t.Fatalf("AllRuleNames has %d, want 17", len(AllRuleNames()))
 	}
-	// Every rule name is distinct.
 	seen := map[string]bool{}
 	for _, n := range AllRuleNames() {
 		if seen[n] {

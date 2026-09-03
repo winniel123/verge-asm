@@ -34,22 +34,15 @@ import "time"
 type Cause string
 
 const (
-	// CauseDrift: the estate's own object moved. The row links to that object's
-	// own page.
 	CauseDrift Cause = "drift"
 	// CauseAperture: us — our own aperture widened (or a rule of ours). The row
 	// links to the Seed whose scope moved, never to Coverage's standing aperture
 	// statement.
-	CauseAperture Cause = "aperture"
-	// CauseDeclaredInput: the operator's own declared input moved. The row links
-	// to the Source the rule reads.
+	CauseAperture      Cause = "aperture"
 	CauseDeclaredInput Cause = "declared-input"
-	// CauseThreshold: nothing at all — only a clock or threshold was crossed. The
-	// row links to the object whose span the rule read.
-	CauseThreshold Cause = "threshold"
+	CauseThreshold     Cause = "threshold"
 )
 
-// Valid reports whether a cause is one of the closed four.
 func (c Cause) Valid() bool {
 	switch c {
 	case CauseDrift, CauseAperture, CauseDeclaredInput, CauseThreshold:
@@ -64,13 +57,9 @@ func (c Cause) Valid() bool {
 type Class string
 
 const (
-	// ClassDrift: the estate's own object moved.
-	ClassDrift Class = "drift"
-	// ClassCoverage: *we changed how we look* — the two causes aperture and
-	// declared-input merged.
+	ClassDrift    Class = "drift"
 	ClassCoverage Class = "coverage"
-	// ClassClock: only a clock or threshold was crossed and no measurement moved.
-	ClassClock Class = "clock"
+	ClassClock    Class = "clock"
 )
 
 // ClassForCause maps a firing's cause to its routing class — the merge that
@@ -98,11 +87,7 @@ func ClassForCause(c Cause) Class {
 type LinkKind string
 
 const (
-	// LinkObject: an estate object's own page. Both a drift firing (the object
-	// that moved) and a threshold firing (the object whose span the rule read)
-	// link here — to a subject page.
 	LinkObject LinkKind = "object"
-	// LinkSource: the Source the rule reads — the declared-input mover.
 	LinkSource LinkKind = "source"
 	// LinkSeed: the Seed whose scope moved — the aperture-widening mover. NEVER
 	// Coverage's standing aperture statement, which is constant and would lose
@@ -133,8 +118,6 @@ func LinkKindForCause(c Cause) LinkKind {
 // `Message`). It is a frozen value: once a constructor returns one, nothing in
 // this package recomputes it.
 type Message struct {
-	// ID is the store's identity, zero for a freshly-computed message not yet
-	// written.
 	ID int64
 
 	Cause Cause
@@ -154,9 +137,6 @@ type Message struct {
 	// a Break.
 	Instant time.Time
 
-	// Census is the payload where the firing has one — the rows that opened
-	// beneath the fired-at subject (a flagship or a membership root), or the
-	// count a narrowing withdrew. Nil where the firing carries none.
 	Census *Census
 
 	// Headline is the rendered sentence, computed at the cause from the fold. It
@@ -169,11 +149,8 @@ type Message struct {
 	Read bool
 }
 
-// LinkKind is the row's link target kind, derived from the cause on read.
 func (m Message) LinkKind() LinkKind { return LinkKindForCause(m.Cause) }
 
-// CensusLen is the census size, or zero where the message carries none — the
-// count a row renders beside a flagship or membership headline.
 func (m Message) CensusLen() int {
 	if m.Census == nil {
 		return 0

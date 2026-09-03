@@ -17,11 +17,11 @@ func TestCoversAddressScopeFamilyMatched(t *testing.T) {
 		addr string
 		want bool
 	}{
-		{"10.1.2.3", true},                 // inside the v4 scope
-		{"11.0.0.1", false},                // outside every scope
-		{"2001:db8::1", true},              // inside the v6 scope
-		{"2001:dead::1", false},            // v6 outside the scope
-		{"::ffff:10.1.2.3", true},          // v4-mapped v6 unmaps and matches the v4 scope
+		{"10.1.2.3", true},        // inside the v4 scope
+		{"11.0.0.1", false},       // outside every scope
+		{"2001:db8::1", true},     // inside the v6 scope
+		{"2001:dead::1", false},   // v6 outside the scope
+		{"::ffff:10.1.2.3", true}, // v4-mapped v6 unmaps and matches the v4 scope
 	}
 	for _, c := range cases {
 		if got := e.CoversAddressScope(netip.MustParseAddr(c.addr)); got != c.want {
@@ -37,7 +37,6 @@ func TestCoversAddressScopeFamilyMatched(t *testing.T) {
 func TestCoversAddressScopeRefusesExtension(t *testing.T) {
 	globallyReachable := netip.MustParseAddr("93.184.216.34")
 	e := Estate{
-		// No address scope covers the address...
 		AddressScopes: nil,
 		// ...but a custody extension does, via a resolution inside the extended zone.
 		ExtendedZones: []string{"example.com"},

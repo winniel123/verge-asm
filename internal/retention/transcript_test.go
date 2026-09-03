@@ -52,9 +52,6 @@ func TestTranscriptCutoff(t *testing.T) {
 	}
 }
 
-// fakeTranscriptStore is the whole surface the TranscriptRetirer can reach. It has
-// no Observation, Dispatch, Span or Batch method — the compiler will not let the
-// retirer touch anything but the dial and the transcript delete.
 type fakeTranscriptStore struct {
 	dial          int64
 	deleteCalled  bool

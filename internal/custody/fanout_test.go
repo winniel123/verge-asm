@@ -246,7 +246,6 @@ func TestThresholdIsNotOperatorConfigurable(t *testing.T) {
 	}
 }
 
-// unrelatedDomains builds n SANs that reduce to n distinct registrable domains.
 func unrelatedDomains(n int) []string {
 	out := make([]string, 0, n)
 	for i := 0; i < n; i++ {

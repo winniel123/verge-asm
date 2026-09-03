@@ -43,17 +43,11 @@ import (
 // (ADR-0039 stands). The free-text delivery_target is superseded by the binding: it is
 // written empty and no longer read as the destination.
 
-// reportScheduleSection is one selectable report section — the key persisted in the
-// sections JSON array and the label the wizard checkbox and the Review list render.
-// Ported from Reports.jsx SECTIONS.
 type reportScheduleSection struct {
 	Key   string
 	Label string
 }
 
-// The section keys follow the design's fixture vocabulary (fixtures.json →
-// reports.wizard.sections): kpis / new-assets / signal-changes / coverage-gaps. The
-// wizard checkbox value and the persisted sections JSON both use these keys.
 var reportScheduleSections = []reportScheduleSection{
 	{"kpis", "Summary KPIs"},
 	{"new-assets", "New assets"},
@@ -61,8 +55,6 @@ var reportScheduleSections = []reportScheduleSection{
 	{"coverage-gaps", "Coverage gaps"},
 }
 
-// reportScheduleDefaultSections is the wizard's initial section selection —
-// Reports.jsx defaults to the first three (SECTIONS.slice(0, 3)).
 func reportScheduleDefaultSections() []string {
 	return []string{
 		reportScheduleSections[0].Key,
@@ -71,10 +63,6 @@ func reportScheduleDefaultSections() []string {
 	}
 }
 
-// reportCadPresets are the CadenceSelect presets, ported verbatim from
-// design-system/components/forms/CadenceSelect.jsx. The default is "Weekly · mon
-// 09:00" (Reports.jsx's initial cad); "Custom…" reveals a cron field and gates Next
-// until it is filled.
 var reportCadPresets = []string{"Every 6h", "Daily · 08:00", "Weekly · mon 09:00", "Monthly · 1st", "Custom…"}
 
 const (
@@ -91,26 +79,17 @@ const (
 var reportScheduleStepTitles = []string{"Scope", "Cadence", "Delivery", "Review"}
 
 const (
-	// reportScheduleDeliveryStep is the index of the Delivery step, where the channel
-	// destination is chosen (Reports.jsx's "delivery" step between Cadence and Review).
 	reportScheduleDeliveryStep = 2
 	reportScheduleLast         = 3
 )
 
-// scheduleWizardView is the controlled state of the wizard across the post-back
-// flow: the step being shown, the schedule id (0 on create, the target on edit), and
-// every field's current value. Sections are the checked section keys in canonical
-// order.
 type scheduleWizardView struct {
-	Step     int
-	ID       int64
-	Name     string
-	Sections []string
-	Cad      string
-	Cron     string
-	// ChannelID is the chosen delivery destination: 0 is "Download only" (a NULL
-	// channel_id — the run generates in-instance and no ready-message leaves), and any
-	// other value is a declared Channel's id (P0.6c/T7).
+	Step      int
+	ID        int64
+	Name      string
+	Sections  []string
+	Cad       string
+	Cron      string
 	ChannelID int64
 	// Back is the /reports URL the operator opened the wizard from, threaded through every
 	// step so the finishing 303 lands on THAT list rather than on a bare /reports
@@ -126,10 +105,6 @@ type scheduleWizardView struct {
 	Back string
 }
 
-// readScheduleWizardView reconstructs the controlled state from the request form.
-// Sections are read from the multi-valued "sections" field and canonicalised (a known
-// key kept once, in declared order); an unknown key is dropped. Defaults match the
-// example's initial state (weekly cadence).
 func readScheduleWizardView(r *http.Request) scheduleWizardView {
 	_ = r.ParseForm()
 
@@ -204,9 +179,6 @@ func scheduleCadenceValid(v scheduleWizardView) bool {
 	return cron != "" && report.ValidateCron(cron) == nil
 }
 
-// scheduleStepValid is the per-step valid gate, ported from the example's step
-// `valid` predicates: Scope needs a name and at least one section; Cadence needs a
-// valid cron when the custom preset is chosen; Review is always valid.
 func scheduleStepValid(v scheduleWizardView) bool {
 	switch v.Step {
 	case 0:

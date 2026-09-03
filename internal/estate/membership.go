@@ -33,9 +33,6 @@ const (
 	OutcomeGap       = "Gap"
 )
 
-// FinalResolution is the one recorded `resolution` value for a (Name, Vantage) —
-// the value resolution-walk and wildcard-discrimination decide jointly. It is
-// what Compose produces and what Membership reads.
 type FinalResolution struct {
 	Outcome   string
 	Addresses []string
@@ -70,9 +67,6 @@ type Observation struct {
 	Resolution FinalResolution
 }
 
-// Estate is the membership census: the Names present, and the Addresses a current
-// resolution cites. Both are the output of composing every leaf that decides the
-// value read.
 type Estate struct {
 	Names     []string
 	Addresses []string

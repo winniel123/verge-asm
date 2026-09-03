@@ -26,8 +26,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/retention"
 )
 
-// fakeStore is an in-memory store used across the web handler tests, standing
-// in for a live Postgres.
 type fakeStore struct {
 	hb    db.Heartbeat
 	hbErr error
@@ -241,7 +239,6 @@ type fakeStore struct {
 	ssoIdentNextID int64
 }
 
-// fakeSSOProvider mirrors an sso_provider row, client secret included.
 type fakeSSOProvider struct {
 	id        int64
 	slug      string
@@ -266,7 +263,6 @@ type fakeSSOIdentity struct {
 	createdAt   time.Time
 }
 
-// fakeFreqEdit mirrors a verge-core frequency edit row.
 type fakeFreqEdit struct {
 	action    string
 	createdBy int64
@@ -356,8 +352,6 @@ func (f *fakeStore) ListJobsForDispatch(_ context.Context, dispatchID pgtype.Int
 	return f.jobsByDispatch[dispatchID.Int64], nil
 }
 
-// GetTranscriptByJob returns the one sealed Transcript for a queue_job id, or pgx.ErrNoRows
-// for a job that produced no capture (the legible absence the raw view renders distinctly).
 func (f *fakeStore) GetTranscriptByJob(_ context.Context, queueJobID int64) (db.Transcript, error) {
 	if t, ok := f.transcriptsByJob[queueJobID]; ok {
 		return t, nil
@@ -365,7 +359,6 @@ func (f *fakeStore) GetTranscriptByJob(_ context.Context, queueJobID int64) (db.
 	return db.Transcript{}, pgx.ErrNoRows
 }
 
-// dispatchIdx finds the progress row for a dispatch id, or -1.
 func (f *fakeStore) dispatchIdx(id int64) int {
 	for i := range f.dispatchProgress {
 		if f.dispatchProgress[i].DispatchID == id {
@@ -375,8 +368,6 @@ func (f *fakeStore) dispatchIdx(id int64) int {
 	return -1
 }
 
-// CancelReadyJobsForDispatch cancels the pending (ready) jobs of a dispatch — the stop
-// act — moving that count into the cancelled bucket (ready → 0) and returning it.
 func (f *fakeStore) CancelReadyJobsForDispatch(_ context.Context, dispatchID pgtype.Int8) (int64, error) {
 	i := f.dispatchIdx(dispatchID.Int64)
 	if i < 0 {
@@ -387,8 +378,6 @@ func (f *fakeStore) CancelReadyJobsForDispatch(_ context.Context, dispatchID pgt
 	return n, nil
 }
 
-// CancelActiveJobsForDispatch cancels the ready AND running jobs of a dispatch — the
-// terminate act — returning the total cancelled.
 func (f *fakeStore) CancelActiveJobsForDispatch(_ context.Context, dispatchID pgtype.Int8) (int64, error) {
 	i := f.dispatchIdx(dispatchID.Int64)
 	if i < 0 {
@@ -400,7 +389,6 @@ func (f *fakeStore) CancelActiveJobsForDispatch(_ context.Context, dispatchID pg
 	return n, nil
 }
 
-// SetDispatchStatus records a dispatch's operator-ended disposition.
 func (f *fakeStore) SetDispatchStatus(_ context.Context, arg db.SetDispatchStatusParams) error {
 	if f.dispatchStatus == nil {
 		f.dispatchStatus = map[int64]string{}
@@ -409,7 +397,6 @@ func (f *fakeStore) SetDispatchStatus(_ context.Context, arg db.SetDispatchStatu
 	return nil
 }
 
-// GetInstanceHealth returns the canned instance-health db facts.
 func (f *fakeStore) GetInstanceHealth(context.Context) (db.GetInstanceHealthRow, error) {
 	return f.instanceHealth, nil
 }
@@ -435,8 +422,6 @@ func (f *fakeStore) OptOutColdScope(_ context.Context, seedID int64) error {
 	return nil
 }
 
-// SyncColdScanEnabled mirrors the SQL: the cold Scan is enabled exactly while at
-// least one Seed scope is opted in.
 func (f *fakeStore) SyncColdScanEnabled(context.Context) error {
 	enabled := len(f.coldScopes) > 0
 	for i := range f.scans {
@@ -672,8 +657,6 @@ func (f *fakeStore) ListAddressScopeCidrs(context.Context) ([]*netip.Prefix, err
 	return out, nil
 }
 
-// ListExtendedZoneDomains returns the domains of the name-scope Seeds carrying a
-// custody extension, mirroring the SQL's `kind = 'name' AND custody_extension`.
 func (f *fakeStore) ListExtendedZoneDomains(context.Context) ([]pgtype.Text, error) {
 	out := []pgtype.Text{}
 	for _, s := range f.seeds {
@@ -847,8 +830,6 @@ func (f *fakeStore) ListNameSeedWithdrawalCandidates(_ context.Context, domains 
 	return out, nil
 }
 
-// ListAdmittedNamesOutsideSeed mirrors the SQL: the distinct admitted names some
-// OTHER Seed admits, which is the set that survives this Seed's delete cascade.
 func (f *fakeStore) ListAdmittedNamesOutsideSeed(_ context.Context, seedID int64) ([]string, error) {
 	seen := map[string]bool{}
 	out := []string{}
@@ -1022,7 +1003,6 @@ func (f *fakeStore) CreateAnnotation(_ context.Context, arg db.CreateAnnotationP
 
 func (f *fakeStore) ListAnnotations(context.Context) ([]db.Annotation, error) {
 	rows := append([]db.Annotation(nil), f.annotations...)
-	// ORDER BY signal_name, subject_key.
 	sort.Slice(rows, func(i, j int) bool {
 		if rows[i].SignalName != rows[j].SignalName {
 			return rows[i].SignalName < rows[j].SignalName
@@ -1068,8 +1048,6 @@ func (f *fakeStore) MintSignalInstances(_ context.Context, arg db.MintSignalInst
 	return nil
 }
 
-// ListSignalInstances returns the minted identities ordered by signal then subject,
-// as the query's ORDER BY does.
 func (f *fakeStore) ListSignalInstances(context.Context) ([]db.SignalInstance, error) {
 	rows := append([]db.SignalInstance(nil), f.signalInstances...)
 	sort.Slice(rows, func(i, j int) bool {
@@ -1097,7 +1075,6 @@ func (f *fakeStore) InsertMessage(_ context.Context, arg db.InsertMessageParams)
 
 func (f *fakeStore) ListMessages(context.Context) ([]db.Message, error) {
 	out := make([]db.Message, len(f.messages))
-	// Newest-first, mirroring ORDER BY id DESC.
 	for i, m := range f.messages {
 		out[len(f.messages)-1-i] = m
 	}
@@ -1317,9 +1294,6 @@ func (f *fakeStore) UpdateRetentionSettings(_ context.Context, arg db.UpdateRete
 	return nil
 }
 
-// --- Subjects reads --------------------------------------------------------
-
-// ensureScan returns the id of the scan of the given kind, creating it once.
 func (f *fakeStore) ensureScan(kind string) int64 {
 	for _, sc := range f.scans {
 		if sc.Kind == kind {
@@ -1346,9 +1320,6 @@ func (f *fakeStore) freshBatch(scanKind, batchKind string) int64 {
 	return b.ID
 }
 
-// addResolution records a resolution observation for a Name in a fresh batch of
-// the given scan kind, mirroring what the measurement worker writes. It is the
-// only seam the Subjects tests need to populate the estate.
 func (f *fakeStore) addResolution(t *testing.T, createdBy int64, name, scanKind string, at time.Time, value string) {
 	t.Helper()
 	b := f.freshBatch(scanKind, "resolution-walk")
@@ -1808,9 +1779,6 @@ func (f *fakeStore) ListWithdrawalLifespans(_ context.Context, since pgtype.Time
 	return out, nil
 }
 
-// addReachability records a reachability observation for a Service in a fresh
-// batch — the connect-outcome leaf's output the hot Scan writes. It is the seam
-// the Service drill-down tests populate.
 func (f *fakeStore) addReachability(t *testing.T, serviceKey string, at time.Time, value string) {
 	t.Helper()
 	scanID := f.ensureScan("hot")
@@ -2152,8 +2120,6 @@ func (f *fakeStore) ListSubjectFirstAppearances(_ context.Context, since pgtype.
 			Value: string(o.Value), IsGap: gap, Vector: fakeFacetVector(o.Facet), ObservedAt: o.ObservedAt.Time,
 		})
 	}
-	// The earliest span opened_at across ALL of a subject's timelines is its
-	// appearance — the SQL's MIN(opened_at) over the subject's GROUP.
 	type subj struct{ kind, key string }
 	first := map[subj]time.Time{}
 	for k, readings := range byKey {
@@ -2344,7 +2310,6 @@ func (f *fakeStore) ListServiceTLSAcceptance(_ context.Context, arg db.ListServi
 
 func (f *fakeStore) FindNameCitingAddress(_ context.Context, arg db.FindNameCitingAddressParams) (db.FindNameCitingAddressRow, error) {
 	address := arg.Address
-	// The earliest current resolution whose Resolved answer names the address.
 	var best *db.FindNameCitingAddressRow
 	for name, o := range f.latestResolutionByName(f.liveObservations(arg.AsOf.Time)) {
 		if fakeResolutionOutcome(o.Value) != "Resolved" {
@@ -2425,8 +2390,6 @@ func classPresentedDialled(class string) pgtype.Text {
 	}
 }
 
-// vantageByID returns the fake's stored vantage row for id (its presented-address facts
-// feed the class derivation the by-class reads now carry), or a zero row if unknown.
 func (f *fakeStore) vantageByID(id int64) db.Vantage {
 	for _, v := range f.vantages {
 		if v.ID == id {
@@ -2436,8 +2399,6 @@ func (f *fakeStore) vantageByID(id int64) db.Vantage {
 	return db.Vantage{}
 }
 
-// addClassResolution records a resolution observation at a Vantage of the given
-// class — the Signals reads need the class join the plain Subjects reads do not.
 func (f *fakeStore) addClassResolution(t *testing.T, name, class string, at time.Time, value string) {
 	t.Helper()
 	vid := f.vantageForClass(class)
@@ -2451,9 +2412,6 @@ func (f *fakeStore) addClassResolution(t *testing.T, name, class string, at time
 	f.obsNextID++
 }
 
-// addDNSRecord records a dns-record observation for a Name on one qtype
-// discriminator (CNAME, NS, …) — the CNAME target and NS Lame verdict the rules
-// read.
 func (f *fakeStore) addDNSRecord(t *testing.T, name, discriminator string, at time.Time, value string) {
 	t.Helper()
 	b := f.freshBatch("dns", "resolution-walk")
@@ -2576,8 +2534,6 @@ func (f *fakeStore) GetNameSubject(_ context.Context, arg db.GetNameSubjectParam
 	return db.GetNameSubjectRow{SubjectKey: key, Value: o.Value, ObservedAt: o.ObservedAt}, nil
 }
 
-// scanFor resolves a batch id to its (scan id, scan kind) — the batch→Scan hop
-// both GetNameCitation hops need to name the introducing Scan.
 func (f *fakeStore) scanFor(batchID int64) (int64, string) {
 	var scanID int64
 	for _, b := range f.batches {
@@ -2808,7 +2764,6 @@ func (f *fakeStore) InsertReportSchedule(_ context.Context, arg db.InsertReportS
 
 func (f *fakeStore) ListReportSchedules(context.Context) ([]db.ReportSchedule, error) {
 	out := make([]db.ReportSchedule, len(f.reportSchedules))
-	// Newest-first, mirroring ORDER BY id DESC.
 	for i, rs := range f.reportSchedules {
 		out[len(f.reportSchedules)-1-i] = rs
 	}
@@ -2883,7 +2838,6 @@ func (f *fakeStore) InsertReportDelivery(_ context.Context, arg db.InsertReportD
 }
 
 func (f *fakeStore) GetLatestReportDelivery(_ context.Context, scheduleID int64) (db.ReportDelivery, error) {
-	// Newest non-failed run, mirroring WHERE state <> 'failed' ORDER BY id DESC LIMIT 1.
 	var latest db.ReportDelivery
 	found := false
 	for _, d := range f.reportDeliveries {
@@ -2902,7 +2856,6 @@ func (f *fakeStore) GetLatestReportDelivery(_ context.Context, scheduleID int64)
 
 func (f *fakeStore) ListReportDeliveries(_ context.Context, scheduleID int64) ([]db.ReportDelivery, error) {
 	out := []db.ReportDelivery{}
-	// Newest-first, mirroring ORDER BY id DESC.
 	for i := len(f.reportDeliveries) - 1; i >= 0; i-- {
 		if f.reportDeliveries[i].ScheduleID == scheduleID {
 			out = append(out, f.reportDeliveries[i])
@@ -3019,7 +2972,6 @@ func (f *fakeStore) DeleteSSOProvider(_ context.Context, id int64) error {
 		}
 	}
 	f.ssoProviders = kept
-	// ON DELETE CASCADE: a provider's bindings go with it.
 	var keptIdents []fakeSSOIdentity
 	for _, i := range f.ssoIdentities {
 		if i.providerID != id {
@@ -3071,7 +3023,6 @@ func (f *fakeStore) GetSSOIdentityBySub(_ context.Context, arg db.GetSSOIdentity
 
 func (f *fakeStore) ListSSOIdentitiesForAccount(_ context.Context, accountID int64) ([]db.ListSSOIdentitiesForAccountRow, error) {
 	out := []db.ListSSOIdentitiesForAccountRow{}
-	// Newest-first, mirroring ORDER BY i.id DESC.
 	for k := len(f.ssoIdentities) - 1; k >= 0; k-- {
 		i := f.ssoIdentities[k]
 		if i.accountID != accountID {
@@ -3125,8 +3076,6 @@ func (f *fakeStore) DeleteSSOIdentity(_ context.Context, id int64) error {
 	return nil
 }
 
-// ssoSlugForID / ssoNameForID resolve a provider id to its slug/name for the identity
-// join queries; an unknown id renders empty.
 func (f *fakeStore) ssoSlugForID(id int64) string {
 	for _, p := range f.ssoProviders {
 		if p.id == id {
@@ -3145,13 +3094,10 @@ func (f *fakeStore) ssoNameForID(id int64) string {
 	return ""
 }
 
-// usernameForID resolves an account id to its username for the created-by join the
-// SSO list query performs; an unknown id renders empty (a test rarely asserts it).
 func (f *fakeStore) usernameForID(id int64) string {
 	return f.accounts[id].Username
 }
 
-// testKey is a fixed 32-byte session signing key for tests.
 var testKey = []byte("0123456789abcdef0123456789abcdef")
 
 // testTranscriptKey is the 32-byte instance transcript key the test server opens sealed

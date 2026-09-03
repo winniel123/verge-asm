@@ -18,7 +18,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/vantage"
 )
 
-// fakeVantageStore is an in-memory vantageKeyStore for the worker key loop.
 type fakeVantageStore struct {
 	needing   []db.Vantage
 	published map[int64]string
@@ -87,7 +86,6 @@ func TestProvisionVantageKeysGeneratesAndPublishes(t *testing.T) {
 func TestProvisionVantageKeysIsIdempotent(t *testing.T) {
 	dir := t.TempDir()
 
-	// First pass generates and publishes.
 	store := &fakeVantageStore{needing: []db.Vantage{{ID: 3}}}
 	provisionVantageKeys(context.Background(), store, dir)
 	first := store.published[3]
@@ -116,7 +114,6 @@ func TestProvisionVantageKeysIsIdempotent(t *testing.T) {
 	}
 }
 
-// fakeLatencyStore is an in-memory vantageLatencyStore for the worker latency loop.
 type fakeLatencyStore struct {
 	needing  []db.Vantage
 	pinned   map[int64]string
@@ -232,7 +229,6 @@ func TestMeasureVantageLatenciesBlankEgressStaysNull(t *testing.T) {
 		rtt: 10 * time.Millisecond, encoded: "ssh-ed25519 AAAAhostkey",
 		facts: remoteexec.Facts{
 			Platform: remoteexec.Platform{Label: "linux · aarch64"},
-			// no egress observed
 		},
 	}
 

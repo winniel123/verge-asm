@@ -18,11 +18,11 @@ import (
 // the UDP ports recorded-but-never-probed, and the safety profile — every offer
 // enumerated so the Batch records what governed the probe by content (ADR-0025).
 type Scope struct {
-	Vantage      string        `json:"vantage"`
-	VantageClass string        `json:"vantage_class"`
-	Addresses    []string      `json:"addresses"`
-	TCPPorts     []uint16      `json:"tcp_ports"`
-	UDPPorts     []uint16      `json:"udp_ports,omitempty"`
+	Vantage      string   `json:"vantage"`
+	VantageClass string   `json:"vantage_class"`
+	Addresses    []string `json:"addresses"`
+	TCPPorts     []uint16 `json:"tcp_ports"`
+	UDPPorts     []uint16 `json:"udp_ports,omitempty"`
 	// Names are the server names the certificate handshake offers as SNI, one
 	// Endpoint per name, for each Service the connect reaches. Empty is the
 	// nameless endpoint — the only mode available on an address-scope Seed where
@@ -32,7 +32,6 @@ type Scope struct {
 	Profile SafetyProfile `json:"profile"`
 }
 
-// DecodeScope reads a Scope from a JobSpec's opaque Scope payload.
 func DecodeScope(spec wire.JobSpec) (Scope, error) {
 	var s Scope
 	if len(spec.Scope) == 0 {

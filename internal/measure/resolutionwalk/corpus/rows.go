@@ -2,9 +2,6 @@ package corpus
 
 import "github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 
-// Step is one run of the leaf inside a row: one Batch, at one Vantage, over one
-// set of Names, against one scripted Peer. A row with more than one step pins a
-// sequence across batches or vantages (the R block).
 type Step struct {
 	Batch    string
 	Vantage  string
@@ -59,7 +56,6 @@ const (
 
 func def() resolutionwalk.Offers { return resolutionwalk.DefaultOffers() }
 
-// one builds a single-step row over the default vantage and name.
 func one(cells []string, claim string, peer ScriptPeer, golden string) Row {
 	return Row{
 		Cells:        cells,
@@ -71,10 +67,7 @@ func one(cells []string, claim string, peer ScriptPeer, golden string) Row {
 	}
 }
 
-// Rows is the checked-in corpus. Every cell in AllCells appears in some row's
-// Cells; A5 fails the build (naming the cell) if one does not.
 var Rows = []Row{
-	// ---- M1: outcome pins ----
 	one([]string{"M1.1"},
 		"declared path Resolved(set); the set is what cites Addresses",
 		ScriptPeer{Rules: []scriptRule{
@@ -116,7 +109,6 @@ var Rows = []Row{
 		}},
 		"m1_5_partly.ndjson"),
 
-	// ---- M2.a: NameError <-> NoData (empty non-terminal) ----
 	one([]string{"M2.a/NameError"},
 		"a name that does not exist answers NXDOMAIN and withdraws",
 		ScriptPeer{Rules: []scriptRule{
@@ -130,7 +122,6 @@ var Rows = []Row{
 		}},
 		"m2a_nodata.ndjson"),
 
-	// ---- M2.b: NXDOMAIN with/without a CNAME ----
 	one([]string{"M2.b/NameError"},
 		"a plain NXDOMAIN with no CNAME withdraws the Name",
 		ScriptPeer{Rules: []scriptRule{
@@ -144,7 +135,6 @@ var Rows = []Row{
 		}},
 		"m2b_survives.ndjson"),
 
-	// ---- M2.c: Resolved <-> NoData (CNAME chain) ----
 	one([]string{"M2.c/Resolved"},
 		"a CNAME chain resolvable to addresses on the declared path is Resolved",
 		ScriptPeer{Rules: []scriptRule{
@@ -158,7 +148,6 @@ var Rows = []Row{
 		}},
 		"m2c_nodata.ndjson"),
 
-	// ---- M2.d: Resolved <-> Gap (TC=1) ----
 	one([]string{"M2.d/Resolved"},
 		"TC=1 with a TCP fallback that recovers the RRset is Resolved",
 		ScriptPeer{Rules: []scriptRule{
@@ -173,7 +162,6 @@ var Rows = []Row{
 		}},
 		"m2d_gap.ndjson"),
 
-	// ---- M2.e: Lame <-> Gap (reached-and-refused vs silent) ----
 	one([]string{"M2.e/Lame"},
 		"every delegated authority REFUSEs — reached and does-not-serve — is Lame",
 		ScriptPeer{Rules: []scriptRule{
@@ -193,7 +181,6 @@ var Rows = []Row{
 		}},
 		"m2e_gap.ndjson"),
 
-	// ---- M2.f: Lame <-> not-Lame (partly lame) ----
 	one([]string{"M2.f/Lame"},
 		"a fully refused delegation is Lame",
 		ScriptPeer{Rules: []scriptRule{
@@ -213,7 +200,6 @@ var Rows = []Row{
 		}},
 		"m2f_partly.ndjson"),
 
-	// ---- M2.g: set equality <-> serialisation (RR order + 0x20 case) ----
 	{
 		Cells:        []string{"M2.g/set"},
 		Claim:        "an address set in canonical RR order and lower-case qname",
@@ -235,7 +221,6 @@ var Rows = []Row{
 		Golden: "m2g_serialisation.ndjson",
 	},
 
-	// ---- M2.h: set equality <-> spelling (IPv4-mapped) ----
 	one([]string{"M2.h/folds"},
 		"an AAAA ::ffff:203.0.113.5 and an A 203.0.113.5 fold to one Address key",
 		ScriptPeer{Rules: []scriptRule{
@@ -251,7 +236,6 @@ var Rows = []Row{
 		}},
 		"m2h_distinct.ndjson"),
 
-	// ---- M2.i: NoData <-> Gap (FORMERR to an OPT-carrying query) ----
 	one([]string{"M2.i/NoData"},
 		"FORMERR to an OPT query with an EDNS-less retry that succeeds is NoData",
 		ScriptPeer{Rules: []scriptRule{
@@ -266,7 +250,6 @@ var Rows = []Row{
 		}},
 		"m2i_gap.ndjson"),
 
-	// ---- M3.1: path provenance ----
 	one([]string{"M3.1"},
 		"Resolved is read from the declared path and Lame from the delegation walk; two disagreeing peers, each field from its own peer",
 		ScriptPeer{Rules: []scriptRule{
@@ -276,7 +259,6 @@ var Rows = []Row{
 		}},
 		"m3_1_provenance.ndjson"),
 
-	// ---- R: withdrawal -> return ----
 	{
 		Cells:        []string{"R.1"},
 		Claim:        "NameError then Resolved under one vector; the leaf names no transition",

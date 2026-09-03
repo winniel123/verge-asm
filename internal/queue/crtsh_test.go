@@ -164,7 +164,6 @@ func TestCTFetchOutcome(t *testing.T) {
 func TestSleepUntil(t *testing.T) {
 	now := func() time.Time { return time.Date(2026, 8, 16, 12, 0, 0, 0, time.UTC) }
 
-	// Slot in the past: no wait.
 	past := now().Add(-time.Minute)
 	if err := sleepUntil(context.Background(), now, past); err != nil {
 		t.Errorf("sleepUntil(past) = %v, want nil (no wait)", err)

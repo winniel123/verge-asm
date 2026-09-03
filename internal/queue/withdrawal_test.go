@@ -24,8 +24,6 @@ func withdrawalRow(id int64, kind, key string) db.ListAddressExclusionWithdrawal
 	return db.ListAddressExclusionWithdrawalsRow{ID: id, SubjectKind: kind, SubjectKey: key}
 }
 
-// thirdParty is the derivation of an estate whose extension reaches nothing — the
-// common case, where the exclusion is the only limb in play.
 func thirdParty(netip.Addr) custody.Custody { return custody.ThirdParty }
 
 // coveringAddressExclusion is the address analogue nameExcluded had no twin for

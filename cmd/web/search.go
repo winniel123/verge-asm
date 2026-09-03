@@ -52,14 +52,8 @@ import (
 // app is server-rendered with no client filter machinery, so the query rides the ?q=
 // string and the input is a GET form; the segmentation is computed server-side.
 
-// The search template set. search.tmpl declares "search" + "hisegs" and calls
-// "sevbadge" (defined in signals.tmpl, parsed into the same shared tmpl at
-// signals.go) plus the shell's "head"/"chrome"/"foot" — all resolve at execute time.
 var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/search.tmpl"))
 
-// hiSeg is one run of a matched text field: its literal text and whether it is the
-// highlighted (query-matched) run. The "hisegs" define wraps a hit seg in the accent
-// span and emits an un-hit seg as plain (auto-escaped) text.
 type hiSeg struct {
 	Text string
 	Hit  bool
@@ -109,9 +103,6 @@ type searchAsset struct {
 	Href     string
 }
 
-// searchSignal is one fired signal in the Signals group: the firing rule and the
-// subject it fired on (both segmented), the rule's SeverityBadge datum, and the
-// Signals-screen deep link.
 type searchSignal struct {
 	RuleSegs    []hiSeg
 	SubjectSegs []hiSeg
@@ -128,16 +119,12 @@ type searchDoc struct {
 	SnipSegs  []hiSeg
 }
 
-// searchBatch is one Dispatch in the Batches group: its BatchStatus state, the
-// segmented dispatched instant, and the /run drill-in.
 type searchBatch struct {
 	Status    string
 	LabelSegs []hiSeg
 	Href      string
 }
 
-// guideDoc is one indexed operator guide: its front-matter title and description, the
-// two fields a Documentation search matches and highlights on.
 type guideDoc struct {
 	title string
 	desc  string
@@ -207,8 +194,6 @@ func guideFrontMatter(content string) (title, desc string) {
 	return title, desc
 }
 
-// searchMatch reports whether text contains the query, case-insensitively. An empty
-// query matches everything — the palette's "see everything" browse lands unfiltered.
 func searchMatch(text, q string) bool {
 	return q == "" || strings.Contains(strings.ToLower(text), strings.ToLower(q))
 }
@@ -297,8 +282,6 @@ func (s *server) searchPage(w http.ResponseWriter, r *http.Request, acct db.Acco
 		}
 	}
 
-	// Batches — recent Dispatches off the Operational queue corpus, matched on the
-	// dispatched instant or the scan kind, folded to running / failed / complete.
 	var batches []searchBatch
 	if rows, err := s.store.ListDispatchProgress(ctx, scansHistoryLimit); err != nil {
 		log.Printf("web: search: list dispatch progress: %v", err)

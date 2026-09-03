@@ -93,25 +93,19 @@ func ComposeReach(outcomes []string) (ReachValue, bool) {
 type LegStatus string
 
 const (
-	// LegValued: the class holds a current Reach value (Leg.Value is meaningful).
 	LegValued LegStatus = "valued"
 	// LegNeverConfigured: the Vantage class was never configured on this install,
 	// so the leg has no timeline at all — "we never looked". Distinct from a Gap
 	// (ADR-0014: no timeline is not a Gap).
 	LegNeverConfigured LegStatus = "never-configured"
-	// LegGap: a configured class's leg went silent — the Exposure timeline holds a
-	// Gap — "we stopped looking".
-	LegGap LegStatus = "gap"
+	LegGap             LegStatus = "gap"
 )
 
-// Leg is one class-scoped Reach composition as the board reads it: its status,
-// and — only where Status is LegValued — its value.
 type Leg struct {
 	Status LegStatus
 	Value  ReachValue
 }
 
-// Valued reports whether the leg holds a current Reach value.
 func (l Leg) Valued() bool { return l.Status == LegValued }
 
 // ExposureValue is the 2×2 projection over the two valued Reach legs (ADR-0017).
@@ -190,10 +184,6 @@ func VerifyClass(presented []netip.Addr, covered func(netip.Addr) bool) custody.
 	return custody.ClassInternal
 }
 
-// ServiceInput is one Service's current Derived reachability as the landing view
-// reads it: its composed Reach leg per Vantage class, whether the composing
-// Exposure derivation Broke (rules changed, nothing to compare yet), and the
-// internet leg's previous value for the flagship transition.
 type ServiceInput struct {
 	Service  string
 	Internet Leg
@@ -225,9 +215,7 @@ type OneLeggedReason string
 
 const (
 	// NeverLooked: the missing class was never configured — "we never looked".
-	NeverLooked OneLeggedReason = "never-looked"
-	// StoppedLooking: the missing class's leg went silent (a Gap) — "we stopped
-	// looking".
+	NeverLooked    OneLeggedReason = "never-looked"
 	StoppedLooking OneLeggedReason = "stopped-looking"
 )
 
@@ -241,7 +229,6 @@ type Board struct {
 	Unreachable []string
 }
 
-// Total is the number of Services on the populated board.
 func (b Board) Total() int {
 	return len(b.Exposed) + len(b.EdgeOnly) + len(b.Firewalled) + len(b.Unreachable)
 }
@@ -264,10 +251,6 @@ func (b *Board) add(v ExposureValue, service string) {
 // co-exist as distinct renders of the same screen and are not mutually exclusive
 // (ADR-0017; spec §6.2).
 type Screen struct {
-	// InternetPresent / InternalPresent: the Vantage classes currently holding a
-	// value on this install (≥1 available vantage of the class). Exposure needs
-	// both — "fewer than two Vantage classes hold a current value" is exactly one
-	// or neither being present.
 	InternetPresent bool
 	InternalPresent bool
 	// Constructible is true where both classes are present, so an Exposure can be
@@ -275,26 +258,14 @@ type Screen struct {
 	// Service renders one-legged — the custody-of-nothing and no-prober cases land
 	// here honestly, never as a false internal-only reading (spec §6.2).
 	Constructible bool
-	// NoServices is the "no Service in the estate at all" precondition.
-	NoServices bool
+	NoServices    bool
 
-	// Board is the populated 2×2 over Services holding both legs.
-	Board Board
-	// OneLegged carries Services rendering one surviving leg's raw Reach.
+	Board     Board
 	OneLegged []OneLeggedRow
-	// Broken carries Services whose composing Exposure derivation Broke — the
-	// "rules changed, nothing to compare yet" precondition, rendered per Service
-	// alongside whatever board the others populate.
-	Broken []string
-	// WhatMoved carries the flagship internet not-reached → reached transitions,
-	// computed on the internet leg alone and independent of the board.
+	Broken    []string
 	WhatMoved []string
 }
 
-// Build assembles the Screen from the per-Service snapshot and the install's
-// class presence. It runs one pass, routing each Service to the board, the
-// one-legged list, or the broken list, and collecting the flagship moves — which
-// are read off the internet leg regardless of where the Service lands.
 func Build(services []ServiceInput, internetPresent, internalPresent bool) Screen {
 	s := Screen{
 		InternetPresent: internetPresent,
@@ -341,10 +312,6 @@ func Build(services []ServiceInput, internetPresent, internalPresent bool) Scree
 	return s
 }
 
-// oneLegged builds the surviving-leg row for a Service with exactly one valued
-// leg. Where both legs are absent there is nothing to render (no row), and where
-// both are valued the caller has already projected an Exposure and does not reach
-// here. The Reason is read off the ABSENT leg's status.
 func oneLegged(svc ServiceInput) (OneLeggedRow, bool) {
 	switch {
 	case svc.Internet.Valued() && !svc.Internal.Valued():

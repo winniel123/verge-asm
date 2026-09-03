@@ -56,15 +56,11 @@ const (
 	benchSharedSANs = 400
 )
 
-// benchSANShape is one of the two edges the benchmark contrasts: how many dNSName SANs
-// one certificate carries, and the verdict custody.SharedEdge owes over that SAN set.
 type benchSANShape struct {
 	name string
 	// sans is the count of dNSName SANs, each on its own registrable domain, so the
 	// fan-out count equals this value exactly.
-	sans int
-	// shared is the verdict the reduction must reach. benchCheckFixture asserts it,
-	// which is what holds the two counts either side of the shipped threshold.
+	sans   int
 	shared bool
 }
 

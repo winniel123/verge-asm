@@ -44,10 +44,7 @@ import (
 // `Custody` derivation, locked by the `custody/v3` corpus, and a row that rendered
 // either would put a product-chosen number in front of the operator (ADR-0129 §5).
 type custodyCensusRow struct {
-	// Name is the in-zone Name holding the A record — the name the operator
-	// recognises and the one thing they can act on.
-	Name string
-	// Address is the edge that name's direct A record cites.
+	Name    string
 	Address string
 	// Scope is the declared address scope that ALSO covers the edge, empty where
 	// none does. Set, it is ADR-0129's dual-limb row: declined by the extension and
@@ -61,7 +58,6 @@ type custodyCensusRow struct {
 // custodyCensusView is the whole section, shaped for scope.tmpl: the declined rows,
 // and how many candidates still wait on their first measurement (#1015).
 type custodyCensusView struct {
-	// Rows are the declines, one per (citing name, edge) pair, in resolution order.
 	Rows []custodyCensusRow
 	// Pending is the number of DISTINCT edges the `edge-fanout` Scan holds and has
 	// not measured yet. It is a COUNT and never a row, because a pending candidate

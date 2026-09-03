@@ -234,7 +234,6 @@ func bootstrapSetupToken(ctx context.Context, q *db.Queries) (string, error) {
 	return token, nil
 }
 
-// isTruthy reads the common affirmative spellings of a boolean env value.
 func isTruthy(v string) bool {
 	switch strings.ToLower(strings.TrimSpace(v)) {
 	case "1", "true", "yes", "on":

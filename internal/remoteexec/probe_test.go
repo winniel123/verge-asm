@@ -17,21 +17,12 @@ import (
 // every command run, so the arch check, the push, the exec and the egress read are all
 // exercised with no live SSH server.
 type fakeConn struct {
-	// outputs maps an Output/rm command to its stdout.
-	outputs map[string]string
-	// execStdout is the NDJSON the exec of the pushed path writes back.
+	outputs    map[string]string
 	execStdout string
-	// execStderr is the stderr the exec writes back (empty unless a crash is simulated).
 	execStderr string
-	// execExit is the typed exit result the exec Run returns; the zero value is a clean
-	// exited(0).
-	execExit ExitResult
-	// execErr, if set, is the error the exec Run returns (a non-zero exit or a signal on
-	// the real path); its transcript still captures the drained streams and execExit.
-	execErr error
-	// pushErr, if set, fails the `cat > …` push.
-	pushErr error
-	// remoteAddr is the transport peer address the dialled-address read observes.
+	execExit   ExitResult
+	execErr    error
+	pushErr    error
 	remoteAddr net.Addr
 
 	ran      []string      // every cmd passed to Run
@@ -81,7 +72,6 @@ func (c *fakeConn) RemoteAddr() net.Addr { return c.remoteAddr }
 
 func (c *fakeConn) Close() error { return nil }
 
-// staticBinaries serves one arch's binary and refuses every other.
 type staticBinaries struct {
 	goos, goarch string
 	body         string
@@ -147,7 +137,6 @@ func TestProbePushesMatchingBinaryAndExecs(t *testing.T) {
 	if conn.execPath != strings.TrimPrefix(strings.SplitN(conn.ran[0], " && ", 2)[0], "cat > ") {
 		t.Errorf("exec path %q does not match the pushed path in %q", conn.execPath, conn.ran[0])
 	}
-	// The pushed binary is removed afterwards.
 	if !containsPrefix(conn.outCmds, "rm -f /tmp/verge-prober-") {
 		t.Errorf("pushed binary was not cleaned up: %v", conn.outCmds)
 	}

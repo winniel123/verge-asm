@@ -52,7 +52,6 @@ func startWithSSO(t *testing.T, f *fakeStore, flow ssoFlow) string {
 	return ts.URL
 }
 
-// addSSOProvider seeds an enabled OIDC provider in the fake store.
 func addSSOProvider(f *fakeStore, id int64, slug, name string) {
 	f.ssoNextID = id
 	f.ssoProviders = append(f.ssoProviders, fakeSSOProvider{
@@ -71,7 +70,6 @@ func addSSOIdentity(f *fakeStore, providerID int64, sub string, accountID int64,
 	})
 }
 
-// stateFromRedirect parses the state parameter out of an IdP redirect Location.
 func stateFromRedirect(t *testing.T, loc string) string {
 	t.Helper()
 	u, err := url.Parse(loc)
@@ -139,7 +137,6 @@ func TestSSOStartRedirectsToIdP(t *testing.T) {
 	if stateFromRedirect(t, loc) == "" || stateFromRedirect(t, loc) != flow.lastState {
 		t.Errorf("redirect state %q does not match minted state %q", stateFromRedirect(t, loc), flow.lastState)
 	}
-	// The transaction cookie was set, and a PKCE verifier was minted for the exchange.
 	var txSet bool
 	for _, ck := range resp.Cookies() {
 		if ck.Name == ssoTxCookie && ck.Value != "" {
@@ -342,9 +339,6 @@ func TestSettingsSSOCreateSecretWriteOnly(t *testing.T) {
 	}
 }
 
-// ssoLinkFlow drives an authenticated Profile self-link end to end: the link start
-// (303 to the IdP with a minted state) then the link callback echoing that state and a
-// code. It returns the callback response for the caller to assert on.
 func ssoLinkFlow(t *testing.T, ac *http.Client, base, slug string) *http.Response {
 	t.Helper()
 	r1, err := ac.Get(base + "/profile/sso/" + slug + "/link")
@@ -396,7 +390,6 @@ func TestSSOSelfLinkThenLoginSucceeds(t *testing.T) {
 	addSSOProvider(f, 1, "okta", "Okta")
 	base := startWithSSO(t, f, &fakeSSOFlow{sub: "okta-sub-alice", display: "alice@corp"})
 
-	// alice links from her Profile...
 	ac := login(t, base, "alice", "unused-password-x")
 	ssoLinkFlow(t, ac, base, "okta").Body.Close()
 
@@ -513,7 +506,6 @@ func TestSSOUnlinkRemovesOwnBindingOnly(t *testing.T) {
 	if len(f.ssoIdentities) != 2 {
 		t.Fatalf("alice unlinked another account's binding: %d rows left", len(f.ssoIdentities))
 	}
-	// alice unlinks her own (id 1).
 	r := postForm(t, ac, base+"/profile/sso/unlink", url.Values{"id": {"1"}})
 	r.Body.Close()
 	if r.Header.Get("Location") != "/profile?unlinked=1" {
@@ -547,7 +539,6 @@ func TestSSOAdminRemoveBinding(t *testing.T) {
 	if len(f.ssoIdentities) != 1 {
 		t.Fatalf("viewer removed a binding despite the admin gate")
 	}
-	// The admin removes it.
 	ac := login(t, base, "admin", "hunter2hunter2")
 	ar := postForm(t, ac, base+"/settings/sso/identity/remove", url.Values{"id": {"1"}})
 	ar.Body.Close()

@@ -35,16 +35,11 @@ type Doer interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
-// HTTPFetcher fetches the latest release from a JSON feed URL. It parses the
-// GitHub latest-release shape (tag_name + body); a custom feed mirrors those two
-// fields.
 type HTTPFetcher struct {
 	url    string
 	client Doer
 }
 
-// NewHTTPFetcher builds the production fetcher over url with a short-timeout HTTP
-// client (no retry). Pass DefaultFeedURL when the operator has set no override.
 func NewHTTPFetcher(url string) *HTTPFetcher {
 	return &HTTPFetcher{
 		url:    url,
@@ -52,16 +47,11 @@ func NewHTTPFetcher(url string) *HTTPFetcher {
 	}
 }
 
-// feedPayload is the subset of a GitHub release object the check needs: the tag
-// is the version, the body is the notes.
 type feedPayload struct {
 	TagName string `json:"tag_name"`
 	Body    string `json:"body"`
 }
 
-// Latest fetches and decodes the latest release. Any transport, status, or
-// decode failure is returned as an error for the caller to log and swallow — the
-// caller treats a returned error as "reached nothing", leaving the cache as-is.
 func (f *HTTPFetcher) Latest(ctx context.Context) (Feed, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, f.url, nil)
 	if err != nil {

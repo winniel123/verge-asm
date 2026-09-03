@@ -28,12 +28,10 @@ func TestServiceDetailRendersV32Composition(t *testing.T) {
 	drill := getBody(t, ac, base+"/subjects/service?key=198.51.100.1%3A3389%2Ftcp", http.StatusOK)
 
 	for _, want := range []string{
-		// Breadcrumb + header + nav
 		`href="/inventory"`, `class="sh-pill on" href="/inventory"`,
 		`<span class="sd-tag">service</span>`,
 		`class="as-leg exposed">exposed`, // header ExposureBadge rolled up from reachability (assetexposure)
 		"198.51.100.1:3389/tcp",          // the key
-		// The card composition
 		"Citation chain", "Reachability", "Current and closed timelines",
 		"Rules over this subject", "How it got here", "Signals here",
 		// The firing rule carries its real severity + verdict (design sevbadge), and rides the rail.
@@ -98,7 +96,7 @@ func TestServiceDetailWithdrawn(t *testing.T) {
 	for _, want := range []string{
 		`class="sd-wmark"`, // the header dashed WithdrawnMark (design)
 		"withdrawn",
-		"Withdrawn by the world",              // the neutral withdrawn Banner heading
+		"Withdrawn by the world",               // the neutral withdrawn Banner heading
 		"left the estate", "no current member", // its body prose
 		`<button class="sd-btn" disabled`, // Rescan disabled for a withdrawn subject
 	} {
@@ -129,7 +127,6 @@ func TestNameByKeyRoutesToAssetDetailNotSubjectDetail(t *testing.T) {
 
 	drill := getBody(t, ac, base+"/subjects/api.example.com", http.StatusOK)
 
-	// AssetDetail's own sections render.
 	for _, want := range []string{"Open ports", "DNS records", "How it got here", "Drift trail"} {
 		if !strings.Contains(drill, want) {
 			t.Errorf("Name by-key did not open AssetDetail (missing %q); body: %s", want, drill)

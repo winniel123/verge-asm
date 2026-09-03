@@ -43,7 +43,6 @@ func (t ServiceTarget) addrPort() (netip.AddrPort, bool) {
 	return netip.AddrPortFrom(addr.Unmap(), t.Port), true
 }
 
-// DecodeScope reads a Scope from a JobSpec's opaque Scope payload.
 func DecodeScope(spec wire.JobSpec) (Scope, error) {
 	var s Scope
 	if len(spec.Scope) == 0 {
@@ -70,12 +69,6 @@ func Run(spec wire.JobSpec, w io.Writer) error {
 	return RunWithEnumerator(context.Background(), base, spec.Batch, scope, w)
 }
 
-// RunWithEnumerator executes the leaf against an arbitrary Enumerator. Separating
-// the enumerator from Run is what lets one code path be driven by the network
-// adapter in production and by a scripted enumerator in a hermetic test. It
-// produces one `tls-acceptance` observation per Service in scope — enumerated,
-// tls-refused or no-tls — since each is a value the enumeration measured against a
-// Service already known open.
 func RunWithEnumerator(ctx context.Context, e Enumerator, batch string, scope Scope, w io.Writer) error {
 	var out []wire.Observation
 	for _, svc := range scope.Services {

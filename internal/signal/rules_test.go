@@ -8,7 +8,6 @@ import (
 	wd "github.com/winniel123/verge-asm/internal/measure/wildcarddiscrim"
 )
 
-// ruleByName finds a shipped rule by its name for the per-rule tests.
 func ruleByName(t *testing.T, name string) Rule {
 	t.Helper()
 	for _, r := range All() {
@@ -56,7 +55,6 @@ func TestCnameTargetNameError(t *testing.T) {
 	if got := r.Eval(NameFacts{Name: "n", Resolution: Resolved}); got != OutsideDomain {
 		t.Fatalf("no CNAME: got %s want OutsideDomain", got)
 	}
-	// A dangling CNAME (target NameError) fires.
 	if got := r.Eval(NameFacts{Name: "n", CNAMETarget: "gone.example.com", TargetResolution: NameError}); got != Fired {
 		t.Fatalf("dangling CNAME: got %s want Fired", got)
 	}
@@ -110,7 +108,6 @@ func TestResolvedNameAbsentFromZone(t *testing.T) {
 	if got := r.Eval(NameFacts{Name: "n", InDeclaredZone: true, ZoneDeclared: false, Resolution: Resolved}); got != Fired {
 		t.Fatalf("resolved + absent: got %s want Fired", got)
 	}
-	// Resolved and declared: does not fire.
 	if got := r.Eval(NameFacts{Name: "n", InDeclaredZone: true, ZoneDeclared: true, Resolution: Resolved}); got != NotFired {
 		t.Fatalf("resolved + declared: got %s want NotFired", got)
 	}
@@ -144,7 +141,6 @@ func TestNonGloballyReachableFromInternet(t *testing.T) {
 	if got := r.Eval(NameFacts{Name: "n", HasInternetVantage: true, InternetResolution: NameError}); got != OutsideDomain {
 		t.Fatalf("NameError: got %s want OutsideDomain", got)
 	}
-	// Shadowed internet answer is not-evaluable, inside.
 	if got := r.Eval(NameFacts{Name: "n", HasInternetVantage: true, InternetResolution: Shadowed}); got != NotEvaluable {
 		t.Fatalf("shadowed: got %s want NotEvaluable", got)
 	}
@@ -166,7 +162,6 @@ func TestRuleVersions(t *testing.T) {
 		if !strings.Contains(joined, rw.Version) || !strings.Contains(joined, wd.Version) {
 			t.Fatalf("%s: version %q must compose %q and %q", r.Name(), v, rw.Version, wd.Version)
 		}
-		// Sorted and deterministic.
 		if v.Composes[0] > v.Composes[1] {
 			t.Fatalf("%s: composed versions not sorted: %v", r.Name(), v.Composes)
 		}

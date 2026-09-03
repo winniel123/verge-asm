@@ -11,8 +11,6 @@ func rrA(name, ip string) rw.RR  { return rw.RR{Name: name, Type: rw.QtypeA, Dat
 func rrTXT(name, t string) rw.RR { return rw.RR{Name: name, Type: rw.QtypeTXT, Data: t} }
 func rrMX(name, mx string) rw.RR { return rw.RR{Name: name, Type: rw.QtypeMX, Data: mx} }
 
-// constWildcard builds a control probe whose every label carried the same A
-// RRset — a determinate constant wildcard, the github.io shape.
 func constWildcard(ip string) controlAnswers {
 	ca := controlAnswers{reached: true}
 	for i := 0; i < LabelCount; i++ {

@@ -16,7 +16,6 @@ const testZone = `$ORIGIN example.com.
 www IN CNAME example.com.
 `
 
-// uploadZone posts a multipart zone-file upload for the given seed id.
 func uploadZone(t *testing.T, c *http.Client, base string, seedID int64, content string) *http.Response {
 	t.Helper()
 	var buf bytes.Buffer
@@ -170,7 +169,6 @@ func TestZoneIntervalIsConfigurable(t *testing.T) {
 		t.Errorf("default re-supply interval of 30 days not shown; body: %s", page)
 	}
 
-	// The operator moves the dial.
 	resp := postForm(t, ac, base+"/seeds/zone/interval", url.Values{"interval_days": {"7"}})
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("set interval: status=%d", resp.StatusCode)

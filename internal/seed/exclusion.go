@@ -18,12 +18,6 @@ import (
 // subtree containment is the label-wise suffix comparison a later ticket runs
 // over that key, not a property of the text.
 
-// NormalizeExclusionName validates input as a fully-qualified name and returns
-// it lowercased and trailing-dot-stripped. It accepts any depth of name (an
-// exclusion may name `api.example.com` or the shallow `example.com`), and it
-// refuses a wildcard, a single bare label, and anything that is not a bare
-// name — the same refusals NormalizeDomain makes, minus the registrable-domain
-// requirement, since an exclusion is not a scope.
 func NormalizeExclusionName(input string) (string, error) {
 	d := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(input)), ".")
 	if d == "" {
