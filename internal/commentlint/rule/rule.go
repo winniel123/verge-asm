@@ -273,14 +273,16 @@ func commentedOutCode(lang surface.Lang, payload string, lines []string) bool {
 }
 
 var (
-	statementEndRe = regexp.MustCompile(`[;{},]$`)
-	sqlStatementRe = regexp.MustCompile(`(?i)^(select|insert|update|delete|with|create|alter|drop|from|where|join|order|group|returning|values|union|set)\b`)
-	cssDeclRe      = regexp.MustCompile(`^[-@a-zA-Z][\w-]*\s*[:{]`)
-	jsStatementRe  = regexp.MustCompile(`^(const|let|var|function|class|import|export|return|if|else|for|while|switch|case|try|catch|finally|throw|await|async|new|delete|typeof|yield|do|interface|type|declare)\b|^[\w$]+(\.[\w$]+)*\s*[(=]`)
+	statementEndRe     = regexp.MustCompile(`[;{},]$`)
+	sqlStatementRe     = regexp.MustCompile(`(?i)^(select|insert|update|delete|with|create|alter|drop|from|where|join|order|group|returning|values|union|set)\b`)
+	cssDeclRe          = regexp.MustCompile(`^[-@a-zA-Z][\w-]*\s*[:{]`)
+	jsStatementRe      = regexp.MustCompile(`^(const|let|var|function|class|import|export|return|if|else|for|while|switch|case|try|catch|finally|throw|await|async|new|delete|typeof|yield|do|interface|type|declare)\b|^[\w$]+(\.[\w$]+)*\s*[(=]`)
+	tmplStatementRe    = regexp.MustCompile(`^(<[!/a-zA-Z]|\{\{)`)
+	tmplStatementEndRe = regexp.MustCompile(`(>|\}\})$`)
 )
 
 func codeShape(lang surface.Lang, lines []string) bool {
-	opener := sqlStatementRe
+	opener, ender := sqlStatementRe, statementEndRe
 	switch lang {
 	case surface.LangCSS:
 		opener = cssDeclRe
@@ -288,6 +290,9 @@ func codeShape(lang surface.Lang, lines []string) bool {
 		// JavaScript is case-sensitive, so the keyword test needs no `(?i)`
 		// and reads "If the value changes;" as prose.
 		opener = jsStatementRe
+	case surface.LangTmpl:
+		// A template line is markup or an action, and neither ends in a `;`.
+		opener, ender = tmplStatementRe, tmplStatementEndRe
 	}
 	found, seen := false, 0
 	for _, line := range lines {
@@ -297,7 +302,7 @@ func codeShape(lang surface.Lang, lines []string) bool {
 		seen++
 		// The terminator test and the keyword test both bind, because either
 		// one alone reads ordinary prose as code (SPEC §6.6).
-		if !statementEndRe.MatchString(line) {
+		if !ender.MatchString(line) {
 			return false
 		}
 		if opener.MatchString(line) {

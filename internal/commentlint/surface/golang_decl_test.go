@@ -104,12 +104,14 @@ func TestBlockPayload(t *testing.T) {
 }
 
 func TestForNamesTheUnsupportedSurface(t *testing.T) {
-	_, err := For("design-system/templates/shell.tmpl")
+	// §6.4 excludes `.html` and `.astro` from all three subcommands, and every
+	// other in-scope surface lexes (#1142).
+	_, err := For("design-system/examples/console/Coverage.html")
 	var unsupported *UnsupportedError
 	if !errors.As(err, &unsupported) {
 		t.Fatalf("For returned %v, want an UnsupportedError", err)
 	}
-	if unsupported.Surface != ".tmpl" {
-		t.Errorf("the error names %q, want .tmpl", unsupported.Surface)
+	if unsupported.Surface != ".html" {
+		t.Errorf("the error names %q, want .html", unsupported.Surface)
 	}
 }

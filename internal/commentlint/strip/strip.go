@@ -35,7 +35,7 @@ func File(name string, src []byte) (Result, error) {
 	// A strip that silently does nothing on a non-Go path is how a sweep agent
 	// believes a slice is done (SPEC §6.4).
 	if !strings.EqualFold(path.Ext(strings.ReplaceAll(name, `\`, "/")), ".go") {
-		return Result{}, &UsageError{Path: name}
+		return Result{}, &UsageError{Path: name, Rule: deleteRule(name)}
 	}
 	res, err := surface.Go{}.Lex(src)
 	if err != nil {
@@ -84,10 +84,19 @@ func File(name string, src []byte) (Result, error) {
 
 type UsageError struct {
 	Path string
+	Rule string
 }
 
 func (e *UsageError) Error() string {
-	return fmt.Sprintf("strip deletes on the Go surface only, and %s is not Go", e.Path)
+	return fmt.Sprintf("strip deletes on the Go surface only, and %s is not Go: an agent deletes it by hand, and the rule is to %s", e.Path, e.Rule)
+}
+
+func deleteRule(name string) string {
+	lang, ok := surface.LangOf(name)
+	if !ok {
+		return surface.DeleteRuleUnmeasured
+	}
+	return lang.DeleteRule()
 }
 
 func remove(src []byte, cut []surface.Block) []byte {
