@@ -122,6 +122,10 @@ func Deletable(b surface.Block) (Class, string, bool) {
 	// §3.4 keeps every trailing comment with the agent, so a caller hands own-line blocks alone.
 	c := Classify(b)
 	signal := screen.Signal(b.Payload())
+	if b.WaiverTail && signal == "" {
+		// gosec reads the whole comment group, so a waiver's wrapped half is the waiver (§2.3, #1274).
+		signal = screen.SignalToolMarker
+	}
 	// §3.6 reads `agent` in every non-Go cell, so v1 deletes on Go alone.
 	return c, signal, b.Lang == surface.LangGo && deleteSet[c] && signal == ""
 }

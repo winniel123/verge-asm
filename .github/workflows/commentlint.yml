@@ -2,6 +2,9 @@ name: commentlint
 
 on:
   pull_request:
+    # `verify` is gated on the `sweep:comments` label, which can land after
+    # GitHub builds the opened run's payload (#1273).
+    types: [opened, synchronize, reopened, labeled]
     paths:
       - "**/*.go"
       - "**/*.sql"

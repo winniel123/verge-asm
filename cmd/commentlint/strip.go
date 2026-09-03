@@ -20,6 +20,13 @@ func runStrip(args []string, stdout, stderr io.Writer) int {
 	if err := flags.Parse(args); err != nil {
 		return 2
 	}
+	named := false
+	flags.Visit(func(f *flag.Flag) { named = named || f.Name == "manifest" })
+	if named && !*write {
+		fmt.Fprint(stderr, "commentlint strip: --manifest needs --write, and a dry run prints the manifest to stdout\n")
+		usage(stderr)
+		return 2
+	}
 	paths := flags.Args()
 	if err := checkPathArgs(paths); err != nil {
 		fmt.Fprintf(stderr, "commentlint strip: %v\n", err)

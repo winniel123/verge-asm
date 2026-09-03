@@ -12,7 +12,9 @@ import (
 
 type Go struct{}
 
-var goDirectivePrefixes = []string{"//go:", "// +build", "//nolint", "//lint:", "//revive:"}
+var goWaiverPrefixes = []string{"// #nosec", "//#nosec"}
+
+var goDirectivePrefixes = append([]string{"//go:", "// +build", "//nolint", "//lint:", "//revive:"}, goWaiverPrefixes...)
 
 var goConstraintPrefixes = []string{"//go:build", "// +build"}
 
@@ -66,6 +68,7 @@ func goScan(src []byte) ([]rawComment, []Token, error) {
 				startLine: line,
 				style:     StyleLine,
 				directive: goDirective(lit),
+				waiver:    goWaiver(lit),
 			}
 			// go/scanner strips a literal's carriage returns, so its length is not the range (#1133).
 			c.end = goCommentEnd(src, c.start)
@@ -107,6 +110,10 @@ func goDirective(text string) bool {
 
 func goConstraint(text string) bool {
 	return hasAnyPrefix(text, goConstraintPrefixes)
+}
+
+func goWaiver(text string) bool {
+	return hasAnyPrefix(text, goWaiverPrefixes)
 }
 
 func goCommentEnd(src []byte, start int) int {

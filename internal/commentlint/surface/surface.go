@@ -89,6 +89,7 @@ type Block struct {
 	EndLine     int
 	Text        string
 	Directive   bool
+	WaiverTail  bool
 	Declaration bool
 	PackageDoc  bool
 	DeclGroup   bool
