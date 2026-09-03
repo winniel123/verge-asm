@@ -1,10 +1,6 @@
-// Package queue is the Postgres-backed dispatch and worker loop (v1 spec §4.1):
-// `SELECT … FOR UPDATE SKIP LOCKED` + `LISTEN/NOTIFY`, not a broker. One queue
-// job is one Batch; job outcome and observation data commit together. Retry is
-// always a new Batch, never a resumption; a dead-lettered Batch records an empty
-// scope. Dispatch fires under a Postgres advisory lock, idempotent on
-// (scan, scheduled_time); overlapping ticks are skipped and recorded, never run
-// concurrently.
+// Package queue is the Postgres-backed dispatch and worker loop: SELECT … FOR UPDATE SKIP
+// LOCKED and LISTEN/NOTIFY, never a broker (v1-spec §4.1). One tick dispatches once on the
+// unique (scan, scheduled_time) key; an overlap is skipped and recorded (ADR-0005).
 package queue
 
 import (
@@ -25,15 +21,8 @@ import (
 
 const notifyChannel = "queue_job"
 
-// chunkCommitSize bounds how many jobs one fan-out transaction enqueues before
-// committing. The address-scope tiers (hot, cold, and since #988 edge-fanout)
-// stream a per-address fan-out and commit it in chunks (ADR-0127's amendment to
-// ADR-0005): transaction duration and memory stay bounded above the address-scope
-// cap. A crash between chunks leaves the tick claimed and the Dispatch
-// under-covering — a re-run hits the (scan, scheduled_time) key and skips, so
-// nothing double-dispatches, and the currency surfaces report the shortfall
-// (#847). The bounded tiers (dns, zone, tls-acceptance, http-identity, ct) keep
-// ADR-0005's single atomic transaction.
+// A chunk bounds transaction duration and memory above the address-scope cap (ADR-0127).
+
 const chunkCommitSize = 500
 
 type Dispatcher struct {
@@ -42,22 +31,11 @@ type Dispatcher struct {
 	now  func() time.Time
 	log  *log.Logger
 
-	// ctSource is the slug of the one bulk CT source active this config (spec
-	// §2.3), the gate fanOutCT consults. Empty defaults to crt.sh, so a dispatcher
-	// built without WithCTSource fans out the keyless source unchanged. The worker
-	// process sets it to Cert Spotter's slug when the operator key is present.
 	ctSource string
 
-	// staleJobThreshold is the worker's stale-`running` lease timeout, read only to
-	// decide whether the hot cadence-lag gate arms (hotlag.go). It defaults to
-	// DefaultStaleJobThreshold rather than to the zero value, because zero MEANS the
-	// reaper is off: a dispatcher built without WithStaleJobThreshold must not read
-	// its own default as an operator's decision to disable the reaper.
-	staleJobThreshold time.Duration
+	staleJobThreshold time.Duration // zero means the reaper is off, never unset (ADR-0137 §4)
 }
 
-// NewDispatcher builds a Dispatcher over pool. now is injectable so tests and
-// manual triggers can control the scheduled tick.
 func NewDispatcher(pool *pgxpool.Pool, now func() time.Time, logger *log.Logger) *Dispatcher {
 	if now == nil {
 		now = time.Now
@@ -70,10 +48,8 @@ func (d *Dispatcher) WithStaleJobThreshold(threshold time.Duration) *Dispatcher 
 	return d
 }
 
-// WithCTSource sets which bulk CT source this dispatcher fans out for (spec §2.3),
-// the selection made at worker wire-time by the presence of the operator key. An
-// empty slug leaves the default (crt.sh). It returns the dispatcher for chaining.
 func (d *Dispatcher) WithCTSource(slug string) *Dispatcher {
+	// The worker picks this at wire-time by the operator key's presence (ct-source-replacement §2.3).
 	d.ctSource = slug
 	return d
 }
@@ -85,9 +61,6 @@ func (d *Dispatcher) selectedCTSource() string {
 	return d.ctSource
 }
 
-// Run fans out every enabled Scan once per cadence window until ctx is done. It
-// polls each minute; the idempotency key makes a second poll inside one window a
-// recorded skip rather than a second fan-out.
 func (d *Dispatcher) Run(ctx context.Context) error {
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
@@ -111,20 +84,7 @@ func (d *Dispatcher) dispatchDue(ctx context.Context) {
 	for _, s := range scans {
 		switch s.Kind {
 		case scan.DNSKind, scan.ZoneKind, scan.HotKind, scan.ColdKind, scan.TLSAcceptanceKind, scan.CTKind, scan.HTTPIdentityKind, scan.CTTailKind, scan.EdgeFanoutKind:
-			// The dns Scan (worker-probed, per Vantage), the zone Scan
-			// (worker-read, no Vantage), the hot Scan (Custody-gated, per Vantage),
-			// the cold Scan (Custody-gated, opt-in per Seed scope, full range) and
-			// the tls-acceptance Scan (weekly enumeration over the open Service
-			// population, no port list — ADR-0028), the ct Scan (worker-read
-			// crt.sh poll that admits Names without observing, no port list, no
-			// vantage — ADR-0106), the http-identity Scan (daily HTTP exchange
-			// over the reached Endpoint population, no port list — ADR-0011/ADR-0024)
-			// and the edge-fanout Scan (daily no-SNI handshake over the custody-
-			// extension candidates, no port list, no vantage — ADR-0129 §6)
-			// each fan out on their own cadence.
-			// The cold Scan reaches this switch only while at least one Seed scope has
-			// opted in — that is what flips it enabled and into ListEnabledScans
-			// (ADR-0044); shipped disabled, it is skipped here and never fires unasked.
+			// The cold Scan ships disabled and enters this list only once a Seed scope opts in (ADR-0044).
 		default:
 			continue
 		}
@@ -135,18 +95,6 @@ func (d *Dispatcher) dispatchDue(ctx context.Context) {
 	}
 }
 
-// Trigger fans a Scan out immediately, regardless of where the cadence window
-// sits, by keying the Dispatch on the current instant. It is the manual-run
-// entrypoint (v1 spec §3.4: a manual run dispatches an existing Scan).
-//
-// A DISABLED Scan is refused: a manual dispatch of a disabled Scan is exactly
-// the ad-hoc one-off ADR-0005/ADR-0044 forbid — a batch whose scope no enabled
-// configured object accounts for, and (for the cold tier) a full-range sweep
-// with no cadence and therefore no currency bound. The onboarding baseline
-// ("Run the first batch") dispatches only the Scans that exist AND are enabled,
-// so the shipped-disabled cold Scan never fires unasked. Once a Seed scope opts
-// in, the cold Scan is enabled and this manual path dispatches it as the ordinary
-// configured object it has become.
 func (d *Dispatcher) Trigger(ctx context.Context, kind string) (int, error) {
 	s, err := d.q.GetScanByKind(ctx, kind)
 	if err != nil {
@@ -158,12 +106,6 @@ func (d *Dispatcher) Trigger(ctx context.Context, kind string) (int, error) {
 	return d.fanOut(ctx, s, d.now().UTC().Truncate(time.Second))
 }
 
-// fanOut dispatches a Scan's tick. The address-scope tiers (hot, cold,
-// edge-fanout) stream a per-address fan-out and commit it in chunks
-// (fanOutStreamed); every other tier keeps ADR-0005's single atomic transaction
-// (fanOutAtomic). Both key the Dispatch on the unique (scan, scheduled_time): the
-// tick is dispatched once, an overlap is skipped and recorded, never run
-// concurrently.
 func (d *Dispatcher) fanOut(ctx context.Context, s db.Scan, scheduledTime time.Time) (int, error) {
 	switch s.Kind {
 	case scan.HotKind, scan.ColdKind, scan.EdgeFanoutKind:
@@ -173,13 +115,6 @@ func (d *Dispatcher) fanOut(ctx context.Context, s db.Scan, scheduledTime time.T
 	}
 }
 
-// fanOutAtomic inserts a Dispatch for (scan, scheduledTime) under a per-scan
-// advisory lock and enqueues all its jobs in ONE transaction (ADR-0005's atomic
-// fan-out) — per Vantage for the dns Scan, per supplied zone file for the zone
-// Scan, and so on for the bounded tiers. It returns 0 with no error when the tick
-// was already dispatched: the overlap is skipped (nothing runs, nothing is
-// enqueued) and recorded by the pre-existing fanned-out Dispatch that owns the
-// tick — the unique (scan, scheduled_time) key admits only one.
 func (d *Dispatcher) fanOutAtomic(ctx context.Context, s db.Scan, scheduledTime time.Time) (int, error) {
 	tx, err := d.pool.Begin(ctx)
 	if err != nil {
@@ -188,16 +123,12 @@ func (d *Dispatcher) fanOutAtomic(ctx context.Context, s db.Scan, scheduledTime 
 	defer tx.Rollback(ctx)
 	qtx := d.q.WithTx(tx)
 
-	// The advisory lock serialises concurrent fan-outs of the same Scan; the
-	// unique (scan, scheduled_time) key is the durable idempotency backstop.
 	if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", s.ID); err != nil {
 		return 0, err
 	}
 
 	dispatchID, err := qtx.TryFanOut(ctx, db.TryFanOutParams{ScanID: s.ID, ScheduledTime: tstz(scheduledTime)})
 	if errors.Is(err, pgx.ErrNoRows) {
-		// Overlapping tick: the window is already dispatched. Recorded by the
-		// existing Dispatch row; we run nothing and enqueue nothing.
 		d.log.Printf("dispatcher: %s tick %s already dispatched, skipped", s.Kind, scheduledTime.Format(time.RFC3339))
 		return 0, tx.Commit(ctx)
 	}
@@ -236,15 +167,8 @@ func (d *Dispatcher) fanOutAtomic(ctx context.Context, s db.Scan, scheduledTime 
 	return enqueued, nil
 }
 
-// fanOutStreamed dispatches an address-scope tier (hot, cold, edge-fanout) as a streamed,
-// chunked fan-out (ADR-0127, amending ADR-0005's atomic fan-out). The Dispatch
-// row is committed first — claiming the (scan, scheduled_time) tick — then the
-// per-address jobs stream out in chunkCommitSize transactions, so no record holds
-// the whole scope and a scope above the cap fans out with bounded memory. A crash
-// between chunks leaves the tick claimed and the Dispatch under-covering: a re-run
-// hits the (scan, scheduled_time) key and skips, so nothing is double-dispatched,
-// and the currency surfaces report the shortfall (#847).
 func (d *Dispatcher) fanOutStreamed(ctx context.Context, s db.Scan, scheduledTime time.Time) (int, error) {
+	// A crash between chunks under-covers the claimed tick; the currency surfaces report it (#847).
 	dispatchID, skipped, err := d.claimDispatch(ctx, s, scheduledTime)
 	if err != nil || skipped {
 		return 0, err
@@ -260,30 +184,12 @@ func (d *Dispatcher) fanOutStreamed(ctx context.Context, s db.Scan, scheduledTim
 		enqueued, err = d.fanOutEdgeFanout(ctx, s.ID, dispatchID)
 	}
 	if err != nil {
-		// The Dispatch row is already committed, so the tick is claimed and the
-		// partial fan-out under-covers; a re-run skips on the key. Report the error
-		// with what did commit rather than pretend nothing was enqueued.
 		return enqueued, err
 	}
 	d.log.Printf("dispatcher: %s fanned out %d job(s) at %s", s.Kind, enqueued, scheduledTime.Format(time.RFC3339))
 	return enqueued, nil
 }
 
-// claimDispatch inserts the Dispatch row for (scan, scheduledTime) under the
-// per-scan advisory lock and commits it in its own transaction, so the tick is
-// durably claimed before any job streams out. skipped is true when the tick was
-// already dispatched — the unique (scan, scheduled_time) key admits one, so a
-// re-run never double-dispatches — or, for the hot Scan alone, when an earlier
-// dispatch of the same Scan has not drained (hotlag.go, ADR-0137 §4).
-//
-// Both checks run under the ONE advisory lock, so two dispatchers cannot interleave
-// between them. The lock is TRANSACTION-scoped and this transaction commits before
-// fanOutStreamed enqueues anything, so it does not serialise the gate against the
-// fan-out it guards: a second dispatcher claiming a DIFFERENT scheduled_time inside
-// that window reads no jobs yet and passes. Only a manual Trigger keys a different
-// scheduled_time (the cadence path quantises to one tick per window and is stopped by
-// the unique key), and cmd/web refuses a trigger over an in-flight Dispatch before
-// reaching here, so the residual window is a trigger racing the cadence poll.
 func (d *Dispatcher) claimDispatch(ctx context.Context, s db.Scan, scheduledTime time.Time) (dispatchID int64, skipped bool, err error) {
 	tx, err := d.pool.Begin(ctx)
 	if err != nil {
@@ -303,16 +209,14 @@ func (d *Dispatcher) claimDispatch(ctx context.Context, s db.Scan, scheduledTime
 	if err != nil {
 		return 0, false, fmt.Errorf("queue: try fan out: %w", err)
 	}
+	// The lock ends at this commit, so a Trigger racing the cadence poll can still pass the gate.
 	if hotLagGateApplies(s.Kind) {
 		lagging, lerr := hotTickLags(ctx, qtx, s.ID, id, d.staleJobThreshold, d.log)
 		if lerr != nil {
 			return 0, false, fmt.Errorf("queue: hot cadence-lag gate: %w", lerr)
 		}
 		if lagging {
-			// The Dispatch row commits, so the tick is burned and the skip is on the
-			// record. Rolling it back instead would leave the window unclaimed and a
-			// later poll inside it would dispatch at a scheduled_time it did not run
-			// at, which is the deferral ADR-0137 §4 rules out.
+			// A rollback would leave the window unclaimed and a later poll would defer it (ADR-0137 §4).
 			d.log.Printf("dispatcher: %s tick %s overtakes an undrained dispatch, skipped", s.Kind, scheduledTime.Format(time.RFC3339))
 			return 0, true, tx.Commit(ctx)
 		}
@@ -323,13 +227,6 @@ func (d *Dispatcher) claimDispatch(ctx context.Context, s db.Scan, scheduledTime
 	return id, false, nil
 }
 
-// streamEnqueue consumes a lazy job sequence and commits it in chunkCommitSize
-// transactions, notifying workers once per committed chunk so they drain while
-// the fan-out continues. It holds at most chunkCommitSize jobs at a time, so a
-// scope above the cap enqueues with bounded memory. Each chunk is its own
-// transaction: a failure returns the count already committed, and the Dispatch
-// row (committed earlier) keeps the (scan, scheduled_time) tick claimed so a
-// re-run skips rather than double-dispatching (ADR-0127).
 func streamEnqueue[J any](ctx context.Context, d *Dispatcher, jobs iter.Seq[J], enqueue func(context.Context, *db.Queries, J) error) (int, error) {
 	total := 0
 	chunk := make([]J, 0, chunkCommitSize)
@@ -372,9 +269,6 @@ func streamEnqueue[J any](ctx context.Context, d *Dispatcher, jobs iter.Seq[J], 
 	return total, nil
 }
 
-// jobAddr is the single address a one-address-per-Batch connect-outcome job
-// carries, for the Batch label. An empty slice yields "none" — a dead-input
-// guard, never expected on an enqueued job.
 func jobAddr(addrs []string) string {
 	if len(addrs) == 0 {
 		return "none"
@@ -382,13 +276,8 @@ func jobAddr(addrs []string) string {
 	return addrs[0]
 }
 
-// fanOutDNS enqueues one dns job per Vantage over the resolution set — the
-// name-scope Seed domains and, since ADR-0107 (wave-1), the CT-admitted names
-// beneath them. The union feeds each job's Names (so a discovered name acquires a
-// resolution timeline and becomes a measured member), while WithSeeds carries only
-// the Seed domains: the control-probe population widens with the resolved names,
-// but the probing gate stays bounded at the Seeds (ADR-0066).
 func (d *Dispatcher) fanOutDNS(ctx context.Context, qtx *db.Queries, scanID, dispatchID int64) (int, error) {
+	// A discovered name widens the probes, never the gate, which stays at the Seeds (ADR-0066).
 	seedDomains, err := nameSeedDomains(ctx, qtx)
 	if err != nil {
 		return 0, err
@@ -413,8 +302,6 @@ func (d *Dispatcher) fanOutDNS(ctx context.Context, qtx *db.Queries, scanID, dis
 	return enqueued, nil
 }
 
-// fanOutZone enqueues one worker-read job per supplied zone file. No Vantage is
-// read: the zone Scan has no vantage choice at all (v1 spec §3.4).
 func (d *Dispatcher) fanOutZone(ctx context.Context, qtx *db.Queries, scanID, dispatchID int64) (int, error) {
 	files, err := zoneFiles(ctx, qtx)
 	if err != nil {
