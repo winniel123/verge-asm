@@ -7,7 +7,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// Facet names, the two this leaf's Scan covers (ADR-0084).
 const (
 	FacetResolution = "resolution"
 	FacetDNSRecord  = "dns-record"
@@ -18,19 +17,13 @@ type resolutionValue struct {
 	Addresses []string `json:"addresses,omitempty"`
 }
 
-// dnsRecordValue is the JSON payload of a dns-record observation. Delegation is
-// carried on the NS discriminator only — where the walk's Lame / per-nameserver
-// verdict lives (measurement-offers.md §2, ADR-0011).
 type dnsRecordValue struct {
 	RRs        []RR        `json:"rrs"`
 	Delegation *Delegation `json:"delegation,omitempty"`
 }
 
-// Emit renders one Result at one Vantage into the NDJSON observation lines the
-// prober writes to stdout: one resolution line, plus one dns-record line per
-// queried qtype. The lines are deterministic — the leaf sorts addresses, RRs and
-// nameservers — so the golden corpus compares them byte for byte.
 func Emit(batch, vantage string, res Result) []wire.Observation {
+	// The golden corpus compares these lines byte for byte, so the order is fixed.
 	obs := make([]wire.Observation, 0, len(res.Records)+1)
 
 	obs = append(obs, wire.Observation{
@@ -61,10 +54,8 @@ func Emit(batch, vantage string, res Result) []wire.Observation {
 	return obs
 }
 
-// WriteNDJSON writes observations to w as NDJSON, one object per line, in the
-// order given. It is the leaf's half of ADR-0001's job-spec-in / NDJSON-out
-// contract.
 func WriteNDJSON(w io.Writer, obs []wire.Observation) error {
+	// The leaf's half of ADR-0001's job-spec-in / NDJSON-out contract.
 	for _, o := range obs {
 		if err := wire.EncodeObservation(w, o); err != nil {
 			return err

@@ -5,10 +5,8 @@ import (
 	"testing"
 )
 
-// A declared-path socket failure is "we could not look", not a value: it sets
-// the batch-aborting Unreachable signal, so the whole batch fails and covers
-// nothing rather than committing a silent all-Gap measurement (ADR-0108).
 func TestResolveMarksUnreachableOnDeclaredTransportFailure(t *testing.T) {
+	// A declared-path socket failure is not a value, so the batch aborts (ADR-0108).
 	peer := mapPeer{fn: func(q Query) Msg {
 		if q.Path == PathDeclared {
 			return Msg{Unreachable: true}
@@ -21,10 +19,8 @@ func TestResolveMarksUnreachableOnDeclaredTransportFailure(t *testing.T) {
 	}
 }
 
-// The resolver is one position for the whole batch, so the first declared-path
-// transport failure aborts the batch: RunWithPeer returns an error and emits no
-// observations at all — the empty-scope dead-letter path takes over (ADR-0108).
 func TestRunWithPeerAbortsOnDeclaredResolverUnreachable(t *testing.T) {
+	// The resolver is one position for the batch, so one failure aborts it (ADR-0108).
 	peer := mapPeer{fn: func(q Query) Msg {
 		return Msg{Unreachable: true}
 	}}
@@ -44,16 +40,13 @@ func TestRunWithPeerAbortsOnDeclaredResolverUnreachable(t *testing.T) {
 	}
 }
 
-// The delegation walk dials delegated authorities direct; their silence is the
-// Gap/Lame vocabulary, never a statement about our own position. So a walk-path
-// transport failure must NOT abort the batch — the declared path decided, and
-// the batch commits its values normally (ADR-0108 limb 2).
 func TestWalkUnreachableDoesNotAbortBatch(t *testing.T) {
+	// A walk authority's silence is Gap/Lame vocabulary, never our own position (ADR-0108).
 	peer := mapPeer{fn: func(q Query) Msg {
 		if q.Path == PathDeclared {
 			return Msg{Reached: true, Rcode: NXDOMAIN}
 		}
-		return Msg{Unreachable: true} // the walk cannot reach any authority
+		return Msg{Unreachable: true}
 	}}
 	got := Resolve(peer, DefaultOffers(), "example.com")
 	if got.Unreachable {
@@ -73,10 +66,8 @@ func TestWalkUnreachableDoesNotAbortBatch(t *testing.T) {
 	}
 }
 
-// A resolver that was reached and spoke — REFUSED, SERVFAIL, an empty NOERROR,
-// NXDOMAIN — is a value or a per-name Gap, never our blindness. None of these
-// set Unreachable: the batch commits, it does not fail (ADR-0108 limb 1).
 func TestReachedAnswersAreNeverUnreachable(t *testing.T) {
+	// A reached answer is a value or a per-name Gap, never our blindness (ADR-0108).
 	for _, rc := range []Rcode{REFUSED, SERVFAIL, NOERROR, NXDOMAIN} {
 		peer := mapPeer{fn: func(q Query) Msg {
 			if q.Path == PathDeclared {

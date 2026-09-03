@@ -17,27 +17,11 @@ import (
 	"github.com/winniel123/verge-asm/internal/custody"
 )
 
-// NetPeer is the production Peer: it puts the leaf's offers on the wire against
-// a real recursive resolver (the declared path) and against delegated
-// authorities (the walk), using golang.org/x/net/dns/dnsmessage so the EDNS and
-// transport offers are passed explicitly rather than taken from a library
-// default (ADR-0025).
-//
-// It is not exercised by the hermetic golden corpus, which scripts an in-process
-// Peer; it is the adapter that runs at a live Vantage.
 type NetPeer struct {
-	// Resolver is the Vantage's recursive resolver, "host:port". It is part of
-	// the Vantage's identity (ADR-0070), so it is supplied per batch and never
-	// defaulted here.
 	Resolver string
 	Timeout  time.Duration
 }
 
-// netResolver backs both the pre-flight custody vetting (walkServerReachable)
-// and the dialer's own resolution (custodyDialer). In production both are the
-// system resolver, so the dialer re-resolves the NS name independently of the
-// vet — exactly the TOCTOU the Control hook exists to close. Tests substitute it
-// to force a vetting/dial disagreement (DNS rebinding) deterministically.
 var netResolver = net.DefaultResolver
 
 func (p NetPeer) exchangeTimeout() time.Duration {
@@ -47,29 +31,13 @@ func (p NetPeer) exchangeTimeout() time.Duration {
 	return 3 * time.Second
 }
 
-// Exchange implements Peer against the network. A dial or read error against the
-// server is reported as Unreachable — we could not look at all (ADR-0108) — which
-// aborts the batch on the declared path; it is never folded into a resolution
-// value. A build error, by contrast, is our own bug and stays a silent Msg{}.
-// dialsDeclaredResolver reports whether an exchange targets the Vantage's own
-// operator-declared recursive resolver rather than a discovered authority. It is
-// THE trust boundary for the SSRF/rebinding egress guard (ADR-0121): a true
-// result exempts the dial from the custody guard, a false result gates it, so it
-// is the one place to audit when the guard's scope is in question. Every
-// declared-path query, and the delegation walk's initial NS query (which names no
-// Server), is asked of the resolver.
-//
-// CONTRACT: a discovered walk authority is named verbatim in NS RDATA and MUST
-// carry that authority in a non-empty Server — leaf.walk sets Server = rr.Data,
-// and dnsmessage never renders an empty name (a root NS is ".", not ""). Any
-// future PathWalk query that dials a discovered target must uphold this; a
-// discovered target reaching here with an empty Server would be silently
-// exempted from the guard.
 func (q Query) dialsDeclaredResolver() bool {
+	// The SSRF guard's whole trust boundary: true exempts the dial, false gates it (ADR-0121).
 	return q.Path == PathDeclared || q.Server == ""
 }
 
 func (p NetPeer) Exchange(q Query) Msg {
+	// The golden corpus scripts an in-process Peer, so nothing here is exercised by it.
 	dialingResolver := q.dialsDeclaredResolver()
 	server := q.Server
 	if dialingResolver {
@@ -77,6 +45,7 @@ func (p NetPeer) Exchange(q Query) Msg {
 	}
 	server = withDefaultPort(server)
 
+	// A build error is our own bug, not the network's, so it is never Unreachable (ADR-0108).
 	msgBytes, err := buildQuery(q)
 	if err != nil {
 		return Msg{}
@@ -85,28 +54,12 @@ func (p NetPeer) Exchange(q Query) Msg {
 	ctx, cancel := context.WithTimeout(context.Background(), p.exchangeTimeout())
 	defer cancel()
 
-	// SSRF gate (#324/#335). The delegation walk dials authorities named verbatim
-	// in attacker-controlled NS RDATA (leaf.go walk() sets Query.Server = rr.Data).
-	// A DNS query is exempt from the custody probing gate — "a query is not a
-	// connect" (custody/gate.go) — so nothing else stops an in-scope delegation
-	// from pointing its NS RDATA at 169.254.169.254, 127.0.0.1, an RFC1918/ULA
-	// host or an internal name and having us send packets there. Refuse to dial a
-	// discovered-authority target that is, or resolves to, a non-globally-reachable
-	// address, and report it unreached exactly as a dial failure would — the walk
-	// then records the authority as a silent (unreached) one, never a value.
-	//
-	// The Vantage's own recursive resolver is exempt (#612): it is operator-
-	// declared configuration (ADR-0070) supplied out of band, not attacker-
-	// influenced, and a legitimate deployment points it at a non-globally-reachable
-	// address — Docker's embedded DNS 127.0.0.11 on the docs' compose deployment
-	// (ADR-0036), or a private-LAN resolver on bare metal. Gating it refused every
-	// default install's dns scan (a regression of #239). Only discovered
-	// authorities are gated, so dialingResolver skips both the pre-flight vet and
-	// the Control-hooked dialer.
+	// Nothing else stops a walk dial: custody's probing gate exempts a DNS query (#324, #335).
 	if !dialingResolver && !walkServerReachable(ctx, server) {
 		return Msg{Unreachable: true}
 	}
 
+	// Gating the operator-declared resolver refused every default install (#612, ADR-0070).
 	dialer := trustedDialer()
 	if !dialingResolver {
 		dialer = custodyDialer()
@@ -131,16 +84,6 @@ func withDefaultPort(server string) string {
 	return net.JoinHostPort(server, "53")
 }
 
-// walkServerReachable reports whether a delegation-walk authority (host:port)
-// may be dialed: its dial target must be globally reachable (#324). An IP
-// literal is classified directly against the special-purpose registries; a
-// hostname is resolved and barred if ANY address it would dial is non-globally-
-// reachable — a conservative reading, since the dialer, not us, picks which of
-// a name's addresses to connect to, so a name mixing public and private
-// addresses is refused rather than gambled on. A name that does not resolve is
-// left to the dial to fail on its own: it cannot reach an internal address, so
-// it is not an SSRF concern. custody.IsNonGloballyReachable is the sole IP-range
-// authority (it Unmaps, so an IPv4-mapped literal is caught in IPv4 space).
 func walkServerReachable(ctx context.Context, server string) bool {
 	host, _, err := net.SplitHostPort(server)
 	if err != nil {
@@ -151,8 +94,10 @@ func walkServerReachable(ctx context.Context, server string) bool {
 	}
 	addrs, err := netResolver.LookupNetIP(ctx, "ip", host)
 	if err != nil {
+		// A name that does not resolve reaches no internal address, so it is no SSRF risk.
 		return true
 	}
+	// The dialer picks the address, so a name mixing public and private is refused (#324).
 	for _, a := range addrs {
 		if custody.IsNonGloballyReachable(a) {
 			return false
@@ -190,7 +135,6 @@ func buildQuery(q Query) ([]byte, error) {
 			return nil, err
 		}
 		var rh dnsmessage.ResourceHeader
-		// OPT: advertise the declared UDP buffer size in the class field.
 		if err := rh.SetEDNS0(1232, dnsmessage.RCodeSuccess, false); err != nil {
 			return nil, err
 		}
@@ -201,40 +145,13 @@ func buildQuery(q Query) ([]byte, error) {
 	return b.Finish()
 }
 
-// trustedDialer dials the Vantage's operator-declared recursive resolver with no
-// custody Control hook. That resolver is trusted configuration (ADR-0070),
-// supplied by the operator out of band rather than derived from attacker-
-// controlled RDATA, and a legitimate deployment may point it at a non-globally-
-// reachable address — Docker's embedded DNS 127.0.0.11 on the docs' compose
-// deployment (ADR-0036), or a private-LAN resolver on bare metal. The #335
-// backstop exists to stop DISCOVERED walk authorities reaching internal
-// addresses; applying it to the declared resolver refused every default install
-// (#612, a regression of #239). It keeps custodyDialer's Resolver so a
-// name-based resolver still resolves through netResolver.
-//
-// PRECONDITION: dropping the socket-level backstop here is sound ONLY because the
-// resolver is trusted config — vantage.resolver is populated solely from operator
-// input (run.go and wildcarddiscrim/run.go source it from the JobSpec Scope,
-// itself the vantage row), never from scan, proposer, or any request-surface
-// data. If a future feature ever lets untrusted data flow into a Vantage's
-// resolver, this dial regains an SSRF vector and must be re-gated (ADR-0121).
 func trustedDialer() net.Dialer {
+	// Sound only while a Vantage resolver comes from operator input alone (ADR-0121).
 	return net.Dialer{Resolver: netResolver}
 }
 
-// custodyDialer returns a net.Dialer whose Control hook inspects the ACTUAL
-// resolved socket address of every connection and refuses to open the socket
-// when it lands in a non-globally-reachable range (#335). It dials only
-// discovered walk authorities — the declared resolver goes through trustedDialer.
-// walkServerReachable vets the NS hostname's addresses before the dial, but the
-// dialer re-resolves the name independently, so a name that flips from a public
-// to a private answer between the pre-flight check and the dial (DNS rebinding, a
-// TOCTOU) would otherwise slip a packet to an internal address. Control runs
-// after DNS resolution, on the very address the kernel is about to connect to, so
-// the vetted address is the one dialed — the rebinding-proof backstop, mirroring
-// the delivery runner's hook (NewHTTPDoer, #325). An IP-literal target resolves
-// to itself, so the safe literal branch is re-affirmed here rather than regressed.
 func custodyDialer() net.Dialer {
+	// The vet and this dial resolve separately, so only Control sees the dialed address (#335).
 	return net.Dialer{
 		Resolver: netResolver,
 		Control: func(_, address string, _ syscall.RawConn) error {
