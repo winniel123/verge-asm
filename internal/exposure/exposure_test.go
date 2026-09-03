@@ -9,8 +9,6 @@ import (
 
 func valued(v ReachValue) Leg { return Leg{Status: LegValued, Value: v} }
 
-// --- ComposeReach: the class-scoped existential quantifier (ADR-0080) -------
-
 func TestComposeReachExistential(t *testing.T) {
 	cases := []struct {
 		name     string
@@ -36,8 +34,8 @@ func TestComposeReachExistential(t *testing.T) {
 	}
 }
 
-// AC #196: the 2×2 board renders all four Exposure values correctly.
 func TestProjectAllFourValues(t *testing.T) {
+	// AC #196: the board renders all four Exposure values.
 	cases := []struct {
 		internet, internal ReachValue
 		want               ExposureValue
@@ -55,10 +53,8 @@ func TestProjectAllFourValues(t *testing.T) {
 	}
 }
 
-// AC #196 (the two-legs precondition): Exposure is constructed ONLY where both
-// legs hold a value — a one-legged reading yields no value and never a false
-// internal-only reading (ADR-0017).
 func TestProjectNeedsBothLegs(t *testing.T) {
+	// AC #196: a one-legged reading yields no value, never a false internal-only (ADR-0017).
 	absents := []Leg{
 		{Status: LegNeverConfigured},
 		{Status: LegGap},
@@ -76,16 +72,14 @@ func TestProjectNeedsBothLegs(t *testing.T) {
 	}
 }
 
-// --- Flagship: the internet leg move, never an Exposure state (ADR-0029) ----
-
 func TestFlagshipOnlyNotReachedToReached(t *testing.T) {
 	if !Flagship(NotReached, Reached) {
 		t.Error("not-reached -> reached is the flagship move")
 	}
 	for _, c := range []struct{ before, after ReachValue }{
-		{Reached, NotReached},    // closing to the internet — recorded, not the flagship
-		{Reached, Reached},       // no move
-		{NotReached, NotReached}, // no move
+		{Reached, NotReached},
+		{Reached, Reached},
+		{NotReached, NotReached},
 	} {
 		if Flagship(c.before, c.after) {
 			t.Errorf("Flagship(%s, %s) must be false", c.before, c.after)
@@ -93,12 +87,8 @@ func TestFlagshipOnlyNotReachedToReached(t *testing.T) {
 	}
 }
 
-// AC #196: Vantage class is re-verified every Batch against the PRESENTED
-// address, not a static config field (CONTEXT.md `Vantage class`). The quantifier
-// is every-not-any and the closed direction is `internet`.
 func TestVerifyClassFromPresentedAddress(t *testing.T) {
-	// The operator's declared address scope — the boundary a presented address is
-	// tested against, family-matched.
+	// AC #196: a class is re-verified per Batch from the presented address (CONTEXT.md).
 	scope := netip.MustParsePrefix("10.0.0.0/8")
 	covered := func(a netip.Addr) bool { return scope.Contains(a.Unmap()) }
 
@@ -137,10 +127,6 @@ func TestVerifyClassFromPresentedAddress(t *testing.T) {
 	}
 }
 
-// The class is a property of where the prober SITS, computed anew from whatever
-// the batch presented — the same vantage re-presents a different address next
-// batch and re-verifies to the other class, which is exactly what a static field
-// could not do.
 func TestVerifyClassIsRecomputedNotStatic(t *testing.T) {
 	scope := netip.MustParsePrefix("10.0.0.0/8")
 	covered := func(a netip.Addr) bool { return scope.Contains(a.Unmap()) }
@@ -155,9 +141,8 @@ func TestVerifyClassIsRecomputedNotStatic(t *testing.T) {
 	}
 }
 
-// AC #196: with no Service in the estate at all, the screen renders the
-// no-Service precondition, never a blank grid.
 func TestBuildNoServices(t *testing.T) {
+	// AC #196: an estate with no Service renders the precondition, never a blank grid.
 	s := Build(nil, true, true)
 	if !s.NoServices {
 		t.Fatal("an estate with no Service must set the NoServices precondition")
@@ -167,11 +152,8 @@ func TestBuildNoServices(t *testing.T) {
 	}
 }
 
-// AC #196: below two Vantage classes holding a value, no Exposure is
-// constructible — the surviving leg's raw Reach renders one-legged under
-// "we never looked," never a false internal-only reading. This is the modal
-// no-prober install: internal present, internet never configured.
 func TestBuildOneLeggedNeverLooked(t *testing.T) {
+	// AC #196: the modal no-prober install renders one-legged, never a false internal-only.
 	services := []ServiceInput{
 		{
 			Service:  "10.0.0.1:6379/tcp",
@@ -179,7 +161,7 @@ func TestBuildOneLeggedNeverLooked(t *testing.T) {
 			Internal: valued(Reached),
 		},
 	}
-	s := Build(services, false /*internet*/, true /*internal*/)
+	s := Build(services, false, true)
 	if s.Constructible {
 		t.Error("one class present must not be Constructible")
 	}
@@ -198,10 +180,8 @@ func TestBuildOneLeggedNeverLooked(t *testing.T) {
 	}
 }
 
-// A configured leg that went silent renders one-legged too, but with the
-// "we stopped looking" statement — the two absences keep their two statements
-// (ADR-0017 decision 4).
 func TestBuildOneLeggedStoppedLooking(t *testing.T) {
+	// The two absences keep their two statements (ADR-0017 decision 4).
 	services := []ServiceInput{
 		{
 			Service:  "203.0.113.5:443/tcp",
@@ -218,16 +198,14 @@ func TestBuildOneLeggedStoppedLooking(t *testing.T) {
 	}
 }
 
-// AC #196: a populated board renders all four values; and a precondition render
-// (a one-legged Service) co-exists with the populated board as distinct renders
-// of the same screen.
 func TestBuildPopulatedBoardCoexistsWithPrecondition(t *testing.T) {
+	// AC #196: a one-legged render co-exists with the populated board.
 	services := []ServiceInput{
-		{Service: "a:443/tcp", Internet: valued(Reached), Internal: valued(Reached)},        // exposed
-		{Service: "b:8080/tcp", Internet: valued(Reached), Internal: valued(NotReached)},    // edge-only
-		{Service: "c:22/tcp", Internet: valued(NotReached), Internal: valued(Reached)},      // firewalled
-		{Service: "d:9000/tcp", Internet: valued(NotReached), Internal: valued(NotReached)}, // unreachable
-		{Service: "e:6379/tcp", Internet: valued(Reached), Internal: Leg{Status: LegGap}},   // one-legged (Gap)
+		{Service: "a:443/tcp", Internet: valued(Reached), Internal: valued(Reached)},
+		{Service: "b:8080/tcp", Internet: valued(Reached), Internal: valued(NotReached)},
+		{Service: "c:22/tcp", Internet: valued(NotReached), Internal: valued(Reached)},
+		{Service: "d:9000/tcp", Internet: valued(NotReached), Internal: valued(NotReached)},
+		{Service: "e:6379/tcp", Internet: valued(Reached), Internal: Leg{Status: LegGap}},
 	}
 	s := Build(services, true, true)
 	if s.Board.Total() != 4 {
@@ -244,10 +222,8 @@ func TestBuildPopulatedBoardCoexistsWithPrecondition(t *testing.T) {
 	}
 }
 
-// AC #196: a Break on the composing derivation renders "rules changed, nothing to
-// compare yet" per Service — never a false Exposure value — and co-exists with
-// the board the un-broken Services populate.
 func TestBuildBreakCoexistsWithBoard(t *testing.T) {
+	// AC #196: a Break renders rules-changed per Service and co-exists with the board.
 	services := []ServiceInput{
 		{Service: "clean:443/tcp", Internet: valued(Reached), Internal: valued(Reached)},
 		{Service: "broke:443/tcp", Internet: valued(Reached), Internal: valued(Reached), Broken: true},
@@ -261,13 +237,10 @@ func TestBuildBreakCoexistsWithBoard(t *testing.T) {
 	}
 }
 
-// AC #196: the "what moved" panel shows the flagship internet not-reached ->
-// reached transition when it occurs — computed on the internet leg alone, whether
-// or not an Exposure exists (fires on a one-legged install too).
 func TestBuildWhatMovedFlagship(t *testing.T) {
+	// AC #196: the flagship is computed on the internet leg alone, one-legged install included.
 	services := []ServiceInput{
 		{
-			// Both legs valued: this one is on the board AND flagged as moved.
 			Service:           "moved:443/tcp",
 			Internet:          valued(Reached),
 			Internal:          valued(NotReached),
@@ -275,7 +248,6 @@ func TestBuildWhatMovedFlagship(t *testing.T) {
 			InternetBeforeSet: true,
 		},
 		{
-			// One-legged install (no internal leg) still fires the flagship.
 			Service:           "oneleg:443/tcp",
 			Internet:          valued(Reached),
 			Internal:          Leg{Status: LegNeverConfigured},
@@ -283,14 +255,12 @@ func TestBuildWhatMovedFlagship(t *testing.T) {
 			InternetBeforeSet: true,
 		},
 		{
-			// A leg that opened at reached (no prior value) emits no Transition.
 			Service:           "opened:443/tcp",
 			Internet:          valued(Reached),
 			Internal:          valued(Reached),
 			InternetBeforeSet: false,
 		},
 		{
-			// A closing internet leg is recorded, never the flagship.
 			Service:           "closed:443/tcp",
 			Internet:          valued(NotReached),
 			Internal:          valued(Reached),

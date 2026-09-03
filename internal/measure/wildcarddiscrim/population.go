@@ -8,20 +8,8 @@ import (
 	rw "github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 )
 
-// ControlPopulation is the control-probe population of a Batch (ADR-0066): the
-// set of **immediate parents** of the Names in the batch's resolution scope,
-// deduplicated, and intersected with the Seed name scopes those names sit inside
-// — recorded on the Batch by content as the seventh aperture input, never a
-// declared parameter of this leaf.
-//
-// A name is discriminated **at its parent**, because a control label constructed
-// under P falls off the tree at exactly the encloser the names under P do —
-// whatever depth the wildcard sits at, and whether or not P itself exists. The
-// probing gate stops the population at the Seed: a parent at or above the
-// operator's own apex (e.g. a TLD) sits inside no Seed scope and is dropped, so a
-// wildcard at or above the apex is out of reach by an existing rule rather than a
-// carve-out.
 func ControlPopulation(names, seedScopes []string) []string {
+	// A Batch aperture input recorded by content, never this leaf's declared parameter (ADR-0066).
 	seeds := make([]string, 0, len(seedScopes))
 	for _, s := range seedScopes {
 		seeds = append(seeds, rw.CanonicalName(s))
@@ -30,17 +18,14 @@ func ControlPopulation(names, seedScopes []string) []string {
 	for _, name := range names {
 		key := rw.CanonicalName(name)
 		if strings.HasPrefix(key, "*.") || key == "*" {
-			// A name whose leftmost label is `*` is a subject nowhere and is
-			// never queried; it contributes no parent.
+			// A wildcard name is a subject nowhere and is never queried, so it has no parent here.
 			continue
 		}
 		p, ok := parent(key)
 		if !ok {
 			continue
 		}
-		// Subtree containment is the one label-wise suffix test the model owns
-		// (custody.WithinAnyZone) — parents and seeds are already CanonicalName'd,
-		// so this only single-sources the rule rather than re-deriving it.
+		// Subtree containment is the model's one label-wise suffix test, never re-derived here.
 		if !custody.WithinAnyZone(p, seeds) {
 			continue
 		}
