@@ -7,6 +7,7 @@ type wantBlock struct {
 	endLine     int
 	style       Style
 	directive   bool
+	waiverTail  bool
 	declaration bool
 	text        string
 }
@@ -26,6 +27,9 @@ func checkBlocks(t *testing.T, src string, got []Block, want []wantBlock) {
 		}
 		if b.Directive != w.directive {
 			t.Errorf("block %d: got directive %t, want %t", i, b.Directive, w.directive)
+		}
+		if b.WaiverTail != w.waiverTail {
+			t.Errorf("block %d: got waiverTail %t, want %t", i, b.WaiverTail, w.waiverTail)
 		}
 		if b.Declaration != w.declaration {
 			t.Errorf("block %d: got declaration %t, want %t", i, b.Declaration, w.declaration)
