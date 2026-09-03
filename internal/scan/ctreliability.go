@@ -1,6 +1,6 @@
 package scan
 
-// Wide enough that one failed query cannot flip the 99% bar, narrow enough to read as current (§3).
+// A single failed query must not flip the 99% bar (ct-source-replacement.md §3).
 
 const CTReliabilityWindowSize = 200
 

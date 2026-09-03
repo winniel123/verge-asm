@@ -231,7 +231,7 @@ func TestParseLogEntries(t *testing.T) {
 }
 
 func TestSelectTailLogsIncludesTiled(t *testing.T) {
-	// Let's Encrypt, Geomys and IPng are tiled-only, so dropping that cohort loses them (§4.3).
+	// Some operators are tiled-only, so both clients stay mandatory (ct-source-replacement.md §4.3).
 	now := time.Date(2026, 8, 30, 0, 0, 0, 0, time.UTC)
 	logs, err := SelectTailLogs(now)
 	if err != nil {
