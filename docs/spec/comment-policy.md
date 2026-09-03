@@ -310,8 +310,11 @@ guessing at intent, and both classes need intent to judge.
 sweep tool. A ratchet that catches only box-drawing banners catches nothing, because nobody writes
 those by hand. That is why the flag set is wider than the delete set.
 
-Flag rule 1 is safe against the sweep's own output, because §4.5 moves every salvaged line into the
-function body. No salvaged line stays in declaration position.
+Flag rule 1 is **not** safe against the sweep's own output on its own. §4.5 moves every salvaged
+line out of declaration position, but declaration position is wider than a package-scope
+declaration, and an in-body `var`, `const` or `type` sits in it too. §4.5 carries the parser fact
+and the three placements that clear the rule. Flag rule 1 is safe against the sweep's own output
+only when the agent uses one of them.
 
 ### 3.6 The per-surface grid
 
@@ -405,6 +408,13 @@ Gate A alone over-keeps. Almost any prose adds some fact, so an agent applying g
 most of `prose-other` and most of the 11,021 declaration-position salvage lines. Gate B is what
 separates a reason from a restatement.
 
+**Gate A is per-block, so run it across the ticket as well.** A rule restated in four docstrings is
+unrecoverable from each of those four declarations. It therefore passes gate A four times in
+isolation, and four copies survive. Before you keep a line, search the ticket's files for the same
+rule. **One block keeps the rule. Every other statement of it dies.** Keep it in the block the rule
+is most about, not in the first block you read. #1169 reports cross-block duplication, not per-block
+judgment, as the dominant deletion driver in that ticket.
+
 **The tiebreaker prompt.** When a comment sits on the edge, ask a third question. Could a reader who
 did not know this fact make a change that is wrong, and that the test suite would not catch? **This
 is a prompt, not a gate.** The tree holds 49,214 lines of test source and heavy contract tests. As a
@@ -471,7 +481,20 @@ Four constraints bind **each line**:
 3. It holds 25 words or fewer, which is the description cap the
    [documentation style standard](documentation-style-standard.md) already sets.
 4. It holds 100 characters or fewer, which is where the tree already wraps. Go comment lines in `cmd`
-   and `internal` reach 93 characters at the maximum.
+   and `internal` reach 93 characters at the maximum. **Measure this after `gofmt -w`, not as you
+   type it.** `gofmt` aligns a trailing comment to the widest field in its run, so a survivor that
+   fits when written can overrun after formatting. `internal/auth/session.go`'s `Token` field
+   reached 105 characters that way (#1166).
+
+**A trailing survivor is squeezed from both sides.** §3.5 ratchet rule 2 flags a `short-label`
+trailing or own-line, and §6.6 classifies a one-line block of 6 payload words or fewer as one.
+Constraint 4 caps what a long declaration leaves of 100 characters after `gofmt`. Where no text
+satisfies both, the reason moves out of declaration position (§4.5).
+
+**A citation or a why-marker escapes ratchet rule 2.** §6.6 orders `citation`, `external-spec` and
+`why-note` above `short-label`. A survivor in the §4.4 form with a citation therefore never
+classifies as a short label, whatever its length. A bare reason clause with neither must clear six
+words.
 
 **The degenerate case.** Where a block's only content is "this exists because ADR-nnnn says so", and
 no independent constraint is recoverable, the survivor is the bare citation: `// ADR-0021 §3.3`.
@@ -485,15 +508,44 @@ line passes §4.1", not a number.
 
 ### 4.5 Where a salvaged line goes
 
-**A salvaged line moves into the body. Declaration position is left empty.** The line sits above the
-statement its reason is about. Where the reason governs the whole function and attaches to no single
-statement, the line sits above the first statement of the body.
+**A salvaged line moves out of declaration position. Declaration position is left empty.**
 
 Two reasons:
 
 1. It keeps §3.5 flag rule 1 from firing on the sweep's own output. That rule flags **any** own-line
    block in a Go declaration position, marker or not.
 2. A reason about a `defer` or a retry belongs beside that line, not above the signature.
+
+**An in-body `var`, `const` or `type` is still declaration position.** `go/ast` attaches a `Doc`
+span to a `GenDecl` inside a function body exactly as it does at package scope. A line placed above
+`var got []string` trips flag rule 1 as surely as one above the signature. Three of the four agents
+in the second sweep batch hit this, each at the cost of a lint round (#1166, #1168, #1169).
+
+**Three placements, in this order of preference:**
+
+1. **Above the statement the reason is about**, inside the body. Where the reason attaches to no
+   single statement, put the line above **the first statement of the body that is not a
+   declaration**.
+2. **Trailing on the declaration line**, where the reason is about the declaration itself. The line
+   must still meet §4.4's 100-character cap, measured after `gofmt -w`, and its six-word floor where
+   the line carries no citation.
+3. **Above the declaration, with a blank line between the two.** `go/ast` reads no `Doc` span across
+   a blank line, so flag rule 1 does not fire.
+
+**Placement 3 is what a declaration with no body needs.** A `const`, `var`, `type` or `interface` at
+package scope has no statement to sit above. A declaration line long enough to break §4.4's
+100-character cap has no room for a trailing comment either. `internal/measure/useragent.go` is the
+clearest case: one `const`, no function, an 84-character declaration line.
+`internal/commentlint/screen/screen.go`'s `var (` block took the same shape.
+
+**A sweep never reformats code to make room for a comment.** §5.1 forbids it. A one-line function
+body such as `internal/wire/wire.go`'s `Overflowed` has nowhere to put a line. Splitting it across
+lines makes `go/scanner` insert an automatic `SEMICOLON` before the closing brace. The skeleton
+gains a token, and `verify` reports the file changed. #1167 measured this before relying on it, and
+used placement 3 instead.
+
+**Where no placement holds, delete the line.** §4.2 is the tie-break, and it applies here like
+anywhere else.
 
 ### 4.6 Test files
 
@@ -544,11 +596,42 @@ as `file:line`, old to new.
 keep. That argument obliges this ledger. Without it the reviewer has no view of the judgments the
 rubric made in favour of keeping.
 
+**One deletion earns a row: a comment deleted under §4.10 as false.** Give it `false` as its reason.
+The diff already shows the text that left. It does not show that the sweep judged the claim wrong
+rather than redundant, and that is the judgment a reviewer needs to see.
+
 The ledger carries a second table, the gaps table (§8.6). A ticket that finds no ADR gap states
 `ADR gaps: none` (§8.7).
 
 The volume is manageable. The salvage population is about 1,729 declaration blocks tree-wide, so a
 per-package slice yields a ledger of tens. §7.1 sizes the cap against that.
+
+### 4.10 A comment that is false
+
+**Neither §4.1 gate asks whether the fact is true.** Gate A tests recoverability and gate B tests
+causality, so a comment that states a wrong fact can pass both and survive.
+
+**The verdict: delete it, record the deletion, and never re-author it.** A sweep compresses
+comments. Rewriting a false claim into a true one is a product judgment, and neither the §5.1 token
+gate nor the §5.6 diff-shape gate reviews one. §4.9 gives the deletion a keeps-ledger row, so the
+human on the PR sees the call.
+
+Three measured cases, all from the second sweep batch:
+
+- `internal/measure/httpexchange/exchange.go`: the `+1` on the body `LimitReader` claimed the fold
+  distinguishes exactly-filled from overran. `Identity` does no such thing.
+- The same file: a paragraph called a transport error "our own blindness, never an identity value".
+  It sits four lines below the ADR-0011 ruling that the error folds to the `no-http-response`
+  **value**.
+- `internal/report/dispatcher.go`: the `Dispatcher` docstring said the off-instance send "is a
+  later ticket (#508/T7)". That ticket landed, and `notify.go` is the send.
+
+§4.2 reaches the same three deletions, because an agent that cannot decide deletes. It reaches them
+for the wrong reason. A false comment that passes both §4.1 gates cleanly would survive without this
+ruling.
+
+**A false claim opens no ADR gap.** §8.2 gate A needs a rule someone chose. Where the comment's
+claim is wrong, there is no such rule to record.
 
 ---
 
@@ -624,6 +707,12 @@ consistently, so the check still passes. This is the one unvalidated risk in the
 accept a reformat. §5.6 is the second gate that gives ruling 15 its literal property.
 
 ### 5.6 The two-tier diff-shape gate
+
+**This gate governs the §7.2 stage-B mechanical PR. It does not govern a stage-D judgment sweep.** A
+stage-D ticket rewrites a survivor to the §4.4 form, which adds a comment line, so its hunk is
+neither a pure deletion nor whitespace-only. The pilot's own merged diff (#1138) has that shape, and
+so does every PR in the first two sweep batches. What binds a judgment sweep is §5.1 token identity,
+which `commentlint verify` runs on every sweep PR (§6.11).
 
 A strict "every hunk is a deletion" gate and the §3.8 formatter step cannot both hold. Removing a
 blank line inside a `const` or `struct` block merges two `gofmt` alignment runs, so `gofmt`
@@ -743,7 +832,7 @@ measured and would otherwise be lost.
 | Class | Decision procedure |
 | --- | --- |
 | `section-divider` | a repeated-punctuation or box-drawing run |
-| `short-label` | word count on a one-line own-line block |
+| `short-label` | word count on a one-line block, own-line or trailing (§3.5 ratchet rule 2) |
 | `docstring-exported-conventional` | `go/ast` Doc comment whose first word is the identifier's name |
 | `commented-out-code` | the payload parses as Go **and** carries a code-only token |
 
@@ -994,13 +1083,17 @@ The 20-file cap does not bind the Go tail. The largest tail pairing, `internal/r
 `internal/measure/*/corpus` and `internal/custody/corpus` hold about 857 Go comment lines across 7
 packages. **They need no special slicing. Sweep them like any other package.**
 
-The CRLF half is settled: a token-stream check treats a carriage return as whitespace, so the CRLF
-working tree does not affect the check.
+The CRLF half is settled twice over. A token-stream check treats a carriage return as whitespace, so
+a CRLF working tree would not affect the check. And the dev machine no longer produces one:
+`.gitattributes` is `* text=auto`, and the Linux machine checks every file out LF.
 
-**One rule covers the residual risk: a sweep PR never regenerates a golden.** The
-`TestCorpusExpectation` failures in the container are known and pre-existing, exactly as `CLAUDE.md`
-records. A sweep session must not mistake them for its own regression, and must not "fix" them with
-`-update`.
+**One rule covers the residual risk: a sweep PR never regenerates a golden.** A
+`TestCorpusExpectation` failure is a real regression. A sweep session must treat it as one, and must
+never "fix" it with `-update`. An earlier version of this section called those failures known and
+pre-existing. They were a CRLF artifact of the retired native-Windows setup, and `CLAUDE.md` now
+records that the trap is gone. All four tickets in the first sweep batch ran the full suite. Every
+`TestCorpusExpectation` passed, in the 5 corpus packages those tickets reached and in CI's
+`golden-corpus` job.
 
 ### 7.7 Definition of done
 
@@ -1239,7 +1332,8 @@ Two wordings are load-bearing:
 
 - **"Declaration position stays empty"** carries §4.5 in four words. It is what stops §3.5 flag rule
   1 firing on the sweep's own output. It also reads on SQL and CSS, where "the function body" would
-  not.
+  not. "Declaration position" reaches an in-body `var` or `const` as well (§4.5), so the four words
+  cover that case without naming it.
 - **"is not a comment"** does the directive job with no pattern list. The patterns stay in §2.3.
 
 The replacement holds **zero prohibitions**. Today's section holds five and never states the target
