@@ -12,10 +12,8 @@ import (
 	"github.com/winniel123/verge-asm/internal/custody"
 )
 
-// update regenerates the golden files and the lock. It is the deliberate bless
-// action: run `go test ./internal/custody/... -run Corpus -update` after an
-// intended output or parameter change, having bumped custody.Version, and commit
-// the result.
+// The bless action: bump custody.Version first, then re-run with -update and commit the result.
+
 var update = flag.Bool("update", false, "regenerate golden NDJSON files and corpus.lock.json")
 
 const testdataDir = "testdata"
@@ -43,11 +41,7 @@ func regenerate() error {
 			return err
 		}
 	}
-	// The register is append-only and maintained by hand, so a lock that exists
-	// and fails to decode must STOP the bless rather than yield a zero Lock. A
-	// JSON typo added while appending an uncovered move would otherwise be
-	// blessed away as `"uncovered_moves": null`, erasing the justification a
-	// later bump depends on (golden-corpus.md §9.2).
+	// A typo would otherwise bless the register away as null (golden-corpus.md §9.2).
 	existing, err := LoadLock(".")
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("corpus: refusing to re-bless over an unreadable lock: %w", err)
@@ -60,11 +54,8 @@ func regenerate() error {
 	})
 }
 
-// A1: self-identity. Rendering twice in one process is byte-identical — Go
-// randomises map iteration per iterator, and this corpus builds two maps per row
-// (the Shared verdicts and the candidate set), so an unstable corpus would make
-// every other assertion uninterpretable.
 func TestCorpusSelfIdentity(t *testing.T) {
+	// Go randomises map iteration and a row builds two maps, so drift here voids every other test.
 	first, err := RenderAll()
 	if err != nil {
 		t.Fatal(err)
@@ -80,9 +71,8 @@ func TestCorpusSelfIdentity(t *testing.T) {
 	}
 }
 
-// A2: expectation. Each row's rendered output equals its checked-in golden file.
-// Output moved and the version did not -> fail (ADR-0021's gate, first direction).
 func TestCorpusExpectation(t *testing.T) {
+	// ADR-0021's gate, first direction: output moved and the version did not.
 	rendered, err := RenderAll()
 	if err != nil {
 		t.Fatal(err)
@@ -100,8 +90,6 @@ func TestCorpusExpectation(t *testing.T) {
 	}
 }
 
-// A5: coverage. Every cell of the block holds at least one row, and no row cites a
-// cell outside the enumeration. A missing cell fails the build, naming it.
 func TestCorpusCoverage(t *testing.T) {
 	inEnum := make(map[string]bool, len(AllCells))
 	for _, c := range AllCells {
@@ -123,14 +111,9 @@ func TestCorpusCoverage(t *testing.T) {
 	}
 }
 
-// TestRowsAreWellFormed closes the two ways a row can cite a cell while pinning
-// nothing. Both survive A2 and A5, so neither is caught anywhere else, and both
-// are the silent move this block exists to catch.
 func TestRowsAreWellFormed(t *testing.T) {
-	// One golden per row. RenderAll keys by filename, so two rows sharing one
-	// would collapse to a single render: A5 would still count the second row's
-	// cells as covered, A2 would compare both rows against the one surviving
-	// file, and the digest would hash one entry fewer.
+	// A2 and A5 both pass on a row that pins nothing, so these two shapes are caught nowhere else.
+	// RenderAll keys by filename, so two rows sharing a golden collapse and A5 still counts both.
 	byGolden := make(map[string]string, len(Rows))
 	for _, r := range Rows {
 		if r.Golden == "" {
@@ -145,10 +128,7 @@ func TestRowsAreWellFormed(t *testing.T) {
 		byGolden[r.Golden] = fmt.Sprint(r.Cells)
 	}
 
-	// Every observed address is an address the row renders or resolves. A
-	// mistyped literal in Observed parses fine, attaches to no rendered address,
-	// and silently degrades a boundary row into a measurement-pending one — a row
-	// citing C1 that pins C3's claim, blessed on the next -update.
+	// A mistyped literal parses fine and silently degrades a boundary row into a pending one.
 	for _, r := range Rows {
 		known := make(map[netip.Addr]struct{}, len(r.Step.Under)+len(r.Step.Resolutions))
 		for _, s := range r.Step.Under {
@@ -163,9 +143,6 @@ func TestRowsAreWellFormed(t *testing.T) {
 					r.Golden, spelling)
 			}
 		}
-		// An address under test that no resolution cites renders a line the
-		// estate has no basis for, so the row would claim a reach nothing
-		// resolved to.
 		for _, s := range r.Step.Under {
 			addr := netipMust(t, s)
 			cited := false
@@ -181,10 +158,8 @@ func TestRowsAreWellFormed(t *testing.T) {
 	}
 }
 
-// The lock gate: recomputed digests must equal the checked-in lock, and the lock's
-// derivation version must equal the code's. Any output or parameter change forces
-// a lock edit; binding that edit to a version bump is the CI gate's job.
 func TestCorpusLock(t *testing.T) {
+	// Binding a lock edit to a version bump is CI's job, not this test's.
 	lock, err := LoadLock(".")
 	if err != nil {
 		t.Fatalf("load lock (run with -update to create it): %v", err)
@@ -207,15 +182,8 @@ func TestCorpusLock(t *testing.T) {
 	}
 }
 
-// TestFixtureStraddlesTheThreshold pins the two boundary fixtures against the
-// SHIPPED constant. It is the first thing to go red on a threshold move, and its
-// message is what tells the session what it owes.
-//
-// It also guards the fixture itself. The SAN sets reduce through the Public
-// Suffix List, so a PSL revision that ever listed `invalid` would silently
-// collapse both counts to zero and quietly turn both rows into `not-shared`. That
-// failure arrives here, named, rather than as an unexplained digest move.
 func TestFixtureStraddlesTheThreshold(t *testing.T) {
+	// A PSL revision listing invalid would collapse both counts, and that failure arrives here named.
 	if atThreshold != custody.SharedEdgeThreshold {
 		t.Errorf("the corpus boundary is authored at %d and custody.SharedEdgeThreshold is %d.\n"+
 			"The threshold moved. That is a Break (ADR-0129 §3): bump custody.Version, move\n"+
@@ -244,24 +212,15 @@ func TestFixtureStraddlesTheThreshold(t *testing.T) {
 	}
 }
 
-// TestThresholdMoveFailsTheGate is #986's own acceptance criterion, discharged as
-// a test rather than as prose: moving the threshold without a version bump fails
-// the gate, and here is the proof of each way it fails.
-//
-// The threshold is a `const`, so the move cannot be performed at run time. What
-// the test proves instead is that the two gate inputs a move would touch BOTH
-// already differ from the checked-in lock at the moved value, which is exactly
-// what TestCorpusLock and TestCorpusExpectation compare.
 func TestThresholdMoveFailsTheGate(t *testing.T) {
+	// #986's acceptance criterion, discharged as a test rather than as prose.
+	// The threshold is a const, so a move cannot be performed at run time and is proved indirectly.
 	lock, err := LoadLock(".")
 	if err != nil {
 		t.Fatalf("load lock: %v", err)
 	}
 
-	// Limb 1 — the declared parameter set. A moved threshold renders a different
-	// Params, so the params digest no longer matches the lock and TestCorpusLock
-	// fails. This limb catches a move even where no row's output crossed the
-	// boundary.
+	// This limb catches a move even where no row's output crossed the boundary.
 	moved := custody.DefaultParams()
 	moved.SharedEdgeThreshold--
 	if moved.Digest() == lock.ParamsDigest {
@@ -269,19 +228,13 @@ func TestThresholdMoveFailsTheGate(t *testing.T) {
 			moved.SharedEdgeThreshold, custody.SharedEdgeThreshold)
 	}
 
-	// Limb 2 — the Public Suffix List revision. ADR-0129's #954 amendment makes a
-	// list update the same kind of change as a threshold move, so the same digest
-	// carries it.
+	// ADR-0129's #954 amendment makes a list update the same kind of change as a threshold move.
 	relisted := custody.DefaultParams()
 	relisted.PublicSuffixList += " (a later revision)"
 	if relisted.Digest() == lock.ParamsDigest {
 		t.Error("a different Public Suffix List revision digests the same as the locked one: a list update would pass the lock gate")
 	}
 
-	// Limb 3 — the rows' own output. The below-threshold fixture sits exactly one
-	// domain under the constant, so a move of one flips its verdict, its rendered
-	// line and its golden. This is what makes the boundary POSITION pinned rather
-	// than merely its shape.
 	below := SANsBelowThreshold()
 	if got := custody.FanOut(below); got != custody.SharedEdgeThreshold-1 {
 		t.Fatalf("the below-threshold row measures %d and the threshold is %d: the row no longer sits one domain under the boundary, so a move of one would leave its golden untouched",
@@ -290,17 +243,9 @@ func TestThresholdMoveFailsTheGate(t *testing.T) {
 	if custody.SharedEdge(below) {
 		t.Fatal("the below-threshold row already reads as shared; it pins nothing")
 	}
-	// The count equals the moved threshold, and the comparison is at-least, so at
-	// a threshold one lower this same set reads shared. The row's rendered
-	// `shared_edge`, `custody` and `may_probe_internet` all move with it, and
-	// TestCorpusExpectation fails on the golden.
+	// One threshold lower this same set reads shared, so TestCorpusExpectation fails on its golden.
 }
 
-// TestTheExclusionCutsTheSeedLimbAlone states, as a test beside the golden, the
-// guard ADR-0133 §1 asks the corpus to leave behind. It is C2's guard in the other
-// direction: a session that reads *the operator said not mine* and makes the
-// exclusion global would move the extension-reached address off `operator`, and this
-// names what broke before A2's byte diff has to be read.
 func TestTheExclusionCutsTheSeedLimbAlone(t *testing.T) {
 	estate := rowByGolden(t, "excluded_but_extension_reached.ndjson").Step.Estate()
 
@@ -327,9 +272,6 @@ func TestTheExclusionCutsTheSeedLimbAlone(t *testing.T) {
 	}
 }
 
-// TestRemovingTheExclusionRestoresOperator reads the C4 pair as a pair. The two
-// estates differ in ONE bit — whether the exclusion is declared — so the refusal in
-// the first is provably the exclusion and not the fixture.
 func TestRemovingTheExclusionRestoresOperator(t *testing.T) {
 	addr := netipMust(t, "93.184.217.5")
 
@@ -352,10 +294,8 @@ func TestRemovingTheExclusionRestoresOperator(t *testing.T) {
 	}
 }
 
-// TestExcludedAddressLeavesTheFanOutPopulation pins ADR-0133 §3's cost half on the
-// declaration limb: the walk stops yielding an excluded address, and keeps yielding
-// the extension candidate the exclusion does not reach.
 func TestExcludedAddressLeavesTheFanOutPopulation(t *testing.T) {
+	// ADR-0133 §3's cost half: an excluded address leaves the declaration-limb walk.
 	estate := rowByGolden(t, "excluded_but_extension_reached.ndjson").Step.Estate()
 	var got []netip.Addr
 	for a := range estate.EdgeFanoutPopulation() {
@@ -367,11 +307,9 @@ func TestExcludedAddressLeavesTheFanOutPopulation(t *testing.T) {
 	}
 }
 
-// rowByGolden finds a checked-in row by its golden filename, failing the test where
-// the row is gone — so a deleted row reads as a named failure rather than as an
-// assertion against a zero Estate that quietly passes.
 func rowByGolden(t *testing.T, golden string) Row {
 	t.Helper()
+	// A zero Estate would quietly pass, so a deleted row must fail by name here.
 	for _, r := range Rows {
 		if r.Golden == golden {
 			return r
@@ -381,9 +319,6 @@ func rowByGolden(t *testing.T, golden string) Row {
 	return Row{}
 }
 
-// netipMust parses an address literal for a test, failing the test rather than
-// panicking, so a bad literal reads as this test's failure and not as a crash
-// inside the corpus package.
 func netipMust(t *testing.T, s string) netip.Addr {
 	t.Helper()
 	addr, err := netip.ParseAddr(s)
@@ -393,11 +328,6 @@ func netipMust(t *testing.T, s string) netip.Addr {
 	return addr.Unmap()
 }
 
-// TestSeedLimbSurvivesAGlobalVeto states, as a test beside the golden, the guard
-// ADR-0129's #956 amendment asks the corpus to leave behind. A session that
-// "repairs" the apparent inconsistency by making the veto global would move the
-// Seed-covered address off `operator`, and this names what broke before A2's byte
-// diff has to be read.
 func TestSeedLimbSurvivesAGlobalVeto(t *testing.T) {
 	var row Row
 	for _, r := range Rows {
