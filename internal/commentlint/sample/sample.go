@@ -48,8 +48,6 @@ func (i Item) Span() string {
 	return fmt.Sprintf("%s:%d-%d", i.File, i.StartLine, i.EndLine)
 }
 
-// Admitted reads surface.Result.Blocks alone, because §3.4 holds every
-// trailing comment back from the delete pass.
 func Admitted(name string, src []byte) ([]Item, error) {
 	res, err := surface.Go{}.Lex(src)
 	if err != nil {
@@ -57,6 +55,7 @@ func Admitted(name string, src []byte) ([]Item, error) {
 	}
 	lines := sourceLines(src)
 	var out []Item
+	// §3.4 holds every trailing comment back from the delete pass.
 	for _, b := range res.Blocks {
 		class, _, deletable := rule.Deletable(b)
 		if !deletable {
@@ -87,10 +86,8 @@ func Draw(items []Item, size int, seed string) []Item {
 	return inReadingOrder(ranked)
 }
 
-// Supplement covers a delete-set class the draw missed outright, because a
-// class holding a few blocks tree-wide loses its §3.9 verdict otherwise. A
-// reviewer adjudicates it apart, so it never dilutes the 100-block gate.
 func Supplement(items, drawn []Item, limit int, seed string) []Item {
+	// A class holding a few blocks tree-wide otherwise loses its §3.9 verdict entirely.
 	seen := map[rule.Class]bool{}
 	for _, i := range drawn {
 		seen[i.Class] = true

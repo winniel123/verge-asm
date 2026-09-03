@@ -32,8 +32,7 @@ func (r Result) Changed() bool {
 }
 
 func File(name string, src []byte) (Result, error) {
-	// A strip that silently does nothing on a non-Go path is how a sweep agent
-	// believes a slice is done (SPEC §6.4).
+	// A silent no-op on a non-Go path is how an agent believes a slice is done (SPEC §6.4).
 	if !strings.EqualFold(path.Ext(strings.ReplaceAll(name, `\`, "/")), ".go") {
 		return Result{}, &UsageError{Path: name, Rule: deleteRule(name)}
 	}
@@ -72,8 +71,7 @@ func File(name string, src []byte) (Result, error) {
 		out.Source = src
 		return out, nil
 	}
-	// gofmt normalizes every line ending to LF. On a Windows checkout git's
-	// text=auto filter already stores LF, so the committed content is unmoved.
+	// gofmt normalises every line ending to LF, and git's text=auto filter already stores LF.
 	formatted, err := format.Source(remove(src, cut))
 	if err != nil {
 		return Result{}, fmt.Errorf("gofmt after the delete pass: %w", err)
@@ -107,8 +105,6 @@ func remove(src []byte, cut []surface.Block) []byte {
 			dead[n] = true
 		}
 	}
-	// A cut drops a blank line only where it would otherwise leave two
-	// consecutive blank lines (SPEC §3.8).
 	for _, b := range cut {
 		before := previousLive(lines, dead, b.StartLine)
 		after := nextLive(lines, dead, b.EndLine)

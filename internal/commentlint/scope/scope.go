@@ -23,12 +23,10 @@ var surfaceExts = map[string]bool{
 }
 
 func Classify(name string) Verdict {
-	// filepath.ToSlash is the identity off Windows, and a sweep runs on both
-	// platforms, so the separator is replaced outright (#1133).
+	// filepath.ToSlash is the identity off Windows, so the separator is replaced outright (#1133).
 	p := strings.TrimPrefix(path.Clean(strings.ReplaceAll(name, `\`, "/")), "./")
 	ext := strings.ToLower(path.Ext(p))
-	// A changed .html or .astro file is a scoping error wherever it sits, so
-	// the refusal outranks every other exclusion (SPEC §6.7, #1133).
+	// The refusal outranks every other exclusion, wherever the file sits (SPEC §6.7, #1133).
 	if ext == ".html" || ext == ".astro" {
 		return Refused
 	}

@@ -1,15 +1,6 @@
 // Package certcorpus is the golden corpus for the tls-handshake step of the
-// reachability exchange — the step that feeds the `certificate` facet (#197, v1
-// spec §3.4, golden-corpus.md §4). It is a sibling of the connect-outcome corpus,
-// not pooled with it: a row here protects the handshake fold and the certificate
-// value space, and the connect verdict it rides is pinned by its own corpus.
-//
-// Each row is a (scope, scripted connector, scripted handshaker, expected NDJSON)
-// tuple run hermetically through RunExchange against in-process fakes — no
-// network, no TLS stack, no container. The rendered NDJSON carries BOTH the
-// reachability line the connect produced and the certificate line the handshake
-// produced, so a row shows the handshake riding the exchange rather than
-// dispatching on its own (AC #197).
+// reachability exchange (#197, v1 spec §3.4, golden-corpus.md §4). Rows run
+// hermetically against in-process fakes — no network, no TLS stack, no container.
 package certcorpus
 
 import (
@@ -19,10 +10,6 @@ import (
 	co "github.com/winniel123/verge-asm/internal/measure/connectoutcome"
 )
 
-// scriptConnector answers each `(Address, port)` from a fixed per-target
-// sequence. An unscripted target reads as a timeout — silence, which on TCP
-// decides not-reached — so a row that means "not reached" simply leaves the
-// target unscripted or scripts a refusal.
 type scriptConnector struct {
 	seq   map[netip.AddrPort][]co.ConnResult
 	calls map[netip.AddrPort]int
@@ -40,6 +27,7 @@ func (s *scriptConnector) Connect(_ context.Context, t netip.AddrPort) co.ConnRe
 	i := s.calls[t]
 	s.calls[t]++
 	res := s.seq[t]
+	// Silence on TCP decides not-reached, so an unscripted target is how a row means that.
 	if len(res) == 0 {
 		return co.ConnTimedOut
 	}
@@ -49,9 +37,6 @@ func (s *scriptConnector) Connect(_ context.Context, t netip.AddrPort) co.ConnRe
 	return res[len(res)-1]
 }
 
-// scriptHandshaker answers a fixed HandshakeResult per Endpoint key. An Endpoint
-// with no scripted result reads as NoTLS — the conservative negative — so a row
-// that forgets an Endpoint still renders a legible value rather than panicking.
 type scriptHandshaker struct {
 	byEndpoint map[string]co.HandshakeResult
 }
@@ -65,5 +50,6 @@ func (s *scriptHandshaker) Handshake(_ context.Context, t netip.AddrPort, server
 	if r, ok := s.byEndpoint[key]; ok {
 		return r
 	}
+	// The conservative negative, so a forgotten Endpoint renders legibly instead of panicking.
 	return co.HandshakeResult{Outcome: co.NoTLS}
 }

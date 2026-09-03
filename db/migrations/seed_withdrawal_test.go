@@ -6,21 +6,8 @@ import (
 	"testing"
 )
 
-// TestSeedWithdrawalDoesNotPinItsAuthor guards the one place ADR-0134 §3's
-// tombstone parts from the `seed` and `exclusion` rows it otherwise mirrors.
-//
-// Those two carry `created_by BIGINT NOT NULL REFERENCES account (id)` with no ON
-// DELETE, which deliberately refuses to remove an account that authored a live
-// declaration (DeleteAccount, Settings -> Team). The operator can lift that refusal
-// by removing the declaration.
-//
-// A tombstone cannot be removed by any operator act, so the same FK would make the
-// admin who withdrew an address scope permanently undeletable, with no cleanup path
-// even once the row is spent. The attribution is worth keeping while the account
-// exists; it is not worth making a member undeletable. A later migration that
-// tightens this column back to NOT NULL, or drops the ON DELETE SET NULL, fails
-// here — no live database required.
 func TestSeedWithdrawalDoesNotPinItsAuthor(t *testing.T) {
+	// Unlike seed and exclusion, a tombstone outlives every operator act (ADR-0134 §3).
 	up := upMigrations(t)
 
 	stmt := ""
@@ -34,7 +21,6 @@ func TestSeedWithdrawalDoesNotPinItsAuthor(t *testing.T) {
 		t.Fatal("no CREATE TABLE seed_withdrawal found — the tombstone is the mover a Seed withdrawal reads (ADR-0134 §2)")
 	}
 
-	// The created_by column definition: from its name to the end of its clause.
 	col := regexp.MustCompile(`(?s)created_by\s+bigint[^,]*`).FindString(stmt)
 	if col == "" {
 		t.Fatal("seed_withdrawal declares no created_by column")
@@ -49,18 +35,8 @@ func TestSeedWithdrawalDoesNotPinItsAuthor(t *testing.T) {
 	}
 }
 
-// TestSeedWithdrawalCarriesBothLimbs guards ADR-0135 §2's shape.
-//
-// 24700 created the tombstone with `address_cidr CIDR NOT NULL`, because ADR-0134
-// §7 deliberately left the name limb out. 24800 relaxes that column and adds `kind`
-// and `name_domain`, so the row mirrors `seed` itself: one table, a discriminator,
-// and a CHECK that exactly one scope column is populated.
-//
-// A reader who greps only the CREATE TABLE still sees the NOT NULL, so this test
-// asserts the EFFECTIVE schema. A later migration that re-tightens the column, or
-// drops the shape CHECK, silently stops a name Seed recording its mover — and a
-// withdrawal with no mover is the leak the tombstone exists to close.
 func TestSeedWithdrawalCarriesBothLimbs(t *testing.T) {
+	// ADR-0134 §7 left the name limb out, so the CREATE TABLE still reads NOT NULL (ADR-0135 §2).
 	up := strings.ToLower(upMigrations(t))
 
 	for _, want := range []string{

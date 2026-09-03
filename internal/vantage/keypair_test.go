@@ -13,7 +13,6 @@ func TestGenerateProducesUsableKeypair(t *testing.T) {
 		t.Fatalf("Generate: %v", err)
 	}
 
-	// The public half is a single authorized_keys line for an ed25519 key.
 	if !strings.HasPrefix(kp.PublicKey, "ssh-ed25519 ") {
 		t.Errorf("public key is not an ed25519 authorized_keys line: %q", kp.PublicKey)
 	}
@@ -21,8 +20,6 @@ func TestGenerateProducesUsableKeypair(t *testing.T) {
 		t.Errorf("public key carries a newline: %q", kp.PublicKey)
 	}
 
-	// The private half parses as an OpenSSH private key, and its public key
-	// matches the published public half — the two are one pair.
 	signer, err := ssh.ParsePrivateKey(kp.PrivatePEM)
 	if err != nil {
 		t.Fatalf("private PEM does not parse: %v", err)
@@ -31,8 +28,6 @@ func TestGenerateProducesUsableKeypair(t *testing.T) {
 		t.Errorf("public half %q does not match private half %q", kp.PublicKey, got)
 	}
 
-	// The private material must never look like the public line — a guard that
-	// the two halves are genuinely different strings.
 	if strings.Contains(string(kp.PrivatePEM), kp.PublicKey) {
 		t.Error("private PEM contains the public key line verbatim")
 	}
