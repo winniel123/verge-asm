@@ -11,16 +11,10 @@ import (
 	"github.com/winniel123/verge-asm/internal/vergecore"
 )
 
-// coldJobs collects the streamed cold fan-out into a slice for assertions. The
-// builder yields one job per (Vantage, admitted address); collecting an empty
-// sequence returns nil, so a nil check still reads as "no jobs".
 func coldJobs(scanID int64, estate custody.Estate, addrs []netip.Addr, vantages []Vantage, scope ColdScope) []ColdJob {
 	return slices.Collect(BuildColdJobs(scanID, estate, slices.Values(addrs), vantages, scope))
 }
 
-// coldEstate is the operator's declared estate for the cold tests: one globally
-// reachable block and one non-globally-reachable block, both operator-owned so
-// the Custody gate admits them and the opt-in gate is the thing under test.
 func coldEstate() custody.Estate {
 	return custody.Estate{
 		AddressScopes: []netip.Prefix{
@@ -30,9 +24,6 @@ func coldEstate() custody.Estate {
 	}
 }
 
-// The load-bearing invariant: with no Seed opted in, the cold Scan fans out
-// nothing at all. An empty scope list is the shipped state (ADR-0044), so the
-// full-range tier never fires unasked — not at onboarding, not on any tick.
 func TestBuildColdJobsEmptyScopeNeverFires(t *testing.T) {
 	estate := coldEstate()
 	addrs := []netip.Addr{addr("93.184.216.10"), addr("10.0.0.5")}
@@ -43,17 +34,13 @@ func TestBuildColdJobsEmptyScopeNeverFires(t *testing.T) {
 	}
 }
 
-// Opting in is per-Seed scope: only addresses inside an opted-in scope are
-// probed, and an operator-owned, Custody-admitted address that no Seed opted in
-// stays out of the sweep entirely.
 func TestBuildColdJobsOptInIsPerSeedScope(t *testing.T) {
 	estate := coldEstate()
 	optedIn := "93.184.216.10"
-	notOptedIn := "93.184.216.11" // same block, operator-owned, but no Seed opted it in
+	notOptedIn := "93.184.216.11"
 	addrs := []netip.Addr{addr(optedIn), addr(notOptedIn)}
 	vantages := []Vantage{internetVantage(1, "internet-a")}
 
-	// Only one address is opted in, by explicit address membership.
 	scope := ColdScope{Addresses: map[netip.Addr]bool{addr(optedIn): true}}
 	jobs := coldJobs(1, estate, addrs, vantages, scope)
 	if len(jobs) != 1 {
@@ -64,10 +51,6 @@ func TestBuildColdJobsOptInIsPerSeedScope(t *testing.T) {
 	}
 }
 
-// An opted-in scope may be an address-scope Seed's CIDR: every address inside it
-// is in the sweep, exactly as the Seed enumerates it. One address per Batch
-// (ADR-0005/ADR-0127), so two in-scope addresses fan out into two one-address
-// jobs, not one job carrying both.
 func TestBuildColdJobsAddressScopeMembership(t *testing.T) {
 	estate := coldEstate()
 	addrs := []netip.Addr{addr("93.184.216.10"), addr("93.184.216.42")}
@@ -90,9 +73,6 @@ func TestBuildColdJobsAddressScopeMembership(t *testing.T) {
 	}
 }
 
-// The Custody gate is reused unchanged: an opted-in address that is non-globally-
-// reachable is still barred from an internet-class Vantage (ADR-0019/ADR-0079).
-// The opt-in gate widens the tier; it can never move an address past Custody.
 func TestBuildColdJobsStillCustodyGated(t *testing.T) {
 	estate := coldEstate()
 	priv := "10.0.0.5"
@@ -109,11 +89,9 @@ func TestBuildColdJobsStillCustodyGated(t *testing.T) {
 	}
 }
 
-// A third-party address never enters a cold job even if it were (wrongly) opted
-// in: Custody refuses it, so the opt-in gate can never smuggle it past.
 func TestBuildColdJobsNeverProbesThirdParty(t *testing.T) {
 	estate := coldEstate()
-	third := "8.8.4.4" // covered by no Seed
+	third := "8.8.4.4"
 	addrs := []netip.Addr{addr("93.184.216.10"), addr(third)}
 	vantages := []Vantage{internetVantage(1, "net")}
 	scope := ColdScope{
@@ -130,8 +108,6 @@ func TestBuildColdJobsNeverProbesThirdParty(t *testing.T) {
 	}
 }
 
-// The cold Scan's scope is the full 1–65535 TCP port range, and it dispatches
-// the connect-outcome leaf — never a new leaf.
 func TestBuildColdJobsFullPortRangeAndConnectOutcome(t *testing.T) {
 	estate := coldEstate()
 	a := "93.184.216.10"
@@ -154,8 +130,6 @@ func TestBuildColdJobsFullPortRangeAndConnectOutcome(t *testing.T) {
 		t.Errorf("cold port range = [%d..%d], want [1..65535]", j.TCPPorts[0], j.TCPPorts[len(j.TCPPorts)-1])
 	}
 
-	// The wire scope is a connect-outcome scope carrying the full range and the
-	// shipped safety profile — recorded by content, not defaulted by the leaf.
 	spec, err := j.JobSpec("job-1")
 	if err != nil {
 		t.Fatal(err)
@@ -175,7 +149,6 @@ func TestBuildColdJobsFullPortRangeAndConnectOutcome(t *testing.T) {
 	}
 }
 
-// No addresses and no vantages are both legible empty states, never an error.
 func TestBuildColdJobsEmptyInputsAreLegible(t *testing.T) {
 	estate := coldEstate()
 	scope := ColdScope{Addresses: map[netip.Addr]bool{addr("93.184.216.10"): true}}
@@ -188,12 +161,6 @@ func TestBuildColdJobsEmptyInputsAreLegible(t *testing.T) {
 	}
 }
 
-// The second half of #1106's measurement, and the one the vantage count hides.
-// The hot and cold tiers dispatch the same connect-outcome leaf over overlapping
-// address populations, so an opted-in cold scope puts one host in two jobs at ONE
-// vantage. Each job carries its own copy of the 50 conn/s per-host ceiling, so the
-// intra-job argument ADR-0005 made is conditional on job count, never on vantage
-// count.
 func TestHotAndColdPutOneHostInTwoJobsAtOneVantage(t *testing.T) {
 	estate := coldEstate()
 	host := "93.184.216.10"
@@ -201,6 +168,7 @@ func TestHotAndColdPutOneHostInTwoJobsAtOneVantage(t *testing.T) {
 	vantages := []Vantage{internetVantage(1, "net")}
 	scope := ColdScope{Addresses: map[netip.Addr]bool{addr(host): true}}
 
+	// ADR-0005's per-host ceiling is per job, so its pacing argument turns on job count (#1106).
 	hot := hotJobs(1, estate, addrs, vantages, vergecore.Default())
 	cold := coldJobs(2, estate, addrs, vantages, scope)
 	if len(hot) != 1 || len(cold) != 1 {
@@ -218,9 +186,6 @@ func TestHotAndColdPutOneHostInTwoJobsAtOneVantage(t *testing.T) {
 	}
 }
 
-// The recorded scope states the full range by content, so a pair never probed
-// can never read as an absence we measured; a dead-lettered cold Batch records
-// an empty scope instead.
 func TestColdScopeRecordAndDeadLetter(t *testing.T) {
 	estate := coldEstate()
 	a := "93.184.216.10"

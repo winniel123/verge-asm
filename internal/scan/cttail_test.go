@@ -21,10 +21,6 @@ func readFixture(t *testing.T, name string) []byte {
 	return raw
 }
 
-// TestLeafSANs decodes real CT log entries — one x509 entry and one precert entry,
-// captured from Google's Argon2026h2 log — and confirms both reach the same SAN. The
-// precert path is the one the hand-rolled decoder most has to get right: the leaf holds
-// only a TBSCertificate, so the certificate is read from extra_data instead.
 func TestLeafSANs(t *testing.T) {
 	cases := []struct {
 		name  string
@@ -49,13 +45,10 @@ func TestLeafSANs(t *testing.T) {
 	}
 }
 
-// TestLeafSANsMalformed confirms a truncated or wrong-version leaf is rejected rather
-// than read past its bounds — a decode error the poll skips, never a silent empty read.
 func TestLeafSANsMalformed(t *testing.T) {
 	if _, err := LeafSANs([]byte{0, 0, 1}, nil); err == nil {
 		t.Fatal("want error on a too-short leaf")
 	}
-	// A valid header but an unknown version.
 	bad := make([]byte, ctLeafHeader)
 	bad[0] = 9
 	if _, err := LeafSANs(bad, nil); err == nil {
@@ -63,12 +56,9 @@ func TestLeafSANsMalformed(t *testing.T) {
 	}
 }
 
-// TestLeafSANsUnknownEntryType confirms an entry type the tail does not recognise yields
-// no names and no error — the tail tolerates a future entry type rather than failing the
-// whole poll on it.
 func TestLeafSANsUnknownEntryType(t *testing.T) {
 	leaf := make([]byte, ctLeafHeader)
-	// version 0, leaf_type 0, timestamp 0, entry_type 99 (bytes 10:12).
+	// entry_type is bytes 10:12 of a MerkleTreeLeaf, after version, type and timestamp (RFC 6962).
 	leaf[10] = 0
 	leaf[11] = 99
 	names, err := LeafSANs(leaf, nil)
@@ -80,9 +70,6 @@ func TestLeafSANsUnknownEntryType(t *testing.T) {
 	}
 }
 
-// TestSelectTailLogs checks the embedded log_list.json snapshot yields a non-empty,
-// well-formed, deterministic RFC 6962 log-set — every entry carries an id and a url, and
-// the set is sorted by log_id.
 func TestSelectTailLogs(t *testing.T) {
 	now := time.Date(2026, 8, 30, 0, 0, 0, 0, time.UTC)
 	logs, err := SelectTailLogs(now)
@@ -100,7 +87,6 @@ func TestSelectTailLogs(t *testing.T) {
 			t.Fatalf("logs not sorted by id at %d: %q >= %q", i, logs[i-1].LogID, l.LogID)
 		}
 	}
-	// Deterministic: a second call returns the same set.
 	again, _ := SelectTailLogs(now)
 	if len(again) != len(logs) {
 		t.Fatalf("non-deterministic selection: %d then %d", len(logs), len(again))
@@ -162,12 +148,12 @@ func TestAdmitCTNames(t *testing.T) {
 		{SeedID: 2, Domain: "sub.example.com"},
 	}
 	sans := []string{
-		"www.example.com",    // in scope, under example.com
-		"a.sub.example.com",  // in scope, most-specific is sub.example.com
-		"www.example.com",    // duplicate — dropped
-		"*.example.com",      // wildcard — refused (ADR-0060)
-		"foo.notexample.com", // out of scope — dropped (ADR-0047)
-		"other.org",          // out of scope — dropped
+		"www.example.com",
+		"a.sub.example.com",
+		"www.example.com",
+		"*.example.com",
+		"foo.notexample.com",
+		"other.org",
 	}
 	got := AdmitCTNames(sans, seeds)
 	want := map[string]int64{
@@ -214,9 +200,6 @@ func TestCTTailScopeRoundTrip(t *testing.T) {
 	}
 }
 
-// TestParseSTH and TestParseLogEntries cover the RFC 6962 wire parsers' happy and
-// malformed paths — a malformed 200 is an error the poll treats as transient, never an
-// empty read (ADR-0027 §7).
 func TestParseSTH(t *testing.T) {
 	sth, err := ParseSTH([]byte(`{"tree_size":42,"timestamp":1,"sha256_root_hash":"x","tree_head_signature":"y"}`))
 	if err != nil {
@@ -247,13 +230,8 @@ func TestParseLogEntries(t *testing.T) {
 	}
 }
 
-// --- static-ct-api (tiled) client tests (#877) -------------------------------
-
-// TestSelectTailLogsIncludesTiled confirms the embedded snapshot yields both client
-// kinds: the RFC 6962 logs (Tiled false) and the static-ct-api tiled logs (Tiled true).
-// Skipping the tiled cohort would miss the tiled-only operators (Let's Encrypt, Geomys,
-// IPng), so the tail must follow both (§4.3).
 func TestSelectTailLogsIncludesTiled(t *testing.T) {
+	// Let's Encrypt, Geomys and IPng are tiled-only, so dropping that cohort loses them (§4.3).
 	now := time.Date(2026, 8, 30, 0, 0, 0, 0, time.UTC)
 	logs, err := SelectTailLogs(now)
 	if err != nil {
@@ -315,8 +293,6 @@ func TestDataTilePath(t *testing.T) {
 	}
 }
 
-// appendOpaque24 / appendOpaque16 frame a TLS opaque value the way a data tile packs one,
-// so the test builds real TileLeaf bytes rather than mock the parser.
 func appendOpaque24(dst, v []byte) []byte {
 	n := len(v)
 	return append(append(dst, byte(n>>16), byte(n>>8), byte(n)), v...)
@@ -327,13 +303,8 @@ func appendOpaque16(dst, v []byte) []byte {
 	return append(append(dst, byte(n>>8), byte(n)), v...)
 }
 
-// TestParseDataTile builds a data tile from two real certificate DERs — one framed as an
-// x509 TileLeaf, one as a precert TileLeaf — reusing the same cert bytes the RFC 6962
-// fixtures carry, and confirms the packed sequence parses left to right into both DERs and
-// that each reaches the same SAN. The precert path is the one the framing most has to get
-// right: the parseable cert is the pre_certificate field AFTER the extensions, not the
-// TBSCertificate in the signed_entry.
 func TestParseDataTile(t *testing.T) {
+	// A tile precert's parseable cert is the pre_certificate after the extensions, not the TBS.
 	x509DER, err := readOpaque24(readFixture(t, "entry1_leaf.b64")[ctLeafHeader:])
 	if err != nil {
 		t.Fatalf("extract x509 DER: %v", err)
@@ -344,18 +315,15 @@ func TestParseDataTile(t *testing.T) {
 	}
 
 	var tile []byte
-	// x509 TileLeaf: timestamp(8) + entry_type(0) + ASN.1Cert + extensions + chain.
 	tile = append(tile, make([]byte, 8)...)
 	tile = append(tile, 0x00, 0x00)
 	tile = appendOpaque24(tile, x509DER)
 	tile = appendOpaque16(tile, nil)
 	tile = appendOpaque16(tile, nil)
-	// precert TileLeaf: timestamp(8) + entry_type(1) + issuer_key_hash(32) +
-	// TBSCertificate + extensions + pre_certificate + chain.
 	tile = append(tile, make([]byte, 8)...)
 	tile = append(tile, 0x00, 0x01)
 	tile = append(tile, make([]byte, ctIssuerKeyHash)...)
-	tile = appendOpaque24(tile, []byte{0xde, 0xad, 0xbe, 0xef}) // TBS — skipped
+	tile = appendOpaque24(tile, []byte{0xde, 0xad, 0xbe, 0xef})
 	tile = appendOpaque16(tile, nil)
 	tile = appendOpaque24(tile, precertDER)
 	tile = appendOpaque16(tile, nil)
@@ -378,17 +346,14 @@ func TestParseDataTile(t *testing.T) {
 	}
 }
 
-// TestParseDataTileMalformed confirms a tile whose last leaf is truncated is an error —
-// never a short, silent read that would drop the tail of a tile (ADR-0027 §7).
 func TestParseDataTileMalformed(t *testing.T) {
 	var bad []byte
 	bad = append(bad, make([]byte, 8)...)
 	bad = append(bad, 0x00, 0x00)
-	bad = append(bad, 0xff, 0xff, 0xff) // opaque24 length ~16 MiB, no bytes follow
+	bad = append(bad, 0xff, 0xff, 0xff) // a 16 MiB opaque24 length with no bytes following
 	if _, err := ParseDataTile(bad); err == nil {
 		t.Fatal("want error on a truncated data tile leaf")
 	}
-	// An unknown entry type cannot be framed, so the tile parse fails rather than guess.
 	unknown := append(make([]byte, 8), 0x00, 0x09)
 	if _, err := ParseDataTile(unknown); err == nil {
 		t.Fatal("want error on an unknown tiled entry type")
