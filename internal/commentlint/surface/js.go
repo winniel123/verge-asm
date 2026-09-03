@@ -22,8 +22,6 @@ const (
 	JSHashbang  = "HASHBANG"
 )
 
-// A regex literal and a division share the `/` byte, so the token before it
-// decides. These keywords end no expression, so a `/` after one opens a regex.
 var jsRegexKeywords = map[string]bool{
 	"await": true, "case": true, "delete": true, "do": true, "else": true,
 	"in": true, "instanceof": true, "new": true, "of": true, "return": true,
@@ -162,10 +160,13 @@ func (s *jsScan) regexAllowed() bool {
 	last := s.skeleton[len(s.skeleton)-1]
 	switch last.Kind {
 	case JSIdent:
+		// A keyword ends no expression, so a `/` after one opens a regex.
 		return jsRegexKeywords[last.Text]
 	case JSNumber, JSString, JSTemplate, JSRegex, JSHashbang:
 		return false
 	case JSOp:
+		// `if (x) /re/.test(y)` reads as a division here. The corpus
+		// cross-check measures that no tracked file takes that shape (#1141).
 		return last.Text != ")" && last.Text != "]" && last.Text != "}"
 	}
 	return true
@@ -223,8 +224,6 @@ func (s *jsScan) skipString(quote byte) error {
 	return fmt.Errorf("scan: %d: a %c-quoted string opens and never closes", startLine, quote)
 }
 
-// A template literal is one token, holding its substitutions whole. A comment
-// inside `${}` therefore stays with the agent rather than reaching the sweep.
 func (s *jsScan) skipTemplate() error {
 	startLine := s.line
 	s.i++
@@ -240,6 +239,8 @@ func (s *jsScan) skipTemplate() error {
 			s.i++
 			return nil
 		case c == '$' && s.peek(1) == '{':
+			// The substitution stays inside the one template token, so a
+			// comment in it reaches the agent and never the sweep.
 			s.i += 2
 			if err := s.skipTemplateExpr(); err != nil {
 				return err
@@ -348,9 +349,22 @@ func isHexDigit(c byte) bool {
 }
 
 func jsDirective(text string) bool {
-	// A marker anywhere in the text would protect prose that merely names a
-	// linter, so the directive has to open the comment (SPEC §2.3).
-	return hasAnyPrefix(jsInner(text), jsDirectiveMarkers)
+	inner := jsInner(text)
+	for _, marker := range jsDirectiveMarkers {
+		// A marker anywhere in the text would protect prose that names a
+		// linter, so the directive opens the comment (SPEC §2.3).
+		rest, ok := strings.CutPrefix(inner, marker)
+		// `eslint.org` opens with a marker and is not a directive, so the
+		// marker also has to end at a word boundary.
+		if ok && (rest == "" || !jsMarkerPart(rest[0])) {
+			return true
+		}
+	}
+	return false
+}
+
+func jsMarkerPart(c byte) bool {
+	return jsIdentPart(c) || c == '.' || c == '/'
 }
 
 func jsInner(text string) string {

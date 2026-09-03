@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/winniel123/verge-asm/internal/commentlint/surface"
 )
 
 func source(files map[string]string) ReadFunc {
@@ -264,6 +266,20 @@ func TestRunReadsTheJSSurfaces(t *testing.T) {
 			want: Changed,
 		},
 		{
+			name: "a ts comment deletion is clean",
+			path: "docs-site/src/pipeline/nav-build.ts",
+			base: "// the note\nexport const a: number = 1;\n",
+			head: "export const a: number = 1;\n",
+			want: Clean,
+		},
+		{
+			name: "a ts type change is a violation",
+			path: "docs-site/src/pipeline/nav-build.ts",
+			base: "export const a: number = 1;\n",
+			head: "export const a: string = 1;\n",
+			want: Changed,
+		},
+		{
 			name: "a deleted eslint directive is a violation",
 			path: "docs-site/scripts/doclint.mjs",
 			base: "// eslint-disable-next-line no-console\nconsole.log(1);\n",
@@ -283,6 +299,58 @@ func TestRunReadsTheJSSurfaces(t *testing.T) {
 			report := Run([]string{c.path}, false,
 				source(map[string]string{c.path: c.base}),
 				source(map[string]string{c.path: c.head}))
+			if got := report.Findings[0].Status; got != c.want {
+				t.Fatalf("status is %s (%s), want %s", got, report.Findings[0].Detail, c.want)
+			}
+		})
+	}
+}
+
+func TestRunReadsTheJSXSurface(t *testing.T) {
+	const path = "docs-site/src/ds/Icon.jsx"
+	// `.jsx` lexes through the node esbuild docs-site installs, so the case
+	// stands aside where that install is absent (SPEC §6.1, #1141).
+	if _, err := (surface.JSX{Path: path}).Lex([]byte("const a = 1;\n")); err != nil {
+		t.Skip("docs-site holds no esbuild: run `npm ci` in docs-site")
+	}
+	cases := []struct {
+		name string
+		base string
+		head string
+		want Status
+	}{
+		{
+			name: "a comment deletion is clean",
+			base: "// the note\nconst a = <p>x</p>;\n",
+			head: "const a = <p>x</p>;\n",
+			want: Clean,
+		},
+		{
+			name: "a changed attribute is a violation",
+			base: "const a = <p className=\"lead\">x</p>;\n",
+			head: "const a = <p className=\"body\">x</p>;\n",
+			want: Changed,
+		},
+		{
+			// JSX text makes `//` literal, so a hand lexer would read this
+			// line as a comment and report the change clean (SPEC §5.3).
+			name: "a changed url in JSX text is a violation",
+			base: "const a = <p>see https://example.com</p>;\n",
+			head: "const a = <p>see https://example.org</p>;\n",
+			want: Changed,
+		},
+		{
+			name: "unreadable JSX fails closed",
+			base: "const a = <p>x</p>;\n",
+			head: "const a = <p>x</q>;\n",
+			want: LexFailed,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			report := Run([]string{path}, false,
+				source(map[string]string{path: c.base}),
+				source(map[string]string{path: c.head}))
 			if got := report.Findings[0].Status; got != c.want {
 				t.Fatalf("status is %s (%s), want %s", got, report.Findings[0].Detail, c.want)
 			}

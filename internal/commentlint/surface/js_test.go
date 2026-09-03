@@ -191,6 +191,29 @@ func TestJSDeletingADirectiveMovesTheSkeleton(t *testing.T) {
 	}
 }
 
+func TestJSDirectiveNeedsAWordBoundary(t *testing.T) {
+	// A marker that runs on into a word is prose that names a linter, and
+	// protecting it would keep a line the sweep is meant to reach (SPEC §2.3).
+	cases := []struct {
+		src  string
+		want bool
+	}{
+		{"// eslint-disable-next-line no-console\n", true},
+		{"// eslint\n", true},
+		{"// c8 ignore next\n", true},
+		{"// eslint.org explains the rule\n", false},
+		{"// eslinting the tree is a later ticket\n", false},
+		{"// see https://eslint.org for the rule\n", false},
+	}
+	for _, c := range cases {
+		t.Run(c.src, func(t *testing.T) {
+			if got := jsLex(t, c.src+"const a = 1;\n").Blocks[0].Directive; got != c.want {
+				t.Errorf("Directive is %v, want %v", got, c.want)
+			}
+		})
+	}
+}
+
 func TestJSNoJSDocTagIsADirective(t *testing.T) {
 	// No JSDoc tag is consumed by any tool in this repo, so protecting one
 	// would keep 13,533 lines the sweep is meant to reach (SPEC §2.3).

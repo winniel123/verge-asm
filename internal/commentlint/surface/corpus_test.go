@@ -22,8 +22,6 @@ const (
 	minAllSQL   = 100
 	minAllCSS   = 15
 
-	// A cross-check that reaches no file passes for the wrong reason, so the
-	// vacuous canonical forms are counted out and a floor holds (SPEC §5.5).
 	minCrossChecked = 15
 )
 
@@ -81,9 +79,7 @@ func TestJSXCorpusLexes(t *testing.T) {
 
 func TestJSCommentRangesAgreeWithEsbuild(t *testing.T) {
 	// §5.5 records the circularity risk: one hand lexer both finds the
-	// comments and builds the skeleton. esbuild is the independent reader, so
-	// blanking every range the lexer calls a comment must leave its canonical
-	// form untouched (#1141).
+	// comments and builds the skeleton. esbuild reads them apart (#1141).
 	esbuildOrSkip(t)
 	checked := 0
 	for _, rel := range append(inScopeFiles(t, ".mjs"), inScopeFiles(t, ".ts")...) {
@@ -126,9 +122,9 @@ func TestJSCommentRangesAgreeWithEsbuild(t *testing.T) {
 	}
 }
 
-// blankComments overwrites every comment range with spaces. A deletion would
-// glue the neighbouring tokens, which is a source change of its own (§5.1).
 func blankComments(src []byte, res Result) []byte {
+	// A deletion would glue the neighbouring tokens, which is a source change
+	// of its own, so each range fills with spaces (SPEC §5.1).
 	out := append([]byte(nil), src...)
 	for _, b := range append(append([]Block(nil), res.Blocks...), res.Trailing...) {
 		for i := b.Start; i < b.End && i < len(out); i++ {

@@ -276,9 +276,7 @@ var (
 	statementEndRe = regexp.MustCompile(`[;{},]$`)
 	sqlStatementRe = regexp.MustCompile(`(?i)^(select|insert|update|delete|with|create|alter|drop|from|where|join|order|group|returning|values|union|set)\b`)
 	cssDeclRe      = regexp.MustCompile(`^[-@a-zA-Z][\w-]*\s*[:{]`)
-	// JavaScript is case-sensitive, so the keyword test needs no `(?i)` and
-	// reads "If the value changes;" as prose.
-	jsStatementRe = regexp.MustCompile(`^(const|let|var|function|class|import|export|return|if|else|for|while|switch|case|try|catch|finally|throw|await|async|new|delete|typeof|yield|do|interface|type|declare)\b|^[\w$]+(\.[\w$]+)*\s*[(=]`)
+	jsStatementRe  = regexp.MustCompile(`^(const|let|var|function|class|import|export|return|if|else|for|while|switch|case|try|catch|finally|throw|await|async|new|delete|typeof|yield|do|interface|type|declare)\b|^[\w$]+(\.[\w$]+)*\s*[(=]`)
 )
 
 func codeShape(lang surface.Lang, lines []string) bool {
@@ -286,7 +284,9 @@ func codeShape(lang surface.Lang, lines []string) bool {
 	switch lang {
 	case surface.LangCSS:
 		opener = cssDeclRe
-	case surface.LangJS, surface.LangJSX:
+	case surface.LangJS:
+		// JavaScript is case-sensitive, so the keyword test needs no `(?i)`
+		// and reads "If the value changes;" as prose.
 		opener = jsStatementRe
 	}
 	found, seen := false, 0

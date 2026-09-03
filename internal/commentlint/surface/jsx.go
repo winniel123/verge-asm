@@ -10,8 +10,6 @@ import (
 	"strings"
 )
 
-// JSX reads a `.jsx` file through esbuild's canonical form. No hand lexer can
-// read JSX, because JSX text makes `//` literal (SPEC §5.3).
 type JSX struct {
 	Path string
 }
@@ -19,20 +17,15 @@ type JSX struct {
 const (
 	JSXCanonical = "CANON"
 
-	// A canonical-form token spans at most this many bytes, so a `verify`
-	// failure names a readable run rather than the whole file.
 	canonicalChunk = 200
 
-	// esbuild ships with docs-site's dependency tree, so the sweep needs no Go
-	// dependency for it (SPEC §6.1).
 	esbuildRelPath = "docs-site/node_modules/.bin/esbuild"
 )
 
-// ErrNoEsbuild says the tool cannot judge a `.jsx` file here. §6.7 fails
-// `verify` closed on it rather than reporting the file clean.
 var ErrNoEsbuild = errors.New("commentlint needs the node esbuild that docs-site installs: run `npm ci` in docs-site")
 
 func (j JSX) Lex(src []byte) (Result, error) {
+	// No hand lexer can read JSX, because JSX text makes `//` literal (§5.3).
 	form, err := esbuildCanonical(j.Path, src, "jsx")
 	if err != nil {
 		return Result{}, err
@@ -41,22 +34,22 @@ func (j JSX) Lex(src []byte) (Result, error) {
 	// esbuild strips every comment, so a deleted `eslint` directive would
 	// leave the canonical form untouched. A line scan pins those back (§2.3).
 	skeleton = append(skeleton, jsxDirectiveTokens(src)...)
-	// esbuild reports no comment range, so the JSX blocks are empty and every
-	// §3.6 JSX cell already reads `agent`.
+	// esbuild reports no comment range, so `lint` flags no `.jsx` block. §5.3
+	// leaves no sound way to enumerate them, and `verify` carries ruling 15.
 	return Result{Skeleton: skeleton}, nil
 }
 
-// canonicalTokens chunks the canonical form. A token's line is its ordinal in
-// that form, which is not a line of the source file.
 func canonicalTokens(form []byte) []Token {
 	var out []Token
 	for _, line := range strings.Split(strings.ReplaceAll(string(form), "\r\n", "\n"), "\n") {
+		// A chunk bounds the run a `verify` failure prints. Its line stays
+		// zero, because the canonical form has no line of the source file.
 		for len(line) > canonicalChunk {
-			out = append(out, Token{Kind: JSXCanonical, Text: line[:canonicalChunk], Line: len(out) + 1})
+			out = append(out, Token{Kind: JSXCanonical, Text: line[:canonicalChunk]})
 			line = line[canonicalChunk:]
 		}
 		if line != "" {
-			out = append(out, Token{Kind: JSXCanonical, Text: line, Line: len(out) + 1})
+			out = append(out, Token{Kind: JSXCanonical, Text: line})
 		}
 	}
 	return out
@@ -83,9 +76,8 @@ func esbuildCanonical(name string, src []byte, loader string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	// esbuild keeps a comment that opens an object property or an array item,
-	// so the plain transform is not comment-blind. --minify-whitespace drops
-	// every comment and keeps every identifier (measured 2026-09-03, #1141).
+	// esbuild's plain transform keeps a comment that opens an object property,
+	// so it is not comment-blind (measured 2026-09-03, #1141).
 	cmd := exec.Command(bin, "--loader="+loader, "--minify-whitespace")
 	cmd.Stdin = bytes.NewReader(src)
 	var stdout, stderr bytes.Buffer

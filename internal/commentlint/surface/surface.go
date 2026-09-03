@@ -13,7 +13,6 @@ const (
 	LangSQL
 	LangCSS
 	LangJS
-	LangJSX
 )
 
 func (l Lang) String() string {
@@ -24,8 +23,6 @@ func (l Lang) String() string {
 		return "css"
 	case LangJS:
 		return "js"
-	case LangJSX:
-		return "jsx"
 	}
 	return "go"
 }
