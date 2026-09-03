@@ -20,65 +20,22 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// The `edge-fanout` Scan (CONTEXT.md `Scan`, ADR-0129 §6, tickets #983 and #988) is the
-// daily no-SNI TLS handshake over the custody-extension candidates AND the addresses of
-// declared address scopes. This file holds its dispatch half — the population read and
-// the enqueue — and its recording half, which lands one row per measured address in the
-// leaf's own store.
-//
-// The Scan serves TWO PURPOSES over that one population, and the recording half is blind
-// to which limb a row came from: on the extension limb the result decides membership, on
-// the declaration limb it labels and decides nothing. The split is made where it is
-// read, not where it is written — custody.Estate.EdgeFanoutPopulation states both
-// purposes and both (opposite) absence rules.
-//
-// The measurement decides MEMBERSHIP and opens no timeline, so it holds no row in the
-// `observation` table: there is no facet, subject or discriminator for that table's
-// four-part key to name. toObservationParams already skips a facet-less line, so the
-// recording half here is additive to the shared completion path and changes no existing
-// fold.
-
-// fanOutEdgeFanout enqueues the edge-fanout jobs for one tick, over BOTH limbs of the
-// population (custody.Estate.EdgeFanoutPopulation): the custody-extension candidates —
-// the direct-A targets, and the apex `ALIAS`/`ANAME` flattened to A, of in-zone names
-// the extension would reach — and every address a declared address scope covers.
-//
-// #983's legibility that an install with no custody extension enqueues no job is GONE
-// (#988): an install holding address scopes and no extension now dispatches a non-empty
-// scope. Only an install with NEITHER enqueues nothing, and that stays a legible state
-// rather than an error — the Dispatch is recorded over an empty scope and nothing is
-// probed.
-//
-// It STREAMS, like the hot and cold tiers and for the same reason. #988 made this an
-// address-scope tier: the declaration limb enumerates every declared scope, ADR-0127
-// removed the ceiling above the operator's address cap, and ADR-0047 refuses a scan-time
-// aperture. So the Dispatch row is committed first and the jobs stream out in
-// chunkCommitSize transactions (streamEnqueue), rather than materializing the whole
-// scope and holding one transaction and the per-scan advisory lock open across it. A
-// crash between chunks leaves the tick claimed and the Dispatch under-covering; a re-run
-// hits the (scan, scheduled_time) key and skips, so nothing double-dispatches (#847).
-//
-// The population is read through the same current Custody Estate the hot dispatch reads
-// (hotEstate), so a name whose authorising scope was withdrawn since it resolved
-// contributes no candidate (ADR-0079, #742), and a withdrawn address scope contributes
-// no address. There is no vantage fan-out: a default certificate is not a function of
-// vantage, and vantage-varying fan-out is anycast, out of v1 (ADR-0129 §5).
 func (d *Dispatcher) fanOutEdgeFanout(ctx context.Context, scanID, dispatchID int64) (int, error) {
+	// A name whose scope was withdrawn since it resolved contributes no candidate (ADR-0079, #742).
 	estate, _, err := hotEstate(ctx, d.q, d.now())
 	if err != nil {
 		return 0, err
 	}
+	// An install with neither limb dispatches an empty scope rather than an error (#988).
 	jobs := scan.BuildEdgeFanoutJobs(scanID, estate.EdgeFanoutPopulation())
+	// A declared address scope has no ceiling, so the jobs stream instead of materializing (ADR-0127).
 	return streamEnqueue(ctx, d, jobs, func(ctx context.Context, qtx *db.Queries, j scan.EdgeFanoutJob) error {
 		return enqueueEdgeFanoutJob(ctx, qtx, scanID, dispatchID, j)
 	})
 }
 
-// enqueueEdgeFanoutJob enqueues one edge-fanout job. It carries NO Vantage — the Scan
-// has no vantage dimension — and its Batch label names the chunk of candidates it
-// measures, since there is no vantage or seed to key it on. It retries like a hot job:
-// a handshake is a network step that can transiently fail.
 func enqueueEdgeFanoutJob(ctx context.Context, qtx *db.Queries, scanID, dispatchID int64, j scan.EdgeFanoutJob) error {
+	// The Batch label names the chunk, because this Scan has no vantage or seed to key it on.
 	spec, err := j.JobSpec(fmt.Sprintf("scan:%d:edges:%d", scanID, j.Chunk))
 	if err != nil {
 		return err
@@ -95,9 +52,10 @@ func enqueueEdgeFanoutJob(ctx context.Context, qtx *db.Queries, scanID, dispatch
 	if err != nil {
 		return err
 	}
+	// A handshake is a network step that transiently fails, so the job retries like a hot one.
 	_, err = qtx.EnqueueJob(ctx, db.EnqueueJobParams{
 		ScanID:         scanID,
-		VantageID:      pgtype.Int8{}, // the edge-fanout Scan has no vantage dimension
+		VantageID:      pgtype.Int8{}, // a default certificate is not a function of vantage (ADR-0129 §5)
 		DispatchID:     pgInt8(dispatchID),
 		Kind:           scan.EdgeFanoutKind,
 		Spec:           specJSON,
@@ -110,30 +68,8 @@ func enqueueEdgeFanoutJob(ctx context.Context, qtx *db.Queries, scanID, dispatch
 	return err
 }
 
-// toEdgeFanoutRows maps an edge-fanout batch's lines to their store rows: one row per
-// measured address, carrying the outcome, the served certificate's fingerprint on
-// `presented` alone, and the batch instant.
-//
-// jobKind is the kind the DISPATCHER enqueued, and it is what admits this fold at all.
-// A row is written only for a job the dispatcher sent to this leaf — never on the
-// strength of a line's self-declared Kind, which is the prober's word and is exactly
-// what the recording-side re-gate distrusts (#773). Without that test, a prober handling
-// any other job could append one `edge-fanout` line and mint a measurement of an address
-// its job never authorised: a dns job's scope denotes names alone, so the address
-// dimension has nothing to gate it against, and the veto (#985) would then read an
-// answer nothing measured.
-//
-// It is the pure half of the recording, so the mapping is tested without a database. A
-// line this leaf could not have emitted — one carrying a facet (this leaf's lines carry
-// none), an outcome outside the closed union, a `presented` with no fingerprint, a
-// negative carrying one, a fingerprint disagreeing with the certificate material beside
-// it, an address that does not parse — is DROPPED and named in the second return, never
-// persisted and never guessed at.
-//
-// A repeated address in one batch keeps its first row alone. The leaf already
-// handshakes each distinct address once, so a repeat is a line the batch had no
-// measurement for.
 func toEdgeFanoutRows(jobKind string, batchID int64, measuredAt pgtype.Timestamptz, obs []wire.Observation) ([]db.InsertEdgeFanoutObservationParams, []string) {
+	// A line's Kind is the prober's word, so only the dispatcher's kind admits this fold (#773).
 	if jobKind != scan.EdgeFanoutKind {
 		return nil, nil
 	}
@@ -144,9 +80,8 @@ func toEdgeFanoutRows(jobKind string, batchID int64, measuredAt pgtype.Timestamp
 		if o.Kind != edgefanout.Kind {
 			continue
 		}
-		// This leaf's lines carry NO facet — it decides membership and opens no
-		// timeline. A line claiming one was gated on its subject rather than on the
-		// Address read here (scopegate.go), so its address was never authorised.
+		// This leaf decides membership and opens no timeline, so its lines carry no facet.
+		// A line claiming one was gated on its subject, never on the address read here.
 		if o.Facet != "" {
 			dropped = append(dropped, fmt.Sprintf("address %q carries facet %q", o.Address, o.Facet))
 			continue
@@ -162,18 +97,13 @@ func toEdgeFanoutRows(jobKind string, batchID int64, measuredAt pgtype.Timestamp
 			dropped = append(dropped, fmt.Sprintf("address %s: %v", addr, err))
 			continue
 		}
-		// Where the line carries certificate material, the fingerprint this row stores
-		// and the key that material lands under must be the same value — the material's
-		// key is recomputed from its own DER (edgefanout.presentedMaterial), so a
-		// disagreement means the row would name a certificate the side store does not
-		// hold under that key, and #984's SAN read would join to nothing. A presented
-		// handshake that carried a chain but no DER carries no material and is not
-		// tested here.
+		// A fingerprint disagreeing with its material names a certificate no read can join to (#984).
 		if o.CertMaterial != nil && o.CertMaterial.Fingerprint != v.Fingerprint {
 			dropped = append(dropped, fmt.Sprintf("address %s: fingerprint %q disagrees with its certificate material %q",
 				addr, v.Fingerprint, o.CertMaterial.Fingerprint))
 			continue
 		}
+		// The leaf handshakes each distinct address once, so a repeat is a line nothing measured.
 		if _, dup := seen[addr]; dup {
 			dropped = append(dropped, fmt.Sprintf("address %s measured twice in one batch", addr))
 			continue
@@ -190,16 +120,9 @@ func toEdgeFanoutRows(jobKind string, batchID int64, measuredAt pgtype.Timestamp
 	return out, dropped
 }
 
-// foldEdgeFanoutObservations writes a completed batch's measured edges into the store,
-// inside the batch's own transaction — the outcome and what it measured commit together
-// (ADR-0007). It returns at once for a job of any other kind, so every other completion
-// path pays one comparison and nothing more.
-//
-// A dropped line is logged loudly (ADR-0001's fail-loud on a wire mismatch) and never
-// fails the job: the legitimate lines in the same batch still commit, and a compromised
-// prober cannot turn a malformed line into a queue denial of service.
 func foldEdgeFanoutObservations(ctx context.Context, qtx *db.Queries, job db.ClaimJobRow, batchID int64, measuredAt pgtype.Timestamptz, obs []wire.Observation, logger *log.Logger) error {
 	rows, dropped := toEdgeFanoutRows(job.Kind, batchID, measuredAt, obs)
+	// A malformed line is logged and never fails the job: a prober must not deny the queue (ADR-0001).
 	for _, why := range dropped {
 		if logger != nil {
 			logger.Printf("worker: job %d dropped malformed edge-fanout observation: %s (#773)", job.ID, why)
@@ -220,10 +143,8 @@ func pgTextOrNull(s string) pgtype.Text {
 	return pgtype.Text{String: s, Valid: true}
 }
 
-// EdgeFanoutStore is the narrow read surface ReadEdgeFanout needs. It exists so the
-// render path — which holds the web layer's own store interface and not a *db.Queries
-// — reaches the measurement through the SAME reader the dispatcher uses, rather than
-// growing a second one that could apply a different absence rule (#987).
+// A second reader could apply a different absence rule, so the web layer reaches this one (#987).
+
 type EdgeFanoutStore interface {
 	GetScanByKind(ctx context.Context, kind string) (db.Scan, error)
 	ListEdgeFanoutMeasurements(ctx context.Context) ([]db.ListEdgeFanoutMeasurementsRow, error)
@@ -232,52 +153,20 @@ type EdgeFanoutStore interface {
 	ScanHasCompletedBatch(ctx context.Context, kind string) (bool, error)
 }
 
-// EdgeFanoutBound names WHICH measured addresses a read must return a key for (#1036).
-// It is a parameter of the ONE reader and never a second reader: both forms land in the
-// same toEdgeFanout, so the absence rule is written once whichever bound is passed.
-//
-// It is a TYPE rather than a bare slice because the two states a slice would conflate
-// are not the same question. `nil` would have to mean *read everything*, which leaves a
-// caller whose candidate set came out empty asking for the whole store — the opposite of
-// what it wanted, and silent. The two constructors below make each call site say which
-// it means, and EdgeFanoutOver over an empty set reads nothing at all.
-//
-// THE UNBOUND FORM IS THE SAFE DEFAULT, and the zero value is it. A read wider than the
-// caller needs costs time and decides nothing wrong; a read NARROWER than the caller
-// needs drops a row, and a missing row is *measurement pending*, so it turns a measured
-// edge into a held one in silence. So a caller in doubt binds nothing.
+// A bare slice would make nil mean read-everything, so an empty candidate set reads the store.
+// A read narrower than the caller needs drops a row, and a missing row reads as pending.
+
 type EdgeFanoutBound struct {
 	over    []string
 	bounded bool
 }
 
-// EdgeFanoutUnbounded reads every address the Scan ever measured, both limbs.
-//
-// It is what the DISPATCHER takes — it acts over the whole population once per daily
-// tick — and what `/coverage` takes. `/coverage` renders the DECLARATION limb, whose
-// candidate set is every address inside every declared address scope. That set already
-// IS most of the store since #988, and ADR-0127 leaves a declared scope free to be a
-// `/8`, which no address list can hold. See ListEdgeFanoutMeasurementsOver for the whole
-// of that decision (#1036).
+// A declared address scope may be a /8, which no address list can hold (ADR-0127, #1036).
+
 func EdgeFanoutUnbounded() EdgeFanoutBound { return EdgeFanoutBound{} }
 
-// EdgeFanoutOver reads the named addresses alone.
-//
-// It is what the `/scope` render takes, bound to custody.Estate.ExtensionCandidates —
-// the EXTENSION limb, a discrete list of cited direct-A targets. That is the same set
-// the estate's two consumers of the measurement ask about: Estate.ExtensionCensus walks
-// the resolutions under the two conditions ExtensionCandidates itself applies, and
-// Estate.WithEdgeFanout resolves the errored floor (#1018) over ExtensionCandidates
-// exactly. So the bound cannot drop a key either of them looks up.
-//
-// Addresses are Unmap'ed here, matching both the form the writer stores and the
-// family-agnostic form every comparison in internal/custody runs over, so the match
-// never turns on a spelling.
-//
-// An EMPTY set is a bound to nothing, and the read is SKIPPED rather than widened. An
-// install with no custody extension holds no candidate, so there is no key any consumer
-// of that estate can look up, and the whole store would answer a question nobody asked.
 func EdgeFanoutOver(addrs []netip.Addr) EdgeFanoutBound {
+	// Every comparison in internal/custody is family-agnostic, so a match must not turn on spelling.
 	over := make([]string, 0, len(addrs))
 	for _, a := range addrs {
 		over = append(over, a.Unmap().String())
@@ -285,53 +174,9 @@ func EdgeFanoutOver(addrs []netip.Addr) EdgeFanoutBound {
 	return EdgeFanoutBound{over: over, bounded: true}
 }
 
-// ReadEdgeFanout reads the `edge-fanout` Scan's measured result in the form the custody
-// extension's reach consumes (#985, ADR-0129 §4). It is the ONE read path from the
-// leaf's store to the derivation: every caller that assembles a custody.Estate reaches
-// the stored rows through here, so no second reader can apply a different absence rule.
-//
-// Four reads, in this order:
-//
-//   - The Scan row. The measurement narrows the reach only where the Scan is IN FORCE.
-//     A disabled Scan, and a Scan row that is absent altogether — an install whose
-//     migrations predate #983 — both yield the zero custody.EdgeFanout, which reaches
-//     every direct-A target exactly as the extension did before ADR-0129. That is half
-//     of the fourth absence case.
-//   - The measurements, over the addresses `bound` names (readEdgeFanoutRows). One row
-//     per measured address, carrying the outcome and the FINGERPRINT of the certificate
-//     the edge presented. An address with no row gets NO KEY, which is what the
-//     derivation reads as *measurement pending* and holds.
-//   - The certificate material, over the DISTINCT fingerprints those rows name, and
-//     SKIPPED where they name none (readEdgeFanoutMaterial). This read is #1035. The
-//     measurement read used to carry the DER itself, through a join on the fingerprint,
-//     so a shared CDN edge behind 5000 addresses pulled one certificate 5000 times and
-//     the reduction parsed it 5000 times. #1014 measured that. One certificate now
-//     crosses the wire once and is parsed once, whatever number of addresses present it.
-//   - Whether a Batch of this Scan has ever completed. That read is the fourth case's
-//     other half — the ERRORED Scan — and it is carried out to the assembler rather
-//     than resolved here: the floor is PER LIMB since #1018, and the question *did the
-//     Scan measure any extension candidate?* needs a candidate set this package does
-//     not hold. custody.Estate.WithEdgeFanout resolves it.
-//
-// The completion read runs on EVERY read now, where #985 ran it on an empty store
-// alone. A non-empty store no longer answers the floor: since #988 the two limbs share
-// one store, so a declaration-limb row alone would lift a whole-store floor while every
-// extension candidate stayed unmeasured (#1018). The query is one EXISTS over `batch`.
-//
-// A read that FAILS returns the error rather than an open reach. A failed read is not a
-// decision: it is the dispatch failing, and the tick retries. Opening the reach on a
-// transient database error would widen the estate on the one signal that says nothing
-// was measured. THE MATERIAL READ IS NO EXCEPTION. A failure there is a failure to read
-// the certificates, not a finding that those edges present no identity, and reading it
-// as the latter would reach every measured address at once, silently.
-//
-// BOUND names which addresses the measurement read must return a key for (#1036). It is
-// a parameter of this ONE reader and never a second one: both forms reach the same
-// toEdgeFanout below, so the absence rule cannot fork. EdgeFanoutUnbounded is the safe
-// default — see EdgeFanoutBound for which caller takes which, and why a bound wider than
-// the caller needs is harmless where a narrower one is not.
 func ReadEdgeFanout(ctx context.Context, q EdgeFanoutStore, bound EdgeFanoutBound) (custody.EdgeFanout, error) {
 	s, err := q.GetScanByKind(ctx, scan.EdgeFanoutKind)
+	// An absent or disabled Scan yields the zero value, which reaches every target as before ADR-0129.
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return custody.EdgeFanout{}, nil
@@ -345,43 +190,27 @@ func ReadEdgeFanout(ctx context.Context, q EdgeFanoutStore, bound EdgeFanoutBoun
 	if err != nil {
 		return custody.EdgeFanout{}, err
 	}
+	// A failed read is the dispatch failing, never a finding, so it must not silently widen the reach.
 	material, err := readEdgeFanoutMaterial(ctx, q, rows)
 	if err != nil {
 		return custody.EdgeFanout{}, err
 	}
+	// Both limbs share one store since #988, so a declaration-limb row must not lift the floor.
 	completed, err := q.ScanHasCompletedBatch(ctx, scan.EdgeFanoutKind)
 	if err != nil {
 		return custody.EdgeFanout{}, err
 	}
-	// The record carries the bound out with it. A BOUND read's Shared map covers the
-	// named addresses alone, and custody.EdgeFanout.Partial is what tells the one reader
-	// that walks that map wholesale — custody.Estate.AddressScopeCensus — to refuse it
-	// rather than report a count short by every row the bound left behind (#1036).
 	out := toEdgeFanout(completed, rows, material)
+	// A bounded map is short, so Partial tells the census to refuse it rather than under-count.
 	out.Partial = bound.bounded
 	return out, nil
 }
 
-// readEdgeFanoutRows reads the newest measurement per address, under the caller's bound
-// (#1036). It is the half of ReadEdgeFanout that picks a QUERY, and it is deliberately
-// the only place that choice is made — the rows it returns reduce through one
-// toEdgeFanout whichever query produced them, so no bound can carry its own absence
-// rule in with it.
-//
-// An UNBOUND read is the whole store, both limbs, as every caller read it before #1036.
-//
-// A BOUND read over an empty address set issues NO QUERY. `= ANY('{}')` matches nothing,
-// so the round trip could only return the rows the caller already knows are none.
-//
-// The bound rows are RE-SHAPED rather than reduced where they lie. sqlc names a row type
-// per query, so the two reads return two Go types over the same three columns; copying
-// the narrow side into the wide side's type is what keeps one reduction instead of two.
-// The copy is O(the bound set), which is the small side by construction — an unbound
-// read, the large one, is handed straight through and copies nothing.
 func readEdgeFanoutRows(ctx context.Context, q EdgeFanoutStore, bound EdgeFanoutBound) ([]db.ListEdgeFanoutMeasurementsRow, error) {
 	if !bound.bounded {
 		return q.ListEdgeFanoutMeasurements(ctx)
 	}
+	// An empty bound could only return rows the caller already knows are none, so no query is issued.
 	if len(bound.over) == 0 {
 		return nil, nil
 	}
@@ -389,6 +218,7 @@ func readEdgeFanoutRows(ctx context.Context, q EdgeFanoutStore, bound EdgeFanout
 	if err != nil {
 		return nil, err
 	}
+	// sqlc names a row type per query, so copying the narrow rows into the wide type keeps one fold.
 	out := make([]db.ListEdgeFanoutMeasurementsRow, 0, len(rows))
 	for _, r := range rows {
 		out = append(out, db.ListEdgeFanoutMeasurementsRow{
@@ -400,21 +230,12 @@ func readEdgeFanoutRows(ctx context.Context, q EdgeFanoutStore, bound EdgeFanout
 	return out, nil
 }
 
-// readEdgeFanoutMaterial reads the leaf DER of every certificate the measurements name,
-// keyed by fingerprint, ONE ROW PER DISTINCT CERTIFICATE (#1035).
-//
-// It SKIPS the read where the rows name no fingerprint at all. That is the whole state
-// of an install the Scan has not run for, and of one measuring nothing but negatives,
-// so the common empty case costs no round trip.
-//
-// A fingerprint the store holds no material for is simply ABSENT from the map. The
-// caller reduces an absent DER to no names, which is measured-and-not-shared. It is a
-// different absence from the missing measurement row, which is *measurement pending*.
 func readEdgeFanoutMaterial(ctx context.Context, q EdgeFanoutStore, rows []db.ListEdgeFanoutMeasurementsRow) (map[string][]byte, error) {
 	fingerprints := edgeFanoutFingerprints(rows)
 	if len(fingerprints) == 0 {
 		return nil, nil
 	}
+	// One CDN edge sits behind thousands of addresses, so a certificate crosses the wire once (#1035).
 	material, err := q.ListCertificateMaterialDER(ctx, fingerprints)
 	if err != nil {
 		return nil, err
@@ -426,19 +247,11 @@ func readEdgeFanoutMaterial(ctx context.Context, q EdgeFanoutStore, rows []db.Li
 	return out, nil
 }
 
-// edgeFanoutFingerprints collects the DISTINCT fingerprints the measurements name, in
-// first-seen order. It is the pure half of the material read, so the de-duplication is
-// tested without a database.
-//
-// A NULL fingerprint contributes nothing. The three negative outcomes each carry one:
-// each measured its address and found no identity there, so there is no certificate to
-// read and the row still reduces to a value. The empty string is dropped for the same
-// reason — the writer stores an absent fingerprint as NULL (pgTextOrNull), and neither
-// spelling names a certificate `certificate_material` could hold.
 func edgeFanoutFingerprints(rows []db.ListEdgeFanoutMeasurementsRow) []string {
 	seen := make(map[string]struct{}, len(rows))
 	out := make([]string, 0, len(rows))
 	for _, r := range rows {
+		// A negative outcome names no certificate, and an absent fingerprint stores as NULL or as empty.
 		if !r.Fingerprint.Valid || r.Fingerprint.String == "" {
 			continue
 		}
@@ -451,75 +264,19 @@ func edgeFanoutFingerprints(rows []db.ListEdgeFanoutMeasurementsRow) []string {
 	return out
 }
 
-// toEdgeFanout reduces the stored measurements to the derivation's input. It is the
-// pure half of the read, so the absence rule's shape is tested without a database.
-//
-// Every returned key is an address the Scan MEASURED, and its value is the boolean
-// custody.SharedEdge computes over the SAN set the edge served. An address with no row
-// gets no key, and that missing key is what the derivation holds on.
-//
-// THE VERDICT IS DERIVED ONCE PER DISTINCT FINGERPRINT, then keyed per address (#1035).
-// `material` holds one DER per certificate rather than one per row, and `verdict`
-// memoises the parse and the Public Suffix List reduction over it. The shared CDN edge
-// is the shape this exists for: it is the expensive certificate — hundreds of SANs —
-// and it is the one many addresses share, so the old per-address parse walked the whole
-// reduction again for every address behind the same edge. The verdict itself does not
-// move: the same SAN set reaches the same custody.SharedEdge over the same shipped
-// threshold.
-//
-// A `presented` row whose fingerprint is NULL, and one whose fingerprint the store
-// holds no material for, both read an absent DER and reduce to a fan-out of zero. Both
-// are MEASURED AND NOT SHARED, never pending — edgeFanoutSANs states why that is the
-// direction ADR-0129 §2 accepts. Both key the memo on the empty or missing fingerprint,
-// so each is derived once as well.
-//
-// THE ERRORED FLOOR IS NOT DECIDED HERE. completed is carried out on the record
-// (custody.EdgeFanout.BatchCompleted) and custody.Estate.WithEdgeFanout resolves the
-// floor against the extension candidates. It is the ERRORED half of ADR-0129's fourth
-// absence case, and without it hold-then-open has no floor at all:
-//
-//   - The Scan has not run yet (completed false). Its candidates are genuinely
-//     *measurement pending*, so they are HELD, bounded by the daily cadence. This is
-//     the fresh install, and holding here is exactly what keeps the modal all-CDN
-//     install from showing appear-then-withdraw churn. It is NO LONGER the extension
-//     declared on an install that has already run the Scan — that one arrives with a
-//     completed Batch and no measured candidate, so it reaches for a cadence. See
-//     custody.EdgeFanout.overExtension, which states that residue.
-//   - The Scan RUNS and measures no extension candidate (completed true). That is not
-//     a lag — it is the measurement failing on the limb the veto gates. The commonest
-//     cause is a prober binary older than #982, which falls through its kind switch,
-//     emits a line the recording fold drops, and completes the Batch clean. So it
-//     repeats every tick, forever.
-//
-// THE FLOOR IS PER LIMB, and #1018 is why this file no longer holds it. #985 asked
-// *did the Scan record anything at all*, which the store answers. #988 put both limbs
-// in one store, so a DECLARATION-limb row alone lifted that floor while every extension
-// candidate stayed unmeasured and HELD — silently, and for as long as the condition
-// lasted. The question is now *did the Scan measure any EXTENSION CANDIDATE*, and this
-// package holds no candidate set: it sees rows, and the estate is what knows which of
-// them are the gating limb's.
-//
-// So every key here is measured-and-labelled, and WHICH LIMB it came from is decided
-// where it is read. An install holding address scopes alone records rows and reads as
-// in force with a map of declared addresses in it; those keys reach no gate, because
-// the veto reads the extension limb alone (custody.EdgeFanout). An install with NEITHER
-// limb records nothing and holds no candidate, so its floor is moot.
 func toEdgeFanout(completed bool, rows []db.ListEdgeFanoutMeasurementsRow, material map[string][]byte) custody.EdgeFanout {
+	// Which limb a key came from is decided where this map is read, never here (ADR-0129 §6).
 	shared := make(map[netip.Addr]bool, len(rows))
 	verdict := make(map[string]bool, len(material))
+	// An address with no row gets no key, and the derivation reads that missing key as pending.
 	for _, r := range rows {
 		addr, err := netip.ParseAddr(r.Address)
 		if err != nil {
-			// The writer stores the rendering of a parsed netip.Addr, so this is
-			// unreachable in practice. Skipping leaves the address with no key, so it
-			// is HELD rather than reached — an address whose row we cannot read is one
-			// nothing measured, and withholding the probe is the safe direction.
+			// A row that will not parse measured nothing, so withholding the address is the safe direction.
 			continue
 		}
-		// Only a `presented` handshake can hold identities. The three negatives each
-		// measured the address and found none there, which reduces to a fan-out of zero
-		// — measured and not-shared, never pending.
 		var edge bool
+		// A negative found nothing at the address: not-shared, never pending (ADR-0129 §2).
 		if r.Outcome == string(edgefanout.Presented) {
 			var fingerprint string
 			if r.Fingerprint.Valid {
@@ -534,27 +291,10 @@ func toEdgeFanout(completed bool, rows []db.ListEdgeFanoutMeasurementsRow, mater
 		}
 		shared[addr.Unmap()] = edge
 	}
+	// The errored floor is per limb, and only the estate holds the candidate set resolving it (#1018).
 	return custody.EdgeFanout{Enabled: true, BatchCompleted: completed, Shared: shared}
 }
 
-// edgeFanoutSANs decodes one measured edge's default certificate to the dNSName SANs
-// the fan-out reduction counts (ADR-0129 §1 as sharpened by the #954 amendment). The
-// SAN set is the Observed wire fact; the count over it is the derivation.
-//
-// It reads the dNSName SANs ALONE and folds in no subject common name. A CN is not a
-// SAN, a modern certificate repeats it among them anyway, and a legacy CN-only
-// certificate names one identity and could never reach the threshold on its own.
-//
-// It is called ONCE PER DISTINCT FINGERPRINT since #1035, where it was called once per
-// measured address before. Its behaviour does not move: the same DER yields the same
-// names, so the memo above it changes the cost and not the verdict.
-//
-// An absent or undecodable DER yields no names, so the edge reduces to a fan-out of
-// zero and is reached. A `presented` row whose material never landed — a handshake that
-// carried a chain but no leaf DER — is measured and not-shared rather than held, which
-// is the loud, wasteful direction ADR-0129 §2 accepts. Holding it instead would withhold
-// the address forever on an error that never clears, and a silently missing estate is
-// what this derivation exists to avoid.
 func edgeFanoutSANs(der []byte) []string {
 	if len(der) == 0 {
 		return nil
@@ -563,5 +303,6 @@ func edgeFanoutSANs(der []byte) []string {
 	if err != nil {
 		return nil
 	}
+	// A CN is not a SAN, is repeated among them in practice, and alone never reaches the threshold.
 	return cert.DNSNames
 }
