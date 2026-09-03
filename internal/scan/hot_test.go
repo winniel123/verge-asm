@@ -13,9 +13,6 @@ import (
 
 func addr(s string) netip.Addr { return netip.MustParseAddr(s) }
 
-// hotJobs collects the streamed hot fan-out into a slice for assertions. The
-// builder yields one job per (Vantage, admitted address); collecting an empty
-// sequence returns nil, so a nil check still reads as "no jobs".
 func hotJobs(scanID int64, estate custody.Estate, addrs []netip.Addr, vantages []Vantage, core vergecore.List) []HotJob {
 	return slices.Collect(BuildHotJobs(scanID, estate, slices.Values(addrs), vantages, core))
 }
@@ -23,16 +20,12 @@ func hotJobs(scanID int64, estate custody.Estate, addrs []netip.Addr, vantages [
 func operatorEstate() custody.Estate {
 	return custody.Estate{
 		AddressScopes: []netip.Prefix{
-			netip.MustParsePrefix("93.184.216.0/24"), // operator, globally reachable
-			netip.MustParsePrefix("10.0.0.0/8"),      // operator, non-globally-reachable
+			netip.MustParsePrefix("93.184.216.0/24"),
+			netip.MustParsePrefix("10.0.0.0/8"),
 		},
 	}
 }
 
-// internetVantage / internalVantage build a Vantage whose class the hot/cold Scans now
-// DERIVE per batch from its presented dialled address against operatorEstate's scopes
-// (#709), rather than a stored column: 203.0.113.1 is covered by no scope → `internet`,
-// 10.0.0.9 is inside 10.0.0.0/8 → `internal`.
 func internetVantage(id int64, name string) Vantage {
 	return Vantage{ID: id, Name: name, Dialled: "203.0.113.1"}
 }
@@ -41,11 +34,10 @@ func internalVantage(id int64, name string) Vantage {
 	return Vantage{ID: id, Name: name, Dialled: "10.0.0.9"}
 }
 
-// The whole of the gate: a third-party address is never handed to a prober, on
-// no port, from no Vantage. This is the load-bearing safety assertion (ADR-0019).
 func TestBuildHotJobsNeverProbesThirdParty(t *testing.T) {
+	// This is the load-bearing assertion of the Custody gate and must not be weakened (ADR-0019).
 	estate := operatorEstate()
-	third := "8.8.4.4" // covered by no Seed — third-party
+	third := "8.8.4.4"
 	addrs := []netip.Addr{addr("93.184.216.10"), addr(third)}
 	vantages := []Vantage{internetVantage(1, "internet-a")}
 
@@ -65,11 +57,10 @@ func TestBuildHotJobsNeverProbesThirdParty(t *testing.T) {
 	}
 }
 
-// A non-globally-reachable operator address is barred from an `internet`-class
-// Vantage (denotation, ADR-0079) and admitted from an `internal`-class one.
 func TestBuildHotJobsDenotationGate(t *testing.T) {
+	// Denotation bars a non-globally-reachable address from an internet-class Vantage (ADR-0079).
 	estate := operatorEstate()
-	priv := "10.0.0.5" // operator by address scope, non-globally-reachable
+	priv := "10.0.0.5"
 	addrs := []netip.Addr{addr(priv)}
 
 	internet := []Vantage{internetVantage(1, "net")}
@@ -84,8 +75,6 @@ func TestBuildHotJobsDenotationGate(t *testing.T) {
 	}
 }
 
-// The hot job carries the verge-core TCP set to probe and the UDP set to record,
-// and dispatches the connect-outcome leaf.
 func TestBuildHotJobsCarriesVergeCore(t *testing.T) {
 	estate := operatorEstate()
 	addrs := []netip.Addr{addr("93.184.216.10")}
@@ -107,7 +96,6 @@ func TestBuildHotJobsCarriesVergeCore(t *testing.T) {
 		t.Errorf("job carries %d UDP ports, want %d (recorded, never probed)", len(j.UDPPorts), core.Count().UDP)
 	}
 
-	// The scope on the wire is a connect-outcome scope carrying the profile.
 	spec, err := j.JobSpec("job-1")
 	if err != nil {
 		t.Fatal(err)
@@ -124,12 +112,8 @@ func TestBuildHotJobsCarriesVergeCore(t *testing.T) {
 	}
 }
 
-// The measured half of #1106. ADR-0005 justified keeping the per-host pacer in
-// prober memory on an intra-job argument, and that argument holds only while one
-// host sits in one job. The fan-out is one job per (Vantage, admitted address),
-// so at two vantages one host sits in two jobs, each carrying its own copy of the
-// 50 conn/s per-host ceiling. Two probers can then be pointed at that one host.
 func TestBuildHotJobsPutOneHostInOneJobPerVantage(t *testing.T) {
+	// The ADR-0005 pacer argument holds only intra-job, and one host sits in two jobs here (#1106).
 	estate := operatorEstate()
 	host := "93.184.216.10"
 	addrs := []netip.Addr{addr(host)}
@@ -161,7 +145,6 @@ func TestBuildHotJobsPutOneHostInOneJobPerVantage(t *testing.T) {
 	}
 }
 
-// Empty inputs are legible: no addresses, or no vantages, yields no jobs.
 func TestBuildHotJobsEmptyIsLegible(t *testing.T) {
 	estate := operatorEstate()
 	v := []Vantage{internetVantage(1, "net")}
@@ -173,7 +156,6 @@ func TestBuildHotJobsEmptyIsLegible(t *testing.T) {
 	}
 }
 
-// A dead-lettered hot Batch records an empty scope, never the attempted one.
 func TestEmptyHotScope(t *testing.T) {
 	b, err := EmptyHotScope("net")
 	if err != nil {
