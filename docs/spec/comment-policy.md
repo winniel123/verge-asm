@@ -801,15 +801,32 @@ place. This is a mild departure from `doclint.yml`, which is one file and one jo
 `fetch-depth: 0` is load-bearing for both jobs. A shallow clone has no merge base.
 
 **`labeled` is load-bearing for the `verify` gate.** GitHub defaults `types` to `opened`,
-`synchronize` and `reopened`. `gh pr create` cannot open a pull request and label it in one event, so
-`sweep:comments` always arrives after the first run. Without `labeled`, that first run reads an empty
-label list, skips `verify`, and reports a check that proves nothing. Two of the four agents in the
-first stage-D1 batch hit this and closed and reopened their pull request to force a real run (#1273).
+`synchronize` and `reopened`. Labelling a pull request is a second API call, and GitHub builds the
+`opened` run's payload two to four seconds after the pull request opens. **The label and the payload
+race.** When the label loses, the `opened` run reads an empty label list, skips `verify`, and reports
+a check that proves nothing.
+
+The first stage-D1 batch measured both outcomes on 2026-09-03 (#1273):
+
+| PR | Label applied after the PR opened | `verify` on the first run |
+| --- | ---: | --- |
+| #1266 | 1 s | ran |
+| #1270 | 1 s | ran |
+| #1268 | 12 s | **skipped** |
+| #1271 | 14 s | **skipped** |
+
+The two that lost the race closed and reopened their pull request to force a real run. A race a
+session wins half the time is worse than a plain failure, because the green check looks the same
+either way. `labeled` removes the race: the label itself fires the run, so the payload cannot
+predate it.
 
 A path filter on a `pull_request` event is evaluated against the pull request's own diff, not against
 an event file list, so it holds on a `labeled` event the same way it holds on a `synchronize` event.
-The cost of `labeled` is that any label, not only `sweep:comments`, re-runs the workflow. GitHub
-offers no label-name filter on the trigger, and a re-run of an advisory `lint` is cheap.
+
+Two costs follow, and both are accepted. Any label, not only `sweep:comments`, re-runs the workflow;
+GitHub offers no label-name filter on the trigger, and a re-run of an advisory `lint` is cheap. And
+the per-ref `cancel-in-progress` group means a near-simultaneous `opened` run and `labeled` run
+cancel one another, so a sweep PR can end with no `verify` row at all. §7.7 reads that case.
 
 ### 6.10 The `sweep:comments` label
 
@@ -967,6 +984,10 @@ A sweep ticket is done when **four** conditions hold:
 3. The PR body carries a keeps ledger (§4.9) and a gaps table (§8.6).
 4. A human approves the PR.
 
+**The sweep session applies `sweep:comments` to its own pull request.** Nothing else applies it.
+Stage A (§7.2) creates the label; it does not put it on a PR. An unlabelled sweep PR has no gate at
+all.
+
 **Condition 1 asks for two facts, not one.** A `verify` job that the `sweep:comments` gate skipped
 also leaves the PR green, and it proves nothing. The sweep session confirms the run itself:
 
@@ -974,10 +995,19 @@ also leaves the PR green, and it proves nothing. The sweep session confirms the 
 gh pr checks <pr> | grep -E '^(lint|verify)\b'
 ```
 
-A `verify` row reading `pass` is the run. A row reading `skipping` is the skip. It means the label was
-not on the pull request when the workflow last fired. Add or re-add `sweep:comments`. The `labeled`
-trigger (§6.9) then fires a fresh run. Read the word, not the colour. GitHub's check mosaic renders a
-skipped job the same shade as a passed one.
+Read the word, not the colour. GitHub's check mosaic renders a skipped job the same shade as a passed
+one. The command can report four states, and only the first is done:
+
+| `verify` row | Meaning | What the session does |
+| --- | --- | --- |
+| `pass` | The job ran and the equivalence held. | Condition 1 is met. |
+| `skipping` | The label was not on the PR when the workflow last fired. | Add or re-add `sweep:comments`. The `labeled` trigger (§6.9) fires a fresh run. |
+| `pending` | The run is still in flight. | Wait, then read again. |
+| *no row at all* | No commentlint run completed. It was cancelled (§6.9), or no in-scope path changed. | Re-add the label to force a run. A sweep PR with no in-scope path is not a sweep PR. |
+
+Do not read the pipeline's exit status. `gh pr checks` exits non-zero while any check is still
+pending, measured as 8 on 2026-09-03, so a zero exit is not the signal. `grep` finding nothing is
+silence, not a pass.
 
 **Condition 2 does not prove conformance on its own.** `lint` flags only the mechanically-decidable
 classes. Condition 3 is the judgment gate. Delete-by-default makes a wrong delete visible in the
