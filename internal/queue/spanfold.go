@@ -20,24 +20,8 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// foldObservationsIntoSpans folds one completed Batch's observations into the
-// Span corpus, inside the Batch's own transaction (ADR-0007): ingest is an
-// incremental fold, never a diff of two runs. For each observation's timeline it
-// reads the open span and, where the canonical value or the Derivation vector
-// moved, closes that span and opens a new one. Re-running the dns Scan with a
-// changed answer therefore produces a new Span and closes the old — an ordinary
-// value move, so the closure records no reason (the next span is the fact).
-//
-// A withdrawal is NOT decided here: whether a subject left the estate is a
-// subject-level cross-class composition (internal/estate), and closing its
-// timelines with a `measured-absent`/`uncited`/`descoped` ground is that path's
-// job. This fold only tracks per-timeline value movement.
-//
-// It also appends every timeline it opened or moved to `changes` (P0.7): the estate
-// / drift feed the message producer consumes downstream, in the same transaction, to
-// fold a transition into a message. A nil collector folds spans without recording the
-// feed — the measurement-only path that produces no messages.
 func foldObservationsIntoSpans(ctx context.Context, qtx *db.Queries, batchID int64, vantageID pgtype.Int8, observedAt time.Time, obs []wire.Observation, in membershipInputs, changes *[]spanChange) error {
+	// Ingest is an incremental fold over completed batches, never a diff of two runs (ADR-0007).
 	for _, o := range obs {
 		if o.Facet == "" {
 			continue
@@ -93,23 +77,10 @@ func foldOne(ctx context.Context, qtx *db.Queries, batchID int64, vantageID pgty
 	if !changed {
 		return nil
 	}
-	// An opening with NO OPEN PREDECESSOR is marked where the operator's aperture is
-	// why the fold looked at the subject — a Seed-declared Name/Address/Service the
-	// exclusions do not cut back out (openedByAperture) — and unmarked where the world
-	// brought a subject the aperture had not declared. The marker is the estate signal
-	// the drift feed reads to tell the two apart (#637, ADR-0014). A value MOVE on an
-	// existing timeline (open != nil) is `changed` and never carries it.
-	//
-	// `open == nil` is a first span OR a re-entry behind a closed one, and both are
-	// marked. A first span reads the marker as `revealed`. A re-entry behind a
-	// `descoped` closure reads it as the operator widening a Declared scope back over
-	// the subject, which is `revealed` as well (drift.ReEntryKind, ADR-0041, #1039).
+	// A re-entry behind a closure is marked like a first span, so drift reads it revealed (ADR-0041).
 	openedAperture := open == nil && openedByAperture(key.SubjectKind, key.SubjectKey, in)
 	if open != nil && !closeAt.IsZero() {
-		// An ordinary value move or a version change: close with no reason, citing the
-		// batch whose fold closed it (ADR-0111) so the estate-wide feed can pair this
-		// close with the open below into one `changed` transition. A withdrawal's reason
-		// is applied by the membership path, not here.
+		// Departure is a cross-class composition, so the membership path closes those spans, not this.
 		if err := qtx.CloseSpan(ctx, db.CloseSpanParams{ClosedAt: tstz(closeAt), ClosedBatchID: pgInt8(batchID), ID: openID}); err != nil {
 			return err
 		}
@@ -130,9 +101,6 @@ func foldOne(ctx context.Context, qtx *db.Queries, batchID int64, vantageID pgty
 	}); err != nil {
 		return err
 	}
-	// Record the transition for the message producer (P0.7): an opening (open == nil)
-	// is a membership / census candidate, and a reachability change is a flagship
-	// candidate. A nil collector is the measurement-only path that produces no message.
 	if changes != nil {
 		*changes = append(*changes, spanChange{
 			SubjectKind:    key.SubjectKind,
@@ -146,16 +114,8 @@ func foldOne(ctx context.Context, qtx *db.Queries, batchID int64, vantageID pgty
 	return nil
 }
 
-// facetVector is the Derivation vector for a facet's Span — the leaves that
-// decide the value, composed as their union (ADR-0086), so a bump of any one
-// moves the value and Breaks the timeline. `resolution` and `dns-record` are
-// decided jointly by `resolution-walk` and `wildcard-discrimination`;
-// `reachability` is decided jointly by `connect-outcome` and, since ADR-0104, the
-// `blanket-discrimination` leaf that gaps a blanket responder's reaches — a bump of
-// either Breaks the reach half of the estate once (ADR-0104 Consequences). The
-// vector is keyed on the facet rather than hardcoded so a wave-4 facet adds its
-// leaves here without forking the fold.
 func facetVector(facet string) drift.Vector {
+	// A vector composes the union of every leaf deciding the value, so a bump Breaks it (ADR-0086).
 	switch facet {
 	case connectoutcome.FacetReachability:
 		return drift.NewVector(
@@ -163,11 +123,7 @@ func facetVector(facet string) drift.Vector {
 			drift.Component{Leaf: blanketdiscrim.Kind, Version: blanketdiscrim.Version},
 		)
 	case connectoutcome.FacetCertificate:
-		// `certificate` is decided by the tls-handshake leaf alone — the reached
-		// connect gates whether the handshake runs, but the presented chain (or
-		// either TLS negative) is a function of the handshake, not of the connect
-		// verdict — so a tls-handshake bump Breaks `certificate` timelines without
-		// touching `reachability` (ADR-0086).
+		// The connect gates whether the handshake runs but decides no chain, so it stays out of here.
 		return drift.NewVector(
 			drift.Component{Leaf: "tls-handshake", Version: connectoutcome.CertVersion},
 		)
@@ -176,10 +132,6 @@ func facetVector(facet string) drift.Vector {
 			drift.Component{Leaf: httpexchange.Kind, Version: httpexchange.Version},
 		)
 	case tlsacceptance.Facet:
-		// `tls-acceptance` is decided by the tls-acceptance leaf alone — its own
-		// enumeration exchange, distinct from the tls-handshake leaf that feeds
-		// `certificate` — so a tls-acceptance bump Breaks `tls-acceptance` timelines
-		// without touching `certificate` ones (ADR-0028, ADR-0086).
 		return drift.NewVector(
 			drift.Component{Leaf: tlsacceptance.Kind, Version: tlsacceptance.Version},
 		)
@@ -191,12 +143,6 @@ func facetVector(facet string) drift.Vector {
 	}
 }
 
-// isGapValue reports whether an observation records a Gap — a period over which
-// the system could not say. Two facets carry a gap outcome tag: `resolution`, where
-// an undiscriminated DNS answer is a Gap (ADR-0066), and `reachability`, where an
-// undiscriminated reach on a blanket responder is a Gap (ADR-0104,
-// blanketdiscrim). A `dns-record` line is the RRset it measured and is never a gap
-// here; a `reachability` value (`reached` / `not-reached`) is not a gap either.
 func isGapValue(facet string, data json.RawMessage) bool {
 	var v struct {
 		Outcome string `json:"outcome"`
@@ -212,11 +158,8 @@ func isGapValue(facet string, data json.RawMessage) bool {
 	}
 }
 
-// canonicalJSON renders a JSON value in a stable form (object keys sorted by
-// Go's encoder) so a JSONB round-trip that reorders keys does not read as a value
-// move. The leaf already emits deterministic values; this guards the comparison
-// against Postgres's own normalisation.
 func canonicalJSON(b []byte) []byte {
+	// Postgres normalises JSONB key order, so an unstable rendering would read as a value move.
 	if len(b) == 0 {
 		return []byte("null")
 	}

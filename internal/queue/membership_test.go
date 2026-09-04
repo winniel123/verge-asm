@@ -12,8 +12,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// resolutionSpan builds one open `resolution` span row for a Name at a vantage, so
-// a test can pose the cross-class composition the withdrawal decision reads.
 func resolutionSpan(id int64, vantage pgtype.Int8, outcome string) db.ListOpenSpansForSubjectRow {
 	return db.ListOpenSpansForSubjectRow{
 		ID:          id,
@@ -37,13 +35,8 @@ func subtreeExclusion(name string) db.ListExclusionsRow {
 	return db.ListExclusionsRow{Kind: "subtree", Name: pgtype.Text{String: name, Valid: true}}
 }
 
-// The withdrawal legend's three exit/entry grounds each fire from a representative
-// estate transition. decideNameDeparture is the pure heart of the estate wiring
-// (#637): a Name every available vantage suppresses leaves `measured-absent`
-// (renders `withdrawn`); an operator narrowing leaves `descoped`; a still-declared
-// or still-admitted Name stays. `returned` derives on read from a `measured-absent`
-// closure and is proven in the drift feed classifier tests.
 func TestDecideNameDeparture(t *testing.T) {
+	// `returned` is absent because drift derives it on read from a measured-absent closure (#637).
 	tests := []struct {
 		name        string
 		open        []db.ListOpenSpansForSubjectRow
@@ -53,16 +46,12 @@ func TestDecideNameDeparture(t *testing.T) {
 		wantLeft    bool
 	}{
 		{
-			// withdrawn: the shipped single-vantage position reads NameError — every
-			// available vantage suppresses, so the Name leaves by measurement.
 			name:       "measured-absent single vantage NameError",
 			open:       []db.ListOpenSpansForSubjectRow{resolutionSpan(1, pgtype.Int8{}, estateOutcomeNameError)},
 			wantReason: drift.ReasonMeasuredAbsent,
 			wantLeft:   true,
 		},
 		{
-			// withdrawn: two vantages, both suppress (NameError + Shadowed) — cross-class
-			// unanimity, so the Name leaves.
 			name: "measured-absent cross-vantage unanimous suppression",
 			open: []db.ListOpenSpansForSubjectRow{
 				resolutionSpan(1, pgtype.Int8{Int64: 10, Valid: true}, estateOutcomeNameError),
@@ -72,8 +61,6 @@ func TestDecideNameDeparture(t *testing.T) {
 			wantLeft:   true,
 		},
 		{
-			// stays: one vantage still admits the Name (Resolved) — presence is
-			// existential across vantages, so no withdrawal.
 			name: "one admitting vantage keeps the name",
 			open: []db.ListOpenSpansForSubjectRow{
 				resolutionSpan(1, pgtype.Int8{Int64: 10, Valid: true}, estateOutcomeNameError),
@@ -82,8 +69,6 @@ func TestDecideNameDeparture(t *testing.T) {
 			wantLeft: false,
 		},
 		{
-			// stays: a Gap is not-evaluable and blocks withdrawal even alongside a
-			// suppressing vantage.
 			name: "gap blocks withdrawal",
 			open: []db.ListOpenSpansForSubjectRow{
 				resolutionSpan(1, pgtype.Int8{Int64: 10, Valid: true}, estateOutcomeNameError),
@@ -92,8 +77,6 @@ func TestDecideNameDeparture(t *testing.T) {
 			wantLeft: false,
 		},
 		{
-			// descoped: an operator exclusion draws the boundary inward — the Name leaves
-			// `descoped` even though its resolution still admits it.
 			name:       "descoped by exclusion beats a resolving name",
 			open:       []db.ListOpenSpansForSubjectRow{resolutionSpan(1, pgtype.Int8{}, estateOutcomeResolved)},
 			excluded:   true,
@@ -101,8 +84,6 @@ func TestDecideNameDeparture(t *testing.T) {
 			wantLeft:   true,
 		},
 		{
-			// stays: declared input (a Seed) keeps the Name regardless of a suppressing
-			// resolution — the estate does not withdraw a Name the operator still declares.
 			name:        "seed-covered name stays despite NameError",
 			open:        []db.ListOpenSpansForSubjectRow{resolutionSpan(1, pgtype.Int8{}, estateOutcomeNameError)},
 			seedCovered: true,
@@ -124,17 +105,14 @@ func TestDecideNameDeparture(t *testing.T) {
 	}
 }
 
-// Kept for readability of the table above — the estate outcome tags the composition
-// reads, mirrored from internal/estate's constants.
+// These mirror internal/estate's own constants, so a tag renamed there must be renamed here.
+
 const (
 	estateOutcomeResolved  = "Resolved"
 	estateOutcomeNameError = "NameError"
 	estateOutcomeShadowed  = "Shadowed"
 )
 
-// openedByAperture is the entry half of the estate wiring: a Seed-declared subject's
-// first timeline opens `revealed` (the aperture is why we looked), a subject no Seed
-// declares opens `appeared`. Each subject kind fires from a representative Seed.
 func TestOpenedByAperture(t *testing.T) {
 	in := membershipInputs{seeds: []db.ListSeedsRow{nameSeed("example.com"), addressSeed("198.51.100.0/24")}}
 
@@ -142,14 +120,14 @@ func TestOpenedByAperture(t *testing.T) {
 		kind, key string
 		want      bool
 	}{
-		{"name", "api.example.com", true},       // revealed: beneath the declared name Seed
-		{"name", "example.com", true},           // revealed: the declared apex itself
-		{"name", "notexample.com", false},       // appeared: a look-alike outside the Seed
-		{"name", "discovered.other.net", false}, // appeared: the world brought it, no Seed declares it
-		{"address", "198.51.100.7", true},       // revealed: inside the declared address Seed
-		{"address", "203.0.113.7", false},       // appeared: outside every address Seed
-		{"service", "198.51.100.7:443", true},   // revealed: the Service rides a declared Address
-		{"service", "203.0.113.7:443", false},   // appeared: the Service's Address is undeclared
+		{"name", "api.example.com", true},
+		{"name", "example.com", true},
+		{"name", "notexample.com", false},
+		{"name", "discovered.other.net", false},
+		{"address", "198.51.100.7", true},
+		{"address", "203.0.113.7", false},
+		{"service", "198.51.100.7:443", true},
+		{"service", "203.0.113.7:443", false},
 	}
 	for _, c := range cases {
 		if got := openedByAperture(c.kind, c.key, in); got != c.want {
@@ -158,12 +136,6 @@ func TestOpenedByAperture(t *testing.T) {
 	}
 }
 
-// An Exclusion cuts the subject back OUT of the Declared aperture, so an excluded
-// subject is unmarked even where a Seed scope still contains it (#1039). The case is
-// ordinary: an exclusion cuts the `Seed` limb alone, so an excluded Address a custody
-// extension reaches is still probed and still opens a span (ADR-0133 §3). The world's
-// resolution is why we looked at that one, so it opens `appeared`, and a later
-// re-entry across its `descoped` closure must not read `revealed` (drift.ReEntryKind).
 func TestOpenedByApertureExcludedSubjectIsUnmarked(t *testing.T) {
 	in := membershipInputs{
 		seeds:      []db.ListSeedsRow{nameSeed("example.com"), addressSeed("198.51.100.0/24")},
@@ -174,11 +146,11 @@ func TestOpenedByApertureExcludedSubjectIsUnmarked(t *testing.T) {
 		kind, key string
 		want      bool
 	}{
-		{"name", "api.example.com", false},     // excluded by name, though the Seed declares it
-		{"name", "other.example.com", true},    // the exclusion covers one name only
-		{"address", "198.51.100.7", false},     // inside the excluded /28
-		{"address", "198.51.100.90", true},     // inside the Seed, outside the exclusion
-		{"service", "198.51.100.7:443", false}, // the Service rides an excluded Address
+		{"name", "api.example.com", false},
+		{"name", "other.example.com", true},
+		{"address", "198.51.100.7", false},
+		{"address", "198.51.100.90", true},
+		{"service", "198.51.100.7:443", false},
 		{"service", "198.51.100.90:443", true},
 	}
 	for _, c := range cases {
@@ -187,8 +159,6 @@ func TestOpenedByApertureExcludedSubjectIsUnmarked(t *testing.T) {
 		}
 	}
 
-	// A subtree exclusion cuts the whole branch back out, the same guard nameExcluded
-	// applies on the way out.
 	sub := membershipInputs{
 		seeds:      []db.ListSeedsRow{nameSeed("example.com")},
 		exclusions: []db.ListExclusionsRow{subtreeExclusion("internal.example.com")},
@@ -201,9 +171,6 @@ func TestOpenedByApertureExcludedSubjectIsUnmarked(t *testing.T) {
 	}
 }
 
-// nameWithinDomain gates subtree coverage on a label boundary, so a look-alike name
-// is not read as within the domain — the guard both Seed coverage and subtree
-// exclusion share.
 func TestNameWithinDomain(t *testing.T) {
 	cases := []struct {
 		name, domain string
@@ -226,8 +193,6 @@ func TestNameWithinDomain(t *testing.T) {
 	}
 }
 
-// nameExcluded distinguishes an exact `name` exclusion (the FQDN alone) from a
-// `subtree` exclusion (the name and everything beneath).
 func TestNameExcluded(t *testing.T) {
 	exact := []db.ListExclusionsRow{{Kind: "name", Name: pgtype.Text{String: "api.example.com", Valid: true}}}
 	if !nameExcluded("api.example.com", exact) {
@@ -245,9 +210,6 @@ func TestNameExcluded(t *testing.T) {
 	}
 }
 
-// resolutionWitnesses groups a Name's open resolution spans into one witness per
-// vantage class, ignoring non-resolution facets, so the withdrawal composition sees
-// exactly the resolution evidence.
 func TestResolutionWitnesses(t *testing.T) {
 	open := []db.ListOpenSpansForSubjectRow{
 		resolutionSpan(1, pgtype.Int8{Int64: 10, Valid: true}, estateOutcomeNameError),
@@ -265,16 +227,13 @@ func TestResolutionWitnesses(t *testing.T) {
 	}
 }
 
-// observedResolutionNames is the distinct set of Names a batch's resolution
-// observations carry, in first-seen order — the Names whose membership the fold
-// re-composes; other facets do not re-decide a Name's membership.
 func TestObservedResolutionNames(t *testing.T) {
 	obs := []wire.Observation{
 		{Facet: resolutionwalk.FacetResolution, Subject: "a.example.com"},
 		{Facet: "dns-record", Subject: "a.example.com"},
 		{Facet: resolutionwalk.FacetResolution, Subject: "b.example.com"},
-		{Facet: resolutionwalk.FacetResolution, Subject: "a.example.com"}, // dup
-		{Facet: resolutionwalk.FacetResolution, Subject: ""},              // no subject
+		{Facet: resolutionwalk.FacetResolution, Subject: "a.example.com"},
+		{Facet: resolutionwalk.FacetResolution, Subject: ""},
 	}
 	got := observedResolutionNames(obs)
 	want := []string{"a.example.com", "b.example.com"}
