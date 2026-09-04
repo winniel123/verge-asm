@@ -14,9 +14,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
-// buildTestArchive assembles a B3-format archive with the real backup writers (round-trip
-// against cmd/web/backup.go) at a chosen schema version, carrying the given span rows so a
-// pre-flight has real subjects to count.
 func buildTestArchive(t *testing.T, schemaVersion int64, spanRows []string) []byte {
 	t.Helper()
 	var buf bytes.Buffer
@@ -39,8 +36,8 @@ func TestPreflightArchiveRoundTrip(t *testing.T) {
 	archive := buildTestArchive(t, 23000, []string{
 		`{"subject_key":"a.example.com","closed_at":null}`,
 		`{"subject_key":"b.example.com","closed_at":null}`,
-		`{"subject_key":"a.example.com","closed_at":null}`,                   // duplicate open key — one subject
-		`{"subject_key":"c.example.com","closed_at":"2026-08-01T00:00:00Z"}`, // closed — not a current subject
+		`{"subject_key":"a.example.com","closed_at":null}`,
+		`{"subject_key":"c.example.com","closed_at":"2026-08-01T00:00:00Z"}`,
 	})
 
 	pf, err := preflightArchive(bytes.NewReader(archive))
@@ -64,9 +61,6 @@ func TestPreflightArchiveRejectsGarbage(t *testing.T) {
 	}
 }
 
-// TestPreflightArchiveRejectsUnknownTable proves a hand-forged manifest naming a table
-// outside B3's allowlist is refused, so a crafted archive cannot steer the apply's SQL at an
-// arbitrary identifier.
 func TestPreflightArchiveRejectsUnknownTable(t *testing.T) {
 	manifest := `{"type":"manifest","format":"` + backupFormat + `","version":` +
 		strconv.Itoa(backupFormatVersion) + `,"schema_version":23000,"created_at":"2026-08-26T12:00:00Z","tables":["pg_catalog_pg_proc"]}` + "\n"
@@ -93,8 +87,6 @@ func TestPreflightArchiveSchemaValueDrivesRefusal(t *testing.T) {
 	}
 }
 
-// TestRestorePreflightRefusesInFlightScan proves the pre-flight refuses while a scan is in
-// flight — before the upload is even parsed — and stages nothing (WORK-ORDER §#391 edge).
 func TestRestorePreflightRefusesInFlightScan(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -110,9 +102,6 @@ func TestRestorePreflightRefusesInFlightScan(t *testing.T) {
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("preflight during scan: status = %d, want 303", resp.StatusCode)
 	}
-	// The refusal lands on the URL the form was submitted from — here the fallback, since
-	// this post carries no `return` field — and spells nothing on it (ADR-0130 §1/§3,
-	// ticket #977). The operator-facing line rides the session form flash instead.
 	if loc := resp.Header.Get("Location"); loc != "/settings?tab=instance" {
 		t.Fatalf("preflight during scan: Location = %q, want /settings?tab=instance", loc)
 	}
@@ -124,11 +113,8 @@ func TestRestorePreflightRefusesInFlightScan(t *testing.T) {
 	}
 }
 
-// pendingSettingsFlash returns the one settingsForms waiting in the session form flash, for
-// a test that has just made a single refused settings act. It reads the store directly
-// rather than driving the landing GET, so the assertion is about the refusal the handler
-// stashed and not about everything else the Settings render happens to need.
 func pendingSettingsFlash(t *testing.T, srv *server) settingsForms {
+	// Driving the landing GET would make the assertion depend on the whole Settings render.
 	t.Helper()
 	srv.formFlash.mu.Lock()
 	defer srv.formFlash.mu.Unlock()
@@ -145,9 +131,6 @@ func pendingSettingsFlash(t *testing.T, srv *server) settingsForms {
 	return settingsForms{}
 }
 
-// TestRestorePreflightPassesGateWithoutPool proves that with no scan in flight an admin
-// passes the gate and reaches the pool guard (503 off a pool), never a 403 — proof the
-// refusal above was the in-flight check, not the admin gate.
 func TestRestorePreflightPassesGateWithoutPool(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -184,10 +167,6 @@ func TestRestorePreflightAdminGated(t *testing.T) {
 	}
 }
 
-// TestRestoreApplyRequiresConfirmWord proves the apply never applies without the typed word
-// `restore` (validated server-side, never trusting the JS gate): a wrong word refuses with
-// nothing touched, and a correct word with no staged archive refuses as expired. Neither
-// rotates the session key.
 func TestRestoreApplyRequiresConfirmWord(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -199,8 +178,6 @@ func TestRestoreApplyRequiresConfirmWord(t *testing.T) {
 
 	keyBefore := string(srv.key)
 
-	// Wrong confirmation word — no apply. Both refusals 303 to the same URL a success
-	// would, and carry their line on the session flash rather than on the query (#977).
 	resp := postForm(t, ac, ts.URL+"/settings/restore", url.Values{"confirm": {"yes"}})
 	resp.Body.Close()
 	if loc := resp.Header.Get("Location"); loc != "/settings?tab=instance" {
@@ -210,8 +187,6 @@ func TestRestoreApplyRequiresConfirmWord(t *testing.T) {
 		t.Fatalf("wrong confirm: flashed restoreError = %q, want the confirm line", got)
 	}
 
-	// Correct word but nothing staged — refused as expired, still no apply. The second
-	// refusal replaces the first in the store, so the session never banks two callouts.
 	resp = postForm(t, ac, ts.URL+"/settings/restore", url.Values{"confirm": {"restore"}})
 	resp.Body.Close()
 	if loc := resp.Header.Get("Location"); loc != "/settings?tab=instance" {
@@ -226,9 +201,6 @@ func TestRestoreApplyRequiresConfirmWord(t *testing.T) {
 	}
 }
 
-// TestRotateSessionKeyLapsesSessions proves regenerating the session key lapses every live
-// session in the running process at once: an authenticated request that succeeded before the
-// rotation is bounced to /login after it, because its cookie is signed under the dead key.
 func TestRotateSessionKeyLapsesSessions(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -238,7 +210,6 @@ func TestRotateSessionKeyLapsesSessions(t *testing.T) {
 	defer ts.Close()
 	ac := login(t, ts.URL, "admin", "hunter2hunter2")
 
-	// Before rotation the session resolves — /profile renders.
 	resp, err := ac.Get(ts.URL + "/profile")
 	if err != nil {
 		t.Fatal(err)
@@ -260,7 +231,6 @@ func TestRotateSessionKeyLapsesSessions(t *testing.T) {
 		t.Fatal("rotateSessionKey did not re-derive the TOTP sub-key")
 	}
 
-	// After rotation the same cookie no longer verifies — the session has lapsed.
 	resp, err = ac.Get(ts.URL + "/profile")
 	if err != nil {
 		t.Fatal(err)

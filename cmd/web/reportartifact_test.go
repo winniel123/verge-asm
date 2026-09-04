@@ -6,14 +6,12 @@ import (
 	"testing"
 )
 
-// The report-artifact view is behind requireLogin — an anonymous GET is bounced to
-// sign-in, never served a delivery.
 func TestReportDeliveryRequiresLogin(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
 
-	c := newClient(t) // does not follow redirects
+	c := newClient(t)
 	resp, err := c.Get(base + "/reports/delivery")
 	if err != nil {
 		t.Fatal(err)
@@ -27,9 +25,6 @@ func TestReportDeliveryRequiresLogin(t *testing.T) {
 	}
 }
 
-// With no report-delivery backend, the view renders the artifact frame with the
-// design-system empty-state — the breadcrumb back to Reports, the Reports nav pill
-// active, and the delivered-document empty-state — never a fabricated document.
 func TestReportDeliveryRendersEmptyState(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -41,33 +36,26 @@ func TestReportDeliveryRendersEmptyState(t *testing.T) {
 		t.Errorf("reports nav pill not marked active; body: %s", page)
 	}
 	for _, want := range []string{
-		`href="/reports"`,                          // breadcrumb back to Reports
-		"Report delivery",                          // generic heading (no delivery to name)
-		"No delivery yet",                          // design-owned artifactdoc empty-state (ADR-0110)
-		"This schedule has not delivered a report", // the empty-state's honest body
+		`href="/reports"`,
+		"Report delivery",
+		"No delivery yet",
+		"This schedule has not delivered a report",
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("report-artifact page missing %q; body: %s", want, page)
 		}
 	}
 
-	// No fabricated document: no sample org or KPI figures leak in.
 	if strings.Contains(page, "acmecorp") {
 		t.Errorf("empty delivery must not render sample data; body: %s", page)
 	}
 
-	// Domain hygiene: no resolve framing on a signals surface. (The delivered
-	// document's own no-severity-ramp guarantee is asserted where it is produced,
-	// in internal/message's RenderArtifact test; the shell stylesheet defines the
-	// severity tokens on every console page, so it is not checkable here.)
 	low := strings.ToLower(page)
 	if strings.Contains(low, "time to resolve") {
 		t.Errorf("no resolve metric may appear — signals are withdrawn, not resolved; body: %s", page)
 	}
 }
 
-// The report-artifact header wires "Download PDF" to the /reports/delivery/pdf
-// download (#345); it is no longer the disabled "not wired yet" control.
 func TestReportDeliveryPageWiresPDFButton(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -83,14 +71,12 @@ func TestReportDeliveryPageWiresPDFButton(t *testing.T) {
 	}
 }
 
-// The PDF download is behind requireLogin — an anonymous GET is bounced to
-// sign-in, never served a document.
 func TestReportDeliveryPDFRequiresLogin(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
 
-	c := newClient(t) // does not follow redirects
+	c := newClient(t)
 	resp, err := c.Get(base + "/reports/delivery/pdf")
 	if err != nil {
 		t.Fatal(err)
@@ -104,9 +90,6 @@ func TestReportDeliveryPDFRequiresLogin(t *testing.T) {
 	}
 }
 
-// A logged-in GET serves a real PDF download: a 200 with the pdf content type, an
-// attachment disposition naming the file, and PDF bytes in the body. With no
-// delivery backend it is the empty-state document, never a fabricated one.
 func TestReportDeliveryPDFServesDocument(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")

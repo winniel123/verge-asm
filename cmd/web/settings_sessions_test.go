@@ -28,8 +28,6 @@ func countLiveSessions(f *fakeStore, accountID int64) int {
 	return n
 }
 
-// The admin-wide Sessions surface lists every account's live session — not just the
-// admin's own — joined to the owning account's username and role (#407).
 func TestAdminSessionsListsEveryAccount(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -37,7 +35,6 @@ func TestAdminSessionsListsEveryAccount(t *testing.T) {
 	seedAccount(t, f, "cara", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
 
-	// Sign each account in so the registry holds a live session per account.
 	login(t, base, "boyd", "hunter2hunter2")
 	login(t, base, "cara", "hunter2hunter2")
 	ac := login(t, base, "admin", "hunter2hunter2")
@@ -48,20 +45,14 @@ func TestAdminSessionsListsEveryAccount(t *testing.T) {
 			t.Fatalf("sessions surface missing %q; body: %s", want, got)
 		}
 	}
-	// The admin's own current session is marked "(you)" and carries no revoke control —
-	// the surface can never sign the operator's own browser out (Settings.jsx `current`).
 	if !strings.Contains(got, "(you)") {
 		t.Fatalf("admin's own current session not marked \"(you)\"; body: %s", got)
 	}
-	// Every live account's session is present — three signed-in accounts — but only the
-	// two that are not the current session carry a revoke control (boyd, cara).
 	if got, want := strings.Count(got, `href="/settings?tab=sessions&revoke=`), 2; got != want {
 		t.Fatalf("per-session revoke controls = %d, want %d", got, want)
 	}
 }
 
-// An admin revokes any single session by id; that session is dead at once — bounced to
-// /login on its next request — and gone from the surface, while other sessions live on.
 func TestAdminRevokeSingleSession(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -71,7 +62,6 @@ func TestAdminRevokeSingleSession(t *testing.T) {
 	bc := login(t, base, "boyd", "hunter2hunter2")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// Boyd's session is live: a protected read succeeds (302-free 200 on /profile).
 	getBody(t, bc, base+"/profile", http.StatusOK)
 
 	sid := liveSessionID(t, f, boyd.ID)
@@ -85,7 +75,6 @@ func TestAdminRevokeSingleSession(t *testing.T) {
 		t.Fatalf("boyd still has a live session after revoke")
 	}
 
-	// Boyd's very next request resolves no live session and is bounced to /login.
 	resp, err := bc.Get(base + "/profile")
 	if err != nil {
 		t.Fatal(err)
@@ -95,14 +84,11 @@ func TestAdminRevokeSingleSession(t *testing.T) {
 		t.Fatalf("revoked session next request: status=%d loc=%q, want 303 to /login", resp.StatusCode, resp.Header.Get("Location"))
 	}
 
-	// The admin's own session is untouched — the surface still renders for them.
 	if !strings.Contains(getBody(t, ac, base+"/settings?tab=sessions", http.StatusOK), "admin") {
 		t.Fatalf("admin session should survive another account's revoke")
 	}
 }
 
-// Revoke-all-for-account (offboarding) kills every session of one account through a
-// typed-name confirm, and leaves another account's sessions intact.
 func TestAdminRevokeAllForAccount(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -110,7 +96,6 @@ func TestAdminRevokeAllForAccount(t *testing.T) {
 	cara := seedAccount(t, f, "cara", roleViewer, "hunter2hunter2")
 	base := start(t, f, "")
 
-	// Boyd signs in on two devices; Cara on one.
 	login(t, base, "boyd", "hunter2hunter2")
 	login(t, base, "boyd", "hunter2hunter2")
 	login(t, base, "cara", "hunter2hunter2")
@@ -120,10 +105,6 @@ func TestAdminRevokeAllForAccount(t *testing.T) {
 		t.Fatalf("boyd live sessions = %d, want 2", countLiveSessions(f, boyd.ID))
 	}
 
-	// A wrong typed name changes nothing and re-opens the dialog with an error. The
-	// refusal is a post-redirect-get since ticket #978 (ADR-0130 §1): the 303 goes back
-	// to the Sessions tab with ?revoke-account= dropped (dialogParams), and the dialog
-	// re-opens from the flash instead — carrying the error inside it.
 	const sessionsTab = "/settings?tab=sessions"
 	resp := postForm(t, ac, base+"/settings/sessions/revoke-account", url.Values{
 		"account_id": {itoa(boyd.ID)}, "confirm_name": {"nope"},
@@ -140,7 +121,6 @@ func TestAdminRevokeAllForAccount(t *testing.T) {
 		t.Fatalf("boyd sessions changed on a rejected confirm: %d, want 2", countLiveSessions(f, boyd.ID))
 	}
 
-	// The exact username offboards Boyd: every session of his is revoked.
 	resp = postForm(t, ac, base+"/settings/sessions/revoke-account", url.Values{
 		"account_id": {itoa(boyd.ID)}, "confirm_name": {"boyd"},
 	})
@@ -157,8 +137,6 @@ func TestAdminRevokeAllForAccount(t *testing.T) {
 	}
 }
 
-// A viewer (non-admin) is refused the whole Sessions surface and every mutation it
-// hosts — requireAdmin gates the read and both writes.
 func TestSessionsAdminOnly(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -167,7 +145,6 @@ func TestSessionsAdminOnly(t *testing.T) {
 
 	vc := login(t, base, "boyd", "hunter2hunter2")
 
-	// The surface itself is admin-only (GET /settings is wholesale admin-gated).
 	resp, err := vc.Get(base + "/settings?tab=sessions")
 	if err != nil {
 		t.Fatal(err)
@@ -178,7 +155,6 @@ func TestSessionsAdminOnly(t *testing.T) {
 	}
 
 	sid := liveSessionID(t, f, boyd.ID)
-	// Both mutation routes are refused for a viewer, and neither takes effect.
 	for _, tc := range []struct {
 		path string
 		form url.Values
@@ -192,7 +168,6 @@ func TestSessionsAdminOnly(t *testing.T) {
 			t.Fatalf("viewer POST %s: status=%d, want 403", tc.path, resp.StatusCode)
 		}
 	}
-	// The viewer's own session survived — no mutation ran.
 	if countLiveSessions(f, boyd.ID) != 1 {
 		t.Fatalf("viewer session count = %d after refused mutations, want 1", countLiveSessions(f, boyd.ID))
 	}

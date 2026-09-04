@@ -9,11 +9,8 @@ import (
 
 func certBoolPtr(b bool) *bool { return &b }
 
-// sanMatchesName is the RFC 6125 §6.4.3 rule-2 predicate: an OR over the dNSName SANs
-// only, with a single leftmost `*` wildcard covering exactly one non-empty label and
-// every other `*`-bearing entry a non-match. It never defaults false to manufacture a
-// mismatch — its caller gates it on the leaf actually having been read (P0.10b, #714).
 func TestSANMatchesName(t *testing.T) {
+	// The wildcard cases are RFC 6125 §6.4.3.
 	tests := []struct {
 		name    string
 		sanDNS  []string
@@ -47,10 +44,8 @@ func TestSANMatchesName(t *testing.T) {
 	}
 }
 
-// selfSignedOf is RFC 5280 §3.2 self-signed: self-issued (subject == issuer, exact
-// string equality) AND the cert's own signature verifies. Both limbs are required —
-// DN-equality alone or a verifying signature alone is not self-signed (T-self #713).
 func TestSelfSignedOf(t *testing.T) {
+	// The two limbs are RFC 5280 §3.2's own definition of self-signed.
 	tests := []struct {
 		name            string
 		subject, issuer string
@@ -71,14 +66,7 @@ func TestSelfSignedOf(t *testing.T) {
 	}
 }
 
-// weakKeyOrSignature is the per-link deny-list walk (T-weak #715 §5): ANY link with a
-// weak KEY (RSA/DSA<2048, ECDSA<224, DSA N<224) OR a weak SIGNATURE digest ({MD5,SHA-1})
-// makes the chain weak. The KEY limb walks every link; the SIGNATURE limb is skipped on
-// self-signed links (a root's SHA-1 self-signature is not a forgery risk) — but the same
-// root's weak KEY still fires. Strict `<` floors; unnamed algorithms are never weak.
 func TestWeakKeyOrSignature(t *testing.T) {
-	// A strong leaf whose signature is issued by a CA (not self-signed), reused as the
-	// clean baseline the negative cases assert against.
 	strongLeaf := chainCert{
 		Subject: "CN=leaf", Issuer: "CN=ca",
 		SelfSignatureVerifies: certBoolPtr(false),
@@ -102,12 +90,12 @@ func TestWeakKeyOrSignature(t *testing.T) {
 		{
 			"self-signed-sha1-root-sig-skipped-but-key-clean",
 			[]chainCert{{Subject: "CN=root", Issuer: "CN=root", SelfSignatureVerifies: certBoolPtr(true), KeyAlg: "RSA", KeyBits: 2048, SigDigest: "SHA-1"}},
-			false, // SHA-1 sig limb skipped on the self-signed root; its 2048-bit key is clean
+			false,
 		},
 		{
 			"self-signed-sha1-root-weak-key-still-fires",
 			[]chainCert{{Subject: "CN=root", Issuer: "CN=root", SelfSignatureVerifies: certBoolPtr(true), KeyAlg: "RSA", KeyBits: 1024, SigDigest: "SHA-1"}},
-			true, // sig limb skipped, but the weak KEY limb has NO self-signed skip
+			true,
 		},
 		{"ed25519-not-weak", []chainCert{{Subject: "CN=l", Issuer: "CN=ca", SelfSignatureVerifies: certBoolPtr(false), KeyAlg: "Ed25519", SigDigest: "Ed25519"}}, false},
 		{"unknown-alg-not-weak", []chainCert{{Subject: "CN=l", Issuer: "CN=ca", SelfSignatureVerifies: certBoolPtr(false), KeyAlg: "UnknownAlg", SigDigest: ""}}, false},
@@ -118,7 +106,7 @@ func TestWeakKeyOrSignature(t *testing.T) {
 				{Subject: "CN=int", Issuer: "CN=root", SelfSignatureVerifies: certBoolPtr(false), KeyAlg: "RSA", KeyBits: 1024, SigDigest: "SHA-256"},
 				{Subject: "CN=root", Issuer: "CN=root", SelfSignatureVerifies: certBoolPtr(true), KeyAlg: "RSA", KeyBits: 4096, SigDigest: "SHA-256"},
 			},
-			true, // the 1024-bit intermediate makes the whole chain weak (chain scope)
+			true,
 		},
 	}
 	for _, tc := range tests {
@@ -130,10 +118,6 @@ func TestWeakKeyOrSignature(t *testing.T) {
 	}
 }
 
-// certDetailsFromValue sets each *bool INDEPENDENTLY only when its own input is
-// present: a negative outcome is nil (outside every cert rule); a pre-v3 presented span
-// leaves the four v3 attributes nil (not-evaluable, never defaulted); a full v3
-// presented value sets all six (P0.10a/P0.10b, collision #37 / #704).
 func TestCertDetailsFromValueNilDiscipline(t *testing.T) {
 	now := time.Date(2026, 8, 27, 12, 0, 0, 0, time.UTC)
 
@@ -147,7 +131,6 @@ func TestCertDetailsFromValueNilDiscipline(t *testing.T) {
 	})
 
 	t.Run("pre-v3-presented-span-v3-attrs-nil", func(t *testing.T) {
-		// A pre-v3 span: presented with only a not_after, no not_before / SANs / chain.
 		v := certificateValue{
 			Outcome:  signal.CertPresented,
 			Chain:    []string{"sha256:abc"},
@@ -157,7 +140,6 @@ func TestCertDetailsFromValueNilDiscipline(t *testing.T) {
 		if d == nil {
 			t.Fatal("a presented span must yield non-nil CertDetails")
 		}
-		// Expired/Expiring set off not_after; the four v3 attributes stay nil.
 		if d.Expired == nil || d.Expiring == nil {
 			t.Errorf("not_after present → Expired/Expiring must be set, got %+v", d)
 		}
@@ -176,20 +158,18 @@ func TestCertDetailsFromValueNilDiscipline(t *testing.T) {
 	})
 
 	t.Run("v3-presented-attrs-set", func(t *testing.T) {
-		// A full v3 presented value: not-yet-valid leaf, SAN covers the name, weak key,
-		// self-signed leaf.
 		v := certificateValue{
 			Outcome:   signal.CertPresented,
 			Chain:     []string{"sha256:abc"},
 			NotAfter:  now.Add(90 * 24 * time.Hour).Format(time.RFC3339),
-			NotBefore: now.Add(24 * time.Hour).Format(time.RFC3339), // starts tomorrow → not yet valid
+			NotBefore: now.Add(24 * time.Hour).Format(time.RFC3339),
 			SANDNS:    []string{"www.example.com"},
 			ChainCerts: []chainCert{{
 				Subject:               "CN=www.example.com",
 				Issuer:                "CN=www.example.com",
 				SelfSignatureVerifies: certBoolPtr(true),
 				KeyAlg:                "RSA",
-				KeyBits:               1024, // weak
+				KeyBits:               1024,
 				SigDigest:             "SHA-256",
 			}},
 		}
@@ -212,9 +192,6 @@ func TestCertDetailsFromValueNilDiscipline(t *testing.T) {
 	})
 
 	t.Run("v3-presented-empty-server-name-leaves-san-nil", func(t *testing.T) {
-		// The nameless endpoint: chain read but no server name → SANMatchesName stays nil
-		// (outside certificate-hostname-san-mismatch's domain), while the chain-derived
-		// weak-key and self-signed attributes are still set.
 		v := certificateValue{
 			Outcome: signal.CertPresented,
 			Chain:   []string{"sha256:abc"},

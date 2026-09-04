@@ -10,11 +10,6 @@ import (
 	"time"
 )
 
-// knownBusinessTables is the full set of business schema tables (every CREATE TABLE in
-// db/migrations, excluding goose's own ledger). The backup allowlist and the documented
-// denylist must partition it exactly — a new table added to the schema without being
-// classified as estate/config (dumped) or excluded (with a reason) fails this test, so a
-// future secret table is never silently swept into the archive nor silently dropped.
 var knownBusinessTables = []string{
 	"account", "admitted_name", "annotation", "batch", "channel", "cold_scan_scope",
 	"ct_throttle", "delivery", "dispatch", "exclusion", "heartbeat", "instance_config",
@@ -34,7 +29,6 @@ func TestBackupTablesPartitionSchema(t *testing.T) {
 	for tbl := range backupExcluded {
 		seen[tbl]++
 	}
-	// Every known table is classified exactly once.
 	for _, tbl := range knownBusinessTables {
 		switch seen[tbl] {
 		case 0:
@@ -44,7 +38,6 @@ func TestBackupTablesPartitionSchema(t *testing.T) {
 			t.Errorf("table %q is classified more than once (allowlist and/or exclusions)", tbl)
 		}
 	}
-	// Nothing is classified that is not a known table (catches typos in either list).
 	known := map[string]bool{}
 	for _, tbl := range knownBusinessTables {
 		known[tbl] = true
@@ -56,17 +49,11 @@ func TestBackupTablesPartitionSchema(t *testing.T) {
 	}
 }
 
-// TestBackupExcludesSessionAndAuthFlowTables locks in the secret-free contract: the live
-// session table and the short-lived one-time auth-flow token tables are never dumped,
-// while the durable operator config (accounts, the singleton) that a restore needs IS
-// dumped.
 func TestBackupExcludesSessionAndAuthFlowTables(t *testing.T) {
 	inAllowlist := map[string]bool{}
 	for _, tbl := range backupTables {
 		inAllowlist[tbl] = true
 	}
-	// The "read-only DB leak -> live admin sessions" surface and the one-time auth-flow
-	// token tables must be excluded.
 	for _, tbl := range []string{"session", "password_reset", "recovery_code", "invite"} {
 		if inAllowlist[tbl] {
 			t.Errorf("secret/session table %q must NOT be in the backup allowlist", tbl)
@@ -75,7 +62,6 @@ func TestBackupExcludesSessionAndAuthFlowTables(t *testing.T) {
 			t.Errorf("table %q must be in the documented exclusions with a reason", tbl)
 		}
 	}
-	// A usable restore needs the operator roster and the config singleton.
 	for _, tbl := range []string{"account", "instance_config"} {
 		if !inAllowlist[tbl] {
 			t.Errorf("config table %q must be in the backup allowlist (restore needs it)", tbl)
@@ -129,7 +115,6 @@ func TestBackupArchiveWellFormed(t *testing.T) {
 		t.Errorf("table line wrong: %+v", tl)
 	}
 
-	// Line 3: row, with the jsonb embedded verbatim.
 	if !sc.Scan() {
 		t.Fatal("no row line")
 	}
@@ -152,12 +137,6 @@ func TestBackupArchiveWellFormed(t *testing.T) {
 	}
 }
 
-// TestBackupRedactsChannelAndSSOSecrets proves the data-only archive carries NO cleartext
-// webhook/OAuth secret (#739, ADR-0124 / ADR-0053). A channel row and an sso_provider row
-// with plaintext secrets are run through the export path (redactBackupRow, the same call
-// dumpBackupTable makes) and the emitted row line must (a) contain the redacted column as
-// JSON null, (b) not contain the plaintext secret anywhere, while (c) leaving every other
-// column intact. A control table (channel-less) round-trips verbatim.
 func TestBackupRedactsChannelAndSSOSecrets(t *testing.T) {
 	const (
 		webhookSecret = "whsec_super_secret_hmac_key_1234567890"
@@ -168,7 +147,7 @@ func TestBackupRedactsChannelAndSSOSecrets(t *testing.T) {
 		row         string
 		redactedCol string
 		plaintext   string
-		keepCol     string // a column that must survive verbatim
+		keepCol     string
 		keepVal     string
 	}{
 		{
@@ -194,7 +173,6 @@ func TestBackupRedactsChannelAndSSOSecrets(t *testing.T) {
 			if err != nil {
 				t.Fatalf("redactBackupRow(%s): %v", tc.table, err)
 			}
-			// The whole emitted NDJSON row line must not contain the plaintext secret.
 			var buf bytes.Buffer
 			if err := writeBackupRow(&buf, tc.table, redacted); err != nil {
 				t.Fatal(err)
@@ -223,7 +201,6 @@ func TestBackupRedactsChannelAndSSOSecrets(t *testing.T) {
 		})
 	}
 
-	// A table with no redacted columns round-trips byte-for-byte.
 	orig := []byte(`{"id":1,"kind":"name","value":"example.com"}`)
 	got, err := redactBackupRow("seed", orig)
 	if err != nil {
@@ -233,8 +210,6 @@ func TestBackupRedactsChannelAndSSOSecrets(t *testing.T) {
 		t.Errorf("non-secret table was rewritten: got %s, want %s", got, orig)
 	}
 
-	// The redaction map covers exactly the two credential-bearing config tables, and every
-	// table it names is in the dump allowlist (a redaction that never runs is a silent gap).
 	if len(backupRedactedColumns) != 2 {
 		t.Errorf("backupRedactedColumns should cover channel + sso_provider only, got %v", backupRedactedColumns)
 	}
@@ -245,9 +220,6 @@ func TestBackupRedactsChannelAndSSOSecrets(t *testing.T) {
 	}
 }
 
-// TestBackupAdminGated proves POST /settings/backup is admin-only: anonymous is bounced to
-// login, a viewer is 403, and an admin passes the gate (reaching the pool-less dev guard,
-// 503 — never 403). The full stream is a Postgres round-trip covered separately.
 func TestBackupAdminGated(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -271,8 +243,6 @@ func TestBackupAdminGated(t *testing.T) {
 		t.Errorf("a denied backup still recorded a last-backup timestamp")
 	}
 
-	// Admin -> passes the gate; with no pool wired in tests the handler answers 503, which
-	// proves the admin was NOT refused by requireAdmin (that would be 403).
 	ac := login(t, base, "admin", "hunter2hunter2")
 	resp = postForm(t, ac, base+"/settings/backup", url.Values{})
 	resp.Body.Close()
