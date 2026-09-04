@@ -18,8 +18,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
-// --- fake pre-auth token stores (#314, T19) ---------------------------------
-
 func (f *fakeStore) CreatePasswordReset(_ context.Context, arg db.CreatePasswordResetParams) (db.PasswordReset, error) {
 	pr := db.PasswordReset{
 		ID: f.resetNextID, AccountID: arg.AccountID, TokenHash: arg.TokenHash,
@@ -124,12 +122,10 @@ func (f *fakeStore) ConsumeInvite(_ context.Context, arg db.ConsumeInviteParams)
 	return pgx.ErrNoRows
 }
 
-// serverClock is the instant start()'s fixed clock is pinned to; expiry seeding is
-// relative to it so a test can mint a live or a deliberately stale grant.
+// This must equal fixedClock()'s instant, or a seeded expiry is live or stale by accident.
+
 var serverClock = time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
 
-// addReset seeds a password-reset row whose token hashes from a known plaintext, so
-// a test can drive /reset without scraping the delivered link out of the logs.
 func addReset(t *testing.T, f *fakeStore, acctID int64, plaintext string, expires time.Time) {
 	t.Helper()
 	if _, err := f.CreatePasswordReset(t.Context(), db.CreatePasswordResetParams{
@@ -150,8 +146,6 @@ func addInvite(t *testing.T, f *fakeStore, role, plaintext string, expires time.
 	f.inviteNextID++
 }
 
-// The sign-in card links to the forgot flow, and the SSO affordance stays the
-// design-system not-configured state — no provider is fabricated (#293 is absent).
 func TestSignInLinksForgotAndSSONotConfigured(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -170,8 +164,6 @@ func TestSignInLinksForgotAndSSONotConfigured(t *testing.T) {
 	}
 }
 
-// Forgot is non-enumerating: a known and an unknown username get the identical done
-// state, and only the known one mints a (hashed) reset grant.
 func TestForgotIsNonEnumerating(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "ola", roleViewer, "hunter2hunter2")
@@ -189,20 +181,17 @@ func TestForgotIsNonEnumerating(t *testing.T) {
 	if len(f.passwordResets) != 1 {
 		t.Fatalf("reset grants minted = %d, want 1 (only the real account)", len(f.passwordResets))
 	}
-	// Only the hash is kept — never the plaintext.
 	if f.passwordResets[0].TokenHash == "" {
 		t.Fatal("reset grant stored no hash")
 	}
 }
 
-// A valid link sets the password and is single-use; a stale link is refused.
 func TestResetFlowSetsPasswordOnceAndExpires(t *testing.T) {
 	f := newFakeStore()
 	acct := seedAccount(t, f, "ola", roleViewer, "hunter2hunter2")
 	base := start(t, f, "")
 	addReset(t, f, acct.ID, "live-token", serverClock.Add(time.Hour))
 
-	// The form renders for a valid token.
 	if got := getAnon(t, base+"/reset?token=live-token", http.StatusOK); !strings.Contains(got, "Set a new password") {
 		t.Fatalf("reset form missing; body: %s", got)
 	}
@@ -214,14 +203,12 @@ func TestResetFlowSetsPasswordOnceAndExpires(t *testing.T) {
 	if got := body(t, resp); !strings.Contains(got, "Password updated") {
 		t.Fatalf("reset did not report success; body: %s", got)
 	}
-	// The new password now authenticates and the old one does not.
 	login(t, base, "ola", "brand-new-pass")
 	resp = postForm(t, newClient(t), base+"/login", url.Values{"username": {"ola"}, "password": {"hunter2hunter2"}})
 	if got := body(t, resp); !strings.Contains(got, "Invalid username or password") {
 		t.Fatalf("old password still works after reset; body: %s", got)
 	}
 
-	// Single-use: the same token is now refused.
 	if got := getAnon(t, base+"/reset?token=live-token", http.StatusOK); !strings.Contains(got, "expired or already used") {
 		t.Fatalf("spent reset token not refused; body: %s", got)
 	}
@@ -232,8 +219,6 @@ func TestResetFlowSetsPasswordOnceAndExpires(t *testing.T) {
 	}
 }
 
-// reset-done now states a real global sign-out — the registry backs it (#408), so the
-// copy tells the user every session was signed out and to sign in again.
 func TestResetDoneStatesGlobalSignOut(t *testing.T) {
 	f := newFakeStore()
 	acct := seedAccount(t, f, "ola", roleViewer, "hunter2hunter2")
@@ -248,13 +233,8 @@ func TestResetDoneStatesGlobalSignOut(t *testing.T) {
 	}
 }
 
-// recoveryCodeRE matches a recovery code only inside its reveal span, so it counts
-// the shown codes rather than any incidental text elsewhere on the page. Post-#338 a
-// code is seven dash-separated groups of four alphabet characters (~138.7 bits).
 var recoveryCodeRE = regexp.MustCompile(`class="vg-reccode"[^>]*>([a-z2-9]{4}(?:-[a-z2-9]{4}){6})<`)
 
-// Confirming TOTP enrollment reveals the recovery codes once, stores only their
-// hashes, and one of them redeems the login two-factor step exactly once.
 func TestTOTPEnrollmentRevealsRecoveryCodesOnce(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -280,10 +260,6 @@ func TestTOTPEnrollmentRevealsRecoveryCodesOnce(t *testing.T) {
 	if len(f.recoveryCodes) != recoveryCodeCount {
 		t.Fatalf("stored %d recovery codes, want %d", len(f.recoveryCodes), recoveryCodeCount)
 	}
-	// Reveal-once: only hashes are kept — no stored row equals a shown plaintext. And
-	// (#338) the digest is a salted, slow bcrypt hash, not a bare SHA-256 of the code:
-	// a bcrypt hash carries the "$2" prefix and is 60 characters, never the 64-hex-char
-	// SHA-256 the pre-#338 store used.
 	for _, rc := range f.recoveryCodes {
 		for _, shown := range codes {
 			if rc.CodeHash == shown {
@@ -298,7 +274,6 @@ func TestTOTPEnrollmentRevealsRecoveryCodesOnce(t *testing.T) {
 		}
 	}
 
-	// A recovery code redeems the login two-factor step once.
 	c := newClient(t)
 	if got := body(t, postForm(t, c, base+"/login", url.Values{"username": {"admin"}, "password": {"hunter2hunter2"}})); !strings.Contains(got, "Two-factor check") {
 		t.Fatalf("password login did not demand a second factor; body: %s", got)
@@ -309,7 +284,6 @@ func TestTOTPEnrollmentRevealsRecoveryCodesOnce(t *testing.T) {
 		t.Fatalf("recovery code did not complete login: status=%d", resp.StatusCode)
 	}
 
-	// Single-use: the same code is now refused.
 	c2 := newClient(t)
 	postForm(t, c2, base+"/login", url.Values{"username": {"admin"}, "password": {"hunter2hunter2"}}).Body.Close()
 	if got := body(t, postForm(t, c2, base+"/login/totp", url.Values{"code": {codes[0]}})); !strings.Contains(got, "Incorrect code") {
@@ -317,10 +291,6 @@ func TestTOTPEnrollmentRevealsRecoveryCodesOnce(t *testing.T) {
 	}
 }
 
-// TestRecoveryCodesEntropyAndHashing is the #338 unit guarantee: each generated code
-// clears the 128-bit entropy bar over the uniform alphabet draw, and its stored digest
-// is a salted, slow bcrypt hash — not the bare, offline-crackable SHA-256 the pre-#338
-// store kept.
 func TestRecoveryCodesEntropyAndHashing(t *testing.T) {
 	plain, hashes, err := newRecoveryCodes(recoveryCodeCount)
 	if err != nil {
@@ -331,7 +301,6 @@ func TestRecoveryCodesEntropyAndHashing(t *testing.T) {
 	}
 	bitsPerChar := math.Log2(float64(len(recoveryAlphabet)))
 	for i, code := range plain {
-		// Entropy: count alphabet characters (dashes are formatting, not entropy).
 		nchars := 0
 		for _, r := range code {
 			if r != '-' {
@@ -341,22 +310,18 @@ func TestRecoveryCodesEntropyAndHashing(t *testing.T) {
 		if bits := float64(nchars) * bitsPerChar; bits < 128 {
 			t.Fatalf("recovery code %q carries %.1f bits (%d chars), want >=128", code, bits, nchars)
 		}
-		// Hashing: bcrypt ("$2" prefix, 60 chars), never a bare SHA-256 hex digest.
 		if !strings.HasPrefix(hashes[i], "$2") {
 			t.Fatalf("recovery code hash is not bcrypt: %q", hashes[i])
 		}
 		if hashes[i] == hashToken(code) {
 			t.Fatalf("recovery code stored as a bare SHA-256 digest (offline-crackable)")
 		}
-		// Round-trip: the bcrypt hash verifies its own code, and only its own.
 		if !auth.CheckPassword(hashes[i], code) {
 			t.Fatalf("bcrypt hash does not verify its recovery code %q", code)
 		}
 	}
 }
 
-// A valid invite → set-credentials screen creates the account at the invited role,
-// is single-use, and grants no session (the acceptor signs in afterwards).
 func TestInviteAcceptanceSetsCredentials(t *testing.T) {
 	f := newFakeStore()
 	base := start(t, f, "")
@@ -377,20 +342,17 @@ func TestInviteAcceptanceSetsCredentials(t *testing.T) {
 	if hasCookie(c, base, sessionCookie) {
 		t.Fatal("invite acceptance granted a session (should require sign-in)")
 	}
-	// The account exists at the invited role and can sign in with the set credentials.
 	acct, err := f.GetAccountByUsername(t.Context(), "newbie")
 	if err != nil || acct.Role != roleViewer {
 		t.Fatalf("invited account not created at viewer role: %+v err=%v", acct, err)
 	}
 	login(t, base, "newbie", "hunter2hunter2")
 
-	// Single-use: the token no longer accepts.
 	if got := getAnon(t, base+"/invite?token=invite-token", http.StatusOK); !strings.Contains(got, "expired or already used") {
 		t.Fatalf("spent invite token not refused; body: %s", got)
 	}
 }
 
-// An expired or unknown invite token renders the honest invalid state, never a form.
 func TestInviteInvalidToken(t *testing.T) {
 	f := newFakeStore()
 	base := start(t, f, "")
@@ -402,7 +364,6 @@ func TestInviteInvalidToken(t *testing.T) {
 	if got := getAnon(t, base+"/invite?token=nope", http.StatusOK); !strings.Contains(got, "expired or already used") {
 		t.Fatalf("unknown invite not refused; body: %s", got)
 	}
-	// A stale token cannot create an account.
 	postForm(t, newClient(t), base+"/invite", url.Values{
 		"token": {"stale"}, "username": {"eve"}, "password": {"hunter2hunter2"},
 	}).Body.Close()

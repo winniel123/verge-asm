@@ -15,9 +15,8 @@ import (
 
 var viewportScale = regexp.MustCompile(`id="gr-viewport" transform="translate\([^"]*\) scale\(([0-9.]+)\)"`)
 
-// labelColumn places n subdomain nodes down the name column exactly as buildGraph does, so
-// a threshold assertion reads the real geometry rather than a restatement of it.
 func labelColumn(n int) []graphNode {
+	// Mirrors buildGraph's own column placement, so a threshold assertion reads real geometry.
 	nodes := make([]graphNode, 0, n)
 	for i := 0; i < n; i++ {
 		nodes = append(nodes, graphNode{
@@ -34,9 +33,6 @@ func labelColumnFitScale(t *testing.T, n int) float64 {
 	return k
 }
 
-// #1104 (ADR-0136 §5): the suppression threshold and the column cap are one constraint,
-// so the cap must be the largest column the threshold still admits. A cap that drew a
-// column whose labels the same view then hides would be the drift the ADR forbids.
 func TestGraphColumnCapIsTheLabelThresholdSolvedForN(t *testing.T) {
 	if graphColumnCap != 20 {
 		t.Fatalf("graphColumnCap = %d, want 20 (ADR-0136 §4)", graphColumnCap)
@@ -50,8 +46,6 @@ func TestGraphColumnCapIsTheLabelThresholdSolvedForN(t *testing.T) {
 	}
 }
 
-// The view hides a label below graphLabelMinK. The threshold rounds UP, so it never
-// leaves a label drawn under graphLabelMinPx.
 func TestGraphLabelMinKHidesNothingStillLegible(t *testing.T) {
 	if got := float64(graphLabelPx) * graphLabelMinK; got < graphLabelMinPx {
 		t.Errorf("at the threshold a label renders at %.4fpx, under the %dpx it promises", got, graphLabelMinPx)
@@ -64,8 +58,6 @@ func TestGraphLabelMinKHidesNothingStillLegible(t *testing.T) {
 	}
 }
 
-// A drawing that fits carries the threshold and opens above it, so every label renders
-// exactly as it did before this change.
 func TestGraphPageDrawsEveryLabelWhenItFits(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -90,11 +82,6 @@ func TestGraphPageDrawsEveryLabelWhenItFits(t *testing.T) {
 	}
 }
 
-// The cap and the threshold are one constraint (ADR-0136 §4, §5), so a drawing the cap
-// filled must open ABOVE the threshold: a full column whose labels the same view then
-// hid would be the drift the ADR forbids. This reads the fit scale the page actually
-// shipped rather than recomputing it, so a change to graphFit that broke the promise
-// fails here.
 func TestGraphPageAtTheCapOpensAboveTheLabelThreshold(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")

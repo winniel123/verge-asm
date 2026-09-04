@@ -15,8 +15,6 @@ func setCustody(t *testing.T, c *http.Client, base string, id int64, extend bool
 	})
 }
 
-// A name scope carries no custody extension until one is declared, and the admin
-// can declare it and withdraw it again — the flag toggling both ways.
 func TestDeclareAndWithdrawCustodyExtension(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -29,13 +27,10 @@ func TestDeclareAndWithdrawCustodyExtension(t *testing.T) {
 	}
 	id := f.seeds[0].ID
 
-	// Off by default: stored false, and the scope reads "off" with a declare control.
 	if f.seeds[0].CustodyExtension {
 		t.Fatalf("custody extension on by default, want off")
 	}
 	page := seedsBody(t, ac, base)
-	// The spec toggle (#21b) renders a switch posting /seeds/custody, aria-unchecked
-	// while the extension is off.
 	if !strings.Contains(page, `aria-label="Extend custody — example.com"`) {
 		t.Errorf("custody toggle not offered; body: %s", page)
 	}
@@ -52,7 +47,6 @@ func TestDeclareAndWithdrawCustodyExtension(t *testing.T) {
 		t.Fatalf("custody extension not stored on declare")
 	}
 	page = seedsBody(t, ac, base)
-	// On: the switch reads checked and the census meter appears.
 	if !strings.Contains(page, `aria-checked="true"`) || !strings.Contains(page, "recomputed each batch") {
 		t.Errorf("declared extension not reflected with the on switch + census; body: %s", page)
 	}
@@ -67,9 +61,6 @@ func TestDeclareAndWithdrawCustodyExtension(t *testing.T) {
 	}
 }
 
-// The census renders for a declared extension and is display-only: it states so,
-// carries no denominator, and offers no per-address approve affordance — the
-// leaked-affordance failure mode from #123.
 func TestCustodyCensusIsDisplayOnly(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -79,26 +70,20 @@ func TestCustodyCensusIsDisplayOnly(t *testing.T) {
 	declare(t, ac, base, "name", "example.com").Body.Close()
 	id := f.seeds[0].ID
 
-	// No census before the extension is declared.
 	if page := seedsBody(t, ac, base); strings.Contains(page, "recomputed each batch") {
 		t.Errorf("census shown before extension declared; body: %s", page)
 	}
 
 	setCustody(t, ac, base, id, true).Body.Close()
 	page := seedsBody(t, ac, base)
-	// The census meter (#21b) is display-only: it states its census with no denominator
-	// and no per-address approval.
 	if !strings.Contains(page, "census ·") || !strings.Contains(page, "recomputed each batch — read-only, never per-address approval") {
 		t.Errorf("census not rendered display-only; body: %s", page)
 	}
-	// No per-address approve control anywhere on the page.
 	if strings.Contains(page, ">Approve<") || strings.Contains(page, `name="approve"`) {
 		t.Errorf("census leaked a per-address approve affordance; body: %s", page)
 	}
 }
 
-// A custody extension is a property of a name scope alone: an address scope is
-// never offered the control, and a direct write against its id is a no-op.
 func TestCustodyExtensionNameScopeOnly(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -108,12 +93,11 @@ func TestCustodyExtensionNameScopeOnly(t *testing.T) {
 	declare(t, ac, base, "address", "203.0.113.0/24").Body.Close()
 	addrID := f.seeds[0].ID
 
-	// The custody section names no address scope, and offers no control over one.
 	if page := seedsBody(t, ac, base); strings.Contains(page, "203.0.113.0/24") && strings.Contains(page, "Declare extension") {
 		t.Errorf("custody control offered over an address scope; body: %s", page)
 	}
 
-	// A direct write against the address scope's id is a no-op, matching the SQL guard.
+	// The fake repeats custody.sql's kind='name' guard; the handler itself checks no kind.
 	setCustody(t, ac, base, addrID, true).Body.Close()
 	if f.seeds[0].CustodyExtension {
 		t.Fatalf("custody extension set on an address scope, want no-op")
@@ -142,7 +126,6 @@ func TestViewerCannotToggleCustodyButCanView(t *testing.T) {
 		t.Fatalf("viewer's denied act still moved the flag")
 	}
 
-	// But the viewer sees the scope and its census, with no toggle control offered.
 	page := seedsBody(t, vc, base)
 	if !strings.Contains(page, "example.com") || !strings.Contains(page, "recomputed each batch") {
 		t.Errorf("viewer cannot see the custody scope or census; body: %s", page)

@@ -7,16 +7,10 @@ import (
 	"testing"
 )
 
-// #1086. `scrollbar-gutter` propagates to the viewport from the ROOT element, never
-// from `body` (CSS Overflow 3). The shell's `body` is `min-height: 100vh` inside a
-// column flex with no `overflow`, so the document scrolls the viewport and a `body`
-// declaration reserves nothing. Every centered `*-main` block then re-centers by half
-// the 10px scrollbar (tokens/base.css sets its width) when a view crosses the scroll
-// threshold, and the whole layout slides ~5px between a tall tab and a short one.
+// The viewport gutter is reserved from the root alone, never from body (CSS Overflow 3, #1086).
 
-// cssRules returns the shell's top-level rules for one element selector. The shell CSS
-// is one declaration block per line, so a line-anchored match is enough here.
 func cssRules(page, selector string) []string {
+	// The head also inlines the design tokens, so a selector can match more than the shell's rule.
 	re := regexp.MustCompile(fmt.Sprintf(`(?m)^%s\s*\{[^}]*\}`, regexp.QuoteMeta(selector)))
 	return re.FindAllString(page, -1)
 }
