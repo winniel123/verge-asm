@@ -28,19 +28,13 @@ func driftOpenedRow(batchID int64, at time.Time, subject, value, prevValue strin
 	return row
 }
 
-// buildDriftFeed classifies raw span events into the six change kinds and groups them
-// by batch (#288, ADR-0111): a first span on a timeline is `appeared`, a later value
-// move under the same Derivation vector is `changed` with a before/after diff, and the
-// movement tally counts each kind. Rows arrive newest-batch-first.
 func TestBuildDriftFeedClassifiesAndGroups(t *testing.T) {
 	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
 	newer := now.Add(-1 * time.Hour)
 	older := now.Add(-24 * time.Hour)
 
 	rows := []db.ListRecentDriftEventsRow{
-		// Newest batch: the value moved Resolved -> NXDOMAIN.
 		driftOpenedRow(2, newer, "api.example.com", `{"outcome":"NXDOMAIN"}`, `{"outcome":"Resolved"}`),
-		// Older batch: the first span for the timeline.
 		driftOpenedRow(1, older, "api.example.com", `{"outcome":"Resolved"}`, ""),
 	}
 
@@ -49,7 +43,6 @@ func TestBuildDriftFeedClassifiesAndGroups(t *testing.T) {
 	if len(groups) != 2 {
 		t.Fatalf("want 2 batch groups, got %d: %+v", len(groups), groups)
 	}
-	// Newest batch first: the changed transition, with a two-line before/after diff.
 	changed := groups[0].Events
 	if len(changed) != 1 || changed[0].Change != "changed" {
 		t.Fatalf("group 0 want one 'changed' event, got %+v", changed)
@@ -58,7 +51,6 @@ func TestBuildDriftFeedClassifiesAndGroups(t *testing.T) {
 		changed[0].Diff[1].Type != "add" || changed[0].Diff[1].Text != "NXDOMAIN" {
 		t.Errorf("changed diff = %+v, want remove Resolved / add NXDOMAIN", changed[0].Diff)
 	}
-	// Older batch: the appeared event, no diff.
 	appeared := groups[1].Events
 	if len(appeared) != 1 || appeared[0].Change != "appeared" {
 		t.Fatalf("group 1 want one 'appeared' event, got %+v", appeared)
@@ -74,14 +66,11 @@ func TestBuildDriftFeedClassifiesAndGroups(t *testing.T) {
 	}
 }
 
-// A transition across a Break — the predecessor sits under a different Derivation
-// vector — is a version bump, not a value move (ADR-0008), so it is not narrated as
-// `changed`; nothing compares across a Break.
 func TestBuildDriftFeedSkipsBreakCrossing(t *testing.T) {
 	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
 	row := driftOpenedRow(2, now.Add(-time.Hour), "api.example.com", `{"outcome":"Resolved"}`, `{"outcome":"Resolved"}`)
-	row.Derivation = []byte(`[{"leaf":"resolution-walk","version":"2"}]`)     // moved
-	row.PrevDerivation = []byte(`[{"leaf":"resolution-walk","version":"1"}]`) // from
+	row.Derivation = []byte(`[{"leaf":"resolution-walk","version":"2"}]`)
+	row.PrevDerivation = []byte(`[{"leaf":"resolution-walk","version":"1"}]`)
 
 	groups, movement := buildDriftFeed([]db.ListRecentDriftEventsRow{row}, now)
 	if len(groups) != 0 {
@@ -92,9 +81,6 @@ func TestBuildDriftFeedSkipsBreakCrossing(t *testing.T) {
 	}
 }
 
-// classifyDriftEvent reads a reasoned close as withdrawn (measured-absent / uncited)
-// or descoped, carrying the human reason — the dormant exit kinds, classified for when
-// withdrawal persistence is wired.
 func TestClassifyDriftEventReasonedClose(t *testing.T) {
 	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
 	for reason, wantKind := range map[string]string{
@@ -120,11 +106,6 @@ func TestClassifyDriftEventReasonedClose(t *testing.T) {
 	}
 }
 
-// A first span the estate wiring marked aperture-widened (span.opened_aperture)
-// classifies `revealed` — the operator's declared scope is why we started looking
-// at a Seed-declared subject — while an unmarked first span stays `appeared`, the
-// world bringing a subject the aperture had not declared (#637, ADR-0014). Both are
-// gain-family openings; the marker is the whole distinction.
 func TestClassifyDriftEventRevealed(t *testing.T) {
 	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
 
@@ -139,21 +120,12 @@ func TestClassifyDriftEventRevealed(t *testing.T) {
 	}
 
 	appeared := driftOpenedRow(7, now.Add(-time.Hour), "discovered.other.net", `{"outcome":"Resolved"}`, "")
-	// OpenedAperture defaults false — the world brought it.
 	ev, ok = classifyDriftEvent(appeared, now)
 	if !ok || ev.Change != "appeared" {
 		t.Fatalf("unmarked first span => change %q (ok=%v), want appeared", ev.Change, ok)
 	}
 }
 
-// A re-open across a prior withdrawal closure classifies `returned` — the same
-// timeline, a `measured-absent` closure behind it under an equal Derivation vector,
-// which the estate wiring now writes so this kind can fire. A `descoped` prior
-// closure instead reads `appeared`: a narrowing is not a decommission, so a
-// re-citation must not be narrated as the world bringing the subject back
-// (drift.MembershipReturn, ADR-0087). Both rows here are unmarked — a `descoped`
-// re-entry the fold marked aperture-driven reads `revealed` instead, which
-// TestClassifyDriftEventRevealedAfterDescopedReEntry holds.
 func TestClassifyDriftEventReturned(t *testing.T) {
 	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
 
@@ -172,10 +144,6 @@ func TestClassifyDriftEventReturned(t *testing.T) {
 	}
 }
 
-// The Drift screen renders the change vocabulary (the legend) on the drift palette
-// and, with no transition feed yet, the empty-state timeline — never a fabricated
-// change event. It is a first-class screen (nav item 4 of 7): the full composition
-// is present even where the data is thin.
 func TestDriftPageRendersVocabularyAndEmptyState(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -189,8 +157,6 @@ func TestDriftPageRendersVocabularyAndEmptyState(t *testing.T) {
 		}
 	}
 
-	// The full change vocabulary renders as chips on the drift palette — never the
-	// severity ramp. Each kind rides its family's chip class (gain/change/loss).
 	for _, kind := range []string{"appeared", "revealed", "withdrawn", "descoped", "returned", "changed"} {
 		if !strings.Contains(page, kind) {
 			t.Errorf("drift page missing change kind %q; body: %s", kind, page)
@@ -201,17 +167,12 @@ func TestDriftPageRendersVocabularyAndEmptyState(t *testing.T) {
 			t.Errorf("drift page missing drift-palette chip class %q; body: %s", cls, page)
 		}
 	}
-	// Change is its own palette, never the severity ramp: the screen body carries no
-	// severity pill. (The shared stylesheet in <head> defines the .sev-* classes for
-	// every page, so we assert on a rendered pill element, not the class name.)
 	for _, pill := range []string{`class="sev sev-critical"`, `class="sev sev-high"`} {
 		if strings.Contains(page, pill) {
 			t.Errorf("drift page rendered a severity pill %q — change must ride the drift palette only", pill)
 		}
 	}
 
-	// No transition feed exists yet, so the timeline is the design-system empty-state
-	// (fact + next action), not a fabricated batch.
 	if !strings.Contains(page, "dr-empty") {
 		t.Errorf("drift page missing empty-state block; body: %s", page)
 	}
@@ -222,14 +183,11 @@ func TestDriftPageRendersVocabularyAndEmptyState(t *testing.T) {
 		t.Errorf("drift page empty-state missing its next action; body: %s", page)
 	}
 
-	// The Drift nav pill is the active one (keyed on NavActive, not Active).
 	if !strings.Contains(page, `href="/drift"`) || !strings.Contains(page, `sh-pill on`) {
 		t.Errorf("drift page did not mark the Drift nav pill active; body: %s", page)
 	}
 }
 
-// The Drift route is behind requireLogin: an unauthenticated request redirects to
-// the login form rather than rendering the screen.
 func TestDriftRequiresLogin(t *testing.T) {
 	f := newFakeStore()
 	base := start(t, f, "")
@@ -246,17 +204,10 @@ func TestDriftRequiresLogin(t *testing.T) {
 	}
 }
 
-// T16 delta (#311): with a real batch dispatched, the Drift header offers a "Batch
-// detail" entry into the Run detail screen at GET /runs/{id} — id being the most
-// recent Dispatch id (the frozen drift.tmpl routes batch detail to /runs/{id}). The
-// entry is real data (a dispatch exists), never a fabricated change event, and it
-// stands even while the transition timeline is still the empty-state (change and
-// batches are distinct feeds).
 func TestDriftBatchDetailLinksToRun(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 
-	// Two dispatches; the header links the most recent (id DESC → 88), not 87.
 	older := time.Date(2026, 8, 22, 8, 0, 0, 0, time.UTC)
 	newer := time.Date(2026, 8, 22, 14, 0, 0, 0, time.UTC)
 	f.dispatchProgress = []db.ListDispatchProgressRow{
@@ -277,14 +228,11 @@ func TestDriftBatchDetailLinksToRun(t *testing.T) {
 	if strings.Contains(page, `href="/runs/87"`) {
 		t.Errorf("Batch detail linked an older batch /runs/87, not the latest; body: %s", page)
 	}
-	// The timeline is still the empty-state — the entry does not fabricate change.
 	if !strings.Contains(page, "No change to show yet") {
 		t.Errorf("Batch detail must not fabricate a transition feed; body: %s", page)
 	}
 }
 
-// With no scan yet dispatched there is no batch to open, so the header offers no
-// Batch detail entry rather than fabricate a run id — no /runs/ link is rendered.
 func TestDriftBatchDetailOmittedWithoutBatch(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -297,16 +245,10 @@ func TestDriftBatchDetailOmittedWithoutBatch(t *testing.T) {
 	}
 }
 
-// With two batches folding a value that moved for the same subject, the timeline
-// leaves the empty-state and renders the batch-grouped transitions: an `appeared`
-// event for the first batch and a `changed` event with a before/after diff for the
-// second (#288, ADR-0111). The movement summary counts the kinds, and the export
-// button lights up.
 func TestDriftFeedRendersTransitions(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	addNameSeed(t, f, admin.ID, "example.com")
-	// The value moved between two batches, one day apart — both within the default 7d.
 	t1 := time.Date(2026, 8, 14, 9, 0, 0, 0, time.UTC)
 	t2 := time.Date(2026, 8, 15, 9, 0, 0, 0, time.UTC)
 	f.addResolution(t, admin.ID, "api.example.com", "hot", t1, `{"outcome":"Resolved"}`)
@@ -316,49 +258,39 @@ func TestDriftFeedRendersTransitions(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 	page := getBody(t, ac, base+"/drift", http.StatusOK)
 
-	// The empty-state is gone once a real transition exists.
 	if strings.Contains(page, "No change to show yet") {
 		t.Errorf("drift timeline still shows the empty-state with a real transition; body: %s", page)
 	}
-	// Both transitions render, on the subject, with the changed diff's before/after.
 	for _, want := range []string{
 		"api.example.com",
-		`chip gain`,   // appeared rides the gain family
-		`chip change`, // changed rides the change family
-		"Resolved",    // the diff's before value
-		"NXDOMAIN",    // the diff's after value
+		`chip gain`,
+		`chip change`,
+		"Resolved",
+		"NXDOMAIN",
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("drift feed missing %q; body: %s", want, page)
 		}
 	}
-	// The export button is a live link now that there is something to export.
 	if !strings.Contains(page, `href="/drift/export?period=7d"`) {
 		t.Errorf("drift page did not enable the CSV export link; body: %s", page)
 	}
 }
 
-// The period selector bounds the feed: a change older than the default 7d window is
-// excluded from the default view (the timeline falls back to the empty-state) and
-// included under the widest preset, ?period=90d (the design's range vocabulary tops
-// out at 90d — there is no "all time" preset).
 func TestDriftFeedPeriodFilter(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	addNameSeed(t, f, admin.ID, "example.com")
-	// An appearance well over 7d — but under 90d — before the fixed clock (2026-08-15).
 	old := time.Date(2026, 6, 1, 9, 0, 0, 0, time.UTC)
 	f.addResolution(t, admin.ID, "api.example.com", "hot", old, `{"outcome":"Resolved"}`)
 
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// Default 7d: the old appearance is out of window, so the timeline is empty.
 	def := getBody(t, ac, base+"/drift", http.StatusOK)
 	if !strings.Contains(def, "No change to show yet") {
 		t.Errorf("default 7d window should exclude a >7d-old transition; body: %s", def)
 	}
-	// 90d: the appearance is in window and renders.
 	wide := getBody(t, ac, base+"/drift?period=90d", http.StatusOK)
 	if strings.Contains(wide, "No change to show yet") {
 		t.Errorf("90d window should include the <90d-old transition; body: %s", wide)
@@ -368,8 +300,6 @@ func TestDriftFeedPeriodFilter(t *testing.T) {
 	}
 }
 
-// GET /drift/export streams a text/csv attachment of the transition feed for the
-// active period: a header row plus one row per transition, times absolute.
 func TestDriftExportCSV(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -396,7 +326,6 @@ func TestDriftExportCSV(t *testing.T) {
 	if cd := resp.Header.Get("Content-Disposition"); !strings.Contains(cd, "attachment; filename=") || !strings.Contains(cd, ".csv") {
 		t.Errorf("drift export Content-Disposition = %q, want an attachment .csv filename", cd)
 	}
-	// Header row, an appeared row, and the changed row with its before/after values.
 	for _, want := range []string{
 		"batch,scope,change,subject,detail,time,reason,before,after",
 		",appeared,api.example.com,",
@@ -410,9 +339,6 @@ func TestDriftExportCSV(t *testing.T) {
 	}
 }
 
-// driftFamily maps each change kind to its drift palette family exactly as
-// ChangeBadge.jsx's FAMILY does — gain (appeared/revealed/returned), loss
-// (withdrawn/descoped), change (changed) — and never onto the severity ramp.
 func TestDriftFamilyMapsToDriftPalette(t *testing.T) {
 	for kind, want := range map[string]string{
 		"appeared":  "gain",
@@ -428,61 +354,37 @@ func TestDriftFamilyMapsToDriftPalette(t *testing.T) {
 	}
 }
 
-// TestDriftTransitionDelta covers the vs-previous-period compare (collision #36 ruling
-// (a), #690): a nonzero difference renders signed, an equal current/previous count
-// renders "0", and no complete previous window (earliest batch missing, or younger than
-// the preceding window's start) suppresses the chip with an empty string. The preceding
-// window's rows are classified through the same buildDriftFeed the live count uses —
-// each first-appearance row is one `appeared` transition.
 func TestDriftTransitionDelta(t *testing.T) {
 	now := time.Date(2026, 8, 27, 12, 0, 0, 0, time.UTC)
-	// A 7d window: [now-7d, now); the preceding equal window starts at now-14d.
 	prevStart := now.Add(-14 * 24 * time.Hour)
-	prevAt := now.Add(-10 * 24 * time.Hour) // a batch inside the preceding window
-	// The estate has observed since before the preceding window's start — a full
-	// previous window exists.
+	prevAt := now.Add(-10 * 24 * time.Hour)
 	oldEnough := pgtype.Timestamptz{Time: now.Add(-30 * 24 * time.Hour), Valid: true}
 
-	// Three first appearances in the preceding window → three `appeared` transitions.
 	prevRows := []db.ListRecentDriftEventsRow{
 		driftOpenedRow(1, prevAt, "a.example.com", `{"outcome":"Resolved"}`, ""),
 		driftOpenedRow(1, prevAt, "b.example.com", `{"outcome":"Resolved"}`, ""),
 		driftOpenedRow(1, prevAt, "c.example.com", `{"outcome":"Resolved"}`, ""),
 	}
 
-	// Signed: current 5 − previous 3 = +2 (the fixture's encoded value).
 	if got := driftTransitionDelta(5, prevRows, oldEnough, prevStart, now); got != "+2" {
 		t.Errorf("signed delta = %q, want %q", got, "+2")
 	}
-	// Signed negative uses the true minus (U+2212), as signedCount renders it.
+	// The want string is U+2212, not an ASCII hyphen — signedCount renders the true minus.
 	if got := driftTransitionDelta(1, prevRows, oldEnough, prevStart, now); got != "−2" {
 		t.Errorf("negative delta = %q, want %q", got, "−2")
 	}
-	// Zero: equal current/previous count renders "0", not empty (the window exists).
 	if got := driftTransitionDelta(3, prevRows, oldEnough, prevStart, now); got != "0" {
 		t.Errorf("zero delta = %q, want %q", got, "0")
 	}
-	// Suppressed — no batch at all: earliest invalid ⇒ empty string ⇒ chip suppressed.
 	if got := driftTransitionDelta(5, prevRows, pgtype.Timestamptz{}, prevStart, now); got != "" {
 		t.Errorf("no-batch delta = %q, want empty", got)
 	}
-	// Suppressed — install too young: earliest batch is AFTER the preceding window's
-	// start (estate younger than 2× the window) ⇒ empty string, never a fabricated "+5".
 	tooYoung := pgtype.Timestamptz{Time: now.Add(-9 * 24 * time.Hour), Valid: true}
 	if got := driftTransitionDelta(5, prevRows, tooYoung, prevStart, now); got != "" {
 		t.Errorf("young-install delta = %q, want empty", got)
 	}
 }
 
-// Un-excluding an address widens a Declared scope back over the subject. The
-// exclusion's own withdrawal closed the prior span with `descoped`. Removing the
-// exclusion restores the probing gate, so the fold enumerates the address again and
-// stamps the aperture marker on the re-entry opening. ADR-0041 holds that widening
-// or narrowing a Declared scope yields `revealed`, never `appeared`: we started
-// looking again and the world did not move (#1039).
-//
-// The marker is the whole discriminator. A `descoped` re-entry the fold left
-// unmarked stays `appeared`, no Declared scope having widened over it.
 func TestClassifyDriftEventRevealedAfterDescopedReEntry(t *testing.T) {
 	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
 
@@ -498,8 +400,6 @@ func TestClassifyDriftEventRevealedAfterDescopedReEntry(t *testing.T) {
 		t.Errorf("revealed family = %q, want gain", ev.Family)
 	}
 
-	// A `measured-absent` closure is a decommission undone, not a widening. The
-	// aperture marker must not turn it into `revealed`.
 	recommissioned := driftOpenedRow(11, now.Add(-time.Hour), "203.0.113.78", `{"outcome":"Resolved"}`, `{"outcome":"NameError"}`)
 	recommissioned.SubjectKind = "address"
 	recommissioned.PrevClosureReason = pgtype.Text{String: "measured-absent", Valid: true}
