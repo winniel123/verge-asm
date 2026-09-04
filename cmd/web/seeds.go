@@ -450,9 +450,7 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 	data := map[string]any{
 		"Title": "Scope", "NavActive": "scope",
 		"Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		// The head block inlines tokens/*.css only when this datum is set.
-		"DesignTokens": true,
-		"Seeds":        seeds, "AddressCap": s.addressCap(r.Context()),
+		"Seeds": seeds, "AddressCap": s.addressCap(r.Context()),
 		"NameTree":     nameTree,
 		"CoverageMsgs": coverageMessages(probers),
 		"FormError":    f.seedError, "FormScope": f.seedScope,

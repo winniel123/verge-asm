@@ -142,12 +142,11 @@ func (s *server) rawOutputPage(w http.ResponseWriter, r *http.Request, acct db.A
 
 func (s *server) rawOutputData(acct db.Account, view rawOutputView) map[string]any {
 	return map[string]any{
-		"Title":        "Raw output · job #" + strconv.FormatInt(view.JobID, 10),
-		"Account":      acct,
-		"IsAdmin":      acct.Role == roleAdmin,
-		"NavActive":    "drift",
-		"DesignTokens": true,
-		"Raw":          view,
+		"Title":     "Raw output · job #" + strconv.FormatInt(view.JobID, 10),
+		"Account":   acct,
+		"IsAdmin":   acct.Role == roleAdmin,
+		"NavActive": "drift",
+		"Raw":       view,
 	}
 }
 

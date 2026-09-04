@@ -18,11 +18,10 @@ import (
 // ({{template "chrome" .}}); it declares the holes exposurePage shapes below —
 // .Withheld, .Exposed, .Firewalled, .NotReached, .HasDeltas, .ExposedDelta.Change (int,
 // via the signDelta funcmap entry, templates_shell.go), and .Rows[{Asset,Svc,Internal,
-// Internet,Since}]. It styles against the design token vocabulary, so the render opts in
-// with DesignTokens:true (the "head" block inlines tokens/*.css only then). exposure.tmpl
-// auto-embeds through designfs's existing templates/*.tmpl glob, so no designfs.go change
-// is needed. Reconciliation SPEC-CHANGE #20f (ruled): the withheld action targets
-// Settings → Vantages (/settings/vantages, aliased in handlers.go), not /scope.
+// Internet,Since}]. exposure.tmpl auto-embeds through designfs's existing
+// templates/*.tmpl glob, so no designfs.go change is needed. Reconciliation
+// SPEC-CHANGE #20f (ruled): the withheld action targets Settings → Vantages
+// (/settings/vantages, aliased in handlers.go), not /scope.
 var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/exposure.tmpl"))
 
 // The Exposure page — canonical `/exposure` (#300, T5, ADR-0110). Ported from
@@ -119,10 +118,7 @@ func (s *server) exposurePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		s.render(w, r, "exposure", map[string]any{
 			"Title": "Exposure", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 			"NavActive": "exposure",
-			// exposure.tmpl styles against the design token vocabulary; the "head" block
-			// inlines tokens/*.css only when this datum is set (as Coverage/Profile do).
-			"DesignTokens": true,
-			"Withheld":     true,
+			"Withheld":  true,
 		})
 		return
 	}
@@ -136,15 +132,12 @@ func (s *server) exposurePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	// no-delta state, never a fabricated zero. The P2.6 Exposure markup reads these.
 	data := map[string]any{
 		"Title": "Exposure", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "exposure",
-		// exposure.tmpl styles against the design token vocabulary; the "head" block
-		// inlines tokens/*.css only when this datum is set (as Coverage/Profile do).
-		"DesignTokens": true,
-		"Withheld":     false,
-		"Rows":         rows,
-		"Exposed":      stats.exposed,
-		"Firewalled":   stats.firewalled,
-		"NotReached":   stats.notReached,
+		"NavActive":  "exposure",
+		"Withheld":   false,
+		"Rows":       rows,
+		"Exposed":    stats.exposed,
+		"Firewalled": stats.firewalled,
+		"NotReached": stats.notReached,
 	}
 	if prevAt, ok, err := s.previousBatchInstant(ctx); err != nil {
 		log.Printf("web: exposure: previous batch instant: %v", err)

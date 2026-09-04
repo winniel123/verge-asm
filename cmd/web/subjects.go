@@ -260,8 +260,8 @@ func (s *server) endpointPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 
 	s.render(w, r, "endpoint", map[string]any{
 		"Title": subject.SubjectKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "inventory", "DesignTokens": true,
-		"Endpoint": data,
+		"NavActive": "inventory",
+		"Endpoint":  data,
 	})
 }
 
@@ -374,8 +374,8 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 
 	s.render(w, r, "service", map[string]any{
 		"Title": subject.SubjectKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "inventory", "DesignTokens": true,
-		"Service": data,
+		"NavActive": "inventory",
+		"Service":   data,
 	})
 }
 
@@ -968,8 +968,8 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 
 	s.render(w, r, "asset", map[string]any{
 		"Title": subject.SubjectKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "inventory", "DesignTokens": true,
-		"Asset": data,
+		"NavActive": "inventory",
+		"Asset":     data,
 	})
 }
 

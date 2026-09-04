@@ -200,18 +200,17 @@ func searchMatch(text, q string) bool {
 
 // searchRenderMap assembles the render map the frozen search.tmpl consumes. Both the
 // live read path and the devMode fixture path build the tmpl's holes and hand them
-// here, so the two produce the identical shape; .DesignTokens loads the gated design
-// tokens + shell reset the frozen tmpl styles against.
+// here, so the two produce the identical shape.
 func searchRenderMap(acct db.Account, q string, total int, assets []searchAsset, signals []searchSignal, batches []searchBatch, docs []searchDoc) map[string]any {
 	return map[string]any{
 		"Title": "Search results", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "", "DesignTokens": true,
-		"Query":   q,
-		"Total":   total,
-		"Assets":  assets,
-		"Signals": signals,
-		"Batches": batches,
-		"Docs":    docs,
+		"NavActive": "",
+		"Query":     q,
+		"Total":     total,
+		"Assets":    assets,
+		"Signals":   signals,
+		"Batches":   batches,
+		"Docs":      docs,
 	}
 }
 

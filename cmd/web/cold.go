@@ -24,10 +24,9 @@ import (
 // renders inside the full app chrome ({{template "chrome" .}}) and declares the holes
 // coveragePage shapes below: .Meters[{Label,Counted,Total(nullable),Unit,Pct,Detail}],
 // .Messages[{Kind,Badge,Bound,Subject,Text,When,ISO}], .Gaps[{Subject,Gap,Expected,
-// Since}], .Unevaluable[{ID,Version,Why}], .StaleZones[{Zone,Age}]. It styles against
-// the design token vocabulary, so the render opts in with DesignTokens:true (the "head"
-// block inlines tokens/*.css only then). coverage.tmpl auto-embeds through designfs's
-// existing templates/*.tmpl glob, so no designfs.go change is needed.
+// Since}], .Unevaluable[{ID,Version,Why}], .StaleZones[{Zone,Age}]. coverage.tmpl
+// auto-embeds through designfs's existing templates/*.tmpl glob, so no designfs.go
+// change is needed.
 var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/coverage.tmpl"))
 
 // coveragePct is the meter fill percentage (0–100) an ADDRESS-scope meter renders
@@ -308,15 +307,12 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 
 	s.render(w, r, "coverage", map[string]any{
 		"Title": "Coverage", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "coverage",
-		// coverage.tmpl styles against the design token vocabulary; the "head" block
-		// inlines tokens/*.css only when this datum is set (as Profile/ErrorPage do).
-		"DesignTokens": true,
-		"Meters":       meters,
-		"Messages":     messages,
-		"Gaps":         gaps,
-		"Unevaluable":  unevaluable,
-		"StaleZones":   staleZonesView,
+		"NavActive":   "coverage",
+		"Meters":      meters,
+		"Messages":    messages,
+		"Gaps":        gaps,
+		"Unevaluable": unevaluable,
+		"StaleZones":  staleZonesView,
 	})
 }
 

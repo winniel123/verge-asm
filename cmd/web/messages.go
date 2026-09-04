@@ -311,7 +311,7 @@ func (s *server) inboxPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 
 	s.render(w, r, "inbox", map[string]any{
 		"Title": "Inbox", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "inbox", "DesignTokens": true,
+		"NavActive":  "inbox",
 		"Messages":   shown,
 		"Selected":   selected,
 		"Unread":     unread,

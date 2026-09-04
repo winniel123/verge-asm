@@ -646,11 +646,10 @@ func (s *server) renderScheduleWizard(ctx context.Context, w http.ResponseWriter
 	}
 
 	s.render(w, r, "schedulewizard", map[string]any{
-		"Title":        title,
-		"Account":      acct,
-		"IsAdmin":      acct.Role == roleAdmin,
-		"NavActive":    "reports",
-		"DesignTokens": true,
+		"Title":     title,
+		"Account":   acct,
+		"IsAdmin":   acct.Role == roleAdmin,
+		"NavActive": "reports",
 
 		// The wizard's forms return to the list the operator opened it from, NOT to the
 		// wizard's own URL. injectChrome only stamps BackURL when a page has not set one,

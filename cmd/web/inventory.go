@@ -507,10 +507,9 @@ func (s *server) inventoryPage(w http.ResponseWriter, r *http.Request, acct db.A
 	}
 	s.render(w, r, "inventory", map[string]any{
 		"Title": "Inventory", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive":    "inventory",
-		"Groups":       groups,
-		"DesignTokens": true,
-		"HasData":      len(groups) > 0,
+		"NavActive": "inventory",
+		"Groups":    groups,
+		"HasData":   len(groups) > 0,
 	})
 }
 

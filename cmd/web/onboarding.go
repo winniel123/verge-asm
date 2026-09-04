@@ -241,11 +241,10 @@ func (s *server) renderOnboard(w http.ResponseWriter, r *http.Request, acct db.A
 	}
 
 	data := map[string]any{
-		"Title":        "Set up this workspace",
-		"Account":      acct,
-		"IsAdmin":      acct.Role == roleAdmin,
-		"NavActive":    "",
-		"DesignTokens": true,
+		"Title":     "Set up this workspace",
+		"Account":   acct,
+		"IsAdmin":   acct.Role == roleAdmin,
+		"NavActive": "",
 
 		"Step":      v.Step,
 		"StepNum":   v.Step + 1,

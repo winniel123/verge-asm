@@ -35,10 +35,6 @@ func (s *server) renderError(w http.ResponseWriter, r *http.Request, status int,
 		"Title":      title,
 		"Kind":       kind,
 		"IncidentID": incidentID,
-		// The frozen error.tmpl styles against the design-owned token vocabulary
-		// (design-system/tokens/*.css); the "head" block inlines those tokens only when
-		// this datum is set (as inventoryPage does). Every error render opts in.
-		"DesignTokens": true,
 	}
 	if acct, ok := s.currentAccount(r); ok {
 		data["Account"] = acct
@@ -70,14 +66,13 @@ func (s *server) forbidden(w http.ResponseWriter, r *http.Request) {
 // the unmatched key the operator asked for.
 func (s *server) renderMissingSubject(w http.ResponseWriter, r *http.Request, acct db.Account, subject string) {
 	s.renderStatus(w, r, http.StatusNotFound, "error-page", map[string]any{
-		"Title":        "No such subject",
-		"Kind":         "missing-subject",
-		"Subject":      subject,
-		"ActionLabel":  "Back to inventory",
-		"ActionHref":   "/inventory",
-		"Account":      acct,
-		"IsAdmin":      acct.Role == roleAdmin,
-		"DesignTokens": true,
+		"Title":       "No such subject",
+		"Kind":        "missing-subject",
+		"Subject":     subject,
+		"ActionLabel": "Back to inventory",
+		"ActionHref":  "/inventory",
+		"Account":     acct,
+		"IsAdmin":     acct.Role == roleAdmin,
 	})
 }
 
@@ -87,15 +82,14 @@ func (s *server) renderMissingSubject(w http.ResponseWriter, r *http.Request, ac
 // history. run is the raw id the operator asked for.
 func (s *server) renderMissingRun(w http.ResponseWriter, r *http.Request, acct db.Account, run string) {
 	s.renderStatus(w, r, http.StatusNotFound, "error-page", map[string]any{
-		"Title":        "No such run",
-		"Kind":         "missing-run",
-		"Subject":      "run #" + run,
-		"ActionLabel":  "Back to drift",
-		"ActionHref":   "/drift",
-		"NavActive":    "drift",
-		"Account":      acct,
-		"IsAdmin":      acct.Role == roleAdmin,
-		"DesignTokens": true,
+		"Title":       "No such run",
+		"Kind":        "missing-run",
+		"Subject":     "run #" + run,
+		"ActionLabel": "Back to drift",
+		"ActionHref":  "/drift",
+		"NavActive":   "drift",
+		"Account":     acct,
+		"IsAdmin":     acct.Role == roleAdmin,
 	})
 }
 
@@ -106,14 +100,13 @@ func (s *server) renderMissingRun(w http.ResponseWriter, r *http.Request, acct d
 // requireAdmin's plain 403 (forbidden) still stands behind every other admin route.
 func (s *server) settingsForbidden(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	s.renderStatus(w, r, http.StatusForbidden, "error-page", map[string]any{
-		"Title":        "Admin only",
-		"Kind":         "settings-forbidden",
-		"Code":         "403",
-		"ActionLabel":  "Back to dashboard",
-		"ActionHref":   "/",
-		"Account":      acct,
-		"IsAdmin":      acct.Role == roleAdmin,
-		"DesignTokens": true,
+		"Title":       "Admin only",
+		"Kind":        "settings-forbidden",
+		"Code":        "403",
+		"ActionLabel": "Back to dashboard",
+		"ActionHref":  "/",
+		"Account":     acct,
+		"IsAdmin":     acct.Role == roleAdmin,
 	})
 }
 

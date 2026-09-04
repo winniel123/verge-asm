@@ -180,7 +180,6 @@ func (s *server) signinData(data map[string]any) map[string]any {
 	if data == nil {
 		data = map[string]any{}
 	}
-	data["DesignTokens"] = true
 	data["Version"] = s.buildVersion()
 	return data
 }
@@ -1372,8 +1371,7 @@ func (s *server) renderProfile(w http.ResponseWriter, r *http.Request, acct db.A
 
 	data := map[string]any{
 		"Title": "Profile", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive":    "",
-		"DesignTokens": true,
+		"NavActive": "",
 
 		"Initials":    initials(acct.Username),
 		"Username":    acct.Username,
