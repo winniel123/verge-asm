@@ -20,9 +20,6 @@ type ConsumePasswordResetParams struct {
 	ConsumedAt pgtype.Timestamptz `json:"consumed_at"`
 }
 
-// Spend a reset grant: stamp consumed_at with the instant the caller passes, which
-// makes it single-use. A second present of the same token then reads a non-NULL
-// consumed_at and is refused.
 func (q *Queries) ConsumePasswordReset(ctx context.Context, arg ConsumePasswordResetParams) error {
 	_, err := q.db.Exec(ctx, consumePasswordReset, arg.ID, arg.ConsumedAt)
 	return err
@@ -40,10 +37,6 @@ type CreatePasswordResetParams struct {
 	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
 }
 
-// Mint a single-use password-reset grant for one account. Only the token hash is
-// stored; the plaintext rides one URL handed to the operator out of band. The
-// caller sets expires_at from the server clock, so the window is bounded by the
-// same injectable clock every other auth read uses.
 func (q *Queries) CreatePasswordReset(ctx context.Context, arg CreatePasswordResetParams) (PasswordReset, error) {
 	row := q.db.QueryRow(ctx, createPasswordReset, arg.AccountID, arg.TokenHash, arg.ExpiresAt)
 	var i PasswordReset
@@ -64,9 +57,6 @@ FROM password_reset
 WHERE token_hash = $1
 `
 
-// Resolve a presented reset token to its row by hash. Validity (unconsumed,
-// unexpired) is checked in the handler against the server clock rather than SQL
-// now(), so a fixed-clock test and production agree on the same boundary.
 func (q *Queries) GetPasswordResetByHash(ctx context.Context, tokenHash string) (PasswordReset, error) {
 	row := q.db.QueryRow(ctx, getPasswordResetByHash, tokenHash)
 	var i PasswordReset

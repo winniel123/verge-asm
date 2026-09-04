@@ -27,7 +27,6 @@ type CreateChannelParams struct {
 	CreatedBy     int64       `json:"created_by"`
 }
 
-// Returns the id only: the secret is write-only and no query hands it back.
 func (q *Queries) CreateChannel(ctx context.Context, arg CreateChannelParams) (int64, error) {
 	row := q.db.QueryRow(ctx, createChannel,
 		arg.Url,
@@ -72,7 +71,6 @@ type GetChannelRow struct {
 	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
 }
 
-// Also omits the secret; a caller reads presence, never the value.
 func (q *Queries) GetChannel(ctx context.Context, id int64) (GetChannelRow, error) {
 	row := q.db.QueryRow(ctx, getChannel, id)
 	var i GetChannelRow
@@ -115,8 +113,6 @@ type ListChannelsRow struct {
 	CreatedByUsername string             `json:"created_by_username"`
 }
 
-// Never selects the secret: it exposes only whether one is set, so the render
-// path is structurally unable to leak it.
 func (q *Queries) ListChannels(ctx context.Context) ([]ListChannelsRow, error) {
 	rows, err := q.db.Query(ctx, listChannels)
 	if err != nil {
@@ -158,8 +154,6 @@ type SetChannelSecretParams struct {
 	Secret pgtype.Text `json:"secret"`
 }
 
-// Set, replace or clear the secret. A NULL clears it; the value is written and
-// never read back.
 func (q *Queries) SetChannelSecret(ctx context.Context, arg SetChannelSecretParams) error {
 	_, err := q.db.Exec(ctx, setChannelSecret, arg.ID, arg.Secret)
 	return err
@@ -181,8 +175,6 @@ type UpdateChannelParams struct {
 	Enabled       bool   `json:"enabled"`
 }
 
-// Updates everything but the secret; the secret has its own write path so an
-// edit that leaves it blank keeps the existing one untouched.
 func (q *Queries) UpdateChannel(ctx context.Context, arg UpdateChannelParams) error {
 	_, err := q.db.Exec(ctx, updateChannel,
 		arg.ID,
