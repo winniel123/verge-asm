@@ -22,67 +22,21 @@ import (
 	"github.com/winniel123/verge-asm/internal/signal"
 )
 
-// The Reports screen — canonical `/reports` (#285, V2 console map #275). It folds
-// the analytics that lived under /exposure and /scans into one period view,
-// composed after design-system/examples/console/Reports.jsx (07-console.jpg): a
-// KPI band, a time-series card, a by-severity card, a scans-per-day heatmap, a
-// recurring-reports table, and a schedule wizard.
-//
-// The example renders three trend series. The port once held them
-// "domain-incompatible" and re-skinned them to honest scalars + empty-states, but
-// the design is normative for look AND functionality (ADR-0116; PARITY-CHART.md
-// §"The ruling"; SPEC-CHANGE.md collision #3), so the fix is to BUILD each series,
-// not drop it. All three are now real derivations, folded in internal/drift/trend.go
-// (P0.3, #444) and passed to the template as data the Reports markup (P2.4) paints:
-//
-//   - Signals-over-time — the "Open signals over time" line and its "Critical +
-//     high" companion — is folded from the per-instance first-seen ledger
-//     (signal_instance, P0.1) with each rule's severity (internal/signal): weekly
-//     incidence and the standing level over the selected range.
-//   - Mean-time-to-withdrawal fills the mock's mean-time-to-resolve slot, honest to
-//     the domain (signals are withdrawn by the world, never "resolved" by an
-//     operator): it is derived from the subject-withdrawal history in the span
-//     corpus (ListWithdrawalLifespans → drift.MeanTimeToWithdrawal / WithdrawalSeries),
-//     as a KPI scalar and its trend.
-//   - Scans-per-day intensities ramp through the shared drift.HeatLevels rule off
-//     real Dispatch history (activity volume, not a signal), so the page, the export
-//     and any later surface intensify identically.
-//
-// Report scheduling (the recurring table + wizard) is live end-to-end (P0.6, #499):
-// the worker's on-cadence dispatcher runs due schedules and stamps delivery receipts,
-// the table renders the real report_schedule rows, and the "New schedule" wizard files
-// them (handlers in reports_schedule.go). This analytics handler stays read-only and
-// owns no mutation — it only renders the schedule rows reportScheduleRows reads.
+// An absent datum draws the design's empty pattern, never a fabricated figure (ADR-0110).
 
-// reportsDispatchPerWeek budgets the Dispatch read behind the scans-per-day series
-// PER WEEK of the selected range, so a wider window reads proportionally more rows
-// instead of silently truncating the oldest days at a fixed cap (the read is
-// newest-first by id, so a too-small cap drops the early columns of a long range). A
-// Dispatch is one fan-out of one Scan; this budget is generous for a busy estate.
+// The Dispatch read is newest-first by id, so a flat cap drops a long range's oldest days.
+
 const reportsDispatchPerWeek = 250
 
 func reportsDispatchLimit(weeks int) int32 {
 	return int32(weeks * reportsDispatchPerWeek) // #nosec G115 (weeks bounded by 4-digit-year date parse; weeks*250 well under int32)
 }
 
-// reportsHeatWeeks / reportsHeatDays are the heatmap's DEFAULT span: twelve weeks of
-// one column per week, seven rows per column, oldest-first. The span is now
-// selectable (reportsRangeWeeks); twelve stays the default so an un-parameterised
-// request renders exactly as before.
 const (
 	reportsHeatWeeks = 12
 	reportsHeatDays  = reportsHeatWeeks * 7
 )
 
-// reportsPeriod is one entry of the /reports range picker (SPEC-CHANGE #23b): the
-// ?period token, its badge label, and the internal WEEK span the KPI band, trend
-// chart, discovery bars and scans-per-day heatmap all read over. The design's period
-// vocabulary (fixtures.json → reports.periods) is 24h/7d/30d/90d; each maps to a
-// whole-week span for the folds — 7d is the default and maps to the twelve-week heat
-// span (reportsHeatWeeks), so an un-parameterised request renders exactly the design's
-// default (range_label "Last 7d", range_weeks 12, an 84-cell heat). The design itself
-// labels that twelve-week activity view "Last 7d", so this mapping is faithful; the
-// wider presets extend the span. The old ?weeks= param and its select retire (#23b).
 type reportsPeriod struct {
 	Token string
 	Label string
@@ -90,6 +44,7 @@ type reportsPeriod struct {
 }
 
 func reportsPeriods() []reportsPeriod {
+	// The design labels its own twelve-week activity view "Last 7d", so 7d maps to twelve weeks.
 	return []reportsPeriod{
 		{Token: "24h", Label: "Last 24h", Weeks: 4},
 		{Token: "7d", Label: "Last 7d", Weeks: reportsHeatWeeks},
@@ -100,9 +55,6 @@ func reportsPeriods() []reportsPeriod {
 
 const reportsDefaultPeriod = "7d"
 
-// resolveReportsPeriod maps the ?period query to a preset, defaulting to
-// reportsDefaultPeriod for an absent or unrecognised token (a hand-crafted value never
-// widens the window past the offered set).
 func resolveReportsPeriod(token string) reportsPeriod {
 	for _, p := range reportsPeriods() {
 		if p.Token == token {
@@ -117,10 +69,6 @@ func resolveReportsPeriod(token string) reportsPeriod {
 	return reportsPeriods()[0]
 }
 
-// reportsCustomPrefix marks a custom-range period token — "custom_<start>_<end>" with
-// ISO (YYYY-MM-DD) bounds (the drift #20b mechanism). The range popover submits GET
-// /reports?start=&end=; the page stamps this stable token into .Period so the export
-// links (/reports/export?period=) carry the same window.
 const reportsCustomPrefix = "custom_"
 
 func parseReportsCustomToken(token string) (start, end string, ok bool) {
@@ -141,12 +89,6 @@ type reportsWindow struct {
 	Weeks int
 }
 
-// resolveReportsWindow resolves the request into the reporting window. A custom range —
-// an explicit ?start=&end= from the popover, or a "custom_" ?period token from an export
-// link — resolves to an absolute [start, end] window with a stable token, a "start – end"
-// label, and a week span derived from the span (rounded up, min one week). Otherwise a
-// preset resolves to its span. A malformed custom pair falls back to the preset path, so
-// a hand-crafted query never errors the page.
 func resolveReportsWindow(r *http.Request) reportsWindow {
 	q := r.URL.Query()
 	start, end := q.Get("start"), q.Get("end")
@@ -171,11 +113,6 @@ func resolveReportsWindow(r *http.Request) reportsWindow {
 	return reportsWindow{Token: p.Token, Label: p.Label, Weeks: p.Weeks}
 }
 
-// openSignalsCount is the one honest signal figure the Reports screen and its export
-// both show: the current count of firing signals across every rule, a current-state
-// census total (never a trend). Building the corpus is the heavier read; on failure
-// it returns ok=false so the caller renders the KPI as unavailable rather than a
-// fabricated zero. Shared so the page and the export never drift apart.
 func (s *server) openSignalsCount(r *http.Request) (count int, ok bool) {
 	corpus, err := s.buildSignalCorpus(r)
 	if err != nil {
@@ -188,20 +125,12 @@ func (s *server) openSignalsCount(r *http.Request) (count int, ok bool) {
 	return count, true
 }
 
-// reportsTrendBucket is the trend series' bucket width — one WEEK, matching the
-// /reports range control's own week granularity (reportsRangeLabel "last N weeks")
-// so a signals-over-time / mean-time-to-withdrawal column lines up with a heatmap
-// week. The series then carries `weeks` buckets over the selected range.
+// Bucket widths follow the scans-per-day grid, so a series column lines up with a heat cell.
+
 const reportsTrendBucket = 7 * 24 * time.Hour
 
-// signalRaises reads the per-instance first-seen ledger into the trend fold's input
-// (P0.3, #444): one drift.Raise per minted signal_instance, carrying its first-seen
-// instant and whether its rule's severity is elevated — critical or high, the
-// design's "Critical + high" series. Severity is the RULE's, looked up per instance
-// (internal/signal); an unknown rule folds to the calmest level, so it is never
-// elevated. The whole never-deleted ledger is read so the standing level counts
-// signals raised before the window too.
 func (s *server) signalRaises(ctx context.Context) ([]drift.Raise, error) {
+	// The whole ledger is read unwindowed, so the standing level counts signals raised before it.
 	rows, err := s.store.ListSignalInstances(ctx)
 	if err != nil {
 		return nil, err
@@ -220,12 +149,6 @@ func (s *server) signalRaises(ctx context.Context) ([]drift.Raise, error) {
 	return raises, nil
 }
 
-// withdrawalLifespans reads the subject-withdrawal ledger since the window's start
-// into the trend fold's input (P0.3, #444): one drift.Withdrawal per departure,
-// carrying the subject's first appearance and its withdrawal instant, from which
-// time-to-withdrawal is derived. A row with an unknown appearance or withdrawal is
-// carried through and dropped by the fold (Withdrawal.Duration), never fabricated
-// into a zero interval.
 func (s *server) withdrawalLifespans(ctx context.Context, since time.Time) ([]drift.Withdrawal, error) {
 	rows, err := s.store.ListWithdrawalLifespans(ctx, pgtype.Timestamptz{Time: since, Valid: true})
 	if err != nil {
@@ -245,18 +168,8 @@ func (s *server) withdrawalLifespans(ctx context.Context, since time.Time) ([]dr
 	return out, nil
 }
 
-// reportsDiscoveryBucket is the discovery series' bucket width — one DAY, matching
-// the spec's daily-discovery BarChart (Reports.jsx DISCOVERY is one bar per day).
-// The series carries `days` (weeks * 7) buckets over the selected range, so a
-// discovery bar lines up column-for-column with a scans-per-day heatmap cell.
 const reportsDiscoveryBucket = 24 * time.Hour
 
-// firstAppearances reads the Name/Service first-appearance ledger since a read
-// instant into the discovery fold's input (P2.4b, #468): one drift.Appearance per
-// subject, carrying its earliest span opened_at (the `appeared` classification) and
-// whether it is a service, so the fold derives the per-period count, its name/
-// service split, and the daily-discovery series. Read back two windows by the caller
-// so the previous equal period is comparable for the vs-previous-period delta.
 func (s *server) firstAppearances(ctx context.Context, since time.Time) ([]drift.Appearance, error) {
 	rows, err := s.store.ListSubjectFirstAppearances(ctx, pgtype.Timestamptz{Time: since, Valid: true})
 	if err != nil {
@@ -275,11 +188,6 @@ func (s *server) firstAppearances(ctx context.Context, since time.Time) ([]drift
 	return out, nil
 }
 
-// reportsBar is one bar of the daily-discovery BarChart: its height as a percentage
-// of the busiest day, whether it is the emphasised last (today) bar, and a hover
-// title (the day's discovery count). Height is folded in the handler so the template
-// stays arithmetic-free, mirroring BarChart.jsx (flex bars, height ∝ value/max,
-// non-last bars dimmed).
 type reportsBar struct {
 	HeightPct int
 	Last      bool
@@ -292,31 +200,14 @@ type reportsBarChart struct {
 	RightLabel string
 }
 
-// reportsMaxBars is the daily-discovery BarChart's bar budget (v3.15.0 dogfood ss3,
-// data contract). With more than a month of DAILY bars the 3px-min bars + 4px gaps
-// overflowed the KPI card and the baseline drew past the card edge; the frozen tmpl
-// now clips with min-width:0;overflow:hidden, and the handler must pass ≤31 bars —
-// a month of days — aggregating to weekly beyond a month so a long range stays
-// legible rather than being silently truncated.
+// Past a month of daily bars the row overflowed its card, so a longer range is aggregated.
+
 const reportsMaxBars = 31
 
-// aggregateDiscoveryBars caps a daily-discovery series at reportsMaxBars. Within a
-// month (≤31 daily buckets) the daily series passes through UNCHANGED — the common
-// 24h preset (28 days) and any short custom range keep their per-day bars. Beyond a
-// month the contiguous, oldest-first daily buckets fold into whole-WEEK buckets
-// (summing each week's discovery counts, the bucket keyed to its first day), so the
-// default 7d preset's 84 daily bars collapse to 12 weekly bars. Because the daily
-// series length is always weeks*7, grouping by whole weeks divides evenly. Should the
-// weekly series itself still exceed the budget (a range wider than 31 weeks — the 90d
-// preset resolves to 52), the bucket widens to the smallest whole-week multiple that
-// fits, so the chart is never handed more than reportsMaxBars bars while staying
-// week-aligned. The weekly-bucket source exists (drift.DiscoverySeries buckets at any
-// width), so this never truncates.
 func aggregateDiscoveryBars(points []drift.DiscoveryPoint) []drift.DiscoveryPoint {
 	if len(points) <= reportsMaxBars {
 		return points
 	}
-	// Days per bucket: one week, widened by whole weeks until the bucket count fits.
 	perBucket := 7
 	for (len(points)+perBucket-1)/perBucket > reportsMaxBars {
 		perBucket += 7
@@ -332,12 +223,6 @@ func aggregateDiscoveryBars(points []drift.DiscoveryPoint) []drift.DiscoveryPoin
 	return out
 }
 
-// buildReportsBarChart folds the daily-discovery series into the bar geometry,
-// scaling each bar to a percentage of the busiest bucket (floored at 1 so an all-zero
-// series is every bar at its 2px minimum rather than a divide-by-zero), exactly as
-// BarChart.jsx does. The last bar (today) is emphasised; the rest are dimmed. The
-// series is first capped at reportsMaxBars (aggregateDiscoveryBars): daily within a
-// month, weekly beyond, so the frozen ≤31-bar bars row never overflows the card.
 func buildReportsBarChart(points []drift.DiscoveryPoint, weeks int) reportsBarChart {
 	points = aggregateDiscoveryBars(points)
 	max := 1
@@ -368,31 +253,18 @@ func pluralAssets(n int) string {
 	return strconv.Itoa(n) + " assets"
 }
 
-// reportsDurationDays renders a duration as the console's terse day figure ("2.4d"),
-// the form the mean-time-to-withdrawal KPI reads (Reports.jsx). A sub-day mean still
-// renders in days ("0.4d") so the KPI keeps one unit.
 func reportsDurationDays(d time.Duration) string {
 	return strconv.FormatFloat(d.Hours()/24, 'f', 1, 64) + "d"
 }
 
-// heatCell is one day in the scans-per-day heatmap: the pre-computed inline
-// background (an intensity step on --chart-1, or the sunken step at zero), a
-// border, and a hover title. Intensity is folded in the handler so the template
-// stays a plain range with no arithmetic. Bg/Border are template.CSS so the
-// style-attribute sanitizer emits their color-mix()/var() values verbatim rather
-// than neutralizing them to ZgotmplZ.
 type heatCell struct {
 	Bg     template.CSS
 	Border template.CSS
 	Title  string
 }
 
-// reportsSevCount is one severity's open-signal tally for the by-severity bars —
-// the SevBars region of Reports.jsx, now a real read off the census (P0.1). Label
-// is the microlabel form (CRITICAL … INFO), Sev the token key the template branches
-// on to pick the severity ramp fill (a literal var() per level, so the style
-// sanitiser sees static CSS rather than a blanked mid-token interpolation), and Pct
-// the bar width as a share of the busiest level.
+// A value spliced mid-token is blanked, so the template picks a whole literal var() per level.
+
 type reportsSevCount struct {
 	Label string
 	Sev   string
@@ -400,13 +272,6 @@ type reportsSevCount struct {
 	Pct   int
 }
 
-// reportsSignalCensus evaluates the signal corpus ONCE and returns the three signal
-// figures the Reports screen reads off it: the open-signal total (the "Open signals"
-// card value), the per-severity tally the by-severity bars paint (P0.1), and the
-// fired (rule, subject) pairs the vs-last-batch open-signals delta reconstructs
-// against (P0.2). ok is false on a corpus read failure so every signal region
-// degrades to its empty pattern rather than a fabricated zero. It supersedes the
-// page's openSignalsCount call (the export still shares that thinner helper).
 func (s *server) reportsSignalCensus(r *http.Request) (open int, bySeverity []reportsSevCount, fired []firedSignal, ok bool) {
 	corpus, err := s.buildSignalCorpus(r)
 	if err != nil {
@@ -441,11 +306,6 @@ func (s *server) reportsSignalCensus(r *http.Request) (open int, bySeverity []re
 	return open, bySeverity, fired, true
 }
 
-// reportsDelta is a KPI card's vs-last-batch delta prepared for the template: the
-// signed text ("+3", "−2", "−0.6d"), the semantic tone (good/bad/neutral,
-// the DeltaChip colours) and the arrow direction, or Has=false where no previous
-// batch exists to compare against — the design's no-delta state (P0.2), never a
-// fabricated +0.
 type reportsDelta struct {
 	Has  bool
 	Text string
@@ -464,10 +324,6 @@ func signedCount(n int) (text, dir string) {
 	}
 }
 
-// buildMTTWDelta is the mean-time-to-withdrawal card's delta: this window's mean
-// minus the previous equal window's, in days to one place. A shorter time to
-// withdrawal is the good direction (the estate cleared its exposure faster), so a
-// negative change is toned good.
 func buildMTTWDelta(cur, prev time.Duration) reportsDelta {
 	diff := math.Round((cur.Hours()/24-prev.Hours()/24)*10) / 10
 	switch {
@@ -480,14 +336,6 @@ func buildMTTWDelta(cur, prev time.Duration) reportsDelta {
 	}
 }
 
-// reportsOpenDelta builds the "Open signals" KPI-band delta — the current firing
-// census vs those already firing a batch ago (more signals is the bad direction),
-// vs-last-batch (P0.2), reconstructed from the same span/first-seen history the
-// Dashboard reads. fired is the census the caller already evaluated, so the corpus
-// is not re-folded here. Where no previous batch exists, or a read fails, it returns
-// Has=false so the card renders its no-delta state rather than a fabricated +0. The
-// KPI band's second card (New assets discovered) derives its own count/delta from
-// the first-appearance ledger (reportsPage), not from this vs-last-batch helper.
 func (s *server) reportsOpenDelta(ctx context.Context, fired []firedSignal) (open reportsDelta) {
 	prevAt, ok, err := s.previousBatchInstant(ctx)
 	if err != nil {
@@ -514,10 +362,6 @@ func (s *server) reportsOpenDelta(ctx context.Context, fired []firedSignal) (ope
 	return
 }
 
-// sparkline is a KPI card's inline trend, pre-computed to plain SVG geometry the
-// template paints with no arithmetic — the server-rendered form of Sparkline.jsx.
-// Colour is the chart series token (never severity); it rides on the struct so a
-// card picks --chart-1 or --chart-2 without a second template.
 type sparkline struct {
 	W, H       int
 	Line       string
@@ -528,10 +372,6 @@ type sparkline struct {
 
 func f1(x float64) string { return strconv.FormatFloat(x, 'f', 1, 64) }
 
-// buildSparkline folds a value series into the Sparkline geometry (polyline, area
-// fill, last-point dot) scaled to w×h, mirroring Sparkline.jsx. ok is false for a
-// series of fewer than two points, so the card omits the chart (the component's own
-// too-short-to-draw form) rather than inventing a shape.
 func buildSparkline(data []float64, w, h int, color string) (sparkline, bool) {
 	if len(data) < 2 {
 		return sparkline{}, false
@@ -578,9 +418,6 @@ func standingSeries(pts []drift.SignalPoint) []float64 {
 	return out
 }
 
-// meanDaysSeries lifts each withdrawal bucket's mean time-to-withdrawal (in days)
-// into a float series for the MTTW card sparkline, SKIPPING gap buckets (HasMean
-// false) so a bucket with no withdrawal draws no fabricated zero point.
 func meanDaysSeries(pts []drift.WithdrawalPoint) []float64 {
 	out := make([]float64, 0, len(pts))
 	for _, p := range pts {
@@ -591,9 +428,6 @@ func meanDaysSeries(pts []drift.WithdrawalPoint) []float64 {
 	return out
 }
 
-// reportsGridLine / reportsXLabel are one pre-positioned axis element of the big
-// "Open signals over time" chart — every coordinate resolved in the handler so the
-// template ranges with no arithmetic.
 type reportsGridLine struct {
 	X1, X2, Y, LabelX, Label, Stroke string
 }
@@ -602,15 +436,11 @@ type reportsXLabel struct {
 }
 
 type reportsTimeSeries struct {
-	W, H     int
-	Grid     []reportsGridLine
-	XLabels  []reportsXLabel
-	AllOpen  string
-	CritHigh string
-	// N, LabelsAttr and SeriesJSON feed the frozen tmpl's hover-readout JS (#23e): the
-	// point count, a pipe-joined per-point label list (data-labels) and the two series as
-	// a JSON array (data-series) the crosshair reads — the same math the polylines draw,
-	// no new geometry.
+	W, H       int
+	Grid       []reportsGridLine
+	XLabels    []reportsXLabel
+	AllOpen    string
+	CritHigh   string
 	N          int
 	LabelsAttr string
 	SeriesJSON string
@@ -622,10 +452,6 @@ type reportsHoverSeries struct {
 	Data  []int  `json:"data"`
 }
 
-// buildReportsTimeSeries folds the signals-over-time buckets into the chart geometry,
-// choosing a nice y-axis step exactly as TimeSeriesChart.jsx does. ok is false where
-// the standing level never rises above zero, so the card renders the design's empty
-// pattern rather than a flat line on a fabricated axis.
 func buildReportsTimeSeries(pts []drift.SignalPoint) (reportsTimeSeries, bool) {
 	n := len(pts)
 	if n < 2 {
@@ -697,10 +523,6 @@ func buildReportsTimeSeries(pts []drift.SignalPoint) (reportsTimeSeries, bool) {
 		{X: f1(x(0)), Y: xLabelY, Text: strconv.Itoa(n) + "w ago"},
 		{X: f1(x(n - 1)), Y: xLabelY, Text: "now"},
 	}
-	// The hover-readout inputs (#23e): a label per point and the two standing series as a
-	// JSON array the crosshair JS reads (data-labels / data-series). The labels index the
-	// buckets (weekly), enough for the tooltip's per-point title; the values are the same
-	// standing figures the polylines plot.
 	allData := make([]int, n)
 	critData := make([]int, n)
 	labels := make([]string, n)
@@ -726,38 +548,21 @@ func buildReportsTimeSeries(pts []drift.SignalPoint) (reportsTimeSeries, bool) {
 func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	ctx := r.Context()
 
-	// VERGE_DEV pixel-parity path (#588): serve the pinned fixtures.json reports slice so
-	// the seeded instance renders byte-for-byte what the golden composes (as the sibling
-	// screens do). The exact spark/series geometry, the 84-cell heat, the delta chips and
-	// the schedule rows are the design's curated fixture — they cannot be reconstructed
-	// from live derivations without fabricating domain data, which SPEC-CHANGE forbids. A
-	// real deployment (devMode == false) falls through to the honest live reads below.
 	if s.devMode {
 		s.render(w, r, "reports", s.reportsFixtureData(acct))
 		return
 	}
 
-	// The selected period — a preset token (SPEC-CHANGE #23b) or a custom ISO range —
-	// resolving to a WEEK span that sets the heatmap span, the trend-series window AND the
-	// export window so all read the same period; an un-parameterised request stays the
-	// design's default (7d → twelve weeks).
+	// The export link carries this token, so the page and the export read the same window.
 	window := resolveReportsWindow(r)
 	weeks := window.Weeks
 	days := weeks * 7
 
-	// The range's window bounds, shared by the trend folds (P0.3) and the discovery
-	// count (P2.4b): `windowStart` opens the selected period, `doubleStart` the equal
-	// period before it — the ledgers are read back to doubleStart so each card's
-	// vs-previous-period delta is comparable, then split at windowStart.
 	now := s.now().UTC()
 	windowStart := now.Add(-reportsTrendBucket * time.Duration(weeks))
 	doubleStart := now.Add(-reportsTrendBucket * time.Duration(2*weeks))
 
-	// Operational activity — the scans-per-day heatmap. A Dispatch read failure
-	// degrades to an empty heatmap rather than failing the whole analytics page a
-	// viewer depends on. The window/in-flight scalars the export carries are folded
-	// in reports_export.go; the band no longer shows them (the spec's band is three
-	// trend cards, not operational counters — no added affordance, ADR-0116).
+	// A failed analytics read degrades its own region; the page a viewer depends on still renders.
 	cells, heatTotal := []heatCell{}, 0
 	if rows, err := s.store.ListDispatchProgress(ctx, reportsDispatchLimit(weeks)); err != nil {
 		log.Printf("web: reports: list dispatch progress: %v", err)
@@ -765,23 +570,10 @@ func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		cells, heatTotal, _, _ = s.foldScanActivity(rows, days)
 	}
 
-	// Signal census — the open-signal total (the "Open signals" card value), the
-	// per-severity bars (P0.1) and the fired pairs the open-signals delta reads
-	// against — all off ONE corpus evaluation. A failure degrades every signal region
-	// to its empty pattern rather than a fabricated zero.
 	openSignals, bySeverity, fired, hasOpenSignals := s.reportsSignalCensus(r)
 
-	// Open-signals vs-last-batch delta for the KPI band's first card (P0.2).
 	openDelta := s.reportsOpenDelta(ctx, fired)
 
-	// New assets discovered — the KPI band's second card (P2.4b, #468). The count of
-	// Name/Service subjects that FIRST appeared in the selected range, its
-	// vs-previous-period signed delta, its name/service split, and the daily-discovery
-	// bar series (Reports.jsx DISCOVERY). Derived from the span corpus's per-subject
-	// first appearance (MIN(opened_at), the `appeared` classification): the ledger is
-	// read back two windows so the previous equal window is comparable, then split at
-	// the window start. A read failure degrades the card to the ReportCard's empty
-	// pattern rather than 500ing the page (PARITY-CHART acceptance #7).
 	discoveryCount, discoveryNames, discoverySvcs := 0, 0, 0
 	var discoveryDelta reportsDelta
 	var discoveryBars reportsBarChart
@@ -798,11 +590,6 @@ func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		hasDiscovery = true
 	}
 
-	// Signals-over-time — the design's "Open signals over time" line and its
-	// "Critical + high" companion (Reports.jsx), folded from the per-instance
-	// first-seen ledger over the selected range in weekly buckets (P0.3, #444). It
-	// paints both the big trend chart and the "Open signals" card sparkline. A ledger
-	// read failure degrades to an empty series rather than failing the page.
 	var signalPoints []drift.SignalPoint
 	hasSignalTrend := false
 	if raises, rerr := s.signalRaises(ctx); rerr != nil {
@@ -820,16 +607,11 @@ func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	signalSeries, hasSignalSeries := buildReportsTimeSeries(signalPoints)
 	hasSignalSpark = hasSignalSpark && hasSignalTrend
 
-	// Mean-time-to-withdrawal — the KPI in the mock's mean-time-to-resolve slot, now
-	// honest to the domain (signals are withdrawn by the world, never resolved) — its
-	// sparkline, and a vs-previous-window delta (Reports.jsx shows "−0.6d"). The
-	// window mean averages withdrawals that occurred in the selected range; the delta
-	// compares it against the previous equal window, so the ledger is read back two
-	// windows and split. A read failure degrades the KPI to unavailable, the trend to
-	// empty and the delta away, rather than 500ing the page (P0.3, #444).
 	var withdrawalPoints []drift.WithdrawalPoint
 	mttw, hasMTTW := "—", false
 	var mttwDelta reportsDelta
+
+	// Nothing is "resolved" in this vocabulary: the world withdraws a signal (v1 spec §5.3).
 	if ws, werr := s.withdrawalLifespans(ctx, doubleStart); werr != nil {
 		log.Printf("web: reports: withdrawal lifespans: %v", werr)
 	} else {
@@ -855,18 +637,12 @@ func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		"Title": "Reports", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"NavActive": "reports", "DesignTokens": true,
 
-		// KPI band — the three trend cards of Reports.jsx. Each renders real computed
-		// values with its vs-last-batch delta (P0.2) and inline trend (P0.3), and
-		// degrades to the ReportCard's own no-delta / no-chart form where a read is
-		// unavailable — never a fabricated figure (PARITY-CHART acceptance #7).
 		"OpenSignals":    openSignals,
 		"HasOpenSignals": hasOpenSignals,
 		"OpenDelta":      openDelta,
 		"OpenSpark":      signalSpark,
 		"HasOpenSpark":   hasSignalSpark,
 
-		// New assets discovered (P2.4b, #468): the per-period count, its name/service
-		// split caption, the vs-previous-period delta, and the daily-discovery bars.
 		"DiscoveryCount":    discoveryCount,
 		"DiscoveryNames":    discoveryNames,
 		"DiscoveryServices": discoverySvcs,
@@ -880,49 +656,30 @@ func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		"MTTWSpark":    mttwSpark,
 		"HasMTTWSpark": hasMTTWSpark,
 
-		// "Open signals over time" — the big trend chart.
 		"SignalSeries":    signalSeries,
 		"HasSignalSeries": hasSignalSeries,
 
-		// By-severity bars (P0.1). Rendered only where signals are firing; an all-clear
-		// estate draws the design's empty pattern.
 		"BySeverity":  bySeverity,
 		"HasSeverity": hasOpenSignals && openSignals > 0,
 
 		"Heat":    cells,
 		"HasHeat": heatTotal > 0,
 
-		// Period picker + period-aware labels (#23b). Periods renders the preset links,
-		// Period is the active token the export links carry, PeriodLabel/RangeLabel re-skin
-		// the header and captions to the active period, and RangeWeeks drives the heat
-		// legend's "N weeks ago" (the fixed twelve-week activity span).
 		"RangeWeeks":  weeks,
 		"RangeLabel":  window.Label,
 		"Periods":     reportsPeriods(),
 		"Period":      window.Token,
 		"PeriodLabel": window.Label,
 
-		// Recurring reports (P0.6, #499): the real report_schedule rows, each row's
-		// "View last delivery" link lit where the dispatcher has stamped a delivery.
 		"Schedules": s.reportScheduleRows(ctx),
 	})
 }
 
-// bucketScanActivity is the shared core behind both the heatmap fold and the export:
-// it buckets Dispatches into per-day counts over the given span (oldest-first, index
-// 0 = the oldest day, last = today, UTC whole-day offsets) and derives the window
-// and in-flight totals. The window counts Dispatches dated inside the span; active
-// counts those with jobs still ready or running, regardless of date. days is the
-// span in whole days (weeks * 7).
-//
-// The count series is a CONTIGUOUS per-day grid — `make([]int, days)` seeds one slot
-// per day and a silent day simply stays zero, so the fold emits one cell for EVERY day
-// in range including the zero-activity ones (R4-D4, #759). A sparse corpus therefore
-// renders a full grid of bordered boxes (the HeatmapCalendar styles the zero cell),
-// never gaps where nothing happened; emission is never restricted to days with activity.
 func (s *server) bucketScanActivity(rows []db.ListDispatchProgressRow, days int) (counts []int, window, active int) {
 	const day = 24 * time.Hour
 	today := s.now().UTC().Truncate(day)
+
+	// A silent day still gets a cell; emission is never restricted to days with activity (#759).
 	counts = make([]int, days)
 	for _, row := range rows {
 		if row.Ready+row.Running > 0 {
@@ -936,7 +693,7 @@ func (s *server) bucketScanActivity(rows []db.ListDispatchProgressRow, days int)
 		if offset < 0 || offset >= days {
 			continue
 		}
-		counts[days-1-offset]++ // index 0 = oldest, last = today
+		counts[days-1-offset]++
 		window++
 	}
 	return counts, window, active
@@ -949,14 +706,6 @@ func (s *server) foldScanActivity(rows []db.ListDispatchProgressRow, days int) (
 		total += c
 	}
 
-	// Intensity steps mirror HeatmapCalendar.jsx: 0/28/48/72/100% of --chart-1
-	// mixed into --surface, with --surface-sunken at zero. The 0..4 level per day is
-	// the shared scans-per-day ramp (internal/drift.HeatLevels, P0.3), so the page,
-	// the export and any later surface intensify identically off one rule.
-	// A zero cell reads as a square only through its border: in dark mode its
-	// --surface-sunken fill sits about 5/255 off the --surface ground. --row-sep is
-	// the token the design-owned reports fixture and the legend swatch beside this
-	// grid both pin, so grid, legend and HeatmapCalendar.jsx now agree on one.
 	pct := []int{0, 28, 48, 72, 100}
 	levels := drift.HeatLevels(counts)
 	cells = make([]heatCell, days)
@@ -964,6 +713,7 @@ func (s *server) foldScanActivity(rows []db.ListDispatchProgressRow, days int) (
 		level := levels[i]
 		cell := heatCell{Title: pluralScans(c)}
 		if level == 0 {
+			// In dark mode a zero cell's fill sits ~5/255 off the ground, so only its border draws it.
 			cell.Bg = template.CSS("var(--surface-sunken)")
 			cell.Border = template.CSS("var(--row-sep)")
 		} else {
@@ -982,25 +732,7 @@ func pluralScans(n int) string {
 	return strconv.Itoa(n) + " scans"
 }
 
-// reportDeliveryPage renders the account's latest delivered report artifact — the
-// stable `/reports/delivery` view Reports' "view last delivery" links to (T17). The
-// delivered document itself is rendered by internal/message's RenderArtifact, the
-// one canonical rendered form that doubles as the PDF / email spec; this handler
-// composes the console chrome around it.
-//
-// With the report_delivery receipts store in place (#291/T2) the handler reads the
-// most-recent non-failed delivery and recomputes its contents from the run's period
-// bounds (T1 ruling: the receipt snapshots nothing). Where no schedule has ever
-// delivered, the zero Artifact renders the design-system empty-state inside the
-// delivered-document frame (ADR-0110) and the header falls back to a generic
-// heading — nothing is fabricated.
 func (s *server) reportDeliveryPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	// VERGE_DEV pixel-parity path (#589): serve the pinned fixtures.json reportartifact
-	// slice so the seeded instance renders byte-for-byte what the golden composes (as the
-	// sibling screens do). The default delivery document and the never-delivered variant
-	// (.Doc.Empty, schedule s2 — a dev ?variant=never-delivered query, states.json) are the
-	// design's curated corpus. A real deployment (devMode == false) falls through to the
-	// honest live reads below.
 	if s.devMode {
 		s.render(w, r, "reportartifact", s.reportartifactFixtureData(acct, r.URL.Query().Get("variant")))
 		return
@@ -1013,9 +745,6 @@ func (s *server) reportDeliveryPage(w http.ResponseWriter, r *http.Request, acct
 		heading = "Report delivery"
 	}
 
-	// #23h: "Edit schedule" links /reports/schedule/{id}/edit when the delivery is still
-	// backed by a live schedule; where none stands (the empty-state, or a delivery whose
-	// schedule is gone) .ScheduleID is nil and the tmpl renders the disabled honest treatment.
 	var scheduleHole any
 	if live {
 		scheduleHole = scheduleID
@@ -1031,13 +760,6 @@ func (s *server) reportDeliveryPage(w http.ResponseWriter, r *http.Request, acct
 	})
 }
 
-// reportDeliveryPDF serves the delivered report as a PDF download (#345) — the
-// print form of the same Artifact reportDeliveryPage renders on screen, produced
-// by internal/message.RenderArtifactPDF (a pure-Go render that runs inside the
-// distroless-static web image, no external renderer). It reads the same Artifact
-// this handler pair shares (reportDeliveryArtifact), so the download always mirrors
-// what the page shows; where no schedule has delivered that is the empty-state
-// document. A viewer reads it — a delivered report is a record, not a mutation.
 func (s *server) reportDeliveryPDF(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	art, _, _ := s.reportDeliveryArtifact(r.Context())
 
@@ -1062,21 +784,6 @@ func reportDeliveryPDFName(a message.Artifact) string {
 	return "report-delivery.pdf"
 }
 
-// reportDeliveryArtifact resolves the account's latest delivered report and builds
-// the delivered Artifact for its period bounds. The stable /reports/delivery route
-// names no schedule (reportDeliveryHref is a constant), so the view opens the single
-// most-recent non-failed delivery across every schedule — the receipt the "View last
-// delivery" affordance points at. Where no schedule has delivered, the zero Artifact
-// renders the design-system empty-state (ADR-0110); nothing is fabricated.
-//
-// The receipt snapshots no content (T2): the artifact recomputes its signals,
-// severity breakdown and withdrawals from the run's [period_start, period_end] bounds
-// at render time (T1 ruling), reading the never-deleted first-seen and withdrawal
-// ledgers. A list/read failure degrades to the empty-state or an empty section rather
-// than 500ing the view a viewer depends on.
-// It returns the resolved Artifact, the id of the schedule behind the delivery, and
-// whether a live delivery (and so a live schedule to edit) was found — the last two feed
-// the page's nullable .ScheduleID (#23h). The empty-state resolves to (zero, 0, false).
 func (s *server) reportDeliveryArtifact(ctx context.Context) (message.Artifact, int64, bool) {
 	schedules, err := s.store.ListReportSchedules(ctx)
 	if err != nil {
@@ -1089,9 +796,6 @@ func (s *server) reportDeliveryArtifact(ctx context.Context) (message.Artifact, 
 		found bool
 	)
 	for _, sc := range schedules {
-		// The newest non-failed run of each schedule; pgx.ErrNoRows is the genuine
-		// never-delivered state and contributes no candidate. Any other read error
-		// skips this schedule rather than failing the whole view.
 		del, err := s.store.GetLatestReportDelivery(ctx, sc.ID)
 		switch {
 		case err == nil:
@@ -1108,11 +812,6 @@ func (s *server) reportDeliveryArtifact(ctx context.Context) (message.Artifact, 
 	return s.buildReportDeliveryArtifact(ctx, sched, best), sched.ID, true
 }
 
-// buildReportDeliveryArtifact fills the delivered Artifact for one run: its identity
-// (the schedule name and delivered format), its period window and delivery number,
-// the receipt footer (the delivery instant and destination HOST only — never the raw
-// delivery-target URL where a token an operator embedded would sit, ADR-0081), and
-// the period's recomputed signals / severity breakdown / withdrawals (T1 ruling).
 func (s *server) buildReportDeliveryArtifact(ctx context.Context, sc db.ReportSchedule, del db.ReportDelivery) message.Artifact {
 	art := message.Artifact{
 		Title:      sc.Name,
@@ -1128,14 +827,11 @@ func (s *server) buildReportDeliveryArtifact(ctx context.Context, sc db.ReportSc
 	if del.GeneratedAt.Valid {
 		art.GeneratedAt = del.GeneratedAt.Time.UTC().Format(time.RFC3339)
 	}
-	// The receipt footer: the delivery instant and the destination host only. A run
-	// that generated without leaving (delivered_at NULL) names no channel, so the
-	// footer reads "not delivered" (artifactReceipt).
 	if del.DeliveredAt.Valid {
 		art.Delivered = del.DeliveredAt.Time.UTC().Format(time.RFC3339)
 		art.ChannelHost = deliveryTargetHost(sc.DeliveryTarget)
 	}
-	// Recompute the period's contents from its bounds — the receipt stores none.
+	// The receipt snapshots no content, so the artifact recomputes from its bounds (ADR-0118).
 	if del.PeriodStart.Valid && del.PeriodEnd.Valid {
 		start, end := del.PeriodStart.Time.UTC(), del.PeriodEnd.Time.UTC()
 		art.Signals, art.SeverityCounts = s.reportDeliverySignals(ctx, start, end)
@@ -1144,13 +840,6 @@ func (s *server) buildReportDeliveryArtifact(ctx context.Context, sc db.ReportSc
 	return art
 }
 
-// reportDeliverySignals recomputes the delivery period's "new this week" signals
-// table and its "open signals by severity" breakdown from the never-deleted
-// first-seen ledger (signal_instance): every signal instance whose first-seen falls
-// in [start, end], carrying its rule's severity (P0.1, internal/signal). The table is
-// ordered most-urgent first, the ramp order (SevOrder); the breakdown carries one
-// entry per severity level present. A ledger read failure degrades both to empty
-// rather than failing the view.
 func (s *server) reportDeliverySignals(ctx context.Context, start, end time.Time) ([]message.ArtifactSignal, []message.ArtifactSeverityCount) {
 	rows, err := s.store.ListSignalInstances(ctx)
 	if err != nil {
@@ -1167,8 +856,6 @@ func (s *server) reportDeliverySignals(ctx context.Context, start, end time.Time
 		if at.Before(start) || at.After(end) {
 			continue
 		}
-		// A signal's severity is exactly its rule's severity; an unknown rule folds to
-		// the calmest level (SeverityFor), never manufacturing urgency.
 		sev, _ := signal.SeverityFor(row.SignalName)
 		counts[sev]++
 		sigs = append(sigs, message.ArtifactSignal{
@@ -1190,10 +877,6 @@ func (s *server) reportDeliverySignals(ctx context.Context, start, end time.Time
 	return sigs, bySeverity
 }
 
-// reportDeliveryWithdrawals recomputes the period's "withdrawn by the world" section
-// from the subject-withdrawal ledger: every subject whose withdrawal instant falls in
-// [start, end]. Withdrawal rides the drift vocabulary (never the severity ramp). A
-// read failure degrades to an empty section rather than failing the view.
 func (s *server) reportDeliveryWithdrawals(ctx context.Context, start, end time.Time) []message.ArtifactChange {
 	rows, err := s.store.ListWithdrawalLifespans(ctx, pgtype.Timestamptz{Time: start, Valid: true})
 	if err != nil {
@@ -1218,11 +901,8 @@ func (s *server) reportDeliveryWithdrawals(ctx context.Context, start, end time.
 	return out
 }
 
-// deliveryTargetHost renders a schedule's delivery target as its destination host
-// only — never the raw URL, where a token an operator embedded in the path or query
-// would sit (mirrors the message panel's host-only rule, ADR-0081). A target that
-// does not parse to a host names no channel, so the receipt shows the instant alone.
 func deliveryTargetHost(target string) string {
+	// A token an operator embedded rides in the target URL, so only its host is shown (ADR-0053).
 	if u, err := url.Parse(target); err == nil && u.Host != "" {
 		return u.Host
 	}
