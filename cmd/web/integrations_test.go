@@ -22,8 +22,7 @@ func (f *fakeStore) ListIntegrationStates(context.Context) ([]db.IntegrationStat
 }
 
 func (f *fakeStore) UpsertIntegrationState(_ context.Context, arg db.UpsertIntegrationStateParams) (db.IntegrationState, error) {
-	// Re-install keeps the existing channel binding (the real ON CONFLICT omits
-	// channel_id), so mirror that: preserve any bound Channel on the prior row.
+	// The real ON CONFLICT omits channel_id, so a re-install keeps the bound Channel.
 	st := db.IntegrationState{Slug: arg.Slug, State: arg.State}
 	if prev, ok := f.integrationStates[arg.Slug]; ok {
 		st.ChannelID = prev.ChannelID
@@ -46,8 +45,7 @@ func (f *fakeStore) GetIntegrationChannel(_ context.Context, slug string) (pgtyp
 }
 
 func (f *fakeStore) SetIntegrationChannel(_ context.Context, arg db.SetIntegrationChannelParams) error {
-	// Only an installed integration has a row to bind; binding one with no row is a
-	// no-op, exactly as the WHERE slug = $1 UPDATE touches nothing.
+	// The real UPDATE is WHERE slug = $1, so binding an integration with no row touches nothing.
 	st, ok := f.integrationStates[arg.Slug]
 	if !ok {
 		return nil
@@ -66,9 +64,6 @@ func (f *fakeStore) GetChannelForDelivery(_ context.Context, id int64) (db.GetCh
 	return db.GetChannelForDeliveryRow{}, pgx.ErrNoRows
 }
 
-// skipIfIntegrationsHidden skips a behavioural Integrations test while the surface
-// is hidden (#388, integrationsEnabled == false). Flipping the flag to revive the
-// surface makes these tests run again.
 func skipIfIntegrationsHidden(t *testing.T) {
 	t.Helper()
 	if !integrationsEnabled {
@@ -76,8 +71,6 @@ func skipIfIntegrationsHidden(t *testing.T) {
 	}
 }
 
-// integrationsBody fetches the Integrations sub-tab with an optional extra query
-// fragment (e.g. "&open=slack"). Settings is admin-gated, so pass an admin client.
 func integrationsBody(t *testing.T, c *http.Client, base, extra string) string {
 	t.Helper()
 	resp, err := c.Get(base + "/settings?tab=integrations" + extra)
@@ -90,16 +83,6 @@ func integrationsBody(t *testing.T, c *http.Client, base, extra string) string {
 	return body(t, resp)
 }
 
-// --- hidden-surface tests ---------------------------------------------------
-//
-// The Integrations surface is hidden (#388, integrationsEnabled == false). These
-// tests assert nothing integration-related is reachable in that shipped state.
-// When the surface is revived (the flag flipped to true) they skip, and the
-// behavioural tests below take over — so both states are covered in the tree and
-// flipping the one constant flips which set runs.
-
-// No Integrations tab appears in the Settings navigation while the surface is
-// hidden, and there is no link to the tab.
 func TestIntegrationsTabHidden(t *testing.T) {
 	if integrationsEnabled {
 		t.Skip("integrations surface is live; the tab is expected to render")
@@ -118,8 +101,6 @@ func TestIntegrationsTabHidden(t *testing.T) {
 	}
 }
 
-// Navigating directly to /settings?tab=integrations does not render the
-// placeholder catalog: it redirects to another tab.
 func TestIntegrationsDirectNavRedirects(t *testing.T) {
 	if integrationsEnabled {
 		t.Skip("integrations surface is live; the tab is expected to render")
@@ -129,7 +110,6 @@ func TestIntegrationsDirectNavRedirects(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// The test client does not follow redirects, so the 303 is observable here.
 	resp, err := ac.Get(base + "/settings?tab=integrations")
 	if err != nil {
 		t.Fatal(err)
@@ -139,7 +119,6 @@ func TestIntegrationsDirectNavRedirects(t *testing.T) {
 			resp.StatusCode, resp.Header.Get("Location"))
 	}
 	page := body(t, resp)
-	// The catalog and its scaffolding must not render on the redirect body.
 	for _, absent := range []string{"Channels need no integration", "Install Slack", "Install PagerDuty"} {
 		if strings.Contains(page, absent) {
 			t.Errorf("the placeholder catalog rendered on the hidden tab; found %q; body: %s", absent, page)
@@ -147,9 +126,6 @@ func TestIntegrationsDirectNavRedirects(t *testing.T) {
 	}
 }
 
-// No user-facing route can write to integration_state: the install and disconnect
-// routes are unregistered while the surface is hidden, so a POST is a 404 and
-// nothing is written.
 func TestIntegrationsMutationRoutesUnregistered(t *testing.T) {
 	if integrationsEnabled {
 		t.Skip("integrations surface is live; the mutation routes are expected to be registered")
@@ -163,10 +139,6 @@ func TestIntegrationsMutationRoutesUnregistered(t *testing.T) {
 		resp := postForm(t, ac, base+path, url.Values{"slug": {"slack"}})
 		got := resp.StatusCode
 		resp.Body.Close()
-		// With no POST handler registered, the mux answers 405 — the path is only
-		// matched by the catch-all "GET /" subtree, so it is method-not-allowed
-		// rather than not-found. Either way there is no route that writes: the
-		// definitive check is that integration_state stays empty below.
 		if got != http.StatusMethodNotAllowed && got != http.StatusNotFound {
 			t.Errorf("POST %s while hidden: status=%d, want 405/404 (no write route registered)", path, got)
 		}
@@ -176,15 +148,6 @@ func TestIntegrationsMutationRoutesUnregistered(t *testing.T) {
 	}
 }
 
-// --- behavioural tests (dormant while the surface is hidden) -----------------
-//
-// These exercise the full Integrations surface and run only when it is revived
-// (integrationsEnabled == true). They are kept in the tree so the future real
-// build inherits the coverage by flipping the one constant.
-
-// The tile grid renders every catalogued integration with its install state, the
-// category segments, and the channels-vs-integration callout — with no fabricated
-// install state: a fresh install shows every tile available (not installed).
 func TestIntegrationsTileGridRenders(t *testing.T) {
 	skipIfIntegrationsHidden(t)
 	f := newFakeStore()
@@ -199,30 +162,22 @@ func TestIntegrationsTileGridRenders(t *testing.T) {
 			t.Errorf("integration %q missing from the tile grid", c.Name)
 		}
 	}
-	// The category segmented control renders every category.
 	for _, cat := range integrationCats {
 		if !strings.Contains(page, ">"+cat+"<") {
 			t.Errorf("category segment %q missing", cat)
 		}
 	}
-	// No fabricated install state: nothing installed, so no tile reads installed and
-	// the available state is shown.
 	if !strings.Contains(page, ">available<") {
 		t.Errorf("available install state not rendered; body: %s", page)
 	}
 	if strings.Contains(page, ">installed<") {
 		t.Errorf("an integration reads installed with nothing installed (fabricated state); body: %s", page)
 	}
-	// The channels-vs-integration distinction is stated (the spec callout names that
-	// built-in channels deliver raw JSON while integrations add formatting on top).
 	if !strings.Contains(page, "need no integration") || !strings.Contains(page, "Channels are built in") {
 		t.Errorf("the channels-vs-integration callout is missing; body: %s", page)
 	}
 }
 
-// Opening a tile shows its consent grants; installing from that drawer is the
-// consent, and it persists real install state. Consent is gated: the grants are
-// shown with the install action, and grants are all-or-nothing.
 func TestIntegrationsConsentGatingAndInstall(t *testing.T) {
 	skipIfIntegrationsHidden(t)
 	f := newFakeStore()
@@ -230,8 +185,6 @@ func TestIntegrationsConsentGatingAndInstall(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// The drawer for an available integration shows its consent grants alongside the
-	// install action (opened by ?view=, the spec PRG drawer).
 	drawer := integrationsBody(t, ac, base, "&view=pagerduty")
 	for _, want := range []string{
 		"This integration can", "Read signals", "Write annotations", "writes",
@@ -251,13 +204,11 @@ func TestIntegrationsConsentGatingAndInstall(t *testing.T) {
 		t.Fatalf("install state not persisted: %+v", f.integrationStates["pagerduty"])
 	}
 
-	// The grid now shows it installed.
 	page := integrationsBody(t, ac, base, "")
 	if !strings.Contains(page, ">installed<") {
 		t.Errorf("installed state not rendered after install; body: %s", page)
 	}
 
-	// An unknown slug is refused rather than written.
 	resp = postForm(t, ac, base+"/settings/integrations/install", url.Values{"slug": {"no-such-integration"}})
 	got := resp.StatusCode
 	resp.Body.Close()
@@ -266,9 +217,6 @@ func TestIntegrationsConsentGatingAndInstall(t *testing.T) {
 	}
 }
 
-// The spec drawer for an installed integration offers Remove and Send-test acts
-// that POST to their own routes (#26j); an available integration offers no remove
-// target. Remove returns the integration to available.
 func TestIntegrationsDrawerRemoveAndTest(t *testing.T) {
 	skipIfIntegrationsHidden(t)
 	f := newFakeStore()
@@ -276,14 +224,8 @@ func TestIntegrationsDrawerRemoveAndTest(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// Install so there is something to remove.
 	postForm(t, ac, base+"/settings/integrations/install", url.Values{"slug": {"slack"}}).Body.Close()
 
-	// The installed tile's drawer (?view=) carries the Remove act and the Send-test
-	// affordance. Freshly installed it is unbound (no delivery Channel), so Send test is
-	// gated OFF — the disabled button with the "connect a channel" hint, not an active
-	// POST form (#39b: Send test is gated on a delivery-Channel binding). The active
-	// test form and its bound behaviour are covered in integrations_channel_test.go.
 	drawer := integrationsBody(t, ac, base, "&view=slack")
 	for _, want := range []string{
 		`action="/settings/integrations/remove"`,
@@ -293,12 +235,10 @@ func TestIntegrationsDrawerRemoveAndTest(t *testing.T) {
 			t.Errorf("installed drawer missing %q; body: %s", want, drawer)
 		}
 	}
-	// Unbound, there is no active Send-test POST form.
 	if strings.Contains(drawer, `action="/settings/integrations/test"`) {
 		t.Errorf("an unbound integration offered an active Send-test form; body: %s", drawer)
 	}
 
-	// An available integration's drawer offers Install, not Remove.
 	avail := integrationsBody(t, ac, base, "&view=jira")
 	if strings.Contains(avail, `action="/settings/integrations/remove"`) {
 		t.Errorf("an available integration's drawer offered Remove; body: %s", avail)
@@ -307,7 +247,6 @@ func TestIntegrationsDrawerRemoveAndTest(t *testing.T) {
 		t.Errorf("an available integration's drawer has no Install action; body: %s", avail)
 	}
 
-	// The Remove POST returns the integration to available.
 	resp := postForm(t, ac, base+"/settings/integrations/remove", url.Values{"id": {"slack"}})
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("remove: status=%d", resp.StatusCode)
@@ -318,9 +257,6 @@ func TestIntegrationsDrawerRemoveAndTest(t *testing.T) {
 	}
 }
 
-// A needs-config install state renders as the spec "needs attention" state on the
-// tile and in the drawer. Seeded directly: needs-config is a real stored state the
-// render must handle, never fabricated into the catalogue.
 func TestIntegrationsNeedsConfigRenders(t *testing.T) {
 	skipIfIntegrationsHidden(t)
 	f := newFakeStore()
@@ -339,7 +275,6 @@ func TestIntegrationsNeedsConfigRenders(t *testing.T) {
 	}
 }
 
-// The category segment and search box narrow the catalogue.
 func TestIntegrationsFilterAndSearch(t *testing.T) {
 	skipIfIntegrationsHidden(t)
 	f := newFakeStore()
@@ -347,7 +282,6 @@ func TestIntegrationsFilterAndSearch(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// The SIEM category shows Splunk/Elastic but not Slack (a Notify integration).
 	siem := integrationsBody(t, ac, base, "&cat=SIEM")
 	if !strings.Contains(siem, "Splunk") || strings.Contains(siem, ">Slack<") {
 		t.Errorf("SIEM filter did not narrow the grid; body: %s", siem)
@@ -358,10 +292,6 @@ func TestIntegrationsFilterAndSearch(t *testing.T) {
 	}
 }
 
-// The Integrations tab is admin-gated (it is reached only through /settings), and
-// its mutations are admin acts. A source is distinct from an integration: the
-// Sources tab carries the discovery-source catalogue, the Integrations tab the
-// third-party tiles, and neither bleeds into the other.
 func TestIntegrationsAdminGatedAndDistinctFromSources(t *testing.T) {
 	skipIfIntegrationsHidden(t)
 	f := newFakeStore()
@@ -369,7 +299,6 @@ func TestIntegrationsAdminGatedAndDistinctFromSources(t *testing.T) {
 	seedAccount(t, f, "viewer", roleViewer, "hunter2hunter2")
 	base := start(t, f, "")
 
-	// A viewer cannot install or disconnect, and no state is written.
 	vc := login(t, base, "viewer", "hunter2hunter2")
 	for _, path := range []string{"/settings/integrations/install", "/settings/integrations/disconnect"} {
 		resp := postForm(t, vc, base+path, url.Values{"slug": {"slack"}})
@@ -383,7 +312,6 @@ func TestIntegrationsAdminGatedAndDistinctFromSources(t *testing.T) {
 		t.Fatalf("a viewer mutated integration state; got %d", len(f.integrationStates))
 	}
 
-	// An anonymous mutation is bounced to login.
 	anon := newClient(t)
 	resp := postForm(t, anon, base+"/settings/integrations/install", url.Values{"slug": {"slack"}})
 	resp.Body.Close()
@@ -391,7 +319,6 @@ func TestIntegrationsAdminGatedAndDistinctFromSources(t *testing.T) {
 		t.Fatalf("anon install: status=%d loc=%q", resp.StatusCode, resp.Header.Get("Location"))
 	}
 
-	// Sources and Integrations are distinct tabs. The tab bar carries both.
 	ac := login(t, base, "admin", "hunter2hunter2")
 	tabBar := settingsBody(t, ac, base)
 	for _, tab := range []string{"tab=sources", "tab=integrations"} {
@@ -399,13 +326,10 @@ func TestIntegrationsAdminGatedAndDistinctFromSources(t *testing.T) {
 			t.Errorf("settings tab bar missing %q", tab)
 		}
 	}
-	// The Integrations tab has the tiles, not the source catalogue's proposers.
 	integ := integrationsBody(t, ac, base, "")
 	if strings.Contains(integ, "RIPEstat") || strings.Contains(integ, ">proposer<") {
 		t.Errorf("the Integrations tab bled the source catalogue in; body: %s", integ)
 	}
-	// The Sources tab still carries the discovery catalogue and not the tiles. It
-	// stays viewer-reachable at /sources.
 	src := settingsTabBody(t, ac, base, "sources")
 	if !strings.Contains(src, "crt.sh") || !strings.Contains(src, ">proposer<") {
 		t.Errorf("the Sources tab lost the discovery catalogue; body: %s", src)
