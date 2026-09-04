@@ -64,7 +64,7 @@ At the end of a wayfinder or implementation session, open a PR and make sure the
 - `gosec` and `govulncheck` BLOCK. `govulncheck` fails on any reachable advisory. `gosec` runs `-exclude-generated -severity high -confidence high`.
 - `test` runs `go vet` and `go test`.
 - `sqlc` runs `sqlc generate` then `git diff --exit-code -- internal/db`. Any migration or query change must ship regenerated `internal/db`.
-- Strict up-to-date policy. When you merge PRs in sequence, update each later branch (`gh pr update-branch <n>`) after an earlier merge. This re-triggers CI.
+- Strict up-to-date policy. When you merge PRs in sequence, update each later branch after an earlier merge. This re-triggers CI. `gh pr update-branch` does not exist in `gh` 2.45.0. Run `gh api --method PUT repos/winniel123/verge-asm/pulls/<n>/update-branch` instead.
 
 `go.mod` pins `go 1.26.8`. CI `GO_VERSION` and the Dockerfile base digest also pin 1.26.8. Do not use 1.27-only features. Do NOT add a `toolchain` directive equal to the `go` line — it breaks CI's `-mod=readonly` build.
 
