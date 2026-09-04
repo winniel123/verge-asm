@@ -7,21 +7,6 @@ import (
 	"testing"
 )
 
-// The ADR-0130 contract on the Settings SSO, sources and aperture tabs (map #969,
-// ticket #975). It is the same contract settings_prg_test.go asserts for the team,
-// channels and scans tabs, and it uses that file's submitLoc helper.
-//
-// Two of these tabs have a FOLDED read surface as well: /sources renders the same
-// section /settings?tab=sources does, and /verge-core the same one
-// /settings?tab=aperture does. Each folded page is therefore a legitimate submitting
-// URL and a legitimate landing, and both are exercised here.
-//
-// Every test runs with no JavaScript at all — Go's HTTP client executes none — so each
-// one is also the progressive-enhancement check the ticket asks for.
-
-// TestSSOSourcesAndAperturePagesCarryTheSubmittingURL is the emit half of ADR-0130 §3:
-// each of the five pages stamps its OWN path into the hidden field, so a folded surface
-// never sends the operator to the settings one.
 func TestSSOSourcesAndAperturePagesCarryTheSubmittingURL(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -44,9 +29,6 @@ func TestSSOSourcesAndAperturePagesCarryTheSubmittingURL(t *testing.T) {
 	}
 }
 
-// EVERY form on the SSO tab stamps the field, not only the first. Each of the five acts
-// has its own form, and one that missed the field would 303 to the tab fallback and drop
-// the operator's place — the class-E failure this map exists to close.
 func TestEverySSOFormCarriesTheSubmittingURL(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -56,20 +38,13 @@ func TestEverySSOFormCarriesTheSubmittingURL(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// The five forms: add provider, edit provider, replace secret, remove provider,
-	// remove identity binding.
 	page := getBody(t, ac, base+"/settings?tab=sso", http.StatusOK)
+	// A form that missed the field would fall back to the tab and drop the operator's place.
 	if got := strings.Count(page, `name="return" value="/settings?tab=sso"`); got != 5 {
 		t.Fatalf("the sso tab stamps the field %d times, want 5 (one per form); body: %s", got, page)
 	}
 }
 
-// A refused provider declaration is a 303 back to the operator's own tab, and the
-// message AND everything they typed render on the landing GET.
-//
-// The client secret is why the payload rides the session flash rather than the query: a
-// URL is written to the access log and kept in browser history. The secret is
-// write-only, so it is echoed nowhere at all.
 func TestRefusedSSOProviderCreateEchoesTypedValuesOnItsOwnTab(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -106,9 +81,6 @@ func TestRefusedSSOProviderCreateEchoesTypedValuesOnItsOwnTab(t *testing.T) {
 	}
 }
 
-// A refused provider EDIT keeps the operator on the SSO tab with the message visible.
-// The edit form is a row disclosure rather than a query-opened dialog, so there is no
-// modal to drop from the destination and nothing covers the callout.
 func TestRefusedSSOProviderEditLandsBackOnTheSSOTab(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -128,15 +100,11 @@ func TestRefusedSSOProviderEditLandsBackOnTheSSOTab(t *testing.T) {
 	if !strings.Contains(page, "could not be found") {
 		t.Fatalf("the refusal is not on the landing page; body: %s", page)
 	}
-	// The flash is single-consume, so a reload of the same URL shows a clean tab.
 	if again := getBody(t, ac, base+from, http.StatusOK); strings.Contains(again, "could not be found") {
 		t.Fatalf("the callout survived a reload; body: %s", again)
 	}
 }
 
-// A succeeding SSO act comes back to the submitting URL too. That is the point of the
-// contract: one destination rule for both outcomes, so a refusal is indistinguishable
-// from a success and the scroll offset survives either.
 func TestSucceedingSSOActsComeBackToTheSubmittingURL(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -170,16 +138,12 @@ func TestSucceedingSSOActsComeBackToTheSubmittingURL(t *testing.T) {
 	}
 }
 
-// A source state change comes back to the surface it was made on. The sources tab has
-// two landing GETs, and an act from the folded one must return there — on the success
-// and on the refusal alike.
 func TestSourceStateChangeComesBackToTheSubmittingURL(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// crt.sh ships on and executing (ADR-0106), so disabling it is an ordinary success.
 	if loc := submitLoc(t, postForm(t, ac, base+"/settings/sources", url.Values{
 		"id": {"crtsh"}, "enable": {"false"}, "return": {"/sources"},
 	})); loc != "/sources" {
@@ -189,8 +153,6 @@ func TestSourceStateChangeComesBackToTheSubmittingURL(t *testing.T) {
 		t.Fatalf("the disable did not persist: %+v", f.sourceStates["crtsh"])
 	}
 
-	// A refusal is a 303 to the same place, and the folded surface reads the flash, so
-	// the callout renders there rather than being dropped on the floor.
 	if loc := submitLoc(t, postForm(t, ac, base+"/settings/sources", url.Values{
 		"id": {"crtsh"}, "enable": {"maybe"}, "return": {"/sources"},
 	})); loc != "/sources" {
@@ -201,12 +163,8 @@ func TestSourceStateChangeComesBackToTheSubmittingURL(t *testing.T) {
 	}
 }
 
-// withConsentSource appends an operator-accepted source WITH a runner to the release
-// catalogue for the length of one test. Every operator-accepted entry the release ships
-// today also carries NoRunner (#241), so no live source opens the consent dialog and the
-// terms gate has no subject. The dialog and the gate are both still in the tree and both
-// still have to hold, so the test supplies the subject the catalogue does not.
 func withConsentSource(t *testing.T, slug, name string) {
+	// Every shipped operator-accepted source carries NoRunner, so the consent gate has no subject.
 	t.Helper()
 	before := sourceCatalog
 	sourceCatalog = append(append([]catalogSource(nil), sourceCatalog...), catalogSource{
@@ -217,17 +175,6 @@ func withConsentSource(t *testing.T, slug, name string) {
 	t.Cleanup(func() { sourceCatalog = before })
 }
 
-// The consent dialog's own form obeys the contract on both outcomes, and its acceptance
-// box is a real gate with JavaScript off.
-//
-// The submit button ships ENABLED — the ruling #971 made for the /signals declare
-// button — so an operator with no JavaScript can reach it. What stops an unaccepted
-// enable is the handler, not the disabled attribute: the box itself carries
-// `accept_terms`, and without it settingsSources refuses rather than applies.
-//
-// The `consent` parameter is dropped from the destination on either outcome
-// (dialogParams). A success would otherwise re-open the terms of a source just enabled,
-// and a refusal would leave its callout behind .st-scrim.
 func TestConsentDialogEnableObeysTheContract(t *testing.T) {
 	withConsentSource(t, "test-registry", "Test registry")
 	f := newFakeStore()
@@ -252,8 +199,6 @@ func TestConsentDialogEnableObeysTheContract(t *testing.T) {
 		t.Fatalf("the acceptance box does not carry accept_terms; body: %s", page)
 	}
 
-	// An unticked submit — what a JavaScript-off operator can send — is refused, and its
-	// callout lands on the tab with the dialog closed.
 	if loc := submitLoc(t, postForm(t, ac, base+"/settings/sources", url.Values{
 		"id": {"test-registry"}, "enable": {"true"}, "return": {dialog},
 	})); loc != tab {
@@ -270,7 +215,6 @@ func TestConsentDialogEnableObeysTheContract(t *testing.T) {
 		t.Fatalf("the landing re-opened the dialog over the message; body: %s", land)
 	}
 
-	// A ticked submit enables the source and closes the dialog.
 	if loc := submitLoc(t, postForm(t, ac, base+"/settings/sources", url.Values{
 		"id": {"test-registry"}, "enable": {"true"}, "accept_terms": {"true"}, "return": {dialog},
 	})); loc != tab {
@@ -281,9 +225,6 @@ func TestConsentDialogEnableObeysTheContract(t *testing.T) {
 	}
 }
 
-// The aperture port dial is this ticket's check on the flash carrier: a rejected port
-// comes back with the operator's typed value still in the input, AFTER a redirect rather
-// than from an inline render. Both of the tab's landing GETs serve it.
 func TestRejectedAperturePortEchoesTypedValueOnBothSurfaces(t *testing.T) {
 	for _, from := range []string{"/settings?tab=aperture", "/verge-core"} {
 		t.Run(from, func(t *testing.T) {
@@ -316,7 +257,6 @@ func TestRejectedAperturePortEchoesTypedValueOnBothSurfaces(t *testing.T) {
 	}
 }
 
-// A succeeding port dial comes back to the surface it was dialled from.
 func TestSucceedingAperturePortComesBackToTheSubmittingURL(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")

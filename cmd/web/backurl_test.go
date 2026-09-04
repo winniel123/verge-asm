@@ -10,11 +10,6 @@ import (
 	"testing"
 )
 
-// The submitting-URL carrier (backurl.go, ADR-0130 §3, ticket #971). These tests hold
-// three promises: the field carries the page's own URL, the guard admits only a
-// same-origin relative path this router serves, and an annotation act lands the
-// operator back on the exact list they acted from.
-
 func backSrv(t *testing.T) *server {
 	t.Helper()
 	srv := newServer(newFakeStore(), testKey, "", fixedClock())
@@ -32,9 +27,6 @@ func backPost(value string) *http.Request {
 	return r
 }
 
-// AC: the field carries the pathname plus the query, and nothing else. The single-
-// consume `toast` receipt is dropped, so returning to the URL cannot re-fire a toast
-// the operator has already seen.
 func TestBackURLCarriesPathAndQuery(t *testing.T) {
 	cases := []struct {
 		name string
@@ -65,13 +57,8 @@ func TestBackURLCarriesPathAndQuery(t *testing.T) {
 	}
 }
 
-// The scroll key ticket #970 set is a raw string compare on `location.pathname +
-// location.search`, so the carrier must not re-order the query. Rebuilding it through
-// url.Values.Encode() sorts it alphabetically and the stash then misses on the
-// landing — the class-C/E failure this map exists to close. These are the two orders
-// /signals actually emits: the filter form's DOM order and the severity link's order.
-// Neither is alphabetical.
 func TestBackURLPreservesQueryOrder(t *testing.T) {
+	// These are the query orders /signals emits, and none of them is alphabetical.
 	for _, in := range []string{
 		"/signals?tab=open&sev=High&sort=asset&dir=desc",
 		"/signals?tab=open&q=lame&sev=High&sort=asset&dir=desc",
@@ -84,7 +71,6 @@ func TestBackURLPreservesQueryOrder(t *testing.T) {
 	}
 }
 
-// AC: validation accepts only a same-origin relative path the router serves a GET at.
 func TestResolveBackAcceptsRoutedRelativePaths(t *testing.T) {
 	s := backSrv(t)
 	const fallback = "/signals"
@@ -103,9 +89,6 @@ func TestResolveBackAcceptsRoutedRelativePaths(t *testing.T) {
 	}
 }
 
-// AC: validation rejects an absolute URL, `//evil.example/x`, a backslash variant, and
-// any unrouted path. Every rejection falls back to the caller's own path, so a handler
-// is never left without a destination.
 func TestResolveBackRejectsAndFallsBack(t *testing.T) {
 	s := backSrv(t)
 	const fallback = "/signals"
@@ -139,10 +122,6 @@ func TestResolveBackRejectsAndFallsBack(t *testing.T) {
 	}
 }
 
-// A hand-crafted field must not plant a toast on the landing page. decodeToasts reads
-// only the FIRST `toast`, so a planted receipt would beat the real one the act fires
-// and put an operator-chosen system message on the screen. backURL never emits a
-// `toast`, so a legitimate value passes through untouched.
 func TestResolveBackStripsAPlantedToast(t *testing.T) {
 	s := backSrv(t)
 	planted := "eyJ0b25lIjoiZGFuZ2VyIiwidGl0bGUiOiJTZXNzaW9uIGV4cGlyZWQifQ"
@@ -161,7 +140,6 @@ func TestResolveBackStripsAPlantedToast(t *testing.T) {
 		}
 	}
 
-	// End to end: the act's own toast is the one that lands.
 	w := httptest.NewRecorder()
 	s.toastRedirectBack(w, backPost("/signals?tab=open&toast="+planted), "/signals", "ok", "Annotation declared", "")
 	dest := httptest.NewRequest(http.MethodGet, w.Header().Get("Location"), nil)
@@ -171,8 +149,6 @@ func TestResolveBackStripsAPlantedToast(t *testing.T) {
 	}
 }
 
-// A server whose handler() never ran has no route table, and the guard answers no
-// rather than trusting a path nothing checked.
 func TestResolveBackWithoutARouteTableFallsBack(t *testing.T) {
 	s := newServer(newFakeStore(), testKey, "", fixedClock())
 	if got := s.resolveBack(backPost("/signals?tab=open"), "/signals"); got != "/signals" {
@@ -183,8 +159,6 @@ func TestResolveBackWithoutARouteTableFallsBack(t *testing.T) {
 	}
 }
 
-// The catch-all `GET /` matches every path, but its handler answers 404 for anything
-// but the root. The guard must read it that way, or every unrouted path passes.
 func TestRouteServesGETReadsTheCatchAllHonestly(t *testing.T) {
 	s := backSrv(t)
 	if !s.routeServesGET("/") {
@@ -201,8 +175,6 @@ func TestRouteServesGETReadsTheCatchAllHonestly(t *testing.T) {
 	}
 }
 
-// AC: `Referer` is not read anywhere in the new path. A request that carries only a
-// Referer, and no field, falls back — the header is never a destination.
 func TestResolveBackIgnoresReferer(t *testing.T) {
 	s := backSrv(t)
 	r := backPost("")
@@ -212,9 +184,6 @@ func TestResolveBackIgnoresReferer(t *testing.T) {
 	}
 }
 
-// AC: the helper composes with toastRedirect and does not drop the submitting URL's
-// own query. The toast is appended with `&` onto a URL that already has a query, and
-// with `?` onto one that does not.
 func TestToastRedirectBackKeepsTheSubmittingQuery(t *testing.T) {
 	s := backSrv(t)
 	cases := []struct {
@@ -237,7 +206,6 @@ func TestToastRedirectBackKeepsTheSubmittingQuery(t *testing.T) {
 			if !strings.HasPrefix(loc, tc.wantPrefix) {
 				t.Fatalf("Location = %q, want the prefix %q", loc, tc.wantPrefix)
 			}
-			// The toast must be the destination's own, decodable where it lands.
 			dest := httptest.NewRequest(http.MethodGet, loc, nil)
 			if got := decodeToasts(dest); len(got) != 1 || got[0].Title != "Annotation declared" {
 				t.Errorf("the toast did not survive the compose: %+v", got)
@@ -246,8 +214,6 @@ func TestToastRedirectBackKeepsTheSubmittingQuery(t *testing.T) {
 	}
 }
 
-// AC: the shared partial emits the hidden field on a mutating form, carrying the
-// page's own pathname plus query. Both /signals annotation forms opt in.
 func TestSignalsFormsCarryTheSubmittingURL(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -265,14 +231,11 @@ func TestSignalsFormsCarryTheSubmittingURL(t *testing.T) {
 		t.Errorf("the declare form carries no submitting-URL field starting %q; body: %s", wantField, drawer)
 	}
 
-	// AC: with JavaScript off both acts still work, so neither submit button may ship
-	// disabled. The declare button's empty-reason disable is applied by the shell script
-	// on load; the markup itself must be submittable.
+	// The disable is applied by the shell script on load, so the markup itself must submit (#971).
 	if strings.Contains(drawer, "disabled data-anno-submit") || strings.Contains(drawer, "data-anno-submit disabled") {
 		t.Error("the declare submit button ships disabled; the act is then unreachable with JavaScript off")
 	}
 
-	// The withdraw form, on the Annotated tab's Drawer.
 	annotate(t, ac, base, "lame.example.com", "lame-delegation", "Accepted under OPS-1.").Body.Close()
 	annos, _ := f.ListAnnotations(t.Context())
 	anno := getBody(t, ac, base+"/signals?tab=annotated&view="+strconv.FormatInt(annos[0].ID, 10), http.StatusOK)
@@ -281,10 +244,6 @@ func TestSignalsFormsCarryTheSubmittingURL(t *testing.T) {
 	}
 }
 
-// AC: declaring and withdrawing an annotation from `/signals?…` lands the operator
-// back at that exact URL, with the filter intact. AC: with JavaScript off both acts
-// still work — nothing here runs a script; the field is markup and the answer is a
-// plain 303.
 func TestAnnotationActsLandBackOnTheSubmittingURL(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -325,8 +284,6 @@ func TestAnnotationActsLandBackOnTheSubmittingURL(t *testing.T) {
 	}
 }
 
-// A hostile field never reaches the Location header: the act still succeeds, and the
-// operator lands on the handler's own fallback rather than off-origin.
 func TestAnnotationActRefusesAnOffOriginReturn(t *testing.T) {
 	for _, hostile := range []string{"https://evil.example/x", "//evil.example/x", `/\evil.example`} {
 		t.Run(hostile, func(t *testing.T) {
@@ -349,7 +306,6 @@ func TestAnnotationActRefusesAnOffOriginReturn(t *testing.T) {
 			if got != "/signals" {
 				t.Errorf("declare with %q landed at %q, want the fallback /signals", hostile, got)
 			}
-			// The guard rejects the destination, never the act itself.
 			if n, _ := f.ListAnnotations(t.Context()); len(n) != 1 {
 				t.Errorf("declare with %q recorded %d annotations, want 1", hostile, len(n))
 			}
@@ -357,10 +313,6 @@ func TestAnnotationActRefusesAnOffOriginReturn(t *testing.T) {
 	}
 }
 
-// A report schedule act lands the operator back on the /reports list it was submitted
-// from, window and all (ticket #977). /reports carries the report window as ?start=&end=
-// or ?period=, so the bare "/reports" destination dropped that window on every Run now and
-// every Delete.
 func TestReportScheduleActsLandBackOnTheSubmittingURL(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -369,8 +321,7 @@ func TestReportScheduleActsLandBackOnTheSubmittingURL(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 
 	const from = "/reports?start=2026-01-01&end=2026-03-31"
-	// A stale id is the idempotent path — the act answers the contract's 303 rather than a
-	// 500 — so this exercises the destination without seeding a schedule row.
+	// A stale id is the idempotent path, so the destination is exercised with no schedule row.
 	resp := postForm(t, ac, base+"/reports/schedule/delete", url.Values{
 		"id": {"4242"}, backField: {from},
 	})
@@ -391,10 +342,6 @@ func TestReportScheduleActsLandBackOnTheSubmittingURL(t *testing.T) {
 	}
 }
 
-// The wizard threads the entry URL across every step, so the finishing 303 lands on the
-// list the operator opened it from (ticket #977). The wizard's own step URLs are never the
-// destination — finishing must LEAVE the wizard — which is why this one act reads its
-// return value from the entry link rather than from the page it is submitted on.
 func TestReportScheduleWizardThreadsTheEntryURL(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -404,13 +351,11 @@ func TestReportScheduleWizardThreadsTheEntryURL(t *testing.T) {
 
 	const from = "/reports?period=90d"
 
-	// The opening GET reads the entry URL off its own query and stamps it into the form.
 	wiz := getBody(t, ac, base+"/reports/schedule/new?return="+url.QueryEscape(from), http.StatusOK)
 	if !strings.Contains(wiz, `name="return" value="`+from+`"`) {
 		t.Fatalf("the wizard did not stamp the entry URL into its form; body: %s", wiz)
 	}
 
-	// A step advance carries it on to the next step's GET URL.
 	step := postForm(t, ac, base+"/reports/schedule/new", url.Values{
 		"step": {"0"}, "action": {"next"}, "name": {"Quarterly exposure"},
 		"sections": {"kpis"}, backField: {from},
@@ -420,7 +365,6 @@ func TestReportScheduleWizardThreadsTheEntryURL(t *testing.T) {
 		t.Errorf("the step advance dropped the entry URL; Location = %q", loc)
 	}
 
-	// The finish leaves the wizard for that list.
 	done := postForm(t, ac, base+"/reports/schedule/new", url.Values{
 		"step": {"3"}, "name": {"Quarterly exposure"}, "sections": {"kpis"},
 		"cad": {reportDefaultCad}, "channel": {"0"}, backField: {from},
@@ -431,10 +375,6 @@ func TestReportScheduleWizardThreadsTheEntryURL(t *testing.T) {
 	}
 }
 
-// An Inbox read act lands back on the filtered, message-open Inbox it was submitted from
-// (ticket #977). These three handlers used to pick between two allowlisted homes with a
-// carrier of their own (messageReturn), so a mark-read from /inbox?id=3&filter=unread
-// landed on a bare /inbox — the filter dropped and the open message closed.
 func TestInboxReadActsLandBackOnTheFilteredInbox(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -454,8 +394,6 @@ func TestInboxReadActsLandBackOnTheFilteredInbox(t *testing.T) {
 		}
 	}
 
-	// With no field the historical /messages home still answers: the viewer-readable fold
-	// these acts are shared with posts none.
 	resp := postForm(t, ac, base+"/messages/read", url.Values{"id": {"3"}})
 	resp.Body.Close()
 	if got := resp.Header.Get("Location"); got != messagesFallback {
@@ -463,11 +401,9 @@ func TestInboxReadActsLandBackOnTheFilteredInbox(t *testing.T) {
 	}
 }
 
-// firstViewKey pulls one row's Drawer key off a rendered Signals list, so a test can
-// open a Drawer without hardcoding a minted SIG id.
 func firstViewKey(t *testing.T, page string) string {
 	t.Helper()
-	// The row href is html-escaped, so the separator before `view=` reads `&amp;`.
+	// The row href is html-escaped, so the separator before view= reads &amp;.
 	m := regexp.MustCompile(`view=([^"&]+)`).FindStringSubmatch(page)
 	if m == nil {
 		t.Fatalf("no row Drawer link on the Signals page; body: %s", page)

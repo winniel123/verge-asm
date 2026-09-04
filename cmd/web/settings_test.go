@@ -12,15 +12,8 @@ import (
 
 func itoa(n int64) string { return strconv.FormatInt(n, 10) }
 
-// prgLanding follows a mutating act's 303 and returns the page it lands on.
-//
-// Under ADR-0130 (#971 §3, #972 §1, #974) a migrated console act answers 303 whether it
-// succeeded or was refused, and whatever it has to SAY — an inline callout, a minted
-// invite link, a confirmation line — rides the session form flash to the landing GET.
-// So every assertion about an act's message belongs on the page this returns, never on
-// the POST response, which carries no body at all. refusalPage is the same walk under
-// the name the refusal case reads better as.
 func prgLanding(t *testing.T, c *http.Client, base string, resp *http.Response) string {
+	// A 303 carries no body, so an act's message is asserted on this landing GET (ADR-0130 §1).
 	t.Helper()
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusSeeOther {
@@ -45,8 +38,6 @@ func settingsBody(t *testing.T, c *http.Client, base string) string {
 	return body(t, resp)
 }
 
-// settingsTabBody fetches one Settings sub-tab (#281): the seven sections are
-// query-param tabs, so a folded section renders at /settings?tab=<id>.
 func settingsTabBody(t *testing.T, c *http.Client, base, tab string) string {
 	t.Helper()
 	resp, err := c.Get(base + "/settings?tab=" + tab)
@@ -65,9 +56,6 @@ func TestSettingsIsAdminOnly(t *testing.T) {
 	seedAccount(t, f, "viewer", roleViewer, "hunter2hunter2")
 	base := start(t, f, "")
 
-	// A viewer is refused the whole destination — and Settings renders the richer
-	// settings-forbidden ErrorPage (U4, #481), not the plain 403: it names why
-	// (Settings is where declared acts live) and how a role is widened, at status 403.
 	vc := login(t, base, "viewer", "hunter2hunter2")
 	refused := getBody(t, vc, base+"/settings", http.StatusForbidden)
 	for _, want := range []string{"Admin only", "declared acts live", "Back to dashboard"} {
@@ -76,7 +64,6 @@ func TestSettingsIsAdminOnly(t *testing.T) {
 		}
 	}
 
-	// An anonymous request is bounced to login.
 	resp, err := newClient(t).Get(base + "/settings")
 	if err != nil {
 		t.Fatal(err)
@@ -86,9 +73,6 @@ func TestSettingsIsAdminOnly(t *testing.T) {
 		t.Fatalf("anon GET /settings: status=%d loc=%q", resp.StatusCode, resp.Header.Get("Location"))
 	}
 
-	// An admin reaches every sub-tab, and each folded section renders on its own
-	// tab. The Integrations tab is intentionally absent — that surface is hidden
-	// (#388, integrationsEnabled); see TestIntegrationsTabHidden.
 	ac := login(t, base, "admin", "hunter2hunter2")
 	page := settingsBody(t, ac, base)
 	for _, tab := range []string{"tab=scans", "tab=vantages", "tab=sso", "tab=team", "tab=audit", "tab=sources", "tab=aperture", "tab=instance", "tab=channels", "tab=messages", "tab=delivery"} {
@@ -119,8 +103,6 @@ func TestChannelCreateListAndSecretWriteOnly(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// Default: all three classes when none is unchecked would be sent by the
-	// form; here we send an explicit subset and a secret.
 	resp := postForm(t, ac, base+"/settings/channels", url.Values{
 		"url": {"https://hooks.example.com/verge"}, "coverage": {"on"}, "secret": {"s3cr3t-signing-key"},
 	})
@@ -140,7 +122,6 @@ func TestChannelCreateListAndSecretWriteOnly(t *testing.T) {
 		t.Errorf("secret not stored: %+v", ch.secret)
 	}
 
-	// The secret is write-only: the page shows it is set, never the value.
 	page := settingsTabBody(t, ac, base, "channels")
 	if strings.Contains(page, "s3cr3t-signing-key") {
 		t.Errorf("secret value leaked into the rendered page")
@@ -184,8 +165,6 @@ func TestChannelURLValidation(t *testing.T) {
 				resp.Body.Close()
 				return
 			}
-			// A refused create is a post-redirect-get since ADR-0130 §1 (#974): the
-			// message rides the session flash, so it is asserted on the landing GET.
 			if got := refusalPage(t, ac, base, resp); !strings.Contains(got, tc.wantMsg) {
 				t.Fatalf("landing page missing %q; body: %s", tc.wantMsg, got)
 			}
@@ -205,7 +184,6 @@ func TestChannelUpdateAndSecretLifecycle(t *testing.T) {
 	id := f.channels[0].id
 	idStr := itoa(id)
 
-	// A blank secret field keeps the stored one; the URL and classes update.
 	postForm(t, ac, base+"/settings/channels/update", url.Values{
 		"id": {idStr}, "url": {"https://b.example.com"}, "clock": {"on"}, "enabled": {"on"},
 	}).Body.Close()
@@ -251,7 +229,6 @@ func TestRoleAssignmentAndLastAdminGuard(t *testing.T) {
 		t.Fatalf("role not promoted; got %q", f.accounts[viewer.ID].Role)
 	}
 
-	// Now two admins: demoting one is allowed.
 	postForm(t, ac, base+"/settings/accounts/role", url.Values{
 		"id": {itoa(viewer.ID)}, "role": {roleViewer},
 	}).Body.Close()
@@ -267,9 +244,6 @@ func TestRoleAssignmentAndLastAdminGuard(t *testing.T) {
 	}
 }
 
-// The Team invite dialog mints an invite against T19's invite table (#313) — it no
-// longer creates an account directly. A minted invite carries the chosen role and a
-// hashed token, and the plaintext join link is revealed once in the response.
 func TestInviteMintsAgainstInviteTable(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -277,9 +251,6 @@ func TestInviteMintsAgainstInviteTable(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// The mint is a post-redirect-get (ADR-0130 §3, #974). The plaintext join link is a
-	// live credential, so it rides the session flash rather than the URL and is revealed
-	// once on the landing page.
 	page := prgLanding(t, ac, base, postForm(t, ac, base+"/settings/accounts", url.Values{"role": {roleViewer}}))
 
 	if len(f.invites) != 1 {
@@ -295,13 +266,9 @@ func TestInviteMintsAgainstInviteTable(t *testing.T) {
 	if !inv.InvitedBy.Valid || inv.InvitedBy.Int64 != adminID {
 		t.Errorf("invite not attributed to the issuing admin: %+v", inv.InvitedBy)
 	}
-	// No account is created directly — the invitee accepts the link and chooses their
-	// own credentials.
 	if len(f.accounts) != 1 {
 		t.Fatalf("invite created an account directly; accounts=%d", len(f.accounts))
 	}
-	// The join link is revealed once, and only its hash is stored (the plaintext
-	// never appears in the store).
 	if !strings.Contains(page, "/invite?token=") {
 		t.Errorf("join link not revealed; body: %s", page)
 	}
@@ -310,7 +277,6 @@ func TestInviteMintsAgainstInviteTable(t *testing.T) {
 	}
 }
 
-// An invite at an unknown role is refused, minting nothing.
 func TestInviteRejectsUnknownRole(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -326,9 +292,6 @@ func TestInviteRejectsUnknownRole(t *testing.T) {
 	}
 }
 
-// The change-role dialog's Save is disabled until the selected role differs from the
-// current one (Settings.jsx): opened on a viewer, the Save button renders disabled
-// and the select carries the current role as its baseline.
 func TestChangeRoleSaveDisabledUntilDiffers(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -345,12 +308,10 @@ func TestChangeRoleSaveDisabledUntilDiffers(t *testing.T) {
 	}
 }
 
-// Require re-enrollment clears the member's second factor; the next sign-in re-enrols.
 func TestRequireReenrollmentResetsTOTP(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	member := seedAccount(t, f, "member", roleViewer, "hunter2hunter2")
-	// Arm the member's second factor so the reset has something to clear.
 	m := f.accounts[member.ID]
 	m.TotpEnabled = true
 	m.TotpSecret = pgtype.Text{String: "SECRET", Valid: true}
@@ -368,8 +329,6 @@ func TestRequireReenrollmentResetsTOTP(t *testing.T) {
 	}
 }
 
-// Remove passes a typed-name gate, refuses self and the last admin, and removes on a
-// correct confirmation.
 func TestRemoveMemberTypedNameGate(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -377,7 +336,6 @@ func TestRemoveMemberTypedNameGate(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// A wrong typed name re-opens the dialog with an error and removes nothing.
 	resp := postForm(t, ac, base+"/settings/accounts/remove", url.Values{
 		"id": {itoa(member.ID)}, "confirm_name": {"wrong"},
 	})
@@ -388,7 +346,6 @@ func TestRemoveMemberTypedNameGate(t *testing.T) {
 		t.Fatalf("member removed despite a wrong confirmation")
 	}
 
-	// You cannot remove yourself.
 	resp = postForm(t, ac, base+"/settings/accounts/remove", url.Values{
 		"id": {itoa(admin.ID)}, "confirm_name": {"admin"},
 	})
@@ -408,7 +365,6 @@ func TestRemoveMemberTypedNameGate(t *testing.T) {
 	}
 }
 
-// The two-role copy names admin and viewer only — never an operator role.
 func TestTeamRolesCopyHasNoOperatorRole(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -421,7 +377,6 @@ func TestTeamRolesCopyHasNoOperatorRole(t *testing.T) {
 			t.Errorf("roles card missing %q", want)
 		}
 	}
-	// The invite dialog and roles card must never offer an "operator" role.
 	invite := getBody(t, ac, base+"/settings?tab=team&invite=1", http.StatusOK)
 	if strings.Contains(invite, ">operator<") || strings.Contains(invite, "value=\"operator\"") {
 		t.Errorf("an operator role appeared in the Team surface")
@@ -434,7 +389,6 @@ func TestRetentionPersistsAndValidates(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// Valid values persist — all three dials.
 	resp := postForm(t, ac, base+"/settings/retention", url.Values{
 		"observation_currency_days": {"90"}, "dispatch_cadence_multiple": {"4"},
 		"transcript_currency_days": {"30"},
@@ -451,10 +405,6 @@ func TestRetentionPersistsAndValidates(t *testing.T) {
 		t.Errorf("updated_by not attributed")
 	}
 
-	// Every refusal below is a post-redirect-get since ticket #978 (ADR-0130 §1): the
-	// 303 goes back to the tab the dials live on, and the callout and the typed values
-	// ride the session flash to that landing GET. refuse asserts the redirect and hands
-	// back the landing page the operator actually reads.
 	const deliveryTab = "/settings?tab=delivery"
 	refuse := func(what string, vals url.Values) string {
 		t.Helper()
@@ -464,7 +414,6 @@ func TestRetentionPersistsAndValidates(t *testing.T) {
 		return getBody(t, ac, base+deliveryTab, http.StatusOK)
 	}
 
-	// A negative value is refused and the previous value stands.
 	got := refuse("negative dial", url.Values{
 		"observation_currency_days": {"-1"}, "dispatch_cadence_multiple": {"4"},
 		"transcript_currency_days": {"30"},
@@ -476,10 +425,6 @@ func TestRetentionPersistsAndValidates(t *testing.T) {
 		t.Fatalf("rejected save mutated the dial: %+v", f.retention)
 	}
 
-	// An observation dial below the tightest bound in force is refused; the
-	// previous value stands. With the dns Scan (daily) enabled the tightest bound
-	// is k=2 daily cadences, so 1 day is below the floor. The floor is derived, not
-	// an operator choice (#208, ADR-0094).
 	got = refuse("below-floor observation dial", url.Values{
 		"observation_currency_days": {"1"}, "dispatch_cadence_multiple": {"4"},
 		"transcript_currency_days": {"30"},
@@ -491,9 +436,6 @@ func TestRetentionPersistsAndValidates(t *testing.T) {
 		t.Fatalf("rejected save mutated the observation dial: %+v", f.retention)
 	}
 
-	// A Dispatch multiple below the k=2 floor is refused; the previous value
-	// stands. The dial is a multiple of the slowest enabled Scan's cadence, so
-	// one cadence is below the floor.
 	got = refuse("below-floor dispatch dial", url.Values{
 		"observation_currency_days": {"90"}, "dispatch_cadence_multiple": {"1"},
 		"transcript_currency_days": {"30"},
@@ -505,9 +447,6 @@ func TestRetentionPersistsAndValidates(t *testing.T) {
 		t.Fatalf("rejected save mutated the dispatch dial: %+v", f.retention)
 	}
 
-	// A non-numeric transcript dial is refused and the previous value stands. The
-	// dial has no derived floor — a positive value is floored UP to 1 day by the
-	// retirer (#868), so only a non-numeric or negative value is rejected here.
 	got = refuse("non-numeric transcript dial", url.Values{
 		"observation_currency_days": {"90"}, "dispatch_cadence_multiple": {"4"},
 		"transcript_currency_days": {"soon"},
@@ -522,8 +461,6 @@ func TestRetentionPersistsAndValidates(t *testing.T) {
 		t.Fatalf("rejected save mutated the transcript dial: %+v", f.retention)
 	}
 
-	// Zero (unbounded) is always allowed on every dial — here the transcript dial's
-	// explicit operator opt-out (raw-job-output spec §4).
 	resp = postForm(t, ac, base+"/settings/retention", url.Values{
 		"observation_currency_days": {"90"}, "dispatch_cadence_multiple": {"0"},
 		"transcript_currency_days": {"0"},

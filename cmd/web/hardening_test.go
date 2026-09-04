@@ -15,19 +15,13 @@ import (
 	"github.com/winniel123/verge-asm/internal/auth"
 )
 
-// enableTOTP arms a real TOTP secret on a seeded account directly in the fake and
-// marks it enabled, so the throttle and replay tests can drive /login/totp without
-// walking the whole enrollment flow. It returns the secret so a test can render the
-// live code for it.
 func enableTOTP(t *testing.T, f *fakeStore, id int64) string {
 	t.Helper()
 	secret, err := auth.NewTOTPSecret()
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Store the secret exactly as the enable handler does (#337): encrypted at rest
-	// with the AEAD sub-key derived from the same test session key, so the login path's
-	// decrypt round-trips. The cleartext base32 is returned for rendering live codes.
+	// The enable handler encrypts before storage, so the login path's decrypt round-trips (#337).
 	totpKey, err := auth.DeriveTOTPKey(testKey)
 	if err != nil {
 		t.Fatal(err)
@@ -45,11 +39,6 @@ func enableTOTP(t *testing.T, f *fakeStore, id int64) string {
 	return secret
 }
 
-// --- #322: rate limit / lockout on the credential endpoints -----------------
-
-// TestPasswordBruteForceLocksOut is the password half of #322: repeated wrong
-// passwords lock the account, and once locked even the correct password is refused
-// and grants no session.
 func TestPasswordBruteForceLocksOut(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -60,8 +49,6 @@ func TestPasswordBruteForceLocksOut(t *testing.T) {
 		postForm(t, c, base+"/login", url.Values{"username": {"admin"}, "password": {"wrong"}}).Body.Close()
 	}
 
-	// The (N+1)th attempt is refused regardless of correctness: the CORRECT password
-	// now yields the lockout, not a session.
 	resp := postForm(t, c, base+"/login", url.Values{"username": {"admin"}, "password": {"hunter2hunter2"}})
 	got := body(t, resp)
 	if !strings.Contains(got, "Too many attempts") {
@@ -72,10 +59,6 @@ func TestPasswordBruteForceLocksOut(t *testing.T) {
 	}
 }
 
-// TestTOTPBruteForceLocksOut is the TOTP half of #322: a 6-digit code is otherwise
-// unboundedly guessable, so repeated wrong codes must lock the account and, at the
-// threshold, invalidate the pending cookie so the attacker cannot keep hammering
-// the same grant.
 func TestTOTPBruteForceLocksOut(t *testing.T) {
 	f := newFakeStore()
 	acct := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -95,14 +78,10 @@ func TestTOTPBruteForceLocksOut(t *testing.T) {
 	if !strings.Contains(last, "Too many attempts") {
 		t.Fatalf("TOTP not locked after 5 wrong codes; body: %s", last)
 	}
-	// The pending cookie is cleared at the threshold, so the half-finished flow
-	// cannot be re-presented.
 	if hasCookie(c, base, pendingCookie) {
 		t.Fatal("pending cookie survived the TOTP lockout")
 	}
 
-	// The account is now locked: a fresh, fully-correct sign-in is refused at the
-	// password step and grants nothing.
 	c2 := newClient(t)
 	got := body(t, postForm(t, c2, base+"/login", url.Values{"username": {"admin"}, "password": {"hunter2hunter2"}}))
 	if !strings.Contains(got, "Too many attempts") {
@@ -113,11 +92,6 @@ func TestTOTPBruteForceLocksOut(t *testing.T) {
 	}
 }
 
-// --- #323: TOTP codes are single-use within their validity window -----------
-
-// TestTOTPCodeNotReplayable is the #323 guarantee: a valid code completes login
-// once, advances the stored step, and the same code at the same clock is refused on
-// a second, independent sign-in — no replay within the ~90s window.
 func TestTOTPCodeNotReplayable(t *testing.T) {
 	f := newFakeStore()
 	acct := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -141,7 +115,6 @@ func TestTOTPCodeNotReplayable(t *testing.T) {
 		t.Fatalf("stored totp_last_step did not advance: %+v", got.TotpLastStep)
 	}
 
-	// Second, independent sign-in reusing the SAME code at the SAME clock: refused.
 	cB := newClient(t)
 	postForm(t, cB, base+"/login", url.Values{"username": {"admin"}, "password": {"hunter2hunter2"}}).Body.Close()
 	got := body(t, postForm(t, cB, base+"/login/totp", url.Values{"code": {code}}))
@@ -153,12 +126,6 @@ func TestTOTPCodeNotReplayable(t *testing.T) {
 	}
 }
 
-// --- #339: TOTP single-use is atomic under concurrency ----------------------
-
-// TestTOTPCodeSingleUseUnderConcurrency is the #339 guarantee: the single-use spend
-// is an atomic conditional UPDATE, not a read-then-write, so two independent logins
-// presenting the SAME valid code at the SAME instant cannot both complete — at most
-// one receives a session cookie. It complements the sequential TestTOTPCodeNotReplayable.
 func TestTOTPCodeSingleUseUnderConcurrency(t *testing.T) {
 	f := newFakeStore()
 	acct := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -218,13 +185,6 @@ func TestTOTPCodeSingleUseUnderConcurrency(t *testing.T) {
 	}
 }
 
-// --- #337: totp_secret is encrypted at rest ---------------------------------
-
-// TestTOTPSecretEncryptedAtRest is the #337 guarantee: the enrollment secret is
-// encrypted before it reaches storage (ADR-0053, no cleartext secrets in Postgres),
-// so the raw stored column neither equals nor contains the cleartext base32 — yet
-// verification still succeeds through the encrypt/decrypt round-trip on both the
-// confirm and the login read paths.
 func TestTOTPSecretEncryptedAtRest(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -239,7 +199,6 @@ func TestTOTPSecretEncryptedAtRest(t *testing.T) {
 	}
 	secret := m[1]
 
-	// The raw stored column is ciphertext: it must not equal or contain the base32.
 	rec, err := f.GetAccountByID(t.Context(), admin.ID)
 	if err != nil {
 		t.Fatal(err)
@@ -251,7 +210,6 @@ func TestTOTPSecretEncryptedAtRest(t *testing.T) {
 	if stored == secret || strings.Contains(stored, secret) {
 		t.Fatalf("totp secret stored in cleartext: stored=%q contains/equals secret=%q", stored, secret)
 	}
-	// And it decrypts back to the exact secret under the file-backed AEAD sub-key.
 	totpKey, err := auth.DeriveTOTPKey(testKey)
 	if err != nil {
 		t.Fatal(err)
@@ -260,8 +218,6 @@ func TestTOTPSecretEncryptedAtRest(t *testing.T) {
 		t.Fatalf("stored ciphertext did not decrypt to the secret: dec=%q err=%v", dec, derr)
 	}
 
-	// Verification round-trips: confirm enables 2FA, and a fresh login accepts the code
-	// via the decrypt read path.
 	code, _ := auth.TOTPCode(secret, now)
 	if got := body(t, postForm(t, ac, base+"/account/totp/confirm", url.Values{"code": {code}})); !strings.Contains(got, "Recovery codes") {
 		t.Fatalf("confirm did not enable via the encrypt/decrypt round-trip; body: %s", got)
@@ -276,17 +232,11 @@ func TestTOTPSecretEncryptedAtRest(t *testing.T) {
 	}
 }
 
-// TestTOTPLegacyCleartextSecretFailsLoud is the #337 rework: the login path must NOT
-// tolerate a legacy pre-#337 cleartext totp_secret. An account whose stored secret is
-// raw base32 (never valid ciphertext) cannot be decrypted, and that is a hard fault —
-// surfaced as a 500 with no session granted, never silently masked as an "Incorrect
-// code." verification miss.
 func TestTOTPLegacyCleartextSecretFailsLoud(t *testing.T) {
 	f := newFakeStore()
 	acct := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 
-	// A legacy row: the cleartext base32 secret stored directly, as a pre-#337 enrolment
-	// would have — NOT run through EncryptTOTPSecret.
+	// A pre-#337 install stored the base32 directly; this is that legacy row.
 	secret, err := auth.NewTOTPSecret()
 	if err != nil {
 		t.Fatal(err)
@@ -300,8 +250,6 @@ func TestTOTPLegacyCleartextSecretFailsLoud(t *testing.T) {
 
 	base := start(t, f, "")
 
-	// serverError logs the fault; capture the log so the expected line does not noise up
-	// the test output, and so we can assert the cleartext secret itself is never logged.
 	var buf bytes.Buffer
 	log.SetOutput(&buf)
 	t.Cleanup(func() { log.SetOutput(os.Stderr) })
@@ -325,10 +273,6 @@ func TestTOTPLegacyCleartextSecretFailsLoud(t *testing.T) {
 	}
 }
 
-// --- #328: password-reset plaintext token is not logged by default ----------
-
-// TestForgotDoesNotLogPlaintextToken covers #328 (CWE-532): a reset request logs
-// the account and the reset-record id, but never the bearer token, by default.
 func TestForgotDoesNotLogPlaintextToken(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -341,12 +285,9 @@ func TestForgotDoesNotLogPlaintextToken(t *testing.T) {
 	postForm(t, newClient(t), base+"/forgot", url.Values{"username": {"admin"}}).Body.Close()
 
 	out := buf.String()
-	// The bearer token — the whole point of the leak — must not appear.
 	if strings.Contains(out, "token=") {
 		t.Fatalf("plaintext reset token was logged by default; log: %s", out)
 	}
-	// But the request is still recorded, by username and reset id, so an operator can
-	// still act on it out of band.
 	if !strings.Contains(out, "password reset requested for") || !strings.Contains(out, "admin") {
 		t.Fatalf("reset request was not recorded by username/id; log: %s", out)
 	}
