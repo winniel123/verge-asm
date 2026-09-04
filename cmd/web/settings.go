@@ -239,7 +239,7 @@ func dialogParams(tab string) []string {
 }
 
 func (s *server) backToSection(w http.ResponseWriter, r *http.Request, section string) {
-	// A refusal lands exactly where a success does, so the shell restores the offset (ADR-0130 §3).
+	// A refusal lands exactly where a success does, so the shell restores the offset (ADR-0130 §1).
 	tab := tabForSection(section)
 	dest := s.resolveBack(r, "/settings?tab="+tab)
 	http.Redirect(w, r, stripDestParams(dest, dialogParams(tab)...), http.StatusSeeOther)
@@ -1304,7 +1304,7 @@ func toRetentionView(ret db.GetRetentionSettingsRow, accounts []db.ListAccountsR
 	return v
 }
 
-// Only these tiers enumerate an address scope, so only they take per-address load (ADR-0047).
+// Only an address scope is its own enumeration, so only these tiers walk per address (ADR-0047).
 
 var addressScopeScanKinds = map[string]bool{"hot": true, "cold": true}
 
