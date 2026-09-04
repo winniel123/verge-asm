@@ -9,12 +9,6 @@ import (
 	"time"
 )
 
-// fixtureDevPackage mirrors the slices of design-system/fixtures/fixtures.json the
-// dev harness affordances pin in code: the deterministic incident id and the login
-// accounts. This test is the byte-exactness gate BEFORE the pixel harness — a drift
-// between the frozen fixture and the constants devfixtures.go pins (which drive the
-// 500 golden and the per-state session mint) fails here rather than in a screenshot
-// diff, exactly as inventory_fixture_test.go guards the inventory corpus.
 type fixtureDevPackage struct {
 	Accounts []struct {
 		Username    string `json:"username"`
@@ -39,9 +33,6 @@ func loadFixtureDevPackage(t *testing.T) fixtureDevPackage {
 	return f
 }
 
-// TestDevFixturesMatchPackage asserts the dev constants never drift from the frozen
-// package: the deterministic incident id and every seeded account (username, role,
-// password) equal fixtures.json's, in order.
 func TestDevFixturesMatchPackage(t *testing.T) {
 	f := loadFixtureDevPackage(t)
 
@@ -111,12 +102,6 @@ func loadFixtureProfilePackage(t *testing.T) fixtureProfilePackage {
 	return f
 }
 
-// TestProfileFixtureMatchesPackage is the byte-exactness gate for the screen-3 seed: every
-// value devfixtures.go pins is folded back through the frozen fixtures.json → profile slice
-// (and the pinned clock), and the clock-relative / UA-derived renders are reproduced with
-// the real formatters (relTime, sessionDeviceFromUA) — so any drift between the seeder and
-// the frozen package fails here rather than in a screenshot, exactly as
-// TestDevFixturesMatchPackage guards the ErrorPage slice.
 func TestProfileFixtureMatchesPackage(t *testing.T) {
 	f := loadFixtureProfilePackage(t)
 	p := f.Profile
@@ -152,7 +137,6 @@ func TestProfileFixtureMatchesPackage(t *testing.T) {
 		t.Errorf("minted token drift: fixtures.json = %q, devFixtureMintedToken = %q", p.MintedTokenFixture, devFixtureMintedToken)
 	}
 
-	// Sessions — device (derived from the seeded UA), ip, relative last-active, current.
 	if len(p.Sessions) != len(devProfileSessions) {
 		t.Fatalf("session count drift: fixtures.json = %d, seeder = %d", len(p.Sessions), len(devProfileSessions))
 	}
@@ -170,7 +154,6 @@ func TestProfileFixtureMatchesPackage(t *testing.T) {
 		}
 	}
 
-	// SSO — one Okta identity, Google linkable.
 	if len(p.SSOIdentities) != 1 || p.SSOIdentities[0].Provider != devProfileSSOProviderName ||
 		p.SSOIdentities[0].DisplayName != devProfileSSODisplayName || p.SSOIdentities[0].LinkedAt != devProfileSSOLinkedAt {
 		t.Errorf("sso identity drift: fixtures.json = %+v, seeder = {%q,%q,%q}",
@@ -181,7 +164,6 @@ func TestProfileFixtureMatchesPackage(t *testing.T) {
 			p.SSOProviders, devProfileLinkableSlug, devProfileLinkableName)
 	}
 
-	// Tokens — name, prefix, date-only created, relative last-used.
 	if len(p.Tokens) != len(devProfileTokens) {
 		t.Fatalf("token count drift: fixtures.json = %d, seeder = %d", len(p.Tokens), len(devProfileTokens))
 	}
@@ -191,8 +173,7 @@ func TestProfileFixtureMatchesPackage(t *testing.T) {
 			t.Errorf("token[%d] drift: fixtures.json = {%q,%q,%q,%q}, seeder = {%q,%q,%q,%q}",
 				i, want.Name, want.Prefix, want.Created, want.Last, got.name, got.prefix, got.created, got.last)
 		}
-		// A never-used token (fixtures.json last:null → "", #390) seeds a NULL last_used_at
-		// and renders "never" — there is no relative token to reproduce.
+		// A JSON null unmarshals to "", so a never-used token has no relative time to reproduce.
 		if want.Last == "" {
 			if !got.lastNull {
 				t.Errorf("token[%d] %q has null fixture last but seeder lastNull=false", i, want.Name)
@@ -223,12 +204,6 @@ type fixtureSigninPackage struct {
 	} `json:"signin"`
 }
 
-// TestSigninFixtureMatchesPackage is the byte-exactness gate for the screen-4 conversion: every
-// value devfixtures.go pins is folded back through the frozen fixtures.json → signin slice, so a
-// drift between the seed/dev affordances and the frozen package fails here rather than in a
-// screenshot diff — exactly as TestProfileFixtureMatchesPackage guards the Profile slice. It
-// also asserts the repo's Mark derivation reproduces the fixture's mark, and that the recovery
-// count matches the enrolment count.
 func TestSigninFixtureMatchesPackage(t *testing.T) {
 	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
 	if err != nil {
@@ -259,7 +234,6 @@ func TestSigninFixtureMatchesPackage(t *testing.T) {
 		t.Errorf("enroll secret drift: fixtures.json = %q, devFixtureEnrollSecret = %q", s.EnrollSecret, devFixtureEnrollSecret)
 	}
 
-	// Providers — slug, name, and the repo-derived Mark all equal the fixture, in order.
 	if len(s.SSOProviders) != len(devSigninProviders) {
 		t.Fatalf("provider count drift: fixtures.json = %d, devSigninProviders = %d", len(s.SSOProviders), len(devSigninProviders))
 	}
@@ -274,7 +248,6 @@ func TestSigninFixtureMatchesPackage(t *testing.T) {
 		}
 	}
 
-	// Recovery codes — exact set + order, and the count matches the enrolment count.
 	if len(s.RecoveryCodes) != len(devFixtureRecoveryCodes) {
 		t.Fatalf("recovery count drift: fixtures.json = %d, devFixtureRecoveryCodes = %d", len(s.RecoveryCodes), len(devFixtureRecoveryCodes))
 	}
@@ -295,11 +268,6 @@ type fixtureSetupPackage struct {
 	} `json:"setup"`
 }
 
-// TestSetupFixtureMatchesPackage is the byte-exactness gate for the screen-5 conversion: the
-// setup token devfixtures.go pins (devFixtureSetupToken) equals the frozen fixtures.json →
-// setup.token, and the fixture's seed variant is the "empty" one the capture harness + dev route
-// realize — so a drift between the dev affordance and the frozen package fails here rather than
-// in a screenshot diff, exactly as TestSigninFixtureMatchesPackage guards the SignIn slice.
 func TestSetupFixtureMatchesPackage(t *testing.T) {
 	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
 	if err != nil {
@@ -317,10 +285,8 @@ func TestSetupFixtureMatchesPackage(t *testing.T) {
 	}
 }
 
-// fixtureCoveragePackage mirrors the fixtures.json coverage slice the screen-6 dev fixture pins
-// in devfixtures.go (devCoverageMeters/Messages/Gaps/Unevaluables/StaleZones). total and bound are
-// pointers/optional so an absent JSON key (a name-scope census meter; a message with no staleness
-// figure) round-trips as nil/"".
+// The JSON omits total for a name-scope meter and bound for a message with no staleness figure.
+
 type fixtureCoveragePackage struct {
 	Coverage struct {
 		Meters []struct {
@@ -357,12 +323,6 @@ type fixtureCoveragePackage struct {
 	} `json:"coverage"`
 }
 
-// TestCoverageFixtureMatchesPackage is the byte-exactness gate for the screen-6 conversion: every
-// value the dev fixture pins (devfixtures.go, served by coveragePage under devMode) equals the
-// frozen fixtures.json coverage slice, in authored order — so a drift between the served candidate
-// and the golden (which composes the same fixture statically) fails here rather than in a
-// screenshot diff, exactly as TestSigninFixtureMatchesPackage guards the SignIn slice. It also
-// asserts the *int total round-trips (address scope set, name scope nil), the anchor of #19c.
 func TestCoverageFixtureMatchesPackage(t *testing.T) {
 	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
 	if err != nil {
@@ -448,11 +408,6 @@ type fixtureExposurePackage struct {
 	} `json:"exposure"`
 }
 
-// TestExposureFixtureMatchesPackage is the byte-exactness gate for the screen-7 conversion: every
-// value the dev fixture pins (devfixtures.go, served by exposurePage under devMode) equals the
-// frozen fixtures.json exposure slice, in authored order — so a drift between the served candidate
-// and the golden (which composes the same fixture statically) fails here rather than in a
-// screenshot diff, exactly as TestCoverageFixtureMatchesPackage guards the Coverage slice.
 func TestExposureFixtureMatchesPackage(t *testing.T) {
 	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
 	if err != nil {
@@ -534,13 +489,6 @@ type fixtureDriftPackage struct {
 	} `json:"drift"`
 }
 
-// TestDriftFixtureMatchesPackage is the byte-exactness gate for the screen-8 conversion: every
-// value the dev fixture serves (devfixtures.go driftFixtureData, served by driftPage under
-// devMode) equals the frozen fixtures.json drift slice, in authored order — so a drift between
-// the served candidate and the golden (which composes the same fixture statically) fails here
-// rather than in a screenshot diff, exactly as TestExposureFixtureMatchesPackage guards Exposure.
-// It also pins the code-owned vocabulary the tmpl's .Periods/.Kinds holes are fed from
-// (driftPeriods / driftKinds) to the fixture's presets and change kinds.
 func TestDriftFixtureMatchesPackage(t *testing.T) {
 	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
 	if err != nil {
@@ -580,7 +528,6 @@ func TestDriftFixtureMatchesPackage(t *testing.T) {
 		t.Errorf("transition_delta drift: fixtures.json = %q, pinned = %q", d.TransitionDelta, devDriftTransitionDelta)
 	}
 
-	// The transition count must equal the movement tally sum (the "This period" card total).
 	sum := 0
 	for _, v := range d.Movement {
 		sum += v
@@ -589,8 +536,6 @@ func TestDriftFixtureMatchesPackage(t *testing.T) {
 		t.Errorf("transition_count %d != movement sum %d", devDriftTransitionCount, sum)
 	}
 
-	// Range-picker presets: driftPeriods() feeds the .Periods hole, so it must equal the
-	// fixture's presets in authored order.
 	periods := driftPeriods()
 	if len(d.Periods) != len(periods) {
 		t.Fatalf("periods length drift: fixtures.json = %d, driftPeriods = %d", len(d.Periods), len(periods))
@@ -601,7 +546,6 @@ func TestDriftFixtureMatchesPackage(t *testing.T) {
 		}
 	}
 
-	// Change vocabulary: driftKinds() feeds the .Kinds hole (and the Movement/legend order).
 	kinds := driftKinds()
 	if len(d.Kinds) != len(kinds) {
 		t.Fatalf("kinds length drift: fixtures.json = %d, driftKinds = %d", len(d.Kinds), len(kinds))
@@ -621,7 +565,6 @@ func TestDriftFixtureMatchesPackage(t *testing.T) {
 		}
 	}
 
-	// Batch groups, in authored order, with events and diffs.
 	if len(d.Groups) != len(devDriftGroups) {
 		t.Fatalf("groups length drift: fixtures.json = %d, pinned = %d", len(d.Groups), len(devDriftGroups))
 	}
@@ -690,11 +633,6 @@ type fixtureRunDetailPackage struct {
 	} `json:"rundetail"`
 }
 
-// TestRunDetailFixtureMatchesPackage is the byte-exactness gate for the screen-9 conversion: every
-// value the dev fixture pins (devfixtures.go, served by runPage under devMode) equals the frozen
-// fixtures.json rundetail slice, in authored order — so a drift between the served candidate and the
-// golden (which composes the same fixture statically) fails here rather than in a screenshot diff,
-// exactly as TestCoverageFixtureMatchesPackage guards the Coverage slice.
 func TestRunDetailFixtureMatchesPackage(t *testing.T) {
 	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
 	if err != nil {
@@ -853,12 +791,6 @@ type fixtureScopePackage struct {
 	} `json:"scope"`
 }
 
-// TestScopeFixtureMatchesPackage is the byte-exactness gate for the screen-10 conversion: every
-// value the dev fixture pins (devfixtures.go, served by seedsPage/declareSeed/previewExclusion
-// under devMode) equals the frozen fixtures.json scope slice, in authored order — so a drift
-// between the served candidate and the golden (which composes the same fixture statically) fails
-// here rather than in a screenshot diff, exactly as TestExposureFixtureMatchesPackage guards the
-// Exposure slice.
 func TestScopeFixtureMatchesPackage(t *testing.T) {
 	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
 	if err != nil {
@@ -1078,9 +1010,7 @@ func TestSignalsFixtureMatchesPackage(t *testing.T) {
 			devSignalsOpenCount, devSignalsShown, devSignalsPageInfo, devSignalsPageCount, devSignalsDetectedBy)
 	}
 
-	// The span-history derivation depends on two literals embedded in history_rule: the fixed
-	// discovery instant and the detecting vantage. Assert both appear there so the derivation stays
-	// tied to the frozen fixture (history is a rule, not an authored array).
+	// The span history is a derivation, not an authored array, so only its embedded literals pin.
 	if !strings.Contains(sig.HistoryRule, devSignalsDiscovered) {
 		t.Errorf("history_rule missing pinned discovery instant %q: %q", devSignalsDiscovered, sig.HistoryRule)
 	}
@@ -1136,10 +1066,8 @@ func TestSignalsFixtureMatchesPackage(t *testing.T) {
 	}
 }
 
-// fixtureDashboardPackage mirrors the fixtures.json dashboard slice the screen-11 dev fixture pins in
-// devfixtures.go, plus the signals.rows the most-recent register reuses. counted is a RawMessage
-// because the JSON is mixed (a number for the address scope, a pre-formatted string for the name
-// scope); total is a pointer so the name-scope census (no denominator) round-trips as nil.
+// The address scope's counted is a number and the name scope's a pre-formatted string.
+
 type fixtureDashboardPackage struct {
 	Dashboard struct {
 		ScanSchedule struct {
@@ -1207,12 +1135,6 @@ func dashCountedStr(raw json.RawMessage) string {
 	return s
 }
 
-// TestDashboardFixtureMatchesPackage is the byte-exactness gate for the screen-11 conversion: every
-// value the dev fixture pins (devfixtures.go, served by home() under devMode) equals the frozen
-// fixtures.json dashboard slice, in authored order — so a drift between the served candidate and the
-// golden (which composes the same fixture statically) fails here rather than in a screenshot diff. It
-// also folds the most-recent register back through the fixtures.json signals.rows the note points at
-// (first six), confirming the deep-link ViewKey resolves the Signals drawer.
 func TestDashboardFixtureMatchesPackage(t *testing.T) {
 	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
 	if err != nil {
@@ -1300,8 +1222,6 @@ func TestDashboardFixtureMatchesPackage(t *testing.T) {
 		}
 	}
 
-	// Most-recent register: the pinned dashRecentSignals() equals the first six fixtures.json
-	// signals.rows, each carrying the deep-link ViewKey the Signals drawer resolves.
 	if len(f.Signals.Rows) < 6 {
 		t.Fatalf("signals.rows has %d rows, dashboard register needs >= 6", len(f.Signals.Rows))
 	}
@@ -1369,9 +1289,6 @@ type fixtureAssetPackage struct {
 	} `json:"asset"`
 }
 
-// TestAssetFixtureMatchesPackage folds every pinned AssetDetail dev-fixture value back
-// through design-system/fixtures/fixtures.json → asset, so the VERGE_DEV render the
-// pixel goldens capture can never drift from the frozen package (#581).
 func TestAssetFixtureMatchesPackage(t *testing.T) {
 	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
 	if err != nil {
@@ -1642,9 +1559,6 @@ func assertSubjectTimelines(t *testing.T, name string, a []fixtureSubjectTimelin
 	}
 }
 
-// TestSubjectDetailFixtureMatchesPackage folds every pinned SubjectDetail dev-fixture value back
-// through design-system/fixtures/fixtures.json → subjectdetail, so the VERGE_DEV render the pixel
-// goldens capture can never drift from the frozen package (#582).
 func TestSubjectDetailFixtureMatchesPackage(t *testing.T) {
 	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
 	if err != nil {
@@ -1741,9 +1655,6 @@ type fixtureGraphPackage struct {
 	} `json:"graph"`
 }
 
-// TestGraphFixtureMatchesPackage folds every pinned Graph dev-fixture value back through
-// design-system/fixtures/fixtures.json -> graph, so the VERGE_DEV render the pixel goldens
-// capture can never drift from the frozen package (#583).
 func TestGraphFixtureMatchesPackage(t *testing.T) {
 	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
 	if err != nil {
