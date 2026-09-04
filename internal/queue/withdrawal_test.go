@@ -26,9 +26,6 @@ func withdrawalRow(id int64, kind, key string) db.ListAddressExclusionWithdrawal
 
 func thirdParty(netip.Addr) custody.Custody { return custody.ThirdParty }
 
-// coveringAddressExclusion is the address analogue nameExcluded had no twin for
-// (#1032): containment is the family-matched prefix test, and a name or subtree
-// exclusion covers no Address.
 func TestCoveringAddressExclusion(t *testing.T) {
 	exclusions := []db.ListExclusionsRow{
 		nameExclusion("example.com"),
@@ -40,7 +37,7 @@ func TestCoveringAddressExclusion(t *testing.T) {
 		want string
 	}{
 		{"198.51.100.200", "198.51.100.128/25"},
-		{"198.51.100.127", ""}, // below the excluded half
+		{"198.51.100.127", ""},
 		{"203.0.113.5", ""},
 		{"2001:db8::1", "2001:db8::/32"},
 		{"2001:db9::1", ""},
@@ -54,16 +51,11 @@ func TestCoveringAddressExclusion(t *testing.T) {
 			t.Errorf("coveringAddressExclusion(%s) = %q, want %q", tt.addr, got, tt.want)
 		}
 	}
-	// A name exclusion alone covers no address, whatever the address is.
 	if coveringAddressExclusion(netip.MustParseAddr("198.51.100.200"), []db.ListExclusionsRow{nameExclusion("example.com")}) != nil {
 		t.Error("a name exclusion covers no Address")
 	}
 }
 
-// The withdrawal states its two counts with their factors, never as a product: a
-// subject holding two timelines is ONE subject withdrawn and TWO timelines
-// removed (message.NarrowingReceipt). The message fires at the declared Seed scope
-// the excluded ground sits inside, which is the site the preview already names.
 func TestComposeAddressWithdrawalsCountsSubjectsAndTimelines(t *testing.T) {
 	in := membershipInputs{
 		seeds:      []db.ListSeedsRow{addressSeed("198.51.100.0/24")},
@@ -102,17 +94,13 @@ func TestComposeAddressWithdrawalsCountsSubjectsAndTimelines(t *testing.T) {
 	}
 }
 
-// ADR-0133 §1: an address inside an excluded range that a custody extension ALSO
-// reaches still derives operator and is still probed. It has not left the estate,
-// so its timelines stay open. Closing them would reopen and re-close them every
-// cadence, because the enumeration never stopped walking it.
 func TestComposeAddressWithdrawalsKeepsAnExtensionReachedAddress(t *testing.T) {
 	in := membershipInputs{
 		seeds:      []db.ListSeedsRow{addressSeed("198.51.100.0/24")},
 		exclusions: []db.ListExclusionsRow{addressExclusion("198.51.100.128/25")},
 	}
 	rows := []db.ListAddressExclusionWithdrawalsRow{
-		withdrawalRow(1, "address", "198.51.100.200"), // the extension reaches this one
+		withdrawalRow(1, "address", "198.51.100.200"),
 		withdrawalRow(2, "address", "198.51.100.201"),
 	}
 	reached := netip.MustParseAddr("198.51.100.200")
@@ -133,8 +121,6 @@ func TestComposeAddressWithdrawalsKeepsAnExtensionReachedAddress(t *testing.T) {
 	}
 }
 
-// Where the extension reaches every excluded address, nothing leaves and no
-// message fires — the receipt does not fire on an empty withdrawn set.
 func TestComposeAddressWithdrawalsSilentWhereTheExtensionHoldsEverything(t *testing.T) {
 	in := membershipInputs{exclusions: []db.ListExclusionsRow{addressExclusion("198.51.100.128/25")}}
 	rows := []db.ListAddressExclusionWithdrawalsRow{withdrawalRow(1, "address", "198.51.100.200")}
@@ -151,8 +137,6 @@ func TestComposeAddressWithdrawalsSilentWhereTheExtensionHoldsEverything(t *test
 	}
 }
 
-// Two declared exclusions are two acts, so they are two receipts and two messages —
-// never one merged count over a scope neither of them names.
 func TestComposeAddressWithdrawalsGroupsPerExclusion(t *testing.T) {
 	in := membershipInputs{
 		seeds: []db.ListSeedsRow{addressSeed("198.51.100.0/24"), addressSeed("203.0.113.0/24")},
@@ -179,9 +163,6 @@ func TestComposeAddressWithdrawalsGroupsPerExclusion(t *testing.T) {
 	}
 }
 
-// The most specific covering scope wins where declared scopes nest, mirroring
-// FindCoveringAddressSeed, so the act and the preview name the same firing site.
-// Where no declared scope covers the exclusion the excluded value is the site.
 func TestNarrowingScope(t *testing.T) {
 	seeds := []db.ListSeedsRow{addressSeed("198.51.0.0/16"), addressSeed("198.51.100.0/24")}
 	if got := narrowingScope(netip.MustParsePrefix("198.51.100.128/25"), seeds); got != "198.51.100.0/24" {
@@ -195,14 +176,11 @@ func TestNarrowingScope(t *testing.T) {
 	}
 }
 
-// A row this fold cannot attribute to a declared Exclusion is DROPPED, not closed.
-// A closure with no mover to name is a withdrawal the operator cannot trace back to
-// their own act, so the safe reading is to leave the timeline open.
 func TestComposeAddressWithdrawalsDropsAnUnattributableRow(t *testing.T) {
 	in := membershipInputs{exclusions: []db.ListExclusionsRow{addressExclusion("198.51.100.128/25")}}
 	rows := []db.ListAddressExclusionWithdrawalsRow{
 		withdrawalRow(1, "address", "not-an-address"),
-		withdrawalRow(2, "address", "203.0.113.5"), // no exclusion covers it
+		withdrawalRow(2, "address", "203.0.113.5"),
 		withdrawalRow(3, "name", "www.example.com"),
 		withdrawalRow(4, "address", "198.51.100.200"),
 	}
@@ -217,9 +195,6 @@ func TestComposeAddressWithdrawalsDropsAnUnattributableRow(t *testing.T) {
 	}
 }
 
-// Nothing withdrawn is nothing to do: no span closes and no receipt is collected,
-// which is what makes the fold idempotent. The closure is what removes the row from
-// the query's answer, so the batch after the withdrawal reads none.
 func TestComposeAddressWithdrawalsIsEmptyWithNoRows(t *testing.T) {
 	spanIDs, receipts := composeAddressWithdrawals(nil, membershipInputs{
 		exclusions: []db.ListExclusionsRow{addressExclusion("198.51.100.128/25")},
@@ -229,9 +204,6 @@ func TestComposeAddressWithdrawalsIsEmptyWithNoRows(t *testing.T) {
 	}
 }
 
-// hasAddressExclusion is the guard that keeps the withdrawal read off a batch that
-// cannot withdraw anything — the shipped default, where no address exclusion is
-// declared at all.
 func TestHasAddressExclusion(t *testing.T) {
 	if (membershipInputs{}).hasAddressExclusion() {
 		t.Error("an empty corpus declares no address exclusion")
@@ -246,8 +218,6 @@ func TestHasAddressExclusion(t *testing.T) {
 	}
 }
 
-// The receipt the fold collects is the SAME value the producer fires from, so the
-// act and the preview render one sentence through one constructor.
 func TestComposeAddressWithdrawalsRendersThroughPreviewNarrowing(t *testing.T) {
 	in := membershipInputs{
 		seeds:      []db.ListSeedsRow{addressSeed("198.51.100.0/24")},
