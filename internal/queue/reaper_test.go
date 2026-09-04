@@ -28,8 +28,6 @@ func TestStaleCutoff(t *testing.T) {
 	}
 }
 
-// The reaper threshold must sit above the probe timeout, or a job that is
-// legitimately mid-probe could be reaped as dead while its probe is still running.
 func TestStaleThresholdExceedsProbeTimeout(t *testing.T) {
 	if DefaultStaleJobThreshold <= DefaultProbeTimeout {
 		t.Fatalf("DefaultStaleJobThreshold (%s) must exceed DefaultProbeTimeout (%s), else a "+

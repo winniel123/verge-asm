@@ -14,8 +14,6 @@ func TestGetEntriesURL(t *testing.T) {
 	}
 }
 
-// TestDataTileURL confirms a full tile is served at the bare path and the head (partial)
-// tile carries the `.p/<W>` suffix with its current width (#877, §4.3).
 func TestDataTileURL(t *testing.T) {
 	full := dataTileURL("https://mon.example/2026h2/", 1234, 256)
 	if full != "https://mon.example/2026h2/tile/data/x001/234" {
@@ -45,9 +43,6 @@ func TestCTDriftLabel(t *testing.T) {
 	}
 }
 
-// TestCTHTTPCause confirms a non-200 is marked safe to surface verbatim (the code and
-// endpoint carry no source detail), while a transport error stays redacted to a generic
-// phrase — the same discipline the crt.sh path applies (#780).
 func TestCTHTTPCause(t *testing.T) {
 	safe := ctHTTPCause(nil, 502, "get-sth")
 	if got := redactCause(safe); !strings.Contains(got, "502") || !strings.Contains(got, "get-sth") {
