@@ -15,46 +15,14 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
-// The RunDetail screen (screen 9, #565/#566) is served byte-for-byte from the frozen
-// design-owned design-system/templates/rundetail.tmpl (package v3.8.0, WORKFLOW v4),
-// which replaces the repo-authored templates_rundetail.go const (deleted). The tmpl
-// keeps the "run" define and the .Run struct, renders inside the full app chrome
-// ({{template "chrome" .}}), and styles against the design token vocabulary — so the
-// render opts in with DesignTokens:true (the "head" block inlines tokens/*.css only
-// then). rundetail.tmpl auto-embeds through designfs's existing templates/*.tmpl glob,
-// so no designfs.go change is needed.
-//
-// Reconciliations SPEC-CHANGE #20 (ruled): the Outcome card is the spec's — .Completed/
-// .Dead RETIRE in favour of .Transitions + .NewSignals, the read-side join of the
-// derived stores (transitions folded from THIS batch's diff, signals first raised in
-// it) per the 2026-08-24 binding ruling (#20a); joinRunOutcome builds it below. ADR-0041's
-// corpus separation for dispatch EXECUTION stands — the comparison path is untouched; this
-// only JOINS derived stores on the read path. .Degraded becomes nullable {Vantage,Detail}
-// (#20). Log levels render as colored text, not level pills (#20e — encoded in the frozen
-// tmpl). The "run-missing" define RETIRES (#20d): a missing run routes to error.tmpl's
-// missing-run kind (renderMissingRun, landed screen 2), never a rundetail-local define.
+// The queue corpus is Operational, so no read on this page reaches the comparison path (ADR-0041).
+
 var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/rundetail.tmpl"))
 
-// The Scans monitor (#245, v1 spec §4.1): a read-only window onto the queue so an
-// operator can see a scan is in flight and how far along it is, without querying
-// Postgres directly. Dispatch, queue_job and batch are Operational — they record
-// what the system did, never what is true of the estate — so this page reads them
-// freely and the drift engine never sees this read (CONTEXT.md, ADR-0041).
-//
-// The monitor read is a viewer act. The on-demand trigger (#252, ask 3 of #245)
-// is the one mutation this page hosts: an admin may dispatch an enabled scan now,
-// and it appears in flight here. The trigger's handler, guardrails and panel live
-// in scantrigger.go; scansPage only assembles the panel's read-side data.
-
-// scansHistoryLimit bounds the Dispatch read. A Dispatch is one fan-out of one
-// Scan, so recent history is short; 50 covers every enabled Scan's last several
-// cadences without paging.
 const scansHistoryLimit = 50
 
 type dispatchView struct {
-	ID int64
-	// Href is the run-detail link (/runs/{dispatch}) the Running-now scan kind and the
-	// history rows carry (DF-F3): every dispatch in the recent window has a run page.
+	ID           int64
 	Href         string
 	ScanKind     string
 	DispatchedAt string
@@ -65,20 +33,10 @@ type dispatchView struct {
 	Dead         int64
 	Percent      int
 	Active       bool
-	// Status is the Dispatch's recorded disposition (DF-F4b): 'fanned-out' for a natural
-	// run, or the operator-ended 'stopped' / 'terminated' the stop/terminate acts write.
-	// buildRunView passes it to runStatusLabel so a stopped/terminated drill-in renders
-	// its real terminal badge instead of the live-derived one.
-	Status string
-	// Rollup is the active card's state-chip summary (#961, SPEC §2.3). It replaces the
-	// per-job rows the card used to draw, so the card no longer grows with fan-out.
-	Rollup jobRollup
+	Status       string
+	Rollup       jobRollup
 }
 
-// jobRollup summarises one Dispatch's jobs by state for the Running-now card: a count
-// per chip, and the Dispatch's total job count for the "View all N jobs" drill button.
-// A superseded (retried) attempt gets no chip — run detail owns that detail — but it
-// still counts toward Total, because run detail lists every job the Dispatch fanned out.
 type jobRollup struct {
 	Ready   int
 	Running int
@@ -87,10 +45,8 @@ type jobRollup struct {
 	Total   int
 }
 
-// toJobRollup folds a Dispatch's job states into the card's chip counts (#961). It
-// reads the state off each job through a caller-supplied accessor, so the live handler
-// and the dev fixture path fold their different job shapes exactly the same way.
 func toJobRollup[T any](jobs []T, state func(T) string) jobRollup {
+	// Run detail owns a superseded attempt: no chip, but Total counts it (scans-monitor-bounding §2).
 	r := jobRollup{Total: len(jobs)}
 	for _, job := range jobs {
 		switch state(job) {
@@ -119,30 +75,12 @@ type jobView struct {
 	Batch       string
 }
 
-// scansPage renders the queue monitor as the Settings scans sub-tab (#281): the
-// Scans currently in flight with their per-job progress, and recent completed
-// Dispatches beneath as history. With nothing dispatched it shows an idle state —
-// a fact and the next action — never an error or a blank. A viewer reads it.
-// It is also a landing page of the ADR-0130 §1 post-redirect-get: the cold-tier
-// opt-in renders here as well as on /settings?tab=scans, so an operator can submit it
-// from this URL and a refusal must be able to show its callout here. It therefore takes
-// the session form flash the same way settingsPage does.
 func (s *server) scansPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	s.renderSettings(w, r, acct, s.takeSettingsFlash(r, "scans"))
 }
 
-// fillScansSection assembles the Settings scans sub-tab's read-side data: the
-// in-flight Dispatches with their state-chip rollup, the recent history, the
-// self-refresh flag while a scan is running, and — for an admin — the on-demand
-// trigger panel (#252), whose "in flight" markers reuse the active kinds computed
-// here. A failed panel build degrades to an absent panel rather than 500ing the
-// read-only monitor a viewer depends on.
 func (s *server) fillScansSection(r *http.Request, acct db.Account, f settingsForms, data map[string]any) error {
 	ctx := r.Context()
-	// The full-range (cold) tier opt-in, relocated from /scope (#21d): every declared
-	// scope with its opt-in state, and whether the tier is on (at least one scope in).
-	// Best-effort — a read failure degrades the region to no scopes rather than 500ing
-	// the whole tab. The coldError echo comes from a rejected opt-in POST.
 	if seeds, serr := s.store.ListSeeds(ctx); serr == nil {
 		if optedIn, oerr := s.store.ListColdScopeSeedIds(ctx); oerr == nil {
 			data["ColdScopes"] = toColdScopeViews(toSeedViews(seeds), optedIn)
@@ -151,10 +89,6 @@ func (s *server) fillScansSection(r *http.Request, acct db.Account, f settingsFo
 	}
 	data["ColdError"] = f.coldError
 
-	// The address-scope cap control (#888 / Settings #206, ADR-0127, Variant C — the
-	// policy-forward dial). Best-effort like the cold-tier region above: a read failure
-	// drops the card rather than 500ing the whole Scans tab. Its POST is
-	// /settings/address-cap; a rejected value re-renders here through capError/capValue.
 	if cfg, cerr := s.store.GetInstanceConfig(ctx); cerr == nil {
 		if scans, serr := s.store.ListScans(ctx); serr == nil {
 			if accounts, aerr := s.store.ListAccounts(ctx); aerr == nil {
@@ -170,11 +104,6 @@ func (s *server) fillScansSection(r *http.Request, acct db.Account, f settingsFo
 	}
 	data["CapError"] = f.capError
 
-	// Active and History read separately (#962, SPEC §3/§4). They were one capped read
-	// split in this handler, so a burst of in-flight jobs ate the shared 50 and silently
-	// shrank completed history. The Active read carries no cap — few Scans run at once,
-	// so reality bounds it — and the History read owns the scansHistoryLimit window
-	// outright. The two queries are exact complements, so a Dispatch appears in one.
 	activeRows, err := s.store.ListActiveDispatchProgress(ctx)
 	if err != nil {
 		return err
@@ -189,18 +118,13 @@ func (s *server) fillScansSection(r *http.Request, acct db.Account, f settingsFo
 		if err != nil {
 			return err
 		}
-		// The card renders no per-job rows (#961, SPEC §2.2): the jobs are read only
-		// to fold into the state-chip counts and the drill button's total. The per-job
-		// live-log link that served the removed table went with it — run detail
-		// (/runs/{dispatch}) still carries one per row.
+		// A per-job row regrows with fan-out, so the card renders none (scans-monitor-bounding §2).
 		dv.Rollup = toJobRollup(jobs, func(j db.ListJobsForDispatchRow) string { return j.State })
 		active = append(active, dv)
 	}
 	data["Active"] = active
 
-	// History is fetched one row past its cap (LIMIT N+1). A full extra row means older
-	// dispatches exist beyond the window, which is what the truncation callout reports;
-	// the extra row is then dropped, so the visible depth stays exactly scansHistoryLimit.
+	// The two reads are exact complements, so a Dispatch is listed once (scans-monitor-bounding §3).
 	historyRows, err := s.store.ListConcludedDispatchProgress(ctx, scansHistoryLimit+1)
 	if err != nil {
 		return err
@@ -217,12 +141,6 @@ func (s *server) fillScansSection(r *http.Request, acct db.Account, f settingsFo
 	data["Truncated"] = truncated
 	data["HistoryLimit"] = scansHistoryLimit
 
-	// The stop / terminate PRG dialogs (DF-F4): an admin opens one by navigating
-	// ?stop={id} or ?terminate={id}. The dialog reads its counts live from the already-
-	// gathered Active rows — Pending is the ready jobs, Running the running jobs — so
-	// no extra read is needed. Only an in-flight dispatch owns a dialog, so the Active
-	// read is the guard: a ?stop for a concluded or unknown id finds no row and renders
-	// none (the POST guards it too). Admin-only, matching the row controls that link here.
 	if acct.Role == roleAdmin {
 		q := r.URL.Query()
 		if id, ok := parseDispatchID(q.Get("stop")); ok {
@@ -242,9 +160,6 @@ func (s *server) fillScansSection(r *http.Request, acct db.Account, f settingsFo
 			}
 		}
 	}
-	// A meta refresh keeps the in-flight view current as jobs complete, since the
-	// page is server-rendered with no client runtime; it runs only while a scan is
-	// in flight, so the idle page does not spin.
 	data["Refresh"] = len(active) > 0
 
 	if acct.Role == roleAdmin {
@@ -257,8 +172,6 @@ func (s *server) fillScansSection(r *http.Request, acct db.Account, f settingsFo
 	return nil
 }
 
-// parseDispatchID reads a dispatch id from a query or form value, refusing the empty,
-// unparseable, or non-positive so a hand-crafted ?stop=/?terminate= is a clean no-op.
 func parseDispatchID(raw string) (int64, bool) {
 	if raw == "" {
 		return 0, false
@@ -270,11 +183,8 @@ func parseDispatchID(raw string) (int64, bool) {
 	return id, true
 }
 
-// activeProgressRows and concludedProgressRows re-shape the split monitor reads (#962)
-// onto the shared progress row. The three queries select identical columns, but sqlc
-// emits one row type per query, so this narrowing keeps a single toDispatchView fold
-// and a single findDispatchRow lookup instead of duplicating either per row type.
 func activeProgressRows(rows []db.ListActiveDispatchProgressRow) []db.ListDispatchProgressRow {
+	// sqlc emits one row type per query, so the three identical reads narrow here to one fold.
 	out := make([]db.ListDispatchProgressRow, 0, len(rows))
 	for _, r := range rows {
 		out = append(out, db.ListDispatchProgressRow{
@@ -300,11 +210,6 @@ func concludedProgressRows(rows []db.ListConcludedDispatchProgressRow) []db.List
 	return out
 }
 
-// findDispatchRow locates one dispatch's progress row in a progress read. The stop and
-// terminate acts pass the uncapped Active read (#962), so an in-flight dispatch is found
-// however busy the queue is, and a concluded one is absent from that read and so refused.
-// Run detail passes both halves in turn, which is what keeps every row the monitor lists
-// resolvable. A dispatch that is in neither read is not found — never fabricated.
 func findDispatchRow(rows []db.ListDispatchProgressRow, id int64) (db.ListDispatchProgressRow, bool) {
 	for i := range rows {
 		if rows[i].DispatchID == id {
@@ -314,19 +219,10 @@ func findDispatchRow(rows []db.ListDispatchProgressRow, id int64) (db.ListDispat
 	return db.ListDispatchProgressRow{}, false
 }
 
-// concludedFlash stashes the shared "already concluded" danger toast for a stop/terminate
-// aimed at an unknown or already-terminal dispatch, and redirects back to the URL the
-// confirm was submitted from. It is the honest refusal: nothing was ended because there was
-// nothing in flight to end.
 func (s *server) concludedFlash(w http.ResponseWriter, r *http.Request, acct db.Account, detail string) {
 	s.toastBackToSection(w, r, acct.ID, "scans", "danger", "Dispatch already concluded", detail)
 }
 
-// stopScan gracefully ends a Dispatch in flight (DF-F4). Its pending (ready) jobs are
-// cancelled — they leave the claimable set at once, since ClaimJob selects state='ready'
-// alone — while its running jobs are left to finish and commit their batches (nothing
-// already observed is discarded). The dispatch is recorded 'stopped'. Admin-gated
-// (requireAdmin) exactly as the trigger is; a non-admin POST is 403 before this runs.
 func (s *server) stopScan(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, ok := parseDispatchID(r.FormValue("id"))
 	if !ok {
@@ -340,13 +236,11 @@ func (s *server) stopScan(w http.ResponseWriter, r *http.Request, acct db.Accoun
 	}
 	row, found := findDispatchRow(activeProgressRows(rows), id)
 	if !found {
-		// Unknown id, or a dispatch that already finished or was already ended: the Active
-		// read lists only in-flight dispatches, and the disabled cold tier is never in
-		// flight, so this also refuses a stop aimed at it.
 		s.concludedFlash(w, r, acct, "It has already finished or been ended — nothing was stopped.")
 		return
 	}
 	pid := pgtype.Int8{Int64: id, Valid: true}
+	// ClaimJob selects state='ready' alone, so a cancelled job leaves the claimable set at once.
 	n, err := s.store.CancelReadyJobsForDispatch(r.Context(), pid)
 	if err != nil {
 		s.serverError(w, "stop scan: cancel pending jobs", err)
@@ -356,18 +250,11 @@ func (s *server) stopScan(w http.ResponseWriter, r *http.Request, acct db.Accoun
 		s.serverError(w, "stop scan: record status", err)
 		return
 	}
-	// Running jobs are left to finish (the stop contract); the row's running count at
-	// action time is how many are finishing.
 	desc := fmt.Sprintf("%d pending %s cancelled · %d running finishing",
 		n, plural(int(n), "job", "jobs"), row.Running)
 	s.toastBackToSection(w, r, acct.ID, "scans", "neutral", "Dispatch stopped", desc)
 }
 
-// terminateScan hard-kills a Dispatch in flight (DF-F4). Both its pending AND running
-// jobs are cancelled; a running job's guarded terminal write then affects no row and the
-// worker rolls its transaction back, so its uncommitted batch and observations are
-// discarded (internal/queue/worker.go). Batches already committed stand — observations are
-// append-only. The dispatch is recorded 'terminated'. Admin-gated like the trigger.
 func (s *server) terminateScan(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, ok := parseDispatchID(r.FormValue("id"))
 	if !ok {
@@ -379,13 +266,12 @@ func (s *server) terminateScan(w http.ResponseWriter, r *http.Request, acct db.A
 		s.serverError(w, "terminate scan: list dispatches", err)
 		return
 	}
-	// The row itself is not read here — terminate reports the count the cancel actually
-	// affected, not a pre-action count — so only its presence in the Active read matters.
 	if _, found := findDispatchRow(activeProgressRows(rows), id); !found {
 		s.concludedFlash(w, r, acct, "It has already finished or been ended — nothing was terminated.")
 		return
 	}
 	pid := pgtype.Int8{Int64: id, Valid: true}
+	// An observation is append-only, so a terminate discards only staged work (raw-job-output §2.4).
 	n, err := s.store.CancelActiveJobsForDispatch(r.Context(), pid)
 	if err != nil {
 		s.serverError(w, "terminate scan: cancel jobs", err)
@@ -399,13 +285,6 @@ func (s *server) terminateScan(w http.ResponseWriter, r *http.Request, acct db.A
 	s.toastBackToSection(w, r, acct.ID, "scans", "neutral", "Scan terminated", desc)
 }
 
-// Run detail (#297, T2) — the per-run drill-in ported from
-// design-system/examples/console/RunDetail.jsx. A "run" is one Dispatch (a fan-out
-// of one Scan); the screen reads the same Operational queue corpus the Scans
-// monitor does (ADR-0041 bars it from the comparison path, so it never reports
-// drift or signal counts). It is the destination of a Drift "Batch detail" entry —
-// the route `/run/{id}` is stable so T16 can link straight to it.
-
 type runStage struct {
 	Num     int
 	Title   string
@@ -415,72 +294,43 @@ type runStage struct {
 	Last    bool
 }
 
-// runLogLine is one line of the batch log — one queue job's event: its id tag, an
-// optional level (a dead job is an error, a superseded or retrying attempt a warn),
-// and the terse text (kind · state · vantage · batch). JobID carries the source
-// queue-job id so the per-job filter (DF-F3b, ?job={id}) can narrow the log
-// server-side; the tmpl reads Tag/Level/Text and Href, never JobID.
 type runLogLine struct {
 	JobID int64
 	Tag   string
-	Level string // "" | "warn" | "error"
+	Level string
 	Text  string
-	// Href is the ?job={id} route the tag links to, set by linkRunLog (#1083). Empty
-	// renders the tag as plain text — the tmpl guards it with {{if .Href}}.
-	Href string
+	Href  string
 }
 
-// runJobFilter is the loghead per-job filter chip (DF-F3b): the queue-job the log is
-// narrowed to (its id, kind and — where it has one — vantage) and the bare run route
-// the × clears back to. Nil on runView renders no chip ({{with .JobFilter}}); the
-// filter itself is applied server-side (applyJobFilter), never in the tmpl.
 type runJobFilter struct {
 	ID        int64
 	Kind      string
 	Vantage   string
 	ClearHref string
-	// RawHref is the admin-only "Raw output (admin)" destination for this job — the
-	// dedicated verbatim Transcript view (#866, spec §6). The frozen chip renders it
-	// only under {{if $.IsAdmin}}, so a viewer never sees it. It is the bare run route
-	// plus /raw?job={id}; the raw handler is itself requireAdmin, so the gate holds
-	// even if the link leaks.
-	RawHref string
+	RawHref   string
 }
 
 type runKV struct {
 	K, V string
 }
 
-// runVantage is one vantage's health in this run: the vantage that looked, a
-// latency (not stored, so "—"), and a status folded from its jobs (degraded if any
-// dead-lettered, else ok). It is a vantage, never a probe/scanner/agent.
 type runVantage struct {
 	Name    string
 	Latency string
-	Status  string // "ok" | "degraded"
+	Status  string
 }
 
-// runDegraded is the nullable Outcome callout datum (#20): the vantage that fell
-// short in this batch and the terse reason ("missed 2 of 3 checks"). Nil renders
-// nothing — the frozen tmpl's {{with .Degraded}} guards it. The tmpl supplies the
-// surrounding sentence, so Detail carries only the middle clause.
 type runDegraded struct {
 	Vantage string
-	Detail  string
+	Detail  string // rundetail.tmpl wraps this in its own sentence, so it is the middle clause only
 }
 
-// runView is one Dispatch shaped for the Run detail drill-in: the header identity
-// and batch status, the four sections' data, the batch-joined Outcome (transitions +
-// new signals, #20a), and the nullable degraded-vantage callout.
 type runView struct {
-	ID     int64
-	Title  string // the dispatched instant — the h1 and breadcrumb id
-	Status string // "running" | "complete" | "failed" (BatchStatus)
-	Scope  string
-	Meta   string
-	// Transitions / NewSignals are the Outcome card's batch join (#20a, ruled):
-	// transitions folded from THIS batch's diff stage and signals first raised in it,
-	// rendered as strings. Both read "—" until the run's diff stage has concluded.
+	ID          int64
+	Title       string
+	Status      string
+	Scope       string
+	Meta        string
 	Transitions string
 	NewSignals  string
 	Active      bool
@@ -488,54 +338,23 @@ type runView struct {
 	Log         []runLogLine
 	Params      []runKV
 	Vantages    []runVantage
-	// Degraded is nullable (#20): a *runDegraded, nil where no vantage fell short.
-	Degraded  *runDegraded
-	JobFilter *runJobFilter
-	// StreamHref is the per-job stdout long-poll endpoint the frozen rundetail.tmpl
-	// tails while a job is running (R4-D7 #761). It is nullable — empty when no job is
-	// streaming — and left "" here: with it empty the tmpl's {{if .StreamHref}} blocks
-	// skip and the static log renders. The actual long-poll endpoint is a separate
-	// follow-up for #761; this field only satisfies the frozen template's hole.
-	StreamHref string
+	Degraded    *runDegraded
+	JobFilter   *runJobFilter
+	StreamHref  string
 }
 
-// runPage renders the per-run drill-in. The run id is a Dispatch id; the dispatch
-// is found in the same recent-history read the monitor uses (no new store method),
-// so a run that has aged out of history 404s to the run-missing page rather than
-// fabricating a record. A viewer reads it — like the Scans monitor, it is a
-// read-only window onto the Operational queue.
 func (s *server) runPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	raw := r.PathValue("id")
 
-	// VERGE_DEV pixel-parity path (#565/#566). The frozen rundetail.tmpl renders the run
-	// 1407 drill-in — the four done stages, the 7-line log (one warn, one error), the
-	// Outcome card (7 transitions · 3 new signals), the nullable ap-south-1 degraded
-	// callout, the 5 params and the 3 vantages — a curated corpus whose exact figures are
-	// the design's, not a live-queue read. Reproducing them from the live derivations would
-	// mean fabricating domain data, which SPEC-CHANGE forbids — so, exactly as the
-	// Exposure/Coverage screens pin their dev fixture and serve it under devMode with a
-	// drift test (TestRunDetailFixtureMatchesPackage), runPage serves the pinned
-	// fixtures.json → rundetail slice for the completed fixture id (1407) here, and the
-	// running-run demo for 1409 (#35). The pinned MISSING id (1408) and any other id route
-	// to the missing-run ErrorPage — the #20d wiring — so the "run-missing" state is proven
-	// end-to-end. A real deployment (devMode == false) falls through to the honest live
-	// reads + batch join below.
 	if s.devMode {
 		if raw == devRunDetailID {
 			s.render(w, r, "run", s.runDetailFixtureData(acct))
 			return
 		}
-		// The running run (DF-F3/F3b) drill-in: SPEC-CHANGE #35 gave the Settings active
-		// dispatch its own id, 1409 (fixtures.json), distinct from the error screen's
-		// missing-run demo, which keeps 1408. So /runs/1409 now routes to the live-tail
-		// running fixture (re-enabled with package v3.17.0) and gets its own G2 golden
-		// (rundetail·running), while bare /runs/1408 stays the missing-run route the frozen
-		// error golden pins. The ?job= per-job filter rides through to runningRunFixtureData.
 		if raw == devRunningRunID {
 			s.render(w, r, "run", s.runningRunFixtureData(acct, r.URL.Query().Get("job"), r.URL.Path))
 			return
 		}
-		// Any other id (1408, the pinned MISSING id) routes to the missing-run ErrorPage.
 		s.renderMissingRun(w, r, acct, raw)
 		return
 	}
@@ -546,11 +365,7 @@ func (s *server) runPage(w http.ResponseWriter, r *http.Request, acct db.Account
 		return
 	}
 
-	// Run detail resolves off the same two reads the monitor lists from (#962), so every
-	// row the monitor shows has a run page. Active is tried first — an in-flight dispatch
-	// is the common drill-in and that read is uncapped — then the dedicated history
-	// window. Before the split both halves came from one capped read; keeping run detail
-	// on that read would have 404'd the history rows a busy queue pushed past its 50.
+	// Run detail resolves off the monitor's own two reads, so every listed row has a run page (#962).
 	activeRows, err := s.store.ListActiveDispatchProgress(r.Context())
 	if err != nil {
 		s.serverError(w, "run detail: list dispatches", err)
@@ -566,8 +381,6 @@ func (s *server) runPage(w http.ResponseWriter, r *http.Request, acct db.Account
 		found, ok = findDispatchRow(concludedProgressRows(historyRows), id)
 	}
 	if !ok {
-		// A dispatch that has aged past the history window is genuinely unlisted; the
-		// missing-run screen says so rather than rendering a half-known run.
 		s.renderMissingRun(w, r, acct, raw)
 		return
 	}
@@ -582,19 +395,10 @@ func (s *server) runPage(w http.ResponseWriter, r *http.Request, acct db.Account
 	view := s.buildRunView(r, dv, jobRows)
 	s.render(w, r, "run", map[string]any{
 		"Title": "batch " + view.Title, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "drift",
-		// rundetail.tmpl styles against the design token vocabulary; the "head" block
-		// inlines tokens/*.css only when this datum is set (as Coverage/Exposure do).
+		"NavActive":    "drift",
 		"DesignTokens": true,
-		// While the run is in flight the head's meta-refresh hole tails the log on a
-		// cadence (DF-F3); on conclusion it returns 0 and the terminal state stands. The
-		// filter lives in the URL, so a refresh preserves it.
-		"Refresh": runRefresh(view.Status),
-		// StreamHref is set at BOTH scopes the frozen rundetail.tmpl reads: .Run.StreamHref
-		// drives the data-stream attribute inside {{with .Run}} (line ~151), while the
-		// root-scope {{if .StreamHref}} that emits the long-poll <script> (line ~216, outside
-		// the with) reads this top-level datum. Same value, so the attribute and the script
-		// that consumes it are always emitted together (or both skipped when "").
+		"Refresh":      runRefresh(view.Status),
+		// rundetail.tmpl also reads StreamHref at root scope, so the attribute and script emit together.
 		"StreamHref": view.StreamHref,
 		"Run":        view,
 	})
@@ -607,15 +411,6 @@ func (s *server) buildRunView(r *http.Request, dv dispatchView, jobRows []db.Lis
 		Active: dv.Active,
 		Scope:  "all scopes",
 	}
-	// A dispatch stopped/terminated via DF-F4 carries a recorded outcome the run page
-	// renders as its terminal status (runStatusLabel — the literal word "stopped" /
-	// "terminated" in the .Status hole; the .rd-batch stopped/terminated badge treatment
-	// landed in rundetail.tmpl with package v3.17.0, #34/DF-F4b). That recording is the
-	// Scans ticket's (#633) write side; it now reaches this read through the dispatch
-	// status the progress query surfaces (ListDispatchProgress → dv.Status), so a stopped
-	// or terminated drill-in renders its real disposition. A natural run's 'fanned-out'
-	// is not a terminal outcome, so runStatusLabel falls through to the live
-	// running/failed/complete derivation — unchanged for every non-ended dispatch.
 	v.Status = runStatusLabel(dv.Active, dv.Dead, dispatchOutcome(dv.Status))
 
 	jobs := make([]jobView, 0, len(jobRows))
@@ -627,11 +422,6 @@ func (s *server) buildRunView(r *http.Request, dv dispatchView, jobRows []db.Lis
 	v.Stages = runStages(jobs)
 	v.Log = runLog(jobs)
 
-	// The Outcome card's batch join (#20a, ruled): .Transitions and .NewSignals join the
-	// derived stores on the READ path (the comparison path is untouched — ADR-0041 stands
-	// for dispatch execution). The run's batch id set is the batch(es) its jobs committed
-	// under; joinRunOutcome counts the drift transitions folded from those batches and the
-	// signals first raised in them. Both read "—" until the run's diff stage has concluded.
 	batchIDs := dispatchBatchIDs(jobRows)
 	out := s.joinRunOutcome(r.Context(), batchIDs)
 	if out.Concluded {
@@ -642,9 +432,6 @@ func (s *server) buildRunView(r *http.Request, dv dispatchView, jobRows []db.Lis
 		v.NewSignals = "—"
 	}
 
-	// The degraded callout is nullable (#20): raised only where a vantage fell short in
-	// this batch, with the terse reason its jobs record. A healthy run leaves it nil and
-	// the frozen tmpl's {{with .Degraded}} renders nothing.
 	v.Degraded = runDegradedFrom(jobs)
 
 	nv := len(v.Vantages)
@@ -665,42 +452,13 @@ func (s *server) buildRunView(r *http.Request, dv dispatchView, jobRows []db.Lis
 		v.Params = append(v.Params, runKV{K: "Vantages", V: strconv.Itoa(nv)})
 	}
 
-	// The per-job filter (DF-F3b): with ?job={id} the log is narrowed to that job's rows
-	// server-side and the loghead chip is set — the tmpl renders whatever .Log it is
-	// handed, never filtering client-side. The filter lives in the URL so it survives the
-	// live meta-refresh; the × clears back to the bare run route.
 	applyJobFilter(&v, r.URL.Query().Get("job"), r.URL.Path, jobs)
 	linkRunLog(&v, r.URL.Path)
 
-	// StreamHref (R4-D7 #761, collision #40 a-scoped): the per-job live-progress long-poll
-	// the frozen tmpl tails while work is in flight. It is set only while the in-scope job
-	// is non-terminal — a ?job filter scopes it to that job, the bare run to any running
-	// job — and left "" once terminal, so the static state-derived .Log stands (nothing new
-	// is persisted). The base is the run's own path + /stream; the client appends ?after=.
 	v.StreamHref = runStreamHref(r.URL.Path, v.JobFilter, dv.Active, jobs)
 	return v
 }
 
-// --- per-job live progress stream (R4-D7 #761, SPEC-CHANGE collision #40 a-scoped) -------
-//
-// The frozen rundetail.tmpl tails a running job by long-polling a per-job endpoint and
-// APPENDING the JSON lines it returns after a cursor. The ruling (#40) scopes this to the
-// LIVE TRANSPORT only: the endpoint RE-DERIVES the run's state log on each poll from
-// queue_job — the exact ListJobsForDispatch → toJobView → runLog path the static .Log uses
-// — and returns the lines after the client's cursor. It PERSISTS NOTHING NEW: there is no
-// raw-stdout store (ADR-0041 corpus retention + instance-privacy posture are untouched), so
-// on a job's conclusion the persisted state-derived .Log stands exactly as today. The
-// "events" are the incremental state-derived lines as jobs advance ready→running→terminal —
-// including a retry's fresh queue_job row and its superseded (retried) attempt, which runLog
-// renders as real events. The redaction/format is runLog's verbatim; no new format is
-// invented. Liveness is a bounded poll+timeout long-poll (the queue also carries
-// LISTEN/NOTIFY on notifyChannel "queue_job", pg_notify in internal/queue/queue.go; polling
-// is the ruling's accepted alternative and keeps the endpoint on the same read seam the page
-// uses, testable without a live Postgres): it holds briefly for new lines, then returns an
-// empty {done:false} nudge so the client re-polls — it never blocks a connection forever.
-
-// runStreamHold caps one long-poll hold; runStreamPoll is how often it re-derives the state
-// log while holding. Past the hold the endpoint returns an empty nudge so the client re-polls.
 const (
 	runStreamHold = 25 * time.Second
 	runStreamPoll = time.Second
@@ -710,13 +468,8 @@ func jobActive(state string) bool {
 	return state == "ready" || state == "running"
 }
 
-// runStreamHref is the per-job live-progress endpoint the frozen rundetail.tmpl tails, or
-// "" when nothing is streaming (the static .Log stands). A ?job filter scopes it to that
-// job and streams only while the job is non-terminal (an unknown/aged id → "", static log);
-// the bare run streams while any job is still in flight. The base is the run's own request
-// path + /stream so it rides whichever alias (/run or /runs) the viewer is on; the client
-// appends ?after={cursor} (and the frozen JS handles the ?/& join for a job-scoped base).
 func runStreamHref(runPath string, filter *runJobFilter, runActive bool, jobs []jobView) string {
+	// The base is the request's own path, so it rides whichever of /run and /runs the viewer is on.
 	base := runPath + "/stream"
 	if filter != nil {
 		for _, j := range jobs {
@@ -724,10 +477,10 @@ func runStreamHref(runPath string, filter *runJobFilter, runActive bool, jobs []
 				if jobActive(j.State) {
 					return base + "?job=" + strconv.FormatInt(filter.ID, 10)
 				}
-				return "" // the viewed job is terminal — the static filtered .Log stands
+				return ""
 			}
 		}
-		return "" // unknown/aged job id — nothing to stream
+		return ""
 	}
 	if runActive {
 		return base
@@ -735,10 +488,8 @@ func runStreamHref(runPath string, filter *runJobFilter, runActive bool, jobs []
 	return ""
 }
 
-// runStreamLine is one live-progress line on the wire — the SAME tag/level/text the static
-// .Log renders (runLogLine), with the internal JobID dropped. Both a state line and an
-// ephemeral event line take this one shape, so the frozen client renders them identically: the
-// stream redacts EXACTLY as .Log does (collision #40) and invents no new format.
+// The wire shape is .Log's own, so the stream redacts exactly as the page does and adds no format.
+
 type runStreamLine struct {
 	Tag   string `json:"tag"`
 	Level string `json:"level"`
@@ -751,14 +502,6 @@ type runStreamResp struct {
 	Done  bool            `json:"done"`
 }
 
-// deriveRunStream re-derives the run's live log as two sequences the stream tracks on
-// independent cursors (#780, collision #40): the STATE lines (ListJobsForDispatch → toJobView →
-// runLog, exactly the page's .Log derivation) and the ephemeral EVENT lines the worker emitted
-// (the hub, nil-guarded). Both are narrowed by a numeric ?job exactly as applyJobFilter narrows
-// the page. done is true once the in-scope work is terminal: for a ?job filter, that one job (an
-// unknown id counts as done — nothing will stream); for the bare run, no job still ready or
-// running. It reuses the same read seam and pure folds the page uses, reads the hub without
-// mutating it, and persists nothing.
 func (s *server) deriveRunStream(ctx context.Context, dispatchID int64, jobParam string) (state, events []runStreamLine, done bool, err error) {
 	jobRows, err := s.store.ListJobsForDispatch(ctx, pgtype.Int8{Int64: dispatchID, Valid: true})
 	if err != nil {
@@ -777,8 +520,6 @@ func (s *server) deriveRunStream(ctx context.Context, dispatchID int64, jobParam
 		}
 	}
 
-	// State lines: the same runLog derivation the page renders, shaped to the wire (JobID
-	// dropped) and filtered. This is the bare-state baseline that stands on conclusion.
 	stateLog := runLog(jobs)
 	state = make([]runStreamLine, 0, len(stateLog))
 	for _, ln := range stateLog {
@@ -788,9 +529,6 @@ func (s *server) deriveRunStream(ctx context.Context, dispatchID int64, jobParam
 		state = append(state, runStreamLine{Tag: ln.Tag, Level: ln.Level, Text: ln.Text})
 	}
 
-	// Event lines: the run's ephemeral, redacted per-job events, appended live beside the state
-	// lines so a retry reason / dead-letter cause reaches the append-only viewer (a merged line
-	// would not). Nil hub (tests, no-pool deployments) yields none.
 	if s.progress != nil {
 		events = eventStreamLines(s.progress.ForDispatch(dispatchID), jobFilter, filtered)
 	}
@@ -815,17 +553,6 @@ func (s *server) deriveRunStream(ctx context.Context, dispatchID int64, jobParam
 	return state, events, done, nil
 }
 
-// runStream serves the per-job live progress long-poll (#761 transport, #780 producer;
-// collision #40). It re-derives the run's state lines and ephemeral event lines (deriveRunStream)
-// and returns those after ?after={cursor} as JSON {lines:[{tag,level,text}], next, done}. The
-// cursor is composite (encodeStreamCursor): its low part indexes the state lines, its high part
-// the event lines, so a retry growing the state log never shifts an event's position, and a run
-// with no events keeps next == the state-line count — the pre-producer contract the frozen
-// client's initial cursor (its rendered state-line count) relies on. A ?job={id} narrows both
-// sequences. It holds up to runStreamHold for new lines (re-deriving every runStreamPoll), then
-// returns an empty {done:false} nudge so the client re-polls — never blocking forever. Login-
-// gated like runPage; it mutates nothing and persists nothing. A malformed id or after is a
-// clean read (id → an immediate done; after → treated as 0).
 func (s *server) runStream(w http.ResponseWriter, r *http.Request, _ db.Account) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
@@ -836,6 +563,7 @@ func (s *server) runStream(w http.ResponseWriter, r *http.Request, _ db.Account)
 	if n, perr := strconv.Atoi(r.URL.Query().Get("after")); perr == nil && n > 0 {
 		after = n
 	}
+	// The client's initial cursor is its rendered state-line count, so state must stay the low part.
 	eventCur, stateCur := decodeStreamCursor(after)
 	jobParam := r.URL.Query().Get("job")
 	ctx := r.Context()
@@ -874,13 +602,8 @@ func (s *server) runStream(w http.ResponseWriter, r *http.Request, _ db.Account)
 	}
 }
 
-// runStatusLabel is the run page's batch-status word (the frozen .Status hole, which is
-// both the rd-batch CSS class and the visible label). A dispatch stopped or terminated via
-// DF-F4 renders its recorded outcome verbatim — the literal "stopped" / "terminated", which
-// rundetail.tmpl styles with the .rd-batch stopped (warn) / terminated (danger-outline)
-// treatments landed in package v3.17.0 (#34/DF-F4b). Absent an outcome it is the live
-// derivation: in-flight → running, any dead-lettered job → failed, else complete.
 func runStatusLabel(active bool, dead int64, outcome string) string {
+	// This word is rundetail.tmpl's rd-batch CSS class as well as the visible label.
 	switch outcome {
 	case "stopped", "terminated":
 		return outcome
@@ -895,10 +618,6 @@ func runStatusLabel(active bool, dead int64, outcome string) string {
 	}
 }
 
-// dispatchOutcome maps a Dispatch's recorded status to the terminal outcome runStatusLabel
-// honors. Only the operator-ended dispositions ('stopped' / 'terminated', migration 22901)
-// are terminal outcomes; a natural run's 'fanned-out' (and any absent status) yields "", so
-// runStatusLabel falls through to the live running/failed/complete derivation.
 func dispatchOutcome(status string) string {
 	switch status {
 	case "stopped", "terminated":
@@ -908,12 +627,8 @@ func dispatchOutcome(status string) string {
 	}
 }
 
-// runRefresh drives the head's meta-refresh hole from run status (DF-F3): 5 while the run
-// is running so the log tails, 0 once it concludes so the terminal page settles. The frozen
-// head renders the hole as a truthy toggle ({{if .Refresh}}<meta http-equiv="refresh" …>),
-// so 5 turns the tail on and 0 turns it off; the literal cadence the meta tag carries is the
-// design's, fixed in the frozen shell head, not the handler's to set.
 func runRefresh(status string) int {
+	// The shell head fixes the cadence and reads this as a toggle, so 5 only means on.
 	if status == "running" {
 		return 5
 	}
@@ -946,18 +661,11 @@ func applyJobFilter(v *runView, jobParam, bareHref string, jobs []jobView) {
 	v.JobFilter = jf
 }
 
-// linkRunLog turns each log line's job tag into its ?job={id} route (#1083). #961 deleted the
-// active-dispatch card's per-job table, and with it the only control in the UI that produced a
-// ?job= URL — which orphaned both the per-job log filter (DF-F3b) and the admin raw-output view
-// (#866), since rundetail.tmpl renders the raw link inside {{with .JobFilter}}. The run-detail
-// log is where #961 said per-job detail lives, and its lines already carry JobID, so the tag
-// carries the entry point with no new data plumbing. A line with no job id (the pinned
-// completed fixture's timestamp tags) stays plain text, and a log already narrowed to one job
-// links nothing — the loghead chip owns that job, and the tag would point at itself.
 func linkRunLog(v *runView, bareHref string) {
 	if v.JobFilter != nil {
 		return
 	}
+	// The raw-output link sits inside the job-filter chip, so this tag is its only way in (#1083).
 	for i, ln := range v.Log {
 		if ln.JobID == 0 {
 			continue
@@ -1033,10 +741,6 @@ func runLog(jobs []jobView) []runLogLine {
 	return out
 }
 
-// runVantages folds the jobs' vantages into per-vantage health, in first-seen
-// order. A vantage is degraded if any of its non-superseded jobs dead-lettered,
-// else ok. Latency is not stored, so it reads "—" (as the example's does). It is a
-// vantage that looked, never a probe/scanner/agent.
 func runVantages(jobs []jobView) []runVantage {
 	var order []string
 	seen := map[string]bool{}
@@ -1064,11 +768,6 @@ func runVantages(jobs []jobView) []runVantage {
 	return out
 }
 
-// runDegradedFrom folds the jobs into the nullable Outcome callout (#20): the first
-// vantage that fell short in this batch (any non-superseded job dead-lettered) with the
-// terse "missed N of M checks" reason its own jobs record. A run where every vantage
-// finished returns nil, so the frozen tmpl's {{with .Degraded}} renders nothing. It is a
-// vantage that looked, never a probe/scanner/agent.
 func runDegradedFrom(jobs []jobView) *runDegraded {
 	var order []string
 	seen := map[string]bool{}
@@ -1098,11 +797,6 @@ func runDegradedFrom(jobs []jobView) *runDegraded {
 	return nil
 }
 
-// dispatchBatchIDs is the set of Batch ids a Dispatch's jobs committed under (queue_job.
-// batch_id, carried by ListJobsForDispatch). It is the key the read-side Outcome join
-// (#20a) uses to pull THIS run's transitions and new signals out of the estate-wide
-// derived stores — the batch is where a run's diff and signals are keyed (ADR-0111,
-// ADR-0041), so the run drill-in joins on it.
 func dispatchBatchIDs(jobRows []db.ListJobsForDispatchRow) map[int64]bool {
 	set := map[int64]bool{}
 	for _, j := range jobRows {
@@ -1113,29 +807,18 @@ func dispatchBatchIDs(jobRows []db.ListJobsForDispatchRow) map[int64]bool {
 	return set
 }
 
-// runOutcome is the Outcome card's batch join result (#20a): the count of transitions
-// folded from this run's batch diff and the count of signals first raised in it.
-// Concluded is false where the run committed no batch yet — its diff stage has not
-// concluded — in which case both figures render "—".
 type runOutcome struct {
 	Transitions int
 	NewSignals  int
 	Concluded   bool
 }
 
-// joinRunOutcome reads the estate-wide derived stores and joins them to a run's batches
-// (#20a, ruled). It reads the drift-event corpus (ListRecentDriftEvents, the same read
-// the /drift feed folds) and the signal-instance corpus (ListSignalInstances), then
-// hands both to countRunOutcome to key them by batch. This is the READ joining derived
-// stores; it never touches the comparison path (ADR-0041 stands for dispatch execution).
-// A read failure degrades to a not-concluded outcome ("—") rather than 500ing the page.
 func (s *server) joinRunOutcome(ctx context.Context, batchIDs map[int64]bool) runOutcome {
 	if len(batchIDs) == 0 {
 		return runOutcome{Concluded: false}
 	}
 	driftRows, err := s.store.ListRecentDriftEvents(ctx, db.ListRecentDriftEventsParams{
-		// The zero (all) window reads from the zero instant, so no batch is excluded by
-		// age — a run's batch may be older than any fixed period.
+		// A run's batch can be older than any fixed period, so the zero instant excludes none by age.
 		Since: pgtype.Timestamptz{Time: time.Time{}, Valid: true}, MaxEvents: driftFeedLimit,
 	})
 	if err != nil {
@@ -1150,23 +833,12 @@ func (s *server) joinRunOutcome(ctx context.Context, batchIDs map[int64]bool) ru
 	return countRunOutcome(batchIDs, driftRows, signals, s.now())
 }
 
-// countRunOutcome is the pure join over the derived-store reads (unit-tested). Transitions
-// are the narratable drift events (the SAME classifyDriftEvent the /drift feed applies)
-// whose Batch is one of the run's — transitions folded from this batch's diff. New signals
-// are the signal instances first raised inside a run batch's fold window: [batchAt,
-// nextBatchAt), where nextBatchAt is the next batch fold instant after it across the
-// corpus (a signal's first_seen is minted at fold, so it lands in the fold that raised it).
-// A run that committed a batch is concluded even where it moved nothing (0 · 0), distinct
-// from a still-running run ("—").
 func countRunOutcome(batchIDs map[int64]bool, driftRows []db.ListRecentDriftEventsRow, signals []db.SignalInstance, now time.Time) runOutcome {
-	// No committed batch means the run's diff stage has not concluded — render "—".
 	if len(batchIDs) == 0 {
 		return runOutcome{Concluded: false}
 	}
 	out := runOutcome{Concluded: true}
 
-	// Batch fold instants across the whole corpus, ascending — the boundaries that bound
-	// each batch's signal-raise window.
 	instantOf := map[int64]time.Time{}
 	for _, row := range driftRows {
 		if row.BatchAt.Valid {
@@ -1179,7 +851,6 @@ func countRunOutcome(batchIDs map[int64]bool, driftRows []db.ListRecentDriftEven
 	}
 	sortTimesAsc(allInstants)
 
-	// Transitions: narratable drift events keyed to one of the run's batches.
 	for _, row := range driftRows {
 		if !batchIDs[row.BatchID] {
 			continue
@@ -1189,12 +860,12 @@ func countRunOutcome(batchIDs map[int64]bool, driftRows []db.ListRecentDriftEven
 		}
 	}
 
-	// New signals: signal instances whose first_seen falls in a run batch's fold window.
 	for id := range batchIDs {
 		start, ok := instantOf[id]
 		if !ok {
 			continue // this batch raised no transition, so we cannot bound its window
 		}
+		// A signal's first_seen is minted at fold, so it lands in the window of the fold that raised it.
 		end := nextInstantAfter(allInstants, start)
 		for _, sig := range signals {
 			if !sig.FirstSeen.Valid {
@@ -1233,12 +904,8 @@ func plural(n int, one, many string) string {
 	return many
 }
 
-// toDispatchView folds one Dispatch's per-state job counts into progress. Live work
-// excludes retried rows — a retry is a fresh job, so each retried row has a
-// successor and counting it would double the denominator. Completed is the terminal
-// outcomes (done + dead); a dead-lettered job is finished, not pending, so it counts
-// toward progress. Percent is 0 while there is no live work rather than a divide.
 func toDispatchView(row db.ListDispatchProgressRow) dispatchView {
+	// A retry enqueues a fresh job, so counting the retired row too would double the denominator.
 	live := row.Total - row.Retried
 	completed := row.Done + row.Dead
 	inFlight := row.Ready + row.Running
@@ -1249,12 +916,7 @@ func toDispatchView(row db.ListDispatchProgressRow) dispatchView {
 	}
 
 	dv := dispatchView{
-		ID: row.DispatchID,
-		// Every dispatch the monitor lists has a run page, so the Running-now kind and each
-		// history row link to it (DF-F3). runPage serves /runs/{id} off the same two reads
-		// the monitor lists from — Active, then the history window (#962) — so a listed row
-		// always resolves. A dispatch aged past the history window would 404, but it is by
-		// then unlisted too.
+		ID:        row.DispatchID,
 		Href:      "/runs/" + strconv.FormatInt(row.DispatchID, 10),
 		ScanKind:  row.ScanKind,
 		Live:      live,
@@ -1272,46 +934,23 @@ func toDispatchView(row db.ListDispatchProgressRow) dispatchView {
 	return dv
 }
 
-// --- scan schedule instants (P0.4, #445) ----------------------------------
-//
-// The Dashboard header sub-line renders two instants — "last full scan Xm ago ·
-// next in Yh Zm" (Dashboard.jsx, PARITY-CHART P0.4/P2.1). Both are real reads over
-// the scheduler's own corpora, assembled here so the home handler (auth.go
-// dashboardData) exposes them; the markup that renders them is P2.1's.
-//
-// "Last" is the instant of the most recent Dispatch across every Scan kind — the
-// last time any measurement actually fanned out (dispatch.created_at, the same
-// "when did this scan start" instant the monitor reads, #245). "Next" is the
-// soonest upcoming cadence boundary among the ENABLED Scans, floored exactly the
-// way the dispatcher floors a tick (internal/queue.scheduledTick) so the figure
-// matches when the worker will really fire. Dispatch and Scan are Operational, so
-// this read never touches the comparison path (ADR-0041).
-
-// scanScheduleView is the header sub-line's two instants and their humanized forms.
-// Has* is false where the datum is genuinely absent — no Dispatch has ever fanned
-// out, or no enabled Scan carries a cadence — so the surface renders the honest
-// "never scanned" state rather than a fabricated instant.
 type scanScheduleView struct {
 	HasLast    bool
-	LastScanAt time.Time     // the most recent Dispatch's fan-out instant (UTC)
-	SinceLast  time.Duration // now − LastScanAt, floored at zero
-	LastAgo    string        // humanized SinceLast, e.g. "38m"
+	LastScanAt time.Time
+	SinceLast  time.Duration
+	LastAgo    string
 
 	HasNext    bool
-	NextScanAt time.Time     // the soonest enabled-Scan cadence boundary after now (UTC)
-	UntilNext  time.Duration // NextScanAt − now, floored at zero
-	NextIn     string        // humanized UntilNext, e.g. "5h 22m"
+	NextScanAt time.Time
+	UntilNext  time.Duration
+	NextIn     string
 }
 
-// scanSchedule assembles the last/next scan instants. Each half is best-effort: a
-// failed read logs and leaves its Has* false rather than 500ing the landing page a
-// viewer depends on, matching the rest of dashboardData's degradation discipline.
 func (s *server) scanSchedule(ctx context.Context) scanScheduleView {
 	now := s.now().UTC()
 	var v scanScheduleView
 
-	// Last: ListDispatchProgress is newest-first (ORDER BY d.id DESC), so the first
-	// row carrying a real created_at is the most recent fan-out.
+	// The read is newest-first, so the first row with a real created_at is the latest fan-out.
 	if rows, err := s.store.ListDispatchProgress(ctx, scansHistoryLimit); err != nil {
 		log.Printf("web: dashboard: scan schedule: list dispatches: %v", err)
 	} else {
@@ -1328,8 +967,6 @@ func (s *server) scanSchedule(ctx context.Context) scanScheduleView {
 		}
 	}
 
-	// Next: the soonest cadence boundary among the enabled Scans. A disabled Scan is
-	// off the dispatcher's cadence, so it never contributes a next tick.
 	if scans, err := s.store.ListScans(ctx); err != nil {
 		log.Printf("web: dashboard: scan schedule: list scans: %v", err)
 	} else {
@@ -1356,11 +993,8 @@ func (s *server) scanSchedule(ctx context.Context) scanScheduleView {
 	return v
 }
 
-// nextCadenceBoundary is the next dispatch tick strictly after now for a Scan of the
-// given cadence: the same flooring internal/queue.scheduledTick uses, plus one
-// cadence. Missed ticks are not caught up (dispatch is idempotent on the tick), so
-// the next fan-out is always the next boundary from now, never a stale past one.
 func nextCadenceBoundary(now time.Time, cadenceSeconds int64) time.Time {
+	// A missed tick is never caught up, so this mirrors the dispatcher's flooring (v1-spec §4.1).
 	secs := cadenceSeconds
 	if secs <= 0 {
 		secs = 1
@@ -1369,10 +1003,6 @@ func nextCadenceBoundary(now time.Time, cadenceSeconds int64) time.Time {
 	return time.Unix(floored+secs, 0).UTC()
 }
 
-// humanizeCountdown renders a countdown as the spec's two-unit figure — "2d 3h",
-// "5h 22m", or "47m" (Dashboard.jsx "next in 5h 22m"). Under a minute reads "<1m"
-// so an imminent tick never renders a bare 0. It is the countdown twin of
-// humanizeDuration's single-unit "ago" figure.
 func humanizeCountdown(d time.Duration) string {
 	switch {
 	case d < time.Minute:
