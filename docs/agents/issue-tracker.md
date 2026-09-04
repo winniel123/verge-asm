@@ -51,6 +51,18 @@ Two workarounds answer this, and a session measured both:
 
 `gh issue list`, `gh pr list`, `gh issue edit` (including `--add-label` and `--body-file`), `gh issue comment`, `gh pr comment` and every `gh api` call are unaffected.
 
+## The `gh pr update-branch` trap
+
+**`gh pr update-branch` does not exist in `gh` 2.45.0**, the version on the dev machine. `CLAUDE.md`, `docs/spec/comment-policy.md` §7.5 and every stage-D sweep ticket instruct it. The command runs `gh pr --help` and updates nothing, so a session can read it as success.
+
+Update a PR branch through the REST endpoint instead:
+
+```sh
+gh api --method PUT repos/winniel123/verge-asm/pulls/<n>/update-branch
+```
+
+`main` uses a strict up-to-date policy, so run this on each later branch after an earlier PR merges. The call re-triggers CI.
+
 ## Wayfinding operations
 
 `/wayfinder` uses these operations. The **map** is a single issue. Its **child** issues are the tickets.

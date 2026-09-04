@@ -415,6 +415,35 @@ rule. **One block keeps the rule. Every other statement of it dies.** Keep it in
 is most about, not in the first block you read. #1169 reports cross-block duplication, not per-block
 judgment, as the dominant deletion driver in that ticket.
 
+**The cross-block test compares the rule, not the surface claim.** Two survivors may state
+opposite-sounding facts and both be true. `internal/scan`'s `tailReadableState` keeps "a retired log
+may 404", and `AllLogs` keeps "a retired shard still answers a point-check" (#1189). The tail
+refuses a cadence on a flaky log. Verification tries one point-check once. The rules differ, so both
+blocks survive. An agent that compares the wording alone deletes one of them.
+
+**The package doc may be the keeping block.** §4.8 caps the package doc at 3 lines and does not rule
+whether the package doc may hold a cross-block rule. It may. A file-wide rule that names no symbol
+belongs there. `internal/scan/zone.go`'s supply-instant rule was stated 4 times, and the package doc
+was the right home (#1189). §4.8's 3-line cap still binds.
+
+**A protected directive may be the keeper.** A directive line may serve as the cross-block keeper.
+§2.3 forbids the sweep to edit that line, so the rule then rests on untouchable text. A later sweep
+can neither compress that line to the §4.4 form nor repair a citation inside it. #1182 kept
+`internal/measure/connectoutcome/tls.go`'s `#nosec G402` waiver as the keeper of the
+record-not-verify rule and deleted the rule's two other statements. #1194 did the same with
+`internal/queue/worker.go:41`'s `#nosec G204` waiver, which states ADR-0001's job-spec-in contract.
+**Choose a directive as the keeper only where its own text states the whole rule and carries no
+citation.** Keep a §4.4 survivor beside the directive where the waiver states one part of the rule.
+Do the same where the rule needs a citation a later sweep may have to repair.
+
+**Check for an orphaned document reference before you delete a block.** A block may be the only one
+in the file that names the document its siblings cite by a bare `§n`. Check this before you delete
+it. Then either keep the naming, or rewrite each surviving sibling to name the document itself. This
+is a defect the sweep creates, not one it finds. `internal/scan/ctreliability.go` and
+`cttail_test.go:234` left four `§` references pointing at nothing, and #1190 repaired both.
+`transcript.go`, `cttail.go` and `ctverify.go` held 15 bare `§n` references with one naming block
+each, and every survivor now names the document in full.
+
 **The tiebreaker prompt.** When a comment sits on the edge, ask a third question. Could a reader who
 did not know this fact make a change that is wrong, and that the test suite would not catch? **This
 is a prompt, not a gate.** The tree holds 49,214 lines of test source and heavy contract tests. As a
@@ -500,11 +529,35 @@ words.
 no independent constraint is recoverable, the survivor is the bare citation: `// ADR-0021 §3.3`.
 Half the corpus cites something, so most of the 18,266 cited lines land in this form.
 
+**A `file:line` reference is not a citation.** A line number rots on the next edit to the target,
+and nothing exists to repair it to that stays right. Name the symbol instead. `authorizedScope`
+cited `worker.go:357`, which is now `func markRetried` (#1198).
+
 **Ruling 8 caps a citation, not a reason.** A block may hold **one line per independent reason**. No
 block-level line cap applies. Worked example 13 forces this: `cmd/web/devfixtures.go:281` carries two
 unrelated constraints, and neither restates the other. A hard one-line cap would delete one of them
 to satisfy a format, which is the error §4.7 rejects. The discipline that prevents bloat is "every
 line passes §4.1", not a number.
+
+**The independence test.** Would a reader who acts on either reason alone do the same thing? If yes,
+the two are one reason, and you merge them. `CoversAddressScope` carried "one binding" and "do not
+add a second un-narrowed predicate", which read as one instruction, so #1186 merged them.
+
+**"No block-level cap" holds only for an uncited block.** §3.5's ratchet rule 5
+(`RuleCitationOverOneLine`) flags a production block of class `Citation` longer than one line. A
+cited production block is therefore capped at one line. Two cited survivors may never sit adjacent.
+See §4.5 for the placement consequence.
+
+**A multi-line block is legal when uncited.** `citation-over-one-line` fires on class `Citation`
+alone, so an uncited block of independent reasons passes at any line count. `internal/scan`'s
+`embeddedLogList` carries three independent uncited reasons on three lines, and `lint` reports zero
+(#1189). Do not split a legal block out of caution.
+
+**Where ratchet rule 5 and placement conflict, drop the citation.** Write both reasons as one
+uncited block. Never split a reason away from the statement it is about. `completeCTTailTiled`'s
+checkpoint guard needed two independent reasons above one `if`, and both went uncited (#1198).
+`ProgressChannel` is a package-scope `const` with exactly one placement slot, and its two reasons
+landed as one uncited two-line block (#1199).
 
 ### 4.5 Where a salvaged line goes
 
@@ -516,10 +569,32 @@ Two reasons:
    block in a Go declaration position, marker or not.
 2. A reason about a `defer` or a retry belongs beside that line, not above the signature.
 
+**Only an `*ast.GenDecl` and an `*ast.Field` block placement 1.** Every other node accepts a
+survivor directly above it, because `go/ast` hangs no `Doc` span there. This is the usable form of
+the rule.
+
+| Shape | Node | A survivor directly above it |
+| --- | --- | --- |
+| `var max string`, `const x = 1`, an in-body `type` | `*ast.GenDecl` | Trips flag rule 1 |
+| A struct field, an interface method | `*ast.Field` | Trips flag rule 1 |
+| `q := url.Values{}`, `chunk := 0` | `*ast.AssignStmt` | Legal (#1190) |
+| A one-comment `case` body | `*ast.CaseClause` | Legal (#1198) |
+| A composite-literal element | — | Legal (#1182) |
+
 **An in-body `var`, `const` or `type` is still declaration position.** `go/ast` attaches a `Doc`
 span to a `GenDecl` inside a function body exactly as it does at package scope. A line placed above
 `var got []string` trips flag rule 1 as surely as one above the signature. Three of the four agents
 in the second sweep batch hit this, each at the cost of a lint round (#1166, #1168, #1169).
+
+**`:=` is not declaration position.** `go/ast` attaches no `Doc` span to an `*ast.AssignStmt`, so
+placement 1 works directly above a `:=` (#1190).
+
+**An interface method is a fourth declaration-position shape.** `*ast.Field` covers a struct field
+and an interface method alike. `internal/remoteexec/conn.go`'s `Conn` carried four method
+docstrings, and no body to hold them (#1170).
+
+**A one-comment `case` body is a placement-1 target.** Put the survivor inside the arm its reason is
+about (#1198). Do not use placement 3 above the `switch`, because the reason is about one arm.
 
 **Three placements, in this order of preference:**
 
@@ -529,14 +604,66 @@ in the second sweep batch hit this, each at the cost of a lint round (#1166, #11
 2. **Trailing on the declaration line**, where the reason is about the declaration itself. The line
    must still meet §4.4's 100-character cap, measured after `gofmt -w`, and its six-word floor where
    the line carries no citation.
-3. **Above the declaration, with a blank line between the two.** `go/ast` reads no `Doc` span across
-   a blank line, so flag rule 1 does not fire.
+3. **Above the declaration, detached by a blank line.** A blank line breaks `go/ast`'s `Doc`
+   attachment, so flag rule 1 does not fire.
+
+**Placement 3's blank line goes below the survivor.** That line is the load-bearing one, because it
+is what detaches the comment. #1187 put the blank line above a struct-field survivor instead, and
+`go-decl-comment` still fired.
+
+**Inside a struct field list, placement 3 needs a blank line on each side.** The line below detaches
+the comment. The line above stops the comment reading as the previous field's trailing group
+(#1186).
+
+**Judge placement 3 by that mechanism, not by a list of declaration kinds.** It holds wherever the
+blank line breaks the `Doc` span. Confirmed positions: inside a `const` block, inside a struct field
+list, above a package-scope `var`, and an interface method (#1178, nine survivors).
+
+**Placement 2 ranks above placement 3 for an `*ast.Field`.** Placement 3 is the escape where
+placement 2 will not fit, not the default for a field. #1190 found placement 2 better four times,
+notably `CTSource.DisplayName`, where placement 3 would have put two blank lines inside a four-line
+interface.
 
 **Placement 3 is what a declaration with no body needs.** A `const`, `var`, `type` or `interface` at
 package scope has no statement to sit above. A declaration line long enough to break §4.4's
 100-character cap has no room for a trailing comment either. `internal/measure/useragent.go` is the
 clearest case: one `const`, no function, an 84-character declaration line.
 `internal/commentlint/screen/screen.go`'s `var (` block took the same shape.
+
+**Read the initialiser, not the `var` keyword.** Two `var` shapes look alike and differ.
+
+| Declaration | Body? | Placement |
+| --- | --- | --- |
+| `var libraryCiphers = func() map[string]uint16 { … }()`, `internal/measure/tlsacceptance/library.go:10` | Yes | Placement 1, inside the literal. Placement 3 here is wrong (#1172). |
+| `var nonGlobalTargets = []T{…}` | No | A composite literal holds no statement, so placement 1 in the usual sense is unavailable (#1184). |
+
+**A composite literal's element is a placement-1 target.** A survivor above an element —
+`PerHostConnPerSec: 50,` or `SANDNS: leaf.DNSNames,` — is not declaration position, and `lint`
+accepts it. Six survivors in #1182 landed this way.
+
+**Prefer the element that opens the alignment run.** An element is a legal target, and a safe one
+only where it opens the run. #1200 placed a survivor above `MaxAttempts:`, the 8th of 9 elements.
+That split the run, and `gofmt -w` reformatted two lines. Check `gofmt` after you place a survivor
+above a middle element.
+
+**Ratchet rule 5 constrains placement, not only wording.** §4.4 states the wording half. A block is
+a run of contiguous own-line comments, so **two cited survivors may never sit adjacent.** They need
+a statement between them.
+
+Inside a body, the statement count is a budget on how many cited reasons fit. `internal/drift`'s
+`CountDelta` has a single `return`, so its body offers one block position (#1176). **That budget is
+not the function's whole budget.** Placement 3 above the `func`, plus placement 1 in the body, gives
+two cited lines, because the signature line separates the two blocks (#1200, `resolutionNameKey`).
+
+**All three placements can be illegal at once.** `internal/custody/corpus`'s `SANsBelowThreshold`
+and `SANsAtThreshold` have one-line bodies, so placement 1 needs a reformat §5.1 forbids. Their
+trailing room is 33 characters, too little to clear ratchet rule 2's six-word floor inside the
+100-character cap, so placement 2 fails. Placement 3 was the only legal option.
+
+**§3.5's corrected safety claim rests on placement 3 existing.** Flag rule 1 is safe against the
+sweep's own output only where every survivor has a placement. Placement 3 is the one that survives a
+declaration with no body, no trailing room, and no legal reformat. Read it as load-bearing, not as a
+third preference.
 
 **A sweep never reformats code to make room for a comment.** §5.1 forbids it. A one-line function
 body such as `internal/wire/wire.go`'s `Overflowed` has nowhere to put a line. Splitting it across
@@ -555,13 +682,38 @@ it reaches.
 1. **Uncited prose that asserts what the test already asserts is deleted.** The test's name and its
    body are the assertion. A comment restating them is the WHAT that `CLAUDE.md` forbids. This
    reaches 2,613 lines of `docstring-exported-other` and 1,491 lines of test `prose-other`.
-2. **A cited comment survives**, compressed to the §4.4 form.
+2. **A cited comment survives where it carries a rule the test does not assert**, compressed to the
+   §4.4 form.
 3. **An uncited comment that states a reason is judged like any other comment**, under §4.1. The
    citation requirement governs behaviour-assertion prose only.
 
 Rule 3 is load-bearing. `cmd/web/adr0130_contract_test.go:498` is an uncited WHY inside a test file.
 It explains a classification decision. An absolute citation requirement would delete it. §4.7 keeps
 it, and §4.7 wins.
+
+**Rule 2's qualifier is the whole rule.** §4.1 keeps a comment only where it passes both gates. A
+bare "a cited comment survives" contradicts that inside a test file, and reads as categorical when
+it is not. The qualifier is the discriminator the merged precedents use. #1184 applied it to two
+`§3.3` citations and split them in opposite directions. `safety_test.go`'s uniform-halving block
+died. `leaf_test.go`'s profile-table line was kept.
+
+**The sharper form: a cited test comment survives when its clause names a consequence the assertion
+cannot fail on.** #1197 decided all 48 of its test blocks with that form and left no residue. It
+split `#1035`, `#1036` and `#1018` citations in opposite directions inside one file. Use this form
+where rule 2's wording leaves a block undecided.
+
+**A benchmark is a different surface from a test.** Rule 1 deletes prose that asserts what the test
+already asserts. **A benchmark asserts nothing.** Its output is numbers a human reads. Every reading
+instruction it carries is therefore unrecoverable by construction: which number means what, and
+which comparison is the point. The naive rule-1 reading deletes the lot.
+`BenchmarkToEdgeFanout`'s 37-line docstring was the largest block in #1197, and it yielded three
+survivors.
+
+**The test-local hazard is the class most likely to survive.** Do not search a test file for domain
+prose. The reason is structural. A domain rule has a production home, and §4.1's cross-block test
+keeps the rule there. A fixture hazard has nowhere else to live. Six of #1200's eleven test
+survivors are facts about the test's own construction. The `nil` `qtx` **is** the assertion, the
+fake reproduces `ExecProber`'s `ctx.Err()`, and a one-entry Merkle tree's leaf hash is its root.
 
 ### 4.7 A reason with no ADR to cite
 
@@ -574,6 +726,62 @@ undocumented decision. Deleting it to satisfy a citation format inverts the rule
 **A follow-up issue opens only where the comment asserts a decision** — a rule someone chose that
 ought to be an ADR. A hazard, a cost note, or an external constraint survives silently and opens
 nothing. §8.2 narrows the trigger further with two more gates.
+
+**A survivor may not cite a document that does not exist.** Repair has purchase only where a live
+document states the rule, so "prefer repair to deletion" is too broad. Three dangling families are
+measured, and they take three routes.
+
+| Family | Repairable? | Route |
+| --- | --- | --- |
+| `PARITY-CHART.md`, `SPEC-CHANGE.md` | Sometimes | Re-cite the live source. Precedents: #1182 → #464, #1178 → `docs/spec/v1-spec.md` §3.5, #1199 → `docs/spec/raw-job-output.md` §6.2 |
+| `docs/research/ct-bulk-primary-2026-08.md`, `docs/research/ct-logs-direct-2026-08.md` | Usually | Re-cite `docs/spec/ct-source-replacement.md`, which is on `main` |
+| `AUDIT-LEDGER`, `AL-2`, `AL-25`, `P0.7`, `DF-F4`, `G2` | **No** | Keep the reason uncited under this section, and record the gap |
+
+`docs/spec/raw-job-output.md` §6.2 names `SPEC-CHANGE` collision #40 by number and states "persists
+nothing at rest", which is the rule the comment carried (#1199).
+
+Neither research file is on `main`. `docs/spec/ct-source-replacement.md:26` records that they live
+on the unpushed branches `research/cert-spotter-primary` and `research/ct-logs-direct-facts`.
+
+**The third family names nothing a citation can reach.** Verified on `origin/main` at `5928e2b`:
+`AUDIT-LEDGER`, `AL-2`, `AL-25`, `P0.7` and `DF-F4` each appear in zero files under `docs/` and in
+`CONTEXT.md`. #1194 and #1196 confirmed this independently. `G2` is the token that resolves falsely
+instead, and the next rule below measures it.
+
+**The third family's reach is measured and narrow.** It reaches the production files of
+`internal/queue` and stops at the test surface. `progress.go` carries the first family instead, and
+`progress_test.go` carries neither (#1199, #1200). Grep your own files. Never trust the family's
+stated reach.
+
+**A citation resolves only when the named section states the rule the comment states.** A
+file-existence check is not enough. A grep for the token alone is not enough. `G2` appears in 6
+files under `docs/`, in two unrelated senses. Five of them use `G2` as ADR-0057's gate-check label
+over graded footing cells. Those five are `docs/adr/0057`, `0059`, `0077`, `0120` and
+`docs/research/sensitive-ports.md`. `docs/adr/0116` line 3 uses `G2` for the retired design-system
+parity gate, which that ADR withdrew. An agent grepping the token alone keeps a dead citation and
+believes it repaired one. A bare `AL-25` or `G2` is not a citation at all under §2.1's decisive
+test, which is what makes this dangerous.
+
+**A wrong citation is worse than a dead one**, because it survives a file-existence check. Five
+instances are measured.
+
+| Citation | What the named section states | What the rule needs |
+| --- | --- | --- |
+| `(ADR-0027 §7)`, five times in `internal/queue/crtsh.go` | ADR-0027 has no §7 | `docs/research/passive-discovery-sources.md` §7 (#1196) |
+| `(research §3.3)` on `certSpotterInterval` | AXFR and operator-supplied zone data | §2.3, the ten-queries-an-hour cap (#1196) |
+| `(ADR-0134 §5)` on "the two instants' counts need not agree" | Not that rule | `#1046` (#1197) |
+| `(ADR-0129 §5, #987)` in `edgefanoutmessage_test.go` | "v1 ships fan-out alone" | The #944 amendment (#1200) |
+| `(spec §2.4)` in `certspotter_test.go` | Where the key is held | Nothing. The Bearer-header rule is stated nowhere (#1200) |
+
+**A repair is a package-wide fact.** Name the repaired token in the PR body, so a sibling ticket in
+a split package greps for it. #1196 repaired `(ADR-0027 §7)` five times in `crtsh.go`. The same
+token then appeared in `pure_test.go:64` and twice in `crtsh_test.go`, both owned by other tickets.
+
+**Check that a survivor's citation resolves before the PR opens.** The ratchet does not provide this
+check. Two defects already landed on `main` in merged sweep output (#1194, PR #1317).
+`internal/queue/worker.go:331` cites `DF-F4`. `internal/queue/edgefanout.go:58` carries
+`(ADR-0129 §5)` on a rule §5 does not state. **#1328 repairs both.** Do not repair them under a
+sweep ticket.
 
 ### 4.8 The `package-doc` cap
 
@@ -629,6 +837,41 @@ Three measured cases, all from the second sweep batch:
 §4.2 reaches the same three deletions, because an agent that cannot decide deletes. It reaches them
 for the wrong reason. A false comment that passes both §4.1 gates cleanly would survive without this
 ruling.
+
+**A comment spliced onto the wrong symbol is false too.** All three cases above are comments the
+world falsified: a ticket landed, a field was added, a caller changed. A splice was never true, and
+nothing moved under it. `internal/custody/fanout.go:185`, above `func numericTopLabel`, is a
+truncated copy of `isLDHDomain`'s docstring, welded mid-sentence onto `numericTopLabel`'s own text.
+`isLDHDomain`'s docstring still sits complete 25 lines below. As written the block asserts that
+`numericTopLabel` tests the LDH character allowlist and is "an allowlist, never a blocklist". It
+does neither (#1186). The verdict above still applies. Its rationale does not, so an agent reading
+this section may not recognise the case.
+
+**A splice is invisible to `commentlint`.** That block classifies `docstring-unexported`, and the
+screen's `RFC` hit withheld it from mechanical deletion, so it reached stage D intact.
+
+**A true claim the type cannot express is not false.** Delete it under §4.1, and give it no `false`
+row. `custody_test.go:58` claimed a fixture expressed a declared-but-unextended name scope, which
+`Estate` has no field for. The sentence is true of the product and only unrepresentable in the type,
+so #1187 deleted it under §4.1.
+
+**A closed-`#nnn` deferral clause is a candidate for review, never a verdict.** The detection is
+mechanical: a comment matching a deferral phrase near a `#nnn` whose issue is closed. The detection
+is sound. The verdict is not. Read the clause before you delete it. Three instances match the
+detection and are false:
+
+- The `#508/T7` clause above, in `dispatcher.go`.
+- `internal/measure/connectoutcome/certificate.go` — "a later ticket adds an HTTP step (#198)".
+- `internal/queue/worker.go` — `Prober`'s Transcript is "ABSENT until #840 captures it".
+
+**Two clauses naming a closed issue were true.** #1198 read two clauses naming #874 and #877 as
+"deferred alongside that issue's own deferral", not as "pending that issue". A mechanical rule built
+on the detection alone flags both. **A `commentlint` rule for the detection is a separate call from
+this ticket.**
+
+**A third shape dies elsewhere.** `httpidentity.go` held a `P0.11` reference that narrates work
+which has landed (#1200). Change narration dies under §3.2's negative screen and under §3.5's
+flag rule 3, not under this section.
 
 **A false claim opens no ADR gap.** §8.2 gate A needs a rule someone chose. Where the comment's
 claim is wrong, there is no such rule to record.
@@ -1068,15 +1311,60 @@ the cap.** This is the clearest evidence for computing the list after stage B.
 The 20-file cap does not bind the Go tail. The largest tail pairing, `internal/retention` plus
 `internal/measure/tlsacceptance`, is 542 lines across 14 files.
 
+**A split package costs reasons at the ticket boundary.** Rule 3 permits the split where the package
+alone exceeds a cap, and §7.5 rule 1 permits the halves in parallel. Neither prices it. Three splits
+are measured, and each PR body names the reasons that ticket dropped.
+
+| Split | Tickets | Reasons dropped |
+| --- | --- | ---: |
+| `internal/measure/connectoutcome`, two ways | #1182, #1184 | 5 |
+| `internal/custody`, three ways | #1186 (2), #1187 (7), #1188 (9) | 18 |
+| `internal/queue`, four ways | #1197, #1198, #1199, #1200 | 35 |
+
+The four-way split is the first of one package.
+
+**A split can leave a file with zero survivors.** Two of #1188's seven files, `coverage_test.go` and
+`reachability_test.go`, ended with none, because every rule they state lives verbatim in a file
+another ticket owns. That is the correct §4.1 outcome. It means a reviewer must check that the
+owning ticket kept the rule.
+
+**A test-from-production split costs more than a production split.** #1200 dropped 24 reasons at the
+ticket boundary, the largest of any ticket in seven batches. Seven of its twenty files ended with
+zero survivors. The cause is structural. A `_test.go` docstring restates its production file's
+header sentence for sentence. The three-way `internal/custody` split cost 18 across three tickets,
+and this one ticket cost 24. **Keep a test file in the same ticket as the production file it
+exercises, where the size cap allows it.**
+
 ### 7.5 Parallel sweeps
 
-1. **Parallel is allowed when two tickets touch disjoint file sets.** The §7.4 packing rule
-   guarantees this by construction, because no package is split across tickets.
+1. **Parallel is allowed when two tickets touch disjoint file sets.** §7.4 keeps a package whole
+   where the size cap allows it. Where §7.4 splits a package, it gives each file to one ticket, so
+   the file sets stay disjoint by construction. §7.4 prices the boundary cost of that split.
 2. **At most 4 sweep PRs are open at once.** The strict up-to-date policy means every merge
    re-triggers CI on every other open branch. Four bounds that churn.
 3. **Never hand-resolve a conflict in a sweep PR.** Close the branch and re-run the ticket fresh from
    `main`. A hand-resolved comment hunk breaks the only guarantee the equivalence check gives.
-4. Run `gh pr update-branch <n>` after each merge.
+4. **Update every other open branch after each merge.** `gh pr update-branch` does not exist in
+   `gh` 2.45.0, the version on the dev machine. The command runs `gh pr --help` and updates
+   nothing. Run this instead:
+
+   ```sh
+   gh api --method PUT repos/winniel123/verge-asm/pulls/<n>/update-branch
+   ```
+
+   `docs/agents/issue-tracker.md` records the trap in "The `gh pr update-branch` trap".
+5. **Hand a cross-ticket fact to the sibling tickets.** A split package makes a wrong citation a
+   package-wide fact, and each instance lands with a different agent. Where a ticket repairs a
+   citation, or drops a reason at the boundary, its PR body names the token or the reason. §4.7
+   carries the citation half. #1196 repaired `(ADR-0027 §7)` five times in `crtsh.go`, and the same
+   token then appeared in `pure_test.go:64` and twice in `crtsh_test.go`, owned by other tickets.
+   #1196 dropped "a `Worker` built without `WithMessages` writes no message" into #1194's half, and
+   #1194 kept it and sharpened it.
+6. **Measure a package doc in your own file set. Never inherit a sibling PR's claim about one.** PR
+   #1314 stated that every file in `internal/queue` opens `package queue` on line 1, so §4.8 never
+   applies. That is wrong. `queue.go:1-7` is a real `package-doc` block, and `queue.go` is the only
+   file of the package's 51 that has one (#1198). The claim was passed to all four agents of that
+   batch as fact, and only luck stopped a mis-sweep.
 
 ### 7.6 The golden corpora
 
@@ -1095,14 +1383,28 @@ records that the trap is gone. All four tickets in the first sweep batch ran the
 `TestCorpusExpectation` passed, in the 5 corpus packages those tickets reached and in CI's
 `golden-corpus` job.
 
+**A corpus package's `Row.Claim` field makes most of its `rows.go` fail gate A** (#1174). Each row
+carries a full-sentence prose claim in its own literal, and the test's failure message quotes it.
+Every descriptive per-row paragraph is therefore recoverable from the declaration. **Only the guard
+half survives** — why the row exists, and which silent move it catches. The other six corpus
+packages carry the same field, so #1163, #1164, #1165 and the remaining corpus tickets reuse the
+reading.
+
+**Read `docs/spec/golden-corpus.md` §10.3 and §10.4 before you sweep a corpus package.** Those two
+sections already state four of `internal/custody/corpus`'s comments almost verbatim. Gate A is
+written against code, so those comments survive. The SPEC section settles what the survivor cites.
+
 ### 7.7 Definition of done
 
-A sweep ticket is done when **four** conditions hold:
+A sweep ticket is done when **six** conditions hold:
 
 1. `commentlint verify` **ran** on the PR and is green.
 2. `commentlint lint` reports zero flags on the ticket's files.
 3. The PR body carries a keeps ledger (§4.9) and a gaps table (§8.6).
-4. A human approves the PR.
+4. Every survivor's citation was checked to resolve.
+5. `gofmt -l` ran on the ticket's own file set, and the PR body names every formatting hunk the
+   ticket did not ask for.
+6. A human approves the PR.
 
 **The sweep session applies `sweep:comments` to its own pull request.** Nothing else applies it.
 Stage A (§7.2) creates the label; it does not put it on a PR. An unlabelled sweep PR has no gate at
@@ -1132,6 +1434,30 @@ silence, not a pass.
 **Condition 2 does not prove conformance on its own.** `lint` flags only the mechanically-decidable
 classes. Condition 3 is the judgment gate. Delete-by-default makes a wrong delete visible in the
 diff and a wrong keep invisible. The reviewer therefore checks the keeps.
+
+**Ratchet rule 5 leaves a hole, so §4.4 cannot be delegated to `lint`.**
+`RuleCitationOverOneLine` fires on class `Citation` alone. §6.6's classifier reaches `Citation`
+after the declaration-position classes and before `external-spec` and `why-note`, and matches
+`ADR-\d{4}|#\d+|§\s*\d|CONTEXT\.md`. **A two-line block whose wording trips `why-note` is never
+flagged, at any length.** Apply §4.4's one-line-per-reason discipline by hand. The same property has
+a constructive reading, which §4.4 states: it is what makes a legitimate multi-reason uncited block
+legal. `internal/scan`'s `embeddedLogList` carries three uncited reasons on three lines and draws
+zero `lint` findings (#1189).
+
+**Condition 4 has no mechanical check.** The ratchet provides none. §4.7 carries the rule and the
+measured false resolve: a citation resolves only when the named section states the rule the comment
+states. Neither a file-existence check nor a bare token grep is enough. Two defects already
+landed on `main` in merged sweep output (#1194, PR #1317). **#1328** repairs both, under a separate
+ticket.
+
+**Condition 5 keeps a formatting hunk out of a sweep diff.** No workflow runs `gofmt`, and five
+tracked Go files were unformatted on `origin/main` at `172bbc1`. #1188 deleted eight trailing labels
+whose alignment run had drifted a column, which reformatted `internal/custody/egressguard_test.go`
+as a side effect. The equivalence check still passed, because a token comparison does not see
+whitespace. §4.5's no-reformat rule is therefore not enforced mechanically. But the diff carries a
+formatting change the ticket did not ask for, and a reviewer may read it as scope creep. Say in the
+PR body when a hunk is pre-existing drift rather than the ticket's own change. **#1311 tracks the
+remaining files, and the question of a CI `gofmt` gate is a separate call from this SPEC.**
 
 **The sweep is done when every ticket in the cut list is merged.** There is no global re-audit and
 **no residual-line-count target**. A line target would push a session to delete a keep to reach it.
@@ -1184,6 +1510,23 @@ would file about 98 issues whose whole content is "this rule is written in a dif
 is a docs-refactor argument, and §1.4 excludes the ADR corpus's own health.
 
 §4.4 already handles these correctly. The comment keeps its citation and is compressed.
+
+**Three measured shapes defeat the suppressing rule mechanically.** In each, the agent records the
+gap and states why.
+
+1. **A citation that names a source in order to overturn it.** #1180's gap 1 cites ADR-0024 in order
+   to overturn it, and `SPEC-CHANGE.md`, the document that recorded the overturn, no longer exists.
+   The citation points at the position the rule contradicts, and the suppression above fires
+   mechanically. The agent recorded the gap anyway, in the PR body and in **#1300**. A dangling
+   citation does not merely fail to resolve. It can invert the meaning of the surviving line.
+2. **A citation to a retired document.** §4.7 gives the three dangling families and their routes.
+   Where the third family applies and nothing on disk states the rule, the reason goes uncited under
+   §4.7 **and** the gap is recorded.
+3. **An ADR that states the rule only in its Context, quoting the code it is about to lose.**
+   ADR-0134 states the "drop an unattributable row" rule only in its Context, as a blockquote of
+   the code's own comment. The ADR then says "the same rule binds here". Its Decision never rules
+   it. The citation resolves textually while the ADR quotes the very comment the sweep deletes.
+   #1197 recorded the gap anyway, with the reasoning, in **#1326**.
 
 ### 8.4 The container
 
