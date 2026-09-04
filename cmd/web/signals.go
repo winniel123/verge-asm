@@ -25,22 +25,9 @@ import (
 	"github.com/winniel123/verge-asm/internal/vergecore"
 )
 
-// The Signals screen (design-system/examples/console/Signals.jsx + SignalData.jsx,
-// PARITY-CHART P2.2, #448). It renders a FLAT PER-INSTANCE table: one row per
-// currently-fired (rule, subject) pair, carrying its rule's severity, a stable
-// minted SIG-#### id, asset, port and last-seen, with a severity filter, a text
-// filter, sortable columns, pagination, Open/Annotated/Withdrawn tabs with counts,
-// a row Drawer, the AnnotationControl operator dial, and the typed-name descope
-// ConfirmDialog. The old per-rule census grouping leaves the screen (ADR-0116: the
-// design is normative for look AND functionality; severity is a real datum now,
-// P0.1 #442, not a re-skin). The census is still evaluated data-side — it is what
-// mints the per-instance rows — but it no longer paints.
-//
-// The web layer's only fold work is to compose the Derived corpus (resolution /
-// dns-record / reachability / certificate / http-identity + the operator's zone
-// file) into the per-subject snapshot the `Signal` engine evaluates; the engine
-// owns every verdict, and deriveSignalInstances turns the fired census into the
-// flat rows this screen draws.
+// Only fired instances paint, as flat rows and never a per-rule census (docs/spec/v1-spec.md §6.5).
+
+// This layer folds facts into the snapshot and never decides a verdict; the engine owns every one.
 
 type dnsRecordValue struct {
 	RRs []struct {
@@ -54,13 +41,6 @@ type dnsRecordValue struct {
 	} `json:"delegation"`
 }
 
-// annotationView is one declared `Annotation` shaped for rendering: the pair it
-// is keyed on, the operator's reason, and the instant declared. There is no
-// author cell and no status — every operator dial is unattributed (ADR-0073) and
-// an Annotation carries neither a timeline nor an expiry. Orphan is derived on
-// read and stored nowhere (ADR-0092): a row whose key is in no current
-// population of its rule names a withdrawn or never-measured subject and matches
-// nothing right now.
 type annotationView struct {
 	ID      int64
 	Subject string
@@ -71,33 +51,15 @@ type annotationView struct {
 	Orphan  bool
 }
 
-// signalRow is one rendered row of the flat per-instance Signals table
-// (Signals.jsx + SignalData.jsx). It is a signalInstanceView (the P0.1 datum —
-// severity, SIG id, asset, port, instants) enriched with the two facts the
-// screen's tabs and Drawer add: whether the pair carries an operator Annotation
-// (its reason and id), and whether it has withdrawn — its subject has left the
-// rule's population, the world's act, never resolved by an operator (ADR-0092).
-// ViewKey is the stable token the row Drawer opens on: a fired instance opens on
-// its SIG id, an annotation-anchored row (the Annotated / Withdrawn tabs) opens on
-// its annotation id, so the Drawer resolves without depending on a live mint.
-//
-// The trailing fields carry the spec Drawer's rule metadata + join data (#21j):
-// the rule tags, an optional CVE, the rule's description prose, the rule id +
-// version rendered together, the detecting vantage, the drift diff for the
-// subject, and the span-derived history. On the honest live projection these are
-// what the corpus can source (rule id from the rule name, the span-derived
-// history from the instants); the design's curated fixture (served under devMode)
-// carries the full authored set, byte-for-byte with the goldens.
 type signalRow struct {
 	signalInstanceView
-	SevLabel    string // the severity capitalised for the badge label ("Critical")
+	SevLabel    string
 	Annotated   bool
 	AnnoReason  string
 	AnnoID      int64
 	Withdrawn   bool
 	ViewKey     string
-	DescopeHref string // per-row descope link (/signals?…&descope={ViewKey}, filters preserved)
-	// Drawer (#21j) — rule metadata + join data.
+	DescopeHref string
 	Tags        []string
 	CVE         string
 	Desc        string
@@ -106,26 +68,20 @@ type signalRow struct {
 	DetectedBy  string
 	Diff        *sigDiff
 	History     []sigHistoryEntry
-	idNum       int64 // the SIG id as a number, for the Id-column sort
-	seenAge     int64 // minutes since last-seen, for the Seen-column sort (unseen sorts last)
+	idNum       int64
+	seenAge     int64
 }
 
-// sigDiff is the before/after drift join the Drawer shows for a subject (#21j):
-// a titled block of typed lines (add | remove | same). Nil where the subject has
-// no drift transition to show.
 type sigDiff struct {
 	Title string
 	Lines []sigDiffLine
 }
 
 type sigDiffLine struct {
-	Type string // add | remove | same
+	Type string
 	Text string
 }
 
-// sigHistoryEntry is one span-derived Drawer history event (#21j): a title, an
-// optional detail line (mono when Mono), a right-aligned time token, and a Tone
-// (accent | warn | danger | neutral) that colours the rail dot.
 type sigHistoryEntry struct {
 	Title  string
 	Detail string
@@ -134,26 +90,16 @@ type sigHistoryEntry struct {
 	Mono   bool
 }
 
-// descopeView is the spec typed-confirm dialog's data (#21): the exact asset the
-// operator must retype to arm the danger button, and the link that closes the
-// dialog back to the current tab / filter / drawer.
 type descopeView struct {
 	Asset     string
 	CloseHref string
 }
 
-// sigSort carries the sort state and the per-column toggle links for the sortable
-// table headers (Severity / Asset / Id / Seen), precomputed so the template only
-// renders them. The caret svg renders from Key/Dir directly (#21i — the *Arrow
-// string holes retired).
 type sigSort struct {
 	Key, Dir                             string
 	SevHref, AssetHref, IDHref, SeenHref string
 }
 
-// pageCell is one slot in the pagination control — a page number and its link, or
-// an ellipsis gap. Precomputed windowed like Pagination.jsx so the control never
-// changes width while paging.
 type pageCell struct {
 	Num      int
 	Href     string
@@ -161,12 +107,6 @@ type pageCell struct {
 	Ellipsis bool
 }
 
-// signalsForms carries a declare-form error and the operator's typed values onto the
-// Signals page a refused declaration lands back on. Since ticket #972 it travels
-// through the session-keyed form flash (flash.go, ADR-0130 §1) rather than sitting in
-// an in-place re-render: annotations.go stashes one and 303s, signalsPage takes it
-// once and hands it here. It is the ONE error model for this surface — the flash is
-// typed on this struct, so nothing else can be read as a signals error.
 type signalsForms struct {
 	annoError   string
 	annoSubject string
@@ -177,29 +117,14 @@ type signalsForms struct {
 var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/signals.tmpl"))
 
 func (s *server) signalsPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	// A VERGE_DEV build serves the design's curated fixtures.json signals slice so the
-	// screen renders byte-for-byte for the pixel-parity harness (the 47-of-47 open count,
-	// the authored rows, the drawer's rule metadata + drift join + span history, the
-	// typed-confirm descope). A real deployment renders the honest live projection below.
 	if s.devMode {
 		s.render(w, r, "signals", s.signalsFixtureData(acct, r))
 		return
 	}
-	// A refused declaration or withdrawal redirected here and left its message in the
-	// session-keyed form flash (ADR-0130 §1). Read it once: the take deletes it, so a
-	// reload of this same URL — an operator's own, or the scan-running auto-refresh —
-	// renders no stale callout. An ordinary GET finds nothing and renders none.
 	forms, _ := takeFormFlash[signalsForms](s, r)
 	s.renderSignals(w, r, acct, forms)
 }
 
-// signalsExport streams the CURRENT TAB's filtered rows as a downloadable CSV
-// (Signals.jsx header; PARITY-CHART collision #6 — the button exports the current
-// tab's filtered rows). It reads the same corpus the page evaluates, builds the
-// same per-instance rows, applies the same text / severity filters off the query
-// string, and emits one row per signal instance. It owns no mutation beyond the
-// idempotent mint the read path already runs, and fabricates nothing: an empty tab
-// produces a header-only file.
 func (s *server) signalsExport(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	format := r.URL.Query().Get("format")
 	if format == "" {
@@ -233,11 +158,6 @@ func (s *server) signalsExport(w http.ResponseWriter, r *http.Request, acct db.A
 	s.writeSignalsExportCSV(w, tab, rows)
 }
 
-// writeSignalsExportCSV emits the flat per-instance rows as one table — one row per
-// signal instance, carrying the same cells the screen's table shows plus both
-// instants. The severity, id and port cells are controlled tokens; the signal
-// (rule) name is controlled too; the asset cell is attacker-influenceable free text
-// (a name ingested from CT logs), so it is passed through csvSafe.
 func (s *server) writeSignalsExportCSV(w http.ResponseWriter, tab string, rows []signalRow) {
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="signals-`+tab+`.csv"`)
@@ -251,11 +171,6 @@ func (s *server) writeSignalsExportCSV(w http.ResponseWriter, tab string, rows [
 	}
 }
 
-// renderSignals builds the flat per-instance table view model and renders the
-// Signals screen. Since ticket #972 the GET handler is its only caller: a refused
-// declaration redirects rather than re-rendering, and its message reaches this
-// function through the form flash signalsPage consumed, so one code path serves both
-// an ordinary load and the landing after a refusal.
 func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.Account, forms signalsForms) {
 	open, annotated, withdrawn, err := s.buildSignalTabs(r)
 	if err != nil {
@@ -280,8 +195,7 @@ func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.A
 		base = open
 	}
 
-	// Filter + sort state, threaded through the query string (the shell ships no
-	// client table machinery, T0 seam).
+	// The shell ships no client-side table machinery, so filter and sort state rides the query string.
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
 	sevSel := r.URL.Query().Get("sev")
 	if sevSel == "" {
@@ -363,8 +277,6 @@ func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.A
 		page = 1
 	}
 
-	// The current-view query string, so the Drawer, its scrim and the descope dialog
-	// all return to exactly this tab / filter / sort / page.
 	state := filterVals()
 	state.Set("sort", sortKey)
 	state.Set("dir", dir)
@@ -373,7 +285,6 @@ func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.A
 	}
 	closeHref := "/signals?" + state.Encode()
 
-	// Per-column sort toggle links (reset the page) + their arrows.
 	sortHref := func(col string) string {
 		v := filterVals()
 		nd := "asc"
@@ -390,15 +301,10 @@ func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.A
 		IDHref: sortHref("id"), SeenHref: sortHref("seen"),
 	}
 
-	// Per-row descope link — the header Descope button drops (#21); descope now lives
-	// on the row kebab / right-click menu and the drawer. Each visible row carries a
-	// link that re-opens the current tab / filter with ?descope=<ViewKey>, which the
-	// dialog resolves to the row's asset for the typed-confirm gate.
 	for i := range rows {
 		rows[i].DescopeHref = closeHref + "&descope=" + url.QueryEscape(rows[i].ViewKey)
 	}
 
-	// The row Drawer opens server-side via ?view=<ViewKey> against the active tab.
 	selKey := r.URL.Query().Get("view")
 	var drawer *signalRow
 	if selKey != "" {
@@ -412,10 +318,8 @@ func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.A
 		}
 	}
 
-	// The descope typed-confirm dialog (#21) resolves ?descope=<ViewKey> to the row's
-	// asset — the exact string the operator must retype — and returns to the current
-	// view on cancel/submit. Admin-gated (the tmpl also gates on .IsAdmin).
 	var descope *descopeView
+	// The handler builds this for any role; signals.tmpl is what gates the dialog on .IsAdmin.
 	if dk := r.URL.Query().Get("descope"); dk != "" {
 		for i := range base {
 			if base[i].ViewKey == dk {
@@ -425,89 +329,55 @@ func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.A
 		}
 	}
 
-	// The refused declaration's typed reason, echoed back into the drawer's declare
-	// textarea (ADR-0130 §1) so the operator does not retype it. The reason is the only
-	// field they type: the pair rides two hidden inputs the drawer renders from the row,
-	// and the submitting URL carried `view=<ViewKey>`, so the SAME drawer re-opens and
-	// re-derives the subject and the rule by itself. Those two need no echo.
-	//
-	// The echo is gated on the drawer being the SUBJECT the reason was written about. A
-	// submission whose `return` named no drawer, or whose value the open-redirect guard
-	// refused, lands on a page with no form or on another row's, and dropping one
-	// subject's reason into another's textarea would invite an acceptance recorded
-	// against the wrong thing. The comparison runs through normalizeSubjectKey, the same
-	// fold declareAnnotation applied before it stashed the value.
-	//
-	// The stashed SIGNAL is deliberately NOT compared. It is not operator-typed, and the
-	// one refusal that leaves a reason worth echoing on a still-unannotated pair is
-	// exactly the one where that field is wrong — an unknown rule name. Requiring it to
-	// match the drawer would discard the reason in the single case this echo exists for.
-	// A duplicate refusal, the other reason-carrying refusal, lands on a row that now
-	// reads as annotated, and that drawer renders the accepted-risk block rather than a
-	// form, so it has no textarea to echo into either way.
 	var annoReasonDraft string
+	// A reason echoed into another subject's textarea invites an acceptance against the wrong pair.
+	// The stashed signal is not compared: an unknown rule name is the one refusal worth echoing.
 	if forms.annoReason != "" && drawer != nil && normalizeSubjectKey(drawer.Asset) == forms.annoSubject {
 		annoReasonDraft = forms.annoReason
 	}
 
-	// Export CSV is gated on the current tab having rows to export (Signals.jsx
-	// disables the button when the tab is empty), and carries the current filters.
 	hasExport := total > 0
 	exportVals := filterVals()
 	exportHref := "/signals/export?" + exportVals.Encode()
 
 	s.render(w, r, "signals", map[string]any{
 		"Title": "Signals", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive":      "signals",
-		"SignalCount":    len(open),
-		"Tab":            tab,
-		"OpenCount":      len(open),
-		"AnnotatedCount": len(annotated),
-		"WithdrawnCount": len(withdrawn),
-		"Rows":           rows,
-		"HasAny":         total > 0,
-		"Shown":          shown,
-		"Total":          total,
-		"Q":              q,
-		"Sev":            sevSel,
-		"SevOptions":     []string{"All severities", "Critical", "High", "Medium", "Low", "Info"},
-		"Sort":           sortState,
-		"ClearHref":      "/signals?tab=" + tab,
-		"ShowPagination": showPag,
-		"Pages":          pages,
-		"PrevHref":       prevHref,
-		"NextHref":       nextHref,
-		"PrevDisabled":   prevDisabled,
-		"NextDisabled":   nextDisabled,
-		"PageInfo":       pageInfo,
-		"CloseHref":      closeHref,
-		"ViewPrefix":     closeHref + "&view=",
-		"ExportHref":     exportHref,
-		"HasExport":      hasExport,
-		"SelKey":         selKey,
-		"Drawer":         drawer,
-		"Descope":        descope,
-		"AnnoError":      forms.annoError,
-		// Named apart from the row's own .AnnoReason (an EXISTING annotation's reason,
-		// rendered in the accepted-risk block) so the two never read as one datum.
+		"NavActive":       "signals",
+		"SignalCount":     len(open),
+		"Tab":             tab,
+		"OpenCount":       len(open),
+		"AnnotatedCount":  len(annotated),
+		"WithdrawnCount":  len(withdrawn),
+		"Rows":            rows,
+		"HasAny":          total > 0,
+		"Shown":           shown,
+		"Total":           total,
+		"Q":               q,
+		"Sev":             sevSel,
+		"SevOptions":      []string{"All severities", "Critical", "High", "Medium", "Low", "Info"},
+		"Sort":            sortState,
+		"ClearHref":       "/signals?tab=" + tab,
+		"ShowPagination":  showPag,
+		"Pages":           pages,
+		"PrevHref":        prevHref,
+		"NextHref":        nextHref,
+		"PrevDisabled":    prevDisabled,
+		"NextDisabled":    nextDisabled,
+		"PageInfo":        pageInfo,
+		"CloseHref":       closeHref,
+		"ViewPrefix":      closeHref + "&view=",
+		"ExportHref":      exportHref,
+		"HasExport":       hasExport,
+		"SelKey":          selKey,
+		"Drawer":          drawer,
+		"Descope":         descope,
+		"AnnoError":       forms.annoError,
 		"AnnoReasonDraft": annoReasonDraft,
 	})
 }
 
-// enrichSignalDrawer folds the honest live projection of the Drawer's rule metadata
-// + join data onto a row about to open in the drawer (#21j). Three fields are REAL
-// derived-store joins built here on the production path: the rule id is the rule name
-// and the rule version is that rule's own Version().String() vector (ruleVersions,
-// keyed by name over the whole shipped corpus); the drift diff is the subject's most
-// recent value transition joined out of the Span corpus (signalDrift, the same
-// ListSpansForSubject → Breaks read the drill-down timelines and RunDetail's Outcome
-// use), nil where the subject has no drift; and the history is span-derived from the
-// instants the row carries. Four fields are GENUINELY ABSENT from the corpus — no
-// rules registry carries a rule's tags / CVE / description prose, and a fired signal
-// is a cross-vantage composition so signal_instance has no single detecting vantage —
-// so Tags / CVE / Desc / DetectedBy are omitted rather than invented (the curated
-// fixture served under devMode carries the authored set for the pixel goldens).
 func (s *server) enrichSignalDrawer(r *http.Request, row *signalRow) {
+	// No rules registry carries a tag, CVE or description, and a fired signal has no single vantage.
 	if row.IP == "" {
 		row.IP = "—"
 	}
@@ -535,12 +405,6 @@ func (s *server) enrichSignalDrawer(r *http.Request, row *signalRow) {
 	row.History = hist
 }
 
-// ruleVersions maps every shipped rule's name to its Version().String() vector, built
-// once over the whole corpus (the five Name rules, the ten Endpoint rules, the two
-// Service rules — signal.All / AllEndpointRules / AllServiceRules). The drawer's Rule
-// cell renders "{RuleID}@{RuleVersion}" off this, so the version is the rule's own
-// deterministic vector (rule@vN|leaf/vM|…), not a guess. A name with no shipped rule
-// (never expected for a fired instance) maps to "" and renders the id alone.
 var ruleVersions = buildRuleVersions()
 
 func buildRuleVersions() map[string]string {
@@ -557,17 +421,8 @@ func buildRuleVersions() map[string]string {
 	return m
 }
 
-// signalDrift joins the Drawer's before/after drift diff (#21j) out of the subject's
-// Span corpus — the same derived-store read the drill-down timelines and RunDetail's
-// Outcome perform (ListSpansForSubject → per-(facet,discriminator) timelines with
-// Breaks derived on read, ADR-0007/ADR-0008). It surfaces the subject's MOST RECENT
-// value transition: across the subject's timelines, the open span whose value differs
-// from its immediately-preceding closed span, opened latest. The before/after are the
-// shared valueLabel summaries (the same vocabulary driftDiff renders), so a Signals
-// drawer diff reads exactly like the Drift feed's. It returns nil — an honest
-// not-present, never fabricated — where the subject has no such transition, and
-// degrades to nil on any read error (the drawer diff is diagnostic, not load-bearing).
 func (s *server) signalDrift(r *http.Request, kind, key string) *sigDiff {
+	// The drawer diff is diagnostic rather than load-bearing, so an unreadable corpus degrades to nil.
 	if kind == "" || key == "" {
 		return nil
 	}
@@ -583,8 +438,7 @@ func (s *server) signalDrift(r *http.Request, kind, key string) *sigDiff {
 		if before == after {
 			continue
 		}
-		// spanView.OpenedAt is the fixed-width "2006-01-02 15:04 UTC" stamp, so a plain
-		// string compare orders the transitions chronologically — the latest opener wins.
+		// A fixed-width UTC stamp, so a plain string compare orders the transitions chronologically.
 		if best == nil || tv.Current.OpenedAt > bestAt {
 			bestAt = tv.Current.OpenedAt
 			best = &sigDiff{
@@ -596,13 +450,6 @@ func (s *server) signalDrift(r *http.Request, kind, key string) *sigDiff {
 	return best
 }
 
-// buildSignalTabs folds the Derived corpus into the flat per-instance rows and
-// partitions them into the screen's three tabs. Open is every currently-fired
-// (rule, subject) pair. Annotated is every operator acceptance whose subject is
-// still a current member of its rule's population; Withdrawn is every acceptance
-// whose subject has left it — orphan on read, the world's act (ADR-0092). The two
-// annotation-anchored tabs read each pair's persisted SIG id / first-seen where it
-// has one, and its last-seen where it is also currently firing.
 func (s *server) buildSignalTabs(r *http.Request) (open, annotated, withdrawn []signalRow, err error) {
 	ctx := r.Context()
 	corpus, err := s.buildSignalCorpus(r)
@@ -616,8 +463,6 @@ func (s *server) buildSignalTabs(r *http.Request) (open, annotated, withdrawn []
 
 	censuses := signal.EvaluateCorpus(corpus)
 
-	// population[rule][subject] — every subject a rule censuses (for orphan
-	// detection). fired[(rule,subject)] — the pairs firing right now.
 	population := map[string]map[string]bool{}
 	fired := map[[2]string]bool{}
 	for _, c := range censuses {
@@ -635,14 +480,11 @@ func (s *server) buildSignalTabs(r *http.Request) (open, annotated, withdrawn []
 		population[c.Rule] = pop
 	}
 
-	// The flat per-instance datum: one row per currently-fired pair (P0.1, #442).
 	instances, err := s.deriveSignalInstances(ctx, censuses)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	// Persisted identity for every minted pair, so an annotation-anchored row (which
-	// need not be currently firing) can still show its SIG id and first-seen.
 	identRows, err := s.store.ListSignalInstances(ctx)
 	if err != nil {
 		return nil, nil, nil, err
@@ -681,6 +523,7 @@ func (s *server) buildSignalTabs(r *http.Request) (open, annotated, withdrawn []
 
 	for _, av := range annoViews {
 		row := annotationRow(av, ident, fired, now)
+		// The subject withdrew, not the operator: orphan is derived on read and stored nowhere (ADR-0092).
 		if av.Orphan {
 			row.Withdrawn = true
 			withdrawn = append(withdrawn, row)
@@ -693,19 +536,12 @@ func (s *server) buildSignalTabs(r *http.Request) (open, annotated, withdrawn []
 	return open, annotated, withdrawn, nil
 }
 
-// instIdent is a persisted signal_instance identity — the stable id and first-seen
-// instant a pure re-derivation cannot reconstruct.
 type instIdent struct {
 	id      int64
 	first   time.Time
 	firstOK bool
 }
 
-// annotationRow shapes one operator acceptance into a flat per-instance row for the
-// Annotated / Withdrawn tabs. Its severity is the rule's (assigned per rule); its
-// asset / ip / port fall out of the subject key; its SIG id and first-seen come from
-// the persisted identity where the pair has ever fired, and its last-seen is now
-// only where it is also firing now (else its last-known instant, never invented).
 func annotationRow(av annotationView, ident map[[2]string]instIdent, fired map[[2]string]bool, now time.Time) signalRow {
 	key := [2]string{av.Signal, av.Subject}
 	sev, _ := signal.SeverityFor(av.Signal)
@@ -741,17 +577,11 @@ func annotationRow(av annotationView, ident map[[2]string]instIdent, fired map[[
 		AnnoID:             av.ID,
 		idNum:              parseSigNum(v.SigID),
 		seenAge:            seenAgeMinutes(v.Last, now),
-		// The annotation-anchored tabs open the Drawer on the annotation id (a plain
-		// number), distinct from the Open tab's `SIG-####` ViewKey — the two id spaces
-		// never collide, and a withdrawn pair need not be currently minted to open.
+		// The two id spaces never collide, so a withdrawn pair opens without a live mint.
 		ViewKey: strconv.FormatInt(av.ID, 10),
 	}
 }
 
-// filterSignalRows applies the screen's text and severity filters — the same
-// predicate Signals.jsx runs: a case-insensitive substring over the row's title,
-// asset, id and signal, and an exact severity match. It returns a fresh slice, so
-// the caller's base rows are untouched.
 func filterSignalRows(rows []signalRow, q, sev string) []signalRow {
 	q = strings.ToLower(strings.TrimSpace(q))
 	sevWant := ""
@@ -774,11 +604,8 @@ func filterSignalRows(rows []signalRow, q, sev string) []signalRow {
 	return out
 }
 
-// sortSignalRows sorts in place by the named column and direction, with a stable
-// deterministic tiebreak (severity, then asset, then id) so equal keys never
-// reorder between renders. The default column is severity ascending — critical
-// first, matching SignalData.jsx's SEV_ORDER.
 func sortSignalRows(rows []signalRow, key, dir string) {
+	// A re-render must not reshuffle equal keys, so the sort is stable and the tiebreak total.
 	primary := func(a, b signalRow) int {
 		switch key {
 		case "asset":
@@ -799,7 +626,7 @@ func sortSignalRows(rows []signalRow, key, dir string) {
 				return 1
 			}
 			return 0
-		default: // sev
+		default:
 			return a.SevRank - b.SevRank
 		}
 	}
@@ -823,10 +650,8 @@ func sortSignalRows(rows []signalRow, key, dir string) {
 	})
 }
 
-// pageWindow returns the windowed page-number slots (with -1 marking an ellipsis
-// gap), the constant-width windowing Pagination.jsx uses so the control never
-// changes width while paging.
 func pageWindow(page, pageCount int) []int {
+	// A constant-width window keeps the pagination control from resizing as the operator pages.
 	switch {
 	case pageCount <= 7:
 		out := make([]int, 0, pageCount)
@@ -911,16 +736,13 @@ func (s *server) buildNameFacts(r *http.Request) ([]signal.NameFacts, error) {
 		return nil, err
 	}
 
-	// Per Name: the resolution value per Vantage class. Class is DERIVED per read from
-	// each vantage's presented-address facts (#709), collapsed to the most-recent value
-	// per (name, derived class) — the collapse the retired SQL DISTINCT ON did.
+	// Vantage class is derived per read from presented-address facts, never a stored column (#709).
 	covered, err := s.addressScopeCovered(ctx)
 	if err != nil {
 		return nil, err
 	}
 	byClass := collapseNameResolutions(resRows, covered)
 
-	// Per Name: the CNAME target and the delegation's Lame verdict.
 	cnameTarget := map[string]string{}
 	nsLame := map[string]bool{}
 	for _, row := range dnsRows {
@@ -941,8 +763,6 @@ func (s *server) buildNameFacts(r *http.Request) ([]signal.NameFacts, error) {
 		}
 	}
 
-	// The operator's zone declarations: the owner-name set (the zone rules'
-	// domain) and the declared domains (the containment test for InDeclaredZone).
 	declared := map[string]bool{}
 	var zoneDomains []string
 	for _, row := range zoneRows {
@@ -956,10 +776,7 @@ func (s *server) buildNameFacts(r *http.Request) ([]signal.NameFacts, error) {
 		}
 	}
 
-	// The candidate universe: every Name we have a resolution for, plus every
-	// Name a zone file declares (so a declared name that withdrew or was never
-	// measured still enters its rule's domain — a signal's lifecycle is its
-	// evidence's, not its subject's membership).
+	// A zone-declared name that never resolved must still enter its rule's domain.
 	names := map[string]struct{}{}
 	for name := range byClass {
 		names[name] = struct{}{}
@@ -968,8 +785,6 @@ func (s *server) buildNameFacts(r *http.Request) ([]signal.NameFacts, error) {
 		names[name] = struct{}{}
 	}
 
-	// First pass: the composed cross-class resolution per Name, so a CNAME rule
-	// can read its target's outcome.
 	composed := map[string]composedResolution{}
 	for name := range names {
 		composed[name] = composeResolution(byClass[name], nsLame[name])
@@ -988,7 +803,7 @@ func (s *server) buildNameFacts(r *http.Request) ([]signal.NameFacts, error) {
 		}
 		if target, ok := cnameTarget[name]; ok {
 			f.CNAMETarget = target
-			f.TargetResolution = composed[target].outcome // "" when the target was never measured
+			f.TargetResolution = composed[target].outcome
 		}
 		if inet, ok := byClass[name]["internet"]; ok {
 			f.HasInternetVantage = true
@@ -1007,14 +822,8 @@ type composedResolution struct {
 	inEstate  bool
 }
 
-// composeResolution folds the per-class resolution values into one composed
-// outcome (CONTEXT.md `Membership`, ADR-0080/ADR-0086). Shadowed wins (it is a
-// value about our own sight and cites nothing); then a Resolved answer at any
-// class (its address set is the union); then the NS delegation's Lame; then
-// NoData; then a withdrawal only where every observed class read NameError; then
-// Gap. A Name is in the estate where some class observed it and it is not a
-// cross-class NameError.
 func composeResolution(classes map[string]resolutionValue, lame bool) composedResolution {
+	// A false Resolved fabricates addresses while a false Shadowed only withholds one (CONTEXT.md).
 	if len(classes) == 0 {
 		return composedResolution{outcome: signal.Gap, inEstate: false}
 	}
@@ -1066,14 +875,8 @@ func sortedKeys(m map[string]struct{}) []string {
 	return out
 }
 
-// buildSignalCorpus assembles the full Derived snapshot the seventeen-rule set
-// reads: the per-Name facts (the five Name-only rules), the per-Service facts (the
-// two Service rules), and the per-Endpoint facts (the ten Endpoint rules). Each is
-// folded from the observation corpus generically — by facet name and value — so a
-// rule reading a facet whose producing data is not yet present (a certificate's
-// parsed leaf, or #199's tls-acceptance) renders `not-evaluable` or a no-population
-// panel rather than a compile-time dependency on a leaf that has not landed.
 func (s *server) buildSignalCorpus(r *http.Request) (signal.Corpus, error) {
+	// Folded by facet name and value, so an unlanded leaf is not-evaluable and never a build break.
 	names, err := s.buildNameFacts(r)
 	if err != nil {
 		return signal.Corpus{}, err
@@ -1089,23 +892,11 @@ func (s *server) buildSignalCorpus(r *http.Request) (signal.Corpus, error) {
 	return signal.Corpus{Names: names, Services: services, Endpoints: endpoints}, nil
 }
 
-// buildServiceFacts folds the internet-class reachability corpus into the
-// per-Service snapshot the two Service rules read. It also returns the set of
-// estate addresses — the Address leg of every Service subject — which the Endpoint
-// redirect rule reads to decide whether a redirect target host is in the estate.
-// The `tls-acceptance` facet (tls-1.0-accepted's domain) is now read too: its leaf
-// (#199) enumerates what each reached Service ACCEPTS and persists it weekly, so the
-// current value joins the facts here (#684) — an `enumerated` value puts the Service
-// in the rule's domain and its accepted versions decide whether TLS 1.0 fired, while
-// a `tls-refused`/`no-tls` value (or no value at all, for a Service the weekly Scan
-// has not yet enumerated) leaves it outside the domain.
 func (s *server) buildServiceFacts(r *http.Request) ([]signal.ServiceFacts, map[string]bool, error) {
 	rows, err := s.store.ListServiceReachabilitySpansByClass(r.Context())
 	if err != nil {
 		return nil, nil, err
 	}
-	// The current `tls-acceptance` value per Service (#684), read through the
-	// live-tier gate like the sibling facets so the engine folds only live evidence.
 	tlsRows, err := s.store.ListServiceTLSAcceptance(r.Context(), db.ListServiceTLSAcceptanceParams{
 		AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
@@ -1118,11 +909,6 @@ func (s *server) buildServiceFacts(r *http.Request) ([]signal.ServiceFacts, map[
 	}
 	vc := vergecore.Default()
 
-	// subject -> class -> reach leg. Class is DERIVED per read from each vantage's
-	// presented-address facts (#709), collapsed to the most-recent leg per (service,
-	// derived class). Reading the SPAN (not the latest observation) gives us `is_gap`:
-	// a blanket responder's reach is a Gap, and a Gap leg reads as absent (ADR-0104), so
-	// it never becomes a value the rule can fire on.
 	covered, err := s.addressScopeCovered(r.Context())
 	if err != nil {
 		return nil, nil, err
@@ -1139,29 +925,14 @@ func (s *server) buildServiceFacts(r *http.Request) ([]signal.ServiceFacts, map[
 	for _, sub := range order {
 		f := signal.ServiceFacts{Subject: sub}
 		if pair, addr, ok := parseServicePair(sub); ok {
-			// A Service exists only for a probed pair (TCP); the sensitive half is
-			// always in the probed union, so IsSensitive on the TCP pair is exactly
-			// "on the sensitive list AND probed" (the ticket's domain restriction). A
-			// blanketed Service is still a subject here — its Address is real and in
-			// the estate — so it keeps its census membership; only its reach is absent.
 			f.OnSensitiveList = pair.Transport == vergecore.TCP && vc.IsSensitive(pair)
 			estateAddrs[addr] = true
 		}
-		// A blanket responder's internet reach is a Gap: the leg reads as absent, so
-		// HasInternetReach stays false and `sensitive-port-reached-from-internet`
-		// returns not-evaluable — the signal is damped at the measurement, never in
-		// the rule (ADR-0104 Decision §3). A Gap is not a `reachability` value either,
-		// so a blanketed port never enters an open-port count.
+		// A blanket responder's reach is a Gap, so the rule is damped at the measurement (ADR-0104 §3).
 		if l, ok := byClass[sub]["internet"]; ok && !l.isGap && l.outcome != "" {
 			f.HasInternetReach = true
 			f.InternetReach = l.outcome
 		}
-		// The `tls-acceptance` facet, for `tls-1.0-accepted` (#684). A completed
-		// enumeration puts the Service in the rule's domain; its accepted-version set
-		// (readable by construction on an `enumerated` value) decides whether TLS 1.0
-		// fired. A `tls-refused`/`no-tls` value, or no value at all (a Service the
-		// weekly Scan has not yet enumerated), leaves TLSHandshakeCompleted false and
-		// the Service outside the domain — a no-population panel, never a not-fired.
 		if tls, ok := tlsBySubject[sub]; ok && tls.Outcome == string(tlsacceptance.Enumerated) {
 			f.TLSHandshakeCompleted = true
 			f.TLSVersionsReadable = len(tls.Versions) > 0
@@ -1178,17 +949,6 @@ func (s *server) buildServiceFacts(r *http.Request) ([]signal.ServiceFacts, map[
 	return facts, estateAddrs, nil
 }
 
-// buildEndpointFacts folds the per-Endpoint certificate and http-identity corpus
-// into the snapshot the ten Endpoint rules read. The estate membership a redirect
-// target is tested against is the union of the current Name subjects and the
-// Service addresses — both Derived, so the redirect-to-host rule's version
-// composes their leaves. A presented certificate value carries the v2 leaf's
-// `not_after` (lighting certificate-expired + certificate-expiring, P0.10a) and the
-// v3 leaf's `not_before` / leaf SANs / per-link chain facts, which certDetailsFromValue
-// folds into the per-attribute CertDetails to light the four remaining cert rules —
-// not-yet-valid, hostname-san-mismatch, weak-key-or-signature and self-signed (P0.10b,
-// #704). A negative outcome still yields nil CertDetails (outside every cert rule); a
-// pre-v3 presented span leaves each unread attribute nil (that rule not-evaluable).
 func (s *server) buildEndpointFacts(r *http.Request, names []signal.NameFacts, estateAddrs map[string]bool) ([]signal.EndpointFacts, error) {
 	ctx := r.Context()
 	certRows, err := s.store.ListEndpointCertificates(ctx, db.ListEndpointCertificatesParams{
@@ -1213,12 +973,10 @@ func (s *server) buildEndpointFacts(r *http.Request, names []signal.NameFacts, e
 		httpID[row.SubjectKey] = decodeHTTPIdentity(row.Value)
 	}
 
-	// The estate name set the redirect rule reads: a redirect target host is in the
-	// estate where it names a current Name or a Service's Address.
 	nameSet := estateNameSet(names)
 	inEstate := func(host string) bool {
 		if host == "" {
-			return true // a relative redirect stays on this origin
+			return true
 		}
 		return estateAddrs[host] || nameSet[host]
 	}
@@ -1238,17 +996,9 @@ func (s *server) buildEndpointFacts(r *http.Request, names []signal.NameFacts, e
 		if cv, ok := certVal[sub]; ok {
 			f.CertMeasured = true
 			f.CertOutcome = cv.Outcome
-			// Fold the presented leaf into the per-attribute CertDetails: `not_after`
-			// lights certificate-expired + certificate-expiring (P0.10a), and the v3
-			// leaf's `not_before` / leaf SANs / per-link chain facts light the four
-			// remaining cert rules — not-yet-valid, hostname-san-mismatch,
-			// weak-key-or-signature and self-signed (P0.10b, #704). The Endpoint's Name
-			// is the hostname the SAN predicate matches against.
 			f.CertDetails = certDetailsFromValue(cv, s.now(), name)
 		}
 		if id, ok := httpID[sub]; ok {
-			// Only a `responded` Endpoint is inside the HTTP rules' domain; a reached
-			// Service that returned no-http-response is a value, but outside them.
 			f.HTTPResponded = id.Outcome == httpexchange.OutcomeResponded
 			f.HTTPStatus = id.Status
 			f.RedirectLocation = id.RedirectLocation
@@ -1263,16 +1013,6 @@ func (s *server) buildEndpointFacts(r *http.Request, names []signal.NameFacts, e
 	return facts, nil
 }
 
-// certificateValue is the JSON payload of a certificate observation — the closed
-// union outcome tag, (only on a presentation) the fingerprint chain (#197), the v2
-// leaf's parsed `not_after` expiry, and the v3 leaf's `not_before`, leaf SANs
-// (`san_dns`/`san_ip`) and per-link parsed chain facts (`chain_certs`). The engine
-// reads the outcome; the parsed-leaf attributes are folded into CertDetails, lighting
-// all six certificate rules — certificate-expired/expiring off `not_after` (P0.10a,
-// collision #37), and certificate-not-yet-valid / -hostname-san-mismatch /
-// -weak-key-or-signature / -self-signed off the v3 fields (P0.10b, #704). Every field
-// is absent on a pre-v3 span, so those rules render not-evaluable, byte-identical to
-// before this wire.
 type certificateValue struct {
 	Outcome    string      `json:"outcome"`
 	Chain      []string    `json:"chain"`
@@ -1283,12 +1023,8 @@ type certificateValue struct {
 	ChainCerts []chainCert `json:"chain_certs"`
 }
 
-// chainCert mirrors the producer's per-link parsed facts (internal/measure/
-// connectoutcome chainCert) on the read side: the subject/issuer DNs, whether the
-// link's own signature verifies under its bound key, its key algorithm + size
-// parameters, and its signature digest name. certDetailsFromValue reads these to
-// derive certificate-weak-key-or-signature (the per-link deny-list walk) and
-// certificate-self-signed (chain_certs[0]) at read (P0.10b, #704).
+// These mirror connectoutcome's per-link parsed facts, so a producer edit must land here too.
+
 type chainCert struct {
 	Subject               string `json:"subject"`
 	Issuer                string `json:"issuer"`
@@ -1305,29 +1041,6 @@ func decodeCertificate(raw []byte) certificateValue {
 	return v
 }
 
-// certDetailsFromValue folds a decoded certificate value into the per-attribute
-// CertDetails the six Endpoint certificate rules read (collision #37, P0.10a/P0.10b).
-// Only a presented chain carries readable attributes; a negative outcome
-// (`tls-refused` / `no-tls`) is outside every certificate rule's domain, so it yields
-// nil. On a presentation it builds a CertDetails and sets each *bool INDEPENDENTLY,
-// only when THAT attribute's own input is present — leaving nil (not-evaluable)
-// otherwise, because a rule never emits a verdict from evidence it does not hold (the
-// hard constraint; SANMatchesName in particular NEVER defaults false):
-//   - Expired/Expiring ← `not_after` + the SAME 30-day window (certExpiryWindow) the
-//     P0.4 "Certs expiring ≤30d" datum reads (deltas.go countCertsExpiring, #8).
-//   - NotYetValid ← `not_before`: fires when the leaf's validity floor is after now.
-//   - SANMatchesName ← the RFC 6125 §6.4.3 SAN predicate over `san_dns` vs the
-//     Endpoint's server name; witnessed by len(chain_certs)>0 (the read/unread signal —
-//     NOT len(san_dns), useless under omitempty), gated on a non-empty server name.
-//   - WeakKeyOrSignature ← the per-link deny-list walk over `chain_certs`.
-//   - SelfSigned ← chain_certs[0]: self-issued (subject==issuer) AND its own signature
-//     verifies (self_sig_verifies), the RFC 5280 §3.2 sense.
-//
-// A presented chain from before the v3 wire carries none of `not_before`/SANs/
-// chain_certs, so those four stay nil and their rules render not-evaluable — the same
-// verdict the engine gave before this wire. Returning a non-nil all-nil-field
-// CertDetails is equivalent to the old nil under certDetailRule.Eval (a nil attr is
-// not-evaluable either way; the only caller reads it back per-attribute).
 func certDetailsFromValue(v certificateValue, now time.Time, serverName string) *signal.CertDetails {
 	if v.Outcome != signal.CertPresented {
 		return nil
@@ -1337,8 +1050,8 @@ func certDetailsFromValue(v certificateValue, now time.Time, serverName string) 
 
 	if v.NotAfter != "" {
 		if na, err := time.Parse(time.RFC3339, v.NotAfter); err == nil {
-			expired := !na.After(ref)                                         // not_after at or before now
-			expiring := na.After(ref) && !na.After(ref.Add(certExpiryWindow)) // within 30d, not yet expired
+			expired := !na.After(ref)
+			expiring := na.After(ref) && !na.After(ref.Add(certExpiryWindow))
 			d.Expired = &expired
 			d.Expiring = &expiring
 		}
@@ -1351,9 +1064,7 @@ func certDetailsFromValue(v certificateValue, now time.Time, serverName string) 
 		}
 	}
 
-	// chain_certs is the read/unread witness for the v3 SAN and chain-derived rules:
-	// present means the leaf was parsed under v3, absent means a pre-v3 span whose
-	// per-link facts were never captured (those rules stay not-evaluable).
+	// Under omitempty an empty san_dns is unreadable, so chain_certs is the read/unread witness.
 	if len(v.ChainCerts) > 0 {
 		if serverName != "" {
 			m := sanMatchesName(v.SANDNS, serverName)
@@ -1369,32 +1080,18 @@ func certDetailsFromValue(v certificateValue, now time.Time, serverName string) 
 	return d
 }
 
-// selfSignedOf reports self-signed in RFC 5280 §3.2's sense: self-issued (issuer DN ==
-// subject DN, exact byte-for-byte string equality — normalisation refused, ADR-0051/
-// 0060) AND the cert's own signature verifies under its bound key (selfSigVerifies,
-// captured in-leaf via CheckSignatureFrom). Both certificate-self-signed (on
-// chain_certs[0]) and the weak-key signature-limb skip (per link) call THIS, so
-// T-self #713 §4.1's "the two cannot disagree" holds (shared predicate).
 func selfSignedOf(subject, issuer string, selfSigVerifies bool) bool {
+	// Shared so the two rules cannot disagree (docs/research/weak-key-and-signature.md §4.1).
 	return subject == issuer && selfSigVerifies
 }
 
-// sanMatchesName reports whether any dNSName SAN covers the Endpoint's server name,
-// RFC 6125 §6.4.3 rule 2 (T-san #714). It ORs over san_dns only — san_ip is ignored
-// entirely (#714 §3). Per entry vs name: dot-labels are compared case-insensitively
-// (ASCII A–Z fold only; A-labels `xn--` compared verbatim), a single trailing empty
-// label (a trailing dot) is ignored on either side. A literal entry (no `*`) matches
-// iff its label sequence equals name's. A leftmost single-`*` wildcard (leftmost label
-// is exactly `*`, no `*` elsewhere) matches iff the label counts are equal, name's
-// leftmost label is any one non-empty label, and every remaining label matches — so
-// `*.example.com` covers `foo.example.com`, NOT `example.com` and NOT
-// `bar.foo.example.com`. Any other `*`-bearing entry (partial-label, non-leftmost,
-// `**`) is a NON-MATCH, never a match. An empty disjunction is false.
 func sanMatchesName(sanDNS []string, name string) bool {
+	// A wildcard SAN admits no Name yet still matches one here: matching is not admitting (ADR-0060).
 	nameLabels := dnsLabels(name)
 	if len(nameLabels) == 0 {
 		return false
 	}
+	// iPAddress SANs are ignored entirely, so an IP-keyed endpoint never matches on one.
 	for _, entry := range sanDNS {
 		if sanEntryMatches(entry, nameLabels) {
 			return true
@@ -1414,7 +1111,6 @@ func dnsLabels(name string) []string {
 	return labels
 }
 
-// sanEntryMatches applies one SAN entry to the pre-split name labels per §6.4.3.
 func sanEntryMatches(entry string, nameLabels []string) bool {
 	entryLabels := dnsLabels(entry)
 	if len(entryLabels) == 0 {
@@ -1427,16 +1123,13 @@ func sanEntryMatches(entry string, nameLabels []string) bool {
 	if stars == 0 {
 		return labelsEqualFold(entryLabels, nameLabels)
 	}
-	// A wildcard is valid ONLY as a single leftmost label that is exactly "*" with no
-	// other "*" anywhere. Anything else (partial-label, non-leftmost, multiple) is a
-	// non-match.
+	// The same octets read as a pattern to one client and a literal to the next, so refuse (ADR-0060).
 	if stars != 1 || entryLabels[0] != "*" {
 		return false
 	}
 	if len(entryLabels) != len(nameLabels) {
 		return false
 	}
-	// The wildcard covers exactly one non-empty leftmost label; the rest match literally.
 	if nameLabels[0] == "" {
 		return false
 	}
@@ -1455,16 +1148,12 @@ func labelsEqualFold(a, b []string) bool {
 	return true
 }
 
-// weakKeyOrSignature is the per-link deny-list walk over the presented chain (T-weak
-// #715 §5): a chain is weak if ANY link carries a weak key OR a weak signature. The
-// KEY limb walks every link with NO self-signed skip; the SIGNATURE limb ({MD5, SHA-1}
-// digests) is skipped on self-signed links (a root signing itself with SHA-1 is not a
-// forgery risk — its trust is by pinning, not signature). Strict `<` floors, literal
-// only; an unnamed key algorithm contributes no row (not weak), never not-evaluable.
 func weakKeyOrSignature(chain []chainCert) bool {
+	// A self-signed link skips the signature limb only (docs/research/weak-key-and-signature.md §4.1).
 	weak := false
 	for _, c := range chain {
-		switch c.KeyAlg { // KEY limb — every link, no self-signed skip
+		// An unnamed key algorithm is not weak rather than not-evaluable (weak-key-and-signature.md §4.2).
+		switch c.KeyAlg {
 		case "RSA":
 			if c.KeyBits < 2048 {
 				weak = true
@@ -1477,9 +1166,8 @@ func weakKeyOrSignature(chain []chainCert) bool {
 			if c.KeyBits < 2048 || c.KeyParamN < 224 {
 				weak = true
 			}
-			// Ed25519/Ed448/unrecognised → no row → not weak (deny-list §4.2).
 		}
-		selfSig := c.SelfSignatureVerifies != nil && *c.SelfSignatureVerifies // SIGNATURE limb — skip self-signed
+		selfSig := c.SelfSignatureVerifies != nil && *c.SelfSignatureVerifies
 		if !selfSignedOf(c.Subject, c.Issuer, selfSig) {
 			if c.SigDigest == "MD5" || c.SigDigest == "SHA-1" {
 				weak = true
@@ -1489,9 +1177,6 @@ func weakKeyOrSignature(chain []chainCert) bool {
 	return weak
 }
 
-// parseServicePair splits a Service key `address:port/transport` into its
-// verge-core pair and its Address. A key that does not parse yields ok=false —
-// the Service is still a census subject, just never on the sensitive list.
 func parseServicePair(key string) (pair vergecore.Pair, addr string, ok bool) {
 	slash := strings.LastIndex(key, "/")
 	if slash < 0 {
@@ -1512,10 +1197,8 @@ func splitEndpointName(key string) (name, service string) {
 	return "", key
 }
 
-// estateNameSet is the set of current Name subjects, keyed lowercased so a
-// redirect host (already lowercased by RedirectTarget) matches regardless of the
-// zone's spelling.
 func estateNameSet(names []signal.NameFacts) map[string]bool {
+	// The redirect host arrives already lowercased, so the zone's own spelling must not decide a match.
 	set := make(map[string]bool, len(names))
 	for _, n := range names {
 		if n.InEstate {
@@ -1525,39 +1208,21 @@ func estateNameSet(names []signal.NameFacts) map[string]bool {
 	return set
 }
 
-// signalInstanceView is one currently-fired signal instance — a (rule, subject)
-// pair the engine placed under `fired` right now — shaped for the flat per-instance
-// table SignalData.jsx renders (P0.1, #442).
-//
-// Every field is real, none fabricated. SigID and First are read from the persisted
-// signal_instance identity; Severity/SevRank come from the rule (assigned per rule
-// in internal/signal); Last is this derivation instant (the pair is confirmed
-// firing now, so last-seen is now); Asset/IP/Port fall out of the subject key.
-// CVE, tags and the long remediation description SignalData.jsx also carries are
-// genuinely not derivable from the current corpus and are left off rather than
-// invented — the spec marks them optional.
 type signalInstanceView struct {
-	SigID    string // "SIG-####", formatted from the stable minted identity
-	Signal   string // the rule name — the named fact (never "finding"/"fingerprint")
-	Title    string // the rule name rendered for a human
-	Severity string // the rule's severity: critical | high | medium | low | info
-	SevRank  int    // index in signal.SevOrder — 0 = critical, the severity sort key
-	Asset    string // the subject key (Name, Service or Endpoint)
-	IP       string // the subject's address, where the key carries one ("" for a Name)
-	Port     string // the subject's port as ":NNNN", where the key carries one
-	First    string // first-seen instant, RFC3339 (persisted; "" if never minted)
-	Last     string // last-seen instant, RFC3339 — the current derivation instant
-	Seen     string // last-seen rendered relative to now ("4m", "now")
-	Href     string // route-aware drill-down to the subject
+	SigID    string
+	Signal   string
+	Title    string
+	Severity string
+	SevRank  int
+	Asset    string
+	IP       string
+	Port     string
+	First    string
+	Last     string
+	Seen     string
+	Href     string
 }
 
-// deriveSignalInstances folds the live censuses into the flat per-instance signal
-// datum (P0.1, #442): one row per currently-fired (rule, subject) pair. It mints a
-// stable identity for every fired pair (idempotent — an already-firing pair keeps
-// its id and first-seen), reads the identities back, and shapes each into a
-// signalInstanceView with its rule's severity and its instants. Ordered by the
-// severity ramp, then subject, then rule, so the exposed table is deterministic and
-// already in the design's critical→info order.
 func (s *server) deriveSignalInstances(ctx context.Context, censuses []signal.Census) ([]signalInstanceView, error) {
 	type pair struct{ rule, subject string }
 
@@ -1571,9 +1236,7 @@ func (s *server) deriveSignalInstances(ctx context.Context, censuses []signal.Ce
 		}
 	}
 
-	// Mint identity for the whole current fired set in one idempotent write. Nothing
-	// fires → nothing to mint, and the list below returns the historical rows (none
-	// of which match, so no instance renders).
+	// A GET writes here, because a re-derivation cannot reconstruct a stable id or its first-seen.
 	if len(fired) > 0 {
 		if err := s.store.MintSignalInstances(ctx, db.MintSignalInstancesParams{
 			SignalNames: names,
@@ -1636,9 +1299,6 @@ func (s *server) deriveSignalInstances(ctx context.Context, censuses []signal.Ce
 	return out, nil
 }
 
-// formatSigID renders the stable minted identity as the console's `SIG-####`
-// display id (SignalData.jsx). A zero id (a pair with no identity row — not
-// expected after a mint) renders empty rather than "SIG-0000".
 func formatSigID(id int64) string {
 	if id == 0 {
 		return ""
@@ -1646,11 +1306,6 @@ func formatSigID(id int64) string {
 	return fmt.Sprintf("SIG-%04d", id)
 }
 
-// subjectAddrPort pulls the address and port out of a subject key for the
-// per-instance table's IP / Port columns. A Service key is `address:port/transport`
-// and an Endpoint key is `name@address:port/transport`; a bare Name carries
-// neither, so both come back empty. It reuses the same parse the engine's fold
-// uses, so the columns agree with the census's own reading of the key.
 func subjectAddrPort(subject string) (ip, port string) {
 	_, svc := splitEndpointName(subject)
 	if p, addr, ok := parseServicePair(svc); ok {
@@ -1659,10 +1314,6 @@ func subjectAddrPort(subject string) (ip, port string) {
 	return "", ""
 }
 
-// signalTitle renders a rule name as the human title the per-instance row shows
-// (SignalData.jsx `title`). The rule name is the source of truth (never
-// "finding"/"fingerprint"); this only presents it — hyphens become spaces, known
-// acronyms are upper-cased, and the first word is capitalised.
 func signalTitle(ruleName string) string {
 	acronyms := map[string]string{
 		"cname": "CNAME", "dns": "DNS", "ns": "NS", "tls": "TLS",
