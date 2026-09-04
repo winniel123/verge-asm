@@ -19,11 +19,9 @@ func TestToZoneObservationParamsStampsSupplyInstantAndZoneSource(t *testing.T) {
 		t.Fatalf("got %d params, want 2", len(params))
 	}
 	for _, p := range params {
-		// The instant is the operator's supply act, never the worker's read.
 		if !p.ObservedAt.Time.Equal(supply) {
 			t.Errorf("%s/%s observed_at = %s, want supply instant %s", p.SubjectKey, p.Discriminator, p.ObservedAt.Time, supply)
 		}
-		// The zone file is the declared source and carries no vantage.
 		if p.Source != scan.ZoneSource {
 			t.Errorf("source = %q, want %q", p.Source, scan.ZoneSource)
 		}
