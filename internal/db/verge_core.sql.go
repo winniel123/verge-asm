@@ -15,8 +15,6 @@ const deleteVergeCoreFrequencyEdit = `-- name: DeleteVergeCoreFrequencyEdit :exe
 DELETE FROM verge_core_frequency_edit WHERE port = $1
 `
 
-// Reset a port to its shipped default by dropping its edit row. Idempotent: a
-// port with no edit is already at its default.
 func (q *Queries) DeleteVergeCoreFrequencyEdit(ctx context.Context, port int32) error {
 	_, err := q.db.Exec(ctx, deleteVergeCoreFrequencyEdit, port)
 	return err
@@ -37,7 +35,6 @@ type ListVergeCoreFrequencyEditsWithAuthorRow struct {
 	CreatedByUsername string             `json:"created_by_username"`
 }
 
-// The current frequency edits, with who made each, for the management UI.
 func (q *Queries) ListVergeCoreFrequencyEditsWithAuthor(ctx context.Context) ([]ListVergeCoreFrequencyEditsWithAuthorRow, error) {
 	rows, err := q.db.Query(ctx, listVergeCoreFrequencyEditsWithAuthor)
 	if err != nil {
@@ -65,7 +62,6 @@ func (q *Queries) ListVergeCoreFrequencyEditsWithAuthor(ctx context.Context) ([]
 }
 
 const upsertVergeCoreFrequencyEdit = `-- name: UpsertVergeCoreFrequencyEdit :exec
-
 INSERT INTO verge_core_frequency_edit (port, action, created_by)
 VALUES ($1, $2, $3)
 ON CONFLICT (port) DO UPDATE SET action = EXCLUDED.action, created_by = EXCLUDED.created_by, created_at = now()
@@ -77,13 +73,6 @@ type UpsertVergeCoreFrequencyEditParams struct {
 	CreatedBy int64  `json:"created_by"`
 }
 
-// verge-core frequency-half editing (v1 spec §3.5). Only the frequency half is
-// operator-editable; these queries manage the delta rows the hot fan-out applies
-// over the shipped default. The sensitive half has no table and no query — it is
-// authored by the release and is unreachable from here by construction.
-// Record an operator edit to a frequency port. One row per port: a later edit
-// replaces the earlier one, so toggling add→remove on a port is an update, not a
-// second row.
 func (q *Queries) UpsertVergeCoreFrequencyEdit(ctx context.Context, arg UpsertVergeCoreFrequencyEditParams) error {
 	_, err := q.db.Exec(ctx, upsertVergeCoreFrequencyEdit, arg.Port, arg.Action, arg.CreatedBy)
 	return err

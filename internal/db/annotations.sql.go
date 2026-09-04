@@ -10,7 +10,6 @@ import (
 )
 
 const createAnnotation = `-- name: CreateAnnotation :one
-
 INSERT INTO annotation (subject_key, signal_name, reason)
 VALUES ($1, $2, $3)
 RETURNING id, subject_key, signal_name, reason, declared_at
@@ -22,14 +21,6 @@ type CreateAnnotationParams struct {
 	Reason     string `json:"reason"`
 }
 
-// Reads and writes behind `Annotation` management on the Signals screen (#204).
-// An Annotation is an operator dial keyed on one `(subject, signal-name)` pair,
-// carrying the operator's reason and the instant declared — no status, no expiry
-// and no author (CONTEXT.md `Annotation`, ADR-0073). Declaring and withdrawing
-// are plain state changes: neither is a `Message`, and neither mints a cause.
-// Declare an acceptance on one pair. The unique index on (subject_key,
-// signal_name) rejects a re-declaration of the same pair — an Annotation cannot
-// be edited, so changing the reason is a withdraw-then-declare, not an update.
 func (q *Queries) CreateAnnotation(ctx context.Context, arg CreateAnnotationParams) (Annotation, error) {
 	row := q.db.QueryRow(ctx, createAnnotation, arg.SubjectKey, arg.SignalName, arg.Reason)
 	var i Annotation
@@ -47,10 +38,6 @@ const deleteAnnotation = `-- name: DeleteAnnotation :exec
 DELETE FROM annotation WHERE id = $1
 `
 
-// Withdraw an acceptance. Withdrawing is a plain state change that produces no
-// `Message` — its carrier is the message it releases, the pair's own next firing.
-// Deleting a row that is already gone is not an error: the operator's intent, that
-// the acceptance no longer stand, is satisfied either way.
 func (q *Queries) DeleteAnnotation(ctx context.Context, id int64) error {
 	_, err := q.db.Exec(ctx, deleteAnnotation, id)
 	return err
@@ -62,10 +49,7 @@ FROM annotation
 ORDER BY signal_name, subject_key
 `
 
-// Every declared acceptance, ordered by signal then subject — a deterministic
-// list with no sort by attention, age or count (an operator dial carries no such
-// axis). The Signals layer folds these against the live census to decide the
-// fully-annotated prose case and to mark a row whose key names no current member.
+// A dial is not ranked: no staleness sort and no per-rule count (ADR-0073 §3, §4).
 func (q *Queries) ListAnnotations(ctx context.Context) ([]Annotation, error) {
 	rows, err := q.db.Query(ctx, listAnnotations)
 	if err != nil {

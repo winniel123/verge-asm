@@ -20,10 +20,6 @@ type GetInstanceHealthRow struct {
 	ServerVersion string `json:"server_version"`
 }
 
-// The instance-health tab's live database facts (#633, WORK-ORDER-DOGFOOD-R1 item 3):
-// the size of this deployment's database and its Postgres server version, read straight
-// off the running server — pg_database_size over the current database, and the
-// server_version setting. Both are Operational host facts; this touches no estate corpus.
 func (q *Queries) GetInstanceHealth(ctx context.Context) (GetInstanceHealthRow, error) {
 	row := q.db.QueryRow(ctx, getInstanceHealth)
 	var i GetInstanceHealthRow

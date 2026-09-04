@@ -16,8 +16,6 @@ const listColdScopeSeedIds = `-- name: ListColdScopeSeedIds :many
 SELECT seed_id FROM cold_scan_scope ORDER BY seed_id
 `
 
-// The opted-in `Seed` ids, for the Seeds screen to mark which scopes have opted
-// into the cold tier.
 func (q *Queries) ListColdScopeSeedIds(ctx context.Context) ([]int64, error) {
 	rows, err := q.db.Query(ctx, listColdScopeSeedIds)
 	if err != nil {
@@ -52,10 +50,6 @@ type ListColdScopeSeedsRow struct {
 	AddressCidr *netip.Prefix `json:"address_cidr"`
 }
 
-// The cold Scan's opted-in scope, for dispatch: every `Seed` opted into the
-// full-range tier, with its kind and scope so the dispatcher can bound the sweep
-// to the addresses an address-scope enumerates or a name-scope's names resolve
-// to. An empty result is the shipped disabled state — no jobs (ADR-0044).
 func (q *Queries) ListColdScopeSeeds(ctx context.Context) ([]ListColdScopeSeedsRow, error) {
 	rows, err := q.db.Query(ctx, listColdScopeSeeds)
 	if err != nil {
@@ -92,8 +86,6 @@ type OptInColdScopeParams struct {
 	CreatedBy int64 `json:"created_by"`
 }
 
-// Opts one `Seed` scope into the cold tier. Idempotent on seed_id: opting an
-// already-opted-in scope in again is a no-op, never a duplicate.
 func (q *Queries) OptInColdScope(ctx context.Context, arg OptInColdScopeParams) error {
 	_, err := q.db.Exec(ctx, optInColdScope, arg.SeedID, arg.CreatedBy)
 	return err
@@ -103,7 +95,6 @@ const optOutColdScope = `-- name: OptOutColdScope :exec
 DELETE FROM cold_scan_scope WHERE seed_id = $1
 `
 
-// Opts one `Seed` scope back out of the cold tier.
 func (q *Queries) OptOutColdScope(ctx context.Context, seedID int64) error {
 	_, err := q.db.Exec(ctx, optOutColdScope, seedID)
 	return err
@@ -115,12 +106,6 @@ SET enabled = EXISTS (SELECT 1 FROM cold_scan_scope)
 WHERE kind = 'cold'
 `
 
-// Reconciles the cold Scan's enabled flag with its scope: enabled exactly while
-// at least one `Seed` scope is opted in. This is the whole of "enabling it is
-// per-Seed, not global" (ADR-0044) — the operator never toggles a global switch;
-// opting the first scope in enables the tier, opting the last out disables it.
-// Called after every opt-in and opt-out, never on a cadence tick, so the tier is
-// never enabled as a side effect of a measurement.
 func (q *Queries) SyncColdScanEnabled(ctx context.Context) error {
 	_, err := q.db.Exec(ctx, syncColdScanEnabled)
 	return err

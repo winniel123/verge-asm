@@ -14,9 +14,6 @@ SELECT slug, enabled
 FROM source_state
 `
 
-// The operator's overrides of the authored ship defaults. The handler merges
-// these onto the in-binary catalogue: a source's effective state is its override
-// where one exists and its shipped default otherwise.
 func (q *Queries) ListSourceStates(ctx context.Context) ([]SourceState, error) {
 	rows, err := q.db.Query(ctx, listSourceStates)
 	if err != nil {
@@ -50,10 +47,6 @@ type UpsertSourceStateParams struct {
 	Enabled bool   `json:"enabled"`
 }
 
-// Record the operator's on/off choice for one source. A toggle is a Declared act
-// with no timeline, no actor, and no instant of its own (ADR-0073, ADR-0093), so
-// re-toggling overwrites the single current value and the row holds only the
-// overridden state.
 func (q *Queries) UpsertSourceState(ctx context.Context, arg UpsertSourceStateParams) (SourceState, error) {
 	row := q.db.QueryRow(ctx, upsertSourceState, arg.Slug, arg.Enabled)
 	var i SourceState

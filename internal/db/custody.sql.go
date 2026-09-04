@@ -20,11 +20,7 @@ type SetCustodyExtensionParams struct {
 	CustodyExtension bool  `json:"custody_extension"`
 }
 
-// Declare (true) or withdraw (false) the custody extension on a name-scope Seed.
-// The kind guard makes the act a no-op on an address scope rather than an error,
-// matching the CHECK the migration installs — an address scope can never carry a
-// custody extension. The flag has no timeline, so a withdrawal is the same UPDATE
-// with false rather than a dated state change.
+// The seed CHECK rejects a true extension on an address scope, so an unguarded declare errors.
 func (q *Queries) SetCustodyExtension(ctx context.Context, arg SetCustodyExtensionParams) error {
 	_, err := q.db.Exec(ctx, setCustodyExtension, arg.ID, arg.CustodyExtension)
 	return err

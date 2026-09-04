@@ -24,10 +24,6 @@ type CreatePersonalTokenParams struct {
 	TokenHash string `json:"token_hash"`
 }
 
-// Mint a personal API token for one account. Only the hash and the non-secret
-// prefix are stored; the plaintext is shown once at the call site and never
-// persisted. A duplicate (account_id, name) is a unique violation, surfaced to the
-// operator as a name-already-taken message rather than a second silent row.
 func (q *Queries) CreatePersonalToken(ctx context.Context, arg CreatePersonalTokenParams) (PersonalToken, error) {
 	row := q.db.QueryRow(ctx, createPersonalToken,
 		arg.AccountID,
@@ -58,9 +54,6 @@ type DeletePersonalTokenParams struct {
 	AccountID int64 `json:"account_id"`
 }
 
-// Revoke a token, scoped to its owner: the account_id predicate means an operator
-// can only revoke their own tokens, never another account's by guessing an id.
-// Revocation is a hard delete — a revoked token holds no history worth reading.
 func (q *Queries) DeletePersonalToken(ctx context.Context, arg DeletePersonalTokenParams) error {
 	_, err := q.db.Exec(ctx, deletePersonalToken, arg.ID, arg.AccountID)
 	return err
@@ -72,12 +65,6 @@ FROM personal_token
 WHERE token_hash = $1
 `
 
-// Resolve a presented bearer credential to its stored row by the SHA-256 hash of the
-// plaintext vg_pat_… (the caller hashes before this lookup; the plaintext is never
-// persisted, only its digest is). The indexed hash equality carries the constant-time
-// property inherently — a non-matching hash simply yields no row, disclosing nothing by
-// timing. Returns account_id so the bearer path reads the account's role LIVE per request
-// (ADR-0123 §4), never freezing a role into the token itself.
 func (q *Queries) GetPersonalTokenByHash(ctx context.Context, tokenHash string) (PersonalToken, error) {
 	row := q.db.QueryRow(ctx, getPersonalTokenByHash, tokenHash)
 	var i PersonalToken
@@ -109,9 +96,6 @@ type ListPersonalTokensRow struct {
 	LastUsedAt pgtype.Timestamptz `json:"last_used_at"`
 }
 
-// One account's tokens, newest first. token_hash is omitted from the read: listing
-// tokens never needs it, so the secret material stays out of the render path — only
-// the label, the non-secret prefix, and the timestamps are surfaced.
 func (q *Queries) ListPersonalTokens(ctx context.Context, accountID int64) ([]ListPersonalTokensRow, error) {
 	rows, err := q.db.Query(ctx, listPersonalTokens, accountID)
 	if err != nil {
@@ -145,11 +129,6 @@ SET last_used_at = now()
 WHERE id = $1 AND (last_used_at IS NULL OR last_used_at < now() - interval '1 hour')
 `
 
-// Coarsened last-used touch (ADR-0123 §4): stamp last_used_at = now() at most once per
-// hour per token, so an authenticated /api/v1 request records "still live" without a
-// row-per-request write amplifier and without turning last_used_at into a fine-grained
-// access log of the operator's own integration traffic. The predicate makes the write a
-// no-op inside the hour, and last_used_at never regresses — it is data and rides the backup.
 func (q *Queries) UpdatePersonalTokenLastUsed(ctx context.Context, id int64) error {
 	_, err := q.db.Exec(ctx, updatePersonalTokenLastUsed, id)
 	return err
