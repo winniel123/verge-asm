@@ -25,10 +25,10 @@ func TestDeclareExclusions(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 
 	for _, tc := range []struct{ kind, value, want string }{
-		{"name", "API.Example.com", "api.example.com"}, // an exact name, case-folded
+		{"name", "API.Example.com", "api.example.com"},
 		{"subtree", "internal.example.com", "internal.example.com"},
-		{"address", "203.0.113.0/24", "203.0.113.0/24"}, // a CIDR
-		{"address", "198.51.100.7", "198.51.100.7/32"},  // a bare address carves one host
+		{"address", "203.0.113.0/24", "203.0.113.0/24"},
+		{"address", "198.51.100.7", "198.51.100.7/32"},
 	} {
 		resp := exclude(t, ac, base, tc.kind, tc.value)
 		if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/scope" {
@@ -43,7 +43,6 @@ func TestDeclareExclusions(t *testing.T) {
 			t.Errorf("exclusion %q not listed; body: %s", want, page)
 		}
 	}
-	// The three kinds are distinguished in the listing.
 	for _, badge := range []string{">name<", ">subtree<", ">address<"} {
 		if !strings.Contains(page, badge) {
 			t.Errorf("exclusion kind %q not shown in listing; body: %s", badge, page)
@@ -82,13 +81,10 @@ func TestInvalidExclusionsRejected(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// A wildcard is not a name. The refusal is a post-redirect-get (ADR-0130 §1), so the
-	// callout is read off the landing GET.
 	if got := refusalPage(t, ac, base, exclude(t, ac, base, "name", "*.example.com")); !strings.Contains(got, "bare name") {
 		t.Fatalf("wildcard not rejected clearly; body=%s", got)
 	}
 
-	// A malformed address is rejected, and the typed value is preserved.
 	got := refusalPage(t, ac, base, exclude(t, ac, base, "address", "not-an-address"))
 	if !strings.Contains(got, "not an address or CIDR block") {
 		t.Fatalf("bad address not rejected clearly; body=%s", got)
@@ -111,7 +107,6 @@ func TestDuplicateExclusionRejected(t *testing.T) {
 	if got := refusalPage(t, ac, base, exclude(t, ac, base, "name", "dup.example.com")); !strings.Contains(got, "already excluded") {
 		t.Fatalf("duplicate not reported; body: %s", got)
 	}
-	// A subtree of the same string is a different claim and is accepted.
 	resp := exclude(t, ac, base, "subtree", "dup.example.com")
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("subtree of the same name should be accepted: status=%d", resp.StatusCode)
@@ -145,7 +140,6 @@ func TestViewerCannotExcludeButCanView(t *testing.T) {
 		t.Fatalf("exclusions after denied viewer acts = %d, want 1", len(f.exclusions))
 	}
 
-	// But the viewer can read the list, and neither exclusion control is offered.
 	page := seedsBody(t, vc, base)
 	if !strings.Contains(page, "seen.example.com") {
 		t.Errorf("viewer cannot see the exclusions list; body: %s", page)

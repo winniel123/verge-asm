@@ -7,9 +7,6 @@ import (
 	"testing"
 )
 
-// editFreq submits one frequency edit from the folded /verge-core surface, carrying the
-// submitting-URL field that surface's forms stamp (ADR-0130 §3, backurl.go). Every
-// outcome therefore comes back to /verge-core, which is where the operator was.
 func editFreq(t *testing.T, c *http.Client, base, action, port string) *http.Response {
 	t.Helper()
 	return postForm(t, c, base+"/verge-core/frequency", url.Values{
@@ -26,8 +23,6 @@ func vergeCoreBody(t *testing.T, c *http.Client, base string) string {
 	return body(t, resp)
 }
 
-// The page states the composed set and lists both halves; the sensitive half is
-// read-only (no mutating control targets it).
 func TestVergeCorePageShowsComposition(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -35,20 +30,16 @@ func TestVergeCorePageShowsComposition(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 
 	page := vergeCoreBody(t, ac, base)
-	// verge-core now renders as the Port aperture tab (#313): sensitive tier locked,
-	// frequency tier editable. The composition counts still read from real data.
 	for _, want := range []string{"136 pairs", "131 TCP", "5 UDP", "Sensitive tier", "locked", "Not editable"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("aperture page missing %q; body length %d", want, len(page))
 		}
 	}
-	// The sensitive half is offered no edit control — only the frequency half is.
 	if strings.Contains(page, `value="add"`) == false {
 		t.Errorf("frequency add control missing")
 	}
 }
 
-// An admin can add and remove a frequency port; the edit is stored as a delta.
 func TestVergeCoreAdminEditsFrequency(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -73,10 +64,6 @@ func TestVergeCoreAdminEditsFrequency(t *testing.T) {
 	}
 }
 
-// A bad port is rejected with the typed value preserved, and stores nothing. The
-// refusal is a post-redirect-get (ADR-0130 §1, ticket #975), so the message and the
-// typed port reach the operator on the landing GET rather than as a 400 body at the
-// POST URL.
 func TestVergeCoreRejectsBadPort(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -99,7 +86,6 @@ func TestVergeCoreRejectsBadPort(t *testing.T) {
 	}
 }
 
-// A viewer reads the composition but is offered and allowed no edit.
 func TestVergeCoreViewerReadOnly(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")

@@ -7,15 +7,6 @@ import (
 	"testing"
 )
 
-// --- Settings · Channels "Send test" (#757, R4-D2) ---------------------------
-//
-// A channel always holds its own URL, so it is always testable — no binding gate
-// (that gate is only for integrations, #38/#39). These exercise the real send
-// through the channelTestSender seam (never the network) and the honest toast on
-// both the success and failure paths, plus the missing-channel and admin gates.
-
-// A channel's "Send test" POSTs a real signed payload through the channel's own URL
-// via the transport seam and toasts the ok success copy.
 func TestChannelsSendTestCallsTransport(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -48,8 +39,6 @@ func TestChannelsSendTestCallsTransport(t *testing.T) {
 	}
 }
 
-// A failing transport (non-2xx or transport error) still attempts the send once and
-// toasts an honest non-ok degrade, never the success copy.
 func TestChannelsSendTestFailureToasts(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -70,8 +59,6 @@ func TestChannelsSendTestFailureToasts(t *testing.T) {
 	}
 }
 
-// A missing or unknown channel id makes NO POST and flashes-and-redirects (no crash),
-// mirroring the sibling channel handlers.
 func TestChannelsSendTestUnknownIdDoesNotPost(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -94,7 +81,6 @@ func TestChannelsSendTestUnknownIdDoesNotPost(t *testing.T) {
 	}
 }
 
-// The Send test is an admin act: a viewer is refused and nothing is sent.
 func TestChannelsSendTestAdminGated(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")

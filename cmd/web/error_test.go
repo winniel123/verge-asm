@@ -50,10 +50,6 @@ func TestForbiddenRendersAccessDenied(t *testing.T) {
 
 var incidentRe = regexp.MustCompile(`err_[0-9a-z]{8}`)
 
-// TestRecoveredPanicRendersIncident proves a handler panic becomes the 500 error
-// page carrying a real, copyable incident id — the same id the recovery middleware
-// logs — and that the id is minted (never fabricated for a non-failure) with the
-// copy control wired.
 func TestRecoveredPanicRendersIncident(t *testing.T) {
 	s := newServer(newFakeStore(), testKey, "", fixedClock())
 	boom := http.HandlerFunc(func(http.ResponseWriter, *http.Request) { panic("kaboom") })
@@ -75,7 +71,6 @@ func TestRecoveredPanicRendersIncident(t *testing.T) {
 	if id == "" {
 		t.Fatalf("500 page carries no incident id: %s", got)
 	}
-	// The id must be copyable: the CopyValue-ported control carries the same id.
 	if !strings.Contains(got, `data-incident-copy="`+id+`"`) {
 		t.Fatalf("incident id %q not wired to a copy control: %s", id, got)
 	}
