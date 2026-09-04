@@ -16,13 +16,6 @@ UPDATE queue_job SET state = 'cancelled'
 WHERE dispatch_id = $1 AND state IN ('ready', 'running')
 `
 
-// Terminate a Dispatch (DF-F4): cancel every in-flight job — ready AND running. A
-// ready job never runs; a running job is cancelled out from under the worker, whose
-// guarded terminal write (MarkJobDone/Dead/Retried, WHERE state = 'running') then
-// affects no row and rolls its transaction back, so the job's uncommitted batch and
-// observations are discarded (job atomicity — internal/queue/worker.go). A job that
-// already committed is 'done'/'dead', not 'running', so its batch stands untouched
-// (append-only). Returns the count cancelled (the "N jobs stopped" figure).
 func (q *Queries) CancelActiveJobsForDispatch(ctx context.Context, dispatchID pgtype.Int8) (int64, error) {
 	result, err := q.db.Exec(ctx, cancelActiveJobsForDispatch, dispatchID)
 	if err != nil {
@@ -36,13 +29,6 @@ UPDATE queue_job SET state = 'cancelled'
 WHERE dispatch_id = $1 AND state = 'ready'
 `
 
-// Stop a Dispatch (DF-F4): cancel its pending work. Every ready (not-yet-claimed)
-// job of the dispatch moves to the terminal 'cancelled' state, leaving the claimable
-// set at once — ClaimJob selects state = 'ready' alone, so a cancelled job is never
-// run. A job the worker is mid-claim on is locked FOR UPDATE and already 'running' by
-// the time this UPDATE reaches it, so the WHERE state = 'ready' no longer matches: a
-// running job is left to finish and commit, which is the stop contract. Returns the
-// count actually cancelled (the "N pending jobs cancelled" figure).
 func (q *Queries) CancelReadyJobsForDispatch(ctx context.Context, dispatchID pgtype.Int8) (int64, error) {
 	result, err := q.db.Exec(ctx, cancelReadyJobsForDispatch, dispatchID)
 	if err != nil {
@@ -86,16 +72,6 @@ type ListActiveDispatchProgressRow struct {
 	Retried    int64              `json:"retried"`
 }
 
-// The Dispatches still in flight, newest first, with the same per-state job counts
-// ListDispatchProgress folds — the Active half of the Scans monitor's split read
-// (#962, SPEC §3/§4). In flight means at least one job still 'ready' or 'running',
-// the same predicate the view derives Active from (toDispatchView: ready + running > 0).
-// It carries no LIMIT on purpose: few Scans run at once, so reality bounds this read,
-// and a cap here is what let a burst of in-flight work evict completed history from the
-// old shared window. Only an in-flight Dispatch owns a stop / terminate dialog, so this
-// read is also the lookup behind those (scans.go findDispatchRow).
-// A Dispatch whose jobs were retired to NULL by the Dispatch sweep (ADR-0041) counts
-// zero in-flight jobs, so it falls to the history read rather than pinning here.
 func (q *Queries) ListActiveDispatchProgress(ctx context.Context) ([]ListActiveDispatchProgressRow, error) {
 	rows, err := q.db.Query(ctx, listActiveDispatchProgress)
 	if err != nil {
@@ -164,13 +140,6 @@ type ListConcludedDispatchProgressRow struct {
 	Retried    int64              `json:"retried"`
 }
 
-// The Dispatches no longer in flight, newest first — the History half of the Scans
-// monitor's split read (#962, SPEC §3/§4). It is the exact complement of
-// ListActiveDispatchProgress: no job left 'ready' or 'running'. The two halves are
-// disjoint, so a Dispatch is listed once, and history gets a dedicated window —
-// in-flight volume no longer evicts completed rows from it.
-// The caller passes scansHistoryLimit + 1 and shows scansHistoryLimit, so one extra
-// row is the truncation signal (LIMIT N+1; scans.go fillScansSection).
 func (q *Queries) ListConcludedDispatchProgress(ctx context.Context, limit int32) ([]ListConcludedDispatchProgressRow, error) {
 	rows, err := q.db.Query(ctx, listConcludedDispatchProgress, limit)
 	if err != nil {
@@ -238,23 +207,6 @@ type ListDispatchProgressRow struct {
 	Retried    int64              `json:"retried"`
 }
 
-// The recent Dispatches with their per-state job counts, newest first — the read
-// behind the Scans monitor (#245). Dispatch, queue_job and batch are Operational:
-// they record what the system did, never what is true of the estate, so this read
-// is barred from the comparison path by construction (CONTEXT.md, ADR-0041) and the
-// drift engine never sees it. A retry enqueues a fresh job and marks the old one
-// 'retried' (internal/queue/worker.go), so 'retried' rows are superseded attempts:
-// the live work is total − retried, of which done + dead are complete and
-// ready + running are still in flight. The LEFT JOIN keeps a Dispatch whose jobs
-// were retired to NULL by the Dispatch sweep (ADR-0041) — it counts zero jobs
-// rather than vanishing.
-// created_at is the instant the fan-out actually happened, which is what "when did
-// this scan start" means to an operator; scheduled_time is the cadence tick the
-// Dispatch is idempotent on, not a wall-clock start, so it is not read here.
-// status carries the Dispatch's operator-ended disposition (DF-F4b, migration 22901):
-// 'fanned-out' for a natural run, 'stopped' / 'terminated' once an operator ended it.
-// The run page renders that recorded token as its terminal batch badge (runStatusLabel),
-// so a stopped/terminated drill-in shows the real outcome, not the live derivation.
 func (q *Queries) ListDispatchProgress(ctx context.Context, limit int32) ([]ListDispatchProgressRow, error) {
 	rows, err := q.db.Query(ctx, listDispatchProgress, limit)
 	if err != nil {
@@ -317,11 +269,6 @@ type ListJobsForDispatchRow struct {
 	BatchOutcome pgtype.Text `json:"batch_outcome"`
 }
 
-// The per-job detail for one Dispatch — the progress drill-down (#245). Ordered by
-// id so a retried attempt reads immediately before the fresh job that replaced it.
-// A job's Batch outcome is NULL until the job reaches a terminal state, since a
-// Batch is written only at completion or dead-letter (db/migrations/18804); the
-// Vantage name is NULL for the zone Scan, which has no vantage choice at all.
 func (q *Queries) ListJobsForDispatch(ctx context.Context, dispatchID pgtype.Int8) ([]ListJobsForDispatchRow, error) {
 	rows, err := q.db.Query(ctx, listJobsForDispatch, dispatchID)
 	if err != nil {
@@ -361,9 +308,6 @@ type SetDispatchStatusParams struct {
 	Status string `json:"status"`
 }
 
-// Record a Dispatch's operator-ended disposition (DF-F4): 'stopped' or 'terminated'.
-// Scoped to a still-'fanned-out' dispatch so a second submit or a natural conclusion
-// cannot overwrite a recorded terminal status.
 func (q *Queries) SetDispatchStatus(ctx context.Context, arg SetDispatchStatusParams) error {
 	_, err := q.db.Exec(ctx, setDispatchStatus, arg.ID, arg.Status)
 	return err

@@ -16,11 +16,6 @@ DELETE FROM dispatch
 WHERE scheduled_time < $1
 `
 
-// The one and only path that deletes Dispatch rows (v1 spec §4.6, ADR-0041). It
-// touches the dispatch table and nothing else: no Observation, Span, Batch or
-// queue_job row is read or written here, so retiring Dispatch can move no value
-// on any timeline. The FK change in migration 20900 lets the delete null the
-// operational back-references rather than cascade into measured data.
 func (q *Queries) DeleteExpiredDispatches(ctx context.Context, scheduledTime pgtype.Timestamptz) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteExpiredDispatches, scheduledTime)
 	if err != nil {
@@ -39,7 +34,6 @@ WITH cover AS (
     GROUP BY o.subject_key, o.facet, o.discriminator, o.vantage_id, o.source
 ),
 withdrawn AS (
-    -- A withdrawn subject's timelines are all closed: it has spans and no open one.
     SELECT subject_key
     FROM span
     GROUP BY subject_key
@@ -59,16 +53,10 @@ WHERE obs.id IN (
     WHERE $1::bigint > 0
       AND EXTRACT(EPOCH FROM ($2::timestamptz - o.observed_at)) > $1::bigint
       AND (
-            -- Withdrawn: no floor, the dial alone governs (the guard above is the
-            -- whole test).
             w.subject_key IS NOT NULL
-            -- Defined bound, not withdrawn: also past its own live bound. A row
-            -- inside k cadences of its covering Scan is live and never reached here.
          OR (c.tightest_cadence IS NOT NULL
              AND EXTRACT(EPOCH FROM ($2::timestamptz - o.observed_at))
                  > $3::bigint * c.tightest_cadence)
-            -- c.tightest_cadence IS NULL and not withdrawn => undefined bound =>
-            -- never retired (neither branch fires).
           )
 )
 `
@@ -79,27 +67,6 @@ type DeleteExpiredObservationsParams struct {
 	FloorCadences int64              `json:"floor_cadences"`
 }
 
-// Retire the evidential observations the operator's dial no longer keeps (v1 spec
-// §4.6, ADR-0041, ADR-0094). This is the ONLY path that deletes Observation rows,
-// and it deletes Observation rows and NOTHING else: batch, scan and span are read
-// to resolve each row's own bound and its subject's membership, never written — so
-// a Batch travels with any observation it produced (it is not retired per row) and
-// a Span is never compacted.
-//
-// The query evaluates EACH ROW'S OWN bound, never a collapsed one: `cover` groups
-// observations by their full timeline key (subject, facet, discriminator, vantage,
-// source) and takes the tightest ENABLED covering Scan's cadence, so a zone-sourced
-// row ages on the zone cadence and a resolver-sourced row on the resolver's. A row
-// survives while its age is inside EITHER k cadences of that bound OR the dial,
-// whichever is longer — the control collapses to one number, the query never does.
-// Two populations fall opposite ways: a timeline no enabled Scan covers has an
-// undefined bound and is NEVER retired (the `cover` LEFT JOIN misses, so the guard
-// excludes it); a withdrawn subject (every span closed) carries NO floor, so the
-// dial alone governs it.
-//
-// @dial_seconds is the operator's observation dial in seconds (0 == unbounded, the
-// v1 default — the caller does not run the sweep then); @floor_cadences is k; @as_of
-// is the sweep instant, injected so a sweep is reproducible.
 func (q *Queries) DeleteExpiredObservations(ctx context.Context, arg DeleteExpiredObservationsParams) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteExpiredObservations, arg.DialSeconds, arg.AsOf, arg.FloorCadences)
 	if err != nil {
@@ -113,12 +80,6 @@ DELETE FROM transcript
 WHERE captured_at < $1
 `
 
-// The one and only path that deletes Transcript rows (raw-job-output spec §4,
-// ADR-0126 amending ADR-0041). It touches the transcript table and nothing else:
-// no derivation reads a Transcript (the §1 fence), so a wall clock retiring it by
-// captured_at moves no value on any timeline — the same legality the Dispatch
-// sweep rests on. The caller passes the floored cutoff (now minus the
-// transcript_currency_days window); this deletes every captured row older than it.
 func (q *Queries) DeleteExpiredTranscripts(ctx context.Context, capturedAt pgtype.Timestamptz) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteExpiredTranscripts, capturedAt)
 	if err != nil {
@@ -142,7 +103,7 @@ type GetRetentionSettingsRow struct {
 	UpdatedAt               pgtype.Timestamptz `json:"updated_at"`
 }
 
-// The single operator-global row seeded by the migration; it always exists.
+// The migration seeds the one global row, so a missing row is a fault and not an empty state.
 func (q *Queries) GetRetentionSettings(ctx context.Context) (GetRetentionSettingsRow, error) {
 	row := q.db.QueryRow(ctx, getRetentionSettings)
 	var i GetRetentionSettingsRow
@@ -197,25 +158,7 @@ type ListLiveObservationsForDerivationRow struct {
 	BatchID       int64              `json:"batch_id"`
 }
 
-// The read-side live-tier gate a derivation reads observations through (v1 spec
-// §4.6, ADR-0041): it returns ONLY live-tier rows — those within k cadences of the
-// tightest ENABLED Scan covering their timeline — so a derivation reading through
-// it cannot re-derive history from a stale observation. Every production
-// derivation read of the observation corpus inlines this gate's `cover` CTE and
-// per-timeline age bound, evaluated against the caller's read instant (#237): the
-// subjects, signals and Custody reads (db/queries/subjects.sql,
-// db/queries/signals.sql, NameCitedAddresses in db/queries/measurement.sql) read
-// through the gate, not the raw table, so an evidential row is structurally
-// unreadable by a derivation the instant it crosses its bound — not merely absent
-// after the Retirer's next sweep (which DeleteExpiredObservations below still runs
-// to reclaim storage). This query is the shared, standalone form of that boundary.
-// The bound is evaluated PER TIMELINE and never collapsed:
-// `cover` groups by the full timeline key (subject, facet, discriminator, vantage,
-// source) and takes the tightest covering cadence, so a zone-sourced row's live
-// window is the zone cadence and a resolver-sourced row's is the resolver's. A
-// timeline no enabled Scan covers has an undefined bound: the INNER JOIN drops it,
-// so it yields no live row (it is retained as evidence, not read). @floor_cadences
-// is k; @as_of is the read instant.
+// Every derivation read of observation inlines this gate, never the raw table (#237, ADR-0041).
 func (q *Queries) ListLiveObservationsForDerivation(ctx context.Context, arg ListLiveObservationsForDerivationParams) ([]ListLiveObservationsForDerivationRow, error) {
 	rows, err := q.db.Query(ctx, listLiveObservationsForDerivation, arg.AsOf, arg.FloorCadences)
 	if err != nil {
@@ -253,12 +196,6 @@ FROM scan
 WHERE enabled = TRUE
 `
 
-// The slowest enabled Scan's cadence — the largest cadence_seconds among enabled
-// Scans — which the Dispatch dial is a multiple of and the floor k multiples of
-// (v1 spec §4.6). COALESCE to 0 when no Scan is enabled: with no cadence the
-// multiple has no meaning, so the sweep treats it as unbounded and retires
-// nothing. It reads only the scan table and never the operational or measured
-// corpora.
 func (q *Queries) SlowestEnabledScanCadenceSeconds(ctx context.Context) (int64, error) {
 	row := q.db.QueryRow(ctx, slowestEnabledScanCadenceSeconds)
 	var cadence_seconds int64
@@ -272,14 +209,6 @@ FROM scan
 WHERE enabled = TRUE
 `
 
-// The tightest enabled Scan's cadence — the smallest cadence_seconds among enabled
-// Scans — which is k cadences of the smallest per-timeline observation bound any
-// in-force timeline can carry, and therefore the observation dial's floor (v1 spec
-// §4.6, ADR-0094). Symmetric to the Dispatch floor's SlowestEnabledScanCadence
-// (which takes MAX): Dispatch floors at the slowest Scan, observations at the
-// tightest. COALESCE to 0 when no Scan is enabled: with no bound in force there is
-// nothing to floor against and the dial is unconstrained. Reads only the scan
-// table, never the measured corpora.
 func (q *Queries) TightestEnabledScanCadenceSeconds(ctx context.Context) (int64, error) {
 	row := q.db.QueryRow(ctx, tightestEnabledScanCadenceSeconds)
 	var cadence_seconds int64

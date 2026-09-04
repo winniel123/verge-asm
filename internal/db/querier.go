@@ -43,31 +43,12 @@ type Querier interface {
 	// the admitted_name rows citing that Batch, and COALESCE gives 0 for an empty or
 	// dead-lettered run. One row always returns.
 	CTTailLastBatch(ctx context.Context) (CTTailLastBatchRow, error)
-	// Terminate a Dispatch (DF-F4): cancel every in-flight job — ready AND running. A
-	// ready job never runs; a running job is cancelled out from under the worker, whose
-	// guarded terminal write (MarkJobDone/Dead/Retried, WHERE state = 'running') then
-	// affects no row and rolls its transaction back, so the job's uncommitted batch and
-	// observations are discarded (job atomicity — internal/queue/worker.go). A job that
-	// already committed is 'done'/'dead', not 'running', so its batch stands untouched
-	// (append-only). Returns the count cancelled (the "N jobs stopped" figure).
 	CancelActiveJobsForDispatch(ctx context.Context, dispatchID pgtype.Int8) (int64, error)
-	// Stop a Dispatch (DF-F4): cancel its pending work. Every ready (not-yet-claimed)
-	// job of the dispatch moves to the terminal 'cancelled' state, leaving the claimable
-	// set at once — ClaimJob selects state = 'ready' alone, so a cancelled job is never
-	// run. A job the worker is mid-claim on is locked FOR UPDATE and already 'running' by
-	// the time this UPDATE reaches it, so the WHERE state = 'ready' no longer matches: a
-	// running job is left to finish and commit, which is the stop contract. Returns the
-	// count actually cancelled (the "N pending jobs cancelled" figure).
 	CancelReadyJobsForDispatch(ctx context.Context, dispatchID pgtype.Int8) (int64, error)
 	// The Postgres-backed claim: FOR UPDATE SKIP LOCKED over pending deliveries whose
 	// run_after has passed, oldest first, marking the winner 'sending' in one
 	// statement so two workers never claim the same delivery.
 	ClaimDelivery(ctx context.Context) (ClaimDeliveryRow, error)
-	// The Postgres-backed claim: FOR UPDATE SKIP LOCKED over ready jobs whose
-	// run_after has passed, oldest first, marking the winner running in one
-	// statement so two workers never claim the same job. It stamps claimed_at at the
-	// claim instant so the stale-running reaper (internal/queue/reaper.go, #853) knows
-	// when the lease started and can reclaim a job whose worker died or hung mid-run.
 	ClaimJob(ctx context.Context) (ClaimJobRow, error)
 	// The Postgres-backed claim: FOR UPDATE SKIP LOCKED over pending notifications whose
 	// run_after has passed, oldest first, marking the winner 'sending' in one statement so
@@ -163,19 +144,6 @@ type Querier interface {
 	// lives solely in the cookie on the client (ADR-0117). Returns the row so the
 	// caller holds the id it just minted.
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
-	// Provisioning a prober creates a Vantage with connection detail. Its
-	// measurement identity is still mandatory: the caller derives `name` from the
-	// endpoint (username@host:port) so it is unique per provisioned endpoint, and
-	// resolver ships blank ('') for the operator to set. availability starts
-	// 'pending' — no host key has been pinned yet. The explicit casts keep the params
-	// plain scalars even though the prober columns are nullable on the table.
-	//
-	// `class` defaults to 'unverified' and is a VESTIGE (#709 keystone (b)): it keeps its
-	// CHECK and its shipped `local` row, but NOTHING writes it and NO reader treats it as
-	// authoritative. Vantage class is DERIVED per read from the vantage's presented-address
-	// facts (egress + dialled_addr) against the declared address scopes
-	// (exposure.VerifyClass), never from this column — so it stays at its 'unverified'
-	// default for the life of the row.
 	CreateVantage(ctx context.Context, arg CreateVantageParams) (Vantage, error)
 	// Records one supply act: a name-scope Seed's zone file at the operator's supply
 	// instant. Append-only — a re-export is a new row, never an update.
@@ -208,40 +176,8 @@ type Querier interface {
 	// Un-excluding removes the row: an exclusion is Declared input with no timeline,
 	// so withdrawing it is a delete rather than a state change.
 	DeleteExclusion(ctx context.Context, id int64) error
-	// The one and only path that deletes Dispatch rows (v1 spec §4.6, ADR-0041). It
-	// touches the dispatch table and nothing else: no Observation, Span, Batch or
-	// queue_job row is read or written here, so retiring Dispatch can move no value
-	// on any timeline. The FK change in migration 20900 lets the delete null the
-	// operational back-references rather than cascade into measured data.
 	DeleteExpiredDispatches(ctx context.Context, scheduledTime pgtype.Timestamptz) (int64, error)
-	// Retire the evidential observations the operator's dial no longer keeps (v1 spec
-	// §4.6, ADR-0041, ADR-0094). This is the ONLY path that deletes Observation rows,
-	// and it deletes Observation rows and NOTHING else: batch, scan and span are read
-	// to resolve each row's own bound and its subject's membership, never written — so
-	// a Batch travels with any observation it produced (it is not retired per row) and
-	// a Span is never compacted.
-	//
-	// The query evaluates EACH ROW'S OWN bound, never a collapsed one: `cover` groups
-	// observations by their full timeline key (subject, facet, discriminator, vantage,
-	// source) and takes the tightest ENABLED covering Scan's cadence, so a zone-sourced
-	// row ages on the zone cadence and a resolver-sourced row on the resolver's. A row
-	// survives while its age is inside EITHER k cadences of that bound OR the dial,
-	// whichever is longer — the control collapses to one number, the query never does.
-	// Two populations fall opposite ways: a timeline no enabled Scan covers has an
-	// undefined bound and is NEVER retired (the `cover` LEFT JOIN misses, so the guard
-	// excludes it); a withdrawn subject (every span closed) carries NO floor, so the
-	// dial alone governs it.
-	//
-	// @dial_seconds is the operator's observation dial in seconds (0 == unbounded, the
-	// v1 default — the caller does not run the sweep then); @floor_cadences is k; @as_of
-	// is the sweep instant, injected so a sweep is reproducible.
 	DeleteExpiredObservations(ctx context.Context, arg DeleteExpiredObservationsParams) (int64, error)
-	// The one and only path that deletes Transcript rows (raw-job-output spec §4,
-	// ADR-0126 amending ADR-0041). It touches the transcript table and nothing else:
-	// no derivation reads a Transcript (the §1 fence), so a wall clock retiring it by
-	// captured_at moves no value on any timeline — the same legality the Dispatch
-	// sweep rests on. The caller passes the floored cutoff (now minus the
-	// transcript_currency_days window); this deletes every captured row older than it.
 	DeleteExpiredTranscripts(ctx context.Context, capturedAt pgtype.Timestamptz) (int64, error)
 	// Disconnect an integration, returning it to available (not installed). Absence of
 	// a row is the available state, so a disconnect removes the row rather than storing
@@ -259,23 +195,12 @@ type Querier interface {
 	// Declared intent, so withdrawing the declaration removes the row. Idempotent from
 	// the caller's view — deleting an id already gone is not an error.
 	DeleteReportSchedule(ctx context.Context, id int64) error
-	// An admin removes any binding by id (offboarding / seat reassignment). Idempotent:
-	// removing a row already gone satisfies the intent either way.
 	DeleteSSOIdentity(ctx context.Context, id int64) error
-	// A user unlinks their OWN identity (Profile). Scoped to the account so one user can
-	// never unlink another's; returns rows so a stale or foreign id no-ops honestly.
 	DeleteSSOIdentityForAccount(ctx context.Context, arg DeleteSSOIdentityForAccountParams) (int64, error)
 	DeleteSSOProvider(ctx context.Context, id int64) error
 	// Reset a port to its shipped default by dropping its edit row. Idempotent: a
 	// port with no edit is already at its default.
 	DeleteVergeCoreFrequencyEdit(ctx context.Context, port int32) error
-	// The commit instant of the FIRST batch the estate ever folded — the age boundary the
-	// Drift page's vs-previous-period delta tests before comparing (P0.12, #690). The chip
-	// compares the selected window against the immediately preceding equal-length window;
-	// that comparison is only honest once the estate has been observing since at or before
-	// the preceding window's start, so the delta is suppressed while the earliest batch is
-	// younger than that (install younger than 2× the window), never a fabricated baseline.
-	// NULL where no batch has committed. Reads batch only (corpus 1), never dispatch (ADR-0041).
 	EarliestBatchTime(ctx context.Context) (pgtype.Timestamptz, error)
 	EnqueueJob(ctx context.Context, arg EnqueueJobParams) (int64, error)
 	// The address-scope Seed a Service's Address falls inside (#195) — the other
@@ -309,9 +234,6 @@ type Querier interface {
 	// FindCoveringNameSeed so the two are interchangeable at the terminating hop.
 	FindNameSeedByID(ctx context.Context, seedID int64) (FindNameSeedByIDRow, error)
 	GetAccountByID(ctx context.Context, id int64) (Account, error)
-	// The SSO login match: resolve the local account a verified (provider, sub) is bound to.
-	// Keyed on the stable, non-reassignable subject — never a username. No row is an honest
-	// refusal (the identity is unlinked), never a provision.
 	GetAccountBySSOIdentity(ctx context.Context, arg GetAccountBySSOIdentityParams) (Account, error)
 	GetAccountByUsername(ctx context.Context, username string) (Account, error)
 	// The tail's forward cursor for one CT log (spec §4.2): the last tree size read and
@@ -442,19 +364,10 @@ type Querier interface {
 	// (pgx.ErrNoRows) is a schedule that never existed or was already deleted; the caller
 	// answers a stale id rather than 500ing.
 	GetReportSchedule(ctx context.Context, id int64) (ReportSchedule, error)
-	// The single operator-global row seeded by the migration; it always exists.
+	// The migration seeds the one global row, so a missing row is a fault and not an empty state.
 	GetRetentionSettings(ctx context.Context) (GetRetentionSettingsRow, error)
-	// Whether a (provider, sub) is already bound, and to whom — so the self-link flow can
-	// no-op an identity already linked to the caller and refuse one linked elsewhere,
-	// rather than surfacing a raw unique-violation.
 	GetSSOIdentityBySub(ctx context.Context, arg GetSSOIdentityBySubParams) (GetSSOIdentityBySubRow, error)
-	// One provider for the Settings edit form. Omits the secret; a caller reads presence,
-	// never the value.
 	GetSSOProvider(ctx context.Context, id int64) (GetSSOProviderRow, error)
-	// The ONE read path that selects the secret: the server-side OIDC flow (both a login
-	// match and a Profile self-link) needs the issuer, client id and client secret to
-	// complete the confidential-client token exchange. Keyed by slug (the flow route) and
-	// gated on enabled, so a disabled provider's flow resolves no row and is refused.
 	GetSSOProviderForAuth(ctx context.Context, slug string) (GetSSOProviderForAuthRow, error)
 	GetScanByKind(ctx context.Context, kind string) (Scan, error)
 	// Resolve a Service key to at most one subject (#195). A Service drill-down
@@ -507,17 +420,6 @@ type Querier interface {
 	// routed pair. Idempotent: re-enqueuing the same pair is a no-op, so the message
 	// identifier the receiver de-duplicates on is stable across retries.
 	InsertDelivery(ctx context.Context, arg InsertDeliveryParams) error
-	// Record one measured candidate edge on its Batch (ADR-0129 §6, #983): the address
-	// measured, the leaf's closed outcome, the served certificate's fingerprint on
-	// `presented` alone, and the handshake instant. One row per measured address.
-	//
-	// It writes no facet value and opens no timeline — this leaf decides membership, so
-	// there is no subject for the `observation` table's four-part key to name. The
-	// certificate DER rides the same Batch into `certificate_material` under the same
-	// fingerprint, so the SAN set the fan-out reduction counts is derived at read (#984)
-	// and never copied here. An address the Scan did not measure carries no row at all:
-	// an absence is never a value, and the missing row is what the veto reads as
-	// *measurement pending* (#985).
 	InsertEdgeFanoutObservation(ctx context.Context, arg InsertEdgeFanoutObservationParams) error
 	// Reads and writes behind the global message panel (#205). A Message is one
 	// firing of one cause, written once at the cause and never recomputed
@@ -570,20 +472,8 @@ type Querier interface {
 	// no sections chosen still inserts. delivery_target is written empty (superseded by
 	// the channel binding).
 	InsertReportSchedule(ctx context.Context, arg InsertReportScheduleParams) (ReportSchedule, error)
-	// Record a verified (provider, sub) → account binding, established by an authenticated
-	// Profile self-link (ADR-0113). UNIQUE(provider_id, sub) guards a second account from
-	// claiming an identity already bound; UNIQUE(provider_id, account_id) keeps an account to
-	// one identity per provider. The caller resolves any existing (provider, sub) first so it
-	// can distinguish "already yours" from "bound elsewhere"; a residual conflict here is the
-	// per-provider constraint.
 	InsertSSOIdentity(ctx context.Context, arg InsertSSOIdentityParams) error
-	// Reads and writes behind the OIDC single-sign-on config (#293, ADR-0112) and the
-	// verified-identity bindings that authentication keys on (#319, ADR-0113). The client
-	// secret is write-only at the interface, mirroring the channel secret (ADR-0053): the
-	// list/get reads expose only whether one is set, and exactly one read path
-	// (GetSSOProviderForAuth) hands the secret to the token exchange.
-	// Declare one OIDC provider. Returns the id only; the secret is write-only and no
-	// read query hands it back. A public (PKCE-only) client passes a NULL secret.
+	// A render read takes presence, never the value; the token exchange is the exception (ADR-0112).
 	InsertSSOProvider(ctx context.Context, arg InsertSSOProviderParams) (int64, error)
 	// Persist one job's verbatim transcript (raw-job-output spec §1.4), mirroring
 	// InsertObservation. The producer calls it once per captured job inside the
@@ -599,16 +489,6 @@ type Querier interface {
 	// and totp_secret: managing accounts never needs either, so they stay out of the
 	// render path.
 	ListAccounts(ctx context.Context) ([]ListAccountsRow, error)
-	// The Dispatches still in flight, newest first, with the same per-state job counts
-	// ListDispatchProgress folds — the Active half of the Scans monitor's split read
-	// (#962, SPEC §3/§4). In flight means at least one job still 'ready' or 'running',
-	// the same predicate the view derives Active from (toDispatchView: ready + running > 0).
-	// It carries no LIMIT on purpose: few Scans run at once, so reality bounds this read,
-	// and a cap here is what let a burst of in-flight work evict completed history from the
-	// old shared window. Only an in-flight Dispatch owns a stop / terminate dialog, so this
-	// read is also the lookup behind those (scans.go findDispatchRow).
-	// A Dispatch whose jobs were retired to NULL by the Dispatch sweep (ADR-0041) counts
-	// zero in-flight jobs, so it falls to the history read rather than pinning here.
 	ListActiveDispatchProgress(ctx context.Context) ([]ListActiveDispatchProgressRow, error)
 	// The declared `address` exclusion CIDRs, for the Custody derivation: an address
 	// inside one is NOT covered by the address-scope limb, so it derives third-party
@@ -646,8 +526,6 @@ type Querier interface {
 	// direction: an address that should have left stays, and none leaves that should
 	// have stayed. Widening either one has to move both queries together.
 	ListAddressExclusionWithdrawals(ctx context.Context) ([]ListAddressExclusionWithdrawalsRow, error)
-	// The declared address-scope Seeds, for the hot Scan's Custody derivation: every
-	// address inside one derives operator directly (ADR-0013).
 	ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error)
 	// The distinct CT-admitted names the dns Scan also resolves (ADR-0107, wave-1).
 	// A source that admits without observing leaves an admitted_name row per Name it
@@ -692,13 +570,6 @@ type Querier interface {
 	// axis). The Signals layer folds these against the live census to decide the
 	// fully-annotated prose case and to mark a row whose key names no current member.
 	ListAnnotations(ctx context.Context) ([]Annotation, error)
-	// Every Service whose CURRENT `reachability` span is a Gap — a blanket responder,
-	// or an address whose control probe could not complete (ADR-0104). The Coverage
-	// aperture register (#254, ADR-0095) reads this to state, in prose, that these
-	// addresses answer on all ports and are a proxy edge rather than the origin — a
-	// read surface, never a Transition or a new message cause. The caller folds the
-	// Service keys to their distinct Addresses; a Gap span is never routed through the
-	// live-tier gate for the reason above.
 	ListBlanketedReachServices(ctx context.Context) ([]string, error)
 	// Read the leaf DER of each named certificate, over a fingerprint SET (#1035). This is
 	// the second step of the `edge-fanout` read: ListEdgeFanoutMeasurements returns one
@@ -727,13 +598,6 @@ type Querier interface {
 	// to the addresses an address-scope enumerates or a name-scope's names resolve
 	// to. An empty result is the shipped disabled state — no jobs (ADR-0044).
 	ListColdScopeSeeds(ctx context.Context) ([]ListColdScopeSeedsRow, error)
-	// The Dispatches no longer in flight, newest first — the History half of the Scans
-	// monitor's split read (#962, SPEC §3/§4). It is the exact complement of
-	// ListActiveDispatchProgress: no job left 'ready' or 'running'. The two halves are
-	// disjoint, so a Dispatch is listed once, and history gets a dedicated window —
-	// in-flight volume no longer evicts completed rows from it.
-	// The caller passes scansHistoryLimit + 1 and shows scansHistoryLimit, so one extra
-	// row is the truncation signal (LIMIT N+1; scans.go fillScansSection).
 	ListConcludedDispatchProgress(ctx context.Context, limit int32) ([]ListConcludedDispatchProgressRow, error)
 	// Every Endpoint currently in the estate, with optional search (#198). An Endpoint
 	// is a (Name, Service) pair — keyed `name@service`, or `@service` for the nameless
@@ -790,169 +654,27 @@ type Querier interface {
 	// carries — never on Coverage, which a delivery has no cause to touch (#244).
 	// Ordered by message then delivery so the caller groups them in a single walk.
 	ListDeliveryOutcomes(ctx context.Context) ([]ListDeliveryOutcomesRow, error)
-	// The recent Dispatches with their per-state job counts, newest first — the read
-	// behind the Scans monitor (#245). Dispatch, queue_job and batch are Operational:
-	// they record what the system did, never what is true of the estate, so this read
-	// is barred from the comparison path by construction (CONTEXT.md, ADR-0041) and the
-	// drift engine never sees it. A retry enqueues a fresh job and marks the old one
-	// 'retried' (internal/queue/worker.go), so 'retried' rows are superseded attempts:
-	// the live work is total − retried, of which done + dead are complete and
-	// ready + running are still in flight. The LEFT JOIN keeps a Dispatch whose jobs
-	// were retired to NULL by the Dispatch sweep (ADR-0041) — it counts zero jobs
-	// rather than vanishing.
-	// created_at is the instant the fan-out actually happened, which is what "when did
-	// this scan start" means to an operator; scheduled_time is the cadence tick the
-	// Dispatch is idempotent on, not a wall-clock start, so it is not read here.
-	// status carries the Dispatch's operator-ended disposition (DF-F4b, migration 22901):
-	// 'fanned-out' for a natural run, 'stopped' / 'terminated' once an operator ended it.
-	// The run page renders that recorded token as its terminal batch badge (runStatusLabel),
-	// so a stopped/terminated drill-in shows the real outcome, not the live derivation.
 	ListDispatchProgress(ctx context.Context, limit int32) ([]ListDispatchProgressRow, error)
-	// The newest `edge-fanout` measurement per address, and the FINGERPRINT of the
-	// certificate the edge presented. This is the ONE read path from the leaf's store to
-	// the `Custody` derivation's extension-reach veto (#985, ADR-0129 §4).
-	//
-	// DISTINCT ON takes the newest row per address, and `id` breaks a tie between two rows
-	// sharing a `measured_at` instant — the order the migration's index is built for. Only
-	// the newest row is read: an edge measured as shared last month and dedicated today is
-	// decided by today's handshake, so a veto lifts as soon as a measurement contradicts it.
-	//
-	// IT CARRIES NO DER, and joins to `certificate_material` not at all (#1035). That table
-	// is keyed by fingerprint, and many addresses on one shared CDN edge present ONE
-	// certificate, so the join returned that certificate once per address: 5000 addresses
-	// behind one edge pulled the same DER 5000 times, and the reduction re-parsed it 5000
-	// times. #1014 measured the waste. The caller reads the material once per DISTINCT
-	// fingerprint instead (ListCertificateMaterialDER) and derives one verdict per
-	// certificate.
-	//
-	// `fingerprint` is NULLABLE, because the three negative outcomes carry none. A negative
-	// measured the address and found no identity there, which reduces to a fan-out of zero
-	// — measured and not-shared, never pending. So a NULL fingerprint is NOT the absence
-	// the veto holds on. Only a MISSING ROW is. The SAN set stays derived from the DER at
-	// read (ADR-0027, #983), so no SAN text is stored anywhere.
-	//
-	// Every address the Scan measured is returned, whether or not the extension still
-	// reaches it. The caller keys the derivation's input on the address, and an address no
-	// longer cited by an in-zone name simply never reaches the lookup.
-	//
-	// IT IS THE UNBOUND FORM. `ListEdgeFanoutMeasurementsOver` is the same read under an
-	// address predicate (#1036), and the caller picks between them. This one serves the
-	// dispatcher, which needs both limbs once per daily tick, and `/coverage`, whose
-	// declaration limb has no bound worth writing — see the sibling query for why.
 	ListEdgeFanoutMeasurements(ctx context.Context) ([]ListEdgeFanoutMeasurementsRow, error)
-	// ListEdgeFanoutMeasurements BOUND to a named address set (#1036). Same three columns,
-	// same DISTINCT ON, same tie-break, same index. The only difference is the predicate.
-	//
-	// It is the EXTENSION LIMB's read. `/scope` asks about the custody-extension candidates
-	// alone — a discrete list of cited direct-A targets — and the unbound query walks every
-	// address of every declared address scope to answer it. `edge_fanout_observation` is
-	// never pruned (#985), so that walk grows with the estate AND with time, and the render
-	// pays it per request per logged-in operator. `address = ANY(...)` turns it into one
-	// index probe per candidate against edge_fanout_observation_address_time.
-	//
-	// THE DECLARATION LIMB DOES NOT USE THIS QUERY, and that is a recorded decision rather
-	// than an omission (#1036). Since #988 the store holds one row per globally-reachable
-	// address of every declared scope, so that limb's candidate set already IS most of the
-	// store, and ADR-0127 leaves a declared scope free to be a `/8` — which cannot become an
-	// `ANY(...)` list. A CIDR containment predicate would fit its shape, but `address` is
-	// TEXT, so it would need `address::inet <<= ANY(...)` over a new functional index, bought
-	// to filter out the stale rows #985 already owns. `/coverage` and the dispatcher read
-	// ListEdgeFanoutMeasurements unbound.
-	//
-	// A BOUND READ IS A SUBSET, and a subset is the one direction that can do harm: a
-	// missing row is *measurement pending* and the derivation HOLDS, so a candidate dropped
-	// here turns a measured edge into a held one in silence. The caller binds the read to
-	// the SAME set the derivation asks about — custody.Estate.ExtensionCandidates, which is
-	// both what ExtensionCensus walks and what WithEdgeFanout resolves the errored floor
-	// over — so every key either consumer looks up is a key this predicate asked for.
-	//
-	// Addresses are the netip rendering the writer stores (InsertEdgeFanoutObservation), so
-	// the caller passes Unmap'ed addresses and the match never turns on a spelling.
 	ListEdgeFanoutMeasurementsOver(ctx context.Context, addresses []string) ([]ListEdgeFanoutMeasurementsOverRow, error)
-	// The enabled providers the SignIn screen renders a button for, newest-first. No
-	// secret, and no created-by join — SignIn is pre-auth and needs only what a button
-	// carries: the slug (its route) and the display name.
 	ListEnabledSSOProviders(ctx context.Context) ([]ListEnabledSSOProvidersRow, error)
 	ListEnabledScans(ctx context.Context) ([]Scan, error)
-	// The latest `certificate` observation per Endpoint (#203) — the value the six
-	// certificate rules and `plaintext-http-no-https` read. The value is the closed
-	// union `presented(chain) | tls-refused | no-tls`; the engine reads the outcome
-	// tag. The parsed leaf attributes the five certificate-detail rules need are not
-	// stored (only the fingerprint chain is), so those rules render a presented chain
-	// `not-evaluable` until a certificate-parsing leaf lands. DISTINCT ON keeps the
-	// most recent value per Endpoint. Reads through the live-tier gate (#237).
 	ListEndpointCertificates(ctx context.Context, arg ListEndpointCertificatesParams) ([]ListEndpointCertificatesRow, error)
 	ListExclusions(ctx context.Context) ([]ListExclusionsRow, error)
-	// The registrable domains of custody-extended name-scope Seeds, for the hot
-	// Scan's Custody derivation: an address a name in one of these zones resolves to
-	// derives operator by extension (ADR-0013 §3).
 	ListExtendedZoneDomains(ctx context.Context) ([]pgtype.Text, error)
 	// The operator's install states and their bound delivery Channel, merged by the
 	// handler onto the in-binary integration catalogue: an integration's effective state
 	// is its stored state where a row exists and available (not installed) otherwise, and
 	// its bound Channel (nullable — NULL is unbound) fills the drawer's BoundChannel hole.
 	ListIntegrationStates(ctx context.Context) ([]IntegrationState, error)
-	// The per-job detail for one Dispatch — the progress drill-down (#245). Ordered by
-	// id so a retried attempt reads immediately before the fresh job that replaced it.
-	// A job's Batch outcome is NULL until the job reaches a terminal state, since a
-	// Batch is written only at completion or dead-letter (db/migrations/18804); the
-	// Vantage name is NULL for the zone Scan, which has no vantage choice at all.
 	ListJobsForDispatch(ctx context.Context, dispatchID pgtype.Int8) ([]ListJobsForDispatchRow, error)
-	// The read-side live-tier gate a derivation reads observations through (v1 spec
-	// §4.6, ADR-0041): it returns ONLY live-tier rows — those within k cadences of the
-	// tightest ENABLED Scan covering their timeline — so a derivation reading through
-	// it cannot re-derive history from a stale observation. Every production
-	// derivation read of the observation corpus inlines this gate's `cover` CTE and
-	// per-timeline age bound, evaluated against the caller's read instant (#237): the
-	// subjects, signals and Custody reads (db/queries/subjects.sql,
-	// db/queries/signals.sql, NameCitedAddresses in db/queries/measurement.sql) read
-	// through the gate, not the raw table, so an evidential row is structurally
-	// unreadable by a derivation the instant it crosses its bound — not merely absent
-	// after the Retirer's next sweep (which DeleteExpiredObservations below still runs
-	// to reclaim storage). This query is the shared, standalone form of that boundary.
-	// The bound is evaluated PER TIMELINE and never collapsed:
-	// `cover` groups by the full timeline key (subject, facet, discriminator, vantage,
-	// source) and takes the tightest covering cadence, so a zone-sourced row's live
-	// window is the zone cadence and a resolver-sourced row's is the resolver's. A
-	// timeline no enabled Scan covers has an undefined bound: the INNER JOIN drops it,
-	// so it yields no live row (it is retained as evidence, not read). @floor_cadences
-	// is k; @as_of is the read instant.
+	// Every derivation read of observation inlines this gate, never the raw table (#237, ADR-0041).
 	ListLiveObservationsForDerivation(ctx context.Context, arg ListLiveObservationsForDerivationParams) ([]ListLiveObservationsForDerivationRow, error)
 	// Every message, newest-first, unbounded — no cap or load-more ships, since no
 	// install has yet accumulated enough live volume to say whether one is needed
 	// (v1 spec §6.7, #160). The panel renders each row linking per its mover.
 	ListMessages(ctx context.Context) ([]Message, error)
-	// The latest `dns-record` observation per (Name, qtype discriminator). The engine
-	// reads two of these: the CNAME discriminator carries the alias target (for
-	// cname-target-name-error) and the NS discriminator carries the delegation walk's
-	// Lame verdict (folded into the composed resolution the rules read). Reads through
-	// the live-tier gate (#237).
 	ListNameDNSRecords(ctx context.Context, arg ListNameDNSRecordsParams) ([]ListNameDNSRecordsRow, error)
-	// Reads behind the Signals screen (#202). All three observation reads are additive
-	// read queries over the wave-0/1 corpus (observation / vantage) — no new schema.
-	// The web layer folds these into the per-Name Derived snapshot the `Signal`
-	// engine (internal/signal) evaluates: the five Name-only rules read `resolution`
-	// (which `resolution-walk` and `wildcard-discrimination` decide jointly), the
-	// `dns-record` CNAME target and NS delegation, and the operator's zone file.
-	//
-	// Every observation read here reads through the live-tier gate (#237, ADR-0041):
-	// the `cover`/`live` CTE pair is the inlined twin of
-	// ListLiveObservationsForDerivation (db/queries/retention.sql), evaluated against
-	// the caller's read instant @as_of with k = @floor_cadences, so the Signal engine
-	// never folds an evidential row into a Derived snapshot. ListZoneDeclarations
-	// reads the operator's supplied zone file (input, not measured) and is not gated.
-	// The latest `resolution` observation per (Name, Vantage). The engine folds these into
-	// a cross-class composed outcome (for the four cross-class rules) and keeps the
-	// internet-class view apart (for the one vantage-scoped rule, ADR-0071). DISTINCT ON
-	// keeps the most recent value per (name, VANTAGE). Reads through the live-tier gate
-	// (#237).
-	//
-	// Vantage class is DELIBERATELY NOT selected: it is DERIVED per read, never from the
-	// vestigial static column (#709, CONTEXT.md `Vantage class`). Each row carries the
-	// vantage's PRESENTED-address facts (egress + dialled_addr, host for context) so the
-	// caller re-verifies each vantage's class over the declared address scopes and
-	// re-collapses to the most-recent value per (name, derived class), preserving the
-	// observed_at DESC, id DESC tiebreak the old DISTINCT ON (subject_key, v.class) had.
 	ListNameResolutionsByClass(ctx context.Context, arg ListNameResolutionsByClassParams) ([]ListNameResolutionsByClassRow, error)
 	ListNameSeedDomains(ctx context.Context) ([]pgtype.Text, error)
 	// Every open timeline a pending NAME Seed-withdrawal tombstone MAY withdraw, for
@@ -1071,15 +793,8 @@ type Querier interface {
 	// "last delivery" from the report_delivery receipts store (#291/T2), since this table
 	// holds only the declared intent.
 	ListReportSchedules(ctx context.Context) ([]ReportSchedule, error)
-	// Every binding for the admin SSO settings — the offboarding / seat-reassignment view.
-	// Joined to provider and account so the admin sees which identity maps to whom, newest
-	// first.
 	ListSSOBindings(ctx context.Context) ([]ListSSOBindingsRow, error)
-	// An account's own linked identities for its Profile, newest-first. Joined to the
-	// provider for the display name/slug; sub is not surfaced (opaque, of no use to a human).
 	ListSSOIdentitiesForAccount(ctx context.Context, accountID int64) ([]ListSSOIdentitiesForAccountRow, error)
-	// Every configured provider, newest-first, for the Settings tab. Never selects the
-	// secret: it exposes only whether one is set, so the render path cannot leak it.
 	ListSSOProviders(ctx context.Context) ([]ListSSOProvidersRow, error)
 	ListScans(ctx context.Context) ([]Scan, error)
 	// Every open timeline a withdrawn address Seed MAY withdraw, for the membership
@@ -1118,25 +833,7 @@ type Querier interface {
 	// have left stays, and none leaves that should have stayed.
 	ListSeedWithdrawalCandidates(ctx context.Context, cidrs []string) ([]ListSeedWithdrawalCandidatesRow, error)
 	ListSeeds(ctx context.Context) ([]ListSeedsRow, error)
-	// The CURRENT `reachability` span per (Service, Vantage) (#254, ADR-0104). The caller
-	// reads the SPAN, not the latest observation, because the span carries `is_gap`: a
-	// blanket responder's reach is a Gap, and a Gap leg reads as absent (HasInternetReach
-	// =false) so `sensitive-port-reached-from-internet` returns not-evaluable with no rule
-	// edit, and a Gap is not a `reachability` value so a blanket responder's ports drop out
-	// of any open-port count without a special case. Span reads are NOT routed through the
-	// live-tier observation gate (#237): the span corpus is the already-derived timeline the
-	// fold produced, kept forever (ADR-0041), so an as_of bound would wrongly hide settled
-	// state rather than protect a re-derivation. DISTINCT ON keeps the most recent OPEN span
-	// per (service, VANTAGE).
-	//
-	// Vantage class is DELIBERATELY NOT selected: it is DERIVED per read, never from the
-	// vestigial static column (#709, CONTEXT.md `Vantage class`). The row carries the
-	// vantage's PRESENTED-address facts (egress + dialled_addr, host for context) so the
-	// caller re-verifies each vantage's class over the operator's declared address scopes
-	// and re-collapses to the most-recent leg per (service, derived class) — the collapse
-	// the old DISTINCT ON (subject_key, v.class) did in SQL is now the Go fold's, preserving
-	// the opened_at DESC, id DESC tiebreak; the internet leg then composes existentially
-	// over every internet-class vantage rather than a single SQL-pre-collapsed row.
+	// The span corpus is already derived, so an as_of bound would hide settled state (ADR-0105).
 	ListServiceReachabilitySpansByClass(ctx context.Context) ([]ListServiceReachabilitySpansByClassRow, error)
 	// The `reachability` span per (Service, Vantage) that was OPEN at instant @at — the
 	// as-of-a-past-batch twin of ListServiceReachabilitySpansByClass, for the Exposure
@@ -1154,31 +851,11 @@ type Querier interface {
 	// Go fold's, preserving the opened_at DESC, id DESC tiebreak. NOT live-tier gated (span
 	// corpus).
 	ListServiceReachabilitySpansByClassAt(ctx context.Context, at pgtype.Timestamptz) ([]ListServiceReachabilitySpansByClassAtRow, error)
-	// The latest `tls-acceptance` observation per Service (#684) — the value the
-	// `tls-1.0-accepted` rule reads. The `tls-acceptance` leaf (#199, ADR-0028)
-	// enumerates what a listener ACCEPTS (protocol versions, and for TLS 1.0-1.2 the
-	// suites) and persists it weekly on a `Service` subject; until now it was measured
-	// and stored but never read back, so the rule sat dormant with no population.
-	// buildServiceFacts folds the current value into `ServiceFacts` so the rule's
-	// domain (a completed enumeration) and predicate (TLS 1.0 in the accepted set) join
-	// the facts the engine evaluates. The value is the closed union
-	// `enumerated(versions) | tls-refused | no-tls`; the engine reads the outcome tag
-	// and, on an enumeration, whether TLS 1.0 is among the accepted versions. Like its
-	// `certificate` sibling one facet over (ListEndpointCertificates), this reads the
-	// observation tier THROUGH the live-tier gate (#237, ADR-0041): the Signal engine
-	// must fold only live evidence, never an aged row. DISTINCT ON keeps the most recent
-	// value per Service.
 	ListServiceTLSAcceptance(ctx context.Context, arg ListServiceTLSAcceptanceParams) ([]ListServiceTLSAcceptanceRow, error)
 	// One account's live sessions, newest activity first — the Profile's personal
 	// sessions list. token_hash is omitted from the read: listing never needs it, so
 	// the secret material stays out of the render path.
 	ListSessionsForAccount(ctx context.Context, arg ListSessionsForAccountParams) ([]ListSessionsForAccountRow, error)
-	// Every minted instance identity, ordered by signal then subject — the same
-	// deterministic order the annotation ledger uses. The web layer folds these
-	// against the live census by `(signal_name, subject_key)` to attach each currently
-	// -fired member its stable id and first-seen instant; a stored row whose pair is no
-	// longer firing simply matches nothing this render and contributes no per-instance
-	// row (the pair is not currently open).
 	ListSignalInstances(ctx context.Context) ([]SignalInstance, error)
 	// The operator's overrides of the authored ship defaults. The handler merges
 	// these onto the in-binary catalogue: a source's effective state is its override
@@ -1214,40 +891,15 @@ type Querier interface {
 	// protect a re-derivation. Ordered by the appearance instant for a stable,
 	// oldest-first fold.
 	ListSubjectFirstAppearances(ctx context.Context, since pgtype.Timestamptz) ([]ListSubjectFirstAppearancesRow, error)
-	// The Coverage register of positions we currently cannot observe from
-	// (ADR-0108). It includes the resolver-only `local` vantage — which ListVantages
-	// excludes for the prober list — because that is exactly the position whose
-	// resolver going unreachable this surface must make loud. Ordered by name so the
-	// rendering is stable.
 	ListUnavailableVantages(ctx context.Context) ([]ListUnavailableVantagesRow, error)
 	// The account's still-redeemable codes, by id and hash, for the login fallback: the
 	// handler hashes the presented code and matches it here. Used codes are excluded so
 	// each redeems exactly once.
 	ListUnusedRecoveryCodeHashes(ctx context.Context, accountID int64) ([]ListUnusedRecoveryCodeHashesRow, error)
-	// The web prober list: only provisioned vantages (those carrying a prober
-	// endpoint). The resolver-only `local` vantage has no prober and is excluded.
-	// latency_ms is the per-vantage connect round-trip the Dashboard renders (P0.5),
-	// NULL until the prober connect that pins the host key lands a first measurement.
 	ListVantages(ctx context.Context) ([]ListVantagesRow, error)
-	// The dns Scan dispatches over every configured Vantage, reading its measurement
-	// identity (name, resolver) and its presented-address facts (egress + dialled_addr),
-	// from which the hot/cold Scans DERIVE its class per batch for the Custody gate — never
-	// the vestigial `class` column (#709, ADR-0079). Distinct from the web prober list
-	// (vantages.sql `ListVantages`), which is scoped to provisioned probers.
 	ListVantagesForDispatch(ctx context.Context) ([]ListVantagesForDispatchRow, error)
-	// Rows the worker still has to generate a keypair for: a provisioned prober
-	// (host set) whose public half has not been published, so no key material has
-	// ever left the worker volume for them.
 	ListVantagesNeedingKey(ctx context.Context) ([]Vantage, error)
-	// Rows the worker still has to measure a connect latency for (P0.5): a
-	// provisioned prober (host set) whose keypair has been published (public_key set,
-	// so a private half exists on the worker volume to dial with) but whose latency
-	// has never been measured. The connect the worker makes here is the same one that
-	// pins the host key trust-on-first-use, so measuring on it needs no extra dial.
 	ListVantagesNeedingLatency(ctx context.Context) ([]Vantage, error)
-	// The operator's edits to verge-core's frequency half (v1 spec §3.5). Only the
-	// frequency half is operator-editable; these deltas are applied over the shipped
-	// default at hot fan-out.
 	ListVergeCoreFrequencyEdits(ctx context.Context) ([]ListVergeCoreFrequencyEditsRow, error)
 	// The current frequency edits, with who made each, for the management UI.
 	ListVergeCoreFrequencyEditsWithAuthor(ctx context.Context) ([]ListVergeCoreFrequencyEditsWithAuthorRow, error)
@@ -1264,11 +916,6 @@ type Querier interface {
 	// an @as_of bound would wrongly hide settled history rather than protect a
 	// re-derivation. Ordered by the withdrawal instant for a stable, oldest-first series.
 	ListWithdrawalLifespans(ctx context.Context, since pgtype.Timestamptz) ([]ListWithdrawalLifespansRow, error)
-	// The latest supplied zone file per name-scope Seed, with its declared domain and
-	// content, so the web layer can extract the owner names the operator declares
-	// (signal.DeclaredNames) — the domain of the two zone rules. One row per Seed;
-	// DISTINCT ON keeps the most recent supply. This reads the operator's supplied
-	// zone file — input, not a measurement — so it does not pass the live-tier gate.
 	ListZoneDeclarations(ctx context.Context) ([]ListZoneDeclarationsRow, error)
 	// The Seeds-screen view: the latest supplied file per name-scope Seed, without
 	// the content, so the operator sees which scopes hold a zone file, when it was
@@ -1284,17 +931,8 @@ type Querier interface {
 	// The attempt budget is spent: dead-letter. The row is marked 'undelivered' — the
 	// undelivered mark — and the Message it points at is deliberately left untouched.
 	MarkDeliveryUndelivered(ctx context.Context, arg MarkDeliveryUndeliveredParams) error
-	// Guarded on 'running' exactly as MarkJobDone — a job a terminate cancelled mid-flight
-	// does not dead-letter; its transaction rolls back and its work is discarded.
 	MarkJobDead(ctx context.Context, arg MarkJobDeadParams) (int64, error)
-	// Guarded on the job still being 'running': a terminate (DF-F4) that cancelled the
-	// job mid-flight left it 'cancelled', so this affects no row and the caller rolls the
-	// transaction back — the staged batch and observations are discarded (job atomicity,
-	// worker.go). A job the worker owns uncontested is 'running', so the update lands and
-	// returns 1.
 	MarkJobDone(ctx context.Context, arg MarkJobDoneParams) (int64, error)
-	// Guarded on 'running': a job a terminate cancelled mid-flight is not retried, so the
-	// fresh attempt is never enqueued (the caller rolls back on a zero count).
 	MarkJobRetried(ctx context.Context, id int64) (int64, error)
 	// Mark one message read by the caller at the given instant (#327). Writes a
 	// per-account read-mark, never the global message.read_at. Idempotent: a second
@@ -1322,39 +960,9 @@ type Querier interface {
 	// receipt is deliberately left 'generated' — the artifact was cut and stays viewable
 	// in-instance; only the ready-message failed to leave (ADR-0039).
 	MarkReportNotificationUndelivered(ctx context.Context, arg MarkReportNotificationUndeliveredParams) error
-	// A completed Batch at this vantage is proof the position can observe again, so
-	// Availability is derived back to 'available' from the terminal batch outcome
-	// (ADR-0108). A host-key-mismatched prober cannot complete a Batch — its SSH
-	// connection is refused before any measurement runs — so this can never silently
-	// clear the trust-on-first-use pin MarkVantageUnavailable set.
 	MarkVantageAvailable(ctx context.Context, id int64) error
-	// A pinned host key later mismatched, or the position went unreachable: the
-	// vantage is marked unavailable rather than silently re-trusting a new key.
 	MarkVantageUnavailable(ctx context.Context, id int64) error
-	// Per-instance signal identity (#442, P0.1). A signal_instance is the persistent
-	// id + first-seen instant of one `(signal-name, subject)` pair the engine placed
-	// under `fired`. The census is re-derived live and never stored; these two queries
-	// add only the mintable `SIG-####` id (formatted from the identity) and the
-	// first-seen instant that a pure re-derivation cannot reconstruct. Everything else
-	// the SignalData.jsx row shows is derived on read (severity from the rule,
-	// last-seen = the current derivation instant, asset/ip/port from the subject key).
-	// Mint an identity for every currently-fired pair, idempotently. Called on the
-	// Signals read path with the whole current fired set unnested into two parallel
-	// arrays; ON CONFLICT DO NOTHING means a pair already firing keeps its original id
-	// and first_seen (so "first seen" is when it was first raised, not last rendered),
-	// while a newly-fired pair is minted with first_seen defaulting to now(). It writes
-	// identity only — never a severity, never a last-seen — so the row carries exactly
-	// what must persist.
 	MintSignalInstances(ctx context.Context, arg MintSignalInstancesParams) error
-	// The Addresses a current resolution cites, per Name — an `Address` is in the
-	// estate exactly while a current resolution cites it. Only a `Resolved` value
-	// cites; a `Shadowed` (or NoData / NameError / Lame / Gap) value cites nothing,
-	// so every `Address` held only by a superseded `Resolved` leaves the estate.
-	// Reads through the live-tier gate (#237, ADR-0041): the hot Scan's Custody
-	// derivation admits an Address only while a resolution a derivation may still read
-	// cites it, so the `cover`/`live` CTE pair below (the inlined twin of
-	// ListLiveObservationsForDerivation, evaluated at @as_of with k = @floor_cadences)
-	// keeps an Address held only by an evidential answer out of the probed estate.
 	NameCitedAddresses(ctx context.Context, arg NameCitedAddressesParams) ([]NameCitedAddressesRow, error)
 	// Reads and writes behind the report_delivery receipts store (#291/T2). A
 	// report_delivery is the Operational record of one run of a report_schedule: it
@@ -1366,14 +974,6 @@ type Querier interface {
 	// first. The caller passes it to InsertReportDelivery; the unique (schedule_id,
 	// delivery_no) key keeps the sequence dense under a single writer.
 	NextReportDeliveryNo(ctx context.Context, scheduleID int64) (int32, error)
-	// Publish one ephemeral, redacted per-job progress event over the
-	// queue_job_progress LISTEN/NOTIFY channel (#780, collision #40 producer half).
-	// The payload is a small JSON line the RunDetail live stream enriches its
-	// state-derived log with while a job is in flight. NOTHING is persisted at rest:
-	// pg_notify delivers the payload to connected listeners and is gone (ADR-0041's
-	// corpus separation and the instance-privacy posture are untouched — there is no
-	// raw-stdout column or table). Fired inside the job's terminal transaction, so a
-	// job cancelled mid-flight rolls its event back with the rest of its work.
 	NotifyJobProgress(ctx context.Context, payload string) error
 	// Open a new span for a timeline. The caller passes the canonical value, the
 	// gap flag, the Derivation vector as a JSON array of {leaf,version}, and the id of
@@ -1389,9 +989,6 @@ type Querier interface {
 	OptInColdScope(ctx context.Context, arg OptInColdScopeParams) error
 	// Opts one `Seed` scope back out of the cold tier.
 	OptOutColdScope(ctx context.Context, seedID int64) error
-	// Trust-on-first-use: pin the host key only while none is pinned yet, and mark
-	// the vantage available. The host_key IS NULL guard makes this a no-op once a
-	// key is pinned, so a first-connect race can never overwrite an existing pin.
 	PinVantageHostKey(ctx context.Context, arg PinVantageHostKeyParams) error
 	// The honestly-computable narrowing receipt (#205 AC8, ADR-0074): count the
 	// subjects a candidate ADDRESS exclusion would withdraw and the timelines they
@@ -1408,31 +1005,8 @@ type Querier interface {
 	// Every subject the withdrawal takes with it: the addresses and the Services and
 	// Endpoints sitting on them (their keys carry the address as a prefix).
 	PreviewExclusionWithdrawal(ctx context.Context, arg PreviewExclusionWithdrawalParams) (PreviewExclusionWithdrawalRow, error)
-	// The commit instant of the second-most-recent distinct batch — the boundary a
-	// vs-last-batch stat delta reads the "value a batch ago" at (P0.2). It is the most
-	// recent batch instant strictly before the latest, so the span population open at
-	// it is the estate exactly as the previous batch left it, with only the most recent
-	// batch's opens and closes lying between it and now. NULL where fewer than two
-	// distinct batch instants exist — the first batch has no predecessor to compare
-	// against, so a delta is withheld rather than compared against nothing. Reads batch
-	// only (corpus 1), never dispatch, honoring the comparison-path separation (ADR-0041).
 	PreviousBatchTime(ctx context.Context) (pgtype.Timestamptz, error)
-	// The stale-`running` reaper's sweep (#853): reclaim every job stuck in state
-	// 'running' whose lease (claimed_at) is older than the cutoff — the worker that
-	// claimed it died or hung mid-job, so nothing will ever drive it to a terminal
-	// state. A job with attempts left returns to 'ready' (attempt bumped, run_after and
-	// claimed_at cleared) so a live worker re-claims and re-runs it — a fresh Batch, not
-	// a resumption, since a job orphaned mid-run committed no Batch (batch_id is NULL).
-	// A job past its attempt budget is dead-lettered directly, which bounds a job whose
-	// prober hangs on every attempt: it dies after max_attempts reaps rather than
-	// re-readying forever.
-	//
-	// The CASE reads the OLD attempt, so a job at attempt >= max_attempts dies and one
-	// below it re-readies at attempt + 1. Only 'running' rows past the cutoff match; a
-	// NULL claimed_at never satisfies `< cutoff`, so a never-leased row is never reaped.
-	// The reaper writes no Batch and moves no Availability: a dead worker is
-	// infrastructure failure, not measurement evidence, so a reaped dns job must not be
-	// read as a resolver outage (ADR-0108). Returns the count reclaimed.
+	// A dead worker is failure, not evidence, so a reap writes no Batch and moves no Availability.
 	ReapStaleRunningJobs(ctx context.Context, cutoff pgtype.Timestamptz) (int64, error)
 	RecordHeartbeat(ctx context.Context) (Heartbeat, error)
 	// Atomically claim the next free slot for one CT fetch of a given source,
@@ -1473,24 +1047,7 @@ type Querier interface {
 	// Admin revocation of any single session by id, not owner-scoped — gated by
 	// requireAdmin at the handler, never reachable by a viewer. Idempotent.
 	RevokeSessionByIDForAdmin(ctx context.Context, arg RevokeSessionByIDForAdminParams) error
-	// Whether a `Scan` of this kind has ever completed a Batch. A Batch row exists only at
-	// a terminal outcome, so this asks whether the Scan has actually RUN on this install,
-	// as against being merely enabled.
-	//
-	// The `edge-fanout` veto reads it to tell its two UNMEASURED states apart (#985 as
-	// narrowed by #1018, ADR-0129 §4): a Scan that has not run yet, whose candidates are
-	// *measurement pending* and are HELD, from a Scan that runs and measures no extension
-	// candidate, which is ERRORED on that limb and opens the reach. The floor is read PER
-	// LIMB, so this answers the read path and the estate resolves it. A dead-lettered Batch
-	// does not count — it is the job failing, and the tick retries.
 	ScanHasCompletedBatch(ctx context.Context, kind string) (bool, error)
-	// The hot cadence-lag gate (#1114, ADR-0137 §4). True when this Scan still holds a
-	// job from an EARLIER dispatch that no terminal state has claimed — 'ready' or
-	// 'running'. Only those two hold the gate: 'done', 'dead', 'retried' and 'cancelled'
-	// are terminal, so a dead-lettered backlog never wedges the next tick.
-	// `IS DISTINCT FROM` rather than `<>` because the Dispatch sweep (ADR-0041) retires a
-	// job's dispatch_id to NULL; a NULL is a different dispatch and must still hold the
-	// gate.
 	ScanHasNonTerminalJobs(ctx context.Context, arg ScanHasNonTerminalJobsParams) (bool, error)
 	// Flip the read-only /api/v1 surface on or off, stamping who acted and when so the
 	// settings card can render the dated act of the current state (#390). Off by default;
@@ -1505,9 +1062,6 @@ type Querier interface {
 	// custody extension. The flag has no timeline, so a withdrawal is the same UPDATE
 	// with false rather than a dated state change.
 	SetCustodyExtension(ctx context.Context, arg SetCustodyExtensionParams) error
-	// Record a Dispatch's operator-ended disposition (DF-F4): 'stopped' or 'terminated'.
-	// Scoped to a still-'fanned-out' dispatch so a second submit or a natural conclusion
-	// cannot overwrite a recorded terminal status.
 	SetDispatchStatus(ctx context.Context, arg SetDispatchStatusParams) error
 	// Bind an installed integration to a delivery Channel, or clear the binding (a NULL
 	// channel_id unbinds). Only an installed integration has a row to update; binding an
@@ -1521,8 +1075,6 @@ type Querier interface {
 	// (current | newer | disabled) and, for a "newer", the latest version and notes. The
 	// check instant is stamped now(), so a "checked N ago" reads honestly.
 	SetReleaseCache(ctx context.Context, arg SetReleaseCacheParams) error
-	// Set, replace or clear the secret. A NULL clears it (a public PKCE-only client); the
-	// value is written and never read back through any interface query.
 	SetSSOProviderSecret(ctx context.Context, arg SetSSOProviderSecretParams) error
 	// Set the operator address-scope cap (#888 / Settings #206, ADR-0127), stamping who
 	// acted and when so the Settings control renders the dated act of the current cap.
@@ -1541,32 +1093,12 @@ type Querier interface {
 	// Opt the worker's daily release-feed check in or out, stamping who acted and when
 	// (#391). While false the worker never dispatches the check — air-gap-safe.
 	SetUpdateCheckEnabled(ctx context.Context, arg SetUpdateCheckEnabledParams) error
-	// The worker records the round-trip time of the prober connect that pinned the
-	// host key (P0.5, SPEC-CHANGE.md collision #7). Stored in whole milliseconds — the
-	// unit the Dashboard renders — and set only from a real measurement, never a
-	// fabricated value.
 	SetVantageLatency(ctx context.Context, arg SetVantageLatencyParams) error
-	// The worker records the lifecycle facts it observed off-host on the connect that
-	// pins the host key (P0.8, #683, #710): the remote platform read from `uname`, the
-	// egress address read from SSH_CLIENT, and the dialled address observed as the SSH
-	// transport peer (*ssh.Client.RemoteAddr()). Set together and only from a real
-	// successful connection — a prober that could not be reached, or a fact that could not
-	// be read, keeps that column NULL rather than showing a fabricated value: the
-	// VantageCard collapses the platform/egress regions, and the Vantage-class derivation
-	// reads a smaller presented set (egress and dialled feed exposure.VerifyClass, #709).
 	SetVantageProbeFacts(ctx context.Context, arg SetVantageProbeFactsParams) error
-	// The worker publishes only the public half of the pair it generated on its own
-	// volume; the private half never reaches Postgres.
 	SetVantagePublicKey(ctx context.Context, arg SetVantagePublicKeyParams) error
 	// Moves the re-supply interval dial. cadence_seconds > 0 is enforced by the
 	// table's CHECK, so a non-positive interval is rejected by the database.
 	SetZoneCadenceSeconds(ctx context.Context, cadenceSeconds int64) error
-	// The slowest enabled Scan's cadence — the largest cadence_seconds among enabled
-	// Scans — which the Dispatch dial is a multiple of and the floor k multiples of
-	// (v1 spec §4.6). COALESCE to 0 when no Scan is enabled: with no cadence the
-	// multiple has no meaning, so the sweep treats it as unbounded and retires
-	// nothing. It reads only the scan table and never the operational or measured
-	// corpora.
 	SlowestEnabledScanCadenceSeconds(ctx context.Context) (int64, error)
 	// Spends the NAME tombstones whose withdrawal is EXHAUSTED — no open timeline left
 	// under the domain — stamping the batch that performed it (ADR-0135 §3).
@@ -1652,14 +1184,6 @@ type Querier interface {
 	// Called after every opt-in and opt-out, never on a cadence tick, so the tier is
 	// never enabled as a side effect of a measurement.
 	SyncColdScanEnabled(ctx context.Context) error
-	// The tightest enabled Scan's cadence — the smallest cadence_seconds among enabled
-	// Scans — which is k cadences of the smallest per-timeline observation bound any
-	// in-force timeline can carry, and therefore the observation dial's floor (v1 spec
-	// §4.6, ADR-0094). Symmetric to the Dispatch floor's SlowestEnabledScanCadence
-	// (which takes MAX): Dispatch floors at the slowest Scan, observations at the
-	// tightest. COALESCE to 0 when no Scan is enabled: with no bound in force there is
-	// nothing to floor against and the dial is unconstrained. Reads only the scan
-	// table, never the measured corpora.
 	TightestEnabledScanCadenceSeconds(ctx context.Context) (int64, error)
 	// Refresh last_seen_at for the "last active" column. Called at most once per minute
 	// per session (the handler throttles) so a busy session does not amplify writes.
@@ -1669,9 +1193,6 @@ type Querier interface {
 	// after each insert. Ordered newest-first, id breaking an observed_at tie, matching
 	// the read window's order.
 	TrimCTReliabilitySamples(ctx context.Context, arg TrimCTReliabilitySamplesParams) error
-	// Idempotent on (scan, scheduled_time): the first tick inserts a fanned-out
-	// Dispatch; an overlapping tick conflicts and returns no row, which the caller
-	// records as a skip rather than a second fan-out.
 	TryFanOut(ctx context.Context, arg TryFanOutParams) (int64, error)
 	// Claim one on-cadence run of a schedule for a tick, idempotently: the partial
 	// unique (schedule_id, scheduled_tick) admits only the first poll in a window; a
@@ -1703,10 +1224,6 @@ type Querier interface {
 	// the target existed; no row means a stale id.
 	UpdateReportSchedule(ctx context.Context, arg UpdateReportScheduleParams) (ReportSchedule, error)
 	UpdateRetentionSettings(ctx context.Context, arg UpdateRetentionSettingsParams) error
-	// Updates everything but the secret; the secret has its own write path, so an edit
-	// that leaves it blank keeps the existing one untouched (exactly the channel pattern).
-	// Returns the rows affected so the handler can tell a stale edit (an id deleted in
-	// another tab) from a real update, rather than reporting a phantom success.
 	UpdateSSOProvider(ctx context.Context, arg UpdateSSOProviderParams) (int64, error)
 	// Record the operator's install choice for one integration. An install is a
 	// Declared act with no timeline, no actor, and no instant of its own (ADR-0073,

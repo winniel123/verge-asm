@@ -38,11 +38,6 @@ type ClaimJobRow struct {
 	MaxAttempts    int32       `json:"max_attempts"`
 }
 
-// The Postgres-backed claim: FOR UPDATE SKIP LOCKED over ready jobs whose
-// run_after has passed, oldest first, marking the winner running in one
-// statement so two workers never claim the same job. It stamps claimed_at at the
-// claim instant so the stale-running reaper (internal/queue/reaper.go, #853) knows
-// when the lease started and can reclaim a job whose worker died or hung mid-run.
 func (q *Queries) ClaimJob(ctx context.Context) (ClaimJobRow, error) {
 	row := q.db.QueryRow(ctx, claimJob)
 	var i ClaimJobRow
@@ -80,13 +75,6 @@ SELECT min(created_at)::timestamptz AS earliest_batch_at
 FROM batch
 `
 
-// The commit instant of the FIRST batch the estate ever folded — the age boundary the
-// Drift page's vs-previous-period delta tests before comparing (P0.12, #690). The chip
-// compares the selected window against the immediately preceding equal-length window;
-// that comparison is only honest once the estate has been observing since at or before
-// the preceding window's start, so the delta is suppressed while the earliest batch is
-// younger than that (install younger than 2× the window), never a fabricated baseline.
-// NULL where no batch has committed. Reads batch only (corpus 1), never dispatch (ADR-0041).
 func (q *Queries) EarliestBatchTime(ctx context.Context) (pgtype.Timestamptz, error) {
 	row := q.db.QueryRow(ctx, earliestBatchTime)
 	var earliest_batch_at pgtype.Timestamptz
@@ -225,8 +213,6 @@ WHERE kind = 'address' AND address_cidr IS NOT NULL
 ORDER BY id
 `
 
-// The declared address-scope Seeds, for the hot Scan's Custody derivation: every
-// address inside one derives operator directly (ADR-0013).
 func (q *Queries) ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error) {
 	rows, err := q.db.Query(ctx, listAddressScopeCidrs)
 	if err != nil {
@@ -287,9 +273,6 @@ WHERE kind = 'name' AND custody_extension = TRUE AND name_domain IS NOT NULL
 ORDER BY name_domain
 `
 
-// The registrable domains of custody-extended name-scope Seeds, for the hot
-// Scan's Custody derivation: an address a name in one of these zones resolves to
-// derives operator by extension (ADR-0013 §3).
 func (q *Queries) ListExtendedZoneDomains(ctx context.Context) ([]pgtype.Text, error) {
 	rows, err := q.db.Query(ctx, listExtendedZoneDomains)
 	if err != nil {
@@ -435,11 +418,6 @@ type ListVantagesForDispatchRow struct {
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
-// The dns Scan dispatches over every configured Vantage, reading its measurement
-// identity (name, resolver) and its presented-address facts (egress + dialled_addr),
-// from which the hot/cold Scans DERIVE its class per batch for the Custody gate — never
-// the vestigial `class` column (#709, ADR-0079). Distinct from the web prober list
-// (vantages.sql `ListVantages`), which is scoped to provisioned probers.
 func (q *Queries) ListVantagesForDispatch(ctx context.Context) ([]ListVantagesForDispatchRow, error) {
 	rows, err := q.db.Query(ctx, listVantagesForDispatch)
 	if err != nil {
@@ -479,9 +457,6 @@ type ListVergeCoreFrequencyEditsRow struct {
 	Action string `json:"action"`
 }
 
-// The operator's edits to verge-core's frequency half (v1 spec §3.5). Only the
-// frequency half is operator-editable; these deltas are applied over the shipped
-// default at hot fan-out.
 func (q *Queries) ListVergeCoreFrequencyEdits(ctx context.Context) ([]ListVergeCoreFrequencyEditsRow, error) {
 	rows, err := q.db.Query(ctx, listVergeCoreFrequencyEdits)
 	if err != nil {
@@ -511,8 +486,6 @@ type MarkJobDeadParams struct {
 	BatchID pgtype.Int8 `json:"batch_id"`
 }
 
-// Guarded on 'running' exactly as MarkJobDone — a job a terminate cancelled mid-flight
-// does not dead-letter; its transaction rolls back and its work is discarded.
 func (q *Queries) MarkJobDead(ctx context.Context, arg MarkJobDeadParams) (int64, error) {
 	result, err := q.db.Exec(ctx, markJobDead, arg.ID, arg.BatchID)
 	if err != nil {
@@ -530,11 +503,6 @@ type MarkJobDoneParams struct {
 	BatchID pgtype.Int8 `json:"batch_id"`
 }
 
-// Guarded on the job still being 'running': a terminate (DF-F4) that cancelled the
-// job mid-flight left it 'cancelled', so this affects no row and the caller rolls the
-// transaction back — the staged batch and observations are discarded (job atomicity,
-// worker.go). A job the worker owns uncontested is 'running', so the update lands and
-// returns 1.
 func (q *Queries) MarkJobDone(ctx context.Context, arg MarkJobDoneParams) (int64, error) {
 	result, err := q.db.Exec(ctx, markJobDone, arg.ID, arg.BatchID)
 	if err != nil {
@@ -547,8 +515,6 @@ const markJobRetried = `-- name: MarkJobRetried :execrows
 UPDATE queue_job SET state = 'retried' WHERE id = $1 AND state = 'running'
 `
 
-// Guarded on 'running': a job a terminate cancelled mid-flight is not retried, so the
-// fresh attempt is never enqueued (the caller rolls back on a zero count).
 func (q *Queries) MarkJobRetried(ctx context.Context, id int64) (int64, error) {
 	result, err := q.db.Exec(ctx, markJobRetried, id)
 	if err != nil {
@@ -606,15 +572,6 @@ type NameCitedAddressesRow struct {
 	Address    string `json:"address"`
 }
 
-// The Addresses a current resolution cites, per Name — an `Address` is in the
-// estate exactly while a current resolution cites it. Only a `Resolved` value
-// cites; a `Shadowed` (or NoData / NameError / Lame / Gap) value cites nothing,
-// so every `Address` held only by a superseded `Resolved` leaves the estate.
-// Reads through the live-tier gate (#237, ADR-0041): the hot Scan's Custody
-// derivation admits an Address only while a resolution a derivation may still read
-// cites it, so the `cover`/`live` CTE pair below (the inlined twin of
-// ListLiveObservationsForDerivation, evaluated at @as_of with k = @floor_cadences)
-// keeps an Address held only by an evidential answer out of the probed estate.
 func (q *Queries) NameCitedAddresses(ctx context.Context, arg NameCitedAddressesParams) ([]NameCitedAddressesRow, error) {
 	rows, err := q.db.Query(ctx, nameCitedAddresses, arg.AsOf, arg.FloorCadences)
 	if err != nil {
@@ -639,14 +596,6 @@ const notifyJobProgress = `-- name: NotifyJobProgress :exec
 SELECT pg_notify('queue_job_progress', $1::text)
 `
 
-// Publish one ephemeral, redacted per-job progress event over the
-// queue_job_progress LISTEN/NOTIFY channel (#780, collision #40 producer half).
-// The payload is a small JSON line the RunDetail live stream enriches its
-// state-derived log with while a job is in flight. NOTHING is persisted at rest:
-// pg_notify delivers the payload to connected listeners and is gone (ADR-0041's
-// corpus separation and the instance-privacy posture are untouched — there is no
-// raw-stdout column or table). Fired inside the job's terminal transaction, so a
-// job cancelled mid-flight rolls its event back with the rest of its work.
 func (q *Queries) NotifyJobProgress(ctx context.Context, payload string) error {
 	_, err := q.db.Exec(ctx, notifyJobProgress, payload)
 	return err
@@ -658,14 +607,6 @@ FROM batch
 WHERE created_at < (SELECT max(created_at) FROM batch)
 `
 
-// The commit instant of the second-most-recent distinct batch — the boundary a
-// vs-last-batch stat delta reads the "value a batch ago" at (P0.2). It is the most
-// recent batch instant strictly before the latest, so the span population open at
-// it is the estate exactly as the previous batch left it, with only the most recent
-// batch's opens and closes lying between it and now. NULL where fewer than two
-// distinct batch instants exist — the first batch has no predecessor to compare
-// against, so a delta is withheld rather than compared against nothing. Reads batch
-// only (corpus 1), never dispatch, honoring the comparison-path separation (ADR-0041).
 func (q *Queries) PreviousBatchTime(ctx context.Context) (pgtype.Timestamptz, error) {
 	row := q.db.QueryRow(ctx, previousBatchTime)
 	var prev_batch_at pgtype.Timestamptz
@@ -682,22 +623,7 @@ SET state      = CASE WHEN attempt >= max_attempts THEN 'dead' ELSE 'ready' END,
 WHERE state = 'running' AND claimed_at < $1::timestamptz
 `
 
-// The stale-`running` reaper's sweep (#853): reclaim every job stuck in state
-// 'running' whose lease (claimed_at) is older than the cutoff — the worker that
-// claimed it died or hung mid-job, so nothing will ever drive it to a terminal
-// state. A job with attempts left returns to 'ready' (attempt bumped, run_after and
-// claimed_at cleared) so a live worker re-claims and re-runs it — a fresh Batch, not
-// a resumption, since a job orphaned mid-run committed no Batch (batch_id is NULL).
-// A job past its attempt budget is dead-lettered directly, which bounds a job whose
-// prober hangs on every attempt: it dies after max_attempts reaps rather than
-// re-readying forever.
-//
-// The CASE reads the OLD attempt, so a job at attempt >= max_attempts dies and one
-// below it re-readies at attempt + 1. Only 'running' rows past the cutoff match; a
-// NULL claimed_at never satisfies `< cutoff`, so a never-leased row is never reaped.
-// The reaper writes no Batch and moves no Availability: a dead worker is
-// infrastructure failure, not measurement evidence, so a reaped dns job must not be
-// read as a resolver outage (ADR-0108). Returns the count reclaimed.
+// A dead worker is failure, not evidence, so a reap writes no Batch and moves no Availability.
 func (q *Queries) ReapStaleRunningJobs(ctx context.Context, cutoff pgtype.Timestamptz) (int64, error) {
 	result, err := q.db.Exec(ctx, reapStaleRunningJobs, cutoff)
 	if err != nil {
@@ -712,16 +638,6 @@ SELECT EXISTS (
 ) AS completed
 `
 
-// Whether a `Scan` of this kind has ever completed a Batch. A Batch row exists only at
-// a terminal outcome, so this asks whether the Scan has actually RUN on this install,
-// as against being merely enabled.
-//
-// The `edge-fanout` veto reads it to tell its two UNMEASURED states apart (#985 as
-// narrowed by #1018, ADR-0129 §4): a Scan that has not run yet, whose candidates are
-// *measurement pending* and are HELD, from a Scan that runs and measures no extension
-// candidate, which is ERRORED on that limb and opens the reach. The floor is read PER
-// LIMB, so this answers the read path and the estate resolves it. A dead-lettered Batch
-// does not count — it is the job failing, and the tick retries.
 func (q *Queries) ScanHasCompletedBatch(ctx context.Context, kind string) (bool, error) {
 	row := q.db.QueryRow(ctx, scanHasCompletedBatch, kind)
 	var completed bool
@@ -734,6 +650,7 @@ SELECT EXISTS (
     SELECT 1
     FROM queue_job
     WHERE scan_id = $1::bigint
+      -- The Dispatch sweep nulls it, so a plain <> would drop a job that must still hold the gate.
       AND dispatch_id IS DISTINCT FROM $2::bigint
       AND state IN ('ready', 'running')
 ) AS lagging
@@ -744,13 +661,6 @@ type ScanHasNonTerminalJobsParams struct {
 	DispatchID int64 `json:"dispatch_id"`
 }
 
-// The hot cadence-lag gate (#1114, ADR-0137 §4). True when this Scan still holds a
-// job from an EARLIER dispatch that no terminal state has claimed — 'ready' or
-// 'running'. Only those two hold the gate: 'done', 'dead', 'retried' and 'cancelled'
-// are terminal, so a dead-lettered backlog never wedges the next tick.
-// `IS DISTINCT FROM` rather than `<>` because the Dispatch sweep (ADR-0041) retires a
-// job's dispatch_id to NULL; a NULL is a different dispatch and must still hold the
-// gate.
 func (q *Queries) ScanHasNonTerminalJobs(ctx context.Context, arg ScanHasNonTerminalJobsParams) (bool, error) {
 	row := q.db.QueryRow(ctx, scanHasNonTerminalJobs, arg.ScanID, arg.DispatchID)
 	var lagging bool
@@ -770,9 +680,6 @@ type TryFanOutParams struct {
 	ScheduledTime pgtype.Timestamptz `json:"scheduled_time"`
 }
 
-// Idempotent on (scan, scheduled_time): the first tick inserts a fanned-out
-// Dispatch; an overlapping tick conflicts and returns no row, which the caller
-// records as a skip rather than a second fan-out.
 func (q *Queries) TryFanOut(ctx context.Context, arg TryFanOutParams) (int64, error) {
 	row := q.db.QueryRow(ctx, tryFanOut, arg.ScanID, arg.ScheduledTime)
 	var id int64
