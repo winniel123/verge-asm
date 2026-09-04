@@ -10,9 +10,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/message"
 )
 
-// The Inbox (#299, T4) renders the message list read/unread — an unread dot and the
-// unread count — with each message's class tag, and offers a mark-all-read control
-// that is live while anything is unread.
 func TestInboxRendersReadUnread(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -30,17 +27,15 @@ func TestInboxRendersReadUnread(t *testing.T) {
 		"Everything Verge told you, by class.",
 		"a.example.com entered the estate",
 		"198.51.100.0/24 narrowed",
-		`class="n">2<`,            // two unread, rendered mono in the subtitle
-		`class="ib-tag">drift`,    // the store's own class vocabulary, not the example's
-		`class="ib-tag">coverage`, // an aperture firing routes to the coverage class
-		"ib-dot unread",           // the unread affordance
+		`class="n">2<`,
+		`class="ib-tag">drift`,
+		`class="ib-tag">coverage`,
+		"ib-dot unread",
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("inbox missing %q\nbody: %s", want, page)
 		}
 	}
-	// Mark-all-read is live (not disabled) while messages are unread, and returns to
-	// the Inbox rather than the /messages fold.
 	if !strings.Contains(page, `action="/messages/read-all"`) || !strings.Contains(page, `name="return" value="/inbox"`) {
 		t.Errorf("inbox mark-all-read form not wired to return to /inbox\nbody: %s", page)
 	}
@@ -49,8 +44,6 @@ func TestInboxRendersReadUnread(t *testing.T) {
 	}
 }
 
-// Marking all read clears the unread count and disables the control; the message
-// rows stay (the All filter shows read messages too), now without the unread dot.
 func TestInboxMarkAllRead(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -79,14 +72,11 @@ func TestInboxMarkAllRead(t *testing.T) {
 	if strings.Contains(page, "ib-dot unread") {
 		t.Errorf("no message should carry the unread dot after mark all read\nbody: %s", page)
 	}
-	// The messages themselves are still listed under the All filter.
 	if !strings.Contains(page, "a.example.com entered the estate") {
 		t.Errorf("read messages should still list under All\nbody: %s", page)
 	}
 }
 
-// Opening a message (an ?id link, the ported open()/initialId) marks it read and
-// renders the per-class detail — the class micro-label and the per-mover jump link.
 func TestInboxSelectMarksReadAndShowsDetail(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -98,10 +88,10 @@ func TestInboxSelectMarksReadAndShowsDetail(t *testing.T) {
 	page := getBody(t, ac, base+"/inbox?id="+strconv.FormatInt(m.ID, 10), http.StatusOK)
 
 	for _, want := range []string{
-		"198.51.100.1:443/tcp reached from the internet",       // the headline, as the detail title
-		`class="ib-micro">drift`,                               // per-class detail micro-label
-		`href="/subjects/service?key=198.51.100.1%3A443%2Ftcp`, // the per-mover jump link
-		"Open subject",                                         // the jump-link label
+		"198.51.100.1:443/tcp reached from the internet",
+		`class="ib-micro">drift`,
+		`href="/subjects/service?key=198.51.100.1%3A443%2Ftcp`,
+		"Open subject",
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("inbox detail missing %q\nbody: %s", want, page)
@@ -110,16 +100,11 @@ func TestInboxSelectMarksReadAndShowsDetail(t *testing.T) {
 	if strings.Contains(page, "No message selected.") {
 		t.Errorf("a message is open, so the no-selection empty-state must not show\nbody: %s", page)
 	}
-	// Opening marked it read: the count drops to zero.
 	if n, _ := f.CountUnreadMessages(t.Context(), admin.ID); n != 0 {
 		t.Errorf("unread after opening the only message = %d, want 0", n)
 	}
 }
 
-// The Inbox detail renders the "Mark unread" affordance (Inbox.jsx:59, ADR-0116),
-// and posting it returns an already-read message to unread: the count climbs back
-// and the message reappears under the unread filter. Read is reversible — the port
-// no longer treats it as monotonic (#473).
 func TestInboxMarkUnread(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -129,11 +114,9 @@ func TestInboxMarkUnread(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// Opening the message marks it read and renders the detail, which carries the
-	// "Mark unread" ghost button wired to POST /messages/unread returning to /inbox.
 	page := getBody(t, ac, base+"/inbox?id="+strconv.FormatInt(m.ID, 10), http.StatusOK)
 	if i := strings.Index(page, "</header>"); i >= 0 {
-		page = page[i:] // scope past the shell chrome/bell
+		page = page[i:]
 	}
 	for _, want := range []string{
 		`action="/messages/unread"`,
@@ -147,7 +130,6 @@ func TestInboxMarkUnread(t *testing.T) {
 		t.Fatalf("unread after opening the only message = %d, want 0", n)
 	}
 
-	// Post Mark unread: it returns 303 to /inbox and flips the message back to unread.
 	resp := postForm(t, ac, base+"/messages/unread", url.Values{"id": {strconv.FormatInt(m.ID, 10)}, "return": {"/inbox"}})
 	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/inbox" {
 		t.Fatalf("mark unread: status=%d location=%q, want 303 to /inbox", resp.StatusCode, resp.Header.Get("Location"))
@@ -157,7 +139,6 @@ func TestInboxMarkUnread(t *testing.T) {
 		t.Fatalf("unread after mark unread = %d, want 1 (read is reversible)", n)
 	}
 
-	// The message is unread again, so it shows under the unread filter.
 	page = getBody(t, ac, base+"/inbox?filter=unread", http.StatusOK)
 	if i := strings.Index(page, "</header>"); i >= 0 {
 		page = page[i:]
@@ -167,7 +148,6 @@ func TestInboxMarkUnread(t *testing.T) {
 	}
 }
 
-// The unread filter shows only unread messages; a read one drops out of the list.
 func TestInboxUnreadFilter(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -176,7 +156,6 @@ func TestInboxUnreadFilter(t *testing.T) {
 
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
-	// Mark the first read out of band, then view the unread filter.
 	resp := postForm(t, ac, base+"/messages/read", url.Values{"id": {strconv.FormatInt(m1.ID, 10)}, "return": {"/inbox"}})
 	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/inbox" {
 		t.Fatalf("mark read: status=%d location=%q, want 303 to /inbox", resp.StatusCode, resp.Header.Get("Location"))
@@ -184,10 +163,7 @@ func TestInboxUnreadFilter(t *testing.T) {
 	resp.Body.Close()
 
 	page := getBody(t, ac, base+"/inbox?filter=unread", http.StatusOK)
-	// The chrome's inbox bell lists recent messages regardless of the inbox filter
-	// (TopNav.jsx onOpenMessage), so a read message legitimately still shows in the
-	// bell menu. Scope the filter assertions to the inbox itself — the region past
-	// the chrome header — so they test the list, not the always-on bell.
+	// The chrome bell lists messages whatever the filter, so the assertions scope past the header.
 	if i := strings.Index(page, "</header>"); i >= 0 {
 		page = page[i:]
 	}
@@ -202,8 +178,6 @@ func TestInboxUnreadFilter(t *testing.T) {
 	}
 }
 
-// With no messages the Inbox ships the design-system inbox-zero empty-state and the
-// no-selection empty-state, and fabricates nothing.
 func TestInboxEmptyState(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -225,8 +199,6 @@ func TestInboxEmptyState(t *testing.T) {
 	}
 }
 
-// The Inbox is behind requireLogin: an unauthenticated request redirects to the
-// login form rather than rendering the screen.
 func TestInboxRequiresLogin(t *testing.T) {
 	f := newFakeStore()
 	base := start(t, f, "")

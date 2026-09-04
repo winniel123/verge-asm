@@ -10,10 +10,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
-// P0.13 (#687): the live address-scope numerator and the per-zone stale callout that
-// replace cold.go's hardcoded placeholders. These exercise the pure derivations the
-// handler wires; the devMode fixture path (G2) is unchanged.
-
 func mustPrefix(t *testing.T, s string) netip.Prefix {
 	t.Helper()
 	p, err := netip.ParsePrefix(s)
@@ -32,14 +28,12 @@ func mustAddr(t *testing.T, s string) netip.Addr {
 	return a
 }
 
-// walkedAddresses draws only the IP-hosted Service keys, dropping name-hosted ones —
-// a range's numerator counts addresses actually reached, never a name.
 func TestWalkedAddressesDropsNameHosts(t *testing.T) {
 	rows := []db.ListCurrentServiceSubjectsRow{
 		{SubjectKey: "203.0.113.44:22"},
 		{SubjectKey: "203.0.113.9:443/tcp"},
-		{SubjectKey: "mail.acmecorp.io:25"}, // name host — no address
-		{SubjectKey: "not-an-ip"},           // unparseable — dropped
+		{SubjectKey: "mail.acmecorp.io:25"},
+		{SubjectKey: "not-an-ip"},
 		{SubjectKey: "198.51.100.7:80"},
 	}
 	got := walkedAddresses(rows)
@@ -48,16 +42,14 @@ func TestWalkedAddressesDropsNameHosts(t *testing.T) {
 	}
 }
 
-// coveredInRange counts distinct in-range addresses only — two Services on one
-// address credit the range once, and out-of-range addresses do not count.
 func TestCoveredInRangeDistinctAndBounded(t *testing.T) {
 	p := mustPrefix(t, "203.0.113.0/24")
 	walked := []walkedAddr{
-		{Addr: mustAddr(t, "203.0.113.44")}, // in
-		{Addr: mustAddr(t, "203.0.113.44")}, // in, duplicate — counts once
-		{Addr: mustAddr(t, "203.0.113.9")},  // in
-		{Addr: mustAddr(t, "198.51.100.7")}, // out of range
-		{Addr: mustAddr(t, "2001:db8::1")},  // other family — never contained
+		{Addr: mustAddr(t, "203.0.113.44")},
+		{Addr: mustAddr(t, "203.0.113.44")},
+		{Addr: mustAddr(t, "203.0.113.9")},
+		{Addr: mustAddr(t, "198.51.100.7")},
+		{Addr: mustAddr(t, "2001:db8::1")},
 	}
 	if got := coveredInRange(walked, p); got != 2 {
 		t.Fatalf("coveredInRange: want 2 distinct in-range, got %d", got)
@@ -67,8 +59,6 @@ func TestCoveredInRangeDistinctAndBounded(t *testing.T) {
 	}
 }
 
-// An address scope renders the #19c counted/total meter: covered subjects over the
-// range's enumerable addresses, with the ruled coveragePct fill.
 func TestApertureMetersAddressCountedTotal(t *testing.T) {
 	p := mustPrefix(t, "203.0.113.0/24")
 	seeds := []db.ListSeedsRow{{Kind: "address", AddressCidr: &p}}
@@ -99,7 +89,6 @@ func TestApertureMetersAddressCountedTotal(t *testing.T) {
 	}
 }
 
-// A zero numerator is honest (nothing walked yet), never suppressed to a census.
 func TestApertureMetersAddressZeroNumerator(t *testing.T) {
 	p := mustPrefix(t, "203.0.113.0/24")
 	seeds := []db.ListSeedsRow{{Kind: "address", AddressCidr: &p}}
@@ -109,7 +98,6 @@ func TestApertureMetersAddressZeroNumerator(t *testing.T) {
 	}
 }
 
-// A name scope stays a census — no denominator (ADR-0072).
 func TestApertureMetersNameCensus(t *testing.T) {
 	seeds := []db.ListSeedsRow{{Kind: "name", NameDomain: pgtype.Text{String: "acmecorp.io", Valid: true}}}
 	m := apertureMeters(seeds, nil, nil, time.Now(), nil)
@@ -118,10 +106,6 @@ func TestApertureMetersNameCensus(t *testing.T) {
 	}
 }
 
-// oldestCurrentInRange is #890's oldest-current as-of: the earliest observed instant
-// among the current in-range subjects — the currency frontier's staleness. An address
-// out of range or with no real instant does not count, and an empty in-range set reads
-// ok=false (the honest empty), never a fabricated zero instant.
 func TestOldestCurrentInRange(t *testing.T) {
 	p := mustPrefix(t, "203.0.113.0/24")
 	old := time.Date(2026, 8, 28, 6, 0, 0, 0, time.UTC)
@@ -129,10 +113,10 @@ func TestOldestCurrentInRange(t *testing.T) {
 	newest := time.Date(2026, 8, 30, 6, 0, 0, 0, time.UTC)
 	walked := []walkedAddr{
 		{Addr: mustAddr(t, "203.0.113.10"), ObservedAt: mid},
-		{Addr: mustAddr(t, "203.0.113.20"), ObservedAt: old},                      // the oldest in range
-		{Addr: mustAddr(t, "203.0.113.30"), ObservedAt: newest},                   // newer
-		{Addr: mustAddr(t, "198.51.100.7"), ObservedAt: old.Add(-48 * time.Hour)}, // out of range — older, ignored
-		{Addr: mustAddr(t, "203.0.113.40")},                                       // in range, no instant — ignored
+		{Addr: mustAddr(t, "203.0.113.20"), ObservedAt: old},
+		{Addr: mustAddr(t, "203.0.113.30"), ObservedAt: newest},
+		{Addr: mustAddr(t, "198.51.100.7"), ObservedAt: old.Add(-48 * time.Hour)},
+		{Addr: mustAddr(t, "203.0.113.40")},
 	}
 	got, ok := oldestCurrentInRange(walked, p)
 	if !ok {
@@ -141,7 +125,6 @@ func TestOldestCurrentInRange(t *testing.T) {
 	if !got.Equal(old) {
 		t.Fatalf("as-of = the oldest current in-range instant: want %s, got %s", old, got)
 	}
-	// No current, in-range subject with a real instant — the honest empty.
 	if _, ok := oldestCurrentInRange([]walkedAddr{{Addr: mustAddr(t, "203.0.113.40")}}, p); ok {
 		t.Fatalf("a range with no real instant must read ok=false")
 	}
@@ -150,11 +133,6 @@ func TestOldestCurrentInRange(t *testing.T) {
 	}
 }
 
-// A lagging address scope — most of its declared range not current — renders the
-// oldest-current as-of alongside counted/total (#890, #847). Counted is the still-current
-// subjects and Total the declared count, so Counted < Total is the honest lag; the as-of
-// states how stale the current frontier is, folding the trailing-edge Gaps to one figure
-// with no per-address message.
 func TestAddressMeterOldestCurrentAsOf(t *testing.T) {
 	p := mustPrefix(t, "203.0.113.0/24")
 	now := time.Date(2026, 8, 30, 12, 0, 0, 0, time.UTC)
@@ -177,8 +155,6 @@ func TestAddressMeterOldestCurrentAsOf(t *testing.T) {
 	}
 }
 
-// A scope the batch has not walked at all carries no as-of — the honest empty, not a
-// fabricated instant. The lag (0 / 256) is still shown; the as-of line is simply absent.
 func TestAddressMeterNoAsOfWhenNothingCurrent(t *testing.T) {
 	p := mustPrefix(t, "203.0.113.0/24")
 	seeds := []db.ListSeedsRow{{Kind: "address", AddressCidr: &p}}
@@ -196,16 +172,14 @@ func staleRow(seedID int64, domain string, suppliedAt time.Time) db.ListZoneFile
 	}
 }
 
-// staleZones flags only zones aged past two re-supply intervals, in the fixtures'
-// own "N re-supply intervals" form, ordered by zone.
 func TestStaleZonesPastTwoIntervals(t *testing.T) {
 	now := time.Date(2026, 8, 27, 0, 0, 0, 0, time.UTC)
-	cadence := int64(7 * 24 * 3600) // a 7-day re-supply interval
+	cadence := int64(7 * 24 * 3600)
 	day := 24 * time.Hour
 	rows := []db.ListZoneFileStatusRow{
-		staleRow(1, "fresh.acmecorp.io", now.Add(-3*day)),     // < 1 interval — fresh
-		staleRow(2, "internal.acmecorp.io", now.Add(-20*day)), // ~2.85 intervals — stale
-		staleRow(3, "ancient.acmecorp.io", now.Add(-30*day)),  // ~4.28 intervals — stale
+		staleRow(1, "fresh.acmecorp.io", now.Add(-3*day)),
+		staleRow(2, "internal.acmecorp.io", now.Add(-20*day)),
+		staleRow(3, "ancient.acmecorp.io", now.Add(-30*day)),
 	}
 	got := staleZones(rows, cadence, now)
 	if len(got) != 2 {
@@ -222,14 +196,12 @@ func TestStaleZonesPastTwoIntervals(t *testing.T) {
 	}
 }
 
-// A zone with no supplied file (or no domain) degrades to no callout — the design's
-// empty pattern, never a fabricated zero.
 func TestStaleZonesSkipsUnsupplied(t *testing.T) {
 	now := time.Date(2026, 8, 27, 0, 0, 0, 0, time.UTC)
 	cadence := int64(7 * 24 * 3600)
 	rows := []db.ListZoneFileStatusRow{
-		{SeedID: 1, NameDomain: pgtype.Text{String: "never.acmecorp.io", Valid: true}},                 // SuppliedAt invalid
-		{SeedID: 2, SuppliedAt: pgtype.Timestamptz{Time: now.Add(-100 * 24 * time.Hour), Valid: true}}, // no domain
+		{SeedID: 1, NameDomain: pgtype.Text{String: "never.acmecorp.io", Valid: true}},
+		{SeedID: 2, SuppliedAt: pgtype.Timestamptz{Time: now.Add(-100 * 24 * time.Hour), Valid: true}},
 	}
 	if got := staleZones(rows, cadence, now); len(got) != 0 {
 		t.Fatalf("unsupplied/no-domain zones must not appear, got %v", got)
