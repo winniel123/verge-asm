@@ -1131,7 +1131,7 @@ var updateHostSteps = []string{
 	"# on the host — verge cannot rewrite its own image",
 	"docker compose pull",
 	"docker compose up -d web worker",
-	"docker compose exec web verge migrate status",
+	"docker compose ps web worker",
 }
 
 func (s *server) migrationsPending(ctx context.Context) (int, bool) {
