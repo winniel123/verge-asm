@@ -23,27 +23,16 @@ import (
 	"github.com/winniel123/verge-asm/internal/vergecore"
 )
 
-// The Settings screen is the operator's dials (v1 spec §6.1): the tabbed console
-// destination ported from examples/console/Settings.jsx. It folds today's
-// settings (accounts, channels, retention), the scans monitor, the vantages the
-// worker measures from, the message panel, the verge-core port set, the delivery
-// record, and source enablement into seven query-param sub-tabs
-// (/settings?tab=<id>). Every mutation it hosts is an authenticated admin act
-// (§4.3), reached only through requireAdmin; the folded read surfaces (/scans,
-// /messages, /verge-core, /sources) render one section for a viewer.
+// Every mutation this screen hosts is an authenticated admin act (docs/spec/v1-spec.md §4.3).
 
-// channelView is a declared Channel shaped for rendering. It never carries the
-// secret, only whether one is set: the secret is write-only and the render path
-// is structurally unable to hold it (CONTEXT.md "Channel").
+// The secret is write-only and never rendered again (CONTEXT.md "Channel").
+
 type channelView struct {
-	ID       int64
-	URL      string
-	Drift    bool
-	Coverage bool
-	Clock    bool
-	// Classes is the store vocabulary this channel carries, in vocabulary order —
-	// the display tags (#26f, never a hardcoded set in the tmpl). ClassStates is the
-	// full vocabulary with each class's checked flag for the edit-disclosure form.
+	ID          int64
+	URL         string
+	Drift       bool
+	Coverage    bool
+	Clock       bool
 	Classes     []string
 	ClassStates []classState
 	Enabled     bool
@@ -52,18 +41,11 @@ type channelView struct {
 	At          string
 }
 
-// classState is one routing class in the channel vocabulary with its checked flag —
-// the shape both the create form's .ClassOptions and a channel's per-row .ClassStates
-// render from, so the class checkboxes/badges come from the store's vocabulary rather
-// than a hardcoded set (#26f).
 type classState struct {
 	Name    string
 	Checked bool
 }
 
-// channelClasses is the store's routing-class vocabulary (the route_drift /
-// route_coverage / route_clock columns, ADR-0091). The tmpl renders class
-// checkboxes and badges from this, never from a literal set baked into the markup.
 var channelClasses = []string{"drift", "coverage", "clock"}
 
 type accountRow struct {
@@ -76,13 +58,8 @@ type accountRow struct {
 	IsSelf      bool
 }
 
-// sessionRow is one active session in the admin-wide sessions view (#407). It
-// carries no token hash — the listing query never projects the secret — only whose
-// session it is (Account) and at what Role, the device derived from the stored
-// User-Agent, the source IP, and the relative last-active reading. Current marks the
-// one row whose cookie is making this request (Settings.jsx's `current`): it wears the
-// "(you)" marker and shows no revoke control, so the operator can never sign their own
-// browser out from the admin-wide surface.
+// The current row shows no revoke control, so an admin never ends their own session here.
+
 type sessionRow struct {
 	ID        int64
 	AccountID int64
@@ -102,83 +79,43 @@ type retentionView struct {
 	UpdatedAt               string
 }
 
-// addressCapView renders the address-scope cap control (#888 / Settings #206,
-// ADR-0127, Variant C — the policy-forward dial). It front-loads the cost of a raised
-// cap at policy time so the declaration can stay a flat within-policy confirm: the
-// largest scope the cap admits (as a prefix per family), the dispatch load a cap-sized
-// scope puts on each enabled address-scope scan per cadence, and the projected
-// evidential-observation disk growth (scaling ADR-0041's /22 ≈ 13 GB/year grounding).
-// The operator chooses the lag they accept HERE, when they set the cap, not when they
-// declare. Nothing here branches on the number; it is a readout, never a gate.
+// Priced at policy time so a declaration stays a flat confirm: a readout, never a gate (ADR-0127).
+
 type addressCapView struct {
 	Cap            int64
-	CapLabel       string // the cap as a comma-grouped count, e.g. "262,144"
-	LargestScopeV4 string // the widest IPv4 prefix the cap admits, e.g. "/14"
-	LargestScopeV6 string // the widest IPv6 prefix the cap admits, e.g. "/110"
-	DiskProjection string // projected evidential growth, e.g. "≈ 3.3 TB / year"
+	CapLabel       string
+	LargestScopeV4 string
+	LargestScopeV6 string
+	DiskProjection string
 	SweepLoad      []capSweepLine
 	UpdatedBy      string
 	UpdatedAt      string
 }
 
-// capSweepLine is one enabled address-scope scan's dispatch load at the current cap: a
-// cap-sized scope is Probes one-address Batches (ADR-0005) dispatched every Cadence.
-// The Probes figure is pure arithmetic over the cap and the scan's own cadence_seconds —
-// no throughput is assumed, so it promises no completion the model does not (ADR-0127).
-//
-// Effective is the separate predicted-vs-effective cadence #891 states on the Scans
-// surface (#847): the worst-case time one full cap-sized pass takes at the per-vantage
-// packet ceiling — declared size x probed ports x attempts / rate, the same figures
-// ADR-0047 prices with. It is arithmetic, not a new domain term, and it never appears
-// on Coverage (Coverage is evidential; Scans is operational). Cadence is the predicted
-// cadence; Effective is the effective cadence; Outpaces is true when one pass cannot
-// finish inside the predicted cadence, so the trailing edge lags (#847, reported on
-// Coverage as the honest shortfall, never hidden). ADR-0005's skip events confirm the
-// prediction in operation.
 type capSweepLine struct {
-	Scan      string // the scan kind, e.g. "hot"
-	Cadence   string // its declared (predicted) cadence label, e.g. "daily"
-	Probes    string // the cap as a comma-grouped probe count, e.g. "262,144"
-	Effective string // the effective cadence — one full pass, e.g. "≈ 6 days"; "" when unknown
-	Outpaces  bool   // true when Effective exceeds the predicted Cadence (the honest lag)
+	Scan      string
+	Cadence   string
+	Probes    string
+	Effective string
+	Outpaces  bool
 }
 
-// vantageRow is one measurement position shaped for the vantages section. A
-// vantage is never a probe/scanner/agent (CONTEXT.md): the render carries only its
-// measurement name, verified class, availability, resolver and endpoint — never a
-// private key.
 type vantageRow struct {
 	Name         string
 	Class        string
 	Availability string
 	Resolver     string
 	Endpoint     string
-	// Latency is the measured connect round-trip label ("34ms") or empty when
-	// unmeasured; Unverified marks a vantage that makes no exposure claims until
-	// re-verified (its availability reads "unverified"). The spec VantageCard renders
-	// the dashed border and no-claims note off Unverified (#26c).
-	Latency    string
-	Unverified bool
-	Avail      string
+	Latency      string
+	Unverified   bool
+	Avail        string
 }
 
-// settingsForms carries the echo state of the Settings screen's forms so a
-// rejected submission on one section leaves its own error and typed values in
-// place without disturbing the others. section names the section that failed and
-// drives the response status; tab forces the active sub-tab (a folded read
-// surface renders one section by name), and notice carries a success line.
 type settingsForms struct {
-	section string // "", "team", "channels", "retention" or "vergecore"
-	tab     string // explicit active tab; when "", derived from section (default scans)
-	notice  string // a success line, rendered above the active section
+	section string
+	tab     string
+	notice  string
 
-	// flashTab names the tab whose GET may consume this stash. The settings surface has
-	// more than one landing — /settings renders whichever tab its query names, /scans
-	// renders the Scans section on a URL of its own — and they are not interchangeable:
-	// a refused CHANNEL act renders nothing on the Scans tab. takeSettingsFlash claims a
-	// stash only when this matches the tab it is rendering, so any other GET leaves it
-	// for the landing it belongs to. It is set on the way IN (failSettings, and each
-	// success stash) and read on the way out; it never reaches the template.
 	flashTab string
 
 	teamError   string
@@ -195,10 +132,6 @@ type settingsForms struct {
 	chanCoverage bool
 	chanClock    bool
 
-	// sso (#293). ssoError is an inline error on the single-sign-on surface; the
-	// remaining fields echo a rejected add-provider form back so the operator does not
-	// retype it (the add form renders unconditionally, so no open/closed flag is
-	// needed).
 	ssoError    string
 	ssoSlug     string
 	ssoName     string
@@ -210,39 +143,23 @@ type settingsForms struct {
 	retDispatch   string
 	retTranscript string
 
-	// address-scope cap (#888, ADR-0127). capError is the inline error on the cap
-	// control (Settings · Scans); capValue echoes a rejected value back so the operator
-	// does not retype it.
 	capError string
 	capValue string
 
 	vcError string
 	vcPort  string
 
-	// sources (#26). sourceError is an inline error on the sources tab (a bad id or a
-	// rejected enable), echoed above the tier cards.
 	sourceError string
 
-	// cold + probers (#21d): the full-range opt-in and prober provisioning acts
-	// relocated from /scope. coldError is an inline error on the Scans tab's cold-tier
-	// region; the prober fields echo a rejected provision form back on the Vantages tab.
 	coldError   string
 	proberError string
 	proberHost  string
 	proberPort  string
 	proberUser  string
 
-	// sessions (#407). revokeAccountID/revokeAccountError re-open the typed-name
-	// revoke-all-for-account ConfirmDialog on a mismatch, exactly as the Team
-	// remove-account dialog re-opens through removeID/removeError.
 	revokeAccountID    int64
 	revokeAccountError string
 
-	// restore (#391/B4, ADR-0124): the Instance tab's Restore card state. restoreError
-	// is the inline failure line (a fixed message keyed to a redirect code, never
-	// reflected text). preflight surfaces a staged, validated archive ready to apply;
-	// restoreConfirm re-shows that same staged archive as the typed-confirm dialog when
-	// ?restore-confirm=1. All nil/empty on a normal Instance render.
 	restoreError   string
 	preflight      *restorePreflightView
 	restoreConfirm *restoreConfirmView
@@ -256,11 +173,8 @@ var settingsTabs = []string{
 	"channels", "integrations", "messages", "delivery",
 }
 
-// validTab keeps the query param to a known section, defaulting to the first.
-// The pre-V3 "access" tab split into "sso" and "team" (T18); a lingering
-// tab=access link (a bookmark, or the /account redirect before it was retargeted)
-// lands on Team, where account management now lives, rather than 404-ing.
 func validTab(t string) string {
+	// A bookmarked pre-V3 ?tab=access link must land on Team rather than 404.
 	if t == "access" {
 		return "team"
 	}
@@ -272,8 +186,6 @@ func validTab(t string) string {
 	return "scans"
 }
 
-// tabForSection maps a failing form's section to the tab that hosts it, so a
-// rejected submission re-renders with its own section active.
 func tabForSection(section string) string {
 	switch section {
 	case "api":
@@ -307,99 +219,34 @@ func tabForSection(section string) string {
 	}
 }
 
-// dialogParams names the query parameters that OPEN A DIALOG on a section's tab, as
-// opposed to naming the list the operator wants back. backToSection drops them from
-// every destination it answers.
-//
-// The Team tab is the case. Its change-role, require-re-enrollment, remove and invite
-// forms all live inside a modal, and each modal is opened by a query parameter so that
-// a destructive act is a navigation rather than a menu click (fillTeamSection). The
-// submitting URL therefore carries one, and returning to it verbatim is wrong twice
-// over. On a SUCCESS it re-opens the confirm the operator just accepted, which reads as
-// "nothing happened" and offers the act again. On a REFUSAL the modal covers the page:
-// .st-scrim is fixed over the whole viewport, and the role and re-enrollment callouts
-// render at page level BEHIND it, so the operator would land on a dimmed page with no
-// message at all.
-//
-// Dropping them is not a hole in ADR-0130 §3. A dialog is modal state, which the ADR
-// puts out of scope as failure class D; what §3 asks the redirect to preserve is the
-// list — the tab, the filter, the page — and every one of those survives. What must
-// re-open on a refusal re-opens from the FLASH instead, which is the stronger carrier
-// anyway: removeID/removeError re-open the remove dialog with the message inside it,
-// and inviteOpen does the same for the invite. Both are single-consume, so a reload
-// leaves the operator on a clean tab rather than in a dialog they never re-opened.
-//
-// The Sources tab is the second case, and it is the same shape (ticket #975). Its
-// consent dialog is opened by ?consent=<id> (fillSourcesSection), and the enable form
-// lives inside that dialog. On a success, returning verbatim would re-open the terms of
-// a source the operator has just enabled. On a refusal, the same scrim would hide the
-// callout. The list of tiers behind the dialog survives either way.
-// It is keyed on the TAB, not on the section, and the difference is load-bearing. Three
-// sections render on the Scans tab — "scans", "cold" and "addresscap" — so a cap or an
-// opt-in refusal submitted from a URL with the stop confirm open would have kept ?stop=
-// on the way back if the key were the section. The destination is derived from the tab
-// (backToSection), so what may be dropped from it is a fact about the tab too.
+// A dropped dialog param is modal state, not the list ADR-0130 §3 preserves.
+
 func dialogParams(tab string) []string {
+	// Keyed on the tab: three sections share Scans, so a section key keeps the wrong confirm open.
 	switch tab {
 	case "team":
 		return []string{"role", "reenroll", "remove", "invite"}
 	case "sources":
 		return []string{"consent"}
 	case "sessions":
-		// The Sessions tab is the third case (ticket #977), and it is Team's shape exactly.
-		// ?revoke=<id> opens the per-row revoke confirm and ?revoke-account=<id> the
-		// offboarding one (fillSessionsSection), and each act's form sits inside its dialog.
-		// A verbatim return would re-offer the revoke of a session already ended, and would
-		// put the scrim over the typed-name refusal that renders at page level behind it.
 		return []string{"revoke", "revoke-account"}
 	case "scans":
-		// The Scans tab is the fourth case (ticket #977). ?stop=<id> and ?terminate=<id>
-		// open the stop and terminate confirms (scansPage), and the act's form lives inside
-		// the confirm. Returning verbatim would re-offer the confirm for a dispatch that has
-		// just been ended, and on a refusal the same scrim would cover the receipt. The
-		// dispatch list behind the dialog survives either way.
 		return []string{"stop", "terminate"}
 	case "instance":
-		// ?restore-confirm=1 opens the typed-confirm dialog the restore APPLY form lives in
-		// (settingsPage). A refused apply must land on the tab BEHIND the dialog, where the
-		// .RestoreError callout renders; returning verbatim would re-open the confirm over
-		// it, and would re-offer a restore whose staged archive the refusal may have spent.
 		return []string{"restore-confirm"}
 	}
 	return nil
 }
 
-// backToSection answers a mutating settings act with the 303 ADR-0130 §3 asks for: back
-// to the URL the form was submitted from, minus that section's dialog parameters, and
-// falling back to the section's own tab when the form carried no usable `return`.
-//
-// A success and a refusal share it. The destination rule is the same for both — that is
-// the whole point of the contract, since a refusal the operator cannot tell apart from a
-// success is a refusal that keeps their scroll offset — and only the flash differs.
 func (s *server) backToSection(w http.ResponseWriter, r *http.Request, section string) {
+	// A refusal lands exactly where a success does, so the shell restores the offset (ADR-0130 §1).
 	tab := tabForSection(section)
 	dest := s.resolveBack(r, "/settings?tab="+tab)
 	http.Redirect(w, r, stripDestParams(dest, dialogParams(tab)...), http.StatusSeeOther)
 }
 
-// takeSettingsFlash reads this session's pending settings form off the flash carrier
-// (flash.go) and pins it to the tab the URL asked for. It is the GET half of the
-// ADR-0130 §1 post-redirect-get, and every GET that can be the landing of a migrated
-// settings act calls it: /settings itself, and /scans, which renders the same Scans
-// section and so is a legitimate submitting URL for the cold-tier opt-in.
-//
-// It claims a stash only when the stash named this tab (settingsForms.flashTab). A GET
-// on another tab leaves it for the landing it was written for — see takeFormFlashIf for
-// why that check has to exist rather than being left to chance.
-//
-// A GET that is nobody's landing takes nothing and renders a zero settingsForms, which
-// is the ordinary read. The two cases need no flag to tell them apart any more: every
-// caller of renderSettings is a GET now, so the render answers 200 either way (ticket
-// #978 removed the settingsForms.flashed field with the last 400).
-//
-// The carrier is typed too, so a rejected form belonging to another surface — a
-// /signals declaration, say — is left in place rather than consumed here.
 func (s *server) takeSettingsFlash(r *http.Request, tab string) settingsForms {
+	// /settings and /scans are separate landings, so a stash claimed by the wrong one is lost.
 	f, _ := takeFormFlashIf[settingsForms](s, r, func(v settingsForms) bool {
 		return v.flashTab == tab
 	})
@@ -407,56 +254,16 @@ func (s *server) takeSettingsFlash(r *http.Request, tab string) settingsForms {
 	return f
 }
 
-// failSettings answers a refused settings act the way ADR-0130 §1 asks: stash the
-// callout and the operator's typed values in the session flash, then 303 back to the
-// URL the form was submitted from. Nothing the operator typed enters the URL.
-//
-// The refusal is then indistinguishable from a success — both are a plain
-// post-redirect-get to the same URL — so the scroll offset the shell stashed on submit
-// is restored on the landing, and the tab in that URL is the tab they acted on. That
-// closes failure classes A and E together for the migrated handler.
-//
-// The destination and the flash's claim are both derived from f.section, so a caller
-// states the section and nothing else. Every caller already did, exactly as it did for
-// the inline re-render.
-//
-// It was the whole of the migration for a caller: an inline
-// `renderSettings(w, r, acct, settingsForms{...})` became `failSettings(w, r,
-// settingsForms{...})` with the same struct. Ticket #978 moved the last four — the two
-// retention dials, the address cap, prober provisioning and the revoke-all typed-name
-// gate — so no settings handler renders a refusal in place any more.
 func (s *server) failSettings(w http.ResponseWriter, r *http.Request, f settingsForms) {
 	s.flashSettings(w, r, f)
 }
 
-// toastBackToSection stashes a single-consume TOAST for the next render and answers
-// backToSection's 303. It is flashRedirect (shell.go) over the submitting-URL carrier, and
-// the dispatch stop and terminate acts are its callers (ticket #977).
-//
-// toastRedirectBack would be wrong for those two. The Scans surface re-renders itself with
-// a meta-refresh while a dispatch is in flight, and a toast spelled on the URL fires again
-// on every one of those reloads — the "Scan started" spam WORK-ORDER-DOGFOOD-R1 reported.
-// The per-account flash store keeps the receipt single-consume; backToSection lands the
-// operator on their own list, whichever of /settings?tab=scans or /scans they acted from,
-// with the confirm dialog's ?stop= or ?terminate= dropped (dialogParams).
 func (s *server) toastBackToSection(w http.ResponseWriter, r *http.Request, accountID int64, section, tone, title, description string) {
+	// A toast spelled on the URL fires again on every meta-refresh the in-flight Scans page runs.
 	s.flash.set(accountID, toastVM{Tone: tone, Title: title, Description: description})
 	s.backToSection(w, r, section)
 }
 
-// flashSettings is failSettings without the word "fail". It stashes f for the section's
-// landing GET and 303s back to the submitting URL, and it does not care whether f carries
-// a refusal or a receipt.
-//
-// Ticket #977 needs the neutral name for a SUCCESS notice. The admin session revokes used
-// to spell their receipt on the destination — `/settings?tab=sessions&notice=revoked` —
-// which made the landing URL differ from the submitting one, so the scroll key ticket #970
-// set missed by construction (ADR-0130 §2), and on a long session table the operator was
-// thrown to the top for a line of text. The notice rides the flash now and the URL is left
-// exactly as the form declared it.
-//
-// A flashed render answers 200, not 400 (renderSettings), so a receipt carried here is an
-// ordinary navigation, which is what it is.
 func (s *server) flashSettings(w http.ResponseWriter, r *http.Request, f settingsForms) {
 	f.flashTab = tabForSection(f.section)
 	stashFormFlash(s, r, f)
@@ -464,50 +271,18 @@ func (s *server) flashSettings(w http.ResponseWriter, r *http.Request, f setting
 }
 
 func (s *server) settingsPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	// A VERGE_DEV build serves the design's curated fixtures.json settings slice so each
-	// section renders byte-for-byte for the pixel-parity harness (the 19 golden states).
-	// It touches no table — the twin of the render-goldens settings case, both stamping
-	// the same "settings" holes from the same fixture. A real deployment renders the live
-	// projection below (renderSettings). The viewer's forbidden state never reaches here:
-	// requireSettingsAdmin refuses it first (settingsForbidden, the error-page).
 	if s.devMode {
 		s.render(w, r, "settings", s.settingsFixtureData(acct, r))
 		return
 	}
 	q := r.URL.Query()
 	tab := validTab(q.Get("tab"))
-	// The Integrations surface is gated (#388, integrationsEnabled). Bounce a direct
-	// ?tab=integrations navigation to the default tab BEFORE the flash is taken.
-	//
-	// The bounce used to sit in renderSettings, which runs AFTER the take (#974 recorded
-	// it and left it to this ticket). A take there consumes the session's pending stash
-	// and then answers a redirect that renders none of it, so the callout would be
-	// swallowed on the way past. Claiming nothing is the honest answer for a page this
-	// request never renders.
+	// The bounce must precede the flash take, or the redirect swallows a stash it never renders.
 	if tab == "integrations" && !integrationsEnabled {
 		http.Redirect(w, r, "/settings?tab=scans", http.StatusSeeOther)
 		return
 	}
-	// A refused settings act redirected here and left its callout and the operator's
-	// typed values in the session-keyed form flash (ADR-0130 §1, flash.go). Read it
-	// once: the take deletes it, so a reload of this same URL — the operator's own, or
-	// the scan-running auto-refresh — renders no stale callout. An ordinary GET finds
-	// nothing and renders none.
-	//
-	// The URL, never the flash, chooses the tab. That is the class-E fix this ticket
-	// exists for: the form carried the submitting URL, the handler 303'd back to it,
-	// and that URL says `tab=team`, so a refused team act renders on Team instead of on
-	// the default Scans tab the old `section` derivation dropped it onto.
 	forms := s.takeSettingsFlash(r, tab)
-	// Restore card state (#391/B4, ADR-0124) rides the Instance tab only. A completed
-	// pre-flight left the validated archive staged for this admin; surface it as the warn
-	// callout, or — with ?restore-confirm=1 — as the typed-confirm dialog.
-	//
-	// A refused pre-flight or apply arrives on .RestoreError through the flash above, not
-	// through a ?restore-error= code on the URL (ticket #977). The code carried a fixed
-	// line and reflected nothing, so it was never unsafe; what it did was land the
-	// operator on a URL their form was not submitted from, which is the class-E miss this
-	// map exists to close, on the one act slow enough for the offset to matter.
 	if forms.tab == "instance" {
 		if stg := s.stagedRestore(acct.ID); stg != nil {
 			if q.Get("restore-confirm") == "1" {
@@ -524,24 +299,10 @@ func (s *server) settingsPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	s.renderSettings(w, r, acct, forms)
 }
 
-// The completed admin session acts (#407) confirm through settingsForms.notice, stashed on
-// the session flash by flashSettings. The sessionsNotice code table that used to map
-// ?notice=revoked / ?notice=revoked-account is gone with the query carrier it decoded
-// (ticket #977): the two lines it held are now stated at the two handlers that mean them.
+// Bounding the life is what makes a leaked join link inert once it goes stale.
 
-// inviteTTL bounds a Team invite's life, matching the Settings.jsx invite dialog's
-// "expires in 7 days". A join link older than this is refused at /invite (T19's
-// lookupInvite), so a leaked-then-stale link is inert.
 const inviteTTL = 7 * 24 * time.Hour
 
-// inviteAccount mints a single-use invite from the Settings → Team dialog and
-// reveals the join link once (T18). It is the CREATION side of the invite table
-// T19 shipped for acceptance: unlike the pre-V3 path it never creates an account
-// directly — the invitee chooses their own username and password at /invite, and
-// the role applies on acceptance. Accounts on this build are usernames with no
-// identity provider, so the invite binds a role, not an address: the dialog asks
-// only the role and the plaintext token rides one URL handed out of band (also
-// written to the web logs, exactly as the setup and reset tokens are).
 func (s *server) inviteAccount(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	role := r.FormValue("role")
 	fail := func(msg string) {
@@ -567,23 +328,13 @@ func (s *server) inviteAccount(w http.ResponseWriter, r *http.Request, acct db.A
 		return
 	}
 	link := s.inviteLink(r, plaintext)
-	// The one delivery this self-hosted build honestly has: the operator's own logs.
 	log.Printf("web: invite minted at role %q; accept it at %s (expires in %s)", role, link, inviteTTL) // #nosec G706 (role is enum-validated admin|viewer; link is server-constructed)
-	// The success is a post-redirect-get too (ADR-0130 §3), and the minted link rides
-	// the session flash rather than the URL. The link carries the PLAINTEXT invite
-	// token, so putting it in a query would write a live credential to the access log
-	// and to the browser's history — the flash is the only carrier that can hold it.
-	// inviteOpen is what re-opens the dialog to reveal the link, not the ?invite=1 the
-	// submitting URL carried — backToSection drops that (dialogParams), so the reveal is
-	// single-consume and a reload leaves the operator on a clean Team tab.
 	stashFormFlash(s, r, settingsForms{flashTab: "team", inviteOpen: true, inviteLink: link})
 	s.backToSection(w, r, "team")
 }
 
-// inviteLink builds the absolute join URL an invitee presents at /invite. It reads
-// the request host (never a proxy-forwarding header) and infers the scheme from the
-// TLS state or the secure-cookie flag, so the copied link works behind a TLS proxy.
 func (s *server) inviteLink(r *http.Request, token string) string {
+	// A TLS proxy leaves web on plain HTTP, so the cookie flag is the tell (docs/guides/running.md).
 	scheme := "http"
 	if r.TLS != nil || s.secureCookies {
 		scheme = "https"
@@ -591,11 +342,6 @@ func (s *server) inviteLink(r *http.Request, token string) string {
 	return scheme + "://" + r.Host + "/invite?token=" + token
 }
 
-// setAccountRole reassigns an account's role. It refuses to demote the last
-// admin: an operator must never be able to strip the final admin and lock every
-// remaining account out of every mutation. The Save control is disabled until the
-// selected role differs (Settings.jsx), so a no-op save never reaches here in the
-// UI; the guards still hold on the raw POST.
 func (s *server) setAccountRole(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	fail := func(msg string) {
 		s.failSettings(w, r, settingsForms{section: "team", roleError: msg})
@@ -633,10 +379,6 @@ func (s *server) setAccountRole(w http.ResponseWriter, r *http.Request, acct db.
 	s.backToSection(w, r, "team")
 }
 
-// reenrollAccount clears a member's second factor (Settings.jsx "Require
-// re-enrollment"): their current authenticator stops working at once and the next
-// sign-in walks them through TOTP setup again. It never touches a password or a
-// session, and it is a no-op guard against a missing row rather than a 500.
 func (s *server) reenrollAccount(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
@@ -650,28 +392,17 @@ func (s *server) reenrollAccount(w http.ResponseWriter, r *http.Request, acct db
 	s.backToSection(w, r, "team")
 }
 
-// removeAccount removes a member through a typed-name gate — the worst destructive
-// act on the Team surface, so the operator must type the member's exact username to
-// confirm, and it is reached only through the remove ConfirmDialog (a POST), never a
-// menu click. It refuses to remove yourself or the last admin. An account that
-// authored attributed acts (a NOT NULL created_by) is refused by the FK with a clear
-// message rather than a 500, so its work is never orphaned.
 func (s *server) removeAccount(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
 		s.failSettings(w, r, settingsForms{section: "team", teamError: "That account could not be found."})
 		return
 	}
-	// The remove dialog is opened by ?remove=<id>, so the submitting URL re-opens it on
-	// the landing GET all by itself. removeID stays on the stash for the fallback path,
-	// where a form carried no usable `return` field and the landing is a bare
-	// /settings?tab=team with no dialog in its query.
+	// The URL re-opens this dialog itself; removeID covers the fallback where no return survived.
 	reopen := func(msg string) {
 		s.failSettings(w, r, settingsForms{section: "team", removeID: id, removeError: msg})
 	}
 	if id == acct.ID {
-		// Self has no remove dialog (a member never acts on their own row), so the
-		// refusal shows inline rather than in a dialog that would not render.
 		s.failSettings(w, r, settingsForms{section: "team", teamError: "You cannot remove your own account."})
 		return
 	}
@@ -695,6 +426,7 @@ func (s *server) removeAccount(w http.ResponseWriter, r *http.Request, acct db.A
 			return
 		}
 	}
+	// Attributed acts pin their author with created_by (docs/guides/accounts.md).
 	if err := s.store.DeleteAccount(r.Context(), id); err != nil {
 		if isForeignKeyViolation(err) {
 			reopen(target.Username + " has declared scopes, channels, or other attributed acts and cannot be removed — reassign or keep the account.")
@@ -763,8 +495,6 @@ func (s *server) updateChannel(w http.ResponseWriter, r *http.Request, acct db.A
 		s.serverError(w, "update channel", err)
 		return
 	}
-	// The secret write is separate so leaving the field blank keeps the current
-	// one. The clear box wins over any typed value.
 	switch {
 	case r.FormValue("clear_secret") != "":
 		if err := s.store.SetChannelSecret(r.Context(), db.SetChannelSecretParams{ID: id}); err != nil {
@@ -795,17 +525,8 @@ func (s *server) deleteChannel(w http.ResponseWriter, r *http.Request, acct db.A
 	s.backToSection(w, r, "channels")
 }
 
-// updateRetention persists the three dial values. The observation and dispatch
-// floors are DERIVED not asserted (ADR-0094) — never presented as an operator
-// choice. The observation-currency dial (#208, §4.6) floors at the tightest
-// observation bound in force: k cadences of the tightest enabled Scan, below which
-// the control changes no row at all. The Dispatch dial (#209, §4.6) floors at k
-// cadences of the slowest enabled Scan. The transcript-currency dial (#868,
-// raw-job-output spec §4, ADR-0126) is a whole number of days: 0 is the explicit
-// unbounded opt-out, and a positive value is floored UP to 1 day by the retirer
-// (retention.TranscriptFloorDays), so no positive whole-day value is rejected here.
-// For all three, 0 is always allowed. Deletion of expired rows is a structurally
-// separate path (internal/retention), never reached from here.
+// The floor is derived from the tightest bound in force, never an operator choice (ADR-0094).
+
 func (s *server) updateRetention(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	obsRaw := strings.TrimSpace(r.FormValue("observation_currency_days"))
 	dispRaw := strings.TrimSpace(r.FormValue("dispatch_cadence_multiple"))
@@ -827,14 +548,12 @@ func (s *server) updateRetention(w http.ResponseWriter, r *http.Request, acct db
 		fail("Dispatch floor must be a whole number of cadences, zero or more.")
 		return
 	}
+	// A positive value is floored up by the retirer, so none is refused here (raw-job-output.md §4).
 	trans, err := strconv.ParseInt(transRaw, 10, 64)
 	if err != nil || trans < 0 {
 		fail("Transcript retention must be a whole number of days, zero or more.")
 		return
 	}
-	// The observation floor is the tightest bound in force — k cadences of the
-	// tightest enabled Scan. The query still reads each row's own bound; this only
-	// forbids the operator naming a dial the whole corpus already outlives.
 	tightest, err := s.store.TightestEnabledScanCadenceSeconds(r.Context())
 	if err != nil {
 		s.serverError(w, "tightest scan cadence", err)
@@ -860,17 +579,9 @@ func (s *server) updateRetention(w http.ResponseWriter, r *http.Request, acct db
 	s.backToSection(w, r, "retention")
 }
 
-// updateAddressCap sets the operator address-scope cap (#888 / Settings #206,
-// ADR-0127). The cap has NO upper bound — ADR-0127 removes the ceiling above the
-// operator value, so the only friction is the deliberate act of raising it; the sole
-// guard here is a whole number of addresses, one or more. It persists on the
-// instance_config singleton and is read at declaration (server.addressCap), so a raise
-// takes effect on the next declaration and a lower value never invalidates a scope
-// declared under a higher cap. A rejected value is a post-redirect-get back to the
-// submitting URL with the echo state on the session flash (ADR-0130 §1), exactly as
-// the retention dials do.
 func (s *server) updateAddressCap(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	raw := strings.TrimSpace(r.FormValue("address_cap"))
+	// A ceiling here is refused; a large scope is priced at policy time, not gated (ADR-0127).
 	n, err := strconv.ParseInt(raw, 10, 64)
 	if err != nil || n < 1 {
 		s.failSettings(w, r, settingsForms{
@@ -890,23 +601,11 @@ func (s *server) updateAddressCap(w http.ResponseWriter, r *http.Request, acct d
 	s.backToSection(w, r, "addresscap")
 }
 
-// renderSettings assembles the active sub-tab and renders the tabbed Settings
-// page. It gathers only the data the active section needs, so a folded read
-// surface pays for its own section alone. A failing form re-renders its own tab
-// with the echo state and a 400.
 func (s *server) renderSettings(w http.ResponseWriter, r *http.Request, acct db.Account, f settingsForms) {
 	active := f.tab
 	if active == "" {
 		active = tabForSection(f.section)
 	}
-
-	// The gate on the Integrations surface (#388, integrationsEnabled) moved UP to
-	// settingsPage, ahead of the flash take (ticket #977). It cannot live here: this is
-	// the render, and by the time it runs the caller has already consumed the session's
-	// pending stash, so a bounce answered from here would swallow the callout on its way
-	// past. Nothing else reaches this function with tab "integrations" — the folded read
-	// surfaces name their own section, and integrations.go's own handlers 303 rather than
-	// render.
 
 	data := map[string]any{
 		"Title": "Settings", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
@@ -952,26 +651,14 @@ func (s *server) renderSettings(w http.ResponseWriter, r *http.Request, acct db.
 		return
 	}
 
-	// Always 200, callouts or none. Every caller of this render is now a GET — /settings,
-	// /scans, /sources, /verge-core and /messages — so a section reaches it only as the
-	// landing of a post-redirect-get (ADR-0130 §1), which is an ordinary navigation. The
-	// 400 branch answered a handler that rendered a refusal in place at its own POST URL,
-	// and it went with the last handler that did (ticket #978), taking settingsForms.flashed
-	// with it. A refusal now answers exactly as a success does, which is what lets the shell
-	// restore the operator's scroll offset on both.
 	s.renderStatus(w, r, http.StatusOK, "settings", data)
 }
 
-// fillVantagesSection lists the provisioned measurement positions (CONTEXT.md
-// "Vantage"). A read-only display: provisioning lives on Scope, and a vantage is
-// never a probe/scanner/agent here.
 func (s *server) fillVantagesSection(r *http.Request, f settingsForms, data map[string]any) error {
 	rows, err := s.store.ListVantages(r.Context())
 	if err != nil {
 		return err
 	}
-	// The prober provisioning form's echo (#21d, relocated from /scope): a rejected
-	// provision re-renders the Vantages tab with its own error and typed values.
 	data["ProberError"] = f.proberError
 	data["ProberHost"] = f.proberHost
 	data["ProberPort"] = f.proberPort
@@ -990,10 +677,6 @@ func (s *server) fillVantagesSection(r *http.Request, f settingsForms, data map[
 		out = append(out, vr)
 	}
 	data["Vantages"] = out
-	// The prober-provisioning read (Settings.jsx ProberProvision): each provisioned
-	// vantage's published PUBLIC key (reveal-once at first render, never a private
-	// key), its host-key pin status (the value never reaches web), and its egress. The
-	// provisioning ACT lives on Scope (POST /probers); this tab renders the read.
 	data["Probers"] = toProberViews(rows)
 	return nil
 }
@@ -1003,8 +686,6 @@ func (s *server) fillChannelsSection(r *http.Request, f settingsForms, data map[
 	if err != nil {
 		return err
 	}
-	// The create-channel form defaults to all three classes; only a rejected
-	// create echoes the operator's own selection back.
 	chDrift, chCoverage, chClock := true, true, true
 	if f.section == "channels" {
 		chDrift, chCoverage, chClock = f.chanDrift, f.chanCoverage, f.chanClock
@@ -1015,9 +696,6 @@ func (s *server) fillChannelsSection(r *http.Request, f settingsForms, data map[
 	data["ChanDrift"] = chDrift
 	data["ChanCoverage"] = chCoverage
 	data["ChanClock"] = chClock
-	// The create form's class checkboxes render from the store vocabulary (#26f),
-	// pre-checked to the create-form defaults (all three, or the operator's echoed
-	// selection after a rejected create).
 	defaults := map[string]bool{"drift": chDrift, "coverage": chCoverage, "clock": chClock}
 	opts := make([]classState, 0, len(channelClasses))
 	for _, name := range channelClasses {
@@ -1042,16 +720,9 @@ func initialsFromUsername(username string) string {
 	return strings.ToUpper(string(letters))
 }
 
-// fillDeliverySection carries the operational-record group: the delivery outcomes
-// register (ADR-0039/ADR-0081) and the two retention dials. The verge-core hot port
-// set moved to its own Port-aperture tab under Discovery (T18, matching
-// Settings.jsx's SettingsNav) — see fillApertureSection.
 func (s *server) fillDeliverySection(r *http.Request, f settingsForms, data map[string]any) error {
 	ctx := r.Context()
 
-	// Delivery outcomes register — real outcomes, host-only so no embedded token
-	// leaks (message.go's toDeliveryView). Best-effort: a read failure degrades to
-	// an empty register rather than 500ing the whole section.
 	var deliveries []deliveryView
 	if outcomes, derr := s.store.ListDeliveryOutcomes(ctx); derr == nil {
 		for _, o := range outcomes {
@@ -1076,14 +747,6 @@ func (s *server) fillDeliverySection(r *http.Request, f settingsForms, data map[
 	return nil
 }
 
-// fillAPISection carries the read-only /api/v1 opt-in surface (#390, ADR-0123 pending
-// A1). It reads the single instance_config row: .API{Enabled,By,At}, where By/At are the
-// dated act of the CURRENT state (who last flipped the surface on, when) and both stay
-// nil while it has never been enabled. Enabling is admin-only (the toggle is behind
-// .IsAdmin in the tmpl, its POST /settings/api handler is A4); a viewer reaches this one
-// Settings tab read-only (requireSettingsAdmin lets ?tab=api through) and sees the state
-// and note without a button. The bearer verification, the enable POST and the live
-// enabled render are the A-cluster's; this lands the disabled/read baseline.
 func (s *server) fillAPISection(r *http.Request, data map[string]any) error {
 	cfg, err := s.store.GetInstanceConfig(r.Context())
 	if err != nil {
@@ -1091,8 +754,6 @@ func (s *server) fillAPISection(r *http.Request, data map[string]any) error {
 	}
 	api := map[string]any{"Enabled": cfg.ApiEnabled}
 	if cfg.ApiEnabled {
-		// By/At describe the current enabled state — resolve the author username by the
-		// same join toRetentionView uses (settings.go), and format the instant in UTC.
 		if cfg.ApiUpdatedBy.Valid {
 			if accounts, aerr := s.store.ListAccounts(r.Context()); aerr == nil {
 				for _, a := range accounts {
@@ -1111,12 +772,6 @@ func (s *server) fillAPISection(r *http.Request, data map[string]any) error {
 	return nil
 }
 
-// fillApertureSection carries the verge-core hot port set (§3.5, Settings.jsx's
-// ApertureSection): the release-authored sensitive tier rendered read-only, and the
-// operator-editable frequency tier. A frequency edit is stored as a delta over the
-// shipped default and applied at hot fan-out, so the sensitive tier is unreachable
-// from every write path by construction — a port you can hide is a signal you can
-// silence.
 func (s *server) fillApertureSection(r *http.Request, f settingsForms, data map[string]any) error {
 	ctx := r.Context()
 	editRows, err := s.store.ListVergeCoreFrequencyEditsWithAuthor(ctx)
@@ -1130,6 +785,7 @@ func (s *server) fillApertureSection(r *http.Request, f settingsForms, data map[
 		edits = append(edits, vergecore.FrequencyEdit{Port: uint16(e.Port), Action: e.Action}) // #nosec G115 (DB port written only via 1..65535-validated edit path)
 	}
 	shipped := vergecore.Default()
+	// A port you can hide is a signal you can silence (docs/spec/v1-spec.md §3.5).
 	effective := shipped.WithFrequencyEdits(edits)
 	freq := make([]freqRow, 0, len(effective.FrequencyPairs()))
 	for _, p := range effective.FrequencyPairs() {
@@ -1156,12 +812,6 @@ func (s *server) fillApertureSection(r *http.Request, f settingsForms, data map[
 	return nil
 }
 
-// fillTeamSection carries the Team surface (Settings.jsx TeamSection): the members
-// list, the two-role explainer, and the change-role / require-re-enrollment / remove
-// / invite dialogs. Each dialog is opened by a query param so the destructive ones
-// are a navigation, never a menu click that fires the act; a rejected POST re-opens
-// its own dialog through settingsForms. The two roles are admin and viewer only —
-// there is no operator role.
 func (s *server) fillTeamSection(r *http.Request, acct db.Account, f settingsForms, data map[string]any) error {
 	accounts, err := s.store.ListAccounts(r.Context())
 	if err != nil {
@@ -1183,6 +833,7 @@ func (s *server) fillTeamSection(r *http.Request, acct db.Account, f settingsFor
 		}
 		return nil
 	}
+	// A destructive act opens as a navigation, never a menu click (docs/guides/accounts.md).
 	q := r.URL.Query()
 	qid := func(key string) int64 {
 		if v := q.Get(key); v != "" {
@@ -1193,16 +844,12 @@ func (s *server) fillTeamSection(r *http.Request, acct db.Account, f settingsFor
 		return 0
 	}
 
-	// Change-role dialog: opened by ?role=<id>. A member can never act on their own
-	// row, so a role param naming self renders no dialog.
 	if m := find(qid("role")); m != nil && !m.IsSelf {
 		data["RoleTarget"] = m
 	}
 	if m := find(qid("reenroll")); m != nil && !m.IsSelf {
 		data["ReenrollTarget"] = m
 	}
-	// Remove ConfirmDialog: opened by ?remove=<id> (GET) or re-opened by a rejected
-	// POST through f.removeID, which also carries the typed-name mismatch message.
 	removeID := f.removeID
 	if removeID == 0 {
 		removeID = qid("remove")
@@ -1211,41 +858,24 @@ func (s *server) fillTeamSection(r *http.Request, acct db.Account, f settingsFor
 		data["RemoveTarget"] = m
 		data["RemoveError"] = f.removeError
 	}
-	// Invite dialog: opened by ?invite=1 (GET), re-opened on a rejected mint, or shown
-	// with the freshly minted join link on success (revealed once).
 	data["InviteOpen"] = f.inviteOpen || q.Get("invite") != "" || f.inviteLink != ""
 	data["InviteLink"] = f.inviteLink
 	data["InviteRole"] = f.inviteRole
 	return nil
 }
 
-// fillAuditSection renders the audit-log tab. This build keeps no queryable log of
-// admin acts — source enablement, for one, "keeps no log line of its own" and is
-// dated only by the batch it moves — so the honest state is empty rather than a
-// fabricated feed. The delivery record (Delivery tab) and the message store are the
-// operational records that do exist; this names them.
 func (s *server) fillAuditSection(_ *http.Request, data map[string]any) error {
+	// No queryable log exists, so this ships an empty state, never fabricated data (ADR-0110).
 	data["AuditRows"] = nil
 	return nil
 }
 
-// fillSessionsSection carries the admin-wide sessions surface (#407, ADR-0117): every
-// account's live browser sessions across the deployment, joined to the owning account's
-// username and role, grouped by account then recency (the query's own order). The
-// listing never projects the token hash. It also opens the two ConfirmDialogs by query
-// param — single-session revoke (?revoke=<sessionID>) and revoke-all-for-account
-// (?revoke-account=<accountID>, typed-name), the latter re-opened by a rejected POST
-// through settingsForms — matching the Team surface's dialog idiom.
 func (s *server) fillSessionsSection(r *http.Request, f settingsForms, data map[string]any) error {
 	now := s.now()
 	rows, err := s.store.ListAllActiveSessions(r.Context(), pgtype.Timestamptz{Time: now, Valid: true})
 	if err != nil {
 		return err
 	}
-	// The row whose cookie is making this request is marked current (Settings.jsx's
-	// `current`) — the same resolution the Profile sessions surface uses (auth.go's
-	// currentSessionID). ok=false when no cookie resolves, in which case no row is
-	// treated as current.
 	curSessionID, haveCurSession := s.currentSessionID(r)
 	sessions := make([]sessionRow, 0, len(rows))
 	for _, row := range rows {
@@ -1263,8 +893,6 @@ func (s *server) fillSessionsSection(r *http.Request, f settingsForms, data map[
 	data["Sessions"] = sessions
 
 	q := r.URL.Query()
-	// Single-revoke ConfirmDialog: opened by ?revoke=<sessionID>. The dialog reads the
-	// session's own details from the already-gathered list.
 	if v := q.Get("revoke"); v != "" {
 		if id, perr := strconv.ParseInt(v, 10, 64); perr == nil {
 			for i := range sessions {
@@ -1275,9 +903,6 @@ func (s *server) fillSessionsSection(r *http.Request, f settingsForms, data map[
 			}
 		}
 	}
-	// Revoke-all-for-account typed-name dialog: opened by ?revoke-account=<accountID> (GET)
-	// or re-opened by a rejected typed-name POST through f.revokeAccountID. The username the
-	// operator must type is taken from any of that account's sessions in the list.
 	revokeAcct := f.revokeAccountID
 	if revokeAcct == 0 {
 		if v := q.Get("revoke-account"); v != "" {
@@ -1300,18 +925,13 @@ func (s *server) fillSessionsSection(r *http.Request, f settingsForms, data map[
 	return nil
 }
 
-// revokeSessionAdmin revokes any single session by id — the admin-wide kill of one
-// active session (#407). It is admin-gated (requireAdmin) and NOT owner-scoped
-// (RevokeSessionByIDForAdmin), reached only through the per-row ConfirmDialog. It is
-// idempotent: an unparseable or already-revoked id redirects back cleanly. The very
-// next request carrying that session's cookie resolves no live session and is bounced to
-// /login (#405).
 func (s *server) revokeSessionAdmin(w http.ResponseWriter, r *http.Request, _ db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
 		s.backToSection(w, r, "sessions")
 		return
 	}
+	// Deliberately not owner-scoped: this ends any account's session, unlike Profile's (#407).
 	if err := s.store.RevokeSessionByIDForAdmin(r.Context(), db.RevokeSessionByIDForAdminParams{
 		ID: id, RevokedAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
 	}); err != nil {
@@ -1324,11 +944,6 @@ func (s *server) revokeSessionAdmin(w http.ResponseWriter, r *http.Request, _ db
 	})
 }
 
-// revokeAccountSessions revokes every live session for one account — the offboarding
-// kill (#407). It passes through a typed-name gate exactly as the Team remove-account
-// act does: the operator must type the account's username to confirm, and it is reached
-// only through the revoke-all ConfirmDialog. It never touches the account's membership,
-// role or personal tokens — only its live sessions — and is idempotent.
 func (s *server) revokeAccountSessions(w http.ResponseWriter, r *http.Request, _ db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("account_id"), 10, 64)
 	if err != nil {
@@ -1337,7 +952,6 @@ func (s *server) revokeAccountSessions(w http.ResponseWriter, r *http.Request, _
 	}
 	target, err := s.store.GetAccountByID(r.Context(), id)
 	if err != nil {
-		// The account is gone; there is nothing to revoke and no dialog to re-open.
 		s.backToSection(w, r, "sessions")
 		return
 	}
@@ -1360,20 +974,10 @@ func (s *server) revokeAccountSessions(w http.ResponseWriter, r *http.Request, _
 	})
 }
 
-// sessionDeviceFromUA describes a session from a stored User-Agent string — a real
-// derivation of what the client sent, never a fabricated device. It is the string-typed
-// twin of auth.go's sessionDevice (which reads the live request); the admin surface only
-// holds the persisted UA, so it derives the same label from that. An absent or
-// unrecognised agent degrades to a plain label rather than a guess.
 func sessionDeviceFromUA(ua string) string {
 	if ua == "" {
 		return "Unknown device"
 	}
-	// A non-browser client (the verge CLI / API automation) announces itself as verge-cli
-	// and carries its user@host in the parenthetical, e.g. "verge-cli/1.0 (verge@build-07)".
-	// Label such a session "CLI · <host>" so it reads distinctly from a browser device
-	// (Profile sessions, "CLI · verge@build-07"). A verge-cli client with no parenthetical
-	// falls back to a bare "CLI".
 	if strings.HasPrefix(ua, "verge-cli") {
 		if i := strings.IndexByte(ua, '('); i >= 0 {
 			if j := strings.IndexByte(ua[i:], ')'); j > 1 {
@@ -1414,20 +1018,8 @@ func sessionDeviceFromUA(ua string) string {
 	return browser
 }
 
-// fillInstanceSection carries the instance-health tab (Settings.jsx InstanceSection)
-// as real reads only — no fabricated version string, uptime figure, or queue depth
-// where the datum does not exist. What is real: the licence/build stance (AGPL-3.0,
-// self-hosted), the process uptime since start, the build version, the applied-vs-embedded
-// migrations count, that Postgres answered this render, the provisioned vantage fleet with
-// each vantage's availability, and the release check's opt-in flag + cached last result
-// (#391, ADR-0124). The Backup/Restore card bodies are the B3/B4 clusters'.
 func (s *server) fillInstanceSection(r *http.Request, f settingsForms, data map[string]any) error {
 	ctx := r.Context()
-	// Real host facts only (#26h): the licence stance, the process uptime since start, and
-	// the build version off VERGE_VERSION (buildVersion, the same the auth footer reads).
-	// Queue depth, disk and Postgres are wired from live reads below (#633,
-	// WORK-ORDER-DOGFOOD-R1 item 3), each best-effort: a failed read leaves its hole empty
-	// and the figure collapses, never a guessed number.
 	inst := map[string]any{
 		"License":    "AGPL-3.0 · self-hosted",
 		"Uptime":     humanizeDuration(s.now().Sub(s.startedAt)),
@@ -1439,8 +1031,6 @@ func (s *server) fillInstanceSection(r *http.Request, f settingsForms, data map[
 		"PgDetail":   "",
 	}
 
-	// Queue depth — the real count of in-flight queue jobs (ready + running) across the
-	// recent dispatches: the work waiting on the queue, the "subjects waiting" figure.
 	if rows, err := s.store.ListDispatchProgress(ctx, scansHistoryLimit); err == nil {
 		var waiting int64
 		for _, row := range rows {
@@ -1451,15 +1041,11 @@ func (s *server) fillInstanceSection(r *http.Request, f settingsForms, data map[
 		log.Printf("web: instance: queue depth: %v", err)
 	}
 
-	// Disk — a real Statfs of the working-directory volume on the deployment host
-	// (diskstat_unix.go). Off unix (dev on Windows) diskUsage reports ok=false and the
-	// figure collapses rather than fabricate one.
 	if used, total, ok := diskUsage("."); ok {
 		inst["DiskDetail"] = diskLabel(used, total)
 		inst["DiskPct"] = int(used * 100 / total) // #nosec G115 -- used<=total (guarded in diskUsage), so the percentage is 0..100
 	}
 
-	// Database — real pg_database_size and server version off the running Postgres.
 	if h, err := s.store.GetInstanceHealth(ctx); err == nil {
 		inst["PgLabel"] = pgLabel(h.ServerVersion)
 		inst["PgDetail"] = humanBytes(h.DbSizeBytes)
@@ -1483,21 +1069,10 @@ func (s *server) fillInstanceSection(r *http.Request, f settingsForms, data map[
 	}
 	inst["Vantages"] = fleet
 
-	// Migrations — best-effort applied-vs-embedded count (#391). max(version_id) in
-	// goose's ledger against the versions embedded in the binary (db/migrations); a
-	// version embedded but not yet applied is pending. A read that fails (nil pool off
-	// the pixel harness, or a query error) leaves the badge absent rather than guessing —
-	// the tmpl's {{with .Migrations}} collapses, never a fabricated "schema current".
 	if pending, ok := s.migrationsPending(ctx); ok {
 		inst["Migrations"] = map[string]any{"Pending": pending}
 	}
 
-	// Release — the Version & updates card (#391, ADR-0124: check + surface + guide,
-	// never self-replace). The single instance_config row carries the opt-in flag and the
-	// worker's cached last check (B5 writes it). State is disabled when the check is opted
-	// out, else newer/current from the cache. The host steps are release-authored and
-	// literal — the UI never composes a shell — so they ride a fixed constant, not a
-	// derivation. A failed config read leaves the release block absent.
 	if cfg, err := s.store.GetInstanceConfig(ctx); err == nil {
 		release := map[string]any{
 			"CheckEnabled": cfg.UpdateCheckEnabled,
@@ -1505,9 +1080,6 @@ func (s *server) fillInstanceSection(r *http.Request, f settingsForms, data map[
 		}
 		state := "disabled"
 		if cfg.UpdateCheckEnabled {
-			// Enabled ⇒ newer or current (disabled means the check is off). A "newer"
-			// carries the cached latest version + notes; anything else reads as current
-			// — nothing newer known — never a guess at an unseen release.
 			state = "current"
 			if cfg.ReleaseState.String == "newer" {
 				state = "newer"
@@ -1523,12 +1095,6 @@ func (s *server) fillInstanceSection(r *http.Request, f settingsForms, data map[
 		release["State"] = state
 		inst["Release"] = release
 
-		// Backup card (#391, ADR-0124, B3). A synchronous streamed backup never sets
-		// InProgress/Streamed/SizeHint/Percent, so those stay unset and the tmpl's
-		// {{if .InProgress}} branch collapses to the download button + last-backup note.
-		// .Backup itself must be non-nil for {{with .Backup}} to render the button at all;
-		// the record is null (empty LastAt) until the first UI backup, when SetLastBackup
-		// (cmd/web/backup.go) stamps it. LastAt mirrors the Release CheckedAt format.
 		backup := map[string]any{"LastAt": "", "LastSize": ""}
 		if cfg.LastBackupAt.Valid {
 			backup["LastAt"] = cfg.LastBackupAt.Time.UTC().Format("2006-01-02 15:04 UTC")
@@ -1539,12 +1105,6 @@ func (s *server) fillInstanceSection(r *http.Request, f settingsForms, data map[
 		log.Printf("web: instance: release config: %v", err)
 	}
 
-	// Restore card state (#391/B4, ADR-0124). All three holes collapse when unset: a
-	// plain Instance render carries no staged pre-flight and no error, so the card shows
-	// its "Choose archive…" upload form. A completed pre-flight surfaces .Preflight (the
-	// warn callout), ?restore-confirm=1 surfaces .RestoreConfirm (the typed-confirm
-	// dialog), and any refusal surfaces .RestoreError. The three are mutually exclusive by
-	// construction of the handlers that set them.
 	if f.restoreError != "" {
 		inst["RestoreError"] = f.restoreError
 	}
@@ -1565,11 +1125,8 @@ func (s *server) fillInstanceSection(r *http.Request, f settingsForms, data map[
 	return nil
 }
 
-// updateHostSteps are the literal, release-authored host commands the Version & updates
-// card prints when a newer release is available (#391, ADR-0124). Verge never rewrites
-// its own image — the swap is a host action — so the UI composes no shell: it renders
-// these exact lines. Until B5 threads a feed-delivered list through the release cache
-// they live here as the shipped constant, matching the design fixture line-for-line.
+// A feed-delivered step list would put arbitrary shell text in front of an admin (ADR-0124).
+
 var updateHostSteps = []string{
 	"# on the host — verge cannot rewrite its own image",
 	"docker compose pull",
@@ -1577,13 +1134,6 @@ var updateHostSteps = []string{
 	"docker compose exec web verge migrate status",
 }
 
-// migrationsPending is the best-effort applied-vs-embedded migrations count the
-// Version & updates badge shows (#391): how many embedded goose migrations carry a
-// version newer than the highest goose has applied. It reads goose's ledger with a raw
-// pool query (not sqlc — internal/db stays untouched this round) and the embedded set
-// from the same migrations.FS the binary applies at boot. Best-effort: a nil pool (off
-// the pixel harness) or any read error returns ok=false, so the badge collapses rather
-// than fabricate a "schema current".
 func (s *server) migrationsPending(ctx context.Context) (int, bool) {
 	if s.pool == nil {
 		return 0, false
@@ -1623,12 +1173,8 @@ func migrationVersion(name string) (int64, bool) {
 	return v, true
 }
 
-// updateCheckToggle opts the worker's daily release-feed check in or out (#391, ADR-0124).
-// The hidden `enabled` field carries the flip target the Version & updates toggle computed
-// from the current state; SetUpdateCheckEnabled stamps who acted and when. While off the
-// worker never dispatches a check — air-gap-safe (B5 honours the flag). Admin-gated
-// (requireAdmin) with a PRG back to the Instance tab so a reload does not re-post.
 func (s *server) updateCheckToggle(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	// While off the worker dispatches no check, so an air-gapped install stays silent (ADR-0124).
 	enabled := r.FormValue("enabled") == "true"
 	if err := s.store.SetUpdateCheckEnabled(r.Context(), db.SetUpdateCheckEnabledParams{
 		UpdateCheckEnabled:   enabled,
@@ -1640,15 +1186,8 @@ func (s *server) updateCheckToggle(w http.ResponseWriter, r *http.Request, acct 
 	s.backToSection(w, r, "instance")
 }
 
-// apiToggle flips the read-only /api/v1 surface on or off (#390, ADR-0123). The hidden
-// `enabled` field carries the flip target the API access toggle computed from the current
-// state; SetAPIEnabled stamps who acted and when, so the card renders the dated act of the
-// current state (Enabled by … · …). Enabling makes every minted personal token answer
-// GET /api/v1/… with its account's read access — read-only, always, no write surface to
-// enable; disabling returns /api/v1 to answering nothing on every path (surface off beats
-// auth) and leaves every token inert. Admin-gated (requireAdmin); a PRG back to the API tab
-// so a reload does not re-post, riding the shell toast pipeline the way other acts do.
 func (s *server) apiToggle(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	// The surface is read-only always: there is no write half a flip could enable (ADR-0123).
 	enabled := r.FormValue("enabled") == "true"
 	if err := s.store.SetAPIEnabled(r.Context(), db.SetAPIEnabledParams{
 		ApiEnabled:   enabled,
@@ -1665,18 +1204,11 @@ func (s *server) apiToggle(w http.ResponseWriter, r *http.Request, acct db.Accou
 	s.toastRedirectBack(w, r, "/settings?tab=api", "neutral", "API access disabled", "")
 }
 
-// diskLabel renders the used / total volume figure the instance-health disk row shows
-// (e.g. "24.8 / 40 GB", the fixture format): both in gibibytes, used carrying one
-// decimal and total rounded, the unit named once. The percentage rides the bar
-// (.DiskPct) separately, so it is not repeated here.
 func diskLabel(used, total uint64) string {
 	const gb = 1 << 30
 	return fmt.Sprintf("%.1f / %.0f GB", float64(used)/gb, float64(total)/gb)
 }
 
-// humanBytes renders a byte count as the terse GB/MB/KB figure the database-size row
-// shows (e.g. "4.2 GB"). It picks the largest unit that keeps the number readable, so a
-// fresh database reads in MB rather than a long fraction of a GB.
 func humanBytes(n int64) string {
 	switch {
 	case n >= 1<<30:
@@ -1690,9 +1222,6 @@ func humanBytes(n int64) string {
 	}
 }
 
-// pgLabel renders the "postgres <major>" label from a raw server_version string (e.g.
-// "16.4" or "16.4 (Debian 16.4-1)" → "postgres 16"). A version with no leading integer
-// falls back to a bare "postgres" rather than a malformed label.
 func pgLabel(version string) string {
 	major := strings.TrimSpace(version)
 	if i := strings.IndexFunc(major, func(r rune) bool { return r < '0' || r > '9' }); i >= 0 {
@@ -1704,9 +1233,6 @@ func pgLabel(version string) string {
 	return "postgres " + major
 }
 
-// humanizeDuration renders a process uptime as a terse figure (e.g. 41d, 6h, 12m,
-// 8s), the shape Settings.jsx's uptime stat shows. Anything under a minute reads in
-// seconds so a freshly started instance never renders a bare 0.
 func humanizeDuration(d time.Duration) string {
 	switch {
 	case d >= 24*time.Hour:
@@ -1778,19 +1304,12 @@ func toRetentionView(ret db.GetRetentionSettingsRow, accounts []db.ListAccountsR
 	return v
 }
 
-// addressScopeScanKinds are the scan tiers that sweep an address scope by enumerating
-// it one address per Batch (ADR-0127: the hot/cold fan-out). The bounded tiers (dns,
-// zone, tls-acceptance, http-identity, ct) enumerate over name scopes or the resolved
-// service population, not an address-scope sweep, so a raised cap puts no per-address
-// dispatch load on them — they are absent from the cap control's sweep-load readout.
+// Only an address scope is its own enumeration, so only these tiers walk per address (ADR-0047).
+
 var addressScopeScanKinds = map[string]bool{"hot": true, "cold": true}
 
-// toAddressCapView builds the policy-forward cap dial (#888, ADR-0127 Variant C) from
-// the persisted cap, the enabled scans and the account list (to name who last set it).
-// It reads the effective cap through the same DefaultAddressCap fallback the
-// declaration path uses (server.addressCap), so the readout matches what a declaration
-// would actually check.
 func toAddressCapView(cfg db.GetInstanceConfigRow, scans []db.Scan, accounts []db.ListAccountsRow) addressCapView {
+	// The same fallback the declaration path applies, so the readout matches what it checks.
 	capVal := cfg.SeedAddressCap
 	if capVal <= 0 {
 		capVal = int64(seed.DefaultAddressCap)
@@ -1812,10 +1331,6 @@ func toAddressCapView(cfg db.GetInstanceConfigRow, scans []db.Scan, accounts []d
 			Cadence: cadenceLabel(sc.CadenceSeconds),
 			Probes:  probes,
 		}
-		// The effective cadence (#891, decision #847): one full cap-sized pass at the
-		// per-vantage packet ceiling. A scan with no probed ports (unknown kind) yields no
-		// figure. Outpaces compares the worst-case pass to the declared cadence — a pass
-		// longer than its cadence cannot finish in time, and the trailing edge lags.
 		if ports := addressScopePorts[sc.Kind]; ports > 0 {
 			eff := effectiveCadenceSeconds(capVal, ports)
 			line.Effective = projectedPassLabel(eff)
@@ -1837,14 +1352,8 @@ func toAddressCapView(cfg db.GetInstanceConfigRow, scans []db.Scan, accounts []d
 	return v
 }
 
-// projectedEvidentialDiskPerYear projects the evidential-observation disk growth a
-// cap-sized address scope drives per year, scaling ADR-0041's grounding: one declared
-// /22 (1024 addresses) grows the evidential corpus ~13 GB/year, and rows are linear in
-// the address count, so the projection is 13 GB/year × cap/1024. It is a projection,
-// stated as one (the "≈"), not a measurement; ADR-0041 moved this figure onto the
-// policy dial so the operator prices the disk cost beside the cadence lag before they
-// raise the cap.
 func projectedEvidentialDiskPerYear(addrCap int64) string {
+	// 13 GB a year per declared /22 is ADR-0041's measured grounding, scaled linearly here.
 	gbPerYear := 13.0 * float64(addrCap) / 1024.0
 	switch {
 	case gbPerYear >= 1024:
@@ -1858,36 +1367,23 @@ func projectedEvidentialDiskPerYear(addrCap int64) string {
 	}
 }
 
-// addressScopePorts is the probed-port count the effective-cadence projection (#891)
-// multiplies the address count by, per address-scope scan tier. hot probes verge-core's
-// TCP pairs — 131 on default settings (internal/vergecore) — and cold connects to every
-// TCP port, 1-65535. These are the shipped nominal figures ADR-0047 prices with; an
-// operator's frequency edits shift hot's count, so the projection states "≈", exactly as
-// projectedEvidentialDiskPerYear projects off a fixed grounding rather than the live set.
+// 131 is verge-core's shipped TCP count; edits move it (docs/spec/v1-spec.md §3.5).
+
 var addressScopePorts = map[string]int64{"hot": 131, "cold": 65535}
 
-// effectiveCadenceSeconds is the worst-case time one full cap-sized address-scope pass
-// takes at the per-vantage packet ceiling (#891, decision #847): (addresses x ports x attempts)
-// / rate. attempts is 1 + the connect-outcome retry budget — the pass where every probe
-// exhausts its retries — so the figure never understates the lag (ADR-0127 promises no
-// completion the model cannot keep). rate and retries read from the leaf's declared safety
-// profile so a change to either moves this figure with it. The math is float64: the cap has
-// no ceiling (ADR-0127), so a very large cap would overflow int64, and this is a stated
-// projection ("≈"), not an exact instant.
+// The cap has no ceiling, so an int64 product would overflow; this is a stated projection.
+
 func effectiveCadenceSeconds(addresses, portsPerAddress int64) float64 {
 	p := connectoutcome.DefaultProfile()
 	rate := float64(p.PerVantagePacketsPerSec)
 	if rate <= 0 {
 		rate = 1
 	}
+	// Counting every retry keeps the worst-case figure from understating the lag (ADR-0127).
 	attempts := float64(1 + p.Retries)
 	return float64(addresses) * float64(portsPerAddress) * attempts / rate
 }
 
-// projectedPassLabel humanizes an effective-cadence projection in seconds as one coarse
-// "≈" figure — the readout compares against the predicted cadence word, so a single unit
-// reads cleaner than a two-unit countdown. It rounds to the largest fitting unit, from
-// minutes up to years, and never renders a bare zero.
 func projectedPassLabel(seconds float64) string {
 	switch {
 	case seconds < 60:
@@ -1905,14 +1401,11 @@ func projectedPassLabel(seconds float64) string {
 	}
 }
 
-// classesFromForm reads the three routing-class checkboxes. Routing is by class
-// and nothing finer (ADR-0091); an absent box is that class switched off.
 func classesFromForm(r *http.Request) (drift, coverage, clock bool) {
+	// Routing keys on the class and nothing finer; a per-cause predicate is refused (ADR-0091).
 	return r.FormValue("drift") != "", r.FormValue("coverage") != "", r.FormValue("clock") != ""
 }
 
-// optionalSecret maps a submitted secret to a nullable column: blank means no
-// secret, anything else is stored verbatim (write-only, never rendered back).
 func optionalSecret(v string) pgtype.Text {
 	if strings.TrimSpace(v) == "" {
 		return pgtype.Text{}
@@ -1920,22 +1413,6 @@ func optionalSecret(v string) pgtype.Text {
 	return pgtype.Text{String: v, Valid: true}
 }
 
-// validateChannelURL accepts an absolute https URL, and http only to a loopback
-// address literal (notification-channels.md §4.1: http is refused at
-// configuration time except to loopback, tested over the address). A loopback
-// hostname is not accepted here — resolving a name to confirm it is loopback is
-// delivery-time work that lands with ticket 27; until then only an unambiguous
-// loopback literal earns the plaintext exemption. It returns the normalised URL
-// and an empty message on success, or "" and a user-facing message.
-//
-// An https URL whose host is an IP LITERAL in a non-globally-reachable range —
-// loopback, link-local (incl. the 169.254.169.254 cloud-metadata address),
-// RFC1918/ULA private space, and the rest of the special-purpose registry — is
-// refused here too (#325): the transport encrypts the hop but does nothing to
-// stop a settings admin pointing a channel at an internal service and having the
-// worker POST the signed body to it (config SSRF). A host given as a NAME is not
-// resolved here — that is delivery-time work (the runner re-checks the resolved
-// address before every POST), so this layer bars only the unambiguous literal.
 func validateChannelURL(raw string) (string, string) {
 	u, err := url.Parse(raw)
 	if err != nil || !u.IsAbs() || u.Host == "" {
@@ -1943,11 +1420,13 @@ func validateChannelURL(raw string) (string, string) {
 	}
 	switch u.Scheme {
 	case "https":
+		// TLS encrypts the hop but stops no admin aiming a channel at an internal service (#325).
 		if ip, err := netip.ParseAddr(u.Hostname()); err == nil && custody.IsNonGloballyReachable(ip) {
 			return "", "That host is an internal address; a channel must point at a public https endpoint."
 		}
 		return u.String(), ""
 	case "http":
+		// Only an address literal earns the plaintext exemption (notification-channels.md §4.1).
 		if ip, err := netip.ParseAddr(u.Hostname()); err == nil && ip.IsLoopback() {
 			return u.String(), ""
 		}
