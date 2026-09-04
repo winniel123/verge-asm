@@ -9,10 +9,6 @@ import (
 	"testing"
 )
 
-// fakeSSOFlow stands in for the OIDC seam so the login- and link-flow tests assert the
-// handler's state/nonce/cookie handling and identity binding without a live identity
-// provider. AuthCodeURL echoes the minted state into the returned URL so a test can
-// read it back off the redirect; Exchange returns the configured verified identity.
 type fakeSSOFlow struct {
 	sub     string
 	display string
@@ -60,8 +56,6 @@ func addSSOProvider(f *fakeStore, id int64, slug, name string) {
 	})
 }
 
-// addSSOIdentity seeds a verified (provider, sub) → account binding, the state an
-// authenticated Profile self-link would have recorded (#319, ADR-0113).
 func addSSOIdentity(f *fakeStore, providerID int64, sub string, accountID int64, display string) {
 	f.ssoIdentNextID++
 	f.ssoIdentities = append(f.ssoIdentities, fakeSSOIdentity{
@@ -79,8 +73,6 @@ func stateFromRedirect(t *testing.T, loc string) string {
 	return u.Query().Get("state")
 }
 
-// The sign-in screen renders a button per enabled provider once one is configured,
-// linking to its flow route — replacing the "not configured" affordance (#293).
 func TestSignInRendersSSOButtons(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -99,8 +91,6 @@ func TestSignInRendersSSOButtons(t *testing.T) {
 	}
 }
 
-// With no provider configured the honest not-configured state renders (the empty-state
-// SignIn kept from the migration).
 func TestSignInNoProviderShowsNotConfigured(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -112,8 +102,6 @@ func TestSignInNoProviderShowsNotConfigured(t *testing.T) {
 	}
 }
 
-// GET /login/sso/{slug} mints the transaction and redirects to the IdP: a 303 to the
-// authorization URL, a signed transaction cookie, and the state echoed in both.
 func TestSSOStartRedirectsToIdP(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -149,14 +137,11 @@ func TestSSOStartRedirectsToIdP(t *testing.T) {
 	if flow.lastVerifier == "" {
 		t.Errorf("sso start did not mint a PKCE verifier")
 	}
-	// The redirect URL handed to the flow is the callback on this host.
 	if !strings.HasSuffix(flow.lastCfg.RedirectURL, "/login/sso/okta/callback") {
 		t.Errorf("redirect URL = %q, want the okta callback", flow.lastCfg.RedirectURL)
 	}
 }
 
-// The full flow: start → callback with the echoed state and a code matches the verified
-// (provider, sub) to the bound local account and issues a session.
 func TestSSOCallbackSignsInExistingAccount(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -185,22 +170,16 @@ func TestSSOCallbackSignsInExistingAccount(t *testing.T) {
 	if flow.lastCode != "abc123" {
 		t.Errorf("flow.Exchange got code %q, want abc123", flow.lastCode)
 	}
-	// The session is real: a follow-up request to a gated page renders rather than
-	// bouncing to /login.
 	home := getBody(t, c, base+"/", http.StatusOK)
 	if strings.Contains(home, "Sign in</h1>") {
 		t.Errorf("post-SSO request was not authenticated; got the login page")
 	}
 }
 
-// SSO must not downgrade a local second factor: an account that enrolled TOTP still
-// lands on the two-factor step after a verified SSO assertion, rather than being logged
-// straight in (#293 review).
 func TestSSOCallbackStillRequiresTOTP(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	alice := seedAccount(t, f, "alice", roleViewer, "unused-password-x")
-	// Enrol TOTP on the account SSO will map to.
 	a := f.accounts[alice.ID]
 	a.TotpEnabled = true
 	f.accounts[alice.ID] = a
@@ -222,8 +201,6 @@ func TestSSOCallbackStillRequiresTOTP(t *testing.T) {
 	if !strings.Contains(page, "Two-factor check") {
 		t.Errorf("a TOTP-enrolled account should land on the two-factor step after SSO; body: %s", page)
 	}
-	// Not yet fully signed in: a gated request still bounces to /login (the pending
-	// cookie is not a session).
 	r3, _ := c.Get(base + "/")
 	r3.Body.Close()
 	if r3.StatusCode != http.StatusSeeOther || r3.Header.Get("Location") != "/login" {
@@ -231,15 +208,11 @@ func TestSSOCallbackStillRequiresTOTP(t *testing.T) {
 	}
 }
 
-// A verified identity with no binding is refused, not provisioned and never mapped by a
-// username (ADR-0113: authentication keys on a stored (provider, sub) binding).
 func TestSSOCallbackRefusesUnlinkedIdentity(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	seedAccount(t, f, "alice", roleViewer, "unused-password-x")
 	addSSOProvider(f, 1, "okta", "Okta")
-	// A verified subject that no binding points at — even though a same-named account
-	// exists, no username fallback admits it.
 	flow := &fakeSSOFlow{sub: "okta-sub-unlinked"}
 	base := startWithSSO(t, f, flow)
 
@@ -256,7 +229,6 @@ func TestSSOCallbackRefusesUnlinkedIdentity(t *testing.T) {
 	if r2.StatusCode != http.StatusOK || !strings.Contains(page, "not linked to an account here") {
 		t.Fatalf("unlinked identity: status=%d, want 200 with a refusal; body: %s", r2.StatusCode, page)
 	}
-	// No session was issued: a gated request bounces to /login.
 	r3, _ := c.Get(base + "/")
 	r3.Body.Close()
 	if r3.StatusCode != http.StatusSeeOther || r3.Header.Get("Location") != "/login" {
@@ -264,8 +236,6 @@ func TestSSOCallbackRefusesUnlinkedIdentity(t *testing.T) {
 	}
 }
 
-// A callback whose state does not match the transaction cookie is refused (CSRF
-// guard), and no session is issued.
 func TestSSOCallbackRejectsStateMismatch(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -293,14 +263,13 @@ func TestSSOCallbackRejectsStateMismatch(t *testing.T) {
 	}
 }
 
-// A callback with no transaction cookie (a stray or replayed callback) is refused.
 func TestSSOCallbackWithoutTransactionRefused(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	addSSOProvider(f, 1, "okta", "Okta")
 	base := startWithSSO(t, f, &fakeSSOFlow{sub: "okta-sub-alice"})
 
-	c := newClient(t) // never started a flow, so holds no tx cookie
+	c := newClient(t)
 	r, err := c.Get(base + "/login/sso/okta/callback?state=x&code=y")
 	if err != nil {
 		t.Fatal(err)
@@ -311,8 +280,6 @@ func TestSSOCallbackWithoutTransactionRefused(t *testing.T) {
 	}
 }
 
-// An admin can declare a provider; the client secret is stored but never rendered
-// back (write-only), and the list shows only that a secret is set.
 func TestSettingsSSOCreateSecretWriteOnly(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -357,8 +324,6 @@ func ssoLinkFlow(t *testing.T, ac *http.Client, base, slug string) *http.Respons
 	return r2
 }
 
-// A signed-in user links their own verified identity: the callback records a
-// (provider, sub) → their-account binding and returns to the Profile (#319, ADR-0113).
 func TestSSOSelfLinkBindsIdentity(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -381,8 +346,6 @@ func TestSSOSelfLinkBindsIdentity(t *testing.T) {
 	}
 }
 
-// After a self-link, the verified subject signs the account in — the end-to-end chain
-// the binding exists to serve.
 func TestSSOSelfLinkThenLoginSucceeds(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -393,7 +356,6 @@ func TestSSOSelfLinkThenLoginSucceeds(t *testing.T) {
 	ac := login(t, base, "alice", "unused-password-x")
 	ssoLinkFlow(t, ac, base, "okta").Body.Close()
 
-	// ...then a fresh SSO sign-in with the same subject admits her.
 	lc := newClient(t)
 	r1, _ := lc.Get(base + "/login/sso/okta")
 	r1.Body.Close()
@@ -405,15 +367,13 @@ func TestSSOSelfLinkThenLoginSucceeds(t *testing.T) {
 	}
 }
 
-// A subject already bound to ANOTHER account cannot be re-linked to yours: the exclusive
-// (provider, sub) is the whole point — no takeover by re-linking.
 func TestSSOSelfLinkRefusesCollision(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	alice := seedAccount(t, f, "alice", roleViewer, "unused-password-x")
 	bob := seedAccount(t, f, "bob", roleViewer, "unused-password-y")
 	addSSOProvider(f, 1, "okta", "Okta")
-	addSSOIdentity(f, 1, "shared-sub", bob.ID, "bob@corp") // already bob's
+	addSSOIdentity(f, 1, "shared-sub", bob.ID, "bob@corp")
 	base := startWithSSO(t, f, &fakeSSOFlow{sub: "shared-sub", display: "someone"})
 	ac := login(t, base, "alice", "unused-password-x")
 
@@ -427,7 +387,6 @@ func TestSSOSelfLinkRefusesCollision(t *testing.T) {
 	}
 }
 
-// Re-linking a subject already bound to your OWN account is a benign no-op.
 func TestSSOSelfLinkIdempotent(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -447,19 +406,16 @@ func TestSSOSelfLinkIdempotent(t *testing.T) {
 	}
 }
 
-// An account holds at most one identity per provider (ADR-0113). Linking a second,
-// different subject for a provider already linked is refused — even via the direct link
-// URL that bypasses the hidden button — and records no second binding.
 func TestSSOSelfLinkOnePerProvider(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	alice := seedAccount(t, f, "alice", roleViewer, "unused-password-x")
 	addSSOProvider(f, 1, "okta", "Okta")
-	addSSOIdentity(f, 1, "okta-sub-alice", alice.ID, "alice@corp") // already linked
-	// The IdP now returns a DIFFERENT subject for the same provider.
+	addSSOIdentity(f, 1, "okta-sub-alice", alice.ID, "alice@corp")
 	base := startWithSSO(t, f, &fakeSSOFlow{sub: "okta-sub-alice-2", display: "alice.alt@corp"})
 	ac := login(t, base, "alice", "unused-password-x")
 
+	// The Profile hides the Link button once linked, so the route must refuse the direct URL too.
 	r := ssoLinkFlow(t, ac, base, "okta")
 	r.Body.Close()
 	if r.Header.Get("Location") != "/profile?linkerr=provider" {
@@ -470,14 +426,13 @@ func TestSSOSelfLinkOnePerProvider(t *testing.T) {
 	}
 }
 
-// The self-link routes are authenticated: an anonymous caller is bounced to /login.
 func TestSSOLinkRequiresLogin(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	addSSOProvider(f, 1, "okta", "Okta")
 	base := startWithSSO(t, f, &fakeSSOFlow{sub: "x"})
 
-	c := newClient(t) // not signed in
+	c := newClient(t)
 	r, err := c.Get(base + "/profile/sso/okta/link")
 	if err != nil {
 		t.Fatal(err)
@@ -488,20 +443,17 @@ func TestSSOLinkRequiresLogin(t *testing.T) {
 	}
 }
 
-// A user unlinks their OWN identity; it can no longer sign in. The unlink is
-// account-scoped, so it never removes another account's binding.
 func TestSSOUnlinkRemovesOwnBindingOnly(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	alice := seedAccount(t, f, "alice", roleViewer, "unused-password-x")
 	bob := seedAccount(t, f, "bob", roleViewer, "unused-password-y")
 	addSSOProvider(f, 1, "okta", "Okta")
-	addSSOIdentity(f, 1, "okta-sub-alice", alice.ID, "alice@corp") // id 1
-	addSSOIdentity(f, 1, "okta-sub-bob", bob.ID, "bob@corp")       // id 2
+	addSSOIdentity(f, 1, "okta-sub-alice", alice.ID, "alice@corp")
+	addSSOIdentity(f, 1, "okta-sub-bob", bob.ID, "bob@corp")
 	base := startWithSSO(t, f, &fakeSSOFlow{sub: "okta-sub-alice"})
 	ac := login(t, base, "alice", "unused-password-x")
 
-	// alice cannot unlink bob's binding (id 2): scoped to her account, it no-ops.
 	postForm(t, ac, base+"/profile/sso/unlink", url.Values{"id": {"2"}}).Body.Close()
 	if len(f.ssoIdentities) != 2 {
 		t.Fatalf("alice unlinked another account's binding: %d rows left", len(f.ssoIdentities))
@@ -518,18 +470,15 @@ func TestSSOUnlinkRemovesOwnBindingOnly(t *testing.T) {
 	}
 }
 
-// An admin removes any binding (offboarding / seat reassignment); the identity then
-// fails to sign in. A viewer is refused the route.
 func TestSSOAdminRemoveBinding(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	alice := seedAccount(t, f, "alice", roleViewer, "unused-password-x")
 	seedAccount(t, f, "viewer", roleViewer, "hunter2hunter2")
 	addSSOProvider(f, 1, "okta", "Okta")
-	addSSOIdentity(f, 1, "okta-sub-alice", alice.ID, "alice@corp") // id 1
+	addSSOIdentity(f, 1, "okta-sub-alice", alice.ID, "alice@corp")
 	base := start(t, f, "")
 
-	// A viewer cannot remove a binding.
 	vc := login(t, base, "viewer", "hunter2hunter2")
 	vr := postForm(t, vc, base+"/settings/sso/identity/remove", url.Values{"id": {"1"}})
 	vr.Body.Close()
@@ -547,8 +496,6 @@ func TestSSOAdminRemoveBinding(t *testing.T) {
 	}
 }
 
-// The admin SSO settings tab lists each binding — provider, account and label — so an
-// admin can see and revoke who an identity authenticates as.
 func TestSettingsSSOListsBindings(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -567,26 +514,22 @@ func TestSettingsSSOListsBindings(t *testing.T) {
 	}
 }
 
-// The Profile shows an account's linked identities and offers a Link button for an
-// enabled provider it has not linked yet.
 func TestProfileShowsLinkedIdentitiesAndLinkButton(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	alice := seedAccount(t, f, "alice", roleViewer, "unused-password-x")
 	addSSOProvider(f, 1, "okta", "Okta")
-	addSSOProvider(f, 2, "google", "Google") // enabled, not linked
+	addSSOProvider(f, 2, "google", "Google")
 	addSSOIdentity(f, 1, "okta-sub-alice", alice.ID, "alice@corp")
 	base := start(t, f, "")
 	ac := login(t, base, "alice", "unused-password-x")
 
 	page := getBody(t, ac, base+"/profile", http.StatusOK)
-	// The linked identity renders with its label and an unlink control.
 	for _, want := range []string{"Linked identities", "alice@corp", `action="/profile/sso/unlink"`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("profile missing linked-identity element %q", want)
 		}
 	}
-	// The unlinked provider offers a Link button; the already-linked one does not reappear.
 	if !strings.Contains(page, `href="/profile/sso/google/link"`) {
 		t.Errorf("profile missing a Link button for the unlinked provider")
 	}
@@ -595,9 +538,6 @@ func TestProfileShowsLinkedIdentitiesAndLinkButton(t *testing.T) {
 	}
 }
 
-// seedSSOProviderWithSecret seeds an enabled provider that already stores a client
-// secret, so the update-secret write path can be exercised against a real starting
-// state.
 func seedSSOProviderWithSecret(f *fakeStore, id int64, slug, secret string, createdBy int64) {
 	f.ssoNextID = id
 	f.ssoProviders = append(f.ssoProviders, fakeSSOProvider{
@@ -607,9 +547,6 @@ func seedSSOProviderWithSecret(f *fakeStore, id int64, slug, secret string, crea
 	})
 }
 
-// A blank secret field with the clear box unchecked must KEEP the stored secret — the
-// form promises "set — leave blank to keep". Submitting it wiped the secret before the
-// #318 fix; now it no-ops (mirroring the channel-secret form).
 func TestSettingsSSOSecretBlankKeepsStored(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -617,8 +554,9 @@ func TestSettingsSSOSecretBlankKeepsStored(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
+	// The form promises that a blank field keeps the stored secret, so submitting one must no-op.
 	resp := postForm(t, ac, base+"/settings/sso/secret", url.Values{
-		"id": {"1"}, "client_secret": {""}, // no clear_secret, blank field
+		"id": {"1"}, "client_secret": {""},
 	})
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("update secret status = %d, want 303 (body: %s)", resp.StatusCode, body(t, resp))
@@ -631,7 +569,6 @@ func TestSettingsSSOSecretBlankKeepsStored(t *testing.T) {
 	}
 }
 
-// The explicit clear box removes a stored secret (the only way to, now).
 func TestSettingsSSOSecretClearBoxRemoves(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -648,7 +585,6 @@ func TestSettingsSSOSecretClearBoxRemoves(t *testing.T) {
 	}
 }
 
-// A non-blank secret field replaces the stored secret.
 func TestSettingsSSOSecretValueReplaces(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -666,7 +602,6 @@ func TestSettingsSSOSecretValueReplaces(t *testing.T) {
 	}
 }
 
-// The SSO config mutations are admin acts: a viewer is refused.
 func TestSettingsSSORequiresAdmin(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")

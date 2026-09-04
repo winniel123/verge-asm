@@ -13,10 +13,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/signal"
 )
 
-// buildGraph folds the estate's open spans into a real Name/Address/Service
-// topology: a Name's resolution addresses give the Name-to-Address edge, and a
-// Service key's Address gives the Address-to-Service edge. No node, edge, or
-// severity is invented.
 func TestBuildGraphTopologyFromOpenSpans(t *testing.T) {
 	rows := []db.ListAllOpenSpansRow{
 		openSpanRow("name", "api.example.com", "resolution", "", `{"outcome":"Resolved","addresses":["203.0.113.5"]}`, false),
@@ -53,16 +49,12 @@ func TestBuildGraphTopologyFromOpenSpans(t *testing.T) {
 	if svc.Label != ":443 tcp" {
 		t.Errorf("service label = %q, want :443 tcp", svc.Label)
 	}
-	// buildGraph alone joins no signals — the topology invents no signal state, no
-	// severity, no count (the join is a separate fold, joinSignals).
 	for _, n := range g.Nodes {
 		if len(n.OpenSignals) != 0 {
 			t.Errorf("node %q carries %d fabricated signals; buildGraph must invent none", n.ID, len(n.OpenSignals))
 		}
 	}
 
-	// Two edges: Name -> Address (structural stroke) and Address -> Service (the
-	// quieter service stroke).
 	if len(g.Edges) != 2 {
 		t.Fatalf("edges = %d, want 2 (name->address, address->service); %#v", len(g.Edges), g.Edges)
 	}
@@ -77,17 +69,6 @@ func TestBuildGraphTopologyFromOpenSpans(t *testing.T) {
 	}
 }
 
-// joinSignals folds the Signal engine's fired census onto the graph's nodes by the
-// honest subject→node mapping: a Name firing lights its Name node, a Service firing
-// lights its Service node, and an Endpoint firing lights the Name node it names
-// (falling back to its Service node when nameless). Addresses carry none. Each node
-// also folds to its worst (most urgent) severity — the real severity its fired rules
-// carry (P0.1), never a fabricated level.
-// #1089: the three columns run unbounded (y = 44 + idx*46), so a real estate reaches
-// far below the 1200x640 viewport. The minimap scaled the VIEWPORT box into its
-// 110x59 SVG, so every node past ~row 13 mapped outside the SVG and was clipped —
-// the minimap showed a handful of dots and represented almost nothing. The mapping
-// now reads the content bounds, so every placed node lands inside the mini box.
 func TestGraphMinimapMapsEveryNodeInsideTheMiniBox(t *testing.T) {
 	var rows []db.ListAllOpenSpansRow
 	for i := 0; i < 40; i++ {
@@ -98,9 +79,6 @@ func TestGraphMinimapMapsEveryNodeInsideTheMiniBox(t *testing.T) {
 	}
 
 	g := buildGraph(rows)
-	// #1103 caps each column at graphColumnCap, so 40 names and 40 addresses draw as
-	// two capped columns. Twenty rows still reach y=918, past the 640px viewport, so
-	// the viewport-basis mapping this test guards against still fails here.
 	if len(g.Nodes) != 2*graphColumnCap {
 		t.Fatalf("nodes = %d, want %d (a capped name column and a capped address column)", len(g.Nodes), 2*graphColumnCap)
 	}
@@ -131,8 +109,6 @@ func TestGraphMinimapMapsEveryNodeInsideTheMiniBox(t *testing.T) {
 	}
 }
 
-// A graph that fits the viewport keeps the viewport as its content box, so its
-// minimap mapping is exactly what it was before #1089.
 func TestGraphContentBoundsFloorAtTheViewport(t *testing.T) {
 	rows := []db.ListAllOpenSpansRow{
 		openSpanRow("name", "api.example.com", "resolution", "", `{"outcome":"Resolved","addresses":["203.0.113.5"]}`, false),
@@ -163,13 +139,12 @@ func TestJoinSignalsToGraph(t *testing.T) {
 	}
 	g := buildGraph(rows)
 
-	// A fired census on each subject kind, plus one firing that matches no node.
 	censuses := []signal.Census{
-		{Rule: "lame-delegation", Fired: []signal.Member{{Subject: "api.example.com"}}},                             // name -> name node
-		{Rule: "sensitive-port-reached-from-internet", Fired: []signal.Member{{Subject: "203.0.113.5:443/tcp"}}},    // service -> service node
-		{Rule: "plaintext-http-no-https", Fired: []signal.Member{{Subject: "api.example.com@203.0.113.5:443/tcp"}}}, // endpoint -> its Name node
-		{Rule: "redirect-does-not-upgrade-to-tls", Fired: []signal.Member{{Subject: "@203.0.113.5:443/tcp"}}},       // nameless endpoint -> its Service node
-		{Rule: "cname-target-name-error", Fired: []signal.Member{{Subject: "ghost.example.com"}}},                   // matches no node -> dropped
+		{Rule: "lame-delegation", Fired: []signal.Member{{Subject: "api.example.com"}}},
+		{Rule: "sensitive-port-reached-from-internet", Fired: []signal.Member{{Subject: "203.0.113.5:443/tcp"}}},
+		{Rule: "plaintext-http-no-https", Fired: []signal.Member{{Subject: "api.example.com@203.0.113.5:443/tcp"}}},
+		{Rule: "redirect-does-not-upgrade-to-tls", Fired: []signal.Member{{Subject: "@203.0.113.5:443/tcp"}}},
+		{Rule: "cname-target-name-error", Fired: []signal.Member{{Subject: "ghost.example.com"}}},
 	}
 
 	g = joinSignals(g, censuses)
@@ -178,7 +153,6 @@ func TestJoinSignalsToGraph(t *testing.T) {
 		byID[n.ID] = n
 	}
 
-	// The Name node carries its own name firing AND the endpoint firing named on it.
 	name := byID["api.example.com"]
 	if len(name.OpenSignals) != 2 {
 		t.Fatalf("name node open signals = %d, want 2 (lame-delegation + the endpoint's plaintext-http); %#v", len(name.OpenSignals), name.OpenSignals)
@@ -195,19 +169,14 @@ func TestJoinSignalsToGraph(t *testing.T) {
 	if !sawEndpoint {
 		t.Errorf("name node missing the endpoint firing attached to its Name leg; %#v", name.OpenSignals)
 	}
-	// Its worst severity is medium — both lame-delegation and plaintext-http-no-https
-	// are medium — the token the Name node's halo tints to.
 	if name.Sev != "medium" {
 		t.Errorf("name node severity = %q, want medium (worst of its fired rules)", name.Sev)
 	}
 
-	// The Service node carries its own service firing AND the nameless endpoint's.
 	svc := byID["203.0.113.5:443/tcp"]
 	if len(svc.OpenSignals) != 2 {
 		t.Fatalf("service node open signals = %d, want 2 (service rule + the nameless endpoint); %#v", len(svc.OpenSignals), svc.OpenSignals)
 	}
-	// Worst severity is critical — sensitive-port-reached-from-internet outranks the
-	// nameless endpoint's low redirect rule — so the service fills to the critical dot.
 	if svc.Sev != "critical" {
 		t.Errorf("service node severity = %q, want critical (worst of its fired rules)", svc.Sev)
 	}
@@ -221,24 +190,16 @@ func TestJoinSignalsToGraph(t *testing.T) {
 		t.Errorf("service firing missing its real per-rule severity; %#v", svc.OpenSignals)
 	}
 
-	// The Address node carries none — no rule censuses an Address, and a Service's
-	// firing is not silently rolled up to the Address it rides.
 	if addr := byID["203.0.113.5"]; len(addr.OpenSignals) != 0 {
 		t.Errorf("address node open signals = %d, want 0 (addresses carry no signals); %#v", len(addr.OpenSignals), addr.OpenSignals)
 	}
 
-	// A firing whose subject names no built node is dropped, never invented as a node.
 	if _, ok := byID["ghost.example.com"]; ok {
 		t.Errorf("a firing on an absent subject invented a node; nodes must come only from the topology")
 	}
 }
 
-// A named endpoint firing whose Name node is NOT in the topology (only the service
-// span is open, so no name node was placed) falls back to its Service node rather
-// than vanishing — a real open signal must always light the one node it can reach.
 func TestJoinSignalsEndpointFallsBackToServiceWhenNameAbsent(t *testing.T) {
-	// A service-only estate: the Service node and its Address exist, but there is no
-	// open name span, so no Name node for www.example.com is placed.
 	g := buildGraph([]db.ListAllOpenSpansRow{
 		openSpanRow("service", "203.0.113.5:443/tcp", "reachability", "", `{"outcome":"reached"}`, false),
 	})
@@ -260,14 +221,9 @@ func TestJoinSignalsEndpointFallsBackToServiceWhenNameAbsent(t *testing.T) {
 	}
 }
 
-// The Graph page joins real open signals onto its nodes with their severity (P2.3):
-// a fired rule reaches the selected node's drawer with its SeverityBadge, its node
-// draws a severity-tinted halo, and the header carries the five-level severity filter.
 func TestGraphPageJoinsOpenSignals(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
-	// An internal address leaking into a public answer fires
-	// non-globally-reachable-address-resolved-from-internet on the Name.
 	f.addClassResolution(t, "leak.example.com", "internet", obsClock, `{"outcome":"Resolved","addresses":["10.0.0.5"]}`)
 
 	base := start(t, f, "")
@@ -275,28 +231,24 @@ func TestGraphPageJoinsOpenSignals(t *testing.T) {
 	page := getBody(t, ac, base+"/graph", http.StatusOK)
 
 	for _, want := range []string{
-		"non-globally-reachable-address-resolved-from-internet", // the fired rule reaches the drawer
-		`data-for="leak.example.com"`,                           // the per-node drawer signal block
-		`class="gnode-halo"`,                                    // a halo is drawn
-		"var(--sev-medium-dot)",                                 // tinted to the rule's real severity (medium)
-		"var(--sev-medium-bg)",                                  // the landed sevbadge for the firing (medium)
-		`data-sev="critical"`,                                   // a five-level severity filter option
-		"All severities",                                        // the severity filter's default
-		"No open signals on this node.",                         // the honest empty state for unlit nodes
+		"non-globally-reachable-address-resolved-from-internet",
+		`data-for="leak.example.com"`,
+		`class="gnode-halo"`,
+		"var(--sev-medium-dot)",
+		"var(--sev-medium-bg)",
+		`data-sev="critical"`,
+		"All severities",
+		"No open signals on this node.",
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("graph page missing %q; body: %s", want, page)
 		}
 	}
-	// The retired presence filter must not linger — P2.3 replaces it with severity.
 	if strings.Contains(page, `value="with"`) {
 		t.Errorf("graph page still renders the presence filter; want the five-level severity filter")
 	}
 }
 
-// The Graph page reads the estate's open spans and renders the real topology into
-// a pannable canvas with a minimap, controls, a legend, and a node drawer, keying
-// the Graph nav pill active.
 func TestGraphPageRendersTopology(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -308,17 +260,17 @@ func TestGraphPageRendersTopology(t *testing.T) {
 	page := getBody(t, ac, base+"/graph", http.StatusOK)
 
 	for _, want := range []string{
-		`id="gr-svg"`,                         // the canvas
-		`id="gr-minimap"`,                     // the minimap
-		`data-gr-zoom="in"`,                   // the pan/zoom controls
-		`id="gr-drawer"`,                      // the node drawer
-		"var CW =  1200 , CH =  640 ;",        // the minimap's content basis (#1089)
-		`transform="translate(0,0) scale(1)"`, // this estate fits, so the fit is the standing origin (#1101)
-		"var MINK =  0.5 ,",                   // and the zoom floor is the standing one (#1101)
-		"api.example.com",                     // the real Name node
-		"203.0.113.5",                         // the real Address node
-		":443 tcp",                            // the real Service node label
-		`class="sh-pill on" href="/graph"`,    // NavActive wired to graph
+		`id="gr-svg"`,
+		`id="gr-minimap"`,
+		`data-gr-zoom="in"`,
+		`id="gr-drawer"`,
+		"var CW =  1200 , CH =  640 ;",
+		`transform="translate(0,0) scale(1)"`,
+		"var MINK =  0.5 ,",
+		"api.example.com",
+		"203.0.113.5",
+		":443 tcp",
+		`class="sh-pill on" href="/graph"`,
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("graph page missing %q; body: %s", want, page)
@@ -326,8 +278,6 @@ func TestGraphPageRendersTopology(t *testing.T) {
 	}
 }
 
-// With no subject measured into the estate, the graph shows the design-system
-// empty-state rather than an empty or fabricated canvas.
 func TestGraphPageEmptyState(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -346,9 +296,6 @@ func TestGraphPageEmptyState(t *testing.T) {
 	}
 }
 
-// #1101: the drawing's height is unbounded, so a large estate reaches far past the
-// 1200x640 viewport. The fit frames the whole content box inside the viewport and
-// centres it, and the zoom floor drops to reach that scale.
 func TestGraphFitFramesTheWholeContent(t *testing.T) {
 	var rows []db.ListAllOpenSpansRow
 	for i := 0; i < 40; i++ {
@@ -375,13 +322,9 @@ func TestGraphFitFramesTheWholeContent(t *testing.T) {
 	if want := (float64(g.ViewH) - float64(g.ContentH)*g.FitK) / 2; math.Abs(g.FitY-want) > 0.1 {
 		t.Errorf("fit y = %v, want the centring offset %v", g.FitY, want)
 	}
-	// #1103 caps each column, so a built drawing no longer runs deep enough to push the
-	// fit under the standing 0.5 floor. TestGraphFitHoldsAtAnyContentHeight covers the
-	// floor against a content box of any depth.
+	// The cap keeps a built drawing above the zoom floor, so no fixture here can reach it (#1103).
 }
 
-// An estate whose content fits the viewport frames exactly as it did before #1101:
-// the origin at scale 1, with the zoom floor left at its standing 0.5.
 func TestGraphFitIsUnchangedWhenTheContentFits(t *testing.T) {
 	g := buildGraph([]db.ListAllOpenSpansRow{
 		openSpanRow("name", "api.example.com", "resolution", "", `{"outcome":"Resolved","addresses":["203.0.113.5"]}`, false),
@@ -395,9 +338,6 @@ func TestGraphFitIsUnchangedWhenTheContentFits(t *testing.T) {
 	}
 }
 
-// The column run has no cap, so the content box can reach any height. The fit stays
-// positive and keeps its relative accuracy the whole way down: it never rounds to
-// zero (scale(0) draws nothing) and never gives back a useful part of the viewport.
 func TestGraphFitHoldsAtAnyContentHeight(t *testing.T) {
 	for _, h := range []int{640, 1891, 47102, 5_000_000, 6_400_000, 640_000_000} {
 		_, _, k, minK := graphFit(graphViewW, h)
@@ -433,10 +373,6 @@ func TestGraphRequiresLogin(t *testing.T) {
 	}
 }
 
-// #1103 (ADR-0136 §2, §4, §6): each column draws at most graphColumnCap nodes, and
-// the drawing states the shortfall rather than dropping subjects silently. The
-// selection is the column's existing sorted order, first N — not severity, not
-// recency — so an unchanged corpus draws the same set on every reload.
 func TestGraphCapsEachColumnAtTheCap(t *testing.T) {
 	var rows []db.ListAllOpenSpansRow
 	for i := 0; i < 30; i++ {
@@ -479,8 +415,6 @@ func TestGraphCapsEachColumnAtTheCap(t *testing.T) {
 		}
 	}
 
-	// No node is folded in: the drawing holds only the four Subject kinds it always
-	// held, and no prefix or parent rollup stands for the ones the cap left out.
 	for _, n := range g.Nodes {
 		switch n.Type {
 		case "domain", "subdomain", "ip", "service":
@@ -489,16 +423,12 @@ func TestGraphCapsEachColumnAtTheCap(t *testing.T) {
 		}
 	}
 
-	// The bounds follow the placed nodes, so the minimap and the PNG export frame the
-	// capped drawing rather than the population the cap left out.
 	wantH := graphRowTop + (graphColumnCap-1)*graphRowStep + graphRadius("subdomain") + graphPad
 	if g.ContentH != wantH {
 		t.Errorf("ContentH = %d, want %d — the capped drawing's own bounds, not the 30 it holds", g.ContentH, wantH)
 	}
 }
 
-// The cap takes the first N of the column's existing sorted order, so the drawn set
-// is exactly the head of what an uncapped build would have drawn, in the same order.
 func TestGraphCapTakesTheSortedHead(t *testing.T) {
 	var rows []db.ListAllOpenSpansRow
 	for i := 0; i < 25; i++ {
@@ -522,8 +452,6 @@ func TestGraphCapTakesTheSortedHead(t *testing.T) {
 		}
 	}
 
-	// Every one of the 25 names resolves to the one address, so the five names the cap
-	// left out take five edges with them. That deletion is counted, not silent.
 	if g.CutEdges != 5 {
 		t.Errorf("CutEdges = %d, want 5 (one per name the cap left out)", g.CutEdges)
 	}
@@ -532,8 +460,6 @@ func TestGraphCapTakesTheSortedHead(t *testing.T) {
 	}
 }
 
-// A column at or under the cap is drawn exactly as it was, and the screen states
-// nothing: no shortfall, no cut edge.
 func TestGraphUnderTheCapStatesNothing(t *testing.T) {
 	var rows []db.ListAllOpenSpansRow
 	for i := 0; i < graphColumnCap; i++ {
@@ -556,9 +482,6 @@ func TestGraphUnderTheCapStatesNothing(t *testing.T) {
 	}
 }
 
-// The screen states the shortfall per column and names a scope selection as the
-// remedy, following the Drift feed, which states its 500-event truncation rather
-// than dropping rows silently.
 func TestGraphPageStatesTheCap(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -592,7 +515,6 @@ func TestGraphPageStatesTheCap(t *testing.T) {
 	}
 }
 
-// A drawing the cap did not touch carries no callout at all.
 func TestGraphPageStatesNoCapWhenNoneApplied(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -607,11 +529,6 @@ func TestGraphPageStatesNoCapWhenNoneApplied(t *testing.T) {
 	}
 }
 
-// #1103: the endpoint fallback answers a nameless or unmeasured endpoint. It must not
-// answer a Name node the CAP dropped: re-attributing that firing to the Service leg
-// would light a node for a reason that is about the drawing being full, and the
-// drawer would name a Name the drawing does not hold. The firing is counted instead,
-// exactly as #1102 counts a scope that excludes the name.
 func TestJoinSignalsDoesNotFallBackToTheServiceLegForACappedName(t *testing.T) {
 	var rows []db.ListAllOpenSpansRow
 	for i := 0; i < 25; i++ {
@@ -622,7 +539,6 @@ func TestJoinSignalsDoesNotFallBackToTheServiceLegForACappedName(t *testing.T) {
 
 	g := buildGraph(rows)
 	g = joinSignals(g, []signal.Census{
-		// n24 is name 25 of 25, so the cap left it out. n00 is drawn.
 		{Rule: "plaintext-http-no-https", Fired: []signal.Member{
 			{Subject: "n24.example.com@203.0.113.5:443/tcp"},
 			{Subject: "n00.example.com@203.0.113.5:443/tcp"},
@@ -645,9 +561,6 @@ func TestJoinSignalsDoesNotFallBackToTheServiceLegForACappedName(t *testing.T) {
 	}
 }
 
-// A firing whose node the cap dropped is counted, so the screen states the deletion
-// rather than losing a severity the operator would otherwise see. A firing whose node
-// the corpus never held is NOT counted: the cap did not take it.
 func TestJoinSignalsCountsOnlyWhatTheCapDeleted(t *testing.T) {
 	var rows []db.ListAllOpenSpansRow
 	for i := 0; i < 25; i++ {
@@ -658,10 +571,10 @@ func TestJoinSignalsCountsOnlyWhatTheCapDeleted(t *testing.T) {
 	g := buildGraph(rows)
 	g = joinSignals(g, []signal.Census{
 		{Rule: "lame-delegation", Fired: []signal.Member{
-			{Subject: "n20.example.com"},   // held by the corpus, dropped by the cap
-			{Subject: "n24.example.com"},   // held by the corpus, dropped by the cap
-			{Subject: "ghost.example.com"}, // the corpus never held it
-			{Subject: "n00.example.com"},   // drawn
+			{Subject: "n20.example.com"},
+			{Subject: "n24.example.com"},
+			{Subject: "ghost.example.com"},
+			{Subject: "n00.example.com"},
 		}},
 	})
 
@@ -677,8 +590,6 @@ func TestJoinSignalsCountsOnlyWhatTheCapDeleted(t *testing.T) {
 	}
 }
 
-// An estate the cap did not touch counts no deleted firing, so a firing that matches
-// no node stays the silent drop it has always been.
 func TestJoinSignalsCountsNothingUnderTheCap(t *testing.T) {
 	g := buildGraph([]db.ListAllOpenSpansRow{
 		openSpanRow("name", "api.example.com", "resolution", "", `{"outcome":"Resolved","addresses":["203.0.113.5"]}`, false),

@@ -17,9 +17,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/proposer"
 )
 
-// fakeProposer stands in for the real registry: it returns canned candidates and
-// records the enabled set it was asked to run, so a test can assert that the
-// source-enablement state gates which paths run without any network.
 type fakeProposer struct {
 	candidates  []proposer.Candidate
 	err         error
@@ -80,8 +77,6 @@ func TestLookupProducesProposalsNotSeeds(t *testing.T) {
 	}
 	resp.Body.Close()
 
-	// A proposer admits nothing: the lookup produced Proposal rows and nothing
-	// entered the estate — no Seed was created.
 	if len(f.proposals) != 2 {
 		t.Fatalf("proposals = %d, want 2", len(f.proposals))
 	}
@@ -94,8 +89,6 @@ func TestLookupProducesProposalsNotSeeds(t *testing.T) {
 		}
 	}
 
-	// The pending Proposals render on the Scope screen (frozen scope.tmpl, #574): each
-	// proposed scope with a singular Confirm, and a bulk Decline-selected control.
 	page := seedsBody(t, ac, base)
 	for _, want := range []string{
 		"203.0.113.0/24", "198.51.100.8/29",
@@ -116,15 +109,12 @@ func TestConfirmIsSingularWithNoBatchAffordance(t *testing.T) {
 	lookup(t, ac, base, "Example").Body.Close()
 
 	page := seedsBody(t, ac, base)
-	// The one act this surface must never draw: a batch confirm (ADR-0022).
 	for _, forbidden := range []string{"Confirm all", "Confirm selected", `type="checkbox" name="confirm`} {
 		if strings.Contains(page, forbidden) {
 			t.Errorf("batch-confirm affordance present (%q); ADR-0022 forbids it", forbidden)
 		}
 	}
 
-	// Confirming one Proposal creates exactly one Seed and retains the Proposal
-	// as its provenance; the other stays pending.
 	confirmID := f.proposals[0].ID
 	resp := postForm(t, ac, base+"/proposals/confirm", url.Values{"id": {itoa(confirmID)}})
 	if resp.StatusCode != http.StatusSeeOther {
@@ -155,21 +145,9 @@ func TestConfirmIsSingularWithNoBatchAffordance(t *testing.T) {
 	}
 }
 
-// TestConfirmOrgSourcedCIDRIsCanonicalAndScanEligible proves that confirming an
-// Org-Discovery (registry-authored) proposal yields a Seed that is dispatch-eligible
-// at parity with a manually-added CIDR of the same shape (R4-R5, #755). The Seed the
-// hot/cold fan-out reads (ListAddressScopeCidrs) must be the canonical masked network,
-// exactly as the manual scope-declaration path stores it (seeds.go: `rawP.Masked()`):
-// the `address_cidr` column is a `cidr` that rejects host bits, and the Custody
-// derivation's AddressScopes contract is canonical/masked. The confirm path is the one
-// address-scope writer that previously did not canonicalize, so an org-sourced range
-// that was not already network-aligned was the one seed persisted non-canonically —
-// "an Org-Discovery CIDR never scans."
 func TestConfirmOrgSourcedCIDRIsCanonicalAndScanEligible(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
-	// A registry-authored range whose base address (…130) carries host bits under /25 —
-	// the confirm path must canonicalize it, not persist it verbatim.
 	fp := &fakeProposer{candidates: []proposer.Candidate{
 		{SourceSlug: proposer.SlugARIN, RecordKind: proposer.RecordRIRDelegation,
 			Scope: netip.MustParsePrefix("198.51.100.130/25"), OrgName: "Org Discovery Co"},
@@ -191,32 +169,20 @@ func TestConfirmOrgSourcedCIDRIsCanonicalAndScanEligible(t *testing.T) {
 	if seedCIDR == nil {
 		t.Fatal("confirmed org-sourced seed has no address_cidr")
 	}
-	// Parity: the persisted scope is the canonical masked network a manual declaration of
-	// the same shape would store — not the registry's non-aligned base address.
 	if got, want := seedCIDR.String(), "198.51.100.128/25"; got != want {
 		t.Fatalf("confirmed org-sourced seed = %s, want canonical %s (parity with a manually-added CIDR)", got, want)
 	}
 
-	// Dispatch eligibility: fed through the same Custody gate the hot/cold fan-out consults
-	// (queue/hot.go, queue/cold.go → custody.Estate), an in-range address derives Operator,
-	// so the org-sourced range is scanned like any other in-scope range.
+	// The hot and cold fan-out consult this same custody gate, so Operator proves eligibility.
 	target := netip.MustParseAddr("198.51.100.200")
 	if got := (custody.Estate{AddressScopes: []netip.Prefix{*seedCIDR}}).Derive(target); got != custody.Operator {
 		t.Errorf("in-range address custody = %q, want %q (org-sourced range must be scan-eligible)", got, custody.Operator)
 	}
 }
 
-// TestConfirmRefusesOverCapProposalUntilCapAdmitsIt covers #892 (ADR-0047 §3.4,
-// ADR-0127): the operator address-scope cap gates a Proposal confirm exactly as it
-// gates a typed declaration. A Proposal wider than the operator's cap is refused —
-// no Seed is created — and the refusal names the raise route (Settings · Scans) and
-// leaves decline the expected response (#884, ADR-0052). Raising the cap so it admits
-// the range then confirms it with the same singular gesture: no second cap, no
-// Proposal-only branch — a confirmed Proposal is a Seed.
 func TestConfirmRefusesOverCapProposalUntilCapAdmitsIt(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
-	// A /8 is 16,777,216 addresses — far over the operator's default 1024 cap.
 	fp := &fakeProposer{candidates: []proposer.Candidate{
 		{SourceSlug: proposer.SlugAFRINIC, RecordKind: proposer.RecordRIRDelegation,
 			Scope: netip.MustParsePrefix("10.0.0.0/8"), OrgName: "Big Holder"},
@@ -225,10 +191,6 @@ func TestConfirmRefusesOverCapProposalUntilCapAdmitsIt(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 	lookup(t, ac, base, "Big").Body.Close()
 
-	// Over the cap: the confirm is refused and files no Seed. The response names the
-	// raise route and keeps the decline affordance — decline stays the expected answer.
-	// The refusal is a post-redirect-get (ADR-0130 §1), so its notice is read off the
-	// landing GET.
 	resp := postForm(t, ac, base+"/proposals/confirm", url.Values{"id": {itoa(f.proposals[0].ID)}})
 	page := refusalPage(t, ac, base, resp)
 	if len(f.seeds) != 0 {
@@ -246,8 +208,6 @@ func TestConfirmRefusesOverCapProposalUntilCapAdmitsIt(t *testing.T) {
 		t.Errorf("decline affordance gone after an over-cap refusal; body: %s", page)
 	}
 
-	// Raise the cap past the /8, exactly as the Settings control persists it (#888),
-	// then re-confirm: the same singular confirm now admits the range into one Seed.
 	f.instanceConfig.SeedAddressCap = 16777216
 	resp = postForm(t, ac, base+"/proposals/confirm", url.Values{"id": {itoa(f.proposals[0].ID)}})
 	if resp.StatusCode != http.StatusSeeOther {
@@ -267,8 +227,6 @@ func TestDeclineIsBulkOverALookup(t *testing.T) {
 	ac := login(t, base, "admin", "hunter2hunter2")
 	lookup(t, ac, base, "Example").Body.Close()
 
-	// The frozen scope.tmpl declines the CHECKED proposals: their ids post under `ids`
-	// (#574). Declining every pending proposal empties the section.
 	var ids []string
 	for _, p := range f.proposals {
 		ids = append(ids, itoa(p.ID))
@@ -279,8 +237,6 @@ func TestDeclineIsBulkOverALookup(t *testing.T) {
 	}
 	resp.Body.Close()
 
-	// Every selected Proposal is declined in one act, and no Seed was created —
-	// declining is a boundary claim, not an admission.
 	for _, p := range f.proposals {
 		if p.Status != "declined" {
 			t.Errorf("proposal %d status=%q, want declined", p.ID, p.Status)
@@ -289,7 +245,6 @@ func TestDeclineIsBulkOverALookup(t *testing.T) {
 	if len(f.seeds) != 0 {
 		t.Errorf("seeds after decline = %d, want 0", len(f.seeds))
 	}
-	// The pending section is now empty.
 	if page := seedsBody(t, ac, base); !strings.Contains(page, "No open proposals") {
 		t.Errorf("declined proposals still shown as pending; body: %s", page)
 	}
@@ -313,8 +268,6 @@ func TestDeclineRecordsEachScopeAsAnExclusion(t *testing.T) {
 	}
 	resp.Body.Close()
 
-	// A decline is a boundary claim: each proposed scope becomes an address
-	// exclusion so the same range is not silently re-admitted.
 	want := map[string]bool{"203.0.113.0/24": false, "198.51.100.8/29": false}
 	for _, e := range f.exclusions {
 		if e.Kind == "address" && e.AddressCidr != nil {
@@ -329,7 +282,6 @@ func TestDeclineRecordsEachScopeAsAnExclusion(t *testing.T) {
 		}
 	}
 
-	// The declined scope now shows on the Scope screen as an exclusion.
 	if page := seedsBody(t, ac, base); !strings.Contains(page, "203.0.113.0/24") {
 		t.Errorf("declined scope not shown among exclusions; body: %s", page)
 	}
@@ -342,7 +294,6 @@ func TestLookupRunsOnlyEnabledProposers(t *testing.T) {
 	base := startWithProposer(t, f, fp)
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// Turn the ARIN keyless path off through the source-enablement state (#185).
 	if _, err := f.UpsertSourceState(context.Background(), db.UpsertSourceStateParams{
 		Slug: "arin", Enabled: false,
 	}); err != nil {
@@ -353,17 +304,13 @@ func TestLookupRunsOnlyEnabledProposers(t *testing.T) {
 	if fp.lastEnabled["arin"] {
 		t.Errorf("arin was passed as enabled after being toggled off: %v", fp.lastEnabled)
 	}
-	// The other keyless paths ship on and are still offered.
 	if !fp.lastEnabled[proposer.SlugAFRINIC] || !fp.lastEnabled[proposer.SlugAPNIC] {
 		t.Errorf("default-on keyless proposers not enabled: %v", fp.lastEnabled)
 	}
 }
 
-// captureLog redirects the standard logger to a buffer for the duration of a
-// test, so an assertion can prove a server-side failure was logged where a
-// maintainer would find it. These tests do not run in parallel, so the
-// process-global logger is safe to borrow.
 func captureLog(t *testing.T) *bytes.Buffer {
+	// No test in this package runs in parallel, so the process-global logger is safe to borrow.
 	t.Helper()
 	var buf bytes.Buffer
 	prevOut, prevFlags := log.Writer(), log.Flags()
@@ -372,14 +319,9 @@ func captureLog(t *testing.T) *bytes.Buffer {
 	return &buf
 }
 
-// TestLookupBackendFailureIsNotAMiss covers the #251 confusion: a lookup that
-// errors on the backend with no candidates must read as a backend failure, not
-// as "your org name matched nothing", must file nothing, and must log the
-// underlying error with enough context for a maintainer to find it.
 func TestLookupBackendFailureIsNotAMiss(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
-	// Every enabled path errored and none returned a candidate.
 	fp := &fakeProposer{err: errors.New("arin: registry unreachable")}
 	base := startWithProposer(t, f, fp)
 	ac := login(t, base, "admin", "hunter2hunter2")
@@ -392,11 +334,9 @@ func TestLookupBackendFailureIsNotAMiss(t *testing.T) {
 	if !strings.Contains(page, "could not be completed") {
 		t.Errorf("backend failure not surfaced to the operator; body: %s", page)
 	}
-	// A failed lookup admits nothing and files no Proposal.
 	if len(f.proposals) != 0 {
 		t.Errorf("a failed lookup filed %d proposals, want 0", len(f.proposals))
 	}
-	// The discarded perr is logged with the query so it is operator-findable.
 	if got := logs.String(); !strings.Contains(got, "registry unreachable") || !strings.Contains(got, "Example") {
 		t.Errorf("underlying perr not logged with the query; log: %q", got)
 	}
@@ -405,7 +345,7 @@ func TestLookupBackendFailureIsNotAMiss(t *testing.T) {
 func TestLookupGenuineMissStillReadsAsAMiss(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
-	fp := &fakeProposer{} // no candidates, no error
+	fp := &fakeProposer{}
 	base := startWithProposer(t, f, fp)
 	ac := login(t, base, "admin", "hunter2hunter2")
 
@@ -418,10 +358,6 @@ func TestLookupGenuineMissStillReadsAsAMiss(t *testing.T) {
 	}
 }
 
-// TestLookupPartialFailureFilesAndFlags covers the mixed case: some paths
-// errored while others returned candidates. The candidates that did come back
-// are filed, and the lookup still uses post-redirect-get (so a refresh cannot
-// re-file duplicates) but carries a flag that surfaces the incompleteness.
 func TestLookupPartialFailureFilesAndFlags(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -434,22 +370,16 @@ func TestLookupPartialFailureFilesAndFlags(t *testing.T) {
 		resp.Body.Close()
 		t.Fatalf("partial lookup filed %d proposals, want 2 (the candidates that returned)", len(f.proposals))
 	}
-	// Post-redirect-get, exactly like a clean success — a partial lookup persists
-	// rows, so an inline render off the POST would re-file duplicates on refresh.
 	if resp.StatusCode != http.StatusSeeOther {
 		resp.Body.Close()
 		t.Fatalf("partial failure did not redirect (status=%d); a refresh would re-file duplicates", resp.StatusCode)
 	}
 	loc := resp.Header.Get("Location")
 	resp.Body.Close()
-	// The caveat rides the session form flash, not the URL (ADR-0130 §3): the landing is
-	// the URL the search was submitted from, so the operator keeps their scroll offset.
 	if loc != "/scope" {
 		t.Fatalf("partial-failure redirect %q is not the submitting URL", loc)
 	}
 
-	// Following the redirect, the Seeds page shows the caveat and the candidates
-	// that did come back.
 	page := getBody(t, ac, base+loc, http.StatusOK)
 	if !strings.Contains(page, "partial") {
 		t.Errorf("partial failure was not flagged to the operator; body: %s", page)
@@ -466,7 +396,6 @@ func TestViewerCannotLookupConfirmOrDecline(t *testing.T) {
 	fp := &fakeProposer{candidates: twoCandidates()}
 	base := startWithProposer(t, f, fp)
 
-	// Admin seeds a pending lookup so the viewer has something to read.
 	ac := login(t, base, "admin", "hunter2hunter2")
 	lookup(t, ac, base, "Example").Body.Close()
 
@@ -488,7 +417,6 @@ func TestViewerCannotLookupConfirmOrDecline(t *testing.T) {
 	if len(f.seeds) != 0 {
 		t.Errorf("viewer opened the gate: seeds=%d", len(f.seeds))
 	}
-	// But the viewer can read the pending list, without a confirm control.
 	page := seedsBody(t, vc, base)
 	if !strings.Contains(page, "203.0.113.0/24") {
 		t.Errorf("viewer cannot read pending proposals; body: %s", page)
