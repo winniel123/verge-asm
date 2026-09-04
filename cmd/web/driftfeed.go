@@ -14,49 +14,10 @@ import (
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 )
 
-// The estate-wide drift feed (#288, ADR-0111). A transition is not stored — it is
-// the adjacency between two consecutive spans, derived on read (ADR-0007) — so this
-// file turns the store's raw span open/close events (each citing the Batch that
-// caused it) into the batch-grouped, classified feed the /drift screen renders: the
-// "By batch" transition timeline, the per-kind Movement summary, and the CSV export.
-//
-// The six change kinds follow #288's own definitions, mapped onto the drift grammar
-// (internal/drift):
-//
-//   - appeared  — the first span on a (subject, facet) timeline: an opening with no
-//     predecessor.
-//   - changed   — a held value moved within an open timeline: an opening whose
-//     predecessor sits under the same Derivation vector and carried no closure
-//     reason (an ordinary value move, drift.KindNone), rendered with a before/after
-//     diff of the two spans' values.
-//   - returned  — a re-open after an absence: an opening whose predecessor was a
-//     withdrawal closure (a closure reason is set). Dormant until the
-//     withdrawal-persistence path is wired (no production path closes a span with a
-//     reason today), but classified end-to-end for when it lands.
-//   - withdrawn — a close by withdrawal (closure reason measured-absent / uncited).
-//   - descoped  — a close by operator exclusion (closure reason descoped).
-//   - revealed  — a widened aperture: an opening the fold marked aperture-driven
-//     (span.opened_aperture), where the operator's declared scope is why we started
-//     looking at a Seed-declared subject rather than the world producing that subject
-//     (drift.OpeningKind, ADR-0014). A first span reads the marker this way. So does a
-//     re-entry behind a `descoped` closure, where the operator widened a Declared
-//     scope back over a subject an earlier narrowing had removed (drift.ReEntryKind,
-//     ADR-0041, #1039). The estate wiring stamps the marker at fold time (#637), so
-//     `revealed` is derived on read like the rest.
-//
-// A transition across a Break (the predecessor sits under a different Derivation
-// vector) is not a value move — nothing compares across a Break (ADR-0008) — so it
-// is skipped, never narrated as `changed`.
-
-// driftMovement is the per-kind tally the Movement summary renders. Keyed by the
-// change word so the template looks each kind up by name.
 type driftMovement map[string]int
 
-// buildDriftFeed folds the store's raw span events into the batch-grouped, classified
-// timeline and the per-kind movement tally. rows arrive newest-batch-first, already
-// ordered by timeline within a batch (ListRecentDriftEvents), so a single pass groups
-// them: a run of consecutive rows sharing a batch id is one group.
 func buildDriftFeed(rows []db.ListRecentDriftEventsRow, now time.Time) ([]driftBatch, driftMovement) {
+	// The query already orders by timeline within a batch, so one pass groups the runs.
 	movement := driftMovement{}
 	var groups []driftBatch
 	var cur *driftBatch
@@ -81,15 +42,10 @@ func buildDriftFeed(rows []db.ListRecentDriftEventsRow, now time.Time) ([]driftB
 	return groups, movement
 }
 
-// classifyDriftEvent turns one raw span event into a rendered transition, or reports
-// ok=false where the event is not a narratable transition (an opening across a Break,
-// or a revealed opening the corpus cannot witness).
 func classifyDriftEvent(row db.ListRecentDriftEventsRow, now time.Time) (driftEvent, bool) {
 	facetLabel := timelineLabel(row.Facet, row.Discriminator)
 
 	if row.Role == "closed" {
-		// A reasoned close — withdrawn or descoped. The closing span's value is the one
-		// that left; there is no after side, so no diff. The instant is the close.
 		change := "withdrawn"
 		if drift.ClosureReason(row.ClosureReason.String) == drift.ReasonDescoped {
 			change = "descoped"
@@ -104,15 +60,8 @@ func classifyDriftEvent(row db.ListRecentDriftEventsRow, now time.Time) (driftEv
 		}, true
 	}
 
-	// An opening. A predecessor exists iff prev_value is non-nil (the span.value column
-	// is NOT NULL, so a real predecessor always carries bytes; nil means the LATERAL
-	// found none — a first span).
+	// The value column is NOT NULL, so a nil predecessor means the LATERAL found none.
 	if row.PrevValue == nil {
-		// A first span opens `revealed` where the operator's aperture is why the fold
-		// looked at the subject (opened_aperture — a Seed-declared subject, stamped at
-		// fold time by the estate wiring, #637), and `appeared` where the world brought
-		// a subject the aperture had not declared. Both are gain-family openings; the
-		// marker tells "we started looking" from "a subject entered" (ADR-0014).
 		change := "appeared"
 		if row.OpenedAperture {
 			change = "revealed"
@@ -126,26 +75,12 @@ func classifyDriftEvent(row db.ListRecentDriftEventsRow, now time.Time) (driftEv
 		}, true
 	}
 
-	// A predecessor exists. Nothing compares across a Break (ADR-0008): if the vectors
-	// differ this opening is a version bump, not a value move, so it is not narrated.
 	if !decodeVector(row.Derivation).Equal(decodeVector(row.PrevDerivation)) {
 		return driftEvent{}, false
 	}
 
 	prevReason := drift.ClosureReason(row.PrevClosureReason.String)
 	if prevReason.Valid() {
-		// The predecessor was a withdrawal closure, so this opening is a re-entry across
-		// an absence, and drift.ReEntryKind holds the whole grammar for one. A
-		// `measured-absent` or `uncited` closure reads `returned`. A `descoped` closure
-		// blocks `returned`, a narrowing being no decommission, and the aperture marker
-		// then decides between the two remaining words: `revealed` where the operator
-		// widened a Declared scope back over the subject (ADR-0041, #1039), `appeared`
-		// where the world cited it again. witnessBroke is folded into the vector-equality
-		// guard above.
-		//
-		// The marker is the same span.opened_aperture the first-span branch reads. The
-		// fold stamps it on any opening with no open predecessor, so a re-entry carries
-		// it exactly as a first span does.
 		change := "returned"
 		switch drift.ReEntryKind(&drift.Span{Reason: prevReason}, false, row.OpenedAperture) {
 		case drift.KindAppeared:
@@ -162,7 +97,6 @@ func classifyDriftEvent(row db.ListRecentDriftEventsRow, now time.Time) (driftEv
 		}, true
 	}
 
-	// An ordinary value move — `changed`, with a before/after diff of the two values.
 	return driftEvent{
 		Change:  "changed",
 		Family:  driftFamily("changed"),
@@ -173,9 +107,6 @@ func classifyDriftEvent(row db.ListRecentDriftEventsRow, now time.Time) (driftEv
 	}, true
 }
 
-// driftDiff renders a changed transition's before/after as a two-line diff: the prior
-// value removed, the new value added. Both sides render through the shared valueLabel,
-// so the diff reads in the same vocabulary as the Inventory and drill-down timelines.
 func driftDiff(row db.ListRecentDriftEventsRow) []driftDiffLine {
 	before := valueLabel(row.Facet, row.PrevValue, spanValueIsGap(row.Facet, row.PrevValue))
 	after := valueLabel(row.Facet, row.Value, row.IsGap)
@@ -188,12 +119,9 @@ func driftDiff(row db.ListRecentDriftEventsRow) []driftDiffLine {
 	}
 }
 
-// spanValueIsGap recomputes whether a value is a Gap from the value alone, mirroring
-// the fold's isGapValue (internal/queue/spanfold.go) via the same leaf constants so
-// the two definitions cannot silently diverge: a resolution OutcomeGap or a
-// reachability GapOutcome. Used for a predecessor value, whose is_gap flag the feed
-// query does not carry (a LEFT JOIN LATERAL column sqlc cannot type as nullable).
 func spanValueIsGap(facet string, raw []byte) bool {
+	// A LEFT JOIN LATERAL column cannot be typed nullable, so a predecessor's flag is recomputed.
+	// The leaf constants are shared with the fold's isGapValue so the two cannot silently diverge.
 	if len(raw) == 0 {
 		return false
 	}
@@ -213,12 +141,6 @@ func spanValueIsGap(facet string, raw []byte) bool {
 	}
 }
 
-// writeDriftExportCSV emits the transition feed as one uniform table — one row per
-// transition, in the same newest-first order the screen renders. Times are absolute
-// UTC (not the screen's relative "3h ago"), so a directory of exports is unambiguous.
-// The same classification the screen uses decides each row, so the file and the
-// screen never disagree; a Break-crossing opening or a revealed opening is skipped in
-// both.
 func (s *server) writeDriftExportCSV(w http.ResponseWriter, periodToken string, rows []db.ListRecentDriftEventsRow) {
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="drift-`+periodToken+`.csv"`)
@@ -252,20 +174,13 @@ func (s *server) writeDriftExportCSV(w http.ResponseWriter, periodToken string, 
 		})
 	}
 
-	// The feed is capped (driftFeedLimit); a full result set is stated in a trailing
-	// marker row rather than dropping the older tail silently.
 	if int32(len(rows)) >= driftFeedLimit { // #nosec G115 (len(rows) under driftFeedLimit=500-row cap)
 		_ = cw.Write([]string{"feed capped at " + strconv.Itoa(int(driftFeedLimit)) + " most-recent events; older transitions omitted", "", "", "", "", "", "", "", ""})
 	}
 }
 
-// csvSafe neutralises spreadsheet formula injection: a cell whose first character is
-// one an interpreter may treat as a formula (= + - @) or a control character (tab,
-// CR) is prefixed with a single quote, so a subject or measured value ingested from CT
-// logs — attacker-influenced free text — cannot execute when the file is opened in
-// Excel or Sheets. The prefix is the widely-used mitigation; it leaves the value
-// legible and is applied only to the free-text columns.
 func csvSafe(s string) string {
+	// CT-log text is attacker-influenced, and a leading = + - @ executes when a sheet opens it.
 	if s == "" {
 		return s
 	}
@@ -283,7 +198,7 @@ func driftExportValues(row db.ListRecentDriftEventsRow, change string) (before, 
 			valueLabel(row.Facet, row.Value, row.IsGap)
 	case "withdrawn", "descoped":
 		return valueLabel(row.Facet, row.Value, row.IsGap), ""
-	default: // appeared, returned
+	default:
 		return "", valueLabel(row.Facet, row.Value, row.IsGap)
 	}
 }
@@ -309,9 +224,6 @@ func driftBatchLabel(row db.ListRecentDriftEventsRow, now time.Time) string {
 	return kind + " scan · " + agoLabel(row.BatchAt.Time, now)
 }
 
-// agoLabel renders a relative instant as a phrase. relTime returns bare tokens
-// (now / 5m / 3h / 2d / 1w); this suffixes " ago" for the past and reads the
-// sub-minute case as "just now" rather than the ungrammatical "now ago".
 func agoLabel(t, now time.Time) string {
 	rel := relTime(t, now)
 	if rel == "now" {
@@ -320,9 +232,6 @@ func agoLabel(t, now time.Time) string {
 	return rel + " ago"
 }
 
-// driftBatchMeta summarises the batch's recorded scope for the group sub-label. The
-// scope is recorded by content (ADR-0025) as a JSON object of name/address lists; the
-// meta states how much was in scope rather than a library default.
 func driftBatchMeta(row db.ListRecentDriftEventsRow) string {
 	var scope map[string]json.RawMessage
 	if err := json.Unmarshal(row.RecordedScope, &scope); err != nil || len(scope) == 0 {
