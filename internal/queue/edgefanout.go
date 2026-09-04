@@ -55,7 +55,7 @@ func enqueueEdgeFanoutJob(ctx context.Context, qtx *db.Queries, scanID, dispatch
 	// A handshake is a network step that transiently fails, so the job retries like a hot one.
 	_, err = qtx.EnqueueJob(ctx, db.EnqueueJobParams{
 		ScanID:         scanID,
-		VantageID:      pgtype.Int8{}, // a default certificate is not a function of vantage (ADR-0129 §5)
+		VantageID:      pgtype.Int8{}, // a default certificate does not vary by vantage (ADR-0129, #954)
 		DispatchID:     pgInt8(dispatchID),
 		Kind:           scan.EdgeFanoutKind,
 		Spec:           specJSON,
@@ -265,7 +265,7 @@ func edgeFanoutFingerprints(rows []db.ListEdgeFanoutMeasurementsRow) []string {
 }
 
 func toEdgeFanout(completed bool, rows []db.ListEdgeFanoutMeasurementsRow, material map[string][]byte) custody.EdgeFanout {
-	// Which limb a key came from is decided where this map is read, never here (ADR-0129 §6).
+	// Which limb a key came from is decided where this map is read, never here (ADR-0129, #956).
 	shared := make(map[netip.Addr]bool, len(rows))
 	verdict := make(map[string]bool, len(material))
 	// An address with no row gets no key, and the derivation reads that missing key as pending.
