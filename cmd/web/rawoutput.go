@@ -18,17 +18,10 @@ import (
 	"github.com/winniel123/verge-asm/internal/transcript"
 )
 
-// The dedicated admin raw-output view (#866, map #838, spec §6) is the design-owned
-// design-system/templates/rundetail-raw.tmpl. It defines "runraw" and reuses the shared
-// head/chrome/foot partials, so it parses into the same tmpl set the other design-owned
-// templates do. It auto-embeds through designfs's existing templates/*.tmpl glob, so no
-// designfs.go change is needed.
 var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/rundetail-raw.tmpl"))
 
-// rawOutputBytes carries the three verbatim streams to the browser as JSON. The view
-// builds each stdout/stderr line and the sent scope into the DOM with textContent —
-// never innerHTML — so attacker-influenceable pre-gate stdout cannot inject markup
-// (spec §5.1, §6.4). html/template JS-escapes this value where it is embedded.
+// Attacker-influenceable stdout builds with textContent, never innerHTML (raw-job-output.md §6.4).
+
 type rawOutputBytes struct {
 	Stdout    []string `json:"stdout"`
 	Stderr    []string `json:"stderr"`
@@ -37,7 +30,7 @@ type rawOutputBytes struct {
 
 type rawOutputView struct {
 	RunID   int64
-	RunHref string // back to the filtered run page (?job={id})
+	RunHref string
 	JobID   int64
 	Kind    string
 	Vantage string
@@ -45,40 +38,30 @@ type rawOutputView struct {
 	Captured bool
 	Variant  string
 
-	// Exec-meta — the typed prober outcome unpacked into three display cells (exactly
-	// one is active; the others read "—"/"false"), plus duration and captured-at.
 	ExitCode     string
 	Signal       string
 	CtxCancelled string
-	OutcomeOK    bool // exited(0): render the exit code in the ok colour
+	OutcomeOK    bool
 	Duration     string
 	CapturedAt   string
 
-	// Zone restate result (Variant == "zone"): the restated count and the typed zone
-	// outcome ("parsed" | "decode-error: …"). The skipped records ride Bytes.Stdout.
 	Restated    string
 	ZoneOutcome string
 
-	// CT exchange (Variant == "ct"): the request URL dialled and a human outcome label
-	// ("HTTP 200" | "transport error: …" | "context-cancelled"). The verbatim response
-	// body rides Bytes.Stdout.
 	RequestURL string
 	CTOutcome  string
 
 	StdoutSize   string
 	StdoutCapped bool
-	StdoutTrunc  string // "" when the stream fit the cap
+	StdoutTrunc  string
 	StderrTrunc  string
 	SentTrunc    string
 
 	Bytes rawOutputBytes
 }
 
-// rawOutputPage renders the dedicated, admin-gated view of one job's verbatim Transcript
-// (spec §6). The route is requireAdmin, so a viewer never reaches it — the Transcript can
-// carry secrets the state-derived log cannot (§5.2). A job with no capture renders a legible
-// "no transcript" absence rather than a 404. Post-hoc only: the Transcript is written in the
-// job's terminal tx, so there is never a live stream to tail (§6.2).
+// The Transcript carries secrets the state log cannot, so admin only (raw-job-output.md §5.2).
+
 func (s *server) rawOutputPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	raw := r.PathValue("id")
 	runID, err := strconv.ParseInt(raw, 10, 64)
@@ -93,8 +76,6 @@ func (s *server) rawOutputPage(w http.ResponseWriter, r *http.Request, acct db.A
 		return
 	}
 
-	// The back link returns to the filtered run page — the bare run route the request
-	// hangs off (strip the trailing /raw), carrying the ?job filter through.
 	runBase := strings.TrimSuffix(r.URL.Path, "/raw")
 	view := rawOutputView{
 		RunID:   runID,
@@ -102,8 +83,6 @@ func (s *server) rawOutputPage(w http.ResponseWriter, r *http.Request, acct db.A
 		JobID:   jobID,
 	}
 
-	// Best-effort header identity (kind · vantage) from the dispatch's jobs. The Transcript
-	// row alone carries the kind, so a miss here is not fatal — the row fills it below.
 	if jobRows, jerr := s.store.ListJobsForDispatch(r.Context(), pgtype.Int8{Int64: runID, Valid: true}); jerr == nil {
 		for _, j := range jobRows {
 			if j.ID == jobID {
@@ -116,9 +95,9 @@ func (s *server) rawOutputPage(w http.ResponseWriter, r *http.Request, acct db.A
 		}
 	}
 
+	// Written in the job's terminal tx, so no raw stream is tailable (raw-job-output.md §6.2).
 	row, err := s.store.GetTranscriptByJob(r.Context(), jobID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		// A legible absence — no capture for this job. Render the empty state.
 		s.render(w, r, "runraw", s.rawOutputData(acct, view))
 		return
 	}
@@ -128,8 +107,6 @@ func (s *server) rawOutputPage(w http.ResponseWriter, r *http.Request, acct db.A
 	}
 
 	if err := s.fillRawOutputView(&view, row); err != nil {
-		// A decrypt or decode failure is a hard fault — fail closed and loudly, never
-		// render a partial or unauthenticated result (transcript.Open's contract, §5.3).
 		s.serverError(w, "raw output: open transcript", err)
 		return
 	}
@@ -150,14 +127,6 @@ func (s *server) rawOutputData(acct db.Account, view rawOutputView) map[string]a
 	}
 }
 
-// fillRawOutputView opens the sealed streams with the instance key and decodes the
-// outcome and truncation JSON the producer wrote. Any open failure is returned so the
-// handler fails closed (§5.3). The layout branches on the variant: the prober carries
-// three streams and the exec-meta outcome; the zone variant carries only the skipped
-// records (in the stdout role column) and a restate result (§1.3); the ct variant
-// carries only the response body (in the stdout role column) and the HTTP exchange
-// result. For zone and ct, stderr and sent-scope are NULL (Open returns nil for a NULL
-// column, so they simply stay empty).
 func (s *server) fillRawOutputView(view *rawOutputView, row db.Transcript) error {
 	view.Variant = row.Variant
 	view.Duration = time.Duration(row.DurationNs).String()
@@ -176,16 +145,11 @@ func (s *server) fillRawOutputView(view *rawOutputView, row db.Transcript) error
 	view.StdoutCapped = view.StdoutTrunc != ""
 
 	if row.Variant == "zone" {
-		// Zone sends nothing to a prober: the skipped records are the artifact, and the
-		// restate result rides the typed outcome. No stderr, sent-scope or exec-meta.
 		view.Restated, view.ZoneOutcome = rawDecodeZoneOutcome(row.Outcome)
 		return nil
 	}
 
 	if row.Variant == "ct" {
-		// The crt.sh producer sends an HTTP request: the response body is the artifact
-		// (already opened into Bytes.Stdout above), and the request URL and HTTP result
-		// ride the typed outcome. No stderr, sent-scope or exec-meta.
 		view.RequestURL, view.CTOutcome = rawDecodeCTOutcome(row.Outcome)
 		return nil
 	}
@@ -206,9 +170,6 @@ func (s *server) fillRawOutputView(view *rawOutputView, row db.Transcript) error
 	return nil
 }
 
-// rawSplitLines splits a verbatim stream into display lines, dropping a single trailing
-// newline so a well-formed NDJSON stream does not render a blank final line. Internal blank
-// lines are kept. An empty stream (a captured-but-empty column) yields no lines.
 func rawSplitLines(b []byte) []string {
 	if len(b) == 0 {
 		return []string{}
@@ -216,10 +177,6 @@ func rawSplitLines(b []byte) []string {
 	return strings.Split(strings.TrimSuffix(string(b), "\n"), "\n")
 }
 
-// rawDecodeOutcome unpacks the prober outcome JSON the producer wrote — {"kind":"exited",
-// "code":N} / {"kind":"signalled","signal":S} / {"kind":"context-cancelled"} (§1.2) — into
-// three display cells. Exactly one is active; the others read the "—"/"false" placeholders.
-// A ctx-cancelled prober reads as cancelled, never a fake exit 0.
 func rawDecodeOutcome(b []byte) (exit, signal, ctx string, ok bool) {
 	exit, signal, ctx = "—", "—", "false"
 	var o struct {
@@ -246,9 +203,6 @@ func rawDecodeOutcome(b []byte) (exit, signal, ctx string, ok bool) {
 	return exit, signal, ctx, ok
 }
 
-// rawDecodeZoneOutcome unpacks the zone outcome JSON — {"kind":"parsed","restated":N} /
-// {"kind":"decode-error","restated":N,"text":T} (§1.3) — into the restated count and a
-// human outcome label for the zone restate card. A missing count reads "—".
 func rawDecodeZoneOutcome(b []byte) (restated, outcome string) {
 	restated, outcome = "—", "—"
 	var o struct {
@@ -274,10 +228,6 @@ func rawDecodeZoneOutcome(b []byte) (restated, outcome string) {
 	return restated, outcome
 }
 
-// rawDecodeCTOutcome unpacks the CT outcome JSON — {"kind":"http","status":N,
-// "request_url":U} / {"kind":"transport-error","text":T,"request_url":U} / {"kind":
-// "context-cancelled","request_url":U} (§1.2) — into the request URL and a human outcome
-// label for the CT exchange card. A missing status reads "—".
 func rawDecodeCTOutcome(b []byte) (requestURL, outcome string) {
 	requestURL, outcome = "—", "—"
 	var o struct {
@@ -308,9 +258,6 @@ func rawDecodeCTOutcome(b []byte) (requestURL, outcome string) {
 	return requestURL, outcome
 }
 
-// rawDecodeTruncation turns the per-stream truncation markers ({"stdout":{"kept":…,
-// "dropped":…,"memory_guard_tripped":…}}, §3.2) into human notes, keyed by stream name.
-// A stream that fit its cap has no marker and no note.
 func rawDecodeTruncation(b []byte) map[string]string {
 	out := map[string]string{}
 	if len(b) == 0 {
