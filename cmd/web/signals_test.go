@@ -14,17 +14,10 @@ import (
 	"github.com/winniel123/verge-asm/internal/signal"
 )
 
-// A blanket responder's internet reach is a Gap (ADR-0104), so a sensitive port on
-// it reads as ABSENT — HasInternetReach=false — and sensitive-port-reached-from-
-// internet returns not-evaluable (never not-fired, and never fired). An ordinary
-// reached sensitive port on another address still fires. The damping is at the
-// measurement: no rule is narrowed.
 func TestBlanketResponderDampsSensitivePortSignal(t *testing.T) {
 	f := newFakeStore()
-	// A blanket responder: a sensitive internet pair whose reach is a Gap.
 	f.addClassReachability(t, "198.51.100.50:3389/tcp", "internet", obsClock,
 		`{"outcome":"gap","cause":"blanket-responder","reason":"this address answers on all ports — it is a proxy edge, not your origin"}`)
-	// An ordinary origin: the same sensitive port reached from the internet -> fires.
 	f.addClassReachability(t, "198.51.100.51:3389/tcp", "internet", obsClock, `{"outcome":"reached"}`)
 
 	srv := newServer(f, testKey, "", fixedClock())
@@ -52,8 +45,6 @@ func TestBlanketResponderDampsSensitivePortSignal(t *testing.T) {
 		t.Errorf("an ordinary reached origin must keep its value, got %+v", origin)
 	}
 
-	// The rule buckets the blanket responder as not-evaluable (its evidence is a
-	// Gap), and the origin as fired — never the reverse.
 	var rule signal.ServiceRule
 	for _, r := range signal.AllServiceRules() {
 		if r.Name() == "sensitive-port-reached-from-internet" {
@@ -71,20 +62,12 @@ func TestBlanketResponderDampsSensitivePortSignal(t *testing.T) {
 	}
 }
 
-// The `tls-acceptance` facet is now folded into the Service facts (#684): a Service
-// whose current enumeration accepted TLS 1.0 fires tls-1.0-accepted, one that
-// enumerated only modern versions does not, and one that refused TLS altogether is
-// outside the rule's domain (no census member). The datum was already measured and
-// persisted weekly; this proves buildServiceFacts reads it back and the previously
-// dormant rule lights.
 func TestTLS10AcceptedFiresFromPersistedAcceptance(t *testing.T) {
 	f := newFakeStore()
-	// Each Service is reached from the internet (so it is a Service subject), then
-	// carries a persisted tls-acceptance enumeration.
 	const (
-		accepts10 = "198.51.100.7:443/tcp" // enumerated, includes 1.0 -> FIRES
-		modern    = "198.51.100.8:443/tcp" // enumerated, no 1.0 -> NOT-FIRED
-		refused   = "198.51.100.9:443/tcp" // tls-refused -> OUTSIDE DOMAIN
+		accepts10 = "198.51.100.7:443/tcp"
+		modern    = "198.51.100.8:443/tcp"
+		refused   = "198.51.100.9:443/tcp"
 	)
 	for _, svc := range []string{accepts10, modern, refused} {
 		f.addClassReachability(t, svc, "internet", obsClock, `{"outcome":"reached"}`)
@@ -106,17 +89,13 @@ func TestTLS10AcceptedFiresFromPersistedAcceptance(t *testing.T) {
 		byKey[sf.Subject] = sf
 	}
 
-	// The accepting Service is in the rule's domain, its versions read, and TLS 1.0
-	// is flagged accepted.
 	got := byKey[accepts10]
 	if !got.TLSHandshakeCompleted || !got.TLSVersionsReadable || !got.TLS10Accepted {
 		t.Errorf("accepting service facts = %+v; want handshake completed, versions readable, 1.0 accepted", got)
 	}
-	// The modern Service completed a handshake but did not accept 1.0.
 	if m := byKey[modern]; !m.TLSHandshakeCompleted || !m.TLSVersionsReadable || m.TLS10Accepted {
 		t.Errorf("modern service facts = %+v; want handshake completed, no 1.0", m)
 	}
-	// A refusal completed no handshake — outside the domain.
 	if rf := byKey[refused]; rf.TLSHandshakeCompleted {
 		t.Errorf("refused service must not read as handshake-completed, got %+v", rf)
 	}
@@ -159,9 +138,6 @@ func seedZone(t *testing.T, f *fakeStore, admin db.Account, domain, content stri
 	}
 }
 
-// The Open tab renders the flat per-instance table (Signals.jsx + SignalData.jsx,
-// P2.2): one row per currently-fired (rule, subject) pair, with a SeverityBadge, a
-// SIG-#### id, the asset, and the filter / sort affordances — no per-rule census.
 func TestSignalsOpenTabRendersFlatInstanceTable(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -173,39 +149,30 @@ func TestSignalsOpenTabRendersFlatInstanceTable(t *testing.T) {
 		"missing IN A 203.0.113.22\n"
 	seedZone(t, f, admin, "example.com", zone)
 
-	// lame-delegation: an all-refusing delegation → composed Lame → FIRED.
 	f.addClassResolution(t, "lame.example.com", "internet", obsClock, `{"outcome":"Gap"}`)
 	f.addDNSRecord(t, "lame.example.com", "NS", obsClock, `{"rrs":[],"delegation":{"lame":true}}`)
 
-	// An internal address in a public answer → non-global FIRED.
 	f.addClassResolution(t, "leak.example.com", "internet", obsClock, `{"outcome":"Resolved","addresses":["10.0.0.5"]}`)
 
 	f.addClassResolution(t, "alias.example.com", "internet", obsClock, `{"outcome":"NoData"}`)
 	f.addDNSRecord(t, "alias.example.com", "CNAME", obsClock, `{"rrs":[{"name":"alias.example.com","type":"CNAME","data":"gone.example.com"}]}`)
 	f.addClassResolution(t, "gone.example.com", "internet", obsClock, `{"outcome":"NameError"}`)
 
-	// A declared name our resolver NXDOMAINs → zone-declared-…-name-error FIRED.
 	f.addClassResolution(t, "missing.example.com", "internet", obsClock, `{"outcome":"NameError"}`)
 
-	// A resolving name inside the zone but not declared → absent-from-zone FIRED.
 	f.addClassResolution(t, "orphan.example.com", "internet", obsClock, `{"outcome":"Resolved","addresses":["203.0.113.30"]}`)
-	// A declared name that resolves → both zone rules NOT-FIRED (no row here).
 	f.addClassResolution(t, "www.example.com", "internet", obsClock, `{"outcome":"Resolved","addresses":["203.0.113.20"]}`)
 
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 	page := getBody(t, ac, base+"/signals", http.StatusOK)
 
-	// The flat table's filter / sort affordances render: the text filter, the
-	// severity filter and the "X of Y shown" count.
 	for _, want := range []string{`name="q"`, `name="sev"`, "All severities", "shown"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("Signals flat table missing affordance %q; body: %s", want, page)
 		}
 	}
 
-	// Severity is a real datum now — a SeverityBadge and a minted SIG id render on
-	// the fired rows.
 	if !strings.Contains(page, `var(--sev-`) {
 		t.Errorf("Signals table renders no SeverityBadge; body: %s", page)
 	}
@@ -213,14 +180,12 @@ func TestSignalsOpenTabRendersFlatInstanceTable(t *testing.T) {
 		t.Errorf("Signals table renders no SIG-#### id; body: %s", page)
 	}
 
-	// Every fired (rule, subject) pair is a row, keyed on the asset.
 	for _, asset := range []string{"lame.example.com", "leak.example.com", "orphan.example.com", "missing.example.com", "alias.example.com"} {
 		if !strings.Contains(page, asset) {
 			t.Errorf("fired signal on %q not rendered as an instance row; body: %s", asset, page)
 		}
 	}
 
-	// The Open / Annotated / Withdrawn tabs frame the screen and default to Open.
 	if !strings.Contains(page, `class="sg-tabs"`) {
 		t.Errorf("Signals page renders no tabs; body: %s", page)
 	}
@@ -233,31 +198,23 @@ func TestSignalsOpenTabRendersFlatInstanceTable(t *testing.T) {
 		t.Errorf("no active tab on the default Signals view")
 	}
 
-	// The per-rule census grouping has left the screen (P2.2, ADR-0116).
 	for _, gone := range []string{"Did not fire", "Not-evaluable", "No population"} {
 		if strings.Contains(page, gone) {
 			t.Errorf("Signals page still renders the census markup %q; the flat table replaces it", gone)
 		}
 	}
 
-	// 'finding' is a rejected word (the domain says signal, never finding).
 	if strings.Contains(strings.ToLower(page), "finding") {
 		t.Errorf("Signals page uses the rejected word 'finding'")
 	}
 }
 
-// The Withdrawn tab surfaces an accepted risk whose subject has left its rule's
-// population — an orphan on read, withdrawn by the world (never resolved by an
-// operator, ADR-0092), carrying the WithdrawnMark. It does not appear on the
-// Annotated tab, which is accepted risks still in population, and the row's reason
-// reads in its Drawer.
 func TestSignalsWithdrawnTabSurfacesOrphanAnnotations(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// A pair whose subject the rule never censuses → orphan → withdrawn.
 	annotate(t, ac, base, "ghost.example.com", "lame-delegation", "kept for when it returns").Body.Close()
 
 	withdrawnPage := getBody(t, ac, base+"/signals?tab=withdrawn", http.StatusOK)
@@ -267,7 +224,6 @@ func TestSignalsWithdrawnTabSurfacesOrphanAnnotations(t *testing.T) {
 		}
 	}
 
-	// The reason reads in the row Drawer, not the table.
 	annos, _ := f.ListAnnotations(t.Context())
 	if len(annos) != 1 {
 		t.Fatalf("precondition: annotations = %d, want 1", len(annos))
@@ -277,8 +233,6 @@ func TestSignalsWithdrawnTabSurfacesOrphanAnnotations(t *testing.T) {
 		t.Errorf("Withdrawn drawer missing the reason; body: %s", drawer)
 	}
 
-	// The same orphan does not appear on the Annotated tab (accepted risks still in
-	// population). With only the orphan declared, Annotated is the empty state.
 	annotatedPage := getBody(t, ac, base+"/signals?tab=annotated", http.StatusOK)
 	if strings.Contains(annotatedPage, "ghost.example.com") {
 		t.Errorf("orphan annotation wrongly listed on the Annotated tab")
@@ -288,9 +242,6 @@ func TestSignalsWithdrawnTabSurfacesOrphanAnnotations(t *testing.T) {
 	}
 }
 
-// The Annotated tab lists accepted risks still in population as instance rows, and
-// the row Drawer carries the operator dial (the AnnotationControl — the accepted
-// risk, its reason, and the remove control).
 func TestSignalsAnnotatedTabListsAcceptedRisk(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -317,8 +268,6 @@ func TestSignalsAnnotatedTabListsAcceptedRisk(t *testing.T) {
 	}
 }
 
-// The row-detail Drawer opens server-side via ?view=, reading one signal's detail
-// with its AnnotationControl remove control.
 func TestSignalsDetailDrawerOpens(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -335,9 +284,7 @@ func TestSignalsDetailDrawerOpens(t *testing.T) {
 	page := getBody(t, ac, base+"/signals?tab=annotated&view="+strconv.FormatInt(annos[0].ID, 10), http.StatusOK)
 	for _, want := range []string{
 		`class="sg-drawer"`, `role="dialog"`, "lame.example.com", "reviewed and accepted", "Remove annotation",
-		// The Rule cell renders the real rule id + its Version().String() vector (#21j),
-		// not a placeholder: lame-delegation is version {Rule:"v1", …}, so its vector
-		// begins "rule@v1". This locks the production-path RuleVersion read.
+		// The rendered version is itself "rule@v1", so the doubled @ is not a typo.
 		"lame-delegation@rule@v1",
 	} {
 		if !strings.Contains(page, want) {
@@ -346,20 +293,14 @@ func TestSignalsDetailDrawerOpens(t *testing.T) {
 	}
 }
 
-// The typed-name descope ConfirmDialog is admin-only, uses the shared dialog/scrim
-// surface, and is wired to the real POST /exclusions act (kind=subtree) — the
-// "remove a name and its subjects from scope, recorded on Scope" act — so descoping
-// from Signals narrows measurement without adding a route here.
 func TestSignalsDescopeConfirmDialogWiredToExclusions(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	seedAccount(t, f, "viewer", roleViewer, "hunter2hunter2")
-	// A firing signal so a row exists to descope; ?descope=<ViewKey> resolves to its asset.
 	lameName(t, f, "lame.example.com")
 	base := start(t, f, "")
 
 	ac := login(t, base, "admin", "hunter2hunter2")
-	// Render once to mint the instance identity, then read its SIG id (the row's ViewKey).
 	getBody(t, ac, base+"/signals", http.StatusOK)
 	insts, _ := f.ListSignalInstances(t.Context())
 	if len(insts) == 0 {
@@ -367,8 +308,6 @@ func TestSignalsDescopeConfirmDialogWiredToExclusions(t *testing.T) {
 	}
 	key := formatSigID(insts[0].ID)
 
-	// The typed-confirm dialog resolves the row's asset — the exact string the operator must retype
-	// — and posts the typed value to the real POST /exclusions (kind=subtree).
 	dialog := getBody(t, ac, base+"/signals?descope="+key, http.StatusOK)
 	for _, want := range []string{`class="sg-dialog"`, `class="sg-scrim dlg"`, "Descope seed", `action="/exclusions"`, `name="value"`, `value="subtree"`, "to confirm", "lame.example.com"} {
 		if !strings.Contains(dialog, want) {
@@ -376,7 +315,6 @@ func TestSignalsDescopeConfirmDialogWiredToExclusions(t *testing.T) {
 		}
 	}
 
-	// The dialog posts to the real exclusion act and records a name exclusion.
 	resp := postForm(t, ac, base+"/exclusions", url.Values{"kind": {"subtree"}, "value": {"old.example.com"}})
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("descope POST /exclusions: status = %d, want 303 (body: %s)", resp.StatusCode, body(t, resp))
@@ -386,8 +324,6 @@ func TestSignalsDescopeConfirmDialogWiredToExclusions(t *testing.T) {
 		t.Fatalf("descope did not record an exclusion; exclusions = %d, want 1", len(excl))
 	}
 
-	// A viewer can never OPEN the typed-confirm dialog: the descope route renders no dialog for a
-	// non-admin (the menu item is design-owned client markup, but the act + dialog are admin-gated).
 	vc := login(t, base, "viewer", "hunter2hunter2")
 	vp := getBody(t, vc, base+"/signals?descope="+key, http.StatusOK)
 	if strings.Contains(vp, `class="sg-dialog"`) {
@@ -395,63 +331,44 @@ func TestSignalsDescopeConfirmDialogWiredToExclusions(t *testing.T) {
 	}
 }
 
-// Fired Service and Endpoint signals render as flat per-instance rows keyed on
-// their Service / Endpoint subject key, with a SeverityBadge and a SIG id. A rule
-// that does not fire raises no row (the census's not-fired / not-evaluable members
-// have left the screen).
 func TestSignalsRendersServiceAndEndpointRules(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 
-	// A name in the estate, so the redirect-to-host rule has an estate to test against.
 	f.addClassResolution(t, "good.example.com", "internet", obsClock, `{"outcome":"Resolved","addresses":["198.51.100.1"]}`)
 
-	// sensitive-port-reached-from-internet: a sensitive pair (3389/tcp) reached from
-	// the internet → FIRED. A non-sensitive pair (443/tcp) is outside the domain.
 	f.addClassReachability(t, "198.51.100.1:3389/tcp", "internet", obsClock, `{"outcome":"reached"}`)
 	f.addClassReachability(t, "198.51.100.9:443/tcp", "internet", obsClock, `{"outcome":"reached"}`)
-	// A sensitive pair seen only internally → no internet leg → NOT-EVALUABLE.
 	f.addClassReachability(t, "198.51.100.2:445/tcp", "internal", obsClock, `{"outcome":"reached"}`)
 
-	// A presented certificate → the cert-detail rules render it NOT-EVALUABLE (no
-	// fired row), and it is inside hostname-san-mismatch's domain.
 	f.addCertificate(t, "secure.example.com@198.51.100.1:443/tcp", obsClock, `{"outcome":"presented","chain":["sha256:abc"]}`)
 
-	// A plaintext endpoint: HTTP responded (200) and the certificate is no-tls →
-	// plaintext-http-no-https FIRED, and unauthenticated-request-answered FIRED.
 	f.addHTTPIdentity(t, "plain.example.com@198.51.100.5:80/tcp", obsClock, `{"outcome":"responded","status":200}`)
 	f.addCertificate(t, "plain.example.com@198.51.100.5:80/tcp", obsClock, `{"outcome":"no-tls"}`)
 
-	// A redirect that does not upgrade and points outside the estate → both redirect
-	// rules FIRED.
 	f.addHTTPIdentity(t, "redir.example.com@198.51.100.6:80/tcp", obsClock, `{"outcome":"responded","status":301,"redirect_location":"http://outside.test/x"}`)
 
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 	page := getBody(t, ac, base+"/signals", http.StatusOK)
 
-	// The fired Service and Endpoint pairs render as rows, keyed on their subject.
 	for _, asset := range []string{
-		"198.51.100.1:3389/tcp",                 // sensitive-port fired
-		"plain.example.com@198.51.100.5:80/tcp", // plaintext-http + unauthenticated fired
-		"redir.example.com@198.51.100.6:80/tcp", // both redirect rules fired
+		"198.51.100.1:3389/tcp",
+		"plain.example.com@198.51.100.5:80/tcp",
+		"redir.example.com@198.51.100.6:80/tcp",
 	} {
 		if !strings.Contains(page, asset) {
 			t.Errorf("fired signal on %q not rendered as an instance row; body: %s", asset, page)
 		}
 	}
-	// Severity and the minted id render on the rows.
 	if !strings.Contains(page, `var(--sev-`) || !strings.Contains(page, "SIG-") {
 		t.Errorf("Service/Endpoint rows missing a SeverityBadge or SIG id; body: %s", page)
 	}
-	// A not-evaluable certificate member raises no row: the census markup is gone.
 	if strings.Contains(page, "No population") || strings.Contains(page, "Not-evaluable") {
 		t.Errorf("Signals page still renders census markup; the flat table shows only fired instances")
 	}
 }
 
-// An empty estate raises no signals: the Open tab degrades via the spec's empty
-// pattern (fact + next action), never a census of zeroes.
 func TestSignalsEmptyEstateRendersEmptyState(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -462,20 +379,14 @@ func TestSignalsEmptyEstateRendersEmptyState(t *testing.T) {
 	if !strings.Contains(page, "No open signals") {
 		t.Errorf("empty estate did not render the open empty state; body: %s", page)
 	}
-	// The screen still frames itself — the tabs render.
 	if !strings.Contains(page, `class="sg-tabs"`) {
 		t.Errorf("empty estate dropped the tabs; body: %s", page)
 	}
 }
 
-// GET /signals/export streams a text/csv attachment of the current tab's filtered
-// per-instance rows (Signals.jsx header; PARITY collision #6): a header row plus one
-// row per signal instance, carrying its severity, id, signal, asset, port and
-// instants. A lame delegation fires lame-delegation, so its instance exports.
 func TestSignalsExportCSV(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
-	// A lame delegation → composed Lame → lame-delegation FIRES on this subject.
 	f.addClassResolution(t, "lame.example.com", "internet", obsClock, `{"outcome":"Gap"}`)
 	f.addDNSRecord(t, "lame.example.com", "NS", obsClock, `{"rrs":[],"delegation":{"lame":true}}`)
 
@@ -497,10 +408,10 @@ func TestSignalsExportCSV(t *testing.T) {
 		t.Errorf("signals export Content-Disposition = %q, want an attachment .csv filename", cd)
 	}
 	for _, want := range []string{
-		"severity,id,signal,asset,port,first_seen,last_seen", // header row
-		"medium",           // lame-delegation's severity
-		"lame-delegation",  // the fired rule
-		"lame.example.com", // the fired subject
+		"severity,id,signal,asset,port,first_seen,last_seen",
+		"medium",
+		"lame-delegation",
+		"lame.example.com",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("signals export CSV missing %q; body:\n%s", want, got)
@@ -508,21 +419,17 @@ func TestSignalsExportCSV(t *testing.T) {
 	}
 }
 
-// The Export CSV button is gated on the current tab having rows to export: disabled
-// on an estate with no signals, a live link once a rule fires.
 func TestSignalsExportButtonGated(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// Empty estate: no signals fire, so the button is disabled (no export link).
 	empty := getBody(t, ac, base+"/signals", http.StatusOK)
 	if strings.Contains(empty, `href="/signals/export`) {
 		t.Errorf("empty estate should not offer a signals export link; body: %s", empty)
 	}
 
-	// A lame delegation fires a signal, enabling the export.
 	f.addClassResolution(t, "lame.example.com", "internet", obsClock, `{"outcome":"Gap"}`)
 	f.addDNSRecord(t, "lame.example.com", "NS", obsClock, `{"rrs":[],"delegation":{"lame":true}}`)
 	full := getBody(t, ac, base+"/signals", http.StatusOK)
@@ -535,8 +442,6 @@ func TestDeriveSignalInstancesDatum(t *testing.T) {
 	f := newFakeStore()
 	srv := newServer(f, testKey, "", fixedClock())
 
-	// A critical service firing and a medium name firing, given out of ramp order to
-	// prove the derivation sorts by severity.
 	censuses := []signal.Census{
 		{Rule: "lame-delegation", Fired: []signal.Member{{Subject: "edge.example.com"}}},
 		{Rule: "sensitive-port-reached-from-internet", Fired: []signal.Member{{Subject: "198.51.100.7:5900/tcp"}}},
@@ -573,8 +478,6 @@ func TestDeriveSignalInstancesDatum(t *testing.T) {
 		t.Errorf("name instance = %+v, want medium severity and no ip/port", med)
 	}
 
-	// Identity is stable: re-deriving the same fired set keeps each SIG id and its
-	// first-seen instant (the mint is idempotent on the pair).
 	again, err := srv.deriveSignalInstances(t.Context(), censuses)
 	if err != nil {
 		t.Fatalf("re-derive: %v", err)
