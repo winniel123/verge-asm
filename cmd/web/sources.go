@@ -12,65 +12,32 @@ import (
 	"github.com/winniel123/verge-asm/internal/scan"
 )
 
-// The sources sub-tab's view layer is the design-owned settings.tmpl (its
-// "settings-sources" define, package v3.13.0). The repo authors no markup here; the
-// handler below wires the source catalogue into the tmpl's declared holes.
-
-// The three consent tiers a source runs under (v1 spec §3.1, ADR-0003, ADR-0023).
-// consent names the door, never who walked through it: the value is authored by
-// the project and ships in the release, so it is a constant of the catalogue
-// below rather than a per-install fact.
 const (
 	consentUnencumbered = "unencumbered"
 	consentAccepted     = "operator-accepted"
 	consentCredentialed = "operator-credentialed"
 )
 
-// catalogSource is one authored row of the source catalogue. The catalogue is
-// release data — identity, the three source properties, and the state a source
-// *ships* in — the same for every install (ADR-0003). It is held in the binary,
-// never the database: the only per-install fact is the operator's override of a
-// shipped default, and that is what source_state holds.
-//
-// A proposer is deliberately kept in the same catalogue as a source even though
-// ADR-0012 rules that a proposer is not a source: the enablement screen governs
-// both (§6.4's source-enablement prompt covers the RIR registry paths, which
-// propose), and the distinction is carried on the row rather than erased. A
-// proposer admits nothing, so only consent applies to it — authority and
-// completeness are left empty, never invented.
 type catalogSource struct {
 	Slug         string
-	Name         string // the source's real name — a rendering, never the key
-	IsProposer   bool   // ADR-0012: a proposer is not a source; only consent applies
-	Authority    string // declared / measured / inferred; "" for a proposer
-	Completeness string // enumerable / corroborative; "" for a proposer
-	Consent      string // the tier it runs under; "" for a barred source
-	DefaultOn    bool   // the state it ships in (§3.1)
-	Barred       bool   // excluded on terms — no operator reading consents past it
-	NoRunner     bool   // catalogued, but no execution path ships yet (#241) — nothing to enable
-	ShipNote     string // project-worded, why it ships in this state; never the source's own terms
+	Name         string
+	IsProposer   bool // a proposer is not a source, so only consent applies (ADR-0012)
+	Authority    string
+	Completeness string
+	Consent      string
+	DefaultOn    bool
+	Barred       bool
+	NoRunner     bool // no runner ships, so it stays off and untoggleable (#241)
+	ShipNote     string
 
-	// The two marked groups of the consent prompt (§6.4, ADR-0003 second
-	// amendment, #47), rendered for an operator-accepted source at the moment
-	// it is enabled. Stated in the project's own words about what is
-	// unresolved, never the source's terms, and each group renders even when
-	// empty — LACNIC's actionable group is empty by construction.
-	MayResolve   []string // what you may be able to resolve — operator-varying questions
-	Unresolvable []string // what nobody has been able to resolve — the constant questions
+	// Each group renders even when empty (v1-spec §6.4, #47).
+
+	MayResolve   []string
+	Unresolvable []string
 }
 
-// sourceCatalog is the authored set the release ships. Defaults are §3.1's
-// consent-bar ruling: the keyless RIR org→prefix paths (ARIN, AFRINIC, APNIC via
-// CAIDA) on; HackerTarget and unauthenticated Cert Spotter excluded on terms. The
-// four registry proposer paths (RIPEstat, RIPE Database, APNIC registry, LACNIC
-// registry) are operator-accepted by tier but ship catalogued-not-executing: no
-// proposer.Source runner emits for them yet, so they carry NoRunner (#241) — off
-// for everyone, non-toggleable, no consent dialog offered — and return to the
-// operator-accepted tier the moment a runner lands, the same reversal crt.sh made.
-// crt.sh ships on and executing (§3.1, throttled): its runner is the ct Scan
-// (ADR-0106), which polls certificate transparency and admits Names, so it is a
-// live source again — reversing the not-yet-executing state #241 held it in until
-// the runner landed.
+// The shipped on/off state is ADR-0003's consent-bar ruling, not a preference (v1-spec §3.1).
+
 var sourceCatalog = []catalogSource{
 	{
 		Slug: "crtsh", Name: "crt.sh",
@@ -120,7 +87,7 @@ var sourceCatalog = []catalogSource{
 	{
 		Slug: "lacnic-registry", Name: "LACNIC registry", IsProposer: true, Consent: consentAccepted, NoRunner: true,
 		ShipNote:     "Catalogued — no proposer runner ships for this path yet (#241), so it is off for everyone and offers no toggle. Its tier is operator-accepted, but its terms cannot be retrieved: when a runner lands, enabling it would accept a source whose terms nobody has been able to read.",
-		MayResolve:   nil, // empty by construction — the actionable group renders empty here (#47)
+		MayResolve:   nil,
 		Unresolvable: []string{"Nobody has been able to retrieve these terms."},
 	},
 	{
@@ -145,35 +112,24 @@ func catalogBySlug(slug string) (catalogSource, bool) {
 	return catalogSource{}, false
 }
 
-// sourceView is a catalogue row merged with its per-install override, shaped for
-// rendering. Kind and consent stay visible so a proposer never reads as a source.
 type sourceView struct {
 	Slug         string
 	Name         string
-	KindLabel    string // "source" or "proposer"
+	KindLabel    string
 	Authority    string
 	Completeness string
 	Consent      string
 	Enabled      bool
 	Toggleable   bool
-	NoRunner     bool // catalogued, no execution path yet (#241)
+	NoRunner     bool
 	ShipNote     string
 	ShowGroups   bool
 	MayResolve   []string
 	Unresolvable []string
 }
 
-// dnsQtypeSet is the qtype set the dns Scan puts on the wire, one aperture input
-// of the seven (§3.2). It is declared release data — authored by the project and
-// shipped in the binary, the same for every install — so it is held here beside
-// the source catalogue rather than read from Postgres. The authority is
-// resolutionwalk.DefaultOffers().Qtypes; this mirror is asserted equal to it by
-// TestDNSQtypeSetMatchesLeaf so the two never drift.
 var dnsQtypeSet = []string{"A", "AAAA", "CNAME", "NS", "SOA", "MX", "TXT"}
 
-// cadenceLabel renders a Scan's cadence in seconds as the phrase the aperture
-// statement states. The common shipped cadences get a word; anything else is
-// stated in its plain unit rather than invented into a near-fit.
 func cadenceLabel(seconds int64) string {
 	switch {
 	case seconds <= 0:
@@ -195,32 +151,10 @@ func cadenceLabel(seconds int64) string {
 	}
 }
 
-// sourcesModal renders the source-enablement surface (§6.4) as the Settings
-// sources sub-tab: the discovery-source catalogue split by the state each source
-// ships in, with the two marked consent groups on every operator-accepted source.
-// A viewer may read it; only an admin sees a toggle. A source is a discovery
-// source — distinct from an Integration (a third-party install tile, on its own
-// sub-tab, #308): #281 originally parked this catalogue under the "integrations"
-// tab as a stopgap before the real Integrations screen existed; #308 gave
-// integrations their own tab and returned this catalogue to its own "sources" tab.
-//
-// It is the folded read surface for the sources tab: /sources renders the same section
-// /settings?tab=sources does, so it is a legitimate submitting URL for the enable and
-// disable forms and therefore a legitimate LANDING for a refused one. It reads the
-// session form flash for that reason (ADR-0130 §1, flash.go). A GET that is nobody's
-// landing takes nothing and renders the ordinary page.
-//
-// The tab it claims is derived, not spelled — see vergeCorePage for why. Here the
-// section and the tab happen to share a name, so the derivation costs nothing and
-// keeps the two folded surfaces reading the same way.
 func (s *server) sourcesModal(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	s.renderSettings(w, r, acct, s.takeSettingsFlash(r, tabForSection("sources")))
 }
 
-// sourceTierRow is one source shaped for the spec tier cards (#26): its id, name,
-// kind label (source/proposer), the project's one-line note, and its effective on
-// state. The three tiers — unencumbered / operator-accepted / barred — are the
-// release-authored consent tiers.
 type sourceTierRow struct {
 	ID   string
 	Name string
@@ -238,18 +172,14 @@ func (s *server) fillSourcesSection(r *http.Request, f settingsForms, data map[s
 	var unencumbered, operatorAccepted, barred []sourceTierRow
 	for _, v := range views {
 		row := sourceTierRow{ID: v.Slug, Name: v.Name, Kind: v.KindLabel, What: v.ShipNote, On: v.Enabled}
-		// A catalogued source with no runner (#241) is off for everyone, non-toggleable,
-		// and offers no consent — regardless of its consent tier. It is bucketed before
-		// the operator-accepted case, which would otherwise claim a consent-accepted
-		// proposer that has no runner (the four RIR registry proposers, ruling #30).
 		switch {
 		case v.NoRunner:
 			barred = append(barred, row)
 		case v.Consent == consentAccepted:
 			operatorAccepted = append(operatorAccepted, row)
-		case v.Toggleable: // unencumbered, runnable
+		case v.Toggleable:
 			unencumbered = append(unencumbered, row)
-		default: // barred — excluded on terms; also stays off for everyone
+		default:
 			barred = append(barred, row)
 		}
 	}
@@ -259,9 +189,6 @@ func (s *server) fillSourcesSection(r *http.Request, f settingsForms, data map[s
 	data["Barred"] = barred
 	data["SourceError"] = f.sourceError
 
-	// The measured reliability bar for the bulk CT sources (spec §3, #879): the
-	// pass/fail-per-limb and degraded state the CT-source card renders. Exposed here
-	// for the UI; #880/#881 render the active-source hero and KPI tiles from it.
 	rel, err := s.ctReliabilityViews(r.Context())
 	if err != nil {
 		return err
@@ -272,9 +199,6 @@ func (s *server) fillSourcesSection(r *http.Request, f settingsForms, data map[s
 		LatencyTarget: fmt.Sprintf("≤ %d s", scan.CTP95LatencyBarMS/1000),
 	}
 
-	// The active-source hero (#880, spec §6): which bulk source is live, its reliability
-	// against the bar, and the last run's readout. It reads the two reliability windows and
-	// the last ct Batch's admitted-name count — never the worker token (spec §2.4).
 	names, err := s.store.CTLastBatchAdmitCount(r.Context())
 	if err != nil {
 		return err
@@ -290,13 +214,6 @@ func (s *server) fillSourcesSection(r *http.Request, f settingsForms, data map[s
 	}
 	data["CTHero"] = newCTSourceHero(crtshView, certView, names, s.now())
 
-	// The "More CT capabilities" card (#881, spec §6.1): the drift tail and the
-	// verification point-check, each with its own readout, beside the bulk hero. Neither
-	// is bulk-by-name and neither carries the §3 reliability bar. The tail is an opt-in
-	// Scan — its effective on/off state is read from the same catalogue the bulk hero
-	// derives from; its run readout is the last ct-tail Batch. Verification is keyless and
-	// always-on and stores no durable result (§5, #878), so its readout is the count of
-	// leaf certificates the handshake capture has stored — the pool it verifies against.
 	tailEnabled := false
 	for _, v := range views {
 		if v.Slug == scan.CTTailSource {
@@ -314,12 +231,7 @@ func (s *server) fillSourcesSection(r *http.Request, f settingsForms, data map[s
 	}
 	data["CTCapabilities"] = newCTCapabilities(tailEnabled, tail, captured, s.now())
 
-	// The consent dialog (#26): opened by ?consent=<id>, it renders that source's
-	// terms and the acceptance checkbox. It renders only for an operator-accepted,
-	// currently-off source; a stray param opens no dialog.
 	if id := r.URL.Query().Get("consent"); id != "" {
-		// A catalogued-not-executing source (#241) offers no consent dialog even
-		// though its tier is operator-accepted — there is nothing to enable yet.
 		if c, ok := catalogBySlug(id); ok && c.Consent == consentAccepted && !c.NoRunner {
 			data["Consent"] = map[string]any{
 				"ID": c.Slug, "Name": c.Name, "Terms": consentTerms(c),
@@ -329,19 +241,14 @@ func (s *server) fillSourcesSection(r *http.Request, f settingsForms, data map[s
 	return nil
 }
 
-// consentTerms flattens a source's unresolved-reading groups into the flat terms
-// list the consent dialog renders (#26). The project states what is unresolved in
-// its own words, never the source's terms verbatim.
 func consentTerms(c catalogSource) []string {
+	// The project states what is unresolved in its own words, never the source's (ADR-0003).
 	terms := make([]string, 0, len(c.MayResolve)+len(c.Unresolvable))
 	terms = append(terms, c.MayResolve...)
 	terms = append(terms, c.Unresolvable...)
 	return terms
 }
 
-// sourceViews merges the authored catalogue with the operator's overrides. A
-// source's effective state is its override where one exists and its shipped
-// default otherwise.
 func (s *server) sourceViews(r *http.Request) ([]sourceView, error) {
 	states, err := s.store.ListSourceStates(r.Context())
 	if err != nil {
@@ -358,9 +265,6 @@ func (s *server) sourceViews(r *http.Request) ([]sourceView, error) {
 		if o, ok := override[c.Slug]; ok {
 			enabled = o
 		}
-		// A source with no runner has nothing to enable — its effective state is
-		// never `on`, whatever an override or default might say — and it is not
-		// toggleable, exactly as a barred source is not (#241).
 		if c.NoRunner {
 			enabled = false
 		}
@@ -381,13 +285,6 @@ func (s *server) sourceViews(r *http.Request) ([]sourceView, error) {
 	return out, nil
 }
 
-// ctReliabilityView is one bulk CT source's reliability-bar card data for the
-// sources tab (spec §3, §6.2/§6.4, #879). It carries the measured limbs display-ready
-// and a pass/fail per limb — or, for the keyless fallback (crt.sh), the exempt
-// marking so it renders muted, not failed. Degraded is the below-bar primary state
-// the card surfaces without a silent swap to crt.sh (runtime failover is deferred,
-// spec §7). HasData is false for a source with no recent samples, so the card reads
-// "no recent data" rather than a false failure.
 type ctReliabilityView struct {
 	Slug     string
 	Name     string
@@ -395,34 +292,25 @@ type ctReliabilityView struct {
 	HasData  bool
 	Degraded bool
 	Samples  int64
-	LastRun  time.Time // newest sample's instant; zero with no data. The active-source hero
-	//                    (#880) reads it to tell which bulk source is live — only the
-	//                    config-selected source keeps recording, so the freshest wins.
+	LastRun  time.Time
 
-	SuccessPct  string // e.g. "99.5%", or "—" with no data
+	SuccessPct  string
 	SuccessPass bool
 
-	P95Display  string // e.g. "3.2 s", or "—" with no data
+	P95Display  string
 	LatencyPass bool
 
 	FalseEmpty     int64
 	FalseEmptyPass bool
 }
 
-// ctReliabilityBar is the bar's targets, formatted for the KPI tiles (spec §3). It is
-// release-authored, the same for every install, so it is derived from the scan-package
-// constants rather than read from Postgres.
 type ctReliabilityBar struct {
-	SuccessTarget string // "≥ 99%"
-	LatencyTarget string // "≤ 5 s"
+	SuccessTarget string
+	LatencyTarget string
 }
 
-// ctReliabilityViews reads and evaluates the reliability bar for the two bulk CT
-// sources (spec §3, #879). The tail (ct-tail) is not bulk-by-name and carries no bar.
-// The worker records a sample per bulk query; this reads each source's rolling window
-// and evaluates it against the bar. crt.sh reports exempt, the operator-keyed primary
-// reports pass/fail per limb and degraded when it misses one.
 func (s *server) ctReliabilityViews(ctx context.Context) ([]ctReliabilityView, error) {
+	// The tail is not bulk-by-name, so the reliability bar excludes it (ct-source-replacement §3).
 	slugs := []string{scan.CrtshSource, scan.CertSpotterSource}
 	out := make([]ctReliabilityView, 0, len(slugs))
 	for _, slug := range slugs {
@@ -452,9 +340,6 @@ func (s *server) ctReliabilityViews(ctx context.Context) ([]ctReliabilityView, e
 	return out, nil
 }
 
-// newCTReliabilityView shapes one evaluated report for rendering, formatting the
-// measured success rate as a percentage and the p95 latency in seconds. A source with
-// no samples shows an em dash for both, never a fabricated zero.
 func newCTReliabilityView(name string, lastRun time.Time, r scan.CTReliabilityReport) ctReliabilityView {
 	v := ctReliabilityView{
 		Slug: r.Source, Name: name, LastRun: lastRun,
@@ -470,36 +355,25 @@ func newCTReliabilityView(name string, lastRun time.Time, r scan.CTReliabilityRe
 	return v
 }
 
-// ctSourceHero is the active-source hero the CT theme leads with (#880, spec §6.1). It
-// names which bulk source is live, derived from the freshest reliability sample: web
-// never reads the worker's VERGE_CERTSPOTTER_TOKEN (spec §2.4, ADR-0053), and only the
-// config-selected source keeps recording samples, so the fresher window is the one this
-// config runs. Key presence is inferred from that selection, never from the token —
-// Cert Spotter live means the key is set (spec §2.3's exact key⇒source mapping), crt.sh
-// live means it is not. The run readout and the KPI-tile source (Active) both read the
-// live source. A below-bar primary sets Degraded, so the card draws the honest edge
-// (§6.3): the Scan keeps running the primary, there is no silent swap to crt.sh.
+// A below-bar primary is never swapped: runtime failover is deferred (ct-source-replacement §6.3).
+
 type ctSourceHero struct {
-	HasRun      bool              // at least one bulk source has recorded a sample
-	IsPrimary   bool              // the operator-keyed primary (Cert Spotter) is live, not the crt.sh fallback
-	StatusClass string            // the badge variant: accent (primary), danger (primary under bar), neutral (fallback)
-	StatusLabel string            // "primary · Cert Spotter" / "fallback · crt.sh"
-	DormantName string            // the source that would run under the other config
-	DormantRole string            // "fallback" / "primary" — the role the dormant source would fill
-	KeyDetected bool              // VERGE_CERTSPOTTER_TOKEN presence, inferred from the live source
-	KeyLabel    string            // "detected" / "not set"
-	LastRunRel  string            // "4m" — age of the last bulk run; "" with no run
-	Names       int64             // Names the last ct Batch admitted
-	Degraded    bool              // the live primary is under its bar (§6.3): no silent swap
-	Active      ctReliabilityView // the live source's limbs, for the three KPI tiles
+	HasRun      bool
+	IsPrimary   bool
+	StatusClass string
+	StatusLabel string
+	DormantName string
+	DormantRole string
+	KeyDetected bool
+	KeyLabel    string
+	LastRunRel  string
+	Names       int64
+	Degraded    bool
+	Active      ctReliabilityView
 }
 
-// newCTSourceHero derives the hero from the two bulk sources' reliability windows and the
-// last ct Batch's admitted-name count. The live source is whichever still records samples;
-// with samples from both, the fresher window wins. With no sample from either, no bulk ct
-// scan has run under this deployment yet, so nothing is asserted live — the card names
-// crt.sh as the keyless default and how to promote the primary, without claiming a run.
 func newCTSourceHero(crtsh, certspotter ctReliabilityView, names int64, now time.Time) ctSourceHero {
+	// The key lives on the worker, so liveness is inferred from the freshest sample (ADR-0053).
 	certName := strings.TrimSuffix(certspotter.Name, " (operator key)")
 	crtHas := crtsh.HasData && !crtsh.LastRun.IsZero()
 	certHas := certspotter.HasData && !certspotter.LastRun.IsZero()
@@ -530,7 +404,7 @@ func newCTSourceHero(crtsh, certspotter ctReliabilityView, names int64, now time
 			Active:      certspotter,
 		}
 		if h.Degraded {
-			h.StatusClass = "danger" // a below-bar primary reads in danger (§6.3)
+			h.StatusClass = "danger"
 		}
 		return h
 	}
@@ -548,19 +422,14 @@ func newCTSourceHero(crtsh, certspotter ctReliabilityView, names int64, now time
 	}
 }
 
-// ctCapabilities is the "More CT capabilities" card (#881, spec §6.1): the drift tail and
-// the verification point-check rendered as capabilities beside the bulk hero, each with its
-// own readout and state. Neither is bulk-by-name; neither is held to the §3 reliability bar,
-// which is bulk-only. The tail is an opt-in Scan (ships off, spec §4) whose readout is its
-// last ct-tail Batch. Verification is keyless, always-on, and stores no durable result — its
-// logged / NOT-logged findings are ephemeral events (#878) — so its readout is the captured-
-// certificate pool it verifies against, not a pass/fail tally the console does not hold.
+// Verification keeps no durable result, so the pool is its readout (ct-source-replacement §5).
+
 type ctCapabilities struct {
-	TailEnabled bool   // the ct-tail Scan is enabled (it ships off)
-	TailHasRun  bool   // the tail has admitted at least one ct-tail Batch
-	TailLastRel string // age of the last ct-tail Batch; "" with no run
-	TailNames   int64  // Names the last ct-tail Batch admitted
-	Captured    int64  // leaf certificates the handshake capture has stored (spec §5)
+	TailEnabled bool
+	TailHasRun  bool
+	TailLastRel string
+	TailNames   int64
+	Captured    int64
 }
 
 func newCTCapabilities(tailEnabled bool, tail db.CTTailLastBatchRow, captured int64, now time.Time) ctCapabilities {
@@ -576,16 +445,9 @@ func newCTCapabilities(tailEnabled bool, tail db.CTTailLastBatchRow, captured in
 	return c
 }
 
-// toggleSource records an admin's on/off choice for one source. Toggling is an
-// authenticated admin act (it reaches here only through requireAdmin). A barred
-// source has no consent instrument the modal operator can satisfy, so it cannot
-// be toggled on or off; an unknown slug is refused rather than written.
 func (s *server) toggleSource(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	slug := r.FormValue("slug")
 	c, ok := catalogBySlug(slug)
-	// A barred source has no consent instrument to satisfy, and a source with no
-	// runner (#241) has nothing to run, so neither is toggleable; an unknown slug
-	// is refused rather than written.
 	if !ok || c.Barred || c.NoRunner {
 		s.failSettings(w, r, settingsForms{section: "sources", sourceError: "That source could not be found."})
 		return
@@ -595,15 +457,6 @@ func (s *server) toggleSource(w http.ResponseWriter, r *http.Request, acct db.Ac
 		s.failSettings(w, r, settingsForms{section: "sources", sourceError: "That source state was not understood."})
 		return
 	}
-	// Enabling an operator-accepted source is gated on accepting its terms: the
-	// project could not clear them on your behalf, so the enable act must carry your
-	// acceptance. Disabling and unencumbered sources are never gated.
-	//
-	// The gate used to bounce to `/sources?terms=<slug>`, which re-opened the terms
-	// dialog and said nothing. Ticket #975 replaced that shape on the twin handler with
-	// a callout, and ticket #978 converges this one, so the surface reports the refusal
-	// one way rather than two: the message rides the session flash and the 303 goes back
-	// to the URL the toggle was submitted from (ADR-0130 §1 and §3).
 	if enabled && c.Consent == consentAccepted && r.FormValue("agreed") == "" {
 		s.failSettings(w, r, settingsForms{
 			section:     "sources",
@@ -617,32 +470,9 @@ func (s *server) toggleSource(w http.ResponseWriter, r *http.Request, acct db.Ac
 		s.serverError(w, "upsert source state", err)
 		return
 	}
-	// Back to the URL the toggle was submitted from (ADR-0130 §3, ticket #977). No template
-	// in the tree posts to this route today — the Sources tab's own switch posts to
-	// /settings/sources (settingsSources, ticket #975) — so the fallback is what answers.
-	// The carrier is wired anyway, because the route is live and a caller that gains a form
-	// should get the contract rather than a bare path.
 	s.redirectBack(w, r, "/sources")
 }
 
-// settingsSources records an admin's on/off choice from the spec sources tab (#26).
-// It is the settings-tab twin of toggleSource: the form posts an id and an enable
-// flag, and enabling an operator-accepted source carries accept_terms=true from the
-// consent dialog's acceptance box. Without that acceptance the enable is REFUSED
-// rather than applied — a real gate, not only a UI affordance. It is reached only
-// through requireAdmin.
-//
-// Every outcome is a post-redirect-get back to the URL the form was submitted from
-// (ADR-0130 §1 and §3, map #969 ticket #975), so an admin who acts from the folded
-// /sources surface lands there and one who acts from /settings?tab=sources lands
-// there. A refusal's callout rides the session form flash to that landing GET.
-//
-// The unaccepted enable used to bounce to the consent dialog (?consent=<id>) instead
-// of refusing. A refusal is the better answer now that the acceptance box is the
-// carrier: the box only reaches here unticked with JavaScript off, and a silent bounce
-// back to the dialog the operator just submitted states nothing. The callout does, and
-// it renders at page level, where backToSection's dropped `consent` parameter leaves it
-// visible rather than behind .st-scrim. The row's own switch re-opens the dialog.
 func (s *server) settingsSources(w http.ResponseWriter, r *http.Request, _ db.Account) {
 	id := r.FormValue("id")
 	c, ok := catalogBySlug(id)
@@ -655,7 +485,7 @@ func (s *server) settingsSources(w http.ResponseWriter, r *http.Request, _ db.Ac
 		s.failSettings(w, r, settingsForms{section: "sources", sourceError: "That source state was not understood."})
 		return
 	}
-	// Enabling an operator-accepted source is gated on accepting its terms.
+	// The project could not clear these terms for you, so enabling carries your consent (ADR-0003).
 	if enable && c.Consent == consentAccepted && r.FormValue("accept_terms") != "true" {
 		s.failSettings(w, r, settingsForms{
 			section:     "sources",
