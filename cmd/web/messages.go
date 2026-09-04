@@ -343,7 +343,7 @@ func subjectHref(kind, key string) string {
 	}
 }
 
-// The artifact view resolves the latest delivery itself, so this route carries no id (#298).
+// The artifact route is deliberately stable, so it carries no id of its own (#298).
 
 const reportDeliveryHref = "/reports/delivery"
 

@@ -58,7 +58,7 @@ var (
 
 func preflightArchive(r io.Reader) (restorePreflight, error) {
 	sc := bufio.NewScanner(r)
-	// bufio.Scanner's 64KiB default token cap is too small for a wide observation row.
+	// The 64KiB default token cap on a bufio.Scanner is too small for a wide observation row.
 	sc.Buffer(make([]byte, 0, 1<<20), restoreMaxUpload)
 
 	if !sc.Scan() {
@@ -128,7 +128,7 @@ func backupAllowed(table string) bool {
 func (s *server) restorePreflight(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	ctx := r.Context()
 
-	// A restore mid-dispatch would strand in-flight work (docs/guides/backup-and-restore.md).
+	// A restore mid-dispatch would race an in-progress write (docs/guides/backup-and-restore.md).
 	if s.scanInFlight(ctx) {
 		s.restoreErrorRedirect(w, r, "inflight")
 		return
