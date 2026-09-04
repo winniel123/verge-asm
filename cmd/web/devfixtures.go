@@ -179,7 +179,7 @@ func seedProfileFixtures(ctx context.Context, pool *pgxpool.Pool) error {
 		return fmt.Errorf("profile fixture: account %q not seeded: %w", devProfileUsername, err)
 	}
 
-	// The frozen golden package is internally consistent only at TOTP-ON, so seed it verbatim.
+	// The design-system profile example is consistent only at TOTP-ON, so seed it verbatim.
 	// The dev session mint bypasses the password and TOTP challenge, so no secret is needed.
 	if _, err := pool.Exec(ctx, `UPDATE account SET totp_enabled = true WHERE id = $1`, acct.ID); err != nil {
 		return fmt.Errorf("profile fixture: enable totp: %w", err)
