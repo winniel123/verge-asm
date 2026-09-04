@@ -7,15 +7,6 @@ import (
 	"testing"
 )
 
-// The ADR-0130 contract on the Settings team, channels and scans tabs (map #969,
-// ticket #974). Every mutating act on those tabs is a post-redirect-get back to the
-// exact URL its form was submitted from, and a refusal carries its callout to that
-// landing GET through the session form flash rather than rendering at the POST URL.
-//
-// Every test here runs with no JavaScript at all — Go's HTTP client executes none —
-// so each one is also the progressive-enhancement check the ticket asks for: the act
-// works, and its error is shown, on plain markup alone.
-
 func submitLoc(t *testing.T, resp *http.Response) string {
 	t.Helper()
 	defer resp.Body.Close()
@@ -25,14 +16,6 @@ func submitLoc(t *testing.T, resp *http.Response) string {
 	return resp.Header.Get("Location")
 }
 
-// TestSettingsFormsCarryTheSubmittingURL is the emit half of ADR-0130 §3: each
-// migrated form on these tabs stamps the page's own path AND query into the hidden
-// `return` field, so the handler has the operator's exact list to come back to.
-//
-// The query matters more than the path. A bare `/settings` would drop the tab, which is
-// the class-E failure the ticket exists to close. The field carries the page's whole
-// query, dialog parameter included; what a handler does with each pair is the redirect's
-// business, not the form's (see dialogParams).
 func TestSettingsFormsCarryTheSubmittingURL(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -43,9 +26,7 @@ func TestSettingsFormsCarryTheSubmittingURL(t *testing.T) {
 	// The cold-tier region renders an opt-in form only against a declared scope.
 	declare(t, ac, base, "name", "example.com").Body.Close()
 
-	// The Team tab's own forms all live inside a dialog, and every dialog is opened by
-	// a query parameter (fillTeamSection) rather than by a menu click — so the plain
-	// tab carries no form to stamp, and each dialog URL is exercised on its own below.
+	// Every Team form lives in a query-opened dialog, so the plain tab carries no form to stamp.
 	for _, tc := range []struct {
 		name string
 		at   string
@@ -53,8 +34,6 @@ func TestSettingsFormsCarryTheSubmittingURL(t *testing.T) {
 	}{
 		{"channels", "/settings?tab=channels", `name="return" value="/settings?tab=channels"`},
 		{"scans", "/settings?tab=scans", `name="return" value="/settings?tab=scans"`},
-		// A dialog rides its own query parameter, so the field carries it too — verbatim,
-		// like every other pair. backToSection is what decides to drop it again.
 		{"role dialog", "/settings?tab=team&role=" + itoa(member.ID),
 			`name="return" value="/settings?tab=team&amp;role=` + itoa(member.ID) + `"`},
 		{"reenroll dialog", "/settings?tab=team&reenroll=" + itoa(member.ID),
@@ -63,8 +42,6 @@ func TestSettingsFormsCarryTheSubmittingURL(t *testing.T) {
 			`name="return" value="/settings?tab=team&amp;remove=` + itoa(member.ID) + `"`},
 		{"invite dialog", "/settings?tab=team&invite=1",
 			`name="return" value="/settings?tab=team&amp;invite=1"`},
-		// The folded read surface renders the same Scans section, so its cold-tier
-		// opt-in names /scans as the URL to come back to, not /settings.
 		{"folded scans", "/scans", `name="return" value="/scans"`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -76,15 +53,6 @@ func TestSettingsFormsCarryTheSubmittingURL(t *testing.T) {
 	}
 }
 
-// A refused role change is a 303 back to the operator's own tab, and the guard's
-// message renders on the landing GET at 200 — not as a 400 body at the POST URL.
-// This is failure classes A and E closed together: the load is an ordinary navigation,
-// so the scroll offset the shell stashed on submit is restored.
-//
-// The dialog parameter is dropped from the destination (dialogParams). It has to be:
-// the role callout renders at page level and .st-scrim covers the page, so landing back
-// on ?role=<id> would show the operator a dimmed page with the message hidden behind
-// the modal.
 func TestRefusedRoleChangeLandsBackOnTheTeamTabWithItsMessageVisible(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -107,16 +75,11 @@ func TestRefusedRoleChangeLandsBackOnTheTeamTabWithItsMessageVisible(t *testing.
 	if strings.Contains(page, `class="st-scrim"`) {
 		t.Fatalf("the landing re-opened a dialog over the message; body: %s", page)
 	}
-	// Nothing the act carried entered the URL, and the flash is single-consume, so a
-	// reload of the same URL shows the operator a clean page rather than a stale one.
 	if again := getBody(t, ac, base+tab, http.StatusOK); strings.Contains(again, "last admin") {
 		t.Fatalf("the callout survived a reload; body: %s", again)
 	}
 }
 
-// A SUCCEEDING team act closes the dialog it was submitted from. Returning to the
-// dialog's own query parameter would re-open the confirm the operator just accepted,
-// which reads as "nothing happened" and offers the act a second time.
 func TestSucceedingTeamActClosesItsDialog(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -149,17 +112,12 @@ func TestSucceedingTeamActClosesItsDialog(t *testing.T) {
 	}
 }
 
-// The settings surface has more than one landing GET, and a stash belongs to exactly
-// one of them. A GET on another tab must leave it alone — and this is not a rare race:
-// /scans re-requests itself every six seconds while a scan is in flight, so an
-// unclaimed take there would eat the session's every refusal for the length of the scan.
 func TestASettingsFlashIsOnlyConsumedByItsOwnTab(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// Refuse a channel create, then load every other landing before the operator's own.
 	resp := postForm(t, ac, base+"/settings/channels", url.Values{
 		"url": {"http://example.com/h"}, "drift": {"on"}, "return": {"/settings?tab=channels"},
 	})
@@ -175,9 +133,6 @@ func TestASettingsFlashIsOnlyConsumedByItsOwnTab(t *testing.T) {
 	}
 }
 
-// A refused channel create lands back on the Channels tab with the operator's typed
-// URL still in the input. The echo rides the session flash, so it is on the landing
-// page and not in the query.
 func TestRefusedChannelCreateEchoesTypedValueOnItsOwnTab(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -208,9 +163,6 @@ func TestRefusedChannelCreateEchoesTypedValueOnItsOwnTab(t *testing.T) {
 	}
 }
 
-// The cold-tier opt-in renders on the folded /scans surface as well as on
-// /settings?tab=scans, so both are legitimate submitting URLs. Both the success and
-// the refusal must come back to the one the operator actually acted from.
 func TestColdOptInComesBackToTheSubmittingURL(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -230,8 +182,6 @@ func TestColdOptInComesBackToTheSubmittingURL(t *testing.T) {
 		t.Fatalf("the opt-in did not persist")
 	}
 
-	// A refusal is a 303 to the same place, and /scans reads the flash so the callout
-	// renders there rather than being dropped on the floor.
 	resp = postForm(t, ac, base+"/settings/cold", url.Values{
 		"id": {"not-a-number"}, "opt_in": {"true"}, "return": {"/scans"},
 	})
@@ -243,9 +193,6 @@ func TestColdOptInComesBackToTheSubmittingURL(t *testing.T) {
 	}
 }
 
-// The channel Send test lands back on the submitting URL and still fires its toast
-// there. The two carriers compose: the submitting URL owns the destination, the
-// `toast` query owns the receipt.
 func TestChannelSendTestLandsBackOnTheSubmittingURLWithItsToast(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -266,10 +213,6 @@ func TestChannelSendTestLandsBackOnTheSubmittingURLWithItsToast(t *testing.T) {
 	}
 }
 
-// A submitting URL the operator forged is refused and the act falls back to its own
-// tab, so the carrier can never become an open redirect (backurl.go resolveBack).
-// The act itself still happens — the guard chooses the destination, never whether the
-// operator's declared act runs.
 func TestForgedSubmittingURLFallsBackToTheTab(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -277,6 +220,7 @@ func TestForgedSubmittingURLFallsBackToTheTab(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
+	// The guard chooses the destination, never whether the operator's declared act runs.
 	for _, forged := range []string{
 		"https://evil.example/x",
 		"//evil.example/x",

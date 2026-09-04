@@ -13,11 +13,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/scan"
 )
 
-// Withdrawing a Seed closes timelines exactly as declaring an exclusion does (#1040),
-// and until #1046 it was the one narrowing act that committed on a single click with
-// no count shown. These tests read the two steps: the first click states what the
-// withdrawal would take, the second performs it.
-
 func candidateSpan(id int64, kind, key string) db.ListSeedWithdrawalCandidatesRow {
 	return db.ListSeedWithdrawalCandidatesRow{ID: id, SubjectKind: kind, SubjectKey: key}
 }
@@ -37,9 +32,6 @@ func previewChip(t *testing.T, c *http.Client, base string, id int64) string {
 	return followString(t, c, base+loc)
 }
 
-// The first click withdraws nothing. It is the whole point of the two-step act: the
-// operator reads the count before the estate moves, and the Seed is still declared
-// while they read it.
 func TestSeedWithdrawalPreviewDoesNotWithdraw(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -66,18 +58,11 @@ func TestSeedWithdrawalPreviewDoesNotWithdraw(t *testing.T) {
 	if !strings.Contains(page, "198.51.100.0/24") {
 		t.Errorf("the confirm step must name the scope; body: %s", page)
 	}
-	// The commit step's back field, which TestScopeFormsCarryTheSubmittingURL guarded
-	// while the delete form shipped on the default render. It only ships inside the
-	// confirm state now, so its ADR-0130 §3 contract is asserted here instead.
 	if !strings.Contains(page, `name="return" value="/scope"`) {
 		t.Errorf("the commit form must carry the submitting URL; body: %s", page)
 	}
 }
 
-// A count read that fails must not strand the scope. The chip's control reaches the
-// withdrawal only through this step, so a 500 here would leave the operator no way to
-// withdraw at all — over a count that is advisory by construction (ADR-0134 §5). The
-// block says the count did not resolve, and still offers the act.
 func TestSeedWithdrawalPreviewDegradesOnAFailedCount(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -98,9 +83,6 @@ func TestSeedWithdrawalPreviewDegradesOnAFailedCount(t *testing.T) {
 	}
 }
 
-// The count is the fold's count, stated in the fold's own words. The confirm step
-// renders message.PreviewSeedWithdrawal's strings verbatim, so the receipt and the
-// coverage message the fold writes read as one sentence and `message` gains no copy.
 func TestSeedWithdrawalPreviewCountsSubjectsAndTimelines(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -109,8 +91,6 @@ func TestSeedWithdrawalPreviewCountsSubjectsAndTimelines(t *testing.T) {
 
 	declare(t, ac, base, "address", "198.51.100.0/24").Body.Close()
 	id := f.seeds[0].ID
-	// Two subjects over three timelines: the receipt states the two factors, never
-	// their product.
 	f.withdrawalCandidates = []db.ListSeedWithdrawalCandidatesRow{
 		candidateSpan(1, "address", "198.51.100.200"),
 		candidateSpan(2, "address", "198.51.100.200"),
@@ -128,10 +108,6 @@ func TestSeedWithdrawalPreviewCountsSubjectsAndTimelines(t *testing.T) {
 	}
 }
 
-// A SECOND live Seed still covering the address keeps it, so the count states what
-// leaves rather than what the withdrawn scope contained (ADR-0134 §4). The preview
-// applies the survivor against the estate MINUS the scope under withdrawal, which is
-// the estate the fold will read.
 func TestSeedWithdrawalPreviewSparesASecondLiveSeed(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -147,7 +123,7 @@ func TestSeedWithdrawalPreviewSparesASecondLiveSeed(t *testing.T) {
 		}
 	}
 	f.withdrawalCandidates = []db.ListSeedWithdrawalCandidatesRow{
-		candidateSpan(1, "address", "198.51.100.200"), // the /25 still holds it
+		candidateSpan(1, "address", "198.51.100.200"),
 		candidateSpan(2, "address", "198.51.100.10"),
 	}
 
@@ -160,10 +136,6 @@ func TestSeedWithdrawalPreviewSparesASecondLiveSeed(t *testing.T) {
 	}
 }
 
-// An address custody.Estate.Derive still calls `operator` keeps its timelines, so the
-// preview must not count it (ADR-0134 §4). The custody extension lives on a NAME Seed,
-// which withdrawing an address Seed leaves standing — such an address is still
-// enumerated, still probed and still measured.
 func TestSeedWithdrawalPreviewSparesACustodyExtendedAddress(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -181,8 +153,7 @@ func TestSeedWithdrawalPreviewSparesACustodyExtendedAddress(t *testing.T) {
 	f.scans = append(f.scans, db.Scan{ID: 99, Kind: scan.EdgeFanoutKind, Enabled: true, CadenceSeconds: 86400})
 	f.completedBatchKinds[scan.EdgeFanoutKind] = true
 	f.cited = []db.NameCitedAddressesRow{{SubjectKey: "shop.example.com", Address: "93.184.216.10"}}
-	// A leaf on ONE registrable domain is not a shared edge, so the extension reaches
-	// this address and Derive answers `operator` from the second limb.
+	// A leaf on one registrable domain is not a shared edge, so the extension reaches it.
 	f.measuredEdge("93.184.216.10", string(edgefanout.Presented), edgeDER(t, 1))
 
 	f.withdrawalCandidates = []db.ListSeedWithdrawalCandidatesRow{
@@ -199,10 +170,6 @@ func TestSeedWithdrawalPreviewSparesACustodyExtendedAddress(t *testing.T) {
 	}
 }
 
-// Where the withdrawal takes nothing, NO receipt block renders. The exclusion
-// preview's non-firing sentence is not reused: it states that an excluded name which
-// still resolves survives and its Gap carries it, which is true there and false here.
-// The withdrawal is still available — a zero count is not a refusal.
 func TestSeedWithdrawalPreviewOfZeroCountRendersNoReceipt(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -217,6 +184,7 @@ func TestSeedWithdrawalPreviewOfZeroCountRendersNoReceipt(t *testing.T) {
 	if strings.Contains(page, "taken out of the estate") {
 		t.Errorf("a zero count states no headline; body: %s", page)
 	}
+	// An excluded name that still resolves survives; a withdrawn one does not.
 	if strings.Contains(page, "its Gap carries it") {
 		t.Errorf("the exclusion's non-firing sentence must not be reused here; body: %s", page)
 	}
@@ -225,29 +193,21 @@ func TestSeedWithdrawalPreviewOfZeroCountRendersNoReceipt(t *testing.T) {
 	}
 }
 
-// A NAME Seed carries its own count now (ADR-0135). It takes the same two-step act
-// and reads its own limb — the Names under its domain, never the address candidates.
-//
-// It also pins the live-Seed survivor's preview correction. The Seed under withdrawal
-// is still declared when the preview runs, so without taking it out of the corpus
-// first, survivor one would spare every Name beneath it and the count would be zero
-// for every name scope.
 func TestNameSeedWithdrawalPreviewCountsSubjectsAndTimelines(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
+	// Both survivor reads drop the withdrawn Seed, or every name count reads zero (ADR-0135 §3).
 	declare(t, ac, base, "name", "example.com").Body.Close()
 	id := f.seeds[0].ID
-	// Two Names over three timelines: the receipt states the two factors, never their
-	// product.
 	f.nameWithdrawalCandidates = []db.ListNameSeedWithdrawalCandidatesRow{
 		{ID: 1, SubjectKey: "www.example.com"},
 		{ID: 2, SubjectKey: "www.example.com"},
 		{ID: 3, SubjectKey: "api.example.com"},
 	}
-	// Rows the fake would return for an address act. A name Seed must not read them.
+	// A name Seed reads its own limb, so these address rows are the negative control.
 	f.withdrawalCandidates = []db.ListSeedWithdrawalCandidatesRow{
 		candidateSpan(9, "address", "198.51.100.200"),
 	}
@@ -263,10 +223,6 @@ func TestNameSeedWithdrawalPreviewCountsSubjectsAndTimelines(t *testing.T) {
 	}
 }
 
-// Survivor two, corrected for preview time. The withdrawn Seed's own `admitted_name`
-// rows have NOT cascaded yet when the preview runs, so counting them would spare
-// every Name it admitted and state zero. Only an admission belonging to ANOTHER Seed
-// survives the delete, so only that one spares its Name (ADR-0135 §3).
 func TestNameSeedWithdrawalPreviewSparesOnlyASurvivingSeedsAdmission(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -283,9 +239,7 @@ func TestNameSeedWithdrawalPreviewSparesOnlyASurvivingSeedsAdmission(t *testing.
 		{ID: 2, SubjectKey: "api.example.com"},
 	}
 	f.admitted = []db.AdmittedName{
-		// This Seed's own admission goes with it, so it spares nothing.
 		{Name: "www.example.com", SeedID: id},
-		// The surviving Seed keeps admitting this one, so it stays enumerated.
 		{Name: "api.example.com", SeedID: other},
 	}
 
@@ -297,9 +251,6 @@ func TestNameSeedWithdrawalPreviewSparesOnlyASurvivingSeedsAdmission(t *testing.
 	}
 }
 
-// The confirm state is ONE-SHOT. It rides the session flash the exclusion preview
-// rides, and the landing GET consumes it, so reloading or navigating away abandons the
-// withdrawal and leaves the Seed declared.
 func TestSeedWithdrawalConfirmIsOneShot(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -321,8 +272,6 @@ func TestSeedWithdrawalConfirmIsOneShot(t *testing.T) {
 	}
 }
 
-// Previewing a chip whose row is already gone redirects cleanly, matching the
-// withdrawal's own idempotency: the operator's intent is satisfied either way.
 func TestSeedWithdrawalPreviewOfAGoneSeedRedirects(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -339,8 +288,6 @@ func TestSeedWithdrawalPreviewOfAGoneSeedRedirects(t *testing.T) {
 	}
 }
 
-// The preview reads the estate and names what an irreversible act would take, so it is
-// admin-only exactly as the withdrawal it fronts is.
 func TestSeedWithdrawalPreviewRefusesNonAdmin(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
