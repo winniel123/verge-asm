@@ -49,7 +49,6 @@ type CreateNameExclusionParams struct {
 	CreatedBy int64       `json:"created_by"`
 }
 
-// kind is 'name' (an exact FQDN) or 'subtree' (that name and everything beneath).
 func (q *Queries) CreateNameExclusion(ctx context.Context, arg CreateNameExclusionParams) (Exclusion, error) {
 	row := q.db.QueryRow(ctx, createNameExclusion, arg.Kind, arg.Name, arg.CreatedBy)
 	var i Exclusion
@@ -68,8 +67,6 @@ const deleteExclusion = `-- name: DeleteExclusion :exec
 DELETE FROM exclusion WHERE id = $1
 `
 
-// Un-excluding removes the row: an exclusion is Declared input with no timeline,
-// so withdrawing it is a delete rather than a state change.
 func (q *Queries) DeleteExclusion(ctx context.Context, id int64) error {
 	_, err := q.db.Exec(ctx, deleteExclusion, id)
 	return err
@@ -82,14 +79,6 @@ WHERE kind = 'address' AND address_cidr IS NOT NULL
 ORDER BY id
 `
 
-// The declared `address` exclusion CIDRs, for the Custody derivation: an address
-// inside one is NOT covered by the address-scope limb, so it derives third-party
-// unless a custody extension also reaches it (ADR-0012 §125, ADR-0133 §1).
-//
-// It is a separate query from ListExclusions on purpose. That one returns all three
-// kinds joined to `account` for the chip render, and this is a batch-time read that
-// wants the CIDRs alone. It is the address twin of measurement.sql's
-// ListAddressScopeCidrs and mirrors its shape read for read.
 func (q *Queries) ListAddressExclusionCidrs(ctx context.Context) ([]*netip.Prefix, error) {
 	rows, err := q.db.Query(ctx, listAddressExclusionCidrs)
 	if err != nil {

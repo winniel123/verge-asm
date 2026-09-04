@@ -140,21 +140,7 @@ type WithdrawSeedRow struct {
 	TombstonesWritten int64 `json:"tombstones_written"`
 }
 
-// Withdraws a declared Seed by id (#21a: the Scope chip-remove act), and records
-// the tombstone the withdrawal owes (ADR-0134 §2, ADR-0135 §2). A viewer never
-// reaches it (requireAdmin). Idempotent: withdrawing a row already gone deletes
-// nothing, writes no tombstone and is not an error, so a stale chip submit is a
-// no-op.
-//
-// The delete and the tombstone are ONE statement, so they commit together and no
-// path can leave a withdrawn scope with no mover for the membership fold to name.
-// A data-modifying CTE runs exactly once and always to completion, whether or not
-// the primary query reads it, so `tombstone` fires on its own.
-//
-// BOTH limbs write one (ADR-0135 §2, #1045). The row takes `seed`'s own shape, so
-// it carries the kind it records and the one scope column that kind populates. A
-// Seed carrying neither scope column cannot exist under `seed_shape`, so the WHERE
-// only restates that constraint at the insert.
+// A data-modifying CTE fires on its own, so dropping its count from the SELECT keeps the write.
 func (q *Queries) WithdrawSeed(ctx context.Context, arg WithdrawSeedParams) (WithdrawSeedRow, error) {
 	row := q.db.QueryRow(ctx, withdrawSeed, arg.SeedID, arg.CreatedBy)
 	var i WithdrawSeedRow

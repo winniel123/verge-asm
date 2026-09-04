@@ -29,8 +29,6 @@ type CreateZoneFileRow struct {
 	SuppliedAt pgtype.Timestamptz `json:"supplied_at"`
 }
 
-// Records one supply act: a name-scope Seed's zone file at the operator's supply
-// instant. Append-only — a re-export is a new row, never an update.
 func (q *Queries) CreateZoneFile(ctx context.Context, arg CreateZoneFileParams) (CreateZoneFileRow, error) {
 	row := q.db.QueryRow(ctx, createZoneFile,
 		arg.SeedID,
@@ -47,7 +45,6 @@ const getZoneCadenceSeconds = `-- name: GetZoneCadenceSeconds :one
 SELECT cadence_seconds FROM scan WHERE kind = 'zone'
 `
 
-// The operator's declared re-supply interval, held as the zone Scan's cadence.
 func (q *Queries) GetZoneCadenceSeconds(ctx context.Context) (int64, error) {
 	row := q.db.QueryRow(ctx, getZoneCadenceSeconds)
 	var cadence_seconds int64
@@ -71,9 +68,6 @@ type LatestZoneFilesForDispatchRow struct {
 	Content    string             `json:"content"`
 }
 
-// The zone Scan's scope: the latest supplied file per name-scope Seed, with its
-// domain and supply instant, for the worker to restate. DISTINCT ON keeps only
-// the most recent supply per Seed.
 func (q *Queries) LatestZoneFilesForDispatch(ctx context.Context) ([]LatestZoneFilesForDispatchRow, error) {
 	rows, err := q.db.Query(ctx, latestZoneFilesForDispatch)
 	if err != nil {
@@ -120,9 +114,6 @@ type ListZoneFileStatusRow struct {
 	ContentBytes       int64              `json:"content_bytes"`
 }
 
-// The Seeds-screen view: the latest supplied file per name-scope Seed, without
-// the content, so the operator sees which scopes hold a zone file, when it was
-// supplied and by whom.
 func (q *Queries) ListZoneFileStatus(ctx context.Context) ([]ListZoneFileStatusRow, error) {
 	rows, err := q.db.Query(ctx, listZoneFileStatus)
 	if err != nil {
@@ -154,8 +145,7 @@ const setZoneCadenceSeconds = `-- name: SetZoneCadenceSeconds :exec
 UPDATE scan SET cadence_seconds = $1 WHERE kind = 'zone'
 `
 
-// Moves the re-supply interval dial. cadence_seconds > 0 is enforced by the
-// table's CHECK, so a non-positive interval is rejected by the database.
+// A non-positive interval is refused by the table's CHECK, not by this statement.
 func (q *Queries) SetZoneCadenceSeconds(ctx context.Context, cadenceSeconds int64) error {
 	_, err := q.db.Exec(ctx, setZoneCadenceSeconds, cadenceSeconds)
 	return err

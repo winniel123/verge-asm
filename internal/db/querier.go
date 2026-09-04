@@ -12,36 +12,9 @@ import (
 )
 
 type Querier interface {
-	// Move one log's cursor forward to the tree size just read, recording the STH that
-	// signed it (spec §4.2). Forward-only by construction: the ON CONFLICT update advances
-	// the row only when the new tree size is at or beyond the stored one, so a stale or
-	// out-of-order poll can never rewind the cursor and re-admit history (the §4 invariant).
-	// The first poll of a log inserts its row.
 	AdvanceCTLogCursor(ctx context.Context, arg AdvanceCTLogCursorParams) error
-	// How many Names the most recent bulk `ct` Batch admitted (#880, spec §6.2). The
-	// active-source hero's run readout states "last ct scan · <source> · <age> · <n> names
-	// admitted"; this is that <n>. It counts the admitted_name rows citing the newest
-	// kind='ct' Batch (the last bulk run, whichever source produced it — the drift tail's
-	// kind='ct-tail' Batches are excluded). A dead-lettered or empty run admits nothing, so
-	// 0 is a truthful count, and COALESCE gives 0 when no ct Batch has ever run. One scalar
-	// row always returns.
 	CTLastBatchAdmitCount(ctx context.Context) (int64, error)
-	// Aggregate one source's newest `window` samples into the three bar limbs (spec §3):
-	// the total measured, how many succeeded, how many succeeded but returned zero names
-	// (false-empty), and the p95 end-to-end latency over the window. percentile_disc
-	// returns an actual sampled latency, and COALESCE gives 0 for an empty window. last_at
-	// is the newest sample's instant over the window — the last time this source ran a bulk
-	// query, which the active-source hero reads to tell which source is live (#880): only
-	// the config-selected source keeps producing samples, so the freshest wins. It is NULL
-	// for an empty window. The caller (internal/scan.EvaluateCTReliability) turns the limbs
-	// into pass/fail; the web layer reads last_at separately, never the scan package.
 	CTReliabilityWindow(ctx context.Context, arg CTReliabilityWindowParams) (CTReliabilityWindowRow, error)
-	// The most recent drift-tail (kind='ct-tail') Batch: when it ran and how many Names it
-	// admitted (#881, spec §6.2). The More-CT-capabilities card states the tail's own run
-	// readout, distinct from the bulk `ct` hero's (which excludes ct-tail Batches). last_at
-	// is the newest ct-tail Batch's instant, NULL when the tail has never run; names counts
-	// the admitted_name rows citing that Batch, and COALESCE gives 0 for an empty or
-	// dead-lettered run. One row always returns.
 	CTTailLastBatch(ctx context.Context) (CTTailLastBatchRow, error)
 	// Terminate a Dispatch (DF-F4): cancel every in-flight job — ready AND running. A
 	// ready job never runs; a running job is cancelled out from under the worker, whose
@@ -59,9 +32,6 @@ type Querier interface {
 	// running job is left to finish and commit, which is the stop contract. Returns the
 	// count actually cancelled (the "N pending jobs cancelled" figure).
 	CancelReadyJobsForDispatch(ctx context.Context, dispatchID pgtype.Int8) (int64, error)
-	// The Postgres-backed claim: FOR UPDATE SKIP LOCKED over pending deliveries whose
-	// run_after has passed, oldest first, marking the winner 'sending' in one
-	// statement so two workers never claim the same delivery.
 	ClaimDelivery(ctx context.Context) (ClaimDeliveryRow, error)
 	// The Postgres-backed claim: FOR UPDATE SKIP LOCKED over ready jobs whose
 	// run_after has passed, oldest first, marking the winner running in one
@@ -69,11 +39,6 @@ type Querier interface {
 	// claim instant so the stale-running reaper (internal/queue/reaper.go, #853) knows
 	// when the lease started and can reclaim a job whose worker died or hung mid-run.
 	ClaimJob(ctx context.Context) (ClaimJobRow, error)
-	// The Postgres-backed claim: FOR UPDATE SKIP LOCKED over pending notifications whose
-	// run_after has passed, oldest first, marking the winner 'sending' in one statement so
-	// two workers never claim the same one. It joins the run and its schedule so the runner
-	// has everything the link-only body needs — the report name and the run's period — plus
-	// the channel to POST to and the attempt budget, in one read.
 	ClaimReportNotification(ctx context.Context) (ClaimReportNotificationRow, error)
 	// Close an open span at closed_at, recording a closure reason only where the
 	// close is a withdrawal (reason is NULL for an ordinary value move or a version
@@ -81,26 +46,13 @@ type Querier interface {
 	// a withdrawal closure is not a batch fold and cites none. A span is closed once and
 	// never rewritten.
 	CloseSpan(ctx context.Context, arg CloseSpanParams) error
-	// Marks a single Proposal confirmed and retains the Seed it became as provenance.
-	// Guarded on status = 'pending' so a concurrent or repeated confirm is a no-op
-	// rather than a second Seed: confirmation is singular (ADR-0022).
 	ConfirmProposal(ctx context.Context, arg ConfirmProposalParams) (int64, error)
 	ConfirmTOTP(ctx context.Context, id int64) error
-	// Spend an invite: stamp consumed_at with the instant the caller passes and record
-	// which account the acceptance created, which makes it single-use. A second present
-	// of the same token then reads a non-NULL consumed_at and is refused.
 	ConsumeInvite(ctx context.Context, arg ConsumeInviteParams) error
 	ConsumePasswordReset(ctx context.Context, arg ConsumePasswordResetParams) error
 	ConsumeRecoveryCode(ctx context.Context, arg ConsumeRecoveryCodeParams) error
 	CountAccounts(ctx context.Context) (int64, error)
-	// Guards the last-admin invariant: a role change that would drop this to zero is
-	// refused so an operator cannot lock every admin out.
 	CountAdmins(ctx context.Context) (int64, error)
-	// How many leaf certificates the handshake capture has stored (#881, spec §5, §6.2). The
-	// More-CT-capabilities card states verification's readout: this is the pool of leaves the
-	// point-check verifies against CT. Verification keeps no durable result — its logged /
-	// NOT-logged findings are ephemeral events (#878) — so this captured count is the truthful
-	// measure of verification's reach. One scalar row always returns.
 	CountCertificateMaterial(ctx context.Context) (int64, error)
 	CountObservationsForScan(ctx context.Context, scanID int64) (int64, error)
 	// The unread count the caller's nav element carries on every screen (#327).
@@ -112,43 +64,16 @@ type Querier interface {
 	CreateAccount(ctx context.Context, arg CreateAccountParams) (Account, error)
 	CreateAddressExclusion(ctx context.Context, arg CreateAddressExclusionParams) (Exclusion, error)
 	CreateAddressSeed(ctx context.Context, arg CreateAddressSeedParams) (Seed, error)
-	// Reads and writes behind `Annotation` management on the Signals screen (#204).
-	// An Annotation is an operator dial keyed on one `(subject, signal-name)` pair,
-	// carrying the operator's reason and the instant declared — no status, no expiry
-	// and no author (CONTEXT.md `Annotation`, ADR-0073). Declaring and withdrawing
-	// are plain state changes: neither is a `Message`, and neither mints a cause.
-	// Declare an acceptance on one pair. The unique index on (subject_key,
-	// signal_name) rejects a re-declaration of the same pair — an Annotation cannot
-	// be edited, so changing the reason is a withdraw-then-declare, not an update.
 	CreateAnnotation(ctx context.Context, arg CreateAnnotationParams) (Annotation, error)
 	CreateChannel(ctx context.Context, arg CreateChannelParams) (int64, error)
-	// Mint a single-use, time-boxed invite at a role (Settings -> Team, T18). This is
-	// the creation side of the invite table T19 shipped for acceptance: web keeps only
-	// a hash of the token, and the plaintext rides one join URL handed out of band.
-	// invited_by attributes the issuing admin so the invite outlives them as a record
-	// (ON DELETE SET NULL); expires_at bounds the window. The row starts unconsumed —
-	// consumed_at and accepted_account_id stay NULL until the acceptance screen spends
-	// it (ConsumeInvite).
 	CreateInvite(ctx context.Context, arg CreateInviteParams) (Invite, error)
-	// kind is 'name' (an exact FQDN) or 'subtree' (that name and everything beneath).
 	CreateNameExclusion(ctx context.Context, arg CreateNameExclusionParams) (Exclusion, error)
 	CreateNameSeed(ctx context.Context, arg CreateNameSeedParams) (Seed, error)
 	CreatePasswordReset(ctx context.Context, arg CreatePasswordResetParams) (PasswordReset, error)
-	// Mint a personal API token for one account. Only the hash and the non-secret
-	// prefix are stored; the plaintext is shown once at the call site and never
-	// persisted. A duplicate (account_id, name) is a unique violation, surfaced to the
-	// operator as a name-already-taken message rather than a second silent row.
 	CreatePersonalToken(ctx context.Context, arg CreatePersonalTokenParams) (PersonalToken, error)
-	// Files one candidate scope a proposer offered. It enters as 'pending' and is
-	// read by nothing until it is confirmed into a Seed.
 	CreateProposal(ctx context.Context, arg CreateProposalParams) (Proposal, error)
-	// Records one operator act — an org-name search — under which a batch of
-	// candidate scopes is filed. It is the unit a bulk decline operates over.
 	CreateProposerLookup(ctx context.Context, arg CreateProposerLookupParams) (ProposerLookup, error)
 	CreateRecoveryCode(ctx context.Context, arg CreateRecoveryCodeParams) error
-	// Open a session at login. Only the token's hash is stored; the opaque plaintext
-	// lives solely in the cookie on the client (ADR-0117). Returns the row so the
-	// caller holds the id it just minted.
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
 	// Provisioning a prober creates a Vantage with connection detail. Its
 	// measurement identity is still mandatory: the caller derives `name` from the
@@ -164,36 +89,12 @@ type Querier interface {
 	// (exposure.VerifyClass), never from this column — so it stays at its 'unverified'
 	// default for the life of the row.
 	CreateVantage(ctx context.Context, arg CreateVantageParams) (Vantage, error)
-	// Records one supply act: a name-scope Seed's zone file at the operator's supply
-	// instant. Append-only — a re-export is a new row, never an update.
 	CreateZoneFile(ctx context.Context, arg CreateZoneFileParams) (CreateZoneFileRow, error)
-	// Declines every still-pending Proposal under one lookup in a single act
-	// (ADR-0022: declining may be bulk over a whole lookup). Declining is safe to
-	// batch because a pending Proposal is read by nothing, so 'declined' and 'never
-	// answered' have the same effect on the gate.
 	DeclineLookup(ctx context.Context, lookupID int64) (int64, error)
-	// Declines a single still-pending Proposal by id (#21: the Scope decline-many
-	// act declines each checked proposal). Guarded on status = 'pending' so a repeat
-	// or concurrent decline is a no-op. A declined scope is recorded as an exclusion
-	// by the handler, off the row read before the decline.
 	DeclineProposal(ctx context.Context, id int64) (int64, error)
-	// Remove a member (Settings -> Team, T18). The handler gates this behind a typed-
-	// name confirmation and refuses to remove yourself or the last admin. Attributed
-	// work keeps the account's id: the created_by references on seeds, channels,
-	// exclusions and the rest are NOT NULL with no cascade, so this deletes only an
-	// account that authored none of them — the FK violation surfaces as a clear refusal
-	// rather than a silent orphaning. The single-use pre-auth grants (personal tokens,
-	// password resets, recovery codes) cascade; an invite the account issued or accepted
-	// keeps its record with the reference nulled (ON DELETE SET NULL).
 	DeleteAccount(ctx context.Context, id int64) error
-	// Withdraw an acceptance. Withdrawing is a plain state change that produces no
-	// `Message` — its carrier is the message it releases, the pair's own next firing.
-	// Deleting a row that is already gone is not an error: the operator's intent, that
-	// the acceptance no longer stand, is satisfied either way.
 	DeleteAnnotation(ctx context.Context, id int64) error
 	DeleteChannel(ctx context.Context, id int64) error
-	// Un-excluding removes the row: an exclusion is Declared input with no timeline,
-	// so withdrawing it is a delete rather than a state change.
 	DeleteExclusion(ctx context.Context, id int64) error
 	// The one and only path that deletes Dispatch rows (v1 spec §4.6, ADR-0041). It
 	// touches the dispatch table and nothing else: no Observation, Span, Batch or
@@ -230,18 +131,9 @@ type Querier interface {
 	// sweep rests on. The caller passes the floored cutoff (now minus the
 	// transcript_currency_days window); this deletes every captured row older than it.
 	DeleteExpiredTranscripts(ctx context.Context, capturedAt pgtype.Timestamptz) (int64, error)
-	// Disconnect an integration, returning it to available (not installed). Absence of
-	// a row is the available state, so a disconnect removes the row rather than storing
-	// a sentinel.
 	DeleteIntegrationState(ctx context.Context, slug string) error
-	// Revoke a token, scoped to its owner: the account_id predicate means an operator
-	// can only revoke their own tokens, never another account's by guessing an id.
-	// Revocation is a hard delete — a revoked token holds no history worth reading.
 	DeletePersonalToken(ctx context.Context, arg DeletePersonalTokenParams) error
 	DeleteRecoveryCodesForAccount(ctx context.Context, accountID int64) error
-	// Remove one schedule (the row-menu's Delete). A hard delete: the schedule is a
-	// Declared intent, so withdrawing the declaration removes the row. Idempotent from
-	// the caller's view — deleting an id already gone is not an error.
 	DeleteReportSchedule(ctx context.Context, id int64) error
 	// An admin removes any binding by id (offboarding / seat reassignment). Idempotent:
 	// removing a row already gone satisfies the intent either way.
@@ -296,22 +188,9 @@ type Querier interface {
 	// refusal (the identity is unlinked), never a provision.
 	GetAccountBySSOIdentity(ctx context.Context, arg GetAccountBySSOIdentityParams) (Account, error)
 	GetAccountByUsername(ctx context.Context, username string) (Account, error)
-	// The tail's forward cursor for one CT log (spec §4.2): the last tree size read and
-	// the last signed head seen. A log with no row yet has never been polled — the caller
-	// treats pgx.ErrNoRows as "start at position 0" and reads the whole current delta from
-	// the log's origin forward, never backfilling below it afterwards.
 	GetCTLogCursor(ctx context.Context, logID string) (GetCTLogCursorRow, error)
-	// Read one leaf's captured CT inputs back for an on-demand verification re-check (spec §5.4,
-	// #878): the leaf DER (embedded SCTs ride inside it), the out-of-cert SCT material, and the
-	// issuer SubjectPublicKeyInfo the precert leaf hash needs. Keyed by the leaf fingerprint.
-	// Errors with pgx.ErrNoRows when the certificate was never captured — a verification the
-	// caller reports as unverifiable rather than as not-logged.
 	GetCertificateMaterial(ctx context.Context, fingerprint string) (CertificateMaterial, error)
 	GetChannel(ctx context.Context, id int64) (GetChannelRow, error)
-	// Reads the target URL and the signing secret. This is the ONE read path that
-	// selects the secret: it is write-only at the interface (no render query returns
-	// it), but the worker-side signer must read it to compute the HMAC. It is never
-	// rendered and never leaves this instance except as a signature.
 	GetChannelForDelivery(ctx context.Context, id int64) (GetChannelForDeliveryRow, error)
 	// Resolve an Endpoint key to at most one subject (#198). An Endpoint drill-down
 	// reaches a subject by its own key — including one whose Service has left the
@@ -320,28 +199,12 @@ type Querier interface {
 	// the current HTTP identity and split the key into its Name and Service legs.
 	// Reads through the live-tier gate (#237).
 	GetEndpointSubject(ctx context.Context, arg GetEndpointSubjectParams) (GetEndpointSubjectRow, error)
-	// The single operator-global row seeded by the migration; it always exists. Both
-	// feature clusters (#390 API surfaces, #391 backup & updates) read their flags and
-	// cached facts through this one row.
+	// The migration seeds this row, so no-rows is not a reachable state.
 	GetInstanceConfig(ctx context.Context) (GetInstanceConfigRow, error)
 	GetInstanceHealth(ctx context.Context) (GetInstanceHealthRow, error)
-	// The delivery Channel one integration is bound to (nullable — NULL is unbound). The
-	// Send-test handler reads this to resolve where the test payload goes; an unbound
-	// integration has nothing to send through.
 	GetIntegrationChannel(ctx context.Context, slug string) (pgtype.Int8, error)
-	// Resolve a presented invite token to its row by hash. Validity (unconsumed,
-	// unexpired) is checked in the handler against the server clock rather than SQL
-	// now(), matching every other auth read's use of the injectable clock.
 	GetInviteByTokenHash(ctx context.Context, tokenHash string) (Invite, error)
-	// The newest non-failed run of a schedule — the receipt the "Recurring reports"
-	// table reads for its "last sent" cell and the artifact view opens. A failed run
-	// is not a delivery to view, so it is excluded; where a schedule has never run (or
-	// only failed) this returns no row and the caller renders the em-dash empty-state
-	// rather than fabricating a delivery (ADR-0110).
 	GetLatestReportDelivery(ctx context.Context, scheduleID int64) (ReportDelivery, error)
-	// The frozen Message the body is built from — read verbatim, never recomputed.
-	// The body carries exactly these fields (the headline byte-identical, the census
-	// as a count) and reaches no other table: no row behind a census count.
 	GetMessageForDelivery(ctx context.Context, id int64) (GetMessageForDeliveryRow, error)
 	// The Citation chain's load-bearing hop: what introduced a Name (CONTEXT.md
 	// `Citation`; ADR-0027, ADR-0107). Answers "why is this here" and terminates one
@@ -399,22 +262,8 @@ type Querier interface {
 	// FROM rather than =.
 	GetOpenSpan(ctx context.Context, arg GetOpenSpanParams) (GetOpenSpanRow, error)
 	GetPasswordResetByHash(ctx context.Context, tokenHash string) (PasswordReset, error)
-	// One pending Proposal, read at the moment of confirmation so the confirm act
-	// can copy its scope into a Seed. A Proposal already confirmed or declined does
-	// not come back, so a double submit cannot open the gate twice.
 	GetPendingProposal(ctx context.Context, id int64) (Proposal, error)
-	// Resolve a presented bearer credential to its stored row by the SHA-256 hash of the
-	// plaintext vg_pat_… (the caller hashes before this lookup; the plaintext is never
-	// persisted, only its digest is). The indexed hash equality carries the constant-time
-	// property inherently — a non-matching hash simply yields no row, disclosing nothing by
-	// timing. Returns account_id so the bearer path reads the account's role LIVE per request
-	// (ADR-0123 §4), never freezing a role into the token itself.
 	GetPersonalTokenByHash(ctx context.Context, tokenHash string) (PersonalToken, error)
-	// One declared schedule by id — the read behind the Edit wizard (prefill, including
-	// the bound channel) and the Run-now dispatch (the run reads the schedule's
-	// name/cadence/format to cut the artifact for the current period). No row
-	// (pgx.ErrNoRows) is a schedule that never existed or was already deleted; the caller
-	// answers a stale id rather than 500ing.
 	GetReportSchedule(ctx context.Context, id int64) (ReportSchedule, error)
 	// The single operator-global row seeded by the migration; it always exists.
 	GetRetentionSettings(ctx context.Context) (GetRetentionSettingsRow, error)
@@ -438,44 +287,14 @@ type Querier interface {
 	// current verdict and the Address the triple sits on. Reads through the live-tier
 	// gate (#237).
 	GetServiceSubject(ctx context.Context, arg GetServiceSubjectParams) (GetServiceSubjectRow, error)
-	// The per-request validation lookup: resolve a presented session token (by its
-	// hash) to a live row. A session is live only when it is unrevoked and unexpired,
-	// so both gates are in SQL and a dead session simply returns no row — the handler
-	// then treats it exactly as an absent cookie. The clock bound is passed in ($2) so
-	// a fixed-clock test and production agree on the boundary.
 	GetSessionByTokenHash(ctx context.Context, arg GetSessionByTokenHashParams) (Session, error)
 	GetTranscriptByJob(ctx context.Context, queueJobID int64) (Transcript, error)
 	GetVantage(ctx context.Context, id int64) (Vantage, error)
-	// The operator's declared re-supply interval, held as the zone Scan's cadence.
 	GetZoneCadenceSeconds(ctx context.Context) (int64, error)
-	// One CT admission (ADR-0027, ADR-0106): a Name a crt.sh Batch admitted, carrying
-	// the Batch that admitted it (the Citation hop) and the covering name-scope Seed
-	// the chain terminates at. No observation, no facet, no timeline — admission is
-	// not membership (ADR-0096 §5).
 	InsertAdmittedName(ctx context.Context, arg InsertAdmittedNameParams) error
 	InsertBatch(ctx context.Context, arg InsertBatchParams) (int64, error)
-	// Record one bulk-by-name query as a reliability sample (spec §3, #879): the source
-	// it ran against, whether it succeeded (a well-formed 200), its end-to-end fetch
-	// latency in whole milliseconds, and whether a successful query returned zero
-	// certificate names (the false-empty limb). One row per query attempt, so a retry is
-	// its own sample.
 	InsertCTReliabilitySample(ctx context.Context, arg InsertCTReliabilitySampleParams) error
-	// Capture one leaf certificate's raw CT inputs into the immutable side store (spec
-	// §5.3): the leaf DER, the out-of-cert SCT material, and the issuer SubjectPublicKeyInfo,
-	// keyed by the leaf fingerprint. Deduped and immutable — many Endpoints present the same
-	// certificate, so ON CONFLICT DO NOTHING keeps the first capture and never rewrites a row.
-	// This writes no facet value; the `certificate` observation still records only the
-	// fingerprint (ADR-0027).
 	InsertCertificateMaterial(ctx context.Context, arg InsertCertificateMaterialParams) error
-	// Reads and writes behind Channel delivery (#207). A Delivery is the Operational
-	// record of one outbound POST of one Message to one Channel: it never becomes a
-	// Message and never touches the comparison path. Routing is by class alone — the
-	// only predicate over which channels receive a firing is the class subset each
-	// channel carries (ADR-0091); there is no per-rule or per-subject query here.
-	// Enqueue one pending Delivery for (message, channel). The caller has already
-	// decided membership by class alone (delivery.Routes); this only persists the
-	// routed pair. Idempotent: re-enqueuing the same pair is a no-op, so the message
-	// identifier the receiver de-duplicates on is stable across retries.
 	InsertDelivery(ctx context.Context, arg InsertDeliveryParams) error
 	// Record one measured candidate edge on its Batch (ADR-0129 §6, #983): the address
 	// measured, the leaf's closed outcome, the served certificate's fingerprint on
@@ -501,44 +320,8 @@ type Querier interface {
 	// them. census is NULL where the firing carries a count rather than rows.
 	InsertMessage(ctx context.Context, arg InsertMessageParams) (Message, error)
 	InsertObservation(ctx context.Context, arg InsertObservationParams) error
-	// Record one run of a schedule for a bounded period. delivery_no is the caller's
-	// next-sequence read (NextReportDeliveryNo); state is one of generated / delivered
-	// / failed; delivered_at is NULL where the run generated without leaving (a
-	// download-only schedule) and the stamp otherwise. generated_at defaults to now().
 	InsertReportDelivery(ctx context.Context, arg InsertReportDeliveryParams) (ReportDelivery, error)
-	// Reads and writes behind the report notify runner (P0.6c/T7, #508). A
-	// report_notification is the Operational record of one link-only ready-message to a
-	// Channel for a scheduled report run: it is NOT a Message and carries no estate
-	// (ADR-0039, ADR-0081). It mirrors the delivery table's claim/retry/mark queries —
-	// FOR UPDATE SKIP LOCKED, the shared queue.Backoff on retry, dead-letter on the spent
-	// attempt budget — but keys on the report_delivery it announces, not a message, and
-	// routes by the schedule's channel binding, not by class.
-	// Enqueue one pending ready-message for a scheduled run (report_delivery_id) to its
-	// schedule's bound Channel (channel_id). Called once per won tick in the dispatcher's
-	// transaction, only when the schedule binds a channel — a download-only schedule
-	// enqueues nothing. state defaults to 'pending' and run_after to now(), so the next
-	// notify poll claims it.
 	InsertReportNotification(ctx context.Context, arg InsertReportNotificationParams) error
-	// Reads and writes behind the Reports screen's recurring-reports table and its
-	// "New schedule" wizard (#290, live CRUD in P0.6/T4). A report_schedule is Declared
-	// and carries no timeline: a re-declaration through the wizard is a fresh insert,
-	// never a recompute of an existing row (migration 21700). The row-menu's Edit is a
-	// genuine in-place update of a schedule's declared contents (name / sections /
-	// cadence / format / channel) — a schedule carries no derived state to recompute, so
-	// editing what was declared is not a recompute — and Delete is a hard delete. The
-	// estate is single-tenant, so the list is unscoped; created_by attributes the admin
-	// who declared each schedule and is immutable across an edit.
-	//
-	// The schedule's delivery destination is a Channel: channel_id binds the signed-HTTPS
-	// Channel that receives the run's link-only ready-message, and NULL is download-only
-	// (P0.6c/T7, #508, migration 22700). The free-text delivery_target is superseded by
-	// the binding — it is written empty and no longer read as the destination.
-	// Declare one recurring report. The caller has parsed the wizard form — name, the
-	// chosen sections (a JSON array), cadence, format, and the delivery destination
-	// (a channel_id, or NULL for download-only) — and attributes it to the admin who
-	// submitted it. sections defaults to an empty array at the column, so a schedule with
-	// no sections chosen still inserts. delivery_target is written empty (superseded by
-	// the channel binding).
 	InsertReportSchedule(ctx context.Context, arg InsertReportScheduleParams) (ReportSchedule, error)
 	// Record a verified (provider, sub) → account binding, established by an authenticated
 	// Profile self-link (ADR-0113). UNIQUE(provider_id, sub) guards a second account from
@@ -556,13 +339,7 @@ type Querier interface {
 	// read query hands it back. A public (PKCE-only) client passes a NULL secret.
 	InsertSSOProvider(ctx context.Context, arg InsertSSOProviderParams) (int64, error)
 	InsertTranscript(ctx context.Context, arg InsertTranscriptParams) error
-	// The zone Scan's scope: the latest supplied file per name-scope Seed, with its
-	// domain and supply instant, for the worker to restate. DISTINCT ON keeps only
-	// the most recent supply per Seed.
 	LatestZoneFilesForDispatch(ctx context.Context) ([]LatestZoneFilesForDispatchRow, error)
-	// The accounts management list on the Settings screen. It omits password_hash
-	// and totp_secret: managing accounts never needs either, so they stay out of the
-	// render path.
 	ListAccounts(ctx context.Context) ([]ListAccountsRow, error)
 	// The Dispatches still in flight, newest first, with the same per-state job counts
 	// ListDispatchProgress folds — the Active half of the Scans monitor's split read
@@ -575,14 +352,6 @@ type Querier interface {
 	// A Dispatch whose jobs were retired to NULL by the Dispatch sweep (ADR-0041) counts
 	// zero in-flight jobs, so it falls to the history read rather than pinning here.
 	ListActiveDispatchProgress(ctx context.Context) ([]ListActiveDispatchProgressRow, error)
-	// The declared `address` exclusion CIDRs, for the Custody derivation: an address
-	// inside one is NOT covered by the address-scope limb, so it derives third-party
-	// unless a custody extension also reaches it (ADR-0012 §125, ADR-0133 §1).
-	//
-	// It is a separate query from ListExclusions on purpose. That one returns all three
-	// kinds joined to `account` for the chip render, and this is a batch-time read that
-	// wants the CIDRs alone. It is the address twin of measurement.sql's
-	// ListAddressScopeCidrs and mirrors its shape read for read.
 	ListAddressExclusionCidrs(ctx context.Context) ([]*netip.Prefix, error)
 	// Every open timeline a DECLARED address exclusion withdraws, for the membership
 	// fold to close with the `descoped` ground (ADR-0133 §8, #1032). It is the
@@ -614,30 +383,9 @@ type Querier interface {
 	// The declared address-scope Seeds, for the hot Scan's Custody derivation: every
 	// address inside one derives operator directly (ADR-0013).
 	ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error)
-	// The distinct CT-admitted names the dns Scan also resolves (ADR-0107, wave-1).
-	// A source that admits without observing leaves an admitted_name row per Name it
-	// named; unioned into the dns Scan's resolution set, each acquires a resolution
-	// timeline from our own resolver and becomes a measured member or leaves by Name
-	// Error (ADR-0027, ADR-0096 §1). DISTINCT because an append-only source re-admits
-	// the same names on every poll; unconditional of the source's current enablement,
-	// since resolution is the dns Scan's act and a Name leaves only by measurement.
+	// An append-only source re-admits the same names on every poll.
 	ListAdmittedNames(ctx context.Context) ([]string, error)
-	// The distinct CT-admitted names that some Seed OTHER than this one admits — the
-	// admitted set as it will stand once this Seed is withdrawn (ADR-0135 §3, #1046).
-	//
-	// `admitted_name.seed_id` cascades on a Seed delete, so after the withdrawal the
-	// table holds exactly the admissions of the Seeds that survive. This answers that
-	// question BEFORE the act, which is what the chip-remove preview needs: the Seed is
-	// still declared when the preview runs, so reading ListAdmittedNames would find
-	// every Name this Seed admitted still admitted, spare all of them through survivor
-	// two, and state a count of zero for a withdrawal that removes many.
-	//
-	// The fold reads ListAdmittedNames instead. By then the cascade has already run, so
-	// the two reads return the same set and the preview and the act agree.
 	ListAdmittedNamesOutsideSeed(ctx context.Context, seedID int64) ([]string, error)
-	// Every account's live sessions for the admin surface, joined to the account so the
-	// view can show whose session it is and at what role. Ordered by account then
-	// recency. token_hash is never selected here either.
 	ListAllActiveSessions(ctx context.Context, expiresAt pgtype.Timestamptz) ([]ListAllActiveSessionsRow, error)
 	// Every open span across the whole estate — the Inventory axis read (#243,
 	// ADR-0105). The span_open_timeline_idx guarantees at most one open span per
@@ -652,10 +400,7 @@ type Querier interface {
 	// never-compacted `span` corpus (ADR-0041), not the observation tier. Ordered by
 	// subject so the renderer groups a subject's facets in a single pass.
 	ListAllOpenSpans(ctx context.Context) ([]ListAllOpenSpansRow, error)
-	// Every declared acceptance, ordered by signal then subject — a deterministic
-	// list with no sort by attention, age or count (an operator dial carries no such
-	// axis). The Signals layer folds these against the live census to decide the
-	// fully-annotated prose case and to mark a row whose key names no current member.
+	// A dial is not ranked: no staleness sort and no per-rule count (ADR-0073 §3, §4).
 	ListAnnotations(ctx context.Context) ([]Annotation, error)
 	// Every Service whose CURRENT `reachability` span is a Gap — a blanket responder,
 	// or an address whose control probe could not complete (ADR-0104). The Coverage
@@ -665,30 +410,9 @@ type Querier interface {
 	// Service keys to their distinct Addresses; a Gap span is never routed through the
 	// live-tier gate for the reason above.
 	ListBlanketedReachServices(ctx context.Context) ([]string, error)
-	// Read the leaf DER of each named certificate, over a fingerprint SET (#1035). This is
-	// the second step of the `edge-fanout` read: ListEdgeFanoutMeasurements returns one
-	// fingerprint per measured address, and this returns each DISTINCT certificate ONCE,
-	// whatever number of addresses presented it.
-	//
-	// It is not GetCertificateMaterial in a loop, and it returns the DER alone. The SCT
-	// material and the issuer SubjectPublicKeyInfo are CT verification's inputs (spec §5.4);
-	// the fan-out reduction reads the dNSName SANs off the leaf and nothing else, so
-	// carrying them here would put bytes on the wire the caller drops.
-	//
-	// A fingerprint with NO captured material returns NO ROW. That absence is a value, not
-	// an error: a `presented` handshake whose material never landed yields no names, so its
-	// edge reduces to a fan-out of zero and is reached (ADR-0129 §2). The caller must not
-	// read a missing row as *measurement pending* — the missing MEASUREMENT row is what
-	// means that, and it is a different absence.
 	ListCertificateMaterialDER(ctx context.Context, fingerprints []string) ([]ListCertificateMaterialDERRow, error)
 	ListChannels(ctx context.Context) ([]ListChannelsRow, error)
-	// The opted-in `Seed` ids, for the Seeds screen to mark which scopes have opted
-	// into the cold tier.
 	ListColdScopeSeedIds(ctx context.Context) ([]int64, error)
-	// The cold Scan's opted-in scope, for dispatch: every `Seed` opted into the
-	// full-range tier, with its kind and scope so the dispatcher can bound the sweep
-	// to the addresses an address-scope enumerates or a name-scope's names resolve
-	// to. An empty result is the shipped disabled state — no jobs (ADR-0044).
 	ListColdScopeSeeds(ctx context.Context) ([]ListColdScopeSeedsRow, error)
 	// The Dispatches no longer in flight, newest first — the History half of the Scans
 	// monitor's split read (#962, SPEC §3/§4). It is the exact complement of
@@ -743,15 +467,7 @@ type Querier interface {
 	// reachability verdict, reached or not-reached, both measured values. Reads
 	// through the live-tier gate (#237).
 	ListCurrentServiceSubjects(ctx context.Context, arg ListCurrentServiceSubjectsParams) ([]ListCurrentServiceSubjectsRow, error)
-	// The delivery outcomes a Message renders in the store (notification-channels.md
-	// §8): to which channels it went and whether any is dead-lettered. Reads from the
-	// delivery table by join — the Message row carries no delivery state of its own.
 	ListDeliveriesForMessage(ctx context.Context, messageID int64) ([]ListDeliveriesForMessageRow, error)
-	// Every Delivery outcome joined to its Channel, for rendering each Message's own
-	// delivery outcomes on the panel in one pass (ADR-0081, ADR-0039) rather than a
-	// per-message read. A delivery failure is surfaced HERE, on the Message it
-	// carries — never on Coverage, which a delivery has no cause to touch (#244).
-	// Ordered by message then delivery so the caller groups them in a single walk.
 	ListDeliveryOutcomes(ctx context.Context) ([]ListDeliveryOutcomesRow, error)
 	// The recent Dispatches with their per-state job counts, newest first — the read
 	// behind the Scans monitor (#245). Dispatch, queue_job and batch are Operational:
@@ -850,10 +566,6 @@ type Querier interface {
 	// Scan's Custody derivation: an address a name in one of these zones resolves to
 	// derives operator by extension (ADR-0013 §3).
 	ListExtendedZoneDomains(ctx context.Context) ([]pgtype.Text, error)
-	// The operator's install states and their bound delivery Channel, merged by the
-	// handler onto the in-binary integration catalogue: an integration's effective state
-	// is its stored state where a row exists and available (not installed) otherwise, and
-	// its bound Channel (nullable — NULL is unbound) fills the drawer's BoundChannel hole.
 	ListIntegrationStates(ctx context.Context) ([]IntegrationState, error)
 	// The per-job detail for one Dispatch — the progress drill-down (#245). Ordered by
 	// id so a retried attempt reads immediately before the fresh job that replaced it.
@@ -944,10 +656,6 @@ type Querier interface {
 	// The `LIKE '%.' || w.domain` subtree test is the idiom FindCoveringNameSeed
 	// already uses. A domain cannot legally carry a LIKE metacharacter.
 	ListNameSeedWithdrawalCandidates(ctx context.Context, domains []string) ([]ListNameSeedWithdrawalCandidatesRow, error)
-	// The name-scope Seeds the CT Scan queries — id and registrable domain, one
-	// crt.sh query per row (ADR-0106). Distinct from ListNameSeedDomains (domains
-	// only, for the dns Scan): a CT admission's Citation chain terminates at the Seed,
-	// so its id travels with the domain (ADR-0027).
 	ListNameSeeds(ctx context.Context) ([]ListNameSeedsRow, error)
 	// Every open timeline a subject currently holds — what a withdrawal closes, all
 	// at once, with the ground it rests on.
@@ -960,9 +668,6 @@ type Querier interface {
 	// The domain is both the mover's identity and the site the coverage message fires
 	// at, exactly as the CIDR is on the address side.
 	ListPendingNameSeedWithdrawals(ctx context.Context) ([]ListPendingNameSeedWithdrawalsRow, error)
-	// The pending Proposals the Seeds screen renders, grouped for the caller by
-	// lookup so each lookup carries its own bulk-decline act. Only 'pending' rows
-	// surface: a confirmed Proposal is already a Seed and a declined one is spent.
 	ListPendingProposals(ctx context.Context) ([]ListPendingProposalsRow, error)
 	// The tombstones of withdrawn address Seeds the membership fold has not spent yet
 	// (ADR-0134 §2, #1040). Each row is the MOVER of one withdrawal: the CIDR the
@@ -986,9 +691,6 @@ type Querier interface {
 	// claims only its own rows, so the two never lock each other out through SKIP
 	// LOCKED and neither can read a tombstone whose scope column is NULL for it.
 	ListPendingSeedWithdrawals(ctx context.Context) ([]ListPendingSeedWithdrawalsRow, error)
-	// One account's tokens, newest first. token_hash is omitted from the read: listing
-	// tokens never needs it, so the secret material stays out of the render path — only
-	// the label, the non-secret prefix, and the timestamps are surfaced.
 	ListPersonalTokens(ctx context.Context, accountID int64) ([]ListPersonalTokensRow, error)
 	// The open `Service` population the weekly `tls-acceptance` Scan enumerates over
 	// (#199, ADR-0028): every Service whose CURRENT `reachability` span reads `reached`,
@@ -1026,13 +728,7 @@ type Querier interface {
 	// per-batch render.
 	ListRecentDriftEvents(ctx context.Context, arg ListRecentDriftEventsParams) ([]ListRecentDriftEventsRow, error)
 	ListRecentObservations(ctx context.Context, limit int32) ([]ListRecentObservationsRow, error)
-	// Every run of one schedule, newest-first — the delivery history behind a
-	// schedule, including failed runs so the record is complete.
 	ListReportDeliveries(ctx context.Context, scheduleID int64) ([]ReportDelivery, error)
-	// Every declared schedule, newest-first, unbounded — the "Recurring reports" table
-	// renders each row (resolving the bound channel's URL for the Delivery cell) and its
-	// "last delivery" from the report_delivery receipts store (#291/T2), since this table
-	// holds only the declared intent.
 	ListReportSchedules(ctx context.Context) ([]ReportSchedule, error)
 	// Every binding for the admin SSO settings — the offboarding / seat-reassignment view.
 	// Joined to provider and account so the admin sees which identity maps to whom, newest
@@ -1132,9 +828,6 @@ type Querier interface {
 	// must fold only live evidence, never an aged row. DISTINCT ON keeps the most recent
 	// value per Service.
 	ListServiceTLSAcceptance(ctx context.Context, arg ListServiceTLSAcceptanceParams) ([]ListServiceTLSAcceptanceRow, error)
-	// One account's live sessions, newest activity first — the Profile's personal
-	// sessions list. token_hash is omitted from the read: listing never needs it, so
-	// the secret material stays out of the render path.
 	ListSessionsForAccount(ctx context.Context, arg ListSessionsForAccountParams) ([]ListSessionsForAccountRow, error)
 	// Every minted instance identity, ordered by signal then subject — the same
 	// deterministic order the annotation ledger uses. The web layer folds these
@@ -1226,19 +919,13 @@ type Querier interface {
 	// DISTINCT ON keeps the most recent supply. This reads the operator's supplied
 	// zone file — input, not a measurement — so it does not pass the live-tier gate.
 	ListZoneDeclarations(ctx context.Context) ([]ListZoneDeclarationsRow, error)
-	// The Seeds-screen view: the latest supplied file per name-scope Seed, without
-	// the content, so the operator sees which scopes hold a zone file, when it was
-	// supplied and by whom.
 	ListZoneFileStatus(ctx context.Context) ([]ListZoneFileStatusRow, error)
 	// Mark every message the caller has not yet read as read by the caller (#327) —
 	// the panel's "mark all read" affordance, now scoped to the caller. Inserts one
 	// read-mark per still-unread message for this account only; other accounts' badges
 	// are untouched. ON CONFLICT DO NOTHING guards against a concurrent single-mark.
 	MarkAllMessagesRead(ctx context.Context, arg MarkAllMessagesReadParams) error
-	// A 2xx: the delivery is complete. Clears the last error and stamps the instant.
 	MarkDeliveryDelivered(ctx context.Context, arg MarkDeliveryDeliveredParams) error
-	// The attempt budget is spent: dead-letter. The row is marked 'undelivered' — the
-	// undelivered mark — and the Message it points at is deliberately left untouched.
 	MarkDeliveryUndelivered(ctx context.Context, arg MarkDeliveryUndeliveredParams) error
 	// Guarded on 'running' exactly as MarkJobDone — a job a terminate cancelled mid-flight
 	// does not dead-letter; its transaction rolls back and its work is discarded.
@@ -1265,18 +952,8 @@ type Querier interface {
 	// of MarkMessageRead — the design's Inbox renders a "Mark unread" affordance
 	// (Inbox.jsx:59), so read is reversible.
 	MarkMessageUnread(ctx context.Context, arg MarkMessageUnreadParams) error
-	// Flip a generated receipt to delivered and stamp the instant it left. Called by the
-	// report notify runner (T7/#508) once the Channel accepted the link-only ready-message
-	// for this run — the artifact was already generated and viewable; this records that its
-	// ready-message reached its destination. A notify FAILURE never calls this: the receipt
-	// stays 'generated' and the artifact stays viewable regardless of the send outcome.
 	MarkReportDeliveryDelivered(ctx context.Context, arg MarkReportDeliveryDeliveredParams) error
-	// A 2xx: the ready-message reached the Channel. Clears the last error. The caller
-	// flips the report_delivery receipt to 'delivered' in the same act.
 	MarkReportNotificationDelivered(ctx context.Context, id int64) error
-	// The attempt budget is spent: dead-letter the ready-message. The report_delivery
-	// receipt is deliberately left 'generated' — the artifact was cut and stays viewable
-	// in-instance; only the ready-message failed to leave (ADR-0039).
 	MarkReportNotificationUndelivered(ctx context.Context, arg MarkReportNotificationUndeliveredParams) error
 	// A completed Batch at this vantage is proof the position can observe again, so
 	// Availability is derived back to 'available' from the terminal batch outcome
@@ -1312,15 +989,6 @@ type Querier interface {
 	// ListLiveObservationsForDerivation, evaluated at @as_of with k = @floor_cadences)
 	// keeps an Address held only by an evidential answer out of the probed estate.
 	NameCitedAddresses(ctx context.Context, arg NameCitedAddressesParams) ([]NameCitedAddressesRow, error)
-	// Reads and writes behind the report_delivery receipts store (#291/T2). A
-	// report_delivery is the Operational record of one run of a report_schedule: it
-	// has no cause and never becomes a Message (ADR-0039, ADR-0081). It backs the
-	// "Recurring reports" table's "last sent" cell and the delivered-artifact view.
-	// The receipt stores only the run's period bounds and outcome — the artifact
-	// recomputes its contents from those bounds at render time, snapshotting nothing.
-	// The next 1-based per-schedule sequence number for a run: max+1, or 1 for the
-	// first. The caller passes it to InsertReportDelivery; the unique (schedule_id,
-	// delivery_no) key keeps the sequence dense under a single writer.
 	NextReportDeliveryNo(ctx context.Context, scheduleID int64) (int32, error)
 	// Publish one ephemeral, redacted per-job progress event over the
 	// queue_job_progress LISTEN/NOTIFY channel (#780, collision #40 producer half).
@@ -1340,10 +1008,7 @@ type Querier interface {
 	// (#637, ADR-0014). It defaults FALSE, so the ordinary world-measured opening the
 	// feed narrates `appeared` needs nothing passed.
 	OpenSpan(ctx context.Context, arg OpenSpanParams) (int64, error)
-	// Opts one `Seed` scope into the cold tier. Idempotent on seed_id: opting an
-	// already-opted-in scope in again is a no-op, never a duplicate.
 	OptInColdScope(ctx context.Context, arg OptInColdScopeParams) error
-	// Opts one `Seed` scope back out of the cold tier.
 	OptOutColdScope(ctx context.Context, seedID int64) error
 	// Trust-on-first-use: pin the host key only while none is pinned yet, and mark
 	// the vantage available. The host_key IS NULL guard makes this a no-op once a
@@ -1391,43 +1056,13 @@ type Querier interface {
 	// read as a resolver outage (ADR-0108). Returns the count reclaimed.
 	ReapStaleRunningJobs(ctx context.Context, cutoff pgtype.Timestamptz) (int64, error)
 	RecordHeartbeat(ctx context.Context) (Heartbeat, error)
-	// Atomically claim the next free slot for one CT fetch of a given source,
-	// instance-wide (ADR-0005: the throttle is per-source across the whole instance,
-	// in Postgres, not worker memory). GREATEST(next_free_at, now()) is this request's
-	// slot; next_free_at advances one interval past it, so concurrent workers each
-	// reserve a distinct, correctly-spaced slot. The interval is the source's own
-	// spacing, supplied by the caller. The caller waits until slot_at before going on
-	// the wire.
 	ReserveCTSlot(ctx context.Context, arg ReserveCTSlotParams) (pgtype.Timestamptz, error)
-	// Require re-enrollment (Settings -> Team, T18): clear an account's second factor so
-	// their current authenticator stops working at once and the next sign-in walks them
-	// through TOTP setup again. It touches neither the password nor any session — a
-	// signed-in account stays signed in until its cookie lapses. Symmetric to
-	// SetTOTPSecret, which arms a fresh secret; this disarms the factor entirely.
 	ResetAccountTOTP(ctx context.Context, id int64) error
-	// A transient failure with attempts left: advance the attempt, push run_after out
-	// by the shared backoff, and record the error. The row returns to 'pending' and
-	// the claim index picks it up again once run_after passes.
 	RetryDelivery(ctx context.Context, arg RetryDeliveryParams) error
-	// A transient failure with attempts left: advance the attempt, push run_after out by
-	// the shared backoff, and record the error. The row returns to 'pending' and the claim
-	// index picks it up again once run_after passes. The receipt is never touched.
 	RetryReportNotification(ctx context.Context, arg RetryReportNotificationParams) error
-	// Revoke every live session for an account with no exception — the password-reset
-	// path (no current session to keep) and the admin offboarding action. Idempotent.
 	RevokeAllSessionsForAccount(ctx context.Context, arg RevokeAllSessionsForAccountParams) error
-	// "Sign out other devices" and password-change invalidation: revoke every live
-	// session for the account EXCEPT the one making the request ($2, the current
-	// session id). The current session survives so the acting user is not signed out
-	// of the tab they are working in.
 	RevokeOtherSessionsForAccount(ctx context.Context, arg RevokeOtherSessionsForAccountParams) error
-	// Revoke one session, scoped to its owner: the account_id predicate means an
-	// account can only revoke its own sessions, never another's by guessing an id —
-	// the same owner-scoping personal-token revocation uses. Idempotent: a
-	// revoked/absent row is unaffected.
 	RevokeSession(ctx context.Context, arg RevokeSessionParams) error
-	// Admin revocation of any single session by id, not owner-scoped — gated by
-	// requireAdmin at the handler, never reachable by a viewer. Idempotent.
 	RevokeSessionByIDForAdmin(ctx context.Context, arg RevokeSessionByIDForAdminParams) error
 	// Whether a `Scan` of this kind has ever completed a Batch. A Batch row exists only at
 	// a terminal outcome, so this asks whether the Scan has actually RUN on this install,
@@ -1448,9 +1083,6 @@ type Querier interface {
 	// job's dispatch_id to NULL; a NULL is a different dispatch and must still hold the
 	// gate.
 	ScanHasNonTerminalJobs(ctx context.Context, arg ScanHasNonTerminalJobsParams) (bool, error)
-	// Flip the read-only /api/v1 surface on or off, stamping who acted and when so the
-	// settings card can render the dated act of the current state (#390). Off by default;
-	// a minted token stays inert until this is true.
 	SetAPIEnabled(ctx context.Context, arg SetAPIEnabledParams) error
 	SetChannelSecret(ctx context.Context, arg SetChannelSecretParams) error
 	// The seed CHECK rejects a true extension on an address scope, so an unguarded declare errors.
@@ -1459,37 +1091,16 @@ type Querier interface {
 	// Scoped to a still-'fanned-out' dispatch so a second submit or a natural conclusion
 	// cannot overwrite a recorded terminal status.
 	SetDispatchStatus(ctx context.Context, arg SetDispatchStatusParams) error
-	// Bind an installed integration to a delivery Channel, or clear the binding (a NULL
-	// channel_id unbinds). Only an installed integration has a row to update; binding an
-	// integration with no row is a no-op (an available integration cannot bind, and the
-	// drawer offers it no channel select).
 	SetIntegrationChannel(ctx context.Context, arg SetIntegrationChannelParams) error
-	// Record the last backup taken from the UI (#391): its instant (now()) and byte size,
-	// surfaced on the Backup card.
 	SetLastBackup(ctx context.Context, lastBackupSize pgtype.Int8) error
-	// Record the last result of the worker's best-effort release check (#391): the state
-	// (current | newer | disabled) and, for a "newer", the latest version and notes. The
-	// check instant is stamped now(), so a "checked N ago" reads honestly.
 	SetReleaseCache(ctx context.Context, arg SetReleaseCacheParams) error
 	// Set, replace or clear the secret. A NULL clears it (a public PKCE-only client); the
 	// value is written and never read back through any interface query.
 	SetSSOProviderSecret(ctx context.Context, arg SetSSOProviderSecretParams) error
-	// Set the operator address-scope cap (#888 / Settings #206, ADR-0127), stamping who
-	// acted and when so the Settings control renders the dated act of the current cap.
-	// The value is read at declaration only (ADR-0047 §5.3), so lowering it never
-	// invalidates a scope declared under a higher cap. ADR-0127: no upper bound is
-	// enforced here — the handler floors it at 1 and the column has no ceiling.
+	// The operator cap has no upper bound; a large scope is priced at policy time (ADR-0127).
 	SetSeedAddressCap(ctx context.Context, arg SetSeedAddressCapParams) error
-	// Atomically spend the TOTP step just accepted at login (#323, #339). The predicate
-	// makes the advance the single serialisation point: the write lands only when the
-	// account's stored watermark is still NULL or strictly below the presented step, so
-	// of two concurrent requests carrying the SAME valid code exactly one updates a row
-	// and the other affects zero — the loser is refused as a replay. A read-then-write in
-	// the handler could let both pass; this conditional UPDATE cannot (RFC 6238 §5.2).
 	SetTOTPLastStep(ctx context.Context, arg SetTOTPLastStepParams) (int64, error)
 	SetTOTPSecret(ctx context.Context, arg SetTOTPSecretParams) error
-	// Opt the worker's daily release-feed check in or out, stamping who acted and when
-	// (#391). While false the worker never dispatches the check — air-gap-safe.
 	SetUpdateCheckEnabled(ctx context.Context, arg SetUpdateCheckEnabledParams) error
 	// The worker records the round-trip time of the prober connect that pinned the
 	// host key (P0.5, SPEC-CHANGE.md collision #7). Stored in whole milliseconds — the
@@ -1508,8 +1119,7 @@ type Querier interface {
 	// The worker publishes only the public half of the pair it generated on its own
 	// volume; the private half never reaches Postgres.
 	SetVantagePublicKey(ctx context.Context, arg SetVantagePublicKeyParams) error
-	// Moves the re-supply interval dial. cadence_seconds > 0 is enforced by the
-	// table's CHECK, so a non-positive interval is rejected by the database.
+	// A non-positive interval is refused by the table's CHECK, not by this statement.
 	SetZoneCadenceSeconds(ctx context.Context, cadenceSeconds int64) error
 	// The slowest enabled Scan's cadence — the largest cadence_seconds among enabled
 	// Scans — which the Dispatch dial is a multiple of and the floor k multiples of
@@ -1595,12 +1205,6 @@ type Querier interface {
 	// `WHERE consumed_at IS NULL` keeps the stamp write-once, so a row cannot be
 	// re-attributed to a later batch.
 	SpendSeedWithdrawals(ctx context.Context, arg SpendSeedWithdrawalsParams) error
-	// Reconciles the cold Scan's enabled flag with its scope: enabled exactly while
-	// at least one `Seed` scope is opted in. This is the whole of "enabling it is
-	// per-Seed, not global" (ADR-0044) — the operator never toggles a global switch;
-	// opting the first scope in enables the tier, opting the last out disables it.
-	// Called after every opt-in and opt-out, never on a cadence tick, so the tier is
-	// never enabled as a side effect of a measurement.
 	SyncColdScanEnabled(ctx context.Context) error
 	// The tightest enabled Scan's cadence — the smallest cadence_seconds among enabled
 	// Scans — which is k cadences of the smallest per-timeline observation bound any
@@ -1611,44 +1215,17 @@ type Querier interface {
 	// nothing to floor against and the dial is unconstrained. Reads only the scan
 	// table, never the measured corpora.
 	TightestEnabledScanCadenceSeconds(ctx context.Context) (int64, error)
-	// Refresh last_seen_at for the "last active" column. Called at most once per minute
-	// per session (the handler throttles) so a busy session does not amplify writes.
 	TouchSession(ctx context.Context, arg TouchSessionParams) error
-	// Keep only the newest `keep` samples for one source, so the table stays bounded and
-	// the bar is measured over a rolling window rather than all history (spec §3). Run
-	// after each insert. Ordered newest-first, id breaking an observed_at tie, matching
-	// the read window's order.
 	TrimCTReliabilitySamples(ctx context.Context, arg TrimCTReliabilitySamplesParams) error
 	// Idempotent on (scan, scheduled_time): the first tick inserts a fanned-out
 	// Dispatch; an overlapping tick conflicts and returns no row, which the caller
 	// records as a skip rather than a second fan-out.
 	TryFanOut(ctx context.Context, arg TryFanOutParams) (int64, error)
-	// Claim one on-cadence run of a schedule for a tick, idempotently: the partial
-	// unique (schedule_id, scheduled_tick) admits only the first poll in a window; a
-	// later poll conflicts and returns no row (a recorded skip, not a double-run),
-	// mirroring the queue dispatcher's TryFanOut. delivery_no is the caller's
-	// NextReportDeliveryNo read; state is 'generated' and delivered_at NULL — an
-	// in-instance run generates without leaving (off-instance send is T7/#508, blocked).
 	TryInsertScheduledDelivery(ctx context.Context, arg TryInsertScheduledDeliveryParams) (TryInsertScheduledDeliveryRow, error)
 	UpdateAccountRole(ctx context.Context, arg UpdateAccountRoleParams) error
 	UpdateChannel(ctx context.Context, arg UpdateChannelParams) error
-	// Change one account's own password (Profile → Credentials). The handler verifies
-	// the current password and the new-password rules before this runs, so this is the
-	// bare write; it never touches the TOTP secret, so a password change leaves the
-	// second factor in force.
 	UpdatePassword(ctx context.Context, arg UpdatePasswordParams) error
-	// Coarsened last-used touch (ADR-0123 §4): stamp last_used_at = now() at most once per
-	// hour per token, so an authenticated /api/v1 request records "still live" without a
-	// row-per-request write amplifier and without turning last_used_at into a fine-grained
-	// access log of the operator's own integration traffic. The predicate makes the write a
-	// no-op inside the hour, and last_used_at never regresses — it is data and rides the backup.
 	UpdatePersonalTokenLastUsed(ctx context.Context, id int64) error
-	// Edit one schedule's declared contents in place (the row-menu's Edit). A schedule
-	// carries no timeline and no derived state, so updating what was declared is not a
-	// recompute (migration 21700) — the id, created_by and created_at are preserved.
-	// channel_id is part of the declared contents, so an edit can rebind the destination
-	// or set it to download-only (NULL). Returns the updated row so the caller can confirm
-	// the target existed; no row means a stale id.
 	UpdateReportSchedule(ctx context.Context, arg UpdateReportScheduleParams) (ReportSchedule, error)
 	UpdateRetentionSettings(ctx context.Context, arg UpdateRetentionSettingsParams) error
 	// Updates everything but the secret; the secret has its own write path, so an edit
@@ -1656,31 +1233,10 @@ type Querier interface {
 	// Returns the rows affected so the handler can tell a stale edit (an id deleted in
 	// another tab) from a real update, rather than reporting a phantom success.
 	UpdateSSOProvider(ctx context.Context, arg UpdateSSOProviderParams) (int64, error)
-	// Record the operator's install choice for one integration. An install is a
-	// Declared act with no timeline, no actor, and no instant of its own (ADR-0073,
-	// ADR-0093), so re-installing overwrites the single current state and the row
-	// holds only the current install state. The channel binding is NOT touched here:
-	// a re-install keeps whatever delivery Channel the integration was bound to (the
-	// ON CONFLICT omits channel_id, leaving the existing value in place), and a first
-	// install lands unbound (channel_id defaults NULL).
 	UpsertIntegrationState(ctx context.Context, arg UpsertIntegrationStateParams) (IntegrationState, error)
 	UpsertSourceState(ctx context.Context, arg UpsertSourceStateParams) (SourceState, error)
 	UpsertVergeCoreFrequencyEdit(ctx context.Context, arg UpsertVergeCoreFrequencyEditParams) error
-	// Withdraws a declared Seed by id (#21a: the Scope chip-remove act), and records
-	// the tombstone the withdrawal owes (ADR-0134 §2, ADR-0135 §2). A viewer never
-	// reaches it (requireAdmin). Idempotent: withdrawing a row already gone deletes
-	// nothing, writes no tombstone and is not an error, so a stale chip submit is a
-	// no-op.
-	//
-	// The delete and the tombstone are ONE statement, so they commit together and no
-	// path can leave a withdrawn scope with no mover for the membership fold to name.
-	// A data-modifying CTE runs exactly once and always to completion, whether or not
-	// the primary query reads it, so `tombstone` fires on its own.
-	//
-	// BOTH limbs write one (ADR-0135 §2, #1045). The row takes `seed`'s own shape, so
-	// it carries the kind it records and the one scope column that kind populates. A
-	// Seed carrying neither scope column cannot exist under `seed_shape`, so the WHERE
-	// only restates that constraint at the insert.
+	// A data-modifying CTE fires on its own, so dropping its count from the SELECT keeps the write.
 	WithdrawSeed(ctx context.Context, arg WithdrawSeedParams) (WithdrawSeedRow, error)
 }
 
