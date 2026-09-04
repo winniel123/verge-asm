@@ -328,7 +328,7 @@ func (w *Worker) probe(ctx context.Context, vantageID pgtype.Int8, spec wire.Job
 	return w.prober.Probe(ctx, spec)
 }
 
-// A terminate discards uncommitted work, so a zero-row guarded write rolls the tx back (DF-F4).
+// A terminate discards staged work, so a zero-row guard rolls the tx back (raw-job-output §2.4).
 
 var errJobCanceled = errors.New("queue: job canceled mid-flight")
 
