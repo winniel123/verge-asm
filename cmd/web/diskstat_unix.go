@@ -4,11 +4,6 @@ package main
 
 import "golang.org/x/sys/unix"
 
-// diskUsage reports the used and total bytes of the filesystem holding path, on the unix
-// deployment target (#633, WORK-ORDER-DOGFOOD-R1 item 3). It is a real Statfs of the
-// running host — never a fabricated figure — so the instance-health disk bar shows the
-// genuine volume state. An error (path gone, permissions) or a nonsensical read reports
-// ok=false, and the surface collapses the figure rather than guess one.
 func diskUsage(path string) (used, total uint64, ok bool) {
 	var st unix.Statfs_t
 	if err := unix.Statfs(path, &st); err != nil {

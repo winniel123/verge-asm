@@ -8,26 +8,10 @@ import (
 	"strings"
 )
 
-// trustedProxies is the set of proxy addresses whose X-Forwarded-For header web
-// trusts when deriving a client IP for the rate-limit key ONLY (#738). It is
-// parsed from VERGE_TRUSTED_PROXIES, a comma-separated list of IPs and/or CIDRs
-// (e.g. "10.0.0.0/8, 192.0.2.7"). Empty (the default) means no proxy is trusted:
-// the client IP is always the immediate RemoteAddr and no forwarding header is
-// consulted — identical to the pre-#738 behaviour.
-//
-// This governs the limiter key alone. X-Forwarded-For is NEVER read for identity
-// or authorization anywhere in the auth path (v1 spec §4.3, §7); a spoofed header
-// can at most spread or concentrate an attacker's OWN failed-attempt budget, never
-// grant access.
 type trustedProxies struct {
 	nets []netip.Prefix
 }
 
-// parseTrustedProxies parses the VERGE_TRUSTED_PROXIES spec: a comma-separated
-// list where each entry is either a bare IP (treated as a /32 or /128) or a CIDR.
-// Blank entries are skipped; an empty spec yields the zero value, which trusts
-// nothing. A malformed entry is a hard configuration error so a typo fails the
-// deployment loudly rather than silently trusting no proxy.
 func parseTrustedProxies(spec string) (trustedProxies, error) {
 	var tp trustedProxies
 	for _, part := range strings.Split(spec, ",") {
@@ -35,6 +19,7 @@ func parseTrustedProxies(spec string) (trustedProxies, error) {
 		if part == "" {
 			continue
 		}
+		// A skipped malformed entry would silently trust no proxy, so a typo must fail the deployment.
 		if strings.Contains(part, "/") {
 			p, err := netip.ParsePrefix(part)
 			if err != nil {
@@ -62,20 +47,6 @@ func (tp trustedProxies) trusts(addr netip.Addr) bool {
 	return false
 }
 
-// clientIP derives the client IP the rate-limit key is counted against (#738). It
-// is used ONLY for the limiter key, NEVER for identity or authorization.
-//
-// When no trusted proxy is configured, or the immediate peer (RemoteAddr) is not a
-// trusted proxy, the header is not consulted at all and the peer host is returned —
-// identical to the pre-#738 behaviour, so a direct-facing deployment is unchanged.
-//
-// When the peer IS a trusted proxy, the client is the rightmost X-Forwarded-For
-// entry that is not itself a trusted proxy: the closest hop the trusted chain
-// cannot vouch for, and thus the furthest-right value an attacker could still have
-// forged. Walking from the right and stopping at the first untrusted entry means a
-// client-supplied prefix of spoofed entries can never be mistaken for the real
-// source. If every entry is a trusted proxy (or the header is absent), it falls
-// back to the peer host.
 func (s *server) clientIP(r *http.Request) string {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
@@ -93,11 +64,11 @@ func (s *server) clientIP(r *http.Request) string {
 			}
 		}
 	}
+	// Walking from the right stops at the first unvouched hop, so a spoofed prefix never wins.
 	for i := len(entries) - 1; i >= 0; i-- {
 		a, aerr := netip.ParseAddr(entries[i])
 		if aerr != nil {
-			// A malformed entry cannot be a trusted proxy, so the chain of trust
-			// stops here: this is the closest hop we can no longer vouch for.
+			// A malformed entry cannot be a trusted proxy, so the chain of trust stops at it.
 			return entries[i]
 		}
 		if s.trustedProxies.trusts(a) {
@@ -105,17 +76,10 @@ func (s *server) clientIP(r *http.Request) string {
 		}
 		return a.Unmap().String()
 	}
-	// Every hop was a trusted proxy (or the header was absent): the peer is the
-	// nearest thing to a client we can name.
 	return host
 }
 
-// loginIPKey is the per-source throttle key a credential attempt is counted
-// against (#322, #738): the derived client IP. Behind a configured trusted proxy
-// this resolves per-client rather than per-proxy, so the limiter defends rather
-// than becoming a whole-instance login-denial lever; unconfigured it is the request
-// RemoteAddr, never a proxy-supplied header. It is used for the limiter key only,
-// never for identity or authorization.
 func (s *server) loginIPKey(r *http.Request) string {
+	// Behind a proxy a per-proxy key makes the limiter a whole-instance login-denial lever.
 	return "ip:" + s.clientIP(r)
 }
