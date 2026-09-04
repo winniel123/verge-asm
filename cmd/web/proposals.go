@@ -16,16 +16,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/seed"
 )
 
-// The Scope screen's Proposals section is now byte-served from the frozen scope.tmpl
-// (batch 3, #574), which FOLDS the old repo-authored "proposals" define in. That
-// define (proposalTemplates) and its markup are deleted; the handlers below keep their
-// POST routes, and renderSeeds shapes the flat .Proposals[{ID,Value,Kind,Source}] rows
-// the tmpl reads via flattenProposals.
-
-// proposalRow is one pending Proposal shaped for the frozen scope.tmpl's Proposals
-// section (#574): the row id (for confirm/decline forms), the proposed scope Value, its
-// Kind label, and the Source that offered it. It is the flat replacement for the old
-// per-lookup grouping the folded-away "proposals" define rendered.
 type proposalRow struct {
 	ID     int64
 	Value  string
@@ -33,9 +23,6 @@ type proposalRow struct {
 	Source string
 }
 
-// flattenProposals collapses the per-lookup pending-proposal grouping into the flat
-// rows scope.tmpl renders, preserving the query's order (lookup-newest, proposal-oldest).
-// A proposer answers with address scopes, so every row's Kind is "range" (#574).
 func flattenProposals(lookups []proposalLookupView) []proposalRow {
 	var out []proposalRow
 	for _, l := range lookups {
@@ -46,19 +33,10 @@ func flattenProposals(lookups []proposalLookupView) []proposalRow {
 	return out
 }
 
-// proposerRunner runs the enabled keyless proposer paths for one operator
-// lookup. It is the seam ADR-0012's paths sit behind: production wires the real
-// registry (real HTTP), tests inject a fake, so no lookup touches the network
-// under test.
 type proposerRunner interface {
 	Propose(ctx context.Context, orgName string, enabled map[string]bool) ([]proposer.Candidate, error)
 }
 
-// proposalView is one pending Proposal shaped for rendering. It never reads as a
-// Seed: it is a candidate the operator has not confirmed, and it carries which
-// kind of record produced it so its caveat stays visible (ADR-0012). AddrCount
-// is rendered inside the confirm affordance's own label, which is what makes the
-// gesture identical at every size (ADR-0022).
 type proposalView struct {
 	ID          int64
 	Scope       string
@@ -68,9 +46,6 @@ type proposalView struct {
 	AddrCount   string
 }
 
-// proposalLookupView groups every candidate one operator search produced. The
-// group is the unit a bulk decline operates over — declining is done over a
-// whole lookup at once (ADR-0022) — while confirmation stays per-Proposal.
 type proposalLookupView struct {
 	LookupID  int64
 	Query     string
@@ -91,8 +66,6 @@ func recordLabel(kind string) string {
 	}
 }
 
-// humanCount renders an address count with thousands separators so the confirm
-// label reads "Confirm 8,388,608 addresses" rather than a wall of digits.
 func humanCount(p netip.Prefix) string {
 	n := seed.AddressCount(p).String()
 	var b strings.Builder
@@ -105,13 +78,6 @@ func humanCount(p netip.Prefix) string {
 	return b.String()
 }
 
-// overCapProposalNotice is the message a Proposal confirm refuses with when the
-// proposed range is wider than the operator's address-scope cap. A Proposal is a
-// registry-authored range the operator confirms whole, so — unlike a typed
-// declaration, whose refusal offers a reachable in-cap prefix — there is no smaller
-// block to fall back to: the routes are to raise the cap under Settings · Scans, or
-// to decline the Proposal (ADR-0052 names the route and never takes it; #884 keeps
-// decline the expected response to a large Proposal). Nothing is auto-corrected.
 func overCapProposalNotice(p netip.Prefix, cap int) string {
 	return fmt.Sprintf(
 		"That proposed scope spans %s addresses — over your cap of %s. Raise your cap in Settings · Scans to confirm it whole, or decline it.",
@@ -121,7 +87,7 @@ func overCapProposalNotice(p netip.Prefix, cap int) string {
 
 func toProposalLookups(rows []db.ListPendingProposalsRow) []proposalLookupView {
 	var out []proposalLookupView
-	byLookup := map[int64]int{} // lookup id -> index in out
+	byLookup := map[int64]int{}
 	for _, row := range rows {
 		idx, ok := byLookup[row.LookupID]
 		if !ok {
@@ -153,14 +119,8 @@ func (s *server) proposalLookups(ctx context.Context) ([]proposalLookupView, err
 	return toProposalLookups(rows), nil
 }
 
-// runLookup answers an operator's org-name search: it runs every enabled keyless
-// proposer and files each candidate as a pending Proposal under one lookup. It
-// produces Proposal rows and never Observation rows — a proposer admits nothing.
-// Proposals are produced only in answer to this act, never on a cadence.
 func (s *server) runLookup(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	// The frozen scope.tmpl's org-name search posts `org` (POST /proposals/search); the
-	// legacy route posts `query`. Accept either so both the tmpl form and existing
-	// callers reach the one lookup path (#574).
+	// scope.tmpl posts org and the older /proposals route posts query, so both reach here (#574).
 	query := strings.TrimSpace(r.FormValue("org"))
 	if query == "" {
 		query = strings.TrimSpace(r.FormValue("query"))
@@ -178,16 +138,9 @@ func (s *server) runLookup(w http.ResponseWriter, r *http.Request, acct db.Accou
 
 	cands, perr := s.proposals().Propose(r.Context(), query, enabled)
 	if perr != nil {
-		// A proposer path errored. perr is a join of "<slug>: <err>" entries, so
-		// logging it with the query names both the failing paths and the search
-		// a maintainer needs to correlate against — the reason must not be
-		// silently thrown away (#251).
 		log.Printf("web: proposer lookup %q: %v", logSafe(query), perr) // #nosec G706 (sanitized via logSafe)
 	}
 	if len(cands) == 0 {
-		// Distinguish a backend failure from a genuine no-match: a non-nil perr
-		// means a path could not answer, so this is not "your name matched
-		// nothing" and must not read as one.
 		msg := "No candidate scopes matched that name."
 		if perr != nil {
 			msg = "The lookup could not be completed — a registry path errored and no candidates were found. See the server log for details."
@@ -213,41 +166,15 @@ func (s *server) runLookup(w http.ResponseWriter, r *http.Request, acct db.Accou
 		}
 	}
 	if perr != nil {
-		// Partial failure: some paths returned candidates (now filed) while
-		// another errored, so this list may be missing scopes. Redirect exactly
-		// like a clean success — the filed candidates persist, so a plain inline
-		// render would re-file duplicates on refresh — and carry the caveat in the
-		// session flash so the Scope page surfaces the incompleteness (see seedsPage).
+		// The candidates are already filed, so an inline render would re-file them on refresh.
 		s.flashScopeBack(w, r, seedsForms{proposalNotice: partialProposalNotice})
 		return
 	}
 	s.backToScope(w, r)
 }
 
-// partialProposalNotice is the caveat a partial-failure lookup carries to the Scope
-// page. Carrying it through the redirect (rather than rendering inline off the POST)
-// keeps the search idempotent on refresh while still surfacing that some registry path
-// errored (#251).
-//
-// It travelled as a `?notice=partial-proposals` query flag until ADR-0130 §3. The flag
-// changed the landing URL, so the operator landed at a URL the submit was not made
-// from, and the §2 scroll key missed. The session flash (flash.go) carries the same
-// caveat with the same idempotence and leaves the URL alone.
 const partialProposalNotice = "Showing partial results — one or more registry paths errored, so this list may be incomplete. See the server log for details."
 
-// confirmProposal confirms exactly one Proposal into exactly one Seed. It is
-// singular by construction — one id per request, no batch (ADR-0022) — and the
-// resulting Seed retains the Proposal as provenance. The operator address-scope
-// cap gates the confirm exactly as it gates a typed declaration (ADR-0047 §3.4:
-// the cap is checked "when the operator declares an address scope — or confirms a
-// Proposal into one"; ADR-0127): a confirmed Proposal is a Seed the operator did
-// not type, so a range wider than the operator's policy cap is refused until they
-// raise the cap. The raise is the deliberate policy act, not a gate on the confirm
-// — ADR-0127 restores ADR-0022's original singular-confirm regime, where safety is
-// the singular confirm, not the cap, and decline stays the expected response to a
-// large Proposal (#884). There is no second cap and no Proposal-only branch: this
-// reads the same server.addressCap and seed.WithinCap the declaration path reads,
-// so reporting parity holds by construction — a confirmed Proposal is a Seed (#892).
 func (s *server) confirmProposal(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
@@ -257,34 +184,17 @@ func (s *server) confirmProposal(w http.ResponseWriter, r *http.Request, acct db
 
 	p, err := s.store.GetPendingProposal(r.Context(), id)
 	if err != nil {
-		// Already confirmed, declined, or never existed — a repeat submit opens
-		// no second gate. Return to the screen rather than erroring.
 		s.backToScope(w, r)
 		return
 	}
 
-	// The cap gates the confirm, read once off the instance_config singleton (#888,
-	// ADR-0127) so a raise on the Settings control takes effect on the next confirm.
-	// An over-cap Proposal is refused, never truncated: nothing branches on the number
-	// beyond in-cap versus over-cap (#848), the same seed.WithinCap the declaration
-	// path applies. The refusal names the routes and takes neither — raise the cap, or
-	// decline (ADR-0052) — and no Seed is created.
+	// A confirmed Proposal is a Seed, so the declaration path's own cap gates it too (#892).
 	if addrCap := s.addressCap(r.Context()); !seed.WithinCap(p.AddressCidr, addrCap) {
 		s.flashScopeBack(w, r, seedsForms{proposalNotice: overCapProposalNotice(p.AddressCidr, addrCap)})
 		return
 	}
 
-	// Canonicalize to the masked network before it becomes a Seed, exactly as the
-	// manual scope-declaration path does (seeds.go: `p := rawP.Masked()`). The Seed
-	// table's `address_cidr` is the source ListAddressScopeCidrs feeds to the hot/cold
-	// fan-out, and the Custody derivation's contract reads AddressScopes as canonical/
-	// masked (custody.Estate). The manual declare path masks; the confirm path did not,
-	// so an org-sourced (registry-authored) range was the one address-scope seed persisted
-	// non-canonically — diverging from a manually-added CIDR of the same shape. A `cidr`
-	// column rejects a prefix with host bits, so a non-aligned org scope failing to persist
-	// is exactly "an Org-Discovery CIDR never scans" (R4-R5, #755). Masking here restores
-	// dispatch parity: an org-sourced range enters scope as the same canonical Seed a manual
-	// declaration of the same shape would.
+	// A cidr column rejects host bits, so masking is what gives an org range dispatch parity (#755).
 	cidr := p.AddressCidr.Masked()
 	sd, err := s.store.CreateAddressSeed(r.Context(), db.CreateAddressSeedParams{
 		AddressCidr: &cidr, CreatedBy: acct.ID,
@@ -306,33 +216,18 @@ func (s *server) confirmProposal(w http.ResponseWriter, r *http.Request, acct db
 	s.backToScope(w, r)
 }
 
-// declineLookup declines every still-pending Proposal under one lookup in a
-// single act (ADR-0022). Declining is safe to batch: a pending Proposal is read
-// by nothing, so declining and never answering have the same effect on the gate.
-//
-// A decline is a boundary claim — the operator says these proposed scopes are
-// not theirs — so each declined scope is recorded as an address exclusion
-// (Scope.jsx: "declines are recorded as exclusions"). Recording the exclusion
-// makes the decline durable: the same range does not silently re-enter the
-// estate. The pending rows are read first, while they are still pending, so their
-// scopes survive the decline; an already-excluded scope is left as-is.
 func (s *server) declineLookup(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	if s.devMode {
 		s.backToScope(w, r)
 		return
 	}
-	// The frozen scope.tmpl declines the CHECKED proposals: the checkboxes post their
-	// ids under `ids` (form-attribute association), so decline-many operates over the
-	// selected proposals rather than a whole lookup (#574). Each still-pending scope is
-	// read (while pending) so it can be recorded as an address exclusion, making the
-	// decline durable — the same range does not silently re-enter the estate.
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "bad form", http.StatusBadRequest)
 		return
 	}
+	// scope.tmpl posts the checked ids, so this declines a selection and not a lookup (#574).
 	raw := r.Form["ids"]
 	if len(raw) == 0 {
-		// Nothing selected — a stale or empty submit is a no-op, not an error.
 		s.backToScope(w, r)
 		return
 	}
@@ -341,16 +236,16 @@ func (s *server) declineLookup(w http.ResponseWriter, r *http.Request, acct db.A
 		if err != nil {
 			continue
 		}
-		// Read the proposal while it is still pending so its scope survives the decline.
 		p, gerr := s.store.GetPendingProposal(r.Context(), id)
 		if gerr != nil {
-			continue // already spent, or never existed — a repeat submit opens no gate.
+			continue
 		}
 		if _, err := s.store.DeclineProposal(r.Context(), id); err != nil {
 			s.serverError(w, "decline proposal", err)
 			return
 		}
 		cidr := p.AddressCidr
+		// A decline records an exclusion, so the same range is not proposed again (ADR-0012).
 		if _, err := s.store.CreateAddressExclusion(r.Context(), db.CreateAddressExclusionParams{
 			AddressCidr: &cidr, CreatedBy: acct.ID,
 		}); err != nil && !isUniqueViolation(err) {
@@ -361,8 +256,6 @@ func (s *server) declineLookup(w http.ResponseWriter, r *http.Request, acct db.A
 	s.backToScope(w, r)
 }
 
-// enabledProposers returns the keyless proposer slugs the operator has left
-// enabled, so a lookup runs only the paths the source-enablement state permits.
 func (s *server) enabledProposers(r *http.Request) (map[string]bool, error) {
 	views, err := s.sourceViews(r)
 	if err != nil {
@@ -377,8 +270,6 @@ func (s *server) enabledProposers(r *http.Request) (map[string]bool, error) {
 	return enabled, nil
 }
 
-// proposals returns the proposer runner, defaulting to an empty registry so a
-// server constructed without one simply proposes nothing rather than panicking.
 func (s *server) proposals() proposerRunner {
 	if s.proposer == nil {
 		return proposer.NewRegistry()
