@@ -13,11 +13,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
 )
 
-// The Exposure stat band's vs-last-batch deltas (#443, P0.2): a Service that was
-// firewalled at the previous batch (internet not-reached) and is exposed now
-// (internet reached) moves the exposed tile +1 and the firewalled tile -1 — a real
-// projection over the reachability legs as they stood then vs now, not a fabricated
-// number.
 func TestExposureCountDeltasAcrossBatches(t *testing.T) {
 	f := newFakeStore()
 	base := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
@@ -25,10 +20,8 @@ func TestExposureCountDeltasAcrossBatches(t *testing.T) {
 	t1 := base.Add(1 * time.Hour)
 
 	const svc = "198.51.100.10:443/tcp"
-	// Previous batch (t0): internal reached, internet not-reached — firewalled.
 	f.addClassReachability(t, svc, "internal", t0, `{"outcome":"reached"}`)
 	f.addClassReachability(t, svc, "internet", t0, `{"outcome":"not-reached"}`)
-	// Latest batch (t1): internet flips to reached — now exposed (internal span holds).
 	f.addClassReachability(t, svc, "internet", t1, `{"outcome":"reached"}`)
 
 	s := newServer(f, testKey, "", func() time.Time { return t1.Add(time.Minute) })
@@ -60,17 +53,13 @@ func TestExposureCountDeltasAcrossBatches(t *testing.T) {
 	}
 }
 
-// The signal deltas read the persisted first-seen (#442) to count how many of the
-// currently-firing pairs were already firing at the previous batch — the honest
-// net-new-since-last-batch the stored history supports. A pair first seen before the
-// boundary was open then; one first seen at/after it is new.
 func TestSignalDeltasNetNewSinceLastBatch(t *testing.T) {
 	f := newFakeStore()
 	base := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
 	boundary := base.Add(1 * time.Hour)
 	after := base.Add(2 * time.Hour)
 
-	// certificate-expired is critical; certificate-expiring is medium (endpoint.go).
+	// certificate-expired is critical and certificate-expiring medium (internal/signal).
 	f.signalInstances = []db.SignalInstance{
 		{ID: 1000, SignalName: "certificate-expired", SubjectKey: "a@198.51.100.1:443/tcp", FirstSeen: pgtype.Timestamptz{Time: base, Valid: true}},
 		{ID: 1001, SignalName: "certificate-expired", SubjectKey: "b@198.51.100.2:443/tcp", FirstSeen: pgtype.Timestamptz{Time: after, Valid: true}},
@@ -87,18 +76,14 @@ func TestSignalDeltasNetNewSinceLastBatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Open: 3 firing now, 2 already firing before the boundary (a, c).
 	if open.Current != 3 || open.Previous != 2 || open.Change() != 1 {
 		t.Errorf("open signals delta = %+v (change %d), want 3 / 2 / +1", open, open.Change())
 	}
-	// Critical: a and b are critical now (2); only a was firing before the boundary (1).
 	if critical.Current != 2 || critical.Previous != 1 || critical.Change() != 1 {
 		t.Errorf("critical delta = %+v (change %d), want 2 / 1 / +1", critical, critical.Change())
 	}
 }
 
-// With only one batch there is no previous batch to compare against, so every delta
-// is withheld (Known=false) rather than compared against nothing.
 func TestDeltasWithheldWithoutPreviousBatch(t *testing.T) {
 	f := newFakeStore()
 	now := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
@@ -113,10 +98,6 @@ func TestDeltasWithheldWithoutPreviousBatch(t *testing.T) {
 	}
 }
 
-// countCertsExpiring counts only certificate spans whose parsed not_after falls in
-// the (ref, ref+30d] window — self-contained so it dedupes trivially with #445's
-// current-state count. The shipped certificate value carries no not_after, so those
-// spans (and non-certificate spans) never count.
 func TestCountCertsExpiringWindow(t *testing.T) {
 	ref := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
 	certSpan := func(subject string, notAfter string) drift.Span {
@@ -129,8 +110,6 @@ func TestCountCertsExpiringWindow(t *testing.T) {
 			Value: val,
 		}
 	}
-	// within 30d counts; beyond 30d, already expired, no not_after (the shipped
-	// shape), and a non-certificate span all do not.
 	spans := []drift.Span{
 		certSpan("in@svc", ref.Add(10*24*time.Hour).Format(time.RFC3339)),
 		certSpan("far@svc", ref.Add(40*24*time.Hour).Format(time.RFC3339)),

@@ -61,39 +61,30 @@ func TestClientIP(t *testing.T) {
 		want       string
 	}{
 		{
-			// No trusted proxy configured: the header is ignored, RemoteAddr host wins.
 			name: "no config ignores xff", tp: trustedProxies{},
 			remoteAddr: "10.0.0.9:5555", xff: "203.0.113.1", want: "10.0.0.9",
 		},
 		{
-			// Peer is not a trusted proxy: header ignored even though one is configured.
 			name: "untrusted peer ignores xff", tp: trusted,
 			remoteAddr: "198.51.100.4:5555", xff: "203.0.113.1", want: "198.51.100.4",
 		},
 		{
-			// Trusted proxy peer, one client hop: that hop is the client.
 			name: "trusted peer single hop", tp: trusted,
 			remoteAddr: "192.0.2.7:443", xff: "203.0.113.1", want: "203.0.113.1",
 		},
 		{
-			// Trusted proxy peer, a spoofed prefix then the real client then the
-			// trusted proxy: the rightmost UNTRUSTED entry (the real client) wins, and
-			// the client-supplied spoof on the left is ignored.
 			name: "rightmost untrusted", tp: trusted,
 			remoteAddr: "10.0.0.9:443", xff: "1.1.1.1, 203.0.113.1, 10.0.0.2", want: "203.0.113.1",
 		},
 		{
-			// Every hop trusted (proxy chain only): fall back to the peer host.
 			name: "all trusted falls back to peer", tp: trusted,
 			remoteAddr: "10.0.0.9:443", xff: "10.0.0.2, 192.0.2.7", want: "10.0.0.9",
 		},
 		{
-			// Trusted peer but no XFF header: fall back to the peer host.
 			name: "trusted peer no header", tp: trusted,
 			remoteAddr: "10.0.0.9:443", xff: "", want: "10.0.0.9",
 		},
 		{
-			// A malformed rightmost entry can't be a trusted proxy, so trust stops there.
 			name: "malformed rightmost entry", tp: trusted,
 			remoteAddr: "10.0.0.9:443", xff: "203.0.113.1, garbage", want: "garbage",
 		},
@@ -108,10 +99,6 @@ func TestClientIP(t *testing.T) {
 	}
 }
 
-// TestLoginIPKeyPerClientBehindProxy is the #738 core guarantee: with a fixed
-// RemoteAddr (the shared TLS-terminating proxy) but distinct X-Forwarded-For client
-// IPs, the per-IP throttle key resolves per-client, so one client tripping the IP
-// lock does NOT reject a different client — and a legitimate success clears its key.
 func TestLoginIPKeyPerClientBehindProxy(t *testing.T) {
 	proxy, err := parseTrustedProxies("192.0.2.7")
 	if err != nil {
@@ -121,7 +108,6 @@ func TestLoginIPKeyPerClientBehindProxy(t *testing.T) {
 	s := &server{trustedProxies: proxy, loginLimiter: newLoginLimiter(c.now)}
 
 	const proxyAddr = "192.0.2.7:443"
-	// Two operators sharing the proxy but on distinct client IPs, under two usernames.
 	alice := reqWith(proxyAddr, "203.0.113.10")
 	bob := reqWith(proxyAddr, "203.0.113.20")
 
@@ -132,38 +118,28 @@ func TestLoginIPKeyPerClientBehindProxy(t *testing.T) {
 		t.Fatalf("distinct clients behind the proxy share an IP key (%q); the proxy address, not the client, is being keyed", aliceIP)
 	}
 
-	// Alice hammers bad logins until her IP key locks.
 	for i := 0; i < s.loginLimiter.maxFailures; i++ {
 		s.loginLimiter.fail(aliceAcct, aliceIP)
 	}
 	if !s.loginLimiter.locked(aliceAcct, aliceIP) {
 		t.Fatal("alice's keys did not lock after reaching the threshold")
 	}
-	// Bob, behind the same proxy but a different client IP, is unaffected.
 	if s.loginLimiter.locked(bobAcct, bobIP) {
 		t.Fatal("bob is rejected by alice's IP lock; the shared proxy address is being keyed instead of the client")
 	}
 
-	// A legitimate success for bob clears his keys (they were never locked, but the
-	// reset must be a no-op-safe clear that leaves him able to authenticate).
-	s.loginLimiter.fail(bobAcct, bobIP) // a mistype
+	s.loginLimiter.fail(bobAcct, bobIP)
 	s.loginLimiter.reset(bobAcct, bobIP)
 	if s.loginLimiter.locked(bobAcct, bobIP) {
 		t.Fatal("bob still throttled after a successful-auth reset")
 	}
 }
 
-// TestAccountLockCeilingBoundsDenial covers the #738 per-account blast-radius cap:
-// an unauthenticated attacker who keeps a known username failing can deny it for at
-// most acctLockCeiling; past that, locked() releases the ACCOUNT key so the real
-// operator regains access, while the attacker-scoped IP key keeps locking.
 func TestAccountLockCeilingBoundsDenial(t *testing.T) {
 	c := &steppableClock{t: time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)}
 	l := newLoginLimiter(c.now)
 	acct := loginAccountKey("admin")
 
-	// Sustain the lock well past the ceiling: every time the lock expires, fail again.
-	// Advance in baseLockout steps so each iteration re-crosses an expired lock.
 	sawReleaseWithinCeiling := false
 	for elapsed := time.Duration(0); elapsed <= l.acctLockCeiling+2*l.baseLockout; elapsed += l.baseLockout {
 		for i := 0; i < l.maxFailures; i++ {
@@ -181,15 +157,12 @@ func TestAccountLockCeilingBoundsDenial(t *testing.T) {
 		t.Fatal("test did not advance past the ceiling")
 	}
 
-	// The IP key (attacker-scoped) has no ceiling: it stays locked under the same
-	// sustained failures, so the guessing host is still throttled.
 	c2 := &steppableClock{t: time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)}
 	l2 := newLoginLimiter(c2.now)
 	ip := "ip:203.0.113.99"
 	for i := 0; i < l2.maxFailures; i++ {
 		l2.fail(ip)
 	}
-	// Advance past the ceiling; the IP lock is escalating and remains in force.
 	c2.add(l2.acctLockCeiling + time.Minute)
 	for i := 0; i < l2.maxFailures; i++ {
 		l2.fail(ip)

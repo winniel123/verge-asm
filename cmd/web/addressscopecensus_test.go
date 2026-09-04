@@ -12,22 +12,17 @@ import (
 	"github.com/winniel123/verge-asm/internal/scan"
 )
 
-// The surface is the Coverage screen (coverageBody, sources_test.go), which holds the
-// address scope's own membership census — the aperture meter, the one surface with a
-// `Coverage` denominator (ADR-0129's #956 amendment, #989).
-
 func declaredScopeFixture(t *testing.T, f *fakeStore, c *http.Client, base, cidr string) {
 	t.Helper()
 	declare(t, c, base, "address", cidr).Body.Close()
 	f.scans = append(f.scans, db.Scan{ID: 99, Kind: scan.EdgeFanoutKind, Enabled: true, CadenceSeconds: 86400})
 }
 
-// evidRow returns the contradiction row's own markup, or the empty string where the
-// meter renders none. The forbidden-content assertions read THIS rather than the page:
-// an address and a CIDR both contain digits, so a search over the whole rendering
-// could not tell a product-chosen number from one the operator declared.
 func evidRow(page string) string {
 	const open = `<div class="evid">`
+
+	// An address and a CIDR both hold digits, so a whole-page search cannot tell a
+	// product-chosen number from one the operator declared.
 	i := strings.Index(page, open)
 	if i < 0 {
 		return ""
@@ -40,10 +35,6 @@ func evidRow(page string) string {
 	return rest[:j]
 }
 
-// A declared scope holding a measured shared edge carries the row, and the row states
-// the covered count, the count above the boundary, and the exclusion remedy. Without
-// it the estate probes a provider's edge while holding a measurement that says so, and
-// evidence held and not shown is the fails-silently shape the model refuses.
 func TestAddressScopeCensusRowStatesTheCountsAndTheRemedy(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -61,8 +52,6 @@ func TestAddressScopeCensusRowStatesTheCountsAndTheRemedy(t *testing.T) {
 	}
 }
 
-// The row reads as a sentence at either count. One shared edge is the modal case and
-// the one a fixed plural would render wrong, so both are pinned.
 func TestAddressScopeCensusRowReadsAsASentenceInThePlural(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -82,8 +71,6 @@ func TestAddressScopeCensusRowReadsAsASentenceInThePlural(t *testing.T) {
 	}
 }
 
-// A scope with no address above the threshold renders no row. A measured NOT-shared
-// edge is measured, and it is not evidence against the declaration.
 func TestAddressScopeCensusRowAbsentBelowTheThreshold(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -97,11 +84,9 @@ func TestAddressScopeCensusRowAbsentBelowTheThreshold(t *testing.T) {
 	}
 }
 
-// Open-then-label: an UNMEASURED declared address is probed normally and carries no
-// row. Hold-then-open carried across from the extension limb by analogy would put a
-// pending row on every address of every scope on the first day, which is noise rather
-// than a census.
 func TestAddressScopeCensusRowAbsentWhereTheScopeIsUnmeasured(t *testing.T) {
+	// Hold-then-open carried across from the extension limb would put a pending row on
+	// every address on the first day, which is noise rather than a census (ADR-0129 #956).
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
@@ -117,10 +102,6 @@ func TestAddressScopeCensusRowAbsentWhereTheScopeIsUnmeasured(t *testing.T) {
 	}
 }
 
-// The row carries no threshold value and no verdict. The boundary stays inside the
-// versioned `Custody` derivation, and *you may have over-asserted* is the sentence the
-// nag test forbids. The row states two counts the operator's own estate produced, and
-// nothing else.
 func TestAddressScopeCensusRowCarriesNoThresholdOrVerdict(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -143,9 +124,6 @@ func TestAddressScopeCensusRowCarriesNoThresholdOrVerdict(t *testing.T) {
 	}
 }
 
-// The aperture statement is unchanged. ADR-0095's meter counts what the instrument
-// cannot report, and a declared shared edge is looked at and reported fine — so the
-// label, the counted/total figure and the meter's own detail all survive the row.
 func TestAddressScopeCensusRowLeavesTheApertureStatementAlone(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -167,9 +145,6 @@ func TestAddressScopeCensusRowLeavesTheApertureStatementAlone(t *testing.T) {
 	}
 }
 
-// The custody-extension panel is unchanged. Its subject is which addresses the
-// EXTENSION pulls in, and an address-scope address is not an extension member — the
-// #944 amendment kept the two registers on separate surfaces for this reason.
 func TestAddressScopeCensusRowLeavesTheExtensionPanelAlone(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -188,10 +163,9 @@ func TestAddressScopeCensusRowLeavesTheExtensionPanelAlone(t *testing.T) {
 	}
 }
 
-// The row fires NO message. A Declared act stands behind the address, so the
-// coverage-class message's safety justification does not transfer, and the nag test
-// bites hardest on the operator who declared a CDN range deliberately.
 func TestAddressScopeCensusRowFiresNoMessage(t *testing.T) {
+	// A Declared act stands behind the address, so the coverage-class message's safety
+	// justification does not transfer to this row.
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")

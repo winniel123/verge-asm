@@ -5,14 +5,8 @@ import (
 	"testing"
 )
 
-// The UI-polish fixes from #246 live in the shared template CSS and the foot
-// script. They render on every screen, so a coarse regression guard here keeps
-// them from being dropped by a later edit to the stylesheet block.
-
-// The scroll-preservation script rides every chrome page, delivered through the
-// shared "foot" template. Its absence would return every form action to the
-// top-of-page reload #246 set out to fix.
 func TestFootCarriesScrollPreservation(t *testing.T) {
+	// Losing the script returns a form action to a top-of-page reload (#246).
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
@@ -26,9 +20,6 @@ func TestFootCarriesScrollPreservation(t *testing.T) {
 	}
 }
 
-// ADR-0130 §2 hardens that script. The stash keys on the full URL, and the
-// restore fires on a navigation-type gate instead of a short freshness budget.
-// A regression to either half silently returns a failure class the map closed.
 func TestFootScrollRestoreHonoursADR0130(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -39,11 +30,8 @@ func TestFootScrollRestoreHonoursADR0130(t *testing.T) {
 	for _, want := range []string{
 		`return "verge:scroll:" + u.pathname + (q ? "?" + q : "");`,
 		`var K = keyFor(location);`,
-		// #974 amends the §2 key: a `toast` receipt is not part of a page's identity,
-		// so it is dropped on both ends. Without it a toasting act — the channel and
-		// integration Send tests, the scan trigger, every other toastRedirect — stashes
-		// under the submitting URL and lands under that URL plus `&toast=`, and the
-		// restore misses the stash it just wrote.
+		// A toast receipt is not part of a page's identity, so dropping it on both ends
+		// keeps a toasting act from landing under a key it never stashed.
 		`parts[i].split("=")[0] !== "toast"`,
 		`getEntriesByType("navigation")`,
 		`nav.type === "navigate"`,
@@ -57,12 +45,9 @@ func TestFootScrollRestoreHonoursADR0130(t *testing.T) {
 	}
 }
 
-// ADR-0130 §3 tail, ticket #973. A tab, a severity filter, a sort header, a pager
-// and a drawer open or close are plain links, so they never reach the submit
-// listener. That is failure class B. The click listener stashes for them, but only
-// when the target stays on this list, and it writes the stash under the target's
-// key because that is the key the landing page reads.
 func TestFootClickStashCoversClassB(t *testing.T) {
+	// A plain link never reaches the submit listener, so the click listener stashes for
+	// it, under the target's key because that is what the landing page reads (ADR-0130 §3).
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
@@ -80,9 +65,3 @@ func TestFootClickStashCoversClassB(t *testing.T) {
 		}
 	}
 }
-
-// The #246 .badge / .dial pageCSS-rule guards retired with pageCSS itself under P4.4
-// (the shell conversion, map #22): the badge and dial styling now lives in the
-// design-owned frozen templates + tokens, not a repo stylesheet const, so a repo-side
-// CSS-substring guard no longer has anything to assert. The design-system G1/G2 gates
-// hold that styling now.

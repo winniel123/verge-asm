@@ -13,9 +13,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/signal"
 )
 
-// presentedAddrs turns a vantage's persisted facts into the 0/1/2 addresses an outside
-// observer saw of it (#710): the dialled peer and the SSH_CLIENT egress, unmapped, with
-// NULL/unparseable facts dropped and never fabricated.
 func TestPresentedAddrs(t *testing.T) {
 	txt := func(s string) pgtype.Text { return pgtype.Text{String: s, Valid: s != ""} }
 	cases := []struct {
@@ -47,19 +44,16 @@ func TestPresentedAddrs(t *testing.T) {
 	}
 }
 
-// deriveVantageClasses classifies each vantage per read from its presented facts (#709):
-// no facts -> unverified; any presented address uncovered by an address scope ->
-// internet (the closed direction); every presented address covered -> internal.
 func TestDeriveVantageClasses(t *testing.T) {
 	scope := netip.MustParsePrefix("10.0.0.0/8")
 	covered := func(a netip.Addr) bool { return scope.Contains(a.Unmap()) }
 	txt := func(s string) pgtype.Text { return pgtype.Text{String: s, Valid: s != ""} }
 
 	vantages := []db.Vantage{
-		{ID: 1},                                     // no facts -> unverified
-		{ID: 2, DialledAddr: txt("10.0.0.5")},       // covered -> internal
-		{ID: 3, DialledAddr: txt("203.0.113.9")},    // uncovered -> internet
-		{ID: 4, DialledAddr: txt("10.0.0.5"), Egress: txt("203.0.113.9")}, // one uncovered -> internet
+		{ID: 1},
+		{ID: 2, DialledAddr: txt("10.0.0.5")},
+		{ID: 3, DialledAddr: txt("203.0.113.9")},
+		{ID: 4, DialledAddr: txt("10.0.0.5"), Egress: txt("203.0.113.9")},
 	}
 	got := deriveVantageClasses(vantages, covered)
 	want := map[int64]custody.VantageClass{
@@ -75,19 +69,13 @@ func TestDeriveVantageClasses(t *testing.T) {
 	}
 }
 
-// The two internet-gated rules light ONLY because the detecting vantage DERIVES to
-// `internet` from its presented address against the declared scopes (#709) — not from a
-// stored column. With the same evidence under an `internal`-deriving vantage, both fall
-// outside their internet-scoped domain. This also proves Exposure's internet leg
-// composes a real value (HasInternetReach / InternetReach) off the derived class.
 func TestDerivedInternetClassLightsFlagshipRules(t *testing.T) {
 	const (
-		sensitiveSvc = "198.51.100.51:3389/tcp"       // RDP — on the sensitive list
-		leakyName    = "leak.example.com"             // resolves to a non-globally-reachable addr
+		sensitiveSvc = "198.51.100.51:3389/tcp"
+		leakyName    = "leak.example.com"
 		leakyResol   = `{"outcome":"Resolved","addresses":["10.0.0.5"]}`
 	)
 
-	// --- internet-deriving vantage: both rules FIRE ---
 	f := newFakeStore()
 	f.addClassReachability(t, sensitiveSvc, "internet", obsClock, `{"outcome":"reached"}`)
 	f.addClassResolution(t, leakyName, "internet", obsClock, leakyResol)
@@ -119,7 +107,6 @@ func TestDerivedInternetClassLightsFlagshipRules(t *testing.T) {
 		t.Errorf("non-globally-reachable-address-resolved-from-internet verdict = %v, want fired", got)
 	}
 
-	// --- control: identical evidence, but an internal-deriving vantage ---
 	g := newFakeStore()
 	g.addClassReachability(t, sensitiveSvc, "internal", obsClock, `{"outcome":"reached"}`)
 	g.addClassResolution(t, leakyName, "internal", obsClock, leakyResol)
@@ -176,17 +163,7 @@ func mustNameFacts(t *testing.T, s *server, r *http.Request) []signal.NameFacts 
 	return facts
 }
 
-// addressScopeCovered narrows with the derivation (ADR-0133 §4). A declared `address`
-// exclusion takes its addresses out of the `covered` predicate the Vantage-class
-// derivation binds, and this is the RECLASSIFICATION that follows: a vantage whose
-// dialled address sat inside a covered range and now sits inside an excluded one
-// derives `internet` rather than `internal`.
-//
-// The consequence is accepted rather than worked around. #711's invariant is ONE
-// binding used identically by batch gating and every render, so there is no second,
-// un-narrowed predicate for classification alone.
 func TestAddressScopeCoveredNarrowsByAnAddressExclusion(t *testing.T) {
-	// The fake's ListAddressScopeCidrs always returns the 10.0.0.0/8 convention scope.
 	inside := netip.MustParseAddr("10.200.0.1")
 	outside := netip.MustParseAddr("10.0.0.5")
 

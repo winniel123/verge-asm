@@ -12,10 +12,6 @@ import (
 
 const apiTokenPlaintext = "vg_pat_deadbeefdeadbeefdeadbeef"
 
-// runAPIBearer drives one request through the Bearer middleware against a fresh server
-// over the fake store, returning the recorder and the account the wrapped read handler
-// resolved (nil when the middleware short-circuited before calling it). The wrapped
-// handler writes 200 so a resolved request is distinguishable from a refused one.
 func runAPIBearer(t *testing.T, f *fakeStore, method, authz string) (*httptest.ResponseRecorder, *db.Account) {
 	t.Helper()
 	srv := newServer(f, testKey, "", fixedClock())
@@ -56,9 +52,6 @@ func (f *fakeStore) tokenByID(id int64) (db.PersonalToken, bool) {
 	return db.PersonalToken{}, false
 }
 
-// Enabled + a valid token resolves the caller to the live account row (role read live,
-// per ADR-0123 §4) and records the coarsened last-used touch — and a second request
-// inside the hour does NOT re-touch it (the write is at most once per hour per token).
 func TestAPIBearerEnabledValidResolvesAndTouches(t *testing.T) {
 	f := newFakeStore()
 	acct, tokID := seedAPIToken(t, f, roleViewer)
@@ -79,7 +72,6 @@ func TestAPIBearerEnabledValidResolvesAndTouches(t *testing.T) {
 	}
 	first := tok.LastUsedAt.Time
 
-	// A second request within the hour must not advance last_used_at (coarsened ≤1/hr).
 	rec2, got2 := runAPIBearer(t, f, http.MethodGet, "Bearer "+apiTokenPlaintext)
 	if rec2.Code != http.StatusOK || got2 == nil {
 		t.Fatalf("second request: status=%d resolved=%v, want 200 + resolved", rec2.Code, got2 != nil)
@@ -90,8 +82,6 @@ func TestAPIBearerEnabledValidResolvesAndTouches(t *testing.T) {
 	}
 }
 
-// The role is read LIVE from the account row on every request: a demotion between two
-// token requests takes effect on the next one with no token reissue (ADR-0123 §4).
 func TestAPIBearerRoleReadLive(t *testing.T) {
 	f := newFakeStore()
 	acct, _ := seedAPIToken(t, f, roleAdmin)
@@ -100,7 +90,6 @@ func TestAPIBearerRoleReadLive(t *testing.T) {
 	if got == nil || got.Role != roleAdmin {
 		t.Fatalf("first resolve role = %v, want admin", got)
 	}
-	// Demote the account; the token is unchanged.
 	a := f.accounts[acct.ID]
 	a.Role = roleViewer
 	f.accounts[acct.ID] = a
@@ -111,11 +100,8 @@ func TestAPIBearerRoleReadLive(t *testing.T) {
 	}
 }
 
-// Disabled ⇒ every path 404s, surface-off beats auth: even a valid token, and even a
-// mutating verb, get 404 with no 401/403 that would confirm the surface exists.
 func TestAPIBearerDisabled404(t *testing.T) {
 	f := newFakeStore()
-	// Seed an otherwise-valid token, then force the surface OFF.
 	seedAPIToken(t, f, roleViewer)
 	f.instanceConfig = db.GetInstanceConfigRow{ApiEnabled: false}
 
@@ -126,21 +112,15 @@ func TestAPIBearerDisabled404(t *testing.T) {
 	if got != nil {
 		t.Fatal("read handler reached on a disabled surface")
 	}
-	// A non-GET on a disabled surface is still 404 (surface-off precedes the verb check),
-	// never 405 — a probe cannot even learn the surface exists.
 	rec2, _ := runAPIBearer(t, f, http.MethodPost, "Bearer "+apiTokenPlaintext)
 	if rec2.Code != http.StatusNotFound {
 		t.Fatalf("disabled POST status = %d, want 404", rec2.Code)
 	}
 }
 
-// A token whose account has been removed ⇒ 401, and the last-used touch never fires
-// because resolution failed before it.
 func TestAPIBearerRemovedAccount401(t *testing.T) {
 	f := newFakeStore()
 	f.instanceConfig = db.GetInstanceConfigRow{ApiEnabled: true}
-	// A token pointing at an account id that does not exist stands in for a removed
-	// account (GetAccountByID yields no row).
 	tok, err := f.CreatePersonalToken(t.Context(), db.CreatePersonalTokenParams{
 		AccountID: 999, Name: "orphan", Prefix: "vg_pat_dead…", TokenHash: hashToken(apiTokenPlaintext),
 	})
@@ -163,8 +143,6 @@ func TestAPIBearerRemovedAccount401(t *testing.T) {
 	}
 }
 
-// A non-GET verb on an enabled surface ⇒ 405 with an Allow: GET header and no body — the
-// read-only property is enforced before the credential is even read.
 func TestAPIBearerNonGET405(t *testing.T) {
 	f := newFakeStore()
 	seedAPIToken(t, f, roleViewer)
@@ -186,9 +164,6 @@ func TestAPIBearerNonGET405(t *testing.T) {
 	}
 }
 
-// The bearer path reads only the Authorization header: a missing header, a wrong scheme,
-// a non-vg_pat_ credential, or an unknown token are each a uniform 401, and a session
-// cookie is never accepted as a credential.
 func TestAPIBearerRejectsNonBearerCredentials(t *testing.T) {
 	f := newFakeStore()
 	seedAPIToken(t, f, roleViewer)
@@ -213,8 +188,6 @@ func TestAPIBearerRejectsNonBearerCredentials(t *testing.T) {
 		}
 	}
 
-	// A valid session cookie is not a credential on the API path: presented alone (no
-	// bearer header) it is ignored and the request is 401, never resolved.
 	srv := newServer(f, testKey, "", fixedClock())
 	h := srv.apiBearer(func(w http.ResponseWriter, r *http.Request, _ db.Account) {
 		w.WriteHeader(http.StatusOK)
@@ -228,8 +201,6 @@ func TestAPIBearerRejectsNonBearerCredentials(t *testing.T) {
 	}
 }
 
-// A never-used token reads last_used_at as null until its first authenticated request —
-// guards the "never" empty state the Profile surface renders.
 func TestAPIBearerNeverUsedIsNull(t *testing.T) {
 	f := newFakeStore()
 	_, tokID := seedAPIToken(t, f, roleViewer)

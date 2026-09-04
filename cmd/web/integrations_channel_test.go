@@ -14,13 +14,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
-// --- Integrations channel binding + real Send test (#39b, P0.14) -------------
-//
-// These exercise the delivery-Channel binding the ruling added to the Integrations
-// drawer: a "Delivery channel" select that binds an installed integration to a Channel
-// (a reference, not a fold), and a "Send test" that POSTs a real payload through the
-// bound Channel's transport. They run only when the surface is live (integrationsEnabled).
-
 type fakeChannelSender struct {
 	calls      int
 	lastURL    string
@@ -45,8 +38,6 @@ func (f *fakeChannelSender) Send(_ context.Context, targetURL string, body, secr
 	return st, nil
 }
 
-// startWithChannelSender starts a server whose Send-test egress is the given fake, so a
-// test asserts the send through the seam rather than the live network.
 func startWithChannelSender(t *testing.T, f *fakeStore, sender channelTestSender) string {
 	t.Helper()
 	srv := newServer(f, testKey, "", fixedClock())
@@ -70,8 +61,6 @@ func addFakeChannel(f *fakeStore, id int64, rawURL, secret string) {
 	}
 }
 
-// Binding an installed integration to a Channel persists the reference and renders it
-// selected in the drawer, and gates "Send test" from disabled to a real POST form.
 func TestIntegrationsChannelBindPersistsAndShowsInDrawer(t *testing.T) {
 	skipIfIntegrationsHidden(t)
 	f := newFakeStore()
@@ -80,11 +69,8 @@ func TestIntegrationsChannelBindPersistsAndShowsInDrawer(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// Install so there is an installed row to bind.
 	postForm(t, ac, base+"/settings/integrations/install", url.Values{"slug": {"slack"}}).Body.Close()
 
-	// Before binding, the drawer offers the "Delivery channel" select with a leading
-	// "Not connected" option and the declared channel, and gates "Send test" off.
 	before := integrationsBody(t, ac, base, "&view=slack")
 	for _, want := range []string{
 		`action="/settings/integrations/channel"`, "Delivery channel",
@@ -106,7 +92,6 @@ func TestIntegrationsChannelBindPersistsAndShowsInDrawer(t *testing.T) {
 		t.Fatalf("binding not persisted: %+v", f.integrationStates["slack"])
 	}
 
-	// The drawer now renders the channel selected and offers the real Send-test form.
 	after := integrationsBody(t, ac, base, "&view=slack")
 	if !strings.Contains(after, `value="1" selected`) {
 		t.Errorf("bound channel not rendered selected; body: %s", after)
@@ -119,8 +104,6 @@ func TestIntegrationsChannelBindPersistsAndShowsInDrawer(t *testing.T) {
 	}
 }
 
-// A bound integration's "Send test" POSTs a real payload through the bound Channel's
-// transport (via the seam, never the network) and toasts the spec's exact copy.
 func TestIntegrationsTestSendBoundCallsTransport(t *testing.T) {
 	skipIfIntegrationsHidden(t)
 	f := newFakeStore()
@@ -159,8 +142,6 @@ func TestIntegrationsTestSendBoundCallsTransport(t *testing.T) {
 	}
 }
 
-// A failing transport (non-2xx or transport error) toasts an honest non-ok degrade,
-// never the success copy.
 func TestIntegrationsTestSendBoundFailureToasts(t *testing.T) {
 	skipIfIntegrationsHidden(t)
 	f := newFakeStore()
@@ -186,8 +167,6 @@ func TestIntegrationsTestSendBoundFailureToasts(t *testing.T) {
 	}
 }
 
-// An unbound integration's "Send test" makes NO POST (the template already disables the
-// button; the handler defends it) and toasts a "connect a channel" warn.
 func TestIntegrationsTestSendUnboundDoesNotPost(t *testing.T) {
 	skipIfIntegrationsHidden(t)
 	f := newFakeStore()
@@ -212,8 +191,6 @@ func TestIntegrationsTestSendUnboundDoesNotPost(t *testing.T) {
 	}
 }
 
-// Clearing the binding (empty channel) unbinds, and an unknown channel id is refused
-// rather than stored as a dangling reference.
 func TestIntegrationsChannelUnbindAndUnknownRefused(t *testing.T) {
 	skipIfIntegrationsHidden(t)
 	f := newFakeStore()
@@ -232,13 +209,6 @@ func TestIntegrationsChannelUnbindAndUnknownRefused(t *testing.T) {
 		t.Fatalf("empty channel did not unbind: %+v", st)
 	}
 
-	// An unknown channel id is refused, and no dangling reference is written.
-	//
-	// An operator CAN reach this: the select's options are the Channels that existed when
-	// the drawer rendered, so another admin deleting one between the render and the submit
-	// lands here. It is a refusal, so since ticket #978 it answers the way every refusal on
-	// this surface answers (ADR-0130 §1) — a 303 back to the drawer with a toast — rather
-	// than a 400 text body at the POST URL that loses the drawer, the tab and the offset.
 	const drawer = "/settings?tab=integrations&view=slack"
 	resp = postForm(t, ac, base+"/settings/integrations/channel", url.Values{
 		"id": {"slack"}, "channel": {"999"}, "return": {drawer},
@@ -255,8 +225,6 @@ func TestIntegrationsChannelUnbindAndUnknownRefused(t *testing.T) {
 	}
 }
 
-// The channel-bind and test acts are admin acts: a viewer is refused and nothing is
-// written or sent.
 func TestIntegrationsChannelActsAdminGated(t *testing.T) {
 	skipIfIntegrationsHidden(t)
 	f := newFakeStore()
