@@ -13,9 +13,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/scan"
 )
 
-// The gate is hot-only. cold and edge-fanout stream their fan-out too and lag the same
-// way, but neither connects to a target, so gating them would be a scheduling change
-// under a safety ticket. Every other kind must be left exactly as it was.
 func TestHotLagGateAppliesToTheHotTierAlone(t *testing.T) {
 	if !hotLagGateApplies(scan.HotKind) {
 		t.Error("the hot Scan carries the per-target ceiling, so the gate must apply to it")
@@ -31,9 +28,6 @@ func TestHotLagGateAppliesToTheHotTierAlone(t *testing.T) {
 	}
 }
 
-// fakeHotLagStore is the whole surface the gate can reach: the one non-terminal-job
-// read. It records what the gate asked so a test can prove the current dispatch is
-// excluded from the question.
 type fakeHotLagStore struct {
 	called    bool
 	scanID    int64
@@ -61,8 +55,6 @@ func TestHotLagGateArmed(t *testing.T) {
 	}
 }
 
-// The gate and the reaper must agree about what "disabled" means, or the gate could
-// arm over a reaper that will never terminate a wedged 'running' job.
 func TestHotLagGateArmingMatchesStaleCutoff(t *testing.T) {
 	now := time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC)
 	for _, threshold := range []time.Duration{-time.Hour, -time.Nanosecond, 0, time.Nanosecond, time.Minute, DefaultStaleJobThreshold} {
@@ -73,8 +65,6 @@ func TestHotLagGateArmingMatchesStaleCutoff(t *testing.T) {
 	}
 }
 
-// Cadence lag: the Scan still holds a 'ready' or 'running' job from an earlier
-// dispatch, so the tick is held.
 func TestHotTickLagsWhenAnEarlierDispatchHasNotDrained(t *testing.T) {
 	f := &fakeHotLagStore{lagging: true}
 	lagging, err := hotTickLags(context.Background(), f, 7, 42, DefaultStaleJobThreshold, nil)
@@ -89,9 +79,6 @@ func TestHotTickLagsWhenAnEarlierDispatchHasNotDrained(t *testing.T) {
 	}
 }
 
-// A drained queue dispatches normally. The store answers false when every earlier job
-// reached a terminal state — done, dead, retried or cancelled — so a dead-lettered
-// backlog is covered by the same case and never wedges the next tick.
 func TestHotTickDoesNotLagWhenTheQueueIsDrained(t *testing.T) {
 	f := &fakeHotLagStore{lagging: false}
 	lagging, err := hotTickLags(context.Background(), f, 7, 42, DefaultStaleJobThreshold, nil)
@@ -106,10 +93,6 @@ func TestHotTickDoesNotLagWhenTheQueueIsDrained(t *testing.T) {
 	}
 }
 
-// The reaper-disabled configuration falls through to the pre-#1114 behaviour: the
-// gate does not arm, it does not even ask, and it logs why the protection is off. A
-// gate armed here would skip every future hot tick forever on one wedged 'running'
-// row, which is a silent stop of all active measurement.
 func TestHotTickFallsThroughWhenTheReaperIsDisabled(t *testing.T) {
 	for _, threshold := range []time.Duration{0, -5 * time.Minute} {
 		f := &fakeHotLagStore{lagging: true}
@@ -130,9 +113,8 @@ func TestHotTickFallsThroughWhenTheReaperIsDisabled(t *testing.T) {
 	}
 }
 
-// A read failure is reported, never swallowed into "dispatch anyway": the caller
-// aborts the tick rather than fan out past a gate that did not answer.
 func TestHotTickLagsReportsAReadFailure(t *testing.T) {
+	// A gate that did not answer must never fall through to dispatching anyway.
 	want := errors.New("boom")
 	f := &fakeHotLagStore{returnErr: want}
 	if _, err := hotTickLags(context.Background(), f, 7, 42, DefaultStaleJobThreshold, nil); !errors.Is(err, want) {

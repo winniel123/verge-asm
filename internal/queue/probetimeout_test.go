@@ -11,9 +11,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// blockingProber never returns on its own: it blocks until its ctx is cancelled,
-// then reports the ctx error — the exact shape a hung prober exec presents once its
-// per-job deadline fires (ExecProber returns ctx.Err() on the run).
 type blockingProber struct{ ran chan struct{} }
 
 func (b blockingProber) Probe(ctx context.Context, _ wire.JobSpec) (wire.ProbeResult, error) {
@@ -21,12 +18,11 @@ func (b blockingProber) Probe(ctx context.Context, _ wire.JobSpec) (wire.ProbeRe
 	case b.ran <- struct{}{}:
 	default:
 	}
+	// ExecProber returns ctx.Err() on the run, which is the shape this fake reproduces.
 	<-ctx.Done()
 	return wire.ProbeResult{}, ctx.Err()
 }
 
-// A hung probe must not block the drain loop forever: the per-job deadline cancels
-// it and it returns a deadline error the caller drives into retry / dead-letter.
 func TestProbeTimeoutUnblocksHungProber(t *testing.T) {
 	bp := blockingProber{ran: make(chan struct{}, 1)}
 	w := &Worker{prober: bp, probeTimeout: 20 * time.Millisecond}
@@ -53,9 +49,6 @@ func TestProbeTimeoutUnblocksHungProber(t *testing.T) {
 	}
 }
 
-// A zero timeout disables the bound: the probe then runs under the parent ctx alone,
-// so cancelling the parent is what stops a hung prober. This proves WithProbeTimeout(0)
-// really removes the deadline rather than defaulting it back on.
 func TestProbeTimeoutZeroUsesParentContext(t *testing.T) {
 	bp := blockingProber{ran: make(chan struct{}, 1)}
 	w := &Worker{prober: bp, probeTimeout: 0}
@@ -73,7 +66,6 @@ func TestProbeTimeoutZeroUsesParentContext(t *testing.T) {
 		t.Fatal("the prober was never invoked")
 	}
 
-	// With the bound disabled the probe is still running; only the parent cancel ends it.
 	select {
 	case err := <-done:
 		t.Fatalf("probe returned %v before the parent was cancelled; the bound was not disabled", err)

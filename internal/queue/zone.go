@@ -13,30 +13,18 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// The zone Scan is worker-read: unlike the dns Scan there is no prober exec and
-// no Vantage, and a Batch's observations are stamped at the operator's supply
-// instant rather than the worker's read (v1 spec §3.4, CONTEXT.md `Observation`).
-// This file holds the worker's completion path for a zone job and the
-// dispatcher's fan-out of one job per supplied zone file.
-
-// toZoneObservationParams maps a zone file's restated records to observation
-// rows for one Batch. Every row is attributed to the operator's zone-file source
-// on the `dns-record` facet, carries no Vantage (a zone file's facts are not a
-// function of where they are read from), and is stamped at the record's supply
-// instant — never the worker's read — which is what keeps a stale zone file
-// legible as stale instead of a current observation of a stale fact.
 func toZoneObservationParams(batchID int64, recs []scan.ZoneRecord) []db.InsertObservationParams {
+	// Stamped at the operator's supply instant, so a stale zone file reads as stale (v1-spec §3.4).
 	out := make([]db.InsertObservationParams, 0, len(recs))
 	for _, r := range recs {
-		// r.Data is always a marshalled zoneValue (RestateZone skips a record it
-		// cannot marshal), so it is never empty — no empty-value guard is needed.
+		// RestateZone drops a record it cannot marshal, so no empty-value guard is needed here.
 		out = append(out, db.InsertObservationParams{
 			BatchID:       batchID,
 			Facet:         "dns-record",
 			SubjectKind:   "name",
 			SubjectKey:    r.Name,
 			Discriminator: r.Qtype,
-			VantageID:     pgtype.Int8{}, // no vantage choice at all
+			VantageID:     pgtype.Int8{},
 			Source:        scan.ZoneSource,
 			Value:         []byte(r.Data),
 			ObservedAt:    tstz(r.ObservedAt.UTC()),
@@ -45,17 +33,6 @@ func toZoneObservationParams(batchID int64, recs []scan.ZoneRecord) []db.InsertO
 	return out
 }
 
-// completeZone reads the zone file carried in the job's spec, restates it into
-// `dns-record` observations at the supply instant, and commits the Batch, its
-// observations and the job's done state in one transaction. A zone read has no
-// network step to fail, so there is no retry or dead-letter path here.
-//
-// When raw-output capture is on (#869, spec §1.3, §2.5), it also builds and
-// persists a ZoneTranscript in the same tx: zone sends nothing to a prober, so
-// the debug artifact is the restate RESULT — the restated count and the records
-// RestateZone skipped. Capture stays on this completed path only; zone has no
-// failure tx (spec §1.3, flagged thin). The zone-file bytes are never duplicated
-// into the transcript — they already sit in the operator's zone-file row.
 func (w *Worker) completeZone(ctx context.Context, job db.ClaimJobRow, spec wire.JobSpec) error {
 	zf, err := scan.ZoneScopeFromSpec(spec.Scope)
 	if err != nil {
@@ -65,12 +42,13 @@ func (w *Worker) completeZone(ctx context.Context, job db.ClaimJobRow, spec wire
 	recs, skipped := scan.RestateZone(zf)
 
 	var zt wire.Transcript
+	// The zone file is already stored, so the transcript never copies it (raw-job-output §1.3).
 	if w.captureOn() {
 		zt = wire.ZoneTranscript{
 			TranscriptFrame: wire.TranscriptFrame{Kind: job.Kind, Duration: w.now().Sub(start)},
 			Restated:        len(recs),
 			Skipped:         skipped,
-			Outcome:         wire.ZoneParsed{}, // the completed path always parsed
+			Outcome:         wire.ZoneParsed{},
 		}
 	}
 
@@ -78,7 +56,7 @@ func (w *Worker) completeZone(ctx context.Context, job db.ClaimJobRow, spec wire
 		batchID, err := qtx.InsertBatch(ctx, db.InsertBatchParams{
 			ScanID:        job.ScanID,
 			DispatchID:    job.DispatchID,
-			VantageID:     pgtype.Int8{}, // the zone Scan has no vantage
+			VantageID:     pgtype.Int8{},
 			Kind:          job.Kind,
 			Outcome:       "completed",
 			Offers:        job.Offers,
@@ -99,9 +77,6 @@ func (w *Worker) completeZone(ctx context.Context, job db.ClaimJobRow, spec wire
 	})
 }
 
-// zoneFiles reads the latest supplied zone file per name-scope Seed — the scope
-// of the zone Scan (v1 spec §3.4). A re-supply is a new row with a new supply
-// instant; only the most recent is restated.
 func zoneFiles(ctx context.Context, q *db.Queries) ([]scan.ZoneFile, error) {
 	rows, err := q.LatestZoneFilesForDispatch(ctx)
 	if err != nil {
@@ -119,9 +94,6 @@ func zoneFiles(ctx context.Context, q *db.Queries) ([]scan.ZoneFile, error) {
 	return files, nil
 }
 
-// enqueueZoneJob enqueues one worker-read job for one supplied zone file. It
-// carries no Vantage and empty offers, and does not retry: MaxAttempts is 1
-// because reading a stored file has no transient failure to back off from.
 func enqueueZoneJob(ctx context.Context, qtx *db.Queries, scanID, dispatchID int64, j scan.ZoneJob) error {
 	spec, err := j.JobSpec(fmt.Sprintf("scan:%d:seed:%d", scanID, j.SeedID))
 	if err != nil {
@@ -135,6 +107,7 @@ func enqueueZoneJob(ctx context.Context, qtx *db.Queries, scanID, dispatchID int
 	if err != nil {
 		return err
 	}
+	// Reading a stored file has no transient failure to back off from, so the job never retries.
 	_, err = qtx.EnqueueJob(ctx, db.EnqueueJobParams{
 		ScanID:         scanID,
 		VantageID:      pgtype.Int8{},

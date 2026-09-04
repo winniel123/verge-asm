@@ -8,10 +8,6 @@ import (
 	"testing"
 )
 
-// redactCause surfaces a cause verbatim ONLY when it was explicitly marked safe
-// (safeProgress) — the CT non-200 the ticket cites. Every other cause, notably a
-// prober exec error carrying stderr, is redacted to a generic phrase so no raw
-// prober output ever reaches the live stream (ADR-0041 / instance-privacy).
 func TestRedactCause(t *testing.T) {
 	cases := []struct {
 		name string
@@ -35,16 +31,13 @@ func TestRedactCause(t *testing.T) {
 	}
 }
 
-// The wire payload round-trips through JSON with the tags the web consumer decodes
-// (dispatch, job, level, text) — the producer and consumer share this shape by
-// convention, not a shared type (they live in different packages).
 func TestJobProgressWire(t *testing.T) {
+	// The producer and cmd/web's decoder share this shape by convention, not by a shared type.
 	ev := jobProgress{Dispatch: 42, Job: 701, Level: "warn", Text: "attempt 4 failed · crt.sh returned HTTP 502 · retrying"}
 	raw, err := json.Marshal(ev)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// The tags are the contract with cmd/web's decoder; assert them literally.
 	for _, want := range []string{`"dispatch":42`, `"job":701`, `"level":"warn"`, `"text":"attempt 4 failed`} {
 		if !strings.Contains(string(raw), want) {
 			t.Errorf("payload %s missing %q", raw, want)
@@ -59,8 +52,6 @@ func TestJobProgressWire(t *testing.T) {
 	}
 }
 
-// The label builders produce the exact redacted text each event carries. The retry label is
-// the crt.sh-502 example the ticket cites; the completion label is a bare count.
 func TestProgressLabels(t *testing.T) {
 	if got := retryLabel(4, safeProgress("crt.sh returned HTTP 502")); got != "attempt 4 failed · crt.sh returned HTTP 502 · retrying" {
 		t.Errorf("retryLabel=%q", got)

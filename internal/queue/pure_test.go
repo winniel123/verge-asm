@@ -14,14 +14,11 @@ import (
 func TestScheduledTickIsIdempotentWithinAWindow(t *testing.T) {
 	cadence := 24 * time.Hour
 	base := time.Date(2026, 8, 15, 3, 0, 0, 0, time.UTC)
-	// Two ticks in the same daily window must resolve to one key, so the second
-	// fan-out conflicts and is skipped rather than run concurrently.
 	a := scheduledTick(base, cadence)
 	b := scheduledTick(base.Add(6*time.Hour), cadence)
 	if !a.Equal(b) {
 		t.Errorf("two ticks in one window differ: %s vs %s", a, b)
 	}
-	// A tick in the next window is a different key.
 	c := scheduledTick(base.Add(25*time.Hour), cadence)
 	if a.Equal(c) {
 		t.Errorf("next window collapsed onto this one: %s", c)
@@ -37,33 +34,16 @@ func TestBackoffGrowsAndCaps(t *testing.T) {
 	}
 }
 
-// exhaustedRetries is the bound that makes a run settle: a failing job retries
-// while below its attempt budget and dead-letters once it reaches it, so a ct run
-// reaches a terminal state instead of re-dispatching forever (#753). It maps
-// (attempt, max_attempts) to retry-vs-dead-letter and is shared by the prober
-// path (process) and the worker-read ct path (retryOrDeadLetterCT), so this pure
-// test pins the boundary both fork on.
 func TestExhaustedRetries(t *testing.T) {
 	const max = 5
 
-	// The exhaustion path: the fifth attempt is the last. It is exhausted, so the
-	// worker dead-letters — a terminal outcome — rather than enqueuing a sixth
-	// attempt. This is the transition that stops the endless re-dispatch: without
-	// it the job would retry without end.
 	if !exhaustedRetries(max, max) {
 		t.Fatalf("attempt %d of %d not exhausted: the ct run would re-dispatch past its budget forever", max, max)
 	}
-	// And every attempt beyond the budget stays terminal — the bound never leaks
-	// back into a retry once it has settled.
 	if !exhaustedRetries(max+1, max) {
 		t.Errorf("attempt %d of %d not exhausted: the terminal bound leaks past the budget", max+1, max)
 	}
 
-	// The terminal transition, walked attempt by attempt. Attempts 1..4 are below
-	// the budget and must NOT be read as exhausted — a legitimate retry is never
-	// silently dropped (crt.sh is ~50%% reliable, ADR-0027 §7, so every remaining
-	// try must be spent, crt.sh being ~50% reliable) — and the fifth flips to
-	// exhausted exactly once.
 	flips := 0
 	prev := false
 	for a := int32(1); a <= max; a++ {
@@ -80,18 +60,11 @@ func TestExhaustedRetries(t *testing.T) {
 		t.Errorf("the retry budget flipped to exhausted %d times, want exactly 1 (a single clean terminal transition)", flips)
 	}
 
-	// A single-attempt job — the zone Scan ships max_attempts 1 and does not retry
-	// — is exhausted on its first failure and dead-letters straight away.
 	if !exhaustedRetries(1, 1) {
 		t.Error("a max_attempts==1 job (zone) did not settle on its first failure")
 	}
 }
 
-// Wave-1 (ADR-0107): the dns Scan resolves the union of the name-scope Seed
-// domains and the CT-admitted names, deduplicated. The Seed domains lead and keep
-// their exact string (what the resolver already resolves them as); an admitted
-// name is appended only where it is not already a Seed domain, matched by the
-// lowercase/trailing-dot key both are stored under.
 func TestMergeResolutionNamesUnionsAdmittedNames(t *testing.T) {
 	seeds := []string{"example.com", "example.net"}
 	admitted := []string{"vpn.example.com", "a.b.example.com"}
@@ -108,9 +81,6 @@ func TestMergeResolutionNamesUnionsAdmittedNames(t *testing.T) {
 }
 
 func TestMergeResolutionNamesDedupesAgainstSeedsAndItself(t *testing.T) {
-	// An admitted name equal to a Seed domain (here differing only by case and a
-	// trailing dot) must not double the Seed; and admitted names repeated among
-	// themselves collapse to one. The Seed's original string is what survives.
 	seeds := []string{"example.com"}
 	admitted := []string{"Example.com.", "vpn.example.com", "vpn.example.com"}
 	got := mergeResolutionNames(seeds, admitted)
@@ -125,15 +95,8 @@ func TestMergeResolutionNamesDedupesAgainstSeedsAndItself(t *testing.T) {
 	}
 }
 
-// #256: the merge dedups on resolutionNameKey, which must be the resolver's own
-// CanonicalName key — not a parallel Unicode fold. Two names differing only by a
-// non-ASCII uppercase letter ("Ä" vs "ä") are DISTINCT subjects to the resolver,
-// since CanonicalName lowercases ASCII only and leaves the non-ASCII octet as-is.
-// An inline strings.ToLower (as resolutionNameKey once used) folds them together
-// and silently drops one from the resolution set, so the resolver never measures
-// it. Both must survive the merge, keyed exactly as the resolver keys observations.
 func TestMergeResolutionNamesKeysOnResolverCanonicalName(t *testing.T) {
-	// Precondition: the resolver keys the two spellings distinctly.
+	// An inline ToLower folds a non-ASCII pair the resolver keeps apart, dropping one silently (#256).
 	if got := resolutionwalk.CanonicalName("Ä.example.com"); got != "Ä.example.com" {
 		t.Fatalf("precondition: CanonicalName folded a non-ASCII uppercase letter: %q", got)
 	}
@@ -149,8 +112,6 @@ func TestMergeResolutionNamesKeysOnResolverCanonicalName(t *testing.T) {
 			t.Errorf("merged[%d] = %q, want %q", i, got[i], want[i])
 		}
 	}
-	// The dedup key is exactly the resolver's subject key, so dedup, storage, and
-	// the citation match cannot disagree.
 	if resolutionNameKey("Ä.example.com") != resolutionwalk.CanonicalName("Ä.example.com") {
 		t.Errorf("resolutionNameKey diverged from the resolver's CanonicalName (#256)")
 	}
@@ -164,9 +125,6 @@ func TestMergeResolutionNamesEmptyAdmittedIsSeedsUnchanged(t *testing.T) {
 	}
 }
 
-// §4.5's retry budget: the waits before the five attempts span roughly an hour,
-// the budget both measurement jobs and Channel deliveries share. A base of 30s
-// summed to ~15m and quietly missed it.
 func TestBackoffBudgetIsAboutAnHour(t *testing.T) {
 	var total time.Duration
 	for attempt := int32(2); attempt <= 5; attempt++ {
@@ -177,9 +135,6 @@ func TestBackoffBudgetIsAboutAnHour(t *testing.T) {
 	}
 }
 
-// AC #195: a reachability observation folds onto a `service` subject's timeline,
-// sourced by the prober (never the resolver), under the connect-outcome vector —
-// so the span fold is facet-generic, not a resolution hardcode.
 func TestReachabilityFoldsToServiceProberTimeline(t *testing.T) {
 	if got := subjectKindFor(connectoutcome.FacetReachability); got != "service" {
 		t.Errorf("reachability subject kind = %q, want service", got)
@@ -187,8 +142,6 @@ func TestReachabilityFoldsToServiceProberTimeline(t *testing.T) {
 	if got := sourceFor(connectoutcome.FacetReachability); got != "prober" {
 		t.Errorf("reachability source = %q, want prober", got)
 	}
-	// Since ADR-0104 the reachability vector composes two leaves — connect-outcome
-	// and blanket-discrimination — so a bump of either Breaks the reach half once.
 	v := facetVector(connectoutcome.FacetReachability)
 	if len(v) != 2 {
 		t.Fatalf("reachability vector = %+v, want two leaves (connect-outcome + blanket-discrimination)", v)
@@ -200,16 +153,13 @@ func TestReachabilityFoldsToServiceProberTimeline(t *testing.T) {
 	if leaves[blanketdiscrim.Kind] != blanketdiscrim.Version {
 		t.Errorf("reachability vector missing blanket-discrimination leaf: %+v", v)
 	}
-	// The resolution vector is unchanged — two leaves, not the reachability one.
 	if r := facetVector(resolutionwalk.FacetResolution); len(r) != 2 {
 		t.Errorf("resolution vector = %+v, want two leaves", r)
 	}
 }
 
-// A blanketed reach's Gap observation folds to an is_gap span, while an ordinary
-// reachability value does not — so a blanket responder's leg reads as absent
-// downstream without a special case (ADR-0104). The resolution gap still folds too.
 func TestReachabilityGapFoldsToIsGap(t *testing.T) {
+	// is_gap is how a blanket responder's leg reads absent downstream with no special case (ADR-0104).
 	gap := json.RawMessage(`{"outcome":"gap","cause":"blanket-responder","reason":"proxy edge"}`)
 	if !isGapValue(connectoutcome.FacetReachability, gap) {
 		t.Error("a reachability gap observation must fold to is_gap=true")
@@ -228,7 +178,7 @@ func TestToObservationParamsAttributesTimelineAndSkipsFacetless(t *testing.T) {
 	obs := []wire.Observation{
 		{Kind: resolutionwalk.Kind, Facet: "resolution", Subject: "example.com", Vantage: "v1", Data: json.RawMessage(`{"outcome":"NameError"}`)},
 		{Kind: resolutionwalk.Kind, Facet: "dns-record", Subject: "example.com", Discriminator: "A", Data: json.RawMessage(`{"rrs":null}`)},
-		{Kind: "tcp-connect"}, // no facet — a kind whose leaf a later ticket adds
+		{Kind: "tcp-connect"},
 	}
 	params := toObservationParams(42, pgInt8(7), tstz(time.Now()), obs)
 	if len(params) != 2 {

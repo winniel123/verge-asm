@@ -14,49 +14,15 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// authorizedScope is the subject denotation a completed job's Batch authorised —
-// parsed from the job's AttemptedScope (worker.go:357), the by-content record of
-// what the job set out to cover. It is the recording-side re-gate for #773: a
-// compromised prober can put ANY string in an observation's Subject (the field the
-// batch writes as SubjectKey and the fold keys spans/estate/messages on), so before
-// the write we drop observations whose Subject is NOT one the job authorised. This
-// is the integrity twin of the egress re-gate custody.MayProbe already applies to
-// new probe targets (per the audit): that bounds where we connect; this bounds what
-// we are willing to record as measured.
-//
-// A dimension is gated ONLY where the scope denotes a non-empty authorised set for
-// it, so the check can never over-reject a legitimate observation by testing it
-// against an empty or absent denotation:
-//
-//   - addrs — the authorised Address set, from the address-scoped kinds: hot/cold
-//     `addresses`, tls-acceptance `services[].address`, http-identity
-//     `targets[].address`. Every address-bearing facet (reachability, certificate,
-//     http-identity, tls-acceptance) keys its Service/Endpoint subject on one of
-//     these addresses (connectoutcome.ServiceKey / EndpointKey, tlsacceptance /
-//     httpexchange emit), rendered from the Address's netip form — so the authorised
-//     denotation is exact under netip normalisation.
-//     The `edge-fanout` kind's `addresses` fills the same set, and its facet-LESS line
-//     is gated on the Address it names rather than on a subject — it decides membership
-//     and so has none (ADR-0129 §6).
-//   - names — the authorised Name set, from the dns kind's `names`. A resolution /
-//     dns-record observation's Subject is exactly CanonicalName(one of the resolved
-//     Names) (resolutionwalk.Resolve / emit): the walk emits its CNAME targets as RR
-//     DATA, never as separate subjects, so the authorised denotation is exact under
-//     normalizeDomain (which matches CanonicalName's trim-dot + lowercase).
-//
-// nil map => that dimension is not denoted by this scope (or is empty) and is left
-// ungated — a job of that kind emits no observation on that dimension, and gating an
-// empty set would drop every line. Kinds with no prober (zone, ct) never reach here.
+// A compromised prober can name any Subject, so this re-gates what we record as measured (#773).
+
 type authorizedScope struct {
 	addrs map[string]struct{}
 	names map[string]struct{}
 }
 
-// scopeShape is the union of every address/name source an AttemptedScope record
-// carries across the prober-measured kinds. Each kind fills its own subset; the
-// others stay zero. Unmarshalling the union is safe because the field names do not
-// collide across kinds (hot/cold `addresses`, tls `services`, http-identity
-// `targets`, dns `names`).
+// The kinds' scope records share no field name, which is what makes one union safe to unmarshal.
+
 type scopeShape struct {
 	Names     []string `json:"names"`
 	Addresses []string `json:"addresses"`
@@ -68,13 +34,9 @@ type scopeShape struct {
 	} `json:"targets"`
 }
 
-// parseAuthorizedScope builds the authorised denotation from a job's AttemptedScope
-// JSON. The scope is produced by our own trusted dispatcher (scan.*.AttemptedScope
-// marshals a scope record), so a parse failure is an internal bug, not attacker
-// input: it yields an all-nil scope that gates nothing, reverting to pre-#773
-// behaviour rather than dropping legitimate observations.
 func parseAuthorizedScope(raw []byte) authorizedScope {
 	var s scopeShape
+	// Our own dispatcher writes this scope, so a parse failure is a bug and fails open (#773).
 	if len(raw) == 0 || json.Unmarshal(raw, &s) != nil {
 		return authorizedScope{}
 	}
@@ -102,12 +64,8 @@ func parseAuthorizedScope(raw []byte) authorizedScope {
 	return a
 }
 
-// normAddr canonicalises an address for set membership: a value that parses as an IP
-// compares by its netip form (so a scope address and a subject address for the same
-// host never differ by spelling — IPv4-mapped, zero-compression, case), and one that
-// does not falls back to its trimmed string, symmetrically on both sides, so a
-// non-IP scope entry can still match its own subject rather than being over-rejected.
 func normAddr(s string) string {
+	// One address has many spellings, so both sides normalise or the check over-rejects a real line.
 	if a, err := netip.ParseAddr(strings.TrimSpace(s)); err == nil {
 		return a.Unmap().String()
 	}
@@ -115,6 +73,7 @@ func normAddr(s string) string {
 }
 
 func (a authorizedScope) admits(o wire.Observation) bool {
+	// Gating an undenoted dimension would drop every legitimate line, so an absent set gates nothing.
 	switch o.Facet {
 	case resolutionwalk.FacetResolution, resolutionwalk.FacetDNSRecord:
 		if a.names == nil {
@@ -130,44 +89,23 @@ func (a authorizedScope) admits(o wire.Observation) bool {
 		_, ok := a.addrs[subjectAddrKey(o.Subject)]
 		return ok
 	case "":
-		// A facet-LESS line. The `edge-fanout` leaf emits one: it decides membership
-		// and opens no timeline, so it names no subject at all — what it names is the
-		// Address it measured (edgefanout.Emit). That address is the dimension to gate,
-		// and gating it matters as much as any subject: an injected row would feed the
-		// custody-extension veto (#985) an answer nothing measured, and suppress
-		// probing of an address the operator never declined.
-		//
-		// This ONE arm fails CLOSED where the others fail open. An undenoted dimension
-		// is left ungated everywhere else because gating an empty set would drop every
-		// legitimate line of that kind. Here the reverse holds: an edge-fanout line can
-		// only come from an edge-fanout job, and BuildEdgeFanoutJobs enqueues no job
-		// for an empty candidate set, so such a job's scope ALWAYS denotes addresses.
-		// An edge-fanout line arriving under a scope that denotes none is by
-		// construction not one that job dispatched — a dns job's scope, say, which
-		// denotes names alone. Admitting it would be the whole bypass.
-		//
-		// Every other facet-less kind carries no Address relation this scope denotes
-		// and stays ungated.
+		// An injected edge-fanout line would feed the custody veto an answer nothing measured (#985).
 		if o.Kind != edgefanout.Kind {
 			return true
 		}
+		// This arm alone fails closed: an edge-fanout job's scope always denotes addresses (ADR-0129 §6).
 		if a.addrs == nil {
 			return false
 		}
 		_, ok := a.addrs[normAddr(o.Address)]
 		return ok
 	default:
-		// A facet with no address/name subject relation (or one a later wave adds):
-		// nothing to gate it against here, so it is not this check's to reject.
 		return true
 	}
 }
 
-// subjectAddrKey extracts and normalises the Address limb of a Service or Endpoint
-// subject key for set membership. A Service subject is `address:port/transport`; an
-// Endpoint subject is `name@address:port/transport` (httpexchange.EndpointKey), so
-// an `@` is split off first — neither a DNS Name nor a Service key contains `@`.
 func subjectAddrKey(subject string) string {
+	// An Endpoint key prefixes a Name with @, and neither a Name nor a Service key holds one.
 	key := subject
 	if i := strings.Index(key, "@"); i >= 0 {
 		key = key[i+1:]
@@ -175,12 +113,8 @@ func subjectAddrKey(subject string) string {
 	return normAddr(serviceAddress(key))
 }
 
-// gate drops the observations whose Subject the job did not authorise, returning the
-// admitted ones in order. A drop is logged loudly (ADR-0001's fail-loud on a wire
-// mismatch) and never fails the job: legitimate lines in the same batch commit, and a
-// compromised prober cannot turn injected lines into a queue denial-of-service. When
-// the scope denotes nothing gateable (all-nil) the input is returned as-is.
 func (a authorizedScope) gate(obs []wire.Observation, logger *log.Logger, jobID int64) []wire.Observation {
+	// Failing the job on a drop would hand a compromised prober a denial of service (ADR-0001).
 	if a.addrs == nil && a.names == nil {
 		return obs
 	}
