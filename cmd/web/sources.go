@@ -30,7 +30,7 @@ type catalogSource struct {
 	NoRunner     bool // no runner ships, so it stays off and untoggleable (#241)
 	ShipNote     string
 
-	// Each group renders even when empty (v1-spec §6.4, #47).
+	// Each group renders even when empty, so an empty actionable half shows (v1-spec §6.4, #47).
 
 	MayResolve   []string
 	Unresolvable []string
@@ -373,7 +373,7 @@ type ctSourceHero struct {
 }
 
 func newCTSourceHero(crtsh, certspotter ctReliabilityView, names int64, now time.Time) ctSourceHero {
-	// The key lives on the worker, so liveness is inferred from the freshest sample (ADR-0053).
+	// The key never reaches web, so liveness reads the freshest sample (ct-source-replacement §2.4).
 	certName := strings.TrimSuffix(certspotter.Name, " (operator key)")
 	crtHas := crtsh.HasData && !crtsh.LastRun.IsZero()
 	certHas := certspotter.HasData && !certspotter.LastRun.IsZero()
@@ -422,7 +422,7 @@ func newCTSourceHero(crtsh, certspotter ctReliabilityView, names int64, now time
 	}
 }
 
-// Verification keeps no durable result, so the pool is its readout (ct-source-replacement §5).
+// Verification keeps no durable result, so the pool is its readout (ct-source-replacement §5.1).
 
 type ctCapabilities struct {
 	TailEnabled bool

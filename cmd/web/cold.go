@@ -62,6 +62,7 @@ func (s *server) setColdScope(w http.ResponseWriter, r *http.Request, acct db.Ac
 		s.failSettings(w, r, settingsForms{section: "scans", coldError: "That scope could not be found."})
 		return
 	}
+	// A stale page re-sends its own state rather than flipping the scope.
 	optIn := r.FormValue("opt_in") == "true"
 	if optIn {
 		if err := s.store.OptInColdScope(r.Context(), db.OptInColdScopeParams{
@@ -148,7 +149,7 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		walked = walkedAddresses(svcs)
 	}
 	var sharedEdges map[netip.Prefix]int
-	// A hidden-evidence degrade logs; the empty-region degrades around it do not (#989).
+	// A failed read here hides evidence rather than showing an empty region, so it logs (#989).
 	if m, ferr := addressScopeSharedEdges(ctx, s.store); ferr == nil {
 		sharedEdges = m
 	} else {
@@ -203,7 +204,7 @@ func apertureMeters(seeds []db.ListSeedsRow, zones []db.ListZoneDeclarationsRow,
 			out = append(out, addressMeter(p, walked, now, sharedEdges[p.Masked()]))
 			continue
 		}
-		// A name scope's shared edge belongs to the custody-extension census, never this meter (#987).
+		// The two evidence surfaces are disjoint, so a name scope's meter takes no edge (ADR-0129 #956).
 		domain := sd.NameDomain.String
 		out = append(out, coverageMeterView{
 			Label:   domain,
@@ -220,7 +221,7 @@ func apertureMeters(seeds []db.ListSeedsRow, zones []db.ListZoneDeclarationsRow,
 const maxMeterTotal = int64(^uint(0) >> 1)
 
 func addressMeter(p netip.Prefix, walked []walkedAddr, now time.Time, sharedEdges int) coverageMeterView {
-	// The contradiction row is display, never a gate: every counted address is still probed (#989).
+	// Display, never a gate: every counted address is still probed (ADR-0129 #956, #989).
 	covers, shared := "", ""
 	if sharedEdges > 0 {
 		covers, shared = humanCount(p), strconv.Itoa(sharedEdges)
