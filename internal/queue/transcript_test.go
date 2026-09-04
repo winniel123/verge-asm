@@ -20,7 +20,6 @@ func TestHeadTail(t *testing.T) {
 		t.Fatalf("within limit: got out=%q dropped=%d, want %q 0", out, dropped, within)
 	}
 
-	// 10 bytes truncated to 4: head=2, tail=2, middle 6 dropped.
 	over := []byte("0123456789")
 	out, dropped = headTail(over, 4)
 	if want := []byte("0189"); !bytes.Equal(out, want) {
@@ -34,8 +33,6 @@ func TestHeadTail(t *testing.T) {
 	}
 }
 
-// TestEncodeProberOutcome pins the JSONB shape each typed outcome stores. A
-// ctx-killed prober is context-cancelled, never a fake exited(0).
 func TestEncodeProberOutcome(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -79,7 +76,7 @@ func TestBuildProberParamsRoundTrip(t *testing.T) {
 		TranscriptFrame: wire.TranscriptFrame{Kind: "tcp-connect", Duration: 250 * time.Millisecond},
 		SentScope:       sent,
 		Stdout:          stdout,
-		Stderr:          nil, // captured, but the prober wrote nothing to stderr
+		Stderr:          nil,
 		Outcome:         wire.ProberExited{Code: 0},
 	}
 
@@ -107,7 +104,6 @@ func TestBuildProberParamsRoundTrip(t *testing.T) {
 		t.Errorf("Truncation = %s, want {} (nothing truncated)", params.Truncation)
 	}
 
-	// The sealed streams open back to the exact captured bytes.
 	gotStdout, err := transcript.Open(testKey, params.Stdout)
 	if err != nil {
 		t.Fatalf("open stdout: %v", err)
@@ -123,9 +119,6 @@ func TestBuildProberParamsRoundTrip(t *testing.T) {
 		t.Errorf("sent-scope round-trip = %q, want %q (verbatim)", gotSent, sent)
 	}
 
-	// A captured-but-empty stderr seals to real ciphertext and opens to a non-nil
-	// empty slice — NOT NULL. A NULL column is reserved for a stream a variant does
-	// not carry; the prober carries all three.
 	if params.Stderr == nil {
 		t.Fatal("Stderr sealed to NULL, want ciphertext for a captured-but-empty stream")
 	}
@@ -208,11 +201,8 @@ func TestBuildProberParamsMemoryGuard(t *testing.T) {
 	}
 }
 
-// TestBuildTranscriptParamsNilVariant checks the builder's defensive floor: an absent
-// (nil) transcript reaching it errors loudly rather than writing a mislabelled row.
-// persistTranscript guards nil before it calls the builder, and the wire union is closed
-// so no unknown non-nil variant can be constructed — this covers the default branch.
 func TestBuildTranscriptParamsNilVariant(t *testing.T) {
+	// The caller guards nil and the wire union is closed, so this branch cannot happen in production.
 	if _, err := buildTranscriptParams(1, time.Now(), nil, testKey); err == nil {
 		t.Error("nil transcript: want error, got nil")
 	}
@@ -268,7 +258,6 @@ func TestBuildZoneParams(t *testing.T) {
 		t.Errorf("QueueJobID/Kind = %d/%q, want 88/zone", params.QueueJobID, params.Kind)
 	}
 
-	// The skipped records seal into stdout and open back, one per line, verbatim.
 	gotStdout, err := transcript.Open(testKey, params.Stdout)
 	if err != nil {
 		t.Fatalf("open zone stdout: %v", err)
@@ -285,8 +274,6 @@ func TestBuildZoneParams(t *testing.T) {
 		t.Errorf("outcome = %v, want {kind:parsed, restated:7}", outcome)
 	}
 
-	// Zone carries no stderr or sent-scope: those columns stay NULL, distinct from the
-	// prober's captured-but-empty streams.
 	if params.Stderr != nil {
 		t.Errorf("Stderr = %v, want NULL (zone carries no stderr)", params.Stderr)
 	}
@@ -295,9 +282,6 @@ func TestBuildZoneParams(t *testing.T) {
 	}
 }
 
-// TestEncodeCTOutcome pins the JSONB shape each CT outcome stores: the request URL rides
-// every arm, http carries its status, transport-error carries its text, and a ctx-killed
-// fetch is context-cancelled — never a fake http(0).
 func TestEncodeCTOutcome(t *testing.T) {
 	url := "https://crt.sh/?q=example.com&output=json"
 	cases := []struct {
@@ -358,7 +342,6 @@ func TestBuildCTParams(t *testing.T) {
 		t.Errorf("DurationNs = %d, want %d", params.DurationNs, int64(800*time.Millisecond))
 	}
 
-	// The verbatim response body seals into stdout and opens back exactly.
 	gotBody, err := transcript.Open(testKey, params.Stdout)
 	if err != nil {
 		t.Fatalf("open ct response body: %v", err)
@@ -375,8 +358,6 @@ func TestBuildCTParams(t *testing.T) {
 		t.Errorf("outcome = %v, want {kind:http, status:200, request_url:%q}", outcome, url)
 	}
 
-	// The crt.sh producer carries no stderr and sends no request body: those columns
-	// stay NULL, distinct from the prober's captured-but-empty streams.
 	if params.Stderr != nil {
 		t.Errorf("Stderr = %v, want NULL (HTTP carries no stderr)", params.Stderr)
 	}
@@ -385,15 +366,11 @@ func TestBuildCTParams(t *testing.T) {
 	}
 }
 
-// TestBuildCTParamsTransportError checks the bodyless failure path: a transport error
-// carries no response body, so the stdout column seals a captured-but-empty stream
-// (non-NULL) — "we made the exchange and got no body" — and the transport-error text
-// rides the outcome, the stderr analog for this producer.
 func TestBuildCTParamsTransportError(t *testing.T) {
 	tr := wire.CTTranscript{
 		TranscriptFrame: wire.TranscriptFrame{Kind: "ct", Duration: 5 * time.Second},
 		RequestURL:      "https://crt.sh/?q=example.com&output=json",
-		ResponseBody:    nil, // a transport error returns no body
+		ResponseBody:    nil,
 		Outcome:         wire.CTTransportError{Text: "dial tcp: i/o timeout"},
 	}
 
@@ -402,8 +379,6 @@ func TestBuildCTParamsTransportError(t *testing.T) {
 		t.Fatalf("build: %v", err)
 	}
 
-	// A captured-but-empty body seals to real ciphertext and opens to a non-nil empty
-	// slice — NOT NULL. The CT variant always captures the response body stream.
 	if params.Stdout == nil {
 		t.Fatal("Stdout sealed to NULL, want ciphertext for a captured-but-empty body")
 	}
@@ -424,9 +399,6 @@ func TestBuildCTParamsTransportError(t *testing.T) {
 	}
 }
 
-// TestClassifyProberOutcome checks the two branches that do not need a real
-// ProcessState: a ctx error wins over any exit, and a prober that never started
-// (nil ProcessState) reads as exited(-1), an honest "no clean exit".
 func TestClassifyProberOutcome(t *testing.T) {
 	if got := classifyProberOutcome(nil, context.Canceled); got != (wire.ProberContextCancelled{}) {
 		t.Errorf("ctx cancelled: got %#v, want ProberContextCancelled", got)
@@ -438,9 +410,6 @@ func TestClassifyProberOutcome(t *testing.T) {
 	}
 }
 
-// TestPersistTranscriptGate checks the WithTranscripts seam: an unwired worker and a
-// devMode worker both report capture off, so they persist nothing (no golden fixture
-// moves); an absent transcript is a no-op even when capture is on.
 func TestPersistTranscriptGate(t *testing.T) {
 	if (&Worker{}).captureOn() {
 		t.Error("unwired worker: captureOn=true, want false")
@@ -452,8 +421,7 @@ func TestPersistTranscriptGate(t *testing.T) {
 		t.Error("wired non-dev worker: captureOn=false, want true")
 	}
 
-	// An absent transcript with capture on is a no-op — no InsertTranscript, so a nil
-	// qtx is never touched. A real failure here would panic on the nil qtx.
+	// A nil qtx is the assertion: a real InsertTranscript here would panic rather than pass.
 	w := &Worker{captureTranscripts: true, transcriptKey: testKey, now: time.Now}
 	if err := w.persistTranscript(context.Background(), nil, 1, nil); err != nil {
 		t.Errorf("absent transcript: got err %v, want nil no-op", err)

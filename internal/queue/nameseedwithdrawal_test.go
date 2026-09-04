@@ -19,8 +19,6 @@ func nameCandidate(id int64, key string) db.ListNameSeedWithdrawalCandidatesRow 
 	return db.ListNameSeedWithdrawalCandidatesRow{ID: id, SubjectKey: key}
 }
 
-// A withdrawal covers the apex and everything beneath it, and nothing else. A
-// sibling domain that merely ends in the same letters is not beneath it.
 func TestCoveringNameSeedWithdrawal(t *testing.T) {
 	pending := []db.ListPendingNameSeedWithdrawalsRow{
 		nameTombstone(1, "example.com"),
@@ -53,10 +51,6 @@ func TestCoveringNameSeedWithdrawal(t *testing.T) {
 	}
 }
 
-// The withdrawal states its two counts with their factors, never as a product: a
-// Name holding two timelines is ONE subject withdrawn and TWO timelines removed
-// (message.NarrowingReceipt). The message fires at the withdrawn DOMAIN, because a
-// name Seed's display scope IS its domain.
 func TestComposeNameSeedWithdrawalsCountsSubjectsAndTimelines(t *testing.T) {
 	pending := []db.ListPendingNameSeedWithdrawalsRow{nameTombstone(1, "example.com")}
 	rows := []db.ListNameSeedWithdrawalCandidatesRow{
@@ -88,10 +82,6 @@ func TestComposeNameSeedWithdrawalsCountsSubjectsAndTimelines(t *testing.T) {
 	}
 }
 
-// ADR-0135 §1: a name Seed withdrawal removes many Names in ONE act, so it writes
-// one aggregate receipt rather than a row per Name — the count IS the payload, and
-// a row per subject would be the census the receipt exists to replace (ADR-0074).
-// This pins the count for a multi-Name withdrawal.
 func TestComposeNameSeedWithdrawalsStatesOneActPerScope(t *testing.T) {
 	pending := []db.ListPendingNameSeedWithdrawalsRow{
 		nameTombstone(1, "example.com"),
@@ -116,9 +106,6 @@ func TestComposeNameSeedWithdrawalsStatesOneActPerScope(t *testing.T) {
 	}
 }
 
-// ADR-0135 §3, survivor one: a LIVE name Seed still declaring the Name keeps it,
-// read from the Seed corpus and never from the tombstone. This is what settles a
-// second covering Seed and a re-declared domain.
 func TestComposeNameSeedWithdrawalsLiveSeedSurvives(t *testing.T) {
 	pending := []db.ListPendingNameSeedWithdrawalsRow{nameTombstone(1, "example.com")}
 	rows := []db.ListNameSeedWithdrawalCandidatesRow{
@@ -137,9 +124,6 @@ func TestComposeNameSeedWithdrawalsLiveSeedSurvives(t *testing.T) {
 	}
 }
 
-// A re-declared domain closes nothing at all: the stale tombstone still names it,
-// and reading the live Seed corpus is what stops it withdrawing ground that is
-// declared again (ADR-0135 §3).
 func TestComposeNameSeedWithdrawalsRedeclaredScopeClosesNothing(t *testing.T) {
 	pending := []db.ListPendingNameSeedWithdrawalsRow{nameTombstone(1, "example.com")}
 	rows := []db.ListNameSeedWithdrawalCandidatesRow{nameCandidate(1, "www.example.com")}
@@ -155,15 +139,6 @@ func TestComposeNameSeedWithdrawalsRedeclaredScopeClosesNothing(t *testing.T) {
 	}
 }
 
-// ADR-0135 §3, survivor two: a Name a SURVIVING Seed still admits keeps its
-// timelines. The `admitted_name` rows carry their own seed_id, so the cascade takes
-// only the withdrawn Seed's admissions; the Name stays in the resolution set and is
-// still walked every batch. Closing it would be a `descoped` departure over a Name
-// the estate never stopped measuring, reopened next batch and closed the batch
-// after, for ever.
-//
-// The survivor is keyed by resolutionNameKey — the same key the resolution set uses
-// — so a trailing dot or a case difference cannot make the two disagree.
 func TestComposeNameSeedWithdrawalsAdmittedNameSurvives(t *testing.T) {
 	pending := []db.ListPendingNameSeedWithdrawalsRow{nameTombstone(1, "example.com")}
 	rows := []db.ListNameSeedWithdrawalCandidatesRow{
@@ -183,8 +158,6 @@ func TestComposeNameSeedWithdrawalsAdmittedNameSurvives(t *testing.T) {
 	}
 }
 
-// A row no tombstone covers is DROPPED, not closed. A closure with no mover to name
-// is a withdrawal the operator cannot trace back to their own act.
 func TestComposeNameSeedWithdrawalsDropsUnattributableRows(t *testing.T) {
 	pending := []db.ListPendingNameSeedWithdrawalsRow{nameTombstone(1, "example.com")}
 	rows := []db.ListNameSeedWithdrawalCandidatesRow{
@@ -202,9 +175,6 @@ func TestComposeNameSeedWithdrawalsDropsUnattributableRows(t *testing.T) {
 	}
 }
 
-// The act is idempotent. The first fold closes the timelines, so a second fold over
-// the same withdrawal reads no open candidate, closes nothing more and writes no
-// second message.
 func TestComposeNameSeedWithdrawalsIsIdempotent(t *testing.T) {
 	pending := []db.ListPendingNameSeedWithdrawalsRow{nameTombstone(1, "example.com")}
 
