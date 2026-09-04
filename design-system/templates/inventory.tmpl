@@ -1,15 +1,4 @@
-{{/*
-  DESIGN-OWNED ARTIFACT — inventory.tmpl · package v3.4.0 · WORKFLOW.md v4
-  Source of truth: examples/console/Inventory.jsx · golden ref shot 03.
-  Never edit in-repo (CI gate G1 byte-compares). Data holes match cmd/web/inventory.go
-  structs: .Groups[{Kind,Label,Total,More,ShowAllHref,Subjects[{Key,Type,Link,ProxyEdge,Facets[{Label,Summary,IsGap,ProxyEdge,
-  Details[{Type,Data}],Since}]}]}] and .HasData. #756 — .Subjects arrives server-windowed (25/group);
-  .More = count beyond the window, .ShowAllHref lifts the cap. #762 (R4-Q1 RULED 2026-08-28) — provider-
-  fronted spans carry ProxyEdge: a "proxy edge" badge rides the reach-Gap, the row is demoted in place by
-  the existing value-before-Gap sort, and the "Hide proxy edge" toggle (default SHOW) is the only
-  ADR-0072/0104/0105-legal treatment. Also carries the shared "recordrows"
-  partial and the "subject-missing" page formerly in templates_inventory.go.
-*/}}
+
 {{define "inventory"}}{{template "head" .}}
 {{template "chrome" .}}
 <style>

@@ -1,15 +1,4 @@
-{{/*
-  DESIGN-OWNED ARTIFACT — settings.tmpl · package v3.23.1 · WORKFLOW.md v4
-  Source of truth: examples/console/Settings.jsx + Sources.jsx + Integrations.jsx · shots 17–18.
-  Replaces templates_settings.go wholesale (defines "settings" + "forbidden" + one
-  "settings-<tab>" per section). The repo's "scantrigger" define is still called as-is (it stays
-  repo-authored until its own map item). "sevbadge" is NOT used here — severity never appears on
-  settings surfaces.
-  Reconciliations (SPEC-CHANGE #26, ruled):
-  #26a nav — the spec sidebar (grouped SettingsNav, 210px, sticky) replaces the tabs row;
-    navigation stays ?tab= links. Groups: Scanning (scans, vantages) · Access (sso, team,
-    sessions, audit) · Discovery (sources, aperture) · Instance (instance) · Delivery (channels,
-    integrations{{/**/}}, messages, delivery). Integrations gated by integrationsEnabled.
+, messages, delivery). Integrations gated by integrationsEnabled.
   #26b scans — the tab is the queue read (in-flight fan-out + jobs, recent dispatches) plus the
     relocated cold tier (#21d), spec-styled. The mock's "Recurring intent" config card and the
     schedule Calendar are DEFERRED — no operator-editable scan-config store exists; nothing is
@@ -333,7 +322,7 @@
 </script>
 {{template "foot" .}}{{end}}
 
-{{/* scans — holes: .Active[{ID,Href,ScanKind,DispatchedAt,Completed,Live,Percent,Rollup{Ready,Running,Done,Dead,Total}}] .StopTarget{ID,ScanKind,Pending,Running} (nullable) .TerminateTarget{ID,ScanKind,Running} (nullable) .History[{Href (nullable),ScanKind,DispatchedAt,Live,Completed,Dead}] .Truncated .HistoryLimit .ColdEnabled .ColdError .ColdScopes[{ID,Scope,IsAddress,OptedIn}] .IsAdmin — calls repo "scantrigger". */}}
+
 {{define "settings-scans"}}
 <header style="display:flex;flex-direction:column;gap:6px">
 <span class="st-micro">Scanning · scans</span>
@@ -487,7 +476,7 @@
 {{end}}
 {{end}}
 
-{{/* vantages — holes: .Vantages[{Name,Class,Resolver,Latency,Availability,Unverified}] .Probers[{Endpoint,Username,Availability,HostKeyPinned,HostKeyFingerprint,Platform,KeySet,PublicKey,Egress}] .IsAdmin .ProberError .ProberHost .ProberPort .ProberUser */}}
+
 {{define "settings-vantages"}}
 <header style="display:flex;flex-direction:column;gap:6px">
 <span class="st-micro">Scanning · vantages</span>
@@ -588,7 +577,7 @@
 </section>
 {{end}}
 
-{{/* sso — holes: .SSOError .SSOProviders[{ID,Name,Slug,Issuer,ClientID,HasSecret,Enabled,CreatedBy,CreatedAt}] .SSOName .SSOSlug .SSOIssuer .SSOClientID .SSOBindings[{ID,ProviderName,Account,DisplayName,LinkedAt}] .IsAdmin */}}
+
 {{define "settings-sso"}}
 <header style="display:flex;flex-direction:column;gap:6px">
 <span class="st-micro">Access · single sign-on</span>
@@ -682,7 +671,7 @@
 </section>
 {{end}}
 
-{{/* team — holes: .TeamError .RoleError .RemoveError .Members[{ID,Username,Initials,Role,TotpEnabled,At,IsSelf}] .IsAdmin .RoleTarget{ID,Username,Role} .ReenrollTarget{ID,Username} .RemoveTarget{ID,Username} .InviteOpen .InviteRole .InviteLink */}}
+
 {{define "settings-team"}}
 <header style="display:flex;align-items:flex-start;gap:16px">
 <div style="display:flex;flex-direction:column;gap:6px">
@@ -811,7 +800,7 @@
 {{end}}
 {{end}}
 
-{{/* sessions — holes: .Sessions[{ID,AccountID,Account,Role,Device,IP,LastSeen,Current}] .IsAdmin .RevokeSessionTarget{ID,Account,Device,IP} .RevokeAccountTarget{AccountID,Username} .RevokeAccountError */}}
+
 {{define "settings-sessions"}}
 <header style="display:flex;flex-direction:column;gap:6px">
 <span class="st-micro">Access · sessions</span>
@@ -882,7 +871,7 @@
 {{end}}
 {{end}}
 
-{{/* audit — holes: .AuditRows[{When,Actor,Action,Subject}] (nullable) */}}
+
 {{define "settings-audit"}}
 <header style="display:flex;flex-direction:column;gap:6px">
 <span class="st-micro">Access · operational record</span>
@@ -908,7 +897,7 @@
 {{end}}
 {{end}}
 
-{{/* sources — holes: .SourceError .Unencumbered/.OperatorAccepted/.Barred[{ID,Name,Kind,What,On}] .IsAdmin .Consent{ID,Name,Terms[]} (PRG ?consent={id}) */}}
+
 {{define "settings-sources"}}
 <header style="display:flex;flex-direction:column;gap:6px">
 <span class="st-micro">Discovery · sources</span>
@@ -1035,7 +1024,7 @@
 {{end}}
 {{end}}
 
-{{/* aperture — holes: .UDPCount .Counts{Sensitive,Frequency,Union,TCP,UDP} .Sensitive[{Port,Transport,Service}] .Frequency[{Port,AlsoSensitive,Edited,EditAction}] .VCError .VCPort .IsAdmin */}}
+
 {{define "settings-aperture"}}
 <header style="display:flex;flex-direction:column;gap:6px">
 <span class="st-micro">Discovery · port aperture</span>
@@ -1088,7 +1077,7 @@
 </section>
 {{end}}
 
-{{/* instance — holes (#391 — the .Update callout retired into Release): .Instance{Version,License,Uptime,QueueDepth,DiskPct,DiskDetail,PgLabel,PgDetail,Vantages[] (nullable),Backup{InProgress,Streamed,SizeHint,Percent,LastAt,LastSize} (nullable),RestoreError,Preflight{File,TakenAt,Subjects,Schema} (nullable),RestoreConfirm{File,TakenAt,Subjects} (nullable — ?restore-confirm=1),Migrations{Pending},Release{State(current|newer|disabled),CheckEnabled,CheckedAt,Latest{Version,Notes},Steps[]}} */}}
+
 {{define "settings-instance"}}
 {{with .Instance}}
 <header style="display:flex;flex-direction:column;gap:6px">
@@ -1218,7 +1207,7 @@
 {{end}}
 {{end}}
 
-{{/* api — holes: .API{Enabled,By,At} .IsAdmin (#390: read-only opt-in /api/v1; bearer path separate from sessions) */}}
+
 {{define "settings-api"}}
 <header style="display:flex;flex-direction:column;gap:6px">
 <span class="st-micro">Access · api access</span>
@@ -1246,7 +1235,7 @@
 </section>
 {{end}}
 
-{{/* channels — holes: .ChanError .Channels[{ID,URL,Classes[],ClassStates[{Name,Checked}],HasSecret,Enabled,By,At}] .ClassOptions[{Name,Checked}] .ChanURL .IsAdmin (#26f — class vocabulary from the store; #757 — per-channel Send test POSTs /settings/channels/test {id}, no binding gate: a channel holds its own URL and posts through SendSigned directly, distinct from the integrations Send-test #38/#39 which needs a channel binding) */}}e store) */}}
+e store) */}}
 {{define "settings-channels"}}
 <header style="display:flex;flex-direction:column;gap:6px">
 <span class="st-micro">Delivery · channels</span>
@@ -1319,7 +1308,7 @@
 {{end}}
 {{end}}
 
-{{/* integrations — holes: .IntCats[] .IntCat .IntQ .IntChannels[{Value,Label,Hint}] .Integrations[{ID,Name,Mark,Category,Description,State(installed|attention|available)}] .IntDrawer{ID,Name,Mark,Category,Description,State,Attention,Grants[{Scope,Detail,Write}],Installed,LastDelivery,Classes,BoundChannel} (#26j — PRG: ?cat=&q=&view=; #39 — channel bind POST /settings/integrations/channel {id,channel}, Send test gated on BoundChannel) */}}
+
 {{define "settings-integrations"}}
 <header style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
 <div style="display:flex;flex-direction:column;gap:6px">
@@ -1425,7 +1414,7 @@
 {{end}}
 {{end}}
 
-{{/* messages — holes: .Messages[{ID,Read,Cause,Class,Instant,Headline,Href,LinkText,Census[{Kind,Key,Href}],Deliveries[{State,ChannelHost,Failed,LastError}]}] (#26g) */}}
+
 {{define "settings-messages"}}
 <header style="display:flex;align-items:flex-start;gap:16px">
 <div style="display:flex;flex-direction:column;gap:6px">
@@ -1477,7 +1466,7 @@
 {{end}}
 {{end}}
 
-{{/* delivery — holes: .Deliveries[{ChannelHost,Class,Failed,State,When}] .Retention{ObservationCurrencyDays,DispatchCadenceMultiple,TranscriptCurrencyDays,UpdatedAt,UpdatedBy} .RetError .RetObs .RetDispatch .RetTranscript .IsAdmin (#26h) */}}
+
 {{define "settings-delivery"}}
 <header style="display:flex;flex-direction:column;gap:6px">
 <span class="st-micro">Delivery · operational record</span>

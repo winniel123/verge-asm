@@ -1,13 +1,4 @@
-{{/*
-  DESIGN-OWNED ARTIFACT — exposure.tmpl · package v3.8.0 · WORKFLOW.md v4
-  Source of truth: examples/console/Exposure.jsx · shot 06. Replaces templates_exposure.go.
-  Defines and hole names kept: "exposure" + "expleg". Holes: .Withheld, .Exposed, .Firewalled,
-  .NotReached, .HasDeltas, .ExposedDelta.Change (int, signDelta func stays), .Rows[{Asset,Svc,
-  Internal,Internet,Since}]. The spec's "Spec state" segmented control is a design-workspace
-  affordance only — withheld renders from .Withheld, never from a client toggle.
-  Reconciliation (SPEC-CHANGE #20f): the withheld action targets Settings → Vantages
-  (/settings/vantages), not /scope — provisioning a prober is a vantage act.
-*/}}
+
 {{define "expleg"}}<span class="ex-leg {{if eq . "exposed"}}exposed{{else if eq . "firewalled"}}firewalled{{else if eq . "not-reached"}}notreached{{else}}unverified{{end}}">{{if eq . "not-reached"}}not reached{{else}}{{.}}{{end}}</span>{{end}}
 
 {{define "exposure"}}{{template "head" .}}

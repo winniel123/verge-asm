@@ -1,26 +1,4 @@
-{{/*
-  DESIGN-OWNED ARTIFACT — scope.tmpl · package v3.9.0 · WORKFLOW.md v4
-  Source of truth: examples/console/Scope.jsx · shot 02. Replaces the "scope" define in
-  templates_scope.go (and the repo-authored "proposals" define, folded in here).
-  Holes: .Notice .IsAdmin .AddressCap .Seeds[{ID,Anchor,Scope,IsAddress}] .FormScope .FormError
-  .Refusals[{Input,Reason,Reachable}] (one per refused token — DF-F1; replaces the single .Refusal)
-  .CustodyScopes[{ID,Scope,CustodyExtension,Census}]
-  .CustodyCensus[{Name,Address,Scope}] .CustodyCensusFailed (#987) .CustodyCensusPending (#1015)
-  .CustodyError .ZoneScopes[{ID,Domain,HasFile,SuppliedAt,IntervalLabel,AgingLabel}]
-  .ZoneErrors[{File,Reason}] (one per refused file — DF-F2; replaces .ZoneError)
-  .ZoneIntervalDays .ZoneIntervalError .NameTree[{Label,Count,Sev,Children[{Label,Sev}]}]
-  .CoverageMsgs[{Kind,Badge,Bound,Subject,Text,When,ISO}] .Proposals[{ID,Value,Kind,Source}]
-  .OrgQuery .ProposalError .Exclusions[{ID,Kind,Value}] .ExclError .ExclKind .ExclValue .ExclPreview{Fires,Headline,Loss}
-  Reconciliations (SPEC-CHANGE #21, ruled): spec two-column card layout; seed kind select drops —
-  the handler infers name/address from the value's shape (#21a); refusals render the spec
-  RefusalCallout from .Refusal; custody renders the spec toggle+census once per name scope (#21b);
-  zone upload is the spec FileDrop — seed select drops, the handler infers the scope from the
-  file's apex (#21c); cold-tier + prober config relocate to /settings (their design homes, shots
-  17–18) (#21d); the exclusion Preview receipt stays (spec-styled). Forms keep their POST routes.
-  Dogfood features (WORK-ORDER-FEATURES-1): DF-F1 — the declare input paste-splits server-side
-  (tokens split on commas/whitespace/newlines, one declaration each, per-token refusal callouts);
-  DF-F2 — zone re-supply accepts multiple files, one dated act per file, per-file refusals.
-*/}}
+
 {{define "scope"}}{{template "head" .}}
 {{template "chrome" .}}
 <style>
@@ -250,22 +228,7 @@ button.sc-trow { cursor: pointer; }
 {{end}}
 </div>
 </section>
-{{/* The custody-extension census (#987, ADR-0129 §5): the companion section to the census
-     above. Each row names one in-zone Name whose direct-A edge the extension DECLINED,
-     and the address-scope remedy. The register is DISPLAY — a veto withholds a probe,
-     which is the safe direction, so nothing here fires a message. No row carries a count
-     or a threshold: both are versioned parameters of the Custody derivation.
-     A HELD candidate gets no row (#1015). It has no remedy — the operator cannot act on
-     a measurement that has not happened — and it clears within one scan cadence, so the
-     held candidates collapse to the one .CustodyCensusPending line below the declines.
-     Without the collapse this section's WORST render is its FIRST: the scan ships enabled
-     and measures nothing until its first batch completes, so a zone holding thousands of
-     in-estate names would render thousands of rows that all say the same thing.
-     The count chip counts the ROWS listed below it, so it counts declines alone. The held
-     line carries its own number and is one line. A chip that summed the two would add
-     citing names to edges, which count differently on purpose — a decline is per name,
-     because the name is what the operator acts on; a hold is per edge, because two
-     hundred names fronting one held edge is one thing waiting, not two hundred. */}}
+
 <section class="sc-card">
 <div class="sc-cardhead"><div class="hd"><span class="sc-micro">Custody extension</span><h3>Edges not reached</h3></div>{{if .CustodyCensus}}<span class="sc-count">{{len .CustodyCensus}}</span>{{end}}</div>
 <div class="sc-body">
@@ -420,9 +383,7 @@ button.sc-trow { cursor: pointer; }
 {{end}}
 </div>
 </section>
-{{/* id="exclusions": the anchor Coverage's #989 contradiction row links to. That row
-     names an exclusion as the remedy for a declared shared edge, and the instrument
-     is here. */}}
+{{/* Coverage's shared-edge row deep-links this anchor, so dropping the id breaks its remedy. */}}
 <section class="sc-card" id="exclusions">
 <div class="sc-cardhead"><div class="hd"><span class="sc-micro">Exclusions</span><h3>Never scanned</h3></div></div>
 <div class="sc-body">

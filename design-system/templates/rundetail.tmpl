@@ -1,16 +1,4 @@
-{{/*
-  DESIGN-OWNED ARTIFACT — rundetail.tmpl · package v3.8.0 · WORKFLOW.md v4
-  Source of truth: examples/console/RunDetail.jsx · shot 11. Replaces templates_rundetail.go.
-  Define "run" kept. Holes: .Run{Title, Status(scheduled|running|complete|failed|stopped|terminated — #34/DF-F4b: stopped = warn treatment, terminated = danger-outline on sunken, distinct from failed), Scope, Meta,
-  Stages[{Num,Title,Detail,Done,Current,Last}], Log[{Tag,Level,Text,Href(nullable — #1083: the ?job={id} route the tag links to; empty renders the tag as plain text)}], Active,
-  Transitions(string, "—" until a diff concluded), NewSignals(string, same),
-  Degraded(nullable {Vantage,Detail}), JobFilter(nullable {ID,Kind,Vantage,ClearHref,RawHref} — ?job={id}; .Log arrives already filtered to that job, and RawHref is the admin raw-output route #866), StreamHref(nullable — #761 re-scoped by collision #40: while a job runs, an EPHEMERAL per-job progress stream — long-polls ?after={cursor} → {lines:[{tag,level,text}],next,done}, appends live, auto-follows. Events are redacted exactly as .Log is; NOTHING new is persisted at rest (no raw-stdout store — ADR-0041/privacy), so on done the state-derived .Log stands), Params[{K,V}], Vantages[{Name,Latency,Status(ok|degraded)}]}.
-  Reconciliations (SPEC-CHANGE #20, ruled): the Outcome card is the spec's — .Transitions and
-  .NewSignals (the drift feed and signals ARE keyed by batch; the join gets built per the
-  2026-08-24 binding ruling), replacing .Completed/.Dead (#20a). Log levels render as colored
-  text per LogViewer.jsx, not level pills (#20e). The "run-missing" define retires — a missing
-  run routes to error.tmpl's missing-run kind, landed as screen 2 (#20d).
-*/}}
+
 {{define "run"}}{{template "head" .}}
 {{template "chrome" .}}
 <style>

@@ -1,15 +1,4 @@
-{{/*
-  DESIGN-OWNED ARTIFACT — firstrun.tmpl · package v3.12.0 · WORKFLOW.md v4
-  Source of truth: examples/console/FirstRun.jsx · shot 19. Replaces templates_firstrun.go.
-  Bare define "firstrun" — no head/chrome/foot: the landed dashboard.tmpl "home" define wraps it
-  when .EmptyEstate is true. One parse set with dashboard.tmpl.
-  Holes: .FirstRunDone .FirstRunSteps[{Num,Done,Title,Detail,HasAction,ActionLabel,ActionHref,
-  ActionPost,Gated,GateTitle}].
-  Reconciliation (SPEC-CHANGE #25f, ruled): an action is a link (.ActionHref — steps 2/3) or a
-  form post (.ActionPost — step 4's Run first batch enqueues, it cannot be a GET); exactly one is
-  set when .HasAction. Step 4 renders disabled while .Gated with .GateTitle as its title. Copy for
-  each step's done/undone .Detail follows the spec strings already ported into firstRunChecklist.
-*/}}
+
 {{define "firstrun"}}
 <style>
 .fr-main { max-width: 760px; width: 100%; margin: 0 auto; padding: 56px 32px; display: flex; flex-direction: column; gap: 20px; font-family: var(--font-ui); }

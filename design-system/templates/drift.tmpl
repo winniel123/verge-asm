@@ -1,17 +1,4 @@
-{{/*
-  DESIGN-OWNED ARTIFACT — drift.tmpl · package v3.8.0 · WORKFLOW.md v4
-  Source of truth: examples/console/Drift.jsx · shot 04. Replaces templates_drift.go.
-  Defines and hole names kept: "drift" + "changeglyph". Holes: .Periods[{Token,Label}], .Period,
-  .PeriodLabel (NEW — trigger label: active preset or "start – end"), .HasEvents, .BatchID,
-  .BatchLabel, .Truncated, .FeedLimit, .Kinds[{Change,Family}], .Groups[{Label,Meta,Collapsed(NEW),
-  Events[{Change,Family,Subject,Time,Detail,Reason,Diff[{Type,Text}]}]}], .Movement (map kind→count),
-  .TransitionCount (NEW), .TransitionDelta (NEW, nullable signed string, e.g. "+2").
-  Reconciliations (SPEC-CHANGE #20, ruled): the period control is the spec's range picker — preset
-  tokens stay links, a custom ISO pair submits GET /drift?start=&end= (#20b); the "Derived · drift"
-  microlabel above the h1 drops (#20c); kind chips become client-side toggles and batch groups
-  collapse client-side (view JS in tmpl, ADR-0105 precedent) — .Collapsed marks groups older than
-  the two most recent batches. Batch detail routes /runs/{id}.
-*/}}
+
 {{define "changeglyph"}}<svg viewBox="0 0 10 10" width="9" height="9" style="flex:none" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{{if eq . "appeared"}}<path d="M5 1.6v6.8M1.6 5h6.8"></path>{{else if eq . "revealed"}}<circle cx="5" cy="5" r="3.4" stroke-dasharray="2.1 1.7"></circle>{{else if eq . "returned"}}<path d="M8.2 5.8A3.3 3.3 0 1 1 7.4 2.8"></path><path d="M7 1l0.6 2L5.6 3.4"></path>{{else if eq . "withdrawn"}}<path d="M1.6 5h6.8"></path>{{else if eq . "descoped"}}<path d="M1.6 6.4h6.8"></path><circle cx="5" cy="2.6" r="1" fill="currentColor" stroke="none"></circle>{{else if eq . "changed"}}<path d="M5 1.8L8.4 8H1.6Z"></path>{{end}}</svg>{{end}}
 
 {{define "drift"}}{{template "head" .}}
