@@ -31,10 +31,6 @@ func putMessage(t *testing.T, f *fakeStore, cause message.Cause, subjectKind, fi
 	return m
 }
 
-// Every subject kind resolves to a drill-down its route actually serves (#248):
-// a Name or Address is a single path segment; a Service or Endpoint key carries a
-// `/` (and an Endpoint an `@`), so it rides the `?key=` query page escaped rather
-// than a second path segment the `/subjects/{key}` route would 404 on.
 func TestSubjectHrefAllKinds(t *testing.T) {
 	cases := []struct {
 		kind string
@@ -54,8 +50,6 @@ func TestSubjectHrefAllKinds(t *testing.T) {
 	}
 }
 
-// Each mover resolves to the right link (v1 spec §5.3): drift and threshold to an
-// object page, declared-input to the Source, aperture to the Seed.
 func TestMessageLinkPerMover(t *testing.T) {
 	cases := []struct {
 		cause       message.Cause
@@ -80,8 +74,6 @@ func TestMessageLinkPerMover(t *testing.T) {
 	}
 }
 
-// The panel renders every message newest-first with its headline and its
-// per-mover link, and a flagship's census is enumerated beneath it.
 func TestMessagePanelRendersRowsAndCensus(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -103,14 +95,12 @@ func TestMessagePanelRendersRowsAndCensus(t *testing.T) {
 		"reached from the internet",
 		"128 subjects withdrawn",
 		"/subjects/service?key=198.51.100.1%3A443%2Ftcp",
-		"certificate", "http-identity", // the flagship census, enumerated in full
+		"certificate", "http-identity",
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("message panel missing %q\nbody: %s", want, page)
 		}
 	}
-	// The rendered headlines carry no valence word (the model guards the copy at
-	// construction; here we confirm the stored, rendered sentences are clear).
 	for _, m := range f.messages {
 		if message.ContainsValence(m.Headline) {
 			t.Errorf("a rendered message headline carries a valence word: %q", m.Headline)
@@ -118,10 +108,6 @@ func TestMessagePanelRendersRowsAndCensus(t *testing.T) {
 	}
 }
 
-// ADR-0108 / #244: an undelivered delivery is surfaced on the Message it failed
-// to carry — the model's designated surface (ADR-0039/ADR-0081), never Coverage.
-// A backend failure (the webhook was down) must read as *could not deliver*, not
-// as *nothing fired*, and the reason is carried as a drill-down (#22).
 func TestMessagePanelSurfacesUndeliveredDeliveries(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -139,25 +125,20 @@ func TestMessagePanelSurfacesUndeliveredDeliveries(t *testing.T) {
 	if !strings.Contains(page, "undelivered") {
 		t.Errorf("message panel does not surface the undelivered delivery; body: %s", page)
 	}
-	// The channel is shown by host only — the token in the URL path must not leak.
 	if !strings.Contains(page, "hooks.example.net") {
 		t.Errorf("undelivered channel host not shown; body: %s", page)
 	}
 	if strings.Contains(page, "token=secret") {
 		t.Errorf("the full channel URL (with its token) leaked onto the panel; body: %s", page)
 	}
-	// The failure reads as a delivery failure, distinct from an empty result.
 	if !strings.Contains(page, "could not be delivered") {
 		t.Errorf("the undelivered mark does not distinguish a delivery failure from nothing firing; body: %s", page)
 	}
-	// The reason is carried as a drill-down, not a top-level log line.
 	if !strings.Contains(page, "HTTP 503") {
 		t.Errorf("the delivery failure reason is not carried as a drill-down; body: %s", page)
 	}
 }
 
-// The global nav element carries the unread count on every screen, and marking a
-// message read drops the count.
 func TestUnreadCountAndMarkRead(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -167,11 +148,6 @@ func TestUnreadCountAndMarkRead(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// The count rides a chrome page that never computed it itself. The design-owned
-	// shell (#22) shows the unread state two ways: the bell wears a dot when anything is
-	// unread (.sh-bell .ud), and the command palette's Inbox item carries the exact
-	// count in its hint ("2 unread"). Assert both — the count now lives in the palette
-	// hint rather than a numeric bell badge.
 	seeds := getBody(t, ac, base+"/scope", http.StatusOK)
 	if !strings.Contains(seeds, `href="/inbox"`) {
 		t.Error("the global nav is missing the Inbox bell")
@@ -183,7 +159,6 @@ func TestUnreadCountAndMarkRead(t *testing.T) {
 		t.Errorf("the palette Inbox hint should carry the unread count 2\nbody: %s", seeds)
 	}
 
-	// Mark one read; the count drops to 1.
 	resp := postForm(t, ac, base+"/messages/read", url.Values{"id": {strconv.FormatInt(m1.ID, 10)}})
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("mark read: status = %d", resp.StatusCode)
@@ -194,9 +169,6 @@ func TestUnreadCountAndMarkRead(t *testing.T) {
 	}
 }
 
-// #327: read-state is per-account, not global. A low-priv viewer marking all read
-// clears only the viewer's own unread badge; the admin's unread count is untouched,
-// so a viewer cannot suppress the security notifications an admin has not yet seen.
 func TestMarkAllReadIsPerAccount(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -215,15 +187,11 @@ func TestMarkAllReadIsPerAccount(t *testing.T) {
 	if n, _ := f.CountUnreadMessages(t.Context(), viewer.ID); n != 0 {
 		t.Errorf("viewer unread after mark all read = %d, want 0", n)
 	}
-	// ...but the admin's unread count is untouched — the notification survives.
 	if n, _ := f.CountUnreadMessages(t.Context(), admin.ID); n != 1 {
 		t.Errorf("admin unread after viewer mark all read = %d, want 1 (a viewer must not clear an admin's badge)", n)
 	}
 }
 
-// AC8: the narrowing receipt is honestly computable and wired up. An address
-// exclusion over inhabited ground shows the count and names the loss; a name
-// whose names still resolve withdraws nothing and shows no firing receipt.
 func TestNarrowingPreviewWiredUp(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -232,9 +200,6 @@ func TestNarrowingPreviewWiredUp(t *testing.T) {
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// Address exclusion: the receipt fires, carrying the counts and the loss. The preview
-	// is a post-redirect-get like every other scope act (ADR-0130 §1), so the receipt is
-	// read off the landing GET.
 	resp := postForm(t, ac, base+"/exclusions/preview", url.Values{
 		"kind": {"address"}, "value": {"198.51.100.128/25"},
 	})
@@ -245,8 +210,6 @@ func TestNarrowingPreviewWiredUp(t *testing.T) {
 		}
 	}
 
-	// Name exclusion: nothing is withdrawn (the query is address-scoped), so the
-	// receipt does not fire.
 	resp = postForm(t, ac, base+"/exclusions/preview", url.Values{
 		"kind": {"name"}, "value": {"api.example.com"},
 	})

@@ -49,7 +49,6 @@ func (f *fakeStore) CreatePersonalToken(_ context.Context, arg db.CreatePersonal
 
 func (f *fakeStore) ListPersonalTokens(_ context.Context, accountID int64) ([]db.ListPersonalTokensRow, error) {
 	rows := []db.ListPersonalTokensRow{}
-	// Newest first, mirroring ORDER BY created_at DESC, id DESC.
 	for i := len(f.personalTokens) - 1; i >= 0; i-- {
 		t := f.personalTokens[i]
 		if t.AccountID != accountID {
@@ -75,9 +74,6 @@ func (f *fakeStore) DeletePersonalToken(_ context.Context, arg db.DeletePersonal
 	return nil
 }
 
-// GetPersonalTokenByHash mirrors the by-hash lookup the /api/v1 bearer path uses (#390,
-// A2): the row whose token_hash equals the presented digest, or no row. No row is the
-// same pgx.ErrNoRows the generated query returns, which the middleware renders as 401.
 func (f *fakeStore) GetPersonalTokenByHash(_ context.Context, tokenHash string) (db.PersonalToken, error) {
 	for _, t := range f.personalTokens {
 		if t.TokenHash == tokenHash {
@@ -87,12 +83,8 @@ func (f *fakeStore) GetPersonalTokenByHash(_ context.Context, tokenHash string) 
 	return db.PersonalToken{}, pgx.ErrNoRows
 }
 
-// UpdatePersonalTokenLastUsed mirrors the coarsened touch SQL exactly (#390, A2): stamp
-// last_used_at only when it is null or older than an hour, so a busy token is not one
-// write per request and the timestamp never regresses. A missing id is a no-op, matching
-// the WHERE clause. It uses wall-clock time.Now() as the SQL's now() does, so a test's
-// two back-to-back requests fall inside the one-hour window and the second is a no-op.
 func (f *fakeStore) UpdatePersonalTokenLastUsed(_ context.Context, id int64) error {
+	// Both this fake and the SQL read wall-clock now, so a test's two touches share one hour.
 	now := time.Now()
 	for i := range f.personalTokens {
 		if f.personalTokens[i].ID != id {
@@ -106,8 +98,6 @@ func (f *fakeStore) UpdatePersonalTokenLastUsed(_ context.Context, id int64) err
 	}
 	return nil
 }
-
-// --- session registry fakes (#405, ADR-0117) -------------------------------
 
 func (f *fakeStore) CreateSession(_ context.Context, arg db.CreateSessionParams) (db.Session, error) {
 	if f.sessionNextID == 0 {
@@ -154,10 +144,8 @@ func (f *fakeStore) RevokeSession(_ context.Context, arg db.RevokeSessionParams)
 	return nil
 }
 
-// ListSessionsForAccount mirrors the personal-listing query: one account's live sessions
-// (unrevoked, unexpired against the passed clock), newest activity first, with token_hash
-// omitted from the projection so the secret never reaches the render path.
 func (f *fakeStore) ListSessionsForAccount(_ context.Context, arg db.ListSessionsForAccountParams) ([]db.ListSessionsForAccountRow, error) {
+	// The projection drops token_hash, so secret material stays out of the render path.
 	rows := []db.ListSessionsForAccountRow{}
 	for _, sess := range f.sessions {
 		if sess.AccountID != arg.AccountID || sess.RevokedAt.Valid || !sess.ExpiresAt.Time.After(arg.ExpiresAt.Time) {
@@ -196,9 +184,6 @@ func (f *fakeStore) RevokeAllSessionsForAccount(_ context.Context, arg db.Revoke
 	return nil
 }
 
-// ListAllActiveSessions mirrors the admin query: every account's live sessions joined to
-// the owning account's username and role, ordered by username then recency. token_hash is
-// never projected here either.
 func (f *fakeStore) ListAllActiveSessions(_ context.Context, expiresAt pgtype.Timestamptz) ([]db.ListAllActiveSessionsRow, error) {
 	rows := []db.ListAllActiveSessionsRow{}
 	for _, sess := range f.sessions {
@@ -243,9 +228,6 @@ func profileBase(t *testing.T) (*fakeStore, string, db.Account) {
 
 var mintedRE = regexp.MustCompile(`vg_pat_[0-9a-f]{48}`)
 
-// A Profile is personal, so it is viewer-readable — but only to a signed-in
-// account. Every route redirects an anonymous caller to /login rather than
-// leaking a Profile or accepting a mutation.
 func TestProfileRequiresLogin(t *testing.T) {
 	_, base, _ := profileBase(t)
 	c := newClient(t)
@@ -268,18 +250,16 @@ func TestProfileRequiresLogin(t *testing.T) {
 	}
 }
 
-// The page renders the real account facts: the username identity, the 2FA status,
-// the current session read from the request, and the empty tokens state.
 func TestProfileRendersRealAccount(t *testing.T) {
 	_, base, _ := profileBase(t)
 	c := login(t, base, "ola", "hunter2hunter2")
 	got := getBody(t, c, base+"/profile", http.StatusOK)
 
 	for _, want := range []string{
-		"Profile", "Who you are", `value="ola"`, // identity
-		"Password &amp; two-factor", "two-factor off", "Enable two-factor", // credentials + 2FA status
-		"Signed in right now",                                    // sessions
-		"Personal API tokens", "You have no personal API tokens", // tokens empty state
+		"Profile", "Who you are", `value="ola"`,
+		"Password &amp; two-factor", "two-factor off", "Enable two-factor",
+		"Signed in right now",
+		"Personal API tokens", "You have no personal API tokens",
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("profile missing %q; body: %s", want, got)
@@ -287,11 +267,8 @@ func TestProfileRendersRealAccount(t *testing.T) {
 	}
 }
 
-// An enrolled account shows the enabled 2FA status rather than the enable control.
 func TestProfile2FAStatusEnabled(t *testing.T) {
 	f, base, acct := profileBase(t)
-	// Sign in first (password-only), then enrol: enabling TOTP does not invalidate
-	// the stateless session already held, so the enabled status renders on reload.
 	c := login(t, base, "ola", "hunter2hunter2")
 	a := f.accounts[acct.ID]
 	a.TotpSecret = pgtype.Text{String: "SECRET", Valid: true}
@@ -307,8 +284,6 @@ func TestProfile2FAStatusEnabled(t *testing.T) {
 	}
 }
 
-// Minting a token reveals the plaintext exactly once and keeps only its hash — a
-// reload never shows the secret again, and the stored value is the digest.
 func TestProfileTokenRevealOnce(t *testing.T) {
 	f, base, _ := profileBase(t)
 	c := login(t, base, "ola", "hunter2hunter2")
@@ -326,7 +301,6 @@ func TestProfileTokenRevealOnce(t *testing.T) {
 		t.Fatalf("reveal-once warning missing; body: %s", page)
 	}
 
-	// Stored material is the hash, never the plaintext.
 	if len(f.personalTokens) != 1 {
 		t.Fatalf("tokens stored = %d, want 1", len(f.personalTokens))
 	}
@@ -338,7 +312,6 @@ func TestProfileTokenRevealOnce(t *testing.T) {
 		t.Fatalf("plaintext token was stored")
 	}
 
-	// A reload shows the prefix in the list but never the plaintext again.
 	got := getBody(t, c, base+"/profile", http.StatusOK)
 	if strings.Contains(got, m) {
 		t.Fatalf("plaintext token shown again on reload")
@@ -348,12 +321,6 @@ func TestProfileTokenRevealOnce(t *testing.T) {
 	}
 }
 
-// A duplicate token name is refused rather than minting a second row.
-//
-// The refusal is a post-redirect-get since ticket #978 (ADR-0130 §1): the 303 goes to
-// /profile and the callout, the typed name and the re-opened create dialog ride the
-// session flash to the landing GET. The reveal-once SUCCESS is the one Profile answer
-// that stays a rendered body, because the plaintext is never stored.
 func TestProfileTokenDuplicateName(t *testing.T) {
 	f, base, _ := profileBase(t)
 	c := login(t, base, "ola", "hunter2hunter2")
@@ -366,11 +333,9 @@ func TestProfileTokenDuplicateName(t *testing.T) {
 	if !strings.Contains(got, "already have a token named that") {
 		t.Fatalf("duplicate token name not reported on the landing page; body: %s", got)
 	}
-	// The refusal re-opens the create dialog with the typed name still in it.
 	if !strings.Contains(got, `value="ci"`) {
 		t.Fatalf("the typed token name was not echoed back; body: %s", got)
 	}
-	// The flash is single-consume, so a reload shows a clean Profile.
 	if again := getBody(t, c, base+"/profile", http.StatusOK); strings.Contains(again, "already have a token named that") {
 		t.Fatalf("the callout survived a reload; body: %s", again)
 	}
@@ -379,9 +344,6 @@ func TestProfileTokenDuplicateName(t *testing.T) {
 	}
 }
 
-// Revoke is a plain danger ConfirmDialog (SPEC-CHANGE #18): the dialog names the token
-// and confirms with a single danger action — no typed-name gate — and a confirm POST
-// deletes it, carrying the "Token revoked" toast (Profile.jsx:150) on the redirect.
 func TestProfileTokenRevokePlainConfirm(t *testing.T) {
 	f, base, acct := profileBase(t)
 	c := login(t, base, "ola", "hunter2hunter2")
@@ -389,8 +351,6 @@ func TestProfileTokenRevokePlainConfirm(t *testing.T) {
 		AccountID: acct.ID, Name: "grafana", Prefix: "vg_pat_x81m…", TokenHash: "h",
 	})
 
-	// The revoke control is a link to the confirm dialog, never a direct POST. The dialog
-	// names its target but no longer collects a typed confirmation.
 	dialog := getBody(t, c, base+"/profile?revoke="+strconv.FormatInt(tok.ID, 10), http.StatusOK)
 	if !strings.Contains(dialog, "Revoke grafana") {
 		t.Fatalf("revoke ConfirmDialog not shown; body: %s", dialog)
@@ -399,7 +359,6 @@ func TestProfileTokenRevokePlainConfirm(t *testing.T) {
 		t.Fatalf("typed-name gate should be dropped from the token-revoke dialog (#18); body: %s", dialog)
 	}
 
-	// Confirming the plain dialog (id only) revokes the token and redirects with the toast.
 	resp := postForm(t, c, base+"/profile/tokens/revoke", url.Values{"id": {strconv.FormatInt(tok.ID, 10)}})
 	loc := resp.Header.Get("Location")
 	resp.Body.Close()
@@ -415,15 +374,10 @@ func TestProfileTokenRevokePlainConfirm(t *testing.T) {
 	}
 }
 
-// Changing the password verifies the current one, updates the hash, and leaves the
-// account able to sign in with the new password.
 func TestProfileChangePassword(t *testing.T) {
 	f, base, acct := profileBase(t)
 	c := login(t, base, "ola", "hunter2hunter2")
 
-	// A wrong current password is refused and changes nothing. The refusal is a
-	// post-redirect-get since ticket #978 (ADR-0130 §1): the callout rides the session
-	// flash to /profile rather than rendering at the POST URL.
 	before := f.accounts[acct.ID].PasswordHash
 	resp := postForm(t, c, base+"/profile/password", url.Values{
 		"current_password": {"nope"}, "new_password": {"brandnewpass99"},
@@ -448,6 +402,5 @@ func TestProfileChangePassword(t *testing.T) {
 	if !auth.CheckPassword(f.accounts[acct.ID].PasswordHash, "brandnewpass99") {
 		t.Fatalf("password hash not updated to the new password")
 	}
-	// The new password now signs in.
 	login(t, base, "ola", "brandnewpass99")
 }

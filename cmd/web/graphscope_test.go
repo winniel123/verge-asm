@@ -12,9 +12,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/signal"
 )
 
-// graphScopes reads the declared Seeds into the selector's vocabulary — the whole
-// estate first, then one entry per Seed — and the token is the Seed's own spelling,
-// so a bookmarked /graph?scope= names what the operator declared.
 func TestGraphScopesVocabularyFromSeeds(t *testing.T) {
 	p := netip.MustParsePrefix("162.222.48.0/22")
 	seeds := []db.ListSeedsRow{
@@ -42,9 +39,6 @@ func TestGraphScopesVocabularyFromSeeds(t *testing.T) {
 	}
 }
 
-// resolveGraphScope follows the Drift feed's ?period: an absent or unrecognised
-// token falls back to the named default, so a hand-crafted value never draws a scope
-// nobody declared.
 func TestResolveGraphScopeFallsBackToWholeEstate(t *testing.T) {
 	scopes := graphScopes([]db.ListSeedsRow{
 		{Kind: "name", NameDomain: pgtype.Text{String: "example.com", Valid: true}},
@@ -60,9 +54,6 @@ func TestResolveGraphScopeFallsBackToWholeEstate(t *testing.T) {
 	}
 }
 
-// A name scope holds the names beneath its domain and the addresses those names
-// resolve to. Membership is the label-wise suffix test, so notexample.com is not
-// read as inside example.com.
 func TestBuildScopedGraphNameScope(t *testing.T) {
 	rows := []db.ListAllOpenSpansRow{
 		openSpanRow("name", "api.example.com", "resolution", "", `{"outcome":"Resolved","addresses":["203.0.113.5"]}`, false),
@@ -92,8 +83,6 @@ func TestBuildScopedGraphNameScope(t *testing.T) {
 	}
 }
 
-// A name scope drops the addresses its names do not resolve to. The drawing states
-// nothing about the dropped address.
 func TestBuildScopedGraphNameScopeKeepsOnlyResolvedAddresses(t *testing.T) {
 	rows := []db.ListAllOpenSpansRow{
 		openSpanRow("name", "api.example.com", "resolution", "", `{"outcome":"Resolved","addresses":["203.0.113.5"]}`, false),
@@ -108,10 +97,6 @@ func TestBuildScopedGraphNameScopeKeepsOnlyResolvedAddresses(t *testing.T) {
 	}
 }
 
-// An address scope holds the addresses its prefix contains and the services riding
-// them, and it reads the resolution edge the other way to hold the names that reach
-// one. An address outside the prefix is dropped even where an in-scope name resolves
-// to both.
 func TestBuildScopedGraphAddressScope(t *testing.T) {
 	rows := []db.ListAllOpenSpansRow{
 		openSpanRow("name", "api.example.com", "resolution", "", `{"outcome":"Resolved","addresses":["162.222.48.7","198.51.100.9"]}`, false),
@@ -138,8 +123,6 @@ func TestBuildScopedGraphAddressScope(t *testing.T) {
 	}
 }
 
-// An IPv4 address is never read as inside an IPv6 scope: containment is family
-// matched, never a comparison of spellings.
 func TestBuildScopedGraphAddressScopeIsFamilyMatched(t *testing.T) {
 	rows := []db.ListAllOpenSpansRow{
 		openSpanRow("name", "api.example.com", "resolution", "", `{"outcome":"Resolved","addresses":["203.0.113.5"]}`, false),
@@ -151,8 +134,6 @@ func TestBuildScopedGraphAddressScopeIsFamilyMatched(t *testing.T) {
 	}
 }
 
-// The whole-estate scope draws exactly what /graph has always drawn — the zero
-// graphScope narrows nothing.
 func TestBuildScopedGraphWholeEstateMatchesUnscoped(t *testing.T) {
 	rows := []db.ListAllOpenSpansRow{
 		openSpanRow("name", "api.example.com", "resolution", "", `{"outcome":"Resolved","addresses":["203.0.113.5"]}`, false),
@@ -172,9 +153,6 @@ func TestBuildScopedGraphWholeEstateMatchesUnscoped(t *testing.T) {
 	}
 }
 
-// A service key naming no address is held by no scope: the graph cannot decide it is
-// inside a prefix or beneath a domain, so a scoped drawing drops it rather than
-// guessing.
 func TestBuildScopedGraphDropsUnkeyedService(t *testing.T) {
 	rows := []db.ListAllOpenSpansRow{
 		openSpanRow("name", "api.example.com", "resolution", "", `{"outcome":"Resolved","addresses":["203.0.113.5"]}`, false),
@@ -189,10 +167,6 @@ func TestBuildScopedGraphDropsUnkeyedService(t *testing.T) {
 	}
 }
 
-// The graph page renders the scope selector off the operator's declared Seeds, marks
-// the selection, and falls back to the whole estate for a token nobody declared. The
-// control renders on an empty drawing too, so a scope that holds nothing is not a
-// dead end.
 func TestGraphPageRendersScopeSelector(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -229,11 +203,6 @@ func TestGraphPageRendersScopeSelector(t *testing.T) {
 	}
 }
 
-// An endpoint firing the scope excluded is DROPPED, not re-attributed. joinSignals
-// falls back to the Service leg when a named endpoint's Name node is absent, which
-// is right for an estate that never measured the name. Under a scope the Name node
-// is also absent when the scope dropped it, and falling back there would assert a
-// signal on a service against a subject the operator's scope excluded.
 func TestJoinSignalsDropsEndpointFiringTheScopeExcluded(t *testing.T) {
 	rows := []db.ListAllOpenSpansRow{
 		openSpanRow("name", "api.example.com", "resolution", "", `{"outcome":"Resolved","addresses":["203.0.113.5"]}`, false),
@@ -252,7 +221,6 @@ func TestJoinSignalsDropsEndpointFiringTheScopeExcluded(t *testing.T) {
 		}
 	}
 
-	// The same firing on an in-scope name still lights its Name node.
 	inScope := []signal.Census{
 		{Rule: "plaintext-http-no-https", Fired: []signal.Member{{Subject: "api.example.com@203.0.113.5:443/tcp"}}},
 	}
@@ -264,8 +232,6 @@ func TestJoinSignalsDropsEndpointFiringTheScopeExcluded(t *testing.T) {
 	}
 }
 
-// The unscoped graph keeps the Service fallback for a named endpoint whose Name node
-// the corpus never held — the zero graphMembers narrows nothing.
 func TestJoinSignalsKeepsServiceFallbackUnscoped(t *testing.T) {
 	g := buildGraph([]db.ListAllOpenSpansRow{
 		openSpanRow("service", "203.0.113.5:443/tcp", "reachability", "", `{"outcome":"reached"}`, false),
@@ -283,8 +249,6 @@ func TestJoinSignalsKeepsServiceFallbackUnscoped(t *testing.T) {
 	}
 }
 
-// A scope that holds nothing states so, and names the whole estate as the way back,
-// rather than telling the operator to declare a scope they already declared.
 func TestGraphPageEmptyScopeStatesItsOwnEmptiness(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
