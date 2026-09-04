@@ -536,7 +536,7 @@ func (f *fakeStore) ListAddressScopeCidrs(context.Context) ([]*netip.Prefix, err
 			out = append(out, s.AddressCidr)
 		}
 	}
-	// No seed declares 10.0.0.0/8; the fake appends it so class fixtures need no scope.
+	// The fake returns this scope even where no seed declares it, so class fixtures need none.
 	conv := netip.MustParsePrefix("10.0.0.0/8")
 	out = append(out, &conv)
 	return out, nil
@@ -2273,7 +2273,7 @@ func (f *fakeStore) GetNameCitation(_ context.Context, arg db.GetNameCitationPar
 		return db.GetNameCitationRow{
 			ObservedAt: admission.CreatedAt, Source: admission.Source,
 			BatchID: admission.BatchID, ScanID: scanID, ScanKind: scanKind,
-			// admitted_name.seed_id is NOT NULL, so only the no-covering-Seed fixture leaves it invalid.
+			// The schema makes admitted_name.seed_id NOT NULL, so only the seedless fixture leaves it invalid.
 			SeedID:  pgtype.Int8{Int64: admission.SeedID, Valid: admission.SeedID != 0},
 			HopKind: hopKindAdmission,
 		}, nil
