@@ -446,7 +446,7 @@ func (s *server) settingsFixtureData(acct db.Account, r *http.Request) map[strin
 
 	data := map[string]any{
 		"Title": "Settings", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "settings", "Tab": tab, "DesignTokens": true,
+		"NavActive": "settings", "Tab": tab,
 	}
 
 	switch tab {

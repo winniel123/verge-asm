@@ -479,8 +479,8 @@ func (s *server) loginData(ctx context.Context, errMsg string) map[string]any {
 	if errMsg != "" {
 		data["Error"] = errMsg
 	}
-	// The frozen login.tmpl styles against the design token vocabulary and its authfoot reads
-	// the build version; stamp both so an SSO/password error re-paint carries them too.
+	// The frozen login.tmpl's authfoot reads the build version; stamp it so an
+	// SSO/password error re-paint carries it too.
 	return s.signinData(data)
 }
 

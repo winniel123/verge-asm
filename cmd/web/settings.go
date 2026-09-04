@@ -609,7 +609,7 @@ func (s *server) renderSettings(w http.ResponseWriter, r *http.Request, acct db.
 
 	data := map[string]any{
 		"Title": "Settings", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "settings", "Tab": active, "DesignTokens": true,
+		"NavActive": "settings", "Tab": active,
 	}
 	if f.notice != "" {
 		data["Notice"] = f.notice

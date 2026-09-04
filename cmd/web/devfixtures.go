@@ -404,7 +404,7 @@ var devExposureRows = []devExposureRow{
 func (s *server) exposureFixtureData(acct db.Account, variant string) map[string]any {
 	data := map[string]any{
 		"Title": "Exposure", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "exposure", "DesignTokens": true,
+		"NavActive": "exposure",
 	}
 	if variant == devExposureWithheldVariant {
 		data["Withheld"] = true
@@ -514,7 +514,7 @@ var devCoverageStaleZones = []devCoverageStaleZone{
 func (s *server) coverageFixtureData(acct db.Account) map[string]any {
 	data := map[string]any{
 		"Title": "Coverage", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "coverage", "DesignTokens": true,
+		"NavActive": "coverage",
 	}
 
 	s.coverageMu.Lock()
@@ -631,9 +631,8 @@ func (s *server) runDetailFixtureData(acct db.Account) map[string]any {
 	}
 	return map[string]any{
 		"Title": "batch " + view.Title, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive":    "drift",
-		"DesignTokens": true,
-		"Run":          view,
+		"NavActive": "drift",
+		"Run":       view,
 	}
 }
 
@@ -676,10 +675,9 @@ func (s *server) runningRunFixtureData(acct db.Account, jobParam, bareHref strin
 	linkRunLog(&view, bareHref)
 	return map[string]any{
 		"Title": "batch " + view.Title, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive":    "drift",
-		"DesignTokens": true,
-		"Refresh":      runRefresh(view.Status),
-		"Run":          view,
+		"NavActive": "drift",
+		"Refresh":   runRefresh(view.Status),
+		"Run":       view,
 	}
 }
 
@@ -778,7 +776,7 @@ func (s *server) driftFixtureData(acct db.Account) map[string]any {
 
 	return map[string]any{
 		"Title": "Drift", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "drift", "DesignTokens": true,
+		"NavActive":       "drift",
 		"Kinds":           driftKinds(),
 		"Periods":         driftPeriods(),
 		"Period":          devDriftPeriod,
@@ -962,7 +960,7 @@ func (s *server) scopeFixtureData(acct db.Account, ov scopeOverlay) map[string]a
 
 	data := map[string]any{
 		"Title": "Scope", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "scope", "DesignTokens": true,
+		"NavActive":        "scope",
 		"AddressCap":       devScopeAddressCap,
 		"Seeds":            seeds,
 		"FormScope":        ov.formScope,
@@ -1227,7 +1225,7 @@ func (s *server) signalsFixtureData(acct db.Account, r *http.Request) map[string
 
 	data := map[string]any{
 		"Title": "Signals", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "signals", "DesignTokens": true,
+		"NavActive":      "signals",
 		"Tab":            tab,
 		"OpenCount":      devSignalsOpenCount,
 		"AnnotatedCount": len(devSignalsAnnotations),
@@ -1372,7 +1370,7 @@ func (s *server) dashboardFixtureData(acct db.Account, r *http.Request) map[stri
 
 	data := map[string]any{
 		"Title": "Dashboard", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "dashboard", "DesignTokens": true,
+		"NavActive":      "dashboard",
 		"EmptyEstate":    false,
 		"ScanSchedule":   devDashSchedule,
 		"Scanning":       scanning,
@@ -1436,7 +1434,7 @@ func (s *server) firstRunFixtureData(acct db.Account) map[string]any {
 	}
 	return map[string]any{
 		"Title": "Dashboard", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "dashboard", "DesignTokens": true,
+		"NavActive":     "dashboard",
 		"EmptyEstate":   true,
 		"FirstRunDone":  fx.FirstRunDone,
 		"FirstRunSteps": steps,
@@ -1510,8 +1508,8 @@ func devAssetData() assetPageData {
 func (s *server) assetFixtureData(acct db.Account) map[string]any {
 	return map[string]any{
 		"Title": devAssetKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "inventory", "DesignTokens": true,
-		"Asset": devAssetData(),
+		"NavActive": "inventory",
+		"Asset":     devAssetData(),
 	}
 }
 
@@ -1663,8 +1661,8 @@ func (s *server) serviceFixtureData(acct db.Account, key string) (map[string]any
 	}
 	return map[string]any{
 		"Title": key, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "inventory", "DesignTokens": true,
-		"Service": data,
+		"NavActive": "inventory",
+		"Service":   data,
 	}, true
 }
 
@@ -1674,8 +1672,8 @@ func (s *server) endpointFixtureData(acct db.Account, key string) (map[string]an
 	}
 	return map[string]any{
 		"Title": key, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "inventory", "DesignTokens": true,
-		"Endpoint": devEndpointData(),
+		"NavActive": "inventory",
+		"Endpoint":  devEndpointData(),
 	}, true
 }
 
@@ -1750,8 +1748,8 @@ func devGraphData() graphView {
 func (s *server) graphFixtureData(acct db.Account) map[string]any {
 	return map[string]any{
 		"Title": "Graph", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "graph", "DesignTokens": true,
-		"Graph": devGraphData(),
+		"NavActive": "graph",
+		"Graph":     devGraphData(),
 	}
 }
 
@@ -1919,7 +1917,7 @@ func (s *server) reportsFixtureData(acct db.Account) map[string]any {
 	fx := loadReportsFixture()
 	return map[string]any{
 		"Title": "Reports", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "reports", "DesignTokens": true,
+		"NavActive": "reports",
 
 		"RangeLabel":  fx.RangeLabel,
 		"RangeWeeks":  fx.RangeWeeks,
@@ -2014,7 +2012,7 @@ func (s *server) reportartifactFixtureData(acct db.Account, variant string) map[
 
 	return map[string]any{
 		"Title": "Report delivery", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "reports", "DesignTokens": true,
+		"NavActive":  "reports",
 		"Heading":    heading,
 		"Period":     period,
 		"ScheduleID": scheduleHole,
@@ -2114,7 +2112,7 @@ func reportsWizardMap(fx reportsFixtureWizard, q map[string][]string, acct db.Ac
 	last := step == len(fx.Steps)-1
 	return map[string]any{
 		"Title": fx.Title, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "reports", "DesignTokens": true,
+		"NavActive": "reports",
 
 		"WizardTitle": fx.Title,
 		"FormAction":  fx.FormAction,
@@ -2269,7 +2267,7 @@ func (s *server) inboxFixtureData(acct db.Account, r *http.Request) map[string]a
 
 	return map[string]any{
 		"Title": "Inbox", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "inbox", "DesignTokens": true,
+		"NavActive":  "inbox",
 		"Messages":   messages,
 		"Selected":   selected,
 		"Unread":     fx.Unread,
