@@ -24,91 +24,33 @@ import (
 	"github.com/winniel123/verge-asm/internal/signal"
 )
 
-// The Scope screen (screen 10, batch 3 · #574) is served byte-for-byte from the
-// frozen design-owned design-system/templates/scope.tmpl (package v3.9.0, WORKFLOW
-// v4), which replaces BOTH the repo-authored "scope" define AND the "proposals"
-// define (templates_scope.go + proposals.go proposalTemplates, deleted). The tmpl
-// renders inside the full app chrome ({{template "chrome" .}}) and declares the holes
-// renderSeeds shapes below: .Notice .IsAdmin .AddressCap .Seeds[{ID,Anchor,Scope,
-// IsAddress}] .FormScope .FormError .Refusals[{Input,Reason,Reachable(nullable)}] (DF-F1,
-// one per refused paste token; replaces the single .Refusal)
-// .CustodyScopes[{ID,Scope,CustodyExtension,Census}] .CustodyError .ZoneScopes[{ID,
-// Domain,HasFile,SuppliedAt,IntervalLabel,AgingLabel}] .ZoneErrors[{File,Reason}] (DF-F2,
-// one per refused file; replaces .ZoneError) .ZoneIntervalDays
-// .ZoneIntervalError .NameTree[{Label,Count,Sev,Children[{Label,Sev}]}] .CoverageMsgs[
-// {Kind,Badge,Bound,Subject,Text,When,ISO}] .Proposals[{ID,Value,Kind,Source}] .OrgQuery
-// .Exclusions[{ID,Kind,Value}] .ExclError .ExclKind .ExclValue .ExclPreview{Fires,
-// Headline,Loss} .SeedConfirm{ID,Scope,Fires,Headline,Loss,Failed} (#1046, the chip
-// under confirmation). It styles against the design token vocabulary, so the render opts in
-// with DesignTokens:true (the "head" block inlines tokens/*.css only then). scope.tmpl
-// auto-embeds through designfs's existing templates/*.tmpl glob, so no designfs.go
-// change is needed. Reconciliations (SPEC-CHANGE #21, ruled): the seed kind select drops
-// (declareSeed infers name/address from the value shape, #21a); an over-cap block REFUSES
-// with the reachable /22 named via .Refusal (never auto-corrects); custody renders the
-// spec toggle + census once per name scope (#21b); zone upload is the spec FileDrop, the
-// apex inferred from the uploaded file (#21c); the cold-tier + prober regions relocate to
-// /settings (#21d). Forms keep their POST routes.
 var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/scope.tmpl"))
 
-// seedView is a declared Seed shaped for rendering: the scope collapsed to one
-// display string, with the kind kept so name and address scopes stay visually
-// distinct.
 type seedView struct {
-	ID        int64
-	IsAddress bool
-	Scope     string
-	// Anchor is the row's in-page id — the seed-scoped fragment an
-	// aperture-widening message links to so it lands on the exact Seed whose
-	// scope moved, not merely the Seeds list (v1 spec §5.3). Built from Scope by
-	// seedAnchor, which the message renderer uses for the same key so the two
-	// agree.
+	ID               int64
+	IsAddress        bool
+	Scope            string
 	Anchor           string
 	By               string
 	At               string
 	CustodyExtension bool
 }
 
-// seedsForms carries the echo state of the two forms the Seeds screen hosts —
-// the scope declaration and the exclusion — so a rejected submission on one
-// leaves its own error and typed value in place without disturbing the other.
-//
-// It carries only what /scope actually renders. Four fields went in ticket #978 because
-// nothing on this surface read them any more: seedKind (the seed form's kind select,
-// dropped in #21a when declareSeed began inferring the shape from the value), and the
-// coldError and prober echoes (the cold-tier and provisioning regions relocated to
-// Settings in #21d, where settingsForms carries the same names). A field with a setter
-// and no hole is a refusal the operator never sees, so this struct holds none.
+// A field with a setter and no hole is a refusal the operator never sees.
+
 type seedsForms struct {
-	seedError, seedScope           string
-	exclError, exclKind, exclValue string
-	custodyError                   string
-	zoneIntervalError              string
-	// zoneErrors are the per-file zone-upload refusals (DF-F2): one row per rejected
-	// file, in upload order. It replaces the single zoneError string — a bulk upload
-	// refuses each file independently.
-	zoneErrors []zoneErrorView
-	// zoneIntervalDays echoes a rejected interval so the admin need not retype
-	// it; empty means render the stored dial.
+	seedError, seedScope                         string
+	exclError, exclKind, exclValue               string
+	custodyError                                 string
+	zoneIntervalError                            string
+	zoneErrors                                   []zoneErrorView
 	zoneIntervalDays                             string
 	proposalError, proposalNotice, proposalQuery string
-	// exclPreview is the narrowing receipt shown before the operator commits an
-	// exclusion (#205 AC8, ADR-0074): the count of what it would withdraw, and the
-	// loss named — but only where a withdrawal message would actually fire. Nil
-	// when no preview was requested.
-	exclPreview *message.NarrowingReceipt
-	// seedConfirm is the chip the operator clicked remove on, held for the confirm
-	// step (#1046). Nil when no chip is under confirmation, which is every render but
-	// the landing of a preview.
-	seedConfirm *seedConfirmView
-	// refusals are the per-token declaration refusals (DF-F1): one RefusalCallout per
-	// refused token in a paste, in declaration order. It replaces the single .Refusal
-	// hole — a paste declares many scopes at once, each validated independently.
-	refusals []refusalView
+	exclPreview                                  *message.NarrowingReceipt
+	seedConfirm                                  *seedConfirmView
+	refusals                                     []refusalView
 }
 
-// zoneErrorView is one per-file zone-upload refusal (DF-F2): the file's name and the
-// reason it was refused (apex outside the name scopes, or not a zone file). It replaces
-// the single .ZoneError hole so a bulk upload lists a row per rejected file.
 type zoneErrorView struct {
 	File   string
 	Reason string
@@ -124,151 +66,56 @@ func nameScopes(views []seedView) []seedView {
 	return out
 }
 
-// backToScope answers a mutating scope act with the 303 ADR-0130 §3 asks for: back to
-// the URL the form was submitted from, falling back to bare /scope when the form
-// carried no `return` that passed the guard (backurl.go).
-//
-// A success and a refusal share it. The destination rule is the same for both — that is
-// the point of the contract, since a refusal the operator cannot tell apart from a
-// success is a refusal that keeps their scroll offset — and only the flash differs.
-//
-// The scope surface needs no dialogParams twin of the settings helper. Every form on
-// this screen renders in the page itself. No query parameter on /scope opens a modal,
-// so there is nothing to drop from the destination.
 func (s *server) backToScope(w http.ResponseWriter, r *http.Request) {
+	// A refusal returns where a success does, so the operator keeps their scroll offset (ADR-0130 §3).
 	s.redirectBack(w, r, "/scope")
 }
 
-// flashScopeBack stashes f as this session's pending scope form and 303s back to the
-// submitting URL. It is the whole of the migration for a caller: an inline
-// `renderSeeds(w, r, acct, seedsForms{...})` becomes `flashScopeBack(w, r,
-// seedsForms{...})` with the same struct, and seedsPage renders it on the landing.
-//
-// It carries a REFUSAL and it also carries the narrowing preview, which is not one. The
-// exclusion preview is a receipt the operator reads before they commit (#205 AC8), and
-// it rides the same carrier because it needs the same thing a refusal does: to survive
-// the redirect and render on the landing GET. Only renderSeeds tells the two apart, and
-// it does so off the error fields, not off the carrier.
-//
-// /scope is the surface's ONLY landing GET, so this needs no claim check of the kind
-// takeFormFlashIf exists for. The flash is typed, so a rejected form belonging to
-// another surface is left in place rather than consumed here.
 func (s *server) flashScopeBack(w http.ResponseWriter, r *http.Request, f seedsForms) {
+	// The exclusion preview is no refusal, but it needs the same thing: to survive the redirect.
 	stashFormFlash(s, r, f)
 	s.backToScope(w, r)
 }
 
-// flashScopeToastBack is flashScopeBack with a success toast: it stashes f AND fires one
-// toast on the landing. It is the MIXED bulk result — a paste or an upload where some
-// items committed and others were refused.
-//
-// That case is why seedsForms used to carry an inline toast. A mixed result must show
-// the success receipt and every per-item callout in ONE response, and before ADR-0130 a
-// redirect would have dropped the callouts, so the toast rode the inline render instead.
-// Under §1 the callouts ride the session flash through the redirect, so both arrive on
-// the landing GET and the workaround is gone: the toast takes the ordinary `toast=`
-// query carrier every other success uses.
-//
-// The receipt is no part of the page's identity, on either side. backURL and resolveBack
-// strip `toast` from the submitting URL, and the §2 scroll key ignores it (shell.tmpl),
-// so appending one here does not move the operator's stash.
 func (s *server) flashScopeToastBack(w http.ResponseWriter, r *http.Request, f seedsForms, tone, title, desc string) {
+	// The scroll key drops the receipt (backurl.go stripToastParam), so a toast never moves the stash.
 	stashFormFlash(s, r, f)
 	s.toastRedirectBack(w, r, "/scope", tone, title, desc)
 }
 
-// takeScopeFlash reads this session's pending scope form off the flash carrier. It is
-// the GET half of the ADR-0130 §1 post-redirect-get, and /scope is the one landing that
-// calls it.
-//
-// A GET that is nobody's landing takes nothing and renders a zero seedsForms, which is
-// the ordinary read. The render needs no flag distinguishing the two, because it answers
-// 200 either way — see renderSeeds.
 func (s *server) takeScopeFlash(r *http.Request) seedsForms {
+	// /scope is this surface's only landing GET, so no per-surface claim check is needed.
 	f, _ := takeFormFlash[seedsForms](s, r)
 	return f
 }
 
 func (s *server) seedsPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	// VERGE_DEV pixel-parity path (#574). The frozen scope.tmpl renders a curated
-	// corpus — the two seeds, the custody census, the seven-leaf name tree, the three
-	// coverage messages, the proposals and exclusions — whose exact strings, ordering
-	// and derived figures (the census, the aging label, the name-tree severities) are
-	// the design's, not a live-estate read. Reproducing them from the live derivations
-	// would mean fabricating domain data, which SPEC-CHANGE forbids — so, exactly as the
-	// Coverage/Exposure screens pin their dev fixture and serve it under devMode with a
-	// drift test (TestScopeFixtureMatchesPackage), seedsPage serves the pinned
-	// fixtures.json → scope slice here so the seeded candidate renders byte-for-byte what
-	// the golden composes. A real deployment (devMode == false) falls through to the
-	// honest live reads below.
+	// Deriving the design's curated figures from live reads would fabricate domain data.
 	if s.devMode {
 		s.render(w, r, "scope", s.scopeFixtureData(acct, scopeOverlay{}))
 		return
 	}
-	// A refused scope act redirected here and left its callouts, the operator's typed
-	// values, and any narrowing preview in the session-keyed form flash (ADR-0130 §1,
-	// flash.go). Read it once, here, and hand it to the render. The read is
-	// single-consume, so a reload of the same URL shows a clean page.
-	//
-	// The partial-lookup caveat rides the same carrier (#251, proposals.go runLookup).
-	// It used to travel as a `?notice=` query flag, which kept the search idempotent on
-	// refresh but changed the URL — and a landing URL that differs from the submitting
-	// one is exactly the §2 scroll-key miss this map exists to close. The flash keeps
-	// the idempotence and the destination both.
-	//
-	// The VERGE_DEV branch above returns before this read, and declareSeed's own dev
-	// branch still renders its refusal in place. Both are the pixel-parity harness, which
-	// posts fixed states to compare bytes and never rides the contract; a flash stashed
-	// under VERGE_DEV is simply retired by the TTL. A real deployment takes neither path.
 	s.renderSeeds(w, r, acct, s.takeScopeFlash(r))
 }
 
-// declareSeed handles a scope declaration. It is reached only through
-// requireAdmin, so a viewer can list seeds but never declare one.
-//
-// #21a: the seed form no longer carries a kind select — the handler infers name
-// vs. address from the value's SHAPE (a slash or a bare address literal is an
-// address scope; anything else is a name). An address block wider than the cap is
-// REFUSED, never auto-corrected: the RefusalCallout names the reachable in-cap set
-// (the /22 that fits the base) for the operator to declare themselves.
-//
-// DF-F1 (paste-split): the `scope` field is a RAW string the operator may paste
-// several scopes into. It is tokenized on commas, whitespace and newlines by the
-// SAME parseSeedTokens onboarding's seedsadd uses (cmd/web/onboarding.go) — the one
-// tokenizer, not a fork — and each token is validated and committed independently as
-// its own dated act. Successes fire a flash; each failure fills a .Refusals[] callout
-// in declaration order. A token that duplicates one already declared in the same paste
-// (or a pre-existing seed) is refused `already declared`.
 func (s *server) declareSeed(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	raw := r.FormValue("scope")
 
-	// VERGE_DEV pixel-parity: the scope "refusal" golden posts 203.0.113.0/20 through
-	// the seed form (states.json). Serve the pinned fixture + the RefusalCallout so the
-	// candidate renders byte-for-byte what the golden composes, without touching the DB.
 	if s.devMode {
 		s.render(w, r, "scope", s.scopeFixtureDataRefusal(acct, strings.TrimSpace(raw)))
 		return
 	}
 
-	// The shared tokenizer (DF-F1): commas / whitespace / newlines split, empty tokens
-	// drop. This is parseSeedTokens verbatim — the exact commit boundary the onboarding
-	// TagInput uses — so the two entry points can never diverge.
+	// One tokenizer, not a fork: onboarding's TagInput commits on the same boundary.
 	tokens := parseSeedTokens(raw)
 	if len(tokens) == 0 {
-		// Nothing to declare — an empty submit is a no-op redirect, no flash, no error.
 		s.backToScope(w, r)
 		return
 	}
 
-	// The operator address-scope cap, read once per paste off the instance_config
-	// singleton (#888, ADR-0127) rather than a compiled constant, so a raise on the
-	// Settings control takes effect on the next declaration. Read here, not per token,
-	// so one paste is one store read; every token in the paste checks the same cap.
+	// Read off instance_config, so a raise on the Settings dial binds the next paste (ADR-0127).
 	addrCap := s.addressCap(r.Context())
 
-	// declared tracks the normalized keys committed in THIS paste so a duplicate token
-	// within one paste is refused `already declared` even before the DB unique constraint
-	// would catch it — the first token declares, the second refuses (DF-F1 edge).
 	declared := make(map[string]bool, len(tokens))
 	var refusals []refusalView
 	successes := 0
@@ -287,14 +134,9 @@ func (s *server) declareSeed(w http.ResponseWriter, r *http.Request, acct db.Acc
 			desc = fmt.Sprintf("%d refused — see the callouts", len(refusals))
 		}
 		if len(refusals) == 0 {
-			// Pure success: a plain post-redirect-get back to the submitting URL fires the
-			// toast (PARITY-CHART P1.7).
 			s.toastRedirectBack(w, r, "/scope", "neutral", title, desc)
 			return
 		}
-		// Mixed: the callouts must render AND the toast must fire, and under ADR-0130 §1
-		// both survive one redirect — the callouts in the session flash, the toast in the
-		// `toast` query. The operator lands back on their own URL with the whole result.
 		s.flashScopeToastBack(w, r, seedsForms{
 			refusals:  refusals,
 			seedScope: joinRefusedInputs(refusals),
@@ -302,10 +144,6 @@ func (s *server) declareSeed(w http.ResponseWriter, r *http.Request, acct db.Acc
 		return
 	}
 
-	// All-refused: no toast, callouts only. The field-level line reddens the input and
-	// replaces the hint; a single over-cap token keeps its terse cap line (and its
-	// TestAddressScopeOverCapRejected contract), any other single refusal shows its
-	// reason, and a multi-token paste summarizes the count.
 	s.flashScopeBack(w, r, seedsForms{
 		refusals:  refusals,
 		seedScope: joinRefusedInputs(refusals),
@@ -313,21 +151,13 @@ func (s *server) declareSeed(w http.ResponseWriter, r *http.Request, acct db.Acc
 	})
 }
 
-// declareOneScope validates and commits ONE pasted scope token (DF-F1). It returns nil
-// on a committed declaration, or a *refusalView describing why the token was refused —
-// an over-cap block (with the reachable in-cap set named), an unparseable value, or a
-// duplicate (`already declared`). declared holds the normalized keys already committed
-// in this paste so a within-paste duplicate refuses before the DB is touched. Each
-// success is its own dated act (a distinct CreateSeed call).
 func (s *server) declareOneScope(r *http.Request, acct db.Account, value string, declared map[string]bool, addrCap int) *refusalView {
 	value = strings.TrimSpace(value)
 	if isAddressValue(value) {
 		if _, err := seed.ParseCIDR(cidrForm(value)); err != nil {
 			return &refusalView{Input: value, Reason: err.Error()}
 		}
-		// seed.ParseCIDR validated the block, so the raw (unmasked) re-parse cannot fail.
-		// The raw form is kept for the callout so its Input/Reachable echo the operator's
-		// own base address rather than the masked network address.
+		// The unmasked form is kept so the callout echoes the operator's own base, not the network.
 		rawP, _ := netip.ParsePrefix(strings.TrimSpace(cidrForm(value)))
 		if !seed.WithinCap(rawP, addrCap) {
 			ref := refusalOverCap(value, rawP, addrCap)
@@ -363,8 +193,6 @@ func (s *server) declareOneScope(r *http.Request, acct db.Account, value string,
 	return nil
 }
 
-// alreadyDeclaredReason is the refusal reason for a token that duplicates a scope
-// already declared — within the same paste or a pre-existing seed (DF-F1).
 const alreadyDeclaredReason = "already declared"
 
 func createRefusal(value string, err error) *refusalView {
@@ -374,10 +202,8 @@ func createRefusal(value string, err error) *refusalView {
 	return &refusalView{Input: value, Reason: "could not be declared"}
 }
 
-// joinRefusedInputs joins the refused tokens back into the input field so the operator
-// can edit and resubmit just the ones that failed (the successes are already committed).
-// Tokens never contain a comma (comma is a split boundary), so ", " re-joins cleanly.
 func joinRefusedInputs(refusals []refusalView) string {
+	// A token can hold no comma, since comma is a split boundary, so ", " re-joins unambiguously.
 	parts := make([]string, 0, len(refusals))
 	for _, rv := range refusals {
 		parts = append(parts, rv.Input)
@@ -395,20 +221,9 @@ func allRefusedFormError(refusals []refusalView, cap int) string {
 	return fmt.Sprintf("%d refused — see the callouts.", len(refusals))
 }
 
-// seedConfirmView is the one chip under confirmation and the receipt its withdrawal
-// would produce (#1046). ID is the chip's id as a STRING because the dev fixture's
-// seed rows carry string ids and the live rows carry int64, and the template compares
-// the two through one printf.
-//
-// The copy is the stored message's own: Headline and Loss are the strings
-// message.PreviewSeedWithdrawal renders, so the confirm step and the coverage message
-// the fold writes read as one sentence. Fires is false where the count is zero, and
-// the template renders no receipt block at all there — the exclusion preview's
-// non-firing sentence states a model rule that is false of this act.
-// Failed is the honest degrade, after .CustodyCensusFailed on the same screen: the
-// count read did not resolve, so the block says so rather than rendering a zero the
-// estate does not hold. The withdrawal stays available — see previewSeedWithdrawal.
 type seedConfirmView struct {
+	// The dev fixture's ids are strings and the live rows' are int64; one printf compares both.
+
 	ID       string
 	Scope    string
 	Fires    bool
@@ -417,28 +232,8 @@ type seedConfirmView struct {
 	Failed   bool
 }
 
-// previewSeedWithdrawal is the FIRST of the chip-remove act's two steps (#1046). It
-// withdraws nothing. It computes the narrowing receipt the withdrawal would produce
-// and re-renders the chip in a confirm state, so the act that closes timelines shows
-// its count before the operator commits — as declaring an exclusion already does.
-//
-// It rides the same one-shot scope flash the exclusion preview rides, so the landing
-// GET consumes the confirm state: reloading or navigating away abandons the
-// withdrawal and leaves the Seed declared. The carrier holds one chip, so at most one
-// is under confirmation.
-//
-// A stale chip whose row is already gone redirects cleanly rather than erroring,
-// matching the withdrawal's own idempotency.
-//
-// BOTH LIMBS CARRY A COUNT (ADR-0135). Each reads its own receipt — the address
-// scope counts what falls under its CIDR, the name scope what falls under its domain
-// — and each applies its own survivor rules, so the confirm step states the act the
-// fold will actually perform. The name limb stated none until #1045, when withdrawing
-// a name Seed still closed nothing.
 func (s *server) previewSeedWithdrawal(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	// VERGE_DEV pixel-parity: the fixture corpus is not an estate, so there is no
-	// honest count to state over it. The confirm state renders with no receipt block,
-	// which is what a zero count renders anyway, and no database is touched.
+	// A reload consumes the confirm state and abandons the withdrawal, which is the safe default.
 	if s.devMode {
 		s.render(w, r, "scope", s.scopeFixtureDataConfirm(acct, r.FormValue("id")))
 		return
@@ -453,13 +248,7 @@ func (s *server) previewSeedWithdrawal(w http.ResponseWriter, r *http.Request, a
 		s.backToScope(w, r)
 		return
 	}
-	// A FAILED COUNT DEGRADES THE BLOCK, IT DOES NOT REFUSE THE ACT. The receipt
-	// reads the candidate spans and the corpora the survivors are decided from, and
-	// this step is now the ONLY route to the withdrawal — the chip's control reaches
-	// /seeds/delete through here. A 500 on any of those reads would leave the
-	// operator with no way to withdraw the scope at all, over a count that is
-	// advisory by construction (ADR-0134 §5). So the confirm step renders, says the
-	// count did not resolve, and still offers the act.
+	// A failed count degrades the block; refusing the act would leave no route to the withdrawal.
 	confirm := seedConfirmView{ID: strconv.FormatInt(id, 10), Scope: scope}
 	var receipt message.NarrowingReceipt
 	var rerr error
@@ -484,10 +273,6 @@ func (s *server) previewSeedWithdrawal(w http.ResponseWriter, r *http.Request, a
 	s.flashScopeBack(w, r, seedsForms{seedConfirm: &confirm})
 }
 
-// deleteSeed withdraws a declared Seed by id — the SECOND of the chip-remove act's
-// two steps (#21a, #1046). It is admin-only (requireAdmin) and idempotent: removing a
-// row already gone satisfies the operator's intent either way, so a stale chip submit
-// redirects back cleanly rather than erroring.
 func (s *server) deleteSeed(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	if s.devMode {
 		s.backToScope(w, r)
@@ -498,13 +283,8 @@ func (s *server) deleteSeed(w http.ResponseWriter, r *http.Request, acct db.Acco
 		s.flashScopeBack(w, r, seedsForms{seedError: "That scope could not be found."})
 		return
 	}
-	// Resolve the scope's display string BEFORE the withdrawal so the removal flash can
-	// name it (WORK-ORDER-DOGFOOD-R1 item 2). A stale chip whose row is already gone
-	// leaves scope empty and simply redirects — the act stays idempotent.
 	scope, _ := s.seedScopeByID(r, id)
-	// The delete and the tombstone the withdrawal owes commit together (ADR-0134 §2,
-	// ADR-0135 §2), so no path can leave a withdrawn scope of either kind with no
-	// mover for the membership fold to name.
+	// The delete and the tombstone commit together, so no withdrawn scope lacks a mover (ADR-0135 §2).
 	if _, err := s.store.WithdrawSeed(r.Context(), db.WithdrawSeedParams{
 		SeedID: id, CreatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
 	}); err != nil {
@@ -518,22 +298,12 @@ func (s *server) deleteSeed(w http.ResponseWriter, r *http.Request, acct db.Acco
 	s.toastRedirectBack(w, r, "/scope", "neutral", "Scope removed", removalFlash(scope))
 }
 
-// removalFlash is the sentence the removal toast states about what the act does to
-// the subjects already in the estate.
-//
-// BOTH limbs are enforcing now (ADR-0134 for the address scope, ADR-0135 for the
-// name scope), so the two say one thing. The name limb said the opposite until
-// #1045 — "existing subjects keep their citations" — which was a plain statement of
-// the bug, and the address limb said it until #1040.
 func removalFlash(scope string) string {
+	// Both limbs enforce now, so one sentence is true of either scope (ADR-0134, ADR-0135).
 	return scope + " — nothing new is admitted under it; the subjects it alone held " +
 		"leave the estate on the next completed job."
 }
 
-// seedScopeByID returns the display scope for a declared seed id — the address CIDR for
-// an address scope, the domain for a name scope — and whether it is an address scope,
-// or "" when no such seed exists. It reuses toSeedViews so the string matches the chip
-// the operator clicked.
 func (s *server) seedScopeByID(r *http.Request, id int64) (string, bool) {
 	rows, err := s.store.ListSeeds(r.Context())
 	if err != nil {
@@ -547,20 +317,12 @@ func (s *server) seedScopeByID(r *http.Request, id int64) (string, bool) {
 	return "", false
 }
 
-// refusalView is the spec RefusalCallout (#21a): a declaration the handler refused
-// because it is wider than the address cap. It carries the rejected Input verbatim,
-// the Reason in the operator's words, and the Reachable in-cap set it NAMES but never
-// auto-applies — nothing is corrected for the operator. Nil unless a declaration was
-// refused; set on the render map alongside .FormError via the seedsForms echo.
 type refusalView struct {
 	Input     string
 	Reason    string
 	Reachable string
 }
 
-// isAddressValue reports whether a declared scope value is an address scope by its
-// shape (#21a): a CIDR block (carries a slash) or a bare address literal. Everything
-// else is a name scope.
 func isAddressValue(v string) bool {
 	if strings.Contains(v, "/") {
 		return true
@@ -569,9 +331,6 @@ func isAddressValue(v string) bool {
 	return err == nil
 }
 
-// cidrForm turns a bare address literal into its single-host CIDR so a value declared
-// without a prefix length still parses as an address scope. A value already carrying a
-// slash is returned unchanged.
 func cidrForm(v string) string {
 	v = strings.TrimSpace(v)
 	if strings.Contains(v, "/") {
@@ -590,13 +349,8 @@ func overCapFormError(cap int) string {
 	return fmt.Sprintf("Refused — over the %s-address cap.", commaInt(cap))
 }
 
-// refusalOverCap builds the RefusalCallout for an over-cap block (#21a). Input echoes
-// the operator's typed value; Reason states the span against the cap; Reachable is the
-// largest prefix that fits the cap, anchored at the value's own base address (never
-// re-masked) so the operator sees a set they can declare as-is. The reachable prefix
-// length is derived: host bits = floor(log2(cap)), so the reachable length is the
-// address width minus those bits (a /22 for the 1,024-address cap).
 func refusalOverCap(value string, raw netip.Prefix, cap int) refusalView {
+	// The over-cap set is named, never applied: the operator declares the narrower block themselves.
 	bits := raw.Addr().BitLen()
 	host := 0
 	for host+1 <= bits && (1<<(host+1)) <= cap {
@@ -613,11 +367,8 @@ func refusalOverCap(value string, raw netip.Prefix, cap int) refusalView {
 	}
 }
 
-// commaGroup renders an integer STRING with thousands separators, so the refusal
-// callout reads "4,096" over an address count that may exceed a fixed-width int (the
-// same grouping humanCount and commaInt apply). commaInt (auth.go) does the same over
-// an int; this twin takes the big.Int string AddressCount returns.
 func commaGroup(n string) string {
+	// An address count can exceed a fixed-width int, so this twin groups the big.Int string.
 	neg := strings.HasPrefix(n, "-")
 	if neg {
 		n = n[1:]
@@ -635,11 +386,6 @@ func commaGroup(n string) string {
 	return b.String()
 }
 
-// custodyView is a name scope shaped for the custody-extension section (#21b): the
-// scope, whether its custody extension is declared, and the Census — the count of
-// addresses the extension currently reaches, recomputed each batch. A live estate has
-// no first-class census numerator yet, so the live render carries zero; the fixture-
-// seeded instance the golden depicts pins the real figure (scopeFixtureData).
 type custodyView struct {
 	ID               int64
 	Scope            string
@@ -647,10 +393,8 @@ type custodyView struct {
 	Census           int
 }
 
-// toCustodyViews shapes the custody-extension section from the name scopes. The census
-// is zero on a live estate (no measured resolution numerator yet); it is never
-// fabricated.
 func toCustodyViews(nameSeeds []seedView) []custodyView {
+	// No measured resolution numerator exists yet, so this reads zero, never a fabricated figure.
 	out := make([]custodyView, 0, len(nameSeeds))
 	for _, v := range nameSeeds {
 		out = append(out, custodyView{
@@ -697,100 +441,47 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 	if intervalDays == "" {
 		intervalDays = strconv.FormatInt(cadence/86400, 10)
 	}
-	// The declared name tree (SPEC-CHANGE collision #12, ADR-0116): registrable
-	// domains → leaf names with per-leaf severity, folded off the live signal corpus.
-	// Best-effort and additive — a corpus read failure degrades the card to its empty
-	// pattern rather than 500ing the whole Scope screen.
 	var nameTree []nameTreeNode
 	if corpus, cerr := s.buildSignalCorpus(r); cerr == nil {
 		nameTree = declaredNameTree(nameSeeds, corpus.Names, signal.EvaluateCorpus(corpus))
 	}
-	// The custody-extension census (#987): the declines and the held candidates the
-	// `edge-fanout` veto produced. Best-effort and additive, exactly like the name
-	// tree above — a failed read degrades this one section to an honest note rather
-	// than 500ing the Scope screen, and it NEVER falls back to a fabricated row.
+	// An additive card's failed read degrades that card, never the whole Scope screen.
 	census, censusErr := s.custodyCensus(r.Context())
 	data := map[string]any{
 		"Title": "Scope", "NavActive": "scope",
 		"Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		// scope.tmpl styles against the design token vocabulary; the "head" block
-		// inlines tokens/*.css only when this datum is set (as the batch-2 screens do).
+		// The head block inlines tokens/*.css only when this datum is set.
 		"DesignTokens": true,
 		"Seeds":        seeds, "AddressCap": s.addressCap(r.Context()),
-		// The declared name tree (Scope.jsx:86-98): registrable domains → leaf names,
-		// each carrying its own max-of-firing-signals severity.
-		"NameTree": nameTree,
-		// Coverage messages folded onto Scope (#278): the honest coverage-fact read
-		// this screen can make from data it already holds — a provisioned vantage we
-		// currently cannot look from is a silence, exactly what the design system's
-		// CoverageMessageList carries. The full aperture statement lives on /coverage
-		// (owned elsewhere); nothing here is fabricated.
+		"NameTree":     nameTree,
 		"CoverageMsgs": coverageMessages(probers),
 		"FormError":    f.seedError, "FormScope": f.seedScope,
-		// The RefusalCallouts (DF-F1): one per refused token in a paste, declaration
-		// order. Replaces the single .Refusal hole.
 		"Refusals":   f.refusals,
 		"Exclusions": toExclusionViews(excl),
 		"ExclError":  f.exclError, "ExclKind": f.exclKind, "ExclValue": f.exclValue,
-		// The custody-extension section reads name scopes alone — an address scope can
-		// never carry one — each with its per-name census meter (#21b).
 		"CustodyScopes": toCustodyViews(nameSeeds), "CustodyError": f.custodyError,
-		// The custody-extension census (#987, ADR-0129 §5): the in-zone names whose
-		// direct-A edge the extension DECLINED, each with its citing name and the
-		// address-scope remedy. .CustodyCensusFailed is the honest degrade — the
-		// section says the read did not resolve rather than showing a row nothing
-		// measured.
 		"CustodyCensus": census.Rows, "CustodyCensusFailed": censusErr != nil,
-		// The held candidates collapse to this one count (#1015). A pending candidate
-		// carries no remedy and clears within one Scan cadence, so a row each would
-		// make the section's worst render its first one.
+		// A pending candidate carries no remedy and clears within one cadence (#1015).
 		"CustodyCensusPending": census.Pending,
-		// The zone-file section (#21c): the status rows show which name scopes hold a
-		// supplied file, and the interval dial is the declared re-supply cadence. The
-		// FileDrop infers the apex from the uploaded file, so no per-scope select.
-		"ZoneScopes": toZoneViews(nameSeeds, zoneStatus, cadence, s.now().UTC()),
-		// The per-file zone-upload refusals (DF-F2): one row per rejected file. Replaces
-		// the single .ZoneError hole.
-		"ZoneErrors":        f.zoneErrors,
-		"ZoneIntervalError": f.zoneIntervalError,
-		"ZoneIntervalDays":  intervalDays,
-		// Pending Proposals flattened to the spec rows + the org-name search echo (#21).
-		// ProposalError is the refusal beside that search box. The field had two setters
-		// and no hole between the parity conversion (#574, which dropped both the hole and
-		// this line) and ticket #978's sweep, so an empty search and an already-declared
-		// scope each refused in silence — the operator saw a clean page and no reason.
-		"Proposals": flattenProposals(lookups), "OrgQuery": f.proposalQuery,
+		"ZoneScopes":           toZoneViews(nameSeeds, zoneStatus, cadence, s.now().UTC()),
+		"ZoneErrors":           f.zoneErrors,
+		"ZoneIntervalError":    f.zoneIntervalError,
+		"ZoneIntervalDays":     intervalDays,
+		"Proposals":            flattenProposals(lookups), "OrgQuery": f.proposalQuery,
 		"ProposalError": f.proposalError,
-		// The narrowing receipt (#205 AC8): shown before an exclusion commits, only
-		// where a withdrawal message would fire.
-		"ExclPreview": f.exclPreview,
-		// The chip under confirmation and the receipt its withdrawal would produce
-		// (#1046). The withdrawal is the same class of act as an exclusion, so it
-		// states the same count before it commits.
-		"SeedConfirm": f.seedConfirm,
+		"ExclPreview":   f.exclPreview,
+		"SeedConfirm":   f.seedConfirm,
 	}
 	if f.proposalNotice != "" {
 		data["Notice"] = f.proposalNotice
 	}
-	// Always 200, callouts or none. This render has one caller, seedsPage, and it is a
-	// GET: a refusal reaches it only as the landing of a post-redirect-get (ADR-0130 §1),
-	// which is an ordinary navigation. It used to answer 400 when it rendered a refusal
-	// in place at the POST URL, and that branch went with the last handler that did.
-	// A refusal now answers exactly as a success does, which is what lets the shell
-	// restore the operator's scroll offset on both.
+	// A refusal answers 200 exactly as a success does, so the shell restores the offset (ADR-0130 §1).
 	s.render(w, r, "scope", data)
 }
 
-// coverageMsgView is one coverage fact shaped for the Scope screen's coverage
-// card, after design-system CoverageMessageList: a badge, the subject it is about,
-// and the fact in the operator's words. It is never a severity — coverage is its
-// own language (gap / staleness / silence), and this screen only ever fills it
-// from real reads, never a fabricated example.
+// Coverage is its own language — gap, staleness, silence — and never a severity (CONTEXT.md).
+
 type coverageMsgView struct {
-	// Kind drives the badge (a dotted GapBadge for "gap", a bronze staleness chip
-	// otherwise) — never the severity ramp (#21). Bound is the staleness chip's
-	// trailing figure (e.g. "9d"), empty where the chip carries none; ISO is the
-	// full RFC-3339 instant rendered as the When column's title tooltip.
 	Kind    string
 	Badge   string
 	Bound   string
@@ -800,12 +491,6 @@ type coverageMsgView struct {
 	ISO     string
 }
 
-// coverageMessages derives the coverage-message list from the provisioned
-// vantages the Scope render already reads. A vantage whose availability is
-// `unavailable` is a position we currently cannot look from — its batches covered
-// nothing, so the reach it would have measured is a Gap, not a clean empty result.
-// That is a silence in coverage terms, and the honest thing to surface here. When
-// every vantage is reporting, the list is empty and the card shows its empty state.
 func coverageMessages(vantages []db.ListVantagesRow) []coverageMsgView {
 	var out []coverageMsgView
 	for _, v := range vantages {
@@ -823,12 +508,6 @@ func coverageMessages(vantages []db.ListVantagesRow) []coverageMsgView {
 	return out
 }
 
-// nameTreeNode is one node of the Scope "Declared name tree" (Scope.jsx:86-98,
-// SPEC-CHANGE collision #12): a registrable-domain root (a declared name-scope
-// Seed) or a leaf Name under it. Sev is the Name's own max-of-firing-signals
-// severity token (critical|high|medium|low|info), empty where the Name raises no
-// signal — the leaf then renders no severity dot, the spec's per-leaf empty
-// pattern. Count is the number of leaves and is set on roots only.
 type nameTreeNode struct {
 	ID       string
 	Label    string
@@ -838,19 +517,8 @@ type nameTreeNode struct {
 	Children []nameTreeNode
 }
 
-// declaredNameTree builds the Scope "Declared name tree" from the current model
-// (ADR-0116: build the datum the design renders, never re-skin it). Each declared
-// name-scope Seed is a registrable-domain root; every current in-estate Name under
-// it is a leaf, labelled by the sub-name left after the domain suffix. Each Name —
-// root apex and leaf alike — carries its own max-of-firing-signals severity: the
-// most urgent (lowest-rank) severity across the signals whose subject IS that Name,
-// exactly the rollup the AssetDetail header reads (assetHeaderSeverity/assetSignals
-// in subjects.go), keyed off the same signal corpus. A Name with no firing signal
-// carries no severity, so its dot degrades away.
 func declaredNameTree(nameSeeds []seedView, names []signal.NameFacts, censuses []signal.Census) []nameTreeNode {
-	// Per-Name max severity: most urgent rule severity among fired members keyed on
-	// the Name itself — the Name-rule population is keyed by the Name, so this is the
-	// same subject==key filter assetSignals uses, rolled up like assetHeaderSeverity.
+	// The same subject-keyed rollup the AssetDetail header reads (assetHeaderSeverity, subjects.go).
 	sevByName := map[string]signal.Severity{}
 	for _, c := range censuses {
 		sev, ok := signal.SeverityFor(c.Rule)
@@ -864,8 +532,6 @@ func declaredNameTree(nameSeeds []seedView, names []signal.NameFacts, censuses [
 		}
 	}
 
-	// The leaf universe: every current in-estate Name, sorted for a deterministic
-	// tree. A Name measured out of the estate (a cross-class NameError) is not a leaf.
 	estate := make([]string, 0, len(names))
 	for _, n := range names {
 		if n.InEstate {
@@ -884,7 +550,7 @@ func declaredNameTree(nameSeeds []seedView, names []signal.NameFacts, censuses [
 		suffix := "." + domain
 		for _, name := range estate {
 			if name == domain || !strings.HasSuffix(name, suffix) {
-				continue // the apex is the root itself; names outside the domain are other roots' leaves
+				continue
 			}
 			leaf := nameTreeNode{ID: name, Label: strings.TrimSuffix(name, suffix)}
 			if sev, ok := sevByName[name]; ok {
@@ -917,15 +583,9 @@ func toSeedViews(rows []db.ListSeedsRow) []seedView {
 	return out
 }
 
-// seedAnchor slugs a Seed's scope into a stable in-page anchor id. A scope key
-// carries dots and (for a CIDR) a slash, so every run of non-alphanumeric octets
-// collapses to a single '-': "198.51.100.0/24" -> "198-51-100-0-24",
-// "example.com" -> "example-com". The message renderer builds the same slug from
-// an aperture message's fired-at Seed key, so its `/scope#seed-<anchor>` link
-// (#286) resolves to the row this stamps. A withdrawn Seed leaves no row and the link
-// falls back to the list head, which is acceptable.
 func seedAnchor(scope string) string {
 	var b strings.Builder
+	// The message renderer slugs the same key, so a widening lands on the moved Seed (v1 spec §5.3).
 	dash := false
 	for _, r := range scope {
 		switch {
@@ -949,13 +609,11 @@ func seedCreateError(err error, noun string) string {
 	return "Could not declare the scope."
 }
 
-const maxZoneUpload = 8 << 20 // 8 MiB
+const maxZoneUpload = 8 << 20
 
-// maxTotalZoneUpload bounds the WHOLE multipart request body (DF-F2 allows N
-// zonefile parts in one POST). It caps total bytes read off the wire before any
-// parse, so a hostile or accidental oversize body cannot exhaust memory; the
-// per-file 8 MiB cap still applies to each accepted part.
-const maxTotalZoneUpload = 64 << 20 // 64 MiB
+// Bounding the whole body before any parse is what stops an oversize upload exhausting memory.
+
+const maxTotalZoneUpload = 64 << 20
 
 type zoneView struct {
 	SeedID        int64
@@ -997,10 +655,6 @@ func toZoneViews(nameSeeds []seedView, status []db.ListZoneFileStatusRow, cadenc
 	return out
 }
 
-// zoneAgingLabel renders a supplied file's staleness → gap read in the
-// operator's words. A current file counts down to the gap; a stale file names
-// the gap it has aged into. It never fabricates: the read is derived from the
-// dated supply and the declared cadence alone.
 func zoneAgingLabel(a scan.ZoneAging) string {
 	if !a.Supplied {
 		return ""
@@ -1032,28 +686,16 @@ func zoneIntervalLabel(cadenceSeconds int64) string {
 	}
 }
 
-// uploadZoneFile stores an operator's zone file for a name scope. The upload is
-// the supply act, so its instant is recorded now — the zone Scan restates the
-// file's observations at this instant, never at the worker's later read (v1 spec
-// §3.4). The file is stored in the shared database so both web and worker read
-// it; it is evidence, not a secret (§4.2).
-// DF-F2 (bulk zone-file upload): the drop/picker is `multiple`, so one multipart POST
-// carries N `zonefile` parts. Each file is processed independently — its apex inferred
-// from the content, checked against the declared name scopes — and each accepted file
-// records its own dated act at the shared upload instant (the observation instant; the
-// zone status query tie-breaks equal instants by insertion order, so two files for one
-// apex leave the later as the current supply). Per-file refusals fill .ZoneErrors[]; a
-// flash fires on ≥1 accepted file.
 func (s *server) uploadZoneFile(w http.ResponseWriter, r *http.Request, acct db.Account) {
+	// The upload instant is the observation instant, never our later read (docs/spec/v1-spec.md §3.4).
 	if s.devMode {
 		s.backToScope(w, r)
 		return
 	}
+	// A zone file is evidence, not a secret, so the shared database holds it (v1 spec §4.2).
 	r.Body = http.MaxBytesReader(w, r.Body, maxTotalZoneUpload)
 	if err := r.ParseMultipartForm(maxZoneUpload); err != nil { // #nosec G120 (request body bounded by the MaxBytesReader immediately above; per-part 8 MiB cap enforced on read)
-		// A body this handler could not parse carries no `return` field either, so the
-		// redirect falls back to bare /scope. That is the honest destination: the
-		// submitting URL is exactly what was lost with the rest of the body.
+		// The submitting URL went with the rest of the body, so bare /scope is the honest destination.
 		s.flashScopeBack(w, r, seedsForms{zoneErrors: []zoneErrorView{{
 			Reason: "The upload was too large or malformed. A zone file is text, up to 8 MB.",
 		}}})
@@ -1070,9 +712,7 @@ func (s *server) uploadZoneFile(w http.ResponseWriter, r *http.Request, acct db.
 		return
 	}
 
-	// A single upload instant for the whole drop — every accepted file's observation
-	// instant. Equal instants tie-break by insertion order (zone.sql ORDER BY id DESC),
-	// so files pasted for the same apex settle with the last as the current supply.
+	// Equal instants tie-break by insertion order (zone.sql), so the last file for an apex wins.
 	now := s.now().UTC()
 	var zoneErrors []zoneErrorView
 	accepted := 0
@@ -1094,20 +734,12 @@ func (s *server) uploadZoneFile(w http.ResponseWriter, r *http.Request, acct db.
 			s.toastRedirectBack(w, r, "/scope", "neutral", title, desc)
 			return
 		}
-		// Mixed: refusal rows AND the success toast, both carried through one redirect
-		// back to the submitting URL (see flashScopeToastBack).
 		s.flashScopeToastBack(w, r, seedsForms{zoneErrors: zoneErrors}, "neutral", title, desc)
 		return
 	}
-	// Zero accepted: no toast, refusal rows only.
 	s.flashScopeBack(w, r, seedsForms{zoneErrors: zoneErrors})
 }
 
-// uploadOneZoneFile stores ONE uploaded zone file (DF-F2). It returns nil on a recorded
-// supply act, or a *zoneErrorView naming the file and why it was refused: unreadable or
-// empty content, an unparseable file (`not a zone file`), or an apex outside every
-// declared name scope. now is the shared upload instant — this file's observation
-// instant (v1 spec §3.4).
 func (s *server) uploadOneZoneFile(r *http.Request, acct db.Account, fh *multipart.FileHeader, now time.Time) *zoneErrorView {
 	name := fh.Filename
 	file, err := fh.Open()
@@ -1125,9 +757,7 @@ func (s *server) uploadOneZoneFile(r *http.Request, acct db.Account, fh *multipa
 	if len(content) > maxZoneUpload {
 		return &zoneErrorView{File: name, Reason: "over the 8 MB cap"}
 	}
-	// #21c/DF-F2: the handler infers the scope from the file's apex ($ORIGIN, or the SOA
-	// owner). An unparseable file has no apex; an apex outside every declared name scope
-	// is refused, never silently attached to a scope the operator did not name.
+	// An apex outside every declared name scope is refused, never attached to a scope nobody named.
 	apex := zoneApex(string(content))
 	if apex == "" {
 		return &zoneErrorView{File: name, Reason: "not a zone file"}
@@ -1148,10 +778,6 @@ func (s *server) uploadOneZoneFile(r *http.Request, acct db.Account, fh *multipa
 	return nil
 }
 
-// zoneApex extracts an uploaded zone file's apex — the $ORIGIN directive when present,
-// otherwise the owner of the SOA record — as a bare (lowercased, trailing-dot-stripped)
-// domain. It returns "" when neither can be read, so the caller refuses rather than
-// guessing.
 func zoneApex(content string) string {
 	var origin, soaOwner string
 	for _, raw := range strings.Split(content, "\n") {
@@ -1181,9 +807,6 @@ func zoneApex(content string) string {
 	return soaOwner
 }
 
-// nameSeedForApex resolves a zone apex to the id of the name-scope Seed that holds it
-// — an exact match on the registrable domain, or an apex that resolves under one. It
-// reports ok=false when no name scope covers the apex, so the upload is refused (#21c).
 func (s *server) nameSeedForApex(r *http.Request, apex string) (int64, bool) {
 	rows, err := s.store.ListSeeds(r.Context())
 	if err != nil {
@@ -1201,9 +824,6 @@ func (s *server) nameSeedForApex(r *http.Request, apex string) (int64, bool) {
 	return 0, false
 }
 
-// setZoneInterval moves the re-supply interval dial: the operator's promise
-// about how often they will re-export, held as the zone Scan's cadence and
-// shipped at monthly (v1 spec §3.4).
 func (s *server) setZoneInterval(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	raw := strings.TrimSpace(r.FormValue("interval_days"))
 	days, err := strconv.Atoi(raw)
