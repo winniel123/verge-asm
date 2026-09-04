@@ -11,19 +11,8 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
-// Settings → single sign-on (#293, ADR-0112, ADR-0113): declare, edit, re-key and remove
-// the OIDC providers the SignIn screen offers, and manage the verified-identity bindings
-// authentication keys on. Every act here is admin-gated (the routes carry requireAdmin),
-// and the client secret is write-only — an edit that leaves the secret field blank keeps
-// the stored one, a value replaces it, the clear box removes it — exactly the
-// channel-secret pattern.
-
-// ssoSlugPattern keeps a provider slug URL-safe: it rides the flow routes
-// (/login/sso/<slug>), so it is lowercase alphanumeric with internal hyphens.
 var ssoSlugPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 
-// ssoProviderView is one configured provider shaped for the Settings table: its
-// display fields, whether a secret is set (never the value), and who declared it.
 type ssoProviderView struct {
 	ID        int64
 	Slug      string
@@ -36,9 +25,6 @@ type ssoProviderView struct {
 	CreatedAt string
 }
 
-// ssoBindingView is one verified-identity binding for the admin table: which account an
-// external identity (via which provider) authenticates as, so an admin can remove it on
-// offboarding or a seat reassignment (ADR-0113).
 type ssoBindingView struct {
 	ID           int64
 	ProviderName string
@@ -76,7 +62,6 @@ func (s *server) fillSSOSection(r *http.Request, f settingsForms, data map[strin
 	data["SSOBindings"] = bviews
 
 	data["SSOError"] = f.ssoError
-	// Echo a rejected add form so the operator does not retype it; defaults otherwise.
 	data["SSOSlug"] = f.ssoSlug
 	data["SSOName"] = f.ssoName
 	data["SSOIssuer"] = f.ssoIssuer
@@ -97,9 +82,6 @@ func readSSOForm(r *http.Request) ssoFormValues {
 	}
 }
 
-// validateSSOForm checks the shared provider fields, returning a message on the first
-// failure. The issuer must be an https URL (an OIDC issuer is always https, and the
-// discovery fetch would otherwise be plaintext).
 func validateSSOForm(v ssoFormValues) string {
 	switch {
 	case v.slug == "":
@@ -120,13 +102,6 @@ func validateSSOForm(v ssoFormValues) string {
 	return ""
 }
 
-// createSSOProvider declares one OIDC provider. The secret is optional (a public
-// PKCE-only client sets none) and write-only.
-//
-// Both outcomes are a post-redirect-get back to the URL the form was submitted from
-// (ADR-0130 §1 and §3, map #969 ticket #975). A refusal carries its message and the
-// operator's typed values to that landing GET through the session form flash, so the
-// typed client secret never enters the URL and the operator keeps their scroll offset.
 func (s *server) createSSOProvider(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	v := readSSOForm(r)
 	fail := func(msg string) {
@@ -144,8 +119,6 @@ func (s *server) createSSOProvider(w http.ResponseWriter, r *http.Request, acct 
 		ClientSecret: optionalSecret(r.FormValue("client_secret")),
 		Enabled:      true, CreatedBy: acct.ID,
 	}); err != nil {
-		// A duplicate slug is the one expected user error the DB refuses (unique); tell
-		// the operator plainly rather than 500ing.
 		if isUniqueViolation(err) {
 			fail("A provider with that slug already exists. Choose another slug.")
 			return
@@ -156,15 +129,8 @@ func (s *server) createSSOProvider(w http.ResponseWriter, r *http.Request, acct 
 	s.backToSection(w, r, "sso")
 }
 
-// updateSSOProvider edits a provider's fields and enabled state, applying a secret
-// change only if one was asked for (blank leaves the stored secret untouched).
-//
-// The edit form is one row's disclosure (settings.tmpl st-disc), not a query-opened
-// dialog, so a refusal has no modal to re-open: it lands on the tab and the callout
-// renders above the provider table. The typed values are not echoed, because the
-// disclosure renders each field from the stored row. The migration does not change
-// that.
 func (s *server) updateSSOProvider(w http.ResponseWriter, r *http.Request, _ db.Account) {
+	// The row's disclosure re-renders each field from the stored row, so a refusal echoes nothing.
 	fail := func(msg string) {
 		s.failSettings(w, r, settingsForms{section: "sso", ssoError: msg})
 	}
@@ -191,25 +157,19 @@ func (s *server) updateSSOProvider(w http.ResponseWriter, r *http.Request, _ db.
 		return
 	}
 	if rows == 0 {
-		// The id parsed but matched nothing (deleted in another tab): say so rather than
-		// redirecting as if the edit applied.
 		fail("That provider could not be found.")
 		return
 	}
 	s.backToSection(w, r, "sso")
 }
 
-// setSSOProviderSecret writes, replaces or clears a provider's client secret through
-// its own path, so a general edit never has to carry the secret. A blank field with
-// the clear box unchecked is a no-op — the stored secret is kept, honouring the form's
-// "leave blank to keep" — exactly the channel-secret pattern (settings.go). Clearing a
-// stored secret requires the explicit clear box, which wins over any typed value.
 func (s *server) setSSOProviderSecret(w http.ResponseWriter, r *http.Request, _ db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
 		s.failSettings(w, r, settingsForms{section: "sso", ssoError: "That provider could not be found."})
 		return
 	}
+	// A blank field with the box unchecked must keep the stored secret, so no default arm clears it.
 	switch {
 	case r.FormValue("clear_secret") != "":
 		if err := s.store.SetSSOProviderSecret(r.Context(), db.SetSSOProviderSecretParams{ID: id}); err != nil {
@@ -240,16 +200,13 @@ func (s *server) deleteSSOProvider(w http.ResponseWriter, r *http.Request, _ db.
 	s.backToSection(w, r, "sso")
 }
 
-// removeSSOBinding lets an admin revoke any verified-identity binding — the offboarding
-// / seat-reassignment case ADR-0113 is about, where a departed user's linked identity
-// (or a recycled one) must stop authenticating as an account. Idempotent: removing a row
-// already gone satisfies the intent either way.
 func (s *server) removeSSOBinding(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
 		s.failSettings(w, r, settingsForms{section: "sso", ssoError: "That identity could not be found."})
 		return
 	}
+	// A departed or recycled identity must stop authenticating as the account it bound (ADR-0113).
 	if err := s.store.DeleteSSOIdentity(r.Context(), id); err != nil {
 		s.serverError(w, "remove sso binding", err)
 		return
