@@ -90,13 +90,7 @@ type Querier interface {
 	// which account the acceptance created, which makes it single-use. A second present
 	// of the same token then reads a non-NULL consumed_at and is refused.
 	ConsumeInvite(ctx context.Context, arg ConsumeInviteParams) error
-	// Spend a reset grant: stamp consumed_at with the instant the caller passes, which
-	// makes it single-use. A second present of the same token then reads a non-NULL
-	// consumed_at and is refused.
 	ConsumePasswordReset(ctx context.Context, arg ConsumePasswordResetParams) error
-	// Spend one recovery code: stamp used_at with the instant the caller passes. A
-	// second present of the same code then reads a non-NULL used_at and is no longer
-	// listed as redeemable.
 	ConsumeRecoveryCode(ctx context.Context, arg ConsumeRecoveryCodeParams) error
 	CountAccounts(ctx context.Context) (int64, error)
 	// Guards the last-admin invariant: a role change that would drop this to zero is
@@ -127,7 +121,6 @@ type Querier interface {
 	// signal_name) rejects a re-declaration of the same pair — an Annotation cannot
 	// be edited, so changing the reason is a withdraw-then-declare, not an update.
 	CreateAnnotation(ctx context.Context, arg CreateAnnotationParams) (Annotation, error)
-	// Returns the id only: the secret is write-only and no query hands it back.
 	CreateChannel(ctx context.Context, arg CreateChannelParams) (int64, error)
 	// Mint a single-use, time-boxed invite at a role (Settings -> Team, T18). This is
 	// the creation side of the invite table T19 shipped for acceptance: web keeps only
@@ -140,10 +133,6 @@ type Querier interface {
 	// kind is 'name' (an exact FQDN) or 'subtree' (that name and everything beneath).
 	CreateNameExclusion(ctx context.Context, arg CreateNameExclusionParams) (Exclusion, error)
 	CreateNameSeed(ctx context.Context, arg CreateNameSeedParams) (Seed, error)
-	// Mint a single-use password-reset grant for one account. Only the token hash is
-	// stored; the plaintext rides one URL handed to the operator out of band. The
-	// caller sets expires_at from the server clock, so the window is bounded by the
-	// same injectable clock every other auth read uses.
 	CreatePasswordReset(ctx context.Context, arg CreatePasswordResetParams) (PasswordReset, error)
 	// Mint a personal API token for one account. Only the hash and the non-secret
 	// prefix are stored; the plaintext is shown once at the call site and never
@@ -156,8 +145,6 @@ type Querier interface {
 	// Records one operator act — an org-name search — under which a batch of
 	// candidate scopes is filed. It is the unit a bulk decline operates over.
 	CreateProposerLookup(ctx context.Context, arg CreateProposerLookupParams) (ProposerLookup, error)
-	// Store one recovery code's hash for an account. The plaintext is shown once at the
-	// call site and never persisted; only the hash is kept, so it cannot be shown again.
 	CreateRecoveryCode(ctx context.Context, arg CreateRecoveryCodeParams) error
 	// Open a session at login. Only the token's hash is stored; the opaque plaintext
 	// lives solely in the cookie on the client (ADR-0117). Returns the row so the
@@ -251,9 +238,6 @@ type Querier interface {
 	// can only revoke their own tokens, never another account's by guessing an id.
 	// Revocation is a hard delete — a revoked token holds no history worth reading.
 	DeletePersonalToken(ctx context.Context, arg DeletePersonalTokenParams) error
-	// Clear an account's recovery codes before re-issuing a set, so enrolling (or
-	// re-enrolling) two-factor replaces the old codes wholesale rather than
-	// accumulating stale sets that would each still redeem.
 	DeleteRecoveryCodesForAccount(ctx context.Context, accountID int64) error
 	// Remove one schedule (the row-menu's Delete). A hard delete: the schedule is a
 	// Declared intent, so withdrawing the declaration removes the row. Idempotent from
@@ -266,8 +250,6 @@ type Querier interface {
 	// never unlink another's; returns rows so a stale or foreign id no-ops honestly.
 	DeleteSSOIdentityForAccount(ctx context.Context, arg DeleteSSOIdentityForAccountParams) (int64, error)
 	DeleteSSOProvider(ctx context.Context, id int64) error
-	// Reset a port to its shipped default by dropping its edit row. Idempotent: a
-	// port with no edit is already at its default.
 	DeleteVergeCoreFrequencyEdit(ctx context.Context, port int32) error
 	// The commit instant of the FIRST batch the estate ever folded — the age boundary the
 	// Drift page's vs-previous-period delta tests before comparing (P0.12, #690). The chip
@@ -325,7 +307,6 @@ type Querier interface {
 	// Errors with pgx.ErrNoRows when the certificate was never captured — a verification the
 	// caller reports as unverifiable rather than as not-logged.
 	GetCertificateMaterial(ctx context.Context, fingerprint string) (CertificateMaterial, error)
-	// Also omits the secret; a caller reads presence, never the value.
 	GetChannel(ctx context.Context, id int64) (GetChannelRow, error)
 	// Reads the target URL and the signing secret. This is the ONE read path that
 	// selects the secret: it is write-only at the interface (no render query returns
@@ -343,10 +324,6 @@ type Querier interface {
 	// feature clusters (#390 API surfaces, #391 backup & updates) read their flags and
 	// cached facts through this one row.
 	GetInstanceConfig(ctx context.Context) (GetInstanceConfigRow, error)
-	// The instance-health tab's live database facts (#633, WORK-ORDER-DOGFOOD-R1 item 3):
-	// the size of this deployment's database and its Postgres server version, read straight
-	// off the running server — pg_database_size over the current database, and the
-	// server_version setting. Both are Operational host facts; this touches no estate corpus.
 	GetInstanceHealth(ctx context.Context) (GetInstanceHealthRow, error)
 	// The delivery Channel one integration is bound to (nullable — NULL is unbound). The
 	// Send-test handler reads this to resolve where the test payload goes; an unbound
@@ -421,9 +398,6 @@ type Querier interface {
 	// position carries no vantage row yet), so they are matched with IS NOT DISTINCT
 	// FROM rather than =.
 	GetOpenSpan(ctx context.Context, arg GetOpenSpanParams) (GetOpenSpanRow, error)
-	// Resolve a presented reset token to its row by hash. Validity (unconsumed,
-	// unexpired) is checked in the handler against the server clock rather than SQL
-	// now(), so a fixed-clock test and production agree on the same boundary.
 	GetPasswordResetByHash(ctx context.Context, tokenHash string) (PasswordReset, error)
 	// One pending Proposal, read at the moment of confirmation so the confirm act
 	// can copy its scope into a Seed. A Proposal already confirmed or declined does
@@ -470,10 +444,6 @@ type Querier interface {
 	// then treats it exactly as an absent cookie. The clock bound is passed in ($2) so
 	// a fixed-clock test and production agree on the boundary.
 	GetSessionByTokenHash(ctx context.Context, arg GetSessionByTokenHashParams) (Session, error)
-	// The single transcript for a queue_job id — the §6 read handler's source for
-	// `?job={id}`. One row per attempt (spec §1.1), so this addresses a transcript
-	// directly. Returns no row when the job produced no capture (a legible absence,
-	// which the handler renders distinctly from a captured-but-empty stream).
 	GetTranscriptByJob(ctx context.Context, queueJobID int64) (Transcript, error)
 	GetVantage(ctx context.Context, id int64) (Vantage, error)
 	// The operator's declared re-supply interval, held as the zone Scan's cadence.
@@ -585,11 +555,6 @@ type Querier interface {
 	// Declare one OIDC provider. Returns the id only; the secret is write-only and no
 	// read query hands it back. A public (PKCE-only) client passes a NULL secret.
 	InsertSSOProvider(ctx context.Context, arg InsertSSOProviderParams) (int64, error)
-	// Persist one job's verbatim transcript (raw-job-output spec §1.4), mirroring
-	// InsertObservation. The producer calls it once per captured job inside the
-	// worker's terminal transaction (§2.4), so a job cancelled mid-flight rolls its
-	// transcript back with the rest of its work. A job with no capture inserts no
-	// row — the absence is legible, distinct from a captured-but-empty stream.
 	InsertTranscript(ctx context.Context, arg InsertTranscriptParams) error
 	// The zone Scan's scope: the latest supplied file per name-scope Seed, with its
 	// domain and supply instant, for the worker to restate. DISTINCT ON keeps only
@@ -716,8 +681,6 @@ type Querier interface {
 	// read a missing row as *measurement pending* — the missing MEASUREMENT row is what
 	// means that, and it is a different absence.
 	ListCertificateMaterialDER(ctx context.Context, fingerprints []string) ([]ListCertificateMaterialDERRow, error)
-	// Never selects the secret: it exposes only whether one is set, so the render
-	// path is structurally unable to leak it.
 	ListChannels(ctx context.Context) ([]ListChannelsRow, error)
 	// The opted-in `Seed` ids, for the Seeds screen to mark which scopes have opted
 	// into the cold tier.
@@ -1180,9 +1143,6 @@ type Querier interface {
 	// longer firing simply matches nothing this render and contributes no per-instance
 	// row (the pair is not currently open).
 	ListSignalInstances(ctx context.Context) ([]SignalInstance, error)
-	// The operator's overrides of the authored ship defaults. The handler merges
-	// these onto the in-binary catalogue: a source's effective state is its override
-	// where one exists and its shipped default otherwise.
 	ListSourceStates(ctx context.Context) ([]SourceState, error)
 	// A subject's full Span history — current and closed — for the Subjects
 	// drill-down. Ordered by timeline, oldest first, so the renderer walks each
@@ -1220,9 +1180,6 @@ type Querier interface {
 	// resolver going unreachable this surface must make loud. Ordered by name so the
 	// rendering is stable.
 	ListUnavailableVantages(ctx context.Context) ([]ListUnavailableVantagesRow, error)
-	// The account's still-redeemable codes, by id and hash, for the login fallback: the
-	// handler hashes the presented code and matches it here. Used codes are excluded so
-	// each redeems exactly once.
 	ListUnusedRecoveryCodeHashes(ctx context.Context, accountID int64) ([]ListUnusedRecoveryCodeHashesRow, error)
 	// The web prober list: only provisioned vantages (those carrying a prober
 	// endpoint). The resolver-only `local` vantage has no prober and is excluded.
@@ -1249,7 +1206,6 @@ type Querier interface {
 	// frequency half is operator-editable; these deltas are applied over the shipped
 	// default at hot fan-out.
 	ListVergeCoreFrequencyEdits(ctx context.Context) ([]ListVergeCoreFrequencyEditsRow, error)
-	// The current frequency edits, with who made each, for the management UI.
 	ListVergeCoreFrequencyEditsWithAuthor(ctx context.Context) ([]ListVergeCoreFrequencyEditsWithAuthorRow, error)
 	// Every subject withdrawal since @since, paired with the subject's first appearance,
 	// so the web layer derives the mean-time-to-withdrawal trend (P0.3, #444). A
@@ -1496,14 +1452,8 @@ type Querier interface {
 	// settings card can render the dated act of the current state (#390). Off by default;
 	// a minted token stays inert until this is true.
 	SetAPIEnabled(ctx context.Context, arg SetAPIEnabledParams) error
-	// Set, replace or clear the secret. A NULL clears it; the value is written and
-	// never read back.
 	SetChannelSecret(ctx context.Context, arg SetChannelSecretParams) error
-	// Declare (true) or withdraw (false) the custody extension on a name-scope Seed.
-	// The kind guard makes the act a no-op on an address scope rather than an error,
-	// matching the CHECK the migration installs — an address scope can never carry a
-	// custody extension. The flag has no timeline, so a withdrawal is the same UPDATE
-	// with false rather than a dated state change.
+	// The seed CHECK rejects a true extension on an address scope, so an unguarded declare errors.
 	SetCustodyExtension(ctx context.Context, arg SetCustodyExtensionParams) error
 	// Record a Dispatch's operator-ended disposition (DF-F4): 'stopped' or 'terminated'.
 	// Scoped to a still-'fanned-out' dispatch so a second submit or a natural conclusion
@@ -1681,8 +1631,6 @@ type Querier interface {
 	// in-instance run generates without leaving (off-instance send is T7/#508, blocked).
 	TryInsertScheduledDelivery(ctx context.Context, arg TryInsertScheduledDeliveryParams) (TryInsertScheduledDeliveryRow, error)
 	UpdateAccountRole(ctx context.Context, arg UpdateAccountRoleParams) error
-	// Updates everything but the secret; the secret has its own write path so an
-	// edit that leaves it blank keeps the existing one untouched.
 	UpdateChannel(ctx context.Context, arg UpdateChannelParams) error
 	// Change one account's own password (Profile → Credentials). The handler verifies
 	// the current password and the new-password rules before this runs, so this is the
@@ -1716,18 +1664,7 @@ type Querier interface {
 	// ON CONFLICT omits channel_id, leaving the existing value in place), and a first
 	// install lands unbound (channel_id defaults NULL).
 	UpsertIntegrationState(ctx context.Context, arg UpsertIntegrationStateParams) (IntegrationState, error)
-	// Record the operator's on/off choice for one source. A toggle is a Declared act
-	// with no timeline, no actor, and no instant of its own (ADR-0073, ADR-0093), so
-	// re-toggling overwrites the single current value and the row holds only the
-	// overridden state.
 	UpsertSourceState(ctx context.Context, arg UpsertSourceStateParams) (SourceState, error)
-	// verge-core frequency-half editing (v1 spec §3.5). Only the frequency half is
-	// operator-editable; these queries manage the delta rows the hot fan-out applies
-	// over the shipped default. The sensitive half has no table and no query — it is
-	// authored by the release and is unreachable from here by construction.
-	// Record an operator edit to a frequency port. One row per port: a later edit
-	// replaces the earlier one, so toggling add→remove on a port is an update, not a
-	// second row.
 	UpsertVergeCoreFrequencyEdit(ctx context.Context, arg UpsertVergeCoreFrequencyEditParams) error
 	// Withdraws a declared Seed by id (#21a: the Scope chip-remove act), and records
 	// the tombstone the withdrawal owes (ADR-0134 §2, ADR-0135 §2). A viewer never
