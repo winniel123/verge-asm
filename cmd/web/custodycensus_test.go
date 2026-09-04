@@ -155,7 +155,7 @@ func TestCustodyCensusDeclinedRowAndHeldLine(t *testing.T) {
 }
 
 func censusCountChip(n int) string {
-	// Other cards on this screen carry a bare `sc-count`, so an unanchored match reads theirs.
+	// The Proposals card carries a bare `sc-count`, so an unanchored match reads its number.
 	return fmt.Sprintf(`Edges not reached</h3></div><span class="sc-count">%d</span>`, n)
 }
 

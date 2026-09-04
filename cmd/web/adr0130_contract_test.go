@@ -127,6 +127,7 @@ func handlerMethodName(e ast.Expr) string {
 }
 
 func devModeBodies(fn *ast.FuncDecl) map[ast.Node]bool {
+	// A dev-mode branch is reached by configuration, never by an operator refusing a form.
 	out := map[ast.Node]bool{}
 	ast.Inspect(fn, func(n ast.Node) bool {
 		if ifs, ok := n.(*ast.IfStmt); ok && isSelector(ifs.Cond, "s", "devMode") {
@@ -270,7 +271,6 @@ var classAExemptRoutes = map[string]string{
 	"POST /invite":     "invite acceptance; pre-authentication, the invitee holds no account yet",
 	"POST /onboarding": "the checklist advances by rendering its next step; it refuses no form",
 
-	// A redirect would have to stash the plaintext secret this response mints and shows once.
 	"POST /account/totp/enable":  "renders the enrolment screen (QR + secret), a step and not a refusal",
 	"POST /account/totp/confirm": "the same enrolment screen, re-rendered with its own prompt",
 }

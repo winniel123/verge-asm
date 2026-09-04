@@ -624,6 +624,7 @@ func TestCoverageHasNoProportionOfEstate(t *testing.T) {
 	page := coverageBody(t, ac, base)
 
 	// The shared stylesheet's layout rules carry "100%", so a whole-page search would false-fail.
+	// The V3 main opens with attributes, so only the tag prefix matches (coverage.tmpl).
 	main := page
 	if i := strings.Index(page, "<main"); i >= 0 {
 		main = page[i:]

@@ -37,7 +37,7 @@ func addNameSeed(t *testing.T, f *fakeStore, createdBy int64, domain string) int
 	return seed.ID
 }
 
-// A fixture seeded outside the fixed clock's k=2 window is read as evidential, not live (#237).
+// This sits inside the fixed clock's k=2 live window; outside it a fixture is evidential (#237).
 
 var obsClock = time.Date(2026, 8, 14, 9, 0, 0, 0, time.UTC)
 
@@ -143,7 +143,7 @@ func TestNameByKeyCTAdmissionTerminatesAtAdmittedSeed(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	outer := addNameSeed(t, f, admin.ID, "example.com")
-	// A longest-suffix cover picks this narrower Seed, which the admission's seed_id must beat.
+	// A nested scope is what the admitted Seed must be picked over, so the fixture declares one.
 	addNameSeed(t, f, admin.ID, "inner.example.com")
 	f.addAdmittedNameUnderSeed(t, "host.inner.example.com", outer, obsClock)
 	f.addResolution(t, admin.ID, "host.inner.example.com", "dns", obsClock.Add(24*time.Hour), `{"outcome":"Resolved","addresses":["203.0.113.9"]}`)
