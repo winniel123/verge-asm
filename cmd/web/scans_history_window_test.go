@@ -12,15 +12,12 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
-// busyMonitorStore seeds an admin plus `inFlight` in-flight dispatches and `concluded`
-// completed ones, newest first, the order both monitor reads return. The in-flight ids
-// run above the concluded ones, so a shared newest-first window would list the in-flight
-// burst and evict the completed rows — the bug #962 removes.
 func busyMonitorStore(t *testing.T, inFlight, concluded int) *fakeStore {
 	t.Helper()
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	tick := time.Date(2026, 8, 22, 14, 0, 0, 0, time.UTC)
+	// In-flight ids run above the concluded, so a burst evicts those from a shared window (#962).
 	rows := make([]db.ListDispatchProgressRow, 0, inFlight+concluded)
 	for i := range inFlight {
 		id := int64(9000 - i)
@@ -34,8 +31,6 @@ func busyMonitorStore(t *testing.T, inFlight, concluded int) *fakeStore {
 	return f
 }
 
-// The history window is dedicated (#962, SPEC §3): a burst of in-flight dispatches far
-// past the old shared 50-row read no longer evicts a single completed row.
 func TestScansHistorySurvivesBusyQueue(t *testing.T) {
 	f := busyMonitorStore(t, 60, 3)
 	base := startWithTrigger(t, f, &fakeTrigger{})
@@ -50,17 +45,12 @@ func TestScansHistorySurvivesBusyQueue(t *testing.T) {
 	if strings.Contains(page, "No dispatches yet") {
 		t.Errorf("history rendered its empty state with three completed dispatches; body: %s", page)
 	}
-	// A listed row must resolve. Run detail reads the same two windows the monitor lists
-	// from, so a history row a busy queue pushed past the old shared 50 still has a page,
-	// and so does an in-flight dispatch deep in the uncapped Active read. renderMissingRun
-	// answers 404, so the status assertion alone catches an unresolvable row.
+	// An unresolvable run answers 404 (renderMissingRun), so the status alone catches one.
 	for _, id := range []int64{1000, 998, 8941} {
 		getBody(t, ac, fmt.Sprintf("%s/runs/%d", base, id), http.StatusOK)
 	}
 }
 
-// Truncation is detected with LIMIT N+1: the read fetches scansHistoryLimit + 1 rows,
-// the page shows scansHistoryLimit, and the extra row raises the callout (#962, SPEC §3).
 func TestScansHistoryTruncationCallout(t *testing.T) {
 	want := "Showing the " + strconv.Itoa(scansHistoryLimit) + " most recent dispatches."
 	cases := []struct {
@@ -82,12 +72,9 @@ func TestScansHistoryTruncationCallout(t *testing.T) {
 				t.Errorf("callout present = %v, want %v with %d concluded dispatches",
 					got, tc.truncated, tc.concluded)
 			}
-			// Visible depth stays exactly the cap: the extra row is the signal, never a row.
 			if n := strings.Count(page, `href="/runs/`); n != scansHistoryLimit {
 				t.Errorf("history rendered %d rows, want %d", n, scansHistoryLimit)
 			}
-			// The callout is stateless — no link and no pager, so the meta refresh
-			// re-renders it identically.
 			if strings.Contains(page, "?page=") {
 				t.Errorf("history grew a pager; body: %s", page)
 			}
@@ -95,11 +82,8 @@ func TestScansHistoryTruncationCallout(t *testing.T) {
 	}
 }
 
-// The stop / terminate dialogs and their POSTs look their target up in the uncapped
-// Active read (#962), so a dispatch in flight behind a long queue still ends. Under the
-// old shared 50-row read, id 8941 sat past the window and the act refused it.
 func TestScansStopTerminateReachPastTheOldWindow(t *testing.T) {
-	const deep = 8941 // the 60th of 60 in-flight dispatches seeded newest-first
+	const deep = 8941
 
 	t.Run("dialogs", func(t *testing.T) {
 		f := busyMonitorStore(t, 60, 0)

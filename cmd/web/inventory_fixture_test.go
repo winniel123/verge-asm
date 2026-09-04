@@ -10,12 +10,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
-// fixtureInventory mirrors design-system/fixtures/fixtures.json → inventory. It is
-// the design-owned contract the seeded /inventory MUST render byte-for-byte; this
-// test folds the loader's exact spans (inventoryFixtureSpans) through buildInventory
-// and asserts deep equality against it. It is the byte-exactness gate BEFORE the
-// pixel harness — a drift between the loader corpus, the inventory derivations, and
-// the frozen fixture fails here rather than in a screenshot diff.
 type fixtureInventory struct {
 	Inventory struct {
 		Groups []fixtureGroup `json:"groups"`
@@ -73,13 +67,6 @@ func fixtureSpanRows(t *testing.T) []db.ListAllOpenSpansRow {
 	return rows
 }
 
-// TestInventoryFixtureCountsMatchPackage keeps the VERGE_DEV windowing override
-// (devInventoryGroupTotals, applyInventoryFixtureCounts) honest against the frozen
-// package: every group whose total the dev capture pins must equal fixtures.json's
-// declared total, and — folded over the fixture's own subjects through the same
-// windowing the handler runs — reproduce the fixture's declared `more`. This is the
-// byte-exactness gate for the #756 count badge + "Show all N — M more" expander,
-// before the pixel harness.
 func TestInventoryFixtureCountsMatchPackage(t *testing.T) {
 	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
 	if err != nil {
@@ -105,8 +92,6 @@ func TestInventoryFixtureCountsMatchPackage(t *testing.T) {
 		}
 	}
 
-	// Fold the fixture's declared groups through the real windowing + dev override and
-	// assert the resulting Total/More match fixtures.json for the pinned group(s).
 	got := buildInventory(fixtureSpanRows(t))
 	windowInventoryGroups(got, "")
 	applyInventoryFixtureCounts(got, "")

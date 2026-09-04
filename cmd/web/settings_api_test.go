@@ -7,24 +7,16 @@ import (
 	"testing"
 )
 
-// TestAPIToggleEnableDisableRecordsWhoWhen exercises the #390 admin switch: POST
-// /settings/api {enabled} flips the read-only /api/v1 surface on and off through
-// SetAPIEnabled, which stamps who acted (the admin's id) and when. Each act PRG-redirects
-// back to the API tab, and the enabled render carries the dated act (the enabled badge +
-// "Enabled by admin" record) fillAPISection resolves from the config row.
 func TestAPIToggleEnableDisableRecordsWhoWhen(t *testing.T) {
 	f := newFakeStore()
 	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// Off by default (the migration seed): the api tab renders the disabled badge and the
-	// enable control, no dated act.
 	if f.instanceConfig.ApiEnabled {
 		t.Fatalf("api enabled before any toggle: %+v", f.instanceConfig)
 	}
 
-	// Enable: the hidden enabled=true flips the surface on and stamps who/when.
 	resp := postForm(t, ac, base+"/settings/api", url.Values{"enabled": {"true"}})
 	loc := resp.Header.Get("Location")
 	resp.Body.Close()
@@ -44,7 +36,6 @@ func TestAPIToggleEnableDisableRecordsWhoWhen(t *testing.T) {
 		t.Fatalf("enable did not stamp when: %+v", f.instanceConfig.ApiUpdatedAt)
 	}
 
-	// The enabled render carries the enabled badge, the Live callout and the dated act.
 	page := getBody(t, ac, base+"/settings?tab=api", http.StatusOK)
 	if !strings.Contains(page, "enabled") || !strings.Contains(page, "Enabled by admin") {
 		t.Fatalf("enabled api tab missing badge/record; body: %s", page)
@@ -53,8 +44,6 @@ func TestAPIToggleEnableDisableRecordsWhoWhen(t *testing.T) {
 		t.Fatalf("enabled api tab missing the live callout; body: %s", page)
 	}
 
-	// Disable: the hidden enabled=false flips it back off; the flag clears (the tokens go
-	// inert again) and the act is re-stamped.
 	resp = postForm(t, ac, base+"/settings/api", url.Values{"enabled": {"false"}})
 	loc = resp.Header.Get("Location")
 	resp.Body.Close()
@@ -85,7 +74,6 @@ func TestViewerCannotToggleAPI(t *testing.T) {
 		t.Fatalf("viewer toggle wrote config: %+v", f.instanceConfig)
 	}
 
-	// The viewer can still read the tab — the disabled badge renders, but no toggle form.
 	page := getBody(t, vc, base+"/settings?tab=api", http.StatusOK)
 	if !strings.Contains(page, "disabled") {
 		t.Fatalf("viewer cannot read the api tab; body: %s", page)

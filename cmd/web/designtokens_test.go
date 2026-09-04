@@ -11,23 +11,16 @@ import (
 	designfs "github.com/winniel123/verge-asm/design-system"
 )
 
-// #1088: reports.go named --sunken and --hairline, which only the self-contained
-// artifact stylesheet in internal/message/render.go defines. An undefined var()
-// fails at computed-value time with no console error, so the heatmap's zero cells
-// lost both fill and border and the trend gridlines vanished, silently, in both
-// themes. This guard makes that class loud at test time.
+// An undefined var() is invalid at computed-value time and logs nothing (#1088).
+
 var (
 	cssComment     = regexp.MustCompile(`(?s)/\*.*?\*/`)
 	cssVarDeclared = regexp.MustCompile(`(--[a-z0-9-]+)[ \t]*:`)
 	cssVarUsed     = regexp.MustCompile(`var\((--[a-z0-9-]+)\)`)
 )
 
-// Scoped to what composes a served console page: the repo-authored Go in this
-// package and the design templates it renders, both read through the same embed
-// the server ships. Only a fully literal var() reference is decidable — a name
-// assembled at render time (var(--sev-{{.Sev}}-dot)) or one carrying its own
-// fallback (var(--x, y)) is deliberately out of scope.
 func TestConsolePageStylesOnlyNameDefinedTokens(t *testing.T) {
+	// Only a literal var() is decidable; a render-time or own-fallback name is out of scope.
 	defined := map[string]bool{}
 	tokenFiles, err := fs.Glob(designfs.FS, "tokens/*.css")
 	if err != nil {
@@ -80,7 +73,6 @@ func TestConsolePageStylesOnlyNameDefinedTokens(t *testing.T) {
 	}
 }
 
-// A commented-out declaration defines nothing, so strip before scraping.
 func declaredCSSVars(b []byte) []string {
 	src := cssComment.ReplaceAllString(string(b), " ")
 	var names []string
@@ -92,7 +84,6 @@ func declaredCSSVars(b []byte) []string {
 
 func checkStyleStrings(t *testing.T, path string, b []byte, defined map[string]bool) {
 	t.Helper()
-	// A file carrying its own self-contained stylesheet resolves its own names.
 	local := map[string]bool{}
 	for _, name := range declaredCSSVars(b) {
 		local[name] = true
