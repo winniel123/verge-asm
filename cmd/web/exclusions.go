@@ -14,34 +14,17 @@ import (
 	"github.com/winniel123/verge-asm/internal/seed"
 )
 
-// exclusionView is a declared exclusion shaped for rendering: the value
-// collapsed to one display string, with the kind kept so the three kinds stay
-// visually distinct and the un-exclude control can carry the row's id.
 type exclusionView struct {
 	ID    int64
-	Kind  string // "name", "subtree" or "address"
-	Value string // the excluded name or address scope, rendered
+	Kind  string
+	Value string
 	By    string
 	At    string
 }
 
-// declareExclusion draws the boundary inwards: an exact name, a name subtree, or
-// an address scope the operator declares is not theirs (v1 spec §3.2, §6.4). It
-// is reached only through requireAdmin, so a viewer can list exclusions but never
-// declare one.
-//
-// A narrowing act should, per §6.4, show a narrowing receipt — the count of what
-// it would withdraw — before the operator commits, but only where a withdrawal
-// message would actually fire. That preview depends on the Message model (#205),
-// which does not exist yet in this sequence, so it is deferred (#166, #167): the
-// exclusion mechanism and its management UI ship here, and the receipt is wired in
-// once a withdrawal message can be honestly computed.
 func (s *server) declareExclusion(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	kind := r.FormValue("kind")
 	value := strings.TrimSpace(r.FormValue("value"))
-	// A refusal is a post-redirect-get like a success (ADR-0130 §1): the callout and the
-	// operator's typed value ride the session flash to the landing GET, so the two paths
-	// answer the same way and the scroll offset survives either.
 	fail := func(msg string) {
 		s.flashScopeBack(w, r, seedsForms{exclError: msg, exclKind: kind, exclValue: value})
 	}
@@ -78,20 +61,7 @@ func (s *server) declareExclusion(w http.ResponseWriter, r *http.Request, acct d
 	s.backToScope(w, r)
 }
 
-// previewExclusion computes the narrowing receipt for a candidate exclusion and
-// re-renders the Seeds screen with it, before the operator commits (#205 AC8,
-// ADR-0074). This is ticket 4's deferred receipt, now honestly computable: the
-// Message model can count what a withdrawal message would carry. The preview
-// fires only where the message would — an address exclusion over ground nothing
-// else cites shows the count and names the loss; a name or subtree whose names
-// still resolve (the survives-via-`Gap` case) withdraws nothing and shows no
-// receipt, because a preview for a message that will not fire is a promise the
-// widening side never has to make good on.
 func (s *server) previewExclusion(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	// VERGE_DEV pixel-parity: the scope "exclusion-preview" golden types
-	// staging-4.acmecorp.io and clicks Preview (states.json). Serve the pinned fixture +
-	// the firing Preview receipt so the candidate renders byte-for-byte what the golden
-	// composes, without touching the DB.
 	if s.devMode {
 		s.render(w, r, "scope", s.scopeFixtureDataPreview(acct))
 		return
@@ -110,10 +80,6 @@ func (s *server) previewExclusion(w http.ResponseWriter, r *http.Request, acct d
 			fail(err.Error())
 			return
 		}
-		// The message fires at the Seed whose scope moved — the address scope that
-		// contains the excluded ground. Fall back to the excluded value itself
-		// where no declared scope covers it (nothing is enumerated there, so the
-		// count is zero and the receipt does not fire anyway).
 		scope := p.String()
 		if covering, err := s.store.FindCoveringAddressSeed(r.Context(), p.Addr()); err == nil && covering.AddressCidr != nil {
 			scope = covering.AddressCidr.String()
@@ -134,17 +100,12 @@ func (s *server) previewExclusion(w http.ResponseWriter, r *http.Request, acct d
 			fail(err.Error())
 			return
 		}
-		// A name or subtree whose names still resolve survives and its Gap carries
-		// it; the honest count is zero and no receipt fires (ADR-0074).
+		// A narrowing that withdraws no subject is silent, so a survivor gets no receipt (ADR-0074).
 		receipt = message.PreviewNarrowing(value, value, 0, 0)
 	default:
 		fail("Choose an exclusion type.")
 		return
 	}
-	// The receipt is not a refusal, but it needs what a refusal needs: to survive the
-	// redirect and render on the landing GET. It rides the same session flash, so the
-	// preview is a post-redirect-get too and the operator reads it without losing their
-	// place. renderSeeds answers 200 for it, because no error field is set.
 	s.flashScopeBack(w, r, seedsForms{exclKind: kind, exclValue: value, exclPreview: &receipt})
 }
 

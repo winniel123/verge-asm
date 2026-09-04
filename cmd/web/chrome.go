@@ -11,35 +11,13 @@ import (
 	designfs "github.com/winniel123/verge-asm/design-system"
 )
 
-// The console shell/chrome is design-owned (design-system/templates/shell.tmpl,
-// package v3.14.0, map #22). Its "chrome"/"foot" definitions read a single nullable
-// .Chrome hole — auth surfaces pass none and get no chrome, exactly as today. This
-// file assembles that .Chrome view-model. injectChrome (auth.go) wires it onto every
-// chrome page's data. Two builders share one shape:
-//
-//   - production (chromeFromReads): the honest live reads a real deployment renders —
-//     the nav slice the old hardcoded links encoded (Signals carries the open count),
-//     the single-org static chip, the bell's recent messages, the palette groups, the
-//     avatar identity, and the toast stack decoded from the PRG flash query (shell.go
-//     toastRedirect).
-//   - devMode (chromeFromFixture): the pinned fixtures.json shell slice, so the seeded
-//     candidate renders the SAME chrome render-goldens composes for the golden — the
-//     v4 pixel-parity contract. The active pill is set per the page's NavActive.
-//
-// Org switcher: single-org stands (ADR-0073 — the deployment IS the org; there is no org
-// table, no org-scoped tenancy, no POST /org/switch). SPEC-CHANGE #33 RETIRED the switcher
-// permanently (package v3.17.0): shell.tmpl renders only the static org chip, .Chrome.Orgs
-// is gone from the contract, and the org-open golden is dropped. Nothing here models orgs.
+// A deployment is single-tenant, so the org chip is static and no switcher ships (v1-spec §1).
 
-// devShellToastVariant is the states.json shell "toasts" capture variant: a VERGE_DEV
-// ?variant=flash-toast query folds the fixture's toast stack into .Chrome.Toasts so the
-// candidate renders the same ToastStack the golden does (the real flash rides the
-// `toast` PRG query, decoded by decodeToasts).
 const devShellToastVariant = "flash-toast"
 
 type chromeVM struct {
 	Nav           []chromeNav
-	Org           string // the static single-org chip label (ADR-0073; switcher retired, #33)
+	Org           string
 	Version       string
 	UserName      string
 	UserInitials  string
@@ -50,9 +28,6 @@ type chromeVM struct {
 	Toasts        []toastVM
 }
 
-// chromeNav is one TopNav pill: id (active match), label, href, and an optional count
-// pill (Signals carries the open-signal count). Count is a pre-formatted string so an
-// absent count is the empty string the tmpl's {{if .Count}} drops.
 type chromeNav struct {
 	ID     string
 	Label  string
@@ -61,9 +36,6 @@ type chromeNav struct {
 	Count  string
 }
 
-// paletteGroup / paletteItem are the server-rendered command-palette groups
-// (#27c): items are links except the one theme-toggle action; the search item stays
-// visible through any filter and its href tracks the typed query to /search?q=.
 type paletteGroup struct {
 	Label string
 	Items []paletteItem
@@ -78,8 +50,6 @@ type paletteItem struct {
 	ThemeToggle bool
 }
 
-// toastVM is one ToastStack entry (#27d): a tone dot, a title, and an optional
-// description. It rides the PRG flash the shell's toastRedirect writes.
 type toastVM struct {
 	Tone        string
 	Title       string
@@ -104,6 +74,7 @@ func navSlice(active string, signalCount int) []chromeNav {
 		item := n
 		item.Active = n.ID == active
 		if n.ID == "signals" && signalCount > 0 {
+			// An absent count must render as the empty string the tmpl drops, so it is pre-formatted here.
 			item.Count = strconv.Itoa(signalCount)
 		}
 		out = append(out, item)
@@ -111,12 +82,6 @@ func navSlice(active string, signalCount int) []chromeNav {
 	return out
 }
 
-// paletteGroupsProd builds the command-palette groups for a real deployment: the
-// Screens group (the console screens + Inbox/Profile/Settings surfaces, the gated
-// Integrations item, and the always-visible search-handoff item) and the Actions
-// group (Run scan → /scans, Add seed → /scope#seed-form, and the theme toggle). The
-// Signals/Inbox hints track the live open/unread counts. The Integrations item is
-// emitted only when integrationsEnabled, per #27c.
 func paletteGroupsProd(signalCount int, unread int64) []paletteGroup {
 	screens := []paletteItem{
 		{Label: "Dashboard", Icon: "layout-dashboard", Href: "/"},
@@ -177,8 +142,6 @@ func decodeToasts(r *http.Request) []toastVM {
 	return []toastVM{t}
 }
 
-// shellFixture is the on-disk fixtures.json → shell slice. render-goldens mirrors this
-// shape one-for-one so golden and candidate compose the identical chrome.
 type shellFixture struct {
 	Title  string `json:"title"`
 	Chrome struct {
@@ -237,13 +200,6 @@ func loadShellFixture() shellFixture {
 	return ff.Shell
 }
 
-// chromeFromFixture shapes the pinned shell slice into the .Chrome view-model for a
-// VERGE_DEV render. The active pill is set per the page's NavActive (each screen's
-// candidate highlights its own pill); scanning lights .ScanRunning; showToast folds
-// in the toasts variant. The org chip is static (the switcher retired, #33). The gated
-// Integrations palette item is emitted only when integrationsEnabled. render-goldens
-// composes the identical struct from the same bytes, so golden and candidate agree
-// byte-for-byte.
 func chromeFromFixture(navActive string, scanning, showToast bool) *chromeVM {
 	fx := loadShellFixture()
 	c := &chromeVM{
