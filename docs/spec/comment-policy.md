@@ -184,6 +184,22 @@ signal.** Measured: without the rule, `strip` deleted two justification lines fr
 opens with `TODO` still reports `todo-marker`. A `#nosec` line is not a way to silence the ratchet
 for the lines below it.
 
+**A survivor may never contain the token `#nosec`.** `gosec` reads the whole comment group, so
+prose that names a waiver can create one where none was meant. `cmd/web/logutil.go:12` did exactly
+that before #1218 swept it: the block above `func logSafe` carried the literal
+`// #nosec G706 (sanitized via logSafe)` while describing a waiver that belongs at the **caller's**
+site, not at this one. The temptation is highest in the block that explains where a waiver goes.
+State the rule and name the directive without writing it.
+
+**Where a waiver tail must keep its justification, one placement gives both the prose and zero
+flags.** #1215 probed three arrangements. Only prose, then a blank line, then the directive, then
+the declaration satisfies §2.3's withhold and §7.7's condition 2 together, with `gosec` still
+reporting zero. The other two either fold the prose into the waiver group or leave a ratchet flag.
+
+**`strip`'s manifest is the arbiter for a `#nosec` that sits in prose, not a grep.** A block that
+mentions the token and classifies `why-note` is an ordinary block, and the manifest says so.
+§2.3's own count of five such Go blocks is the same measurement, taken with the tool.
+
 **This list is a floor, not a proven-complete list.** The 2026-09-01 measurement claimed completeness
 and missed `#nosec`. `gosec` reads `#nosec`, and `gosec` is one of the 7 required status checks, so
 deleting one changes what that check reports (#1274). Widen this table whenever you find a tool that
@@ -457,6 +473,18 @@ residue in another stage's surface. `db/queries/dispatch.sql` restates four of `
 rules and is stage-D2 residue a later ticket may delete, so #1208 kept a Go survivor for each of the
 four rather than lean on it.
 
+**This binds against a sibling ticket in the same stage, not only against another stage.** An
+unswept Go file two tickets down the cut list is residue exactly as the SQL is. #1217 shared rules
+with unswept residue in #1216's `api_v1.go` and #1218's `chrome.go` and `shell.go`, and kept its own
+survivor for each. #1219's review nominated an unswept `cmd/web/designtokens_test.go` as a keeper,
+which this rule forbids. **Read the file's own sweep state, not its package.**
+
+**Where the keeper is a document, collapse operator behaviour and keep what forbids a wrong code
+change.** §4.1 admits a document as a cross-block keeper and gives no test for when. This is it.
+#1217 found six candidate keepers already written in `docs/guides/`. A guide tells an operator what
+the product does. It does not stop the next session making the edit the comment exists to prevent.
+Collapse the first. Keep the second in the code.
+
 **Check for an orphaned document reference before you delete a block.** A block may be the only one
 in the file that names the document its siblings cite by a bare `§n`. Check this before you delete
 it. Then either keep the naming, or rewrite each surviving sibling to name the document itself. This
@@ -477,6 +505,19 @@ block breaks the document instead. `docs/guides/reports.md:68-69` sends an opera
 comment in `cmd/web/reports.go`", and #1210 deleted the comment it names (#1354). `docs/guides/` is
 the likely home, because a guide is written for an operator being sent to the code. Grep `docs/` for
 the file you are sweeping before you delete a block a document may name.
+
+**A document may quote the comment rather than point at it, and no "see the comment in" grep finds
+that.** Two shapes are measured, and compressing the block breaks each one silently.
+
+- **A guide block-quotes it.** `docs/guides/integrations.md:139-143` reproduces a comment verbatim
+  under the heading "From `cmd/web/integrations.go`" (#1214). Compressing the block leaves the rule
+  true and the attribution intact, and makes the quotation false. Tracked in **#1362**.
+- **An `Accepted` ADR cites it as precedent.** `ADR-0136:132` names the Drift feed's cap as "already
+  the house habit" while ruling the **graph's** cap, so it rests on a `cmd/web/drift.go` comment it
+  does not govern (#1213).
+
+**Grep `docs/` for a distinctive phrase of the block, not only for its file name.** Every remaining
+ticket can create this defect.
 
 **The tiebreaker prompt.** When a comment sits on the edge, ask a third question. Could a reader who
 did not know this fact make a change that is wrong, and that the test suite would not catch? **This
@@ -549,6 +590,13 @@ Four constraints bind **each line**:
    fits when written can overrun after formatting. `internal/auth/session.go`'s `Token` field
    reached 105 characters that way (#1166).
 
+**`commentlint` does not enforce constraint 4, so a clean `lint` run is not evidence.** §7.7 names
+the cap and `lint` in one recipe, which reads as though the tool checked it. It does not.
+`cmd/web/exclusions.go:103` measured **101 characters** with `lint` reporting zero flags on the file
+(#1218). **Count the leading tabs.** A comment three tabs deep has twelve fewer characters of room
+than one at column 0, so every trailing comment on an indented statement is at risk. Measure each
+survivor by hand, after `gofmt -w`, before the PR opens.
+
 **A trailing survivor is squeezed from both sides.** §3.5 ratchet rule 2 flags a `short-label`
 trailing or own-line, and §6.6 classifies a one-line block of 6 payload words or fewer as one.
 Constraint 4 caps what a long declaration leaves of 100 characters after `gofmt`. Where no text
@@ -568,6 +616,25 @@ and nothing exists to repair it to that stays right. Name the symbol instead. `a
 cited `worker.go:357`, which is now `func markRetried` (#1198). The rule reaches a template line
 too: `cmd/web/scans.go`'s `StreamHref` block cited `rundetail.tmpl` "line ~151" and "~216" (#1208).
 Name the `define` or the datum instead.
+
+**The same rot runs the other way, and nothing gates it.** A document that points into the corpus by
+line number breaks on every sweep. The sweep causes this defect rather than finding it. Four sources
+are measured, and three were **already wrong before the sweep that would have broken them**:
+
+| Source | Pointer | State |
+| --- | --- | --- |
+| `docs/adr/0133` §4 | `internal/custody/scopecensus.go:29`, and it says the comment must not be deleted | Already wrong. #1187's sweep moved it (#1218) |
+| `docs/adr/0133` | `cmd/web/proposals.go:358` and `addressscopecensus.go:72` | Already wrong. #1215 then cut `proposals.go` from 387 lines to 278 (#1215, #1217) |
+| `docs/research/comment-gate-test.md` | **Eight** `cmd/web/handlers_test.go` pointers | All wrong after #1219 (#1219) |
+| `docs/spec/release-pipeline.md` | Four pointers, one of which the SPEC itself calls **machine-read** | Wrong after #1216 (#1216) |
+
+**Where you break one, record it and do not repair another file.** **#1369** carries these.
+This SPEC's own Appendix A is the same defect, and the appendix records it.
+
+**An amendment-bearing ADR is cited by its issue, not by a section.** `ADR-0129` states its live
+rules in amendments named `#944`, `#954`, `#955` and `#956`, so a `§n` citation to it is very likely
+wrong and three merged ones were (§4.7, **#1368**). The §4.4 form takes `ADR-nnnn #nnn` for this
+case: `(ADR-0129 #944)`. Read it as naming the amendment, not as naming an issue beside the ADR.
 
 **Ruling 8 caps a citation, not a reason.** A block may hold **one line per independent reason**. No
 block-level line cap applies. Worked example 13 forces this: `cmd/web/devfixtures.go:281` carries two
@@ -879,6 +946,11 @@ grep for the token alone is not enough.
    voice and merely attributes it, so its "(P2.2. The design package is normative for
    functionality)" does not disqualify it (#1207). The surface form is identical, so read the
    sentence and not the token.
+
+   **This test attaches to the rule, never to the document.** ADR-0120 fails it for the
+   no-fabrication rule and **passes** it for the meter-denominator rule its own Decision states
+   (#1212). A document is not poisoned outright by one borrowed sentence, and #1212's spec review
+   read it that way and was wrong. Ask the question once per rule you cite it for.
 4. **The section rules, rather than forwarding to the rule.** ADR-0129's #954 amendment states the
    vantage rule and ends "(§5)". §5 rules "v1 ships fan-out alone". A section that forwards has not
    resolved (#1328). `ADR-0129 §5` is therefore a false resolution of the `G2` shape sitting inside
@@ -892,13 +964,38 @@ mechanical separates it from a real citation. Three shapes are measured: a **bar
 primitive for a cloud-resident estate?"), a `#nnn<letter>` (`#21`, `#21i` and `#21j` in
 `cmd/web/signals.go`, plus `#26f`, `#26c`, `#26h` and `#21d` in `cmd/web/settings.go`), and
 `SPEC-CHANGE #nn`. Verified dead: `#20`, `#20a`, `#20b`, `#20d`, `#20e`, `#21d`, `#22a`–`#22f`,
-`#23b`, `#23e`, `#23h`, `#34`, `#35`, `#40`.
+`#23b`, `#23e`, `#23h`, `#34`, `#35`, `#40`. Batches 11 and 12 add `#17`, `#19c`, `#19e`, `#22`,
+`#23f`, `#23g`, `#23i`, `#24`, `#25d`, `#26`, `#26c`, `#27c`, `#27d`, `#30`, `#33`, `#37`, `#38`,
+`#39`, `#39b`, and a bare letter: `F` in `cmd/web/backup.go` sits beside `B3` and `B4`, which
+resolve at `ADR-0124:56-57`, and resolves nowhere itself (#1215).
+
+**A deleted issue may be used as a time marker, which is worse than a plain dangling citation.**
+`#739` returns HTTP 410 and is cited at ten sites across `cmd/web/restore.go`, `backup.go` and
+`backup_test.go`, four of them in the form "a pre-`#739` archive" (#1213, #1215). The comment dates
+a behaviour change against a record nobody can read, so a reader recovers neither what changed nor
+when. Delete the marker rather than keep an unreadable date.
 
 **The issue API is necessary and not sufficient.** A `#nnn` whose issue was deleted returns
 HTTP 410 and is invisible offline. `(#738)` on `trustedProxies` is one, and nothing under `docs/`
 distinguishes it from a live citation (#1203). So query the API. But a collision id's number
 resolves live, and the API says nothing about whether that issue is the rule's source. **Read the
 issue title.**
+
+**The worst wrong citation names a source that argues against the comment.** It passes the API
+check, the title check and the topic check, and it reads as unusually strong evidence, so an agent
+verifying by anything short of the body keeps it. Two are measured. `cmd/web/clientip.go` cited
+`#322` for a proxy-header rule. #322 resolves, is closed, and its body carries the phrase a grep
+would want — and it states the **contrary** policy: "per-IP from `RemoteAddr`, **never a proxy
+header**" (#1218). Its title is about TOTP lockout, so even the title check reads as a near miss
+rather than a refusal. `cmd/web/rawoutput.go` cited
+`raw-job-output.md` §5.3 for a fail-closed rule. §5.3 is "At-rest handling — encrypted", and the
+document contains no "fail closed" and no "partial" (#1217). **Read the body. A source can disagree
+with the comment that cites it.**
+
+**A repair re-derives the section by reading it, and never copies the source's own
+cross-reference.** `docs/spec/ct-source-replacement.md:180` says "(runtime failover is deferred,
+§7)". The deferral is **§8** (#1212). An agent repairing a citation by lifting the source's pointer
+inherits the source's error, and the result passes every check the agent then runs.
 
 **A wrong citation is worse than a dead one**, because it survives a file-existence check. Nine
 instances are measured.
@@ -948,10 +1045,18 @@ shown (ADR-0053)" (PR #1350). This is the shape a repair is most likely to produ
 `Accepted`, its title and its Context both name a secret in a URL, and a token grep answers. Only
 reading the Decision separates it from a target. Fold it into **#1354**.
 
+**A citation is inherited, and the sweep owns it once it keeps the block.** The token may predate
+the sweep entirely. `internal/auth/key.go:15` and `password.go:3` cite `v1 spec §4.3` for the
+session-signing-key custody rule. §4.3 is *Auth & access* and states nothing about where the key is
+held. `docs/adr/0053` line 69 states it in its own voice, including the dump-and-restore cause both
+comments give. `c90112e` wrote the citation and **#1166 kept it through the sweep** in PR
+#1284 (**#1376**). Condition 4 of §7.7 covers an inherited citation exactly as it covers an authored
+one.
+
 **Check that a survivor's citation resolves before the PR opens.** The ratchet does not provide this
-check. **Five defects have reached `main` in merged sweep output. Three are repaired and two are
-open.** A sweep that runs ten batches lands about one defect a batch, so read this as a rate rather
-than as a closed list.
+check. **Six defects have reached `main` in merged sweep output. Two are repaired and four are
+open.** A sweep that runs twelve batches lands about one defect a batch, so read this as a rate
+rather than as a closed list.
 
 | Defect | Landed by | State |
 | --- | --- | --- |
@@ -959,8 +1064,13 @@ than as a closed list.
 | `cmd/web/seeds.go` said the head block inlines `tokens/*.css` "only when this datum is set", against 42 `cmd/web` sites that set it `true` and 0 that set it `false` | #1206, PR #1340 | **Repaired.** #1355, PR #1356, which also deleted the inert gate. |
 | `ADR-0081` on the host-only redaction rule, three sites | Batches 5 to 10 | Open. **#1354**. |
 | `cmd/web/reports.go:905` cites `ADR-0053` for a rule `ADR-0053` does not state | #1210, PR #1350 | Open. A **repair** produced it. Fold into **#1354**. |
+| `internal/custody/census.go:5` and `scopecensus.go:7`, `:35` cite `ADR-0129 §5`, which rules "v1 ships fan-out alone" | #1187, PR #1309 | Open. **#1368**. The rules are in the `#944` and `#956` amendments. |
+| `internal/auth/key.go:15` and `password.go:3` cite `v1 spec §4.3` for the session-key custody rule | Inherited, kept by #1166, PR #1284 | Open. **#1376**. `ADR-0053` line 69 states it. |
 
 Do not repair an open one under a sweep ticket.
+
+**Four of the six name `ADR-0129`, `ADR-0053` or `ADR-0081` as the wrong citation**, so a survivor
+citing any of the three deserves a second read.
 
 ### 4.8 The `package-doc` cap
 
@@ -1055,10 +1165,41 @@ screen's `RFC` hit withheld it from mechanical deletion, so it reached stage D i
    Nothing moved under it.
 6. **Implication alone.** `writeSignalsExportCSV` draws a contrast the body contradicts, while
    neither clause is itself false (#1207).
+7. **The sweep's own diff.** Every falsifier above is external to the sweep. This one does not
+   exist until the agent writes it, so nothing tells the agent to look. PR #1356 deleted a dead
+   datum from 42 sites and falsified **two comments that were true beforehand**:
+   `cmd/web/templates_inventory.go` lost the clause that scoped `designTokensCSS`, leaving its lead
+   sentence naming the wrong consumer, and `cmd/web/sso.go:482`'s "stamp both" counted two data
+   where one remained. Neither file states the retired conditional, so no grep for the false claim
+   reaches either. **A ticket that deletes an identifier re-reads every surviving comment next to a
+   call site it edited, before the PR opens. The blast radius is the diff, not the file list.**
+8. **The agent's own new survivor, against code it never touched.** Falsifier 7 is traceable
+   through the diff. This one is not, because a comment-only diff shows nothing. Three shapes are
+   measured. A survivor read `// No seed declares 10.0.0.0/8`, and `cmd/web/proposals_test.go:257`
+   asserts a seed whose CIDR is exactly that — **unswept residue in a file the ticket does not own**
+   (#1219). `cmd/web/driftfeed.go`'s "the cells are absolute UTC" missed the batch column, which
+   writes `agoLabel`'s relative form (#1216). And a draft inherited "the one place where section and
+   tab differ" from the block it replaced, where `tabForSection` maps four sections to differently
+   named tabs (#1218). **Check every line you write, not only the ones you trim.**
 
 **A dead citation is not by itself a falsity verdict.** `cmd/web/seeds.go:700` cites the superseded
 ADR-0116 and its prose is merely redundant, so it dies on gate A with no `false` row. `:842`
 restates the retired doctrine as live and earns one (#1206). Read the prose, not the token.
+
+**A quantifier is the cheap tell for falsifiers 7 and 8.** After a clause deletion, a surviving
+`both`, `only`, `either`, `no`, `every`, `never` or `that page` counts something the deletion may
+have changed. **Where the quantifier ranges over the package, grep the whole package, files the
+ticket does not own included.** A per-file read misses #1219's case by construction.
+
+**Trimming a false clause can falsify the true remainder.** The verdict above says a false comment
+is deleted and never re-authored, and a multi-clause sentence tempts an agent to cut only the false
+half. `templates_inventory.go` shows the cost: the deleted clause was the only thing scoping the
+sentence, so a true remainder became false in its new context. Read the remainder against the code,
+not against the sentence it came from.
+
+**Where a docstring names fields, check every field before you trim it.** #1215's spec review read
+`proposalView`'s block as half true. Checking the second field showed `AddrCount`, `RecordLabel` and
+`OrgName` are all write-only, so the whole struct was dead and the block was wholly false.
 
 **Half a block may be false.** This section rules on blocks and has no verdict for a half-false
 sentence. #1204's `// the byte-exactness gate before the pixels`, 11 instances, names a live drift
@@ -1083,6 +1224,17 @@ runs. The ratio is the point, not the count.
 
 The phrase list: `byte-for-byte`, `frozen design`, `design-owned`, `normative for look`, `re-skin`,
 `authors no markup`.
+
+**The cheapest detector in this section: grep for the tool, artefact or CI gate the comment names.**
+It costs one command and it separates the half-false shape — a real mechanism wearing retired
+framing — from a claim with nothing behind it at all. Measured absent from the whole tree:
+`render-goldens` and `render-goldens/main.go`, the "pixel-parity harness", `cmd/web/templates_coverage.go`,
+`projectExposureStats`, `design-system/screenshots/`, `states.json`, `capture.mjs`,
+`v3.15.0 dogfood ss3` and `07-console.jpg`. **A named CI gate counts too**: `cmd/web/templates_error.go`
+claimed "CI gate G1 byte-compares it", and no such step exists in `.github/workflows/` (#1218).
+
+It is a detector and not a verdict, and it cuts both ways inside one ticket. #1219 found five named
+things that do exist and two that do not.
 
 **Every phrase hit needs a human read, and both false-positive directions are measured.** #1208
 found 15 further uses of "frozen" that were bare modifiers on a live template. A template embedded
@@ -1633,6 +1785,21 @@ kind and 14 of the second. #1207 supplied the table this rule is written from.
    `scratchpad/pr.md` collides silently. #1202's file overwrote #1204's, and #1204 briefly published
    #1202's gap content to issue #1333 before catching it. No merged artefact was affected. A batch
    brief names the path, for example `scratchpad/<ticket>/gap.md`.
+9. **A defect ticket's description is not evidence about the thing it describes.** Rule 7 says a
+   brief is not evidence. This is the same rule for an issue body, and it has fired twice. The
+   amendment ticket said PR #1356 had left `cmd/web/sso.go:482` wrong about stamping "both". The
+   repair had landed and the count was right, and what killed the block was a second defect the
+   description never measured — it names `login.tmpl`, and the `login` define lives in
+   `signin.tmpl` (#1215). The same description said PR #1356 had trimmed a clause in
+   `cmd/web/templates_inventory.go`. It had removed the whole paragraph, and the survivor was false
+   for an unrelated reason (#1218). **Treat a lead as a lead. Measure it against the tree.**
+10. **A measurement inside an open issue is a fact with a date, not a current fact.** The amendment
+    ticket recorded that 36 of 36 sweep ticket bodies carried an unconditional step 7. The fix
+    landed before the eleventh batch began. **All four agents of that batch fetched the corrected
+    body and still reported the conflict**, because each quoted the three-batch-old measurement
+    instead of reading step 7. Three PR bodies were struck through afterwards. An agent that repeats
+    a measurement re-measures it or attributes it to its date, and a `Done when` box is ticked as
+    soon as it is done, because an unticked box reads as a live defect.
 
 ### 7.6 The golden corpora
 
@@ -1664,15 +1831,18 @@ written against code, so those comments survive. The SPEC section settles what t
 
 ### 7.7 Definition of done
 
-A sweep ticket is done when **six** conditions hold:
+A sweep ticket is done when **seven** conditions hold:
 
 1. `commentlint verify` **ran** on the PR and is green.
 2. `commentlint lint` reports zero flags on the ticket's files.
 3. The PR body carries a keeps ledger (§4.9) and a gaps table (§8.6).
-4. Every survivor's citation was checked to resolve.
+4. Every survivor's citation was checked to resolve, **including one the sweep inherited rather
+   than wrote**.
 5. `gofmt -l` ran on the ticket's own file set, and the PR body names every formatting hunk the
    ticket did not ask for.
-6. A human approves the PR.
+6. A standards review and a spec review ran on the branch before the PR opened, and the PR body
+   names what each changed.
+7. A human approves the PR.
 
 **The sweep session applies `sweep:comments` to its own pull request.** Nothing else applies it.
 Stage A (§7.2) creates the label; it does not put it on a PR. An unlabelled sweep PR has no gate at
@@ -1712,7 +1882,24 @@ classic.
 
 **Condition 2 does not prove conformance on its own.** `lint` flags only the mechanically-decidable
 classes. Condition 3 is the judgment gate. Delete-by-default makes a wrong delete visible in the
-diff and a wrong keep invisible. The reviewer therefore checks the keeps.
+diff and a wrong keep invisible. The reviewer therefore checks the keeps. `lint` also does not
+enforce §4.4's 100-character cap, so measure every survivor by hand with its indentation counted
+(§4.4).
+
+**Condition 6 exists because the reviews catch a class the author structurally cannot.** They were
+added after PR #1356, where the standards and spec axes each found a defect the rubric had passed.
+Across batches 11 and 12 they removed defects from all eight tickets, and the dominant class is **a
+wrong citation that survived the author's own §4.7 pass**: an agent reads a citation it has just
+written charitably, and a second reader does not. They also caught one wrong `ADR gaps: none`, one
+over-deletion that left a rule with no statement anywhere, and one false survivor the agent had just
+authored. The author's pass and the reviews catch **different** wrong citations. #1217 found three
+in one ticket by three different passes, and neither pass subsumes the other.
+
+**Hand the review agents §4.1's two boundary rules, or they invert.** Without the cross-`main` rule
+a reviewer reads a legal collapse against merged output as an over-deletion, measured once in batch
+11. With only that rule it accepts **unswept residue** as a keeper, measured once in batch 12, which
+§4.1 forbids. Give them both: the keeper may be swept output or a document, and it is very often on
+`main` rather than in the ticket.
 
 **Ratchet rule 5 leaves a hole, so §4.4 cannot be delegated to `lint`.**
 `RuleCitationOverOneLine` fires on class `Citation` alone. §6.6's classifier reaches `Citation`
@@ -1727,9 +1914,9 @@ zero `lint` findings (#1189).
 citation must pass, and the measured false resolves. Neither a file-existence check nor a bare token
 grep is enough. **The check needs the issue API**, because a deleted `#nnn` returns HTTP 410 and
 nothing under `docs/` distinguishes it from a live one. It also needs the issue **title**, because a
-design-collision id's number resolves to an unrelated live issue. **Five defects have reached `main`
-in merged sweep output across ten batches, and one of them is a repair that went to the wrong
-document.** §4.7 tables them.
+design-collision id's number resolves to an unrelated live issue. **Six defects have reached `main`
+in merged sweep output across twelve batches. One is a repair that went to the wrong document, and
+one the sweep inherited rather than wrote.** §4.7 tables them.
 
 **A citation repair re-runs §4.4's length check.** A repair lengthens the line, and the
 100-character cap binds after `gofmt`. Two of #1328's three repairs measured 110 and 103 runes
@@ -1783,6 +1970,18 @@ worth an ADR also appears in the production code the test pins.
 **Expected yield: 250 to 340 gap-bearing blocks.** A 25-block sample judged against both gates passes
 at roughly 40%. Treat that rate as a rough read, not a measurement.
 
+**Read these gates without a citation in hand.** §4.7's routes and §8.3's suppressing set all start
+from a token the agent is holding, so an uncited rule reaches neither, and each of its statements
+dies honestly on gate A. **The uncited rule is the one most likely to be genuinely unwritten.**
+#1212's only real gap — a degraded console read empties its own region and never fails the page —
+was stated five times, uncited, inside one function, and nothing in the citation machinery fired on
+it. Ask the three gates of every rule you delete, not only of every citation you cannot repair.
+
+**Gate C means the eight `cmd/web` test tickets expect §8.7's zero case.** A `_test.go` block is
+disqualified before gate A is reached, so a test ticket filing no `adr-gap` issue is the normal
+outcome. #1219 filed none. A reviewer reading eight consecutive test PRs with no gap issue should
+not read that as eight lazy sweeps.
+
 ### 8.3 What suppresses a record
 
 **A block that cites any durable written source opens no gap.** The suppressing set is an ADR, an
@@ -1827,6 +2026,13 @@ every rule that passed §8.2's gates was already written.
 distinguishes it from a live citation (#1203). A design-collision id resolves to a live issue that
 is not the rule's source (§4.7). Query the issue API and read the title before you let a `#nnn`
 suppress a record.
+
+**A source suppresses only where it states the rule.** §4.7 test 1 governs suppression exactly as it
+governs repair, and this section stated it only for the dangling cases. A **live, on-topic** source
+can suppress a gap it never rules. `#758` is live and about the console shell, and it rules that the
+shell must read the in-flight flag — not `chromeScanRunning`'s degrade direction, which is what the
+comment stated (#1215). Shape 3 above is the same failure inside the ADR corpus. **Read the source's
+body before you let it suppress.**
 
 ### 8.4 The container
 
@@ -2085,8 +2291,29 @@ real cut list after stage B.
 
 ## Appendix A. Worked examples
 
-Fifteen blocks, read from `main` at `b548431`. **A sweep agent reads this appendix more than any other
-part of this SPEC.**
+Fifteen blocks. **A sweep agent reads this appendix more than any other part of this SPEC**, which
+is why its currency is stated before the table rather than after it.
+
+**Read every row as dated. Eight of the fifteen no longer point at the block they describe.**
+Measured on `main` at `94b5147`, 2026-09-04, after twelve sweep batches:
+
+| Rows | State on `main` |
+| --- | --- |
+| 2, 3, 4, 5, 6, 11, 13 | **The cited line is not the described block.** Each file has been swept and merged, so the line number moved or the block is gone. |
+| 1 | The location resolves and the block still cites ADR-0001, but #1216 rewrote it, so "Keep as-is" records a judgment rather than the current text. |
+| 7, 8, 9, 10, 12, 14, 15 | **Still resolve.** Every one is in a `_test.go` or `.d.ts` file no sweep has reached. |
+
+Two rules follow, and the second is the one that bites.
+
+- **A row carries its own commit, not a shared one.** The original pin, `b548431`, **is not in this
+  repository** — `git cat-file` finds zero objects with that prefix, because a squash merge never
+  lands a branch commit. A single pin in a preamble also goes stale as one unit, while the rows rot
+  one at a time. Where you add a row, name the commit in the row.
+- **This appendix is §4.4's own `file:line` defect, aimed at the SPEC.** The sweep this document
+  governs is what rots it. Do not repair a row by hunting for the block's new line; read the row for
+  its **reasoning** and check the verdict against the file in front of you.
+
+The verdicts remain correct as worked judgments. The locations do not.
 
 | # | Location | Class | Verdict | Reason |
 | ---: | --- | --- | --- | --- |
@@ -2095,7 +2322,7 @@ part of this SPEC.**
 | 3 | `cmd/web/backup.go:178` `// RFC3339 UTC` | trailing `external-spec` | Keep | The wire format is unrecoverable from `string`. External spec, two words. |
 | 4 | `cmd/web/backup.go:174` `// always "manifest"` | trailing | Delete | States a value. Names no cause. |
 | 5 | `cmd/web/backup.go:175` `// archive format version, not schema` | trailing | Delete | Ambiguous. It disambiguates from the next field but names no cause. §4.2 breaks the tie. |
-| 6 | `cmd/web/addressscopecensus.go:45` | `docstring-unexported`, 9 lines | Delete, salvage one line | Paragraph 1 restates the return. Paragraph 2 names a cross-module rule. |
+| 6 | `cmd/web/addressscopecensus.go:45` (swept by #1217, PR #1375) | `docstring-unexported`, 9 lines | Delete, salvage one line | Paragraph 1 restates the return. Paragraph 2 names a cross-module rule. **Outcome on `main`:** the nine lines are gone and the file keeps two one-line survivors, at `:34` and `:40`. Read the row for the delete-and-salvage shape, not for the line number. |
 | 7 | `cmd/web/addresscap_test.go:64` | test `docstring-exported-conventional` | Rewrite | Cites ADR-0127, so §4.6 keeps it. It opens with the identifier, which §4.4 forbids. |
 | 8 | `cmd/web/addressscopecensus_test.go:87` | `docstring-exported-other` | Delete | Uncited. The test name already states the assertion. |
 | 9 | `cmd/web/addresscap_test.go:39` | `step-narration` | Delete | Uncited. Restates the two lines below it. |
