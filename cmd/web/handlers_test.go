@@ -26,14 +26,14 @@ import (
 	"github.com/winniel123/verge-asm/internal/retention"
 )
 
+// A posed read derives nothing, so a fixture supplies rows already past the query's filters.
+
 type fakeStore struct {
 	hb    db.Heartbeat
 	hbErr error
 
-	// acctMu guards the account map so the #339 concurrency test can fire two
-	// /login/totp requests at one account without tripping the runtime's concurrent
-	// map access detector; a live Postgres serialises the equivalent conditional
-	// UPDATE itself.
+	// The map detector trips on a concurrent TOTP login a live Postgres would serialise.
+
 	acctMu   sync.Mutex
 	accounts map[int64]db.Account
 	byName   map[string]int64
@@ -42,40 +42,18 @@ type fakeStore struct {
 	seeds      []db.Seed
 	seedNextID int64
 
-	// The tombstones an address-Seed withdrawal writes beside the delete (ADR-0134
-	// §2, #1040). The web never reads them — the membership fold does — so the fake
-	// keeps them only so a test can assert the act recorded its mover.
 	seedWithdrawals []db.SeedWithdrawal
 
-	// withdrawalCandidates are the open timelines the shared candidate query returns
-	// (#1046). A test poses the rows; the fake applies the containment filter the SQL
-	// applies, so the chip-remove preview counts over the same shape the fold does.
 	withdrawalCandidates []db.ListSeedWithdrawalCandidatesRow
 
-	// nameWithdrawalCandidates is the name limb's half of the same thing (ADR-0135):
-	// the open name timelines the shared candidate query returns. The fake applies the
-	// apex-or-beneath test the SQL applies.
 	nameWithdrawalCandidates []db.ListNameSeedWithdrawalCandidatesRow
 
-	// The custody-extension census's reads beyond the seeds (#987): the current
-	// (Name, Address) resolutions, the newest `edge-fanout` measurement per address,
-	// the certificate material those measurements name, and which Scan kinds have
-	// completed a Batch. citedErr poses the read failure the census must degrade on
-	// rather than fabricate a row.
-	//
-	// edgeFanout and certMaterial are the TWO reads ReadEdgeFanout issues since
-	// #1035: a row names its certificate by fingerprint, and the material is keyed by
-	// that fingerprint, one entry per DISTINCT certificate. Pose both through
-	// measuredEdge, so no test names a certificate the store does not hold.
 	cited               []db.NameCitedAddressesRow
 	citedErr            error
 	edgeFanout          []db.ListEdgeFanoutMeasurementsRow
 	certMaterial        map[string][]byte
 	completedBatchKinds map[string]bool
 
-	// edgeFanoutBounds records every address bound the measurement read was asked for
-	// (#1036). It is a slice of calls, not a set, so a test can pin that `/coverage`
-	// takes the UNBOUND read and never lands here at all.
 	edgeFanoutBounds [][]string
 
 	exclusions []db.Exclusion
@@ -84,62 +62,29 @@ type fakeStore struct {
 	annotations []db.Annotation
 	annoNextID  int64
 
-	// signalInstances mirrors the signal_instance table (#442): the persisted id +
-	// first-seen of each fired (signal_name, subject_key) pair. The mint is idempotent
-	// on the pair, and the id starts at 1000 so a minted instance reads SIG-1000+.
 	signalInstances  []db.SignalInstance
 	signalInstNextID int64
 
-	// withdrawalLifespans backs ListWithdrawalLifespans (#444, P0.3): one row per
-	// subject departure, carrying its withdrawal instant and first appearance so the
-	// Reports mean-time-to-withdrawal trend derives its intervals. Populated directly
-	// by a test — the fake folds observations into spans but never applies a
-	// withdrawal closure, so there is nothing to re-derive these from.
 	withdrawalLifespans []db.ListWithdrawalLifespansRow
 
 	sourceStates map[string]db.SourceState
 
-	// ctReliability mirrors the ct_reliability_sample rolling-window aggregate per
-	// source (#879), keyed by source slug. A missing key reads as the zero row — no
-	// samples — which is the "no recent data" state the reliability card renders.
 	ctReliability map[string]db.CTReliabilityWindowRow
 
-	// ctAdmitCount mirrors CTLastBatchAdmitCount (#880): the Names the last bulk ct
-	// Batch admitted, the run-readout's <n>. Zero stands for a dead-lettered/empty run
-	// and for "no ct Batch has run".
 	ctAdmitCount int64
 
-	// ctTailBatch mirrors CTTailLastBatch (#881): the drift tail's last ct-tail Batch —
-	// its instant and admitted-name count — for the More-CT-capabilities readout. A zero
-	// (invalid) LastAt stands for "the tail has never run".
 	ctTailBatch db.CTTailLastBatchRow
 
-	// certMaterialCount mirrors CountCertificateMaterial (#881): the leaf certificates the
-	// handshake capture has stored, the pool verification checks against on the same card.
 	certMaterialCount int64
 
-	// integrationStates mirrors the integration_state table (#308): the operator's
-	// per-integration install state, keyed by slug. Absence is the available (not
-	// installed) state, so a disconnect deletes the row.
 	integrationStates map[string]db.IntegrationState
 
-	// personalTokens mirrors the personal_token table (#304): an account's own API
-	// tokens. Only the hash is stored, the (account_id, name) pair is unique, and a
-	// revoke is a hard delete scoped to the owner.
 	personalTokens []db.PersonalToken
 	tokenNextID    int64
 
-	// sessions mirrors the session table (#405, ADR-0117): the server-side session
-	// registry. Only the token hash is stored; a live session is one that is unrevoked
-	// and unexpired, and a revoke stamps revoked_at scoped to the owner (the same
-	// owner-scoping the personal-token methods hold).
 	sessions      []db.Session
 	sessionNextID int64
 
-	// SignIn delta (#314): the pre-auth token stores behind forgot/reset, TOTP
-	// recovery codes, and invite acceptance. Each keeps only a hash; expiry and
-	// single-use are checked against the injected clock, so a fixed-clock test can
-	// seed a live or a stale grant deliberately.
 	passwordResets []db.PasswordReset
 	resetNextID    int64
 	recoveryCodes  []db.RecoveryCode
@@ -147,8 +92,6 @@ type fakeStore struct {
 	invites        []db.Invite
 	inviteNextID   int64
 
-	// admitted stands in for the admitted_name rows behind a CT-admitted Name's
-	// Citation (ADR-0107); the citation test seeds it directly.
 	admitted []db.AdmittedName
 
 	vantages      []db.Vantage
@@ -159,14 +102,9 @@ type fakeStore struct {
 	retention      db.GetRetentionSettingsRow
 	instanceConfig db.GetInstanceConfigRow
 
-	// scans mirrors the scan table. newFakeStore seeds the dns Scan the migration
-	// ships (enabled, daily) so the aperture statement has a cadence to read.
-	// The Subjects reads (#189) also join the observation/batch corpus.
 	observations []db.Observation
 	batches      []db.Batch
 	scans        []db.Scan
-	// listScansErr forces ListScans to fail, so a test can assert the #252 trigger
-	// panel degrades to absent rather than 500ing the read-only monitor.
 	listScansErr error
 	obsNextID    int64
 	batchNextID  int64
@@ -180,61 +118,31 @@ type fakeStore struct {
 	proposals    []db.Proposal
 	proposalNext int64
 
-	// freqEdits mirrors the verge_core_frequency_edit table, keyed by port so an
-	// upsert replaces the row exactly as the unique index enforces.
 	freqEdits map[int32]fakeFreqEdit
 
-	// coldScopes mirrors the cold_scan_scope table: the set of Seed ids opted into
-	// the full-range tier, keyed by seed id so an opt-in is idempotent.
 	coldScopes map[int64]bool
 
-	// messages mirrors the message table (#205): written once, never updated in
-	// content, read back newest-first. previewResult is the fixed narrowing-receipt
-	// count a test wants PreviewExclusionWithdrawal to return.
 	messages         []db.Message
 	deliveryOutcomes []db.ListDeliveryOutcomesRow
-	// messageRead mirrors the message_read join table (#327): per-account read-state,
-	// keyed account_id -> set of read message ids. Read-state is a per-account fact,
-	// so one account marking read never touches another's.
-	messageRead   map[int64]map[int64]bool
-	msgNextID     int64
-	previewResult db.PreviewExclusionWithdrawalRow
+	messageRead      map[int64]map[int64]bool
+	msgNextID        int64
+	previewResult    db.PreviewExclusionWithdrawalRow
 
-	// dispatchProgress and jobsByDispatch stand in for the queue reads behind the
-	// Scans monitor (#245); the scans test seeds them directly.
 	dispatchProgress []db.ListDispatchProgressRow
 	jobsByDispatch   map[int64][]db.ListJobsForDispatchRow
-	// transcriptsByJob stands in for the transcript table the admin raw-output view reads
-	// (#866): one sealed Transcript per queue_job id. A job with no entry is a legible
-	// absence — GetTranscriptByJob returns pgx.ErrNoRows, which the view renders distinctly.
 	transcriptsByJob map[int64]db.Transcript
-	// dispatchStatus records the operator-ended disposition SetDispatchStatus writes
-	// ('stopped' / 'terminated'), so a stop/terminate test asserts the status was set.
-	dispatchStatus map[int64]string
-	// instanceHealth is the canned pg_database_size / server_version the instance-health
-	// tab reads (#633); zero-value renders empty figures.
-	instanceHealth db.GetInstanceHealthRow
+	dispatchStatus   map[int64]string
+	instanceHealth   db.GetInstanceHealthRow
 
-	// reportSchedules mirrors the report_schedule table (#290): the recurring reports
-	// the Reports wizard declares, filed once and listed newest-first. No content
-	// update and no delete exists, matching the store.
 	reportSchedules []db.ReportSchedule
 	rsNextID        int64
 
-	// reportDeliveries mirrors the report_delivery receipts table (#291/T2): the
-	// operational record of each run of a schedule. Filed by insert, read latest
-	// (non-failed) per schedule and listed newest-first, matching the store.
 	reportDeliveries []db.ReportDelivery
 	rdNextID         int64
 
-	// ssoProviders mirrors the sso_provider table (#293): OIDC providers, secret
-	// included, so tests can assert the secret is stored but never surfaced through the
-	// list/get render paths (only GetSSOProviderForAuth returns it).
 	ssoProviders []fakeSSOProvider
 	ssoNextID    int64
 
-	// ssoIdentities mirrors the sso_identity table (#319, ADR-0113): the verified
-	// (provider, sub) → account bindings authentication keys on.
 	ssoIdentities  []fakeSSOIdentity
 	ssoIdentNextID int64
 }
@@ -252,8 +160,6 @@ type fakeSSOProvider struct {
 	createdAt time.Time
 }
 
-// fakeSSOIdentity mirrors an sso_identity row: a verified subject bound to an account
-// through a provider (#319, ADR-0113).
 type fakeSSOIdentity struct {
 	id          int64
 	providerID  int64
@@ -268,8 +174,6 @@ type fakeFreqEdit struct {
 	createdBy int64
 }
 
-// fakeChannel mirrors a channel row, secret included, so tests can assert the
-// secret is stored but never surfaced through the render path.
 type fakeChannel struct {
 	id                     int64
 	url                    string
@@ -290,7 +194,6 @@ func newFakeStore() *fakeStore {
 		scans: []db.Scan{
 			{ID: 1, Kind: "dns", Enabled: true, CadenceSeconds: 86400},
 			{ID: 2, Kind: "hot", Enabled: true, CadenceSeconds: 86400},
-			// The cold Scan ships disabled with an empty scope list (ADR-0044).
 			{ID: 3, Kind: "cold", Enabled: false, CadenceSeconds: 2592000},
 		},
 		obsNextID: 1, batchNextID: 1, scanNextID: 1, tokenNextID: 1,
@@ -309,10 +212,6 @@ func (f *fakeStore) ListDispatchProgress(_ context.Context, limit int32) ([]db.L
 	return rows, nil
 }
 
-// ListActiveDispatchProgress and ListConcludedDispatchProgress split the seeded rows the
-// way the two real queries do (#962): in flight is ready + running > 0, concluded is the
-// exact complement, and only the concluded half takes a limit. Both derive from the one
-// dispatchProgress slice, so a test seeds the monitor's whole world in one place.
 func (f *fakeStore) ListActiveDispatchProgress(_ context.Context) ([]db.ListActiveDispatchProgressRow, error) {
 	out := []db.ListActiveDispatchProgressRow{}
 	for _, r := range f.dispatchProgress {
@@ -474,9 +373,6 @@ func (f *fakeStore) ListScans(context.Context) ([]db.Scan, error) {
 	return f.scans, nil
 }
 
-// TightestEnabledScanCadenceSeconds mirrors the MIN-over-enabled-Scans query the
-// observation floor rests on (#208). newFakeStore seeds the dns Scan (daily), so
-// the tightest bound in force is k*daily and the observation dial floors at 2 days.
 func (f *fakeStore) TightestEnabledScanCadenceSeconds(context.Context) (int64, error) {
 	var tightest int64
 	for _, sc := range f.scans {
@@ -557,9 +453,6 @@ func (f *fakeStore) SetTOTPLastStep(_ context.Context, arg db.SetTOTPLastStepPar
 	if !ok {
 		return 0, pgx.ErrNoRows
 	}
-	// Mirror the conditional UPDATE (#339): the write lands only when the stored step
-	// is still NULL or strictly below the presented one, so a concurrent replay of the
-	// same step affects zero rows and its login is refused.
 	if acct.TotpLastStep.Valid && acct.TotpLastStep.Int64 >= arg.TotpLastStep.Int64 {
 		return 0, nil
 	}
@@ -624,7 +517,6 @@ func (f *fakeStore) CreateAddressSeed(_ context.Context, arg db.CreateAddressSee
 
 func (f *fakeStore) ListSeeds(context.Context) ([]db.ListSeedsRow, error) {
 	rows := make([]db.ListSeedsRow, 0, len(f.seeds))
-	// Newest first, mirroring the SQL ORDER BY created_at DESC, id DESC.
 	for i := len(f.seeds) - 1; i >= 0; i-- {
 		s := f.seeds[i]
 		rows = append(rows, db.ListSeedsRow{
@@ -637,14 +529,6 @@ func (f *fakeStore) ListSeeds(context.Context) ([]db.ListSeedsRow, error) {
 	return rows, nil
 }
 
-// ListAddressScopeCidrs returns the declared address-scope Seed CIDRs — the corpus the
-// Vantage-class coverage predicate binds over (#711), mirroring the SQL (kind='address'
-// AND address_cidr IS NOT NULL). It also appends a fixed 10.0.0.0/8 convention scope so
-// the class-derivation fixtures (classPresentedDialled) reproduce `internal` for a
-// covered dialled address without every test having to declare a scope of its own; the
-// real declared seeds are still returned, so a test that declares its own scope is
-// honoured too. Coverage-semantics tests bypass this fake and exercise
-// custody.CoversAddressScope / vantageclass directly.
 func (f *fakeStore) ListAddressScopeCidrs(context.Context) ([]*netip.Prefix, error) {
 	out := []*netip.Prefix{}
 	for _, s := range f.seeds {
@@ -652,6 +536,7 @@ func (f *fakeStore) ListAddressScopeCidrs(context.Context) ([]*netip.Prefix, err
 			out = append(out, s.AddressCidr)
 		}
 	}
+	// The fake returns this scope even where no seed declares it, so class fixtures need none.
 	conv := netip.MustParsePrefix("10.0.0.0/8")
 	out = append(out, &conv)
 	return out, nil
@@ -667,11 +552,6 @@ func (f *fakeStore) ListExtendedZoneDomains(context.Context) ([]pgtype.Text, err
 	return out, nil
 }
 
-// NameCitedAddresses returns the seeded (Name, Address) resolutions the custody
-// census reads (#987). The fake holds them directly: it folds no resolution-walk
-// observation into the current-cited projection the SQL derives, so a test poses the
-// pairs it means to reason about. citedErr poses the read failure the census degrades
-// on.
 func (f *fakeStore) NameCitedAddresses(context.Context, db.NameCitedAddressesParams) ([]db.NameCitedAddressesRow, error) {
 	if f.citedErr != nil {
 		return nil, f.citedErr
@@ -679,21 +559,10 @@ func (f *fakeStore) NameCitedAddresses(context.Context, db.NameCitedAddressesPar
 	return f.cited, nil
 }
 
-// ListEdgeFanoutMeasurements returns the newest `edge-fanout` measurement per address
-// (#983). The fake holds the rows the test posed: the outcome, and the FINGERPRINT of
-// the certificate the edge presented. It carries no DER (#1035).
 func (f *fakeStore) ListEdgeFanoutMeasurements(context.Context) ([]db.ListEdgeFanoutMeasurementsRow, error) {
 	return f.edgeFanout, nil
 }
 
-// ListEdgeFanoutMeasurementsOver returns the same rows under the caller's address bound
-// (#1036). It FILTERS rather than returning everything, which is what makes the `/scope`
-// tests exercise the bound: a census that had come to depend on a row outside its own
-// extension candidates would lose it here, exactly as it would against the SQL.
-//
-// It also records each bound it was asked for, so a test can pin WHICH addresses the
-// render narrowed to — and that `/coverage`, which takes the unbound read, never reaches
-// this method at all.
 func (f *fakeStore) ListEdgeFanoutMeasurementsOver(_ context.Context, addresses []string) ([]db.ListEdgeFanoutMeasurementsOverRow, error) {
 	f.edgeFanoutBounds = append(f.edgeFanoutBounds, addresses)
 	want := make(map[string]struct{}, len(addresses))
@@ -712,10 +581,6 @@ func (f *fakeStore) ListEdgeFanoutMeasurementsOver(_ context.Context, addresses 
 	return out, nil
 }
 
-// ListCertificateMaterialDER returns the leaf DER of each named certificate, ONE ROW
-// PER DISTINCT fingerprint (#1035). It mirrors the SQL's `fingerprint = ANY(...)`: a
-// fingerprint the store holds no material for returns no row, and the caller reduces
-// that to a fan-out of zero rather than to measurement pending.
 func (f *fakeStore) ListCertificateMaterialDER(_ context.Context, fingerprints []string) ([]db.ListCertificateMaterialDERRow, error) {
 	out := []db.ListCertificateMaterialDERRow{}
 	for _, fp := range fingerprints {
@@ -726,15 +591,6 @@ func (f *fakeStore) ListCertificateMaterialDER(_ context.Context, fingerprints [
 	return out, nil
 }
 
-// measuredEdge poses one stored `edge-fanout` measurement across BOTH reads: the newest
-// row for the address, naming its certificate by fingerprint, and the material that
-// fingerprint keys. Two calls carrying the same DER share one fingerprint and one
-// material entry, which is the shared-edge shape.
-//
-// A nil DER poses a row with NO fingerprint, which is what each of the three negative
-// outcomes stores. The fingerprint is minted the way the leaf mints the side store's
-// key (edgefanout.presentedMaterial), so a fixture cannot name a certificate under a
-// key production would never write.
 func (f *fakeStore) measuredEdge(addr, outcome string, der []byte) {
 	row := db.ListEdgeFanoutMeasurementsRow{Address: addr, Outcome: outcome}
 	if len(der) > 0 {
@@ -748,16 +604,10 @@ func (f *fakeStore) measuredEdge(addr, outcome string, der []byte) {
 	f.edgeFanout = append(f.edgeFanout, row)
 }
 
-// ScanHasCompletedBatch reports whether a Batch of the given Scan kind has ever
-// completed — the ERRORED half of ADR-0129's fourth absence case (#985).
 func (f *fakeStore) ScanHasCompletedBatch(_ context.Context, kind string) (bool, error) {
 	return f.completedBatchKinds[kind], nil
 }
 
-// WithdrawSeed removes a Seed by id (#21a) and records the tombstone the
-// withdrawal owes (ADR-0134 §2, ADR-0135 §2), mirroring the SQL: the two are one
-// act, both limbs write a tombstone carrying the kind and the one scope column
-// that kind populates, and a missing id is an idempotent no-op.
 func (f *fakeStore) WithdrawSeed(_ context.Context, arg db.WithdrawSeedParams) (db.WithdrawSeedRow, error) {
 	for i, s := range f.seeds {
 		if s.ID != arg.SeedID {
@@ -783,10 +633,6 @@ func (f *fakeStore) WithdrawSeed(_ context.Context, arg db.WithdrawSeedParams) (
 	return db.WithdrawSeedRow{}, nil
 }
 
-// ListSeedWithdrawalCandidates applies the containment half of the SQL over the posed
-// rows. The resolution survivor is the query's own NOT EXISTS clause, so a test poses
-// only the rows that survived it; the other two survivors are decided in Go and are
-// exercised through the seeds and the estate this fake already serves.
 func (f *fakeStore) ListSeedWithdrawalCandidates(_ context.Context, cidrs []string) ([]db.ListSeedWithdrawalCandidatesRow, error) {
 	prefixes := make([]netip.Prefix, 0, len(cidrs))
 	for _, c := range cidrs {
@@ -851,7 +697,7 @@ func (f *fakeStore) SetCustodyExtension(_ context.Context, arg db.SetCustodyExte
 			return nil
 		}
 	}
-	return nil // a missing or address-scope row is a no-op, matching the SQL guard
+	return nil
 }
 
 func (f *fakeStore) CreateNameExclusion(_ context.Context, arg db.CreateNameExclusionParams) (db.Exclusion, error) {
@@ -886,7 +732,6 @@ func (f *fakeStore) CreateAddressExclusion(_ context.Context, arg db.CreateAddre
 
 func (f *fakeStore) ListExclusions(context.Context) ([]db.ListExclusionsRow, error) {
 	rows := make([]db.ListExclusionsRow, 0, len(f.exclusions))
-	// Newest first, mirroring the SQL ORDER BY created_at DESC, id DESC.
 	for i := len(f.exclusions) - 1; i >= 0; i-- {
 		e := f.exclusions[i]
 		rows = append(rows, db.ListExclusionsRow{
@@ -898,10 +743,6 @@ func (f *fakeStore) ListExclusions(context.Context) ([]db.ListExclusionsRow, err
 	return rows, nil
 }
 
-// ListAddressExclusionCidrs returns the declared `address` exclusion CIDRs, mirroring
-// the SQL (kind='address' AND address_cidr IS NOT NULL, in id order). It reads the
-// SAME rows the exclusion handlers write, so a test that declares an exclusion sees
-// the Vantage-class predicate and the address-scope census narrow by it (ADR-0133).
 func (f *fakeStore) ListAddressExclusionCidrs(context.Context) ([]*netip.Prefix, error) {
 	out := []*netip.Prefix{}
 	for _, e := range f.exclusions {
@@ -918,9 +759,6 @@ func (f *fakeStore) CreateVantage(_ context.Context, arg db.CreateVantageParams)
 			return db.Vantage{}, &pgconn.PgError{Code: "23505", Message: "duplicate vantage"}
 		}
 	}
-	// A provisioned prober carries its endpoint columns; the unified table leaves
-	// them NULL only for the resolver-only local vantage, which is never created
-	// through this path.
 	v := db.Vantage{
 		ID:           f.vantageNextID,
 		Name:         arg.Name,
@@ -939,9 +777,6 @@ func (f *fakeStore) CreateVantage(_ context.Context, arg db.CreateVantageParams)
 
 func (f *fakeStore) ListVantages(context.Context) ([]db.ListVantagesRow, error) {
 	rows := make([]db.ListVantagesRow, 0, len(f.vantages))
-	// Newest first, mirroring the SQL ORDER BY created_at DESC, id DESC. The web
-	// list is scoped to provisioned probers (host set), so resolver-only rows are
-	// skipped just as the query's WHERE host IS NOT NULL does.
 	for i := len(f.vantages) - 1; i >= 0; i-- {
 		v := f.vantages[i]
 		if !v.Host.Valid {
@@ -960,8 +795,6 @@ func (f *fakeStore) ListVantages(context.Context) ([]db.ListVantagesRow, error) 
 }
 
 func (f *fakeStore) ListUnavailableVantages(context.Context) ([]db.ListUnavailableVantagesRow, error) {
-	// Mirrors the query: every vantage marked unavailable, including the
-	// resolver-only rows the prober list excludes, ordered by name.
 	rows := make([]db.ListUnavailableVantagesRow, 0)
 	for _, v := range f.vantages {
 		if v.Availability.String != "unavailable" {
@@ -982,11 +815,10 @@ func (f *fakeStore) DeleteExclusion(_ context.Context, id int64) error {
 			return nil
 		}
 	}
-	return nil // idempotent: a missing row is not an error
+	return nil
 }
 
 func (f *fakeStore) CreateAnnotation(_ context.Context, arg db.CreateAnnotationParams) (db.Annotation, error) {
-	// The unique index on (subject_key, signal_name): a pair is declared once.
 	for _, a := range f.annotations {
 		if a.SubjectKey == arg.SubjectKey && a.SignalName == arg.SignalName {
 			return db.Annotation{}, &pgconn.PgError{Code: "23505", Message: "duplicate annotation"}
@@ -1019,12 +851,9 @@ func (f *fakeStore) DeleteAnnotation(_ context.Context, id int64) error {
 			return nil
 		}
 	}
-	return nil // idempotent: a missing row is not an error
+	return nil
 }
 
-// MintSignalInstances mirrors the ON CONFLICT DO NOTHING upsert (#442): a pair
-// already present keeps its id and first_seen; a new pair is minted with first_seen
-// = now. The two array args arrive parallel (unnest), as the SQL zips them.
 func (f *fakeStore) MintSignalInstances(_ context.Context, arg db.MintSignalInstancesParams) error {
 	if f.signalInstNextID == 0 {
 		f.signalInstNextID = 1000
@@ -1118,7 +947,6 @@ func (f *fakeStore) CountUnreadMessages(_ context.Context, accountID int64) (int
 }
 
 func (f *fakeStore) MarkMessageRead(_ context.Context, arg db.MarkMessageReadParams) error {
-	// Idempotent per account: a first mark stands (ON CONFLICT DO NOTHING).
 	set := f.readMarks(arg.AccountID)
 	if !set[arg.MessageID] {
 		set[arg.MessageID] = true
@@ -1137,8 +965,6 @@ func (f *fakeStore) MarkAllMessagesRead(_ context.Context, arg db.MarkAllMessage
 }
 
 func (f *fakeStore) MarkMessageUnread(_ context.Context, arg db.MarkMessageUnreadParams) error {
-	// The inverse of MarkMessageRead (#473): drop this account's read-mark so the
-	// message counts as unread again. Idempotent — deleting an absent mark is a no-op.
 	delete(f.readMarks(arg.AccountID), arg.MessageID)
 	return nil
 }
@@ -1148,7 +974,6 @@ func (f *fakeStore) PreviewExclusionWithdrawal(_ context.Context, _ db.PreviewEx
 }
 
 func (f *fakeStore) ListAccounts(context.Context) ([]db.ListAccountsRow, error) {
-	// Insertion order (created_at ASC, id ASC) mirrors the SQL.
 	ids := make([]int64, 0, len(f.accounts))
 	for id := range f.accounts {
 		ids = append(ids, id)
@@ -1199,7 +1024,6 @@ func (f *fakeStore) CreateChannel(_ context.Context, arg db.CreateChannelParams)
 
 func (f *fakeStore) ListChannels(context.Context) ([]db.ListChannelsRow, error) {
 	rows := make([]db.ListChannelsRow, 0, len(f.channels))
-	// Newest first, mirroring ORDER BY created_at DESC, id DESC.
 	for i := len(f.channels) - 1; i >= 0; i-- {
 		c := f.channels[i]
 		rows = append(rows, db.ListChannelsRow{
@@ -1247,7 +1071,7 @@ func (f *fakeStore) DeleteChannel(_ context.Context, id int64) error {
 			return nil
 		}
 	}
-	return nil // idempotent
+	return nil
 }
 
 func (f *fakeStore) GetRetentionSettings(context.Context) (db.GetRetentionSettingsRow, error) {
@@ -1306,13 +1130,8 @@ func (f *fakeStore) ensureScan(kind string) int64 {
 	return sc.ID
 }
 
-// freshBatch appends a completed batch of the given scan kind (creating the Scan
-// once) and returns its id, so every seeded observation rides a real batch tied
-// to an enabled Scan. That batch→Scan link is what the live-tier gate reads to
-// find a timeline's covering cadence (#237): an observation with no such link has
-// an undefined bound and is never live, so fixtures must carry one exactly as the
-// measurement worker's observations do.
 func (f *fakeStore) freshBatch(scanKind, batchKind string) int64 {
+	// An observation whose batch cites no enabled Scan has no bound and is never live (#237).
 	scanID := f.ensureScan(scanKind)
 	b := db.Batch{ID: f.batchNextID, ScanID: scanID, Kind: batchKind, Outcome: "completed"}
 	f.batches = append(f.batches, b)
@@ -1331,19 +1150,11 @@ func (f *fakeStore) addResolution(t *testing.T, createdBy int64, name, scanKind 
 	f.obsNextID++
 }
 
-// addAdmittedName records a CT admission for a Name in a fresh ct batch, mirroring
-// what the crt.sh runner writes (ADR-0027, ADR-0106). It is the seam a Citation
-// test uses to make a Name CT-admitted so its citation reconciles to the admission
-// (ADR-0107).
 func (f *fakeStore) addAdmittedName(t *testing.T, name string, at time.Time) {
 	t.Helper()
 	f.addAdmittedNameUnderSeed(t, name, f.coveringNameSeedID(name), at)
 }
 
-// addAdmittedNameUnderSeed admits a Name citing an explicit covering Seed id — the
-// seed_id the runner records on the admitted_name row (ADR-0027). The seed id is
-// what the Citation chain terminates at, so a test can admit a Name under one Seed
-// while a longer-suffix Seed also covers it (#256).
 func (f *fakeStore) addAdmittedNameUnderSeed(t *testing.T, name string, seedID int64, at time.Time) {
 	t.Helper()
 	b := f.freshBatch("ct", "ct")
@@ -1353,8 +1164,6 @@ func (f *fakeStore) addAdmittedNameUnderSeed(t *testing.T, name string, seedID i
 	})
 }
 
-// coveringNameSeedID mirrors the runner's admission: a Name is admitted under the
-// longest-suffix name Seed that covers it (ADR-0047).
 func (f *fakeStore) coveringNameSeedID(name string) int64 {
 	var best *db.Seed
 	for i := range f.seeds {
@@ -1375,22 +1184,14 @@ func (f *fakeStore) coveringNameSeedID(name string) int64 {
 	return best.ID
 }
 
-// liveObservations returns the live-tier subset of the observation corpus as of
-// asOf — the fake twin of ListLiveObservationsForDerivation and
-// retention.LiveOnly (#237, ADR-0041). It computes each timeline's tightest
-// covering ENABLED-Scan cadence from the batch→Scan link, then keeps only rows
-// whose age at asOf is within retention.FloorCadences of that bound. A timeline no
-// enabled Scan covers has an undefined bound and yields no live row, exactly as
-// the SQL `cover` JOIN drops it. Sharing retention.TierOf keeps this gate the same
-// boundary the production reads and the pure retention tests use.
 func (f *fakeStore) liveObservations(asOf time.Time) []db.Observation {
-	enabledCadence := map[int64]int64{} // scan id -> cadence, enabled scans only
+	enabledCadence := map[int64]int64{}
 	for _, sc := range f.scans {
 		if sc.Enabled {
 			enabledCadence[sc.ID] = sc.CadenceSeconds
 		}
 	}
-	batchCadence := map[int64]int64{} // batch id -> covering enabled cadence
+	batchCadence := map[int64]int64{}
 	for _, b := range f.batches {
 		if c, ok := enabledCadence[b.ScanID]; ok {
 			batchCadence[b.ID] = c
@@ -1404,7 +1205,7 @@ func (f *fakeStore) liveObservations(asOf time.Time) []db.Observation {
 	keyOf := func(o db.Observation) timeline {
 		return timeline{o.SubjectKey, o.Facet, o.Discriminator, o.Source, o.VantageID.Int64, o.VantageID.Valid}
 	}
-	tightest := map[timeline]int64{} // MIN covering cadence over a timeline's rows
+	tightest := map[timeline]int64{}
 	for _, o := range f.observations {
 		c, ok := batchCadence[o.BatchID]
 		if !ok {
@@ -1426,10 +1227,6 @@ func (f *fakeStore) liveObservations(asOf time.Time) []db.Observation {
 	return out
 }
 
-// latestResolutionByName picks, per Name, its latest resolution observation —
-// max observed_at, then max id — mirroring the DISTINCT ON in the SQL. It reads
-// the caller-supplied observation slice (the live-tier subset), never f.observations
-// directly, so the gate applies before the DISTINCT ON.
 func (f *fakeStore) latestResolutionByName(obs []db.Observation) map[string]db.Observation {
 	latest := map[string]db.Observation{}
 	for _, o := range obs {
@@ -1493,7 +1290,6 @@ func (f *fakeStore) CreateZoneFile(_ context.Context, arg db.CreateZoneFileParam
 }
 
 func (f *fakeStore) ListZoneFileStatus(context.Context) ([]db.ListZoneFileStatusRow, error) {
-	// Latest supply per seed, mirroring the SQL DISTINCT ON.
 	latest := map[int64]fakeZoneFile{}
 	for _, z := range f.zoneFiles {
 		cur, ok := latest[z.seedID]
@@ -1521,9 +1317,6 @@ func (f *fakeStore) ListZoneFileStatus(context.Context) ([]db.ListZoneFileStatus
 	return rows, nil
 }
 
-// fakeFacetVector mirrors queue.facetVector: reachability folds under the single
-// connect-outcome leaf; resolution and dns-record under the two membership leaves
-// jointly (ADR-0086). The fake derives spans so the web tests stay hermetic.
 func fakeFacetVector(facet string) drift.Vector {
 	if facet == connectoutcome.FacetReachability {
 		return drift.NewVector(drift.Component{Leaf: connectoutcome.Kind, Version: connectoutcome.Version})
@@ -1537,11 +1330,6 @@ func fakeFacetVector(facet string) drift.Vector {
 	)
 }
 
-// ListAllOpenSpans folds every observation the fake holds into Span rows using
-// the real drift.Fold — exactly as ListSpansForSubject does per subject — and
-// returns the OPEN ones across the whole estate, ordered by (kind, key, facet,
-// discriminator) as the production query is. It is the Inventory axis read (#243):
-// each open span is the value a timeline currently holds.
 func (f *fakeStore) ListAllOpenSpans(_ context.Context) ([]db.ListAllOpenSpansRow, error) {
 	type tlkey struct{ kind, key, facet, discriminator, source string }
 	order := []tlkey{}
@@ -1598,11 +1386,6 @@ func (f *fakeStore) ListAllOpenSpans(_ context.Context) ([]db.ListAllOpenSpansRo
 	return rows, nil
 }
 
-// ListSpansForSubject folds the fake's observations for one subject into Span
-// rows using the real drift.Fold, so the drill-down test exercises the same
-// open/close logic the worker's ingest does. It is facet-generic: a `service`
-// subject's `reachability` observations fold exactly as a `name`'s resolution
-// ones do. The production store reads persisted spans; the fake derives them.
 func (f *fakeStore) ListSpansForSubject(_ context.Context, arg db.ListSpansForSubjectParams) ([]db.ListSpansForSubjectRow, error) {
 	type tlkey struct{ facet, discriminator, source string }
 	order := []tlkey{}
@@ -1656,8 +1439,6 @@ func (f *fakeStore) ListSpansForSubject(_ context.Context, arg db.ListSpansForSu
 	return rows, nil
 }
 
-// fakeBatchByID returns the batch with the given id, or a zero batch where none is
-// held (an observation always cites a batch the fake created, so this resolves).
 func (f *fakeStore) fakeBatchByID(id int64) db.Batch {
 	for _, b := range f.batches {
 		if b.ID == id {
@@ -1667,21 +1448,12 @@ func (f *fakeStore) fakeBatchByID(id int64) db.Batch {
 	return db.Batch{}
 }
 
-// ListRecentDriftEvents folds every observation into Span timelines with the real
-// drift.Fold — the same open/close logic the worker's ingest runs — and emits one
-// 'opened' event per span, attributing it to the batch of the observation at the
-// span's opened instant (the fake's observations carry their batch id, exactly as the
-// production span carries opened_batch_id after ADR-0111). Each opened event carries
-// its predecessor span so the handler classifies appeared vs changed and builds the
-// diff. A reasoned close would emit a 'closed' event too, but the fold sets no reason
-// (withdrawal persistence is unwired), so none arise here — matching production.
-// Rows are ordered newest batch first, then by timeline, as the production query is.
 func (f *fakeStore) ListRecentDriftEvents(_ context.Context, arg db.ListRecentDriftEventsParams) ([]db.ListRecentDriftEventsRow, error) {
 	since := arg.Since
 	type tlkey struct{ kind, key, facet, discriminator, source string }
 	order := []tlkey{}
 	byKey := map[tlkey][]drift.Reading{}
-	obsBatch := map[tlkey]map[int64]int64{} // per timeline: observedAt UnixNano -> batch id
+	obsBatch := map[tlkey]map[int64]int64{}
 	for _, o := range f.observations {
 		k := tlkey{kind: o.SubjectKind, key: o.SubjectKey, facet: o.Facet, discriminator: o.Discriminator, source: o.Source}
 		if _, seen := byKey[k]; !seen {
@@ -1737,8 +1509,6 @@ func (f *fakeStore) ListRecentDriftEvents(_ context.Context, arg db.ListRecentDr
 		}
 	}
 
-	// Newest batch first, then by timeline — same order as the production query, so a
-	// run of consecutive rows sharing a batch id is one group for buildDriftFeed.
 	sort.SliceStable(rows, func(i, j int) bool {
 		a, b := rows[i], rows[j]
 		if !a.BatchAt.Time.Equal(b.BatchAt.Time) {
@@ -1755,16 +1525,12 @@ func (f *fakeStore) ListRecentDriftEvents(_ context.Context, arg db.ListRecentDr
 		}
 		return a.Facet < b.Facet
 	})
-	// Honor the feed cap: the newest events survive (rows are already newest-first).
 	if arg.MaxEvents > 0 && int32(len(rows)) > arg.MaxEvents {
 		rows = rows[:arg.MaxEvents]
 	}
 	return rows, nil
 }
 
-// ListWithdrawalLifespans returns the seeded subject-withdrawal rows whose
-// withdrawal instant is at or after `since` (#444, P0.3), ordered oldest-first —
-// the same window and order the production query honours.
 func (f *fakeStore) ListWithdrawalLifespans(_ context.Context, since pgtype.Timestamptz) ([]db.ListWithdrawalLifespansRow, error) {
 	out := []db.ListWithdrawalLifespansRow{}
 	for _, row := range f.withdrawalLifespans {
@@ -1838,9 +1604,6 @@ func (f *fakeStore) GetServiceSubject(_ context.Context, arg db.GetServiceSubjec
 	return db.GetServiceSubjectRow{SubjectKey: key, Value: o.Value, ObservedAt: o.ObservedAt}, nil
 }
 
-// addHTTPIdentity records an http-identity observation for an Endpoint in a fresh
-// batch — the http-exchange leaf's output the hot Scan writes (#198). It is the
-// seam the Endpoint drill-down tests populate.
 func (f *fakeStore) addHTTPIdentity(t *testing.T, endpointKey string, at time.Time, value string) {
 	t.Helper()
 	scanID := f.ensureScan("hot")
@@ -1900,9 +1663,6 @@ func (f *fakeStore) GetEndpointSubject(_ context.Context, arg db.GetEndpointSubj
 	return db.GetEndpointSubjectRow{SubjectKey: key, Value: o.Value, ObservedAt: o.ObservedAt}, nil
 }
 
-// addClassReachability records a reachability observation for a Service at a
-// Vantage of the given class — the sensitive-port rule reads the internet-class
-// leg, so its census needs the class join the plain Service read does not (#203).
 func (f *fakeStore) addClassReachability(t *testing.T, serviceKey, class string, at time.Time, value string) {
 	t.Helper()
 	vid := f.vantageForClass(class)
@@ -1916,20 +1676,13 @@ func (f *fakeStore) addClassReachability(t *testing.T, serviceKey, class string,
 	f.obsNextID++
 }
 
-// reachVantageKey is one (Service, Vantage) reachability leg — the per-vantage grain the
-// by-class read now returns (class is DERIVED in the Go fold from the vantage's presented
-// facts, #709), not the pre-collapsed (Service, class).
 type reachVantageKey struct {
 	svc     string
 	vantage int64
 }
 
-// currentReachByVantage folds the fake's reachability observations into the current
-// value per (Service, VANTAGE) — the span corpus's current-state read, which is NOT
-// live-tier-gated (spans are the already-derived timeline, ADR-0041), so it folds
-// every observation rather than only the live ones. is_gap is derived from the
-// value's outcome, exactly as the real fold's isGapValue reads it (ADR-0104).
 func (f *fakeStore) currentReachByVantage() map[reachVantageKey]db.Observation {
+	// The span corpus has no retention policy, so this read applies no live-tier gate (ADR-0041).
 	known := map[int64]bool{}
 	for _, v := range f.vantages {
 		known[v.ID] = true
@@ -1980,11 +1733,6 @@ func (f *fakeStore) ListServiceReachabilitySpansByClass(_ context.Context) ([]db
 	return rows, nil
 }
 
-// PreviousBatchTime returns the second-most-recent distinct batch instant — the
-// vs-last-batch delta boundary (#443). The fake's batches carry no created_at, so a
-// batch's instant is the max observed_at over its observations (its commit-time
-// proxy, exactly the ordering the production created_at gives). NULL where fewer than
-// two distinct instants exist, matching the SQL's `< max` guard.
 func (f *fakeStore) PreviousBatchTime(_ context.Context) (pgtype.Timestamptz, error) {
 	inst := map[int64]time.Time{}
 	for _, o := range f.observations {
@@ -2008,10 +1756,6 @@ func (f *fakeStore) PreviousBatchTime(_ context.Context) (pgtype.Timestamptz, er
 	return pgtype.Timestamptz{Time: prev, Valid: true}, nil
 }
 
-// EarliestBatchTime returns the estate's first batch instant — the age boundary the
-// Drift vs-previous-period delta tests (#690). As with PreviousBatchTime the fake has
-// no created_at, so a batch's instant is the max observed_at over its observations (its
-// commit-time proxy). NULL where no observation (and so no batch) exists.
 func (f *fakeStore) EarliestBatchTime(_ context.Context) (pgtype.Timestamptz, error) {
 	inst := map[int64]time.Time{}
 	for _, o := range f.observations {
@@ -2031,11 +1775,6 @@ func (f *fakeStore) EarliestBatchTime(_ context.Context) (pgtype.Timestamptz, er
 	return pgtype.Timestamptz{Time: earliest, Valid: true}, nil
 }
 
-// ListSpansOpenSince folds every observation into Span timelines with the real
-// drift.Fold and returns the spans still open now OR closed after `since` — the
-// corpus a vs-last-batch delta reconstructs the previous population from (#443). It
-// keeps closed spans (unlike ListAllOpenSpans), setting ClosedAt, so drift.OpenAt can
-// read the population open at the previous batch boundary.
 func (f *fakeStore) ListSpansOpenSince(_ context.Context, since pgtype.Timestamptz) ([]db.ListSpansOpenSinceRow, error) {
 	type tlkey struct{ kind, key, facet, discriminator, source string }
 	order := []tlkey{}
@@ -2079,8 +1818,6 @@ func (f *fakeStore) ListSpansOpenSince(_ context.Context, since pgtype.Timestamp
 			Facet: k.facet, Discriminator: k.discriminator, Source: k.source,
 		}
 		for _, s := range drift.Fold(key, byKey[k]) {
-			// Drop spans closed at or before `since`: they were not open in the window
-			// the delta reconstructs, exactly as the SQL predicate does.
 			if !s.ClosedAt.IsZero() && !s.ClosedAt.After(since.Time) {
 				continue
 			}
@@ -2100,10 +1837,6 @@ func (f *fakeStore) ListSpansOpenSince(_ context.Context, since pgtype.Timestamp
 	return rows, nil
 }
 
-// ListSubjectFirstAppearances folds every observation into Span timelines with the
-// real drift.Fold and returns, per Name/Service subject whose earliest opened_at is
-// at or after `since`, that first-appearance instant (#468, P2.4b) — the same
-// per-subject MIN(opened_at) and window the production GROUP BY … HAVING computes.
 func (f *fakeStore) ListSubjectFirstAppearances(_ context.Context, since pgtype.Timestamptz) ([]db.ListSubjectFirstAppearancesRow, error) {
 	type tlkey struct{ kind, key, facet, discriminator, source string }
 	byKey := map[tlkey][]drift.Reading{}
@@ -2136,7 +1869,7 @@ func (f *fakeStore) ListSubjectFirstAppearances(_ context.Context, since pgtype.
 	}
 	rows := []db.ListSubjectFirstAppearancesRow{}
 	for sk, at := range first {
-		if since.Valid && at.Before(since.Time) { // the HAVING MIN(opened_at) >= @since filter
+		if since.Valid && at.Before(since.Time) {
 			continue
 		}
 		rows = append(rows, db.ListSubjectFirstAppearancesRow{
@@ -2156,11 +1889,6 @@ func (f *fakeStore) ListSubjectFirstAppearances(_ context.Context, since pgtype.
 	return rows, nil
 }
 
-// ListServiceReachabilitySpansByClassAt is the as-of-@at twin of
-// ListServiceReachabilitySpansByClass (#443): the reachability span per (Service,
-// class) that was OPEN at @at, folded with the real drift.Fold from the same
-// observations. It picks, per (service, class), the most-recently-opened span whose
-// interval covers @at, so the exposure delta projects the legs as they stood a batch ago.
 func (f *fakeStore) ListServiceReachabilitySpansByClassAt(_ context.Context, at pgtype.Timestamptz) ([]db.ListServiceReachabilitySpansByClassAtRow, error) {
 	known := map[int64]bool{}
 	for _, v := range f.vantages {
@@ -2185,9 +1913,6 @@ func (f *fakeStore) ListServiceReachabilitySpansByClassAt(_ context.Context, at 
 		})
 	}
 
-	// One per-vantage row carrying the most-recently-opened span whose interval covers
-	// @at, plus the vantage's presented facts — the class is DERIVED and re-collapsed
-	// per (service, class) in the Go fold now (#709), not here.
 	rows := []db.ListServiceReachabilitySpansByClassAtRow{}
 	for k, readings := range byKey {
 		key := drift.TimelineKey{SubjectKind: "service", SubjectKey: k.svc, Facet: "reachability"}
@@ -2239,8 +1964,6 @@ func (f *fakeStore) ListBlanketedReachServices(_ context.Context) ([]string, err
 	return out, nil
 }
 
-// addCertificate records a certificate observation for an Endpoint — the
-// tls-handshake step's output (#197), the value the certificate rules read (#203).
 func (f *fakeStore) addCertificate(t *testing.T, endpointKey string, at time.Time, value string) {
 	t.Helper()
 	b := f.freshBatch("hot", "tls-handshake")
@@ -2272,11 +1995,6 @@ func (f *fakeStore) ListEndpointCertificates(_ context.Context, arg db.ListEndpo
 	return rows, nil
 }
 
-// addTLSAcceptance records a `tls-acceptance` enumeration observation for a Service
-// in a fresh weekly tls-acceptance batch, mirroring what the enumeration leaf writes
-// (#199/#684). The value is the closed union `enumerated(versions) | tls-refused |
-// no-tls`; buildServiceFacts folds it into the ServiceFacts the tls-1.0-accepted rule
-// reads.
 func (f *fakeStore) addTLSAcceptance(t *testing.T, serviceKey string, at time.Time, value string) {
 	t.Helper()
 	b := f.freshBatch("tls-acceptance", "tls-acceptance")
@@ -2358,15 +2076,9 @@ func (f *fakeStore) FindCoveringAddressSeed(_ context.Context, address netip.Add
 	return *best, nil
 }
 
-// addVantageClass registers a resolver-only vantage of the given class and
-// returns its id, so a resolution observation can be tied to a Vantage class the
-// Signals reads join against.
 func (f *fakeStore) addVantageClass(class string) int64 {
 	v := db.Vantage{
 		ID: f.vantageNextID, Name: class + "-resolver", Class: class,
-		// Class is DERIVED per read from the presented facts now (#709), so the fake
-		// stamps a dialled-address fact the derivation reproduces `class` from, under the
-		// fixed convention coverage ListAddressScopeCidrs returns.
 		DialledAddr: classPresentedDialled(class),
 	}
 	f.vantages = append(f.vantages, v)
@@ -2374,11 +2086,6 @@ func (f *fakeStore) addVantageClass(class string) int64 {
 	return v.ID
 }
 
-// classPresentedDialled maps a Vantage class to a dialled-address fact from which the
-// class derivation (#709/#710) reproduces that class, given the fake's fixed convention
-// coverage (ListAddressScopeCidrs returns 10.0.0.0/8): an `internal` vantage presents a
-// covered address, an `internet` vantage an uncovered one, and any other class
-// (`unverified`) presents no fact so it derives `unverified`.
 func classPresentedDialled(class string) pgtype.Text {
 	switch class {
 	case "internet":
@@ -2456,8 +2163,6 @@ func (f *fakeStore) ListNameResolutionsByClass(_ context.Context, arg db.ListNam
 			latest[k] = o
 		}
 	}
-	// One per-vantage row carrying the resolution value plus the vantage's presented
-	// facts — class is DERIVED and re-collapsed per (name, class) in the Go fold now (#709).
 	rows := []db.ListNameResolutionsByClassRow{}
 	for k, o := range latest {
 		v := f.vantageByID(k.vantage)
@@ -2553,9 +2258,6 @@ func (f *fakeStore) scanFor(batchID int64) (int64, string) {
 func (f *fakeStore) GetNameCitation(_ context.Context, arg db.GetNameCitationParams) (db.GetNameCitationRow, error) {
 	key := arg.SubjectKey
 
-	// ADR-0107: the admission wins. The latest admitted_name for the key is what
-	// introduced the Name, so it is the citation whether or not a resolution has
-	// since measured it.
 	var admission *db.AdmittedName
 	for i := range f.admitted {
 		a := &f.admitted[i]
@@ -2571,10 +2273,7 @@ func (f *fakeStore) GetNameCitation(_ context.Context, arg db.GetNameCitationPar
 		return db.GetNameCitationRow{
 			ObservedAt: admission.CreatedAt, Source: admission.Source,
 			BatchID: admission.BatchID, ScanID: scanID, ScanKind: scanKind,
-			// admitted_name.seed_id is NOT NULL in the schema — a real FK on every
-			// admission. Mark the column NULL only for the degenerate fixture with no
-			// covering Seed (id 0), so the fake never claims a valid seed_id of 0, a
-			// state production forbids.
+			// The schema makes admitted_name.seed_id NOT NULL, so only the seedless fixture leaves it invalid.
 			SeedID:  pgtype.Int8{Int64: admission.SeedID, Valid: admission.SeedID != 0},
 			HopKind: hopKindAdmission,
 		}, nil
@@ -2626,9 +2325,6 @@ func (f *fakeStore) FindCoveringNameSeed(_ context.Context, name string) (db.Fin
 	}, nil
 }
 
-// FindNameSeedByID returns the name Seed with the given id (ADR-0027, #256) — the
-// terminating hop a CT admission's Citation chain reads straight from the
-// admitted_name row rather than re-deriving by suffix.
 func (f *fakeStore) FindNameSeedByID(_ context.Context, seedID int64) (db.FindNameSeedByIDRow, error) {
 	for i := range f.seeds {
 		s := &f.seeds[i]
@@ -2645,7 +2341,7 @@ func (f *fakeStore) FindNameSeedByID(_ context.Context, seedID int64) (db.FindNa
 
 func (f *fakeStore) GetZoneCadenceSeconds(context.Context) (int64, error) {
 	if f.zoneCadence == 0 {
-		return 2592000, nil // the shipped monthly default
+		return 2592000, nil
 	}
 	return f.zoneCadence, nil
 }
@@ -2694,7 +2390,6 @@ func (f *fakeStore) ListPendingProposals(context.Context) ([]db.ListPendingPropo
 			LookupQuery: l.Query, LookupAt: l.CreatedAt, LookupBy: f.accounts[l.CreatedBy].Username,
 		})
 	}
-	// Mirror the SQL ordering: newest lookup first, oldest proposal first.
 	sort.SliceStable(rows, func(i, j int) bool {
 		if rows[i].LookupID != rows[j].LookupID {
 			return rows[i].LookupID > rows[j].LookupID
@@ -2735,8 +2430,6 @@ func (f *fakeStore) DeclineLookup(_ context.Context, lookupID int64) (int64, err
 	return n, nil
 }
 
-// DeclineProposal declines one still-pending Proposal by id (#574), mirroring the SQL
-// guard on status = 'pending' so a repeat submit affects zero rows.
 func (f *fakeStore) DeclineProposal(_ context.Context, id int64) (int64, error) {
 	for i, p := range f.proposals {
 		if p.ID == id && p.Status == "pending" {
@@ -2784,7 +2477,6 @@ func (f *fakeStore) UpdateReportSchedule(_ context.Context, arg db.UpdateReportS
 		if rs.ID != arg.ID {
 			continue
 		}
-		// Genuine in-place update: id, created_by and created_at are preserved.
 		rs.Name = arg.Name
 		rs.Sections = arg.Sections
 		rs.Cadence = arg.Cadence
@@ -2798,7 +2490,6 @@ func (f *fakeStore) UpdateReportSchedule(_ context.Context, arg db.UpdateReportS
 }
 
 func (f *fakeStore) DeleteReportSchedule(_ context.Context, id int64) error {
-	// Idempotent, mirroring DELETE ... WHERE id = $1 (no row is not an error).
 	out := f.reportSchedules[:0]
 	for _, rs := range f.reportSchedules {
 		if rs.ID != id {
@@ -2827,8 +2518,6 @@ func (f *fakeStore) InsertReportDelivery(_ context.Context, arg db.InsertReportD
 		PeriodStart: arg.PeriodStart,
 		PeriodEnd:   arg.PeriodEnd,
 		DeliveryNo:  arg.DeliveryNo,
-		// generated_at defaults to now() at the column; the fake stamps it so the
-		// last-sent read has an instant when delivered_at is absent.
 		GeneratedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		DeliveredAt: arg.DeliveredAt,
 		State:       arg.State,
@@ -2864,8 +2553,6 @@ func (f *fakeStore) ListReportDeliveries(_ context.Context, scheduleID int64) ([
 	return out, nil
 }
 
-// --- SSO providers (#293) ---------------------------------------------------
-
 func (f *fakeStore) InsertSSOProvider(_ context.Context, arg db.InsertSSOProviderParams) (int64, error) {
 	for _, p := range f.ssoProviders {
 		if p.slug == arg.Slug {
@@ -2884,8 +2571,6 @@ func (f *fakeStore) InsertSSOProvider(_ context.Context, arg db.InsertSSOProvide
 
 func (f *fakeStore) ListSSOProviders(context.Context) ([]db.ListSSOProvidersRow, error) {
 	out := []db.ListSSOProvidersRow{}
-	// Newest-first, mirroring ORDER BY id DESC. The secret is never exposed — only
-	// has_secret — exactly as the query omits it.
 	for i := len(f.ssoProviders) - 1; i >= 0; i-- {
 		p := f.ssoProviders[i]
 		out = append(out, db.ListSSOProvidersRow{
@@ -2950,7 +2635,7 @@ func (f *fakeStore) UpdateSSOProvider(_ context.Context, arg db.UpdateSSOProvide
 		f.ssoProviders[i].enabled = arg.Enabled
 		return 1, nil
 	}
-	return 0, nil // no such id: zero rows affected, mirroring the real UPDATE
+	return 0, nil
 }
 
 func (f *fakeStore) SetSSOProviderSecret(_ context.Context, arg db.SetSSOProviderSecretParams) error {
@@ -2984,11 +2669,9 @@ func (f *fakeStore) DeleteSSOProvider(_ context.Context, id int64) error {
 
 func (f *fakeStore) InsertSSOIdentity(_ context.Context, arg db.InsertSSOIdentityParams) error {
 	for _, i := range f.ssoIdentities {
-		// UNIQUE(provider_id, sub): one external identity binds to one account.
 		if i.providerID == arg.ProviderID && i.sub == arg.Sub {
 			return &pgconn.PgError{Code: "23505", Message: "duplicate sso identity"}
 		}
-		// UNIQUE(provider_id, account_id): one identity per provider per account.
 		if i.providerID == arg.ProviderID && i.accountID == arg.AccountID {
 			return &pgconn.PgError{Code: "23505", Message: "duplicate provider link for account"}
 		}
@@ -3100,8 +2783,6 @@ func (f *fakeStore) usernameForID(id int64) string {
 
 var testKey = []byte("0123456789abcdef0123456789abcdef")
 
-// testTranscriptKey is the 32-byte instance transcript key the test server opens sealed
-// streams with (#866). It matches the key a raw-output test seals its fixture streams with.
 var testTranscriptKey = []byte("transcriptkey0123456789abcdef012")
 
 func fixedClock() func() time.Time {
@@ -3145,18 +2826,12 @@ func TestHealthzDBError(t *testing.T) {
 	}
 }
 
-// TestDeprecatedRoutesReconciled is the #286 IA-reconciliation proof: each retired
-// GET answers the right redirect to its canonical home, while every viewer-readable
-// fold keeps resolving for a viewer — no 404, and no viewer bounced into an
-// admin-gated 403 (#281 caveat). The detail deep-links under /subjects/* are NOT
-// redirected: Inventory rows link straight to them and they are the detail pages.
 func TestDeprecatedRoutesReconciled(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "viewer", roleViewer, "hunter2hunter2")
 	base := start(t, f, "")
 	vc := login(t, base, "viewer", "hunter2hunter2")
 
-	// Retired GETs redirect to their canonical home (301 permanent for pure moves).
 	for _, tc := range []struct {
 		path, want string
 	}{
@@ -3174,12 +2849,6 @@ func TestDeprecatedRoutesReconciled(t *testing.T) {
 		}
 	}
 
-	// The viewer-readable folds keep resolving for a viewer — never redirected into
-	// admin-gated Settings, never a 403. /coverage stays as the distinct aperture
-	// artifact; /messages stays viewer-readable as the messages fold (the V3 shell
-	// bell now targets /inbox, T4) for all users. /exposure is now the first-class
-	// Exposure page (#300, repurposed from its #286 redirect); a viewer reads it (its
-	// WITHHELD/board states are covered in exposure_test.go).
 	for _, path := range []string{"/messages", "/scans", "/verge-core", "/sources", "/coverage", "/exposure"} {
 		resp, err := vc.Get(base + path)
 		if err != nil {
@@ -3191,8 +2860,6 @@ func TestDeprecatedRoutesReconciled(t *testing.T) {
 		}
 	}
 
-	// The subject detail deep-links are preserved (not redirected): a missing key
-	// renders the 404 detail page, proving the routes still resolve to the handler.
 	for _, path := range []string{"/subjects/never.measured.example", "/subjects/service?key=x%3A1%2Ftcp"} {
 		resp, err := vc.Get(base + path)
 		if err != nil {
