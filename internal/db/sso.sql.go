@@ -15,8 +15,6 @@ const deleteSSOIdentity = `-- name: DeleteSSOIdentity :exec
 DELETE FROM sso_identity WHERE id = $1
 `
 
-// An admin removes any binding by id (offboarding / seat reassignment). Idempotent:
-// removing a row already gone satisfies the intent either way.
 func (q *Queries) DeleteSSOIdentity(ctx context.Context, id int64) error {
 	_, err := q.db.Exec(ctx, deleteSSOIdentity, id)
 	return err
@@ -31,8 +29,6 @@ type DeleteSSOIdentityForAccountParams struct {
 	AccountID int64 `json:"account_id"`
 }
 
-// A user unlinks their OWN identity (Profile). Scoped to the account so one user can
-// never unlink another's; returns rows so a stale or foreign id no-ops honestly.
 func (q *Queries) DeleteSSOIdentityForAccount(ctx context.Context, arg DeleteSSOIdentityForAccountParams) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteSSOIdentityForAccount, arg.ID, arg.AccountID)
 	if err != nil {
@@ -62,9 +58,6 @@ type GetAccountBySSOIdentityParams struct {
 	Sub        string `json:"sub"`
 }
 
-// The SSO login match: resolve the local account a verified (provider, sub) is bound to.
-// Keyed on the stable, non-reassignable subject — never a username. No row is an honest
-// refusal (the identity is unlinked), never a provision.
 func (q *Queries) GetAccountBySSOIdentity(ctx context.Context, arg GetAccountBySSOIdentityParams) (Account, error) {
 	row := q.db.QueryRow(ctx, getAccountBySSOIdentity, arg.ProviderID, arg.Sub)
 	var i Account
@@ -98,9 +91,6 @@ type GetSSOIdentityBySubRow struct {
 	DisplayName string `json:"display_name"`
 }
 
-// Whether a (provider, sub) is already bound, and to whom — so the self-link flow can
-// no-op an identity already linked to the caller and refuse one linked elsewhere,
-// rather than surfacing a raw unique-violation.
 func (q *Queries) GetSSOIdentityBySub(ctx context.Context, arg GetSSOIdentityBySubParams) (GetSSOIdentityBySubRow, error) {
 	row := q.db.QueryRow(ctx, getSSOIdentityBySub, arg.ProviderID, arg.Sub)
 	var i GetSSOIdentityBySubRow
@@ -128,8 +118,6 @@ type GetSSOProviderRow struct {
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
-// One provider for the Settings edit form. Omits the secret; a caller reads presence,
-// never the value.
 func (q *Queries) GetSSOProvider(ctx context.Context, id int64) (GetSSOProviderRow, error) {
 	row := q.db.QueryRow(ctx, getSSOProvider, id)
 	var i GetSSOProviderRow
@@ -163,10 +151,6 @@ type GetSSOProviderForAuthRow struct {
 	ClientSecret pgtype.Text `json:"client_secret"`
 }
 
-// The ONE read path that selects the secret: the server-side OIDC flow (both a login
-// match and a Profile self-link) needs the issuer, client id and client secret to
-// complete the confidential-client token exchange. Keyed by slug (the flow route) and
-// gated on enabled, so a disabled provider's flow resolves no row and is refused.
 func (q *Queries) GetSSOProviderForAuth(ctx context.Context, slug string) (GetSSOProviderForAuthRow, error) {
 	row := q.db.QueryRow(ctx, getSSOProviderForAuth, slug)
 	var i GetSSOProviderForAuthRow
@@ -193,12 +177,6 @@ type InsertSSOIdentityParams struct {
 	DisplayName string `json:"display_name"`
 }
 
-// Record a verified (provider, sub) → account binding, established by an authenticated
-// Profile self-link (ADR-0113). UNIQUE(provider_id, sub) guards a second account from
-// claiming an identity already bound; UNIQUE(provider_id, account_id) keeps an account to
-// one identity per provider. The caller resolves any existing (provider, sub) first so it
-// can distinguish "already yours" from "bound elsewhere"; a residual conflict here is the
-// per-provider constraint.
 func (q *Queries) InsertSSOIdentity(ctx context.Context, arg InsertSSOIdentityParams) error {
 	_, err := q.db.Exec(ctx, insertSSOIdentity,
 		arg.ProviderID,
@@ -226,13 +204,7 @@ type InsertSSOProviderParams struct {
 	CreatedBy    int64       `json:"created_by"`
 }
 
-// Reads and writes behind the OIDC single-sign-on config (#293, ADR-0112) and the
-// verified-identity bindings that authentication keys on (#319, ADR-0113). The client
-// secret is write-only at the interface, mirroring the channel secret (ADR-0053): the
-// list/get reads expose only whether one is set, and exactly one read path
-// (GetSSOProviderForAuth) hands the secret to the token exchange.
-// Declare one OIDC provider. Returns the id only; the secret is write-only and no
-// read query hands it back. A public (PKCE-only) client passes a NULL secret.
+// A render read takes presence, never the value; the token exchange is the exception (ADR-0112).
 func (q *Queries) InsertSSOProvider(ctx context.Context, arg InsertSSOProviderParams) (int64, error) {
 	row := q.db.QueryRow(ctx, insertSSOProvider,
 		arg.Slug,
@@ -261,9 +233,6 @@ type ListEnabledSSOProvidersRow struct {
 	Name string `json:"name"`
 }
 
-// The enabled providers the SignIn screen renders a button for, newest-first. No
-// secret, and no created-by join — SignIn is pre-auth and needs only what a button
-// carries: the slug (its route) and the display name.
 func (q *Queries) ListEnabledSSOProviders(ctx context.Context) ([]ListEnabledSSOProvidersRow, error) {
 	rows, err := q.db.Query(ctx, listEnabledSSOProviders)
 	if err != nil {
@@ -304,9 +273,6 @@ type ListSSOBindingsRow struct {
 	CreatedAt       pgtype.Timestamptz `json:"created_at"`
 }
 
-// Every binding for the admin SSO settings — the offboarding / seat-reassignment view.
-// Joined to provider and account so the admin sees which identity maps to whom, newest
-// first.
 func (q *Queries) ListSSOBindings(ctx context.Context) ([]ListSSOBindingsRow, error) {
 	rows, err := q.db.Query(ctx, listSSOBindings)
 	if err != nil {
@@ -354,8 +320,6 @@ type ListSSOIdentitiesForAccountRow struct {
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 }
 
-// An account's own linked identities for its Profile, newest-first. Joined to the
-// provider for the display name/slug; sub is not surfaced (opaque, of no use to a human).
 func (q *Queries) ListSSOIdentitiesForAccount(ctx context.Context, accountID int64) ([]ListSSOIdentitiesForAccountRow, error) {
 	rows, err := q.db.Query(ctx, listSSOIdentitiesForAccount, accountID)
 	if err != nil {
@@ -407,8 +371,6 @@ type ListSSOProvidersRow struct {
 	CreatedByUsername string             `json:"created_by_username"`
 }
 
-// Every configured provider, newest-first, for the Settings tab. Never selects the
-// secret: it exposes only whether one is set, so the render path cannot leak it.
 func (q *Queries) ListSSOProviders(ctx context.Context) ([]ListSSOProvidersRow, error) {
 	rows, err := q.db.Query(ctx, listSSOProviders)
 	if err != nil {
@@ -450,8 +412,6 @@ type SetSSOProviderSecretParams struct {
 	ClientSecret pgtype.Text `json:"client_secret"`
 }
 
-// Set, replace or clear the secret. A NULL clears it (a public PKCE-only client); the
-// value is written and never read back through any interface query.
 func (q *Queries) SetSSOProviderSecret(ctx context.Context, arg SetSSOProviderSecretParams) error {
 	_, err := q.db.Exec(ctx, setSSOProviderSecret, arg.ID, arg.ClientSecret)
 	return err
@@ -472,10 +432,6 @@ type UpdateSSOProviderParams struct {
 	Enabled  bool   `json:"enabled"`
 }
 
-// Updates everything but the secret; the secret has its own write path, so an edit
-// that leaves it blank keeps the existing one untouched (exactly the channel pattern).
-// Returns the rows affected so the handler can tell a stale edit (an id deleted in
-// another tab) from a real update, rather than reporting a phantom success.
 func (q *Queries) UpdateSSOProvider(ctx context.Context, arg UpdateSSOProviderParams) (int64, error) {
 	result, err := q.db.Exec(ctx, updateSSOProvider,
 		arg.ID,

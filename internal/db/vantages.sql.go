@@ -34,19 +34,6 @@ type CreateVantageParams struct {
 	CreatedBy int64  `json:"created_by"`
 }
 
-// Provisioning a prober creates a Vantage with connection detail. Its
-// measurement identity is still mandatory: the caller derives `name` from the
-// endpoint (username@host:port) so it is unique per provisioned endpoint, and
-// resolver ships blank (”) for the operator to set. availability starts
-// 'pending' — no host key has been pinned yet. The explicit casts keep the params
-// plain scalars even though the prober columns are nullable on the table.
-//
-// `class` defaults to 'unverified' and is a VESTIGE (#709 keystone (b)): it keeps its
-// CHECK and its shipped `local` row, but NOTHING writes it and NO reader treats it as
-// authoritative. Vantage class is DERIVED per read from the vantage's presented-address
-// facts (egress + dialled_addr) against the declared address scopes
-// (exposure.VerifyClass), never from this column — so it stays at its 'unverified'
-// default for the life of the row.
 func (q *Queries) CreateVantage(ctx context.Context, arg CreateVantageParams) (Vantage, error) {
 	row := q.db.QueryRow(ctx, createVantage,
 		arg.Name,
@@ -124,11 +111,6 @@ type ListUnavailableVantagesRow struct {
 	Availability pgtype.Text `json:"availability"`
 }
 
-// The Coverage register of positions we currently cannot observe from
-// (ADR-0108). It includes the resolver-only `local` vantage — which ListVantages
-// excludes for the prober list — because that is exactly the position whose
-// resolver going unreachable this surface must make loud. Ordered by name so the
-// rendering is stable.
 func (q *Queries) ListUnavailableVantages(ctx context.Context) ([]ListUnavailableVantagesRow, error) {
 	rows, err := q.db.Query(ctx, listUnavailableVantages)
 	if err != nil {
@@ -186,10 +168,6 @@ type ListVantagesRow struct {
 	CreatedByUsername string             `json:"created_by_username"`
 }
 
-// The web prober list: only provisioned vantages (those carrying a prober
-// endpoint). The resolver-only `local` vantage has no prober and is excluded.
-// latency_ms is the per-vantage connect round-trip the Dashboard renders (P0.5),
-// NULL until the prober connect that pins the host key lands a first measurement.
 func (q *Queries) ListVantages(ctx context.Context) ([]ListVantagesRow, error) {
 	rows, err := q.db.Query(ctx, listVantages)
 	if err != nil {
@@ -237,9 +215,6 @@ WHERE host IS NOT NULL AND public_key IS NULL
 ORDER BY id
 `
 
-// Rows the worker still has to generate a keypair for: a provisioned prober
-// (host set) whose public half has not been published, so no key material has
-// ever left the worker volume for them.
 func (q *Queries) ListVantagesNeedingKey(ctx context.Context) ([]Vantage, error) {
 	rows, err := q.db.Query(ctx, listVantagesNeedingKey)
 	if err != nil {
@@ -286,11 +261,6 @@ WHERE host IS NOT NULL AND public_key IS NOT NULL AND latency_ms IS NULL
 ORDER BY id
 `
 
-// Rows the worker still has to measure a connect latency for (P0.5): a
-// provisioned prober (host set) whose keypair has been published (public_key set,
-// so a private half exists on the worker volume to dial with) but whose latency
-// has never been measured. The connect the worker makes here is the same one that
-// pins the host key trust-on-first-use, so measuring on it needs no extra dial.
 func (q *Queries) ListVantagesNeedingLatency(ctx context.Context) ([]Vantage, error) {
 	rows, err := q.db.Query(ctx, listVantagesNeedingLatency)
 	if err != nil {
@@ -334,11 +304,6 @@ SET availability = 'available'
 WHERE id = $1
 `
 
-// A completed Batch at this vantage is proof the position can observe again, so
-// Availability is derived back to 'available' from the terminal batch outcome
-// (ADR-0108). A host-key-mismatched prober cannot complete a Batch — its SSH
-// connection is refused before any measurement runs — so this can never silently
-// clear the trust-on-first-use pin MarkVantageUnavailable set.
 func (q *Queries) MarkVantageAvailable(ctx context.Context, id int64) error {
 	_, err := q.db.Exec(ctx, markVantageAvailable, id)
 	return err
@@ -350,8 +315,6 @@ SET availability = 'unavailable'
 WHERE id = $1
 `
 
-// A pinned host key later mismatched, or the position went unreachable: the
-// vantage is marked unavailable rather than silently re-trusting a new key.
 func (q *Queries) MarkVantageUnavailable(ctx context.Context, id int64) error {
 	_, err := q.db.Exec(ctx, markVantageUnavailable, id)
 	return err
@@ -368,9 +331,6 @@ type PinVantageHostKeyParams struct {
 	HostKey pgtype.Text `json:"host_key"`
 }
 
-// Trust-on-first-use: pin the host key only while none is pinned yet, and mark
-// the vantage available. The host_key IS NULL guard makes this a no-op once a
-// key is pinned, so a first-connect race can never overwrite an existing pin.
 func (q *Queries) PinVantageHostKey(ctx context.Context, arg PinVantageHostKeyParams) error {
 	_, err := q.db.Exec(ctx, pinVantageHostKey, arg.ID, arg.HostKey)
 	return err
@@ -387,10 +347,6 @@ type SetVantageLatencyParams struct {
 	LatencyMs pgtype.Int4 `json:"latency_ms"`
 }
 
-// The worker records the round-trip time of the prober connect that pinned the
-// host key (P0.5, SPEC-CHANGE.md collision #7). Stored in whole milliseconds — the
-// unit the Dashboard renders — and set only from a real measurement, never a
-// fabricated value.
 func (q *Queries) SetVantageLatency(ctx context.Context, arg SetVantageLatencyParams) error {
 	_, err := q.db.Exec(ctx, setVantageLatency, arg.ID, arg.LatencyMs)
 	return err
@@ -409,14 +365,6 @@ type SetVantageProbeFactsParams struct {
 	DialledAddr pgtype.Text `json:"dialled_addr"`
 }
 
-// The worker records the lifecycle facts it observed off-host on the connect that
-// pins the host key (P0.8, #683, #710): the remote platform read from `uname`, the
-// egress address read from SSH_CLIENT, and the dialled address observed as the SSH
-// transport peer (*ssh.Client.RemoteAddr()). Set together and only from a real
-// successful connection — a prober that could not be reached, or a fact that could not
-// be read, keeps that column NULL rather than showing a fabricated value: the
-// VantageCard collapses the platform/egress regions, and the Vantage-class derivation
-// reads a smaller presented set (egress and dialled feed exposure.VerifyClass, #709).
 func (q *Queries) SetVantageProbeFacts(ctx context.Context, arg SetVantageProbeFactsParams) error {
 	_, err := q.db.Exec(ctx, setVantageProbeFacts,
 		arg.ID,
@@ -438,8 +386,6 @@ type SetVantagePublicKeyParams struct {
 	PublicKey pgtype.Text `json:"public_key"`
 }
 
-// The worker publishes only the public half of the pair it generated on its own
-// volume; the private half never reaches Postgres.
 func (q *Queries) SetVantagePublicKey(ctx context.Context, arg SetVantagePublicKeyParams) error {
 	_, err := q.db.Exec(ctx, setVantagePublicKey, arg.ID, arg.PublicKey)
 	return err
