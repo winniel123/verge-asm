@@ -11,25 +11,11 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
-// Dev-only Settings fixture (screen 21, package v3.13.0, WORK-ORDER-21-BATCH7). A
-// VERGE_DEV build serves the design's curated fixtures.json → settings slice so
-// /settings renders each section byte-for-byte for the pixel-parity harness (the 19
-// golden states). It is the twin of the render-goldens settings case: both read the
-// SAME fixtures.json slice and stamp the SAME "settings" holes, so the golden and the
-// candidate are the same frozen tmpl fed the same data. It touches no table — the
-// handler branches on s.devMode before any DB read (settingsPage) — so it mirrors the
-// batch 3–6 fixtures-mode determinism pattern (signals/reports/etc.).
-//
-// Everything here is repo-owned harness glue, not a design-owned artifact; it only
-// READS the frozen fixtures.json. A real deployment never reaches this path.
-
-// The fixture shapes below mirror fixtures.json → settings.* exactly: snake_case json
-// tags, PascalCase field names equal to the settings.tmpl declared holes, so a section
-// slice is passed straight into the tmpl with no reshape.
+// The names stamp into settings.tmpl holes verbatim, so a rename can empty a section silently.
 
 type sfJob struct {
 	ID          int64  `json:"id"`
-	Href        string `json:"href"` // /runs/{run}?job={id} (DF-F3b), nullable
+	Href        string `json:"href"`
 	Kind        string `json:"kind"`
 	Vantage     string `json:"vantage"`
 	State       string `json:"state"`
@@ -41,22 +27,19 @@ type sfJob struct {
 }
 
 type sfActive struct {
-	ID           int64   `json:"id"`   // dispatch id (DF-F3)
-	Href         string  `json:"href"` // /runs/{dispatch} (DF-F3)
-	ScanKind     string  `json:"scan_kind"`
-	DispatchedAt string  `json:"dispatched_at"`
-	Completed    int     `json:"completed"`
-	Live         int     `json:"live"`
-	Percent      int     `json:"percent"`
-	Jobs         []sfJob `json:"jobs"`
-	// Rollup is derived, not stored: the card's state-chip counts folded from Jobs at
-	// fill time (#961), the same way fillScansSection folds them from the live rows. The
-	// fixture keeps its jobs because the stop / terminate dialogs still count over them.
-	Rollup jobRollup `json:"-"`
+	ID           int64     `json:"id"`
+	Href         string    `json:"href"`
+	ScanKind     string    `json:"scan_kind"`
+	DispatchedAt string    `json:"dispatched_at"`
+	Completed    int       `json:"completed"`
+	Live         int       `json:"live"`
+	Percent      int       `json:"percent"`
+	Jobs         []sfJob   `json:"jobs"`
+	Rollup       jobRollup `json:"-"`
 }
 
 type sfHistory struct {
-	Href         string `json:"href"` // /runs/{dispatch} (DF-F3), nullable
+	Href         string `json:"href"`
 	ScanKind     string `json:"scan_kind"`
 	DispatchedAt string `json:"dispatched_at"`
 	Live         int    `json:"live"`
@@ -74,9 +57,9 @@ type sfColdScope struct {
 type sfScans struct {
 	Active  []sfActive  `json:"active"`
 	History []sfHistory `json:"history"`
-	// Truncated drives the history truncation callout (#962). The live handler derives it
-	// from a LIMIT N+1 read; a fixture states it outright, since a fixture never carries
-	// 51 rows just to render one line.
+
+	// A fixture states this outright rather than carry 51 rows the live LIMIT N+1 read needs (#962).
+
 	Truncated   bool          `json:"truncated"`
 	ColdEnabled bool          `json:"cold_enabled"`
 	ColdScopes  []sfColdScope `json:"cold_scopes"`
@@ -208,12 +191,6 @@ type sfInstanceVantage struct {
 	Avail   string `json:"avail"`
 }
 
-// Instance · data & release holes (v3.18.0, #391). The old sfUpdate callout is RETIRED
-// (its content moved into the Release card); Backup / Release / Migrations / Restore
-// mirror fixtures.json → settings.instance.* so the dev-mode golden render matches the
-// frozen tmpl holes. Preflight / RestoreConfirm are pointers so a null fixture leaves
-// them nil (the {{with}} branches collapse); Backup / Release / Migrations are struct
-// values the fixture always carries.
 type sfBackup struct {
 	InProgress bool   `json:"in_progress"`
 	Streamed   string `json:"streamed"`
@@ -253,6 +230,8 @@ type sfRestoreConfirm struct {
 	Subjects string `json:"subjects"`
 }
 
+// A pointer field lets a null fixture collapse its {{with}} branch; a struct value always renders.
+
 type sfInstance struct {
 	Version        string              `json:"version"`
 	License        string              `json:"license"`
@@ -271,9 +250,6 @@ type sfInstance struct {
 	Release        sfRelease           `json:"release"`
 }
 
-// sfAPI mirrors fixtures.json → settings.api: the read-only /api/v1 opt-in state and,
-// when enabled, the dated act of the current state (By/At). Disabled in the fixture, so
-// By/At are empty and the tmpl renders only the disabled badge + note.
 type sfAPI struct {
 	Enabled bool   `json:"enabled"`
 	By      string `json:"by"`
@@ -328,15 +304,9 @@ type sfDrawer struct {
 	Installed    string    `json:"installed"`
 	LastDelivery string    `json:"last_delivery"`
 	Classes      string    `json:"classes"`
-	// BoundChannel (#39b) is the id of the delivery Channel this integration is bound
-	// to — matched against an IntChannels option Value so the drawer's select renders it
-	// selected; "" is unbound (Not connected), which gates "Send test" off.
-	BoundChannel string `json:"bound_channel"`
+	BoundChannel string    `json:"bound_channel"`
 }
 
-// sfIntChannel is one option of the drawer's "Delivery channel" select (#39b): the
-// fixtures' integrations.channels slice, stamped verbatim into .IntChannels[{Value,
-// Label,Hint}]. The fixture is the exact demo corpus this render reproduces.
 type sfIntChannel struct {
 	Value string `json:"value"`
 	Label string `json:"label"`
@@ -431,11 +401,6 @@ func loadSettingsFixture() (settingsFixture, error) {
 	return ff.Settings, nil
 }
 
-// settingsFixtureData stamps the "settings" holes from the fixtures.json settings
-// slice, honouring the query the harness navigates for each of the 18 chrome-hosted
-// states (the 19th, forbidden, is the viewer's requireSettingsAdmin refusal, which
-// renders the error-page settings-forbidden and never reaches here). It mirrors the
-// render-goldens settings case one-for-one so the golden and candidate agree.
 func (s *server) settingsFixtureData(acct db.Account, r *http.Request) map[string]any {
 	fx, err := loadSettingsFixture()
 	if err != nil {
@@ -459,11 +424,6 @@ func (s *server) settingsFixtureData(acct db.Account, r *http.Request) map[strin
 		data["ColdEnabled"] = fx.Scans.ColdEnabled
 		data["ColdScopes"] = fx.Scans.ColdScopes
 		data["ColdError"] = ""
-		// The stop / terminate confirm dialogs (DF-F4, states scans-stop-confirm /
-		// scans-terminate-confirm at id 1409, #35). The harness navigates ?stop=/?terminate=;
-		// the target is built from the matching active dispatch. Pending is the ready jobs
-		// a stop cancels and Running the running jobs it lets finish — the rollup already
-		// folded both, so the dialog reads them off it rather than folding a second time.
 		if id := q.Get("stop"); id != "" {
 			if a := findActiveDispatch(fx.Scans.Active, id); a != nil {
 				data["StopTarget"] = map[string]any{
@@ -577,13 +537,7 @@ func (s *server) settingsFixtureData(acct db.Account, r *http.Request) map[strin
 		data["IntCat"] = fx.Integrations.Cat
 		data["IntQ"] = fx.Integrations.Q
 		data["Integrations"] = fx.Integrations.Tiles
-		// The drawer's "Delivery channel" select options (#39b) — the same slice for
-		// every drawer; only used inside {{with .IntDrawer}}, so the base tab render is
-		// unchanged.
 		data["IntChannels"] = fx.Integrations.Channels
-		// The spec drawer (?view=<id>): pagerduty is the bound fixture, slack the freshly-
-		// installed unbound fixture. Each carries its own bound_channel, so the select
-		// renders the right option selected (or "Not connected") and gates "Send test".
 		if id := q.Get("view"); id != "" {
 			switch id {
 			case fx.Integrations.Drawer.ID:
@@ -604,8 +558,6 @@ func (s *server) settingsFixtureData(acct db.Account, r *http.Request) map[strin
 	return data
 }
 
-// findActiveDispatch returns the fixture active dispatch whose id matches the raw query
-// value (the ?stop=/?terminate= target, id 1409 — #35), or nil.
 func findActiveDispatch(active []sfActive, raw string) *sfActive {
 	id, err := strconv.ParseInt(raw, 10, 64)
 	if err != nil {
@@ -619,11 +571,8 @@ func findActiveDispatch(active []sfActive, raw string) *sfActive {
 	return nil
 }
 
-// fillFixtureRollups folds each active fixture dispatch's jobs into the Running-now
-// card's state-chip counts (#961), the same fold fillScansSection runs over the live
-// rows. The stop / terminate dialogs read their Pending and Running off it too.
-// loadSettingsFixture decodes a fresh copy per request, so this writes to no shared state.
 func fillFixtureRollups(active []sfActive) {
+	// The fixture is decoded fresh per request, so this in-place fold shares no state.
 	for i := range active {
 		active[i].Rollup = toJobRollup(active[i].Jobs, func(j sfJob) string { return j.State })
 	}
