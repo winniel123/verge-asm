@@ -251,7 +251,6 @@ func channelDeliveryLabel(raw string) string {
 }
 
 func (s *server) installIntegration(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	// The grants are shown before this button, so the click is the consent, all-or-nothing.
 	id := integrationFormID(r)
 	if _, ok := integrationBySlug(id); !ok {
 		http.Error(w, "unknown integration", http.StatusBadRequest)
@@ -268,7 +267,6 @@ func (s *server) installIntegration(w http.ResponseWriter, r *http.Request, acct
 }
 
 func (s *server) removeIntegration(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	// Nothing is deleted on the third party's side; this forgets the local install alone.
 	id := integrationFormID(r)
 	if _, ok := integrationBySlug(id); !ok {
 		http.Error(w, "unknown integration", http.StatusBadRequest)

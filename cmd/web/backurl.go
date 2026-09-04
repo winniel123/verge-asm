@@ -133,7 +133,7 @@ func (s *server) routeServesGET(p string) bool {
 	return true
 }
 
-// A filtered list URL has no literal form, so resolveBack stands in for one (ADR-0130 §3).
+// The submitting URL is arbitrary, so no literal destination can express it (ADR-0130 §3).
 
 func (s *server) redirectBack(w http.ResponseWriter, r *http.Request, fallback string) {
 	// gosec raises no finding here under CI's flags, so a waiver would silence nothing.
