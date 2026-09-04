@@ -44,10 +44,6 @@ func (f *fakeStore) CountCertificateMaterial(context.Context) (int64, error) {
 	return f.certMaterialCount, nil
 }
 
-// The reliability bar (spec §3, #879) reads each bulk CT source's rolling window,
-// evaluates it, and shapes it for the card: the operator-keyed primary reports
-// pass/fail per limb and degrades when it misses one; crt.sh reports exempt and is
-// never degraded, its measured values kept for contrast.
 func TestCTReliabilityViews(t *testing.T) {
 	f := newFakeStore()
 	f.ctReliability = map[string]db.CTReliabilityWindowRow{
@@ -68,8 +64,6 @@ func TestCTReliabilityViews(t *testing.T) {
 		byslug[v.Slug] = v
 	}
 
-	// The operator-keyed primary at 196/200 is below the 99% success bar: not exempt,
-	// degraded, and its measured values render.
 	cs := byslug["certspotter"]
 	if cs.Exempt {
 		t.Errorf("certspotter must not be exempt")
@@ -87,8 +81,6 @@ func TestCTReliabilityViews(t *testing.T) {
 		t.Errorf("certspotter p95 = %q, want 3.2 s", cs.P95Display)
 	}
 
-	// crt.sh is exempt as the keyless fallback: never degraded, its measured values
-	// shown for contrast, its name from the catalogue.
 	sh := byslug["crtsh"]
 	if !sh.Exempt {
 		t.Errorf("crt.sh must be exempt")
@@ -104,8 +96,6 @@ func TestCTReliabilityViews(t *testing.T) {
 	}
 }
 
-// A source with no recent samples reports no data — an em dash, never a fabricated
-// zero — and is never degraded (#879).
 func TestCTReliabilityViewsNoData(t *testing.T) {
 	s := &server{store: newFakeStore()}
 
@@ -126,10 +116,6 @@ func TestCTReliabilityViewsNoData(t *testing.T) {
 	}
 }
 
-// The active-source hero (#880) derives which bulk source is live from the freshest
-// reliability sample — web never reads the worker token. The keyed primary live means the
-// key is set; crt.sh live means it is not. A below-bar primary reads in danger with no
-// silent swap, and no samples at all means no bulk ct scan has run.
 func TestNewCTSourceHero(t *testing.T) {
 	now := time.Date(2026, 8, 31, 12, 0, 0, 0, time.UTC)
 	const crtName = "crt.sh"
@@ -199,9 +185,6 @@ func TestNewCTSourceHero(t *testing.T) {
 	})
 }
 
-// A live keyed primary that is below its bar renders the primary badge, the run readout
-// with the admitted count, the failing limb, the honest no-failover callout, the detected
-// key, and the measured targets — all from run data, never the worker token (#880).
 func TestSourcesCTHeroRendersPrimaryDegraded(t *testing.T) {
 	f := newFakeStore()
 	f.ctReliability = map[string]db.CTReliabilityWindowRow{
@@ -214,13 +197,13 @@ func TestSourcesCTHeroRendersPrimaryDegraded(t *testing.T) {
 
 	page := sourcesBody(t, ac, base)
 	for _, want := range []string{
-		"primary · Cert Spotter",        // status badge
-		"last ct scan · Cert Spotter",   // run readout
-		"4213 names admitted",           // the admitted count
-		"under bar",                     // the failing success limb
-		"Runtime failover is not built", // honest no-swap edge (§6.3)
-		"detected",                      // operator-key presence, inferred
-		"≥ 99%", "≤ 5 s",                // the measured targets
+		"primary · Cert Spotter",
+		"last ct scan · Cert Spotter",
+		"4213 names admitted",
+		"under bar",
+		"Runtime failover is not built",
+		"detected",
+		"≥ 99%", "≤ 5 s",
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("degraded-primary hero missing %q; body: %s", want, page)
@@ -228,8 +211,6 @@ func TestSourcesCTHeroRendersPrimaryDegraded(t *testing.T) {
 	}
 }
 
-// With only crt.sh recording, it is the live keyless fallback: bar-exempt tiles, the key
-// not set, and a hint on how to promote Cert Spotter (#880).
 func TestSourcesCTHeroRendersFallbackExempt(t *testing.T) {
 	f := newFakeStore()
 	f.ctReliability = map[string]db.CTReliabilityWindowRow{
@@ -242,10 +223,10 @@ func TestSourcesCTHeroRendersFallbackExempt(t *testing.T) {
 
 	page := sourcesBody(t, ac, base)
 	for _, want := range []string{
-		"fallback · crt.sh",       // status badge
-		"bar-exempt",              // the fallback is muted, not failed
-		"not set",                 // key not set
-		"VERGE_CERTSPOTTER_TOKEN", // the promote hint
+		"fallback · crt.sh",
+		"bar-exempt",
+		"not set",
+		"VERGE_CERTSPOTTER_TOKEN",
 		"12 names admitted",
 	} {
 		if !strings.Contains(page, want) {
@@ -254,10 +235,6 @@ func TestSourcesCTHeroRendersFallbackExempt(t *testing.T) {
 	}
 }
 
-// The More-CT-capabilities card (#881, spec §6.1) renders the drift tail and the
-// verification point-check beside the bulk hero, each from real state: the tail on with
-// its last ct-tail run readout, verification with the captured-certificate pool. Neither
-// reads the worker token or the bulk reliability bar.
 func TestSourcesCTCapabilitiesCardLive(t *testing.T) {
 	f := newFakeStore()
 	f.sourceStates["ct-tail"] = db.SourceState{Slug: "ct-tail", Enabled: true}
@@ -272,13 +249,13 @@ func TestSourcesCTCapabilitiesCardLive(t *testing.T) {
 
 	page := sourcesBody(t, ac, base)
 	for _, want := range []string{
-		"More CT capabilities",      // the card header
-		"drift tail",                // the tail capability
-		"last ct-tail scan",         // the tail's own run readout
-		"37 names admitted",         // the tail's admitted count
-		"verification",              // the verification capability
-		"812 certificates captured", // verification's captured pool
-		"ephemeral event",           // the honest no-durable-result edge (#878)
+		"More CT capabilities",
+		"drift tail",
+		"last ct-tail scan",
+		"37 names admitted",
+		"verification",
+		"812 certificates captured",
+		"ephemeral event",
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("capabilities card missing %q; body: %s", want, page)
@@ -286,11 +263,8 @@ func TestSourcesCTCapabilitiesCardLive(t *testing.T) {
 	}
 }
 
-// With the tail off and nothing captured, the card is honest: the tail reads off with no
-// run readout, and verification awaits its first capture (#881).
 func TestSourcesCTCapabilitiesCardEmpty(t *testing.T) {
 	f := newFakeStore()
-	// ct-tail unset => ships off; no tail batch; zero captures.
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
@@ -298,8 +272,8 @@ func TestSourcesCTCapabilitiesCardEmpty(t *testing.T) {
 	page := sourcesBody(t, ac, base)
 	for _, want := range []string{
 		"More CT capabilities",
-		"awaiting captures",       // verification with no captures
-		"0 certificates captured", // the truthful zero
+		"awaiting captures",
+		"0 certificates captured",
 	} {
 		if !strings.Contains(page, want) {
 			t.Errorf("empty capabilities card missing %q; body: %s", want, page)
@@ -310,8 +284,6 @@ func TestSourcesCTCapabilitiesCardEmpty(t *testing.T) {
 	}
 }
 
-// No samples from either bulk source: the hero asserts no run, never a fabricated live
-// source (#880).
 func TestSourcesCTHeroNoRun(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -345,8 +317,6 @@ func sourcesBody(t *testing.T, c *http.Client, base string) string {
 	return body(t, resp)
 }
 
-// The modal renders every catalogued source, both marked groups, and the
-// shipped defaults from §3.1 with no override in place.
 func TestSourcesModalRendersCatalogueAndDefaults(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -360,25 +330,19 @@ func TestSourcesModalRendersCatalogueAndDefaults(t *testing.T) {
 			t.Errorf("source %q missing from the modal", c.Name)
 		}
 	}
-	// The three consent tiers render (the spec tier cards, #26).
 	for _, tier := range []string{"unencumbered", "operator-accepted", "barred"} {
 		if !strings.Contains(page, tier) {
 			t.Errorf("consent tier %q not rendered; body: %s", tier, page)
 		}
 	}
-	// A proposer is labelled a proposer, never a source (ADR-0012).
 	if !strings.Contains(page, ">proposer<") || !strings.Contains(page, ">source<") {
 		t.Errorf("source/proposer kinds not distinguished; body: %s", page)
 	}
-	// crt.sh ships on; RIPEstat ships off — the §3.1 defaults, unoverridden.
 	if !strings.Contains(page, "crt.sh") || !strings.Contains(page, "RIPEstat") {
 		t.Errorf("expected sources missing; body: %s", page)
 	}
 }
 
-// LACNIC is catalogued-not-executing (#241, ruling #30): no proposer runner ships
-// for it, so it renders in the barred/catalogued bucket, offers no toggle, and its
-// ?consent dialog no longer opens — there is nothing to enable until a runner lands.
 func TestLacnicCataloguedSourceNoConsent(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -389,7 +353,6 @@ func TestLacnicCataloguedSourceNoConsent(t *testing.T) {
 	if !strings.Contains(page, "LACNIC registry") {
 		t.Fatalf("LACNIC not rendered; body: %s", page)
 	}
-	// A no-runner source opens no consent dialog even by ?consent=<id>.
 	dlg := getBody(t, ac, base+"/sources?consent=lacnic-registry", http.StatusOK)
 	if strings.Contains(dlg, "Nobody has been able to retrieve these terms.") {
 		t.Errorf("LACNIC consent dialog rendered for a no-runner source; body: %s", dlg)
@@ -399,21 +362,12 @@ func TestLacnicCataloguedSourceNoConsent(t *testing.T) {
 	}
 }
 
-// Toggling persists the override and flips the effective state; the default is
-// restored by toggling back.
 func TestToggleSourcePersistsOverride(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// RIPEstat is catalogued-not-executing now (#241, ruling #30): no runner ships,
-	// so it is non-toggleable — an enable POST is refused and persists nothing, even
-	// carrying the acceptance field the old operator-accepted gate wanted.
-	//
-	// The refusal is a post-redirect-get since ticket #978 (ADR-0130 §1 and §3), and it
-	// carries the same callout its twin handler /settings/sources does: the surface now
-	// reports the refusal one way rather than two.
 	resp := postForm(t, ac, base+"/sources/toggle", url.Values{
 		"slug": {"ripestat"}, "enabled": {"true"}, "agreed": {"on"},
 	})
@@ -427,43 +381,31 @@ func TestToggleSourcePersistsOverride(t *testing.T) {
 		t.Fatalf("no-runner source wrote state: %+v", f.sourceStates["ripestat"])
 	}
 
-	// ARIN ships on (a keyless proposer that executes); disabling is safe and persists.
 	toggleSourceReq(t, ac, base, "arin", "false").Body.Close()
 	if st, ok := f.sourceStates["arin"]; !ok || st.Enabled {
 		t.Fatalf("disable override not persisted: %+v", f.sourceStates["arin"])
 	}
 
-	// crt.sh ships on and now executes (ADR-0106, #250): its runner is the ct Scan,
-	// so it is a toggleable source again — disabling it persists and stops the poll.
 	toggleSourceReq(t, ac, base, "crtsh", "false").Body.Close()
 	if st, ok := f.sourceStates["crtsh"]; !ok || st.Enabled {
 		t.Fatalf("crtsh disable override not persisted: %+v", f.sourceStates["crtsh"])
 	}
 }
 
-// A catalogued-not-executing source (#241, ruling #30) offers no enable at all: its
-// row carries no consent link, its ?consent dialog does not open, and an enable POST
-// is refused rather than bounced to a terms dialog — there is nothing to enable until
-// a real proposer.Source runner lands, at which point it returns to operator-accepted.
 func TestCataloguedSourceOffersNoEnable(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// No consent-gated enable control renders for a no-runner source.
 	page := getBody(t, ac, base+"/sources", http.StatusOK)
 	if strings.Contains(page, "consent=ripestat") {
 		t.Errorf("catalogued source rendered a consent-gated enable; body: %s", page)
 	}
-	// The consent dialog does not open for it.
 	dlg := getBody(t, ac, base+"/sources?consent=ripestat", http.StatusOK)
 	if strings.Contains(dlg, "Accept and enable") {
 		t.Errorf("consent dialog opened for a catalogued source; body: %s", dlg)
 	}
-	// The settings twin refuses an enable POST and persists nothing. The refusal is a
-	// post-redirect-get back to the submitting URL (ADR-0130 §1, ticket #975), so the
-	// callout renders on the landing GET rather than as a 400 body at the POST URL.
 	const from = "/settings?tab=sources"
 	resp := postForm(t, ac, base+"/settings/sources", url.Values{
 		"id": {"ripestat"}, "enable": {"true"}, "return": {from},
@@ -479,18 +421,12 @@ func TestCataloguedSourceOffersNoEnable(t *testing.T) {
 	}
 }
 
-// A source excluded on terms has no consent instrument the modal operator can
-// satisfy, so it cannot be toggled; an unknown slug is refused too. (crt.sh was
-// once here as a no-runner source; ADR-0106 gave it a runner, so it now toggles —
-// asserted in TestToggleSourcePersistsOverride.)
 func TestToggleRejectsBarredAndUnknown(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
 	base := start(t, f, "")
 	ac := login(t, base, "admin", "hunter2hunter2")
 
-	// hackertarget: excluded on terms. no-such-source: unknown. Each is refused with the
-	// post-redirect-get every console refusal answers with since ticket #978.
 	for _, slug := range []string{"hackertarget", "no-such-source"} {
 		if loc := submitLoc(t, toggleSourceReq(t, ac, base, slug, "true")); loc != sourcesTab {
 			t.Errorf("refused toggle %q landed at %q, want %q", slug, loc, sourcesTab)
@@ -504,8 +440,6 @@ func TestToggleRejectsBarredAndUnknown(t *testing.T) {
 	}
 }
 
-// Toggling is an admin act: a viewer is denied and no state is written, but a
-// viewer may still read the modal — without a toggle control.
 func TestViewerCannotToggleButCanView(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -531,8 +465,6 @@ func TestViewerCannotToggleButCanView(t *testing.T) {
 	}
 }
 
-// The V3 Coverage screen (#301, ADR-0110) renders its four regions: the aperture
-// meters, the coverage messages, the gaps register, and the unevaluable rules.
 func TestCoverageRendersRegions(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -557,10 +489,6 @@ func TestCoverageRendersRegions(t *testing.T) {
 	}
 }
 
-// crt.sh has a runner again (ADR-0106, #250): the ct Scan queries certificate
-// transparency, so it presents as an executing, toggleable source — with a toggle
-// offered to an admin — and the not-yet-executing section (which had only crt.sh)
-// no longer renders, its bucket now empty.
 func TestCrtshShownAsExecuting(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -572,11 +500,9 @@ func TestCrtshShownAsExecuting(t *testing.T) {
 	if !strings.Contains(page, "crt.sh") {
 		t.Fatalf("crt.sh missing from the modal; body: %s", page)
 	}
-	// A toggle IS offered for crt.sh now, to an admin: it has an execution path.
 	if !strings.Contains(page, `value="crtsh"`) {
 		t.Errorf("no toggle control offered for crt.sh; body: %s", page)
 	}
-	// The not-yet-executing section had only crt.sh, so it no longer renders.
 	if strings.Contains(page, "not yet executing") {
 		t.Errorf("the not-yet-executing section rendered with no no-runner source; body: %s", page)
 	}
@@ -594,10 +520,6 @@ func coverageBody(t *testing.T, c *http.Client, base string) string {
 	return body(t, resp)
 }
 
-// The aperture meters render one CoverageMeter per declared scope in the census
-// state — an address scope counting the addresses it enumerates, a name scope
-// counting the owner names its zone declares. A census never claims a
-// denominator, so the meter reads "census · …" and no percentage appears.
 func TestCoverageApertureMeters(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -609,7 +531,6 @@ func TestCoverageApertureMeters(t *testing.T) {
 
 	page := coverageBody(t, ac, base)
 
-	// Both scopes surface as census meters, labelled by their scope key.
 	for _, want := range []string{
 		"example.com", "203.0.113.0/24", "census", "addresses", "declared names",
 	} {
@@ -619,13 +540,6 @@ func TestCoverageApertureMeters(t *testing.T) {
 	}
 }
 
-// #890: a lagging address scope — one the batch cannot finish inside its cadence —
-// renders the oldest-current as-of beside counted/total, and the addresses that have
-// aged out of currency mint NO operator message (the trailing-edge staleness Gap folds
-// to declared/current, decision #882; a Gap mints no message, ADR-0026/0104). Currency
-// stays nominal: the numerator reads through the k×declared-cadence window (here
-// 2×86400s), so an aged observation drops from the current set, never stretching the
-// window to an effective cadence.
 func TestCoverageLaggingScopeAsOfNoStalenessMessage(t *testing.T) {
 	now := time.Date(2026, 8, 30, 12, 0, 0, 0, time.UTC)
 	f := newFakeStore()
@@ -635,50 +549,38 @@ func TestCoverageLaggingScopeAsOfNoStalenessMessage(t *testing.T) {
 
 	declare(t, ac, base, "address", "203.0.113.0/24").Body.Close()
 
-	// Three subjects still current (inside the 2×86400s window), one of them the oldest.
 	oldest := now.Add(-30 * time.Hour)
 	f.addReachability(t, "203.0.113.10:443/tcp", now.Add(-1*time.Hour), "reached")
 	f.addReachability(t, "203.0.113.20:443/tcp", oldest, "reached")
 	f.addReachability(t, "203.0.113.30:443/tcp", now.Add(-3*time.Hour), "reached")
-	// Two subjects aged out of currency — the trailing edge. They must mint no message.
 	f.addReachability(t, "203.0.113.98:443/tcp", now.Add(-96*time.Hour), "reached")
 	f.addReachability(t, "203.0.113.99:443/tcp", now.Add(-96*time.Hour), "reached")
 
 	page := coverageBody(t, ac, base)
 
-	// The honest lag: 3 still-current subjects over 256 declared addresses.
 	if !strings.Contains(page, "3 / 256") {
 		t.Errorf("lagging scope must show counted/total 3 / 256; body: %s", page)
 	}
-	// The oldest-current as-of, with its ISO instant as the tooltip.
 	if !strings.Contains(page, "oldest still current") {
 		t.Errorf("the oldest-current as-of line is missing; body: %s", page)
 	}
 	if iso := oldest.UTC().Format(time.RFC3339); !strings.Contains(page, iso) {
 		t.Errorf("the as-of ISO instant %q is missing; body: %s", iso, page)
 	}
-	// The aged-out addresses mint no operator message — they never appear on the page.
 	for _, aged := range []string{"203.0.113.98", "203.0.113.99"} {
 		if strings.Contains(page, aged) {
 			t.Errorf("an aged-out address (%s) surfaced; the trailing-edge Gap must fold to declared/current, never a per-address message; body: %s", aged, page)
 		}
 	}
-	// No blanket responder and no unavailable vantage, so the currency card stays at its
-	// empty state — the lag is the meter's figure, not a message.
 	if !strings.Contains(page, "No coverage messages") {
 		t.Errorf("a lagging scope must not add a coverage message; body: %s", page)
 	}
 }
 
-// ADR-0108 / #249: an unavailable vantage is surfaced on Coverage by name, so a
-// resolver that went unreachable reads as "we could not look from here" rather
-// than as an empty measurement — visible without inspecting observation.value.
-// It includes the resolver-only `local` vantage, which the prober list excludes.
 func TestCoverageSurfacesUnavailableVantages(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
-	// The shipped resolver-only `local` vantage, marked unavailable — no host, so
-	// the prober list would never show it, but the outage must still be loud.
+	// A resolver-only vantage has no host, so the prober list drops it but its outage still shows.
 	f.vantages = append(f.vantages, db.Vantage{
 		ID: 1, Name: "local", Class: "internet",
 		Resolver:     "127.0.0.11:53",
@@ -695,15 +597,11 @@ func TestCoverageSurfacesUnavailableVantages(t *testing.T) {
 	if !strings.Contains(page, "unreachable") {
 		t.Errorf("Coverage does not render the silent-vantage state; body: %s", page)
 	}
-	// The signal is distinct from an empty result: the message says we could not
-	// look, never that nothing was found.
 	if !strings.Contains(page, "could not look") {
 		t.Errorf("the unavailable-vantage message does not distinguish blindness from emptiness; body: %s", page)
 	}
 }
 
-// With no unavailable vantage the register does not render — an empty install is
-// not told it cannot look from anywhere.
 func TestCoverageOmitsUnavailableRegisterWhenAllAvailable(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -717,9 +615,6 @@ func TestCoverageOmitsUnavailableRegisterWhenAllAvailable(t *testing.T) {
 	}
 }
 
-// §6.3, and this ticket's own AC: no proportion-of-estate figure appears on the
-// Coverage screen. ADR-0095 — the statement counts what the instrument looks at,
-// never how much of the estate it covers.
 func TestCoverageHasNoProportionOfEstate(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -728,14 +623,11 @@ func TestCoverageHasNoProportionOfEstate(t *testing.T) {
 
 	page := coverageBody(t, ac, base)
 
-	// Scope the check to the rendered body — the shared stylesheet legitimately
-	// carries "100%" in its layout rules, which is not a coverage figure. The V3
-	// main carries attributes, so anchor on the opening tag prefix.
+	// The shared stylesheet's layout rules carry "100%", so a whole-page search would false-fail.
 	main := page
 	if i := strings.Index(page, "<main"); i >= 0 {
 		main = page[i:]
 	}
-	// No percentage figure, and no estate-completeness score phrasing, in the body.
 	for _, banned := range []string{"%", "estate completeness", "% covered", "% of your estate"} {
 		if strings.Contains(main, banned) {
 			t.Errorf("a proportion-of-estate figure appeared (%q); body: %s", banned, main)
@@ -743,9 +635,6 @@ func TestCoverageHasNoProportionOfEstate(t *testing.T) {
 	}
 }
 
-// On a fresh install every region falls to its design-system empty-state — no
-// scope to walk, no coverage messages, no gaps, and every rule able to evaluate.
-// No fabricated data stands in for a read that has nothing to report.
 func TestCoverageEmptyStates(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -760,16 +649,11 @@ func TestCoverageEmptyStates(t *testing.T) {
 			t.Errorf("Coverage empty-state %q missing; body: %s", want, page)
 		}
 	}
-	// The aperture empty-state points at the next action — declaring a scope.
 	if !strings.Contains(page, `href="/scope"`) {
 		t.Errorf("the aperture empty-state does not point at Scope; body: %s", page)
 	}
 }
 
-// Coverage surfaces blanket responders (ADR-0104 §4): when an address answers on
-// every port its reach is a Gap. It surfaces both as a "no origin" gap row keyed
-// on the address and as a currency message naming the proxy edge and pointing at
-// declaring an address scope. Absent any blanket responder neither renders.
 func TestCoverageSurfacesBlanketResponders(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -788,8 +672,6 @@ func TestCoverageSurfacesBlanketResponders(t *testing.T) {
 	}
 }
 
-// With no blanket responder, no gap or proxy-edge message renders — the gaps
-// register is a statement only when there is something to state.
 func TestCoverageOmitsBlanketSectionWhenNone(t *testing.T) {
 	f := newFakeStore()
 	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
@@ -803,8 +685,6 @@ func TestCoverageOmitsBlanketSectionWhenNone(t *testing.T) {
 	}
 }
 
-// The web layer's mirror of the qtype set never drifts from the leaf's authored
-// set (resolutionwalk.DefaultOffers). If the leaf's set moves, this fails.
 func TestDNSQtypeSetMatchesLeaf(t *testing.T) {
 	want := resolutionwalk.DefaultOffers().Qtypes
 	if len(want) != len(dnsQtypeSet) {
@@ -817,7 +697,6 @@ func TestDNSQtypeSetMatchesLeaf(t *testing.T) {
 	}
 }
 
-// Both mutating and reading source routes require a login.
 func TestSourceRoutesRequireLogin(t *testing.T) {
 	base := start(t, newFakeStore(), "")
 	c := newClient(t)
