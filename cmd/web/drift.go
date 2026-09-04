@@ -18,9 +18,7 @@ import (
 // design-system/templates/drift.tmpl (package v3.8.0, WORKFLOW v4, #562/#563/#564),
 // which replaces the repo-authored templates_drift.go const (deleted). The tmpl keeps
 // the "drift" + "changeglyph" defines and renders inside the full app chrome
-// ({{template "chrome" .}}); it styles against the design token vocabulary, so the
-// render opts in with DesignTokens:true (the "head" block inlines tokens/*.css only
-// then, as Coverage/Exposure do). drift.tmpl auto-embeds through designfs's existing
+// ({{template "chrome" .}}). drift.tmpl auto-embeds through designfs's existing
 // templates/*.tmpl glob, so no designfs.go change is needed.
 //
 // The tmpl declares the holes driftPage shapes below. KEPT: .Periods[{Token,Label}],
@@ -288,10 +286,7 @@ func (s *server) driftPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 
 	s.render(w, r, "drift", map[string]any{
 		"Title": "Drift", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "drift",
-		// drift.tmpl styles against the design token vocabulary; the "head" block inlines
-		// tokens/*.css only when this datum is set (as Coverage/Exposure do).
-		"DesignTokens":    true,
+		"NavActive":       "drift",
 		"Kinds":           driftKinds(),
 		"Groups":          groups,
 		"Movement":        movement,

@@ -635,7 +635,7 @@ func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 
 	s.render(w, r, "reports", map[string]any{
 		"Title": "Reports", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "reports", "DesignTokens": true,
+		"NavActive": "reports",
 
 		"OpenSignals":    openSignals,
 		"HasOpenSignals": hasOpenSignals,
@@ -752,7 +752,7 @@ func (s *server) reportDeliveryPage(w http.ResponseWriter, r *http.Request, acct
 
 	s.render(w, r, "reportartifact", map[string]any{
 		"Title": "Report delivery", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "reports", "DesignTokens": true,
+		"NavActive":  "reports",
 		"Heading":    heading,
 		"Period":     message.ArtifactPeriod(art),
 		"ScheduleID": scheduleHole,

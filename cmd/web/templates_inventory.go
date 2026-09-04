@@ -21,12 +21,6 @@ import (
 // inventorySubject/inventoryFacet structs emitted by buildInventory in inventory.go.
 var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/inventory.tmpl"))
 
-// designTokensCSS is the design-owned CSS-token vocabulary the frozen inventory.tmpl
-// styles against (--font-ui, --text-ink, --surface-sunken, --border-default, …),
-// concatenated from design-system/tokens/*.css. The app's shared pageCSS still speaks
-// the older token names, so the inventory page loads these tokens after pageCSS (gated
-// to that page in the "head" block) to give the design tmpl the variables it needs.
-//
 // The concatenation is deliberately simple and deterministic — sorted filename order,
 // joined by "\n", with no transformation — so a separate golden-render tool can
 // reproduce the exact same string byte-for-byte. fs.Glob already returns sorted

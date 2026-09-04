@@ -395,9 +395,8 @@ func (s *server) runPage(w http.ResponseWriter, r *http.Request, acct db.Account
 	view := s.buildRunView(r, dv, jobRows)
 	s.render(w, r, "run", map[string]any{
 		"Title": "batch " + view.Title, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive":    "drift",
-		"DesignTokens": true,
-		"Refresh":      runRefresh(view.Status),
+		"NavActive": "drift",
+		"Refresh":   runRefresh(view.Status),
 		// rundetail.tmpl also reads StreamHref at root scope, so the attribute and script emit together.
 		"StreamHref": view.StreamHref,
 		"Run":        view,

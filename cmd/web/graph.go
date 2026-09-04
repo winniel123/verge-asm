@@ -569,7 +569,7 @@ func (s *server) graphPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	}
 	s.render(w, r, "graph", map[string]any{
 		"Title": "Graph", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "graph", "DesignTokens": true,
-		"Graph": g,
+		"NavActive": "graph",
+		"Graph":     g,
 	})
 }
