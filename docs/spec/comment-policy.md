@@ -913,7 +913,8 @@ instances are measured.
 | `(ADR-0129 §6)` on `internal/queue/edgefanout.go:268` | Not the vantage rule the comment states | `#956` (#1328) |
 | `(ADR-0130 §3)` on `cmd/web`'s `server.routes` | "Redirects preserve the submitting URL" | Nothing. Validating a redirect against the route table is stated nowhere (#1203) |
 | `(#286)` on the anchor-slug rule in `cmd/web/seeds.go` | T10 IA reconciliation | `docs/spec/v1-spec.md` §5.3 (#1206) |
-| `ADR-0081` on the host-only redaction rule, five sites | A Delivery-has-no-cause rule | Nothing. The host-only rendering rule is stated nowhere (#1354) |
+| `ADR-0081` on the host-only redaction rule, three sites | A Delivery-has-no-cause rule | Nothing. The host-only rendering rule is stated nowhere (#1354) |
+| `(ADR-0053)` on `cmd/web/reports.go:905` — a **repair** that landed | Secret custody: `web` renders "set" or "not set", never a value | Nothing, as above (#1210, PR #1350) |
 
 **`ADR-0130 §3` is the shape that falls through both repairs.** It names a live section of a live
 document that rules something else, so §8.3 suppresses the gap and this section has nothing to
@@ -927,29 +928,37 @@ token then appeared in `pure_test.go:64` and twice in `crtsh_test.go`, both owne
 was opened for two citations and its file held three. `edgefanout.go:268` cites `ADR-0129 §6` where
 the rule is #956, and only a sweep of every `ADR-0129` reference in the file found it.
 
-**`ADR-0081` is misattributed, and both a blanket replace and a blanket repair target are wrong.**
-It contains zero occurrences of "host", "token" or "URL". **Five** sites cite it for the host-only
-redaction rule — `internal/message/render.go:395`, `cmd/web/reportdelivery_test.go:20` and `:102`,
-and `cmd/web/reports.go:1114` and `:1223`. Its **eleven** other uses cite it for a
-Delivery-has-no-cause rule, which it does state: `cmd/web/messages.go:21`, `:94`, `:270` and `:508`,
-`cmd/web/messages_test.go:122`, and six `internal/db` sites, which are three comments each written
-into `querier.go` and into its own query file. Those eleven are correct and stay.
+**`ADR-0081` is misattributed, and a blanket replace would be wrong.** It contains zero occurrences
+of "host", "token" or "URL". **Three** sites cite it for the host-only redaction rule:
+`internal/message/render.go:395`, `cmd/web/reportdelivery_test.go:20` and `:102`. Its **eleven**
+other uses cite it for a Delivery-has-no-cause rule, which it does state — `cmd/web/messages.go:21`,
+`:94`, `:270` and `:508`, `cmd/web/messages_test.go:122`, and six `internal/db` sites, which are
+three comments each written into `querier.go` and into its own query file. Those eleven are correct
+and stay. **#1354** tracks the three.
 
-**No document on `main` states the host-only rendering rule, so the five have no repair target.**
-`ADR-0053` was nominated for it and does not carry it. `ADR-0053` rules secret *custody* — `web`
-renders "set" or "not set" and never a value — and it names "a webhook URL with a token in it" only
-as an example inside its Context. It fails test 1 above. Route 3 applies:
-the five go uncited and the rule is recorded as a gap. **#1354** tracks the repair, and its own
-"Done when" list names `ADR-0053` and three sites, so it needs correcting before it runs.
+**The repair target that was nominated for it is worse than the misattribution.** `ADR-0053` was
+named as the document that states the host-only rendering rule. It does not. `ADR-0053` rules secret
+**custody** — `web` renders "set" or "not set" and never a value — and it names "a webhook URL with
+a token in it" only as an example inside its Context's "surfaces that do not exist yet" paragraph.
+It fails test 1 above. A grep of `docs/` and `CONTEXT.md` for the rendering rule returns nothing, so
+**route 3 applies: the reason goes uncited and the rule is recorded as a gap.**
+
+**#1210 made that repair, and it is on `main`.** `cmd/web/reports.go:905` reads "only its host is
+shown (ADR-0053)" (PR #1350). This is the shape a repair is most likely to produce: the ADR is
+`Accepted`, its title and its Context both name a secret in a URL, and a token grep answers. Only
+reading the Decision separates it from a target. Fold it into **#1354**.
 
 **Check that a survivor's citation resolves before the PR opens.** The ratchet does not provide this
-check. **Four defects have reached `main` in merged sweep output, and two are still open.**
+check. **Five defects have reached `main` in merged sweep output. Three are repaired and two are
+open.** A sweep that runs ten batches lands about one defect a batch, so read this as a rate rather
+than as a closed list.
 
 | Defect | Landed by | State |
 | --- | --- | --- |
-| `internal/queue/worker.go` cited `DF-F4`, and `edgefanout.go` carried `(ADR-0129 §5)` on a rule §5 does not state | #1194, PR #1317 | **Repaired.** #1328 merged as `b158035` and fixed a third the file also held. |
-| `ADR-0081` on the host-only redaction rule, five sites | Batches 5 to 10 | Open. **#1354**, and see the correction above. |
-| `cmd/web/seeds.go:453` says the head block inlines `tokens/*.css` "only when this datum is set". 42 `cmd/web` sites set it `true` and 0 set it `false` | #1206, PR #1340 | Open. **#1355**. |
+| `internal/queue/worker.go` cited `DF-F4`, and `edgefanout.go` carried `(ADR-0129 §5)` on a rule §5 does not state | #1194, PR #1317 | **Repaired.** #1328 merged as `b158035`, and it fixed a third the same file held. |
+| `cmd/web/seeds.go` said the head block inlines `tokens/*.css` "only when this datum is set", against 42 `cmd/web` sites that set it `true` and 0 that set it `false` | #1206, PR #1340 | **Repaired.** #1355, PR #1356, which also deleted the inert gate. |
+| `ADR-0081` on the host-only redaction rule, three sites | Batches 5 to 10 | Open. **#1354**. |
+| `cmd/web/reports.go:905` cites `ADR-0053` for a rule `ADR-0053` does not state | #1210, PR #1350 | Open. A **repair** produced it. Fold into **#1354**. |
 
 Do not repair an open one under a sweep ticket.
 
@@ -1065,11 +1074,12 @@ truth and may be edited in-repo. No `G1`/`G2` gate and no byte-comparison step e
 **Pair the status-line test (§4.7) with a phrase grep, as two independent detectors.** The
 status-line test is a citation test and this defect is mostly uncited. `cmd/web/reports.go` carried
 **7** assertions of the withdrawn doctrine and exactly **1** named an ADR (#1210). The other six
-cite nothing, a dangling `#23e`, `SPEC-CHANGE`, or a live issue number. `cmd/web/graph.go:20-27`
-asserts the doctrine in full — "the frozen design-owned graph.tmpl … embedded read-only … the repo
-authors no markup/CSS/JS for this route … kept byte-for-byte" — and cites only `#583` (#1211).
-Across the 28 unswept `cmd/web` production files, 18 carry the phrasing with zero `ADR-0109` or
-`ADR-0116` reference.
+cited nothing, a dangling `#23e`, `SPEC-CHANGE`, or a live issue number. `cmd/web/graph.go`'s file
+header asserted the doctrine in full — "the frozen design-owned graph.tmpl … embedded read-only …
+the repo authors no markup/CSS/JS for this route … kept byte-for-byte" — and cited only `#583`
+(#1211). Batch 10 measured the unswept remainder of `cmd/web` production at 28 files, and **18**
+carried the phrasing with zero `ADR-0109` or `ADR-0116` reference. Both figures fall as the sweep
+runs. The ratio is the point, not the count.
 
 The phrase list: `byte-for-byte`, `frozen design`, `design-owned`, `normative for look`, `re-skin`,
 `authors no markup`.
@@ -1717,9 +1727,9 @@ zero `lint` findings (#1189).
 citation must pass, and the measured false resolves. Neither a file-existence check nor a bare token
 grep is enough. **The check needs the issue API**, because a deleted `#nnn` returns HTTP 410 and
 nothing under `docs/` distinguishes it from a live one. It also needs the issue **title**, because a
-design-collision id's number resolves to an unrelated live issue. Four defects have already landed
-on `main` in merged sweep output: two citations repaired by **#1328**, the `ADR-0081` misattribution
-in **#1354**, and a false `.DesignTokens` claim in **#1355**.
+design-collision id's number resolves to an unrelated live issue. **Five defects have reached `main`
+in merged sweep output across ten batches, and one of them is a repair that went to the wrong
+document.** §4.7 tables them.
 
 **A citation repair re-runs §4.4's length check.** A repair lengthens the line, and the
 100-character cap binds after `gofmt`. Two of #1328's three repairs measured 110 and 103 runes
