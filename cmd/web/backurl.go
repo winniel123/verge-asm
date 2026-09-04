@@ -101,7 +101,7 @@ func (s *server) resolveBack(r *http.Request, fallback string) string {
 	if !s.routeServesGET(u.Path) {
 		return fallback
 	}
-	// decodeToasts reads only the first toast, so a planted one beats the real receipt (chrome.go).
+	// Only the first toast is read (chrome.go), so a planted one beats the real receipt.
 	if i := strings.IndexByte(raw, '?'); i >= 0 {
 		q := stripToastParam(raw[i+1:])
 		if q == "" {

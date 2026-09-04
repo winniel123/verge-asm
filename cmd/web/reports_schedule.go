@@ -203,7 +203,7 @@ func redirectWizardStep(w http.ResponseWriter, r *http.Request, base string, v s
 	if v.Back != "" {
 		q.Set(backField, v.Back)
 	}
-	// base is a constant route, so the operator-held value cannot reach the redirect's host.
+	// The route here is a constant and this is only its query, so no operator value reaches the host.
 	http.Redirect(w, r, base+"?"+q.Encode(), http.StatusSeeOther)
 }
 
@@ -395,7 +395,7 @@ func (s *server) runReportScheduleNow(w http.ResponseWriter, r *http.Request, ac
 		return
 	}
 
-	// The result is discarded: this render only confirms the period is cuttable (#291).
+	// The result is discarded: this render only confirms the period is cuttable.
 	_ = message.RenderArtifact(message.Artifact{
 		Title:       sc.Name,
 		PeriodStart: start.Format("2006-01-02"),
@@ -520,7 +520,7 @@ func (s *server) renderScheduleWizard(ctx context.Context, w http.ResponseWriter
 		"IsAdmin":   acct.Role == roleAdmin,
 		"NavActive": "reports",
 
-		// injectChrome stamps BackURL only when unset, so setting it here, even empty, matters.
+		// Chrome injection stamps BackURL only when unset, so setting it here, even empty, matters.
 		"BackURL": v.Back,
 
 		"WizardTitle": title,

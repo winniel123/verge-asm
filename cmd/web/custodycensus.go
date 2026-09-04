@@ -91,7 +91,6 @@ func custodyExtensionEstate(ctx context.Context, q custodyCensusStore, asOf time
 		Resolutions:   resolutions,
 	}.WithAddressExclusions(excluded)
 
-	// edge_fanout_observation is never pruned, so an unbound read's cost grows without bound (#985).
 	fanout, err := queue.ReadEdgeFanout(ctx, q, queue.EdgeFanoutOver(estate.ExtensionCandidates()))
 	if err != nil {
 		return custody.Estate{}, err

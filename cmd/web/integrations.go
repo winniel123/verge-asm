@@ -21,7 +21,7 @@ import (
 
 const integrationsEnabled = true
 
-// An integration is neither a Channel nor a Source — it formats on top of one (CONTEXT.md).
+// An integration is neither a delivery channel nor a discovery source (CONTEXT.md).
 
 const (
 	integrationAvailable   = "available"
@@ -262,7 +262,7 @@ func (s *server) installIntegration(w http.ResponseWriter, r *http.Request, acct
 		s.serverError(w, "install integration", err)
 		return
 	}
-	// A drawer is read, not re-offered, so ?view is not stripped as dialog state (ADR-0130 §3).
+	// The submitting URL's query rides through, so the drawer re-opens as read (ADR-0130 §3).
 	s.backToSection(w, r, "integrations")
 }
 
