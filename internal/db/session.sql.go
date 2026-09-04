@@ -25,9 +25,6 @@ type CreateSessionParams struct {
 	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
 }
 
-// Open a session at login. Only the token's hash is stored; the opaque plaintext
-// lives solely in the cookie on the client (ADR-0117). Returns the row so the
-// caller holds the id it just minted.
 func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error) {
 	row := q.db.QueryRow(ctx, createSession,
 		arg.AccountID,
@@ -62,11 +59,6 @@ type GetSessionByTokenHashParams struct {
 	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
 }
 
-// The per-request validation lookup: resolve a presented session token (by its
-// hash) to a live row. A session is live only when it is unrevoked and unexpired,
-// so both gates are in SQL and a dead session simply returns no row — the handler
-// then treats it exactly as an absent cookie. The clock bound is passed in ($2) so
-// a fixed-clock test and production agree on the boundary.
 func (q *Queries) GetSessionByTokenHash(ctx context.Context, arg GetSessionByTokenHashParams) (Session, error) {
 	row := q.db.QueryRow(ctx, getSessionByTokenHash, arg.TokenHash, arg.ExpiresAt)
 	var i Session
@@ -105,9 +97,6 @@ type ListAllActiveSessionsRow struct {
 	ExpiresAt  pgtype.Timestamptz `json:"expires_at"`
 }
 
-// Every account's live sessions for the admin surface, joined to the account so the
-// view can show whose session it is and at what role. Ordered by account then
-// recency. token_hash is never selected here either.
 func (q *Queries) ListAllActiveSessions(ctx context.Context, expiresAt pgtype.Timestamptz) ([]ListAllActiveSessionsRow, error) {
 	rows, err := q.db.Query(ctx, listAllActiveSessions, expiresAt)
 	if err != nil {
@@ -160,9 +149,6 @@ type ListSessionsForAccountRow struct {
 	ExpiresAt  pgtype.Timestamptz `json:"expires_at"`
 }
 
-// One account's live sessions, newest activity first — the Profile's personal
-// sessions list. token_hash is omitted from the read: listing never needs it, so
-// the secret material stays out of the render path.
 func (q *Queries) ListSessionsForAccount(ctx context.Context, arg ListSessionsForAccountParams) ([]ListSessionsForAccountRow, error) {
 	rows, err := q.db.Query(ctx, listSessionsForAccount, arg.AccountID, arg.ExpiresAt)
 	if err != nil {
@@ -201,8 +187,6 @@ type RevokeAllSessionsForAccountParams struct {
 	RevokedAt pgtype.Timestamptz `json:"revoked_at"`
 }
 
-// Revoke every live session for an account with no exception — the password-reset
-// path (no current session to keep) and the admin offboarding action. Idempotent.
 func (q *Queries) RevokeAllSessionsForAccount(ctx context.Context, arg RevokeAllSessionsForAccountParams) error {
 	_, err := q.db.Exec(ctx, revokeAllSessionsForAccount, arg.AccountID, arg.RevokedAt)
 	return err
@@ -219,10 +203,6 @@ type RevokeOtherSessionsForAccountParams struct {
 	RevokedAt pgtype.Timestamptz `json:"revoked_at"`
 }
 
-// "Sign out other devices" and password-change invalidation: revoke every live
-// session for the account EXCEPT the one making the request ($2, the current
-// session id). The current session survives so the acting user is not signed out
-// of the tab they are working in.
 func (q *Queries) RevokeOtherSessionsForAccount(ctx context.Context, arg RevokeOtherSessionsForAccountParams) error {
 	_, err := q.db.Exec(ctx, revokeOtherSessionsForAccount, arg.AccountID, arg.ID, arg.RevokedAt)
 	return err
@@ -239,10 +219,6 @@ type RevokeSessionParams struct {
 	RevokedAt pgtype.Timestamptz `json:"revoked_at"`
 }
 
-// Revoke one session, scoped to its owner: the account_id predicate means an
-// account can only revoke its own sessions, never another's by guessing an id —
-// the same owner-scoping personal-token revocation uses. Idempotent: a
-// revoked/absent row is unaffected.
 func (q *Queries) RevokeSession(ctx context.Context, arg RevokeSessionParams) error {
 	_, err := q.db.Exec(ctx, revokeSession, arg.ID, arg.AccountID, arg.RevokedAt)
 	return err
@@ -258,8 +234,6 @@ type RevokeSessionByIDForAdminParams struct {
 	RevokedAt pgtype.Timestamptz `json:"revoked_at"`
 }
 
-// Admin revocation of any single session by id, not owner-scoped — gated by
-// requireAdmin at the handler, never reachable by a viewer. Idempotent.
 func (q *Queries) RevokeSessionByIDForAdmin(ctx context.Context, arg RevokeSessionByIDForAdminParams) error {
 	_, err := q.db.Exec(ctx, revokeSessionByIDForAdmin, arg.ID, arg.RevokedAt)
 	return err
@@ -274,8 +248,6 @@ type TouchSessionParams struct {
 	LastSeenAt pgtype.Timestamptz `json:"last_seen_at"`
 }
 
-// Refresh last_seen_at for the "last active" column. Called at most once per minute
-// per session (the handler throttles) so a busy session does not amplify writes.
 func (q *Queries) TouchSession(ctx context.Context, arg TouchSessionParams) error {
 	_, err := q.db.Exec(ctx, touchSession, arg.ID, arg.LastSeenAt)
 	return err

@@ -21,9 +21,6 @@ type ConsumeInviteParams struct {
 	AcceptedAccountID pgtype.Int8        `json:"accepted_account_id"`
 }
 
-// Spend an invite: stamp consumed_at with the instant the caller passes and record
-// which account the acceptance created, which makes it single-use. A second present
-// of the same token then reads a non-NULL consumed_at and is refused.
 func (q *Queries) ConsumeInvite(ctx context.Context, arg ConsumeInviteParams) error {
 	_, err := q.db.Exec(ctx, consumeInvite, arg.ID, arg.ConsumedAt, arg.AcceptedAccountID)
 	return err
@@ -42,13 +39,6 @@ type CreateInviteParams struct {
 	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
 }
 
-// Mint a single-use, time-boxed invite at a role (Settings -> Team, T18). This is
-// the creation side of the invite table T19 shipped for acceptance: web keeps only
-// a hash of the token, and the plaintext rides one join URL handed out of band.
-// invited_by attributes the issuing admin so the invite outlives them as a record
-// (ON DELETE SET NULL); expires_at bounds the window. The row starts unconsumed —
-// consumed_at and accepted_account_id stay NULL until the acceptance screen spends
-// it (ConsumeInvite).
 func (q *Queries) CreateInvite(ctx context.Context, arg CreateInviteParams) (Invite, error) {
 	row := q.db.QueryRow(ctx, createInvite,
 		arg.TokenHash,
@@ -76,9 +66,6 @@ FROM invite
 WHERE token_hash = $1
 `
 
-// Resolve a presented invite token to its row by hash. Validity (unconsumed,
-// unexpired) is checked in the handler against the server clock rather than SQL
-// now(), matching every other auth read's use of the injectable clock.
 func (q *Queries) GetInviteByTokenHash(ctx context.Context, tokenHash string) (Invite, error) {
 	row := q.db.QueryRow(ctx, getInviteByTokenHash, tokenHash)
 	var i Invite

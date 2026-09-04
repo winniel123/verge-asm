@@ -27,11 +27,6 @@ type AdvanceCTLogCursorParams struct {
 	SignedHead []byte `json:"signed_head"`
 }
 
-// Move one log's cursor forward to the tree size just read, recording the STH that
-// signed it (spec §4.2). Forward-only by construction: the ON CONFLICT update advances
-// the row only when the new tree size is at or beyond the stored one, so a stale or
-// out-of-order poll can never rewind the cursor and re-admit history (the §4 invariant).
-// The first poll of a log inserts its row.
 func (q *Queries) AdvanceCTLogCursor(ctx context.Context, arg AdvanceCTLogCursorParams) error {
 	_, err := q.db.Exec(ctx, advanceCTLogCursor, arg.LogID, arg.TreeSize, arg.SignedHead)
 	return err
@@ -60,12 +55,6 @@ type CTTailLastBatchRow struct {
 	Names  int64              `json:"names"`
 }
 
-// The most recent drift-tail (kind='ct-tail') Batch: when it ran and how many Names it
-// admitted (#881, spec §6.2). The More-CT-capabilities card states the tail's own run
-// readout, distinct from the bulk `ct` hero's (which excludes ct-tail Batches). last_at
-// is the newest ct-tail Batch's instant, NULL when the tail has never run; names counts
-// the admitted_name rows citing that Batch, and COALESCE gives 0 for an empty or
-// dead-lettered run. One row always returns.
 func (q *Queries) CTTailLastBatch(ctx context.Context) (CTTailLastBatchRow, error) {
 	row := q.db.QueryRow(ctx, cTTailLastBatch)
 	var i CTTailLastBatchRow
@@ -84,10 +73,6 @@ type GetCTLogCursorRow struct {
 	SignedHead []byte `json:"signed_head"`
 }
 
-// The tail's forward cursor for one CT log (spec §4.2): the last tree size read and
-// the last signed head seen. A log with no row yet has never been polled — the caller
-// treats pgx.ErrNoRows as "start at position 0" and reads the whole current delta from
-// the log's origin forward, never backfilling below it afterwards.
 func (q *Queries) GetCTLogCursor(ctx context.Context, logID string) (GetCTLogCursorRow, error) {
 	row := q.db.QueryRow(ctx, getCTLogCursor, logID)
 	var i GetCTLogCursorRow

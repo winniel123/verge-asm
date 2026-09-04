@@ -31,9 +31,6 @@ type ClaimDeliveryRow struct {
 	MaxAttempts int32 `json:"max_attempts"`
 }
 
-// The Postgres-backed claim: FOR UPDATE SKIP LOCKED over pending deliveries whose
-// run_after has passed, oldest first, marking the winner 'sending' in one
-// statement so two workers never claim the same delivery.
 func (q *Queries) ClaimDelivery(ctx context.Context) (ClaimDeliveryRow, error) {
 	row := q.db.QueryRow(ctx, claimDelivery)
 	var i ClaimDeliveryRow
@@ -56,10 +53,6 @@ type GetChannelForDeliveryRow struct {
 	Secret pgtype.Text `json:"secret"`
 }
 
-// Reads the target URL and the signing secret. This is the ONE read path that
-// selects the secret: it is write-only at the interface (no render query returns
-// it), but the worker-side signer must read it to compute the HMAC. It is never
-// rendered and never leaves this instance except as a signature.
 func (q *Queries) GetChannelForDelivery(ctx context.Context, id int64) (GetChannelForDeliveryRow, error) {
 	row := q.db.QueryRow(ctx, getChannelForDelivery, id)
 	var i GetChannelForDeliveryRow
@@ -84,9 +77,6 @@ type GetMessageForDeliveryRow struct {
 	Headline    string             `json:"headline"`
 }
 
-// The frozen Message the body is built from — read verbatim, never recomputed.
-// The body carries exactly these fields (the headline byte-identical, the census
-// as a count) and reaches no other table: no row behind a census count.
 func (q *Queries) GetMessageForDelivery(ctx context.Context, id int64) (GetMessageForDeliveryRow, error) {
 	row := q.db.QueryRow(ctx, getMessageForDelivery, id)
 	var i GetMessageForDeliveryRow
@@ -104,7 +94,6 @@ func (q *Queries) GetMessageForDelivery(ctx context.Context, id int64) (GetMessa
 }
 
 const insertDelivery = `-- name: InsertDelivery :exec
-
 INSERT INTO delivery (message_id, channel_id)
 VALUES ($1, $2)
 ON CONFLICT ON CONSTRAINT delivery_message_channel DO NOTHING
@@ -115,15 +104,6 @@ type InsertDeliveryParams struct {
 	ChannelID int64 `json:"channel_id"`
 }
 
-// Reads and writes behind Channel delivery (#207). A Delivery is the Operational
-// record of one outbound POST of one Message to one Channel: it never becomes a
-// Message and never touches the comparison path. Routing is by class alone — the
-// only predicate over which channels receive a firing is the class subset each
-// channel carries (ADR-0091); there is no per-rule or per-subject query here.
-// Enqueue one pending Delivery for (message, channel). The caller has already
-// decided membership by class alone (delivery.Routes); this only persists the
-// routed pair. Idempotent: re-enqueuing the same pair is a no-op, so the message
-// identifier the receiver de-duplicates on is stable across retries.
 func (q *Queries) InsertDelivery(ctx context.Context, arg InsertDeliveryParams) error {
 	_, err := q.db.Exec(ctx, insertDelivery, arg.MessageID, arg.ChannelID)
 	return err
@@ -147,9 +127,6 @@ type ListDeliveriesForMessageRow struct {
 	DeliveredAt pgtype.Timestamptz `json:"delivered_at"`
 }
 
-// The delivery outcomes a Message renders in the store (notification-channels.md
-// §8): to which channels it went and whether any is dead-lettered. Reads from the
-// delivery table by join — the Message row carries no delivery state of its own.
 func (q *Queries) ListDeliveriesForMessage(ctx context.Context, messageID int64) ([]ListDeliveriesForMessageRow, error) {
 	rows, err := q.db.Query(ctx, listDeliveriesForMessage, messageID)
 	if err != nil {
@@ -194,11 +171,6 @@ type ListDeliveryOutcomesRow struct {
 	LastError pgtype.Text `json:"last_error"`
 }
 
-// Every Delivery outcome joined to its Channel, for rendering each Message's own
-// delivery outcomes on the panel in one pass (ADR-0081, ADR-0039) rather than a
-// per-message read. A delivery failure is surfaced HERE, on the Message it
-// carries — never on Coverage, which a delivery has no cause to touch (#244).
-// Ordered by message then delivery so the caller groups them in a single walk.
 func (q *Queries) ListDeliveryOutcomes(ctx context.Context) ([]ListDeliveryOutcomesRow, error) {
 	rows, err := q.db.Query(ctx, listDeliveryOutcomes)
 	if err != nil {
@@ -237,7 +209,6 @@ type MarkDeliveryDeliveredParams struct {
 	DeliveredAt pgtype.Timestamptz `json:"delivered_at"`
 }
 
-// A 2xx: the delivery is complete. Clears the last error and stamps the instant.
 func (q *Queries) MarkDeliveryDelivered(ctx context.Context, arg MarkDeliveryDeliveredParams) error {
 	_, err := q.db.Exec(ctx, markDeliveryDelivered, arg.ID, arg.DeliveredAt)
 	return err
@@ -254,8 +225,6 @@ type MarkDeliveryUndeliveredParams struct {
 	LastError pgtype.Text `json:"last_error"`
 }
 
-// The attempt budget is spent: dead-letter. The row is marked 'undelivered' — the
-// undelivered mark — and the Message it points at is deliberately left untouched.
 func (q *Queries) MarkDeliveryUndelivered(ctx context.Context, arg MarkDeliveryUndeliveredParams) error {
 	_, err := q.db.Exec(ctx, markDeliveryUndelivered, arg.ID, arg.LastError)
 	return err
@@ -274,9 +243,6 @@ type RetryDeliveryParams struct {
 	LastError pgtype.Text        `json:"last_error"`
 }
 
-// A transient failure with attempts left: advance the attempt, push run_after out
-// by the shared backoff, and record the error. The row returns to 'pending' and
-// the claim index picks it up again once run_after passes.
 func (q *Queries) RetryDelivery(ctx context.Context, arg RetryDeliveryParams) error {
 	_, err := q.db.Exec(ctx, retryDelivery,
 		arg.ID,

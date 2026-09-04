@@ -1,17 +1,8 @@
 -- name: InsertCTReliabilitySample :exec
--- Record one bulk-by-name query as a reliability sample (spec §3, #879): the source
--- it ran against, whether it succeeded (a well-formed 200), its end-to-end fetch
--- latency in whole milliseconds, and whether a successful query returned zero
--- certificate names (the false-empty limb). One row per query attempt, so a retry is
--- its own sample.
 INSERT INTO ct_reliability_sample (source, ok, latency_ms, empty)
 VALUES ($1, $2, $3, $4);
 
 -- name: TrimCTReliabilitySamples :exec
--- Keep only the newest `keep` samples for one source, so the table stays bounded and
--- the bar is measured over a rolling window rather than all history (spec §3). Run
--- after each insert. Ordered newest-first, id breaking an observed_at tie, matching
--- the read window's order.
 DELETE FROM ct_reliability_sample AS s
 WHERE s.source = sqlc.arg(source)
   AND s.id NOT IN (
@@ -22,15 +13,6 @@ WHERE s.source = sqlc.arg(source)
   );
 
 -- name: CTReliabilityWindow :one
--- Aggregate one source's newest `window` samples into the three bar limbs (spec §3):
--- the total measured, how many succeeded, how many succeeded but returned zero names
--- (false-empty), and the p95 end-to-end latency over the window. percentile_disc
--- returns an actual sampled latency, and COALESCE gives 0 for an empty window. last_at
--- is the newest sample's instant over the window — the last time this source ran a bulk
--- query, which the active-source hero reads to tell which source is live (#880): only
--- the config-selected source keeps producing samples, so the freshest wins. It is NULL
--- for an empty window. The caller (internal/scan.EvaluateCTReliability) turns the limbs
--- into pass/fail; the web layer reads last_at separately, never the scan package.
 WITH w AS (
     SELECT ok, latency_ms, empty, observed_at
     FROM ct_reliability_sample

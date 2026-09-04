@@ -39,9 +39,7 @@ type GetInstanceConfigRow struct {
 	SeedAddressCapUpdatedAt pgtype.Timestamptz `json:"seed_address_cap_updated_at"`
 }
 
-// The single operator-global row seeded by the migration; it always exists. Both
-// feature clusters (#390 API surfaces, #391 backup & updates) read their flags and
-// cached facts through this one row.
+// The migration seeds this row, so no-rows is not a reachable state.
 func (q *Queries) GetInstanceConfig(ctx context.Context) (GetInstanceConfigRow, error) {
 	row := q.db.QueryRow(ctx, getInstanceConfig)
 	var i GetInstanceConfigRow
@@ -76,9 +74,6 @@ type SetAPIEnabledParams struct {
 	ApiUpdatedBy pgtype.Int8 `json:"api_updated_by"`
 }
 
-// Flip the read-only /api/v1 surface on or off, stamping who acted and when so the
-// settings card can render the dated act of the current state (#390). Off by default;
-// a minted token stays inert until this is true.
 func (q *Queries) SetAPIEnabled(ctx context.Context, arg SetAPIEnabledParams) error {
 	_, err := q.db.Exec(ctx, setAPIEnabled, arg.ApiEnabled, arg.ApiUpdatedBy)
 	return err
@@ -90,8 +85,6 @@ SET last_backup_at = now(), last_backup_size = $1
 WHERE id = true
 `
 
-// Record the last backup taken from the UI (#391): its instant (now()) and byte size,
-// surfaced on the Backup card.
 func (q *Queries) SetLastBackup(ctx context.Context, lastBackupSize pgtype.Int8) error {
 	_, err := q.db.Exec(ctx, setLastBackup, lastBackupSize)
 	return err
@@ -110,9 +103,6 @@ type SetReleaseCacheParams struct {
 	ReleaseLatestNotes   pgtype.Text `json:"release_latest_notes"`
 }
 
-// Record the last result of the worker's best-effort release check (#391): the state
-// (current | newer | disabled) and, for a "newer", the latest version and notes. The
-// check instant is stamped now(), so a "checked N ago" reads honestly.
 func (q *Queries) SetReleaseCache(ctx context.Context, arg SetReleaseCacheParams) error {
 	_, err := q.db.Exec(ctx, setReleaseCache, arg.ReleaseState, arg.ReleaseLatestVersion, arg.ReleaseLatestNotes)
 	return err
@@ -129,11 +119,7 @@ type SetSeedAddressCapParams struct {
 	SeedAddressCapUpdatedBy pgtype.Int8 `json:"seed_address_cap_updated_by"`
 }
 
-// Set the operator address-scope cap (#888 / Settings #206, ADR-0127), stamping who
-// acted and when so the Settings control renders the dated act of the current cap.
-// The value is read at declaration only (ADR-0047 §5.3), so lowering it never
-// invalidates a scope declared under a higher cap. ADR-0127: no upper bound is
-// enforced here — the handler floors it at 1 and the column has no ceiling.
+// The operator cap has no upper bound; a large scope is priced at policy time (ADR-0127).
 func (q *Queries) SetSeedAddressCap(ctx context.Context, arg SetSeedAddressCapParams) error {
 	_, err := q.db.Exec(ctx, setSeedAddressCap, arg.SeedAddressCap, arg.SeedAddressCapUpdatedBy)
 	return err
@@ -150,8 +136,6 @@ type SetUpdateCheckEnabledParams struct {
 	UpdateCheckUpdatedBy pgtype.Int8 `json:"update_check_updated_by"`
 }
 
-// Opt the worker's daily release-feed check in or out, stamping who acted and when
-// (#391). While false the worker never dispatches the check — air-gap-safe.
 func (q *Queries) SetUpdateCheckEnabled(ctx context.Context, arg SetUpdateCheckEnabledParams) error {
 	_, err := q.db.Exec(ctx, setUpdateCheckEnabled, arg.UpdateCheckEnabled, arg.UpdateCheckUpdatedBy)
 	return err
