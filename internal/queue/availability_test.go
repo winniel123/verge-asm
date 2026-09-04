@@ -6,9 +6,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 )
 
-// A terminal resolution-walk Batch outcome derives its vantage's Availability: a
-// completed Batch restores it, a dead-lettered one opens it, and a Batch with no
-// vantage (the worker-read zone/ct Scans) moves nothing (ADR-0108).
 func TestAvailabilityAfterOutcome(t *testing.T) {
 	const dns = resolutionwalk.Kind
 	cases := []struct {
@@ -33,11 +30,6 @@ func TestAvailabilityAfterOutcome(t *testing.T) {
 	}
 }
 
-// The clobber guard: only a resolution-walk (dns) batch may move Availability. A
-// completing port-probe (connect-outcome/tls-acceptance) batch at the same
-// vantage must NOT re-mark it available, or it would erase the unavailable a
-// dead-lettered dns batch set and silently re-mask the resolver outage #249
-// exists to surface (ADR-0108).
 func TestNonResolutionBatchDoesNotMoveAvailability(t *testing.T) {
 	for _, kind := range []string{"connect-outcome", "tls-acceptance"} {
 		for _, outcome := range []string{outcomeCompleted, outcomeDeadLettered} {

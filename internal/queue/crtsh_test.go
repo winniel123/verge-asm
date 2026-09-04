@@ -14,11 +14,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// countingSeq sets *saw on the first name and passes every name through unchanged, so
-// the false-empty limb (#879) tells a source that answered empty apart from one whose
-// names the filter dropped.
 func TestCountingSeq(t *testing.T) {
-	// A non-empty source sets saw and yields every name.
 	saw := false
 	got := slices.Collect(countingSeq(slices.Values([]string{"a", "b"}), &saw))
 	if !saw {
@@ -28,7 +24,6 @@ func TestCountingSeq(t *testing.T) {
 		t.Errorf("passed-through names = %v, want [a b]", got)
 	}
 
-	// An empty source leaves saw false — the false-empty case.
 	empty := false
 	if n := len(slices.Collect(countingSeq(slices.Values([]string{}), &empty))); n != 0 {
 		t.Errorf("empty sequence yielded %d names", n)
@@ -38,10 +33,6 @@ func TestCountingSeq(t *testing.T) {
 	}
 }
 
-// The production fetcher sends a distinctive User-Agent (the operator asked for
-// one) and returns the status and body without erroring on a non-200 — a 404 or
-// 5xx is the caller's transient failure to classify, never mapped to empty here
-// (ADR-0027 §7).
 func TestHTTPCTFetcher(t *testing.T) {
 	var gotUA string
 	mux := http.NewServeMux()
@@ -72,9 +63,6 @@ func TestHTTPCTFetcher(t *testing.T) {
 		t.Errorf("User-Agent = %q, want a verge-asm/<version> identifier", gotUA)
 	}
 
-	// A 404 is returned as status 404 with no error — the caller decides it is
-	// transient. Mapping it to an error here would be fine too, but mapping it to
-	// an empty admission is the failure the runner must not make.
 	status, _, err = f.Fetch(context.Background(), srv.URL+"/404")
 	if err != nil {
 		t.Fatalf("Fetch(404) errored on the transport, want a returned 404: %v", err)
@@ -84,17 +72,9 @@ func TestHTTPCTFetcher(t *testing.T) {
 	}
 }
 
-// A 3xx from crt.sh is NOT followed: the fetcher returns the redirect's own
-// status and never issues the next hop, so a compromised or MITM'd crt.sh cannot
-// bounce the fetch to an internal host (blind SSRF). The redirect target is a
-// second httptest server whose handler flips a flag if it is ever reached; the
-// fetch must leave that flag unset and surface the 302 as a non-200 the caller
-// classifies as transient (ADR-0027 §7).
 func TestHTTPCTFetcherDoesNotFollowRedirect(t *testing.T) {
 	var hopReached bool
 	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// A link-local IMDS or RFC-1918 host in production; a loopback stand-in
-		// here. Reaching this at all is the SSRF the fix prevents.
 		hopReached = true
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`[{"name_value":"pwned.example.com"}]`))
@@ -123,13 +103,8 @@ func TestHTTPCTFetcherDoesNotFollowRedirect(t *testing.T) {
 	}
 }
 
-// TestCTFetchOutcome pins how a fetch result maps to the CT typed outcome (spec §1.2).
-// A ctx-killed fetch reads as CTContextCancelled — never a fake transport error — even
-// when the http client wraps context.Canceled in a *url.Error. A transport error before
-// any status carries its text; any status the fetch returned rides CTHTTP, non-200 too.
 func TestCTFetchOutcome(t *testing.T) {
-	// The http client returns ctx errors wrapped (e.g. *url.Error); ctFetchOutcome must
-	// see through the wrap, so test a wrapped context.Canceled and DeadlineExceeded.
+	// net/http wraps a ctx error in *url.Error, so a bare context.Canceled would not test the unwrap.
 	wrappedCancel := fmt.Errorf("Get %q: %w", "https://crt.sh", context.Canceled)
 	wrappedDeadline := fmt.Errorf("Get %q: %w", "https://crt.sh", context.DeadlineExceeded)
 
@@ -158,9 +133,6 @@ func TestCTFetchOutcome(t *testing.T) {
 	}
 }
 
-// sleepUntil returns immediately when the reserved slot is already in the past
-// (the common case once the throttle has spaced requests out), and honours ctx
-// cancellation when the slot is in the future.
 func TestSleepUntil(t *testing.T) {
 	now := func() time.Time { return time.Date(2026, 8, 16, 12, 0, 0, 0, time.UTC) }
 
@@ -169,8 +141,6 @@ func TestSleepUntil(t *testing.T) {
 		t.Errorf("sleepUntil(past) = %v, want nil (no wait)", err)
 	}
 
-	// Slot in the future with a cancelled ctx: returns promptly with the ctx error
-	// rather than blocking for the full interval.
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	future := time.Now().Add(time.Hour)

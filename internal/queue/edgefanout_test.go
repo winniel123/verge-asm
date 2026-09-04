@@ -23,9 +23,6 @@ func edgeInstant() time.Time {
 	return time.Date(2026, 8, 31, 12, 0, 0, 0, time.UTC)
 }
 
-// One row per measured address, carrying the outcome and — on `presented` alone — the
-// served certificate's fingerprint. The row records the fingerprint and never the DER:
-// the certificate material rides the same batch into its own side store.
 func TestToEdgeFanoutRowsRecordsOneRowPerMeasuredAddress(t *testing.T) {
 	at := edgeInstant()
 	rows, dropped := toEdgeFanoutRows(scan.EdgeFanoutKind, 42, tstz(at), []wire.Observation{
@@ -52,11 +49,9 @@ func TestToEdgeFanoutRowsRecordsOneRowPerMeasuredAddress(t *testing.T) {
 	}
 }
 
-// The three negatives are each a value in their own right. Every one persists, and none
-// carries a fingerprint: an absence is never a value, so a candidate the Scan did not
-// measure is the one that carries no row.
 func TestToEdgeFanoutRowsKeepsEveryNegative(t *testing.T) {
 	at := edgeInstant()
+	// A negative is a value, so only a candidate the Scan never measured carries no row.
 	rows, dropped := toEdgeFanoutRows(scan.EdgeFanoutKind, 1, tstz(at), []wire.Observation{
 		edgeLine("93.184.216.34", "tls-refused", ""),
 		edgeLine("93.184.216.35", "no-tls", ""),
@@ -72,8 +67,6 @@ func TestToEdgeFanoutRowsKeepsEveryNegative(t *testing.T) {
 	}
 }
 
-// A line of any other kind is not this store's. The completion path runs this fold on
-// every batch, so a dns or connect-outcome batch must produce no row here.
 func TestToEdgeFanoutRowsIgnoresOtherKinds(t *testing.T) {
 	at := edgeInstant()
 	rows, dropped := toEdgeFanoutRows(scan.EdgeFanoutKind, 1, tstz(at), []wire.Observation{
@@ -85,9 +78,6 @@ func TestToEdgeFanoutRowsIgnoresOtherKinds(t *testing.T) {
 	}
 }
 
-// A line this leaf could not have emitted is dropped and named, never persisted and
-// never guessed at. A fabricated row would feed the custody-extension veto an answer
-// nothing measured.
 func TestToEdgeFanoutRowsDropsWhatTheLeafCannotEmit(t *testing.T) {
 	at := edgeInstant()
 	cases := []struct {
@@ -114,8 +104,6 @@ func TestToEdgeFanoutRowsDropsWhatTheLeafCannotEmit(t *testing.T) {
 	}
 }
 
-// A malformed line never costs the legitimate lines in the same batch their commit: a
-// compromised prober cannot turn one bad row into a queue denial of service.
 func TestToEdgeFanoutRowsKeepsTheGoodLinesBesideABadOne(t *testing.T) {
 	at := edgeInstant()
 	rows, dropped := toEdgeFanoutRows(scan.EdgeFanoutKind, 1, tstz(at), []wire.Observation{
@@ -131,9 +119,6 @@ func TestToEdgeFanoutRowsKeepsTheGoodLinesBesideABadOne(t *testing.T) {
 	}
 }
 
-// An address repeated in one batch keeps its first row alone. The leaf handshakes each
-// distinct address once, so a repeat is a line the batch had no measurement for — and
-// two rows at one instant would leave the newest-per-address read a coin toss.
 func TestToEdgeFanoutRowsDropsARepeatedAddress(t *testing.T) {
 	at := edgeInstant()
 	rows, dropped := toEdgeFanoutRows(scan.EdgeFanoutKind, 1, tstz(at), []wire.Observation{
@@ -148,8 +133,6 @@ func TestToEdgeFanoutRowsDropsARepeatedAddress(t *testing.T) {
 	}
 }
 
-// The address is stored in its netip form, so a lookup never turns on a spelling. A
-// mapped or padded rendering folds to the same key the dispatcher enqueued.
 func TestToEdgeFanoutRowsNormalisesTheAddress(t *testing.T) {
 	at := edgeInstant()
 	rows, _ := toEdgeFanoutRows(scan.EdgeFanoutKind, 1, tstz(at), []wire.Observation{
@@ -160,11 +143,6 @@ func TestToEdgeFanoutRowsNormalisesTheAddress(t *testing.T) {
 	}
 }
 
-// The fold admits itself on the kind the DISPATCHER enqueued, never on a line's
-// self-declared kind. Without this, a prober handling a dns job — whose scope denotes
-// names alone, so the address dimension has nothing to gate it against — could append
-// one `edge-fanout` line and mint a measurement of any address it liked, which the veto
-// (#985) would then read as an answer to a probe nothing ran.
 func TestToEdgeFanoutRowsWritesNothingForAnotherJobKind(t *testing.T) {
 	at := edgeInstant()
 	injected := []wire.Observation{edgeLine("93.184.216.34", "presented", "sha256:aa")}
@@ -176,9 +154,6 @@ func TestToEdgeFanoutRowsWritesNothingForAnotherJobKind(t *testing.T) {
 	}
 }
 
-// This leaf's lines carry no facet. One claiming a facet was gated on its SUBJECT
-// rather than on the Address this fold reads, so its address was never authorised and
-// the row must not be written.
 func TestToEdgeFanoutRowsDropsALineClaimingAFacet(t *testing.T) {
 	at := edgeInstant()
 	line := edgeLine("93.184.216.34", "unreachable", "")
@@ -190,10 +165,6 @@ func TestToEdgeFanoutRowsDropsALineClaimingAFacet(t *testing.T) {
 	}
 }
 
-// Where the line carries certificate material, the fingerprint the row stores and the
-// key that material lands under are the same value — the side store's key is recomputed
-// from its own DER, so a disagreement would leave the row naming a certificate that
-// store does not hold, and #984's SAN read joining to nothing.
 func TestToEdgeFanoutRowsDropsAFingerprintDisagreeingWithItsMaterial(t *testing.T) {
 	at := edgeInstant()
 	line := edgeLine("93.184.216.34", "presented", "sha256:aa")
@@ -203,8 +174,6 @@ func TestToEdgeFanoutRowsDropsAFingerprintDisagreeingWithItsMaterial(t *testing.
 		t.Fatalf("rows = %+v, dropped = %v, want no row and one reason", rows, dropped)
 	}
 
-	// The agreeing pair is written, and a presented handshake that carried a chain but
-	// no DER carries no material and is not tested against one.
 	line.CertMaterial = &wire.CertMaterial{Fingerprint: "sha256:aa", DER: []byte{0x30}}
 	if rows, dropped := toEdgeFanoutRows(scan.EdgeFanoutKind, 1, tstz(at), []wire.Observation{line}); len(rows) != 1 || len(dropped) != 0 {
 		t.Fatalf("agreeing pair: rows = %+v, dropped = %v, want one row", rows, dropped)

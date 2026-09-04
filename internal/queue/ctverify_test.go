@@ -23,8 +23,6 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// routeFetcher is a CTFetcher fake: each route matches a URL substring in order and returns a
-// canned status and body. The first match wins, so more-specific routes come first.
 type routeFetcher struct {
 	routes []route
 }
@@ -141,7 +139,7 @@ func TestVerifyMaterialRFCLogged(t *testing.T) {
 	ts := uint64(1700000000000)
 	sct := serializeSCT(logID, ts, nil)
 
-	// A tree of size 1: the leaf hash is the root and the audit path is empty.
+	// A one-entry Merkle tree's leaf hash is its root and its audit path is empty (RFC 6962 §2.1).
 	leafHash := scan.LeafHashX509(der, nil, ts)
 	fetch := routeFetcher{routes: []route{
 		{sub: "get-sth", status: 200, body: sthBody(1, leafHash)},
@@ -178,7 +176,7 @@ func TestVerifyMaterialUnreachableIsUnverifiable(t *testing.T) {
 	ts := uint64(1700000000000)
 	sct := serializeSCT(logID, ts, nil)
 	fetch := routeFetcher{routes: []route{
-		{sub: "get-sth", status: 503, body: nil}, // the log is unreachable
+		{sub: "get-sth", status: 503, body: nil},
 	}}
 	blob := wire.EncodeSCTCapture(wire.SCTCapture{TLSExt: [][]byte{sct}})
 	logs, _ := scan.AllLogs()
@@ -205,7 +203,6 @@ func TestVerifyMaterialTiledLogged(t *testing.T) {
 	sct := serializeSCT(logID, ts, ext)
 
 	leafHash := scan.LeafHashX509(der, ext, ts)
-	// A checkpoint of a size-1 tree, and a partial level-0 hash tile holding our leaf hash.
 	checkpoint := []byte("example.log\n1\n" + base64.StdEncoding.EncodeToString(make([]byte, 32)) + "\n\n— example sig\n")
 	fetch := routeFetcher{routes: []route{
 		{sub: "checkpoint", status: 200, body: checkpoint},
@@ -265,13 +262,11 @@ func TestVerifyMaterialEmbeddedPrecertLogged(t *testing.T) {
 		{sub: "get-proof-by-hash", status: 200, body: proofBody(0, nil)},
 	}}
 	logs, _ := scan.AllLogs()
-	// No out-of-cert SCTs — only the embedded one — so the precert branch is the only path.
 	res := testWorker(fetch).verifyMaterial(context.Background(), logs, der, nil, spki)
 	if res.Outcome != VerifyLogged {
 		t.Fatalf("outcome = %v (%s), want logged via embedded precert SCT", res.Outcome, res.Reason)
 	}
 
-	// Without the issuer key the embedded SCT cannot be verified: unverifiable, not not-logged.
 	res = testWorker(fetch).verifyMaterial(context.Background(), logs, der, nil, nil)
 	if res.Outcome != VerifyUnverifiable {
 		t.Fatalf("outcome = %v (%s), want unverifiable without the issuer key", res.Outcome, res.Reason)
@@ -279,7 +274,7 @@ func TestVerifyMaterialEmbeddedPrecertLogged(t *testing.T) {
 }
 
 func TestVerifyByFingerprintNotConfigured(t *testing.T) {
-	w := &Worker{log: log.New(io.Discard, "", 0)} // no verify fetcher
+	w := &Worker{log: log.New(io.Discard, "", 0)}
 	if _, err := w.VerifyByFingerprint(context.Background(), "sha256:abc"); err == nil {
 		t.Fatal("expected an error when verification is not configured")
 	}
