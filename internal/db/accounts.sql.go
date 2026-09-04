@@ -35,8 +35,6 @@ const countAdmins = `-- name: CountAdmins :one
 SELECT count(*) FROM account WHERE role = 'admin'
 `
 
-// Guards the last-admin invariant: a role change that would drop this to zero is
-// refused so an operator cannot lock every admin out.
 func (q *Queries) CountAdmins(ctx context.Context) (int64, error) {
 	row := q.db.QueryRow(ctx, countAdmins)
 	var count int64
@@ -76,14 +74,6 @@ const deleteAccount = `-- name: DeleteAccount :exec
 DELETE FROM account WHERE id = $1
 `
 
-// Remove a member (Settings -> Team, T18). The handler gates this behind a typed-
-// name confirmation and refuses to remove yourself or the last admin. Attributed
-// work keeps the account's id: the created_by references on seeds, channels,
-// exclusions and the rest are NOT NULL with no cascade, so this deletes only an
-// account that authored none of them — the FK violation surfaces as a clear refusal
-// rather than a silent orphaning. The single-use pre-auth grants (personal tokens,
-// password resets, recovery codes) cascade; an invite the account issued or accepted
-// keeps its record with the reference nulled (ON DELETE SET NULL).
 func (q *Queries) DeleteAccount(ctx context.Context, id int64) error {
 	_, err := q.db.Exec(ctx, deleteAccount, id)
 	return err
@@ -147,9 +137,6 @@ type ListAccountsRow struct {
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 }
 
-// The accounts management list on the Settings screen. It omits password_hash
-// and totp_secret: managing accounts never needs either, so they stay out of the
-// render path.
 func (q *Queries) ListAccounts(ctx context.Context) ([]ListAccountsRow, error) {
 	rows, err := q.db.Query(ctx, listAccounts)
 	if err != nil {
@@ -180,11 +167,6 @@ const resetAccountTOTP = `-- name: ResetAccountTOTP :exec
 UPDATE account SET totp_secret = NULL, totp_enabled = false WHERE id = $1
 `
 
-// Require re-enrollment (Settings -> Team, T18): clear an account's second factor so
-// their current authenticator stops working at once and the next sign-in walks them
-// through TOTP setup again. It touches neither the password nor any session — a
-// signed-in account stays signed in until its cookie lapses. Symmetric to
-// SetTOTPSecret, which arms a fresh secret; this disarms the factor entirely.
 func (q *Queries) ResetAccountTOTP(ctx context.Context, id int64) error {
 	_, err := q.db.Exec(ctx, resetAccountTOTP, id)
 	return err
@@ -200,12 +182,6 @@ type SetTOTPLastStepParams struct {
 	TotpLastStep pgtype.Int8 `json:"totp_last_step"`
 }
 
-// Atomically spend the TOTP step just accepted at login (#323, #339). The predicate
-// makes the advance the single serialisation point: the write lands only when the
-// account's stored watermark is still NULL or strictly below the presented step, so
-// of two concurrent requests carrying the SAME valid code exactly one updates a row
-// and the other affects zero — the loser is refused as a replay. A read-then-write in
-// the handler could let both pass; this conditional UPDATE cannot (RFC 6238 §5.2).
 func (q *Queries) SetTOTPLastStep(ctx context.Context, arg SetTOTPLastStepParams) (int64, error) {
 	result, err := q.db.Exec(ctx, setTOTPLastStep, arg.ID, arg.TotpLastStep)
 	if err != nil {
@@ -251,10 +227,6 @@ type UpdatePasswordParams struct {
 	PasswordHash string `json:"password_hash"`
 }
 
-// Change one account's own password (Profile → Credentials). The handler verifies
-// the current password and the new-password rules before this runs, so this is the
-// bare write; it never touches the TOTP secret, so a password change leaves the
-// second factor in force.
 func (q *Queries) UpdatePassword(ctx context.Context, arg UpdatePasswordParams) error {
 	_, err := q.db.Exec(ctx, updatePassword, arg.ID, arg.PasswordHash)
 	return err

@@ -39,11 +39,6 @@ type ClaimReportNotificationRow struct {
 	Name             string             `json:"name"`
 }
 
-// The Postgres-backed claim: FOR UPDATE SKIP LOCKED over pending notifications whose
-// run_after has passed, oldest first, marking the winner 'sending' in one statement so
-// two workers never claim the same one. It joins the run and its schedule so the runner
-// has everything the link-only body needs — the report name and the run's period — plus
-// the channel to POST to and the attempt budget, in one read.
 func (q *Queries) ClaimReportNotification(ctx context.Context) (ClaimReportNotificationRow, error) {
 	row := q.db.QueryRow(ctx, claimReportNotification)
 	var i ClaimReportNotificationRow
@@ -61,7 +56,6 @@ func (q *Queries) ClaimReportNotification(ctx context.Context) (ClaimReportNotif
 }
 
 const insertReportNotification = `-- name: InsertReportNotification :exec
-
 INSERT INTO report_notification (report_delivery_id, channel_id)
 VALUES ($1, $2)
 `
@@ -71,18 +65,6 @@ type InsertReportNotificationParams struct {
 	ChannelID        int64 `json:"channel_id"`
 }
 
-// Reads and writes behind the report notify runner (P0.6c/T7, #508). A
-// report_notification is the Operational record of one link-only ready-message to a
-// Channel for a scheduled report run: it is NOT a Message and carries no estate
-// (ADR-0039, ADR-0081). It mirrors the delivery table's claim/retry/mark queries —
-// FOR UPDATE SKIP LOCKED, the shared queue.Backoff on retry, dead-letter on the spent
-// attempt budget — but keys on the report_delivery it announces, not a message, and
-// routes by the schedule's channel binding, not by class.
-// Enqueue one pending ready-message for a scheduled run (report_delivery_id) to its
-// schedule's bound Channel (channel_id). Called once per won tick in the dispatcher's
-// transaction, only when the schedule binds a channel — a download-only schedule
-// enqueues nothing. state defaults to 'pending' and run_after to now(), so the next
-// notify poll claims it.
 func (q *Queries) InsertReportNotification(ctx context.Context, arg InsertReportNotificationParams) error {
 	_, err := q.db.Exec(ctx, insertReportNotification, arg.ReportDeliveryID, arg.ChannelID)
 	return err
@@ -94,8 +76,6 @@ SET state = 'delivered', last_error = NULL
 WHERE id = $1
 `
 
-// A 2xx: the ready-message reached the Channel. Clears the last error. The caller
-// flips the report_delivery receipt to 'delivered' in the same act.
 func (q *Queries) MarkReportNotificationDelivered(ctx context.Context, id int64) error {
 	_, err := q.db.Exec(ctx, markReportNotificationDelivered, id)
 	return err
@@ -112,9 +92,6 @@ type MarkReportNotificationUndeliveredParams struct {
 	LastError pgtype.Text `json:"last_error"`
 }
 
-// The attempt budget is spent: dead-letter the ready-message. The report_delivery
-// receipt is deliberately left 'generated' — the artifact was cut and stays viewable
-// in-instance; only the ready-message failed to leave (ADR-0039).
 func (q *Queries) MarkReportNotificationUndelivered(ctx context.Context, arg MarkReportNotificationUndeliveredParams) error {
 	_, err := q.db.Exec(ctx, markReportNotificationUndelivered, arg.ID, arg.LastError)
 	return err
@@ -133,9 +110,6 @@ type RetryReportNotificationParams struct {
 	LastError pgtype.Text        `json:"last_error"`
 }
 
-// A transient failure with attempts left: advance the attempt, push run_after out by
-// the shared backoff, and record the error. The row returns to 'pending' and the claim
-// index picks it up again once run_after passes. The receipt is never touched.
 func (q *Queries) RetryReportNotification(ctx context.Context, arg RetryReportNotificationParams) error {
 	_, err := q.db.Exec(ctx, retryReportNotification,
 		arg.ID,

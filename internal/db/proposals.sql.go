@@ -23,9 +23,6 @@ type ConfirmProposalParams struct {
 	ConfirmedSeedID pgtype.Int8 `json:"confirmed_seed_id"`
 }
 
-// Marks a single Proposal confirmed and retains the Seed it became as provenance.
-// Guarded on status = 'pending' so a concurrent or repeated confirm is a no-op
-// rather than a second Seed: confirmation is singular (ADR-0022).
 func (q *Queries) ConfirmProposal(ctx context.Context, arg ConfirmProposalParams) (int64, error) {
 	result, err := q.db.Exec(ctx, confirmProposal, arg.ID, arg.ConfirmedSeedID)
 	if err != nil {
@@ -48,8 +45,6 @@ type CreateProposalParams struct {
 	OrgName     string       `json:"org_name"`
 }
 
-// Files one candidate scope a proposer offered. It enters as 'pending' and is
-// read by nothing until it is confirmed into a Seed.
 func (q *Queries) CreateProposal(ctx context.Context, arg CreateProposalParams) (Proposal, error) {
 	row := q.db.QueryRow(ctx, createProposal,
 		arg.LookupID,
@@ -84,8 +79,6 @@ type CreateProposerLookupParams struct {
 	CreatedBy int64  `json:"created_by"`
 }
 
-// Records one operator act — an org-name search — under which a batch of
-// candidate scopes is filed. It is the unit a bulk decline operates over.
 func (q *Queries) CreateProposerLookup(ctx context.Context, arg CreateProposerLookupParams) (ProposerLookup, error) {
 	row := q.db.QueryRow(ctx, createProposerLookup, arg.Query, arg.CreatedBy)
 	var i ProposerLookup
@@ -104,10 +97,6 @@ SET status = 'declined'
 WHERE lookup_id = $1 AND status = 'pending'
 `
 
-// Declines every still-pending Proposal under one lookup in a single act
-// (ADR-0022: declining may be bulk over a whole lookup). Declining is safe to
-// batch because a pending Proposal is read by nothing, so 'declined' and 'never
-// answered' have the same effect on the gate.
 func (q *Queries) DeclineLookup(ctx context.Context, lookupID int64) (int64, error) {
 	result, err := q.db.Exec(ctx, declineLookup, lookupID)
 	if err != nil {
@@ -122,10 +111,6 @@ SET status = 'declined'
 WHERE id = $1 AND status = 'pending'
 `
 
-// Declines a single still-pending Proposal by id (#21: the Scope decline-many
-// act declines each checked proposal). Guarded on status = 'pending' so a repeat
-// or concurrent decline is a no-op. A declined scope is recorded as an exclusion
-// by the handler, off the row read before the decline.
 func (q *Queries) DeclineProposal(ctx context.Context, id int64) (int64, error) {
 	result, err := q.db.Exec(ctx, declineProposal, id)
 	if err != nil {
@@ -140,9 +125,6 @@ FROM proposal
 WHERE id = $1 AND status = 'pending'
 `
 
-// One pending Proposal, read at the moment of confirmation so the confirm act
-// can copy its scope into a Seed. A Proposal already confirmed or declined does
-// not come back, so a double submit cannot open the gate twice.
 func (q *Queries) GetPendingProposal(ctx context.Context, id int64) (Proposal, error) {
 	row := q.db.QueryRow(ctx, getPendingProposal, id)
 	var i Proposal
@@ -182,9 +164,6 @@ type ListPendingProposalsRow struct {
 	LookupBy    string             `json:"lookup_by"`
 }
 
-// The pending Proposals the Seeds screen renders, grouped for the caller by
-// lookup so each lookup carries its own bulk-decline act. Only 'pending' rows
-// surface: a confirmed Proposal is already a Seed and a declined one is spent.
 func (q *Queries) ListPendingProposals(ctx context.Context) ([]ListPendingProposalsRow, error) {
 	rows, err := q.db.Query(ctx, listPendingProposals)
 	if err != nil {
