@@ -415,6 +415,13 @@ rule. **One block keeps the rule. Every other statement of it dies.** Keep it in
 is most about, not in the first block you read. #1169 reports cross-block duplication, not per-block
 judgment, as the dominant deletion driver in that ticket.
 
+**The cross-block test reaches `main`, not only the ticket.** In a late `cmd/web` file the dominant
+deletion driver is a rule a merged sweep already left on `main`, not a sibling block inside the
+ticket. 35 of #1209's 86 deletions collapsed that way, #1208's 14, #1211's 10 and #1210's 4. An
+agent reading "across the ticket" literally keeps every one of them. Search the merged sweep output
+for the rule before you keep it. Nothing is dropped for an owner to catch here, because the owner is
+on `main` already, so §7.4's boundary table separates the two.
+
 **The cross-block test compares the rule, not the surface claim.** Two survivors may state
 opposite-sounding facts and both be true. `internal/scan`'s `tailReadableState` keeps "a retired log
 may 404", and `AllLogs` keeps "a retired shard still answers a point-check" (#1189). The tail
@@ -426,6 +433,14 @@ whether the package doc may hold a cross-block rule. It may. A file-wide rule th
 belongs there. `internal/scan/zone.go`'s supply-instant rule was stated 4 times, and the package doc
 was the right home (#1189). §4.8's 3-line cap still binds.
 
+**Where the package doc is closed, the keeping block is a detached file-header block.** A split
+package gives `main.go` to another ticket, so §4.8's route is unavailable and a file-wide rule that
+names no symbol has no legal home. Put it above the first declaration, detached by a blank line
+(§4.5 placement 3). #1204 authored one for 4 rules stated across 17 screen headers, and #1205 for a
+file-wide admin-act rule. It is not always needed: #1206 found every file-wide rule a
+statement-relative home. In #1207 the block had a second motive, because the text it replaced was
+spliced onto `type dnsRecordValue` and placement 3's blank line is also the unweld.
+
 **A protected directive may be the keeper.** A directive line may serve as the cross-block keeper.
 §2.3 forbids the sweep to edit that line, so the rule then rests on untouchable text. A later sweep
 can neither compress that line to the §4.4 form nor repair a citation inside it. #1182 kept
@@ -436,6 +451,11 @@ record-not-verify rule and deleted the rule's two other statements. #1194 did th
 citation.** Keep a §4.4 survivor beside the directive where the waiver states one part of the rule.
 Do the same where the rule needs a citation a later sweep may have to repair.
 
+**A cross-block keeper must be swept output or a document.** Never collapse a rule onto unswept
+residue in another stage's surface. `db/queries/dispatch.sql` restates four of `cmd/web/scans.go`'s
+rules and is stage-D2 residue a later ticket may delete, so #1208 kept a Go survivor for each of the
+four rather than lean on it.
+
 **Check for an orphaned document reference before you delete a block.** A block may be the only one
 in the file that names the document its siblings cite by a bare `§n`. Check this before you delete
 it. Then either keep the naming, or rewrite each surviving sibling to name the document itself. This
@@ -443,6 +463,19 @@ is a defect the sweep creates, not one it finds. `internal/scan/ctreliability.go
 `cttail_test.go:234` left four `§` references pointing at nothing, and #1190 repaired both.
 `transcript.go`, `cttail.go` and `ctverify.go` held 15 bare `§n` references with one naming block
 each, and every survivor now names the document in full.
+
+**Compare the deleted block's citations against the keeper's.** The check above asks whether the
+deleted block names a document. It does not ask whether the deleted block holds the *better*
+citation. #1206 deleted a field docstring as a duplicate and then found it carried `v1-spec §5.3`
+for the anchor-slug rule, against the survivor's `(#286)`, which is T10 IA reconciliation and says
+nothing about anchor slugs. #1205 repaired two survivor citations in a second pass, after both had
+passed `lint`, `verify` and a naive citation check.
+
+**The orphan check runs in both directions.** A document may point into the corpus, and deleting the
+block breaks the document instead. `docs/guides/reports.md:68-69` sends an operator to "the handler
+comment in `cmd/web/reports.go`", and #1210 deleted the comment it names (#1354). `docs/guides/` is
+the likely home, because a guide is written for an operator being sent to the code. Grep `docs/` for
+the file you are sweeping before you delete a block a document may name.
 
 **The tiebreaker prompt.** When a comment sits on the edge, ask a third question. Could a reader who
 did not know this fact make a change that is wrong, and that the test suite would not catch? **This
@@ -531,7 +564,9 @@ Half the corpus cites something, so most of the 18,266 cited lines land in this 
 
 **A `file:line` reference is not a citation.** A line number rots on the next edit to the target,
 and nothing exists to repair it to that stays right. Name the symbol instead. `authorizedScope`
-cited `worker.go:357`, which is now `func markRetried` (#1198).
+cited `worker.go:357`, which is now `func markRetried` (#1198). The rule reaches a template line
+too: `cmd/web/scans.go`'s `StreamHref` block cited `rundetail.tmpl` "line ~151" and "~216" (#1208).
+Name the `define` or the datum instead.
 
 **Ruling 8 caps a citation, not a reason.** A block may hold **one line per independent reason**. No
 block-level line cap applies. Worked example 13 forces this: `cmd/web/devfixtures.go:281` carries two
@@ -586,6 +621,12 @@ span to a `GenDecl` inside a function body exactly as it does at package scope. 
 `var got []string` trips flag rule 1 as surely as one above the signature. Three of the four agents
 in the second sweep batch hit this, each at the cost of a lint round (#1166, #1168, #1169).
 
+**The position directly *after* an in-body `var` is legal.** The rule above reads as if a comment
+between `var x T` and the next statement were unsafe. It is not. `go/ast` attaches `Doc` to a
+*preceding* group only, so the hazard is the line above the `var` and never the line below it.
+#1202 used the slot to fit a second cited reason into a function whose budget was exhausted, and
+#1206 and #1207 confirmed it.
+
 **`:=` is not declaration position.** `go/ast` attaches no `Doc` span to an `*ast.AssignStmt`, so
 placement 1 works directly above a `:=` (#1190).
 
@@ -623,6 +664,11 @@ list, above a package-scope `var`, and an interface method (#1178, nine survivor
 placement 2 will not fit, not the default for a field. #1190 found placement 2 better four times,
 notably `CTSource.DisplayName`, where placement 3 would have put two blank lines inside a four-line
 interface.
+
+**A wide interface inverts that preference.** Only a handful of `store`'s 86 methods leave trailing
+room inside §4.4's 100-character cap, so placement 3 is the default there and placement 2 the
+exception (#1203). The narrow-interface reading above is right for its case and the wide-interface
+reading for its own. Measure the trailing room before you choose.
 
 **Placement 3 is what a declaration with no body needs.** A `const`, `var`, `type` or `interface` at
 package scope has no statement to sit above. A declaration line long enough to break §4.4's
@@ -674,6 +720,12 @@ used placement 3 instead.
 **Where no placement holds, delete the line.** §4.2 is the tie-break, and it applies here like
 anywhere else.
 
+**A build-tag reason goes above the platform-specific expression.** The reason a `//go:build` pair
+exists is about the **file**, and every placement above is statement-relative or
+declaration-relative. Placement 1 is still the target, and the statement to pick is the one the tag
+exists for. #1201's fallback — the first statement of the body — landed on that expression in
+`internal/queue/proberexit_windows.go` by luck rather than by rule.
+
 ### 4.6 Test files
 
 Ruling 2 makes "the ADR or issue this test pins" an explicit WHY exception. Three rules set how far
@@ -686,6 +738,15 @@ it reaches.
    §4.4 form.
 3. **An uncited comment that states a reason is judged like any other comment**, under §4.1. The
    citation requirement governs behaviour-assertion prose only.
+
+**Rule 1 has a mechanical tell.** Where the `t.Errorf` or `t.Fatalf` message quotes the claim, the
+claim is recoverable from the body and gate A fails with no cross-block test. Three of #1201's six
+deletions turn on it. This is §7.6's `Row.Claim` finding generalised out of the corpus packages:
+wherever the failure message states the rule, the comment above it is redundant.
+
+**The tell has a production twin.** `coverageMessages`' docstring was quoted almost verbatim by the
+operator-facing string its own body builds (#1206). Read the strings a declaration composes before
+you keep a docstring above it.
 
 Rule 3 is load-bearing. `cmd/web/adr0130_contract_test.go:498` is an uncited WHY inside a test file.
 It explains a classification decision. An absolute citation requirement would delete it. §4.7 keeps
@@ -735,7 +796,7 @@ measured, and they take three routes.
 | --- | --- | --- |
 | `PARITY-CHART.md`, `SPEC-CHANGE.md` | Sometimes | Re-cite the live source. Precedents: #1182 → #464, #1178 → `docs/spec/v1-spec.md` §3.5, #1199 → `docs/spec/raw-job-output.md` §6.2 |
 | `docs/research/ct-bulk-primary-2026-08.md`, `docs/research/ct-logs-direct-2026-08.md` | Usually | Re-cite `docs/spec/ct-source-replacement.md`, which is on `main` |
-| `AUDIT-LEDGER`, `AL-2`, `AL-25`, `P0.7`, `DF-F4`, `G2` | **No** | Keep the reason uncited under this section, and record the gap |
+| `AUDIT-LEDGER`, `AL-2`, `AL-25`, `P0.7`, `DF-F4`, `G2` | **Not by token** | The token is unrepairable. Search the surface below for the rule. Where nothing states it, keep the reason uncited and record the gap |
 
 `docs/spec/raw-job-output.md` §6.2 names `SPEC-CHANGE` collision #40 by number and states "persists
 nothing at rest", which is the rule the comment carried (#1199).
@@ -753,16 +814,92 @@ instead, and the next rule below measures it.
 `progress_test.go` carries neither (#1199, #1200). Grep your own files. Never trust the family's
 stated reach.
 
-**A citation resolves only when the named section states the rule the comment states.** A
-file-existence check is not enough. A grep for the token alone is not enough. `G2` appears in 6
-files under `docs/`, in two unrelated senses. Five of them use `G2` as ADR-0057's gate-check label
-over graded footing cells. Those five are `docs/adr/0057`, `0059`, `0077`, `0120` and
-`docs/research/sensitive-ports.md`. `docs/adr/0116` line 3 uses `G2` for the retired design-system
-parity gate, which that ADR withdrew. An agent grepping the token alone keeps a dead citation and
-believes it repaired one. A bare `AL-25` or `G2` is not a citation at all under §2.1's decisive
-test, which is what makes this dangerous.
+**Route 3 rules the token, never the rule.** "The token names nothing" and "the rule is unwritten"
+are two claims, and only the first is established. An agent that conflates them ships an uncited
+survivor **and** files an ADR gap for a rule already on disk. The failure is silent. #1204 did
+exactly this: it filed the never-fabricate rule as gap 2 of **#1333**, and `docs/adr/0110` line 74
+states it. Three tickets reached the correction independently.
 
-**A wrong citation is worse than a dead one**, because it survives a file-existence check. Five
+| Dead token | The live source that states the rule |
+| --- | --- |
+| `DF-F4` on `internal/queue/worker.go:331` | `docs/spec/raw-job-output.md` §2.4 (#1328) |
+| `PARITY-CHART P2.2`, `P0.1` on `cmd/web/signals.go` | `docs/spec/v1-spec.md` §6.5 (#1207) |
+| `SPEC-CHANGE`, the never-fabricate family | `docs/adr/0110` line 74 (#1205) |
+| A bare `SPEC §n` on `cmd/web/scans.go` | `docs/spec/scans-monitor-bounding.md` §2.2, §2.3, §3, §4 (#1208) |
+| `#778` on `cmd/web/inventory.go` | `docs/adr/0125`, Decision ground 5 (#1211) |
+
+Also reconfirmed as targets: `ADR-0053` for the host-only redaction rule, and `docs/spec/v1-spec.md`
+§4.1, §5.2 and §5.3.
+
+**The search surface is five places:** `docs/spec/`, `docs/adr/`, `docs/research/`, `docs/guides/`
+and `CONTEXT.md`. `docs/guides/` is the one an agent forgets, and the one an operator-facing product
+rule tends to sit in. #1205 moved three of its four gap candidates out of the gap list with
+`docs/guides/accounts.md` and `docs/guides/running.md`.
+
+**The cheapest repair is the cited issue's own title.** A dead token is often the title prefix of
+the issue cited beside it. `P0.3`↔#444, `P0.6`↔#499, `P2.4b`↔#468 and `R4-D4`↔#759 all repaired
+that way in `cmd/web/reports.go`, and only `P0.2` resolved nowhere (#1210). Read the issue title
+and drop the prefix before you hunt for a document.
+
+**Four surfaces are never a repair target, and all four answer a grep.**
+
+| Surface | Why it answers |
+| --- | --- |
+| `docs/spec/comment-policy.md` | This SPEC names `AUDIT-LEDGER`, `AL-25`, `P0.7` and `DF-F4` in order to record that they are dead. |
+| `docs/research/comment-*` | `comment-gate-test.md` is the §3.9 gate sheet and quotes the corpus verbatim. |
+| `docs/research/sql-stripper-*` | `sql-stripper-cross-check.md` is #1143's record of the same corpus. |
+| Any `.tmpl` comment | `design-system/templates/scope.tmpl` states `DF-F1` and `DF-F2`. A template comment is not a document, and it is stage-D3 sweep territory itself. |
+
+Each of the four went from zero hits to one when this effort's own artefacts landed, so the
+mechanical check now returns the wrong answer and a reader may trust it. #1205 and #1206 reached
+this independently. The test below is the defence: a hit must **state the rule**, not state that
+the token is dead.
+
+**A citation resolves only when all four of these hold.** A file-existence check is not enough. A
+grep for the token alone is not enough.
+
+1. **The named section states the rule the comment states.** `G2` appears in 6 files under `docs/`,
+   in two unrelated senses. Five use `G2` as ADR-0057's gate-check label over graded footing cells:
+   `docs/adr/0057`, `0059`, `0077`, `0120` and `docs/research/sensitive-ports.md`. `docs/adr/0116`
+   line 3 uses `G2` for the retired design-system parity gate. An agent grepping the token alone
+   keeps a dead citation and believes it repaired one. A bare `AL-25` or `G2` is not a citation at
+   all under §2.1's decisive test, which is what makes this dangerous.
+2. **The document is not Superseded or Withdrawn.** `docs/adr/0116` **establishes** the
+   `SPEC-CHANGE` collision protocol and the G1/G2 parity gates, then withdraws them in its status
+   line, and its body still describes both at length. A citation to it passes a file check, passes
+   a section check and passes test 1, because the section genuinely states the rule in order to
+   retire it. A dead token fails a grep honestly. This one fails no check at all. **Read the status
+   line of every document you cite.** #1202 found it, and #1203 and #1204 confirmed it
+   independently. #1203 had already shipped a survivor citing it before the catch.
+3. **The section states the rule on its own authority.** `ADR-0120` is `Accepted`, names
+   `cmd/web/devfixtures.go` by path, and states the no-fabrication rule almost verbatim — but only
+   by quoting the retired `SPEC-CHANGE` protocol, saying "this protocol" outright. It is not a
+   target, and #1204 withdrew the repair. `docs/spec/v1-spec.md` §6.5 states its rule in its own
+   voice and merely attributes it, so its "(P2.2. The design package is normative for
+   functionality)" does not disqualify it (#1207). The surface form is identical, so read the
+   sentence and not the token.
+4. **The section rules, rather than forwarding to the rule.** ADR-0129's #954 amendment states the
+   vantage rule and ends "(§5)". §5 rules "v1 ships fan-out alone". A section that forwards has not
+   resolved (#1328). `ADR-0129 §5` is therefore a false resolution of the `G2` shape sitting inside
+   the ADR corpus, like `ADR-0116`: the section exists, the document is `Accepted`, the text carries
+   the right word, and it rules something else.
+
+**A `#nnn` may be a design-collision id whose number resolves to an unrelated issue.** This is the
+worst family, because `#nnn` is §2.1's own decisive test for the `citation` class, so nothing
+mechanical separates it from a real citation. Three shapes are measured: a **bare** `#nnn`
+(`collision #40`, six times in #1208, resolving to a live issue titled "What is the right Seed
+primitive for a cloud-resident estate?"), a `#nnn<letter>` (`#21`, `#21i` and `#21j` in
+`cmd/web/signals.go`, plus `#26f`, `#26c`, `#26h` and `#21d` in `cmd/web/settings.go`), and
+`SPEC-CHANGE #nn`. Verified dead: `#20`, `#20a`, `#20b`, `#20d`, `#20e`, `#21d`, `#22a`–`#22f`,
+`#23b`, `#23e`, `#23h`, `#34`, `#35`, `#40`.
+
+**The issue API is necessary and not sufficient.** A `#nnn` whose issue was deleted returns
+HTTP 410 and is invisible offline. `(#738)` on `trustedProxies` is one, and nothing under `docs/`
+distinguishes it from a live citation (#1203). So query the API. But a collision id's number
+resolves live, and the API says nothing about whether that issue is the rule's source. **Read the
+issue title.**
+
+**A wrong citation is worse than a dead one**, because it survives a file-existence check. Nine
 instances are measured.
 
 | Citation | What the named section states | What the rule needs |
@@ -772,16 +909,38 @@ instances are measured.
 | `(ADR-0134 §5)` on "the two instants' counts need not agree" | Not that rule | `#1046` (#1197) |
 | `(ADR-0129 §5, #987)` in `edgefanoutmessage_test.go` | "v1 ships fan-out alone" | The #944 amendment (#1200) |
 | `(spec §2.4)` in `certspotter_test.go` | Where the key is held | Nothing. The Bearer-header rule is stated nowhere (#1200) |
+| `(ADR-0129 §6)` on `internal/queue/edgefanout.go:268` | Not the vantage rule the comment states | `#956` (#1328) |
+| `(ADR-0130 §3)` on `cmd/web`'s `server.routes` | "Redirects preserve the submitting URL" | Nothing. Validating a redirect against the route table is stated nowhere (#1203) |
+| `(#286)` on the anchor-slug rule in `cmd/web/seeds.go` | T10 IA reconciliation | `docs/spec/v1-spec.md` §5.3 (#1206) |
+| `ADR-0081` on the host-only redaction rule, three sites | A Delivery-has-no-cause rule | `ADR-0053` (#1354) |
+
+**`ADR-0130 §3` is the shape that falls through both repairs.** It names a live section of a live
+document that rules something else, so §8.3 suppresses the gap and this section has nothing to
+repair to. Name it in the PR body, because nothing else carries it.
 
 **A repair is a package-wide fact.** Name the repaired token in the PR body, so a sibling ticket in
 a split package greps for it. #1196 repaired `(ADR-0027 §7)` five times in `crtsh.go`. The same
 token then appeared in `pure_test.go:64` and twice in `crtsh_test.go`, both owned by other tickets.
 
+**Wrong citations cluster, so a repair checks every citation to that document in that file.** #1328
+was opened for two citations and its file held three. `edgefanout.go:268` cites `ADR-0129 §6` where
+the rule is #956, and only a sweep of every `ADR-0129` reference in the file found it.
+
+**`ADR-0081` is misattributed three times and a blanket replace would be wrong.** It contains zero
+occurrences of "host", "token" or "URL", and it is cited for the host-only redaction rule at
+`internal/message/render.go:395`, `cmd/web/reportdelivery_test.go:20` and `:102`. `ADR-0053` states
+that rule in its own voice. Its other five uses — `cmd/web/messages.go:21` and four `internal/db`
+sites — cite it for a Delivery-has-no-cause rule, which it does state, and those are correct.
+**#1354** tracks the repair.
+
 **Check that a survivor's citation resolves before the PR opens.** The ratchet does not provide this
-check. Two defects already landed on `main` in merged sweep output (#1194, PR #1317).
-`internal/queue/worker.go:331` cites `DF-F4`. `internal/queue/edgefanout.go:58` carries
-`(ADR-0129 §5)` on a rule §5 does not state. **#1328 repairs both.** Do not repair them under a
-sweep ticket.
+check. **Four defects have landed on `main` in merged sweep output.** `internal/queue/worker.go:331`
+cites `DF-F4` and `internal/queue/edgefanout.go:58` carries `(ADR-0129 §5)` on a rule §5 does not
+state (#1194, PR #1317). **#1328** repairs both. The `ADR-0081` misattribution above is the third
+(**#1354**). The fourth is a false claim rather than a wrong citation: `cmd/web/seeds.go:453`
+(PR #1340) says the head block inlines `tokens/*.css` "only when this datum is set", and 42
+`cmd/web` sites set it `true` against 0 that set it `false` (**#1355**). Do not repair any of them
+under a sweep ticket.
 
 ### 4.8 The `package-doc` cap
 
@@ -807,6 +966,11 @@ rubric made in favour of keeping.
 **One deletion earns a row: a comment deleted under §4.10 as false.** Give it `false` as its reason.
 The diff already shows the text that left. It does not show that the sweep judged the claim wrong
 rather than redundant, and that is the judgment a reviewer needs to see.
+
+**Where §4.1 and §4.10 both fire on one block, the ledger records `false`.** A duplicate is visible
+in the diff, because the sibling that keeps the rule is still in the tree. A false claim is not.
+`internal/queue/proberexit_windows.go`'s block was both, and #1201 recorded `false`. The opposite
+choice loses the §4.10 record entirely.
 
 The ledger carries a second table, the gaps table (§8.6). A ticket that finds no ADR gap states
 `ADR gaps: none` (§8.7).
@@ -849,6 +1013,64 @@ this section may not recognise the case.
 
 **A splice is invisible to `commentlint`.** That block classifies `docstring-unexported`, and the
 screen's `RFC` hit withheld it from mechanical deletion, so it reached stage D intact.
+
+**Six more falsifiers are measured. Only the first three are the product moving under the code.**
+
+1. **The repo environment.** `internal/queue/proberexit_windows.go` justified the file by "its tests
+   run on a windows dev host". There is no windows dev host: `CLAUDE.md` records the move to Ubuntu
+   Server 24.04 on 2026-09-03 (#1201). This is the class a sweep agent is best placed to catch and
+   least likely to look for, because the falsifying fact sits in `CLAUDE.md` rather than in the code
+   being read. Delete the false justification, not the build tag. Whether a windows build is still
+   wanted is the product judgment this section forbids.
+2. **A live `Accepted` ADR.** ADR-0124's #1240 amendment names `cmd/web/settings.go`'s
+   `updateHostSteps` comment and strikes its promise permanently (#1205). A document falsified it,
+   not the code. This is mechanically detectable wherever an ADR names a symbol.
+3. **A `.tmpl` contract.** `shell.tmpl`'s `head` define falsifies `cmd/web`'s `.DesignTokens` claim
+   (#1208, **#1355**).
+4. **The function's own body.** `lastUsed` "renders an em dash when never presented" and the body
+   returns `""`. `redirectTo`'s "302 for a nuanced one", and its three call sites pass 301, 303 and
+   301 (#1202, #1203). Not the world, not a splice.
+5. **The file growing around the claim.** `handler()`'s "the only mutation that exists yet,
+   POST /accounts" was true once. The function now registers about 50 mutating routes (#1203).
+   Nothing moved under it.
+6. **Implication alone.** `writeSignalsExportCSV` draws a contrast the body contradicts, while
+   neither clause is itself false (#1207).
+
+**A dead citation is not by itself a falsity verdict.** `cmd/web/seeds.go:700` cites the superseded
+ADR-0116 and its prose is merely redundant, so it dies on gate A with no `false` row. `:842`
+restates the retired doctrine as live and earns one (#1206). Read the prose, not the token.
+
+**Half a block may be false.** This section rules on blocks and has no verdict for a half-false
+sentence. #1204's `// the byte-exactness gate before the pixels`, 11 instances, names a live drift
+test and only its "before the pixels" framing is retired. §4.1 is what saved it, not this section.
+**Where the false clause and the true one are independent reasons, delete the false clause and keep
+the other (§4.4). Where one sentence carries both, delete the block.**
+
+**The retired handoff doctrine is a class, and its tell is vocabulary rather than a citation.**
+ADR-0109 and ADR-0116 are Superseded. `CLAUDE.md` records that `design-system/` is the source of
+truth and may be edited in-repo. No `G1`/`G2` gate and no byte-comparison step exists in
+`.github/workflows/`, verified twice.
+
+**Pair the status-line test (§4.7) with a phrase grep, as two independent detectors.** The
+status-line test is a citation test and this defect is mostly uncited. `cmd/web/reports.go` carried
+**7** assertions of the withdrawn doctrine and exactly **1** named an ADR (#1210). The other six
+cite nothing, a dangling `#23e`, `SPEC-CHANGE`, or a live issue number. `cmd/web/graph.go:20-27`
+asserts the doctrine in full — "the frozen design-owned graph.tmpl … embedded read-only … the repo
+authors no markup/CSS/JS for this route … kept byte-for-byte" — and cites only `#583` (#1211).
+Across the 28 unswept `cmd/web` production files, 18 carry the phrasing with zero `ADR-0109` or
+`ADR-0116` reference.
+
+The phrase list: `byte-for-byte`, `frozen design`, `design-owned`, `normative for look`, `re-skin`,
+`authors no markup`.
+
+**Every phrase hit needs a human read, and both false-positive directions are measured.** #1208
+found 15 further uses of "frozen" that were bare modifiers on a live template. A template embedded
+through `designfs`, or a shared parse set, is a plain mechanical fact and not the doctrine. #1210
+found the other direction at `reports.go:896`, where "PeriodLabel/RangeLabel **re-skin** the header"
+is relabelling in the ordinary sense. And a live thing can wear the retired framing: `:730` and
+`:999` name a byte-compare against a golden, and `devfixtures_test.go` does read
+`design-system/fixtures/fixtures.json` — but it pins fixture *values*, not a rendered byte-compare.
+That is the half-false shape above.
 
 **A true claim the type cannot express is not false.** Delete it under §4.1, and give it no `false`
 row. `custody_test.go:58` claimed a fixture expressed a declared-but-unextended name scope, which
@@ -1335,6 +1557,19 @@ header sentence for sentence. The three-way `internal/custody` split cost 18 acr
 and this one ticket cost 24. **Keep a test file in the same ticket as the production file it
 exercises, where the size cap allows it.**
 
+**The closing ticket of a split keeps least.** Every production home is occupied by the time it
+runs, so its files most often end empty. Four of #1201's five files kept nothing. A reviewer reading
+the closing ticket should expect that shape rather than read it as a lazy sweep. §4.6's
+test-local-hazard rule pulls the same way, in proportion to how much the test builds: #1200 got six
+survivors from fourteen test files and #1201 zero from three, and both are correct.
+
+**A third boundary shape: the cross-package collapse against `main`.** The rule a ticket drops may
+be held by a survivor a merged sweep already left on `main`, not by a sibling in the split. Nothing
+is dropped for an owner to catch, because the owner is on `main` already. #1209 collapsed 35 of its
+86 deletions that way, #1208 14, #1207 10 against `internal/signal`, #1211 10 and #1210 4. **A
+boundary table must separate the two shapes**, or a reviewer cannot tell this from an over-deletion.
+#1208 dropped zero of the ticket-boundary kind.
+
 ### 7.5 Parallel sweeps
 
 1. **Parallel is allowed when two tickets touch disjoint file sets.** §7.4 keeps a package whole
@@ -1365,6 +1600,15 @@ exercises, where the size cap allows it.**
    applies. That is wrong. `queue.go:1-7` is a real `package-doc` block, and `queue.go` is the only
    file of the package's 51 that has one (#1198). The claim was passed to all four agents of that
    batch as fact, and only luck stopped a mis-sweep.
+7. **A batch brief is not evidence.** Rule 6 states the package-doc case, and the same failure
+   recurred in batch 8. The brief named `docs/adr/0116` as a live `SPEC-CHANGE` hit and told all
+   four agents to read it and re-cite it. #1202 found the withdrawn status line first. #1203 and
+   #1204 were corrected mid-run, and #1203 had already shipped a survivor citing a withdrawn rule.
+   **An agent verifies a citation target's status line itself** (§4.7).
+8. **Give every parallel agent a per-ticket scratchpad path.** A shared `scratchpad/gap.md` or
+   `scratchpad/pr.md` collides silently. #1202's file overwrote #1204's, and #1204 briefly published
+   #1202's gap content to issue #1333 before catching it. No merged artefact was affected. A batch
+   brief names the path, for example `scratchpad/<ticket>/gap.md`.
 
 ### 7.6 The golden corpora
 
@@ -1431,6 +1675,17 @@ Do not read the pipeline's exit status. `gh pr checks` exits non-zero while any 
 pending, measured as 8 on 2026-09-03, so a zero exit is not the signal. `grep` finding nothing is
 silence, not a pass.
 
+**Three tool traps, measured on the dev machine.**
+
+| Command | What happens | The working route |
+| --- | --- | --- |
+| `gh pr checks <n> --json …` | Returns a non-JSON error string on `gh` 2.45.0. | The tab-separated plain output is the only readable form. |
+| `commentlint verify --base <ref>` with no path list | Exits 2 with a usage string (#1210). | Pass the ticket's own file set. |
+| `gh pr edit <n> --body-file …` | Aborts on the Projects-classic deprecation and leaves the body unchanged (#1211). | `gh api --method PATCH repos/winniel123/verge-asm/pulls/<n> --input <file>` |
+
+`docs/agents/issue-tracker.md` records the same family for `gh pr update-branch` and Projects
+classic.
+
 **Condition 2 does not prove conformance on its own.** `lint` flags only the mechanically-decidable
 classes. Condition 3 is the judgment gate. Delete-by-default makes a wrong delete visible in the
 diff and a wrong keep invisible. The reviewer therefore checks the keeps.
@@ -1444,11 +1699,18 @@ a constructive reading, which §4.4 states: it is what makes a legitimate multi-
 legal. `internal/scan`'s `embeddedLogList` carries three uncited reasons on three lines and draws
 zero `lint` findings (#1189).
 
-**Condition 4 has no mechanical check.** The ratchet provides none. §4.7 carries the rule and the
-measured false resolve: a citation resolves only when the named section states the rule the comment
-states. Neither a file-existence check nor a bare token grep is enough. Two defects already
-landed on `main` in merged sweep output (#1194, PR #1317). **#1328** repairs both, under a separate
-ticket.
+**Condition 4 has no mechanical check.** The ratchet provides none. §4.7 carries the four tests a
+citation must pass, and the measured false resolves. Neither a file-existence check nor a bare token
+grep is enough. **The check needs the issue API**, because a deleted `#nnn` returns HTTP 410 and
+nothing under `docs/` distinguishes it from a live one. It also needs the issue **title**, because a
+design-collision id's number resolves to an unrelated live issue. Four defects have already landed
+on `main` in merged sweep output: two citations repaired by **#1328**, the `ADR-0081` misattribution
+in **#1354**, and a false `.DesignTokens` claim in **#1355**.
+
+**A citation repair re-runs §4.4's length check.** A repair lengthens the line, and the
+100-character cap binds after `gofmt`. Two of #1328's three repairs measured 110 and 103 runes
+naively and had to be reworded to 97 and 99. A ticket told to "change a pointer and nothing else"
+cannot honour that literally without landing a fresh §4.4 defect. Nothing mechanises the re-check.
 
 **Condition 5 keeps a formatting hunk out of a sweep diff.** No workflow runs `gofmt`, and five
 tracked Go files were unformatted on `origin/main` at `172bbc1`. #1188 deleted eight trailing labels
@@ -1528,6 +1790,20 @@ gap and states why.
    it. The citation resolves textually while the ADR quotes the very comment the sweep deletes.
    #1197 recorded the gap anyway, with the reasoning, in **#1326**.
 
+**A dangling citation is not evidence that the rule is unwritten.** The suppressing rule fires on a
+citation that resolves, so a dead token passes straight through it and the gap gets recorded. Shape
+2 above is right that the reason goes uncited. It is not a licence to skip the search. **Search
+§4.7's five-place surface before you record the gap.** #1204 filed the never-fabricate rule as gap 2
+of **#1333** and `docs/adr/0110` line 74 states it. #1205 moved three of its four gap candidates out
+of the list the same way, using `docs/guides/`. #1209 filed nothing at all: ten candidates, and
+every rule that passed §8.2's gates was already written.
+
+**A deleted issue does not suppress a record, and neither does a collision id.** The rule above says
+"an issue" suppresses. A `#nnn` whose issue was deleted returns HTTP 410, and nothing under `docs/`
+distinguishes it from a live citation (#1203). A design-collision id resolves to a live issue that
+is not the rule's source (§4.7). Query the issue API and read the title before you let a `#nnn`
+suppress a record.
+
 ### 8.4 The container
 
 **One `adr-gap` issue per sweep ticket.** It lists every gap that ticket found. The backlog is bounded
@@ -1598,6 +1874,12 @@ applied the trigger. Across about 30 sessions that difference is the whole integ
 itself. The explicit line costs one line and is the only evidence the reviewer gets.
 
 **An empty issue is refused.** It pollutes the backlog §8.10 must read.
+
+**A ticket body may say otherwise, and this section wins.** Every open sweep ticket body carried an
+unconditional "open one `adr-gap` issue for this ticket" in step 7, written before this section
+existed. #1201 and #1209 both reached zero gaps, both resolved the conflict this way, and both named
+it in the PR body. The bodies are amended. Where any instruction outside this SPEC asks for an empty
+issue, refuse it and say so in the PR body.
 
 ### 8.8 An `adr-gap` issue is never a sub-issue of a map
 
@@ -1828,6 +2110,6 @@ The rewrites in full:
 
 // 13 before: six lines mixing history with two constraints
 // after:
-// The frozen golden package is internally consistent only at TOTP-ON, so seed it verbatim.
+// The design-system profile example is consistent only at TOTP-ON, so seed it verbatim.
 // The dev session mint bypasses the password and TOTP challenge, so no secret is needed.
 ```
