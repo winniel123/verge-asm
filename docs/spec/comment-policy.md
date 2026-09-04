@@ -417,10 +417,11 @@ judgment, as the dominant deletion driver in that ticket.
 
 **The cross-block test reaches `main`, not only the ticket.** In a late `cmd/web` file the dominant
 deletion driver is a rule a merged sweep already left on `main`, not a sibling block inside the
-ticket. 35 of #1209's 86 deletions collapsed that way, #1208's 14, #1211's 10 and #1210's 4. An
+ticket. 35 of #1209's 86 deletions collapsed that way, #1208's 14, #1207's 10, #1211's 10 and
+#1210's 4. An
 agent reading "across the ticket" literally keeps every one of them. Search the merged sweep output
 for the rule before you keep it. Nothing is dropped for an owner to catch here, because the owner is
-on `main` already, so §7.4's boundary table separates the two.
+on `main` already. §7.4 requires the PR body's boundary table to hold the two as separate rows.
 
 **The cross-block test compares the rule, not the surface claim.** Two survivors may state
 opposite-sounding facts and both be true. `internal/scan`'s `tailReadableState` keeps "a retired log
@@ -665,10 +666,10 @@ placement 2 will not fit, not the default for a field. #1190 found placement 2 b
 notably `CTSource.DisplayName`, where placement 3 would have put two blank lines inside a four-line
 interface.
 
-**A wide interface inverts that preference.** Only a handful of `store`'s 86 methods leave trailing
-room inside §4.4's 100-character cap, so placement 3 is the default there and placement 2 the
-exception (#1203). The narrow-interface reading above is right for its case and the wide-interface
-reading for its own. Measure the trailing room before you choose.
+**A wide interface inverts that preference.** `cmd/web/handlers.go`'s `store` declares 178 methods,
+and only a handful leave trailing room inside §4.4's 100-character cap, so placement 3 is the
+default there and placement 2 the exception (#1203). The narrow-interface reading above is right for
+its case and the wide-interface reading for its own. Measure the trailing room before you choose.
 
 **Placement 3 is what a declaration with no body needs.** A `const`, `var`, `type` or `interface` at
 package scope has no statement to sit above. A declaration line long enough to break §4.4's
@@ -723,8 +724,9 @@ anywhere else.
 **A build-tag reason goes above the platform-specific expression.** The reason a `//go:build` pair
 exists is about the **file**, and every placement above is statement-relative or
 declaration-relative. Placement 1 is still the target, and the statement to pick is the one the tag
-exists for. #1201's fallback — the first statement of the body — landed on that expression in
-`internal/queue/proberexit_windows.go` by luck rather than by rule.
+exists for. #1201's survivor sits in `internal/queue/proberexit_unix.go`, above the
+`ps.Sys().(syscall.WaitStatus)` type assertion, and it got there by the fallback rule rather than by
+this one. The windows twin's own block died under §4.10 and left nothing behind.
 
 ### 4.6 Test files
 
@@ -828,8 +830,7 @@ states it. Three tickets reached the correction independently.
 | A bare `SPEC §n` on `cmd/web/scans.go` | `docs/spec/scans-monitor-bounding.md` §2.2, §2.3, §3, §4 (#1208) |
 | `#778` on `cmd/web/inventory.go` | `docs/adr/0125`, Decision ground 5 (#1211) |
 
-Also reconfirmed as targets: `ADR-0053` for the host-only redaction rule, and `docs/spec/v1-spec.md`
-§4.1, §5.2 and §5.3.
+Also reconfirmed as targets: `docs/spec/v1-spec.md` §4.1, §5.2 and §5.3.
 
 **The search surface is five places:** `docs/spec/`, `docs/adr/`, `docs/research/`, `docs/guides/`
 and `CONTEXT.md`. `docs/guides/` is the one an agent forgets, and the one an operator-facing product
@@ -845,7 +846,7 @@ and drop the prefix before you hunt for a document.
 
 | Surface | Why it answers |
 | --- | --- |
-| `docs/spec/comment-policy.md` | This SPEC names `AUDIT-LEDGER`, `AL-25`, `P0.7` and `DF-F4` in order to record that they are dead. |
+| `docs/spec/comment-policy.md` | This SPEC names every dead token it rules on — `AUDIT-LEDGER`, `AL-2`, `AL-25`, `P0.n`, `P2.n`, `R4-D4`, `DF-Fn`, `G2`, `SPEC-CHANGE`, `PARITY-CHART` and each `#nn` collision id — in order to record that they are dead. The set grows with each amendment, so treat any hit in this file as a hit on this row. |
 | `docs/research/comment-*` | `comment-gate-test.md` is the §3.9 gate sheet and quotes the corpus verbatim. |
 | `docs/research/sql-stripper-*` | `sql-stripper-cross-check.md` is #1143's record of the same corpus. |
 | Any `.tmpl` comment | `design-system/templates/scope.tmpl` states `DF-F1` and `DF-F2`. A template comment is not a document, and it is stage-D3 sweep territory itself. |
@@ -912,7 +913,7 @@ instances are measured.
 | `(ADR-0129 §6)` on `internal/queue/edgefanout.go:268` | Not the vantage rule the comment states | `#956` (#1328) |
 | `(ADR-0130 §3)` on `cmd/web`'s `server.routes` | "Redirects preserve the submitting URL" | Nothing. Validating a redirect against the route table is stated nowhere (#1203) |
 | `(#286)` on the anchor-slug rule in `cmd/web/seeds.go` | T10 IA reconciliation | `docs/spec/v1-spec.md` §5.3 (#1206) |
-| `ADR-0081` on the host-only redaction rule, three sites | A Delivery-has-no-cause rule | `ADR-0053` (#1354) |
+| `ADR-0081` on the host-only redaction rule, five sites | A Delivery-has-no-cause rule | Nothing. The host-only rendering rule is stated nowhere (#1354) |
 
 **`ADR-0130 §3` is the shape that falls through both repairs.** It names a live section of a live
 document that rules something else, so §8.3 suppresses the gap and this section has nothing to
@@ -926,21 +927,31 @@ token then appeared in `pure_test.go:64` and twice in `crtsh_test.go`, both owne
 was opened for two citations and its file held three. `edgefanout.go:268` cites `ADR-0129 §6` where
 the rule is #956, and only a sweep of every `ADR-0129` reference in the file found it.
 
-**`ADR-0081` is misattributed three times and a blanket replace would be wrong.** It contains zero
-occurrences of "host", "token" or "URL", and it is cited for the host-only redaction rule at
-`internal/message/render.go:395`, `cmd/web/reportdelivery_test.go:20` and `:102`. `ADR-0053` states
-that rule in its own voice. Its other five uses — `cmd/web/messages.go:21` and four `internal/db`
-sites — cite it for a Delivery-has-no-cause rule, which it does state, and those are correct.
-**#1354** tracks the repair.
+**`ADR-0081` is misattributed, and both a blanket replace and a blanket repair target are wrong.**
+It contains zero occurrences of "host", "token" or "URL". **Five** sites cite it for the host-only
+redaction rule — `internal/message/render.go:395`, `cmd/web/reportdelivery_test.go:20` and `:102`,
+and `cmd/web/reports.go:1114` and `:1223`. Its **eleven** other uses cite it for a
+Delivery-has-no-cause rule, which it does state: `cmd/web/messages.go:21`, `:94`, `:270` and `:508`,
+`cmd/web/messages_test.go:122`, and six `internal/db` sites, which are three comments each written
+into `querier.go` and into its own query file. Those eleven are correct and stay.
+
+**No document on `main` states the host-only rendering rule, so the five have no repair target.**
+`ADR-0053` was nominated for it and does not carry it. `ADR-0053` rules secret *custody* — `web`
+renders "set" or "not set" and never a value — and it names "a webhook URL with a token in it" only
+as an example inside its Context. It fails test 1 above. Route 3 applies:
+the five go uncited and the rule is recorded as a gap. **#1354** tracks the repair, and its own
+"Done when" list names `ADR-0053` and three sites, so it needs correcting before it runs.
 
 **Check that a survivor's citation resolves before the PR opens.** The ratchet does not provide this
-check. **Four defects have landed on `main` in merged sweep output.** `internal/queue/worker.go:331`
-cites `DF-F4` and `internal/queue/edgefanout.go:58` carries `(ADR-0129 §5)` on a rule §5 does not
-state (#1194, PR #1317). **#1328** repairs both. The `ADR-0081` misattribution above is the third
-(**#1354**). The fourth is a false claim rather than a wrong citation: `cmd/web/seeds.go:453`
-(PR #1340) says the head block inlines `tokens/*.css` "only when this datum is set", and 42
-`cmd/web` sites set it `true` against 0 that set it `false` (**#1355**). Do not repair any of them
-under a sweep ticket.
+check. **Four defects have reached `main` in merged sweep output, and two are still open.**
+
+| Defect | Landed by | State |
+| --- | --- | --- |
+| `internal/queue/worker.go` cited `DF-F4`, and `edgefanout.go` carried `(ADR-0129 §5)` on a rule §5 does not state | #1194, PR #1317 | **Repaired.** #1328 merged as `b158035` and fixed a third the file also held. |
+| `ADR-0081` on the host-only redaction rule, five sites | Batches 5 to 10 | Open. **#1354**, and see the correction above. |
+| `cmd/web/seeds.go:453` says the head block inlines `tokens/*.css` "only when this datum is set". 42 `cmd/web` sites set it `true` and 0 set it `false` | #1206, PR #1340 | Open. **#1355**. |
+
+Do not repair an open one under a sweep ticket.
 
 ### 4.8 The `package-doc` cap
 
@@ -1566,9 +1577,12 @@ survivors from fourteen test files and #1201 zero from three, and both are corre
 **A third boundary shape: the cross-package collapse against `main`.** The rule a ticket drops may
 be held by a survivor a merged sweep already left on `main`, not by a sibling in the split. Nothing
 is dropped for an owner to catch, because the owner is on `main` already. #1209 collapsed 35 of its
-86 deletions that way, #1208 14, #1207 10 against `internal/signal`, #1211 10 and #1210 4. **A
-boundary table must separate the two shapes**, or a reviewer cannot tell this from an over-deletion.
-#1208 dropped zero of the ticket-boundary kind.
+86 deletions that way, #1208 14, #1207 10 against `internal/signal`, #1211 10 and #1210 4.
+
+**The PR body's boundary table must separate two rows: reasons dropped for a sibling ticket's owner
+to catch, and reasons collapsed against a survivor already on `main`.** Without that split a
+reviewer cannot tell a correct collapse from an over-deletion. #1208 dropped **zero** of the first
+kind and 14 of the second. #1207 supplied the table this rule is written from.
 
 ### 7.5 Parallel sweeps
 
