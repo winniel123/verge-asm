@@ -251,8 +251,9 @@ no valence word grades the copy, and an empty `Artifact` renders the design-syst
 - **This ADR changes no Go code, no template and no test.** Every one of the 17 draw sites in §Context
   is already correct under this rule. The ADR states what they already do and closes the record.
 - **[ADR-0114](./0114-the-report-pdf-is-rendered-in-process-from-the-artifact-not-from-html.md) §2 loses
-  one clause and gains a replacement.** The edit is recorded in `docs/adr/.pending/1300.md` and is
-  applied by the batch parent, not by this ADR's author. ADR-0114's other three limbs are untouched.
+  one clause and gains a replacement.** The edit is recorded in this issue's manifest and is applied
+  by the batch parent, not by this ADR's author, at ADR-0114 §2's own site. ADR-0114's other three
+  limbs are untouched.
 - **The print form's valence guard is blind to the ramp, and that is a defect this ruling exposes.**
   `artifactPDFStrings` drops the ramp label at `pdf.go:113` and the per-signal token at `pdf.go:115`.
   The guard therefore cannot enforce §3's boundary: it cannot tell a ramp label it must permit from a

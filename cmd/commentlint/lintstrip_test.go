@@ -207,17 +207,69 @@ func TestGithubSummaryReportsLexFailuresOnTheirOwnLine(t *testing.T) {
 	}
 }
 
-func TestGithubModeAnnotatesAndExitsZeroOnAViolation(t *testing.T) {
+func TestGithubModeAnnotatesAsAnErrorAndExitsOneOnAViolation(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
 	writeFile(t, dir, "p.go", "package p\n\n// F reports the estate.\nfunc F() {}\n")
 
 	var stdout, stderr bytes.Buffer
-	if got := runWith([]string{"lint", "--github", "p.go"}, &stdout, &stderr, stubGit(nil, nil)); got != 0 {
-		t.Errorf("exit is %d, want 0 in --github mode", got)
+	if got := runWith([]string{"lint", "--github", "p.go"}, &stdout, &stderr, stubGit(nil, nil)); got != 1 {
+		t.Errorf("exit is %d, want 1 in --github mode", got)
 	}
-	if !strings.Contains(stdout.String(), "::warning file=p.go,line=3,title=commentlint (docstring-exported-conventional)::") {
-		t.Errorf("stdout is %q, want one annotation per violation", stdout.String())
+	if !strings.Contains(stdout.String(), "::error file=p.go,line=3,title=commentlint (docstring-exported-conventional)::") {
+		t.Errorf("stdout is %q, want one error annotation per violation", stdout.String())
+	}
+	if strings.Contains(stdout.String(), "::warning") {
+		t.Errorf("stdout is %q, want no advisory annotation", stdout.String())
+	}
+}
+
+func TestGithubModeExitsTwoWhenALexFailureJoinsAViolation(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	writeFile(t, dir, "p.go", "package p\n\n// F reports the estate.\nfunc F() {}\n")
+	writeFile(t, dir, "broken.go", "package p\n\nfunc F() {\n")
+
+	var stdout, stderr bytes.Buffer
+	got := runWith([]string{"lint", "--github", "p.go", "broken.go"}, &stdout, &stderr, stubGit(nil, nil))
+	if got != 2 {
+		t.Errorf("exit is %d, want 2: a lex failure outranks a violation", got)
+	}
+}
+
+func TestGithubModeExitsZeroOnACleanFile(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	writeFile(t, dir, "p.go", "package p\n\nfunc F() {}\n")
+
+	var stdout, stderr bytes.Buffer
+	if got := runWith([]string{"lint", "--github", "p.go"}, &stdout, &stderr, stubGit(nil, nil)); got != 0 {
+		t.Errorf("exit is %d, want 0 (stdout %q, stderr %q)", got, stdout.String(), stderr.String())
+	}
+}
+
+func TestGithubModeExitsZeroOnAnEmptyFileSet(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	var stdout, stderr bytes.Buffer
+	if got := runWith([]string{"lint", "--github", "--in-scope-only"}, &stdout, &stderr, stubGit(nil, nil)); got != 0 {
+		t.Errorf("exit is %d, want 0 (stdout %q, stderr %q)", got, stdout.String(), stderr.String())
+	}
+}
+
+func TestGithubSummaryStatesThatAViolationFailsTheJob(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	writeFile(t, dir, "p.go", "package p\n\n// F reports the estate.\nfunc F() {}\n")
+
+	var stdout, stderr bytes.Buffer
+	runWith([]string{"lint", "--github", "p.go"}, &stdout, &stderr, stubGit(nil, nil))
+	if !strings.Contains(stdout.String(), "A violation fails this job.") {
+		t.Errorf("summary is %q, want it to state that a violation fails the job", stdout.String())
+	}
+	if strings.Contains(stdout.String(), "never blocks a merge") {
+		t.Errorf("summary is %q, want the advisory sentence gone", stdout.String())
 	}
 }
 

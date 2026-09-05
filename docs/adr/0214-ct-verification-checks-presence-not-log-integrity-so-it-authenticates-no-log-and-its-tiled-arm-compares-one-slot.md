@@ -143,7 +143,9 @@ Each is real, and naming them stops a later session reading the silence as a rul
   no instrument failure produces it. The product's drift readings are unaffected either way, because
   ADR-0027 keeps every CT input out of the `certificate` facet value.
 - **One SPEC edit is recorded, not made.** §5.1's tile sentence is withdrawn. The anchor and the
-  replacement are in `docs/adr/.pending/1323.md`. §5.4's amendment is **not** recorded here:
+  replacement are in this issue's manifest, and the withdrawal is now applied at
+  [`ct-source-replacement.md`](../spec/ct-source-replacement.md) §5.1's own site. §5.4's amendment is
+  **not** recorded here:
   ADR-0193 already carries it, in #1308's manifest, against the same anchor.
 - **A false `not-logged` is reachable on the tiled arm, and it is a defect.** `ctverify.go:230` reads
   `if index >= sth.TreeSize { return checkNotFound }`. An SCT is a promise to include within the

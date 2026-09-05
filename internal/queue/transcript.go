@@ -119,7 +119,7 @@ func buildCTParams(jobID int64, capturedAt time.Time, v wire.CTTranscript, key [
 }
 
 func encodeCTOutcome(o wire.CTOutcome, requestURL string) ([]byte, error) {
-	// Both CT sources carry the credential in a header, so the URL is no secret (ADR-0126, #1321 §3).
+	// Both CT sources carry the credential in a header, so the URL is no secret (ADR-0126).
 	switch v := o.(type) {
 	case wire.CTHTTP:
 		return json.Marshal(map[string]any{"kind": "http", "status": v.Status, "request_url": requestURL})

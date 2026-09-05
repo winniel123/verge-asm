@@ -20,7 +20,7 @@ func escapeProperty(value string) string {
 }
 
 func annotationLine(v violation) string {
-	return fmt.Sprintf("::warning file=%s,line=%d,title=%s::%s",
+	return fmt.Sprintf("::error file=%s,line=%d,title=%s::%s",
 		escapeProperty(v.path), v.Line,
 		escapeProperty("commentlint ("+v.Rule+")"),
 		escapeData(string(v.Class)+" block; CLAUDE.md keeps a comment only on an unrecoverable external cause"))
@@ -29,7 +29,7 @@ func annotationLine(v violation) string {
 func summary(fileCount int, found []violation, lexFailures int) string {
 	var b strings.Builder
 	b.WriteString("## commentlint\n\n")
-	b.WriteString("Advisory comment lint (SPEC docs/spec/comment-policy.md §6.7). This check never blocks a merge.\n\n")
+	b.WriteString("Comment lint (SPEC docs/spec/comment-policy.md §6.7). A violation fails this job.\n\n")
 	fmt.Fprintf(&b, "**%d file(s) linted, %d violation(s).**\n\n", fileCount, len(found))
 	// The exit code already separates a lex failure from a violation (SPEC §6.7).
 	fmt.Fprintf(&b, "**Lex failures: %d.** A lex failure is not a violation.\n\n", lexFailures)

@@ -62,16 +62,13 @@ func runLint(args []string, stdout, stderr io.Writer) int {
 
 	if *github {
 		reportGithub(stdout, len(files), found, lexFailures)
-		if lexFailures > 0 {
-			return 2
+	} else {
+		for _, v := range found {
+			fmt.Fprintf(stdout, "%s:%d -> %s\n", v.path, v.Line, v.Rule)
 		}
-		return 0
+		fmt.Fprintf(stdout, "commentlint lint: %d violation(s) across %d file(s), %d lex failure(s)\n",
+			len(found), len(files), lexFailures)
 	}
-	for _, v := range found {
-		fmt.Fprintf(stdout, "%s:%d -> %s\n", v.path, v.Line, v.Rule)
-	}
-	fmt.Fprintf(stdout, "commentlint lint: %d violation(s) across %d file(s), %d lex failure(s)\n",
-		len(found), len(files), lexFailures)
 	if lexFailures > 0 {
 		return 2
 	}

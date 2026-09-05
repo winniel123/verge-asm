@@ -288,7 +288,9 @@ the exit code, because a warning is advisory.
 
 A new dedicated `doclint` CI job runs the tool (ticket Q10). The job:
 
-- Runs on a broad doc path filter that covers all nine in-scope families.
+- Runs on every pull request, under no `paths:` filter at all. The workflow's other job, the
+  cited-path gate (§5.3), reads the whole tree, so a doc filter would skip the run that matters
+  most. A pull request that deletes a Go file and touches no document still kills a citation.
 - Is `continue-on-error` (ticket Q9). The job never fails the workflow. It never blocks a merge.
 - Scopes to the changed docs on a pull request (ticket Q6). It lints the diff, not the whole tree.
 
@@ -297,8 +299,108 @@ each violation inline on the pull request. The job-log summary lists the counts 
 severity. **No SARIF in v1.**
 
 The `doclint` job is separate from the existing `docs-site` build job. The build job's gates are
-required and blocking. The `doclint` job is advisory and non-blocking, so it must not share the
-build job's blocking behaviour.
+blocking but not required. A non-zero exit fails that job, and `main`'s ruleset lists neither job
+among its seven required checks. So a red build gates no merge (#1438). Promotion to a required
+check is a repository settings change a human applies by hand (#1263). The `doclint` job goes
+further and stays advisory, so a violation never fails even its own job.
+
+### 5.3 The cited-path gate
+
+A second job in the same workflow runs the cited-path gate (#1436). The gate is a separate tool with
+a separate posture. `docs-site/scripts/check-citations.mjs` holds it. `npm run check:citations` runs
+it from `docs-site/`, and the `citations` job in `.github/workflows/doclint.yml` wires it into CI.
+
+**What it asserts.** Every in-repo path a document cites must resolve. The gate reads each markdown
+link target and each code span that carries the shape of a path. It tests that path against the
+tracked tree, or against a git ref the document names beside it.
+
+**It reads the whole tree, not the diff.** A citation dies when the file it names leaves the tree.
+That pull request need touch no document at all, so a diff-scoped run would miss the case.
+
+**Scope.** The gate covers `docs/adr`, `docs/spec`, `docs/agents`, `docs/guides`, `design-system`
+and `docs-site`, at any depth. It adds the root documents CONTEXT.md, CLAUDE.md, README.md,
+SECURITY.md, CONTRIBUTING.md and CHANGELOG.md. It skips a build or dependency directory such as
+node_modules.
+
+**This set is not the §1.3 doclint set.** It gains `design-system` and `docs-site`, because both
+hold documents that cite code. It loses `docs/research`. #1450 ruled research out for one reason: a
+research doc cites another project's tree, and such a path collides with a path of ours. The gate
+would read every collision as a dead path, and the noise would swamp the signal.
+
+**The gate assigns one status per candidate.**
+
+| Status | Meaning | Fails the job |
+| --- | --- | --- |
+| `ok` | The tracked tree holds the path | no |
+| `dead` | Nothing at the site explains the absence, or the path climbs past the repo root | yes |
+| `withdrawn` | The site states the absence itself, or an ADR-0058 withdrawal marker covers it | no |
+| `exempt` | The ledger below names this document and this path | no |
+| `on-ref` | The document names a branch or a commit beside the path, and the path lives there | no |
+| `ref-unknown` | The document names a ref this clone does not hold | no |
+| `foreign` | The path is rooted at no top-level entry of this repo | no |
+| `untracked` | A `.gitignore` rule covers the path, so no commit of ours holds it | no |
+| `ignored` | The candidate is not a path citation at all | no |
+
+**Only `dead` fails the job.** The command prints one line per dead path and exits non-zero. Every
+other status is a pass.
+
+**The `withdrawn` phrase list is deliberately narrow.** It matches a phrase that states absence,
+such as *not on disk*, *no longer exists*, *deleted*, *retired* or *superseded*. A bare *removed* or
+a bare *reachable* is too loose, so neither is on the list. A word that merely hedges never
+withdraws a claim.
+
+**A withdrawal never hides a live path.** The gate tests presence first. A struck path, or a path
+under a `WITHDRAWN` marker, is `ok` while the tree still holds it. So both withdrawal forms carry
+one meaning: the path is absent, and the site says so.
+
+**`ref-unknown` never fails the job.** The gate lists each such site under its own heading, so a
+reader sees it, and it leaves the exit code alone. A clone that lacks a ref proves nothing about the
+path, and the gate makes no network call to fetch one. A false failure here would teach a reader to
+ignore the gate.
+
+**Three statuses say this tree is not the authority for the path.** None of them fails the job.
+
+1. **`ignored` — the candidate is not a path citation.** The gate drops a template placeholder, an
+   npm scope, and a URL a document writes without its scheme. It also drops a token that holds no
+   slash, and a token whose extension the tree never uses. This test runs before any lookup.
+2. **`foreign` — the path addresses another tree.** A path rooted at no top-level entry of this repo
+   names another project's tree, and our tree can say nothing about it (#1450).
+3. **`untracked` — the tree never tracks the path.** `git check-ignore` covers the path or one of
+   its ancestors, so no commit of ours could ever hold it.
+
+**`foreign` and `untracked` are judged outcomes, not skips.** The gate resolved each candidate and
+reached a real answer about it. Only `ignored` sits outside the judged set, because that candidate
+was never a path citation, and the gate tested nothing.
+
+**The `untracked` rule is what lets a document cite an installed or a generated path.** Two real
+citations depend on it. CLAUDE.md cites `docs-site/node_modules/.bin/`, and `docs-site/DEPLOY.md`
+cites `docs-site/tests/diff/`. Both paths are correct prose, and neither will ever appear in a
+commit. The rule is generic and asks `git check-ignore`, so it reads no word list of its own.
+
+**The summary reports every status, and it suppresses nothing silently.** It gives the dead count
+first, then a count per status across the citations it judged. An `ignored` candidate is not a
+judged citation, so the summary counts it on a line of its own. The `--verbose` flag lists each
+individual site the gate passed over.
+
+**The judged counts must sum to the judged total.** A test asserts that identity, so no citation can
+hide in a bucket the summary never prints. A new status therefore needs a new summary line, and the
+test fails until it gets one.
+
+**The exemption ledger.** `docs-site/scripts/citations/exemptions.json` holds each site the gate
+must not flag. An entry names a document, a path and a reason. A `file` value that ends in a slash
+covers a whole family. #1450 classified every class the ledger admits. Three classes hold: another
+project's tree, a deliberately fictional example path, and a forward reference to a file a later
+ticket writes.
+
+**Two self-tests guard the ledger.** The first asserts that every entry names a document still on
+disk, with a reason a reader can use. The second asserts that every entry still suppresses a
+finding. A stale entry therefore fails the suite instead of hiding a real defect. The `citations`
+job runs the suite with `npm run test:citations`, before the gate itself.
+
+**Blocking, and not required.** A dead path fails the `citations` job, which is the whole point of
+the gate. `main`'s ruleset does not require that job, so a red run blocks no merge (#1438).
+Promotion to a required check is the same settings change #1263 tracks. Do not read a green
+`citations` job as a merge gate until that change lands.
 
 ---
 

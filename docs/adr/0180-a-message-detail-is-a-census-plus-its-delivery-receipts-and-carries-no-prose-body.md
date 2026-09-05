@@ -152,7 +152,7 @@ because it is not about the same object.** The package name is the whole of the 
 | **Fold the receipts onto the channel surface and leave the detail as census alone** | Reverses ADR-0039 `:179-180` and ADR-0108's delivery limb. An undelivered POST is a fact about *this* message; on the channel it becomes a configuration note about a host, and the operator reading the message has no way to know they are the only one who saw it |
 | **Render the `last_error` inline rather than as a hover drill-down** | ADR-0108 named the drill-down specifically, on #22's *reason is a slot, not a design*. An inline TLS trace on every failed row makes the receipt unreadable at the moment the operator is scanning for which message did not get out |
 
-## Amendment — [#1447](https://github.com/winniel123/verge-asm/issues/1447): §5's fence stands, and the report path's host-only rule is stated in the reports guide
+## Amendment — [#1447](https://github.com/winniel123/verge-asm/issues/1447): §5's fence stands, and the report path's host-only rule is stated ~~in the reports guide~~ **in ADR-0114's #1456 amendment**
 
 **The Decision is unchanged. §5 is unchanged. This ADR gains no reach.** What this amendment
 records is where a rule §5 fences out now lives, and why a reader keeps arriving here for it.
@@ -185,11 +185,22 @@ the two reason clauses uncited, under comment-policy §4.7 route 3.
 shared package name. Widening this ADR past its own fence would restate the adjacency error
 one document further on, and it would make the title false.
 
-**The report path's rule is stated in
+~~**The report path's rule is stated in
 [`docs/guides/reports.md`](../guides/reports.md), under *The receipt names the host, never
 the whole delivery URL*.** A guide is the right home here for two reasons. The rule is
 operator-facing, because it decides what an operator reads on a receipt. And `cmd/web` already
-cites a guide by path for a rule of that kind, at `restore.go`, `settings.go` and `cold.go`.
+cites a guide by path for a rule of that kind, at `restore.go`, `settings.go` and `cold.go`.~~
+
+> **The struck clause is WITHDRAWN at the site that specifies it, 2026-09-05 by
+> [ADR-0114](./0114-the-report-pdf-is-rendered-in-process-from-the-artifact-not-from-html.md)'s
+> [#1456](https://github.com/winniel123/verge-asm/issues/1456) amendment
+> ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).**
+> **The replacement:** the report path's host-only rule is ruled by ADR-0114's #1456 amendment.
+> ADR-0114 already rules the report `Artifact`'s render forms, so the rule now sits on the object
+> it binds. `deliveryTargetHost` and `artifactReceipt` cite `ADR-0114 #1456`.
+> **The guide keeps its operator-facing statement** under *The receipt names the host, never the
+> whole delivery URL*, and it links the amendment. Both reasons the struck clause gave still argue
+> for a guide's paragraph. Neither makes a guide the ruling, which is why #1456 minted one.
 
 **Do not cite this ADR from the report path.** The two rules agree because the hazard is one
 hazard. Neither is authority for the other.

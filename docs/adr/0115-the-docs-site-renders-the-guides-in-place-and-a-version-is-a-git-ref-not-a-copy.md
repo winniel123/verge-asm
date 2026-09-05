@@ -9,10 +9,14 @@
 The repo already carries eight authoritative operator guides as Markdown in `docs/guides/`
 (`first-run`, `prober`, `running`, `signals`, `sources`, `using`, `verifying`, `zone-files`), and
 the design system ships a finished **docs surface** — `design-system/examples/DocsPage.jsx` plus its
-ground-truth capture `design-system/screenshots/docs.jpg` — as the verbatim IA spec for how docs must
-look ([ADR-0110](./0110-the-design-system-examples-are-the-consoles-ia-spec-ported-verbatim.md)). What
-did not exist was the site that renders those guides inside that shell, and a decision about how the
-docs are *versioned* alongside a product that ships tagged releases.
+ground-truth capture ~~`design-system/screenshots/docs.jpg`~~ — as the verbatim IA spec for how docs
+must look ([ADR-0110](./0110-the-design-system-examples-are-the-consoles-ia-spec-ported-verbatim.md)).
+`55aa367` deleted the struck capture on 2026-08-28. It took the whole `design-system/screenshots/`
+tree and the byte-compare lane the tree fed. **No successor file carries it.** `DocsPage.jsx` alone
+is the IA spec a reader can still open.
+
+What did not exist was the site that renders those guides inside that shell, and a decision about how
+the docs are *versioned* alongside a product that ships tagged releases.
 
 Two questions had to be settled before any later ticket (nav generation, search, per-guide pages) could
 begin, because both are structural and expensive to reverse once content and URLs exist:

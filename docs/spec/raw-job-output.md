@@ -1,36 +1,43 @@
 # Verbatim raw job output for operator debugging
 
 - **Status:** Accepted — handoff spec for map [#838](https://github.com/winniel123/verge-asm/issues/838), terminal ticket [#844](https://github.com/winniel123/verge-asm/issues/844)
-- **Ruling:** draft [ADR-0126](../adr/0126-verbatim-job-output-is-a-fourth-operational-corpus-retired-by-a-duration-dial-that-ships-bounded.md) (posted in [#839](https://github.com/winniel123/verge-asm/issues/839); to be finalised from this spec)
+- **Ruling:** [ADR-0126](../adr/0126-verbatim-job-output-is-a-fourth-operational-corpus-retired-by-a-duration-dial-that-ships-bounded.md), **Accepted**. [#839](https://github.com/winniel123/verge-asm/issues/839) posted the draft, and [#871](https://github.com/winniel123/verge-asm/issues/871) finalised it from this spec on 2026-08-31.
+- **Build status:** **Built.** Map [#838](https://github.com/winniel123/verge-asm/issues/838) shipped this spec through tickets [#862](https://github.com/winniel123/verge-asm/issues/862) to [#871](https://github.com/winniel123/verge-asm/issues/871). The map closed on 2026-08-31.
 - **Decisions folded:** [#839](https://github.com/winniel123/verge-asm/issues/839) corpus + retention · [#840](https://github.com/winniel123/verge-asm/issues/840) producer · [#841](https://github.com/winniel123/verge-asm/issues/841) transport · [#842](https://github.com/winniel123/verge-asm/issues/842) access + secrets · [#843](https://github.com/winniel123/verge-asm/issues/843) UI
 
 This document folds the map's five locked decisions into one buildable spec. It makes **no new
 decision**. Where a decision was deferred or left thin, this document says so and does not smooth it
-over (§10). A build session works from here; it does not re-open the tickets.
+over (§10). The build session worked from here and did not re-open the tickets.
+
+**Reading this after the build.** A sentence about the pre-build code names the 2026-08-29
+fact-find and takes the past tense. Every other statement describes the code as it stands, and it
+names the site. §1.3 and §10 mark the parts the build did not build ([#1457](https://github.com/winniel123/verge-asm/issues/1457)).
 
 ## What this builds
 
 An operator debugging a job needs the genuinely-raw output of that job: **stdout + stderr +
-exec-meta** (exit code or signal, duration, the `JobSpec` sent). Today `/runs/{id}?job={n}` shows
-only `kind · state · vantage`, built by `runLog` (`cmd/web/scans.go`) from the lean `queue_job`
-operational record. That is the record of what the system *did*, not the job's output. A probe job
-emits only structured NDJSON observations on stdout; there is **no** raw-stdout/stderr channel, no
-store, and no wire type for raw output today (fact-find, 2026-08-29).
+exec-meta** (exit code or signal, duration, the `JobSpec` sent). At the 2026-08-29 fact-find,
+`/runs/{id}?job={n}` showed only `kind · state · vantage`. `runLog` (`cmd/web/scans.go`) built that
+line from the lean `queue_job` operational record. That is the record of what the system *did*, not
+the job's output. A probe job emitted only structured NDJSON observations on stdout. No
+raw-stdout/stderr channel, no store, and no wire type for raw output existed.
 
-This effort adds a durable, verbatim store — the `Transcript` corpus — captured at the prober
-boundary on **local and remote** vantages, and surfaces it on a dedicated admin-gated view reached
-from `?job={id}`.
+This effort added a durable, verbatim store — the `Transcript` corpus. The worker captures it at
+the prober boundary on **local and remote** vantages. A dedicated admin-gated view surfaces it, and
+the `?job={id}` chip links to it. All three parts stand: the `wire.Transcript` union
+(`internal/wire/transcript.go`), the `transcript` table (`db/migrations/23700_transcript.sql`), and
+`GET /runs/{id}/raw` behind `requireAdmin` (`cmd/web/handlers.go`).
 
 ### Three conscious overrides
 
-This change consciously reverses three deliberate mechanisms. Each reversal is priced and recorded,
+This change consciously reversed three deliberate mechanisms. Each reversal is priced and recorded,
 not accidental.
 
-| Mechanism | Today | This change |
+| Mechanism | Before the build | What shipped |
 | --- | --- | --- |
-| **ADR-0041** — a corpus is retained by what may still read it; only `Dispatch` carries a clock, and v1 ships both retirable corpora **unbounded** | Nothing verbatim is retained at rest; the run log is state-derived | Adds a fourth Operational corpus that carries a clock and **ships bounded** (§1, §4) |
-| **Redaction posture** — the progress/log vocabulary is closed and redacted, so verbatim bytes never reach rest | No verbatim bytes at rest | Stores verbatim `stdout`, `stderr`, and the sent `JobSpec` (§1, §5) |
-| **ADR-0053** — Postgres holds no secret | Secrets live on the service volume, never in the DB | `Transcript` is the first secret-bearing corpus at rest; it is **encrypted** with a volume key (§5) |
+| **ADR-0041** — a corpus is retained by what may still read it; only `Dispatch` carries a clock, and v1 ships both retirable corpora **unbounded** | Nothing verbatim was retained at rest, and the run log was state-derived | A fourth Operational corpus carries a clock and **ships bounded** (§1, §4) |
+| **Redaction posture** — the progress/log vocabulary is closed and redacted, so verbatim bytes never reach rest | No verbatim bytes at rest | The `transcript` table stores verbatim `stdout`, `stderr`, and the sent `JobSpec` (§1, §5) |
+| **ADR-0053** — Postgres holds no secret | Secrets lived on the service volume, never in the DB | `Transcript` is the first secret-bearing corpus at rest, **encrypted** with a volume key (§5) |
 
 Two marks are used, on `docs/spec/measurement-offers.md`'s convention:
 
@@ -78,14 +85,15 @@ carries its **own typed outcome** (there is no shared outcome union):
 
 | Variant | Vantage | Streams captured | Typed outcome |
 | --- | --- | --- | --- |
-| **`ProberTranscript`** | local now; remote via [#841](https://github.com/winniel123/verge-asm/issues/841) | stdout bytes, stderr bytes, and the **exact bytes sent** to prober stdin | `exited(code) \| signalled(sig) \| context-cancelled` |
+| **`ProberTranscript`** | local and remote, both shipped ([#865](https://github.com/winniel123/verge-asm/issues/865), [#867](https://github.com/winniel123/verge-asm/issues/867)) | stdout bytes, stderr bytes, and the **exact bytes sent** to prober stdin | `exited(code) \| signalled(sig) \| context-cancelled` |
 | **`CTTranscript`** | crt.sh HTTP producer | request URL (`scan.CrtshURL`), HTTP status, response body (verbatim), transport-error text (the stderr analog) | `http(status) \| transport-error(text) \| context-cancelled` |
 | **`ZoneTranscript`** | zone restate | the restate result — see §1.3 | `parsed \| decode-error` |
 
 A `ctx`-killed prober (job timeout or mid-flight cancel) reads as `context-cancelled`, **never** a
-fake `exited(0)`. Extract the prober exit code via `exec.ExitError` / `ProcessState.ExitCode()`
-locally, and via `*ssh.ExitError.ExitStatus()` / `.Signal()` / `*ssh.ExitMissingError` remotely
-(§3).
+fake `exited(0)`. The build takes the local exit code from `ProcessState.ExitCode()`, in
+`classifyProberOutcome` (`internal/queue/worker.go`). It takes the remote one from
+`*ssh.ExitError.ExitStatus()`, `.Signal()` and `*ssh.ExitMissingError`, in `classifyExit`
+(`internal/remoteexec/conn.go`). Both test the cancel first (§3).
 
 ### 1.3 The Zone variant
 
@@ -95,10 +103,13 @@ records `RestateZone` **skipped** because it could not marshal them ("why is thi
 from the estate?" → "we skipped it"). `ZoneTranscript` does **not** store the zone-file bytes — the
 file already sits in the operator's supplied zone-file row.
 
-Two producer-implementation notes for the build:
-1. `RestateZone` must **surface** its skips (a producer change — it does not today).
-2. Zone has **no failure tx** today, so zone capture stays on the **completed path only** unless a
-   zone failure tx is added later. `[thin]`
+Two producer-implementation notes, each reconciled against the build:
+1. **Built** ([#869](https://github.com/winniel123/verge-asm/issues/869)). `RestateZone` surfaces
+   its skips. It returns `(records, skipped)`, and `completeZone` (`internal/queue/zone.go`)
+   carries the skips into `wire.ZoneTranscript`. At the fact-find it did not.
+2. **Unbuilt** — Zone still has **no failure tx**. Zone capture stays on the **completed path
+   only**, unless a zone failure tx arrives later. `completeZone` is the sole zone terminal path
+   (`internal/queue/worker.go`). `[thin]`
 
 ### 1.4 The `transcript` table
 
@@ -130,23 +141,31 @@ ProbeResult{ Observations []wire.Observation; Transcript wire.Transcript }
 ```
 
 Change `VantageRouter.ProbeVantage` (`worker.go`) to the **same shape now**, so the worker's
-`probe()` fan-in (`Worker.probe`, `worker.go`) has one return shape. The remote path returns an
-**absent** transcript (a legible state) until
-[#841](https://github.com/winniel123/verge-asm/issues/841) fills the bytes across the wire. The
-type and seam are this ticket's; the remote *content* is §3's — §3 is then a pure fill-in, not a
-signature change.
+`probe()` fan-in (`Worker.probe`, `worker.go`) has one return shape. The remote path returned an
+**absent** transcript, which is a legible state. §3 then filled the bytes across the wire
+([#841](https://github.com/winniel123/verge-asm/issues/841) ruled it,
+[#867](https://github.com/winniel123/verge-asm/issues/867) built it), and the remote path carries
+them now. The type and seam were this ticket's, and the remote *content* was §3's — a pure
+fill-in, not a signature change.
 
-Grounding: `ExecProber.Probe` (`internal/queue/worker.go`) already buffers raw stdout
-(`stdout.Bytes()`) and captures stderr (`cmd.Stderr`), then **discards both** — the `Prober`
-interface returned only `[]wire.Observation`. `cmd.Run()` drops `ProcessState`, so exit code and
-duration are never taken today. Bracket `Start`→`Wait` for duration.
+Grounding, 2026-08-29: `ExecProber.Probe` (`internal/queue/worker.go`) buffered raw stdout and
+captured stderr, then **discarded both**, because the `Prober` interface returned only
+`[]wire.Observation`. Nothing took the exit code or the duration, because `cmd.Run()` dropped
+`ProcessState`.
+
+What shipped: `ExecProber.Probe` returns `wire.ProbeResult` on every path, and
+`buildProberTranscript` reads `cmd.ProcessState` for the outcome. The duration comes from a
+`time.Now`/`time.Since` pair around `cmd.Run()`, **not** from the `Start`→`Wait` bracket this
+section names. `cmd.Run()` calls `Start` and then `Wait`, so the measured span is the same.
 
 ### 2.2 Capture on every outcome that ran a producer
 
 The `Transcript` rides the **error** return too. Capture and persist on **completed, retried,
 dead-lettered, and decode-failure** — not success only. `[derived]` The raw output is highest-value
 exactly when the job failed or the observation decode failed (`ExecProber.Probe`'s `sc.Err()`
-return). This is the whole reason the seam holds the transcript on the error path.
+return). This is the whole reason the seam holds the transcript on the error path. `complete`,
+`deadLetter` and `retry` each call `persistTranscript` inside their terminal tx
+(`internal/queue/worker.go`).
 
 ### 2.3 The sent payload is verbatim
 
@@ -194,27 +213,30 @@ There is **no new serialized wire type**. The prober's stdout *is* the verbatim 
 `ProberTranscript` stores; the worker is the center and assembles the transcript in-process before
 writing it to the `transcript` table (§1.4). Nothing new crosses a wire as a decoded type. Instead:
 
-- **Widen the narrow `Conn.Run` seam** to surface the two channels it drops today — a **stderr sink**
-  and a **typed exit result**. For example `Run(ctx, cmd, stdin, stdout, stderr) (ExitResult, error)`,
-  or a small `RunResult` struct. The fake-testability property (the `Conn` interface, `conn.go`)
-  is preserved; the in-memory fake fills two more fields.
+- **Widen the narrow `Conn.Run` seam** to surface the two channels it dropped — a **stderr sink**
+  and a **typed exit result**. The seam took the first form named here,
+  `Run(ctx, cmd, stdin, stdout, stderr) (ExitResult, error)`, and not the `RunResult` struct
+  alternative (the `Conn` interface, `internal/remoteexec/conn.go`). The fake-testability property
+  survives, and the in-memory fake fills two more fields.
 - `ExitResult` maps the prober's typed outcome (§1.2): `exited(code)` from `*ssh.ExitError.ExitStatus()`,
   `signalled(sig)` from `*ssh.ExitError.Signal()` / `*ssh.ExitMissingError`, `context-cancelled` from
-  a `ctx`-killed session.
+  a `ctx`-killed session. `classifyExit` (`internal/remoteexec/conn.go`) holds that mapping.
 - `remoteexec.Probe` returns `ProbeResult` (§2.1) **populated even on the error path**, so failed and
-  decode-failed jobs still capture. Today `Probe` returns `nil, err` and discards the drained
-  stdout (`remoteexec.Probe`, `internal/remoteexec/probe.go`); that must change so the buffered
-  stdout, drained stderr, and exit result ride the transcript out on every outcome. §3 fills the
-  remote `ProberTranscript` content #840 left absent — a pure fill-in, no signature change to the
-  worker fan-in.
+  decode-failed jobs still capture. At the fact-find `Probe` returned `nil, err` and discarded the
+  drained stdout. It now returns `wire.ProbeResult{Transcript: t}` on the run-error path and on the
+  decode-error path alike (`Probe`, `internal/remoteexec/probe.go`). One exception shipped. A
+  failure before the measured exec, such as the binary push, carries no transcript. This fill-in of
+  the remote `ProberTranscript` content is §3's, and it changed no signature in the worker fan-in.
 
-Grounding: SSH delivers three native channels — stdout, stderr, and an exit-status message. Today
-`Conn.Run(ctx,cmd,stdin,stdout)` has **no stderr sink** (the `Conn` interface and
-`clientConn.Run`, `conn.go`), and `runSession`'s `sess.Wait()` error — which carries
-`*ssh.ExitError` (exit code, signal) — is returned raw and thrown away (`runSession`, `conn.go`).
-stderr and exec-meta are already on the wire; the remote path simply drops two of the three
-channels. Prober stderr is normally **empty** — the prober writes NDJSON to stdout only; stderr
-holds content solely on a `log.Fatalf` crash (`main`, `cmd/prober/main.go`).
+Grounding, 2026-08-29: SSH delivers three native channels — stdout, stderr, and an exit-status
+message. At the fact-find `Conn.Run(ctx,cmd,stdin,stdout)` had **no stderr sink**, and `runSession`
+returned the `sess.Wait()` error raw. That error carries `*ssh.ExitError` (exit code, signal), and
+nothing read it. Stderr and exec-meta already rode the wire, and the remote path simply dropped two
+of the three channels. Prober stderr is normally **empty**. The prober writes NDJSON to stdout
+only, and stderr holds content solely on a `log.Fatalf` crash (`main`, `cmd/prober/main.go`).
+
+What shipped: `Conn.Run` takes a `stderr io.Writer` and returns `ExitResult`, and `classifyExit`
+reads both `*ssh.ExitError` and `*ssh.ExitMissingError` (`internal/remoteexec/conn.go`).
 
 ### 3.2 Truncation and per-stream store caps
 
@@ -240,6 +262,11 @@ Per-stream **store** caps (distinct from the 64 MiB memory guard):
 | **sent-scope (stdin)** | **64 KiB** | Comfortably fits the 1024-address job spec (~15 KB); truncate-marks a pathological scope. |
 
 Worst-case per transcript ≈ **4.3 MiB**.
+
+The build holds the three caps as `capTranscriptStdout`, `capTranscriptStderr` and
+`capTranscriptSentScope` (`internal/queue/transcript.go`). `headTail` applies them, and
+`buildProberParams` writes the `{ kept, dropped }` marker. A guard trip adds a
+`memory_guard_tripped` flag to the stdout marker. `wire.MaxProberStdout` is still 64 MiB.
 
 ### 3.3 Volume posture
 
@@ -279,6 +306,11 @@ installs that motivated retention. Existing dials for reference: `observation_cu
 `dispatch_cadence_multiple`, both `DEFAULT 0` where `0 == unbounded`
 (the `retention_settings` table, `db/migrations/20600_channels_and_retention.sql`).
 
+What shipped: `db/migrations/23700_transcript.sql` adds the column with `DEFAULT 14` and a
+non-negative check. `TranscriptFloorDays`, `TranscriptWindowDays` and `TranscriptCutoff` hold the
+floor and the `0` sentinel, and `TranscriptRetirer.Sweep` retires by age
+(`internal/retention/transcript.go`). The settings page carries the dial ([#911](https://github.com/winniel123/verge-asm/issues/911)).
+
 ---
 
 ## 5. Access and at-rest posture
@@ -308,10 +340,10 @@ See the scope clause in
 
 ### 5.2 Access model — admin-only
 
-Raw `Transcript` output is readable by **`admin` accounts only**. Reuse the existing `requireAdmin`
-gate (`cmd/web/auth.go`). This raises the gate above today's run/job log, which any authenticated
-account — `admin` or `viewer` — can read (`requireLogin` on the `GET /runs/{id}` route,
-`cmd/web/handlers.go`).
+Raw `Transcript` output is readable by **`admin` accounts only**. The view reuses the existing
+`requireAdmin` gate (`cmd/web/auth.go`), which the shipped `GET /runs/{id}/raw` route wraps
+(`cmd/web/handlers.go`). This raises the gate above the run/job log, which any authenticated
+account — `admin` or `viewer` — can still read (`requireLogin` on the `GET /runs/{id}` route).
 
 `viewer` accounts **lose** the raw-output visibility they have for the state-derived log today. This
 is an **intentional escalation** — the `Transcript` can carry secrets the state-derived log cannot.
@@ -340,6 +372,11 @@ keeps ADR-0124's "a backup carries data and no credential" invariant intact — 
 leave through a backup — and avoids shipping ciphertext a fresh-instance restore cannot decrypt,
 because the key stays on the volume and never rides in a DB backup.
 
+What shipped: `LoadOrCreateKey` writes a 32-byte key to the service volume, and `Seal` uses
+XChaCha20-Poly1305 with a random per-value nonce (`internal/transcript`). A nil plaintext stays SQL
+NULL, so a legible absence survives the seal. `cmd/web/backup.go` lists `transcript` among the
+excluded tables and states the reason.
+
 ### 5.4 Blast-radius note — residual risk accepted
 
 Controls: admin-only read (`requireAdmin`), encrypted at rest (instance key on service volume, key
@@ -361,7 +398,14 @@ never in DB or backup), excluded from backups. Accepted gaps carried forward:
 
 **Ruling: [#843](https://github.com/winniel123/verge-asm/issues/843).** Prototype primary source:
 branch [`research/843-rawoutput-prototype`](https://github.com/winniel123/verge-asm/tree/research/843-rawoutput-prototype),
-commit `6142247`, `design-system/templates/rundetail-rawoutput.prototype.html`.
+commit `6142247`, `design-system/templates/rundetail-rawoutput.prototype.html`. That path lives
+on that branch alone. The commit never merged to `main`, and its own message calls the prototype
+throwaway, so a checkout of `main` holds no such file. The shipped template below replaced it.
+
+**Shipped** ([#866](https://github.com/winniel123/verge-asm/issues/866)). `GET /runs/{id}/raw` is live behind `requireAdmin`
+(`cmd/web/handlers.go`), and `rawOutputPage` (`cmd/web/rawoutput.go`) renders
+`design-system/templates/rundetail-raw.tmpl`. The job-filter chip carries the `rd-rawlink`
+affordance, and only an admin sees it (`design-system/templates/rundetail.tmpl`).
 
 ### 6.1 Render surface — a dedicated admin-gated view
 
@@ -407,7 +451,8 @@ from #841 and #842.
 
 ## 7. ADR and CONTEXT.md changes
 
-The build session finalises the documentation, not just the code.
+The build session finalised the documentation, not just the code. **All five bullets below
+landed** ([#871](https://github.com/winniel123/verge-asm/issues/871)). §10 item 1 names the ADR-0053-reversal vehicle the build chose.
 
 - **Finalise draft ADR-0126** (posted in #839): "Verbatim job output is a fourth Operational corpus —
   the `Transcript` — retired by a duration dial that ships bounded." Move it from Proposed (draft) to
@@ -429,7 +474,9 @@ The build session finalises the documentation, not just the code.
 
 ## 8. Build order
 
-A suggested dependency order for the build session (not a new decision — the seams dictate it):
+A suggested dependency order for the build session (not a new decision — the seams dictate it).
+The build followed it, one ticket per step, from [#862](https://github.com/winniel123/verge-asm/issues/862) to
+[#871](https://github.com/winniel123/verge-asm/issues/871):
 
 1. **Data model + migration** (§1.4, §4): the `transcript` table, the `transcript_currency_days`
    column, sqlc `InsertTranscript`.
@@ -461,19 +508,23 @@ A suggested dependency order for the build session (not a new decision — the s
 
 ## 10. Where this is thin, stated rather than smoothed
 
-These are the open edges the map did **not** close. They are noted, not decided. A build session
-resolves each in place; none blocks starting the build.
+These were the open edges the map did **not** close. They were noted, not decided. The build closed
+two of them. Three stand, and each line below says which.
 
-1. **The ADR-0053-reversal vehicle is unchosen** (§7). #842 left it as "a new ADR, or an extension of
-   ADR-0126". The build session picks one when it writes the docs.
-2. **Zone has no failure tx** (§1.3). Zone capture is completed-path only unless a zone failure tx is
-   added later. Out of scope for this effort; flagged for the build.
-3. **`RestateZone` must be changed to surface its skips** (§1.3). This is a producer change the zone
-   variant depends on; it is not present today.
-4. **Reads are unaudited** (§5.4). The audit facility is a repo-wide stub; no audit-of-reads in v1.
-   Accepted residual risk.
-5. **The instance key is co-located with the data** (§5.4). Encryption does not defend against host
-   compromise. This is the load-bearing security gap, accepted for v1.
+1. **Closed.** The ADR-0053-reversal vehicle (§7) was unchosen. #842 left it as "a new ADR, or an
+   extension of ADR-0126". [#871](https://github.com/winniel123/verge-asm/issues/871) extended ADR-0126, whose title now
+   carries the secret-at-rest clause.
+2. **Open, and unbuilt.** Zone has no failure tx (§1.3). Zone capture stays completed-path only,
+   unless a zone failure tx arrives later. `completeZone` (`internal/queue/zone.go`) is the sole
+   zone terminal path. Out of scope for this effort, and still out of scope.
+3. **Closed** ([#869](https://github.com/winniel123/verge-asm/issues/869)). `RestateZone` surfaces its skips. It returns
+   `(records, skipped)`, and `completeZone` carries them into `wire.ZoneTranscript`.
+4. **Open, accepted.** Reads are unaudited (§5.4). The audit facility is still a repo-wide stub
+   (`fillAuditSection` returns nil, `cmd/web/settings.go`), and v1 ships no audit-of-reads.
+5. **Open, accepted.** The instance key still sits on the same volume as the data (§5.4).
+   Encryption does not defend against host compromise. This is the load-bearing security gap,
+   accepted for v1.
 
-When #844 closes, the map's destination is reached. A later session builds from this document; it does
-not re-open the tickets.
+#844 closed on 2026-08-30, and the map reached its destination. The build ran from this document
+through [#862](https://github.com/winniel123/verge-asm/issues/862) to [#871](https://github.com/winniel123/verge-asm/issues/871), and it did not
+re-open the tickets.

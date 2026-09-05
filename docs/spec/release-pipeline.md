@@ -48,14 +48,14 @@ Every human-facing site shows the bare number. The sign-in footer, the Settings 
 and the CT `User-Agent` all read `0.1.0`. RFC 9110 product tokens carry no `v`, which is why the
 stamp drops it. The GitHub Release page is the one site that keeps the `v`.
 
-**The feed field is `tag_name`.** `internal/release/fetcher.go:58` decodes it and line 86 rejects
-an empty one. The `name` field is never read.
+**The feed field is `tag_name`.** `HTTPFetcher.Latest` decodes it into `feedPayload` and rejects
+an empty one (`internal/release/fetcher.go`). The `name` field is never read.
 
 **`HTTPFetcher.Latest` trims a leading `v` before it returns `Feed.Version`.** The release cache
 then stores one format. Without that trim the Instance card renders `0.1.0` beside `v0.2.0`.
 
-The tolerance in `parseVersion` stays. It strips a leading `v` at
-`internal/release/release.go:206`, so a fork that repoints `VERGE_RELEASE_FEED_URL` may send
+The tolerance in `parseVersion` stays. It strips a leading `v` in
+`internal/release/release.go`, so a fork that repoints `VERGE_RELEASE_FEED_URL` may send
 either format.
 
 **The pre-1.0 rule appears on the Instance card, beside the version.** A minor bump may carry a
@@ -68,8 +68,8 @@ No `-rc`, no `-beta`, no `-alpha`. The update check reports stable releases only
 
 Four grounds:
 
-1. **The `0.y.z` line already carries the signal.** `README.md:3` states an alpha notice and
-   `CHANGELOG.md:8` states the pre-1.0 rule. A release candidate for software already labelled
+1. **The `0.y.z` line already carries the signal.** `README.md` states an alpha notice and
+   `CHANGELOG.md` states the pre-1.0 rule. A release candidate for software already labelled
    alpha is a second instability marker over the first.
 2. **A pre-release train buys a soak period from an audience that does not exist.** The repository
    has one collaborator and no installed base.
@@ -106,7 +106,7 @@ project still cuts no pre-release tag, and ADR-0155 grants no exception to that 
 
 ### 1.4 A fork's repointed feed gets no defence
 
-`internal/release/fetcher.go:20` sets `DefaultFeedURL` to this repository's `/releases/latest`
+`internal/release/fetcher.go` sets `DefaultFeedURL` to this repository's `/releases/latest`
 endpoint. That endpoint returns the most recent non-prerelease, non-draft release by definition.
 **So the default feed cannot serve a pre-release even if one existed.**
 
@@ -115,9 +115,9 @@ string as given. **This stays. No code defends against it.** A fork that serves 
 its own feed has chosen to, and refusing a suffixed feed version would make verge silently ignore
 a fork's own shipped release.
 
-`parseVersion` and `isNewer` gain no pre-release ordering. The numeric-core comparison at
-`internal/release/release.go:156-210` is unchanged.
-`internal/release/release_test.go:171` already pins
+`parseVersion` and `isNewer` gain no pre-release ordering. The numeric-core comparison in
+`isNewer` and `parseVersion` (`internal/release/release.go`) is unchanged. `TestIsNewer`
+(`internal/release/release_test.go`) already pins
 `{"v3.18.0", "v3.18.0-rc1", false}` as an asserted contract.
 
 **One test row is added**, so the other direction stops being an untested side effect:
@@ -144,7 +144,7 @@ ghcr.io/winniel123/verge-asm/worker
 ```
 
 The nested three-segment form ([#1077](https://github.com/winniel123/verge-asm/issues/1077)).
-`docs/guides/verifying-releases.md:13-14` and `docs/research/signing-provenance.md:13` already
+`docs/guides/verifying-releases.md` and `docs/research/signing-provenance.md` already
 assert it, and the flat `verge-asm-web` form would contradict two committed documents.
 
 Each path is a separate GHCR package with its own settings page. §17 records the two manual
@@ -224,8 +224,8 @@ must be on the image **before** the first publish, or GHCR never links the packa
 `GITHUB_TOKEN` loses push permission. **The cost is stated: the workflow hand-writes the
 `revision`, `version` and `created` annotations, and this project owns their correctness.**
 
-**Any build cache backend is rejected.** `Dockerfile:17` is `COPY . .`, so every release commit
-busts every `go build` layer. `type=gha` would spend the repository's 10 GB Actions cache budget
+**Any build cache backend is rejected.** The `Dockerfile` runs `COPY . .` above every `go build`,
+so every release commit busts every `go build` layer. `type=gha` would spend the repository's 10 GB Actions cache budget
 for a hit only on `go mod download`.
 
 **BuildKit's default provenance is rejected.** The default is on at `mode=min`. Silence would give
@@ -253,7 +253,7 @@ weaker, because `:tag` and `@sha256:` are different syntax and one variable cann
 **No full-reference variable either.** `${VERGE_WEB_IMAGE:-...}` does hold either form. It also
 makes the registry operator-editable, which the §15 guide must then qualify.
 
-**How a cloned operator pins a digest: they edit the file.** `docker-compose.yml:76` already pins
+**How a cloned operator pins a digest: they edit the file.** `docker-compose.yml` already pins
 postgres by literal manifest-list digest, with a comment naming the reason. That is the house
 precedent, and it is one edit per service.
 
@@ -263,11 +263,11 @@ generator would have to synthesize keys.
 
 **`docker-compose.external-db.yml` needs nothing.** It carries no image reference.
 
-**The `compose` CI job still builds from source.** `.github/workflows/ci.yml:165` runs
+**The `compose` CI job still builds from source.** The `compose` job in `.github/workflows/ci.yml` runs
 `docker compose build` before `docker compose up -d`, and the build tags the result as the
 `image:` reference, so `up` finds the image locally. That step order is required. Without it the
 job would boot a published image and test nothing on the branch. The same holds for
-`compose-external-db-tls` at `ci.yml:264`.
+`compose-external-db-tls` in `ci.yml`.
 
 ---
 
@@ -285,7 +285,7 @@ reads `VERGE_VERSION`, and defaults to `dev`.
 | Stamp mechanism | `-ldflags "-X <module>/internal/buildinfo.version=$VERGE_VERSION"` |
 | Dockerfile | `ARG VERGE_VERSION=""` in the `builder` stage, above the `RUN go build` |
 | Scope | the `web` and `worker` builds only. The prober is not stamped. |
-| Call sites | `cmd/web/auth.go:231`, `cmd/worker/main.go:82`, `cmd/worker/main.go:244` |
+| Call sites | `server.buildVersion` (`cmd/web/auth.go`), and `cmd/worker/main.go`'s `ctVersion` and its `release.NewChecker` version argument |
 | Release workflow | passes the build arg as `${GITHUB_REF_NAME#v}` |
 
 **The trap in the empty default.** `ARG VERGE_VERSION=dev` would make the stamp non-empty on every
@@ -296,8 +296,8 @@ the empty string.**
 A builder-stage `ARG` does not become a runtime env in the `web` and `worker` stages. The runtime
 `VERGE_VERSION` stays the operator's.
 
-**`buildinfo.Version()` is pure and logs nothing.** `cmd/web/auth.go:229` runs on every SignIn
-render, so a log line inside the accessor would print on every page load. A separate one-shot boot
+**`buildinfo.Version()` is pure and logs nothing.** `server.buildVersion` (`cmd/web/auth.go`) runs
+on every SignIn render, so a log line inside the accessor would print on every page load. A separate one-shot boot
 check in each of `cmd/web` and `cmd/worker` logs one line when a stamp is present and
 `VERGE_VERSION` is also set. **The process never refuses to start.**
 
@@ -312,13 +312,13 @@ else proves the stamp landed.
 **`docker-compose.yml` does not change, and the `compose` CI job does not change.** A
 compose-built stack stays unstamped and reads `dev`.
 
-**Two fixture edits follow.** `devFixtureVersion` at `cmd/web/devfixtures.go:391` is `"v0.9.2"`,
+**Two fixture edits follow.** `devFixtureVersion` (`cmd/web/devfixtures.go`) is `"v0.9.2"`,
 and §1.2 says every human-facing site shows the bare number. It becomes `0.9.2`, along with three
 `version` values in `design-system/fixtures/fixtures.json`. The SignIn and Setup pixel goldens are
-then re-blessed. `TestSigninFixtureMatchesPackage` and `devfixtures_test.go:250` gate the
+then re-blessed. `TestSigninFixtureMatchesPackage` (`cmd/web/devfixtures_test.go`) gates the
 agreement.
 
-`docs/guides/running.md:82` states that the env applies to an unstamped build only, and that a
+`docs/guides/running.md`'s `VERGE_VERSION` row states that the env applies to an unstamped build only, and that a
 released image ignores it.
 
 ---
@@ -340,7 +340,7 @@ absence**. `release.yml` has no `pull_request` trigger.
 **Concurrency: `group: release`, a global singleton, with `cancel-in-progress: false`.** Two
 reasons. A cancellation between the digest push and the sign step would leave unsigned digests in
 GHCR with no cleanup path. And a per-ref group would give two tags pushed together two separate
-groups, which then race on the floating `latest` tag. The precedent is `docs-site.yml:119-121`.
+groups, which then race on the floating `latest` tag. The precedent is the `docs-site-pages` concurrency group on `docs-site.yml`'s `deploy` job.
 
 **Fork guard: `if: github.repository == 'winniel123/verge-asm'` on the `guard` job only.** The five
 jobs chain linearly through `needs:`, so a skipped `guard` skips all five. Without it, a fork that
@@ -348,7 +348,7 @@ pushes a `v*` tag runs the pipeline under **the fork's own Fulcio identity**. Th
 because §2.1 hardcodes the registry path, but `cosign sign-blob` over a locally built
 `SHA256SUMS` succeeds first and mints a genuine Sigstore bundle bound to a stranger.
 
-**A release tag fires two workflows.** `docs-site.yml:26` already triggers on `push: tags: ["v*"]`
+**A release tag fires two workflows.** `docs-site.yml` already triggers on `push: tags: ["v*"]`
 and its `deploy` job already holds `id-token: write`. That trigger stays. The republish is wanted,
 and the two workflows write different outputs to different places. There is no ordering between
 them. Silently deleting a working trigger to tidy the diagram is worse than a documented overlap.
@@ -373,14 +373,14 @@ to `true`, and a record is emitted whenever `push-to-registry: true` is set. All
 it. **`create-storage-record: false` was rejected**, because it saves one narrow scope and loses a
 GitHub-side discovery record for six attestations.
 
-`security-events: write` sits at job level, never at workflow level. `ci.yml:472-477` already sets
-that shape for `gosec`. The repository default workflow permission is already `read`.
+`security-events: write` sits at job level, never at workflow level. `ci.yml`'s `gosec` job already sets
+that shape. The repository default workflow permission is already `read`.
 
 **No machine check enforces the `id-token` rule.** A grep for `id-token: write` beside
 `pull_request` raises a false positive on `docs-site.yml`, which is correct code. A true check
 must model job-level reachability over the trigger graph, and that cost exceeds its value at three
 call sites. Revisit if a fourth holder appears. The rule gets a comment header in `release.yml`
-mirroring `scorecard.yml:5-10`, and one line in `CONTRIBUTING.md`.
+mirroring `scorecard.yml`'s header comment, and one line in `CONTRIBUTING.md`.
 
 **`GITHUB_TOKEN` only. `release.yml` adds zero secrets.** It covers the GHCR push, the SARIF
 upload, the attestations and the Release creation. The one act it cannot perform is §17's GHCR
@@ -886,9 +886,9 @@ documents and the Trivy scan asset set
 **Thirteen named files**, plus the Trivy set.
 
 The three loose files together are the smallest set that installs the instance with no `git clone`.
-`docker-compose.yml:14` uses `${POSTGRES_PASSWORD:?}`, and `.env.example` is the only file that
-documents the keys. The external-db mode is documented and supported at
-`docs/guides/running.md:105`, so it is not an edge case.
+`docker-compose.yml`'s `web` service uses `${POSTGRES_PASSWORD:?}`, and `.env.example` is the only
+file that documents the keys. The external-db mode is documented and supported in
+`docs/guides/running.md`, so it is not an edge case.
 
 Only item 1 is generated. Items 2 and 3 are copies taken from the tag the workflow builds, so they
 cannot drift by hand.
@@ -1042,8 +1042,8 @@ A second deliverable, distinct from `release.yml` (#1073, #1079).
 | Reference | the **`latest` GHCR tag**, resolved fresh on every run |
 | Outcome | SARIF only. **It never fails.** |
 
-**The dispatch trigger is not optional.** `scorecard.yml:16` proves a cron-only workflow is
-untestable.
+**The dispatch trigger is not optional.** `scorecard.yml`'s own `workflow_dispatch` proves a
+cron-only workflow is untestable.
 
 **It reports and never fails.** A code scanning alert is the notification, which is what `codeql`
 and `scorecard` already do on their weekly crons. A red scheduled workflow degrades into background
@@ -1078,7 +1078,7 @@ docker buildx imagetools inspect golang:totally-not-a-tag@sha256:9fdc884a… -> 
 ```
 
 Both succeed and both report the same index. Docker resolves the reference by digest and never
-validates the tag. **So a text compare against `Dockerfile:11` proves nothing about the builder.**
+validates the tag. **So a text compare against the `Dockerfile`'s builder `FROM` proves nothing about the builder.**
 
 **The digest carries the answer itself.** The same manifest exposes
 `org.opencontainers.image.version: 1.26.8-bookworm`. The true builder version is readable out of
@@ -1090,7 +1090,7 @@ the pinned digest, with one manifest fetch, no build and no pull.
    repository root holds one bare scalar, `1.26.8`, with no `go` prefix and no `v`. `ci.yml`,
    `codeql.yml` and `commentlint.yml` delete their `GO_VERSION` env block and pass
    `go-version-file: .go-version` to `setup-go`. **Three copies are deleted rather than policed.**
-   The remaining sites are `.go-version`, `go.mod:3` and `Dockerfile:11`.
+   The remaining sites are `.go-version`, `go.mod`'s `go` line and the `Dockerfile`'s builder `FROM`.
 2. **`.go-version` is the source of truth.** `go.mod`'s `go` line is a **floor** and the rest are
    **exact**. The asymmetry is recorded, not flattened, because `go.mod` cannot express an exact
    pin.
@@ -1099,7 +1099,7 @@ the pinned digest, with one manifest fetch, no build and no pull.
    | # | Compare | Role |
    | --- | --- | --- |
    | a | the `Dockerfile` digest's `org.opencontainers.image.version` annotation `==` `.go-version` | **the gate** |
-   | b | the decorative tag at `Dockerfile:11` `==` `.go-version` | hygiene, so `Dockerfile:6-10` cannot state something false |
+   | b | the builder `FROM`'s decorative tag `==` `.go-version` | hygiene, so the pin comment above it cannot state something false |
    | c | `go.mod`'s `go` line `<=` `.go-version` | the floor test |
 
 4. **A POSIX script, not a Go tool.** `commentlint` runs as `go run ./cmd/commentlint` after
@@ -1128,7 +1128,7 @@ the pinned digest, with one manifest fetch, no build and no pull.
 
 `dependabot.yml` gains a **`docker` ecosystem over three surfaces**, grouped into one weekly pull
 request: the root `Dockerfile` (the `golang` digest and two distroless digests),
-`deploy/prober/Dockerfile` (`alpine`), and `docker-compose.yml:76` (the postgres digest).
+`deploy/prober/Dockerfile` (`alpine`), and `docker-compose.yml` (the postgres digest).
 
 This deliberately creates the adversary the §12.2 check guards, and it turns a frozen and rotting
 digest into a reviewable pull request.
@@ -1140,7 +1140,7 @@ trip the §12.2 check.
 ### 12.4 What this does not do
 
 No new required status check. No fifth manual repository setting. No mirrored base image. No
-Go-language checker. **No `toolchain` directive in `go.mod`**, because `CLAUDE.md:69` already
+Go-language checker. **No `toolchain` directive in `go.mod`**, because `CLAUDE.md` already
 forbids one and it breaks CI's `-mod=readonly` build.
 
 ---
@@ -1165,7 +1165,7 @@ number, and a failure branch printed on every render teaches an operator to skip
 
 Three measured facts remove the job the old command was meant to do:
 
-1. `cmd/web/main.go:57` calls `migrateUp` before it serves, and fails with `log.Fatalf`. **A
+1. `cmd/web/main.go`'s `main` calls `migrateUp` before it serves, and fails with `log.Fatalf`. **A
    running `web` container has already applied every embedded migration**, so a status probe inside
    it can only answer "current".
 2. In the pre-pull position the probe reads the **old** binary's embedded set, so it also answers
@@ -1174,22 +1174,22 @@ Three measured facts remove the job the old command was meant to do:
    compose error and not a migration answer.
 
 **`web` gets no migration-status mode and the image gets no `verge` alias.** The card already
-carries the pre-restart answer: `migrationsPending` at `cmd/web/settings.go:1624` renders the
+carries the pre-restart answer: `migrationsPending` (`cmd/web/settings.go`) renders the
 schema-current badge, and that function is unchanged.
 
 The open question after an upgrade is different. Did the new image land and come up healthy?
 `docker compose up -d` does not guarantee it, because compose skips recreation when the resolved
-image did not change. `docker compose ps web worker` answers that, mirrors line 2
-service-for-service, and reads the `HEALTHCHECK` both Dockerfile targets already declare.
+image did not change. `docker compose ps web worker` answers that, mirrors §13.1's
+`docker compose up -d web worker` line service-for-service, and reads the `HEALTHCHECK` both Dockerfile targets already declare.
 
 ### 13.3 The four sites and the one test
 
 The literal exists in four places, and nothing checks that they agree:
 
-- `cmd/web/settings.go:1610` (`updateHostSteps`)
-- `design-system/examples/console/Settings.jsx:642`
-- `design-system/fixtures/fixtures.json:4177` (`release.steps`)
-- `docs/guides/running.md:388`
+- `updateHostSteps` (`cmd/web/settings.go`)
+- the `Version & updates` card's host-steps `<pre>` (`design-system/examples/console/Settings.jsx`)
+- `release.steps` (`design-system/fixtures/fixtures.json`)
+- the **Guided host steps** bullet (`docs/guides/running.md`)
 
 **All four become the same four lines, byte-identical.** `running.md` currently prints three lines,
 because it drops the comment line. It gains that line. A guide block that is deliberately shorter
@@ -1208,8 +1208,8 @@ The design package cannot know that `docker compose exec` fails against a crash-
 
 ### 13.4 `.Steps[]` stays compiled-in, permanently
 
-The comment at `cmd/web/settings.go:1608` promises a feed-delivered list "until B5". **The SPEC
-strikes that promise.**
+The comment above `updateHostSteps` (`cmd/web/settings.go`) promised a feed-delivered list "until
+B5". **The SPEC strikes that promise**, and the comment now records the refusal instead.
 
 The release feed is an external service. A feed-delivered step list lets whoever controls the feed
 put arbitrary shell text in front of an admin, inside a panel that reads as authoritative.
@@ -1255,7 +1255,7 @@ containment.
 
 ### 14.1 The sharp fact
 
-`cmd/web/main.go:274` calls `goose.Up` and nothing else. All 68 migrations in `db/migrations/`
+`migrateUp` (`cmd/web/main.go`) calls `goose.Up` and nothing else. All 68 migrations in `db/migrations/`
 carry a `-- +goose Down` block, and **no code path ever runs one**. §13.2 refused the
 `verge migrate` route, so no operator command exists either. **An image downgrade is therefore not
 a schema downgrade.**
@@ -1309,8 +1309,8 @@ rests on. Containment is `latest`, never deletion.** §4.4 already covers the di
 A named exception, and it dissolves permanently once a second release exists.
 
 Both levers fail on the first release. `/releases/latest` returns **404** when no non-prerelease
-release remains, and `fetcher.go` returns `status 404`, `Check` logs it, and `release.go:100`
-leaves the cache untouched. And `latest` has no earlier tag to move back to.
+release remains, and `fetcher.go` returns `status 404`, and `Check` logs it and returns
+before it writes, so the cache is untouched. And `latest` has no earlier tag to move back to.
 
 Flagging `v0.1.0` pre-release is therefore **refused**. It would make every instance's check fail
 silently forever, which is worse than serving a known-bad version that `v0.1.1` replaces. **The
@@ -1345,9 +1345,9 @@ generated from commits, a withdrawal is not a commit, and a hand-edited line wou
 | Case | Route |
 | --- | --- |
 | No migration, no-clone install | Download the **previous** release's `docker-compose.yml` asset and run `docker compose up -d`. One file swap. |
-| No migration, cloned install | Pin the previous digest in the repository's `docker-compose.yml`, the way `docker-compose.yml:76` already pins postgres. Then `docker compose up -d`. **Never `docker compose pull`**, because that re-resolves `latest`. |
+| No migration, cloned install | Pin the previous digest in the repository's `docker-compose.yml`, the way `docker-compose.yml` already pins postgres. Then `docker compose up -d`. **Never `docker compose pull`**, because that re-resolves `latest`. |
 | A migration landed, either shape | `docker compose down`. Restore the pre-upgrade dump into a clean volume. Then start on the pinned old digest. **Restore before start**, because starting the old `web` first puts old code against the new schema. |
-| Any cell | The **in-app restore** at `backup-and-restore.md:104` is the wrong tool. It runs inside the `web` the operator is trying to replace. |
+| Any cell | The **in-app restore** under `backup-and-restore.md`'s **Restoring — preflight, then a typed confirm** is the wrong tool. It runs inside the `web` the operator is trying to replace. |
 
 ### 14.9 Where the prose lands
 
@@ -1356,9 +1356,10 @@ after `## Upgrades`. Rollback is the inverse of the upgrade, with the same audie
 object, and that section already links the pre-upgrade backup drill. `docs/guides/troubleshooting.md`
 gets one cross-link in "Where to look next" and holds no procedure of its own. **No new page.**
 
-Two defects are fixed in the same ticket. `backup-and-restore.md:270` shows only the source-build
-upgrade, which §2.4 made stale for a default install, and it must show the image-pull upgrade
-beside it. And `backup-and-restore.md:279` must link the new section instead of half-stating it.
+Two defects are fixed in the same ticket. `backup-and-restore.md`'s **The pre-upgrade backup
+drill** shows only the source-build upgrade, which §2.4 made stale for a default install, and it
+must show the image-pull upgrade beside it. And that section's *if the upgrade misbehaves*
+paragraph must link the new section instead of half-stating it.
 
 **The maintainer half** becomes a new `## Releases` section in `CONTRIBUTING.md`. The deciding
 fact: `docs/guides/embed.go` globs `docs/guides/*.md` only, so `CONTRIBUTING.md` does **not** ride
@@ -1470,7 +1471,9 @@ non-index reference, which a verge-asm release never is.
 
 ### 15.3 The air-gap kit gets its own page
 
-**`docs/guides/verifying-releases-airgapped.md`, `section: Operating`, `order: 5`.**
+**A new `docs/guides/verifying-releases-airgapped.md`, `section: Operating`, `order: 5`.** The
+file does not exist yet, and [#1260](https://github.com/winniel123/verge-asm/issues/1260) writes
+it.
 
 The kit is **23 named files, 6 layout directories, 2 tool binaries, 2 trust roots and 12 verify
 commands** (#1148). The current guide is 159 lines, so as a section it roughly triples the page,
@@ -1481,8 +1484,8 @@ Three facts decided the split:
 - **A new guide file costs nothing to wire.** `docs/guides/embed.go` embeds `*.md`, and
   `docs-site/src/content.config.ts` globs `*.md` and derives the site nav from front matter with no
   hardcoded section list. No test pins the guide count.
-- **A second page buys a second in-app search row.** `cmd/web/search.go:163` indexes title and
-  description only, so a section inside one page is invisible to that search.
+- **A second page buys a second in-app search row.** `loadGuideIndex` (`cmd/web/search.go`) indexes
+  title and description only, so a section inside one page is invisible to that search.
 - **Both pages ship inside the `web` binary either way.**
 
 **The cost of splitting is drift, so the air-gap page states no contract of its own.** It links back
@@ -1595,8 +1598,8 @@ rewrite does not ride a mechanical `CHANGELOG.md` regeneration.
 **What survives unchanged.** The "no verge-asm public key" line, the two image names, the `vX.Y.Z`
 usage, the `linux/amd64` plus `linux/arm64` platform pair, and the digest-pinning callout.
 
-**One SPEC constraint on the prose, because it is machine-read.** `cmd/web/search.go:163` indexes
-each guide's front-matter title and description only, never the body. **So each page's description
+**One SPEC constraint on the prose, because it is machine-read.** `loadGuideIndex`
+(`cmd/web/search.go`) indexes each guide's front-matter title and description only, never the body. **So each page's description
 must carry every word an operator would search for.** A word that appears only in the body is
 unfindable from inside the product.
 
@@ -1610,13 +1613,13 @@ host bounds the binary rather than verifies it**
 
 ### 16.1 The release pipeline needs no prober step
 
-`Dockerfile:40-45` builds `prober-linux-amd64` and `prober-linux-arm64` in the **same builder
-stage** as `web` and `worker`. `Dockerfile:68` copies them into the worker image at `/app/probers`.
+The `Dockerfile` builds `prober-linux-amd64` and `prober-linux-arm64` in the **same builder
+stage** as `web` and `worker`, and its `worker` stage copies them into the image at `/app/probers`.
 
-`cmd/worker/main.go:59` reads `VERGE_PROBER_DIR`, default `/app/probers`.
+`cmd/worker/main.go` reads `VERGE_PROBER_DIR`, default `/app/probers`.
 `DirBinaryProvider.Binary` opens `prober-<goos>-<goarch>` from that directory, and serves the
 own-arch `VERGE_PROBER_PATH` only when the requested platform is the instance's own
-(`internal/remoteexec/binary.go:36-52`). **Every path reads the worker image's read-only
+(`internal/remoteexec/binary.go`). **Every path reads the worker image's read-only
 filesystem. No path fetches a release asset, and no path reaches the network.**
 
 So verifying the worker image under §7, §8 and §15 already covers the prober binary. **The pushed
@@ -1632,8 +1635,8 @@ it**. `SHA256SUMS` grows by nothing.
 ### 16.3 Which boundary this rules on
 
 **Host to verge only.** Verge to host is built, not open: SSH public-key auth, the trust-on-first-use
-host-key pin, the bounded prober stdout at `internal/remoteexec/probe.go:126`, and the `uname` arch
-check that gates the push at `probe.go:96-101`.
+host-key pin, `Probe`'s bounded prober stdout, and its `uname` arch check that gates the push
+(`internal/remoteexec/probe.go`).
 
 ### 16.4 Nothing verifies the binary, at either end
 
@@ -1650,8 +1653,8 @@ A refusal with reasons, in the shape §1.3 and §17 use. Three mechanisms reject
 1. Image verification at pull (§7, §8, §15).
 2. SSH public-key auth, with `restrict` and `from=<egress>` in `authorized_keys`.
 3. The trust-on-first-use host-key pin. A change is a hard failure, never a prompt.
-4. The `0700` random temp path, `/tmp/verge-prober-<8 random bytes>` (`probe.go:104,112`).
-5. The delete after every run (`probe.go:118`).
+4. The `0700` random temp path, `/tmp/verge-prober-<8 random bytes>` (`tempPath`, `probe.go`).
+5. The delete after every run (`Probe`'s deferred `rm -f`, `probe.go`).
 
 ### 16.5 The lent-host case
 
@@ -1663,7 +1666,7 @@ When it holds, **verge offers that person no origin proof, and says so.** Their 
 account, not a signature: a non-root user, `restrict`, `from=`, `cap_drop: [ALL]` and
 `no-new-privileges`. **Those bound what the binary may do. They do not prove what it is.**
 
-A sharp consequence: `probe.go:118` removes the binary after every run, so **a lent-host operator
+A sharp consequence: `Probe`'s deferred `rm -f` removes the binary after every run, so **a lent-host operator
 cannot inspect afterwards what verge ran**.
 
 Two alternatives rejected. **A published per-release prober digest** reopens §9.3 through a side
@@ -1781,7 +1784,7 @@ refusal that follows from it. They are one ruling seen from three sides, and spl
 the other two as its reason. ADR-0124 is the precedent, because it rules on backup **and** on
 updates in one document.
 
-**The number is `0138`, and `0090` stays a gap.** `ADR-0059:510` and six sites in
+**The number is `0138`, and `0090` stays a gap.** `ADR-0059`'s *ADR-0090 is left unused* line and six sites in
 `docs/research/sensitive-ports.md` state in terms that ADR-0090 is left unused. Taking `0090` would
 falsify six committed sentences and force an ADR-0058 mark at each. ADR-0124 set the neighbouring
 precedent when it refused to resurrect the clobbered `0118`.
@@ -1794,7 +1797,7 @@ separates the conventions: a **mechanism** gets a withdrawal, and a **claim abou
 an amendment. All three bullets are claims about the world. Three bullets is size, not kind.
 
 **The amendment shape is `## Amendment — [#NNN](url): <headline>`, ticket-referenced, with no date
-in the heading.** The repository has no dated-amendment convention. See `ADR-0001:308` and the seven
+in the heading.** The repository has no dated-amendment convention. See `ADR-0001`'s #119 amendment heading and the seven
 amendments in `ADR-0004`.
 
 **Once ADR-0138 merges, a later addition is an `## Amendment` block. It never edits the Decision.**
@@ -1816,21 +1819,21 @@ explains**. A reviewer of `release.yml` also needs the ruling that produced it.
 
 ### 18.3 The stale ADR-0118 citation
 
-`internal/release/release.go:22` and `internal/release/fetcher.go:16` both cite
-"release.yml / GHCR, ADR-0118" for infrastructure that does not exist, and ADR-0118 is about report
-scheduling.
+`internal/release/release.go`'s package doc cites ADR-0118 for a feed default whose infrastructure
+does not exist, and ADR-0118 is about report scheduling. `internal/release/fetcher.go` carried the
+same citation and no longer does — its only ADR citation is ADR-0124, on `feedTimeout`.
 
-**Two sites, not one, and an open ticket already owns both files.** Sweep ticket #1165 lists both,
-and its §4.8 caps a `package-doc` block at 3 lines, so the sweep most probably **deletes** both
-sentences. **After this effort only the ADR number is wrong**, because `release.yml` and GHCR will
-exist. The correct citation is ADR-0138.
+**One site now, and an open ticket already owns the file.** Sweep ticket #1165 lists it, and its
+§4.8 caps a `package-doc` block at 3 lines, so the sweep most probably **deletes** the sentence.
+**After this effort only the ADR number is wrong**, because `release.yml` and GHCR will exist. The
+correct citation is ADR-0138.
 
-**This map states the fact and #1165 makes the edit.** A comment on #1165 names the two exact
-lines.
+**This map states the fact and #1165 makes the edit.**
 
-**A separate defect, outside this map.** `cmd/web/auth.go:1369`, `:1992` and
-`credflow_sessions_test.go:37` cite ADR-0118 for #408, which is ADR-0117. That is an off-by-one
-citation at three more sites, and it gets its own `adr-gap` issue.
+**A separate defect, since discharged.** `cmd/web/auth.go` and `credflow_sessions_test.go` cited
+ADR-0118 for #408, which is ADR-0117. Re-measured, no Go site cites ADR-0118 for #408: the one
+surviving comment, on the every-other-session revocation in `cmd/web/auth.go`, reads
+`(ADR-0117, #408)`. No `adr-gap` issue is needed.
 
 ---
 
@@ -1861,7 +1864,7 @@ Nothing here blocks the SPEC. Each names who measures it and what a failure reop
 
 1. **That `docker compose pull` pulls a service which also declares `build:`.** The
    `--ignore-buildable` flag is strong evidence that the default pulls buildable services. **If
-   this fails, §13.1's line 2 cannot stand and §13 reopens.** One `docker compose` run.
+   this fails, §13.1's `docker compose pull` line cannot stand and §13 reopens.** One `docker compose` run.
 2. **What `docker compose up` does when the tag is absent locally and `build:` is present.** The
    Compose specification describes the `pull_policy` default differently with and without a build
    section. CI's build-first order makes this moot for CI, and it is not moot for an operator who
@@ -1889,9 +1892,9 @@ Nothing here blocks the SPEC. Each names who measures it and what a failure reop
    changes no artifact.
 8. **Whether `imagetools create` reproduces the source index digest.** §4.4's platform-digest gate
    removes this from the critical path.
-9. **The prober compiles four times.** `Dockerfile:35-40` builds both probers inside every builder
-   instance, and two target platforms make two of the four compilations waste. `Dockerfile:24` puts
-   a different `GOARCH` in the parent layer, so BuildKit cannot share it. The fix direction is to
+9. **The prober compiles four times.** The `Dockerfile`'s `for a in amd64 arm64` loop builds both
+   probers inside every builder instance, and two target platforms make two of the four
+   compilations waste. The builder stage's `ENV` line puts a different `GOARCH` in the parent layer, so BuildKit cannot share it. The fix direction is to
    hoist the loop into a `$BUILDPLATFORM` stage. **It changes no shipped artifact and no trust
    property**, and the job runs a few times a year. A later chore ticket may take it.
 10. **Whether `SHA256SUMS` covers the §5.3 Trivy asset set.** §9.2's design intent says the

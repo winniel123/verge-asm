@@ -29,6 +29,12 @@ Two research findings live on unpushed branches, cited but not landed:
 `docs/research/ct-logs-direct-2026-08.md` (branch `research/ct-logs-direct-facts`). The UI prototype
 lives on branch `prototype/ct-source-859` at `prototypes/ct-source/index.html`.
 
+**None of those three paths, and none of those three branches, is reachable.** No branch of that name
+is on `origin`, and no file at those paths is on `main` or in the history. They are recorded here as
+the provenance of the findings below, never as a document a reader can open. **This SPEC is the
+landed statement of everything the three carried.** [`comment-policy.md`](./comment-policy.md) §4.7
+directs a citation of either research file here for that reason.
+
 ---
 
 ## 1. Three capabilities under one theme
@@ -367,7 +373,8 @@ Current design system only (not the legacy look); CONTEXT.md vocabulary (source 
 Name); no severity ramp on this surface; terse sentence case; mono technical values; light and dark
 verified; zero console errors.
 
-The prototype is a throwaway (`prototypes/ct-source/index.html`, branch `prototype/ct-source-859`).
+The prototype is a throwaway (`prototypes/ct-source/index.html`, unpushed branch
+`prototype/ct-source-859` — neither the path nor the branch is reachable, see §Provenance).
 Any UI work uses the `verge-asm-design` skill and re-derives from the design system; the prototype is a
 reference, not source markup to lift.
 

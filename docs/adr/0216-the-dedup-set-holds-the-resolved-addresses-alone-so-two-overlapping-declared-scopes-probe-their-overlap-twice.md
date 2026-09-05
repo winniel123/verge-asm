@@ -143,7 +143,8 @@ What the duplicate buys the operator is nothing, and what it costs is bounded th
 - **This ADR changes no Go code.** Both enumerators already behave this way.
 - **[ADR-0127](./0127-the-address-scope-range-cap-has-no-ceiling-a-large-scope-is-priced-not-gated.md)
   gains one amended clause**, at its own site, in the *"Does the enumeration stream?"* row. The
-  anchor and the replacement are in `docs/adr/.pending/1323.md`. Without it, the next reader of that
+  anchor and the replacement are in this issue's manifest, and the amendment is now applied in that
+  row. Without it, the next reader of that
   row grades the shipped enumerator a defect and writes the dedup set that ADR-0127's neighbouring
   guarantee forbids.
 - **`candidateAddrs` has no test for the rule, and that is a defect.** A change that added

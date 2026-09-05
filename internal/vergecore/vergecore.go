@@ -135,7 +135,7 @@ func (l List) TCPProbed() []Pair {
 }
 
 func (l List) UDPRecorded() []Pair {
-	// Nothing probes these: connect-outcome cannot decide an honest UDP value (ADR-0083, §3.5).
+	// Nothing probes these: connect-outcome cannot decide an honest UDP value (ADR-0083).
 	out := map[Pair]struct{}{}
 	for _, p := range l.Union() {
 		if p.Transport == UDP {
