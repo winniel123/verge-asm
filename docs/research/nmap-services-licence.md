@@ -329,11 +329,22 @@ only on a mailing list would have been missed. That is the whole of the gap.
 > part of the ruling turns on the count**: §6.1 and §8 both fail the trigger for reasons that hold at
 > any size.
 
-`safe-active-probing.md` §2.3 specifies `verge-core`'s frequency half as an **editable list file**
+`safe-active-probing.md` §2.3 specifies `verge-core`'s frequency half as an ~~**editable list file**~~
 of hand-selected integers. It is **not** `nmap-services` and **not** a copy of it. Nothing of
 nmap's ships. Nothing of nmap's is read at build time. Nothing of nmap's is read at runtime. The
 question is whether *"Reads or includes Covered Software data files"* reaches a **design-time
 selection** that ships neither the file nor its contents.
+
+> **`editable list file` is withdrawn**, by
+> [ADR-0144](../adr/0144-the-verge-core-body-is-compiled-in-and-an-operator-edit-layers-over-it.md)
+> per [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
+> `verge-core.tsv` is a repository artefact **compiled into the binary**
+> (`internal/vergecore/vergecore.go:47`); no operator edits it and no production path parses any other
+> body. An operator adjusts the frequency half by **layering** `verge_core_frequency_edit` deltas over
+> the shipped base. **No part of this ruling turns on it**, in either direction: the selection is
+> hand-made either way, and an embedded file is if anything further from *"software that reads a
+> Covered data file"* than a file read at run time. Step 2's *decided, not extracted* stands as
+> written, and so does §12's ruling.
 
 It does not, on two grounds. Either is sufficient. They fail independently, which is why both are
 argued.

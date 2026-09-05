@@ -243,11 +243,23 @@ live). Composed, `verge-core` is **136 pairs (131 TCP, 5 UDP)**. Only the TCP pa
 default settings, since UDP is off — so `Coverage`'s aperture statement reads a small, non-zero
 count of sensitive pairs unread on a default install, never zero, and the corresponding
 `sensitive-port-reached-from-internet` rule's evaluability count is untouched by that gap (the
-rule reads a leg on a `Service`. The UDP pairs simply never produce one). `verge-core` is shipped
-as an editable list file, and the frequency half alone is operator-editable — the sensitive half is
+rule reads a leg on a `Service`. The UDP pairs simply never produce one). ~~`verge-core` is shipped
+as an editable list file~~, and the frequency half alone is operator-editable — the sensitive half is
 not, per `CONTEXT.md`'s `Derivation` entry: a declared parameter is authored by the project and ships
 in the release, and none is ever operator-configurable, because moving one would move a version and
 `Break` the estate without a release and without a golden-corpus row moving.
+
+> **`verge-core` is not shipped as a file the operator may edit. Its body is compiled in.** Withdrawn
+> by [ADR-0144](../adr/0144-the-verge-core-body-is-compiled-in-and-an-operator-edit-layers-over-it.md)
+> per [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
+> `internal/vergecore/vergecore.go:47` embeds `verge-core.tsv`, and `mustParse(shipped)` on line 50 is
+> the only body any production path parses.
+>
+> **The rest of the sentence survives unchanged.** The frequency half alone is operator-editable, and
+> the operator moves it by **layering** `verge_core_frequency_edit` deltas over the shipped base
+> (`internal/queue/hot.go:165`, `cmd/web/settings.go:789`) — never by supplying a body. A replaceable
+> body would let the operator author the `half` column, and so move the sensitive half, which is the
+> very thing this sentence goes on to forbid.
 
 **Governance.** A curated table is revised by **the release**, never by a standing operator or
 curator duty. Two instruments watch it: a **gate** of closed, terminating checks (currently

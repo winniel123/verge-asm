@@ -12,7 +12,20 @@ Two port lists exist, built for different questions on incompatible evidence sta
 [#4](https://github.com/winniel123/verge-asm/issues/4) built the ~~~140-port~~ **`verge-core` hot
 set** on frequency — *how likely is this port to be found open in a small org's estate?* — from
 `nmap-services` open-frequency data with a modern-services supplement, keyed on **bare port
-numbers**, and specified that it ship "as an editable list file, not compiled in".
+numbers**, and specified that it ship ~~"as an editable list file, not compiled in"~~.
+
+> **That clause is withdrawn.** The quotation of #4 above is accurate as history; the mechanism it
+> names does not hold and never did.
+> [ADR-0144](./0144-the-verge-core-body-is-compiled-in-and-an-operator-edit-layers-over-it.md) ratifies
+> the **embed**, per
+> [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md):
+> `internal/vergecore/vergecore.go:47` compiles `verge-core.tsv` into the binary, and no production
+> path parses any other body. **Nothing in this ADR's Decision reads the clause.** What survives is
+> this ADR's own rule — the frequency half alone is operator-editable — and an operator exercises it
+> by **layering** `verge_core_frequency_edit` deltas over the shipped base
+> (`internal/queue/hot.go:165`), never by supplying a replacement file. ADR-0144 §2 records why: the
+> body carries the `half` column, so a replaceable body would hand the operator the sensitive half
+> that this ADR reserves to the release.
 
 > **`~140` was never this set's size.** **[measured]** by
 > [#97](https://github.com/winniel123/verge-asm/issues/97): the frequency half is **123, all TCP**, and
