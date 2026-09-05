@@ -1,19 +1,3 @@
-/*
- * PIPELINE STAGE 2 of 3 — render+transform.  OWNER: T2 (#352).
- *
- * Renders one guide's raw markdown into the T0 article column as a React island.
- * Markdown -> HTML happens through `react-markdown` + `remark-gfm` (GFM tables,
- * autolinks, strikethrough). Element -> component mapping wires the guide's prose
- * into the design system (ADR-0109): fenced code -> DS <CodeBlock>, blockquotes ->
- * DS <Callout>. Headings get GitHub-style `id`s from the shared slugger in slug.ts,
- * so the on-page TOC's `#anchor` hrefs resolve.
- *
- * T2 OWNS the link/anchor rewriting step: the `a` renderer below is the single seam
- * where relative `foo.md#frag` cross-links become in-site `/<version>/foo#frag`
- * routes. Today it passes hrefs through unchanged. T2 edits ONLY the `a` renderer
- * (and may add a remark/rehype plugin) — it does not touch source-resolution or
- * nav-build.  See docs-site/PIPELINE.md.
- */
 import React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -22,7 +6,6 @@ import { CodeBlock } from "@ds/components/display/CodeBlock.jsx";
 import { Callout } from "@ds/components/feedback/Callout.jsx";
 import { refForDocsVersion, repoBlobUrl } from "../repo.ts";
 
-/* ---- prose styles: ported from the DocsPage sample article (Article.jsx) ---- */
 const S = {
   h1: { margin: "10px 0 0", font: "600 32px/1.15 var(--font-ui)", letterSpacing: "-0.015em", color: "var(--text-ink)" },
   h2: { margin: "36px 0 12px", font: "600 21px var(--font-ui)", letterSpacing: "var(--heading-tracking)", color: "var(--text-ink)", scrollMarginTop: 24 },
@@ -47,37 +30,8 @@ function InlineCode({ children }) {
   );
 }
 
-/**
- * T2 link/anchor rewrite. Turns an author's relative markdown href into the in-site
- * route for the SAME version, so cross-links survive the source→route mapping and
- * anchor fragments resolve to the heading ids the renderer emits.
- *
- *   using.md                      -> /<version>/using
- *   ./running.md#environment-vars -> /<version>/running#environment-vars
- *   #severity-levels              -> /<version>/<currentSlug>#severity-levels (in-page)
- *   https://example.com           -> unchanged (external)
- *   ../adr/0017-....md#frag        -> https://github.com/…/blob/<ref>/docs/adr/… (external)
- *   ../../deploy/, *.go, dirs      -> unchanged (repo cross-refs with no home on the
- *                                    docs site — see PIPELINE.md)
- *
- * ADRs are NOT part of the published page set (only docs/guides/ is ingested — see
- * source-resolution.ts), so a guide's `../adr/<file>.md` reference cannot resolve to
- * a docs route; left relative it 404s against the docs server. We rewrite it to the
- * ADR's GitHub blob URL at `adrRef` — the git ref the guide route resolved for this
- * version (refForVersion), so a `latest`/tag page links its ADRs at the matching ref
- * rather than always at `main` (#428).
- *
- * `../adr/<file>.md` deliberately matches a FLAT filename only (no nested path): ADRs
- * are flat files, and forbidding a `/` keeps this in lockstep with check-links.mjs,
- * which validates the same targets against a set of flat ADR basenames.
- *
- * Fragments are passed through verbatim: guide authors write already-slugified
- * anchors (`#2-upload-a-zone-file`), and check-links.mjs is the gate that proves
- * each fragment matches a real heading id — via the same github-slugger algorithm.
- * The regexes here mirror check-links.mjs so renderer and gate agree on what counts
- * as an intra-guide link.
- */
 const INTRA_GUIDE = /^\.?\/?([a-z0-9][a-z0-9-]*)\.md(?:#(.+))?$/i;
+// Forbidding a slash keeps this in lockstep with check-links.mjs, which gates the same targets.
 const ADR_XREF = /^\.\.\/adr\/([^#?/]+\.md)(?:#(.+))?$/i;
 function rewriteHref(href, version, currentSlug, adrRef) {
   if (!href) return { href, intraSite: false };
@@ -93,13 +47,13 @@ function rewriteHref(href, version, currentSlug, adrRef) {
   const adr = ADR_XREF.exec(href);
   if (adr) {
     const frag = adr[2] ? `#${adr[2]}` : "";
+    // An ADR is never an ingested page, so a relative link to one 404s on the docs server (#428).
     const blob = repoBlobUrl(adrRef, `docs/adr/${adr[1]}`);
     return { href: `${blob}${frag}`, intraSite: false, external: true };
   }
-  return { href, intraSite: false }; // mailto:, ../../deploy/, *.go, dirs
+  return { href, intraSite: false };
 }
 
-/** Flatten a react-markdown children tree to its plain-text content (for slugging). */
 function toText(node) {
   if (node == null || node === false) return "";
   if (typeof node === "string" || typeof node === "number") return String(node);
@@ -108,18 +62,10 @@ function toText(node) {
   return "";
 }
 
-/**
- * The article body island. `markdown` is the guide's raw source (no frontmatter);
- * the string is passed as a prop from the .astro page so this hydrates client-side,
- * which the DS CodeBlock needs for its copy control.
- */
+// The DS CodeBlock's copy control needs hydration, so the guide arrives as a prop.
 export default function Article({ markdown = "", version = "main", slug = "", adrRef }) {
-  // The guide route resolves the exact git ref (refForVersion) and passes it in;
-  // refForDocsVersion is the client-safe fallback if a caller omits the prop.
+  // source-resolution.ts is node-only, so an island takes the ref as a prop, never imports it.
   const ref = adrRef ?? refForDocsVersion(version);
-  // One slugger per render, closed over by the heading renderers. react-markdown
-  // visits headings in source order, so its de-dup counter stays in step with
-  // extractToc() in slug.ts (which slugs every heading in the same order).
   const slugger = new GithubSlugger();
   const heading = (Tag, style) =>
     function H({ children }) {
@@ -144,9 +90,6 @@ export default function Article({ markdown = "", version = "main", slug = "", ad
     strong: ({ children }) => <strong style={{ fontWeight: 600, color: "var(--text-ink)" }}>{children}</strong>,
     em: ({ children }) => <em>{children}</em>,
 
-    // T2 SEAM: relative guide cross-links (`running.md#anchor`) are rewritten into
-    // in-site `/<version>/running#anchor` routes for the current version; external
-    // http(s) links open in a new tab; everything else passes through untouched.
     a: ({ href, children }) => {
       const { href: nextHref, external } = rewriteHref(href, version, slug, ref);
       return (
@@ -156,8 +99,6 @@ export default function Article({ markdown = "", version = "main", slug = "", ad
       );
     },
 
-    // GFM tables -> lightweight DS-token-styled table (code fences + callouts are
-    // the DS components the ticket requires; tables stay as tokenised HTML).
     table: ({ children }) => (
       <div style={{ overflowX: "auto", margin: "16px 0" }}>
         <table style={S.table}>{children}</table>
@@ -166,12 +107,8 @@ export default function Article({ markdown = "", version = "main", slug = "", ad
     th: ({ children }) => <th style={S.th}>{children}</th>,
     td: ({ children }) => <td style={S.td}>{children}</td>,
 
-    // Blockquote -> DS Callout (prose aside).
     blockquote: ({ children }) => <Callout style={{ margin: "18px 0" }}>{children}</Callout>,
 
-    // Fenced code -> DS CodeBlock; inline code -> InlineCode. In react-markdown v9
-    // block code is wrapped in <pre>, so `pre` owns the fenced case and `code`
-    // handles only the inline remainder.
     pre: ({ children }) => {
       const codeEl = React.Children.toArray(children).find((c) => React.isValidElement(c));
       const className = codeEl?.props?.className || "";
