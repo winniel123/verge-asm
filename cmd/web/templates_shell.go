@@ -16,7 +16,7 @@ var tmpl = template.Must(template.New("").Funcs(template.FuncMap{
 		case n > 0:
 			s = "+" + strconv.Itoa(n)
 		case n < 0:
-			// A true minus, not a hyphen, is the voice's signed-delta rule (design-system/README.md).
+			// A true minus, not a hyphen, is the signed-delta rule (design-system/README.md).
 			s = "−" + strconv.Itoa(-n)
 		default:
 			s = "0"

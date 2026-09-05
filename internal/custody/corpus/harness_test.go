@@ -183,7 +183,7 @@ func TestCorpusLock(t *testing.T) {
 }
 
 func TestFixtureStraddlesTheThreshold(t *testing.T) {
-	// A PSL revision listing invalid would collapse both counts, and that failure arrives here named.
+	// A PSL revision listing invalid would collapse both counts, and that failure arrives named.
 	if atThreshold != custody.SharedEdgeThreshold {
 		t.Errorf("the corpus boundary is authored at %d and custody.SharedEdgeThreshold is %d.\n"+
 			"The threshold moved. That is a Break (ADR-0129 §3): bump custody.Version, move\n"+

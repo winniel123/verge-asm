@@ -57,7 +57,7 @@ func (w *Worker) completeCTTailRFC(ctx context.Context, job db.ClaimJobRow, lg s
 
 	status, body, ferr := w.ctTailFetcher.Fetch(ctx, base+"ct/v1/get-sth")
 	if ferr != nil || status != 200 {
-		// The nil transcript is deliberate: raw-output capture is scoped to the crt.sh producer (#870).
+		// The nil transcript is deliberate: raw-output capture is scoped to crt.sh (#870).
 		return w.retryOrDeadLetterCT(ctx, job, nil, ctHTTPCause(ferr, status, "get-sth"))
 	}
 	sth, perr := scan.ParseSTH(body)
@@ -90,7 +90,7 @@ func (w *Worker) completeCTTailRFC(ctx context.Context, job db.ClaimJobRow, lg s
 		for _, e := range entries {
 			names, derr := scan.LeafSANs(e.LeafInput, e.ExtraData)
 			if derr != nil {
-				// A corroborative source may hold an entry we cannot read, so one skip never fails the poll (ADR-0213 §1).
+				// A corroborative source's unreadable entry never fails the poll (ADR-0213 §1).
 				w.log.Printf("worker: ct-tail job %d skipped a log entry: %v", job.ID, derr)
 				continue
 			}
@@ -141,7 +141,7 @@ func (w *Worker) completeCTTailTiled(ctx context.Context, job db.ClaimJobRow, lg
 	for reached < end {
 		tileIdx := reached / scan.CTTileWidth
 		tileBase := tileIdx * scan.CTTileWidth
-		// A data tile caps at 256 entries, so tile width is the batch cap (ct-source-replacement §4.4).
+		// A data tile caps at 256 entries, so that is the batch cap (ct-source-replacement §4.4).
 		width := int64(scan.CTTileWidth)
 		if tileBase+scan.CTTileWidth > sth.TreeSize {
 			width = sth.TreeSize - tileBase
@@ -229,7 +229,7 @@ func (w *Worker) admitCTTail(ctx context.Context, job db.ClaimJobRow, lg scan.CT
 		}); err != nil {
 			return err
 		}
-		// A durable signal would need a new facet, so drift stays ephemeral (ct-source-replacement §4.1).
+		// A durable signal needs a new facet, so drift is ephemeral (ct-source-replacement §4.1).
 		w.emitJobEvent(ctx, qtx, job, "", countLabel(len(admissions), "name admitted", "names admitted"))
 		if drift > 0 {
 			w.emitJobEvent(ctx, qtx, job, "warn", ctDriftLabel(drift))
@@ -281,7 +281,7 @@ func getEntriesURL(base string, start, end int64) string {
 }
 
 func (d *Dispatcher) fanOutCTTail(ctx context.Context, qtx *db.Queries, scanID, dispatchID int64) (int, error) {
-	// The Scan ships enabled and the source ships off: the toggle is consent, not schedule (ADR-0003).
+	// The Scan ships enabled and the source off: the toggle is consent, not schedule (ADR-0003).
 	enabled, err := sourceEnabled(ctx, qtx, scan.CTTailSource, false)
 	if err != nil {
 		return 0, err

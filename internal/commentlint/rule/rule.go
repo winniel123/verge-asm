@@ -44,6 +44,8 @@ const (
 
 const shortLabelWords = 6
 
+const ColumnCap = 100
+
 const sectionDividerShare = 0.6
 
 var (
@@ -127,7 +129,7 @@ func Deletable(b surface.Block) (Class, string, bool) {
 	c := Classify(b)
 	signal := screen.Signal(b.Payload())
 	if b.WaiverTail && signal == "" {
-		// gosec reads the whole comment group, so a waiver's wrapped half is the waiver (§2.3, #1274).
+		// gosec reads the whole group, so a waiver's wrapped half is the waiver (§2.3, #1274).
 		signal = screen.SignalToolMarker
 	}
 	// §3.6 reads `agent` in every non-Go cell, so v1 deletes on Go alone.
@@ -152,13 +154,26 @@ func Lint(res surface.Result, testFile bool) []Finding {
 	return out
 }
 
+var unjudged = map[Class]bool{
+	Directive:       true,
+	GeneratedHeader: true,
+	// Both classes need intent to judge, and ruling 12 forbids guessing at it (SPEC §3.5).
+	StepNarration: true,
+	ProseOther:    true,
+}
+
+func Judged(c Class) bool {
+	return !unjudged[c]
+}
+
+func CapBinds(c Class) bool {
+	// A directive's columns are the tool's, and §2.3 forbids splitting one (#1466).
+	return c != Directive && c != GeneratedHeader
+}
+
 func flags(b surface.Block, trailing, testFile bool) []Finding {
 	c := Classify(b)
-	if c == Directive || c == GeneratedHeader {
-		return nil
-	}
-	// Both classes need intent to judge, and ruling 12 forbids guessing at it (SPEC §3.5).
-	if c == StepNarration || c == ProseOther {
+	if !Judged(c) {
 		return nil
 	}
 

@@ -37,7 +37,7 @@ func addressScopeSharedEdges(ctx context.Context, q addressScopeCensusStore) (ma
 		return nil, err
 	}
 
-	// Reusing custodyExtensionEstate would walk resolutions per request for a field this limb ignores.
+	// Reusing custodyExtensionEstate walks resolutions per request for a field this limb ignores.
 	estate := custody.Estate{AddressScopes: prefixes}.
 		WithAddressExclusions(excluded).
 		WithEdgeFanout(fanout)

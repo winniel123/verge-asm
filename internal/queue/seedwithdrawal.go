@@ -31,7 +31,7 @@ func foldSeedWithdrawals(ctx context.Context, qtx *db.Queries, batchID int64, ob
 			return err
 		}
 		spanIDs, narrowings := composeSeedWithdrawals(rows, pending, in, estate.Derive)
-		// Running last is what stops a span an earlier fold closed being attributed twice (ADR-0134 §5).
+		// Running last stops a span an earlier fold closed being attributed twice (ADR-0134 §5).
 		if err := closeSpansByID(ctx, qtx, spanIDs, observedAt, drift.ReasonDescoped, batchID); err != nil {
 			return err
 		}
@@ -84,14 +84,14 @@ func composeWithdrawnGround(rows []db.ListSeedWithdrawalCandidatesRow, covering 
 		if addressSeedCovered(addr, seeds) {
 			continue
 		}
-		// The extension outlives an address Seed, so closing a still-probed address flaps (ADR-0134 §4).
+		// The extension outlives its Seed, so closing a still-probed address flaps (ADR-0134 §4).
 		if derive != nil && derive(addr) == custody.Operator {
 			continue
 		}
 		key := p.String()
 		c, seen := counts[key]
 		if !seen {
-			// An address Seed's scope IS its CIDR, so there is no wider declared scope to find (ADR-0074).
+			// An address Seed's scope IS its CIDR, so no wider declared scope exists (ADR-0074).
 			c = &withdrawalCount{scope: key, subjects: map[string]bool{}}
 			counts[key] = c
 			order = append(order, key)
@@ -136,7 +136,7 @@ func SeedWithdrawalReceipt(ctx context.Context, q SeedWithdrawalPreviewStore, as
 	if err != nil {
 		return message.NarrowingReceipt{}, err
 	}
-	// The Seed is still declared at preview time, so leaving it in would spare every address (#1046).
+	// The Seed is still declared at preview time, so leaving it in spares every address (#1046).
 	estate.AddressScopes = withoutPrefix(estate.AddressScopes, cidr)
 
 	_, _, counts := composeWithdrawnGround(rows, func(addr netip.Addr) *netip.Prefix {
@@ -179,7 +179,7 @@ func coveringSeedWithdrawal(addr netip.Addr, pending []db.ListPendingSeedWithdra
 		if w.AddressCidr == nil {
 			continue
 		}
-		// A withdrawal nests into no precedence the way a Seed does, so first match is the rule (ADR-0153).
+		// A withdrawal has no precedence nesting, unlike a Seed, so first match rules (ADR-0153).
 		if w.AddressCidr.Contains(addr) {
 			cidr := *w.AddressCidr
 			return &cidr

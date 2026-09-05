@@ -34,7 +34,7 @@ func ruleIDs(found []Finding) []string {
 }
 
 func TestDTSFieldProseIsNotFlagged(t *testing.T) {
-	// §4.3 keeps `.d.ts` field prose, and §7.7 condition 2 wants zero flags on the same file (#1406).
+	// §4.3 keeps `.d.ts` field prose, and §7.7 condition 2 wants zero flags on that file (#1406).
 	cases := []struct {
 		name string
 		file string
@@ -100,7 +100,7 @@ func TestDTSFieldProseIsNotFlagged(t *testing.T) {
 }
 
 func TestSparklineFieldProseIsNotFlagged(t *testing.T) {
-	// Appendix A row 15 is `Sparkline.d.ts:7` with verdict Keep, and line 4 is the same shape (#1406).
+	// Appendix A row 15 keeps `Sparkline.d.ts:7`, and line 4 is the same shape (#1406).
 	rel := "design-system/components/display/Sparkline.d.ts"
 	src, err := os.ReadFile(filepath.Join(repoRoot, rel))
 	if err != nil {

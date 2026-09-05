@@ -377,7 +377,7 @@ func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.A
 }
 
 func (s *server) enrichSignalDrawer(r *http.Request, row *signalRow) {
-	// No rules registry carries a tag, CVE or description, and a fired signal has no single vantage.
+	// No rules registry carries a tag, CVE or description, and a fired signal has no vantage.
 	if row.IP == "" {
 		row.IP = "—"
 	}
@@ -422,7 +422,7 @@ func buildRuleVersions() map[string]string {
 }
 
 func (s *server) signalDrift(r *http.Request, kind, key string) *sigDiff {
-	// The drawer diff is diagnostic rather than load-bearing, so an unreadable corpus degrades to nil.
+	// The drawer diff is diagnostic, not load-bearing, so an unreadable corpus degrades to nil.
 	if kind == "" || key == "" {
 		return nil
 	}
@@ -438,7 +438,7 @@ func (s *server) signalDrift(r *http.Request, kind, key string) *sigDiff {
 		if before == after {
 			continue
 		}
-		// A fixed-width UTC stamp, so a plain string compare orders the transitions chronologically.
+		// A fixed-width UTC stamp, so a plain string compare orders transitions chronologically.
 		if best == nil || tv.Current.OpenedAt > bestAt {
 			bestAt = tv.Current.OpenedAt
 			best = &sigDiff{
@@ -523,7 +523,7 @@ func (s *server) buildSignalTabs(r *http.Request) (open, annotated, withdrawn []
 
 	for _, av := range annoViews {
 		row := annotationRow(av, ident, fired, now)
-		// The subject withdrew, not the operator: orphan is derived on read and stored nowhere (ADR-0092).
+		// The subject withdrew, not the operator: orphan derives on read, never stored (ADR-0092).
 		if av.Orphan {
 			row.Withdrawn = true
 			withdrawn = append(withdrawn, row)
@@ -928,7 +928,7 @@ func (s *server) buildServiceFacts(r *http.Request) ([]signal.ServiceFacts, map[
 			f.OnSensitiveList = pair.Transport == vergecore.TCP && vc.IsSensitive(pair)
 			estateAddrs[addr] = true
 		}
-		// A blanket responder's reach is a Gap, so the rule is damped at the measurement (ADR-0104 §3).
+		// A blanket responder's reach is a Gap, so the rule damps at measurement (ADR-0104 §3).
 		if l, ok := byClass[sub]["internet"]; ok && !l.isGap && l.outcome != "" {
 			f.HasInternetReach = true
 			f.InternetReach = l.outcome
@@ -1087,7 +1087,7 @@ func selfSignedOf(subject, issuer string, selfSigVerifies bool) bool {
 }
 
 func sanMatchesName(sanDNS []string, name string) bool {
-	// A wildcard SAN admits no Name yet still matches one here: matching is not admitting (ADR-0060).
+	// A wildcard SAN admits no Name yet matches one here: matching is not admitting (ADR-0060).
 	nameLabels := dnsLabels(name)
 	if len(nameLabels) == 0 {
 		return false
@@ -1124,7 +1124,7 @@ func sanEntryMatches(entry string, nameLabels []string) bool {
 	if stars == 0 {
 		return labelsEqualFold(entryLabels, nameLabels)
 	}
-	// The same octets read as a pattern to one client and a literal to the next, so refuse (ADR-0060).
+	// Same octets read as a pattern to one client and a literal to the next, so refuse (ADR-0060).
 	if stars != 1 || entryLabels[0] != "*" {
 		return false
 	}
@@ -1150,10 +1150,10 @@ func labelsEqualFold(a, b []string) bool {
 }
 
 func weakKeyOrSignature(chain []chainCert) bool {
-	// A self-signed link skips the signature limb only (docs/research/weak-key-and-signature.md §4.1).
+	// A self-signed link skips the signature limb only (weak-key-and-signature.md §4.1).
 	weak := false
 	for _, c := range chain {
-		// An unnamed key algorithm is not weak rather than not-evaluable (weak-key-and-signature.md §4.2).
+		// An unnamed key algorithm is not weak, not unevaluable (weak-key-and-signature.md §4.2).
 		switch c.KeyAlg {
 		case "RSA":
 			if c.KeyBits < 2048 {
@@ -1199,7 +1199,7 @@ func splitEndpointName(key string) (name, service string) {
 }
 
 func estateNameSet(names []signal.NameFacts) map[string]bool {
-	// The redirect host arrives already lowercased, so the zone's own spelling must not decide a match.
+	// The redirect host arrives lowercased, so the zone's own spelling must not decide a match.
 	set := make(map[string]bool, len(names))
 	for _, n := range names {
 		if n.InEstate {

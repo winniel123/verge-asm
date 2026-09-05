@@ -164,7 +164,7 @@ func BuildArtifactDoc(a Artifact) ArtifactDoc {
 		})
 	}
 	if a.Delivered != "" {
-		// A receipt records what we said and never grades the news, so ok is not a valence (ADR-0064).
+		// A receipt records what we said, never grades the news, so ok is not a valence (ADR-0064).
 		doc.DeliveryState = &ArtifactDocDeliveryState{Label: "delivered", Tone: "ok"}
 	}
 	return doc

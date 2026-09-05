@@ -13,7 +13,7 @@ import (
 )
 
 type Scope struct {
-	Addresses []string `json:"addresses"` // the only dimension: no vantage, no port list, no name list
+	Addresses []string `json:"addresses"` // the only dimension: no vantage, no ports, no names
 }
 
 func DecodeScope(spec wire.JobSpec) (Scope, error) {
@@ -46,7 +46,7 @@ func RunWithHandshaker(ctx context.Context, h Handshaker, batch string, scope Sc
 		if !ok {
 			continue
 		}
-		// Two in-zone names often flatten to one edge, and a second handshake would tell us nothing.
+		// Two in-zone names often flatten to one edge, and a second handshake tells us nothing.
 		if _, dup := seen[target]; dup {
 			continue
 		}

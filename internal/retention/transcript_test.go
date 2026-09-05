@@ -110,7 +110,7 @@ func TestTranscriptSweepBoundedDeletesAtCutoff(t *testing.T) {
 }
 
 func TestTranscriptSweepFloorsPositiveBelowOne(t *testing.T) {
-	// The dial column stores whole days, so a sub-floor value never reaches the sweep in production.
+	// The dial column stores whole days, so no sub-floor value reaches the sweep in production.
 	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
 	cutoff, bounded := TranscriptCutoff(now, TranscriptFloorDays)
 	if !bounded {

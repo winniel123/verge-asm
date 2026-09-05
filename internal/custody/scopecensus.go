@@ -6,13 +6,13 @@ import "net/netip"
 
 type AddressScopeCensusEntry struct { // display only: no gate may read it (ADR-0129 #956)
 	Scope       netip.Prefix
-	SharedEdges int // a count of the operator's addresses, never the threshold (ADR-0013's nag test)
+	SharedEdges int // a count of operator addresses, never the threshold (ADR-0013's nag test)
 }
 
 func (e Estate) AddressScopeCensus() []AddressScopeCensusEntry {
 	// A bound read leaves this wholesale walk short with nothing to say so (#1036).
 	if !e.edgeFanout.Enabled || e.edgeFanout.Partial {
-		// The errored floor decides one limb's reach, so the test reads Enabled, never inForce (#1018).
+		// The errored floor decides one limb's reach, so this reads Enabled, not inForce (#1018).
 		return nil
 	}
 	scopes := make([]netip.Prefix, 0, len(e.AddressScopes))

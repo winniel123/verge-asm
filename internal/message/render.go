@@ -273,7 +273,7 @@ func artifactChangeSection(title string, changes []ArtifactChange, emptyNote str
 var artifactSevLevels = []string{"critical", "high", "medium", "low", "info"}
 
 func normSev(level string) string {
-	// An unknown token folds to info rather than manufacturing urgency (mirrors signal.SeverityFor).
+	// An unknown token folds to info, never manufacturing urgency (mirrors signal.SeverityFor).
 	for _, l := range artifactSevLevels {
 		if l == level {
 			return l

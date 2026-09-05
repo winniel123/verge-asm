@@ -49,13 +49,13 @@ func Decide(result ConnResult) Outcome {
 }
 
 func Probe(ctx context.Context, c Connector, profile SafetyProfile, target netip.AddrPort) (Outcome, ConnResult) {
-	// The retry budget is a rate concern: exhausting it never extends the job's deadline (ADR-0021).
+	// The retry budget is a rate cost: spending it never extends the job's deadline (ADR-0021).
 	attempts := profile.Retries + 1
 	if attempts < 1 {
 		attempts = 1
 	}
 	var last ConnResult
-	// Silence decides on a connection-oriented transport, but only once retries are spent (ADR-0083).
+	// Silence decides on a connection-oriented transport, only once retries are spent (ADR-0083).
 	for i := 0; i < attempts; i++ {
 		last = c.Connect(ctx, target)
 		if last.decided() {

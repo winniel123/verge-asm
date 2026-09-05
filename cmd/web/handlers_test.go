@@ -2273,7 +2273,7 @@ func (f *fakeStore) GetNameCitation(_ context.Context, arg db.GetNameCitationPar
 		return db.GetNameCitationRow{
 			ObservedAt: admission.CreatedAt, Source: admission.Source,
 			BatchID: admission.BatchID, ScanID: scanID, ScanKind: scanKind,
-			// The schema makes admitted_name.seed_id NOT NULL, so only the seedless fixture leaves it invalid.
+			// The schema makes admitted_name.seed_id NOT NULL, so only a seedless row is invalid.
 			SeedID:  pgtype.Int8{Int64: admission.SeedID, Valid: admission.SeedID != 0},
 			HopKind: hopKindAdmission,
 		}, nil

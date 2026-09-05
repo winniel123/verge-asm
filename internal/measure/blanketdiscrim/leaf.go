@@ -33,7 +33,7 @@ func Decide(results []ControlResult) Verdict {
 	// A false Gap withholds one reach; a false reach fabricates surface (ADR-0068, ADR-0104).
 	if len(results) == 0 {
 		// An empty set was never probed, not a probe that could not decide, so nothing is gapped.
-		// Production always draws a full CryptoPorts set, so only a test or an opt-out reaches here.
+		// Production draws a full CryptoPorts set, so only a test or an opt-out reaches here.
 		return VerdictNotBlanket
 	}
 	allAnswered := true

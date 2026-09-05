@@ -32,7 +32,7 @@ type reachabilityGapValue struct {
 }
 
 func EmitServiceGap(batch, vantage string, target netip.AddrPort, cause, reason string) wire.Observation {
-	// The fold opens an is_gap span, so a downstream reader sees an absent leg with no special case.
+	// The fold opens an is_gap span, so a reader sees an absent leg with no special case.
 	return wire.Observation{
 		Batch:   batch,
 		Kind:    Kind,
@@ -45,7 +45,7 @@ func EmitServiceGap(batch, vantage string, target netip.AddrPort, cause, reason 
 }
 
 func EmitService(batch, vantage string, target netip.AddrPort, outcome Outcome, raw ConnResult) wire.Observation {
-	// A Service exists open or closed, so an unreachable verdict has a subject (CONTEXT.md Service).
+	// A Service is open or closed, so an unreachable verdict has a subject (CONTEXT.md Service).
 	return wire.Observation{
 		Batch:   batch,
 		Kind:    Kind,

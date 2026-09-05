@@ -82,7 +82,7 @@ type HandshakeResult struct {
 	SCTsTLSExt  [][]byte
 	OCSPStaple  []byte
 	IssuerSPKI  []byte
-	Unreachable bool // Plumbing no facet renders, so certificate folds an unreachable dial into no-tls and only edge-fanout reads it (ADR-0151 §3).
+	Unreachable bool // Plumbing no facet renders; only edge-fanout reads it (ADR-0151 §3).
 }
 
 // A self-signature check needs parsed key bytes, so it is the one datum computed in-leaf (#712).
@@ -102,7 +102,7 @@ type Handshaker interface {
 }
 
 func Fingerprint(der []byte) string {
-	// A chain is held by fingerprint, shared by every endpoint presenting it (CONTEXT.md Certificate).
+	// One chain serves many endpoints, so the fingerprint is its key (CONTEXT.md Certificate).
 	sum := sha256.Sum256(der)
 	return "sha256:" + hex.EncodeToString(sum[:])
 }
@@ -245,7 +245,7 @@ func sigDigestName(a x509.SignatureAlgorithm) string {
 	}
 }
 
-// The golden rows pin the fold and never this live split, so a change here is an uncovered move (ADR-0152 §3).
+// The golden rows pin the fold, never this live split, so a change here is uncovered (ADR-0152 §3).
 
 func classifyDialError(err error) (outcome TLSOutcome, unreachable bool) {
 	var opErr *net.OpError
@@ -276,6 +276,6 @@ func classifyDialError(err error) (outcome TLSOutcome, unreachable bool) {
 		strings.Contains(msg, "no cipher suite"):
 		return TLSRefused, false
 	}
-	// The unclassifiable case takes the conservative side: it asserts no refusal we did not observe.
+	// The unclassifiable case asserts no refusal we did not observe.
 	return NoTLS, false
 }

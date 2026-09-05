@@ -60,7 +60,7 @@ func BuildTLSAcceptanceJobs(scanID int64, estate custody.Estate, services []Reac
 		if err != nil {
 			continue
 		}
-		// A reached Service is a stale snapshot, so the ADR-0079 gate re-runs on the current Estate.
+		// A reached Service is a stale snapshot, so the ADR-0079 gate re-runs on the live Estate.
 		if !estate.MayProbe(a, vcByID[s.VantageID]) {
 			continue
 		}

@@ -36,9 +36,9 @@ func readMembershipInputs(ctx context.Context, qtx *db.Queries) (membershipInput
 }
 
 func foldEstateTransitions(ctx context.Context, qtx *db.Queries, batchID int64, observedAt time.Time, obs []wire.Observation, in membershipInputs, deps *[]departure) error {
-	// Membership is re-decided only where fresh evidence arrived, never as a background sweep (ADR-0198 §1).
+	// Membership is re-decided only where fresh evidence arrived, never as a sweep (ADR-0198 §1).
 	for _, name := range observedResolutionNames(obs) {
-		// The value fold runs first, so this Name's current resolution span is already open (ADR-0007).
+		// The value fold runs first, so this Name's resolution span is already open (ADR-0007).
 		open, err := qtx.ListOpenSpansForSubject(ctx, db.ListOpenSpansForSubjectParams{
 			SubjectKind: subjectKindName,
 			SubjectKey:  name,
@@ -67,7 +67,7 @@ func foldEstateTransitions(ctx context.Context, qtx *db.Queries, batchID int64, 
 }
 
 func coveringExclusionKey(name string, reason drift.ClosureReason, exclusions []db.ListExclusionsRow) string {
-	// An address withdrawal fires one Narrowing per exclusion, so a branch here has no caller (#1032).
+	// An address withdrawal fires one Narrowing per exclusion, so a branch here is dead (#1032).
 	if reason != drift.ReasonDescoped {
 		return ""
 	}
@@ -121,7 +121,7 @@ func decideNameDeparture(open []db.ListOpenSpansForSubjectRow, seedCovered, excl
 		return "", false
 	}
 	if excluded {
-		// An exclusion acts on our aperture and claims no absence, so it needs no witness (ADR-0087).
+		// Exclusion narrows our aperture and claims no absence, so it needs no witness (ADR-0087).
 		return drift.ReasonDescoped, true
 	}
 	witnesses := resolutionWitnesses(open)
@@ -198,7 +198,7 @@ func closeSpansByID(ctx context.Context, qtx *db.Queries, ids []int64, at time.T
 }
 
 func openedByAperture(subjectKind, subjectKey string, in membershipInputs) bool {
-	// An exclusion cuts the Seed limb alone, so a still-probed address opens appeared (ADR-0133 §3).
+	// An exclusion cuts the Seed limb alone; a still-probed address opens appeared (ADR-0133 §3).
 	if subjectKind == subjectKindName {
 		return nameSeedCovered(subjectKey, in.seeds) && !nameExcluded(subjectKey, in.exclusions)
 	}

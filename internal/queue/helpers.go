@@ -25,7 +25,7 @@ func nameSeedDomains(ctx context.Context, q *db.Queries) ([]string, error) {
 }
 
 func admittedNames(ctx context.Context, q *db.Queries) ([]string, error) {
-	// Consent was spent at admission, so a source toggle never un-admits a Name (ADR-0003, ADR-0006).
+	// Consent is spent at admission, so no source toggle un-admits a Name (ADR-0003, ADR-0006).
 	return q.ListAdmittedNames(ctx)
 }
 

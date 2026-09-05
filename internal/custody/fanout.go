@@ -50,7 +50,7 @@ func SharedEdge(sans []string) bool { return FanOut(sans) >= SharedEdgeThreshold
 func FanOut(sans []string) int { return len(registrableSet(sans)) }
 
 func RegistrableDomains(sans []string) []string {
-	// Ownership is refused as the discriminator, so brand clustering carries no weight (ADR-0129 §1).
+	// Ownership is refused as the discriminator, so brand clustering has no weight (ADR-0129 §1).
 	set := registrableSet(sans)
 	out := make([]string, 0, len(set))
 	for d := range set {
@@ -61,7 +61,7 @@ func RegistrableDomains(sans []string) []string {
 }
 
 func registrableSet(sans []string) map[string]struct{} {
-	// A real shared edge presents thousands of SANs, so the gate path never sorts what it only counts.
+	// A real shared edge presents thousands of SANs, so the gate path never sorts what it counts.
 	seen := make(map[string]struct{}, len(sans))
 	for _, san := range sans {
 		reg, ok := registrableDomain(san)
@@ -74,7 +74,7 @@ func registrableSet(sans []string) map[string]struct{} {
 }
 
 func registrableDomain(san string) (string, bool) {
-	// A SAN set is third-party wire content, so an unreducible entry is a silent drop, never an error.
+	// A SAN set is third-party wire content, so an unreducible entry is a silent drop, no error.
 	name := asciiLower(strings.TrimSpace(san))
 	name = strings.TrimPrefix(name, "*.")
 	name = strings.TrimSuffix(name, ".")

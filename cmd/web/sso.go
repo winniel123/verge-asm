@@ -245,7 +245,7 @@ func (s *server) ssoCallback(w http.ResponseWriter, r *http.Request) {
 		s.render(w, r, "login", s.loginData(r.Context(), "Single sign-on could not be completed. Sign in with your password."))
 		return
 	}
-	// SSO adds a route and replaces no factor, so an enrolled account still owes its code (ADR-0112).
+	// SSO adds a route and replaces no factor, so an enrolled account owes its code (ADR-0112).
 	if acct.TotpEnabled {
 		if !s.setSignedCookie(w, r, pendingCookie, auth.KindPending, acct.ID, "", s.pendingTTL) {
 			return

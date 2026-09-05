@@ -83,7 +83,7 @@ type zoneScope struct {
 }
 
 func (j ZoneJob) JobSpec(batch string) (wire.JobSpec, error) {
-	// A worker-read Scan runs no prober, so its scope rides in the job, not a vantage (v1 spec §3.4).
+	// A worker-read Scan runs no prober, so scope rides in the job, not a vantage (v1 spec §3.4).
 	raw, err := json.Marshal(zoneScope{Domain: j.Domain, SuppliedAt: j.SuppliedAt, Content: j.Content})
 	if err != nil {
 		return wire.JobSpec{}, fmt.Errorf("scan: marshal zone scope: %w", err)
@@ -138,7 +138,7 @@ func RestateZone(zf ZoneFile) (records []ZoneRecord, skipped []string) {
 			}
 			set.rrs = append(set.rrs, rec.rdata)
 		}
-		// A blank, comment or directive is no missing record, so the absent case is deliberate (#869).
+		// A blank, comment or directive is no missing record: the absence is deliberate (#869).
 	}
 
 	out := make([]ZoneRecord, 0, len(order))
@@ -146,7 +146,7 @@ func RestateZone(zf ZoneFile) (records []ZoneRecord, skipped []string) {
 		set := rrsets[key]
 		data, err := json.Marshal(zoneValue{RRs: set.rrs})
 		if err != nil {
-			// Marshalling a string slice does not fail, so this arm is the spec's defensive surface (§1.3).
+			// A string slice always marshals, so this arm is the spec's defensive surface (§1.3).
 			skipped = append(skipped, set.name+" "+set.qtype)
 			continue
 		}
@@ -168,7 +168,7 @@ const (
 	parseSkipped
 )
 
-// The rdata is the file's own words, never a re-resolution, so the timeline is what was declared (ADR-0194 §1).
+// The rdata is the file's own words, so the timeline is what was declared (ADR-0194 §1).
 
 type zoneValue struct {
 	RRs []string `json:"rrs"`
@@ -226,7 +226,7 @@ func (p *zoneParser) parse(line string) (parsedRecord, parseResult) {
 	var owner string
 	if ownerInherited {
 		if p.lastOwner == "" {
-			// The operator wrote rdata the estate never got: a dropped candidate, not a no-op (#869).
+			// Operator rdata the estate never got is a dropped candidate, not a no-op (#869).
 			return parsedRecord{}, parseSkipped
 		}
 		owner = p.lastOwner

@@ -231,7 +231,7 @@ func TestParseLogEntries(t *testing.T) {
 }
 
 func TestSelectTailLogsIncludesTiled(t *testing.T) {
-	// Some operators are tiled-only, so both clients stay mandatory (ct-source-replacement.md §4.3).
+	// Operators can be tiled-only, so both clients are mandatory (ct-source-replacement.md §4.3).
 	now := time.Date(2026, 8, 30, 0, 0, 0, 0, time.UTC)
 	logs, err := SelectTailLogs(now)
 	if err != nil {

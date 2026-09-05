@@ -80,6 +80,6 @@ func (n NetHandshaker) Handshake(ctx context.Context, target netip.AddrPort) Res
 	if h == nil {
 		h = co.NetHandshaker{Timeout: n.Timeout}
 	}
-	// A server name here would silently measure a tenant's certificate, not the edge's (ADR-0129 §6).
+	// A server name would silently measure a tenant's certificate, not the edge's (ADR-0129 §6).
 	return Fold(h.Handshake(ctx, target, NoServerName))
 }

@@ -137,7 +137,7 @@ func TestCertSpotterSourceEmptyPageStops(t *testing.T) {
 }
 
 func TestCertSpotterSourceDisplayName(t *testing.T) {
-	// The live stream shows this label to an operator on a non-200, so it is the product name (#780).
+	// The live stream shows this label to an operator, so it is the product name (#780).
 	if got := CertSpotterCTSource().DisplayName(); !strings.Contains(got, "Cert Spotter") {
 		t.Errorf("DisplayName = %q, want it to name Cert Spotter", got)
 	}

@@ -13,11 +13,11 @@ type EdgeFanout struct {
 
 	ExtensionErrored bool
 
-	// A missing key is measurement pending, a currency state and never a count band (ADR-0129, #954).
+	// A missing key is measurement pending, a currency state and not a count band (ADR-0129 #954).
 
 	Shared map[netip.Addr]bool // keys are Unmap'ed, matching every comparison in this package
 
-	// A wholesale walk of a bound Shared reads short, so the census refuses a partial record (#1036).
+	// A wholesale walk of a bound Shared reads short, so the census refuses a partial one (#1036).
 
 	Partial bool
 }
@@ -38,7 +38,7 @@ func (f EdgeFanout) admits(addr netip.Addr) bool {
 }
 
 func (f EdgeFanout) inForce() bool {
-	// One predicate, so the gate and the census cannot read the absence case differently (ADR-0129).
+	// One predicate, so the gate and census cannot read the absence case differently (ADR-0129).
 	return f.Enabled && !f.ExtensionErrored
 }
 
@@ -49,7 +49,7 @@ func (f EdgeFanout) overExtension(candidates []netip.Addr) EdgeFanout {
 	if !f.Enabled || !f.BatchCompleted || len(candidates) == 0 {
 		return f
 	}
-	// Every negative outcome records a row, so an errored limb means the Scan measured nothing at all.
+	// Every negative outcome records a row, so an errored limb means the Scan measured nothing.
 	for _, addr := range candidates {
 		if _, measured := f.Shared[addr]; measured {
 			return f

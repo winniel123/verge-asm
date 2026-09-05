@@ -96,7 +96,7 @@ func VerifyClass(presented []netip.Addr, covered func(netip.Addr) bool) custody.
 	// A spelling-sensitive coverage test would turn this class on a rendering.
 	for _, a := range presented {
 		if !covered(a.Unmap()) {
-			// The closed direction: a vantage misread as internal never alerts (ADR-0049, ADR-0079).
+			// Closed direction: a vantage misread as internal never alerts (ADR-0049, ADR-0079).
 			return custody.ClassInternet
 		}
 	}
@@ -175,14 +175,14 @@ func Build(services []ServiceInput, internetPresent, internalPresent bool) Scree
 		return s
 	}
 	for _, svc := range services {
-		// The flagship fires on the internet leg move whether or not the other leg exists (ADR-0029).
+		// The flagship fires on the internet leg move even without the other leg (ADR-0029).
 		if svc.Internet.Valued() && svc.InternetBeforeSet &&
 			Flagship(svc.InternetBefore, svc.Internet.Value) {
 			s.WhatMoved = append(s.WhatMoved, svc.Service)
 		}
 
 		if svc.Broken {
-			// Rules changed, so no value is projected: never a cell, never a false reading (ADR-0007).
+			// Changed rules project nothing: never a cell, never a false reading (ADR-0007).
 			s.Broken = append(s.Broken, svc.Service)
 			continue
 		}

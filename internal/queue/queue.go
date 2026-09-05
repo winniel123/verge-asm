@@ -49,7 +49,7 @@ func (d *Dispatcher) WithStaleJobThreshold(threshold time.Duration) *Dispatcher 
 }
 
 func (d *Dispatcher) WithCTSource(slug string) *Dispatcher {
-	// The worker picks this at wire-time by the operator key's presence (ct-source-replacement §2.3).
+	// The worker picks this at wire-time by operator-key presence (ct-source-replacement §2.3).
 	d.ctSource = slug
 	return d
 }
@@ -84,7 +84,7 @@ func (d *Dispatcher) dispatchDue(ctx context.Context) {
 	for _, s := range scans {
 		switch s.Kind {
 		case scan.DNSKind, scan.ZoneKind, scan.HotKind, scan.ColdKind, scan.TLSAcceptanceKind, scan.CTKind, scan.HTTPIdentityKind, scan.CTTailKind, scan.EdgeFanoutKind:
-			// The cold Scan ships disabled and enters this list only once a Seed scope opts in (ADR-0044).
+			// The cold Scan ships disabled and appears only once a Seed scope opts in (ADR-0044).
 		default:
 			continue
 		}
@@ -216,7 +216,7 @@ func (d *Dispatcher) claimDispatch(ctx context.Context, s db.Scan, scheduledTime
 			return 0, false, fmt.Errorf("queue: hot cadence-lag gate: %w", lerr)
 		}
 		if lagging {
-			// A rollback would leave the window unclaimed and a later poll would defer it (ADR-0137 §4).
+			// A rollback leaves the window unclaimed and a later poll defers it (ADR-0137 §4).
 			d.log.Printf("dispatcher: %s tick %s overtakes an undrained dispatch, skipped", s.Kind, scheduledTime.Format(time.RFC3339))
 			return 0, true, tx.Commit(ctx)
 		}

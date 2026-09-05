@@ -20,7 +20,7 @@ func ServiceKey(target netip.AddrPort, transport string) string {
 }
 
 func EmitAcceptance(batch, vantage string, target netip.AddrPort, value acceptanceValue) wire.Observation {
-	// The Scan's population is already-open Services, so there is no closed-port variant to withhold.
+	// The Scan's population is already-open Services, so no closed-port variant can be withheld.
 	return wire.Observation{
 		Batch:   batch,
 		Kind:    Kind,

@@ -56,10 +56,10 @@ func MembershipReturn(priorClosure *Span, witnessBroke bool) Kind {
 }
 
 func ReEntryKind(priorClosure *Span, witnessBroke, apertureWidened bool) Kind {
-	// The marker reports that the Declared aperture covers the subject and no Exclusion cuts it out.
+	// The marker reports the Declared aperture covers the subject and no Exclusion cuts it out.
 	// It is stamped only where a Seed declares the subject, so no subject-kind switch is needed.
 	if apertureWidened && priorClosure != nil && priorClosure.Reason == ReasonDescoped {
-		// Widening a Declared scope is a Declared act: revealed, never appeared (ADR-0041, ADR-0047).
+		// Widening a Declared scope is Declared: revealed, never appeared (ADR-0041, ADR-0047).
 		return KindRevealed
 	}
 	return MembershipReturn(priorClosure, witnessBroke)

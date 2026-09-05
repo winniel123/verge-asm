@@ -55,7 +55,7 @@ func (v Vector) Equal(o Vector) bool {
 }
 
 func MovedLeaves(before, after Vector) []string {
-	// Membership's vector is discovered, not declared: a leaf entering it is a real move (ADR-0086).
+	// Membership's vector is discovered, not declared: a leaf entering it is a move (ADR-0086).
 	bv := map[string]string{}
 	for _, c := range before {
 		bv[c.Leaf] = c.Version

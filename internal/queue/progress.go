@@ -62,7 +62,7 @@ func (w *Worker) emitJobEvent(ctx context.Context, qtx *db.Queries, job db.Claim
 }
 
 func (w *Worker) emitProgress(ctx context.Context, qtx *db.Queries, ev jobProgress) {
-	// An event persists nowhere at rest, so the job's state-derived log stands (raw-job-output §6.2).
+	// An event persists nowhere at rest, so the state-derived log stands (raw-job-output §6.2).
 	payload, err := json.Marshal(ev)
 	if err != nil {
 		// Progress is best-effort, so a failure here must never cost the job its outcome.

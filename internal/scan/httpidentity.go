@@ -88,7 +88,7 @@ func BuildHTTPIdentityJobs(scanID int64, estate custody.Estate, services []Reach
 }
 
 func schemeForPort(port uint16) string {
-	// Choosing a scheme widens nothing: a port speaking neither folds to no-http-response (ADR-0011).
+	// A scheme widens nothing: a port speaking neither folds to no-http-response (ADR-0011).
 	switch port {
 	case 443, 8443, 6443:
 		return "https"

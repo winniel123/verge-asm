@@ -104,7 +104,7 @@ func TestHTTPCTFetcherDoesNotFollowRedirect(t *testing.T) {
 }
 
 func TestCTFetchOutcome(t *testing.T) {
-	// net/http wraps a ctx error in *url.Error, so a bare context.Canceled would not test the unwrap.
+	// net/http wraps a ctx error in *url.Error, so a bare context.Canceled leaves the unwrap unrun.
 	wrappedCancel := fmt.Errorf("Get %q: %w", "https://crt.sh", context.Canceled)
 	wrappedDeadline := fmt.Errorf("Get %q: %w", "https://crt.sh", context.DeadlineExceeded)
 

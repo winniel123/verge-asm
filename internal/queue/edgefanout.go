@@ -28,7 +28,7 @@ func (d *Dispatcher) fanOutEdgeFanout(ctx context.Context, scanID, dispatchID in
 	}
 	// An install with neither limb dispatches an empty scope rather than an error (#988).
 	jobs := scan.BuildEdgeFanoutJobs(scanID, estate.EdgeFanoutPopulation())
-	// A declared address scope has no ceiling, so the jobs stream instead of materializing (ADR-0127).
+	// A declared address scope is uncapped, so jobs stream instead of materializing (ADR-0127).
 	return streamEnqueue(ctx, d, jobs, func(ctx context.Context, qtx *db.Queries, j scan.EdgeFanoutJob) error {
 		return enqueueEdgeFanoutJob(ctx, qtx, scanID, dispatchID, j)
 	})
@@ -55,7 +55,7 @@ func enqueueEdgeFanoutJob(ctx context.Context, qtx *db.Queries, scanID, dispatch
 	// A handshake is a network step that transiently fails, so the job retries like a hot one.
 	_, err = qtx.EnqueueJob(ctx, db.EnqueueJobParams{
 		ScanID:         scanID,
-		VantageID:      pgtype.Int8{}, // a default certificate does not vary by vantage (ADR-0129, #954)
+		VantageID:      pgtype.Int8{}, // a default certificate is not per-vantage (ADR-0129 #954)
 		DispatchID:     pgInt8(dispatchID),
 		Kind:           scan.EdgeFanoutKind,
 		Spec:           specJSON,
@@ -97,7 +97,7 @@ func toEdgeFanoutRows(jobKind string, batchID int64, measuredAt pgtype.Timestamp
 			dropped = append(dropped, fmt.Sprintf("address %s: %v", addr, err))
 			continue
 		}
-		// A fingerprint disagreeing with its material names a certificate no read can join to (#984).
+		// A fingerprint disagreeing with its material names a certificate no read can join (#984).
 		if o.CertMaterial != nil && o.CertMaterial.Fingerprint != v.Fingerprint {
 			dropped = append(dropped, fmt.Sprintf("address %s: fingerprint %q disagrees with its certificate material %q",
 				addr, v.Fingerprint, o.CertMaterial.Fingerprint))
@@ -122,7 +122,7 @@ func toEdgeFanoutRows(jobKind string, batchID int64, measuredAt pgtype.Timestamp
 
 func foldEdgeFanoutObservations(ctx context.Context, qtx *db.Queries, job db.ClaimJobRow, batchID int64, measuredAt pgtype.Timestamptz, obs []wire.Observation, logger *log.Logger) error {
 	rows, dropped := toEdgeFanoutRows(job.Kind, batchID, measuredAt, obs)
-	// A malformed line is logged and never fails the job: a prober must not deny the queue (ADR-0001).
+	// A malformed line is logged, never fatal: a prober must not deny the queue (ADR-0001).
 	for _, why := range dropped {
 		if logger != nil {
 			logger.Printf("worker: job %d dropped malformed edge-fanout observation: %s (#773)", job.ID, why)
@@ -166,7 +166,7 @@ type EdgeFanoutBound struct {
 func EdgeFanoutUnbounded() EdgeFanoutBound { return EdgeFanoutBound{} }
 
 func EdgeFanoutOver(addrs []netip.Addr) EdgeFanoutBound {
-	// Every comparison in internal/custody is family-agnostic, so a match must not turn on spelling.
+	// Comparison in internal/custody is family-agnostic, so a match must not turn on spelling.
 	over := make([]string, 0, len(addrs))
 	for _, a := range addrs {
 		over = append(over, a.Unmap().String())
@@ -176,7 +176,7 @@ func EdgeFanoutOver(addrs []netip.Addr) EdgeFanoutBound {
 
 func ReadEdgeFanout(ctx context.Context, q EdgeFanoutStore, bound EdgeFanoutBound) (custody.EdgeFanout, error) {
 	s, err := q.GetScanByKind(ctx, scan.EdgeFanoutKind)
-	// An absent or disabled Scan yields the zero value, which reaches every target as before ADR-0129.
+	// An absent or disabled Scan yields the zero value, which reaches targets as before ADR-0129.
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return custody.EdgeFanout{}, nil
@@ -190,7 +190,7 @@ func ReadEdgeFanout(ctx context.Context, q EdgeFanoutStore, bound EdgeFanoutBoun
 	if err != nil {
 		return custody.EdgeFanout{}, err
 	}
-	// A failed read is the dispatch failing, never a finding, so it must not silently widen the reach.
+	// A failed read is dispatch failure, never a finding, so it must not silently widen the reach.
 	material, err := readEdgeFanoutMaterial(ctx, q, rows)
 	if err != nil {
 		return custody.EdgeFanout{}, err
@@ -210,7 +210,7 @@ func readEdgeFanoutRows(ctx context.Context, q EdgeFanoutStore, bound EdgeFanout
 	if !bound.bounded {
 		return q.ListEdgeFanoutMeasurements(ctx)
 	}
-	// An empty bound could only return rows the caller already knows are none, so no query is issued.
+	// An empty bound returns only rows the caller already knows are none, so no query is issued.
 	if len(bound.over) == 0 {
 		return nil, nil
 	}
@@ -218,7 +218,7 @@ func readEdgeFanoutRows(ctx context.Context, q EdgeFanoutStore, bound EdgeFanout
 	if err != nil {
 		return nil, err
 	}
-	// sqlc names a row type per query, so copying the narrow rows into the wide type keeps one fold.
+	// sqlc names a row type per query, so copying narrow rows into the wide type keeps one fold.
 	out := make([]db.ListEdgeFanoutMeasurementsRow, 0, len(rows))
 	for _, r := range rows {
 		out = append(out, db.ListEdgeFanoutMeasurementsRow{
@@ -235,7 +235,7 @@ func readEdgeFanoutMaterial(ctx context.Context, q EdgeFanoutStore, rows []db.Li
 	if len(fingerprints) == 0 {
 		return nil, nil
 	}
-	// One CDN edge sits behind thousands of addresses, so a certificate crosses the wire once (#1035).
+	// One CDN edge backs thousands of addresses, so a certificate crosses the wire once (#1035).
 	material, err := q.ListCertificateMaterialDER(ctx, fingerprints)
 	if err != nil {
 		return nil, err
@@ -251,7 +251,7 @@ func edgeFanoutFingerprints(rows []db.ListEdgeFanoutMeasurementsRow) []string {
 	seen := make(map[string]struct{}, len(rows))
 	out := make([]string, 0, len(rows))
 	for _, r := range rows {
-		// A negative outcome names no certificate, and an absent fingerprint stores as NULL or as empty.
+		// A negative outcome names no certificate, so an absent fingerprint stores NULL or empty.
 		if !r.Fingerprint.Valid || r.Fingerprint.String == "" {
 			continue
 		}
@@ -272,7 +272,7 @@ func toEdgeFanout(completed bool, rows []db.ListEdgeFanoutMeasurementsRow, mater
 	for _, r := range rows {
 		addr, err := netip.ParseAddr(r.Address)
 		if err != nil {
-			// A row that will not parse measured nothing, so withholding the address is the safe direction.
+			// An unparseable row measured nothing, so withholding the address is safer.
 			continue
 		}
 		var edge bool
@@ -292,7 +292,7 @@ func toEdgeFanout(completed bool, rows []db.ListEdgeFanoutMeasurementsRow, mater
 		}
 		shared[addr.Unmap()] = edge
 	}
-	// The errored floor is per limb, and only the estate holds the candidate set resolving it (#1018).
+	// The errored floor is per limb; only the estate holds the candidate set resolving it (#1018).
 	return custody.EdgeFanout{Enabled: true, BatchCompleted: completed, Shared: shared}
 }
 

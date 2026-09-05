@@ -96,7 +96,7 @@ func TestMergeResolutionNamesDedupesAgainstSeedsAndItself(t *testing.T) {
 }
 
 func TestMergeResolutionNamesKeysOnResolverCanonicalName(t *testing.T) {
-	// An inline ToLower folds a non-ASCII pair the resolver keeps apart, dropping one silently (#256).
+	// An inline ToLower folds a non-ASCII pair the resolver keeps apart, dropping one (#256).
 	if got := resolutionwalk.CanonicalName("Ä.example.com"); got != "Ä.example.com" {
 		t.Fatalf("precondition: CanonicalName folded a non-ASCII uppercase letter: %q", got)
 	}
@@ -159,7 +159,7 @@ func TestReachabilityFoldsToServiceProberTimeline(t *testing.T) {
 }
 
 func TestReachabilityGapFoldsToIsGap(t *testing.T) {
-	// is_gap is how a blanket responder's leg reads absent downstream with no special case (ADR-0104).
+	// is_gap reads a blanket responder's leg as absent downstream with no special case (ADR-0104).
 	gap := json.RawMessage(`{"outcome":"gap","cause":"blanket-responder","reason":"proxy edge"}`)
 	if !isGapValue(connectoutcome.FacetReachability, gap) {
 		t.Error("a reachability gap observation must fold to is_gap=true")

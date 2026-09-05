@@ -24,7 +24,7 @@ func foldAddressExclusionWithdrawals(ctx context.Context, qtx *db.Queries, batch
 	if len(rows) == 0 {
 		return nil
 	}
-	// The estate is built only where there is something to withdraw. The steady state answers empty.
+	// The estate is built only where something can be withdrawn. The steady state answers empty.
 	estate, _, err := hotEstate(ctx, qtx, observedAt)
 	if err != nil {
 		return err
@@ -34,7 +34,7 @@ func foldAddressExclusionWithdrawals(ctx context.Context, qtx *db.Queries, batch
 	if err := closeSpansByID(ctx, qtx, spanIDs, observedAt, drift.ReasonDescoped, batchID); err != nil {
 		return err
 	}
-	// A withdrawal is a fact about the estate, not a message, so it closes whether or not out is set (ADR-0219 §1).
+	// A withdrawal is an estate fact, not a message, so out never gates the close (ADR-0219 §1).
 	if out != nil {
 		*out = append(*out, narrowings...)
 	}
@@ -56,7 +56,7 @@ func composeAddressWithdrawals(rows []db.ListAddressExclusionWithdrawalsRow, in 
 		if p == nil {
 			continue
 		}
-		// An address the extension still reaches is still probed, so closing it would flap (ADR-0133 §1).
+		// An address the extension still reaches is probed, so closing it flaps (ADR-0133 §1).
 		if derive != nil && derive(addr) == custody.Operator {
 			continue
 		}
@@ -74,7 +74,7 @@ func composeAddressWithdrawals(rows []db.ListAddressExclusionWithdrawalsRow, in 
 		}
 	}
 
-	// One act writes one counted receipt; per-subject rows would be the census it replaces (ADR-0074).
+	// One act writes one receipt; per-subject rows would be the census it replaces (ADR-0074).
 	receipts := make([]message.NarrowingReceipt, 0, len(order))
 	for _, key := range order {
 		c := counts[key]
@@ -84,7 +84,7 @@ func composeAddressWithdrawals(rows []db.ListAddressExclusionWithdrawalsRow, in 
 	return spanIDs, receipts
 }
 
-// The act renders through the preview's constructor, so the two can never state it differently (ADR-0218 §4).
+// The act renders through the preview's constructor, so the two cannot differ (ADR-0218 §4).
 
 type withdrawalCount struct {
 	scope     string
@@ -102,7 +102,7 @@ func (in membershipInputs) hasAddressExclusion() bool {
 }
 
 func narrowingScope(excluded netip.Prefix, seeds []db.ListSeedsRow) string {
-	// This must mirror the preview's FindCoveringAddressSeed, or the two name different sites (ADR-0218 §3).
+	// Must mirror FindCoveringAddressSeed, or preview and fold name different sites (ADR-0218 §3).
 	best := ""
 	bits := -1
 	for _, s := range seeds {

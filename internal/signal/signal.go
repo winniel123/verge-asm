@@ -117,7 +117,7 @@ func Evaluate(r Rule, estate []NameFacts) Census {
 			c.NotEvaluable = append(c.NotEvaluable, Member{Subject: f.Name})
 		}
 	}
-	// Ordered by subject and never by attention or verdict, so the output is deterministic (ADR-0102).
+	// Ordered by subject, never by attention or verdict, so the output is deterministic (ADR-0102).
 	sortMembers(c.Fired)
 	sortMembers(c.NotFired)
 	sortMembers(c.NotEvaluable)

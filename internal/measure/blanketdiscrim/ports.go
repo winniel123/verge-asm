@@ -14,7 +14,7 @@ const (
 )
 
 type PortGen interface { // a control port is an input to the decision and a value on no timeline
-	Ports() []uint16 // sorted, so the control probe is order-stable for the golden corpus (ADR-0021)
+	Ports() []uint16 // sorted, so the probe is order-stable for the golden corpus (ADR-0021)
 }
 
 type CryptoPorts struct{} // a vendor CDN prefix list is refused as the detector (ADR-0013)

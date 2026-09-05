@@ -29,7 +29,7 @@ func (s *server) apiBearer(next apiHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		st, ok := s.apiStore()
 		if !ok {
-			// A wired store always satisfies this; the miss fails closed, never a panic on the request path.
+			// A wired store always satisfies this, so the miss fails closed instead of panicking.
 			log.Printf("web: api: store lacks bearer capability")
 			apiNotFound(w, r)
 			return
@@ -59,7 +59,7 @@ func (s *server) apiBearer(next apiHandler) http.HandlerFunc {
 			return
 		}
 
-		// The SQL predicate holds the cadence, so a busy token is not a write per request (ADR-0123 §4).
+		// The SQL predicate holds the cadence: a busy token is no write per request (ADR-0123 §4).
 		if err := st.UpdatePersonalTokenLastUsed(r.Context(), tokenID); err != nil {
 			log.Printf("web: api: touch token last-used: %v", err)
 		}

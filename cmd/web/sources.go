@@ -373,7 +373,7 @@ type ctSourceHero struct {
 }
 
 func newCTSourceHero(crtsh, certspotter ctReliabilityView, names int64, now time.Time) ctSourceHero {
-	// The key never reaches web, so liveness reads the freshest sample (ct-source-replacement §2.4).
+	// The key never reaches web, so liveness reads the newest sample (ct-source-replacement §2.4).
 	certName := strings.TrimSuffix(certspotter.Name, " (operator key)")
 	crtHas := crtsh.HasData && !crtsh.LastRun.IsZero()
 	certHas := certspotter.HasData && !certspotter.LastRun.IsZero()

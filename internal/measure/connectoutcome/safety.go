@@ -51,7 +51,7 @@ func NewBackoff(profile SafetyProfile) *Backoff {
 }
 
 func (b *Backoff) Signal(cause Stress) {
-	// A cause the offers did not declare is a no-op, so the runtime honours the commitment (ADR-0025).
+	// A cause absent from the offers is a no-op, so the runtime honours its commitment (ADR-0025).
 	if !cause.enabledIn(b.policy) {
 		return
 	}
@@ -108,7 +108,7 @@ func (p *Pacer) Signal(host netip.Addr, cause Stress) { p.backoffFor(host).Signa
 
 func (p *Pacer) Next(host netip.Addr, now time.Time) time.Time {
 	earliest := now
-	// 50 conn/s is a 20 ms interval and 200 pkt/s a 5 ms one, so the per-host arm always wins (#1092).
+	// 50 conn/s is a 20 ms interval and 200 pkt/s 5 ms, so the per-host arm always wins (#1092).
 	if !p.lastAggregate.IsZero() {
 		if t := p.lastAggregate.Add(p.aggregateInterval); t.After(earliest) {
 			earliest = t

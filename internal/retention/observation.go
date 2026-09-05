@@ -20,7 +20,7 @@ func ObservationBoundSeconds(tightestCoveringCadenceSeconds int64) (bound int64,
 }
 
 func ObservationFloorDays(tightestEnabledCadenceSeconds int64) (days int64, hasFloor bool) {
-	// Below the tightest in-force bound the dial changes no row, so the floor is derived (ADR-0094).
+	// Below the tightest in-force bound the dial changes no row, so the floor derives (ADR-0094).
 	bound, ok := ObservationBoundSeconds(tightestEnabledCadenceSeconds)
 	if !ok {
 		return 0, false

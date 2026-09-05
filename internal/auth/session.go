@@ -22,7 +22,7 @@ type Session struct { // no role: read per request, so a change takes effect bef
 	AccountID int64     `json:"aid"`
 	Kind      Kind      `json:"knd"`
 	ExpiresAt time.Time `json:"exp"`
-	Token     string    `json:"tok,omitempty"` // empty on a pending cookie: no registry row (ADR-0117)
+	Token     string    `json:"tok,omitempty"` // a pending cookie has no registry row (ADR-0117)
 }
 
 // Deliberately single, so no caller can learn which check failed and leak it.

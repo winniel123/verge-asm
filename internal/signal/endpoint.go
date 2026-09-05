@@ -31,12 +31,12 @@ type CertDetails struct {
 }
 
 type EndpointFacts struct {
-	// A nameless endpoint keys as @address:port/transport and has no hostname to mismatch (ADR-0011).
+	// A nameless endpoint keys as @address:port/transport, with no hostname to mismatch (ADR-0011).
 
 	Subject string
 	HasName bool
 
-	// False where the Service was never reached or never handshaked, so no certificate value exists.
+	// False where the Service was never reached or handshaked, so no certificate value exists.
 
 	CertMeasured bool
 	CertOutcome  string
@@ -196,7 +196,7 @@ func is3xxWithLocation(f EndpointFacts) bool {
 }
 
 func RedirectTarget(location string) (scheme, host string) {
-	// Exported so the web layer folds RedirectHostInEstate against this same parse, keeping one truth.
+	// Exported so the web layer folds RedirectHostInEstate against one parse, never a second.
 	u, err := url.Parse(strings.TrimSpace(location))
 	if err != nil {
 		return "", ""
@@ -217,7 +217,7 @@ func (redirectDoesNotUpgradeToTLS) Eval(f EndpointFacts) Outcome {
 		return OutsideDomain
 	}
 	scheme, _ := RedirectTarget(f.RedirectLocation)
-	// A relative Location keeps the current scheme, so a plaintext page redirecting relatively fires.
+	// A relative Location keeps the current scheme, so a plaintext page still fires.
 	if scheme != "https" {
 		return Fired
 	}

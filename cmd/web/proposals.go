@@ -194,7 +194,7 @@ func (s *server) confirmProposal(w http.ResponseWriter, r *http.Request, acct db
 		return
 	}
 
-	// A cidr column rejects host bits, so masking is what gives an org range dispatch parity (#755).
+	// A cidr column rejects host bits, so masking gives an org range dispatch parity (#755).
 	cidr := p.AddressCidr.Masked()
 	sd, err := s.store.CreateAddressSeed(r.Context(), db.CreateAddressSeedParams{
 		AddressCidr: &cidr, CreatedBy: acct.ID,

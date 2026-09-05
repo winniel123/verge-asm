@@ -35,7 +35,7 @@ func TestExtensionCandidatesReadsTheExtendedZonesAlone(t *testing.T) {
 }
 
 func TestExtensionCandidatesIncludesTheZoneApex(t *testing.T) {
-	// A provider flattens an apex ALIAS or ANAME into an A record, so the apex arrives on this limb.
+	// A provider flattens an apex ALIAS or ANAME into an A record, so the apex is a candidate.
 	e := Estate{
 		ExtendedZones: []string{"example.com"},
 		Resolutions: []Resolution{
@@ -71,7 +71,7 @@ func TestExtensionCandidatesSkipsNonGloballyReachable(t *testing.T) {
 }
 
 func TestExtensionCandidatesAgreeWithExtensionReaches(t *testing.T) {
-	// A candidate outside the reach would be a probe of an address no extension claims (ADR-0129 §6).
+	// A candidate outside the reach probes an address no extension claims (ADR-0129 §6).
 	e := Estate{
 		AddressScopes: []netip.Prefix{netip.MustParsePrefix("104.16.132.0/24")},
 		ExtendedZones: []string{"example.com", "example.org"},
@@ -100,7 +100,7 @@ func TestExtensionCandidatesAgreeWithExtensionReaches(t *testing.T) {
 }
 
 func TestExtensionCensusAsksOnlyAboutExtensionCandidates(t *testing.T) {
-	// The census and the candidates are written apart, so a session widening one is told here (#1036).
+	// The census and the candidates are written apart, so widening one must widen both (#1036).
 	e := Estate{
 		AddressScopes: []netip.Prefix{netip.MustParsePrefix("23.20.0.0/24")},
 		ExtendedZones: []string{"example.com"},

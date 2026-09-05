@@ -33,13 +33,13 @@ func run(stdin io.Reader, stdout io.Writer) error {
 	case resolutionwalk.Kind:
 		return resolutionwalk.Run(spec, stdout)
 	case wildcarddiscrim.Kind:
-		// Versioned apart from resolution-walk, one of the two leaves membership composes (ADR-0086).
+		// Versioned apart from resolution-walk, one of two leaves membership composes (ADR-0086).
 		return wildcarddiscrim.Run(spec, stdout)
 	case connectoutcome.Kind:
 		// Paced by the v1 spec §3.3 safety limiter, which never changes a verdict (ADR-0021).
 		return connectoutcome.Run(spec, stdout)
 	case tlsacceptance.Kind:
-		// Its own exchange, distinct from the certificate handshake that rides reachability (ADR-0028).
+		// Its own exchange, not the certificate handshake that rides reachability (ADR-0028).
 		return tlsacceptance.Run(spec, stdout)
 	case httpexchange.Kind:
 		return httpexchange.Run(spec, stdout)

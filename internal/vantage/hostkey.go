@@ -43,7 +43,7 @@ func PinningHostKeyCallback(pinned string, onFirstUse func(encoded string) error
 		case HostKeyMatch:
 			return nil
 		default:
-			// The caller marks the vantage unavailable rather than silently re-trust (v1 spec §4.2).
+			// Callers mark the vantage unavailable rather than silently re-trust (v1 spec §4.2).
 			return ErrHostKeyMismatch
 		}
 	}

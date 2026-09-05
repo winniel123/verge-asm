@@ -20,7 +20,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/vantageclass"
 )
 
-// delivery imports queue, so the reverse edge would cycle: this seam is injected, never imported (ADR-0199 §1, #1316).
+// delivery imports queue, so the reverse edge would cycle (ADR-0199 §1, #1316).
 
 type enqueueFunc func(ctx context.Context, messageID int64, class message.Class) (int, error)
 
@@ -52,7 +52,7 @@ type departure struct {
 
 func produceMessages(ctx context.Context, store messageStore, batchID int64, observedAt time.Time, changes []spanChange, departures []departure, narrowings []message.NarrowingReceipt, in membershipInputs, enqueue enqueueFunc, devMode bool) error {
 	_ = batchID // a message links by fired-at subject key, never the batch id (ADR-0064)
-	// A devMode worker produces nothing, so a fixture install never pages an operator (ADR-0197 §1).
+	// A devMode worker produces nothing, so a fixture install never pages anyone (ADR-0197 §1).
 	if devMode || (len(changes) == 0 && len(departures) == 0 && len(narrowings) == 0) {
 		return nil
 	}
@@ -110,7 +110,7 @@ func buildMessages(ctx context.Context, store messageStore, observedAt time.Time
 
 func narrowingMessages(observedAt time.Time, narrowings []message.NarrowingReceipt) []*message.Message {
 	var msgs []*message.Message
-	// Both narrowing acts differ only in the receipt's sentence, so this needs no branch (ADR-0134).
+	// Both narrowing acts differ only in the receipt wording, so this needs no branch (ADR-0134).
 	for _, r := range narrowings {
 		// This nil gate must match the preview's, or an operator sees a receipt for nothing.
 		if m := message.Narrowing(r, r.Scope, observedAt); m != nil {
@@ -198,12 +198,12 @@ func flagshipMessages(ctx context.Context, store messageStore, observedAt time.T
 
 func membershipMessages(observedAt time.Time, changes []spanChange, in membershipInputs) []*message.Message {
 	var msgs []*message.Message
-	// Membership rides the resolution facet, so a dns-record opening is not a second root (ADR-0031).
+	// Membership rides the resolution facet, so a dns-record opening is no second root (ADR-0031).
 	for _, root := range changes {
 		if !root.Opened || root.Facet != resolutionwalk.FacetResolution || !message.RootFires(root.SubjectKind) {
 			continue
 		}
-		// A re-entry differs from an appearance only in wording, so no prior read happens (ADR-0041).
+		// Re-entry differs from appearance only in wording, so no prior read happens (ADR-0041).
 		entry := message.EntryAppeared
 		seedKey := ""
 		if root.OpenedAperture {

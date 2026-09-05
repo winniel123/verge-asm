@@ -106,14 +106,14 @@ func toCustodyCensusView(entries []custody.ExtensionCensusEntry) custodyCensusVi
 		// A default arm would count an unknown state as pending, which nothing measured (ADR-0110).
 		switch e.State {
 		case custody.ExtensionDeclined:
-			// The row carries no fan-out count and no threshold: no product-chosen number (ADR-0129 #944).
+			// The row has no fan-out count and no threshold: no product number (ADR-0129 #944).
 			row := custodyCensusRow{Name: e.Name, Address: e.Address.String()}
 			if e.Scope.IsValid() {
 				row.Scope = e.Scope.String()
 			}
 			view.Rows = append(view.Rows, row)
 		case custody.ExtensionPending:
-			// A row per pending edge renders thousands of identical rows on a zone's first load (#1015).
+			// A row per pending edge renders thousands of rows on a zone's first load (#1015).
 			held[e.Address] = struct{}{}
 		}
 	}

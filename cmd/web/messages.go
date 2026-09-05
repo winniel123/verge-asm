@@ -320,7 +320,7 @@ func messageLink(cause message.Cause, subjectKind, firedAt string) (href, text s
 	case message.LinkSource:
 		return "/sources", firedAt
 	case message.LinkSeed:
-		// Coverage's aperture is constant and cannot say which act fired (notification-channels §3.3).
+		// Coverage's aperture is constant and names no act (notification-channels §3.3).
 		return "/scope#seed-" + seedAnchor(firedAt), firedAt
 	default:
 		if h := subjectHref(subjectKind, firedAt); h != "" {

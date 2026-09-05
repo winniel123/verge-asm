@@ -15,7 +15,7 @@ const FacetCertificate = "certificate"
 // Under SNI two names on one address serve different chains, so a Service key manufactures drift.
 
 func EndpointKey(serverName string, target netip.AddrPort, transport string) string {
-	// The nameless endpoint is a distinguished variant; a real name is non-empty and never collides.
+	// The nameless endpoint is a sentinel variant; a real name is non-empty and never collides.
 	return serverName + "@" + ServiceKey(target, transport)
 }
 

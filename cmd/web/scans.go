@@ -46,7 +46,7 @@ type jobRollup struct {
 }
 
 func toJobRollup[T any](jobs []T, state func(T) string) jobRollup {
-	// Run detail owns a superseded attempt: no chip, but Total counts it (scans-monitor-bounding §2).
+	// Run detail owns a superseded attempt: no chip, Total counts it (scans-monitor-bounding §2).
 	r := jobRollup{Total: len(jobs)}
 	for _, job := range jobs {
 		switch state(job) {
@@ -124,7 +124,7 @@ func (s *server) fillScansSection(r *http.Request, acct db.Account, f settingsFo
 	}
 	data["Active"] = active
 
-	// The two reads are exact complements, so a Dispatch is listed once (scans-monitor-bounding §3).
+	// The two reads are complements, so a Dispatch is listed once (scans-monitor-bounding §3).
 	historyRows, err := s.store.ListConcludedDispatchProgress(ctx, scansHistoryLimit+1)
 	if err != nil {
 		return err
@@ -240,7 +240,7 @@ func (s *server) stopScan(w http.ResponseWriter, r *http.Request, acct db.Accoun
 		return
 	}
 	pid := pgtype.Int8{Int64: id, Valid: true}
-	// ClaimJob selects state='ready' alone, so a cancelled job leaves the claimable set at once (ADR-0164 §2).
+	// ClaimJob selects state='ready', so a cancelled job leaves the claimable set (ADR-0164 §2).
 	n, err := s.store.CancelReadyJobsForDispatch(r.Context(), pid)
 	if err != nil {
 		s.serverError(w, "stop scan: cancel pending jobs", err)
@@ -271,13 +271,13 @@ func (s *server) terminateScan(w http.ResponseWriter, r *http.Request, acct db.A
 		return
 	}
 	pid := pgtype.Int8{Int64: id, Valid: true}
-	// Nothing deletes a committed observation, so a terminate discards only staged work (ADR-0164 §3).
+	// No committed observation is deleted, so a terminate discards only staged work (ADR-0164 §3).
 	n, err := s.store.CancelActiveJobsForDispatch(r.Context(), pid)
 	if err != nil {
 		s.serverError(w, "terminate scan: cancel jobs", err)
 		return
 	}
-	// SetDispatchStatus guards on 'fanned-out', so a stop already recorded stands and this write no-ops (ADR-0164 §4, #1421).
+	// SetDispatchStatus guards on 'fanned-out', so a recorded stop stands (ADR-0164 §4, #1421).
 	if err := s.store.SetDispatchStatus(r.Context(), db.SetDispatchStatusParams{ID: id, Status: "terminated"}); err != nil {
 		s.serverError(w, "terminate scan: record status", err)
 		return
@@ -366,7 +366,7 @@ func (s *server) runPage(w http.ResponseWriter, r *http.Request, acct db.Account
 		return
 	}
 
-	// Run detail resolves off the monitor's own two reads, so every listed row has a run page (#962).
+	// Run detail resolves off the monitor's two reads, so every listed row has a run page (#962).
 	activeRows, err := s.store.ListActiveDispatchProgress(r.Context())
 	if err != nil {
 		s.serverError(w, "run detail: list dispatches", err)
@@ -398,7 +398,7 @@ func (s *server) runPage(w http.ResponseWriter, r *http.Request, acct db.Account
 		"Title": "batch " + view.Title, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
 		"NavActive": "drift",
 		"Refresh":   runRefresh(view.Status),
-		// rundetail.tmpl also reads StreamHref at root scope, so the attribute and script emit together.
+		// rundetail.tmpl reads StreamHref at root scope, so attribute and script emit together.
 		"StreamHref": view.StreamHref,
 		"Run":        view,
 	})
@@ -563,7 +563,7 @@ func (s *server) runStream(w http.ResponseWriter, r *http.Request, _ db.Account)
 	if n, perr := strconv.Atoi(r.URL.Query().Get("after")); perr == nil && n > 0 {
 		after = n
 	}
-	// The client's initial cursor is its rendered state-line count, so state must stay the low part (ADR-0182 §3).
+	// The initial cursor counts rendered state lines, so state stays the low part (ADR-0182 §3).
 	eventCur, stateCur := decodeStreamCursor(after)
 	jobParam := r.URL.Query().Get("job")
 	ctx := r.Context()
@@ -628,7 +628,7 @@ func dispatchOutcome(status string) string {
 }
 
 func runRefresh(status string) int {
-	// The shell head fixes the cadence and reads this as a toggle, so 5 only means on (ADR-0165 §4).
+	// The shell head fixes the cadence and reads this as a toggle, so 5 means on (ADR-0165 §4).
 	if status == "running" {
 		return 5
 	}
@@ -818,7 +818,7 @@ func (s *server) joinRunOutcome(ctx context.Context, batchIDs map[int64]bool) ru
 		return runOutcome{Concluded: false}
 	}
 	driftRows, err := s.store.ListRecentDriftEvents(ctx, db.ListRecentDriftEventsParams{
-		// A run's batch can be older than any fixed period, so the zero instant excludes none by age.
+		// A run's batch can be older than any period, so the zero instant excludes none by age.
 		Since: pgtype.Timestamptz{Time: time.Time{}, Valid: true}, MaxEvents: driftFeedLimit,
 	})
 	if err != nil {
@@ -865,7 +865,7 @@ func countRunOutcome(batchIDs map[int64]bool, driftRows []db.ListRecentDriftEven
 		if !ok {
 			continue // this batch raised no transition, so we cannot bound its window
 		}
-		// A signal's first_seen is minted at fold, so it lands in the window of the fold that raised it.
+		// A signal's first_seen is minted at fold, so it lands in the window of the raising fold.
 		end := nextInstantAfter(allInstants, start)
 		for _, sig := range signals {
 			if !sig.FirstSeen.Valid {

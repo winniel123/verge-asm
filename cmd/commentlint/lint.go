@@ -26,6 +26,8 @@ func runLint(args []string, stdout, stderr io.Writer) int {
 	flags.SetOutput(stderr)
 	github := flags.Bool("github", false, "print GitHub Actions annotations and a step summary")
 	inScopeOnly := flags.Bool("in-scope-only", false, "drop every path outside the sweep's surfaces")
+	columnReport := flags.Bool("column-report", false,
+		"list the blocks over SPEC §4.4's column cap; reports only, and never changes the exit code")
 	if err := flags.Parse(args); err != nil {
 		return 2
 	}
@@ -42,6 +44,7 @@ func runLint(args []string, stdout, stderr io.Writer) int {
 	}
 
 	var found []violation
+	var overs []overCap
 	lexFailures := 0
 	for _, p := range files {
 		res, err := lexFile(p)
@@ -58,6 +61,9 @@ func runLint(args []string, stdout, stderr io.Writer) int {
 		for _, f := range rule.Lint(res, strings.HasSuffix(p, "_test.go")) {
 			found = append(found, violation{path: p, Finding: f})
 		}
+		if *columnReport {
+			overs = append(overs, overCapBlocks(p, res)...)
+		}
 	}
 
 	if *github {
@@ -68,6 +74,9 @@ func runLint(args []string, stdout, stderr io.Writer) int {
 		}
 		fmt.Fprintf(stdout, "commentlint lint: %d violation(s) across %d file(s), %d lex failure(s)\n",
 			len(found), len(files), lexFailures)
+	}
+	if *columnReport {
+		reportColumns(stdout, overs)
 	}
 	if lexFailures > 0 {
 		return 2
@@ -88,6 +97,18 @@ func resolveLintFiles(paths []string, inScopeOnly bool) ([]string, error) {
 	}
 	var out []string
 	for _, p := range paths {
+		// A directory lexes as an unsupported surface, so it used to report a clean zero (#1466).
+		if fi, err := os.Stat(p); err == nil && fi.IsDir() {
+			under, err := walkInScope(p)
+			if err != nil {
+				return nil, err
+			}
+			if len(under) == 0 {
+				return nil, fmt.Errorf("%q holds no in-scope file", p)
+			}
+			out = append(out, under...)
+			continue
+		}
 		verdict := scope.Classify(p)
 		if verdict == scope.InScope {
 			out = append(out, p)
@@ -113,8 +134,12 @@ func lexFile(p string) (surface.Result, error) {
 }
 
 func walkInScope(root string) ([]string, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
 	var out []string
-	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+	err = filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -125,13 +150,9 @@ func walkInScope(root string) ([]string, error) {
 			}
 			return nil
 		}
-		rel, err := filepath.Rel(root, p)
-		if err != nil {
-			return err
-		}
-		rel = filepath.ToSlash(rel)
-		if scope.Classify(rel) == scope.InScope {
-			out = append(out, rel)
+		// The walked path stays openable, unlike one made relative to a non-root walk (#1466).
+		if scope.Classify(repoRel(cwd, p)) == scope.InScope {
+			out = append(out, filepath.ToSlash(p))
 		}
 		return nil
 	})
@@ -142,9 +163,18 @@ func walkInScope(root string) ([]string, error) {
 	return out, nil
 }
 
+func repoRel(cwd, p string) string {
+	// scope.Classify reads a repo-root prefix, so an absolute path escapes every exclusion (#1466).
+	rel, err := filepath.Rel(cwd, p)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return filepath.ToSlash(p)
+	}
+	return filepath.ToSlash(rel)
+}
+
 func checkPathArgs(paths []string) error {
 	for _, p := range paths {
-		// Go's flag package stops at the first path, so a later flag would silently switch off (#1133).
+		// Go's flag package stops at the first path, so a later flag is silently ignored (#1133).
 		if strings.HasPrefix(p, "-") {
 			return fmt.Errorf("%q is a flag, and every flag goes before the first path", p)
 		}

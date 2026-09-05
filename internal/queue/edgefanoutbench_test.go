@@ -48,25 +48,25 @@ func BenchmarkToEdgeFanout(b *testing.B) {
 	}
 	for _, san := range sanShapes {
 		for _, cert := range certShapes {
-			// edge_fanout_observation is never pruned, so the row count grows with the estate (#985).
+			// edge_fanout_observation is never pruned, so rows grow with the estate (#985).
 			for _, rows := range []int{10, 100, 1000, 5000} {
 				name := fmt.Sprintf("sans=%s/certs=%s/rows=%d", san.name, cert.name, rows)
 				b.Run(name, func(b *testing.B) {
-					// Built inside b.Run so a filtered run generates that cell's certificates alone.
+					// Built inside b.Run so a filtered run builds that cell's certificates alone.
 					fixture, material := benchEdgeFanoutFixture(b, rows, san, cert)
-					// wire-bytes is the total DER the reads return for the cell, never a per-iteration figure.
+					// wire-bytes is the cell's total returned DER, never a per-iteration figure.
 					wire := 0
 					for _, der := range material {
 						wire += len(der)
 					}
 					benchCheckFixture(b, fixture, material, rows, san)
 
-					// GOGC paces the collector against the live heap, so ns/op carries no precise speedup.
+					// GOGC paces collection against the live heap, so ns/op is no precise speedup.
 					b.ReportAllocs()
 					for b.Loop() {
 						benchEdgeFanoutSink = toEdgeFanout(true, fixture, material)
 					}
-					// b.Loop's first call clears the reported-metric map, so a metric reported above never lands.
+					// b.Loop's first call clears the metric map, so a prior ReportMetric is lost.
 					b.ReportMetric(float64(wire), "wire-bytes")
 				})
 			}

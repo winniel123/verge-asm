@@ -13,7 +13,7 @@ func CloseWithdrawal(open []Span, at time.Time, reason ClosureReason) []Span {
 		}
 		// One cause recorded on n objects is the shape a Gap already takes, not a seam (ADR-0087).
 		s.ClosedAt = at
-		// The ground is the caller's: measured absence, a broken Seed chain, or a narrowed aperture.
+		// The ground is the caller's: measured absence, a broken Seed chain, a narrowed aperture.
 		s.Reason = reason
 		out[i] = s
 	}

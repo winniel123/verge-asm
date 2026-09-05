@@ -16,7 +16,7 @@ type ServiceFacts struct {
 
 	OnSensitiveList bool
 
-	// The domain is the port list and not the vantage, so the internet leg is read in the predicate.
+	// The domain is the port list, not the vantage, so the internet leg is read in the predicate.
 
 	HasInternetReach bool
 	InternetReach    string
@@ -91,7 +91,7 @@ func (sensitivePortReachedFromInternet) Name() string {
 
 func (sensitivePortReachedFromInternet) Severity() Severity { return SevCritical }
 func (sensitivePortReachedFromInternet) Version() Version {
-	// A release-coupled reference table, so the sensitive list adds no measured leaf (v1 spec §3.5).
+	// A release-coupled reference table adds no measured leaf (v1 spec §3.5).
 	return Version{Rule: "v1", Composes: []string{co.Version}}
 }
 func (sensitivePortReachedFromInternet) Eval(f ServiceFacts) Outcome {

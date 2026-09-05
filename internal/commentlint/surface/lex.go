@@ -73,12 +73,13 @@ type rawComment struct {
 }
 
 func assembleBlocks(lang Lang, src []byte, comments []rawComment) (blocks, trailing []Block) {
+	cols := lineColumns(src)
 	open, waiverEnd := -1, -1
 	for _, c := range comments {
 		if !c.ownLine {
 			open = -1
 			// §3.4 holds trailing apart, so no mechanical pass reaches it by walking Blocks.
-			trailing = append(trailing, block(lang, c))
+			trailing = append(trailing, block(lang, cols, c))
 			continue
 		}
 		joins := open >= 0 && !c.directive && c.style == StyleLine && blocks[open].EndLine+1 == c.startLine
@@ -86,9 +87,10 @@ func assembleBlocks(lang Lang, src []byte, comments []rawComment) (blocks, trail
 			blocks[open].End = c.end
 			blocks[open].EndLine = c.endLine
 			blocks[open].Text = string(src[blocks[open].Start:c.end])
+			blocks[open].Columns = max(blocks[open].Columns, spanColumns(cols, c.startLine, c.endLine))
 			continue
 		}
-		b := block(lang, c)
+		b := block(lang, cols, c)
 		// A gosec waiver's justification wraps onto the line below it (SPEC §2.3, #1274).
 		b.WaiverTail = !c.directive && c.style == StyleLine && waiverEnd+1 == c.startLine
 		blocks = append(blocks, b)
@@ -104,7 +106,7 @@ func assembleBlocks(lang Lang, src []byte, comments []rawComment) (blocks, trail
 	return blocks, trailing
 }
 
-func block(lang Lang, c rawComment) Block {
+func block(lang Lang, cols []int, c rawComment) Block {
 	return Block{
 		Lang:      lang,
 		Style:     c.style,
@@ -115,7 +117,41 @@ func block(lang Lang, c rawComment) Block {
 		Text:      c.text,
 		Directive: c.directive,
 		DTSField:  c.field,
+		Columns:   spanColumns(cols, c.startLine, c.endLine),
 	}
+}
+
+func lineColumns(src []byte) []int {
+	lines := strings.Split(strings.ReplaceAll(string(src), "\r\n", "\n"), "\n")
+	out := make([]int, len(lines))
+	for i, line := range lines {
+		out[i] = lineWidth(line)
+	}
+	return out
+}
+
+func lineWidth(line string) int {
+	n := 0
+	for _, r := range line {
+		if r == '\t' {
+			// 84 of `cmd/web`'s breaches are invisible in bytes, so §4.4 resolves at tab = 4 alone.
+			n += TabColumns
+			continue
+		}
+		n++
+	}
+	return n
+}
+
+func spanColumns(cols []int, startLine, endLine int) int {
+	widest := 0
+	for line := startLine; line <= endLine; line++ {
+		if line < 1 || line > len(cols) {
+			continue
+		}
+		widest = max(widest, cols[line-1])
+	}
+	return widest
 }
 
 func glued(src []byte, start, end int) bool {

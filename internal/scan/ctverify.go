@@ -103,7 +103,7 @@ func EmbeddedSCTs(leafDER []byte) ([][]byte, error) {
 		}
 		var inner cryptobyte.String
 		outer := cryptobyte.String(ext.Value)
-		// The extnValue is an OCTET STRING wrapping the SCT list, so it unwraps twice (RFC 6962 §3.3).
+		// An OCTET STRING wraps the SCT list, so extnValue unwraps twice (RFC 6962 §3.3).
 		if !outer.ReadASN1(&inner, cryptobyte_asn1.OCTET_STRING) {
 			return nil, fmt.Errorf("scan: embedded sct octet string")
 		}
@@ -119,7 +119,7 @@ func OCSPSCTs(ocspResponse []byte) ([][]byte, error) {
 	}
 	resp, err := ocsp.ParseResponse(ocspResponse, nil)
 	if err != nil {
-		return nil, nil // a malformed staple narrows the SCTs, never fails the verification (ADR-0193 §1)
+		return nil, nil // a malformed staple narrows the SCT set, never errors (ADR-0193 §1)
 	}
 	for _, ext := range resp.Extensions {
 		if !ext.Id.Equal(oidSCTList) {
@@ -171,7 +171,7 @@ func PrecertTBS(leafDER []byte) ([]byte, error) {
 	if !input.ReadASN1(&tbs, cryptobyte_asn1.SEQUENCE) {
 		return nil, fmt.Errorf("scan: precert tbs sequence")
 	}
-	// The final certificate carries no poison extension, so removing the SCT list is the only change.
+	// The final certificate has no poison extension, so removing the SCT list is the only change.
 	extTag := cryptobyte_asn1.Tag(3).Constructed().ContextSpecific()
 	var out cryptobyte.Builder
 	var buildErr error

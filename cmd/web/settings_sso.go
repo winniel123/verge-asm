@@ -169,7 +169,7 @@ func (s *server) setSSOProviderSecret(w http.ResponseWriter, r *http.Request, _ 
 		s.failSettings(w, r, settingsForms{section: "sso", ssoError: "That provider could not be found."})
 		return
 	}
-	// A blank field with the box unchecked must keep the stored secret, so no default arm clears it.
+	// A default arm would clear the stored secret when the box is unchecked and the field blank.
 	switch {
 	case r.FormValue("clear_secret") != "":
 		if err := s.store.SetSSOProviderSecret(r.Context(), db.SetSSOProviderSecretParams{ID: id}); err != nil {

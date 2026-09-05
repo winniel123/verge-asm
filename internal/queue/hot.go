@@ -74,7 +74,7 @@ func hotEstate(ctx context.Context, q EstateStore, asOf time.Time) (custody.Esta
 		}
 	}
 
-	// The live-tier gate keeps an evidential-only Address out of the probed estate (#237, ADR-0041).
+	// The live-tier gate keeps an evidential-only Address unprobed (#237, ADR-0041).
 	cited, err := q.NameCitedAddresses(ctx, db.NameCitedAddressesParams{
 		AsOf:          pgtype.Timestamptz{Time: asOf.UTC(), Valid: true},
 		FloorCadences: retention.FloorCadences,
@@ -98,7 +98,7 @@ func hotEstate(ctx context.Context, q EstateStore, asOf time.Time) (custody.Esta
 		}
 	}
 
-	// No candidate set serves every consumer of this estate, so binding here would starve one (#1036).
+	// No candidate set serves every consumer, so binding here would starve one (#1036).
 	fanout, err := ReadEdgeFanout(ctx, q, EdgeFanoutUnbounded())
 	if err != nil {
 		return custody.Estate{}, nil, err
@@ -119,7 +119,7 @@ func hotEstate(ctx context.Context, q EstateStore, asOf time.Time) (custody.Esta
 
 func candidateAddrs(resolved []netip.Addr, scopes []netip.Prefix, excluded func(netip.Addr) bool) iter.Seq[netip.Addr] {
 	return func(yield func(netip.Addr) bool) {
-		// The map holds the resolved set alone, so a scope above the cap streams bounded (ADR-0127).
+		// The map holds the resolved set alone, so an above-cap scope streams bounded (ADR-0127).
 		seen := make(map[netip.Addr]struct{}, len(resolved))
 		for _, a := range resolved {
 			a = a.Unmap()
@@ -133,14 +133,14 @@ func candidateAddrs(resolved []netip.Addr, scopes []netip.Prefix, excluded func(
 		}
 		// Each tier passes only the scopes it probes, so neither enumerates a scope it discards.
 		for _, p := range scopes {
-			// The gate refuses either way, so this skip is for cost: an excluded /16 is 65,536 walks a tick.
+			// The gate refuses anyway; the skip saves cost: an excluded /16 is 65,536 walks/tick.
 			for a := range seed.EnumerateAddresses(p) {
 				a = a.Unmap()
-				// Overlapping scopes are not deduped, so the overlap probes twice, by choice (ADR-0216 §1).
+				// Overlapping scopes are not deduped, so an overlap probes twice (ADR-0216 §1).
 				if _, ok := seen[a]; ok {
 					continue
 				}
-				// An exclusion cuts the Seed limb alone, so the resolved set is never filtered (ADR-0133 §1).
+				// An exclusion cuts the Seed limb, never the resolved set (ADR-0133 §1).
 				if excluded != nil && excluded(a) {
 					continue
 				}

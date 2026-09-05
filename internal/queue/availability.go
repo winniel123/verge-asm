@@ -20,7 +20,7 @@ const (
 )
 
 func availabilityAfterOutcome(vantageValid bool, kind, outcome string) availabilityAction {
-	// A port-probe batch says nothing of resolver health, so it must not clear an outage (ADR-0108).
+	// A port-probe batch says nothing of resolver health, so it cannot clear an outage (ADR-0108).
 	if !vantageValid || kind != resolutionwalk.Kind {
 		return availabilityUnchanged
 	}

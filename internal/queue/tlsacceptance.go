@@ -39,7 +39,7 @@ func (d *Dispatcher) fanOutTLSAcceptance(ctx context.Context, qtx *db.Queries, s
 }
 
 func reachedServices(ctx context.Context, q *db.Queries) ([]scan.ReachedService, error) {
-	// A target the enumeration cannot name is skipped, never fabricated from a partial row (ADR-0207).
+	// A target the enumeration cannot name is skipped, never faked from a partial row (ADR-0207).
 	rows, err := q.ListReachedServices(ctx)
 	if err != nil {
 		return nil, err

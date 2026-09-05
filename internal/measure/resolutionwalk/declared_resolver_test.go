@@ -102,7 +102,7 @@ func TestExchangeWalkInitialNSToLoopbackResolverIsDialed(t *testing.T) {
 }
 
 func TestExchangeWalkAuthorityOnLoopbackStillRefused(t *testing.T) {
-	// The exemption is the declared resolver alone; a discovered authority stays gated (#324, #335).
+	// Only the declared resolver is exempt; a discovered authority stays gated (#324, #335).
 	addr := loopbackDNSServer(t)
 	p := NetPeer{Resolver: "1.1.1.1:53", Timeout: 500 * time.Millisecond}
 

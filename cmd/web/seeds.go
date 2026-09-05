@@ -67,7 +67,7 @@ func nameScopes(views []seedView) []seedView {
 }
 
 func (s *server) backToScope(w http.ResponseWriter, r *http.Request) {
-	// A refusal returns where a success does, so the operator keeps their scroll offset (ADR-0130 §3).
+	// A refusal returns where a success does, so the scroll offset survives (ADR-0130 §3).
 	s.redirectBack(w, r, "/scope")
 }
 
@@ -78,7 +78,7 @@ func (s *server) flashScopeBack(w http.ResponseWriter, r *http.Request, f seedsF
 }
 
 func (s *server) flashScopeToastBack(w http.ResponseWriter, r *http.Request, f seedsForms, tone, title, desc string) {
-	// The scroll key drops the receipt (backurl.go stripToastParam), so a toast never moves the stash.
+	// The scroll key drops the receipt (stripToastParam), so a toast never moves the stash.
 	stashFormFlash(s, r, f)
 	s.toastRedirectBack(w, r, "/scope", tone, title, desc)
 }
@@ -90,7 +90,7 @@ func (s *server) takeScopeFlash(r *http.Request) seedsForms {
 }
 
 func (s *server) seedsPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	// Deriving the design's curated figures from live reads would fabricate domain data (ADR-0167 §1).
+	// Deriving curated figures from live reads would fabricate domain data (ADR-0167 §1).
 	if s.devMode {
 		s.render(w, r, "scope", s.scopeFixtureData(acct, scopeOverlay{}))
 		return
@@ -106,7 +106,7 @@ func (s *server) declareSeed(w http.ResponseWriter, r *http.Request, acct db.Acc
 		return
 	}
 
-	// One tokenizer, never a fork: onboarding's field commits on this same boundary (ADR-0177 §2, #1339).
+	// One tokenizer, never a fork: onboarding commits on this same boundary (ADR-0177 §2, #1339).
 	tokens := parseSeedTokens(raw)
 	if len(tokens) == 0 {
 		s.backToScope(w, r)
@@ -263,7 +263,7 @@ func (s *server) previewSeedWithdrawal(w http.ResponseWriter, r *http.Request, a
 	}
 	if rerr != nil {
 		log.Printf("web: preview seed withdrawal %s: %v", scope, rerr)
-		// Refusing would leave no route to the withdrawal, over a count the act never reads (ADR-0168 §3, #1339).
+		// Refusing strands the withdrawal over a count the act never reads (ADR-0168 §3, #1339).
 		confirm.Failed = true
 	} else {
 		confirm.Fires = receipt.Fires
@@ -284,7 +284,7 @@ func (s *server) deleteSeed(w http.ResponseWriter, r *http.Request, acct db.Acco
 		return
 	}
 	scope, _ := s.seedScopeByID(r, id)
-	// The delete and the tombstone commit together, so no withdrawn scope lacks a mover (ADR-0135 §2).
+	// A delete and its tombstone commit as one, so no withdrawn scope lacks a mover (ADR-0135 §2).
 	if _, err := s.store.WithdrawSeed(r.Context(), db.WithdrawSeedParams{
 		SeedID: id, CreatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
 	}); err != nil {
@@ -350,7 +350,7 @@ func overCapFormError(cap int) string {
 }
 
 func refusalOverCap(value string, raw netip.Prefix, cap int) refusalView {
-	// The over-cap set is named, never applied: the operator declares the narrower block themselves.
+	// The over-cap set is named, never applied: the operator declares the narrower block.
 	bits := raw.Addr().BitLen()
 	host := 0
 	for host+1 <= bits && (1<<(host+1)) <= cap {
@@ -445,7 +445,7 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 	if corpus, cerr := s.buildSignalCorpus(r); cerr == nil {
 		nameTree = declaredNameTree(nameSeeds, corpus.Names, signal.EvaluateCorpus(corpus))
 	}
-	// An additive card degrades alone so the screen the operator depends on still serves (ADR-0168 §1, #1339).
+	// An additive card degrades alone so the screen it sits on still serves (ADR-0168 §1, #1339).
 	census, censusErr := s.custodyCensus(r.Context())
 	data := map[string]any{
 		"Title": "Scope", "NavActive": "scope",
@@ -473,7 +473,7 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 	if f.proposalNotice != "" {
 		data["Notice"] = f.proposalNotice
 	}
-	// A refusal answers 200 exactly as a success does, so the shell restores the offset (ADR-0130 §1).
+	// A refusal answers 200 as a success does, so the shell restores the offset (ADR-0130 §1).
 	s.render(w, r, "scope", data)
 }
 
@@ -516,7 +516,7 @@ type nameTreeNode struct {
 }
 
 func declaredNameTree(nameSeeds []seedView, names []signal.NameFacts, censuses []signal.Census) []nameTreeNode {
-	// The same subject-keyed rollup the AssetDetail header reads (assetHeaderSeverity, subjects.go).
+	// The same subject-keyed rollup the AssetDetail header reads (assetHeaderSeverity).
 	sevByName := map[string]signal.Severity{}
 	for _, c := range censuses {
 		sev, ok := signal.SeverityFor(c.Rule)
@@ -583,7 +583,7 @@ func toSeedViews(rows []db.ListSeedsRow) []seedView {
 
 func seedAnchor(scope string) string {
 	var b strings.Builder
-	// The message renderer slugs the same key, so a widening lands on the moved Seed (v1 spec §5.3).
+	// The message renderer slugs this key, so a widening lands on the moved Seed (v1 spec §5.3).
 	dash := false
 	for _, r := range scope {
 		switch {
@@ -685,7 +685,7 @@ func zoneIntervalLabel(cadenceSeconds int64) string {
 }
 
 func (s *server) uploadZoneFile(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	// The upload instant is the observation instant, never our later read (docs/spec/v1-spec.md §3.4).
+	// The upload instant is the observation instant, never our later read (v1 spec §3.4).
 	if s.devMode {
 		s.backToScope(w, r)
 		return
@@ -693,7 +693,7 @@ func (s *server) uploadZoneFile(w http.ResponseWriter, r *http.Request, acct db.
 	// A zone file is evidence, not a secret, so the shared database holds it (v1 spec §4.2).
 	r.Body = http.MaxBytesReader(w, r.Body, maxTotalZoneUpload)
 	if err := r.ParseMultipartForm(maxZoneUpload); err != nil { // #nosec G120 (request body bounded by the MaxBytesReader immediately above; per-part 8 MiB cap enforced on read)
-		// The submitting URL went with the rest of the body, so bare /scope is the honest destination.
+		// The submitting URL went with the body, so bare /scope is the honest destination.
 		s.flashScopeBack(w, r, seedsForms{zoneErrors: []zoneErrorView{{
 			Reason: "The upload was too large or malformed. A zone file is text, up to 8 MB.",
 		}}})

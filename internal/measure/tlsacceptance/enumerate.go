@@ -38,7 +38,7 @@ type Enumerator interface {
 }
 
 func Enumerate(ctx context.Context, e Enumerator, set CandidateSet, target netip.AddrPort) acceptanceValue {
-	// The verb is accepted, never supported: an RSA certificate refuses an ECDSA suite (CONTEXT.md).
+	// The verb is accepted, never supported: an RSA certificate refuses ECDSA suites (CONTEXT.md).
 	spoke := false
 	var accepted []VersionAcceptance
 
@@ -63,7 +63,7 @@ func Enumerate(ctx context.Context, e Enumerator, set CandidateSet, target netip
 			}
 			next := removeString(remaining, att.SelectedCipher)
 			if len(next) == len(remaining) {
-				// A peer selecting an unoffered suite would loop forever; we manufacture no negative.
+				// A peer's unoffered selection would loop forever; we manufacture no negative.
 				got = append(got, att.SelectedCipher)
 				break
 			}
@@ -127,7 +127,7 @@ func (n NetEnumerator) Handshake(ctx context.Context, target netip.AddrPort, ver
 	if version != TLS13 {
 		cfg.CipherSuites = cipherIDs(offeredCiphers)
 	}
-	// The dialer's guard is the backstop: a non-globally-reachable literal fails closed here (#743).
+	// The dialer's guard is the backstop: a non-globally-reachable literal fails closed (#743).
 	d := tls.Dialer{
 		NetDialer: &net.Dialer{Control: custody.EgressGuard("tlsacceptance")},
 		Config:    cfg,

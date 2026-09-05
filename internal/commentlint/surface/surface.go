@@ -30,6 +30,8 @@ func (l Lang) String() string {
 	return "go"
 }
 
+const TabColumns = 4
+
 const DeleteRuleUnmeasured = "measured when the surface's sweep is scheduled (SPEC §6.5)"
 
 func (l Lang) DeleteRule() string {
@@ -95,6 +97,7 @@ type Block struct {
 	DeclGroup   bool
 	DeclName    string
 	DTSField    bool
+	Columns     int
 }
 
 func (b Block) Lines() int {

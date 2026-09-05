@@ -72,7 +72,7 @@ func navSlice(active string, signalCount int) []chromeNav {
 		item := n
 		item.Active = n.ID == active
 		if n.ID == "signals" && signalCount > 0 {
-			// An absent count must render as the empty string the tmpl drops, so it is pre-formatted here.
+			// An absent count must render as the empty string the tmpl drops.
 			item.Count = strconv.Itoa(signalCount)
 		}
 		out = append(out, item)
