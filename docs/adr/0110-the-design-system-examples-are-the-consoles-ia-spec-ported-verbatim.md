@@ -48,6 +48,22 @@ This reverses exactly one clause and nothing else. Every other guardrail in
   secondary screen" is preserved *by* the port, not despite it. This is the fact that made the reversal
   admissible.
 - **`signal` never `finding`.** Signals are **withdrawn** by the world, never "resolved" by operators.
+
+  > **Amended 2026-09-05 by [ADR-0147](0147-assets-watched-is-the-distinct-subject-count-over-the-open-span-corpus.md) /
+  > [#1288](https://github.com/winniel123/verge-asm/issues/1288): this rule refuses a KPI, not only a
+  > word.** The reference mock's **mean time-to-resolve** is refused, and the reporting KPI is a **mean
+  > time-to-withdrawal** (`drift.MeanTimeToWithdrawal`, rendered as `MTTW` on Reports). A resolve time
+  > would have to be measured from a departure the world caused, so the number would count subject
+  > departures and label them operator resolutions — an operator act the product never observed. The
+  > interval is the subject's earliest `opened_at` to the closure of its timelines
+  > ([ADR-0082](0082-a-withdrawn-subjects-timelines-close-and-the-withdrawn-period-is-on-no-timeline.md)),
+  > read off the never-compacted span corpus
+  > ([ADR-0041](0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md)), so it is
+  > measured rather than fabricated. This refusal was previously written only in a code comment and in
+  > `SPEC-CHANGE.md`, which no longer exists in the tree.
+  > [ADR-0116](0116-the-design-package-is-normative-for-look-and-functionality.md) §4 restates the
+  > vocabulary rule, but it is **Superseded (2026-08-28)** and it never named the KPI either. This
+  > Decision is the rule's live site.
 - **Domain nouns, not wire nouns** — `Name` / `Address` / `Service` / `Endpoint`, never
   host / IP / port / URL as modelled things.
 - **`seed` / `scope`** never target · **`channel`** never webhook · **`vantage`** never probe ·
