@@ -134,8 +134,12 @@ func lexFile(p string) (surface.Result, error) {
 }
 
 func walkInScope(root string) ([]string, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
 	var out []string
-	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+	err = filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -146,10 +150,9 @@ func walkInScope(root string) ([]string, error) {
 			}
 			return nil
 		}
-		// A path made relative to a non-root walk cannot be reopened (#1466).
-		rel := filepath.ToSlash(p)
-		if scope.Classify(rel) == scope.InScope {
-			out = append(out, rel)
+		// The walked path stays openable, unlike one made relative to a non-root walk (#1466).
+		if scope.Classify(repoRel(cwd, p)) == scope.InScope {
+			out = append(out, filepath.ToSlash(p))
 		}
 		return nil
 	})
@@ -158,6 +161,15 @@ func walkInScope(root string) ([]string, error) {
 	}
 	sort.Strings(out)
 	return out, nil
+}
+
+func repoRel(cwd, p string) string {
+	// scope.Classify reads a repo-root prefix, so an absolute path escapes every exclusion (#1466).
+	rel, err := filepath.Rel(cwd, p)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return filepath.ToSlash(p)
+	}
+	return filepath.ToSlash(rel)
 }
 
 func checkPathArgs(paths []string) error {

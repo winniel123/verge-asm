@@ -710,14 +710,19 @@ plus 19 more that the flag could not see until its filter narrowed. **Every one 
 trimming the reason clause. No citation was dropped and no comment was deleted**, so ratchet rule 5
 never forced the §4.7 route the campaign was sized for. **Nine blocks remain**, all of #1481's
 non-Go tail: five `dts-field-prose`, `db/queries/measurement.sql:84`, and three `docs-site` files.
-None is reachable by a comment edit alone.
+Eight are ordinary comment edits, held only by #1481's two rulings and by `sqlc` being a required
+check. **One is not**: `ColumnPicker.d.ts:2` holds a whole `export interface` on one line, of which
+34 columns are field prose, so reaching 100 needs a declaration reformat.
 
 **Reproduce the count, never re-derive it by hand.** A hand scan disagrees with every other hand
 scan, which is how #1446 first reported 378 and 471. Use `commentlint`'s own population. Walk the
 tree with `scope.Classify`. Lex each file with `surface.For`. Classify each block with
-`rule.Classify`. Drop `directive` and `generated-header`, then drop `step-narration` and
-`prose-other`. Those four are what `flags()` skips, so a rule firing on them would flag what no
-other rule may. Then measure `Block.StartLine` to `Block.EndLine` against the physical source line.
+`rule.Classify`. Drop `directive` and `generated-header`. Then measure `Block.StartLine` to
+`Block.EndLine` against the physical source line.
+
+**That walk once dropped four classes, and two of them belong in the count.** Dropping
+`step-narration` and `prose-other` as well yields the **376** figure this section reported, which is
+the *flaggable* population, not the capped one. The paragraph below states why the cap reaches both.
 
 **That walk is now a flag, and no agent reruns it by hand.** #1482 gave `Block` a `Columns` field
 that every lexer populates, and `commentlint lint --column-report` prints one greppable line per
@@ -768,7 +773,8 @@ on that ruling.
 **`commentlint` does not enforce constraint 4, so a clean `lint` run is not evidence.** §7.7 names
 the cap and `lint` in one recipe, which reads as though the tool checked it. It does not.
 The calibration line above measured **101 characters** with `lint` reporting zero flags on the file
-(#1218, at `cmd/web/exclusions.go:103` before #1470 repaired it). **Count the leading tabs.** A comment three tabs deep has twelve fewer columns of room
+(#1218, at `cmd/web/exclusions.go:103` before #1470 repaired it).
+**Count the leading tabs.** A comment three tabs deep has twelve fewer columns of room
 than one at column 0, so every trailing comment on an indented statement is at risk. §7.7 records
 why no rule class enforces it yet.
 
@@ -2107,6 +2113,16 @@ prefix.
 
 Ruling 12 forbids a WHY heuristic. **No rule here guesses at intent.** Every rule is decided by a
 parser, a shape, or a word list.
+
+**§4.4's column cap is not a rule here, and that is why it reaches further than one.** Every rule
+above is a judgment, so `flags()` withholds `step-narration` and `prose-other` from all of them
+under ruling 12. The cap is arithmetic over a physical line, so it needs no intent and binds those
+two classes. `rule.CapBinds` is the predicate, and it drops `directive` and `generated-header`
+alone — a directive's columns belong to the tool that reads it, and §2.3 forbids splitting one.
+
+**A `column-over-cap` rule class is still not built.** #1482's second PR builds it once #1481
+closes. Until then §4.4's cap is measured by `lint --column-report` and gated by nothing, so a
+green `lint` remains no evidence about constraint 4 (#1466).
 
 ### 6.7 Output and exit codes
 

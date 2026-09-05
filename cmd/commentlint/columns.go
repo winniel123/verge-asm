@@ -26,8 +26,7 @@ func overCapBlocks(path string, res surface.Result) []overCap {
 				continue
 			}
 			c := rule.Classify(b)
-			// The cap is mechanical, so it binds a class no §6.6 rule judges (#1466).
-			if c == rule.Directive || c == rule.GeneratedHeader {
+			if !rule.CapBinds(c) {
 				continue
 			}
 			out = append(out, overCap{path: path, line: b.StartLine, columns: b.Columns, class: c})
@@ -41,7 +40,7 @@ func overCapBlocks(path string, res surface.Result) []overCap {
 func reportColumns(stdout io.Writer, overs []overCap) {
 	counts := map[rule.Class]int{}
 	for _, o := range overs {
-		// A repair agent greps this line, so its shape is an interface (SPEC §6.2).
+		// A repair agent greps this line, so its shape is an interface (SPEC §4.4).
 		fmt.Fprintf(stdout, "%s %s:%d %d %s\n", columnTag, o.path, o.line, o.columns, o.class)
 		counts[o.class]++
 	}

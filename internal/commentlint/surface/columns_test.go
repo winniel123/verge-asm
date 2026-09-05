@@ -55,6 +55,30 @@ func TestBlockColumnsCountsATabAsFour(t *testing.T) {
 	}
 }
 
+func TestBlockColumnsCountsATabAsFourOnEverySurface(t *testing.T) {
+	cases := []struct {
+		name string
+		file string
+		src  string
+		want int
+	}{
+		{"go", "a.go", "package p\n\nfunc f() {\n\t// abc\n}\n", 10},
+		{"sql", "a.sql", "\t-- abcd\nSELECT 1;\n", 11},
+		{"css", "a.css", "a {\n\t/* abc */\n}\n", 13},
+		{"js", "a.mjs", "function f() {\n\t// abcde\n}\n", 12},
+		{"ts", "a.d.ts", "export interface A {\n\t// abc\n\treadonly b: string;\n}\n", 10},
+		{"tmpl", "a.tmpl", "<p>\n\t{{/* abc */}}\n</p>\n", 17},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			b := onlyBlock(t, lexColumns(t, c.file, c.src).Blocks)
+			if b.Columns != c.want {
+				t.Errorf("got %d columns, want %d: one leading tab must read as four", b.Columns, c.want)
+			}
+		})
+	}
+}
+
 func TestBlockColumnsCountsRunesNotBytes(t *testing.T) {
 	src := "package p\n\n// café ✓\nfunc f() {}\n"
 	b := onlyBlock(t, lexColumns(t, "a.go", src).Blocks)

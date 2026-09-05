@@ -34,7 +34,7 @@ func foldAddressExclusionWithdrawals(ctx context.Context, qtx *db.Queries, batch
 	if err := closeSpansByID(ctx, qtx, spanIDs, observedAt, drift.ReasonDescoped, batchID); err != nil {
 		return err
 	}
-	// A withdrawal is an estate fact, not a message, so it closes when out is nil (ADR-0219 §1).
+	// A withdrawal is an estate fact, not a message, so out never gates the close (ADR-0219 §1).
 	if out != nil {
 		*out = append(*out, narrowings...)
 	}

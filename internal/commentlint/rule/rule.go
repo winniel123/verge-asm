@@ -166,6 +166,11 @@ func Judged(c Class) bool {
 	return !unjudged[c]
 }
 
+func CapBinds(c Class) bool {
+	// A directive's columns are the tool's, and §2.3 forbids splitting one (#1466).
+	return c != Directive && c != GeneratedHeader
+}
+
 func flags(b surface.Block, trailing, testFile bool) []Finding {
 	c := Classify(b)
 	if !Judged(c) {

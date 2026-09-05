@@ -121,6 +121,19 @@ func TestLintWalksADirectoryArgument(t *testing.T) {
 	}
 }
 
+func TestLintWalksAnAbsoluteDirectoryWithoutEscapingScope(t *testing.T) {
+	abs, err := filepath.Abs("internal/db")
+	if err != nil {
+		t.Fatalf("abs: %v", err)
+	}
+	var relOut, absOut bytes.Buffer
+	relCode := runLint([]string{"-column-report", "internal/db"}, &relOut, &bytes.Buffer{})
+	absCode := runLint([]string{"-column-report", abs}, &absOut, &bytes.Buffer{})
+	if relCode != absCode {
+		t.Errorf("got exit %d absolute and %d relative, want the same: sqlc output is out of scope", absCode, relCode)
+	}
+}
+
 func TestLintRejectsADirectoryHoldingNoInScopeFile(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	if code := runLint([]string{"-column-report", t.TempDir()}, &stdout, &stderr); code != 2 {
