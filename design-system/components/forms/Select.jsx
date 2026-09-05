@@ -1,7 +1,6 @@
 import React from "react";
 
-/* Custom listbox select — tokened panel (native popups can't be styled), rotating chevron,
-   vg-pop-in entrance. onChange receives { target: { value } } for drop-in compatibility. */
+/* A native select popup cannot be styled, so the panel is a tokened listbox. */
 export function Select({ label, options = [], value, defaultValue, onChange, size = "md", disabled, style }) {
   const opts = options.map((o) => (typeof o === "string" ? { value: o, label: o } : o));
   const [internal, setInternal] = React.useState(defaultValue !== undefined ? defaultValue : (opts[0] ? opts[0].value : ""));
@@ -26,7 +25,8 @@ export function Select({ label, options = [], value, defaultValue, onChange, siz
         : { left: r.left, width: r.width, top: r.bottom + 6 });
     };
     measure();
-    const t = setTimeout(measure, 120); // re-measure after entrance animations / font settle
+    // the anchor keeps moving after the first measure: webfont swap, or a panel animating in
+    const t = setTimeout(measure, 120);
     return () => clearTimeout(t);
   }, [open, opts.length]);
   React.useEffect(() => {

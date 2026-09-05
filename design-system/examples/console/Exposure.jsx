@@ -17,7 +17,6 @@ const ROWS = [
   { asset: "203.0.113.61", svc: ":443 https", internal: "not-reached", internet: "unverified", since: "—" },
 ];
 
-/* What the internet can reach — constructible only with both legs. */
 export function Exposure({ onOpenVantages }) {
   const [mode, setMode] = React.useState("constructible");
   return (

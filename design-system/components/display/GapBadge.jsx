@@ -1,7 +1,5 @@
 import React from "react";
 
-/* Cell-level absence — "absence is a property of a cell, not a row". Dotted form, neutral ink;
-   distinct from ChangeBadge (drift), WithdrawnMark (dashed), and SeverityBadge (pill). */
 export function GapBadge({ label = "gap", size = "md", style }) {
   const sm = size === "sm";
   return (

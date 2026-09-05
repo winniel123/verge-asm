@@ -1,6 +1,5 @@
 import React from "react";
 
-/* Loading placeholder. shape: line | block | circle; pass lines for a text stack. */
 export function Skeleton({ shape = "line", width, height, lines = 1, mono, style }) {
   const base = { background: "var(--border-default)", animation: "vg-skeleton 1.6s var(--ease-in-out) infinite" };
   if (shape === "circle") {

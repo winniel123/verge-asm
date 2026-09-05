@@ -22,7 +22,6 @@ const ev = (change, subject, detail, time) => ({ change, time, mono: true,
     </span>
   ), detail });
 
-/* Full asset record — everything a subject has shown, one place. */
 export function AssetDetail({ asset = "edge-gw-03.acmecorp.io", onBack, onOpenSignals, onToast }) {
   return (
     <main data-screen-label="Asset detail" style={{ maxWidth: 1440, margin: "0 auto", padding: 32, display: "flex", flexDirection: "column", gap: 20 }}>

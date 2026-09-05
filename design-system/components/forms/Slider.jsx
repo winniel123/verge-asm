@@ -1,6 +1,5 @@
 import React from "react";
 
-/* Pointer + keyboard slider with mono readout. */
 export function Slider({ label, value = 0, onChange, min = 0, max = 100, step = 1, unit = "", style }) {
   const trackRef = React.useRef(null);
   const dragging = React.useRef(false);

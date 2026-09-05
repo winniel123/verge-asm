@@ -1,13 +1,6 @@
 import React from "react";
 import { Checkbox } from "../forms/Checkbox.jsx";
 
-/* columns: [{ key, label, width, align, mono, render, clip, sortable, sortValue }] — render(row, i) overrides cell
-   content; clip:false lets floating children (menus) escape; sortable + optional sortValue(row) enable header sorting.
-   Multi-select: selectable + rowKey + selectedKeys + onSelectionChange (shift-click ranges).
-   maxHeight makes the body scroll with a sticky header. density "comfortable" | "compact" (dense is the legacy alias).
-   virtual + rowHeight window the body to visible rows (requires maxHeight; fixed row height).
-   onRowClick enables keyboard nav: j/k or arrows move a roving focus ring, Enter opens.
-   onRowContextMenu(row, i, event) pairs with a controlled <ContextMenu>. */
 export function Table({ columns = [], rows = [], selectedIndex = -1, onRowClick, onRowContextMenu, dense, density, framed = true, rowKey, selectable, selectedKeys = [], onSelectionChange, initialSort, maxHeight, virtual, rowHeight = 37, style }) {
   const [hov, setHov] = React.useState(-1);
   const [sort, setSort] = React.useState(initialSort || null);

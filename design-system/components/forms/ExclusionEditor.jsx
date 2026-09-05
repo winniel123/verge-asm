@@ -3,7 +3,6 @@ import { Button } from "./Button.jsx";
 import { Select } from "./Select.jsx";
 import { Tag } from "../display/Tag.jsx";
 
-/* The three exclusion kinds: exact name, subtree, address scope. */
 const KINDS = [{ value: "name", label: "Exact name" }, { value: "subtree", label: "Subtree" }, { value: "address", label: "Address scope" }];
 
 export function ExclusionEditor({ exclusions = [], onAdd, onRemove, style }) {

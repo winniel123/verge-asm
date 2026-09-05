@@ -2,8 +2,6 @@ import React from "react";
 import { Switch } from "./Switch.jsx";
 import { CoverageMeter } from "../display/CoverageMeter.jsx";
 
-/* Custody extension toggle + the recomputed extension census, read-only —
-   display, never per-address approval. */
 export function CustodyToggle({ enabled, onChange, censusCount, unit = "addresses", detail, style }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12, fontFamily: "var(--font-ui)", ...style }}>

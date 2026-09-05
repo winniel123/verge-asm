@@ -1,5 +1,4 @@
 import * as React from "react";
-/** @startingPoint section="Components" subtitle="Surface card with micro-label header" viewport="700x240" */
 export interface CardProps {
   /** Mono uppercase eyebrow, e.g. "Open signals" */
   microLabel?: string;

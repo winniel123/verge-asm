@@ -2,7 +2,6 @@ import React from "react";
 import { Icon } from "../media/Icon.jsx";
 import { Kbd } from "../display/Kbd.jsx";
 
-/* \u2318K palette. groups: [{label, items: [{id, label, icon?, hint?, onSelect}]}]. Consumer owns the global shortcut. */
 export function CommandPalette({ open, onClose, groups = [], placeholder = "Type a command or search\u2026" }) {
   const [q, setQ] = React.useState("");
   const [idx, setIdx] = React.useState(0);

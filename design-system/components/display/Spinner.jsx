@@ -1,6 +1,5 @@
 import React from "react";
 
-/* Inline indeterminate spinner — accent arc on a hairline track. */
 export function Spinner({ size = 16, label, style }) {
   const s = size;
   return (

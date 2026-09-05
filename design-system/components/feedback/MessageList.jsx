@@ -1,7 +1,6 @@
 import React from "react";
 import { Tag } from "../display/Tag.jsx";
 
-/* In-app message inbox — one row per firing of one cause. messages: [{id, cls, text, time, unread}]. */
 export function MessageList({ messages = [], onOpen, style }) {
   const [hov, setHov] = React.useState(null);
   return (

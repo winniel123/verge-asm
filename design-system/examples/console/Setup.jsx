@@ -9,7 +9,6 @@ function InlineCode({ children }) {
   return <code style={{ font: "400 0.92em var(--font-mono)", background: "var(--surface-sunken)", border: "1px solid var(--border-default)", borderRadius: 6, padding: "1px 5px", color: "var(--text-body)" }}>{children}</code>;
 }
 
-/* /setup — the one-time window while no accounts exist. Token is single-use; the window closes when spent. */
 export function Setup() {
   const [token, setToken] = React.useState("");
   const [user, setUser] = React.useState("");

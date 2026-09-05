@@ -8,7 +8,6 @@ import { Table } from "../../components/display/Table.jsx";
 import { Callout } from "../../components/feedback/Callout.jsx";
 import { Button } from "../../components/forms/Button.jsx";
 
-/* What was measured, what was not, and why. Reading this is as much the job as reading exposure. */
 export function Coverage({ onOpenScope }) {
   return (
     <main data-screen-label="Coverage" style={{ maxWidth: 1440, margin: "0 auto", padding: 32, display: "flex", flexDirection: "column", gap: 20 }}>

@@ -12,9 +12,6 @@ const KINDS = {
   "forbidden": { icon: "lock", code: "403", title: "Admin only", body: "Settings is where declared acts live \u2014 seeds, scans, channels, team. Your role reads everything and changes nothing; an admin can change roles in Settings \u2192 Team.", action: "Back to dashboard" },
 };
 
-/* Full-screen terminal states \u2014 404 / 403 / 500, the contextual missing-entity
-   pages (no such subject / no such run), and the viewer-hits-Settings forbidden
-   state. All render inside the console chrome. */
 export function ErrorPage({ kind = "404", subject, onHome }) {
   const k = KINDS[kind] || KINDS["404"];
   const key = subject || k.subject;

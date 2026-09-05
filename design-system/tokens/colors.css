@@ -1,35 +1,26 @@
-/* Verge ASM — color tokens. Light is default; dark scopes under [data-theme="dark"]. */
 :root {
-  /* primary (azure) scale */
   --primary-50: #effcff; --primary-100: #e1f6ff; --primary-200: #c3ebff; --primary-300: #9ddaff;
   --primary-400: #6bbeff; --primary-500: #3f9fe8; --primary-600: #1f86cd; --primary-700: #006eaf;
   --primary-800: #005990; --primary-900: #054974; --primary-950: #063352;
 
-  /* neutrals (warm stone) */
   --neutral-50: #fbf9f7; --neutral-100: #f4f2ef; --neutral-200: #e7e5e2; --neutral-300: #d5d2ce;
   --neutral-400: #b8b5b1; --neutral-500: #9b9893; --neutral-600: #83807b; --neutral-700: #6c6864;
   --neutral-800: #585550; --neutral-900: #48443f; --neutral-950: #33302b;
 
-  /* surfaces */
   --bg-page: #f9f7f5;
   --surface: #ffffff;
   --surface-sunken: #f2f0ec;
   --surface-raised: #ffffff;
   --surface-inverted: #231f19;
 
-  /* text */
   --text-ink: #231f19;
   --text-body: #37322c;
   --text-secondary: #67625c;
   --text-muted: #79746d;
   --text-on-inverted: #f4f2ef;
 
-  /* console (log + code panels). "console" here means a terminal panel, not the
-     Verge console app. A terminal reads dark in EVERY theme, so this group holds
-     one value across both blocks instead of flipping like --surface-inverted.
-     NOTHING painted on this ground may flip, which is why the warn pill carries
-     its own four rather than reading --warn-soft / --warn-border / --warn. Every
-     value is the light-theme pairing, already tuned against this ground. */
+  /* A terminal panel reads dark in both themes, so this group is restated identically below.
+     The warn pill is pinned: --warn-soft erases it here (design-system/docs/DESIGN-NOTES.md). */
   --console-surface: #231f19;
   --console-text: #f4f2ef;
   --console-warn: #e0aa4a;
@@ -39,12 +30,10 @@
   --console-pill-warn-solid: #b37903;
   --console-pill-warn-fg: #8d5500;
 
-  /* borders */
   --border-default: #e2dfdb;
   --border-strong: #c7c3be;
   --row-sep: #efece9;
 
-  /* accent (action azure) */
   --accent: #037ac0;
   --accent-hover: #006bad;
   --accent-active: #005f9c;
@@ -55,26 +44,20 @@
   --focus-ring: #037ac0;
   --row-selected: #e1f6ff;
 
-  /* semantic status */
   --on-danger: #ffffff; --danger-hover: #93251f; --danger-active: #7e1d19;
   --ok: #05773b;        --ok-solid: #3d9c5e;  --ok-soft: #e1fae7;   --ok-border: #bfebc9;
   --warn: #8d5500;      --warn-solid: #b37903; --warn-soft: #fff0d8; --warn-border: #f8d9af;
   --danger: #ac312c;    --danger-solid: #d5584f; --danger-soft: #ffe8e2; --danger-border: #ffcac2;
 
-  /* chart series — never severity colors */
   --chart-1: #037ac0; --chart-2: #009aba; --chart-3: #b37903; --chart-4: #83807b;
   --chart-grid: #efece9;
 
-  /* drift (change vocabulary) — its own language, never the severity ramp.
-     gain = appeared/revealed/returned · loss = withdrawn/descoped · change = changed */
   --drift-gain-bg: #f5ebff; --drift-gain-border: #e1d1ff; --drift-gain-fg: #6f4fa1; --drift-gain-solid: #7e5cb4;
   --drift-change-bg: #ffe6f7; --drift-change-border: #fec9e5; --drift-change-fg: #954074; --drift-change-solid: #a74d83;
   --drift-loss-bg: #ecf1fa; --drift-loss-border: #d3dbe9; --drift-loss-fg: #56647a; --drift-loss-solid: #64728a;
 
-  /* coverage staleness (bronze) — currency states, not severity */
   --stale-bg: #f7eedf; --stale-border: #e6d7bc; --stale-fg: #775f32; --stale-solid: #987c46;
 
-  /* severity ramp — Critical is the only solid fill */
   --sev-critical-fill: #bf3631; --sev-critical-text: #ffffff; --sev-critical-dot: #bf3631;
   --sev-high-bg: #ffe9d6;  --sev-high-border: #ffcdae;  --sev-high-fg: #a04400;  --sev-high-dot: #e26c00;
   --sev-medium-bg: #ffeecc; --sev-medium-border: #f4d59d; --sev-medium-fg: #8d5600; --sev-medium-dot: #e0a200;
@@ -95,7 +78,6 @@
   --text-muted: #898581;
   --text-on-inverted: #231f19;
 
-  /* console — restated identical to :root on purpose. A terminal does not flip. */
   --console-surface: #231f19;
   --console-text: #f4f2ef;
   --console-warn: #e0aa4a;
@@ -109,7 +91,6 @@
   --border-strong: #514c46;
   --row-sep: #292622;
 
-  /* dark actions: bright fill + ink text */
   --accent: #6bbeff;
   --accent-hover: #9ddaff;
   --accent-active: #3f9fe8;

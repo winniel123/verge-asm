@@ -1,8 +1,6 @@
 import React from "react";
 import { Icon } from "../media/Icon.jsx";
 
-/* Slide carousel: translated track, arrows, pill dots, pointer swipe, optional auto-advance
-   (pauses on hover/focus). Slides are the children — each owns its content. */
 export function Carousel({ children, ariaLabel, autoAdvance = false, interval = 6000, loop = false, showArrows = true, showDots = true, style }) {
   const slides = React.Children.toArray(children);
   const n = slides.length;

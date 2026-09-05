@@ -2,8 +2,6 @@ import React from "react";
 import { Tag } from "./Tag.jsx";
 import { AvailabilityBadge } from "./AvailabilityBadge.jsx";
 
-/* A vantage: network position + resolver identity; class re-verified each batch.
-   Unverified is a real state — it makes no exposure claims. */
 export function VantageCard({ name, vantageClass = "internet", resolver, availability = "available", latency, style }) {
   const unverified = vantageClass === "unverified" || availability === "unverified";
   return (

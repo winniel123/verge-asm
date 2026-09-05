@@ -1,7 +1,5 @@
 import React from "react";
 
-/* Marks a signal/subject whose key is in no current population — derived on read; no status, no age.
-   Dashed drift-loss chip: present in the record, absent from the world. */
 export function WithdrawnMark({ size = "md", style }) {
   const sm = size === "sm";
   return (

@@ -7,35 +7,11 @@ import { CommandPalette } from "@ds/components/feedback/CommandPalette.jsx";
 import { Icon } from "../ds/Icon.jsx";
 import { REPO_URL } from "../repo.ts";
 
-/*
- * Top navigation bar — search + ⌘K palette + live VersionSelect (T4 / #354).
- *
- * DATA IN (props, from the route page — see [version]/[slug].astro):
- *   - versions:  VersionOption[] from listVersions() — { value, tag? } shown verbatim
- *   - version:   the active version string (the `/<version>/…` segment being viewed)
- * Everything else (the per-version search index, ⌘K, navigation on version switch)
- * is loaded/handled client-side here. No server code runs in this island.
- *
- * SEARCH INDEX: the active version's records live at `/search/<version>.json`
- * (built by src/pages/search/[version].json.ts). We fetch it lazily — on first
- * palette open and again if the version changes — so search only ever sees the
- * active version's sections. The DS CommandPalette owns the query box + substring
- * filter over each item's label+hint; we surface the guide title AND heading on
- * every row so both are matchable, deep-linking Enter to /<version>/<slug>#<anchor>.
- *
- * VERSION SWITCH: changing the picker navigates to the SAME slug in the target
- * version when it exists there, else to that version's first guide — never a dead
- * route (there is no bare /<version>/ index page).
- */
-
-// Harmless fallback for the placeholder `/` page, which renders the shell without a
-// manifest. Real routes always pass `versions` from listVersions().
 const FALLBACK_VERSIONS = [
   { value: "latest", tag: "current" },
   { value: "main", tag: "dev" },
 ];
 
-/** Parse the guide slug out of `/<version>/<slug>[...]`; null off a guide route. */
 function currentSlugFromPath() {
   if (typeof window === "undefined") return null;
   const segs = window.location.pathname.split("/").filter(Boolean);
@@ -56,7 +32,6 @@ export default function TopNav({
   const [open, setOpen] = React.useState(false);
   const [docs, setDocs] = React.useState([]);
 
-  // Per-version index cache: value -> SearchDoc[]. Survives re-renders.
   const cache = React.useRef(new Map());
   const fetchIndex = React.useCallback(async (v) => {
     if (cache.current.has(v)) return cache.current.get(v);
@@ -71,7 +46,6 @@ export default function TopNav({
     }
   }, []);
 
-  // Load the ACTIVE version's index for the palette (lazy).
   const loadActive = React.useCallback(async () => {
     const data = await fetchIndex(ver);
     setDocs(data);
@@ -82,7 +56,7 @@ export default function TopNav({
     loadActive();
   }, [loadActive]);
 
-  // Global ⌘K / Ctrl-K. preventDefault stops the browser's own quick-find dialog.
+  // the browser binds ⌘K and Ctrl-K itself
   React.useEffect(() => {
     const onKey = (e) => {
       if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
@@ -97,7 +71,7 @@ export default function TopNav({
     return () => document.removeEventListener("keydown", onKey);
   }, [loadActive]);
 
-  // Version switch → same slug in the target version, else its first guide.
+  // there is no bare /<version>/ index route, so a switch has to land on a guide slug
   const handleChange = async (v) => {
     setVer(v);
     onVersionChange && onVersionChange(v);
@@ -108,9 +82,7 @@ export default function TopNav({
     if (dest) window.location.assign(`/${encodeURIComponent(v)}/${dest}`);
   };
 
-  // One group, labelled with the active version so scope is visible. Each row shows
-  // "Guide title › Heading" (or just the title for a guide root), so the palette's
-  // built-in label+hint filter matches both the guide and the heading. hint = slug.
+  // the palette filters over label plus hint alone, so a row carries both title and heading
   const groups = React.useMemo(
     () => [
       {

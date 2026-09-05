@@ -5,8 +5,6 @@ import { IconButton } from "./IconButton.jsx";
 import { Button } from "./Button.jsx";
 import { Icon } from "../media/Icon.jsx";
 
-/* Two-sided attribute mapping: IdP claim (free mono text) -> app field (closed set).
-   Duplicate targets are flagged, not auto-resolved. Controlled: mappings + onChange. */
 export function MappingEditor({ mappings = [], onChange, fromLabel = "IdP claim", toLabel = "Verge field", fromPlaceholder = "e.g. email", toOptions = [], addLabel = "Add mapping", style }) {
   const set = (i, patch) => onChange(mappings.map((m, j) => (j === i ? { ...m, ...patch } : m)));
   const remove = (i) => onChange(mappings.filter((_, j) => j !== i));

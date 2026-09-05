@@ -1,7 +1,6 @@
 import React from "react";
 import { IconButton } from "../forms/IconButton.jsx";
 
-/* Slide-in side panel for detail views — non-blocking reading in dense consoles. */
 export function Drawer({ open, title, description, children, footer, onClose, width = 440, side = "right" }) {
   const panelRef = React.useRef(null);
   React.useEffect(() => {
@@ -32,7 +31,8 @@ export function Drawer({ open, title, description, children, footer, onClose, wi
   const [present, setPresent] = React.useState(!!open);
   React.useEffect(() => {
     if (open) { setPresent(true); return; }
-    const t = setTimeout(() => setPresent(false), 280); // match --dur-slow
+    // 280 stays in step with --dur-slow in tokens/motion.css
+    const t = setTimeout(() => setPresent(false), 280);
     return () => clearTimeout(t);
   }, [open]);
   if (!present) return null;

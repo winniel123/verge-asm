@@ -1,8 +1,6 @@
 import React from "react";
 import { Icon } from "../media/Icon.jsx";
 
-/* Month calendar: schedule visibility and single-date pick. Event dots ramp on --chart-1 (volume,
-   never severity). Deliberately not a popover picker — DateRangePicker stays typed-first. */
 const DAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 const iso = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
 export function Calendar({ month, selected, onSelect, events = {}, min, max, cell = 36, unit = "run", label, style }) {
