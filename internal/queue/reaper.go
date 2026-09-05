@@ -65,7 +65,7 @@ func (r *Reaper) Run(ctx context.Context, interval time.Duration) error {
 }
 
 func (r *Reaper) sweepAndLog(ctx context.Context) {
-	// A failed sweep costs one interval, so the loop logs and continues rather than ending.
+	// A failed sweep costs one interval, so the loop logs and continues rather than ending (ADR-0141).
 	n, err := r.Sweep(ctx)
 	if err != nil {
 		if r.log != nil {
