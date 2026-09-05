@@ -6,7 +6,6 @@ import { RadioCards } from "../../components/forms/RadioCards.jsx";
 import { Input } from "../../components/forms/Input.jsx";
 import { KeyValueList } from "../../components/display/KeyValueList.jsx";
 
-/* First-run setup: seeds → cadence → channel → first scan. */
 export function Onboarding({ open, onClose, onFinish }) {
   const [seeds, setSeeds] = React.useState([]);
   const [profile, setProfile] = React.useState("standard");

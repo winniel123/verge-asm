@@ -1,7 +1,5 @@
 import React from "react";
 
-/* TOTP / MFA code field: segmented digit boxes, auto-advance, paste-distributes, digits only.
-   The verify step — enrollment secrets stay in SecretInput (write-only). Codes are never masked. */
 export function CodeInput({ length = 6, value = "", onChange, onComplete, label, hint, error, disabled, autoFocus, style }) {
   const refs = React.useRef([]);
   const doneRef = React.useRef(false);

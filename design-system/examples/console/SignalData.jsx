@@ -1,4 +1,3 @@
-/* Shared mock data for the console kit. Vocabulary: signal (never finding/fingerprint). */
 export const SIGNALS = [
   { id: "SIG-1042", sev: "critical", title: "VNC exposed to internet", asset: "edge-gw-03.acmecorp.io", ip: "203.0.113.7", port: ":5900", seen: "4m", first: "2026-08-22T13:58:02Z", last: "2026-08-22T14:02:11Z", cve: null, tags: ["vnc", "remote-access"], desc: "A VNC service answered on 203.0.113.7:5900 without transport encryption. Close the port or restrict it to your VPN." },
   { id: "SIG-1041", sev: "critical", title: "TLS certificate expired", asset: "vpn.acmecorp.io", ip: "203.0.113.12", port: ":443", seen: "12m", first: "2026-08-21T00:00:00Z", last: "2026-08-22T13:54:40Z", cve: null, tags: ["tls", "cert"], desc: "The certificate served on :443 expired 2026-08-21. Clients may accept downgraded or spoofed connections. Renew and redeploy." },

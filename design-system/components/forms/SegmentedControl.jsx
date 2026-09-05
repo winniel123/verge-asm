@@ -1,6 +1,5 @@
 import React from "react";
 
-/* 2-4 way exclusive toggle on a sunken track. Short labels only; more options = Select. */
 export function SegmentedControl({ options = [], value, onChange, size = "sm", label, style }) {
   const opts = options.map((o) => (typeof o === "string" ? { value: o, label: o } : o));
   const h = size === "sm" ? 22 : 28;

@@ -1,6 +1,5 @@
 import React from "react";
 
-/* Non-modal floating panel anchored to its trigger. Closes on outside click / Escape. */
 export function Popover({ trigger, open, onOpenChange, align = "start", side = "bottom", width = 260, children, style }) {
   const [internal, setInternal] = React.useState(false);
   const isOpen = open != null ? open : internal;

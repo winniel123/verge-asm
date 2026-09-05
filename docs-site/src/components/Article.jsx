@@ -6,14 +6,7 @@ import { Breadcrumb } from "@ds/components/navigation/Breadcrumb.jsx";
 import { Callout } from "@ds/components/feedback/Callout.jsx";
 import { Accordion } from "@ds/components/display/Accordion.jsx";
 
-/*
- * PLACEHOLDER article body — ported verbatim from design-system/examples/DocsPage.jsx.
- *
- * SEAM (T1): this is the centre article column's placeholder content. T1 renders
- * docs/guides/*.md into this same slot (the DocsLayout <slot/>). The single-source
- * principle (ADR-0115) means the shipped article is rendered from the guide markdown,
- * never copied — this sample only proves the shell frames prose correctly.
- */
+/* Placeholder body; the shipped article renders from the guide markdown (ADR-0115). */
 
 function InlineCode({ children }) {
   return (

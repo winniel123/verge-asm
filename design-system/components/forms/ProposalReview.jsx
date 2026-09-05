@@ -3,8 +3,6 @@ import { Button } from "./Button.jsx";
 import { Checkbox } from "./Checkbox.jsx";
 import { Tag } from "../display/Tag.jsx";
 
-/* Registry proposals: confirm ONE at a time, decline MANY — the asymmetry is deliberate.
-   proposals: [{id, value, kind, source}]. */
 export function ProposalReview({ proposals = [], onConfirm, onDecline, style }) {
   const [marked, setMarked] = React.useState([]);
   const toggle = (id) => setMarked((m) => (m.indexOf(id) !== -1 ? m.filter((x) => x !== id) : m.concat(id)));

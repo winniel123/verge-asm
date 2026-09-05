@@ -1,7 +1,6 @@
 import React from "react";
 import { Button } from "./Button.jsx";
 
-/* Write-only secret: accepted, never rendered back. */
 export function SecretInput({ label = "Signing secret", isSet, onSave, hint, style }) {
   const [editing, setEditing] = React.useState(!isSet);
   const [draft, setDraft] = React.useState("");

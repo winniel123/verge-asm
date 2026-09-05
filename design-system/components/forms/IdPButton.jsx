@@ -1,7 +1,5 @@
 import React from "react";
 
-/* Federated sign-in button. Neutral letter marks, not brand logos — swap the mark
-   for the provider's official SVG in production. Full-width by default on auth cards. */
 const MARKS = { okta: "O", entra: "E", google: "G", github: "GH", saml: "SA", oidc: "ID" };
 const NAMES = { okta: "Okta", entra: "Microsoft Entra", google: "Google", github: "GitHub", saml: "SSO (SAML)", oidc: "SSO (OIDC)" };
 export function IdPButton({ provider = "saml", label, onClick, full = true, style }) {

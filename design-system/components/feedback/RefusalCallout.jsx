@@ -1,8 +1,6 @@
 import React from "react";
 import { Icon } from "../media/Icon.jsx";
 
-/* A declaration refusal: names what was refused, why, and the reachable set.
-   Never auto-corrects — the operator retypes. Distinct from a field error. */
 export function RefusalCallout({ input, reason, reachable, style }) {
   return (
     <div style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "12px 14px", background: "var(--danger-soft)", border: "1px solid var(--danger-border)", borderRadius: 12, fontFamily: "var(--font-ui)", ...style }}>

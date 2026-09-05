@@ -3,7 +3,6 @@ import { Select } from "./Select.jsx";
 
 const PRESETS = ["Every 6h", "Daily \u00b7 08:00", "Weekly \u00b7 mon 09:00", "Monthly \u00b7 1st", "Custom\u2026"];
 
-/* Recurring cadence — currency depends on it. Custom accepts cron. */
 export function CadenceSelect({ label = "Cadence", value = PRESETS[0], customValue = "", onChange, style }) {
   const custom = value === PRESETS[4];
   const [foc, setFoc] = React.useState(false);

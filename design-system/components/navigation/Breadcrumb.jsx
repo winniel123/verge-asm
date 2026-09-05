@@ -1,6 +1,5 @@
 import React from "react";
 
-/* Micro-label trail: items = [{label, href?, onClick?}]; last item is the current page (ink, no link). */
 export function Breadcrumb({ items = [], style }) {
   return (
     <nav aria-label="Breadcrumb" style={{ display: "flex", alignItems: "center", gap: 8, font: "500 11px var(--font-mono)", letterSpacing: "0.07em", textTransform: "uppercase", ...style }}>

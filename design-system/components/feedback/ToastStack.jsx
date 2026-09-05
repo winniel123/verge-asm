@@ -1,7 +1,6 @@
 import React from "react";
 import { Toast } from "./Toast.jsx";
 
-/* Stacked toasts, bottom-right; each auto-dismisses after ttl. toasts: [{id, tone, title, description, ttl?}]. */
 export function ToastStack({ toasts = [], onDismiss, ttl = 5000, style }) {
   const started = React.useRef({});
   const [leaving, setLeaving] = React.useState([]);

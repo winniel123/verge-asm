@@ -1,7 +1,6 @@
 import React from "react";
 import { Icon } from "../media/Icon.jsx";
 
-/* Drag-and-drop file input (CSV imports). Click browses; drop accepts. */
 export function FileDrop({ label = "Drop a CSV here or click to browse", hint, accept, multiple, onFiles, compact, style }) {
   const [over, setOver] = React.useState(false);
   const [files, setFiles] = React.useState([]);

@@ -1,9 +1,6 @@
 import React from "react";
 import { Icon } from "./Icon.jsx";
 
-/* Custom-chrome video player: tokened controls, mono timecodes, accent progress.
-   Keyboard: space/k play, m mute, f fullscreen, left/right seek 5s, up/down volume.
-   Fullscreen falls back to a fixed-position fill when the Fullscreen API is unavailable (Escape exits). */
 const fmt = (s) => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
 export function VideoPlayer({ src, poster, label, aspect = "16 / 9", style }) {
   const vref = React.useRef(null), wref = React.useRef(null), idleT = React.useRef(null);

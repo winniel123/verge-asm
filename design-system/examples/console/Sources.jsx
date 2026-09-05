@@ -45,10 +45,9 @@ function SourceRow({ e, onToggle }) {
   );
 }
 
-/* The /sources catalogue: sources admit, proposers only suggest; consent is release-authored. */
 export function SourcesSection({ onToast }) {
   const [entries, setEntries] = React.useState(CATALOGUE);
-  const [consent, setConsent] = React.useState(null); // entry awaiting terms acceptance
+  const [consent, setConsent] = React.useState(null);
   const [agreed, setAgreed] = React.useState(false);
   const toast = (title, description, tone) => onToast && onToast({ tone: tone || "neutral", title, description });
   const flip = (id, on) => setEntries((es) => es.map((x) => (x.id === id ? { ...x, on } : x)));
@@ -100,7 +99,6 @@ export function SourcesSection({ onToast }) {
   );
 }
 
-/* verge-core: the default port aperture. Frequency tier editable; sensitive tier locked by design. */
 export function ApertureSection({ onToast }) {
   const [freq, setFreq] = React.useState([":80", ":443", ":22", ":8080", ":8443", ":3000", ":5432", ":6379"]);
   const SENSITIVE = [[":23", "telnet"], [":3389", "rdp"], [":5900", "vnc"], [":445", "smb"], [":1433", "mssql"], [":21", "ftp"]];

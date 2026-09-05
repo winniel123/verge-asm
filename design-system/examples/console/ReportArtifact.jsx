@@ -11,7 +11,6 @@ import { Button } from "../../components/forms/Button.jsx";
 import { Icon } from "../../components/media/Icon.jsx";
 import { SEV_ORDER, SEV_COUNTS } from "./SignalData.jsx";
 
-/* The delivered artifact, rendered — this page is also the PDF/email spec. */
 export function ReportArtifact({ onBack }) {
   const max = Math.max(...SEV_ORDER.map((s) => SEV_COUNTS[s]));
   const h2 = { margin: 0, font: "500 11px var(--font-mono)", letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-muted)" };

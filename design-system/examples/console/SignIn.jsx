@@ -34,10 +34,8 @@ const LinkBtn = ({ onClick, children }) => (
 );
 const RECOVERY = ["k4mq-9d2x", "7hfa-t3wn", "p8rc-01zk", "vx5j-mm4d", "q2sl-88bh", "e6ty-r7cn", "a1zw-kk3p", "n9gd-45vu"];
 
-/* Pre-auth surface: sign-in (credentials + TOTP), forgot/reset, MFA enrollment, invite acceptance.
-   Demo: any credentials; code 482913 verifies everywhere. */
 export function SignIn() {
-  const [view, setView] = React.useState("signin"); // signin | forgot | reset | enroll | invite
+  const [view, setView] = React.useState("signin");
   const [step, setStep] = React.useState("creds");
   const [user, setUser] = React.useState("");
   const [pw, setPw] = React.useState("");
@@ -51,7 +49,7 @@ export function SignIn() {
   const [r2, setR2] = React.useState("");
   const [rErr, setRErr] = React.useState(null);
   const [rDone, setRDone] = React.useState(false);
-  const [eStep, setEStep] = React.useState("scan"); // scan | verify | codes | done
+  const [eStep, setEStep] = React.useState("scan");
   const [eCode, setECode] = React.useState("");
   const [eErr, setEErr] = React.useState(null);
   const [stored, setStored] = React.useState(false);
