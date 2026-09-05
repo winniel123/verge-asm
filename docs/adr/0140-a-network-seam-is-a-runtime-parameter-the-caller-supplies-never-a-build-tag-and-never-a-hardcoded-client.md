@@ -6,6 +6,7 @@
 - **Recorded independently by four more sweeps:** [#1272](https://github.com/winniel123/verge-asm/issues/1272) (`internal/release`), [#1279](https://github.com/winniel123/verge-asm/issues/1279) (`internal/measure/httpexchange`, `internal/measure/edgefanout`), [#1282](https://github.com/winniel123/verge-asm/issues/1282) (`internal/delivery`, `internal/report`), [#1296](https://github.com/winniel123/verge-asm/issues/1296) (`internal/measure/connectoutcome`)
 - **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8. The five records come from five sweep sessions that could not see each other. §8.10 directs dedup **by rule sentence**, and this ADR is what that dedup produced
 - **Bounded by:** [ADR-0021](./0021-a-version-leaf-is-a-decision-not-a-binary.md), which fixes *where* the measurement corpus runs and does not say *how* the leaf is reached
+- **Sibling, for the data seam:** [ADR-0149](./0149-a-consumer-takes-the-data-layer-interface-it-calls-and-the-seam-not-the-package-is-the-unit.md) rules how wide a consumer's data-layer interface is; §5 below rules only the network one
 - **Reaches, and is not satisfied by:** [ADR-0124](./0124-a-backup-carries-data-and-no-secret-and-updating-is-guided-not-self-applied.md) §2, whose release-feed check is the one outbound call in the repo that breaks this rule
 
 ## Context

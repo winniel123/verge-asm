@@ -737,6 +737,10 @@ interface.
 and only a handful leave trailing room inside §4.4's 100-character cap, so placement 3 is the
 default there and placement 2 the exception (#1203). The narrow-interface reading above is right for
 its case and the wide-interface reading for its own. Measure the trailing room before you choose.
+That `store` is a **defect** under
+[ADR-0149](../adr/0149-a-consumer-takes-the-data-layer-interface-it-calls-and-the-seam-not-the-package-is-the-unit.md)
+§4 rather than a shape to copy, so the wide-interface reading is a placement ruling over one live
+measurement and never a licence to widen an interface.
 
 **Placement 3 is what a declaration with no body needs.** A `const`, `var`, `type` or `interface` at
 package scope has no statement to sit above. A declaration line long enough to break §4.4's
