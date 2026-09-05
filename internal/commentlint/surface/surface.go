@@ -94,6 +94,7 @@ type Block struct {
 	PackageDoc  bool
 	DeclGroup   bool
 	DeclName    string
+	DTSField    bool
 }
 
 func (b Block) Lines() int {
@@ -184,7 +185,7 @@ func For(name string) (Lexer, error) {
 		return CSS{}, nil
 	case ".mjs", ".ts":
 		// esbuild erases a `.d.ts` file, and 109 of the tree's 116 `.ts` files are `.d.ts` (§5.3).
-		return JS{}, nil
+		return JS{Path: name}, nil
 	case ".jsx":
 		return JSX{Path: name}, nil
 	case ".tmpl":

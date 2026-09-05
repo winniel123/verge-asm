@@ -19,11 +19,11 @@ import (
 
 const maxCTBody = 64 << 20
 
-// Sectigo publicly asked for 5 req/min on crt.sh, and 12s is that spacing (ADR-0005, §2.2).
+// Sectigo publicly asked for 5 req/min; 12s is that spacing (passive-discovery-sources.md §2.2).
 
 const crtshInterval = 12 * time.Second
 
-// The free tier allows ten full-domain queries an hour, and the key's tier is unknowable (§2.3).
+// The key's tier is unknowable, so the free tier binds (passive-discovery-sources.md §2.3).
 
 const certSpotterInterval = 360 * time.Second
 
@@ -35,7 +35,7 @@ type CTFetcher interface {
 	Fetch(ctx context.Context, url string) (status int, body []byte, err error)
 }
 
-// crt.sh asks each client to identify itself by User-Agent (passive-discovery §2.2).
+// crt.sh asks each client to identify itself by User-Agent (passive-discovery-sources.md §2.2).
 
 type HTTPCTFetcher struct {
 	client    *http.Client

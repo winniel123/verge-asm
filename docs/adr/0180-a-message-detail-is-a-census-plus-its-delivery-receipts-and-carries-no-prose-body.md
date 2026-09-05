@@ -151,3 +151,45 @@ because it is not about the same object.** The package name is the whole of the 
 | **Keep the rule as the comment it was**, uncited, and file nothing | It passes comment-policy §8.2's three gates squarely: the rule binds `cmd/web/messages.go`, both templates, `internal/message` and `internal/delivery`, and it survived only in a dev-fixtures helper. The next reader of `inbox.tmpl` finds a detail pane with no body and no reason for it, which is how a body gets added |
 | **Fold the receipts onto the channel surface and leave the detail as census alone** | Reverses ADR-0039 `:179-180` and ADR-0108's delivery limb. An undelivered POST is a fact about *this* message; on the channel it becomes a configuration note about a host, and the operator reading the message has no way to know they are the only one who saw it |
 | **Render the `last_error` inline rather than as a hover drill-down** | ADR-0108 named the drill-down specifically, on #22's *reason is a slot, not a design*. An inline TLS trace on every failed row makes the receipt unreadable at the moment the operator is scanning for which message did not get out |
+
+## Amendment — [#1447](https://github.com/winniel123/verge-asm/issues/1447): §5's fence stands, and the report path's host-only rule is stated in the reports guide
+
+**The Decision is unchanged. §5 is unchanged. This ADR gains no reach.** What this amendment
+records is where a rule §5 fences out now lives, and why a reader keeps arriving here for it.
+
+§3 records that `toDeliveryView` (`cmd/web/messages.go`) derives `ChannelHost` *"from the
+URL's host alone — never the raw URL, which may carry the operator's embedded token"*. That
+function reads a notification `Channel`'s URL onto a **message** detail. The clause is the
+closest statement on disk of the same rule on the **report** path. It is also the wrong
+citation for that path.
+
+**The report path enforces the same rule, on a different object.** `deliveryTargetHost`
+(`cmd/web/reports.go`) parses a schedule's `delivery_target` and returns `u.Host`, and
+`buildReportDeliveryArtifact` puts that value on `art.ChannelHost`. The console page renders
+it from `design-system/templates/reportartifact.tmpl`, and the PDF renders it through
+`artifactReceipt` (`internal/message/render.go`).
+
+**Two live comments state the reason on that path, and each cited a document that does not
+rule it.**
+
+- `internal/message/render.go` cited `ADR-0081`. That ADR contains no occurrence of the words
+  host, token or URL.
+- `cmd/web/reports.go` cited `ADR-0053`. That ADR rules secret custody, never the rendering of
+  part of a value.
+
+[#1354](https://github.com/winniel123/verge-asm/issues/1354) dropped both citations. It left
+the two reason clauses uncited, under comment-policy §4.7 route 3.
+
+**§5 is why this ADR is not the repair for that.** A `Message` never reaches
+`RenderArtifact` or `RenderArtifactPDF`, so an `Artifact` is a different object under a
+shared package name. Widening this ADR past its own fence would restate the adjacency error
+one document further on, and it would make the title false.
+
+**The report path's rule is stated in
+[`docs/guides/reports.md`](../guides/reports.md), under *The receipt names the host, never
+the whole delivery URL*.** A guide is the right home here for two reasons. The rule is
+operator-facing, because it decides what an operator reads on a receipt. And `cmd/web` already
+cites a guide by path for a rule of that kind, at `restore.go`, `settings.go` and `cold.go`.
+
+**Do not cite this ADR from the report path.** The two rules agree because the hazard is one
+hazard. Neither is authority for the other.

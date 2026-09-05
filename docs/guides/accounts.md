@@ -49,10 +49,12 @@ refused with **403**. Concretely, admins alone may:
 | Integrations | Install or disconnect an integration |
 | **Team** | **Invite, change a role, require re-enrollment, remove an account** |
 
-**Settings** is admin-gated as a whole (`GET /settings` is behind
-`requireSettingsAdmin`), so a viewer cannot even open the Team tab. This is stricter than a
-read surface like `/sources`, which a viewer *can* open but not toggle. The one carve-out is
-**API access** (`?tab=api`), which a viewer may read but not change (ADR-0173).
+**Settings** is gated tab by tab, not as one screen. `GET /settings` sits behind
+`requireSettingsAdmin`. That gate admits a viewer on exactly one tab: **API access**
+(`?tab=api`). A viewer reads that tab but cannot change it (ADR-0173). Every other tab,
+**Team** included, answers a viewer with the **403** "Admin only" page. So a viewer cannot
+open the Team tab at all. That is stricter than a read surface like `/sources`, which a
+viewer *can* open but not toggle.
 
 ### What a viewer may still do
 

@@ -58,7 +58,7 @@ var backupTables = []string{ // FK-parent-first, so a naive in-order restore is 
 
 // #nosec G101 -- keys are database table names (e.g. "password_reset") paired with prose
 var backupExcluded = map[string]string{
-	"session":        "live login sessions — the ADR-0053 §4.2 'DB leak → live admin sessions' surface; they lapse on restore and are invalid under the regenerated session key",
+	"session":        "live login sessions — the ADR-0053 'DB leak → live admin sessions' surface; they lapse on restore and are invalid under the regenerated session key",
 	"password_reset": "single-use, short-TTL reset-token hashes — expired and meaningless off-host, a needless credential surface with no restore value",
 	"recovery_code":  "MFA recovery-code hashes — auth-bypass material with no cross-host restore value; a restored instance's operators re-enroll",
 	"invite":         "pending single-use account-creation invite tokens — short-lived, no durable configuration value",

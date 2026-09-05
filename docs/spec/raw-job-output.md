@@ -1,7 +1,7 @@
 # Verbatim raw job output for operator debugging
 
 - **Status:** Accepted — handoff spec for map [#838](https://github.com/winniel123/verge-asm/issues/838), terminal ticket [#844](https://github.com/winniel123/verge-asm/issues/844)
-- **Ruling:** draft [ADR-0126](../adr/0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md) (posted in [#839](https://github.com/winniel123/verge-asm/issues/839); to be finalised from this spec)
+- **Ruling:** draft [ADR-0126](../adr/0126-verbatim-job-output-is-a-fourth-operational-corpus-retired-by-a-duration-dial-that-ships-bounded.md) (posted in [#839](https://github.com/winniel123/verge-asm/issues/839); to be finalised from this spec)
 - **Decisions folded:** [#839](https://github.com/winniel123/verge-asm/issues/839) corpus + retention · [#840](https://github.com/winniel123/verge-asm/issues/840) producer · [#841](https://github.com/winniel123/verge-asm/issues/841) transport · [#842](https://github.com/winniel123/verge-asm/issues/842) access + secrets · [#843](https://github.com/winniel123/verge-asm/issues/843) UI
 
 This document folds the map's five locked decisions into one buildable spec. It makes **no new
@@ -12,7 +12,7 @@ over (§10). A build session works from here; it does not re-open the tickets.
 
 An operator debugging a job needs the genuinely-raw output of that job: **stdout + stderr +
 exec-meta** (exit code or signal, duration, the `JobSpec` sent). Today `/runs/{id}?job={n}` shows
-only `kind · state · vantage`, built by `runLog` (`cmd/web/scans.go:920`) from the lean `queue_job`
+only `kind · state · vantage`, built by `runLog` (`cmd/web/scans.go`) from the lean `queue_job`
 operational record. That is the record of what the system *did*, not the job's output. A probe job
 emits only structured NDJSON observations on stdout; there is **no** raw-stdout/stderr channel, no
 store, and no wire type for raw output today (fact-find, 2026-08-29).
@@ -59,12 +59,12 @@ Two marks are used, on `docs/spec/measurement-offers.md`'s convention:
 ### 1.1 Keying grain — one `Transcript` per attempt
 
 **Ruling: [#840 §7](https://github.com/winniel123/verge-asm/issues/840).** One `Transcript` per
-`queue_job` row, which is **one per attempt**. Retry enqueues a new `queue_job` row
-(`worker.go:472-473`), so a retried attempt keeps its own transcript on its **retired** row while the
-fresh attempt gets a new one on its new row. Both superseded and live attempts retain their
-transcripts, each retired independently by the §4 dial. `?job={id}` is already keyed on this id, so
-§6 addresses a transcript directly. Retry fan-out is 5 for every prober kind, so a logical prober job
-holds up to **5** transcripts.
+`queue_job` row, which is **one per attempt**. Retry enqueues a new `queue_job` row (`retry`'s
+`EnqueueJob` call, `worker.go`), so a retried attempt keeps its own transcript on its **retired**
+row while the fresh attempt gets a new one on its new row. Both superseded and live attempts
+retain their transcripts, each retired independently by the §4 dial. `?job={id}` is already keyed
+on this id, so §6 addresses a transcript directly. Retry fan-out is 5 for every prober kind, so a
+logical prober job holds up to **5** transcripts.
 
 ### 1.2 The `Transcript` value — a closed union
 
@@ -129,28 +129,29 @@ Change the `Prober` interface to return a result value, not a bare slice:
 ProbeResult{ Observations []wire.Observation; Transcript wire.Transcript }
 ```
 
-Change `VantageRouter.ProbeVantage` (`worker.go:161`) to the **same shape now**, so the worker's
-`probe()` fan-in (`worker.go:278`) has one return shape. The remote path returns an **absent**
-transcript (a legible state) until [#841](https://github.com/winniel123/verge-asm/issues/841) fills
-the bytes across the wire. The type and seam are this ticket's; the remote *content* is §3's — §3 is
-then a pure fill-in, not a signature change.
+Change `VantageRouter.ProbeVantage` (`worker.go`) to the **same shape now**, so the worker's
+`probe()` fan-in (`Worker.probe`, `worker.go`) has one return shape. The remote path returns an
+**absent** transcript (a legible state) until
+[#841](https://github.com/winniel123/verge-asm/issues/841) fills the bytes across the wire. The
+type and seam are this ticket's; the remote *content* is §3's — §3 is then a pure fill-in, not a
+signature change.
 
-Grounding: `ExecProber.Probe` (`internal/queue/worker.go:37-65`) already buffers raw stdout
-(`stdout.Bytes()`, line 56) and captures stderr (line 50), then **discards both** — the interface
-returned only `[]wire.Observation` (line 26). `cmd.Run()` (line 53) drops `ProcessState`, so exit
-code and duration are never taken today. Bracket `Start`→`Wait` for duration.
+Grounding: `ExecProber.Probe` (`internal/queue/worker.go`) already buffers raw stdout
+(`stdout.Bytes()`) and captures stderr (`cmd.Stderr`), then **discards both** — the `Prober`
+interface returned only `[]wire.Observation`. `cmd.Run()` drops `ProcessState`, so exit code and
+duration are never taken today. Bracket `Start`→`Wait` for duration.
 
 ### 2.2 Capture on every outcome that ran a producer
 
 The `Transcript` rides the **error** return too. Capture and persist on **completed, retried,
 dead-lettered, and decode-failure** — not success only. `[derived]` The raw output is highest-value
-exactly when the job failed or the observation decode failed (`worker.go:61`). This is the whole
-reason the seam holds the transcript on the error path.
+exactly when the job failed or the observation decode failed (`ExecProber.Probe`'s `sc.Err()`
+return). This is the whole reason the seam holds the transcript on the error path.
 
 ### 2.3 The sent payload is verbatim
 
 For the prober variant, capture the **exact stdin bytes** (`wire.EncodeJobSpec` output,
-`worker.go:38-41`), not a re-encoded struct. `[derived]` #839 locked a verbatim-at-rest posture and
+`worker.go`), not a re-encoded struct. `[derived]` #839 locked a verbatim-at-rest posture and
 "the JobSpec sent" means the literal payload.
 
 ### 2.4 Transaction placement and mid-flight cancel
@@ -160,11 +161,11 @@ For the prober variant, capture the **exact stdin bytes** (`wire.EncodeJobSpec` 
 
 | Terminal path | Site | Transcript attaches to |
 | --- | --- | --- |
-| `complete` | `worker.go:354` | the completed row |
-| `deadLetter` | `worker.go:428` | the dead-lettered row |
-| `retry` | `worker.go:461` | the **failed attempt's** row, **not** the freshly-enqueued one |
+| `complete` | `complete`'s tx, beside `markDone` (`worker.go`) | the completed row |
+| `deadLetter` | `deadLetter`'s tx, beside `markDead` (`worker.go`) | the dead-lettered row |
+| `retry` | `retry`'s tx, beside `markRetried` (`worker.go`) | the **failed attempt's** row, **not** the freshly-enqueued one |
 
-A mid-flight cancel (`errJobCanceled`, `worker.go:296`) **rolls the transcript back** with all other
+A mid-flight cancel (`errJobCanceled`, `worker.go`) **rolls the transcript back** with all other
 staged work — a terminated job discards everything, no exception. This is why the raw view is
 post-hoc only (§6.2).
 
@@ -195,23 +196,25 @@ writing it to the `transcript` table (§1.4). Nothing new crosses a wire as a de
 
 - **Widen the narrow `Conn.Run` seam** to surface the two channels it drops today — a **stderr sink**
   and a **typed exit result**. For example `Run(ctx, cmd, stdin, stdout, stderr) (ExitResult, error)`,
-  or a small `RunResult` struct. The fake-testability property (`conn.go:26-28`) is preserved; the
-  in-memory fake fills two more fields.
+  or a small `RunResult` struct. The fake-testability property (the `Conn` interface, `conn.go`)
+  is preserved; the in-memory fake fills two more fields.
 - `ExitResult` maps the prober's typed outcome (§1.2): `exited(code)` from `*ssh.ExitError.ExitStatus()`,
   `signalled(sig)` from `*ssh.ExitError.Signal()` / `*ssh.ExitMissingError`, `context-cancelled` from
   a `ctx`-killed session.
 - `remoteexec.Probe` returns `ProbeResult` (§2.1) **populated even on the error path**, so failed and
-  decode-failed jobs still capture. Today `Probe` returns `nil, err` and discards the drained stdout
-  (`internal/remoteexec/probe.go:122`); that must change so the buffered stdout, drained stderr, and
-  exit result ride the transcript out on every outcome. §3 fills the remote `ProberTranscript` content
-  #840 left absent — a pure fill-in, no signature change to the worker fan-in.
+  decode-failed jobs still capture. Today `Probe` returns `nil, err` and discards the drained
+  stdout (`remoteexec.Probe`, `internal/remoteexec/probe.go`); that must change so the buffered
+  stdout, drained stderr, and exit result ride the transcript out on every outcome. §3 fills the
+  remote `ProberTranscript` content #840 left absent — a pure fill-in, no signature change to the
+  worker fan-in.
 
 Grounding: SSH delivers three native channels — stdout, stderr, and an exit-status message. Today
-`Conn.Run(ctx,cmd,stdin,stdout)` has **no stderr sink** (`conn.go:38`, `:105`), and `runSession`'s
-`sess.Wait()` error — which carries `*ssh.ExitError` (exit code, signal) — is returned raw and thrown
-away (`conn.go:124`). stderr and exec-meta are already on the wire; the remote path simply drops two
-of the three channels. Prober stderr is normally **empty** — the prober writes NDJSON to stdout only;
-stderr holds content solely on a `log.Fatalf` crash (`cmd/prober/main.go:21-23`).
+`Conn.Run(ctx,cmd,stdin,stdout)` has **no stderr sink** (the `Conn` interface and
+`clientConn.Run`, `conn.go`), and `runSession`'s `sess.Wait()` error — which carries
+`*ssh.ExitError` (exit code, signal) — is returned raw and thrown away (`runSession`, `conn.go`).
+stderr and exec-meta are already on the wire; the remote path simply drops two of the three
+channels. Prober stderr is normally **empty** — the prober writes NDJSON to stdout only; stderr
+holds content solely on a `log.Fatalf` crash (`main`, `cmd/prober/main.go`).
 
 ### 3.2 Truncation and per-stream store caps
 
@@ -220,12 +223,13 @@ stderr holds content solely on a `log.Fatalf` crash (`cmd/prober/main.go:21-23`)
 operator most wants; a head-only cut usually loses exactly the failure. Truncation never fails a
 job — a job that overflows is exactly one you want the transcript for.
 
-The **64 MiB fail-closed `LimitedBuffer` memory guard stays unchanged** (`wire.go:30`) as the memory
-ceiling and the observation-decode source (the decoder still needs the whole stream). stdout is
-already fully buffered, so the transcript's stdout is `head+tail(buffer, cap)` taken **post-drain** —
-no streaming tee. stderr gets its own `head+tail` sink (no decoder reads it). On a 64 MiB overflow
-(the memory guard trips and errors the job), capture `head(...)` of what the guard retained plus a
-distinct **memory-guard-tripped** marker, so the overflow job still carries a transcript.
+The **64 MiB fail-closed `LimitedBuffer` memory guard stays unchanged** (`wire.MaxProberStdout`,
+`wire.go`) as the memory ceiling and the observation-decode source (the decoder still needs the
+whole stream). stdout is already fully buffered, so the transcript's stdout is
+`head+tail(buffer, cap)` taken **post-drain** — no streaming tee. stderr gets its own `head+tail`
+sink (no decoder reads it). On a 64 MiB overflow (the memory guard trips and errors the job),
+capture `head(...)` of what the guard retained plus a distinct **memory-guard-tripped** marker, so
+the overflow job still carries a transcript.
 
 Per-stream **store** caps (distinct from the 64 MiB memory guard):
 
@@ -240,10 +244,11 @@ Worst-case per transcript ≈ **4.3 MiB**.
 ### 3.3 Volume posture
 
 A `Transcript` is **per-batch, not per-subject**. One hot-Scan connect-outcome job fans out one job
-per Vantage over the whole Custody-admitted address set (`internal/queue/hot.go:20-22`, `:200-202`).
-At the `DefaultAddressCap = 1024` ceiling (`internal/seed/seed.go:20`) that is up to ~134,144
-observation lines in one job's stdout; at ~185 bytes/line a ceiling job's stdout is ~25 MB — large,
-and mostly a verbatim re-statement of the Observation corpus, which the 4 MiB cap bounds.
+per Vantage over the whole Custody-admitted address set (`fanOutHot` and `enqueueHotJob`,
+`internal/queue/hot.go`). At the `DefaultAddressCap = 1024` ceiling (`internal/seed/seed.go`) that
+is up to ~134,144 observation lines in one job's stdout; at ~185 bytes/line a ceiling job's stdout
+is ~25 MB — large, and mostly a verbatim re-statement of the Observation corpus, which the 4 MiB
+cap bounds.
 
 Transcript disk scales with `remote-jobs/day × attempts(≤5) × per-stream cap × retention-days`,
 bounded by the caps (§3.2) and the shipped retention window (§4). `egressguard` needs **no change** —
@@ -272,7 +277,7 @@ The instrument stays a **duration** dial (ADR-0041's choice, kept); only the **d
 unbounded to bounded, because verbatim bytes are the volume problem on exactly the address-scope
 installs that motivated retention. Existing dials for reference: `observation_currency_days` and
 `dispatch_cadence_multiple`, both `DEFAULT 0` where `0 == unbounded`
-(`db/migrations/20600_channels_and_retention.sql:49-59`).
+(the `retention_settings` table, `db/migrations/20600_channels_and_retention.sql`).
 
 ---
 
@@ -288,10 +293,10 @@ All three are stored verbatim, sit behind the same admin gate (§5.2), and are e
 2. **the sent scope (stdin)** — carries the exact `JobSpec`, which can hold credentials for
    credentialed sources.
 3. **pre-gate stdout** — the prober transcript captures stdout **before** the #773 scope re-gate
-   (`worker.go:361`), so it can hold lines for subjects the Observation corpus dropped, including
-   out-of-scope bytes a compromised prober injects (`internal/queue/scopegate.go`). Kept verbatim,
-   because it is the **most valuable evidence** for debugging a misbehaving or compromised prober;
-   dropping it would defeat the corpus.
+   (`complete`'s `parseAuthorizedScope` gate, `worker.go`), so it can hold lines for subjects the
+   Observation corpus dropped, including out-of-scope bytes a compromised prober injects
+   (`internal/queue/scopegate.go`). Kept verbatim, because it is the **most valuable evidence**
+   for debugging a misbehaving or compromised prober; dropping it would defeat the corpus.
 
 **Scoped** ([#1321](https://github.com/winniel123/verge-asm/issues/1321) §3, 2026-09-05): three
 is the count of **credential-bearing** surfaces, not of everything the corpus stores. The sealing
@@ -304,12 +309,13 @@ See the scope clause in
 ### 5.2 Access model — admin-only
 
 Raw `Transcript` output is readable by **`admin` accounts only**. Reuse the existing `requireAdmin`
-gate (`cmd/web/auth.go:109`). This raises the gate above today's run/job log, which any authenticated
-account — `admin` or `viewer` — can read (`requireLogin`, `cmd/web/handlers.go:723-738`).
+gate (`cmd/web/auth.go`). This raises the gate above today's run/job log, which any authenticated
+account — `admin` or `viewer` — can read (`requireLogin` on the `GET /runs/{id}` route,
+`cmd/web/handlers.go`).
 
 `viewer` accounts **lose** the raw-output visibility they have for the state-derived log today. This
 is an **intentional escalation** — the `Transcript` can carry secrets the state-derived log cannot.
-No new capability and no new role; the two-role model (`admin`/`viewer`, `auth.go:138-141`) is
+No new capability and no new role; the two-role model (`roleAdmin`/`roleViewer`, `auth.go`) is
 unchanged. `[derived]` A dedicated capability was rejected as over-engineering for a two-role app with
 no capability system.
 
@@ -340,7 +346,7 @@ Controls: admin-only read (`requireAdmin`), encrypted at rest (instance key on s
 never in DB or backup), excluded from backups. Accepted gaps carried forward:
 
 1. **Reads are unaudited.** `[thin]` Any admin can read any `Transcript` with no trail. The audit
-   facility is a repo-wide stub (`fillAuditSection` returns nil, `cmd/web/settings.go:968-976`) and
+   facility is a repo-wide stub (`fillAuditSection` returns nil, `cmd/web/settings.go`) and
    stays deferred. **No audit-of-reads in v1.**
 2. **Pre-gate stdout is stored verbatim** and is attacker-influenceable. Safe rendering
    (escape-on-render) is §6.4.

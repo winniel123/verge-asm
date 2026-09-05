@@ -67,7 +67,7 @@ func (j CTJob) AttemptedScope() ([]byte, error) {
 }
 
 func EmptyCTScope() ([]byte, error) {
-	// A failed fetch of an append-only source asserts no absence (ADR-0005, ADR-0027 §7).
+	// A failed fetch of an append-only source asserts no absence (ADR-0005).
 	return json.Marshal(ctScopeRecord{})
 }
 
@@ -96,7 +96,7 @@ type CrtshRow struct {
 }
 
 func ParseCrtshRows(body []byte) ([]CrtshRow, error) {
-	// A malformed 200 evidences nothing, so an unreadable body errors, never empty (ADR-0027 §7).
+	// A malformed 200 evidences nothing, never an empty set (passive-discovery-sources.md §7).
 	trimmed := strings.TrimSpace(string(body))
 	if trimmed == "" {
 		return nil, fmt.Errorf("scan: empty crt.sh body")

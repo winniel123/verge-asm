@@ -10,10 +10,27 @@
 ## Context
 
 This ADR transcribes a **standing binding ruling** (design side, 2026-08-24, drift-audit
-ruling **#31**, `design-system/SPEC-CHANGE.md`) and the operator's explicit direction to build
+ruling **#31**, ~~`design-system/SPEC-CHANGE.md`~~) and the operator's explicit direction to build
 the full engine. It does **not re-decide** whether report schedules honour the clock — that is
 ruled. It scopes the supersession and records the reconciliation with the ADRs the prior design
 cited.
+
+> **The struck citation is WITHDRAWN at the site that states it, 2026-08-28 by `55aa367` /
+> [#1413](https://github.com/winniel123/verge-asm/issues/1413)
+> ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).**
+> That commit retired the design-system handoff workflow and deleted
+> `design-system/SPEC-CHANGE.md`.
+> [ADR-0116](./0116-the-design-package-is-normative-for-look-and-functionality.md) withdrew the
+> collision protocol that filed ruling **#31**. The token `SPEC-CHANGE #31` resolves to nothing.
+> No reader can read the ruling text, here or anywhere.
+>
+> **What this Decision rests on now.** Four grounds, none of them the deleted file. §1 argues the
+> ADR-0091 and ADR-0039 reconciliation from those two ADRs directly. §6 states the
+> refuse-at-authoring clause in full and grounds it in the wizard's own gate.
+> [ADR-0118](./0118-report-scheduling-dispatches-on-a-computable-window-and-the-receipt-is-its-own-dispatch-record.md)
+> wrote its own reopening condition, quoted below, and this ADR is that reopening. The operator
+> directed the full build. What the deleted file held was the ruling's wording. No clause of this
+> Decision depends on it.
 
 `report_schedule` (migration 21700) stores a **cadence** as a free-text label: a preset from the
 wizard's CadenceSelect (`every 6h`, `daily · 08:00`, `weekly · mon 09:00`, `monthly · 1st`) or,
@@ -150,14 +167,15 @@ wrong default.
   its partial index are unchanged.
 - **The mis-citation is corrected.** `cadence.go` and its test cited ADR-0117 (sessions) for the
   no-cron doctrine. Those comments now cite this ADR and ADR-0118.
-- **UI is unchanged.** No template moves (SPEC-CHANGE #31 is backend + docs). The wizard renders
+- **UI is unchanged.** No template moves (~~SPEC-CHANGE #31~~ is backend + docs — a dead token,
+  withdrawn in Context above). The wizard renders
   exactly as before — the refusal reuses the existing per-step gate.
 
 ## Alternatives rejected
 
 | Alternative | Why not |
 | --- | --- |
-| Keep ADR-0118's epoch floor / weekly-bucket | The bug this ticket fixes: `daily · 08:00` fires at ≈00:00 and every Custom cron fires weekly, contradicting the wizard the operator filled in. Ruling #31 and ADR-0118's own reopening condition retire it |
+| Keep ADR-0118's epoch floor / weekly-bucket | The bug this ticket fixes: `daily · 08:00` fires at ≈00:00 and every Custom cron fires weekly, contradicting the wizard the operator filled in. ~~Ruling #31~~ (a dead token, withdrawn in Context above) and ADR-0118's own reopening condition retire it; the reopening condition carries the row on its own |
 | Normalise the cadence into columns (kind/min/hour/dow/cron_expr/tz) via a migration | Available and reasonable, but the `cadence TEXT` label already encodes everything deterministically; a migration + backfill buys no correctness here and adds schema surface. Parse-per-tick is stateless and cheaper. (If a per-schedule timezone is ever modelled, that is the migration to revisit) |
 | Adopt a third-party cron library (e.g. robfig/cron) | A dependency for a 5-field parser the tree can carry itself; the queue dispatcher is dependency-free and this matches it. A vetted library would be a fine later swap, noted rather than taken |
 | Silently default an invalid Custom cron to weekly | The thing the ruling forbids ("not silently weekly-defaulted"): it files a schedule that fires at a time the operator never chose. Refused at authoring instead |

@@ -1,5 +1,5 @@
 // Cert Spotter is the operator-keyed bulk-by-name CT primary (ct-source-replacement.md §2).
-// Its authenticated tier clears the consent bar; its unauthenticated tier did not (ADR-0003, §2.2).
+// Only the keyed tier clears the consent bar (ADR-0003, ct-source-replacement.md §2.2).
 // The API key is worker-only (ADR-0053), so the credentialed fetch stays in internal/queue.
 package scan
 

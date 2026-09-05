@@ -69,6 +69,7 @@ type rawComment struct {
 	ownLine   bool
 	directive bool
 	waiver    bool
+	field     bool
 }
 
 func assembleBlocks(lang Lang, src []byte, comments []rawComment) (blocks, trailing []Block) {
@@ -113,6 +114,7 @@ func block(lang Lang, c rawComment) Block {
 		EndLine:   c.endLine,
 		Text:      c.text,
 		Directive: c.directive,
+		DTSField:  c.field,
 	}
 }
 

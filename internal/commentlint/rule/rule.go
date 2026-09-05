@@ -31,6 +31,7 @@ const (
 	ChangeNarration               Class = "change-narration"
 	StepNarration                 Class = "step-narration"
 	ShortLabel                    Class = "short-label"
+	DTSFieldProse                 Class = "dts-field-prose"
 	ProseOther                    Class = "prose-other"
 )
 
@@ -90,6 +91,9 @@ func Classify(b surface.Block) Class {
 		return ChangeNarration
 	case screen.HasLooseNarration(payload):
 		return StepNarration
+	case b.DTSField:
+		// A `.d.ts` field doc is the interface, not a comment on code, so §4.3 keeps it (#1406).
+		return DTSFieldProse
 	case b.Lines() == 1 && len(strings.Fields(payload)) <= shortLabelWords:
 		return ShortLabel
 	}

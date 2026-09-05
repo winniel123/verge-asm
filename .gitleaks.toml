@@ -1,12 +1,12 @@
 # gitleaks config — verge-asm.
 #
-# Extends gitleaks' default ruleset (unchanged behaviour) and adds ONE narrow,
-# value-scoped allowlist for the design-owned deterministic TOTP-enrolment
-# fixture secret. This value exists only so the SignIn `enroll` parity golden is
-# byte-stable; the real enrolment path mints secrets via crypto/rand and is
-# untouched (design-system/verify/WORK-ORDER-4-6-BATCH1.md; SPEC-CHANGE #19b).
+# Extends gitleaks' default ruleset (unchanged behaviour) and adds a narrow,
+# value-scoped allowlist for two design-owned fixture literals. Neither is a live
+# credential. ADR-0166 §2 rules that a value pinned under VERGE_DEV is not a secret,
+# because it authorises nothing outside the fixture database (ADR-0053), and ADR-0167
+# rules design-system/fixtures/fixtures.json a pinned corpus no live path reads.
 #
-# Scoped to the exact literal, not to a file or path, so any OTHER secret — even
+# Scoped to the exact literals, not to a file or path, so any OTHER secret — even
 # in design-system/fixtures/fixtures.json or cmd/web/devfixtures.go — still trips
 # the scan. This preserves the fingerprint-exact posture set in the 2026-08-23
 # security audit (map #320, see .gitleaksignore) while being robust to the
@@ -17,5 +17,5 @@ title = "verge-asm"
 useDefault = true
 
 [allowlist]
-description = "Value-scoped false-positive allowlist. Each entry is an exact fixture literal, not a path — any OTHER secret still trips. (1) The design-owned deterministic TOTP-enrol fixture secret (SignIn `enroll` parity golden stability; real enrolment mints via crypto/rand — SPEC-CHANGE #19b). (2) The batch-4 AssetDetail fixture subject key `edge-gw-03.acmecorp.io` and its endpoint/copy-key forms — a domain identifier gitleaks' generic-api-key rule flags on the `key = \"...\"` keyword+entropy heuristic (design-system/fixtures/fixtures.json + cmd/web/devfixtures.go; batch 4, map #579). Neither is a live credential; both are value-scoped so they survive squash-merge where a commit-fingerprint entry would not."
+description = "Value-scoped false-positive allowlist. Each entry is an exact fixture literal, not a path — any OTHER secret still trips. (1) The deterministic TOTP-enrolment fixture secret: `devFixtureEnrollSecret` in cmd/web/devfixtures.go, `enroll_secret` in design-system/fixtures/fixtures.json, and the CopyValue in design-system/examples/console/SignIn.jsx. It is substituted only under VERGE_DEV; the live enrolment path mints through auth.NewTOTPSecret, which reads crypto/rand. ADR-0166 §2 rules a pin of this kind not a secret, which is why it carries #nosec G101 rather than a rotation procedure. (2) The AssetDetail/SubjectDetail fixture subject `edge-gw-03.acmecorp.io` and its endpoint/copy-key forms: `devAssetKey` and `devEndpointKey` in cmd/web/devfixtures.go, and the `key` and `copy_key` members of design-system/fixtures/fixtures.json. It is a hostname gitleaks' generic-api-key rule flags on the `key` keyword plus entropy, and an authored figure in the pinned design corpus ADR-0167 governs — not a credential (batch 4, map #579). Both are value-scoped so they survive squash-merge where a commit-fingerprint entry would not."
 regexes = ['''VG7K-2Q9X-8MRD-P3TL''', '''edge-gw-03\.acmecorp\.io''']

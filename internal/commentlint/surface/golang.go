@@ -14,7 +14,8 @@ type Go struct{}
 
 var goWaiverPrefixes = []string{"// #nosec", "//#nosec"}
 
-var goDirectivePrefixes = append([]string{"//go:", "// +build", "//nolint", "//lint:", "//revive:"}, goWaiverPrefixes...)
+var goDirectivePrefixes = append([]string{"//go:", "// +build", "//nolint", "//lint:", "//revive:"},
+	goWaiverPrefixes...)
 
 var goConstraintPrefixes = []string{"//go:build", "// +build"}
 
@@ -70,7 +71,7 @@ func goScan(src []byte) ([]rawComment, []Token, error) {
 				directive: goDirective(lit),
 				waiver:    goWaiver(lit),
 			}
-			// go/scanner strips a literal's carriage returns, so its length is not the range (#1133).
+			// go/scanner strips carriage returns, so a literal's length is not its range (#1133).
 			c.end = goCommentEnd(src, c.start)
 			c.text = string(src[c.start:c.end])
 			c.endLine = line + strings.Count(c.text, "\n")
@@ -83,7 +84,7 @@ func goScan(src []byte) ([]rawComment, []Token, error) {
 			if c.directive {
 				skeleton = append(skeleton, Token{Kind: tok.String(), Text: lit, Line: line})
 			}
-			// A build constraint binds only above a blank line, so that line is directive (SPEC §5.1).
+			// A build constraint binds only above a blank line, so that line is directive (§5.1).
 			if goConstraint(lit) && blankLineFollows(src, c.end) {
 				skeleton = append(skeleton, Token{Kind: BlankLine, Line: c.endLine + 1})
 			}
@@ -221,7 +222,7 @@ func firstName(names []*ast.Ident) string {
 
 func spansHold(spans []span, start int) (span, bool) {
 	for _, s := range spans {
-		// go/ast ends a group from the CR-stripped literal, so only the start offset compares (#1133).
+		// go/ast ends a group from the CR-stripped literal, so only start offsets compare (#1133).
 		if start >= s.start && start < s.end {
 			return s, true
 		}

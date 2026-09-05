@@ -9,7 +9,7 @@ import (
 	"encoding/json"
 )
 
-const Version = "http-exchange/v2" // moves only with a moved golden row (ADR-0021 §4.4)
+const Version = "http-exchange/v2" // moves only with a moved golden row (ADR-0021)
 
 const Kind = "http-exchange"
 

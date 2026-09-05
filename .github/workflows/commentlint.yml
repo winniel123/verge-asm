@@ -31,6 +31,8 @@ env:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    # ADVISORY. The job never fails the workflow or blocks a merge. Promotion to a
+    # required check waits on the sweep's false-positive rate (SPEC §6.9, §10).
     continue-on-error: true
     steps:
       - name: Check out the head commit with the history the merge base needs

@@ -20,6 +20,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/message"
 	"github.com/winniel123/verge-asm/internal/seed"
+	"github.com/winniel123/verge-asm/internal/signal"
 )
 
 // Fabricating a live datum to stand in for a curated fixture ships an approximation as fact.
@@ -1552,8 +1553,8 @@ func devServiceData() servicePageData {
 			},
 		}},
 		Rules: []subjectRule{
-			{Rule: "vnc-exposure", Version: "3", Severity: "critical", SevLabel: "Critical", Fired: true},
-			{Rule: "tls-acceptance", Version: "2", Severity: "high", SevLabel: "High", Fired: false},
+			{Rule: "vnc-exposure", Version: "3", Severity: "critical", SevLabel: "Critical", Verdict: signal.Fired},
+			{Rule: "tls-acceptance", Version: "2", Severity: "high", SevLabel: "High", Verdict: signal.NotFired},
 		},
 		Provenance: []assetKV{
 			{K: "Seed", V: "acmecorp.io"},
@@ -1596,7 +1597,7 @@ func devServiceWithdrawnData() servicePageData {
 			},
 		}},
 		Rules: []subjectRule{
-			{Rule: "admin-panel-reachable", Version: "1", Severity: "high", SevLabel: "High", Fired: false},
+			{Rule: "admin-panel-reachable", Version: "1", Severity: "high", SevLabel: "High", Verdict: signal.NotFired},
 		},
 		Provenance: []assetKV{
 			{K: "Seed", V: "acmecorp.io"},
@@ -1640,8 +1641,8 @@ func devEndpointData() endpointPageData {
 			},
 		}},
 		Rules: []subjectRule{
-			{Rule: "admin-panel-reachable", Version: "1", Severity: "high", SevLabel: "High", Fired: false},
-			{Rule: "verbose-server-header", Version: "2", Severity: "low", SevLabel: "Low", Fired: true},
+			{Rule: "admin-panel-reachable", Version: "1", Severity: "high", SevLabel: "High", Verdict: signal.NotFired},
+			{Rule: "verbose-server-header", Version: "2", Severity: "low", SevLabel: "Low", Verdict: signal.Fired},
 		},
 		Provenance: []assetKV{
 			{K: "Seed", V: "acmecorp.io"},

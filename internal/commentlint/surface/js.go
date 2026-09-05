@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-type JS struct{}
+type JS struct{ Path string }
 
 var jsDirectiveMarkers = []string{
 	"eslint", "@ts-check", "@ts-expect-error", "prettier-ignore", "c8 ignore", "@jsx",
@@ -30,12 +30,16 @@ var jsRegexKeywords = map[string]bool{
 
 type jsScan struct {
 	byteScan
+	nextTok []int
 }
 
-func (JS) Lex(src []byte) (Result, error) {
-	s := &jsScan{byteScan{src: src, line: 1}}
+func (j JS) Lex(src []byte) (Result, error) {
+	s := &jsScan{byteScan: byteScan{src: src, line: 1}}
 	if err := s.run(); err != nil {
 		return Result{}, err
+	}
+	if declarationFile(j.Path) {
+		markDTSFields(s.comments, s.nextTok, s.skeleton)
 	}
 	blocks, trailing := assembleBlocks(LangJS, src, s.comments)
 	return Result{Blocks: blocks, Trailing: trailing, Skeleton: s.skeleton}, nil
@@ -149,6 +153,7 @@ func (s *jsScan) addComment(start, end, startLine, endLine int, style Style) {
 	if glued(s.src, start, end) {
 		s.skeleton = append(s.skeleton, Token{Kind: Glue, Line: startLine})
 	}
+	s.nextTok = append(s.nextTok, len(s.skeleton))
 }
 
 func (s *jsScan) regexAllowed() bool {
