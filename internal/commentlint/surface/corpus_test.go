@@ -78,6 +78,7 @@ func TestTmplCorpusLexes(t *testing.T) {
 
 func TestTmplByteRangeDeleteHoldsAcrossTheCorpus(t *testing.T) {
 	// §5.4 measured the byte-range delete at 24 of 24 and the whole-line delete at 0 of 24 (#1142).
+	measured := 0
 	for _, rel := range corpusGuard(t, inScopeFiles(t, ".tmpl"), minTmplFiles) {
 		src, err := os.ReadFile(filepath.Join(repoRoot, rel))
 		if err != nil {
@@ -89,9 +90,10 @@ func TestTmplByteRangeDeleteHoldsAcrossTheCorpus(t *testing.T) {
 			continue
 		}
 		if len(base.Blocks) == 0 {
-			t.Errorf("%s: the corpus file carries no own-line comment", rel)
+			// The stage-D3 sweep emptied most templates, so a comment-free one measures nothing (#1236).
 			continue
 		}
+		measured++
 		all := append(append([]Block(nil), base.Blocks...), base.Trailing...)
 		cut, err := Tmpl{}.Lex(TmplCut(src, all))
 		if err != nil {
@@ -105,6 +107,9 @@ func TestTmplByteRangeDeleteHoldsAcrossTheCorpus(t *testing.T) {
 		if err == nil && sameSkeleton(base.Skeleton, lines.Skeleton) {
 			t.Errorf("%s: the whole-line delete held, and §5.4 measured it failing", rel)
 		}
+	}
+	if measured == 0 {
+		t.Fatal("no .tmpl file carried a comment, so the byte-range delete went unmeasured")
 	}
 }
 
