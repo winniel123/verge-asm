@@ -1,7 +1,7 @@
 import React from "react";
 
 export function Card({ microLabel, title, action, children, footer, pad = 20, overflow, style }) {
-  const ov = overflow || (pad === 0 ? "hidden" : "visible"); // flush tables need clipping for rounded corners; padded cards must not clip menus/selects
+  const ov = overflow || (pad === 0 ? "hidden" : "visible");
   return (
     <section style={{ background: "var(--surface)", border: "1px solid var(--border-default)", borderRadius: 16, boxShadow: "var(--shadow-sm)", display: "flex", flexDirection: "column", overflow: ov, ...style }}>
       {(microLabel || title || action) && (
