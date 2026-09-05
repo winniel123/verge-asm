@@ -1,7 +1,7 @@
 package signal
 
-// A property of the rule, identical for every instance it raises, and never of the subject (P0.1).
-// A re-rating stays out of the version vector, so censuses stay comparable (ADR-0185 §1).
+// A property of the rule, identical for every instance it raises, and never of the subject.
+// A re-rating stays out of the version vector, so censuses stay comparable.
 
 type Severity string
 

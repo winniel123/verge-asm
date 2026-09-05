@@ -1861,12 +1861,13 @@ gh pr checks <pr> | grep -E '^(lint|verify)\b'
 ```
 
 Read the word, not the colour. GitHub's check mosaic renders a skipped job the same shade as a passed
-one. The command can report four states, and only the first is done:
+one. The command can report five states, and only the first is done:
 
 | `verify` row | Meaning | What the session does |
 | --- | --- | --- |
 | `pass` | The job ran and the equivalence held. | Condition 1 is met. |
 | `skipping` | The label was not on the PR when the workflow last fired. | Add or re-add `sweep:comments`. The `labeled` trigger (§6.9) fires a fresh run. |
+| `fail` | The job ran and found a non-comment byte moved. | Read the named files. On a sweep PR this is a real over-deletion. On a PR that is not a sweep PR, the label is wrong: remove it. |
 | `pending` | The run is still in flight. | Wait, then read again. |
 | *no row at all* | No commentlint run completed. It was cancelled (§6.9), or no in-scope path changed. | Re-add the label to force a run. A sweep PR with no in-scope path is not a sweep PR. |
 

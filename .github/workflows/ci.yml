@@ -28,6 +28,18 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version: ${{ env.GO_VERSION }}
+      - name: gofmt
+        run: |
+          # `gofmt -l` exits 0 whether or not it names a file, so the output is
+          # the signal (#1311). The step lives in `test` because that job is a
+          # required status check, and a required check is a repository-settings
+          # change no pull request can make. A separate job would be advisory.
+          out=$(gofmt -l .)
+          if [ -n "$out" ]; then
+            echo "::error::these files are not gofmt-formatted:"
+            echo "$out"
+            exit 1
+          fi
       - run: go vet ./...
       - run: go test ./...
 

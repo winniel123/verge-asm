@@ -95,8 +95,6 @@ func (s *sqlScan) lineComment() {
 		ownLine:   s.lastCode != s.line,
 		directive: directive,
 	})
-	// §5.1 keeps a protected directive in the skeleton, which turns ruling 10
-	// into an enforced property.
 	if directive {
 		s.skeleton = append(s.skeleton, Token{Kind: SQLDirective, Text: text, Line: s.line})
 	}

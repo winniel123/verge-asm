@@ -12,7 +12,7 @@ const keyFile = "session.key"
 const keyLen = 32
 
 func LoadOrCreateKey(dir string) ([]byte, error) {
-	// Never in Postgres: a dump discloses no key and a restore rotates none (v1 spec §4.3).
+	// Never in Postgres: a dump discloses no key and a restore rotates none (ADR-0053).
 	path := filepath.Join(dir, keyFile)
 
 	key, err := os.ReadFile(path) // #nosec G304 (session-key file: constant basename under operator-configured state dir, not request input)

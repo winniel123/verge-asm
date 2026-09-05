@@ -81,9 +81,19 @@ The dev machine is Ubuntu Server 24.04 LTS (x86_64). It replaced a Windows machi
 - **Go 1.26.8.** Install it from the go.dev tarball into `~/.local/go`, and put `~/.local/go/bin` on `PATH`. The `golang-go` apt package is 1.22 and too old. `go.mod` pins `go 1.26.8` and has no `toolchain` line. Do not use 1.27-only features.
 - **Docker with the Compose plugin.** `docker.io`, `docker-buildx` and `docker-compose-v2` come from apt. The user must be in the `docker` group.
 - **sqlc 1.31.1.** Do not install it. Run `go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1 generate`.
-- **Node 20.** Only `docs-site/` and the `doclint` job need it. The apt package is 18, so use nvm or NodeSource. No required check needs Node.
+- **Node 22.12.0 or newer.** `docs-site/package.json` pins `astro ^7.2.4`, and Astro 7 declares `engines.node` of `>=22.12.0`. `docs-site/package.json` declares the same floor, so a wrong Node names its own cause. Only `docs-site/` and the `doclint` and `commentlint` jobs need Node at all. The apt package is 18, so use nvm or NodeSource. No required check needs Node.
+- **Node 20 stays correct for CI.** The `doclint` and `commentlint` workflows pin `node-version: 20`. Their suites are plain Node. The `docs-site` workflow builds inside a Playwright container. That container supplies its own Node above the Astro floor.
 
 Run `go version` before you trust the toolchain. A missing `go` means the setup above is incomplete.
+
+### Building docs-site locally
+
+This machine holds one Node, v20.20.2, under `~/.nvm/versions/node/`. `node` is off `PATH` by default. Node 20 is under the Astro floor, so `astro build` and `npm run build` fail here. Treat an Astro build as CI-only until someone installs Node 22.12.0 or newer.
+
+Two commands substitute for it when you need a local behaviour gate on `docs-site/`:
+
+- `npm run test:doclint` runs `node --test scripts/doclint.test.mjs`. That suite is plain Node and passes under Node 20.
+- An `esbuild --minify` byte comparison of each touched JS file, taken before and after the edit, gates a comment sweep. `esbuild` lives in `docs-site/node_modules/.bin/`.
 
 ### Running the checks
 
@@ -112,7 +122,7 @@ The compose stack needs a `.env` file. Copy `.env.example` and set `POSTGRES_PAS
 
 `.gitattributes` is `* text=auto`. Linux checks every file out LF, so the CRLF traps are gone:
 
-- **gofmt** is trustworthy again. `gofmt -l` no longer flags almost every file.
+- **gofmt** is trustworthy again. `gofmt -l` no longer flags almost every file. CI now gates it: the `test` job fails when `gofmt -l .` names a file (#1311). `test` is a required check, so an unformatted file blocks the merge.
 - **sqlc regen** no longer rewrites line endings. `git status` after `sqlc generate` shows only the files that really changed. The `git diff --numstat` workaround is no longer needed.
 - **Golden corpus tests** should pass. The CRLF golden was the cause, and it is gone. This covers `internal/measure/*/corpus` and `internal/custody/corpus`. Confirm it on the first `go test ./...` after you install Go. Treat a failure as a real regression.
 - `internal/auth/TestLoadOrCreateKey` and `cmd/worker/TestExecProbeRoundTrip` failed under the retired native-Windows setup. Treat a failure in either as a real regression now.

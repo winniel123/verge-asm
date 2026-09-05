@@ -82,11 +82,11 @@ func runStrip(args []string, stdout, stderr io.Writer) int {
 
 	if *write {
 		// A later run replaces the manifest, so the path is printed and a sweep names its own.
-		fmt.Fprintf(stdout, "commentlint strip: deleted %d block(s) in %d file(s), %d block(s) of residue in %s\n",
+		fmt.Fprintf(stderr, "commentlint strip: deleted %d block(s) in %d file(s), %d block(s) of residue in %s\n",
 			deleted, changed, len(residue), *manifest)
 		return 0
 	}
-	fmt.Fprintf(stdout, "commentlint strip: would delete %d block(s) in %d file(s), %d block(s) of residue\n",
+	fmt.Fprintf(stderr, "commentlint strip: would delete %d block(s) in %d file(s), %d block(s) of residue\n",
 		deleted, changed, len(residue))
 	return 0
 }

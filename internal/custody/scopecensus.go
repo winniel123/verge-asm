@@ -4,7 +4,7 @@ import "net/netip"
 
 // A measurement contradicting a declaration, held and not shown, fails silently (ADR-0013, #989).
 
-type AddressScopeCensusEntry struct { // display only: no gate may read it (ADR-0129 §5)
+type AddressScopeCensusEntry struct { // display only: no gate may read it (ADR-0129 #956)
 	Scope       netip.Prefix
 	SharedEdges int // a count of the operator's addresses, never the threshold (ADR-0013's nag test)
 }
@@ -32,7 +32,7 @@ func (e Estate) AddressScopeCensus() []AddressScopeCensusEntry {
 		if e.AddressExcluded(addr) {
 			continue // the remedy the row names, taken — filtered on READ, pruned never
 		}
-		// Both overlapping scopes count it: the remedy is declared per scope (ADR-0129 §5).
+		// Both overlapping scopes count it: the remedy is declared per scope (ADR-0129 #956).
 		for _, p := range scopes {
 			if p.Contains(addr) {
 				counts[p]++

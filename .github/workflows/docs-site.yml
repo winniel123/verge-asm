@@ -3,8 +3,8 @@ name: docs-site
 # Docs website lane (Wayfinder #355 / map #348). Separate from the Go app lane in
 # ci.yml — it never touches Go, and the Go lane never touches this. It builds the
 # multi-version Astro site in docs-site/, runs the broken-link + screenshot gates as
-# REQUIRED blocking checks, and (on push, not PR) deploys the static site to GitHub
-# Pages with a `/` -> /latest/ redirect.
+# blocking steps, and (on push, not PR) deploys the static site to GitHub Pages with a
+# `/` -> /latest/ redirect.
 #
 # TRIGGERS
 #   • push to main .......... rebuild + deploy (site follows the moving `dev` version)
@@ -49,8 +49,9 @@ defaults:
     working-directory: docs-site
 
 jobs:
-  # Build + gates. Runs on every trigger (PRs included). Every step here is
-  # blocking: a non-zero exit fails the job, so both gates are required checks.
+  # Build + gates. Runs on every trigger (PRs included). Every step here is blocking: a
+  # non-zero exit fails the job. The job is not among the 7 required status checks in the
+  # `main` ruleset, so a red run does not block a merge (#1395).
   build:
     runs-on: ubuntu-latest
     # Per-ref group so concurrent PRs don't starve each other; a newer push to the
@@ -75,9 +76,9 @@ jobs:
     container:
       image: mcr.microsoft.com/playwright:v1.62.1-noble
     steps:
-      # fetch-depth: 0 is LOAD-BEARING. source-resolution.ts enumerates versions
-      # from git refs/tags; a shallow clone has no tags, so the build would silently
-      # emit a single-version site. Full history + tags is required.
+      # fetch-depth: 0 is LOAD-BEARING. source-resolution.ts and the broken-link gate
+      # enumerate versions from git refs/tags; a shallow clone has no tags, so the build
+      # would silently emit a single-version site. Full history + tags is required.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
@@ -89,12 +90,15 @@ jobs:
       - name: Build site
         run: npm run build
 
-      # REQUIRED GATE 1 — broken internal links/anchors. Exits non-zero with
-      # `file:line -> target` on any dead link; fails the job.
+      - name: Broken-link gate tests
+        run: node --test scripts/check-links.test.mjs
+
+      # GATE 1 — broken internal links/anchors, one pass per published version. Exits
+      # non-zero with `[version] file:line -> target` on any dead link; fails the job.
       - name: Broken-link gate
         run: npm run check:links
 
-      # REQUIRED GATE 2 — design-drift screenshot check. Renders a built docs page in
+      # GATE 2 — design-drift screenshot check. Renders a built docs page in
       # the image's chromium and pixel-diffs it against the committed baseline; fails
       # on layout/spacing/hierarchy drift beyond threshold.
       - name: Screenshot gate

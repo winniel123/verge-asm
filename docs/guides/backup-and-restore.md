@@ -50,7 +50,7 @@ shell. Both are admin-only. The design decision behind them is
 [ADR-0124](../adr/0124-a-backup-carries-data-and-no-secret-and-updating-is-guided-not-self-applied.md).
 The export lives in [`cmd/web/backup.go`](../../cmd/web/backup.go).
 
-### What the backup is — the estate and config, at `pgdata`'s leak posture
+### What the backup is — the estate and config, below `pgdata`'s leak posture
 
 The download is a **logical dump of the business tables** — the estate and its
 configuration — written in Go straight over the pool `web` already holds (the
@@ -71,9 +71,14 @@ a live foothold:
   purely transient or short-lived (`password_reset`, `recovery_code`, `invite`,
   `heartbeat`, the CT-log throttle bucket, and the in-flight scan queue). Their rows
   would be meaningless — or actively harmful phantoms — after a restore, so the
-  archive omits them. The exclusion is an **export invariant**, not an accident:
-  the dump reads only an explicit table allowlist, so a future table is never swept
-  in by a "dump everything" default.
+  archive omits them.
+- **The `transcript` table is excluded too**, for a different reason. Raw job output is
+  stored as ciphertext under a key the archive does not carry, so a fresh restore could
+  not read it back. Transcripts expire on their own retention dial, and they do not
+  travel with a backup.
+- The exclusion is an **export invariant**, not an accident: the dump reads only an
+  explicit table allowlist, so a future table is never swept in by a "dump everything"
+  default.
 
 Two per-row credentials the database holds in **cleartext** are **redacted** out of the
 archive, and each is written as a JSON `null`
@@ -165,9 +170,10 @@ path for disaster recovery and the [pre-upgrade drill](#the-pre-upgrade-backup-d
 
 ### Backing up `pgdata`
 
-The database holds no secret ([running.md → Where secrets live](running.md#where-secrets-live)),
-but it holds everything else. Take a logical dump with `pg_dump` inside the
-running `postgres` container. It is transactionally consistent without stopping
+The database holds no minted key ([running.md → Where secrets live](running.md#where-secrets-live)),
+but it holds everything else — including the two cleartext credentials the in-app
+archive redacts, which a `pg_dump` carries in full. Take a logical dump with `pg_dump`
+inside the running `postgres` container. It is transactionally consistent without stopping
 the stack, so `web` and `worker` keep serving while it runs.
 
 ```sh

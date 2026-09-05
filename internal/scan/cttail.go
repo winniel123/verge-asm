@@ -22,8 +22,8 @@ const CTTailKind = "ct-tail"
 
 const CTTailSource = "ct-tail" // must equal the source-catalogue slug, not the Scan kind above (ADR-0189 §1, §5)
 
-// Embedded rather than fetched live, so the log set is deterministic and needs no network (ADR-0190 §2).
-// Each log's public key is stripped: no signature is verified here, so it is unused weight (ADR-0190 §5).
+// Embedded rather than fetched live, so the log set is deterministic and needs no network.
+// Each log's public key is stripped: no signature is verified here, so it is unused weight.
 // Stripping the keys also keeps this file out of a secret scanner's generic-key heuristic.
 
 //go:embed log_list.json

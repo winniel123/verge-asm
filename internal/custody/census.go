@@ -2,7 +2,7 @@ package custody
 
 import "net/netip"
 
-// There is no reached state — a reached edge is an ordinary covered address (ADR-0129 §5).
+// There is no reached state — a reached edge is an ordinary covered address (ADR-0129 #944).
 
 type ExtensionState string
 

@@ -34,8 +34,7 @@ func (s *byteScan) space(c byte) bool {
 }
 
 func (s *byteScan) emit(kind, text string, line int) {
-	// A comment sharing a code line is trailing, and §3.4 holds that
-	// population apart.
+	// A comment sharing a code line is trailing, and §3.4 holds that population apart.
 	for k := len(s.comments) - 1; k >= 0 && s.comments[k].endLine == line; k-- {
 		s.comments[k].ownLine = false
 	}
@@ -77,8 +76,7 @@ func assembleBlocks(lang Lang, src []byte, comments []rawComment) (blocks, trail
 	for _, c := range comments {
 		if !c.ownLine {
 			open = -1
-			// §3.4 holds the trailing population apart from the own-line one,
-			// so no mechanical pass can reach it by walking Blocks.
+			// §3.4 holds trailing apart, so no mechanical pass reaches it by walking Blocks.
 			trailing = append(trailing, block(lang, c))
 			continue
 		}
@@ -94,8 +92,7 @@ func assembleBlocks(lang Lang, src []byte, comments []rawComment) (blocks, trail
 		b.WaiverTail = !c.directive && c.style == StyleLine && waiverEnd+1 == c.startLine
 		blocks = append(blocks, b)
 		open = len(blocks) - 1
-		// §6.2 gives a protected directive its own block, so it never absorbs
-		// the prose beneath it.
+		// §6.2 gives a protected directive its own block, so it never absorbs the prose beneath it.
 		if c.directive || c.style == StyleBlock {
 			open = -1
 		}

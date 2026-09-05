@@ -146,12 +146,12 @@ A non-admin `POST` is refused with `403`. An anonymous one is redirected to `/lo
 
 ## An integration is not a delivery channel
 
-This is the distinction to keep, and the code is **explicit** about it. From
-[`cmd/web/integrations.go`](../../cmd/web/integrations.go):
-
-> An integration is a third-party install tile, **NEVER a delivery channel** (which
-> carries messages) and **NEVER a discovery source** (which observes): the word stays
-> distinct.
+This is the distinction to keep. An integration is a third-party install tile. It is
+**never a delivery channel**, which carries messages, and **never a discovery source**,
+which observes. The rule lives in [`CONTEXT.md`](../../CONTEXT.md). Its `Source` entry and
+its `Channel` entry each list *integration* under `_Avoid_`. The same rule sits in
+[`cmd/web/integrations.go`](../../cmd/web/integrations.go), beside the install-state
+constants.
 
 The `integration_state` migration says the same, and adds *why* it keeps its own table:
 

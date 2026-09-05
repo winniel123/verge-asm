@@ -1081,8 +1081,8 @@ func certDetailsFromValue(v certificateValue, now time.Time, serverName string) 
 }
 
 func selfSignedOf(subject, issuer string, selfSigVerifies bool) bool {
-	// Shared so the two rules cannot disagree (docs/research/weak-key-and-signature.md §4.1).
-	// Byte-exact on the presented rendering; RFC 5280 §7.1 preparation is refused (ADR-0175 §1, #1342).
+	// Shared so the two rules cannot disagree.
+	// Byte-exact on the presented rendering. RFC 5280 name preparation is refused.
 	return subject == issuer && selfSigVerifies
 }
 

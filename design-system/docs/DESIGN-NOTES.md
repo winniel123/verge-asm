@@ -1,6 +1,6 @@
 # Verge ASM design system — "Clear signal"
 
-Redesign of the Verge ASM visual language, built from `uploads/design-system-redesign-brief.md` (2026-08-22). Verge ASM is a free, open-source (AGPL-3.0), self-hostable attack surface management app: it discovers internet-facing assets, watches for drift, and raises **signals** on a Critical / High / Medium / Low / Info scale. Three surfaces share this system: the console, the marketing site, and the docs site.
+Redesign of the Verge ASM visual language, built from the redesign brief of 2026-08-22. Verge ASM is a free, open-source (AGPL-3.0), self-hostable attack surface management app: it discovers internet-facing assets, watches for drift, and raises **signals** on a Critical / High / Medium / Low / Info scale. Three surfaces share this system: the console, the marketing site, and the docs site.
 
 ## Design rationale
 
@@ -14,8 +14,10 @@ Redesign of the Verge ASM visual language, built from `uploads/design-system-red
 
 ## Sources
 
-- `uploads/design-system-redesign-brief.md` — the redesign brief (product context, fixed rules, old-system snapshot). No codebase, Figma, font binaries, or logo files were provided.
-- `uploads/design-system-component-gaps.md` — peer-feature gap audit + domain glossary (change vocabulary, seed/scope naming, the §12 "don’t build" list).
+Both inputs arrived as session uploads. Neither is in this repo, so these notes are the only record of them.
+
+- The redesign brief — product context, fixed rules, old-system snapshot. No codebase, Figma, font binaries, or logo files came with it.
+- The component-gaps audit — peer-feature gap audit and domain glossary (change vocabulary, seed/scope naming, the §12 "don’t build" list).
 
 ## Content fundamentals (fixed — from the brief, not restyled)
 
@@ -26,7 +28,7 @@ Redesign of the Verge ASM visual language, built from `uploads/design-system-red
 - Terse relative timestamps (`4m`, `1h`, `3d`); absolute ISO 8601 on hover.
 - Numbers use thousands separators; deltas signed with a true minus: `+12`, `−5`.
 - Empty states = fact + next action: `No seeds yet. Add a domain or CIDR range to start scanning.`
-- **Vocabulary** (glossary in `design-system-component-gaps.md`): **signal** never finding · **seed/scope** never target · **channel** never webhook/integration · **vantage** never probe/scanner/agent · **annotation** never mute/status/triage · signals leave by being **withdrawn** (the world moved), operators never "resolve" · `asset` only as a UI collective noun.
+- **Vocabulary** (glossary from the component-gaps audit): **signal** never finding · **seed/scope** never target · **channel** never webhook/integration · **vantage** never probe/scanner/agent · **annotation** never mute/status/triage · signals leave by being **withdrawn** (the world moved), operators never "resolve" · `asset` only as a UI collective noun.
 - Technical values are **always monospace**: hostnames, IPs, ports, CVE ids, hashes, versions, counts, timestamps.
 - Open-source identity stays in the chrome: version string (`v0.9.2`), `AGPL-3.0`, GitHub link.
 
@@ -90,7 +92,7 @@ Ships. Warm graphite (not cool slate) keeps the brand temperature: page `#15120f
 - `SavedViews`, `ColumnPicker`, `CoverageMessageList`, `SignalRuleRef` — the final gaps-doc P2s: named filter sets and column visibility on Inventory, coverage facts on Scope, rule provenance in the signal drawer.
 - `ConfirmDialog` + a11y hardening — destructive-act confirmation (typed confirm for the worst), focus traps in Dialog/Drawer/CommandPalette with focus restore, polite live region on the toast stack.
 - `CodeInput` — TOTP/MFA verify field (segmented digits, auto-advance, paste-distributes; pairs with SecretInput’s write-only enrollment).
-- `ContextMenu`, `HoverCard`, `JSONViewer`, `MiddleTruncate`, `RadioCards`, `DeltaChip` — tier E refinements, plus Table keyboard nav (roving j/k focus, Enter opens, `onRowContextMenu`) and a generated component reference at `ui_kits/docs/reference.html` (built from each component’s `.prompt.md` + `.d.ts`).
+- `ContextMenu`, `HoverCard`, `JSONViewer`, `MiddleTruncate`, `RadioCards`, `DeltaChip` — tier E refinements, plus Table keyboard nav (roving j/k focus, Enter opens, `onRowContextMenu`).
 - `Textarea`, `FormField` + `FormErrorSummary`, `SegmentedControl`, `HeatmapCalendar`, `InlineEdit` — tier D, with Table `density` + opt-in `virtual` windowing and a system-wide reduced-motion pass.
 - `TimeSeriesChart`, `Wizard`, `VersionSelect` \u2014 tier C: an axed multi-series line chart for Reports (Sparkline stays the inline form), a multi-step setup dialog (constructive counterpart to ConfirmDialog \u2014 wired as Reports\u2019 New schedule), and the docs version picker.
 - `RelativeTime`, `CopyValue`, `TreeView`, `Combobox`, `NumberInput`, `Slider`, `ToastStack` — quality-of-life set: the canonical timestamp pattern, single-value copy, name-hierarchy tree, typeahead select, numeric inputs, stacked toast queue.
@@ -113,17 +115,24 @@ Mock-only shortcuts a production build should replace:
 
 ## Index
 
+Every path below is relative to `design-system/`.
+
 - `styles.css` — global entry; imports everything under `tokens/`.
 - `tokens/` — `colors.css`, `typography.css`, `spacing.css`, `radius.css`, `elevation.css`, `motion.css`, `base.css`.
-- `guidelines/` — foundation specimen cards (colors, type, spacing, geometry, elevation, states, motion, severity).
-- `components/forms/` — Button, IconButton, Input, Select, Checkbox, Radio, Switch, DateRangePicker, TagInput, FileDrop, ProposalReview, ExclusionEditor, CustodyToggle, SecretInput, CadenceSelect, ChannelForm, SplitButton, Combobox, NumberInput, Slider.
-- `components/display/` — Card, Badge, SeverityBadge, Tag, Stat, StatusDot, Table, Pagination, Progress, Skeleton, Timeline, KeyValueList, DiffView, Sparkline, BarChart, TimeSeriesChart, ReportCard, DeltaChip, JSONViewer, MiddleTruncate, CodeBlock, Kbd, Avatar, Graph, Accordion, Stepper, ChangeBadge, TransitionMarker, WithdrawnMark, CoverageMeter, GapBadge, StalenessBadge, Spinner, AvailabilityBadge, ExposureBadge, BatchStatus, LogViewer, VantageCard, RelativeTime, CopyValue, TreeView.
-- `components/feedback/` — Dialog, Toast, Tooltip, EmptyState, Banner, Popover, DropdownMenu, Drawer, BulkActionsBar, CommandPalette, Callout, AnnotationControl, ErrorState, RefusalCallout, MessageList, ToastStack, ConfirmDialog, SavedViews, ColumnPicker, CoverageMessageList, SignalRuleRef.
-- `components/navigation/` — TopNav, Tabs, Footer, Breadcrumb, OrgSwitcher, SettingsNav.
-- `components/media/` — Icon (Lucide wrapper), Logo (pulse glyph + wordmark).
-- `ui_kits/console/` — eight screens end-to-end: dashboard, scope, inventory, drift, signals, graph, reports, settings (light/dark toggle, ⌘K palette). Every component in the library is surfaced across the kits.
-- `ui_kits/marketing/` — homepage.
-- `ui_kits/docs/` — docs page.
-- `assets/` — `ds-fallback-loader.js` (renders kits/cards even before the component bundle compiles). No logo or image assets exist (none provided).
-- `new-components.html` — visual gallery of every post-brief component, isolated.
-- `SKILL.md` — agent-facing usage guide.
+- `components/forms/` — Button, CadenceSelect, ChannelForm, Checkbox, CodeInput, Combobox, CustodyToggle, DateRangePicker, ExclusionEditor, FileDrop, FormField, IconButton, IdPButton, Input, MappingEditor, NumberInput, ProposalReview, Radio, RadioCards, SecretInput, SegmentedControl, Select, Slider, SplitButton, Switch, TagInput, Textarea.
+- `components/display/` — Accordion, AvailabilityBadge, Avatar, Badge, BarChart, BatchStatus, Calendar, Card, Carousel, CertificateCard, ChangeBadge, CodeBlock, ColumnPicker, ConsentList, CopyValue, CoverageMessageList, CoverageMeter, DeltaChip, DiffView, ExposureBadge, GapBadge, Graph, HeatmapCalendar, InlineEdit, IntegrationTile, JSONViewer, Kbd, KeyValueList, LogViewer, MiddleTruncate, Pagination, Progress, RelativeTime, ReportCard, SeverityBadge, SignalRuleRef, Skeleton, Sparkline, Spinner, StalenessBadge, Stat, StatusDot, Stepper, Table, Tag, Timeline, TimeSeriesChart, TransitionMarker, TreeView, VantageCard, WithdrawnMark.
+- `components/feedback/` — AnnotationControl, Banner, BulkActionsBar, Callout, CommandPalette, ConfirmDialog, ContextMenu, Dialog, Drawer, DropdownMenu, EmptyState, ErrorState, HoverCard, MessageList, Popover, RefusalCallout, Toast, ToastStack, Tooltip, Wizard.
+- `components/navigation/` — Breadcrumb, Footer, OrgSwitcher, SavedViews, SettingsNav, Tabs, TopNav, VersionSelect.
+- `components/media/` — Icon (Lucide wrapper), Logo (pulse glyph + wordmark), VideoPlayer.
+
+Each component ships as a `.jsx`, a `.d.ts`, and a `.prompt.md`, beside a per-family `<family>.card.html` specimen page. Not every component reaches a screen. Some carry a card and a `.prompt.md` and nothing composes them yet.
+
+- `examples/console/` — the console screen and flow compositions plus the `ConsoleApp.jsx` shell. This is the console's IA reference, ported verbatim (ADR-0110).
+- `examples/Homepage.jsx` — the marketing homepage.
+- `examples/DocsPage.jsx` — the docs page.
+- `templates/` — the Go `html/template` files the web app serves, one per screen.
+- `fixtures/fixtures.json` — the fixture corpus the web app renders in dev and test.
+- `designfs.go` — embeds `templates/`, `tokens/`, and `fixtures/` and exposes them to the web app.
+- `docs/AGENT-GUIDE.md` — the agent-facing usage guide. `.claude/skills/verge-asm-design/SKILL.md` is the skill that fronts it.
+- `docs/DOCS-IA.md` — the docs-site left-rail information architecture.
+- `README.md` — who consumes what, and the shortest route into the system.

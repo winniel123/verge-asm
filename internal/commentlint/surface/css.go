@@ -70,6 +70,7 @@ func (s *cssScan) run() error {
 func (s *cssScan) comment() {
 	start, startLine := s.i, s.line
 	s.i += 2
+	// CSS Syntax §4.3.2 runs an unterminated comment to end-of-file, so browser and lexer agree.
 	for s.i < len(s.src) {
 		if s.src[s.i] == '*' && s.peek(1) == '/' {
 			s.i += 2
@@ -80,8 +81,6 @@ func (s *cssScan) comment() {
 		}
 		s.i++
 	}
-	// CSS Syntax §4.3.2 runs an unterminated comment to end-of-file rather
-	// than raising a parse error, so a browser and this lexer agree.
 	text := string(s.src[start:s.i])
 	directive := cssDirective(text)
 	s.comments = append(s.comments, rawComment{
@@ -90,8 +89,7 @@ func (s *cssScan) comment() {
 		ownLine:   s.lastCode != startLine,
 		directive: directive,
 	})
-	// §5.1 keeps a protected directive in the skeleton, which turns ruling 10
-	// into an enforced property.
+	// §5.1 keeps a protected directive in the skeleton, so ruling 10 becomes an enforced property.
 	if directive {
 		s.skeleton = append(s.skeleton, Token{Kind: CSSDirective, Text: text, Line: startLine})
 	}
@@ -116,8 +114,7 @@ func (s *cssScan) str(quote byte) error {
 			s.emit(CSSString, string(s.src[start:s.i]), startLine)
 			return nil
 		case c == '\n':
-			// CSS recovers a newline in a string as a bad-string token. §6.7
-			// prefers "the tool cannot judge this file" over a silent guess.
+			// CSS recovers this newline as a bad-string token, and §6.7 refuses rather than guess.
 			return fmt.Errorf("scan: %d: a string ends at the newline", startLine)
 		default:
 			s.i++
@@ -235,8 +232,7 @@ func cssNumberStart(src []byte, i int) bool {
 }
 
 func cssDirective(text string) bool {
-	// A marker anywhere in the text would protect prose that merely names a
-	// linter, so the directive has to open the comment (SPEC §2.3).
+	// A marker anywhere in the text would protect prose that merely names a linter (SPEC §2.3).
 	inner := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(text, "/*"), "*/"))
 	return hasAnyPrefix(inner, cssDirectiveMarkers)
 }

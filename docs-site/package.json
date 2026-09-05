@@ -5,6 +5,9 @@
   "license": "AGPL-3.0-only",
   "type": "module",
   "description": "Verge ASM documentation site. Renders docs/guides/*.md inside the design-system DocsPage shell. Node/Astro build lane; no coupling to the Go app.",
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
