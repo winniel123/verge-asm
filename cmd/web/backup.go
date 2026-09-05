@@ -53,6 +53,7 @@ var backupTables = []string{ // FK-parent-first, so a naive in-order restore is 
 }
 
 // The two lists partition the schema, so a new table must be classified (ADR-0161 §1, #1367).
+
 // gosec's credential heuristic fires on the "password" and "token" substrings in this literal.
 
 // #nosec G101 -- keys are database table names (e.g. "password_reset") paired with prose

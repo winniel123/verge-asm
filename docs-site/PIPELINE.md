@@ -30,9 +30,10 @@ The one place all three are wired together is the route page
 ## Route / slug scheme
 
 - **Route:** `/<version>/<slug>` — e.g. `/main/using`, `/main/zone-files`.
-- **`<version>`** is already a real path segment today, with the single value
-  `main`. Tv adds more versions by changing **source-resolution only**; this route
-  and every other stage are untouched.
+- **`<version>`** is a real path segment. `main` and `latest` always resolve, and
+  each publishable semver tag adds one more value. `getStaticPaths` reads the set
+  from `listVersions()`, so source-resolution alone decides it. This route and every
+  other stage stay untouched when the set changes.
 - **`<slug>`** = the guide filename without extension. `using.md` → `using`,
   `zone-files.md` → `zone-files`. This is the Astro glob-loader `entry.id`.
 
@@ -52,10 +53,13 @@ Because of the counter, any slugger instance **must visit every heading (all lev
 the `h2`/`h3` rows. Do not slug a subset — the counters would diverge and TOC links
 would miss.
 
-- **Shared implementation:** `src/pipeline/slug.ts` (`extractToc`) and the heading
-  renderers in `src/pipeline/render.jsx` both slug via `github-slugger`. T2's link
-  rewriter **must** slug fragments the same way so `foo.md#some-heading` resolves to
-  the rendered `id="some-heading"`.
+- **Shared implementation:** `src/pipeline/slug.ts` (`extractToc`), the heading
+  renderers in `src/pipeline/render.jsx`, and `scripts/check-links.mjs` all slug via
+  `github-slugger`.
+- **The link rewriter does not slug.** `rewriteHref` carries a `#fragment` through
+  verbatim, so an author writes `foo.md#some-heading` already in slugged form.
+  `check-links.mjs` is what gates that: it slugs every heading and fails the build on
+  a fragment no heading produces.
 - Verified for `/main/using`: all ten TOC `#anchor`s match a rendered heading `id`.
 
 ## Frontmatter schema (all fields OPTIONAL)
@@ -70,9 +74,11 @@ Defined in **`src/content.config.ts`** as the Astro content collection `guides`
 | `order`       | `number` | T3    | Sort within a section                          |
 | `description` | `string` | —     | `<meta name="description">`                     |
 
-**Every field is optional and must stay optional.** The site builds today against
-frontmatter-LESS guides, and the older git refs Tv iterates have no frontmatter at
-all. Making any field required breaks those refs. (ADR-0115.)
+**Every field is optional and must stay optional.** Every guide on `main` carries all
+four fields today, so the rule is not about `main`. It is about the older git refs
+source-resolution reads: those guides have no frontmatter block at all, and
+`splitFrontmatter` hands the pipeline an empty object for them. Making any field
+required breaks every one of those refs. (ADR-0115.)
 
 ---
 
@@ -87,16 +93,27 @@ interface Source      { version: string; slug: string; rawMarkdown: string; fron
 interface VersionOption { value: string; tag?: string }   // mirrors DS VersionSelect.d.ts
 
 const DEFAULT_VERSION = "main";
+const LATEST_VERSION  = "latest";
 function resolveSources(version?: string): Promise<Source[]>   // sorted by slug
 function listVersions(): VersionOption[]
+function refForVersion(version: string): string
+function canonicalPath(slug: string): string                   // always /latest/<slug>
 ```
 
-- **Today:** `resolveSources` reads the content collection and stamps
-  `version = "main"` on every guide; `listVersions()` returns `[{ value: "main",
+- **`main` comes from the content collection.** `resolveSources("main")` reads the
+  Astro `guides` collection and stamps `version = "main"` on every entry.
+- **Every other version comes from a git ref.** `sourcesFromRef` lists and reads
+  `docs/guides/*.md` out of the object store with `git ls-tree` and `git show`. It
+  never checks out, which is what makes a dirty tree safe to build from. A ref with
+  no guides warns and is skipped, never fatal.
+- **`listVersions()` returns `latest` first, then each publishable semver tag newest
+  first, then `main` tagged `"dev"`.** The newest stable tag carries `"current"`.
+  While no stable tag exists, `latest` carries `"current"` instead, and
+  `refForVersion("latest")` falls back to `main` — which is the state of this repo
+  today, so the manifest is `[{ value: "latest", tag: "current" }, { value: "main",
   tag: "dev" }]`.
-- **Tv makes it a real seam:** swap the internals to iterate git refs and emit one
-  `Source` per `(ref × guide)`. **Do not change `Source`/`VersionOption`** — T2 and
-  T3 consume only these types, so they need no edits when versions multiply.
+- **`Source` and `VersionOption` are frozen.** T2 and T3 consume only these types, so
+  they need no edits when the version set changes.
 
 ## Stage 2 — render+transform   ·   `src/pipeline/render.jsx`   ·   OWNER T2 (#352)
 
@@ -109,14 +126,17 @@ Renders one `Source.rawMarkdown` into the article column as a React island
 - headings → `h1`–`h4` with `github-slugger` `id`s (see algorithm above)
 
 ```jsx
-export default function Article({ markdown: string }): JSX.Element   // client:load island
+export default function Article({ markdown, version, slug, adrRef }): JSX.Element   // client:load island
 ```
 
-- **T2 OWNS the link/anchor rewriting step.** The single seam is the `a` renderer in
-  the `components` map: today it passes hrefs through (external links get
-  `target=_blank`); T2 rewrites relative `running.md#anchor` cross-links into in-site
-  `/<version>/running#anchor` routes (and may add a remark/rehype plugin). **T2 edits
-  only this stage.**
+The island takes `version`, `slug`, and `adrRef` as props because `source-resolution.ts`
+is node-only and cannot run in the browser. The route page resolves the ref server-side.
+
+- **The `a` renderer is the link/anchor seam, and it owns every rewrite.**
+  `rewriteHref` turns `#anchor` into `/<version>/<slug>#anchor`, `running.md#anchor`
+  into `/<version>/running#anchor`, and `../adr/<file>.md` into a repo blob URL at the
+  version's ref, because an ADR is never an ingested page. An `http` or `https` href
+  passes through with `target=_blank`. Anything else passes through untouched.
 
 ## Stage 3 — nav-build   ·   `src/pipeline/nav-build.ts`   ·   OWNER T3 (#353)
 
@@ -128,10 +148,13 @@ interface NavSection { title: string; items: NavItem[] }             // shape Se
 function buildNav(sources: Source[], activeSlug?: string): NavSection[]
 ```
 
-- **Today:** frontmatter is empty, so this emits a single flat `"Guides"` section
-  listing every slug (label = `frontmatter.title` or a title-cased slug).
-- **T3:** group by `frontmatter.section`, sort within a group by `frontmatter.order`.
-  Consumes only `Source`, returns only `NavSection[]` — no edits to stages 1 or 2.
+- **`buildNav` groups by `frontmatter.section` and sorts within a group by
+  `frontmatter.order`.** A source with no `section` falls into a `"Guides"` group, and
+  one with no `order` sorts last in source order. The label is `frontmatter.title`, or
+  a title-cased slug when the guide gives none.
+- **A section ranks by the smallest `order` it holds.** That is what keeps a
+  section-order field out of the schema.
+- Consumes only `Source`, returns only `NavSection[]` — no edits to stages 1 or 2.
 
 ---
 
@@ -145,10 +168,12 @@ interface VersionOption { value: string; tag?: string }
 // tag "current" → accent (latest release);  "dev" → muted (the moving `main` branch)
 ```
 
-Produced by `listVersions()` in **stage 1** (source-resolution). Today it returns
-`[{ value: "main", tag: "dev" }]`. Tv returns the discovered refs, tagging the newest
-release `"current"` and `main` `"dev"`. T4 reads it straight from `listVersions()` and
-passes it to the TopNav island — no reshaping.
+Produced by `listVersions()` in **stage 1** (source-resolution), which returns `latest`,
+then each publishable semver tag newest first, then `main` tagged `"dev"`. `"current"`
+marks the newest stable tag, or `latest` while no stable tag exists. This repo carries
+no semver tag today, so the manifest is `[{ value: "latest", tag: "current" }, { value:
+"main", tag: "dev" }]`. The route page reads it straight from `listVersions()` and passes
+it to the TopNav island — no reshaping.
 
 ---
 
@@ -162,8 +187,8 @@ is never read as a heading.
 ## Decisions (recorded here, not a new ADR — ADR-0115 already covers the model)
 
 - **Renderer:** `react-markdown` + `remark-gfm`, not Astro's built-in `.md` render,
-  because `.md` (unlike `.mdx`) can't remap `<pre>`/`blockquote` to React DS
-  components. ~~This keeps ADR-0109 satisfied (DS components imported via `@ds`, never
+  because `.md` cannot remap `<pre>` and `blockquote` to React DS components.
+  ~~This keeps ADR-0109 satisfied (DS components imported via `@ds`, never
   re-authored)~~ and gives one clean `components` map that is stage 2's whole surface.
 
   > **The struck clause is WITHDRAWN at the site that specifies it, 2026-08-28 by `55aa367` /
@@ -172,6 +197,10 @@ is never read as a heading.
   > ADR-0109 is superseded and `design-system/` may be edited in the repo. The renderer choice
   > stands on its remaining ground: `.md` cannot remap `<pre>` and `blockquote` to React
   > components, and one `components` map is the smaller surface.
+- **MDX is the rejected alternative, not a deferred one.** MDX can remap those
+  elements, at the price of rewriting every guide into a file that only this site can
+  build. The guides are the repo's own operator documentation and must stay plain
+  Markdown. `docs-site/package.json` carries no MDX integration, and none is planned.
 - **Slugger:** `github-slugger`, shared by the renderer and `extractToc`, so T2's
   link rewriter has one documented, deterministic anchor algorithm to match.
 - **No new ADR** was authored (avoids parallel ADR-number collisions in this wave).

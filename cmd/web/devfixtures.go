@@ -23,7 +23,9 @@ import (
 )
 
 // Fabricating a live datum to stand in for a curated fixture ships an approximation as fact.
-// Each pinned value is a second copy of fixtures.json; a drift test fails the build on divergence (ADR-0167 §2).
+
+// Each pinned value is a second copy of fixtures.json, and a drift test fails the build on divergence (ADR-0167 §2).
+
 // No dev surface reaches a real deployment: /dev needs s.devMode and the seeds need -seed-fixtures (ADR-0166).
 
 const devFixtureIncidentID = "err_9f3ka72c"
@@ -180,7 +182,7 @@ func seedProfileFixtures(ctx context.Context, pool *pgxpool.Pool) error {
 	}
 
 	// The design-system profile example is consistent only at TOTP-ON, so seed it verbatim.
-	// The mint is this account's only door, so it needs no secret (ADR-0166 §1, #1333).
+	// The mint is this account's only door, so it needs no secret.
 	if _, err := pool.Exec(ctx, `UPDATE account SET totp_enabled = true WHERE id = $1`, acct.ID); err != nil {
 		return fmt.Errorf("profile fixture: enable totp: %w", err)
 	}

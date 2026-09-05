@@ -31,11 +31,9 @@ func (j JSX) Lex(src []byte) (Result, error) {
 		return Result{}, err
 	}
 	skeleton := canonicalTokens(form)
-	// esbuild strips every comment, so a deleted `eslint` directive would
-	// leave the canonical form untouched. A line scan pins those back (§2.3).
+	// esbuild strips every comment, so a line scan pins the directives back (§2.3).
 	skeleton = append(skeleton, jsxDirectiveTokens(src)...)
-	// esbuild reports no comment range, so `lint` flags no `.jsx` block. §5.3
-	// leaves no sound way to enumerate them, and `verify` carries ruling 15.
+	// esbuild reports no comment range, so `verify` alone gates `.jsx` (§5.3, ruling 15).
 	return Result{Skeleton: skeleton}, nil
 }
 
@@ -76,8 +74,7 @@ func esbuildCanonical(name string, src []byte, loader string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	// esbuild's plain transform keeps a comment that opens an object property,
-	// so it is not comment-blind (measured 2026-09-03, #1141).
+	// esbuild's plain transform is not comment-blind, so the minify flag is required (#1141).
 	cmd := exec.Command(bin, "--loader="+loader, "--minify-whitespace")
 	cmd.Stdin = bytes.NewReader(src)
 	var stdout, stderr bytes.Buffer

@@ -32,8 +32,8 @@ func (Tmpl) Lex(src []byte) (Result, error) {
 	// The root name has to miss every `{{define}}` in the tree, because a
 	// collision reaches the caller as "multiple definition of template".
 	root := parse.New(tmplRootName)
-	// SkipFuncCheck builds the tree without the application's function map, and
-	// ParseComments keeps a `{{/* */}}` node so its byte range is exact (§5.2).
+	// SkipFuncCheck builds the tree without the application's function map.
+	// ParseComments keeps the comment node, so its byte range stays exact.
 	root.Mode = parse.ParseComments | parse.SkipFuncCheck
 	trees := map[string]*parse.Tree{}
 	if _, err := root.Parse(string(src), "", "", trees); err != nil {
@@ -195,8 +195,7 @@ func tmplTextTokens(text string, line int) []Token {
 }
 
 func tmplRange(src []byte, pos, length int) (start, end int, err error) {
-	// The parser reports the `/* */` span, and §5.4 deletes the whole action,
-	// so the range widens to the delimiters and any trim marker.
+	// The parser reports the `/* */` span alone, and §5.4 deletes the whole action.
 	start = pos
 	for start > 0 && (src[start-1] == '-' || isSpaceByte(src[start-1])) {
 		start--
@@ -224,8 +223,7 @@ func tmplOwnLine(src []byte, start int) bool {
 }
 
 func TmplCut(src []byte, blocks []Block) []byte {
-	// §5.4: the byte range goes and the line stays. Removing the line fails
-	// byte-exact comparison in 24 of 24 files, because its newline is output.
+	// §5.4 keeps the line, because removing it fails byte-exact comparison in 24 of 24 files.
 	ordered := append([]Block(nil), blocks...)
 	sort.SliceStable(ordered, func(a, b int) bool { return ordered[a].Start < ordered[b].Start })
 	var out []byte

@@ -63,12 +63,18 @@ analytics into one view — a KPI band, a scans-per-day activity heatmap wired f
 `Dispatch` history, and, lower on the page, a **recurring-reports table** and a **"New
 schedule" wizard**.
 
-Two of the analytics regions are honest empty-states rather than fabricated series. A
-signal census carries no severity and is never a trend, so the example mock's "by
-severity" and "open signals over time" charts have no real data behind them and are
-empty-stated on purpose (see the handler comment in
-[`cmd/web/reports.go`](../../cmd/web/reports.go), ADR-0024). The one legitimate series
-is operational — scans-per-day is activity volume, and that heatmap is real.
+Every analytics region on the screen is a live read. **"By severity"** tallies the
+signals the corpus is firing now and ranks them by each rule's severity
+(`reportsSignalCensus` in [`cmd/web/reports.go`](../../cmd/web/reports.go)). **"Open
+signals over time"** folds the per-instance first-seen ledger into a weekly series, one
+line for all open signals and one for critical plus high (`drift.SignalsOverTime`).
+Scans-per-day is activity volume off real `Dispatch` history.
+
+A region draws the design's empty pattern when its own read returns nothing, and never a
+fabricated figure ([ADR-0110](../adr/0110-the-design-system-examples-are-the-consoles-ia-spec-ported-verbatim.md)).
+So "No signals firing" means the rule set is quiet, and "No signal history" means no
+signal has been raised in the period yet. Neither is a placeholder for a chart that was
+never wired.
 
 You can export the Reports figures for the active period as a file. The export is the
 spec **SplitButton** ([#23c](https://github.com/winniel123/verge-asm/issues/586)) —
@@ -137,8 +143,10 @@ runs. The handlers live in
   schedule that binds a Channel. The operator ran it by hand and is already at the console,
   so the run stays viewable in-instance and nothing is sent. **Only the on-cadence tick
   delivers** to the bound channel. This asymmetry — Run-now downloads, the cadence tick
-  delivers — is by design, ruled in [`SPEC-CHANGE.md`](../../design-system/SPEC-CHANGE.md)
-  **#29** (it is the honest reverse of the notification path, not a missing feature).
+  delivers — is by design, not a missing feature. `runReportScheduleNow` never reads the
+  schedule's `channel_id`, and
+  [`internal/report/dispatcher.go`](../../internal/report/dispatcher.go) is the only path
+  that delivers.
 - **Delete** — `POST /reports/schedule/delete` hard-deletes the row (idempotent: a stale
   id is a no-op, not an error).
 

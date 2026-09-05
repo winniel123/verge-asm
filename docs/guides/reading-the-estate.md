@@ -142,10 +142,30 @@ recent batch (see below). The change vocabulary and the reading of drift are tou
 
 `/graph` folds the estate's **open spans** into the real `Name` → `Address` → `Service`
 topology and joins the live fired-signal census onto its nodes. It invents nothing. With
-no subject measured, it shows the empty-state rather than a fabricated canvas. It carries
-**no severity filter** — signals are named facts, not graded ones. Use it to see which
-service sits on which address behind which name, and which nodes carry an open signal.
-Each node drills into the same routes the other pages use.
+no subject measured, it shows the empty-state rather than a fabricated canvas. Use it to
+see which service sits on which address behind which name, and which nodes carry an open
+signal.
+
+Two listboxes sit in the header, and only one of them changes what is drawn. The **scope**
+listbox appears once a declared seed gives the page more than one scope. It rides
+`?scope=`, and the handler reads it. A subject outside the chosen seed is dropped before
+placement, so a scope narrows the fold. The **severity** listbox appears whenever the
+canvas is not empty, and it narrows nothing. It runs in the page's own JavaScript, and it
+offers *All severities* plus the five levels the model grades a signal by — **Critical**,
+**High**, **Medium**, **Low**, **Info**. Picking a level leaves every node drawn. It hides
+the open-signal halo on each node whose severity is not the picked one, and it greys that
+node's minimap dot. So the control emphasises a level. It does not filter the drawing to
+one. The choice lives in the browser and resets on any reload.
+
+Three edges are worth knowing. A node carries the **worst** severity among its open
+signals, so a node holding a `Critical` and a `Low` lights under *Critical* only. A service
+node keeps its severity-tinted dot under every choice, because only the halo answers to the
+listbox. And a node its column's cap left out is not drawn at all, so no severity choice
+reveals it — the callout above the canvas counts what the cap held back
+([ADR-0136](../adr/0136-topology-is-a-reading-not-a-census-so-the-graph-caps-rather-than-folds.md)).
+
+A node opens a drawer beside the canvas. The drawer names the node, its type, its open
+ports, its first-seen date, and its open signals. It links to no other page.
 
 ---
 

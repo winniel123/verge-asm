@@ -1,30 +1,128 @@
 #!/usr/bin/env node
 import GithubSlugger from "github-slugger";
+import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { dirname, join, relative, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = resolve(SCRIPT_DIR, "..", "..");
-const GUIDES_DIR = join(REPO_ROOT, "docs", "guides");
-const ADR_DIR = join(REPO_ROOT, "docs", "adr");
+const DEFAULT_ROOT = resolve(SCRIPT_DIR, "..", "..");
+const GUIDES_DIR = "docs/guides";
+const ADR_DIR = "docs/adr";
+const DEFAULT_VERSION = "main";
+const LATEST_VERSION = "latest";
+const SEMVER_TAG = /^v(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/;
 
-const ADR_FILES = new Set(
-  readdirSync(ADR_DIR).filter((name) => name.endsWith(".md")),
-);
+function git(root, args) {
+  return execFileSync("git", args, {
+    cwd: root,
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+  }).replace(/\r?\n$/, "");
+}
 
-function loadVersions() {
-  const guides = new Map();
-  for (const name of readdirSync(GUIDES_DIR)) {
-    if (!name.endsWith(".md")) continue;
-    const slug = name.slice(0, -3);
-    const abs = join(GUIDES_DIR, name);
-    guides.set(slug, {
-      markdown: readFileSync(abs, "utf8"),
-      file: relative(REPO_ROOT, abs).replace(/\\/g, "/"),
+function lsTree(root, ref, dir) {
+  let listing;
+  try {
+    listing = git(root, ["ls-tree", "-r", "--name-only", ref, dir]);
+  } catch {
+    return [];
+  }
+  return listing
+    .split("\n")
+    .map((f) => f.trim())
+    .filter((f) => f.endsWith(".md"));
+}
+
+function compareTagsDesc(a, b) {
+  if (a.major !== b.major) return b.major - a.major;
+  if (a.minor !== b.minor) return b.minor - a.minor;
+  if (a.patch !== b.patch) return b.patch - a.patch;
+  if (a.prerelease === null && b.prerelease !== null) return -1;
+  if (a.prerelease !== null && b.prerelease === null) return 1;
+  if (a.prerelease === null && b.prerelease === null) return 0;
+  return b.prerelease.localeCompare(a.prerelease);
+}
+
+function publishableTags(root) {
+  let out;
+  try {
+    out = git(root, ["tag", "-l", "v*"]);
+  } catch {
+    return [];
+  }
+  const tags = [];
+  for (const line of out.split("\n")) {
+    const raw = line.trim();
+    const m = SEMVER_TAG.exec(raw);
+    if (!m) continue;
+    if (lsTree(root, raw, GUIDES_DIR).length === 0) continue;
+    tags.push({
+      raw,
+      major: Number(m[1]),
+      minor: Number(m[2]),
+      patch: Number(m[3]),
+      prerelease: m[4] ?? null,
     });
   }
-  return [{ version: "main", guides }];
+  return tags.sort(compareTagsDesc);
+}
+
+// mirrors listVersions()/refForVersion() in src/pipeline/source-resolution.ts, which the gate
+// cannot import: that module reads Astro's astro:content collection (#1395)
+function versionPlan(root) {
+  const tags = publishableTags(root);
+  const newestStable = tags.find((t) => t.prerelease === null) ?? null;
+  const plan = [
+    { version: LATEST_VERSION, ref: newestStable ? newestStable.raw : DEFAULT_VERSION },
+  ];
+  for (const t of tags) plan.push({ version: t.raw, ref: t.raw });
+  plan.push({ version: DEFAULT_VERSION, ref: DEFAULT_VERSION });
+  return plan;
+}
+
+function markdownFilesInDir(root, dir) {
+  try {
+    return readdirSync(join(root, dir))
+      .filter((name) => name.endsWith(".md"))
+      .map((name) => `${dir}/${name}`);
+  } catch {
+    return [];
+  }
+}
+
+function guidesOf(files, read) {
+  const guides = new Map();
+  for (const file of files) {
+    const slug = file.replace(/^.*\//, "").replace(/\.md$/, "");
+    guides.set(slug, { markdown: read(file), file });
+  }
+  return guides;
+}
+
+function adrNamesOf(files) {
+  return new Set(files.map((f) => f.replace(/^.*\//, "")));
+}
+
+export function loadVersions(root = DEFAULT_ROOT) {
+  return versionPlan(root).map(({ version, ref }) => {
+    // CI builds a PR as a merge commit, so `git show main:` would read origin/main and miss the
+    // PR's own edits (#1395)
+    if (ref === DEFAULT_VERSION) {
+      return {
+        version,
+        guides: guidesOf(markdownFilesInDir(root, GUIDES_DIR), (f) =>
+          readFileSync(join(root, f), "utf8"),
+        ),
+        adrFiles: adrNamesOf(markdownFilesInDir(root, ADR_DIR)),
+      };
+    }
+    return {
+      version,
+      guides: guidesOf(lsTree(root, ref, GUIDES_DIR), (f) => git(root, ["show", `${ref}:${f}`])),
+      adrFiles: adrNamesOf(lsTree(root, ref, ADR_DIR)),
+    };
+  });
 }
 
 // slugging a subset diverges the de-dup counter from the renderer (docs-site/PIPELINE.md)
@@ -77,7 +175,7 @@ const INTRA_GUIDE = /^\.?\/?([a-z0-9][a-z0-9-]*)\.md(?:#(.+))?$/i;
 // mirrors render.jsx's ADR_XREF, so gate and renderer cannot classify a link differently
 const ADR_XREF = /^\.\.\/adr\/([^#?/]+\.md)(?:#(.+))?$/i;
 
-function checkTarget(target, currentSlug, guides, anchorsBySlug) {
+function checkTarget(target, currentSlug, guides, anchorsBySlug, adrFiles) {
   if (EXTERNAL.test(target) || MAILTO.test(target)) return null;
 
   if (target.startsWith("#")) {
@@ -91,9 +189,7 @@ function checkTarget(target, currentSlug, guides, anchorsBySlug) {
   const adr = ADR_XREF.exec(target);
   if (adr) {
     // an ADR is not a docs-site page, so this gate holds no heading inventory for its fragment
-    return ADR_FILES.has(adr[1])
-      ? null
-      : `ADR "${adr[1]}" does not exist in docs/adr/`;
+    return adrFiles.has(adr[1]) ? null : `ADR "${adr[1]}" does not exist in docs/adr/`;
   }
 
   const m = INTRA_GUIDE.exec(target);
@@ -109,11 +205,9 @@ function checkTarget(target, currentSlug, guides, anchorsBySlug) {
   return null;
 }
 
-function main() {
-  const versions = loadVersions();
+export function findFailures(versions) {
   const failures = [];
-
-  for (const { version, guides } of versions) {
+  for (const { version, guides, adrFiles } of versions) {
     const anchorsBySlug = new Map();
     for (const [slug, { markdown }] of guides) {
       anchorsBySlug.set(slug, collectAnchors(markdown));
@@ -121,11 +215,17 @@ function main() {
 
     for (const [slug, { markdown, file }] of guides) {
       for (const { line, target } of scanLinks(markdown)) {
-        const reason = checkTarget(target, slug, guides, anchorsBySlug);
+        const reason = checkTarget(target, slug, guides, anchorsBySlug, adrFiles);
         if (reason) failures.push({ version, file, line, target, reason });
       }
     }
   }
+  return failures;
+}
+
+function main() {
+  const versions = loadVersions();
+  const failures = findFailures(versions);
 
   if (failures.length === 0) {
     const n = versions.reduce((a, v) => a + v.guides.size, 0);
@@ -143,4 +243,4 @@ function main() {
   process.exit(1);
 }
 
-main();
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();

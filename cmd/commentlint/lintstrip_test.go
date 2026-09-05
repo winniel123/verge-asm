@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -268,6 +269,37 @@ func TestStripChangesNoFileWithoutWrite(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dir, ".commentlint")); !os.IsNotExist(err) {
 		t.Error("a dry run wrote the manifest directory")
 	}
+	if !strings.Contains(stderr.String(), "would delete 1 block(s)") {
+		t.Errorf("stderr is %q, want the dry-run summary", stderr.String())
+	}
+}
+
+func TestStripDryRunStdoutIsManifestOnly(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	writeFile(t, dir, "p.go", "// Package p serves the estate.\n"+
+		"package p\n"+
+		"\n"+
+		"// G reports the estate (ADR-0127).\n"+
+		"func G() {}\n")
+
+	var stdout, stderr bytes.Buffer
+	if got := runWith([]string{"strip", "p.go"}, &stdout, &stderr, stubGit(nil, nil)); got != 0 {
+		t.Fatalf("exit is %d, want 0 (stderr %q)", got, stderr.String())
+	}
+	lines := strings.Split(strings.TrimSuffix(stdout.String(), "\n"), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("stdout holds %d line(s), want 2 residue records: %q", len(lines), stdout.String())
+	}
+	for i, line := range lines {
+		var rec map[string]any
+		if err := json.Unmarshal([]byte(line), &rec); err != nil {
+			t.Errorf("stdout line %d is not JSON (%v): %q", i+1, err, line)
+		}
+	}
+	if !strings.Contains(stderr.String(), "commentlint strip: would delete") {
+		t.Errorf("stderr is %q, want the summary", stderr.String())
+	}
 }
 
 func TestStripWriteDeletesAndSavesTheManifest(t *testing.T) {
@@ -314,6 +346,12 @@ func TestStripWriteDeletesAndSavesTheManifest(t *testing.T) {
 	}
 	if !strings.Contains(lines[1], `"signal":"citation"`) {
 		t.Errorf("manifest line 2 is %q, want the citation signal", lines[1])
+	}
+	if stdout.Len() != 0 {
+		t.Errorf("stdout is %q, want nothing when the manifest is a file", stdout.String())
+	}
+	if !strings.Contains(stderr.String(), filepath.Join(".commentlint", "residue.jsonl")) {
+		t.Errorf("stderr is %q, want the summary to name the manifest path", stderr.String())
 	}
 }
 

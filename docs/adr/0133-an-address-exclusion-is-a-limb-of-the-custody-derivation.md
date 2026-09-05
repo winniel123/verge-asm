@@ -19,29 +19,30 @@ current resolution still cites it"*.
 records the evidence and this ADR does not restate it in full. In summary, an `address`
 exclusion is validated, canonicalised, stored and drawn as a chip, and then read by nothing:
 
-- `ListAddressScopeCidrs` (`db/queries/measurement.sql:33`) selects the declared scopes with no
+- `ListAddressScopeCidrs` (`db/queries/measurement.sql`) selects the declared scopes with no
   join to `exclusion`.
-- `queue.candidateAddrs` (`internal/queue/hot.go:147`) and
-  `custody.Estate.EdgeFanoutPopulation` (`internal/custody/candidates.go:119`) enumerate every
+- `queue.candidateAddrs` (`internal/queue/hot.go`) and
+  `custody.Estate.EdgeFanoutPopulation` (`internal/custody/candidates.go`) enumerate every
   declared scope. Neither consults an exclusion.
-- `Estate` (`internal/custody/custody.go:59`) holds no exclusion field, so `Derive` returns
-  `operator` for any address a scope covers and `MayProbe` (`internal/custody/gate.go:44`) opens.
-- `internal/queue/membership.go` has `nameExcluded` (`:323`) and no address analogue. Both it and
-  `coveringExclusionKey` (`:127`) skip every row where `e.Name.Valid` is false.
+- `Estate` (`internal/custody/custody.go`) holds no exclusion field, so `Derive` returns
+  `operator` for any address a scope covers and `MayProbe` (`internal/custody/gate.go`) opens.
+- `internal/queue/membership.go` has `nameExcluded` and no address analogue. Both it and
+  `coveringExclusionKey` skip every row where `e.Name.Valid` is false.
 
-Two costs follow. **The declaration preview promises a withdrawal that never happens.**
-`POST /exclusions/preview` renders a receipt off the live span corpus saying N subjects are
-*taken out of the estate*, and that *a listener answering inside the range after this act is not
-seen* (`internal/message/render.go:100`). `message.Narrowing` — the function that would write
-the coverage message the preview names — has no production caller. **And
-[#989](https://github.com/winniel123/verge-asm/issues/989)'s census row names a remedy that
-cannot clear it.** The row reads *"exclude them from this scope if they are not yours"*. An
-operator who does exactly that sees the same row at the same count on every later load. The
-comment at `internal/custody/scopecensus.go:29` already records this and points here.
+Two costs follow. **The declaration preview promises a withdrawal that never happens.** `POST
+/exclusions/preview` renders a receipt off the live span corpus saying N subjects are *taken out
+of the estate*, and that *a listener answering inside the range after this act is not seen*
+(`narrowingLoss`, `internal/message/render.go`). `message.Narrowing` — the function that would
+write the coverage message the preview names — has no production caller. **And
+[#989](https://github.com/winniel123/verge-asm/issues/989)'s census row names a remedy that cannot
+clear it.** The row reads *"exclude them from this scope if they are not yours"*. An operator who
+does exactly that sees the same row at the same count on every later load. The comment on
+`AddressScopeCensus`'s `AddressExcluded` filter (`internal/custody/scopecensus.go`) already
+records this and points here.
 
 The one enforcement that does exist is unrelated to probing: declining a registry `Proposal`
-writes an address exclusion so the proposal is not re-offered (`cmd/web/proposals.go:358`). That
-is ADR-0012's decline path.
+writes an address exclusion so the proposal is not re-offered — `declineLookup`'s
+`CreateAddressExclusion` call in `cmd/web/proposals.go`. That is ADR-0012's decline path.
 
 ## Decision
 
@@ -70,14 +71,14 @@ own name resolving at the address.
 
 `Estate` gains an unexported address-exclusion field, written only through a
 `WithAddressExclusions` constructor, in the shape `WithEdgeFanout` already established
-(`internal/custody/custody.go:70`). Containment reuses the family-matched rule the coverage
+(`internal/custody/custody.go`). Containment reuses the family-matched rule the coverage
 predicate already applies.
 
 The field is unexported for the reason that comment gives. Three sites build an `Estate` literal
-today — `cmd/web/vantageclass.go:40`, `internal/queue/produce.go:385` and
-`cmd/web/addressscopecensus.go:72`. A new **exported** field is silently zero at each of them and
-the compiler reports nothing. The zero value means *no exclusions*, which is the safe reading for
-an assembler that has not opted in.
+today — `addressScopeCovered` (`cmd/web/vantageclass.go`), `coveredAddressScope`
+(`internal/queue/produce.go`) and `addressScopeSharedEdges` (`cmd/web/addressscopecensus.go`). A
+new **exported** field is silently zero at each of them and the compiler reports nothing. The zero
+value means *no exclusions*, which is the safe reading for an assembler that has not opted in.
 
 The alternative — subtracting the exclusions from the declared prefixes at assembly time — is
 rejected in the table below.
@@ -85,9 +86,9 @@ rejected in the table below.
 ### 3. The exclusion narrows the enumeration, not only the gate
 
 The gate is already **total**: `MayProbe` runs over every enumerated candidate at all four gate
-sites (`internal/scan/hot.go:76`, `internal/scan/cold.go:131`,
-`internal/scan/httpidentity.go:101`, `internal/scan/tlsacceptance.go:104`). So narrowing the gate
-alone is sufficient for correctness — no probe fires at an excluded address either way.
+sites (`internal/scan/hot.go`, `internal/scan/cold.go`, `internal/scan/httpidentity.go` and
+`internal/scan/tlsacceptance.go`). So narrowing the gate alone is sufficient for correctness — no
+probe fires at an excluded address either way.
 
 It is not sufficient for cost. An excluded `/16` inside a declared `/8` is 65,536 addresses walked
 per tick and refused one at a time. So `EdgeFanoutPopulation` and `candidateAddrs` skip an
@@ -95,22 +96,23 @@ excluded address as well, as a `continue` beside the filters each loop already r
 prefix arithmetic.
 
 **The cold tier needs its own change.** `fanOutCold` passes `scope.AddressPrefixes` from
-`coldScope`, not `estate.AddressScopes` (`internal/queue/cold.go:50`). A change that touches only
+`coldScope`, not `estate.AddressScopes` (`internal/queue/cold.go`). A change that touches only
 the hot path leaves the cold sweep walking the excluded range.
 
 ### 4. The Vantage-class coverage predicate narrows with it
 
 `CoversAddressScope` is a thin wrapper over `coveredByAddressScope`. So §2 also narrows the
-`covered` predicate the Vantage-class derivation binds at `cmd/web/vantageclass.go:40` and
-`internal/queue/produce.go:385`. A vantage whose egress sits inside a newly excluded range stops
-being covered, and `exposure.VerifyClass` may reclassify it.
+`covered` predicate the Vantage-class derivation binds — `addressScopeCovered` in
+`cmd/web/vantageclass.go` and `coveredAddressScope` in `internal/queue/produce.go`. A vantage
+whose egress sits inside a newly excluded range stops being covered, and `exposure.VerifyClass`
+may reclassify it.
 
 **This is accepted rather than worked around.** [#711](https://github.com/winniel123/verge-asm/issues/711)'s
-invariant is one binding used identically by batch gating and every render, and the comment at
-`cmd/web/vantageclass.go:15` exists to keep it that way. A second, un-narrowed predicate for
-classification alone would leave two coverage rules that a later session must hold in step. The
-consequence is consistent on its own terms: the operator has said the range is not theirs, so a
-prober inside it is not inside the estate.
+invariant is one binding used identically by batch gating and every render, and the one-binding
+comment above `addressScopeCovered` in `cmd/web/vantageclass.go` exists to keep it that way. A
+second, un-narrowed predicate for classification alone would leave two coverage rules that a later
+session must hold in step. The consequence is consistent on its own terms: the operator has said
+the range is not theirs, so a prober inside it is not inside the estate.
 
 ### 5. This moves `custody/v2` to `custody/v3`
 
@@ -223,9 +225,9 @@ here: this fold reads the live `exclusion` corpus, and a `Seed` delete destroys 
 - `custody/v3` ships with a re-blessed corpus and a moved lock digest. CI's
   `corpus-version-gate` refuses the bump with nothing moved, and `TestCorpusLock` refuses the
   move with no bump, so the two land together.
-- **No migration.** The `exclusion` table already holds `address` rows carrying a CIDR
-  (`db/migrations/00004_exclusions.sql:20`). The change needs a new `sqlc` query and therefore a
-  regenerated `internal/db`, which the `sqlc` check enforces.
+- **No migration.** The `exclusion` table already holds `address` rows carrying a CIDR in its
+  `address_cidr` column (`db/migrations/00004_exclusions.sql`). The change needs a new `sqlc`
+  query and therefore a regenerated `internal/db`, which the `sqlc` check enforces.
 - ~~The preview receipt stays a promise the code does not yet keep, until the §8 ticket lands. That
   is a known and time-boxed inconsistency rather than an accepted one.~~ **The §8 ticket
   ([#1032](https://github.com/winniel123/verge-asm/issues/1032)) has landed. The code keeps the
@@ -240,6 +242,6 @@ here: this fold reads the live `exclusion` corpus, and a `Seed` delete destroys 
 | **A third limb of `MayProbe`** | It refuses after `Derive` has already returned `operator`, so it also shuts the gate over an address the extension reaches. That is §1's rejected semantics reached by accident |
 | **Subtract the exclusions at assembly time** | CIDR subtraction turns one excluded `/25` into a set of covering prefixes and is easy to get wrong at the family boundary. It also leaves `custody` unchanged, so the corpus can pin nothing |
 | **A global exclusion, cutting every limb** | Ranks the limbs, which ADR-0129's #956 amendment forbids, and contradicts `CONTEXT.md`'s disjunctive membership rule. It would also be a set removal larger than the declaration it narrows |
-| **Keep the class predicate un-narrowed** | Leaves two coverage predicates that must be held in step by hand. #711's invariant is one binding, and `cmd/web/vantageclass.go:15` exists to prevent exactly this drift |
+| **Keep the class predicate un-narrowed** | Leaves two coverage predicates that must be held in step by hand. #711's invariant is one binding, and the one-binding comment above `addressScopeCovered` exists to prevent exactly this drift |
 | **Prune `edge_fanout_observation` on declare** | Destroys a true measurement to clear a display. ADR-0006 puts departures on measurement, not on a declaration erasing one |
 | **Re-word the preview receipt instead of fixing the gate** | Writes the defect into the interface. The receipt describes the model correctly; the code is what is wrong |

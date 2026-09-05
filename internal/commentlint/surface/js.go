@@ -143,8 +143,6 @@ func (s *jsScan) addComment(start, end, startLine, endLine int, style Style) {
 		ownLine:   s.lastCode != startLine,
 		directive: directive,
 	})
-	// §5.1 keeps a protected directive in the skeleton, which turns ruling 10
-	// into an enforced property.
 	if directive {
 		s.skeleton = append(s.skeleton, Token{Kind: JSDirective, Text: text, Line: startLine})
 	}
@@ -165,8 +163,7 @@ func (s *jsScan) regexAllowed() bool {
 	case JSNumber, JSString, JSTemplate, JSRegex, JSHashbang:
 		return false
 	case JSOp:
-		// `if (x) /re/.test(y)` reads as a division here. The corpus
-		// cross-check measures that no tracked file takes that shape (#1141).
+		// `if (x) /re/.test(y)` reads as a division, and no tracked file takes that shape (#1141).
 		return last.Text != ")" && last.Text != "]" && last.Text != "}"
 	}
 	return true
@@ -183,8 +180,7 @@ func (s *jsScan) regex() error {
 			s.i += 2
 			continue
 		case c == '\n':
-			// A regex literal holds no raw newline, so the guess was wrong and
-			// §6.7 prefers "cannot judge this file" over a silent misread.
+			// A regex literal holds no raw newline, so the guess was wrong and the file is refused.
 			return fmt.Errorf("scan: %d: a regular expression opens and never closes", startLine)
 		case c == '[':
 			class = true
@@ -351,8 +347,6 @@ func isHexDigit(c byte) bool {
 func jsDirective(text string) bool {
 	inner := jsInner(text)
 	for _, marker := range jsDirectiveMarkers {
-		// A marker anywhere in the text would protect prose that names a
-		// linter, so the directive opens the comment (SPEC §2.3).
 		rest, ok := strings.CutPrefix(inner, marker)
 		// `eslint.org` opens with a marker and is not a directive, so the
 		// marker also has to end at a word boundary.

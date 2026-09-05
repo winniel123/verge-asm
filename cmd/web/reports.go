@@ -902,7 +902,7 @@ func (s *server) reportDeliveryWithdrawals(ctx context.Context, start, end time.
 }
 
 func deliveryTargetHost(target string) string {
-	// A token an operator embedded rides in the target URL, so only its host is shown (ADR-0053).
+	// A token an operator embedded rides in the target URL, so only its host is shown.
 	if u, err := url.Parse(target); err == nil && u.Host != "" {
 		return u.Host
 	}

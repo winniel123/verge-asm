@@ -1,6 +1,6 @@
 // Package auth holds the web listener's identity primitives (ADR-0117). It is
 // deliberately database-free, so the one secret that must never reach Postgres — the
-// session signing key — is produced and held here on the web-only volume (v1 spec §4.3).
+// session signing key — is produced and held here on the web-only volume (ADR-0053).
 package auth
 
 import "golang.org/x/crypto/bcrypt"
