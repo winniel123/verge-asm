@@ -1879,7 +1879,9 @@ It flattens `Name` and `Address` into one thing, and they have different keys an
 different lifecycles. A name repointing to a new address is one subject changing plus one
 subject appearing. Under a single `Asset` it becomes either a silent mutation or a false
 removal. Acceptable as a collective noun in the interface ("847 assets"), never as a
-modelled thing.
+modelled thing. Where the interface counts them, the noun has one fixed referent — the
+distinct `Name` and `Service` subjects holding an open span, and no denominator
+([ADR-0147](./docs/adr/0147-assets-watched-is-the-distinct-subject-count-over-the-open-span-corpus.md)).
 
 **Host** —
 Reads as `Name` to one person and `Address` to the next, which is precisely the
