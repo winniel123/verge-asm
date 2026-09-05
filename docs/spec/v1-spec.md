@@ -182,12 +182,21 @@ so it decides membership as affirmatively as `resolution-walk`'s own outcomes
 | Technique | TCP connect (never SYN) — non-root, `cap_drop: [ALL]`, no added capabilities |
 | Host discovery | Skipped (`-Pn`) — targets are seeded, not swept for liveness |
 | Port-scan rate | ≤ 50 conn/s per host, ≤ 20 concurrent, 3 s connect timeout, 2 retries |
-| HTTP | `GET /` only, 64 KB capped body read, 10 s timeout, ≤ 10 req/s per host |
-| Redirects | Not followed by default; a declared parameter of `http-exchange`, not an operator dial |
+| HTTP | `GET /` only, 64 KB capped body read, 10 s timeout, ≤ 10 req/s per host — one exchange per `Endpoint`, and there is no path list. This row is `http-exchange`'s **instance** of [ADR-0148](../adr/0148-a-measurement-leaf-sends-an-authored-fixed-request-and-never-mutates-remote-state-or-follows-a-link.md), not the whole rule |
+| Redirects | **Never** followed — not *not by default*: a declared parameter of `http-exchange`, not an operator dial. The `Location` is recorded and the next hop is never dialled ([ADR-0148](../adr/0148-a-measurement-leaf-sends-an-authored-fixed-request-and-never-mutates-remote-state-or-follows-a-link.md)) |
 | Admin-panel / credential probing | Response-matching only; default-credential login attempts never, not even opt-in |
 | TLS | Certificate fetched every run (rides the `reachability` exchange); version/cipher enumeration weekly, own `Scan` |
 | Per-vantage ceiling | 200 pkt/s across the targets one `Vantage` probes; round-robin by host, never by port (ADR-0137) |
 | Adaptive back-off | Halves the rate on timeout/RST-spike/429/503; never touches the deadline (ADR-0021 keeps it outside `connect-outcome`) |
+
+**The `Host discovery`, `HTTP`, `Redirects` and `Admin-panel` rows above are each an instance of one
+rule, and the rule is stated in
+[ADR-0148](../adr/0148-a-measurement-leaf-sends-an-authored-fixed-request-and-never-mutates-remote-state-or-follows-a-link.md)
+rather than in this table.** A measurement leaf puts an authored, fixed request shape on the wire; it
+never mutates remote state, and it never expands its own target set from what a response contains —
+no link is followed, no path is guessed, and nothing is crawled. A leaf's targets come from the job
+spec, and the job spec comes from custody. That binds every leaf in the binary, not `http-exchange`
+alone, and it binds a leaf that has not shipped as firmly as one that has.
 
 TCP connect is chosen over SYN specifically to avoid `CAP_NET_RAW`/root in the container — SYN
 scanning gates on effective UID, not just the capability bit, and the trade-off (more packets,
