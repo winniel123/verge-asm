@@ -11,10 +11,9 @@ function PageBtn({ children, active, disabled, onClick, label }) {
   );
 }
 
-/* Windowed page list with ellipses. */
 export function Pagination({ page = 1, pageCount = 1, onChange, pageSize, totalItems, style }) {
   const go = (p) => { if (p >= 1 && p <= pageCount && p !== page && onChange) onChange(p); };
-  /* Constant slot count so the control never changes width while paging. */
+  // A fixed slot count is what stops the control resizing as the page moves.
   let pages = [];
   if (pageCount <= 7) { for (let p = 1; p <= pageCount; p++) pages.push(p); }
   else if (page <= 4) pages = [1, 2, 3, 4, 5, "\u2026", pageCount];

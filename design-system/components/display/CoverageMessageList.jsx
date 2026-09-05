@@ -3,7 +3,6 @@ import { GapBadge } from "./GapBadge.jsx";
 import { StalenessBadge } from "./StalenessBadge.jsx";
 import { RelativeTime } from "./RelativeTime.jsx";
 
-/* Coverage facts (gaps, staleness, silence) — never severity. kind: "gap" | "stale" | "not-evaluable" | "silent". */
 export function CoverageMessageList({ messages = [], style }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", fontFamily: "var(--font-ui)", ...style }}>

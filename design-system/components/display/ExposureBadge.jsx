@@ -1,6 +1,5 @@
 import React from "react";
 
-/* Reach conclusion as a STATE chip — explicitly not a 0\u2013100 score. */
 const S = {
   exposed: { bg: "var(--danger-soft)", bd: "var(--danger-border)", fg: "var(--danger)" },
   firewalled: { bg: "var(--ok-soft)", bd: "var(--ok-border)", fg: "var(--ok)" },

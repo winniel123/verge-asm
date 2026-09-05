@@ -1,8 +1,5 @@
 import React from "react";
 
-/* Asset graph canvas (SVG). nodes: [{id, label, type: "domain"|"subdomain"|"ip"|"service", x, y, sev?}]
-   edges: [{from, to}]. Pan by dragging the background; zoom via the built-in controls. */
-
 const NODE_R = { domain: 16, subdomain: 10, ip: 9, service: 6 };
 
 function NodeShape({ n, selected, hovered }) {
@@ -54,15 +51,13 @@ export function Graph({ nodes = [], edges = [], height = 560, viewWidth = 1200, 
     const dx = e.clientX - drag.current.sx, dy = e.clientY - drag.current.sy;
     if (!drag.current.moved && Math.abs(dx) + Math.abs(dy) > 3) {
       drag.current.moved = true;
-      /* capture only once a real drag starts — capturing on pointerdown makes the
-         browser retarget the eventual click to the svg, killing node selection */
+      // Capturing on pointerdown retargets the eventual click to the svg and kills node selection.
       try { drag.current.el.setPointerCapture(drag.current.pid); } catch (err) {}
     }
     if (!drag.current.moved) return;
     const el = e.currentTarget;
     const scale = viewWidth / (el.clientWidth || viewWidth);
-    /* read the ref BEFORE queueing: React batches updaters, and pointerup may null
-       drag.current before this updater runs — dereferencing it there crashes the render */
+    // Reading the ref inside the updater throws: React batches, and pointerup may null it first.
     const ox = drag.current.ox, oy = drag.current.oy;
     setView((v) => ({ ...v, x: ox + dx * scale, y: oy + dy * scale }));
   };
@@ -123,7 +118,6 @@ export function Graph({ nodes = [], edges = [], height = 560, viewWidth = 1200, 
   );
 }
 
-/* Legend chips for the node types + severity halo. */
 export function GraphLegend({ style }) {
   const item = (glyph, label) => (
     <span key={label} style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>

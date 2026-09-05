@@ -35,8 +35,6 @@ function Node({ k, v, depth, defaultDepth, last }) {
   );
 }
 
-/* Collapsible JSON tree for payload inspection (delivery records, API examples).
-   Strings ok-green, numbers chart-1, booleans warn, null muted — value types, never severity. */
 export function JSONViewer({ data, defaultDepth = 1, label, style }) {
   return (
     <div aria-label={label} style={{ font: "400 12.5px/1.75 var(--font-mono)", background: "var(--surface-sunken)", border: "1px solid var(--border-default)", borderRadius: 12, padding: "10px 14px", overflowX: "auto", ...style }}>

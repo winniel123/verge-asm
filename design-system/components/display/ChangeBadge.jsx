@@ -1,7 +1,5 @@
 import React from "react";
 
-/* The change vocabulary as chips. Rounded-rect (severity is the pill), drift tokens (never the severity ramp).
-   gain: appeared / revealed / returned · loss: withdrawn / descoped · change: changed */
 const FAMILY = { appeared: "gain", revealed: "gain", returned: "gain", withdrawn: "loss", descoped: "loss", changed: "change" };
 
 export function ChangeGlyph({ change, size = 10 }) {

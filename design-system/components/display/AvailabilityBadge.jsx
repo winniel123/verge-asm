@@ -1,6 +1,5 @@
 import React from "react";
 
-/* Vantage availability (Derived) — operational status, not severity. */
 const S = {
   available: { bg: "var(--ok-soft)", bd: "var(--ok-border)", fg: "var(--ok)", dot: "var(--ok-solid)" },
   degraded: { bg: "var(--warn-soft)", bd: "var(--warn-border)", fg: "var(--warn)", dot: "var(--warn-solid)" },

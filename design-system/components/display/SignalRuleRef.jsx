@@ -2,7 +2,6 @@ import React from "react";
 import { Tooltip } from "../feedback/Tooltip.jsx";
 import { Icon } from "../media/Icon.jsx";
 
-/* Reference to the rule that raised a signal: id@version, mono chip. */
 export function SignalRuleRef({ id, version, onClick, style }) {
   const [hov, setHov] = React.useState(false);
   const chip = (

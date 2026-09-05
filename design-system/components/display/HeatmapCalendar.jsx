@@ -1,7 +1,5 @@
 import React from "react";
 
-/* GitHub-style activity-by-day grid. values: number[] oldest-first, one per day (columns = weeks).
-   Intensity ramps on --chart-1 — activity is volume, never severity. */
 export function HeatmapCalendar({ values = [], cell = 12, gap = 3, label, unit = "scans", startLabel, endLabel = "today", style }) {
   const max = values.reduce((m, v) => Math.max(m, v), 1);
   const [on, setOn] = React.useState(false);

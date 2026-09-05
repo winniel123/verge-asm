@@ -1,7 +1,6 @@
 import React from "react";
 import { Icon } from "../media/Icon.jsx";
 
-/* Mono value with a hover copy control (assets, IPs, ids). */
 export function CopyValue({ value, display, size = 12.5, style }) {
   const [hov, setHov] = React.useState(false);
   const [copied, setCopied] = React.useState(false);

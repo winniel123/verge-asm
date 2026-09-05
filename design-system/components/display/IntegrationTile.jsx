@@ -1,8 +1,6 @@
 import React from "react";
 import { Badge } from "./Badge.jsx";
 
-/* One integration in the library grid: neutral letter mark (no fake logos), category,
-   install state as a Badge. Whole tile is the click target. */
 export function IntegrationTile({ name, category, description, mark, state = "available", onClick, style }) {
   const [hover, setHover] = React.useState(false);
   const badge = state === "installed" ? { tone: "ok", text: "installed" } : state === "attention" ? { tone: "warn", text: "needs attention" } : { tone: "neutral", text: "available" };

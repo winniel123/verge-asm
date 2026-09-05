@@ -1,7 +1,5 @@
 import React from "react";
 
-/* Multi-series line chart with axes, ticks, gridlines and a hover readout.
-   Reports-grade — Sparkline stays the inline form. Chart tokens only, never severity colors. */
 export function TimeSeriesChart({ series = [], labels = [], hoverLabels, height = 220, yFormat, label, showLegend, style }) {
   const wrapRef = React.useRef(null);
   const [w, setW] = React.useState(0);

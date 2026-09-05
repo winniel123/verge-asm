@@ -15,7 +15,6 @@ export interface TableColumn {
   /** Custom sort accessor (e.g. severity rank, parsed relative time) */
   sortValue?: (row: any) => any;
 }
-/** @startingPoint section="Components" subtitle="Dense data table with micro-label heads" viewport="700x260" */
 export interface TableProps {
   columns: TableColumn[];
   rows: any[];

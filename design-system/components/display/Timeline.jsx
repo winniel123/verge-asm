@@ -2,8 +2,6 @@ import React from "react";
 
 const TONES = { neutral: "var(--neutral-400)", accent: "var(--accent)", ok: "var(--ok-solid)", warn: "var(--warn-solid)", danger: "var(--danger-solid)" };
 
-/* Vertical event history. events: [{ title, detail?, time, tone?, mono?, dotColor?, content? }] — newest first.
-   Pass groups: [{id, label, meta?, events, defaultCollapsed?}] for collapsible per-batch sections. */
 function TimelineList({ events = [], style }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", fontFamily: "var(--font-ui)", ...style }}>

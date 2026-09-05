@@ -1,6 +1,5 @@
 import React from "react";
 
-/* Initials chip — no photos in the console. name derives initials; tone dot marks presence/role. */
 export function Avatar({ name = "", size = 28, dot, style }) {
   const initials = name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "?";
   const DOTS = { ok: "var(--ok-solid)", warn: "var(--warn-solid)", danger: "var(--danger-solid)", accent: "var(--accent)" };

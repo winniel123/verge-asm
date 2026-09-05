@@ -1,7 +1,5 @@
 import React from "react";
 
-/* Coverage read for a scope. With a denominator: counted/total bar. Without one (name scopes,
-   custody extensions): the distinct census state — striped bar, no percentage claimed. */
 export function CoverageMeter({ label, counted, total, unit = "", detail, size = "md", style }) {
   const census = total == null;
   const h = size === "sm" ? 4 : 6;

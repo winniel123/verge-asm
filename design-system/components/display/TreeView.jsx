@@ -1,6 +1,5 @@
 import React from "react";
 
-/* Name-hierarchy tree. nodes: [{id, label, count?, sev?, children?}]. Labels are mono by default. */
 function Row({ n, depth, openIds, toggle, onSelect, selectedId }) {
   const [hov, setHov] = React.useState(false);
   const isOpen = openIds.indexOf(n.id) !== -1;
