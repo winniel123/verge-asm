@@ -49,9 +49,10 @@ refused with **403**. Concretely, admins alone may:
 | Integrations | Install or disconnect an integration |
 | **Team** | **Invite, change a role, require re-enrollment, remove an account** |
 
-The whole **Settings** screen is itself admin-only (`GET /settings` is behind
-`requireAdmin`), so a viewer cannot even open the Team tab. This is stricter than a read
-surface like `/sources`, which a viewer *can* open but not toggle.
+**Settings** is admin-gated as a whole (`GET /settings` is behind
+`requireSettingsAdmin`), so a viewer cannot even open the Team tab. This is stricter than a
+read surface like `/sources`, which a viewer *can* open but not toggle. The one carve-out is
+**API access** (`?tab=api`), which a viewer may read but not change (ADR-0173).
 
 ### What a viewer may still do
 
@@ -184,3 +185,4 @@ purely local-account acts, regardless of how the operator signs in. Full detail 
 | `/settings/accounts/remove` | POST | admin | Remove an account (typed-name confirm, guards) |
 | `/invite` | GET/POST | pre-auth token | Accept an invitation; set username + password |
 | `/profile` | GET | viewer | Self-service credentials, tokens, 2FA, SSO links |
+| `/settings?tab=api` | GET | viewer | Read whether the JSON API is enabled; the toggle is admin-only |

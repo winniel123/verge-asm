@@ -44,7 +44,7 @@ type reportsPeriod struct {
 }
 
 func reportsPeriods() []reportsPeriod {
-	// The design labels its own twelve-week activity view "Last 7d", so 7d maps to twelve weeks.
+	// The design labels its own twelve-week activity view "Last 7d", so 7d maps to twelve weeks (ADR-0176 §6).
 	return []reportsPeriod{
 		{Token: "24h", Label: "Last 24h", Weeks: 4},
 		{Token: "7d", Label: "Last 7d", Weeks: reportsHeatWeeks},
@@ -553,7 +553,7 @@ func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		return
 	}
 
-	// The export link carries this token, so the page and the export read the same window.
+	// The export link carries this token, so the page and the export read the same window (ADR-0176 §4).
 	window := resolveReportsWindow(r)
 	weeks := window.Weeks
 	days := weeks * 7

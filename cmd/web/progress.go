@@ -52,7 +52,7 @@ func (h *progressHub) record(ev jobProgress) {
 		h.recent = append(h.recent, ev.Dispatch)
 		h.evictLocked()
 	}
-	// Evicting the front instead would shift every later index and desync the stream cursor.
+	// Evicting the front instead would shift every later index and desync the stream cursor (ADR-0182 §2).
 	if len(log) >= maxEventsPerRun {
 		return
 	}
@@ -91,7 +91,7 @@ func decodeProgress(payload []byte) (jobProgress, bool) {
 }
 
 func eventStreamLines(events []jobProgress, jobFilter int64, filtered bool) []runStreamLine {
-	// The viewer only ever appends, so a reason merged onto an existing line never reaches it.
+	// The viewer only ever appends, so a reason merged onto an existing line never reaches it (ADR-0182 §1).
 	out := make([]runStreamLine, 0, len(events))
 	for _, ev := range events {
 		if filtered && ev.Job != jobFilter {
@@ -109,7 +109,7 @@ func eventStreamLines(events []jobProgress, jobFilter int64, filtered bool) []ru
 const streamCursorBase = 1_000_000
 
 func encodeStreamCursor(events, state int) int {
-	// A retry growing the state log must not shift an event's position, so the counters never collide.
+	// A retry growing the state log must not shift an event's position, so the counters never collide (ADR-0182 §2).
 	if state >= streamCursorBase {
 		state = streamCursorBase - 1
 	}

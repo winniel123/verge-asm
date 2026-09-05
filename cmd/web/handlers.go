@@ -269,7 +269,7 @@ type server struct {
 }
 
 func newServer(s store, key []byte, setupToken string, now func() time.Time) *server {
-	// A nil key fails closed on the encrypt path rather than silently storing cleartext (#337).
+	// A nil key fails closed rather than admitting cleartext to Postgres (ADR-0172 §2, #337).
 	totpKey, _ := auth.DeriveTOTPKey(key)
 	return &server{
 		store:         s,
@@ -492,7 +492,7 @@ func (s *server) handler() http.Handler {
 
 	s.mountAPIv1(mux)
 
-	// Set after the last route, so the submitting-URL guard sees every path this server serves.
+	// Set after the last route, so the submitting-URL guard sees every path this server serves (ADR-0171 §1).
 	s.routes = mux
 
 	return s.recoverPanics(mux)

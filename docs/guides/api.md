@@ -100,7 +100,7 @@ never a login page.
 | Any non-`GET` verb on a resource | `405` | The surface is read-only. `POST`/`PUT`/`PATCH`/`DELETE` are refused with `Allow: GET` and no body — no mutating verb is even routed. |
 | Missing / malformed / unknown token, or a token whose account is gone | `401` | Uniform for every credential failure (with a `WWW-Authenticate: Bearer` challenge); the body distinguishes none of "no token", "unknown token", "removed account". |
 | Valid token on an enabled surface | `200` | The JSON projection for that resource. |
-| Store read failure | `500` | `{"error":"internal error"}` — a fixed label carrying no estate shape or stack; the detail is only logged. |
+| Store read failure on the resource's own subject | `500` | `{"error":"internal error"}` — a fixed label carrying no estate shape or stack; the detail is only logged. A read that feeds one region degrades that region instead and still answers `200` (ADR-0168). |
 
 Both "disabled" and "unknown path" answer `404`. So treat any `404` from `/api/v1`
 as "the surface is not serving this". Check that an admin has enabled it. Then check

@@ -23,8 +23,8 @@ import (
 )
 
 // Fabricating a live datum to stand in for a curated fixture ships an approximation as fact.
-// Each pinned value is a second copy of fixtures.json; a drift test fails the build on divergence.
-// No dev surface reaches a real deployment: /dev needs s.devMode and the seeds need -seed-fixtures.
+// Each pinned value is a second copy of fixtures.json; a drift test fails the build on divergence (ADR-0167 §2).
+// No dev surface reaches a real deployment: /dev needs s.devMode and the seeds need -seed-fixtures (ADR-0166).
 
 const devFixtureIncidentID = "err_9f3ka72c"
 
@@ -180,7 +180,7 @@ func seedProfileFixtures(ctx context.Context, pool *pgxpool.Pool) error {
 	}
 
 	// The design-system profile example is consistent only at TOTP-ON, so seed it verbatim.
-	// The dev session mint bypasses the password and TOTP challenge, so no secret is needed.
+	// The mint is this account's only door, so it needs no secret (ADR-0166 §1, #1333).
 	if _, err := pool.Exec(ctx, `UPDATE account SET totp_enabled = true WHERE id = $1`, acct.ID); err != nil {
 		return fmt.Errorf("profile fixture: enable totp: %w", err)
 	}
@@ -363,6 +363,7 @@ func (s *server) devSetupSeedEmpty(w http.ResponseWriter, r *http.Request) {
 		s.notFound(w, r)
 		return
 	}
+	// Safe only because a dev build points at a throwaway fixture database (ADR-0166 §4, #1333).
 	if _, err := s.pool.Exec(r.Context(), `TRUNCATE account RESTART IDENTITY CASCADE`); err != nil {
 		s.serverError(w, "dev: empty accounts for setup capture", err)
 		return
@@ -636,7 +637,7 @@ func (s *server) runDetailFixtureData(acct db.Account) map[string]any {
 	}
 }
 
-// 1408 stays the missing-run demo, so this id must not collide with it.
+// 1408 is the missing-run demo and runPage cannot 404 a collision (ADR-0166 §5, #1333).
 
 const devRunningRunID = "1409"
 
@@ -2234,7 +2235,7 @@ func (s *server) inboxFixtureData(acct db.Account, r *http.Request) map[string]a
 	}
 
 	var selected map[string]any
-	// The message detail carries no prose body: the form is the census plus the delivery receipts.
+	// The message detail carries no prose body: the form is the census plus the delivery receipts (ADR-0180 §1, #1333).
 	if selID != "" && selID == fx.Selected.ID {
 		census := make([]map[string]any, 0, len(fx.Selected.Census))
 		for _, c := range fx.Selected.Census {

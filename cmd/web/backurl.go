@@ -122,11 +122,11 @@ func (s *server) routeServesGET(p string) bool {
 		Host:   "localhost",
 	}
 	_, pattern := s.routes.Handler(probe)
-	// An unmatched path yields an empty pattern and a redirect hop a bare one, neither with a method.
+	// A redirect hop echoes the matched pattern, so the cleanliness check above is what makes this sound (ADR-0171 §2).
 	if !strings.HasPrefix(pattern, "GET ") {
 		return false
 	}
-	// The catch-all matches every path, but auth.go home answers 404 for anything but the root.
+	// The catch-all matches every path, but auth.go home answers 404 for anything but the root (ADR-0171 §4).
 	if pattern == "GET /" {
 		return p == "/"
 	}

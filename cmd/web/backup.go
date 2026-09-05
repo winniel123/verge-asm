@@ -164,7 +164,7 @@ func (s *server) streamBackup(ctx context.Context, w io.Writer, schemaVersion in
 }
 
 func (s *server) dumpBackupTable(ctx context.Context, w io.Writer, table string) error {
-	// The table comes from the backupTables allowlist and never from request input.
+	// The table comes from the allowlist literal, never from request input (ADR-0174, #1363).
 	rows, err := s.pool.Query(ctx, `SELECT to_jsonb(t) FROM "`+table+`" t`)
 	if err != nil {
 		return err

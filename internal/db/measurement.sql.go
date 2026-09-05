@@ -623,7 +623,7 @@ SET state      = CASE WHEN attempt >= max_attempts THEN 'dead' ELSE 'ready' END,
 WHERE state = 'running' AND claimed_at < $1::timestamptz
 `
 
-// A dead worker is failure, not evidence, so a reap writes no Batch and moves no Availability.
+// A dead worker is failure, not evidence, so a reap writes no Batch and moves no Availability (ADR-0169 §1, #1391).
 func (q *Queries) ReapStaleRunningJobs(ctx context.Context, cutoff pgtype.Timestamptz) (int64, error) {
 	result, err := q.db.Exec(ctx, reapStaleRunningJobs, cutoff)
 	if err != nil {

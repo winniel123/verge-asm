@@ -387,7 +387,7 @@ func (s *server) reportScheduleRows(ctx context.Context) []reportScheduleRow {
 	rows := make([]reportScheduleRow, 0, len(schedules))
 	for _, sc := range schedules {
 		const reportScheduleNeverRunMins = 1 << 30
-		// A never-run schedule sorts last under the client-side sort, so the sentinel exceeds any age.
+		// A never-run schedule sorts last, never as "just now" (ADR-0179 §1, #1363).
 		lastSent, href, has := "—", "", false
 		lastMins := reportScheduleNeverRunMins
 		del, err := s.store.GetLatestReportDelivery(ctx, sc.ID)

@@ -66,7 +66,7 @@ const heatSteps = 4
 
 func HeatLevels(counts []int) []int {
 	// The ramp is the HeatmapCalendar's: level 0, then 1..4 in quartiles of the busiest day.
-	// One rule, so the page fold, the export and any later surface ramp identically.
+	// The 0-4 ramp is one rule; a second surface calls this and never re-derives it (ADR-0177, #1349).
 	max := 1
 	for _, c := range counts {
 		if c > max {

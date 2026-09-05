@@ -11,8 +11,6 @@ import (
 	designfs "github.com/winniel123/verge-asm/design-system"
 )
 
-// A deployment is single-tenant, so the org chip is static and no switcher ships (v1-spec §1).
-
 const devShellToastVariant = "flash-toast"
 
 type chromeVM struct {

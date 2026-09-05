@@ -52,7 +52,7 @@ func (l *loginLimiter) locked(keys ...string) bool {
 		if e == nil || !now.Before(e.lockedUntil) {
 			continue
 		}
-		// A capped account lock stops a pre-auth attacker locking a known username out for good.
+		// A capped account lock stops a pre-auth attacker locking a known username out for good (ADR-0170 §4).
 		if l.acctLockCeiling > 0 && l.acctPrefix != "" && strings.HasPrefix(k, l.acctPrefix) &&
 			!e.firstLockedAt.IsZero() && !now.Before(e.firstLockedAt.Add(l.acctLockCeiling)) {
 			continue
@@ -79,7 +79,7 @@ func (l *loginLimiter) fail(keys ...string) (nowLocked bool) {
 		e.failures++
 		e.lastFailure = now
 		if e.failures >= l.maxFailures {
-			// Anchoring to the first lock stops repeated re-locks sliding the ceiling forward.
+			// Anchoring to the first lock stops repeated re-locks sliding the ceiling forward (ADR-0170 §3).
 			if e.firstLockedAt.IsZero() {
 				e.firstLockedAt = now
 			}

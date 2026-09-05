@@ -1082,6 +1082,7 @@ func certDetailsFromValue(v certificateValue, now time.Time, serverName string) 
 
 func selfSignedOf(subject, issuer string, selfSigVerifies bool) bool {
 	// Shared so the two rules cannot disagree (docs/research/weak-key-and-signature.md §4.1).
+	// Byte-exact on the presented rendering; RFC 5280 §7.1 preparation is refused (ADR-0175 §1, #1342).
 	return subject == issuer && selfSigVerifies
 }
 
@@ -1091,7 +1092,7 @@ func sanMatchesName(sanDNS []string, name string) bool {
 	if len(nameLabels) == 0 {
 		return false
 	}
-	// iPAddress SANs are ignored entirely, so an IP-keyed endpoint never matches on one.
+	// Only dNSName SANs participate; RFC 6125 puts an iPAddress out of scope (ADR-0175 §3, #1342).
 	for _, entry := range sanDNS {
 		if sanEntryMatches(entry, nameLabels) {
 			return true

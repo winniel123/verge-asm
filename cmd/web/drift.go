@@ -145,8 +145,6 @@ func filterDriftRowsUntil(rows []db.ListRecentDriftEventsRow, until time.Time) [
 	return out
 }
 
-// A 90d window on a mature estate has no natural bound, so the feed reads under a cap.
-
 const driftFeedLimit int32 = 500
 
 func (s *server) driftSince(p driftPeriod) pgtype.Timestamptz {
@@ -167,6 +165,7 @@ func (s *server) driftPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	var groups []driftBatch
 	movement := driftMovement{}
 	truncated := false
+	// A 90d window on a mature estate has no natural bound, so the feed reads under a cap (ADR-0178 §1).
 	if rows, err := s.store.ListRecentDriftEvents(r.Context(), db.ListRecentDriftEventsParams{
 		Since: since, MaxEvents: driftFeedLimit,
 	}); err != nil {
@@ -180,7 +179,7 @@ func (s *server) driftPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	}
 
 	transitionCount := 0
-	// The tmpl's JS toggles a group open, so the full period feed always ships, never a filtered one.
+	// The tmpl's JS toggles a group open, so the full period feed always ships, never a filtered one (ADR-0178 §4).
 	for i := range groups {
 		transitionCount += len(groups[i].Events)
 		if i >= 2 {

@@ -81,7 +81,7 @@ RETURNING id, scan_id, vantage_id, dispatch_id, kind, spec, attempted_scope,
           offers, attempt, max_attempts;
 
 -- name: ReapStaleRunningJobs :execrows
--- A dead worker is failure, not evidence, so a reap writes no Batch and moves no Availability.
+-- A dead worker is failure, not evidence, so a reap writes no Batch and moves no Availability (ADR-0169 §1, #1391).
 UPDATE queue_job
 SET state      = CASE WHEN attempt >= max_attempts THEN 'dead' ELSE 'ready' END,
     attempt    = attempt + 1,

@@ -64,8 +64,14 @@ Two protections sit on this step:
 - **Lockout.** Both the password step and the TOTP step are throttled per-account
   **and** per source IP. Too many failures locks the key for a few minutes and
   invalidates the pending grant. So a 6-digit code is not brute-forceable, and the
-  attacker must start again from the password. The source IP is read from the
-  connection, never from a forwarding header.
+  attacker must start again from the password. The source IP is the connection's
+  immediate peer unless you name your proxies in `VERGE_TRUSTED_PROXIES`
+  (ADR-0159); it never reaches identity or authorization.
+
+  The two locks are deliberately unequal. The per-IP lock escalates up to an hour
+  and is never released early. An **account** lock is honoured for at most fifteen
+  minutes from the first time that account locked, so a stranger who fails a
+  username they know cannot keep you out of your own console (ADR-0170).
 
 ### Recovery codes and a lost authenticator
 

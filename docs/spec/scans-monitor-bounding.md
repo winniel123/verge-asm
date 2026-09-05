@@ -46,7 +46,7 @@ The bounding mechanism is **(b) summarize + drill** (#931). The monitor stops re
 
 1. **Decouple the shared cap.** Today Active and History are both carved from one `ListDispatchProgress(scansHistoryLimit)` read, split in the handler (see §4). A burst of in-flight jobs eats the shared 50 and silently shrinks completed history. Give History its **own dedicated window**; read Active in-flight **separately** — Active is bounded by reality, because few scans run at once. (#933 points 2, 4.)
 2. **Cap value: 50**, now dedicated to History. This keeps today's visible depth exactly. The only behaviour change is that history no longer shrinks when scans are busy. Keep the `scansHistoryLimit = 50` constant (`scans.go:52`) as the History cap. (#933 point 4.)
-3. **Truncation callout.** When the History window truncates, render one stateless line **below the history table** (after `:386`): "Showing the 50 most recent dispatches." No link, no pager — there is no period selector and no `/runs` index (`/runs/{id}` is per-dispatch only). Match the Drift `.dr-callout` pattern (`drift.tmpl:140-141`: an `.ic` svg + a `.tx` span, guarded by `{{if .Truncated}}`). Design the exact markup at implement time with `verge-asm-design`. (#933 points 1, 3.)
+3. **Truncation callout.** When the History window truncates, render one stateless line **below the history table** (after `:386`): "Showing the 50 most recent dispatches." No link, no pager — there is no period selector and no `/runs` index (`/runs/{id}` is per-dispatch only). Match the Drift `.dr-callout` pattern (`drift.tmpl:127-128`: an `.ic` svg + a `.tx` span, guarded by `{{if .Truncated}}`). Design the exact markup at implement time with `verge-asm-design`. (#933 points 1, 3.)
 4. **Truncation detection:** fetch with `LIMIT N+1` (fetch 51, show 50, `Truncated = len > 50`). (#933 implementation note.)
 5. **Rejected, do not build:** a Signals `?page=` pager (it reintroduces page-state), and stay-as-is silent eviction. (#933 point 1.)
 
@@ -94,4 +94,4 @@ The bounding mechanism is **(b) summarize + drill** (#931). The monitor stops re
 | Per-active job load | `scans.go:158` (`ListJobsForDispatch`) |
 | dispatch `Href` = `/runs/{id}` | `scans.go:1184` |
 | Per-job query (keep) | `dispatch.sql:66-86` (no LIMIT) |
-| Drift callout pattern to match | `drift.tmpl:140-141` (`.dr-callout`) |
+| Drift callout pattern to match | `drift.tmpl:127-128` (`.dr-callout`) |

@@ -18,7 +18,7 @@ Four of ADR-0041's rulings meet this new data, and this ADR consciously override
 - *"`Dispatch` [is] the only corpus a wall clock may retire."* — **Amended.** A second dial-carrying Operational corpus is added.
 - *"v1's shipped defaults: unbounded on both retirable corpora."* — **Overridden** for this corpus: it ships bounded.
 - The redaction posture (the progress/log vocabulary is closed and redacted, so verbatim bytes never reach rest). — **Overridden**, consciously and priced, with an operator-visible exception (§ *The redaction posture*).
-- ADR-0053's *"Postgres holds no secret at all."* — **Reversed for the `Transcript` corpus alone.** It is the first secret-bearing data Postgres holds, and it is stored encrypted (§ *The at-rest reversal*).
+- ADR-0053's *"Postgres holds no secret at all."* — **Reversed for the `Transcript` corpus alone.** It is the first *corpus* Postgres holds a secret for — `account.totp_secret` was already ciphertext there ([ADR-0172](./0172-a-bearer-authenticator-seed-is-admitted-to-postgres-as-aead-ciphertext-and-the-sealing-key-stays-on-the-volume.md)) — and it is stored encrypted (§ *The at-rest reversal*).
 
 The Operational layer is already **three** corpora, not one: `Dispatch`, and — since [#119](https://github.com/winniel123/verge-asm/issues/119) — `Message` and `Delivery`. Only `Dispatch` carries a dial. This ADR adds a fourth, `Transcript`, and a second dial.
 

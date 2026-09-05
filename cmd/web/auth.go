@@ -101,7 +101,7 @@ func (s *server) requireAdmin(h authedHandler) http.HandlerFunc {
 
 func (s *server) requireSettingsAdmin(h authedHandler) http.HandlerFunc {
 	return s.requireLogin(func(w http.ResponseWriter, r *http.Request, acct db.Account) {
-		// A viewer may read the API-access tab; every other Settings tab stays admin-only.
+		// A viewer may read the API-access tab; every other Settings tab stays admin-only (ADR-0173 §1).
 		if acct.Role != roleAdmin && validTab(r.URL.Query().Get("tab")) != "api" {
 			s.settingsForbidden(w, r, acct)
 			return
@@ -297,13 +297,14 @@ func (s *server) loginTOTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	code := r.FormValue("code")
-	// A dev-only bypass of the second factor, gated to VERGE_DEV and unreachable in a real build.
+	// A dev-only bypass of the second factor, unreachable in a released build (ADR-0166 §2, #1334).
 	if s.devMode && code == devFixtureTOTPCode {
 		s.loginLimiter.reset(acctKey, ipKey)
 		s.clearCookie(w, pendingCookie)
 		s.completeLogin(w, r, acct.ID)
 		return
 	}
+	// A decrypt failure is a fault, not a wrong code, so this fails closed (ADR-0172 §5, #337).
 	secret, derr := auth.DecryptTOTPSecret(s.totpKey, acct.TotpSecret.String)
 	if derr != nil {
 		s.serverError(w, "decrypt totp secret", derr)
@@ -905,7 +906,7 @@ func (s *server) beginTOTPEnroll(w http.ResponseWriter, r *http.Request, acct db
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
-	// The sealing key never enters Postgres, so a table leak discloses ciphertext (ADR-0053).
+	// A seed is admitted to Postgres only sealed under a key it never holds (ADR-0172 §2, #337).
 	enc, err := auth.EncryptTOTPSecret(s.totpKey, secret)
 	if err != nil {
 		s.serverError(w, "encrypt totp secret", err)
@@ -1872,7 +1873,7 @@ func (s *server) injectChrome(data any, r *http.Request) {
 
 	m["Chrome"] = &chromeVM{
 		Nav:           navSlice(navActive, signalCount),
-		Org:           "self-hosted",
+		Org:           "self-hosted", // single-tenant, so the chip is a constant, not a placeholder (ADR-0181 §2)
 		Version:       s.buildVersion(),
 		UserName:      userName,
 		UserInitials:  initials,

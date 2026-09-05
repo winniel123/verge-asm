@@ -268,6 +268,7 @@ func (s *server) applyRestore(ctx context.Context, archive []byte) error {
 		for _, t := range man.Tables {
 			qn = append(qn, `"`+t+`"`)
 		}
+		// TRUNCATE takes CASCADE, so the manifest gate above bounds it too (ADR-0174 §1, #1363).
 		if _, err := tx.Exec(ctx, "TRUNCATE "+joinComma(qn)+" RESTART IDENTITY CASCADE"); err != nil {
 			return fmt.Errorf("restore: truncate: %w", err)
 		}
@@ -300,7 +301,7 @@ func (s *server) applyRestore(ctx context.Context, archive []byte) error {
 		if identity[row.Table] {
 			overriding = "OVERRIDING SYSTEM VALUE "
 		}
-		// The table name is interpolated, so backupAllowed is what keeps a forged manifest out.
+		// The table name is interpolated, so backupAllowed is the only bound (ADR-0174 §1, #1363).
 		q := `INSERT INTO "` + row.Table + `" ` + overriding +
 			`SELECT * FROM jsonb_populate_record(NULL::"` + row.Table + `", $1::jsonb)`
 		if _, err := tx.Exec(ctx, q, string(row.Data)); err != nil {

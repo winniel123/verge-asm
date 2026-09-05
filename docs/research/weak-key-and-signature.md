@@ -520,7 +520,9 @@ the owner's stated reason rather than on the certificate's position in the chain
 scope checkable.
 
 Two riders. *Self-signed* here means what `certificate-self-signed` reads — issuer ≡ subject with a
-verifying self-signature — so the two rules read the same fact and cannot disagree about it. And
+verifying self-signature — so the two rules read the same fact and cannot disagree about it, where
+both evaluate; an absent `self_sig_verifies` abstains for `certificate-self-signed` and folds to
+not-self-signed for the signature limb (ADR-0175 §2). And
 because we cannot know which certificate a given relying party treats as its **trust anchor**, the
 predicate keys on **self-signed**, which is on the wire, rather than on **trust anchor**, which is
 not. RFC 8446 names both. Only one of them is observable from a handshake.

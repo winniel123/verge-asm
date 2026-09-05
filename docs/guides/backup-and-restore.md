@@ -302,7 +302,7 @@ re-provisioning are recoverable without one.
 Backups protect against loss you did not choose. **Retention** is loss you *do*
 choose: two sweeps inside `worker` that retire aged rows on a dial you set at
 **Settings** (the delivery tab — the form posts to `POST /settings/retention`, and
-the whole Settings page is admin-only). Both dials ship at **0 — unbounded** — v1
+the delivery tab is admin-only). Both dials ship at **0 — unbounded** — v1
 grows the corpus without limit until you raise a dial. This matters to backups
 because it decides how much there is to back up, and because it is the only
 supported way to delete estate data.
