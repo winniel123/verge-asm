@@ -84,8 +84,18 @@ func TestDecideNameDeparture(t *testing.T) {
 			wantLeft:   true,
 		},
 		{
-			name:        "seed-covered name stays despite NameError",
+			name:        "seed-covered name leaves on a decided NameError",
 			open:        []db.ListOpenSpansForSubjectRow{resolutionSpan(1, pgtype.Int8{}, estateOutcomeNameError)},
+			seedCovered: true,
+			wantReason:  drift.ReasonMeasuredAbsent,
+			wantLeft:    true,
+		},
+		{
+			name: "seed-covered name held through an undecided Shadowed class",
+			open: []db.ListOpenSpansForSubjectRow{
+				resolutionSpan(1, pgtype.Int8{Int64: 10, Valid: true}, estateOutcomeNameError),
+				resolutionSpan(2, pgtype.Int8{Int64: 20, Valid: true}, estateOutcomeShadowed),
+			},
 			seedCovered: true,
 			wantLeft:    false,
 		},

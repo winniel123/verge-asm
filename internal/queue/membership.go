@@ -117,17 +117,22 @@ func observedResolutionNames(obs []wire.Observation) []string {
 }
 
 func decideNameDeparture(open []db.ListOpenSpansForSubjectRow, seedCovered, excluded bool) (drift.ClosureReason, bool) {
-	// The operator's narrowing outranks declared input, which outranks measurement (ADR-0087).
 	if len(open) == 0 {
 		return "", false
 	}
 	if excluded {
+		// An exclusion acts on our aperture and claims no absence, so it needs no witness (ADR-0087).
 		return drift.ReasonDescoped, true
 	}
+	witnesses := resolutionWitnesses(open)
 	if seedCovered {
+		// A Seed admits a Name and holds it only where measurement cannot decide (ADR-0146 §1).
+		if estate.DecidedAbsentCrossClass(witnesses) {
+			return drift.ReasonMeasuredAbsent, true
+		}
 		return "", false
 	}
-	if estate.WithdrawnCrossClass(resolutionWitnesses(open)) {
+	if estate.WithdrawnCrossClass(witnesses) {
 		return drift.ReasonMeasuredAbsent, true
 	}
 	return "", false
