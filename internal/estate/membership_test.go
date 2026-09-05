@@ -99,13 +99,30 @@ func TestMembershipPresenceIsExistentialAcrossVantages(t *testing.T) {
 	}
 }
 
-func TestMembershipSeedCoveredNameAlwaysPresent(t *testing.T) {
+func TestMembershipSeedCoveredNameLeavesOnDecidedAbsence(t *testing.T) {
 	ne := Compose(OutcomeNameError, nil, wd.VerdictNotShadowed)
 	est := Membership([]Observation{
 		{Name: "iana.org", Vantage: "v1", Resolution: ne},
 	}, []string{"iana.org"}, nil)
-	if !contains(est.Names, "iana.org") {
-		t.Error("a Seed-covered Name is Declared and stays present")
+	if contains(est.Names, "iana.org") {
+		t.Error("a Seed admits a Name, it does not outrank a decided cross-class Name Error")
+	}
+}
+
+func TestMembershipSeedCoveredNameHeldThroughShadowed(t *testing.T) {
+	shadowed := Compose(OutcomeResolved, []string{"203.0.113.1"}, wd.VerdictShadowed)
+	est := Membership([]Observation{
+		{Name: "ghost.example.com", Vantage: "v1", Resolution: shadowed},
+	}, []string{"ghost.example.com"}, nil)
+	if !contains(est.Names, "ghost.example.com") {
+		t.Error("a Seed holds a Name through Shadowed — the residue stays visibly unconfirmed")
+	}
+}
+
+func TestMembershipSeedCoveredNameAdmittedUnmeasured(t *testing.T) {
+	est := Membership(nil, []string{"new.example.com"}, nil)
+	if !contains(est.Names, "new.example.com") {
+		t.Error("a declared Name is a subject before anything resolves")
 	}
 }
 

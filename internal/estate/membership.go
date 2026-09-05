@@ -73,6 +73,10 @@ func Membership(latest []Observation, seedCoveredNames, seedCoveredAddresses []s
 		}
 	}
 	for _, name := range seedCoveredNames {
+		// A Seed admits a Name and holds it only where measurement cannot decide (ADR-0146).
+		if DecidedAbsentCrossClass(witnessesByClass(perName[name])) {
+			continue
+		}
 		present[name] = struct{}{}
 	}
 
