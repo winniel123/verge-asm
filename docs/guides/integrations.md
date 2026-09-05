@@ -45,11 +45,22 @@ CREATE TABLE integration_state (
 );
 ```
 
+That block is migration 21200 as authored, and it is **not** the live schema. Migration
+[23200](../../db/migrations/23200_integration_channel.sql) added a nullable `channel_id`
+column, so an installed integration also holds the delivery Channel it is bound to. The
+install state stays the only fact an **install** writes
+([ADR-0162](../adr/0162-a-re-install-preserves-an-integrations-channel-binding-and-only-an-explicit-bind-an-unbind-or-a-disconnect-moves-it.md)).
+
 Like every Declared term, the install carries **no timeline, no actor, and no instant of
 its own** ([ADR-0073](../adr/0073-an-operator-dial-carries-no-author-however-specific-its-target.md),
 [ADR-0093](../adr/0093-an-instant-on-a-declared-term-is-earned-by-an-act-nothing-else-dates.md)).
 Re-installing is an upsert of the one current state. Disconnecting deletes the row.
 Neither keeps a history to read.
+
+That upsert writes `state` **alone**. It never touches `channel_id`, so a re-install
+preserves whatever delivery Channel the integration was bound to, and a first install lands
+unbound. Only an explicit bind, an explicit unbind, or a disconnect moves the binding
+([ADR-0162](../adr/0162-a-re-install-preserves-an-integrations-channel-binding-and-only-an-explicit-bind-an-unbind-or-a-disconnect-moves-it.md)).
 
 ---
 

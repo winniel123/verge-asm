@@ -180,9 +180,21 @@ complementary clause and leaves the thesis standing.
   to render a staleness signal is a real, defensible next step and is deliberately **not** taken here —
   the honest date is the v1 commitment, a staleness verdict is a later one.
 - **Estate-wide grouping is by subject kind, flat within a kind.** A large estate renders a long list
-  with no server-side search or pagination on `/inventory` in v1 (the Subjects listing has search. This
+  with ~~no server-side search or pagination on `/inventory` in v1~~ (the Subjects listing has search. This
   read does not yet). The read itself is a single ordered `SELECT`, so adding a search/scope filter is
-  additive. It is unbuilt, not designed against.
+  additive. ~~It is unbuilt, not designed against.~~
+  > **Both halves are OVERTAKEN, and they are struck here at the site that states them**
+  > ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)), by
+  > [#756](https://github.com/winniel123/verge-asm/issues/756) and
+  > [#1348](https://github.com/winniel123/verge-asm/issues/1348) ·
+  > [ADR-0158](./0158-a-read-only-console-screen-may-scope-its-rendered-rows-in-the-client-and-a-screen-that-submits-a-form-carries-its-scope-in-the-query-string.md).
+  > #756 built a **server-side per-group window** — 25 subjects per kind, expanded one kind at a time
+  > by `?all=<kind>`, with `Total` left whole so the badge and the *Show all N* link state the group.
+  > The **scope filter is built too**, and it runs in the client: kind, `Gaps only`, `Hide proxy edge`
+  > and a text filter over the rows the server already sent. ADR-0158 rules that placement admitted,
+  > because `/inventory` submits no form, and states its bound — a client scope narrows the rendered
+  > window and never the estate. Read alone and in the present tense this bullet tells a session that
+  > Inventory has no window and no filter, and both are there.
 - **`address`-kind inventory is forward-declared, not exercised.** No `address` facet produces a span
   today, so the unlinked-plain-text rendering for that kind is specification, not `[measured]`. It
   costs nothing and blocks nothing, but it has not run.

@@ -15,10 +15,10 @@ There are **two** ways to take a backup, and they answer different needs:
 
 - **In-app backup** (**Settings → Instance**) — a one-click download of the estate and
   its configuration, and a guided restore, with **no shell**. It excludes the
-  session-minting keys (they regenerate on restore) but it is **not** "no secrets". The
-  durable per-row credentials the database already holds — password, TOTP and API-token
-  hashes, and SSO/channel secrets — ride with their rows. So a backup file carries the
-  **same leak posture as `pgdata`** and deserves the same care. This is the first-class
+  session-minting keys (they regenerate on restore), and it **redacts** the two cleartext
+  credentials the database holds — the SSO client secret and the channel webhook secret.
+  It is still **not** "zero secrets": password hashes, TOTP secrets and API-token hashes
+  ride with their rows, so the file deserves care. This is the first-class
   way to carry the estate to another host. It is documented first, below.
 - **Host-level `pg_dump`** — a full logical dump of the whole database on the host,
   for disaster recovery into a clean volume and the pre-upgrade drill. Documented
@@ -75,13 +75,24 @@ a live foothold:
   the dump reads only an explicit table allowlist, so a future table is never swept
   in by a "dump everything" default.
 
-One honest caveat: the archive is *data-only and carries no session-minting key*, but
-it is **not** "zero secrets." The durable per-row credentials the database already
-holds — password hashes, TOTP secrets, API-token hashes, SSO client secrets, channel
-webhook secrets — ride with their rows, because a restore must reconstitute login,
-tokens, SSO and delivery. The archive therefore carries the **same leak posture the
-live database already has** under ADR-0053, no more and no less: **treat a backup
-file with the same care you treat access to `pgdata`.**
+Two per-row credentials the database holds in **cleartext** are **redacted** out of the
+archive, and each is written as a JSON `null`
+([ADR-0160](../adr/0160-a-backup-redacts-a-reversible-cleartext-credential-and-carries-a-hash-or-an-externally-keyed-ciphertext-and-restore-re-applies-the-same-redaction.md)):
+
+| Column | What it is | What a restore does |
+| --- | --- | --- |
+| `sso_provider.client_secret` | the OAuth confidential-client secret | lands empty — re-enter it on **Settings → Single sign-on** |
+| `channel.secret` | the webhook signing secret | lands empty — re-enter it on **Settings → Channels** |
+
+A restore **re-applies** the same redaction, so an archive taken before this rule landed
+cannot write either value back either. Neither value can be read out of a backup file, in
+either direction.
+
+One honest caveat: the archive is still **not** "zero secrets." The write-only values the
+database already holds — password hashes, TOTP secrets and API-token hashes — ride with
+their rows, because a restore must reconstitute login and tokens. None of the three is
+reversible from the file, but a weak password is still guessable offline from its hash, so
+**treat a backup file with the same care you treat access to `pgdata`.**
 
 ### Taking a backup
 
@@ -127,6 +138,11 @@ Restore is deliberately **guarded**, because it **overwrites** the estate. On
      re-install the new public key and **re-pin** (as with a lost `worker-state`
      volume — see [The two state volumes](#the-two-state-volumes)). Until it re-pins,
      that vantage reads `unavailable` and its exposure findings open a `Gap`.
+   - The **two redacted secrets land empty**, whatever the instance held a moment
+     earlier. Re-enter the SSO client secret on **Settings → Single sign-on** and each
+     channel's webhook secret on **Settings → Channels**. Until you do, the SSO token exchange and
+     the signature on an outgoing message are not configured. Plan this step **before**
+     you restore.
 
    Token **Last used** never regresses across a restore — it rides in the backup data.
 

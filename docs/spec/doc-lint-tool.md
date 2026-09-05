@@ -64,6 +64,12 @@ The tool lints the same file set the style standard §1.1 governs:
 | `README.md` | project overview |
 | `SECURITY.md` | security policy |
 
+**A family row reads to any depth**
+([ADR-0156](../adr/0156-a-documentation-family-is-a-directory-tree-so-a-nested-doc-is-in-scope-at-any-depth-and-keeps-its-family.md)).
+Read `docs/adr/*` and its four siblings as `docs/adr/**`. A `.md` file in a subdirectory of a family
+is in that family, and the tool lints it. Depth never changes the family a path selects, so
+`docs/research/2026/report.md` is a research doc. The four root files are exact names.
+
 The tool skips the style standard §1.2 out-of-scope paths: `docs/correspondence/`,
 `docs/wayfinder/`, `CHANGELOG`, generated files, token files, and `docs/guides/embed.go`.
 

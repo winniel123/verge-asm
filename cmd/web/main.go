@@ -122,6 +122,7 @@ func main() {
 	web.progress = progressHub
 	go runProgressListener(ctx, pool, progressHub, log.New(os.Stderr, "", log.LstdFlags))
 	web.secureCookies = isTruthy(env.OrDefault("VERGE_SECURE_COOKIES", ""))
+	// The empty default is a direct-facing deployment, so a fronted one must name its proxies (ADR-0159 §2).
 	trustedProxies, err := parseTrustedProxies(env.OrDefault("VERGE_TRUSTED_PROXIES", ""))
 	if err != nil {
 		log.Fatalf("web: VERGE_TRUSTED_PROXIES: %v", err)

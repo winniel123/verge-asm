@@ -279,6 +279,11 @@ clears it, so the modal all-CDN install never shows appear-then-withdraw churn, 
 reach-everything only where the feature is off. The census gains one **pending** reason beside #944's
 **declined**; neither is a new membership state — the address is *not-reached* with a reason.
 
+**Bounded by [ADR-0163](./0163-an-absent-certificate-material-row-is-a-fan-out-of-zero-and-is-reached-and-only-an-absent-measurement-row-is-pending.md):
+*not yet measured* means no measurement row for the address.** It does not mean no captured
+certificate material. A `presented` address whose leaf bytes never landed reduces to a fan-out of
+zero, derives **not-shared**, and is **reached**. It is not held and it carries no *pending* row.
+
 ### §3 sharpened: the SAN set is Observed, the count is a reduction
 
 §3 said *"the fan-out count is Observed."* More precisely, the **hostname set the edge presents** is

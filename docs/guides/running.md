@@ -73,6 +73,7 @@ Set these in `.env` (compose reads it automatically) or your orchestrator.
 | `VERGE_LISTEN_ADDR` | web | no | `:8080` | Listen address for the UI. |
 | `VERGE_SETUP_TOKEN` | web | no | generated | Pin the first-run setup token instead of reading it from the logs. Single-use. |
 | `VERGE_SECURE_COOKIES` | web | no | off | Set truthy (`1`/`true`/`yes`/`on`) when a TLS-terminating proxy fronts `web`, so the session cookie is marked `Secure` even though `web` sees plain HTTP. |
+| `VERGE_TRUSTED_PROXIES` | web | no | empty | Comma-separated IPs and/or CIDRs of every hop between the client and `web` (e.g. `10.0.0.0/8, 192.0.2.7`). **Empty means no proxy is trusted.** The client IP is then the immediate peer, and `web` reads no `X-Forwarded-For` header at all. Set it whenever a reverse proxy fronts `web`. A fronted deployment that leaves it empty gives every client the same rate-limit key. Five failed logins from anyone then lock every account on the instance. The value keys the login rate limiter and **nothing else** — never identity, authorization or audit. Name the proxy's address as `web` sees it, which is the address the proxy connects *from*. A malformed entry fails the boot rather than trusting a smaller set in silence. See [ADR-0159](../adr/0159-an-unnamed-proxy-is-never-trusted-so-the-client-ip-is-the-immediate-peer-and-a-fronted-deployment-must-name-its-proxies.md). |
 | `VERGE_PROBER_PATH` | worker | no | `/app/prober` | Path to the prober binary inside the image. Rarely changed. |
 | `VERGE_PROBER_DIR` | worker | no | `/app/probers` | Directory of per-architecture prober binaries the off-host router pushes to remote SSH hosts, arch-matched by `uname` (an arm64 instance pushes an amd64 binary and vice versa). `VERGE_PROBER_PATH` is the own-arch single-binary fallback. |
 | `VERGE_STATE_DIR` | web, worker | no | `/app/state` | On-disk home for generated secrets (session key, prober SSH private key). |
@@ -178,7 +179,12 @@ back-up/test-restore checklist — see **[backup-and-restore.md](backup-and-rest
 - `postgres` **publishes no port**. It is reached only over the compose network by
   `web` and `worker`.
 - Only `web` publishes a port (`8080`). Put a TLS-terminating reverse proxy in front
-  of it for any real deployment. Set `VERGE_SECURE_COOKIES=true`.
+  of it for any real deployment. Set `VERGE_SECURE_COOKIES=true` **and
+  `VERGE_TRUSTED_PROXIES`**. `web` trusts no proxy the operator has not named. A
+  fronted deployment that leaves `VERGE_TRUSTED_PROXIES` empty gives every client the
+  same login rate-limit key, the proxy's address. Five failed logins from anyone then
+  lock every account on the instance. Name every hop between the client and `web`.
+  Ruled by [ADR-0159](../adr/0159-an-unnamed-proxy-is-never-trusted-so-the-client-ip-is-the-immediate-peer-and-a-fronted-deployment-must-name-its-proxies.md).
 - Every service runs **non-root** (`65532:65532`), `cap_drop: [ALL]`,
   `no-new-privileges`. The prober inherits the same posture on the host it is pushed
   to. It runs as an ordinary unprivileged SSH user and needs no capability. Probing

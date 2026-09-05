@@ -96,6 +96,14 @@ of the tag format.** A refused `guard` job leaves a red run that names the reaso
 filtered-out tag leaves silence. Reaching this path at all needs the tag ruleset to be missing,
 which is an alarming state that earns a loud refusal.
 
+**A fourth site meets a pre-release tag and does not refuse it**
+([ADR-0155](../adr/0155-the-docs-site-does-not-enforce-the-tag-policy-so-a-prerelease-tag-is-browsable-and-never-becomes-latest-or-current.md),
+2026-09-05). The layer table above lists the sites that refuse a push. It is not a list of every
+site that meets such a tag. The docs site reads `git tag -l "v*"` at build time, after the push.
+It publishes a pre-release tag as its own browsable `/<tag>/*` version tree, and it never lets that
+tag become `latest` or carry the `current` badge. This section is unchanged in its own subject: the
+project still cuts no pre-release tag, and ADR-0155 grants no exception to that rule.
+
 ### 1.4 A fork's repointed feed gets no defence
 
 `internal/release/fetcher.go:20` sets `DefaultFeedURL` to this repository's `/releases/latest`

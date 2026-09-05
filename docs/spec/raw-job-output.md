@@ -168,6 +168,12 @@ A mid-flight cancel (`errJobCanceled`, `worker.go:296`) **rolls the transcript b
 staged work — a terminated job discards everything, no exception. This is why the raw view is
 post-hoc only (§6.2).
 
+**"Everything" is bounded to the attempt's staged work.** The cancel marks the `queue_job` row and
+deletes no committed `batch` and no committed `observation`. A running job whose transaction already
+committed is `done` or `dead` before the cancel reaches it, and its work stands. See
+[ADR-0164](../adr/0164-an-operator-ends-a-dispatch-by-recording-a-disposition-once-and-stop-keeps-the-running-jobs-while-terminate-rolls-their-staged-work-back.md)
+§3, which rules the operator act that causes the cancel.
+
 ### 2.5 Optional seam — `WithTranscripts`
 
 **Ruling: [#840 §8](https://github.com/winniel123/verge-asm/issues/840).** Transcript capture is a

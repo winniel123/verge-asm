@@ -39,6 +39,11 @@ This document itself follows STE-flavored mode (see §2).
 | `README.md` | project overview |
 | `SECURITY.md` | security policy |
 
+**A family row reads to any depth**
+([ADR-0156](../adr/0156-a-documentation-family-is-a-directory-tree-so-a-nested-doc-is-in-scope-at-any-depth-and-keeps-its-family.md)).
+Read `docs/adr/*` and its four siblings as `docs/adr/**`. A `.md` file in a subdirectory of a family
+is in that family, and it keeps that family's §3 verdict. The four root files are exact names.
+
 ### 1.2 Out of scope
 
 - `docs/correspondence/` — external comms drafts. Voice is the point.

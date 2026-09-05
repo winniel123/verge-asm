@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// Per-process and best-effort: a flash is a courtesy, never a record a restart must survive.
+// Per-process and best-effort: a flash is a courtesy, never a record a restart must survive (ADR-0157 §4).
 
 type flashStore struct {
 	mu sync.Mutex

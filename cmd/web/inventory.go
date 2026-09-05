@@ -501,6 +501,7 @@ func (s *server) inventoryPage(w http.ResponseWriter, r *http.Request, acct db.A
 		return
 	}
 	groups := buildInventory(rows)
+	// The toolbar scopes rendered rows only, so this window bounds what "Gaps only" can find (ADR-0158 §4).
 	windowInventoryGroups(groups, r.URL.Query().Get("all"))
 	if s.devMode {
 		applyInventoryFixtureCounts(groups, r.URL.Query().Get("all"))

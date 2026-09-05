@@ -289,7 +289,7 @@ func (s *server) applyRestore(ctx context.Context, archive []byte) error {
 		if !backupAllowed(row.Table) {
 			return errRestoreUnknownTbl
 		}
-		// An older archive still holds these cleartext columns, so the redaction re-applies here too.
+		// An older archive still holds these cleartext columns, so the redaction re-applies (ADR-0160 §3).
 		if data, err := redactBackupRow(row.Table, row.Data); err != nil {
 			return fmt.Errorf("restore: redact %s: %w", row.Table, err)
 		} else {

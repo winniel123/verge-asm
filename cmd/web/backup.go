@@ -52,7 +52,7 @@ var backupTables = []string{ // FK-parent-first, so a naive in-order restore is 
 	"sso_identity",
 }
 
-// The two lists partition the schema (backup_test.go), so a new table must be classified.
+// The two lists partition the schema, so a new table must be classified (ADR-0161 §1, #1367).
 // gosec's credential heuristic fires on the "password" and "token" substrings in this literal.
 
 // #nosec G101 -- keys are database table names (e.g. "password_reset") paired with prose
@@ -72,7 +72,7 @@ const (
 	backupFormatVersion = 1
 )
 
-// These two are reversible cleartext; the other write-only columns are hashes or ciphertext.
+// These two are reversible cleartext and the other write-only columns are not (ADR-0160 §1, #1367).
 
 var backupRedactedColumns = map[string][]string{
 	"channel":      {"secret"},

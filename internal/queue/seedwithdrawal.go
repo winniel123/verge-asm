@@ -76,7 +76,7 @@ func composeWithdrawnGround(rows []db.ListSeedWithdrawalCandidatesRow, covering 
 			continue
 		}
 		p := covering(addr)
-		// A closure with no mover to name cannot be traced to the operator's own act (ADR-0134).
+		// A closure with no mover to name cannot be traced to the operator's own act (ADR-0154 §2).
 		if p == nil {
 			continue
 		}
@@ -179,7 +179,7 @@ func coveringSeedWithdrawal(addr netip.Addr, pending []db.ListPendingSeedWithdra
 		if w.AddressCidr == nil {
 			continue
 		}
-		// A withdrawal carries no precedence the way a Seed does, so first match is the whole rule.
+		// A withdrawal nests into no precedence the way a Seed does, so first match is the rule (ADR-0153).
 		if w.AddressCidr.Contains(addr) {
 			cidr := *w.AddressCidr
 			return &cidr

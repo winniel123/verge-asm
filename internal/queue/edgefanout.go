@@ -276,7 +276,7 @@ func toEdgeFanout(completed bool, rows []db.ListEdgeFanoutMeasurementsRow, mater
 			continue
 		}
 		var edge bool
-		// A negative found nothing at the address: not-shared, never pending (ADR-0129 §2).
+		// A negative found nothing at the address: not-shared, never pending (ADR-0163 §1).
 		if r.Outcome == string(edgefanout.Presented) {
 			var fingerprint string
 			if r.Fingerprint.Valid {
@@ -284,6 +284,7 @@ func toEdgeFanout(completed bool, rows []db.ListEdgeFanoutMeasurementsRow, mater
 			}
 			v, derived := verdict[fingerprint]
 			if !derived {
+				// No captured material is a fan-out of zero, reached, never pending (ADR-0163 §1).
 				v = custody.SharedEdge(edgeFanoutSANs(material[fingerprint]))
 				verdict[fingerprint] = v
 			}

@@ -5,6 +5,7 @@
 - **Ticket:** [#49 Is the measurement binary a versioned Derivation, and what is its golden corpus?](https://github.com/winniel123/verge-asm/issues/49)
 - **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
 - **Extended by (this rule is *kept*, not withdrawn):** [ADR-0142](./0142-a-corpus-input-is-generated-deterministically-and-the-random-draw-is-productions-alone.md) (2026-09-05) carries the authored corpus's determinism to the leaf's **own generated input**, which the hermeticity argument below does not reach
+- **Bounded by (the gate below is unchanged):** [ADR-0152](./0152-a-golden-corpus-locks-the-hermetic-fold-and-never-the-live-adapter-so-an-adapter-change-is-an-uncovered-move.md) (2026-09-05) states the reach of the hermetic corpus in the other direction. Every leaf's **live network adapter** is swapped out before a row renders, so no row and no digest gates it, and a change to one that can move a production value takes this ADR's **uncovered move** limb
 
 ## Context
 
