@@ -216,6 +216,20 @@ can read, and the rule is exactly that `web` cannot.
   > config only, and *data-only, no secret* is made the export's own invariant (the session key and
   > prober key are never read by the backup path and regenerate on restore). This rule is **kept in
   > full** — ADR-0124 withdraws nothing here.
+  >
+  > **BOUNDED at this site, 2026-09-05, by
+  > [ADR-0160](./0160-a-backup-redacts-a-reversible-cleartext-credential-and-carries-a-hash-or-an-externally-keyed-ciphertext-and-restore-re-applies-the-same-redaction.md)
+  > ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).**
+  > *Credential* here means a secret held to **perform an act**, which is this ADR's own subject. It
+  > does not mean the archive carries no credential **material**. `account.password_hash`,
+  > `personal_token.token_hash` and the `account.totp_secret` ciphertext all ride with their rows,
+  > because a restore must reconstitute login and tokens. None of the three is reversible from the
+  > file, and a weak password is still guessable offline from its hash. So *"does not need to be
+  > treated as a keyring"* holds in this ADR's sense and must not be read as *needs no care*:
+  > **treat a backup file with the same care you treat access to `pgdata`**
+  > ([`backup-and-restore.md`](../guides/backup-and-restore.md)). ADR-0160 also redacts the two
+  > **cleartext** columns the database does hold, which narrows what the archive carries rather than
+  > widening it.
 - **Cost: zero.** Nothing has shipped, no compose file exists, no key has been generated.
 
 ## Alternatives rejected

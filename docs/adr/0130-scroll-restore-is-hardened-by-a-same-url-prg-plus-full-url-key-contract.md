@@ -56,7 +56,11 @@ same inline error callouts, and clears it.
   parameter. The typed reason text is bulky and can be sensitive, so it must not enter a URL,
   a log, or the browser history. This extends the existing PRG flash vocabulary (the `?toast=`
   query decoded by `decodeToasts` in `chrome.go`), but the query carrier stays for toasts
-  only.
+  only. **This clause bounds the query carrier and does not oblige a toast to use it. A toast
+  may ride the server-side flash, and on a surface that re-renders itself — the Scans landings
+  while a dispatch is in flight — it must, because a toast spelled on the URL fires again on
+  every one of those reloads
+  ([ADR-0157](./0157-a-receipt-on-a-self-refreshing-surface-rides-the-server-side-flash-never-the-toast-query.md)).**
 - With JavaScript off the operator still sees the error inline on the GET page, so the bar
   holds. With JavaScript on the existing restore now fires, because the load is an ordinary
   303→GET to the same URL, indistinguishable from a success.

@@ -304,6 +304,21 @@ vantages, notification routing — is a row, edited through the UI by an authent
 [#11](https://github.com/winniel123/verge-asm/issues/11) requires an author for *who changed the seed
 list, who launched a scan against production* and a file has no author.
 
+> **That enumeration is not exhaustive, and it is bounded here rather than rewritten**
+> ([ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).
+> **`VERGE_TRUSTED_PROXIES` is a fifth item and belongs in the environment**, ruled by
+> [ADR-0159](../adr/0159-an-unnamed-proxy-is-never-trusted-so-the-client-ip-is-the-immediate-peer-and-a-fronted-deployment-must-name-its-proxies.md).
+> It passes the test above rather than earning an exception to it. The ground is the one this
+> section already grants a CA root below. The trusted-proxy set is a fact about the network in front
+> of `web`. It is not something the operator declares about the estate. So it has no author to
+> record and no audit trail to keep. Read alone and in the present tense, the sentence above refuses
+> this variable a home. That is what this note withdraws.
+>
+> Other `web` knobs sit outside the items the sentence names as well — `VERGE_SECURE_COOKIES`,
+> `VERGE_EXTERNAL_URL` and `VERGE_LOG_RESET_LINKS` among them, and [`running.md`](../guides/running.md)
+> is the live catalogue. **Their grounds are unruled and this note does not rule them.** ADR-0159
+> reached one item and swept nothing.
+
 Two consequences: **there is no configuration file to mount**, and any two worker replicas are
 byte-identical, so no worker can be running a different aperture from its siblings.
 

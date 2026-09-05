@@ -47,6 +47,11 @@ components and flip the token themes.
 > directly.** This ticket (T0) scaffolds `docs-site/` and ports the `DocsPage` shell as the frame every
 > later ticket fills; the principles below govern what fills it.
 
+> **`latest` aliases the highest `v*` tag** is BOUNDED at this site, 2026-09-05, by
+> [ADR-0155](./0155-the-docs-site-does-not-enforce-the-tag-policy-so-a-prerelease-tag-is-browsable-and-never-becomes-latest-or-current.md)
+> ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)). Read it
+> as **the highest stable `v*` tag**. See §2's note.
+
 ### 1. Single-source rendering
 
 The guides in `docs/guides/` are the **single source**. The site reads that Markdown and renders it
@@ -68,13 +73,24 @@ hand-cut folders:
 - **Release tags `v*`** each publish the guides *as they stood at that tag*, under `/<version>/<slug>`
   (e.g. `/v0.9.2/quick-start`).
 - **`main`** publishes as **`dev`** — the in-progress docs.
-- **`latest`** is an **alias** to the highest `v*` tag by semver, not a copy of it.
+- **`latest`** is an **alias** to the highest `v*` tag by semver, not a copy of it. *(Bounded. See
+  the note below.)*
 - **`/` and `/latest/*` redirect** to the resolved highest-tag version's paths, so a bare or
-  `latest`-prefixed URL always lands on the current release's docs.
+  `latest`-prefixed URL always lands on the current release's docs. *(Bounded. See the note
+  below.)*
 - **Past versions are immutable.** A shipped version's docs are the guides at that tag. You do not edit
   the published `/v0.9.1/*` tree in place. Fixing a shipped version's docs is a **maintenance branch +
   patch re-tag** (the same discipline the product's releases already follow), which re-derives that
   version from the corrected ref.
+
+> **The two bulleted clauses above are BOUNDED at this site, 2026-09-05, by
+> [ADR-0155](./0155-the-docs-site-does-not-enforce-the-tag-policy-so-a-prerelease-tag-is-browsable-and-never-becomes-latest-or-current.md)
+> ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).**
+> `latest` aliases the highest **stable** `v*` tag, and `/` and `/latest/*` redirect there. Semver
+> orders a prerelease above the previous release, so the plain reading would make `v1.0.1-rc1` the
+> alias target over `v1.0.0`. A prerelease tag still publishes its own `/<tag>/*` tree, and it never
+> carries the `current` badge. Where no stable tag exists, `latest` falls back to `main`. The rest
+> of this section is unaffected.
 
 **Why git-ref sourcing rather than snapshot folders.** The rejected alternative is to keep, in the repo
 or the build, a `versions/v0.9.1/`, `versions/v0.9.2/` … set of frozen folders — copies of the guides

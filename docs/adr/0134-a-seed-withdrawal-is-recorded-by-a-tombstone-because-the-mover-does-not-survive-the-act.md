@@ -38,6 +38,14 @@ to close a span it cannot attribute:
 
 The same rule binds here. It rules out the obvious cheap fix.
 
+> **This ADR quotes the rule and never rules it.** The blockquote above is the code's own comment,
+> and the Decision below states nothing about dropping an unattributable row. The rule is ruled by
+> [ADR-0154](./0154-a-narrowing-fold-closes-only-what-it-can-attribute-to-a-mover-and-drops-every-other-candidate.md),
+> which binds all three narrowing acts. Recorded by
+> [#1326](https://github.com/winniel123/verge-asm/issues/1326) gap 2, under
+> [`comment-policy.md`](../spec/comment-policy.md) §8.3, and marked here per
+> [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
+
 **One term needs sharpening first.** `CONTEXT.md` listed three bearers of the `descoped` ground
 — an exclusion, a narrower `Seed`, and a release narrowing a composed population — and a
 withdrawn `Seed` is literally none of them. It is not narrower. It is gone.

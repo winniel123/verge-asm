@@ -259,7 +259,7 @@ func (s *server) failSettings(w http.ResponseWriter, r *http.Request, f settings
 }
 
 func (s *server) toastBackToSection(w http.ResponseWriter, r *http.Request, accountID int64, section, tone, title, description string) {
-	// A toast spelled on the URL fires again on every meta-refresh the in-flight Scans page runs.
+	// A toast spelled on the URL fires again on every meta-refresh the in-flight Scans page runs (ADR-0157).
 	s.flash.set(accountID, toastVM{Tone: tone, Title: title, Description: description})
 	s.backToSection(w, r, section)
 }

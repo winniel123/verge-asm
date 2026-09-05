@@ -256,6 +256,7 @@ func (s *server) installIntegration(w http.ResponseWriter, r *http.Request, acct
 		http.Error(w, "unknown integration", http.StatusBadRequest)
 		return
 	}
+	// The upsert writes state alone, so a re-install keeps the bound Channel (ADR-0162 §1).
 	if _, err := s.store.UpsertIntegrationState(r.Context(), db.UpsertIntegrationStateParams{
 		Slug: id, State: integrationInstalled,
 	}); err != nil {

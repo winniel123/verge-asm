@@ -82,7 +82,7 @@ type HandshakeResult struct {
 	SCTsTLSExt  [][]byte
 	OCSPStaple  []byte
 	IssuerSPKI  []byte
-	Unreachable bool // Only edge-fanout reads it; certificate folds an unreachable dial into no-tls.
+	Unreachable bool // Plumbing no facet renders, so certificate folds an unreachable dial into no-tls and only edge-fanout reads it (ADR-0151 §3).
 }
 
 // A self-signature check needs parsed key bytes, so it is the one datum computed in-leaf (#712).
@@ -245,7 +245,7 @@ func sigDigestName(a x509.SignatureAlgorithm) string {
 	}
 }
 
-// Best-effort and unversioned: the golden rows pin the fold, never this live classification.
+// The golden rows pin the fold and never this live split, so a change here is an uncovered move (ADR-0152 §3).
 
 func classifyDialError(err error) (outcome TLSOutcome, unreachable bool) {
 	var opErr *net.OpError

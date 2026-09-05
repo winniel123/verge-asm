@@ -195,7 +195,7 @@ func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.A
 		base = open
 	}
 
-	// The shell ships no client-side table machinery, so filter and sort state rides the query string.
+	// A form submit discards a client-side scope, so filter and sort ride the query (ADR-0158 §1).
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
 	sevSel := r.URL.Query().Get("sev")
 	if sevSel == "" {

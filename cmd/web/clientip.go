@@ -53,6 +53,7 @@ func (s *server) clientIP(r *http.Request) string {
 		host = r.RemoteAddr
 	}
 	peer, perr := netip.ParseAddr(host)
+	// An unnamed proxy is never trusted, so a forgeable header never moves the rate-limit key (ADR-0159 §1).
 	if perr != nil || len(s.trustedProxies.nets) == 0 || !s.trustedProxies.trusts(peer) {
 		return host
 	}

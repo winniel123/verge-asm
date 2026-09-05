@@ -240,7 +240,7 @@ func (s *server) stopScan(w http.ResponseWriter, r *http.Request, acct db.Accoun
 		return
 	}
 	pid := pgtype.Int8{Int64: id, Valid: true}
-	// ClaimJob selects state='ready' alone, so a cancelled job leaves the claimable set at once.
+	// ClaimJob selects state='ready' alone, so a cancelled job leaves the claimable set at once (ADR-0164 §2).
 	n, err := s.store.CancelReadyJobsForDispatch(r.Context(), pid)
 	if err != nil {
 		s.serverError(w, "stop scan: cancel pending jobs", err)
@@ -271,12 +271,13 @@ func (s *server) terminateScan(w http.ResponseWriter, r *http.Request, acct db.A
 		return
 	}
 	pid := pgtype.Int8{Int64: id, Valid: true}
-	// An observation is append-only, so a terminate discards only staged work (raw-job-output §2.4).
+	// Nothing deletes a committed observation, so a terminate discards only staged work (ADR-0164 §3).
 	n, err := s.store.CancelActiveJobsForDispatch(r.Context(), pid)
 	if err != nil {
 		s.serverError(w, "terminate scan: cancel jobs", err)
 		return
 	}
+	// SetDispatchStatus guards on 'fanned-out', so a stop already recorded stands and this write no-ops (ADR-0164 §4).
 	if err := s.store.SetDispatchStatus(r.Context(), db.SetDispatchStatusParams{ID: id, Status: "terminated"}); err != nil {
 		s.serverError(w, "terminate scan: record status", err)
 		return
@@ -602,7 +603,7 @@ func (s *server) runStream(w http.ResponseWriter, r *http.Request, _ db.Account)
 }
 
 func runStatusLabel(active bool, dead int64, outcome string) string {
-	// This word is rundetail.tmpl's rd-batch CSS class as well as the visible label.
+	// This word is rundetail.tmpl's rd-batch CSS class as well as the visible label (ADR-0165 §1).
 	switch outcome {
 	case "stopped", "terminated":
 		return outcome
@@ -627,7 +628,7 @@ func dispatchOutcome(status string) string {
 }
 
 func runRefresh(status string) int {
-	// The shell head fixes the cadence and reads this as a toggle, so 5 only means on.
+	// The shell head fixes the cadence and reads this as a toggle, so 5 only means on (ADR-0165 §4).
 	if status == "running" {
 		return 5
 	}

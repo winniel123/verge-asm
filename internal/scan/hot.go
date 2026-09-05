@@ -18,7 +18,7 @@ import (
 
 const HotKind = "hot"
 
-// The single admitted address rides as a one-element slice so the wire scope stays a list.
+// The single admitted address rides as a one-element slice so the wire scope stays a list (ADR-0150).
 
 type HotJob struct {
 	ScanID       int64
