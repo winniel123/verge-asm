@@ -76,9 +76,9 @@ three formats, chosen by `?format=` (an absent format defaults to `csv`, an unre
 one is a 400):
 
 ```
-GET /reports/export?format=csv&weeks=12
-GET /reports/export?format=json&weeks=26
-GET /reports/export?format=pdf
+GET /reports/export?format=csv&period=7d
+GET /reports/export?format=json&period=30d
+GET /reports/export?format=pdf&period=custom_2026-08-01_2026-08-22
 ```
 
 `csv` and `json` are the **operational activity export** — the KPI band and the

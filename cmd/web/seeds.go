@@ -90,7 +90,7 @@ func (s *server) takeScopeFlash(r *http.Request) seedsForms {
 }
 
 func (s *server) seedsPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	// Deriving the design's curated figures from live reads would fabricate domain data.
+	// Deriving the design's curated figures from live reads would fabricate domain data (ADR-0167 §1).
 	if s.devMode {
 		s.render(w, r, "scope", s.scopeFixtureData(acct, scopeOverlay{}))
 		return
@@ -106,7 +106,7 @@ func (s *server) declareSeed(w http.ResponseWriter, r *http.Request, acct db.Acc
 		return
 	}
 
-	// One tokenizer, not a fork: onboarding's TagInput commits on the same boundary.
+	// One tokenizer, never a fork: onboarding's field commits on this same boundary (ADR-0177 §2, #1339).
 	tokens := parseSeedTokens(raw)
 	if len(tokens) == 0 {
 		s.backToScope(w, r)
@@ -248,7 +248,6 @@ func (s *server) previewSeedWithdrawal(w http.ResponseWriter, r *http.Request, a
 		s.backToScope(w, r)
 		return
 	}
-	// A failed count degrades the block; refusing the act would leave no route to the withdrawal.
 	confirm := seedConfirmView{ID: strconv.FormatInt(id, 10), Scope: scope}
 	var receipt message.NarrowingReceipt
 	var rerr error
@@ -264,6 +263,7 @@ func (s *server) previewSeedWithdrawal(w http.ResponseWriter, r *http.Request, a
 	}
 	if rerr != nil {
 		log.Printf("web: preview seed withdrawal %s: %v", scope, rerr)
+		// Refusing would leave no route to the withdrawal, over a count the act never reads (ADR-0168 §3, #1339).
 		confirm.Failed = true
 	} else {
 		confirm.Fires = receipt.Fires
@@ -445,7 +445,7 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 	if corpus, cerr := s.buildSignalCorpus(r); cerr == nil {
 		nameTree = declaredNameTree(nameSeeds, corpus.Names, signal.EvaluateCorpus(corpus))
 	}
-	// An additive card's failed read degrades that card, never the whole Scope screen.
+	// An additive card degrades alone so the screen the operator depends on still serves (ADR-0168 §1, #1339).
 	census, censusErr := s.custodyCensus(r.Context())
 	data := map[string]any{
 		"Title": "Scope", "NavActive": "scope",

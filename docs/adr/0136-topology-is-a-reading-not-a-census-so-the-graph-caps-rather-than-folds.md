@@ -130,8 +130,8 @@ counted, and the count joins the shortfall statement.
 
 The statement names the remedy. It tells the operator that a scope selection shows the rest.
 Stating a truncation and naming its remedy is already the house habit: the Drift feed caps at
-500 events and "states plainly when the cap truncated the view rather than dropping rows
-silently".
+500 events and states that truncation on the page, ruled with its reason by
+[ADR-0178](./0178-the-drift-feed-caps-at-five-hundred-events-and-states-its-truncation-and-ships-the-whole-period-within-that-bound.md) §1 and §3.
 
 ### 7. The three columns stay
 

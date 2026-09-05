@@ -890,14 +890,15 @@ stated reach.
 **Route 3 rules the token, never the rule.** "The token names nothing" and "the rule is unwritten"
 are two claims, and only the first is established. An agent that conflates them ships an uncited
 survivor **and** files an ADR gap for a rule already on disk. The failure is silent. #1204 did
-exactly this: it filed the never-fabricate rule as gap 2 of **#1333**, and `docs/adr/0110` line 74
+exactly this: it filed the never-fabricate rule as gap 2 of **#1333**, and `docs/adr/0110` line 103
 states it. Three tickets reached the correction independently.
 
 | Dead token | The live source that states the rule |
 | --- | --- |
 | `DF-F4` on `internal/queue/worker.go:331` | `docs/spec/raw-job-output.md` §2.4 (#1328) |
 | `PARITY-CHART P2.2`, `P0.1` on `cmd/web/signals.go` | `docs/spec/v1-spec.md` §6.5 (#1207) |
-| `SPEC-CHANGE`, the never-fabricate family | `docs/adr/0110` line 74 (#1205) |
+| `SPEC-CHANGE`, the never-fabricate refusal | `docs/adr/0110` Consequences, lines 40 and 103 (#1205). **The old "line 74" pointer rotted**: line 74 is now the ADR-0109 bullet #1410 struck through |
+| `SPEC-CHANGE`, the pinned-fixture half of the same family | `docs/adr/0167` (#1333, #1339). A curated corpus is *served pinned*; ADR-0110 rules only the refusal to fabricate |
 | A bare `SPEC §n` on `cmd/web/scans.go` | `docs/spec/scans-monitor-bounding.md` §2.2, §2.3, §3, §4 (#1208) |
 | `#778` on `cmd/web/inventory.go` | `docs/adr/0125`, Decision ground 5 (#1211) |
 
@@ -2021,7 +2022,7 @@ gap and states why.
 citation that resolves, so a dead token passes straight through it and the gap gets recorded. Shape
 2 above is right that the reason goes uncited. It is not a licence to skip the search. **Search
 §4.7's five-place surface before you record the gap.** #1204 filed the never-fabricate rule as gap 2
-of **#1333** and `docs/adr/0110` line 74 states it. #1205 moved three of its four gap candidates out
+of **#1333** and `docs/adr/0110` line 103 states it. #1205 moved three of its four gap candidates out
 of the list the same way, using `docs/guides/`. #1209 filed nothing at all: ten candidates, and
 every rule that passed §8.2's gates was already written.
 

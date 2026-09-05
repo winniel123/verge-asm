@@ -229,7 +229,7 @@ type Querier interface {
 	// Both bound this smaller than the model asks, never larger; widening either moves every copy.
 	PreviewExclusionWithdrawal(ctx context.Context, arg PreviewExclusionWithdrawalParams) (PreviewExclusionWithdrawalRow, error)
 	PreviousBatchTime(ctx context.Context) (pgtype.Timestamptz, error)
-	// A dead worker is failure, not evidence, so a reap writes no Batch and moves no Availability.
+	// A dead worker is failure, not evidence, so a reap writes no Batch and moves no Availability (ADR-0169 §1, #1391).
 	ReapStaleRunningJobs(ctx context.Context, cutoff pgtype.Timestamptz) (int64, error)
 	RecordHeartbeat(ctx context.Context) (Heartbeat, error)
 	ReserveCTSlot(ctx context.Context, arg ReserveCTSlotParams) (pgtype.Timestamptz, error)

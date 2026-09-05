@@ -563,7 +563,7 @@ func (s *server) runStream(w http.ResponseWriter, r *http.Request, _ db.Account)
 	if n, perr := strconv.Atoi(r.URL.Query().Get("after")); perr == nil && n > 0 {
 		after = n
 	}
-	// The client's initial cursor is its rendered state-line count, so state must stay the low part.
+	// The client's initial cursor is its rendered state-line count, so state must stay the low part (ADR-0182 §3).
 	eventCur, stateCur := decodeStreamCursor(after)
 	jobParam := r.URL.Query().Get("job")
 	ctx := r.Context()

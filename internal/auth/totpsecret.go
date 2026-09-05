@@ -11,7 +11,7 @@ import (
 	"golang.org/x/crypto/hkdf"
 )
 
-const totpAEADLabel = "totp-secret-aead" // no key is reused for two purposes (#337, ADR-0053)
+const totpAEADLabel = "totp-secret-aead" // no key is reused for two purposes (ADR-0172 §1, #337)
 
 func DeriveTOTPKey(sessionKey []byte) ([]byte, error) {
 	// The nil salt keeps this deterministic, so a restart still decrypts secrets written earlier.

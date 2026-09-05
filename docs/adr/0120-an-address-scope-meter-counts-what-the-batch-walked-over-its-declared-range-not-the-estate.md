@@ -11,7 +11,7 @@
 The v4 exact-parity conversion of the Coverage screen (WORKFLOW v4, package v3.7.0)
 lands a frozen `coverage.tmpl` whose aperture meter has **two shapes**, where the ported
 V3 screen had one. The design ruling recorded in
-[`design-system/SPEC-CHANGE.md` #19c](../../design-system/SPEC-CHANGE.md) (owner, 2026-08-25)
+`design-system/SPEC-CHANGE.md` #19c (owner, 2026-08-25) — **that file is not on disk; the collision protocol it belonged to was withdrawn by [ADR-0116](./0116-the-design-package-is-normative-for-look-and-functionality.md)** —
 is:
 
 > an ADDRESS scope's meter renders `counted / total` — denominator = the enumerable
@@ -62,7 +62,9 @@ with that bar.
   The numerator — *subjects the batch walked within a declared range* — is **not** a
   first-class read yet, so `cmd/web/cold.go`'s live `coveragePage` renders the address meter
   as a census rather than fabricate the numerator (which
-  [`SPEC-CHANGE.md`](../../design-system/SPEC-CHANGE.md) forbids). Wiring the live
+  [ADR-0110](./0110-the-design-system-examples-are-the-consoles-ia-spec-ported-verbatim.md)'s
+  Consequences forbid; [ADR-0167](./0167-a-design-corpus-a-live-read-cannot-produce-is-served-as-a-pinned-fixture-and-the-live-path-renders-the-honest-projection.md)
+  rules the pinned fixture the dev build serves instead). Wiring the live
   `counted / total` form is carried as a successor: it needs a per-scope walked-subject
   count, not a spec change — this ruling is the spec.
 - **No coverage-class member, message cause, or aperture input is minted.** This is a
@@ -76,4 +78,4 @@ with that bar.
 | Keep every meter a census (no `counted / total` at all) | Contradicts the design ruling (#19c). The operator cannot tell how much of a *declared, enumerable* range the batch actually walked — a real currency question the census bar cannot answer |
 | Make the denominator the estate size, so both scopes get a proportion | The exact figure ADR-0095, ADR-0044 and #28 refuse: a proportion of the estate is a completeness score wearing a coverage costume, and the estate size is unknowable |
 | Give NAME scopes a `counted / total` too | A name scope enumerates nothing in advance — it has no enumerable denominator — so any denominator would be invented. The census bar is the honest shape and stays |
-| Fabricate the live numerator (e.g. reuse an unrelated subject count) | Forbidden by SPEC-CHANGE: an approximated datum shipped as fact is the drift this protocol exists to prevent. The live meter stays an honest census until the walked-subject count is a real read |
+| Fabricate the live numerator (e.g. reuse an unrelated subject count) | Forbidden by [ADR-0110](./0110-the-design-system-examples-are-the-consoles-ia-spec-ported-verbatim.md)'s Consequences: an approximated datum shipped as fact is the drift the never-fabricate rule exists to prevent, and [ADR-0167](./0167-a-design-corpus-a-live-read-cannot-produce-is-served-as-a-pinned-fixture-and-the-live-path-renders-the-honest-projection.md) rules what the dev build serves in its place. The live meter stays an honest census until the walked-subject count is a real read |

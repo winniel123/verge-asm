@@ -33,7 +33,7 @@ No in-place layer is built, so the htmx-vs-vanilla mechanism pick is **moot**. A
 
 ### 3. SSE is not touched here
 
-ADR-0001 also claims **SSE** for the live drift feed. SSE is likewise unrealized — the only live-update mechanism is a `fetch`-poll (`rundetail.tmpl:236-247`). This pass supersedes **htmx**, not SSE, so ADR-0058 does not oblige its withdrawal here. The htmx sites carry a **non-striking** pointer noting SSE is unrealized, only so a reader does not silently re-bless it. SSE stays out of this effort's scope.
+ADR-0001 also claims **SSE** for the live drift feed. SSE is likewise unrealized — the only live-update mechanism is a `fetch`-poll (`rundetail.tmpl:226-241`). This pass supersedes **htmx**, not SSE, so ADR-0058 does not oblige its withdrawal here. The htmx sites carry a **non-striking** pointer noting SSE is unrealized, only so a reader does not silently re-bless it. SSE stays out of this effort's scope.
 
 ## Rationale
 

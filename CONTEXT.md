@@ -1869,7 +1869,7 @@ optional fields. It is the **one corpus that ships bounded**: an operator dial,
 `transcript_currency_days`, unit days, **default 14**, floor 1, `0`=unbounded. That non-zero default
 reverses [ADR-0041](./docs/adr/0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md)'s
 unbounded default, because verbatim bytes are the volume hazard row counts are not. It is also the
-**first secret-bearing data Postgres holds** — `stderr`, the sent scope, and pre-gate `stdout` may
+**first corpus Postgres holds a secret for** (`account.totp_secret` was already ciphertext there, ADR-0172) — `stderr`, the sent scope, and pre-gate `stdout` may
 carry credentials — so it is stored **encrypted** (AEAD, per-value nonce) under an instance key that
 lives on a service volume and **never enters Postgres**, read by **admins only**, and **excluded from
 every backup**. That reverses

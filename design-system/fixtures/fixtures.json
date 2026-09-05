@@ -3419,7 +3419,7 @@
       ],
       "href": "/signals?view=SIG-1042",
       "jump_label": "Open signal",
-      "$note": "SPEC-CHANGE #24: no .Body hole — the detail form is census + deliveries (ADR-0064 stays intact; no prose producer)."
+      "$note": "ADR-0180: no .Body hole — the detail form is census + deliveries (ADR-0064 stays intact; no prose producer)."
     },
     "jump_labels": {
       "signals": "Open signal",

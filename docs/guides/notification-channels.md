@@ -235,12 +235,13 @@ The semantics are:
 
 | Where | What it shows |
 | --- | --- |
-| On the **message**, in the store | Whether it was delivered, to which channels, and whether any is dead-lettered. |
+| On the **message**, in the store | Whether it was delivered, to which channels, whether any is dead-lettered, and, where one failed, its reason as drill-down. |
 | On the **channel**, on its own surface | Current state, consecutive failures, and the last error string as **drill-down**. |
 | Nowhere else | It is never a message and never a log line to go read. |
 
-The raw error appears only as drill-down on the channel surface. It sits as a
-configuration statement next to the thing the operator would change, never as a
+The raw error appears as drill-down in two places: on the message it failed to carry
+(ADR-0108, ADR-0180 §3) and on the channel surface. On the channel it sits as a
+configuration statement next to the thing the operator would change. It is never a
 top-level log.
 
 ---
