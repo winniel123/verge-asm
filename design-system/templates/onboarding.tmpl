@@ -1,18 +1,4 @@
-{{/*
-  DESIGN-OWNED ARTIFACT — onboarding.tmpl · package v3.12.0 · WORKFLOW.md v4
-  Source of truth: examples/console/Onboarding.jsx · shot 21. Replaces templates_onboarding.go
-  (define "onboarding" kept). Holes kept: .Steps[{Num,Title,Done,Current}] .Step .SeedsField
-  .Seeds[] .Profile .Cads[{Value,Selected}] .Custom .Cron .Channel .Review[{K,V}] .StepNum
-  .StepTotal .Last .Kind. New: .StepValid (server-computed validity of the rendered step).
-  Reconciliations (SPEC-CHANGE #25, ruled): the PRG post-back flow at /onboarding stays (batch-5
-  #23f precedent) rendered as the spec panel + step rail; each step POST 303-redirects to GET
-  /onboarding?step=N&seeds=…&profile=…&cad=…&cron=…&channel=… so wizard states are
-  harness-addressable (#25d); cadence renders as the spec listbox (view JS syncs the hidden cad
-  input; native select drops); Next/Start is JS-gated per the spec validity (≥1 seed — typed
-  seedsadd text counts, the handler absorbs it; cron required when Custom…) with .StepValid as
-  the no-JS floor; there is NO cancel affordance — the mock dialog's X is a workspace affordance,
-  first-run has nowhere to cancel to (#25e). Seed chips remove via the existing rm submit.
-*/}}
+
 {{define "onboarding"}}{{template "head" .}}
 {{template "chrome" .}}
 <style>

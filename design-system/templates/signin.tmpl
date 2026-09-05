@@ -1,14 +1,4 @@
-{{/*
-  DESIGN-OWNED ARTIFACT — signin.tmpl · package v3.7.0 · WORKFLOW.md v4
-  Source of truth: examples/console/SignIn.jsx · shots 17–19.
-  Replaces templates_signin.go (defines kept: authbrand, authfoot, authcss, login, totp,
-  totp-enroll, totp-recovery, forgot, forgot-sent, reset, reset-invalid, reset-done,
-  invite, invite-invalid). Holes unchanged plus: login/totp gain .Username (mid-login
-  account for the TOTP sub-line); authfoot gains .Version (real build version).
-  Reconciliations ruled into spec (SPEC-CHANGE #19): username identity everywhere,
-  trust-device checkbox removed, recovery-code hint on TOTP step, honest reset copy,
-  invite = username at invited role, password policy hint unified at 12+.
-*/}}
+
 {{define "authcss"}}<style>
 .vg-center { min-height: 100vh; background: var(--bg-page); font-family: var(--font-ui); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; padding: 24px; }
 .vg-authcol { display: flex; flex-direction: column; align-items: center; gap: 24px; width: 400px; max-width: 100%; }

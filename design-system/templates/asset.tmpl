@@ -1,22 +1,4 @@
-{{/*
-  DESIGN-OWNED ARTIFACT — asset.tmpl · package v3.10.0 · WORKFLOW.md v4
-  Source of truth: examples/console/AssetDetail.jsx · shot 12. Replaces templates_asset.go
-  (defines "asset" + "assetexposure" kept; "sevbadge" from signals.tmpl and "changeglyph" from
-  drift.tmpl are reused — one parse set).
-  Holes kept: .Asset{Key,Type,Severity,Exposure,Seen,InScopeSince,Withdrawn,
-  Ports[{Port,Service,Exposure,Since}], DNS[{Type,Value,Seen}], Provenance[{K,V}],
-  Signals[…], Drift[{Change,Family,Subject,Detail,Time}]}.
-  Reconciliations (SPEC-CHANGE #22, ruled): .SevLabel joins every severity read (batch-3
-  precedent). Signals-here rows gain .SigID + .Time and deep-link /signals?view={id} (#22b — the
-  mock's VG-#### ids predate the SIG-#### mint; the real id renders). The TLS certificate card
-  renders from .Cert{Name,Issuer,Algorithm,NotAfter,Label,Tone,Fingerprint} (nullable) — BUILD the
-  parsed-certificate read off the certificate-chain leaf (#22c; the facet already stores
-  "CN=R11 · Let's Encrypt · exp 2026-11-02"); the honest empty state stays when null. The census
-  Service column renders transport + the http-identity Server where an endpoint on that port holds
-  one — a read of stored evidence, not a new fingerprint (#22d). The header more-menu carries
-  Annotate + Descope asset only ("Add tag" has no store — dropped). Drift trail renders the spec's
-  collapsible group ("This asset · last 30 days").
-*/}}
+
 {{define "assetexposure"}}<span class="as-leg {{if eq . "exposed"}}exposed{{else if eq . "firewalled"}}firewalled{{else if eq . "not-reached"}}notreached{{else}}unverified{{end}}">{{if eq . "not-reached"}}not reached{{else}}{{.}}{{end}}</span>{{end}}
 
 {{define "asset"}}{{template "head" .}}

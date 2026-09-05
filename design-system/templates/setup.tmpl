@@ -1,10 +1,4 @@
-{{/*
-  DESIGN-OWNED ARTIFACT — setup.tmpl · package v3.7.0 · WORKFLOW.md v4
-  Source of truth: examples/console/Setup.jsx · shot 20. Replaces templates_setup.go.
-  Holes unchanged (.Error .Token .Version); reuses signin.tmpl's authcss/authbrand/authfoot.
-  Username identity per SPEC-CHANGE #19; success stays the 303 redirect (the honest
-  completion — the spec's done card is a preview affordance).
-*/}}
+
 {{define "setup"}}{{template "head" .}}{{template "authcss"}}
 <div class="vg-center" data-screen-label="Setup"><div class="vg-authcol wide">
 {{template "authbrand" .}}

@@ -1,28 +1,4 @@
-{{/*
-  DESIGN-OWNED ARTIFACT — signals.tmpl · package v3.9.0 · WORKFLOW.md v4
-  Source of truth: examples/console/Signals.jsx + SignalData.jsx · shot 05. Replaces
-  templates_signals.go (defines "signals" + "sevbadge" + "sevbadge-md" + "withdrawnmark").
-  PRG skeleton kept: tab/filter/sort/page/drawer/descope stay query-string state on the existing
-  routes; view JS layers only what navigation cannot express (row kebab menu, right-click menu,
-  Escape-to-close, typed-confirm gate, annotate enable). Holes kept: .Tab .OpenCount
-  .AnnotatedCount .WithdrawnCount .Q .Sev .SevOptions .Shown .Total .HasAny .ClearHref .HasExport
-  .ExportHref .IsAdmin .AnnoError .AnnoReasonDraft .ViewPrefix .SelKey
-  .Sort{Key,Dir,SevHref,AssetHref,IDHref,SeenHref}
-  .ShowPagination .PageInfo .Pages[{Ellipsis,Href,Num,Active}] .Prev/NextDisabled .Prev/NextHref
-  .CloseHref. Changed (SPEC-CHANGE #21, ruled): header Descope button drops — descope lives on the
-  row menus and drawer; .Rows gains .SevLabel + .DescopeHref; the .Sort.*Arrow string holes retire
-  (the caret svg renders from .Sort.Key/.Dir) (#21i); the severity filter is a spec listbox of
-  links (#21h); .Descope becomes {Asset,CloseHref} and the dialog gains the spec typed-confirm gate
-  posting the typed value to POST /exclusions kind=subtree; .Drawer gains the spec's real data —
-  .Tags[] .CVE .Desc .RuleID/.RuleVersion .DetectedBy .Diff{Title,Lines[{Type,Text}]}
-  .History[{Title,Detail,Time,Tone,Mono}] (#21j — rule metadata, the drift join, and span-derived
-  history exist; build the reads). Added (ADR-0130 §1, #972): the declare form's textarea
-  echoes .AnnoReasonDraft, the reason an operator typed on a submission the server refused.
-  The refusal is a redirect now, not an in-place re-render, so without the echo the typed
-  text would be gone from the page they land on. The server sends the draft only when the
-  re-opened drawer is the pair the refusal was about; it is "" on every ordinary load, and
-  an empty textarea is exactly the untouched control.
-*/}}
+
 {{define "sevbadge"}}{{if eq .Severity "critical"}}<span style="display:inline-flex;align-items:center;gap:5px;height:18px;padding:0 8px;border-radius:999px;font-family:var(--font-mono);font-size:10px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;white-space:nowrap;background:var(--sev-critical-fill);color:var(--sev-critical-text)">{{.SevLabel}}</span>{{else}}<span style="display:inline-flex;align-items:center;gap:5px;height:18px;padding:0 8px;border-radius:999px;font-family:var(--font-mono);font-size:10px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;white-space:nowrap;background:var(--sev-{{.Severity}}-bg);border:1px solid var(--sev-{{.Severity}}-border);color:var(--sev-{{.Severity}}-fg)"><span style="width:5px;height:5px;border-radius:999px;background:var(--sev-{{.Severity}}-dot);flex:none"></span>{{.SevLabel}}</span>{{end}}{{end}}
 
 {{define "sevbadge-md"}}{{if eq .Severity "critical"}}<span style="display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 10px;border-radius:999px;font-family:var(--font-mono);font-size:11px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;white-space:nowrap;background:var(--sev-critical-fill);color:var(--sev-critical-text)">{{.SevLabel}}</span>{{else}}<span style="display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 10px;border-radius:999px;font-family:var(--font-mono);font-size:11px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;white-space:nowrap;background:var(--sev-{{.Severity}}-bg);border:1px solid var(--sev-{{.Severity}}-border);color:var(--sev-{{.Severity}}-fg)"><span style="width:6px;height:6px;border-radius:999px;background:var(--sev-{{.Severity}}-dot);flex:none"></span>{{.SevLabel}}</span>{{end}}{{end}}

@@ -1,16 +1,4 @@
-{{/*
-  DESIGN-OWNED ARTIFACT — dashboard.tmpl · package v3.9.0 · WORKFLOW.md v4
-  Source of truth: examples/console/Dashboard.jsx · shot 01. Replaces templates_dashboard.go
-  (defines "home" + "dashboard" kept; "firstrun" stays repo-authored until map #20).
-  Holes kept: .EmptyEstate .ScanSchedule{HasLast,LastAgo,HasNext,NextIn} .Scanning .Unavailable[]
-  .ProbeDismissed .StatBand[{Label,Value,Live,HasDelta,Change,Tone,Caption}] (signDelta func stays)
-  .HasSignals .SevBars[{Sev,Pct,Count}] .Vantages[{Name,Latency,Avail}]. Changed holes
-  (SPEC-CHANGE #21, ruled): .ScanDetail (NEW, e.g. "214 subjects queued") replaces the inline
-  ActiveScans phrasing (#21e); .CoverageMeters gains nullable .Total + .Pct — address scopes render
-  counted/total per #19c, name scopes stay census (#21e2); .SilentZone{Bound,Text} (NEW) replaces
-  .SilentVantage — the spec renders the staleness badge + its subject line (#21e3);
-  .RecentSignals gains .SevLabel + .ViewKey so rows deep-link into the Signals drawer (#21f).
-*/}}
+
 {{define "home"}}{{template "head" .}}
 {{template "chrome" .}}
 {{if .EmptyEstate}}{{template "firstrun" .}}{{else}}{{template "dashboard" .}}{{end}}

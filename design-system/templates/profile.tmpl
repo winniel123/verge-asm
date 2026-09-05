@@ -1,16 +1,4 @@
-{{/*
-  DESIGN-OWNED ARTIFACT — profile.tmpl · package v3.6.0 · WORKFLOW.md v4
-  Source of truth: examples/console/Profile.jsx · shot 14.
-  Replaces templates_profile.go. Hole names unchanged (PRG model kept): .Initials
-  .Username .Role .CreatedISO .TotpEnabled .PwError .Notice .Sessions[] .SSOIdentities[]
-  .SSOError .SSONotice .SSOProviders[] .Tokens[] .CreateOpen .Minted .TokName .TokError
-  .RevokeID .RevokeName .RevokeErr .EndSession .SignOutOthers.
-  #390 (2026-08-26): .Tokens[].Last is nullable — real last-used timestamp, "never" when null;
-  .APIEnabled joins — when false the inert-tokens note renders (read-only opt-in /api/v1).
-  Reconciliations ruled into spec (SPEC-CHANGE #18): token revoke = plain ConfirmDialog
-  (typed gate relaxes), TOTP-off state specced, PRG notices render as Callouts and act
-  results ride the shell toast pipeline.
-*/}}
+
 {{define "profile"}}{{template "head" .}}
 {{template "chrome" .}}
 <style>

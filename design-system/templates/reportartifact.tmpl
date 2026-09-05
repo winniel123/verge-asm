@@ -1,22 +1,4 @@
-{{/*
-  DESIGN-OWNED ARTIFACT — reportartifact.tmpl · package v3.11.0 · WORKFLOW.md v4
-  Source of truth: examples/console/ReportArtifact.jsx · shot 10. Replaces
-  templates_reportartifact.go. Defines: "reportartifact" (page shell) + "artifactdoc" (the
-  delivered document itself). Calls "deltachip" (reports.tmpl), "sevbadge" (signals.tmpl),
-  "changeglyph" (drift.tmpl) — one parse set.
-  Reconciliation (SPEC-CHANGE #23g, ruled): the document body moves from repo-owned
-  internal/message.RenderArtifact markup into the design-owned "artifactdoc" define —
-  RenderArtifact re-points at this define (parse the tmpl once, execute "artifactdoc" with the
-  same recomputed data; the on-screen, PDF and email forms all render THIS markup). To keep those
-  forms portable the document is fully inline-styled — nothing in it depends on the page <style>.
-  Page holes: .Heading .Period .ScheduleID (nullable — Edit schedule links
-  /reports/schedule/{id}/edit now that the route exists (#23h); disabled when the schedule is
-  gone) .Doc. Document holes (.Doc): .Empty .Org .Generated .Version .Format
-  .Stats[{Label,Value,Delta{Has,Text,Dir,Tone},Caption}] .SevBars[{Sev,Label,Pct,Count}]
-  .NewRows[{Severity,SevLabel,Signal,Asset,Seen}] .Withdrawn[{Text,Reason}] .DeliveredAt
-  .DeliveredTo .DeliveryState{Label,Tone}. A schedule that has never delivered renders .Empty
-  inside the document (ADR-0110) — the PDF is the empty-state document until a delivery lands.
-*/}}
+
 {{define "artifactdoc"}}<section style="background:var(--surface);border:1px solid var(--border-default);border-radius:16px;box-shadow:var(--shadow-sm);padding:28px;max-width:800px;width:100%;margin:0 auto;box-sizing:border-box;font-family:var(--font-ui)">
 {{if .Empty}}
 <div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:48px 24px">

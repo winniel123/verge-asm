@@ -1,22 +1,4 @@
-{{/*
-  DESIGN-OWNED ARTIFACT — inbox.tmpl · package v3.11.1 · WORKFLOW.md v4
-  Source of truth: examples/console/Inbox.jsx · shot 07. Replaces templates_inbox.go
-  (define "inbox" kept). PRG skeleton kept: open = ?id link (marks read), filter = query param,
-  mark-all-read / mark-unread = POSTs returning to /inbox.
-  Holes kept: .Unread .Filter .AllHref .UnreadHref .Messages[{ID,Read,Selected,Class,Instant,Rel,
-  Headline}] .Selected{ID,Class,Headline,Rel,Instant,Census[{Kind,Key,Href}],
-  Deliveries[{State,ChannelHost,Failed,LastError}],Href,JumpLabel}.
-  Reconciliations: (SPEC-CHANGE #24, ruled — supersedes #23i's .Body) the detail card carries NO
-  prose body — the mock's paragraph predates the census store, and internal/message is
-  valence-free by design (ADR-0064); the detail form IS the census + delivery receipts, with depth
-  one jump away. No .Body hole; no prose producer should be built. (#23i, remainder ruled): the
-  census and delivery-receipt regions become design-owned (the repo's msgcensus/msgdelivery
-  global classes retire for this route): census renders as sunken key rows (kind micro-label +
-  mono key link), deliveries as receipt lines — failed renders the danger "undelivered" badge, the
-  host, the honest "could not be delivered, not that nothing fired" clause and a dotted reason
-  tooltip carrying .LastError. Map note: the map's "mark-unread menu" state predates the mock —
-  mark-unread is a button in the detail card (covered by the message-open golden).
-*/}}
+
 {{define "inbox"}}{{template "head" .}}
 {{template "chrome" .}}
 <style>

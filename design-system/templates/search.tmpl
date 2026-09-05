@@ -1,16 +1,4 @@
-{{/*
-  DESIGN-OWNED ARTIFACT — search.tmpl · package v3.12.0 · WORKFLOW.md v4
-  Source of truth: examples/console/SearchResults.jsx · shot 20. Replaces templates_search.go
-  (define "search" kept; new "hisegs"). "sevbadge" (signals.tmpl) reused — one parse set.
-  Holes: .Query .Total .Assets[{Href,NameSegs,Type,Severity,SevLabel}] .Signals[{Href,Severity,
-  SevLabel,RuleSegs,SubjectSegs}] .Batches[{Href,Status,LabelSegs}] .Docs[{TitleSegs,SnipSegs}].
-  Reconciliations (SPEC-CHANGE #25, ruled): matched terms render highlighted per the spec — every
-  matched text is a segment list [{Text,Hit}] via the "hisegs" define; the handler splits each
-  field on the first case-insensitive match (#25a). Asset rows gain nullable .Severity/.SevLabel
-  rendering the landed sevbadge (#25b — the repo rows dropped it). The leading input icon drops —
-  the spec's mono Input carries none (#25c). GET /search?q= skeleton kept; doc rows stay
-  non-navigating; batch rows keep the BatchStatus chip (running pulses).
-*/}}
+
 {{define "hisegs"}}{{range .}}{{if .Hit}}<span style="color:var(--link);font-weight:600">{{.Text}}</span>{{else}}{{.Text}}{{end}}{{end}}{{end}}
 
 {{define "search"}}{{template "head" .}}

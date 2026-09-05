@@ -1,23 +1,4 @@
-{{/*
-  DESIGN-OWNED ARTIFACT — subjectdetail.tmpl · package v3.10.0 · WORKFLOW.md v4
-  Source of truth: examples/console/SubjectDetail.jsx · shots 22 (service) / 23 (endpoint) /
-  24 (withdrawn). Replaces templates_subjectdetail.go. Defines kept: "service" + "endpoint" +
-  shared "subjectstyle" / "subjectbreadcrumb" / "subjecttimelines" / "subjectrules" /
-  "subjectprovenance". Reuses "assetexposure" (asset.tmpl), "sevbadge" (signals.tmpl),
-  "recordrows" (inventory.tmpl) — one parse set.
-  Holes kept: .Service{Key,Withdrawn,Exposure,Seen,InScopeSince,Citation[{Label,Value,Detail}],
-  CitationTerminated,Address,Port,Transport,Reach,ReachGap,ReachGapReason,Since,
-  Timelines[{Label,Current{IsGap,Value,Details,OpenedAt},Breaks[{At,MovedLeaves}],
-  Closed[{IsGap,Value,Details,OpenedAt,OpenedFull,ClosedAt,ClosedFull,Reason}]}],
-  Rules[{Rule,Version,Severity,SevLabel,Fired}],Provenance[{K,V}],Signals[…]} and
-  .Endpoint{…,Nameless,Name,Service,HasIdentity,Status,Server,Title,WWWAuthenticate,
-  RedirectLocation}. Reconciliations (SPEC-CHANGE #22, ruled): the citation chain renders the
-  spec rail (dots + connector, Seed dot accent); the current facet renders the spec sunken
-  KeyValueList; closed spans gain .OpenedFull/.ClosedFull (title tooltips); withdrawn renders the
-  spec dashed WithdrawnMark + the neutral Banner; the more-menu is the spec dropdown (view JS);
-  signals-here rows gain .SigID + .Time and deep-link /signals?view={id} (#22b); the Break banner
-  renders the spec accent Banner with the git-branch icon.
-*/}}
+
 {{define "subjectstyle"}}<style>
 @keyframes sd-pop { from { opacity: 0; transform: translateY(6px) scale(0.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .sd-main { max-width: 1440px; width: 100%; margin: 0 auto; padding: 32px; display: flex; flex-direction: column; gap: 20px; }

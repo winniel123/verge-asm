@@ -1,31 +1,4 @@
-{{/*
-  DESIGN-OWNED ARTIFACT — graph.tmpl · package v3.10.0 · WORKFLOW.md v4
-  Source of truth: examples/console/GraphView.jsx + components/display/Graph.jsx · shot 08.
-  Replaces templates_graph.go (define "graph" kept; "sevbadge" from signals.tmpl reused).
-  Holes: .Graph{Empty, ViewW, ViewH, MiniW, MiniH, ContentW, ContentH, FitX, FitY, FitK, MinK, LabelMinK,
-  Scope, ScopeLabel, Scopes[{Token,Label}],
-  Cap, CutEdges, CutSignals, Capped[{Label,Drawn,Held}],
-  Edges[{X1,Y1,X2,Y2,ToService}],
-  Nodes[{ID,Label,Type(domain|subdomain|ip|service),X,Y,Mx,My,Sev,HaloA,HaloB,LabelDX,Ports,First,
-  OpenSignals[{Severity,SevLabel,Rule,Subject}]}]}.
-  Reconciliations (SPEC-CHANGE #22, ruled): .Type gains the domain|subdomain split (apex → domain:
-  r16, ink stroke sw2, 600 13px label; other names → subdomain: r10) and the legend names both
-  (#22e); halos carry the spec's two radii — .HaloA (r+7, fill 0.12) + .HaloB (r+4.5, ring 0.65)
-  replace .HaloR (#22f); the severity filter is the spec listbox (view JS; all nodes stay drawn,
-  halos + minimap dots light per level); node select draws the focus ring; the node drawer renders
-  the spec Drawer (scrim, 420px panel, slide-in, sunken 1-column KV, sev-badged signal list).
-  The pan/zoom/minimap/PNG-export engine began as a translation of Graph.jsx and has since parted
-  from it: #1089 reframed the minimap and the export on the measured content bounds, and #1101
-  reframed the view's origin and its clamp floor on the same bounds. GraphView.jsx still holds the
-  original viewport-framed engine and is no longer the source of truth for this block.
-  #1102 adds the scope listbox, which reuses the severity listbox's .gr-listbox pattern but is a
-  set of links rather than a client-side filter: it bounds the drawing server-side (ADR-0136 §3).
-  #1103 adds the .gr-callout shortfall statement above the card, reusing drift.tmpl's .dr-callout
-  pattern: the column cap draws fewer subjects, so the screen states what it left out (§2, §4, §6).
-  #1104 adds .gr-hushed, the label suppression the view toggles on .LabelMinK: below that scale
-  an 11px label renders under 7px, so the subdomain, ip and service labels go and the 13px domain
-  apex label stays (ADR-0136 §5). The PNG export lifts it, since it renders at its own scale.
-*/}}
+
 {{define "graph"}}{{template "head" .}}
 {{template "chrome" .}}
 <style>
