@@ -28,6 +28,7 @@ const (
 	FORMERR  Rcode = "FORMERR"
 	REFUSED  Rcode = "REFUSED"
 	SERVFAIL Rcode = "SERVFAIL"
+	OTHER    Rcode = "OTHER"
 )
 
 type RR struct {
