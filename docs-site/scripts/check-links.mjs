@@ -1,41 +1,4 @@
 #!/usr/bin/env node
-/*
- * Broken-link gate for the docs pipeline (T2 / #352).
- *
- * Standalone CLI — NOT an inline build assertion — so T5/#355 can invoke it from
- * CI:  `node scripts/check-links.mjs`  (wired as `npm run check:links`). Exits
- * non-zero and prints `file:line  ->  target  (reason)` for every dead internal
- * link, so a renamed or deleted guide (or a heading whose slug moved) fails the
- * build instead of silently 404ing on the live site.
- *
- * WHAT IT CHECKS (matches the render.jsx `a`-renderer rewrite exactly):
- *   - Intra-guide relative `.md` links (`using.md`, `./running.md`, optionally with
- *     a `#fragment`) must point at a guide that EXISTS in that version, and the
- *     fragment must match a real heading id in the target guide.
- *   - Anchor-only links (`#frag`) must match a heading id in their own guide.
- *   - External `http(s)`/`mailto:` links are left alone.
- *   - `../adr/<file>.md` cross-references (which render.jsx rewrites to a GitHub
- *     blob URL) must name an ADR file that EXISTS in docs/adr/, so a renamed or
- *     deleted ADR fails the build instead of shipping a dead blob link (#428).
- *     The `#fragment` is NOT checked: ADRs render on GitHub, whose heading-anchor
- *     algorithm differs from ours, so only file reachability is meaningful here.
- *   - Other relative links that escape the guides dir (`../../deploy/...`, `*.go`,
- *     bare directories) are repo cross-references with no home on the docs site —
- *     out of scope for this gate, so they are not flagged.
- *
- * PER-VERSION: the checker loops over a version list and validates each version's
- * link graph independently against ONLY that version's guide + anchor inventory —
- * a link valid in v0.9.2 may be dead in v0.9.1. Today source-resolution exposes a
- * single version ("main") read from the working-tree guides; when Tv/#351 lands
- * git-ref versions, `loadVersions()` is the one function to extend (read each ref's
- * `docs/guides/*.md`), and the per-version loop below is unchanged.
- *
- * Anchor ids come from `github-slugger` (the shared algorithm — see slug.ts and
- * render.jsx): lowercase, strip punctuation, spaces -> "-", de-dup collisions with
- * a numeric suffix. Every heading (h1..h6) is slugged in source order so the de-dup
- * counter matches the renderer; fenced code blocks are skipped so a `# comment`
- * inside a ```sh block is never read as a heading.
- */
 import GithubSlugger from "github-slugger";
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -46,29 +9,10 @@ const REPO_ROOT = resolve(SCRIPT_DIR, "..", "..");
 const GUIDES_DIR = join(REPO_ROOT, "docs", "guides");
 const ADR_DIR = join(REPO_ROOT, "docs", "adr");
 
-/**
- * ADR filenames present in docs/adr/, for validating `../adr/<file>.md` cross-refs.
- * Read once from the working tree — correct while there is a single working-tree
- * version (like the guide inventory in loadVersions). When Tv's git-ref versions
- * land, this moves into the per-version seam so each ref checks its own ADR set.
- */
 const ADR_FILES = new Set(
   readdirSync(ADR_DIR).filter((name) => name.endsWith(".md")),
 );
 
-/** A guide resolved at one version: slug + its raw markdown + repo-relative path. */
-/**
- * Load every version and its guide set.
- *
- * TODAY: one version, "main", read from the working-tree guides — mirroring
- * source-resolution.ts (`resolveSources` / `listVersions`), which this gate cannot
- * import directly because that module reads Astro's `astro:content` collection
- * (only available inside the Astro build). This is the SEAM to extend when Tv/#351
- * makes versions real: emit one entry per git ref, each `guides` map built from
- * `git show <ref>:docs/guides/<file>`. The per-version checking below needs no edits.
- *
- * @returns {{ version: string, guides: Map<string, { markdown: string, file: string }> }[]}
- */
 function loadVersions() {
   const guides = new Map();
   for (const name of readdirSync(GUIDES_DIR)) {
@@ -83,11 +27,7 @@ function loadVersions() {
   return [{ version: "main", guides }];
 }
 
-/**
- * Every heading id in a guide, via the shared github-slugger algorithm. Slugs every
- * heading (all levels) in source order so the de-dup counter matches render.jsx;
- * fenced code blocks are skipped. Returns a Set of anchor ids (no leading `#`).
- */
+// slugging a subset diverges the de-dup counter from the renderer (docs-site/PIPELINE.md)
 function collectAnchors(markdown) {
   const slugger = new GithubSlugger();
   const ids = new Set();
@@ -111,11 +51,6 @@ function collectAnchors(markdown) {
   return ids;
 }
 
-/**
- * Every markdown link target in a doc, with its 1-based line number. Skips fenced
- * code blocks so a `](x.md)` inside a code sample is not treated as a link.
- * @returns {{ line: number, target: string }[]}
- */
 function scanLinks(markdown) {
   const out = [];
   let inFence = false;
@@ -127,7 +62,6 @@ function scanLinks(markdown) {
       continue;
     }
     if (inFence) continue;
-    // [text](target) — target stops at whitespace (drops any `"title"`) or `)`.
     const re = /\]\(([^)\s]+)/g;
     let m;
     while ((m = re.exec(line)) !== null) {
@@ -139,18 +73,12 @@ function scanLinks(markdown) {
 
 const EXTERNAL = /^([a-z][a-z0-9+.-]*:)?\/\//i;
 const MAILTO = /^mailto:/i;
-// intra-guide relative link: optional `./`, a bare slug, `.md`, optional `#frag`.
 const INTRA_GUIDE = /^\.?\/?([a-z0-9][a-z0-9-]*)\.md(?:#(.+))?$/i;
-// ADR cross-ref: `../adr/<file>.md` (flat filename, no nested path), optional `#frag`.
-// Mirrors render.jsx's ADR_XREF exactly so gate and renderer classify links identically.
+// mirrors render.jsx's ADR_XREF, so gate and renderer cannot classify a link differently
 const ADR_XREF = /^\.\.\/adr\/([^#?/]+\.md)(?:#(.+))?$/i;
 
-/**
- * Check one link target against a version's guide + anchor inventory.
- * @returns {string|null} a failure reason, or null if the link is fine / out of scope.
- */
 function checkTarget(target, currentSlug, guides, anchorsBySlug) {
-  if (EXTERNAL.test(target) || MAILTO.test(target)) return null; // external — untouched
+  if (EXTERNAL.test(target) || MAILTO.test(target)) return null;
 
   if (target.startsWith("#")) {
     const frag = target.slice(1);
@@ -162,14 +90,15 @@ function checkTarget(target, currentSlug, guides, anchorsBySlug) {
 
   const adr = ADR_XREF.exec(target);
   if (adr) {
-    // render.jsx rewrites this to a GitHub blob URL; guard the file still exists.
+    // an ADR is not a docs-site page, so this gate holds no heading inventory for its fragment
     return ADR_FILES.has(adr[1])
       ? null
       : `ADR "${adr[1]}" does not exist in docs/adr/`;
   }
 
   const m = INTRA_GUIDE.exec(target);
-  if (!m) return null; // ../../deploy/, *.go, directories — out of scope
+  // only docs/guides/*.md becomes a page, so any other relative target is out of this gate
+  if (!m) return null;
 
   const slug = m[1];
   const frag = m[2];
@@ -185,7 +114,6 @@ function main() {
   const failures = [];
 
   for (const { version, guides } of versions) {
-    // Per-version anchor inventory, built once from THIS version's guides only.
     const anchorsBySlug = new Map();
     for (const [slug, { markdown }] of guides) {
       anchorsBySlug.set(slug, collectAnchors(markdown));
