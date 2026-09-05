@@ -4,8 +4,6 @@ import { CopyValue } from "./CopyValue.jsx";
 import { Button } from "../forms/Button.jsx";
 import { Icon } from "../media/Icon.jsx";
 
-/* IdP signing certificate: identity, expiry as operational state (ok/warn/danger — never severity),
-   fingerprint as the verifiable value. Expired certs keep working visually but say so plainly. */
 export function CertificateCard({ name, role = "IdP signing", issuer, algorithm, notAfter, daysLeft, fingerprint, onReplace, style }) {
   const expired = typeof daysLeft === "number" && daysLeft <= 0;
   const expiring = !expired && typeof daysLeft === "number" && daysLeft <= 30;

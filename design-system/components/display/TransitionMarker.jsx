@@ -4,7 +4,6 @@ import { ChangeGlyph } from "./ChangeBadge.jsx";
 
 const FAMILY = { appeared: "gain", revealed: "gain", returned: "gain", withdrawn: "loss", descoped: "loss", changed: "change" };
 
-/* Inline latest-transition marker for subject rows; full transition on hover. */
 export function TransitionMarker({ change = "changed", time, reason, style }) {
   const fam = FAMILY[change] || "change";
   const tip = change + (time ? " · " + time : "") + (reason ? " · " + reason : "");

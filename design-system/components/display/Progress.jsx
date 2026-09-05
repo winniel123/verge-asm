@@ -1,6 +1,5 @@
 import React from "react";
 
-/* Determinate bar, or indeterminate scan sweep when value is null/undefined. */
 export function Progress({ value, label, detail, tone = "accent", size = "md", style }) {
   const h = size === "sm" ? 4 : 6;
   const color = tone === "ok" ? "var(--ok-solid)" : tone === "warn" ? "var(--warn-solid)" : tone === "danger" ? "var(--danger-solid)" : "var(--accent)";

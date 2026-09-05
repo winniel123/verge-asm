@@ -1,7 +1,5 @@
 import React from "react";
 
-/* Trend delta chip: direction arrow from the value's sign, tone says whether that direction is good.
-   Tone is semantic (ok/danger), never severity. */
 export function DeltaChip({ value, tone = "neutral", size = "sm", style }) {
   const s = String(value == null ? "" : value).trim();
   const up = s.charAt(0) === "+";

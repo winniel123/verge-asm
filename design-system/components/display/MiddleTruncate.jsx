@@ -1,7 +1,5 @@
 import React from "react";
 
-/* Middle-ellipsis: the head shrinks with an ellipsis, the tail (default 12 chars) stays put,
-   so long hostnames keep their TLD readable. Full value in the title tooltip. */
 export function MiddleTruncate({ value = "", tail = 12, mono = true, style }) {
   const cut = Math.max(0, value.length - tail);
   const head = value.slice(0, cut), tl = value.slice(cut);

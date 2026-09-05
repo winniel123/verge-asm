@@ -1,6 +1,5 @@
 import React from "react";
 
-/* Code on the console ground. Copy control appears on hover; title renders a micro-label bar. */
 export function CodeBlock({ children, title, copyText, style }) {
   const [hov, setHov] = React.useState(false);
   const [copied, setCopied] = React.useState(false);

@@ -2,8 +2,6 @@ import React from "react";
 import { Icon } from "../media/Icon.jsx";
 import { Tag } from "./Tag.jsx";
 
-/* Scope grants shown at install time. A display, not checkboxes — grants are
-   all-or-nothing; partial consent is a lie the runtime can't keep. Writes are visually louder. */
 export function ConsentList({ grants = [], style }) {
   return (
     <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 2, fontFamily: "var(--font-ui)", ...style }}>

@@ -1,6 +1,5 @@
 import React from "react";
 
-/* Definition grid for technical detail. items: [{ k, v, mono?, span? }] — mono defaults true. */
 export function KeyValueList({ items = [], columns = 2, sunken = true, style }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(" + columns + ", minmax(0, 1fr))", gap: "14px 20px", padding: sunken ? 16 : 0, background: sunken ? "var(--surface-sunken)" : "transparent", borderRadius: sunken ? 12 : 0, fontFamily: "var(--font-ui)", ...style }}>

@@ -1,6 +1,5 @@
 import React from "react";
 
-/* Disclosure list. items: [{id, title, content}]. Single-open by default. */
 export function Accordion({ items = [], multiple, defaultOpen = [], style }) {
   const [open, setOpen] = React.useState(defaultOpen);
   const toggle = (id) => setOpen((o) => o.indexOf(id) !== -1 ? o.filter((x) => x !== id) : multiple ? o.concat(id) : [id]);

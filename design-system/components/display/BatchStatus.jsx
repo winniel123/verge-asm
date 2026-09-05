@@ -1,6 +1,5 @@
 import React from "react";
 
-/* State of a run + its recorded scope. A Batch is the executed record of a Scan (never "job"). */
 const S = {
   scheduled: { bg: "var(--surface-sunken)", bd: "var(--border-default)", fg: "var(--text-secondary)", dot: "var(--neutral-400)" },
   running: { bg: "var(--accent-soft)", bd: "transparent", fg: "var(--link)", dot: "var(--accent)", pulse: true },

@@ -1,6 +1,5 @@
 import React from "react";
 
-/* Mini bar chart. data: number[]; labels align 1:1 (sparse ok — empty strings skip). */
 export function BarChart({ data = [], labels, height = 72, color = "var(--chart-1)", emphasizeLast = true, showBaseline = true, style }) {
   const max = Math.max(...data, 1);
   const [on, setOn] = React.useState(false);

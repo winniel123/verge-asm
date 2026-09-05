@@ -1,6 +1,5 @@
 import React from "react";
 
-/* Live batch output on the console ground. lines: [{time, level?, text}]. Auto-follows while live. */
 const LC = { info: "var(--neutral-400)", warn: "var(--console-warn)", error: "var(--console-danger)" };
 export function LogViewer({ lines = [], title, live, height = 220, style }) {
   const ref = React.useRef(null);

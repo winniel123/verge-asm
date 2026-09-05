@@ -1,6 +1,5 @@
 import React from "react";
 
-/* Vertical numbered steps (install wizard, onboarding). active = current index; earlier steps render done. */
 export function Stepper({ steps = [], active = 0, style }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", fontFamily: "var(--font-ui)", ...style }}>

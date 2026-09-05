@@ -1,6 +1,5 @@
 import React from "react";
 
-/* Inline trend line. data: number[]. SVG scales to width/height; last point gets a dot. */
 export function Sparkline({ data = [], width = 140, height = 36, color = "var(--chart-1)", area = true, strokeWidth = 1.75, style }) {
   const [on, setOn] = React.useState(false);
   React.useEffect(() => { const id = requestAnimationFrame(() => setOn(true)); return () => cancelAnimationFrame(id); }, []);

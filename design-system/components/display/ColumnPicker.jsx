@@ -4,7 +4,6 @@ import { Checkbox } from "../forms/Checkbox.jsx";
 import { Button } from "../forms/Button.jsx";
 import { Icon } from "../media/Icon.jsx";
 
-/* Show/hide table columns. Order is owned by the columns array; locked columns can't be hidden. */
 export function ColumnPicker({ columns = [], visible = [], onChange, label = "Columns", size = "sm", align = "end" }) {
   const toggle = (key) => {
     if (!onChange) return;

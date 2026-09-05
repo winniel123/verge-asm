@@ -1,7 +1,6 @@
 import React from "react";
 import { Icon } from "../media/Icon.jsx";
 
-/* Click-to-edit text. Enter commits, Escape cancels, blur commits. Empty commits are ignored. */
 export function InlineEdit({ value, onChange, mono, placeholder = "\u2014", label, style }) {
   const [editing, setEditing] = React.useState(false);
   const [draft, setDraft] = React.useState(value || "");

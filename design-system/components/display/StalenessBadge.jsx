@@ -1,7 +1,5 @@
 import React from "react";
 
-/* Currency states on the bronze stale palette — never severity or drift colors.
-   kinds: stale (old observation), not-evaluable, silent ("you stopped telling us"). */
 const LABELS = { stale: "stale", "not-evaluable": "not evaluable", silent: "no reports" };
 
 export function StalenessBadge({ kind = "stale", bound, size = "md", style }) {

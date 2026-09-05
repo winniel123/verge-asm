@@ -1,6 +1,5 @@
 import React from "react";
 
-/* Keyboard key cap. keys="esc" or keys={["mod","K"]} — the "mod" token renders ⌘ on Mac, Ctrl elsewhere. */
 export function Kbd({ keys, style }) {
   const isMac = /Mac|iP(hone|ad|od)/.test(navigator.platform || navigator.userAgent);
   const list = (Array.isArray(keys) ? keys : [keys]).map((k) => (k === "mod" ? (isMac ? "\u2318" : "Ctrl") : k));

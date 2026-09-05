@@ -1,6 +1,5 @@
 import React from "react";
 
-/* Drift before/after. lines: [{ type: "add" | "remove" | "same", text }] — always mono. */
 export function DiffView({ lines = [], title, style }) {
   const row = (l, i) => {
     const add = l.type === "add", rem = l.type === "remove";
