@@ -119,7 +119,7 @@ func OCSPSCTs(ocspResponse []byte) ([][]byte, error) {
 	}
 	resp, err := ocsp.ParseResponse(ocspResponse, nil)
 	if err != nil {
-		return nil, nil // a malformed staple narrows the SCTs, never fails the verification
+		return nil, nil // a malformed staple narrows the SCTs, never fails the verification (ADR-0193 §1)
 	}
 	for _, ext := range resp.Extensions {
 		if !ext.Id.Equal(oidSCTList) {

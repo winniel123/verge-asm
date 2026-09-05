@@ -168,7 +168,7 @@ const (
 	parseSkipped
 )
 
-// The rdata is the file's own words, never a re-resolution, so the timeline is what was declared.
+// The rdata is the file's own words, never a re-resolution, so the timeline is what was declared (ADR-0194 §1).
 
 type zoneValue struct {
 	RRs []string `json:"rrs"`

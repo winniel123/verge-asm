@@ -80,7 +80,7 @@ func foldOne(ctx context.Context, qtx *db.Queries, batchID int64, vantageID pgty
 	// A re-entry behind a closure is marked like a first span, so drift reads it revealed (ADR-0041).
 	openedAperture := open == nil && openedByAperture(key.SubjectKind, key.SubjectKey, in)
 	if open != nil && !closeAt.IsZero() {
-		// Departure is a cross-class composition, so the membership path closes those spans, not this.
+		// A departure is a cross-class composition, so the membership path closes those (ADR-0211 §2).
 		if err := qtx.CloseSpan(ctx, db.CloseSpanParams{ClosedAt: tstz(closeAt), ClosedBatchID: pgInt8(batchID), ID: openID}); err != nil {
 			return err
 		}

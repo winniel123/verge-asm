@@ -293,6 +293,14 @@ All three are stored verbatim, sit behind the same admin gate (§5.2), and are e
    because it is the **most valuable evidence** for debugging a misbehaving or compromised prober;
    dropping it would defeat the corpus.
 
+**Scoped** ([#1321](https://github.com/winniel123/verge-asm/issues/1321) §3, 2026-09-05): three
+is the count of **credential-bearing** surfaces, not of everything the corpus stores. The sealing
+obligation binds a credential. The CT request URL rides the outcome object in plaintext, because
+it is a public query against a public log and both CT sources carry their credential in a header.
+See the scope clause in
+[ADR-0126](../adr/0126-verbatim-job-output-is-a-fourth-operational-corpus-retired-by-a-duration-dial-that-ships-bounded.md),
+*The at-rest reversal*.
+
 ### 5.2 Access model — admin-only
 
 Raw `Transcript` output is readable by **`admin` accounts only**. Reuse the existing `requireAdmin`

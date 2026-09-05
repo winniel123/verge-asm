@@ -36,7 +36,7 @@ func readMembershipInputs(ctx context.Context, qtx *db.Queries) (membershipInput
 }
 
 func foldEstateTransitions(ctx context.Context, qtx *db.Queries, batchID int64, observedAt time.Time, obs []wire.Observation, in membershipInputs, deps *[]departure) error {
-	// Membership is re-decided only where fresh evidence arrived, never as a background sweep.
+	// Membership is re-decided only where fresh evidence arrived, never as a background sweep (ADR-0198 §1).
 	for _, name := range observedResolutionNames(obs) {
 		// The value fold runs first, so this Name's current resolution span is already open (ADR-0007).
 		open, err := qtx.ListOpenSpansForSubject(ctx, db.ListOpenSpansForSubjectParams{

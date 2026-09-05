@@ -20,7 +20,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/vantageclass"
 )
 
-// delivery imports queue, so the reverse edge would cycle: this seam is injected, never imported.
+// delivery imports queue, so the reverse edge would cycle: this seam is injected, never imported (ADR-0199 §1, #1316).
 
 type enqueueFunc func(ctx context.Context, messageID int64, class message.Class) (int, error)
 
@@ -52,7 +52,7 @@ type departure struct {
 
 func produceMessages(ctx context.Context, store messageStore, batchID int64, observedAt time.Time, changes []spanChange, departures []departure, narrowings []message.NarrowingReceipt, in membershipInputs, enqueue enqueueFunc, devMode bool) error {
 	_ = batchID // a message links by fired-at subject key, never the batch id (ADR-0064)
-	// A devMode worker produces nothing, so the golden fixtures stay message-free.
+	// A devMode worker produces nothing, so a fixture install never pages an operator (ADR-0197 §1).
 	if devMode || (len(changes) == 0 && len(departures) == 0 && len(narrowings) == 0) {
 		return nil
 	}

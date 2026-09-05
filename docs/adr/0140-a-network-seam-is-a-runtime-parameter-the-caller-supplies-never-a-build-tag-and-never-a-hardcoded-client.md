@@ -132,7 +132,9 @@ the delivery path.
 ### 6. What this rule does not reach
 
 - **The transport's configuration.** Timeouts, redirect policy and the `custody` dial guard are ruled
-  elsewhere and are untouched here.
+  elsewhere and are untouched here. Redirect policy is
+  [ADR-0196](./0196-no-outbound-http-client-this-product-builds-follows-a-redirect-and-an-unfollowed-3xx-admits-nothing.md),
+  which rules that no outbound client this product builds follows one.
 - **`internal/measure`'s hermeticity requirement.** ADR-0021 owns it. This ADR names the mechanism
   that delivers it and does not restate the requirement.
 - **Whether an adapter reaches the network at all.** ADR-0124 §2 keeps the release check opt-out and

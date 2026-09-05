@@ -130,6 +130,12 @@ cadence, and a currency bound ([ADR-0028](./0028-a-facets-cadence-is-the-cadence
 [ADR-0044](./0044-a-one-off-measurement-has-no-currency.md)). That pipeline is a scope decision
 of its own, carried by [#954](https://github.com/winniel123/verge-asm/issues/954).
 
+**The execution of this derivation is ruled separately.**
+[ADR-0188](./0188-a-fan-out-record-resolves-over-an-estate-as-a-pure-function-of-it-so-the-floor-clears-on-entry-and-the-candidates-are-first-seen-order.md)
+rules that a fan-out record resolves over an `Estate` as a pure function of that pair, and that
+`Estate.ExtensionCandidates` returns the population distinct and in first-seen order. This ADR
+rules what the measurement means. That one rules how it is computed.
+
 ## Consequences
 
 - **The modal cloud-resident install stops probing shared provider edges** its own names front,
@@ -265,7 +271,7 @@ signal, and vantage-varying fan-out is anycast, out of scope (§5).
 The `Scan`'s scope is the **custody-extension candidates alone** — the direct-A targets, and the apex
 `ALIAS`/`ANAME` flattened to A, of in-zone names that pass the label-suffix test. It ships **enabled** and
 **`unencumbered`**, gated by the custody-extension declaration itself: no extension means an empty scope and
-no probe, a legible empty-scope state. The one handshake is a strict **subset** of the probing the extension
+no probe, a legible empty-scope state ([ADR-0206](./0206-a-fan-out-over-an-empty-population-is-a-legible-zero-job-dispatch-and-it-fabricates-no-batch.md) generalises this shape to every `Scan` that fans out, and names the `dispatch` row as its record). The one handshake is a strict **subset** of the probing the extension
 already authorizes, run one step earlier, and it *reduces* total probing. A pure narrowing needs no
 widening-style consent dial, so this adds no `Source` toggle of its own.
 

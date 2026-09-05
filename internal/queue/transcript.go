@@ -18,7 +18,7 @@ const (
 )
 
 func buildTranscriptParams(jobID int64, capturedAt time.Time, t wire.Transcript, key []byte) (db.InsertTranscriptParams, error) {
-	// A closed union errors on an unknown member, never a mislabelled row (raw-job-output §1.2).
+	// A closed union we author errors on an unknown member, never a mislabelled row (ADR-0209 §1).
 	switch v := t.(type) {
 	case wire.ProberTranscript:
 		return buildProberParams(jobID, capturedAt, v, key)
@@ -71,7 +71,7 @@ func buildZoneParams(jobID int64, capturedAt time.Time, v wire.ZoneTranscript, k
 }
 
 func encodeZoneOutcome(o wire.ZoneOutcome, restated int) ([]byte, error) {
-	// A variant's own scalar rides its outcome object, so the read surface needs no extra column.
+	// A variant's own scalar rides its outcome object, so the row needs no column (ADR-0210 §1).
 	switch v := o.(type) {
 	case wire.ZoneParsed:
 		return json.Marshal(map[string]any{"kind": "parsed", "restated": restated})
@@ -119,7 +119,7 @@ func buildCTParams(jobID int64, capturedAt time.Time, v wire.CTTranscript, key [
 }
 
 func encodeCTOutcome(o wire.CTOutcome, requestURL string) ([]byte, error) {
-	// Both CT sources carry their credential in a header and never the URL, so this stays plaintext.
+	// Both CT sources carry the credential in a header, so the URL is no secret (ADR-0126, #1321 §3).
 	switch v := o.(type) {
 	case wire.CTHTTP:
 		return json.Marshal(map[string]any{"kind": "http", "status": v.Status, "request_url": requestURL})

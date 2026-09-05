@@ -43,6 +43,7 @@ func (f EdgeFanout) inForce() bool {
 }
 
 func (f EdgeFanout) overExtension(candidates []netip.Addr) EdgeFanout {
+	// Cleared on entry: one record read from the store may resolve over two estates (ADR-0188 §2).
 	f.ExtensionErrored = false
 	// A new candidate set reads as errored: nothing here tells a lag from a failure (ADR-0129 §2).
 	if !f.Enabled || !f.BatchCompleted || len(candidates) == 0 {

@@ -13,7 +13,7 @@ import (
 )
 
 func (d *Dispatcher) fanOutCold(ctx context.Context, scanID, dispatchID int64) (int, error) {
-	// An opt-in only flips the tier enabled; the monthly cadence tick is the sole firing (ADR-0044).
+	// An opt-in enrols a scope and fires nothing here, so the cadence tick runs it (ADR-0212 §1).
 	estate, resolved, err := hotEstate(ctx, d.q, d.now())
 	if err != nil {
 		return 0, err

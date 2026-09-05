@@ -122,9 +122,22 @@ The test is mechanical enough to run in review, and it cuts every case put to it
   below.
 
 The second guard is narrower and stops the first being evaded: **a domain may cite only evidence
-the rule declares**, and everything a rule declares composes into its version vector. A domain
+the rule declares**, and ~~everything a rule declares composes into its version vector~~. A domain
 therefore cannot reach for a new fact without the vector growing and the corpus having to cover it.
 There is no free read.
+
+> **The struck clause is WITHDRAWN at the site that specifies it, 2026-09-05 by
+> [ADR-0185](./0185-a-severity-is-the-operator-facing-grade-so-it-composes-into-no-version-vector-and-is-not-a-fifth-part-of-a-rule.md)
+> / [#1301](https://github.com/winniel123/verge-asm/issues/1301)
+> ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).** It is
+> replaced by: **everything a rule declares that changes which subjects it matches, or what it
+> asserts about them, composes into its version vector. The operator-facing grade does not.** The
+> guard's own job is untouched. A domain is exactly a statement about which subjects a rule matches,
+> so no domain edit escapes the vector under the replacement wording, and the clause still stops a
+> domain reaching for a fact for free. What the wider wording caught and the replacement does not is
+> a `Signal` rule's **severity**, which moves no member of the census and no subject's membership of
+> the domain. The severity is **not a fifth part of a rule**: a rule is still four parts, as the
+> Decision table above and the #138 box below both state.
 
 ### The `80/tcp` literal was not an unversioned domain, it was a curated port list
 

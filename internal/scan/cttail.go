@@ -20,10 +20,10 @@ import (
 
 const CTTailKind = "ct-tail"
 
-const CTTailSource = "ct-tail"
+const CTTailSource = "ct-tail" // must equal the source-catalogue slug, not the Scan kind above (ADR-0189 §1, §5)
 
-// Embedded rather than fetched live, so the log set is deterministic and needs no network.
-// Each log's public key is stripped: no signature is verified here, so it is unused weight.
+// Embedded rather than fetched live, so the log set is deterministic and needs no network (ADR-0190 §2).
+// Each log's public key is stripped: no signature is verified here, so it is unused weight (ADR-0190 §5).
 // Stripping the keys also keeps this file out of a secret scanner's generic-key heuristic.
 
 //go:embed log_list.json
@@ -266,7 +266,7 @@ func LeafSANs(leafInput, extraData []byte) ([]string, error) {
 		}
 		der = d
 	default:
-		return nil, nil // a future entry type is tolerated, never a failed poll
+		return nil, nil // a future entry type is tolerated, never a failed poll (ADR-0191 §1)
 	}
 
 	return CertSANs(der)
@@ -375,7 +375,7 @@ func parseTileLeaf(b []byte) (der, rest []byte, err error) {
 		}
 		b = after
 	default:
-		// An unknown entry type has an unknown length, so the tile cannot be framed past it.
+		// An unknown entry type has an unknown length, so the tile cannot be framed past it (ADR-0191 §2).
 		return nil, nil, fmt.Errorf("unsupported entry type %d", entryType)
 	}
 
@@ -420,7 +420,7 @@ func takeOpaque16(b []byte) (val, rest []byte, err error) {
 	return b[2 : 2+n], b[2+n:], nil
 }
 
-// The tail reads the whole firehose, so each name's Seed is resolved per name, not per query.
+// The tail reads the whole firehose, so each name's Seed is resolved per name, not per query (ADR-0192 §1).
 
 type CTAdmission struct {
 	Name   string

@@ -84,11 +84,11 @@ func main() {
 		stateDir,
 		logger,
 	)
-	// A fixture-only install serves fixtures, never live estate, so it writes no message (AL-25).
+	// A fixture-only install serves fixtures, never live estate, so it writes no message (ADR-0197 §1).
 	devMode := isTruthy(env.OrDefault("VERGE_DEV", ""))
 	// A hung prober would block the single-threaded drain loop without this bound (#853).
 	probeTimeout := durationOrDefault("VERGE_PROBE_TIMEOUT", queue.DefaultProbeTimeout, logger)
-	// The message hook is injected so internal/queue never imports internal/delivery.
+	// The message hook is injected so internal/queue never imports internal/delivery (ADR-0199 §1, #1316).
 	worker := queue.NewWorker(pool, queue.ExecProber{Path: proberPath}, time.Now, logger).
 		WithCT(ctFetcher, ctThrottle, ctSource).
 		WithCTTail(queue.NewHTTPCTFetcher(ctVersion)).

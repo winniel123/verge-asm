@@ -136,7 +136,7 @@ func (r certDetailRule) Eval(f EndpointFacts) Outcome {
 	return NotFired
 }
 
-// Rated by what breaks TLS for a client today, not by how bad the certificate looks.
+// Rated by what breaks TLS for a client today, not by how bad the certificate looks (ADR-0186 §2).
 
 var (
 	certificateExpired            = certDetailRule{"certificate-expired", SevCritical, func(d CertDetails) *bool { return d.Expired }}

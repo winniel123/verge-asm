@@ -230,7 +230,9 @@ each `(facet, source)` decoder that yields addresses, and the `Seed` declaration
 policing rule applies with its direction reversed and its force unchanged: *a decoder that helpfully
 normalises is an unversioned canonicaliser wearing a parser's clothes*, and the key-side twin is a
 decoder that helpfully renders — hands on a string, and the key function is left to re-parse our own
-output.
+output. [ADR-0208](./0208-the-queue-reads-a-services-subject-and-never-re-parses-its-rendering-so-a-rendered-key-is-an-identity-token-alone.md)
+applies this sentence to `internal/queue`'s `Service` subject-key reader, which does exactly that
+today. It confirms this ADR and withdraws no clause of it.
 
 The one facet consequence follows and is small. `resolution`'s `Resolved(unordered address set)` holds
 members **in the key form**, because those members are the very things that admit the `Address`

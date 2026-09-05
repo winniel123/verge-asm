@@ -90,7 +90,7 @@ func (w *Worker) completeCTTailRFC(ctx context.Context, job db.ClaimJobRow, lg s
 		for _, e := range entries {
 			names, derr := scan.LeafSANs(e.LeafInput, e.ExtraData)
 			if derr != nil {
-				// A corroborative source may hold an entry we cannot read, so one skip never fails the poll.
+				// A corroborative source may hold an entry we cannot read, so one skip never fails the poll (ADR-0213 §1).
 				w.log.Printf("worker: ct-tail job %d skipped a log entry: %v", job.ID, derr)
 				continue
 			}

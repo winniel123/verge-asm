@@ -16,7 +16,7 @@ func foldAddressExclusionWithdrawals(ctx context.Context, qtx *db.Queries, batch
 	if !in.hasAddressExclusion() {
 		return nil
 	}
-	// The closure removes the row from this query, so idempotency needs no marker.
+	// The closure removes the row from this query, so idempotency needs no marker (ADR-0218 §1).
 	rows, err := qtx.ListAddressExclusionWithdrawals(ctx)
 	if err != nil {
 		return err
@@ -34,7 +34,7 @@ func foldAddressExclusionWithdrawals(ctx context.Context, qtx *db.Queries, batch
 	if err := closeSpansByID(ctx, qtx, spanIDs, observedAt, drift.ReasonDescoped, batchID); err != nil {
 		return err
 	}
-	// A withdrawal is a fact about the estate, not a message, so it closes whether or not out is set.
+	// A withdrawal is a fact about the estate, not a message, so it closes whether or not out is set (ADR-0219 §1).
 	if out != nil {
 		*out = append(*out, narrowings...)
 	}
@@ -84,7 +84,7 @@ func composeAddressWithdrawals(rows []db.ListAddressExclusionWithdrawalsRow, in 
 	return spanIDs, receipts
 }
 
-// The act renders through the preview's constructor, so the two can never state it differently.
+// The act renders through the preview's constructor, so the two can never state it differently (ADR-0218 §4).
 
 type withdrawalCount struct {
 	scope     string
@@ -102,7 +102,7 @@ func (in membershipInputs) hasAddressExclusion() bool {
 }
 
 func narrowingScope(excluded netip.Prefix, seeds []db.ListSeedsRow) string {
-	// This must mirror the preview's FindCoveringAddressSeed, or the two name different sites.
+	// This must mirror the preview's FindCoveringAddressSeed, or the two name different sites (ADR-0218 §3).
 	best := ""
 	bits := -1
 	for _, s := range seeds {

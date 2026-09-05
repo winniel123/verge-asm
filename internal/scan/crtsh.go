@@ -18,7 +18,7 @@ import (
 
 const CTKind = "ct"
 
-// It must equal the source-catalogue slug, or the enablement state keys stop lining up.
+// It must equal the source-catalogue slug, or the enablement state keys stop lining up (ADR-0189 §1).
 
 const CrtshSource = "crtsh"
 

@@ -39,7 +39,7 @@ func (d *Dispatcher) fanOutTLSAcceptance(ctx context.Context, qtx *db.Queries, s
 }
 
 func reachedServices(ctx context.Context, q *db.Queries) ([]scan.ReachedService, error) {
-	// A target the enumeration cannot name is skipped, never fabricated from a partial row.
+	// A target the enumeration cannot name is skipped, never fabricated from a partial row (ADR-0207).
 	rows, err := q.ListReachedServices(ctx)
 	if err != nil {
 		return nil, err
@@ -63,7 +63,7 @@ func reachedServices(ctx context.Context, q *db.Queries) ([]scan.ReachedService,
 }
 
 func parseServiceKey(key string) (netip.AddrPort, bool) {
-	// The inverse of the ServiceKey the connect-outcome leaf renders, so the two move together.
+	// A rendered key parsed back, which ADR-0208 refuses and its own ticket removes (#1320).
 	base, ok := strings.CutSuffix(key, "/tcp")
 	if !ok {
 		return netip.AddrPort{}, false

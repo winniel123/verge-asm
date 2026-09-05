@@ -43,7 +43,7 @@ func SubjectKindFor(ruleName string) string {
 }
 
 func AllRuleNames() []string {
-	// The declare form offers exactly these, so an operator never accepts a firing that cannot occur.
+	// The guard admits exactly these, so an operator never accepts a firing that cannot occur (ADR-0187).
 	out := make([]string, 0, 17)
 	for _, r := range All() {
 		out = append(out, r.Name())
