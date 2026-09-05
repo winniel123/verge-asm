@@ -67,8 +67,10 @@ This reverses exactly one clause and nothing else. Every other guardrail in
   > [ADR-0109](0109-design-system-components-are-authored-in-claude-design-and-imported.md).
   > `design-system/` is the source of truth and may be edited in the repo — templates, tokens and
   > components alike. `design-system/COMPONENT-REQUEST.md` and `design-system/requests/` are deleted,
-  > so the mechanism this bullet prescribes no longer exists. Read `CLAUDE.md` and
-  > [`docs/agents/design-system.md`](../agents/design-system.md) for the rule that replaces it. The
+  > so the mechanism this bullet prescribes no longer exists. The Accepted ADR that states the
+  > replacing rule is
+  > [ADR-0145](0145-design-system-is-the-shared-home-and-source-of-truth-for-ui-assets-and-a-session-edits-it-in-the-repo.md);
+  > `CLAUDE.md` and [`docs/agents/design-system.md`](../agents/design-system.md) restate it. The
   > rest of this Decision stands: the console screens are still the IA spec, ported verbatim.
 
 The scope of the port is the console only (`cmd/web`). The marketing `Homepage.jsx` and `DocsPage.jsx`

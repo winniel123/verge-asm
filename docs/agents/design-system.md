@@ -38,7 +38,7 @@ When a visual convention and a domain term collide, the domain term wins. Re-ski
 
 ## Adding or editing a component (in-repo)
 
-`design-system/` is the shared home for UI assets. You may edit it in the repo — templates, tokens, and components alike. The old handoff authored components only in Claude Design. It imported them wholesale through a `COMPONENT-REQUEST.md` round-trip. That handoff was **retired 2026-08-28**. [ADR-0109](../adr/0109-design-system-components-are-authored-in-claude-design-and-imported.md) and [ADR-0116](../adr/0116-the-design-package-is-normative-for-look-and-functionality.md) are superseded.
+`design-system/` is the shared home for UI assets. You may edit it in the repo — templates, tokens, and components alike. The old handoff authored components only in Claude Design. It imported them wholesale through a `COMPONENT-REQUEST.md` round-trip. That handoff was **retired 2026-08-28**. [ADR-0145](../adr/0145-design-system-is-the-shared-home-and-source-of-truth-for-ui-assets-and-a-session-edits-it-in-the-repo.md) states the standing rule. [ADR-0109](../adr/0109-design-system-components-are-authored-in-claude-design-and-imported.md) and [ADR-0116](../adr/0116-the-design-package-is-normative-for-look-and-functionality.md) are superseded.
 
 Editing here is ordinary work now. But the system earns its keep only while it stays coherent. So:
 
