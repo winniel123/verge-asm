@@ -1,13 +1,5 @@
-/*
- * Self-hosted webfonts for the production build.
- *
- * The design system's tokens/typography.css pulls Instrument Sans + Geist Mono from
- * the Google Fonts CDN via @import. For the shipped docs site we do NOT depend on that
- * CDN at runtime: the woff2 files live in /public/fonts and are served from our origin.
- * These are the variable fonts (weight 400..700), latin + latin-ext subsets.
- */
+/* A runtime CDN dependency is refused for a self-hostable product's docs (ADR-0115). */
 
-/* Instrument Sans — UI + prose */
 @font-face {
   font-family: "Instrument Sans";
   font-style: normal;
@@ -29,7 +21,6 @@
     U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
-/* Geist Mono — every technical value */
 @font-face {
   font-family: "Geist Mono";
   font-style: normal;

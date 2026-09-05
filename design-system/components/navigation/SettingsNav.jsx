@@ -1,7 +1,6 @@
 import React from "react";
 import { Icon } from "../media/Icon.jsx";
 
-/* Sectioned settings navigation — micro-label sections, pill active item. */
 export function SettingsNav({ sections = [], active, onNavigate, style }) {
   const [hov, setHov] = React.useState(null);
   return (

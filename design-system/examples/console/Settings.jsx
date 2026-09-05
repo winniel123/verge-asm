@@ -93,9 +93,7 @@ function ScansSection({ onToast, onOpenRun }) {
   };
   const doneN = dispatch ? dispatch.jobs.filter((j) => j.state === "done").length : 0;
   const deadN = dispatch ? dispatch.jobs.filter((j) => j.state === "dead").length : 0;
-  // The Running-now card summarises the fan-out as one chip per job state, count in
-  // mono, instead of a per-job table that grows without bound. Full per-job detail
-  // lives on run detail, one click away through the drill button.
+  // a per-job table grows without bound, so the fan-out shows one chip per state
   const rollupChip = (tone, n, label) => <Badge tone={tone} dot><span style={{ fontFamily: "var(--font-mono)" }}>{n}</span>{label}</Badge>;
   const runLink = (label) => <button onClick={onOpenRun} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", font: "600 12.5px var(--font-mono)", color: "var(--link)" }}>{label}</button>;
   return (
@@ -372,7 +370,7 @@ function TeamSection({ onToast }) {
     { name: "Sam Reyes", email: "sam@acmecorp.io", role: "viewer", mfa: false, last: "3d" },
     { name: "Priya N.", email: "priya@acmecorp.io", role: "viewer", mfa: true, last: "12d" },
   ]);
-  const [action, setAction] = React.useState(null); // { type: "role" | "reenroll" | "remove", m }
+  const [action, setAction] = React.useState(null);
   const [roleSel, setRoleSel] = React.useState("viewer");
   const closeAction = () => setAction(null);
   const saveRole = () => {

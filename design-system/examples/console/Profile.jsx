@@ -12,11 +12,6 @@ import { ConfirmDialog } from "../../components/feedback/ConfirmDialog.jsx";
 import { Callout } from "../../components/feedback/Callout.jsx";
 import { Icon } from "../../components/media/Icon.jsx";
 
-/* Personal account — identity, credentials, sessions, linked identities, personal tokens.
-   Aligned to the shipped account model (SPEC-CHANGE #14): a username is the identity
-   (no display name / email — there is no IdP profile), a token inherits the account's
-   role (no scope select), recovery-code rotation is not a feature. Org-wide access
-   lives in Settings → Team; providers are configured in Settings → Single sign-on. */
 export function Profile({ onToast, totpEnabled = true }) {
   const username = "ola.perez";
   const [tokens, setTokens] = React.useState([

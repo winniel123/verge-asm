@@ -2,7 +2,6 @@ import React from "react";
 import { Dialog } from "./Dialog.jsx";
 import { Button } from "../forms/Button.jsx";
 
-/* Destructive-act confirmation. typedConfirm requires typing the named value (worst acts only). */
 export function ConfirmDialog({ open, title, message, detail, confirmLabel = "Confirm", tone = "danger", typedConfirm, onConfirm, onClose }) {
   const [typed, setTyped] = React.useState("");
   const [foc, setFoc] = React.useState(false);

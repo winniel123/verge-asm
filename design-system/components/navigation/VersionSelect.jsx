@@ -1,7 +1,6 @@
 import React from "react";
 import { Icon } from "../media/Icon.jsx";
 
-/* Docs version picker. versions: [{value, tag?}] — tag "current" renders accent, others muted. */
 export function VersionSelect({ versions = [], value, onChange, style }) {
   const [open, setOpen] = React.useState(false);
   const [active, setActive] = React.useState(-1);

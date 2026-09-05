@@ -1,6 +1,5 @@
 import React from "react";
 
-/* Multi-line Input sibling — same tokens and focus treatment. autoGrow tracks content height. */
 export function Textarea({ label, hint, error, mono, rows = 3, autoGrow, style, inputStyle, ...rest }) {
   const [foc, setFoc] = React.useState(false);
   const ref = React.useRef(null);

@@ -14,11 +14,6 @@ import { Button } from "../../components/forms/Button.jsx";
 import { DropdownMenu } from "../../components/feedback/DropdownMenu.jsx";
 import { Icon } from "../../components/media/Icon.jsx";
 
-/* Subject detail — the Service and Endpoint drill-ins reached from Inventory rows.
-   A Name subject opens AssetDetail instead; this screen covers the other two kinds.
-   Shared skeleton: header → (withdrawn banner) → citation chain → current facet →
-   timelines → rules over this subject, with provenance + copy in the rail. */
-
 const CHAIN = {
   service: [
     { label: "Service", value: "203.0.113.7:5900/tcp", detail: "an (address, port, transport) triple" },

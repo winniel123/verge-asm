@@ -11,12 +11,7 @@ import { Logo } from "../../components/media/Logo.jsx";
 import { VersionSelect } from "../../components/navigation/VersionSelect.jsx";
 import { CommandPalette } from "../../components/feedback/CommandPalette.jsx";
 
-/* Docs site — interactive spec. Left rail = the ruled IA (docs/DOCS-IA.md); every
-   guide is navigable with a real article body; search opens the ⌘K palette over
-   guides + headings (the D3 ruling); TOC anchors scroll; prev/next paginate.
-   Article bodies use only markdown-expressible blocks (D4) — p, h2, code,
-   blockquote/callout, tables, lists — except the signals severity table, the one
-   deferred-to-MDX rich moment. */
+/* Bodies use only markdown-expressible blocks; the signals severity table is the exception. */
 
 const P = { t: "p" }, H = { t: "h2" };
 const GUIDES = [

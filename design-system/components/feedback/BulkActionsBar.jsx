@@ -13,7 +13,6 @@ function BarBtn({ a }) {
   );
 }
 
-/* Floating "n selected" bar on inverted ink. Renders nothing when count is 0. */
 export function BulkActionsBar({ count = 0, itemLabel = "selected", actions = [], onClear, floating = true, style }) {
   if (!count) return null;
   const bar = (

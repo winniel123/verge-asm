@@ -26,7 +26,6 @@ const DOCS = [
   { title: "Reading exposure states", snip: "exposed · firewalled · not-reached — states, never a score." },
 ];
 
-/* Full-page search — where ⌘K's "see everything" lands. */
 export function SearchResults({ initialQuery = "acme", onOpenAsset, onNavigate }) {
   const [q, setQ] = React.useState(initialQuery);
   const t = (s) => s.toLowerCase().includes(q.toLowerCase());

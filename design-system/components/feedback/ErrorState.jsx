@@ -2,7 +2,6 @@ import React from "react";
 import { Icon } from "../media/Icon.jsx";
 import { Button } from "../forms/Button.jsx";
 
-/* Failure sibling of EmptyState: fact + retry. */
 export function ErrorState({ icon = "alert-triangle", message, detail, retryLabel = "Retry", onRetry, style }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 6, padding: "48px 24px", fontFamily: "var(--font-ui)", ...style }}>

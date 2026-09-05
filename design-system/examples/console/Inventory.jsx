@@ -10,10 +10,7 @@ import { SegmentedControl } from "../../components/forms/SegmentedControl.jsx";
 import { EmptyState } from "../../components/feedback/EmptyState.jsx";
 import { Icon } from "../../components/media/Icon.jsx";
 
-/* Inventory — a READ over the open-span corpus (ADR-0105): every open span grouped
-   by subject, each facet's current value dated since it opened, Gaps shown as Gaps.
-   No denominator, no count-of-subjects (ADR-0072). All scoping below is client-side
-   over the fully rendered corpus — there is no server-side search (SPEC-CHANGE #13). */
+/* No denominator: the estate's completeness is the operator's alone (ADR-0105). */
 const GROUPS = [
   { kind: "name", label: "Names", type: "Name", subjects: [
     { key: "www.acmecorp.io", facets: [
