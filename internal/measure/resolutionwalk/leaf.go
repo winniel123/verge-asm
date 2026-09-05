@@ -111,7 +111,7 @@ func Resolve(peer Peer, offers Offers, name string) Result {
 	for _, qt := range offers.Qtypes {
 		msg, ok, unreachable := exchangeDeclared(peer, offers, key, qt)
 		if unreachable {
-			// The resolver is one position for the whole batch, so an all-Gap fold is wrong (ADR-0108).
+			// The resolver is one position for the batch, so an all-Gap fold is wrong (ADR-0108).
 			res.Unreachable = true
 			return res
 		}

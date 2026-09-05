@@ -35,12 +35,12 @@ func (p ExecProber) Probe(ctx context.Context, spec wire.JobSpec) (wire.ProbeRes
 	if err := wire.EncodeJobSpec(&stdin, spec); err != nil {
 		return wire.ProbeResult{}, err
 	}
-	// Run drains the buffer, so the bytes are copied first and the transcript holds the literal spec.
+	// Run drains the buffer, so bytes are copied first and the transcript holds the literal spec.
 	sent := append([]byte(nil), stdin.Bytes()...)
 
 	cmd := exec.CommandContext(ctx, p.Path) // #nosec G204 (Path is operator-configured; no argv args, spec via stdin per ADR-0001 — no tainted input)
 	cmd.Stdin = &stdin
-	// Even a local prober is untrusted for this bound: an uncapped stdout could OOM the worker (#772).
+	// Even a local prober is untrusted for this bound: uncapped stdout can OOM the worker (#772).
 	stdout := wire.NewLimitedBuffer(wire.MaxProberStdout)
 	var stderr bytes.Buffer
 	cmd.Stdout = stdout
@@ -51,7 +51,7 @@ func (p ExecProber) Probe(ctx context.Context, spec wire.JobSpec) (wire.ProbeRes
 	dur := time.Since(start)
 	t := buildProberTranscript(spec, sent, stdout, stderr.Bytes(), dur, cmd.ProcessState, ctx.Err())
 
-	// Raw output is highest-value when the job failed, so the transcript rides every outcome (§2.2).
+	// Raw output matters most when the job failed, so the transcript rides every outcome (§2.2).
 	if runErr != nil {
 		return wire.ProbeResult{Transcript: t}, fmt.Errorf("queue: exec prober: %w (stderr: %s)", runErr, stderr.String())
 	}
@@ -79,11 +79,11 @@ func buildProberTranscript(spec wire.JobSpec, sent []byte, stdout *wire.LimitedB
 }
 
 func classifyProberOutcome(ps *os.ProcessState, ctxErr error) wire.ProberOutcome {
-	// A prober killed by the deadline must not read as a clean exit, so the cancel test comes first.
+	// A prober killed by the deadline must not read as a clean exit, so the cancel test is first.
 	if ctxErr != nil {
 		return wire.ProberContextCancelled{}
 	}
-	// A prober that never started has no clean exit, so exited(-1) is honest and a zero would not be.
+	// A prober that never started has no clean exit, so exited(-1) is honest and zero is not.
 	if ps == nil {
 		return wire.ProberExited{Code: -1}
 	}
@@ -176,7 +176,7 @@ func (w *Worker) departureCollector(deps *[]departure) *[]departure {
 }
 
 func (w *Worker) narrowingCollector(narrowings *[]message.NarrowingReceipt) *[]message.NarrowingReceipt {
-	// A withdrawal is a fact about the estate, so the fold closes its timelines with a nil collector (ADR-0219 §1).
+	// A withdrawal is an estate fact, so only the receipt is gated on the collector (ADR-0219 §1).
 	if !w.produceMsgs {
 		return nil
 	}
@@ -184,7 +184,7 @@ func (w *Worker) narrowingCollector(narrowings *[]message.NarrowingReceipt) *[]m
 }
 
 func (w *Worker) produce(ctx context.Context, qtx *db.Queries, batchID int64, observedAt time.Time, changes []spanChange, departures []departure, narrowings []message.NarrowingReceipt, in membershipInputs) error {
-	// An unwired producer writes no message rather than refusing, so a measurement-only build works.
+	// An unwired producer writes no message rather than refusing, so measurement-only builds work.
 	if !w.produceMsgs {
 		return nil
 	}
@@ -284,12 +284,12 @@ func (w *Worker) process(ctx context.Context, job db.ClaimJobRow) error {
 		return fmt.Errorf("decode spec: %w", err)
 	}
 
-	// A worker-read Scan runs no prober and admits without observing, so it opens no span (ADR-0027).
+	// A worker-read Scan runs no prober and admits without observing, so no span opens (ADR-0027).
 	if spec.Kind == scan.ZoneKind {
 		return w.completeZone(ctx, job, spec)
 	}
 
-	// A crt.sh fetch is a network step, so this worker-read Scan retries and dead-letters (ADR-0106).
+	// A crt.sh fetch is network I/O, so this worker-read Scan retries and dead-letters (ADR-0106).
 	if spec.Kind == scan.CTKind {
 		return w.completeCT(ctx, job, spec)
 	}
@@ -309,7 +309,7 @@ func (w *Worker) process(ctx context.Context, job db.ClaimJobRow) error {
 }
 
 func (w *Worker) probe(ctx context.Context, vantageID pgtype.Int8, spec wire.JobSpec) (wire.ProbeResult, error) {
-	// The bracket wraps only the probe, so the terminal transaction runs under the parent ctx (#853).
+	// The bracket wraps only the probe, so the terminal transaction runs on the parent ctx (#853).
 	if w.probeTimeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, w.probeTimeout)
@@ -318,7 +318,7 @@ func (w *Worker) probe(ctx context.Context, vantageID pgtype.Int8, spec wire.Job
 	if w.router != nil {
 		res, handled, err := w.router.ProbeVantage(ctx, vantageID, spec)
 		if err != nil {
-			// A failed remote probe still carries its transcript, so the error must not discard res (#867).
+			// A failed remote probe carries a transcript, so the error must not drop res (#867).
 			return res, err
 		}
 		if handled {
@@ -367,7 +367,7 @@ func markRetried(ctx context.Context, qtx *db.Queries, jobID int64) error {
 
 func (w *Worker) runJobTx(ctx context.Context, jobID int64, fn func(*db.Queries) error) error {
 	err := w.inTx(ctx, fn)
-	// The cancellation already recorded the job's terminal state, so nothing more is owed or logged.
+	// The cancellation recorded the job's terminal state, so nothing more is owed or logged.
 	if errors.Is(err, errJobCanceled) {
 		w.log.Printf("worker: job %d canceled mid-flight; uncommitted work discarded", jobID)
 		return nil
@@ -376,7 +376,7 @@ func (w *Worker) runJobTx(ctx context.Context, jobID int64, fn func(*db.Queries)
 }
 
 func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, res wire.ProbeResult) error {
-	// A prober can name any subject, so a line outside the job's authorised scope is dropped (#773).
+	// A prober names any subject, so a line outside the job's authorised scope is dropped (#773).
 	obs := parseAuthorizedScope(job.AttemptedScope).gate(res.Observations, w.log, job.ID)
 	// The outcome, its observations and raw output must commit together (raw-job-output.md §2.4).
 	if err := w.runJobTx(ctx, job.ID, func(qtx *db.Queries) error {
@@ -392,7 +392,7 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, res wire.Prob
 		if err != nil {
 			return err
 		}
-		// A completing port probe must not clobber a resolver outage, so this is dns-scoped (ADR-0108).
+		// A port probe must not clobber a resolver outage, so this is dns-scoped (ADR-0108).
 		if err := applyAvailability(ctx, qtx, job.VantageID, job.Kind, outcomeCompleted); err != nil {
 			return err
 		}
@@ -402,7 +402,7 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, res wire.Prob
 				return err
 			}
 		}
-		// Material rides beside the facet value, never inside it, so the fence stays closed (ADR-0027).
+		// Material rides beside the facet value, never inside it, so the fence holds (ADR-0027).
 		for _, o := range obs {
 			if o.CertMaterial == nil {
 				continue
@@ -432,21 +432,21 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, res wire.Prob
 		if err := foldEstateTransitions(ctx, qtx, batchID, observedAt, obs, membership, w.departureCollector(&departures)); err != nil {
 			return err
 		}
-		// A withdrawn Seed stops its Names being enumerated, so a batch-scoped fold misses them (#1045).
+		// A withdrawn Seed enumerates no Names, so a batch-scoped fold misses them (#1045).
 		if err := foldNameSeedWithdrawals(ctx, qtx, batchID, observedAt, membership, w.narrowingCollector(&narrowings)); err != nil {
 			return err
 		}
 		if err := foldAddressExclusionWithdrawals(ctx, qtx, batchID, observedAt, membership, w.narrowingCollector(&narrowings)); err != nil {
 			return err
 		}
-		// The delete destroys the mover, so an address withdrawal is driven from a tombstone (ADR-0134).
+		// The delete destroys the mover, so an address withdrawal runs off a tombstone (ADR-0134).
 		if err := foldSeedWithdrawals(ctx, qtx, batchID, observedAt, membership, w.narrowingCollector(&narrowings)); err != nil {
 			return err
 		}
 		if err := w.produce(ctx, qtx, batchID, observedAt, changes, departures, narrowings, membership); err != nil {
 			return err
 		}
-		// The live stream carries the count alone, never the observations, and persists nothing (#780).
+		// The live stream carries the count, never the observations, and persists nothing (#780).
 		w.emitJobEvent(ctx, qtx, job, "", countLabel(len(obs), "observation", "observations"))
 		if err := w.persistTranscript(ctx, qtx, job.ID, res.Transcript); err != nil {
 			return err
@@ -455,13 +455,13 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, res wire.Prob
 	}); err != nil {
 		return err
 	}
-	// A CT verification does network I/O, which must never ride a database transaction (ADR-0215 §1).
+	// A CT verification is network I/O, which must not ride a database transaction (ADR-0215 §1).
 	w.autoVerifyCerts(ctx, job, obs)
 	return nil
 }
 
 func (w *Worker) deadLetter(ctx context.Context, job db.ClaimJobRow, t wire.Transcript, cause error) error {
-	// A failed job asserts no absence, so the Batch records an empty scope, never the attempted one.
+	// A failed job asserts no absence, so the Batch records an empty scope, never the attempted.
 	w.log.Printf("worker: job %d dead-lettered after %d attempts: %v", job.ID, job.Attempt, cause)
 	return w.runJobTx(ctx, job.ID, func(qtx *db.Queries) error {
 		batchID, err := qtx.InsertBatch(ctx, db.InsertBatchParams{
@@ -506,7 +506,7 @@ func (w *Worker) retry(ctx context.Context, job db.ClaimJobRow, t wire.Transcrip
 			return err
 		}
 		w.emitJobEvent(ctx, qtx, job, "warn", retryLabel(job.Attempt, cause))
-		// The transcript belongs to the failed attempt's row, not the fresh job just enqueued (§1.1).
+		// The transcript belongs to the failed attempt's row, not the newly enqueued job (§1.1).
 		if err := w.persistTranscript(ctx, qtx, job.ID, t); err != nil {
 			return err
 		}

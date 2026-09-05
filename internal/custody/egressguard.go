@@ -18,7 +18,7 @@ func EgressGuard(label string) func(network, address string, c syscall.RawConn) 
 		if err != nil {
 			return err
 		}
-		// A deliberate second line of defence: it holds where an upstream literal-IP check does not.
+		// A deliberate second line of defence: it holds where an upstream literal-IP check fails.
 		if IsNonGloballyReachable(ip.Unmap()) {
 			return fmt.Errorf("%s: refusing to dial non-globally-reachable address %s", label, host)
 		}

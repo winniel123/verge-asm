@@ -27,11 +27,11 @@ type EdgeFanoutJob struct {
 
 func BuildEdgeFanoutJobs(scanID int64, population iter.Seq[netip.Addr]) iter.Seq[EdgeFanoutJob] {
 	return func(yield func(EdgeFanoutJob) bool) {
-		// A declared scope can be an IPv4 /8, and no aperture may truncate one (ADR-0127, ADR-0047).
+		// A declared scope can be an IPv4 /8, and no aperture truncates one (ADR-0127, ADR-0047).
 		chunk := 0
 		addrs := make([]string, 0, EdgeFanoutAddressesPerJob)
 		for a := range population {
-			// The rendering must match what an observation names, or the recording gate drops the row.
+			// The rendering must match what an observation names, or the recording gate drops it.
 			addrs = append(addrs, a.Unmap().String())
 			if len(addrs) < EdgeFanoutAddressesPerJob {
 				continue

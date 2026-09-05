@@ -40,7 +40,7 @@ func (lameDelegation) Version() Version { return Version{Rule: "v1", Composes: l
 
 func (lameDelegation) Severity() Severity { return SevMedium }
 func (lameDelegation) Eval(f NameFacts) Outcome {
-	// A total domain is legal: nothing within the estate is excluded, only the withdrawn (ADR-0024).
+	// A total domain is legal: nothing in the estate is excluded, only the withdrawn (ADR-0024).
 	if !f.InEstate {
 		return OutsideDomain
 	}
@@ -98,7 +98,7 @@ func (zoneDeclaredNameReturnsNameError) Eval(f NameFacts) Outcome {
 	switch f.Resolution {
 	case NameError:
 		return Fired
-	// A lame delegation makes the NameError unobtainable, so the rule cannot decide (ADR-0024, #128).
+	// A lame delegation makes NameError unobtainable, so the rule cannot decide (ADR-0024, #128).
 	case Lame, Shadowed, Gap:
 		return NotEvaluable
 	default:
@@ -127,7 +127,7 @@ func (resolvedNameAbsentFromZone) Eval(f NameFacts) Outcome {
 	case Shadowed:
 		return NotEvaluable
 	default:
-		// The domain is names our resolver resolved, so an unresolved one is outside and not not-fired.
+		// The domain is resolved names, so an unresolved one is outside and not not-fired.
 		return OutsideDomain
 	}
 }
@@ -143,7 +143,7 @@ func (nonGloballyReachableFromInternet) Version() Version {
 
 func (nonGloballyReachableFromInternet) Severity() Severity { return SevMedium }
 func (nonGloballyReachableFromInternet) Eval(f NameFacts) Outcome {
-	// Not assertable without an internet vantage, and the internal twin is a refused rule (ADR-0071).
+	// Not assertable without an internet vantage; the internal twin is refused (ADR-0071).
 	if !f.HasInternetVantage || !hasAnswer(f.InternetResolution) {
 		return OutsideDomain
 	}

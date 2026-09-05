@@ -203,7 +203,7 @@ func redirectWizardStep(w http.ResponseWriter, r *http.Request, base string, v s
 	if v.Back != "" {
 		q.Set(backField, v.Back)
 	}
-	// The route here is a constant and this is only its query, so no operator value reaches the host.
+	// The route is a constant and this is only its query, so no operator value reaches the host.
 	http.Redirect(w, r, base+"?"+q.Encode(), http.StatusSeeOther)
 }
 

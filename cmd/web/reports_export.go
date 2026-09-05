@@ -50,7 +50,7 @@ func (s *server) reportsExport(w http.ResponseWriter, r *http.Request, acct db.A
 	if rows, err := s.store.ListDispatchProgress(ctx, reportsDispatchLimit(weeks)); err != nil {
 		log.Printf("web: reports export: list dispatch progress: %v", err)
 	} else {
-		// The page folds these same counts, so one bucketing serves both surfaces (ADR-0177, #1349).
+		// The page folds the same counts, so one bucketing serves both surfaces (ADR-0177, #1349).
 		counts, window, active = s.bucketScanActivity(rows, days)
 		hasActivity = true
 	}

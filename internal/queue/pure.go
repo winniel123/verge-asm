@@ -95,7 +95,7 @@ func sourceFor(facet string) string {
 	switch facet {
 	case connectoutcome.FacetReachability, connectoutcome.FacetCertificate,
 		httpexchange.FacetHTTPIdentity, tlsacceptance.Facet:
-		// A distinct source keeps a prober bound from ageing against the resolver's cadence (CONTEXT.md).
+		// A distinct source stops a prober bound ageing against resolver cadence (CONTEXT.md).
 		return "prober"
 	default:
 		return "resolver"

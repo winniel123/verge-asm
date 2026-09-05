@@ -20,7 +20,7 @@ import (
 
 const CTTailKind = "ct-tail"
 
-const CTTailSource = "ct-tail" // must equal the source-catalogue slug, not the Scan kind above (ADR-0189 §1, §5)
+const CTTailSource = "ct-tail" // must equal the source slug, not the Scan kind (ADR-0189 §1, §5)
 
 // Embedded rather than fetched live, so the log set is deterministic and needs no network.
 // Each log's public key is stripped: no signature is verified here, so it is unused weight.
@@ -375,7 +375,7 @@ func parseTileLeaf(b []byte) (der, rest []byte, err error) {
 		}
 		b = after
 	default:
-		// An unknown entry type has an unknown length, so the tile cannot be framed past it (ADR-0191 §2).
+		// Unknown entry type, unknown length: the tile cannot be framed past it (ADR-0191 §2).
 		return nil, nil, fmt.Errorf("unsupported entry type %d", entryType)
 	}
 
@@ -420,7 +420,7 @@ func takeOpaque16(b []byte) (val, rest []byte, err error) {
 	return b[2 : 2+n], b[2+n:], nil
 }
 
-// The tail reads the whole firehose, so each name's Seed is resolved per name, not per query (ADR-0192 §1).
+// The tail reads the whole firehose, so each Seed resolves per name, not per query (ADR-0192 §1).
 
 type CTAdmission struct {
 	Name   string

@@ -191,7 +191,7 @@ type store interface {
 	ListEnabledSSOProviders(ctx context.Context) ([]db.ListEnabledSSOProvidersRow, error)
 	GetSSOProvider(ctx context.Context, id int64) (db.GetSSOProviderRow, error)
 
-	// A secret is read only where its act is performed, so no listing read may select it (ADR-0053).
+	// A secret is read only where its act is performed, so no listing read selects it (ADR-0053).
 
 	GetSSOProviderForAuth(ctx context.Context, slug string) (db.GetSSOProviderForAuthRow, error)
 	UpdateSSOProvider(ctx context.Context, arg db.UpdateSSOProviderParams) (int64, error)
@@ -231,11 +231,11 @@ type server struct {
 
 	secureCookies bool
 
-	// A forwarded-for header is caller-supplied, so it keys the rate limiter and never authorization.
+	// A forwarded-for header is caller-supplied, so it keys the rate limiter, never authorization.
 
 	trustedProxies trustedProxies
 
-	// The Host header is attacker-controlled, so the OIDC redirect_uri never derives from it (#293).
+	// Host headers are attacker-controlled, so the OIDC redirect_uri never derives from one (#293).
 
 	externalURL string
 
@@ -251,7 +251,7 @@ type server struct {
 
 	progress progressEvents
 
-	// sqlc generates no goose_db_version read, so the raw pool serves what internal/db cannot (#391).
+	// sqlc generates no goose_db_version read, so the pool serves what internal/db cannot (#391).
 
 	pool *pgxpool.Pool
 
@@ -307,7 +307,7 @@ func (s *server) addressCap(ctx context.Context) int {
 
 func (s *server) redirectTo(target string, code int) authedHandler {
 	return func(w http.ResponseWriter, r *http.Request, _ db.Account) {
-		// A moved route keeps its login gate, so an unauthenticated hit still lands on /login (#286).
+		// A moved route keeps its login gate, so an unauthenticated hit lands on /login (#286).
 		dst := target
 		if r.URL.RawQuery != "" {
 			sep := "?"
@@ -390,7 +390,7 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("GET /runs/{id}", s.requireLogin(s.runPage))
 	mux.HandleFunc("GET /run/{id}/stream", s.requireLogin(s.runStream))
 	mux.HandleFunc("GET /runs/{id}/stream", s.requireLogin(s.runStream))
-	// Raw output can carry secrets the redacted log cannot (raw-job-output §5.2), so it is admin-only.
+	// Raw output can carry secrets the redacted log cannot (raw-job-output §5.2), so admin-only.
 	mux.HandleFunc("GET /run/{id}/raw", s.requireAdmin(s.rawOutputPage))
 	mux.HandleFunc("GET /runs/{id}/raw", s.requireAdmin(s.rawOutputPage))
 
@@ -492,7 +492,7 @@ func (s *server) handler() http.Handler {
 
 	s.mountAPIv1(mux)
 
-	// Set after the last route, so the submitting-URL guard sees every path this server serves (ADR-0171 §1).
+	// Set after the last route, so the submitting-URL guard sees every route (ADR-0171 §1).
 	s.routes = mux
 
 	return s.recoverPanics(mux)

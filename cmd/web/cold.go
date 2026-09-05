@@ -56,7 +56,7 @@ func toColdScopeViews(seeds []seedView, optedIn []int64) []coldScopeView {
 }
 
 func (s *server) setColdScope(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	// An opt-in records enrolment and queues nothing, so the next tick is the first run (ADR-0212 §1).
+	// An opt-in enrols and queues nothing, so the next tick is the first run (ADR-0212 §1).
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
 		s.failSettings(w, r, settingsForms{section: "scans", coldError: "That scope could not be found."})
@@ -204,7 +204,7 @@ func apertureMeters(seeds []db.ListSeedsRow, zones []db.ListZoneDeclarationsRow,
 			out = append(out, addressMeter(p, walked, now, sharedEdges[p.Masked()]))
 			continue
 		}
-		// The two evidence surfaces are disjoint, so a name scope's meter takes no edge (ADR-0129 #956).
+		// The evidence surfaces are disjoint: a name scope's meter takes no edge (ADR-0129 #956).
 		domain := sd.NameDomain.String
 		out = append(out, coverageMeterView{
 			Label:   domain,

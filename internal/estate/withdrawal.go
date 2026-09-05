@@ -15,11 +15,11 @@ func suppresses(outcome string) bool {
 func WithdrawnCrossClass(classes []ClassWitness) bool {
 	// The drift engine reads this answer rather than re-deriving it: one computation (ADR-0080).
 	if len(classes) == 0 {
-		// A subject leaves by measurement or not at all: never a clock, never survivor-only (ADR-0006).
+		// A subject leaves by measurement alone: never a clock, never survivor-only (ADR-0006).
 		return false
 	}
 	for _, c := range classes {
-		// A vantage that did not ask is not a vantage that got nothing, so an empty class decides none.
+		// A vantage that did not ask is not one that got nothing, so an empty class decides none.
 		// The guard against withdrawing every Name the night every vantage goes unavailable.
 		if len(c.Outcomes) == 0 {
 			return false
@@ -34,7 +34,7 @@ func WithdrawnCrossClass(classes []ClassWitness) bool {
 }
 
 func undecided(outcome string) bool {
-	// These three are where no Name Error can ever arrive, so measurement never concludes (ADR-0006).
+	// These three are where no Name Error ever arrives, so measurement never concludes (ADR-0006).
 	return outcome == OutcomeShadowed || outcome == OutcomeGap || outcome == OutcomeLame
 }
 

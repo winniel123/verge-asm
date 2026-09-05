@@ -136,7 +136,7 @@ func buildInventory(rows []db.ListAllOpenSpansRow) []inventoryGroup {
 			IsGap:     row.IsGap,
 			ProxyEdge: inventoryProxyEdge(row.Facet, row.Value, row.IsGap),
 			Details:   inventorySpanDetails(row.Facet, row.Value, row.IsGap),
-			// Date-only here alone; spanTimeFmt stays the shared format the change views use (#524).
+			// Date-only here alone; spanTimeFmt stays the shared format change views use (#524).
 			Since: row.OpenedAt.Time.UTC().Format("2006-01-02"),
 			facet: row.Facet,
 			src:   row.Source,
@@ -174,7 +174,7 @@ func buildInventory(rows []db.ListAllOpenSpansRow) []inventoryGroup {
 }
 
 func propagateProxyEdgeToAddresses(groups []inventoryGroup) {
-	// No address-kind reach span exists, so without this lift no Address is flagged (ADR-0125, #778).
+	// No address-kind reach span exists, so without the lift no Address flags (ADR-0125, #778).
 	proxyAddrs := map[string]bool{}
 	for gi := range groups {
 		if groups[gi].Kind != "service" {
@@ -501,7 +501,7 @@ func (s *server) inventoryPage(w http.ResponseWriter, r *http.Request, acct db.A
 		return
 	}
 	groups := buildInventory(rows)
-	// The toolbar scopes rendered rows only, so this window bounds what "Gaps only" can find (ADR-0158 §4).
+	// The toolbar scopes rendered rows, so this window bounds what "Gaps only" finds (ADR-0158 §4).
 	windowInventoryGroups(groups, r.URL.Query().Get("all"))
 	if s.devMode {
 		applyInventoryFixtureCounts(groups, r.URL.Query().Get("all"))

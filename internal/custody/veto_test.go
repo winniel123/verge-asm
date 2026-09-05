@@ -171,7 +171,7 @@ func TestTheVetoFoldsMappedSpellings(t *testing.T) {
 }
 
 func TestAClearedMeasurementDoesNotOpenANonGloballyReachableAddress(t *testing.T) {
-	// A measurement may narrow a reach and never widen one, so a clear does not lift ADR-0079's stop.
+	// A measurement narrows a reach and never widens one, so a clear never lifts ADR-0079's stop.
 	private := netip.MustParseAddr("10.0.0.5")
 	e := Estate{
 		ExtendedZones: []string{"example.com"},
@@ -228,7 +228,7 @@ func TestADeclarationLimbRowAloneDoesNotLiftTheFloor(t *testing.T) {
 }
 
 func TestAScanWithNoCompletedBatchStillHoldsItsCandidates(t *testing.T) {
-	// Holding here keeps the modal all-CDN install from showing appear-then-withdraw churn (ADR-0129).
+	// A hold keeps the modal all-CDN install from showing appear-then-withdraw churn (ADR-0129).
 	e := bothLimbs(EdgeFanout{
 		Enabled: true,
 		Shared:  map[netip.Addr]bool{declaredEdge: true},
@@ -243,7 +243,7 @@ func TestAScanWithNoCompletedBatchStillHoldsItsCandidates(t *testing.T) {
 }
 
 func TestOneMeasuredCandidateLeavesTheRestHeld(t *testing.T) {
-	// A lag is bounded by the daily cadence, so a partial failure is case 3, never the floor (#1018).
+	// The daily cadence bounds a lag, so a partial failure is case 3, never the floor (#1018).
 	second := netip.MustParseAddr("93.184.216.34")
 	e := Estate{
 		ExtendedZones: []string{"example.com"},

@@ -53,7 +53,7 @@ func (s *server) currentAccount(r *http.Request) (db.Account, bool) {
 	if err != nil {
 		return db.Account{}, false
 	}
-	// A pre-registry cookie carries an empty token, so it resolves no row and is refused (ADR-0117).
+	// A pre-registry cookie carries an empty token, so it resolves no row (ADR-0117).
 	ctx := r.Context()
 	row, err := s.store.GetSessionByTokenHash(ctx, db.GetSessionByTokenHashParams{
 		TokenHash: hashToken(sess.Token),
@@ -101,7 +101,7 @@ func (s *server) requireAdmin(h authedHandler) http.HandlerFunc {
 
 func (s *server) requireSettingsAdmin(h authedHandler) http.HandlerFunc {
 	return s.requireLogin(func(w http.ResponseWriter, r *http.Request, acct db.Account) {
-		// A viewer may read the API-access tab; every other Settings tab stays admin-only (ADR-0173 §1).
+		// A viewer reads the API-access tab; every other Settings tab is admin-only (ADR-0173 §1).
 		if acct.Role != roleAdmin && validTab(r.URL.Query().Get("tab")) != "api" {
 			s.settingsForbidden(w, r, acct)
 			return
@@ -325,7 +325,7 @@ func (s *server) loginTOTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if !totpOK && !s.redeemRecoveryCode(r, acct.ID, code) {
-		// Clearing the pending grant on lockout forces an attacker back to the password step (#322).
+		// Clearing the pending grant forces an attacker back to the password step (#322).
 		if nowLocked := s.loginLimiter.fail(acctKey, ipKey); nowLocked {
 			s.clearCookie(w, pendingCookie)
 			s.render(w, r, "totp", s.signinData(map[string]any{"Title": "Two-factor", "Username": acct.Username, "Error": lockoutMessage}))
@@ -370,7 +370,7 @@ func (s *server) redeemRecoveryCode(r *http.Request, accountID int64, presented 
 }
 
 func (s *server) logout(w http.ResponseWriter, r *http.Request) {
-	// Clearing the cookie alone leaves a copied cookie usable, so the row is revoked too (ADR-0117).
+	// Clearing the cookie alone leaves a copy usable, so the row is revoked too (ADR-0117).
 	s.revokeCurrentSession(r)
 	s.clearCookie(w, sessionCookie)
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
@@ -902,7 +902,7 @@ func (s *server) beginTOTPEnroll(w http.ResponseWriter, r *http.Request, acct db
 		}
 		secret = devFixtureEnrollSecret
 	} else if acct.TotpEnabled {
-		// Re-rolling would strip the second factor until a fresh confirm, so a stolen session cannot.
+		// Re-rolling strips the second factor until a fresh confirm, so a stolen session cannot.
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
@@ -996,7 +996,7 @@ func (s *server) forgotSubmit(w http.ResponseWriter, r *http.Request) {
 		}); cerr != nil {
 			log.Printf("web: forgot: create reset: %v", cerr)
 		} else {
-			// The plaintext resets the account, so it must never land in a log by default (CWE-532, #328).
+			// The plaintext resets the account, so no log holds it by default (CWE-532, #328).
 			log.Printf("web: password reset requested for %q (reset id %d, expires in %s)", // #nosec G706 (sanitized via logSafe)
 				logSafe(username), pr.ID, s.resetTTL)
 			// A self-hosted host has no mail, so the link is opt-in for the operator's own logs.
@@ -1050,7 +1050,7 @@ func (s *server) resetSubmit(w http.ResponseWriter, r *http.Request) {
 	if err := s.store.ConsumePasswordReset(r.Context(), db.ConsumePasswordResetParams{ID: pr.ID, ConsumedAt: s.obsAsOf()}); err != nil {
 		log.Printf("web: reset: consume token: %v", err)
 	}
-	// A reset presumes the old password is lost, so every session goes with no exception (ADR-0117).
+	// A reset presumes the old password is lost, so every session goes (ADR-0117).
 	if err := s.store.RevokeAllSessionsForAccount(r.Context(), db.RevokeAllSessionsForAccountParams{
 		AccountID: pr.AccountID,
 		RevokedAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
@@ -1199,7 +1199,7 @@ func newRecoveryCode() (string, error) {
 			if _, err := rand.Read(buf); err != nil {
 				return "", err
 			}
-			// Rejecting the tail byte removes the modulo bias a bare remainder draw would carry (#338).
+			// Rejecting the tail byte removes the modulo bias a bare remainder would carry (#338).
 			if int(buf[0]) < max {
 				sb.WriteByte(recoveryAlphabet[int(buf[0])%len(recoveryAlphabet)])
 				break
@@ -1508,7 +1508,7 @@ func (s *server) changePassword(w http.ResponseWriter, r *http.Request, acct db.
 		s.serverError(w, "profile: update password", err)
 		return
 	}
-	// A changed password must kill every other session, so a stolen old one is dead (ADR-0117, #408).
+	// A changed password kills every other session, so a stolen old one is dead (ADR-0117, #408).
 	if curID, ok := s.currentSessionID(r); ok {
 		if err := s.store.RevokeOtherSessionsForAccount(r.Context(), db.RevokeOtherSessionsForAccountParams{
 			AccountID: acct.ID,
@@ -1873,7 +1873,7 @@ func (s *server) injectChrome(data any, r *http.Request) {
 
 	m["Chrome"] = &chromeVM{
 		Nav:           navSlice(navActive, signalCount),
-		Org:           "self-hosted", // single-tenant, so the chip is a constant, not a placeholder (ADR-0181 §2)
+		Org:           "self-hosted", // single-tenant: a constant, not a placeholder (ADR-0181 §2)
 		Version:       s.buildVersion(),
 		UserName:      userName,
 		UserInitials:  initials,

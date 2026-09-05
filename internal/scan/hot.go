@@ -18,7 +18,7 @@ import (
 
 const HotKind = "hot"
 
-// The single admitted address rides as a one-element slice so the wire scope stays a list (ADR-0150).
+// The admitted address rides as a one-element slice so the wire scope stays a list (ADR-0150).
 
 type HotJob struct {
 	ScanID       int64
@@ -40,7 +40,7 @@ func BuildHotJobs(scanID int64, estate custody.Estate, addrs iter.Seq[netip.Addr
 			return
 		}
 
-		// The class is derived from presented-address facts, never the vestigial column (#709, #711).
+		// The class derives from presented-address facts, not the vestigial column (#709, #711).
 		covered := estate.CoversAddressScope
 		classes := make([]custody.VantageClass, len(vantages))
 		for i, v := range vantages {
@@ -49,11 +49,11 @@ func BuildHotJobs(scanID int64, estate custody.Estate, addrs iter.Seq[netip.Addr
 
 		for a := range addrs {
 			for i, v := range vantages {
-				// The gate applies here at dispatch, so no prober gets a target it may not probe (ADR-0019).
+				// The gate applies at dispatch, so no prober gets a forbidden target (ADR-0019).
 				if !estate.MayProbe(a, classes[i]) {
 					continue
 				}
-				// A Batch carries exactly one address, which is the execution gap ADR-0127 names (ADR-0005).
+				// One address per Batch, the execution gap ADR-0127 names (ADR-0005).
 				job := HotJob{
 					ScanID:       scanID,
 					VantageID:    v.ID,
@@ -89,7 +89,7 @@ func (j HotJob) JobSpec(batch string) (wire.JobSpec, error) {
 }
 
 func (j HotJob) AttemptedScope() ([]byte, error) {
-	// A UDP pair is recorded-not-probed, so it must not read as an absence we measured (v1 spec §4.1).
+	// A UDP pair is recorded-not-probed, so it never reads as a measured absence (v1 spec §4.1).
 	return json.Marshal(hotScopeRecord{
 		Vantage:   j.Vantage,
 		Addresses: j.Addresses,

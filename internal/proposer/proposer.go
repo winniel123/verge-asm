@@ -14,7 +14,7 @@ import (
 
 const ( // the operator judges the caveats, so the kind is recorded, never erased (ADR-0012)
 	RecordRIRDelegation         = "rir-delegation"
-	RecordCompelledReassignment = "compelled-reassignment" // the name is typed by the ISP, not the RIR
+	RecordCompelledReassignment = "compelled-reassignment" // typed by the ISP, not the RIR
 )
 
 const ( // these match the source catalogue's slugs, so the enablement state keys line up

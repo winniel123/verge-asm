@@ -75,7 +75,7 @@ func BuildColdJobs(scanID int64, estate custody.Estate, addrs iter.Seq[netip.Add
 				continue
 			}
 			for i, v := range vantages {
-				// The opt-in gate widens the tier but never moves an address past Custody (ADR-0019).
+				// Opt-in widens the tier but never moves an address past Custody (ADR-0019).
 				if !estate.MayProbe(a, classes[i]) {
 					continue
 				}
@@ -113,7 +113,7 @@ func (j ColdJob) JobSpec(batch string) (wire.JobSpec, error) {
 }
 
 func (j ColdJob) AttemptedScope() ([]byte, error) {
-	// The range is recorded as bounds, not 65535 integers: the same closed statement (v1 spec §4.1).
+	// The range is recorded as bounds, not 65535 integers: one closed statement (v1 spec §4.1).
 	return json.Marshal(coldScopeRecord{
 		Vantage:       j.Vantage,
 		Addresses:     j.Addresses,

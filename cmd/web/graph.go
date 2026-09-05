@@ -261,7 +261,7 @@ func (m graphMembers) holdsAddress(spelling string) bool {
 }
 
 func buildScopedGraph(rows []db.ListAllOpenSpansRow, sc graphScope) graphView {
-	// A scoped-out subject is dropped before placement, never dimmed, folded or counted (ADR-0136 §3).
+	// A scoped-out subject drops before placement, never dimmed, folded or counted (ADR-0136 §3).
 	members := graphScopeMembers(rows, sc)
 
 	first := map[string]time.Time{}
@@ -395,7 +395,7 @@ func buildScopedGraph(rows []db.ListAllOpenSpansRow, sc graphScope) graphView {
 	for _, e := range order {
 		a, ok1 := pos[e.from]
 		b, ok2 := pos[e.to]
-		// The cap made this guard reachable, so a cut edge is counted rather than dropped (ADR-0136 §6).
+		// The cap made this guard reachable, so a cut edge is counted, not dropped (ADR-0136 §6).
 		if !ok1 || !ok2 {
 			cutEdges++
 			continue
@@ -418,7 +418,7 @@ func buildScopedGraph(rows []db.ListAllOpenSpansRow, sc graphScope) graphView {
 
 func graphFit(contentW, contentH int) (x, y, k, minK float64) {
 	k = math.Min(graphViewW/float64(contentW), graphViewH/float64(contentH))
-	// Four significant digits, not a decimal place a tall drawing would truncate to scale(0) (#1101).
+	// Four significant digits, not a decimal place a tall drawing truncates to scale(0) (#1101).
 	e := math.Pow(10, 4-math.Ceil(math.Log10(k)))
 	k = math.Floor(k*e) / e
 	x = math.Round((graphViewW-float64(contentW)*k)/2*10) / 10
@@ -442,7 +442,7 @@ func graphContentBounds(nodes []graphNode) (int, int) {
 }
 
 func joinSignals(g graphView, censuses []signal.Census) graphView {
-	// Rolling a Service firing up onto its Address asserts a signal the engine never censused (#289).
+	// Rolling a Service firing onto its Address asserts a signal the engine never censused (#289).
 	idx := make(map[string]int, len(g.Nodes))
 	for i, n := range g.Nodes {
 		idx[n.ID] = i
@@ -475,7 +475,7 @@ func joinSignals(g graphView, censuses []signal.Census) graphView {
 				}
 			case "endpoint":
 				name, service := splitEndpointName(m.Subject)
-				// Without this the fallback re-attributes a firing to a leg the scope excluded (#1102).
+				// The fallback would re-attribute a firing to a leg the scope excluded (#1102).
 				if name != "" && !g.members.holdsName(name) {
 					continue
 				}
@@ -483,7 +483,7 @@ func joinSignals(g graphView, censuses []signal.Census) graphView {
 					if attach(name, sig) {
 						continue
 					}
-					// A cap-dropped Name must not fall to the Service leg, so the deletion is counted (#1103).
+					// A cap-dropped Name must not fall to Service, so the cut is counted (#1103).
 					if cut("name:" + name) {
 						g.CutSignals++
 						continue

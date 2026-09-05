@@ -10,7 +10,7 @@ func markDTSFields(comments []rawComment, next []int, toks []Token) {
 	depth := braceDepths(toks)
 	for k := range comments {
 		i := next[k]
-		// §4.3 carves out field prose and not the file, so a block outside a body is not it (#1406).
+		// §4.3 carves out field prose, not the file, so a block outside a body is not it (#1406).
 		if i >= len(toks) || depth[i] < 1 {
 			continue
 		}

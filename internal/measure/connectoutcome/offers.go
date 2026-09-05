@@ -45,9 +45,9 @@ type BackoffPolicy struct {
 func DefaultProfile() SafetyProfile {
 	return SafetyProfile{
 		Technique: "tcp-connect",
-		// Targets are seeded and never swept for liveness, so no port answering is still an observation.
+		// Seeded targets are never swept for liveness; no port answering is still an observation.
 		HostDiscovery: "skipped",
-		// The rate's unit is intra-pair, not intra-job, and holds at any worker count (ADR-0137, #1106).
+		// The rate is intra-pair, not intra-job, and holds at any worker count (ADR-0137, #1106).
 		PerHostConnPerSec:    50,
 		PerHostConcurrency:   20,
 		ConnectTimeoutMillis: 3000,

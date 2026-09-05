@@ -47,7 +47,7 @@ func regenerate() error {
 }
 
 func TestCorpusSelfIdentity(t *testing.T) {
-	// Go randomises map iteration, so an unstable render would make every other assertion unreadable.
+	// Go randomises map iteration, so an unstable render makes every other assertion unreadable.
 	first, err := RenderAll()
 	if err != nil {
 		t.Fatal(err)

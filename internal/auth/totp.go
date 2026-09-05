@@ -51,7 +51,7 @@ func VerifyTOTP(secret, code string, t time.Time) bool {
 }
 
 func VerifyTOTPStep(secret, code string, t time.Time) (step int64, ok bool) {
-	// The login path refuses a step not strictly greater, so a valid code cannot be replayed (#323).
+	// The login path refuses a step not strictly greater, so a code cannot be replayed (#323).
 	key, err := decodeSecret(secret)
 	if err != nil {
 		return 0, false

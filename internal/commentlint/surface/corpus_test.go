@@ -42,7 +42,7 @@ func TestSQLLexesEveryTrackedFile(t *testing.T) {
 }
 
 func TestCSSLexesEveryTrackedFile(t *testing.T) {
-	// `prototypes/` is out of the sweep, and §5.2 still measures its 7 files, so all 18 lex (#1140).
+	// `prototypes/` is out of the sweep, and §5.2 still counts its 7 files, so all 18 lex (#1140).
 	lexCorpus(t, CSS{}, walk(t, ".css", false), minAllCSS)
 }
 
@@ -90,7 +90,7 @@ func TestTmplByteRangeDeleteHoldsAcrossTheCorpus(t *testing.T) {
 			continue
 		}
 		if len(base.Blocks) == 0 {
-			// The stage-D3 sweep emptied most templates, so a comment-free one measures nothing (#1236).
+			// The stage-D3 sweep emptied most templates, so a comment-free one is normal (#1236).
 			continue
 		}
 		measured++
@@ -114,7 +114,7 @@ func TestTmplByteRangeDeleteHoldsAcrossTheCorpus(t *testing.T) {
 }
 
 func TestJSCommentRangesAgreeWithEsbuild(t *testing.T) {
-	// §5.5 records the circularity risk, and esbuild reads the comments apart from our lexer (#1141).
+	// §5.5 records the circularity risk, and esbuild reads comments apart from our lexer (#1141).
 	esbuildOrSkip(t)
 	checked := 0
 	for _, rel := range append(inScopeFiles(t, ".mjs"), inScopeFiles(t, ".ts")...) {
@@ -132,7 +132,7 @@ func TestJSCommentRangesAgreeWithEsbuild(t *testing.T) {
 			t.Errorf("%s: %v", rel, err)
 			continue
 		}
-		// esbuild erases a `.d.ts` file to the empty string, so its canonical form proves nothing (§5.3).
+		// esbuild erases a `.d.ts` file entirely, so its canonical form proves nothing (§5.3).
 		if len(bytes.TrimSpace(before)) == 0 {
 			continue
 		}

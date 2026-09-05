@@ -259,7 +259,7 @@ func (s *server) failSettings(w http.ResponseWriter, r *http.Request, f settings
 }
 
 func (s *server) toastBackToSection(w http.ResponseWriter, r *http.Request, accountID int64, section, tone, title, description string) {
-	// A toast spelled on the URL fires again on every meta-refresh the in-flight Scans page runs (ADR-0157).
+	// A toast spelled on the URL fires again on every meta-refresh the Scans page runs (ADR-0157).
 	s.flash.set(accountID, toastVM{Tone: tone, Title: title, Description: description})
 	s.backToSection(w, r, section)
 }
@@ -334,7 +334,7 @@ func (s *server) inviteAccount(w http.ResponseWriter, r *http.Request, acct db.A
 }
 
 func (s *server) inviteLink(r *http.Request, token string) string {
-	// A TLS proxy leaves web on plain HTTP, so the cookie flag is the tell (docs/guides/running.md).
+	// A TLS proxy leaves web on plain HTTP, so the cookie flag decides (docs/guides/running.md).
 	scheme := "http"
 	if r.TLS != nil || s.secureCookies {
 		scheme = "https"
@@ -548,7 +548,7 @@ func (s *server) updateRetention(w http.ResponseWriter, r *http.Request, acct db
 		fail("Dispatch floor must be a whole number of cadences, zero or more.")
 		return
 	}
-	// A positive value is floored up by the retirer, so none is refused here (raw-job-output.md §4).
+	// A positive value is floored up by the retirer, so none is refused (raw-job-output.md §4).
 	trans, err := strconv.ParseInt(transRaw, 10, 64)
 	if err != nil || trans < 0 {
 		fail("Transcript retention must be a whole number of days, zero or more.")

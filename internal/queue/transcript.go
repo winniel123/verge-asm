@@ -32,9 +32,9 @@ func buildTranscriptParams(jobID int64, capturedAt time.Time, t wire.Transcript,
 }
 
 func buildZoneParams(jobID int64, capturedAt time.Time, v wire.ZoneTranscript, key []byte) (db.InsertTranscriptParams, error) {
-	// Skips ride the stdout column because that is the operator's primary panel (raw-job-output §6.3).
+	// Skips ride the stdout column: it is the operator's primary panel (raw-job-output §6.3).
 	skips := []byte(strings.Join(v.Skipped, "\n"))
-	// The operator's zone-file row already holds the bytes, so none are copied (raw-job-output §1.3).
+	// The zone-file row already holds the bytes, so none are copied (raw-job-output §1.3).
 	stdout, dropped := headTail(skips, capTranscriptStdout)
 
 	markers := map[string]any{}

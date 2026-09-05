@@ -25,7 +25,7 @@ func newScript(byService map[string]listener) *scriptEnumerator {
 }
 
 func (s *scriptEnumerator) Handshake(_ context.Context, target netip.AddrPort, version string, offered []string) ta.Attempt {
-	// A row scripts a real listener, never a canned output, so the accept-fold sees the whole model.
+	// A row scripts a real listener, not a canned output, so the accept-fold sees the whole model.
 	s.calls++
 	l, ok := s.byService[ta.ServiceKey(target, "tcp")]
 	// An unscripted Service reads as no-tls, so a forgotten row stays legible, never a panic.

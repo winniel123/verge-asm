@@ -10,7 +10,7 @@ import (
 )
 
 func foldNameSeedWithdrawals(ctx context.Context, qtx *db.Queries, batchID int64, observedAt time.Time, in membershipInputs, out *[]message.NarrowingReceipt) error {
-	// A withdrawn Seed stops its Names being enumerated, so no observation reaches them (ADR-0135 §5).
+	// A withdrawn Seed ends Name enumeration, so no observation reaches them (ADR-0135 §5).
 	pending, err := qtx.ListPendingNameSeedWithdrawals(ctx)
 	if err != nil {
 		return err
@@ -18,7 +18,7 @@ func foldNameSeedWithdrawals(ctx context.Context, qtx *db.Queries, batchID int64
 	if len(pending) == 0 {
 		return nil
 	}
-	// The cascade takes the admissions but no span, so the tombstone holds the domain (ADR-0135 §4).
+	// A cascade takes the admissions but no span, so the tombstone holds the domain (ADR-0135 §4).
 	rows, err := qtx.ListNameSeedWithdrawalCandidates(ctx, pendingWithdrawnDomains(pending))
 	if err != nil {
 		return err
@@ -83,7 +83,7 @@ func composeWithdrawnNameGround(rows []db.ListNameSeedWithdrawalCandidatesRow, c
 		if nameSeedCovered(row.SubjectKey, seeds) {
 			continue
 		}
-		// A surviving Seed's admission keeps the Name enumerated, so closing it would flap (ADR-0135 §3).
+		// A surviving admission keeps the Name enumerated, so closing it flaps (ADR-0135 §3).
 		if stillAdmitted[resolutionNameKey(row.SubjectKey)] {
 			continue
 		}

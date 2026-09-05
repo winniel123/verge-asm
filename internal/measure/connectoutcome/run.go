@@ -20,7 +20,7 @@ type Scope struct {
 	Addresses    []string `json:"addresses"`
 	TCPPorts     []uint16 `json:"tcp_ports"`
 	UDPPorts     []uint16 `json:"udp_ports,omitempty"`
-	// Empty is the nameless endpoint, the one mode an address-scope Seed has (CONTEXT.md `Endpoint`).
+	// Empty is the nameless endpoint, an address-scope Seed's one mode (CONTEXT.md Endpoint).
 
 	Names   []string      `json:"names,omitempty"`
 	Profile SafetyProfile `json:"profile"`

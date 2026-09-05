@@ -91,7 +91,7 @@ func (s *server) triggerScan(w http.ResponseWriter, r *http.Request, acct db.Acc
 		return
 	}
 	s.flash.set(acct.ID, toastVM{Tone: out.Tone, Title: out.Title, Description: out.Description})
-	// A trigger answers no confirm, so unlike stop and terminate it must not strip the dialog params.
+	// A trigger answers no confirm, so unlike stop and terminate it keeps the dialog params.
 	s.redirectBack(w, r, "/settings?tab=scans")
 }
 

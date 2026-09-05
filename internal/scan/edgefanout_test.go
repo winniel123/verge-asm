@@ -121,7 +121,7 @@ func TestEdgeFanoutAttemptedScopeRecordsTheAddresses(t *testing.T) {
 }
 
 func TestEdgeFanoutOffersAreEmpty(t *testing.T) {
-	// The threshold is a versioned parameter of the Custody derivation, never an offer on the probe.
+	// The threshold is a versioned parameter of the Custody derivation, never an offer.
 	j := jobsOf(1, candidates(t, "203.0.113.10"))[0]
 	raw, err := j.OffersJSON()
 	if err != nil {

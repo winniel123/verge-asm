@@ -58,7 +58,7 @@ type sfScans struct {
 	Active  []sfActive  `json:"active"`
 	History []sfHistory `json:"history"`
 
-	// A fixture states this outright rather than carry 51 rows the live LIMIT N+1 read needs (#962).
+	// A fixture states this rather than carry 51 rows the live LIMIT N+1 read needs (#962).
 
 	Truncated   bool          `json:"truncated"`
 	ColdEnabled bool          `json:"cold_enabled"`

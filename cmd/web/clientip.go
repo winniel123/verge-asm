@@ -19,7 +19,7 @@ func parseTrustedProxies(spec string) (trustedProxies, error) {
 		if part == "" {
 			continue
 		}
-		// A skipped malformed entry would silently trust no proxy, so a typo must fail the deployment.
+		// A skipped malformed entry would silently trust no proxy, so a typo must fail the deploy.
 		if strings.Contains(part, "/") {
 			p, err := netip.ParsePrefix(part)
 			if err != nil {
@@ -53,7 +53,7 @@ func (s *server) clientIP(r *http.Request) string {
 		host = r.RemoteAddr
 	}
 	peer, perr := netip.ParseAddr(host)
-	// An unnamed proxy is never trusted, so a forgeable header never moves the rate-limit key (ADR-0159 §1).
+	// An unnamed proxy is untrusted: a forged header never moves the rate-limit key (ADR-0159 §1).
 	if perr != nil || len(s.trustedProxies.nets) == 0 || !s.trustedProxies.trusts(peer) {
 		return host
 	}

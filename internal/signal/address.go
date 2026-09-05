@@ -3,7 +3,7 @@ package signal
 import "net/netip"
 
 func anyNonGloballyReachable(addrs []string) bool {
-	// Classified over the address key, never a spelling, so an unparseable one is ignored (ADR-0051).
+	// Classified on the address key, never a spelling: an unparseable one is ignored (ADR-0051).
 	for _, a := range addrs {
 		addr, err := netip.ParseAddr(a)
 		if err != nil {

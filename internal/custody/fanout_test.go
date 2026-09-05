@@ -127,7 +127,7 @@ func TestSharedEdgeIsTrueAt100AndFalseAt99(t *testing.T) {
 }
 
 func TestCountAppliesNoRelatednessFilter(t *testing.T) {
-	// Clustering by brand would be an ownership heuristic, refused as the discriminator (ADR-0129 §1).
+	// Clustering by brand is an ownership heuristic, refused as the discriminator (ADR-0129 §1).
 	oneBrand := make([]string, 0, 100)
 	for i := 0; i < 100; i++ {
 		oneBrand = append(oneBrand, fmt.Sprintf("www.acmecorp%02d.com", i))
@@ -171,7 +171,7 @@ func TestParamsDigestStableAndSensitive(t *testing.T) {
 }
 
 func TestThresholdIsNotOperatorConfigurable(t *testing.T) {
-	// The threshold is project-authored, so no operator setting may reach it (ADR-0008, ADR-0129 §3).
+	// A project-authored threshold takes no operator setting (ADR-0008, ADR-0129 §3).
 	if DefaultParams().SharedEdgeThreshold != SharedEdgeThreshold {
 		t.Errorf("DefaultParams threshold = %d, want the constant %d",
 			DefaultParams().SharedEdgeThreshold, SharedEdgeThreshold)

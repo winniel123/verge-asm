@@ -34,7 +34,7 @@ func Signal(payload string) string {
 	case urlRe.MatchString(payload):
 		return SignalBareURL
 	case toolMarkerRe.MatchString(payload):
-		// pkg.go.dev, gopls and staticcheck read a `Deprecated:` paragraph §2.3 never weighed (§3.2).
+		// pkg.go.dev, gopls and staticcheck read a `Deprecated:` paragraph §2.3 ignores (§3.2).
 		return SignalToolMarker
 	}
 	return ""

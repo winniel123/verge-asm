@@ -25,9 +25,9 @@ import (
 
 // Fabricating a live datum to stand in for a curated fixture ships an approximation as fact.
 
-// Each pinned value is a second copy of fixtures.json, and a drift test fails the build on divergence (ADR-0167 §2).
+// Each pinned value duplicates fixtures.json, and a drift test fails on divergence (ADR-0167 §2).
 
-// No dev surface reaches a real deployment: /dev needs s.devMode and the seeds need -seed-fixtures (ADR-0166).
+// No dev surface reaches production: /dev needs s.devMode and seeds need -seed-fixtures (ADR-0166).
 
 const devFixtureIncidentID = "err_9f3ka72c"
 
@@ -110,7 +110,7 @@ func seedDevFixtureAccounts(ctx context.Context, pool *pgxpool.Pool) error {
 }
 
 const (
-	// A VERGE_DEV build pins the server clock here, so a relative-time render never reads wall time.
+	// A VERGE_DEV build pins the server clock, so a relative-time render never reads wall time.
 
 	devFixtureClock = "2026-08-24T12:00:00Z"
 
@@ -188,7 +188,7 @@ func seedProfileFixtures(ctx context.Context, pool *pgxpool.Pool) error {
 		return fmt.Errorf("profile fixture: enable totp: %w", err)
 	}
 
-	// seedDevFixtureAccounts creates the account at wall-clock now, so an unpinned created_at drifts.
+	// The seeder creates the account at wall-clock now, so an unpinned created_at drifts.
 	created, err := devFixtureDate(devProfileCreated)
 	if err != nil {
 		return fmt.Errorf("profile fixture: parse account created: %w", err)
@@ -2238,7 +2238,7 @@ func (s *server) inboxFixtureData(acct db.Account, r *http.Request) map[string]a
 	}
 
 	var selected map[string]any
-	// The message detail carries no prose body: the form is the census plus the delivery receipts (ADR-0180 §1, #1333).
+	// A message detail has no prose body: the form is census plus receipts (ADR-0180 §1, #1333).
 	if selID != "" && selID == fx.Selected.ID {
 		census := make([]map[string]any, 0, len(fx.Selected.Census))
 		for _, c := range fx.Selected.Census {

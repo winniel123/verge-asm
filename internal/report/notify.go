@@ -149,7 +149,7 @@ func (n *NotifyRunner) post(ctx context.Context, claim db.ClaimReportNotificatio
 	default:
 		failure := notifyError(statusCode, sendErr)
 		n.log.Printf("report notify: %d dead-lettered after %d attempts: %s", claim.ID, claim.Attempt, failure)
-		// The receipt is untouched on failure: the artifact stays generated and viewable (ADR-0039).
+		// The receipt is untouched on failure: the artifact stays viewable (ADR-0039).
 		return n.q.MarkReportNotificationUndelivered(ctx, db.MarkReportNotificationUndeliveredParams{
 			ID: claim.ID, LastError: pgText(failure),
 		})

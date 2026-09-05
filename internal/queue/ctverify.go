@@ -65,7 +65,7 @@ func (w *Worker) VerifyByFingerprint(ctx context.Context, fingerprint string) (V
 }
 
 func (w *Worker) autoVerifyCerts(ctx context.Context, job db.ClaimJobRow, obs []wire.Observation) {
-	// A log fetch must never ride the job transaction, so the caller commits before calling this (ADR-0215 §1).
+	// A log fetch must never ride the job transaction, so the caller commits first (ADR-0215 §1).
 	if w.ctVerifyFetcher == nil {
 		return
 	}
@@ -89,7 +89,7 @@ func (w *Worker) autoVerifyCerts(ctx context.Context, job db.ClaimJobRow, obs []
 }
 
 func (w *Worker) verifyMaterial(ctx context.Context, logs []scan.CTLog, leafDER, sctsBlob, issuerSPKI []byte) VerifyResult {
-	// This can only point-check: no CT protocol answers a query by name (ct-source-replacement §5.1).
+	// This can only point-check: no CT protocol answers a name query (ct-source-replacement §5.1).
 	capture, _ := wire.DecodeSCTCapture(sctsBlob)
 	type taggedSCT struct {
 		raw     []byte
@@ -157,7 +157,7 @@ func (w *Worker) verifyMaterial(ctx context.Context, logs []scan.CTLog, leafDER,
 
 	switch {
 	case errored:
-		// An unreachable log may hold the leaf, so this is never a not-logged verdict (ADR-0193 §3).
+		// An unreachable log may hold the leaf, so this never means not-logged (ADR-0193 §3).
 		return VerifyResult{Outcome: VerifyUnverifiable, Reason: "CT log unreachable"}
 	case notFound:
 		return VerifyResult{Outcome: VerifyNotLogged, Reason: "not logged in CT"}
@@ -213,7 +213,7 @@ func (w *Worker) checkRFC(ctx context.Context, lg scan.CTLog, leafHash []byte) l
 }
 
 func (w *Worker) checkTiled(ctx context.Context, lg scan.CTLog, leafHash []byte, sct scan.SCT) logCheck {
-	// A tiled log serves no proof endpoint, so inclusion is a slot compare in its hash tile (ADR-0214 §3).
+	// A tiled log has no proof endpoint, so inclusion is a hash-tile slot compare (ADR-0214 §3).
 	base := ensureTrailingSlash(lg.URL)
 	index, ok := scan.SCTLeafIndex(sct.Extensions)
 	if !ok {
@@ -247,7 +247,7 @@ func (w *Worker) checkTiled(ctx context.Context, lg scan.CTLog, leafHash []byte,
 	if err != nil {
 		return checkErrored
 	}
-	// The audit-path recompute is refused at this scope, so the slot compare is the whole check (ADR-0214 §3).
+	// The audit-path recompute is refused here; the slot compare is the whole check (ADR-0214 §3).
 	matches, present := scan.LeafHashInTile(leafHash, index, hashes)
 	if !present {
 		return checkErrored

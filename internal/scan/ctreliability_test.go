@@ -3,7 +3,7 @@ package scan
 import "testing"
 
 func TestEvaluateCTReliability(t *testing.T) {
-	// crt.sh is the keyless fallback, so it is exempt from every limb (ct-source-replacement.md §3).
+	// crt.sh is the keyless fallback, exempt from every limb (ct-source-replacement.md §3).
 	cases := []struct {
 		name   string
 		source string

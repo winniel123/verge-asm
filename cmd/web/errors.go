@@ -78,7 +78,7 @@ func (s *server) settingsForbidden(w http.ResponseWriter, r *http.Request, acct 
 func newIncidentID() string {
 	var b [8]byte
 	if _, err := rand.Read(b[:]); err != nil {
-		// A failed entropy draw must not swallow the incident, so the id stays present and copyable.
+		// A failed entropy draw must not swallow the incident, so the id stays copyable.
 		return "err_00000000"
 	}
 	s := strconv.FormatUint(binary.BigEndian.Uint64(b[:]), 36)

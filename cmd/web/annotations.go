@@ -52,7 +52,7 @@ func (s *server) declareAnnotation(w http.ResponseWriter, r *http.Request, acct 
 	if _, err := s.store.CreateAnnotation(r.Context(), db.CreateAnnotationParams{
 		SubjectKey: subject, SignalName: sigName, Reason: reason,
 	}); err != nil {
-		// An annotation is replaced, never edited: a changed reason is withdraw-then-declare (ADR-0093).
+		// A changed reason is withdraw-then-declare, never an edit (ADR-0093).
 		if isUniqueViolation(err) {
 			fail("That subject already carries an annotation on this signal. Withdraw it first to change the reason.")
 			return

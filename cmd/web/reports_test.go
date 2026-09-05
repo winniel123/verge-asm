@@ -685,7 +685,7 @@ func TestFoldScanActivity(t *testing.T) {
 	if string(cells[0].Bg) != "var(--surface-sunken)" {
 		t.Errorf("the oldest, empty day should be sunken, got %q", cells[0].Bg)
 	}
-	// The legend swatch beside this grid uses --row-sep, so the empty cell's border pins it (#1088).
+	// The legend swatch uses --row-sep, so the empty cell's border pins it (#1088).
 	if string(cells[0].Border) != "var(--row-sep)" {
 		t.Errorf("the empty day's border = %q, want var(--row-sep)", cells[0].Border)
 	}

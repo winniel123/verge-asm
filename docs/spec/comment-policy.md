@@ -680,8 +680,17 @@ Four constraints bind **each line**:
 derived tab = 4 from this SPEC's own calibration. #1446 pinned the wording above. Over the 1,848
 own-line comment lines in `cmd/web/*.go` at `da293bb`, 4 lines breach in runes, 12 in bytes and
 **95** in columns at tab = 4. Eighty-four breach under columns and not under bytes. Every one of the
-84 is an ordinary swept survivor. This section's calibration is `cmd/web/exclusions.go:103` at 101.
-It resolves at tab = 4 alone.
+84 is an ordinary swept survivor. This section's calibration is the line below, which measured 101
+at `ca08e5a`: two tabs, then 93 runes. It resolves at tab = 4 alone.
+
+```go
+		// A narrowing that withdraws no subject is silent, so a survivor gets no receipt (ADR-0074).
+```
+
+**The specimen is quoted, not cited, because the sweep was required to destroy it.** It lived at
+`cmd/web/exclusions.go:103` until #1470 trimmed it to 98. A calibration example that the campaign
+must repair cannot survive as a live path and line, and the line number drifts as siblings edit
+above it.
 
 **The cap binds comment lines only.** A `var` declaration holding comment-marker string literals is
 not a comment, whatever a line scanner reads.
@@ -696,12 +705,46 @@ was false. Measured 2026-09-05 across the **844** in-scope files, under the meas
 `flags()` already skips. By class: `citation` 287, `why-note` 83, `dts-field-prose` 5,
 `external-spec` 1. By position: 366 own-line and 10 trailing. **#1454** carries the repair campaign.
 
+**Map #1466 closed that population.** Its fifteen agent-ready tickets repaired all 367 Go blocks,
+plus 19 more that the flag could not see until its filter narrowed. **Every one was repaired by
+trimming the reason clause. No citation was dropped and no comment was deleted**, so ratchet rule 5
+never forced the §4.7 route the campaign was sized for. **Nine blocks remain**, all of #1481's
+non-Go tail: five `dts-field-prose`, `db/queries/measurement.sql:84`, and three `docs-site` files.
+None is reachable by a comment edit alone.
+
 **Reproduce the count, never re-derive it by hand.** A hand scan disagrees with every other hand
 scan, which is how #1446 first reported 378 and 471. Use `commentlint`'s own population. Walk the
 tree with `scope.Classify`. Lex each file with `surface.For`. Classify each block with
 `rule.Classify`. Drop `directive` and `generated-header`, then drop `step-narration` and
 `prose-other`. Those four are what `flags()` skips, so a rule firing on them would flag what no
 other rule may. Then measure `Block.StartLine` to `Block.EndLine` against the physical source line.
+
+**That walk is now a flag, and no agent reruns it by hand.** #1482 gave `Block` a `Columns` field
+that every lexer populates, and `commentlint lint --column-report` prints one greppable line per
+over-cap block:
+
+```
+commentlint lint --column-report <paths...>
+column-over-cap <path>:<line> <columns> <class>
+column-over-cap: <n> block(s) over 100 columns
+column-over-cap by class: <class> <n>
+```
+
+The flag is off by default and it never changes the exit code. §6.2 records the seam. At `ca08e5a`
+it read **376** under `flags()`'s four-class filter — `citation` 287, `why-note` 83,
+`dts-field-prose` 5, `external-spec` 1 — reproducing #1454's hand-checked figure exactly.
+
+**The flag drops two classes, not four, and the difference is not cosmetic.** It skips `directive`
+and `generated-header` only. Every §6.6 rule is a judgment, so ruling 12 rightly withholds
+`step-narration` and `prose-other` from a rule; **the cap is mechanical and needs no intent**, so it
+binds them. While the flag shared `flags()`'s filter it certified files as clean that held live
+breaches: #1474 found two at 102 in `internal/custody`, #1475 one at 103 in `internal/scan`, #1478
+two in `internal/measure/edgefanout`, #1477 three, #1479 one. **A tool-reported zero was a floor,
+not a count** (#1466).
+
+`directive` stays out because the columns are the tool's, not the comment's. `internal/auth/totp.go`
+holds a 146-column `#nosec` waiver whose text `gosec` requires and §2.3 forbids splitting. Nine such
+lines sit in #1478's scope alone, and a class-blind scan re-finds them every time.
 
 **The count moves with the working tree, not with `main`.** The 376 above is `ed0a5a5`, where
 `commentlint lint` reads 844 files and zero violations. The same walk over `fix/1131-close-out` read
@@ -724,11 +767,15 @@ on that ruling.
 
 **`commentlint` does not enforce constraint 4, so a clean `lint` run is not evidence.** §7.7 names
 the cap and `lint` in one recipe, which reads as though the tool checked it. It does not.
-`cmd/web/exclusions.go:103` measured **101 characters** with `lint` reporting zero flags on the file
-(#1218). **Count the leading tabs.** A comment three tabs deep has twelve fewer columns of room
-than one at column 0, so every trailing comment on an indented statement is at risk. Measure each
-survivor by hand, after `gofmt -w`, before the PR opens. §7.7 records why no rule class enforces it
-yet.
+The calibration line above measured **101 characters** with `lint` reporting zero flags on the file
+(#1218, at `cmd/web/exclusions.go:103` before #1470 repaired it). **Count the leading tabs.** A comment three tabs deep has twelve fewer columns of room
+than one at column 0, so every trailing comment on an indented statement is at risk. §7.7 records
+why no rule class enforces it yet.
+
+**Measure with `--column-report`, not by hand, and run it after `gofmt -w`.** The flag reports and
+does not gate, so a clean `lint` run still says nothing about constraint 4. #1482's second PR
+promotes the flag to a lint class once every repair ticket on #1454 closes; until then the flag is
+the only instrument, and a hand count is the failure #1446 recorded three times.
 
 **The unit question reaches generated output as well as authored output.** SQL indents from column 0
 with spaces, so runes, bytes and columns coincide there, and the longest survivor in stage D2 is 97
@@ -1891,10 +1938,25 @@ it puts the §5.5 cross-check on one testable object.
 prose beneath it. The own-line block that opens on the line below a `#nosec` line is the **waiver
 tail**. `Lex` marks it, and §2.3 states what the mark buys.
 
+**A `Block` carries its own width, because the rule layer is source-free.** `rule.Lint(res,
+testFile)` receives `Blocks`, `Trailing` and `Skeleton` and never the source, and §4.4's measure is
+the whole physical line. `Block.Columns` closes that gap: it is the widest physical line from
+`StartLine` to `EndLine`, counted in runes, with a tab worth `surface.TabColumns` (4). The width is
+a fact about the extract, so it belongs here rather than in a wider `Lint` signature, and the rule
+layer stays source-free (#1482).
+
+`assembleBlocks` populates it at the one `Block` construction site, so Go, SQL, CSS, `.mjs`, `.ts`
+and `.tmpl` all get it from one implementation, own-line and trailing alike. A joined line-comment
+run takes the maximum across the lines it absorbs.
+
+**`.jsx` carries no width, because it carries no block.** esbuild reports no comment range, so
+`JSX.Lex` returns a skeleton alone (§5.3, ruling 15). A `.jsx` file is therefore invisible to §4.4's
+count, and `verify` remains that surface's only gate. Do not synthesise a width there.
+
 ### 6.3 The command-line surface
 
 ```
-commentlint lint   [--github] [--in-scope-only] [paths...]
+commentlint lint   [--github] [--in-scope-only] [--column-report] [paths...]
 commentlint strip  [--write] [--manifest PATH] paths...
 commentlint verify --base <ref> [paths...]
 ```
@@ -1902,6 +1964,15 @@ commentlint verify --base <ref> [paths...]
 **`lint`** with no path and no `--in-scope-only` lints the whole in-scope tree. This is the writer's
 path, copied from `doclint`. `--in-scope-only` never triggers that fallback, so an empty changed set
 lints nothing.
+
+**A directory argument is walked, and an empty one is an error.** It used to be lexed as a file,
+where a path with no known extension raised `UnsupportedError`, which §6.7 folds into no count. So
+`lint --column-report ./internal/scan/` printed a confident `0 block(s)` over 25 unread files. Four
+of #1466's agents hit that false clean. **A measuring tool's worst failure is a clean bill of
+health**, so an argument resolving to no in-scope file now exits 2 naming the path (#1466).
+
+**`--column-report`** is off by default. It adds no violation and never changes the exit code. §4.4
+states its output and what it is for.
 
 **`strip`** prints the residue manifest and changes no file unless `--write` is given. The manifest
 is JSON Lines, one record per **declined** block: file, line span, class, and the screen signal that

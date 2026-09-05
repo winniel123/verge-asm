@@ -30,7 +30,7 @@ func (s Step) Estate() custody.Estate {
 	}
 	fanout := custody.EdgeFanout{Enabled: s.ScanInForce, BatchCompleted: s.ScanBatchCompleted}
 	if len(s.Observed) > 0 {
-		// The verdict is derived here, never written into the row, so the threshold is inside the digest.
+		// The verdict is derived, never written to the row, so the threshold sits in the digest.
 		fanout.Shared = make(map[netip.Addr]bool, len(s.Observed))
 		for addr, sans := range s.Observed {
 			fanout.Shared[netip.MustParseAddr(addr).Unmap()] = custody.SharedEdge(sans)
@@ -82,7 +82,7 @@ func RenderRow(r Row) ([]byte, error) {
 		}
 		addr = addr.Unmap()
 		_, isCandidate := candidates[addr]
-		// The declaration limb the Scan also measures is no column, because there a result gates nothing.
+		// The declaration limb the Scan also measures is no column: there a result gates nothing.
 		rec := line{
 			Address:             addr.String(),
 			ExtensionCandidate:  isCandidate,

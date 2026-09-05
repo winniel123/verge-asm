@@ -48,7 +48,7 @@ func NewHTTPCTFetcher(version string) *HTTPCTFetcher {
 		client: &http.Client{
 			// crt.sh answers legitimately slowly, measured up to 59.6s (passive-discovery §7).
 			Timeout: 90 * time.Second,
-			// A 3xx could bounce the fetch to an internal host such as IMDS, so no redirect is followed (ADR-0196 §1).
+			// A 3xx could bounce the fetch to an internal host such as IMDS (ADR-0196 §1).
 			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 		},
 		userAgent: "verge-asm/" + version + " (+https://github.com/winniel123/verge-asm)",
@@ -164,7 +164,7 @@ func (w *Worker) completeCT(ctx context.Context, job db.ClaimJobRow, spec wire.J
 			w.recordCTSample(ctx, src.Slug(), false, fetchElapsed, false)
 			cause := ferr
 			if cause == nil {
-				// A status code leaks nothing, unlike a transport error's text, so only this is safe (#780).
+				// A status code leaks nothing, unlike a transport error's text (#780).
 				cause = safeProgress(fmt.Sprintf("%s returned HTTP %d", src.DisplayName(), status))
 			}
 			t := w.buildCTTranscript(job.Kind, start, url, body, ctFetchOutcome(ferr, status))
@@ -216,7 +216,7 @@ func ctFetchOutcome(ferr error, status int) wire.CTOutcome {
 }
 
 func countingSeq(names iter.Seq[string], saw *bool) iter.Seq[string] {
-	// The count is the source's raw output, so a source-empty is told from a scope-filtered one (§3).
+	// The count is the source's raw output, so source-empty is told from scope-filtered (§3).
 	return func(yield func(string) bool) {
 		for n := range names {
 			*saw = true
@@ -228,7 +228,7 @@ func countingSeq(names iter.Seq[string], saw *bool) iter.Seq[string] {
 }
 
 func (w *Worker) recordCTSample(ctx context.Context, source string, ok bool, latency time.Duration, empty bool) {
-	// The sample rides the pool, not the job transaction, so a retry still records its attempt (§3).
+	// The sample rides the pool, not the job transaction, so a retry records its attempt (§3).
 	if w.q == nil {
 		return
 	}
@@ -292,7 +292,7 @@ func (w *Worker) admitCT(ctx context.Context, job db.ClaimJobRow, cs scan.CTSeed
 }
 
 func (w *Worker) deadLetterCT(ctx context.Context, job db.ClaimJobRow, t wire.Transcript, cause error) error {
-	// A failed fetch of a corroborative source asserts no absence, so the scope is empty (ADR-0005).
+	// A failed corroborative fetch asserts no absence, so the scope is empty (ADR-0005).
 	w.log.Printf("worker: ct job %d dead-lettered after %d attempts: %v", job.ID, job.Attempt, cause)
 	empty, err := scan.EmptyCTScope()
 	if err != nil {

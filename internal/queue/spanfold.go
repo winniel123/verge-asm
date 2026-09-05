@@ -77,10 +77,10 @@ func foldOne(ctx context.Context, qtx *db.Queries, batchID int64, vantageID pgty
 	if !changed {
 		return nil
 	}
-	// A re-entry behind a closure is marked like a first span, so drift reads it revealed (ADR-0041).
+	// A re-entry behind a closure marks like a first span, so drift reads it revealed (ADR-0041).
 	openedAperture := open == nil && openedByAperture(key.SubjectKind, key.SubjectKey, in)
 	if open != nil && !closeAt.IsZero() {
-		// A departure is a cross-class composition, so the membership path closes those (ADR-0211 §2).
+		// A departure is a cross-class composition, so membership closes it (ADR-0211 §2).
 		if err := qtx.CloseSpan(ctx, db.CloseSpanParams{ClosedAt: tstz(closeAt), ClosedBatchID: pgInt8(batchID), ID: openID}); err != nil {
 			return err
 		}
@@ -123,7 +123,7 @@ func facetVector(facet string) drift.Vector {
 			drift.Component{Leaf: blanketdiscrim.Kind, Version: blanketdiscrim.Version},
 		)
 	case connectoutcome.FacetCertificate:
-		// The connect gates whether the handshake runs but decides no chain, so it stays out of here.
+		// The connect gates whether the handshake runs but decides no chain, so it stays out.
 		return drift.NewVector(
 			drift.Component{Leaf: "tls-handshake", Version: connectoutcome.CertVersion},
 		)

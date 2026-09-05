@@ -12,7 +12,7 @@ func sanSet(n int) []string {
 		panic("corpus: sanSet needs a positive count")
 	}
 	out := make([]string, 0, n+2)
-	// RFC 2606 reserves `.invalid` and delegates it to nobody, so no fixture name can be registered.
+	// RFC 2606 reserves `.invalid` and delegates it to nobody, so no fixture name is registrable.
 	// No Public Suffix List section lists it, so each index is one distinct registrable domain.
 	for i := range n {
 		out = append(out, fmt.Sprintf(sanTemplate, i))

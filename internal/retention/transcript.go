@@ -15,7 +15,7 @@ import (
 const TranscriptFloorDays int64 = 1
 
 func TranscriptWindowDays(dialDays int64) (days int64, bounded bool) {
-	// Verbatim bytes are the volume problem, so this dial alone ships bounded at 14 days (ADR-0126).
+	// Verbatim bytes are the volume problem, so this dial alone ships a 14-day bound (ADR-0126).
 	if dialDays <= 0 {
 		return 0, false
 	}

@@ -33,7 +33,7 @@ const (
 )
 
 func suppressesNameMembership(outcome string) bool {
-	// A suppressed Name is a population of no current member, reached only by its own key (ADR-0072).
+	// A suppressed Name is a population of no current member, reached only by its key (ADR-0072).
 	return outcome == nameOutcomeNameError || outcome == nameOutcomeShadowed
 }
 
@@ -354,7 +354,7 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 		Reach:     rv.Outcome,
 	}
 	if rv.Outcome == reachOutcomeGap {
-		// A Gap is absence of reach, so the subject states its cause in the operator's words (ADR-0104).
+		// A Gap is absence of reach, so the cause is stated in the operator's words (ADR-0104).
 		data.ReachGap = true
 		data.ReachGapReason = rv.Reason
 	}
@@ -548,7 +548,7 @@ func censusVerdict(c signal.Census, key string) signal.Outcome {
 	case isCensusMember(c.NotFired, key):
 		return signal.NotFired
 	case isCensusMember(c.NotEvaluable, key):
-		return signal.NotEvaluable // absent evidence never reads as "did not fire" (ADR-0004, #1351)
+		return signal.NotEvaluable // absent evidence is not "did not fire" (ADR-0004, #1351)
 	}
 	return ""
 }
@@ -598,7 +598,7 @@ type nameSeedTerm struct {
 }
 
 func (s *server) terminatingNameSeed(r *http.Request, key string, cit db.GetNameCitationRow, citErr error) (nameSeedTerm, bool) {
-	// An admission's Seed is read by id: a longer-suffix scope must not displace it (ADR-0107, #256).
+	// An admission's Seed is read by id, never by a longer-suffix scope (ADR-0107, #256).
 	if citErr == nil && cit.HopKind == hopKindAdmission && cit.SeedID.Valid {
 		seed, err := s.store.FindNameSeedByID(r.Context(), cit.SeedID.Int64)
 		if err != nil {

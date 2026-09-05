@@ -68,7 +68,7 @@ func posed(fx ...edgeFixture) ([]db.ListEdgeFanoutMeasurementsRow, map[string][]
 	for _, f := range fx {
 		r := db.ListEdgeFanoutMeasurementsRow{Address: f.addr, Outcome: f.outcome}
 		if len(f.der) > 0 {
-			// Production keys the side store with this function, so no fixture mints a key it never would.
+			// Production keys the side store by fingerprint, so no fixture mints an impossible key.
 			fp := co.Fingerprint(f.der)
 			r.Fingerprint = pgtype.Text{String: fp, Valid: true}
 			material[fp] = f.der
@@ -200,7 +200,7 @@ func TestToEdgeFanoutDerivesTheVerdictOncePerDistinctFingerprint(t *testing.T) {
 		t.Fatalf("the unique fixture holds %d certificates, want %d", len(uniqueMaterial), rows)
 	}
 
-	// The margin is an order of magnitude, so this pins the fix's shape, not Go's accounting (#1014).
+	// A margin of an order of magnitude pins the fix's shape, not Go's accounting (#1014).
 	sharedAllocs := testing.AllocsPerRun(2, func() {
 		benchEdgeFanoutSink = toEdgeFanout(true, sharedRows, sharedMaterial)
 	})
@@ -239,7 +239,7 @@ func TestToEdgeFanoutKeepsEachFingerprintsOwnVerdict(t *testing.T) {
 }
 
 func TestEdgeFanoutFingerprintsAsksForEachCertificateOnce(t *testing.T) {
-	// Sending the raw column instead would pull one DER per address, which is the wire cost (#1035).
+	// Sending the raw column instead would pull one DER per address, the wire cost (#1035).
 	rows := []db.ListEdgeFanoutMeasurementsRow{
 		{Address: "10.0.0.1", Outcome: string(edgefanout.Presented), Fingerprint: pgtype.Text{String: "sha256:aa", Valid: true}},
 		{Address: "10.0.0.2", Outcome: string(edgefanout.Unreachable)},
@@ -555,7 +555,7 @@ func TestABoundReadKeepsEveryNamedAddressMeasured(t *testing.T) {
 
 func TestABoundReadDerivesTheSameExtensionVerdictAsAnUnboundOne(t *testing.T) {
 	f := boundFixtureStore(t, certWithSANs(t, distinctSANs(custody.SharedEdgeThreshold)...))
-	// The errored floor asks whether any extension candidate was measured, not a declared one (#1018).
+	// The errored floor asks whether any extension candidate was measured, not declared (#1018).
 	estate := custody.Estate{
 		AddressScopes: []netip.Prefix{netip.MustParsePrefix("23.20.0.0/24")},
 		ExtendedZones: []string{"example.com"},
@@ -594,7 +594,7 @@ func TestABoundReadDerivesTheSameExtensionVerdictAsAnUnboundOne(t *testing.T) {
 }
 
 func TestABoundOverNoAddressIssuesNoQueryAtAll(t *testing.T) {
-	// A bare nil slice would have fallen back to the unbound read, answering a question nobody asked.
+	// A bare nil slice would fall back to the unbound read, answering a question nobody asked.
 	f := boundFixtureStore(t, certWithSANs(t, distinctSANs(custody.SharedEdgeThreshold)...))
 
 	got, err := ReadEdgeFanout(context.Background(), f, EdgeFanoutOver(nil))

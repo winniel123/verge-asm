@@ -100,7 +100,7 @@ func (s *server) previewExclusion(w http.ResponseWriter, r *http.Request, acct d
 			fail(err.Error())
 			return
 		}
-		// A narrowing that withdraws no subject is silent, so a survivor gets no receipt (ADR-0074).
+		// A narrowing that withdraws nothing is silent, so a survivor gets no receipt (ADR-0074).
 		receipt = message.PreviewNarrowing(value, value, 0, 0)
 	default:
 		fail("Choose an exclusion type.")

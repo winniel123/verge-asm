@@ -302,7 +302,7 @@ func (s *server) bindIntegrationChannel(w http.ResponseWriter, r *http.Request, 
 			return
 		}
 		if !ok {
-			// A concurrent channel delete lands a real operator here, so it toasts, not 400s (ADR-0130 §1).
+			// A concurrent delete lands a real operator, so it toasts, not 400s (ADR-0130 §1).
 			s.toastRedirectBack(w, r, dest, "danger", "Channel not bound",
 				"That channel no longer exists. Pick another.")
 			return

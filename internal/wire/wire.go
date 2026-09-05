@@ -157,7 +157,7 @@ func (s *ObservationScanner) Next() bool {
 		return false
 	}
 	s.count++
-	// json.Unmarshal overwrites only present fields, so a reused struct would inherit the last line.
+	// json.Unmarshal overwrites only present fields, so a reused struct inherits the last line.
 	s.obs = Observation{}
 	if err := json.Unmarshal(s.scanner.Bytes(), &s.obs); err != nil {
 		s.err = fmt.Errorf("wire: decode observation: %w", err)

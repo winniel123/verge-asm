@@ -88,7 +88,7 @@ func resolveDriftPeriod(token string) driftPeriod {
 			return p
 		}
 	}
-	// The design's default is the second preset, not the first, so the fallback names it explicitly.
+	// The design default is the second preset, not the first, so the fallback names it explicitly.
 	for _, p := range driftPeriods() {
 		if p.Token == driftDefaultPeriod {
 			return p
@@ -126,7 +126,7 @@ func (s *server) resolveDriftWindow(r *http.Request) (token, label string, since
 			return driftCustomPrefix + start + "_" + end,
 				start + " – " + end,
 				pgtype.Timestamptz{Time: sd.UTC(), Valid: true},
-				// The operator's end date is inclusive, so the bound is the start of the following day.
+				// The operator's end date is inclusive, so the bound is the next day's start.
 				pgtype.Timestamptz{Time: ed.UTC().Add(24 * time.Hour), Valid: true}
 		}
 	}
@@ -165,7 +165,7 @@ func (s *server) driftPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	var groups []driftBatch
 	movement := driftMovement{}
 	truncated := false
-	// A 90d window on a mature estate has no natural bound, so the feed reads under a cap (ADR-0178 §1).
+	// A 90d window on a mature estate is unbounded, so the feed reads under a cap (ADR-0178 §1).
 	if rows, err := s.store.ListRecentDriftEvents(r.Context(), db.ListRecentDriftEventsParams{
 		Since: since, MaxEvents: driftFeedLimit,
 	}); err != nil {
@@ -179,7 +179,7 @@ func (s *server) driftPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	}
 
 	transitionCount := 0
-	// The tmpl's JS toggles a group open, so the full period feed always ships, never a filtered one (ADR-0178 §4).
+	// JS toggles a group open, so the whole period feed ships, never a filtered one (ADR-0178 §4).
 	for i := range groups {
 		transitionCount += len(groups[i].Events)
 		if i >= 2 {
@@ -187,7 +187,7 @@ func (s *server) driftPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 		}
 	}
 
-	// A batch exists at dispatch, long before two have folded a transition, so it can precede a feed.
+	// A batch exists at dispatch, long before two fold a transition, so it can precede a feed.
 	batchID, batchLabel := s.latestBatch(r)
 
 	s.render(w, r, "drift", map[string]any{
@@ -228,7 +228,7 @@ func (s *server) transitionDelta(ctx context.Context, since, until pgtype.Timest
 		log.Printf("web: drift: earliest batch time: %v", err)
 		return ""
 	}
-	// A window the estate never witnessed is unknown, not zero, so the chip is suppressed (ADR-0110).
+	// A window the estate never saw is unknown, not zero, so the chip is suppressed (ADR-0110).
 	if !earliest.Valid || earliest.Time.After(prevStart) {
 		return ""
 	}

@@ -19,7 +19,7 @@ func TestNetHandshakerGuardRefusesNonGlobal(t *testing.T) {
 	h := NetHandshaker{Timeout: 2 * time.Second}
 	// A guard refusal is unreachable, never the no-tls value that would claim an answer (#743).
 	for _, target := range nonGlobalTargets {
-		// Were the guard absent the dial would block to the timeout, so a fast refusal is the proof.
+		// Were the guard absent the dial would block to the timeout, so a fast refusal is proof.
 		start := time.Now()
 		got := h.Handshake(context.Background(), target)
 		if got.Outcome != Unreachable {

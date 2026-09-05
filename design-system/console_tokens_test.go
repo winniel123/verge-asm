@@ -69,7 +69,7 @@ func TestConsoleTokensHoldOneValueEverywhereTheyAreDeclared(t *testing.T) {
 }
 
 func TestConsoleDeclarationsReadTheConsoleGroup(t *testing.T) {
-	// A file-wide ban would fail the day settings.tmpl grows a legitimate --surface-inverted caller.
+	// A file-wide ban fails the day settings.tmpl grows a legitimate --surface-inverted caller.
 	for _, d := range consoleDecls {
 		decl, ok := lineContaining(readArtifact(t, d.file), d.anchor)
 		if !ok {

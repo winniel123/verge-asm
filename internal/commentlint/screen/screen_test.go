@@ -51,7 +51,7 @@ func TestRoundOneFailuresNowScreen(t *testing.T) {
 		{"a CONTEXT reference", "the row declares the vantage class (CONTEXT.md)", SignalCitation},
 		{"a design-fixture reference", "one per-file zone-upload refusal (DF-F2)", SignalCitation},
 		{"a gosec waiver", "the password is #nosec G101: only ever a dev database", SignalToolMarker},
-		// A bare "spec" is no citation: it rides in a URL, which already withholds the block (#1136).
+		// A bare "spec" is no citation: it rides in a URL, which withholds the block (#1136).
 		{"a spec URL keeps its own reason", "see https://go.dev/ref/spec", SignalBareURL},
 	}
 

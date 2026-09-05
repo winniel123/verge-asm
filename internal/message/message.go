@@ -63,7 +63,7 @@ func LinkKindForCause(c Cause) LinkKind {
 	case CauseDeclaredInput:
 		return LinkSource
 	case CauseAperture:
-		// Never Coverage's standing aperture statement, which is constant and loses which act fired.
+		// Never Coverage's standing aperture statement: constant, and it loses which act fired.
 		return LinkSeed
 	default:
 		return LinkObject

@@ -71,7 +71,7 @@ var Rows = []Row{
 		Golden: "at_threshold.ndjson",
 	},
 
-	// A session that makes the veto global moves this golden, and the gate names the row (ADR-0129).
+	// Making the veto global moves the golden, and the gate names the row (ADR-0129).
 
 	// The scope is a /24 on purpose: #956 refuses a specificity test at any prefix width.
 	{
@@ -134,7 +134,7 @@ var Rows = []Row{
 		Golden: "extension_limb_errored.ndjson",
 	},
 
-	// A session reading the floor as any-unmeasured-reaches moves nothing above and moves this golden.
+	// Reading the floor as any-unmeasured-reaches moves nothing above and moves this golden.
 	{
 		Cells:        []string{"C3/measured-candidate-holds-the-rest"},
 		Claim:        "one measured extension candidate lifts the errored floor and the rest stay HELD: on an install whose Scan has run this limb, an unmeasured candidate is a lag bounded by the cadence, never a failure",
@@ -198,7 +198,7 @@ var Rows = []Row{
 		Golden: "exclusion_removed.ndjson",
 	},
 
-	// A session making the exclusion global moves this golden, and the gate names the row (ADR-0133).
+	// Making the exclusion global moves the golden, and the gate names the row (ADR-0133).
 	{
 		Cells:        []string{"C4/excluded-but-extension-reached-is-operator"},
 		Claim:        "an excluded address a custody extension ALSO reaches derives operator and is probed, while its excluded sibling that no extension reaches derives third-party: the exclusion cuts the Seed limb alone",

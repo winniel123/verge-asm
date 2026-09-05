@@ -54,7 +54,7 @@ func (d *Dispatcher) dispatchDue(ctx context.Context) {
 		window := CadenceWindow(sc.Cadence)
 		tick, ok := DispatchTick(d.now(), sc.Cadence)
 		if !ok {
-			// A legacy or hand-edited row is skipped rather than fired on a wrong default (ADR-0122).
+			// A legacy or hand-edited row is skipped, never fired on a wrong default (ADR-0122).
 			d.log.Printf("report dispatcher: schedule %d cadence %q is uninterpretable, skipped", sc.ID, sc.Cadence)
 			continue
 		}

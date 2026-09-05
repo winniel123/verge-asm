@@ -202,7 +202,7 @@ func TestBuildProberParamsMemoryGuard(t *testing.T) {
 }
 
 func TestBuildTranscriptParamsNilVariant(t *testing.T) {
-	// The caller guards nil and the wire union is closed, so this branch cannot happen in production.
+	// The caller guards nil and the wire union is closed, so production never reaches this branch.
 	if _, err := buildTranscriptParams(1, time.Now(), nil, testKey); err == nil {
 		t.Error("nil transcript: want error, got nil")
 	}

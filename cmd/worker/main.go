@@ -67,7 +67,7 @@ func main() {
 
 	logger := log.New(os.Stderr, "", log.LstdFlags)
 
-	// The CT source operator asked that the User-Agent identify this build (passive-discovery §2.2).
+	// The CT source operator asked that the User-Agent name this build (passive-discovery §2.2).
 	ctVersion := env.OrDefault("VERGE_VERSION", "dev")
 	// The CT key is worker-only: the web process never reads it (ct-source-replacement.md §2.4).
 	ctFetcher, ctThrottle, ctSource := selectCTSource(env.OrDefault("VERGE_CERTSPOTTER_TOKEN", ""), ctVersion, db.New(pool))
@@ -84,11 +84,11 @@ func main() {
 		stateDir,
 		logger,
 	)
-	// A fixture-only install serves fixtures, never live estate, so it writes no message (ADR-0197 §1).
+	// A dev install serves fixtures, never live estate, so it writes no message (ADR-0197 §1).
 	devMode := isTruthy(env.OrDefault("VERGE_DEV", ""))
 	// A hung prober would block the single-threaded drain loop without this bound (#853).
 	probeTimeout := durationOrDefault("VERGE_PROBE_TIMEOUT", queue.DefaultProbeTimeout, logger)
-	// The message hook is injected so internal/queue never imports internal/delivery (ADR-0199 §1, #1316).
+	// The hook is injected so internal/queue never imports internal/delivery (ADR-0199 §1, #1316).
 	worker := queue.NewWorker(pool, queue.ExecProber{Path: proberPath}, time.Now, logger).
 		WithCT(ctFetcher, ctThrottle, ctSource).
 		WithCTTail(queue.NewHTTPCTFetcher(ctVersion)).

@@ -81,7 +81,7 @@ func (s *server) resolveBack(r *http.Request, fallback string) string {
 	if raw == "" {
 		return fallback
 	}
-	// A browser folds \ to / in a URL, so /\evil.example reaches an origin this server does not own.
+	// A browser folds \ to /, so /\evil.example reaches an origin this server does not own.
 	if strings.Contains(raw, `\`) {
 		return fallback
 	}
@@ -122,11 +122,11 @@ func (s *server) routeServesGET(p string) bool {
 		Host:   "localhost",
 	}
 	_, pattern := s.routes.Handler(probe)
-	// A redirect hop echoes the matched pattern, so the cleanliness check above is what makes this sound (ADR-0171 §2).
+	// A redirect hop echoes the pattern, so the caller must clean the path first (ADR-0171 §2).
 	if !strings.HasPrefix(pattern, "GET ") {
 		return false
 	}
-	// The catch-all matches every path, but auth.go home answers 404 for anything but the root (ADR-0171 §4).
+	// The catch-all matches every path, but home answers 404 for all but the root (ADR-0171 §4).
 	if pattern == "GET /" {
 		return p == "/"
 	}

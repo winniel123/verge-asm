@@ -39,7 +39,7 @@ func (e Estate) WithAddressExclusions(prefixes []netip.Prefix) Estate {
 // Exported because the cold tier enumerates its own prefixes and never these scopes (ADR-0133 §3).
 
 func (e Estate) AddressExcluded(addr netip.Addr) bool {
-	// True is not a probing verdict: an excluded address a custody extension reaches is still probed.
+	// True is not a probing verdict: an excluded address a custody extension reaches is probed.
 	addr = addr.Unmap()
 	for _, p := range e.addressExclusions {
 		if p.Contains(addr) {
@@ -79,11 +79,11 @@ func (e Estate) coveredByAddressScope(addr netip.Addr) bool {
 }
 
 func (e Estate) coveringAddressScope(addr netip.Addr) (netip.Prefix, bool) {
-	// Not in MayProbe: an excluded address an extension reaches still derives operator (ADR-0133 §1).
+	// Not in MayProbe: an excluded address an extension reaches derives operator (ADR-0133 §1).
 	if e.AddressExcluded(addr) {
 		return netip.Prefix{}, false
 	}
-	// Overlapping scopes derive the same value, so first match suffices; specificity is never tested.
+	// Overlapping scopes derive the same value, so first match suffices; specificity is untested.
 	for _, p := range e.AddressScopes {
 		if p.Contains(addr) {
 			return p, true
@@ -97,11 +97,11 @@ func (e Estate) coveredByExtension(addr netip.Addr) bool {
 }
 
 func (e Estate) extensionReaches(addr netip.Addr) bool {
-	// An extension declares no realm, so it may not reach a non-globally-reachable address (ADR-0079).
+	// An extension declares no realm, so it reaches no non-globally-reachable address (ADR-0079).
 	if IsNonGloballyReachable(addr) {
 		return false
 	}
-	// A CNAME puts the A record on the foreign owner, which is inside no extended zone (ADR-0013 §3).
+	// A CNAME puts the A record on the foreign owner, inside no extended zone (ADR-0013 §3).
 	for _, r := range e.Resolutions {
 		if r.Address.Unmap() != addr {
 			continue

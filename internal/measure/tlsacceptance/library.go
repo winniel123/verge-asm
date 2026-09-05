@@ -38,7 +38,7 @@ func OfferableCiphers(declared []string) (missing []string) {
 }
 
 func versionID(version string) (uint16, bool) {
-	// An undeclared version is refused rather than defaulted, so nothing outside the set is offered.
+	// An undeclared version is refused, not defaulted, so nothing outside the set is offered.
 	switch version {
 	case TLS10:
 		return tls.VersionTLS10, true

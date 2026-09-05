@@ -290,13 +290,13 @@ func (s *server) applyRestore(ctx context.Context, archive []byte) error {
 		if !backupAllowed(row.Table) {
 			return errRestoreUnknownTbl
 		}
-		// An older archive still holds these cleartext columns, so the redaction re-applies (ADR-0160 §3).
+		// An older archive holds these cleartext columns, so redaction re-applies (ADR-0160 §3).
 		if data, err := redactBackupRow(row.Table, row.Data); err != nil {
 			return fmt.Errorf("restore: redact %s: %w", row.Table, err)
 		} else {
 			row.Data = data
 		}
-		// Foreign keys reference the archive's explicit ids, so an identity column must accept them.
+		// Foreign keys reference the archive's explicit ids, so an identity column must take them.
 		overriding := ""
 		if identity[row.Table] {
 			overriding = "OVERRIDING SYSTEM VALUE "
@@ -312,7 +312,7 @@ func (s *server) applyRestore(ctx context.Context, archive []byte) error {
 		return fmt.Errorf("restore: read archive: %w", err)
 	}
 
-	// No private half for the archived keys exists on this host, so the fleet must re-pin (ADR-0124).
+	// No private half for the archived keys exists here, so the fleet must re-pin (ADR-0124).
 	if _, err := tx.Exec(ctx,
 		"UPDATE vantage SET public_key = NULL, host_key = NULL, availability = 'pending', latency_ms = NULL",
 	); err != nil {

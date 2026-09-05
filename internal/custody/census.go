@@ -19,7 +19,7 @@ type ExtensionCensusEntry struct {
 }
 
 func (e Estate) ExtensionCensus() []ExtensionCensusEntry {
-	// Out of force the extension reaches, so a pending row names a hold that is not happening (#1018).
+	// Out of force the extension reaches, so a pending row names a hold not happening (#1018).
 	if !e.edgeFanout.inForce() {
 		return nil
 	}

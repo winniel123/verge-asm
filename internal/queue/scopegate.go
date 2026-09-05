@@ -65,7 +65,7 @@ func parseAuthorizedScope(raw []byte) authorizedScope {
 }
 
 func normAddr(s string) string {
-	// One address has many spellings, so both sides normalise or the check over-rejects a real line.
+	// One address has many spellings, so both sides normalise or the check over-rejects a line.
 	if a, err := netip.ParseAddr(strings.TrimSpace(s)); err == nil {
 		return a.Unmap().String()
 	}
@@ -73,7 +73,7 @@ func normAddr(s string) string {
 }
 
 func (a authorizedScope) admits(o wire.Observation) bool {
-	// Gating an undenoted dimension would drop every legitimate line, so an absent set gates nothing (ADR-0217 §1).
+	// An undenoted dimension gates nothing; gating it would drop every real line (ADR-0217 §1).
 	switch o.Facet {
 	case resolutionwalk.FacetResolution, resolutionwalk.FacetDNSRecord:
 		if a.names == nil {
@@ -89,11 +89,11 @@ func (a authorizedScope) admits(o wire.Observation) bool {
 		_, ok := a.addrs[subjectAddrKey(o.Subject)]
 		return ok
 	case "":
-		// An injected edge-fanout line would feed the custody veto an answer nothing measured (#985).
+		// An injected edge-fanout line feeds the custody veto an answer nothing measured (#985).
 		if o.Kind != edgefanout.Kind {
 			return true
 		}
-		// This arm alone fails closed: an edge-fanout job's scope always denotes addresses (ADR-0217 §3).
+		// This arm alone fails closed: edge-fanout scope always denotes addresses (ADR-0217 §3).
 		if a.addrs == nil {
 			return false
 		}
