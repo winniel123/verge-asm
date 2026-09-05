@@ -24,11 +24,19 @@ begin, because both are structural and expensive to reverse once content and URL
 
 A third, smaller question — the static-site stack — follows once those two are fixed.
 
-The design-system constraint frames the build: components are authored in Claude Design and imported,
-**never re-authored in-repo** ([ADR-0109](./0109-design-system-components-are-authored-in-claude-design-and-imported.md)).
+The design-system constraint frames the build: ~~components are authored in Claude Design and imported,
+**never re-authored in-repo**~~ ([ADR-0109](./0109-design-system-components-are-authored-in-claude-design-and-imported.md)).
 The docs site therefore has to *consume* `design-system/` (tokens + components) directly rather than
 reproduce any of it, which rules stacks in or out by how cleanly they can render the existing React
 components and flip the token themes.
+
+> **The struck clause is WITHDRAWN at the site that specifies it, 2026-08-28 by `55aa367` /
+> [#1410](https://github.com/winniel123/verge-asm/issues/1410)
+> ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).**
+> `design-system/` may be edited in the repo. What frames this ADR's stack choice is the
+> **consume-rather-than-reproduce** half of the sentence, which stands on its own ground: a second
+> copy of the design system inside a site framework is a second source of truth. The stack decision
+> is unaffected.
 
 ## Decision
 
@@ -124,7 +132,13 @@ data:
   deliberately so, because it keeps every published version a faithful snapshot of what shipped.
 - **The build depends on the repo-root `design-system/`.** `docs-site/` imports tokens and components from
   `../design-system` via a `@ds` alias. It is coupled to that directory's layout but authors none of it,
-  honouring ADR-0109. If the design system moves, the alias moves with it — one config line.
+  ~~honouring ADR-0109~~. If the design system moves, the alias moves with it — one config line.
+
+  > **`honouring ADR-0109` is WITHDRAWN at the site that specifies it, 2026-08-28 by `55aa367` /
+  > [#1410](https://github.com/winniel123/verge-asm/issues/1410)
+  > ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).**
+  > `design-system/` may be edited in the repo, so authoring none of it is no longer owed to a rule.
+  > The fact stands as a fact: `docs-site/` consumes the directory and writes nothing into it.
 - **The stack is a static bundle with no server.** Astro emits static HTML/CSS/JS. There is nothing to run
   in production beyond a static host. Interactivity is confined to hydrated islands, so the static content
   ships no framework runtime.

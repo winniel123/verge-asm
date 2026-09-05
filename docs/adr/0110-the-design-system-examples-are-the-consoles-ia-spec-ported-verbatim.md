@@ -55,10 +55,21 @@ This reverses exactly one clause and nothing else. Every other guardrail in
 - **No technology fingerprinting.**
 - **Severity is exactly `Critical / High / Medium / Low / Info`** via `SeverityBadge`. The change
   vocabulary rides its own drift palette, never the severity ramp.
-- **Verge ASM does not author design-system components** ([ADR-0109](0109-design-system-components-are-authored-in-claude-design-and-imported.md)).
+- ~~**Verge ASM does not author design-system components** ([ADR-0109](0109-design-system-components-are-authored-in-claude-design-and-imported.md)).
   Porting a screen translates the reference composition into template CSS classes within the existing
   token vocabulary — restyling, not authoring. A genuine component gap is a
-  `design-system/requests/*.md` COMPONENT-REQUEST plus a flag, never an in-repo build.
+  `design-system/requests/*.md` COMPONENT-REQUEST plus a flag, never an in-repo build.~~
+
+  > **This bullet is WITHDRAWN at the site that specifies it, 2026-08-28 by `55aa367` /
+  > [#1410](https://github.com/winniel123/verge-asm/issues/1410)
+  > ([ADR-0058](0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).** That
+  > commit retired the design-system handoff workflow and superseded
+  > [ADR-0109](0109-design-system-components-are-authored-in-claude-design-and-imported.md).
+  > `design-system/` is the source of truth and may be edited in the repo — templates, tokens and
+  > components alike. `design-system/COMPONENT-REQUEST.md` and `design-system/requests/` are deleted,
+  > so the mechanism this bullet prescribes no longer exists. Read `CLAUDE.md` and
+  > [`docs/agents/design-system.md`](../agents/design-system.md) for the rule that replaces it. The
+  > rest of this Decision stands: the console screens are still the IA spec, ported verbatim.
 
 The scope of the port is the console only (`cmd/web`). The marketing `Homepage.jsx` and `DocsPage.jsx`
 have no serving surface in-repo and are out of scope.
