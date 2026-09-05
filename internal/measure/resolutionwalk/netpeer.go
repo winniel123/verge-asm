@@ -337,7 +337,8 @@ func rcodeName(rc dnsmessage.RCode) Rcode {
 	case dnsmessage.RCodeServerFailure:
 		return SERVFAIL
 	default:
-		return Rcode(rc.String())
+		// The union is closed at the codes the leaf branches on (ADR-0143).
+		return OTHER
 	}
 }
 
