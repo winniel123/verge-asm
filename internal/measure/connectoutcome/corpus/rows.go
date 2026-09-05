@@ -121,7 +121,7 @@ var Rows = []Row{
 
 	{
 		Cells:        []string{"C5/udp-recorded-not-probed"},
-		Claim:        "a scope whose only pairs are UDP produces no reachability observation at all — UDP is recorded in scope and never probed (§3.5, ADR-0083)",
+		Claim:        "a scope whose only pairs are UDP produces no reachability observation at all — UDP is recorded in scope and never probed (v1 spec §3.5, ADR-0083)",
 		SpecVerified: true,
 		Profile:      profile(),
 		Step: Step{

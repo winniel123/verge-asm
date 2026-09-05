@@ -242,7 +242,14 @@ Both render forms obey the rule, because both read the one `Artifact`. The conso
 same value through `artifactReceipt` in
 [`internal/message/render.go`](../../internal/message/render.go).
 
-**The rule is the report path's own, and ADR-0180 is not authority for it.**
+**The ruling lives in
+[ADR-0114](../adr/0114-the-report-pdf-is-rendered-in-process-from-the-artifact-not-from-html.md),
+in its [#1456](https://github.com/winniel123/verge-asm/issues/1456) amendment.** That ADR already
+rules the report `Artifact`'s render forms, and the amendment states this rule over the same
+object. It names the derivation, the one producer and both renderings. This section says what you
+read on a receipt. The amendment says why the product refuses the other rendering.
+
+**ADR-0180 is not authority for this rule.**
 [ADR-0180](../adr/0180-a-message-detail-is-a-census-plus-its-delivery-receipts-and-carries-no-prose-body.md)
 §3 states the same sentence about a **message** detail's delivery receipts. Its §5 then fences
 the report `Artifact` out by name. A `Message` and an `Artifact` are different objects that

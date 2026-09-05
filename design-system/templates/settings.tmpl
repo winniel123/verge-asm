@@ -1,35 +1,4 @@
-, messages, delivery). Integrations gated by integrationsEnabled.
-  #26b scans — the tab is the queue read (in-flight fan-out + jobs, recent dispatches) plus the
-    relocated cold tier (#21d), spec-styled. The mock's "Recurring intent" config card and the
-    schedule Calendar are DEFERRED — no operator-editable scan-config store exists; nothing is
-    fabricated (ADR-0110). They stay in the spec as the target for a future config store.
-  #26c vantages — spec VantageCards replace the table; each provisioned prober renders its real
-    lifecycle (awaiting key → install key (inverted CodeBlock + copy) → pinned + platform); the
-    mock's 3-step wizard maps onto that lifecycle, not onto client steps. The egress note links
-    /scope (no declare-egress POST exists). #26d the preferred-vantage Combobox is DEFERRED (no
-    default-vantage store).
-  #26e sso — OIDC stands (ADR-0113); the mock's SAML metadata drop, claim MappingEditor, SP
-    certificates and require-SSO switch predate it and RETIRE. The provider table (+ edit
-    disclosure), add form, and linked-identities table render spec-styled.
-  #26f channels — class checkboxes and badges render from .ClassOptions / .Classes (the store's
-    vocabulary), never a hardcoded set.
-  #26g messages — the tab keeps the repo's full store list (cause · class · headline · census ·
-    delivery receipts · mark-read), spec-styled with the inbox treatments; /inbox stays the
-    primary surface.
-  #26h delivery — the mock's error/skeleton/retry states are client-runtime affordances and drop;
-    the server renders data or the honest empty. Retention dials stay.
-  #26i team — invite keeps the repo's link flow (no mail in build): role pick → one-time join
-    link with the shown-once warning + copy. Member rows render initial-avatars derived from the
-    username (no new datum). Dialogs stay PRG (?role= ?reenroll= ?remove= ?invite=1) with the
-    spec panel; remove keeps typed-confirm (JS-gated, server validates).
-  #26j integrations — the spec catalogue maps PRG: cat/q = GET params, tile click = ?view={id}
-    drawer, install/remove/test = POSTs (/settings/integrations, alias or BUILD).
-  #39 integrations — the installed drawer binds a delivery Channel (nullable): a "Delivery channel"
-    <select> POSTs /settings/integrations/channel {id,channel}; Send test is gated on the binding —
-    disabled with "Connect a channel to test" when unbound (no POST), POSTs /settings/integrations/test
-    when bound. An integration references a Channel, it is not one (migration 20600).
-  Holes per section are documented inline at each define.
-*/}}
+
 {{define "forbidden"}}{{template "head" .}}
 {{template "chrome" .}}
 <main style="max-width:760px;margin:0 auto;padding:56px 32px;font-family:var(--font-ui)">
@@ -1235,7 +1204,7 @@
 </section>
 {{end}}
 
-e store) */}}
+
 {{define "settings-channels"}}
 <header style="display:flex;flex-direction:column;gap:6px">
 <span class="st-micro">Delivery · channels</span>

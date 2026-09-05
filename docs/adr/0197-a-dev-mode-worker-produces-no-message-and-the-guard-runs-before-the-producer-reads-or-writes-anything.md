@@ -176,9 +176,10 @@ diagnostic. A suppressed message stops an outbound POST.
   no `message` row and enqueues no delivery. **This ships as its own ticket.** ADR-0140 §4 sets the
   precedent that logic an adapter carries owes its own test, and the shape here is the same: a rule
   that is a single boolean is a rule a refactor can drop in one keystroke.
-- **Two survivors gain a citation.** `internal/queue/produce.go:55` and `cmd/worker/main.go:87` are
-  uncited and cite a dead token respectively. `produce.go:55` also states the corrected-away golden
-  ground and is rewritten to the true one. Both edits are recorded in `docs/adr/.pending/1315.md`.
+- **Two survivors gain a citation.** `internal/queue/produce.go`'s `produceMessages` guard and
+  `cmd/worker/main.go`'s `devMode` read were uncited and cited a dead token respectively. The
+  `produce.go` line also stated the corrected-away golden ground and is rewritten to the true one.
+  Both edits are applied at their own sites and cite this ADR's §1.
 - **`internal/queue/worker.go:140`'s survivor is not touched here.** It states the joint transcript
   and message rule and belongs to [#1316](https://github.com/winniel123/verge-asm/issues/1316)'s
   record.

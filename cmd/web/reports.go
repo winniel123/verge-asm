@@ -902,7 +902,7 @@ func (s *server) reportDeliveryWithdrawals(ctx context.Context, start, end time.
 }
 
 func deliveryTargetHost(target string) string {
-	// An operator's embedded token rides in the target URL (docs/guides/reports.md).
+	// An operator's embedded token rides in the target URL (ADR-0114 #1456).
 	if u, err := url.Parse(target); err == nil && u.Host != "" {
 		return u.Host
 	}

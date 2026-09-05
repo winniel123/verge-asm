@@ -21,7 +21,7 @@ func NormalizeDomain(input string) (string, error) {
 	if d == "" {
 		return "", fmt.Errorf("a domain is required")
 	}
-	// Runs before publicsuffix, whose wildcard rule would pass crt.sh query injection (#774).
+	// Runs before publicsuffix, whose wildcard rule would pass crt.sh query injection.
 	if !isLDH(d) {
 		return "", fmt.Errorf("%q is not a bare domain — enter a registrable domain like example.com", input)
 	}
@@ -36,7 +36,7 @@ func NormalizeDomain(input string) (string, error) {
 }
 
 func isLDH(d string) bool {
-	// IDN arrives as punycode, itself LDH, so this RFC 1035 allowlist loses no domain (#774).
+	// IDN arrives as punycode, itself LDH, so this RFC 1035 allowlist loses no domain.
 	for _, r := range d {
 		switch {
 		case r >= 'a' && r <= 'z':

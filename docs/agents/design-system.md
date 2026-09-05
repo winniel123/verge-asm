@@ -12,8 +12,8 @@ The system lives at **`design-system/`** in the repo root:
 - `tokens/` — `colors.css`, `typography.css`, `spacing.css`, `radius.css`, `elevation.css`, `motion.css`, `base.css`. Treat these as the source of truth.
 - `components/` — five folders: `forms/` · `display/` · `feedback/` · `navigation/` · `media/`. Every component ships three files: `Name.jsx` (implementation), `Name.d.ts` (props contract), and `Name.prompt.md` (usage note + example). **Read the `.prompt.md` before you use a component.** Imports between components are relative (`../media/Icon.jsx`). Keep the folder structure.
 - `examples/` — **the IA spec, ported verbatim** ([ADR-0110](../adr/0110-the-design-system-examples-are-the-consoles-ia-spec-ported-verbatim.md)): `examples/console/` (the console screens + `ConsoleApp.jsx` shell + a screen README), plus `examples/Homepage.jsx` (marketing) and `examples/DocsPage.jsx` (docs). Port each console screen's composition verbatim: same components, layout, spacing, hierarchy, and copy. Translate the reference JSX into the app's server-rendered Go templates. Swap only inline sample data for real data of the same shape. `ConsoleApp.jsx` is the shell spec. Earlier guidance to "rebuild their structure rather than ship them verbatim" is **superseded**. This was the only clause ADR-0110 reversed.
-- `docs/AGENT-GUIDE.md` — the compact, agent-facing usage guide (also a good human quick-start). Start here.
-- `docs/DESIGN-NOTES.md` — the full rationale: palette math, severity contrast tables, per-batch component history, production notes. Read it for anything non-trivial.
+- `design-system/docs/AGENT-GUIDE.md` — the compact, agent-facing usage guide (also a good human quick-start). Start here.
+- `design-system/docs/DESIGN-NOTES.md` — the full rationale: palette math, severity contrast tables, per-batch component history, production notes. Read it for anything non-trivial.
 
 **Never hardcode a value a token already names.** If you type `#231f19`, you want `var(--ink)`.
 

@@ -140,7 +140,7 @@ func (s Scope) endpointNames() []string {
 }
 
 func RunExchange(ctx context.Context, c Connector, h Handshaker, gen blanketdiscrim.PortGen, batch string, scope Scope, w io.Writer) error {
-	// The control probe rides the same paced Connector, so it honours the §3.3 budget (ADR-0104).
+	// The control probe rides the same paced Connector, so v1 spec §3.3's budget holds (ADR-0104).
 	verdicts := discriminateBlanket(ctx, c, gen, scope)
 
 	var out []wire.Observation

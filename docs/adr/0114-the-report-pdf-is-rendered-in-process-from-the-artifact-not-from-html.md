@@ -116,3 +116,89 @@ Three clarifications, so the boundary is not re-drawn each time:
 | `wkhtmltopdf` external binary | Same image cost; an unmaintained external binary and its libc closure inside a hardened image |
 | Drop the disabled "Download PDF" button | The console loses a format `RenderArtifact` was explicitly built to be the spec for; declined once the dependency was shown to fit the image |
 | PDF of the operational `/reports/export` series | Conflates the delivered-report document with the activity export — different surface, different read |
+
+## Amendment — [#1456](https://github.com/winniel123/verge-asm/issues/1456): a delivered receipt names the delivery target's host, never the target, and both render forms obey it from the one `Artifact`
+
+**The Decision is unchanged, and this ADR gains no new reach.** The amendment states a rule the
+Decision's clarification 1 already carries. That clarification makes the `Artifact` the single
+source of report *content* and each render form a second *layout* of it. So a rule about what the
+receipt line says is a rule about the content model, and both forms obey it without a second
+decision. The rule had no document before
+[#1447](https://github.com/winniel123/verge-asm/issues/1447), which is how two comments came to
+cite an ADR that never ruled it.
+
+> **A delivered report's receipt names the host of the delivery target, never the target itself.**
+> A `delivery_target` is free text an operator typed, and an operator may embed a token in a webhook
+> URL. Where no host parses, the receipt names no host. The raw string is never the fallback.
+
+### The rule as the shipped code behaves
+
+One derivation, one producer, two renderings.
+
+**The derivation.** `deliveryTargetHost` (`cmd/web/reports.go`) parses the schedule's
+`delivery_target` with `url.Parse`. It answers `u.Host` where the parse succeeds and the host is
+non-empty, and the empty string in every other case. It has no third answer, and the raw target
+reaches no caller. A mistyped target therefore costs the operator the host line and leaks no token.
+
+**The producer.** `buildReportDeliveryArtifact` (`cmd/web/reports.go`) is the only site in the tree
+that sets `Artifact.ChannelHost`, and it sets the field inside the `DeliveredAt.Valid` branch. An
+undelivered receipt therefore names no host either. Every other `Artifact` leaves the field zero:
+the operational export (`writeReportsExportPDF`, `cmd/web/reports_export.go`) and the two discarded
+confirmation renders (`cmd/web/reports_schedule.go`, `internal/report/dispatcher.go`).
+
+**The print rendering.** `artifactReceipt` (`internal/message/render.go`) answers `not delivered` on
+a zero `Delivered`. Otherwise it writes `delivered <instant>`, then appends the host only where
+`ChannelHost` is non-empty. `RenderArtifactPDF` reads it through the ordered content sequence in
+`internal/message/pdf.go`.
+
+**The console rendering.** `BuildArtifactDoc` (`internal/message/artifactdoc.go`) copies
+`ChannelHost` onto the document's `DeliveredTo`, and
+[`reportartifact.tmpl`](../../design-system/templates/reportartifact.tmpl) prints it under the same
+non-empty guard. Both forms read the one field, so neither can name the target while the other names
+the host.
+
+**A test holds the rule.** `cmd/web/reportdelivery_test.go` seeds a `delivery_target` of
+`https://ops.example.test/hook/s3cr3t-token`. It then asserts that the delivery page names
+`ops.example.test` and never names `s3cr3t-token`.
+
+### Why the rule lives here and not in ADR-0180
+
+[ADR-0180](./0180-a-message-detail-is-a-census-plus-its-delivery-receipts-and-carries-no-prose-body.md)
+§3 states the same sentence about a **message** detail's delivery receipts. That is the closest
+statement on disk, and it is the wrong citation for the report path.
+
+**ADR-0180 §5 excludes this path by name.** It rules that nothing in `internal/message` renders a
+`Message` at all. It names `RenderArtifact` and `RenderArtifactPDF` and lists their four report
+callers. It then concludes that the PDF *"cannot disagree with this rule because it is not about
+the same object"*. ADR-0180's own header lists this ADR under *"Not bound by"*. Its
+[#1447](https://github.com/winniel123/verge-asm/issues/1447) amendment restates the fence and
+closes with *"Do not cite this ADR from the report path."*
+
+**So the fence is correct, and widening it is not the repair.** A `Message` and an `Artifact` are
+different objects, with different tables and different producers. The shared Go package name is the
+whole of the resemblance. An ADR-0180 amendment that reached an `Artifact` would falsify that ADR's
+own title. The two rules agree because the hazard is one hazard, and neither is authority for the
+other.
+
+### What #1456 moved elsewhere, and what it leaves standing
+
+Three sites recorded this rule before the amendment. #1456 repaired two of them in the same change,
+and left the third in place.
+
+- **The two comment sites needed no new reason clause, only a new citation.**
+  `deliveryTargetHost` and `artifactReceipt` each carried the reason already, and each cited
+  [`docs/guides/reports.md`](../guides/reports.md). **#1456 moved both to `ADR-0114 #1456`**, at the
+  site that carries the citation
+  ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)). Neither
+  reason clause changed.
+- **ADR-0180's #1447 amendment named the guide as the rule's home.** **#1456 struck that clause and
+  named this amendment in its place**, in ADR-0180's own body, under the same ADR-0058 mark. §5 and
+  ADR-0180's Decision stay untouched.
+- **[`docs/guides/reports.md`](../guides/reports.md) keeps its operator-facing statement**, under
+  *The receipt names the host, never the whole delivery URL*. The guide says what an operator reads
+  on a receipt. This ADR rules why the product refuses the other rendering. The guide now links this
+  amendment, and its paragraph about ADR-0180 restates the fence above and stays true.
+
+**The past tense is exact.** #1456 landed this amendment and those two repairs in one change. No
+reader ever saw a tree where this document ruled the report path and the two comments cited the
+guide.

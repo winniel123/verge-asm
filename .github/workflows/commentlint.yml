@@ -5,18 +5,6 @@ on:
     # `verify` is gated on the `sweep:comments` label, which can land after
     # GitHub builds the opened run's payload (#1273).
     types: [opened, synchronize, reopened, labeled]
-    paths:
-      - "**/*.go"
-      - "**/*.sql"
-      - "**/*.mjs"
-      - "**/*.ts"
-      - "**/*.jsx"
-      - "**/*.tmpl"
-      - "**/*.css"
-      - "docs-site/package-lock.json"
-      - "cmd/commentlint/**"
-      - "internal/commentlint/**"
-      - ".github/workflows/commentlint.yml"
 
 permissions:
   contents: read
@@ -31,9 +19,8 @@ env:
 jobs:
   lint:
     runs-on: ubuntu-latest
-    # ADVISORY. The job never fails the workflow or blocks a merge. Promotion to a
-    # required check waits on the sweep's false-positive rate (SPEC §6.9, §10).
-    continue-on-error: true
+    # A violation fails this job, but `main`'s ruleset does not yet require the
+    # check, so it blocks no merge (#1435, #1263).
     steps:
       - name: Check out the head commit with the history the merge base needs
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

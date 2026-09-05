@@ -16,6 +16,10 @@
     "check:links": "node scripts/check-links.mjs",
     "check:doclint": "node scripts/doclint.mjs",
     "test:doclint": "node --test scripts/doclint.test.mjs",
+    "check:citations": "node scripts/check-citations.mjs",
+    "test:citations": "node --test scripts/check-citations.test.mjs",
+    "check:adr-sections": "node scripts/check-adr-sections.mjs",
+    "test:adr-sections": "node --test scripts/check-adr-sections.test.mjs",
     "check:screenshot": "node scripts/screenshot-check.mjs",
     "screenshot:update": "node scripts/screenshot-check.mjs --update"
   },

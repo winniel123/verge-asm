@@ -691,11 +691,36 @@ where three existed.
 
 **The tree does not honour the cap, and the campaign is #1454.** An earlier version of this
 constraint said Go comment lines in `cmd` and `internal` reach 93 characters at the maximum. That
-was false. Measured 2026-09-05 across the **845** in-scope files, under the measure above:
+was false. Measured 2026-09-05 across the **844** in-scope files, under the measure above:
 **376 rule-shaped comment blocks hold a line over 100 columns**, against 469 before the four classes
 `flags()` already skips. By class: `citation` 287, `why-note` 83, `dts-field-prose` 5,
-`external-spec` 1. **#1454** carries the repair campaign. It reports 378 and 471 from earlier in the
-same session, so re-measure before you act on either figure (§7.5 rule 10).
+`external-spec` 1. By position: 366 own-line and 10 trailing. **#1454** carries the repair campaign.
+
+**Reproduce the count, never re-derive it by hand.** A hand scan disagrees with every other hand
+scan, which is how #1446 first reported 378 and 471. Use `commentlint`'s own population. Walk the
+tree with `scope.Classify`. Lex each file with `surface.For`. Classify each block with
+`rule.Classify`. Drop `directive` and `generated-header`, then drop `step-narration` and
+`prose-other`. Those four are what `flags()` skips, so a rule firing on them would flag what no
+other rule may. Then measure `Block.StartLine` to `Block.EndLine` against the physical source line.
+
+**The count moves with the working tree, not with `main`.** The 376 above is `ed0a5a5`, where
+`commentlint lint` reads 844 files and zero violations. The same walk over `fix/1131-close-out` read
+378, then 375, inside one session, as other agents' uncommitted work landed. **Name the commit
+beside any figure you report** (§7.5 rule 10).
+
+**Most of the debt is a one-word trim, and the tail is not.** At `ed0a5a5`, 286 of the 376 sit 1 to
+5 columns over. Five sit above 120, and `internal/measure/connectoutcome/tls.go:85` is the worst at
+148.
+
+**Two shapes resist repair by editing the comment at all.** A trailing comment shares its physical
+line with code, so the code sets the floor. `ColumnPicker.d.ts`'s `PickableColumn` holds a whole
+`export interface` on one line, and its field prose is 34 of the 123 columns. Reaching 100 there
+means reformatting the declaration, which is not a comment edit.
+
+**Whether constraint 4 binds `dts-field-prose` at all is unruled.** §4.3 keeps that class because
+the field prose **is** the interface rather than a comment on code. Constraint 1 forbids stating
+behaviour, which is exactly what field prose exists to do. The five `.d.ts` blocks in the count wait
+on that ruling.
 
 **`commentlint` does not enforce constraint 4, so a clean `lint` run is not evidence.** §7.7 names
 the cap and `lint` in one recipe, which reads as though the tool checked it. It does not.
@@ -1230,8 +1255,9 @@ cross-reference.** `docs/spec/ct-source-replacement.md:180` says "(runtime failo
 §7)". The deferral is **§8** (#1212). An agent repairing a citation by lifting the source's pointer
 inherits the source's error, and the result passes every check the agent then runs.
 
-**A wrong citation is worse than a dead one**, because it survives a file-existence check. Fourteen
-instances are measured. An earlier version of this line said nine and the table already held ten.
+**A wrong citation is worse than a dead one**, because it survives a file-existence check.
+Seventeen instances are measured. An earlier version of this line said nine and the table already
+held ten.
 
 | Citation | What the named section states | What the rule needs |
 | --- | --- | --- |
@@ -1249,6 +1275,27 @@ instances are measured. An earlier version of this line said nine and the table 
 | `(ADR-0129 §2)` on `internal/queue/edgefanout.go`, "a negative found nothing at the address" | §2 is "It escapes ADR-0013 §3 because the failure direction is reversed" | Neither limb. Cleared by PR #1420 (#1227) |
 | `ADR-0110` cited for a rule `ADR-0053` states | Not that rule | `ADR-0053` (#1226) |
 | `(ADR-0073)` on `OrgSwitcher.jsx` for org scope | An Annotation carries no author | Nothing. Deleted, not repaired (#1231) |
+| `(ADR-0083, §3.5)` on `internal/vergecore/vergecore.go` | ADR-0083 numbers no headings | `ADR-0083` states it whole. The §3.5 was `v1-spec.md` §3.5 (#1455) |
+| `(ADR-0053, spec §2.4)` in `cmd/worker/main.go` | "spec" names no file | `ct-source-replacement.md` §2.4, "Operator key location — worker-only" (#1455) |
+| `(ADR-0126, #1321 §3)` in `internal/queue/transcript.go` | A `§n` on an issue number | `ADR-0126`, whose scope clause states it and cites #1321 §3 itself (#1455) |
+
+**The last three share one shape, and the check below now catches two of them.** Each pairs a real
+`ADR-nnnn` with a `§n` that belongs to some other document, or to no document. **The comma is the
+shape this defect actually takes.** The separator now accepts an optional comma or semicolon, plus
+at most one space (#1437). `(ADR-0083, §3.5)` lands as `unnumbered-adr`, and `(ADR-0126, #1321 §3)`
+as `section-on-issue-number`.
+
+**`(ADR-0053, spec §2.4)` stays out of scope on purpose.** A word between the ADR and the `§` binds
+the section to that word. The tree writes that form at over twenty sites.
+`docs/guides/notification-channels.md:243` carries `(ADR-0108, ADR-0180 §3)`, where the `§3` is
+ADR-0180's. A rule reaching past the intervening word would misread every one. The defect at
+`cmd/worker/main.go` is the bare `spec`, which route 3 governs.
+
+**`spec §2.4` at `cmd/worker/main.go` does not contradict the `(spec §2.4)` row above.** That row
+names `certspotter_test.go`, where the bare `spec` stood for the Bearer-header rule and resolves to
+nothing. This row names a different site and a different rule, the operator key location, and it
+resolves to `ct-source-replacement.md` §2.4. **Both rows hold.** A bare `spec` names no file, so the
+same token lands on two rules and two verdicts.
 
 **`ADR-0130 §3` is the shape that falls through both repairs.** It names a live section of a live
 document that rules something else, so §8.3 suppresses the gap and this section has nothing to
@@ -1321,6 +1368,60 @@ under §8.10, which copied `ADR-0129 §5` into a new ADR while **#1368** stood o
 citation in code. **A defect ledger this section keeps does not reach the sessions that write ADRs.**
 Read this row as evidence that the citation tests in this section bind every author, not the sweep
 alone.
+
+#### A `§n` citation needs a numbered heading in the target
+
+**A `§n` against an ADR that numbers no heading is wrong by construction.** No reading decides it. The
+section the citation names does not exist, so the citation states nothing.
+
+**91 of the 218 ADRs on disk number no heading.** #1437 measured that on 2026-09-05. Those 91 carry
+their rules as prose under `## Decision`, or as issue-named amendments. `ADR-0029` and `ADR-0114` are
+two of them. Each already carries a wrong `§n` in the tree.
+
+**Cite the form the target actually offers.** Three forms hold, and the ADR on disk picks which one.
+
+| Form | Use it when |
+| --- | --- |
+| `(ADR-nnnn §x.y)` | The ADR numbers that heading. Open the file and read the heading. Memory is not evidence |
+| `(ADR-nnnn #issue)` | The rule sits in an issue-named amendment. §4.4 already rules this form, and `(ADR-0129 #944)` is its worked case |
+| `(ADR-nnnn)` | The ADR states the rule under an unnumbered heading |
+
+**A quoted specimen goes inside a code span.** This SPEC records wrong citations as evidence, and a
+tool cannot separate a defect from its own defect ledger. Backticks make that separation. A citation
+this repo asserts stays bare.
+
+**The mechanical half now has a check.** `docs-site/scripts/check-adr-sections.mjs` indexes every
+numbered heading in `docs/adr/`, then reads every `ADR-nnnn §n` in a tracked text file. It reports
+four rules: `unnumbered-adr`, `section-out-of-range`, `section-on-issue-number` and
+`unresolvable-adr`. `npm run check:adr-sections` runs it from `docs-site/`. It scanned 1471 files
+and found **108 violations** on 2026-09-05: 88 `unnumbered-adr`, 20 `section-out-of-range`, 0
+`section-on-issue-number` and 0 `unresolvable-adr`. **No Go comment is among them.** The 108 sit in
+69 ADR sites, 28 research documents, 4 SPEC sites, 3 wayfinder documents, 2 comments under
+`deploy/prober/`, one SQL migration and one prototype. #1437 leaves the repair to a separate ticket,
+because a repair re-derives a pointer per site.
+
+Measure this figure on the branch that lands `check-adr-sections.mjs` (§7.5 rule 10). Do not measure
+it on `main`. `ed0a5a5` predates the files the check reads, so it cannot reproduce the count.
+
+**`section-on-issue-number` is deliberately narrow.** It matches `ADR-nnnn` plus a separator plus
+`#nnn §n`, and nothing wider. A `#nnn §n` naming a section of an issue body is a live convention at
+172 sites, so a general rule would be 172 false positives.
+
+**The basename allowlist exposed two code-surface defects.** `deploy/prober/Dockerfile:6` carries
+`(ADR-0103, §1.5, #14)` and `deploy/prober/entrypoint.sh:28` carries `(ADR-0053, §3)`. Both are the
+#1455 shape, and neither file carries an extension the earlier check read.
+
+**No workflow runs the check yet.** The 108 open violations would fail it on the first run. The
+repair ticket lands first, and the CI wiring follows it.
+
+**The check refuses its own test file.** `check-adr-sections.test.mjs` holds specimen citations. A
+`.mjs` surface carries no code span to mask them. So the tool read 21 of its own fixtures as live
+violations, and could never reach zero (#1437). One literal path is excluded. Every other `.mjs`
+stays checked, including the checker itself.
+
+**The semantic half stays a reader's job.** The check proves that `§n` exists. It cannot ask whether
+`§n` states the rule the comment claims. #1437 records why: entailment needs a reader who understands
+both texts. So the check narrows the failure and never closes it.
 
 ### 4.8 The `package-doc` cap
 
@@ -1940,17 +2041,25 @@ parser, a shape, or a word list.
 
 | Exit | Meaning |
 | --- | --- |
-| 0 | clean, or any violation in `--github` mode |
-| 1 | a violation, in human mode |
+| 0 | clean |
+| 1 | a violation, in either mode |
 | 2 | a file failed to lex, or a usage error |
 
 **A lex failure is not a violation.** It means the tool cannot judge the file. Folding it into the
 violation count is how a sweep silently skips a file.
 
+**`--github` mode exits the same way.** An earlier build returned 0 on a violation there, which made
+the flag a silent suppressor. #1435 removed that path.
+
 Human mode prints one `file:line -> rule` line per violation. `--github` mode prints one GitHub
 Actions annotation per violation, plus a step summary of counts by rule. **The summary reports the
 lex-failure count on its own line.** The exit code already separates the two, and the summary must
 not re-merge them.
+
+**The summary's first line is fixed text.** It reads *"Comment lint (SPEC docs/spec/comment-policy.md
+§6.7). A violation fails this job."* It names the failure and claims no more than that. `main`'s
+ruleset does not require the `commentlint / lint` check, so a red `lint` job blocks no merge (#1263).
+A summary that called the check required would be false.
 
 **`verify` fails closed.** Any changed in-scope file that does not lex fails the job. Any changed
 `.html` or `.astro` file fails the job, because a sweep PR touching one is a scoping error. The
@@ -1985,11 +2094,20 @@ place. This is a mild departure from `doclint.yml`, which is one file and one jo
   `**/*.sql`, `**/*.mjs`, `**/*.ts`, `**/*.jsx`, `**/*.tmpl`, `**/*.css`, plus the tool and the
   workflow itself.
 - `permissions: contents: read`. Per-ref concurrency with `cancel-in-progress`.
-- **Job one, `lint`.** `continue-on-error: true`. It runs `lint --github --in-scope-only` over the
-  three-dot diff. Advisory under ruling 5.
+- **Job one, `lint`.** **No `continue-on-error`.** It runs `lint --github --in-scope-only` over the
+  three-dot diff. A violation fails the job (#1435).
 - **Job two, `verify`.** Gated on
   `contains(github.event.pull_request.labels.*.name, 'sweep:comments')`. **No `continue-on-error`.**
   It runs `verify --base`.
+
+**`lint` fails, and it blocks no merge. The two words are not the same word.** Ruling 5 made the job
+advisory, and #1435 retired that stance in two moves. It deleted `continue-on-error` from the job,
+and it fixed the `--github` exit path §6.7 records. A violation now turns the `lint` check red.
+
+**A red check is not a blocked merge here.** `main`'s ruleset lists 7 required status checks, and
+`commentlint / lint` is not one of them. GitHub lets a pull request merge over a failing check the
+ruleset does not name. Adding the check to the required set is a repository-settings write, and #1263
+holds that write open. Until #1263 lands, `lint` reports and never gates.
 
 `fetch-depth: 0` is load-bearing for both jobs. A shallow clone has no merge base.
 
@@ -2017,7 +2135,7 @@ A path filter on a `pull_request` event is evaluated against the pull request's 
 an event file list, so it holds on a `labeled` event the same way it holds on a `synchronize` event.
 
 Two costs follow, and both are accepted. Any label, not only `sweep:comments`, re-runs the workflow;
-GitHub offers no label-name filter on the trigger, and a re-run of an advisory `lint` is cheap. And
+GitHub offers no label-name filter on the trigger, and a re-run of `lint` is cheap. And
 the per-ref `cancel-in-progress` group means a near-simultaneous `opened` run and `labeled` run
 cancel one another, so a sweep PR can end with no `verify` row at all. §7.7 reads that case.
 
@@ -2039,8 +2157,8 @@ repository-settings change.
 silent on every other PR. This gives ruling 15 teeth without a settings change, and it is stronger
 than "a human remembered to look".
 
-Promotion to a required check is deferred. §10 parks it with the same decision that promotes
-`commentlint lint` from advisory.
+Promotion to a required check is deferred. §10 parks it beside the same write for `commentlint lint`,
+which fails its job today and gates no merge (§6.9, #1263).
 
 ---
 
@@ -2384,7 +2502,7 @@ enforce §4.4's 100-column cap, so measure every survivor by hand with its inden
 (§4.4).
 
 **Condition 2 names the surface it binds, because it does not bind them all the same way.**
-Measured 2026-09-05 over the 845 in-scope files.
+Measured 2026-09-05 over the 844 in-scope files `commentlint lint` walks at `ed0a5a5`.
 
 | Surface | Condition 2 | Why |
 | --- | --- | --- |
@@ -2825,8 +2943,8 @@ branch that fires every session. A pointer with no discriminating condition is a
 belongs inline. The five existing `docs/agents/` docs each carry a real condition. This one does
 not.
 
-**`commentlint` is not named in `CLAUDE.md`.** The `lint` job is advisory, so its existence changes
-nothing an agent writes. That would be a no-op line paying load every turn. The `verify` job's
+**`commentlint` is not named in `CLAUDE.md`.** The `lint` job gates no merge (§6.9), so its existence
+changes nothing an agent writes. That would be a no-op line paying load every turn. The `verify` job's
 `sweep:comments` gate is real, but it fires only on sweep PRs, which are implementation tickets that
 read this SPEC.
 
@@ -2868,10 +2986,11 @@ stands on the other half of the trade: the cap is a sweep-time repair discipline
 
 ## 10. Not yet specified
 
-- **Promotion of `commentlint` from advisory to required.** Two halves of one decision: whether `lint`
-  becomes blocking, and whether `verify` joins the 7 required status checks. Promoting `verify` would
-  drop the `sweep:comments` label gate (§6.11). Neither half is decidable before the sweep measures a
-  false-positive rate.
+- **Promotion of `commentlint` to a required status check.** #1435 already made `lint` fail on a
+  violation, so the advisory half of this question is closed (§6.9). What remains is the settings
+  write: whether `lint`, `verify`, or both join the 7 required checks. #1263 holds that write. A red
+  `lint` blocks no merge until it lands. Promoting `verify` would drop the `sweep:comments` label
+  gate (§6.11). The sweep's false-positive rate still governs the timing.
 - **Whether tooling generates the keeps ledger.** §4.9 fixes the requirement. Whether `commentlint`
   emits a ledger skeleton, or the sweep agent writes it by hand, is an implementation choice. The
   implement effort decides it.

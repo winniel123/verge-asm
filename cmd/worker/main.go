@@ -69,7 +69,7 @@ func main() {
 
 	// The CT source operator asked that the User-Agent identify this build (passive-discovery §2.2).
 	ctVersion := env.OrDefault("VERGE_VERSION", "dev")
-	// The CT API key is worker-only: the web process never reads it (ADR-0053, spec §2.4).
+	// The CT key is worker-only: the web process never reads it (ct-source-replacement.md §2.4).
 	ctFetcher, ctThrottle, ctSource := selectCTSource(env.OrDefault("VERGE_CERTSPOTTER_TOKEN", ""), ctVersion, db.New(pool))
 
 	// The dispatcher's cadence-lag gate and the reaper must never disagree here (#1114).

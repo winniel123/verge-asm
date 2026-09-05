@@ -1,0 +1,75 @@
+{
+  "comment": "A citation this gate must not flag, one entry per document and path. #1450 classified every class listed here. An entry needs file, path and reason. A file value ending in / covers that family.",
+  "entries": [
+    {
+      "file": "docs/adr/0036-a-shipped-default-is-the-configuration-that-takes-effect.md",
+      "path": "cmd/kubelet/app/options/options.go",
+      "reason": "Kubernetes' tree at v1.34.1, measured for this ADR; the path collides with our cmd/ (#1450)"
+    },
+    {
+      "file": "docs/adr/0045-an-owners-documentation-is-what-it-has-issued.md",
+      "path": "docs/security/security-model.md",
+      "reason": "Apache Kafka's tree at trunk, measured for this ADR; the path collides with our docs/ (#1450)"
+    },
+    {
+      "file": "docs/adr/0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md",
+      "path": "docs/security/security-model.md",
+      "reason": "Apache Kafka's tree at trunk, measured for this ADR; the path collides with our docs/ (#1450)"
+    },
+    {
+      "file": "docs/adr/0056-a-port-constant-in-a-library-is-not-a-shipped-listener.md",
+      "path": "cmd/cloud-controller-manager/main.go",
+      "reason": "Kubernetes' tree at v1.34.0, quoted for this ADR; the path collides with our cmd/ (#1450)"
+    },
+    {
+      "file": "docs/adr/0138-a-release-pins-every-byte-it-builds-so-it-delegates-no-build-step-and-anchors-identity-in-its-own-workflow.md",
+      "path": ".github/workflows/release.yml",
+      "reason": "a forward reference; the release-pipeline map #1246 writes this workflow (#1450)"
+    },
+    {
+      "file": "docs/adr/0156-a-documentation-family-is-a-directory-tree-so-a-nested-doc-is-in-scope-at-any-depth-and-keeps-its-family.md",
+      "path": "docs/research/2026/report.md",
+      "reason": "a deliberately fictional example of a nested research doc (ADR-0156, #1450)"
+    },
+    {
+      "file": "docs/agents/design-system.md",
+      "path": "../media/Icon.jsx",
+      "reason": "an illustrative relative import between design-system components, not a citation"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "path": "docs/research/ct-bulk-primary-2026-08.md",
+      "reason": "a ledger row that records this token as measured-absent and names its replacement (§4.7)"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "path": "docs/research/ct-logs-direct-2026-08.md",
+      "reason": "a ledger row that records this token as measured-absent and names its replacement (§4.7)"
+    },
+    {
+      "file": "docs/spec/comment-policy.md",
+      "path": "docs/adr/gaps.md",
+      "reason": "a refused alternative's hypothetical file, named to reject it (§8.4)"
+    },
+    {
+      "file": "docs/spec/doc-lint-tool.md",
+      "path": "docs/research/2026/report.md",
+      "reason": "a deliberately fictional example of a nested research doc (§1.3, #1450)"
+    },
+    {
+      "file": "docs/spec/release-pipeline.md",
+      "path": ".github/workflows/release.yml",
+      "reason": "a forward reference; this SPEC plans the workflow an implementation session writes (#1246)"
+    },
+    {
+      "file": "docs/spec/release-pipeline.md",
+      "path": ".github/workflows/release-scan.yml",
+      "reason": "a forward reference; this SPEC plans the workflow an implementation session writes (#1246)"
+    },
+    {
+      "file": "docs/spec/release-pipeline.md",
+      "path": "docs/release-notes/v0.1.0.md",
+      "reason": "a forward reference; the first release writes this hand-written body (#1246)"
+    }
+  ]
+}

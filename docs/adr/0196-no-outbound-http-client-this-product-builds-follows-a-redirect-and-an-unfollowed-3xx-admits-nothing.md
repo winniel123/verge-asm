@@ -222,10 +222,10 @@ three, alone and in the present tense, is told something that is true.
 - **Nothing enforces this.** No check fires on an `http.Client` literal without a `CheckRedirect`
   field, so review carries the rule. A `go vet` or `gosec` rule is rejected in the table below.
 - **No `CONTEXT.md` term moves.** Redirect policy is a transport property, not a domain term.
-- **`internal/queue/crtsh.go:51`'s survivor gains a citation.** It is uncited today because the
-  citation it carried was dead. The edit is recorded in `docs/adr/.pending/1315.md`.
+- **`internal/queue/crtsh.go`'s survivor gains a citation.** It was uncited, because the citation it
+  carried was dead. The edit is applied at that site and cites this ADR's §1.
 - **ADR-0140 §6 gains a pointer.** Its "ruled elsewhere" is now true of redirect policy. The edit is
-  recorded in `docs/adr/.pending/1315.md`. It is a cross-reference and not an
+  applied at ADR-0140's own §6. It is a cross-reference and not an
   [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md) withdrawal,
   because §6 specifies no mechanism that stops existing.
 - **The triage record's test claim was wrong and is corrected here.** [#1315](https://github.com/winniel123/verge-asm/issues/1315)

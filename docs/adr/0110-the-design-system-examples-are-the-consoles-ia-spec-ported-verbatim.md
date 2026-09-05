@@ -107,9 +107,19 @@ have no serving surface in-repo and are out of scope.
 - The migration (map #275) ports each canonical screen verbatim rather than reinterpreting it. New
   screens with no backing data (Drift's timeline, Graph, Reports beyond exposure) ship design-system
   empty-states, never fabricated data.
-- Fidelity is checked against `design-system/screenshots/` per screen, not against a re-derived
-  structure. A screen that reads as a re-composition of the example, rather than a translation of it,
+- ~~Fidelity is checked against `design-system/screenshots/` per screen, not against a re-derived
+  structure.~~ A screen that reads as a re-composition of the example, rather than a translation of it,
   is a regression under this ADR.
+
+  > **The struck sentence is WITHDRAWN at the site that specifies it, 2026-08-28 by `55aa367` /
+  > [#1450](https://github.com/winniel123/verge-asm/issues/1450)
+  > ([ADR-0058](0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).** That
+  > commit retired the G1/G2 byte-compare lane. It deleted the verify, goldens and screenshots trees
+  > that lane drove. **No successor artefact carries the per-screen reference shot**.
+  > No path replaces the deleted screenshots tree. A reader now reads fidelity off
+  > `design-system/examples/` and the served `design-system/templates/`, which ADR-0145 makes the
+  > source of truth. Nothing checks fidelity mechanically now.
+  > The regression rule in the surviving sentence stands.
 - The reversal is deliberately narrow. Any *other* divergence between an example and a domain term is
   still resolved in the domain term's favour — the port translates the example's look and structure,
   not a rejected vocabulary, into the interface.

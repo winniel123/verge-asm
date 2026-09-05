@@ -36,7 +36,7 @@ func run(stdin io.Reader, stdout io.Writer) error {
 		// Versioned apart from resolution-walk, one of the two leaves membership composes (ADR-0086).
 		return wildcarddiscrim.Run(spec, stdout)
 	case connectoutcome.Kind:
-		// Paced by the §3.3 safety limiter, which never changes a verdict (ADR-0021).
+		// Paced by the v1 spec §3.3 safety limiter, which never changes a verdict (ADR-0021).
 		return connectoutcome.Run(spec, stdout)
 	case tlsacceptance.Kind:
 		// Its own exchange, distinct from the certificate handshake that rides reachability (ADR-0028).

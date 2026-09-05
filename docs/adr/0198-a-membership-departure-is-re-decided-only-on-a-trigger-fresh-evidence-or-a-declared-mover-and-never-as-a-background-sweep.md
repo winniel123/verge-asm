@@ -212,8 +212,8 @@ sweep, and it is the price of the closure citing a real batch.
 - **Nothing enforces this.** No check fires on a query that reads the open span corpus without a
   trigger. Review carries the rule, and the shape to watch for is a fold whose iteration source is a
   corpus rather than this batch's observations or a mover set.
-- **`internal/queue/membership.go:39`'s survivor gains a citation.** It is uncited today. The edit is
-  recorded in `docs/adr/.pending/1315.md`.
+- **`internal/queue/membership.go`'s survivor gains a citation.** It was uncited. The edit is applied
+  at `foldEstateTransitions`'s own site and cites this ADR's §1.
 - **`CONTEXT.md` gains nothing.** It already states what membership *is*, in the **Narrowing receipt**
   entry and in the disjunctive rule for an `Address`. When a derived value is recomputed is a fold
   property, not a domain term.

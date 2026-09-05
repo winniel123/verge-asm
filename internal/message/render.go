@@ -392,7 +392,7 @@ func artifactReceipt(a Artifact) string {
 		return "not delivered"
 	}
 	line := "delivered " + a.Delivered
-	// The host only: an operator's embedded token rides in the raw URL (docs/guides/reports.md).
+	// The host only: an operator's embedded token rides in the raw URL (ADR-0114 #1456).
 	if a.ChannelHost != "" {
 		line += " · " + a.ChannelHost
 	}
