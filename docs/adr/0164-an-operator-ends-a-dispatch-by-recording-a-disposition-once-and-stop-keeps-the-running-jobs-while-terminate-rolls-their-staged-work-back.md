@@ -108,6 +108,14 @@ the operator's first decision rather than the last one, and it forbids a later w
 later ticket that wants it must widen the guard deliberately and rule the transition, rather than
 drop the guard.
 
+> **The cost is filed as a defect, [#1421](https://github.com/winniel123/verge-asm/issues/1421).**
+> This limb rules the guard, and the guard is right. What #1421 owns is that the **cancel** is not
+> guarded to match it, so one act's two halves disagree: the jobs are cancelled, the disposition
+> records nothing, and the toast still says *"Scan terminated"*. The escalation is reachable from
+> the console, because `ListActiveDispatchProgress` filters on job state alone and never reads
+> `d.status`, so a stopped `Dispatch` with draining jobs keeps its **Terminate** control. Whichever
+> fix lands, this limb is amended with it.
+
 ### 5. Both acts are admin-gated, exactly as the trigger is
 
 Ending a run in flight is the same class of act as firing one. A non-admin `POST` is refused before
