@@ -321,6 +321,14 @@ cheap enough that there is nothing to save, and a path-filtered trigger is a sec
 obligation can be silently disabled. **Every pull request, every leg.** The `go.mod` case is then
 not a special case at all, which is the only way to be sure it is covered.
 
+> **Cross-reference added 2026-09-05 by [#1296](https://github.com/winniel123/verge-asm/issues/1296) /
+> [ADR-0140](./0140-a-network-seam-is-a-runtime-parameter-the-caller-supplies-never-a-build-tag-and-never-a-hardcoded-client.md).
+> Nothing above is withdrawn.** *"Hermetic by construction"* is true and does not name the
+> construction. The construction is a **runtime parameter**: the leaf takes its network adapter from
+> the caller, and the corpus passes a scripted peer. A `//go:build` tag would also read as *"hermetic
+> by construction"* and is refused, because it would make the corpus test a code path the production
+> build does not compile — which is this ADR's own failure mode, one level down.
+
 ## Consequences
 
 - **[`golden-corpus.md`](../spec/golden-corpus.md) is new**, and holds the two things that will be
