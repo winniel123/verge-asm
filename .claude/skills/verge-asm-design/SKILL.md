@@ -47,7 +47,7 @@ Never hardcode a hex value that a token already names. Reach for `var(--…)`.
 
 ## Authoring and editing in `design-system/`
 
-`design-system/` is the shared UI asset home and may be edited in-repo — templates, tokens, and components alike. (The former handoff workflow, where components were authored only in Claude Design and imported wholesale, was retired 2026-08-28; ADR-0109 and ADR-0116 are superseded.)
+`design-system/` is the shared UI asset home and may be edited in-repo — templates, tokens, and components alike. (The former handoff workflow, where components were authored only in Claude Design and imported wholesale, was retired 2026-08-28; ADR-0145 states the standing rule, and ADR-0109 and ADR-0116 are superseded.)
 
 Editing here is now ordinary work, but the whole point of a design system is coherence, so hold the line while you do it:
 

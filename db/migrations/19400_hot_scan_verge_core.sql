@@ -13,7 +13,7 @@ ALTER TABLE observation DROP CONSTRAINT observation_facet_check;
 ALTER TABLE observation ADD CONSTRAINT observation_facet_check
     CHECK (facet IN ('resolution', 'dns-record', 'reachability'));
 
--- verge-core is shipped as an editable list file, and ONLY the frequency half is
+-- verge-core's body is compiled in (ADR-0144), and ONLY the frequency half is
 -- operator-editable — the sensitive half is authored by the release, because
 -- moving one would move a version and `Break` the estate (§3.5). This table holds
 -- the operator's edits to the frequency half as deltas over the shipped default:

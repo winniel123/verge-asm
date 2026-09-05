@@ -4,6 +4,7 @@
 - **Date:** 2026-08-13
 - **Ticket:** [#49 Is the measurement binary a versioned Derivation, and what is its golden corpus?](https://github.com/winniel123/verge-asm/issues/49)
 - **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+- **Extended by (this rule is *kept*, not withdrawn):** [ADR-0142](./0142-a-corpus-input-is-generated-deterministically-and-the-random-draw-is-productions-alone.md) (2026-09-05) carries the authored corpus's determinism to the leaf's **own generated input**, which the hermeticity argument below does not reach
 
 ## Context
 
@@ -55,6 +56,7 @@ carries an unbudgeted prerequisite this project has already failed once.
 | A corpus row | `(job-spec fragment, authored peer script, expected NDJSON)` plus a **one-line claim in prose** |
 | Corpus medium | **Authored** in each protocol's own textual form — never a captured transcript, never a live listener |
 | Where the corpus runs | Hermetically, against an **in-process scripted peer**: no network, no containers, no fixture images |
+| How the scripted peer reaches the leaf | *(Added 2026-09-05 by [#1296](https://github.com/winniel123/verge-asm/issues/1296) / [ADR-0140](./0140-a-network-seam-is-a-runtime-parameter-the-caller-supplies-never-a-build-tag-and-never-a-hardcoded-client.md).)* As a **runtime parameter the caller passes in** — `RunWithConnector`, `RunWithHandshaker`, `RunWithExchanger`, `RunWithPeer`, `RunWithEnumerator` — **never a build tag**. This row states a mechanism this ADR left open, and withdraws nothing |
 | The gate | **Bidirectional.** Output moved and the version did not → fail. Version moved and nothing justifies it → fail |
 | What justifies a bump | A **moved corpus row**, a changed **declared parameter**, or a recorded **uncovered move** naming the input class the corpus cannot reach |
 | Declared parameters | Timeouts, retry counts, control-label counts — and a **third-party wire library, but only where it speaks the protocol on our behalf** |
@@ -210,6 +212,14 @@ is the rest of the mistake:
 The peer is **in-process**, over a pipe or a loopback listener the harness owns. No network, no
 container, no image. Capture is admitted only as **provenance on a row** — *this shape was seen at
 such-and-such* — and never as the row's format.
+
+*(**Qualified at the clause** per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
+since [ADR-0142](./0142-a-corpus-input-is-generated-deterministically-and-the-random-draw-is-productions-alone.md):
+this paragraph rules what the leaf **talks to**, and a hermetic peer is a condition on a deterministic
+render rather than the whole of it. A leaf that generates its own input — `blanketdiscrim`'s control
+ports, `wildcarddiscrim`'s control labels — draws from `crypto/rand` inside the binary under test,
+where no peer rule reaches. ADR-0142 rules that seam: a corpus generator draws nothing random, and the
+corpus supplies a fixed implementation of it.)*
 
 One honesty rider, inherited rather than introduced. Because every wire-format claim in
 `insecure-listener-rules` is spec-verified rather than measured, an authored row encoding one of
@@ -417,6 +427,15 @@ is that the mechanism is sound and its frequency is a guess.
 - **The corpus is a build-time artefact per leaf**, like every other named derivation's, and it
   runs with no network and no containers — which is a hard requirement rather than a preference,
   and the one place this ADR constrains CI.
+  > **Qualified at the clause 2026-09-05 by [#1296](https://github.com/winniel123/verge-asm/issues/1296) /
+  > [ADR-0140](./0140-a-network-seam-is-a-runtime-parameter-the-caller-supplies-never-a-build-tag-and-never-a-hardcoded-client.md)
+  > ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)), because a
+  > session reading this clause for a mechanism reaches the wrong one.** *"Build-time artefact"* names
+  > **when the corpus is exercised** — it is a test that runs in CI on every pull request
+  > ([ADR-0085](./0085-an-obligation-with-no-failing-test-has-no-owner-and-a-boundary-needs-a-row-on-each-side.md)).
+  > It does **not** license a **build-time seam**. The scripted peer reaches the leaf as a **runtime
+  > parameter**, never through a `//go:build` tag, and no adapter in `internal/measure` carries one.
+  > ADR-0140 rules that repo-wide.
 - **Enumerating the leaves opened [#54](https://github.com/winniel123/verge-asm/issues/54), which
   blocks [#12](https://github.com/winniel123/verge-asm/issues/12).** ADR-0011's argument for making
   the TLS candidate set batch scope is not about TLS, and nobody has asked whether the ALPN list,

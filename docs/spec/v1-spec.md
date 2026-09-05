@@ -182,12 +182,21 @@ so it decides membership as affirmatively as `resolution-walk`'s own outcomes
 | Technique | TCP connect (never SYN) — non-root, `cap_drop: [ALL]`, no added capabilities |
 | Host discovery | Skipped (`-Pn`) — targets are seeded, not swept for liveness |
 | Port-scan rate | ≤ 50 conn/s per host, ≤ 20 concurrent, 3 s connect timeout, 2 retries |
-| HTTP | `GET /` only, 64 KB capped body read, 10 s timeout, ≤ 10 req/s per host |
-| Redirects | Not followed by default; a declared parameter of `http-exchange`, not an operator dial |
+| HTTP | `GET /` only, 64 KB capped body read, 10 s timeout, ≤ 10 req/s per host — one exchange per `Endpoint`, and there is no path list. This row is `http-exchange`'s **instance** of [ADR-0148](../adr/0148-a-measurement-leaf-sends-an-authored-fixed-request-and-never-mutates-remote-state-or-follows-a-link.md), not the whole rule |
+| Redirects | **Never** followed — not *not by default*: a declared parameter of `http-exchange`, not an operator dial. The `Location` is recorded and the next hop is never dialled ([ADR-0148](../adr/0148-a-measurement-leaf-sends-an-authored-fixed-request-and-never-mutates-remote-state-or-follows-a-link.md)) |
 | Admin-panel / credential probing | Response-matching only; default-credential login attempts never, not even opt-in |
 | TLS | Certificate fetched every run (rides the `reachability` exchange); version/cipher enumeration weekly, own `Scan` |
 | Per-vantage ceiling | 200 pkt/s across the targets one `Vantage` probes; round-robin by host, never by port (ADR-0137) |
 | Adaptive back-off | Halves the rate on timeout/RST-spike/429/503; never touches the deadline (ADR-0021 keeps it outside `connect-outcome`) |
+
+**The `Host discovery`, `HTTP`, `Redirects` and `Admin-panel` rows above are each an instance of one
+rule, and the rule is stated in
+[ADR-0148](../adr/0148-a-measurement-leaf-sends-an-authored-fixed-request-and-never-mutates-remote-state-or-follows-a-link.md)
+rather than in this table.** A measurement leaf puts an authored, fixed request shape on the wire; it
+never mutates remote state, and it never expands its own target set from what a response contains —
+no link is followed, no path is guessed, and nothing is crawled. A leaf's targets come from the job
+spec, and the job spec comes from custody. That binds every leaf in the binary, not `http-exchange`
+alone, and it binds a leaf that has not shipped as firmly as one that has.
 
 TCP connect is chosen over SYN specifically to avoid `CAP_NET_RAW`/root in the container — SYN
 scanning gates on effective UID, not just the capability bit, and the trade-off (more packets,
@@ -243,11 +252,23 @@ live). Composed, `verge-core` is **136 pairs (131 TCP, 5 UDP)**. Only the TCP pa
 default settings, since UDP is off — so `Coverage`'s aperture statement reads a small, non-zero
 count of sensitive pairs unread on a default install, never zero, and the corresponding
 `sensitive-port-reached-from-internet` rule's evaluability count is untouched by that gap (the
-rule reads a leg on a `Service`. The UDP pairs simply never produce one). `verge-core` is shipped
-as an editable list file, and the frequency half alone is operator-editable — the sensitive half is
+rule reads a leg on a `Service`. The UDP pairs simply never produce one). ~~`verge-core` is shipped
+as an editable list file~~, and the frequency half alone is operator-editable — the sensitive half is
 not, per `CONTEXT.md`'s `Derivation` entry: a declared parameter is authored by the project and ships
 in the release, and none is ever operator-configurable, because moving one would move a version and
 `Break` the estate without a release and without a golden-corpus row moving.
+
+> **`verge-core` is not shipped as a file the operator may edit. Its body is compiled in.** Withdrawn
+> by [ADR-0144](../adr/0144-the-verge-core-body-is-compiled-in-and-an-operator-edit-layers-over-it.md)
+> per [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
+> `internal/vergecore/vergecore.go:47` embeds `verge-core.tsv`, and `mustParse(shipped)` on line 50 is
+> the only body any production path parses.
+>
+> **The rest of the sentence survives unchanged.** The frequency half alone is operator-editable, and
+> the operator moves it by **layering** `verge_core_frequency_edit` deltas over the shipped base
+> (`internal/queue/hot.go:165`, `cmd/web/settings.go:789`) — never by supplying a body. A replaceable
+> body would let the operator author the `half` column, and so move the sensitive half, which is the
+> very thing this sentence goes on to forbid.
 
 **Governance.** A curated table is revised by **the release**, never by a standing operator or
 curator duty. Two instruments watch it: a **gate** of closed, terminating checks (currently

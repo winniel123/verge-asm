@@ -83,7 +83,7 @@ func (r *Retirer) Run(ctx context.Context, interval time.Duration) error {
 
 func (r *Retirer) sweepAndLog(ctx context.Context) {
 	n, err := r.Sweep(ctx)
-	// Retirement is off the measurement path and retried next tick, so a failure only logs.
+	// The next tick retries the sweep, so a failed pass logs and the loop continues (ADR-0141).
 	if err != nil {
 		if r.log != nil {
 			r.log.Printf("retention: dispatch sweep: %v", err)

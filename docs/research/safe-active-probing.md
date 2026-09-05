@@ -242,7 +242,18 @@ are how that selection was made, not a transformation applied to somebody else's
 Rationale: an ASM tool is not trying to characterise the internet, it is trying to notice
 *this estate's* drift. The correct prior is "what does a small org accidentally leave listening,"
 which is a different distribution from "what is open across tens of millions of 2008 internet
-hosts". `verge-core` should be shipped as an editable list file, not compiled in (§8).
+hosts". ~~`verge-core` should be shipped as an editable list file, not compiled in (§8).~~
+
+> **Withdrawn by
+> [ADR-0144](../adr/0144-the-verge-core-body-is-compiled-in-and-an-operator-edit-layers-over-it.md)**,
+> per [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
+> **The body is compiled in.** `internal/vergecore/vergecore.go:47` embeds `verge-core.tsv` and it is
+> the only body a production path parses. The prior above — *this estate's drift, not the internet's
+> distribution* — survives untouched. What changes is how the operator adjusts it: they **layer**
+> `verge_core_frequency_edit` deltas over the shipped base (`internal/queue/hot.go:165`), and the
+> frequency half alone is reachable that way ([ADR-0009](../adr/0009-verge-core-is-a-union.md)). A
+> replaceable file would let the operator author the `half` column and so move the sensitive half,
+> which ADR-0009 reserves to the release.
 
 ### 2.4 Continuous vs periodic — the schedule is the real answer
 
@@ -643,8 +654,18 @@ GET is also the safe choice by HTTP's own definition. §9.2.1 defines a method a
 client does not request, and does not expect, any state change on the origin server as a result of
 applying a safe method to a target resource", and the method registry records GET as Safe = yes
 ([RFC 9110 §9.2.1](https://www.rfc-editor.org/rfc/rfc9110.html#section-9.2.1),
-[§16.1.1 Table 4](https://www.rfc-editor.org/rfc/rfc9110.html#section-16.1.1)). No
-default probe should ever use POST/PUT/DELETE (§9).
+[§16.1.1 Table 4](https://www.rfc-editor.org/rfc/rfc9110.html#section-16.1.1)). ~~No
+default probe should ever use POST/PUT/DELETE (§9).~~
+
+> **`No default probe` is too narrow, and the whole of §4.1 is an instance rather than a rule**, marked
+> here 2026-09-05 by [#1279](https://github.com/winniel123/verge-asm/issues/1279) under [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
+> [ADR-0148](../adr/0148-a-measurement-leaf-sends-an-authored-fixed-request-and-never-mutates-remote-state-or-follows-a-link.md) rules that **every** measurement leaf sends an authored, fixed request shape, mutates
+> nothing, and follows no link — `connect-outcome`, `http-exchange`, `tls-acceptance`, `edge-fanout`,
+> `resolution-walk`, `wildcard-discrimination` and `blanket-discrimination` alike, plus any leaf not yet
+> built. So a mutating method is refused in **any** probe, not merely a default one, and it is refused
+> opt-in as well: the method is a declared parameter of the leaf and no declared parameter is ever
+> operator-configurable ([ADR-0021](../adr/0021-a-version-leaf-is-a-decision-not-a-binary.md)). This
+> section's GET-over-HEAD reasoning stands unchanged and is the ADR's `http-exchange` row.
 
 ### 4.2 Fingerprinting a service
 
@@ -771,9 +792,18 @@ kind in v1, default or opt-in.** Report "a Grafana login panel is reachable from
 is the actionable exposure. Whether the password is `admin` is the operator's to check, once,
 by hand.
 
-The panel path list should stay small (10–20 well-chosen paths, not thousands) and be a shipped,
-editable data file (§8). A path list is the thing most likely to trip a WAF, because directory-ish
+~~The panel path list should stay small (10–20 well-chosen paths, not thousands) and be a shipped,
+editable data file (§8).~~ A path list is the thing most likely to trip a WAF, because directory-ish
 request bursts are the canonical scanner signature.
+
+> **There is no panel path list, and there will not be one**, marked here 2026-09-05 by
+> [#1279](https://github.com/winniel123/verge-asm/issues/1279) under [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md). Exposed-panel
+> detection is [#5](https://github.com/winniel123/verge-asm/issues/5)'s refused fingerprinting and never
+> entered the value space; `http-exchange` makes **one** exchange per `Endpoint`, `GET /`, and §9's
+> *HTTP probe paths* row is struck. [ADR-0148](../adr/0148-a-measurement-leaf-sends-an-authored-fixed-request-and-never-mutates-remote-state-or-follows-a-link.md) now supplies the rule underneath both refusals: a leaf
+> never expands its own target set, so guessing paths is refused on target-set grounds and not only on
+> scope. **The last sentence stands and is the important one**, and it is a second reason. **The
+> detection-yes-authentication-never paragraph above also stands**, and §10 generalises it.
 
 ---
 
@@ -1281,13 +1311,13 @@ operator.
 |---|---|---|
 | **Rate limit (per host)** | 50 pkt/s | The single most likely thing to hurt production. Some operators run fragile embedded/OT/legacy devices — nmap notes crash reports are "usually older legacy devices" ([legal-issues](https://nmap.org/book/legal-issues.html)). Must be settable to near-zero, and **per-target**, not just globally: one fragile appliance should not force the whole estate to crawl. |
 | **Concurrency (per host / global)** | 20 / 200 | Bounded by the scanner's own link, the target's connection-tracking table, and any shared-tenancy limits. Naabu itself says to tune when not on a VPS ([README](https://github.com/projectdiscovery/naabu/blob/main/README.md)). |
-| **Port set (per tier)** | `verge-core` / full range | Estates differ wildly; the shipped list is a prior, not a truth. Must be an editable file, and per-target-group (DMZ web hosts and a management VLAN want different sets). **The top-1000 tier is retired** ([#78](https://github.com/winniel123/verge-asm/issues/78)), and only the **frequency half** of `verge-core` is editable ([ADR-0009](../adr/0009-verge-core-is-a-union.md)). |
+| **Port set (per tier)** | `verge-core` / full range | Estates differ wildly; the shipped list is a prior, not a truth. ~~Must be an editable file~~, and per-target-group (DMZ web hosts and a management VLAN want different sets). **The top-1000 tier is retired** ([#78](https://github.com/winniel123/verge-asm/issues/78)), and only the **frequency half** of `verge-core` is editable ([ADR-0009](../adr/0009-verge-core-is-a-union.md)). **Not a file: withdrawn by [ADR-0144](../adr/0144-the-verge-core-body-is-compiled-in-and-an-operator-edit-layers-over-it.md) per [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).** The body is compiled in (`internal/vergecore/vergecore.go:47`) and the knob is a **layer** of `verge_core_frequency_edit` deltas over it, which is what makes the frequency-half bound hold. |
 | **Full-range sweep** | off | Genuinely risky against stateful middleboxes; genuinely necessary for some estates. Explicit opt-in **per `Seed` scope**, with a rate cap that cannot be disabled, and it never runs unasked — including at onboarding ([ADR-0044](../adr/0044-a-one-off-measurement-has-no-currency.md)). |
 | **UDP scanning** — **AMENDED: it is not a shipped knob in v1** | off | Low yield (49 % even at top-1000, [performance-port-selection](https://nmap.org/book/performance-port-selection.html)), high cost, but essential for operators exposing DNS/SNMP/IPMI. **§2.5's *off by default* stands and the UDP leg is `verge-core`'s UDP pairs (ADR-0009). What [#124](https://github.com/winniel123/verge-asm/issues/124) found is that nobody has asked what the shipped instrument would *return*: `connect-outcome`'s union is `connected │ refused │ no-response`, and a connected UDP socket puts no packet on the wire, so `connected` would be a fact about our own kernel rather than about the world. ~~Until that is answered the knob has nothing honest to turn on.~~ **ANSWERED by [#141](https://github.com/winniel123/verge-asm/issues/141) / [ADR-0083](../adr/0083-silence-decides-only-on-a-connection-oriented-transport.md), and struck here per [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md): an honest instrument IS constructible — `answered │ refused │ unanswered` on a sixth leaf `datagram-outcome`, specified and not shipped. The row still does not ship, and the reason is now a different and better one. `unanswered` projects onto no `Reach`, so it returns `not-evaluable`; a payload-free datagram elicits nothing from almost anything; and therefore opening the knob payload-free moves the five pairs from `not-evaluable` because they are outside the recorded scope to `not-evaluable` because the exchange did not decide, buying zero net new firings. What would make the knob worth opening is a per-pair payload table, which is the wire prober [ADR-0015](../adr/0015-the-value-space-is-the-commitment.md) already deferred. See §13.** Two consequences that do not wait: the five UDP pairs are **outside v1's aperture**, so the aperture statement reads `5 of 38 sensitive pairs unread` rather than `0` (ADR-0044, corrected there), and **membership of `verge-core` is not measurement**.** |
 | **Scan cadence per tier** | daily / monthly | Compliance regimes and change-velocity vary. Must allow *slower*, not just faster. (The weekly tier is retired — [#78](https://github.com/winniel123/verge-asm/issues/78).) |
 | **Quiet hours / maintenance windows** | none set | Scanning during a deploy produces pure-noise drift findings. Must be per-target. |
 | ~~**Follow redirects**~~ **STRUCK — gate 1** | **not followed, and not a knob** | ~~Some estates redirect everything at the edge; without following, every finding is "301". Sub-knob: same-host-only (default on when following is enabled).~~ **`http-exchange` decides `Responded(status, Location, WWW-Authenticate, Server, title)`; following a redirect moves the `status` and the `title`, so this is a declared parameter of that leaf and none is ever operator-configurable ([ADR-0021](../adr/0021-a-version-leaf-is-a-decision-not-a-binary.md), [#124](https://github.com/winniel123/verge-asm/issues/124)). It arrives valued at §4.3's own recommendation — *do not follow* — and §4.3's *"when the operator enables following"* paragraph is struck with it. The `Location` is recorded, which is the half §4.3 correctly called the finding.** |
-| ~~**HTTP probe paths**~~ **STRUCK — stale, and gate 1 besides** | **`GET /`, one exchange per `Endpoint`** | ~~The most likely thing to trip a WAF. Operators must be able to shrink it to `/` only — or extend it for their own products.~~ **There is no path list in v1 to shrink or extend: §4.1 makes one request per `Endpoint` and `http-identity`'s value space holds one exchange's worth of fact. The *small curated list* is §4.4's exposed-panel detection, which is [#5](https://github.com/winniel123/verge-asm/issues/5)'s refused fingerprinting and never entered the model. Were there a list, editing it would move `http-identity` and fail gate 1 anyway ([#124](https://github.com/winniel123/verge-asm/issues/124)).** |
+| ~~**HTTP probe paths**~~ **STRUCK — stale, and gate 1 besides** | **`GET /`, one exchange per `Endpoint`** | ~~The most likely thing to trip a WAF. Operators must be able to shrink it to `/` only — or extend it for their own products.~~ **There is no path list in v1 to shrink or extend: §4.1 makes one request per `Endpoint` and `http-identity`'s value space holds one exchange's worth of fact. The *small curated list* is §4.4's exposed-panel detection, which is [#5](https://github.com/winniel123/verge-asm/issues/5)'s refused fingerprinting and never entered the model. Were there a list, editing it would move `http-identity` and fail gate 1 anyway ([#124](https://github.com/winniel123/verge-asm/issues/124)).** **Amended 2026-09-05 by [#1279](https://github.com/winniel123/verge-asm/issues/1279) under [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md): *there is no list* is an observation and *gate 1* is about dials, so read alone this cell refuses the **knob** and leaves the **list** buildable. [ADR-0148](../adr/0148-a-measurement-leaf-sends-an-authored-fixed-request-and-never-mutates-remote-state-or-follows-a-link.md) refuses the list itself — a measurement leaf never expands its own target set from what a response contains — and that holds whether or not anyone ever proposes a list to edit.** |
 | ~~**Cert expiry thresholds**~~ **STRUCK — gate 1, and it was ruled twice before this sweep** | **⅓ of the certificate's validity period, ½ below a ten-day validity — a declared parameter** | ~~30 / 14 / 7 days~~ ~~90-day ACME with automation wants 7/3/1; manual annual certs want 60/30/14; and the CA/B schedule takes the maximum to 47 days by 2029-03-15. A hardcoded threshold ages badly.~~ **The complaint is right and the remedy was wrong, and both halves are already settled elsewhere. [#60](https://github.com/winniel123/verge-asm/issues/60): `N` is a declared parameter of `certificate-expiring`, *"and that is precisely why it may not be a dial"* — a settings field inside a leaf is the one actor that can `Break` the estate without a release. [#67](https://github.com/winniel123/verge-asm/issues/67) then fixed *ages badly* the legal way, by shipping the **fraction** rather than the product, which is [ADR-0034](../adr/0034-derive-the-claim-before-looking-for-the-owner.md)'s cure. This cell is the ADR-0058 site neither ticket struck; written here by [#124](https://github.com/winniel123/verge-asm/issues/124).** |
 | **TLS version/cipher enumeration cadence** | weekly | It is N handshakes per host (tlsx `-version-enum` / `-cipher-enum`, [README](https://github.com/projectdiscovery/tlsx/blob/main/README.md)). Some operators want it daily; some want it never. |
 | ~~**Vantage / network position**~~ **STRUCK — it is not a setting at all** | **declared by an act** | ~~prompted at setup~~ Determines whether exposure findings are meaningful at all (§8). **But *prompted at setup* is a wizard ([#22](https://github.com/winniel123/verge-asm/issues/22), [#28](https://github.com/winniel123/verge-asm/issues/28)) and *network position* is the enum [#14](https://github.com/winniel123/verge-asm/issues/14) rejected as relative. Intent is declared by **provisioning a prober** (*this vantage is on the internet*) and by **declaring an address scope covering the instance's presented address** (*this one is inside my boundary*) — see §8.2 rec 1 and rec 3 above, and [#124](https://github.com/winniel123/verge-asm/issues/124).** |
@@ -1308,9 +1338,25 @@ operator.
   Unattended, that is repeated authentication against production. Out of scope for v1 entirely.
 - **No vulnerability exploitation or version-specific exploit probes.** Stated project scope: not a
   vulnerability scanner.
-- **No state-changing HTTP methods** in any default probe (POST/PUT/DELETE/PATCH). GET is defined as
-  safe ([RFC 9110 §9.2.1](https://www.rfc-editor.org/rfc/rfc9110.html#section-9.2.1)). Stay inside
-  that.
+- **No state-changing request of any kind, in any probe** — ~~in any default probe~~
+  (POST/PUT/DELETE/PATCH, and DNS `UPDATE`, `AXFR` and `IXFR` on the resolution leaves). GET is
+  defined as safe ([RFC 9110 §9.2.1](https://www.rfc-editor.org/rfc/rfc9110.html#section-9.2.1)).
+  Stay inside that.
+  > **Widened from *default probe* to *every leaf*, and from HTTP to every protocol**, 2026-09-05 by
+  > [#1279](https://github.com/winniel123/verge-asm/issues/1279) under [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).
+  > [ADR-0148](../adr/0148-a-measurement-leaf-sends-an-authored-fixed-request-and-never-mutates-remote-state-or-follows-a-link.md) makes this a property of a measurement leaf rather than of a default: it also binds
+  > `connect-outcome`, `tls-acceptance`, `edge-fanout`, `resolution-walk`, `wildcard-discrimination`
+  > and `blanket-discrimination`, and it binds an unshipped leaf such as `datagram-outcome`
+  > ([ADR-0083](../adr/0083-silence-decides-only-on-a-connection-oriented-transport.md)). Read alone,
+  > *in any default probe* left a mutating opt-in on the table; there is none, and the method is a
+  > declared parameter besides.
+- **No crawling, and no target a response handed us.** A probe never follows a link, never guesses a
+  path, and never adds a target because a response mentioned one. Its targets arrive in the job spec
+  and the job spec comes from custody. The one bounded exception is `resolution-walk`'s delegation
+  walk — a single non-recursive `NS`-then-`SOA` hop whose discovered authorities pass the egress
+  guard ([ADR-0121](../adr/0121-the-operator-declared-recursive-resolver-is-trusted-and-exempt-from-the-discovered-authority-egress-guard.md)) — and it is not precedent for a second one ([ADR-0148](../adr/0148-a-measurement-leaf-sends-an-authored-fixed-request-and-never-mutates-remote-state-or-follows-a-link.md) §3).
+  This bullet generalises the *no brute-force enumeration* bullet below, which stated the same rule
+  for one technique.
 - **No `--privileged`, no `cap_add`, no `network_mode: host`** in the shipped compose file (§3).
 - **No claiming/registering of suspected-dangling resources** (§7.4).
 - **No rate-limit-defeating behaviour.** Nmap's `--defeat-rst-ratelimit` and

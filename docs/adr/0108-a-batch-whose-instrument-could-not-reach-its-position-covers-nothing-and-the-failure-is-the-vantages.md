@@ -105,7 +105,11 @@ Six limbs.
 
 6. **The rule generalises to every backend failure path (#244), each on its own surface.** *A failure
    renders as a failure, never as a clean empty result* is not a resolver rule. It is the aperture
-   ethos applied to runtime failures. It is discharged per path — and, crucially, on the surface the
+   ethos applied to runtime failures. **This limb is bounded to a path that produces a measurement or
+   an empty result. It does not reach a periodic sweep loop, which produces neither. Such a loop logs
+   a failed pass because the next tick retries the same work
+   ([ADR-0141](./0141-a-periodic-sweep-loop-logs-and-continues-because-the-next-tick-retries-and-the-legibility-rule-does-not-reach-it.md)).**
+   Within that bound it is discharged per path — and, crucially, on the surface the
    model already assigns that path, never uniformly on `Coverage`:
    - **Proposer** (done, #251): the lookup carries its `perr` to the operator, so a registry outage
      does not read as *your name matched nothing*.

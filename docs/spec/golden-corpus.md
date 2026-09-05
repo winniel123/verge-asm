@@ -211,7 +211,7 @@ Three notes that will otherwise be re-derived:
 
 | # | Assertion | Scope | Why it sits here |
 | --- | --- | --- | --- |
-| A1 | **Self-identity** — each leg runs the corpus **twice in one process**; output must be byte-identical | Every leg | Go randomises map iteration **per iterator**. An unstable corpus makes every assertion below uninterpretable, and a red `arm64` leg indistinguishable from a flake |
+| A1 | **Self-identity** — each leg runs the corpus **twice in one process**; output must be byte-identical | Every leg | Go randomises map iteration **per iterator**. An unstable corpus makes every assertion below uninterpretable, and a red `arm64` leg indistinguishable from a flake. **Qualified at the clause** per [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md): map iteration is **one** source and not the only one — a corpus input drawn from `crypto/rand` is the other, and [ADR-0142](../adr/0142-a-corpus-input-is-generated-deterministically-and-the-random-draw-is-productions-alone.md) rules that a corpus generator draws none |
 | A2 | **Expectation** — each leg's output equals the **one shared** expected-output artefact | Every leg | ADR-0021's gate, first direction: *output moved and the version did not → fail* |
 | A3 | **Cross-architecture identity** — legs 1 and 2 agree | Legs 1, 2 | A2 gives it by transitivity; it is asserted separately so the failure reads *architecture divergence* rather than *row 47 moved* |
 | A4 | **Contraction differential** — leg 3 equals leg 1 | Leg 3 | The only check in the repository that a declared parameter's fraction was actually evaluated in exact integer arithmetic. A difference names the fraction that escaped |

@@ -654,6 +654,15 @@ leave at all, and stays visibly unconfirmed until the operator supplies coverage
 excludes it. It cannot leave beneath a `Lame` delegation either, where there is nobody left to
 return a Name Error and the names beneath hold a `Gap` rather than a value. See
 [ADR-0006](./docs/adr/0006-subjects-leave-by-measurement.md).
+A covering `Seed` does not change that. It **admits** the `Name` — a declared name is a subject
+before anything resolves, exactly as a declared address is — and it **holds** the name only through
+the outcomes just named, the ones measurement cannot decide. It is not a precedence ordering over
+measurement, which is precisely what `authority` is **not**
+([ADR-0007](./docs/adr/0007-drift-is-a-timeline-of-spans.md)). So a Seed-covered `Name` reading a
+decided Name Error on a cross-class `Vantage composition` leaves like any other, and the disjunctive
+rule stays `Address`'s alone, because an `Address` has no lifecycle of its own and a `Name` has one.
+See
+[ADR-0146](./docs/adr/0146-a-seed-admits-a-name-and-holds-it-only-where-measurement-cannot-decide.md).
 That is how it leaves by **measurement**. It also leaves when our own aperture stops covering
 it — an exclusion over the `Name` or an ancestor, or the `Seed` that declared it being
 **withdrawn** — unless a limb still holds it: a live `Seed` covering it, or a surviving `Seed`'s
@@ -1879,7 +1888,9 @@ It flattens `Name` and `Address` into one thing, and they have different keys an
 different lifecycles. A name repointing to a new address is one subject changing plus one
 subject appearing. Under a single `Asset` it becomes either a silent mutation or a false
 removal. Acceptable as a collective noun in the interface ("847 assets"), never as a
-modelled thing.
+modelled thing. Where the interface counts them, the noun has one fixed referent — the
+distinct `Name` and `Service` subjects holding an open span, and no denominator
+([ADR-0147](./docs/adr/0147-assets-watched-is-the-distinct-subject-count-over-the-open-span-corpus.md)).
 
 **Host** —
 Reads as `Name` to one person and `Address` to the next, which is precisely the

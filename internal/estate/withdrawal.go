@@ -33,6 +33,26 @@ func WithdrawnCrossClass(classes []ClassWitness) bool {
 	return true
 }
 
+func undecided(outcome string) bool {
+	// These three are where no Name Error can ever arrive, so measurement never concludes (ADR-0006).
+	return outcome == OutcomeShadowed || outcome == OutcomeGap || outcome == OutcomeLame
+}
+
+func DecidedAbsentCrossClass(classes []ClassWitness) bool {
+	// A Seed admits a Name and holds it only where measurement cannot decide (ADR-0146 §2).
+	if !WithdrawnCrossClass(classes) {
+		return false
+	}
+	for _, c := range classes {
+		for _, o := range c.Outcomes {
+			if undecided(o) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 func witnessesByClass(outcomes []classedOutcome) []ClassWitness {
 	// An empty class label is the one default class of a single-class install (ADR-0080).
 	byClass := map[string][]string{}
