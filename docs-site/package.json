@@ -24,10 +24,10 @@
     "screenshot:update": "node scripts/screenshot-check.mjs --update"
   },
   "dependencies": {
-    "@astrojs/react": "^6.0.4",
-    "astro": "^7.2.4",
+    "@astrojs/react": "^6.0.5",
+    "astro": "^7.2.10",
     "github-slugger": "^2.0.0",
-    "lucide-react": "^1.33.0",
+    "lucide-react": "^1.39.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-markdown": "^10.1.0",
