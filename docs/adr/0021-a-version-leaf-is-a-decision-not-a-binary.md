@@ -4,6 +4,7 @@
 - **Date:** 2026-08-13
 - **Ticket:** [#49 Is the measurement binary a versioned Derivation, and what is its golden corpus?](https://github.com/winniel123/verge-asm/issues/49)
 - **Map:** [#1 Map: verge-asm v1 spec](https://github.com/winniel123/verge-asm/issues/1)
+- **Extended by (this rule is *kept*, not withdrawn):** [ADR-0142](./0142-a-corpus-input-is-generated-deterministically-and-the-random-draw-is-productions-alone.md) (2026-09-05) carries the authored corpus's determinism to the leaf's **own generated input**, which the hermeticity argument below does not reach
 
 ## Context
 
@@ -210,6 +211,14 @@ is the rest of the mistake:
 The peer is **in-process**, over a pipe or a loopback listener the harness owns. No network, no
 container, no image. Capture is admitted only as **provenance on a row** — *this shape was seen at
 such-and-such* — and never as the row's format.
+
+*(**Qualified at the clause** per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)
+since [ADR-0142](./0142-a-corpus-input-is-generated-deterministically-and-the-random-draw-is-productions-alone.md):
+this paragraph rules what the leaf **talks to**, and a hermetic peer is a condition on a deterministic
+render rather than the whole of it. A leaf that generates its own input — `blanketdiscrim`'s control
+ports, `wildcarddiscrim`'s control labels — draws from `crypto/rand` inside the binary under test,
+where no peer rule reaches. ADR-0142 rules that seam: a corpus generator draws nothing random, and the
+corpus supplies a fixed implementation of it.)*
 
 One honesty rider, inherited rather than introduced. Because every wire-format claim in
 `insecure-listener-rules` is spec-verified rather than measured, an authored row encoding one of
