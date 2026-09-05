@@ -90,6 +90,14 @@ internally-observed defects `not-evaluable` — reporting less than we measured,
 a severity the model refuses to carry." A domain is the cheapest possible place to rebuild all
 three refusals at once: narrow the population and the rule goes quiet with nothing recorded.
 
+> **The quoted premise *"a severity the model refuses to carry"* is WITHDRAWN as a present-tense
+> reading, 2026-08-24 by [ADR-0116](./0116-the-design-package-is-normative-for-look-and-functionality.md)
+> / [#1410](https://github.com/winniel123/verge-asm/issues/1410)
+> ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).** A
+> signal now carries a five-level severity assigned per rule. The quote stands as an accurate record
+> of ADR-0010's reasoning at the time, and the argument it supports is unaffected: the domain rule
+> rests on refusing model-layer damping, not on the model lacking a severity.
+
 The constraint is already in the model and needed only to be pointed at this. ADR-0010 and
 ADR-0015 fixed that **a signal is named for the fact it reads**. So:
 

@@ -163,8 +163,15 @@ is never read as a heading.
 
 - **Renderer:** `react-markdown` + `remark-gfm`, not Astro's built-in `.md` render,
   because `.md` (unlike `.mdx`) can't remap `<pre>`/`blockquote` to React DS
-  components. This keeps ADR-0109 satisfied (DS components imported via `@ds`, never
-  re-authored) and gives one clean `components` map that is stage 2's whole surface.
+  components. ~~This keeps ADR-0109 satisfied (DS components imported via `@ds`, never
+  re-authored)~~ and gives one clean `components` map that is stage 2's whole surface.
+
+  > **The struck clause is WITHDRAWN at the site that specifies it, 2026-08-28 by `55aa367` /
+  > [#1410](https://github.com/winniel123/verge-asm/issues/1410)
+  > ([ADR-0058](../docs/adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).**
+  > ADR-0109 is superseded and `design-system/` may be edited in the repo. The renderer choice
+  > stands on its remaining ground: `.md` cannot remap `<pre>` and `blockquote` to React
+  > components, and one `components` map is the smaller surface.
 - **Slugger:** `github-slugger`, shared by the renderer and `extractToc`, so T2's
   link rewriter has one documented, deterministic anchor algorithm to match.
 - **No new ADR** was authored (avoids parallel ADR-number collisions in this wave).
