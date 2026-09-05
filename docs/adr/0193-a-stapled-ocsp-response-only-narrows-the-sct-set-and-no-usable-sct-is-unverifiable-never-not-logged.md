@@ -1,0 +1,226 @@
+# ADR-0193: a malformed or SCT-free OCSP staple only narrows the SCTs available, and a verification with no usable SCT is unverifiable, never not-logged
+
+- **Status:** Accepted
+- **Date:** 2026-09-05
+- **Ticket:** [#1308 ADR gaps: internal/scan (CT and zone Scans)](https://github.com/winniel123/verge-asm/issues/1308), gap 6
+- **PR that deleted the comment:** [#1307](https://github.com/winniel123/verge-asm/pull/1307)
+- **Not a sub-issue of any map:** [`comment-policy.md`](../spec/comment-policy.md) §8.8
+- **Amends:** [`ct-source-replacement.md`](../spec/ct-source-replacement.md) §5.4, whose result clause names two outcomes — *"logged / NOT logged in CT"* — where the shipped code holds three. The clause is amended at its own site under [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md). §5.4's trigger clause and its *"NOT logged is the notable signal"* reading are untouched and confirmed
+- **Rests on:** [ADR-0027](./0027-a-source-may-admit-without-observing.md), which rules CT a `corroborative` source that admits without observing. A corroborative source's silence is not an absence, and that is the ground for §2
+- **Rests on:** [ADR-0106](./0106-the-ct-poll-is-a-scan-that-schedules-and-a-ct-admission-is-a-name-citing-its-batch.md), whose Decision table rules a failed CT fetch *"no admission, and never an absence"*. This ADR is that move on the verification path, where the absence would be about a specific certificate rather than about a name
+- **Bounded by:** [ADR-0020](./0020-a-conflict-needs-two-enumerable-sources.md), which rules that only an enumerable source's silence can contradict. It is why *the SCT set we could read is empty* cannot be read as *the certificate is not in CT*
+
+## Context
+
+`internal/scan/ctverify.go:155` carried this, until #1307 shortened it:
+
+```go
+// It is best-effort: an OCSP response that does not parse, or carries no
+// SCT extension, yields no SCTs and no error, so a malformed staple never fails a verification
+// — it just narrows the SCTs available.
+```
+
+The clause survives beside the one statement it is about, at `internal/scan/ctverify.go:121`:
+
+```go
+resp, err := ocsp.ParseResponse(ocspResponse, nil)
+if err != nil {
+	return nil, nil // a malformed staple narrows the SCTs, never fails the verification
+}
+```
+
+### Three SCT sources feed one slice, and none of them can fail the verification
+
+`internal/queue/ctverify.go:99` to `:111`:
+
+```go
+if embedded, err := scan.EmbeddedSCTs(leafDER); err == nil { … }
+for _, e := range capture.TLSExt { … }
+if ocsp, err := scan.OCSPSCTs(capture.OCSP); err == nil { … }
+```
+
+The three arrive by different routes and reach the same `scts` slice. §5.3 of the spec captures all
+three at handshake: *"the SCTs (embedded in the cert, via the TLS extension, and via the OCSP
+staple)."*
+
+**`OCSPSCTs` cannot fail. Every one of its six return statements carries a nil error.** An empty
+staple, an unparseable response, an extension whose OCTET STRING will not unwrap, and an SCT list
+that will not parse all return `(nil, nil)`. A response with no SCT extension falls out of the loop
+to the same value. **The `error` in its signature is never non-nil.**
+
+`EmbeddedSCTs` is the counter-case and reaches the same behaviour by a different mechanism. It
+**does** return errors — `scan: embedded sct octet string` at `internal/scan/ctverify.go:108`. The
+call site's `err == nil` guard drops the whole set when it fires. So an unparseable embedded SCT list
+also narrows rather than fails, and the property is the caller's rather than the extractor's.
+
+### The outcome union is three-valued, and the SPEC names two
+
+`internal/queue/ctverify.go:29`:
+
+```go
+const (
+	VerifyUnverifiable VerifyOutcome = iota
+	VerifyLogged
+	VerifyNotLogged
+)
+```
+
+**`VerifyUnverifiable` is the zero value.** Seven returns build a `VerifyResult`, and five of them
+are `VerifyUnverifiable`:
+
+| Reason | Line | Outcome |
+| --- | --- | --- |
+| `certificate not captured` | `:56` | unverifiable |
+| `no SCTs presented` | `:113` | unverifiable |
+| `logged in CT` | `:150` | **logged** |
+| `CT log unreachable` | `:161` | unverifiable |
+| `not logged in CT` | `:163` | **not-logged** |
+| `no usable SCT` | `:165` | unverifiable |
+| `no CT log matched` | `:167` | unverifiable |
+
+[`ct-source-replacement.md`](../spec/ct-source-replacement.md) §5.4 names two:
+
+> The result is an **ephemeral event**: "logged / NOT logged in CT." **NOT logged** is the notable
+> signal — an internal CA, or evasion.
+
+That two-valued vocabulary is exactly the collapse this rule refuses, written in the operative voice.
+Nothing in the corpus states the three-valued rule.
+
+### What a false not-logged would cost
+
+§5.4 names `NOT logged` *"the notable signal — an internal CA, or evasion."* It is the finding the
+operator is meant to act on. **A malformed staple turning into a `not-logged` is an accusation about
+the operator's own certificate, generated by our failure to read a byte string the certificate does
+not control.**
+
+## Decision
+
+> **SCT extraction from a stapled OCSP response is best-effort. A response that does not parse, or
+> that carries no SCT extension, yields no SCTs and no error, so a malformed staple only narrows the
+> SCTs available and never fails a verification. A verification that finds no usable SCT is
+> `unverifiable`. It is never `not-logged`. `not-logged` is warranted only where a log the
+> certificate's own SCT names answered the inclusion query and did not hold it.**
+
+### 1. Extraction is best-effort, and the property belongs to the whole path
+
+A staple is an opportunistic input. It is fetched by the responder, cached by the server, and
+attached to a handshake by software neither we nor the certificate's subject controls. **Nothing
+about a staple we cannot read is a fact about the certificate.**
+
+So `OCSPSCTs` returns `(nil, nil)` on every failure, and the caller's `err == nil` guard gives
+`EmbeddedSCTs` the same behaviour. The rule is the path's, not one function's: **no SCT-extraction
+failure, from any of the three sources, ever fails a verification.** It removes candidates from
+`scts` and the verification proceeds on whatever is left.
+
+### 2. No usable SCT is `unverifiable`, never `not-logged`
+
+`internal/queue/ctverify.go:113` and `:165` are the two arms this limb names, and they are two
+different emptinesses that reach the same verdict:
+
+- **`no SCTs presented`** — all three extractors yielded nothing. We hold no claim to check.
+- **`no usable SCT`** — SCTs were present, and every one of them fell out before an inclusion query
+  ran: it would not parse, or its `log_id` matched no log in the pinned list, or it was a precert SCT
+  with no issuer SPKI captured, or its precert TBS could not be rebuilt.
+
+**Both mean the same thing: the check did not happen.** A check that did not happen produces no
+evidence, and evidence about a certificate is the only thing `not-logged` may rest on. Under
+ADR-0020 only an **enumerable** source's silence can contradict, and our SCT set is not an
+enumeration of anything — it is what we managed to read off one handshake.
+
+This is [ADR-0106](./0106-the-ct-poll-is-a-scan-that-schedules-and-a-ct-admission-is-a-name-citing-its-batch.md)'s
+*"a non-200 / failed fetch: no admission, and never an absence"* one path over. The bulk Scan refuses
+to convert a failed read into a missing name. Verification refuses to convert a failed read into a
+missing certificate.
+
+### 3. `not-logged` has exactly one warrant
+
+`internal/queue/ctverify.go:163` is reachable only through `notFound`, which is set only by
+`checkOneLog` returning `checkNotFound`. That requires all of:
+
+1. An SCT parsed.
+2. `FindLogByLogID` matched it against the pinned log list.
+3. The leaf hash was computable — for a precert SCT, that means the issuer SPKI was captured and the
+   precert TBS rebuilt.
+4. **The log answered**, and its answer did not contain the certificate.
+
+**`errored` outranks `notFound` in the final switch.** If any log in the same verification was
+unreachable, the result is `CT log unreachable` and `unverifiable`, even where another log answered
+`not found`. `internal/queue/ctverify.go:160` states why beside the arm: *"An unreachable log may
+hold the leaf, so this is never a not-logged verdict."*
+
+**That ordering is the rule, not an implementation detail.** It says a single unanswered question is
+enough to withhold the accusation.
+
+### 4. `unverifiable` is silent at the operator surface, and that is the conservative discharge
+
+`emitVerifyEvent` (`internal/queue/ctverify.go:261`) emits a plain line for `logged`, a `warn` line
+for `not-logged`, and **returns without emitting** for everything else.
+
+So the operator sees nothing for an unverifiable result. **That is correct under this rule and it is
+not the same as being adequate.** The rule requires that unverifiable never render as negative
+evidence, and silence discharges that. It does not tell the operator that a check was attempted and
+could not complete.
+
+**This ADR does not rule what an unverifiable result should look like.** Making it legible is a
+design question with its own cost — a verification runs per new `certificate` observation, so a noisy
+unverifiable line would fire on every endpoint whose server staples nothing. §Consequences names it
+as a ticket rather than deciding it here.
+
+### 5. What this rule does not reach
+
+- **Whether an SCT is cryptographically valid.** Nothing in the tree verifies an SCT signature, and
+  this ADR neither requires nor forbids that.
+- **The inclusion proof itself.** `checkRFC` and `checkTiled` decide `checkIncluded`, `checkNotFound`
+  and `checkErrored`, and their internals are §5.1's mechanism.
+- **The pinned log list.** [ADR-0190](./0190-the-ct-log-list-is-a-build-time-artefact-pinned-in-the-image-refreshed-only-by-a-release-and-carrying-no-log-public-keys.md)
+  rules it. Its staleness reaches this path as `no CT log matched` — an `unverifiable`, by this rule,
+  which is why a stale snapshot is safe here.
+- **Capture at handshake.** §5.3 rules what is stored, and this ADR rules what is done with it.
+- **CONTEXT.md's `Shadowed` vocabulary.** Its `_Avoid_` list bars *unverifiable* as a name for a
+  `Shadowed` resolution. That is a different subject — a DNS answer under a wildcard — and this
+  outcome is a CT verification result on a certificate. The two do not collide.
+
+## Consequences
+
+- **This ADR changes no Go code.** `OCSPSCTs`, `EmbeddedSCTs` and `verifyMaterial` are correct as
+  they stand.
+- **[`ct-source-replacement.md`](../spec/ct-source-replacement.md) §5.4's result clause gains an
+  amendment** at its own sentence, under ADR-0058, widening the two-valued vocabulary to three. The
+  *"NOT logged is the notable signal"* reading survives untouched — this ADR is what protects it.
+  Recorded in this issue's manifest.
+- **`internal/scan/ctverify.go:121` gains this ADR's citation** on the surviving line that states the
+  rule. Recorded in this issue's manifest.
+- **`OCSPSCTs`'s `error` return is vestigial and misleads a caller.** Every return carries a nil
+  error, so `if ocsp, err := scan.OCSPSCTs(…); err == nil` is a branch that never takes its other
+  arm. A reader reasonably concludes some staple failure does propagate. **It ships as its own
+  ticket:** either drop the return to `[][]byte`, or keep the two-value shape for symmetry with
+  `EmbeddedSCTs` and say so at the declaration. This ADR does not decide which, because the symmetry
+  argument is real.
+- **§5.4's on-demand re-check is unbuilt, and this ruling exposes it.** `VerifyByFingerprint`
+  (`internal/queue/ctverify.go:49`) has **no caller anywhere in the tree** outside its own file. §5.4
+  specifies *"an **on-demand** re-check"* beside the auto-verify. Only auto-verify is wired, so
+  `emitVerifyEvent`'s silence is the operator's entire verification surface. **It ships as its own
+  ticket.**
+- **An unverifiable result is invisible, and making it legible is a separate ticket.** The
+  distinction this ADR protects — *we could not check* against *it is not there* — exists in the
+  code and reaches no operator today. The ticket must weigh the noise: a verification fires per new
+  `certificate` observation, and an endpoint that staples nothing produces `no SCTs presented` every
+  time.
+- **`CONTEXT.md` gains nothing.** §5.1 rules that verification mints no subject and stores no durable
+  result, so the outcome carries no timeline and is not a domain term.
+- **The pinned log list's staleness lands here safely.** ADR-0190's snapshot ages, and an SCT naming
+  a log minted after it misses `FindLogByLogID`. By §2 that is `unverifiable`, never `not-logged`.
+  The two rules hold each other up.
+
+## Alternatives rejected
+
+| Alternative | Why not |
+| --- | --- |
+| **Fail the verification on a malformed staple** | The staple is attached by the server's software and refreshed by a responder. Neither is under the certificate subject's control, and a parse failure in it says nothing about whether the certificate is in CT. It would also make a verification's outcome depend on an input the other two SCT sources do not need |
+| **Report `not-logged` where no usable SCT was found** | It converts *we could not check* into an accusation §5.4 calls the notable signal — an internal CA, or evasion. Under ADR-0020 only an enumerable source's silence can contradict, and a handshake's SCT set enumerates nothing |
+| **Collapse `unverifiable` into `logged`, so only a positive not-logged is reported** | It would say a certificate is logged when no inclusion query ever ran, which is a false positive claim rather than a cautious one. The three-valued union exists because both errors are available and both are wrong |
+| **Report `not-logged` where one log answered *not found* and another was unreachable** | The unreachable log may hold the leaf. `internal/queue/ctverify.go:160` already refuses this and §3 makes the ordering a rule: one unanswered question withholds the accusation |
+| **Have `OCSPSCTs` return an error and let the caller ignore it** | It moves the decision to every future caller. `EmbeddedSCTs` already shows the cost: its behaviour on this path is correct only because one call site remembered the `err == nil` guard. Keeping the narrowing inside the OCSP extractor makes the property structural for that source |
+| **Emit an operator event on `unverifiable`** | A verification fires per new `certificate` observation, and an endpoint whose server staples nothing yields `no SCTs presented` every run. Shipping that as an event today would bury the `not-logged` warn line the operator is meant to act on. It is a ticket with a design, not a clause here |
+| **State it in [`ct-source-replacement.md`](../spec/ct-source-replacement.md) §5.4 alone** | §5.4 is the site that is short by one value, and correcting it records the vocabulary without the reason. ADR-0058's Rationale puts the reasoning at the superseding site. Both edits happen; only one is a decision |
+| **Fold it into a general *a failed read is never an absence* ADR** | ADR-0106 and ADR-0027 already rule that for the admitting path, and the verification path is different in the way that matters: it produces a **verdict about one certificate**, not an admission. The three-valued union, the `errored`-outranks-`notFound` ordering and the staple's best-effort extraction have no counterpart on the admitting side |

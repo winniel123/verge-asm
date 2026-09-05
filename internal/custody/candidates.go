@@ -26,6 +26,7 @@ func (e Estate) ExtensionCandidates() []netip.Addr {
 		}
 		// A rejected address is not recorded: a later resolution may hold it on an in-zone owner.
 		admitted[addr] = struct{}{}
+		// The append order is the order the job chunking reads, so one tick matches the next (ADR-0188 §3).
 		out = append(out, addr)
 	}
 	return out
@@ -49,7 +50,7 @@ func (e Estate) EdgeFanoutPopulation() iter.Seq[netip.Addr] {
 		for _, p := range e.AddressScopes {
 			for a := range seed.EnumerateAddresses(p) {
 				a = a.Unmap()
-				// Overlapping declared scopes are handshaked twice, the accepted cost of not holding a scope.
+				// Overlapping declared scopes are handshaked twice, the accepted cost of not holding a scope (ADR-0216 §2).
 				if _, dup := seen[a]; dup {
 					continue
 				}

@@ -58,10 +58,28 @@ Three clarifications, so the boundary is not re-drawn each time:
    they say*, `RenderArtifactPDF` builds both the drawn document and the text the valence guard
    reads from one ordered content sequence (`artifactPDFItems`).
 
-2. **The print form keeps the domain guarantees.** No valence word grades the copy, and no severity
+2. **The print form keeps the domain guarantees.** No valence word grades the copy. ~~and no severity
    ramp appears — tone selects a colour only, never text (the drift palette and the delta tone), the
-   same rule `RenderArtifact` obeys and its test asserts. An `Artifact` with no delivered content
+   same rule `RenderArtifact` obeys and its test asserts.~~ An `Artifact` with no delivered content
    renders the design-system empty-state, never a fabricated document ([ADR-0110]).
+
+   > **The struck clause is WITHDRAWN at the site that specifies it, 2026-09-05 by
+   > [ADR-0183](./0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md)
+   > / [#1300](https://github.com/winniel123/verge-asm/issues/1300)
+   > ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).**
+   > **The replacement:** the print render draws the severity ramp, and it draws each level as its own
+   > name — `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, `INFO` — as text, in that level's colour
+   > (`RenderArtifactPDF`'s `roleSeverityBar` and `roleSignal`, `internal/message/pdf.go`). That label is
+   > the one graded word the product draws, and ADR-0183 exempts it from the no-valence vocabulary of
+   > [ADR-0064](./0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md). For every other
+   > element — the delta tone and the drift palette — tone still selects a colour only and never text,
+   > and no valence word grades the copy. The rest of this limb stands: the screen form obeys the same
+   > rule, and an empty `Artifact` renders the design-system empty state.
+   > **The clause was false when written.** The PDF render has drawn the level as text since
+   > [#345](https://github.com/winniel123/verge-asm/issues/345) wired it. The sentence *"its test
+   > asserts"* is also unsupported: `internal/message/render_test.go` never calls `ContainsValence`, so
+   > no test applies the valence guard to the HTML render. ADR-0183's Consequences names both as
+   > defects that ship as their own tickets.
 
 3. **The PDF is the delivered report, not the operational export.** `/reports/delivery/pdf` renders
    the delivered-report document. `/reports/export?format=csv|json` renders the operational

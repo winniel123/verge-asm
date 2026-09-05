@@ -73,7 +73,7 @@ func normAddr(s string) string {
 }
 
 func (a authorizedScope) admits(o wire.Observation) bool {
-	// Gating an undenoted dimension would drop every legitimate line, so an absent set gates nothing.
+	// Gating an undenoted dimension would drop every legitimate line, so an absent set gates nothing (ADR-0217 §1).
 	switch o.Facet {
 	case resolutionwalk.FacetResolution, resolutionwalk.FacetDNSRecord:
 		if a.names == nil {
@@ -93,7 +93,7 @@ func (a authorizedScope) admits(o wire.Observation) bool {
 		if o.Kind != edgefanout.Kind {
 			return true
 		}
-		// This arm alone fails closed: an edge-fanout job's scope always denotes addresses (ADR-0129 §6).
+		// This arm alone fails closed: an edge-fanout job's scope always denotes addresses (ADR-0217 §3).
 		if a.addrs == nil {
 			return false
 		}
@@ -114,7 +114,7 @@ func subjectAddrKey(subject string) string {
 }
 
 func (a authorizedScope) gate(obs []wire.Observation, logger *log.Logger, jobID int64) []wire.Observation {
-	// Failing the job on a drop would hand a compromised prober a denial of service (ADR-0001).
+	// Failing the job on a drop would hand a compromised prober a denial of service (ADR-0217 §4).
 	if a.addrs == nil && a.names == nil {
 		return obs
 	}

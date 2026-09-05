@@ -114,6 +114,10 @@ ruling.
 - **The declaration side disagrees with itself.** `coveringSeedKey` takes the newest covering `Seed`
   and `FindCoveringAddressSeed` takes the most specific one. Both answer *which declared scope holds
   this subject*, and they can answer differently. This ADR rules the narrowing side alone.
+  [ADR-0192](./0192-a-tail-admission-resolves-its-name-scope-seed-per-name-and-a-san-under-no-declared-scope-is-discarded.md)
+  §3 adds a **fifth** site — `scan.coveringSeed` (`internal/scan/cttail.go:459`), the `ct-tail`
+  admission's per-name Seed lookup, which takes the **most specific** covering `Seed`. It rules the
+  tail's own choice and states in terms that it does **not** close this disagreement.
 - **An overlapping pair of withdrawals states one receipt.** Withdraw `10.0.0.0/8`, then withdraw
   `10.0.0.0/24`, and every span under the second is attributed to the first. The second tombstone
   still spends once its ground is exhausted, and it writes no message of its own. That cost is

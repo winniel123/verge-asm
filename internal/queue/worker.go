@@ -118,7 +118,7 @@ type Worker struct {
 
 	router VantageRouter
 
-	// The enqueuer is injected because internal/delivery imports this package.
+	// The enqueuer is injected because internal/delivery imports this package (ADR-0199 §1, #1316).
 
 	produceMsgs bool
 	devMode     bool
@@ -176,7 +176,7 @@ func (w *Worker) departureCollector(deps *[]departure) *[]departure {
 }
 
 func (w *Worker) narrowingCollector(narrowings *[]message.NarrowingReceipt) *[]message.NarrowingReceipt {
-	// A withdrawal is a fact about the estate, so the fold closes its timelines with a nil collector.
+	// A withdrawal is a fact about the estate, so the fold closes its timelines with a nil collector (ADR-0219 §1).
 	if !w.produceMsgs {
 		return nil
 	}
@@ -455,7 +455,7 @@ func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, res wire.Prob
 	}); err != nil {
 		return err
 	}
-	// A CT verification does network I/O, which must never ride a database transaction (spec §5.4).
+	// A CT verification does network I/O, which must never ride a database transaction (ADR-0215 §1).
 	w.autoVerifyCerts(ctx, job, obs)
 	return nil
 }

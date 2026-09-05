@@ -460,7 +460,14 @@ _Avoid_: rate limit, throttle, pacer
 
 **Annotation**:
 An operator's declaration, about one `(subject, signal-name)` pair, that a fired rule is an
-**accepted risk on a thing we are still measuring**. Its whole effect is on the **message**: a
+**accepted risk on a thing we are still measuring**. The **signal-name** half may be exactly the
+shipped rule names, across all three subject kinds, so an operator can never accept a firing on a
+rule that never fires. The bound is enforced at the one write path rather than in the schema, and
+the set is derived from the shipped rules and is enumerated nowhere
+([ADR-0187](./docs/adr/0187-an-annotation-may-name-exactly-the-shipped-rule-names-across-all-three-subject-kinds.md);
+the **subject** half is
+[ADR-0051](./docs/adr/0051-a-subject-key-is-the-thing-denoted-and-its-normalisation-may-never-move.md)'s).
+Its whole effect is on the **message**: a
 `not-fired` → `fired` `Transition` on an annotated pair is **recorded and is not a message**. It
 moves no number — not a count, a timeline, a domain, a census or a subject. ~~a suppression~~ and
 ~~attached to a subject~~ are **superseded here, at the site that specifies them**
@@ -1367,7 +1374,14 @@ parameter **as the rule expresses it** — the fraction, never its product on an
 never the spread of thresholds the estate happens to produce. A declared parameter is ours
 and constant in every install, while a statistic over the estate is neither, and is not a member of
 the partition. A rule is **four parts** — its domain, its predicate, its `not-evaluable` case
-and its version vector — plus one cost, the new measurement it requires. That cost is weighed and is
+and its version vector — plus one cost, the new measurement it requires. The severity is **not a
+fifth part**, and it composes into **no** version vector. What composes is everything the rule
+declares that changes which subjects it matches, or what it asserts about them, and an
+operator-facing grade changes neither — so a deliberate re-rating leaves every census the rule has
+already produced comparable with every census it produces after
+([ADR-0185](./docs/adr/0185-a-severity-is-the-operator-facing-grade-so-it-composes-into-no-version-vector-and-is-not-a-fifth-part-of-a-rule.md),
+which withdraws [ADR-0024](./docs/adr/0024-a-rules-domain-is-the-extension-of-its-name.md)'s wider
+clause at its own site). That cost is weighed and is
 never a correctness objection. A cost weighed and **declined** is a complete exclusion needing no
 principle beside it. A fact fitting none of the rules we already have is a candidate for a new
 rule rather than a reason to drop the fact. The shape of the set is a fact about the set, and rules

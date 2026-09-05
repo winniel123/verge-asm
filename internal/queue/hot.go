@@ -136,7 +136,7 @@ func candidateAddrs(resolved []netip.Addr, scopes []netip.Prefix, excluded func(
 			// The gate refuses either way, so this skip is for cost: an excluded /16 is 65,536 walks a tick.
 			for a := range seed.EnumerateAddresses(p) {
 				a = a.Unmap()
-				// Overlapping scopes are not deduped, so the overlap probes twice, by choice.
+				// Overlapping scopes are not deduped, so the overlap probes twice, by choice (ADR-0216 §1).
 				if _, ok := seen[a]; ok {
 					continue
 				}

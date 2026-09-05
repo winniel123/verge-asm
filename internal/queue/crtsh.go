@@ -48,7 +48,7 @@ func NewHTTPCTFetcher(version string) *HTTPCTFetcher {
 		client: &http.Client{
 			// crt.sh answers legitimately slowly, measured up to 59.6s (passive-discovery §7).
 			Timeout: 90 * time.Second,
-			// A 3xx could bounce the fetch to an internal host such as IMDS, so no redirect is followed.
+			// A 3xx could bounce the fetch to an internal host such as IMDS, so no redirect is followed (ADR-0196 §1).
 			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 		},
 		userAgent: "verge-asm/" + version + " (+https://github.com/winniel123/verge-asm)",

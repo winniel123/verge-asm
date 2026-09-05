@@ -221,7 +221,20 @@ a known name — that is the drift signal.
 
 ### 4.3 Log-set `[D-logs]` `[R-logs]`
 
-Follow logs from the live `log_list.json` (v89.34 as of 2026-08-29) where:
+~~Follow logs from the **live** `log_list.json` (v89.34 as of 2026-08-29) where:~~
+
+> **"live" WITHDRAWN 2026-09-05 by [#1308](https://github.com/winniel123/verge-asm/issues/1308) /
+> [ADR-0190](../adr/0190-the-ct-log-list-is-a-build-time-artefact-pinned-in-the-image-refreshed-only-by-a-release-and-carrying-no-log-public-keys.md)
+> ([ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).**
+> The log list is a **build-time artefact**. A snapshot is committed at
+> `internal/scan/log_list.json`, embedded by `//go:embed`, and pinned in the image the release
+> signs. **No code path fetches it at run time, and none is added.** Refreshing the snapshot is a
+> release act, and a live-refresh path is **refused rather than deferred** (ADR-0190 §7), so §8's
+> deferred list gains no entry for it. The version and date name **which snapshot is embedded**,
+> not a document to go and get. The selection rule below is untouched and confirmed; it is applied
+> to the pinned snapshot. The pinned snapshot also carries **no log public keys** (ADR-0190 §5).
+
+Follow logs from the embedded `log_list.json` snapshot (v89.34, 2026-08-29) where:
 
 - `state` is `usable` **or** `readonly` (both readable), **and**
 - `temporal_interval` covers now or the near future (current shard plus the next shard).
@@ -262,7 +275,13 @@ a bare name.
 - An on-demand point-check. It mints **no subject** (ADR-0027 refused a "certificate that exists"
   subject) and stores **no durable result**.
 - Given a certificate it computes the `MerkleTreeLeaf` hash and asks the correct log or shard:
-  `get-proof-by-hash` (RFC 6962) or a self-recomputed tile inclusion proof (static-ct-api).
+  `get-proof-by-hash` (RFC 6962), or the hash tile that covers the leaf's index (static-ct-api).
+  ~~or a self-recomputed tile inclusion proof (static-ct-api)~~ **Withdrawn by
+  [ADR-0214](../adr/0214-ct-verification-checks-presence-not-log-integrity-so-it-authenticates-no-log-and-its-tiled-arm-compares-one-slot.md)
+  §3.** The tiled arm compares the leaf hash against one slot in that tile, and recomputes no
+  path to the checkpoint root. The RFC arm does recompute the audit path, against the root the
+  same `get-sth` response served. **No log signature is verified on either arm** (ADR-0214 §2),
+  so a `logged` verdict states presence and never log integrity.
 - It must start from an **SCT or the cert bytes**. There is no query-by-name anywhere (RFC 6962 §4).
 
 ### 5.2 Not a Scan `[D-logs]`
@@ -294,8 +313,17 @@ Go returns nothing). So:
 ### 5.4 Trigger and result `[D-logs]`
 
 - **Auto-verify** each new `certificate` observation once, plus an **on-demand** re-check.
-- The result is an **ephemeral event**: "logged / NOT logged in CT." **NOT logged** is the notable
-  signal — an internal CA, or evasion.
+- The result is an **ephemeral event**: ~~"logged / NOT logged in CT."~~ **"logged / NOT logged /
+  unverifiable."** **NOT logged** is the notable signal — an internal CA, or evasion.
+
+  > **WIDENED to three values 2026-09-05 by [#1308](https://github.com/winniel123/verge-asm/issues/1308) /
+  > [ADR-0193](../adr/0193-a-stapled-ocsp-response-only-narrows-the-sct-set-and-no-usable-sct-is-unverifiable-never-not-logged.md)
+  > ([ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).**
+  > A verification that finds **no usable SCT** — none presented, none parseable, no log matched, or a
+  > log unreachable — is **`unverifiable`**, never `NOT logged`. `NOT logged` is warranted only where a
+  > log the certificate's own SCT names answered the inclusion query and did not hold it. The
+  > *"NOT logged is the notable signal"* reading above is untouched and confirmed; the third value is
+  > what protects it. `unverifiable` emits no operator event today (ADR-0193 §4).
 
 ---
 
