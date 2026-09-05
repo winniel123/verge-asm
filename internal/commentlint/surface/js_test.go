@@ -289,9 +289,9 @@ func TestForChoosesTheLexerByExtension(t *testing.T) {
 		name string
 		want Lexer
 	}{
-		{"docs-site/scripts/doclint.mjs", JS{}},
-		{"docs-site/src/pipeline/toc.ts", JS{}},
-		{"design-system/components/display/Card.d.ts", JS{}},
+		{"docs-site/scripts/doclint.mjs", JS{Path: "docs-site/scripts/doclint.mjs"}},
+		{"docs-site/src/pipeline/toc.ts", JS{Path: "docs-site/src/pipeline/toc.ts"}},
+		{"design-system/components/display/Card.d.ts", JS{Path: "design-system/components/display/Card.d.ts"}},
 		{"docs-site/src/ds/Icon.jsx", JSX{Path: "docs-site/src/ds/Icon.jsx"}},
 	}
 	for _, c := range cases {

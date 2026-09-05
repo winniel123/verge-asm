@@ -164,7 +164,7 @@ type Screen struct {
 }
 
 func Build(services []ServiceInput, internetPresent, internalPresent bool) Screen {
-	// A precondition panel and the board co-exist as renders of one screen (ADR-0017 §6.2).
+	// A precondition panel and the board co-exist as renders of one screen (ADR-0017).
 	s := Screen{
 		InternetPresent: internetPresent,
 		InternalPresent: internalPresent,

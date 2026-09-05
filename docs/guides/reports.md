@@ -85,7 +85,24 @@ one is a 400):
 GET /reports/export?format=csv&period=7d
 GET /reports/export?format=json&period=30d
 GET /reports/export?format=pdf&period=custom_2026-08-01_2026-08-22
+GET /reports/export?format=csv&start=2026-08-01&end=2026-08-22
 ```
+
+`?period=` chooses the window, and takes one of `24h`, `7d`, `30d` or `90d`. There is
+no `?weeks=` request parameter. The weeks a window covers are a property of the window.
+That word reaches you only in the *output*: `range.weeks` in the JSON, and the
+`range_weeks` summary row in the CSV.
+
+A custom range has two spellings, and both mean the same window. Either pass the `start`
+and `end` pair as `YYYY-MM-DD`, or pass the whole range as the single period token
+`custom_<start>_<end>`. The screen uses the token form in its own export links. A
+complete `start`/`end` pair wins over `period`. A lone `start` or a lone `end` is not a
+range: the request keeps the preset `?period=` names, and discards a `custom_` token
+beside it.
+
+A bad window is never an error. A date pair the handler cannot read defers to
+`?period=`, and a `period` that is absent or is not one of the four presets resolves to
+**`7d`**. So a mistyped range downloads a file for a default window, not a 400.
 
 `csv` and `json` are the **operational activity export** — the KPI band and the
 scans-per-day series for the selected range, a read of the same figures the screen
@@ -207,6 +224,30 @@ off-instance (ADR-0039). Where no schedule has ever run, both handlers render a 
 `Artifact`** — the design-system empty-state inside the delivered-document frame, and a valid but
 empty-state PDF — rather than fabricate a document. Once a delivery names a window, the PDF gains
 a period-dated filename (`report-<start>-to-<end>.pdf`).
+
+### The receipt names the host, never the whole delivery URL
+
+The artifact's receipt line reads `delivered <instant> · <host>`. A `delivery_target` of
+`https://ops.example.test/hook/s3cr3t-token` reaches that line as `ops.example.test` alone.
+
+**A `delivery_target` is free text an operator typed, and an operator may embed a token in a
+webhook URL.** The console therefore parses the target and renders its host only
+(`deliveryTargetHost` in [`cmd/web/reports.go`](../../cmd/web/reports.go)). Where the parser
+finds no host, the receipt names none. The raw string is never the fallback, so a mistyped
+target costs you the host line and never leaks the token.
+
+Both render forms obey the rule, because both read the one `Artifact`. The console page prints
+`ChannelHost` from
+[`reportartifact.tmpl`](../../design-system/templates/reportartifact.tmpl). The PDF prints the
+same value through `artifactReceipt` in
+[`internal/message/render.go`](../../internal/message/render.go).
+
+**The rule is the report path's own, and ADR-0180 is not authority for it.**
+[ADR-0180](../adr/0180-a-message-detail-is-a-census-plus-its-delivery-receipts-and-carries-no-prose-body.md)
+§3 states the same sentence about a **message** detail's delivery receipts. Its §5 then fences
+the report `Artifact` out by name. A `Message` and an `Artifact` are different objects that
+share a Go package name. The two rules agree because the hazard is the same
+([#1447](https://github.com/winniel123/verge-asm/issues/1447)).
 
 ---
 

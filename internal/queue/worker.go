@@ -378,7 +378,7 @@ func (w *Worker) runJobTx(ctx context.Context, jobID int64, fn func(*db.Queries)
 func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, res wire.ProbeResult) error {
 	// A prober can name any subject, so a line outside the job's authorised scope is dropped (#773).
 	obs := parseAuthorizedScope(job.AttemptedScope).gate(res.Observations, w.log, job.ID)
-	// The outcome, its observations and its raw output must commit together (ADR-0007, spec §2.4).
+	// The outcome, its observations and raw output must commit together (raw-job-output.md §2.4).
 	if err := w.runJobTx(ctx, job.ID, func(qtx *db.Queries) error {
 		batchID, err := qtx.InsertBatch(ctx, db.InsertBatchParams{
 			ScanID:        job.ScanID,

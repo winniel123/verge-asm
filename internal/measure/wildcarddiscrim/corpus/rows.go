@@ -47,7 +47,7 @@ const (
 func params() wd.Params { return wd.DefaultParams() }
 
 func one(cells []string, claim string, specVerified bool, names []string, peer ScriptPeer, golden string) Row {
-	// ADR-0021's honesty rider: every W-cell is spec-verified rather than measured today (§8.5).
+	// ADR-0021's honesty rider: every W-cell is spec-verified until measured (golden-corpus.md §8.5).
 	return Row{
 		Cells:        cells,
 		Claim:        claim,

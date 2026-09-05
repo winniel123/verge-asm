@@ -41,6 +41,7 @@
 .sd-kv .v { font: 400 12.5px var(--font-mono); color: var(--text-body); overflow-wrap: anywhere; }
 .sd-badge { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 10px; border-radius: 999px; background: var(--surface-sunken); border: 1px solid var(--border-default); color: var(--text-secondary); font-family: var(--font-ui); font-size: 12px; font-weight: 500; white-space: nowrap; }
 .sd-badge.danger { background: var(--danger-soft); border-color: var(--danger-border); color: var(--danger); }
+.sd-badge.stale { background: var(--stale-bg); border-color: var(--stale-border); color: var(--stale-fg); }
 .sd-table { width: 100%; border-collapse: separate; border-spacing: 0; }
 .sd-table th { padding: 8px 16px; font: 500 11px var(--font-mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border-default); white-space: nowrap; background: var(--surface); text-align: left; }
 .sd-table td { padding: 7px 16px; font: 400 13px var(--font-ui); color: var(--text-body); vertical-align: middle; white-space: nowrap; border-top: 1px solid var(--row-sep); }
@@ -167,7 +168,7 @@
 {{range .}}<tr class="link" data-href="/signals">
 <td><span style="display:inline-flex;align-items:center;gap:8px">{{template "sevbadge" .}}<span style="font-family:var(--font-mono);font-size:12.5px">{{.Rule}}</span></span></td>
 <td class="mono">v{{.Version}}</td>
-<td>{{if .Fired}}<span class="sd-badge danger">fired</span>{{else}}<span class="sd-badge">did not fire</span>{{end}}</td>
+<td>{{if eq .Verdict "fired"}}<span class="sd-badge danger">fired</span>{{else if eq .Verdict "not-evaluable"}}<span class="sd-badge stale">not evaluable</span>{{else}}<span class="sd-badge">did not fire</span>{{end}}</td>
 </tr>{{end}}
 </tbody>
 </table>

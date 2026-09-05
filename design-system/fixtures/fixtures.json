@@ -4533,7 +4533,7 @@
       ],
       "org": "acmecorp",
       "orgs": null,
-      "orgs_note": "nullable — single-org deployments render the static chip; the switcher needs an org store (alias or BUILD POST /org/switch; SPEC-CHANGE escalate if orgs are not modeled)",
+      "orgs_note": "nullable — single-org deployments render the static chip; the switcher needs an org store (alias or BUILD POST /org/switch). No org is modelled in db/migrations, so this fixture pins null.",
       "version": "v0.9.2",
       "user_name": "ola@acmecorp.io",
       "user_initials": "OL",

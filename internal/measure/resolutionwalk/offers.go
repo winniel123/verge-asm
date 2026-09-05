@@ -9,7 +9,7 @@ import (
 	"encoding/json"
 )
 
-const Version = "resolution-walk/v1" // moves only with a moved golden row (ADR-0021 §4.4)
+const Version = "resolution-walk/v1" // moves only with a moved golden row (ADR-0021)
 
 type Qtype string
 

@@ -27,10 +27,20 @@ empty-states that point elsewhere.
 Each individual call was well-reasoned and documented in a comment. The **sum** was a console that no
 longer matches the design: severity dropped from four screens, spec regions replaced by placeholders,
 the shell trimmed, trend series and deltas removed. The full drift audit is
-[`design-system/PARITY-CHART.md`](../../design-system/PARITY-CHART.md). The root cause was structural,
+~~`design-system/PARITY-CHART.md`~~, and the withdrawal below marks it gone. The root cause was structural,
 not a series of mistakes: a port-side judgment call split design authority in two, so the code became a
 second source of truth that only its own comments knew about, and nobody upstream ever saw the
 collisions to rule on them.
+
+> **The `PARITY-CHART.md` and `SPEC-CHANGE.md` citations in this ADR are WITHDRAWN at the sites
+> that state them, 2026-08-28 by `55aa367` /
+> [#1413](https://github.com/winniel123/verge-asm/issues/1413)
+> ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).**
+> That commit retired the design-system handoff workflow and deleted both files.
+> [ADR-0145](./0145-design-system-is-the-shared-home-and-source-of-truth-for-ui-assets-and-a-session-edits-it-in-the-repo.md)
+> states the rule that replaces the workflow. Every `PARITY-CHART Pn.n` and `SPEC-CHANGE #nn` token
+> below resolves to nothing. The relative links to both files are unlinked here, because they led
+> to a 404. The sentences stay as an accurate record of what this ADR read in 2026-08.
 
 ## Decision
 
@@ -51,28 +61,40 @@ honest-current-state doctrine is **retired for composition and data shape**. Con
 The scope of ADR-0024 is narrowed accordingly: it governs naming, not whether a specced region renders.
 ADR-0110's verbatim-port mandate is affirmed and extended from IA to data shape.
 
-**Every future domain–spec collision escalates, never decides port-side.**
-[`design-system/SPEC-CHANGE.md`](../../design-system/SPEC-CHANGE.md) is adopted as the standing
+~~**Every future domain–spec collision escalates, never decides port-side.**
+`design-system/SPEC-CHANGE.md` is adopted as the standing
 protocol: a collision is filed there, the operator hands it to the design workspace, and design rules
 one of three ways — build the datum, change the spec, or defer the region — each a recorded decision
 rather than a buried judgment call. Its §Stop and escalate block is landed verbatim into `CLAUDE.md`
-so it binds every session.
+so it binds every session.~~
+
+> **This clause is WITHDRAWN at the site that specifies it, 2026-08-28 by `55aa367` /
+> [#1413](https://github.com/winniel123/verge-asm/issues/1413)
+> ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).** The
+> status line withdraws the protocol by name. ADR-0058 rules that the unit is the sentence, so the
+> clause carries its own marker. `design-system/SPEC-CHANGE.md` is deleted, and `CLAUDE.md` no
+> longer carries the stop-and-escalate block. Nothing files a collision anywhere. A session that
+> finds a domain–spec gap today edits `design-system/` in the repo
+> ([ADR-0145](./0145-design-system-is-the-shared-home-and-source-of-truth-for-ui-assets-and-a-session-edits-it-in-the-repo.md),
+> [`docs/agents/design-system.md`](../agents/design-system.md)).
 
 ## Consequences
 
 - **`CONTEXT.md`'s "a signal carries no severity" clause is superseded** and withdrawn at its site per
   [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md). A signal now
   carries a five-level severity (critical / high / medium / low / info) assigned per rule. The datum is
-  built, not re-skinned (PARITY-CHART P0.1). The surviving true point — that a transition's *timing* is
-  what makes a fact worth saying — stays. A `Message` still carries no severity
+  built, not re-skinned (~~PARITY-CHART P0.1~~ — a dead token, withdrawn in Context above). The
+  surviving true point — that a transition's *timing* is what makes a fact worth saying — stays. A `Message` still carries no severity
   ([ADR-0064](./0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md)).
 - The parity backlog (map [#440](https://github.com/winniel123/verge-asm/issues/440)) builds the four
   missing model prerequisites — severity + per-instance signals, vs-last-batch deltas, trend series,
-  and the ancillary reads — then restores the re-skinned regions across the shell and screens. Each
-  ticket quotes its slice of `PARITY-CHART.md`.
+  and the ancillary reads — then restores the re-skinned regions across the shell and screens. ~~Each
+  ticket quotes its slice of `PARITY-CHART.md`.~~ That instruction is dead, withdrawn in Context
+  above.
 - A reader who finds a spec region rendered as a placeholder in `cmd/web`, or a spec affordance missing,
   should treat it as drift against this ADR and file it, not preserve it. "Verbatim" claims from the
-  original port are unverified until the closing 26-screen pass (PARITY-CHART P3).
+  original port are unverified until the closing 26-screen pass (~~PARITY-CHART P3~~ — a dead
+  token, withdrawn in Context above).
 - The cost is real schema and derivation work the port avoided. The ADR accepts it: a console that
   matches the design is the product, and one source of truth for look-and-functionality is worth the
   migrations.

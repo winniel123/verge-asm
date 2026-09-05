@@ -68,8 +68,7 @@ function publishableTags(root) {
   return tags.sort(compareTagsDesc);
 }
 
-// mirrors listVersions()/refForVersion() in src/pipeline/source-resolution.ts, which the gate
-// cannot import: that module reads Astro's astro:content collection (#1395)
+// mirrors source-resolution.ts, unimportable here: it reads Astro's astro:content (#1395)
 function versionPlan(root) {
   const tags = publishableTags(root);
   const newestStable = tags.find((t) => t.prerelease === null) ?? null;
@@ -106,8 +105,7 @@ function adrNamesOf(files) {
 
 export function loadVersions(root = DEFAULT_ROOT) {
   return versionPlan(root).map(({ version, ref }) => {
-    // CI builds a PR as a merge commit, so `git show main:` would read origin/main and miss the
-    // PR's own edits (#1395)
+    // CI builds a PR as a merge commit, so `git show main:` misses the PR's own edits (#1395)
     if (ref === DEFAULT_VERSION) {
       return {
         version,

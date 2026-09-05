@@ -134,9 +134,11 @@ unmeasured. It does not move an address between populations.
   never says what measured means.
 - **No production behaviour changes.** `toEdgeFanout`, `admits` and the census already have the shape
   this ADR states.
-- **The three `ADR-0129 §5` citations in `internal/custody` are untouched.**
-  [#1368](https://github.com/winniel123/verge-asm/issues/1368) owns them, and none of the three is
-  about an absence.
+- **The three `internal/custody` citations that named ADR-0129's §5 are repaired, and none of the
+  three took this ADR's citation.** [#1368](https://github.com/winniel123/verge-asm/issues/1368)
+  owned them, and PR [#1440](https://github.com/winniel123/verge-asm/pull/1440) repointed
+  `census.go` at ADR-0129's #944 amendment and both `scopecensus.go` lines at its #956 amendment.
+  None of the three is about an absence.
 
 ## Alternatives rejected
 

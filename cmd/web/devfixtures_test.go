@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/winniel123/verge-asm/internal/signal"
 )
 
 type fixtureDevPackage struct {
@@ -1497,7 +1499,7 @@ func assertServiceFixture(t *testing.T, name string, a fixtureSubjectService, d 
 	}
 	for i, r := range a.Rules {
 		q := d.Rules[i]
-		if r.Rule != q.Rule || strconv.Itoa(r.Version) != q.Version || r.Severity != q.Severity || r.SevLabel != q.SevLabel || r.Fired != q.Fired {
+		if r.Rule != q.Rule || strconv.Itoa(r.Version) != q.Version || r.Severity != q.Severity || r.SevLabel != q.SevLabel || r.Fired != (q.Verdict == signal.Fired) {
 			t.Errorf("%s: rules[%d] drift: %+v vs %+v", name, i, r, q)
 		}
 	}
@@ -1602,7 +1604,7 @@ func TestSubjectDetailFixtureMatchesPackage(t *testing.T) {
 	}
 	for i, r := range a.Rules {
 		q := d.Rules[i]
-		if r.Rule != q.Rule || strconv.Itoa(r.Version) != q.Version || r.Severity != q.Severity || r.SevLabel != q.SevLabel || r.Fired != q.Fired {
+		if r.Rule != q.Rule || strconv.Itoa(r.Version) != q.Version || r.Severity != q.Severity || r.SevLabel != q.SevLabel || r.Fired != (q.Verdict == signal.Fired) {
 			t.Errorf("endpoint rules[%d] drift: %+v vs %+v", i, r, q)
 		}
 	}

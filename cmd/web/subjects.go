@@ -112,7 +112,7 @@ type subjectRule struct {
 	Version  string
 	Severity string
 	SevLabel string
-	Fired    bool
+	Verdict  signal.Outcome
 }
 
 type subjectPageData struct {
@@ -518,33 +518,15 @@ func (s *server) subjectRules(r *http.Request, key string) []subjectRule {
 	if err != nil {
 		return nil
 	}
+	return subjectRulesFor(signal.EvaluateCorpus(corpus), key)
+}
+
+func subjectRulesFor(censuses []signal.Census, key string) []subjectRule {
 	var out []subjectRule
 	// A rule reads exactly one subject kind, so no kind filter is needed here (ADR-0024).
-	for _, c := range signal.EvaluateCorpus(corpus) {
-		member, fired := false, false
-		for _, m := range c.Fired {
-			if m.Subject == key {
-				member, fired = true, true
-				break
-			}
-		}
-		if !member {
-			for _, m := range c.NotFired {
-				if m.Subject == key {
-					member = true
-					break
-				}
-			}
-		}
-		if !member {
-			for _, m := range c.NotEvaluable {
-				if m.Subject == key {
-					member = true
-					break
-				}
-			}
-		}
-		if !member {
+	for _, c := range censuses {
+		verdict := censusVerdict(c, key)
+		if verdict == "" {
 			continue
 		}
 		sev, _ := signal.SeverityFor(c.Rule)
@@ -553,10 +535,31 @@ func (s *server) subjectRules(r *http.Request, key string) []subjectRule {
 			Version:  strings.TrimPrefix(c.Version.Rule, "v"),
 			Severity: sev.String(),
 			SevLabel: sevLabel(sev.String()),
-			Fired:    fired,
+			Verdict:  verdict,
 		})
 	}
 	return out
+}
+
+func censusVerdict(c signal.Census, key string) signal.Outcome {
+	switch {
+	case isCensusMember(c.Fired, key):
+		return signal.Fired
+	case isCensusMember(c.NotFired, key):
+		return signal.NotFired
+	case isCensusMember(c.NotEvaluable, key):
+		return signal.NotEvaluable // absent evidence never reads as "did not fire" (ADR-0004, #1351)
+	}
+	return ""
+}
+
+func isCensusMember(members []signal.Member, key string) bool {
+	for _, m := range members {
+		if m.Subject == key {
+			return true
+		}
+	}
+	return false
 }
 
 const (

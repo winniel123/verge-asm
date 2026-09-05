@@ -64,9 +64,13 @@ Two protections sit on this step:
 - **Lockout.** Both the password step and the TOTP step are throttled per-account
   **and** per source IP. Too many failures locks the key for a few minutes and
   invalidates the pending grant. So a 6-digit code is not brute-forceable, and the
-  attacker must start again from the password. The source IP is the connection's
-  immediate peer unless you name your proxies in `VERGE_TRUSTED_PROXIES`
-  (ADR-0159); it never reaches identity or authorization.
+  attacker must start again from the password. The instance trusts no proxy unless you
+  name it. So the source IP is the connection's immediate peer by default. Name your
+  proxies in `VERGE_TRUSTED_PROXIES`, a comma-separated list of IPs and CIDRs. Its
+  default is empty. A malformed entry stops `web` at boot rather than quietly
+  trusting nothing. Where the peer is a named proxy, the IP is the first unvouched
+  `X-Forwarded-For` entry from the right (ADR-0159). Either way the derived IP keys the
+  rate limiter only, never identity and never authorization.
 
   The two locks are deliberately unequal. The per-IP lock escalates up to an hour
   and is never released early. An **account** lock is honoured for at most fifteen
@@ -156,7 +160,9 @@ a real record, it can be both **seen** and **revoked**.
 
 - **Personal** (`Profile`). The Sessions card lists every live session for your
   account. Each row shows device and OS from the User-Agent, plus source IP from the
-  connection (never a forwarding header). It also shows last-active time and a
+  connection — the immediate peer, never a forwarding header. A fronted deployment
+  therefore records the proxy's address here, even where `VERGE_TRUSTED_PROXIES` names
+  that proxy for the login limiter. It also shows last-active time and a
   **this device** badge on the current one. From it you can **revoke one**
   (`POST /profile/sessions/revoke`) — that browser reaches `/login` on its next
   request. You can also **end this session** (sign out here), or **sign out others**
