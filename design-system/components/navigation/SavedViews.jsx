@@ -1,6 +1,5 @@
 import React from "react";
 
-/* Named filter sets over a data view. Dumb: the app owns what a view means. */
 export function SavedViews({ views = [], activeId, onSelect, dirty, onSave, style }) {
   const [hov, setHov] = React.useState(null);
   return (

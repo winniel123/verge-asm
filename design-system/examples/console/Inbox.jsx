@@ -15,7 +15,6 @@ const BODY = {
 };
 const GOTO = { signals: ["Open signal", "signals"], drift: ["Open drift", "drift"], coverage: ["Open scope", "scope"], batches: ["Open batch detail", "run"] };
 
-/* Every message Verge sent or would send — the mailbox icon's destination. */
 const BASE_MSGS = [
     { id: "m1", cls: "signals", text: "VNC exposed to internet · edge-gw-03.acmecorp.io", time: "4m", unread: true },
     { id: "m2", cls: "drift", text: "appeared · staging-5.acmecorp.io", time: "8m", unread: true },

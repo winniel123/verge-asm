@@ -21,7 +21,6 @@ const LOG = [
   { time: "14:03:14", text: "diff against 08:00Z · 7 transitions · 3 signals raised" },
 ];
 
-/* One batch, end to end: stages, log, outcome. A running job streams its own exact output. */
 function jobOutput(job) {
   const v = job.vantage ? " · " + job.vantage : "";
   const k = String(job.kind || "job");

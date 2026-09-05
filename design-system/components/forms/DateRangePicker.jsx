@@ -16,7 +16,6 @@ function PresetRow({ label, active, onClick }) {
   );
 }
 
-/* Preset ranges + custom ISO dates (no calendar grid — engineers type dates). value: {label, start?, end?}. */
 export function DateRangePicker({ value, onChange, presets = PRESETS, align = "end", style }) {
   const [open, setOpen] = React.useState(false);
   const [start, setStart] = React.useState((value && value.start) || "");

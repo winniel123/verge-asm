@@ -1,6 +1,5 @@
 import React from "react";
 
-/* MSP org context switcher — org scope, not per-user identity (ADR-0073). orgs: [{id, name, assets?}]. */
 export function OrgSwitcher({ orgs = [], active, onChange, style }) {
   const [open, setOpen] = React.useState(false);
   const [hov, setHov] = React.useState(null);

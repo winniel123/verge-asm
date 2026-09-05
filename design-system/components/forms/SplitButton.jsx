@@ -3,7 +3,6 @@ import { Button } from "./Button.jsx";
 import { DropdownMenu } from "../feedback/DropdownMenu.jsx";
 import { Icon } from "../media/Icon.jsx";
 
-/* Primary act + a menu of variants (Export CSV \u25be JSON/PDF). items use DropdownMenu's shape. */
 export function SplitButton({ children, onClick, items = [], variant = "secondary", size = "md", icon, style }) {
   return (
     <span style={{ display: "inline-flex", ...style }}>

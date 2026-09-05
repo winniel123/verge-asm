@@ -8,7 +8,6 @@ const TONES = {
   warn: { bg: "var(--warn-soft)", bd: "var(--warn-border)", ic: "var(--warn)", icon: "alert-triangle" },
 };
 
-/* Docs/long-form aside. Banner is the app-chrome alert with actions; Callout is prose. */
 export function Callout({ tone = "accent", icon, title, children, style }) {
   const t = TONES[tone] || TONES.accent;
   return (

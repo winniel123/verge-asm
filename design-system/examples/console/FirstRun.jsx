@@ -3,7 +3,6 @@ import { Card } from "../../components/display/Card.jsx";
 import { Button } from "../../components/forms/Button.jsx";
 import { Icon } from "../../components/media/Icon.jsx";
 
-/* The home page until coverage exists: four steps, each unlocking a capability. */
 export function FirstRunChecklist({ onOpenScope, onOpenVantages, onRunScan }) {
   const steps = [
     { n: 1, done: true, title: "Declare your domain", detail: "acmecorp.io declared · a seed is a boundary, not a starting gun", action: null },

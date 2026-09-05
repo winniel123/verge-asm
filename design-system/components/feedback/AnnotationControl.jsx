@@ -2,8 +2,6 @@ import React from "react";
 import { Button } from "../forms/Button.jsx";
 import { Textarea } from "../forms/Textarea.jsx";
 
-/* The one operator dial on a signal: declare a (subject, signal) pair an accepted risk with reason prose.
-   NOT a status dropdown — it moves a message, never a number. No state, no expiry, no author. */
 export function AnnotationControl({ annotation, onAnnotate, onRemove, style }) {
   const [draft, setDraft] = React.useState("");
   if (annotation) {

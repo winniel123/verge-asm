@@ -1,6 +1,5 @@
 import React from "react";
 
-/* Single-select typeahead. options: strings or {value, label, hint}. */
 export function Combobox({ label, options = [], value, onChange, placeholder, style }) {
   const opts = options.map((o) => (typeof o === "string" ? { value: o, label: o } : o));
   const sel = opts.find((o) => o.value === value);

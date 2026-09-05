@@ -3,8 +3,6 @@ import { Dialog } from "./Dialog.jsx";
 import { Button } from "../forms/Button.jsx";
 import { Icon } from "../media/Icon.jsx";
 
-/* Multi-step setup dialog. steps: [{id, title, content, valid?}] — valid=false disables Next.
-   Constructive counterpart to ConfirmDialog; destructive acts stay in ConfirmDialog. */
 export function Wizard({ open, title, description, steps = [], onClose, onFinish, finishLabel = "Finish", width = 560 }) {
   const [i, setI] = React.useState(0);
   React.useEffect(() => { if (open) setI(0); }, [open]);

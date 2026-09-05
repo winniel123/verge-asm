@@ -1,6 +1,5 @@
 import React from "react";
 
-/* Label/hint/error plumbing around any control. Give the control the same id. */
 export function FormField({ id, label, hint, error, required, children, style }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6, fontFamily: "var(--font-ui)", ...style }}>
@@ -16,7 +15,6 @@ export function FormField({ id, label, hint, error, required, children, style })
   );
 }
 
-/* Top-of-form error list. errors: [{label, message?, fieldId?}] — fieldId links focus to the control. */
 export function FormErrorSummary({ errors = [], title, style }) {
   if (!errors.length) return null;
   return (

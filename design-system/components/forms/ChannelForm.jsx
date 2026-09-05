@@ -4,8 +4,6 @@ import { Checkbox } from "./Checkbox.jsx";
 import { Button } from "./Button.jsx";
 import { SecretInput } from "./SecretInput.jsx";
 
-/* Channel: one-way https + write-only secret + the class subset it receives.
-   Routing is by class and nothing finer. */
 const CLASSES = ["signals", "drift", "coverage", "batches"];
 export function ChannelForm({ channel, onSubmit, style }) {
   const [url, setUrl] = React.useState((channel && channel.url) || "");

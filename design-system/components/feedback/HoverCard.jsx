@@ -1,6 +1,5 @@
 import React from "react";
 
-/* Hover peek: content appears after a short delay, flips to stay on screen, survives moving onto the card. */
 export function HoverCard({ content, delay = 350, side = "bottom", children, style }) {
   const [open, setOpen] = React.useState(false);
   const [pos, setPos] = React.useState(null);

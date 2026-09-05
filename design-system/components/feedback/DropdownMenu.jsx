@@ -16,7 +16,6 @@ function MenuItem({ item, close }) {
   );
 }
 
-/* Action menu: items = [{label, icon?, onSelect?, tone?: "danger", shortcut?, disabled?}], or "-" for a separator. */
 export function DropdownMenu({ trigger, items = [], align = "end", width = 200, style }) {
   const [open, setOpen] = React.useState(false);
   const [up, setUp] = React.useState(false);
@@ -35,7 +34,7 @@ export function DropdownMenu({ trigger, items = [], align = "end", width = 200, 
     e.stopPropagation();
     if (!open && ref.current) {
       const r = ref.current.getBoundingClientRect();
-      const est = items.length * 30 + 16; // menu height estimate
+      const est = items.length * 30 + 16;
       setUp(window.innerHeight - r.bottom < est && r.top > est);
     }
     setOpen(!open);

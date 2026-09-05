@@ -1,6 +1,5 @@
 import React from "react";
 
-/* Pulse glyph: one solid signal inside two watch rings. Accent azure only — never severity colors. */
 export function Logo({ size = 20, withWordmark = true, wordmarkSize, inverted, tile, style }) {
   const stroke = tile ? "#ffffff" : inverted ? "var(--primary-400)" : "var(--accent)";
   const glyph = (

@@ -15,8 +15,6 @@ function ContextItem({ it, onPick }) {
   );
 }
 
-/* Right-click menu. Wrapper mode: <ContextMenu items={...}>{target}</ContextMenu>.
-   Controlled mode (table rows): <ContextMenu open x y items onClose /> fed by onRowContextMenu. */
 export function ContextMenu({ items = [], children, open: openProp, x: xProp, y: yProp, onClose }) {
   const controlled = children == null;
   const [st, setSt] = React.useState(null);

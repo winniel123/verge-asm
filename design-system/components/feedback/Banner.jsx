@@ -10,7 +10,6 @@ const TONES = {
   danger: { bg: "var(--danger-soft)", bd: "var(--danger-border)", fg: "var(--text-body)", icon: "alert-octagon", ic: "var(--danger)" },
 };
 
-/* Persistent inline page-level alert (Toast is transient; Banner stays until resolved/dismissed). */
 export function Banner({ tone = "neutral", title, children, action, onDismiss, icon, style }) {
   const t = TONES[tone] || TONES.neutral;
   const [leaving, setLeaving] = React.useState(false);

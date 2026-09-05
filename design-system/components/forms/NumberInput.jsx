@@ -1,6 +1,5 @@
 import React from "react";
 
-/* Numeric field with steppers; clamps to min/max on blur. */
 export function NumberInput({ label, value = 0, onChange, min, max, step = 1, unit, hint, style }) {
   const [foc, setFoc] = React.useState(false);
   const clamp = (n) => Math.min(max != null ? max : Infinity, Math.max(min != null ? min : -Infinity, n));

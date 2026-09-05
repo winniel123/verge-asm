@@ -1,9 +1,8 @@
-/* Verge ASM — elevation. Soft layered shadows replace the old 6px hard offset. */
 :root {
   --shadow-xs: 0 1px 2px rgba(35, 31, 25, 0.05);
-  --shadow-sm: 0 1px 2px rgba(35, 31, 25, 0.06), 0 2px 8px rgba(35, 31, 25, 0.04);   /* cards */
-  --shadow-md: 0 2px 4px rgba(35, 31, 25, 0.05), 0 8px 24px rgba(35, 31, 25, 0.09);  /* menus, popovers */
-  --shadow-lg: 0 4px 8px rgba(35, 31, 25, 0.06), 0 16px 48px rgba(35, 31, 25, 0.16); /* dialogs */
+  --shadow-sm: 0 1px 2px rgba(35, 31, 25, 0.06), 0 2px 8px rgba(35, 31, 25, 0.04);
+  --shadow-md: 0 2px 4px rgba(35, 31, 25, 0.05), 0 8px 24px rgba(35, 31, 25, 0.09);
+  --shadow-lg: 0 4px 8px rgba(35, 31, 25, 0.06), 0 16px 48px rgba(35, 31, 25, 0.16);
 }
 
 [data-theme="dark"] {

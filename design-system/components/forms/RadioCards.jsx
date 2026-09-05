@@ -1,6 +1,5 @@
 import React from "react";
 
-/* Card-style exclusive choice for options that deserve a description. 2-4 options; more = Select. */
 export function RadioCards({ options = [], value, onChange, columns, label, style }) {
   return (
     <div role="radiogroup" aria-label={label} style={{ display: "grid", gridTemplateColumns: columns ? "repeat(" + columns + ", 1fr)" : "repeat(auto-fit, minmax(180px, 1fr))", gap: 10, ...style }}>

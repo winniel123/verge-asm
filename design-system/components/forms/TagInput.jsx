@@ -1,7 +1,6 @@
 import React from "react";
 import { Tag } from "../display/Tag.jsx";
 
-/* Multi-value filter input: type, Enter/comma commits a mono tag; Backspace removes the last. */
 export function TagInput({ label, hint, values = [], onChange, suggestions = [], placeholder, validate, style }) {
   const [draft, setDraft] = React.useState("");
   const [foc, setFoc] = React.useState(false);
