@@ -37,7 +37,7 @@ command for the `web` image and for the `worker` image.
 | cosign blob signature | `SHA256SUMS` | 1 |
 | named Release assets | the Release page | 13 |
 
-The 13 named assets are `docker-compose.yml`, `.env.example`, `docker-compose.external-db.yml`,
+The 13 named assets are `docker-compose.yml`, `env.example`, `docker-compose.external-db.yml`,
 `SHA256SUMS`, `SHA256SUMS.sigstore.json` and the eight SBOM documents. The Release page also
 carries the Trivy scan asset set. GitHub attaches two source archives to every Release, and verge
 signs neither of them.
