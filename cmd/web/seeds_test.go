@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"net/http"
 	"net/url"
 	"strings"
@@ -184,5 +185,31 @@ func TestDeclareRequiresLogin(t *testing.T) {
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/login" {
 		t.Fatalf("anon declare: status=%d location=%q, want redirect to /login", resp.StatusCode, resp.Header.Get("Location"))
+	}
+}
+
+func TestScopeServesWhenOneRegionReadFails(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		fail func(*fakeStore)
+	}{
+		{"exclusions", func(f *fakeStore) { f.exclusionsErr = errors.New("list exclusions failed") }},
+		{"vantages", func(f *fakeStore) { f.vantagesErr = errors.New("list vantages failed") }},
+		{"proposals", func(f *fakeStore) { f.pendingPropsErr = errors.New("list proposals failed") }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFakeStore()
+			admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+			addNameSeed(t, f, admin.ID, "example.com")
+			tc.fail(f)
+
+			base := start(t, f, "")
+			ac := login(t, base, "admin", "hunter2hunter2")
+
+			page := getBody(t, ac, base+"/scope", http.StatusOK)
+			if !strings.Contains(page, "example.com") {
+				t.Errorf("a failed %s read cost the screen its declared scopes; body: %s", tc.name, page)
+			}
+		})
 	}
 }

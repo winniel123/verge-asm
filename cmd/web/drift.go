@@ -162,21 +162,21 @@ func (s *server) driftPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 
 	token, periodLabel, since, until := s.resolveDriftWindow(r)
 
-	var groups []driftBatch
-	movement := driftMovement{}
-	truncated := false
 	// A 90d window on a mature estate is unbounded, so the feed reads under a cap (ADR-0178 §1).
-	if rows, err := s.store.ListRecentDriftEvents(r.Context(), db.ListRecentDriftEventsParams{
+	rows, err := s.store.ListRecentDriftEvents(r.Context(), db.ListRecentDriftEventsParams{
 		Since: since, MaxEvents: driftFeedLimit,
-	}); err != nil {
-		log.Printf("web: drift: list recent drift events: %v", err)
-	} else {
-		if until.Valid {
-			rows = filterDriftRowsUntil(rows, until.Time)
-		}
-		truncated = int32(len(rows)) >= driftFeedLimit // #nosec G115 (len(rows) capped at driftFeedLimit=500 via query MaxEvents)
-		groups, movement = buildDriftFeed(rows, s.now())
+	})
+	if err != nil {
+		// An empty feed reads as no drift, so Drift's own subject is loud (ADR-0168 §4, #1424).
+		s.serverError(w, "drift: list recent drift events", err)
+		return
 	}
+	// The flag says the cap bound the read, so it counts rows before the trim (ADR-0178 §3, #1428).
+	truncated := int32(len(rows)) >= driftFeedLimit // #nosec G115 (len(rows) capped at driftFeedLimit=500 via query MaxEvents)
+	if until.Valid {
+		rows = filterDriftRowsUntil(rows, until.Time)
+	}
+	groups, movement := buildDriftFeed(rows, s.now())
 
 	transitionCount := 0
 	// JS toggles a group open, so the whole period feed ships, never a filtered one (ADR-0178 §4).

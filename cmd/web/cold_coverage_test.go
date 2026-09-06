@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/netip"
+	"strings"
 	"testing"
 	"time"
 
@@ -67,7 +68,7 @@ func TestApertureMetersAddressCountedTotal(t *testing.T) {
 		{Addr: mustAddr(t, "203.0.113.20")},
 		{Addr: mustAddr(t, "203.0.113.30")},
 	}
-	m := apertureMeters(seeds, nil, walked, time.Now(), nil)
+	m := apertureMeters(seeds, nil, true, walked, true, time.Now(), nil)
 	if len(m) != 1 {
 		t.Fatalf("want 1 meter, got %d", len(m))
 	}
@@ -92,7 +93,7 @@ func TestApertureMetersAddressCountedTotal(t *testing.T) {
 func TestApertureMetersAddressZeroNumerator(t *testing.T) {
 	p := mustPrefix(t, "203.0.113.0/24")
 	seeds := []db.ListSeedsRow{{Kind: "address", AddressCidr: &p}}
-	m := apertureMeters(seeds, nil, nil, time.Now(), nil)
+	m := apertureMeters(seeds, nil, true, nil, true, time.Now(), nil)
 	if m[0].Total == nil || m[0].Counted != "0" || m[0].Pct != 0 {
 		t.Fatalf("empty walk: want 0/256 at 0%%, got counted=%q total=%v pct=%d", m[0].Counted, m[0].Total, m[0].Pct)
 	}
@@ -100,7 +101,7 @@ func TestApertureMetersAddressZeroNumerator(t *testing.T) {
 
 func TestApertureMetersNameCensus(t *testing.T) {
 	seeds := []db.ListSeedsRow{{Kind: "name", NameDomain: pgtype.Text{String: "acmecorp.io", Valid: true}}}
-	m := apertureMeters(seeds, nil, nil, time.Now(), nil)
+	m := apertureMeters(seeds, nil, true, nil, true, time.Now(), nil)
 	if m[0].Total != nil {
 		t.Fatalf("name scope must be a census (Total nil), got %v", m[0].Total)
 	}
@@ -143,7 +144,7 @@ func TestAddressMeterOldestCurrentAsOf(t *testing.T) {
 		{Addr: mustAddr(t, "203.0.113.20"), ObservedAt: oldest},
 		{Addr: mustAddr(t, "203.0.113.30"), ObservedAt: now.Add(-3 * time.Hour)},
 	}
-	m := apertureMeters(seeds, nil, walked, now, nil)[0]
+	m := apertureMeters(seeds, nil, true, walked, true, now, nil)[0]
 	if m.Total == nil || *m.Total != "256" || m.Counted != "3" {
 		t.Fatalf("lagging meter is counted/total 3/256: got counted=%q total=%v", m.Counted, m.Total)
 	}
@@ -158,7 +159,7 @@ func TestAddressMeterOldestCurrentAsOf(t *testing.T) {
 func TestAddressMeterNoAsOfWhenNothingCurrent(t *testing.T) {
 	p := mustPrefix(t, "203.0.113.0/24")
 	seeds := []db.ListSeedsRow{{Kind: "address", AddressCidr: &p}}
-	m := apertureMeters(seeds, nil, nil, time.Now(), nil)[0]
+	m := apertureMeters(seeds, nil, true, nil, true, time.Now(), nil)[0]
 	if m.AsOf != "" || m.AsOfISO != "" {
 		t.Fatalf("no current subject: as-of must be empty, got AsOf=%q AsOfISO=%q", m.AsOf, m.AsOfISO)
 	}
@@ -208,5 +209,48 @@ func TestStaleZonesSkipsUnsupplied(t *testing.T) {
 	}
 	if got := staleZones(nil, 0, now); got != nil {
 		t.Fatalf("no re-supply interval declared: want nil, got %v", got)
+	}
+}
+
+func TestApertureMetersWithholdAddressNumeratorOnFailedWalk(t *testing.T) {
+	p := mustPrefix(t, "203.0.113.0/24")
+	seeds := []db.ListSeedsRow{{Kind: "address", AddressCidr: &p}}
+	m := apertureMeters(seeds, nil, true, nil, false, time.Now(), nil)
+	if len(m) != 1 {
+		t.Fatalf("want 1 meter, got %d", len(m))
+	}
+	got := m[0]
+	if !got.Withheld {
+		t.Fatalf("a failed walk must withhold the meter, got %+v", got)
+	}
+	if got.Counted != "" || got.Total != nil || got.Pct != 0 {
+		t.Fatalf("a failed walk must render no numerator: counted=%q total=%v pct=%d", got.Counted, got.Total, got.Pct)
+	}
+	if got.Label != "203.0.113.0/24" {
+		t.Fatalf("a withheld meter keeps its label: got %q", got.Label)
+	}
+	if !strings.Contains(got.Detail, "did not resolve") {
+		t.Fatalf("a withheld meter must name the cause: got %q", got.Detail)
+	}
+}
+
+func TestApertureMetersWithholdNameCountOnFailedZoneRead(t *testing.T) {
+	seeds := []db.ListSeedsRow{{Kind: "name", NameDomain: pgtype.Text{String: "acmecorp.io", Valid: true}}}
+	m := apertureMeters(seeds, nil, false, nil, true, time.Now(), nil)
+	if len(m) != 1 {
+		t.Fatalf("want 1 meter, got %d", len(m))
+	}
+	got := m[0]
+	if !got.Withheld {
+		t.Fatalf("a failed zone read must withhold the meter, got %+v", got)
+	}
+	if got.Counted != "" {
+		t.Fatalf("a failed zone read must not render 0 declared names: counted=%q", got.Counted)
+	}
+	if got.Label != "acmecorp.io" {
+		t.Fatalf("a withheld meter keeps its label: got %q", got.Label)
+	}
+	if !strings.Contains(got.Detail, "did not resolve") {
+		t.Fatalf("a withheld meter must name the cause: got %q", got.Detail)
 	}
 }

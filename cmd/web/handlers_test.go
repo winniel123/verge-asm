@@ -56,8 +56,9 @@ type fakeStore struct {
 
 	edgeFanoutBounds [][]string
 
-	exclusions []db.Exclusion
-	exclNextID int64
+	exclusions    []db.Exclusion
+	exclNextID    int64
+	exclusionsErr error
 
 	annotations []db.Annotation
 	annoNextID  int64
@@ -96,6 +97,11 @@ type fakeStore struct {
 
 	vantages      []db.Vantage
 	vantageNextID int64
+	vantagesErr   error
+
+	driftEventsErr  error
+	reachSpansErr   error
+	pendingPropsErr error
 
 	channels       []fakeChannel
 	chanNextID     int64
@@ -739,6 +745,9 @@ func (f *fakeStore) CreateAddressExclusion(_ context.Context, arg db.CreateAddre
 }
 
 func (f *fakeStore) ListExclusions(context.Context) ([]db.ListExclusionsRow, error) {
+	if f.exclusionsErr != nil {
+		return nil, f.exclusionsErr
+	}
 	rows := make([]db.ListExclusionsRow, 0, len(f.exclusions))
 	for i := len(f.exclusions) - 1; i >= 0; i-- {
 		e := f.exclusions[i]
@@ -784,6 +793,9 @@ func (f *fakeStore) CreateVantage(_ context.Context, arg db.CreateVantageParams)
 }
 
 func (f *fakeStore) ListVantages(context.Context) ([]db.ListVantagesRow, error) {
+	if f.vantagesErr != nil {
+		return nil, f.vantagesErr
+	}
 	rows := make([]db.ListVantagesRow, 0, len(f.vantages))
 	for i := len(f.vantages) - 1; i >= 0; i-- {
 		v := f.vantages[i]
@@ -1457,6 +1469,9 @@ func (f *fakeStore) fakeBatchByID(id int64) db.Batch {
 }
 
 func (f *fakeStore) ListRecentDriftEvents(_ context.Context, arg db.ListRecentDriftEventsParams) ([]db.ListRecentDriftEventsRow, error) {
+	if f.driftEventsErr != nil {
+		return nil, f.driftEventsErr
+	}
 	since := arg.Since
 	type tlkey struct{ kind, key, facet, discriminator, source string }
 	order := []tlkey{}
@@ -1722,6 +1737,9 @@ func reachOutcomeIsGap(value []byte) bool {
 }
 
 func (f *fakeStore) ListServiceReachabilitySpansByClass(_ context.Context) ([]db.ListServiceReachabilitySpansByClassRow, error) {
+	if f.reachSpansErr != nil {
+		return nil, f.reachSpansErr
+	}
 	rows := []db.ListServiceReachabilitySpansByClassRow{}
 	for k, o := range f.currentReachByVantage() {
 		v := f.vantageByID(k.vantage)
@@ -2382,6 +2400,9 @@ func (f *fakeStore) CreateProposal(_ context.Context, arg db.CreateProposalParam
 }
 
 func (f *fakeStore) ListPendingProposals(context.Context) ([]db.ListPendingProposalsRow, error) {
+	if f.pendingPropsErr != nil {
+		return nil, f.pendingPropsErr
+	}
 	lookupByID := map[int64]db.ProposerLookup{}
 	for _, l := range f.lookups {
 		lookupByID[l.ID] = l
