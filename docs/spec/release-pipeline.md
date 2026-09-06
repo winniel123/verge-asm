@@ -182,14 +182,28 @@ build** ([#1080](https://github.com/winniel123/verge-asm/issues/1080)).
 One job, one `ubuntu-latest` amd64 runner. `docker/bake-action` over a committed
 `docker-bake.hcl`. Two targets, `web` and `worker`.
 
-| Setting | Value |
-| --- | --- |
-| `platforms` | `["linux/amd64", "linux/arm64"]` |
-| `provenance` | `false` |
-| `sbom` | `false` |
-| output | `type=image,push-by-digest=true,name-canonical=true,push=true` |
-| tags | cleared |
-| cache backend | none |
+| Setting | Value | Set in |
+| --- | --- | --- |
+| `platforms` | `["linux/amd64", "linux/arm64"]` | `docker-bake.hcl` |
+| `attest` | `["type=provenance,disabled=true", "type=sbom,disabled=true"]` | `docker-bake.hcl` |
+| `args` | `{ VERGE_VERSION = "" }` | `docker-bake.hcl`, **overridden by the release job** |
+| cache backend | none | `docker-bake.hcl` |
+| output | `type=image,push-by-digest=true,name-canonical=true,push=true` | the release job |
+| tags | cleared | the release job |
+
+**The `attest` long form is required. The `provenance = false` shorthand does not work.** See
+the measurement below.
+
+**The release job owns three of these: the output, the tag set and the `VERGE_VERSION` arg.** The
+bake file names the arg with an empty default rather than leaving it implicit, so a reader of
+either file can see the seam. The empty default is deliberate. §3 rules that a builder-stage
+`ARG VERGE_VERSION=dev` would make the stamp non-empty on every build and strand the runtime
+fallback forever.
+
+**A release that does not override the arg publishes unstamped images.** Those images then read
+the operator's `VERGE_VERSION`, which `docker-compose.yml` sets to `dev`. So a forgotten override
+does not fail. It ships a release that reports itself as `dev`, and §3's precedence rule is
+defeated at the one moment it matters. The release job passes `${GITHUB_REF_NAME#v}`.
 
 The `Dockerfile` already cross-compiles from `$BUILDPLATFORM` and runs no command on the target,
 so one amd64 runner covers both platforms with no QEMU
@@ -229,7 +243,32 @@ so every release commit busts every `go build` layer. `type=gha` would spend the
 for a hit only on `go mod download`.
 
 **BuildKit's default provenance is rejected.** The default is on at `mode=min`. Silence would give
-each image a second provenance predicate. `provenance = false` is explicit in `docker-bake.hcl`.
+each image a second provenance predicate, and the `--recursive` signature count would rise above
+six. So `docker-bake.hcl` disables both attestations explicitly.
+
+**It disables them with the `attest` long form, because the `provenance = false` shorthand does
+nothing.** This corrected an earlier version of this section, which named the shorthand
+([#1248](https://github.com/winniel123/verge-asm/issues/1248)).
+
+Measured 2026-09-06 on buildx 0.30.1, `docker-container` driver, two platforms, every setting
+declared in the HCL with no `--set`, output `type=oci`, and the exported index read directly:
+
+| Target setting | Manifests in the index |
+| --- | --- |
+| `provenance = false` and `sbom = false` | 4 — `amd64`, `arm64`, **and two `attestation-manifest` entries** |
+| `attest = ["type=provenance,disabled=true", "type=sbom,disabled=true"]` | 2 — `amd64` and `arm64` only |
+
+**The build accepts the shorthand, warns nothing, and still attaches both attestations.** The
+failure is silent at every step.
+
+**`docker buildx bake --print` cannot catch it.** `--print` renders neither shorthand, not even
+`provenance = true`, so the resolved output looks identical whatever the file says. It does render
+`attest`, so the long form is the reviewable one. **A gate that reads `--print` for this must
+assert on `attest`.**
+
+The rejection above still holds and its reason is unchanged. Only the mechanism moved. Had the
+shorthand shipped, each image would have carried an extra provenance predicate. The six
+attestations of §8 would have become ten at the first tag.
 
 **A per-platform runner matrix is rejected.** It rebuilds the shared `builder` stage per runner and
 buys nothing for a cross-compiling `Dockerfile`.
@@ -568,7 +607,7 @@ image once.
 **Syft is rejected.** It is correct, and it is the reference generator. It repeats work a Trivy run
 already does and reads each image a second time.
 
-**BuildKit `sbom: true` is rejected.** It emits SPDX only, its copy is unsigned, and it never
+**A BuildKit-written SBOM is rejected.** It emits SPDX only, its copy is unsigned, and it never
 reaches the GitHub attestations API. **The cost is stated:** this knowingly gives up the one thing
 BuildKit does better, which is composing per-platform attestation manifests into the index with no
 bookkeeping.
@@ -841,9 +880,10 @@ pointing at them. §15.3 owns the offline route.
 
 ### 8.5 The subject and the count
 
-**The index digest only. Two provenance attestations per release.** §2.3 sets
-`provenance = false` and `sbom = false`, so BuildKit writes no competing provenance, each index
-keeps two children, and §7.2's six-signature model holds.
+**The index digest only. Two provenance attestations per release.** §2.3 disables both BuildKit
+attestations through `attest`, so BuildKit writes no competing provenance, each index keeps two
+children, and §7.2's six-signature model holds. **The `provenance = false` shorthand does not do
+this.** §2.3 carries the measurement.
 
 **The loose Release assets get no provenance attestation.** The rejected alternative was
 `subject-path: SHA256SUMS`. It loses on two counts. The keyless certificate on
