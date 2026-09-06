@@ -682,13 +682,15 @@ func parseSigNum(id string) int64 {
 	return 0
 }
 
+const signalNeverSeenMins = 1 << 62
+
 func seenAgeMinutes(iso string, now time.Time) int64 {
 	if iso == "" {
-		return 1 << 62
+		return signalNeverSeenMins
 	}
 	t, err := time.Parse(time.RFC3339, iso)
 	if err != nil {
-		return 1 << 62
+		return signalNeverSeenMins
 	}
 	d := now.Sub(t)
 	if d < 0 {
