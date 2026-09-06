@@ -99,7 +99,7 @@ func TestCertDetailPerAttributeNullability(t *testing.T) {
 }
 
 func TestCertificateVersionsComposeTLSHandshake(t *testing.T) {
-	const want = "rule@v1|tls-handshake/v3"
+	const want = "rule@v1|tls-handshake/v4"
 	for _, r := range []EndpointRule{
 		certificateExpired, certificateNotYetValid, certificateExpiring,
 		certificateSelfSigned, certificateHostnameSANMismatch{},
@@ -108,7 +108,7 @@ func TestCertificateVersionsComposeTLSHandshake(t *testing.T) {
 			t.Errorf("%s version = %q, want %q", r.Name(), got, want)
 		}
 	}
-	const wantWeak = "rule@v1|tls-handshake/v3|weak-key-floor/v1"
+	const wantWeak = "rule@v1|tls-handshake/v4|weak-key-floor/v1"
 	if got := certificateWeakKeyOrSignature.Version().String(); got != wantWeak {
 		t.Errorf("certificate-weak-key-or-signature version = %q, want %q", got, wantWeak)
 	}
@@ -135,7 +135,7 @@ func TestPlaintextHTTPNoHTTPS(t *testing.T) {
 			t.Errorf("%s: Eval = %q, want %q", c.name, got, c.want)
 		}
 	}
-	const wantVer = "rule@v1|http-exchange/v2|tls-handshake/v3"
+	const wantVer = "rule@v1|http-exchange/v2|tls-handshake/v4"
 	if got := r.Version().String(); got != wantVer {
 		t.Fatalf("version = %q, want %q", got, wantVer)
 	}
