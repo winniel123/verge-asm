@@ -703,18 +703,18 @@ not a comment, whatever a line scanner reads.
 a `[]string`. No rule in this SPEC reaches one. That distinction made #1446 report four breaches
 where three existed.
 
-**The tree does not honour the cap, and the campaign is #1454.** An earlier version of this
+**The tree once did not honour the cap, and #1454 carried the campaign.** An earlier version of this
 constraint said Go comment lines in `cmd` and `internal` reach 93 characters at the maximum. That
 was false. Measured 2026-09-05 across the **844** in-scope files, under the measure above:
-**376 rule-shaped comment blocks hold a line over 100 columns**, against 469 before the four classes
-`flags()` already skips. By class: `citation` 287, `why-note` 83, `dts-field-prose` 5,
-`external-spec` 1. By position: 366 own-line and 10 trailing. **#1454** carries the repair campaign.
+**376 rule-shaped comment blocks held a line over 100 columns**, against 469 before the four classes
+`flags()` then skipped. By class: `citation` 287, `why-note` 83, `dts-field-prose` 5,
+`external-spec` 1. By position: 366 own-line and 10 trailing.
 
 **Map #1466 closed that population.** Its fifteen agent-ready tickets repaired all 367 Go blocks,
 plus 19 more that the flag could not see until its filter narrowed. **Every one was repaired by
 trimming the reason clause. No citation was dropped and no comment was deleted**, so ratchet rule 5
 never forced the §4.7 route the campaign was sized for. **#1481 then closed the non-Go tail of
-nine**, which `-column-report` counted on `478ea6c`. Four `citation` blocks took a trim. Four
+nine**, which `--column-report` counted on `478ea6c`. Four `citation` blocks took a trim. Four
 `dts-field-prose` blocks took a JSDoc wrap. `ColumnPicker.d.ts` took a declaration reformat. The
 two rulings the map held open are stated below, and the population is now zero.
 
@@ -725,8 +725,9 @@ tree with `scope.Classify`. Lex each file with `surface.For`. Classify each bloc
 `Block.EndLine` against the physical source line.
 
 **That walk once dropped four classes, and two of them belong in the count.** Dropping
-`step-narration` and `prose-other` as well yields the **376** figure this section reported, which is
-the *flaggable* population, not the capped one. The paragraph below states why the cap reaches both.
+`step-narration` and `prose-other` as well yields the **376** figure this section reported. That
+figure was the population every *other* rule could flag, and it was never the capped population.
+`column-over-cap` flags both classes. The paragraph below states why the cap reaches them.
 
 **That walk is now a flag, and no agent reruns it by hand.** #1482 gave `Block` a `Columns` field
 that every lexer populates, and `commentlint lint --column-report` prints one greppable line per
@@ -740,8 +741,9 @@ column-over-cap by class: <class> <n>
 ```
 
 The flag is off by default. It adds no violation of its own, and it changes no exit code. §6.2
-records the seam. At `ca08e5a` it read **376** under `flags()`'s four-class filter — `citation` 287, `why-note` 83,
-`dts-field-prose` 5, `external-spec` 1 — reproducing #1454's hand-checked figure exactly.
+records the seam. At `ca08e5a` it read **376** under `flags()`'s four-class filter — `citation` 287,
+`why-note` 83, `dts-field-prose` 5, `external-spec` 1 — reproducing #1454's hand-checked figure
+exactly.
 
 **`column-over-cap` is a lint class, and `commentlint lint` gates the cap.** #1482's second PR
 added the rule id after every repair ticket on #1466 closed. The class flags a block where
@@ -2382,6 +2384,15 @@ runs `commentlint lint` against the post-stage-B tree to get the real numbers.
 3. Never split a package across two tickets, unless the package alone exceeds a cap.
 4. Never merge two surface families into one ticket.
 
+**Rule 4 takes a waiver where no family can stand alone, and #1481 holds one.** The waiver is
+recorded here rather than granted in the ticket, so a later reader finds it beside the rule. The D3
+sweep's 20-file waiver is the precedent. #1481 repaired the non-Go tail of #1466's column-cap
+campaign: nine blocks over six directories in three families, SQL, `.d.ts` and JavaScript. The
+largest family held four blocks. A ticket per family costs three reviews to move nine lines, and it
+leaves #1482's lint class unlandable until the last of the three closes. **Grant this waiver only
+where the split buys no review value.** A family with a full ticket's worth of residue never
+qualifies.
+
 **Indicative sizing, measured before stage B.** Treat it as an order-of-magnitude guide.
 
 | Stage | Comment lines | Tickets at 600 |
@@ -2624,8 +2635,9 @@ classic.
 **Condition 2 does not prove conformance on its own.** `lint` flags only the mechanically-decidable
 classes. Condition 3 is the judgment gate. Delete-by-default makes a wrong delete visible in the
 diff and a wrong keep invisible. The reviewer therefore checks the keeps. `lint` enforces
-§4.4's 100-column cap since #1482, so condition 2 covers it and no survivor needs a hand count
-(§4.4).
+§4.4's 100-column cap since #1482, so condition 2 covers every in-scope survivor and none needs a
+hand count. **`scope.Classify` drops `internal/db/`, so a generated twin stays unmeasured.** Size a
+`db/queries` survivor against that twin by hand, as §4.4 states.
 
 **Condition 2 names the surface it binds, because it does not bind them all the same way.**
 Measured 2026-09-05 over the 844 in-scope files `commentlint lint` walks at `ed0a5a5`.
@@ -3104,8 +3116,8 @@ behaviour" is gate B restated. "Does not open with an identifier name" is a docs
 already kill. The column cap was pruned on the ground that 25 words implies it and that the tree
 already wraps at 93.
 
-**That last ground is false, and the pruning survives it.** §4.4 measures 376 rule-shaped blocks
-over 100 columns, so 25 words does not imply the cap and the tree does not wrap at 93. The pruning
+**That last ground is false, and the pruning survives it.** §4.4 measured 376 rule-shaped blocks
+over 100 columns, so 25 words does not imply the cap and the tree did not wrap at 93. The pruning
 stands on the other half of the trade: the cap is a sweep-time repair discipline, and a line in
 `CLAUDE.md` would pay load every session for a rule `commentlint lint` checks on every run (§7.7).
 

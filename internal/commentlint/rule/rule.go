@@ -138,9 +138,10 @@ func Deletable(b surface.Block) (Class, string, bool) {
 }
 
 type Finding struct {
-	Line  int
-	Rule  string
-	Class Class
+	Line    int
+	Rule    string
+	Class   Class
+	Columns int
 }
 
 func Lint(res surface.Result, testFile bool) []Finding {
@@ -155,28 +156,31 @@ func Lint(res surface.Result, testFile bool) []Finding {
 	return out
 }
 
-var unjudged = map[Class]bool{
+var toolOwned = map[Class]bool{
+	// A directive's columns are the tool's, and §2.3 forbids splitting one (#1466).
 	Directive:       true,
 	GeneratedHeader: true,
+}
+
+var needsIntent = map[Class]bool{
 	// Both classes need intent to judge, and ruling 12 forbids guessing at it (SPEC §3.5).
 	StepNarration: true,
 	ProseOther:    true,
 }
 
 func Judged(c Class) bool {
-	return !unjudged[c]
+	return !toolOwned[c] && !needsIntent[c]
 }
 
 func CapBinds(c Class) bool {
-	// A directive's columns are the tool's, and §2.3 forbids splitting one (#1466).
-	return c != Directive && c != GeneratedHeader
+	return !toolOwned[c]
 }
 
 func flags(b surface.Block, trailing, testFile bool) []Finding {
 	c := Classify(b)
 	var out []Finding
 	add := func(id string) {
-		out = append(out, Finding{Line: b.StartLine, Rule: id, Class: c})
+		out = append(out, Finding{Line: b.StartLine, Rule: id, Class: c, Columns: b.Columns})
 	}
 	// The cap counts columns, so ruling 12 withholds no class from it (SPEC §4.4, #1482).
 	if b.Columns > ColumnCap && CapBinds(c) {
