@@ -36,7 +36,7 @@ export function run(repoRoot, files) {
     try {
       markdown = readFileSync(abs, "utf8");
     } catch (err) {
-      // A changed-file list names a deleted document, so a missing file is an operator error (#1436).
+      // A changed-file list names a deleted document, so a missing file is operator error (#1436).
       unreadable.push({ file: docFile, code: err.code ?? err.message });
       continue;
     }

@@ -379,3 +379,24 @@ func TestRuleIDsCarryNoDoclintPrefix(t *testing.T) {
 		}
 	}
 }
+
+func TestCapBindsEveryClassTheToolDoesNotOwn(t *testing.T) {
+	exempt := []Class{GeneratedHeader, Directive}
+	bound := []Class{
+		Todo, CommentedOutCode, SectionDivider, PackageDoc,
+		DocstringExportedConventional, DocstringExportedOther, DocstringUnexported,
+		Citation, ExternalSpec, WhyNote, ChangeNarration, StepNarration,
+		ShortLabel, DTSFieldProse, ProseOther,
+	}
+	for _, c := range exempt {
+		if CapBinds(c) {
+			t.Errorf("the cap binds %q, and the tool owns its columns (SPEC §4.4)", c)
+		}
+	}
+	for _, c := range bound {
+		// §4.3's carve-out withholds the delete ruling, not the cap (§4.4, #1481).
+		if !CapBinds(c) {
+			t.Errorf("the cap skips %q, and SPEC §4.4 binds it", c)
+		}
+	}
+}

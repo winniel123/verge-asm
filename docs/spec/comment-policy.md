@@ -645,6 +645,11 @@ and not an id. §6.6 states the predicate that decides it.
 annotations sat exactly there, and both went. The predicate in §6.6 is what draws the line, and it
 is a shape rather than a judgment.
 
+**The carve-out does not reach §4.4's column cap, and #1481 ruled that.** The carve-out withholds
+the delete ruling and constraint 1 from the class. It withholds nothing else. §4.4 rules that
+constraint 4 binds `dts-field-prose`, and that the repair is a JSDoc wrap and not a trim. A trim
+destroys the contract text this carve-out exists to protect.
+
 **The carve-out has an unruled `.mjs` twin, and §4.2 settles it.** A `@typedef` in a `.mjs` **is**
 the type declaration, not a comment about one, so the carve-out's premise reads as though it
 transferred. It does not. The carve-out rests on "a `.d.ts` has no implementation", and a `.mjs`
@@ -708,11 +713,10 @@ was false. Measured 2026-09-05 across the **844** in-scope files, under the meas
 **Map #1466 closed that population.** Its fifteen agent-ready tickets repaired all 367 Go blocks,
 plus 19 more that the flag could not see until its filter narrowed. **Every one was repaired by
 trimming the reason clause. No citation was dropped and no comment was deleted**, so ratchet rule 5
-never forced the §4.7 route the campaign was sized for. **Nine blocks remain**, all of #1481's
-non-Go tail: five `dts-field-prose`, `db/queries/measurement.sql:84`, and three `docs-site` files.
-Eight are ordinary comment edits, held only by #1481's two rulings and by `sqlc` being a required
-check. **One is not**: `ColumnPicker.d.ts:2` holds a whole `export interface` on one line, of which
-34 columns are field prose, so reaching 100 needs a declaration reformat.
+never forced the §4.7 route the campaign was sized for. **#1481 then closed the non-Go tail of
+nine**, which `-column-report` counted on `478ea6c`. Four `citation` blocks took a trim. Four
+`dts-field-prose` blocks took a JSDoc wrap. `ColumnPicker.d.ts` took a declaration reformat. The
+two rulings the map held open are stated below, and the population is now zero.
 
 **Reproduce the count, never re-derive it by hand.** A hand scan disagrees with every other hand
 scan, which is how #1446 first reported 378 and 471. Use `commentlint`'s own population. Walk the
@@ -761,14 +765,31 @@ beside any figure you report** (§7.5 rule 10).
 148.
 
 **Two shapes resist repair by editing the comment at all.** A trailing comment shares its physical
-line with code, so the code sets the floor. `ColumnPicker.d.ts`'s `PickableColumn` holds a whole
-`export interface` on one line, and its field prose is 34 of the 123 columns. Reaching 100 there
-means reformatting the declaration, which is not a comment edit.
+line with code, so the code sets the floor. `ColumnPicker.d.ts`'s `PickableColumn` held a whole
+`export interface` on one line, and its field prose was 34 of the 123 columns.
 
-**Whether constraint 4 binds `dts-field-prose` at all is unruled.** §4.3 keeps that class because
-the field prose **is** the interface rather than a comment on code. Constraint 1 forbids stating
-behaviour, which is exactly what field prose exists to do. The five `.d.ts` blocks in the count wait
-on that ruling.
+**Ruling: where the code on the line sets the floor above 100, the code moves, and the reformat
+stays in the repair ticket.** The cap binds the physical line, not the comment text. A repair that
+the comment cannot reach is still a repair. #1481 made `PickableColumn` a five-line interface body
+and changed no word of its field prose. The reformat is safe on a `.d.ts`, because such a file
+declares types alone and no tool in this repo reads its layout. ADR-0145 retired the design-system
+handoff workflow, so the file is editable here. **Do not cut such a block into its own ticket.** A
+repair ticket that leaves one block open holds #1482's lint class unlandable. The reformat costs
+less than the hand-off.
+
+**Ruling: constraint 4 binds `dts-field-prose`.** The cap is arithmetic over a physical line and
+needs no intent. That is the same reason it reaches `step-narration` and `prose-other`. §4.3's
+carve-out withholds the delete ruling and constraint 1 from the class. It withholds nothing else.
+`directive` and `generated-header` are exempt, because the tool owns their columns. No tool owns
+the columns of field prose. `rule.CapBinds` therefore keeps the class, and
+`TestCapBindsEveryClassTheToolDoesNotOwn` holds that.
+
+**The repair for `dts-field-prose` is a JSDoc wrap, not a trim.** §4.3 keeps the class because the
+field prose **is** the contract a caller reads. A compression therefore destroys the thing the
+carve-out protects. Ratchet rule 5 forbids the wrap of a **cited** block. Field prose carries no
+citation, so the wrap route is open here and closed to `citation`. #1481 wrapped four field docs
+into `/**`, ` * ` and ` */` lines and changed no word. Trim a field doc only where the field name
+already carries the word you cut.
 
 **`commentlint` does not enforce constraint 4, so a clean `lint` run is not evidence.** §7.7 names
 the cap and `lint` in one recipe, which reads as though the tool checked it. It does not.
@@ -787,6 +808,9 @@ the only instrument, and a hand count is the failure #1446 recorded three times.
 with spaces, so runes, bytes and columns coincide there, and the longest survivor in stage D2 is 97
 runes. A 100-rune `.sql` survivor still becomes **101 columns** once `sqlc` re-emits it into
 tab-indented `internal/db` (#1228). Measure a D2 survivor against its generated twin.
+`scope.Classify` drops `internal/db/`, so the flag never reports the twin, and the four columns are
+yours to leave free. #1481 sized `ReapStaleRunningJobs` to 95 columns in the query and 99 in
+`Querier` for that reason.
 
 **A trailing survivor is squeezed from both sides.** §3.5 ratchet rule 2 flags a `short-label`
 trailing or own-line, and §6.6 classifies a one-line block of 6 payload words or fewer as one.
@@ -2119,6 +2143,8 @@ above is a judgment, so `flags()` withholds `step-narration` and `prose-other` f
 under ruling 12. The cap is arithmetic over a physical line, so it needs no intent and binds those
 two classes. `rule.CapBinds` is the predicate, and it drops `directive` and `generated-header`
 alone — a directive's columns belong to the tool that reads it, and §2.3 forbids splitting one.
+**`dts-field-prose` is bound, and §4.4 rules that.** §4.3's carve-out withholds the delete ruling
+from the class, not the cap. `column-over-cap` must flag a field doc over 100 columns.
 
 **A `column-over-cap` rule class is still not built.** #1482's second PR builds it once #1481
 closes. Until then §4.4's cap is measured by `lint --column-report` and gated by nothing, so a

@@ -16,7 +16,7 @@ function markdownFilesUnder(dir) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const abs = join(dir, entry.name);
     if (entry.isDirectory()) {
-      // The scope table lists families, not depths, so a doc nested inside one still counts (ADR-0156 §1).
+      // The scope table lists families, not depths, so a nested doc still counts (ADR-0156 §1).
       files.push(...markdownFilesUnder(abs));
     } else if (entry.isFile() && entry.name.endsWith(".md")) {
       files.push(abs);
