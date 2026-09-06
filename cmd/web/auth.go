@@ -14,6 +14,7 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -24,6 +25,7 @@ import (
 
 	designfs "github.com/winniel123/verge-asm/design-system"
 	"github.com/winniel123/verge-asm/internal/auth"
+	"github.com/winniel123/verge-asm/internal/buildinfo"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/env"
 	"github.com/winniel123/verge-asm/internal/qr"
@@ -173,7 +175,17 @@ func (s *server) buildVersion() string {
 	if s.devMode {
 		return devFixtureVersion
 	}
-	return env.OrDefault("VERGE_VERSION", "dev")
+	return buildinfo.Version()
+}
+
+func logVersionStamp() {
+	if !buildinfo.Stamped() {
+		return
+	}
+	// compose sets `dev` itself, so warning on it fires on every released boot (#1248).
+	if v := os.Getenv("VERGE_VERSION"); v != "" && v != "dev" {
+		log.Printf("web: VERGE_VERSION=%s ignored: this build is stamped %s", v, buildinfo.Version())
+	}
 }
 
 func (s *server) signinData(data map[string]any) map[string]any {

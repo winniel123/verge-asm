@@ -17,9 +17,6 @@ concurrency:
 permissions:
   contents: read
 
-env:
-  GO_VERSION: "1.26.8"
-
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -27,7 +24,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version-file: .go-version
       - name: gofmt
         run: |
           # `gofmt -l` exits 0 whether or not it names a file, so the output is
@@ -42,6 +39,10 @@ jobs:
           fi
       - run: go vet ./...
       - run: go test ./...
+      - name: check the Go toolchain pins
+        # Inside `test` rather than in a job of its own: `test` is already one of
+        # the 7 required checks, and an 8th would need a human (ADR-0001, #1247).
+        run: scripts/check-go-pins.sh --mode ci
 
   # An architecture is in this matrix exactly where the golden corpus (a
   # later ticket) runs on it in CI (ADR-0001, packaging-and-configuration.md
@@ -61,10 +62,28 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version-file: .go-version
       - run: go build -o /dev/null ./cmd/web
       - run: go build -o /dev/null ./cmd/worker
       - run: go build -o /dev/null ./cmd/prober
+
+  # A release-only docker-bake.hcl would first execute during the release it must
+  # produce, and release.yml's guards do not catch a malformed bake target
+  # (release-pipeline.md §2.3, #1248). This run needs no OIDC and no registry login.
+  #
+  # Advisory, like `compose`: this is not one of the 7 required checks, so a red run
+  # reports and does not block. Registering an 8th check needs a human (#1246).
+  bake:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      # The docker driver cannot build two platforms in one call, so the container
+      # driver is required here rather than preferred.
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+      # No output and no push. The targets build and are discarded, which is the whole
+      # assertion: the file parses and both images compile for both platforms.
+      - name: Build both images for both platforms
+        run: docker buildx bake --file docker-bake.hcl
 
   sqlc:
     runs-on: ubuntu-latest
@@ -102,7 +121,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version-file: .go-version
       - run: go test ./internal/measure/... ./internal/custody/...
 
   # A6, gate direction 2 (golden-corpus.md §3.2): a version bump with no moved
@@ -463,7 +482,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version-file: .go-version
       - name: govulncheck ./...
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@v1.1.4

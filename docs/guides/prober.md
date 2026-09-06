@@ -184,6 +184,81 @@ Exposure findings — what of yours is reachable from the internet — now appea
 
 ---
 
+## What covers the pushed binary, and what it does not
+
+The instance pushes a fresh prober binary at each invocation, runs it, and deletes it.
+**Nothing signs that binary on the wire.** This section states what covers it instead,
+and where that cover stops. The ruling is
+[ADR-0139](../adr/0139-the-probers-origin-is-the-image-that-carries-it-and-a-host-bounds-the-binary-rather-than-verifies-it.md).
+
+### The claim, and its bound
+
+**Verifying the worker image covers the prober — for whoever holds that image.** That
+person is the instance operator.
+
+The [`Dockerfile`](../../Dockerfile) builds `prober-linux-amd64` and `prober-linux-arm64`
+in the **same builder stage** as `web` and `worker`. Its `worker` stage copies both into
+the image at `/app/probers`. [`cmd/worker/main.go`](../../cmd/worker/main.go) reads
+`VERGE_PROBER_DIR`, default `/app/probers`. `DirBinaryProvider.Binary` in
+[`internal/remoteexec/binary.go`](../../internal/remoteexec/binary.go) then opens
+`prober-<goos>-<goarch>` from that directory. **Every path reads the worker image's
+read-only filesystem. No path fetches a release asset, and no path reaches the network.**
+
+So the pushed binary never leaves an image the release pipeline signs, attests and
+describes in an SBOM. [verifying-releases.md](verifying-releases.md) is how you verify
+that image.
+
+**The bound belongs beside the claim.** The cover reaches the person who holds the image.
+Whoever holds no image holds only a binary. That binary arrives over SSH, and verge
+deletes it after the run.
+
+### The five controls the operator relies on instead
+
+All five exist today.
+
+| Control | Where it lives |
+| --- | --- |
+| 1. Image verification at pull | [verifying-releases.md](verifying-releases.md) |
+| 2. SSH public-key auth, with `restrict` and `from=<egress>` in `authorized_keys` | steps 2 and 4 above, and [`deploy/prober/`](../../deploy/prober/) |
+| 3. The trust-on-first-use host-key pin. A change is a hard failure, never a prompt | `PinningHostKeyCallback` in [`internal/vantage/hostkey.go`](../../internal/vantage/hostkey.go) |
+| 4. The `0700` random temp path, `/tmp/verge-prober-<8 random bytes>` | `tempPath` and `Probe` in [`internal/remoteexec/probe.go`](../../internal/remoteexec/probe.go) |
+| 5. The delete after every run | `Probe`'s deferred `rm -f`, same file |
+
+### Nothing verifies the binary, at either end
+
+Three mechanisms lost, each on its own ground.
+
+| Mechanism | Why it lost |
+| --- | --- |
+| The worker verifies before it pushes | It would verify a file on its own image layer, and the trust root ships in that same image. **A compromised image passes its own check.** It also needs a network path to Sigstore, which the air-gapped verification kit exists to avoid. |
+| The host verifies after the binary lands | The host needs cosign, a trust root and a network path. [`deploy/prober/README.md`](../../deploy/prober/README.md) keeps this host to `alpine` plus `openssh-server` deliberately, and states the host "is the operator's rather than ours". |
+| A detached signature rides the push | It re-signs bytes the keyless release anchor already covers, and it lands them on a host with nothing to check them against. |
+
+### If you lend the host
+
+In every install today the vantage-host operator **is** the instance operator. There is
+one trust decision, and image pull is where you make it.
+
+**One condition changes that: the vantage-host operator is not the instance operator.**
+A lent host and a shared host both meet it.
+
+When that condition holds, **verge offers that person no origin proof.** Their lever is
+the SSH account, not a signature: a non-root user, `restrict`, `from=`,
+`cap_drop: [ALL]` and `no-new-privileges`. **Those bound what the binary may do. They do
+not prove what it is.**
+
+**One consequence is sharp, and this page states it rather than smooths it.** `Probe`'s
+deferred `rm -f` in [`internal/remoteexec/probe.go`](../../internal/remoteexec/probe.go)
+removes the binary after every run. **A lent-host operator cannot inspect afterwards what
+verge ran.**
+
+Two alternatives lost here as well. A **published per-release prober digest** reopens the
+refused loose-asset rule through a side door, and it publishes a digest nothing verifies.
+**Keeping the pushed binary on disk** trades a real hygiene control for an inspection
+window. That window only helps a party who already ran the binary.
+
+---
+
 ## Troubleshooting
 
 | Symptom | Cause and fix |

@@ -5,9 +5,12 @@
 # building the three binaries differently.
 # tag golang:1.26.8-bookworm pinned by manifest-list digest (#333, #745)
 # Patch pinned to 1.26.8 to agree with the go.mod `go 1.26.8` line (which enforces
-# a minimum toolchain of go1.26.8) and CI GO_VERSION "1.26.8" (#745). The 1.26 minor
+# a minimum toolchain of go1.26.8) and .go-version (#745, #1247). The 1.26 minor
 # is what golang.org/x/crypto v0.56.0 requires, and v0.56.0 is the only release that
 # clears GO-2026-6354 and GO-2026-6355, the reachable x/crypto/ssh advisories.
+# The tag beside the digest is decoration, because Docker resolves by digest and never
+# validates it. scripts/check-go-pins.sh compares this line, and reads the digest's own
+# org.opencontainers.image.version annotation for the gate (#1247).
 FROM --platform=$BUILDPLATFORM golang:1.26.8-bookworm@sha256:9fdc884aacc3bec89b20ffc69f4bb369c78210e3e4f600387b5128b12c199f81 AS builder
 ARG TARGETOS
 ARG TARGETARCH
@@ -23,8 +26,14 @@ COPY . .
 # because Go's floating-point contraction is architecture-dependent
 # (packaging-and-configuration.md §1).
 ENV CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOAMD64=v1 GOARM64=v8.0
-RUN go build -o /out/web ./cmd/web \
-    && go build -o /out/worker ./cmd/worker \
+
+# `dev` here would stamp every build and make the runtime VERGE_VERSION unreachable
+# forever (release-pipeline.md §3).
+ARG VERGE_VERSION=""
+
+# The prober's origin is the image that carries it, so it reports no version of its own (ADR-0139).
+RUN go build -ldflags "-X github.com/winniel123/verge-asm/internal/buildinfo.version=${VERGE_VERSION}" -o /out/web ./cmd/web \
+    && go build -ldflags "-X github.com/winniel123/verge-asm/internal/buildinfo.version=${VERGE_VERSION}" -o /out/worker ./cmd/worker \
     && go build -o /out/prober ./cmd/prober
 
 # The instance carries a prober for EVERY matrix architecture so it can push the
@@ -52,6 +61,9 @@ RUN mkdir -p /transcript-key && chown 65532:65532 /transcript-key
 
 # tag gcr.io/distroless/static-debian12:nonroot pinned by manifest-list digest (#333)
 FROM gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab AS web
+# Without this label GHCR never links the package, and GITHUB_TOKEN then loses push
+# permission. It must be on the image before the first publish (§2.3, #1248).
+LABEL org.opencontainers.image.source="https://github.com/winniel123/verge-asm"
 COPY --from=builder /out/web /app/web
 COPY --from=builder --chown=65532:65532 /state /app/state
 COPY --from=builder --chown=65532:65532 /transcript-key /app/transcript-key
@@ -62,6 +74,8 @@ ENTRYPOINT ["/app/web"]
 
 # tag gcr.io/distroless/static-debian12:nonroot pinned by manifest-list digest (#333)
 FROM gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab AS worker
+# Same reason as the web stage above (§2.3, #1248).
+LABEL org.opencontainers.image.source="https://github.com/winniel123/verge-asm"
 COPY --from=builder /out/worker /app/worker
 COPY --from=builder /out/prober /app/prober
 # The per-architecture probers the off-host router pushes (VERGE_PROBER_DIR=/app/probers).

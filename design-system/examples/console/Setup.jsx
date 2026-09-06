@@ -48,7 +48,7 @@ export function Setup() {
         )}
       </div>
       <span style={{ font: "400 11px var(--font-mono)", color: "var(--text-muted)", display: "inline-flex", gap: 10, alignItems: "center" }}>
-        <span>Verge ASM v0.9.2</span><span aria-hidden="true">·</span><span>AGPL-3.0</span><span aria-hidden="true">·</span>
+        <span>Verge ASM 0.9.2</span><span aria-hidden="true">·</span><span>AGPL-3.0</span><span aria-hidden="true">·</span>
         <a href="signin.html" style={{ color: "var(--text-muted)" }}>Sign in</a>
       </span>
     </div>

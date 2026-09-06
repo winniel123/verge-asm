@@ -5,6 +5,11 @@ x-security: &security
 
 services:
   web:
+    # A literal tag, never a variable. The pinning mechanism is the generated, signed,
+    # digest-pinned Release asset, and one variable cannot carry both `:tag` and
+    # `@sha256:` syntax (release-pipeline.md §2.4, #1248). To pin a digest, edit this
+    # line, the way the postgres service below is already pinned.
+    image: ghcr.io/winniel123/verge-asm/web:latest
     build:
       context: .
       target: web
@@ -59,6 +64,8 @@ services:
   # the rate every Batch still records. Nothing warns and nothing refuses. The grant
   # that would bind it is not built (#1116). See docs/guides/running.md.
   worker:
+    # Same rule as the web service above (§2.4, #1248).
+    image: ghcr.io/winniel123/verge-asm/worker:latest
     build:
       context: .
       target: worker

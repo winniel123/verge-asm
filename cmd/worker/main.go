@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/winniel123/verge-asm/internal/buildinfo"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/delivery"
 	"github.com/winniel123/verge-asm/internal/env"
@@ -45,6 +46,8 @@ func main() {
 		return
 	}
 
+	logVersionStamp()
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
@@ -68,7 +71,7 @@ func main() {
 	logger := log.New(os.Stderr, "", log.LstdFlags)
 
 	// The CT source operator asked that the User-Agent name this build (passive-discovery §2.2).
-	ctVersion := env.OrDefault("VERGE_VERSION", "dev")
+	ctVersion := buildinfo.Version()
 	// The CT key is worker-only: the web process never reads it (ct-source-replacement.md §2.4).
 	ctFetcher, ctThrottle, ctSource := selectCTSource(env.OrDefault("VERGE_CERTSPOTTER_TOKEN", ""), ctVersion, db.New(pool))
 
@@ -168,7 +171,7 @@ func main() {
 	releaseChecker := release.NewChecker(
 		db.New(pool),
 		release.NewHTTPFetcher(env.OrDefault("VERGE_RELEASE_FEED_URL", release.DefaultFeedURL), release.NewHTTPDoer()),
-		env.OrDefault("VERGE_VERSION", "dev"),
+		buildinfo.Version(),
 		time.Now,
 		logger,
 	)
@@ -255,4 +258,14 @@ func checkHealth(databaseURL string) error {
 	}
 	defer pool.Close()
 	return nil
+}
+
+func logVersionStamp() {
+	if !buildinfo.Stamped() {
+		return
+	}
+	// Same `dev` exclusion as the web boot check, and for the same reason (#1248).
+	if v := os.Getenv("VERGE_VERSION"); v != "" && v != "dev" {
+		log.Printf("worker: VERGE_VERSION=%s ignored: this build is stamped %s", v, buildinfo.Version())
+	}
 }

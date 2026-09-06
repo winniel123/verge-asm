@@ -86,7 +86,7 @@ means an edit to `docker-compose.yml` itself.
 | `VERGE_PUBLIC_URL` | worker | no | empty | Absolute base URL used to build the link in each notification body. Empty leaves the link off rather than fabricating one. Set it in `.env` when you configure notification channels. |
 | `VERGE_EXTERNAL_URL` | web | no | empty | The trusted origin the deployment is reached at (e.g. `https://verge.example.com`). It is the base for the SSO OIDC callback/redirect URL, taken from this value instead of the request `Host` header — **set it before configuring SSO**, or the callback URL registered with your IdP will not match and login fails. Empty falls back to the request host. Distinct from `VERGE_PUBLIC_URL`: `EXTERNAL_URL` is the **web** callback origin; `PUBLIC_URL` is the **worker** base for notification-body links. See [sso.md](sso.md). |
 | `VERGE_LOG_RESET_LINKS` | web | no | off | When set to any non-empty value, logs the plaintext password-reset link. Off by default — the link is a bearer credential and must not land in logs (CWE-532). Enable only knowingly on a mail-less host that needs the link out of band from its own logs. |
-| `VERGE_VERSION` | web, worker | no | `dev` | The build version stamped in the UI footer and shown on **Settings → Instance**, and the version the update check compares against. A release build stamps it; an unstamped build reads `dev`. |
+| `VERGE_VERSION` | web, worker | no | `dev` | The build version shown in the UI footer and on **Settings → Instance**, and the version the update check compares against. **It applies to an unstamped build only.** A released image carries the version stamped in at build time and ignores this variable, logging one line at boot when you set it anyway. An unstamped build — the compose stack builds one — reads this value, and reads `dev` when it is unset. The number is bare (`0.1.0`), with no leading `v`. |
 | `VERGE_RELEASE_FEED_URL` | worker | no | GitHub latest-release | The release feed the worker's daily update check reads **when checks are enabled**. Defaults to this repository's GitHub latest-release endpoint; point it at your own repo for a fork. Ignored while the update check is off — an air-gapped instance makes no call at all. See [Version & updates](#version--updates). |
 
 `docker-compose.yml` assembles `DATABASE_URL` from the `POSTGRES_*` values. You
@@ -381,8 +381,9 @@ A non-root, distroless container cannot and must not rewrite its own image, so t
 [ADR-0124](../adr/0124-a-backup-carries-data-and-no-secret-and-updating-is-guided-not-self-applied.md).
 The surface is admin-only.
 
-- **Running version.** The card shows `VERGE_VERSION` — the same value in the footer
-  — so you can see what is actually running. An unstamped build reads `dev`.
+- **Running version.** The card shows the running build — the same value in the footer
+  — so you can see what is actually running. A released image shows the version stamped
+  into it; an unstamped build shows `VERGE_VERSION`, or `dev` when that is unset.
 - **Migrations-pending badge.** A best-effort count of embedded migrations newer than
   the highest one applied: **schema current**, or **N migrations pending** (a warning).
   It tells you whether a restart will migrate *before* you take one.

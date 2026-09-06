@@ -260,7 +260,7 @@ func seedProfileFixtures(ctx context.Context, pool *pgxpool.Pool) error {
 }
 
 const (
-	devFixtureVersion = "v0.9.2"
+	devFixtureVersion = "0.9.2"
 
 	devFixtureTOTPCode = "482913"
 

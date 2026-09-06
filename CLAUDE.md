@@ -66,7 +66,7 @@ At the end of a wayfinder or implementation session, open a PR and make sure the
 - `sqlc` runs `sqlc generate` then `git diff --exit-code -- internal/db`. Any migration or query change must ship regenerated `internal/db`.
 - Strict up-to-date policy. When you merge PRs in sequence, update each later branch after an earlier merge. This re-triggers CI. `gh pr update-branch` does not exist in `gh` 2.45.0. Run `gh api --method PUT repos/winniel123/verge-asm/pulls/<n>/update-branch` instead.
 
-`go.mod` pins `go 1.26.8`. CI `GO_VERSION` and the Dockerfile base digest also pin 1.26.8. Do not use 1.27-only features. Do NOT add a `toolchain` directive equal to the `go` line — it breaks CI's `-mod=readonly` build.
+`go.mod` pins `go 1.26.8`. `.go-version` and the Dockerfile base digest also pin 1.26.8. `.go-version` is the source of truth: every `setup-go` step reads it through `go-version-file`, and `scripts/check-go-pins.sh` runs inside the `test` job to hold the three pins together. The old CI `GO_VERSION` env key is gone (#1247). Do not use 1.27-only features. Do NOT add a `toolchain` directive equal to the `go` line — it breaks CI's `-mod=readonly` build.
 
 New goose migrations race on their number. The `compose` CI job boots the real `web` binary, which runs `goose.Up`; a duplicate goose version panics the binary and `compose` fails at "wait for a healthy stack" (look for `panic: goose: duplicate version NNNNN`). CI tests your branch merged with `main`. Before pushing, `git fetch origin main` and number your migration above `origin/main`'s current max in `db/migrations/` (they increment by ~100).
 

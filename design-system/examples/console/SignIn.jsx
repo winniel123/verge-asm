@@ -205,7 +205,7 @@ export function SignIn() {
         )}
       </div>
       <span style={{ font: "400 11px var(--font-mono)", color: "var(--text-muted)", display: "inline-flex", gap: 10, alignItems: "center", flexWrap: "wrap", justifyContent: "center" }}>
-        <span>Verge ASM v0.9.2</span><span aria-hidden="true">·</span><span>AGPL-3.0</span><span aria-hidden="true">·</span>
+        <span>Verge ASM 0.9.2</span><span aria-hidden="true">·</span><span>AGPL-3.0</span><span aria-hidden="true">·</span>
         <a href="#" style={{ color: "var(--text-muted)" }}>GitHub</a>
       </span>
       <span style={{ font: "400 10.5px var(--font-mono)", color: "var(--text-muted)", display: "inline-flex", gap: 12, alignItems: "center", flexWrap: "wrap", justifyContent: "center" }}>
