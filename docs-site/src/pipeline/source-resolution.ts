@@ -1,5 +1,14 @@
 import { execFileSync } from "node:child_process";
 import { getCollection } from "astro:content";
+import {
+  DEFAULT_VERSION,
+  LATEST_VERSION,
+  parseSemverTags,
+  refForTagVersion,
+  versionManifest,
+} from "../version-ref.mjs";
+
+export { DEFAULT_VERSION, LATEST_VERSION };
 
 export interface Frontmatter {
   title?: string;
@@ -15,17 +24,14 @@ export interface Source {
   frontmatter: Frontmatter;
 }
 
-// The shape mirrors the design system's VersionSelect.d.ts, so the manifest needs no reshaping.
+// A superset of the DS VersionSelect.d.ts option, so the picker takes the manifest unreshaped.
 export interface VersionOption {
   value: string;
+  ref: string;
   tag?: string;
 }
 
-export const DEFAULT_VERSION = "main";
-export const LATEST_VERSION = "latest";
-
 const GUIDES_DIR = "docs/guides";
-const SEMVER_TAG = /^v(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/;
 
 let repoRootCache: string | null = null;
 function repoRoot(): string {
@@ -58,31 +64,7 @@ function allSemverTags(): ParsedTag[] {
   } catch {
     return [];
   }
-  const tags: ParsedTag[] = [];
-  for (const line of out.split("\n")) {
-    const raw = line.trim();
-    if (!raw) continue;
-    const m = SEMVER_TAG.exec(raw);
-    if (!m) continue;
-    tags.push({
-      raw,
-      major: Number(m[1]),
-      minor: Number(m[2]),
-      patch: Number(m[3]),
-      prerelease: m[4] ?? null,
-    });
-  }
-  return tags.sort(compareTagsDesc);
-}
-
-function compareTagsDesc(a: ParsedTag, b: ParsedTag): number {
-  if (a.major !== b.major) return b.major - a.major;
-  if (a.minor !== b.minor) return b.minor - a.minor;
-  if (a.patch !== b.patch) return b.patch - a.patch;
-  if (a.prerelease === null && b.prerelease !== null) return -1;
-  if (a.prerelease !== null && b.prerelease === null) return 1;
-  if (a.prerelease === null && b.prerelease === null) return 0;
-  return (b.prerelease as string).localeCompare(a.prerelease as string);
+  return parseSemverTags(out.split("\n"));
 }
 
 function hasGuides(ref: string): boolean {
@@ -112,12 +94,7 @@ function publishableTags(): ParsedTag[] {
 }
 
 export function refForVersion(version: string): string {
-  if (version === DEFAULT_VERSION) return DEFAULT_VERSION;
-  if (version === LATEST_VERSION) {
-    const stable = publishableTags().find((t) => t.prerelease === null);
-    return stable ? stable.raw : DEFAULT_VERSION;
-  }
-  return version;
+  return refForTagVersion(version, publishableTags());
 }
 
 function splitFrontmatter(raw: string): { body: string; frontmatter: Frontmatter } {
