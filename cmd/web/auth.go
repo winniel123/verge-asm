@@ -182,8 +182,7 @@ func logVersionStamp() {
 	if !buildinfo.Stamped() {
 		return
 	}
-	// `dev` is excluded because docker-compose.yml sets it on every service, so a
-	// warning on it would fire on every released boot and never on a real one (#1248).
+	// compose sets `dev` itself, so warning on it fires on every released boot (#1248).
 	if v := os.Getenv("VERGE_VERSION"); v != "" && v != "dev" {
 		log.Printf("web: VERGE_VERSION=%s ignored: this build is stamped %s", v, buildinfo.Version())
 	}

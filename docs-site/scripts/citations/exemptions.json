@@ -63,11 +63,6 @@
     },
     {
       "file": "docs/spec/release-pipeline.md",
-      "path": ".github/workflows/release-scan.yml",
-      "reason": "a forward reference; this SPEC plans the workflow an implementation session writes (#1246)"
-    },
-    {
-      "file": "docs/spec/release-pipeline.md",
       "path": "docs/release-notes/v0.1.0.md",
       "reason": "a forward reference; the first release writes this hand-written body (#1246)"
     }

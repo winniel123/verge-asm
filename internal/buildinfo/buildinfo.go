@@ -12,7 +12,7 @@ func Stamped() bool {
 }
 
 func Version() string {
-	// An env that outranked the stamp would let an operator relabel a released image (release-pipeline.md §3).
+	// An env outranking the stamp would let an operator relabel a released image (§3).
 	if version != "" {
 		return version
 	}

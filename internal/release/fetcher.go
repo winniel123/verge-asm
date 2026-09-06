@@ -74,9 +74,8 @@ func (f *HTTPFetcher) Latest(ctx context.Context) (Feed, error) {
 	return Feed{Version: version, Notes: p.Body}, nil
 }
 
-// A bare "v" strip would turn a fork's `verge-1.2.0` into `erge-1.2.0`, which then
-// renders on the Instance card and never parses (#1250).
 func trimVersionPrefix(tag string) string {
+	// A bare strip would turn a fork's `verge-1.2.0` into `erge-1.2.0` (#1250).
 	rest, ok := strings.CutPrefix(tag, "v")
 	if !ok || rest == "" || rest[0] < '0' || rest[0] > '9' {
 		return tag
