@@ -26,7 +26,7 @@ function NavItem({ item, active, onClick }) {
   );
 }
 
-export function TopNav({ orgLabel, items = DEFAULT_ITEMS, active = "dashboard", onNavigate, orgName = "acmecorp", orgs, activeOrg, onOrgChange, version = "v0.9.2", user = "Ola Pérez", scanRunning, onOpenScans, onToggleTheme, onOpenPalette, messages, onOpenAllMessages, onOpenMessage, onOpenProfile, dark, style }) {
+export function TopNav({ orgLabel, items = DEFAULT_ITEMS, active = "dashboard", onNavigate, orgName = "acmecorp", orgs, activeOrg, onOrgChange, version = "0.9.2", user = "Ola Pérez", scanRunning, onOpenScans, onToggleTheme, onOpenPalette, messages, onOpenAllMessages, onOpenMessage, onOpenProfile, dark, style }) {
   const [inboxOpen, setInboxOpen] = React.useState(false);
   const isMac = /Mac|iP(hone|ad|od)/.test(navigator.platform || navigator.userAgent);
   const userMenu = []

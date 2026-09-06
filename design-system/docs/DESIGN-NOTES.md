@@ -30,7 +30,7 @@ Both inputs arrived as session uploads. Neither is in this repo, so these notes 
 - Empty states = fact + next action: `No seeds yet. Add a domain or CIDR range to start scanning.`
 - **Vocabulary** (glossary from the component-gaps audit): **signal** never finding · **seed/scope** never target · **channel** never webhook/integration · **vantage** never probe/scanner/agent · **annotation** never mute/status/triage · signals leave by being **withdrawn** (the world moved), operators never "resolve" · `asset` only as a UI collective noun.
 - Technical values are **always monospace**: hostnames, IPs, ports, CVE ids, hashes, versions, counts, timestamps.
-- Open-source identity stays in the chrome: version string (`v0.9.2`), `AGPL-3.0`, GitHub link.
+- Open-source identity stays in the chrome: version string (`0.9.2`), `AGPL-3.0`, GitHub link.
 
 ## Visual foundations
 

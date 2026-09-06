@@ -299,19 +299,32 @@ service starts.
 [running.md → Upgrades](running.md#upgrades) flags this, and it is the one time a
 `pgdata` backup is non-negotiable. `web` applies new migrations **before** the new
 code serves traffic, and a schema change is not always cleanly reversible. Take
-the dump first, then upgrade:
+the dump first:
 
 ```sh
 docker compose exec -T postgres pg_dump -U verge -d verge -Fc \
   > verge-pre-upgrade-$(date +%F).dump
+```
+
+Then upgrade. A default install runs the published images, so it pulls them:
+
+```sh
+docker compose pull
+docker compose up -d web worker
+```
+
+A source build rebuilds instead:
+
+```sh
 git pull
 docker compose up -d --build
 ```
 
-If the upgrade misbehaves, you can roll the database back by restoring that dump
-into a clean volume (see above) and pinning the previous image. The state volumes
-need no pre-upgrade snapshot — a session re-login and, at worst, prober
-re-provisioning are recoverable without one.
+If the upgrade misbehaves, follow [running.md → Rolling back](running.md#rolling-back).
+That section picks the route from the release's migration banner. It also names the
+one case where this dump is the only route back. The state volumes need no
+pre-upgrade snapshot — a session re-login and, at worst, prober re-provisioning are
+recoverable without one.
 
 ---
 

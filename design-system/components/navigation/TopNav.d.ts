@@ -11,7 +11,7 @@ export interface TopNavProps {
   orgs?: Array<{ id: string; name: string; assets?: number }>;
   activeOrg?: string;
   onOrgChange?: (id: string) => void;
-  /** Open-source identity in the chrome. Default "v0.9.2" */
+  /** Open-source identity in the chrome. Default "0.9.2" */
   version?: string;
   /** Signed-in user (Avatar initials). Default "Ola P\u00e9rez" */
   user?: string;

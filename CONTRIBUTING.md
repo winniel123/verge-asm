@@ -78,6 +78,9 @@ block the merge to `main`:
 | `analyze (go)` | CodeQL scan of the Go code |
 | `analyze (javascript-typescript)` | CodeQL scan of the JS/TS code |
 
+No workflow job holds both `contents: write` and `id-token: write`, and no
+machine check enforces that rule (see the header of `.github/workflows/release.yml`).
+
 ## Pull requests
 
 Every change lands through a pull request. The PR is the review and CI gate.
@@ -89,6 +92,82 @@ Every change lands through a pull request. The PR is the review and CI gate.
   GitHub uses the PR title as the squash commit message verbatim.
 - **CI must be green** before the merge. The branch auto-deletes on merge.
 - Self-review the diff first. Leave inline notes on any non-obvious choice.
+
+## Releases
+
+A `vX.Y.Z` tag starts the release pipeline, and
+[`docs/spec/release-pipeline.md`](docs/spec/release-pipeline.md) is the contract for
+it. This section covers one case only: a published release turns out to be bad.
+
+**Repair and containment are different acts.** Repair makes a good release exist.
+Containment stops the bad one from reaching a new host. They use different levers and
+they have different actors.
+
+**Repair is always `vX.Y.Z+1`**, even when the fix is one character. The version never
+skips, because a skipped number signals a withdrawal that `isNewer` cannot represent.
+
+### Withdrawal: one lever permitted, two refused
+
+| Lever | Verdict | Reason |
+| --- | --- | --- |
+| the **pre-release flag** | **permitted** | The one working lever. The feed skips the release and its assets stay publicly downloadable. |
+| the **draft flag** | refused | A draft hides its assets. That breaks the published asset set and the air-gap kit at once. |
+| **deleting the Release** | refused | The same asset loss, plus it destroys the `CHANGELOG.md` permalink. |
+
+The SPEC refuses a pre-release **tag**. That refusal does not reach the **flag**,
+because the flag names no version string.
+
+**The `latest` GHCR tag may move backwards.** It is the only movable pointer a release
+creates, and a default `docker compose pull` resolves it. One hand-run command moves
+it:
+
+```sh
+docker buildx imagetools create -t <image>:latest <image>:vX.Y.Z-1
+```
+
+Add no third workflow file and no `workflow_dispatch` for this. It is an incident act
+one person performs once.
+
+**A released image tag stays pullable forever.** Deleting a GHCR package version
+breaks every verify command, breaks the air-gap kit for anyone who already built one,
+and breaks the digest-pinned asset for anyone who pinned it. Immutability is the
+property the whole supply chain rests on. **Containment is `latest`, never deletion.**
+
+### The incident procedure
+
+1. Flag the Release pre-release. The feed stops serving it.
+2. Move `latest` back with `imagetools create`. A default `docker compose pull` stops
+   fetching the bad image.
+3. Ship `vX.Y.Z+1`. Carry a `docs/release-notes/vX.Y.Z+1.md` override that states the
+   withdrawal and its reason.
+
+Containment runs first. Steps 1 and 2 are two commands, and step 3 is a full pipeline
+run.
+
+A withdrawal forces the successor onto that override route. `CHANGELOG.md` gets
+nothing. `git cliff` generates it from commits, a withdrawal is not a commit, and a
+hand-edited line would break the generated-output rule.
+
+### `v0.1.0` cannot be withdrawn
+
+This is a named exception, and it dissolves permanently once a second release exists.
+
+Both levers fail on the first release. `/releases/latest` returns **404** when no
+non-prerelease release remains. The fetcher reports that 404, `Check` logs it and
+returns before it writes, so the cache stays exactly as it was. And `latest` has no
+earlier tag to move back to.
+
+Flagging `v0.1.0` pre-release is therefore **refused**. It would make every instance's
+check fail silently forever. That is worse than serving a known-bad version that
+`v0.1.1` replaces. **The first release is superseded, never withdrawn.**
+
+### Why this section is not a guide page
+
+[`docs/guides/embed.go`](docs/guides/embed.go) globs `docs/guides/*.md` only, so
+`CONTRIBUTING.md` does not ride inside the shipped `web` image. An incident procedure
+for the release pipeline must not be compiled into the product it repairs. The
+operator half does ship, as
+[`docs/guides/running.md` → Rolling back](docs/guides/running.md#rolling-back).
 
 ## Issues
 

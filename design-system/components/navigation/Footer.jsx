@@ -3,7 +3,7 @@ import { Logo } from "../media/Logo.jsx";
 
 const L = ({ href = "#", children }) => <a href={href} style={{ color: "var(--text-secondary)", textDecoration: "none", font: "400 12px var(--font-ui)" }}>{children}</a>;
 
-export function Footer({ variant = "console", version = "v0.9.2", style }) {
+export function Footer({ variant = "console", version = "0.9.2", style }) {
   if (variant === "marketing") {
     return (
       <footer style={{ borderTop: "1px solid var(--border-default)", padding: "40px 32px", background: "var(--surface)", fontFamily: "var(--font-ui)", ...style }}>

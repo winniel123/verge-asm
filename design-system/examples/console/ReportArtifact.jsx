@@ -31,7 +31,7 @@ export function ReportArtifact({ onBack }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 12, paddingBottom: 16, borderBottom: "1px solid var(--row-sep)" }}>
             <span style={{ font: "600 15px var(--font-ui)", color: "var(--text-ink)" }}>acmecorp</span>
-            <span style={{ font: "400 11.5px var(--font-mono)", color: "var(--text-muted)" }}>generated 2026-08-22T09:00:00Z · verge v0.9.2</span>
+            <span style={{ font: "400 11.5px var(--font-mono)", color: "var(--text-muted)" }}>generated 2026-08-22T09:00:00Z · verge 0.9.2</span>
             <span style={{ marginLeft: "auto" }}><Tag>pdf</Tag></span>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
