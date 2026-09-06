@@ -277,7 +277,7 @@ func (s *server) terminateScan(w http.ResponseWriter, r *http.Request, acct db.A
 		s.serverError(w, "terminate scan: cancel jobs", err)
 		return
 	}
-	// SetDispatchStatus guards on 'fanned-out', so a recorded stop stands (ADR-0164 §4, #1421).
+	// Only a stop escalates; every other recorded disposition stands (ADR-0164 §4, #1421).
 	if err := s.store.SetDispatchStatus(r.Context(), db.SetDispatchStatusParams{ID: id, Status: "terminated"}); err != nil {
 		s.serverError(w, "terminate scan: record status", err)
 		return
@@ -527,6 +527,10 @@ func (s *server) deriveRunStream(ctx context.Context, dispatchID int64, jobParam
 			continue
 		}
 		state = append(state, runStreamLine{Tag: ln.Tag, Level: ln.Level, Text: ln.Text})
+	}
+	if len(state) >= streamCursorBase {
+		// Serving past the cursor's reach re-delivers the tail forever (ADR-0182 §4, #1423).
+		state = state[:streamCursorBase-1]
 	}
 
 	if s.progress != nil {

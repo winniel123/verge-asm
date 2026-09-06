@@ -89,7 +89,7 @@ func Probe(ctx context.Context, conn Conn, binaries BinaryProvider, spec wire.Jo
 	}
 	// Copied before Run drains the buffer, or the transcript's sent scope is empty (spec §3).
 	sent := append([]byte(nil), stdin.Bytes()...)
-	// A hostile or compromised prober must not OOM the worker, so its stdout is capped (#772).
+	// A hostile prober must not OOM the worker, so its stdout is capped (ADR-0139 §3).
 	stdout := wire.NewLimitedBuffer(wire.MaxProberStdout)
 	var stderr bytes.Buffer
 

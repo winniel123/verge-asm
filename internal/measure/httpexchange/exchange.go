@@ -127,7 +127,7 @@ func (n NetExchanger) Exchange(ctx context.Context, target Target) ExchangeResul
 	if p.BodyCapBytes <= 0 {
 		p.BodyCapBytes = DefaultParams().BodyCapBytes
 	}
-	// A hostname would be re-resolved at connect time with no rebinding backstop (#743).
+	// A hostname would be re-resolved at connect time with no rebinding backstop.
 	if _, err := netip.ParseAddr(target.Address); err != nil {
 		return ExchangeResult{Failed: true, Err: "httpexchange: refusing non-literal address " + target.Address}
 	}
@@ -146,13 +146,13 @@ func (n NetExchanger) Exchange(ctx context.Context, target Target) ExchangeResul
 	}
 	// An identifiable probe lets a target's operator recognise the GET / (spec §3.3).
 	req.Header.Set("User-Agent", measure.ProbeUserAgent)
-	// Non-nil only in a test that must reach loopback; production installs the guard (#743).
+	// Non-nil only in a test that must reach loopback; production installs the guard.
 	control := n.control
 	if control == nil {
 		control = custody.EgressGuard("httpexchange")
 	}
 	transport := http.DefaultTransport.(*http.Transport).Clone()
-	// The rebinding-proof line: the kernel's own address is refused even when entry passed (#743).
+	// The rebinding-proof line: the kernel's own address is refused even when entry passed.
 	transport.DialContext = (&net.Dialer{Control: control}).DialContext
 	client := &http.Client{
 		Transport: transport,

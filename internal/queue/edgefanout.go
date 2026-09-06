@@ -21,7 +21,7 @@ import (
 )
 
 func (d *Dispatcher) fanOutEdgeFanout(ctx context.Context, scanID, dispatchID int64) (int, error) {
-	// A name whose scope was withdrawn since it resolved contributes no candidate (ADR-0079, #742).
+	// A name whose scope was withdrawn since it resolved contributes no candidate (ADR-0079).
 	estate, _, err := hotEstate(ctx, d.q, d.now())
 	if err != nil {
 		return 0, err
@@ -69,7 +69,7 @@ func enqueueEdgeFanoutJob(ctx context.Context, qtx *db.Queries, scanID, dispatch
 }
 
 func toEdgeFanoutRows(jobKind string, batchID int64, measuredAt pgtype.Timestamptz, obs []wire.Observation) ([]db.InsertEdgeFanoutObservationParams, []string) {
-	// A line's Kind is the prober's word, so only the dispatcher's kind admits this fold (#773).
+	// A line's Kind is the prober's word, so only the dispatcher's kind admits it (ADR-0217 §3).
 	if jobKind != scan.EdgeFanoutKind {
 		return nil, nil
 	}
@@ -125,7 +125,7 @@ func foldEdgeFanoutObservations(ctx context.Context, qtx *db.Queries, job db.Cla
 	// A malformed line is logged, never fatal: a prober must not deny the queue (ADR-0001).
 	for _, why := range dropped {
 		if logger != nil {
-			logger.Printf("worker: job %d dropped malformed edge-fanout observation: %s (#773)", job.ID, why)
+			logger.Printf("worker: job %d dropped malformed edge-fanout observation: %s", job.ID, why)
 		}
 	}
 	for _, r := range rows {

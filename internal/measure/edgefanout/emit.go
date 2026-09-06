@@ -16,7 +16,7 @@ type Value struct {
 
 func DecodeValue(raw json.RawMessage) (Value, error) {
 	var v Value
-	// internal/queue reads this back and re-gates the prober, so a bad line is dropped (#773).
+	// internal/queue reads this back and re-gates the prober, so a bad line is dropped (ADR-0217).
 	if err := json.Unmarshal(raw, &v); err != nil {
 		return Value{}, fmt.Errorf("edgefanout: decode value: %w", err)
 	}

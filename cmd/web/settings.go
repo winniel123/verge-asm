@@ -97,6 +97,7 @@ type capSweepLine struct {
 	Cadence   string
 	Probes    string
 	Effective string
+	Ceiling   string
 	Outpaces  bool
 }
 
@@ -1334,6 +1335,7 @@ func toAddressCapView(cfg db.GetInstanceConfigRow, scans []db.Scan, accounts []d
 		if ports := addressScopePorts[sc.Kind]; ports > 0 {
 			eff := effectiveCadenceSeconds(capVal, ports)
 			line.Effective = projectedPassLabel(eff)
+			line.Ceiling = governingCeilingLabel()
 			line.Outpaces = sc.CadenceSeconds > 0 && eff > float64(sc.CadenceSeconds)
 		}
 		v.SweepLoad = append(v.SweepLoad, line)
@@ -1375,13 +1377,18 @@ var addressScopePorts = map[string]int64{"hot": 131, "cold": 65535}
 
 func effectiveCadenceSeconds(addresses, portsPerAddress int64) float64 {
 	p := connectoutcome.DefaultProfile()
-	rate := float64(p.PerVantagePacketsPerSec)
+	// One Address per job makes Pacer.Next always return the per-host arm (ADR-0005, ADR-0137 §5).
+	rate := float64(p.PerHostConnPerSec)
 	if rate <= 0 {
 		rate = 1
 	}
-	// Counting every retry keeps the worst-case figure from understating the lag (ADR-0127).
 	attempts := float64(1 + p.Retries)
+	// Adaptive backoff only halves the rate, so this bounds a pass from below (ADR-0127, #1127).
 	return float64(addresses) * float64(portsPerAddress) * attempts / rate
+}
+
+func governingCeilingLabel() string {
+	return fmt.Sprintf("%d conn/s per-host", connectoutcome.DefaultProfile().PerHostConnPerSec)
 }
 
 func projectedPassLabel(seconds float64) string {

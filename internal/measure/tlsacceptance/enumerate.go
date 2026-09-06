@@ -127,7 +127,7 @@ func (n NetEnumerator) Handshake(ctx context.Context, target netip.AddrPort, ver
 	if version != TLS13 {
 		cfg.CipherSuites = cipherIDs(offeredCiphers)
 	}
-	// The dialer's guard is the backstop: a non-globally-reachable literal fails closed (#743).
+	// The dialer's guard is the backstop: a non-globally-reachable literal fails closed.
 	d := tls.Dialer{
 		NetDialer: &net.Dialer{Control: custody.EgressGuard("tlsacceptance")},
 		Config:    cfg,

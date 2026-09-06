@@ -90,7 +90,7 @@ frontmatter downstream.
 ```ts
 interface Frontmatter { title?: string; section?: string; order?: number; description?: string }
 interface Source      { version: string; slug: string; rawMarkdown: string; frontmatter: Frontmatter }
-interface VersionOption { value: string; tag?: string }   // mirrors DS VersionSelect.d.ts
+interface VersionOption { value: string; ref: string; tag?: string }  // superset of DS VersionSelect.d.ts
 
 const DEFAULT_VERSION = "main";
 const LATEST_VERSION  = "latest";
@@ -110,10 +110,16 @@ function canonicalPath(slug: string): string                   // always /latest
   first, then `main` tagged `"dev"`.** The newest stable tag carries `"current"`.
   While no stable tag exists, `latest` carries `"current"` instead, and
   `refForVersion("latest")` falls back to `main` — which is the state of this repo
-  today, so the manifest is `[{ value: "latest", tag: "current" }, { value: "main",
-  tag: "dev" }]`.
-- **`Source` and `VersionOption` are frozen.** T2 and T3 consume only these types, so
-  they need no edits when the version set changes.
+  today, so the manifest is `[{ value: "latest", ref: "main", tag: "current" },
+  { value: "main", ref: "main", tag: "dev" }]`.
+- **One rule resolves a version to a ref, and it lives in `src/version-ref.mjs`.**
+  That module is pure: no `node:`, no `astro:content`, so a client island bundles it.
+  `refForVersion` applies the rule to the tags git reports; `listVersions` stamps the
+  same answer onto each `VersionOption.ref`. Stage 2 reads `ref` off the manifest and
+  never re-derives it — a browser cannot list git tags, so a second derivation there
+  could only guess, and it guessed `main` for `latest` until #1402.
+- **`Source` and `VersionOption` are consumed, never redefined.** T2 and T3 import
+  these types; only stage 1 may add a field to one.
 
 ## Stage 2 — render+transform   ·   `src/pipeline/render.jsx`   ·   OWNER T2 (#352)
 
@@ -126,11 +132,12 @@ Renders one `Source.rawMarkdown` into the article column as a React island
 - headings → `h1`–`h4` with `github-slugger` `id`s (see algorithm above)
 
 ```jsx
-export default function Article({ markdown, version, slug, adrRef }): JSX.Element   // client:load island
+export default function Article({ markdown, version, slug, versions }): JSX.Element  // client:load island
 ```
 
-The island takes `version`, `slug`, and `adrRef` as props because `source-resolution.ts`
-is node-only and cannot run in the browser. The route page resolves the ref server-side.
+The island takes `version`, `slug`, and the `versions` manifest as props because
+`source-resolution.ts` reads git and cannot run in the browser. It looks the version's
+`ref` up on the manifest — the route page resolved it server-side (#1402).
 
 - **The `a` renderer is the link/anchor seam, and it owns every rewrite.**
   `rewriteHref` turns `#anchor` into `/<version>/<slug>#anchor`, `running.md#anchor`
@@ -160,20 +167,27 @@ function buildNav(sources: Source[], activeSlug?: string): NavSection[]
 
 ## Version manifest shape (T4 / #354 consumes)
 
-The version picker (DS `VersionSelect`) is fed `VersionOption[]`, matching
-`design-system/components/navigation/VersionSelect.d.ts` exactly:
+The version picker (DS `VersionSelect`) is fed `VersionOption[]`, a superset of
+`design-system/components/navigation/VersionSelect.d.ts`:
 
 ```ts
-interface VersionOption { value: string; tag?: string }
+interface VersionOption { value: string; ref: string; tag?: string }
 // tag "current" → accent (latest release);  "dev" → muted (the moving `main` branch)
+// ref          → the git ref this version resolves to; `latest` carries the tag it aliases
 ```
 
 Produced by `listVersions()` in **stage 1** (source-resolution), which returns `latest`,
 then each publishable semver tag newest first, then `main` tagged `"dev"`. `"current"`
 marks the newest stable tag, or `latest` while no stable tag exists. This repo carries
-no semver tag today, so the manifest is `[{ value: "latest", tag: "current" }, { value:
-"main", tag: "dev" }]`. The route page reads it straight from `listVersions()` and passes
-it to the TopNav island — no reshaping.
+no semver tag today, so the manifest is `[{ value: "latest", ref: "main", tag: "current" },
+{ value: "main", ref: "main", tag: "dev" }]`. The route page reads it straight from
+`listVersions()` and passes it to the TopNav island — no reshaping. `VersionSelect` reads
+`value` and `tag` and ignores `ref`, so the extra field costs the picker nothing.
+
+`ref` is what carries the resolved `latest` across the server/client boundary. It exists
+because the island cannot run git, so the only alternative is a second rule that guesses
+(#1402). `scripts/version-ref.test.mjs` pins the two sides against a fixture tag list,
+which is the assertion the repo's zero tags made impossible to write against git.
 
 ---
 
