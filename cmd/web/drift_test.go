@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -407,5 +409,47 @@ func TestClassifyDriftEventRevealedAfterDescopedReEntry(t *testing.T) {
 	ev, ok = classifyDriftEvent(recommissioned, now)
 	if !ok || ev.Change != "returned" {
 		t.Fatalf("aperture-marked re-entry across a measured-absent closure => change %q (ok=%v), want returned", ev.Change, ok)
+	}
+}
+
+func TestDriftPageFailsLoudlyWhenItsFeedReadFails(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	f.driftEventsErr = errors.New("feed read failed")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := getBody(t, ac, base+"/drift", http.StatusInternalServerError)
+	if strings.Contains(page, "No change to show yet") {
+		t.Errorf("a failed feed read rendered the empty state, which reads as no drift; body: %s", page)
+	}
+}
+
+func TestDriftTruncationFlagCountsRowsBeforeTheRangeTrim(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	addNameSeed(t, f, admin.ID, "example.com")
+
+	at := time.Now().UTC().Add(-24 * time.Hour)
+	for i := 0; i < int(driftFeedLimit); i++ {
+		f.addResolution(t, admin.ID, fmt.Sprintf("h%03d.example.com", i), "hot", at, `{"outcome":"Resolved"}`)
+	}
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	to := time.Now().UTC().AddDate(-1, 0, 0)
+	from := to.AddDate(0, 0, -7)
+	page := getBody(t, ac, fmt.Sprintf("%s/drift?start=%s&end=%s",
+		base, from.Format("2006-01-02"), to.Format("2006-01-02")), http.StatusOK)
+
+	if !strings.Contains(page, "dr-callout") {
+		t.Errorf("a historical range whose read was consumed by the cap must state the truncation; body: %s", page)
+	}
+	if !strings.Contains(page, "Showing the most recent 0 transitions for this period.") {
+		t.Errorf("the callout must name the rendered transition count, not the feed limit; body: %s", page)
+	}
+	if strings.Contains(page, "Showing the most recent 500 transitions") {
+		t.Errorf("the callout still names FeedLimit, which overstates what rendered; body: %s", page)
 	}
 }

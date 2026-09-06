@@ -704,12 +704,12 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 
 	var coverageMeters []coverageMeterView
 	if hasScopes {
-		var zones []db.ListZoneDeclarationsRow
-		if z, zerr := s.store.ListZoneDeclarations(ctx); zerr == nil {
-			zones = z
+		zones, zerr := s.store.ListZoneDeclarations(ctx)
+		if zerr != nil {
+			zones = nil
 		}
 		// A nil shared-edge map keeps #989's contradiction row on /coverage, where the remedy is.
-		coverageMeters = apertureMeters(seedRows, zones, walked, s.now(), nil)
+		coverageMeters = apertureMeters(seedRows, zones, zerr == nil, walked, hasServices, s.now(), nil)
 	}
 	var silentZone *dashSilentZone
 	if len(unavailable) > 0 {
