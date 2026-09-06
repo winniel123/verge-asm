@@ -84,6 +84,14 @@ the business schema belongs in `backupRedactedColumns` in the same change that a
 The three riding columns stay. Each fails the test of limb 1 on its own ground, and the grounds are
 not interchangeable. Two are one-way hashes. The third is ciphertext under a key held on a volume.
 
+> **Bounding note, [#1419](https://github.com/winniel123/verge-asm/issues/1419).** The third riding
+> column no longer rides. `backupRedactedColumns` names `account` as well, and the entry writes
+> `totp_secret` NULL and `totp_enabled` false. Limb 1's test did not move. `account.totp_secret`
+> still answers *no* to it, and the ground of the removal is a different one: a restore rotates the
+> key that opens the ciphertext, so the restored row locks the operator out of the instance they
+> just restored. Read *"no other column is"* above as the state before #1419. Two columns are
+> redacted for reversibility, and one is dropped for the lockout.
+
 ### 3. The redaction is one function, and both directions call it
 
 The export redacts because a leaked file must not yield the webhook signing key or the OAuth client
@@ -117,6 +125,8 @@ operator reads it in the guide before they restore. Limb 4 is not discharged by 
   the old key. This ADR records the fact because it is the ground of limb 1 for that column. It
   rules nothing about the second-factor path, which is out of this ticket's scope. The lockout that
   follows is filed as [#1419](https://github.com/winniel123/verge-asm/issues/1419).
+  **#1419 answered the question this bullet leaves open.** The archive drops the column, and a
+  restore lands every account unenrolled. See the bounding note at limb 2.
 - **It does not reach the host-level `pg_dump` path.** That dump reads the database and carries both
   cleartext columns. `docs/guides/sso.md` says so already, and this rule binds the in-app export
   alone.
@@ -155,7 +165,7 @@ operator reads it in the guide before they restore. Limb 4 is not discharged by 
 | Alternative | Why not |
 | --- | --- |
 | **Carry the two columns, so a restore is turnkey** | This is the shape ADR-0124 already refused for the two key volumes, one hop further in. A leaked archive would then hand a reader the webhook signing key and the OAuth client secret, and both authorise an act against a system outside the estate. The cost of refusing it is one typed value per channel and per provider |
-| **Redact the hashes and the TOTP ciphertext too** | A restore that drops `password_hash` locks every operator out of the instance it just restored, and the archive would carry no login at all. The hashes are what make a restored estate usable, and limb 1's test says they are not recoverable secrets |
+| **Redact the hashes and the TOTP ciphertext too** | A restore that drops `password_hash` locks every operator out of the instance it just restored, and the archive would carry no login at all. The hashes are what make a restored estate usable, and limb 1's test says they are not recoverable secrets. **[#1419](https://github.com/winniel123/verge-asm/issues/1419) took the TOTP half of this row.** The hashes half stands, and the reason above is the reason it stands. Dropping the TOTP ciphertext costs a re-enrolment, and dropping the hashes costs the login itself |
 | **Encrypt the whole archive under an operator passphrase, and redact nothing** | Moves the credential problem to a passphrase the operator must keep as long as the file, and a lost passphrase is a lost backup. It also buys nothing that redaction does not, because the two columns are re-enterable and nothing else in the archive needs the protection |
 | **Redact on export only, and trust that every archive was taken after the redaction landed** | An archive is a file an operator keeps. A file taken before the redaction landed still holds both columns in cleartext, and a restore would write a stale secret over a live one. Limb 3 exists because the export cannot know when the file it is handed was written |
 | **Correct the guide and file no ADR** | The guide is the wrong home for the rule. It is written for an operator taking a backup, and the rule binds a session adding a column to the schema. It also fails [`comment-policy.md`](../spec/comment-policy.md) §8.2, which asks for the record when the rule binds code outside the file that stated it |

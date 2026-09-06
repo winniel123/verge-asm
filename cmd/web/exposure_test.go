@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 	"testing"
@@ -135,5 +136,29 @@ func TestExposureRequiresLogin(t *testing.T) {
 	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/login" {
 		t.Fatalf("anon GET /exposure: status=%d location=%q, want redirect to /login",
 			resp.StatusCode, resp.Header.Get("Location"))
+	}
+}
+
+func TestExposureFailsLoudlyWhenItsBoardReadFails(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+
+	f.vantages = append(f.vantages, db.Vantage{
+		ID: f.vantageNextID, Name: "internet-prober", Class: "internet",
+		Host:        pgtype.Text{String: "prober.example.com", Valid: true},
+		Port:        pgtype.Int4{Int32: 22, Valid: true},
+		Username:    pgtype.Text{String: "verge", Valid: true},
+		DialledAddr: classPresentedDialled("internet"),
+		CreatedBy:   pgtype.Int8{Int64: admin.ID, Valid: true},
+	})
+	f.vantageNextID++
+	f.reachSpansErr = errors.New("reachability read failed")
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := getBody(t, ac, base+"/exposure", http.StatusInternalServerError)
+	if strings.Contains(page, "Service exposure") {
+		t.Errorf("a failed board read rendered an empty board, which reads as 0 exposed; body: %s", page)
 	}
 }

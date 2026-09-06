@@ -229,7 +229,11 @@ func (s *server) fillSourcesSection(r *http.Request, f settingsForms, data map[s
 	if err != nil {
 		return err
 	}
-	data["CTCapabilities"] = newCTCapabilities(tailEnabled, tail, captured, s.now())
+	snap, err := scan.CTLogListSnapshotAt(s.now())
+	if err != nil {
+		return err
+	}
+	data["CTCapabilities"] = newCTCapabilities(tailEnabled, tail, captured, snap, s.now())
 
 	if id := r.URL.Query().Get("consent"); id != "" {
 		if c, ok := catalogBySlug(id); ok && c.Consent == consentAccepted && !c.NoRunner {
@@ -425,18 +429,33 @@ func newCTSourceHero(crtsh, certspotter ctReliabilityView, names int64, now time
 // Verification keeps no durable result, so the pool is its readout (ct-source-replacement §5.1).
 
 type ctCapabilities struct {
-	TailEnabled bool
-	TailHasRun  bool
-	TailLastRel string
-	TailNames   int64
-	Captured    int64
+	TailEnabled    bool
+	TailHasRun     bool
+	TailLastRel    string
+	TailNames      int64
+	Captured       int64
+	ListVersion    string
+	ListCutDate    string
+	ListCutRel     string
+	ListExpiryDate string
+	ListLogs       int
+	ListExpired    bool
 }
 
-func newCTCapabilities(tailEnabled bool, tail db.CTTailLastBatchRow, captured int64, now time.Time) ctCapabilities {
+func newCTCapabilities(tailEnabled bool, tail db.CTTailLastBatchRow, captured int64, snap scan.CTLogListSnapshot, now time.Time) ctCapabilities {
 	c := ctCapabilities{
-		TailEnabled: tailEnabled,
-		TailNames:   tail.Names,
-		Captured:    captured,
+		TailEnabled:    tailEnabled,
+		TailNames:      tail.Names,
+		Captured:       captured,
+		ListVersion:    snap.Version,
+		ListCutDate:    snap.CutAt.UTC().Format("2006-01-02"),
+		ListExpiryDate: snap.NewestEnd.UTC().Format("2006-01-02"),
+		ListLogs:       snap.Selectable,
+		// ADR-0106 gives ct-tail no currency bound, so the card is the only zero readout (#1434).
+		ListExpired: snap.Selectable == 0,
+	}
+	if now.After(snap.CutAt) {
+		c.ListCutRel = profileRelTime(snap.CutAt, now)
 	}
 	if tail.LastAt.Valid {
 		c.TailHasRun = true

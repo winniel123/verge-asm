@@ -29,7 +29,7 @@ func TestNetExchangerSendsOneGetRootWithProbeUA(t *testing.T) {
 		t.Fatalf("parse listener addr: %v", err)
 	}
 
-	// httptest binds loopback, which the production egress guard refuses, so this allows it (#743).
+	// httptest binds loopback, which the production egress guard refuses, so this allows it.
 	ex := NetExchanger{Params: DefaultParams(), control: allowAllControl}
 	res := ex.Exchange(context.Background(), Target{
 		Address: ap.Addr().String(),

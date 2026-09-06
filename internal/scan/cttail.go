@@ -43,7 +43,8 @@ type CTLog struct {
 }
 
 type logList struct {
-	Version   string `json:"version"`
+	Version   string    `json:"version"`
+	CutAt     time.Time `json:"log_list_timestamp"`
 	Operators []struct {
 		Logs      []logListEntry      `json:"logs"`
 		TiledLogs []tiledLogListEntry `json:"tiled_logs"`
@@ -76,10 +77,60 @@ type temporalInterval struct {
 }
 
 func SelectTailLogs(now time.Time) ([]CTLog, error) {
+	ll, err := decodeLogList()
+	if err != nil {
+		return nil, err
+	}
+	return selectTailLogs(ll, now), nil
+}
+
+func decodeLogList() (logList, error) {
 	var ll logList
 	if err := json.Unmarshal(embeddedLogList, &ll); err != nil {
-		return nil, fmt.Errorf("scan: decode ct log list: %w", err)
+		return logList{}, fmt.Errorf("scan: decode ct log list: %w", err)
 	}
+	return ll, nil
+}
+
+type CTLogListSnapshot struct {
+	Version    string
+	CutAt      time.Time
+	Entries    int
+	Selectable int
+	NewestEnd  time.Time
+}
+
+func CTLogListSnapshotAt(now time.Time) (CTLogListSnapshot, error) {
+	ll, err := decodeLogList()
+	if err != nil {
+		return CTLogListSnapshot{}, err
+	}
+	snap := CTLogListSnapshot{
+		Version:    ll.Version,
+		CutAt:      ll.CutAt,
+		Selectable: len(selectTailLogs(ll, now)),
+	}
+	for _, op := range ll.Operators {
+		for _, e := range op.Logs {
+			snap.Entries++
+			snap.NewestEnd = laterEnd(snap.NewestEnd, e.TemporalInterval)
+		}
+		for _, e := range op.TiledLogs {
+			snap.Entries++
+			snap.NewestEnd = laterEnd(snap.NewestEnd, e.TemporalInterval)
+		}
+	}
+	return snap, nil
+}
+
+func laterEnd(newest time.Time, ti *temporalInterval) time.Time {
+	if ti == nil || !ti.EndExclusive.After(newest) {
+		return newest
+	}
+	return ti.EndExclusive
+}
+
+func selectTailLogs(ll logList, now time.Time) []CTLog {
 	var out []CTLog
 	for _, op := range ll.Operators {
 		for _, e := range op.Logs {
@@ -102,7 +153,7 @@ func SelectTailLogs(now time.Time) ([]CTLog, error) {
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].LogID < out[j].LogID })
-	return out, nil
+	return out
 }
 
 func tailReadableState(state map[string]json.RawMessage) bool {

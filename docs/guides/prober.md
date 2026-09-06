@@ -48,7 +48,7 @@ the prober with it at invocation.
 
 ## Step 1 — Render the public key in verge
 
-In the UI, go to **Probers** and start provisioning. Supply the three non-secret
+In the UI, go to **Probers** and start provisioning. Supply the four non-secret
 values (§4.5):
 
 | Value | What to enter |
@@ -56,6 +56,7 @@ values (§4.5):
 | host | a name or address the instance can reach this second machine on |
 | port | the host port you will map below — default **22** |
 | username | **`prober`** — the account the recipe ships (non-root) |
+| resolver | the recursive resolver reachable **from the prober host**, `host` or `host:port` — not one of yours that only this machine can reach |
 
 The instance generates the SSH keypair and renders the **public** half for you to
 install. **Only the public key ever leaves the instance** — the private half stays on

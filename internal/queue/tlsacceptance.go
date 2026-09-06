@@ -13,7 +13,7 @@ import (
 )
 
 func (d *Dispatcher) fanOutTLSAcceptance(ctx context.Context, qtx *db.Queries, scanID, dispatchID int64) (int, error) {
-	// A scope withdrawn since a Service was reached must not be re-enumerated (ADR-0079, #742).
+	// A scope withdrawn since a Service was reached must not be re-enumerated (ADR-0079).
 	estate, _, err := hotEstate(ctx, qtx, d.now())
 	if err != nil {
 		return 0, err

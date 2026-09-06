@@ -29,10 +29,13 @@ Both boundaries are consequences of choices already made, not new ones. They are
 > [ADR-0160](./0160-a-backup-redacts-a-reversible-cleartext-credential-and-carries-a-hash-or-an-externally-keyed-ciphertext-and-restore-re-applies-the-same-redaction.md)
 > ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).** The
 > bullet above rules the **two key volumes**, and that rule is kept in full. It is not a claim that
-> the archive carries no credential material. It carries `account.password_hash`,
-> `personal_token.token_hash` and the `account.totp_secret` ciphertext, none of them reversible from
+> the archive carries no credential material. It carries `account.password_hash` and
+> `personal_token.token_hash`, neither of them reversible from
 > the file. ADR-0160 redacts the two **cleartext** columns the database holds —
 > `sso_provider.client_secret` and `channel.secret` — and makes a restore re-apply that redaction.
+> **The `account.totp_secret` ciphertext no longer rides, 2026-09-06
+> ([#1419](https://github.com/winniel123/verge-asm/issues/1419)).** A restore rotates the key that
+> opens it, so the archive drops that column and `totp_enabled` with it.
 
 - **On restore the keys regenerate, and that is a feature, not a gap.** A restored instance comes up with a fresh session key — every prior session lapses, which is loud and acceptable (ADR-0053 already priced *"every session logs out"* as recoverable and non-silent) — and a fresh prober keypair, so the operator re-installs the public half and the prober **re-pins**. The vantage going `unavailable` opens a `Gap` and makes `Exposure` non-constructible ([ADR-0005](./0005-scan-execution-model.md)) until the re-pin, which is the same loud, recoverable failure ADR-0053 accepted for `docker compose down -v`. The Restore card says so in as many words, as a property of the operation rather than fine print.
 - **The export is a Go-native logical dump, because the image ships no `pg_dump`.** The distroless runtime ([ADR-0001](./0001-stack-and-runtime.md)) carries no Postgres client binaries, so the backup is **not** a shell-out to `pg_dump`. It is a table-by-table logical dump written in Go over the **pgx pool `web` already holds**, streamed to the operator as an attachment and restorable table-by-table. The precise archive framing (NDJSON-per-table + a manifest carrying the schema version, versus an emitted SQL script) is B3's to settle against the requirement that it be **forward-restorable across a migration bump**. This ADR fixes only that it is logical, Go-native, secret-free, and restorable.

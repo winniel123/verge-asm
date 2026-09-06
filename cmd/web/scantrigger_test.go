@@ -12,24 +12,29 @@ import (
 	"time"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/queue"
 )
 
 type fakeTrigger struct {
 	calls   []string
 	jobs    int
+	skip    queue.SkipReason
 	err     error
 	refused map[string]bool
 }
 
-func (t *fakeTrigger) Trigger(_ context.Context, kind string) (int, error) {
+func (t *fakeTrigger) Trigger(_ context.Context, kind string) (int, queue.SkipReason, error) {
 	t.calls = append(t.calls, kind)
 	if t.refused[kind] {
-		return 0, fmt.Errorf("queue: %s Scan is disabled", kind)
+		return 0, queue.SkipNone, fmt.Errorf("queue: %s Scan is disabled", kind)
 	}
 	if t.err != nil {
-		return 0, t.err
+		return 0, queue.SkipNone, t.err
 	}
-	return t.jobs, nil
+	if t.skip != queue.SkipNone {
+		return 0, t.skip, nil
+	}
+	return t.jobs, queue.SkipNone, nil
 }
 
 func startWithTrigger(t *testing.T, f *fakeStore, trig scanTrigger) string {
@@ -217,6 +222,51 @@ func TestTriggerScanEmptyFanOut(t *testing.T) {
 	page := getBody(t, ac, base+loc, http.StatusOK)
 	if !strings.Contains(page, "enqueued no jobs") {
 		t.Errorf("empty fan-out receipt missing; body: %s", page)
+	}
+}
+
+func TestTriggerScanReceiptNamesTheCadenceLagSkip(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	trig := &fakeTrigger{skip: queue.SkipCadenceLag}
+
+	base := startWithTrigger(t, f, trig)
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	const from = "/settings?tab=scans"
+	resp := postForm(t, ac, base+"/scans/trigger", url.Values{"kind": {"hot"}, backField: {from}})
+	loc := resp.Header.Get("Location")
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusSeeOther || loc != from {
+		t.Fatalf("cadence-lag skip: status=%d loc=%q, want a 303 back to %q", resp.StatusCode, loc, from)
+	}
+	page := getBody(t, ac, base+loc, http.StatusOK)
+	if !strings.Contains(page, "running behind its cadence") {
+		t.Errorf("the receipt must name the cadence lag; body: %s", page)
+	}
+	if strings.Contains(page, "enqueued no jobs") {
+		t.Errorf("a skip is not an empty fan-out, so the receipt must not offer that cause; body: %s", page)
+	}
+}
+
+func TestTriggerScanReceiptNamesTheAlreadyDispatchedTick(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	trig := &fakeTrigger{skip: queue.SkipTickDispatched}
+
+	base := startWithTrigger(t, f, trig)
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	const from = "/settings?tab=scans"
+	resp := postForm(t, ac, base+"/scans/trigger", url.Values{"kind": {"dns"}, backField: {from}})
+	loc := resp.Header.Get("Location")
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusSeeOther || loc != from {
+		t.Fatalf("already-dispatched tick: status=%d loc=%q, want a 303 back to %q", resp.StatusCode, loc, from)
+	}
+	page := getBody(t, ac, base+loc, http.StatusOK)
+	if !strings.Contains(page, "current tick was already dispatched") {
+		t.Errorf("the receipt must name the claimed tick; body: %s", page)
 	}
 }
 

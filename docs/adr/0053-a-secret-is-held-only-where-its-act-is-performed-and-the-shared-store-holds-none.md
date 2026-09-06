@@ -221,10 +221,13 @@ can read, and the rule is exactly that `web` cannot.
   > [ADR-0160](./0160-a-backup-redacts-a-reversible-cleartext-credential-and-carries-a-hash-or-an-externally-keyed-ciphertext-and-restore-re-applies-the-same-redaction.md)
   > ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).**
   > *Credential* here means a secret held to **perform an act**, which is this ADR's own subject. It
-  > does not mean the archive carries no credential **material**. `account.password_hash`,
-  > `personal_token.token_hash` and the `account.totp_secret` ciphertext all ride with their rows,
-  > because a restore must reconstitute login and tokens. None of the three is reversible from the
-  > file, and a weak password is still guessable offline from its hash. So *"does not need to be
+  > does not mean the archive carries no credential **material**. `account.password_hash` and
+  > `personal_token.token_hash` ride with their rows,
+  > because a restore must reconstitute login and tokens. Neither is reversible from the
+  > file, and a weak password is still guessable offline from its hash. The
+  > `account.totp_secret` ciphertext rode here too until
+  > [#1419](https://github.com/winniel123/verge-asm/issues/1419), which drops it from the archive
+  > because a restore rotates the key that opens it. So *"does not need to be
   > treated as a keyring"* holds in this ADR's sense and must not be read as *needs no care*:
   > **treat a backup file with the same care you treat access to `pgdata`**
   > ([`backup-and-restore.md`](../guides/backup-and-restore.md)). ADR-0160 also redacts the two

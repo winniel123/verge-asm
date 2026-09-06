@@ -37,7 +37,7 @@ func TestBuildTLSAcceptanceJobsOnePerVantageOverReachedServices(t *testing.T) {
 }
 
 func TestBuildTLSAcceptanceJobsReGatesWithdrawnService(t *testing.T) {
-	// A stale reached population back-doors the connect-time gate, so it is re-gated (#742).
+	// A stale reached population back-doors the connect-time gate, so it is re-gated (ADR-0079).
 	empty := custody.Estate{}
 	services := []ReachedService{{VantageID: 1, Address: "93.184.216.10", Port: 443}}
 	if jobs := BuildTLSAcceptanceJobs(1, empty, services, []Vantage{internetVantage(1, "internet")}); jobs != nil {

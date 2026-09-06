@@ -12,14 +12,15 @@ import (
 )
 
 const createVantage = `-- name: CreateVantage :one
-INSERT INTO vantage (name, host, port, username, availability, created_by)
+INSERT INTO vantage (name, resolver, host, port, username, availability, created_by)
 VALUES (
     $1::text,
     $2::text,
-    $3::int,
-    $4::text,
+    $3::text,
+    $4::int,
+    $5::text,
     'pending',
-    $5::bigint
+    $6::bigint
 )
 RETURNING id, name, class, resolver, host, port, username, availability,
           public_key, host_key, created_by, created_at, latency_ms, platform, egress,
@@ -28,6 +29,7 @@ RETURNING id, name, class, resolver, host, port, username, availability,
 
 type CreateVantageParams struct {
 	Name      string `json:"name"`
+	Resolver  string `json:"resolver"`
 	Host      string `json:"host"`
 	Port      int32  `json:"port"`
 	Username  string `json:"username"`
@@ -37,6 +39,7 @@ type CreateVantageParams struct {
 func (q *Queries) CreateVantage(ctx context.Context, arg CreateVantageParams) (Vantage, error) {
 	row := q.db.QueryRow(ctx, createVantage,
 		arg.Name,
+		arg.Resolver,
 		arg.Host,
 		arg.Port,
 		arg.Username,
@@ -388,5 +391,21 @@ type SetVantagePublicKeyParams struct {
 
 func (q *Queries) SetVantagePublicKey(ctx context.Context, arg SetVantagePublicKeyParams) error {
 	_, err := q.db.Exec(ctx, setVantagePublicKey, arg.ID, arg.PublicKey)
+	return err
+}
+
+const setVantageResolver = `-- name: SetVantageResolver :exec
+UPDATE vantage
+SET resolver = $2
+WHERE id = $1
+`
+
+type SetVantageResolverParams struct {
+	ID       int64  `json:"id"`
+	Resolver string `json:"resolver"`
+}
+
+func (q *Queries) SetVantageResolver(ctx context.Context, arg SetVantageResolverParams) error {
+	_, err := q.db.Exec(ctx, setVantageResolver, arg.ID, arg.Resolver)
 	return err
 }

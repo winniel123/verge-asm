@@ -11,7 +11,7 @@ import (
 func allowAllControl(_, _ string, _ syscall.RawConn) error { return nil }
 
 func TestExchangeRejectsHostnameAddress(t *testing.T) {
-	// #743: a re-resolved hostname would carry no rebinding backstop at connect time.
+	// A re-resolved hostname would carry no rebinding backstop at connect time.
 	ex := NetExchanger{Params: DefaultParams()}
 	res := ex.Exchange(context.Background(), Target{
 		Address: "metadata.internal",
