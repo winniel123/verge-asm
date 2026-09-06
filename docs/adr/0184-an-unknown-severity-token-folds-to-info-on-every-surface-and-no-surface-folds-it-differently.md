@@ -120,7 +120,7 @@ direction is not arbitrary and is not a tie-break. It is a refusal.
 `cmd/web.sevLabel` (`cmd/web/signals.go:671`) returns `""` for an empty token and title-cases anything
 else. It is not a fourth fold, and it must not become one: `assetHeaderSeverity` returns `""` where a
 subject has **no** open signal, and `search.go:199` reads a map that misses. Rendering `Info` there
-would assert a grade nobody computed, which is the fabrication ADR-0116 §2 refuses at the empty state.
+would assert a grade nobody computed, which is the fabrication ADR-0116 refuses at the empty state.
 
 ## Decision
 
@@ -206,7 +206,7 @@ order fold keeps it off the top of every list. A ruling that covered only the va
 - **[`CONTEXT.md`](../../CONTEXT.md) gains nothing.** Its `Signal` entry already states the five-level
   grade and cites ADR-0116. The fold is a render-layer normalisation over a token, not a domain term,
   and the glossary holds no term for it.
-- **[ADR-0114](./0114-the-report-pdf-is-rendered-in-process-from-the-artifact-not-from-html.md) §1 gains
+- **[ADR-0114](./0114-the-report-pdf-is-rendered-in-process-from-the-artifact-not-from-html.md) gains
   its missing half on the record.** It states that the two render forms read one `Artifact`
   independently, and it names `artifactPDFItems` as what stops them drifting in *what they say*. This
   ADR names what stops them drifting in *how they grade*: both call `normSev`. No edit to ADR-0114 is
@@ -220,7 +220,7 @@ order fold keeps it off the top of every list. A ruling that covered only the va
 | **Fold to `medium` — the middle of the ramp** | It claims a scale position the token never carried. `medium` is a grade a rule was assigned, and asserting it for an unrecognised token puts a measured-looking value where nothing was measured. It also still sorts above `low` and `info`, so a stale token displaces real findings in the report's row order |
 | **Refuse to render — drop the row, or error the page** | It reports less than we measured. The signal fired, the subject and the rule name are in hand, and dropping the row deletes a finding to avoid naming its grade. ADR-0010 declined the same trade when it refused to mark internally-observed defects `not-evaluable` in order to express a grade |
 | **Render the raw token as-is** | `artifactSeverityBadge` and the `sevbadge` templates build CSS variable names from the token — `--sev-<l>-bg`, `--sev-<l>-fg`, `--sev-<l>-dot`. An unrecognised token produces custom properties that resolve to nothing, so the badge loses its background, its border and its dot. It also puts an arbitrary string into `data-sev`, which the graph's severity filter reads |
-| **Let each surface fold as it sees fit** | Gives one signal two grades and gives the operator no way to tell which surface is stale. It is also the exact drift ADR-0114 §1 built `artifactPDFItems` to prevent, arriving through the grade instead of through the copy: two independently-authored layouts of one `Artifact` are safe only while the fold in front of them is one function |
+| **Let each surface fold as it sees fit** | Gives one signal two grades and gives the operator no way to tell which surface is stale. It is also the exact drift ADR-0114 built `artifactPDFItems` to prevent, arriving through the grade instead of through the copy: two independently-authored layouts of one `Artifact` are safe only while the fold in front of them is one function |
 | **Fold the value but leave `Rank()` alone** | `Rank()`'s fall-through is rank zero, which is `critical`'s rank. The value fold protects the badge and leaves `worstSeverity`, `assetHeaderSeverity`, the seed tree rollup and the report's row sort all handing a stale token the top of the list. §4 keeps the two limbs in one rule for that reason |
 | **Merge this with [ADR-0183](./0183-the-severity-ramp-label-is-the-one-graded-word-the-product-draws-and-the-valence-refusal-does-not-reach-it.md)** | Two independent decisions. ADR-0183 could be reversed — the ramp drawn as colour and rank alone — and this fold would still be needed, because an out-of-set token still has to sort somewhere. This rule could be reversed and ADR-0183 would still stand. A merged file would make neither citable on its own |
 | **A lint or a generated normaliser that guarantees the single fold** | The three folds key on different inputs, in two languages: a token string in `internal/message`, a rule name in `internal/signal`, and a React prop in the design system. No check can recognise them as one rule, and a check that fired on any `switch` over a severity token would fire on `pdfSevColor` and `artifactSeverityBadge`, which are correct |

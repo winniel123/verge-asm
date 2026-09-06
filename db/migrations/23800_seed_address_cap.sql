@@ -1,7 +1,7 @@
 -- +goose Up
 -- The operator-configurable address-scope cap (#888 / Settings #206, ADR-0127). It
 -- bounds how many addresses one address-scope Seed (a CIDR) may cover, checked at
--- declaration per scope (ADR-0047 §5.3). ADR-0127 removes the UPPER bound on this
+-- declaration per scope (ADR-0047). ADR-0127 removes the UPPER bound on this
 -- knob: nothing gates a value above the operator's own cap, so the column carries no
 -- ceiling of its own, and the default stays 1024 (seed.DefaultAddressCap) so an
 -- untouched install behaves identically. It lives as a column on the instance_config

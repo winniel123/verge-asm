@@ -117,7 +117,7 @@ project-authored content in the comparison path, and
 CA's number**, extended beyond its attestation when applied to a commercial, internal or self-signed
 certificate. A fresh ½ for the evidence bound would be a **second** project-authored number in the
 same comparison path with **no** owner behind it at all — widening the disclosed weakness one day
-after #67 went to the trouble of removing the last unattested number from this rule. ADR-0038 §11's
+after #67 went to the trouble of removing the last unattested number from this rule. ADR-0038's
 rule is *ship the fraction*. It is not a licence to ship a new one.
 
 **It nests the two rules correctly.** Under the guard, `certificate-expired` can fire only where
@@ -297,7 +297,7 @@ defence for a wrong answer, and it is a poor one here in any case, because the C
 100-day ceiling on **2027-03-15** puts the entire publicly-trusted WebPKI inside the guard on the cold
 tier, and Let's Encrypt's 64-day `classic` profile on **2027-02-10** puts the modal ACME certificate
 there a month earlier. Those are published dates, not forecasts, and they arrive with nothing in this
-repository changing and no document it cites being retracted — which is ADR-0038 §11's silent
+repository changing and no document it cites being retracted — which is ADR-0038's silent
 staleness, one level up, in the argument rather than in a number, exactly as #71 predicted.
 
 ### Where this was decided on thin ground

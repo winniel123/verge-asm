@@ -1478,26 +1478,37 @@ this repo asserts stays bare.
 **The mechanical half now has a check.** `docs-site/scripts/check-adr-sections.mjs` indexes every
 numbered heading in `docs/adr/`, then reads every `ADR-nnnn §n` in a tracked text file. It reports
 four rules: `unnumbered-adr`, `section-out-of-range`, `section-on-issue-number` and
-`unresolvable-adr`. `npm run check:adr-sections` runs it from `docs-site/`. It scanned 1471 files
-and found **108 violations** on 2026-09-05: 88 `unnumbered-adr`, 20 `section-out-of-range`, 0
-`section-on-issue-number` and 0 `unresolvable-adr`. **No Go comment is among them.** The 108 sit in
-69 ADR sites, 28 research documents, 4 SPEC sites, 3 wayfinder documents, 2 comments under
-`deploy/prober/`, one SQL migration and one prototype. #1437 leaves the repair to a separate ticket,
-because a repair re-derives a pointer per site.
+`unresolvable-adr`. `npm run check:adr-sections` runs it from `docs-site/`. It scans 1,474 files and
+**reads zero violations** as of #1465. #1437 measured **108** on 2026-09-05 — 88 `unnumbered-adr`,
+20 `section-out-of-range`, 0 `section-on-issue-number`, 0 `unresolvable-adr`, and no Go comment among
+them — sitting in 69 ADR sites, 28 research documents, 4 SPEC sites, 3 wayfinder documents, 2
+comments under `deploy/prober/`, one SQL migration and one prototype. #1465 re-measured the same 108
+on `f2979b0` and repaired all of them, because a repair re-derives a pointer per site.
 
-Measure this figure on the branch that lands `check-adr-sections.mjs` (§7.5 rule 10). Do not measure
-it on `main`. `ed0a5a5` predates the files the check reads, so it cannot reproduce the count.
+Measure this figure on a branch that carries `check-adr-sections.mjs` (§7.5 rule 10). Do not measure
+it on a commit before `ca08e5a`, which is where the files the check reads first landed.
 
 **`section-on-issue-number` is deliberately narrow.** It matches `ADR-nnnn` plus a separator plus
 `#nnn §n`, and nothing wider. A `#nnn §n` naming a section of an issue body is a live convention at
 172 sites, so a general rule would be 172 false positives.
 
-**The basename allowlist exposed two code-surface defects.** `deploy/prober/Dockerfile:6` carries
-`(ADR-0103, §1.5, #14)` and `deploy/prober/entrypoint.sh:28` carries `(ADR-0053, §3)`. Both are the
-#1455 shape, and neither file carries an extension the earlier check read.
+**The basename allowlist exposed two code-surface defects.** `deploy/prober/Dockerfile:6` carried
+`(ADR-0103, §1.5, #14)` and `deploy/prober/entrypoint.sh:28` carried `(ADR-0053, §3)`. Both were the
+#1455 shape, and neither file carries an extension the earlier check read. #1465 repaired both. The
+Dockerfile's rule — the instance ships the exact prober binary per invocation — is `ADR-0139` §1's
+and not ADR-0103's, so that site was re-cited rather than shortened.
 
-**No workflow runs the check yet.** The 108 open violations would fail it on the first run. The
-repair ticket lands first, and the CI wiring follows it.
+**Where the `§n` is the citing document's own section, the repair reorders rather than deletes.**
+`docs/research/sensitive-ports.md` numbers its own headings to §49 and writes them bare, so
+`(ADR-0056, §27.7)` pairs an ADR with a section of the file it sits in. Moving the `§n` in front of
+the `ADR-nnnn` keeps both pointers and breaks the adjacency the check reads (#1465). Deleting the
+`§n` there would lose a live pointer, which routes 1 to 3 above do not ask for.
+
+**The `adr-sections` job in `.github/workflows/doclint.yml` runs the check.** #1465 cleared the 108
+and wired it, in that order. The job is **not advisory** — it carries no `continue-on-error` and goes
+red on a violation — and it is **not required**: `main`'s ruleset requires no job in that workflow,
+so a red run blocks no merge. Promotion is #1263. It runs `npm run test:adr-sections` first, then
+`npm run check:adr-sections -- --github`, so a violation lands as an inline annotation.
 
 **The check refuses its own test file.** `check-adr-sections.test.mjs` holds specimen citations. A
 `.mjs` surface carries no code span to mask them. So the tool read 21 of its own fixtures as live

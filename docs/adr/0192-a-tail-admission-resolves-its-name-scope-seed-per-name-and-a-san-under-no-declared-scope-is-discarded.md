@@ -152,7 +152,7 @@ no chain to write. Admitting it would mean inventing one.
 - **The log.** A log is not a `Seed` and has no `seed_id`. It also cannot be narrowed, withdrawn or
   reasoned about by ADR-0047's machinery.
 - **A default or catch-all `Seed`.** It would make every certificate on earth a member of the estate,
-  which is the enumeration ADR-0047 §10 refuses in its own domain.
+  which is the enumeration ADR-0047 refuses in its own domain.
 
 **The discard costs nothing recoverable.** ADR-0027 rules CT `corroborative`, so a name the tail
 drops is a name it did not admit and never a claim that the name does not exist. Declaring the scope

@@ -943,7 +943,7 @@ numbers generally. Many of the best-known sensitive ports are **squatted, not re
 | 10250/tcp, 10255/tcp, 9042/tcp, 15672/tcp | **inside explicit "Unassigned" ranges** | kubelet, Cassandra, RabbitMQ mgmt |
 | 10256/tcp, 10257/tcp, 10259/tcp | **inside one explicit "Unassigned" range**, `,10254-10259,,Unassigned,,,,,,,,` — added by §24, retrieved 2026-08-14 | kube-proxy healthz, kube-controller-manager, kube-scheduler |
 | 10248/tcp, 10249/tcp | **inside one explicit "Unassigned" range**, `,10202-10251,,Unassigned,,,,,,,,` — added by §27, retrieved 2026-08-14 | kubelet healthz, kube-proxy metrics |
-| 10258/tcp | **inside the `10254-10259` "Unassigned" range** — added by §27. Refused at the claim gate, and its convention is not **established** either, Kubernetes shipping no binary that listens on it ([ADR-0056](../adr/0056-a-port-constant-in-a-library-is-not-a-shipped-listener.md), §27.7) | cloud-controller-manager |
+| 10258/tcp | **inside the `10254-10259` "Unassigned" range** — added by §27. Refused at the claim gate, and its convention is not **established** either, Kubernetes shipping no binary that listens on it (§27.7, [ADR-0056](../adr/0056-a-port-constant-in-a-library-is-not-a-shipped-listener.md)) | cloud-controller-manager |
 
 The strings `elasticsearch`, `cassandra`, `kubelet`, `kubernetes`, `ipmi` and `jetdirect` return
 **zero matches** across all 14,531 rows of the registry — name, description and assignee. 6000/tcp
@@ -1170,11 +1170,11 @@ trade against the determinacy gate.
 | 2376/tcp | Docker daemon REST API (TLS) | yes | TLS authenticates the client but does not change the audience; whoever holds the keys has root on the host, and Docker still directs that it be reachable only from a trusted network or VPN |
 | 3306/tcp | MySQL / MariaDB | yes | A database wire protocol whose clients are application tiers; upstream states the port should not be reachable from untrusted hosts |
 | 5432/tcp | PostgreSQL | yes | Same role; upstream ships `listen_addresses` defaulting to loopback (see §4.5 — this is the list's weakest row and it is labelled as such) |
-| ~~1433/tcp~~ | ~~Microsoft SQL Server~~ | yes | **ROW REMOVED by §35** ([#109](https://github.com/winniel123/verge-asm/issues/109)). ~~Vendor directs that instances not be connected directly to the internet~~ — the prohibition is not withdrawn and it does not carry the row. **Claim 3 fails on §10.3's own failure condition**: Microsoft names the public internet as a supported deployment environment for an operator's own SQL Server instance on TCP/1433 and ships the provisioning option. Claim 1 is unavailable and Claim 2 fails on its successor clause, so §10.2's closed set is exhausted. **The pair is now in §4.6** ([ADR-0067](../adr/0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md), §35.6, §35.10) |
+| ~~1433/tcp~~ | ~~Microsoft SQL Server~~ | yes | **ROW REMOVED by §35** ([#109](https://github.com/winniel123/verge-asm/issues/109)). ~~Vendor directs that instances not be connected directly to the internet~~ — the prohibition is not withdrawn and it does not carry the row. **Claim 3 fails on §10.3's own failure condition**: Microsoft names the public internet as a supported deployment environment for an operator's own SQL Server instance on TCP/1433 and ships the provisioning option. Claim 1 is unavailable and Claim 2 fails on its successor clause, so §10.2's closed set is exhausted. **The pair is now in §4.6** (§35.6, §35.10, [ADR-0067](../adr/0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md)) |
 | 27017/tcp | MongoDB | yes | Binds to localhost by default; upstream directs that instances be reachable only on trusted networks |
 | 27018/tcp | MongoDB shard member | yes | An intra-cluster port with no external client |
 | 27019/tcp | MongoDB config server | yes | Holds cluster metadata; intra-cluster only |
-| ~~9200/tcp~~ | ~~Elasticsearch HTTP API~~ | sq. | **ROW REMOVED by §38** ([#114](https://github.com/winniel123/verge-asm/issues/114)). ~~Upstream's instruction is to never expose an unprotected node to the public internet~~ — the prohibition is not withdrawn and it does not carry the row. **Claim 3 fails on §10.3's own failure condition**: Elastic names the internet as the HTTP interface's counterparty in its own **self-managed** security documentation — *"**The HTTP layer**: Used for communication between your cluster or deployment **and the internet**"* — and independently names *"the default behavior of **allow all access over the public internet endpoint**"* in ECE. Claim 1 is unavailable (`xpack.security.enabled` defaults to `true` at `v9.5.1`) and Claim 2 fails on its successor clause (TLS on the **same** port), so §10.2's closed set is exhausted. **The pair is now in §4.6** ([ADR-0067](../adr/0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md), §38.4, §38.6, §38.11) |
+| ~~9200/tcp~~ | ~~Elasticsearch HTTP API~~ | sq. | **ROW REMOVED by §38** ([#114](https://github.com/winniel123/verge-asm/issues/114)). ~~Upstream's instruction is to never expose an unprotected node to the public internet~~ — the prohibition is not withdrawn and it does not carry the row. **Claim 3 fails on §10.3's own failure condition**: Elastic names the internet as the HTTP interface's counterparty in its own **self-managed** security documentation — *"**The HTTP layer**: Used for communication between your cluster or deployment **and the internet**"* — and independently names *"the default behavior of **allow all access over the public internet endpoint**"* in ECE. Claim 1 is unavailable (`xpack.security.enabled` defaults to `true` at `v9.5.1`) and Claim 2 fails on its successor clause (TLS on the **same** port), so §10.2's closed set is exhausted. **The pair is now in §4.6** (§38.4, §38.6, §38.11, [ADR-0067](../adr/0067-a-claim-fails-on-the-owners-affirmative-naming-not-on-the-reach-of-its-own-prohibition.md)) |
 | ~~9300/tcp~~ | ~~Elasticsearch transport~~ | sq. | **ROW REMOVED by §38** ([#114](https://github.com/winniel123/verge-asm/issues/114)). ~~Node-to-node binary protocol; a transport connection can reach system-internal APIs~~ — true, and it is not what the row turned on. **Claim 3 fails on §10.3's own failure condition, met in Elastic Cloud Enterprise** and carried to the number by [ADR-0050](../adr/0050-an-owners-category-statement-reaches-the-members-its-own-artefacts-place-inside-it.md) limb 2 on three of Elastic's own artefacts — *"9300, 9343 \| {{es}} transport client"* under **"Inbound traffic from any source"**, the supported load-balancer modes table, and *"For {{es}} transport traffic (**ports 9300/9343**), enable Proxy Protocol v2"* in the page managing the filter that overrides the public-internet default. Claim 1 is unavailable (**[measured]** the node **refuses to start** without transport TLS when security is enabled) and Claim 2 fails on its successor clause. **This is the thinner of the two removals and §38.15 names the reading that reverses it.** §38.5, §38.11 |
 | 5984/tcp | CouchDB HTTP API | yes | Ships bound to `127.0.0.1`; its clients are application tiers |
 | 25672/tcp | RabbitMQ inter-node (Erlang distribution) | -- | Upstream states these ports should not be publicly exposed |
@@ -2079,7 +2079,7 @@ it refuses.
 >
 > | Excluded | The ground |
 > |---|---|
-> | `10258/tcp` cloud-controller-manager | **No claim in the closed set fits, and beneath the claim gate the owner ships no binary that listens on the number.** Claim 1 is unavailable on §10.1 Step 1 and Step 2 — `k8s.io/cloud-provider/options` builds §24.3's delegating stack exactly, so the anonymous caller gets the health paths and a `403` for everything else. Claim 2 is inapplicable: the port is HTTPS. **Claim 3's boundary limb has nothing to answer it** — `ports-and-protocols.md` does not carry the number, `security-checklist.md` does not name the component, the shipped bind default is `NewSecureServingOptions()`'s permissive `0.0.0.0` and therefore silent under §10.4, kubeadm installs no CCM, and **[measured]** a code search over the whole `kubernetes/website` repository for `10258` returns **zero** results in any language. Underneath, **[measured]** `cmd/cloud-controller-manager/main.go` at `v1.34.0` opens *"This file should be written by each cloud provider … it uses fake parameters"* and `hack/lib/golang.sh` lists the target in none of its build sets — the number is a constant Kubernetes publishes for other parties to build on ([ADR-0056](../adr/0056-a-port-constant-in-a-library-is-not-a-shipped-listener.md), §27.7) |
+> | `10258/tcp` cloud-controller-manager | **No claim in the closed set fits, and beneath the claim gate the owner ships no binary that listens on the number.** Claim 1 is unavailable on §10.1 Step 1 and Step 2 — `k8s.io/cloud-provider/options` builds §24.3's delegating stack exactly, so the anonymous caller gets the health paths and a `403` for everything else. Claim 2 is inapplicable: the port is HTTPS. **Claim 3's boundary limb has nothing to answer it** — `ports-and-protocols.md` does not carry the number, `security-checklist.md` does not name the component, the shipped bind default is `NewSecureServingOptions()`'s permissive `0.0.0.0` and therefore silent under §10.4, kubeadm installs no CCM, and **[measured]** a code search over the whole `kubernetes/website` repository for `10258` returns **zero** results in any language. Underneath, **[measured]** `cmd/cloud-controller-manager/main.go` at `v1.34.0` opens *"This file should be written by each cloud provider … it uses fake parameters"* and `hack/lib/golang.sh` lists the target in none of its build sets — the number is a constant Kubernetes publishes for other parties to build on (§27.7, [ADR-0056](../adr/0056-a-port-constant-in-a-library-is-not-a-shipped-listener.md)) |
 >
 > **The exclusion is overdetermined**, so under ADR-0046 limb 1 it is bounded on arrival and is not an
 > exposed sole-ground negative; it opens no §2.4 residue, because no convention was defeated and none
@@ -5523,7 +5523,7 @@ disagree, **§16 governs**.
 > twice. The coverage line is now part of the artefact rather than a fact about it.
 >
 > **No `(port, transport)` pair moves and no row moves.** A footing is evidence for a claim and not a
-> claim ([ADR-0036](../adr/0036-a-shipped-default-is-the-configuration-that-takes-effect.md), §12.7),
+> claim (§12.7, [ADR-0036](../adr/0036-a-shipped-default-is-the-configuration-that-takes-effect.md)),
 > so this changes §2.2's **disclosure** and nothing the rule reads: the list stays at **37 pairs**,
 > class totals stay **12 / 7 / 18**, no rule version bumps and `verge-core` does not move.
 >
@@ -6906,7 +6906,7 @@ That flag is discharged.
 > **Both kubelet cells are conditional on [#83](https://github.com/winniel123/verge-asm/issues/83)**,
 > which is deciding whether either row survives Class A on the finding that the shipped source
 > contradicts the generated reference page. A footing is evidence for a claim and not a claim
-> ([ADR-0036](../adr/0036-a-shipped-default-is-the-configuration-that-takes-effect.md), §12.7), so a
+> (§12.7, [ADR-0036](../adr/0036-a-shipped-default-is-the-configuration-that-takes-effect.md)), so a
 > cell cannot outlive its row: if #83 removes a kubelet row, its cell leaves with it and the
 > prohibition tier reads 14 or 13 pairs with the coverage denominator falling to 25 or 24. **If #83
 > moves `10250` from Class A to Class C, nothing here moves at all** — the footing is about network
@@ -6986,7 +6986,7 @@ back badly, `1433` is the next cell to check.
 > `10250/tcp` from Class A to Class C on the kubelet's shipped defaults. That is a **claim** move,
 > and every footing cell in this table stands — §18 moved footings, §19 moved a claim, and the two
 > are different supports
-> ([ADR-0036](../adr/0036-a-shipped-default-is-the-configuration-that-takes-effect.md), §12.7).
+> (§12.7, [ADR-0036](../adr/0036-a-shipped-default-is-the-configuration-that-takes-effect.md)).
 > This section's own conditional on that outcome is the branch that obtains.
 >
 > **The composed state: 37 pairs · classes 11 / 7 / 19 · footing tiers prohibition 15 · scoping 9 ·
@@ -7433,7 +7433,7 @@ and the pair does not, so the list keeps its member.
 > against the note as it stood before §18 landed.** Two cells above are superseded, and neither is a
 > disagreement: §18 moved `10250/tcp` and `10255/tcp`'s **footings**, §19 moved `10250/tcp`'s
 > **claim**, and a footing is evidence for a claim rather than a claim
-> ([ADR-0036](../adr/0036-a-shipped-default-is-the-configuration-that-takes-effect.md), §12.7) — so
+> (§12.7, [ADR-0036](../adr/0036-a-shipped-default-is-the-configuration-that-takes-effect.md)) — so
 > the two passes moved **different supports on the same two rows**. §18's own conditional, *if #83
 > merely moves `10250` from Class A to Class C, nothing here moves, because the footing is about
 > network position and is indifferent to which claim the row rests on*, is the branch that obtains.
@@ -7643,8 +7643,8 @@ paths resolved from the tree listing rather than guessed (§16.10's rule, and §
 
 ### 20.2 Erlang/OTP's class list, enumerated before the search
 
-[ADR-0046](../adr/0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md)
-§17.8: *"a class list is a property of the owner, not of the subject, and no owner has an unbounded
+§17.8, ruled at [ADR-0046](../adr/0046-a-negatives-corpus-is-its-owners-class-list-and-only-a-sole-ground-negative-is-exposed.md):
+*"a class list is a property of the owner, not of the subject, and no owner has an unbounded
 one … a project with a reference implementation three."* Erlang/OTP is that shape and it is the
 richest case the corpus has met, because Ericsson is simultaneously the **specifier** of the
 distribution protocol, the **author** of the reference implementation, and the **publisher** of a
@@ -8058,7 +8058,7 @@ document is published as well as shipped (§20.3). Nothing is quoted from it.
 - **A class can be invisible because it is new.** #76's retrieval was correct and complete over the
   classes it knew about. `secure_coding.md` had been in a release for less than four months when #76
   ran. **An owner's class list is fixed at the time of the sweep, not for all time** — which is a rider
-  ADR-0046 §17.8's *"an owner cannot invent a fourth class to defeat a sweep"* does not quite carry, and
+  §17.8's *"an owner cannot invent a fourth class to defeat a sweep"* does not quite carry, and
   it is recorded here because this is the case that produced it. The mitigation is the one already in
   place: a class list is cheap to re-enumerate, and re-enumeration is what this section did.
 - **Reading the shipped C settled a question the prose could have been read either way on.** `epmd_cmd.md`
@@ -13001,7 +13001,7 @@ from few. It is the shape ADR-0009's coupling direction commits to, priced rathe
 | [`safe-active-probing.md`](./safe-active-probing.md) §2.3 | *"Roughly 140 TCP ports"*, Management/OOB limb listing `161 (TCP), 623` | **123, and the limb annotated** — ADR-0009 removed both and §2.3 had never been amended. Edited in place |
 | [`safe-active-probing.md`](./safe-active-probing.md) §2.4 | `0 of 37 sensitive pairs unread` | **`0 of 39`**, and **`0 of 41` as composed** — §27 moved `|S|` again in the same merge. The **numerator** is `0` for every `N` by the union and is not a measurement of anything that can move; the denominator is `|S|` |
 | [`nmap-services-licence.md`](./nmap-services-licence.md) §6.2 | 81 / +44 / 125 / 123 | **confirmed by independent re-derivation.** Its parenthetical parking `~140` as out of scope is now discharged, elsewhere |
-| [ADR-0044](../adr/0044-a-one-off-measurement-has-no-currency.md), [ADR-0047](../adr/0047-an-address-scope-is-its-own-enumeration.md) | quote `0 of 37 sensitive pairs unread` | **stale denominators, deliberately not edited here** — §29.9. **Repaired in the merge-reconciliation pass**: both read `0 of 41`, and the `~140` sizings in ADR-0047 §345 and ADR-0049 §89 are marked at **136 pairs / 131 probed** |
+| [ADR-0044](../adr/0044-a-one-off-measurement-has-no-currency.md), [ADR-0047](../adr/0047-an-address-scope-is-its-own-enumeration.md) | quote `0 of 37 sensitive pairs unread` | **stale denominators, deliberately not edited here** — §29.9. **Repaired in the merge-reconciliation pass**: both read `0 of 41`, and the `~140` sizings in ADR-0047 and ADR-0049 are marked at **136 pairs / 131 probed** |
 | §8 | 12 questions, all closed | **12, unchanged** |
 
 **Routed to [#12](https://github.com/winniel123/verge-asm/issues/12), and it is a subtraction rather
@@ -13022,8 +13022,8 @@ its own history, and ADR-0058 is built on one measured instance with two hops, n
 
 **`~140` is corrected where it is a claim about the frequency half and left alone where it is load in
 somebody else's arithmetic.** [ADR-0044](../adr/0044-a-one-off-measurement-has-no-currency.md),
-[ADR-0047](../adr/0047-an-address-scope-is-its-own-enumeration.md) §345 and
-[ADR-0049](../adr/0049-an-address-scope-is-family-agnostic-and-the-cap-counts-addresses.md) §89 size
+[ADR-0047](../adr/0047-an-address-scope-is-its-own-enumeration.md) and
+[ADR-0049](../adr/0049-an-address-scope-is-family-agnostic-and-the-cap-counts-addresses.md) size
 scan durations and row volumes against *"ADR-0009's ~140 pairs"*. The true figure is **134**, or
 **129** probed on default settings — so those ADRs **overstate** duration and volume by 4–8 %, which
 is the conservative direction and moves no ruling. They are **not edited here**: three passes are
@@ -13035,8 +13035,8 @@ right repair is one edit after all five land. Ticketed rather than smoothed — 
 > [ADR-0001](../adr/0001-stack-and-runtime.md), [ADR-0005](../adr/0005-scan-execution-model.md),
 > [ADR-0009](../adr/0009-verge-core-is-a-union.md)'s opening,
 > [ADR-0044](../adr/0044-a-one-off-measurement-has-no-currency.md),
-> [ADR-0047](../adr/0047-an-address-scope-is-its-own-enumeration.md) §345,
-> [ADR-0049](../adr/0049-an-address-scope-is-family-agnostic-and-the-cap-counts-addresses.md) §89,
+> [ADR-0047](../adr/0047-an-address-scope-is-its-own-enumeration.md),
+> [ADR-0049](../adr/0049-an-address-scope-is-family-agnostic-and-the-cap-counts-addresses.md),
 > [`insecure-listener-rules.md`](./insecure-listener-rules.md),
 > [`nmap-services-licence.md`](./nmap-services-licence.md) and
 > [`project-authored-constants.md`](./project-authored-constants.md) each carry `~140` and are marked in
@@ -14280,7 +14280,7 @@ from an internet vantage is never correct*, and that proposition has more than o
 | Term of the row's proposition | What closes it | Where the note already ruled it |
 |---|---|---|
 | **who** is asserting | the statement is the **owner's** for this port | §10.5; §16.6 — *ownership is tested per port, not per sentence* |
-| **what** it is about | the statement reaches **this pair** | §2.3, ADR-0050; §18.5's ratification walk |
+| **what** it is about | the statement reaches **this pair** | §2.3, §18.5's ratification walk; ADR-0050 |
 | **which network** | the statement names **the public internet** | §20.8, ADR-0059 limb 3 |
 | **in what mood** | the statement takes a **position** | §26.4; §27.6 — *label* versus *position*; ADR-0050 limb 3 |
 
@@ -14739,7 +14739,7 @@ applied when it declined the house default and minted ADR-0059.
 
 **It loses on three grounds, and the third is the stronger.**
 
-1. **Every rule this section applies was already available.** §10.5, ADR-0050, §26.4 and §20.8's
+1. **Every rule this section applies was already available.** §10.5, §26.4, ADR-0050 and §20.8's
    lexical test are all standing rules of this note, and ADR-0059 limb 3 **lists all four in one
    sentence**. What #101 adds is the claim that the list is closed and the observation that limb 1's
    unit is a statement rather than a sentence. That is the house test — *"both general rules this
@@ -16593,7 +16593,7 @@ successor clause — TDS negotiates TLS on the same port, which is §9.2's LDAP 
 band and gave `6443/tcp` as the concrete case that made the question real. A row whose exception is a
 **supported architecture** is the *rarely correct, worth mentioning* shape §5 exists to refuse, and
 the value space has no place to put it — a `Signal` is binary
-([ADR-0004](../adr/0004-signals-are-release-coupled-rules.md), §5).
+(§5, [ADR-0004](../adr/0004-signals-are-release-coupled-rules.md)).
 
 **Option E — decline to rule and route again, on the ground that ADR-0067 limb 2 is a new instrument
 being minted in the same pass that spends it.** This is the strongest procedural objection and it is
@@ -19865,7 +19865,7 @@ says a withdrawal needs. It was then written at some sites and not others.
 > > **`5985`/`5986/tcp` WinRM** — instances four and five, routed at §45.7 — and the reason `22/tcp`
 > > could not take `5601`'s repair route is that §2.1's naming of SSH rests on the withdrawn clause
 > > *itself*, so re-founding on §2.1 would relocate the assertion rather than retire it
-> > ([ADR-0089](../adr/0089-an-instrument-supplies-the-test-never-the-premise.md), §45.5).
+> > (§45.5, [ADR-0089](../adr/0089-an-instrument-supplies-the-test-never-the-premise.md)).
 
 ### 40.4 G11 — the tag comparison, run over all twenty-seven footing cells
 
@@ -20766,7 +20766,7 @@ are marked **§39.4** / **§41.4** and their grounds are unchanged.
 
 | Item — `(cell, artefact, revision act)` | Pairs | Ground |
 |---|---|---|
-| **§39.4** `verge-core`'s **frequency half** @ `nmap-services` — a third party publishing replacement frequency data, never announced to us | *not a port cell* | ADR-0038; §39.4 item 2 |
+| **§39.4** `verge-core`'s **frequency half** @ `nmap-services` — a third party publishing replacement frequency data, never announced to us | *not a port cell* | §39.4 item 2; ADR-0038 |
 | **§39.4** `10248/tcp`'s **footing** @ the config-API doc comment `healthzBindAddress: "127.0.0.1"` | `10248/tcp` | §27.5, §27.12; §39.4 item 1 |
 | **NEW** `10248/tcp`'s **claim** cell @ the same doc comment | `10248/tcp` | §27.6 — Claim 3 is carried by the restricting default and nothing else; **[measured]** §31.6 rules *"the port of the **localhost** healthz endpoint"* a **label**, so the comment's prose adds no second ground. Shape 2 |
 | **NEW** `10255/tcp`'s **claim** cell @ `readOnlyPort`'s *"no authentication/authorization"* doc comment, `staging/src/k8s.io/kubelet/config/v1beta1/types.go` | `10255/tcp` | §41.7's flagged first cell. **Sole-ground, and undetermined at Step 1** — §43.5 |
@@ -20840,7 +20840,7 @@ release line.**
 
 | Item — `(cell, artefact, revision act)` | Pairs | Ground |
 |---|---|---|
-| **§39.4** `certificate-expiring`'s **fraction** @ RFC 9773 §1 on form and the issuer's published lifetime schedule on value | *not a port cell* | ADR-0038; §39.4 item 8 |
+| **§39.4** `certificate-expiring`'s **fraction** @ RFC 9773 §1 on form and the issuer's published lifetime schedule on value | *not a port cell* | §39.4 item 8; ADR-0038 |
 | **NEW** `23/tcp`'s **claim** cell @ RFC 4248 §3 | `23/tcp` | Sole-ground on the cleartext conjunct, and **undetermined on Claim 2's successor conjunct** — §43.5 |
 | **NEW** `21/tcp`'s **claim** cell @ RFC 2577 §§5–6 | `21/tcp` | Same shape; §§5 and 6 are one artefact — Shape 3 |
 | **NEW** `5900/tcp`'s **claim** cell @ RFC 6143 §9 (with §7.2.1 and §7.2.2) | `5900/tcp` | Same shape, and §3.4 records that the vendor position points the other way — *"RealVNC scopes the DES/8-character weakness to a non-default 'Legacy' mode"* — so no vendor artefact is available as a fallback |
@@ -21020,7 +21020,7 @@ a **replacement** — a pointer to the register as members — rather than a str
 [`docs/spec/curated-table-watch.md`](../spec/curated-table-watch.md) §1's *"§39.4 is the register until
 then"* is marked at its clause: **the live register is now §43.3**, which is what that box reserved a
 place for. **Its ledger at §2.4 is NOT written**: a residue entry is signed by a **release**, no release
-has occurred, and a walk is not a release (ADR-0078 §42.6). ADR-0046, ADR-0054, ADR-0057, ADR-0059 and
+has occurred, and a walk is not a release (ADR-0078). ADR-0046, ADR-0054, ADR-0057, ADR-0059 and
 ADR-0077 are **confirmed by use** and none is amended. **One further site restates the figure and this
 session may not edit it**: the map's *CURRENT COMPOSED STATE* bullet
 ([#1](https://github.com/winniel123/verge-asm/issues/1)) reads *"a queue of 9 items over 11 pairs and 2
@@ -22861,7 +22861,7 @@ regenerating-clause failure describes, one section over.
 
 **A single merged check with #149.** The stronger argument on the other side, and named in full at
 §49.4. It loses on population discoverability, not on elegance: a check whose finite, named population
-requirement (ADR-0057 §39.6) can only be satisfied by re-reading arbitrary prose for temporal content is
+requirement (§39.6, ADR-0057) can only be satisfied by re-reading arbitrary prose for temporal content is
 not closed, it is open wearing a closed check's badge.
 
 **Leaving §40.4's disclosure sentence as the whole repair.** It is already written, and it already

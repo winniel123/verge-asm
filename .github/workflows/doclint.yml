@@ -1,8 +1,9 @@
 name: doclint
 
-# Two documentation jobs with different postures. `doclint` is the advisory style lint
+# Three documentation jobs with different postures. `doclint` is the advisory style lint
 # (SPEC docs/spec/doc-lint-tool.md §5.2, ticket #822). `citations` is the cited-path
-# gate (#1436), and it fails on a violation. Neither is a required check.
+# gate (#1436), and `adr-sections` is the `ADR-nnnn §n` gate (#1437, #1465); both fail on
+# a violation. None of the three is a required check.
 #
 # THE `doclint` JOB. A dedicated, non-blocking job that runs the doclint tool on a pull
 # request. It is SEPARATE from the docs-site build job (docs-site.yml), whose gates are
@@ -19,10 +20,11 @@ name: doclint
 # so each flag lands inline on the pull-request diff, plus a job-log summary of counts
 # by rule and by severity (SPEC §5.2). There is no SARIF in v1.
 #
-# The second job, `citations`, is a different gate with a different scope. See its own
-# header below. It reads the whole tree, so this workflow carries no paths filter: a PR
-# that deletes a Go file and no document at all still breaks a citation (#1436). The
-# doclint job below tolerates that; it lints the diff, which on such a PR is empty.
+# The other two jobs, `citations` and `adr-sections`, are different gates with different
+# scopes. See their own headers below. Both read the whole tree, so this workflow carries
+# no paths filter: a PR that deletes a Go file and no document at all still breaks a
+# citation (#1436). The doclint job below tolerates that; it lints the diff, which on
+# such a PR is empty.
 
 on:
   pull_request:
@@ -116,3 +118,43 @@ jobs:
       - name: Cited-path gate
         working-directory: docs-site
         run: npm run check:citations
+
+  # `ADR-nnnn §n` gate (#1437, repaired and wired by #1465). A `§n` citation resolves
+  # only against a numbered heading of the ADR it names. 91 of the 218 ADRs number no
+  # heading, so a `§n` against one of those is wrong by construction (SPEC
+  # docs/spec/comment-policy.md §4.7).
+  #
+  # NOT ADVISORY, and NOT required. The step exits non-zero on a violation, so the job
+  # goes red. `main`'s ruleset requires no job in this workflow, so a red run blocks no
+  # merge; promotion to a required check is a settings change (#1263, #1438).
+  #
+  # WHOLE TREE, not the diff. The index is built from docs/adr/, so deleting a numbered
+  # heading breaks a citation in a file the PR never touched.
+  #
+  # fetch-depth is the default: the gate reads the working tree and `git ls-files`, and
+  # needs no history.
+  adr-sections:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: docs-site/package-lock.json
+
+      - name: Install dependencies
+        working-directory: docs-site
+        run: npm ci
+
+      - name: ADR section gate tests
+        working-directory: docs-site
+        run: npm run test:adr-sections
+
+      # --github prints one annotation per violation and appends a summary table, so a
+      # violation lands inline on the diff rather than only in the job log. The flag does
+      # not soften the exit code.
+      - name: ADR section gate
+        working-directory: docs-site
+        run: npm run check:adr-sections -- --github

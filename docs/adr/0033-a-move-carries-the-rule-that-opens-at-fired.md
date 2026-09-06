@@ -15,8 +15,8 @@ nothing where none does. ADR-0026 refused a carrier rather than leaving the ques
 the silence, and ticketed the residue as [#65](https://github.com/winniel123/verge-asm/issues/65).
 
 The population that reaches nobody is three shapes, all on subjects **already in the estate**, so
-no membership message covers them ([ADR-0031](./0031-membership-alerts-at-the-root-of-the-entering-subtree.md) §1)
-and no leg moved ([ADR-0029](./0029-an-alert-fires-on-a-leg.md) §2):
+no membership message covers them ([ADR-0031](./0031-membership-alerts-at-the-root-of-the-entering-subtree.md))
+and no leg moved ([ADR-0029](./0029-an-alert-fires-on-a-leg.md)):
 
 1. an existing `Name` gaining a **CNAME whose target does not exist** — `cname-target-name-error`
    opens at *fired*, which is the case [#35](https://github.com/winniel123/verge-asm/issues/35)
@@ -31,7 +31,7 @@ and no leg moved ([ADR-0029](./0029-an-alert-fires-on-a-leg.md) §2):
 ADR-0026 refused all three together because the two available carriers both lose. **The general
 form** — *any rule opening at `fired` is a message* — fires on every internal deploy, since
 `plaintext-http-no-https` opens at *fired* on most estates, which is the message-per-deploy
-ADR-0029 §3 refused on [#17](https://github.com/winniel123/verge-asm/issues/17)'s ground. **The
+ADR-0029 refused on [#17](https://github.com/winniel123/verge-asm/issues/17)'s ground. **The
 narrow form** — suppress the ones caused by a leg opening — needs the three-way case analysis on
 *why the timeline opened* (membership, aperture, slower tier) that ADR-0031 rejected by name in its
 own alternatives table. **A per-rule enumeration** is sixteen judgements resting on unmeasured base
@@ -97,8 +97,8 @@ beneath it, and everything else follows from what a `Transition` already is:
 
 | Why the rule opened at `fired` | Is there a `Transition` beneath? | Result |
 | --- | --- | --- |
-| The subject entered the estate (membership) | No — every timeline beneath a new subject **opens**, and an opening emits no `Transition` ([ADR-0014](./0014-only-revealed-generalises.md)) | Silent here; carried by ADR-0031 §3's census |
-| The aperture widened | No — a widening is a `Break` or an opening, and **nothing is compared across a `Break`, so it emits no `Transition`** | Silent here; carried by ADR-0029 §7's census |
+| The subject entered the estate (membership) | No — every timeline beneath a new subject **opens**, and an opening emits no `Transition` ([ADR-0014](./0014-only-revealed-generalises.md)) | Silent here; carried by ADR-0031's census |
+| The aperture widened | No — a widening is a `Break` or an opening, and **nothing is compared across a `Break`, so it emits no `Transition`** | Silent here; carried by ADR-0029's census |
 | A `Gap` closed | No — **no `Transition` crosses a `Gap`** | Silent here; already coverage class, member 7, fired at the cause (ADR-0026 §5) |
 | A slower tier first covered the facet | No — the timeline **opens** | **Silent, and stays silent.** §4 |
 | The subject entered the rule's domain because a value it reads moved | **Yes** | **Message** |
@@ -128,7 +128,7 @@ So the message fires at the `Transition` and carries the census of what opened b
 > opened at `fired` — `certificate-expired`, `certificate-self-signed`,
 > `certificate-weak-key-or-signature` — and three opened at *did not fire*. Nothing is compared.*
 
-This is **ADR-0029 §7's payload shape with a fifth producer**, after the aperture widening, the
+This is **ADR-0029's payload shape with a fifth producer**, after the aperture widening, the
 membership entry, the flagship and ADR-0026 §2's re-point. It is computed once at the cause, is a
 description and never a `Transition`, carries no difference set, and alerts nothing individually.
 ADR-0031 wrote that a third producer *"would be a signal that the shape is right"*. This is the
@@ -161,7 +161,7 @@ both of the shapes a deploy takes.
 
 - **A deploy that mints new containers, ports or vhosts** mints new `Service` and `Endpoint`
   subjects. Every timeline beneath them opens, so there is no `Transition` and no message. The
-  internal port opening still tells nobody, exactly as ADR-0029 §3 ruled and priced — this ruling
+  internal port opening still tells nobody, exactly as ADR-0029 ruled and priced — this ruling
   cannot re-admit it, because the door it would come through is an opening.
 - **A deploy onto endpoints that already exist** leaves `http-identity` at `Responded` and
   `certificate` where it was. No rule enters a domain, so no rule opens: the rules are already
@@ -183,7 +183,7 @@ carry news are already coverage class under ADR-0026 §5.
 Nothing here touches the closing side. A rule that was `fired` and **leaves** its domain — the
 CNAME is deleted, the endpoint stops presenting a certificate — closes its span with no message,
 which is ADR-0024's amendment unchanged. That is the shrinking direction
-[ADR-0006](./0006-subjects-leave-by-measurement.md), ADR-0029 §4 and ADR-0026 §1 all silence, and
+[ADR-0006](./0006-subjects-leave-by-measurement.md), ADR-0029 and ADR-0026 §1 all silence, and
 it is overwhelmingly the operator's own remediation. #35's *a clear may be the attack having
 succeeded* is untouched and lands where it always did: on the four rules whose **within-domain**
 clear is a message under ADR-0026 §5, which is where the takeover-relevant clear actually sits — a
@@ -256,5 +256,5 @@ message and a fifth producer of an existing payload shape.
 | **Fire at the `Signal` rather than at the `Transition`** | One `NoTLS` → `Presented` opens up to six certificate rules at `fired` at once, so this is six messages for one cause — ADR-0007's *never one per affected subject*, verbatim, and ADR-0031's root rule ignored one layer down |
 | **Mint a fifth cause, or a coverage-class member, for *a rule started firing*** | The world moved: a certificate appeared on a port that had none, a CNAME was created that points nowhere. Our looking did not change. Filing it under an observer cause is ADR-0031's *rooting an appearance at the `Seed`* defect again, and the map's constraint is that a fifth cause needs a reason rather than a slot |
 | **Include the slower-tier opening by testing whether the subject was already in the estate** | A simpler-looking predicate that reaches shape 3, and it is wrong in the direction that matters: it reports our own weekly `Scan` as an event, fires across the whole estate on the first enumeration after any entry, and makes the message's volume a function of the cadence table rather than of the world |
-| **Extend it to the closing side — a rule leaving its domain while `fired` is a message** | Symmetry for its own sake, and it fires on every remediation in the estate: deleting a dangling CNAME, terminating TLS, taking an endpoint off HTTP. It is the shrinking direction ADR-0006, ADR-0029 §4 and ADR-0026 §1 each silence, and #35's *a clear is not always good news* is already served by ADR-0026 §5's four within-domain clears |
+| **Extend it to the closing side — a rule leaving its domain while `fired` is a message** | Symmetry for its own sake, and it fires on every remediation in the estate: deleting a dangling CNAME, terminating TLS, taking an endpoint off HTTP. It is the shrinking direction ADR-0006, ADR-0029 and ADR-0026 §1 each silence, and #35's *a clear is not always good news* is already served by ADR-0026 §5's four within-domain clears |
 | **Let the message carry a difference set — which rules newly fire versus last fold** | A delta over a census by another name. ADR-0024 refuses it on the screen and nothing makes it legal in a payload; the census is computed once at the cause and asserts nothing about last cadence |

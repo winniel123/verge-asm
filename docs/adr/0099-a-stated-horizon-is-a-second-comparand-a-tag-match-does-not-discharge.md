@@ -87,7 +87,7 @@ rule (*has a version tag* / *cites a horizon*) rather than by a reader's discret
 ### 3. Why a sibling check and not a G11 amendment
 
 G11 was **run to completion** at §40 before this ticket existed, and its baseline verdict — the thing
-"a later run is compared to" (ADR-0057 §40.6's own words) — is stated over a specific test: tag against
+"a later run is compared to" (`sensitive-ports.md` §40.6's own words) — is stated over a specific test: tag against
 tag. Widening that test's definition after the fact would change what §40's recorded **GREEN**/`Current`
 verdict for `2375/tcp` means without re-running anything, which is exactly the *sentence that names no
 successor is re-derived by the next session that needs one* failure ADR-0057's own rationale 5 catalogs.

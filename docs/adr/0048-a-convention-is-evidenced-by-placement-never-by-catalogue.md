@@ -21,7 +21,7 @@ sibling gate on this table has had that treatment and this one never has:
 | Gate | Its evidence standard |
 |---|---|
 | §2.1, the claim | Closed **by construction** over what an internet vantage supplies, with three candidate fourths tested and refused — §10.2, [#37](https://github.com/winniel123/verge-asm/issues/37) |
-| §2.2, the attestation | Three named forms; an **owner** definition ([ADR-0035](./0035-a-cryptographic-primitives-owner-is-its-specifier.md), §10.5); a one-way rule for shipped defaults (§10.4); an artefact test ([ADR-0036](./0036-a-shipped-default-is-the-configuration-that-takes-effect.md)); an extent rule ([ADR-0037](./0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md)) |
+| §2.2, the attestation | Three named forms; an **owner** definition ([ADR-0035](./0035-a-cryptographic-primitives-owner-is-its-specifier.md)); a one-way rule for shipped defaults (§10.4); an artefact test ([ADR-0036](./0036-a-shipped-default-is-the-configuration-that-takes-effect.md)); an extent rule ([ADR-0037](./0037-an-attestation-is-retrieved-over-the-artefact-not-over-the-row.md)) |
 | §2.3, the corroborators | A named population and one rule: **corroborate, never carry** |
 | §2.4, determinacy | *"Uncontested convention has to be"* the test — plus ADR-0042's criterion, and **no source rule of any kind** |
 

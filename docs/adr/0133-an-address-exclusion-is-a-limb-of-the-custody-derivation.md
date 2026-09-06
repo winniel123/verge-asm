@@ -8,7 +8,7 @@
 
 ## Context
 
-[ADR-0012](./0012-a-proposer-is-not-a-source.md) §125 extended `Seed` exclusions to address
+[ADR-0012](./0012-a-proposer-is-not-a-source.md) extended `Seed` exclusions to address
 scopes: `CONTEXT.md` had defined them as *"exact names or subtrees"*, and they now cover CIDRs
 too. `CONTEXT.md` states the consequence in two places — an address is in the estate while a
 current resolution cites it **or** a `Seed` covers it, and *"leaving a declared scope, by

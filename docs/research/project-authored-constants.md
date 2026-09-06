@@ -470,7 +470,7 @@ is already forbidden.**
 
 - **Limb 1 fails.** 3 s is not `f(RTT)` for any `f`. It is a **classification boundary**: below it a
   verdict, above it `no-response`. Its stated footing is another tool's shipped default, which is a
-  corroborator (ADR-0032 §2.3, and ADR-0034 §5 rules a required-parameter default a corroborator),
+  corroborator (ADR-0032, and ADR-0034 §5 rules a required-parameter default a corroborator),
   never an arithmetic relation to a measured quantity.
 - **Limb 3 is available, and taking it is prohibited.** RTT *is* observable per connect, so an
   adaptive deadline is technically reachable — and

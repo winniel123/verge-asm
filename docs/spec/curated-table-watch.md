@@ -125,7 +125,7 @@ anywhere below** — not of a rung, not of the whole register — per §39.2 and
 
 | Item — `(cell, artefact, revision act)` | Pairs | Ground |
 | --- | --- | --- |
-| `verge-core`'s **frequency half** @ `nmap-services` — a third party publishing replacement frequency data, never announced to us | *not a port cell* | ADR-0038; §39.4 item 2 |
+| `verge-core`'s **frequency half** @ `nmap-services` — a third party publishing replacement frequency data, never announced to us | *not a port cell* | §39.4 item 2; ADR-0038 |
 | `10248/tcp`'s **footing** @ the config-API doc comment `healthzBindAddress: "127.0.0.1"` | `10248/tcp` | §27.5, §27.12; §39.4 item 1 |
 | `10248/tcp`'s **claim** cell @ the same doc comment | `10248/tcp` | §27.6, §31.6 — the port is a label; the comment's prose adds no second ground (Shape 2, §43.2) |
 | `10255/tcp`'s **claim** cell @ `readOnlyPort`'s *"no authentication/authorization"* doc comment, `staging/src/k8s.io/kubelet/config/v1beta1/types.go` | `10255/tcp` | §41.7's flagged first cell; discharged sole-ground, and **undetermined at Step 1** — §43.3, §43.5 |
@@ -187,7 +187,7 @@ release line.**
 
 | Item — `(cell, artefact, revision act)` | Pairs | Ground |
 | --- | --- | --- |
-| `certificate-expiring`'s **fraction** @ RFC 9773 §1 on form and the issuer's published lifetime schedule on value | *not a port cell* | ADR-0038; §39.4 item 8 |
+| `certificate-expiring`'s **fraction** @ RFC 9773 §1 on form and the issuer's published lifetime schedule on value | *not a port cell* | §39.4 item 8; ADR-0038 |
 | `23/tcp`'s **claim** cell @ RFC 4248 §3 | `23/tcp` | Sole-ground on the cleartext conjunct; **undetermined on Claim 2's successor conjunct** — §43.5 |
 | `21/tcp`'s **claim** cell @ RFC 2577 §§5–6 | `21/tcp` | Same shape (Shape 3) |
 | `5900/tcp`'s **claim** cell @ RFC 6143 §9 (with §7.2.1 and §7.2.2) | `5900/tcp` | Same shape; the vendor position points the other way, so no vendor artefact is available as a fallback |
@@ -303,7 +303,7 @@ not reopen ADR-0088's ruling on G8's population or cadence, which stands unamend
 second consumer. It does not amend §2.1's entry form — part 3's shape is unchanged. This rules how the
 class is **drawn** where §2.1 left it a judgement.
 
-**Does a moving artefact lose its place in the queue.** No. ADR-0088 §44.7 already names members with **no
+**Does a moving artefact lose its place in the queue.** No. ADR-0088 already names members with **no
 version to pin at all** — MongoDB, the memcached wiki — as permanently moving, and neither is thereby
 refused a reading. This ruling refuses only the **tag form** of the class, never the reading itself.
 

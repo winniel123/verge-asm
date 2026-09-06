@@ -242,7 +242,7 @@ and no evidence moved.
   a 10-day validity, and that all three clock-reading certificate rules gain an evaluability guard
   on the observation's age against that horizon. Its Consequences price the change at *"three rules
   change their predicate, so three rules `Break`"*. The shipped code implements neither: it reads a
-  flat 30 days and applies no age guard. A flat 30 is the exact value ADR-0043 §7.3 names as the
+  flat 30 days and applies no age guard. A flat 30 is the exact value ADR-0043 names as the
   failure it repaired. **This ships as its own ticket**, ahead of the version-vector fix above,
   because the vector cannot be corrected before the predicate it versions is the ruled one. This ADR
   states the defect and rates nothing by it.

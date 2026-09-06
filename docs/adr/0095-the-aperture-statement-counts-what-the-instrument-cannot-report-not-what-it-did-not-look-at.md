@@ -32,7 +32,7 @@ Four things are given by the ticket and are not re-derived here. ADR-0083 opens 
 a `Reach` `Gap` — *we looked and the exchange did not decide*. ADR-0010's identity between an absent
 `Reach` and an out-of-scope pair **stops holding**. `unanswered` is a **value, not a `Gap`** —
 ADR-0011 makes it not an absence. And the flagship already returns `not-evaluable`, through
-[ADR-0010](./0010-exposure-composes-two-reaches.md) §4's existing behaviour.
+[ADR-0010](./0010-exposure-composes-two-reaches.md)'s existing behaviour.
 
 ## Decision
 
@@ -332,7 +332,7 @@ So the honest v1 statement of the UDP position gains a third form, after *it is 
 | Alternative | Why not |
 | --- | --- |
 | **Say nothing on the port-tier line — a `Gap` records its own cause, so render the third route at the subject and nowhere else** *(the option that lost)* | The strongest available answer and it is complete for half the case. ADR-0014 genuinely does make the `Gap` self-accounting, and the aperture statement genuinely is barred from estate counts. It fails on the sub-case that is not a `Gap`: an in-scope pair whose leg **never opens** has no span, no cause field, no closing edge and no message, so *render it at the subject* renders it nowhere. And it leaves the port-tier line printing `0 of 38 sensitive pairs unread` — a clean bill on the one surface built to prevent one |
-| A per-cycle count of pairs the exchange did not decide | Non-constant, which falsifies #44 decision 10's premise on ADR-0044's own argument; and it counts the estate, which #44 decision 7 refuses. It would also flap with our own probe rate, ICMP rate limiting having put that rate inside the value (ADR-0083 §13.5) |
+| A per-cycle count of pairs the exchange did not decide | Non-constant, which falsifies #44 decision 10's premise on ADR-0044's own argument; and it counts the estate, which #44 decision 7 refuses. It would also flap with our own probe rate, ICMP rate limiting having put that rate inside the value (ADR-0083) |
 | Widen `unread` to mean *produced no `Reach`*, one figure instead of two | Fuses *we are not looking* with *we are looking and cannot report* — ADR-0011's absent-field argument applied to the aperture statement, and it erases the remedy asymmetry that is the operator's whole use for the line |
 | A transport line of its own on the aperture statement | The aperture input has been *port **and** transport tiers* since ADR-0025; a new line prices an eighth input to hold a fact the seventh already scopes, and splits one denominator across two places |
 | Put it on the rules figure — `1 of 17 rules unevaluable` | False. The rule speaks; its domain is populated by 131 TCP pairs. Reporting a rule as unevaluable because five of its subjects are would make the figure a per-subject count wearing a per-rule name |

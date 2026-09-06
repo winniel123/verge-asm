@@ -67,7 +67,7 @@ This reverses exactly one clause and nothing else. Every other guardrail in
   > ([ADR-0041](0041-a-corpus-is-retained-by-what-may-still-read-it-never-by-its-age.md)), so it is
   > measured rather than fabricated. This refusal was previously written only in a code comment and in
   > `SPEC-CHANGE.md`, which no longer exists in the tree.
-  > [ADR-0116](0116-the-design-package-is-normative-for-look-and-functionality.md) §4 restates the
+  > [ADR-0116](0116-the-design-package-is-normative-for-look-and-functionality.md) restates the
   > vocabulary rule, but it is **Superseded (2026-08-28)** and it never named the KPI either. This
   > Decision is the rule's live site.
 - **Domain nouns, not wire nouns** — `Name` / `Address` / `Service` / `Endpoint`, never

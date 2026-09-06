@@ -142,14 +142,14 @@ The strongest objection is that this project silences the shrinking direction ev
 - `withdrawn` (ADR-0006, #17 — and `withdrawn` is never a message on any subject kind, in any
   direction)
 - the internal `Reach` leg both ways and the internet leg's `reached` → `not-reached`
-  ([ADR-0029](./0029-an-alert-fires-on-a-leg.md) §3, §4)
+  ([ADR-0029](./0029-an-alert-fires-on-a-leg.md))
 - `Resolved` → `NoData` and *"any move that only removes addresses"* (ADR-0026 §1)
 - ADR-0013 §7's *"a departure does not fire it"*
 - [ADR-0025](./0025-an-offer-is-scope-only-where-the-value-enumerates-it.md)'s *"a narrowing is the
   opposite of `revealed`"*.
 
 **Every one is a drift-class silence about the *world* shrinking, each on a stated ground that does
-not transfer.** #17's is decommissioning noise. ADR-0029 §4's is that a closing port is
+not transfer.** #17's is decommissioning noise. ADR-0029's is that a closing port is
 *"overwhelmingly the operator's own remediation"* **plus three named carriers that catch the cases
 where it is not**. ADR-0013 §7's is that a departure is *"§4's self-correction working and the gate
 narrowing"* — a rider guarding against **over-reach**, and a closing gate reduces over-reach, so it
@@ -223,7 +223,7 @@ recovers it. The precedent is exact and one document across — ADR-0041's third
 vector-move payload, which *"must also **state the loss**"* because *"it cannot be corrected
 afterwards — history is never re-derived — so naming it is the whole of the remedy."*
 
-Stating a loss is not a comparison: ADR-0029 §7 already settled that a census is not one, and a bare
+Stating a loss is not a comparison: ADR-0029 already settled that a census is not one, and a bare
 count with a named consequence is weaker still.
 
 ### What the operator already knowing does not buy

@@ -186,7 +186,7 @@ three, alone and in the present tense, is told something that is true.
   rule the PRG contract. This ADR rules what a client of ours follows, and a redirect we issue is
   followed by the operator's browser, not by us.
 - **The OIDC front-channel.** [ADR-0112](./0112-single-sign-on-is-admitted-as-verified-oidc-never-header-trust.md)
-  §2 has the app redirect the operator's browser to an identity provider. That is a front-channel
+  has the app redirect the operator's browser to an identity provider. That is a front-channel
   redirect the browser follows. This ADR reaches only the OIDC **back-channel** client at
   `cmd/web/handlers.go:285`, which performs discovery and the token exchange.
 - **The `custody` dial guard.** `delivery.NewHTTPDoer`'s `Dialer.Control` refuses a

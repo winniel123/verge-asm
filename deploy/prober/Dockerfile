@@ -3,7 +3,7 @@
 # A minimal, hardened SSH *target* for a dedicated verge-asm internet vantage.
 #
 # This is NOT a resident prober. The verge instance ships the exact prober
-# binary it wants over SSH and exec's it per invocation (ADR-0103, §1.5, #14),
+# binary it wants over SSH and exec's it per invocation (ADR-0139 §1, #14),
 # which is what makes version skew between instance and vantage structurally
 # impossible. Baking a prober in here would reintroduce exactly that skew and
 # would need its own ADR. The only job of this image is to be a reachable,

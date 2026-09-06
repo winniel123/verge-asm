@@ -32,7 +32,7 @@ is not right: §5 of the same ADR says the never-configured case has **no timeli
 went-silent case is a `Gap`. So the third row and column were carrying two different absences
 under one header, and `internal-only` sits on the *no timeline* one.
 
-**A `Gap` on a leg is not a cell.** ADR-0010 §5 already ruled that where a leg's timeline existed
+**A `Gap` on a leg is not a cell.** ADR-0010 already ruled that where a leg's timeline existed
 and went silent, `Exposure` itself opens a `Gap`. A `Gap` is the absence of a value, so there is
 no `Exposure` value to project and nothing to put in a cell. That empties the went-silent half of
 the third row and column before this ADR touches them, leaving only *no timeline* — which is a

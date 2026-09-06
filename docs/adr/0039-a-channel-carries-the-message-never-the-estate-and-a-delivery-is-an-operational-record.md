@@ -19,7 +19,7 @@ deferring the API costs no integration story"*.
 
 **What fires is fully settled and none of it is reopened here.** Four causes, three classes
 partitioning **messages** rather than events. The flagship is the internet `Reach` leg
-`not-reached` → `reached` with a census (ADR-0029 §2, §7). The drift class's membership is at the
+`not-reached` → `reached` with a census (ADR-0029). The drift class's membership is at the
 `Reach`, `Signal` and membership layers and never at the facet layer (ADR-0026). A census is
 computed once **at the cause** and is a description, never a `Transition`. This ADR is downstream
 of every one of those and moves none of them.
@@ -235,7 +235,7 @@ and fatally — it turns one cause into a stream of messages, which is ADR-0007'
 never per consequence* given away at the layer that was supposed to enforce it.
 
 The existing law already decides this and the fog was only whether **delivery** could rescue it. It
-cannot: a census is computed **once at the cause** (ADR-0029 §7, ADR-0026 §3), and *a schedule
+cannot: a census is computed **once at the cause** (ADR-0029, ADR-0026 §3), and *a schedule
 arriving is not the world moving* (ADR-0033). A channel that holds a message until a schedule
 completes is a schedule arriving, dressed as a message.
 

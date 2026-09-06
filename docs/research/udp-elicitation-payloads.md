@@ -472,7 +472,7 @@ needs session state, credentials, or more than a small encoder/matcher pair. The
 engineering cost — an unconnected receive socket matching by content, not source port — was already
 named by ADR-0083 and is paid once. **It is carried by `datagram-outcome`, the already-specified,
 still-unshipped sixth leaf, as that leaf's declared parameter**, alongside the operator-invisible
-per-host rate/retry parameters ADR-0083 §13.5 already assigned it. Building this table does not turn
+per-host rate/retry parameters ADR-0083 already assigned it. Building this table does not turn
 UDP on — that remains ADR-0083's aperture decision, untouched — and does not close ADR-0015's
 listener-safety question, which stays open and now has two named rows where it will matter most,
 for whoever builds the sender.

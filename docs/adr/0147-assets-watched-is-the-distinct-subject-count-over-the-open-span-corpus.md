@@ -97,7 +97,7 @@ as one.
 
 ### 5. Summing `Name` and `Service` is bounded to this tile
 
-`Name + Service` is a sum across two subject kinds, and ADR-0072 §2 forbids exactly such a sum in a
+`Name + Service` is a sum across two subject kinds, and ADR-0072 forbids exactly such a sum in a
 `Subjects` **listing header**, where the two lists are `Name` and `Address` and summing them counts one
 membership fact twice.
 
@@ -135,6 +135,6 @@ breakdown derived from it.
 | **The subject listing is the definition** — fold `ListCurrentNameSubjects` + `ListCurrentServiceSubjects` for the delta too | It defines the watched estate by observation **freshness**, so a scan that slips a cadence shrinks the estate rather than reporting a coverage gap. It re-implements the `NameError`/`Shadowed` membership filter at the counting layer, which ADR-0105 §3 removed by construction. And it cannot produce a previous count at all: the observation tier has no *as of the previous batch* read, so the delta would need a stored counter — a new thing to measure, which ADR-0105 §1 refuses |
 | **Keep both reads and reconcile at render** — show the listing value, clamp the delta to it | It preserves the defect and hides it. The clamp discards real movement, and the tile reports a change smaller than the one that happened |
 | **Count open spans rather than distinct subjects** (`CountSpans`) | The number moves whenever a facet is enabled on a scan, with no change in the estate. `CountSpans` exists for populations where a span **is** the unit; a watched asset is a subject |
-| **Add `Address` and `Endpoint` to the population** | An `Endpoint` is reached through a root and is never a peer in a listing (ADR-0072 §2), and an enumerated address scope admits every address in a declared CIDR, so one `/22` would put 1,024 addresses into a headline count meant to read as *things we watch* |
+| **Add `Address` and `Endpoint` to the population** | An `Endpoint` is reached through a root and is never a peer in a listing (ADR-0072), and an enumerated address scope admits every address in a declared CIDR, so one `/22` would put 1,024 addresses into a headline count meant to read as *things we watch* |
 | **State the count against an estate denominator** | ADR-0072 refuses it, and ADR-0102 names it as the most dangerous form of #28's hazard: a false assertion about the shape of the whole attack surface, on the screen the operator opens first |
 | **Rename the tile to "Subjects watched"** and drop the collective noun | It resolves the ambiguity by retreating from the interface vocabulary `CONTEXT.md` explicitly admits. The defect is two reads under one label, not the label |

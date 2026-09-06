@@ -42,7 +42,7 @@ alone and **membership of `verge-core` is not measurement**.
 | `answered` | **A datagram came back to the socket we sent from** — not necessarily from the port we probed, which TFTP's own reply rule forces. It reads **that** bytes returned, never **which**, so it does not cross [#5](https://github.com/winniel123/verge-asm/issues/5)'s fingerprinting line |
 | The socket the leaf uses | **Unconnected**, and for a second reason independent of the ticket's — a connected datagram socket filters on peer address *and port*, so it would drop TFTP's reply |
 | `unanswered` | A **value**, never a `Gap`, and the union's first member with **no `Reach` projection** |
-| What the operator sees where the exchange did not decide | **`not-evaluable`** — [ADR-0010](./0010-exposure-composes-two-reaches.md) §4's own written behaviour for a `Gap` on the leg, arriving unchanged |
+| What the operator sees where the exchange did not decide | **`not-evaluable`** — [ADR-0010](./0010-exposure-composes-two-reaches.md)'s own written behaviour for a `Gap` on the leg, arriving unchanged |
 | The `Reach` `Gap` this opens | A **third route** ADR-0010 did not enumerate: not *we never looked* and not *we stopped looking*, but **we looked and the exchange did not decide** |
 | Which facet | **One.** `reachability`, one flat union, partitioned by the `Service` key's transport |
 | Where the UDP decision lives | A **sixth leaf, `datagram-outcome`** — specified here, **not shipped** |
@@ -124,7 +124,7 @@ did not probe `11211/udp`*, which is [#28](https://github.com/winniel123/verge-a
 *"there is no third value for we did not look… adding a `not-checked` value would re-invent `Gap`"* —
 and [#40](https://github.com/winniel123/verge-asm/issues/40) / ADR-0013 deleted `unknown` outright for
 being a Derived value with no producer. Both bars hold here. So `unanswered` is the union's first
-member with **no `Reach` projection**: the leg holds no value that batch, and under ADR-0010 §5 the
+member with **no `Reach` projection**: the leg holds no value that batch, and under ADR-0010 the
 `Exposure` timeline behaves as it already does when a leg has none.
 
 The name is chosen the way this project has chosen four times running — the measured word over the
@@ -137,7 +137,7 @@ to.
 
 ### `not-evaluable` is the instrument working, and it is where the knob's value goes
 
-The consequence reads as a defect and is not one. ADR-0010 §4 already writes the behaviour: the
+The consequence reads as a defect and is not one. ADR-0010 already writes the behaviour: the
 flagship signal *"fires where the internet `Reach` is `reached`, does not fire where it is
 `not-reached`, and is `not-evaluable` where it is a `Gap`."* An `unanswered` UDP `Service` therefore
 returns `not-evaluable`, through the mechanism that already exists, with no new lifecycle state and
@@ -152,7 +152,7 @@ half of what is open. A payload-free `datagram-outcome` would therefore return `
 five sensitive UDP pairs essentially always, and `unanswered` returns `not-evaluable`.
 
 Which is **exactly what those five pairs report today**. ADR-0009's Consequences say so — the five
-*"remain `not-evaluable` on default settings, by design and visibly"* — and ADR-0004 §117 says the
+*"remain `not-evaluable` on default settings, by design and visibly"* — and ADR-0004 says the
 same. So:
 
 > **Opening the knob with a payload-free instrument moves the five pairs from `not-evaluable` because
@@ -354,7 +354,7 @@ is unbounded for a reason the operator cannot fix and we can.
 | A transport-tagged union — `Tcp(…) │ Udp(…)` | Puts the invariant in the type, which is the tidier model, and moves the output of **every** row that ever produced an observation. Not strictly additive, so it `Break`s every TCP timeline for a property CI already checks on the corpus |
 | Record no observation where the exchange did not decide | ADR-0011's central argument verbatim: a negative modelled as absence is indistinguishable from *we did not look*, and the operator could not tell an unanswered probe from an unprobed pair |
 | Call it a `Gap` | `Gap` is reserved for *we did not look*, and we looked |
-| A third `Reach` value, or `unknown` | Refused by name in ADR-0010 and deleted outright by #40 / ADR-0013 for having no producer. `unanswered` needs neither: `Reach` simply holds no value, and ADR-0010 §4 already says what the rule returns then |
+| A third `Reach` value, or `unknown` | Refused by name in ADR-0010 and deleted outright by #40 / ADR-0013 for having no producer. `unanswered` needs neither: `Reach` simply holds no value, and ADR-0010 already says what the rule returns then |
 | A `not-probed` state distinct from `not-evaluable` | ADR-0009 already considered and rejected it for these exact five pairs; nothing here revives it |
 | Name it `filtered`, `open|filtered` or `silent` | `filtered` names a conclusion a datagram cannot establish, refused for TCP already; `open|filtered` is two conclusions joined by a bar and not one value; `silent` names a property of the listener rather than of our exchange, which `CONTEXT.md` bars |
 | Widen `reachability` to five members in v1, on *the value space is decided once* | The land-grab argument ADR-0015 killed map-wide. Its surviving form covers a **field**, and a variant firing only where nothing was recorded is ADR-0011's strictly-additive carve-out — free whenever it lands, and CI-checkable |
