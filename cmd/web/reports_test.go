@@ -250,6 +250,44 @@ func TestReportScheduleRowsLastSent(t *testing.T) {
 	}
 }
 
+func TestReportScheduleRowsFutureDatedDelivery(t *testing.T) {
+	f := newFakeStore()
+	admin := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	ctx := context.Background()
+
+	sched, err := f.InsertReportSchedule(ctx, db.InsertReportScheduleParams{
+		Name: "Weekly exposure summary", Cadence: "weekly", Format: "pdf", CreatedBy: admin.ID,
+	})
+	if err != nil {
+		t.Fatalf("insert schedule: %v", err)
+	}
+	ahead := reportsClock.Add(90 * time.Minute)
+	no, _ := f.NextReportDeliveryNo(ctx, sched.ID)
+	if _, err := f.InsertReportDelivery(ctx, db.InsertReportDeliveryParams{
+		ScheduleID:  sched.ID,
+		PeriodStart: pgtype.Timestamptz{Time: ahead.AddDate(0, 0, -7), Valid: true},
+		PeriodEnd:   pgtype.Timestamptz{Time: ahead, Valid: true},
+		DeliveryNo:  no,
+		State:       "delivered",
+		DeliveredAt: pgtype.Timestamptz{Time: ahead, Valid: true},
+	}); err != nil {
+		t.Fatalf("insert delivery: %v", err)
+	}
+
+	srv := newServer(f, testKey, "", fixedClock())
+	rows := srv.reportScheduleRows(ctx)
+	if len(rows) != 1 {
+		t.Fatalf("rows = %d, want 1", len(rows))
+	}
+	if rows[0].LastSent != "now" {
+		t.Errorf("LastSent = %q, want \"now\" (relTime clamps a future delivery)", rows[0].LastSent)
+	}
+	if rows[0].LastMins != 0 {
+		t.Errorf("LastMins = %d, want 0; a row that reads \"now\" must not sort as never (%d)",
+			rows[0].LastMins, reportScheduleNeverRunMins)
+	}
+}
+
 func TestReportScheduleRowMenu(t *testing.T) {
 	var buf bytes.Buffer
 	data := map[string]any{
