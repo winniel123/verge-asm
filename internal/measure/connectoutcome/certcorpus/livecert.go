@@ -9,12 +9,11 @@ import (
 	co "github.com/winniel123/verge-asm/internal/measure/connectoutcome"
 )
 
-// Checked in rather than generated: a corpus input draws no randomness (ADR-0142).
-//
 //go:embed testdata/sha1_self_signed_root.pem
 var sha1SelfSignedRootPEM []byte
 
 func sha1SelfSignedRoot() co.ChainCert {
+	// Checked in rather than generated: a corpus input draws no randomness (ADR-0142).
 	blk, _ := pem.Decode(sha1SelfSignedRootPEM)
 	if blk == nil {
 		panic("certcorpus: sha1_self_signed_root.pem carries no PEM block")

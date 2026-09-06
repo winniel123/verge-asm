@@ -198,7 +198,8 @@ func issuerSPKI(chain []*x509.Certificate) []byte {
 
 func ParseChainCert(c *x509.Certificate) ChainCert {
 	// Store raw and derive at read: the four dark certificate rules run at read, not here (#712).
-	// CheckSignatureFrom also refuses SHA-1 and applies CA policy, which voids the carve-out (#1426).
+
+	// CheckSignatureFrom also refuses SHA-1 and applies CA policy, voiding the carve-out (#1426).
 	selfSig := c.CheckSignature(c.SignatureAlgorithm, c.RawTBSCertificate, c.Signature) == nil
 	cc := ChainCert{
 		Subject:               c.Subject.String(),
