@@ -171,7 +171,10 @@ jobs:
         env:
           PREVIOUS: ${{ steps.tag.outputs.previous }}
         run: |
-          set -uo pipefail
+          # `set +e` explicitly, because this step must always succeed and a step
+          # runs as `bash -e {0}` (#1532). The `|| true` guards below are belt to
+          # this brace; neither alone states the contract.
+          set +e -u
           if [ -n "$PREVIOUS" ]; then
             files=$(git diff --name-only "$PREVIOUS" "$GITHUB_REF_NAME" -- db/migrations/ || true)
           else
@@ -199,6 +202,9 @@ jobs:
             echo
             printf '%s\n' "$files" | sed 's/^/- /'
           } >> "$GITHUB_STEP_SUMMARY"
+
+          # The step's status is its last command's. Stated, not inherited.
+          exit 0
 
       # Release mode, so a fetch failure is fatal here rather than the warning it
       # is in ci.yml (§4.3, §12).
@@ -360,26 +366,33 @@ jobs:
           WEB_REF: ${{ env.IMAGE_BASE }}/web@${{ steps.digests.outputs.web-amd64 }}
           WORKER_REF: ${{ env.IMAGE_BASE }}/worker@${{ steps.digests.outputs.worker-amd64 }}
         run: |
-          set -uo pipefail
+          # `set +e` explicitly. Both containers are MEANT to exit non-zero, and a
+          # step runs as `bash -e {0}`, so a bare `set -uo pipefail` leaves errexit
+          # on and the first container kills the step before it parses or reports.
+          # That spent v0.1.0 on a green build (#1532).
+          set +e -u
           # Neither empty nor `dev`: the boot check ignores both (§3).
           sentinel="assert-the-build-stamp"
           status=0
           for pair in "web:${WEB_REF}" "worker:${WORKER_REF}"; do
             name="${pair%%:*}"
             ref="${pair#*:}"
-            # The worker exits on a missing DATABASE_URL before the boot check runs,
-            # so an unreachable URL is supplied and both binaries die just after it.
+            # Both binaries print the stamp line, then fail on the unreachable
+            # database and exit 1. The exit code is captured, never asserted on.
             out=$(timeout 300 docker run --rm \
               --env "VERGE_VERSION=${sentinel}" \
               --env "DATABASE_URL=postgres://verge:verge@127.0.0.1:1/verge" \
               "$ref" 2>&1)
+            rc=$?
             reported=$(printf '%s\n' "$out" \
               | sed -n 's/.*ignored: this build is stamped \(.*\)$/\1/p' \
               | head -n1)
             if [ "$reported" != "$VERSION" ]; then
-              echo "assert: ${name} reports '${reported:-<unstamped>}', not '${VERSION}'" >&2
+              echo "::error::${name} reports '${reported:-<unstamped>}', not '${VERSION}' (container exit ${rc})"
               printf '%s\n' "$out" >&2
               status=1
+            else
+              echo "${name} reports ${reported} (container exit ${rc}, non-zero is expected)"
             fi
           done
           exit "$status"
@@ -476,7 +489,10 @@ jobs:
           # Defeats the job-level skip for this one step.
           TRIVY_SKIP_DB_UPDATE: "false"
         run: |
-          set -uo pipefail
+          # Errexit is on regardless, because a step runs as `bash -e {0}` (#1532).
+          # Stated rather than left implied. Every fallible command below sits in an
+          # `if` condition, which errexit exempts, so the retry ladder still runs.
+          set -euo pipefail
           # A gate that opens when its data source is unreachable is not a gate.
           # Failing costs one re-run, and the tag survives a failed run (§5.5).
           ok=""
