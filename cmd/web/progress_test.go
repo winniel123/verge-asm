@@ -193,3 +193,67 @@ func TestPageLogStaysBareState(t *testing.T) {
 		t.Error("page-render .Log must stay bare state — hub enrichment leaked into the static log")
 	}
 }
+
+func TestStreamCursorCountersAreIndependent(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+
+	tick := time.Date(2026, 9, 5, 12, 0, 0, 0, time.UTC)
+	f.dispatchProgress = []db.ListDispatchProgressRow{
+		progressRow(92, "ct", tick, 2, 0, 2, 0, 0, 0),
+	}
+	f.jobsByDispatch = map[int64][]db.ListJobsForDispatchRow{
+		92: {
+			{ID: 920, Kind: "ct", State: "running", Attempt: 1, MaxAttempts: 5,
+				VantageName: pgtype.Text{String: "eu-west-1", Valid: true}},
+			{ID: 921, Kind: "ct", State: "running", Attempt: 1, MaxAttempts: 5,
+				VantageName: pgtype.Text{String: "us-east-2", Valid: true}},
+		},
+	}
+
+	events := map[int64][]jobProgress{
+		92: {
+			{Dispatch: 92, Job: 920, Level: "warn", Text: "attempt 1 failed · crt.sh returned HTTP 502 · retrying"},
+			{Dispatch: 92, Job: 921, Text: "12 observations"},
+		},
+	}
+	srv := newServer(f, testKey, "", fixedClock())
+	srv.progress = fakeProgress{byRun: events}
+	ts := httptest.NewServer(srv.handler())
+	t.Cleanup(ts.Close)
+
+	ac := login(t, ts.URL, "admin", "hunter2hunter2")
+	got := getStream(t, ac, ts.URL+"/run/92/stream?after=0")
+	if len(got.Lines) != 4 || got.Done {
+		t.Fatalf("after=0: got %+v, want 2 state + 2 event lines, done false", got)
+	}
+	if want := 2*streamCursorBase + 2; got.Next != want {
+		t.Fatalf("after=0: next %d, want %d", got.Next, want)
+	}
+
+	f.jobsByDispatch[92] = append(f.jobsByDispatch[92],
+		db.ListJobsForDispatchRow{ID: 922, Kind: "ct", State: "ready", Attempt: 2, MaxAttempts: 5,
+			VantageName: pgtype.Text{String: "ap-south-1", Valid: true}})
+	events[92] = append(events[92],
+		jobProgress{Dispatch: 92, Job: 922, Level: "warn", Text: "attempt 2 queued"})
+
+	got2 := getStream(t, ac, ts.URL+"/run/92/stream?after="+strconv.Itoa(got.Next))
+	if len(got2.Lines) != 2 {
+		t.Fatalf("second poll must deliver one new state line and one new event: %+v", got2)
+	}
+	if want := 3*streamCursorBase + 3; got2.Next != want {
+		t.Errorf("second poll: next %d, want %d", got2.Next, want)
+	}
+	if got2.Lines[0].Tag != "#922" || !strings.Contains(got2.Lines[0].Text, "ap-south-1") {
+		t.Errorf("new state line wrong: %+v", got2.Lines[0])
+	}
+	if got2.Lines[1].Tag != "#922" || got2.Lines[1].Text != "attempt 2 queued" {
+		t.Errorf("new event line wrong: %+v", got2.Lines[1])
+	}
+	for _, ln := range got2.Lines {
+		if strings.Contains(ln.Text, "crt.sh") || strings.Contains(ln.Text, "12 observations") ||
+			strings.Contains(ln.Text, "eu-west-1") || strings.Contains(ln.Text, "us-east-2") {
+			t.Errorf("line from the first poll was re-delivered: %+v", ln)
+		}
+	}
+}
