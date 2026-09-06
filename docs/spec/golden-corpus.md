@@ -539,12 +539,22 @@ such a row unchanged.
 
 ### 9.4 The register
 
-No uncovered move has been recorded. The table is checked in empty and grows only by an appended row,
-never by an edit to one already here.
+One uncovered move is recorded. The table grows only by an appended row, never by an edit to one
+already here.
 
 | Leaf | Bumped to | Input class | Ticket | Date |
 | --- | --- | --- | --- | --- |
-| *(none recorded)* | — | — | — | — |
+| `tls-handshake` | `tls-handshake/v4` | Certificates as `crypto/x509` parses them out of a real handshake — above all a self-signed root whose signature digest is SHA-1, which `CheckSignatureFrom` refuses outright | [#1426](https://github.com/winniel123/verge-asm/issues/1426) · [#1439](https://github.com/winniel123/verge-asm/issues/1439) | 2026-09-06 |
+
+The row is [ADR-0152](../adr/0152-a-golden-corpus-locks-the-hermetic-fold-and-never-the-live-adapter-so-an-adapter-change-is-an-uncovered-move.md)'s
+first: `ParseChainCert` — a live adapter no row could reach — stopped reading the self-signature
+through `CheckSignatureFrom`, which also refuses MD5 and SHA-1 and applies CA policy, and started
+reading it through `CheckSignature`. A real SHA-1 self-signed root therefore moves from
+`self_sig_verifies=false` to `true` in production, which is the value move
+[ADR-0008](../adr/0008-derivation-versions-move-on-content.md) makes the version carry. The same
+change ships the `T6/self-signed-root-live` row, which parses a checked-in certificate through the
+live adapter and so covers the class from here on. Under §9.2 that coverage does not retire this
+entry: it only means the leaf's *next* bump can be justified the ordinary way.
 
 ---
 

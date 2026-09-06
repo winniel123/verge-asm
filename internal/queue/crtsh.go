@@ -115,6 +115,18 @@ func (t pgCTThrottle) Reserve(ctx context.Context) (time.Time, error) {
 	return slot.Time, nil
 }
 
+func (w *Worker) reserveCTSlot(ctx context.Context, throttle CTThrottle) error {
+	if throttle == nil {
+		return nil
+	}
+	// The CT limit is per-source instance-wide, so a reader reserves in Postgres (ADR-0106, #1111).
+	slot, err := throttle.Reserve(ctx)
+	if err != nil {
+		return fmt.Errorf("ct throttle: %w", err)
+	}
+	return sleepUntil(ctx, w.now, slot)
+}
+
 func (w *Worker) WithCT(fetcher CTFetcher, throttle CTThrottle, source scan.CTSource) *Worker {
 	w.ctFetcher = fetcher
 	w.ctThrottle = throttle
@@ -143,14 +155,8 @@ func (w *Worker) completeCT(ctx context.Context, job db.ClaimJobRow, spec wire.J
 	var fetchElapsed time.Duration
 	sawAny := false
 	for page := 0; page < maxCTPages; page++ {
-		if w.ctThrottle != nil {
-			slot, rerr := w.ctThrottle.Reserve(ctx)
-			if rerr != nil {
-				return fmt.Errorf("ct throttle: %w", rerr)
-			}
-			if serr := sleepUntil(ctx, w.now, slot); serr != nil {
-				return serr
-			}
+		if rerr := w.reserveCTSlot(ctx, w.ctThrottle); rerr != nil {
+			return rerr
 		}
 
 		url := src.QueryURL(cs.Domain, cursor)

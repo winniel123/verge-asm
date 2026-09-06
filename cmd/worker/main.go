@@ -91,8 +91,8 @@ func main() {
 	// The hook is injected so internal/queue never imports internal/delivery (ADR-0199 §1, #1316).
 	worker := queue.NewWorker(pool, queue.ExecProber{Path: proberPath}, time.Now, logger).
 		WithCT(ctFetcher, ctThrottle, ctSource).
-		WithCTTail(queue.NewHTTPCTFetcher(ctVersion)).
-		WithCTVerify(queue.NewHTTPCTFetcher(ctVersion)).
+		WithCTTail(queue.NewHTTPCTFetcher(ctVersion), ctThrottle).
+		WithCTVerify(queue.NewHTTPCTFetcher(ctVersion), ctThrottle).
 		WithRouter(router).
 		WithMessages(delivery.EnqueueForMessage, devMode).
 		WithTranscripts(transcriptKey, devMode).
@@ -163,7 +163,7 @@ func main() {
 	// No network call until the operator enables it: an air-gapped instance is silent (ADR-0124).
 	releaseChecker := release.NewChecker(
 		db.New(pool),
-		release.NewHTTPFetcher(env.OrDefault("VERGE_RELEASE_FEED_URL", release.DefaultFeedURL)),
+		release.NewHTTPFetcher(env.OrDefault("VERGE_RELEASE_FEED_URL", release.DefaultFeedURL), release.NewHTTPDoer()),
 		env.OrDefault("VERGE_VERSION", "dev"),
 		time.Now,
 		logger,
