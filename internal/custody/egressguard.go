@@ -9,7 +9,7 @@ import (
 
 func EgressGuard(label string) func(network, address string, c syscall.RawConn) error {
 	return func(_, address string, _ syscall.RawConn) error {
-		// Control runs after resolution, so the address vetted is the address dialed (#743).
+		// Control runs after resolution, so the address vetted is the address dialed.
 		host, _, err := net.SplitHostPort(address)
 		if err != nil {
 			return err
