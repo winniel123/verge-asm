@@ -18,8 +18,9 @@ import (
 
 const maxAutoVerifyPerJob = 8
 
-func (w *Worker) WithCTVerify(fetcher CTFetcher) *Worker {
+func (w *Worker) WithCTVerify(fetcher CTFetcher, throttle CTThrottle) *Worker {
 	w.ctVerifyFetcher = fetcher
+	w.ctVerifyThrottle = throttle
 	return w
 }
 
@@ -178,6 +179,9 @@ func (w *Worker) checkOneLog(ctx context.Context, lg scan.CTLog, leafHash []byte
 func (w *Worker) checkRFC(ctx context.Context, lg scan.CTLog, leafHash []byte) logCheck {
 	// The root is the one the log served, so no signature is checked (ADR-0214 §2).
 	base := ensureTrailingSlash(lg.URL)
+	if rerr := w.reserveCTSlot(ctx, w.ctVerifyThrottle); rerr != nil {
+		return checkErrored
+	}
 	status, body, err := w.ctVerifyFetcher.Fetch(ctx, base+"ct/v1/get-sth")
 	if err != nil || status != 200 {
 		return checkErrored
@@ -192,6 +196,9 @@ func (w *Worker) checkRFC(ctx context.Context, lg scan.CTLog, leafHash []byte) l
 	}
 	hash := url.QueryEscape(base64.StdEncoding.EncodeToString(leafHash))
 	proofURL := fmt.Sprintf("%sct/v1/get-proof-by-hash?hash=%s&tree_size=%d", base, hash, sth.TreeSize)
+	if rerr := w.reserveCTSlot(ctx, w.ctVerifyThrottle); rerr != nil {
+		return checkErrored
+	}
 	status, body, err = w.ctVerifyFetcher.Fetch(ctx, proofURL)
 	if err != nil {
 		return checkErrored
@@ -219,6 +226,9 @@ func (w *Worker) checkTiled(ctx context.Context, lg scan.CTLog, leafHash []byte,
 	if !ok {
 		return checkErrored
 	}
+	if rerr := w.reserveCTSlot(ctx, w.ctVerifyThrottle); rerr != nil {
+		return checkErrored
+	}
 	status, body, err := w.ctVerifyFetcher.Fetch(ctx, base+"checkpoint")
 	if err != nil || status != 200 {
 		return checkErrored
@@ -238,6 +248,9 @@ func (w *Worker) checkTiled(ctx context.Context, lg scan.CTLog, leafHash []byte,
 	tileURL := base + "tile/" + scan.HashTilePath(index)
 	if width < scan.CTTileWidth {
 		tileURL += fmt.Sprintf(".p/%d", width)
+	}
+	if rerr := w.reserveCTSlot(ctx, w.ctVerifyThrottle); rerr != nil {
+		return checkErrored
 	}
 	status, tileBody, err := w.ctVerifyFetcher.Fetch(ctx, tileURL)
 	if err != nil || status != 200 {

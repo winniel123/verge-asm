@@ -6,8 +6,6 @@
 <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
 <script>Babel.registerPreset("react-classic",{presets:[[Babel.availablePresets.react,{runtime:"classic"}]]});</script>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-<script>window.__loadBundle=fetch("../../_ds_bundle.js").then(function(r){if(!r.ok)return;return r.text().then(function(t){(new Function(t))();});}).catch(function(){});</script>
-<script src="../../assets/ds-fallback-loader.js"></script>
 <style>*{box-sizing:border-box}body{margin:0;padding:14px;background:var(--bg-page)}</style>
 </head><body><div id="root"><div style="font:400 12px 'Geist Mono',monospace;color:#79746d;padding:20px">loading design system…</div></div>
 <script type="text/babel" data-presets="react-classic">
@@ -31,12 +29,10 @@ function App(){
 }
 return App;}
 (async()=>{
-  if(window.__loadBundle){try{await window.__loadBundle;}catch(e){}}
   let NS=null;
   for(const k of Object.keys(window)){try{const v=window[k];if(v&&typeof v==="object"&&v.Button&&v.SeverityBadge){NS=v;break;}}catch(e){}}
-  if(!NS&&window.__dsFallback){try{NS=await window.__dsFallback("../../");}catch(e){console.warn(e);}}
   const root=ReactDOM.createRoot(document.getElementById("root"));
   if(NS&&NS.Button) root.render(React.createElement(makeApp(NS)));
-  else root.render(React.createElement("div",{style:{font:"400 12px var(--font-mono)",color:"var(--text-muted)",padding:20}},"design-system bundle unavailable"));
+  else root.render(React.createElement("div",{style:{font:"400 12px var(--font-mono)",color:"var(--text-muted)",padding:20}},"design-system bundle is not in this repo. Read the component source in design-system/components."));
 })();
 </script></body></html>
