@@ -529,7 +529,7 @@ func (s *server) deriveRunStream(ctx context.Context, dispatchID int64, jobParam
 		state = append(state, runStreamLine{Tag: ln.Tag, Level: ln.Level, Text: ln.Text})
 	}
 	if len(state) >= streamCursorBase {
-		// Serving past what the cursor can address re-delivers the tail forever (ADR-0182 §4, #1423).
+		// Serving past the cursor's reach re-delivers the tail forever (ADR-0182 §4, #1423).
 		state = state[:streamCursorBase-1]
 	}
 
