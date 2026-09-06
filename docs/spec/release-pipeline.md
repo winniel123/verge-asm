@@ -1004,15 +1004,19 @@ section without a parser existing anywhere (#1078).
 generator does not run. It costs three lines in the workflow and gives every release an escape
 hatch.
 
-**The first release uses the override.** `v0.1.1` ships a hand-written
-`docs/release-notes/v0.1.1.md`.
+**The first release uses the override.** `v0.1.2` ships a hand-written
+`docs/release-notes/v0.1.2.md`.
 
-Two reasons, and the second replaced the first. `v0.1.0` had no predecessor tag, so its
-generated body would have carried every commit in the repository. That release then never
-published: its run stopped on a defect in the build-stamp assertion, and a spent tag is never
-reused ([#1532](https://github.com/winniel123/verge-asm/issues/1532)). So `v0.1.1` **does** have a
-predecessor tag, and its generated range holds only the repair. A body naming one workflow fix
-would say nothing about the product it first ships.
+Two reasons, and the second replaced the first. `v0.1.0` had no predecessor tag, so its generated
+body would have carried every commit in the repository. It then published nothing, and neither did
+`v0.1.1`. Each run stopped inside the pipeline's own assertions, and a spent tag is never reused
+([#1532](https://github.com/winniel123/verge-asm/issues/1532),
+[#1534](https://github.com/winniel123/verge-asm/issues/1534)). So the first release that publishes
+**does** have predecessor tags, and its generated range holds only those repairs. A body naming two
+workflow fixes would say nothing about the product it first ships.
+
+**The override is the first release's rule, not the first tag's.** A later reader should not tie it
+to `v0.1.0`. It belongs to whichever version publishes first, and that number moved twice.
 
 **GitHub's native `--generate-notes` is rejected.** It groups by pull-request label, and merged
 pull requests in this repository carry **no labels at all**. It would emit one flat list, and
