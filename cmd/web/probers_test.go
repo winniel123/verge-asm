@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -14,8 +15,20 @@ import (
 
 func provision(t *testing.T, c *http.Client, base, host, port, username string) *http.Response {
 	t.Helper()
+	return provisionWithResolver(t, c, base, host, port, username, "9.9.9.9:53")
+}
+
+func provisionWithResolver(t *testing.T, c *http.Client, base, host, port, username, resolver string) *http.Response {
+	t.Helper()
 	return postForm(t, c, base+"/settings/probers", url.Values{
-		"host": {host}, "port": {port}, "username": {username},
+		"host": {host}, "port": {port}, "username": {username}, "resolver": {resolver},
+	})
+}
+
+func setResolver(t *testing.T, c *http.Client, base, id, resolver string) *http.Response {
+	t.Helper()
+	return postForm(t, c, base+"/settings/vantages/resolver", url.Values{
+		"id": {id}, "resolver": {resolver},
 	})
 }
 
@@ -44,6 +57,9 @@ func TestProvisionProber(t *testing.T) {
 	v := f.vantages[0]
 	if v.Host.String != "prober.example.com" || v.Port.Int32 != 2222 || v.Username.String != "scanner" {
 		t.Errorf("vantage row = %+v, want host/port/username as provisioned", v)
+	}
+	if v.Resolver != "9.9.9.9:53" {
+		t.Errorf("resolver = %q, want the declared 9.9.9.9:53 — a vantage without one must not exist", v.Resolver)
 	}
 
 	page := vantagesBody(t, ac, base)
@@ -201,5 +217,74 @@ func TestViewerCannotProvisionButCanView(t *testing.T) {
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusForbidden {
 		t.Errorf("viewer reached the admin-only vantages surface: status=%d, want 403", resp.StatusCode)
+	}
+}
+
+func TestProvisionRequiresAResolver(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	for _, bad := range []string{"", "   ", "https://dns.example/x", "9.9.9.9:0"} {
+		if loc := submitLoc(t, provisionWithResolver(t, ac, base, "probe.example.net", "22", "scanner", bad)); loc != vantagesTab {
+			t.Fatalf("refused provision landed at %q, want %q", loc, vantagesTab)
+		}
+		if got := vantagesBody(t, ac, base); !strings.Contains(got, "resolver") && !strings.Contains(got, "1 and 65535") {
+			t.Errorf("resolver %q was not refused with a reason; body: %s", bad, got)
+		}
+		if len(f.vantages) != 0 {
+			t.Fatalf("resolver %q created a vantage; vantages = %d, want 0", bad, len(f.vantages))
+		}
+	}
+}
+
+func TestSetVantageResolver(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	provision(t, ac, base, "probe.example.net", "22", "scanner").Body.Close()
+	id := strconv.FormatInt(f.vantages[0].ID, 10)
+
+	if loc := submitLoc(t, setResolver(t, ac, base, id, " 1.1.1.1:53 ")); loc != vantagesTab {
+		t.Fatalf("set resolver landed at %q, want %q", loc, vantagesTab)
+	}
+	if got := f.vantages[0].Resolver; got != "1.1.1.1:53" {
+		t.Fatalf("resolver = %q, want the trimmed 1.1.1.1:53", got)
+	}
+	if page := vantagesBody(t, ac, base); !strings.Contains(page, "1.1.1.1:53") {
+		t.Errorf("the new resolver is not shown; body: %s", page)
+	}
+
+	if loc := submitLoc(t, setResolver(t, ac, base, id, "")); loc != vantagesTab {
+		t.Fatalf("refused resolver landed at %q, want %q", loc, vantagesTab)
+	}
+	if got := f.vantages[0].Resolver; got != "1.1.1.1:53" {
+		t.Errorf("a refused edit changed the row to %q", got)
+	}
+	if page := vantagesBody(t, ac, base); !strings.Contains(page, "recursive resolver is required") {
+		t.Errorf("blank resolver not refused with a reason; body: %s", page)
+	}
+}
+
+func TestViewerCannotSetAResolver(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	seedAccount(t, f, "viewer", roleViewer, "hunter2hunter2")
+	base := start(t, f, "")
+
+	ac := login(t, base, "admin", "hunter2hunter2")
+	provision(t, ac, base, "probe.example.net", "22", "scanner").Body.Close()
+	id := strconv.FormatInt(f.vantages[0].ID, 10)
+
+	vc := login(t, base, "viewer", "hunter2hunter2")
+	resp := setResolver(t, vc, base, id, "1.1.1.1:53")
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("viewer set resolver: status=%d, want 403", resp.StatusCode)
+	}
+	if got := f.vantages[0].Resolver; got != "9.9.9.9:53" {
+		t.Errorf("a viewer changed the resolver to %q", got)
 	}
 }

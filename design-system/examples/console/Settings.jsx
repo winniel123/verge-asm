@@ -162,25 +162,27 @@ function ProberProvision({ onToast }) {
   const [host, setHost] = React.useState("");
   const [port, setPort] = React.useState("22");
   const [user, setUser] = React.useState("");
+  const [resolver, setResolver] = React.useState("");
   const PUB = 'restrict,from="203.0.113.5" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIF3kQm7Vr2xw9tPba41uD8cNzUj0eYhLxOqRkM9 verge-prober';
   const toast = (title, description, tone) => onToast && onToast({ tone: tone || "neutral", title, description });
   return (
     <Card microLabel="Probers" title="Provision an internet vantage">
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         <Stepper active={step} steps={[
-          { title: "Describe the host", detail: "four non-secret values" },
+          { title: "Describe the host", detail: "five non-secret values" },
           { title: "Install the key", detail: "public half only" },
           { title: "Pin and verify", detail: "host key, platform, egress" },
         ]} />
         {step === 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "2fr 90px 1.4fr", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "2fr 90px 1.4fr 1.6fr", gap: 12 }}>
               <Input label="Host" mono placeholder="probe-1.example.net" value={host} onChange={(e) => setHost(e.target.value)} spellCheck={false} />
               <Input label="Port" mono value={port} onChange={(e) => setPort(e.target.value)} />
               <Input label="Username" mono placeholder="verge" value={user} onChange={(e) => setUser(e.target.value)} hint="A non-root account" spellCheck={false} />
+              <Input label="Resolver" mono placeholder="9.9.9.9:53" value={resolver} onChange={(e) => setResolver(e.target.value)} hint="Reachable from the prober host" spellCheck={false} />
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <Button disabled={!host.trim() || !user.trim()} onClick={() => { setStep(1); toast("Keypair generated", "The private half never leaves the instance."); }}>Generate keypair</Button>
+              <Button disabled={!host.trim() || !user.trim() || !resolver.trim()} onClick={() => { setStep(1); toast("Keypair generated", "The private half never leaves the instance."); }}>Generate keypair</Button>
               <span style={{ font: "400 11.5px var(--font-ui)", color: "var(--text-muted)" }}>Don't hand-roll the host — deploy/prober/ is the hardened compose recipe.</span>
             </div>
           </div>

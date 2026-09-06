@@ -101,6 +101,7 @@ type capSweepLine struct {
 }
 
 type vantageRow struct {
+	ID           int64
 	Name         string
 	Class        string
 	Availability string
@@ -151,11 +152,16 @@ type settingsForms struct {
 
 	sourceError string
 
-	coldError   string
-	proberError string
-	proberHost  string
-	proberPort  string
-	proberUser  string
+	coldError      string
+	proberError    string
+	proberHost     string
+	proberPort     string
+	proberUser     string
+	proberResolver string
+
+	resolverError string
+	resolverID    int64
+	resolverValue string
 
 	revokeAccountID    int64
 	revokeAccountError string
@@ -663,10 +669,14 @@ func (s *server) fillVantagesSection(r *http.Request, f settingsForms, data map[
 	data["ProberHost"] = f.proberHost
 	data["ProberPort"] = f.proberPort
 	data["ProberUser"] = f.proberUser
+	data["ProberResolver"] = f.proberResolver
+	data["ResolverError"] = f.resolverError
+	data["ResolverID"] = f.resolverID
+	data["ResolverValue"] = f.resolverValue
 	out := make([]vantageRow, 0, len(rows))
 	for _, v := range rows {
 		vr := vantageRow{
-			Name: v.Name, Class: v.Class, Availability: v.Availability.String,
+			ID: v.ID, Name: v.Name, Class: v.Class, Availability: v.Availability.String,
 			Resolver: v.Resolver, Endpoint: endpointString(v.Host.String, v.Port.Int32),
 			Latency: vantageLatencyLabel(v.LatencyMs),
 		}

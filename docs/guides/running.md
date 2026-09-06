@@ -139,6 +139,8 @@ deployment by default. **Off compose** — bare-metal or a host-network install,
 trigger. Otherwise the scan resolves nothing and commits a silent `Gap`. The `local`
 vantage is resolver-only and has no prober page. Change it on the row directly — see
 [using.md → Run the first batch](using.md#4-run-the-first-batch) for the exact command.
+A provisioned prober vantage declares its resolver in the console. It changes on its
+vantage card. This `psql` edit is only ever about the `local` row.
 
 ### Where secrets live
 

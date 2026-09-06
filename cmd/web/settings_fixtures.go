@@ -66,6 +66,7 @@ type sfScans struct {
 }
 
 type sfVantage struct {
+	ID           int64  `json:"id"`
 	Name         string `json:"name"`
 	Class        string `json:"class"`
 	Resolver     string `json:"resolver"`
@@ -446,6 +447,10 @@ func (s *server) settingsFixtureData(acct db.Account, r *http.Request) map[strin
 		data["ProberHost"] = ""
 		data["ProberPort"] = ""
 		data["ProberUser"] = ""
+		data["ProberResolver"] = ""
+		data["ResolverError"] = ""
+		data["ResolverID"] = int64(0)
+		data["ResolverValue"] = ""
 	case "sso":
 		data["SSOProviders"] = fx.SSO.Providers
 		data["SSOBindings"] = fx.SSO.Bindings

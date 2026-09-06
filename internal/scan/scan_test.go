@@ -2,6 +2,8 @@ package scan
 
 import (
 	"encoding/json"
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
@@ -99,5 +101,38 @@ func TestEmptyScopeHasNoNames(t *testing.T) {
 	}
 	if len(rec.Names) != 0 {
 		t.Errorf("dead-lettered scope must be empty, got %v", rec.Names)
+	}
+}
+
+func TestJobSpecRefusesAVantageWithNoResolver(t *testing.T) {
+	j := BuildDNSJobs(1, []string{"example.com"}, []Vantage{{ID: 4, Name: "scanner@probe-1"}})[0]
+	spec, err := j.JobSpec("job-1")
+	if !errors.Is(err, ErrNoResolver) {
+		t.Fatalf("JobSpec err = %v, want ErrNoResolver", err)
+	}
+	if !strings.Contains(err.Error(), "scanner@probe-1") {
+		t.Errorf("error does not name the vantage: %v", err)
+	}
+	if spec.Scope != nil || spec.Kind != "" {
+		t.Errorf("a refused job still returned a spec: %+v", spec)
+	}
+}
+
+func TestJobSpecInventsNoResolver(t *testing.T) {
+	j := BuildDNSJobs(1, []string{"example.com"}, []Vantage{{ID: 4, Name: "probe"}})[0].
+		WithResolver("9.9.9.9:53")
+	spec, err := j.JobSpec("job-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var scope resolutionwalk.Scope
+	if err := json.Unmarshal(spec.Scope, &scope); err != nil {
+		t.Fatal(err)
+	}
+	if scope.Resolver != "9.9.9.9:53" {
+		t.Errorf("resolver = %q, want the vantage's own 9.9.9.9:53", scope.Resolver)
+	}
+	if strings.Contains(string(spec.Scope), "127.0.0.11") {
+		t.Errorf("the removed code-side default reached the scope: %s", spec.Scope)
 	}
 }
