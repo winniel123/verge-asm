@@ -112,9 +112,11 @@ type Worker struct {
 
 	ctSource scan.CTSource
 
-	ctTailFetcher CTFetcher
+	ctTailFetcher  CTFetcher
+	ctTailThrottle CTThrottle
 
-	ctVerifyFetcher CTFetcher
+	ctVerifyFetcher  CTFetcher
+	ctVerifyThrottle CTThrottle
 
 	router VantageRouter
 
