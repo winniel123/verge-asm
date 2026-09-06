@@ -187,6 +187,7 @@ One job, one `ubuntu-latest` amd64 runner. `docker/bake-action` over a committed
 | `platforms` | `["linux/amd64", "linux/arm64"]` | `docker-bake.hcl` |
 | `attest` | `["type=provenance,disabled=true", "type=sbom,disabled=true"]` | `docker-bake.hcl` |
 | `args` | `{ VERGE_VERSION = "" }` | `docker-bake.hcl`, **overridden by the release job** |
+| `annotations` | `[]` | `docker-bake.hcl`, **appended by the release job** |
 | cache backend | none | `docker-bake.hcl` |
 | output | `type=image,push-by-digest=true,name-canonical=true,push=true` | the release job |
 | tags | cleared | the release job |
@@ -194,11 +195,29 @@ One job, one `ubuntu-latest` amd64 runner. `docker/bake-action` over a committed
 **The `attest` long form is required. The `provenance = false` shorthand does not work.** See
 the measurement below.
 
-**The release job owns three of these: the output, the tag set and the `VERGE_VERSION` arg.** The
-bake file names the arg with an empty default rather than leaving it implicit, so a reader of
-either file can see the seam. The empty default is deliberate. §3 rules that a builder-stage
-`ARG VERGE_VERSION=dev` would make the stamp non-empty on every build and strand the runtime
-fallback forever.
+**The release job owns four of these: the output, the tag set, the `VERGE_VERSION` arg and the
+annotations.** The bake file names both with empty defaults rather than leaving them implicit. A
+reader of either file then sees the seam. The empty default is deliberate. §3 rules that a
+builder-stage `ARG VERGE_VERSION=dev` would make the stamp non-empty on every build and strand the
+runtime fallback forever.
+
+**The three annotations are `revision`, `version` and `created`**, the ones this section owes for
+rejecting `docker/metadata-action`. All three are release-time values, so the bake file can hold
+none of them. `version` is the bare number. §1.2 gives the GitHub Release page as the one site that
+keeps the `v`, and an annotation is not that page. So the annotation and the build stamp carry the
+same string.
+
+**They are written on the bake and never at `imagetools create`.** `docker buildx imagetools
+create --annotation` exists and is the wrong tool. Annotating there writes a new index, and §7
+signs the digest the build emits. The tag would then resolve to a digest no signature covers.
+§4.4's step asserts that both tags resolve to the built index. That turns the drift into a refusal
+rather than an unverifiable release
+([#1529](https://github.com/winniel123/verge-asm/issues/1529)).
+
+**`index,manifest:` writes each annotation at both levels.** §6 sends an operator to a platform
+digest, and an index-only annotation is invisible from there. Repeating `*.annotations` appends
+rather than replaces, measured on buildx 0.30.1. Unlike the `provenance` and `sbom` shorthands
+below, `annotations` **does** render in `docker buildx bake --print`.
 
 **A release that does not override the arg publishes unstamped images.** Those images then read
 the operator's `VERGE_VERSION`, which `docker-compose.yml` sets to `dev`. So a forgotten override
