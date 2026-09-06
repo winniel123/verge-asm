@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -68,5 +69,17 @@ func (f *HTTPFetcher) Latest(ctx context.Context) (Feed, error) {
 	if p.TagName == "" {
 		return Feed{}, fmt.Errorf("release feed: empty tag_name")
 	}
-	return Feed{Version: p.TagName, Notes: p.Body}, nil
+	// The cache stores one format, so the Instance card never renders 0.1.0 beside v0.2.0 (#1250).
+	version := trimVersionPrefix(p.TagName)
+	return Feed{Version: version, Notes: p.Body}, nil
+}
+
+// A bare "v" strip would turn a fork's `verge-1.2.0` into `erge-1.2.0`, which then
+// renders on the Instance card and never parses (#1250).
+func trimVersionPrefix(tag string) string {
+	rest, ok := strings.CutPrefix(tag, "v")
+	if !ok || rest == "" || rest[0] < '0' || rest[0] > '9' {
+		return tag
+	}
+	return rest
 }

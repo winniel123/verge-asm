@@ -1,0 +1,146 @@
+name: Release scan
+
+# Weekly Trivy re-scan of the images the current release publishes. A released
+# image ages: an advisory published a month after the tag is invisible unless
+# something re-scans it, and nothing else in this repository watches a published
+# image (docs/spec/release-pipeline.md §11).
+#
+# SARIF only, and this workflow NEVER fails. A code scanning alert is the
+# notification, which is what codeql.yml and scorecard.yml already do on their
+# weekly crons; a red scheduled workflow degrades into background noise and an
+# auto-filed issue needs a dedupe rule nobody maintains.
+#
+# It follows the floating `latest` GHCR tag and reads no release feed. Reading
+# /releases/latest was rejected because it couples a scan job to the update feed
+# and adds an API call that can 404 (§14.5). A withdrawal moves `latest`
+# backwards and the cron follows with no extra logic — so while `latest` points
+# at a withdrawn version this scans the bad image, which is exactly what a
+# `docker compose pull` would fetch at that moment.
+#
+# No gate run, no SBOM output and no stdlib assert. Those belong to release.yml.
+
+on:
+  # Not optional: scorecard.yml proves a cron-only workflow is untestable.
+  workflow_dispatch:
+  schedule:
+    # Monday 06:07 UTC, off the hour and clear of CodeQL's 04:17 and
+    # Scorecard's 05:23.
+    - cron: "7 6 * * 1"
+
+permissions:
+  contents: read
+  packages: read # pull the released images from GHCR
+  security-events: write # upload the Trivy SARIF to code scanning
+
+env:
+  IMAGE_BASE: ghcr.io/winniel123/verge-asm
+  # The action SHA pins the wrapper; this pins the scanner binary the wrapper
+  # downloads, which is the pin that matters (§5.4).
+  TRIVY_RELEASE: "v0.74.0"
+
+jobs:
+  resolve:
+    name: Resolve the released images
+    runs-on: ubuntu-latest
+    # Belt and braces on the never-fail ruling (§11).
+    continue-on-error: true
+    outputs:
+      found: ${{ steps.resolve.outputs.found }}
+      targets: ${{ steps.resolve.outputs.targets }}
+    steps:
+      # Trivy never scans a manifest list as a unit, so the index is resolved
+      # here and each platform manifest is scanned by digest below (§5.3).
+      - name: Resolve `latest` to its per-platform manifests
+        id: resolve
+        env:
+          REGISTRY_USER: ${{ github.actor }}
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -uo pipefail
+          # The runner's default `bash -e` would abort the step, and this
+          # workflow reports rather than fails (§11).
+          set +e
+
+          printf '%s' "$REGISTRY_TOKEN" \
+            | docker login ghcr.io -u "$REGISTRY_USER" --password-stdin >/dev/null 2>&1 \
+            || echo "ghcr.io login failed; continuing unauthenticated" >> "$GITHUB_STEP_SUMMARY"
+
+          entries=""
+          for image in web worker; do
+            ref="${IMAGE_BASE}/${image}:latest"
+            # stderr is dropped rather than merged: a progress line in $index
+            # would break the jq parse below.
+            if ! index=$(docker buildx imagetools inspect "$ref" --raw 2>/dev/null); then
+              # Every Monday before v0.1.0 lands in here, and so does a
+              # registry that is briefly unreachable. Both no-op.
+              echo "- \`${ref}\` did not resolve; nothing to scan" >> "$GITHUB_STEP_SUMMARY"
+              continue
+            fi
+            for arch in amd64 arm64; do
+              digest=$(printf '%s' "$index" | jq -r --arg arch "$arch" '
+                (.manifests // [])
+                | map(select(.platform.os == "linux" and .platform.architecture == $arch))
+                | .[0].digest // empty
+              ')
+              if [ -z "$digest" ]; then
+                echo "- \`${ref}\` carries no linux/${arch} manifest" >> "$GITHUB_STEP_SUMMARY"
+                continue
+              fi
+              entry=$(jq -cn \
+                --arg image "$image" \
+                --arg arch "$arch" \
+                --arg ref "${IMAGE_BASE}/${image}@${digest}" \
+                '{image: $image, arch: $arch, ref: $ref}')
+              entries="${entries}${entry}"$'\n'
+              echo "- \`${ref}\` linux/${arch} is \`${digest}\`" >> "$GITHUB_STEP_SUMMARY"
+            done
+          done
+
+          targets=$(printf '%s' "$entries" | jq -sc '.')
+          if [ "$(printf '%s' "$targets" | jq 'length')" -gt 0 ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "No released image to scan." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "targets=${targets}" >> "$GITHUB_OUTPUT"
+
+  scan:
+    name: Scan ${{ matrix.target.image }} (${{ matrix.target.arch }})
+    needs: resolve
+    # An empty matrix is an error, so the no-release case is skipped here.
+    if: needs.resolve.outputs.found == 'true'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.resolve.outputs.targets) }}
+    steps:
+      # upload-sarif reads the checked-out repository to bind the results to a
+      # commit.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Scan ${{ matrix.target.ref }}
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          scan-type: image
+          image-ref: ${{ matrix.target.ref }}
+          format: sarif
+          output: trivy.sarif
+          exit-code: "0" # a finding reports; it never fails the run (§11)
+          version: ${{ env.TRIVY_RELEASE }}
+
+      # Eight uploads collide in code scanning without a distinct category, and
+      # each would overwrite the last (§5.3).
+      - name: Upload SARIF to code scanning
+        if: always() && hashFiles('trivy.sarif') != ''
+        uses: github/codeql-action/upload-sarif@c16c0f3f2812ec4bb3750a5ed64873fe2ce0fbef # codeql-bundle-v2.26.3
+        with:
+          sarif_file: trivy.sarif
+          category: trivy-${{ matrix.target.image }}-${{ matrix.target.arch }}

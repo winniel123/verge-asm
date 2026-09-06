@@ -5,6 +5,18 @@
 #
 # Docs: https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 version: 2
+
+# One weekly pull request over the three digest-pinned image surfaces. A
+# multi-ecosystem group is what spans them: Dependabot's `docker` ecosystem reads
+# Dockerfiles and Kubernetes YAML, never a Compose file (#1247).
+multi-ecosystem-groups:
+  container-images:
+    schedule:
+      interval: weekly
+      day: monday
+    labels:
+      - dependencies
+
 updates:
   # Go modules — the main application (cmd/, internal/, db/).
   - package-ecosystem: gomod
@@ -51,3 +63,27 @@ updates:
       github-actions-all:
         patterns:
           - "*"
+
+  # Docker — the root Dockerfile's golang builder and two distroless digests.
+  # This deliberately creates the adversary scripts/check-go-pins.sh guards: a
+  # bump that moves the builder off .go-version fails compare (a) (#1247).
+  - package-ecosystem: docker
+    directory: "/"
+    patterns:
+      - "*"
+    multi-ecosystem-group: container-images
+
+  # No CI job builds this image, so its bumps land unproven. A stale hardened SSH
+  # target is the worse risk, and alpine can never trip compare (a) (#1247).
+  - package-ecosystem: docker
+    directory: "/deploy/prober"
+    patterns:
+      - "*"
+    multi-ecosystem-group: container-images
+
+  # docker-compose — the postgres digest in docker-compose.yml.
+  - package-ecosystem: docker-compose
+    directory: "/"
+    patterns:
+      - "*"
+    multi-ecosystem-group: container-images

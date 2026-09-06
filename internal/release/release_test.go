@@ -160,6 +160,7 @@ func TestIsNewer(t *testing.T) {
 		{"v3.18.0", "v3.18.0", false},
 		{"v3.17.0", "v3.18.0", false},
 		{"v3.18.0", "v3.18.0-rc1", false},
+		{"0.2.0-rc1", "0.1.0", true}, // a fork's feed may serve one; core wins (#1129)
 		{"v3.18", "v3.18.0", false},
 		{"v3.19", "v3.18.0", true},
 		{"dev", "v3.18.0", false},

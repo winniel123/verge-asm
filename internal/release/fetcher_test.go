@@ -52,11 +52,45 @@ func TestLatestDecodesAWellFormedFeed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Latest: %v", err)
 	}
-	if feed.Version != "v1.4.0" {
-		t.Errorf("Version = %q, want v1.4.0", feed.Version)
+	if feed.Version != "1.4.0" {
+		t.Errorf("Version = %q, want 1.4.0", feed.Version)
 	}
 	if feed.Notes != "the notes" {
 		t.Errorf("Notes = %q, want %q", feed.Notes, "the notes")
+	}
+}
+
+func TestLatestStoresOneVersionFormat(t *testing.T) {
+	for _, tag := range []string{"v0.2.0", "0.2.0"} {
+		d := doerWith(http.StatusOK, `{"tag_name":"`+tag+`","body":"the notes"}`)
+
+		feed, err := NewHTTPFetcher("https://feed.example/latest", d).Latest(context.Background())
+		if err != nil {
+			t.Fatalf("Latest on tag_name %q: %v", tag, err)
+		}
+		if feed.Version != "0.2.0" {
+			t.Errorf("tag_name %q cached as %q, want 0.2.0", tag, feed.Version)
+		}
+	}
+}
+
+func TestLatestStripsOnlyAVersionPrefix(t *testing.T) {
+	for _, tc := range []struct{ tag, want string }{
+		{"v1.2.0", "1.2.0"},
+		{"1.2.0", "1.2.0"},
+		{"verge-1.2.0", "verge-1.2.0"},
+		{"vintage", "vintage"},
+		{"v", "v"},
+	} {
+		d := doerWith(http.StatusOK, `{"tag_name":"`+tc.tag+`","body":""}`)
+
+		feed, err := NewHTTPFetcher("https://feed.example/latest", d).Latest(context.Background())
+		if err != nil {
+			t.Fatalf("Latest on tag_name %q: %v", tc.tag, err)
+		}
+		if feed.Version != tc.want {
+			t.Errorf("tag_name %q cached as %q, want %q", tc.tag, feed.Version, tc.want)
+		}
 	}
 }
 

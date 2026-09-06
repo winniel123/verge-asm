@@ -41,6 +41,8 @@ func main() {
 		return
 	}
 
+	logVersionStamp()
+
 	// A reseed deletes the whole span corpus, so it may never fire against a real estate (#525).
 	if *seedFixtures != "" && !isTruthy(env.OrDefault("VERGE_DEV", "")) {
 		log.Fatalf("web: -seed-fixtures is dev-only; set VERGE_DEV=1 to allow it")
