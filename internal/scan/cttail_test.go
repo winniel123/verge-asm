@@ -359,3 +359,55 @@ func TestParseDataTileMalformed(t *testing.T) {
 		t.Fatal("want error on an unknown tiled entry type")
 	}
 }
+
+// Twice release-pipeline §10.7's refresh floor, so a missed refresh has a cycle to be caught.
+
+const ctLogListExpiryHorizon = 180 * 24 * time.Hour
+
+func TestShippedLogListOutlivesTheExpiryHorizon(t *testing.T) {
+	now := time.Now().UTC()
+	snap, err := CTLogListSnapshotAt(now)
+	if err != nil {
+		t.Fatalf("CTLogListSnapshotAt: %v", err)
+	}
+	if snap.NewestEnd.IsZero() {
+		t.Fatal("shipped snapshot carries no temporal_interval end_exclusive")
+	}
+	if left := snap.NewestEnd.Sub(now); left < ctLogListExpiryHorizon {
+		t.Fatalf("shipped CT log list v%s expires in %.0f days, under the %.0f-day horizon: "+
+			"the newest end_exclusive is %s and %d logs are selectable today. "+
+			"Refresh internal/scan/log_list.json per ADR-0190 §4 and release-pipeline.md §10.4.",
+			snap.Version, left.Hours()/24, ctLogListExpiryHorizon.Hours()/24,
+			snap.NewestEnd.Format(time.RFC3339), snap.Selectable)
+	}
+}
+
+func TestCTLogListSnapshotAt(t *testing.T) {
+	snap, err := CTLogListSnapshotAt(time.Date(2026, 9, 6, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("CTLogListSnapshotAt: %v", err)
+	}
+	if snap.Version == "" {
+		t.Error("snapshot carries no version")
+	}
+	if snap.CutAt.IsZero() {
+		t.Error("snapshot carries no log_list_timestamp")
+	}
+	logs, err := SelectTailLogs(time.Date(2026, 9, 6, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("SelectTailLogs: %v", err)
+	}
+	if snap.Selectable != len(logs) {
+		t.Errorf("Selectable = %d, SelectTailLogs = %d", snap.Selectable, len(logs))
+	}
+	if snap.Entries < snap.Selectable {
+		t.Errorf("Entries = %d is under Selectable = %d", snap.Entries, snap.Selectable)
+	}
+	empty, err := CTLogListSnapshotAt(snap.NewestEnd)
+	if err != nil {
+		t.Fatalf("CTLogListSnapshotAt: %v", err)
+	}
+	if empty.Selectable != 0 {
+		t.Errorf("Selectable at the newest end_exclusive = %d, want 0", empty.Selectable)
+	}
+}

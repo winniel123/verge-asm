@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
+	"github.com/winniel123/verge-asm/internal/scan"
 )
 
 func (f *fakeStore) ListSourceStates(context.Context) ([]db.SourceState, error) {
@@ -281,6 +283,63 @@ func TestSourcesCTCapabilitiesCardEmpty(t *testing.T) {
 	}
 	if strings.Contains(page, "last ct-tail scan") {
 		t.Errorf("tail with no run must not render a run readout; body: %s", page)
+	}
+}
+
+func TestSourcesCTCapabilitiesShowsPinnedLogListAge(t *testing.T) {
+	now := time.Date(2027, 1, 5, 12, 0, 0, 0, time.UTC)
+	snap, err := scan.CTLogListSnapshotAt(now)
+	if err != nil {
+		t.Fatalf("CTLogListSnapshotAt: %v", err)
+	}
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := startAt(t, f, now)
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := sourcesBody(t, ac, base)
+	for _, want := range []string{
+		"pinned log list",
+		"v" + snap.Version,
+		snap.CutAt.UTC().Format("2006-01-02"),
+		"logs selectable today",
+		fmt.Sprintf(">%d<", snap.Selectable),
+		snap.NewestEnd.UTC().Format("2006-01-02"),
+		"never fetched",
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("pinned log list readout missing %q; body: %s", want, page)
+		}
+	}
+	if strings.Contains(page, "The pinned CT log list has expired") {
+		t.Errorf("expiry callout rendered while %d logs are selectable", snap.Selectable)
+	}
+}
+
+func TestSourcesCTCapabilitiesStatesTheExpiredLogList(t *testing.T) {
+	now := time.Date(2028, 6, 1, 12, 0, 0, 0, time.UTC)
+	snap, err := scan.CTLogListSnapshotAt(now)
+	if err != nil {
+		t.Fatalf("CTLogListSnapshotAt: %v", err)
+	}
+	if snap.Selectable != 0 {
+		t.Fatalf("fixture date selects %d logs, want 0", snap.Selectable)
+	}
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := startAt(t, f, now)
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := sourcesBody(t, ac, base)
+	for _, want := range []string{
+		"The pinned CT log list has expired",
+		"selects zero logs and admits nothing",
+		"no gap opens for it",
+		"expired",
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("expired log list card missing %q; body: %s", want, page)
+		}
 	}
 }
 
