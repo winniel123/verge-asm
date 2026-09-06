@@ -113,6 +113,26 @@ Mock-only shortcuts a production build should replace:
 - **Form validation** — per-field errors exist; add form-level summaries for long forms.
 - **ToastStack timers** — restart-free ttls are handled; pause-on-hover is not.
 
+## Component card specimens
+
+Each component family carries a `<family>.card.html` specimen page. **None of them render.** A card's
+bootstrap scans `window` for a component namespace, and it has never had a way to put one there. Until
+[#1443] the cards fetched a bundle script from the `design-system/` root and loaded a fallback loader
+from a `design-system/assets/` directory. Neither file has ever been in this repo, `design-system/assets/`
+has never existed, and `git log --all` finds no commit that added either. Both were residue of the
+external design-system handoff package that ADR-0145 records as retired on 2026-08-28.
+
+**What the loader did is unknown, and the previews do not get it back** ([#1443]). Nothing in this
+repo specifies its behaviour, so restoring it would mean inventing one. #1443 deleted the two dangling
+references instead. Each card still reaches its dead-end message, exactly as before. The message now
+states the fact rather than implying a file the repo is missing.
+
+Nothing observes this. `designfs.go` embeds only `templates/`, `tokens/` and `fixtures/`, and no CI
+job renders a card. A session that wants working previews is authoring a new bundle step, not
+restoring an old one.
+
+[#1443]: https://github.com/winniel123/verge-asm/issues/1443
+
 ## Index
 
 Every path below is relative to `design-system/`.

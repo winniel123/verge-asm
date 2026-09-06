@@ -367,7 +367,7 @@ func markRetried(ctx context.Context, qtx *db.Queries, jobID int64) error {
 
 func (w *Worker) runJobTx(ctx context.Context, jobID int64, fn func(*db.Queries) error) error {
 	err := w.inTx(ctx, fn)
-	// The cancellation recorded the job's terminal state, so nothing more is owed or logged.
+	// The cancellation recorded the job's terminal state, so nothing more is owed (ADR-0164 §3).
 	if errors.Is(err, errJobCanceled) {
 		w.log.Printf("worker: job %d canceled mid-flight; uncommitted work discarded", jobID)
 		return nil

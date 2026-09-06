@@ -223,7 +223,7 @@ func checkHealth(listenAddr string) error {
 		return fmt.Errorf("parse listen addr %q: %w", listenAddr, err)
 	}
 
-	client := http.Client{Timeout: 3 * time.Second}
+	client := newOutboundClient(3 * time.Second)
 	resp, err := client.Get("http://127.0.0.1:" + port + "/healthz")
 	if err != nil {
 		return err
