@@ -410,15 +410,14 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		s.serverError(w, "list seeds", err)
 		return
 	}
-	excl, err := s.store.ListExclusions(r.Context())
-	if err != nil {
-		s.serverError(w, "list exclusions", err)
-		return
+	var excl []db.ListExclusionsRow
+	// A card is one region, so its failed read empties it alone (ADR-0168 §1, #1424).
+	if rows, eerr := s.store.ListExclusions(r.Context()); eerr == nil {
+		excl = rows
 	}
-	probers, err := s.store.ListVantages(r.Context())
-	if err != nil {
-		s.serverError(w, "list vantages", err)
-		return
+	var probers []db.ListVantagesRow
+	if rows, verr := s.store.ListVantages(r.Context()); verr == nil {
+		probers = rows
 	}
 	zoneStatus, err := s.store.ListZoneFileStatus(r.Context())
 	if err != nil {
@@ -430,10 +429,9 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		s.serverError(w, "get zone cadence", err)
 		return
 	}
-	lookups, err := s.proposalLookups(r.Context())
-	if err != nil {
-		s.serverError(w, "list proposals", err)
-		return
+	var lookups []proposalLookupView
+	if rows, perr := s.proposalLookups(r.Context()); perr == nil {
+		lookups = rows
 	}
 	seeds := toSeedViews(rows)
 	nameSeeds := nameScopes(seeds)

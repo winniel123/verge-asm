@@ -8,7 +8,7 @@ import (
 func TestEgressGuardRefusesNonGlobal(t *testing.T) {
 	guard := EgressGuard("testleaf")
 
-	// 169.254.169.254 is the cloud metadata endpoint the guard exists to refuse (#743).
+	// 169.254.169.254 is the cloud metadata endpoint the guard exists to refuse (ADR-0079).
 	refused := []string{
 		"169.254.169.254:80",
 		"127.0.0.1:80",

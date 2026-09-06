@@ -686,14 +686,13 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 	exposed, hasExposed := s.currentExposedCount(ctx)
 	certsExpiring, hasCerts := s.currentCertsExpiring(ctx)
 
-	assetsWatched := names + services
-	hasAssets := hasNames && hasServices
 	statBand := []dashStat{
 		{Label: "Open signals", Value: statValue(openSignals, hasOpenSignals), Caption: "firing across your estate",
 			Live: len(active) > 0, HasDelta: deltas.Known, Change: deltas.OpenSignals.Change(), Tone: statTone(deltas.OpenSignals.Change(), true)},
 		{Label: "Critical", Value: statValue(criticalSignals, hasOpenSignals), Caption: "highest severity",
 			HasDelta: deltas.Known, Change: deltas.Critical.Change(), Tone: statTone(deltas.Critical.Change(), true)},
-		{Label: "Assets watched", Value: statValue(assetsWatched, hasAssets),
+		// A listing is not this count's definition, so the value folds open spans (ADR-0147 §3).
+		{Label: "Assets watched", Value: statValue(deltas.AssetsWatched.Current, deltas.Known),
 			Caption:  fmt.Sprintf("%d %s · %d %s", nameScopes, plural(nameScopes, "domain", "domains"), addrScopes, plural(addrScopes, "range", "ranges")),
 			HasDelta: deltas.Known, Change: deltas.AssetsWatched.Change(), Tone: "neutral"},
 		{Label: "Exposed services", Value: statValue(exposed, hasExposed), Caption: "reachable from the internet",
@@ -704,12 +703,12 @@ func (s *server) dashboardData(r *http.Request, acct db.Account) map[string]any 
 
 	var coverageMeters []coverageMeterView
 	if hasScopes {
-		var zones []db.ListZoneDeclarationsRow
-		if z, zerr := s.store.ListZoneDeclarations(ctx); zerr == nil {
-			zones = z
+		zones, zerr := s.store.ListZoneDeclarations(ctx)
+		if zerr != nil {
+			zones = nil
 		}
 		// A nil shared-edge map keeps #989's contradiction row on /coverage, where the remedy is.
-		coverageMeters = apertureMeters(seedRows, zones, walked, s.now(), nil)
+		coverageMeters = apertureMeters(seedRows, zones, zerr == nil, walked, hasServices, s.now(), nil)
 	}
 	var silentZone *dashSilentZone
 	if len(unavailable) > 0 {

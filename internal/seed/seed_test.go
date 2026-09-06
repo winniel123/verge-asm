@@ -32,7 +32,7 @@ func TestNormalizeDomain(t *testing.T) {
 		"*.example.com",
 		"http://example.com",
 		"example.com/path",
-		// The normalized domain reaches the crt.sh query URL unencoded (#774).
+		// The normalized domain reaches the crt.sh query URL unencoded.
 		"example.com&output=text",
 		"example.com#frag",
 		"a;b.com",

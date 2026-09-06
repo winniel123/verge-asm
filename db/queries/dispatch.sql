@@ -68,7 +68,9 @@ UPDATE queue_job SET state = 'cancelled'
 WHERE dispatch_id = $1 AND state IN ('ready', 'running');
 
 -- name: SetDispatchStatus :exec
-UPDATE dispatch SET status = $2 WHERE id = $1 AND status = 'fanned-out';
+UPDATE dispatch SET status = $2
+WHERE id = $1
+  AND (status = 'fanned-out' OR (status = 'stopped' AND $2 = 'terminated'));
 
 -- name: ListJobsForDispatch :many
 SELECT

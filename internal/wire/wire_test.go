@@ -126,7 +126,7 @@ func TestObservationScannerStopsOnBadLine(t *testing.T) {
 }
 
 func TestLimitedBufferFailsClosed(t *testing.T) {
-	// #772: the sink errors past the ceiling rather than buffering without bound.
+	// The sink errors past the ceiling rather than buffering without bound.
 	small := NewLimitedBuffer(1024)
 	if _, err := small.Write([]byte("hello")); err != nil {
 		t.Fatalf("write under cap: %v", err)

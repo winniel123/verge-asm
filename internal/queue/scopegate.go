@@ -14,7 +14,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
-// A compromised prober can name any Subject, so this re-gates what we record as measured (#773).
+// A compromised prober names any Subject, so this re-gates what we record as measured (ADR-0217).
 
 type authorizedScope struct {
 	addrs map[string]struct{}
@@ -36,7 +36,7 @@ type scopeShape struct {
 
 func parseAuthorizedScope(raw []byte) authorizedScope {
 	var s scopeShape
-	// Our own dispatcher writes this scope, so a parse failure is a bug and fails open (#773).
+	// Our dispatcher writes this scope, so a parse failure is a bug and fails open (ADR-0217 §1).
 	if len(raw) == 0 || json.Unmarshal(raw, &s) != nil {
 		return authorizedScope{}
 	}
@@ -125,7 +125,7 @@ func (a authorizedScope) gate(obs []wire.Observation, logger *log.Logger, jobID 
 			continue
 		}
 		if logger != nil {
-			logger.Printf("worker: job %d dropped out-of-scope observation: kind=%q facet=%q subject=%q address=%q (#773)",
+			logger.Printf("worker: job %d dropped out-of-scope observation: kind=%q facet=%q subject=%q address=%q",
 				jobID, o.Kind, o.Facet, o.Subject, o.Address)
 		}
 	}

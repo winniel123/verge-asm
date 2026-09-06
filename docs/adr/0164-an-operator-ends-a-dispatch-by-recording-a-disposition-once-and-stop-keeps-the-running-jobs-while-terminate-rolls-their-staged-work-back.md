@@ -98,23 +98,14 @@ recorded the job's terminal state, so the worker owes nothing more.
 `SetDispatchStatus` guards on `status = 'fanned-out'`. A second act against the same `Dispatch`
 records nothing, and the first disposition survives.
 
-**This ADR states the cost rather than smoothing it.** An operator who stops a `Dispatch` and then
-terminates it gets the terminate's job cancellations, because `CancelActiveJobsForDispatch` carries
-no such guard. The row still reads `stopped`. The record then understates what happened.
-
 The once-only write is kept, for two reasons. It makes the recorded disposition a statement about
-the operator's first decision rather than the last one, and it forbids a later write from moving a
-`Dispatch` back to `fanned-out`. Escalation from stop to terminate is **not expressible today**. A
-later ticket that wants it must widen the guard deliberately and rule the transition, rather than
-drop the guard.
+the operator's decision rather than a running log. It also forbids a later write from moving a
+`Dispatch` back to `fanned-out`.
 
-> **The cost is filed as a defect, [#1421](https://github.com/winniel123/verge-asm/issues/1421).**
-> This limb rules the guard, and the guard is right. What #1421 owns is that the **cancel** is not
-> guarded to match it, so one act's two halves disagree: the jobs are cancelled, the disposition
-> records nothing, and the toast still says *"Scan terminated"*. The escalation is reachable from
-> the console, because `ListActiveDispatchProgress` filters on job state alone and never reads
-> `d.status`, so a stopped `Dispatch` with draining jobs keeps its **Terminate** control. Whichever
-> fix lands, this limb is amended with it.
+**One transition is exempt, and only one.** A stop may be escalated to a terminate. See the
+[#1421 amendment](#amendment--1421-a-stop-escalates-to-a-terminate-and-nothing-else-overwrites-a-disposition)
+below, which is this limb's current letter. Read the paragraph above as ruling every transition the
+amendment does not name.
 
 ### 5. Both acts are admin-gated, exactly as the trigger is
 
@@ -162,3 +153,63 @@ either handler runs.
 | **Leave the rule in `db/migrations/22901_scan_cancellation.sql`'s header** | SQL is in the swept corpus and that comment is sweep-eligible. A migration is also read once, at the moment it runs. It is not where a later session looks for a rule about a screen |
 | **Fold the rule into [ADR-0005](./0005-scan-execution-model.md) as an amendment** | ADR-0005 is silent here rather than wrong here. Under ADR-0058 an amendment carries a claim about the world, and this is a new act on a corpus ADR-0005 ruled the natural life of. ADR-0005 takes no edit |
 | **File one ADR covering the write side and the read side together** | Two rules with different scopes. The write side binds the worker, the queue schema and the migration. The read side binds the run page and its template. A later session applying one should not have to read the other |
+
+## Amendment — [#1421](https://github.com/winniel123/verge-asm/issues/1421): a stop escalates to a terminate, and nothing else overwrites a disposition
+
+> **Limb 4's once-only write is read as once-per-decision, not once-per-`Dispatch`.**
+> `SetDispatchStatus` now guards on
+> `status = 'fanned-out' OR (status = 'stopped' AND $2 = 'terminated')`. A `Dispatch` that carries a
+> recorded `stopped` accepts exactly one further write, and that write is `terminated`. Every other
+> second write is still refused: `terminated` is final, a disposition never returns to `fanned-out`,
+> and a resubmitted stop overwrites nothing.
+
+**The defect this closes is that one act's two halves disagreed.** #1421 measured the chain in the
+tree, in four steps.
+
+- `ListActiveDispatchProgress` filters on job state alone and never reads `d.status`, so a stopped `Dispatch` whose running jobs are still draining stays on the active list.
+- [`settings.tmpl`](../../design-system/templates/settings.tmpl) therefore keeps rendering that row's **Terminate** control, and the escalation is offered rather than merely reachable by a crafted `POST`.
+- `CancelActiveJobsForDispatch` carries no status guard, so the escalation really did cancel those running jobs.
+- `SetDispatchStatus` then matched no row. It is a `:exec` query, so the no-op was silent.
+
+The operator was shown *"Scan terminated · N jobs stopped"* over a badge that still read `stopped`.
+The `.rd-batch.terminated` treatment [ADR-0165](./0165-a-recorded-dispatch-disposition-overrides-the-live-status-derivation-and-the-run-pages-status-word-is-one-token-that-styles-and-labels-the-badge.md)
+§1 counts was unreachable by that path.
+
+**The record is made to follow the act, rather than the act to follow the record.** The jobs were
+cancelled. Their staged work was rolled back by limb 3's guarded terminal write. A `Dispatch` row
+that reads `stopped` after that is a false statement about the estate's history. Limb 1's
+reader — *"a reader who wants to know whether an operator ended a run"* — is then misinformed
+about **how** it was ended.
+
+**Three riders keep the exemption from being a general licence.**
+
+1. **It is one ordered pair, not a widening.** The guard names the source status and the target
+   status together. `terminated → stopped` is refused. `stopped → stopped` is refused. No status
+   returns to `fanned-out`. The escalation is monotone: it only ever moves a `Dispatch` further
+   from `fanned-out`, and never back toward it.
+2. **The double-submit property limb 4 was written for is untouched.** Two operators who both press
+   **Terminate** on the same live `Dispatch` still record one disposition. The second write matches
+   no row, exactly as before. What changed is a different pair.
+3. **The escalation is a second decision, not a repeat of the first.** A stop and a terminate are
+   two distinct acts with two distinct costs (limbs 2 and 3). An operator who stops a runaway
+   `Dispatch`, then watches it fail to drain, then terminates it, decides twice. Limb 4's
+   *"the first one stands"* ruled out a duplicate submission. An escalation is not one.
+
+**Two rejected alternatives, both named in #1421.**
+
+| Alternative | Why not |
+| --- | --- |
+| **Guard `CancelActiveJobsForDispatch` to match, so a terminate on a stopped `Dispatch` is a no-op end to end** | It buys agreement by making a real operator act do nothing. The operator wants those running jobs to stop, and refusing that leaves the only escape a wait for the drain. It also inverts the ground: the record would be right because the act was suppressed |
+| **Hide **Terminate** once a disposition is recorded** | It removes a control an operator legitimately wants after a stop, which is precisely the escalation this amendment admits. It also leaves the reachable-by-`POST` path recording nothing |
+
+**Consequences.**
+
+- [`db/queries/dispatch.sql`](../../db/queries/dispatch.sql) carries the two-branch guard, and
+  [`internal/db/dispatch.sql.go`](../../internal/db/dispatch.sql.go) is regenerated. No migration is
+  needed: `dispatch_status_check` already admits all three tokens, and no column changes.
+- **The consequence *"no production behaviour changes"* above is now false for this one pair.**
+  Read it as true of everything the amendment does not name.
+- `terminateScan`'s comment at its `SetDispatchStatus` call states the exemption rather than the
+  bare `fanned-out` guard.
+- **A third disposition still needs this ADR and a migration.** A fourth token must say which
+  transitions reach it, not only that it exists.

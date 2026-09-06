@@ -20,14 +20,24 @@ export function Select({ label, options = [], value, defaultValue, onChange, siz
       const r = ref.current.getBoundingClientRect();
       const panelH = Math.min(244, opts.length * 30 + 12);
       const flip = r.bottom + 6 + panelH > window.innerHeight - 8 && r.top - 6 - panelH > 8;
-      setPos(flip
+      const next = flip
         ? { left: r.left, width: r.width, bottom: window.innerHeight - r.top + 6 }
-        : { left: r.left, width: r.width, top: r.bottom + 6 });
+        : { left: r.left, width: r.width, top: r.bottom + 6 };
+      setPos((p) => (p && p.left === next.left && p.width === next.width && p.top === next.top && p.bottom === next.bottom ? p : next));
     };
     measure();
-    // the anchor keeps moving after the first measure: webfont swap, or a panel animating in
-    const t = setTimeout(measure, 120);
-    return () => clearTimeout(t);
+    // the entrance that moves the anchor is a containing panel's, up to --dur-slow (#1408)
+    const onAnimationEnd = (e) => { if (ref.current && e.target !== ref.current && e.target.contains && e.target.contains(ref.current)) measure(); };
+    document.addEventListener("animationend", onAnimationEnd, true);
+    const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    if (ro) ro.observe(ref.current);
+    let live = true;
+    if (document.fonts) document.fonts.ready.then(() => { if (live) measure(); });
+    return () => {
+      live = false;
+      document.removeEventListener("animationend", onAnimationEnd, true);
+      if (ro) ro.disconnect();
+    };
   }, [open, opts.length]);
   React.useEffect(() => {
     if (!open) return;

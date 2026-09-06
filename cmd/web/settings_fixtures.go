@@ -45,6 +45,7 @@ type sfHistory struct {
 	Live         int    `json:"live"`
 	Completed    int    `json:"completed"`
 	Dead         int    `json:"dead"`
+	Skipped      bool   `json:"skipped"`
 }
 
 type sfColdScope struct {

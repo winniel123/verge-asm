@@ -74,7 +74,7 @@ func (n NetConnector) Connect(ctx context.Context, target netip.AddrPort) ConnRe
 	if timeout <= 0 {
 		timeout = 3 * time.Second
 	}
-	// Only a pre-validated literal is dialled, and the socket guard below is the backstop (#743).
+	// Only a pre-validated literal is dialled, and the socket guard below is the backstop.
 	if !target.Addr().IsValid() {
 		return ConnError
 	}

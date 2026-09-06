@@ -2,6 +2,7 @@ package queue
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -16,6 +17,11 @@ func hotLagGateApplies(kind string) bool {
 
 type HotLagStore interface {
 	ScanHasNonTerminalJobs(ctx context.Context, arg db.ScanHasNonTerminalJobsParams) (bool, error)
+}
+
+type DispatchGateStore interface {
+	HotLagStore
+	SetDispatchStatus(ctx context.Context, arg db.SetDispatchStatusParams) error
 }
 
 func HotLagGateArmed(staleJobThreshold time.Duration) bool {
@@ -36,4 +42,23 @@ func hotTickLags(ctx context.Context, q HotLagStore, scanID, dispatchID int64, s
 	return q.ScanHasNonTerminalJobs(ctx, db.ScanHasNonTerminalJobsParams{ScanID: scanID, DispatchID: dispatchID})
 }
 
-var _ HotLagStore = (*db.Queries)(nil)
+func gateHotTick(ctx context.Context, q DispatchGateStore, kind string, scanID, dispatchID int64, staleJobThreshold time.Duration, logger *log.Logger) (SkipReason, error) {
+	if !hotLagGateApplies(kind) {
+		return SkipNone, nil
+	}
+	lagging, err := hotTickLags(ctx, q, scanID, dispatchID, staleJobThreshold, logger)
+	if err != nil {
+		return SkipNone, fmt.Errorf("queue: hot cadence-lag gate: %w", err)
+	}
+	if !lagging {
+		return SkipNone, nil
+	}
+	// The claimed row would otherwise read as a run that fanned nothing out (#1120).
+	arg := db.SetDispatchStatusParams{ID: dispatchID, Status: DispatchStatusSkipped}
+	if err := q.SetDispatchStatus(ctx, arg); err != nil {
+		return SkipNone, fmt.Errorf("queue: record cadence-lag skip: %w", err)
+	}
+	return SkipCadenceLag, nil
+}
+
+var _ DispatchGateStore = (*db.Queries)(nil)

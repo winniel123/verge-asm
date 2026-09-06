@@ -86,6 +86,7 @@ func (s *server) setColdScope(w http.ResponseWriter, r *http.Request, acct db.Ac
 
 type coverageMeterView struct {
 	Label       string
+	Withheld    bool
 	Counted     string
 	Total       *string
 	Unit        string
@@ -138,14 +139,15 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		s.serverError(w, "list seeds", err)
 		return
 	}
-	var zones []db.ListZoneDeclarationsRow
-	if z, zerr := s.store.ListZoneDeclarations(ctx); zerr == nil {
-		zones = z
+	zones, zerr := s.store.ListZoneDeclarations(ctx)
+	if zerr != nil {
+		zones = nil
 	}
 	var walked []walkedAddr
-	if svcs, serr := s.store.ListCurrentServiceSubjects(ctx, db.ListCurrentServiceSubjectsParams{
+	svcs, serr := s.store.ListCurrentServiceSubjects(ctx, db.ListCurrentServiceSubjectsParams{
 		Search: "", AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
-	}); serr == nil {
+	})
+	if serr == nil {
 		walked = walkedAddresses(svcs)
 	}
 	var sharedEdges map[netip.Prefix]int
@@ -155,7 +157,7 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	} else {
 		log.Printf("web: coverage: address-scope shared edges: %v", ferr)
 	}
-	meters := apertureMeters(seeds, zones, walked, s.now(), sharedEdges)
+	meters := apertureMeters(seeds, zones, zerr == nil, walked, serr == nil, s.now(), sharedEdges)
 
 	var gaps []coverageGapView
 	var messages []coverageMessageView
@@ -190,7 +192,11 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	})
 }
 
-func apertureMeters(seeds []db.ListSeedsRow, zones []db.ListZoneDeclarationsRow, walked []walkedAddr, now time.Time, sharedEdges map[netip.Prefix]int) []coverageMeterView {
+func withheldMeter(label, detail string) coverageMeterView {
+	return coverageMeterView{Label: label, Withheld: true, Detail: detail}
+}
+
+func apertureMeters(seeds []db.ListSeedsRow, zones []db.ListZoneDeclarationsRow, zonesRead bool, walked []walkedAddr, walkedRead bool, now time.Time, sharedEdges map[netip.Prefix]int) []coverageMeterView {
 	declared := make(map[string]int, len(zones))
 	for _, z := range zones {
 		if z.NameDomain.Valid {
@@ -201,11 +207,20 @@ func apertureMeters(seeds []db.ListSeedsRow, zones []db.ListZoneDeclarationsRow,
 	for _, sd := range seeds {
 		if sd.Kind == "address" && sd.AddressCidr != nil {
 			p := *sd.AddressCidr
+			// A zero numerator claims the batch walked nothing (ADR-0120, #1424).
+			if !walkedRead {
+				out = append(out, withheldMeter(p.String(), "address scope — the walk did not resolve on this load. No count is shown rather than a guessed zero."))
+				continue
+			}
 			out = append(out, addressMeter(p, walked, now, sharedEdges[p.Masked()]))
 			continue
 		}
 		// The evidence surfaces are disjoint: a name scope's meter takes no edge (ADR-0129 #956).
 		domain := sd.NameDomain.String
+		if !zonesRead {
+			out = append(out, withheldMeter(domain, "name scope — the zone declarations did not resolve on this load. No count is shown rather than a guessed zero."))
+			continue
+		}
 		out = append(out, coverageMeterView{
 			Label:   domain,
 			Counted: strconv.Itoa(declared[domain]),

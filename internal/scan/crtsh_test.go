@@ -138,7 +138,7 @@ func TestCrtshURL(t *testing.T) {
 		t.Errorf("CrtshURL = %q, want %q", got, want)
 	}
 
-	// The name validator is the primary guard against query injection; this is depth (#774).
+	// The name validator is the primary guard against query injection; this is depth.
 	inj := CrtshURL("example.com&output=text")
 	if strings.Contains(inj, "example.com&output=text") {
 		t.Errorf("CrtshURL did not encode injection chars: %q", inj)

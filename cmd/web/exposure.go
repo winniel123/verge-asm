@@ -62,7 +62,12 @@ func (s *server) exposurePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		return
 	}
 
-	rows, stats := s.foldExposure(r)
+	rows, stats, ferr := s.foldExposure(r)
+	if ferr != nil {
+		// An empty board reads as nothing exposed, so this read is loud (ADR-0168 §4, #1424).
+		s.serverError(w, "fold exposure", ferr)
+		return
+	}
 
 	data := map[string]any{
 		"Title": "Exposure", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
@@ -92,15 +97,15 @@ type legInfo struct {
 	present bool
 }
 
-func (s *server) foldExposure(r *http.Request) ([]exposureRow, exposureStats) {
+func (s *server) foldExposure(r *http.Request) ([]exposureRow, exposureStats, error) {
 	ctx := r.Context()
 	byClass, err := s.store.ListServiceReachabilitySpansByClass(ctx)
 	if err != nil {
-		return nil, exposureStats{}
+		return nil, exposureStats{}, err
 	}
 	covered, err := s.addressScopeCovered(ctx)
 	if err != nil {
-		return nil, exposureStats{}
+		return nil, exposureStats{}, err
 	}
 	legs := collapseReachLegs(reachRowsFromCurrent(byClass), covered)
 	order := make([]string, 0, len(legs))
@@ -151,7 +156,7 @@ func (s *server) foldExposure(r *http.Request) ([]exposureRow, exposureStats) {
 			stats.firewalled++
 		}
 	}
-	return rows, stats
+	return rows, stats, nil
 }
 
 func legDisplay(l legInfo) string {

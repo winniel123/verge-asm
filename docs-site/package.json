@@ -16,6 +16,7 @@
     "check:links": "node scripts/check-links.mjs",
     "check:doclint": "node scripts/doclint.mjs",
     "test:doclint": "node --test scripts/doclint.test.mjs",
+    "test:version-ref": "node --test scripts/version-ref.test.mjs",
     "check:citations": "node scripts/check-citations.mjs",
     "test:citations": "node --test scripts/check-citations.test.mjs",
     "check:adr-sections": "node scripts/check-adr-sections.mjs",
