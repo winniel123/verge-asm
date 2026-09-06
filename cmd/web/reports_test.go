@@ -1075,3 +1075,65 @@ func TestReportsBarChartCapsAtThirtyOneBars(t *testing.T) {
 		t.Errorf("21-day series aggregated to %d bars, want 21 (unchanged within a month)", len(got))
 	}
 }
+
+func openSignalsOnReportsPage(t *testing.T, page string) int {
+	t.Helper()
+	const label = "Open signals</span>"
+	i := strings.Index(page, label)
+	if i < 0 {
+		t.Fatalf("reports page has no Open signals KPI label; body: %s", page)
+	}
+	rest := page[i+len(label):]
+	const num = `class="num">`
+	j := strings.Index(rest, num)
+	if j < 0 {
+		t.Fatalf("Open signals KPI has no value cell; body: %s", page)
+	}
+	rest = rest[j+len(num):]
+	k := strings.Index(rest, "<")
+	if k < 0 {
+		t.Fatalf("Open signals KPI value cell is unterminated; body: %s", page)
+	}
+	got, err := strconv.Atoi(strings.TrimSpace(rest[:k]))
+	if err != nil {
+		t.Fatalf("Open signals KPI value = %q, want a count: %v", rest[:k], err)
+	}
+	return got
+}
+
+func TestReportsOpenSignalsAgreeAcrossPageAndExport(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+
+	f.addClassReachability(t, "198.51.100.1:3389/tcp", "internet", obsClock, `{"outcome":"reached"}`)
+	f.addClassReachability(t, "198.51.100.2:445/tcp", "internet", obsClock, `{"outcome":"reached"}`)
+	f.addHTTPIdentity(t, "plain.example.com@198.51.100.5:80/tcp", obsClock, `{"outcome":"responded","status":200}`)
+	f.addCertificate(t, "plain.example.com@198.51.100.5:80/tcp", obsClock, `{"outcome":"no-tls"}`)
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := getBody(t, ac, base+"/reports?period=7d", http.StatusOK)
+	want := openSignalsOnReportsPage(t, page)
+	if want == 0 {
+		t.Fatalf("fixture fired no signals, so the two surfaces would agree on nothing; body: %s", page)
+	}
+
+	raw := getBody(t, ac, base+"/reports/export?format=json&period=7d", http.StatusOK)
+	var doc reportsExportDoc
+	if err := json.Unmarshal([]byte(raw), &doc); err != nil {
+		t.Fatalf("export json does not parse: %v\nbody: %s", err, raw)
+	}
+	if doc.KPIs.OpenSignals == nil {
+		t.Fatalf("kpis.open_signals is null while the page printed %d", want)
+	}
+	if *doc.KPIs.OpenSignals != want {
+		t.Errorf("kpis.open_signals = %d, page printed %d — one fact, two answers", *doc.KPIs.OpenSignals, want)
+	}
+
+	csv := getBody(t, ac, base+"/reports/export?format=csv&period=7d", http.StatusOK)
+	row := "summary,open_signals," + strconv.Itoa(want)
+	if !strings.Contains(csv, row) {
+		t.Errorf("export csv missing %q while the page printed %d; body:\n%s", row, want, csv)
+	}
+}
