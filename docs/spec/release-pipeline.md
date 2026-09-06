@@ -1004,9 +1004,15 @@ section without a parser existing anywhere (#1078).
 generator does not run. It costs three lines in the workflow and gives every release an escape
 hatch.
 
-**The first release uses the override.** `main` holds 640 first-parent commits, and `v0.1.0` has no
-predecessor tag, so a generated body would carry all 640. `v0.1.0` ships a hand-written
-`docs/release-notes/v0.1.0.md`.
+**The first release uses the override.** `v0.1.1` ships a hand-written
+`docs/release-notes/v0.1.1.md`.
+
+Two reasons, and the second replaced the first. `v0.1.0` had no predecessor tag, so its
+generated body would have carried every commit in the repository. That release then never
+published: its run stopped on a defect in the build-stamp assertion, and a spent tag is never
+reused ([#1532](https://github.com/winniel123/verge-asm/issues/1532)). So `v0.1.1` **does** have a
+predecessor tag, and its generated range holds only the repair. A body naming one workflow fix
+would say nothing about the product it first ships.
 
 **GitHub's native `--generate-notes` is rejected.** It groups by pull-request label, and merged
 pull requests in this repository carry **no labels at all**. It would emit one flat list, and
