@@ -182,16 +182,28 @@ build** ([#1080](https://github.com/winniel123/verge-asm/issues/1080)).
 One job, one `ubuntu-latest` amd64 runner. `docker/bake-action` over a committed
 `docker-bake.hcl`. Two targets, `web` and `worker`.
 
-| Setting | Value |
-| --- | --- |
-| `platforms` | `["linux/amd64", "linux/arm64"]` |
-| `attest` | `["type=provenance,disabled=true", "type=sbom,disabled=true"]` |
-| output | `type=image,push-by-digest=true,name-canonical=true,push=true` |
-| tags | cleared |
-| cache backend | none |
+| Setting | Value | Set in |
+| --- | --- | --- |
+| `platforms` | `["linux/amd64", "linux/arm64"]` | `docker-bake.hcl` |
+| `attest` | `["type=provenance,disabled=true", "type=sbom,disabled=true"]` | `docker-bake.hcl` |
+| `args` | `{ VERGE_VERSION = "" }` | `docker-bake.hcl`, **overridden by the release job** |
+| cache backend | none | `docker-bake.hcl` |
+| output | `type=image,push-by-digest=true,name-canonical=true,push=true` | the release job |
+| tags | cleared | the release job |
 
 **The `attest` long form is required. The `provenance = false` shorthand does not work.** See
 the measurement below.
+
+**The release job owns three of these: the output, the tag set and the `VERGE_VERSION` arg.** The
+bake file names the arg with an empty default rather than leaving it implicit, so a reader of
+either file can see the seam. The empty default is deliberate. §3 rules that a builder-stage
+`ARG VERGE_VERSION=dev` would make the stamp non-empty on every build and strand the runtime
+fallback forever.
+
+**A release that does not override the arg publishes unstamped images.** Those images then read
+the operator's `VERGE_VERSION`, which `docker-compose.yml` sets to `dev`. So a forgotten override
+does not fail. It ships a release that reports itself as `dev`, and §3's precedence rule is
+defeated at the one moment it matters. The release job passes `${GITHUB_REF_NAME#v}`.
 
 The `Dockerfile` already cross-compiles from `$BUILDPLATFORM` and runs no command on the target,
 so one amd64 runner covers both platforms with no QEMU
