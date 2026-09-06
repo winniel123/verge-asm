@@ -163,7 +163,7 @@ func main() {
 	// No network call until the operator enables it: an air-gapped instance is silent (ADR-0124).
 	releaseChecker := release.NewChecker(
 		db.New(pool),
-		release.NewHTTPFetcher(env.OrDefault("VERGE_RELEASE_FEED_URL", release.DefaultFeedURL)),
+		release.NewHTTPFetcher(env.OrDefault("VERGE_RELEASE_FEED_URL", release.DefaultFeedURL), release.NewHTTPDoer()),
 		env.OrDefault("VERGE_VERSION", "dev"),
 		time.Now,
 		logger,
