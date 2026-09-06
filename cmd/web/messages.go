@@ -347,6 +347,8 @@ func subjectHref(kind, key string) string {
 
 const reportDeliveryHref = "/reports/delivery"
 
+const reportScheduleNeverRunMins = 1 << 30
+
 type reportScheduleRow struct {
 	ID           int64
 	Name         string
@@ -386,7 +388,6 @@ func (s *server) reportScheduleRows(ctx context.Context) []reportScheduleRow {
 	now := s.now()
 	rows := make([]reportScheduleRow, 0, len(schedules))
 	for _, sc := range schedules {
-		const reportScheduleNeverRunMins = 1 << 30
 		// A never-run schedule sorts last, never as "just now" (ADR-0179 §1, #1363).
 		lastSent, href, has := "—", "", false
 		lastMins := reportScheduleNeverRunMins
@@ -395,9 +396,12 @@ func (s *server) reportScheduleRows(ctx context.Context) []reportScheduleRow {
 		case err == nil:
 			inst := reportDeliveryInstant(del)
 			lastSent = relTime(inst, now)
-			if m := int(now.Sub(inst).Minutes()); m >= 0 {
-				lastMins = m
+			// A future delivery clamps to "now", so key and cell agree (ADR-0179 §5, #1429).
+			d := now.Sub(inst)
+			if d < 0 {
+				d = 0
 			}
+			lastMins = int(d / time.Minute)
 			href, has = reportDeliveryHref, true
 		case !errors.Is(err, pgx.ErrNoRows):
 			log.Printf("web: reports: latest delivery for schedule %d: %v", sc.ID, err)
