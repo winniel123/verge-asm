@@ -24,11 +24,19 @@ type HTTPFetcher struct {
 	client Doer
 }
 
-func NewHTTPFetcher(url string) *HTTPFetcher {
-	return &HTTPFetcher{
-		url:    url,
-		client: &http.Client{Timeout: feedTimeout},
+func NewHTTPDoer() *http.Client {
+	return &http.Client{
+		Timeout: feedTimeout,
+		// A followed 3xx lets the feed's host pick our next destination, e.g. IMDS (ADR-0196 §1).
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 	}
+}
+
+func NewHTTPFetcher(url string, doer Doer) *HTTPFetcher {
+	if doer == nil {
+		doer = NewHTTPDoer()
+	}
+	return &HTTPFetcher{url: url, client: doer}
 }
 
 type feedPayload struct {
