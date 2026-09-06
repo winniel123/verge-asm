@@ -175,6 +175,27 @@ func TestRouteServesGETReadsTheCatchAllHonestly(t *testing.T) {
 	}
 }
 
+func TestRouteServesGETNarrowsEverySubtree(t *testing.T) {
+	s := backSrv(t)
+	for _, p := range []string{"/api/v1", "/api/v1/", "/api/v1/nonsense", "/api/v1/inventory"} {
+		if s.routeServesGET(p) {
+			t.Errorf("routeServesGET(%q) = true; the GET /api/v1/ subtree is not a landing surface", p)
+		}
+		if got := s.resolveBack(backPost(p), "/signals"); got != "/signals" {
+			t.Errorf("resolveBack(%q) = %q, want the fallback", p, got)
+		}
+	}
+	if !s.routeServesGET("/") {
+		t.Error("routeServesGET(/) = false; the root is served")
+	}
+	if got := s.resolveBack(backPost("/"), "/signals"); got != "/" {
+		t.Errorf("resolveBack(/) = %q, want /", got)
+	}
+	if !s.routeServesGET("/signals") {
+		t.Error("routeServesGET(/signals) = false; narrowing must not refuse a console screen")
+	}
+}
+
 func TestResolveBackIgnoresReferer(t *testing.T) {
 	s := backSrv(t)
 	r := backPost("")
