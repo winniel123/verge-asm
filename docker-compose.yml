@@ -19,6 +19,14 @@ services:
       # Set to true when a TLS-terminating proxy fronts web, so the session
       # cookie is marked Secure even though web itself sees plain HTTP.
       VERGE_SECURE_COOKIES: ${VERGE_SECURE_COOKIES:-}
+      # Empty trusts no proxy, so a fronted deployment leaving it empty gives every
+      # client one login rate-limit key (ADR-0159 §1, #1452).
+      VERGE_TRUSTED_PROXIES: ${VERGE_TRUSTED_PROXIES:-}
+      VERGE_EXTERNAL_URL: ${VERGE_EXTERNAL_URL:-}
+      VERGE_LOG_RESET_LINKS: ${VERGE_LOG_RESET_LINKS:-}
+      # A set-but-empty value is not the code default: env.OrDefault falls back only
+      # on an UNSET key, so the fallback repeats "dev" rather than collapse to "" (#1452).
+      VERGE_VERSION: ${VERGE_VERSION:-dev}
       # Passed to BOTH services from one variable on purpose. It configures the
       # worker's stale-`running` reaper, and the hot cadence-lag gate (#1114) refuses
       # to arm without that reaper. If web read a different value than worker, a
@@ -59,6 +67,11 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-verge}:${POSTGRES_PASSWORD:?}@postgres:5432/${POSTGRES_DB:-verge}?sslmode=disable
       VERGE_PROBER_PATH: "/app/prober"
+      VERGE_PUBLIC_URL: ${VERGE_PUBLIC_URL:-}
+      # Fallbacks repeat the code defaults for the reason noted on the web service. The
+      # URL is internal/release.DefaultFeedURL, so a fork repointing it edits both.
+      VERGE_VERSION: ${VERGE_VERSION:-dev}
+      VERGE_RELEASE_FEED_URL: ${VERGE_RELEASE_FEED_URL:-https://api.github.com/repos/winniel123/verge-asm/releases/latest}
       # Must match web's. See the note on the web service.
       VERGE_STALE_JOB_TIMEOUT: ${VERGE_STALE_JOB_TIMEOUT:-}
     volumes:

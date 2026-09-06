@@ -23,7 +23,7 @@ import (
 
 // A step inside the reachability exchange, sharing its Kind, but with its own timelines (ADR-0028).
 
-const CertVersion = "tls-handshake/v3"
+const CertVersion = "tls-handshake/v4"
 
 // A closed union, never optional fields: a measured negative is a value, not "not measured".
 
@@ -168,7 +168,7 @@ func (n NetHandshaker) Handshake(ctx context.Context, target netip.AddrPort, ser
 	}
 	chainCerts := make([]ChainCert, 0, len(state.PeerCertificates))
 	for _, c := range state.PeerCertificates {
-		chainCerts = append(chainCerts, parseChainCert(c))
+		chainCerts = append(chainCerts, ParseChainCert(c))
 	}
 	return HandshakeResult{
 		Outcome:   TLSPresented,
@@ -196,9 +196,11 @@ func issuerSPKI(chain []*x509.Certificate) []byte {
 	return chain[1].RawSubjectPublicKeyInfo
 }
 
-func parseChainCert(c *x509.Certificate) ChainCert {
+func ParseChainCert(c *x509.Certificate) ChainCert {
 	// Store raw and derive at read: the four dark certificate rules run at read, not here (#712).
-	selfSig := c.CheckSignatureFrom(c) == nil
+
+	// CheckSignatureFrom also refuses SHA-1 and applies CA policy, voiding the carve-out (#1426).
+	selfSig := c.CheckSignature(c.SignatureAlgorithm, c.RawTBSCertificate, c.Signature) == nil
 	cc := ChainCert{
 		Subject:               c.Subject.String(),
 		Issuer:                c.Issuer.String(),

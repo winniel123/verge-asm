@@ -42,6 +42,7 @@ var AllCells = []string{
 	"T6/self-sig-verifies",
 	"T6/self-signed-leaf",
 	"T6/self-signed-root-skip",
+	"T6/self-signed-root-live",
 }
 
 func profile() co.SafetyProfile { return co.DefaultProfile() }
@@ -453,5 +454,33 @@ var Rows = []Row{
 			}),
 		},
 		Golden: "cert_v3_self_signed_root_skip.ndjson",
+	},
+
+	{
+		Cells:        []string{"T6/self-signed-root-live"},
+		Claim:        "a real SHA-1 self-signed root, whose raw facts the live adapter parses out of a checked-in certificate rather than a scripted value, carries self_sig_verifies=true beside sig_digest=SHA-1; that is the pair the carve-out needs, so the sig limb skips the root and weak-key-or-signature does not fire",
+		SpecVerified: true,
+		Profile:      profile(),
+		Step: Step{
+			Batch: "b1",
+			Scope: scope([]string{"198.51.100.31"}, []uint16{443}, []string{"legacyroot.example.com"}),
+			Connect: newConn(map[string][]co.ConnResult{
+				"198.51.100.31:443": {co.ConnOpen},
+			}),
+			Handshake: newHandshaker(map[string]co.HandshakeResult{
+				"legacyroot.example.com@198.51.100.31:443/tcp": {
+					Outcome:   co.TLSPresented,
+					Chain:     []string{"sha256:leafLR", "sha256:rootLR"},
+					NotAfter:  time.Date(2028, 1, 1, 0, 0, 0, 0, time.UTC),
+					NotBefore: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+					SANDNS:    []string{"legacyroot.example.com"},
+					ChainCerts: []co.ChainCert{
+						{Subject: "CN=legacyroot.example.com", Issuer: "CN=Legacy SHA-1 Root,O=Example", SelfSignatureVerifies: b(false), KeyAlg: "RSA", KeyBits: 2048, SigDigest: "SHA-256"},
+						sha1SelfSignedRoot(),
+					},
+				},
+			}),
+		},
+		Golden: "cert_v4_self_signed_root_live.ndjson",
 	},
 }
