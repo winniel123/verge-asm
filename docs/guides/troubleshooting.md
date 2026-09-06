@@ -266,5 +266,6 @@ Two surfaces confirm a service is live without opening the UI, both reported by
 | Exposure blank or withheld | [prober.md](prober.md) |
 | Signals fire, nothing arrives | [notification-channels.md](notification-channels.md) |
 | `web` restart-looping on boot | [Migrations on boot](#migrations-on-boot) |
+| A new release misbehaves after an upgrade | [running.md → Rolling back](running.md#rolling-back) |
 | `compose up` rejects a bind mount | [bind source path does not exist](#compose-up-fails-with-bind-source-path-does-not-exist) |
 | Reading Coverage / Exposure in depth | [reading-the-estate.md](reading-the-estate.md) |

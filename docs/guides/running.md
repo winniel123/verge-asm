@@ -395,15 +395,20 @@ The surface is admin-only.
   **Settings → Instance** (`POST /settings/updates/check`, admin). The feed URL is
   `VERGE_RELEASE_FEED_URL` (defaults to this repo's GitHub latest-release).
 - **Guided host steps.** When a newer release is seen, the card shows the latest
-  version and the **literal, release-authored** host commands to run. There is no
-  "update now" button, and the UI composes no shell of its own — it prints exactly
-  these lines for you to run **on the host**:
+  version and the host commands to run. The list is compiled into the build, and the
+  feed never supplies it. There is no "update now" button, and the UI composes no
+  shell of its own — it prints exactly these lines for you to run **on the host**:
 
   ```sh
+  # on the host — verge cannot rewrite its own image
   docker compose pull
   docker compose up -d web worker
-  docker compose exec web verge migrate status
+  docker compose ps web worker
   ```
+
+  The block names no migration command. `web` applies every pending migration as it
+  starts, and it refuses to serve if one fails. The last line reads the `HEALTHCHECK`
+  both images declare, so it reports whether the new image is healthy.
 
 Verge never re-images itself. A service that could replace the very binary that parses
 your attack surface would be the maximal form of the thing this product hardens
@@ -427,6 +432,47 @@ Either way, `web` applies any new migrations as it starts. The schema change
 lands before the new `web`/`worker` code serves traffic. So **take a backup first** for
 anything you cannot afford to roll forward through — see
 [backup-and-restore.md → the pre-upgrade backup drill](backup-and-restore.md#the-pre-upgrade-backup-drill).
+
+`web` applies migrations at startup and refuses to serve if one fails. If
+`docker compose ps web worker` shows `web` restarting or unhealthy after an upgrade,
+read `docker compose logs -n 50 web`. Each migration runs in its own transaction, so
+the failing migration reverts and the schema stays at the last version that applied.
+
+---
+
+## Rolling back
+
+Read the Release body first. Its **migration banner** says whether that release
+carried a migration, and that answer picks your row below.
+
+| Case | Route |
+| --- | --- |
+| No migration, no clone | Download the **previous** release's `docker-compose.yml` asset. Run `docker compose up -d`. One file swap, and nothing else. |
+| No migration, cloned repository | Pin the previous image digest in your `docker-compose.yml`, the way that file already pins `postgres`. Then run `docker compose up -d`. **Never run `docker compose pull`** here, because it re-resolves `latest`. |
+| A migration landed, either shape | Run `docker compose down`. Restore the [pre-upgrade dump](backup-and-restore.md#the-pre-upgrade-backup-drill) into a clean volume. Then start on the pinned old digest. **Restore before you start.** An old `web` against the new schema is the fault you are avoiding. |
+| Any row above | The **in-app restore** is the wrong tool here. It runs inside the `web` you replace. See [Restoring — preflight, then a typed confirm](backup-and-restore.md#restoring--preflight-then-a-typed-confirm). |
+
+**An image downgrade is not a schema downgrade.** `migrateUp` in `cmd/web/main.go`
+calls `goose.Up` and nothing else. Every file in `db/migrations/` carries a
+`-- +goose Down` block, and no code path ever runs one. Verge offers no migration
+command either. So an older image meets the newer schema, and that schema stays.
+
+A schema that a release only added to is safe under the old code. A schema that a
+release removed from is not. **You cannot tell the two apart from the outside.** That
+is why the migration row routes you to the dump and not to an image pin.
+
+### The silence window
+
+An instance that already runs the withdrawn release shows `current` and says nothing.
+Once the feed serves the older version again, `isNewer(older, running)` is false.
+`internal/release/release.go` then writes `current` and clears the latest fields.
+
+Verge accepts this window and adds no signal for it. `isNewer` compares numeric cores
+only, so the check has no words for a version someone withdrew. The successor release
+closes the window.
+
+**So a withdrawal contains new installs only.** Your running instance learns nothing
+about the withdrawal from the feed.
 
 ---
 

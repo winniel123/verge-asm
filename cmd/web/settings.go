@@ -1138,6 +1138,8 @@ func (s *server) fillInstanceSection(r *http.Request, f settingsForms, data map[
 
 // A feed-delivered step list would put arbitrary shell text in front of an admin (ADR-0124).
 
+// Upstream of the Settings.jsx and running.md copies, which no test checks (ADR-0110, ADR-0124).
+
 var updateHostSteps = []string{
 	"# on the host — verge cannot rewrite its own image",
 	"docker compose pull",

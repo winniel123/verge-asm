@@ -558,7 +558,7 @@ function InstanceSection({ onToast }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }}>
-        <Card><Stat label="Version" value="v0.9.2" caption="AGPL-3.0 · self-hosted" /></Card>
+        <Card><Stat label="Version" value="0.9.2" caption="AGPL-3.0 · self-hosted" /></Card>
         <Card><Stat label="Uptime" value="41d" caption="since last restart" /></Card>
         <Card><Stat label="Queue depth" value="12" caption="subjects waiting" /></Card>
       </div>
@@ -627,7 +627,7 @@ function InstanceSection({ onToast }) {
       <Card microLabel="Instance · release" title="Version & updates">
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <span style={{ font: "600 15px var(--font-mono)", color: "var(--text-ink)" }}>v0.9.2</span>
+            <span style={{ font: "600 15px var(--font-mono)", color: "var(--text-ink)" }}>0.9.2</span>
             <Badge tone="ok" dot>schema current</Badge>
           </div>
           {checksOn ? (
@@ -639,10 +639,10 @@ function InstanceSection({ onToast }) {
                   <span style={{ font: "400 12.5px/1.5 var(--font-ui)", color: "var(--text-body)" }}>Drift-batch memory fixes and a faster census. Verge never rewrites its own image — the swap is a host action. The exact steps:</span>
                 </span>
               </div>
-              <pre style={{ margin: 0, padding: "12px 14px", background: "var(--console-surface)", borderRadius: 12, font: "400 12px/1.7 var(--font-mono)", color: "var(--console-text)", overflowX: "auto" }}>{"# on the host — verge cannot rewrite its own image\ndocker compose pull\ndocker compose up -d web worker\ndocker compose exec web verge migrate status"}</pre>
+              <pre style={{ margin: 0, padding: "12px 14px", background: "var(--console-surface)", borderRadius: 12, font: "400 12px/1.7 var(--font-mono)", color: "var(--console-text)", overflowX: "auto" }}>{"# on the host — verge cannot rewrite its own image\ndocker compose pull\ndocker compose up -d web worker\ndocker compose ps web worker"}</pre>
             </div>
           ) : (
-            <span style={{ font: "400 12.5px var(--font-ui)", color: "var(--text-muted)" }}>Update checks are off — air-gap friendly; Verge never phones home while disabled. Compare v0.9.2 against the releases page when you choose.</span>
+            <span style={{ font: "400 12.5px var(--font-ui)", color: "var(--text-muted)" }}>Update checks are off — air-gap friendly; Verge never phones home while disabled. Compare 0.9.2 against the releases page when you choose.</span>
           )}
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <Button size="sm" variant="ghost" onClick={() => setChecksOn(!checksOn)}>{checksOn ? "Disable update checks" : "Enable update checks"}</Button>

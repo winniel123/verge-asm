@@ -1705,3 +1705,34 @@ func TestGraphFixtureMatchesPackage(t *testing.T) {
 		}
 	}
 }
+
+type fixtureInstanceReleasePackage struct {
+	Settings struct {
+		Instance struct {
+			Release struct {
+				Steps []string `json:"steps"`
+			} `json:"release"`
+		} `json:"instance"`
+	} `json:"settings"`
+}
+
+func TestUpdateHostStepsMatchDesignFixture(t *testing.T) {
+	raw, err := os.ReadFile("../../design-system/fixtures/fixtures.json")
+	if err != nil {
+		t.Fatalf("read fixtures.json: %v", err)
+	}
+	var f fixtureInstanceReleasePackage
+	if err := json.Unmarshal(raw, &f); err != nil {
+		t.Fatalf("parse fixtures.json: %v", err)
+	}
+	steps := f.Settings.Instance.Release.Steps
+
+	if len(steps) != len(updateHostSteps) {
+		t.Fatalf("step count drift: fixtures.json = %d, updateHostSteps = %d", len(steps), len(updateHostSteps))
+	}
+	for i, want := range steps {
+		if updateHostSteps[i] != want {
+			t.Errorf("step[%d] drift: fixtures.json = %q, updateHostSteps = %q", i, want, updateHostSteps[i])
+		}
+	}
+}

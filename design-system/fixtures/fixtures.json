@@ -3217,7 +3217,7 @@
       "empty": false,
       "org": "acmecorp",
       "generated": "2026-08-22T09:00:00Z",
-      "version": "v0.9.2",
+      "version": "0.9.2",
       "format": "pdf",
       "stats": [
         {
@@ -4177,7 +4177,7 @@
           "# on the host — verge cannot rewrite its own image",
           "docker compose pull",
           "docker compose up -d web worker",
-          "docker compose exec web verge migrate status"
+          "docker compose ps web worker"
         ]
       }
     },
