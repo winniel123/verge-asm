@@ -25,6 +25,16 @@ const notifyChannel = "queue_job"
 
 const chunkCommitSize = 500
 
+const DispatchStatusSkipped = "skipped"
+
+type SkipReason string
+
+const (
+	SkipNone           SkipReason = ""
+	SkipTickDispatched SkipReason = "tick-already-dispatched"
+	SkipCadenceLag     SkipReason = "cadence-lag"
+)
+
 type Dispatcher struct {
 	pool *pgxpool.Pool
 	q    *db.Queries
@@ -89,24 +99,24 @@ func (d *Dispatcher) dispatchDue(ctx context.Context) {
 			continue
 		}
 		tick := scheduledTick(d.now(), time.Duration(s.CadenceSeconds)*time.Second)
-		if _, err := d.fanOut(ctx, s, tick); err != nil {
+		if _, _, err := d.fanOut(ctx, s, tick); err != nil {
 			d.log.Printf("dispatcher: fan out %s: %v", s.Kind, err)
 		}
 	}
 }
 
-func (d *Dispatcher) Trigger(ctx context.Context, kind string) (int, error) {
+func (d *Dispatcher) Trigger(ctx context.Context, kind string) (int, SkipReason, error) {
 	s, err := d.q.GetScanByKind(ctx, kind)
 	if err != nil {
-		return 0, fmt.Errorf("queue: get scan %q: %w", kind, err)
+		return 0, SkipNone, fmt.Errorf("queue: get scan %q: %w", kind, err)
 	}
 	if !s.Enabled {
-		return 0, fmt.Errorf("queue: %s Scan is disabled — a manual run dispatches an enabled Scan, never a one-off (ADR-0044)", kind)
+		return 0, SkipNone, fmt.Errorf("queue: %s Scan is disabled — a manual run dispatches an enabled Scan, never a one-off (ADR-0044)", kind)
 	}
 	return d.fanOut(ctx, s, d.now().UTC().Truncate(time.Second))
 }
 
-func (d *Dispatcher) fanOut(ctx context.Context, s db.Scan, scheduledTime time.Time) (int, error) {
+func (d *Dispatcher) fanOut(ctx context.Context, s db.Scan, scheduledTime time.Time) (int, SkipReason, error) {
 	switch s.Kind {
 	case scan.HotKind, scan.ColdKind, scan.EdgeFanoutKind:
 		return d.fanOutStreamed(ctx, s, scheduledTime)
@@ -115,25 +125,25 @@ func (d *Dispatcher) fanOut(ctx context.Context, s db.Scan, scheduledTime time.T
 	}
 }
 
-func (d *Dispatcher) fanOutAtomic(ctx context.Context, s db.Scan, scheduledTime time.Time) (int, error) {
+func (d *Dispatcher) fanOutAtomic(ctx context.Context, s db.Scan, scheduledTime time.Time) (int, SkipReason, error) {
 	tx, err := d.pool.Begin(ctx)
 	if err != nil {
-		return 0, err
+		return 0, SkipNone, err
 	}
 	defer tx.Rollback(ctx)
 	qtx := d.q.WithTx(tx)
 
 	if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", s.ID); err != nil {
-		return 0, err
+		return 0, SkipNone, err
 	}
 
 	dispatchID, err := qtx.TryFanOut(ctx, db.TryFanOutParams{ScanID: s.ID, ScheduledTime: tstz(scheduledTime)})
 	if errors.Is(err, pgx.ErrNoRows) {
 		d.log.Printf("dispatcher: %s tick %s already dispatched, skipped", s.Kind, scheduledTime.Format(time.RFC3339))
-		return 0, tx.Commit(ctx)
+		return 0, SkipTickDispatched, tx.Commit(ctx)
 	}
 	if err != nil {
-		return 0, fmt.Errorf("queue: try fan out: %w", err)
+		return 0, SkipNone, fmt.Errorf("queue: try fan out: %w", err)
 	}
 
 	enqueued := 0
@@ -152,26 +162,26 @@ func (d *Dispatcher) fanOutAtomic(ctx context.Context, s db.Scan, scheduledTime 
 		enqueued, err = d.fanOutDNS(ctx, qtx, s.ID, dispatchID)
 	}
 	if err != nil {
-		return 0, err
+		return 0, SkipNone, err
 	}
 
 	if enqueued > 0 {
 		if _, err := tx.Exec(ctx, "SELECT pg_notify($1, '')", notifyChannel); err != nil {
-			return 0, err
+			return 0, SkipNone, err
 		}
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return 0, err
+		return 0, SkipNone, err
 	}
 	d.log.Printf("dispatcher: %s fanned out %d job(s) at %s", s.Kind, enqueued, scheduledTime.Format(time.RFC3339))
-	return enqueued, nil
+	return enqueued, SkipNone, nil
 }
 
-func (d *Dispatcher) fanOutStreamed(ctx context.Context, s db.Scan, scheduledTime time.Time) (int, error) {
+func (d *Dispatcher) fanOutStreamed(ctx context.Context, s db.Scan, scheduledTime time.Time) (int, SkipReason, error) {
 	// A crash between chunks under-covers the claimed tick; the currency surfaces report it (#847).
-	dispatchID, skipped, err := d.claimDispatch(ctx, s, scheduledTime)
-	if err != nil || skipped {
-		return 0, err
+	dispatchID, skip, err := d.claimDispatch(ctx, s, scheduledTime)
+	if err != nil || skip != SkipNone {
+		return 0, skip, err
 	}
 
 	var enqueued int
@@ -184,47 +194,45 @@ func (d *Dispatcher) fanOutStreamed(ctx context.Context, s db.Scan, scheduledTim
 		enqueued, err = d.fanOutEdgeFanout(ctx, s.ID, dispatchID)
 	}
 	if err != nil {
-		return enqueued, err
+		return enqueued, SkipNone, err
 	}
 	d.log.Printf("dispatcher: %s fanned out %d job(s) at %s", s.Kind, enqueued, scheduledTime.Format(time.RFC3339))
-	return enqueued, nil
+	return enqueued, SkipNone, nil
 }
 
-func (d *Dispatcher) claimDispatch(ctx context.Context, s db.Scan, scheduledTime time.Time) (dispatchID int64, skipped bool, err error) {
+func (d *Dispatcher) claimDispatch(ctx context.Context, s db.Scan, scheduledTime time.Time) (dispatchID int64, skip SkipReason, err error) {
 	tx, err := d.pool.Begin(ctx)
 	if err != nil {
-		return 0, false, err
+		return 0, SkipNone, err
 	}
 	defer tx.Rollback(ctx)
 	qtx := d.q.WithTx(tx)
 
 	if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", s.ID); err != nil {
-		return 0, false, err
+		return 0, SkipNone, err
 	}
 	id, err := qtx.TryFanOut(ctx, db.TryFanOutParams{ScanID: s.ID, ScheduledTime: tstz(scheduledTime)})
 	if errors.Is(err, pgx.ErrNoRows) {
 		d.log.Printf("dispatcher: %s tick %s already dispatched, skipped", s.Kind, scheduledTime.Format(time.RFC3339))
-		return 0, true, tx.Commit(ctx)
+		return 0, SkipTickDispatched, tx.Commit(ctx)
 	}
 	if err != nil {
-		return 0, false, fmt.Errorf("queue: try fan out: %w", err)
+		return 0, SkipNone, fmt.Errorf("queue: try fan out: %w", err)
 	}
 	// The lock ends at this commit, so a Trigger racing the cadence poll can still pass the gate.
-	if hotLagGateApplies(s.Kind) {
-		lagging, lerr := hotTickLags(ctx, qtx, s.ID, id, d.staleJobThreshold, d.log)
-		if lerr != nil {
-			return 0, false, fmt.Errorf("queue: hot cadence-lag gate: %w", lerr)
-		}
-		if lagging {
-			// A rollback leaves the window unclaimed and a later poll defers it (ADR-0137 §4).
-			d.log.Printf("dispatcher: %s tick %s overtakes an undrained dispatch, skipped", s.Kind, scheduledTime.Format(time.RFC3339))
-			return 0, true, tx.Commit(ctx)
-		}
+	gated, gerr := gateHotTick(ctx, qtx, s.Kind, s.ID, id, d.staleJobThreshold, d.log)
+	if gerr != nil {
+		return 0, SkipNone, gerr
+	}
+	if gated != SkipNone {
+		// A rollback leaves the window unclaimed and a later poll defers it (ADR-0137 §4).
+		d.log.Printf("dispatcher: %s tick %s overtakes an undrained dispatch, recorded skipped", s.Kind, scheduledTime.Format(time.RFC3339))
+		return 0, gated, tx.Commit(ctx)
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return 0, false, err
+		return 0, SkipNone, err
 	}
-	return id, false, nil
+	return id, SkipNone, nil
 }
 
 func streamEnqueue[J any](ctx context.Context, d *Dispatcher, jobs iter.Seq[J], enqueue func(context.Context, *db.Queries, J) error) (int, error) {
