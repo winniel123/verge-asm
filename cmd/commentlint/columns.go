@@ -6,10 +6,9 @@ import (
 	"sort"
 
 	"github.com/winniel123/verge-asm/internal/commentlint/rule"
-	"github.com/winniel123/verge-asm/internal/commentlint/surface"
 )
 
-const columnTag = "column-over-cap"
+const columnTag = rule.RuleColumnOverCap
 
 type overCap struct {
 	path    string
@@ -18,22 +17,15 @@ type overCap struct {
 	class   rule.Class
 }
 
-func overCapBlocks(path string, res surface.Result) []overCap {
+func overCapBlocks(path string, findings []rule.Finding) []overCap {
 	var out []overCap
-	scan := func(blocks []surface.Block) {
-		for _, b := range blocks {
-			if b.Columns <= rule.ColumnCap {
-				continue
-			}
-			c := rule.Classify(b)
-			if !rule.CapBinds(c) {
-				continue
-			}
-			out = append(out, overCap{path: path, line: b.StartLine, columns: b.Columns, class: c})
+	for _, f := range findings {
+		// The class is the one predicate, so the report reads it rather than repeating it (#1466).
+		if f.Rule != rule.RuleColumnOverCap {
+			continue
 		}
+		out = append(out, overCap{path: path, line: f.Line, columns: f.Columns, class: f.Class})
 	}
-	scan(res.Blocks)
-	scan(res.Trailing)
 	return out
 }
 

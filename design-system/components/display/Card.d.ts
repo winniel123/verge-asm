@@ -8,7 +8,10 @@ export interface CardProps {
   footer?: React.ReactNode;
   /** Default 20 */
   pad?: number;
-  /** Default: "visible" for padded cards, "hidden" when pad is 0 (flush tables need corner clipping) */
+  /**
+   * Default: "visible" for padded cards, "hidden" when pad is 0
+   * (flush tables need corner clipping)
+   */
   overflow?: "hidden" | "visible";
   style?: React.CSSProperties;
   children?: React.ReactNode;

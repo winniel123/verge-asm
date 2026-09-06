@@ -1,7 +1,10 @@
 import * as React from "react";
 export interface BarChartProps {
   data: number[];
-  /** Sparse axis labels — non-empty entries are distributed across the width (first flush left, last flush right) */
+  /**
+   * Sparse axis labels — non-empty entries are distributed across the width
+   * (first flush left, last flush right)
+   */
   labels?: string[];
   /** Bar area height px. Default 72 */
   height?: number;

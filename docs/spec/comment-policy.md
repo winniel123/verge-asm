@@ -645,6 +645,11 @@ and not an id. §6.6 states the predicate that decides it.
 annotations sat exactly there, and both went. The predicate in §6.6 is what draws the line, and it
 is a shape rather than a judgment.
 
+**The carve-out does not reach §4.4's column cap, and #1481 ruled that.** The carve-out withholds
+the delete ruling and constraint 1 from the class. It withholds nothing else. §4.4 rules that
+constraint 4 binds `dts-field-prose`, and that the repair is a JSDoc wrap and not a trim. A trim
+destroys the contract text this carve-out exists to protect.
+
 **The carve-out has an unruled `.mjs` twin, and §4.2 settles it.** A `@typedef` in a `.mjs` **is**
 the type declaration, not a comment about one, so the carve-out's premise reads as though it
 transferred. It does not. The carve-out rests on "a `.d.ts` has no implementation", and a `.mjs`
@@ -698,21 +703,20 @@ not a comment, whatever a line scanner reads.
 a `[]string`. No rule in this SPEC reaches one. That distinction made #1446 report four breaches
 where three existed.
 
-**The tree does not honour the cap, and the campaign is #1454.** An earlier version of this
+**The tree once did not honour the cap, and #1454 carried the campaign.** An earlier version of this
 constraint said Go comment lines in `cmd` and `internal` reach 93 characters at the maximum. That
 was false. Measured 2026-09-05 across the **844** in-scope files, under the measure above:
-**376 rule-shaped comment blocks hold a line over 100 columns**, against 469 before the four classes
-`flags()` already skips. By class: `citation` 287, `why-note` 83, `dts-field-prose` 5,
-`external-spec` 1. By position: 366 own-line and 10 trailing. **#1454** carries the repair campaign.
+**376 rule-shaped comment blocks held a line over 100 columns**, against 469 before the four classes
+`flags()` then skipped. By class: `citation` 287, `why-note` 83, `dts-field-prose` 5,
+`external-spec` 1. By position: 366 own-line and 10 trailing.
 
 **Map #1466 closed that population.** Its fifteen agent-ready tickets repaired all 367 Go blocks,
 plus 19 more that the flag could not see until its filter narrowed. **Every one was repaired by
 trimming the reason clause. No citation was dropped and no comment was deleted**, so ratchet rule 5
-never forced the §4.7 route the campaign was sized for. **Nine blocks remain**, all of #1481's
-non-Go tail: five `dts-field-prose`, `db/queries/measurement.sql:84`, and three `docs-site` files.
-Eight are ordinary comment edits, held only by #1481's two rulings and by `sqlc` being a required
-check. **One is not**: `ColumnPicker.d.ts:2` holds a whole `export interface` on one line, of which
-34 columns are field prose, so reaching 100 needs a declaration reformat.
+never forced the §4.7 route the campaign was sized for. **#1481 then closed the non-Go tail of
+nine**, which `--column-report` counted on `478ea6c`. Four `citation` blocks took a trim. Four
+`dts-field-prose` blocks took a JSDoc wrap. `ColumnPicker.d.ts` took a declaration reformat. The
+two rulings the map held open are stated below, and the population is now zero.
 
 **Reproduce the count, never re-derive it by hand.** A hand scan disagrees with every other hand
 scan, which is how #1446 first reported 378 and 471. Use `commentlint`'s own population. Walk the
@@ -721,8 +725,9 @@ tree with `scope.Classify`. Lex each file with `surface.For`. Classify each bloc
 `Block.EndLine` against the physical source line.
 
 **That walk once dropped four classes, and two of them belong in the count.** Dropping
-`step-narration` and `prose-other` as well yields the **376** figure this section reported, which is
-the *flaggable* population, not the capped one. The paragraph below states why the cap reaches both.
+`step-narration` and `prose-other` as well yields the **376** figure this section reported. That
+figure was the population every *other* rule could flag, and it was never the capped population.
+`column-over-cap` flags both classes. The paragraph below states why the cap reaches them.
 
 **That walk is now a flag, and no agent reruns it by hand.** #1482 gave `Block` a `Columns` field
 that every lexer populates, and `commentlint lint --column-report` prints one greppable line per
@@ -735,9 +740,16 @@ column-over-cap: <n> block(s) over 100 columns
 column-over-cap by class: <class> <n>
 ```
 
-The flag is off by default and it never changes the exit code. §6.2 records the seam. At `ca08e5a`
-it read **376** under `flags()`'s four-class filter — `citation` 287, `why-note` 83,
-`dts-field-prose` 5, `external-spec` 1 — reproducing #1454's hand-checked figure exactly.
+The flag is off by default. It adds no violation of its own, and it changes no exit code. §6.2
+records the seam. At `ca08e5a` it read **376** under `flags()`'s four-class filter — `citation` 287,
+`why-note` 83, `dts-field-prose` 5, `external-spec` 1 — reproducing #1454's hand-checked figure
+exactly.
+
+**`column-over-cap` is a lint class, and `commentlint lint` gates the cap.** #1482's second PR
+added the rule id after every repair ticket on #1466 closed. The class flags a block where
+`Block.Columns` is over 100 and `rule.CapBinds` keeps its class. It reads `res.Blocks` and
+`res.Trailing` alike, so a trailing comment answers for its whole physical line. §6.6 states where
+the check sits and why the position matters.
 
 **The flag drops two classes, not four, and the difference is not cosmetic.** It skips `directive`
 and `generated-header` only. Every §6.6 rule is a judgment, so ruling 12 rightly withholds
@@ -761,32 +773,52 @@ beside any figure you report** (§7.5 rule 10).
 148.
 
 **Two shapes resist repair by editing the comment at all.** A trailing comment shares its physical
-line with code, so the code sets the floor. `ColumnPicker.d.ts`'s `PickableColumn` holds a whole
-`export interface` on one line, and its field prose is 34 of the 123 columns. Reaching 100 there
-means reformatting the declaration, which is not a comment edit.
+line with code, so the code sets the floor. `ColumnPicker.d.ts`'s `PickableColumn` held a whole
+`export interface` on one line, and its field prose was 34 of the 123 columns.
 
-**Whether constraint 4 binds `dts-field-prose` at all is unruled.** §4.3 keeps that class because
-the field prose **is** the interface rather than a comment on code. Constraint 1 forbids stating
-behaviour, which is exactly what field prose exists to do. The five `.d.ts` blocks in the count wait
-on that ruling.
+**Ruling: where the code on the line sets the floor above 100, the code moves, and the reformat
+stays in the repair ticket.** The cap binds the physical line, not the comment text. A repair that
+the comment cannot reach is still a repair. #1481 made `PickableColumn` a five-line interface body
+and changed no word of its field prose. The reformat is safe on a `.d.ts`, because such a file
+declares types alone and no tool in this repo reads its layout. ADR-0145 retired the design-system
+handoff workflow, so the file is editable here. **Do not cut such a block into its own ticket.** A
+repair ticket that leaves one block open holds #1482's lint class unlandable. The reformat costs
+less than the hand-off.
 
-**`commentlint` does not enforce constraint 4, so a clean `lint` run is not evidence.** §7.7 names
-the cap and `lint` in one recipe, which reads as though the tool checked it. It does not.
-The calibration line above measured **101 characters** with `lint` reporting zero flags on the file
-(#1218, at `cmd/web/exclusions.go:103` before #1470 repaired it).
-**Count the leading tabs.** A comment three tabs deep has twelve fewer columns of room
-than one at column 0, so every trailing comment on an indented statement is at risk. §7.7 records
-why no rule class enforces it yet.
+**Ruling: constraint 4 binds `dts-field-prose`.** The cap is arithmetic over a physical line and
+needs no intent. That is the same reason it reaches `step-narration` and `prose-other`. §4.3's
+carve-out withholds the delete ruling and constraint 1 from the class. It withholds nothing else.
+`directive` and `generated-header` are exempt, because the tool owns their columns. No tool owns
+the columns of field prose. `rule.CapBinds` therefore keeps the class, and
+`TestCapBindsEveryClassTheToolDoesNotOwn` holds that.
 
-**Measure with `--column-report`, not by hand, and run it after `gofmt -w`.** The flag reports and
-does not gate, so a clean `lint` run still says nothing about constraint 4. #1482's second PR
-promotes the flag to a lint class once every repair ticket on #1454 closes; until then the flag is
-the only instrument, and a hand count is the failure #1446 recorded three times.
+**The repair for `dts-field-prose` is a JSDoc wrap, not a trim.** §4.3 keeps the class because the
+field prose **is** the contract a caller reads. A compression therefore destroys the thing the
+carve-out protects. Ratchet rule 5 forbids the wrap of a **cited** block. Field prose carries no
+citation, so the wrap route is open here and closed to `citation`. #1481 wrapped four field docs
+into `/**`, ` * ` and ` */` lines and changed no word. Trim a field doc only where the field name
+already carries the word you cut.
+
+**`commentlint` enforces constraint 4 since #1482, so a clean `lint` run is evidence.** It was not
+evidence for the whole campaign before that. The calibration line above measured **101 characters**
+with `lint` reporting zero flags on the file (#1218, at `cmd/web/exclusions.go:103` before #1470
+repaired it). That gap is closed.
+**Count the leading tabs anyway.** A comment three tabs deep has twelve fewer columns of room
+than one at column 0, so every trailing comment on an indented statement is at risk. The rule
+answers after the fact. It does not choose the wording for you.
+
+**Measure with `--column-report`, not by hand, and run it after `gofmt -w`.** A hand count is the
+failure #1446 recorded three times. The flag stays after the class landed. A plain `lint` line omits
+the column count and the class breakdown. A plain run answers whether the tree is clean. The flag
+answers by how much, and in which class.
 
 **The unit question reaches generated output as well as authored output.** SQL indents from column 0
 with spaces, so runes, bytes and columns coincide there, and the longest survivor in stage D2 is 97
 runes. A 100-rune `.sql` survivor still becomes **101 columns** once `sqlc` re-emits it into
 tab-indented `internal/db` (#1228). Measure a D2 survivor against its generated twin.
+`scope.Classify` drops `internal/db/`, so the flag never reports the twin, and the four columns are
+yours to leave free. #1481 sized `ReapStaleRunningJobs` to 95 columns in the query and 99 in
+`Querier` for that reason.
 
 **A trailing survivor is squeezed from both sides.** §3.5 ratchet rule 2 flags a `short-label`
 trailing or own-line, and §6.6 classifies a one-line block of 6 payload words or fewer as one.
@@ -1949,7 +1981,8 @@ testFile)` receives `Blocks`, `Trailing` and `Skeleton` and never the source, an
 the whole physical line. `Block.Columns` closes that gap: it is the widest physical line from
 `StartLine` to `EndLine`, counted in runes, with a tab worth `surface.TabColumns` (4). The width is
 a fact about the extract, so it belongs here rather than in a wider `Lint` signature, and the rule
-layer stays source-free (#1482).
+layer stays source-free (#1482). `flags()` reads `Block.Columns` for the `column-over-cap` class and
+reads no source.
 
 `assembleBlocks` populates it at the one `Block` construction site, so Go, SQL, CSS, `.mjs`, `.ts`
 and `.tmpl` all get it from one implementation, own-line and trailing alike. A joined line-comment
@@ -1977,8 +2010,10 @@ where a path with no known extension raised `UnsupportedError`, which §6.7 fold
 of #1466's agents hit that false clean. **A measuring tool's worst failure is a clean bill of
 health**, so an argument resolving to no in-scope file now exits 2 naming the path (#1466).
 
-**`--column-report`** is off by default. It adds no violation and never changes the exit code. §4.4
-states its output and what it is for.
+**`--column-report`** is off by default. It adds no violation of its own, and it changes no exit
+code. The `column-over-cap` class gates the cap on the default path, so an over-cap block exits 1
+with the flag and without it. The flag adds the column count and the class breakdown. §4.4 states
+its output and what it is for.
 
 **`strip`** prints the residue manifest and changes no file unless `--write` is given. The manifest
 is JSON Lines, one record per **declined** block: file, line span, class, and the screen signal that
@@ -2107,22 +2142,28 @@ v1, so this never reaches a delete.
 **Rule ids.** Where a rule maps to a taxonomy class, the id **is** the class name: `section-divider`,
 `commented-out-code`, `short-label`, `docstring-exported-conventional`, `dts-field-prose`. The
 ratchet-only ids are `go-decl-comment`, `change-narration`, `todo-marker` and
-`citation-over-one-line`. One vocabulary across
+`citation-over-one-line`. `column-over-cap` carries no class name either, and it is §4.4's
+constraint 4. One vocabulary across
 the survey, this SPEC, the manifest and the annotation is worth more than matching `doclint`'s `no-`
 prefix.
 
 Ruling 12 forbids a WHY heuristic. **No rule here guesses at intent.** Every rule is decided by a
 parser, a shape, or a word list.
 
-**§4.4's column cap is not a rule here, and that is why it reaches further than one.** Every rule
-above is a judgment, so `flags()` withholds `step-narration` and `prose-other` from all of them
-under ruling 12. The cap is arithmetic over a physical line, so it needs no intent and binds those
-two classes. `rule.CapBinds` is the predicate, and it drops `directive` and `generated-header`
+**§4.4's column cap is a rule here, and it reaches further than every other one.** Every other rule
+is a judgment, so `flags()` withholds `step-narration` and `prose-other` from all of them under
+ruling 12. The cap is arithmetic over a physical line, so it needs no intent and binds those two
+classes. `rule.CapBinds` is the predicate, and it drops `directive` and `generated-header`
 alone — a directive's columns belong to the tool that reads it, and §2.3 forbids splitting one.
+**`dts-field-prose` is bound, and §4.4 rules that.** §4.3's carve-out withholds the delete ruling
+from the class, not the cap. `column-over-cap` must flag a field doc over 100 columns.
 
-**A `column-over-cap` rule class is still not built.** #1482's second PR builds it once #1481
-closes. Until then §4.4's cap is measured by `lint --column-report` and gated by nothing, so a
-green `lint` remains no evidence about constraint 4 (#1466).
+**`column-over-cap` sits outside the judgment gate, and the position is the whole design.**
+#1482's second PR landed the class after #1481 closed. `flags()` tests `Block.Columns` against
+`ColumnCap` and `CapBinds` **before** the `Judged(c)` early return. A check after that return
+exempts `step-narration` and `prose-other`, which is the defect #1466 recorded twice.
+`TestColumnOverCapEscapesTheJudgmentGate` holds the order. A green `lint` is now evidence about
+constraint 4.
 
 ### 6.7 Output and exit codes
 
@@ -2342,6 +2383,15 @@ runs `commentlint lint` against the post-stage-B tree to get the real numbers.
    files.
 3. Never split a package across two tickets, unless the package alone exceeds a cap.
 4. Never merge two surface families into one ticket.
+
+**Rule 4 takes a waiver where no family can stand alone, and #1481 holds one.** The waiver is
+recorded here rather than granted in the ticket, so a later reader finds it beside the rule. The D3
+sweep's 20-file waiver is the precedent. #1481 repaired the non-Go tail of #1466's column-cap
+campaign: nine blocks over six directories in three families, SQL, `.d.ts` and JavaScript. The
+largest family held four blocks. A ticket per family costs three reviews to move nine lines, and it
+leaves #1482's lint class unlandable until the last of the three closes. **Grant this waiver only
+where the split buys no review value.** A family with a full ticket's worth of residue never
+qualifies.
 
 **Indicative sizing, measured before stage B.** Treat it as an order-of-magnitude guide.
 
@@ -2584,9 +2634,10 @@ classic.
 
 **Condition 2 does not prove conformance on its own.** `lint` flags only the mechanically-decidable
 classes. Condition 3 is the judgment gate. Delete-by-default makes a wrong delete visible in the
-diff and a wrong keep invisible. The reviewer therefore checks the keeps. `lint` also does not
-enforce §4.4's 100-column cap, so measure every survivor by hand with its indentation counted
-(§4.4).
+diff and a wrong keep invisible. The reviewer therefore checks the keeps. `lint` enforces
+§4.4's 100-column cap since #1482, so condition 2 covers every in-scope survivor and none needs a
+hand count. **`scope.Classify` drops `internal/db/`, so a generated twin stays unmeasured.** Size a
+`db/queries` survivor against that twin by hand, as §4.4 states.
 
 **Condition 2 names the surface it binds, because it does not bind them all the same way.**
 Measured 2026-09-05 over the 844 in-scope files `commentlint lint` walks at `ed0a5a5`.
@@ -2666,7 +2717,7 @@ a line on a second valid ground after the spec axis called the deletion an over-
 two gaps against a reviewer that had examined neither block. A review finding is evidence and never
 a verdict.
 
-**Ratchet rule 5 leaves a hole, so §4.4 cannot be delegated to `lint`.**
+**Ratchet rule 5 leaves a hole, so §4.4's one-reason-per-line discipline stays with the writer.**
 `RuleCitationOverOneLine` fires on class `Citation` alone. §6.6's classifier reaches `Citation`
 after the declaration-position classes and before `external-spec` and `why-note`, and matches
 `ADR-\d{4}|#\d+|§\s*\d|CONTEXT\.md`. **A two-line block whose wording trips `why-note` is never
@@ -2675,13 +2726,13 @@ a constructive reading, which §4.4 states: it is what makes a legitimate multi-
 legal. `internal/scan`'s `embeddedLogList` carries three uncited reasons on three lines and draws
 zero `lint` findings (#1189).
 
-**`lint` does not enforce §4.4's column cap either, and that is a decision rather than an
-oversight.** A `column-over-cap` rule class is buildable and is deliberately not built yet.
-Enabling it would turn a green `lint` red on **376** comment blocks across most of `cmd/` and
-`internal/`, and repairing the 287 `citation` blocks among them re-runs every §4.7 citation test.
-**That is a sweep, not a check.** #1454 carries the repair campaign, and the class lands after it.
-A gate enabled over an unrepaired tree proves nothing on its first green run. Until the class
-exists, condition 2 says nothing about the cap and §4.4 is measured by hand.
+**`lint` enforces §4.4's column cap since #1482, and the order of the work was the whole
+decision.** The class first would have turned a green `lint` red on **376** comment blocks across
+most of `cmd/` and `internal/`. Repairing the 287 `citation` blocks among them re-runs every §4.7
+citation test. **That is a sweep, not a check.** #1454 carried the repair campaign. #1482 shipped
+the instrument first, the fifteen tickets on #1466 ran, and the class landed on a tree already at
+zero. A gate enabled over an unrepaired tree proves nothing on its first green run. Condition 2
+now covers the cap.
 
 **Condition 4 has no mechanical check.** The ratchet provides none. §4.7 carries the four tests a
 citation must pass, and the measured false resolves. Neither a file-existence check nor a bare token
@@ -2695,7 +2746,8 @@ rather than from a sweep.** §4.7 tables them.
 **A citation repair re-runs §4.4's length check.** A repair lengthens the line, and the
 100-column cap binds after `gofmt`. Two of #1328's three repairs measured 110 and 103 runes
 naively and had to be reworded to 97 and 99. A ticket told to "change a pointer and nothing else"
-cannot honour that literally without landing a fresh §4.4 defect. Nothing mechanises the re-check.
+cannot honour that literally without landing a fresh §4.4 defect. `commentlint lint` mechanises the
+re-check since #1482, and the `column-over-cap` class reports it.
 
 **Condition 5 keeps a formatting hunk out of a sweep diff.** Five tracked Go files were unformatted
 on `origin/main` at `172bbc1`. #1188 deleted eight trailing labels whose alignment run had drifted a
@@ -3064,10 +3116,10 @@ behaviour" is gate B restated. "Does not open with an identifier name" is a docs
 already kill. The column cap was pruned on the ground that 25 words implies it and that the tree
 already wraps at 93.
 
-**That last ground is false, and the pruning survives it.** §4.4 measures 376 rule-shaped blocks
-over 100 columns, so 25 words does not imply the cap and the tree does not wrap at 93. The pruning
+**That last ground is false, and the pruning survives it.** §4.4 measured 376 rule-shaped blocks
+over 100 columns, so 25 words does not imply the cap and the tree did not wrap at 93. The pruning
 stands on the other half of the trade: the cap is a sweep-time repair discipline, and a line in
-`CLAUDE.md` would pay load every session for a rule no tool checks (§7.7).
+`CLAUDE.md` would pay load every session for a rule `commentlint lint` checks on every run (§7.7).
 
 ---
 
@@ -3084,8 +3136,9 @@ stands on the other half of the trade: the cap is a sweep-time repair discipline
 - **The ADRs on disk that no comment cites.** 35 of 134 are uncited by any in-scope comment, and 45
   are uncited by production Go alone. The sweep may show that some are dead. That is a docs question,
   and it may belong to a separate effort.
-- **A `column-over-cap` rule class for §4.4's constraint 4.** The class is buildable and the repair
-  campaign (#1454) blocks it. §7.7 states why the order is fixed.
+- **A `column-over-cap` rule class for §4.4's constraint 4. Closed by #1482.** The instrument
+  landed first, the fifteen repair tickets on #1466 ran, and the class landed last. §6.6 states
+  where the check sits. §7.7 states why the order was fixed.
 - **`.d.ts` field prose in `CLAUDE.md`.** §9.4 keeps the carve-out sweep-scoped. #1406 gave the class
   a `commentlint` id, which weakens the "new `.d.ts` files are close to never" argument slightly and
   does not overturn it.

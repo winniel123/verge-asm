@@ -8,7 +8,10 @@ export interface TableColumn {
   mono?: boolean;
   /** Custom cell renderer */
   render?: (row: any, index: number) => React.ReactNode;
-  /** false = no overflow clipping on this cell — required for floating children like DropdownMenu */
+  /**
+   * false = no overflow clipping on this cell — required for
+   * floating children like DropdownMenu
+   */
   clip?: boolean;
   /** Header click cycles asc \u2192 desc \u2192 off */
   sortable?: boolean;

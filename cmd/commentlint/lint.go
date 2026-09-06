@@ -58,11 +58,12 @@ func runLint(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintf(stderr, "commentlint lint: %s: %v\n", p, err)
 			continue
 		}
-		for _, f := range rule.Lint(res, strings.HasSuffix(p, "_test.go")) {
+		findings := rule.Lint(res, strings.HasSuffix(p, "_test.go"))
+		for _, f := range findings {
 			found = append(found, violation{path: p, Finding: f})
 		}
 		if *columnReport {
-			overs = append(overs, overCapBlocks(p, res)...)
+			overs = append(overs, overCapBlocks(p, findings)...)
 		}
 	}
 
