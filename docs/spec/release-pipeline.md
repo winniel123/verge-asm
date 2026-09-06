@@ -935,7 +935,7 @@ documents and the Trivy scan asset set
 | # | Asset | Origin |
 | --- | --- | --- |
 | 1 | `docker-compose.yml` | **generated**. The workflow substitutes this release's image digests into the repository file (§2.4). |
-| 2 | `.env.example` | copied verbatim from the tagged tree |
+| 2 | `env.example` | copied verbatim from the tagged tree's `.env.example` |
 | 3 | `docker-compose.external-db.yml` | copied verbatim from the tagged tree |
 | 4 | `SHA256SUMS` | over items 1 to 3 and the eight §6.1 SBOM documents |
 | 5 | `SHA256SUMS.sigstore.json` | `cosign sign-blob --bundle` (§7.4) |
@@ -946,7 +946,11 @@ documents and the Trivy scan asset set
 
 The three loose files together are the smallest set that installs the instance with no `git clone`.
 `docker-compose.yml`'s `web` service uses `${POSTGRES_PASSWORD:?}`, and `.env.example` is the only
-file that documents the keys. The external-db mode is documented and supported in
+file that documents the keys. **The asset drops the dot.** GitHub rewrites a Release asset whose
+name begins with `.`, so `v0.1.2` shipped `default.env.example` against a `SHA256SUMS` naming
+`.env.example`, and `sha256sum -c` failed that line on a correct release
+([#1536](https://github.com/winniel123/verge-asm/issues/1536)). The repository keeps
+`.env.example`. The external-db mode is documented and supported in
 `docs/guides/running.md`, so it is not an edge case.
 
 Only item 1 is generated. Items 2 and 3 are copies taken from the tag the workflow builds, so they

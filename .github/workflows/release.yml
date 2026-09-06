@@ -841,10 +841,16 @@ jobs:
       # §9.1 items 2 and 3, taken from the tagged tree, so neither can drift by
       # hand. The compose file uses `${POSTGRES_PASSWORD:?}` and `.env.example`
       # is the only file that documents the keys (§9.1).
+      #
+      # The dot is dropped for the asset only. GitHub rewrites a Release asset
+      # whose name begins with `.`, so v0.1.2 shipped `default.env.example`
+      # against a SHA256SUMS naming `.env.example`, and `sha256sum -c` failed
+      # that line on a correct release (#1536). The repository keeps its
+      # `.env.example`.
       - name: Copy the two verbatim loose assets
         run: |
           set -euo pipefail
-          cp .env.example assets/.env.example
+          cp .env.example assets/env.example
           cp docker-compose.external-db.yml assets/docker-compose.external-db.yml
 
       # `scan` is a four-leg matrix, so its reports arrive as four artifacts.
@@ -873,7 +879,7 @@ jobs:
           cd assets
           sha256sum \
             docker-compose.yml \
-            .env.example \
+            env.example \
             docker-compose.external-db.yml \
             web-linux-amd64.spdx.json \
             web-linux-amd64.cdx.json \
@@ -922,7 +928,7 @@ jobs:
           # is otherwise invisible until an operator's verify fails.
           for name in \
             docker-compose.yml \
-            .env.example \
+            env.example \
             docker-compose.external-db.yml \
             SHA256SUMS \
             SHA256SUMS.sigstore.json \
@@ -945,8 +951,9 @@ jobs:
       # `contents: write`, so the two never share a job. This hop is that
       # split's whole cost (§4.2, §9).
       #
-      # `include-hidden-files` is required. The action drops a dotfile by
-      # default, and `.env.example` is §9.1 item 2.
+      # `include-hidden-files` is belt. No asset is a dotfile since #1536 named
+      # the env sample `env.example`, but the action drops a dotfile silently
+      # and `if-no-files-found: error` only fires on an empty match.
       - name: Hand the Release assets to the release job
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -1082,7 +1089,7 @@ jobs:
           missing=0
           for name in \
             docker-compose.yml \
-            .env.example \
+            env.example \
             docker-compose.external-db.yml \
             SHA256SUMS \
             SHA256SUMS.sigstore.json \
@@ -1112,9 +1119,8 @@ jobs:
       # trigger guarantees the tag exists, so this only ever attaches a Release
       # to the pushed tag (§4.1, §10.1).
       #
-      # The assets are named one by one rather than globbed. A glob drops
-      # `.env.example`, which is §9.1 item 2, and it would sweep in the four
-      # SARIF documents the ruling above keeps off the Release.
+      # The assets are named one by one rather than globbed. A glob would sweep
+      # in the four SARIF documents the ruling above keeps off the Release.
       - name: Create the GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -1126,7 +1132,7 @@ jobs:
             --title "$TAG" \
             --notes-file "${RUNNER_TEMP}/release-body.md" \
             assets/docker-compose.yml \
-            assets/.env.example \
+            assets/env.example \
             assets/docker-compose.external-db.yml \
             assets/SHA256SUMS \
             assets/SHA256SUMS.sigstore.json \
