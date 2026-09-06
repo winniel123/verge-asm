@@ -37,24 +37,28 @@ func runLintOut(t *testing.T, args ...string) (string, int) {
 	return stdout.String(), code
 }
 
-func TestLintDefaultPathReportsNoColumns(t *testing.T) {
-	out, code := runLintOut(t, columnSampleFile(t))
-	if code != 0 {
-		t.Errorf("got exit %d, want 0", code)
+func TestLintDefaultPathFlagsTheOverCapBlockAndPrintsNoReport(t *testing.T) {
+	path := columnSampleFile(t)
+	out, code := runLintOut(t, path)
+	if code != 1 {
+		t.Errorf("got exit %d, want 1: the cap is a lint class now", code)
 	}
-	if strings.Contains(out, columnTag) {
+	if !strings.Contains(out, path+":4 -> "+columnTag) {
+		t.Errorf("got %q, want the over-cap block flagged", out)
+	}
+	if !strings.Contains(out, "1 violation(s)") {
+		t.Errorf("got %q, want one violation", out)
+	}
+	if strings.Contains(out, columnTag+": 1 block(s)") {
 		t.Errorf("the default path printed a column report:\n%s", out)
-	}
-	if !strings.Contains(out, "0 violation(s)") {
-		t.Errorf("got %q, want zero violations", out)
 	}
 }
 
 func TestLintColumnReportNamesTheOverCapBlock(t *testing.T) {
 	path := columnSampleFile(t)
 	out, code := runLintOut(t, "-column-report", path)
-	if code != 0 {
-		t.Errorf("got exit %d, want 0: the report never changes the exit code", code)
+	if code != 1 {
+		t.Errorf("got exit %d, want 1: the class flags the block, and the flag adds nothing", code)
 	}
 	want := columnTag + " " + path + ":4 112 why-note"
 	if !strings.Contains(out, want) {
@@ -65,6 +69,15 @@ func TestLintColumnReportNamesTheOverCapBlock(t *testing.T) {
 	}
 	if !strings.Contains(out, columnTag+" by class: why-note 1") {
 		t.Errorf("got %q, want a class breakdown", out)
+	}
+}
+
+func TestLintColumnReportChangesNoExitCode(t *testing.T) {
+	path := columnSampleFile(t)
+	_, plain := runLintOut(t, path)
+	_, reported := runLintOut(t, "-column-report", path)
+	if plain != reported {
+		t.Errorf("got exit %d reported and %d plain, want the same: the flag reports and never gates", reported, plain)
 	}
 }
 
@@ -96,8 +109,8 @@ func TestLintColumnReportNamesAnUnjudgedClass(t *testing.T) {
 		t.Fatalf("write: %v", err)
 	}
 	out, code := runLintOut(t, "-column-report", path)
-	if code != 0 {
-		t.Errorf("got exit %d, want 0", code)
+	if code != 1 {
+		t.Errorf("got exit %d, want 1", code)
 	}
 	if !strings.Contains(out, "106 prose-other") {
 		t.Errorf("got %q, want the prose-other block named: the cap binds a class no rule judges", out)
@@ -110,8 +123,8 @@ func TestLintWalksADirectoryArgument(t *testing.T) {
 		t.Fatalf("write: %v", err)
 	}
 	out, code := runLintOut(t, "-column-report", dir)
-	if code != 0 {
-		t.Errorf("got exit %d, want 0", code)
+	if code != 1 {
+		t.Errorf("got exit %d, want 1", code)
 	}
 	if !strings.Contains(out, "across 1 file(s)") {
 		t.Errorf("got %q, want the directory walked: lexing one as a file reported a false zero", out)

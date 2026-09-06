@@ -9,7 +9,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/commentlint/surface"
 )
 
-const columnTag = "column-over-cap"
+const columnTag = rule.RuleColumnOverCap
 
 type overCap struct {
 	path    string

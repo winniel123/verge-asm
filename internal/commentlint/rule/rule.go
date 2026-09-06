@@ -40,6 +40,7 @@ const (
 	RuleChangeNarration     = "change-narration"
 	RuleTodoMarker          = "todo-marker"
 	RuleCitationOverOneLine = "citation-over-one-line"
+	RuleColumnOverCap       = "column-over-cap"
 )
 
 const shortLabelWords = 6
@@ -173,13 +174,16 @@ func CapBinds(c Class) bool {
 
 func flags(b surface.Block, trailing, testFile bool) []Finding {
 	c := Classify(b)
-	if !Judged(c) {
-		return nil
-	}
-
 	var out []Finding
 	add := func(id string) {
 		out = append(out, Finding{Line: b.StartLine, Rule: id, Class: c})
+	}
+	// The cap counts columns, so ruling 12 withholds no class from it (SPEC §4.4, #1482).
+	if b.Columns > ColumnCap && CapBinds(c) {
+		add(RuleColumnOverCap)
+	}
+	if !Judged(c) {
+		return out
 	}
 	// Ratchet rule 2 is the only rule that reaches a trailing comment, and only short-label (§3.5).
 	if deleteSet[c] && (!trailing || c == ShortLabel) {
