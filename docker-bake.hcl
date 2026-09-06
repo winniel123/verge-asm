@@ -19,6 +19,16 @@ target "_common" {
     VERGE_VERSION = ""
   }
 
+  # Empty here, because all three values are release-time. The release job appends
+  # revision, version and created. Named rather than left implicit, so a reader of
+  # either file sees the seam, the way `args` above does (release-pipeline.md §2.3,
+  # #1529).
+  #
+  # These are the annotations §2.3 owes for rejecting `docker/metadata-action`. They
+  # are set here and never at `imagetools create`: annotating there writes a new
+  # index, and `publish` signs the digest this build emits (§2.3, §20 item 8).
+  annotations = []
+
   # BuildKit defaults provenance on at mode=min, so silence would give each image a
   # second provenance predicate and break the six-signature model (§2.3).
   #

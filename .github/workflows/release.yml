@@ -234,6 +234,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # `created` has no expression form, and the two `github` values are stable
+      # for the run, so all three annotation values are resolved in one place.
+      - name: Resolve the annotation values
+        id: annot
+        env:
+          VERSION: ${{ needs.guard.outputs.version }}
+          REVISION: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          {
+            echo "revision=${REVISION}"
+            echo "version=${VERSION}"
+            echo "created=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Bake both targets and push by digest
         id: bake
         uses: docker/bake-action@d3418bd7d0e9324001bca92fa8ba175ea7e6dc9b # v7.3.0
@@ -256,9 +271,17 @@ jobs:
           #
           # A release that does not override VERGE_VERSION ships unstamped images
           # that report the operator's `dev` (§2.3, §3).
+          #
+          # `index,manifest:` writes each annotation at both levels. §6 sends an
+          # operator to a platform digest, and an index-only annotation is invisible
+          # from there. Repeating `*.annotations` appends rather than replaces,
+          # measured on buildx 0.30.1 (§2.3, #1529).
           set: |
             *.tags=
             *.args.VERGE_VERSION=${{ needs.guard.outputs.version }}
+            *.annotations=index,manifest:org.opencontainers.image.revision=${{ steps.annot.outputs.revision }}
+            *.annotations=index,manifest:org.opencontainers.image.version=${{ steps.annot.outputs.version }}
+            *.annotations=index,manifest:org.opencontainers.image.created=${{ steps.annot.outputs.created }}
             web.output=type=image,name=${{ env.IMAGE_BASE }}/web,push-by-digest=true,name-canonical=true,push=true
             worker.output=type=image,name=${{ env.IMAGE_BASE }}/worker,push-by-digest=true,name-canonical=true,push=true
 
@@ -287,6 +310,46 @@ jobs:
               echo "- ${IMAGE_BASE}/${image} linux/${arch} is ${digest}" >> "$GITHUB_STEP_SUMMARY"
             done
           done
+
+      # The pushed bytes, not the bake plan. `--print` would prove only that the
+      # override parsed. §2.3 says this project owns these three annotations'
+      # correctness, and a wrong or missing one is invisible everywhere else.
+      - name: Assert the three OCI annotations landed
+        env:
+          REVISION: ${{ steps.annot.outputs.revision }}
+          VERSION: ${{ steps.annot.outputs.version }}
+          CREATED: ${{ steps.annot.outputs.created }}
+          WEB_INDEX: ${{ steps.digests.outputs.web-index }}
+          WORKER_INDEX: ${{ steps.digests.outputs.worker-index }}
+        run: |
+          set -euo pipefail
+          status=0
+          check() {
+            ref="$1"
+            raw=$(docker buildx imagetools inspect "$ref" --raw)
+            for pair in "revision=${REVISION}" "version=${VERSION}" "created=${CREATED}"; do
+              key="org.opencontainers.image.${pair%%=*}"
+              want="${pair#*=}"
+              got=$(printf '%s' "$raw" | jq -r --arg k "$key" '.annotations[$k] // ""')
+              if [ "$got" != "$want" ]; then
+                echo "::error::${ref} has ${key}='${got}', want '${want}'"
+                status=1
+              fi
+            done
+          }
+          for pair in "web:${WEB_INDEX}" "worker:${WORKER_INDEX}"; do
+            image="${IMAGE_BASE}/${pair%%:*}"
+            index="${pair#*:}"
+            # The index, then each child. `index,manifest:` writes both levels, and
+            # an operator sent to a platform digest by §6 reads only the child.
+            check "${image}@${index}"
+            children=$(docker buildx imagetools inspect "${image}@${index}" --raw \
+              | jq -r '(.manifests // []) | map(select(.platform.os == "linux")) | .[].digest')
+            for child in $children; do
+              check "${image}@${child}"
+            done
+          done
+          exit "$status"
 
       # The runtime image carries no shell and the binary carries no version flag,
       # so the boot check's "ignored: this build is stamped" line is the only
