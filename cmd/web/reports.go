@@ -113,16 +113,10 @@ func resolveReportsWindow(r *http.Request) reportsWindow {
 	return reportsWindow{Token: p.Token, Label: p.Label, Weeks: p.Weeks}
 }
 
-func (s *server) openSignalsCount(r *http.Request) (count int, ok bool) {
-	corpus, err := s.buildSignalCorpus(r)
-	if err != nil {
-		log.Printf("web: reports: build signal corpus: %v", err)
-		return 0, false
-	}
-	for _, c := range signal.EvaluateCorpus(corpus) {
-		count += len(c.Fired)
-	}
-	return count, true
+func (s *server) openSignalsCount(r *http.Request) (int, bool) {
+	// The page prints this same figure, so one census answers both surfaces (ADR-0177 §5, #1425).
+	open, _, _, ok := s.reportsSignalCensus(r)
+	return open, ok
 }
 
 // Bucket widths follow the scans-per-day grid, so a series column lines up with a heat cell.
