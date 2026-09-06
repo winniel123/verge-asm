@@ -73,11 +73,17 @@ const (
 	backupFormatVersion = 1
 )
 
-// These two are reversible cleartext and the other write-only columns are not (ADR-0160 §1, #1367).
+// Reversible cleartext is redacted and a write-only hash is not (ADR-0160 §1, #1367).
 
-var backupRedactedColumns = map[string][]string{
-	"channel":      {"secret"},
-	"sso_provider": {"client_secret"},
+var backupRedactedColumns = map[string]map[string]json.RawMessage{
+	// A restore rotates the key that opens the TOTP secret, so the archive drops it (#1419).
+	"account": {
+		"totp_secret": json.RawMessage("null"),
+		// The column is NOT NULL, and a true here strands the login at a factor nothing verifies.
+		"totp_enabled": json.RawMessage("false"),
+	},
+	"channel":      {"secret": json.RawMessage("null")},
+	"sso_provider": {"client_secret": json.RawMessage("null")},
 }
 
 func redactBackupRow(table string, data []byte) ([]byte, error) {
@@ -89,9 +95,9 @@ func redactBackupRow(table string, data []byte) ([]byte, error) {
 	if err := json.Unmarshal(data, &obj); err != nil {
 		return nil, err
 	}
-	for _, c := range cols {
+	for c, v := range cols {
 		if _, ok := obj[c]; ok {
-			obj[c] = json.RawMessage("null")
+			obj[c] = v
 		}
 	}
 	// The re-marshal may reorder keys, which jsonb_populate_record on restore ignores.

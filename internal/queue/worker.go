@@ -40,7 +40,7 @@ func (p ExecProber) Probe(ctx context.Context, spec wire.JobSpec) (wire.ProbeRes
 
 	cmd := exec.CommandContext(ctx, p.Path) // #nosec G204 (Path is operator-configured; no argv args, spec via stdin per ADR-0001 — no tainted input)
 	cmd.Stdin = &stdin
-	// Even a local prober is untrusted for this bound: uncapped stdout can OOM the worker (#772).
+	// Even a local prober is untrusted for this bound: uncapped stdout can OOM the worker.
 	stdout := wire.NewLimitedBuffer(wire.MaxProberStdout)
 	var stderr bytes.Buffer
 	cmd.Stdout = stdout
@@ -112,9 +112,11 @@ type Worker struct {
 
 	ctSource scan.CTSource
 
-	ctTailFetcher CTFetcher
+	ctTailFetcher  CTFetcher
+	ctTailThrottle CTThrottle
 
-	ctVerifyFetcher CTFetcher
+	ctVerifyFetcher  CTFetcher
+	ctVerifyThrottle CTThrottle
 
 	router VantageRouter
 
@@ -367,7 +369,7 @@ func markRetried(ctx context.Context, qtx *db.Queries, jobID int64) error {
 
 func (w *Worker) runJobTx(ctx context.Context, jobID int64, fn func(*db.Queries) error) error {
 	err := w.inTx(ctx, fn)
-	// The cancellation recorded the job's terminal state, so nothing more is owed or logged.
+	// The cancellation recorded the job's terminal state, so nothing more is owed (ADR-0164 §3).
 	if errors.Is(err, errJobCanceled) {
 		w.log.Printf("worker: job %d canceled mid-flight; uncommitted work discarded", jobID)
 		return nil
@@ -376,7 +378,7 @@ func (w *Worker) runJobTx(ctx context.Context, jobID int64, fn func(*db.Queries)
 }
 
 func (w *Worker) complete(ctx context.Context, job db.ClaimJobRow, res wire.ProbeResult) error {
-	// A prober names any subject, so a line outside the job's authorised scope is dropped (#773).
+	// A prober names any subject, so a line outside the job's scope is dropped (ADR-0217).
 	obs := parseAuthorizedScope(job.AttemptedScope).gate(res.Observations, w.log, job.ID)
 	// The outcome, its observations and raw output must commit together (raw-job-output.md §2.4).
 	if err := w.runJobTx(ctx, job.ID, func(qtx *db.Queries) error {

@@ -108,7 +108,7 @@ func ParseCrtshRows(body []byte) ([]CrtshRow, error) {
 	return rows, nil
 }
 
-// A hostile answer could mint unbounded admitted_name rows, a durable DB-bloat DoS (#741).
+// A hostile answer could mint unbounded admitted_name rows, a durable DB-bloat DoS.
 
 const MaxAdmittedNames = 100_000
 
@@ -119,7 +119,7 @@ func AdmittedNames(rows []CrtshRow, domain string) []string {
 }
 
 func crtshCandidates(rows []CrtshRow) iter.Seq[string] {
-	// A hostile multi-megabyte name_value is walked element by element, never held whole (#741).
+	// A hostile multi-megabyte name_value is walked element by element, never held whole.
 	return func(yield func(string) bool) {
 		for _, r := range rows {
 			for line := range strings.SplitSeq(r.NameValue, "\n") {

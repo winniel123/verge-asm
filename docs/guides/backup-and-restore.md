@@ -17,7 +17,9 @@ There are **two** ways to take a backup, and they answer different needs:
   its configuration, and a guided restore, with **no shell**. It excludes the
   session-minting keys (they regenerate on restore), and it **redacts** the two cleartext
   credentials the database holds — the SSO client secret and the channel webhook secret.
-  It is still **not** "zero secrets": password hashes, TOTP secrets and API-token hashes
+  It also **drops the second factor**, so a restored operator lands unenrolled and enrols
+  again.
+  It is still **not** "zero secrets": password hashes and API-token hashes
   ride with their rows, so the file deserves care. This is the first-class
   way to carry the estate to another host. It is documented first, below.
 - **Host-level `pg_dump`** — a full logical dump of the whole database on the host,
@@ -80,22 +82,27 @@ a live foothold:
   explicit table allowlist, so a future table is never swept in by a "dump everything"
   default.
 
-Two per-row credentials the database holds in **cleartext** are **redacted** out of the
-archive, and each is written as a JSON `null`
+Three account and configuration columns are **redacted** out of the archive
 ([ADR-0160](../adr/0160-a-backup-redacts-a-reversible-cleartext-credential-and-carries-a-hash-or-an-externally-keyed-ciphertext-and-restore-re-applies-the-same-redaction.md)):
 
 | Column | What it is | What a restore does |
 | --- | --- | --- |
 | `sso_provider.client_secret` | the OAuth confidential-client secret | lands empty — re-enter it on **Settings → Single sign-on** |
 | `channel.secret` | the webhook signing secret | lands empty — re-enter it on **Settings → Channels** |
+| `account.totp_secret` | the two-factor seed | lands empty, and `totp_enabled` lands false — enrol again on **Profile** |
+
+The first two grounds differ from the third. The two secrets are **cleartext**, and a
+reader of the archive would recover each one. The two-factor seed is ciphertext, and no
+reader opens it. A restore rotates the very key that opens it, so the archive drops the
+factor rather than restore a seed the instance cannot read
+([#1419](https://github.com/winniel123/verge-asm/issues/1419)).
 
 A restore **re-applies** the same redaction, so an archive taken before this rule landed
-cannot write either value back either. Neither value can be read out of a backup file, in
-either direction.
+cannot write any of the three values back either.
 
 One honest caveat: the archive is still **not** "zero secrets." The write-only values the
-database already holds — password hashes, TOTP secrets and API-token hashes — ride with
-their rows, because a restore must reconstitute login and tokens. None of the three is
+database already holds — password hashes and API-token hashes — ride with
+their rows, because a restore must reconstitute login and tokens. Neither is
 reversible from the file, but a weak password is still guessable offline from its hash, so
 **treat a backup file with the same care you treat access to `pgdata`.**
 
@@ -148,6 +155,11 @@ Restore is deliberately **guarded**, because it **overwrites** the estate. On
      channel's webhook secret on **Settings → Channels**. Until you do, the SSO token exchange and
      the signature on an outgoing message are not configured. Plan this step **before**
      you restore.
+   - **Two-factor authentication lands off for every account.** The restored instance
+     asks for a password alone, and each operator enrols again on **Profile**. The
+     recovery codes go with it, because the archive never carried them. Your instance
+     runs on one factor until each operator enrols. Treat that window as the cost of the
+     restore, and close it first.
 
    Token **Last used** never regresses across a restore — it rides in the backup data.
 

@@ -75,7 +75,7 @@ type NetHandshaker struct {
 }
 
 func (n NetHandshaker) Handshake(ctx context.Context, target netip.AddrPort) Result {
-	// Reusing connectoutcome's dial whole is what brings the egress guard along (#743).
+	// Reusing connectoutcome's dial whole is what brings the egress guard along.
 	h := n.inner
 	if h == nil {
 		h = co.NetHandshaker{Timeout: n.Timeout}

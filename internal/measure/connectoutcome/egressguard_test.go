@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// 169.254.169.254 is the cloud metadata endpoint, the SSRF target the guard refuses (#743).
+// 169.254.169.254 is the cloud metadata endpoint, the SSRF target the guard refuses (ADR-0079).
 
 var nonGlobalTargets = []netip.AddrPort{
 	netip.MustParseAddrPort("169.254.169.254:80"),
@@ -18,7 +18,7 @@ var nonGlobalTargets = []netip.AddrPort{
 
 func TestNetConnectorGuardRefusesNonGlobal(t *testing.T) {
 	c := NetConnector{Timeout: 2 * time.Second}
-	// A socket-level backstop: no SYN leaves the host even where upstream validation fails (#743).
+	// A socket-level backstop: no SYN leaves the host even where upstream validation fails.
 	for _, target := range nonGlobalTargets {
 		start := time.Now()
 		got := c.Connect(context.Background(), target)

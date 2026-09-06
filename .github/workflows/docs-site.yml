@@ -93,6 +93,12 @@ jobs:
       - name: Broken-link gate tests
         run: node --test scripts/check-links.test.mjs
 
+      # Pins refForVersion against refForDocsVersion on a FIXTURE tag list. The repo
+      # carries no `v*` tag, so a git-backed assertion about the pair passes whatever
+      # they return (#1402).
+      - name: Version-ref resolution tests
+        run: node --test scripts/version-ref.test.mjs
+
       # GATE 1 — broken internal links/anchors, one pass per published version. Exits
       # non-zero with `[version] file:line -> target` on any dead link; fails the job.
       - name: Broken-link gate
