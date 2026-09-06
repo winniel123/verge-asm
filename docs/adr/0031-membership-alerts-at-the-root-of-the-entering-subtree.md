@@ -16,7 +16,7 @@ exactly where ADR-0006 left it, which is unstated. Three later decisions then le
 - ADR-0014: an opening caused by neither the world nor our aperture is *"recorded, unnamed and
   unalerted — **the subject's own membership transition already carried that news, at the
   cause**"*.
-- [ADR-0029](./0029-an-alert-fires-on-a-leg.md) §4: the worse readings of an internet
+- [ADR-0029](./0029-an-alert-fires-on-a-leg.md): the worse readings of an internet
   `reached` → `not-reached` are each carried elsewhere, one of them being *"a service moving
   address, which is a `Service` `appeared` beside it"*.
 - ADR-0029's forcing correction lists **membership drift** among the four things that keep a
@@ -86,7 +86,7 @@ direction**, and a message announcing one would be ADR-0007's second representat
 fact.
 
 **3. The message carries the census of every value the entry started.** This is
-ADR-0029 §7's payload shape with a second producer, and for the identical reason: everything
+ADR-0029's payload shape with a second producer, and for the identical reason: everything
 beneath an entering subject *opens*, nothing compares, and a bare count cannot tell the operator
 whether to get out of bed. It is computed once at the cause, is a description and never a
 `Transition`, and carries no difference set.
@@ -247,7 +247,7 @@ stay where ADR-0007 put them, in the notification patch.
   `Reach` move and never a membership event. `Reach` states
   that a leg **opening** at `reached` emits no `Transition` and is carried by the entering
   subject's membership message and its census, never by the flagship predicate.
-- **ADR-0029 §4 and its Context bullet are corrected**, and its stated cost survives with a
+- **ADR-0029 and its Context bullet are corrected**, and its stated cost survives with a
   stronger reason: an internal port opening is not covered by membership, and now it could not
   be, because `Service` membership is never a message at all.
 - **ADR-0014's *"the subject's own membership transition already carried that news, at the
@@ -263,7 +263,7 @@ stay where ADR-0007 put them, in the notification patch.
   predicate, the `Exposure` projection and all ten signal rules are transition-shaped and none
   of them matches an opening. Any surface or channel that drops the census drops the product's
   headline event on everything new.
-- **One payload shape, two producers.** ADR-0029 §7's census-at-the-cause now serves an aperture
+- **One payload shape, two producers.** ADR-0029's census-at-the-cause now serves an aperture
   widening and a membership entry, which are the two ways a burst of openings arrives. A third
   would be a signal that the shape is right.
 - **[#55](https://github.com/winniel123/verge-asm/issues/55) composes rather than colliding.**

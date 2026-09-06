@@ -127,7 +127,7 @@ not move the decision.
 ### The guard cannot see the tokens it would have to exempt
 
 `RenderArtifactPDF` builds the drawn page and the guarded text from one ordered sequence
-(`artifactPDFItems`), which is ADR-0114 §1's own anti-drift mechanism. The guarded projection drops the
+(`artifactPDFItems`), which is ADR-0114's own anti-drift mechanism. The guarded projection drops the
 ramp label at both roles:
 
 ```go
@@ -159,7 +159,7 @@ skip it justifies is a string-equality skip on `artifactSeverityTitle` — `"Ope
 
 ### What ADR-0114 says instead
 
-[ADR-0114](./0114-the-report-pdf-is-rendered-in-process-from-the-artifact-not-from-html.md) §2 states:
+[ADR-0114](./0114-the-report-pdf-is-rendered-in-process-from-the-artifact-not-from-html.md) states:
 
 > **The print form keeps the domain guarantees.** No valence word grades the copy, and no severity
 > ramp appears — tone selects a colour only, never text (the drift palette and the delta tone), the
@@ -234,7 +234,7 @@ the code marks both elements `data-sev="title"` and `data-sev="header"` (`render
 and why `pdf_test.go:83` skips one of them by string equality. The word list is what is wrong, not the
 copy.
 
-### 5. ADR-0114 §2's ramp sentence is withdrawn at its own site
+### 5. ADR-0114's ramp sentence is withdrawn at its own site
 
 Per [ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md), the
 withdrawal is written at the sentence that specifies the mechanism, in the same change, with a
@@ -250,9 +250,9 @@ no valence word grades the copy, and an empty `Artifact` renders the design-syst
 
 - **This ADR changes no Go code, no template and no test.** Every one of the 17 draw sites in §Context
   is already correct under this rule. The ADR states what they already do and closes the record.
-- **[ADR-0114](./0114-the-report-pdf-is-rendered-in-process-from-the-artifact-not-from-html.md) §2 loses
+- **[ADR-0114](./0114-the-report-pdf-is-rendered-in-process-from-the-artifact-not-from-html.md) loses
   one clause and gains a replacement.** The edit is recorded in this issue's manifest and is applied
-  by the batch parent, not by this ADR's author, at ADR-0114 §2's own site. ADR-0114's other three
+  by the batch parent, not by this ADR's author, at ADR-0114's own site. ADR-0114's other three
   limbs are untouched.
 - **The print form's valence guard is blind to the ramp, and that is a defect this ruling exposes.**
   `artifactPDFStrings` drops the ramp label at `pdf.go:113` and the per-signal token at `pdf.go:115`.
@@ -261,7 +261,7 @@ no valence word grades the copy, and an empty `Artifact` renders the design-syst
   the guard should exempt them by their `data-sev` role rather than by removing them. **It ships as its
   own ticket.**
 - **No test applies the valence guard to the screen form, and that is a second defect.**
-  `render_test.go` never calls `ContainsValence`. The screen render is the form ADR-0114 §2 calls *"the
+  `render_test.go` never calls `ContainsValence`. The screen render is the form ADR-0114 calls *"the
   same rule `RenderArtifact` obeys and its test asserts"*, and no such assertion exists. **It ships as
   its own ticket.**
 - **`ValenceWords` carries `severity`, which fires on the scale's own name.** §4 places that name

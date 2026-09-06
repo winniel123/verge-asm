@@ -25,7 +25,7 @@ chmod 600 "$HOSTKEY"
 
 # --- authorized_keys: from the operator-supplied PUBLIC key -----------------
 # The instance generates the keypair; only the public half ever leaves it
-# (ADR-0053, §3). This recipe accepts that public half via PROBER_PUBKEY or a
+# (ADR-0053). This recipe accepts that public half via PROBER_PUBKEY or a
 # bind-mounted file and never prompts for, accepts or stores a private key.
 if [ -n "${PROBER_PUBKEY:-}" ]; then
     KEY="$PROBER_PUBKEY"

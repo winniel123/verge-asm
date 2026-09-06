@@ -57,7 +57,7 @@ inelegance.
 | **Does this widen the filter?** | **No.** ADR-0077 decides *whether* a cell is an item and is untouched. This decides *where the item sits and how many times it appears*, which ADR-0077 does not reach |
 | **Does a carrier's own rung matter after entry?** | Only as the **tie-break**, unchanged — §39.3's *how far the owner has moved past the tag the cell was read at*, read on the carrier that fixed the rung |
 | **What does the item disclose?** | **Every carrier, named**, so that a reader can see which act the rung was taken from. The residue entry's intensive bound (ADR-0078) is then stated per **carrier opened**, not per item |
-| **The count** | **Barred, as everywhere.** §39.2 and ADR-0078 §42.6. This ADR reduces a duplication; it does not license quoting what it reduces |
+| **The count** | **Barred, as everywhere.** §39.2 and ADR-0078. This ADR reduces a duplication; it does not license quoting what it reduces |
 
 ### Worked, from measurements already in the corpus
 
@@ -153,8 +153,7 @@ the walk's output can be re-derived by someone who disagrees with it.
 - **`CONTEXT.md` is not amended**, on ADR-0057's own last Decision row: the curator is not a subject in
   the model and the product holds nothing about it.
 - **No count is introduced anywhere.** The rule reduces a duplication that would have made the
-  register's length depend on citation habits. It does not make the length quotable. §39.2 and ADR-0078
-  §42.6 are untouched.
+  register's length depend on citation habits. It does not make the length quotable. §39.2 and ADR-0078 are untouched.
 - **[#151](https://github.com/winniel123/verge-asm/issues/151) is not pre-empted.** Whether step 2 counts
   adequate **artefacts** or falsifying **acts** decides *whether* a cell is an item. This rule runs only
   after that question is answered, on cells that are items under either answer. `sensitive-ports.md`

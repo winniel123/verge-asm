@@ -67,7 +67,7 @@ The general rule this rests on, stated so a later session does not re-derive it 
 | The retroactive price of #115's `5` → `9` | **Zero, and the reason expires.** Nothing has shipped and no `resolution` timeline exists — ADR-0068's own precedent row. It is free exactly once |
 | The recurring price | Three project-authored parameters — control-label count, construction, match predicate — reach membership that did not before. **No new dependency does**: the DNS library and the query path are already parameters of both leaves |
 | The new dependency exposure, stated exactly | A library change that moves discrimination but **not** resolution now breaks membership where it previously did not. That is what §8's cells make provable |
-| ADR-0085 §7's escrow | **ADOPTED WHOLE.** Seventeen cells, unamended, filed into `wildcard-discrimination`'s corpus as [`golden-corpus.md`](../spec/golden-corpus.md) §8 |
+| ADR-0085's escrow | **ADOPTED WHOLE.** Seventeen cells, unamended, filed into `wildcard-discrimination`'s corpus as [`golden-corpus.md`](../spec/golden-corpus.md) §8 |
 | What this ruling adds beyond the escrow | **One boundary pair, W7 — the citation pin.** The escrow has no cell for the ground the ruling turns on |
 | The pin block's size | `resolution-walk` **27** · `wildcard-discrimination` **19** (17 adopted + 2 new) · escrow **0**. Total **46** |
 | A5 — coverage | Extends over §8. A missing cell in either block fails the build and names the cell |

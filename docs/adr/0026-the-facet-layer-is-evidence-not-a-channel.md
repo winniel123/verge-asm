@@ -17,7 +17,7 @@ had ruled on any other facet `Transition`.
 [#63](https://github.com/winniel123/verge-asm/issues/63) needed *does a `resolution` move notify?*
 twice and could not answer it inside its own question — once for a `Name` re-pointing at an
 `Address` already in the estate, which mints `Endpoint`s and fires no membership message, and once
-for [ADR-0029](./0029-an-alert-fires-on-a-leg.md) §4's narrowed third carrier, where the sole
+for [ADR-0029](./0029-an-alert-fires-on-a-leg.md)'s narrowed third carrier, where the sole
 record of a service moving address is a `resolution` `Transition` nobody had ruled alertable.
 
 ### The question was posed per facet and the answer is not
@@ -49,9 +49,9 @@ membership is at the `Reach`, `Signal` and membership layers above it.**
 
 | Facet | Transitions that are messages | Everything else, and why |
 | --- | --- | --- |
-| `resolution` | → `Shadowed` (coverage member 1, existing law) · → `Lame` (coverage member 6, existing law, carried by `lame-delegation`) · `Shadowed`/`Lame`/`Gap` → a value, which is coverage member 7 fired **at the cause** with the census of what it restored sight to · **and one new message, §2** | `Resolved` → `NameError` is `withdrawn` and silent ([ADR-0006](./0006-subjects-leave-by-measurement.md)); `NameError` → `Resolved` is `returned` and belongs to membership (ADR-0031); `Resolved` → `NoData`, and any move that only removes addresses, is the shrinking direction ADR-0029 §4 and ADR-0006 both silence |
+| `resolution` | → `Shadowed` (coverage member 1, existing law) · → `Lame` (coverage member 6, existing law, carried by `lame-delegation`) · `Shadowed`/`Lame`/`Gap` → a value, which is coverage member 7 fired **at the cause** with the census of what it restored sight to · **and one new message, §2** | `Resolved` → `NameError` is `withdrawn` and silent ([ADR-0006](./0006-subjects-leave-by-measurement.md)); `NameError` → `Resolved` is `returned` and belongs to membership (ADR-0031); `Resolved` → `NoData`, and any move that only removes addresses, is the shrinking direction ADR-0029 and ADR-0006 both silence |
 | `dns-record` | ~~**none, in any direction**~~ **none, except where the move opens a rule at `fired`** — amended by the [#65](https://github.com/winniel123/verge-asm/issues/65) amendment below | No v1 rule reads `dns-record` directly — [#48](https://github.com/winniel123/verge-asm/issues/48)'s two signals read the *composed* `resolution` — and a message per RRset move is ADR-0007's named burst shape verbatim: *a `dns-record` rule that fires per qtype per name*. Growth reached through a record — an MX or CNAME target entering — is a `Name` `appeared` and membership carries it |
-| `reachability` | the internet `Reach` leg `not-reached` → `reached` (ADR-0029 §2), **payload widened by §3** | `refused` ↔ `no-response` never moves `Reach`, so it is recorded and silent — the model's own proof that the cut is below the facet; internet `reached` → `not-reached` silent (ADR-0029 §4); the internal leg silent in both directions (ADR-0029 §3) |
+| `reachability` | the internet `Reach` leg `not-reached` → `reached` (ADR-0029), **payload widened by §3** | `refused` ↔ `no-response` never moves `Reach`, so it is recorded and silent — the model's own proof that the cut is below the facet; internet `reached` → `not-reached` silent (ADR-0029); the internal leg silent in both directions (ADR-0029) |
 | `certificate` | ~~**none**~~ **none, except where the move opens a rule at `fired`** — amended by the [#65](https://github.com/winniel123/verge-asm/issues/65) amendment below, this reason never addressing `NoTLS` → `Presented` | `Presented(c1)` → `Presented(c2)` is renewal, the modal event on an ACME estate, and what matters about it is read by the clock rules; `Presented` → `NoTLS`/`TLSRefused` is the shrinking direction and a domain exit, which §4 rules is not a transition |
 | `http-identity` | ~~**none**~~ **none, except where the move opens a rule at `fired`** — amended by the [#65](https://github.com/winniel123/verge-asm/issues/65) amendment below | `Responded(…)` → `Responded(…)` moves on every deploy — status, `Location`, `Server`, title — and is the burst shape one facet across; `Responded` ↔ `NoHTTPResponse` is a domain entry or exit, §4 |
 | `tls-acceptance` | **none** | The accepted version and cipher sets moving is exactly what `tls-1.0-accepted` is named for, and §5 makes that rule's own edge the message |
@@ -80,13 +80,13 @@ the same predicate with an empty previous set, so it needs no case of its own.
 
 ### 3. The flagship message carries a census
 
-ADR-0029 §2's flagship fires on a `Service` already in the estate whose internet leg opens. Beneath
+ADR-0029's flagship fires on a `Service` already in the estate whose internet leg opens. Beneath
 it, `certificate`, `http-identity` and `tls-acceptance` timelines **open** —
 [ADR-0011](./0011-a-facet-is-six-parts.md) gives a `certificate` timeline to every *open* `Service`
 — and so do the rules over them. Under §4 those openings emit no `Transition` and reach nobody.
 
 So the flagship message carries the census of what opened beneath the newly-reached `Service`, in
-ADR-0029 §7's and ADR-0031 §3's shape: computed once at the cause, a description and never a
+ADR-0029's and ADR-0031's shape: computed once at the cause, a description and never a
 `Transition`, no difference set, nothing alerted individually. ADR-0031 wrote that a third producer
 of that shape "would be a signal that the shape is right". This is the third and §2 is the fourth.
 
@@ -95,7 +95,7 @@ of that shape "would be a signal that the shape is right". This is the third and
 This is [ADR-0024](./0024-a-rules-domain-is-the-extension-of-its-name.md)'s plain text — *a subject
 outside the domain is not rendered as a member, a row, a state or a **transition*** — and
 ADR-0014's, and it is confirmed rather than extended. ~~A rule that **opens at `fired`** is carried
-by the census of a message above it where one exists (§2, §3, ADR-0031 §3) and by nothing where
+by the census of a message above it where one exists (§2, §3, ADR-0031) and by nothing where
 none does.~~ ADR-0024's stated **reason** is withdrawn. See §7.
 
 > **NARROWED by the [#65](https://github.com/winniel123/verge-asm/issues/65) amendment below.** A rule
@@ -160,7 +160,7 @@ other rides its census. ADR-0007's *alert on the cause, record the consequence* 
 second representation of one fact, together. The worked example is
 `sensitive-port-reached-from-internet`, whose firing edge happens exactly when the internet leg
 opens on a sensitive port: it **never fires a message of its own**, and the flagship names it in the
-payload — which is what ADR-0031 §3's census example was already doing without a rule behind it.
+payload — which is what ADR-0031's census example was already doing without a rule behind it.
 
 ### 7. What is withdrawn
 
@@ -247,9 +247,9 @@ The only additions are payload: two more producers of a census shape that alread
 | **Answer per facet — name the facets that notify** | The question as asked, and the model refuses it. ADR-0029 already cut `reachability` three times below the facet, and `refused` ↔ `no-response` is a facet transition that moves the value and no message. A per-facet answer would have to make that edge loud or make the internal leg silent by hand, and either way it is a list where a predicate was available — ADR-0009's move, refused at the notification layer |
 | **Every facet `Transition` is a message** | `http-identity` moves on every deploy and `certificate` on every renewal. It is ADR-0007's named burst shape and #17's common-and-intentional side, and it would train the operator off the channel before the flagship ever fires |
 | **No facet `Transition` is ever a message** | Tidy, and it drops the one case with no other carrier. A `Name` re-pointing inside the estate mints `Endpoint`s that open, and openings reach nobody — #63's own argument, which this option answers by ignoring |
-| **§2 fires on every `Resolved` → `Resolved`, including pure removals** | Fires on the shrinking direction that ADR-0006 and ADR-0029 §4 both silence, and on a CDN dropping an edge, for no fact the operator asked for. The `Endpoint`-opening test is what the message is named for |
+| **§2 fires on every `Resolved` → `Resolved`, including pure removals** | Fires on the shrinking direction that ADR-0006 and ADR-0029 both silence, and on a CDN dropping an edge, for no fact the operator asked for. The `Endpoint`-opening test is what the message is named for |
 | **§2 tests whether the name has *ever* pointed at the address** | Reaches back across a `Break`, so the same event notifies or does not depending on whether a derivation upgraded that cadence — ADR-0008's licence to reach back spent inside the notification predicate |
-| **Make a rule opening at `fired` a message** | Genuinely attractive, and it would catch the dangling CNAME created on an existing `Name`. It loses on the burst: an internal deploy opens `plaintext-http-no-https` at *fired* on most estates, so the general form fires on every deploy — the thing ADR-0029 §3 refused — and the narrow form needs the three-way case analysis on why the timeline opened that ADR-0031 rejected by name. Refused for v1, cost stated, ticketed |
+| **Make a rule opening at `fired` a message** | Genuinely attractive, and it would catch the dangling CNAME created on an existing `Name`. It loses on the burst: an internal deploy opens `plaintext-http-no-https` at *fired* on most estates, so the general form fires on every deploy — the thing ADR-0029 refused — and the narrow form needs the three-way case analysis on why the timeline opened that ADR-0031 rejected by name. Refused for v1, cost stated, ticketed |
 | **Per-rule enumeration of which openings notify** | Sixteen judgements each resting on an unmeasured base rate, in a map that has flagged #17's unmeasured base rates three times. Refused as the shape the map keeps warning about, not on the merits of any one row |
 | **Route §2's message to the coverage class** | The world moved: the operator's name now reaches ground it did not reach. Our looking did not change. Filing it as coverage would be ADR-0031's *rooting an appearance at the `Seed`* defect one facet across — a world event under an observer cause |
 | **Give the clearing edge one uniform answer, loud or silent** | Loud fires on every remediation in the estate. Silent contradicts #35, which established in terms that `cname-target-name-error` clears when somebody else may have claimed the orphaned name. #35's own wording — *not always* — is a per-rule claim, and pretending otherwise is manufacturing a consensus neither reading supports |

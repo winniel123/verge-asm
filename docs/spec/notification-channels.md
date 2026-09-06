@@ -237,8 +237,8 @@ being one dial too many. See §6.
   for the fourteen that read no clock, per firing for the three certificate-lifetime rules.
 - **Routing on the cause instead of the class was asked and refused** —
   [#158](https://github.com/winniel123/verge-asm/issues/158) ·
-  [ADR-0091](../adr/0091-the-routing-unit-is-the-class-and-the-cause-is-refused-as-a-routing-key.md),
-  §9 below. It is a refusal on the axis rather than a deferral. The **Reopens on** condition two
+  [ADR-0091](../adr/0091-the-routing-unit-is-the-class-and-the-cause-is-refused-as-a-routing-key.md).
+  See §9 below. It is a refusal on the axis rather than a deferral. The **Reopens on** condition two
   bullets above now carries a **named candidate** — the `mover`, never the cause.
 - **No pull surface.** No feed, no JSON API, no polling endpoint — #6, unchanged. The reason
   is the credential rather than the format.

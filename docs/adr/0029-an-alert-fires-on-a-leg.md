@@ -104,7 +104,7 @@ ADR-0017's aperture ruling exists to secure.
 
 ## Consequences
 
-- **The board's hero and the alert predicate become one predicate.** ADR-0017 §5 made the hero the
+- **The board's hero and the alert predicate become one predicate.** ADR-0017 made the hero the
   block on one side of the internet leg's boundary. This ADR makes the alert the same leg move. So
   the count on the board and the count in the channel are read from one computation, which is
   [#50](https://github.com/winniel123/verge-asm/issues/50)'s rule that a number appearing on two

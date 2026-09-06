@@ -198,7 +198,7 @@ this ADR refused.
   [ADR-0043](./0043-a-clock-reading-rule-bounds-its-evidence-in-the-subjects-own-units.md) ruled the
   horizon to be `N = ⅓ × (not_after − not_before)`, and `½ ×` below a 10-day validity, and gave the
   three clock-reading certificate rules an evaluability guard on the observation's age against that
-  horizon. Neither is in the code, and a flat 30 is the value ADR-0043 §7.3 names as the failure it
+  horizon. Neither is in the code, and a flat 30 is the value ADR-0043 names as the failure it
   repaired. **The band is unaffected** — `certificate-expiring` is `medium` because no client is
   failing yet, whatever the horizon that decides *yet*. **The predicate ships as its own ticket**,
   tracked alongside the version-vector consequence

@@ -252,7 +252,7 @@ one PostgreSQL release tree is exactly [ADR-0032](./0032-an-evidence-standard-at
 §8's shape — a silent, single-act de-attestation — that ADR-0057 built this queue to catch.
 Under-testing here does not simplify the instrument. It reopens the hole the instrument exists to close,
 on the cell most obviously shaped like it — a repeat of the `623/udp` failure already measured once
-([ADR-0057](./0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md) §8, re-founded at
+([ADR-0057](./0057-a-watch-keys-on-the-act-that-would-falsify-a-cell.md), re-founded at
 `sensitive-ports.md` §36.7).
 
 ### Consequences
