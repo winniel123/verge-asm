@@ -240,7 +240,7 @@ a known name — that is the drift signal.
 > not a document to go and get. The selection rule below is untouched and confirmed; it is applied
 > to the pinned snapshot. The pinned snapshot also carries **no log public keys** (ADR-0190 §5).
 
-Follow logs from the embedded `log_list.json` snapshot (v89.34, 2026-08-29) where:
+Follow logs from the embedded `log_list.json` snapshot (v90.6, 2026-09-06) where:
 
 - `state` is `usable` **or** `readonly` (both readable), **and**
 - `temporal_interval` covers now or the near future (current shard plus the next shard).
