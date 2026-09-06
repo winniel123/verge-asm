@@ -3818,6 +3818,7 @@
     "vantages": {
       "vantages": [
         {
+          "id": 1,
           "name": "eu-west-1",
           "class": "internet",
           "resolver": "9.9.9.9",
@@ -3825,6 +3826,7 @@
           "availability": "available"
         },
         {
+          "id": 2,
           "name": "us-east-2",
           "class": "internet",
           "resolver": "9.9.9.9",
@@ -3832,6 +3834,7 @@
           "availability": "available"
         },
         {
+          "id": 3,
           "name": "ap-south-1",
           "class": "unverified",
           "resolver": "9.9.9.9",

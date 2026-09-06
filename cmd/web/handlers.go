@@ -78,6 +78,7 @@ type store interface {
 	SetIntegrationChannel(ctx context.Context, arg db.SetIntegrationChannelParams) error
 	GetChannelForDelivery(ctx context.Context, id int64) (db.GetChannelForDeliveryRow, error)
 	CreateVantage(ctx context.Context, arg db.CreateVantageParams) (db.Vantage, error)
+	SetVantageResolver(ctx context.Context, arg db.SetVantageResolverParams) error
 	ListVantages(ctx context.Context) ([]db.ListVantagesRow, error)
 	ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error)
 	ListAddressExclusionCidrs(ctx context.Context) ([]*netip.Prefix, error)
@@ -361,6 +362,7 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("POST /exclusions/delete", s.requireAdmin(s.unexclude))
 	mux.HandleFunc("POST /settings/cold", s.requireAdmin(s.setColdScope))
 	mux.HandleFunc("POST /settings/probers", s.requireAdmin(s.provisionProber))
+	mux.HandleFunc("POST /settings/vantages/resolver", s.requireAdmin(s.setVantageResolver))
 
 	mux.HandleFunc("GET /exposure", s.requireLogin(s.exposurePage))
 	mux.HandleFunc("GET /settings/vantages", s.requireLogin(s.redirectTo("/settings?tab=vantages", http.StatusSeeOther)))

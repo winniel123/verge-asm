@@ -780,6 +780,7 @@ func (f *fakeStore) CreateVantage(_ context.Context, arg db.CreateVantageParams)
 		ID:           f.vantageNextID,
 		Name:         arg.Name,
 		Class:        "unverified",
+		Resolver:     arg.Resolver,
 		Host:         pgtype.Text{String: arg.Host, Valid: true},
 		Port:         pgtype.Int4{Int32: arg.Port, Valid: true},
 		Username:     pgtype.Text{String: arg.Username, Valid: true},
@@ -790,6 +791,16 @@ func (f *fakeStore) CreateVantage(_ context.Context, arg db.CreateVantageParams)
 	f.vantages = append(f.vantages, v)
 	f.vantageNextID++
 	return v, nil
+}
+
+func (f *fakeStore) SetVantageResolver(_ context.Context, arg db.SetVantageResolverParams) error {
+	for i := range f.vantages {
+		if f.vantages[i].ID == arg.ID {
+			f.vantages[i].Resolver = arg.Resolver
+			return nil
+		}
+	}
+	return pgx.ErrNoRows
 }
 
 func (f *fakeStore) ListVantages(context.Context) ([]db.ListVantagesRow, error) {

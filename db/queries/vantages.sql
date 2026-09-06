@@ -1,7 +1,8 @@
 -- name: CreateVantage :one
-INSERT INTO vantage (name, host, port, username, availability, created_by)
+INSERT INTO vantage (name, resolver, host, port, username, availability, created_by)
 VALUES (
     sqlc.arg(name)::text,
+    sqlc.arg(resolver)::text,
     sqlc.arg(host)::text,
     sqlc.arg(port)::int,
     sqlc.arg(username)::text,
@@ -50,6 +51,11 @@ SELECT id, name, class, resolver, host, port, username, availability,
 FROM vantage
 WHERE host IS NOT NULL AND public_key IS NOT NULL AND latency_ms IS NULL
 ORDER BY id;
+
+-- name: SetVantageResolver :exec
+UPDATE vantage
+SET resolver = $2
+WHERE id = $1;
 
 -- name: SetVantageLatency :exec
 UPDATE vantage

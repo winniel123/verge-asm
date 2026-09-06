@@ -5,6 +5,7 @@ package scan
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
@@ -13,6 +14,8 @@ import (
 )
 
 const DNSKind = "dns"
+
+var ErrNoResolver = errors.New("scan: vantage has no resolver")
 
 // The stored class is vestigial: hot and cold derive it per batch from presented facts (#709).
 
@@ -56,9 +59,13 @@ func BuildDNSJobs(scanID int64, names []string, vantages []Vantage) []Job {
 }
 
 func (j Job) JobSpec(batch string) (wire.JobSpec, error) {
+	if j.resolver == "" {
+		// A code-chosen resolver takes ADR-0121's exemption without its warrant (ADR-0202).
+		return wire.JobSpec{}, fmt.Errorf("%w: %q (ADR-0202)", ErrNoResolver, j.Vantage)
+	}
 	scope := resolutionwalk.Scope{
 		Vantage:  j.Vantage,
-		Resolver: resolverFor(j),
+		Resolver: j.resolver,
 		Names:    j.Names,
 		Offers:   j.Offers,
 	}
@@ -102,14 +109,6 @@ type scopeRecord struct {
 	Vantage                string   `json:"vantage"`
 	Names                  []string `json:"names"`
 	ControlProbePopulation []string `json:"control_probe_population,omitempty"`
-}
-
-func resolverFor(j Job) string {
-	// 127.0.0.11 is Docker's embedded DNS, the same default db/migrations/18800 ships.
-	if j.resolver != "" {
-		return j.resolver
-	}
-	return "127.0.0.11:53"
 }
 
 func (j Job) WithResolver(resolver string) Job {

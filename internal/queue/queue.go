@@ -299,13 +299,32 @@ func (d *Dispatcher) fanOutDNS(ctx context.Context, qtx *db.Queries, scanID, dis
 	if err != nil {
 		return 0, err
 	}
-	enqueued := 0
-	for _, j := range scan.BuildDNSJobs(scanID, names, vantages.scanVantages()) {
-		j = j.WithResolver(vantages.resolver(j.VantageID)).WithSeeds(seedDomains)
-		if err := enqueueJob(ctx, qtx, scanID, dispatchID, j); err != nil {
+	jobs := scan.BuildDNSJobs(scanID, names, vantages.scanVantages())
+	for i := range jobs {
+		jobs[i] = jobs[i].WithResolver(vantages.resolver(jobs[i].VantageID)).WithSeeds(seedDomains)
+	}
+	return dispatchDNSJobs(jobs, d.log, func(j scan.Job) error {
+		return enqueueJob(ctx, qtx, scanID, dispatchID, j)
+	})
+}
+
+func dispatchDNSJobs(jobs []scan.Job, logger *log.Logger, enqueue func(scan.Job) error) (int, error) {
+	enqueued, skipped := 0, 0
+	for _, j := range jobs {
+		err := enqueue(j)
+		if errors.Is(err, scan.ErrNoResolver) {
+			// One unconfigured position must not stop every configured one (ADR-0202 §2, #1433).
+			logger.Printf("dispatcher: dns vantage %q (id %d) has no resolver, skipped", j.Vantage, j.VantageID)
+			skipped++
+			continue
+		}
+		if err != nil {
 			return 0, err
 		}
 		enqueued++
+	}
+	if skipped > 0 {
+		logger.Printf("dispatcher: dns fanned out past %d vantage(s) with no resolver", skipped)
 	}
 	return enqueued, nil
 }
