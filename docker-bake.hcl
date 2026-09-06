@@ -22,9 +22,8 @@ target "_common" {
   # BuildKit defaults provenance on at mode=min, so silence would give each image a
   # second provenance predicate and break the six-signature model (§2.3).
   #
-  # The long form, not the `provenance = false` shorthand §2.3 names. Measured on
-  # buildx 0.30.1, 2026-09-06: the shorthand is silently ignored and the index still
-  # carries two attestation manifests. This form removes them (#1248).
+  # The long form, because the `provenance = false` shorthand is silently ignored on
+  # buildx 0.30.1 and the index still carries two attestation manifests (§2.3, #1248).
   attest = [
     "type=provenance,disabled=true",
     "type=sbom,disabled=true",
