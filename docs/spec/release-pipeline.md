@@ -1000,9 +1000,12 @@ generated file trips no lint.
 3. The human pushes a bare tag at that squash-merge commit.
 4. `release.yml` triggers.
 
-**The checklist carries two further lines** ([#1156](https://github.com/winniel123/verge-asm/issues/1156)):
+**The checklist carries three further lines**
+([#1156](https://github.com/winniel123/verge-asm/issues/1156),
+[#1434](https://github.com/winniel123/verge-asm/issues/1434)):
 
 - Confirm the verification guide carries no "pending the first tagged release" banner.
+- Refresh `internal/scan/log_list.json` per §10.7.
 - After the workflow completes, run the guide's three-command per-platform SBOM verify. **This is
   advisory, never a gate.** See §20.
 
@@ -1026,6 +1029,36 @@ secrets. A pull request opened with `GITHUB_TOKEN` does not trigger `on: pull_re
 
 §7.1 chose keyless to avoid holding key material. A release key held only to open a pull request is
 a poor trade. **The chosen route removes the hand-written text without adding the key.**
+
+### 10.7 The CT log list refresh cadence
+
+[ADR-0190](../adr/0190-the-ct-log-list-is-a-build-time-artefact-pinned-in-the-image-refreshed-only-by-a-release-and-carrying-no-log-public-keys.md)
+§4 rules the refresh **procedure** and deliberately rules no cadence. This is the cadence
+([#1434](https://github.com/winniel123/verge-asm/issues/1434)):
+
+> **Refresh `internal/scan/log_list.json` on every release, and at minimum every 90 days.**
+
+**Every release**, because a release is already the only act that can move the file. The refresh
+costs one reviewed diff on a change a human reviews anyway.
+
+**At minimum every 90 days**, because a release is not on a schedule. Without a floor, a quiet
+quarter leaves the snapshot ageing with nothing to move it. A refresh under the floor is its own
+pull request, and it is still a release act. It licenses no runtime fetch. §7 of that ADR refuses
+that path outright.
+
+Run ADR-0190 §4's four steps, in order. Step 2 — **strip every `key` field** — is not optional. A
+wholesale copy of the upstream document re-embeds 48 public keys and fails the blocking `gitleaks`
+check.
+
+**Two gates back the cadence up, and neither replaces it.**
+
+- `TestShippedLogListOutlivesTheExpiryHorizon` (`internal/scan/cttail_test.go`) fails when the newest
+  `end_exclusive` in the shipped snapshot falls within **180 days** of the build date. It runs in the
+  required `test` check, so an expiring snapshot blocks a merge. The horizon is twice the cadence
+  floor, which leaves a missed refresh a full cycle to be caught.
+- The Sources page's CT capabilities card states the pinned version, the date the snapshot was cut,
+  and the count of logs selectable today. It states that count plainly when it reaches zero. That is
+  what an operator running an old image sees. The test is what the project sees before it ships one.
 
 ---
 
