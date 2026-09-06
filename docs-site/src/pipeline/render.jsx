@@ -33,7 +33,7 @@ function InlineCode({ children }) {
 const INTRA_GUIDE = /^\.?\/?([a-z0-9][a-z0-9-]*)\.md(?:#(.+))?$/i;
 // Forbidding a slash keeps this in lockstep with check-links.mjs, which gates the same targets.
 const ADR_XREF = /^\.\.\/adr\/([^#?/]+\.md)(?:#(.+))?$/i;
-function rewriteHref(href, version, currentSlug, adrRef) {
+function rewriteHref(href, version, currentSlug, ref) {
   if (!href) return { href, intraSite: false };
   if (href.startsWith("#")) {
     return { href: `/${version}/${currentSlug}${href}`, intraSite: true };
@@ -48,7 +48,7 @@ function rewriteHref(href, version, currentSlug, adrRef) {
   if (adr) {
     const frag = adr[2] ? `#${adr[2]}` : "";
     // An ADR is never an ingested page, so a relative link to one 404s on the docs server (#428).
-    const blob = repoBlobUrl(adrRef, `docs/adr/${adr[1]}`);
+    const blob = repoBlobUrl(ref, `docs/adr/${adr[1]}`);
     return { href: `${blob}${frag}`, intraSite: false, external: true };
   }
   return { href, intraSite: false };
@@ -63,9 +63,9 @@ function toText(node) {
 }
 
 // The DS CodeBlock's copy control needs hydration, so the guide arrives as a prop.
-export default function Article({ markdown = "", version = "main", slug = "", adrRef }) {
-  // source-resolution.ts is node-only, so an island takes the ref as a prop, never imports it.
-  const ref = adrRef ?? refForDocsVersion(version);
+export default function Article({ markdown = "", version = "main", slug = "", versions = [] }) {
+  // source-resolution.ts reads git, so the resolved ref crosses on the manifest (#1402).
+  const ref = refForDocsVersion(version, versions);
   const slugger = new GithubSlugger();
   const heading = (Tag, style) =>
     function H({ children }) {

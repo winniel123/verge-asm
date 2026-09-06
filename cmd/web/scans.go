@@ -13,6 +13,7 @@ import (
 
 	designfs "github.com/winniel123/verge-asm/design-system"
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/queue"
 )
 
 // The queue corpus is Operational, so no read on this page reaches the comparison path (ADR-0041).
@@ -34,6 +35,7 @@ type dispatchView struct {
 	Percent      int
 	Active       bool
 	Status       string
+	Skipped      bool
 	Rollup       jobRollup
 }
 
@@ -277,7 +279,7 @@ func (s *server) terminateScan(w http.ResponseWriter, r *http.Request, acct db.A
 		s.serverError(w, "terminate scan: cancel jobs", err)
 		return
 	}
-	// SetDispatchStatus guards on 'fanned-out', so a recorded stop stands (ADR-0164 §4, #1421).
+	// Only a stop escalates; every other recorded disposition stands (ADR-0164 §4, #1421).
 	if err := s.store.SetDispatchStatus(r.Context(), db.SetDispatchStatusParams{ID: id, Status: "terminated"}); err != nil {
 		s.serverError(w, "terminate scan: record status", err)
 		return
@@ -528,6 +530,10 @@ func (s *server) deriveRunStream(ctx context.Context, dispatchID int64, jobParam
 		}
 		state = append(state, runStreamLine{Tag: ln.Tag, Level: ln.Level, Text: ln.Text})
 	}
+	if len(state) >= streamCursorBase {
+		// Serving past the cursor's reach re-delivers the tail forever (ADR-0182 §4, #1423).
+		state = state[:streamCursorBase-1]
+	}
 
 	if s.progress != nil {
 		events = eventStreamLines(s.progress.ForDispatch(dispatchID), jobFilter, filtered)
@@ -605,7 +611,7 @@ func (s *server) runStream(w http.ResponseWriter, r *http.Request, _ db.Account)
 func runStatusLabel(active bool, dead int64, outcome string) string {
 	// This word is rundetail.tmpl's rd-batch CSS class as well as the visible label (ADR-0165 §1).
 	switch outcome {
-	case "stopped", "terminated":
+	case "stopped", "terminated", "skipped":
 		return outcome
 	}
 	switch {
@@ -620,7 +626,7 @@ func runStatusLabel(active bool, dead int64, outcome string) string {
 
 func dispatchOutcome(status string) string {
 	switch status {
-	case "stopped", "terminated":
+	case "stopped", "terminated", queue.DispatchStatusSkipped:
 		return status
 	default:
 		return ""
@@ -927,6 +933,7 @@ func toDispatchView(row db.ListDispatchProgressRow) dispatchView {
 		Percent:   percent,
 		Active:    inFlight > 0,
 		Status:    row.Status,
+		Skipped:   row.Status == queue.DispatchStatusSkipped,
 	}
 	if row.CreatedAt.Valid {
 		dv.DispatchedAt = row.CreatedAt.Time.UTC().Format("2006-01-02 15:04 UTC")
@@ -955,6 +962,10 @@ func (s *server) scanSchedule(ctx context.Context) scanScheduleView {
 		log.Printf("web: dashboard: scan schedule: list dispatches: %v", err)
 	} else {
 		for _, r := range rows {
+			// A skipped tick claimed its window and measured nothing (#1120).
+			if r.Status == queue.DispatchStatusSkipped {
+				continue
+			}
 			if r.CreatedAt.Valid {
 				v.LastScanAt = r.CreatedAt.Time.UTC()
 				if d := now.Sub(v.LastScanAt); d > 0 {

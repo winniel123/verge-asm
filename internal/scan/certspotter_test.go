@@ -36,7 +36,7 @@ func TestCertSpotterURL(t *testing.T) {
 		t.Errorf("after = %q, want 42", got)
 	}
 
-	// Percent-encoding the domain stops an injection character smuggling a second parameter (#774).
+	// Percent-encoding the domain stops an injection character smuggling a second parameter.
 	inj := CertSpotterURL("example.com&include_subdomains=false", "")
 	if mustQuery(t, inj).Get("include_subdomains") != "true" {
 		t.Errorf("injection overrode include_subdomains: %q", inj)

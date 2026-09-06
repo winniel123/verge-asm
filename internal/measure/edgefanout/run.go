@@ -59,7 +59,7 @@ func RunWithHandshaker(ctx context.Context, h Handshaker, batch string, scope Sc
 func edgeTarget(addr string) (netip.AddrPort, bool) {
 	// Trimmed the way internal/queue's scope gate trims, so the two sides agree on a spelling.
 	ip, err := netip.ParseAddr(strings.TrimSpace(addr))
-	// Never a hostname: it would re-resolve at connect time with no rebinding backstop (#743).
+	// Never a hostname: it would re-resolve at connect time with no rebinding backstop.
 	if err != nil {
 		return netip.AddrPort{}, false
 	}

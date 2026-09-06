@@ -156,8 +156,8 @@
 <div style="display:flex;flex-direction:column;gap:16px">
 {{range .CoverageMeters}}
 <div class="db-meter">
-<div class="top"><span class="db-micro">{{.Label}}</span><span class="val">{{if .Total}}{{.Counted}} / {{.Total}}{{if .Unit}} {{.Unit}}{{end}}{{else}}census · {{.Counted}}{{if .Unit}} {{.Unit}}{{end}}{{end}}</span></div>
-{{if .Total}}<div class="track" role="progressbar" aria-valuemin="0" aria-valuemax="{{.Total}}" aria-valuenow="{{.Counted}}"><span class="fill" style="width:{{.Pct}}%"></span></div>{{else}}<div class="census" aria-label="Census — no denominator"></div>{{end}}
+<div class="top"><span class="db-micro">{{.Label}}</span><span class="val">{{if .Withheld}}not measured{{else if .Total}}{{.Counted}} / {{.Total}}{{if .Unit}} {{.Unit}}{{end}}{{else}}census · {{.Counted}}{{if .Unit}} {{.Unit}}{{end}}{{end}}</span></div>
+{{if .Withheld}}<div class="census" aria-label="Not measured — the read did not resolve"></div>{{else if .Total}}<div class="track" role="progressbar" aria-valuemin="0" aria-valuemax="{{.Total}}" aria-valuenow="{{.Counted}}"><span class="fill" style="width:{{.Pct}}%"></span></div>{{else}}<div class="census" aria-label="Census — no denominator"></div>{{end}}
 {{if .Detail}}<span class="det">{{.Detail}}</span>{{end}}
 </div>
 {{end}}

@@ -262,22 +262,22 @@ func (s *server) apiCoverage(w http.ResponseWriter, r *http.Request, _ db.Accoun
 		apiReadError(w, "coverage: list seeds", err)
 		return
 	}
-	var zones []db.ListZoneDeclarationsRow
-	if z, zerr := s.store.ListZoneDeclarations(ctx); zerr == nil {
-		zones = z
-	} else {
+	zones, zerr := s.store.ListZoneDeclarations(ctx)
+	if zerr != nil {
+		zones = nil
 		log.Printf("web: api: coverage: list zone declarations: %v", zerr)
 	}
 	var walked []walkedAddr
-	if svcs, serr := s.store.ListCurrentServiceSubjects(ctx, db.ListCurrentServiceSubjectsParams{
+	svcs, serr := s.store.ListCurrentServiceSubjects(ctx, db.ListCurrentServiceSubjectsParams{
 		Search: "", AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
-	}); serr == nil {
+	})
+	if serr == nil {
 		walked = walkedAddresses(svcs)
 	} else {
 		log.Printf("web: api: coverage: list service subjects: %v", serr)
 	}
 	// The row's worth is the sentence beside the count, which no JSON field carries (#989).
-	meters := apertureMeters(seeds, zones, walked, s.now(), nil)
+	meters := apertureMeters(seeds, zones, zerr == nil, walked, serr == nil, s.now(), nil)
 
 	out := apiCoverageResponse{Meters: make([]apiCoverageMeter, 0, len(meters))}
 	for _, m := range meters {

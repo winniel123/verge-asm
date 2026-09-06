@@ -259,6 +259,7 @@ type Querier interface {
 	SetVantageLatency(ctx context.Context, arg SetVantageLatencyParams) error
 	SetVantageProbeFacts(ctx context.Context, arg SetVantageProbeFactsParams) error
 	SetVantagePublicKey(ctx context.Context, arg SetVantagePublicKeyParams) error
+	SetVantageResolver(ctx context.Context, arg SetVantageResolverParams) error
 	// A non-positive interval is refused by the table's CHECK, not by this statement.
 	SetZoneCadenceSeconds(ctx context.Context, cadenceSeconds int64) error
 	SlowestEnabledScanCadenceSeconds(ctx context.Context) (int64, error)

@@ -17,7 +17,7 @@ var nonGlobalTargets = []netip.AddrPort{
 func TestNetHandshakerGuardRefusesNonGlobal(t *testing.T) {
 	// The same ranges connect-outcome's guard test pins: metadata, loopback and RFC1918.
 	h := NetHandshaker{Timeout: 2 * time.Second}
-	// A guard refusal is unreachable, never the no-tls value that would claim an answer (#743).
+	// A guard refusal is unreachable, never the no-tls value that would claim an answer.
 	for _, target := range nonGlobalTargets {
 		// Were the guard absent the dial would block to the timeout, so a fast refusal is proof.
 		start := time.Now()

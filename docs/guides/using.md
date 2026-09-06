@@ -97,13 +97,14 @@ see its own estate from the internet. Probing your own public address from insid
 a hairpinning trap that never traverses the inbound policy. So `Exposure` needs a
 **prober**: a second Linux host reached over SSH.
 
-Under **Probers**, supply four non-secret values:
+Under **Probers**, supply five non-secret values:
 
 | Value | Note |
 | --- | --- |
 | host | a name or address the instance can reach on the SSH port |
 | port | defaults to 22 |
 | username | a **non-root** account |
+| resolver | the recursive resolver **that host** measures through, `host` or `host:port` — required, and changeable later on the vantage card |
 | — | the instance generates the SSH keypair and renders the **public** half for you to install |
 
 Then:
@@ -150,6 +151,13 @@ If you set `POSTGRES_USER` / `POSTGRES_DB` in `.env`, pass those values instead.
 resolver that nothing answers yields empty records and a `Gap` rather than real data.
 The scan still commits as `completed`, so a wrong resolver fails silently. This is
 the one setting you may need to change before the first scan.
+
+A **provisioned** vantage is different. It declares its own resolver at provisioning,
+and it carries a **Set resolver** control on its vantage card. You need no `psql` for
+one.
+
+A vantage holding no resolver never reaches the `dns` fan-out. The tick records the
+skip and dispatches every other vantage. The code supplies no address of its own.
 
 Scans dispatch on their own cadence, but you can trigger the first one immediately from
 the worker (see [running.md → On-demand scan triggers](running.md#on-demand-scan-triggers)):

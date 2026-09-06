@@ -35,9 +35,11 @@ func (s *server) provisionProber(w http.ResponseWriter, r *http.Request, acct db
 	host := r.FormValue("host")
 	port := r.FormValue("port")
 	username := r.FormValue("username")
+	resolver := r.FormValue("resolver")
 	fail := func(msg string) {
 		s.failSettings(w, r, settingsForms{
-			section: "vantages", proberError: msg, proberHost: host, proberPort: port, proberUser: username,
+			section: "vantages", proberError: msg, proberHost: host, proberPort: port,
+			proberUser: username, proberResolver: resolver,
 		})
 	}
 
@@ -46,8 +48,14 @@ func (s *server) provisionProber(w http.ResponseWriter, r *http.Request, acct db
 		fail(err.Error())
 		return
 	}
+	// A vantage with no resolver dispatches nothing, so creation requires one (ADR-0202, #1433).
+	res, err := vantage.ParseResolver(resolver)
+	if err != nil {
+		fail(err.Error())
+		return
+	}
 	if _, err := s.store.CreateVantage(r.Context(), db.CreateVantageParams{
-		Name: fmt.Sprintf("%s@%s:%d", ep.Username, ep.Host, ep.Port),
+		Name: fmt.Sprintf("%s@%s:%d", ep.Username, ep.Host, ep.Port), Resolver: res,
 		Host: ep.Host, Port: int32(ep.Port), Username: ep.Username, CreatedBy: acct.ID, // #nosec G115 (ep.Port validated 1..65535 by vantage.ParseEndpoint)
 	}); err != nil {
 		if isUniqueViolation(err) {
@@ -55,6 +63,30 @@ func (s *server) provisionProber(w http.ResponseWriter, r *http.Request, acct db
 			return
 		}
 		fail("Could not provision the prober.")
+		return
+	}
+	s.backToSection(w, r, "vantages")
+}
+
+func (s *server) setVantageResolver(w http.ResponseWriter, r *http.Request, _ db.Account) {
+	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
+	if err != nil {
+		s.failSettings(w, r, settingsForms{section: "vantages", resolverError: "Unknown vantage."})
+		return
+	}
+	raw := r.FormValue("resolver")
+	fail := func(msg string) {
+		s.failSettings(w, r, settingsForms{
+			section: "vantages", resolverError: msg, resolverID: id, resolverValue: raw,
+		})
+	}
+	res, err := vantage.ParseResolver(raw)
+	if err != nil {
+		fail(err.Error())
+		return
+	}
+	if err := s.store.SetVantageResolver(r.Context(), db.SetVantageResolverParams{ID: id, Resolver: res}); err != nil {
+		fail("Could not set the resolver.")
 		return
 	}
 	s.backToSection(w, r, "vantages")

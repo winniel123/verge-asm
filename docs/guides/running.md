@@ -63,21 +63,27 @@ Then follow [using.md](using.md) for the setup token and first-run checklist.
 
 ### Environment variables
 
-Set these in `.env` (compose reads it automatically) or your orchestrator.
+Set these in `.env`, or in your orchestrator when you run the binaries outside compose.
+
+Compose reads `.env` for *interpolation* only. A variable reaches a container just where
+`docker-compose.yml` names it. Every `VERGE_*` row below is named there, on the service
+the **Service** column gives. The four rows marked **not read from `.env`** are the
+exception. The image layout or the published port fixes each of those, so changing one
+means an edit to `docker-compose.yml` itself.
 
 | Variable | Service | Required | Default | Purpose |
 | --- | --- | --- | --- | --- |
 | `POSTGRES_PASSWORD` | all | **yes** | — | DB credential. Compose *fails* rather than defaulting it. |
 | `POSTGRES_USER` | all | no | `verge` | DB user. |
 | `POSTGRES_DB` | all | no | `verge` | DB name. |
-| `VERGE_LISTEN_ADDR` | web | no | `:8080` | Listen address for the UI. |
+| `VERGE_LISTEN_ADDR` | web | no | `:8080` | Listen address for the UI. **Not read from `.env`** — `docker-compose.yml` pins it to `:8080`, which is the container port the `ports:` mapping publishes. Move the *host* side with `VERGE_BIND` instead. |
 | `VERGE_SETUP_TOKEN` | web | no | generated | Pin the first-run setup token instead of reading it from the logs. Single-use. |
 | `VERGE_SECURE_COOKIES` | web | no | off | Set truthy (`1`/`true`/`yes`/`on`) when a TLS-terminating proxy fronts `web`, so the session cookie is marked `Secure` even though `web` sees plain HTTP. |
 | `VERGE_TRUSTED_PROXIES` | web | no | empty | Comma-separated IPs and/or CIDRs of every hop between the client and `web` (e.g. `10.0.0.0/8, 192.0.2.7`). **Empty means no proxy is trusted.** The client IP is then the immediate peer, and `web` reads no `X-Forwarded-For` header at all. Set it whenever a reverse proxy fronts `web`. A fronted deployment that leaves it empty gives every client the same rate-limit key. Five failed logins from anyone then lock every account on the instance. The value keys the login rate limiter and **nothing else** — never identity, authorization or audit. Name the proxy's address as `web` sees it, which is the address the proxy connects *from*. A malformed entry fails the boot rather than trusting a smaller set in silence. See [ADR-0159](../adr/0159-an-unnamed-proxy-is-never-trusted-so-the-client-ip-is-the-immediate-peer-and-a-fronted-deployment-must-name-its-proxies.md). |
-| `VERGE_PROBER_PATH` | worker | no | `/app/prober` | Path to the prober binary inside the image. Rarely changed. |
-| `VERGE_PROBER_DIR` | worker | no | `/app/probers` | Directory of per-architecture prober binaries the off-host router pushes to remote SSH hosts, arch-matched by `uname` (an arm64 instance pushes an amd64 binary and vice versa). `VERGE_PROBER_PATH` is the own-arch single-binary fallback. |
-| `VERGE_STATE_DIR` | web, worker | no | `/app/state` | On-disk home for generated secrets (session key, prober SSH private key). |
-| `VERGE_PUBLIC_URL` | worker | no | empty | Absolute base URL used to build the link in each notification body. Empty leaves the link off rather than fabricating one. Add it to the `worker` service env if you configure notification channels. |
+| `VERGE_PROBER_PATH` | worker | no | `/app/prober` | Path to the prober binary inside the image. **Not read from `.env`** — the path is where the `Dockerfile` puts the binary, so `docker-compose.yml` pins it. |
+| `VERGE_PROBER_DIR` | worker | no | `/app/probers` | Directory of per-architecture prober binaries the off-host router pushes to remote SSH hosts, arch-matched by `uname` (an arm64 instance pushes an amd64 binary and vice versa). `VERGE_PROBER_PATH` is the own-arch single-binary fallback. **Not read from `.env`** — the directory is where the `Dockerfile` puts those binaries, so compose leaves the image default standing. |
+| `VERGE_STATE_DIR` | web, worker | no | `/app/state` | On-disk home for generated secrets (session key, prober SSH private key). **Not read from `.env`** — `/app/state` is where the `web-state` and `worker-state` volumes mount, so compose leaves the image default standing. A value pointing anywhere else would write those secrets to the container's throwaway layer, and every recreate would invalidate all sessions and orphan every provisioned prober. Move the *storage* by repointing the volume. |
+| `VERGE_PUBLIC_URL` | worker | no | empty | Absolute base URL used to build the link in each notification body. Empty leaves the link off rather than fabricating one. Set it in `.env` when you configure notification channels. |
 | `VERGE_EXTERNAL_URL` | web | no | empty | The trusted origin the deployment is reached at (e.g. `https://verge.example.com`). It is the base for the SSO OIDC callback/redirect URL, taken from this value instead of the request `Host` header — **set it before configuring SSO**, or the callback URL registered with your IdP will not match and login fails. Empty falls back to the request host. Distinct from `VERGE_PUBLIC_URL`: `EXTERNAL_URL` is the **web** callback origin; `PUBLIC_URL` is the **worker** base for notification-body links. See [sso.md](sso.md). |
 | `VERGE_LOG_RESET_LINKS` | web | no | off | When set to any non-empty value, logs the plaintext password-reset link. Off by default — the link is a bearer credential and must not land in logs (CWE-532). Enable only knowingly on a mail-less host that needs the link out of band from its own logs. |
 | `VERGE_VERSION` | web, worker | no | `dev` | The build version stamped in the UI footer and shown on **Settings → Instance**, and the version the update check compares against. A release build stamps it; an unstamped build reads `dev`. |
@@ -139,6 +145,8 @@ deployment by default. **Off compose** — bare-metal or a host-network install,
 trigger. Otherwise the scan resolves nothing and commits a silent `Gap`. The `local`
 vantage is resolver-only and has no prober page. Change it on the row directly — see
 [using.md → Run the first batch](using.md#4-run-the-first-batch) for the exact command.
+A provisioned prober vantage declares its resolver in the console. It changes on its
+vantage card. This `psql` edit is only ever about the `local` row.
 
 ### Where secrets live
 

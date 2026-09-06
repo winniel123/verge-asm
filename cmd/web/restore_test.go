@@ -241,6 +241,71 @@ func TestRotateSessionKeyLapsesSessions(t *testing.T) {
 	}
 }
 
+func TestLoginAfterRestoreLandsUnenrolled(t *testing.T) {
+	f := newFakeStore()
+	acct := seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	enableTOTP(t, f, acct.ID)
+
+	srv := newServer(f, testKey, "", fixedClock())
+	ts := httptest.NewServer(srv.handler())
+	defer ts.Close()
+
+	before := newClient(t)
+	resp := postForm(t, before, ts.URL+"/login", url.Values{"username": {"admin"}, "password": {"hunter2hunter2"}})
+	resp.Body.Close()
+	if !hasCookie(before, ts.URL, pendingCookie) {
+		t.Fatal("test setup: the account was not TOTP-enrolled before the restore")
+	}
+
+	f.acctMu.Lock()
+	live := f.accounts[acct.ID]
+	f.acctMu.Unlock()
+	sealed := live.TotpSecret.String
+	if sealed == "" {
+		t.Fatal("test setup: no sealed TOTP secret to archive")
+	}
+
+	rowJSON, err := json.Marshal(live)
+	if err != nil {
+		t.Fatal(err)
+	}
+	archived, err := redactBackupRow("account", rowJSON)
+	if err != nil {
+		t.Fatalf("redactBackupRow(account): %v", err)
+	}
+	if bytes.Contains(archived, []byte(sealed)) {
+		t.Fatalf("the archive carries the TOTP ciphertext: %s", archived)
+	}
+
+	if err := srv.rotateSessionKey(); err != nil {
+		t.Fatalf("rotateSessionKey: %v", err)
+	}
+	var replayed db.Account
+	if err := json.Unmarshal(archived, &replayed); err != nil {
+		t.Fatalf("archived account row does not replay: %v", err)
+	}
+	f.acctMu.Lock()
+	f.accounts[acct.ID] = replayed
+	f.acctMu.Unlock()
+
+	// A restore rotates the key that sealed the archived secret, so the login is the test (#1419).
+	after := newClient(t)
+	resp = postForm(t, after, ts.URL+"/login", url.Values{"username": {"admin"}, "password": {"hunter2hunter2"}})
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusInternalServerError {
+		t.Fatal("login after a restore answered 500 — the restored ciphertext does not open under the rotated key")
+	}
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("login after a restore: status = %d, want 303 (the operator lands unenrolled)", resp.StatusCode)
+	}
+	if hasCookie(after, ts.URL, pendingCookie) {
+		t.Fatal("login after a restore still owes a second factor the instance cannot verify")
+	}
+	if !hasCookie(after, ts.URL, sessionCookie) {
+		t.Fatal("login after a restore minted no session")
+	}
+}
+
 func TestRestoreErrorMessages(t *testing.T) {
 	for _, code := range []string{"inflight", "unreadable", "schema", "confirm", "expired", "apply"} {
 		if restoreErrorMessage(code) == "" {

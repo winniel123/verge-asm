@@ -254,7 +254,7 @@ func TestPostedBodyIsTheSignedBody(t *testing.T) {
 
 func TestDeliveryErrorRedactsCredentialBearingURL(t *testing.T) {
 	const secretURL = "https://hooks.example.com/services/T0000/B0000/XXXXsecretpathXXXX"
-	// #740: for a no-secret Channel the credential is the URL, and *url.Error embeds it verbatim.
+	// For a no-secret Channel the credential is the URL, which *url.Error embeds (ADR-0053).
 	sendErr := &url.Error{
 		Op:  "Post",
 		URL: secretURL,

@@ -137,10 +137,11 @@ func TestBackupArchiveWellFormed(t *testing.T) {
 	}
 }
 
-func TestBackupRedactsChannelAndSSOSecrets(t *testing.T) {
+func TestBackupRedactsCredentialColumns(t *testing.T) {
 	const (
 		webhookSecret = "whsec_super_secret_hmac_key_1234567890"
 		clientSecret  = "oauth_client_secret_abcdef_confidential"
+		totpCipher    = "dG90cC1jaXBoZXJ0ZXh0LXNlYWxlZC11bmRlci10aGUtb2xkLWtleQ=="
 	)
 	cases := []struct {
 		table       string
@@ -165,6 +166,14 @@ func TestBackupRedactsChannelAndSSOSecrets(t *testing.T) {
 			plaintext:   clientSecret,
 			keepCol:     "client_id",
 			keepVal:     "public-client-id",
+		},
+		{
+			table:       "account",
+			row:         `{"id":1,"username":"admin","password_hash":"$2a$10$hash","totp_secret":"` + totpCipher + `","totp_enabled":true,"role":"admin"}`,
+			redactedCol: "totp_secret",
+			plaintext:   totpCipher,
+			keepCol:     "password_hash",
+			keepVal:     "$2a$10$hash",
 		},
 	}
 	for _, tc := range cases {
@@ -201,6 +210,19 @@ func TestBackupRedactsChannelAndSSOSecrets(t *testing.T) {
 		})
 	}
 
+	enrolled := []byte(`{"id":1,"username":"admin","totp_secret":"` + totpCipher + `","totp_enabled":true}`)
+	dropped, err := redactBackupRow("account", enrolled)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var acct map[string]json.RawMessage
+	if err := json.Unmarshal(dropped, &acct); err != nil {
+		t.Fatalf("redacted account row not valid JSON: %v", err)
+	}
+	if string(acct["totp_enabled"]) != "false" {
+		t.Errorf("account.totp_enabled = %s, want false — an enrolled row with no secret 500s at login (#1419)", acct["totp_enabled"])
+	}
+
 	orig := []byte(`{"id":1,"kind":"name","value":"example.com"}`)
 	got, err := redactBackupRow("seed", orig)
 	if err != nil {
@@ -210,8 +232,8 @@ func TestBackupRedactsChannelAndSSOSecrets(t *testing.T) {
 		t.Errorf("non-secret table was rewritten: got %s, want %s", got, orig)
 	}
 
-	if len(backupRedactedColumns) != 2 {
-		t.Errorf("backupRedactedColumns should cover channel + sso_provider only, got %v", backupRedactedColumns)
+	if len(backupRedactedColumns) != 3 {
+		t.Errorf("backupRedactedColumns should cover account + channel + sso_provider only, got %v", backupRedactedColumns)
 	}
 	for tbl := range backupRedactedColumns {
 		if !backupAllowed(tbl) {

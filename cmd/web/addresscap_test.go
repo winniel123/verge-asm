@@ -1,10 +1,15 @@
 package main
 
 import (
+	"math"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/winniel123/verge-asm/internal/measure/connectoutcome"
 )
 
 func TestAddressCapPersistsAndGovernsDeclaration(t *testing.T) {
@@ -92,13 +97,13 @@ func TestAddressCapRejectsInvalid(t *testing.T) {
 	}
 }
 
-func TestEffectiveCadenceMatchesADR0047(t *testing.T) {
-	// The wants are ADR-0047's worst-case ends: every probe exhausts its retries.
-	if got := projectedPassLabel(effectiveCadenceSeconds(1024, addressScopePorts["hot"])); got != "≈ 34 min" {
-		t.Errorf("hot /22 effective cadence = %q, want ≈ 34 min", got)
+func TestEffectiveCadencePricesACapSizedScope(t *testing.T) {
+	// The wants pace a cap-sized scope at the governing per-host rate, every probe retried (#1127).
+	if got := projectedPassLabel(effectiveCadenceSeconds(1024, addressScopePorts["hot"])); got != "≈ 2 h" {
+		t.Errorf("hot /22 effective cadence = %q, want ≈ 2 h", got)
 	}
-	if got := projectedPassLabel(effectiveCadenceSeconds(1024, addressScopePorts["cold"])); got != "≈ 12 days" {
-		t.Errorf("cold /22 effective cadence = %q, want ≈ 12 days", got)
+	if got := projectedPassLabel(effectiveCadenceSeconds(1024, addressScopePorts["cold"])); got != "≈ 2 months" {
+		t.Errorf("cold /22 effective cadence = %q, want ≈ 2 months", got)
 	}
 	for _, tc := range []struct {
 		seconds float64
@@ -114,6 +119,32 @@ func TestEffectiveCadenceMatchesADR0047(t *testing.T) {
 		if got := projectedPassLabel(tc.seconds); got != tc.want {
 			t.Errorf("projectedPassLabel(%v) = %q, want %q", tc.seconds, got, tc.want)
 		}
+	}
+}
+
+func TestEffectiveCadenceDividesByTheGoverningInterval(t *testing.T) {
+	p := connectoutcome.DefaultProfile()
+	host := netip.MustParseAddr("198.51.100.7")
+	pacer := connectoutcome.NewPacer(p)
+	// A hot job carries one Address, so one host exercises the whole pacer (ADR-0005).
+	start := time.Unix(0, 0).UTC()
+	first := pacer.Next(host, start)
+	governing := pacer.Next(host, start).Sub(first)
+
+	if want := time.Second / time.Duration(p.PerHostConnPerSec); governing != want {
+		t.Fatalf("pacer spaced one host's probes %v apart, want the per-host interval %v", governing, want)
+	}
+	if aggregate := time.Second / time.Duration(p.PerVantagePacketsPerSec); governing <= aggregate {
+		t.Fatalf("per-host interval %v no longer outlasts the per-vantage interval %v, so the "+
+			"projection's divisor must be re-derived", governing, aggregate)
+	}
+
+	const addresses, ports = int64(1024), int64(131)
+	want := float64(addresses) * float64(ports) * float64(1+p.Retries) * governing.Seconds()
+	got := effectiveCadenceSeconds(addresses, ports)
+	if math.Abs(got-want) > 1e-6 {
+		t.Errorf("effectiveCadenceSeconds(%d, %d) = %v s, want %v s at one probe every %v",
+			addresses, ports, got, want, governing)
 	}
 }
 
@@ -133,7 +164,8 @@ func TestAddressCapControlPricesTheCost(t *testing.T) {
 		"probes / cadence",
 		"TB / year",
 		"One full pass runs",
-		"6 days",
+		"24 days",
+		"50 conn/s per-host",
 		"longer than its daily cadence",
 	} {
 		if !strings.Contains(page, want) {

@@ -11,11 +11,12 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/queue"
 	"github.com/winniel123/verge-asm/internal/scan"
 )
 
 type scanTrigger interface {
-	Trigger(ctx context.Context, kind string) (int, error)
+	Trigger(ctx context.Context, kind string) (int, queue.SkipReason, error)
 }
 
 type triggerScanView struct {
@@ -71,18 +72,34 @@ func (s *server) runTrigger(w http.ResponseWriter, r *http.Request) (triggerOutc
 			"It was not dispatched again. Watch its progress in Running now."}, true
 	}
 
-	n, err := s.dispatcher.Trigger(ctx, kind)
+	n, skip, err := s.dispatcher.Trigger(ctx, kind)
 	if err != nil {
 		s.serverError(w, "trigger scan: dispatch", err)
 		return triggerOutcome{}, false
 	}
+	if out, skipped := triggerSkipOutcome(kind, skip); skipped {
+		return out, true
+	}
 	if n == 0 {
-		// A cadence-lag skip also answers (0, nil), so the receipt names every cause (#1114).
 		return triggerOutcome{"warn", "The " + kind + " scan enqueued no jobs",
-			"Nothing covers it yet — no scope or vantage — or its current tick was already dispatched, or an earlier dispatch has not finished."}, true
+			"Nothing covers it yet — no scope or vantage. The tick is recorded as a dispatch with no jobs."}, true
 	}
 	return triggerOutcome{"neutral", kind + " scan dispatched",
 		strconv.Itoa(n) + " " + plural(n, "job", "jobs") + " fanned out"}, true
+}
+
+func triggerSkipOutcome(kind string, skip queue.SkipReason) (triggerOutcome, bool) {
+	switch skip {
+	case queue.SkipCadenceLag:
+		return triggerOutcome{"warn", "The " + kind + " scan is running behind its cadence",
+			"An earlier " + kind + " dispatch has not drained, so this tick was recorded as skipped " +
+				"rather than dispatched alongside it. It appears in Recent dispatches as a skip. " +
+				"Trigger it again once the earlier dispatch finishes."}, true
+	case queue.SkipTickDispatched:
+		return triggerOutcome{"warn", "The " + kind + " scan's current tick was already dispatched",
+			"One tick dispatches once. Nothing was dispatched again — watch the earlier run in Recent dispatches."}, true
+	}
+	return triggerOutcome{}, false
 }
 
 func (s *server) triggerScan(w http.ResponseWriter, r *http.Request, acct db.Account) {

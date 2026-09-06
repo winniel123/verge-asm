@@ -149,6 +149,8 @@
 .st-dot { width: 8px; height: 8px; border-radius: 999px; background: var(--neutral-400); flex: none; }
 .st-dot.done { background: var(--ok-solid); }
 .st-dot.dead { background: var(--danger-solid); }
+.st-dot.skipped { background: var(--stale-solid); }
+.st-tag.skipped { background: var(--stale-bg); border-color: var(--stale-border); color: var(--stale-fg); }
 .st-avatar { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 999px; background: var(--accent-softer); border: 1px solid var(--accent-soft); color: var(--link); font: 600 10.5px var(--font-mono); letter-spacing: 0.02em; flex: none; text-transform: uppercase; }
 .st-disc summary { list-style: none; cursor: pointer; }
 .st-disc summary::-webkit-details-marker { display: none; }
@@ -335,12 +337,13 @@
 <thead><tr><th style="width:40px"></th><th>Scan</th><th style="width:180px">Dispatched</th><th style="width:70px">Jobs</th><th style="width:100px">Completed</th><th style="width:70px;text-align:right">Dead</th></tr></thead>
 <tbody>
 {{range .History}}<tr>
-<td><span class="st-dot{{if gt .Dead 0}} dead{{else}} done{{end}}"></span></td>
-<td class="mono">{{if .Href}}<a href="{{.Href}}" style="color:var(--link);text-decoration:none">{{.ScanKind}}</a>{{else}}{{.ScanKind}}{{end}}</td>
+<td><span class="st-dot{{if .Skipped}} skipped{{else if gt .Dead 0}} dead{{else}} done{{end}}"></span></td>
+<td class="mono">{{if .Href}}<a href="{{.Href}}" style="color:var(--link);text-decoration:none">{{.ScanKind}}</a>{{else}}{{.ScanKind}}{{end}}{{if .Skipped}} <span class="st-tag skipped">skipped</span>{{end}}</td>
 <td class="mono">{{.DispatchedAt}}</td>
-<td class="mono">{{.Live}}</td>
+{{if .Skipped}}<td colspan="3" style="font:400 12.5px var(--font-ui);color:var(--text-secondary)">an earlier dispatch had not drained, so no job was enqueued</td>
+{{else}}<td class="mono">{{.Live}}</td>
 <td class="mono">{{.Completed}}</td>
-<td class="mono" style="text-align:right">{{if gt .Dead 0}}{{.Dead}}{{else}}<span style="color:var(--text-muted)">0</span>{{end}}</td>
+<td class="mono" style="text-align:right">{{if gt .Dead 0}}{{.Dead}}{{else}}<span style="color:var(--text-muted)">0</span>{{end}}</td>{{end}}
 </tr>{{end}}
 </tbody>
 </table>
@@ -397,7 +400,7 @@
 <span class="st-tag">{{.Cadence}}</span>
 <span style="margin-left:auto;font:400 11.5px var(--font-mono);color:var(--text-secondary)">{{.Probes}} probes / cadence</span>
 </div>
-{{if .Effective}}<span class="st-note">One full pass runs <span class="mono">{{.Effective}}</span> at the 200 pkt/s ceiling{{if .Outpaces}} — longer than its {{.Cadence}} cadence, so the trailing edge lags; Coverage reports the shortfall.{{else}} — inside its {{.Cadence}} cadence.{{end}}</span>{{end}}
+{{if .Effective}}<span class="st-note">One full pass runs <span class="mono">{{.Effective}}</span> at the <span class="mono">{{.Ceiling}}</span> ceiling{{if .Outpaces}} — longer than its {{.Cadence}} cadence, so the trailing edge lags; Coverage reports the shortfall.{{else}} — inside its {{.Cadence}} cadence.{{end}}</span>{{end}}
 {{end}}
 </div>
 {{else}}
@@ -461,11 +464,20 @@
 <span class="st-tag">{{.Class}}</span>
 </div>
 <div style="display:flex;align-items:center;gap:12px;font:400 11.5px var(--font-mono);color:var(--text-secondary);min-height:20px">
-{{if .Resolver}}<span style="flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">resolver {{.Resolver}}</span>{{end}}
+{{if .Resolver}}<span style="flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">resolver {{.Resolver}}</span>{{else}}<span style="flex:0 1 auto;color:var(--warn)">no resolver</span>{{end}}
 {{if .Latency}}<span style="flex:none">{{.Latency}}</span>{{end}}
 <span style="margin-left:auto;flex:none"><span class="st-av {{.Availability}}"><span class="d"></span>{{.Availability}}</span></span>
 </div>
 {{if .Unverified}}<span class="st-note">Unverified — this vantage makes no exposure claims until re-verified.</span>{{end}}
+{{if not .Resolver}}<span class="st-note">Its dns jobs are skipped until you set one — no batch is opened, and the other vantages still resolve.</span>{{end}}
+{{if $.IsAdmin}}
+{{if and $.ResolverError (eq $.ResolverID .ID)}}<div class="st-error">{{$.ResolverError}}</div>{{end}}
+<form method="post" action="/settings/vantages/resolver" style="margin:0;display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end">{{template "backfield" $}}
+<input type="hidden" name="id" value="{{.ID}}">
+<span class="st-input"><span class="lb">Resolver</span><span class="iw"><input name="resolver" value="{{if and $.ResolverError (eq $.ResolverID .ID)}}{{$.ResolverValue}}{{else}}{{.Resolver}}{{end}}" placeholder="9.9.9.9:53" autocomplete="off" spellcheck="false" required></span></span>
+<button type="submit" class="st-btn">Set resolver</button>
+</form>
+{{end}}
 </section>
 {{end}}
 </div>
@@ -521,13 +533,15 @@
 <div class="st-body">
 <div style="display:flex;flex-direction:column;gap:14px">
 {{if .ProberError}}<div class="st-error">{{.ProberError}}</div>{{end}}
-<form method="post" action="/settings/probers" style="margin:0;display:grid;grid-template-columns:2fr 90px 1.4fr auto;gap:12px;align-items:end">{{template "backfield" $}}
+<form method="post" action="/settings/probers" style="margin:0;display:grid;grid-template-columns:2fr 90px 1.4fr 1.6fr auto;gap:12px;align-items:end">{{template "backfield" $}}
 <span class="st-input"><span class="lb">Host</span><span class="iw"><input name="host" value="{{.ProberHost}}" placeholder="probe-1.example.net" autocomplete="off" spellcheck="false" required></span></span>
 <span class="st-input"><span class="lb">Port</span><span class="iw"><input name="port" value="{{if .ProberPort}}{{.ProberPort}}{{else}}22{{end}}" autocomplete="off"></span></span>
 <span class="st-input"><span class="lb">Username</span><span class="iw"><input name="username" value="{{.ProberUser}}" placeholder="verge" autocomplete="off" spellcheck="false" required></span></span>
+<span class="st-input"><span class="lb">Resolver</span><span class="iw"><input name="resolver" value="{{.ProberResolver}}" placeholder="9.9.9.9:53" autocomplete="off" spellcheck="false" required></span></span>
 <button type="submit" class="st-btn pri">Provision</button>
 </form>
-<span class="st-note">Four non-secret values; the instance generates the keypair and publishes only the public half above. Don't hand-roll the host — deploy/prober/ is the hardened compose recipe.</span>
+<span class="st-note">Five non-secret values; the instance generates the keypair and publishes only the public half above. Don't hand-roll the host — deploy/prober/ is the hardened compose recipe.</span>
+<span class="st-note">The resolver is the recursive resolver this position measures through, reachable from the prober host, not from here. It is part of the vantage's identity, so nothing is dispatched without it; port 53 is assumed when you omit one.</span>
 </div>
 </div>
 </section>
