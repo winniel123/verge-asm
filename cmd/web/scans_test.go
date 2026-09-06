@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
+	"github.com/winniel123/verge-asm/internal/queue"
 )
 
 func TestToDispatchViewProgress(t *testing.T) {
@@ -252,6 +253,51 @@ func TestScansPageHistory(t *testing.T) {
 	}
 	if strings.Contains(page, `http-equiv="refresh"`) {
 		t.Errorf("no in-flight scan means no refresh; body: %s", page)
+	}
+}
+
+func TestScansPageRendersASkippedDispatchAsItsOwnThing(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+
+	tick := time.Date(2026, 8, 16, 8, 0, 0, 0, time.UTC)
+	skipped := progressRow(9, "hot", tick, 0, 0, 0, 0, 0, 0)
+	skipped.Status = queue.DispatchStatusSkipped
+	f.dispatchProgress = []db.ListDispatchProgressRow{skipped}
+
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+	page := getBody(t, ac, base+"/scans", http.StatusOK)
+
+	if !strings.Contains(page, `class="st-tag skipped"`) {
+		t.Errorf("a skipped dispatch must be marked as one; body: %s", page)
+	}
+	if !strings.Contains(page, "an earlier dispatch had not drained, so no job was enqueued") {
+		t.Errorf("the row must say why nothing was enqueued; body: %s", page)
+	}
+	if !strings.Contains(page, `class="st-dot skipped"`) {
+		t.Errorf("a skip must not carry the completed-run dot; body: %s", page)
+	}
+}
+
+func TestSkippedDispatchIsNotTheLastScan(t *testing.T) {
+	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
+	f := newFakeStore()
+	skipped := progressRow(9, "hot", now.Add(-10*time.Minute), 0, 0, 0, 0, 0, 0)
+	skipped.Status = queue.DispatchStatusSkipped
+	f.dispatchProgress = []db.ListDispatchProgressRow{
+		skipped,
+		progressRow(8, "dns", now.Add(-40*time.Minute), 4, 0, 0, 4, 0, 0),
+	}
+	srv := newServer(f, testKey, "", fixedClock())
+
+	v := srv.scanSchedule(context.Background())
+
+	if !v.HasLast {
+		t.Fatal("HasLast = false, want the newest dispatch that actually ran")
+	}
+	if want := now.Add(-40 * time.Minute); !v.LastScanAt.Equal(want) {
+		t.Errorf("LastScanAt = %s, want %s; a skipped tick measured nothing", v.LastScanAt, want)
 	}
 }
 

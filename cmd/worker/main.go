@@ -99,11 +99,15 @@ func main() {
 		WithProbeTimeout(probeTimeout)
 
 	if *trigger != "" {
-		n, err := dispatcher.Trigger(ctx, *trigger)
+		n, skip, err := dispatcher.Trigger(ctx, *trigger)
 		if err != nil {
 			log.Fatalf("worker: trigger %s: %v", *trigger, err)
 		}
-		log.Printf("worker: triggered %s, %d job(s) enqueued", *trigger, n)
+		if skip != queue.SkipNone {
+			log.Printf("worker: triggered %s, no job enqueued: %s", *trigger, skip)
+		} else {
+			log.Printf("worker: triggered %s, %d job(s) enqueued", *trigger, n)
+		}
 		if err := worker.Drain(ctx); err != nil {
 			log.Fatalf("worker: drain: %v", err)
 		}
