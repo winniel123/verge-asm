@@ -10,6 +10,12 @@ it lags `main` between releases.
 > **Pre-1.0.** verge-asm is alpha software on `0.y.z`. A minor bump may include a
 > breaking change. See the alpha notice in [`README.md`](README.md).
 
+## [v0.1.1] - 2026-09-06
+
+### Bug fixes
+
+- *(release)* A step runs as `bash -e`, so state errexit rather than assume it (#1532)
+
 ## [v0.1.0] - 2026-09-06
 
 ### Security
@@ -568,5 +574,6 @@ it lags `main` between releases.
 - *(comments)* Sweep the web assets 1/6 (#1231) (#1401)
 - *(comments)* Sweep the web assets 2/6 (#1232) (#1403)
 - *(comments)* Sweep the D3 cut-list remainder (#1404) (#1405)
+- *(release)* Prepare v0.1.0 (#1531)
 
 
