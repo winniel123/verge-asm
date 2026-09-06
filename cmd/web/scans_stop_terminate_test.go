@@ -72,6 +72,68 @@ func TestTerminateScanAdminKills(t *testing.T) {
 	}
 }
 
+func TestStopThenTerminateRecordsTerminated(t *testing.T) {
+	f := activeDispatchStore(t, 2, 1)
+	base := startWithTrigger(t, f, &fakeTrigger{})
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	postForm(t, ac, base+"/scans/stop", url.Values{"id": {"1408"}}).Body.Close()
+	if got := f.dispatchStatus[1408]; got != "stopped" {
+		t.Fatalf("after stop: dispatch status = %q, want stopped", got)
+	}
+
+	resp := postForm(t, ac, base+"/scans/terminate", url.Values{"id": {"1408"}})
+	loc := resp.Header.Get("Location")
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusSeeOther || loc != "/settings?tab=scans" {
+		t.Fatalf("terminate: status=%d loc=%q, want 303 to /settings?tab=scans", resp.StatusCode, loc)
+	}
+	if got := f.dispatchStatus[1408]; got != "terminated" {
+		t.Fatalf("after stop then terminate: dispatch status = %q, want terminated", got)
+	}
+	if f.dispatchProgress[0].Running != 0 {
+		t.Errorf("running jobs not cancelled: running = %d, want 0", f.dispatchProgress[0].Running)
+	}
+	page := getBody(t, ac, base+loc, http.StatusOK)
+	if !strings.Contains(page, "Scan terminated") || !strings.Contains(page, "1 job stopped") {
+		t.Errorf("terminate receipt missing/wrong; body: %s", page)
+	}
+}
+
+func TestDispositionWriteOnceExceptEscalation(t *testing.T) {
+	cases := []struct {
+		name   string
+		seed   string
+		path   string
+		status string
+	}{
+		{"first terminate records", "", "/scans/terminate", "terminated"},
+		{"stop escalates to terminate", "stopped", "/scans/terminate", "terminated"},
+		{"double terminate does not overwrite", "terminated", "/scans/terminate", "terminated"},
+		{"a terminated dispatch is not restopped", "terminated", "/scans/stop", "terminated"},
+		{"double stop does not overwrite", "stopped", "/scans/stop", "stopped"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := activeDispatchStore(t, 2, 1)
+			if tc.seed != "" {
+				f.dispatchStatus = map[int64]string{1408: tc.seed}
+			}
+			base := startWithTrigger(t, f, &fakeTrigger{})
+			ac := login(t, base, "admin", "hunter2hunter2")
+
+			resp := postForm(t, ac, base+tc.path, url.Values{"id": {"1408"}})
+			resp.Body.Close()
+			if resp.StatusCode != http.StatusSeeOther {
+				t.Fatalf("%s: status = %d, want 303", tc.path, resp.StatusCode)
+			}
+			if got := f.dispatchStatus[1408]; got != tc.status {
+				t.Fatalf("dispatch status = %q, want %q", got, tc.status)
+			}
+		})
+	}
+}
+
 func TestStopTerminateViewerForbidden(t *testing.T) {
 	for _, path := range []string{"/scans/stop", "/scans/terminate"} {
 		f := newFakeStore()
