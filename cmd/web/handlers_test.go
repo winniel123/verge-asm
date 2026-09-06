@@ -296,7 +296,7 @@ func (f *fakeStore) SetDispatchStatus(_ context.Context, arg db.SetDispatchStatu
 	if !ok {
 		cur = "fanned-out"
 	}
-	// Mirrors the WHERE in db/queries/dispatch.sql, so a test sees the real guard (ADR-0164 §4, #1421).
+	// Mirrors dispatch.sql's WHERE, so a test sees the real guard (ADR-0164 §4, #1421).
 	if cur != "fanned-out" && !(cur == "stopped" && arg.Status == "terminated") {
 		return nil
 	}
