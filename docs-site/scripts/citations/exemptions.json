@@ -50,11 +50,6 @@
       "file": "docs/spec/doc-lint-tool.md",
       "path": "docs/research/2026/report.md",
       "reason": "a deliberately fictional example of a nested research doc (§1.3, #1450)"
-    },
-    {
-      "file": "docs/spec/release-pipeline.md",
-      "path": "docs/release-notes/v0.1.0.md",
-      "reason": "a forward reference; the first release writes this hand-written body (#1246)"
     }
   ]
 }
