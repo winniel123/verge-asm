@@ -581,7 +581,12 @@ jobs:
       - name: Assert the shipped Go stdlib matches `.go-version`
         run: |
           set -euo pipefail
+          # Both sides are normalised to the bare number. Trivy reports the stdlib
+          # as a Go module version, so it carries the `v` that §1.2 drops
+          # everywhere else: measured `v1.26.8` against `.go-version`'s `1.26.8`,
+          # which spent v0.1.1 on a correct toolchain (#1534).
           want=$(tr -d '[:space:]' < .go-version)
+          want="${want#v}"
           shipped=$(jq -r '
             [ .Results[]? | .Packages[]? | select(.Name == "stdlib") | .Version ]
             | unique | .[]
@@ -596,9 +601,11 @@ jobs:
 
           status=0
           while IFS= read -r version; do
-            if [ "$version" != "$want" ]; then
-              echo "assert: ${NAME} ships Go stdlib ${version}, and .go-version pins ${want}" >&2
+            if [ "${version#v}" != "$want" ]; then
+              echo "::error::${NAME} ships Go stdlib ${version}, but .go-version pins ${want}"
               status=1
+            else
+              echo "${NAME} ships Go stdlib ${version}, matching .go-version ${want}"
             fi
           done <<< "$shipped"
           exit "$status"
@@ -704,7 +711,10 @@ jobs:
             image="${IMAGE_BASE}/${pair%%:*}"
             index="${pair#*:}"
             for tag in "${VERSION_TAG}" latest; do
-              got=$(docker buildx imagetools inspect --format '{{ .Manifest.Digest }}' "${image}:${tag}")
+              # `{{json .Manifest}}` and not `{{.Manifest.Digest}}`: the field-access
+              # form silently falls back to the default 164-line render on buildx
+              # 0.30.1, so the compare below could never match (#1534).
+              got=$(docker buildx imagetools inspect --format '{{json .Manifest}}' "${image}:${tag}" | jq -r .digest)
               if [ "$got" != "$index" ]; then
                 echo "::error::${image}:${tag} resolves to ${got}, not the built index ${index}"
                 exit 1
