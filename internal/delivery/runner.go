@@ -258,7 +258,7 @@ func firingFromRow(m db.GetMessageForDeliveryRow) Firing {
 }
 
 func deliveryError(statusCode int, sendErr error) string {
-	// Redacting here covers all three sinks: the log line, delivery.last_error and the UI (#740).
+	// Redacting here covers all three sinks: the log line, delivery.last_error and the UI.
 	if sendErr != nil {
 		return redactTransportError(sendErr)
 	}
@@ -267,7 +267,7 @@ func deliveryError(statusCode int, sendErr error) string {
 
 func redactTransportError(sendErr error) string {
 	var urlErr *url.Error
-	// For a no-secret Channel the credential is the URL path itself (ADR-0053, #740).
+	// For a no-secret Channel the credential is the URL path itself (ADR-0053).
 	if errors.As(sendErr, &urlErr) {
 		// A *url.Error from http.Client.Do or url.Parse embeds the target URL verbatim.
 		if urlErr.Err != nil {

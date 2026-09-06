@@ -28,7 +28,7 @@ type ProbeResult struct {
 type ProberTranscript struct {
 	TranscriptFrame
 	SentScope      []byte // the verbatim stdin bytes, never a re-encoded struct (§2.3)
-	Stdout         []byte // verbatim, captured before the #773 scope re-gate
+	Stdout         []byte // verbatim, captured before the scope re-gate (ADR-0126)
 	Stderr         []byte
 	Outcome        ProberOutcome
 	StdoutOverflow bool // a capture signal the persist step reads, never a stored field (§3.2)

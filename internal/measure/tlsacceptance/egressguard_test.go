@@ -8,7 +8,7 @@ import (
 )
 
 func TestNetEnumeratorGuardRefusesNonGlobal(t *testing.T) {
-	// Without the guard these would block to the timeout, so the elapsed check is the proof (#743).
+	// Without the guard these would block to the timeout, so the elapsed check is the proof.
 	e := NetEnumerator{Timeout: 2 * time.Second}
 	targets := []netip.AddrPort{
 		netip.MustParseAddrPort("169.254.169.254:443"),

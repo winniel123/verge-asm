@@ -31,7 +31,7 @@ type LimitedBuffer struct {
 func NewLimitedBuffer(limit int) *LimitedBuffer { return &LimitedBuffer{limit: limit} }
 
 func (b *LimitedBuffer) Write(p []byte) (int, error) {
-	// A compromised prober could otherwise stream unbounded output into the worker (#772).
+	// A compromised prober could otherwise stream unbounded output into the worker.
 	if b.over || b.buf.Len()+len(p) > b.limit {
 		b.over = true
 		// Fail closed: the job errors and retries rather than accepting partial output.
@@ -141,7 +141,7 @@ type ObservationScanner struct {
 }
 
 func NewObservationScanner(r io.Reader) *ObservationScanner {
-	// The total-byte bound belongs upstream on the sink, where the stream accumulates (#772).
+	// The total-byte bound belongs upstream on the sink, where the stream accumulates.
 	sc := bufio.NewScanner(r)
 	sc.Buffer(make([]byte, 0, 64*1024), MaxObservationLine)
 	return &ObservationScanner{scanner: sc}
