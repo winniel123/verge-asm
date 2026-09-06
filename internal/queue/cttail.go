@@ -24,8 +24,9 @@ const ctTailBatch = 256
 
 const maxEntriesPerPoll = 16384
 
-func (w *Worker) WithCTTail(fetcher CTFetcher) *Worker {
+func (w *Worker) WithCTTail(fetcher CTFetcher, throttle CTThrottle) *Worker {
 	w.ctTailFetcher = fetcher
+	w.ctTailThrottle = throttle
 	return w
 }
 
@@ -55,6 +56,9 @@ func (w *Worker) completeCTTailRFC(ctx context.Context, job db.ClaimJobRow, lg s
 		return fmt.Errorf("ct-tail cursor: %w", gerr)
 	}
 
+	if rerr := w.reserveCTSlot(ctx, w.ctTailThrottle); rerr != nil {
+		return rerr
+	}
 	status, body, ferr := w.ctTailFetcher.Fetch(ctx, base+"ct/v1/get-sth")
 	if ferr != nil || status != 200 {
 		// The nil transcript is deliberate: raw-output capture is scoped to crt.sh (#870).
@@ -75,6 +79,9 @@ func (w *Worker) completeCTTailRFC(ctx context.Context, job db.ClaimJobRow, lg s
 		reqEnd := reached + ctTailBatch - 1
 		if reqEnd > end-1 {
 			reqEnd = end - 1
+		}
+		if rerr := w.reserveCTSlot(ctx, w.ctTailThrottle); rerr != nil {
+			return rerr
 		}
 		st, eb, fe := w.ctTailFetcher.Fetch(ctx, getEntriesURL(base, reached, reqEnd))
 		if fe != nil || st != 200 {
@@ -117,6 +124,9 @@ func (w *Worker) completeCTTailTiled(ctx context.Context, job db.ClaimJobRow, lg
 		return fmt.Errorf("ct-tail cursor: %w", gerr)
 	}
 
+	if rerr := w.reserveCTSlot(ctx, w.ctTailThrottle); rerr != nil {
+		return rerr
+	}
 	status, body, ferr := w.ctTailFetcher.Fetch(ctx, base+"checkpoint")
 	if ferr != nil || status != 200 {
 		return w.retryOrDeadLetterCT(ctx, job, nil, ctHTTPCause(ferr, status, "checkpoint"))
@@ -145,6 +155,9 @@ func (w *Worker) completeCTTailTiled(ctx context.Context, job db.ClaimJobRow, lg
 		width := int64(scan.CTTileWidth)
 		if tileBase+scan.CTTileWidth > sth.TreeSize {
 			width = sth.TreeSize - tileBase
+		}
+		if rerr := w.reserveCTSlot(ctx, w.ctTailThrottle); rerr != nil {
+			return rerr
 		}
 		st, tb, fe := w.ctTailFetcher.Fetch(ctx, dataTileURL(base, tileIdx, width))
 		if fe != nil || st != 200 {
