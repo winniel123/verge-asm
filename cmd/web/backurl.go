@@ -116,22 +116,39 @@ func (s *server) routeServesGET(p string) bool {
 	if s == nil || s.routes == nil {
 		return false
 	}
+	pattern := s.matchedGETPattern(p)
+	// A redirect hop echoes the pattern, so the caller must clean the path first (ADR-0171 §2).
+	if !strings.HasPrefix(pattern, "GET ") {
+		return false
+	}
+	// A subtree matches paths its handler 404s; only home's root is served (ADR-0171 §4).
+	if isSubtreePattern(pattern) {
+		return p == "/"
+	}
+	// A route under a narrower subtree answers off the console (ADR-0171 §4, #1427).
+	for i := 1; i < len(p); i++ {
+		if p[i] != '/' {
+			continue
+		}
+		enclosing := s.matchedGETPattern(p[:i+1])
+		if isSubtreePattern(enclosing) && enclosing != "GET /" {
+			return false
+		}
+	}
+	return true
+}
+
+func (s *server) matchedGETPattern(p string) string {
 	probe := &http.Request{
 		Method: http.MethodGet,
 		URL:    &url.URL{Path: p},
 		Host:   "localhost",
 	}
 	_, pattern := s.routes.Handler(probe)
-	// A redirect hop echoes the pattern, so the caller must clean the path first (ADR-0171 §2).
-	if !strings.HasPrefix(pattern, "GET ") {
-		return false
-	}
-	// The catch-all matches every path, but home answers 404 for all but the root (ADR-0171 §4).
-	if pattern == "GET /" {
-		return p == "/"
-	}
-	return true
+	return pattern
 }
+
+func isSubtreePattern(pattern string) bool { return strings.HasSuffix(pattern, "/") }
 
 // The submitting URL is arbitrary, so no literal destination can express it (ADR-0130 §3).
 

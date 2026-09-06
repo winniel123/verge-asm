@@ -1,10 +1,17 @@
 // A client island bundles this file, so nothing here may import `node:` or `astro:content`.
 
+import { refFromManifest } from "./version-ref.mjs";
+
 export const REPO_URL = "https://github.com/winniel123/verge-asm";
 
-// A `v*` tag makes source-resolution.ts's refForVersion diverge from this mirror (ADR-0115).
-export function refForDocsVersion(version: string): string {
-  return version === "main" || version === "latest" ? "main" : version;
+export interface DocsVersion {
+  value: string;
+  ref: string;
+  tag?: string;
+}
+
+export function refForDocsVersion(version: string, versions: DocsVersion[]): string {
+  return refFromManifest(version, versions);
 }
 
 export function repoBlobUrl(ref: string, path: string): string {
