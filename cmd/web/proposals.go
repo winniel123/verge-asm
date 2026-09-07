@@ -16,6 +16,17 @@ import (
 	"github.com/winniel123/verge-asm/internal/seed"
 )
 
+type proposalsStore interface {
+	ConfirmProposal(ctx context.Context, arg db.ConfirmProposalParams) (int64, error)
+	CreateAddressExclusion(ctx context.Context, arg db.CreateAddressExclusionParams) (db.Exclusion, error)
+	CreateAddressSeed(ctx context.Context, arg db.CreateAddressSeedParams) (db.Seed, error)
+	CreateProposal(ctx context.Context, arg db.CreateProposalParams) (db.Proposal, error)
+	CreateProposerLookup(ctx context.Context, arg db.CreateProposerLookupParams) (db.ProposerLookup, error)
+	DeclineProposal(ctx context.Context, id int64) (int64, error)
+	GetPendingProposal(ctx context.Context, id int64) (db.Proposal, error)
+	ListPendingProposals(ctx context.Context) ([]db.ListPendingProposalsRow, error)
+}
+
 type proposalRow struct {
 	ID     int64
 	Value  string

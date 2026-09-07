@@ -25,6 +25,19 @@ import (
 	"github.com/winniel123/verge-asm/internal/vergecore"
 )
 
+type signalsStore interface {
+	ListAnnotations(ctx context.Context) ([]db.Annotation, error)
+	ListCurrentEndpointSubjects(ctx context.Context, arg db.ListCurrentEndpointSubjectsParams) ([]db.ListCurrentEndpointSubjectsRow, error)
+	ListEndpointCertificates(ctx context.Context, arg db.ListEndpointCertificatesParams) ([]db.ListEndpointCertificatesRow, error)
+	ListNameDNSRecords(ctx context.Context, arg db.ListNameDNSRecordsParams) ([]db.ListNameDNSRecordsRow, error)
+	ListNameResolutionsByClass(ctx context.Context, arg db.ListNameResolutionsByClassParams) ([]db.ListNameResolutionsByClassRow, error)
+	ListServiceReachabilitySpansByClass(ctx context.Context) ([]db.ListServiceReachabilitySpansByClassRow, error)
+	ListServiceTLSAcceptance(ctx context.Context, arg db.ListServiceTLSAcceptanceParams) ([]db.ListServiceTLSAcceptanceRow, error)
+	ListSignalInstances(ctx context.Context) ([]db.SignalInstance, error)
+	ListZoneDeclarations(ctx context.Context) ([]db.ListZoneDeclarationsRow, error)
+	MintSignalInstances(ctx context.Context, arg db.MintSignalInstancesParams) error
+}
+
 // Only fired instances paint, as flat rows and never a per-rule census (docs/spec/v1-spec.md §6.5).
 
 // This layer folds facts into the snapshot and never decides a verdict; the engine owns every one.
@@ -340,9 +353,7 @@ func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.A
 	exportVals := filterVals()
 	exportHref := "/signals/export?" + exportVals.Encode()
 
-	s.render(w, r, "signals", map[string]any{
-		"Title": "Signals", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive":       "signals",
+	s.render(w, r, "signals", pageData(acct, "Signals", "signals", map[string]any{
 		"SignalCount":     len(open),
 		"Tab":             tab,
 		"OpenCount":       len(open),
@@ -373,7 +384,7 @@ func (s *server) renderSignals(w http.ResponseWriter, r *http.Request, acct db.A
 		"Descope":         descope,
 		"AnnoError":       forms.annoError,
 		"AnnoReasonDraft": annoReasonDraft,
-	})
+	}))
 }
 
 func (s *server) enrichSignalDrawer(r *http.Request, row *signalRow) {

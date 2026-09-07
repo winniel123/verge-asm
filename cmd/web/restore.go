@@ -18,6 +18,10 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
+type restoreStore interface {
+	ListDispatchProgress(ctx context.Context, limit int32) ([]db.ListDispatchProgressRow, error)
+}
+
 const restoreMaxUpload = 1 << 30
 
 // The confirm dialog re-posts only the typed word, so the pre-flighted archive is held here.
@@ -114,6 +118,31 @@ func preflightArchive(r io.Reader) (restorePreflight, error) {
 		Tables:        man.Tables,
 		Subjects:      len(subjects),
 	}, nil
+}
+
+func checkArchiveRowTables(archive []byte) error {
+	sc := bufio.NewScanner(bytes.NewReader(archive))
+	sc.Buffer(make([]byte, 0, 1<<20), restoreMaxUpload)
+	for sc.Scan() {
+		line := sc.Bytes()
+		if len(bytes.TrimSpace(line)) == 0 {
+			continue
+		}
+		var row backupRowLine
+		if err := json.Unmarshal(line, &row); err != nil {
+			return fmt.Errorf("restore: malformed archive line: %w", err)
+		}
+		if row.Type != "row" {
+			continue
+		}
+		if !backupAllowed(row.Table) {
+			return errRestoreUnknownTbl
+		}
+	}
+	if err := sc.Err(); err != nil {
+		return fmt.Errorf("restore: read archive: %w", err)
+	}
+	return nil
 }
 
 func backupAllowed(table string) bool {
@@ -249,6 +278,11 @@ func (s *server) applyRestore(ctx context.Context, archive []byte) error {
 		if !backupAllowed(t) {
 			return errRestoreUnknownTbl
 		}
+	}
+
+	// A pre-scan refuses a forged row before TRUNCATE, and the loop gate stays (ADR-0174 §6).
+	if err := checkArchiveRowTables(archive); err != nil {
+		return err
 	}
 
 	identity, err := s.identityTables(ctx)

@@ -289,6 +289,7 @@ LEFT JOIN LATERAL (
     LIMIT 1
 ) pred ON true
 WHERE b.created_at >= $2
+  AND ($3::timestamptz IS NULL OR b.created_at < $3::timestamptz)
 
 UNION ALL
 
@@ -309,6 +310,7 @@ SELECT
 FROM span sp
 JOIN batch b ON b.id = sp.closed_batch_id
 WHERE b.created_at >= $2
+  AND ($3::timestamptz IS NULL OR b.created_at < $3::timestamptz)
   -- A value-move close rides its successor's opened row, so counting it doubles the transition.
   AND sp.closure_reason IS NOT NULL
 
@@ -319,6 +321,7 @@ LIMIT $1
 type ListRecentDriftEventsParams struct {
 	MaxEvents int32              `json:"max_events"`
 	Since     pgtype.Timestamptz `json:"since"`
+	Until     pgtype.Timestamptz `json:"until"`
 }
 
 type ListRecentDriftEventsRow struct {
@@ -345,7 +348,7 @@ type ListRecentDriftEventsRow struct {
 }
 
 func (q *Queries) ListRecentDriftEvents(ctx context.Context, arg ListRecentDriftEventsParams) ([]ListRecentDriftEventsRow, error) {
-	rows, err := q.db.Query(ctx, listRecentDriftEvents, arg.MaxEvents, arg.Since)
+	rows, err := q.db.Query(ctx, listRecentDriftEvents, arg.MaxEvents, arg.Since, arg.Until)
 	if err != nil {
 		return nil, err
 	}

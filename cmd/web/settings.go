@@ -23,6 +23,53 @@ import (
 	"github.com/winniel123/verge-asm/internal/vergecore"
 )
 
+type teamAdminStore interface {
+	CountAdmins(ctx context.Context) (int64, error)
+	CreateInvite(ctx context.Context, arg db.CreateInviteParams) (db.Invite, error)
+	DeleteAccount(ctx context.Context, id int64) error
+	GetAccountByID(ctx context.Context, id int64) (db.Account, error)
+	ListAccounts(ctx context.Context) ([]db.ListAccountsRow, error)
+	ResetAccountTOTP(ctx context.Context, id int64) error
+	RevokeAllSessionsForAccount(ctx context.Context, arg db.RevokeAllSessionsForAccountParams) error
+	UpdateAccountRole(ctx context.Context, arg db.UpdateAccountRoleParams) error
+}
+
+type adminSessionStore interface {
+	ListAllActiveSessions(ctx context.Context, expiresAt pgtype.Timestamptz) ([]db.ListAllActiveSessionsRow, error)
+	RevokeSessionByIDForAdmin(ctx context.Context, arg db.RevokeSessionByIDForAdminParams) error
+}
+
+type channelsStore interface {
+	CreateChannel(ctx context.Context, arg db.CreateChannelParams) (int64, error)
+	DeleteChannel(ctx context.Context, id int64) error
+	ListChannels(ctx context.Context) ([]db.ListChannelsRow, error)
+	SetChannelSecret(ctx context.Context, arg db.SetChannelSecretParams) error
+	UpdateChannel(ctx context.Context, arg db.UpdateChannelParams) error
+}
+
+type instanceSettingsStore interface {
+	GetInstanceConfig(ctx context.Context) (db.GetInstanceConfigRow, error)
+	GetInstanceHealth(ctx context.Context) (db.GetInstanceHealthRow, error)
+	ListAccounts(ctx context.Context) ([]db.ListAccountsRow, error)
+	ListDispatchProgress(ctx context.Context, limit int32) ([]db.ListDispatchProgressRow, error)
+	ListVantages(ctx context.Context) ([]db.ListVantagesRow, error)
+	SetAPIEnabled(ctx context.Context, arg db.SetAPIEnabledParams) error
+	SetSeedAddressCap(ctx context.Context, arg db.SetSeedAddressCapParams) error
+	SetUpdateCheckEnabled(ctx context.Context, arg db.SetUpdateCheckEnabledParams) error
+}
+
+type deliverySettingsStore interface {
+	GetRetentionSettings(ctx context.Context) (db.GetRetentionSettingsRow, error)
+	ListAccounts(ctx context.Context) ([]db.ListAccountsRow, error)
+	ListDeliveryOutcomes(ctx context.Context) ([]db.ListDeliveryOutcomesRow, error)
+	TightestEnabledScanCadenceSeconds(ctx context.Context) (int64, error)
+	UpdateRetentionSettings(ctx context.Context, arg db.UpdateRetentionSettingsParams) error
+}
+
+type apertureSettingsStore interface {
+	ListVergeCoreFrequencyEditsWithAuthor(ctx context.Context) ([]db.ListVergeCoreFrequencyEditsWithAuthorRow, error)
+}
+
 // Every mutation this screen hosts is an authenticated admin act (docs/spec/v1-spec.md §4.3).
 
 // The secret is write-only and never rendered again (CONTEXT.md "Channel").
@@ -614,10 +661,9 @@ func (s *server) renderSettings(w http.ResponseWriter, r *http.Request, acct db.
 		active = tabForSection(f.section)
 	}
 
-	data := map[string]any{
-		"Title": "Settings", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "settings", "Tab": active,
-	}
+	data := pageData(acct, "Settings", "settings", map[string]any{
+		"Tab": active,
+	})
 	if f.notice != "" {
 		data["Notice"] = f.notice
 	}

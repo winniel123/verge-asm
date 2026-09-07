@@ -18,6 +18,16 @@ import (
 	"github.com/winniel123/verge-asm/internal/report"
 )
 
+type reportScheduleStore interface {
+	DeleteReportSchedule(ctx context.Context, id int64) error
+	GetReportSchedule(ctx context.Context, id int64) (db.ReportSchedule, error)
+	InsertReportDelivery(ctx context.Context, arg db.InsertReportDeliveryParams) (db.ReportDelivery, error)
+	InsertReportSchedule(ctx context.Context, arg db.InsertReportScheduleParams) (db.ReportSchedule, error)
+	ListChannels(ctx context.Context) ([]db.ListChannelsRow, error)
+	NextReportDeliveryNo(ctx context.Context, scheduleID int64) (int32, error)
+	UpdateReportSchedule(ctx context.Context, arg db.UpdateReportScheduleParams) (db.ReportSchedule, error)
+}
+
 // A schedule is Declared and holds no timeline, so an edit updates in place, never recomputes.
 
 type reportScheduleSection struct {
@@ -514,12 +524,7 @@ func (s *server) renderScheduleWizard(ctx context.Context, w http.ResponseWriter
 		title = "Edit report schedule"
 	}
 
-	s.render(w, r, "schedulewizard", map[string]any{
-		"Title":     title,
-		"Account":   acct,
-		"IsAdmin":   acct.Role == roleAdmin,
-		"NavActive": "reports",
-
+	s.render(w, r, "schedulewizard", pageData(acct, title, "reports", map[string]any{
 		// Chrome injection stamps BackURL only when unset, so setting it here, even empty, matters.
 		"BackURL": v.Back,
 
@@ -547,5 +552,5 @@ func (s *server) renderScheduleWizard(ctx context.Context, w http.ResponseWriter
 		"ChannelLabel": channelLabel,
 
 		"Review": review,
-	})
+	}))
 }

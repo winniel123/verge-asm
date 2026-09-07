@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"html/template"
 	"log"
 	"net/http"
@@ -15,6 +16,11 @@ import (
 	"github.com/winniel123/verge-asm/internal/retention"
 	"github.com/winniel123/verge-asm/internal/signal"
 )
+
+type searchStore interface {
+	ListCurrentNameSubjects(ctx context.Context, arg db.ListCurrentNameSubjectsParams) ([]db.ListCurrentNameSubjectsRow, error)
+	ListDispatchProgress(ctx context.Context, limit int32) ([]db.ListDispatchProgressRow, error)
+}
 
 var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/search.tmpl"))
 
@@ -140,16 +146,14 @@ func searchMatch(text, q string) bool {
 }
 
 func searchRenderMap(acct db.Account, q string, total int, assets []searchAsset, signals []searchSignal, batches []searchBatch, docs []searchDoc) map[string]any {
-	return map[string]any{
-		"Title": "Search results", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "",
-		"Query":     q,
-		"Total":     total,
-		"Assets":    assets,
-		"Signals":   signals,
-		"Batches":   batches,
-		"Docs":      docs,
-	}
+	return pageData(acct, "Search results", "", map[string]any{
+		"Query":   q,
+		"Total":   total,
+		"Assets":  assets,
+		"Signals": signals,
+		"Batches": batches,
+		"Docs":    docs,
+	})
 }
 
 func (s *server) searchPage(w http.ResponseWriter, r *http.Request, acct db.Account) {

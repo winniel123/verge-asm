@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"html/template"
@@ -20,6 +21,21 @@ import (
 	"github.com/winniel123/verge-asm/internal/retention"
 	"github.com/winniel123/verge-asm/internal/signal"
 )
+
+type subjectsStore interface {
+	FindCoveringAddressSeed(ctx context.Context, address netip.Addr) (db.FindCoveringAddressSeedRow, error)
+	FindCoveringNameSeed(ctx context.Context, name string) (db.FindCoveringNameSeedRow, error)
+	FindNameCitingAddress(ctx context.Context, arg db.FindNameCitingAddressParams) (db.FindNameCitingAddressRow, error)
+	FindNameSeedByID(ctx context.Context, seedID int64) (db.FindNameSeedByIDRow, error)
+	GetEndpointSubject(ctx context.Context, arg db.GetEndpointSubjectParams) (db.GetEndpointSubjectRow, error)
+	GetNameCitation(ctx context.Context, arg db.GetNameCitationParams) (db.GetNameCitationRow, error)
+	GetNameSubject(ctx context.Context, arg db.GetNameSubjectParams) (db.GetNameSubjectRow, error)
+	GetServiceSubject(ctx context.Context, arg db.GetServiceSubjectParams) (db.GetServiceSubjectRow, error)
+	ListAllOpenSpans(ctx context.Context) ([]db.ListAllOpenSpansRow, error)
+	ListEndpointCertificates(ctx context.Context, arg db.ListEndpointCertificatesParams) ([]db.ListEndpointCertificatesRow, error)
+	ListNameDNSRecords(ctx context.Context, arg db.ListNameDNSRecordsParams) ([]db.ListNameDNSRecordsRow, error)
+	ListSpansForSubject(ctx context.Context, arg db.ListSpansForSubjectParams) ([]db.ListSpansForSubjectRow, error)
+}
 
 var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/asset.tmpl"))
 
@@ -258,11 +274,9 @@ func (s *server) endpointPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	data.Provenance = subjectProvenance("endpoint", seedScope, firstSeenFromTimelines(data.Timelines))
 	data.Rules = s.subjectRules(r, subject.SubjectKey)
 
-	s.render(w, r, "endpoint", map[string]any{
-		"Title": subject.SubjectKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "inventory",
-		"Endpoint":  data,
-	})
+	s.render(w, r, "endpoint", pageData(acct, subject.SubjectKey, "inventory", map[string]any{
+		"Endpoint": data,
+	}))
 }
 
 func endpointStatusLabel(v httpIdentityValue) string {
@@ -372,11 +386,9 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	data.Rules = s.subjectRules(r, subject.SubjectKey)
 	data.Signals = s.assetSignals(r, subject.SubjectKey)
 
-	s.render(w, r, "service", map[string]any{
-		"Title": subject.SubjectKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "inventory",
-		"Service":   data,
-	})
+	s.render(w, r, "service", pageData(acct, subject.SubjectKey, "inventory", map[string]any{
+		"Service": data,
+	}))
 }
 
 func serviceCopyKey(addr, port, transport string) string {
@@ -969,11 +981,9 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	data.Exposure = assetHeaderExposure(data.Ports)
 	data.Drift = assetDrift(s.buildTimelines(r, "name", key))
 
-	s.render(w, r, "asset", map[string]any{
-		"Title": subject.SubjectKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "inventory",
-		"Asset":     data,
-	})
+	s.render(w, r, "asset", pageData(acct, subject.SubjectKey, "inventory", map[string]any{
+		"Asset": data,
+	}))
 }
 
 func (s *server) assetProvenance(r *http.Request, key string) (items []assetKV, inScopeSince string) {

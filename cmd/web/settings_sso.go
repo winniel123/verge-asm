@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"net/url"
@@ -10,6 +11,19 @@ import (
 
 	"github.com/winniel123/verge-asm/internal/db"
 )
+
+type ssoAdminStore interface {
+	DeleteSSOIdentity(ctx context.Context, id int64) error
+	DeleteSSOProvider(ctx context.Context, id int64) error
+	InsertSSOProvider(ctx context.Context, arg db.InsertSSOProviderParams) (int64, error)
+	ListSSOBindings(ctx context.Context) ([]db.ListSSOBindingsRow, error)
+
+	// A secret is read only where its act is performed, so no listing read selects it (ADR-0053).
+
+	ListSSOProviders(ctx context.Context) ([]db.ListSSOProvidersRow, error)
+	SetSSOProviderSecret(ctx context.Context, arg db.SetSSOProviderSecretParams) error
+	UpdateSSOProvider(ctx context.Context, arg db.UpdateSSOProviderParams) (int64, error)
+}
 
 var ssoSlugPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 

@@ -16,6 +16,24 @@ import (
 	"github.com/winniel123/verge-asm/internal/queue"
 )
 
+type scansStore interface {
+	CancelActiveJobsForDispatch(ctx context.Context, dispatchID pgtype.Int8) (int64, error)
+	CancelReadyJobsForDispatch(ctx context.Context, dispatchID pgtype.Int8) (int64, error)
+	GetInstanceConfig(ctx context.Context) (db.GetInstanceConfigRow, error)
+	GetScanByKind(ctx context.Context, kind string) (db.Scan, error)
+	ListAccounts(ctx context.Context) ([]db.ListAccountsRow, error)
+	ListActiveDispatchProgress(ctx context.Context) ([]db.ListActiveDispatchProgressRow, error)
+	ListColdScopeSeedIds(ctx context.Context) ([]int64, error)
+	ListConcludedDispatchProgress(ctx context.Context, limit int32) ([]db.ListConcludedDispatchProgressRow, error)
+	ListDispatchProgress(ctx context.Context, limit int32) ([]db.ListDispatchProgressRow, error)
+	ListJobsForDispatch(ctx context.Context, dispatchID pgtype.Int8) ([]db.ListJobsForDispatchRow, error)
+	ListRecentDriftEvents(ctx context.Context, arg db.ListRecentDriftEventsParams) ([]db.ListRecentDriftEventsRow, error)
+	ListScans(ctx context.Context) ([]db.Scan, error)
+	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
+	ListSignalInstances(ctx context.Context) ([]db.SignalInstance, error)
+	SetDispatchStatus(ctx context.Context, arg db.SetDispatchStatusParams) error
+}
+
 // The queue corpus is Operational, so no read on this page reaches the comparison path (ADR-0041).
 
 var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/rundetail.tmpl"))
@@ -396,14 +414,12 @@ func (s *server) runPage(w http.ResponseWriter, r *http.Request, acct db.Account
 	}
 
 	view := s.buildRunView(r, dv, jobRows)
-	s.render(w, r, "run", map[string]any{
-		"Title": "batch " + view.Title, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "drift",
-		"Refresh":   runRefresh(view.Status),
+	s.render(w, r, "run", pageData(acct, "batch "+view.Title, "drift", map[string]any{
+		"Refresh": runRefresh(view.Status),
 		// rundetail.tmpl reads StreamHref at root scope, so attribute and script emit together.
 		"StreamHref": view.StreamHref,
 		"Run":        view,
-	})
+	}))
 }
 
 func (s *server) buildRunView(r *http.Request, dv dispatchView, jobRows []db.ListJobsForDispatchRow) runView {
