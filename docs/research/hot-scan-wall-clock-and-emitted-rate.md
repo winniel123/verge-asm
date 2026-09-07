@@ -84,13 +84,19 @@ it can reach Postgres and the target and nothing else.
 `192.88.100.0/22` is ordinary public space, held locally for the length of the run. A reader who
 holds a public prefix should substitute it.
 
-**This rig is the supported one, and it stays so.**
+~~**This rig is the supported one, and it stays so.**~~ **This rig is one supported rig, and the
+struck claim is WITHDRAWN 2026-09-07 by [#1610](https://github.com/winniel123/verge-asm/issues/1610) ·
+[ADR-0225](../adr/0225-the-declared-address-scope-that-admitted-a-target-rides-the-job-and-the-egress-guard-reads-it.md), per
+[ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).**
 [ADR-0222](../adr/0222-no-test-only-egress-guard-relaxation-is-built-and-the-captured-public-prefix-rig-stays-the-supported-one.md)
 §3 rules that no test-only relaxation of `EgressGuard` is built. A package-level test seam reaches
 a Go test alone. It never reaches the `worker` and `prober` binaries this rig runs, because a
-shipped binary must not carry a seam that opens the egress boundary. So an end-to-end measurement
-needs a target the guard admits, and that means a globally-reachable prefix. Substitute a prefix
-you hold, or reproduce the capture above.
+shipped binary must not carry a seam that opens the egress boundary. ~~So an end-to-end measurement
+needs a target the guard admits, and that means a globally-reachable prefix.~~ **That refusal stands.
+An end-to-end measurement still needs a target the guard admits, and the guard now admits an address
+that a declared address scope contains. A declared `10.0.0.0/24` reaches a local target through the
+production path, with no test-only seam.** Substitute a prefix you hold, reproduce the capture above,
+or declare an address scope over the target instead.
 
 ### 2.3 The scan under test
 
@@ -605,8 +611,12 @@ by this ticket.**
    refused, and the ADR carries the ground. Two needs sit inside it. A Go test of one leaf's dial
    path is already served by an unexported dial-control field on
    `httpexchange.NetExchanger`. An end-to-end run of the shipped binaries is served by §2.2's rig
-   and by nothing else, because no test-only seam may ride a shipped binary. §2.2 stays the
-   supported rig.
+   ~~and by nothing else, because no test-only seam may ride a shipped binary. §2.2 stays the
+   supported rig.~~ **or by a declared address scope over the target. No test-only seam may ride a
+   shipped binary, and that refusal stands. §2.2 is one supported rig. The struck clause is
+   WITHDRAWN 2026-09-07 by [#1610](https://github.com/winniel123/verge-asm/issues/1610) ·
+   [ADR-0225](../adr/0225-the-declared-address-scope-that-admitted-a-target-rides-the-job-and-the-egress-guard-reads-it.md), per
+   [ADR-0058](../adr/0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md).**
 6. **The drain slows as the tick proceeds, by 25% inside one tick, and `flagshipMessages` carries
    it.** §4.2 has the segment table and §4.2.1 has the confirmation. `flagshipMessages` in
    `internal/queue/produce.go` runs `ListServiceReachabilitySpansByClass` and
