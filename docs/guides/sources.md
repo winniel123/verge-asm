@@ -88,18 +88,23 @@ barred and runs for nobody.
 | Entry | Region / path | Tier | Ships |
 | --- | --- | --- | --- |
 | **ARIN** (`entities?fn=`) | North America, keyless org→prefix | `unencumbered` | **on** |
-| **AFRINIC** (CAIDA ⋈ delegated-stats) | Africa, keyless org→prefix | `unencumbered` | **off** — its CAIDA host does not resolve ([#1519](https://github.com/winniel123/verge-asm/issues/1519)) |
-| **APNIC** (CAIDA ⋈ delegated-stats) | Asia-Pacific, keyless org→prefix | `unencumbered` | **off** — its CAIDA host does not resolve (#1519) |
+| **AFRINIC** (CAIDA ⋈ delegated-stats) | Africa, keyless org→prefix | `unencumbered` | **barred** — endpoint does not answer ([#1519](https://github.com/winniel123/verge-asm/issues/1519)) |
+| **APNIC** (CAIDA ⋈ delegated-stats) | Asia-Pacific, keyless org→prefix | `unencumbered` | **barred** — endpoint does not answer (#1519) |
 | **RIPEstat** | RIPE region | `operator-accepted` | **catalogued — no runner** ([#241](https://github.com/winniel123/verge-asm/issues/241)) |
 | **RIPE Database** | RIPE region | `operator-accepted` | **catalogued — no runner** (#241) |
 | **APNIC registry** | APNIC region | `operator-accepted` | **catalogued — no runner** (#241) |
 | **LACNIC registry** | Latin America | `operator-accepted` | **catalogued — no runner** (#241) |
 
 **ARIN** ships on because it is `unencumbered`. The two CAIDA paths are `unencumbered`
-too, but they ship **off**: their CAIDA half names `https://api.caida.org`, a host
-that does not resolve, so every query against them fails at the request and proposes
-nothing (#1519). They stay toggleable, and the failure is loud — never a proposal of
-absence. The four registry paths are `operator-accepted` **by tier**, but **no
+too, but they are **barred** and offer no toggle. Their CAIDA half calls
+`/as2org/v1/org2ids`, and no published CAIDA endpoint serves that path.
+`api.caida.org` does not resolve. `api.data.caida.org` serves the AS2org API but
+publishes no `org2ids` path, and it names each identifier `opaqueId` in place of
+`opaque_ids`. A swapped host would therefore decode to an empty result, which reads
+as absence, so the URL was left alone
+([ADR-0223](../adr/0223-a-bar-is-authored-in-the-release-and-a-health-record-is-per-install-so-the-two-never-share-a-badge.md),
+#1519). A barred entry states its own reason on the `/sources` modal, so *excluded on
+terms* is no longer the only thing a bar can say. The four registry paths are `operator-accepted` **by tier**, but **no
 `proposer.Source` runner ships for them yet**. They render consent+toggle but would emit nothing. So they are **catalogued — not
 yet executing** (the #241 mechanism): non-toggleable, offering **no consent dialog**, and
 off for everyone until a runner lands. At that point they return to *ship off — accept the
