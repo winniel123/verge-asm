@@ -8,7 +8,7 @@
 
 ## Context
 
-Today `/runs/{id}?job={n}` shows only `kind · state · vantage`, built by `runLog` in `cmd/web/scans.go:920` from the `queue_job` operational record. That is the record of what the system *did*, not the output of the job. A probe job emits only structured NDJSON observations on stdout. There is no raw-stdout/stderr channel, no store, and no wire type for raw output today (fact-find, 2026-08-29).
+Today `/runs/{id}?job={n}` shows only `kind · state · vantage`, built by `runLog` in `cmd/web/scans.go` from the `queue_job` operational record. That is the record of what the system *did*, not the output of the job. A probe job emits only structured NDJSON observations on stdout. There is no raw-stdout/stderr channel, no store, and no wire type for raw output today (fact-find, 2026-08-29).
 
 An operator debugging a job needs the genuinely-raw output: **stdout + stderr + exec-meta** (exit code or signal, duration, the `JobSpec` sent). Surfacing the observations verbatim (alternative D1) was rejected — observations do not carry stderr, the exit code, or the spec. This ADR pursues D2: a durable, verbatim store, captured on **local and remote** vantages, surfaced on a dedicated admin-gated view reached from `?job={id}`.
 
