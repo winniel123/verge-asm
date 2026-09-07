@@ -671,6 +671,16 @@ A surviving comment takes this form:
 // <reason clause> (ADR-nnnn §x.y, #nnn)
 ```
 
+**The citation takes two forms, and neither is a fallback for the other.** It names its document
+inline, as above. Or it carries a bare `§n` that a naming line resolves. That naming line sits in
+the same comment block, the same file or the same package. §4.7 rules the second form and states
+the discharge ladder that clears it.
+
+**The second form exists because the cap and the inline form cannot both hold.** Constraint 4 caps
+the physical line at 100 columns. A document name costs 8 columns at the tree's shortest token and
+22 at its longest. The shortest token overruns 100 columns at 43 of the 65 remaining bare sites.
+The document each site's own file names overruns it at 50 of the 65 (#1574).
+
 Four constraints bind **each line**:
 
 1. It states the constraint or the cause. It never states the behaviour.
@@ -1554,7 +1564,7 @@ stays checked, including the checker itself.
 `§n` states the rule the comment claims. #1437 records why: entailment needs a reader who understands
 both texts. So the check narrows the failure and never closes it.
 
-#### A bare `§n` names no document, and 59 lines cannot be repaired at the site
+#### A bare `§n` names no document, and a naming line is what discharges it
 
 **A bare `§n` is a citation defect, and a naming block in the same file does not always clear it.**
 #1489 measured **91 bare `(§n)` occurrences across 83 comment lines** in `cmd/` and `internal/`, on
@@ -1582,11 +1592,17 @@ you take that option.** Two of the five files this SPEC names for that treatment
 They are `cttail.go` and `ctverify.go`. A third, `transcript.go`, had no naming block to keep.
 
 **A repair at the site does not fit, and #1489 measured the figure.** 65 lines remain after the
-repairs above. **Six of them take the shortest legal document name inside §4.4's 100-column cap.
-Fifty-nine do not.** The median line measures 95 columns, and 55 of the 65 reach 84 or more. #1466's
+repairs above. The median line measures 95 columns, and 55 of the 65 reach 84 or more. #1466's
 column campaign trimmed this population **to** the cap. A document name now costs a reason-clause
 rewrite at nearly every site. #1489 refused 59 rewrites, on this section's own ground: a citation
 format may not destroy a reason.
+
+**#1489 reported "six of 65", and that figure is one point on a range.** The count turns on which
+document name it prices. The token `ct-source-replacement` costs 22 columns with its separator, and
+6 of the 65 lines take it inside 100 columns. The tree's shortest legal token is `v1 spec` at 8
+columns, and 22 of the 65 take that. Priced at the document each site's own file names, 15 fit and
+50 do not. **The shortfall therefore runs from 43 lines to 59, and never below 43.** Every figure in
+this subsection re-measures on `baa3762` (#1574).
 
 **One naming line per file or per package fits, and #1489 wrote five.**
 `internal/wire/transcript.go` held five bare `§n` and named nothing. Its `§1.2` site now names
@@ -1611,10 +1627,14 @@ is the one worth naming, and the full basename does **not** repair it. The file 
 `docs/research/passive-discovery-sources.md`. A reader who greps `docs/spec/` first finds nothing
 under either form. Normalising three sites out of 74 would deepen the split rather than close it.
 
-**72 bare occurrences remain, in 65 lines.** Each has a naming line in its own file or package to
-resolve against, except the site below. That is a resolvable pointer and not a verified one. §4.7's
-four tests still run per site. A site-level repair of the 72 is a reason-clause campaign, and it
-needs a ticket that owns those reason clauses.
+**66 bare occurrences remain, in 65 comment lines.** A `git grep` of `(§` reads 72 across 71 lines,
+and 6 of those sit in a string literal rather than a comment (#1574). §4.4 already rules that a
+literal holding a comment marker is not a comment. The six are
+`internal/vergecore/vergecore_test.go` at `:8`, `:11`, `:14`, `:17` and `:20`, plus
+`internal/commentlint/screen/screen_test.go:50`. Each of the 66 has a naming line in its own file or
+package to resolve against, except the site below. That is a resolvable pointer and not a verified
+one. §4.7's four tests still run per site. A site-level repair of the 66 is a reason-clause
+campaign, and the ruling below closes that route rather than scheduling it.
 
 **One site resolves nowhere.** `internal/seed/seed.go:17` cites `§5.3` for `DefaultAddressCap`, and
 its package names `v1 spec §3.2`. `v1-spec.md` §5.3 is "Messages and notification". A grep for
@@ -1626,6 +1646,86 @@ address cap. The reason stands uncited under route 3, and this paragraph records
 `passive-discovery-sources.md` numbers no §6.4, so only `v1-spec.md` numbers both. `v1-spec.md` §3.2
 is "Seeds & aperture". Its §6.4 lists *managing exclusions* as a Seeds-view job. Neither states the
 name-shape rule. #1489 left the citation untouched and records the reading here.
+
+**Ruling: the naming line is a first-class citation form, and never a fallback.** A bare `§n` is
+legal where a naming line resolves it, and where every bare `§n` under that naming line belongs to
+the named document. §4.4 carries the form. This subsection carries the ladder and the ledger.
+#1574 ruled it.
+
+**A naming line writes a document name immediately before a `§n`.** The string
+`ct-source-replacement.md §4` is one, and so is `v1 spec §3.3`. **A package identifier is not one.**
+That answers #1489's ground for refusing tier 3 rather than reversing it. Rule 2 of §4.4 refuses an
+identifier as a citation, and this ruling never makes an identifier the resolver. The four package
+doc comments in `internal/commentlint` write `comment-policy.md` in prose. The package name
+discharges nothing.
+
+**The discharge ladder. The first rung that answers wins.**
+
+| Rung | Scope | What it asks |
+| --- | --- | --- |
+| 1 | The comment block holding the citation | It names exactly one document |
+| 2 | The file | Its comments name exactly one document |
+| 3 | The package | Its comments name exactly one document |
+| 4 | The candidates the scope names | Exactly one of them numbers the cited `§n` |
+
+**Rung 1 outranks rung 2 because a wrapped naming line is one block.** The package doc of
+`internal/measure/wildcarddiscrim/leaf.go` opens on `v1 spec §3.3`, and it carries a bare `§7` and a
+bare `§3.6`. A later block in the same file names `golden-corpus.md §8`, so the file names two
+documents and rung 2 cannot answer. The block answers.
+
+**Rung 4 is the sibling trap's mechanical half.** This section already rules that a `§n` citation
+needs a numbered heading in the target. Where a scope names two documents and only one numbers the
+cited section, that check settles the citation without a reader. Where both number it, the ladder
+ends and the site lands in the ledger below.
+
+**The ledger, measured on `baa3762`.** 66 bare `(§n)` occurrences sit in 65 comment lines under
+`cmd/` and `internal/`.
+
+| Rung | Occurrences |
+| --- | ---: |
+| 1 — the comment block names one document | 6 |
+| 2 — the file names one document | 38 |
+| 3 — the package names one document | 13 |
+| 4 — one candidate numbers the cited `§n` | 7 |
+| No rung answers, and the two below record it | 2 |
+| **Total** | **66** |
+
+**64 of the 66 are discharged permanently, and this ledger closes them.** Do not reopen the
+population as a sweep. A later count that reads 65 lines reads these same discharged sites, and it
+owes no repair.
+
+**Two sites reach no rung, and reading settles both.** `internal/delivery` names
+`notification-channels.md` and `v1 spec` alike, and both documents number the cited sections.
+
+- `internal/delivery/delivery.go:113` cites `§3.2` for *no bearer header is ever set*.
+  `notification-channels.md` §3.2 is "Authentication", and it states **"No bearer header, ever."**
+  `v1-spec.md` §3.2 is "Seeds & aperture", which rules nothing about a header.
+- `internal/delivery/runner.go:55` cites `§4` for a refused 3xx. `notification-channels.md` §4
+  rules any 3xx **Failed**, and its table row gives this comment's own reason in the same words.
+  `v1-spec.md` §4 is "Architecture".
+
+**Neither takes a repair at the site, and the arithmetic says why.** The line `delivery.go:113`
+measures 80 columns, and the short token `notification-channels` costs 22 more, for a total of 102
+columns. The line `runner.go:55` measures 99 columns, so no name of any length fits. **This
+paragraph is the naming line for both.** Cite it rather than reopening the two comments.
+
+**Three other routes were rejected, and each falls on its own ground.**
+
+**Raising the cap fails on its own arithmetic.** Every one of the 65 lines takes `v1 spec` at a
+ceiling of 108 columns. 21 of them cite `ct-source-replacement`, which needs 122. A ceiling of 122
+caps nothing. The number would also reprice the whole tree rather than the 65. #1466 repaired 367 Go
+blocks plus 19 more by trimming **to** 100 columns. #1481 closed a non-Go tail of nine, and #1482's
+`column-over-cap` gates that work. A raise hands every one of those lines its columns back.
+
+**A cap that binds only an uncited line fails the same way.** The cap is arithmetic over a physical
+line and needs no intent (§4.4). That is why it reaches `step-narration` and `prose-other`. A
+name-conditional cap makes the class read intent, which ruling 12 withholds from every judgment
+rule.
+
+**Shortening the 59 reason clauses cuts reason rather than slack.** The median line measures 95
+columns, and a `ct-source-replacement` site needs 17 columns out of a clause the rubric already caps
+at 25 words. #1466 trimmed these same lines once, to 100 columns. A second pass has no slack left to
+take, and this section forbids a citation format that destroys a reason.
 
 ### 4.8 The `package-doc` cap
 
