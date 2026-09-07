@@ -1656,8 +1656,10 @@ right place, and it gains one sentence naming `latest`. **It must also state tha
 backwards** (§14.4), so a digest resolved from `latest` yesterday may differ from what `latest`
 resolves to today.
 
-**Not in the guide: the unproven link** (§20). A verification guide is a contract, and "this
-command may not work" is not a contract.
+**Not in the guide: the then-unproven link** (§20). A verification guide is a contract, and "this
+command may not work" is not a contract. §20 item 5 has since measured that link, and it holds. The
+guide's plain statement of the command was right all along. **The rule outlives its occasion.** A
+hedge about a command's reachability never belongs in the contract.
 
 ### 15.5 The banner, and when the rewrite merges
 
@@ -2002,15 +2004,32 @@ Nothing here blocks the SPEC. Each names who measures it and what a failure reop
 4. **That `actions/setup-go` reads a bare `.go-version` file and resolves the exact patch** (§12).
    This is documented behaviour and is not yet measured on this repository.
 
-**Measure after `v0.1.0`, as an advisory acceptance step (§10.4):**
+**Measured after the first release, as the §10.4 advisory acceptance step. Both are closed:**
 
-5. **That a child-bound SBOM attestation is reachable end to end.** No public GHCR image carries a
-   per-platform attestation, so nothing existed to test against. Querying a child digest verbatim
-   should reach a child-bound attestation, and **that last link is inference from the measured code
-   path, not a measurement**. The first real release is the measurement. **A failure reopens §6.3
-   as a pipeline fix, never a documentation fix.** This is stated **nowhere** in operator prose
-   (§15.4).
-6. **The GHCR visibility default** (§17.1). Delete the runbook step if the first push disproves it.
+5. **A child-bound SBOM attestation is reachable end to end. Measured, and it holds.** The item
+   stood open for want of an artefact. No public GHCR image carried a per-platform attestation, so
+   the last link was inference from a measured code path. `v0.1.2` supplied the artefact.
+
+   §15.2's step-3 command, run verbatim against each `web` child digest, exits 0. It returns a
+   statement carrying `predicateType` `https://spdx.dev/Document/v2.3`. That statement's subject
+   digest is **the child the reader queried**:
+
+   | Platform | Child digest | Result |
+   | --- | --- | --- |
+   | `linux/amd64` | `sha256:9b0c8703…` | exit 0, subject digest equals the query |
+   | `linux/arm64` | `sha256:92eb8959…` | exit 0, subject digest equals the query |
+
+   **§6.3 stands and needs no pipeline fix.** The same run confirmed two things §15 already told
+   operators. §15.2's `imagetools inspect` format string returns both platform rows verbatim. And
+   §15.3's note holds: a non-interactive `gh` success prints nothing and returns 0, so the first
+   run reads as silence and is a pass.
+
+   One over-caution, harmless and left alone. §15.2 tells a reader to skip an `unknown/unknown`
+   row. A verge image carries none, because §2.3's `attest` long form disables the BuildKit
+   attestation manifests. The advice stays: it is right for any other index a reader meets.
+
+6. **The GHCR visibility default. Measured, and it disproves the private-by-default reading.** Both
+   packages were public at the first push. §17.1 records it and drops its items 3 and 4.
 
 **Worth knowing, and on no critical path:**
 
