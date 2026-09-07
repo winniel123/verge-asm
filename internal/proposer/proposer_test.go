@@ -183,7 +183,7 @@ func TestRegistryRunsOnlyEnabledSources(t *testing.T) {
 		NewCAIDA(caidaDoer, SlugAFRINIC, "afrinic", "https://api.caida.org/as2org/v1", "https://ftp.afrinic.net/stats/afrinic"),
 	)
 
-	cands, err := reg.Propose(context.Background(), "Org", map[string]bool{SlugARIN: true})
+	cands, _, err := reg.Propose(context.Background(), "Org", map[string]bool{SlugARIN: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +194,7 @@ func TestRegistryRunsOnlyEnabledSources(t *testing.T) {
 		t.Errorf("disabled AFRINIC source was queried: %v", caidaDoer.calls)
 	}
 
-	cands, err = reg.Propose(context.Background(), "Org", map[string]bool{SlugARIN: true, SlugAFRINIC: true})
+	cands, _, err = reg.Propose(context.Background(), "Org", map[string]bool{SlugARIN: true, SlugAFRINIC: true})
 	if err != nil {
 		t.Fatal(err)
 	}

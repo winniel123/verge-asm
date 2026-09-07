@@ -55,22 +55,30 @@ func DefaultRegistry(doer Doer) *Registry {
 	)
 }
 
-func (r *Registry) Propose(ctx context.Context, orgName string, enabled map[string]bool) ([]Candidate, error) {
+type Attempt struct {
+	SourceSlug string
+	Err        error
+}
+
+func (r *Registry) Propose(ctx context.Context, orgName string, enabled map[string]bool) ([]Candidate, []Attempt, error) {
 	var out []Candidate
+	var attempts []Attempt
 	var errs []error
 	// A source's failure costs its own coverage, never the whole search.
 	for _, s := range r.sources {
 		if !enabled[s.Slug()] {
-			continue
+			continue // a source the operator did not enable is never attempted (ADR-0223 §4)
 		}
 		cands, err := s.Propose(ctx, orgName)
+		// The joined error names a slug in a message alone, so a caller keys on this (ADR-0223 §4).
+		attempts = append(attempts, Attempt{SourceSlug: s.Slug(), Err: err})
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", s.Slug(), err))
 			continue
 		}
 		out = append(out, cands...)
 	}
-	return out, errors.Join(errs...)
+	return out, attempts, errors.Join(errs...)
 }
 
 func rangeToPrefixes(start netip.Addr, count *big.Int) ([]netip.Prefix, error) {

@@ -6,7 +6,7 @@
 - **Rests on:** [ADR-0121](./0121-the-operator-declared-recursive-resolver-is-trusted-and-exempt-from-the-discovered-authority-egress-guard.md), which rules that the egress guard depends on trust origin and not on the address
 - **Implements:** [ADR-0079](./0079-authority-presupposes-denotation-a-non-globally-reachable-address-is-probed-only-inside-a-declared-realm.md), whose worked table states this outcome and whose cost section names the declared address scope as the repair
 - **Amends:** ADR-0079's Consequences, in two sentences. Amendment below
-- **Amends:** ADR-0222 §3 and §4. That file is not on this branch. See "The amendment this branch cannot make"
+- **Amends:** ADR-0222 §3 and §4. ~~That file is not on this branch.~~ **Applied at ADR-0222's own site by [#1626](https://github.com/winniel123/verge-asm/issues/1626).** See "The amendment this branch cannot make"
 
 ## Context
 
@@ -296,3 +296,8 @@ ADR-0222's own site, per ADR-0058, once PR #1614 merges. It has three parts.
 2. §3 is superseded. The captured-public-prefix rig is no longer the only supported way to run a
    leaf measurement end to end. A declared address scope is the other way.
 3. The Consequences sentence *"The mismatch stays live until #1610 lands"* is withdrawn.
+
+> **DISCHARGED by [#1626](https://github.com/winniel123/verge-asm/issues/1626).** PR #1614 merged, and the
+> three parts above are applied at ADR-0222's own site. The four `unresolvable-adr` violations
+> cleared with that merge, and the gate is green. This section stays as the record of the debt and
+> of its payment.
