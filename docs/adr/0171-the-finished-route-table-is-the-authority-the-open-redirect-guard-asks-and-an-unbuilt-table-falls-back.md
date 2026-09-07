@@ -104,8 +104,15 @@ A pattern ending in `/` matches its whole subtree, so the table says "served" fo
 behind it answers 404 for. `GET /` is such a pattern and is narrowed by hand at `backurl.go:129-132`,
 because `home` 404s anything but the root (`auth.go:451-453`). That narrowing is not a special case
 for the root: it is the general obligation. **A subtree pattern registered on this mux is refused by
-the guard except for the paths its handler actually serves, and the narrowing is written beside the
-`GET /` one in the same change that registers the pattern.**
+the guard except for the paths its handler actually serves~~, and the narrowing is written beside the
+`GET /` one in the same change that registers the pattern~~.**
+
+> **The struck clause is withdrawn by [#1522](https://github.com/winniel123/verge-asm/issues/1522) /
+> [PR #1503](https://github.com/winniel123/verge-asm/pull/1503)
+> ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).** No
+> per-subtree narrowing is written anywhere, so there is no `GET /` one to write a second beside.
+> `routeServesGET` derives the narrowing from the matched pattern, and a new subtree needs no
+> companion edit. **The obligation before the strike stands.** See this ADR's #1522 amendment below.
 
 ## Consequences
 
@@ -116,10 +123,14 @@ the guard except for the paths its handler actually serves, and the narrowing is
 - **`GET /api/v1/` is an unnarrowed subtree, and limb 4 makes that a defect.** It is not an open
   redirect — the accepted paths are same-origin and answer 404 or 401 — but it is the guard
   over-answering, which limb 4 forbids.
-- **`backurl.go:125`'s surviving comment is wrong about this mux.** It says an unmatched path yields
-  an empty pattern. With `GET /` registered nothing is unmatched: `/nope` returns `"GET /"`, and the
-  narrowing at `:131` is what refuses it. Go 1.26.8's `findHandler` (`net/http/server.go:2659-2699`)
-  likewise returns the matched node's pattern on a trailing-slash redirect, not an empty string.
+- **~~`routeServesGET`'s surviving comment is wrong about this mux. It says an unmatched path
+  yields an empty pattern.~~ Withdrawn: that comment is gone, and the fact it got wrong still
+  holds.** [PR #1422](https://github.com/winniel123/verge-asm/pull/1422) rewrote the comment in the
+  change that recorded this ADR, and [PR #1503](https://github.com/winniel123/verge-asm/pull/1503)
+  rewrote it again. With `GET /` registered nothing is unmatched: `/nope` returns `"GET /"`, and the
+  subtree narrowing inside `routeServesGET` ([`cmd/web/backurl.go`](../../cmd/web/backurl.go)) is
+  what refuses it. Go 1.26.8's `findHandler` (`net/http/server.go:2659-2699`) likewise returns the
+  matched node's pattern on a trailing-slash redirect, not an empty string.
 - **The rule does not come back as a comment.** It now has a document, so the deleted block stays
   deleted and the declaration position stays empty.
 
