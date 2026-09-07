@@ -93,10 +93,11 @@ jobs:
 
       # ADVISORY — the one non-blocking step in this job. `astro check` typechecks what
       # `npm run build` transpiles past: PR #1508 left the required `VersionOption.ref`
-      # unassigned and shipped `blob/undefined/` links (#1569). Its first run on `main`
-      # reports 3 errors, so blocking here would red-line every run and stop the deploy
-      # job that `needs: build`. Promoting it to blocking is a maintainer call, and
-      # #1568 raises the same three cautions for `staticcheck` on the Go side.
+      # unassigned and shipped `blob/undefined/` links (#1569). The 3-error backlog its
+      # first run reported is now cleared, so promotion is a maintainer call: drop
+      # continue-on-error once the count has held at 0 over a few merges. Blocking here
+      # also stops the deploy job that `needs: build`. #1568 raises the same cautions
+      # for `staticcheck` on the Go side.
       - name: Astro typecheck (advisory)
         continue-on-error: true
         run: npm run check
