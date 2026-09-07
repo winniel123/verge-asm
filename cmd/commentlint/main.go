@@ -1,3 +1,4 @@
+// Command commentlint is the tool comment-policy.md §6 specifies.
 package main
 
 import (

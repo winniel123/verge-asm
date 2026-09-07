@@ -534,7 +534,9 @@ it. Then either keep the naming, or rewrite each surviving sibling to name the d
 is a defect the sweep creates, not one it finds. `internal/scan/ctreliability.go` and
 `cttail_test.go:234` left four `§` references pointing at nothing, and #1190 repaired both.
 `transcript.go`, `cttail.go` and `ctverify.go` held 15 bare `§n` references with one naming block
-each, and every survivor now names the document in full.
+each. **"Every survivor now names the document in full" did not hold, and #1489 measured it.** On
+`bf49660` those three files carried **29** bare `§n` lines between them, and `transcript.go` named
+no document anywhere. The last subsection of §4.7 rules that population.
 
 **A file may carry a bare `§n` family with no naming block anywhere in it.** The fix above assumes
 one block names the document and its siblings free-ride. "Keep the naming block" is then
@@ -874,9 +876,10 @@ presumed wrong.** The form at the head of this section reads `§x.y` as the prim
 `#nnn` as an optional extra. That inverts the truth for such an ADR. #1368's brief had to instruct
 its own reader to take the `#nnn` as naming the amendment, and a brief is not where a rule lives.
 `ADR-0129` states its live rules in amendments named `#944`, `#954`, `#955` and `#956`. A `§n`
-citation to it is wrong until the section is read, and four merged ones were (§4.7, **#1368**). Its
-sections **do** carry numbers, so a grep clears none of the four. The form takes `ADR-nnnn #nnn`
-here: `(ADR-0129 #944)`. Read it as naming the amendment, not as naming an issue beside the ADR.
+citation to it is wrong until the section is read, and nine merged ones were (§4.7, **#1368**,
+**#1490**). Its sections **do** carry numbers, so a grep clears none of the nine. The form takes
+`ADR-nnnn #nnn` here: `(ADR-0129 #944)`. Read it as naming the amendment, not as naming an issue
+beside the ADR.
 
 **The mechanical form of the same rule is stronger, because it needs no reader.**
 **91 of the repo's 218 ADRs number no `###` heading at all**, measured 2026-09-05. Against one of
@@ -1341,7 +1344,7 @@ cross-reference.** `docs/spec/ct-source-replacement.md:180` says "(runtime failo
 inherits the source's error, and the result passes every check the agent then runs.
 
 **A wrong citation is worse than a dead one**, because it survives a file-existence check.
-Seventeen instances are measured. An earlier version of this line said nine and the table already
+Twenty-five instances are measured. An earlier version of this line said nine and the table already
 held ten.
 
 | Citation | What the named section states | What the rule needs |
@@ -1363,8 +1366,17 @@ held ten.
 | `(ADR-0083, §3.5)` on `internal/vergecore/vergecore.go` | ADR-0083 numbers no headings | `ADR-0083` states it whole. The §3.5 was `v1-spec.md` §3.5 (#1455) |
 | `(ADR-0053, spec §2.4)` in `cmd/worker/main.go` | "spec" names no file | `ct-source-replacement.md` §2.4, "Operator key location — worker-only" (#1455) |
 | `(ADR-0126, #1321 §3)` in `internal/queue/transcript.go` | A `§n` on an issue number | `ADR-0126`, whose scope clause states it and cites #1321 §3 itself (#1455) |
+| `(ADR-0129 §6)` at five sites, each stating a membership rule | §6 rules how the SAN bundle is collected, and rules no membership | The `#954` amendment (#1490) |
+| `(§3)` four times and `(§1.1)` in `internal/queue/crtsh.go` | The file names `passive-discovery-sources.md`, whose §3 is "DNS" and whose §1.1 is a source list | `ct-source-replacement.md` §3 and `raw-job-output.md` §1.1 (#1489) |
+| `(§3.2)`, `(§3.3)`, `(§2.1)` and `(§2.1.1)` in `internal/scan/ctverify.go` | The file names `ct-source-replacement.md`. It numbers no §3.2, §3.3 or §2.1.1, and its §2.1 is "Two sources, one Scan" | **RFC 6962**, which the same file writes in full at four other sites (#1489) |
+| `(§4.4)` twice in `internal/scan/ctverify.go` | "Cadence — a measured bar, and opt-in" | `ADR-0214` §2, "No log signature is checked" (#1489) |
+| `(§4.2)` once and `(§4.3)` twice in `internal/scan/cttail.go` | Scan shape and cursor, and the log-set | **C2SP** and **static-ct-api**. One was reduced to an uncited reason (#1489) |
+| `(§7)` on `internal/scan/ctreliability.go` | §7 is the schema summary | `ct-source-replacement.md` §3, whose own `(§7)` pointer the comment copied (#1489) |
+| `(§5)` on `internal/scan/edgefanout.go:3` | "v1 ships fan-out alone" | The `#954` amendment, whose own `(§5)` pointer the comment copied (#1489) |
+| `(§1.3)` on `internal/scan/zone.go` | The file names `v1 spec §3.4`, and `v1-spec.md` numbers no §1.3 | `raw-job-output.md` §1.3, "The Zone variant" (#1489) |
 
-**The last three share one shape, and the check below now catches two of them.** Each pairs a real
+**Three rows share one shape, and the check below now catches two of them.** They are
+`(ADR-0083, §3.5)`, `(ADR-0053, spec §2.4)` and `(ADR-0126, #1321 §3)`. Each pairs a real
 `ADR-nnnn` with a `§n` that belongs to some other document, or to no document. **The comma is the
 shape this defect actually takes.** The separator now accepts an optional comma or semicolon, plus
 at most one space (#1437). `(ADR-0083, §3.5)` lands as `unnumbered-adr`, and `(ADR-0126, #1321 §3)`
@@ -1393,6 +1405,28 @@ token then appeared in `pure_test.go:64` and twice in `crtsh_test.go`, both owne
 **Wrong citations cluster, so a repair checks every citation to that document in that file.** #1328
 was opened for two citations and its file held three. `edgefanout.go:268` cites `ADR-0129 §6` where
 the rule is #956, and only a sweep of every `ADR-0129` reference in the file found it.
+
+**`ADR-0129 §6` is a miscitation target, and #1490 ruled it.** Seven comments cite it. Two are
+right, because §6 rules that collection is CT plus an active no-SNI handshake:
+`internal/scan/edgefanout.go:1` and `internal/measure/edgefanout/leaf.go:83`. The other five each
+state a **membership** rule, and §6 states none. The row above names a citation at a site, and it
+never condemns `§6` everywhere.
+
+**The cause is structural, so it produced five citations rather than five slips.** ADR-0129 numbers
+`### 1.` to `### 6.` under `## Decision`, then writes **23 unnumbered `###` headings** inside four
+amendments. An author who wants a membership ruling finds no number and takes the nearest one.
+**The repair needed no renumber and no new form.** §4.4's `(ADR-nnnn #issue)` form reaches every one
+of those 23 headings, because each sits inside a named amendment. #1490 re-cited all five to
+`(ADR-0129 #954)`, whose heading *"The measurement is membership-deciding, not a facet"* states the
+rule. It left the two correct citations alone.
+
+**Two other repairs were weighed and refused, and both refusals are evidence.** Numbering ADR-0129's
+23 headings was refused: the ADR writes a **bare `§7` ten times**, for a custody-extension census
+panel that is no section of ADR-0129. A renumber starting at 7 turns all ten into self-references to
+a section that rules something else, which is test 1's own failure shape. It also re-aims a reader
+across the 52 `ADR-0129 §n` pointers in 21 tracked files. Re-pointing the five to `ADR-0188` was
+refused on reading it. ADR-0188 holds no occurrence of "membership", "facet" or "timeline", and
+ADR-0188 §4 hands the population back — *"ADR-0129 and its #956 amendment rule the population."*
 
 **`ADR-0134 §5` is a cluster too, not a one-off.** The table records one instance in
 `internal/queue` and a second in `cmd/web/scope_withdrawal_preview_test.go` (#1223). Read it beside
@@ -1428,7 +1462,7 @@ comments give. `c90112e` wrote the citation and **#1166 kept it through the swee
 one.
 
 **Check that a survivor's citation resolves before the PR opens.** The ratchet does not provide this
-check. **Seven defects have reached `main` in merged sweep output, and a repair campaign in batch
+check. **Eight defects have reached `main` in merged sweep output, and a repair campaign in batch
 seventeen cleared six of them.** A sweep that runs seventeen batches lands about one defect a batch,
 so read this as a rate rather than as a closed list.
 
@@ -1441,13 +1475,14 @@ so read this as a rate rather than as a closed list.
 | `internal/custody/census.go:5` and `scopecensus.go:7`, `:35` cite `ADR-0129 §5`, which rules "v1 ships fan-out alone" | #1187, PR #1309 | **Repaired.** #1368, PR #1440. `census.go` names the `#944` amendment and both `scopecensus.go` lines name `#956`. |
 | `internal/auth/key.go:15` and `password.go:3` cite `v1 spec §4.3` for the session-key custody rule | Inherited, kept by #1166, PR #1284 | **Repaired.** #1376, PR #1440. Both now cite `ADR-0053`, which states it. |
 | `docs/adr/0195` cited `ADR-0129 §5` for the display-only rule, and `docs/adr/0163` recorded the three code-side instances as untouched | The `adr-gap` sessions of batch seventeen | Open. **#1441**. Both sites are repaired in the working tree and neither is merged. |
+| `ADR-0129 §6` cited for a membership rule at five sites, in `cmd/prober`, `internal/custody` and `internal/measure/edgefanout` | Batches 2 and 8, PRs #1268 and #1278, and one carried through #1466's column trim in PR #1488 | **Repaired.** #1490. All five name the `#954` amendment. |
 
 Do not repair an open one under a sweep ticket.
 
-**Six of the seven name `ADR-0129`, `ADR-0053` or `ADR-0081` as the wrong citation**, so a survivor
-citing any of the three deserves a second read.
+**Seven of the eight name `ADR-0129`, `ADR-0053` or `ADR-0081` as the wrong citation**, so a
+survivor citing any of the three deserves a second read.
 
-**The seventh defect did not come from a sweep, and that is the finding.** Every other row was
+**The #1441 defect did not come from a sweep, and that is the finding.** Every other row was
 authored by a sweep agent compressing a block. This one was authored by an ADR-recording session
 under §8.10, which copied `ADR-0129 §5` into a new ADR while **#1368** stood open against the same
 citation in code. **A defect ledger this section keeps does not reach the sessions that write ADRs.**
@@ -1518,6 +1553,79 @@ stays checked, including the checker itself.
 **The semantic half stays a reader's job.** The check proves that `§n` exists. It cannot ask whether
 `§n` states the rule the comment claims. #1437 records why: entailment needs a reader who understands
 both texts. So the check narrows the failure and never closes it.
+
+#### A bare `§n` names no document, and 59 lines cannot be repaired at the site
+
+**A bare `§n` is a citation defect, and a naming block in the same file does not always clear it.**
+#1489 measured **91 bare `(§n)` occurrences across 83 comment lines** in `cmd/` and `internal/`, on
+`bf49660`. It read them as three tiers, and took *"a named sibling sits in the same file"* as the
+strong case. **The sibling is the trap.** A file may name one document and carry a `§n` that belongs
+to a second. The reader then resolves the citation **falsely** rather than not at all. That is
+test 1's failure shape, sitting inside the file rather than inside the target.
+
+**Three files carry that shape, and #1489 repaired 15 sites in them.**
+
+- `internal/queue/crtsh.go` names `passive-discovery-sources.md` in its own comments. Four of its
+  bare `§3` sites are `ct-source-replacement.md` §3, the reliability bar. The named document's §3 is
+  "DNS". Its bare `§1.1` is `raw-job-output.md` §1.1, and the named document numbers no §1.1.
+- `internal/scan/ctverify.go` names `ct-source-replacement.md` §5 in its package doc. Four of its
+  bare sites are **RFC 6962** sections, and the same file already wrote `RFC 6962` in full
+  elsewhere. Two more cite `§4.4` for the no-log-signature rule, which `ADR-0214` §2 states.
+- `internal/scan/cttail.go` names the same document. Three of its bare sites are **C2SP** and
+  **static-ct-api** facts. The named document states none of them, and §4.2 and §4.3 rule other
+  things.
+
+**§4.5's "keep the naming" is therefore not a general repair, and this narrows it.** That rule
+offers two outcomes when a delete would orphan a document reference. Keeping the naming block is
+sound only where every bare `§n` in the file belongs to the named document. **Read them all before
+you take that option.** Two of the five files this SPEC names for that treatment fail the condition.
+They are `cttail.go` and `ctverify.go`. A third, `transcript.go`, had no naming block to keep.
+
+**A repair at the site does not fit, and #1489 measured the figure.** 65 lines remain after the
+repairs above. **Six of them take the shortest legal document name inside §4.4's 100-column cap.
+Fifty-nine do not.** The median line measures 95 columns, and 55 of the 65 reach 84 or more. #1466's
+column campaign trimmed this population **to** the cap. A document name now costs a reason-clause
+rewrite at nearly every site. #1489 refused 59 rewrites, on this section's own ground: a citation
+format may not destroy a reason.
+
+**One naming line per file or per package fits, and #1489 wrote five.**
+`internal/wire/transcript.go` held five bare `§n` and named nothing. Its `§1.2` site now names
+`raw-job-output.md`, so the file carries a naming line. `cmd/commentlint` and
+`internal/commentlint/{rule,screen,surface}` gained a package doc each.
+
+**Tier 3 is ruled: the rule binds `internal/commentlint` too.** Its 19 bare `§n` occurrences, in
+18 lines, all resolve against `docs/spec/comment-policy.md`. The package implements this SPEC and
+cites no second document by `§n`. That is not enough, because a package name is an identifier.
+§4.4 rule 2 already refuses an identifier as a citation. The discharge is a naming line. Four
+package docs reach all 19 sites. The column cap binds 15 of the 18 lines, so a site-level repair was
+never available.
+
+**The abbreviated forms stand, and normalising them would not answer the reader's grep.** The tree
+writes `v1 spec §n` 46 times and `v1-spec §n` 10 times. It writes `raw-job-output §n` 10 times,
+`measurement-offers §n` 6 times and `passive-discovery §n` twice. A full `<basename>.md §n` stands
+at 67 sites. **The short form is the majority for three of those four documents.** Each token names
+one file. Read a space as a hyphen, and it matches exactly one basename under `docs/spec/` and
+`docs/research/`. A filename glob resolves it. A content `grep -r` does not: `measurement-offers`
+hits 33 files under `docs/`, and `v1 spec` hits 135. `passive-discovery`
+is the one worth naming, and the full basename does **not** repair it. The file sits at
+`docs/research/passive-discovery-sources.md`. A reader who greps `docs/spec/` first finds nothing
+under either form. Normalising three sites out of 74 would deepen the split rather than close it.
+
+**72 bare occurrences remain, in 65 lines.** Each has a naming line in its own file or package to
+resolve against, except the site below. That is a resolvable pointer and not a verified one. §4.7's
+four tests still run per site. A site-level repair of the 72 is a reason-clause campaign, and it
+needs a ticket that owns those reason clauses.
+
+**One site resolves nowhere.** `internal/seed/seed.go:17` cites `§5.3` for `DefaultAddressCap`, and
+its package names `v1 spec §3.2`. `v1-spec.md` §5.3 is "Messages and notification". A grep for
+`1024` across `docs/spec/`, `docs/research/passive-discovery-sources.md` and `CONTEXT.md` returns no
+address cap. The reason stands uncited under route 3, and this paragraph records the gap.
+
+**A second site reaches no section that states its rule.** `internal/seed/exclusion.go:15` cites
+`§3.2, §6.4` for *not mine is a different claim from not there*. Its package names `v1 spec §3.2`.
+`passive-discovery-sources.md` numbers no §6.4, so only `v1-spec.md` numbers both. `v1-spec.md` §3.2
+is "Seeds & aperture". Its §6.4 lists *managing exclusions* as a Seeds-view job. Neither states the
+name-shape rule. #1489 left the citation untouched and records the reading here.
 
 ### 4.8 The `package-doc` cap
 
@@ -2749,10 +2857,11 @@ now covers the cap.
 citation must pass, and the measured false resolves. Neither a file-existence check nor a bare token
 grep is enough. **The check needs the issue API**, because a deleted `#nnn` returns HTTP 410 and
 nothing under `docs/` distinguishes it from a live one. It also needs the issue **title**, because a
-design-collision id's number resolves to an unrelated live issue. **Seven defects have reached
+design-collision id's number resolves to an unrelated live issue. **Eight defects have reached
 `main` in merged sweep output across seventeen batches. One is a repair that went to the wrong
-document, one the sweep inherited rather than wrote, and one came from an ADR-recording session
-rather than from a sweep.** §4.7 tables them.
+document. One the sweep inherited rather than wrote. One came from an ADR-recording session
+rather than from a sweep. One is an unnumbered stretch of the cited ADR, and it produced five
+citations at once.** §4.7 tables them.
 
 **A citation repair re-runs §4.4's length check.** A repair lengthens the line, and the
 100-column cap binds after `gofmt`. Two of #1328's three repairs measured 110 and 103 runes

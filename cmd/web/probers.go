@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -11,6 +12,11 @@ import (
 	"github.com/winniel123/verge-asm/internal/remoteexec"
 	"github.com/winniel123/verge-asm/internal/vantage"
 )
+
+type probersStore interface {
+	CreateVantage(ctx context.Context, arg db.CreateVantageParams) (db.Vantage, error)
+	SetVantageResolver(ctx context.Context, arg db.SetVantageResolverParams) error
+}
 
 // Only the public half reaches web; the private key stays on the worker volume (ADR-0053).
 

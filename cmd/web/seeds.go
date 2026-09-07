@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"html/template"
 	"io"
@@ -23,6 +24,22 @@ import (
 	"github.com/winniel123/verge-asm/internal/seed"
 	"github.com/winniel123/verge-asm/internal/signal"
 )
+
+type seedsStore interface {
+	queue.SeedWithdrawalPreviewStore
+	queue.NameSeedWithdrawalPreviewStore
+
+	CreateAddressSeed(ctx context.Context, arg db.CreateAddressSeedParams) (db.Seed, error)
+	CreateNameSeed(ctx context.Context, arg db.CreateNameSeedParams) (db.Seed, error)
+	CreateZoneFile(ctx context.Context, arg db.CreateZoneFileParams) (db.CreateZoneFileRow, error)
+	GetZoneCadenceSeconds(ctx context.Context) (int64, error)
+	ListExclusions(ctx context.Context) ([]db.ListExclusionsRow, error)
+	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
+	ListVantages(ctx context.Context) ([]db.ListVantagesRow, error)
+	ListZoneFileStatus(ctx context.Context) ([]db.ListZoneFileStatusRow, error)
+	SetZoneCadenceSeconds(ctx context.Context, cadenceSeconds int64) error
+	WithdrawSeed(ctx context.Context, arg db.WithdrawSeedParams) (db.WithdrawSeedRow, error)
+}
 
 var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/scope.tmpl"))
 
@@ -445,9 +462,7 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 	}
 	// An additive card degrades alone so the screen it sits on still serves (ADR-0168 §1, #1339).
 	census, censusErr := s.custodyCensus(r.Context())
-	data := map[string]any{
-		"Title": "Scope", "NavActive": "scope",
-		"Account": acct, "IsAdmin": acct.Role == roleAdmin,
+	data := pageData(acct, "Scope", "scope", map[string]any{
 		"Seeds": seeds, "AddressCap": s.addressCap(r.Context()),
 		"NameTree":     nameTree,
 		"CoverageMsgs": coverageMessages(probers),
@@ -467,7 +482,7 @@ func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Acc
 		"ProposalError": f.proposalError,
 		"ExclPreview":   f.exclPreview,
 		"SeedConfirm":   f.seedConfirm,
-	}
+	})
 	if f.proposalNotice != "" {
 		data["Notice"] = f.proposalNotice
 	}

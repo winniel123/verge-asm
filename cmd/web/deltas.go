@@ -15,6 +15,14 @@ import (
 	"github.com/winniel123/verge-asm/internal/signal"
 )
 
+type deltasStore interface {
+	ListServiceReachabilitySpansByClass(ctx context.Context) ([]db.ListServiceReachabilitySpansByClassRow, error)
+	ListServiceReachabilitySpansByClassAt(ctx context.Context, at pgtype.Timestamptz) ([]db.ListServiceReachabilitySpansByClassAtRow, error)
+	ListSignalInstances(ctx context.Context) ([]db.SignalInstance, error)
+	ListSpansOpenSince(ctx context.Context, since pgtype.Timestamptz) ([]db.ListSpansOpenSinceRow, error)
+	PreviousBatchTime(ctx context.Context) (pgtype.Timestamptz, error)
+}
+
 const certExpiryWindow = 30 * 24 * time.Hour
 
 func pgtypeTimestamptz(t time.Time) pgtype.Timestamptz {

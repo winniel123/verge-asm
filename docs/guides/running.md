@@ -309,6 +309,51 @@ Three changes would reopen the grant, and the ADR-0137 amendment lists a fourth.
 Recorded `hot` skips are the signal for all three. Watch them before you reach for a
 second worker.
 
+### The rule also covers the worker-read kinds
+
+Three job kinds never reach a prober. `Worker.process` handles `zone`, `ct` and
+`ct-tail` itself and returns (`internal/queue/worker.go`). They emit no probe packets.
+So the budget the rule protects does not apply to them. They share the cap because they
+share one queue and one single-threaded drain loop.
+
+**Relaxing the rule for them would buy no throughput.**
+Every CT request reserves a slot on a per-source row in Postgres.
+The reservation happens before the request goes on the wire.
+Three paths reserve: `ct`, `ct-tail` and `ct-verify`.
+One throttle value reaches all three from `cmd/worker/main.go`.
+That reservation holds across processes by construction
+([ADR-0106](../adr/0106-the-ct-poll-is-a-scan-that-schedules-and-a-ct-admission-is-a-name-citing-its-batch.md)).
+A second reader worker would share the same slot cadence, and fetch no faster.
+Only `zone` would gain from a second process, and the `zone` scan runs monthly.
+
+**What a second reader would buy is decoupling, not scale.** A reservation sleeps the
+drain loop until its slot arrives. One `ct-tail` poll issues up to 65 requests, and each
+one reserves. So a worker-read job can hold the loop for minutes. The worker claims no
+measurement job while it sleeps.
+
+That hold is small against the cadences this install ships.
+The `hot` and `ct` scans run daily, and the `zone` scan runs monthly.
+The `ct-tail` source ships off, so a default install enqueues no tail job.
+A hold of minutes against a daily cadence is under one percent of the period.
+
+**This guide keeps one rule for one worker**
+([#1108](https://github.com/winniel123/verge-asm/issues/1108)). It refuses a split into a
+reader service and a measurement service. It also refuses concurrency inside the drain
+loop. Neither pays for itself while the hold stays this small against these cadences.
+
+Two limits on that decision, both real:
+
+- **Nobody measured the hold.** The figure above is arithmetic over the shipped
+  constants, not an observed time. Nothing records whether a measurement job has ever
+  waited behind a worker-read job. The recorded `hot` skip names a lag, never its cause.
+- **A CertSpotter token paces the tail 30 times slower.** The reservation interval then
+  reads 360 seconds, and one tail poll can hold the loop for hours. That is a defect
+  ([#1520](https://github.com/winniel123/verge-asm/issues/1520)). It is not a reason to
+  restructure the worker.
+
+Revisit this decision if a `hot` scan turns out to fill its daily cadence. #1115 owns
+that number. A hold of minutes matters when the headroom is minutes.
+
 ### On-demand scan triggers
 
 Scans normally fire on their own cadence. To dispatch one immediately — the operator/CI

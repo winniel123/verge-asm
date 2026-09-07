@@ -11,18 +11,15 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
-// The chrome appears only where the data map carries an "IsAdmin" key (#533).
+// A signed-out reader has no console to return to, so this page carries no chrome (#533, #1358).
 
 func (s *server) renderError(w http.ResponseWriter, r *http.Request, status int, kind, title, incidentID string) {
-	data := map[string]any{
-		"Title":      title,
-		"Kind":       kind,
-		"IncidentID": incidentID,
-	}
+	data := barePageData(title)
 	if acct, ok := s.currentAccount(r); ok {
-		data["Account"] = acct
-		data["IsAdmin"] = acct.Role == roleAdmin
+		data = pageData(acct, title, "")
 	}
+	data["Kind"] = kind
+	data["IncidentID"] = incidentID
 	s.renderStatus(w, r, status, "error-page", data)
 }
 
@@ -37,42 +34,32 @@ func (s *server) forbidden(w http.ResponseWriter, r *http.Request) {
 // A withdrawn subject is still reachable by its key, so this state is only an unmatched key (#480).
 
 func (s *server) renderMissingSubject(w http.ResponseWriter, r *http.Request, acct db.Account, subject string) {
-	s.renderStatus(w, r, http.StatusNotFound, "error-page", map[string]any{
-		"Title":       "No such subject",
+	s.renderStatus(w, r, http.StatusNotFound, "error-page", pageData(acct, "No such subject", "", map[string]any{
 		"Kind":        "missing-subject",
 		"Subject":     subject,
 		"ActionLabel": "Back to inventory",
 		"ActionHref":  "/inventory",
-		"Account":     acct,
-		"IsAdmin":     acct.Role == roleAdmin,
-	})
+	}))
 }
 
 func (s *server) renderMissingRun(w http.ResponseWriter, r *http.Request, acct db.Account, run string) {
-	s.renderStatus(w, r, http.StatusNotFound, "error-page", map[string]any{
-		"Title":       "No such run",
+	s.renderStatus(w, r, http.StatusNotFound, "error-page", pageData(acct, "No such run", "drift", map[string]any{
 		"Kind":        "missing-run",
 		"Subject":     "run #" + run,
 		"ActionLabel": "Back to drift",
 		"ActionHref":  "/drift",
-		"NavActive":   "drift",
-		"Account":     acct,
-		"IsAdmin":     acct.Role == roleAdmin,
-	})
+	}))
 }
 
 // Settings alone renders the richer refusal; every other admin route keeps the plain 403 (#481).
 
 func (s *server) settingsForbidden(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	s.renderStatus(w, r, http.StatusForbidden, "error-page", map[string]any{
-		"Title":       "Admin only",
+	s.renderStatus(w, r, http.StatusForbidden, "error-page", pageData(acct, "Admin only", "", map[string]any{
 		"Kind":        "settings-forbidden",
 		"Code":        "403",
 		"ActionLabel": "Back to dashboard",
 		"ActionHref":  "/",
-		"Account":     acct,
-		"IsAdmin":     acct.Role == roleAdmin,
-	})
+	}))
 }
 
 func newIncidentID() string {

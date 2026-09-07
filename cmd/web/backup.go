@@ -14,6 +14,10 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
+type backupStore interface {
+	SetLastBackup(ctx context.Context, lastBackupSize pgtype.Int8) error
+}
+
 // The export reads a business-table allowlist by rule, so a new table is not swept in (ADR-0124).
 
 var backupTables = []string{ // FK-parent-first, so a naive in-order restore is close to load-safe.

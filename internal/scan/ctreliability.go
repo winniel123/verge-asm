@@ -16,7 +16,7 @@ type CTReliabilityWindow struct {
 	P95LatencyMS int64
 }
 
-// A degraded primary is surfaced, never silently swapped: runtime failover is deferred (§7).
+// Runtime failover is deferred, so a degraded primary is surfaced (ct-source-replacement.md §3).
 
 type CTReliabilityReport struct {
 	Source  string

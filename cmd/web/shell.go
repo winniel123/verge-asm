@@ -14,6 +14,11 @@ import (
 	"github.com/winniel123/verge-asm/internal/retention"
 )
 
+type shellStore interface {
+	ListCurrentNameSubjects(ctx context.Context, arg db.ListCurrentNameSubjectsParams) ([]db.ListCurrentNameSubjectsRow, error)
+	ListMessages(ctx context.Context) ([]db.Message, error)
+}
+
 type bellMessage struct {
 	Class    string
 	Headline string

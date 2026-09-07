@@ -38,7 +38,7 @@ type ProberTranscript struct {
 
 func (ProberTranscript) isTranscript() {}
 
-// A ctx-killed prober reads as cancelled, never a fake exit code 0 (§1.2).
+// A ctx-killed prober reads as cancelled, never a fake exit code 0 (raw-job-output.md §1.2).
 
 type ProberOutcome interface{ isProberOutcome() }
 

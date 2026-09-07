@@ -146,7 +146,7 @@ func RestateZone(zf ZoneFile) (records []ZoneRecord, skipped []string) {
 		set := rrsets[key]
 		data, err := json.Marshal(zoneValue{RRs: set.rrs})
 		if err != nil {
-			// A string slice always marshals, so this arm is the spec's defensive surface (§1.3).
+			// A string slice always marshals, so this arm is defensive (raw-job-output.md §1.3).
 			skipped = append(skipped, set.name+" "+set.qtype)
 			continue
 		}

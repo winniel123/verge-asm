@@ -23,6 +23,11 @@ import (
 	"github.com/winniel123/verge-asm/internal/signal"
 )
 
+type devFixtureStore interface {
+	DeleteRecoveryCodesForAccount(ctx context.Context, accountID int64) error
+	GetAccountByUsername(ctx context.Context, username string) (db.Account, error)
+}
+
 // Fabricating a live datum to stand in for a curated fixture ships an approximation as fact.
 
 // Each pinned value duplicates fixtures.json, and a drift test fails on divergence (ADR-0167 §2).
@@ -408,6 +413,7 @@ var devExposureRows = []devExposureRow{
 func (s *server) exposureFixtureData(acct db.Account, variant string) map[string]any {
 	data := map[string]any{
 		"Title": "Exposure", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:    true,
 		"NavActive": "exposure",
 	}
 	if variant == devExposureWithheldVariant {
@@ -518,6 +524,7 @@ var devCoverageStaleZones = []devCoverageStaleZone{
 func (s *server) coverageFixtureData(acct db.Account) map[string]any {
 	data := map[string]any{
 		"Title": "Coverage", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:    true,
 		"NavActive": "coverage",
 	}
 
@@ -635,6 +642,7 @@ func (s *server) runDetailFixtureData(acct db.Account) map[string]any {
 	}
 	return map[string]any{
 		"Title": "batch " + view.Title, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:    true,
 		"NavActive": "drift",
 		"Run":       view,
 	}
@@ -679,6 +687,7 @@ func (s *server) runningRunFixtureData(acct db.Account, jobParam, bareHref strin
 	linkRunLog(&view, bareHref)
 	return map[string]any{
 		"Title": "batch " + view.Title, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:    true,
 		"NavActive": "drift",
 		"Refresh":   runRefresh(view.Status),
 		"Run":       view,
@@ -780,6 +789,7 @@ func (s *server) driftFixtureData(acct db.Account) map[string]any {
 
 	return map[string]any{
 		"Title": "Drift", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:          true,
 		"NavActive":       "drift",
 		"Kinds":           driftKinds(),
 		"Periods":         driftPeriods(),
@@ -964,6 +974,7 @@ func (s *server) scopeFixtureData(acct db.Account, ov scopeOverlay) map[string]a
 
 	data := map[string]any{
 		"Title": "Scope", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:           true,
 		"NavActive":        "scope",
 		"AddressCap":       devScopeAddressCap,
 		"Seeds":            seeds,
@@ -1229,6 +1240,7 @@ func (s *server) signalsFixtureData(acct db.Account, r *http.Request) map[string
 
 	data := map[string]any{
 		"Title": "Signals", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:         true,
 		"NavActive":      "signals",
 		"Tab":            tab,
 		"OpenCount":      devSignalsOpenCount,
@@ -1374,6 +1386,7 @@ func (s *server) dashboardFixtureData(acct db.Account, r *http.Request) map[stri
 
 	data := map[string]any{
 		"Title": "Dashboard", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:         true,
 		"NavActive":      "dashboard",
 		"EmptyEstate":    false,
 		"ScanSchedule":   devDashSchedule,
@@ -1438,6 +1451,7 @@ func (s *server) firstRunFixtureData(acct db.Account) map[string]any {
 	}
 	return map[string]any{
 		"Title": "Dashboard", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:        true,
 		"NavActive":     "dashboard",
 		"EmptyEstate":   true,
 		"FirstRunDone":  fx.FirstRunDone,
@@ -1512,9 +1526,46 @@ func devAssetData() assetPageData {
 func (s *server) assetFixtureData(acct db.Account) map[string]any {
 	return map[string]any{
 		"Title": devAssetKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:    true,
 		"NavActive": "inventory",
 		"Asset":     devAssetData(),
 	}
+}
+
+type subjectRuleFixture struct {
+	Rule     string         `json:"rule"`
+	Version  json.Number    `json:"version"`
+	Severity string         `json:"severity"`
+	SevLabel string         `json:"sev_label"`
+	Verdict  signal.Outcome `json:"verdict"`
+}
+
+func loadSubjectRules(subject string) []subjectRule {
+	// A transcription can drop the third verdict, so read the corpus once (ADR-0167 §2, #1451).
+	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
+	if err != nil {
+		return nil
+	}
+	var ff struct {
+		SubjectDetail map[string]struct {
+			Rules []subjectRuleFixture `json:"rules"`
+		} `json:"subjectdetail"`
+	}
+	if err := json.Unmarshal(raw, &ff); err != nil {
+		return nil
+	}
+	fx := ff.SubjectDetail[subject].Rules
+	out := make([]subjectRule, 0, len(fx))
+	for _, r := range fx {
+		out = append(out, subjectRule{
+			Rule:     r.Rule,
+			Version:  r.Version.String(),
+			Severity: r.Severity,
+			SevLabel: r.SevLabel,
+			Verdict:  r.Verdict,
+		})
+	}
+	return out
 }
 
 const (
@@ -1552,10 +1603,7 @@ func devServiceData() servicePageData {
 				{IsGap: true, Value: "Gap", OpenedAt: "2026-07-02", OpenedFull: "2026-07-02T06:00Z", ClosedAt: "2026-07-14", ClosedFull: "2026-07-14T06:00Z", Reason: "stopped looking"},
 			},
 		}},
-		Rules: []subjectRule{
-			{Rule: "vnc-exposure", Version: "3", Severity: "critical", SevLabel: "Critical", Verdict: signal.Fired},
-			{Rule: "tls-acceptance", Version: "2", Severity: "high", SevLabel: "High", Verdict: signal.NotFired},
-		},
+		Rules: loadSubjectRules("service"),
 		Provenance: []assetKV{
 			{K: "Seed", V: "acmecorp.io"},
 			{K: "Via", V: "dns sweep → hot scan"},
@@ -1596,9 +1644,7 @@ func devServiceWithdrawnData() servicePageData {
 				{Value: "reached", OpenedAt: "2026-07-18", OpenedFull: "2026-07-18T08:40Z", ClosedAt: "2026-08-10", ClosedFull: "2026-08-10T13:25Z", Reason: "withdrawn"},
 			},
 		}},
-		Rules: []subjectRule{
-			{Rule: "admin-panel-reachable", Version: "1", Severity: "high", SevLabel: "High", Verdict: signal.NotFired},
-		},
+		Rules: loadSubjectRules("service_withdrawn"),
 		Provenance: []assetKV{
 			{K: "Seed", V: "acmecorp.io"},
 			{K: "Via", V: "dns sweep → hot scan"},
@@ -1640,10 +1686,7 @@ func devEndpointData() endpointPageData {
 				{Value: "200 · nginx/1.24.0", OpenedAt: "2026-06-14", OpenedFull: "2026-06-14T09:00Z", ClosedAt: "2026-08-12", ClosedFull: "2026-08-12T06:00Z", Reason: "changed"},
 			},
 		}},
-		Rules: []subjectRule{
-			{Rule: "admin-panel-reachable", Version: "1", Severity: "high", SevLabel: "High", Verdict: signal.NotFired},
-			{Rule: "verbose-server-header", Version: "2", Severity: "low", SevLabel: "Low", Verdict: signal.Fired},
-		},
+		Rules: loadSubjectRules("endpoint"),
 		Provenance: []assetKV{
 			{K: "Seed", V: "acmecorp.io"},
 			{K: "Via", V: "resolution × service join"},
@@ -1665,6 +1708,7 @@ func (s *server) serviceFixtureData(acct db.Account, key string) (map[string]any
 	}
 	return map[string]any{
 		"Title": key, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:    true,
 		"NavActive": "inventory",
 		"Service":   data,
 	}, true
@@ -1676,6 +1720,7 @@ func (s *server) endpointFixtureData(acct db.Account, key string) (map[string]an
 	}
 	return map[string]any{
 		"Title": key, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:    true,
 		"NavActive": "inventory",
 		"Endpoint":  devEndpointData(),
 	}, true
@@ -1752,6 +1797,7 @@ func devGraphData() graphView {
 func (s *server) graphFixtureData(acct db.Account) map[string]any {
 	return map[string]any{
 		"Title": "Graph", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:    true,
 		"NavActive": "graph",
 		"Graph":     devGraphData(),
 	}
@@ -1921,6 +1967,7 @@ func (s *server) reportsFixtureData(acct db.Account) map[string]any {
 	fx := loadReportsFixture()
 	return map[string]any{
 		"Title": "Reports", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:    true,
 		"NavActive": "reports",
 
 		"RangeLabel":  fx.RangeLabel,
@@ -2016,6 +2063,7 @@ func (s *server) reportartifactFixtureData(acct db.Account, variant string) map[
 
 	return map[string]any{
 		"Title": "Report delivery", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:     true,
 		"NavActive":  "reports",
 		"Heading":    heading,
 		"Period":     period,
@@ -2116,6 +2164,7 @@ func reportsWizardMap(fx reportsFixtureWizard, q map[string][]string, acct db.Ac
 	last := step == len(fx.Steps)-1
 	return map[string]any{
 		"Title": fx.Title, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:    true,
 		"NavActive": "reports",
 
 		"WizardTitle": fx.Title,
@@ -2271,6 +2320,7 @@ func (s *server) inboxFixtureData(acct db.Account, r *http.Request) map[string]a
 
 	return map[string]any{
 		"Title": "Inbox", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:     true,
 		"NavActive":  "inbox",
 		"Messages":   messages,
 		"Selected":   selected,

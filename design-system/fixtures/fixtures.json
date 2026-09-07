@@ -1579,14 +1579,14 @@
           "version": 3,
           "severity": "critical",
           "sev_label": "Critical",
-          "fired": true
+          "verdict": "fired"
         },
         {
           "rule": "tls-acceptance",
           "version": 2,
           "severity": "high",
           "sev_label": "High",
-          "fired": false
+          "verdict": "not-evaluable"
         }
       ],
       "provenance": [
@@ -1673,7 +1673,7 @@
           "version": 1,
           "severity": "high",
           "sev_label": "High",
-          "fired": false
+          "verdict": "not-fired"
         }
       ],
       "provenance": [
@@ -1759,14 +1759,14 @@
           "version": 1,
           "severity": "high",
           "sev_label": "High",
-          "fired": false
+          "verdict": "not-fired"
         },
         {
           "rule": "verbose-server-header",
           "version": 2,
           "severity": "low",
           "sev_label": "Low",
-          "fired": true
+          "verdict": "fired"
         }
       ],
       "provenance": [

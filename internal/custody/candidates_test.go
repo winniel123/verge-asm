@@ -71,7 +71,7 @@ func TestExtensionCandidatesSkipsNonGloballyReachable(t *testing.T) {
 }
 
 func TestExtensionCandidatesAgreeWithExtensionReaches(t *testing.T) {
-	// A candidate outside the reach probes an address no extension claims (ADR-0129 §6).
+	// A candidate outside the reach probes an address no extension claims (ADR-0129 #954).
 	e := Estate{
 		AddressScopes: []netip.Prefix{netip.MustParsePrefix("104.16.132.0/24")},
 		ExtendedZones: []string{"example.com", "example.org"},

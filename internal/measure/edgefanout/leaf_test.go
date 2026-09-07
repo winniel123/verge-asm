@@ -76,7 +76,7 @@ func TestFoldOutcomeSpace(t *testing.T) {
 }
 
 func TestEmitDeclaresNoFacet(t *testing.T) {
-	// A membership-deciding leaf names an Address and opens no timeline (ADR-0129 §6, #954).
+	// A membership-deciding leaf names an Address and opens no timeline (ADR-0129 #954).
 	target := netip.MustParseAddrPort("198.51.100.7:443")
 	obs := Emit("batch-1", target, Result{Outcome: Presented, Fingerprint: co.Fingerprint(leafDER), LeafDER: leafDER})
 
