@@ -50,8 +50,8 @@ func NewRegistry(sources ...Source) *Registry {
 func DefaultRegistry(doer Doer) *Registry {
 	return NewRegistry(
 		NewARIN(doer, "https://rdap.arin.net/registry"),
-		NewCAIDA(doer, SlugAFRINIC, "afrinic", "https://api.caida.org/as2org/v1", "https://ftp.afrinic.net/stats/afrinic"),
-		NewCAIDA(doer, SlugAPNIC, "apnic", "https://api.caida.org/as2org/v1", "https://ftp.apnic.net/stats/apnic"),
+		NewCAIDA(doer, SlugAFRINIC, "afrinic", "https://api.data.caida.org/as2org/v1", "https://ftp.afrinic.net/stats/afrinic"),
+		NewCAIDA(doer, SlugAPNIC, "apnic", "https://api.data.caida.org/as2org/v1", "https://ftp.apnic.net/stats/apnic"),
 	)
 }
 

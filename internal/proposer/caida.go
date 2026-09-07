@@ -2,6 +2,7 @@ package proposer
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -14,10 +15,10 @@ import (
 	"strings"
 )
 
-type CAIDA struct { // no org-name search is published, so two keyless sets are joined (ADR-0012)
+type CAIDA struct { // CAIDA's org search yields opaque ids and never prefixes, so the RIR file supplies the scopes (ADR-0227)
 	doer          Doer
 	slug          string
-	rir           string // the RIR name in the delegated-stats rows, not the catalogue slug
+	rir           string // the RIR name the delegated-stats rows and the search's source field carry, not the catalogue slug
 	caidaBase     string
 	delegatedBase string
 }
@@ -28,8 +29,27 @@ func NewCAIDA(doer Doer, slug, rir, caidaBase, delegatedBase string) *CAIDA {
 
 func (c *CAIDA) Slug() string { return c.slug }
 
-type caidaOrgIDs struct {
-	OpaqueIDs []string `json:"opaque_ids"`
+const (
+	caidaSearchPageSize = 5000 // the search path caps first at 5000 (ADR-0227 §2)
+	caidaSearchMaxPages = 8
+	caidaSearchMaxBytes = 64 << 20
+)
+
+type caidaSearchPage struct {
+	TotalCount *int              `json:"totalCount"`
+	PageInfo   *caidaPageInfo    `json:"pageInfo"`
+	Errors     json.RawMessage   `json:"errors"`
+	Data       *[]caidaSearchRow `json:"data"`
+}
+
+type caidaPageInfo struct {
+	HasNextPage bool `json:"hasNextPage"`
+}
+
+type caidaSearchRow struct {
+	OpaqueID string `json:"opaqueId"`
+	OrgName  string `json:"orgName"`
+	Source   string `json:"source"`
 }
 
 func (c *CAIDA) Propose(ctx context.Context, orgName string) ([]Candidate, error) {
@@ -48,8 +68,55 @@ func (c *CAIDA) Propose(ctx context.Context, orgName string) ([]Candidate, error
 }
 
 func (c *CAIDA) orgIDs(ctx context.Context, orgName string) ([]string, error) {
-	u := c.caidaBase + "/org2ids?org=" + url.QueryEscape(orgName)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	rir := strings.ToUpper(c.rir)
+	want := strings.ToLower(orgName)
+	seen := make(map[string]bool)
+	var ids []string
+	var named, read int
+
+	for page := 0; page < caidaSearchMaxPages; page++ {
+		p, err := c.searchPage(ctx, orgName, read)
+		if err != nil {
+			return nil, err
+		}
+		rows := *p.Data
+		read += len(rows)
+		for _, row := range rows {
+			// The search scores every RIR's records, so it answers with other regions and near names (ADR-0227 §2).
+			if !strings.EqualFold(row.Source, rir) || !strings.Contains(strings.ToLower(row.OrgName), want) {
+				continue
+			}
+			named++
+			id := strings.TrimSuffix(row.OpaqueID, "_"+rir)
+			if id == "" || seen[id] {
+				continue
+			}
+			seen[id] = true
+			ids = append(ids, id)
+		}
+		if read >= *p.TotalCount {
+			if len(ids) == 0 && named > 0 {
+				// CAIDA holds this org and publishes no join key, which is a gap and never an absence (#50)
+				return nil, fmt.Errorf("caida search matched %d %s records for %q and none carries an opaqueId", named, rir, orgName)
+			}
+			return ids, nil
+		}
+		if !p.PageInfo.HasNextPage {
+			return nil, fmt.Errorf("caida search sent %d of %d rows for %q and reports no next page", read, *p.TotalCount, orgName)
+		}
+		if len(rows) == 0 {
+			return nil, fmt.Errorf("caida search sent an empty page at offset %d for %q", read, orgName)
+		}
+	}
+	return nil, fmt.Errorf("caida search did not send every row for %q within %d pages", orgName, caidaSearchMaxPages)
+}
+
+func (c *CAIDA) searchPage(ctx context.Context, orgName string, offset int) (*caidaSearchPage, error) {
+	q := url.Values{"name": {orgName}, "first": {strconv.Itoa(caidaSearchPageSize)}}
+	if offset > 0 {
+		q.Set("offset", strconv.Itoa(offset))
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.caidaBase+"/search/?"+q.Encode(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -60,13 +127,20 @@ func (c *CAIDA) orgIDs(ctx context.Context, orgName string) ([]string, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("caida org2ids returned %d", resp.StatusCode)
+		return nil, fmt.Errorf("caida search returned %d", resp.StatusCode)
 	}
-	var parsed caidaOrgIDs
-	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
-		return nil, fmt.Errorf("decode caida org2ids: %w", err)
+	var page caidaSearchPage
+	if err := json.NewDecoder(io.LimitReader(resp.Body, caidaSearchMaxBytes)).Decode(&page); err != nil {
+		return nil, fmt.Errorf("decode caida search: %w", err)
 	}
-	return parsed.OpaqueIDs, nil
+	if page.TotalCount == nil || page.PageInfo == nil || page.Data == nil {
+		// encoding/json drops an unknown key, so an unrecognised envelope would otherwise decode to absence (ADR-0227 §3)
+		return nil, fmt.Errorf("caida search returned no totalCount, pageInfo or data")
+	}
+	if e := bytes.TrimSpace(page.Errors); len(e) > 0 && !bytes.Equal(e, []byte("null")) {
+		return nil, fmt.Errorf("caida search reported errors: %s", truncate(e))
+	}
+	return &page, nil
 }
 
 func (c *CAIDA) delegations(ctx context.Context, orgName string, ids map[string]bool) ([]Candidate, error) {

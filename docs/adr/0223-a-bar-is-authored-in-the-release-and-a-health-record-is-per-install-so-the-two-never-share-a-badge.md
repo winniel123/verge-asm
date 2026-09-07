@@ -160,6 +160,11 @@ cannot work.
 serves the path, so the negative result is recorded and the constant stays. Changing it would trade
 a loud failure for a silent one, per the Context.
 
+*Retired by [ADR-0227](./0227-caida-publishes-an-org-name-search-so-the-join-replaces-its-first-leg-and-keeps-its-second.md): the
+first reopening condition below was met on 2026-09-07. `api.data.caida.org/as2org/v1/search/` was
+measured against a real body, and both proposers ship on again. The bar in this section and the
+`endpoint does not answer` reason on both entries are withdrawn. Nothing else in this ADR moves.*
+
 ### 4. The health surface: the four open points
 
 #1553's ruling stands and is not reopened. These four are settled.
@@ -204,6 +209,8 @@ The layer is what separates them.
 - **#1519's first box stays open.** The two proposers still reach no host that answers. They are now
   barred rather than quietly toggleable, and the finding is recorded, but the org→prefix coverage
   for AFRINIC and APNIC is not restored by this ADR.
+  *Closed by [ADR-0227](./0227-caida-publishes-an-org-name-search-so-the-join-replaces-its-first-leg-and-keeps-its-second.md),
+  which repairs the path and restores both proposers.*
 - **The health surface is specified here and built separately, as
   [#1615](https://github.com/winniel123/verge-asm/issues/1615).** No smaller true increment of it
   exists: this ADR refuses in-memory state, so any surface needs the table, the query, the write path
@@ -224,6 +231,7 @@ Reopen this ADR when any one of these holds.
    **not** a drop-in, because the path, the envelope and the field name all differ. Filed as
    [#1616](https://github.com/winniel123/verge-asm/issues/1616). Any such repair must also confirm
    the replacement host is keyless, since `data.caida.org` answers `401`.
+   *Met on 2026-09-07 and settled by [ADR-0227](./0227-caida-publishes-an-org-name-search-so-the-join-replaces-its-first-leg-and-keeps-its-second.md).*
 2. **A source is enabled and never queried for long enough that *never attempted* misleads.** §4
    refuses the periodic probe on a consent ground, and that ground assumes an enabled source gets
    queried. If an operator enables a source and reads *never attempted* for weeks, the refusal has
