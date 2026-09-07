@@ -85,6 +85,15 @@ func signableBy(key any, algs []x509.SignatureAlgorithm) bool {
 	return false
 }
 
+func sortedEndpoints(h *scriptHandshaker) []string {
+	keys := make([]string, 0, len(h.byEndpoint))
+	for k := range h.byEndpoint {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
 func scriptedChainCerts(r Row) []struct {
 	endpoint string
 	index    int
@@ -98,12 +107,7 @@ func scriptedChainCerts(r Row) []struct {
 	if r.Step.Handshake == nil {
 		return out
 	}
-	keys := make([]string, 0, len(r.Step.Handshake.byEndpoint))
-	for k := range r.Step.Handshake.byEndpoint {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for _, k := range keys {
+	for _, k := range sortedEndpoints(r.Step.Handshake) {
 		for i, cc := range r.Step.Handshake.byEndpoint[k].ChainCerts {
 			out = append(out, struct {
 				endpoint string
@@ -175,6 +179,77 @@ func TestReachabilityGuardRejectsWhatTheLiveParseCannotEmit(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			if why := unreachableWhy(tc.cert); why == "" {
 				t.Errorf("the guard accepted %+v, which ParseChainCert cannot emit", tc.cert)
+			}
+		})
+	}
+}
+
+var preV3PresentedSpans = map[string]bool{
+	"api.example.com@198.51.100.10:443/tcp": true,
+	"a.example.com@198.51.100.14:443/tcp":   true,
+	"b.example.com@198.51.100.14:443/tcp":   true,
+}
+
+func chainCertCountUnreachable(endpoint string, res co.HandshakeResult) string {
+	if res.Outcome != co.TLSPresented {
+		return ""
+	}
+	if len(res.ChainCerts) == 0 && preV3PresentedSpans[endpoint] {
+		// The pre-v3 presented span is a shape the read side still branches on, and
+		// repair bumps CertVersion for no moved value (ADR-0152 §1, #1571).
+		return ""
+	}
+	if len(res.ChainCerts) != len(res.Chain) {
+		return fmt.Sprintf("%d chain links beside %d chain_certs, and NetHandshaker emits one per link",
+			len(res.Chain), len(res.ChainCerts))
+	}
+	return ""
+}
+
+func TestScriptedPresentedResultsCarryOneChainCertPerChainLink(t *testing.T) {
+	listed := map[string]bool{}
+	for _, r := range Rows {
+		if r.Step.Handshake == nil {
+			continue
+		}
+		for _, k := range sortedEndpoints(r.Step.Handshake) {
+			res := r.Step.Handshake.byEndpoint[k]
+			if res.Outcome == co.TLSPresented && len(res.ChainCerts) == 0 && preV3PresentedSpans[k] {
+				listed[k] = true
+			}
+			if why := chainCertCountUnreachable(k, res); why != "" {
+				t.Errorf("%s %s: %s", r.Golden, k, why)
+			}
+		}
+	}
+	for k := range preV3PresentedSpans {
+		if !listed[k] {
+			t.Errorf("%s is listed as a pre-v3 presented span and no row scripts one", k)
+		}
+	}
+}
+
+func TestChainCertCountGuardRejectsAPartialChain(t *testing.T) {
+	// Without these the guard could pass by exempting every endpoint (#1571).
+	partial := co.HandshakeResult{
+		Outcome:    co.TLSPresented,
+		Chain:      []string{"sha256:leaf", "sha256:root"},
+		ChainCerts: []co.ChainCert{{Subject: "CN=l", Issuer: "CN=ca", SelfSignatureVerifies: b(false), KeyAlg: "RSA", KeyBits: 2048, SigDigest: "SHA-256"}},
+	}
+	bare := co.HandshakeResult{Outcome: co.TLSPresented, Chain: []string{"sha256:leaf"}}
+	cases := []struct {
+		name     string
+		endpoint string
+		res      co.HandshakeResult
+	}{
+		{"partial chain", "p.example.com@198.51.100.99:443/tcp", partial},
+		{"partial chain at an exempt endpoint", "a.example.com@198.51.100.14:443/tcp", partial},
+		{"no chain certs off the register", "q.example.com@198.51.100.99:443/tcp", bare},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if why := chainCertCountUnreachable(tc.endpoint, tc.res); why == "" {
+				t.Errorf("the guard accepted %+v, which NetHandshaker cannot emit", tc.res)
 			}
 		})
 	}
