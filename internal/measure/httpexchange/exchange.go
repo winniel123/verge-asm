@@ -116,6 +116,7 @@ type Exchanger interface {
 
 type NetExchanger struct {
 	Params  Params
+	realm   custody.Realm
 	control func(network, address string, c syscall.RawConn) error
 }
 
@@ -149,7 +150,7 @@ func (n NetExchanger) Exchange(ctx context.Context, target Target) ExchangeResul
 	// Non-nil only in a test that must reach loopback; production installs the guard.
 	control := n.control
 	if control == nil {
-		control = custody.EgressGuard("httpexchange")
+		control = custody.EgressGuard("httpexchange", n.realm)
 	}
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	// The rebinding-proof line: the kernel's own address is refused even when entry passed.

@@ -120,6 +120,7 @@ func chainFingerprints(certs []*x509.Certificate) []string {
 
 type NetHandshaker struct {
 	Timeout time.Duration
+	realm   custody.Realm
 }
 
 func (n NetHandshaker) Handshake(ctx context.Context, target netip.AddrPort, serverName string) HandshakeResult {
@@ -140,7 +141,7 @@ func (n NetHandshaker) Handshake(ctx context.Context, target netip.AddrPort, ser
 		NextProtos: nil,
 	}
 	d := tls.Dialer{
-		NetDialer: &net.Dialer{Control: custody.EgressGuard("connectoutcome")},
+		NetDialer: &net.Dialer{Control: custody.EgressGuard("connectoutcome", n.realm)},
 		Config:    cfg,
 	}
 	conn, err := d.DialContext(dialCtx, "tcp", target.String())

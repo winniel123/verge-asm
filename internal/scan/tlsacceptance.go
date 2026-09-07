@@ -30,6 +30,7 @@ type TLSAcceptanceJob struct {
 	Kind         string
 	Services     []tlsacceptance.ServiceTarget
 	Candidates   tlsacceptance.CandidateSet
+	Realm        custody.Realm
 }
 
 func BuildTLSAcceptanceJobs(scanID int64, estate custody.Estate, services []ReachedService, vantages []Vantage) []TLSAcceptanceJob {
@@ -52,6 +53,7 @@ func BuildTLSAcceptanceJobs(scanID int64, estate custody.Estate, services []Reac
 	}
 
 	grouped := make(map[int64][]tlsacceptance.ServiceTarget)
+	realms := make(map[int64]custody.Realm)
 	for _, s := range services {
 		if _, ok := byID[s.VantageID]; !ok {
 			continue
@@ -61,13 +63,15 @@ func BuildTLSAcceptanceJobs(scanID int64, estate custody.Estate, services []Reac
 			continue
 		}
 		// A reached Service is a stale snapshot, so the ADR-0079 gate re-runs on the live Estate.
-		if !estate.MayProbe(a, vcByID[s.VantageID]) {
+		scope, ok := estate.ProbeRealm(a, vcByID[s.VantageID])
+		if !ok {
 			continue
 		}
 		grouped[s.VantageID] = append(grouped[s.VantageID], tlsacceptance.ServiceTarget{
 			Address: s.Address,
 			Port:    s.Port,
 		})
+		realms[s.VantageID] = realms[s.VantageID].With(scope)
 	}
 
 	var jobs []TLSAcceptanceJob
@@ -85,6 +89,7 @@ func BuildTLSAcceptanceJobs(scanID int64, estate custody.Estate, services []Reac
 			Kind:         tlsacceptance.Kind,
 			Services:     svcs,
 			Candidates:   tlsacceptance.DefaultCandidateSet(),
+			Realm:        realms[id],
 		})
 	}
 	return jobs
@@ -100,7 +105,7 @@ func (j TLSAcceptanceJob) JobSpec(batch string) (wire.JobSpec, error) {
 	if err != nil {
 		return wire.JobSpec{}, fmt.Errorf("scan: marshal tls-acceptance scope: %w", err)
 	}
-	return wire.JobSpec{Batch: batch, Kind: j.Kind, Scope: raw}, nil
+	return wire.JobSpec{Batch: batch, Kind: j.Kind, Scope: raw, Realm: j.Realm.CIDRs()}, nil
 }
 
 func (j TLSAcceptanceJob) AttemptedScope() ([]byte, error) {
