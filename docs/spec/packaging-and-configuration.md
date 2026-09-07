@@ -323,9 +323,10 @@ Two consequences: **there is no configuration file to mount**, and any two worke
 byte-identical, so no worker can be running a different aperture from its siblings.
 
 That is a claim about configuration and not about rate, and it is not a licence to
-`--scale worker=N`. The measurement safety budget is enforced per prober process, so the
-measurement worker is single-instance by design
-([#1092](https://github.com/winniel123/verge-asm/issues/1092), [running guide](../guides/running.md)).
+`--scale worker=N`. The measurement safety budget is enforced per `Vantage`. One prober
+process holds that ceiling, so the measurement worker is single-instance by design
+([ADR-0137](../adr/0137-the-safety-budget-promises-a-targets-rate-and-enforces-a-vantages.md),
+[#1092](https://github.com/winniel123/verge-asm/issues/1092), [running guide](../guides/running.md)).
 
 One object mounts anyway, and it does not reopen this rule. §9.3 admits a **CA root** for an external
 database because it passes the test above rather than earning an exception to it: a trust anchor has
