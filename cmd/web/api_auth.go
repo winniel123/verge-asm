@@ -20,20 +20,9 @@ type apiAuthStore interface {
 	UpdatePersonalTokenLastUsed(ctx context.Context, id int64) error
 }
 
-func (s *server) apiStore() (apiAuthStore, bool) {
-	st, ok := s.store.(apiAuthStore)
-	return st, ok
-}
-
 func (s *server) apiBearer(next apiHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		st, ok := s.apiStore()
-		if !ok {
-			// A wired store always satisfies this, so the miss fails closed instead of panicking.
-			log.Printf("web: api: store lacks bearer capability")
-			apiNotFound(w, r)
-			return
-		}
+		var st apiAuthStore = s.store
 		// Off is indistinguishable from absent: 404 on every path, never 401 or 403 (ADR-0123 §2).
 		cfg, err := st.GetInstanceConfig(r.Context())
 		if err != nil {

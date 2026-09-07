@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strconv"
@@ -11,6 +12,10 @@ import (
 	"github.com/winniel123/verge-asm/internal/delivery"
 	"github.com/winniel123/verge-asm/internal/message"
 )
+
+type channelSendTestStore interface {
+	GetChannelForDelivery(ctx context.Context, id int64) (db.GetChannelForDeliveryRow, error)
+}
 
 func (s *server) testChannel(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	dest := "/settings?tab=channels"

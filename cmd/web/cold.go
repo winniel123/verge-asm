@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"html/template"
 	"log"
@@ -17,6 +18,21 @@ import (
 	"github.com/winniel123/verge-asm/internal/seed"
 	"github.com/winniel123/verge-asm/internal/signal"
 )
+
+type coldStore interface {
+	addressScopeCensusStore
+
+	GetZoneCadenceSeconds(ctx context.Context) (int64, error)
+	ListBlanketedReachServices(ctx context.Context) ([]string, error)
+	ListCurrentServiceSubjects(ctx context.Context, arg db.ListCurrentServiceSubjectsParams) ([]db.ListCurrentServiceSubjectsRow, error)
+	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
+	ListUnavailableVantages(ctx context.Context) ([]db.ListUnavailableVantagesRow, error)
+	ListZoneDeclarations(ctx context.Context) ([]db.ListZoneDeclarationsRow, error)
+	ListZoneFileStatus(ctx context.Context) ([]db.ListZoneFileStatusRow, error)
+	OptInColdScope(ctx context.Context, arg db.OptInColdScopeParams) error
+	OptOutColdScope(ctx context.Context, seedID int64) error
+	SyncColdScanEnabled(ctx context.Context) error
+}
 
 var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/coverage.tmpl"))
 

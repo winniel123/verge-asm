@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"html/template"
 	"log"
 	"net/http"
@@ -15,6 +16,11 @@ import (
 	"github.com/winniel123/verge-asm/internal/retention"
 	"github.com/winniel123/verge-asm/internal/signal"
 )
+
+type searchStore interface {
+	ListCurrentNameSubjects(ctx context.Context, arg db.ListCurrentNameSubjectsParams) ([]db.ListCurrentNameSubjectsRow, error)
+	ListDispatchProgress(ctx context.Context, limit int32) ([]db.ListDispatchProgressRow, error)
+}
 
 var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/search.tmpl"))
 

@@ -1,11 +1,17 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
 	"github.com/winniel123/verge-asm/internal/db"
 )
+
+type vergeCoreStore interface {
+	DeleteVergeCoreFrequencyEdit(ctx context.Context, port int32) error
+	UpsertVergeCoreFrequencyEdit(ctx context.Context, arg db.UpsertVergeCoreFrequencyEditParams) error
+}
 
 // The sensitive half is release-authored, so no write path here may reach it (v1-spec §3.5).
 

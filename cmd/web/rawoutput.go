@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,6 +18,11 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/transcript"
 )
+
+type rawOutputStore interface {
+	GetTranscriptByJob(ctx context.Context, queueJobID int64) (db.Transcript, error)
+	ListJobsForDispatch(ctx context.Context, dispatchID pgtype.Int8) ([]db.ListJobsForDispatchRow, error)
+}
 
 var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/rundetail-raw.tmpl"))
 

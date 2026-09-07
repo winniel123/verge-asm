@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/csv"
 	"encoding/json"
 	"net/http"
@@ -14,6 +15,10 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/measure/blanketdiscrim"
 )
+
+type inventoryStore interface {
+	ListAllOpenSpans(ctx context.Context) ([]db.ListAllOpenSpansRow, error)
+}
 
 // An open span is a current member by construction, so no membership is re-derived (ADR-0082).
 

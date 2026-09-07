@@ -13,6 +13,10 @@ import (
 	"github.com/winniel123/verge-asm/internal/message"
 )
 
+type reportsExportStore interface {
+	ListDispatchProgress(ctx context.Context, limit int32) ([]db.ListDispatchProgressRow, error)
+}
+
 type reportsExportRange struct {
 	Weeks int
 	Days  int

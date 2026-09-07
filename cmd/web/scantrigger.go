@@ -15,6 +15,12 @@ import (
 	"github.com/winniel123/verge-asm/internal/scan"
 )
 
+type scanTriggerStore interface {
+	GetScanByKind(ctx context.Context, kind string) (db.Scan, error)
+	ListDispatchProgress(ctx context.Context, limit int32) ([]db.ListDispatchProgressRow, error)
+	ListScans(ctx context.Context) ([]db.Scan, error)
+}
+
 type scanTrigger interface {
 	Trigger(ctx context.Context, kind string) (int, queue.SkipReason, error)
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"html/template"
@@ -20,6 +21,21 @@ import (
 	"github.com/winniel123/verge-asm/internal/retention"
 	"github.com/winniel123/verge-asm/internal/signal"
 )
+
+type subjectsStore interface {
+	FindCoveringAddressSeed(ctx context.Context, address netip.Addr) (db.FindCoveringAddressSeedRow, error)
+	FindCoveringNameSeed(ctx context.Context, name string) (db.FindCoveringNameSeedRow, error)
+	FindNameCitingAddress(ctx context.Context, arg db.FindNameCitingAddressParams) (db.FindNameCitingAddressRow, error)
+	FindNameSeedByID(ctx context.Context, seedID int64) (db.FindNameSeedByIDRow, error)
+	GetEndpointSubject(ctx context.Context, arg db.GetEndpointSubjectParams) (db.GetEndpointSubjectRow, error)
+	GetNameCitation(ctx context.Context, arg db.GetNameCitationParams) (db.GetNameCitationRow, error)
+	GetNameSubject(ctx context.Context, arg db.GetNameSubjectParams) (db.GetNameSubjectRow, error)
+	GetServiceSubject(ctx context.Context, arg db.GetServiceSubjectParams) (db.GetServiceSubjectRow, error)
+	ListAllOpenSpans(ctx context.Context) ([]db.ListAllOpenSpansRow, error)
+	ListEndpointCertificates(ctx context.Context, arg db.ListEndpointCertificatesParams) ([]db.ListEndpointCertificatesRow, error)
+	ListNameDNSRecords(ctx context.Context, arg db.ListNameDNSRecordsParams) ([]db.ListNameDNSRecordsRow, error)
+	ListSpansForSubject(ctx context.Context, arg db.ListSpansForSubjectParams) ([]db.ListSpansForSubjectRow, error)
+}
 
 var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/asset.tmpl"))
 

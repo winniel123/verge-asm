@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"html/template"
 	"log"
 	"net/http"
@@ -10,6 +11,12 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/exposure"
 )
+
+type exposureStore interface {
+	ListAllOpenSpans(ctx context.Context) ([]db.ListAllOpenSpansRow, error)
+	ListServiceReachabilitySpansByClass(ctx context.Context) ([]db.ListServiceReachabilitySpansByClassRow, error)
+	ListVantages(ctx context.Context) ([]db.ListVantagesRow, error)
+}
 
 var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/exposure.tmpl"))
 

@@ -23,6 +23,11 @@ import (
 	"github.com/winniel123/verge-asm/internal/signal"
 )
 
+type devFixtureStore interface {
+	DeleteRecoveryCodesForAccount(ctx context.Context, accountID int64) error
+	GetAccountByUsername(ctx context.Context, username string) (db.Account, error)
+}
+
 // Fabricating a live datum to stand in for a curated fixture ships an approximation as fact.
 
 // Each pinned value duplicates fixtures.json, and a drift test fails on divergence (ADR-0167 §2).

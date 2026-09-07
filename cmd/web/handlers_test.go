@@ -2462,17 +2462,6 @@ func (f *fakeStore) ConfirmProposal(_ context.Context, arg db.ConfirmProposalPar
 	return 0, nil
 }
 
-func (f *fakeStore) DeclineLookup(_ context.Context, lookupID int64) (int64, error) {
-	var n int64
-	for i, p := range f.proposals {
-		if p.LookupID == lookupID && p.Status == "pending" {
-			f.proposals[i].Status = "declined"
-			n++
-		}
-	}
-	return n, nil
-}
-
 func (f *fakeStore) DeclineProposal(_ context.Context, id int64) (int64, error) {
 	for i, p := range f.proposals {
 		if p.ID == id && p.Status == "pending" {
@@ -2634,19 +2623,6 @@ func (f *fakeStore) ListEnabledSSOProviders(context.Context) ([]db.ListEnabledSS
 		}
 	}
 	return out, nil
-}
-
-func (f *fakeStore) GetSSOProvider(_ context.Context, id int64) (db.GetSSOProviderRow, error) {
-	for _, p := range f.ssoProviders {
-		if p.id == id {
-			return db.GetSSOProviderRow{
-				ID: p.id, Slug: p.slug, Name: p.name, Issuer: p.issuer, ClientID: p.clientID,
-				Enabled: p.enabled, HasSecret: p.hasSecret,
-				CreatedBy: p.createdBy, CreatedAt: pgtype.Timestamptz{Time: p.createdAt, Valid: true},
-			}, nil
-		}
-	}
-	return db.GetSSOProviderRow{}, pgx.ErrNoRows
 }
 
 func (f *fakeStore) GetSSOProviderForAuth(_ context.Context, slug string) (db.GetSSOProviderForAuthRow, error) {

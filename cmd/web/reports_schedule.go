@@ -18,6 +18,16 @@ import (
 	"github.com/winniel123/verge-asm/internal/report"
 )
 
+type reportScheduleStore interface {
+	DeleteReportSchedule(ctx context.Context, id int64) error
+	GetReportSchedule(ctx context.Context, id int64) (db.ReportSchedule, error)
+	InsertReportDelivery(ctx context.Context, arg db.InsertReportDeliveryParams) (db.ReportDelivery, error)
+	InsertReportSchedule(ctx context.Context, arg db.InsertReportScheduleParams) (db.ReportSchedule, error)
+	ListChannels(ctx context.Context) ([]db.ListChannelsRow, error)
+	NextReportDeliveryNo(ctx context.Context, scheduleID int64) (int32, error)
+	UpdateReportSchedule(ctx context.Context, arg db.UpdateReportScheduleParams) (db.ReportSchedule, error)
+}
+
 // A schedule is Declared and holds no timeline, so an edit updates in place, never recomputes.
 
 type reportScheduleSection struct {

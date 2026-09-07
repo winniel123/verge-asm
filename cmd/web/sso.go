@@ -22,6 +22,15 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
+type ssoAuthStore interface {
+	DeleteSSOIdentityForAccount(ctx context.Context, arg db.DeleteSSOIdentityForAccountParams) (int64, error)
+	GetAccountBySSOIdentity(ctx context.Context, arg db.GetAccountBySSOIdentityParams) (db.Account, error)
+	GetSSOIdentityBySub(ctx context.Context, arg db.GetSSOIdentityBySubParams) (db.GetSSOIdentityBySubRow, error)
+	GetSSOProviderForAuth(ctx context.Context, slug string) (db.GetSSOProviderForAuthRow, error)
+	InsertSSOIdentity(ctx context.Context, arg db.InsertSSOIdentityParams) error
+	ListEnabledSSOProviders(ctx context.Context) ([]db.ListEnabledSSOProvidersRow, error)
+}
+
 const (
 	ssoTxCookie = "verge_sso_tx"
 	ssoTxTTL    = 10 * time.Minute

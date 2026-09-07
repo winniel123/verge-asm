@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"html/template"
 	"log"
 	"math"
@@ -16,6 +17,11 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/signal"
 )
+
+type graphStore interface {
+	ListAllOpenSpans(ctx context.Context) ([]db.ListAllOpenSpansRow, error)
+	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
+}
 
 var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/graph.tmpl"))
 

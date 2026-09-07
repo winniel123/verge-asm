@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"strings"
@@ -8,6 +9,11 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/signal"
 )
+
+type annotationsStore interface {
+	CreateAnnotation(ctx context.Context, arg db.CreateAnnotationParams) (db.Annotation, error)
+	DeleteAnnotation(ctx context.Context, id int64) error
+}
 
 func normalizeSubjectKey(input string) string {
 	s := strings.TrimSuffix(strings.TrimSpace(input), ".")

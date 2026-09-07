@@ -1,11 +1,16 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
 	"github.com/winniel123/verge-asm/internal/db"
 )
+
+type custodyStore interface {
+	SetCustodyExtension(ctx context.Context, arg db.SetCustodyExtensionParams) error
+}
 
 func (s *server) setCustody(w http.ResponseWriter, r *http.Request, acct db.Account) {
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)

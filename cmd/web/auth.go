@@ -33,6 +33,79 @@ import (
 	"github.com/winniel123/verge-asm/internal/signal"
 )
 
+type loginStore interface {
+	CountAccounts(ctx context.Context) (int64, error)
+	CreateAccount(ctx context.Context, arg db.CreateAccountParams) (db.Account, error)
+	CreateSession(ctx context.Context, arg db.CreateSessionParams) (db.Session, error)
+	GetAccountByID(ctx context.Context, id int64) (db.Account, error)
+	GetAccountByUsername(ctx context.Context, username string) (db.Account, error)
+	SetTOTPLastStep(ctx context.Context, arg db.SetTOTPLastStepParams) (int64, error)
+}
+
+type totpEnrollStore interface {
+	ConfirmTOTP(ctx context.Context, id int64) error
+	ConsumeRecoveryCode(ctx context.Context, arg db.ConsumeRecoveryCodeParams) error
+	CreateRecoveryCode(ctx context.Context, arg db.CreateRecoveryCodeParams) error
+	DeleteRecoveryCodesForAccount(ctx context.Context, accountID int64) error
+	GetAccountByID(ctx context.Context, id int64) (db.Account, error)
+	ListUnusedRecoveryCodeHashes(ctx context.Context, accountID int64) ([]db.ListUnusedRecoveryCodeHashesRow, error)
+	SetTOTPSecret(ctx context.Context, arg db.SetTOTPSecretParams) error
+}
+
+type passwordStore interface {
+	ConsumePasswordReset(ctx context.Context, arg db.ConsumePasswordResetParams) error
+	CreatePasswordReset(ctx context.Context, arg db.CreatePasswordResetParams) (db.PasswordReset, error)
+	GetAccountByID(ctx context.Context, id int64) (db.Account, error)
+	GetAccountByUsername(ctx context.Context, username string) (db.Account, error)
+	GetPasswordResetByHash(ctx context.Context, tokenHash string) (db.PasswordReset, error)
+	RevokeAllSessionsForAccount(ctx context.Context, arg db.RevokeAllSessionsForAccountParams) error
+	RevokeOtherSessionsForAccount(ctx context.Context, arg db.RevokeOtherSessionsForAccountParams) error
+	UpdatePassword(ctx context.Context, arg db.UpdatePasswordParams) error
+}
+
+type inviteAcceptStore interface {
+	ConsumeInvite(ctx context.Context, arg db.ConsumeInviteParams) error
+	GetInviteByTokenHash(ctx context.Context, tokenHash string) (db.Invite, error)
+}
+
+type sessionStore interface {
+	GetAccountByID(ctx context.Context, id int64) (db.Account, error)
+	GetSessionByTokenHash(ctx context.Context, arg db.GetSessionByTokenHashParams) (db.Session, error)
+	ListSessionsForAccount(ctx context.Context, arg db.ListSessionsForAccountParams) ([]db.ListSessionsForAccountRow, error)
+	RevokeOtherSessionsForAccount(ctx context.Context, arg db.RevokeOtherSessionsForAccountParams) error
+	RevokeSession(ctx context.Context, arg db.RevokeSessionParams) error
+	TouchSession(ctx context.Context, arg db.TouchSessionParams) error
+}
+
+type personalTokenStore interface {
+	CreatePersonalToken(ctx context.Context, arg db.CreatePersonalTokenParams) (db.PersonalToken, error)
+	DeletePersonalToken(ctx context.Context, arg db.DeletePersonalTokenParams) error
+	ListPersonalTokens(ctx context.Context, accountID int64) ([]db.ListPersonalTokensRow, error)
+}
+
+type profileStore interface {
+	GetAccountByID(ctx context.Context, id int64) (db.Account, error)
+	GetInstanceConfig(ctx context.Context) (db.GetInstanceConfigRow, error)
+	ListEnabledSSOProviders(ctx context.Context) ([]db.ListEnabledSSOProvidersRow, error)
+	ListSSOIdentitiesForAccount(ctx context.Context, accountID int64) ([]db.ListSSOIdentitiesForAccountRow, error)
+	ListSessionsForAccount(ctx context.Context, arg db.ListSessionsForAccountParams) ([]db.ListSessionsForAccountRow, error)
+}
+
+type dashboardStore interface {
+	ListCurrentNameSubjects(ctx context.Context, arg db.ListCurrentNameSubjectsParams) ([]db.ListCurrentNameSubjectsRow, error)
+	ListCurrentServiceSubjects(ctx context.Context, arg db.ListCurrentServiceSubjectsParams) ([]db.ListCurrentServiceSubjectsRow, error)
+	ListDispatchProgress(ctx context.Context, limit int32) ([]db.ListDispatchProgressRow, error)
+	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
+	ListUnavailableVantages(ctx context.Context) ([]db.ListUnavailableVantagesRow, error)
+	ListVantages(ctx context.Context) ([]db.ListVantagesRow, error)
+	ListZoneDeclarations(ctx context.Context) ([]db.ListZoneDeclarationsRow, error)
+	ListZoneFileStatus(ctx context.Context) ([]db.ListZoneFileStatusRow, error)
+}
+
+type chromeStore interface {
+	CountUnreadMessages(ctx context.Context, accountID int64) (int64, error)
+}
+
 const (
 	sessionCookie = "verge_session"
 	pendingCookie = "verge_totp_pending"
