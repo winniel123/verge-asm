@@ -49,21 +49,22 @@ jobs:
   # thirteen-declaration dead cluster in internal/message/render.go outlived the
   # whole artifactdoc migration. A human sweep found it, not a tool (PR #1548).
   #
-  # ADVISORY three times over: the job is not one of the 7 required checks, it
-  # sits outside `test` rather than inside it, and it exits 0 on any finding. A
-  # step inside `test` has two shapes and both are worse. It gates the merge,
-  # which no pull request may decide, or it buries a finding under a green
-  # required check.
+  # The gate is U1000 alone, and it is NARROWER than the report. Every default
+  # check still runs and every finding still reaches the job summary. Only an
+  # unreachable declaration fails the job.
   #
-  # It exits 0 because the tree carries a measured backlog
-  # (docs/research/staticcheck-backlog-2026-09.md). A job that went red today
-  # stays red until that backlog clears, and a permanently red check teaches a
-  # reader to ignore red. The findings reach the run's job summary, so nobody
-  # opens a log to see them.
+  # U1000 alone, because the rest of the default set is not ready to block.
+  # S1016 would couple pairs of sqlc-generated types that a later `sqlc
+  # generate` may separate again, and 3 of the 5 SA1019 rows name crypto/dsa,
+  # which the certificate work reads deliberately
+  # (docs/research/staticcheck-backlog-2026-09.md §4).
   #
-  # Promotion is the maintainer's, and the research note carries the
-  # recommendation. It takes two acts: delete the `exit 0` below, and register
-  # `staticcheck` on main's ruleset.
+  # The job sits outside `test` rather than inside it. A step inside `test`
+  # buries its finding under another check's name.
+  #
+  # PR #1628 emptied the U1000 backlog, so this gate starts green. Registering
+  # `staticcheck` on main's ruleset stays the maintainer's act. No pull request
+  # can perform it.
   staticcheck:
     runs-on: ubuntu-latest
     steps:
@@ -71,7 +72,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: .go-version
-      - name: staticcheck ./... (advisory)
+      - name: staticcheck ./... (U1000 gates, the rest reports)
         run: |
           # Pinned exactly, as govulncheck below is. 2026.2.1 is the first
           # release whose own go.mod names go 1.26, so it is the first that
@@ -83,17 +84,30 @@ jobs:
           total=$(grep -cE '\([A-Z]+[0-9]+\)$' findings.txt || true)
           unused=$(grep -cE '\(U1000\)$' findings.txt || true)
           {
-            echo "## staticcheck 2026.2.1 — advisory (#1568)"
+            echo "## staticcheck 2026.2.1 — U1000 gates, the rest reports (#1568)"
             echo
             echo "- findings: $total"
-            echo "- U1000, an unused declaration: $unused"
+            echo "- U1000, an unreachable declaration: $unused — this number gates"
             echo
             echo '```'
             cat findings.txt
             echo '```'
           } >>"$GITHUB_STEP_SUMMARY"
           echo "staticcheck reported $total finding(s), $unused of them U1000"
-          exit 0
+          # staticcheck exits 1 both for a finding and for a tree it could not
+          # load, so the exit code cannot tell the two apart. A load error
+          # prints a line this regex does not match, and it would otherwise
+          # read as zero U1000 findings and pass the gate.
+          if [ "$total" -eq 0 ] && [ -s findings.txt ]; then
+            echo "::error::staticcheck printed output that holds no finding; it did not analyse the tree"
+            cat findings.txt
+            exit 1
+          fi
+          if [ "$unused" -ne 0 ]; then
+            echo "::error::staticcheck reports $unused unreachable declaration(s) (U1000)"
+            grep -E '\(U1000\)$' findings.txt
+            exit 1
+          fi
 
   # An architecture is in this matrix exactly where the golden corpus (a
   # later ticket) runs on it in CI (ADR-0001, packaging-and-configuration.md
