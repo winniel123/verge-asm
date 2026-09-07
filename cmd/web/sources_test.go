@@ -814,3 +814,42 @@ func TestSourcesGuideDoesNotSayTheCAIDAProposersShipOn(t *testing.T) {
 		t.Fatalf("docs/guides/sources.md holds %d CAIDA catalogue rows, want 2", rows)
 	}
 }
+
+func TestSourcesGuideCountsTheWholeCatalogue(t *testing.T) {
+	b, err := guides.FS.ReadFile("sources.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	guide := string(b)
+
+	var proposers int
+	for _, c := range sourceCatalog {
+		if c.IsProposer {
+			proposers++
+		}
+	}
+	want := fmt.Sprintf("The catalogue holds %d entries: %d sources and %d proposers.",
+		len(sourceCatalog), len(sourceCatalog)-proposers, proposers)
+	if !strings.Contains(guide, want) {
+		t.Errorf("docs/guides/sources.md does not state the measured catalogue count, want %q", want)
+	}
+
+	const heading = "## The v1 catalogue"
+	start := strings.Index(guide, heading)
+	if start < 0 {
+		t.Fatalf("docs/guides/sources.md holds no %q section", heading)
+	}
+	section := guide[start:]
+	if end := strings.Index(section, "\n---\n"); end >= 0 {
+		section = section[:end]
+	}
+	var rows int
+	for _, line := range strings.Split(section, "\n") {
+		if strings.HasPrefix(line, "| **") {
+			rows++
+		}
+	}
+	if rows != len(sourceCatalog) {
+		t.Errorf("the catalogue tables hold %d rows, but the catalogue holds %d entries (#1605)", rows, len(sourceCatalog))
+	}
+}
