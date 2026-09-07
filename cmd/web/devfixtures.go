@@ -411,11 +411,7 @@ var devExposureRows = []devExposureRow{
 }
 
 func (s *server) exposureFixtureData(acct db.Account, variant string) map[string]any {
-	data := map[string]any{
-		"Title": "Exposure", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		shellKey:    true,
-		"NavActive": "exposure",
-	}
+	data := pageData(acct, "Exposure", "exposure")
 	if variant == devExposureWithheldVariant {
 		data["Withheld"] = true
 		return data
@@ -522,11 +518,7 @@ var devCoverageStaleZones = []devCoverageStaleZone{
 }
 
 func (s *server) coverageFixtureData(acct db.Account) map[string]any {
-	data := map[string]any{
-		"Title": "Coverage", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		shellKey:    true,
-		"NavActive": "coverage",
-	}
+	data := pageData(acct, "Coverage", "coverage")
 
 	s.coverageMu.Lock()
 	empty := s.coverageEmptyOnce
@@ -640,12 +632,9 @@ func (s *server) runDetailFixtureData(acct db.Account) map[string]any {
 		Vantages:    devRunVantages,
 		Degraded:    &runDegraded{Vantage: devRunDegradedVantage, Detail: devRunDegradedDetail},
 	}
-	return map[string]any{
-		"Title": "batch " + view.Title, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		shellKey:    true,
-		"NavActive": "drift",
-		"Run":       view,
-	}
+	return pageData(acct, "batch "+view.Title, "drift", map[string]any{
+		"Run": view,
+	})
 }
 
 // 1408 is the missing-run demo and runPage cannot 404 a collision (ADR-0166 §5, #1333).
@@ -685,13 +674,10 @@ func (s *server) runningRunFixtureData(acct db.Account, jobParam, bareHref strin
 	}
 	applyJobFilter(&view, jobParam, bareHref, jobs)
 	linkRunLog(&view, bareHref)
-	return map[string]any{
-		"Title": "batch " + view.Title, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		shellKey:    true,
-		"NavActive": "drift",
-		"Refresh":   runRefresh(view.Status),
-		"Run":       view,
-	}
+	return pageData(acct, "batch "+view.Title, "drift", map[string]any{
+		"Refresh": runRefresh(view.Status),
+		"Run":     view,
+	})
 }
 
 func (s *server) devCoverageSeedEmpty(w http.ResponseWriter, r *http.Request) {
@@ -787,10 +773,7 @@ func (s *server) driftFixtureData(acct db.Account) map[string]any {
 		movement[k] = v
 	}
 
-	return map[string]any{
-		"Title": "Drift", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		shellKey:          true,
-		"NavActive":       "drift",
+	return pageData(acct, "Drift", "drift", map[string]any{
 		"Kinds":           driftKinds(),
 		"Periods":         driftPeriods(),
 		"Period":          devDriftPeriod,
@@ -804,7 +787,7 @@ func (s *server) driftFixtureData(acct db.Account) map[string]any {
 		"BatchLabel":      devDriftBatchLabel,
 		"TransitionCount": devDriftTransitionCount,
 		"TransitionDelta": devDriftTransitionDelta,
-	}
+	})
 }
 
 const (
@@ -972,10 +955,7 @@ func (s *server) scopeFixtureData(acct db.Account, ov scopeOverlay) map[string]a
 		exclusions = append(exclusions, map[string]any{"ID": e.ID, "Kind": e.Kind, "Value": e.Value})
 	}
 
-	data := map[string]any{
-		"Title": "Scope", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		shellKey:           true,
-		"NavActive":        "scope",
+	data := pageData(acct, "Scope", "scope", map[string]any{
 		"AddressCap":       devScopeAddressCap,
 		"Seeds":            seeds,
 		"FormScope":        ov.formScope,
@@ -990,7 +970,7 @@ func (s *server) scopeFixtureData(acct db.Account, ov scopeOverlay) map[string]a
 		"Exclusions":       exclusions,
 		"ExclKind":         ov.exclKind,
 		"ExclValue":        ov.exclValue,
-	}
+	})
 	if len(ov.refusals) > 0 {
 		data["Refusals"] = ov.refusals
 	}
@@ -1238,10 +1218,7 @@ func (s *server) signalsFixtureData(acct db.Account, r *http.Request) map[string
 		return "/signals?tab=" + tab + "&sort=" + col + "&dir=" + nd
 	}
 
-	data := map[string]any{
-		"Title": "Signals", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		shellKey:         true,
-		"NavActive":      "signals",
+	data := pageData(acct, "Signals", "signals", map[string]any{
 		"Tab":            tab,
 		"OpenCount":      devSignalsOpenCount,
 		"AnnotatedCount": len(devSignalsAnnotations),
@@ -1262,7 +1239,7 @@ func (s *server) signalsFixtureData(acct db.Account, r *http.Request) map[string
 			"SevHref": sortHref("sev"), "AssetHref": sortHref("asset"),
 			"IDHref": sortHref("id"), "SeenHref": sortHref("seen"),
 		},
-	}
+	})
 
 	// The fixture pins ten of forty-seven rows, so these scalars are the design's, not derived.
 	if tab == "open" {
@@ -1384,10 +1361,7 @@ func (s *server) dashboardFixtureData(acct db.Account, r *http.Request) map[stri
 		})
 	}
 
-	data := map[string]any{
-		"Title": "Dashboard", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		shellKey:         true,
-		"NavActive":      "dashboard",
+	data := pageData(acct, "Dashboard", "dashboard", map[string]any{
 		"EmptyEstate":    false,
 		"ScanSchedule":   devDashSchedule,
 		"Scanning":       scanning,
@@ -1400,7 +1374,7 @@ func (s *server) dashboardFixtureData(acct db.Account, r *http.Request) map[stri
 		"SilentZone":     devDashSilentZone,
 		"Vantages":       devDashVantages,
 		"RecentSignals":  dashRecentSignals(),
-	}
+	})
 	if scanning {
 		data["ScanDetail"] = devDashScanDetail
 	}
@@ -1449,14 +1423,11 @@ func (s *server) firstRunFixtureData(acct db.Account) map[string]any {
 			ActionPost: st.ActionPost, Gated: st.Gated, GateTitle: st.GateTitle,
 		})
 	}
-	return map[string]any{
-		"Title": "Dashboard", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		shellKey:        true,
-		"NavActive":     "dashboard",
+	return pageData(acct, "Dashboard", "dashboard", map[string]any{
 		"EmptyEstate":   true,
 		"FirstRunDone":  fx.FirstRunDone,
 		"FirstRunSteps": steps,
-	}
+	})
 }
 
 const devAssetKey = "edge-gw-03.acmecorp.io"
@@ -1524,12 +1495,9 @@ func devAssetData() assetPageData {
 }
 
 func (s *server) assetFixtureData(acct db.Account) map[string]any {
-	return map[string]any{
-		"Title": devAssetKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		shellKey:    true,
-		"NavActive": "inventory",
-		"Asset":     devAssetData(),
-	}
+	return pageData(acct, devAssetKey, "inventory", map[string]any{
+		"Asset": devAssetData(),
+	})
 }
 
 type subjectRuleFixture struct {
@@ -1706,24 +1674,18 @@ func (s *server) serviceFixtureData(acct db.Account, key string) (map[string]any
 	default:
 		return nil, false
 	}
-	return map[string]any{
-		"Title": key, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		shellKey:    true,
-		"NavActive": "inventory",
-		"Service":   data,
-	}, true
+	return pageData(acct, key, "inventory", map[string]any{
+		"Service": data,
+	}), true
 }
 
 func (s *server) endpointFixtureData(acct db.Account, key string) (map[string]any, bool) {
 	if key != devEndpointKey {
 		return nil, false
 	}
-	return map[string]any{
-		"Title": key, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		shellKey:    true,
-		"NavActive": "inventory",
-		"Endpoint":  devEndpointData(),
-	}, true
+	return pageData(acct, key, "inventory", map[string]any{
+		"Endpoint": devEndpointData(),
+	}), true
 }
 
 func devGraphData() graphView {
@@ -1795,12 +1757,9 @@ func devGraphData() graphView {
 }
 
 func (s *server) graphFixtureData(acct db.Account) map[string]any {
-	return map[string]any{
-		"Title": "Graph", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		shellKey:    true,
-		"NavActive": "graph",
-		"Graph":     devGraphData(),
-	}
+	return pageData(acct, "Graph", "graph", map[string]any{
+		"Graph": devGraphData(),
+	})
 }
 
 type reportsFixtureDelta struct {
@@ -1965,11 +1924,7 @@ func loadReportsFixture() reportsFixture {
 
 func (s *server) reportsFixtureData(acct db.Account) map[string]any {
 	fx := loadReportsFixture()
-	return map[string]any{
-		"Title": "Reports", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		shellKey:    true,
-		"NavActive": "reports",
-
+	return pageData(acct, "Reports", "reports", map[string]any{
 		"RangeLabel":  fx.RangeLabel,
 		"RangeWeeks":  fx.RangeWeeks,
 		"Periods":     fx.Periods,
@@ -2005,7 +1960,7 @@ func (s *server) reportsFixtureData(acct db.Account) map[string]any {
 		"Heat":    fx.Heat,
 
 		"Schedules": fx.Schedules,
-	}
+	})
 }
 
 type reportartifactFixture struct {
@@ -2061,15 +2016,12 @@ func (s *server) reportartifactFixtureData(acct db.Account, variant string) map[
 		scheduleHole = scheduleID
 	}
 
-	return map[string]any{
-		"Title": "Report delivery", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		shellKey:     true,
-		"NavActive":  "reports",
+	return pageData(acct, "Report delivery", "reports", map[string]any{
 		"Heading":    heading,
 		"Period":     period,
 		"ScheduleID": scheduleHole,
 		"Doc":        doc,
-	}
+	})
 }
 
 func (s *server) reportsWizardFixtureData(r *http.Request, acct db.Account) map[string]any {
@@ -2162,11 +2114,7 @@ func reportsWizardMap(fx reportsFixtureWizard, q map[string][]string, acct db.Ac
 	}
 
 	last := step == len(fx.Steps)-1
-	return map[string]any{
-		"Title": fx.Title, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		shellKey:    true,
-		"NavActive": "reports",
-
+	return pageData(acct, fx.Title, "reports", map[string]any{
 		"WizardTitle": fx.Title,
 		"FormAction":  fx.FormAction,
 		"FinishLabel": fx.FinishLabel,
@@ -2191,7 +2139,7 @@ func reportsWizardMap(fx reportsFixtureWizard, q map[string][]string, acct db.Ac
 		"ChannelLabel": channelLabel,
 
 		"Review": review,
-	}
+	})
 }
 
 func reportsWizardName(s string) string {
@@ -2318,17 +2266,14 @@ func (s *server) inboxFixtureData(acct db.Account, r *http.Request) map[string]a
 		unreadHref = "/inbox?filter=unread&id=" + selID
 	}
 
-	return map[string]any{
-		"Title": "Inbox", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		shellKey:     true,
-		"NavActive":  "inbox",
+	return pageData(acct, "Inbox", "inbox", map[string]any{
 		"Messages":   messages,
 		"Selected":   selected,
 		"Unread":     fx.Unread,
 		"Filter":     filter,
 		"AllHref":    allHref,
 		"UnreadHref": unreadHref,
-	}
+	})
 }
 
 type searchSeg struct {
