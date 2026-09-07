@@ -168,13 +168,17 @@ private key: they live on the per-service state volumes, not in Postgres.
 
 ## Volumes
 
-`docker-compose.yml` declares three named volumes. Back these up:
+`docker-compose.yml` declares four named volumes. Back up these three:
 
 | Volume | Holds | Losing it means |
 | --- | --- | --- |
 | `pgdata` | the entire estate — subjects, observations, spans, all declared data | total data loss |
 | `web-state` | session signing key | all sessions invalidated; a new key is regenerated |
 | `worker-state` | prober SSH private key | provisioned vantages must re-install the new public key |
+
+This table excludes the fourth, `transcript-key`, on purpose.
+[backup-and-restore.md → The transcript key](backup-and-restore.md#the-transcript-key)
+states why, and what losing it costs.
 
 For the restore side this section omits — taking and restoring a consistent `pgdata`
 dump, what each state volume regenerates when lost, retention tuning, and a
