@@ -617,7 +617,15 @@ by this ticket.**
    The table reached its full 134,144 rows with the curve flat. Held near empty, the curve rose
    anyway. `readMembershipInputs` is refuted at about 40 ms of the whole drain. The consequence is
    in §5.2. A flat-rate extrapolation over-states the scope size that fits the cadence, and by a
-   factor of about two at 26,000 addresses. **File the two scans.**
+   factor of about two at 26,000 addresses. ~~**File the two scans.**~~
+
+   > **Filed and repaired. Every number above stands.**
+   > [#1609](https://github.com/winniel123/verge-asm/issues/1609) took the two scans.
+   > [ADR-0226](../adr/0226-the-flagship-read-is-bounded-by-the-batchs-candidate-services-so-a-per-job-message-costs-what-the-batch-touched.md)
+   > bounds both reads by the batch's candidate Services, so the per-job read no longer scans the
+   > whole `span` table. The measurements here describe the code as it stood on 2026-09-07, before
+   > that repair. §5.2's 11,300-address warning rests on the slope the repair removes. The 26,100
+   > ceiling rests on the flat per-address cost, and it stands.
 7. **The budget names packets and the pacer counts connects.** `per_vantage_packets_per_sec` is
    200. The pacer spaces connect attempts, not packets. Against a refusing target the two agree,
    because one connect is one SYN. Against a dropping target the kernel retransmits. The capture
