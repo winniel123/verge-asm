@@ -8,6 +8,8 @@ import (
 
 // A 6-digit TOTP is brute-forceable: three of a million codes are live each instant (#322).
 
+const acctKeyPrefix = "acct:"
+
 type loginLimiter struct {
 	now func() time.Time
 
@@ -37,7 +39,7 @@ func newLoginLimiter(now func() time.Time) *loginLimiter {
 		window:          5 * time.Minute,
 		baseLockout:     5 * time.Minute,
 		maxLockout:      time.Hour,
-		acctPrefix:      "acct:",
+		acctPrefix:      acctKeyPrefix,
 		acctLockCeiling: 15 * time.Minute,
 		entries:         map[string]*limiterEntry{},
 	}
