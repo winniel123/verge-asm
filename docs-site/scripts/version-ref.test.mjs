@@ -99,3 +99,44 @@ test("an unlisted version resolves to itself, never to main", () => {
   assert.equal(refFromManifest("v0.1.0", manifest), "v0.1.0");
   assert.equal(refFromManifest(LATEST_VERSION, []), LATEST_VERSION);
 });
+
+// listVersions() declared `ref` required and never set it, so this returned undefined (#1445).
+test("every manifest row carries a ref, so the client lookup never reads undefined", () => {
+  for (const [name, names] of Object.entries(FIXTURES)) {
+    for (const option of versionManifest(parseSemverTags(names))) {
+      assert.equal(typeof option.ref, "string", `${name}: ${option.value} carries no ref`);
+      assert.notEqual(option.ref, "", `${name}: ${option.value} carries an empty ref`);
+    }
+  }
+});
+
+test("the current badge names the newest stable release, and latest only where none exists", () => {
+  for (const [name, names] of Object.entries(FIXTURES)) {
+    const tags = parseSemverTags(names);
+    const badged = versionManifest(tags).filter((v) => v.tag === "current");
+    assert.equal(badged.length, 1, `${name}: expected exactly one current row`);
+    const stable = newestStableTag(tags);
+    assert.equal(badged[0].value, stable ? stable.raw : LATEST_VERSION, name);
+    assert.notEqual(badged[0].value, DEFAULT_VERSION, `${name}: current named the dev row`);
+  }
+});
+
+// This is the state the repo is in today: `git tag -l "v*"` returns nothing (#1445).
+test("with no tag at all, latest takes the badge and resolves to main", () => {
+  const manifest = versionManifest(parseSemverTags(FIXTURES.none));
+  assert.deepEqual(manifest, [
+    { value: LATEST_VERSION, ref: DEFAULT_VERSION, tag: "current" },
+    { value: DEFAULT_VERSION, ref: DEFAULT_VERSION, tag: "dev" },
+  ]);
+  assert.equal(refFromManifest(LATEST_VERSION, manifest), DEFAULT_VERSION);
+});
+
+// A prerelease is browsable and never current, so the only tag here takes no badge (ADR-0155 §3).
+test("a prerelease-only tag list leaves the badge on latest", () => {
+  const manifest = versionManifest(parseSemverTags(FIXTURES.onlyPrerelease));
+  assert.deepEqual(manifest, [
+    { value: LATEST_VERSION, ref: DEFAULT_VERSION, tag: "current" },
+    { value: "v1.0.0-rc1", ref: "v1.0.0-rc1" },
+    { value: DEFAULT_VERSION, ref: DEFAULT_VERSION, tag: "dev" },
+  ]);
+});
