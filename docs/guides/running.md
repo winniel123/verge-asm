@@ -221,8 +221,9 @@ verifies it can reach Postgres.
 `--scale worker=3`. That recommendation was wrong. This guide withdraws it
 ([#1092](https://github.com/winniel123/verge-asm/issues/1092)).
 
-The prober process holds the active-scan safety budget: 50 conn/s and 20 in-flight
-connections per host, and 200 pkt/s across every target one vantage probes. The worker
+The prober process holds the active-scan safety budget. That budget is 50 conn/s and
+1 in-flight connection per host. It is also 200 conn/s across every target one vantage
+probes. The worker
 execs a fresh prober for every job, and its drain loop is single-threaded. So exactly one
 prober runs at a time, on this host or on a remote vantage.
 
@@ -297,7 +298,8 @@ PR #1562 lands from branch `docs/1115-hot-scan-wallclock-measurement`. The rulin
 **`--scale worker=N` stays forbidden, permanently.** Nothing bounds two probers on one
 vantage, and this project plans nothing. #1115 measured what happens without a bound.
 Four probers put 200 conn/s on a target whose `Batch` declared 50 conn/s for the whole
-scan. Eight probers put 400 SYN/s on a vantage that declared a 200 pkt/s ceiling.
+scan. Eight probers put 400 SYN/s on a vantage that declared a 200 conn/s ceiling. The
+target refused every port in that run, so one SYN was one connect.
 
 Three changes would reopen the grant, and the ADR-0137 amendment lists a fourth.
 
