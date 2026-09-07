@@ -208,3 +208,46 @@ path one, which is §3's fabrication. The union of the two is therefore refused 
 | **Leave the record on the dispatcher's log line alone** | ADR-0108 already refused this shape: a state legible only to someone reading the server log is indistinguishable, on every operator surface, from a clean empty result. The `dispatch` row is what makes it readable, and the log line rides beside it |
 | **State the rule once more on each `Scan`'s own ADR** | Nine sites for one sentence, and the ninth arrives with the tenth `Scan`. ADR-0129 and ADR-0106 each did this honestly for their own population and neither could bind the others, which is the gap this ADR closes |
 | **Merge this with the dead-lettered `Batch`'s empty-scope rule into one ADR about emptiness** | The two rules move in opposite directions — one requires a `Batch`, the other forbids one — and they are triggered by opposite conditions. A single document would have to state both and then spend its length keeping them apart, and a reader who took the wrong half would either delete the failure record or fabricate a success one |
+
+## Amendment — [#1523](https://github.com/winniel123/verge-asm/issues/1523): the `empty` rejection stands, and its ground does not reach the `skipped` status that shipped
+
+> **A second `dispatch` status for an empty population is still refused, and `'skipped'` is a
+> different token on a different ground.** The Alternatives table refuses `empty` because the
+> `LEFT JOIN` the three progress queries use already derives the job count. A skip is no count. It
+> is the **cause** of a zero-job tick, and no join derives a cause.
+
+**What shipped.** [#1120](https://github.com/winniel123/verge-asm/issues/1120), closed by
+[PR #1515](https://github.com/winniel123/verge-asm/pull/1515), added a fourth `dispatch.status`
+token. Migration
+[`25000_dispatch_skipped_status.sql`](../../db/migrations/25000_dispatch_skipped_status.sql) widened
+`dispatch_status_check` to `'fanned-out'`, `'stopped'`, `'terminated'` and `'skipped'`. The
+ADR-0137 §4 cadence-lag gate writes the new token.
+
+**The rejection's ground holds for `empty`, and this amendment confirms the row.**
+`ListDispatchProgress`, `ListActiveDispatchProgress` and `ListConcludedDispatchProgress` in
+[`db/queries/dispatch.sql`](../../db/queries/dispatch.sql) each count a `Dispatch`'s jobs through
+the same `LEFT JOIN`. An empty population reads as zero on all three. A status token for that same
+fact would hold one count in two places, and the two places could disagree. §1 and §2 keep the
+zero-job dispatch legible without one.
+
+**The same ground does not reach `'skipped'`, because a cause is not a count.** A skipped tick and
+an honestly empty tick both hold zero jobs. The `LEFT JOIN` answers zero for each, so the join
+cannot tell them apart. That indistinguishability is the whole of #1120. The token carries **why**
+the tick enqueued nothing, and a count carries no why.
+
+**The table and §5 now agree.** The third bullet of §5 already names *"A hot tick skipped by the
+cadence-lag gate"* as a third case. Its ground differs, and that bullet hands the case to
+ADR-0137 §4. The table's row refuses a status for the empty population alone. Read the row inside
+that bound.
+
+**Consequences.**
+
+- **§1, §2, §3 and §4 take no change.** A fan-out over an empty population still claims its tick,
+  still records `'fanned-out'`, still enqueues no job and still fabricates no `Batch`.
+- **The consequence *"This ADR changes no Go code and no SQL"* still holds of this ADR.** Migration
+  25000 shipped under #1120 and under its own ground, not under this document.
+- **This amendment reopens nothing in ADR-0137 §4.** Three rulings stand there untouched. §4 arms
+  the gate, bounds it to `hot`, and refuses to arm it when an operator disables the
+  stale-`running` reaper.
+- **A tenth `Scan` still inherits §1 unchanged.** Its empty population records `'fanned-out'`. Only
+  the cadence-lag gate mints `'skipped'`, and ADR-0137 §4 bounds that gate to `hot`.
