@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -234,7 +235,7 @@ func TestReportScheduleRowsLastSent(t *testing.T) {
 		t.Fatalf("insert delivery: %v", err)
 	}
 
-	srv := newServer(f, testKey, "", fixedClock())
+	srv := &server{reportScheduleRowStore: f, now: fixedClock()}
 	rows := srv.reportScheduleRows(ctx)
 	if len(rows) != 2 {
 		t.Fatalf("rows = %d, want 2", len(rows))
@@ -274,7 +275,7 @@ func TestReportScheduleRowsFutureDatedDelivery(t *testing.T) {
 		t.Fatalf("insert delivery: %v", err)
 	}
 
-	srv := newServer(f, testKey, "", fixedClock())
+	srv := &server{reportScheduleRowStore: f, now: fixedClock()}
 	rows := srv.reportScheduleRows(ctx)
 	if len(rows) != 1 {
 		t.Fatalf("rows = %d, want 1", len(rows))
@@ -579,7 +580,7 @@ func TestReportScheduleChannelBinding(t *testing.T) {
 		t.Errorf("download-only schedule channel_id = %+v, want NULL", downloadOnly.ChannelID)
 	}
 
-	srv := newServer(f, testKey, "", fixedClock())
+	srv := &server{reportScheduleRowStore: f, now: fixedClock()}
 	rows := srv.reportScheduleRows(ctx)
 	byName := map[string]string{}
 	for _, r := range rows {
@@ -1174,4 +1175,70 @@ func TestReportsOpenSignalsAgreeAcrossPageAndExport(t *testing.T) {
 	if !strings.Contains(csv, row) {
 		t.Errorf("export csv missing %q while the page printed %d; body:\n%s", row, want, csv)
 	}
+}
+
+func (f *fakeStore) ListWithdrawalLifespans(_ context.Context, since pgtype.Timestamptz) ([]db.ListWithdrawalLifespansRow, error) {
+	out := []db.ListWithdrawalLifespansRow{}
+	for _, row := range f.withdrawalLifespans {
+		if since.Valid && row.WithdrawnAt.Valid && row.WithdrawnAt.Time.Before(since.Time) {
+			continue
+		}
+		out = append(out, row)
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		return out[i].WithdrawnAt.Time.Before(out[j].WithdrawnAt.Time)
+	})
+	return out, nil
+}
+
+func (f *fakeStore) ListSubjectFirstAppearances(_ context.Context, since pgtype.Timestamptz) ([]db.ListSubjectFirstAppearancesRow, error) {
+	type tlkey struct{ kind, key, facet, discriminator, source string }
+	byKey := map[tlkey][]drift.Reading{}
+	for _, o := range f.observations {
+		if o.SubjectKind != "name" && o.SubjectKind != "service" {
+			continue
+		}
+		k := tlkey{o.SubjectKind, o.SubjectKey, o.Facet, o.Discriminator, o.Source}
+		gap := o.Facet == "resolution" && fakeResolutionOutcome(o.Value) == "Gap"
+		if o.Facet == "reachability" {
+			gap = reachOutcomeIsGap(o.Value)
+		}
+		byKey[k] = append(byKey[k], drift.Reading{
+			Value: string(o.Value), IsGap: gap, Vector: fakeFacetVector(o.Facet), ObservedAt: o.ObservedAt.Time,
+		})
+	}
+	type subj struct{ kind, key string }
+	first := map[subj]time.Time{}
+	for k, readings := range byKey {
+		key := drift.TimelineKey{
+			SubjectKind: k.kind, SubjectKey: k.key,
+			Facet: k.facet, Discriminator: k.discriminator, Source: k.source,
+		}
+		for _, s := range drift.Fold(key, readings) {
+			sk := subj{k.kind, k.key}
+			if cur, ok := first[sk]; !ok || s.OpenedAt.Before(cur) {
+				first[sk] = s.OpenedAt
+			}
+		}
+	}
+	rows := []db.ListSubjectFirstAppearancesRow{}
+	for sk, at := range first {
+		if since.Valid && at.Before(since.Time) {
+			continue
+		}
+		rows = append(rows, db.ListSubjectFirstAppearancesRow{
+			SubjectKind: sk.kind, SubjectKey: sk.key,
+			FirstOpened: pgtype.Timestamptz{Time: at, Valid: true},
+		})
+	}
+	sort.SliceStable(rows, func(i, j int) bool {
+		if !rows[i].FirstOpened.Time.Equal(rows[j].FirstOpened.Time) {
+			return rows[i].FirstOpened.Time.Before(rows[j].FirstOpened.Time)
+		}
+		if rows[i].SubjectKind != rows[j].SubjectKind {
+			return rows[i].SubjectKind < rows[j].SubjectKind
+		}
+		return rows[i].SubjectKey < rows[j].SubjectKey
+	})
+	return rows, nil
 }

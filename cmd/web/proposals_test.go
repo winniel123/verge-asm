@@ -9,8 +9,13 @@ import (
 	"net/http/httptest"
 	"net/netip"
 	"net/url"
+	"sort"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/db"
@@ -440,4 +445,85 @@ func TestViewerCannotLookupConfirmOrDecline(t *testing.T) {
 	if strings.Contains(page, `action="/proposals/confirm"`) {
 		t.Errorf("confirm control shown to a viewer; body: %s", page)
 	}
+}
+
+func (f *fakeStore) CreateProposerLookup(_ context.Context, arg db.CreateProposerLookupParams) (db.ProposerLookup, error) {
+	l := db.ProposerLookup{
+		ID: f.lookupNextID, Query: arg.Query, CreatedBy: arg.CreatedBy,
+		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+	}
+	f.lookups = append(f.lookups, l)
+	f.lookupNextID++
+	return l, nil
+}
+
+func (f *fakeStore) CreateProposal(_ context.Context, arg db.CreateProposalParams) (db.Proposal, error) {
+	p := db.Proposal{
+		ID: f.proposalNext, LookupID: arg.LookupID, SourceSlug: arg.SourceSlug,
+		RecordKind: arg.RecordKind, AddressCidr: arg.AddressCidr, OrgName: arg.OrgName,
+		Status:    "pending",
+		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+	}
+	f.proposals = append(f.proposals, p)
+	f.proposalNext++
+	return p, nil
+}
+
+func (f *fakeStore) ListPendingProposals(context.Context) ([]db.ListPendingProposalsRow, error) {
+	if f.pendingPropsErr != nil {
+		return nil, f.pendingPropsErr
+	}
+	lookupByID := map[int64]db.ProposerLookup{}
+	for _, l := range f.lookups {
+		lookupByID[l.ID] = l
+	}
+	rows := []db.ListPendingProposalsRow{}
+	for _, p := range f.proposals {
+		if p.Status != "pending" {
+			continue
+		}
+		l := lookupByID[p.LookupID]
+		rows = append(rows, db.ListPendingProposalsRow{
+			ID: p.ID, LookupID: p.LookupID, SourceSlug: p.SourceSlug,
+			RecordKind: p.RecordKind, AddressCidr: p.AddressCidr, OrgName: p.OrgName,
+			LookupQuery: l.Query, LookupAt: l.CreatedAt, LookupBy: f.accounts[l.CreatedBy].Username,
+		})
+	}
+	sort.SliceStable(rows, func(i, j int) bool {
+		if rows[i].LookupID != rows[j].LookupID {
+			return rows[i].LookupID > rows[j].LookupID
+		}
+		return rows[i].ID < rows[j].ID
+	})
+	return rows, nil
+}
+
+func (f *fakeStore) GetPendingProposal(_ context.Context, id int64) (db.Proposal, error) {
+	for _, p := range f.proposals {
+		if p.ID == id && p.Status == "pending" {
+			return p, nil
+		}
+	}
+	return db.Proposal{}, pgx.ErrNoRows
+}
+
+func (f *fakeStore) ConfirmProposal(_ context.Context, arg db.ConfirmProposalParams) (int64, error) {
+	for i, p := range f.proposals {
+		if p.ID == arg.ID && p.Status == "pending" {
+			f.proposals[i].Status = "confirmed"
+			f.proposals[i].ConfirmedSeedID = arg.ConfirmedSeedID
+			return 1, nil
+		}
+	}
+	return 0, nil
+}
+
+func (f *fakeStore) DeclineProposal(_ context.Context, id int64) (int64, error) {
+	for i, p := range f.proposals {
+		if p.ID == id && p.Status == "pending" {
+			f.proposals[i].Status = "declined"
+			return 1, nil
+		}
+	}
+	return 0, nil
 }

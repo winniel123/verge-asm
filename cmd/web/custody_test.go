@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/winniel123/verge-asm/internal/db"
 )
 
 func setCustody(t *testing.T, c *http.Client, base string, id int64, extend bool) *http.Response {
@@ -143,4 +146,14 @@ func TestSetCustodyRequiresLogin(t *testing.T) {
 	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/login" {
 		t.Fatalf("anon set custody: status=%d location=%q, want redirect to /login", resp.StatusCode, resp.Header.Get("Location"))
 	}
+}
+
+func (f *fakeStore) SetCustodyExtension(_ context.Context, arg db.SetCustodyExtensionParams) error {
+	for i, s := range f.seeds {
+		if s.ID == arg.ID && s.Kind == "name" {
+			f.seeds[i].CustodyExtension = arg.CustodyExtension
+			return nil
+		}
+	}
+	return nil
 }

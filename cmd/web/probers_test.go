@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -8,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
@@ -287,4 +290,37 @@ func TestViewerCannotSetAResolver(t *testing.T) {
 	if got := f.vantages[0].Resolver; got != "9.9.9.9:53" {
 		t.Errorf("a viewer changed the resolver to %q", got)
 	}
+}
+
+func (f *fakeStore) CreateVantage(_ context.Context, arg db.CreateVantageParams) (db.Vantage, error) {
+	for _, v := range f.vantages {
+		if v.Host.String == arg.Host && v.Port.Int32 == arg.Port && v.Username.String == arg.Username {
+			return db.Vantage{}, &pgconn.PgError{Code: "23505", Message: "duplicate vantage"}
+		}
+	}
+	v := db.Vantage{
+		ID:           f.vantageNextID,
+		Name:         arg.Name,
+		Class:        "unverified",
+		Resolver:     arg.Resolver,
+		Host:         pgtype.Text{String: arg.Host, Valid: true},
+		Port:         pgtype.Int4{Int32: arg.Port, Valid: true},
+		Username:     pgtype.Text{String: arg.Username, Valid: true},
+		Availability: pgtype.Text{String: "pending", Valid: true},
+		CreatedBy:    pgtype.Int8{Int64: arg.CreatedBy, Valid: true},
+		CreatedAt:    pgtype.Timestamptz{Time: time.Now(), Valid: true},
+	}
+	f.vantages = append(f.vantages, v)
+	f.vantageNextID++
+	return v, nil
+}
+
+func (f *fakeStore) SetVantageResolver(_ context.Context, arg db.SetVantageResolverParams) error {
+	for i := range f.vantages {
+		if f.vantages[i].ID == arg.ID {
+			f.vantages[i].Resolver = arg.Resolver
+			return nil
+		}
+	}
+	return pgx.ErrNoRows
 }
