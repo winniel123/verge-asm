@@ -47,7 +47,7 @@ table is the authority. ADR-0157 borrows the rule; this ADR states it.
 | 134 registrations in `handler()` and 6 in `api_v1.go`; **every one carries an explicit method token**, none is method-less | `handlers.go:325-493`, [`cmd/web/api_v1.go:17-24`](../../cmd/web/api_v1.go) |
 | `routeServesGET` builds a synthetic `GET` request and asks `(*http.ServeMux).Handler` for the matched pattern | [`cmd/web/backurl.go:115-134`](../../cmd/web/backurl.go), the call at `:124` |
 | It fails closed on a nil receiver or a nil table | `backurl.go:116-118` |
-| It narrows the `GET /` catch-all by hand, because `home` answers 404 for every path but the root | `backurl.go:129-132`, [`cmd/web/auth.go:450-454`](../../cmd/web/auth.go) |
+| It narrows the `GET /` catch-all by hand, because `home` answers 404 for every path but the root | `routeServesGET` ([`cmd/web/backurl.go`](../../cmd/web/backurl.go)), `home` ([`cmd/web/auth.go`](../../cmd/web/auth.go)) |
 | `resolveBack` refuses a backslash, a missing leading `/`, a `//` prefix, an unparseable value, any scheme, host, userinfo, opaque body or fragment, and any path `path.Clean` would change | `backurl.go:85-100` |
 | The route-table question is asked last, at `:101-103`, and the fallback is the caller's own literal | `backurl.go:76`, `:101-103` |
 | Tests: `backurl_test.go` holds 15 functions over 416 lines, 8 of which drive `resolveBack` or `routeServesGET` directly; `TestResolveBackRejectsAndFallsBack` alone pins 16 refused inputs; `scope_prg_test.go` adds a ninth | [`cmd/web/backurl_test.go:92-123`](../../cmd/web/backurl_test.go), [`cmd/web/scope_prg_test.go:281-294`](../../cmd/web/scope_prg_test.go) |
@@ -98,14 +98,15 @@ safe by construction: all forty call sites pass a literal spelled in Go source â
 absent authority costs the operator a landing, not an origin.
 `TestResolveBackWithoutARouteTableFallsBack` (`backurl_test.go:152-160`) pins both halves.
 
-### 4. A subtree pattern over-reports, and every one is narrowed by name
+### 4. A subtree pattern over-reports, and every one is narrowed ~~by name~~ **from the matched pattern ([#1522](https://github.com/winniel123/verge-asm/issues/1522))**
 
 A pattern ending in `/` matches its whole subtree, so the table says "served" for paths the handler
-behind it answers 404 for. `GET /` is such a pattern and is narrowed by hand at `backurl.go:129-132`,
-because `home` 404s anything but the root (`auth.go:451-453`). That narrowing is not a special case
-for the root: it is the general obligation. **A subtree pattern registered on this mux is refused by
-the guard except for the paths its handler actually serves~~, and the narrowing is written beside the
-`GET /` one in the same change that registers the pattern~~.**
+behind it answers 404 for. `GET /` is such a pattern, and `routeServesGET`
+([`cmd/web/backurl.go`](../../cmd/web/backurl.go)) narrows it, because `home`
+([`cmd/web/auth.go`](../../cmd/web/auth.go)) 404s anything but the root. That narrowing is not a
+special case for the root: it is the general obligation. **A subtree pattern registered on this mux
+is refused by the guard except for the paths its handler actually serves~~, and the narrowing is
+written beside the `GET /` one in the same change that registers the pattern~~.**
 
 > **The struck clause is withdrawn by [#1522](https://github.com/winniel123/verge-asm/issues/1522) /
 > [PR #1503](https://github.com/winniel123/verge-asm/pull/1503)
