@@ -134,7 +134,7 @@ func TestEffectiveCadenceDividesByTheGoverningInterval(t *testing.T) {
 	if want := time.Second / time.Duration(p.PerHostConnPerSec); governing != want {
 		t.Fatalf("pacer spaced one host's probes %v apart, want the per-host interval %v", governing, want)
 	}
-	if aggregate := time.Second / time.Duration(p.PerVantagePacketsPerSec); governing <= aggregate {
+	if aggregate := time.Second / time.Duration(p.PerVantageConnPerSec); governing <= aggregate {
 		t.Fatalf("per-host interval %v no longer outlasts the per-vantage interval %v, so the "+
 			"projection's divisor must be re-derived", governing, aggregate)
 	}

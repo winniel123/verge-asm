@@ -441,8 +441,15 @@ one population, labelling on the other. See
 _Avoid_: job, scan job
 
 **Safety budget**:
-The ceiling on what an active `Scan` may emit at a target — the connection rate, the in-flight count,
-and the packet rate an active probe holds. It is declared as parameters of the leaf and recorded on
+The ceiling on what an active `Scan` may emit at a target. It holds the connection rate, the
+in-flight count, the per-`Vantage` connection rate, and the retry budget. Every one of those rates
+counts **connection attempts**, because that is what the pacer spaces. The kernel retransmits an
+unanswered SYN below that seam. The packet count on the wire is therefore larger than the declared
+rate, and nothing declares it. The retry budget is **two retries on a service port and none on a
+control port**. A service port's result is a value on a timeline. A control port is one of eight
+draws feeding a single verdict
+([ADR-0224](./docs/adr/0224-the-vantage-ceiling-counts-connections-and-a-control-port-spends-one-attempt.md)).
+It is declared as parameters of the leaf and recorded on
 every `Batch` by content, so what governed a probe is legible and never a library default. Its promise
 and its enforcement have **different scopes, and the difference is disclosed rather than closed**: the
 numbers are chosen for what one *target* receives, and they are enforced over what one `Vantage`

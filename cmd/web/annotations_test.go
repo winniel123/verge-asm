@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -9,6 +10,11 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/winniel123/verge-asm/internal/db"
 )
 
 func annotate(t *testing.T, c *http.Client, base, subject, signal, reason string) *http.Response {
@@ -354,4 +360,29 @@ func TestFormFlashExpiresWhenItsLandingNeverComes(t *testing.T) {
 	if srv.formFlash.pending(now) {
 		t.Error("an expired entry survived the prune and holds the pending gate open")
 	}
+}
+
+func (f *fakeStore) CreateAnnotation(_ context.Context, arg db.CreateAnnotationParams) (db.Annotation, error) {
+	for _, a := range f.annotations {
+		if a.SubjectKey == arg.SubjectKey && a.SignalName == arg.SignalName {
+			return db.Annotation{}, &pgconn.PgError{Code: "23505", Message: "duplicate annotation"}
+		}
+	}
+	a := db.Annotation{
+		ID: f.annoNextID, SubjectKey: arg.SubjectKey, SignalName: arg.SignalName,
+		Reason: arg.Reason, DeclaredAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+	}
+	f.annotations = append(f.annotations, a)
+	f.annoNextID++
+	return a, nil
+}
+
+func (f *fakeStore) DeleteAnnotation(_ context.Context, id int64) error {
+	for i, a := range f.annotations {
+		if a.ID == id {
+			f.annotations = append(f.annotations[:i], f.annotations[i+1:]...)
+			return nil
+		}
+	}
+	return nil
 }

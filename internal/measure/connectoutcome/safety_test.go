@@ -58,7 +58,7 @@ func TestBackoffNeverTouchesDeadline(t *testing.T) {
 }
 
 func TestPacerHonoursPerHostAndAggregate(t *testing.T) {
-	p := SafetyProfile{PerHostConnPerSec: 4, PerVantagePacketsPerSec: 10}
+	p := SafetyProfile{PerHostConnPerSec: 4, PerVantageConnPerSec: 10}
 	pacer := NewPacer(p)
 	start := time.Unix(0, 0)
 	h := netip.MustParseAddr("198.51.100.1")
@@ -71,7 +71,7 @@ func TestPacerHonoursPerHostAndAggregate(t *testing.T) {
 }
 
 func TestPacerAggregateCeilingBindsAcrossHosts(t *testing.T) {
-	p := SafetyProfile{PerHostConnPerSec: 1000, PerVantagePacketsPerSec: 5}
+	p := SafetyProfile{PerHostConnPerSec: 1000, PerVantageConnPerSec: 5}
 	pacer := NewPacer(p)
 	start := time.Unix(0, 0)
 	prev := pacer.Next(netip.MustParseAddr("198.51.100.1"), start)
@@ -79,7 +79,7 @@ func TestPacerAggregateCeilingBindsAcrossHosts(t *testing.T) {
 		h := netip.MustParseAddr("198.51.100." + itoa(i))
 		now := pacer.Next(h, start)
 		if gap := now.Sub(prev); gap < 200*time.Millisecond {
-			t.Errorf("host %d: aggregate gap = %v, want ≥ 200ms (5 pkt/s)", i, gap)
+			t.Errorf("host %d: aggregate gap = %v, want ≥ 200ms (5 conn/s)", i, gap)
 		}
 		prev = now
 	}
@@ -87,9 +87,9 @@ func TestPacerAggregateCeilingBindsAcrossHosts(t *testing.T) {
 
 func TestPacerBacksOffSignalledHost(t *testing.T) {
 	p := SafetyProfile{
-		PerHostConnPerSec:       10,
-		PerVantagePacketsPerSec: 1000,
-		AdaptiveBackoff:         BackoffPolicy{HalveOnTimeout: true},
+		PerHostConnPerSec:    10,
+		PerVantageConnPerSec: 1000,
+		AdaptiveBackoff:      BackoffPolicy{HalveOnTimeout: true},
 	}
 	pacer := NewPacer(p)
 	start := time.Unix(0, 0)

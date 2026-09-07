@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -491,4 +492,23 @@ func TestDriftTruncationIsStatedWhenTheCapBoundsARange(t *testing.T) {
 	if !strings.Contains(page, fmt.Sprintf("Showing the most recent %d transitions for this period.", driftFeedLimit)) {
 		t.Errorf("a range whose read the cap bound must state the truncation; body: %s", page)
 	}
+}
+
+func (f *fakeStore) EarliestBatchTime(_ context.Context) (pgtype.Timestamptz, error) {
+	inst := map[int64]time.Time{}
+	for _, o := range f.observations {
+		if t := o.ObservedAt.Time; t.After(inst[o.BatchID]) {
+			inst[o.BatchID] = t
+		}
+	}
+	var earliest time.Time
+	for _, t := range inst {
+		if earliest.IsZero() || t.Before(earliest) {
+			earliest = t
+		}
+	}
+	if earliest.IsZero() {
+		return pgtype.Timestamptz{}, nil
+	}
+	return pgtype.Timestamptz{Time: earliest, Valid: true}, nil
 }
