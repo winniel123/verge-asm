@@ -239,6 +239,8 @@ reports a defect and not a property.
 
 `SafetyProfile` declares `per_host_concurrency` of 20. Every `Batch` records it. No code reads it.
 `RunExchange` probes targets in a serial loop, so the in-flight count is always 1.
+[#1572](https://github.com/winniel123/verge-asm/issues/1572) files both halves of that defect. It
+carries the untruthful `Batch` record and the serial exchange separately.
 
 A dropping address costs 72 s across 24 sequential timeouts today. At the declared concurrency of
 20 it costs about 3.6 s. Concurrency governs the in-flight count, and the pacer still spaces
@@ -283,8 +285,9 @@ dearest.
    over a dropping estate need 172% of the cadence. This route needs no cap change at all.
 2. **A raised address cap over a dropping estate.** ADR-0127 prices a raised cap and never gates
    it. The measured cliff sits near 1,190 addresses. §4's recorded `hot` skips are the signal.
-3. **The concurrency defect lands and a real estate still misses its cadence.** The cheap fix is
-   spent by then, and the grant becomes the next mechanism.
+3. **[#1572](https://github.com/winniel123/verge-asm/issues/1572) lands and a real estate still
+   misses its cadence.** The cheap fix is spent by then, and the grant becomes the next mechanism.
+   A ticket carries this trigger, so a later session can watch it.
 4. **A reason to scale that is not cadence.** #1108 refuses one today. A reversal puts a second
    worker on the measurement queue, and the N-prober figures then apply at once.
 
@@ -298,4 +301,5 @@ vantages.
 
 The single-instance rule lives in prose. No code refuses a second worker. An operator who ignores
 the running guide gets the measured rate multiplication and a `Batch` that records the declared
-figure. This amendment records that hazard. It files no ticket for it.
+figure. This amendment records that hazard. It files no ticket for it, and no other ticket carries
+it.

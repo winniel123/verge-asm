@@ -304,6 +304,7 @@ Three changes would reopen the grant, and the ADR-0137 amendment lists a fourth.
 - **Fix `per_host_concurrency` and watch a real estate still miss its cadence.** Every
   `Batch` records a concurrency of 20 and no code reads it, so the leaf probes one target
   at a time. That defect carries the whole 86% figure above.
+  [#1572](https://github.com/winniel123/verge-asm/issues/1572) tracks it.
 
 Recorded `hot` skips are the signal for all three. Watch them before you reach for a
 second worker.
