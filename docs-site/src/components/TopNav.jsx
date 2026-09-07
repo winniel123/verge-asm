@@ -6,6 +6,7 @@ import { VersionSelect } from "@ds/components/navigation/VersionSelect.jsx";
 import { CommandPalette } from "@ds/components/feedback/CommandPalette.jsx";
 import { Icon } from "../ds/Icon.jsx";
 import { REPO_URL } from "../repo.ts";
+import { landingVersion } from "../version-ref.mjs";
 
 const FALLBACK_VERSIONS = [
   { value: "latest", tag: "current" },
@@ -25,9 +26,7 @@ export default function TopNav({
   searchPlaceholder = "Search docs",
   githubHref = REPO_URL,
 }) {
-  const initial =
-    version ||
-    (versions.find((v) => v.tag === "current") || versions[0] || {}).value;
+  const initial = version || landingVersion(versions);
   const [ver, setVer] = React.useState(initial);
   const [open, setOpen] = React.useState(false);
   const [docs, setDocs] = React.useState([]);
