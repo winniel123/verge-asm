@@ -34,7 +34,6 @@ type seedsStore interface {
 	CreateZoneFile(ctx context.Context, arg db.CreateZoneFileParams) (db.CreateZoneFileRow, error)
 	GetZoneCadenceSeconds(ctx context.Context) (int64, error)
 	ListExclusions(ctx context.Context) ([]db.ListExclusionsRow, error)
-	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
 	ListVantages(ctx context.Context) ([]db.ListVantagesRow, error)
 	ListZoneFileStatus(ctx context.Context) ([]db.ListZoneFileStatusRow, error)
 	SetZoneCadenceSeconds(ctx context.Context, cadenceSeconds int64) error
