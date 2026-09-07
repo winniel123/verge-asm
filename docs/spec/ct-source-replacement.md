@@ -123,7 +123,7 @@ choice.
   both sources over time; a single Batch cycle fetches from one source only.
 - If the operator toggles the **selected** source off in `source_state`, the `ct` Scan fires over an
   **empty scope** — a legible state, not an error, and **no auto-fallback**. Runtime failover stays
-  deferred (§7).
+  deferred (§8).
 - While a key is set, `crtsh` is **standby**: catalogued and `DefaultOn`, but active only when no key
   is configured. The Sources UI labels it as the fallback so its toggle is not a silent no-op (§6).
 
@@ -141,7 +141,7 @@ the key is held only where its act runs.
 - The Sources UI renders "operator key required — set on the worker" from catalogue metadata. It never
   reads the value.
 - **In-UI key entry** (web writes the token to the worker volume, ADR-0053's intended-but-unbuilt
-  pattern) is **deferred** (§7).
+  pattern) is **deferred** (§8).
 
 **Shipped** ([#876](https://github.com/winniel123/verge-asm/issues/876)). `cmd/worker/main.go` is the only Go file that names
 `VERGE_CERTSPOTTER_TOKEN`. No file under `cmd/web/` reads it. [#1455](https://github.com/winniel123/verge-asm/issues/1455) points
@@ -223,7 +223,7 @@ and re-measurement cadence — so the bar stays a measured bar. The implementer 
 runbook when the primary ships.
 
 - If a configured primary is **below** its bar at run time, the Scan keeps running the primary. There
-  is **no silent swap** to crt.sh (runtime failover is deferred, §7). The UI surfaces the degraded
+  is **no silent swap** to crt.sh (runtime failover is deferred, §8). The UI surfaces the degraded
   state (§6).
 
 **Shipped** ([#879](https://github.com/winniel123/verge-asm/issues/879)). `EvaluateCTReliability` (`internal/scan/ctreliability.go`) holds all three
@@ -257,7 +257,7 @@ delta, admits the in-scope names, and emits the drift event.
   for deferring issuance detection: it produces real observations with fingerprints; the forward-delta
   read never touches history, so it cannot conflate; and the log yields the fingerprint join key. A
   **durable, alertable** signal would still force a new facet, so v1 keeps the signal **ephemeral**
-  (§7).
+  (§8).
 
 **Shipped** ([#874](https://github.com/winniel123/verge-asm/issues/874)). `admitCTTail` (`internal/queue/cttail.go`) writes the `admitted_name` rows and
 emits the drift count as a job event. No facet and no Signal ship. A tail admission resolves its
@@ -451,7 +451,7 @@ rejected forks.)
 2. **Operator-key field** — **read-only presence**: `detected` / `not set`, sourced from
    `VERGE_CERTSPOTTER_TOKEN` on the worker. The console reads presence only. It **never** shows or
    stores the token. This is §2.4 as-decided. The editable-input fork was shown and **rejected**;
-   in-UI key entry stays deferred (§7).
+   in-UI key entry stays deferred (§8).
 3. **Which source ran** — a run readout line: `last ct scan · <source> · <relative time> · <n> names
    admitted`. The tail and verification carry their own readouts.
 4. **Reliability** — three KPI tiles measured against the bar. The primary shows pass/fail per metric.

@@ -101,15 +101,23 @@ all five, and no document says why the split falls there. A reader who applies t
 must delete `Critical`, `High` and `Low` from the product and keep `Medium` and `Info`, which is not a
 grade.
 
-### The ramp label is drawn as text at 17 sites
+### The ramp label is drawn as text at ~~17~~ sites
 
-Six in Go, eleven in the console templates.
+~~Six in Go, eleven in the console templates.~~
+
+> **WITHDRAWN in part, by [#1567](https://github.com/winniel123/verge-asm/issues/1567).** PR
+> [#1548](https://github.com/winniel123/verge-asm/pull/1548) deleted three of the draw sites this
+> section counts, and the three struck rows below name them. All three sat inside `artifactSeverityBars` and
+> `artifactSeverityBadge`, which `SPEC-CHANGE #23g` orphaned when `RenderArtifact` moved to
+> `renderArtifactDoc`. Every other row stands. This withdrawal states no new total: the split above
+> counts six Go sites against the table's seven Go rows, so a replacement number needs a fresh
+> measurement of the whole surface, which that ticket does not open.
 
 | Surface | Site | The word it draws | Its colour |
 | --- | --- | --- | --- |
-| Screen, ramp bars | `internal/message/render.go:307` | `sevTitle(l)` | `--secondary`, beside a bar filled `--sev-<l>-dot` |
-| Screen, badge, critical | `internal/message/render.go:348` | `sevTitle(l)` | `--sev-critical-text` on `--sev-critical-fill` |
-| Screen, badge, high → info | `internal/message/render.go:351` | `sevTitle(l)` | `--sev-<l>-fg` |
+| ~~Screen, ramp bars~~ | ~~`internal/message/render.go:307`~~ | ~~`sevTitle(l)`~~ | ~~`--secondary`, beside a bar filled `--sev-<l>-dot`~~ — **WITHDRAWN**, PR [#1548](https://github.com/winniel123/verge-asm/pull/1548) deleted `artifactSeverityBars` |
+| ~~Screen, badge, critical~~ | ~~`internal/message/render.go:348`~~ | ~~`sevTitle(l)`~~ | ~~`--sev-critical-text` on `--sev-critical-fill`~~ — **WITHDRAWN**, PR [#1548](https://github.com/winniel123/verge-asm/pull/1548) deleted `artifactSeverityBadge` |
+| ~~Screen, badge, high → info~~ | ~~`internal/message/render.go:351`~~ | ~~`sevTitle(l)`~~ | ~~`--sev-<l>-fg`~~ — **WITHDRAWN**, PR [#1548](https://github.com/winniel123/verge-asm/pull/1548) deleted `artifactSeverityBadge` |
 | Email / doc form, ramp bars | `internal/message/artifactdoc.go:147` | the member name, lower case | the template's `--sev-<l>-dot` bar |
 | Email / doc form, signal rows | `internal/message/artifactdoc.go:154` | `sevTitle(level)` | the `sevbadge` template's ramp tokens |
 | Print, ramp bars | `internal/message/pdf.go:266` | `strings.ToUpper(sevTitle(it.level))` | `pdfSevColor(it.level)` |
@@ -120,9 +128,15 @@ Six in Go, eleven in the console templates.
 
 **One measured correction to the record.** The deleted comments say the label is drawn in the severity
 colour on every surface. That is true at six of the seven Go and template classes above. It is not true
-of the screen ramp-bar label at `render.go:307`, which draws in `--secondary` beside a bar filled with
+of the screen ramp-bar label at ~~`render.go:307`~~, which draws in `--secondary` beside a bar filled with
 the severity colour. This ADR's rule turns on the **word**, not on the colour, so the correction does
 not move the decision.
+
+> **The site moved and the correction stands.** PR
+> [#1548](https://github.com/winniel123/verge-asm/pull/1548) deleted `render.go:307` with
+> `artifactSeverityBars`. The delivered form draws the same bar label in `--text-secondary`, at
+> `design-system/templates/reportartifact.tmpl:28`, which is the row for `artifactdoc.go:147` above.
+> The exception outlives the deletion.
 
 ### The guard cannot see the tokens it would have to exempt
 
@@ -230,9 +244,17 @@ finding is good or bad, so ADR-0064's refusal does not reach them either. A colu
 axis makes no claim about any row under it. They are outside both rules.
 
 `ValenceWords` does not encode that distinction, because it carries `severity` as a member. That is why
-the code marks both elements `data-sev="title"` and `data-sev="header"` (`render.go:299`, `render.go:325`)
-and why `pdf_test.go:83` skips one of them by string equality. The word list is what is wrong, not the
-copy.
+~~the code marks both elements `data-sev="title"` and `data-sev="header"` (`render.go:299`, `render.go:325`)
+and why~~ `pdf_test.go:83` skips ~~one of them~~ **the ramp title** by string equality. The word list is
+what is wrong, not the copy.
+
+> **WITHDRAWN, by [#1567](https://github.com/winniel123/verge-asm/issues/1567).** PR
+> [#1548](https://github.com/winniel123/verge-asm/pull/1548) deleted both marked elements with
+> `artifactSeverityBars` and `artifactSignalsTable`, and no `data-sev="title"` and no
+> `data-sev="header"` survives anywhere in the tree. The delivered form draws the same two strings
+> unmarked, at `design-system/templates/reportartifact.tmpl:25` and `:39`. `artifactSeverityTitle`
+> (`internal/message/render.go:158`) and the `pdf_test.go:83` skip both stand, so §4's rule holds on
+> its own terms.
 
 ### 5. ADR-0114's ramp sentence is withdrawn at its own site
 
@@ -248,8 +270,9 @@ no valence word grades the copy, and an empty `Artifact` renders the design-syst
 
 ## Consequences
 
-- **This ADR changes no Go code, no template and no test.** Every one of the 17 draw sites in §Context
-  is already correct under this rule. The ADR states what they already do and closes the record.
+- **This ADR changes no Go code, no template and no test.** Every one of the ~~17~~ draw sites in
+  §Context is already correct under this rule. The ADR states what they already do and closes the
+  record. **PR [#1548](https://github.com/winniel123/verge-asm/pull/1548) deleted three of those sites.**
 - **[ADR-0114](./0114-the-report-pdf-is-rendered-in-process-from-the-artifact-not-from-html.md) loses
   one clause and gains a replacement.** The edit is recorded in this issue's manifest and is applied
   by the batch parent, not by this ADR's author, at ADR-0114's own site. ADR-0114's other three
@@ -285,10 +308,10 @@ no valence word grades the copy, and an empty `Artifact` renders the design-syst
 
 | Alternative | Why not |
 | --- | --- |
-| **Refuse the label — draw the ramp as colour and rank alone** | It reverses ADR-0116 and ADR-0110 by implication. It also deletes the datum at the point of use: the operator sorts and triages by the word, and a colour survives neither a screen reader nor a grayscale print nor a sentence spoken to a colleague. It would rewrite 17 draw sites, including `SeverityBadge.jsx`, which ADR-0110 names as the rendered form |
+| **Refuse the label — draw the ramp as colour and rank alone** | It reverses ADR-0116 and ADR-0110 by implication. It also deletes the datum at the point of use: the operator sorts and triages by the word, and a colour survives neither a screen reader nor a grayscale print nor a sentence spoken to a colleague. It would rewrite ~~17~~ draw sites, including `SeverityBadge.jsx`, which ADR-0110 names as the rendered form — **three of them are gone, PR [#1548](https://github.com/winniel123/verge-asm/pull/1548) deleted them** |
 | **Refuse `critical` alone and keep the other four** | This is what the code enforces today by accident, because `ValenceWords` holds `critical` and not `high`, `medium`, `low` or `info`. It breaks the ramp at its top: a four-level grade whose worst level has no name is not the five-level grade ADR-0116 built, and the operator cannot see the one row that matters most |
 | **Delete `critical` and `severity` from `ValenceWords`** | Cheap and wrong in the other direction. The word list is the only mechanical guard over authored prose, and dropping `critical` licenses a prose sentence calling a finding critical — exactly ADR-0064 §3's first refusal, which #35 grounds on four rules where a clear can be an attack having succeeded |
-| **Exempt anything marked `data-sev`** | The mark is already on two elements that are not member names — `data-sev="title"` on the ramp heading and `data-sev="header"` on the column header (`render.go:299`, `render.go:325`). An attribute-scoped exemption would be widened by whoever adds the next `data-sev` mark, and the boundary this ADR draws would move without a decision. §3 fixes the exemption on the token, not on the mark |
+| **Exempt anything marked `data-sev`** | ~~The mark is already on two elements that are not member names — `data-sev="title"` on the ramp heading and `data-sev="header"` on the column header (`render.go:299`, `render.go:325`).~~ **WITHDRAWN, PR [#1548](https://github.com/winniel123/verge-asm/pull/1548) deleted both marks — see §4.** An attribute-scoped exemption would be widened by whoever adds the next `data-sev` mark, and the boundary this ADR draws would move without a decision. §3 fixes the exemption on the token, not on the mark |
 | **Rule it in [ADR-0064](./0064-a-message-names-what-moved-and-where-nothing-moved-it-says-so.md) as an amendment** | ADR-0064's subject is the `Message` vocabulary, and its §3 argues from four properties of message copy. A `Signal` grade is a different object, carried by a different `CONTEXT.md` entry and built by a different ADR. Filing the exemption inside the refusal would invite a reader to take it as a hole in the refusal rather than a boundary on its reach |
 | **Rule it in [ADR-0114](./0114-the-report-pdf-is-rendered-in-process-from-the-artifact-not-from-html.md), where the contradiction sits** | ADR-0114 rules the print render only, and this rule binds the screen form, the email/doc form, eleven console template invocations and the design-system component. Filing it there would state a product-wide vocabulary rule inside a document about a PDF library choice, and it would leave the screen form's exemption unwritten |
 | **Merge this with [ADR-0184](./0184-an-unknown-severity-token-folds-to-info-on-every-surface-and-no-surface-folds-it-differently.md)** | Two independent decisions. One says what an out-of-set token normalises to. The other says what an in-set token may be called. A reader could accept either and refuse the other, and a merged file would make one of them unciteable on its own |

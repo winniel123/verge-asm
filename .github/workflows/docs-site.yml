@@ -49,8 +49,9 @@ defaults:
     working-directory: docs-site
 
 jobs:
-  # Build + gates. Runs on every trigger (PRs included). Every step here is blocking: a
-  # non-zero exit fails the job. The job is not among the 7 required status checks in the
+  # Build + gates. Runs on every trigger (PRs included). Every step here is blocking — a
+  # non-zero exit fails the job — except the advisory `astro check` step, which carries
+  # continue-on-error (#1569). The job is not among the 7 required status checks in the
   # `main` ruleset, so a red run does not block a merge (#1395).
   build:
     runs-on: ubuntu-latest
@@ -89,6 +90,16 @@ jobs:
       # Build every version (main + each v* tag) into docs-site/dist.
       - name: Build site
         run: npm run build
+
+      # ADVISORY — the one non-blocking step in this job. `astro check` typechecks what
+      # `npm run build` transpiles past: PR #1508 left the required `VersionOption.ref`
+      # unassigned and shipped `blob/undefined/` links (#1569). Its first run on `main`
+      # reports 3 errors, so blocking here would red-line every run and stop the deploy
+      # job that `needs: build`. Promoting it to blocking is a maintainer call, and
+      # #1568 raises the same three cautions for `staticcheck` on the Go side.
+      - name: Astro typecheck (advisory)
+        continue-on-error: true
+        run: npm run check
 
       - name: Broken-link gate tests
         run: node --test scripts/check-links.test.mjs

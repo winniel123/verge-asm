@@ -1,6 +1,6 @@
 {
-  "leaf_version": "connect-outcome/v2",
+  "leaf_version": "connect-outcome/v3",
   "corpus_digest": "sha256:ff5bb22519190072fb60528d16cfd08b54d572f19b96e74794fae4051b58466e",
-  "params_digest": "sha256:3937010112e76a2e5a527c22af7e4156c53df2bb8c6a85f3de7e32fb82693268",
+  "params_digest": "sha256:bad0a53518b870ecf91d336e87234289eee73d34a38163820abf09e42b0b5d06",
   "uncovered_moves": null
 }
