@@ -70,6 +70,8 @@ type fakeStore struct {
 
 	sourceStates map[string]db.SourceState
 
+	sourceHealth map[string]db.SourceHealth
+
 	ctReliability map[string]db.CTReliabilityWindowRow
 
 	ctAdmitCount int64
@@ -196,6 +198,7 @@ func newFakeStore() *fakeStore {
 		seedNextID: 1, exclNextID: 1, annoNextID: 1, vantageNextID: 1, chanNextID: 1,
 		lookupNextID: 1, proposalNext: 1, signalInstNextID: 1000,
 		sourceStates:      map[string]db.SourceState{},
+		sourceHealth:      map[string]db.SourceHealth{},
 		integrationStates: map[string]db.IntegrationState{},
 		scans: []db.Scan{
 			{ID: 1, Kind: "dns", Enabled: true, CadenceSeconds: 86400},

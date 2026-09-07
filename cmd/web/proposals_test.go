@@ -24,17 +24,18 @@ import (
 
 type fakeProposer struct {
 	candidates  []proposer.Candidate
+	attempts    []proposer.Attempt
 	err         error
 	lastQuery   string
 	lastEnabled map[string]bool
 	calls       int
 }
 
-func (p *fakeProposer) Propose(_ context.Context, org string, enabled map[string]bool) ([]proposer.Candidate, error) {
+func (p *fakeProposer) Propose(_ context.Context, org string, enabled map[string]bool) ([]proposer.Candidate, []proposer.Attempt, error) {
 	p.calls++
 	p.lastQuery = org
 	p.lastEnabled = enabled
-	return p.candidates, p.err
+	return p.candidates, p.attempts, p.err
 }
 
 func startWithProposer(t *testing.T, f *fakeStore, p proposerRunner) string {

@@ -25,6 +25,7 @@ type proposalsStore interface {
 	DeclineProposal(ctx context.Context, id int64) (int64, error)
 	GetPendingProposal(ctx context.Context, id int64) (db.Proposal, error)
 	ListPendingProposals(ctx context.Context) ([]db.ListPendingProposalsRow, error)
+	RecordSourceAttempt(ctx context.Context, arg db.RecordSourceAttemptParams) (db.SourceHealth, error)
 }
 
 type proposalRow struct {
@@ -45,7 +46,7 @@ func flattenProposals(lookups []proposalLookupView) []proposalRow {
 }
 
 type proposerRunner interface {
-	Propose(ctx context.Context, orgName string, enabled map[string]bool) ([]proposer.Candidate, error)
+	Propose(ctx context.Context, orgName string, enabled map[string]bool) ([]proposer.Candidate, []proposer.Attempt, error)
 }
 
 type proposalView struct {
@@ -147,7 +148,9 @@ func (s *server) runLookup(w http.ResponseWriter, r *http.Request, acct db.Accou
 		return
 	}
 
-	cands, perr := s.proposals().Propose(r.Context(), query, enabled)
+	cands, attempts, perr := s.proposals().Propose(r.Context(), query, enabled)
+	// The write precedes every return, so a lookup that finds nothing still records (ADR-0223 §4).
+	s.recordProposerAttempts(r.Context(), attempts)
 	if perr != nil {
 		log.Printf("web: proposer lookup %q: %v", logSafe(query), perr) // #nosec G706 (sanitized via logSafe)
 	}

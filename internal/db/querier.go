@@ -191,6 +191,7 @@ type Querier interface {
 	ListServiceTLSAcceptance(ctx context.Context, arg ListServiceTLSAcceptanceParams) ([]ListServiceTLSAcceptanceRow, error)
 	ListSessionsForAccount(ctx context.Context, arg ListSessionsForAccountParams) ([]ListSessionsForAccountRow, error)
 	ListSignalInstances(ctx context.Context) ([]SignalInstance, error)
+	ListSourceHealth(ctx context.Context) ([]SourceHealth, error)
 	ListSourceStates(ctx context.Context) ([]SourceState, error)
 	ListSpansForSubject(ctx context.Context, arg ListSpansForSubjectParams) ([]ListSpansForSubjectRow, error)
 	ListSpansOpenSince(ctx context.Context, since pgtype.Timestamptz) ([]ListSpansOpenSinceRow, error)
@@ -236,6 +237,7 @@ type Querier interface {
 	// A dead worker is failure, not evidence: no Batch, no Availability move (ADR-0169 §1, #1391).
 	ReapStaleRunningJobs(ctx context.Context, cutoff pgtype.Timestamptz) (int64, error)
 	RecordHeartbeat(ctx context.Context) (Heartbeat, error)
+	RecordSourceAttempt(ctx context.Context, arg RecordSourceAttemptParams) (SourceHealth, error)
 	ReserveCTSlot(ctx context.Context, arg ReserveCTSlotParams) (pgtype.Timestamptz, error)
 	ResetAccountTOTP(ctx context.Context, id int64) error
 	RetryDelivery(ctx context.Context, arg RetryDeliveryParams) error
