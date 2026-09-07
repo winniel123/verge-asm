@@ -1,11 +1,12 @@
-# ADR-0222: no test-only `EgressGuard` relaxation is built, the dial-control seam stays unexported, and the captured-public-prefix rig stays the supported one
+# ADR-0222: no test-only `EgressGuard` relaxation is built, and the dial-control seam stays unexported. ~~The captured-public-prefix rig stays the supported one.~~ **ADR-0225 supersedes that last clause.**
 
-- **Status:** Accepted
+- **Status:** Accepted (§3 superseded and §4 discharged by [ADR-0225](./0225-the-declared-address-scope-that-admitted-a-target-rides-the-job-and-the-egress-guard-reads-it.md))
 - **Date:** 2026-09-07
 - **Ticket:** [#1598 EgressGuard refuses every local prefix, so a leaf measurement needs a captured public prefix to test against](https://github.com/winniel123/verge-asm/issues/1598)
 - **Upstream:** [#1115](https://github.com/winniel123/verge-asm/issues/1115) and PR [#1562](https://github.com/winniel123/verge-asm/pull/1562), which built the rig. [#1572](https://github.com/winniel123/verge-asm/issues/1572) carried finding 5 and left it unfiled
+- **Superseded in part by:** [ADR-0225](./0225-the-declared-address-scope-that-admitted-a-target-rides-the-job-and-the-egress-guard-reads-it.md) — [#1610](https://github.com/winniel123/verge-asm/issues/1610) rules that the egress guard reads the declared address scope that admitted the target. ADR-0225 supersedes §3 below and discharges §4 below. This ADR's own reopening condition names that event. §1 and §2 stand unchanged, and ADR-0225 §4 obeys this ADR's §1 rather than amending it
 - **Rests on:** [ADR-0121](./0121-the-operator-declared-recursive-resolver-is-trusted-and-exempt-from-the-discovered-authority-egress-guard.md), which rules that the egress guard depends on trust origin and not on the address. This ADR applies that same test to a test rig and refuses the exemption, because a test harness declares no realm
-- **Read with:** [ADR-0079](./0079-authority-presupposes-denotation-a-non-globally-reachable-address-is-probed-only-inside-a-declared-realm.md), whose declared-address-scope route the guard closes at the socket. §4 states that contradiction and refuses to settle it here
+- **Read with:** [ADR-0079](./0079-authority-presupposes-denotation-a-non-globally-reachable-address-is-probed-only-inside-a-declared-realm.md), whose declared-address-scope route ~~the guard closes at the socket. §4 states that contradiction and refuses to settle it here~~ **the guard now reads at the socket ([ADR-0225](./0225-the-declared-address-scope-that-admitted-a-target-rides-the-job-and-the-egress-guard-reads-it.md)). §4 below stated that contradiction and refused to settle it here. ADR-0225 settles it, and §4 is discharged**
 - **Read with:** [ADR-0166](./0166-a-verge-dev-build-is-a-capture-affordance-and-every-gate-it-opens-is-unreachable-in-a-released-build.md), whose residual-risk paragraph records what a review-held containment costs. §2 chooses a compiler-held one instead
 
 ## Context
@@ -83,13 +84,19 @@ measurements."*
 This is a question about the shipped product, not about a test rig. §4 files it as
 [#1610](https://github.com/winniel123/verge-asm/issues/1610) and refuses to settle it here.
 
+> **#1610 is settled by [ADR-0225](./0225-the-declared-address-scope-that-admitted-a-target-rides-the-job-and-the-egress-guard-reads-it.md), and the mismatch
+> above is repaired.** The table and the trace stay as the record of the tree on `38eec12`. Read
+> them as a measurement of that tree, not as a live defect.
+
 ## Decision
 
 > **No test-only relaxation of `EgressGuard` is built. A dial-control seam at a measurement leaf is
 > an unexported struct field whose zero value installs the guard, and the Go compiler is what keeps
 > it out of a shipped binary. The three sites without a seam gain none today, because no test needs
-> one. §2.2 of the hot-scan note is the supported rig for an end-to-end measurement, and it stays
-> so.**
+> one. ~~§2.2 of the hot-scan note is the supported rig for an end-to-end measurement, and it stays
+> so.~~ §2.2 of the hot-scan note is one supported rig for an end-to-end measurement, and a declared
+> address scope reaches a local target through the production path
+> ([ADR-0225](./0225-the-declared-address-scope-that-admitted-a-target-rides-the-job-and-the-egress-guard-reads-it.md)).**
 
 Four limbs.
 
@@ -125,17 +132,45 @@ that buys nothing today and must be defended forever. §1's rule is what governs
 test does need one, and adopting it then is a one-field change that the pinning test already
 covers.
 
-### 3. §2.2 is the supported rig, and it is named as such
+### 3. ~~§2.2 is the supported rig, and it is named as such~~ **§2.2 is one supported rig — SUPERSEDED by [ADR-0225](./0225-the-declared-address-scope-that-admitted-a-target-rides-the-job-and-the-egress-guard-reads-it.md)**
+
+> **Superseded here, at the site that specifies it** ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)) by
+> [#1610](https://github.com/winniel123/verge-asm/issues/1610) · [ADR-0225](./0225-the-declared-address-scope-that-admitted-a-target-rides-the-job-and-the-egress-guard-reads-it.md).
+> This ADR's Reopening condition names that exact event and rules this section *"superseded rather
+> than amended"*. The event happened on 2026-09-07.
+>
+> **A declared address scope now reaches a local target through the production path.** The egress
+> guard reads the declared scope that admitted the target, so a declared `127.0.0.0/22` reaches a
+> loopback listener, and `internal/measure/connectoutcome/realm_net_test.go` demonstrates it with no
+> test-only seam. Read alone and in the present tense, the struck sentence sends a session to capture
+> a public prefix before it can run a leaf measurement end to end. That capture is now optional.
+>
+> **What survives.** §2.2's rig works, and it stays the rig for an end-to-end measurement against a
+> globally reachable target. Its capture procedure and its containment argument are untouched. What
+> is withdrawn is the word *the*.
 
 [`hot-scan-wall-clock-and-emitted-rate.md`](../research/hot-scan-wall-clock-and-emitted-rate.md)
-§2.2 holds the captured-public-prefix rig. It is the supported way to run a leaf measurement
-end to end against a target the operator controls. The note is amended to say so, and finding 5 is
-amended to record this ADR.
+§2.2 holds the captured-public-prefix rig. ~~It is the supported way to run a leaf measurement
+end to end against a target the operator controls.~~ **It is one supported way to run a leaf
+measurement end to end against a target the operator controls. A declared address scope is the
+other way.** The note is amended to say so, and finding 5 is amended to record this ADR.
 
 The cost is real and it is accepted. A reader needs a public allocation, or an understanding of why
-holding `192.88.100.0/22` on a local bridge is contained. §2.2 states both.
+holding `192.88.100.0/22` on a local bridge is contained. §2.2 states both. **A reader who declares
+an address scope over the target pays neither.**
 
-### 4. The gate-versus-guard mismatch is a production question, and it is filed
+### 4. ~~The gate-versus-guard mismatch is a production question, and it is filed~~ **The mismatch was filed — DISCHARGED**
+
+> **DISCHARGED by [#1610](https://github.com/winniel123/verge-asm/issues/1610) · [ADR-0225](./0225-the-declared-address-scope-that-admitted-a-target-rides-the-job-and-the-egress-guard-reads-it.md),
+> and recorded here at the site that files it** ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).
+> The mismatch is repaired. The declared address scope that admitted a target rides the job, the
+> egress guard reads that scope at the socket, and an address inside no declared scope stays refused
+> at every one of the four install sites. ADR-0225 decided the question on ADR-0079's and ADR-0121's
+> grounds, which is what this section asked a later session to do.
+>
+> **Nothing below is withdrawn.** The refusal to settle an egress boundary inside a ticket about a
+> test rig was correct, and the reasoning records why. Read this section as the history of a filing,
+> not as an open question.
 
 The mismatch in the Context is not repaired here, and it is not repaired by any test affordance.
 
@@ -162,9 +197,13 @@ declared resolver are the same class of input.
 - **The note gains two amendments** and no new section.
 - **`CONTEXT.md` gains nothing.** No domain term moves.
 - **The `resolutionwalk` dial path is untouched.** ADR-0121 governs it.
-- **The mismatch stays live until [#1610](https://github.com/winniel123/verge-asm/issues/1610)
+- ~~**The mismatch stays live until [#1610](https://github.com/winniel123/verge-asm/issues/1610)
   lands.** An operator who declares a private address scope today gets `resolution` and
-  `dns-record` at full aperture and no connect measurement. Nothing in the console says why.
+  `dns-record` at full aperture and no connect measurement. Nothing in the console says why.~~
+  **WITHDRAWN here, at the site that states it** ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).
+  #1610 landed as [ADR-0225](./0225-the-declared-address-scope-that-admitted-a-target-rides-the-job-and-the-egress-guard-reads-it.md). An operator who
+  declares a private address scope gets a connect measurement over the addresses that scope
+  contains.
 
 ## Reopening condition
 
@@ -173,6 +212,10 @@ This ADR is reopened by exactly one event:
 non-internet-class target passes the guard.** A leaf measurement against a declared `10.0.0.0/24`
 is then a supported production configuration. The rig follows it at no extra cost, and this ADR's
 §3 is superseded rather than amended.
+
+> **The event happened on 2026-09-07.** [#1610](https://github.com/winniel123/verge-asm/issues/1610) ·
+> [ADR-0225](./0225-the-declared-address-scope-that-admitted-a-target-rides-the-job-and-the-egress-guard-reads-it.md) rules exactly this, and §3 above carries
+> the supersession. The condition is spent, and it does not fire a second time.
 
 It is **not** reopened by a session that finds §2.2's rig awkward, slow, or hard to reproduce. That
 is the cost §3 accepts, and the ADR records it so that a later session does not re-argue it.
