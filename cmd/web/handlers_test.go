@@ -218,50 +218,8 @@ func (f *fakeStore) ListDispatchProgress(_ context.Context, limit int32) ([]db.L
 	return rows, nil
 }
 
-func (f *fakeStore) ListActiveDispatchProgress(_ context.Context) ([]db.ListActiveDispatchProgressRow, error) {
-	out := []db.ListActiveDispatchProgressRow{}
-	for _, r := range f.dispatchProgress {
-		if r.Ready+r.Running == 0 {
-			continue
-		}
-		out = append(out, db.ListActiveDispatchProgressRow{
-			DispatchID: r.DispatchID, ScanID: r.ScanID, ScanKind: r.ScanKind,
-			CreatedAt: r.CreatedAt, Status: r.Status,
-			Total: r.Total, Ready: r.Ready, Running: r.Running,
-			Done: r.Done, Dead: r.Dead, Retried: r.Retried,
-		})
-	}
-	return out, nil
-}
-
-func (f *fakeStore) ListConcludedDispatchProgress(_ context.Context, limit int32) ([]db.ListConcludedDispatchProgressRow, error) {
-	out := []db.ListConcludedDispatchProgressRow{}
-	for _, r := range f.dispatchProgress {
-		if r.Ready+r.Running > 0 {
-			continue
-		}
-		if len(out) >= int(limit) {
-			break
-		}
-		out = append(out, db.ListConcludedDispatchProgressRow{
-			DispatchID: r.DispatchID, ScanID: r.ScanID, ScanKind: r.ScanKind,
-			CreatedAt: r.CreatedAt, Status: r.Status,
-			Total: r.Total, Ready: r.Ready, Running: r.Running,
-			Done: r.Done, Dead: r.Dead, Retried: r.Retried,
-		})
-	}
-	return out, nil
-}
-
 func (f *fakeStore) ListJobsForDispatch(_ context.Context, dispatchID pgtype.Int8) ([]db.ListJobsForDispatchRow, error) {
 	return f.jobsByDispatch[dispatchID.Int64], nil
-}
-
-func (f *fakeStore) GetTranscriptByJob(_ context.Context, queueJobID int64) (db.Transcript, error) {
-	if t, ok := f.transcriptsByJob[queueJobID]; ok {
-		return t, nil
-	}
-	return db.Transcript{}, pgx.ErrNoRows
 }
 
 func (f *fakeStore) dispatchIdx(id int64) int {
@@ -271,104 +229,6 @@ func (f *fakeStore) dispatchIdx(id int64) int {
 		}
 	}
 	return -1
-}
-
-func (f *fakeStore) CancelReadyJobsForDispatch(_ context.Context, dispatchID pgtype.Int8) (int64, error) {
-	i := f.dispatchIdx(dispatchID.Int64)
-	if i < 0 {
-		return 0, nil
-	}
-	n := f.dispatchProgress[i].Ready
-	f.dispatchProgress[i].Ready = 0
-	return n, nil
-}
-
-func (f *fakeStore) CancelActiveJobsForDispatch(_ context.Context, dispatchID pgtype.Int8) (int64, error) {
-	i := f.dispatchIdx(dispatchID.Int64)
-	if i < 0 {
-		return 0, nil
-	}
-	n := f.dispatchProgress[i].Ready + f.dispatchProgress[i].Running
-	f.dispatchProgress[i].Ready = 0
-	f.dispatchProgress[i].Running = 0
-	return n, nil
-}
-
-func (f *fakeStore) SetDispatchStatus(_ context.Context, arg db.SetDispatchStatusParams) error {
-	if f.dispatchStatus == nil {
-		f.dispatchStatus = map[int64]string{}
-	}
-	cur, ok := f.dispatchStatus[arg.ID]
-	if !ok {
-		cur = "fanned-out"
-	}
-	// Mirrors dispatch.sql's WHERE, so a test sees the real guard (ADR-0164 §4, #1421).
-	if cur != "fanned-out" && !(cur == "stopped" && arg.Status == "terminated") {
-		return nil
-	}
-	f.dispatchStatus[arg.ID] = arg.Status
-	return nil
-}
-
-func (f *fakeStore) GetInstanceHealth(context.Context) (db.GetInstanceHealthRow, error) {
-	return f.instanceHealth, nil
-}
-
-func (f *fakeStore) ListColdScopeSeedIds(context.Context) ([]int64, error) {
-	ids := make([]int64, 0, len(f.coldScopes))
-	for id, in := range f.coldScopes {
-		if in {
-			ids = append(ids, id)
-		}
-	}
-	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
-	return ids, nil
-}
-
-func (f *fakeStore) OptInColdScope(_ context.Context, arg db.OptInColdScopeParams) error {
-	f.coldScopes[arg.SeedID] = true
-	return nil
-}
-
-func (f *fakeStore) OptOutColdScope(_ context.Context, seedID int64) error {
-	delete(f.coldScopes, seedID)
-	return nil
-}
-
-func (f *fakeStore) SyncColdScanEnabled(context.Context) error {
-	enabled := len(f.coldScopes) > 0
-	for i := range f.scans {
-		if f.scans[i].Kind == "cold" {
-			f.scans[i].Enabled = enabled
-		}
-	}
-	return nil
-}
-
-func (f *fakeStore) ListVergeCoreFrequencyEditsWithAuthor(context.Context) ([]db.ListVergeCoreFrequencyEditsWithAuthorRow, error) {
-	ports := make([]int, 0, len(f.freqEdits))
-	for p := range f.freqEdits {
-		ports = append(ports, int(p))
-	}
-	sort.Ints(ports)
-	out := make([]db.ListVergeCoreFrequencyEditsWithAuthorRow, 0, len(ports))
-	for i, p := range ports {
-		e := f.freqEdits[int32(p)]
-		out = append(out, db.ListVergeCoreFrequencyEditsWithAuthorRow{
-			ID: int64(i + 1), Port: int32(p), Action: e.action, CreatedByUsername: "admin",
-		})
-	}
-	return out, nil
-}
-
-func (f *fakeStore) UpsertVergeCoreFrequencyEdit(_ context.Context, arg db.UpsertVergeCoreFrequencyEditParams) error {
-	f.freqEdits[arg.Port] = fakeFreqEdit{action: arg.Action, createdBy: arg.CreatedBy}
-	return nil
-}
-
-func (f *fakeStore) DeleteVergeCoreFrequencyEdit(_ context.Context, port int32) error {
-	delete(f.freqEdits, port)
-	return nil
 }
 
 func (f *fakeStore) GetScanByKind(_ context.Context, kind string) (db.Scan, error) {
@@ -387,36 +247,8 @@ func (f *fakeStore) ListScans(context.Context) ([]db.Scan, error) {
 	return f.scans, nil
 }
 
-func (f *fakeStore) TightestEnabledScanCadenceSeconds(context.Context) (int64, error) {
-	var tightest int64
-	for _, sc := range f.scans {
-		if sc.Enabled && (tightest == 0 || sc.CadenceSeconds < tightest) {
-			tightest = sc.CadenceSeconds
-		}
-	}
-	return tightest, nil
-}
-
 func (f *fakeStore) RecordHeartbeat(context.Context) (db.Heartbeat, error) {
 	return f.hb, f.hbErr
-}
-
-func (f *fakeStore) CountAccounts(context.Context) (int64, error) {
-	return int64(len(f.accounts)), nil
-}
-
-func (f *fakeStore) CreateAccount(_ context.Context, arg db.CreateAccountParams) (db.Account, error) {
-	if _, taken := f.byName[arg.Username]; taken {
-		return db.Account{}, &pgconn.PgError{Code: "23505", Message: "duplicate key"}
-	}
-	acct := db.Account{
-		ID: f.nextID, Username: arg.Username, Role: arg.Role, PasswordHash: arg.PasswordHash,
-		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
-	}
-	f.accounts[acct.ID] = acct
-	f.byName[acct.Username] = acct.ID
-	f.nextID++
-	return acct, nil
 }
 
 func (f *fakeStore) GetAccountByUsername(_ context.Context, username string) (db.Account, error) {
@@ -437,81 +269,6 @@ func (f *fakeStore) GetAccountByID(_ context.Context, id int64) (db.Account, err
 		return db.Account{}, pgx.ErrNoRows
 	}
 	return acct, nil
-}
-
-func (f *fakeStore) SetTOTPSecret(_ context.Context, arg db.SetTOTPSecretParams) error {
-	acct, ok := f.accounts[arg.ID]
-	if !ok {
-		return pgx.ErrNoRows
-	}
-	acct.TotpSecret = arg.TotpSecret
-	acct.TotpEnabled = false
-	f.accounts[arg.ID] = acct
-	return nil
-}
-
-func (f *fakeStore) ConfirmTOTP(_ context.Context, id int64) error {
-	acct, ok := f.accounts[id]
-	if !ok || !acct.TotpSecret.Valid {
-		return pgx.ErrNoRows
-	}
-	acct.TotpEnabled = true
-	f.accounts[id] = acct
-	return nil
-}
-
-func (f *fakeStore) SetTOTPLastStep(_ context.Context, arg db.SetTOTPLastStepParams) (int64, error) {
-	f.acctMu.Lock()
-	defer f.acctMu.Unlock()
-	acct, ok := f.accounts[arg.ID]
-	if !ok {
-		return 0, pgx.ErrNoRows
-	}
-	if acct.TotpLastStep.Valid && acct.TotpLastStep.Int64 >= arg.TotpLastStep.Int64 {
-		return 0, nil
-	}
-	acct.TotpLastStep = arg.TotpLastStep
-	f.accounts[arg.ID] = acct
-	return 1, nil
-}
-
-func (f *fakeStore) DeleteAccount(_ context.Context, id int64) error {
-	if _, ok := f.accounts[id]; !ok {
-		return pgx.ErrNoRows
-	}
-	delete(f.accounts, id)
-	for name, nid := range f.byName {
-		if nid == id {
-			delete(f.byName, name)
-		}
-	}
-	return nil
-}
-
-func (f *fakeStore) ResetAccountTOTP(_ context.Context, id int64) error {
-	acct, ok := f.accounts[id]
-	if !ok {
-		return pgx.ErrNoRows
-	}
-	acct.TotpSecret = pgtype.Text{}
-	acct.TotpEnabled = false
-	f.accounts[id] = acct
-	return nil
-}
-
-func (f *fakeStore) CreateNameSeed(_ context.Context, arg db.CreateNameSeedParams) (db.Seed, error) {
-	for _, s := range f.seeds {
-		if s.Kind == "name" && s.NameDomain.String == arg.NameDomain.String {
-			return db.Seed{}, &pgconn.PgError{Code: "23505", Message: "duplicate seed"}
-		}
-	}
-	sd := db.Seed{
-		ID: f.seedNextID, Kind: "name", NameDomain: arg.NameDomain, CreatedBy: arg.CreatedBy,
-		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
-	}
-	f.seeds = append(f.seeds, sd)
-	f.seedNextID++
-	return sd, nil
 }
 
 func (f *fakeStore) CreateAddressSeed(_ context.Context, arg db.CreateAddressSeedParams) (db.Seed, error) {
@@ -622,113 +379,6 @@ func (f *fakeStore) ScanHasCompletedBatch(_ context.Context, kind string) (bool,
 	return f.completedBatchKinds[kind], nil
 }
 
-func (f *fakeStore) WithdrawSeed(_ context.Context, arg db.WithdrawSeedParams) (db.WithdrawSeedRow, error) {
-	for i, s := range f.seeds {
-		if s.ID != arg.SeedID {
-			continue
-		}
-		f.seeds = append(f.seeds[:i], f.seeds[i+1:]...)
-		w := db.SeedWithdrawal{
-			ID:        int64(len(f.seedWithdrawals) + 1),
-			Kind:      s.Kind,
-			CreatedBy: arg.CreatedBy,
-		}
-		switch {
-		case s.Kind == "address" && s.AddressCidr != nil:
-			w.AddressCidr = s.AddressCidr
-		case s.Kind == "name" && s.NameDomain.Valid:
-			w.NameDomain = s.NameDomain
-		default:
-			return db.WithdrawSeedRow{SeedsRemoved: 1}, nil
-		}
-		f.seedWithdrawals = append(f.seedWithdrawals, w)
-		return db.WithdrawSeedRow{SeedsRemoved: 1, TombstonesWritten: 1}, nil
-	}
-	return db.WithdrawSeedRow{}, nil
-}
-
-func (f *fakeStore) ListSeedWithdrawalCandidates(_ context.Context, cidrs []string) ([]db.ListSeedWithdrawalCandidatesRow, error) {
-	prefixes := make([]netip.Prefix, 0, len(cidrs))
-	for _, c := range cidrs {
-		p, err := netip.ParsePrefix(c)
-		if err != nil {
-			return nil, err
-		}
-		prefixes = append(prefixes, p)
-	}
-	out := []db.ListSeedWithdrawalCandidatesRow{}
-	for _, row := range f.withdrawalCandidates {
-		key := row.SubjectKey
-		if i := strings.IndexByte(key, ':'); i >= 0 {
-			key = key[:i]
-		}
-		addr, err := netip.ParseAddr(key)
-		if err != nil {
-			continue
-		}
-		for _, p := range prefixes {
-			if p.Contains(addr) {
-				out = append(out, row)
-				break
-			}
-		}
-	}
-	return out, nil
-}
-
-func (f *fakeStore) ListNameSeedWithdrawalCandidates(_ context.Context, domains []string) ([]db.ListNameSeedWithdrawalCandidatesRow, error) {
-	out := []db.ListNameSeedWithdrawalCandidatesRow{}
-	for _, row := range f.nameWithdrawalCandidates {
-		key := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(row.SubjectKey)), ".")
-		for _, d := range domains {
-			if key == d || strings.HasSuffix(key, "."+d) {
-				out = append(out, row)
-				break
-			}
-		}
-	}
-	return out, nil
-}
-
-func (f *fakeStore) ListAdmittedNamesOutsideSeed(_ context.Context, seedID int64) ([]string, error) {
-	seen := map[string]bool{}
-	out := []string{}
-	for _, a := range f.admitted {
-		if a.SeedID == seedID || seen[a.Name] {
-			continue
-		}
-		seen[a.Name] = true
-		out = append(out, a.Name)
-	}
-	sort.Strings(out)
-	return out, nil
-}
-
-func (f *fakeStore) SetCustodyExtension(_ context.Context, arg db.SetCustodyExtensionParams) error {
-	for i, s := range f.seeds {
-		if s.ID == arg.ID && s.Kind == "name" {
-			f.seeds[i].CustodyExtension = arg.CustodyExtension
-			return nil
-		}
-	}
-	return nil
-}
-
-func (f *fakeStore) CreateNameExclusion(_ context.Context, arg db.CreateNameExclusionParams) (db.Exclusion, error) {
-	for _, e := range f.exclusions {
-		if e.Kind == arg.Kind && e.Name.String == arg.Name.String {
-			return db.Exclusion{}, &pgconn.PgError{Code: "23505", Message: "duplicate exclusion"}
-		}
-	}
-	ex := db.Exclusion{
-		ID: f.exclNextID, Kind: arg.Kind, Name: arg.Name, CreatedBy: arg.CreatedBy,
-		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
-	}
-	f.exclusions = append(f.exclusions, ex)
-	f.exclNextID++
-	return ex, nil
-}
-
 func (f *fakeStore) CreateAddressExclusion(_ context.Context, arg db.CreateAddressExclusionParams) (db.Exclusion, error) {
 	for _, e := range f.exclusions {
 		if e.Kind == "address" && e.AddressCidr != nil && arg.AddressCidr != nil && e.AddressCidr.String() == arg.AddressCidr.String() {
@@ -744,22 +394,6 @@ func (f *fakeStore) CreateAddressExclusion(_ context.Context, arg db.CreateAddre
 	return ex, nil
 }
 
-func (f *fakeStore) ListExclusions(context.Context) ([]db.ListExclusionsRow, error) {
-	if f.exclusionsErr != nil {
-		return nil, f.exclusionsErr
-	}
-	rows := make([]db.ListExclusionsRow, 0, len(f.exclusions))
-	for i := len(f.exclusions) - 1; i >= 0; i-- {
-		e := f.exclusions[i]
-		rows = append(rows, db.ListExclusionsRow{
-			ID: e.ID, Kind: e.Kind, Name: e.Name, AddressCidr: e.AddressCidr,
-			CreatedBy: e.CreatedBy, CreatedAt: e.CreatedAt,
-			CreatedByUsername: f.accounts[e.CreatedBy].Username,
-		})
-	}
-	return rows, nil
-}
-
 func (f *fakeStore) ListAddressExclusionCidrs(context.Context) ([]*netip.Prefix, error) {
 	out := []*netip.Prefix{}
 	for _, e := range f.exclusions {
@@ -768,39 +402,6 @@ func (f *fakeStore) ListAddressExclusionCidrs(context.Context) ([]*netip.Prefix,
 		}
 	}
 	return out, nil
-}
-
-func (f *fakeStore) CreateVantage(_ context.Context, arg db.CreateVantageParams) (db.Vantage, error) {
-	for _, v := range f.vantages {
-		if v.Host.String == arg.Host && v.Port.Int32 == arg.Port && v.Username.String == arg.Username {
-			return db.Vantage{}, &pgconn.PgError{Code: "23505", Message: "duplicate vantage"}
-		}
-	}
-	v := db.Vantage{
-		ID:           f.vantageNextID,
-		Name:         arg.Name,
-		Class:        "unverified",
-		Resolver:     arg.Resolver,
-		Host:         pgtype.Text{String: arg.Host, Valid: true},
-		Port:         pgtype.Int4{Int32: arg.Port, Valid: true},
-		Username:     pgtype.Text{String: arg.Username, Valid: true},
-		Availability: pgtype.Text{String: "pending", Valid: true},
-		CreatedBy:    pgtype.Int8{Int64: arg.CreatedBy, Valid: true},
-		CreatedAt:    pgtype.Timestamptz{Time: time.Now(), Valid: true},
-	}
-	f.vantages = append(f.vantages, v)
-	f.vantageNextID++
-	return v, nil
-}
-
-func (f *fakeStore) SetVantageResolver(_ context.Context, arg db.SetVantageResolverParams) error {
-	for i := range f.vantages {
-		if f.vantages[i].ID == arg.ID {
-			f.vantages[i].Resolver = arg.Resolver
-			return nil
-		}
-	}
-	return pgx.ErrNoRows
 }
 
 func (f *fakeStore) ListVantages(context.Context) ([]db.ListVantagesRow, error) {
@@ -837,75 +438,6 @@ func (f *fakeStore) ListUnavailableVantages(context.Context) ([]db.ListUnavailab
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i].Name < rows[j].Name })
 	return rows, nil
-}
-
-func (f *fakeStore) DeleteExclusion(_ context.Context, id int64) error {
-	for i, e := range f.exclusions {
-		if e.ID == id {
-			f.exclusions = append(f.exclusions[:i], f.exclusions[i+1:]...)
-			return nil
-		}
-	}
-	return nil
-}
-
-func (f *fakeStore) CreateAnnotation(_ context.Context, arg db.CreateAnnotationParams) (db.Annotation, error) {
-	for _, a := range f.annotations {
-		if a.SubjectKey == arg.SubjectKey && a.SignalName == arg.SignalName {
-			return db.Annotation{}, &pgconn.PgError{Code: "23505", Message: "duplicate annotation"}
-		}
-	}
-	a := db.Annotation{
-		ID: f.annoNextID, SubjectKey: arg.SubjectKey, SignalName: arg.SignalName,
-		Reason: arg.Reason, DeclaredAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
-	}
-	f.annotations = append(f.annotations, a)
-	f.annoNextID++
-	return a, nil
-}
-
-func (f *fakeStore) ListAnnotations(context.Context) ([]db.Annotation, error) {
-	rows := append([]db.Annotation(nil), f.annotations...)
-	sort.Slice(rows, func(i, j int) bool {
-		if rows[i].SignalName != rows[j].SignalName {
-			return rows[i].SignalName < rows[j].SignalName
-		}
-		return rows[i].SubjectKey < rows[j].SubjectKey
-	})
-	return rows, nil
-}
-
-func (f *fakeStore) DeleteAnnotation(_ context.Context, id int64) error {
-	for i, a := range f.annotations {
-		if a.ID == id {
-			f.annotations = append(f.annotations[:i], f.annotations[i+1:]...)
-			return nil
-		}
-	}
-	return nil
-}
-
-func (f *fakeStore) MintSignalInstances(_ context.Context, arg db.MintSignalInstancesParams) error {
-	if f.signalInstNextID == 0 {
-		f.signalInstNextID = 1000
-	}
-	have := map[[2]string]bool{}
-	for _, si := range f.signalInstances {
-		have[[2]string{si.SignalName, si.SubjectKey}] = true
-	}
-	for i := range arg.SignalNames {
-		key := [2]string{arg.SignalNames[i], arg.SubjectKeys[i]}
-		if have[key] {
-			continue
-		}
-		have[key] = true
-		f.signalInstances = append(f.signalInstances, db.SignalInstance{
-			ID: f.signalInstNextID, SignalName: key[0], SubjectKey: key[1],
-			FirstSeen: pgtype.Timestamptz{Time: time.Now(), Valid: true},
-		})
-		f.signalInstNextID++
-	}
-	return nil
 }
 
 func (f *fakeStore) ListSignalInstances(context.Context) ([]db.SignalInstance, error) {
@@ -957,15 +489,6 @@ func (f *fakeStore) readMarks(accountID int64) map[int64]bool {
 	return set
 }
 
-func (f *fakeStore) ListReadMessageIDs(_ context.Context, accountID int64) ([]int64, error) {
-	set := f.readMarks(accountID)
-	out := make([]int64, 0, len(set))
-	for id := range set {
-		out = append(out, id)
-	}
-	return out, nil
-}
-
 func (f *fakeStore) CountUnreadMessages(_ context.Context, accountID int64) (int64, error) {
 	set := f.readMarks(accountID)
 	var n int64
@@ -975,33 +498,6 @@ func (f *fakeStore) CountUnreadMessages(_ context.Context, accountID int64) (int
 		}
 	}
 	return n, nil
-}
-
-func (f *fakeStore) MarkMessageRead(_ context.Context, arg db.MarkMessageReadParams) error {
-	set := f.readMarks(arg.AccountID)
-	if !set[arg.MessageID] {
-		set[arg.MessageID] = true
-	}
-	return nil
-}
-
-func (f *fakeStore) MarkAllMessagesRead(_ context.Context, arg db.MarkAllMessagesReadParams) error {
-	set := f.readMarks(arg.AccountID)
-	for _, m := range f.messages {
-		if !set[m.ID] {
-			set[m.ID] = true
-		}
-	}
-	return nil
-}
-
-func (f *fakeStore) MarkMessageUnread(_ context.Context, arg db.MarkMessageUnreadParams) error {
-	delete(f.readMarks(arg.AccountID), arg.MessageID)
-	return nil
-}
-
-func (f *fakeStore) PreviewExclusionWithdrawal(_ context.Context, _ db.PreviewExclusionWithdrawalParams) (db.PreviewExclusionWithdrawalRow, error) {
-	return f.previewResult, nil
 }
 
 func (f *fakeStore) ListAccounts(context.Context) ([]db.ListAccountsRow, error) {
@@ -1021,38 +517,6 @@ func (f *fakeStore) ListAccounts(context.Context) ([]db.ListAccountsRow, error) 
 	return rows, nil
 }
 
-func (f *fakeStore) CountAdmins(context.Context) (int64, error) {
-	var n int64
-	for _, a := range f.accounts {
-		if a.Role == roleAdmin {
-			n++
-		}
-	}
-	return n, nil
-}
-
-func (f *fakeStore) UpdateAccountRole(_ context.Context, arg db.UpdateAccountRoleParams) error {
-	a, ok := f.accounts[arg.ID]
-	if !ok {
-		return pgx.ErrNoRows
-	}
-	a.Role = arg.Role
-	f.accounts[arg.ID] = a
-	return nil
-}
-
-func (f *fakeStore) CreateChannel(_ context.Context, arg db.CreateChannelParams) (int64, error) {
-	c := fakeChannel{
-		id: f.chanNextID, url: arg.Url, secret: arg.Secret,
-		drift: arg.RouteDrift, coverage: arg.RouteCoverage, clock: arg.RouteClock,
-		enabled: arg.Enabled, createdBy: arg.CreatedBy,
-		createdAt: time.Now(), updatedAt: time.Now(),
-	}
-	f.channels = append(f.channels, c)
-	f.chanNextID++
-	return c.id, nil
-}
-
 func (f *fakeStore) ListChannels(context.Context) ([]db.ListChannelsRow, error) {
 	rows := make([]db.ListChannelsRow, 0, len(f.channels))
 	for i := len(f.channels) - 1; i >= 0; i-- {
@@ -1069,84 +533,8 @@ func (f *fakeStore) ListChannels(context.Context) ([]db.ListChannelsRow, error) 
 	return rows, nil
 }
 
-func (f *fakeStore) UpdateChannel(_ context.Context, arg db.UpdateChannelParams) error {
-	for i := range f.channels {
-		if f.channels[i].id == arg.ID {
-			f.channels[i].url = arg.Url
-			f.channels[i].drift = arg.RouteDrift
-			f.channels[i].coverage = arg.RouteCoverage
-			f.channels[i].clock = arg.RouteClock
-			f.channels[i].enabled = arg.Enabled
-			f.channels[i].updatedAt = time.Now()
-			return nil
-		}
-	}
-	return pgx.ErrNoRows
-}
-
-func (f *fakeStore) SetChannelSecret(_ context.Context, arg db.SetChannelSecretParams) error {
-	for i := range f.channels {
-		if f.channels[i].id == arg.ID {
-			f.channels[i].secret = arg.Secret
-			f.channels[i].updatedAt = time.Now()
-			return nil
-		}
-	}
-	return pgx.ErrNoRows
-}
-
-func (f *fakeStore) DeleteChannel(_ context.Context, id int64) error {
-	for i, c := range f.channels {
-		if c.id == id {
-			f.channels = append(f.channels[:i], f.channels[i+1:]...)
-			return nil
-		}
-	}
-	return nil
-}
-
-func (f *fakeStore) GetRetentionSettings(context.Context) (db.GetRetentionSettingsRow, error) {
-	return f.retention, nil
-}
-
 func (f *fakeStore) GetInstanceConfig(context.Context) (db.GetInstanceConfigRow, error) {
 	return f.instanceConfig, nil
-}
-
-func (f *fakeStore) SetUpdateCheckEnabled(_ context.Context, arg db.SetUpdateCheckEnabledParams) error {
-	f.instanceConfig.UpdateCheckEnabled = arg.UpdateCheckEnabled
-	f.instanceConfig.UpdateCheckUpdatedBy = arg.UpdateCheckUpdatedBy
-	f.instanceConfig.UpdateCheckUpdatedAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
-	return nil
-}
-
-func (f *fakeStore) SetLastBackup(_ context.Context, lastBackupSize pgtype.Int8) error {
-	f.instanceConfig.LastBackupAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
-	f.instanceConfig.LastBackupSize = lastBackupSize
-	return nil
-}
-
-func (f *fakeStore) SetAPIEnabled(_ context.Context, arg db.SetAPIEnabledParams) error {
-	f.instanceConfig.ApiEnabled = arg.ApiEnabled
-	f.instanceConfig.ApiUpdatedBy = arg.ApiUpdatedBy
-	f.instanceConfig.ApiUpdatedAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
-	return nil
-}
-
-func (f *fakeStore) SetSeedAddressCap(_ context.Context, arg db.SetSeedAddressCapParams) error {
-	f.instanceConfig.SeedAddressCap = arg.SeedAddressCap
-	f.instanceConfig.SeedAddressCapUpdatedBy = arg.SeedAddressCapUpdatedBy
-	f.instanceConfig.SeedAddressCapUpdatedAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
-	return nil
-}
-
-func (f *fakeStore) UpdateRetentionSettings(_ context.Context, arg db.UpdateRetentionSettingsParams) error {
-	f.retention.ObservationCurrencyDays = arg.ObservationCurrencyDays
-	f.retention.DispatchCadenceMultiple = arg.DispatchCadenceMultiple
-	f.retention.TranscriptCurrencyDays = arg.TranscriptCurrencyDays
-	f.retention.UpdatedBy = arg.UpdatedBy
-	f.retention.UpdatedAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
-	return nil
 }
 
 func (f *fakeStore) ensureScan(kind string) int64 {
@@ -1312,14 +700,6 @@ type fakeZoneFile struct {
 	uploadedBy int64
 }
 
-func (f *fakeStore) CreateZoneFile(_ context.Context, arg db.CreateZoneFileParams) (db.CreateZoneFileRow, error) {
-	f.zoneFiles = append(f.zoneFiles, fakeZoneFile{
-		seedID: arg.SeedID, suppliedAt: arg.SuppliedAt.Time, content: arg.Content, uploadedBy: arg.UploadedBy,
-	})
-	f.zoneNextID++
-	return db.CreateZoneFileRow{ID: f.zoneNextID, SuppliedAt: arg.SuppliedAt}, nil
-}
-
 func (f *fakeStore) ListZoneFileStatus(context.Context) ([]db.ListZoneFileStatusRow, error) {
 	latest := map[int64]fakeZoneFile{}
 	for _, z := range f.zoneFiles {
@@ -1412,59 +792,6 @@ func (f *fakeStore) ListAllOpenSpans(_ context.Context) ([]db.ListAllOpenSpansRo
 				Value: []byte(s.Value), IsGap: s.IsGap, Derivation: derivation,
 				OpenedAt: pgtype.Timestamptz{Time: s.OpenedAt, Valid: true},
 			})
-		}
-	}
-	return rows, nil
-}
-
-func (f *fakeStore) ListSpansForSubject(_ context.Context, arg db.ListSpansForSubjectParams) ([]db.ListSpansForSubjectRow, error) {
-	type tlkey struct{ facet, discriminator, source string }
-	order := []tlkey{}
-	byKey := map[tlkey][]drift.Reading{}
-	for _, o := range f.observations {
-		if o.SubjectKind != arg.SubjectKind || o.SubjectKey != arg.SubjectKey {
-			continue
-		}
-		k := tlkey{facet: o.Facet, discriminator: o.Discriminator, source: o.Source}
-		if _, seen := byKey[k]; !seen {
-			order = append(order, k)
-		}
-		gap := o.Facet == "resolution" && fakeResolutionOutcome(o.Value) == "Gap"
-		byKey[k] = append(byKey[k], drift.Reading{
-			Value: string(o.Value), IsGap: gap, Vector: fakeFacetVector(o.Facet), ObservedAt: o.ObservedAt.Time,
-		})
-	}
-
-	sort.Slice(order, func(i, j int) bool {
-		if order[i].facet != order[j].facet {
-			return order[i].facet < order[j].facet
-		}
-		return order[i].discriminator < order[j].discriminator
-	})
-
-	rows := []db.ListSpansForSubjectRow{}
-	var id int64
-	for _, k := range order {
-		derivation, _ := json.Marshal(fakeFacetVector(k.facet))
-		key := drift.TimelineKey{
-			SubjectKind: arg.SubjectKind, SubjectKey: arg.SubjectKey,
-			Facet: k.facet, Discriminator: k.discriminator, Source: k.source,
-		}
-		for _, s := range drift.Fold(key, byKey[k]) {
-			id++
-			row := db.ListSpansForSubjectRow{
-				ID: id, SubjectKind: arg.SubjectKind, SubjectKey: arg.SubjectKey,
-				Facet: k.facet, Discriminator: k.discriminator, Source: k.source,
-				Value: []byte(s.Value), IsGap: s.IsGap, Derivation: derivation,
-				OpenedAt: pgtype.Timestamptz{Time: s.OpenedAt, Valid: true},
-			}
-			if !s.Open() {
-				row.ClosedAt = pgtype.Timestamptz{Time: s.ClosedAt, Valid: true}
-			}
-			if s.Reason != "" {
-				row.ClosureReason = pgtype.Text{String: string(s.Reason), Valid: true}
-			}
-			rows = append(rows, row)
 		}
 	}
 	return rows, nil
@@ -1568,20 +895,6 @@ func (f *fakeStore) ListRecentDriftEvents(_ context.Context, arg db.ListRecentDr
 	return rows, nil
 }
 
-func (f *fakeStore) ListWithdrawalLifespans(_ context.Context, since pgtype.Timestamptz) ([]db.ListWithdrawalLifespansRow, error) {
-	out := []db.ListWithdrawalLifespansRow{}
-	for _, row := range f.withdrawalLifespans {
-		if since.Valid && row.WithdrawnAt.Valid && row.WithdrawnAt.Time.Before(since.Time) {
-			continue
-		}
-		out = append(out, row)
-	}
-	sort.SliceStable(out, func(i, j int) bool {
-		return out[i].WithdrawnAt.Time.Before(out[j].WithdrawnAt.Time)
-	})
-	return out, nil
-}
-
 func (f *fakeStore) addReachability(t *testing.T, serviceKey string, at time.Time, value string) {
 	t.Helper()
 	scanID := f.ensureScan("hot")
@@ -1632,15 +945,6 @@ func (f *fakeStore) ListCurrentServiceSubjects(_ context.Context, arg db.ListCur
 	return rows, nil
 }
 
-func (f *fakeStore) GetServiceSubject(_ context.Context, arg db.GetServiceSubjectParams) (db.GetServiceSubjectRow, error) {
-	key := arg.SubjectKey
-	o, ok := f.latestReachabilityByService(f.liveObservations(arg.AsOf.Time))[key]
-	if !ok {
-		return db.GetServiceSubjectRow{}, pgx.ErrNoRows
-	}
-	return db.GetServiceSubjectRow{SubjectKey: key, Value: o.Value, ObservedAt: o.ObservedAt}, nil
-}
-
 func (f *fakeStore) addHTTPIdentity(t *testing.T, endpointKey string, at time.Time, value string) {
 	t.Helper()
 	scanID := f.ensureScan("hot")
@@ -1689,15 +993,6 @@ func (f *fakeStore) ListCurrentEndpointSubjects(_ context.Context, arg db.ListCu
 		})
 	}
 	return rows, nil
-}
-
-func (f *fakeStore) GetEndpointSubject(_ context.Context, arg db.GetEndpointSubjectParams) (db.GetEndpointSubjectRow, error) {
-	key := arg.SubjectKey
-	o, ok := f.latestHTTPIdentityByEndpoint(f.liveObservations(arg.AsOf.Time))[key]
-	if !ok {
-		return db.GetEndpointSubjectRow{}, pgx.ErrNoRows
-	}
-	return db.GetEndpointSubjectRow{SubjectKey: key, Value: o.Value, ObservedAt: o.ObservedAt}, nil
 }
 
 func (f *fakeStore) addClassReachability(t *testing.T, serviceKey, class string, at time.Time, value string) {
@@ -1773,237 +1068,6 @@ func (f *fakeStore) ListServiceReachabilitySpansByClass(_ context.Context) ([]db
 	return rows, nil
 }
 
-func (f *fakeStore) PreviousBatchTime(_ context.Context) (pgtype.Timestamptz, error) {
-	inst := map[int64]time.Time{}
-	for _, o := range f.observations {
-		if t := o.ObservedAt.Time; t.After(inst[o.BatchID]) {
-			inst[o.BatchID] = t
-		}
-	}
-	var latest, prev time.Time
-	for _, t := range inst {
-		switch {
-		case t.After(latest):
-			prev = latest
-			latest = t
-		case t.Before(latest) && t.After(prev):
-			prev = t
-		}
-	}
-	if prev.IsZero() {
-		return pgtype.Timestamptz{}, nil
-	}
-	return pgtype.Timestamptz{Time: prev, Valid: true}, nil
-}
-
-func (f *fakeStore) EarliestBatchTime(_ context.Context) (pgtype.Timestamptz, error) {
-	inst := map[int64]time.Time{}
-	for _, o := range f.observations {
-		if t := o.ObservedAt.Time; t.After(inst[o.BatchID]) {
-			inst[o.BatchID] = t
-		}
-	}
-	var earliest time.Time
-	for _, t := range inst {
-		if earliest.IsZero() || t.Before(earliest) {
-			earliest = t
-		}
-	}
-	if earliest.IsZero() {
-		return pgtype.Timestamptz{}, nil
-	}
-	return pgtype.Timestamptz{Time: earliest, Valid: true}, nil
-}
-
-func (f *fakeStore) ListSpansOpenSince(_ context.Context, since pgtype.Timestamptz) ([]db.ListSpansOpenSinceRow, error) {
-	type tlkey struct{ kind, key, facet, discriminator, source string }
-	order := []tlkey{}
-	byKey := map[tlkey][]drift.Reading{}
-	for _, o := range f.observations {
-		k := tlkey{o.SubjectKind, o.SubjectKey, o.Facet, o.Discriminator, o.Source}
-		if _, seen := byKey[k]; !seen {
-			order = append(order, k)
-		}
-		gap := o.Facet == "resolution" && fakeResolutionOutcome(o.Value) == "Gap"
-		if o.Facet == "reachability" {
-			gap = reachOutcomeIsGap(o.Value)
-		}
-		byKey[k] = append(byKey[k], drift.Reading{
-			Value: string(o.Value), IsGap: gap, Vector: fakeFacetVector(o.Facet), ObservedAt: o.ObservedAt.Time,
-		})
-	}
-	sort.Slice(order, func(i, j int) bool {
-		a, b := order[i], order[j]
-		if a.kind != b.kind {
-			return a.kind < b.kind
-		}
-		if a.key != b.key {
-			return a.key < b.key
-		}
-		if a.facet != b.facet {
-			return a.facet < b.facet
-		}
-		if a.discriminator != b.discriminator {
-			return a.discriminator < b.discriminator
-		}
-		return a.source < b.source
-	})
-
-	rows := []db.ListSpansOpenSinceRow{}
-	var id int64
-	for _, k := range order {
-		derivation, _ := json.Marshal(fakeFacetVector(k.facet))
-		key := drift.TimelineKey{
-			SubjectKind: k.kind, SubjectKey: k.key,
-			Facet: k.facet, Discriminator: k.discriminator, Source: k.source,
-		}
-		for _, s := range drift.Fold(key, byKey[k]) {
-			if !s.ClosedAt.IsZero() && !s.ClosedAt.After(since.Time) {
-				continue
-			}
-			id++
-			row := db.ListSpansOpenSinceRow{
-				ID: id, SubjectKind: k.kind, SubjectKey: k.key,
-				Facet: k.facet, Discriminator: k.discriminator, Source: k.source,
-				Value: []byte(s.Value), IsGap: s.IsGap, Derivation: derivation,
-				OpenedAt: pgtype.Timestamptz{Time: s.OpenedAt, Valid: true},
-			}
-			if !s.ClosedAt.IsZero() {
-				row.ClosedAt = pgtype.Timestamptz{Time: s.ClosedAt, Valid: true}
-			}
-			rows = append(rows, row)
-		}
-	}
-	return rows, nil
-}
-
-func (f *fakeStore) ListSubjectFirstAppearances(_ context.Context, since pgtype.Timestamptz) ([]db.ListSubjectFirstAppearancesRow, error) {
-	type tlkey struct{ kind, key, facet, discriminator, source string }
-	byKey := map[tlkey][]drift.Reading{}
-	for _, o := range f.observations {
-		if o.SubjectKind != "name" && o.SubjectKind != "service" {
-			continue
-		}
-		k := tlkey{o.SubjectKind, o.SubjectKey, o.Facet, o.Discriminator, o.Source}
-		gap := o.Facet == "resolution" && fakeResolutionOutcome(o.Value) == "Gap"
-		if o.Facet == "reachability" {
-			gap = reachOutcomeIsGap(o.Value)
-		}
-		byKey[k] = append(byKey[k], drift.Reading{
-			Value: string(o.Value), IsGap: gap, Vector: fakeFacetVector(o.Facet), ObservedAt: o.ObservedAt.Time,
-		})
-	}
-	type subj struct{ kind, key string }
-	first := map[subj]time.Time{}
-	for k, readings := range byKey {
-		key := drift.TimelineKey{
-			SubjectKind: k.kind, SubjectKey: k.key,
-			Facet: k.facet, Discriminator: k.discriminator, Source: k.source,
-		}
-		for _, s := range drift.Fold(key, readings) {
-			sk := subj{k.kind, k.key}
-			if cur, ok := first[sk]; !ok || s.OpenedAt.Before(cur) {
-				first[sk] = s.OpenedAt
-			}
-		}
-	}
-	rows := []db.ListSubjectFirstAppearancesRow{}
-	for sk, at := range first {
-		if since.Valid && at.Before(since.Time) {
-			continue
-		}
-		rows = append(rows, db.ListSubjectFirstAppearancesRow{
-			SubjectKind: sk.kind, SubjectKey: sk.key,
-			FirstOpened: pgtype.Timestamptz{Time: at, Valid: true},
-		})
-	}
-	sort.SliceStable(rows, func(i, j int) bool {
-		if !rows[i].FirstOpened.Time.Equal(rows[j].FirstOpened.Time) {
-			return rows[i].FirstOpened.Time.Before(rows[j].FirstOpened.Time)
-		}
-		if rows[i].SubjectKind != rows[j].SubjectKind {
-			return rows[i].SubjectKind < rows[j].SubjectKind
-		}
-		return rows[i].SubjectKey < rows[j].SubjectKey
-	})
-	return rows, nil
-}
-
-func (f *fakeStore) ListServiceReachabilitySpansByClassAt(_ context.Context, at pgtype.Timestamptz) ([]db.ListServiceReachabilitySpansByClassAtRow, error) {
-	known := map[int64]bool{}
-	for _, v := range f.vantages {
-		known[v.ID] = true
-	}
-	type tlkey struct {
-		svc     string
-		vantage int64
-	}
-	byKey := map[tlkey][]drift.Reading{}
-	for _, o := range f.observations {
-		if o.SubjectKind != "service" || o.Facet != "reachability" || !o.VantageID.Valid {
-			continue
-		}
-		if !known[o.VantageID.Int64] {
-			continue
-		}
-		k := tlkey{o.SubjectKey, o.VantageID.Int64}
-		byKey[k] = append(byKey[k], drift.Reading{
-			Value: string(o.Value), IsGap: reachOutcomeIsGap(o.Value),
-			Vector: fakeFacetVector("reachability"), ObservedAt: o.ObservedAt.Time,
-		})
-	}
-
-	rows := []db.ListServiceReachabilitySpansByClassAtRow{}
-	for k, readings := range byKey {
-		key := drift.TimelineKey{SubjectKind: "service", SubjectKey: k.svc, Facet: "reachability"}
-		var chosen *drift.Span
-		for _, s := range drift.Fold(key, readings) {
-			if s.OpenedAt.After(at.Time) {
-				continue
-			}
-			if !s.ClosedAt.IsZero() && !s.ClosedAt.After(at.Time) {
-				continue
-			}
-			if chosen == nil || s.OpenedAt.After(chosen.OpenedAt) {
-				sp := s
-				chosen = &sp
-			}
-		}
-		if chosen == nil {
-			continue
-		}
-		v := f.vantageByID(k.vantage)
-		rows = append(rows, db.ListServiceReachabilitySpansByClassAtRow{
-			SubjectKey: k.svc, VantageID: pgtype.Int8{Int64: k.vantage, Valid: true},
-			Value: []byte(chosen.Value), IsGap: chosen.IsGap,
-			OpenedAt: pgtype.Timestamptz{Time: chosen.OpenedAt, Valid: true}, ID: k.vantage,
-			Host: v.Host, Egress: v.Egress, DialledAddr: v.DialledAddr,
-		})
-	}
-	sort.Slice(rows, func(i, j int) bool {
-		if rows[i].SubjectKey != rows[j].SubjectKey {
-			return rows[i].SubjectKey < rows[j].SubjectKey
-		}
-		return rows[i].VantageID.Int64 < rows[j].VantageID.Int64
-	})
-	return rows, nil
-}
-
-func (f *fakeStore) ListBlanketedReachServices(_ context.Context) ([]string, error) {
-	seen := map[string]struct{}{}
-	for k, o := range f.currentReachByVantage() {
-		if reachOutcomeIsGap(o.Value) {
-			seen[k.svc] = struct{}{}
-		}
-	}
-	out := make([]string, 0, len(seen))
-	for svc := range seen {
-		out = append(out, svc)
-	}
-	sort.Strings(out)
-	return out, nil
-}
-
 func (f *fakeStore) addCertificate(t *testing.T, endpointKey string, at time.Time, value string) {
 	t.Helper()
 	b := f.freshBatch("hot", "tls-handshake")
@@ -2044,52 +1108,6 @@ func (f *fakeStore) addTLSAcceptance(t *testing.T, serviceKey string, at time.Ti
 		ObservedAt: pgtype.Timestamptz{Time: at, Valid: true},
 	})
 	f.obsNextID++
-}
-
-func (f *fakeStore) ListServiceTLSAcceptance(_ context.Context, arg db.ListServiceTLSAcceptanceParams) ([]db.ListServiceTLSAcceptanceRow, error) {
-	latest := map[string]db.Observation{}
-	for _, o := range f.liveObservations(arg.AsOf.Time) {
-		if o.SubjectKind != "service" || o.Facet != "tls-acceptance" {
-			continue
-		}
-		cur, ok := latest[o.SubjectKey]
-		if !ok || o.ObservedAt.Time.After(cur.ObservedAt.Time) ||
-			(o.ObservedAt.Time.Equal(cur.ObservedAt.Time) && o.ID > cur.ID) {
-			latest[o.SubjectKey] = o
-		}
-	}
-	rows := []db.ListServiceTLSAcceptanceRow{}
-	for k, o := range latest {
-		rows = append(rows, db.ListServiceTLSAcceptanceRow{SubjectKey: k, Value: o.Value})
-	}
-	sort.Slice(rows, func(i, j int) bool { return rows[i].SubjectKey < rows[j].SubjectKey })
-	return rows, nil
-}
-
-func (f *fakeStore) FindNameCitingAddress(_ context.Context, arg db.FindNameCitingAddressParams) (db.FindNameCitingAddressRow, error) {
-	address := arg.Address
-	var best *db.FindNameCitingAddressRow
-	for name, o := range f.latestResolutionByName(f.liveObservations(arg.AsOf.Time)) {
-		if fakeResolutionOutcome(o.Value) != "Resolved" {
-			continue
-		}
-		var v struct {
-			Addresses []string `json:"addresses"`
-		}
-		_ = json.Unmarshal(o.Value, &v)
-		for _, a := range v.Addresses {
-			if a == address {
-				cand := db.FindNameCitingAddressRow{SubjectKey: name, ObservedAt: o.ObservedAt}
-				if best == nil || cand.ObservedAt.Time.Before(best.ObservedAt.Time) {
-					best = &cand
-				}
-			}
-		}
-	}
-	if best == nil {
-		return db.FindNameCitingAddressRow{}, pgx.ErrNoRows
-	}
-	return *best, nil
 }
 
 func (f *fakeStore) FindCoveringAddressSeed(_ context.Context, address netip.Addr) (db.FindCoveringAddressSeedRow, error) {
@@ -2179,48 +1197,6 @@ func (f *fakeStore) vantageForClass(class string) int64 {
 	return f.addVantageClass(class)
 }
 
-func (f *fakeStore) ListNameResolutionsByClass(_ context.Context, arg db.ListNameResolutionsByClassParams) ([]db.ListNameResolutionsByClassRow, error) {
-	known := map[int64]bool{}
-	for _, v := range f.vantages {
-		known[v.ID] = true
-	}
-	type key struct {
-		name    string
-		vantage int64
-	}
-	latest := map[key]db.Observation{}
-	for _, o := range f.liveObservations(arg.AsOf.Time) {
-		if o.SubjectKind != "name" || o.Facet != "resolution" || !o.VantageID.Valid {
-			continue
-		}
-		if !known[o.VantageID.Int64] {
-			continue
-		}
-		k := key{o.SubjectKey, o.VantageID.Int64}
-		cur, ok := latest[k]
-		if !ok || o.ObservedAt.Time.After(cur.ObservedAt.Time) ||
-			(o.ObservedAt.Time.Equal(cur.ObservedAt.Time) && o.ID > cur.ID) {
-			latest[k] = o
-		}
-	}
-	rows := []db.ListNameResolutionsByClassRow{}
-	for k, o := range latest {
-		v := f.vantageByID(k.vantage)
-		rows = append(rows, db.ListNameResolutionsByClassRow{
-			SubjectKey: k.name, VantageID: pgtype.Int8{Int64: k.vantage, Valid: true},
-			Value: o.Value, ObservedAt: o.ObservedAt, ID: o.ID,
-			Host: v.Host, Egress: v.Egress, DialledAddr: v.DialledAddr,
-		})
-	}
-	sort.Slice(rows, func(i, j int) bool {
-		if rows[i].SubjectKey != rows[j].SubjectKey {
-			return rows[i].SubjectKey < rows[j].SubjectKey
-		}
-		return rows[i].VantageID.Int64 < rows[j].VantageID.Int64
-	})
-	return rows, nil
-}
-
 func (f *fakeStore) ListNameDNSRecords(_ context.Context, arg db.ListNameDNSRecordsParams) ([]db.ListNameDNSRecordsRow, error) {
 	type key struct{ name, disc string }
 	latest := map[key]db.Observation{}
@@ -2270,15 +1246,6 @@ func (f *fakeStore) ListZoneDeclarations(context.Context) ([]db.ListZoneDeclarat
 	return rows, nil
 }
 
-func (f *fakeStore) GetNameSubject(_ context.Context, arg db.GetNameSubjectParams) (db.GetNameSubjectRow, error) {
-	key := arg.SubjectKey
-	o, ok := f.latestResolutionByName(f.liveObservations(arg.AsOf.Time))[key]
-	if !ok {
-		return db.GetNameSubjectRow{}, pgx.ErrNoRows
-	}
-	return db.GetNameSubjectRow{SubjectKey: key, Value: o.Value, ObservedAt: o.ObservedAt}, nil
-}
-
 func (f *fakeStore) scanFor(batchID int64) (int64, string) {
 	var scanID int64
 	for _, b := range f.batches {
@@ -2295,196 +1262,11 @@ func (f *fakeStore) scanFor(batchID int64) (int64, string) {
 	return scanID, scanKind
 }
 
-func (f *fakeStore) GetNameCitation(_ context.Context, arg db.GetNameCitationParams) (db.GetNameCitationRow, error) {
-	key := arg.SubjectKey
-
-	var admission *db.AdmittedName
-	for i := range f.admitted {
-		a := &f.admitted[i]
-		if a.Name != key {
-			continue
-		}
-		if admission == nil || a.ID > admission.ID {
-			admission = a
-		}
-	}
-	if admission != nil {
-		scanID, scanKind := f.scanFor(admission.BatchID)
-		return db.GetNameCitationRow{
-			ObservedAt: admission.CreatedAt, Source: admission.Source,
-			BatchID: admission.BatchID, ScanID: scanID, ScanKind: scanKind,
-			// The schema makes admitted_name.seed_id NOT NULL, so only a seedless row is invalid.
-			SeedID:  pgtype.Int8{Int64: admission.SeedID, Valid: admission.SeedID != 0},
-			HopKind: hopKindAdmission,
-		}, nil
-	}
-
-	live := f.liveObservations(arg.AsOf.Time)
-	var best *db.Observation
-	for i := range live {
-		o := &live[i]
-		if o.SubjectKind != "name" || o.Facet != "resolution" || o.SubjectKey != key {
-			continue
-		}
-		if best == nil || o.ObservedAt.Time.Before(best.ObservedAt.Time) ||
-			(o.ObservedAt.Time.Equal(best.ObservedAt.Time) && o.ID < best.ID) {
-			best = o
-		}
-	}
-	if best == nil {
-		return db.GetNameCitationRow{}, pgx.ErrNoRows
-	}
-	scanID, scanKind := f.scanFor(best.BatchID)
-	return db.GetNameCitationRow{
-		ObservedAt: best.ObservedAt, Source: best.Source,
-		VantageID: best.VantageID, BatchID: best.BatchID, ScanID: scanID, ScanKind: scanKind,
-		HopKind: hopKindObservation,
-	}, nil
-}
-
-func (f *fakeStore) FindCoveringNameSeed(_ context.Context, name string) (db.FindCoveringNameSeedRow, error) {
-	var best *db.Seed
-	for i := range f.seeds {
-		s := &f.seeds[i]
-		if s.Kind != "name" || !s.NameDomain.Valid {
-			continue
-		}
-		d := s.NameDomain.String
-		if name == d || strings.HasSuffix(name, "."+d) {
-			if best == nil || len(d) > len(best.NameDomain.String) {
-				best = s
-			}
-		}
-	}
-	if best == nil {
-		return db.FindCoveringNameSeedRow{}, pgx.ErrNoRows
-	}
-	return db.FindCoveringNameSeedRow{
-		ID: best.ID, NameDomain: best.NameDomain, CreatedAt: best.CreatedAt,
-		CreatedByUsername: f.accounts[best.CreatedBy].Username,
-	}, nil
-}
-
-func (f *fakeStore) FindNameSeedByID(_ context.Context, seedID int64) (db.FindNameSeedByIDRow, error) {
-	for i := range f.seeds {
-		s := &f.seeds[i]
-		if s.Kind != "name" || s.ID != seedID {
-			continue
-		}
-		return db.FindNameSeedByIDRow{
-			ID: s.ID, NameDomain: s.NameDomain, CreatedAt: s.CreatedAt,
-			CreatedByUsername: f.accounts[s.CreatedBy].Username,
-		}, nil
-	}
-	return db.FindNameSeedByIDRow{}, pgx.ErrNoRows
-}
-
 func (f *fakeStore) GetZoneCadenceSeconds(context.Context) (int64, error) {
 	if f.zoneCadence == 0 {
 		return 2592000, nil
 	}
 	return f.zoneCadence, nil
-}
-
-func (f *fakeStore) SetZoneCadenceSeconds(_ context.Context, cadenceSeconds int64) error {
-	f.zoneCadence = cadenceSeconds
-	return nil
-}
-
-func (f *fakeStore) CreateProposerLookup(_ context.Context, arg db.CreateProposerLookupParams) (db.ProposerLookup, error) {
-	l := db.ProposerLookup{
-		ID: f.lookupNextID, Query: arg.Query, CreatedBy: arg.CreatedBy,
-		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
-	}
-	f.lookups = append(f.lookups, l)
-	f.lookupNextID++
-	return l, nil
-}
-
-func (f *fakeStore) CreateProposal(_ context.Context, arg db.CreateProposalParams) (db.Proposal, error) {
-	p := db.Proposal{
-		ID: f.proposalNext, LookupID: arg.LookupID, SourceSlug: arg.SourceSlug,
-		RecordKind: arg.RecordKind, AddressCidr: arg.AddressCidr, OrgName: arg.OrgName,
-		Status:    "pending",
-		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
-	}
-	f.proposals = append(f.proposals, p)
-	f.proposalNext++
-	return p, nil
-}
-
-func (f *fakeStore) ListPendingProposals(context.Context) ([]db.ListPendingProposalsRow, error) {
-	if f.pendingPropsErr != nil {
-		return nil, f.pendingPropsErr
-	}
-	lookupByID := map[int64]db.ProposerLookup{}
-	for _, l := range f.lookups {
-		lookupByID[l.ID] = l
-	}
-	rows := []db.ListPendingProposalsRow{}
-	for _, p := range f.proposals {
-		if p.Status != "pending" {
-			continue
-		}
-		l := lookupByID[p.LookupID]
-		rows = append(rows, db.ListPendingProposalsRow{
-			ID: p.ID, LookupID: p.LookupID, SourceSlug: p.SourceSlug,
-			RecordKind: p.RecordKind, AddressCidr: p.AddressCidr, OrgName: p.OrgName,
-			LookupQuery: l.Query, LookupAt: l.CreatedAt, LookupBy: f.accounts[l.CreatedBy].Username,
-		})
-	}
-	sort.SliceStable(rows, func(i, j int) bool {
-		if rows[i].LookupID != rows[j].LookupID {
-			return rows[i].LookupID > rows[j].LookupID
-		}
-		return rows[i].ID < rows[j].ID
-	})
-	return rows, nil
-}
-
-func (f *fakeStore) GetPendingProposal(_ context.Context, id int64) (db.Proposal, error) {
-	for _, p := range f.proposals {
-		if p.ID == id && p.Status == "pending" {
-			return p, nil
-		}
-	}
-	return db.Proposal{}, pgx.ErrNoRows
-}
-
-func (f *fakeStore) ConfirmProposal(_ context.Context, arg db.ConfirmProposalParams) (int64, error) {
-	for i, p := range f.proposals {
-		if p.ID == arg.ID && p.Status == "pending" {
-			f.proposals[i].Status = "confirmed"
-			f.proposals[i].ConfirmedSeedID = arg.ConfirmedSeedID
-			return 1, nil
-		}
-	}
-	return 0, nil
-}
-
-func (f *fakeStore) DeclineProposal(_ context.Context, id int64) (int64, error) {
-	for i, p := range f.proposals {
-		if p.ID == id && p.Status == "pending" {
-			f.proposals[i].Status = "declined"
-			return 1, nil
-		}
-	}
-	return 0, nil
-}
-
-func (f *fakeStore) InsertReportSchedule(_ context.Context, arg db.InsertReportScheduleParams) (db.ReportSchedule, error) {
-	if f.rsNextID == 0 {
-		f.rsNextID = 1
-	}
-	rs := db.ReportSchedule{
-		ID: f.rsNextID, Name: arg.Name, Sections: arg.Sections,
-		Cadence: arg.Cadence, Format: arg.Format,
-		DeliveryTarget: arg.DeliveryTarget, ChannelID: arg.ChannelID,
-		CreatedBy: arg.CreatedBy,
-	}
-	f.rsNextID++
-	f.reportSchedules = append(f.reportSchedules, rs)
-	return rs, nil
 }
 
 func (f *fakeStore) ListReportSchedules(context.Context) ([]db.ReportSchedule, error) {
@@ -2493,69 +1275,6 @@ func (f *fakeStore) ListReportSchedules(context.Context) ([]db.ReportSchedule, e
 		out[len(f.reportSchedules)-1-i] = rs
 	}
 	return out, nil
-}
-
-func (f *fakeStore) GetReportSchedule(_ context.Context, id int64) (db.ReportSchedule, error) {
-	for _, rs := range f.reportSchedules {
-		if rs.ID == id {
-			return rs, nil
-		}
-	}
-	return db.ReportSchedule{}, pgx.ErrNoRows
-}
-
-func (f *fakeStore) UpdateReportSchedule(_ context.Context, arg db.UpdateReportScheduleParams) (db.ReportSchedule, error) {
-	for i, rs := range f.reportSchedules {
-		if rs.ID != arg.ID {
-			continue
-		}
-		rs.Name = arg.Name
-		rs.Sections = arg.Sections
-		rs.Cadence = arg.Cadence
-		rs.Format = arg.Format
-		rs.DeliveryTarget = arg.DeliveryTarget
-		rs.ChannelID = arg.ChannelID
-		f.reportSchedules[i] = rs
-		return rs, nil
-	}
-	return db.ReportSchedule{}, pgx.ErrNoRows
-}
-
-func (f *fakeStore) DeleteReportSchedule(_ context.Context, id int64) error {
-	out := f.reportSchedules[:0]
-	for _, rs := range f.reportSchedules {
-		if rs.ID != id {
-			out = append(out, rs)
-		}
-	}
-	f.reportSchedules = out
-	return nil
-}
-
-func (f *fakeStore) NextReportDeliveryNo(_ context.Context, scheduleID int64) (int32, error) {
-	var max int32
-	for _, d := range f.reportDeliveries {
-		if d.ScheduleID == scheduleID && d.DeliveryNo > max {
-			max = d.DeliveryNo
-		}
-	}
-	return max + 1, nil
-}
-
-func (f *fakeStore) InsertReportDelivery(_ context.Context, arg db.InsertReportDeliveryParams) (db.ReportDelivery, error) {
-	f.rdNextID++
-	d := db.ReportDelivery{
-		ID:          f.rdNextID,
-		ScheduleID:  arg.ScheduleID,
-		PeriodStart: arg.PeriodStart,
-		PeriodEnd:   arg.PeriodEnd,
-		DeliveryNo:  arg.DeliveryNo,
-		GeneratedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
-		DeliveredAt: arg.DeliveredAt,
-		State:       arg.State,
-	}
-	f.reportDeliveries = append(f.reportDeliveries, d)
-	return d, nil
 }
 
 func (f *fakeStore) GetLatestReportDelivery(_ context.Context, scheduleID int64) (db.ReportDelivery, error) {
@@ -2585,36 +1304,6 @@ func (f *fakeStore) ListReportDeliveries(_ context.Context, scheduleID int64) ([
 	return out, nil
 }
 
-func (f *fakeStore) InsertSSOProvider(_ context.Context, arg db.InsertSSOProviderParams) (int64, error) {
-	for _, p := range f.ssoProviders {
-		if p.slug == arg.Slug {
-			return 0, &pgconn.PgError{Code: "23505", Message: "duplicate sso slug"}
-		}
-	}
-	f.ssoNextID++
-	f.ssoProviders = append(f.ssoProviders, fakeSSOProvider{
-		id: f.ssoNextID, slug: arg.Slug, name: arg.Name, issuer: arg.Issuer,
-		clientID: arg.ClientID, secret: arg.ClientSecret.String, hasSecret: arg.ClientSecret.Valid,
-		enabled: arg.Enabled, createdBy: arg.CreatedBy,
-		createdAt: obsClock,
-	})
-	return f.ssoNextID, nil
-}
-
-func (f *fakeStore) ListSSOProviders(context.Context) ([]db.ListSSOProvidersRow, error) {
-	out := []db.ListSSOProvidersRow{}
-	for i := len(f.ssoProviders) - 1; i >= 0; i-- {
-		p := f.ssoProviders[i]
-		out = append(out, db.ListSSOProvidersRow{
-			ID: p.id, Slug: p.slug, Name: p.name, Issuer: p.issuer, ClientID: p.clientID,
-			Enabled: p.enabled, HasSecret: p.hasSecret,
-			CreatedBy: p.createdBy, CreatedAt: pgtype.Timestamptz{Time: p.createdAt, Valid: true},
-			CreatedByUsername: f.usernameForID(p.createdBy),
-		})
-	}
-	return out, nil
-}
-
 func (f *fakeStore) ListEnabledSSOProviders(context.Context) ([]db.ListEnabledSSOProvidersRow, error) {
 	out := []db.ListEnabledSSOProvidersRow{}
 	for i := len(f.ssoProviders) - 1; i >= 0; i-- {
@@ -2623,159 +1312,6 @@ func (f *fakeStore) ListEnabledSSOProviders(context.Context) ([]db.ListEnabledSS
 		}
 	}
 	return out, nil
-}
-
-func (f *fakeStore) GetSSOProviderForAuth(_ context.Context, slug string) (db.GetSSOProviderForAuthRow, error) {
-	for _, p := range f.ssoProviders {
-		if p.slug == slug && p.enabled {
-			return db.GetSSOProviderForAuthRow{
-				ID: p.id, Slug: p.slug, Name: p.name, Issuer: p.issuer, ClientID: p.clientID,
-				ClientSecret: pgtype.Text{String: p.secret, Valid: p.hasSecret},
-			}, nil
-		}
-	}
-	return db.GetSSOProviderForAuthRow{}, pgx.ErrNoRows
-}
-
-func (f *fakeStore) UpdateSSOProvider(_ context.Context, arg db.UpdateSSOProviderParams) (int64, error) {
-	for i := range f.ssoProviders {
-		if f.ssoProviders[i].id != arg.ID {
-			continue
-		}
-		for _, p := range f.ssoProviders {
-			if p.id != arg.ID && p.slug == arg.Slug {
-				return 0, &pgconn.PgError{Code: "23505", Message: "duplicate sso slug"}
-			}
-		}
-		f.ssoProviders[i].slug = arg.Slug
-		f.ssoProviders[i].name = arg.Name
-		f.ssoProviders[i].issuer = arg.Issuer
-		f.ssoProviders[i].clientID = arg.ClientID
-		f.ssoProviders[i].enabled = arg.Enabled
-		return 1, nil
-	}
-	return 0, nil
-}
-
-func (f *fakeStore) SetSSOProviderSecret(_ context.Context, arg db.SetSSOProviderSecretParams) error {
-	for i := range f.ssoProviders {
-		if f.ssoProviders[i].id == arg.ID {
-			f.ssoProviders[i].secret = arg.ClientSecret.String
-			f.ssoProviders[i].hasSecret = arg.ClientSecret.Valid
-			return nil
-		}
-	}
-	return nil
-}
-
-func (f *fakeStore) DeleteSSOProvider(_ context.Context, id int64) error {
-	kept := f.ssoProviders[:0]
-	for _, p := range f.ssoProviders {
-		if p.id != id {
-			kept = append(kept, p)
-		}
-	}
-	f.ssoProviders = kept
-	var keptIdents []fakeSSOIdentity
-	for _, i := range f.ssoIdentities {
-		if i.providerID != id {
-			keptIdents = append(keptIdents, i)
-		}
-	}
-	f.ssoIdentities = keptIdents
-	return nil
-}
-
-func (f *fakeStore) InsertSSOIdentity(_ context.Context, arg db.InsertSSOIdentityParams) error {
-	for _, i := range f.ssoIdentities {
-		if i.providerID == arg.ProviderID && i.sub == arg.Sub {
-			return &pgconn.PgError{Code: "23505", Message: "duplicate sso identity"}
-		}
-		if i.providerID == arg.ProviderID && i.accountID == arg.AccountID {
-			return &pgconn.PgError{Code: "23505", Message: "duplicate provider link for account"}
-		}
-	}
-	f.ssoIdentNextID++
-	f.ssoIdentities = append(f.ssoIdentities, fakeSSOIdentity{
-		id: f.ssoIdentNextID, providerID: arg.ProviderID, accountID: arg.AccountID,
-		sub: arg.Sub, displayName: arg.DisplayName, createdAt: obsClock,
-	})
-	return nil
-}
-
-func (f *fakeStore) GetAccountBySSOIdentity(_ context.Context, arg db.GetAccountBySSOIdentityParams) (db.Account, error) {
-	for _, i := range f.ssoIdentities {
-		if i.providerID == arg.ProviderID && i.sub == arg.Sub {
-			if a, ok := f.accounts[i.accountID]; ok {
-				return a, nil
-			}
-		}
-	}
-	return db.Account{}, pgx.ErrNoRows
-}
-
-func (f *fakeStore) GetSSOIdentityBySub(_ context.Context, arg db.GetSSOIdentityBySubParams) (db.GetSSOIdentityBySubRow, error) {
-	for _, i := range f.ssoIdentities {
-		if i.providerID == arg.ProviderID && i.sub == arg.Sub {
-			return db.GetSSOIdentityBySubRow{ID: i.id, AccountID: i.accountID, DisplayName: i.displayName}, nil
-		}
-	}
-	return db.GetSSOIdentityBySubRow{}, pgx.ErrNoRows
-}
-
-func (f *fakeStore) ListSSOIdentitiesForAccount(_ context.Context, accountID int64) ([]db.ListSSOIdentitiesForAccountRow, error) {
-	out := []db.ListSSOIdentitiesForAccountRow{}
-	for k := len(f.ssoIdentities) - 1; k >= 0; k-- {
-		i := f.ssoIdentities[k]
-		if i.accountID != accountID {
-			continue
-		}
-		out = append(out, db.ListSSOIdentitiesForAccountRow{
-			ID: i.id, ProviderID: i.providerID,
-			ProviderSlug: f.ssoSlugForID(i.providerID), ProviderName: f.ssoNameForID(i.providerID),
-			DisplayName: i.displayName, CreatedAt: pgtype.Timestamptz{Time: i.createdAt, Valid: true},
-		})
-	}
-	return out, nil
-}
-
-func (f *fakeStore) DeleteSSOIdentityForAccount(_ context.Context, arg db.DeleteSSOIdentityForAccountParams) (int64, error) {
-	var kept []fakeSSOIdentity
-	var removed int64
-	for _, i := range f.ssoIdentities {
-		if i.id == arg.ID && i.accountID == arg.AccountID {
-			removed++
-			continue
-		}
-		kept = append(kept, i)
-	}
-	f.ssoIdentities = kept
-	return removed, nil
-}
-
-func (f *fakeStore) ListSSOBindings(_ context.Context) ([]db.ListSSOBindingsRow, error) {
-	out := []db.ListSSOBindingsRow{}
-	for k := len(f.ssoIdentities) - 1; k >= 0; k-- {
-		i := f.ssoIdentities[k]
-		out = append(out, db.ListSSOBindingsRow{
-			ID: i.id, ProviderID: i.providerID,
-			ProviderSlug: f.ssoSlugForID(i.providerID), ProviderName: f.ssoNameForID(i.providerID),
-			AccountID: i.accountID, AccountUsername: f.usernameForID(i.accountID),
-			DisplayName: i.displayName, CreatedAt: pgtype.Timestamptz{Time: i.createdAt, Valid: true},
-		})
-	}
-	return out, nil
-}
-
-func (f *fakeStore) DeleteSSOIdentity(_ context.Context, id int64) error {
-	var kept []fakeSSOIdentity
-	for _, i := range f.ssoIdentities {
-		if i.id != id {
-			kept = append(kept, i)
-		}
-	}
-	f.ssoIdentities = kept
-	return nil
 }
 
 func (f *fakeStore) ssoSlugForID(id int64) string {

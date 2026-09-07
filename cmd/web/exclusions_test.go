@@ -1,11 +1,18 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
+
+	"github.com/winniel123/verge-asm/internal/db"
 )
 
 func exclude(t *testing.T, c *http.Client, base, kind, value string) *http.Response {
@@ -157,4 +164,33 @@ func TestExcludeRequiresLogin(t *testing.T) {
 	if resp.StatusCode != http.StatusSeeOther || resp.Header.Get("Location") != "/login" {
 		t.Fatalf("anon exclude: status=%d location=%q, want redirect to /login", resp.StatusCode, resp.Header.Get("Location"))
 	}
+}
+
+func (f *fakeStore) CreateNameExclusion(_ context.Context, arg db.CreateNameExclusionParams) (db.Exclusion, error) {
+	for _, e := range f.exclusions {
+		if e.Kind == arg.Kind && e.Name.String == arg.Name.String {
+			return db.Exclusion{}, &pgconn.PgError{Code: "23505", Message: "duplicate exclusion"}
+		}
+	}
+	ex := db.Exclusion{
+		ID: f.exclNextID, Kind: arg.Kind, Name: arg.Name, CreatedBy: arg.CreatedBy,
+		CreatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+	}
+	f.exclusions = append(f.exclusions, ex)
+	f.exclNextID++
+	return ex, nil
+}
+
+func (f *fakeStore) DeleteExclusion(_ context.Context, id int64) error {
+	for i, e := range f.exclusions {
+		if e.ID == id {
+			f.exclusions = append(f.exclusions[:i], f.exclusions[i+1:]...)
+			return nil
+		}
+	}
+	return nil
+}
+
+func (f *fakeStore) PreviewExclusionWithdrawal(_ context.Context, _ db.PreviewExclusionWithdrawalParams) (db.PreviewExclusionWithdrawalRow, error) {
+	return f.previewResult, nil
 }

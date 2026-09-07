@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"sort"
 	"testing"
 	"time"
 
@@ -24,7 +26,7 @@ func TestExposureCountDeltasAcrossBatches(t *testing.T) {
 	f.addClassReachability(t, svc, "internet", t0, `{"outcome":"not-reached"}`)
 	f.addClassReachability(t, svc, "internet", t1, `{"outcome":"reached"}`)
 
-	s := newServer(f, testKey, "", func() time.Time { return t1.Add(time.Minute) })
+	s := &server{deltasStore: f, vantageClassStore: f, now: func() time.Time { return t1.Add(time.Minute) }}
 	ctx := context.Background()
 
 	prevAt, ok, err := s.previousBatchInstant(ctx)
@@ -71,7 +73,7 @@ func TestSignalDeltasNetNewSinceLastBatch(t *testing.T) {
 		{Rule: "certificate-expiring", Subject: "c@198.51.100.3:443/tcp"},
 	}
 
-	s := newServer(f, testKey, "", func() time.Time { return after.Add(time.Minute) })
+	s := &server{deltasStore: f, now: func() time.Time { return after.Add(time.Minute) }}
 	open, critical, err := s.signalDeltas(context.Background(), fired, boundary)
 	if err != nil {
 		t.Fatal(err)
@@ -89,7 +91,7 @@ func TestDeltasWithheldWithoutPreviousBatch(t *testing.T) {
 	now := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
 	f.addClassReachability(t, "198.51.100.10:443/tcp", "internal", now, `{"outcome":"reached"}`)
 
-	s := newServer(f, testKey, "", func() time.Time { return now.Add(time.Minute) })
+	s := &server{deltasStore: f, vantageClassStore: f, now: func() time.Time { return now.Add(time.Minute) }}
 	if _, ok, err := s.previousBatchInstant(context.Background()); err != nil || ok {
 		t.Fatalf("previousBatchInstant ok=%v err=%v, want ok=false with a single batch instant", ok, err)
 	}
@@ -120,4 +122,149 @@ func TestCountCertsExpiringWindow(t *testing.T) {
 	if got := countCertsExpiring(spans, ref); got != 1 {
 		t.Errorf("countCertsExpiring = %d, want 1 (only the cert expiring within 30d)", got)
 	}
+}
+
+func (f *fakeStore) PreviousBatchTime(_ context.Context) (pgtype.Timestamptz, error) {
+	inst := map[int64]time.Time{}
+	for _, o := range f.observations {
+		if t := o.ObservedAt.Time; t.After(inst[o.BatchID]) {
+			inst[o.BatchID] = t
+		}
+	}
+	var latest, prev time.Time
+	for _, t := range inst {
+		switch {
+		case t.After(latest):
+			prev = latest
+			latest = t
+		case t.Before(latest) && t.After(prev):
+			prev = t
+		}
+	}
+	if prev.IsZero() {
+		return pgtype.Timestamptz{}, nil
+	}
+	return pgtype.Timestamptz{Time: prev, Valid: true}, nil
+}
+
+func (f *fakeStore) ListSpansOpenSince(_ context.Context, since pgtype.Timestamptz) ([]db.ListSpansOpenSinceRow, error) {
+	type tlkey struct{ kind, key, facet, discriminator, source string }
+	order := []tlkey{}
+	byKey := map[tlkey][]drift.Reading{}
+	for _, o := range f.observations {
+		k := tlkey{o.SubjectKind, o.SubjectKey, o.Facet, o.Discriminator, o.Source}
+		if _, seen := byKey[k]; !seen {
+			order = append(order, k)
+		}
+		gap := o.Facet == "resolution" && fakeResolutionOutcome(o.Value) == "Gap"
+		if o.Facet == "reachability" {
+			gap = reachOutcomeIsGap(o.Value)
+		}
+		byKey[k] = append(byKey[k], drift.Reading{
+			Value: string(o.Value), IsGap: gap, Vector: fakeFacetVector(o.Facet), ObservedAt: o.ObservedAt.Time,
+		})
+	}
+	sort.Slice(order, func(i, j int) bool {
+		a, b := order[i], order[j]
+		if a.kind != b.kind {
+			return a.kind < b.kind
+		}
+		if a.key != b.key {
+			return a.key < b.key
+		}
+		if a.facet != b.facet {
+			return a.facet < b.facet
+		}
+		if a.discriminator != b.discriminator {
+			return a.discriminator < b.discriminator
+		}
+		return a.source < b.source
+	})
+
+	rows := []db.ListSpansOpenSinceRow{}
+	var id int64
+	for _, k := range order {
+		derivation, _ := json.Marshal(fakeFacetVector(k.facet))
+		key := drift.TimelineKey{
+			SubjectKind: k.kind, SubjectKey: k.key,
+			Facet: k.facet, Discriminator: k.discriminator, Source: k.source,
+		}
+		for _, s := range drift.Fold(key, byKey[k]) {
+			if !s.ClosedAt.IsZero() && !s.ClosedAt.After(since.Time) {
+				continue
+			}
+			id++
+			row := db.ListSpansOpenSinceRow{
+				ID: id, SubjectKind: k.kind, SubjectKey: k.key,
+				Facet: k.facet, Discriminator: k.discriminator, Source: k.source,
+				Value: []byte(s.Value), IsGap: s.IsGap, Derivation: derivation,
+				OpenedAt: pgtype.Timestamptz{Time: s.OpenedAt, Valid: true},
+			}
+			if !s.ClosedAt.IsZero() {
+				row.ClosedAt = pgtype.Timestamptz{Time: s.ClosedAt, Valid: true}
+			}
+			rows = append(rows, row)
+		}
+	}
+	return rows, nil
+}
+
+func (f *fakeStore) ListServiceReachabilitySpansByClassAt(_ context.Context, at pgtype.Timestamptz) ([]db.ListServiceReachabilitySpansByClassAtRow, error) {
+	known := map[int64]bool{}
+	for _, v := range f.vantages {
+		known[v.ID] = true
+	}
+	type tlkey struct {
+		svc     string
+		vantage int64
+	}
+	byKey := map[tlkey][]drift.Reading{}
+	for _, o := range f.observations {
+		if o.SubjectKind != "service" || o.Facet != "reachability" || !o.VantageID.Valid {
+			continue
+		}
+		if !known[o.VantageID.Int64] {
+			continue
+		}
+		k := tlkey{o.SubjectKey, o.VantageID.Int64}
+		byKey[k] = append(byKey[k], drift.Reading{
+			Value: string(o.Value), IsGap: reachOutcomeIsGap(o.Value),
+			Vector: fakeFacetVector("reachability"), ObservedAt: o.ObservedAt.Time,
+		})
+	}
+
+	rows := []db.ListServiceReachabilitySpansByClassAtRow{}
+	for k, readings := range byKey {
+		key := drift.TimelineKey{SubjectKind: "service", SubjectKey: k.svc, Facet: "reachability"}
+		var chosen *drift.Span
+		for _, s := range drift.Fold(key, readings) {
+			if s.OpenedAt.After(at.Time) {
+				continue
+			}
+			if !s.ClosedAt.IsZero() && !s.ClosedAt.After(at.Time) {
+				continue
+			}
+			if chosen == nil || s.OpenedAt.After(chosen.OpenedAt) {
+				sp := s
+				chosen = &sp
+			}
+		}
+		if chosen == nil {
+			continue
+		}
+		v := f.vantageByID(k.vantage)
+		rows = append(rows, db.ListServiceReachabilitySpansByClassAtRow{
+			SubjectKey: k.svc, VantageID: pgtype.Int8{Int64: k.vantage, Valid: true},
+			Value: []byte(chosen.Value), IsGap: chosen.IsGap,
+			OpenedAt: pgtype.Timestamptz{Time: chosen.OpenedAt, Valid: true}, ID: k.vantage,
+			Host: v.Host, Egress: v.Egress, DialledAddr: v.DialledAddr,
+		})
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].SubjectKey != rows[j].SubjectKey {
+			return rows[i].SubjectKey < rows[j].SubjectKey
+		}
+		return rows[i].VantageID.Int64 < rows[j].VantageID.Int64
+	})
+	return rows, nil
 }

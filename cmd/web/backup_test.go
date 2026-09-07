@@ -3,11 +3,14 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/url"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 var knownBusinessTables = []string{
@@ -274,4 +277,10 @@ func TestBackupAdminGated(t *testing.T) {
 	if resp.StatusCode != http.StatusServiceUnavailable {
 		t.Fatalf("admin backup (no pool): status=%d, want 503", resp.StatusCode)
 	}
+}
+
+func (f *fakeStore) SetLastBackup(_ context.Context, lastBackupSize pgtype.Int8) error {
+	f.instanceConfig.LastBackupAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
+	f.instanceConfig.LastBackupSize = lastBackupSize
+	return nil
 }

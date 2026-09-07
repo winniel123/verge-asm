@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"net/http"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -289,7 +290,7 @@ func TestSkippedDispatchIsNotTheLastScan(t *testing.T) {
 		skipped,
 		progressRow(8, "dns", now.Add(-40*time.Minute), 4, 0, 0, 4, 0, 0),
 	}
-	srv := newServer(f, testKey, "", fixedClock())
+	srv := &server{scansStore: f, now: fixedClock()}
 
 	v := srv.scanSchedule(context.Background())
 
@@ -322,7 +323,7 @@ func TestScanScheduleInstants(t *testing.T) {
 		progressRow(9, "dns", now.Add(-40*time.Minute), 4, 0, 0, 4, 0, 0),
 		progressRow(8, "hot", now.Add(-6*time.Hour), 4, 0, 0, 4, 0, 0),
 	}
-	srv := newServer(f, testKey, "", fixedClock())
+	srv := &server{scansStore: f, now: fixedClock()}
 
 	v := srv.scanSchedule(context.Background())
 
@@ -352,7 +353,7 @@ func TestScanScheduleAbsent(t *testing.T) {
 	for i := range f.scans {
 		f.scans[i].Enabled = false
 	}
-	srv := newServer(f, testKey, "", fixedClock())
+	srv := &server{scansStore: f, now: fixedClock()}
 
 	v := srv.scanSchedule(context.Background())
 	if v.HasLast {
@@ -486,4 +487,87 @@ func TestRunDegradedFrom(t *testing.T) {
 	if d.Detail != "missed 1 of 3 checks" {
 		t.Errorf("degraded detail: got %q, want %q", d.Detail, "missed 1 of 3 checks")
 	}
+}
+
+func (f *fakeStore) ListActiveDispatchProgress(_ context.Context) ([]db.ListActiveDispatchProgressRow, error) {
+	out := []db.ListActiveDispatchProgressRow{}
+	for _, r := range f.dispatchProgress {
+		if r.Ready+r.Running == 0 {
+			continue
+		}
+		out = append(out, db.ListActiveDispatchProgressRow{
+			DispatchID: r.DispatchID, ScanID: r.ScanID, ScanKind: r.ScanKind,
+			CreatedAt: r.CreatedAt, Status: r.Status,
+			Total: r.Total, Ready: r.Ready, Running: r.Running,
+			Done: r.Done, Dead: r.Dead, Retried: r.Retried,
+		})
+	}
+	return out, nil
+}
+
+func (f *fakeStore) ListConcludedDispatchProgress(_ context.Context, limit int32) ([]db.ListConcludedDispatchProgressRow, error) {
+	out := []db.ListConcludedDispatchProgressRow{}
+	for _, r := range f.dispatchProgress {
+		if r.Ready+r.Running > 0 {
+			continue
+		}
+		if len(out) >= int(limit) {
+			break
+		}
+		out = append(out, db.ListConcludedDispatchProgressRow{
+			DispatchID: r.DispatchID, ScanID: r.ScanID, ScanKind: r.ScanKind,
+			CreatedAt: r.CreatedAt, Status: r.Status,
+			Total: r.Total, Ready: r.Ready, Running: r.Running,
+			Done: r.Done, Dead: r.Dead, Retried: r.Retried,
+		})
+	}
+	return out, nil
+}
+
+func (f *fakeStore) CancelReadyJobsForDispatch(_ context.Context, dispatchID pgtype.Int8) (int64, error) {
+	i := f.dispatchIdx(dispatchID.Int64)
+	if i < 0 {
+		return 0, nil
+	}
+	n := f.dispatchProgress[i].Ready
+	f.dispatchProgress[i].Ready = 0
+	return n, nil
+}
+
+func (f *fakeStore) CancelActiveJobsForDispatch(_ context.Context, dispatchID pgtype.Int8) (int64, error) {
+	i := f.dispatchIdx(dispatchID.Int64)
+	if i < 0 {
+		return 0, nil
+	}
+	n := f.dispatchProgress[i].Ready + f.dispatchProgress[i].Running
+	f.dispatchProgress[i].Ready = 0
+	f.dispatchProgress[i].Running = 0
+	return n, nil
+}
+
+func (f *fakeStore) SetDispatchStatus(_ context.Context, arg db.SetDispatchStatusParams) error {
+	if f.dispatchStatus == nil {
+		f.dispatchStatus = map[int64]string{}
+	}
+	cur, ok := f.dispatchStatus[arg.ID]
+	if !ok {
+		cur = "fanned-out"
+	}
+	// Mirrors dispatch.sql's WHERE, so a test sees the real guard (ADR-0164 §4, #1421).
+	if cur != "fanned-out" && !(cur == "stopped" && arg.Status == "terminated") {
+		return nil
+	}
+	f.dispatchStatus[arg.ID] = arg.Status
+	return nil
+}
+
+func (f *fakeStore) ListColdScopeSeedIds(context.Context) ([]int64, error) {
+	ids := make([]int64, 0, len(f.coldScopes))
+	for id, in := range f.coldScopes {
+		if in {
+			ids = append(ids, id)
+		}
+	}
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+	return ids, nil
 }

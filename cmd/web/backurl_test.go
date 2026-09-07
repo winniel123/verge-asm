@@ -150,7 +150,7 @@ func TestResolveBackStripsAPlantedToast(t *testing.T) {
 }
 
 func TestResolveBackWithoutARouteTableFallsBack(t *testing.T) {
-	s := newServer(newFakeStore(), testKey, "", fixedClock())
+	s := &server{}
 	if got := s.resolveBack(backPost("/signals?tab=open"), "/signals"); got != "/signals" {
 		t.Errorf("resolveBack with no route table = %q, want the fallback", got)
 	}

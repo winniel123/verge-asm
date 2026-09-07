@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -20,7 +23,7 @@ func TestBlanketResponderDampsSensitivePortSignal(t *testing.T) {
 		`{"outcome":"gap","cause":"blanket-responder","reason":"this address answers on all ports — it is a proxy edge, not your origin"}`)
 	f.addClassReachability(t, "198.51.100.51:3389/tcp", "internet", obsClock, `{"outcome":"reached"}`)
 
-	srv := newServer(f, testKey, "", fixedClock())
+	srv := &server{signalsStore: f, vantageClassStore: f, now: fixedClock()}
 	req := httptest.NewRequest(http.MethodGet, "/signals", nil)
 	facts, _, err := srv.buildServiceFacts(req)
 	if err != nil {
@@ -78,7 +81,7 @@ func TestTLS10AcceptedFiresFromPersistedAcceptance(t *testing.T) {
 		`{"outcome":"enumerated","versions":[{"version":"1.2"},{"version":"1.3"}]}`)
 	f.addTLSAcceptance(t, refused, obsClock, `{"outcome":"tls-refused"}`)
 
-	srv := newServer(f, testKey, "", fixedClock())
+	srv := &server{signalsStore: f, vantageClassStore: f, now: fixedClock()}
 	req := httptest.NewRequest(http.MethodGet, "/signals", nil)
 	facts, _, err := srv.buildServiceFacts(req)
 	if err != nil {
@@ -440,7 +443,7 @@ func TestSignalsExportButtonGated(t *testing.T) {
 
 func TestDeriveSignalInstancesDatum(t *testing.T) {
 	f := newFakeStore()
-	srv := newServer(f, testKey, "", fixedClock())
+	srv := &server{signalsStore: f, now: fixedClock()}
 
 	censuses := []signal.Census{
 		{Rule: "lame-delegation", Fired: []signal.Member{{Subject: "edge.example.com"}}},
@@ -504,4 +507,100 @@ func TestSignalsRequiresLogin(t *testing.T) {
 		t.Fatalf("unauthenticated /signals: status=%d location=%q, want redirect to /login",
 			resp.StatusCode, resp.Header.Get("Location"))
 	}
+}
+
+func (f *fakeStore) ListAnnotations(context.Context) ([]db.Annotation, error) {
+	rows := append([]db.Annotation(nil), f.annotations...)
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].SignalName != rows[j].SignalName {
+			return rows[i].SignalName < rows[j].SignalName
+		}
+		return rows[i].SubjectKey < rows[j].SubjectKey
+	})
+	return rows, nil
+}
+
+func (f *fakeStore) MintSignalInstances(_ context.Context, arg db.MintSignalInstancesParams) error {
+	if f.signalInstNextID == 0 {
+		f.signalInstNextID = 1000
+	}
+	have := map[[2]string]bool{}
+	for _, si := range f.signalInstances {
+		have[[2]string{si.SignalName, si.SubjectKey}] = true
+	}
+	for i := range arg.SignalNames {
+		key := [2]string{arg.SignalNames[i], arg.SubjectKeys[i]}
+		if have[key] {
+			continue
+		}
+		have[key] = true
+		f.signalInstances = append(f.signalInstances, db.SignalInstance{
+			ID: f.signalInstNextID, SignalName: key[0], SubjectKey: key[1],
+			FirstSeen: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		})
+		f.signalInstNextID++
+	}
+	return nil
+}
+
+func (f *fakeStore) ListServiceTLSAcceptance(_ context.Context, arg db.ListServiceTLSAcceptanceParams) ([]db.ListServiceTLSAcceptanceRow, error) {
+	latest := map[string]db.Observation{}
+	for _, o := range f.liveObservations(arg.AsOf.Time) {
+		if o.SubjectKind != "service" || o.Facet != "tls-acceptance" {
+			continue
+		}
+		cur, ok := latest[o.SubjectKey]
+		if !ok || o.ObservedAt.Time.After(cur.ObservedAt.Time) ||
+			(o.ObservedAt.Time.Equal(cur.ObservedAt.Time) && o.ID > cur.ID) {
+			latest[o.SubjectKey] = o
+		}
+	}
+	rows := []db.ListServiceTLSAcceptanceRow{}
+	for k, o := range latest {
+		rows = append(rows, db.ListServiceTLSAcceptanceRow{SubjectKey: k, Value: o.Value})
+	}
+	sort.Slice(rows, func(i, j int) bool { return rows[i].SubjectKey < rows[j].SubjectKey })
+	return rows, nil
+}
+
+func (f *fakeStore) ListNameResolutionsByClass(_ context.Context, arg db.ListNameResolutionsByClassParams) ([]db.ListNameResolutionsByClassRow, error) {
+	known := map[int64]bool{}
+	for _, v := range f.vantages {
+		known[v.ID] = true
+	}
+	type key struct {
+		name    string
+		vantage int64
+	}
+	latest := map[key]db.Observation{}
+	for _, o := range f.liveObservations(arg.AsOf.Time) {
+		if o.SubjectKind != "name" || o.Facet != "resolution" || !o.VantageID.Valid {
+			continue
+		}
+		if !known[o.VantageID.Int64] {
+			continue
+		}
+		k := key{o.SubjectKey, o.VantageID.Int64}
+		cur, ok := latest[k]
+		if !ok || o.ObservedAt.Time.After(cur.ObservedAt.Time) ||
+			(o.ObservedAt.Time.Equal(cur.ObservedAt.Time) && o.ID > cur.ID) {
+			latest[k] = o
+		}
+	}
+	rows := []db.ListNameResolutionsByClassRow{}
+	for k, o := range latest {
+		v := f.vantageByID(k.vantage)
+		rows = append(rows, db.ListNameResolutionsByClassRow{
+			SubjectKey: k.name, VantageID: pgtype.Int8{Int64: k.vantage, Valid: true},
+			Value: o.Value, ObservedAt: o.ObservedAt, ID: o.ID,
+			Host: v.Host, Egress: v.Egress, DialledAddr: v.DialledAddr,
+		})
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].SubjectKey != rows[j].SubjectKey {
+			return rows[i].SubjectKey < rows[j].SubjectKey
+		}
+		return rows[i].VantageID.Int64 < rows[j].VantageID.Int64
+	})
+	return rows, nil
 }
