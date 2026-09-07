@@ -134,17 +134,6 @@ func (s *server) resolveDriftWindow(r *http.Request) (token, label string, since
 	return period.Token, period.Label, s.driftSince(period), pgtype.Timestamptz{}
 }
 
-func filterDriftRowsUntil(rows []db.ListRecentDriftEventsRow, until time.Time) []db.ListRecentDriftEventsRow {
-	// The feed query takes no upper bound, so a custom range's end is trimmed on the read side.
-	out := make([]db.ListRecentDriftEventsRow, 0, len(rows))
-	for _, row := range rows {
-		if row.BatchAt.Valid && row.BatchAt.Time.Before(until) {
-			out = append(out, row)
-		}
-	}
-	return out
-}
-
 const driftFeedLimit int32 = 500
 
 func (s *server) driftSince(p driftPeriod) pgtype.Timestamptz {
@@ -164,18 +153,14 @@ func (s *server) driftPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 
 	// A 90d window on a mature estate is unbounded, so the feed reads under a cap (ADR-0178 §1).
 	rows, err := s.store.ListRecentDriftEvents(r.Context(), db.ListRecentDriftEventsParams{
-		Since: since, MaxEvents: driftFeedLimit,
+		Since: since, Until: until, MaxEvents: driftFeedLimit,
 	})
 	if err != nil {
 		// An empty feed reads as no drift, so Drift's own subject is loud (ADR-0168 §4, #1424).
 		s.serverError(w, "drift: list recent drift events", err)
 		return
 	}
-	// The flag says the cap bound the read, so it counts rows before the trim (ADR-0178 §3, #1428).
 	truncated := int32(len(rows)) >= driftFeedLimit // #nosec G115 (len(rows) capped at driftFeedLimit=500 via query MaxEvents)
-	if until.Valid {
-		rows = filterDriftRowsUntil(rows, until.Time)
-	}
 	groups, movement := buildDriftFeed(rows, s.now())
 
 	transitionCount := 0
@@ -234,13 +219,12 @@ func (s *server) transitionDelta(ctx context.Context, since, until pgtype.Timest
 	}
 
 	rows, err := s.store.ListRecentDriftEvents(ctx, db.ListRecentDriftEventsParams{
-		Since: pgtype.Timestamptz{Time: prevStart, Valid: true}, MaxEvents: driftFeedLimit,
+		Since: pgtype.Timestamptz{Time: prevStart, Valid: true}, Until: since, MaxEvents: driftFeedLimit,
 	})
 	if err != nil {
 		log.Printf("web: drift: previous-window drift events: %v", err)
 		return ""
 	}
-	rows = filterDriftRowsUntil(rows, since.Time)
 	return driftTransitionDelta(currentCount, rows, earliest, prevStart, s.now())
 }
 
@@ -270,14 +254,11 @@ func (s *server) driftExport(w http.ResponseWriter, r *http.Request, acct db.Acc
 
 	token, _, since, until := s.resolveDriftWindow(r)
 	rows, err := s.store.ListRecentDriftEvents(r.Context(), db.ListRecentDriftEventsParams{
-		Since: since, MaxEvents: driftFeedLimit,
+		Since: since, Until: until, MaxEvents: driftFeedLimit,
 	})
 	if err != nil {
 		s.serverError(w, "drift export: list recent drift events", err)
 		return
-	}
-	if until.Valid {
-		rows = filterDriftRowsUntil(rows, until.Time)
 	}
 	if int32(len(rows)) >= driftFeedLimit { // #nosec G115 G706 (len(rows) capped at driftFeedLimit=500 via query MaxEvents; token below is a constant preset or time.Parse-validated YYYY-MM-DD range — no CR/LF)
 		log.Printf("web: drift export: feed capped at %d events for period=%s; older tail omitted", driftFeedLimit, token)
