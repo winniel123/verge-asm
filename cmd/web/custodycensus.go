@@ -122,7 +122,7 @@ func toCustodyCensusView(entries []custody.ExtensionCensusEntry) custodyCensusVi
 }
 
 func (s *server) custodyCensus(ctx context.Context) (custodyCensusView, error) {
-	estate, err := custodyExtensionEstate(ctx, s.store, s.now().UTC())
+	estate, err := custodyExtensionEstate(ctx, s.custodyCensusStore, s.now().UTC())
 	if err != nil {
 		return custodyCensusView{}, err
 	}

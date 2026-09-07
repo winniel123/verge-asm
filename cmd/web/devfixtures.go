@@ -64,7 +64,7 @@ func (s *server) devSessionMint(w http.ResponseWriter, r *http.Request) {
 		s.notFound(w, r)
 		return
 	}
-	acct, err := s.store.GetAccountByUsername(r.Context(), username)
+	acct, err := s.devFixtureStore.GetAccountByUsername(r.Context(), username)
 	if err != nil {
 		s.notFound(w, r)
 		return
@@ -82,7 +82,7 @@ func (s *server) devProfileSessionPrepare(w http.ResponseWriter, r *http.Request
 		s.serverError(w, "dev: reseed profile fixture", err)
 		return
 	}
-	acct, err := s.store.GetAccountByUsername(r.Context(), devProfileUsername)
+	acct, err := s.devFixtureStore.GetAccountByUsername(r.Context(), devProfileUsername)
 	if err != nil {
 		s.notFound(w, r)
 		return
@@ -321,7 +321,7 @@ func (s *server) devResetTOTPEnroll(ctx context.Context, accountID int64) error 
 		accountID); err != nil {
 		return fmt.Errorf("dev: reset totp columns: %w", err)
 	}
-	if err := s.store.DeleteRecoveryCodesForAccount(ctx, accountID); err != nil {
+	if err := s.devFixtureStore.DeleteRecoveryCodesForAccount(ctx, accountID); err != nil {
 		return fmt.Errorf("dev: reset recovery codes: %w", err)
 	}
 	return nil

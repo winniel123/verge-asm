@@ -500,7 +500,7 @@ func applyInventoryFixtureCounts(groups []inventoryGroup, expand string) {
 }
 
 func (s *server) inventoryPage(w http.ResponseWriter, r *http.Request, acct db.Account) {
-	rows, err := s.store.ListAllOpenSpans(r.Context())
+	rows, err := s.inventoryStore.ListAllOpenSpans(r.Context())
 	if err != nil {
 		s.serverError(w, "list all open spans", err)
 		return
@@ -527,7 +527,7 @@ func (s *server) inventoryExport(w http.ResponseWriter, r *http.Request, acct db
 		return
 	}
 
-	rows, err := s.store.ListAllOpenSpans(r.Context())
+	rows, err := s.inventoryStore.ListAllOpenSpans(r.Context())
 	if err != nil {
 		s.serverError(w, "inventory export: list all open spans", err)
 		return

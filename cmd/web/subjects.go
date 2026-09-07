@@ -234,7 +234,7 @@ func (s *server) endpointPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 			return
 		}
 	}
-	subject, err := s.store.GetEndpointSubject(r.Context(), db.GetEndpointSubjectParams{
+	subject, err := s.subjectsStore.GetEndpointSubject(r.Context(), db.GetEndpointSubjectParams{
 		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -299,7 +299,7 @@ func (s *server) buildEndpointCitation(r *http.Request, name, service, addr stri
 	hops = append(hops, citationHop{Label: "On service · Service", Value: service})
 
 	cited := false
-	if citing, err := s.store.FindNameCitingAddress(r.Context(), db.FindNameCitingAddressParams{
+	if citing, err := s.subjectsStore.FindNameCitingAddress(r.Context(), db.FindNameCitingAddressParams{
 		Address: addr, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	}); err == nil {
 		detail := ""
@@ -311,7 +311,7 @@ func (s *server) buildEndpointCitation(r *http.Request, name, service, addr stri
 	}
 
 	if parsed, perr := netip.ParseAddr(addr); perr == nil {
-		if seed, err := s.store.FindCoveringAddressSeed(r.Context(), parsed); err == nil {
+		if seed, err := s.subjectsStore.FindCoveringAddressSeed(r.Context(), parsed); err == nil {
 			scope := ""
 			if seed.AddressCidr != nil {
 				scope = seed.AddressCidr.String()
@@ -345,7 +345,7 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 			return
 		}
 	}
-	subject, err := s.store.GetServiceSubject(r.Context(), db.GetServiceSubjectParams{
+	subject, err := s.subjectsStore.GetServiceSubject(r.Context(), db.GetServiceSubjectParams{
 		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -433,7 +433,7 @@ func (s *server) buildServiceCitation(r *http.Request, addr string) (hops []cita
 	}
 
 	cited := false
-	if citing, err := s.store.FindNameCitingAddress(r.Context(), db.FindNameCitingAddressParams{
+	if citing, err := s.subjectsStore.FindNameCitingAddress(r.Context(), db.FindNameCitingAddressParams{
 		Address: addr, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	}); err == nil {
 		detail := ""
@@ -449,7 +449,7 @@ func (s *server) buildServiceCitation(r *http.Request, addr string) (hops []cita
 	}
 
 	if parsed, perr := netip.ParseAddr(addr); perr == nil {
-		if seed, err := s.store.FindCoveringAddressSeed(r.Context(), parsed); err == nil {
+		if seed, err := s.subjectsStore.FindCoveringAddressSeed(r.Context(), parsed); err == nil {
 			scope := ""
 			if seed.AddressCidr != nil {
 				scope = seed.AddressCidr.String()
@@ -612,13 +612,13 @@ type nameSeedTerm struct {
 func (s *server) terminatingNameSeed(r *http.Request, key string, cit db.GetNameCitationRow, citErr error) (nameSeedTerm, bool) {
 	// An admission's Seed is read by id, never by a longer-suffix scope (ADR-0107, #256).
 	if citErr == nil && cit.HopKind == hopKindAdmission && cit.SeedID.Valid {
-		seed, err := s.store.FindNameSeedByID(r.Context(), cit.SeedID.Int64)
+		seed, err := s.subjectsStore.FindNameSeedByID(r.Context(), cit.SeedID.Int64)
 		if err != nil {
 			return nameSeedTerm{}, false
 		}
 		return nameSeedTerm{NameDomain: seed.NameDomain, CreatedAt: seed.CreatedAt, CreatedByUsername: seed.CreatedByUsername}, true
 	}
-	seed, err := s.store.FindCoveringNameSeed(r.Context(), key)
+	seed, err := s.subjectsStore.FindCoveringNameSeed(r.Context(), key)
 	if err != nil {
 		return nameSeedTerm{}, false
 	}
@@ -631,7 +631,7 @@ func (s *server) buildCitation(r *http.Request, key string) ([]citationHop, bool
 	}}
 
 	terminated := false
-	cit, citErr := s.store.GetNameCitation(r.Context(), db.GetNameCitationParams{
+	cit, citErr := s.subjectsStore.GetNameCitation(r.Context(), db.GetNameCitationParams{
 		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if citErr == nil {
@@ -665,7 +665,7 @@ const spanTimeFmt = "2006-01-02 15:04 UTC"
 const spanFullFmt = "2006-01-02T15:04Z07:00"
 
 func (s *server) buildTimelines(r *http.Request, kind, key string) []timelineView {
-	rows, err := s.store.ListSpansForSubject(r.Context(), db.ListSpansForSubjectParams{
+	rows, err := s.subjectsStore.ListSpansForSubject(r.Context(), db.ListSpansForSubjectParams{
 		SubjectKind: kind, SubjectKey: key,
 	})
 	if err != nil || len(rows) == 0 {
@@ -950,7 +950,7 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 		return
 	}
 	key := r.PathValue("key")
-	subject, err := s.store.GetNameSubject(r.Context(), db.GetNameSubjectParams{
+	subject, err := s.subjectsStore.GetNameSubject(r.Context(), db.GetNameSubjectParams{
 		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -987,7 +987,7 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 }
 
 func (s *server) assetProvenance(r *http.Request, key string) (items []assetKV, inScopeSince string) {
-	cit, citErr := s.store.GetNameCitation(r.Context(), db.GetNameCitationParams{
+	cit, citErr := s.subjectsStore.GetNameCitation(r.Context(), db.GetNameCitationParams{
 		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if seed, ok := s.terminatingNameSeed(r, key, cit, citErr); ok {
@@ -1026,7 +1026,7 @@ func (s *server) assetDNS(r *http.Request, key string, res resolutionValue) []as
 		}
 		rows = append(rows, assetDNSRow{Type: t, Value: a})
 	}
-	dnsRows, err := s.store.ListNameDNSRecords(r.Context(), db.ListNameDNSRecordsParams{
+	dnsRows, err := s.subjectsStore.ListNameDNSRecords(r.Context(), db.ListNameDNSRecordsParams{
 		AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if err == nil {
@@ -1054,7 +1054,7 @@ func (s *server) assetPorts(r *http.Request, addresses []string) []assetPort {
 	for _, a := range addresses {
 		addrSet[a] = true
 	}
-	rows, err := s.store.ListAllOpenSpans(r.Context())
+	rows, err := s.subjectsStore.ListAllOpenSpans(r.Context())
 	if err != nil {
 		return nil
 	}
@@ -1126,7 +1126,7 @@ type certificateLeafValue struct {
 }
 
 func (s *server) assetCertificate(r *http.Request, key string, addresses []string) *assetCert {
-	rows, err := s.store.ListEndpointCertificates(r.Context(), db.ListEndpointCertificatesParams{
+	rows, err := s.subjectsStore.ListEndpointCertificates(r.Context(), db.ListEndpointCertificatesParams{
 		AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if err != nil {

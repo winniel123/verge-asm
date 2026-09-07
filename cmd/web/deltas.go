@@ -46,7 +46,7 @@ type firedSignal struct {
 }
 
 func (s *server) previousBatchInstant(ctx context.Context) (at time.Time, ok bool, err error) {
-	ts, err := s.store.PreviousBatchTime(ctx)
+	ts, err := s.deltasStore.PreviousBatchTime(ctx)
 	if err != nil {
 		return time.Time{}, false, err
 	}
@@ -88,7 +88,7 @@ func (s *server) dashboardDeltas(ctx context.Context, fired []firedSignal) statD
 
 	out := statDeltas{Known: true}
 
-	if rows, serr := s.store.ListSpansOpenSince(ctx, pgtypeTimestamptz(prevAt)); serr == nil {
+	if rows, serr := s.deltasStore.ListSpansOpenSince(ctx, pgtypeTimestamptz(prevAt)); serr == nil {
 		all := make([]drift.Span, 0, len(rows))
 		assets := make([]drift.Span, 0, len(rows))
 		for _, r := range rows {
@@ -151,7 +151,7 @@ func countCertsExpiring(open []drift.Span, ref time.Time) int {
 
 func (s *server) signalDeltas(ctx context.Context, fired []firedSignal, prevAt time.Time) (open, critical drift.Delta, err error) {
 	// A firing that ended is never stored, so the previous count reads as net-new-since-last-batch.
-	rows, err := s.store.ListSignalInstances(ctx)
+	rows, err := s.deltasStore.ListSignalInstances(ctx)
 	if err != nil {
 		return drift.Delta{}, drift.Delta{}, err
 	}
@@ -188,12 +188,12 @@ func severityIsCritical(rule string) bool {
 }
 
 func (s *server) exposureCountDeltas(ctx context.Context, prevAt time.Time) (exposed, firewalled, notReached drift.Delta, ok bool) {
-	current, err := s.store.ListServiceReachabilitySpansByClass(ctx)
+	current, err := s.deltasStore.ListServiceReachabilitySpansByClass(ctx)
 	if err != nil {
 		log.Printf("web: exposure delta: list reachability by class: %v", err)
 		return drift.Delta{}, drift.Delta{}, drift.Delta{}, false
 	}
-	past, err := s.store.ListServiceReachabilitySpansByClassAt(ctx, pgtypeTimestamptz(prevAt))
+	past, err := s.deltasStore.ListServiceReachabilitySpansByClassAt(ctx, pgtypeTimestamptz(prevAt))
 	if err != nil {
 		log.Printf("web: exposure delta: list reachability by class at: %v", err)
 		return drift.Delta{}, drift.Delta{}, drift.Delta{}, false
@@ -231,7 +231,7 @@ func projectStatsFromLegs(byService map[string]map[string]legInfo) exposureStats
 
 func (s *server) currentExposedCount(ctx context.Context) (int, bool) {
 	// A withheld delta carries no Current, so the cell derives the value the same way.
-	rows, err := s.store.ListServiceReachabilitySpansByClass(ctx)
+	rows, err := s.deltasStore.ListServiceReachabilitySpansByClass(ctx)
 	if err != nil {
 		log.Printf("web: dashboard: exposed services count: %v", err)
 		return 0, false
@@ -246,7 +246,7 @@ func (s *server) currentExposedCount(ctx context.Context) (int, bool) {
 
 func (s *server) currentCertsExpiring(ctx context.Context) (int, bool) {
 	// An invalid @since selects every span still open, which is the current-state read this needs.
-	rows, err := s.store.ListSpansOpenSince(ctx, pgtype.Timestamptz{})
+	rows, err := s.deltasStore.ListSpansOpenSince(ctx, pgtype.Timestamptz{})
 	if err != nil {
 		log.Printf("web: dashboard: certs-expiring count: %v", err)
 		return 0, false

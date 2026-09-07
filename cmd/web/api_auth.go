@@ -22,7 +22,7 @@ type apiAuthStore interface {
 
 func (s *server) apiBearer(next apiHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var st apiAuthStore = s.store
+		st := s.apiAuthStore
 		// Off is indistinguishable from absent: 404 on every path, never 401 or 403 (ADR-0123 §2).
 		cfg, err := st.GetInstanceConfig(r.Context())
 		if err != nil {

@@ -60,7 +60,7 @@ func (s *server) provisionProber(w http.ResponseWriter, r *http.Request, acct db
 		fail(err.Error())
 		return
 	}
-	if _, err := s.store.CreateVantage(r.Context(), db.CreateVantageParams{
+	if _, err := s.probersStore.CreateVantage(r.Context(), db.CreateVantageParams{
 		Name: fmt.Sprintf("%s@%s:%d", ep.Username, ep.Host, ep.Port), Resolver: res,
 		Host: ep.Host, Port: int32(ep.Port), Username: ep.Username, CreatedBy: acct.ID, // #nosec G115 (ep.Port validated 1..65535 by vantage.ParseEndpoint)
 	}); err != nil {
@@ -91,7 +91,7 @@ func (s *server) setVantageResolver(w http.ResponseWriter, r *http.Request, _ db
 		fail(err.Error())
 		return
 	}
-	if err := s.store.SetVantageResolver(r.Context(), db.SetVantageResolverParams{ID: id, Resolver: res}); err != nil {
+	if err := s.probersStore.SetVantageResolver(r.Context(), db.SetVantageResolverParams{ID: id, Resolver: res}); err != nil {
 		fail("Could not set the resolver.")
 		return
 	}

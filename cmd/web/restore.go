@@ -436,7 +436,7 @@ func (s *server) rotateSessionKey() error {
 }
 
 func (s *server) scanInFlight(ctx context.Context) bool {
-	rows, err := s.store.ListDispatchProgress(ctx, scansHistoryLimit)
+	rows, err := s.restoreStore.ListDispatchProgress(ctx, scansHistoryLimit)
 	if err != nil {
 		log.Printf("web: restore: in-flight check: %v", err)
 		return true

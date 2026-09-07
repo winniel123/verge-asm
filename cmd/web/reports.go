@@ -134,7 +134,7 @@ const reportsTrendBucket = 7 * 24 * time.Hour
 
 func (s *server) signalRaises(ctx context.Context) ([]drift.Raise, error) {
 	// The whole ledger is read unwindowed, so the standing level counts signals raised before it.
-	rows, err := s.store.ListSignalInstances(ctx)
+	rows, err := s.reportsStore.ListSignalInstances(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +153,7 @@ func (s *server) signalRaises(ctx context.Context) ([]drift.Raise, error) {
 }
 
 func (s *server) withdrawalLifespans(ctx context.Context, since time.Time) ([]drift.Withdrawal, error) {
-	rows, err := s.store.ListWithdrawalLifespans(ctx, pgtype.Timestamptz{Time: since, Valid: true})
+	rows, err := s.reportsStore.ListWithdrawalLifespans(ctx, pgtype.Timestamptz{Time: since, Valid: true})
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +174,7 @@ func (s *server) withdrawalLifespans(ctx context.Context, since time.Time) ([]dr
 const reportsDiscoveryBucket = 24 * time.Hour
 
 func (s *server) firstAppearances(ctx context.Context, since time.Time) ([]drift.Appearance, error) {
-	rows, err := s.store.ListSubjectFirstAppearances(ctx, pgtype.Timestamptz{Time: since, Valid: true})
+	rows, err := s.reportsStore.ListSubjectFirstAppearances(ctx, pgtype.Timestamptz{Time: since, Valid: true})
 	if err != nil {
 		return nil, err
 	}
@@ -567,7 +567,7 @@ func (s *server) reportsPage(w http.ResponseWriter, r *http.Request, acct db.Acc
 
 	// A failed analytics read degrades its own region; the page a viewer depends on still renders.
 	cells, heatTotal := []heatCell{}, 0
-	if rows, err := s.store.ListDispatchProgress(ctx, reportsDispatchLimit(weeks)); err != nil {
+	if rows, err := s.reportsStore.ListDispatchProgress(ctx, reportsDispatchLimit(weeks)); err != nil {
 		log.Printf("web: reports: list dispatch progress: %v", err)
 	} else {
 		cells, heatTotal, _, _ = s.foldScanActivity(rows, days)
@@ -783,7 +783,7 @@ func reportDeliveryPDFName(a message.Artifact) string {
 }
 
 func (s *server) reportDeliveryArtifact(ctx context.Context) (message.Artifact, int64, bool) {
-	schedules, err := s.store.ListReportSchedules(ctx)
+	schedules, err := s.reportsStore.ListReportSchedules(ctx)
 	if err != nil {
 		log.Printf("web: report delivery: list schedules: %v", err)
 		return message.Artifact{}, 0, false
@@ -794,7 +794,7 @@ func (s *server) reportDeliveryArtifact(ctx context.Context) (message.Artifact, 
 		found bool
 	)
 	for _, sc := range schedules {
-		del, err := s.store.GetLatestReportDelivery(ctx, sc.ID)
+		del, err := s.reportsStore.GetLatestReportDelivery(ctx, sc.ID)
 		switch {
 		case err == nil:
 			if !found || del.ID > best.ID {
@@ -839,7 +839,7 @@ func (s *server) buildReportDeliveryArtifact(ctx context.Context, sc db.ReportSc
 }
 
 func (s *server) reportDeliverySignals(ctx context.Context, start, end time.Time) ([]message.ArtifactSignal, []message.ArtifactSeverityCount) {
-	rows, err := s.store.ListSignalInstances(ctx)
+	rows, err := s.reportsStore.ListSignalInstances(ctx)
 	if err != nil {
 		log.Printf("web: report delivery: list signal instances: %v", err)
 		return nil, nil
@@ -876,7 +876,7 @@ func (s *server) reportDeliverySignals(ctx context.Context, start, end time.Time
 }
 
 func (s *server) reportDeliveryWithdrawals(ctx context.Context, start, end time.Time) []message.ArtifactChange {
-	rows, err := s.store.ListWithdrawalLifespans(ctx, pgtype.Timestamptz{Time: start, Valid: true})
+	rows, err := s.reportsStore.ListWithdrawalLifespans(ctx, pgtype.Timestamptz{Time: start, Valid: true})
 	if err != nil {
 		log.Printf("web: report delivery: list withdrawal lifespans: %v", err)
 		return nil

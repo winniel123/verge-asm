@@ -549,14 +549,14 @@ func (s *server) graphPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 		s.render(w, r, "graph", s.graphFixtureData(acct))
 		return
 	}
-	seeds, err := s.store.ListSeeds(r.Context())
+	seeds, err := s.graphStore.ListSeeds(r.Context())
 	if err != nil {
 		log.Printf("web: graph: list seeds: %v", err)
 	}
 	scopes := graphScopes(seeds)
 	selected := resolveGraphScope(scopes, r.URL.Query().Get("scope"))
 
-	rows, err := s.store.ListAllOpenSpans(r.Context())
+	rows, err := s.graphStore.ListAllOpenSpans(r.Context())
 	if err != nil {
 		s.serverError(w, "list all open spans", err)
 		return

@@ -52,7 +52,7 @@ func TestCTReliabilityViews(t *testing.T) {
 		"certspotter": {Total: 200, Successes: 196, Empties: 0, P95LatencyMs: 3200},
 		"crtsh":       {Total: 8, Successes: 4, Empties: 2, P95LatencyMs: 59600},
 	}
-	s := &server{store: f}
+	s := &server{sourcesStore: f}
 
 	views, err := s.ctReliabilityViews(context.Background())
 	if err != nil {
@@ -99,7 +99,7 @@ func TestCTReliabilityViews(t *testing.T) {
 }
 
 func TestCTReliabilityViewsNoData(t *testing.T) {
-	s := &server{store: newFakeStore()}
+	s := &server{sourcesStore: newFakeStore()}
 
 	views, err := s.ctReliabilityViews(context.Background())
 	if err != nil {

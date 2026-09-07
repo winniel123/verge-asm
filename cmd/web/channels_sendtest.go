@@ -27,7 +27,7 @@ func (s *server) testChannel(w http.ResponseWriter, r *http.Request, acct db.Acc
 		return
 	}
 
-	ch, err := s.store.GetChannelForDelivery(r.Context(), id)
+	ch, err := s.channelSendTestStore.GetChannelForDelivery(r.Context(), id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		s.toastRedirectBack(w, r, dest, "danger", "Test message not sent",
 			"That channel could not be found.")

@@ -193,7 +193,7 @@ func (s *server) searchPage(w http.ResponseWriter, r *http.Request, acct db.Acco
 	}
 
 	var assets []searchAsset
-	if rows, err := s.store.ListCurrentNameSubjects(ctx, db.ListCurrentNameSubjectsParams{
+	if rows, err := s.searchStore.ListCurrentNameSubjects(ctx, db.ListCurrentNameSubjectsParams{
 		Search: q, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	}); err != nil {
 		log.Printf("web: search: list name subjects: %v", err)
@@ -211,7 +211,7 @@ func (s *server) searchPage(w http.ResponseWriter, r *http.Request, acct db.Acco
 	}
 
 	var batches []searchBatch
-	if rows, err := s.store.ListDispatchProgress(ctx, scansHistoryLimit); err != nil {
+	if rows, err := s.searchStore.ListDispatchProgress(ctx, scansHistoryLimit); err != nil {
 		log.Printf("web: search: list dispatch progress: %v", err)
 	} else {
 		for _, row := range rows {
