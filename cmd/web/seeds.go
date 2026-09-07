@@ -612,13 +612,6 @@ func seedAnchor(scope string) string {
 	return strings.TrimRight(b.String(), "-")
 }
 
-func seedCreateError(err error, noun string) string {
-	if isUniqueViolation(err) {
-		return "That " + noun + " is already declared."
-	}
-	return "Could not declare the scope."
-}
-
 const maxZoneUpload = 8 << 20
 
 // Bounding the whole body before any parse is what stops an oversize upload exhausting memory.
@@ -849,17 +842,4 @@ func (s *server) setZoneInterval(w http.ResponseWriter, r *http.Request, acct db
 		return
 	}
 	s.backToScope(w, r)
-}
-
-func (s *server) isNameSeed(r *http.Request, id int64) bool {
-	rows, err := s.seedsStore.ListSeeds(r.Context())
-	if err != nil {
-		return false
-	}
-	for _, row := range rows {
-		if row.ID == id && row.Kind == "name" {
-			return true
-		}
-	}
-	return false
 }
