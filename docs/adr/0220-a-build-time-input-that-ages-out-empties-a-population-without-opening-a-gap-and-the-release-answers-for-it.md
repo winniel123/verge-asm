@@ -194,14 +194,14 @@ The release already answers, in two places and at two audiences:
 
 - **Before the image ships.** `TestShippedLogListOutlivesTheExpiryHorizon` fails the build 180 days
   before the newest `end_exclusive`. It runs in the required `test` check. The horizon doubles
-  §10.7's 90-day cadence floor, so a missed refresh keeps a full cycle of slack.
+  `release-pipeline.md` §10.7's 90-day cadence floor, so a missed refresh keeps a cycle of slack.
 - **After the image ships.** The Sources page's CT card states the version, the cut date, the
   selectable count and the expiry date. It raises a warn callout at zero. That is what an operator
   running an old image reads.
 
 The build gate is what the project sees. The card is what the operator sees. **Between them the
 staleness is legible before it empties.** That is what ADR-0190's Consequences bullet asked for, and
-it asserts no measurement nobody made.
+it reaches that reading without asserting a measurement nobody made.
 
 ### 6. ADR-0106 keeps its reach, and it was never the site an amendment would land on
 
