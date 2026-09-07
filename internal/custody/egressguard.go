@@ -7,7 +7,7 @@ import (
 	"syscall"
 )
 
-// The zero Realm exempts nothing, so a caller that supplies none keeps the whole guard (ADR-0225 §2).
+// The zero Realm exempts nothing, so a caller that passes none keeps the guard (ADR-0225 §2).
 
 func EgressGuard(label string, realm Realm) func(network, address string, c syscall.RawConn) error {
 	return func(_, address string, _ syscall.RawConn) error {

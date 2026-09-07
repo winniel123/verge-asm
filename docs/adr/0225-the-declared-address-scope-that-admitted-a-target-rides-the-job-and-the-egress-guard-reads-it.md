@@ -285,6 +285,10 @@ ADR-0222 arrives on `main` from PR [#1614](https://github.com/winniel123/verge-a
 which is open. This branch was cut from `origin/main` before that PR landed, so the file is not
 here. This ADR does not create a copy of it.
 
+The `adr-sections` gate reports four `unresolvable-adr` violations against this file while ADR-0222
+is absent. The gate is not a required check. The four violations clear when PR #1614 merges and
+this branch is updated.
+
 The amendment is **owed** and is recorded here at the superseding site. It must be applied at
 ADR-0222's own site, per ADR-0058, once PR #1614 merges. It has three parts.
 

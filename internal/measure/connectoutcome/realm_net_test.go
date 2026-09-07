@@ -41,7 +41,7 @@ func specFor(t *testing.T, target netip.AddrPort, realm []string) wire.JobSpec {
 	return wire.JobSpec{Batch: "batch", Kind: Kind, Scope: raw, Realm: realm}
 }
 
-// The rig ADR-0222 §2.2 called for, reached by a production configuration (ADR-0225 §5).
+// The end-to-end rig ADR-0222 called for, reached by a production configuration (ADR-0225 §5).
 
 func TestConnectorReachesAnAddressTheJobsDeclaredRealmCovers(t *testing.T) {
 	target := loopbackListener(t)

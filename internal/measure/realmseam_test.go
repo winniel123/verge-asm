@@ -10,7 +10,7 @@ import (
 	"github.com/winniel123/verge-asm/internal/measure/tlsacceptance"
 )
 
-// A repair reaching one install site and not the others is the drift ADR-0079 refuses (ADR-0225 §4).
+// A repair reaching one site and not the others is the drift ADR-0079 refuses (ADR-0225 §4).
 
 func TestEveryInstallSiteHoldsTheRealmSeamUnexported(t *testing.T) {
 	want := reflect.TypeOf(custody.Realm{})
@@ -30,7 +30,7 @@ func TestEveryInstallSiteHoldsTheRealmSeamUnexported(t *testing.T) {
 		if field.Type != want {
 			t.Errorf("%s.realm is %s, want %s", typ, field.Type, want)
 		}
-		// An exported seam lets any caller widen the guard, which ADR-0222 §1 refuses.
+		// An exported seam lets any caller widen the guard, which ADR-0222 refuses.
 		if field.IsExported() {
 			t.Errorf("%s.realm is exported, so a caller outside the package can set it", typ)
 		}
