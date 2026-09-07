@@ -47,7 +47,7 @@ table is the authority. ADR-0157 borrows the rule; this ADR states it.
 | 134 registrations in `handler()` and 6 in `api_v1.go`; **every one carries an explicit method token**, none is method-less | `handlers.go:325-493`, [`cmd/web/api_v1.go:17-24`](../../cmd/web/api_v1.go) |
 | `routeServesGET` builds a synthetic `GET` request and asks `(*http.ServeMux).Handler` for the matched pattern | [`cmd/web/backurl.go:115-134`](../../cmd/web/backurl.go), the call at `:124` |
 | It fails closed on a nil receiver or a nil table | `backurl.go:116-118` |
-| It narrows the `GET /` catch-all by hand, because `home` answers 404 for every path but the root | `backurl.go:129-132`, [`cmd/web/auth.go:450-454`](../../cmd/web/auth.go) |
+| It narrows the `GET /` catch-all by hand, because `home` answers 404 for every path but the root | `routeServesGET` ([`cmd/web/backurl.go`](../../cmd/web/backurl.go)), `home` ([`cmd/web/auth.go`](../../cmd/web/auth.go)) |
 | `resolveBack` refuses a backslash, a missing leading `/`, a `//` prefix, an unparseable value, any scheme, host, userinfo, opaque body or fragment, and any path `path.Clean` would change | `backurl.go:85-100` |
 | The route-table question is asked last, at `:101-103`, and the fallback is the caller's own literal | `backurl.go:76`, `:101-103` |
 | Tests: `backurl_test.go` holds 15 functions over 416 lines, 8 of which drive `resolveBack` or `routeServesGET` directly; `TestResolveBackRejectsAndFallsBack` alone pins 16 refused inputs; `scope_prg_test.go` adds a ninth | [`cmd/web/backurl_test.go:92-123`](../../cmd/web/backurl_test.go), [`cmd/web/scope_prg_test.go:281-294`](../../cmd/web/scope_prg_test.go) |
@@ -98,14 +98,22 @@ safe by construction: all forty call sites pass a literal spelled in Go source �
 absent authority costs the operator a landing, not an origin.
 `TestResolveBackWithoutARouteTableFallsBack` (`backurl_test.go:152-160`) pins both halves.
 
-### 4. A subtree pattern over-reports, and every one is narrowed by name
+### 4. A subtree pattern over-reports, and every one is narrowed ~~by name~~ **from the matched pattern ([#1522](https://github.com/winniel123/verge-asm/issues/1522))**
 
 A pattern ending in `/` matches its whole subtree, so the table says "served" for paths the handler
-behind it answers 404 for. `GET /` is such a pattern and is narrowed by hand at `backurl.go:129-132`,
-because `home` 404s anything but the root (`auth.go:451-453`). That narrowing is not a special case
-for the root: it is the general obligation. **A subtree pattern registered on this mux is refused by
-the guard except for the paths its handler actually serves, and the narrowing is written beside the
-`GET /` one in the same change that registers the pattern.**
+behind it answers 404 for. `GET /` is such a pattern, and `routeServesGET`
+([`cmd/web/backurl.go`](../../cmd/web/backurl.go)) narrows it, because `home`
+([`cmd/web/auth.go`](../../cmd/web/auth.go)) 404s anything but the root. That narrowing is not a
+special case for the root: it is the general obligation. **A subtree pattern registered on this mux
+is refused by the guard except for the paths its handler actually serves~~, and the narrowing is
+written beside the `GET /` one in the same change that registers the pattern~~.**
+
+> **The struck clause is withdrawn by [#1522](https://github.com/winniel123/verge-asm/issues/1522) /
+> [PR #1503](https://github.com/winniel123/verge-asm/pull/1503)
+> ([ADR-0058](./0058-a-superseded-mechanism-is-withdrawn-at-the-site-that-specifies-it.md)).** No
+> per-subtree narrowing is written anywhere, so there is no `GET /` one to write a second beside.
+> `routeServesGET` derives the narrowing from the matched pattern, and a new subtree needs no
+> companion edit. **The obligation before the strike stands.** See this ADR's #1522 amendment below.
 
 ## Consequences
 
@@ -116,10 +124,14 @@ the guard except for the paths its handler actually serves, and the narrowing is
 - **`GET /api/v1/` is an unnarrowed subtree, and limb 4 makes that a defect.** It is not an open
   redirect — the accepted paths are same-origin and answer 404 or 401 — but it is the guard
   over-answering, which limb 4 forbids.
-- **`backurl.go:125`'s surviving comment is wrong about this mux.** It says an unmatched path yields
-  an empty pattern. With `GET /` registered nothing is unmatched: `/nope` returns `"GET /"`, and the
-  narrowing at `:131` is what refuses it. Go 1.26.8's `findHandler` (`net/http/server.go:2659-2699`)
-  likewise returns the matched node's pattern on a trailing-slash redirect, not an empty string.
+- **~~`routeServesGET`'s surviving comment is wrong about this mux. It says an unmatched path
+  yields an empty pattern.~~ Withdrawn: that comment is gone, and the fact it got wrong still
+  holds.** [PR #1422](https://github.com/winniel123/verge-asm/pull/1422) rewrote the comment in the
+  change that recorded this ADR, and [PR #1503](https://github.com/winniel123/verge-asm/pull/1503)
+  rewrote it again. With `GET /` registered nothing is unmatched: `/nope` returns `"GET /"`, and the
+  subtree narrowing inside `routeServesGET` ([`cmd/web/backurl.go`](../../cmd/web/backurl.go)) is
+  what refuses it. Go 1.26.8's `findHandler` (`net/http/server.go:2659-2699`) likewise returns the
+  matched node's pattern on a trailing-slash redirect, not an empty string.
 - **The rule does not come back as a comment.** It now has a document, so the deleted block stays
   deleted and the declaration position stays empty.
 
@@ -132,3 +144,64 @@ the guard except for the paths its handler actually serves, and the narrowing is
 | **Trust the field because it is same-origin by construction** — the console stamps it, so it is ours | Provenance is not checkable at the handler: the value arrives in a `POST` body the caller composes. This is the defining error of the open-redirect class, and `TestAnnotationActRefusesAnOffOriginReturn` (`backurl_test.go:287-315`) keeps it refused. The argument also fails inside the origin — a planted `?toast=` would forge a receipt on the landing page (`backurl.go:104`; `decodeToasts` reads one value, `chrome.go:130`) |
 | **Fold a traversal to its cleaned form** instead of refusing it, so `/signals/../login` lands at `/login` | Repair guesses intent, and a rewritten value is no longer the URL the operator's page submitted, so ADR-0130 §2's scroll key misses at the far end anyway. Each fold is also a new place for the cleaned path and the emitted path to disagree |
 | **Read `Referer` and validate that instead**, dropping the hidden field | ADR-0130 §3 already rejected `Referer` because proxies and referrer policies strip it (`backurl.go:10`). Validating it changes nothing about that, and it makes the destination depend on a header the browser may omit — a working redirect becomes a fallback for a whole class of deployment |
+
+## Amendment — [#1522](https://github.com/winniel123/verge-asm/issues/1522): limb 4's obligation stands, and the narrowing is derived from the matched pattern rather than written by name
+
+**Limb 4's general rule does not move.** A subtree pattern over-reports, and the guard must refuse
+the paths the handler behind it does not serve. What this amendment withdraws is the **mechanism**
+limb 4 names. That mechanism is one hand-written narrowing per subtree, written beside the `GET /`
+one in the change that registers the pattern.
+[PR #1503](https://github.com/winniel123/verge-asm/pull/1503) closed
+[#1427](https://github.com/winniel123/verge-asm/issues/1427) with a derived narrowing instead.
+
+> **The narrowing is read off the matched pattern, and no subtree is named anywhere.**
+> `routeServesGET` refuses any matched subtree pattern, except the root path `/`, which `home` does
+> serve. It then refuses an exact route enclosed by a subtree narrower than `GET /`, by asking the
+> mux about each ancestor prefix of the path. A subtree registered later is already refused, with no
+> companion edit.
+
+### The two limbs, as the shipped code behaves
+
+`isSubtreePattern` ([`cmd/web/backurl.go`](../../cmd/web/backurl.go)) tests one thing: the matched
+pattern ends in `/`. Both limbs read that predicate. Neither limb reads a route name.
+
+**Limb A refuses the matched subtree itself.** Where `matchedGETPattern` answers a subtree,
+`routeServesGET` answers true for the path `/` alone. This mux registers two subtrees. They are
+`GET /` ([`cmd/web/handlers.go`](../../cmd/web/handlers.go)) and `GET /api/v1/`
+([`cmd/web/api_v1.go`](../../cmd/web/api_v1.go)). Limb A refuses `/nope`, `/api/v1/` and
+`/api/v1/nonsense`. It refuses `/api/v1` too, because the mux answers that path with the pattern it
+would redirect to.
+
+**Limb B refuses an exact route enclosed by a narrower subtree.** `routeServesGET` reads each `/` in
+the path. It asks the mux about the prefix ending there. It refuses where that prefix matches a
+subtree other than `GET /`. `/api/v1/inventory` dies at limb B.
+
+### Why the by-name mechanism was too weak
+
+**A narrowing keyed on the subtree's own name never sees limb B's case.** `/api/v1/inventory`
+matches its own exact pattern, `GET /api/v1/inventory`, and not the `GET /api/v1/` subtree. A
+narrowing written beside the `GET /` one therefore reads a pattern it does not govern, and the guard
+accepts the path. #1427 names that path among the paths the guard must refuse. The by-name repair
+this ADR proposed would have closed one half of the defect this ADR recorded.
+
+**The derived form is fail-closed, and the by-name form was fail-open.** The by-name rule owed one
+hand-written narrowing per subtree. A third subtree registered without its companion narrowing
+reopens the hole, and no test and no reader reports it. The derived form refuses a new subtree by
+default. An author who wants a path served under a subtree must say so at the guard. The obligation
+did not change. The mechanism did.
+
+### What this amendment discharges
+
+- **The Consequences bullet reading *"`GET /api/v1/` is an unnarrowed subtree, and limb 4 makes that
+  a defect"* is discharged.** PR #1503 refuses `/api/v1`, `/api/v1/`, `/api/v1/nonsense` and
+  `/api/v1/inventory`. `TestRouteServesGETNarrowsEverySubtree`
+  ([`cmd/web/backurl_test.go`](../../cmd/web/backurl_test.go)) pins all four refusals. The same test
+  pins that `/` and `/signals` stay served. Read the bullet as the record of a defect this amendment
+  closes.
+- **Limb 4's clause *"and the narrowing is written beside the `GET /` one in the same change that
+  registers the pattern"* is withdrawn.** No list of narrowings exists, so a new subtree has nothing
+  to join, and a new subtree needs no companion edit. An author who searched for that list would
+  find nothing and would draw the wrong conclusion.
+- **The rest of limb 4 stands.** The clause *"A subtree pattern registered on this mux is refused by
+  the guard except for the paths its handler actually serves"* is the obligation. The derived
+  narrowing is a stronger way to meet it.
