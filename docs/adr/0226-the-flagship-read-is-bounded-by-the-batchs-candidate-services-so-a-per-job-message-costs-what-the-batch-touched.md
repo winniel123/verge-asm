@@ -90,7 +90,8 @@ The repair must not pay on the write path for a read the bound already made smal
 their answer and not their waste.
 
 Those reads run once per page request, outside any job transaction. They are a different question
-about the same rows. This ADR does not rule them.
+about the same rows. This ADR does not rule them, and
+[#1625](https://github.com/winniel123/verge-asm/issues/1625) carries them.
 
 ## Consequences
 
@@ -127,8 +128,9 @@ PR #1608's Arm C, which held `span` constant and reached 200 s.
 - **Four statements now read the same rows through two shapes.** A later edit to the projection must
   change both the bounded statement and its unbounded twin. Nothing enforces that.
 - **The three web reads keep the old cost.** Each still scans `span` and sorts to disk on a large
-  install. That is a page-render cost outside a transaction, and it needs its own measurement and
-  its own ticket.
+  install. That is a page-render cost outside a transaction.
+  [#1625](https://github.com/winniel123/verge-asm/issues/1625) tracks it. No measurement covers
+  those renders, so that ticket measures before it changes anything.
 - **[`CONTEXT.md`](../../CONTEXT.md) gains nothing.** No domain term moves. A flagship message still
   fires on a leg, under [ADR-0029](./0029-an-alert-fires-on-a-leg.md), over the composition
   [ADR-0080](./0080-a-vantage-composition-is-cross-class-or-class-scoped-and-only-one-takes-a-quantifier.md)
