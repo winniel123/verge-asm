@@ -40,19 +40,20 @@ what an org-name search is allowed to *suggest*.
 
 Every catalogued entry ships under a **consent tier** — release-authored data, not a
 per-install setting. It names *which door* the reading goes through, never who walked
-through it. v1 uses two tiers:
+through it. v1 uses three tiers:
 
 | Tier | Meaning | Ships |
 | --- | --- | --- |
-| **`unencumbered`** | No terms bar the operator from this source, so the project runs it without you having to say so. | **on** by default |
+| **`unencumbered`** | No terms bar the operator from this source, so the project runs it without you having to say so. | **on** by default, unless the entry ships off for a reason other than consent |
 | **`operator-accepted`** | The project could not clear the source's terms on your behalf and refuses to read them for a stranger. **You** accept the terms and bear the reading. | **off** — you enable it |
+| **`operator-credentialed`** | The source needs an API key of your own. The project holds no key for you, so the tier depends on your credential and not on your reading. | **off** — you supply the key |
 
 `operator-accepted` is your reading of the terms, **not** a certification that you
-comply — the project simply declines to make that call for you. The model reserves a
-third tier, `operator-credentialed` (a source needing your own API key), but **no v1
-source uses it**.
+comply — the project simply declines to make that call for you. One v1 entry is
+`operator-credentialed`: **Cert Spotter**, which reads certificate transparency under a
+key you set on the worker.
 
-A third disposition is not a tier at all: some entries are **barred**. They are excluded
+A fourth disposition is not a tier at all: some entries are **barred**. They are excluded
 on their terms and non-toggleable. They carry no consent tier, because the project does
 not run them for anyone.
 
@@ -60,15 +61,27 @@ not run them for anyone.
 
 ## The v1 catalogue
 
-Ten entries ship. What each is, what it discovers, and its consent tier:
+The catalogue holds 11 entries: 4 sources and 7 proposers. Each table gives what an
+entry is, what it discovers, and its consent tier.
 
 ### Sources (observe and admit)
 
 | Entry | Discovers | Tier | Ships |
 | --- | --- | --- | --- |
 | **crt.sh** | `Name`s from certificate-transparency SAN lists | `unencumbered` | **on** (see caveat below) |
+| **CT drift tail** (logs-direct) | `Name`s from new certificate issuance, for names you already know | `unencumbered` | **off** — it reads every new certificate in the logs |
+| **Cert Spotter** (operator key) | `Name`s from certificate-transparency SAN lists, bulk by name | `operator-credentialed` | **off** — you set `VERGE_CERTSPOTTER_TOKEN` on the worker |
 | **HackerTarget** | — | — | **barred** — excluded on terms |
-| **Cert Spotter** (unauthenticated) | — | — | **barred** — excluded on terms |
+
+**crt.sh** ships on because it is `unencumbered`. The **CT drift tail** is `unencumbered`
+too, and it ships **off**. The tail reads every new certificate across the CT logs to keep
+the few that match your estate. That costs more than the crt.sh poll. Enable the tail when
+you want same-shard drift detection. **Cert Spotter** ships off because it is
+`operator-credentialed`. Set `VERGE_CERTSPOTTER_TOKEN` on the worker, and it replaces
+crt.sh as the active bulk CT source. Its authenticated tier clears the consent bar
+([ADR-0003](../adr/0003-third-party-source-consent-bar.md)). The unauthenticated tier
+stays excluded on terms, and the catalogue holds no entry for it. **HackerTarget** is
+barred and runs for nobody.
 
 ### Proposers (org-name search → address-scope proposals)
 
