@@ -73,7 +73,7 @@ func main() {
 	// The CT source operator asked that the User-Agent name this build (passive-discovery §2.2).
 	ctVersion := buildinfo.Version()
 	// The CT key is worker-only: the web process never reads it (ct-source-replacement.md §2.4).
-	ctFetcher, ctThrottle, ctSource := selectCTSource(env.OrDefault("VERGE_CERTSPOTTER_TOKEN", ""), ctVersion, db.New(pool))
+	ctFetcher, ctThrottle, ctLogThrottle, ctSource := selectCTSource(env.OrDefault("VERGE_CERTSPOTTER_TOKEN", ""), ctVersion, db.New(pool))
 
 	// The dispatcher's cadence-lag gate and the reaper must never disagree here (#1114).
 	staleThreshold := durationOrDefault("VERGE_STALE_JOB_TIMEOUT", queue.DefaultStaleJobThreshold, logger)
@@ -94,8 +94,8 @@ func main() {
 	// The hook is injected so internal/queue never imports internal/delivery (ADR-0199 §1, #1316).
 	worker := queue.NewWorker(pool, queue.ExecProber{Path: proberPath}, time.Now, logger).
 		WithCT(ctFetcher, ctThrottle, ctSource).
-		WithCTTail(queue.NewHTTPCTFetcher(ctVersion), ctThrottle).
-		WithCTVerify(queue.NewHTTPCTFetcher(ctVersion), ctThrottle).
+		WithCTTail(queue.NewHTTPCTFetcher(ctVersion), ctLogThrottle).
+		WithCTVerify(queue.NewHTTPCTFetcher(ctVersion), ctLogThrottle).
 		WithRouter(router).
 		WithMessages(delivery.EnqueueForMessage, devMode).
 		WithTranscripts(transcriptKey, devMode).
@@ -208,13 +208,15 @@ func main() {
 	log.Print("worker: shutting down")
 }
 
-func selectCTSource(token, version string, q *db.Queries) (queue.CTFetcher, queue.CTThrottle, scan.CTSource) {
+func selectCTSource(token, version string, q *db.Queries) (queue.CTFetcher, queue.CTThrottle, queue.CTThrottle, scan.CTSource) {
+	// The tail and verification read CT logs directly, so the keyed API must not pace them (#1520).
+	ctLog := queue.NewCTThrottle(q)
 	// Cert Spotter's authenticated tier is what clears the consent bar (ADR-0003).
 	if token != "" {
-		return queue.NewCertSpotterFetcher(version, token), queue.NewCertSpotterThrottle(q), scan.CertSpotterCTSource()
+		return queue.NewCertSpotterFetcher(version, token), queue.NewCertSpotterThrottle(q), ctLog, scan.CertSpotterCTSource()
 	}
 	// Selection is config-time by key presence, so there is no runtime failover (spec §2.3).
-	return queue.NewHTTPCTFetcher(version), queue.NewCTThrottle(q), scan.CrtshCTSource()
+	return queue.NewHTTPCTFetcher(version), queue.NewCTThrottle(q), ctLog, scan.CrtshCTSource()
 }
 
 func durationOrDefault(key string, def time.Duration, logger *log.Logger) time.Duration {
