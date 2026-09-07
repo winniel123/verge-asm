@@ -16,8 +16,8 @@ concurrency:
 jobs:
   lint:
     runs-on: ubuntu-latest
-    # A violation fails this job, but `main`'s ruleset does not yet require the
-    # check, so it blocks no merge (#1435, #1263).
+    # A violation fails this job, and `main`'s ruleset requires the check since
+    # 2026-09-07, so it blocks the merge (#1435, #1263).
     steps:
       - name: Check out the head commit with the history the merge base needs
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

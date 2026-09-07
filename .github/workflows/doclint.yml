@@ -3,7 +3,7 @@ name: doclint
 # Three documentation jobs with different postures. `doclint` is the advisory style lint
 # (SPEC docs/spec/doc-lint-tool.md §5.2, ticket #822). `citations` is the cited-path
 # gate (#1436), and `adr-sections` is the `ADR-nnnn §n` gate (#1437, #1465); both fail on
-# a violation. None of the three is a required check.
+# a violation, and both are required checks since 2026-09-07. `doclint` is not.
 #
 # THE `doclint` JOB. A dedicated, non-blocking job that runs the doclint tool on a pull
 # request. It is SEPARATE from the docs-site build job (docs-site.yml), whose gates are
@@ -82,9 +82,9 @@ jobs:
   # Cited-path gate (#1436). Every in-repo path a document cites must resolve, in the
   # working tree or on a ref the document names beside it. A dead path fails this job.
   #
-  # NOT ADVISORY, and NOT required. The step exits non-zero on a dead path, so the job
-  # goes red. `main`'s ruleset requires neither job in this workflow, so a red run
-  # blocks no merge; promotion to a required check is a settings change (#1263, #1438).
+  # NOT ADVISORY, and REQUIRED. The step exits non-zero on a dead path, so the job
+  # goes red, and `main`'s ruleset requires `citations`, so a red run blocks the
+  # merge (#1263, #1438, promoted 2026-09-07).
   #
   # WHOLE TREE, not the diff. A citation dies when the file it names is deleted, and
   # that PR need touch no document at all.
@@ -124,9 +124,9 @@ jobs:
   # heading, so a `§n` against one of those is wrong by construction (SPEC
   # docs/spec/comment-policy.md §4.7).
   #
-  # NOT ADVISORY, and NOT required. The step exits non-zero on a violation, so the job
-  # goes red. `main`'s ruleset requires no job in this workflow, so a red run blocks no
-  # merge; promotion to a required check is a settings change (#1263, #1438).
+  # NOT ADVISORY, and REQUIRED. The step exits non-zero on a violation, so the job
+  # goes red, and `main`'s ruleset requires `adr-sections`, so a red run blocks the
+  # merge (#1263, #1438, promoted 2026-09-07).
   #
   # WHOLE TREE, not the diff. The index is built from docs/adr/, so deleting a numbered
   # heading breaks a citation in a file the PR never touched.
