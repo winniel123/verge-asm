@@ -288,7 +288,7 @@ func (s *server) sourceViews(r *http.Request) ([]sourceView, error) {
 			enabled = o
 		}
 		if c.NoRunner || c.Barred {
-			enabled = false // a bar is authored in the release, so it outranks a stale override (ADR-0222 §2)
+			enabled = false // a bar is authored, so it outranks a stale override (ADR-0222 §2)
 		}
 		kind := "source"
 		if c.IsProposer {
