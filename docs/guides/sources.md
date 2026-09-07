@@ -89,7 +89,7 @@ too, but they are **barred** and offer no toggle. Their CAIDA half calls
 publishes no `org2ids` path, and it names each identifier `opaqueId` in place of
 `opaque_ids`. A swapped host would therefore decode to an empty result, which reads
 as absence, so the URL was left alone
-([ADR-0222](../adr/0222-a-bar-is-authored-in-the-release-and-a-health-record-is-per-install-so-the-two-never-share-a-badge.md),
+([ADR-0223](../adr/0223-a-bar-is-authored-in-the-release-and-a-health-record-is-per-install-so-the-two-never-share-a-badge.md),
 #1519). A barred entry states its own reason on the `/sources` modal, so *excluded on
 terms* is no longer the only thing a bar can say. The four registry paths are `operator-accepted` **by tier**, but **no
 `proposer.Source` runner ships for them yet**. They render consent+toggle but would emit nothing. So they are **catalogued — not

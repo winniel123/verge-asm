@@ -1,4 +1,4 @@
-# ADR-0222: a bar is authored in the release and a health record is per-install, so the two never share a badge
+# ADR-0223: a bar is authored in the release and a health record is per-install, so the two never share a badge
 
 - **Status:** Accepted
 - **Date:** 2026-09-07

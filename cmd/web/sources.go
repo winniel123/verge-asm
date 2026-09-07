@@ -75,12 +75,12 @@ var sourceCatalog = []catalogSource{
 	{
 		Slug: "afrinic", Name: "AFRINIC (CAIDA ⋈ delegated-stats)", IsProposer: true, Consent: consentUnencumbered,
 		Barred: true, BarredReason: barredNoEndpoint,
-		ShipNote: "Keyless org→prefix path via CAIDA joined to delegated-stats. Barred, and no longer toggleable: the CAIDA half calls /as2org/v1/org2ids, and no published CAIDA endpoint serves that path. api.caida.org does not resolve. api.data.caida.org serves the AS2org API but publishes no org2ids path, and it names each identifier opaqueId in place of opaque_ids. A swapped host would therefore decode to an empty result, which reads as absence, so the URL was left alone (ADR-0222, #1519). The delegated-stats half is healthy — ftp.afrinic.net answers — so this returns once a runner reads an org-name lookup CAIDA does publish.",
+		ShipNote: "Keyless org→prefix path via CAIDA joined to delegated-stats. Barred, and no longer toggleable: the CAIDA half calls /as2org/v1/org2ids, and no published CAIDA endpoint serves that path. api.caida.org does not resolve. api.data.caida.org serves the AS2org API but publishes no org2ids path, and it names each identifier opaqueId in place of opaque_ids. A swapped host would therefore decode to an empty result, which reads as absence, so the URL was left alone (ADR-0223, #1519). The delegated-stats half is healthy — ftp.afrinic.net answers — so this returns once a runner reads an org-name lookup CAIDA does publish.",
 	},
 	{
 		Slug: "apnic-caida", Name: "APNIC (CAIDA ⋈ delegated-stats)", IsProposer: true, Consent: consentUnencumbered,
 		Barred: true, BarredReason: barredNoEndpoint,
-		ShipNote: "Keyless org→prefix path via CAIDA joined to delegated-stats. Barred, and no longer toggleable: the CAIDA half calls /as2org/v1/org2ids, and no published CAIDA endpoint serves that path. api.caida.org does not resolve. api.data.caida.org serves the AS2org API but publishes no org2ids path, and it names each identifier opaqueId in place of opaque_ids. A swapped host would therefore decode to an empty result, which reads as absence, so the URL was left alone (ADR-0222, #1519). The delegated-stats half is healthy — ftp.apnic.net answers — so this returns once a runner reads an org-name lookup CAIDA does publish.",
+		ShipNote: "Keyless org→prefix path via CAIDA joined to delegated-stats. Barred, and no longer toggleable: the CAIDA half calls /as2org/v1/org2ids, and no published CAIDA endpoint serves that path. api.caida.org does not resolve. api.data.caida.org serves the AS2org API but publishes no org2ids path, and it names each identifier opaqueId in place of opaque_ids. A swapped host would therefore decode to an empty result, which reads as absence, so the URL was left alone (ADR-0223, #1519). The delegated-stats half is healthy — ftp.apnic.net answers — so this returns once a runner reads an org-name lookup CAIDA does publish.",
 	},
 	{
 		Slug: "ripestat", Name: "RIPEstat", IsProposer: true, Consent: consentAccepted, NoRunner: true, BarredReason: barredNoRunner,
@@ -288,7 +288,7 @@ func (s *server) sourceViews(r *http.Request) ([]sourceView, error) {
 			enabled = o
 		}
 		if c.NoRunner || c.Barred {
-			enabled = false // a bar is authored, so it outranks a stale override (ADR-0222 §2)
+			enabled = false // a bar is authored, so it outranks a stale override (ADR-0223 §2)
 		}
 		kind := "source"
 		if c.IsProposer {

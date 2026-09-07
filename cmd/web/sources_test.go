@@ -797,7 +797,7 @@ func TestCAIDAProposersAreBarredBecauseNoEndpointServesThePath(t *testing.T) {
 		if c.Consent != consentUnencumbered {
 			t.Errorf("%s consent = %q; a reachability bar must not restate a consent verdict", slug, c.Consent)
 		}
-		for _, want := range []string{"org2ids", "api.caida.org", "opaqueId", "ADR-0222"} {
+		for _, want := range []string{"org2ids", "api.caida.org", "opaqueId", "ADR-0223"} {
 			if !strings.Contains(c.ShipNote, want) {
 				t.Errorf("%s ShipNote omits %q: %s", slug, want, c.ShipNote)
 			}

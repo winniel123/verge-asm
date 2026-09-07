@@ -321,7 +321,7 @@ func TestLookupRunsOnlyEnabledProposers(t *testing.T) {
 		t.Errorf("arin was not passed as enabled after being toggled on: %v", fp.lastEnabled)
 	}
 	if fp.lastEnabled[proposer.SlugAFRINIC] || fp.lastEnabled[proposer.SlugAPNIC] {
-		t.Errorf("an override ran a barred proposer (ADR-0222 §2): %v", fp.lastEnabled)
+		t.Errorf("an override ran a barred proposer (ADR-0223 §2): %v", fp.lastEnabled)
 	}
 }
 

@@ -125,7 +125,7 @@ registry path and **LACNIC**'s registry path ship off under `operator-accepted` 
 clear a keyless org→prefix path via CAIDA ⋈ delegated-stats on terms, and are **barred on
 availability**: no published CAIDA endpoint serves the `/as2org/v1/org2ids` path the CAIDA half
 calls ([#1519](https://github.com/winniel123/verge-asm/issues/1519),
-[ADR-0222](../adr/0222-a-bar-is-authored-in-the-release-and-a-health-record-is-per-install-so-the-two-never-share-a-badge.md)),
+[ADR-0223](../adr/0223-a-bar-is-authored-in-the-release-and-a-health-record-is-per-install-so-the-two-never-share-a-badge.md)),
 so the path answers nothing until a reachable CAIDA artefact replaces it. **ARIN**'s `entities?fn=` org-name path ships on keyless. A
 **BGP** leg (route-collector-derived address scopes) is out of v1 entirely — a routing announcement names the path, not the estate
 ([ADR-0063](../adr/0063-a-routing-announcement-names-the-path-not-the-estate.md)) — even where the
