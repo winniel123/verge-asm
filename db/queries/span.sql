@@ -107,6 +107,7 @@ LEFT JOIN LATERAL (
     LIMIT 1
 ) pred ON true
 WHERE b.created_at >= @since
+  AND (sqlc.narg('until')::timestamptz IS NULL OR b.created_at < sqlc.narg('until')::timestamptz)
 
 UNION ALL
 
@@ -127,6 +128,7 @@ SELECT
 FROM span sp
 JOIN batch b ON b.id = sp.closed_batch_id
 WHERE b.created_at >= @since
+  AND (sqlc.narg('until')::timestamptz IS NULL OR b.created_at < sqlc.narg('until')::timestamptz)
   -- A value-move close rides its successor's opened row, so counting it doubles the transition.
   AND sp.closure_reason IS NOT NULL
 
