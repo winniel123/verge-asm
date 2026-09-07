@@ -122,6 +122,23 @@ asks about U1000 only. The shape of the rest:
 
 ## 5. Open decision for the maintainer: promotion
 
+> **RESOLVED, 2026-09-07.** The maintainer accepted the recommendation below.
+> The §3.1 backlog is empty, and the job gates on U1000.
+>
+> - [PR #1628](https://github.com/winniel123/verge-asm/pull/1628) deleted all eight
+>   declarations in §3.1. staticcheck reports zero U1000 rows on `main`.
+> - The `staticcheck` job stops exiting 0 and fails on any U1000 row.
+> - The gate is narrower than the report. **No `staticcheck.conf` was added.** The
+>   default check set still runs and every finding still reaches the job summary,
+>   so the §4 findings stay visible without blocking a merge. This reaches the
+>   recommendation's goal with one job rather than two.
+> - Registering `staticcheck` on `main`'s ruleset stays the maintainer's act. Until
+>   they perform it the job fails a pull request's checks list without blocking its
+>   merge.
+>
+> §3 and §4's counts are the 2026-09-07 measurement and are left unedited. §3.1's
+> eight rows no longer exist in the tree.
+
 **This session did not decide this, and it holds no authority to.** Promotion changes
 what blocks a merge on `main`, and `main`'s ruleset is a repository setting.
 
