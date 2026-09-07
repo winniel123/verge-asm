@@ -11,6 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/winniel123/verge-asm/docs/guides"
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/measure/resolutionwalk"
 	"github.com/winniel123/verge-asm/internal/scan"
@@ -791,5 +792,25 @@ func TestCAIDAProposersShipOffWhileTheirHostIsDead(t *testing.T) {
 				t.Errorf("%s ShipNote omits %q: %s", slug, want, c.ShipNote)
 			}
 		}
+	}
+}
+
+func TestSourcesGuideDoesNotSayTheCAIDAProposersShipOn(t *testing.T) {
+	b, err := guides.FS.ReadFile("sources.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rows int
+	for _, line := range strings.Split(string(b), "\n") {
+		if !strings.HasPrefix(line, "|") || !strings.Contains(line, "(CAIDA ⋈ delegated-stats)") {
+			continue
+		}
+		rows++
+		if strings.Contains(line, "| **on** |") {
+			t.Errorf("the guide says this ships on, but the catalogue ships it off (#1519): %s", line)
+		}
+	}
+	if rows != 2 {
+		t.Fatalf("docs/guides/sources.md holds %d CAIDA catalogue rows, want 2", rows)
 	}
 }
