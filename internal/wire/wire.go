@@ -52,6 +52,10 @@ type JobSpec struct {
 	Batch string          `json:"batch"`
 	Kind  string          `json:"kind"`
 	Scope json.RawMessage `json:"scope,omitempty"`
+
+	// Realm is kind-agnostic like Batch, so one field serves every leaf's guard (ADR-0225 §3).
+
+	Realm []string `json:"realm,omitempty"`
 }
 
 // The facet fields are additive: a kind that predates them leaves them empty.

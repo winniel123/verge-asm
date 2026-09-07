@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"time"
 
+	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/wire"
 )
 
@@ -52,7 +53,7 @@ func Run(spec wire.JobSpec, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	base := NetEnumerator{Timeout: 3 * time.Second}
+	base := NetEnumerator{Timeout: 3 * time.Second, realm: custody.ParseRealm(spec.Realm)}
 	return RunWithEnumerator(context.Background(), base, spec.Batch, scope, w)
 }
 

@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"time"
 
+	"github.com/winniel123/verge-asm/internal/custody"
 	"github.com/winniel123/verge-asm/internal/measure/blanketdiscrim"
 	"github.com/winniel123/verge-asm/internal/wire"
 )
@@ -60,9 +61,10 @@ func Run(spec wire.JobSpec, w io.Writer) error {
 		return err
 	}
 	timeout := time.Duration(scope.Profile.ConnectTimeoutMillis) * time.Millisecond
+	realm := custody.ParseRealm(spec.Realm)
 	c, h := pacedPair(scope.Profile,
-		NetConnector{Timeout: timeout},
-		NetHandshaker{Timeout: timeout},
+		NetConnector{Timeout: timeout, realm: realm},
+		NetHandshaker{Timeout: timeout, realm: realm},
 		time.Now, sleepCtx)
 	return RunExchange(context.Background(), c, h, blanketdiscrim.CryptoPorts{}, spec.Batch, scope, w)
 }

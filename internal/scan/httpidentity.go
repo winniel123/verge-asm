@@ -26,6 +26,7 @@ type HTTPIdentityJob struct {
 	Kind         string
 	Targets      []httpexchange.Target
 	Params       httpexchange.Params
+	Realm        custody.Realm
 }
 
 func BuildHTTPIdentityJobs(scanID int64, estate custody.Estate, services []ReachedService, vantages []Vantage) []HTTPIdentityJob {
@@ -48,6 +49,7 @@ func BuildHTTPIdentityJobs(scanID int64, estate custody.Estate, services []Reach
 	}
 
 	grouped := make(map[int64][]httpexchange.Target)
+	realms := make(map[int64]custody.Realm)
 	for _, s := range services {
 		if _, ok := byID[s.VantageID]; !ok {
 			continue
@@ -56,7 +58,8 @@ func BuildHTTPIdentityJobs(scanID int64, estate custody.Estate, services []Reach
 		if err != nil {
 			continue
 		}
-		if !estate.MayProbe(a, vcByID[s.VantageID]) {
+		scope, ok := estate.ProbeRealm(a, vcByID[s.VantageID])
+		if !ok {
 			continue
 		}
 		grouped[s.VantageID] = append(grouped[s.VantageID], httpexchange.Target{
@@ -65,6 +68,7 @@ func BuildHTTPIdentityJobs(scanID int64, estate custody.Estate, services []Reach
 			Port:    s.Port,
 			Scheme:  schemeForPort(s.Port),
 		})
+		realms[s.VantageID] = realms[s.VantageID].With(scope)
 	}
 
 	var jobs []HTTPIdentityJob
@@ -82,6 +86,7 @@ func BuildHTTPIdentityJobs(scanID int64, estate custody.Estate, services []Reach
 			Kind:         httpexchange.Kind,
 			Targets:      targets,
 			Params:       httpexchange.DefaultParams(),
+			Realm:        realms[id],
 		})
 	}
 	return jobs
@@ -107,7 +112,7 @@ func (j HTTPIdentityJob) JobSpec(batch string) (wire.JobSpec, error) {
 	if err != nil {
 		return wire.JobSpec{}, fmt.Errorf("scan: marshal http-identity scope: %w", err)
 	}
-	return wire.JobSpec{Batch: batch, Kind: j.Kind, Scope: raw}, nil
+	return wire.JobSpec{Batch: batch, Kind: j.Kind, Scope: raw, Realm: j.Realm.CIDRs()}, nil
 }
 
 func (j HTTPIdentityJob) AttemptedScope() ([]byte, error) {

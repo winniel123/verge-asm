@@ -101,6 +101,7 @@ func removeString(s []string, v string) []string {
 
 type NetEnumerator struct {
 	Timeout time.Duration
+	realm   custody.Realm
 }
 
 func (n NetEnumerator) Handshake(ctx context.Context, target netip.AddrPort, version string, offeredCiphers []string) Attempt {
@@ -129,7 +130,7 @@ func (n NetEnumerator) Handshake(ctx context.Context, target netip.AddrPort, ver
 	}
 	// The dialer's guard is the backstop: a non-globally-reachable literal fails closed.
 	d := tls.Dialer{
-		NetDialer: &net.Dialer{Control: custody.EgressGuard("tlsacceptance")},
+		NetDialer: &net.Dialer{Control: custody.EgressGuard("tlsacceptance", n.realm)},
 		Config:    cfg,
 	}
 	conn, err := d.DialContext(dialCtx, "tcp", target.String())

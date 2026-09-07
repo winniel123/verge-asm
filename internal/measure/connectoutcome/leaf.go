@@ -77,6 +77,7 @@ func probeAttempts(ctx context.Context, c Connector, attempts int, target netip.
 
 type NetConnector struct {
 	Timeout time.Duration
+	realm   custody.Realm
 }
 
 func (n NetConnector) Connect(ctx context.Context, target netip.AddrPort) ConnResult {
@@ -92,7 +93,7 @@ func (n NetConnector) Connect(ctx context.Context, target netip.AddrPort) ConnRe
 	dialCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	d := net.Dialer{Control: custody.EgressGuard("connectoutcome")}
+	d := net.Dialer{Control: custody.EgressGuard("connectoutcome", n.realm)}
 	conn, err := d.DialContext(dialCtx, "tcp", target.String())
 	if err == nil {
 		_ = conn.Close()
