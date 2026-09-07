@@ -355,7 +355,7 @@ func (s *server) loginTOTP(w http.ResponseWriter, r *http.Request) {
 
 const lockoutMessage = "Too many attempts. Try again in a few minutes."
 
-func loginAccountKey(username string) string { return "acct:" + strings.ToLower(username) }
+func loginAccountKey(username string) string { return acctKeyPrefix + strings.ToLower(username) }
 
 func (s *server) redeemRecoveryCode(r *http.Request, accountID int64, presented string) bool {
 	presented = normalizeRecoveryCode(presented)

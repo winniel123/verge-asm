@@ -101,3 +101,63 @@ func TestSubjectRulesTableKeepsTheOtherTwoVerdicts(t *testing.T) {
 		t.Errorf("neither of these two members is not-evaluable; body: %s", page)
 	}
 }
+
+func subjectRuleRow(t *testing.T, page, rule string) string {
+	t.Helper()
+	for _, row := range strings.Split(page, "</tr>") {
+		if strings.Contains(row, ">"+rule+"<") {
+			return row
+		}
+	}
+	t.Fatalf("rule %q has no row in the rendered table; body: %s", rule, page)
+	return ""
+}
+
+func TestSubjectDetailFixturePinsANotEvaluableVerdict(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		rows []subjectRule
+	}{
+		{"service", devServiceData().Rules},
+		{"service_withdrawn", devServiceWithdrawnData().Rules},
+		{"endpoint", devEndpointData().Rules},
+	} {
+		if len(c.rows) == 0 {
+			t.Fatalf("%s: the fixture carries no rules row, so the table pins nothing", c.name)
+		}
+		for _, row := range c.rows {
+			switch row.Verdict {
+			case signal.Fired, signal.NotFired, signal.NotEvaluable:
+			default:
+				t.Errorf("%s: rule %q carries verdict %q, which is not a census member (ADR-0024)", c.name, row.Rule, row.Verdict)
+			}
+		}
+	}
+
+	rows := devServiceData().Rules
+	var unread []subjectRule
+	for _, row := range rows {
+		if row.Verdict == signal.NotEvaluable {
+			unread = append(unread, row)
+		}
+	}
+	if len(unread) == 0 {
+		t.Fatalf("the subject-detail fixture holds no not-evaluable rule, so the third verdict has no end-to-end fixture; rows: %+v", rows)
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, "subjectrules", rows); err != nil {
+		t.Fatalf("execute subjectrules template: %v", err)
+	}
+	page := buf.String()
+
+	for _, row := range unread {
+		cell := subjectRuleRow(t, page, row.Rule)
+		if strings.Contains(cell, "did not fire") {
+			t.Errorf("ADR-0004 forbids rendering the not-evaluable rule %q as \"did not fire\"; row: %s", row.Rule, cell)
+		}
+		if !strings.Contains(cell, "not evaluable") {
+			t.Errorf("the not-evaluable rule %q must read as its own verdict; row: %s", row.Rule, cell)
+		}
+	}
+}

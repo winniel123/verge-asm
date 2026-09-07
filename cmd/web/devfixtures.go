@@ -1527,6 +1527,42 @@ func (s *server) assetFixtureData(acct db.Account) map[string]any {
 	}
 }
 
+type subjectRuleFixture struct {
+	Rule     string         `json:"rule"`
+	Version  json.Number    `json:"version"`
+	Severity string         `json:"severity"`
+	SevLabel string         `json:"sev_label"`
+	Verdict  signal.Outcome `json:"verdict"`
+}
+
+func loadSubjectRules(subject string) []subjectRule {
+	// A transcription can drop the third verdict, so read the corpus once (ADR-0167 §2, #1451).
+	raw, err := fs.ReadFile(designfs.FS, "fixtures/fixtures.json")
+	if err != nil {
+		return nil
+	}
+	var ff struct {
+		SubjectDetail map[string]struct {
+			Rules []subjectRuleFixture `json:"rules"`
+		} `json:"subjectdetail"`
+	}
+	if err := json.Unmarshal(raw, &ff); err != nil {
+		return nil
+	}
+	fx := ff.SubjectDetail[subject].Rules
+	out := make([]subjectRule, 0, len(fx))
+	for _, r := range fx {
+		out = append(out, subjectRule{
+			Rule:     r.Rule,
+			Version:  r.Version.String(),
+			Severity: r.Severity,
+			SevLabel: r.SevLabel,
+			Verdict:  r.Verdict,
+		})
+	}
+	return out
+}
+
 const (
 	devServiceKey          = "203.0.113.7:5900/tcp"
 	devServiceWithdrawnKey = "203.0.113.29:8080/tcp"
@@ -1562,10 +1598,7 @@ func devServiceData() servicePageData {
 				{IsGap: true, Value: "Gap", OpenedAt: "2026-07-02", OpenedFull: "2026-07-02T06:00Z", ClosedAt: "2026-07-14", ClosedFull: "2026-07-14T06:00Z", Reason: "stopped looking"},
 			},
 		}},
-		Rules: []subjectRule{
-			{Rule: "vnc-exposure", Version: "3", Severity: "critical", SevLabel: "Critical", Verdict: signal.Fired},
-			{Rule: "tls-acceptance", Version: "2", Severity: "high", SevLabel: "High", Verdict: signal.NotFired},
-		},
+		Rules: loadSubjectRules("service"),
 		Provenance: []assetKV{
 			{K: "Seed", V: "acmecorp.io"},
 			{K: "Via", V: "dns sweep → hot scan"},
@@ -1606,9 +1639,7 @@ func devServiceWithdrawnData() servicePageData {
 				{Value: "reached", OpenedAt: "2026-07-18", OpenedFull: "2026-07-18T08:40Z", ClosedAt: "2026-08-10", ClosedFull: "2026-08-10T13:25Z", Reason: "withdrawn"},
 			},
 		}},
-		Rules: []subjectRule{
-			{Rule: "admin-panel-reachable", Version: "1", Severity: "high", SevLabel: "High", Verdict: signal.NotFired},
-		},
+		Rules: loadSubjectRules("service_withdrawn"),
 		Provenance: []assetKV{
 			{K: "Seed", V: "acmecorp.io"},
 			{K: "Via", V: "dns sweep → hot scan"},
@@ -1650,10 +1681,7 @@ func devEndpointData() endpointPageData {
 				{Value: "200 · nginx/1.24.0", OpenedAt: "2026-06-14", OpenedFull: "2026-06-14T09:00Z", ClosedAt: "2026-08-12", ClosedFull: "2026-08-12T06:00Z", Reason: "changed"},
 			},
 		}},
-		Rules: []subjectRule{
-			{Rule: "admin-panel-reachable", Version: "1", Severity: "high", SevLabel: "High", Verdict: signal.NotFired},
-			{Rule: "verbose-server-header", Version: "2", Severity: "low", SevLabel: "Low", Verdict: signal.Fired},
-		},
+		Rules: loadSubjectRules("endpoint"),
 		Provenance: []assetKV{
 			{K: "Seed", V: "acmecorp.io"},
 			{K: "Via", V: "resolution × service join"},

@@ -3,13 +3,21 @@
 - **Status:** Accepted — spec content for the CT-source wayfinding effort, [map #854](https://github.com/winniel123/verge-asm/issues/854)
 - **Ticket:** [#860 Assemble the crt.sh-replacement spec](https://github.com/winniel123/verge-asm/issues/860)
 - **Rulings that bind this spec:** [ADR-0027](../adr/0027-a-source-may-admit-without-observing.md) (admit without observing), [ADR-0020](../adr/0020-a-conflict-needs-two-enumerable-sources.md) (a conflict needs two enumerable sources), [ADR-0106](../adr/0106-the-ct-poll-is-a-scan-that-schedules-and-a-ct-admission-is-a-name-citing-its-batch.md) (the CT poll is a Scan), [ADR-0053](../adr/0053-a-secret-is-held-only-where-its-act-is-performed-and-the-shared-store-holds-none.md) (a secret is held only where its act runs)
+- **Build status:** **Built.** Map [#854](https://github.com/winniel123/verge-asm/issues/854) assembled this spec in [#860](https://github.com/winniel123/verge-asm/issues/860). The map then shipped the build through tickets [#873](https://github.com/winniel123/verge-asm/issues/873) to [#881](https://github.com/winniel123/verge-asm/issues/881). The map is closed. §3, §4.2 and §5.4 name what the build did not build.
 
 This document is the **handoff artifact** of the CT-source wayfinding map. It assembles the five
-settled decisions into one buildable spec. **No code lands from the map.** This document hands off to
-implementation; it does not itself implement.
+settled decisions into one buildable spec. **The wayfinding phase landed no code.** The map's later
+implementation phase built the spec, ticket by ticket, from [#873](https://github.com/winniel123/verge-asm/issues/873) to [#881](https://github.com/winniel123/verge-asm/issues/881).
 
-It replaces the position where crt.sh is the **sole** certificate-transparency (CT) source today. It
-does **not** remove crt.sh. crt.sh stays as the keyless fallback (§2).
+**Reading this after the build.** A sentence about the pre-build code names the 2026-08 charting
+fact-find and takes the past tense. Every other statement describes the code as it stands, and it
+names the site. §3, §4.2, §5.4 and §6.2 mark what the build did not build, or built differently
+([#1463](https://github.com/winniel123/verge-asm/issues/1463)).
+
+At the fact-find, crt.sh was the **sole** certificate-transparency (CT) source. The tree now carries
+**three** CT catalogue rows — `crtsh`, `certspotter` and `ct-tail` (`cmd/web/sources.go`). It runs
+**two** CT Scan kinds, `ct` and `ct-tail` (`db/migrations/23900_ct_log_cursor.sql`). The build did
+**not** remove crt.sh. crt.sh ships as the keyless fallback (§2).
 
 ## Provenance
 
@@ -39,14 +47,14 @@ directs a citation of either research file here for that reason.
 
 ## 1. Three capabilities under one theme
 
-Today crt.sh is one flat catalogue row and one `ct` Scan. This spec makes CT **one theme with three
-capabilities**. `[D-bulk]` `[D-logs]` `[P-ui]`
+At the fact-find, crt.sh was one flat catalogue row and one `ct` Scan. The build made CT **one theme
+with three capabilities**, and all three ship. `[D-bulk]` `[D-logs]` `[P-ui]`
 
 | Capability | What it does | Query shape | Keyed? | Ships as |
 | --- | --- | --- | --- | --- |
 | **Bulk-by-name** | Enumerate names under a domain from a CT index | `%.example.com` in one query | Primary needs a key; fallback keyless | The `ct` Scan — one source active per config (§2) |
 | **Drift tail** | Watch new issuance for names already known | Forward delta of the logs, filtered against known names | Keyless | A new `ct-tail` Scan, opt-in (§4) |
-| **Verification** | Confirm one specific certificate is logged in CT | Point-check from an SCT or the cert bytes | Keyless | A non-Scan on-demand operation (§5) |
+| **Verification** | Confirm one specific certificate is logged in CT | Point-check from an SCT or the cert bytes | Keyless | A non-Scan operation (§5) — auto-verify ships, its on-demand arm does not |
 
 **The bulk-by-name / logs-direct split is a protocol fact, not a preference.** `[R-logs]` RFC 6962 and
 static-ct-api have **no query-by-domain**. The logs are append-ordered Merkle trees read by position
@@ -73,6 +81,10 @@ Two CT sources live under the single `ct` Scan. Exactly **one** is active per co
   a different state from the barred unauthenticated one. No new slug, no collision.
 - **`crtsh` is unchanged** as a catalogue entry: `DefaultOn: true`, `unencumbered`, keyless.
 
+**Shipped** ([#873](https://github.com/winniel123/verge-asm/issues/873), [#876](https://github.com/winniel123/verge-asm/issues/876)). `sourceCatalog` (`cmd/web/sources.go`) carries `certspotter` with
+`Consent: operator-credentialed` and `DefaultOn: false`. The entry sets no `Barred` field, so the bar
+is gone. `crtsh` keeps `DefaultOn: true` and `unencumbered`.
+
 ### 2.2 Why Cert Spotter, and the honest gap `[R-primary]`
 
 Cert Spotter qualifies as the bulk-by-name primary in its **keyed** form. Its authenticated tier
@@ -90,6 +102,11 @@ wrappers. So crt.sh stays the keyless default.
 
 **Query shape (confirmed):** `domain=`, `include_subdomains=true`, `expand=dns_names`,
 `expand=issuer`, `after=` cursor. Free authenticated tier is 10 full-domain queries per hour.
+`scan.CertSpotterCTSource` builds that query (`internal/scan/certspotter.go`).
+
+**The honest gap is still open.** The build shipped the key path. No file in `docs/correspondence/`
+records a sign-up, and no ADR closes the terms question. The obligation above is unchanged, and the
+condition it names stays untested.
 
 ### 2.3 Config-time selection — by key presence `[D-bulk]`
 
@@ -110,6 +127,10 @@ choice.
 - While a key is set, `crtsh` is **standby**: catalogued and `DefaultOn`, but active only when no key
   is configured. The Sources UI labels it as the fallback so its toggle is not a silent no-op (§6).
 
+**Shipped** ([#876](https://github.com/winniel123/verge-asm/issues/876)). `selectCTSource` (`cmd/worker/main.go`) reads `VERGE_CERTSPOTTER_TOKEN` once at
+worker wire-time. A set token returns the `certspotter` fetcher, throttle and source. An absent token
+returns the `crtsh` three. Nothing re-reads the token after that.
+
 ### 2.4 Operator key location — worker-only `[D-bulk]`
 
 Per [ADR-0053](../adr/0053-a-secret-is-held-only-where-its-act-is-performed-and-the-shared-store-holds-none.md),
@@ -121,6 +142,10 @@ the key is held only where its act runs.
   reads the value.
 - **In-UI key entry** (web writes the token to the worker volume, ADR-0053's intended-but-unbuilt
   pattern) is **deferred** (§7).
+
+**Shipped** ([#876](https://github.com/winniel123/verge-asm/issues/876)). `cmd/worker/main.go` is the only Go file that names
+`VERGE_CERTSPOTTER_TOKEN`. No file under `cmd/web/` reads it. [#1455](https://github.com/winniel123/verge-asm/issues/1455) points
+`cmd/worker/main.go` at this section as the home of the worker-only key rule.
 
 ### 2.5 Throttle — per source `[D-bulk]`
 
@@ -134,6 +159,12 @@ ct_throttle(source TEXT PRIMARY KEY, next_free_at TIMESTAMPTZ)
 - `crtsh` keeps its 12 s interval. `certspotter` takes a conservative interval from its documented caps,
   **re-measured against the reliability bar** (§3).
 - The `Reserve` query is unchanged. The interval is already an argument to it.
+
+**Shipped** ([#873](https://github.com/winniel123/verge-asm/issues/873), [#876](https://github.com/winniel123/verge-asm/issues/876)).
+`db/migrations/23600_ct_throttle_per_source.sql` creates `ct_throttle`.
+It drops `crtsh_throttle`. `db/migrations/24100_certspotter_throttle.sql` seeds the `certspotter`
+row. `internal/queue/crtsh.go` holds both intervals: `crtshInterval` is 12 s, and
+`certSpotterInterval` is 360 s. 360 s is the documented 10-queries-per-hour cap, not a re-measurement.
 
 ### 2.6 Admission mapping — a decoder translates shape, never fact `[D-bulk]`
 
@@ -153,6 +184,13 @@ Per [ADR-0027](../adr/0027-a-source-may-admit-without-observing.md), a completed
   `DefaultOn`. Replace the hardcoded single-slug `crtshEnabled` gate with a **per-slug** gate that the
   `ct` fan-out consults for the selected source.
 
+**Shipped** ([#873](https://github.com/winniel123/verge-asm/issues/873), [#876](https://github.com/winniel123/verge-asm/issues/876)). `completeCT` (`internal/queue/crtsh.go`) pages the source's cursor into
+one Batch per name scope, and `admitCT` stamps the slug. `sourceEnabled` (`internal/queue/crtsh.go`)
+is the per-slug gate. `crtshEnabled` is gone.
+
+**Shipped differently:** the page loop carries a backstop. `maxCTPages` bounds it at 1000 pages
+(`internal/queue/crtsh.go`), so a source that never signals a last page stops there.
+
 ### 2.7 Corroborate-only — zero citation migration `[D-bulk]`
 
 A `certspotter` admission is a **new** `admitted_name` row citing its own `Batch`.
@@ -165,6 +203,8 @@ A `certspotter` admission is a **new** `admitted_name` row citing its own `Batch
   ([ADR-0006](../adr/0006-subjects-leave-by-measurement.md)).
 - The code map confirms the write path stamps the source (`admitCT` → `InsertAdmittedName.Source`) and
   the read path is source-agnostic. **No migration is required.**
+
+**Shipped** ([#876](https://github.com/winniel123/verge-asm/issues/876)). No migration under `db/migrations/` touches `admitted_name` for this build.
 
 ---
 
@@ -186,6 +226,15 @@ runbook when the primary ships.
   is **no silent swap** to crt.sh (runtime failover is deferred, §7). The UI surfaces the degraded
   state (§6).
 
+**Shipped** ([#879](https://github.com/winniel123/verge-asm/issues/879)). `EvaluateCTReliability` (`internal/scan/ctreliability.go`) holds all three
+limbs and exempts `crtsh`. `db/migrations/24300_ct_reliability_sample.sql` creates
+`ct_reliability_sample`, and `recordCTSample` (`internal/queue/crtsh.go`) writes one sample per bulk
+query. The window is the newest 200 samples per source (`CTReliabilityWindowSize`).
+
+**Unbuilt** — **no runbook exists.** The build put the sample size in a Go constant, and it set no
+re-measurement cadence anywhere. `docs/` holds no runbook for the CT primary. The sentence above
+still names work nobody did. `[thin]`
+
 ---
 
 ## 4. CT-logs-direct — the drift tail `[D-logs]` `[R-logs]`
@@ -195,6 +244,9 @@ sees, exactly like crt.sh, **and** emits an ephemeral issuance event when a new 
 a known name — that is the drift signal.
 
 **Design invariant:** the tail reads only **forward deltas** and never backfills history.
+
+**Shipped** ([#874](https://github.com/winniel123/verge-asm/issues/874), [#877](https://github.com/winniel123/verge-asm/issues/877)). The `ct-tail` Scan runs. `internal/queue/cttail.go` reads the forward
+delta, admits the in-scope names, and emits the drift event.
 
 ### 4.1 Model fit — admission plus ephemeral event `[D-logs]`
 
@@ -206,6 +258,10 @@ a known name — that is the drift signal.
   read never touches history, so it cannot conflate; and the log yields the fingerprint join key. A
   **durable, alertable** signal would still force a new facet, so v1 keeps the signal **ephemeral**
   (§7).
+
+**Shipped** ([#874](https://github.com/winniel123/verge-asm/issues/874)). `admitCTTail` (`internal/queue/cttail.go`) writes the `admitted_name` rows and
+emits the drift count as a job event. No facet and no Signal ship. A tail admission resolves its
+name-scope Seed per name, and a SAN under no declared scope is discarded (ADR-0192).
 
 ### 4.2 Scan shape and cursor `[D-logs]`
 
@@ -224,6 +280,14 @@ a known name — that is the drift signal.
 
   The signed head lets the tail prove append-only continuity. Running the proof is **opportunistic**,
   not mandatory (§4.4).
+
+**Shipped** ([#874](https://github.com/winniel123/verge-asm/issues/874)). `db/migrations/23900_ct_log_cursor.sql` widens the `scan_kind_check` union for
+`ct-tail` and creates `ct_log_cursor` with `log_id`, `tree_size`, `signed_head` and `updated_at`. The
+fan-out is per-log (`internal/queue/cttail.go`).
+
+**Unbuilt** — **no consistency proof runs.** The tail stores each signed head and never checks one
+against an earlier one. What ships is a shrink check: a tree size below the cursor is a fork or a
+rollback, and it verifies no signature (`internal/queue/cttail.go`). `[thin]`
 
 ### 4.3 Log-set `[D-logs]` `[R-logs]`
 
@@ -252,6 +316,10 @@ yet Chrome-counting).
 (Let's Encrypt, Geomys, IPng) are tiled-only; Google runs both. Drive the client choice off the
 `url` versus `monitoring_url` discriminator, filtered by `state`.
 
+**Shipped** ([#874](https://github.com/winniel123/verge-asm/issues/874), [#877](https://github.com/winniel123/verge-asm/issues/877)). `internal/scan/cttail.go` embeds the snapshot with
+`//go:embed log_list.json` and applies the `state` and `temporal_interval` rule. Both clients ship.
+A `Tiled` flag rides each `CTLog`, taken from the `monitoring_url` discriminator.
+
 ### 4.4 Cadence — a measured bar, and opt-in `[D-logs]`
 
 The firehose is heavy for a self-hosted tool. One usable current shard grows about **9,500
@@ -263,7 +331,11 @@ entries/min**, and the tail downloads every new entry to discard the non-matchin
 - **Cadence is a measured bar:** poll each log often enough that the P95 delta stays inside one bounded
   fetch window. Per-operator batch caps apply (Argon 32/request, Nimbus and tiled 256/request).
 - Run the **consistency proof opportunistically** — near-free on tiled logs, since the tiles are
-  already fetched — never mandatory per poll.
+  already fetched — never mandatory per poll. **Unbuilt**, see §4.2.
+
+**Shipped** ([#874](https://github.com/winniel123/verge-asm/issues/874)). The `ct-tail` catalogue source is keyless and `DefaultOn: false`
+(`cmd/web/sources.go`), and `sourceEnabled` gates it. Migration 23900 seeds the Scan at a 300 s
+cadence, which an operator can move.
 
 ---
 
@@ -290,16 +362,24 @@ a bare name.
   so a `logged` verdict states presence and never log integrity.
 - It must start from an **SCT or the cert bytes**. There is no query-by-name anywhere (RFC 6962 §4).
 
+**Shipped** ([#878](https://github.com/winniel123/verge-asm/issues/878)). `verifyMaterial` (`internal/queue/ctverify.go`) gathers the SCTs from the
+embedded extension, the TLS extension and the OCSP staple. It mints no subject and stores no result.
+Both arms ship in `internal/scan/ctverify.go`.
+
 ### 5.2 Not a Scan `[D-logs]`
 
 Verification is **not a Scan.** A Scan is the declared scheduled dispatch; verification has no schedule
 and no scope fan-out. It is an operator-triggered or observation-triggered worker operation.
 
+**Shipped** ([#878](https://github.com/winniel123/verge-asm/issues/878)). No `scan_kind_check` member names verification. `autoVerifyCerts`
+(`internal/queue/ctverify.go`) runs off the observations a completed job carried. The fetch runs
+after the job transaction commits (ADR-0215).
+
 ### 5.3 Capture at handshake — the larger commitment `[D-logs]`
 
-Today we store only chain **fingerprints** — the wrong hash for CT (a plain `sha256(DER)`, not the
-leaf hash) — and no cert bytes and no SCTs (`connectoutcome/tls.go`; a grep for `SCT` / `OCSP` across
-Go returns nothing). So:
+At the fact-find we stored only chain **fingerprints** — the wrong hash for CT (a plain
+`sha256(DER)`, not the leaf hash) — and no cert bytes and no SCTs (`connectoutcome/tls.go`; a grep
+for `SCT` / `OCSP` across Go returned nothing). So:
 
 - **Capture SCTs and leaf bytes at handshake time.** Capture **both**: the SCTs (embedded in the cert,
   via the TLS extension, and via the OCSP staple) **and** the leaf certificate bytes. The SCT names the
@@ -316,9 +396,24 @@ Go returns nothing). So:
   fingerprint. No CT input feeds the facet value, so ADR-0027's fence stays closed. This matches
   ADR-0027's "Certificate held as an immutable value, shared by fingerprint."
 
+**Shipped** ([#875](https://github.com/winniel123/verge-asm/issues/875)). `internal/measure/connectoutcome/tls.go` captures `SCTsTLSExt` and the OCSP
+staple off the handshake state. `db/migrations/24000_certificate_material.sql` creates
+`certificate_material`.
+
+**Shipped differently:** the table carries a fourth column.
+`db/migrations/24200_certificate_material_issuer.sql` adds `issuer_spki`, because an embedded SCT's
+precert hash needs the SHA-256 of the issuer SPKI (RFC 6962 §3.2).
+
 ### 5.4 Trigger and result `[D-logs]`
 
 - **Auto-verify** each new `certificate` observation once, plus an **on-demand** re-check.
+
+  **Auto-verify shipped** ([#878](https://github.com/winniel123/verge-asm/issues/878)). `autoVerifyCerts` (`internal/queue/ctverify.go`) verifies each
+  captured certificate once. It caps the count at `maxAutoVerifyPerJob`, which is 8.
+
+  **The on-demand re-check is unbuilt.** `VerifyByFingerprint` (`internal/queue/ctverify.go`) is the
+  entry point for it, and only tests call it. No handler, no route and no operator control reaches
+  it. `[thin]`
 - The result is an **ephemeral event**: ~~"logged / NOT logged in CT."~~ **"logged / NOT logged /
   unverifiable."** **NOT logged** is the notable signal — an internal CA, or evasion.
 
@@ -337,7 +432,10 @@ Go returns nothing). So:
 
 The redesign is **focused on the CT-source experience only**. The full Sources-page overhaul is out of
 scope (§8). The CT section renders as **one "Certificate transparency" theme with three capabilities**,
-not the flat catalogue row crt.sh occupies today.
+not the flat catalogue row crt.sh occupied at the fact-find.
+
+**Shipped** ([#880](https://github.com/winniel123/verge-asm/issues/880), [#881](https://github.com/winniel123/verge-asm/issues/881)). `design-system/templates/settings.tmpl` renders an "Active source" card
+and a "More CT capabilities" card. `cmd/web/sources.go` builds both.
 
 ### 6.1 Chosen layout — active-source hero
 
@@ -359,6 +457,15 @@ rejected forks.)
 4. **Reliability** — three KPI tiles measured against the bar. The primary shows pass/fail per metric.
    crt.sh-as-fallback is shown **bar-exempt** (muted, not failed), matching §3.
 
+**Shipped differently — ask 2.** The field renders `detected` or `not set`, and it is read-only. Its
+**ground is not the env var.** `newCTSourceHero` (`cmd/web/sources.go`) infers key presence from
+which source ran most recently. Web reads no token, which is what §2.4 requires. So a `not set` label
+means "no Cert Spotter run is the newest sample", never "the worker holds no key".
+
+**Shipped** ([#880](https://github.com/winniel123/verge-asm/issues/880), [#881](https://github.com/winniel123/verge-asm/issues/881)) for asks 1, 3 and 4.
+`cmd/web/sources.go` renders the status badge and the dormant tile. It renders the `last ct scan`
+readout line and the three KPI tiles.
+
 ### 6.3 Honest edges drawn, not smoothed over
 
 - **Below-bar primary** (degraded run state): success renders in danger, and a callout states the
@@ -366,6 +473,10 @@ rejected forks.)
   running the primary until the worker is reconfigured. **No silent swap.**
 - **Keyless default** (fallback run state): with no key, crt.sh runs and is marked bar-exempt, with a
   hint on how to promote Cert Spotter.
+
+**Shipped** ([#880](https://github.com/winniel123/verge-asm/issues/880)). Both callouts sit in `design-system/templates/settings.tmpl`.
+The degraded callout repeats that runtime failover stays deferred. The keyless callout names
+`VERGE_CERTSPOTTER_TOKEN`.
 
 ### 6.4 Constraints honoured `[P-ui]`
 
@@ -382,7 +493,7 @@ reference, not source markup to lift.
 
 ## 7. New durable state and schema summary
 
-The implementer adds this durable state. All of it is new; none migrates existing rows.
+The build added this durable state. All of it is new, and none of it migrates existing rows.
 
 | Object | Shape | Purpose | Source |
 | --- | --- | --- | --- |
@@ -397,23 +508,31 @@ Catalogue and Scan changes:
 - New Scan kind `ct-tail` and new catalogue source `ct-tail` (`DefaultOn: false`, keyless) (§4).
 - Handshake path captures SCTs plus leaf bytes as always-on enrichment (§5.3).
 
+**Shipped, plus one object this summary did not list.**
+`db/migrations/24300_ct_reliability_sample.sql` creates `ct_reliability_sample`, which holds the §3
+window. `db/migrations/24200_certificate_material_issuer.sql` adds `issuer_spki` to
+`certificate_material` (§5.3).
+
 ---
 
 ## 8. What ships in v1, and what is deferred
 
 ### Ships (v1)
 
+Every line below shipped. A line that names an unbuilt part says so, and the section holds the detail.
+
 - crt.sh demoted to keyless fallback; **never removed** (§2).
 - Cert Spotter operator-keyed bulk primary, config-time selection by key presence (§2).
-- The measured reliability bar for the primary (§3).
-- The keyless opt-in `ct-tail` drift Scan (§4).
-- Keyless on-demand verification, with SCT + leaf-byte capture at handshake (§5).
+- The measured reliability bar for the primary (§3). The runbook it names is unbuilt.
+- The keyless opt-in `ct-tail` drift Scan (§4). Its consistency proof is unbuilt.
+- Keyless verification, with SCT + leaf-byte capture at handshake (§5). Verification ships as an
+  auto-verify. Its **on-demand** arm has no operator trigger.
 - The focused CT Sources-UI redesign (§6).
 
 ### Deferred to fog (out of v1)
 
 These are **in scope for the effort but not sharp enough or not wanted for v1**. Each graduates only if
-a later effort takes it up.
+a later effort takes it up. All three stay deferred, and none of the three landed.
 
 - **Runtime failover** to crt.sh when the primary hard-fails at run time. §2.3 confirmed selection is
   config-time only. This graduates only if a later spec decides to retain runtime failover.
