@@ -8,6 +8,7 @@ import {
   refForTagVersion,
   versionManifest,
   refFromManifest,
+  landingVersion,
 } from "../src/version-ref.mjs";
 
 // The repo has no `v*` tag, so a fixture list is the only way to reach a released state (#1402).
@@ -139,4 +140,23 @@ test("a prerelease-only tag list leaves the badge on latest", () => {
     { value: "v1.0.0-rc1", ref: "v1.0.0-rc1" },
     { value: DEFAULT_VERSION, ref: DEFAULT_VERSION, tag: "dev" },
   ]);
+});
+
+// TopNav's fallback runs only where a caller omits `version`, and no route omits it (#1570).
+test("the landing version is the latest alias under every tag list", () => {
+  for (const [name, names] of Object.entries(FIXTURES)) {
+    assert.equal(landingVersion(versionManifest(parseSemverTags(names))), LATEST_VERSION, name);
+  }
+});
+
+test("the badge and the landing version name different rows once a stable tag exists", () => {
+  const manifest = versionManifest(parseSemverTags(FIXTURES.oneStable));
+  assert.equal(manifest.find((v) => v.tag === "current").value, "v1.0.0");
+  assert.equal(landingVersion(manifest), LATEST_VERSION);
+});
+
+test("a list with no latest row falls back to its first, and an empty list to undefined", () => {
+  assert.equal(landingVersion([{ value: "v2.0.0", ref: "v2.0.0", tag: "current" }]), "v2.0.0");
+  assert.equal(landingVersion([]), undefined);
+  assert.equal(landingVersion(undefined), undefined);
 });
