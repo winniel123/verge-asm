@@ -36,6 +36,7 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
+    "@types/node": "^22.20.0",
     "parse-english": "7.0.0",
     "pixelmatch": "7.2.0",
     "playwright": "1.62.1",
