@@ -920,3 +920,57 @@ func TestSourcesGuideCountsTheWholeCatalogue(t *testing.T) {
 		t.Errorf("the catalogue tables hold %d rows, but the catalogue holds %d entries (#1605)", rows, len(sourceCatalog))
 	}
 }
+
+func TestConsentBadgeStatesTheTierTheRowCarries(t *testing.T) {
+	f := newFakeStore()
+	seedAccount(t, f, "admin", roleAdmin, "hunter2hunter2")
+	base := start(t, f, "")
+	ac := login(t, base, "admin", "hunter2hunter2")
+
+	page := sourcesBody(t, ac, base)
+
+	if !strings.Contains(page, `<span class="st-badge accent">`+consentCredentialed+"</span>") {
+		t.Errorf("Cert Spotter draws no operator-credentialed badge; body: %s", page)
+	}
+	// The bucket is an action an operator may take, so its heading may not name one tier (#1613).
+	if strings.Contains(page, `<span class="st-micro">`+consentUnencumbered+"</span>") {
+		t.Errorf("a bucket heading still claims one consent tier for every row it holds; body: %s", page)
+	}
+	for _, c := range sourceCatalog {
+		if c.Barred || c.NoRunner || c.Consent == "" {
+			continue
+		}
+		want := `<span class="st-badge ` + consentBadgeClass(c.Consent) + `">` + c.Consent + "</span>"
+		if !strings.Contains(page, want) {
+			t.Errorf("%s carries consent %q but no row draws %q", c.Slug, c.Consent, want)
+		}
+	}
+}
+
+func TestEveryToggleableEntryDrawsItsOwnTier(t *testing.T) {
+	f := newFakeStore()
+	srv := newServer(f, testKey, "", fixedClock())
+
+	views, err := srv.sourceViews(httptest.NewRequest(http.MethodGet, "/settings?tab=sources", nil))
+	if err != nil {
+		t.Fatalf("sourceViews: %v", err)
+	}
+	for _, v := range views {
+		if !v.Toggleable {
+			continue
+		}
+		c, ok := catalogBySlug(v.Slug)
+		if !ok {
+			t.Fatalf("%s is not in the catalogue", v.Slug)
+		}
+		if v.Consent != c.Consent {
+			t.Errorf("%s renders consent %q, but the catalogue says %q", v.Slug, v.Consent, c.Consent)
+		}
+		if v.Consent == "" {
+			t.Errorf("%s is toggleable with no consent tier, so its badge would be blank", v.Slug)
+		}
+		if got := consentBadgeClass(v.Consent); got == "neutral" {
+			t.Errorf("%s tier %q has no badge treatment of its own", v.Slug, v.Consent)
+		}
+	}
+}
