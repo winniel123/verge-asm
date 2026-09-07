@@ -1805,10 +1805,15 @@ on the page the affected reader opens.
 
 ## 17. The repository settings a human applies by hand
 
-A workflow cannot set these, so the SPEC lists them in one place. **The list is final at four
-items.** All 25 closed tickets on this map added none beyond these.
+A workflow cannot set these, so the SPEC lists them in one place. **The list is final at two
+items.** All 25 closed tickets on this map added none beyond these, and the first release removed
+two: §17.1 records what happened to them.
 
-### 17.1 The four items
+### 17.1 The two items
+
+**Two, and it was four.** Items 3 and 4 were never work, and one rule inside item 1 cannot be
+applied on this account. Both were settled by measurement at the first release
+([#1263](https://github.com/winniel123/verge-asm/issues/1263)).
 
 **1. A tag ruleset.** Target `refs/tags/v*`. Bypass list **empty**. Enforcement active.
 
@@ -1817,7 +1822,7 @@ items.** All 25 closed tickets on this map added none beyond these.
 | `update` | take — this is the immutability |
 | `deletion` | take |
 | `non_fast_forward` | take as a belt |
-| `tag_name_pattern` `^v[0-9]+\.[0-9]+\.[0-9]+$` | take |
+| `tag_name_pattern` `^v[0-9]+\.[0-9]+\.[0-9]+$` | **unavailable**, see below |
 | `creation` | **rejected** |
 | `required_signatures` | **rejected** |
 
@@ -1832,23 +1837,38 @@ annotated, and §1.1 settled on a bare tag. And the threat is a compromised acco
 the same machine as the credential does not mitigate. **It becomes worth revisiting if the
 repository gains a second person with push access.**
 
-**`tag_name_pattern` is deliberately redundant with §4.3's guard 1.** Once tags are immutable,
-`git push origin v1.2` creates a malformed tag that the guard correctly refuses, and that tag can
-then never be deleted or moved. §4.4's spent-tag rule turns a typo into permanent litter. The
-ruleset pattern refuses the push, so nothing is created and nothing is spent. **The workflow guard
-stays**, because a ruleset lives in repository settings where the repository cannot see it.
+**`tag_name_pattern` cannot be applied to this repository.** The API rejects it with
+`422 Invalid rule`, in every parameter shape. So does `commit_message_pattern`. The whole
+metadata-pattern rule class needs an organization on a paid plan. `winniel123/verge-asm` is
+**public and owned by a user account**. Public visibility does not buy the class.
+
+§4.3's guard 1 made this rule deliberately redundant. That reasoning still holds, and the rule
+still cannot be had. So this row reads unavailable rather than disappearing. A later reader on an
+organization account should reach for it.
+
+**What the project loses is cosmetic.** Once tags are immutable, `git push origin v1.2` creates a
+malformed tag that guard 1 correctly refuses, and §4.4's spent-tag rule then makes it permanent
+litter. The pattern rule would have refused the push instead. But `release.yml` never runs on such
+a tag, because the trigger is `v*.*.*`, and `isNewer` reads the feed's `tag_name` and never
+`git tag`, so no instance ever sees it. **A well-formed typo was never covered anyway**: `v0.10.0`
+for `v0.1.0` matches the regex, and guard 1's sort-order check is what governs there.
+
+**The workflow guard stays**, because a ruleset lives in repository settings where the repository
+cannot see it. It is now the only statement of the tag format that exists at all.
 
 **2. `sha_pinning_required: true`.** Measured `false` today. All 13 actions already pin, so the flip
 costs nothing and stops a later drift that no reviewer catches.
 
-**3 and 4. The two GHCR package visibility flips.** A first push produces a **private** GHCR
-package, and no REST endpoint flips visibility. A human flips each package by hand, on two settings
-pages. **Until it is done, every §2.1 image reference resolves for nobody**, and
-`docker compose pull` fails for every operator.
+**The two GHCR package visibility flips were items 3 and 4. They are deleted.**
 
-Carry one caveat: GitHub docs contradict themselves on whether a package inherits repository
-visibility. The private-by-default reading is taken, and **the first real push is the
-measurement.** Delete the step if it is disproved.
+The private-by-default reading was taken on the understanding that **the first real push is the
+measurement**, and that the step goes if it is disproved. It is disproved. Measured at the first
+push: both packages were **public**, and `docker buildx imagetools inspect` on each resolves with
+no credentials on the machine at all.
+
+A package inherits the repository's visibility. `winniel123/verge-asm` is public, so its packages
+are. **No human flips anything, and no image reference was ever unreachable.** §20 item 6 is
+settled.
 
 ### 17.2 What is refused
 
@@ -1952,7 +1972,7 @@ These hold across every ruling above. A change to any of them reopens the ticket
 | Guards in `release.yml` | **four** (§4.3) |
 | Jobs in `release.yml` | **five** (§4.2) |
 | Required status checks | **seven**. No eighth is registered. |
-| Manual repository settings | **four** (§17) |
+| Manual repository settings | **two** (§17). It was four; §17.1 records why. |
 | Workflow files this map delivers | **two** |
 | `contents: write` and `id-token: write` in one job | **never** |
 | Production Go code this map changes | **none**. §1.4, §3 and §13.3 are work the implementation map cuts. |
