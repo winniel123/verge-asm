@@ -1,6 +1,6 @@
 // Package edgefanout is the `edge-fanout` leaf: one no-SNI TLS handshake per candidate
 // edge address, reporting the certificate that address serves to a client naming nothing.
-// It is not a facet and opens no timeline; the fan-out reduction lives in Custody (ADR-0129 §6).
+// It is not a facet and opens no timeline; the fan-out reduction lives in Custody (ADR-0129 #954).
 package edgefanout
 
 import (
