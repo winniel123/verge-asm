@@ -47,7 +47,11 @@ func DefaultProfile() SafetyProfile {
 		Technique: "tcp-connect",
 		// Seeded targets are never swept for liveness; no port answering is still an observation.
 		HostDiscovery: "skipped",
-		// The rate is intra-pair, not intra-job, and holds at any worker count (ADR-0137, #1106).
+		// Intra-pair, so one Dispatch holds the rate at any worker count (ADR-0137 §3, #1106).
+
+		// A cold opt-in draws the same address, so a second Dispatch also probes it (#1122).
+
+		// The lag gate is hot-only and scan-scoped, so two workers double the rate (ADR-0137 §4).
 		PerHostConnPerSec:    50,
 		PerHostConcurrency:   20,
 		ConnectTimeoutMillis: 3000,

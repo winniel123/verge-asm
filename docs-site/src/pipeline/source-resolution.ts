@@ -185,17 +185,7 @@ export async function resolveSources(
 }
 
 export function listVersions(): VersionOption[] {
-  const tags = publishableTags();
-  // A prerelease is browsable, never a default, because "current" never names one (ADR-0155 §3).
-  const newestStable = tags.find((t) => t.prerelease === null) ?? null;
-  const options: VersionOption[] = [
-    newestStable ? { value: LATEST_VERSION } : { value: LATEST_VERSION, tag: "current" },
-  ];
-  for (const t of tags) {
-    options.push(t.raw === newestStable?.raw ? { value: t.raw, tag: "current" } : { value: t.raw });
-  }
-  options.push({ value: DEFAULT_VERSION, tag: "dev" });
-  return options;
+  return versionManifest(publishableTags());
 }
 
 export function canonicalPath(slug: string): string {
