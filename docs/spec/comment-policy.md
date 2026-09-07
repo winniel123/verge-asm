@@ -1551,8 +1551,8 @@ the `ADR-nnnn` keeps both pointers and breaks the adjacency the check reads (#14
 
 **The `adr-sections` job in `.github/workflows/doclint.yml` runs the check.** #1465 cleared the 108
 and wired it, in that order. The job is **not advisory** — it carries no `continue-on-error` and goes
-red on a violation — and it is **not required**: `main`'s ruleset requires no job in that workflow,
-so a red run blocks no merge. Promotion is #1263. It runs `npm run test:adr-sections` first, then
+red on a violation — and since 2026-09-07 it is **required**: `main`'s ruleset names `adr-sections`
+and `citations`, so a red run blocks the merge. It runs `npm run test:adr-sections` first, then
 `npm run check:adr-sections -- --github`, so a violation lands as an inline annotation.
 
 **The check refuses its own test file.** `check-adr-sections.test.mjs` holds specimen citations. A
@@ -2404,9 +2404,9 @@ lex-failure count on its own line.** The exit code already separates the two, an
 not re-merge them.
 
 **The summary's first line is fixed text.** It reads *"Comment lint (SPEC docs/spec/comment-policy.md
-§6.7). A violation fails this job."* It names the failure and claims no more than that. `main`'s
-ruleset does not require the `commentlint / lint` check, so a red `lint` job blocks no merge (#1263).
-A summary that called the check required would be false.
+§6.7). A violation fails this job."* It names the failure and claims no more than that. Since
+2026-09-07 `main`'s ruleset requires the `lint` check, so a red `lint` job blocks the merge (#1263).
+The summary text predates that and stays as written, because it is still true.
 
 **`verify` fails closed.** Any changed in-scope file that does not lex fails the job. Any changed
 `.html` or `.astro` file fails the job, because a sweep PR touching one is a scoping error. The
@@ -2447,9 +2447,10 @@ place. This is a mild departure from `doclint.yml`, which is one file and one jo
   `contains(github.event.pull_request.labels.*.name, 'sweep:comments')`. **No `continue-on-error`.**
   It runs `verify --base`.
 
-**`lint` fails, and it blocks no merge. The two words are not the same word.** Ruling 5 made the job
-advisory, and #1435 retired that stance in two moves. It deleted `continue-on-error` from the job,
-and it fixed the `--github` exit path §6.7 records. A violation now turns the `lint` check red.
+**`lint` fails, and since 2026-09-07 it blocks the merge. The two words are not the same word.**
+Ruling 5 made the job advisory, and #1435 retired that stance in two moves. It deleted
+`continue-on-error` from the job, and it fixed the `--github` exit path §6.7 records. A violation
+turns the `lint` check red, and the ruleset write of 2026-09-07 made that red a blocked merge.
 
 **A red check is not a blocked merge here.** `main`'s ruleset lists 7 required status checks, and
 `commentlint / lint` is not one of them. GitHub lets a pull request merge over a failing check the
@@ -2504,8 +2505,8 @@ repository-settings change.
 silent on every other PR. This gives ruling 15 teeth without a settings change, and it is stronger
 than "a human remembered to look".
 
-Promotion to a required check is deferred. §10 parks it beside the same write for `commentlint lint`,
-which fails its job today and gates no merge (§6.9, #1263).
+Promotion to a required check landed on 2026-09-07, in the same ruleset write that promoted
+`commentlint lint` (§6.9, #1263).
 
 ---
 
@@ -3345,11 +3346,9 @@ stands on the other half of the trade: the cap is a sweep-time repair discipline
 
 ## 10. Not yet specified
 
-- **Promotion of `commentlint` to a required status check.** #1435 already made `lint` fail on a
-  violation, so the advisory half of this question is closed (§6.9). What remains is the settings
-  write: whether `lint`, `verify`, or both join the 7 required checks. #1263 holds that write. A red
-  `lint` blocks no merge until it lands. Promoting `verify` would drop the `sweep:comments` label
-  gate (§6.11). The sweep's false-positive rate still governs the timing.
+- **Promotion of `commentlint` to a required status check.** Settled on 2026-09-07. `lint` joined
+  the required checks beside `citations` and `adr-sections`. `verify` did not, because promoting it
+  would drop the `sweep:comments` label gate (§6.11). A red `lint` now blocks the merge.
 - **Whether tooling generates the keeps ledger.** §4.9 fixes the requirement. Whether `commentlint`
   emits a ledger skeleton, or the sweep agent writes it by hand, is an implementation choice. The
   implement effort decides it.

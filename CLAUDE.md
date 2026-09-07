@@ -67,7 +67,7 @@ The 72 ADRs a sweep authored, the 43 `adr-gap` issues, and the same-day reversal
 
 `main` is protected by an active repository RULESET, not classic branch protection. `gh api repos/.../branches/main/protection` returns a misleading 404. Check `gh api repos/winniel123/verge-asm/rulesets` instead. No direct pushes. Every change goes through a PR.
 
-7 required status checks must pass before merge: `test`, `gosec`, `govulncheck`, `gitleaks`, `sqlc`, `analyze (go)`, `analyze (javascript-typescript)`.
+11 required status checks must pass before merge: `test`, `staticcheck`, `gosec`, `govulncheck`, `gitleaks`, `sqlc`, `analyze (go)`, `analyze (javascript-typescript)`, `citations`, `adr-sections`, and commentlint's `lint`. The last three joined on 2026-09-07 as Lane A of the ADR-drift repair.
 
 - `gosec` and `govulncheck` BLOCK. `govulncheck` fails on any reachable advisory. `gosec` runs `-exclude-generated -severity high -confidence high`.
 - `test` runs `go vet` and `go test`.
