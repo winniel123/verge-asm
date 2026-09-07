@@ -88,12 +88,13 @@ type fakeStore struct {
 	sessions      []db.Session
 	sessionNextID int64
 
-	passwordResets []db.PasswordReset
-	resetNextID    int64
-	recoveryCodes  []db.RecoveryCode
-	recoveryNextID int64
-	invites        []db.Invite
-	inviteNextID   int64
+	passwordResets  []db.PasswordReset
+	resetNextID     int64
+	recoveryCodes   []db.RecoveryCode
+	recoveryNextID  int64
+	invites         []db.Invite
+	inviteStaleRead bool
+	inviteNextID    int64
 
 	admitted []db.AdmittedName
 
