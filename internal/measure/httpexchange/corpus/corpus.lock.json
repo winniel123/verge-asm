@@ -1,6 +1,14 @@
 {
-  "leaf_version": "http-exchange/v2",
+  "leaf_version": "http-exchange/v3",
   "corpus_digest": "sha256:5223ba7d50fb18fdeb17f1ae47a876d18624aba175608d51b4b33e6709733524",
   "params_digest": "sha256:a1fa742002e2a382b15dd6704b02ea22b0b74adc023cb04594a38d5f320a33ed",
-  "uncovered_moves": null
+  "uncovered_moves": [
+    {
+      "leaf": "http-exchange",
+      "bumped_to": "http-exchange/v3",
+      "input_class": "https listeners as the live client verifies them against an IP-literal URL - above all a real certificate with no IP SAN, which default verification refuses and which then folds to no-http-response",
+      "ticket": "#1647",
+      "date": "2026-09-07"
+    }
+  ]
 }
