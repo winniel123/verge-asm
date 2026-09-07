@@ -375,7 +375,8 @@ func (s *server) ssoUnlink(w http.ResponseWriter, r *http.Request, acct db.Accou
 }
 
 func (s *server) loginData(ctx context.Context, errMsg string) map[string]any {
-	data := map[string]any{"Title": "Sign in", "SSOProviders": s.loginProviders(ctx, false)}
+	data := barePageData("Sign in")
+	data["SSOProviders"] = s.loginProviders(ctx, false)
 	if errMsg != "" {
 		data["Error"] = errMsg
 	}

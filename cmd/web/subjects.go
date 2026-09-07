@@ -258,11 +258,9 @@ func (s *server) endpointPage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	data.Provenance = subjectProvenance("endpoint", seedScope, firstSeenFromTimelines(data.Timelines))
 	data.Rules = s.subjectRules(r, subject.SubjectKey)
 
-	s.render(w, r, "endpoint", map[string]any{
-		"Title": subject.SubjectKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "inventory",
-		"Endpoint":  data,
-	})
+	s.render(w, r, "endpoint", pageData(acct, subject.SubjectKey, "inventory", map[string]any{
+		"Endpoint": data,
+	}))
 }
 
 func endpointStatusLabel(v httpIdentityValue) string {
@@ -372,11 +370,9 @@ func (s *server) servicePage(w http.ResponseWriter, r *http.Request, acct db.Acc
 	data.Rules = s.subjectRules(r, subject.SubjectKey)
 	data.Signals = s.assetSignals(r, subject.SubjectKey)
 
-	s.render(w, r, "service", map[string]any{
-		"Title": subject.SubjectKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "inventory",
-		"Service":   data,
-	})
+	s.render(w, r, "service", pageData(acct, subject.SubjectKey, "inventory", map[string]any{
+		"Service": data,
+	}))
 }
 
 func serviceCopyKey(addr, port, transport string) string {
@@ -969,11 +965,9 @@ func (s *server) assetPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	data.Exposure = assetHeaderExposure(data.Ports)
 	data.Drift = assetDrift(s.buildTimelines(r, "name", key))
 
-	s.render(w, r, "asset", map[string]any{
-		"Title": subject.SubjectKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
-		"NavActive": "inventory",
-		"Asset":     data,
-	})
+	s.render(w, r, "asset", pageData(acct, subject.SubjectKey, "inventory", map[string]any{
+		"Asset": data,
+	}))
 }
 
 func (s *server) assetProvenance(r *http.Request, key string) (items []assetKV, inScopeSince string) {

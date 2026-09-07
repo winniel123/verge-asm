@@ -408,6 +408,7 @@ var devExposureRows = []devExposureRow{
 func (s *server) exposureFixtureData(acct db.Account, variant string) map[string]any {
 	data := map[string]any{
 		"Title": "Exposure", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:    true,
 		"NavActive": "exposure",
 	}
 	if variant == devExposureWithheldVariant {
@@ -518,6 +519,7 @@ var devCoverageStaleZones = []devCoverageStaleZone{
 func (s *server) coverageFixtureData(acct db.Account) map[string]any {
 	data := map[string]any{
 		"Title": "Coverage", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:    true,
 		"NavActive": "coverage",
 	}
 
@@ -635,6 +637,7 @@ func (s *server) runDetailFixtureData(acct db.Account) map[string]any {
 	}
 	return map[string]any{
 		"Title": "batch " + view.Title, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:    true,
 		"NavActive": "drift",
 		"Run":       view,
 	}
@@ -679,6 +682,7 @@ func (s *server) runningRunFixtureData(acct db.Account, jobParam, bareHref strin
 	linkRunLog(&view, bareHref)
 	return map[string]any{
 		"Title": "batch " + view.Title, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:    true,
 		"NavActive": "drift",
 		"Refresh":   runRefresh(view.Status),
 		"Run":       view,
@@ -780,6 +784,7 @@ func (s *server) driftFixtureData(acct db.Account) map[string]any {
 
 	return map[string]any{
 		"Title": "Drift", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:          true,
 		"NavActive":       "drift",
 		"Kinds":           driftKinds(),
 		"Periods":         driftPeriods(),
@@ -964,6 +969,7 @@ func (s *server) scopeFixtureData(acct db.Account, ov scopeOverlay) map[string]a
 
 	data := map[string]any{
 		"Title": "Scope", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:           true,
 		"NavActive":        "scope",
 		"AddressCap":       devScopeAddressCap,
 		"Seeds":            seeds,
@@ -1229,6 +1235,7 @@ func (s *server) signalsFixtureData(acct db.Account, r *http.Request) map[string
 
 	data := map[string]any{
 		"Title": "Signals", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:         true,
 		"NavActive":      "signals",
 		"Tab":            tab,
 		"OpenCount":      devSignalsOpenCount,
@@ -1374,6 +1381,7 @@ func (s *server) dashboardFixtureData(acct db.Account, r *http.Request) map[stri
 
 	data := map[string]any{
 		"Title": "Dashboard", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:         true,
 		"NavActive":      "dashboard",
 		"EmptyEstate":    false,
 		"ScanSchedule":   devDashSchedule,
@@ -1438,6 +1446,7 @@ func (s *server) firstRunFixtureData(acct db.Account) map[string]any {
 	}
 	return map[string]any{
 		"Title": "Dashboard", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:        true,
 		"NavActive":     "dashboard",
 		"EmptyEstate":   true,
 		"FirstRunDone":  fx.FirstRunDone,
@@ -1512,6 +1521,7 @@ func devAssetData() assetPageData {
 func (s *server) assetFixtureData(acct db.Account) map[string]any {
 	return map[string]any{
 		"Title": devAssetKey, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:    true,
 		"NavActive": "inventory",
 		"Asset":     devAssetData(),
 	}
@@ -1665,6 +1675,7 @@ func (s *server) serviceFixtureData(acct db.Account, key string) (map[string]any
 	}
 	return map[string]any{
 		"Title": key, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:    true,
 		"NavActive": "inventory",
 		"Service":   data,
 	}, true
@@ -1676,6 +1687,7 @@ func (s *server) endpointFixtureData(acct db.Account, key string) (map[string]an
 	}
 	return map[string]any{
 		"Title": key, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:    true,
 		"NavActive": "inventory",
 		"Endpoint":  devEndpointData(),
 	}, true
@@ -1752,6 +1764,7 @@ func devGraphData() graphView {
 func (s *server) graphFixtureData(acct db.Account) map[string]any {
 	return map[string]any{
 		"Title": "Graph", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:    true,
 		"NavActive": "graph",
 		"Graph":     devGraphData(),
 	}
@@ -1921,6 +1934,7 @@ func (s *server) reportsFixtureData(acct db.Account) map[string]any {
 	fx := loadReportsFixture()
 	return map[string]any{
 		"Title": "Reports", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:    true,
 		"NavActive": "reports",
 
 		"RangeLabel":  fx.RangeLabel,
@@ -2016,6 +2030,7 @@ func (s *server) reportartifactFixtureData(acct db.Account, variant string) map[
 
 	return map[string]any{
 		"Title": "Report delivery", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:     true,
 		"NavActive":  "reports",
 		"Heading":    heading,
 		"Period":     period,
@@ -2116,6 +2131,7 @@ func reportsWizardMap(fx reportsFixtureWizard, q map[string][]string, acct db.Ac
 	last := step == len(fx.Steps)-1
 	return map[string]any{
 		"Title": fx.Title, "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:    true,
 		"NavActive": "reports",
 
 		"WizardTitle": fx.Title,
@@ -2271,6 +2287,7 @@ func (s *server) inboxFixtureData(acct db.Account, r *http.Request) map[string]a
 
 	return map[string]any{
 		"Title": "Inbox", "Account": acct, "IsAdmin": acct.Role == roleAdmin,
+		shellKey:     true,
 		"NavActive":  "inbox",
 		"Messages":   messages,
 		"Selected":   selected,
