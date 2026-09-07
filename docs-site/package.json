@@ -35,6 +35,7 @@
     "remark-gfm": "^4.0.0"
   },
   "devDependencies": {
+    "@astrojs/check": "^0.9.10",
     "parse-english": "7.0.0",
     "pixelmatch": "7.2.0",
     "playwright": "1.62.1",
@@ -42,6 +43,7 @@
     "pos": "0.4.2",
     "remark-frontmatter": "^5.0.0",
     "remark-parse": "^11.0.0",
+    "typescript": "^5.9.3",
     "unified": "^11.0.5",
     "unist-util-visit": "^5.1.0",
     "unist-util-visit-parents": "^6.0.2"

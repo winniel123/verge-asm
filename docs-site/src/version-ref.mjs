@@ -72,3 +72,9 @@ export function refFromManifest(version, versions) {
   const match = (versions ?? []).find((v) => v.value === version);
   return match ? match.ref : version;
 }
+
+// `/` lands on `latest`, and `current` names a release, not a default (ADR-0155 §3, #1445).
+export function landingVersion(versions) {
+  const listed = versions ?? [];
+  return (listed.find((v) => v.value === LATEST_VERSION) || listed[0] || {}).value;
+}

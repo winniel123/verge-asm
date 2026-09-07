@@ -168,13 +168,17 @@ private key: they live on the per-service state volumes, not in Postgres.
 
 ## Volumes
 
-`docker-compose.yml` declares three named volumes. Back these up:
+`docker-compose.yml` declares four named volumes. Back up these three:
 
 | Volume | Holds | Losing it means |
 | --- | --- | --- |
 | `pgdata` | the entire estate — subjects, observations, spans, all declared data | total data loss |
 | `web-state` | session signing key | all sessions invalidated; a new key is regenerated |
 | `worker-state` | prober SSH private key | provisioned vantages must re-install the new public key |
+
+This table excludes the fourth, `transcript-key`, on purpose.
+[backup-and-restore.md → The transcript key](backup-and-restore.md#the-transcript-key)
+states why, and what losing it costs.
 
 For the restore side this section omits — taking and restoring a consistent `pgdata`
 dump, what each state volume regenerates when lost, retention tuning, and a
@@ -301,10 +305,13 @@ Three changes would reopen the grant, and the ADR-0137 amendment lists a fourth.
   at the default cap over a dropping estate need 172% of the cadence.
 - **Raise the address cap over an estate that drops.** The measured cliff sits near 1,190
   addresses, just above the default 1024.
-- **Fix `per_host_concurrency` and watch a real estate still miss its cadence.** Every
-  `Batch` records a concurrency of 20 and no code reads it, so the leaf probes one target
-  at a time. That defect carries the whole 86% figure above.
-  [#1572](https://github.com/winniel123/verge-asm/issues/1572) tracks it.
+- **Raise the in-flight count and watch a real estate still miss its cadence.** Every
+  `Batch` now records the count the exchange actually runs, and that count is 1
+  ([#1572](https://github.com/winniel123/verge-asm/issues/1572)). **The serial exchange
+  stays.** Raising it is a safety-budget change under the ADR-0137 amendment and not a
+  performance one, so it waits on a decision about what the pacer then promises at a
+  target. The serial exchange carries the whole 86% figure above, and the honest record
+  is what makes the cost legible before anyone spends it.
 
 Recorded `hot` skips are the signal for all three. Watch them before you reach for a
 second worker.
