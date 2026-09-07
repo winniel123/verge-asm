@@ -57,7 +57,6 @@ var (
 	errRestoreBadManifest = errors.New("restore: archive has no valid manifest line")
 	errRestoreBadFormat   = errors.New("restore: not a verge-backup archive")
 	errRestoreUnknownTbl  = errors.New("restore: archive names a table outside the backup allowlist")
-	errRestoreSchema      = errors.New("restore: archive schema version does not match this instance")
 )
 
 func preflightArchive(r io.Reader) (restorePreflight, error) {

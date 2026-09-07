@@ -131,16 +131,6 @@ type subjectRule struct {
 	Verdict  signal.Outcome
 }
 
-type subjectPageData struct {
-	Name               string
-	Withdrawn          bool
-	Resolution         string
-	Addresses          []string
-	Citation           []citationHop
-	CitationTerminated bool
-	Timelines          []timelineView
-}
-
 type timelineView struct {
 	Facet         string
 	Discriminator string
@@ -579,30 +569,6 @@ const (
 	hopKindObservation = "observation"
 )
 
-func nameCitationHop(cit db.GetNameCitationRow) citationHop {
-	batch := " Scan · batch #" + strconv.FormatInt(cit.BatchID, 10)
-	if cit.HopKind == hopKindAdmission {
-		detail := "source " + cit.Source
-		if cit.ObservedAt.Valid {
-			detail = "admitted " + cit.ObservedAt.Time.UTC().Format("2006-01-02 15:04 UTC") + " · " + detail
-		}
-		return citationHop{
-			Label:  "Admitted by · certificate transparency",
-			Value:  "certificate transparency · " + cit.ScanKind + batch,
-			Detail: detail,
-		}
-	}
-	detail := "source " + cit.Source
-	if cit.ObservedAt.Valid {
-		detail = "first measured " + cit.ObservedAt.Time.UTC().Format("2006-01-02 15:04 UTC") + " · " + detail
-	}
-	return citationHop{
-		Label:  "Introduced by · observation",
-		Value:  "resolution-walk · " + cit.ScanKind + batch,
-		Detail: detail,
-	}
-}
-
 type nameSeedTerm struct {
 	NameDomain        pgtype.Text
 	CreatedAt         pgtype.Timestamptz
@@ -623,41 +589,6 @@ func (s *server) terminatingNameSeed(r *http.Request, key string, cit db.GetName
 		return nameSeedTerm{}, false
 	}
 	return nameSeedTerm{NameDomain: seed.NameDomain, CreatedAt: seed.CreatedAt, CreatedByUsername: seed.CreatedByUsername}, true
-}
-
-func (s *server) buildCitation(r *http.Request, key string) ([]citationHop, bool) {
-	hops := []citationHop{{
-		Label: "Subject · Name", Value: key,
-	}}
-
-	terminated := false
-	cit, citErr := s.subjectsStore.GetNameCitation(r.Context(), db.GetNameCitationParams{
-		SubjectKey: key, AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
-	})
-	if citErr == nil {
-		hops = append(hops, nameCitationHop(cit))
-	}
-
-	if seed, ok := s.terminatingNameSeed(r, key, cit, citErr); ok {
-		detail := ""
-		if seed.CreatedByUsername != "" {
-			detail = "declared by " + seed.CreatedByUsername
-		}
-		if seed.CreatedAt.Valid {
-			if detail != "" {
-				detail += " · "
-			}
-			detail += seed.CreatedAt.Time.UTC().Format("2006-01-02 15:04 UTC")
-		}
-		hops = append(hops, citationHop{
-			Label:  "Declared · Seed",
-			Value:  "name scope " + seed.NameDomain.String,
-			Detail: detail,
-		})
-		terminated = true
-	}
-
-	return hops, terminated
 }
 
 const spanTimeFmt = "2006-01-02 15:04 UTC"
