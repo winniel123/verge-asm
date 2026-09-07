@@ -213,7 +213,7 @@ func TestCAIDAProposesFromLiveAS2orgSearchCapture(t *testing.T) {
 }
 
 func TestCAIDATransportFailureIsNotAnEmptyResult(t *testing.T) {
-	// A swapped constant alone would decode an unknown envelope to nil and read as absence (ADR-0223, #1616).
+	// A swapped constant alone would decode a live body to nil and read as absence (#1616).
 	base := "https://api.data.caida.org/as2org/v1"
 	del := "https://ftp.afrinic.net/stats/afrinic"
 

@@ -15,12 +15,12 @@ import (
 	"strings"
 )
 
-type CAIDA struct { // CAIDA's org search yields opaque ids and never prefixes, so the RIR file supplies the scopes (ADR-0227)
+type CAIDA struct {
 	doer          Doer
 	slug          string
-	rir           string // the RIR name the delegated-stats rows and the search's source field carry, not the catalogue slug
+	rir           string // the RIR name the stats rows and the search's source carry, not the slug
 	caidaBase     string
-	delegatedBase string
+	delegatedBase string // CAIDA yields ids and no prefix, so this file holds the scopes (ADR-0227)
 }
 
 func NewCAIDA(doer Doer, slug, rir, caidaBase, delegatedBase string) *CAIDA {
@@ -82,7 +82,7 @@ func (c *CAIDA) orgIDs(ctx context.Context, orgName string) ([]string, error) {
 		rows := *p.Data
 		read += len(rows)
 		for _, row := range rows {
-			// The search scores every RIR's records, so it answers with other regions and near names (ADR-0227 §2).
+			// The search is scored, so it answers with other RIRs and near names (ADR-0227 §2).
 			if !strings.EqualFold(row.Source, rir) || !strings.Contains(strings.ToLower(row.OrgName), want) {
 				continue
 			}
@@ -96,7 +96,7 @@ func (c *CAIDA) orgIDs(ctx context.Context, orgName string) ([]string, error) {
 		}
 		if read >= *p.TotalCount {
 			if len(ids) == 0 && named > 0 {
-				// CAIDA holds this org and publishes no join key, which is a gap and never an absence (#50)
+				// CAIDA holds the org under no join key, which is a gap and not an absence (#50)
 				return nil, fmt.Errorf("caida search matched %d %s records for %q and none carries an opaqueId", named, rir, orgName)
 			}
 			return ids, nil
@@ -134,7 +134,7 @@ func (c *CAIDA) searchPage(ctx context.Context, orgName string, offset int) (*ca
 		return nil, fmt.Errorf("decode caida search: %w", err)
 	}
 	if page.TotalCount == nil || page.PageInfo == nil || page.Data == nil {
-		// encoding/json drops an unknown key, so an unrecognised envelope would otherwise decode to absence (ADR-0227 §3)
+		// encoding/json drops an unknown key, so a strange envelope reads as absence (ADR-0227 §3)
 		return nil, fmt.Errorf("caida search returned no totalCount, pageInfo or data")
 	}
 	if e := bytes.TrimSpace(page.Errors); len(e) > 0 && !bytes.Equal(e, []byte("null")) {
