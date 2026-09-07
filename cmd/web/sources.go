@@ -173,12 +173,27 @@ func (s *server) sourcesModal(w http.ResponseWriter, r *http.Request, acct db.Ac
 }
 
 type sourceTierRow struct {
-	ID     string
-	Name   string
-	Kind   string
-	What   string
-	Reason string
-	On     bool
+	ID           string
+	Name         string
+	Kind         string
+	What         string
+	Reason       string
+	Consent      string
+	ConsentClass string
+	On           bool
+}
+
+func consentBadgeClass(tier string) string {
+	switch tier {
+	case consentUnencumbered:
+		return "ok"
+	case consentCredentialed:
+		return "accent" // the authenticated tier clears the bar, so it is not a warning (ADR-0003)
+	case consentAccepted:
+		return "warn"
+	default:
+		return "neutral"
+	}
 }
 
 func (s *server) fillSourcesSection(r *http.Request, f settingsForms, data map[string]any) error {
@@ -189,7 +204,11 @@ func (s *server) fillSourcesSection(r *http.Request, f settingsForms, data map[s
 
 	var unencumbered, operatorAccepted, barred []sourceTierRow
 	for _, v := range views {
-		row := sourceTierRow{ID: v.Slug, Name: v.Name, Kind: v.KindLabel, What: v.ShipNote, Reason: v.BarredReason, On: v.Enabled}
+		row := sourceTierRow{
+			ID: v.Slug, Name: v.Name, Kind: v.KindLabel, What: v.ShipNote,
+			Reason: v.BarredReason, Consent: v.Consent, ConsentClass: consentBadgeClass(v.Consent),
+			On: v.Enabled,
+		}
 		switch {
 		case v.NoRunner:
 			barred = append(barred, row)
