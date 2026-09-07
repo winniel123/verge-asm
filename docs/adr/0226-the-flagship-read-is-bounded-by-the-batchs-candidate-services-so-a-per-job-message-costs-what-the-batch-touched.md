@@ -1,4 +1,4 @@
-# ADR-0222: the flagship read is bounded by the batch's candidate Services, so a per-job message costs what the batch touched
+# ADR-0226: the flagship read is bounded by the batch's candidate Services, so a per-job message costs what the batch touched
 
 - **Status:** Accepted
 - **Date:** 2026-09-07

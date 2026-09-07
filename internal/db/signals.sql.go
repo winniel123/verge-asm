@@ -354,7 +354,7 @@ type ListServiceReachabilitySpansByClassForServicesRow struct {
 	DialledAddr pgtype.Text        `json:"dialled_addr"`
 }
 
-// The bound limits the per-job read to the batch's Services, not the corpus (ADR-0222 §1, #1609).
+// The bound limits the per-job read to the batch's Services, not the corpus (ADR-0226 §1, #1609).
 func (q *Queries) ListServiceReachabilitySpansByClassForServices(ctx context.Context, serviceKeys []string) ([]ListServiceReachabilitySpansByClassForServicesRow, error) {
 	rows, err := q.db.Query(ctx, listServiceReachabilitySpansByClassForServices, serviceKeys)
 	if err != nil {

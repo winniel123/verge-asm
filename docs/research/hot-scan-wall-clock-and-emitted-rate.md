@@ -606,7 +606,7 @@ by this ticket.**
 
    > **Filed and repaired. Every number above stands.**
    > [#1609](https://github.com/winniel123/verge-asm/issues/1609) took the two scans.
-   > [ADR-0222](../adr/0222-the-flagship-read-is-bounded-by-the-batchs-candidate-services-so-a-per-job-message-costs-what-the-batch-touched.md)
+   > [ADR-0226](../adr/0226-the-flagship-read-is-bounded-by-the-batchs-candidate-services-so-a-per-job-message-costs-what-the-batch-touched.md)
    > bounds both reads by the batch's candidate Services, so the per-job read no longer scans the
    > whole `span` table. The measurements here describe the code as it stood on 2026-09-07, before
    > that repair. §5.2's 11,300-address warning rests on the slope the repair removes. The 26,100

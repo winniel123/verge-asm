@@ -94,7 +94,7 @@ WHERE sp.subject_kind = 'service'
 ORDER BY sp.subject_key, sp.vantage_id, sp.opened_at DESC, sp.id DESC;
 
 -- name: ListServiceReachabilitySpansByClassForServices :many
--- The bound limits the per-job read to the batch's Services, not the corpus (ADR-0222 §1, #1609).
+-- The bound limits the per-job read to the batch's Services, not the corpus (ADR-0226 §1, #1609).
 SELECT DISTINCT ON (sp.subject_key, sp.vantage_id)
     sp.subject_key AS subject_key,
     sp.vantage_id  AS vantage_id,
