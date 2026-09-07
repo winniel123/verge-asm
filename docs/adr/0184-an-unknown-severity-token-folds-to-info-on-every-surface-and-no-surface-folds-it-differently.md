@@ -85,10 +85,17 @@ func (s Severity) Rank() int {
 `internal/signal/severity.go:18`. The explicit `return len(SevOrder)` is the whole content of that
 site: the loop's natural fall-through in Go is the zero value, and rank zero is `SevCritical`.
 
-**`normSev` reaches both render forms of the report.** `render.go:286`, `render.go:301` and
-`render.go:345` on the screen form, `artifactdoc.go:141` and `artifactdoc.go:151` on the email/doc
+**`normSev` reaches both render forms of the report.** ~~`render.go:286`, `render.go:301` and
+`render.go:345` on the screen form,~~ `artifactdoc.go:141` and `artifactdoc.go:151` on the email/doc
 form, and `pdf.go:68` and `pdf.go:147` on the print form. ADR-0114 authors the print layout separately
 from the HTML, and this one function is what stops the two layouts from disagreeing about a grade.
+
+> **WITHDRAWN in part, by [#1567](https://github.com/winniel123/verge-asm/issues/1567).** PR
+> [#1548](https://github.com/winniel123/verge-asm/pull/1548) deleted `render.go:301` and
+> `render.go:345` with `artifactSeverityBars` and `artifactSeverityBadge`. `render.go:286` is the call
+> inside `sevTitle`, now `render.go:191`. The screen form renders through `renderArtifactDoc`, so the
+> two `artifactdoc.go` sites serve the screen and the email/doc form alike. `normSev` still reaches
+> both render forms, so the claim this paragraph makes stands.
 
 ### The collision is measurable, and it points at `critical` twice
 
@@ -109,8 +116,16 @@ and the report's rows sort that signal first. `cmd/web/reports.go:146` reads
 **In the rendered grade.** `artifactSevLevels` (`render.go:273`) and `SevOrder` (`severity.go:16`) both
 list `critical` first. A fold written as *take the first member* — the shortest correct-looking
 normaliser over an ordered set — folds every unknown token to `critical`.
-`artifactSeverityBadge` (`render.go:347`) special-cases `critical` as the ramp's only solid fill, so
+~~`artifactSeverityBadge` (`render.go:347`) special-cases `critical` as the ramp's only solid fill~~, so
 that fold paints the loudest element in the system for a token nobody recognises.
+
+> **WITHDRAWN in part, by [#1567](https://github.com/winniel123/verge-asm/issues/1567).** PR
+> [#1548](https://github.com/winniel123/verge-asm/pull/1548) deleted `artifactSeverityBadge`. The
+> `sevbadge` define at `design-system/templates/signals.tmpl:1` carries the same special case, and
+> `internal/message/artifactdoc.go` renders the delivered report through it, so the solid fill and the
+> collision both stand. The three later mentions of the symbol in this file sit under **Alternatives
+> rejected**. They record refusals at this ADR's date, and each keeps a live co-referent — the
+> `sevbadge` templates, or `pdfSevColor` — so this withdrawal leaves them standing as written.
 
 **Both collisions are with the same member, and it is the member that costs the most.** The fold's
 direction is not arbitrary and is not a tie-break. It is a refusal.
