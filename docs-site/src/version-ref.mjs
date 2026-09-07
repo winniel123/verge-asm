@@ -50,6 +50,8 @@ export function refForTagVersion(version, tags) {
 export function versionManifest(tags) {
   const stable = newestStableTag(tags);
   const latestRef = refForTagVersion(LATEST_VERSION, tags);
+  // "current" names the newest stable release, and names `latest` only where no release
+  // exists yet (ADR-0155 §3, #1445).
   const options = [
     stable
       ? { value: LATEST_VERSION, ref: latestRef }
