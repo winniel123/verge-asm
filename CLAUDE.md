@@ -55,6 +55,14 @@ This rule holds even when the next ticket looks small or looks blocked on nothin
 
 At the end of a wayfinder or implementation session, open a PR and make sure the branch is up-to-date with `main`. A human squashes and merges the PR.
 
+### ADR moratorium
+
+An ADR governance map is open. Its destination is `docs/spec/adr-governance.md`. Until that map closes, do not write an ADR from a comment sweep, an `adr-gap` issue, or a deleted comment. Keep the reason in code, as a comment that passes the two gates in `## Comments`.
+
+A bug or a feature session writes an ADR only when all three hold. The decision is hard to reverse. A reader without context would ask why. The session chose it over a named alternative. When one fails, write no ADR. Put the reason in the PR body instead.
+
+The 72 ADRs a sweep authored, the 43 `adr-gap` issues, and the same-day reversal of ADR-0223 §3 by ADR-0227 are the measured cause. The map decides what replaces this rule.
+
 ## Landing PRs on `main`
 
 `main` is protected by an active repository RULESET, not classic branch protection. `gh api repos/.../branches/main/protection` returns a misleading 404. Check `gh api repos/winniel123/verge-asm/rulesets` instead. No direct pushes. Every change goes through a PR.
