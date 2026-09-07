@@ -12,6 +12,15 @@ import (
 	"github.com/winniel123/verge-asm/internal/scan"
 )
 
+type sourcesStore interface {
+	CTLastBatchAdmitCount(ctx context.Context) (int64, error)
+	CTReliabilityWindow(ctx context.Context, arg db.CTReliabilityWindowParams) (db.CTReliabilityWindowRow, error)
+	CTTailLastBatch(ctx context.Context) (db.CTTailLastBatchRow, error)
+	CountCertificateMaterial(ctx context.Context) (int64, error)
+	ListSourceStates(ctx context.Context) ([]db.SourceState, error)
+	UpsertSourceState(ctx context.Context, arg db.UpsertSourceStateParams) (db.SourceState, error)
+}
+
 const (
 	consentUnencumbered = "unencumbered"
 	consentAccepted     = "operator-accepted"

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"html/template"
 	"io"
@@ -23,6 +24,22 @@ import (
 	"github.com/winniel123/verge-asm/internal/seed"
 	"github.com/winniel123/verge-asm/internal/signal"
 )
+
+type seedsStore interface {
+	queue.SeedWithdrawalPreviewStore
+	queue.NameSeedWithdrawalPreviewStore
+
+	CreateAddressSeed(ctx context.Context, arg db.CreateAddressSeedParams) (db.Seed, error)
+	CreateNameSeed(ctx context.Context, arg db.CreateNameSeedParams) (db.Seed, error)
+	CreateZoneFile(ctx context.Context, arg db.CreateZoneFileParams) (db.CreateZoneFileRow, error)
+	GetZoneCadenceSeconds(ctx context.Context) (int64, error)
+	ListExclusions(ctx context.Context) ([]db.ListExclusionsRow, error)
+	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
+	ListVantages(ctx context.Context) ([]db.ListVantagesRow, error)
+	ListZoneFileStatus(ctx context.Context) ([]db.ListZoneFileStatusRow, error)
+	SetZoneCadenceSeconds(ctx context.Context, cadenceSeconds int64) error
+	WithdrawSeed(ctx context.Context, arg db.WithdrawSeedParams) (db.WithdrawSeedRow, error)
+}
 
 var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/scope.tmpl"))
 

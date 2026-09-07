@@ -13,6 +13,12 @@ import (
 	"github.com/winniel123/verge-asm/internal/vantageclass"
 )
 
+type vantageClassStore interface {
+	queue.AddressExclusionStore
+
+	ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error)
+}
+
 // One binding serves batch gating and every render, so a second predicate is refused (#711).
 
 func (s *server) addressScopeCovered(ctx context.Context) (func(netip.Addr) bool, error) {

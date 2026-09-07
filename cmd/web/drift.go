@@ -14,6 +14,12 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
+type driftStore interface {
+	EarliestBatchTime(ctx context.Context) (pgtype.Timestamptz, error)
+	ListDispatchProgress(ctx context.Context, limit int32) ([]db.ListDispatchProgressRow, error)
+	ListRecentDriftEvents(ctx context.Context, arg db.ListRecentDriftEventsParams) ([]db.ListRecentDriftEventsRow, error)
+}
+
 var _ = template.Must(tmpl.ParseFS(designfs.FS, "templates/drift.tmpl"))
 
 func driftFamily(change string) string {

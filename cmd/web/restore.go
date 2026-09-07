@@ -18,6 +18,10 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 )
 
+type restoreStore interface {
+	ListDispatchProgress(ctx context.Context, limit int32) ([]db.ListDispatchProgressRow, error)
+}
+
 const restoreMaxUpload = 1 << 30
 
 // The confirm dialog re-posts only the typed word, so the pre-flighted archive is held here.

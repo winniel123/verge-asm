@@ -19,6 +19,16 @@ import (
 	"github.com/winniel123/verge-asm/internal/message"
 )
 
+type integrationsStore interface {
+	DeleteIntegrationState(ctx context.Context, slug string) error
+	GetChannelForDelivery(ctx context.Context, id int64) (db.GetChannelForDeliveryRow, error)
+	GetIntegrationChannel(ctx context.Context, slug string) (pgtype.Int8, error)
+	ListChannels(ctx context.Context) ([]db.ListChannelsRow, error)
+	ListIntegrationStates(ctx context.Context) ([]db.IntegrationState, error)
+	SetIntegrationChannel(ctx context.Context, arg db.SetIntegrationChannelParams) error
+	UpsertIntegrationState(ctx context.Context, arg db.UpsertIntegrationStateParams) (db.IntegrationState, error)
+}
+
 const integrationsEnabled = true
 
 // An integration is neither a delivery channel nor a discovery source (CONTEXT.md).

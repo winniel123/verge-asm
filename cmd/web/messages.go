@@ -16,6 +16,22 @@ import (
 	"github.com/winniel123/verge-asm/internal/message"
 )
 
+type messagesStore interface {
+	CountUnreadMessages(ctx context.Context, accountID int64) (int64, error)
+	ListDeliveryOutcomes(ctx context.Context) ([]db.ListDeliveryOutcomesRow, error)
+	ListMessages(ctx context.Context) ([]db.Message, error)
+	ListReadMessageIDs(ctx context.Context, accountID int64) ([]int64, error)
+	MarkAllMessagesRead(ctx context.Context, arg db.MarkAllMessagesReadParams) error
+	MarkMessageRead(ctx context.Context, arg db.MarkMessageReadParams) error
+	MarkMessageUnread(ctx context.Context, arg db.MarkMessageUnreadParams) error
+}
+
+type reportScheduleRowStore interface {
+	GetLatestReportDelivery(ctx context.Context, scheduleID int64) (db.ReportDelivery, error)
+	ListChannels(ctx context.Context) ([]db.ListChannelsRow, error)
+	ListReportSchedules(ctx context.Context) ([]db.ReportSchedule, error)
+}
+
 // A delivery failure is legible on the Message it failed to carry, never on Coverage (ADR-0039).
 
 type deliveryView struct {

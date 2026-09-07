@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -11,6 +12,16 @@ import (
 	"github.com/winniel123/verge-asm/internal/db"
 	"github.com/winniel123/verge-asm/internal/retention"
 )
+
+type apiV1Store interface {
+	ListAllOpenSpans(ctx context.Context) ([]db.ListAllOpenSpansRow, error)
+	ListCurrentEndpointSubjects(ctx context.Context, arg db.ListCurrentEndpointSubjectsParams) ([]db.ListCurrentEndpointSubjectsRow, error)
+	ListCurrentNameSubjects(ctx context.Context, arg db.ListCurrentNameSubjectsParams) ([]db.ListCurrentNameSubjectsRow, error)
+	ListCurrentServiceSubjects(ctx context.Context, arg db.ListCurrentServiceSubjectsParams) ([]db.ListCurrentServiceSubjectsRow, error)
+	ListRecentDriftEvents(ctx context.Context, arg db.ListRecentDriftEventsParams) ([]db.ListRecentDriftEventsRow, error)
+	ListSeeds(ctx context.Context) ([]db.ListSeedsRow, error)
+	ListZoneDeclarations(ctx context.Context) ([]db.ListZoneDeclarationsRow, error)
+}
 
 func (s *server) mountAPIv1(mux *http.ServeMux) {
 	// A method-less pattern neither dominates nor is dominated by GET /, which net/http refuses.
