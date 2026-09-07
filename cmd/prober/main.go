@@ -44,7 +44,7 @@ func run(stdin io.Reader, stdout io.Writer) error {
 	case httpexchange.Kind:
 		return httpexchange.Run(spec, stdout)
 	case edgefanout.Kind:
-		// It runs before its target is a member, so neither Scan can carry it (ADR-0129 §6, #954).
+		// It runs before its target is a member, so neither Scan can carry it (ADR-0129 #954).
 		return edgefanout.Run(spec, stdout)
 	default:
 		// A kind with no leaf yet still answers job-spec-in / NDJSON-out (ADR-0001).
