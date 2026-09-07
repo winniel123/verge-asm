@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -217,4 +218,36 @@ func TestNarrowingPreviewWiredUp(t *testing.T) {
 	if !strings.Contains(page, "Nothing is withdrawn") {
 		t.Errorf("a non-firing name exclusion should say nothing is withdrawn\nbody: %s", page)
 	}
+}
+
+func (f *fakeStore) ListReadMessageIDs(_ context.Context, accountID int64) ([]int64, error) {
+	set := f.readMarks(accountID)
+	out := make([]int64, 0, len(set))
+	for id := range set {
+		out = append(out, id)
+	}
+	return out, nil
+}
+
+func (f *fakeStore) MarkMessageRead(_ context.Context, arg db.MarkMessageReadParams) error {
+	set := f.readMarks(arg.AccountID)
+	if !set[arg.MessageID] {
+		set[arg.MessageID] = true
+	}
+	return nil
+}
+
+func (f *fakeStore) MarkAllMessagesRead(_ context.Context, arg db.MarkAllMessagesReadParams) error {
+	set := f.readMarks(arg.AccountID)
+	for _, m := range f.messages {
+		if !set[m.ID] {
+			set[m.ID] = true
+		}
+	}
+	return nil
+}
+
+func (f *fakeStore) MarkMessageUnread(_ context.Context, arg db.MarkMessageUnreadParams) error {
+	delete(f.readMarks(arg.AccountID), arg.MessageID)
+	return nil
 }

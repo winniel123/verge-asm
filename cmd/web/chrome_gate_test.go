@@ -32,7 +32,7 @@ func TestSignInPageRendersWithoutChrome(t *testing.T) {
 }
 
 func TestSignedOutErrorPageRendersWithoutChrome(t *testing.T) {
-	s := newServer(newFakeStore(), testKey, "", fixedClock())
+	s := &server{}
 	boom := http.HandlerFunc(func(http.ResponseWriter, *http.Request) { panic("kaboom") })
 	ts := httptest.NewServer(s.recoverPanics(boom))
 	t.Cleanup(ts.Close)

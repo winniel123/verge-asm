@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/winniel123/verge-asm/internal/db"
 )
 
 func editFreq(t *testing.T, c *http.Client, base, action, port string) *http.Response {
@@ -108,4 +111,14 @@ func TestVergeCoreViewerReadOnly(t *testing.T) {
 	if strings.Contains(page, `action="/verge-core/frequency"`) {
 		t.Errorf("an edit control was shown to a viewer")
 	}
+}
+
+func (f *fakeStore) UpsertVergeCoreFrequencyEdit(_ context.Context, arg db.UpsertVergeCoreFrequencyEditParams) error {
+	f.freqEdits[arg.Port] = fakeFreqEdit{action: arg.Action, createdBy: arg.CreatedBy}
+	return nil
+}
+
+func (f *fakeStore) DeleteVergeCoreFrequencyEdit(_ context.Context, port int32) error {
+	delete(f.freqEdits, port)
+	return nil
 }

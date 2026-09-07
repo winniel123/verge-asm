@@ -11,7 +11,7 @@ import (
 func TestChromeScanPillLightsOnEveryView(t *testing.T) {
 	f := newFakeStore()
 	tick := time.Date(2026, 8, 16, 9, 30, 0, 0, time.UTC)
-	srv := newServer(f, testKey, "", fixedClock())
+	srv := &server{scanTriggerStore: f}
 
 	f.dispatchProgress = []db.ListDispatchProgressRow{
 		progressRow(10, "hot", tick, 3, 1, 1, 1, 0, 0),
@@ -48,7 +48,7 @@ func TestChromeScanPillLightsOnEveryView(t *testing.T) {
 func TestChromeScanRunning(t *testing.T) {
 	f := newFakeStore()
 	tick := time.Date(2026, 8, 16, 9, 30, 0, 0, time.UTC)
-	srv := newServer(f, testKey, "", fixedClock())
+	srv := &server{scanTriggerStore: f}
 
 	if srv.chromeScanRunning(context.Background()) {
 		t.Errorf("no dispatches seeded but chromeScanRunning reports running")
