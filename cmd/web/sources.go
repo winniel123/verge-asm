@@ -27,6 +27,12 @@ const (
 	consentCredentialed = "operator-credentialed"
 )
 
+const (
+	barredOnTerms    = "excluded on terms"
+	barredNoRunner   = "no runner ships"
+	barredNoEndpoint = "endpoint does not answer"
+)
+
 type catalogSource struct {
 	Slug         string
 	Name         string
@@ -36,6 +42,7 @@ type catalogSource struct {
 	Consent      string
 	DefaultOn    bool
 	Barred       bool
+	BarredReason string
 	NoRunner     bool // no runner ships, so it stays off and untoggleable (#241)
 	ShipNote     string
 
@@ -67,41 +74,41 @@ var sourceCatalog = []catalogSource{
 	},
 	{
 		Slug: "afrinic", Name: "AFRINIC (CAIDA ⋈ delegated-stats)", IsProposer: true, Consent: consentUnencumbered,
-		DefaultOn: false,
-		ShipNote:  "Keyless org→prefix path via CAIDA joined to delegated-stats. Ships OFF: the CAIDA half is wired to https://api.caida.org, a host that does not resolve (NXDOMAIN, #1519), so every query against this source fails at the request and proposes nothing. The failure is loud, never a proposal of absence. The join itself still holds — CAIDA publishes the delegated-stats opaque-id as a bulk file — so this returns on once the runner reads that file instead.",
+		Barred: true, BarredReason: barredNoEndpoint,
+		ShipNote: "Keyless org→prefix path via CAIDA joined to delegated-stats. Barred, and no longer toggleable: the CAIDA half calls /as2org/v1/org2ids, and no published CAIDA endpoint serves that path. api.caida.org does not resolve. api.data.caida.org serves the AS2org API but publishes no org2ids path, and it names each identifier opaqueId in place of opaque_ids. A swapped host would therefore decode to an empty result, which reads as absence, so the URL was left alone (ADR-0223, #1519). The delegated-stats half is healthy — ftp.afrinic.net answers — so this returns once a runner reads an org-name lookup CAIDA does publish.",
 	},
 	{
 		Slug: "apnic-caida", Name: "APNIC (CAIDA ⋈ delegated-stats)", IsProposer: true, Consent: consentUnencumbered,
-		DefaultOn: false,
-		ShipNote:  "Keyless org→prefix path via CAIDA joined to delegated-stats. Ships OFF: the CAIDA half is wired to https://api.caida.org, a host that does not resolve (NXDOMAIN, #1519), so every query against this source fails at the request and proposes nothing. The failure is loud, never a proposal of absence. The join itself still holds — CAIDA publishes the delegated-stats opaque-id as a bulk file — so this returns on once the runner reads that file instead.",
+		Barred: true, BarredReason: barredNoEndpoint,
+		ShipNote: "Keyless org→prefix path via CAIDA joined to delegated-stats. Barred, and no longer toggleable: the CAIDA half calls /as2org/v1/org2ids, and no published CAIDA endpoint serves that path. api.caida.org does not resolve. api.data.caida.org serves the AS2org API but publishes no org2ids path, and it names each identifier opaqueId in place of opaque_ids. A swapped host would therefore decode to an empty result, which reads as absence, so the URL was left alone (ADR-0223, #1519). The delegated-stats half is healthy — ftp.apnic.net answers — so this returns once a runner reads an org-name lookup CAIDA does publish.",
 	},
 	{
-		Slug: "ripestat", Name: "RIPEstat", IsProposer: true, Consent: consentAccepted, NoRunner: true,
+		Slug: "ripestat", Name: "RIPEstat", IsProposer: true, Consent: consentAccepted, NoRunner: true, BarredReason: barredNoRunner,
 		ShipNote:     "Catalogued — no proposer runner ships for this path yet (#241), so it is off for everyone and offers no toggle. Its tier is operator-accepted: when a runner lands it returns off, enabled only by your own acceptance of the source's terms, and proposes address scopes that enter the estate only once you confirm a proposal into a seed.",
 		MayResolve:   []string{"Whether you resell a service built on the source's data.", "Your own reading of whether writing prefixes to an inventory is re-packaging, and of the purpose list you are bound by."},
 		Unresolvable: []string{"No reply has ever come, and no record of an approach exists."},
 	},
 	{
-		Slug: "ripe-db", Name: "RIPE Database", IsProposer: true, Consent: consentAccepted, NoRunner: true,
+		Slug: "ripe-db", Name: "RIPE Database", IsProposer: true, Consent: consentAccepted, NoRunner: true, BarredReason: barredNoRunner,
 		ShipNote:     "Catalogued — no proposer runner ships for this path yet (#241), so it is off for everyone and offers no toggle. Its tier is operator-accepted: when a runner lands it returns off, enabled only by your own acceptance of the source's terms, and proposes address scopes that enter the estate only once you confirm a proposal into a seed.",
 		MayResolve:   []string{"Your own reading of whether inventorying your own estate is a permitted purpose."},
 		Unresolvable: []string{"No reply has ever come, and no record of an approach exists."},
 	},
 	{
-		Slug: "apnic-registry", Name: "APNIC registry", IsProposer: true, Consent: consentAccepted, NoRunner: true,
+		Slug: "apnic-registry", Name: "APNIC registry", IsProposer: true, Consent: consentAccepted, NoRunner: true, BarredReason: barredNoRunner,
 		ShipNote:     "Catalogued — no proposer runner ships for this path yet (#241), so it is off for everyone and offers no toggle. Its tier is operator-accepted: when a runner lands it returns off, enabled only by your own acceptance of the source's terms, and proposes address scopes that enter the estate only once you confirm a proposal into a seed.",
 		MayResolve:   []string{"Whether you hold, or will seek, the registry's approval.", "Your own reading of the retrieval-system clause's carve-out."},
 		Unresolvable: []string{"No reply has ever come, and no record of an approach exists."},
 	},
 	{
-		Slug: "lacnic-registry", Name: "LACNIC registry", IsProposer: true, Consent: consentAccepted, NoRunner: true,
+		Slug: "lacnic-registry", Name: "LACNIC registry", IsProposer: true, Consent: consentAccepted, NoRunner: true, BarredReason: barredNoRunner,
 		ShipNote:     "Catalogued — no proposer runner ships for this path yet (#241), so it is off for everyone and offers no toggle. Its tier is operator-accepted, but its terms cannot be retrieved: when a runner lands, enabling it would accept a source whose terms nobody has been able to read.",
 		MayResolve:   nil,
 		Unresolvable: []string{"Nobody has been able to retrieve these terms."},
 	},
 	{
 		Slug: "hackertarget", Name: "HackerTarget",
-		Authority: "measured", Completeness: "corroborative", Barred: true,
+		Authority: "measured", Completeness: "corroborative", Barred: true, BarredReason: barredOnTerms,
 		ShipNote: "Excluded on terms. Its terms bar the software's inherent behaviour, which fails regardless of who the operator is — so no operator reading consents past it.",
 	},
 	{
@@ -131,6 +138,7 @@ type sourceView struct {
 	Enabled      bool
 	Toggleable   bool
 	NoRunner     bool
+	BarredReason string
 	ShipNote     string
 	ShowGroups   bool
 	MayResolve   []string
@@ -165,11 +173,12 @@ func (s *server) sourcesModal(w http.ResponseWriter, r *http.Request, acct db.Ac
 }
 
 type sourceTierRow struct {
-	ID   string
-	Name string
-	Kind string
-	What string
-	On   bool
+	ID     string
+	Name   string
+	Kind   string
+	What   string
+	Reason string
+	On     bool
 }
 
 func (s *server) fillSourcesSection(r *http.Request, f settingsForms, data map[string]any) error {
@@ -180,7 +189,7 @@ func (s *server) fillSourcesSection(r *http.Request, f settingsForms, data map[s
 
 	var unencumbered, operatorAccepted, barred []sourceTierRow
 	for _, v := range views {
-		row := sourceTierRow{ID: v.Slug, Name: v.Name, Kind: v.KindLabel, What: v.ShipNote, On: v.Enabled}
+		row := sourceTierRow{ID: v.Slug, Name: v.Name, Kind: v.KindLabel, What: v.ShipNote, Reason: v.BarredReason, On: v.Enabled}
 		switch {
 		case v.NoRunner:
 			barred = append(barred, row)
@@ -278,8 +287,8 @@ func (s *server) sourceViews(r *http.Request) ([]sourceView, error) {
 		if o, ok := override[c.Slug]; ok {
 			enabled = o
 		}
-		if c.NoRunner {
-			enabled = false
+		if c.NoRunner || c.Barred {
+			enabled = false // a bar is authored, so it outranks a stale override (ADR-0223 §2)
 		}
 		kind := "source"
 		if c.IsProposer {
@@ -289,6 +298,7 @@ func (s *server) sourceViews(r *http.Request) ([]sourceView, error) {
 			Slug: c.Slug, Name: c.Name, KindLabel: kind,
 			Authority: c.Authority, Completeness: c.Completeness, Consent: c.Consent,
 			Enabled: enabled, Toggleable: !c.Barred && !c.NoRunner, NoRunner: c.NoRunner,
+			BarredReason: c.BarredReason,
 			ShipNote:     c.ShipNote,
 			ShowGroups:   c.Consent == consentAccepted,
 			MayResolve:   c.MayResolve,
