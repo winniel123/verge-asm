@@ -310,8 +310,10 @@ func TestLookupRunsOnlyEnabledProposers(t *testing.T) {
 	if fp.lastEnabled["arin"] {
 		t.Errorf("arin was passed as enabled after being toggled off: %v", fp.lastEnabled)
 	}
-	if fp.lastEnabled[proposer.SlugAFRINIC] || fp.lastEnabled[proposer.SlugAPNIC] {
-		t.Errorf("the CAIDA proposers are barred (#1519) but were enabled: %v", fp.lastEnabled)
+	for _, slug := range []string{proposer.SlugAFRINIC, proposer.SlugAPNIC} {
+		if !fp.lastEnabled[slug] {
+			t.Errorf("%s ships on and was not toggled off, but was passed as disabled: %v", slug, fp.lastEnabled)
+		}
 	}
 
 	for _, slug := range []string{"arin", proposer.SlugAFRINIC, proposer.SlugAPNIC} {
@@ -326,8 +328,10 @@ func TestLookupRunsOnlyEnabledProposers(t *testing.T) {
 	if !fp.lastEnabled["arin"] {
 		t.Errorf("arin was not passed as enabled after being toggled on: %v", fp.lastEnabled)
 	}
-	if fp.lastEnabled[proposer.SlugAFRINIC] || fp.lastEnabled[proposer.SlugAPNIC] {
-		t.Errorf("an override ran a barred proposer (ADR-0223 §2): %v", fp.lastEnabled)
+	for _, slug := range []string{proposer.SlugAFRINIC, proposer.SlugAPNIC} {
+		if !fp.lastEnabled[slug] {
+			t.Errorf("%s was toggled on and was still passed as disabled: %v", slug, fp.lastEnabled)
+		}
 	}
 }
 

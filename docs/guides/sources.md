@@ -88,23 +88,32 @@ barred and runs for nobody.
 | Entry | Region / path | Tier | Ships |
 | --- | --- | --- | --- |
 | **ARIN** (`entities?fn=`) | North America, keyless org→prefix | `unencumbered` | **on** |
-| **AFRINIC** (CAIDA ⋈ delegated-stats) | Africa, keyless org→prefix | `unencumbered` | **barred** — endpoint does not answer ([#1519](https://github.com/winniel123/verge-asm/issues/1519)) |
-| **APNIC** (CAIDA ⋈ delegated-stats) | Asia-Pacific, keyless org→prefix | `unencumbered` | **barred** — endpoint does not answer (#1519) |
+| **AFRINIC** (CAIDA ⋈ delegated-stats) | Africa, keyless org→prefix | `unencumbered` | **on** |
+| **APNIC** (CAIDA ⋈ delegated-stats) | Asia-Pacific, keyless org→prefix | `unencumbered` | **on** |
 | **RIPEstat** | RIPE region | `operator-accepted` | **catalogued — no runner** ([#241](https://github.com/winniel123/verge-asm/issues/241)) |
 | **RIPE Database** | RIPE region | `operator-accepted` | **catalogued — no runner** (#241) |
 | **APNIC registry** | APNIC region | `operator-accepted` | **catalogued — no runner** (#241) |
 | **LACNIC registry** | Latin America | `operator-accepted` | **catalogued — no runner** (#241) |
 
 **ARIN** ships on because it is `unencumbered`. The two CAIDA paths are `unencumbered`
-too, but they are **barred** and offer no toggle. Their CAIDA half calls
-`/as2org/v1/org2ids`, and no published CAIDA endpoint serves that path.
-`api.caida.org` does not resolve. `api.data.caida.org` serves the AS2org API but
-publishes no `org2ids` path, and it names each identifier `opaqueId` in place of
-`opaque_ids`. A swapped host would therefore decode to an empty result, which reads
-as absence, so the URL was left alone
+too, and they ship on as well. Their CAIDA half reads
+`https://api.data.caida.org/as2org/v1/search/?name=<org>`, which is a keyless org-name
+search CAIDA publishes. Each record carries an `opaqueId`, and that id joins field 8 of
+the RIR's extended delegated-stats file. Both halves stay keyless, so the tier does not
+move. The search is scored, so it answers with records from other regions and with near
+names. A record is read only when its `source` names this proposer's RIR and its
+`orgName` holds your query. A failed request, an envelope this release does not
+recognise, and an organisation CAIDA holds under no `opaqueId` each return an error.
+None of the three returns an empty result, so a failed request never reads as an absence
+of holders
+([ADR-0227](../adr/0227-caida-publishes-an-org-name-search-so-the-join-replaces-its-first-leg-and-keeps-its-second.md),
+[#1616](https://github.com/winniel123/verge-asm/issues/1616)). The earlier path was
+`/as2org/v1/org2ids` on `api.caida.org`. That host does not resolve, no published CAIDA
+endpoint serves that path, and both are retired
 ([ADR-0223](../adr/0223-a-bar-is-authored-in-the-release-and-a-health-record-is-per-install-so-the-two-never-share-a-badge.md),
-#1519). A barred entry states its own reason on the `/sources` modal, so *excluded on
-terms* is no longer the only thing a bar can say. The four registry paths are `operator-accepted` **by tier**, but **no
+[#1519](https://github.com/winniel123/verge-asm/issues/1519)). A barred entry states its
+own reason on the `/sources` modal, so *excluded on terms* is no longer the only thing a
+bar can say. The four registry paths are `operator-accepted` **by tier**, but **no
 `proposer.Source` runner ships for them yet**. They render consent+toggle but would emit nothing. So they are **catalogued — not
 yet executing** (the #241 mechanism): non-toggleable, offering **no consent dialog**, and
 off for everyone until a runner lands. At that point they return to *ship off — accept the
@@ -250,10 +259,9 @@ proposers** — RIPEstat, RIPE Database, APNIC registry, LACNIC registry. Each i
 catalogued-yet-inert: rendered in the third *not run for anyone* bucket, **non-toggleable**,
 with **no consent dialog offered**. It stays that way until a real runner lands and returns
 it to *ship off — accept the terms* (the same reversal crt.sh made). This is not the state
-the two CAIDA paths are in: they **have** a runner and stay toggleable, so they keep their
-consent tier and their toggle. Their runner reaches a host that does not resolve, which is
-why they ship off (#1519). Of the three keyless proposer paths, only **ARIN** executes
-today. The four registry paths have no runner at all.
+the two CAIDA paths are in. They **have** a runner, they stay toggleable, and they ship on.
+All three keyless proposer paths — **ARIN**, **AFRINIC** and **APNIC** — execute today. The
+four registry paths have no runner at all.
 
 ### RIR proposers propose address scopes, not subdomains
 

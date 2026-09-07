@@ -779,28 +779,39 @@ func TestSourceRoutesRequireLogin(t *testing.T) {
 	}
 }
 
-func TestCAIDAProposersAreBarredBecauseNoEndpointServesThePath(t *testing.T) {
+func TestCAIDAProposersShipOnThePublishedOrgNameSearch(t *testing.T) {
 	for _, slug := range []string{"afrinic", "apnic-caida"} {
 		c, ok := catalogBySlug(slug)
 		if !ok {
 			t.Fatalf("%s is not in the catalogue", slug)
 		}
-		if c.DefaultOn {
-			t.Errorf("%s ships on, but its CAIDA half cannot answer (#1519)", slug)
+		if !c.DefaultOn {
+			t.Errorf("%s ships off, but api.data.caida.org/as2org/v1/search/ answers (ADR-0227, #1616)", slug)
 		}
-		if !c.Barred {
-			t.Errorf("%s stays toggleable, so an admin can enable a path that cannot answer (#1604)", slug)
-		}
-		if c.BarredReason != barredNoEndpoint {
-			t.Errorf("%s bar reason = %q, want %q", slug, c.BarredReason, barredNoEndpoint)
+		if c.Barred || c.BarredReason != "" {
+			t.Errorf("%s stays barred on a reachability finding ADR-0227 retired: %q", slug, c.BarredReason)
 		}
 		if c.Consent != consentUnencumbered {
-			t.Errorf("%s consent = %q; a reachability bar must not restate a consent verdict", slug, c.Consent)
+			t.Errorf("%s consent = %q; the replacement host is keyless, so the tier does not move", slug, c.Consent)
 		}
-		for _, want := range []string{"org2ids", "api.caida.org", "opaqueId", "ADR-0223"} {
+		for _, want := range []string{"api.data.caida.org/as2org/v1/search/", "opaqueId", "ADR-0227"} {
 			if !strings.Contains(c.ShipNote, want) {
 				t.Errorf("%s ShipNote omits %q: %s", slug, want, c.ShipNote)
 			}
+		}
+		for _, gone := range []string{"org2ids", "api.caida.org"} {
+			if strings.Contains(c.ShipNote, gone) {
+				t.Errorf("%s ShipNote still names the retired %q: %s", slug, gone, c.ShipNote)
+			}
+		}
+	}
+}
+
+func TestNoEntryClaimsTheEndpointBarADR0227Retired(t *testing.T) {
+	// The reason stays defined for the next entry that earns it (ADR-0227 §4).
+	for _, c := range sourceCatalog {
+		if c.BarredReason == barredNoEndpoint {
+			t.Errorf("%s carries %q, but no catalogue endpoint is currently unreachable", c.Slug, barredNoEndpoint)
 		}
 	}
 }
@@ -831,7 +842,7 @@ func TestBarredBadgeStatesTheReasonTheEntryWasBarredFor(t *testing.T) {
 
 	page := sourcesBody(t, ac, base)
 
-	for _, want := range []string{barredOnTerms, barredNoRunner, barredNoEndpoint} {
+	for _, want := range []string{barredOnTerms, barredNoRunner} {
 		if !strings.Contains(page, "barred — "+want) {
 			t.Errorf("no entry rendered %q; body: %s", "barred — "+want, page)
 		}
@@ -839,30 +850,31 @@ func TestBarredBadgeStatesTheReasonTheEntryWasBarredFor(t *testing.T) {
 	if n := strings.Count(page, "barred — "+barredOnTerms); n != 1 {
 		t.Errorf("%q rendered %d times; only hackertarget fails the consent bar (ADR-0003)", barredOnTerms, n)
 	}
+	if strings.Contains(page, "barred — "+barredNoEndpoint) {
+		t.Errorf("an entry still renders %q after ADR-0227 retired the CAIDA bar", barredNoEndpoint)
+	}
 }
 
 func TestABarOutranksAStaleEnablementOverride(t *testing.T) {
 	f := newFakeStore()
-	for _, slug := range []string{"afrinic", "apnic-caida"} {
-		f.sourceStates[slug] = db.SourceState{Slug: slug, Enabled: true}
-	}
+	f.sourceStates["hackertarget"] = db.SourceState{Slug: "hackertarget", Enabled: true}
 	srv := newServer(f, testKey, "", fixedClock())
 
-	enabled, err := srv.enabledProposers(httptest.NewRequest(http.MethodGet, "/settings?tab=sources", nil))
+	views, err := srv.sourceViews(httptest.NewRequest(http.MethodGet, "/settings?tab=sources", nil))
 	if err != nil {
-		t.Fatalf("enabledProposers: %v", err)
+		t.Fatalf("sourceViews: %v", err)
 	}
-	for _, slug := range []string{"afrinic", "apnic-caida"} {
-		if enabled[slug] {
-			t.Errorf("%s: a stale override still runs a barred proposer", slug)
+	for _, v := range views {
+		if v.Slug == "hackertarget" && v.Enabled {
+			t.Error("hackertarget: a stale override still runs a barred source (ADR-0223 §2)")
 		}
-	}
-	if !enabled["arin"] {
-		t.Error("arin: the unbarred proposer stopped running")
+		if v.Slug == "arin" && !v.Enabled {
+			t.Error("arin: the unbarred proposer stopped running")
+		}
 	}
 }
 
-func TestSourcesGuideDoesNotSayTheCAIDAProposersShipOn(t *testing.T) {
+func TestSourcesGuideSaysTheCAIDAProposersShipOn(t *testing.T) {
 	b, err := guides.FS.ReadFile("sources.md")
 	if err != nil {
 		t.Fatal(err)
@@ -873,8 +885,8 @@ func TestSourcesGuideDoesNotSayTheCAIDAProposersShipOn(t *testing.T) {
 			continue
 		}
 		rows++
-		if strings.Contains(line, "| **on** |") {
-			t.Errorf("the guide says this ships on, but the catalogue ships it off (#1519): %s", line)
+		if !strings.Contains(line, "| **on** |") {
+			t.Errorf("the guide bars this, but the catalogue ships it on (ADR-0227, #1616): %s", line)
 		}
 	}
 	if rows != 2 {

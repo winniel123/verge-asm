@@ -75,13 +75,13 @@ var sourceCatalog = []catalogSource{
 	},
 	{
 		Slug: "afrinic", Name: "AFRINIC (CAIDA ⋈ delegated-stats)", IsProposer: true, Consent: consentUnencumbered,
-		Barred: true, BarredReason: barredNoEndpoint,
-		ShipNote: "Keyless org→prefix path via CAIDA joined to delegated-stats. Barred, and no longer toggleable: the CAIDA half calls /as2org/v1/org2ids, and no published CAIDA endpoint serves that path. api.caida.org does not resolve. api.data.caida.org serves the AS2org API but publishes no org2ids path, and it names each identifier opaqueId in place of opaque_ids. A swapped host would therefore decode to an empty result, which reads as absence, so the URL was left alone (ADR-0223, #1519). The delegated-stats half is healthy — ftp.afrinic.net answers — so this returns once a runner reads an org-name lookup CAIDA does publish.",
+		DefaultOn: true,
+		ShipNote:  "Keyless org→prefix path via CAIDA joined to delegated-stats. Covers Africa. The CAIDA half reads api.data.caida.org/as2org/v1/search/, a keyless org-name search. Each record carries an opaqueId, and that id joins field 8 of ftp.afrinic.net's extended delegated-stats file. The search is scored, so it answers with other regions and with near names. A record is read only when its source is AFRINIC and its orgName holds your query. A failed request, an envelope this release does not recognise, and an org CAIDA holds under no opaqueId each return an error and never an empty result (ADR-0227, #1616).",
 	},
 	{
 		Slug: "apnic-caida", Name: "APNIC (CAIDA ⋈ delegated-stats)", IsProposer: true, Consent: consentUnencumbered,
-		Barred: true, BarredReason: barredNoEndpoint,
-		ShipNote: "Keyless org→prefix path via CAIDA joined to delegated-stats. Barred, and no longer toggleable: the CAIDA half calls /as2org/v1/org2ids, and no published CAIDA endpoint serves that path. api.caida.org does not resolve. api.data.caida.org serves the AS2org API but publishes no org2ids path, and it names each identifier opaqueId in place of opaque_ids. A swapped host would therefore decode to an empty result, which reads as absence, so the URL was left alone (ADR-0223, #1519). The delegated-stats half is healthy — ftp.apnic.net answers — so this returns once a runner reads an org-name lookup CAIDA does publish.",
+		DefaultOn: true,
+		ShipNote:  "Keyless org→prefix path via CAIDA joined to delegated-stats. Covers Asia-Pacific. The CAIDA half reads api.data.caida.org/as2org/v1/search/, a keyless org-name search. Each record carries an opaqueId, and that id joins field 8 of ftp.apnic.net's extended delegated-stats file. The search is scored, so it answers with other regions and with near names. A record is read only when its source is APNIC and its orgName holds your query. A failed request, an envelope this release does not recognise, and an org CAIDA holds under no opaqueId each return an error and never an empty result (ADR-0227, #1616).",
 	},
 	{
 		Slug: "ripestat", Name: "RIPEstat", IsProposer: true, Consent: consentAccepted, NoRunner: true, BarredReason: barredNoRunner,
