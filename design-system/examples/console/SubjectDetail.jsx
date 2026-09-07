@@ -9,6 +9,7 @@ import { ExposureBadge } from "../../components/display/ExposureBadge.jsx";
 import { KeyValueList } from "../../components/display/KeyValueList.jsx";
 import { CopyValue } from "../../components/display/CopyValue.jsx";
 import { WithdrawnMark } from "../../components/display/WithdrawnMark.jsx";
+import { StalenessBadge } from "../../components/display/StalenessBadge.jsx";
 import { Banner } from "../../components/feedback/Banner.jsx";
 import { Button } from "../../components/forms/Button.jsx";
 import { DropdownMenu } from "../../components/feedback/DropdownMenu.jsx";
@@ -58,10 +59,10 @@ const CLOSED = {
 const RULES = {
   service: [
     { rule: "vnc-exposure", version: 3, sev: "critical", verdict: "fired" },
-    { rule: "tls-acceptance", version: 2, sev: "high", verdict: "did not fire" },
+    { rule: "tls-acceptance", version: 2, sev: "high", verdict: "not-evaluable" },
   ],
   endpoint: [
-    { rule: "admin-panel-reachable", version: 1, sev: "high", verdict: "did not fire" },
+    { rule: "admin-panel-reachable", version: 1, sev: "high", verdict: "not-fired" },
     { rule: "verbose-server-header", version: 2, sev: "low", verdict: "fired" },
   ],
 };
@@ -158,7 +159,7 @@ export function SubjectDetail({ kind = "service", withdrawn = false, onBack, onO
             <Table framed={false} dense columns={[
               { key: "rule", label: "Rule", mono: true, render: (r) => <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><SeverityBadge level={r.sev} size="sm" /><span style={{ fontFamily: "var(--font-mono)" }}>{r.rule}</span></span> },
               { key: "version", label: "Version", mono: true, width: 90, render: (r) => "v" + r.version },
-              { key: "verdict", label: "Verdict", width: 130, render: (r) => r.verdict === "fired" ? <Badge tone="danger">fired</Badge> : <Badge>did not fire</Badge> },
+              { key: "verdict", label: "Verdict", width: 130, render: (r) => r.verdict === "fired" ? <Badge tone="danger">fired</Badge> : r.verdict === "not-evaluable" ? <StalenessBadge kind="not-evaluable" /> : <Badge>did not fire</Badge> },
             ]} rows={RULES[kind]} rowKey="rule" onRowClick={onOpenSignals} />
           </Card>
         </div>
