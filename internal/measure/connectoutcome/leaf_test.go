@@ -2,8 +2,13 @@ package connectoutcome
 
 import (
 	"context"
+	"io"
 	"net/netip"
+	"sync"
 	"testing"
+	"time"
+
+	"github.com/winniel123/verge-asm/internal/measure/blanketdiscrim"
 )
 
 type scriptConnector struct {
@@ -103,8 +108,8 @@ func TestDefaultProfileMatchesTable(t *testing.T) {
 	if p.PerHostConnPerSec != 50 {
 		t.Errorf("per-host rate = %d, want 50 conn/s", p.PerHostConnPerSec)
 	}
-	if p.PerHostConcurrency != 20 {
-		t.Errorf("per-host concurrency = %d, want 20", p.PerHostConcurrency)
+	if p.PerHostConcurrency != 1 {
+		t.Errorf("per-host concurrency = %d, want 1, the count the serial exchange runs", p.PerHostConcurrency)
 	}
 	if p.ConnectTimeoutMillis != 3000 {
 		t.Errorf("timeout = %d ms, want 3000", p.ConnectTimeoutMillis)
@@ -124,5 +129,53 @@ func TestDefaultProfileMatchesTable(t *testing.T) {
 	if !p.AdaptiveBackoff.HalveOnTimeout || !p.AdaptiveBackoff.HalveOnRSTSpike ||
 		!p.AdaptiveBackoff.HalveOn429 || !p.AdaptiveBackoff.HalveOn503 {
 		t.Errorf("adaptive back-off must halve on timeout/RST-spike/429/503")
+	}
+}
+
+type inflightConnector struct {
+	mu   sync.Mutex
+	live int
+	peak int
+}
+
+func (c *inflightConnector) Connect(_ context.Context, _ netip.AddrPort) ConnResult {
+	c.mu.Lock()
+	c.live++
+	if c.live > c.peak {
+		c.peak = c.live
+	}
+	c.mu.Unlock()
+	// A held slot is what makes a second caller observable; a serial caller never overlaps one.
+	time.Sleep(time.Millisecond)
+	c.mu.Lock()
+	c.live--
+	c.mu.Unlock()
+	return ConnRefused
+}
+
+type refusedHandshaker struct{}
+
+func (refusedHandshaker) Handshake(_ context.Context, _ netip.AddrPort, _ string) HandshakeResult {
+	return HandshakeResult{}
+}
+
+func TestRecordedConcurrencyIsTheConcurrencyTheExchangeRuns(t *testing.T) {
+	c := &inflightConnector{}
+	scope := Scope{
+		Vantage:   "local",
+		Addresses: []string{"198.51.100.9"},
+		TCPPorts:  []uint16{80, 443, 8080},
+		Profile:   DefaultProfile(),
+	}
+	gen := blanketdiscrim.FixedPorts{P: []uint16{50001, 50002}}
+	if err := RunExchange(context.Background(), c, refusedHandshaker{}, gen, "batch-1", scope, io.Discard); err != nil {
+		t.Fatalf("run exchange: %v", err)
+	}
+	if c.peak == 0 {
+		t.Fatal("no connect reached the connector, so the measurement witnesses nothing")
+	}
+	if scope.Profile.PerHostConcurrency != c.peak {
+		t.Errorf("Batch records per-host concurrency %d and the exchange ran %d in flight; the recorded figure must be the one that ran (#1572)",
+			scope.Profile.PerHostConcurrency, c.peak)
 	}
 }

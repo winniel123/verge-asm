@@ -11,7 +11,7 @@ import (
 
 // Moves only on an output-affecting change, gated by this leaf's own golden corpus (ADR-0008).
 
-const Version = "connect-outcome/v2"
+const Version = "connect-outcome/v3"
 
 const Kind = "connect-outcome"
 
@@ -42,6 +42,10 @@ type BackoffPolicy struct {
 	TouchesDeadline bool `json:"touches_deadline"`
 }
 
+// Raising this is a safety-budget change, not a performance one (ADR-0137 #1116, #1572).
+
+const ExchangeInFlight = 1
+
 func DefaultProfile() SafetyProfile {
 	return SafetyProfile{
 		Technique: "tcp-connect",
@@ -53,7 +57,7 @@ func DefaultProfile() SafetyProfile {
 
 		// The lag gate is hot-only and scan-scoped, so two workers double the rate (ADR-0137 §4).
 		PerHostConnPerSec:    50,
-		PerHostConcurrency:   20,
+		PerHostConcurrency:   ExchangeInFlight,
 		ConnectTimeoutMillis: 3000,
 		Retries:              2,
 		// Enforced per Vantage, so a target inside N Vantages receives N times the rate (ADR-0137).
