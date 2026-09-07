@@ -175,7 +175,7 @@ func discriminateBlanket(ctx context.Context, c Connector, gen blanketdiscrim.Po
 		addr = addr.Unmap()
 		results := make([]blanketdiscrim.ControlResult, 0, len(ports))
 		for _, port := range ports {
-			_, raw := Probe(ctx, c, scope.Profile, netip.AddrPortFrom(addr, port))
+			raw := probeControlPort(ctx, c, scope.Profile, netip.AddrPortFrom(addr, port))
 			results = append(results, controlResultOf(raw))
 		}
 		out[addr] = blanketdiscrim.Decide(results)
