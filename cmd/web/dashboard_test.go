@@ -183,7 +183,7 @@ func TestDashboardAssetsWatchedWithheldWhenDeltasDegrade(t *testing.T) {
 	f.addResolution(t, admin.ID, "api.example.com", "dns", obsClock, `{"outcome":"Resolved","addresses":["198.51.100.1"]}`)
 	f.addClassReachability(t, "198.51.100.1:443/tcp", "internet", obsClock, `{"outcome":"reached"}`)
 
-	if d := newServer(f, testKey, "", fixedClock()).dashboardDeltas(t.Context(), nil); d.Known {
+	if d := (&server{deltasStore: f, vantageClassStore: f}).dashboardDeltas(t.Context(), nil); d.Known {
 		t.Fatal("dashboardDeltas Known = true, want false with a single batch instant")
 	}
 

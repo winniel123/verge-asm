@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/winniel123/verge-asm/internal/db"
@@ -282,4 +284,11 @@ func TestRawOutputAffordanceAdminOnly(t *testing.T) {
 	if !strings.Contains(viewerPage, "job #901") {
 		t.Errorf("the viewer should still read the redacted job-filtered log; body: %s", viewerPage)
 	}
+}
+
+func (f *fakeStore) GetTranscriptByJob(_ context.Context, queueJobID int64) (db.Transcript, error) {
+	if t, ok := f.transcriptsByJob[queueJobID]; ok {
+		return t, nil
+	}
+	return db.Transcript{}, pgx.ErrNoRows
 }

@@ -51,7 +51,7 @@ func TestForbiddenRendersAccessDenied(t *testing.T) {
 var incidentRe = regexp.MustCompile(`err_[0-9a-z]{8}`)
 
 func TestRecoveredPanicRendersIncident(t *testing.T) {
-	s := newServer(newFakeStore(), testKey, "", fixedClock())
+	s := &server{}
 	boom := http.HandlerFunc(func(http.ResponseWriter, *http.Request) { panic("kaboom") })
 	ts := httptest.NewServer(s.recoverPanics(boom))
 	t.Cleanup(ts.Close)

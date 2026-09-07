@@ -14,7 +14,7 @@ const apiTokenPlaintext = "vg_pat_deadbeefdeadbeefdeadbeef"
 
 func runAPIBearer(t *testing.T, f *fakeStore, method, authz string) (*httptest.ResponseRecorder, *db.Account) {
 	t.Helper()
-	srv := newServer(f, testKey, "", fixedClock())
+	srv := &server{apiAuthStore: f}
 	var got *db.Account
 	h := srv.apiBearer(func(w http.ResponseWriter, r *http.Request, acct db.Account) {
 		a := acct
@@ -188,7 +188,7 @@ func TestAPIBearerRejectsNonBearerCredentials(t *testing.T) {
 		}
 	}
 
-	srv := newServer(f, testKey, "", fixedClock())
+	srv := &server{apiAuthStore: f}
 	h := srv.apiBearer(func(w http.ResponseWriter, r *http.Request, _ db.Account) {
 		w.WriteHeader(http.StatusOK)
 	})
