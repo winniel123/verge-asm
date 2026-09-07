@@ -144,6 +144,38 @@ toggle.
 
 ---
 
+## What a proposer's last lookup did
+
+Each proposer row on `/sources` states the outcome of the last lookup this install ran
+against it. A row reads one of three things.
+
+- **never attempted** — no lookup on this install queried this proposer.
+- **last attempt succeeded**, with the instant of that attempt.
+- **last attempt failed**, with the instant. A second consecutive failure adds the
+  count of failures in a row.
+
+**Only a lookup you run writes this record.** Nothing queries a source on a schedule. A
+scheduled query would send a request to a third party for a source you never enabled, and
+nobody authorised that. So a proposer you never enable stays at *never attempted*, and
+*never attempted* never reads as healthy.
+
+**The record states no verdict.** It gives the outcome, the instant, and the count.
+Nobody picked a threshold for a `healthy / degraded / dead` word. Such a word states a
+conclusion about the world from a record of our own requests. You draw the conclusion.
+
+**The record never changes a source's enablement.** A proposer that fails every lookup
+stays enabled until you disable it. A third party's outage may not narrow your coverage
+without your act
+([ADR-0223](../adr/0223-a-bar-is-authored-in-the-release-and-a-health-record-is-per-install-so-the-two-never-share-a-badge.md)).
+
+**The record survives a restart.** It is per install, and it is separate from the toggle.
+The toggle carries your consent. This record carries what the software did.
+
+The admitting sources — crt.sh and the CT drift tail — carry no such reading. ADR-0223
+does not rule on them.
+
+---
+
 ## The bulk CT reliability bar
 
 The bulk-by-name CT source has an **operator-keyed primary** (Cert Spotter, selected on

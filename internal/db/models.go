@@ -369,6 +369,13 @@ type SignalInstance struct {
 	FirstSeen  pgtype.Timestamptz `json:"first_seen"`
 }
 
+type SourceHealth struct {
+	Slug                string             `json:"slug"`
+	LastOutcome         string             `json:"last_outcome"`
+	LastAttemptAt       pgtype.Timestamptz `json:"last_attempt_at"`
+	ConsecutiveFailures int32              `json:"consecutive_failures"`
+}
+
 type SourceState struct {
 	Slug    string `json:"slug"`
 	Enabled bool   `json:"enabled"`

@@ -17,6 +17,7 @@ type sourcesStore interface {
 	CTReliabilityWindow(ctx context.Context, arg db.CTReliabilityWindowParams) (db.CTReliabilityWindowRow, error)
 	CTTailLastBatch(ctx context.Context) (db.CTTailLastBatchRow, error)
 	CountCertificateMaterial(ctx context.Context) (int64, error)
+	ListSourceHealth(ctx context.Context) ([]db.SourceHealth, error)
 	ListSourceStates(ctx context.Context) ([]db.SourceState, error)
 	UpsertSourceState(ctx context.Context, arg db.UpsertSourceStateParams) (db.SourceState, error)
 }
@@ -180,6 +181,8 @@ type sourceTierRow struct {
 	Reason       string
 	Consent      string
 	ConsentClass string
+	Health       string
+	HealthClass  string
 	On           bool
 }
 
@@ -202,11 +205,18 @@ func (s *server) fillSourcesSection(r *http.Request, f settingsForms, data map[s
 		return err
 	}
 
+	health, err := s.sourceHealthIndex(r.Context())
+	if err != nil {
+		return err
+	}
+
 	var unencumbered, operatorAccepted, barred []sourceTierRow
 	for _, v := range views {
+		hv := health.view(v)
 		row := sourceTierRow{
 			ID: v.Slug, Name: v.Name, Kind: v.KindLabel, What: v.ShipNote,
 			Reason: v.BarredReason, Consent: v.Consent, ConsentClass: consentBadgeClass(v.Consent),
+			Health: hv.Label, HealthClass: hv.Class,
 			On: v.Enabled,
 		}
 		switch {

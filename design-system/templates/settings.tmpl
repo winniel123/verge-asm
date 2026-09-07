@@ -945,12 +945,14 @@
 <section class="st-card">
 <div class="st-cardhead"><div class="hd"><span class="st-micro">toggleable</span><h3>Shipped on</h3></div></div>
 <div class="st-body"><div style="display:flex;flex-direction:column;gap:8px">
+<p class="st-note">A proposer row states the outcome of the last lookup you ran against it. No source is queried on a schedule, so a proposer you never enable stays at never attempted.</p>
 {{range .Unencumbered}}
 <div class="st-row">
 <span style="font:500 13px var(--font-ui);color:var(--text-ink)">{{.Name}}</span>
 <span class="st-tag">{{.Kind}}</span>
 <span class="st-note">{{.What}}</span>
 <span style="margin-left:auto;display:inline-flex;align-items:center;gap:10px">
+{{if .Health}}<span class="st-badge {{.HealthClass}}">{{.Health}}</span>{{end}}
 <span class="st-badge {{.ConsentClass}}">{{.Consent}}</span>
 {{if $.IsAdmin}}<form method="post" action="/settings/sources" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="enable" value="{{if .On}}false{{else}}true{{end}}">{{template "backfield" $}}<button type="submit" role="switch" aria-checked="{{if .On}}true{{else}}false{{end}}" class="st-switch{{if .On}} on{{end}}" aria-label="{{if .On}}Disable{{else}}Enable{{end}} {{.Name}}"><span class="knob"></span></button></form>{{else}}<span class="st-switch{{if .On}} on{{end}}" role="switch" aria-checked="{{if .On}}true{{else}}false{{end}}"><span class="knob"></span></span>{{end}}
 </span>
@@ -967,6 +969,7 @@
 <span class="st-tag">{{.Kind}}</span>
 <span class="st-note">{{.What}}</span>
 <span style="margin-left:auto;display:inline-flex;align-items:center;gap:10px">
+{{if .Health}}<span class="st-badge {{.HealthClass}}">{{.Health}}</span>{{end}}
 <span class="st-badge {{.ConsentClass}}">{{.Consent}}</span>
 {{if $.IsAdmin}}{{if .On}}<form method="post" action="/settings/sources" style="margin:0"><input type="hidden" name="id" value="{{.ID}}"><input type="hidden" name="enable" value="false">{{template "backfield" $}}<button type="submit" role="switch" aria-checked="true" class="st-switch on" aria-label="Disable {{.Name}}"><span class="knob"></span></button></form>{{else}}<a href="/settings?tab=sources&consent={{.ID}}" role="switch" aria-checked="false" class="st-switch" aria-label="Enable {{.Name}} — accept the terms" style="text-decoration:none"><span class="knob"></span></a>{{end}}{{else}}<span class="st-switch{{if .On}} on{{end}}" role="switch" aria-checked="{{if .On}}true{{else}}false{{end}}"><span class="knob"></span></span>{{end}}
 </span>
