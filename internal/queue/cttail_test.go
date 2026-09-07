@@ -73,3 +73,22 @@ func TestCTTailWindowSeedsAFreshLogAtItsHead(t *testing.T) {
 		}
 	}
 }
+
+func TestCTTailShrunkReadsAHeadBelowTheCursor(t *testing.T) {
+	cases := []struct {
+		name             string
+		hasCursor        bool
+		cursor, treeSize int64
+		want             bool
+	}{
+		{"no cursor can never shrink", false, 0, 5, false},
+		{"head below the cursor is a shrink", true, 500, 2, true},
+		{"head at the cursor is not", true, 500, 500, false},
+		{"head past the cursor is not", true, 500, 900, false},
+	}
+	for _, c := range cases {
+		if got := ctTailShrunk(c.hasCursor, c.cursor, c.treeSize); got != c.want {
+			t.Errorf("%s: ctTailShrunk(%v, %d, %d) = %v, want %v", c.name, c.hasCursor, c.cursor, c.treeSize, got, c.want)
+		}
+	}
+}

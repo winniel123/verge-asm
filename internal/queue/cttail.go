@@ -24,6 +24,11 @@ const ctTailBatch = 256
 
 const maxEntriesPerPoll = 16384
 
+func ctTailShrunk(hasCursor bool, cursor, treeSize int64) bool {
+	// An append-only tree cannot shrink, so a head below the cursor is a fork or rollback (#1656).
+	return hasCursor && treeSize < cursor
+}
+
 func ctTailWindow(hasCursor bool, cursor, treeSize int64) (start, end int64) {
 	// A log with no cursor is seeded at its head, so the tail never backfills history (#1654).
 	if !hasCursor {
@@ -81,6 +86,10 @@ func (w *Worker) completeCTTailRFC(ctx context.Context, job db.ClaimJobRow, lg s
 	sth, perr := scan.ParseSTH(body)
 	if perr != nil {
 		return w.retryOrDeadLetterCT(ctx, job, nil, perr)
+	}
+
+	if ctTailShrunk(hasCursor, cursor, sth.TreeSize) {
+		return w.retryOrDeadLetterCT(ctx, job, nil, safeProgress(fmt.Sprintf("CT log STH tree size %d below cursor %d", sth.TreeSize, cursor)))
 	}
 
 	start, end := ctTailWindow(hasCursor, cursor, sth.TreeSize)
@@ -149,9 +158,8 @@ func (w *Worker) completeCTTailTiled(ctx context.Context, job db.ClaimJobRow, lg
 		return w.retryOrDeadLetterCT(ctx, job, nil, perr)
 	}
 
-	// An append-only tree cannot shrink, so a tree below the cursor is a fork or a rollback.
 	// This shrink check is not the consistency proof, and no signature is verified here.
-	if hasCursor && sth.TreeSize < cursor {
+	if ctTailShrunk(hasCursor, cursor, sth.TreeSize) {
 		return w.retryOrDeadLetterCT(ctx, job, nil, safeProgress(fmt.Sprintf("CT log checkpoint tree size %d below cursor %d", sth.TreeSize, cursor)))
 	}
 
