@@ -84,6 +84,14 @@ it can reach Postgres and the target and nothing else.
 `192.88.100.0/22` is ordinary public space, held locally for the length of the run. A reader who
 holds a public prefix should substitute it.
 
+**This rig is the supported one, and it stays so.**
+[ADR-0222](../adr/0222-no-test-only-egress-guard-relaxation-is-built-and-the-captured-public-prefix-rig-stays-the-supported-one.md)
+§3 rules that no test-only relaxation of `EgressGuard` is built. A package-level test seam reaches
+a Go test alone. It never reaches the `worker` and `prober` binaries this rig runs, because a
+shipped binary must not carry a seam that opens the egress boundary. So an end-to-end measurement
+needs a target the guard admits, and that means a globally-reachable prefix. Substitute a prefix
+you hold, or reproduce the capture above.
+
 ### 2.3 The scan under test
 
 | Item | Value | Source |
@@ -590,8 +598,15 @@ by this ticket.**
    blanket discriminator needs 8 of them before it can gap. That is the entire 72 s. This note
    asks whether a gap verdict needs three attempts per control port. It does not answer that.
 5. **`EgressGuard` makes the leaf untestable against a normal local target.** Every loopback,
-   RFC 1918, and documentation prefix is refused at the socket. §2.2 shows the workaround. A
-   supported test affordance would remove the need to capture a public prefix.
+   RFC 1918, and documentation prefix is refused at the socket. §2.2 shows the workaround.
+   **Filed as [#1598](https://github.com/winniel123/verge-asm/issues/1598) and settled by
+   [ADR-0222](../adr/0222-no-test-only-egress-guard-relaxation-is-built-and-the-captured-public-prefix-rig-stays-the-supported-one.md).**
+   The closing sentence of this finding asked for a supported test affordance. That request is
+   refused, and the ADR carries the ground. Two needs sit inside it. A Go test of one leaf's dial
+   path is already served by an unexported dial-control field on
+   `httpexchange.NetExchanger`. An end-to-end run of the shipped binaries is served by §2.2's rig
+   and by nothing else, because no test-only seam may ride a shipped binary. §2.2 stays the
+   supported rig.
 6. **The drain slows as the tick proceeds, by 25% inside one tick, and `flagshipMessages` carries
    it.** §4.2 has the segment table and §4.2.1 has the confirmation. `flagshipMessages` in
    `internal/queue/produce.go` runs `ListServiceReachabilitySpansByClass` and
