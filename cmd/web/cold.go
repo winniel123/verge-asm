@@ -81,19 +81,19 @@ func (s *server) setColdScope(w http.ResponseWriter, r *http.Request, acct db.Ac
 	// A stale page re-sends its own state rather than flipping the scope.
 	optIn := r.FormValue("opt_in") == "true"
 	if optIn {
-		if err := s.store.OptInColdScope(r.Context(), db.OptInColdScopeParams{
+		if err := s.coldStore.OptInColdScope(r.Context(), db.OptInColdScopeParams{
 			SeedID: id, CreatedBy: acct.ID,
 		}); err != nil {
 			s.serverError(w, "opt in cold scope", err)
 			return
 		}
 	} else {
-		if err := s.store.OptOutColdScope(r.Context(), id); err != nil {
+		if err := s.coldStore.OptOutColdScope(r.Context(), id); err != nil {
 			s.serverError(w, "opt out cold scope", err)
 			return
 		}
 	}
-	if err := s.store.SyncColdScanEnabled(r.Context()); err != nil {
+	if err := s.coldStore.SyncColdScanEnabled(r.Context()); err != nil {
 		s.serverError(w, "sync cold scan enabled", err)
 		return
 	}
@@ -150,17 +150,17 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 		return
 	}
 
-	seeds, err := s.store.ListSeeds(ctx)
+	seeds, err := s.coldStore.ListSeeds(ctx)
 	if err != nil {
 		s.serverError(w, "list seeds", err)
 		return
 	}
-	zones, zerr := s.store.ListZoneDeclarations(ctx)
+	zones, zerr := s.coldStore.ListZoneDeclarations(ctx)
 	if zerr != nil {
 		zones = nil
 	}
 	var walked []walkedAddr
-	svcs, serr := s.store.ListCurrentServiceSubjects(ctx, db.ListCurrentServiceSubjectsParams{
+	svcs, serr := s.coldStore.ListCurrentServiceSubjects(ctx, db.ListCurrentServiceSubjectsParams{
 		Search: "", AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if serr == nil {
@@ -168,7 +168,7 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	}
 	var sharedEdges map[netip.Prefix]int
 	// A failed read here hides evidence rather than showing an empty region, so it logs (#989).
-	if m, ferr := addressScopeSharedEdges(ctx, s.store); ferr == nil {
+	if m, ferr := addressScopeSharedEdges(ctx, s.coldStore); ferr == nil {
 		sharedEdges = m
 	} else {
 		log.Printf("web: coverage: address-scope shared edges: %v", ferr)
@@ -177,10 +177,10 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 
 	var gaps []coverageGapView
 	var messages []coverageMessageView
-	if svc, berr := s.store.ListBlanketedReachServices(ctx); berr == nil {
+	if svc, berr := s.coldStore.ListBlanketedReachServices(ctx); berr == nil {
 		gaps, messages = blanketGapsAndMessages(svc)
 	}
-	if rows, uerr := s.store.ListUnavailableVantages(ctx); uerr == nil {
+	if rows, uerr := s.coldStore.ListUnavailableVantages(ctx); uerr == nil {
 		messages = append(messages, unavailableVantageMessages(rows)...)
 	}
 	sortCoverageMessages(messages)
@@ -191,8 +191,8 @@ func (s *server) coveragePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	}
 
 	var staleZonesView []coverageStaleZoneView
-	if cadence, cerr := s.store.GetZoneCadenceSeconds(ctx); cerr == nil && cadence > 0 {
-		if rows, zerr := s.store.ListZoneFileStatus(ctx); zerr == nil {
+	if cadence, cerr := s.coldStore.GetZoneCadenceSeconds(ctx); cerr == nil && cadence > 0 {
+		if rows, zerr := s.coldStore.ListZoneFileStatus(ctx); zerr == nil {
 			staleZonesView = staleZones(rows, cadence, time.Now())
 		}
 	}

@@ -89,7 +89,7 @@ func (s *server) rawOutputPage(w http.ResponseWriter, r *http.Request, acct db.A
 		JobID:   jobID,
 	}
 
-	if jobRows, jerr := s.store.ListJobsForDispatch(r.Context(), pgtype.Int8{Int64: runID, Valid: true}); jerr == nil {
+	if jobRows, jerr := s.rawOutputStore.ListJobsForDispatch(r.Context(), pgtype.Int8{Int64: runID, Valid: true}); jerr == nil {
 		for _, j := range jobRows {
 			if j.ID == jobID {
 				view.Kind = j.Kind
@@ -102,7 +102,7 @@ func (s *server) rawOutputPage(w http.ResponseWriter, r *http.Request, acct db.A
 	}
 
 	// Written in the job's terminal tx, so no raw stream is tailable (raw-job-output.md §6.2).
-	row, err := s.store.GetTranscriptByJob(r.Context(), jobID)
+	row, err := s.rawOutputStore.GetTranscriptByJob(r.Context(), jobID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		s.render(w, r, "runraw", s.rawOutputData(acct, view))
 		return

@@ -86,8 +86,64 @@ type store interface {
 }
 
 type server struct {
-	store store
-	key   []byte
+	// A field per group binds the split at compile time (ADR-0149 §3).
+
+	addressCapStore        addressCapStore
+	adminSessionStore      adminSessionStore
+	annotationsStore       annotationsStore
+	apertureSettingsStore  apertureSettingsStore
+	apiAuthStore           apiAuthStore
+	apiV1Store             apiV1Store
+	backupStore            backupStore
+	channelSendTestStore   channelSendTestStore
+	channelsStore          channelsStore
+	chromeStore            chromeStore
+	coldStore              coldStore
+	custodyCensusStore     custodyCensusStore
+	custodyStore           custodyStore
+	dashboardStore         dashboardStore
+	deliverySettingsStore  deliverySettingsStore
+	deltasStore            deltasStore
+	devFixtureStore        devFixtureStore
+	driftStore             driftStore
+	exclusionsStore        exclusionsStore
+	exposureStore          exposureStore
+	graphStore             graphStore
+	healthzStore           healthzStore
+	instanceSettingsStore  instanceSettingsStore
+	integrationsStore      integrationsStore
+	inventoryStore         inventoryStore
+	inviteAcceptStore      inviteAcceptStore
+	loginStore             loginStore
+	messagesStore          messagesStore
+	passwordStore          passwordStore
+	personalTokenStore     personalTokenStore
+	probersStore           probersStore
+	profileStore           profileStore
+	proposalsStore         proposalsStore
+	rawOutputStore         rawOutputStore
+	reportScheduleRowStore reportScheduleRowStore
+	reportScheduleStore    reportScheduleStore
+	reportsExportStore     reportsExportStore
+	reportsStore           reportsStore
+	restoreStore           restoreStore
+	scanTriggerStore       scanTriggerStore
+	scansStore             scansStore
+	searchStore            searchStore
+	seedsStore             seedsStore
+	sessionStore           sessionStore
+	shellStore             shellStore
+	signalsStore           signalsStore
+	sourcesStore           sourcesStore
+	ssoAdminStore          ssoAdminStore
+	ssoAuthStore           ssoAuthStore
+	subjectsStore          subjectsStore
+	teamAdminStore         teamAdminStore
+	totpEnrollStore        totpEnrollStore
+	vantageClassStore      vantageClassStore
+	vergeCoreStore         vergeCoreStore
+
+	key []byte
 
 	// A read-only database leak must disclose ciphertext and no key (ADR-0053).
 
@@ -150,22 +206,75 @@ func newServer(s store, key []byte, setupToken string, now func() time.Time) *se
 	// A nil key fails closed rather than admitting cleartext to Postgres (ADR-0172 §2, #337).
 	totpKey, _ := auth.DeriveTOTPKey(key)
 	return &server{
-		store:         s,
-		key:           key,
-		totpKey:       totpKey,
-		setupToken:    setupToken,
-		now:           now,
-		startedAt:     now(),
-		sessionTTL:    12 * time.Hour,
-		pendingTTL:    5 * time.Minute,
-		resetTTL:      30 * time.Minute,
-		proposer:      proposer.DefaultRegistry(newOutboundClient(30 * time.Second)),
-		sso:           newOIDCFlow(newOutboundClient(30 * time.Second)),
-		channelSender: newHTTPChannelSender(now),
-		loginLimiter:  newLoginLimiter(now),
-		flash:         newFlashStore(),
-		formFlash:     newFormFlashStore(),
-		restoreStage:  make(map[int64]*restoreStaging),
+		addressCapStore:        s,
+		adminSessionStore:      s,
+		annotationsStore:       s,
+		apertureSettingsStore:  s,
+		apiAuthStore:           s,
+		apiV1Store:             s,
+		backupStore:            s,
+		channelSendTestStore:   s,
+		channelsStore:          s,
+		chromeStore:            s,
+		coldStore:              s,
+		custodyCensusStore:     s,
+		custodyStore:           s,
+		dashboardStore:         s,
+		deliverySettingsStore:  s,
+		deltasStore:            s,
+		devFixtureStore:        s,
+		driftStore:             s,
+		exclusionsStore:        s,
+		exposureStore:          s,
+		graphStore:             s,
+		healthzStore:           s,
+		instanceSettingsStore:  s,
+		integrationsStore:      s,
+		inventoryStore:         s,
+		inviteAcceptStore:      s,
+		loginStore:             s,
+		messagesStore:          s,
+		passwordStore:          s,
+		personalTokenStore:     s,
+		probersStore:           s,
+		profileStore:           s,
+		proposalsStore:         s,
+		rawOutputStore:         s,
+		reportScheduleRowStore: s,
+		reportScheduleStore:    s,
+		reportsExportStore:     s,
+		reportsStore:           s,
+		restoreStore:           s,
+		scanTriggerStore:       s,
+		scansStore:             s,
+		searchStore:            s,
+		seedsStore:             s,
+		sessionStore:           s,
+		shellStore:             s,
+		signalsStore:           s,
+		sourcesStore:           s,
+		ssoAdminStore:          s,
+		ssoAuthStore:           s,
+		subjectsStore:          s,
+		teamAdminStore:         s,
+		totpEnrollStore:        s,
+		vantageClassStore:      s,
+		vergeCoreStore:         s,
+		key:                    key,
+		totpKey:                totpKey,
+		setupToken:             setupToken,
+		now:                    now,
+		startedAt:              now(),
+		sessionTTL:             12 * time.Hour,
+		pendingTTL:             5 * time.Minute,
+		resetTTL:               30 * time.Minute,
+		proposer:               proposer.DefaultRegistry(newOutboundClient(30 * time.Second)),
+		sso:                    newOIDCFlow(newOutboundClient(30 * time.Second)),
+		channelSender:          newHTTPChannelSender(now),
+		loginLimiter:           newLoginLimiter(now),
+		flash:                  newFlashStore(),
+		formFlash:              newFormFlashStore(),
+		restoreStage:           make(map[int64]*restoreStaging),
 	}
 }
 
@@ -176,7 +285,7 @@ func (s *server) obsAsOf() pgtype.Timestamptz {
 
 func (s *server) addressCap(ctx context.Context) int {
 	// The cap is read at declaration only, so lowering it invalidates no declared scope (ADR-0127).
-	cfg, err := s.store.GetInstanceConfig(ctx)
+	cfg, err := s.addressCapStore.GetInstanceConfig(ctx)
 	if err != nil || cfg.SeedAddressCap <= 0 {
 		return seed.DefaultAddressCap
 	}
@@ -378,7 +487,7 @@ func (s *server) handler() http.Handler {
 }
 
 func (s *server) healthz(w http.ResponseWriter, r *http.Request) {
-	hb, err := s.store.RecordHeartbeat(r.Context())
+	hb, err := s.healthzStore.RecordHeartbeat(r.Context())
 	if err != nil {
 		log.Printf("web: healthz: record heartbeat: %v", err)
 		w.WriteHeader(http.StatusServiceUnavailable)

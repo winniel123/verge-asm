@@ -43,7 +43,7 @@ func (s *server) exposurePage(w http.ResponseWriter, r *http.Request, acct db.Ac
 	}
 
 	// With no internet leg no exposure is constructible, so the board is WITHHELD (v1-spec §6.2).
-	vantages, err := s.store.ListVantages(ctx)
+	vantages, err := s.exposureStore.ListVantages(ctx)
 	if err != nil {
 		s.serverError(w, "list vantages", err)
 		return
@@ -102,7 +102,7 @@ type legInfo struct {
 
 func (s *server) foldExposure(r *http.Request) ([]exposureRow, exposureStats, error) {
 	ctx := r.Context()
-	byClass, err := s.store.ListServiceReachabilitySpansByClass(ctx)
+	byClass, err := s.exposureStore.ListServiceReachabilitySpansByClass(ctx)
 	if err != nil {
 		return nil, exposureStats{}, err
 	}
@@ -118,7 +118,7 @@ func (s *server) foldExposure(r *http.Request) ([]exposureRow, exposureStats, er
 	sort.Strings(order)
 
 	since := map[string]string{}
-	if spans, err := s.store.ListAllOpenSpans(ctx); err == nil {
+	if spans, err := s.exposureStore.ListAllOpenSpans(ctx); err == nil {
 		for _, sp := range spans {
 			if sp.SubjectKind != "service" || sp.Facet != "reachability" || !sp.OpenedAt.Valid {
 				continue

@@ -123,7 +123,7 @@ func toProposalLookups(rows []db.ListPendingProposalsRow) []proposalLookupView {
 }
 
 func (s *server) proposalLookups(ctx context.Context) ([]proposalLookupView, error) {
-	rows, err := s.store.ListPendingProposals(ctx)
+	rows, err := s.proposalsStore.ListPendingProposals(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +160,7 @@ func (s *server) runLookup(w http.ResponseWriter, r *http.Request, acct db.Accou
 		return
 	}
 
-	lookup, err := s.store.CreateProposerLookup(r.Context(), db.CreateProposerLookupParams{
+	lookup, err := s.proposalsStore.CreateProposerLookup(r.Context(), db.CreateProposerLookupParams{
 		Query: query, CreatedBy: acct.ID,
 	})
 	if err != nil {
@@ -168,7 +168,7 @@ func (s *server) runLookup(w http.ResponseWriter, r *http.Request, acct db.Accou
 		return
 	}
 	for _, c := range cands {
-		if _, err := s.store.CreateProposal(r.Context(), db.CreateProposalParams{
+		if _, err := s.proposalsStore.CreateProposal(r.Context(), db.CreateProposalParams{
 			LookupID: lookup.ID, SourceSlug: c.SourceSlug, RecordKind: c.RecordKind,
 			AddressCidr: c.Scope, OrgName: c.OrgName,
 		}); err != nil {
@@ -193,7 +193,7 @@ func (s *server) confirmProposal(w http.ResponseWriter, r *http.Request, acct db
 		return
 	}
 
-	p, err := s.store.GetPendingProposal(r.Context(), id)
+	p, err := s.proposalsStore.GetPendingProposal(r.Context(), id)
 	if err != nil {
 		s.backToScope(w, r)
 		return
@@ -207,7 +207,7 @@ func (s *server) confirmProposal(w http.ResponseWriter, r *http.Request, acct db
 
 	// A cidr column rejects host bits, so masking gives an org range dispatch parity (#755).
 	cidr := p.AddressCidr.Masked()
-	sd, err := s.store.CreateAddressSeed(r.Context(), db.CreateAddressSeedParams{
+	sd, err := s.proposalsStore.CreateAddressSeed(r.Context(), db.CreateAddressSeedParams{
 		AddressCidr: &cidr, CreatedBy: acct.ID,
 	})
 	if err != nil {
@@ -218,7 +218,7 @@ func (s *server) confirmProposal(w http.ResponseWriter, r *http.Request, acct db
 		s.serverError(w, "create seed from proposal", err)
 		return
 	}
-	if _, err := s.store.ConfirmProposal(r.Context(), db.ConfirmProposalParams{
+	if _, err := s.proposalsStore.ConfirmProposal(r.Context(), db.ConfirmProposalParams{
 		ID: id, ConfirmedSeedID: pgtype.Int8{Int64: sd.ID, Valid: true},
 	}); err != nil {
 		s.serverError(w, "confirm proposal", err)
@@ -247,17 +247,17 @@ func (s *server) declineLookup(w http.ResponseWriter, r *http.Request, acct db.A
 		if err != nil {
 			continue
 		}
-		p, gerr := s.store.GetPendingProposal(r.Context(), id)
+		p, gerr := s.proposalsStore.GetPendingProposal(r.Context(), id)
 		if gerr != nil {
 			continue
 		}
-		if _, err := s.store.DeclineProposal(r.Context(), id); err != nil {
+		if _, err := s.proposalsStore.DeclineProposal(r.Context(), id); err != nil {
 			s.serverError(w, "decline proposal", err)
 			return
 		}
 		cidr := p.AddressCidr
 		// A decline records an exclusion, so the same range is not proposed again (ADR-0012).
-		if _, err := s.store.CreateAddressExclusion(r.Context(), db.CreateAddressExclusionParams{
+		if _, err := s.proposalsStore.CreateAddressExclusion(r.Context(), db.CreateAddressExclusionParams{
 			AddressCidr: &cidr, CreatedBy: acct.ID,
 		}); err != nil && !isUniqueViolation(err) {
 			s.serverError(w, "record declined proposal as exclusion", err)

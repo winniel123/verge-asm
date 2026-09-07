@@ -247,7 +247,7 @@ func (s *server) editReportScheduleWizard(w http.ResponseWriter, r *http.Request
 		s.renderScheduleWizard(r.Context(), w, r, acct, v, true)
 		return
 	}
-	sc, err := s.store.GetReportSchedule(r.Context(), id)
+	sc, err := s.reportScheduleStore.GetReportSchedule(r.Context(), id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			s.redirectBack(w, r, reportsPath)
@@ -308,7 +308,7 @@ func (s *server) createReportSchedule(w http.ResponseWriter, r *http.Request, ac
 		s.serverError(w, "marshal schedule sections", err)
 		return
 	}
-	if _, err := s.store.InsertReportSchedule(r.Context(), db.InsertReportScheduleParams{
+	if _, err := s.reportScheduleStore.InsertReportSchedule(r.Context(), db.InsertReportScheduleParams{
 		Name:           strings.TrimSpace(v.Name),
 		Sections:       sections,
 		Cadence:        reportCadLabel(v.Cad, v.Cron),
@@ -361,7 +361,7 @@ func (s *server) editReportSchedule(w http.ResponseWriter, r *http.Request, acct
 		s.serverError(w, "marshal schedule sections", err)
 		return
 	}
-	if _, err := s.store.UpdateReportSchedule(r.Context(), db.UpdateReportScheduleParams{
+	if _, err := s.reportScheduleStore.UpdateReportSchedule(r.Context(), db.UpdateReportScheduleParams{
 		ID:             v.ID,
 		Name:           strings.TrimSpace(v.Name),
 		Sections:       sections,
@@ -386,7 +386,7 @@ func (s *server) runReportScheduleNow(w http.ResponseWriter, r *http.Request, ac
 		s.redirectBack(w, r, reportsPath)
 		return
 	}
-	sc, err := s.store.GetReportSchedule(r.Context(), id)
+	sc, err := s.reportScheduleStore.GetReportSchedule(r.Context(), id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			s.redirectBack(w, r, reportsPath)
@@ -399,7 +399,7 @@ func (s *server) runReportScheduleNow(w http.ResponseWriter, r *http.Request, ac
 	now := s.now().UTC()
 	start := now.Add(-report.CadenceWindow(sc.Cadence))
 
-	no, err := s.store.NextReportDeliveryNo(r.Context(), id)
+	no, err := s.reportScheduleStore.NextReportDeliveryNo(r.Context(), id)
 	if err != nil {
 		s.serverError(w, "next report delivery no", err)
 		return
@@ -415,7 +415,7 @@ func (s *server) runReportScheduleNow(w http.ResponseWriter, r *http.Request, ac
 		Format:      sc.Format,
 	})
 
-	if _, err := s.store.InsertReportDelivery(r.Context(), db.InsertReportDeliveryParams{
+	if _, err := s.reportScheduleStore.InsertReportDelivery(r.Context(), db.InsertReportDeliveryParams{
 		ScheduleID:  id,
 		PeriodStart: pgtype.Timestamptz{Time: start, Valid: true},
 		PeriodEnd:   pgtype.Timestamptz{Time: now, Valid: true},
@@ -435,7 +435,7 @@ func (s *server) deleteReportSchedule(w http.ResponseWriter, r *http.Request, ac
 		s.redirectBack(w, r, reportsPath)
 		return
 	}
-	if err := s.store.DeleteReportSchedule(r.Context(), id); err != nil {
+	if err := s.reportScheduleStore.DeleteReportSchedule(r.Context(), id); err != nil {
 		s.serverError(w, "delete report schedule", err)
 		return
 	}
@@ -484,7 +484,7 @@ func (s *server) renderScheduleWizard(ctx context.Context, w http.ResponseWriter
 	channelOpts := []map[string]any{
 		{"Value": int64(0), "Label": "Download only", "Hint": "artifact stays in Reports", "Selected": v.ChannelID == 0},
 	}
-	if channels, err := s.store.ListChannels(ctx); err != nil {
+	if channels, err := s.reportScheduleStore.ListChannels(ctx); err != nil {
 		log.Printf("web: reports: list channels for wizard: %v", err)
 	} else {
 		for _, c := range channels {

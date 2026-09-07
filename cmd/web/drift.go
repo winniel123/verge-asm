@@ -158,7 +158,7 @@ func (s *server) driftPage(w http.ResponseWriter, r *http.Request, acct db.Accou
 	token, periodLabel, since, until := s.resolveDriftWindow(r)
 
 	// A 90d window on a mature estate is unbounded, so the feed reads under a cap (ADR-0178 §1).
-	rows, err := s.store.ListRecentDriftEvents(r.Context(), db.ListRecentDriftEventsParams{
+	rows, err := s.driftStore.ListRecentDriftEvents(r.Context(), db.ListRecentDriftEventsParams{
 		Since: since, Until: until, MaxEvents: driftFeedLimit,
 	})
 	if err != nil {
@@ -212,7 +212,7 @@ func (s *server) transitionDelta(ctx context.Context, since, until pgtype.Timest
 	}
 	prevStart := since.Time.Add(-length)
 
-	earliest, err := s.store.EarliestBatchTime(ctx)
+	earliest, err := s.driftStore.EarliestBatchTime(ctx)
 	if err != nil {
 		log.Printf("web: drift: earliest batch time: %v", err)
 		return ""
@@ -222,7 +222,7 @@ func (s *server) transitionDelta(ctx context.Context, since, until pgtype.Timest
 		return ""
 	}
 
-	rows, err := s.store.ListRecentDriftEvents(ctx, db.ListRecentDriftEventsParams{
+	rows, err := s.driftStore.ListRecentDriftEvents(ctx, db.ListRecentDriftEventsParams{
 		Since: pgtype.Timestamptz{Time: prevStart, Valid: true}, Until: since, MaxEvents: driftFeedLimit,
 	})
 	if err != nil {
@@ -257,7 +257,7 @@ func (s *server) driftExport(w http.ResponseWriter, r *http.Request, acct db.Acc
 	}
 
 	token, _, since, until := s.resolveDriftWindow(r)
-	rows, err := s.store.ListRecentDriftEvents(r.Context(), db.ListRecentDriftEventsParams{
+	rows, err := s.driftStore.ListRecentDriftEvents(r.Context(), db.ListRecentDriftEventsParams{
 		Since: since, Until: until, MaxEvents: driftFeedLimit,
 	})
 	if err != nil {
@@ -271,7 +271,7 @@ func (s *server) driftExport(w http.ResponseWriter, r *http.Request, acct db.Acc
 }
 
 func (s *server) latestBatch(r *http.Request) (int64, string) {
-	rows, err := s.store.ListDispatchProgress(r.Context(), scansHistoryLimit)
+	rows, err := s.driftStore.ListDispatchProgress(r.Context(), scansHistoryLimit)
 	if err != nil {
 		log.Printf("web: drift: latest batch: %v", err)
 		return 0, ""

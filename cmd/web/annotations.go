@@ -55,7 +55,7 @@ func (s *server) declareAnnotation(w http.ResponseWriter, r *http.Request, acct 
 	}
 
 	// An operator dial carries no author, so neither act records who declared it (ADR-0073).
-	if _, err := s.store.CreateAnnotation(r.Context(), db.CreateAnnotationParams{
+	if _, err := s.annotationsStore.CreateAnnotation(r.Context(), db.CreateAnnotationParams{
 		SubjectKey: subject, SignalName: sigName, Reason: reason,
 	}); err != nil {
 		// A changed reason is withdraw-then-declare, never an edit (ADR-0093).
@@ -77,7 +77,7 @@ func (s *server) withdrawAnnotation(w http.ResponseWriter, r *http.Request, acct
 		return
 	}
 	// A dial's movement is not one of the four causes, so neither act mints a Message (ADR-0092).
-	if err := s.store.DeleteAnnotation(r.Context(), id); err != nil {
+	if err := s.annotationsStore.DeleteAnnotation(r.Context(), id); err != nil {
 		s.serverError(w, "delete annotation", err)
 		return
 	}

@@ -467,7 +467,7 @@ func (s *server) buildSignalTabs(r *http.Request) (open, annotated, withdrawn []
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	annos, err := s.store.ListAnnotations(ctx)
+	annos, err := s.signalsStore.ListAnnotations(ctx)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -496,7 +496,7 @@ func (s *server) buildSignalTabs(r *http.Request) (open, annotated, withdrawn []
 		return nil, nil, nil, err
 	}
 
-	identRows, err := s.store.ListSignalInstances(ctx)
+	identRows, err := s.signalsStore.ListSignalInstances(ctx)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -732,19 +732,19 @@ func annotationViews(annos []db.Annotation, population map[string]map[string]boo
 func (s *server) buildNameFacts(r *http.Request) ([]signal.NameFacts, error) {
 	ctx := r.Context()
 
-	resRows, err := s.store.ListNameResolutionsByClass(ctx, db.ListNameResolutionsByClassParams{
+	resRows, err := s.signalsStore.ListNameResolutionsByClass(ctx, db.ListNameResolutionsByClassParams{
 		AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if err != nil {
 		return nil, err
 	}
-	dnsRows, err := s.store.ListNameDNSRecords(ctx, db.ListNameDNSRecordsParams{
+	dnsRows, err := s.signalsStore.ListNameDNSRecords(ctx, db.ListNameDNSRecordsParams{
 		AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if err != nil {
 		return nil, err
 	}
-	zoneRows, err := s.store.ListZoneDeclarations(ctx)
+	zoneRows, err := s.signalsStore.ListZoneDeclarations(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -906,11 +906,11 @@ func (s *server) buildSignalCorpus(r *http.Request) (signal.Corpus, error) {
 }
 
 func (s *server) buildServiceFacts(r *http.Request) ([]signal.ServiceFacts, map[string]bool, error) {
-	rows, err := s.store.ListServiceReachabilitySpansByClass(r.Context())
+	rows, err := s.signalsStore.ListServiceReachabilitySpansByClass(r.Context())
 	if err != nil {
 		return nil, nil, err
 	}
-	tlsRows, err := s.store.ListServiceTLSAcceptance(r.Context(), db.ListServiceTLSAcceptanceParams{
+	tlsRows, err := s.signalsStore.ListServiceTLSAcceptance(r.Context(), db.ListServiceTLSAcceptanceParams{
 		AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if err != nil {
@@ -964,13 +964,13 @@ func (s *server) buildServiceFacts(r *http.Request) ([]signal.ServiceFacts, map[
 
 func (s *server) buildEndpointFacts(r *http.Request, names []signal.NameFacts, estateAddrs map[string]bool) ([]signal.EndpointFacts, error) {
 	ctx := r.Context()
-	certRows, err := s.store.ListEndpointCertificates(ctx, db.ListEndpointCertificatesParams{
+	certRows, err := s.signalsStore.ListEndpointCertificates(ctx, db.ListEndpointCertificatesParams{
 		AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if err != nil {
 		return nil, err
 	}
-	httpRows, err := s.store.ListCurrentEndpointSubjects(ctx, db.ListCurrentEndpointSubjectsParams{
+	httpRows, err := s.signalsStore.ListCurrentEndpointSubjects(ctx, db.ListCurrentEndpointSubjectsParams{
 		Search: "", AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if err != nil {
@@ -1252,7 +1252,7 @@ func (s *server) deriveSignalInstances(ctx context.Context, censuses []signal.Ce
 
 	// A GET writes here, because a re-derivation cannot reconstruct a stable id or its first-seen.
 	if len(fired) > 0 {
-		if err := s.store.MintSignalInstances(ctx, db.MintSignalInstancesParams{
+		if err := s.signalsStore.MintSignalInstances(ctx, db.MintSignalInstancesParams{
 			SignalNames: names,
 			SubjectKeys: subjects,
 		}); err != nil {
@@ -1260,7 +1260,7 @@ func (s *server) deriveSignalInstances(ctx context.Context, censuses []signal.Ce
 		}
 	}
 
-	rows, err := s.store.ListSignalInstances(ctx)
+	rows, err := s.signalsStore.ListSignalInstances(ctx)
 	if err != nil {
 		return nil, err
 	}

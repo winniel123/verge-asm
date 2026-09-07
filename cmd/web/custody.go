@@ -20,7 +20,7 @@ func (s *server) setCustody(w http.ResponseWriter, r *http.Request, acct db.Acco
 	}
 	// A stale page posting the end state cannot surprise-withdraw the way a blind flip would.
 	extend := r.FormValue("extend") == "true"
-	if err := s.store.SetCustodyExtension(r.Context(), db.SetCustodyExtensionParams{
+	if err := s.custodyStore.SetCustodyExtension(r.Context(), db.SetCustodyExtensionParams{
 		ID: id, CustodyExtension: extend,
 	}); err != nil {
 		s.serverError(w, "set custody extension", err)

@@ -154,7 +154,7 @@ func (s *server) backupDownload(w http.ResponseWriter, r *http.Request, acct db.
 		return
 	}
 
-	if err := s.store.SetLastBackup(ctx, pgtype.Int8{Int64: cw.n, Valid: true}); err != nil {
+	if err := s.backupStore.SetLastBackup(ctx, pgtype.Int8{Int64: cw.n, Valid: true}); err != nil {
 		log.Printf("web: backup: record last backup: %v", err)
 	}
 }

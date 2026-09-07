@@ -208,7 +208,7 @@ func (s *server) fillSourcesSection(r *http.Request, f settingsForms, data map[s
 		LatencyTarget: fmt.Sprintf("≤ %d s", scan.CTP95LatencyBarMS/1000),
 	}
 
-	names, err := s.store.CTLastBatchAdmitCount(r.Context())
+	names, err := s.sourcesStore.CTLastBatchAdmitCount(r.Context())
 	if err != nil {
 		return err
 	}
@@ -230,11 +230,11 @@ func (s *server) fillSourcesSection(r *http.Request, f settingsForms, data map[s
 			break
 		}
 	}
-	tail, err := s.store.CTTailLastBatch(r.Context())
+	tail, err := s.sourcesStore.CTTailLastBatch(r.Context())
 	if err != nil {
 		return err
 	}
-	captured, err := s.store.CountCertificateMaterial(r.Context())
+	captured, err := s.sourcesStore.CountCertificateMaterial(r.Context())
 	if err != nil {
 		return err
 	}
@@ -263,7 +263,7 @@ func consentTerms(c catalogSource) []string {
 }
 
 func (s *server) sourceViews(r *http.Request) ([]sourceView, error) {
-	states, err := s.store.ListSourceStates(r.Context())
+	states, err := s.sourcesStore.ListSourceStates(r.Context())
 	if err != nil {
 		return nil, err
 	}
@@ -327,7 +327,7 @@ func (s *server) ctReliabilityViews(ctx context.Context) ([]ctReliabilityView, e
 	slugs := []string{scan.CrtshSource, scan.CertSpotterSource}
 	out := make([]ctReliabilityView, 0, len(slugs))
 	for _, slug := range slugs {
-		row, err := s.store.CTReliabilityWindow(ctx, db.CTReliabilityWindowParams{
+		row, err := s.sourcesStore.CTReliabilityWindow(ctx, db.CTReliabilityWindowParams{
 			Source:     slug,
 			SampleSize: scan.CTReliabilityWindowSize,
 		})
@@ -492,7 +492,7 @@ func (s *server) toggleSource(w http.ResponseWriter, r *http.Request, acct db.Ac
 		})
 		return
 	}
-	if _, err := s.store.UpsertSourceState(r.Context(), db.UpsertSourceStateParams{
+	if _, err := s.sourcesStore.UpsertSourceState(r.Context(), db.UpsertSourceStateParams{
 		Slug: slug, Enabled: enabled,
 	}); err != nil {
 		s.serverError(w, "upsert source state", err)
@@ -521,7 +521,7 @@ func (s *server) settingsSources(w http.ResponseWriter, r *http.Request, _ db.Ac
 		})
 		return
 	}
-	if _, err := s.store.UpsertSourceState(r.Context(), db.UpsertSourceStateParams{
+	if _, err := s.sourcesStore.UpsertSourceState(r.Context(), db.UpsertSourceStateParams{
 		Slug: id, Enabled: enable,
 	}); err != nil {
 		s.serverError(w, "upsert source state", err)

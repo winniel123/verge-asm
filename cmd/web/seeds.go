@@ -185,7 +185,7 @@ func (s *server) declareOneScope(r *http.Request, acct db.Account, value string,
 		if declared[key] {
 			return &refusalView{Input: value, Reason: alreadyDeclaredReason}
 		}
-		if _, err := s.store.CreateAddressSeed(r.Context(), db.CreateAddressSeedParams{
+		if _, err := s.seedsStore.CreateAddressSeed(r.Context(), db.CreateAddressSeedParams{
 			AddressCidr: &p, CreatedBy: acct.ID,
 		}); err != nil {
 			return createRefusal(value, err)
@@ -201,7 +201,7 @@ func (s *server) declareOneScope(r *http.Request, acct db.Account, value string,
 	if declared[key] {
 		return &refusalView{Input: value, Reason: alreadyDeclaredReason}
 	}
-	if _, err := s.store.CreateNameSeed(r.Context(), db.CreateNameSeedParams{
+	if _, err := s.seedsStore.CreateNameSeed(r.Context(), db.CreateNameSeedParams{
 		NameDomain: pgtype.Text{String: domain, Valid: true}, CreatedBy: acct.ID,
 	}); err != nil {
 		return createRefusal(value, err)
@@ -274,9 +274,9 @@ func (s *server) previewSeedWithdrawal(w http.ResponseWriter, r *http.Request, a
 			s.serverError(w, "parse seed scope", perr)
 			return
 		}
-		receipt, rerr = queue.SeedWithdrawalReceipt(r.Context(), s.store, s.now().UTC(), p)
+		receipt, rerr = queue.SeedWithdrawalReceipt(r.Context(), s.seedsStore, s.now().UTC(), p)
 	} else {
-		receipt, rerr = queue.NameSeedWithdrawalReceipt(r.Context(), s.store, id, scope)
+		receipt, rerr = queue.NameSeedWithdrawalReceipt(r.Context(), s.seedsStore, id, scope)
 	}
 	if rerr != nil {
 		log.Printf("web: preview seed withdrawal %s: %v", scope, rerr)
@@ -302,7 +302,7 @@ func (s *server) deleteSeed(w http.ResponseWriter, r *http.Request, acct db.Acco
 	}
 	scope, _ := s.seedScopeByID(r, id)
 	// A delete and its tombstone commit as one, so no withdrawn scope lacks a mover (ADR-0135 §2).
-	if _, err := s.store.WithdrawSeed(r.Context(), db.WithdrawSeedParams{
+	if _, err := s.seedsStore.WithdrawSeed(r.Context(), db.WithdrawSeedParams{
 		SeedID: id, CreatedBy: pgtype.Int8{Int64: acct.ID, Valid: true},
 	}); err != nil {
 		s.serverError(w, "withdraw seed", err)
@@ -322,7 +322,7 @@ func removalFlash(scope string) string {
 }
 
 func (s *server) seedScopeByID(r *http.Request, id int64) (string, bool) {
-	rows, err := s.store.ListSeeds(r.Context())
+	rows, err := s.seedsStore.ListSeeds(r.Context())
 	if err != nil {
 		return "", false
 	}
@@ -422,26 +422,26 @@ func toCustodyViews(nameSeeds []seedView) []custodyView {
 }
 
 func (s *server) renderSeeds(w http.ResponseWriter, r *http.Request, acct db.Account, f seedsForms) {
-	rows, err := s.store.ListSeeds(r.Context())
+	rows, err := s.seedsStore.ListSeeds(r.Context())
 	if err != nil {
 		s.serverError(w, "list seeds", err)
 		return
 	}
 	var excl []db.ListExclusionsRow
 	// A card is one region, so its failed read empties it alone (ADR-0168 §1, #1424).
-	if rows, eerr := s.store.ListExclusions(r.Context()); eerr == nil {
+	if rows, eerr := s.seedsStore.ListExclusions(r.Context()); eerr == nil {
 		excl = rows
 	}
 	var probers []db.ListVantagesRow
-	if rows, verr := s.store.ListVantages(r.Context()); verr == nil {
+	if rows, verr := s.seedsStore.ListVantages(r.Context()); verr == nil {
 		probers = rows
 	}
-	zoneStatus, err := s.store.ListZoneFileStatus(r.Context())
+	zoneStatus, err := s.seedsStore.ListZoneFileStatus(r.Context())
 	if err != nil {
 		s.serverError(w, "list zone files", err)
 		return
 	}
-	cadence, err := s.store.GetZoneCadenceSeconds(r.Context())
+	cadence, err := s.seedsStore.GetZoneCadenceSeconds(r.Context())
 	if err != nil {
 		s.serverError(w, "get zone cadence", err)
 		return
@@ -778,7 +778,7 @@ func (s *server) uploadOneZoneFile(r *http.Request, acct db.Account, fh *multipa
 		return &zoneErrorView{File: name, Reason: fmt.Sprintf(
 			"the zone's apex %s is outside every declared name scope — declare it as a name scope first, or upload the zone for a scope you hold.", apex)}
 	}
-	if _, err := s.store.CreateZoneFile(r.Context(), db.CreateZoneFileParams{
+	if _, err := s.seedsStore.CreateZoneFile(r.Context(), db.CreateZoneFileParams{
 		SeedID:     seedID,
 		SuppliedAt: pgtype.Timestamptz{Time: now, Valid: true},
 		Content:    string(content),
@@ -819,7 +819,7 @@ func zoneApex(content string) string {
 }
 
 func (s *server) nameSeedForApex(r *http.Request, apex string) (int64, bool) {
-	rows, err := s.store.ListSeeds(r.Context())
+	rows, err := s.seedsStore.ListSeeds(r.Context())
 	if err != nil {
 		return 0, false
 	}
@@ -845,7 +845,7 @@ func (s *server) setZoneInterval(w http.ResponseWriter, r *http.Request, acct db
 		})
 		return
 	}
-	if err := s.store.SetZoneCadenceSeconds(r.Context(), int64(days)*86400); err != nil {
+	if err := s.seedsStore.SetZoneCadenceSeconds(r.Context(), int64(days)*86400); err != nil {
 		s.serverError(w, "set zone cadence", err)
 		return
 	}
@@ -853,7 +853,7 @@ func (s *server) setZoneInterval(w http.ResponseWriter, r *http.Request, acct db
 }
 
 func (s *server) isNameSeed(r *http.Request, id int64) bool {
-	rows, err := s.store.ListSeeds(r.Context())
+	rows, err := s.seedsStore.ListSeeds(r.Context())
 	if err != nil {
 		return false
 	}

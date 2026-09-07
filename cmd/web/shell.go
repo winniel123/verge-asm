@@ -28,7 +28,7 @@ type bellMessage struct {
 }
 
 func (s *server) bellMessages(ctx context.Context, accountID int64, limit int) []bellMessage {
-	rows, err := s.store.ListMessages(ctx)
+	rows, err := s.shellStore.ListMessages(ctx)
 	if err != nil {
 		log.Printf("web: shell: list messages for bell: %v", err)
 		return nil
@@ -64,7 +64,7 @@ type paletteAsset struct {
 }
 
 func (s *server) currentAssets(ctx context.Context, limit int) (top []paletteAsset, count int) {
-	rows, err := s.store.ListCurrentNameSubjects(ctx, db.ListCurrentNameSubjectsParams{
+	rows, err := s.shellStore.ListCurrentNameSubjects(ctx, db.ListCurrentNameSubjectsParams{
 		Search: "", AsOf: s.obsAsOf(), FloorCadences: retention.FloorCadences,
 	})
 	if err != nil {
