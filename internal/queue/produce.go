@@ -26,8 +26,8 @@ type enqueueFunc func(ctx context.Context, messageID int64, class message.Class)
 
 type messageStore interface {
 	PreviousBatchTime(ctx context.Context) (pgtype.Timestamptz, error)
-	ListServiceReachabilitySpansByClass(ctx context.Context) ([]db.ListServiceReachabilitySpansByClassRow, error)
-	ListServiceReachabilitySpansByClassAt(ctx context.Context, at pgtype.Timestamptz) ([]db.ListServiceReachabilitySpansByClassAtRow, error)
+	ListServiceReachabilitySpansByClassForServices(ctx context.Context, serviceKeys []string) ([]db.ListServiceReachabilitySpansByClassForServicesRow, error)
+	ListServiceReachabilitySpansByClassAtForServices(ctx context.Context, arg db.ListServiceReachabilitySpansByClassAtForServicesParams) ([]db.ListServiceReachabilitySpansByClassAtForServicesRow, error)
 	ListAddressScopeCidrs(ctx context.Context) ([]*netip.Prefix, error)
 	AddressExclusionStore
 	InsertMessage(ctx context.Context, arg db.InsertMessageParams) (db.Message, error)
@@ -156,7 +156,7 @@ func flagshipMessages(ctx context.Context, store messageStore, observedAt time.T
 		return nil, err
 	}
 
-	current, err := store.ListServiceReachabilitySpansByClass(ctx)
+	current, err := store.ListServiceReachabilitySpansByClassForServices(ctx, services)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +168,10 @@ func flagshipMessages(ctx context.Context, store messageStore, observedAt time.T
 		return nil, err
 	}
 	if prev.Valid {
-		past, err := store.ListServiceReachabilitySpansByClassAt(ctx, prev)
+		past, err := store.ListServiceReachabilitySpansByClassAtForServices(ctx, db.ListServiceReachabilitySpansByClassAtForServicesParams{
+			ServiceKeys: services,
+			At:          prev,
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -224,7 +227,7 @@ type classLeg struct {
 	outcome string
 }
 
-func legsFromCurrent(rows []db.ListServiceReachabilitySpansByClassRow, covered func(netip.Addr) bool) []classLeg {
+func legsFromCurrent(rows []db.ListServiceReachabilitySpansByClassForServicesRow, covered func(netip.Addr) bool) []classLeg {
 	// The class is derived per read from presented-address facts, never a stored column (#709).
 	out := make([]classLeg, 0, len(rows))
 	// No leg is pre-collapsed here, so the existential quantifier applies later (ADR-0080).
@@ -235,7 +238,7 @@ func legsFromCurrent(rows []db.ListServiceReachabilitySpansByClassRow, covered f
 	return out
 }
 
-func legsFromAt(rows []db.ListServiceReachabilitySpansByClassAtRow, covered func(netip.Addr) bool) []classLeg {
+func legsFromAt(rows []db.ListServiceReachabilitySpansByClassAtForServicesRow, covered func(netip.Addr) bool) []classLeg {
 	out := make([]classLeg, 0, len(rows))
 	for _, r := range rows {
 		class := string(vantageclass.Derive(r.DialledAddr.String, r.Egress.String, covered))

@@ -18,11 +18,12 @@ var produceT0 = time.Date(2026, 8, 27, 12, 0, 0, 0, time.UTC)
 
 type fakeMessageStore struct {
 	prev        pgtype.Timestamptz
-	current     []db.ListServiceReachabilitySpansByClassRow
-	at          []db.ListServiceReachabilitySpansByClassAtRow
+	current     []db.ListServiceReachabilitySpansByClassForServicesRow
+	at          []db.ListServiceReachabilitySpansByClassAtForServicesRow
 	inserted    []db.InsertMessageParams
 	nextID      int64
 	touchedRead bool
+	askedFor    [][]string
 
 	addressExclusions []*netip.Prefix
 }
@@ -32,13 +33,15 @@ func (f *fakeMessageStore) PreviousBatchTime(context.Context) (pgtype.Timestampt
 	return f.prev, nil
 }
 
-func (f *fakeMessageStore) ListServiceReachabilitySpansByClass(context.Context) ([]db.ListServiceReachabilitySpansByClassRow, error) {
+func (f *fakeMessageStore) ListServiceReachabilitySpansByClassForServices(_ context.Context, serviceKeys []string) ([]db.ListServiceReachabilitySpansByClassForServicesRow, error) {
 	f.touchedRead = true
+	f.askedFor = append(f.askedFor, serviceKeys)
 	return f.current, nil
 }
 
-func (f *fakeMessageStore) ListServiceReachabilitySpansByClassAt(context.Context, pgtype.Timestamptz) ([]db.ListServiceReachabilitySpansByClassAtRow, error) {
+func (f *fakeMessageStore) ListServiceReachabilitySpansByClassAtForServices(_ context.Context, arg db.ListServiceReachabilitySpansByClassAtForServicesParams) ([]db.ListServiceReachabilitySpansByClassAtForServicesRow, error) {
 	f.touchedRead = true
+	f.askedFor = append(f.askedFor, arg.ServiceKeys)
 	return f.at, nil
 }
 
@@ -62,29 +65,29 @@ const (
 	dialledInternal = "10.200.0.1"
 )
 
-func internetReachRow(svc, outcome string) db.ListServiceReachabilitySpansByClassRow {
-	return db.ListServiceReachabilitySpansByClassRow{
+func internetReachRow(svc, outcome string) db.ListServiceReachabilitySpansByClassForServicesRow {
+	return db.ListServiceReachabilitySpansByClassForServicesRow{
 		SubjectKey: svc, VantageID: pgtype.Int8{Int64: 1, Valid: true}, Value: reachValue(outcome),
 		DialledAddr: pgtype.Text{String: dialledInternet, Valid: true},
 	}
 }
 
-func internetReachAtRow(svc, outcome string) db.ListServiceReachabilitySpansByClassAtRow {
-	return db.ListServiceReachabilitySpansByClassAtRow{
+func internetReachAtRow(svc, outcome string) db.ListServiceReachabilitySpansByClassAtForServicesRow {
+	return db.ListServiceReachabilitySpansByClassAtForServicesRow{
 		SubjectKey: svc, VantageID: pgtype.Int8{Int64: 1, Valid: true}, Value: reachValue(outcome),
 		DialledAddr: pgtype.Text{String: dialledInternet, Valid: true},
 	}
 }
 
-func internalReachRow(svc, outcome string) db.ListServiceReachabilitySpansByClassRow {
-	return db.ListServiceReachabilitySpansByClassRow{
+func internalReachRow(svc, outcome string) db.ListServiceReachabilitySpansByClassForServicesRow {
+	return db.ListServiceReachabilitySpansByClassForServicesRow{
 		SubjectKey: svc, VantageID: pgtype.Int8{Int64: 2, Valid: true}, Value: reachValue(outcome),
 		DialledAddr: pgtype.Text{String: dialledInternal, Valid: true},
 	}
 }
 
-func internalReachAtRow(svc, outcome string) db.ListServiceReachabilitySpansByClassAtRow {
-	return db.ListServiceReachabilitySpansByClassAtRow{
+func internalReachAtRow(svc, outcome string) db.ListServiceReachabilitySpansByClassAtForServicesRow {
+	return db.ListServiceReachabilitySpansByClassAtForServicesRow{
 		SubjectKey: svc, VantageID: pgtype.Int8{Int64: 2, Valid: true}, Value: reachValue(outcome),
 		DialledAddr: pgtype.Text{String: dialledInternal, Valid: true},
 	}
@@ -118,8 +121,8 @@ func batchMovingBothSignals() (changes []spanChange, store *fakeMessageStore) {
 	}
 	store = &fakeMessageStore{
 		prev:    prevAt(produceT0.Add(-time.Hour)),
-		current: []db.ListServiceReachabilitySpansByClassRow{internetReachRow(svc, "reached")},
-		at:      []db.ListServiceReachabilitySpansByClassAtRow{internetReachAtRow(svc, "not-reached")},
+		current: []db.ListServiceReachabilitySpansByClassForServicesRow{internetReachRow(svc, "reached")},
+		at:      []db.ListServiceReachabilitySpansByClassAtForServicesRow{internetReachAtRow(svc, "not-reached")},
 	}
 	return changes, store
 }
@@ -181,6 +184,32 @@ func TestProduceWritesFlagshipAndMembershipAndEnqueues(t *testing.T) {
 	}
 }
 
+func TestProduceReadsOnlyTheBatchesCandidateServices(t *testing.T) {
+	const svc = "198.51.100.1:443/tcp"
+	changes := []spanChange{
+		{SubjectKind: "service", SubjectKey: svc, Facet: "reachability", Opened: false, Value: reachValue("reached")},
+		{SubjectKind: "service", SubjectKey: svc, Facet: "reachability", Opened: true, Value: reachValue("reached")},
+		{SubjectKind: "name", SubjectKey: "example.com", Facet: "resolution", Opened: true, Value: []byte(`{}`)},
+	}
+	store := &fakeMessageStore{
+		prev:    prevAt(produceT0.Add(-time.Hour)),
+		current: []db.ListServiceReachabilitySpansByClassForServicesRow{internetReachRow(svc, "reached")},
+		at:      []db.ListServiceReachabilitySpansByClassAtForServicesRow{internetReachAtRow(svc, "not-reached")},
+	}
+	var log []routed
+	if err := produceMessages(context.Background(), store, 9, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
+		t.Fatalf("produce: %v", err)
+	}
+	if len(store.askedFor) != 2 {
+		t.Fatalf("want two bounded span reads, got %d", len(store.askedFor))
+	}
+	for i, keys := range store.askedFor {
+		if len(keys) != 1 || keys[0] != svc {
+			t.Errorf("read %d asked for %v, want only the candidate Service %q", i, keys, svc)
+		}
+	}
+}
+
 func TestProduceIsNoOpUnderDevMode(t *testing.T) {
 	changes, store := batchMovingBothSignals()
 	var log []routed
@@ -228,7 +257,7 @@ func TestProduceOpeningAtReachedIsNotFlagship(t *testing.T) {
 	}
 	store := &fakeMessageStore{
 		prev:    pgtype.Timestamptz{},
-		current: []db.ListServiceReachabilitySpansByClassRow{internetReachRow(svc, "reached")},
+		current: []db.ListServiceReachabilitySpansByClassForServicesRow{internetReachRow(svc, "reached")},
 	}
 	var log []routed
 	if err := produceMessages(context.Background(), store, 1, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
@@ -248,8 +277,8 @@ func TestProduceInternalLegNeverFlagship(t *testing.T) {
 	}
 	store := &fakeMessageStore{
 		prev:    prevAt(produceT0.Add(-time.Hour)),
-		current: []db.ListServiceReachabilitySpansByClassRow{internalReachRow(svc, "reached")},
-		at:      []db.ListServiceReachabilitySpansByClassAtRow{internalReachAtRow(svc, "not-reached")},
+		current: []db.ListServiceReachabilitySpansByClassForServicesRow{internalReachRow(svc, "reached")},
+		at:      []db.ListServiceReachabilitySpansByClassAtForServicesRow{internalReachAtRow(svc, "not-reached")},
 	}
 	var log []routed
 	if err := produceMessages(context.Background(), store, 2, produceT0, changes, nil, nil, membershipInputs{}, fakeEnqueuer(1, &log), false); err != nil {
