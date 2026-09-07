@@ -83,12 +83,12 @@ type Pacer struct {
 }
 
 func NewPacer(profile SafetyProfile) *Pacer {
-	pps := profile.PerVantagePacketsPerSec
-	if pps < 1 {
-		pps = 1
+	cps := profile.PerVantageConnPerSec
+	if cps < 1 {
+		cps = 1
 	}
 	return &Pacer{
-		aggregateInterval: time.Second / time.Duration(pps),
+		aggregateInterval: time.Second / time.Duration(cps),
 		lastHost:          map[netip.Addr]time.Time{},
 		backoff:           map[netip.Addr]*Backoff{},
 		profile:           profile,
@@ -108,7 +108,7 @@ func (p *Pacer) Signal(host netip.Addr, cause Stress) { p.backoffFor(host).Signa
 
 func (p *Pacer) Next(host netip.Addr, now time.Time) time.Time {
 	earliest := now
-	// 50 conn/s is a 20 ms interval and 200 pkt/s 5 ms, so the per-host arm always wins (#1092).
+	// 50 conn/s is a 20 ms interval and 200 conn/s 5 ms, so the per-host arm always wins (#1092).
 	if !p.lastAggregate.IsZero() {
 		if t := p.lastAggregate.Add(p.aggregateInterval); t.After(earliest) {
 			earliest = t

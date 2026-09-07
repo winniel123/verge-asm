@@ -183,12 +183,12 @@ so it decides membership as affirmatively as `resolution-walk`'s own outcomes
 | --- | --- |
 | Technique | TCP connect (never SYN) — non-root, `cap_drop: [ALL]`, no added capabilities |
 | Host discovery | Skipped (`-Pn`) — targets are seeded, not swept for liveness |
-| Port-scan rate | ≤ 50 conn/s per host, ≤ 20 concurrent, 3 s connect timeout, 2 retries |
+| Port-scan rate | ≤ 50 conn/s per host, ≤ 20 concurrent, 3 s connect timeout, 2 retries on a service port and 0 on a control port ([ADR-0224](../adr/0224-the-vantage-ceiling-counts-connections-and-a-control-port-spends-one-attempt.md)) |
 | HTTP | `GET /` only, 64 KB capped body read, 10 s timeout, ≤ 10 req/s per host — one exchange per `Endpoint`, and there is no path list. This row is `http-exchange`'s **instance** of [ADR-0148](../adr/0148-a-measurement-leaf-sends-an-authored-fixed-request-and-never-mutates-remote-state-or-follows-a-link.md), not the whole rule |
 | Redirects | **Never** followed — not *not by default*: a declared parameter of `http-exchange`, not an operator dial. The `Location` is recorded and the next hop is never dialled ([ADR-0148](../adr/0148-a-measurement-leaf-sends-an-authored-fixed-request-and-never-mutates-remote-state-or-follows-a-link.md)) |
 | Admin-panel / credential probing | Response-matching only; default-credential login attempts never, not even opt-in |
 | TLS | Certificate fetched every run (rides the `reachability` exchange); version/cipher enumeration weekly, own `Scan` |
-| Per-vantage ceiling | 200 pkt/s across the targets one `Vantage` probes; round-robin by host, never by port (ADR-0137) |
+| Per-vantage ceiling | 200 conn/s across the targets one `Vantage` probes; round-robin by host, never by port (ADR-0137, [ADR-0224](../adr/0224-the-vantage-ceiling-counts-connections-and-a-control-port-spends-one-attempt.md)). The pacer spaces connection attempts. A dropped SYN is retransmitted by the kernel below that seam, so the packet count on the wire is not this figure |
 | Adaptive back-off | Halves the rate on timeout/RST-spike/429/503; never touches the deadline (ADR-0021 keeps it outside `connect-outcome`) |
 
 **The `Host discovery`, `HTTP`, `Redirects` and `Admin-panel` rows above are each an instance of one

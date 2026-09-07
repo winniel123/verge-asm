@@ -11,7 +11,7 @@ import (
 
 // Moves only on an output-affecting change, gated by this leaf's own golden corpus (ADR-0008).
 
-const Version = "connect-outcome/v3"
+const Version = "connect-outcome/v4"
 
 const Kind = "connect-outcome"
 
@@ -25,9 +25,10 @@ type SafetyProfile struct {
 	PerHostConcurrency   int `json:"per_host_concurrency"`
 	ConnectTimeoutMillis int `json:"connect_timeout_millis"`
 	Retries              int `json:"retries"`
+	ControlPortRetries   int `json:"control_port_retries"`
 
-	PerVantagePacketsPerSec int  `json:"per_vantage_packets_per_sec"`
-	RoundRobinByHost        bool `json:"round_robin_by_host"`
+	PerVantageConnPerSec int  `json:"per_vantage_conn_per_sec"`
+	RoundRobinByHost     bool `json:"round_robin_by_host"`
 
 	AdaptiveBackoff BackoffPolicy `json:"adaptive_backoff"`
 }
@@ -60,9 +61,11 @@ func DefaultProfile() SafetyProfile {
 		PerHostConcurrency:   ExchangeInFlight,
 		ConnectTimeoutMillis: 3000,
 		Retries:              2,
+		// The eight-port set carries the redundancy a service port takes from a retry (ADR-0224).
+		ControlPortRetries: 0,
 		// Enforced per Vantage, so a target inside N Vantages receives N times the rate (ADR-0137).
-		PerVantagePacketsPerSec: 200,
-		RoundRobinByHost:        true,
+		PerVantageConnPerSec: 200,
+		RoundRobinByHost:     true,
 		AdaptiveBackoff: BackoffPolicy{
 			HalveOnTimeout:  true,
 			HalveOnRSTSpike: true,
