@@ -1,3 +1,4 @@
+// Package rule is the ratchet rule set of comment-policy.md §6.6.
 package rule
 
 import (
